@@ -45,12 +45,13 @@ internal sealed class WorkerClaimer(
             var handedOff = false;
             DateTime? claimFrom = null;
             var headClaimedAt = Stopwatch.GetTimestamp();
-            log.LogInformation(
-                "WorkerRuntime: starting claim/dispatch loop with {Count} executors, safety poll {DurationMs}ms ({Detail}).",
-                options.MaxConcurrentExecutors,
-                (long)options.SafetyPollInterval.TotalMilliseconds,
-                $"claim up to {_maxClaim}, poll floor {(long)options.MinPollFloor.TotalMilliseconds}ms"
-            );
+            if (log.IsEnabled(LogLevel.Information))
+            {
+                var detail =
+                    $"{options.MaxConcurrentExecutors} executors, safety poll {(long)options.SafetyPollInterval.TotalMilliseconds}ms, "
+                    + $"claim up to {_maxClaim}, poll floor {(long)options.MinPollFloor.TotalMilliseconds}ms";
+                ActaLog.WorkerStarted(log, ns, detail);
+            }
             while (!stop.IsCancellationRequested)
             {
                 var permits = 0;
@@ -98,11 +99,7 @@ internal sealed class WorkerClaimer(
                 {
                     // A failed claim backs off a full safety interval, not the anti-spin floor, which is for deadline
                     // races: hammering a down database at the floor would log errors many times a second.
-                    log.LogError(
-                        ex,
-                        "WorkerRuntime: claim iteration failed; backing off {DurationMs}ms before retry.",
-                        (long)options.SafetyPollInterval.TotalMilliseconds
-                    );
+                    ActaLog.ClaimIterationFailed(log, ex, (long)options.SafetyPollInterval.TotalMilliseconds);
                     await Task.Delay(options.SafetyPollInterval, stop.Token);
                     continue;
                 }

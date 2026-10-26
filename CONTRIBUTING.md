@@ -432,7 +432,7 @@ After 1.0.0 a rename that breaks one is a breaking change, not a cleanup.
   qualification.** `JobRequestBuilder.Create(...)` is typed at every call site and stays short;
   `JobEnqueueOptionsBuilder` appears only as an inferred lambda parameter and affords its length.
 - **No `Job` prefix on types that are not jobs.** The prefix marks the job aggregate's own types and
-  what describes one job (`JobStatusCode`, `JobLogScope`, `InFlightJob`); never a type that merely
+  what describes one job (`JobStatusCode`, `JobContext`, `InFlightJob`); never a type that merely
   belongs to Acta or acts on many jobs, which a worker's agents do.
 - **An `Operations/` group is plural, an `Engine/` box is singular.** A group is the aggregate
   (`Jobs`, `Workers`, `Alerts`); a box is named for its capability (`Worker` holds one worker's runtime,
@@ -554,31 +554,29 @@ operator's index maps a log field, so both outlive the release that introduced t
 
 ### Telemetry: structured log fields
 
-A log line draws its fields from these twelve names; a new name costs a mapped field in every index that receives Acta's logs.
+Every field Acta logs is a mapped field in an operator's index for as long as the index lives. So a field has one meaning everywhere or it does not exist, it carries the `Acta` prefix so no application field can clash with it in type or meaning, and it has one type: `long` for a number an operator charts, `string` for everything else.
 
-| Field | Type | Holds |
-|-------|------|-------|
-| `Namespace` | string | The job namespace's name |
-| `JobId` | int64 | The job's internal id |
-| `JobName` | string | The definition's job name |
-| `Attempt` | int32 | An attempt or pass number |
-| `Ref` | string | The public ref of the entity the line is about |
-| `SubjectRef` | string | The second ref, when a line legitimately carries two |
-| `Operation` | string | The named action or phase being reported |
-| `Outcome` | string | How it ended |
-| `Reason` | string | Why it ended that way |
-| `Count` | int16 / int32 / int64 | A cardinal quantity: rows, bytes |
-| `DurationMs` | int32 / int64 / double | An elapsed or configured span |
-| `Detail` | string | The genuinely one-off value nobody filters or groups by |
+| Field | Type | Why an operator wants it |
+|-------|------|--------------------------|
+| `ActaJobId` | long | one job's every line, across retries, reclaims and workers |
+| `ActaJobName` | string | every line of one job type |
+| `ActaNamespace` | string | everything in one namespace |
+| `ActaExecutionNumber` | long | tells one attempt from another |
+| `ActaWorkerId` | long | everything the worker that ran an attempt did |
+| `ActaCorrelationKey` | string | the caller's business key, joining handler lines to the request that enqueued the job |
+| `ActaAlertRef` | string | one alert's delivery story |
+| `ActaAlertKind` | string | what fired, on the `ACTA ALERT` log-transport line, so log-based alert rules can route |
+| `ActaJobRef` | string | the job an alert is about, as the dashboard shows it |
+| `ActaDurationMs` | long | a span in milliseconds (clock skew, a drain) |
+| `ActaDetail` | string | the line's human-read value; one shared name, so a one-off value never becomes a new index field |
 
+- src logs only through `ActaLog` (in Acta, also used by Acta.Redis) and `ActaAspNetCoreLog`, as `[LoggerMessage]` methods: a disabled level costs one check and no formatting. `LogVocabularyTests` holds the list above, each method's parameter names and types against it, and bans a log call anywhere else in src.
+- `ActaLog.BeginJobScope` stamps `ActaJobId`, `ActaJobName`, `ActaNamespace`, `ActaExecutionNumber`, `ActaWorkerId`, and `ActaCorrelationKey` on every line of an attempt, the handler's own lines included; `JobLogScopeTests` pins them.
+- The success path logs nothing per job. Failures, misconfigurations and rare events log, even where the ledger also records them; Acta writes no Debug lines.
+- A value an operator would not filter or chart by goes into the message text or `ActaDetail`. A new field needs the one thing an operator does with it, written in the table.
+- A call site that computes an argument (an interpolation, a `ToString`) computes it into a local inside an `IsEnabled` guard; CA1873 fails the build otherwise.
+- A string value sits in parentheses in the message (`({ActaDetail})`); a number does not.
 - Durations are always milliseconds.
-- `Ref` is any entity ref, and the message names which (`alert {Ref}`); `SubjectRef` is the second one when a line carries two.
-- Categorical fields are rendered to strings at the call site (refs as `job_...`, `Outcome` and `Reason` as tokens); `Count`, `DurationMs`, and `JobId` stay numeric.
-- `Outcome` values are PascalCase, mirroring the enum member; `Operation` and `Reason` values are kebab-case.
-- A string value sits in parentheses in the message (`({Detail})`); a number does not.
-- Metric `outcome` tags are lowercase and frozen at 1.0, so they differ from log `Outcome` on purpose.
-- `LoggerParameterTypes.txt` is the list, enforced over `src` by Meziantou.Analyzer `MA0135` and `MA0124`.
-- `JobLogScope` also stamps `ExecutionNumber`, `WorkerId`, and `CorrelationKey` on every line of an attempt; `JobLogScopeTests` pins them.
 
 ## Source layout
 
@@ -693,7 +691,8 @@ Definitions the boxes rest on: a worker is one process runtime registered for on
 | `DuplicateShapeTests` | no two types declaring the same property names, except types of different operations or routes, each owned by the folder that declares it |
 | `RouteBodyTests` | a route's body is its own `XRequest`, on no other route, and it answers an `XResponse`, the SDK's or its own; every request and response in `Acta.AspNetCore` sits in the folder named for it |
 | `DialectParityTests` | an operation's three SQL files return the same columns |
-| `FileLengthTests` | at most 700 lines per source file; the 150-line method cap is MA0051's, in the build |
+| `FileLengthTests` | at most 700 lines per source file |
+| `LogVocabularyTests` | src logs only through `ActaLog` and `ActaAspNetCoreLog`, whose `[LoggerMessage]` methods take only the log-field vocabulary at its declared types |
 | `FileNameTests` | every file in `src/Acta` named for its first top-level type, a partial type's other files `Type.Part.cs` |
 | `PublicApiContractTests` | the public types and members of every shipped assembly match `PublicApiSurface.approved.txt` |
 | `ArchitectureBoundaryTests` | `Acta.AspNetCore` references only `Acta` |

@@ -256,13 +256,13 @@ internal sealed class OutboxRelay(OutboxOperations.Source source, JobsOperations
 
         if (quarantinedIds.Count > 0)
         {
-            _log.LogError(
-                "ACTA sys.outbox: ({Operation}) ({Outcome}) {Count} row(s) this tick; ({Detail}).",
-                "outbox-relay",
-                "Quarantined",
-                quarantinedIds.Count,
-                $"source '{options.SourceName}', ids [{OutboxQuarantineTickException.FormatSample(quarantinedIds)}]"
-            );
+            if (_log.IsEnabled(LogLevel.Error))
+            {
+                ActaLog.OutboxRowsQuarantined(
+                    _log,
+                    $"{quarantinedIds.Count} row(s), source '{options.SourceName}', ids [{OutboxQuarantineTickException.FormatSample(quarantinedIds)}]"
+                );
+            }
             throw new OutboxQuarantineTickException(options.SourceName, quarantinedIds);
         }
 
@@ -321,11 +321,7 @@ internal sealed class OutboxRelay(OutboxOperations.Source source, JobsOperations
             // the tick without consuming any row's quarantine budget. Partially-enqueued rows are safe;
             // the next tick re-enqueues them and the target deduplicates.
             await ReleaseBestEffortAsync(token, claimed.Select(r => r.OutboxId).ToList(), ct);
-            _log.LogWarning(
-                ex,
-                "ACTA sys.outbox: target enqueue failed for source ({Detail}); releasing claim and failing tick.",
-                options.SourceName
-            );
+            ActaLog.OutboxTargetEnqueueFailed(_log, ex, options.SourceName);
             throw;
         }
 
@@ -374,13 +370,13 @@ internal sealed class OutboxRelay(OutboxOperations.Source source, JobsOperations
                 }
             }
 
-            _log.LogInformation(
-                "ACTA sys.outbox: rejected a row group in namespace ({Namespace}); {Count} row(s) quarantined ({Detail}).",
-                group.Representative.JobNamespace,
-                groupQuarantined,
-                $"source '{options.SourceName}', dedup key '{group.Representative.DeduplicationKey}', "
-                    + $"{group.Rows.Count - groupQuarantined} rescheduled"
-            );
+            if (_log.IsEnabled(LogLevel.Information))
+            {
+                var detail =
+                    $"{groupQuarantined} row(s) quarantined, {group.Rows.Count - groupQuarantined} rescheduled, "
+                    + $"source '{options.SourceName}', dedup key '{group.Representative.DeduplicationKey}'";
+                ActaLog.OutboxRowGroupRejected(_log, group.Representative.JobNamespace, detail);
+            }
         }
 
         // Finalization is one store round trip per outcome kind for the whole batch, not one per group.
@@ -556,9 +552,9 @@ internal sealed class OutboxRelay(OutboxOperations.Source source, JobsOperations
         {
             await source.ReleaseClaimedAsync(new ReleaseClaimedOutboxCommand(token, outboxIds), CancellationToken.None);
         }
-        catch (Exception ex)
+        catch (Exception)
         {
-            _log.LogDebug(ex, "ACTA sys.outbox: best-effort claim release failed; lease expiry and token CAS keep the rows safe.");
+            // Best effort: lease expiry and the token compare-and-swap keep the rows safe.
         }
     }
 

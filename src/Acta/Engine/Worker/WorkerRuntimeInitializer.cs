@@ -53,11 +53,11 @@ internal sealed class WorkerRuntimeInitializer(
             }
             catch (Exception ex) when (ex is DbException or InvalidOperationException && attempt < CatalogAttempts)
             {
-                _log.LogInformation(
-                    ex,
-                    "Registering the catalog failed on pass {Attempt}; another replica may be registering it. Retrying.",
-                    attempt
-                );
+                if (_log.IsEnabled(LogLevel.Information))
+                {
+                    var pass = $"pass {attempt}";
+                    ActaLog.CatalogRegistrationRetrying(_log, ex, pass);
+                }
                 await Task.Delay(TimeSpan.FromMilliseconds(100 * attempt), ct);
             }
         }

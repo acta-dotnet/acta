@@ -92,12 +92,10 @@ internal sealed partial class RuntimeJobContext
 
     private void RecordLockReleaseFailure(string lockKind, string key, Exception exception)
     {
-        _log.LogWarning(
-            exception,
-            "Failed to release the ({Detail}) held for job {JobId}; continuing because the lock TTL will clean it up.",
-            $"{lockKind} lock '{key}'",
-            JobId
-        );
+        if (_log.IsEnabled(LogLevel.Warning))
+        {
+            ActaLog.LockReleaseFailed(_log, exception, $"{lockKind} lock '{key}'", JobId);
+        }
         _metrics?.RecordLockReleaseFailure(JobNamespace, JobName, lockKind, exception.GetType().Name);
     }
 

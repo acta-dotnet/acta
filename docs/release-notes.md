@@ -2,11 +2,13 @@
 
 ## 1.0.0-rc.7
 
-Not tagged yet. These fix what an external review of rc.6 found. The schema is unchanged: an rc.6 database keeps working.
+Not tagged yet. These fix what an external review of rc.6 found, rename Acta's log fields, and drop dependencies. The schema is unchanged: an rc.6 database keeps working.
 
 ### What a consumer must change
 
 **A typed wait refuses a job whose definition returns another type.** `JobHandle<T>.WaitAsync`, `WaitAsync<T>`, and `RunAndWaitAsync<T>` throw `InvalidOperationException` when the job's registered definition produces a result other than `T`, or none. Before, a deduplication key shared across definitions handed back the other definition's job, and its wait decoded the foreign result leniently: success, with defaults in the missing members. A job this process does not register decodes as before.
+
+**Every log field Acta writes is renamed, and saved log queries must follow.** Each field carries the `Acta` prefix so none can clash with an application's own: the job scope on every handler line is `ActaJobId`, `ActaJobName`, `ActaNamespace`, `ActaExecutionNumber`, `ActaWorkerId`, and `ActaCorrelationKey`. Numbers are `long`. `Operation`, `Outcome`, `Reason`, `Count`, and `SubjectRef` are gone, because each meant something different on different lines; their values now read in the message or in `ActaDetail`. The `ACTA ALERT` line carries `ActaAlertRef`, `ActaJobRef`, and `ActaAlertKind`. Acta no longer logs a line per completed job, nor any Debug line. The operator guide's "Logs" section shows how to quiet a failure storm.
 
 **Native AOT with a multi-parameter handler:** declare the input record yourself. The developer guide used to say to add the generated `Args` record to your JSON context, which cannot work. System.Text.Json's generator never sees a generator-emitted type.
 
@@ -17,6 +19,12 @@ Not tagged yet. These fix what an external review of rc.6 found. The schema is u
 - A wake's metric listener or logger that throws no longer fails the operation that published it. Before, a throwing listener made `CancelAsync` throw after the parent's cancel committed, and the children kept running.
 - `jobs.EnqueueAsync(new EnqueueJobRequest(...))` and its transactional twin compile with the token left out. Before, they were ambiguous with the generic overload (CS0121).
 - `JobContext.ExecutionNumber` no longer claims to be an idempotency key. It changes on every retry.
+
+### Dependencies
+
+- The payload-formats concept no longer uses MessagePack; its two custom formats need no package.
+- The explicit SourceLink package is gone, because the .NET SDK ships it. The Microsoft.OpenApi pin is gone, because AspNetCore.OpenApi now requires a safe version itself.
+- Meziantou.Analyzer is gone. src logs through source-generated `[LoggerMessage]` classes, and `LogVocabularyTests` holds their fields.
 
 ### Known limitations
 

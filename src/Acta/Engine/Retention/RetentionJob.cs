@@ -173,13 +173,13 @@ internal sealed class RetentionJob(
     /// a channel is a signal an operator never got - and never an Acta alert of its own, which
     /// would recurse.
     /// </summary>
-    private void LogUndeliveredPurge(JobContext ctx, int count) =>
-        _log.LogWarning(
-            "ACTA sys.retention: purged {Count} alerts in namespace ({Namespace}) that aged out before delivery settled; reason ({Reason}).",
-            count,
-            ctx.JobNamespace,
-            "alert-retention-cap"
-        );
+    private void LogUndeliveredPurge(JobContext ctx, int count)
+    {
+        if (_log.IsEnabled(LogLevel.Warning))
+        {
+            ActaLog.UndeliveredAlertsPurged(_log, $"{count} alerts", ctx.JobNamespace);
+        }
+    }
 }
 
 /// <summary>

@@ -209,14 +209,14 @@ internal sealed class AlertsJob(
     /// is the one that explains why a backlog is clearing a tick at a time, so it names which bound
     /// ended the pass and how much the pass got through.
     /// </summary>
-    private void LogDrainBound(JobContext ctx, string reason, int projected, Stopwatch elapsed) =>
-        _log.LogInformation(
-            "ACTA sys.alerts: the generate drain stopped at its ({Reason}) bound in namespace ({Namespace}) having projected {Count} events in {DurationMs} ms; the next pass resumes from the cursor.",
-            reason,
-            ctx.JobNamespace,
-            projected,
-            elapsed.ElapsedMilliseconds
-        );
+    private void LogDrainBound(JobContext ctx, string reason, int projected, Stopwatch elapsed)
+    {
+        if (_log.IsEnabled(LogLevel.Information))
+        {
+            var detail = $"{reason} bound, {projected} events projected";
+            ActaLog.AlertDrainStoppedAtBound(_log, ctx.JobNamespace, elapsed.ElapsedMilliseconds, detail);
+        }
+    }
 
     /// <summary>
     /// Replays the poison events this projector skipped, behind the cursor or not. One a newer success of its job
@@ -259,14 +259,15 @@ internal sealed class AlertsJob(
             }
 
             await ctx.DeleteVariableAsync(new PoisonAlertEvent(e.EventId, e.JobId, e.CreatedAtUtc.Ticks).VariableName, ct);
-            _log.LogInformation(
-                "ACTA sys.alerts: replayed skipped alert event ({Detail}) in namespace ({Namespace}); reason ({Reason}).",
-                e.EventId.ToString(System.Globalization.CultureInfo.InvariantCulture),
-                ctx.JobNamespace,
-                e.Superseded ? "superseded"
+            if (_log.IsEnabled(LogLevel.Information))
+            {
+                var disposition =
+                    e.Superseded ? "superseded"
                     : e.AlertProfile == AlertProfileCode.None ? "disabled"
-                    : "projected"
-            );
+                    : "projected";
+                var detail = $"{e.EventId}, {disposition}";
+                ActaLog.AlertEventReplayed(_log, detail, ctx.JobNamespace);
+            }
         }
     }
 
@@ -287,13 +288,15 @@ internal sealed class AlertsJob(
         // is retried. A crash after this write but before the cursor update safely overwrites the same slot.
         await ctx.SetVariableAsync(variableName, durableRecord, ct);
 
-        _log.LogWarning(
-            exception,
-            "ACTA sys.alerts: skipped poison alert event ({Detail}) in namespace ({Namespace}); reason ({Reason}).",
-            $"{e.EventId} (durable outcome recorded in job variable '{variableName}')",
-            ctx.JobNamespace,
-            reason
-        );
+        if (_log.IsEnabled(LogLevel.Warning))
+        {
+            ActaLog.PoisonAlertEventSkipped(
+                _log,
+                exception,
+                $"{e.EventId}, {reason}, durable outcome recorded in job variable '{variableName}'",
+                ctx.JobNamespace
+            );
+        }
         _metrics?.RecordAlertProjectionSkip(ctx.JobNamespace, reason);
     }
 

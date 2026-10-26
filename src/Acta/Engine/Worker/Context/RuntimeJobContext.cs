@@ -289,20 +289,14 @@ internal sealed partial class RuntimeJobContext(
         var children = (await _executionStore.GetChildJobIdsAsync(JobId, ct)).ChildJobIds;
         if (!children.Contains(childJobId))
         {
-            // The awaiting job and its namespace are already on the log scope, so the subject here is
-            // the target and nothing else repeats. SubjectRef carries the awaited job's numeric id, not
-            // a minted JobRef as the alert transport's does: resolving a ref would cost a store round
-            // trip on a path whose whole point is to be the cheap safety rail. One warning, not a
-            // throw: the wait did time out, and a handler bug should be loud in telemetry rather than
-            // destructive in the ledger.
-            _log.LogWarning(
-                "({Operation}) ({Outcome}) for job {SubjectRef} ({Reason}); the awaited job is not a child of this one, "
-                    + "so its wait could only ever expire.",
-                "child-wait-timeout-cancel",
-                "Skipped",
-                childJobId.ToString(CultureInfo.InvariantCulture),
-                "not-a-child"
-            );
+            // The awaiting job and its namespace are already on the log scope, so the detail names only the
+            // target, by its numeric id: resolving a ref would cost a store round trip on a path whose whole
+            // point is to be the cheap safety rail. One warning, not a throw: the wait did time out, and a
+            // handler bug should be loud in telemetry rather than destructive in the ledger.
+            if (_log.IsEnabled(LogLevel.Warning))
+            {
+                ActaLog.ChildWaitCancelSkipped(_log, childJobId.ToString(CultureInfo.InvariantCulture));
+            }
             return;
         }
 

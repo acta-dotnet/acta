@@ -29,23 +29,18 @@ internal sealed class LogAlertTransport(ILogger<LogAlertTransport>? log = null) 
             _ => LogLevel.Information,
         };
 
-        // This line is the notification, not a note about one, so it carries both refs: Ref addresses the
-        // alert and SubjectRef the job it concerns, which is the one place a line legitimately carries
-        // two entity refs. Both are rendered here rather than passed as their ref types, because a sink
-        // that serializes the property object instead of formatting it would reach past ToString() and
-        // store the wrapped uuid - the internal form an operator can neither read nor address. The kind
-        // renders for the neighbouring reason: an enum's property form is the sink's choice between its
-        // name and its numeric value. The rest is the delivered body and renders into the free-text tail.
-        _log.Log(
-            level,
-            "ACTA ALERT ns={Namespace} alert={Ref} job={SubjectRef} kind={Reason} x{Count}: ({Detail})",
-            n.JobNamespace,
-            n.AlertRef.ToString(),
-            n.JobRef?.ToString(),
-            n.Kind.ToString(),
-            n.OccurrenceCount,
-            $"[{n.Severity}] ch={target.ChannelName} runbook={n.RunbookUrl} {n.Title} - {n.Message}"
-        );
+        // This line is the notification, so log-based alert rules route on its fields: the alert, the job it
+        // concerns, and the kind that fired. Refs and the kind are rendered here rather than passed as their own
+        // types, because a sink that serializes the property object would store the wrapped uuid or the enum's
+        // number, a form an operator can neither read nor address. The delivered body is the free-text tail.
+        if (_log.IsEnabled(level))
+        {
+            var alertRef = n.AlertRef.ToString();
+            var jobRef = n.JobRef?.ToString();
+            var kind = n.Kind.ToString();
+            var body = $"x{n.OccurrenceCount} [{n.Severity}] ch={target.ChannelName} runbook={n.RunbookUrl} {n.Title} - {n.Message}";
+            ActaLog.AlertNotified(_log, level, n.JobNamespace, alertRef, jobRef, kind, body);
+        }
         return Task.FromResult(AlertSendStatus.Delivered);
     }
 }

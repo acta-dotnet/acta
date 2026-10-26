@@ -61,8 +61,6 @@ internal sealed class WorkerHeartbeat(
             return;
         }
 
-        _log.LogInformation("WorkerRuntime: starting heartbeat loop (interval {DurationMs}ms).", (long)_interval.TotalMilliseconds);
-
         try
         {
             // Immediate first tick: stamps last_seen at startup instead of waiting out the first
@@ -78,7 +76,7 @@ internal sealed class WorkerHeartbeat(
             }
             catch (Exception ex)
             {
-                _log.LogError(ex, "WorkerRuntime: initial heartbeat tick failed; retrying on the interval.");
+                ActaLog.HeartbeatInitialTickFailed(_log, ex);
             }
 
             using var timer = new PeriodicTimer(_interval);
@@ -94,7 +92,7 @@ internal sealed class WorkerHeartbeat(
                 }
                 catch (Exception ex)
                 {
-                    _log.LogError(ex, "WorkerRuntime: heartbeat tick failed; retrying next tick.");
+                    ActaLog.HeartbeatTickFailed(_log, ex);
                 }
             }
         }
@@ -198,7 +196,7 @@ internal sealed class WorkerHeartbeat(
                 // Transient store fault during normal operation: leave `live` non-authoritative and move
                 // nothing. A fault at shutdown (ct cancelled) is not caught here - it flows to the loop's
                 // existing cancellation handling.
-                _log.LogWarning(ex, "WorkerRuntime: could not extend worker leases this tick; the lease deadlines stand.");
+                ActaLog.LeaseExtensionFailed(_log, ex);
                 live = null;
             }
 
@@ -288,11 +286,7 @@ internal sealed class WorkerHeartbeat(
                 catch (Exception ex)
                 {
                     outcome = "failed";
-                    _log.LogError(
-                        ex,
-                        "Namespace ({Namespace}): the recovery pass failed; the next one runs when it comes due.",
-                        namespaceName
-                    );
+                    ActaLog.RecoveryPassFailed(_log, ex, namespaceName);
                 }
 
                 try
@@ -390,7 +384,7 @@ internal sealed class WorkerHeartbeat(
             if (locks.Any(token => !renewedLocks.Contains(token.Key) && entry.Holds(token)))
             {
                 entry.Cancel();
-                _log.LogWarning("WorkerRuntime: cancelling job {JobId}; a held lock was lost.", entry.Claim.JobId);
+                ActaLog.HeldLockLost(_log, entry.Claim.JobId);
             }
         }
     }

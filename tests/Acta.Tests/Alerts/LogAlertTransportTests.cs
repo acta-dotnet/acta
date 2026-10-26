@@ -38,10 +38,12 @@ public sealed class LogAlertTransportTests
         Assert.Contains("https://runbook.example/job-failed", entry.Message);
 
         // The runbook link is part of the delivered body, which the canonical log vocabulary carries in the
-        // one free-text Detail field; what matters is that a property-rendering sink still receives it.
+        // one free-text ActaDetail field; what matters is that a property-rendering sink still receives it.
         Assert.Contains(
             entry.Properties,
-            p => p.Key == "Detail" && ((string?)p.Value)?.Contains("https://runbook.example/job-failed", StringComparison.Ordinal) == true
+            p =>
+                p.Key == "ActaDetail"
+                && ((string?)p.Value)?.Contains("https://runbook.example/job-failed", StringComparison.Ordinal) == true
         );
     }
 

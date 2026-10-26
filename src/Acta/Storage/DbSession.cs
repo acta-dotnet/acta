@@ -253,11 +253,7 @@ internal sealed class DbSession : IDbSession
         }
         catch (Exception ex)
         {
-            _log.LogWarning(
-                ex,
-                "Acta: rolling back a failed database attempt threw while disposing its transaction; teardown continues "
-                    + "and the attempt's own failure is what propagates to the caller."
-            );
+            ActaLog.TransactionRollbackFailed(_log, ex);
         }
         finally
         {
@@ -267,11 +263,7 @@ internal sealed class DbSession : IDbSession
             }
             catch (Exception ex)
             {
-                _log.LogWarning(
-                    ex,
-                    "Acta: disposing the connection of a failed database attempt threw; that connection may never return "
-                        + "to the pool, and the attempt's own failure is what propagates to the caller."
-                );
+                ActaLog.ConnectionDisposeFailed(_log, ex);
             }
         }
     }
@@ -324,7 +316,7 @@ internal sealed class DbSession : IDbSession
             }
             catch (Exception cleanup)
             {
-                _log.LogWarning(cleanup, "Acta: disposing an unbound command failed.");
+                ActaLog.UnboundCommandDisposeFailed(_log, cleanup);
             }
             throw new ClientCommandFailure(ex);
         }
@@ -412,7 +404,7 @@ internal sealed class DbSession : IDbSession
             }
             catch (Exception cleanup)
             {
-                _log.LogWarning(cleanup, "Acta: disposing a failed command or reader failed.");
+                ActaLog.CommandDisposeFailed(_log, cleanup);
             }
             throw;
         }

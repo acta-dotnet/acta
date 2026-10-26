@@ -16,7 +16,7 @@ builder.Services.UseActa(j =>
 
 // Log the concept's own handler output at Information so the log-scope demo is visible.
 // UseLocalDatabase sets the global minimum to Warning; AddFilter narrows the override to this namespace.
-// AddJsonConsole renders structured scope properties (including CorrelationKey) as key-value pairs.
+// AddJsonConsole renders structured scope properties (including ActaCorrelationKey) as key-value pairs.
 builder.Services.AddLogging(l =>
 {
     l.AddFilter("Acta.Concepts.CorrelationKey", LogLevel.Information);
@@ -69,11 +69,11 @@ namespace Acta.Concepts.CorrelationKey
         public PipelineHandler(ILogger<PipelineHandler> log) => _log = log;
 
         // The framework opens a log scope with the job identity before calling this handler;
-        // CorrelationKey is one of the scope properties. Every log line below inherits it automatically.
+        // ActaCorrelationKey is one of the scope properties. Every log line below inherits it automatically.
         [Job("run-pipeline")]
         public async Task Handle(RunPipeline input, JobContext context, CancellationToken ct)
         {
-            _log.LogInformation("parent handler: RunId={RunId}; look for CorrelationKey in Scopes", input.RunId);
+            _log.LogInformation("parent handler: RunId={RunId}; look for ActaCorrelationKey in Scopes", input.RunId);
 
             await context.ExecuteChildAsync("step-1", new ProcessStep(input.RunId, 1), ct);
 
@@ -88,12 +88,12 @@ namespace Acta.Concepts.CorrelationKey
         public StepHandler(ILogger<StepHandler> log) => _log = log;
 
         // The child inherits the parent's correlation id at enqueue (stored on its own job row).
-        // The framework opens the same CorrelationKey scope for the child's attempt.
+        // The framework opens the same ActaCorrelationKey scope for the child's attempt.
         [Job("process-step")]
         public void Handle(ProcessStep input)
         {
             _log.LogInformation(
-                "child handler: RunId={RunId} Step={StepNumber}; same CorrelationKey in Scopes",
+                "child handler: RunId={RunId} Step={StepNumber}; same ActaCorrelationKey in Scopes",
                 input.RunId,
                 input.StepNumber
             );

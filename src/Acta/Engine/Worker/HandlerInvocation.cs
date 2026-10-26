@@ -61,7 +61,7 @@ internal sealed class HandlerInvocation(
                 // and write NOTHING - crash recovery reclaims it after the lease lapses, honoring the
                 // documented worker-shutdown -> retry/reclaim contract; completing here would finalize a
                 // never-failed attempt as terminal Failed.
-                log.LogInformation("WorkerRuntime: job {JobId} interrupted by worker shutdown; left Executing for recovery.", job.JobId);
+                ActaLog.JobInterruptedByShutdown(log, job.JobId);
                 return null;
             }
 
@@ -78,11 +78,7 @@ internal sealed class HandlerInvocation(
                     ActaTextLimits.EventMessage
                 ),
             };
-            log.LogInformation(
-                "WorkerRuntime: job {JobId} lost ownership of step ({Detail}) mid-flight; aborting the attempt cooperatively.",
-                job.JobId,
-                ownershipLost.StepName
-            );
+            ActaLog.StepOwnershipLost(log, job.JobId, ownershipLost.StepName);
         }
         catch (StepInterruptedException interrupted)
         {
@@ -97,12 +93,7 @@ internal sealed class HandlerInvocation(
                 interrupted.Message,
                 JobStatusCode.Failed
             );
-            log.LogWarning(
-                "Handler for job ({JobName}) id {JobId} did not handle StepInterruptedException for step ({Detail}); failing terminally.",
-                descriptor.JobName,
-                job.JobId,
-                interrupted.StepName
-            );
+            ActaLog.StepInterruptUnhandled(log, descriptor.JobName, job.JobId, interrupted.StepName);
         }
         catch (Exception ex)
         {
@@ -127,11 +118,7 @@ internal sealed class HandlerInvocation(
     /// </summary>
     private ExecutionCompletion? FencedOut(ClaimedJob job, RuntimeJobContext jobContext)
     {
-        log.LogInformation(
-            "WorkerRuntime: job {JobId} attempt {Attempt} lost the job to another execution; a write was fenced out and the attempt stopped without a completion.",
-            job.JobId,
-            job.ExecutionNumber
-        );
+        ActaLog.AttemptFenced(log, job.JobId, job.ExecutionNumber);
         metrics?.RecordFencedAttempt(jobContext.JobNamespace, jobContext.JobName);
         return null;
     }
@@ -195,13 +182,15 @@ internal sealed class HandlerInvocation(
         // cap is a cap: the body is dropped rather than persisted, leaving the row in the
         // existing "no result" shape (format 0, NULL) with job.result-oversized recording
         // why. A typed read of the missing result throws rather than handing back a default.
-        log.LogWarning(
-            "Handler result for job ({JobName}) id {JobId} is {Count} bytes, exceeding the ({Detail}); the result body was dropped.",
-            descriptor.JobName,
-            job.JobId,
-            payload.Data.Length,
-            $"MaxInlinePayloadBytes cap of {maxInlinePayloadBytes} bytes"
-        );
+        if (log.IsEnabled(LogLevel.Warning))
+        {
+            ActaLog.ResultDroppedOverCap(
+                log,
+                descriptor.JobName,
+                job.JobId,
+                $"{payload.Data.Length} bytes over the MaxInlinePayloadBytes cap of {maxInlinePayloadBytes} bytes"
+            );
+        }
         return succeeded with { Reason = EventReason.ResultOversized };
     }
 
@@ -292,12 +281,7 @@ internal sealed class HandlerInvocation(
                 // derive one. Rethrowing it would leave the row Executing until its lease lapsed,
                 // so it lands as a handler exception instead: a retried Failed, charged to the
                 // budget, with the type in the reason.
-                log.LogWarning(
-                    control,
-                    "Handler for job ({JobName}) id {JobId} threw a control signal the runtime does not recognize; transitioning to Failed.",
-                    descriptor.JobName,
-                    job.JobId
-                );
+                ActaLog.UnrecognizedControlSignal(log, control, descriptor.JobName, job.JobId);
                 return new ExecutionCompletion(CompletionKind.Failed)
                 {
                     Reason = EventReason.UnhandledException,
@@ -314,7 +298,7 @@ internal sealed class HandlerInvocation(
         {
             // The per-attempt execution timeout fired. Record it distinctly and let the retry budget
             // decide re-arm vs terminal; a timeout is a retryable failure like an exception.
-            log.LogWarning("Handler for job ({JobName}) id {JobId} exceeded its execution timeout.", descriptor.JobName, job.JobId);
+            ActaLog.ExecutionTimedOut(log, descriptor.JobName, job.JobId);
             return new ExecutionCompletion(CompletionKind.Failed)
             {
                 Reason = EventReason.ExecutionTimeout,
@@ -330,7 +314,7 @@ internal sealed class HandlerInvocation(
         // a retryable failure instead: owned rows re-arm under the failure budget, unowned
         // rows still no-op. Writing (not skipping) matters because a skipped write leaves the
         // row Executing until its lease lapses.
-        log.LogWarning("WorkerRuntime: job {JobId} attempt aborted mid-flight; handler stopped cooperatively.", job.JobId);
+        ActaLog.AttemptAborted(log, job.JobId);
         return new ExecutionCompletion(CompletionKind.Failed)
         {
             Reason = EventReason.AttemptAborted,
@@ -342,16 +326,11 @@ internal sealed class HandlerInvocation(
     {
         if (inputDeserialized)
         {
-            log.LogWarning(ex, "Handler for job ({JobName}) id {JobId} threw; transitioning to Failed.", descriptor.JobName, job.JobId);
+            ActaLog.HandlerThrew(log, ex, descriptor.JobName, job.JobId);
         }
         else
         {
-            log.LogWarning(
-                ex,
-                "Input deserialization for job ({JobName}) id {JobId} failed; transitioning the attempt to Failed.",
-                descriptor.JobName,
-                job.JobId
-            );
+            ActaLog.InputDeserializationFailed(log, ex, descriptor.JobName, job.JobId);
         }
 
         // A failure retrying cannot change, a programming error or a step that already spent its budget and so throws

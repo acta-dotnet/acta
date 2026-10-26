@@ -40,10 +40,10 @@ public sealed class DriverVersionPreflightTests
 
         var entry = Assert.Single(log.Entries);
         Assert.Equal(LogLevel.Warning, entry.Level);
-        Assert.Equal("driver-version-preflight", entry.Values["Operation"]);
-        Assert.Equal("driver-major-mismatch", entry.Values["Reason"]);
-        Assert.Contains($"Microsoft.Data.Sqlite major {loaded} is loaded", (string)entry.Values["Detail"]!, StringComparison.Ordinal);
-        Assert.Contains($"certified against major {loaded - offset}", (string)entry.Values["Detail"]!, StringComparison.Ordinal);
+        Assert.Contains("driver-version-preflight", (string)entry.Values["{OriginalFormat}"]!, StringComparison.Ordinal);
+        Assert.Contains("driver-major-mismatch", (string)entry.Values["{OriginalFormat}"]!, StringComparison.Ordinal);
+        Assert.Contains($"Microsoft.Data.Sqlite major {loaded} is loaded", (string)entry.Values["ActaDetail"]!, StringComparison.Ordinal);
+        Assert.Contains($"certified against major {loaded - offset}", (string)entry.Values["ActaDetail"]!, StringComparison.Ordinal);
     }
 
     [Fact]

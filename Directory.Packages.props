@@ -13,10 +13,6 @@
   <!-- Build-time only: derives the package version from git tags (see Directory.Build.props). -->
   <ItemGroup>
     <PackageVersion Include="MinVer" Version="8.0.0" />
-    <!-- Referenced by src/Directory.Build.props for two rules only - the log-field vocabulary gate.
-         Pinned rather than floated: the whole rule set arrives with the package, and a version bump
-         adds rules that would land as build errors in an unrelated change. -->
-    <PackageVersion Include="Meziantou.Analyzer" Version="3.0.290" />
   </ItemGroup>
   <!-- Hosting + DI/Options surface. Acta depends on DI/Options abstractions to define
        UseActa(IServiceCollection); consumers bring the full Hosting. -->

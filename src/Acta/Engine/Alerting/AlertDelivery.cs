@@ -96,12 +96,10 @@ internal sealed class AlertDelivery(
         }
         catch (Exception ex)
         {
-            _log.LogWarning(
-                ex,
-                "ACTA sys.alerts: transport kind ({Detail}) threw delivering alert ({Ref}); will retry.",
-                channel.TransportKind,
-                AlertsJob.RenderRef(a.AlertRef)
-            );
+            if (_log.IsEnabled(LogLevel.Warning))
+            {
+                ActaLog.AlertTransportThrew(_log, ex, channel.TransportKind, AlertsJob.RenderRef(a.AlertRef));
+            }
             return AlertSendStatus.Retryable;
         }
     }
@@ -113,19 +111,18 @@ internal sealed class AlertDelivery(
         AlertChannelVerdictReason reason
     )
     {
+        if (!_log.IsEnabled(LogLevel.Warning))
+        {
+            return;
+        }
         if (reason == AlertChannelVerdictReason.MissingChannel)
         {
-            _log.LogWarning(
-                "ACTA sys.alerts: channel ({Detail}) is not configured for namespace ({Namespace}); marking alert ({Ref}) failed.",
-                alert.ChannelName,
-                ctx.JobNamespace,
-                AlertsJob.RenderRef(alert.AlertRef)
-            );
+            ActaLog.AlertChannelNotConfigured(_log, alert.ChannelName, ctx.JobNamespace, AlertsJob.RenderRef(alert.AlertRef));
             return;
         }
 
-        _log.LogWarning(
-            "ACTA sys.alerts: no transport is registered for ({Detail}); marking alert ({Ref}) delivery failed.",
+        ActaLog.AlertTransportMissing(
+            _log,
             $"kind '{channel!.TransportKind}' on channel '{channel.Name}'",
             AlertsJob.RenderRef(alert.AlertRef)
         );
@@ -138,25 +135,20 @@ internal sealed class AlertDelivery(
         AlertChannelVerdictReason reason
     )
     {
+        if (!_log.IsEnabled(LogLevel.Information))
+        {
+            return;
+        }
+        var alertRef = AlertsJob.RenderRef(alert.AlertRef);
         if (reason is AlertChannelVerdictReason.DisabledChannel or AlertChannelVerdictReason.DeprecatedChannel)
         {
-            _log.LogInformation(
-                "ACTA sys.alerts: alert ({Ref}) in namespace ({Namespace}) is ({Outcome}): channel ({Detail}) is ({Reason}).",
-                AlertsJob.RenderRef(alert.AlertRef),
-                ctx.JobNamespace,
-                "Suppressed",
-                channel.Name,
-                channel.Status.ToString()
-            );
+            var status = $"{channel.Name} is {channel.Status}";
+            ActaLog.AlertSuppressedByChannel(_log, alertRef, ctx.JobNamespace, status);
             return;
         }
 
-        _log.LogInformation(
-            "ACTA sys.alerts: alert ({Ref}) is ({Outcome}): ({Detail}).",
-            AlertsJob.RenderRef(alert.AlertRef),
-            "Suppressed",
-            $"severity {alert.Severity} is below the {channel.MinSeverity} minimum on channel '{channel.Name}'"
-        );
+        var below = $"severity {alert.Severity} is below the {channel.MinSeverity} minimum on channel '{channel.Name}'";
+        ActaLog.AlertSuppressedBySeverity(_log, alertRef, below);
     }
 
     private Task SuppressAsync(DeliverableAlert a, CancellationToken ct) =>
@@ -215,7 +207,7 @@ internal sealed class AlertDelivery(
     /// frequent partner is the raise path's collapse arm, which bumps the version when a repeat of the same condition
     /// lands inside the send window, so this settle loses and the row keeps the state the read found (Pending, an
     /// elapsed RetryAfter, or a settled row past its reminder), which the next pass selects again: a re-send, allowed
-    /// at least once, carrying the count the repeat wrote. No retry and no warning, only Debug for tracing one attempt.
+    /// at least once, carrying the count the repeat wrote. No retry and no log line.
     /// </summary>
     private async Task WriteSettlementAsync(
         DeliverableAlert a,
@@ -223,16 +215,5 @@ internal sealed class AlertDelivery(
         int retryCount,
         DateTime? retryAfterUtc,
         CancellationToken ct
-    )
-    {
-        if (!(await _alerts.UpdateAlertDeliveryAsync(a.AlertId, a.Version, status, retryCount, retryAfterUtc, ct)).Updated)
-        {
-            _log.LogDebug(
-                "ACTA sys.alerts: alert ({Ref}) moved while its delivery attempt was in flight; settlement is ({Outcome}) ({Detail}).",
-                AlertsJob.RenderRef(a.AlertRef),
-                "Skipped",
-                $"expected version {a.Version}"
-            );
-        }
-    }
+    ) => await _alerts.UpdateAlertDeliveryAsync(a.AlertId, a.Version, status, retryCount, retryAfterUtc, ct);
 }

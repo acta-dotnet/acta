@@ -59,12 +59,10 @@ internal static class DriverVersionPreflight
             return;
         }
 
-        log?.LogWarning(
-            "Acta: ({Operation}) running on an uncertified database driver ({Detail}); reason ({Reason}).",
-            "driver-version-preflight",
-            Detail(name.Name ?? driverAssembly.ToString(), loadedMajor, certifiedMajor),
-            "driver-major-mismatch"
-        );
+        if (log?.IsEnabled(LogLevel.Warning) == true)
+        {
+            ActaLog.UncertifiedDriver(log, Detail(name.Name ?? driverAssembly.ToString(), loadedMajor, certifiedMajor));
+        }
     }
 
     internal static string Detail(string driverName, int loadedMajor, int certifiedMajor) =>

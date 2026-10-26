@@ -122,24 +122,20 @@ internal sealed partial class RuntimeJobContext
             if (failure.Outcome == CompleteStepOutcomeCode.Exhausted)
             {
                 RecordStep(name, "exhausted");
-                _log.LogWarning(
-                    "Step ({Operation}) on job {JobId} exhausted after attempt {Count}: ({Detail})",
-                    name,
-                    JobId,
-                    start.AttemptNumber,
-                    message
-                );
+                if (_log.IsEnabled(LogLevel.Warning))
+                {
+                    ActaLog.StepExhausted(_log, JobId, $"step '{name}', attempt {start.AttemptNumber}: {message}");
+                }
                 throw new StepExhaustedException(name, start.AttemptNumber, StepFailureCode.UnhandledException, message);
             }
 
             RecordStep(name, "failed");
-            _log.LogInformation(
-                "Step ({Operation}) on job {JobId} failed on attempt {Count}; retry at ({Detail}).",
-                name,
-                JobId,
-                start.AttemptNumber,
-                failure.NextRetryAtUtc?.ToString("o", CultureInfo.InvariantCulture)
-            );
+            if (_log.IsEnabled(LogLevel.Information))
+            {
+                var detail =
+                    $"step '{name}', attempt {start.AttemptNumber}, retry at {failure.NextRetryAtUtc?.ToString("o", CultureInfo.InvariantCulture)}";
+                ActaLog.StepRetrying(_log, JobId, detail);
+            }
             throw new StepRetrySignal(failure.NextRetryAtUtc!.Value, name, message);
         }
 

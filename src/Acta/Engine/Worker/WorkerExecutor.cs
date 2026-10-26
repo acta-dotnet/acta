@@ -111,7 +111,7 @@ internal sealed class WorkerExecutor(
                 }
                 catch (Exception ex) when (ex is not OperationCanceledException || !hostCt.IsCancellationRequested)
                 {
-                    _log.LogError(ex, "WorkerRuntime: executor faulted on job {JobId}.", entry.Claim.JobId);
+                    ActaLog.ExecutorFaulted(_log, ex, entry.Claim.JobId);
                 }
             }
         }
@@ -157,14 +157,16 @@ internal sealed class WorkerExecutor(
                 // story, and the rest of an already-claimed batch would otherwise repeat it once per row. The job
                 // name is not known - resolving it is what the missing descriptor would have done - so the ref is
                 // what an operator takes to `jobs explain`.
-                _log.Log(
-                    context.ExcludeDefinition(job.DefinitionId) ? LogLevel.Warning : LogLevel.Debug,
-                    "WorkerRuntime: ({Namespace}) job {JobId} ({Detail}) claimed with no handler in this deployment; returned to Ready in {DurationMs}ms; excluded from this worker's claims until restart.",
-                    namespaceName,
-                    job.JobId,
-                    $"ref {job.JobRef}, definition_id {job.DefinitionId}",
-                    (long)_options.SafetyPollInterval.TotalMilliseconds
-                );
+                if (context.ExcludeDefinition(job.DefinitionId) && _log.IsEnabled(LogLevel.Warning))
+                {
+                    ActaLog.NoHandlerDeployed(
+                        _log,
+                        namespaceName,
+                        job.JobId,
+                        $"ref {job.JobRef}, definition_id {job.DefinitionId}",
+                        (long)_options.SafetyPollInterval.TotalMilliseconds
+                    );
+                }
                 return Finalizing(
                     entry,
                     HandBack(
@@ -176,8 +178,14 @@ internal sealed class WorkerExecutor(
             // One scope per attempt carrying the job identity. Opened on the runtime logger, which shares
             // the factory's external scope provider, so the handler's own ILogger<T> lines inherit these
             // fields too. Covers the lock and the attempt.
-            using var logScope = _log.BeginScope(
-                JobLogScope.For(job.JobId, descriptor.JobName, namespaceName, job.ExecutionNumber, workerId, job.CorrelationKey)
+            using var logScope = ActaLog.BeginJobScope(
+                _log,
+                job.JobId,
+                descriptor.JobName,
+                namespaceName,
+                job.ExecutionNumber,
+                workerId,
+                job.CorrelationKey
             );
 
             // Clamped to CancelAfter's ceiling regardless of where the value came from (descriptor or
@@ -210,11 +218,7 @@ internal sealed class WorkerExecutor(
                 }
                 catch (Exception ex) when (!hostCt.IsCancellationRequested)
                 {
-                    _log.LogError(
-                        ex,
-                        "WorkerRuntime: attempt setup failed before the handler ran for job {JobId}; returning it to Ready.",
-                        job.JobId
-                    );
+                    ActaLog.AttemptSetupFailed(_log, ex, job.JobId);
                     return Finalizing(
                         entry,
                         HandBack($"Attempt setup failed before the handler ran ({ex.GetType().Name}); returned to Ready.")
@@ -386,7 +390,7 @@ internal sealed class WorkerExecutor(
         }
         catch (Exception ex)
         {
-            _log.LogError(ex, "WorkerRuntime: disposing the attempt's services threw for job {JobId}; its outcome stands.", jobId);
+            ActaLog.AttemptServicesDisposeFailed(_log, ex, jobId);
         }
     }
 

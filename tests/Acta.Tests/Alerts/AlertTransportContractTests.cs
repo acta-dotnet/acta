@@ -92,9 +92,9 @@ public sealed class AlertTransportContractTests
         // record struct wrapping a Guid, which is the stored uuid this suite exists to keep out of an
         // operator's hands. A string that already reads alr_ / job_ has nothing left to fall back to,
         // so the guarantee holds for the property path and the message path alike. This line is the
-        // notification itself, which is why it carries two: Ref addresses the alert, SubjectRef the job.
-        Assert.Contains(entry.Properties, p => p.Key == "Ref" && (p.Value as string) == TestAlertRef.ToString());
-        Assert.Contains(entry.Properties, p => p.Key == "SubjectRef" && (p.Value as string) == TestJobRef.ToString());
+        // notification itself, which is why it carries two: ActaAlertRef addresses the alert, ActaJobRef the job.
+        Assert.Contains(entry.Properties, p => p.Key == "ActaAlertRef" && (p.Value as string) == TestAlertRef.ToString());
+        Assert.Contains(entry.Properties, p => p.Key == "ActaJobRef" && (p.Value as string) == TestJobRef.ToString());
     }
 
     [Fact]

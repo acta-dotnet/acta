@@ -130,7 +130,7 @@ public sealed class RetentionJobWarningTests
     {
         var record = Assert.Single(logger.Records);
         Assert.Equal(LogLevel.Warning, record.Level);
-        Assert.Contains($"purged {count} alerts", record.Message, StringComparison.Ordinal);
+        Assert.Contains($"purged ({count} alerts)", record.Message, StringComparison.Ordinal);
         Assert.Contains("alert-retention-cap", record.Message, StringComparison.Ordinal);
     }
 

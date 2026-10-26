@@ -58,12 +58,7 @@ internal sealed class AlertRoutingCheck(
                 throw new InvalidOperationException(message);
             }
 
-            _log.LogWarning(
-                "Acta alerting: job ({JobName}) routes to unconfigured channel ({Detail}) in namespace ({Namespace}); add it to worker startup configuration with w.AddAlertChannel(...).",
-                descriptor.JobName,
-                channel,
-                namespaceName
-            );
+            ActaLog.AlertRouteToUnconfiguredChannel(_log, descriptor.JobName, channel, namespaceName);
         }
     }
 }

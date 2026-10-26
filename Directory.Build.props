@@ -98,12 +98,10 @@
          must be public to be discovered, and it runs under the outer class's name, which is the
          subject those two sub-suites hang off. -->
     <NoWarn>$(NoWarn);CA1034</NoWarn>
-    <!-- Two different rules, suppressed for one reason. CA1848 wants LoggerMessage delegates, which
-         would restructure ~71 call sites for allocations Acta's sparse, mostly-Debug logging does not
-         make at volume. CA1873 is narrower - it warns that an expensive argument is evaluated even when
-         the level is disabled - and the flagged arguments here are field reads and already-materialised
-         strings, not computation. Revisit CA1873 if a log line ever takes a computed argument. -->
-    <NoWarn>$(NoWarn);CA1848;CA1873</NoWarn>
+    <!-- CA1848 wants LoggerMessage methods. src already logs only through them (ActaLog, held by
+         LogVocabularyTests); tests, tools, concepts and Anvil log directly and are not held to it. CA1873 is
+         switched per folder in .editorconfig instead, where it is on for src. -->
+    <NoWarn>$(NoWarn);CA1848</NoWarn>
     <!-- Acta ships no resource files and no localization story; operator messages, exception text and
          log templates are deliberately English-only, so CA1303 presumes a product Acta is not. -->
     <NoWarn>$(NoWarn);CA1303</NoWarn>

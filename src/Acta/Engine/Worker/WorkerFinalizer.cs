@@ -115,7 +115,10 @@ internal sealed partial class WorkerFinalizer(
                     // On a hard stop the rows fall to recovery, and the write's own failure is not a fault.
                     if (!hostCt.IsCancellationRequested)
                     {
-                        log.LogError(ex, "WorkerRuntime: finalizer faulted on {Count} completions.", entries.Count);
+                        if (log.IsEnabled(LogLevel.Error))
+                        {
+                            ActaLog.FinalizerFaulted(log, ex, $"{entries.Count} completions");
+                        }
                     }
                 }
             }
@@ -180,7 +183,10 @@ internal sealed partial class WorkerFinalizer(
                 }
                 catch (Exception ex) when (!hostCt.IsCancellationRequested)
                 {
-                    log.LogError(ex, "WorkerRuntime: a batch of {Count} completions kept failing; writing each alone.", writes.Count);
+                    if (log.IsEnabled(LogLevel.Error))
+                    {
+                        ActaLog.CompletionBatchFailing(log, ex, $"{writes.Count} completions");
+                    }
                 }
             }
             if (answer is null)
@@ -239,7 +245,7 @@ internal sealed partial class WorkerFinalizer(
             }
             _apart[write.Entry] = RepeatApartAsync(write, hostCt);
         }
-        log.LogError(ex, "WorkerRuntime: job {JobId}'s completion keeps failing alone; it repeats apart from the others.", write.Row.JobId);
+        ActaLog.CompletionFailingAlone(log, ex, write.Row.JobId);
         return true;
     }
 
@@ -373,12 +379,11 @@ internal sealed partial class WorkerFinalizer(
             // An external cancel, cascade, or stolen lease moved the row out of execution, or a first try
             // committed and lost its answer, so the compare-and-swap completed no work. The answer still carries
             // the row's state, so its wakes go out: a lost answer sent none, and one for a moved row costs a poll.
-            log.LogInformation(
-                "WorkerRuntime: ({Namespace}) job {JobId} completion skipped: ({Outcome}).",
-                ns,
-                job.JobId,
-                complete.Action.ToString()
-            );
+            if (log.IsEnabled(LogLevel.Information))
+            {
+                var action = complete.Action.ToString();
+                ActaLog.CompletionSkipped(log, ns, job.JobId, action);
+            }
         }
 
         if (entry.Descriptor is not null || retired)
@@ -421,16 +426,11 @@ internal sealed partial class WorkerFinalizer(
             }
             catch (Exception ex) when (ex is not OperationCanceledException || !hostCt.IsCancellationRequested)
             {
-                log.LogError(ex, "WorkerRuntime: follow-ups for job {JobId} failed after its completion landed.", job.JobId);
+                ActaLog.FollowUpsFailed(log, ex, job.JobId);
             }
         }
 
-        if (!landed)
-        {
-            return RunOnceStatus.NothingClaimed;
-        }
-        log.LogInformation("WorkerRuntime: ({Namespace}) job {JobId} -> ({Outcome})", ns, job.JobId, status.ToString());
-        return status;
+        return landed ? status : RunOnceStatus.NothingClaimed;
     }
 
     /// <summary>
@@ -526,14 +526,12 @@ internal sealed partial class WorkerFinalizer(
                             counted = true;
                             metrics?.RecordUnsettledCompletion(1);
                         }
-                        log.Log(
-                            attempt <= WarningTries ? LogLevel.Warning : LogLevel.Error,
-                            ex,
-                            "WorkerRuntime: a database call for job {JobId} failed on try {Count}; retrying in {DurationMs}ms until it lands or this worker stops.",
-                            jobId,
-                            attempt,
-                            (long)delay.TotalMilliseconds
-                        );
+                        var level = attempt <= WarningTries ? LogLevel.Warning : LogLevel.Error;
+                        if (log.IsEnabled(level))
+                        {
+                            var detail = $"try {attempt}";
+                            ActaLog.DatabaseCallRetrying(log, level, ex, jobId, detail, (long)delay.TotalMilliseconds);
+                        }
                     }
                     catch (Exception)
                     {

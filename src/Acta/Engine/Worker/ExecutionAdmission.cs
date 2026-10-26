@@ -80,7 +80,7 @@ internal sealed class ExecutionAdmission(ILogger log, int concurrencyKeyBounceDe
 
     private ExecutionCompletion DeadlineExceeded(ClaimedJob job)
     {
-        log.LogInformation("WorkerRuntime: job {JobId} overdue at admission; cancelling without running the handler.", job.JobId);
+        ActaLog.JobOverdueAtAdmission(log, job.JobId);
         return ExecutionCompletion.Terminal(
             CompletionKind.Cancelled,
             EventReason.DeadlineExceeded,
@@ -125,28 +125,10 @@ internal sealed class ExecutionAdmission(ILogger log, int concurrencyKeyBounceDe
             // escaped exception would leave it to lapse and recovery would charge an attempt that
             // never ran. The attempt bounces instead. A slot the acquire may have committed without
             // answering is untracked and expires with its lease TTL.
-            log.LogWarning(
-                ex,
-                "WorkerRuntime: ({Operation}) ({Outcome}) job {JobId} ({Reason}); the slot acquire for concurrency key ({Detail}) failed, so the job re-armed Ready in {DurationMs}ms.",
-                "concurrency-admission",
-                "Bounced",
-                job.JobId,
-                "admission-error",
-                concurrencyKey,
-                concurrencyKeyBounceDelaySeconds * 1000
-            );
+            ActaLog.ConcurrencyAdmissionFailed(log, ex, job.JobId, concurrencyKey, concurrencyKeyBounceDelaySeconds * 1000);
             return Bounced(admissionFailed: true);
         }
 
-        log.LogDebug(
-            "WorkerRuntime: ({Operation}) ({Outcome}) job {JobId} ({Reason}); concurrency key ({Detail}) has every slot held, so the job re-armed Ready in {DurationMs}ms.",
-            "concurrency-admission",
-            "Bounced",
-            job.JobId,
-            "slots-held",
-            concurrencyKey,
-            concurrencyKeyBounceDelaySeconds * 1000
-        );
         return Bounced(admissionFailed: false);
     }
 
@@ -174,16 +156,7 @@ internal sealed class ExecutionAdmission(ILogger log, int concurrencyKeyBounceDe
             // Same rule as the slot: the error becomes a bounce with the fixed delay. A reservation the
             // meter may have booked without answering is honoured when the job returns, so nothing is
             // double-counted.
-            log.LogWarning(
-                ex,
-                "WorkerRuntime: ({Operation}) ({Outcome}) job {JobId} ({Reason}); the reservation for rate name ({Detail}) failed, so the job re-armed Ready in {DurationMs}ms.",
-                "rate-admission",
-                "Bounced",
-                job.JobId,
-                "admission-error",
-                rateName,
-                concurrencyKeyBounceDelaySeconds * 1000
-            );
+            ActaLog.RateAdmissionFailed(log, ex, job.JobId, rateName, concurrencyKeyBounceDelaySeconds * 1000);
             return Bounced(admissionFailed: true);
         }
 
@@ -192,15 +165,6 @@ internal sealed class ExecutionAdmission(ILogger log, int concurrencyKeyBounceDe
             return null;
         }
 
-        log.LogDebug(
-            "WorkerRuntime: ({Operation}) ({Outcome}) job {JobId} ({Reason}); rate name ({Detail}) is at its limit, so the job re-armed Ready in {DurationMs}ms.",
-            "rate-admission",
-            "Bounced",
-            job.JobId,
-            "turn-reserved",
-            rateName,
-            (int)Math.Max(0, (reservation.ResumeAtUtc - DateTime.UtcNow).TotalMilliseconds)
-        );
         // An absolute instant rather than a delay, because the turn is a place in the meter's queue, not a cooldown.
         return new ExecutionCompletion(CompletionKind.Rescheduled)
         {
@@ -216,7 +180,7 @@ internal sealed class ExecutionAdmission(ILogger log, int concurrencyKeyBounceDe
     /// taken to the millisecond. A farther turn goes back through the claim path, where a
     /// one-second validity window covers the worker's pickup latency when it returns.
     /// </summary>
-    private async Task<ReserveRateResponse> WaitForTurnAsync(
+    private static async Task<ReserveRateResponse> WaitForTurnAsync(
         ClaimedJob job,
         RuntimeJobContext jobContext,
         string rateName,
@@ -225,15 +189,6 @@ internal sealed class ExecutionAdmission(ILogger log, int concurrencyKeyBounceDe
         CancellationToken ct
     )
     {
-        log.LogDebug(
-            "WorkerRuntime: ({Operation}) ({Outcome}) job {JobId} ({Reason}); rate name ({Detail}) admits it in {DurationMs}ms, waiting in process.",
-            "rate-admission",
-            "Waiting",
-            job.JobId,
-            "turn-near",
-            rateName,
-            reservation.WaitMilliseconds
-        );
         using var turnWait = CancellationTokenSource.CreateLinkedTokenSource(ct, jobContext.CancellationToken);
         try
         {

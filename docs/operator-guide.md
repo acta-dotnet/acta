@@ -640,6 +640,17 @@ in configuration or a secret store, not in Acta SQL.
 Use `AlertChannelValidationMode.Fail` in environments where a missing channel should block worker
 startup.
 
+### Logs
+
+- Acta logs failures, misconfigurations and rare events, never a line per successful job, and it writes no Debug lines.
+- Every field Acta adds to a line starts with `Acta`, so none clashes with your own fields. Every line of an attempt, your handler's included, carries `ActaJobId`, `ActaJobName`, `ActaNamespace`, `ActaExecutionNumber`, `ActaWorkerId`, and `ActaCorrelationKey` when the job has one.
+- With no Slack channel, alerts arrive as `ACTA ALERT` lines carrying `ActaAlertRef`, `ActaJobRef`, and `ActaAlertKind`, so log-based alert rules can route on them.
+- An outage downstream of your handlers logs one Warning, with its stack trace, per failed attempt. To quiet a storm without losing Acta's own errors, raise the category:
+
+```json
+{ "Logging": { "LogLevel": { "Acta.WorkerRuntime": "Error" } } }
+```
+
 ### Retention
 
 Set retention long enough for audit, incident response, and late restarts; the rules are in [retention and purge](#retention-and-purge).

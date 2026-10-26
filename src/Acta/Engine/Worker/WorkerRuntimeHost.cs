@@ -40,7 +40,7 @@ internal sealed class WorkerRuntimeHost(
     {
         if (_runtimes.Length == 0)
         {
-            _log.LogInformation("Acta: enqueue-only process; no workers registered.");
+            ActaLog.EnqueueOnlyProcess(_log);
             return;
         }
 
@@ -88,18 +88,12 @@ internal sealed class WorkerRuntimeHost(
             _runtimes,
             operation,
             LifecycleStampTimeout,
-            (runtime, ex) =>
-                _log.LogWarning(
-                    ex,
-                    "Acta: ({Operation}) stamp failed for worker namespace ({Namespace}); lease recovery will reconcile it.",
-                    phase,
-                    runtime.WorkerNamespaceName
-                ),
+            (runtime, ex) => ActaLog.WorkerStampFailed(_log, ex, phase, runtime.WorkerNamespaceName),
             cancellationToken
         );
         if (!completed)
         {
-            _log.LogWarning("Acta: ({Operation}) stamps exceeded their shutdown budget; continuing shutdown.", phase);
+            ActaLog.WorkerStampsOverBudget(_log, phase);
         }
     }
 
@@ -174,7 +168,7 @@ internal sealed class WorkerRuntimeHost(
         catch (Exception ex)
         {
             // A loop faulted; base.StopAsync surfaces it. Don't let it abort the rest of the shutdown.
-            _log.LogWarning(ex, "Acta: a worker loop faulted during drain; continuing shutdown.");
+            ActaLog.WorkerLoopFaultedDuringDrain(_log, ex);
         }
     }
 }

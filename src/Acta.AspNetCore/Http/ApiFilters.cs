@@ -51,8 +51,10 @@ internal static class ApiFilters
         }
         catch (Exception ex)
         {
-            var loggerFactory = context.HttpContext.RequestServices.GetService(typeof(ILoggerFactory)) as ILoggerFactory;
-            loggerFactory?.CreateLogger("Acta.AspNetCore").LogError(ex, "Unhandled Acta API exception.");
+            if (context.HttpContext.RequestServices.GetService(typeof(ILoggerFactory)) is ILoggerFactory loggerFactory)
+            {
+                ActaAspNetCoreLog.UnhandledApiException(loggerFactory.CreateLogger("Acta.AspNetCore"), ex);
+            }
 
             // Classify without echoing exception text: driver messages can carry connection
             // strings. A fixed reason keyed off the exception family stays safe and still tells

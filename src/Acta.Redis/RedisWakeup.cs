@@ -83,11 +83,7 @@ internal sealed class RedisWakeup : IWorkerWakeup, IDisposable, IAsyncDisposable
         }
         catch (Exception ex)
         {
-            _log.LogWarning(
-                ex,
-                "Redis wake publish failed for channel ({Detail}); remote waiters fall back to their poll floors.",
-                channel.Name
-            );
+            ActaLog.RedisPublishFailed(_log, ex, channel.Name);
         }
     }
 
@@ -122,10 +118,7 @@ internal sealed class RedisWakeup : IWorkerWakeup, IDisposable, IAsyncDisposable
         }
         catch (Exception ex)
         {
-            _log.LogWarning(
-                ex,
-                "Redis wake subscription failed; this process wakes on its poll floors until a wait retries the subscription."
-            );
+            ActaLog.RedisSubscribeFailed(_log, ex);
         }
         finally
         {
@@ -186,7 +179,7 @@ internal sealed class RedisWakeup : IWorkerWakeup, IDisposable, IAsyncDisposable
         catch (Exception ex)
         {
             _pendingJittered.TryRemove(channel, out _);
-            _log.LogWarning(ex, "Redis wake relay failed for channel ({Detail}).", channel.Name);
+            ActaLog.RedisRelayFailed(_log, ex, channel.Name);
         }
     }
 
@@ -202,9 +195,9 @@ internal sealed class RedisWakeup : IWorkerWakeup, IDisposable, IAsyncDisposable
             {
                 _redis.GetSubscriber().Unsubscribe(_wakePattern);
             }
-            catch (Exception ex)
+            catch (Exception)
             {
-                _log.LogDebug(ex, "Redis wake unsubscribe failed during dispose.");
+                // Best effort: the process is going away, and the server drops the subscription with the connection.
             }
         }
 
@@ -219,9 +212,9 @@ internal sealed class RedisWakeup : IWorkerWakeup, IDisposable, IAsyncDisposable
             {
                 await _redis.GetSubscriber().UnsubscribeAsync(_wakePattern);
             }
-            catch (Exception ex)
+            catch (Exception)
             {
-                _log.LogDebug(ex, "Redis wake unsubscribe failed during dispose.");
+                // Best effort, as in Dispose.
             }
         }
 

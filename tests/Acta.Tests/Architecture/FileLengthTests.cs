@@ -3,7 +3,7 @@ using Xunit;
 namespace Acta.Tests.Architecture;
 
 /// <summary>
-/// Caps every C# file under <c>src/</c> at 700 lines. The 150-line method cap is MA0051's, in the build.
+/// Caps every C# file under <c>src/</c> at 700 lines.
 /// </summary>
 public sealed class FileLengthTests
 {

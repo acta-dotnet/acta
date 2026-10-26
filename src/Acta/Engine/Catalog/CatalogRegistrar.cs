@@ -122,12 +122,7 @@ internal sealed class CatalogRegistrar(
         _context.RunsRecovery = SystemJobs.RunsRecovery(_options.Value.RegisterSystemJobs, registration.Relay is not null);
         if (!_context.RunsRecovery)
         {
-            _log.LogWarning(
-                "Namespace ({Namespace}): crash recovery is off, so crashed workers are never marked dead and their "
-                    + "in-flight jobs are never reclaimed. Those jobs stay Executing behind a lapsed lease permanently. Set "
-                    + "JobsOptions.RegisterSystemJobs = true, or run an equivalent reclaim sweep yourself.",
-                ns
-            );
+            ActaLog.CrashRecoveryOff(_log, ns);
         }
 
         if (frameworkNames.Count > 0)
@@ -352,12 +347,7 @@ internal sealed class CatalogRegistrar(
             var slot = storedForDef.Values.FirstOrDefault();
             if (declared.Count > 0 && ScheduleWalker.IsHeld(slot?.SlotStatus, slot?.SlotNextRunAtUtc))
             {
-                _log.LogWarning(
-                    "Namespace ({Namespace}): recurring job {JobName} is paused by an operator and stays paused; it runs again "
-                        + "only when an operator resumes it.",
-                    ns,
-                    descriptor.JobName
-                );
+                ActaLog.RecurringJobPaused(_log, ns, descriptor.JobName);
             }
 
             var (inputFormatId, inputBytes) = SerializeSlotInput(descriptor);
@@ -537,12 +527,10 @@ internal static class ManifestGenerationResolver
                 )
         );
 
-        log?.LogWarning(
-            "Acta manifest generation ({Detail}) was derived from the deployed file's last-write time; "
-                + "container image copies and artifact restores can skew it and misorder definition promotion. "
-                + "Set JobsOptions.ManifestGenerationUtc to a CI build stamp for deterministic ordering.",
-            resolved.ToString("O", CultureInfo.InvariantCulture)
-        );
+        if (log?.IsEnabled(LogLevel.Warning) == true)
+        {
+            ActaLog.ManifestGenerationFromFileTime(log, resolved.ToString("O", CultureInfo.InvariantCulture));
+        }
 
         return resolved;
 
@@ -625,13 +613,16 @@ internal static class ContractDriftPolicy
 
         foreach (var drift in drifts)
         {
-            log.LogWarning(
-                "Payload contract drift for job ({JobName}) in namespace ({Namespace}): ({Detail}). Enqueues made from now on use the new contract.",
-                drift.JobName,
-                ns,
-                $"input type {drift.Stored.InputTypeName} -> {drift.Incoming.InputTypeName}, "
-                    + $"input format {drift.Stored.InputFormatName} -> {drift.Incoming.InputFormatName}"
-            );
+            if (log.IsEnabled(LogLevel.Warning))
+            {
+                ActaLog.PayloadContractDrift(
+                    log,
+                    drift.JobName,
+                    ns,
+                    $"input type {drift.Stored.InputTypeName} -> {drift.Incoming.InputTypeName}, "
+                        + $"input format {drift.Stored.InputFormatName} -> {drift.Incoming.InputFormatName}"
+                );
+            }
         }
     }
 }

@@ -39,12 +39,7 @@ internal static class MeterConsistencyCheck
             }
 
             var detail = $"{meter}: {string.Join(", ", participants.Select(p => $"{p.DefinitionName}={p.Effective.RateLimit}"))}";
-            log.LogWarning(
-                "Acta rate limiting: meter ({Detail}) has participants at different effective rates in namespace "
-                    + "({Namespace}); a meter whose participants disagree is retuned by overriding any participant.",
-                detail,
-                namespaceName
-            );
+            ActaLog.MeterRatesDisagree(log, detail, namespaceName);
         }
     }
 }
