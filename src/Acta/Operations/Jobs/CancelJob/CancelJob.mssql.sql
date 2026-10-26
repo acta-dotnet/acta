@@ -38,6 +38,22 @@ BEGIN TRY
     INNER JOIN {{schema}}.jobs j ON j.job_id = r.job_id
     WHERE r.job_id = @p_job_id;
 
+    -- A cancel an ancestor's expired child wait makes lands only while that attempt holds the ancestor's row, read
+    -- unlocked once this job's rows are locked (docs/sql-internals.md, "Execution fence"). An operator's or the
+    -- engine's cancel carries no fence.
+    IF
+        @p_fence_job_id IS NOT NULL
+        AND NOT EXISTS (
+            SELECT 1
+            FROM {{schema}}.jobs_state fr
+            WHERE
+                fr.job_id = @p_fence_job_id
+                AND fr.job_status_code = 50 /* JobStatusCode.Executing */
+                AND fr.execution_number = @p_fence_execution_number
+                AND fr.leased_by_worker_id = @p_fence_worker_id
+        )
+        THROW 50012, 'ACTA:EXECUTION_FENCED:cancel_job: the awaiting job is no longer executing this attempt.', 1;
+
     IF @from_status IS NULL
         BEGIN
 

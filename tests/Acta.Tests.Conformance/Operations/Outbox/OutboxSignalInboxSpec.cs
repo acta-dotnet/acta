@@ -31,14 +31,21 @@ public sealed class OutboxSignalInboxSpec : ActaStorageTestBase<ConformanceFixtu
         byte[] first = [1, 1, 1];
 
         var admitted = await park.HandleAsync(
-            new ParkOutboxSignalCommand(jobId, OutboxSignalNames.Requeue, ValueFormatId: 1, first, nothingIsStale),
+            new ParkOutboxSignalCommand(jobId, OutboxSignalNames.Requeue, ValueFormatId: 1, first, nothingIsStale, ReplaceableValue: null),
             ct
         );
         Assert.Equal(1, admitted.Action);
 
         // A second command while one is pending is rejected with the incumbent's park instant.
         var rejected = await park.HandleAsync(
-            new ParkOutboxSignalCommand(jobId, OutboxSignalNames.Requeue, ValueFormatId: 1, [2, 2, 2], nothingIsStale),
+            new ParkOutboxSignalCommand(
+                jobId,
+                OutboxSignalNames.Requeue,
+                ValueFormatId: 1,
+                [2, 2, 2],
+                nothingIsStale,
+                ReplaceableValue: first
+            ),
             ct
         );
         Assert.Equal(3, rejected.Action);
@@ -54,7 +61,14 @@ public sealed class OutboxSignalInboxSpec : ActaStorageTestBase<ConformanceFixtu
         var everythingIsStale = DateTime.UtcNow.AddHours(1);
         byte[] superseding = [3, 3, 3];
         var superseded = await park.HandleAsync(
-            new ParkOutboxSignalCommand(jobId, OutboxSignalNames.Requeue, ValueFormatId: 1, superseding, everythingIsStale),
+            new ParkOutboxSignalCommand(
+                jobId,
+                OutboxSignalNames.Requeue,
+                ValueFormatId: 1,
+                superseding,
+                everythingIsStale,
+                ReplaceableValue: first
+            ),
             ct
         );
         Assert.Equal(1, superseded.Action);

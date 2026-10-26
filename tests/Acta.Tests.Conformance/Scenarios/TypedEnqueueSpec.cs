@@ -233,7 +233,7 @@ public sealed class TypedEnqueueSpec : ActaRuntimeTestBase<ConformanceFixture, T
                     )
                     .AsTask()
             );
-            Assert.Contains("stored no result", ex.Message);
+            Assert.Contains("no result", ex.Message);
         }
         finally
         {

@@ -26,7 +26,12 @@ internal sealed class CancelJobHandler(
             return new CancelJobResponse(0, ControlAction.NotFound, null, null);
         }
 
-        var row = await CancelAsync(jobId, JobControl.Operator(command.ReasonMessage, command.Actor, command.ExpectedVersion), ct);
+        var row = await CancelAsync(
+            jobId,
+            JobControl.Operator(command.ReasonMessage, command.Actor, command.ExpectedVersion),
+            fence: null,
+            ct
+        );
 
         // What follows the commit does not take the caller's token: a caller that stops waiting, as a closed dashboard
         // tab does, leaves the latch, the wake and the walk running to the end.
@@ -58,19 +63,27 @@ internal sealed class CancelJobHandler(
         }
     }
 
-    /// <summary>One <c>cancel_job</c> call by id that wakes the job's waiters when it applied: no lookup, no latch, no worker wake.</summary>
-    internal async Task<CancelJobRow> CancelAsync(long jobId, JobControlInput input, CancellationToken ct)
+    /// <summary>
+    /// One <c>cancel_job</c> call by id that wakes the job's waiters when it applied: no lookup, no latch, no worker wake.
+    /// A <paramref name="fence"/> holds it to an ancestor's attempt, and a refusal throws <see cref="ExecutionFencedException"/>.
+    /// </summary>
+    internal async Task<CancelJobRow> CancelAsync(long jobId, JobControlInput input, ExecutionFence? fence, CancellationToken ct)
     {
-        var row = await session.ExecuteOneAsync(
-            new StoreCommand("CancelJob"),
-            cmd =>
-            {
-                cmd.Parameters.Add(dialect.CreateParameter(ActaSchema.Job.JobId, jobId));
-                JobControl.BindEvent(cmd, dialect, input);
-                JobControl.BindExpectedVersion(cmd, dialect, input);
-            },
-            DbProjectionResolver.Resolve<CancelJobRow>(),
-            ct
+        var row = await ExecutionFencedException.TranslateAsync(
+            session.ExecuteOneAsync(
+                new StoreCommand("CancelJob"),
+                cmd =>
+                {
+                    cmd.Parameters.Add(dialect.CreateParameter(ActaSchema.Job.JobId, jobId));
+                    cmd.Parameters.Add(dialect.CreateParameter(ActaSchema.Sql.FenceJobId, fence?.JobId));
+                    cmd.Parameters.Add(dialect.CreateParameter(ActaSchema.Sql.FenceExecutionNumber, fence?.ExecutionNumber));
+                    cmd.Parameters.Add(dialect.CreateParameter(ActaSchema.Sql.FenceWorkerId, fence?.WorkerId));
+                    JobControl.BindEvent(cmd, dialect, input);
+                    JobControl.BindExpectedVersion(cmd, dialect, input);
+                },
+                DbProjectionResolver.Resolve<CancelJobRow>(),
+                ct
+            )
         );
         if (row.Action == ControlAction.Applied)
         {
@@ -80,12 +93,15 @@ internal sealed class CancelJobHandler(
         return row;
     }
 
-    /// <summary><see cref="JobsOperations.CancelTreeAsync"/>: the root's cancel, then the descendant walk.</summary>
-    internal async Task CancelTreeAsync(long rootJobId, JobControlInput input, CancellationToken ct)
+    /// <summary>
+    /// <see cref="JobsOperations.CancelTreeAsync"/>: the root's cancel, then the descendant walk, every node under
+    /// <paramref name="fence"/>, so an attempt that lost its job stops at the next node.
+    /// </summary>
+    internal async Task CancelTreeAsync(long rootJobId, JobControlInput input, ExecutionFence fence, CancellationToken ct)
     {
-        var root = await CancelAsync(rootJobId, input, ct);
+        var root = await CancelAsync(rootJobId, input, fence, ct);
         var promoted = root.Action == ControlAction.Applied && root.LanePromoted;
-        await JobControl.WakeWorkersIfAsync(wakeup, await WalkAsync(rootJobId, input, ct) || promoted, ct);
+        await JobControl.WakeWorkersIfAsync(wakeup, await WalkAsync(rootJobId, input, fence, ct) || promoted, ct);
     }
 
     /// <summary>
@@ -95,16 +111,16 @@ internal sealed class CancelJobHandler(
     /// Wakes every worker namespace once if a cancel promoted a lane member.
     /// </summary>
     internal async Task CancelDescendantsAsync(long rootJobId, JobControlInput input, CancellationToken ct) =>
-        await JobControl.WakeWorkersIfAsync(wakeup, await WalkAsync(rootJobId, input, ct), ct);
+        await JobControl.WakeWorkersIfAsync(wakeup, await WalkAsync(rootJobId, input, fence: null, ct), ct);
 
-    private async Task<bool> WalkAsync(long parentJobId, JobControlInput input, CancellationToken ct)
+    private async Task<bool> WalkAsync(long parentJobId, JobControlInput input, ExecutionFence? fence, CancellationToken ct)
     {
         var promoted = false;
         foreach (var childId in (await execution.GetChildJobIdsAsync(parentJobId, ct)).ChildJobIds)
         {
-            var row = await CancelAsync(childId, input, ct);
+            var row = await CancelAsync(childId, input, fence, ct);
             promoted |= row.Action == ControlAction.Applied && row.LanePromoted;
-            promoted |= await WalkAsync(childId, input, ct);
+            promoted |= await WalkAsync(childId, input, fence, ct);
         }
 
         return promoted;

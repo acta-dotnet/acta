@@ -4,6 +4,7 @@
 DROP TABLE IF EXISTS pg_temp._cancel_job_lane;
 DROP TABLE IF EXISTS pg_temp._cancel_job;
 DROP TABLE IF EXISTS pg_temp._cancel_job_promoted;
+DROP TABLE IF EXISTS pg_temp._cancel_job_fence;
 CREATE TEMP TABLE _cancel_job_lane (lane_id BIGINT NOT NULL) ON COMMIT DROP;
 CREATE TEMP TABLE _cancel_job (
     from_status SMALLINT NOT NULL,
@@ -20,6 +21,7 @@ CREATE TEMP TABLE _cancel_job (
     applied BOOLEAN NOT NULL
 ) ON COMMIT DROP;
 CREATE TEMP TABLE _cancel_job_promoted (job_id BIGINT NOT NULL) ON COMMIT DROP;
+CREATE TEMP TABLE _cancel_job_fence (held BOOLEAN NOT NULL) ON COMMIT DROP;
 
 INSERT INTO _cancel_job_lane (lane_id)
 SELECT l.lane_id
@@ -42,6 +44,29 @@ FROM {{schema}}.jobs j
 JOIN {{schema}}.jobs_state r ON r.job_id = j.job_id
 WHERE j.job_id = @p_job_id
 FOR UPDATE;
+
+-- A cancel an ancestor's expired child wait makes lands only while that attempt holds the ancestor's row, read
+-- unlocked once this job's rows are locked (docs/sql-internals.md, "Execution fence"). An operator's or the engine's
+-- cancel carries no fence; the anonymous block only raises.
+INSERT INTO _cancel_job_fence (held)
+SELECT EXISTS (
+    SELECT 1
+    FROM {{schema}}.jobs_state fr
+    WHERE
+        fr.job_id = @p_fence_job_id
+        AND fr.job_status_code = 50 /* JobStatusCode.Executing */
+        AND fr.execution_number = @p_fence_execution_number
+        AND fr.leased_by_worker_id = @p_fence_worker_id
+)
+WHERE @p_fence_job_id IS NOT NULL;
+
+DO $$
+BEGIN
+    IF EXISTS (SELECT 1 FROM pg_temp._cancel_job_fence WHERE NOT held) THEN
+        RAISE EXCEPTION 'ACTA:EXECUTION_FENCED:cancel_job: the awaiting job is no longer executing this attempt.' USING ERRCODE = 'P0001';
+    END IF;
+END
+$$;
 
 UPDATE {{schema}}.jobs_state AS r
 SET

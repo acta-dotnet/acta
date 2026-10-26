@@ -1,4 +1,5 @@
 using System.Data.Common;
+using System.Runtime.CompilerServices;
 
 namespace Acta;
 
@@ -19,6 +20,7 @@ public interface IJobs
     /// (<c>Inserted</c>, or <c>Deduplicated</c> when an existing row matched
     /// <see cref="EnqueueJobRequest.DeduplicationKey"/>).
     /// </summary>
+    [OverloadResolutionPriority(1)]
     ValueTask<EnqueueJobResponse> EnqueueAsync(EnqueueJobRequest request, CancellationToken ct = default);
 
     /// <summary>
@@ -150,6 +152,7 @@ public interface IJobs
     /// id to the next insert); any exception means rolling back the whole business transaction. No handle and no
     /// transactional <c>RunAndWaitAsync</c>: the job is invisible until commit.
     /// </summary>
+    [OverloadResolutionPriority(1)]
     ValueTask<EnqueueJobResponse> EnqueueAsync(DbTransaction transaction, EnqueueJobRequest request, CancellationToken ct = default);
 
     /// <summary>

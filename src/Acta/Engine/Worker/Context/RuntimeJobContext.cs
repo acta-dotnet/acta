@@ -273,12 +273,12 @@ internal sealed partial class RuntimeJobContext(
     }
 
     /// <summary>
-    /// The wait timed out, so this parent stopped waiting, and the child and everything under it is work nobody will
-    /// read. Reason wait-timed-out rather than parent-cancelled, because the parent was not cancelled and the
-    /// timeline must not say it was. Follow-up transactions, like every cascade, not atomic with the Expired flip
-    /// that preceded them: a crash mid-walk leaves live stragglers no maintenance pass sweeps, and the only repair is
-    /// the parent replaying this wait, re-deriving TimedOut off the Expired slot, and re-running the cancel. A parent
-    /// that lands terminal without replaying strands them (docs/known-limitations.md).
+    /// The wait timed out, so the child and everything under it is work nobody will read. Reason wait-timed-out, not
+    /// parent-cancelled: the parent was not cancelled. Every node's cancel carries this attempt's fence, since the
+    /// attempt can lose the parent after its wait expired, and a newer attempt may have restarted that child and wait
+    /// on it. The walk is follow-up transactions, not atomic with the Expired flip: only the parent replaying this wait
+    /// repairs a walk a crash cut short, and a parent that lands terminal without replaying strands the rest
+    /// (docs/known-limitations.md).
     /// </summary>
     private protected override async Task CancelTimedOutChildCoreAsync(long childJobId, CancellationToken ct)
     {
@@ -310,7 +310,7 @@ internal sealed partial class RuntimeJobContext(
 
         // The child's own latch on this job is Expired, so no raise is needed or possible here; the
         // descendants' latches sit on parents this walk has already made terminal.
-        await _jobOperations.CancelTreeAsync(childJobId, input, ct);
+        await FencedAsync(() => _jobOperations.CancelTreeAsync(childJobId, input, Fence, ct));
     }
 
     private protected override T? DeserializeSignalPayload<T>(byte valueFormatId, byte[] value)

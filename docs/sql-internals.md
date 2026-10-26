@@ -266,12 +266,18 @@ out its last one as any other worker's would.
   orders `raise_signal` and a child's landing take. The variable, progress, and step writes lock the job row first, as
   `ResetJobState`, `PurgeJob`, `RestartJob`, and retention's job sweep do before they delete such rows, and no other
   path writes them. A child's enqueue locks its parent's row after the lanes and the parent's `jobs` row.
+- A timed-out child's cancel reads the awaiting job's row without a lock, after it locks the cancelled job's lane and
+  rows. Locking that ancestor deadlocks in either order: a completion batch locks parents by id, ancestor first, and a
+  child's landing locks itself first. The read is enough. Reviving a cancelled node takes its rows after the
+  awaiting attempt lost the job, so the read that follows the cancel's own lock sees the loss. What stays open is the
+  instant between that read and the commit.
 - Fenced: `access_checkpoint` Set, GetOrSet, and Delete (variables, progress, a group wait's deadline),
   `arm_or_consume_sleep_timer`, `wait_signal` (signals and child latches), `start_step`, `complete_step`,
-  `RecordNote`, `ResetJobState`, and `enqueue_job` for a child its parent's handler starts. Not fenced: reads; a
-  handler's alerts, which tell an operator what the handler saw; lock and concurrency-slot holds and rate turns, which
-  are leases on their own keys; and a timed-out child's cancel, which only a fenced wait leads to. Operator verbs are
-  another authority and take no fence.
+  `RecordNote`, `ResetJobState`, `enqueue_job` for a child its parent's handler starts, and `CancelJob` for every node
+  of a timed-out child's subtree: the wait that expired was fenced, but the attempt can lose the job before its cancel,
+  and a later attempt may have restarted that child and wait on it. Not fenced: reads; a handler's alerts, which tell
+  an operator what the handler saw; and lock and concurrency-slot holds and rate turns, which are leases on their own
+  keys. Operator verbs are another authority and take no fence.
 - A refused routine raises `ACTA:EXECUTION_FENCED:`, and `RecordNote` and `ResetJobState` answer that they wrote
   nothing. The context then marks the attempt fenced, cancels its token, and refuses its later writes without a round
   trip, and the executor ends the attempt as it ends a lost lease: no completion and no retry charged.

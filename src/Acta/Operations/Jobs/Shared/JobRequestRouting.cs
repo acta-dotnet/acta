@@ -71,6 +71,23 @@ internal sealed class JobRequestRouting(
     /// <summary>A payload a typed read returns, decoded through the serializer of its own format.</summary>
     public T? Decode<T>(JobPayload payload) => serializers.Resolve(payload.Format.Id).Deserialize<T>(payload);
 
+    /// <summary>
+    /// Refuses to read a registered job's result as another type. A deduplication key shared across definitions hands
+    /// back the other definition's job, and a lenient decode of its result would fill the missing members with
+    /// defaults. A job this process does not register decodes as the caller says.
+    /// </summary>
+    public void EnsureResultType<TResult>(string jobNamespace, string jobName)
+    {
+        if (contractRegistry.TryGetResultType(jobNamespace, jobName, out var resultType) && resultType != typeof(TResult))
+        {
+            throw new InvalidOperationException(
+                $"Job '{jobNamespace}/{jobName}' produces '{resultType?.FullName ?? "no result"}', not "
+                    + $"'{typeof(TResult).FullName}'. A deduplication key shared across definitions returns the job that "
+                    + "already holds it; wait on it with its own result type."
+            );
+        }
+    }
+
     private JobPayload Serialize<TInput>(JobPayloadFormat format, TInput input) =>
         format.IsNone ? JobPayload.None : serializers.Resolve(format.Id).Serialize(input);
 

@@ -1,5 +1,27 @@
 # Release notes
 
+## 1.0.0-rc.7
+
+Not tagged yet. These fix what an external review of rc.6 found. The schema is unchanged: an rc.6 database keeps working.
+
+### What a consumer must change
+
+**A typed wait refuses a job whose definition returns another type.** `JobHandle<T>.WaitAsync`, `WaitAsync<T>`, and `RunAndWaitAsync<T>` throw `InvalidOperationException` when the job's registered definition produces a result other than `T`, or none. Before, a deduplication key shared across definitions handed back the other definition's job, and its wait decoded the foreign result leniently: success, with defaults in the missing members. A job this process does not register decodes as before.
+
+**Native AOT with a multi-parameter handler:** declare the input record yourself. The developer guide used to say to add the generated `Args` record to your JSON context, which cannot work. System.Text.Json's generator never sees a generator-emitted type.
+
+### Fixes
+
+- A parent whose bounded child wait expired cancels the child and its subtree only while its attempt still holds the parent. Before, an attempt that lost the parent after its wait expired could cancel a child that a newer attempt had restarted and was waiting on.
+- A new outbox operator command never replaces a pending one that a relay pass has planned. Before, a relay that died between a discard's delete and its audit event, followed by a park past `WorkerDeadAfter`, erased that deletion's only evidence.
+- A wake's metric listener or logger that throws no longer fails the operation that published it. Before, a throwing listener made `CancelAsync` throw after the parent's cancel committed, and the children kept running.
+- `jobs.EnqueueAsync(new EnqueueJobRequest(...))` and its transactional twin compile with the token left out. Before, they were ambiguous with the generic overload (CS0121).
+- `JobContext.ExecutionNumber` no longer claims to be an idempotency key. It changes on every retry.
+
+### Known limitations
+
+- A requeue command replayed by a relay pass that stalled across another pass finishing it can requeue a row quarantined again since, once, with no event.
+
 ## 1.0.0-rc.6
 
 Tagged 2026-10-26. Upgrading from rc.5 takes the changes below.

@@ -827,6 +827,7 @@
 - **Guarantees:**
   - A result call's handle waits for the outcome and answers the typed result
   - An input-typed enqueue's handle names the result type at the wait
+  - A typed handle deduplicated onto another definition's job refuses its result rather than decoding it
   - A wait that times out reports the job's status and leaves it to run
   - A cancelled wait throws and never cancels the job
   - A handle rebuilt from the ref addresses the same job, and an unknown ref has none
@@ -942,6 +943,8 @@
   - A superseded sleep arms no timer, so the current attempt arms its own
   - A superseded signal wait arms no slot, so the current attempt arms its own
   - A superseded child wait arms no latch, so the current attempt arms its own
+  - A superseded timed-out child cancel leaves the child the current attempt restarted and waits on
+  - A timed-out child cancel under the holding attempt's fence cancels the child and its descendants
   - A superseded child start creates no child, so the current attempt's child is its own
   - A superseded note records nothing on the job's timeline
   - A superseded state reset clears none of the current attempt's state
@@ -1358,6 +1361,8 @@
 - **Contract:** A command replayed after a crash before its evidence records one event naming its planned rows, and a pass that loses the plan never touches the source.
 - **Guarantees:**
   - A requeue replayed after a crash before its evidence records one event for its planned rows only
+  - A discard that crashed before its evidence is never replaced by a newer one, so its deletion keeps its event
+  - A stale command no pass has planned is replaced by a newer one
   - A pass that read the command before another pass planned it never touches the source
 
 ### A stale relay pass never consumes a command parked after the one it read
@@ -1427,6 +1432,7 @@
   - A park into a free slot inserts a Set signal row at version 0 and reads as Applied with its own park instant
   - A park while a younger command pends is Rejected with the incumbent's park instant and leaves it untouched
   - The stale cutoff is inclusive: a command parked at it is superseded and one a millisecond younger is not
+  - A stale command is replaced only while it holds the value the park read, so a plan landing in between wins
   - A retried park of the same command reads as landed and writes nothing again
   - Each command name on each job is its own slot
 

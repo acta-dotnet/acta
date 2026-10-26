@@ -9,12 +9,18 @@ namespace Acta;
 internal sealed class JobContractRegistry
 {
     private readonly Dictionary<(Type ManifestType, string JobName), List<JobContractRoute>> _routes;
+    private readonly Dictionary<(string Namespace, string JobName), Type?> _resultTypes;
 
-    private JobContractRegistry(Dictionary<(Type, string), List<JobContractRoute>> routes) => _routes = routes;
+    private JobContractRegistry(Dictionary<(Type, string), List<JobContractRoute>> routes, Dictionary<(string, string), Type?> resultTypes)
+    {
+        _routes = routes;
+        _resultTypes = resultTypes;
+    }
 
     public static JobContractRegistry Build(IEnumerable<CatalogDeclaration> catalogs)
     {
         var routes = new Dictionary<(Type, string), List<JobContractRoute>>();
+        var resultTypes = new Dictionary<(string, string), Type?>();
 
         foreach (var catalog in catalogs)
         {
@@ -42,12 +48,20 @@ internal sealed class JobContractRegistry
                     {
                         list.Add(route);
                     }
+                    resultTypes.TryAdd((catalog.NamespaceName, descriptor.JobName), descriptor.OutputType);
                 }
             }
         }
 
-        return new JobContractRegistry(routes);
+        return new JobContractRegistry(routes, resultTypes);
     }
+
+    /// <summary>
+    /// The result type a registered job produces, null for a result-less one; false when this process registers no job
+    /// of that name in that namespace.
+    /// </summary>
+    public bool TryGetResultType(string jobNamespace, string jobName, out Type? resultType) =>
+        _resultTypes.TryGetValue((jobNamespace, jobName), out resultType);
 
     public JobContractRoute Resolve(Type manifestType, string jobName, string? namespaceHint)
     {

@@ -52,7 +52,17 @@ public sealed class PlanOutboxSignalSpec : ActaStorageTestBase<ConformanceFixtur
     private Task<ParkOutboxSignalResponse> ParkAsync(long jobId, byte[] value, CancellationToken ct) =>
         Services
             .GetRequiredService<ParkOutboxSignalHandler>()
-            .HandleAsync(new ParkOutboxSignalCommand(jobId, OutboxSignalNames.Requeue, ValueFormatId: 1, value, NothingIsStale), ct);
+            .HandleAsync(
+                new ParkOutboxSignalCommand(
+                    jobId,
+                    OutboxSignalNames.Requeue,
+                    ValueFormatId: 1,
+                    value,
+                    NothingIsStale,
+                    ReplaceableValue: null
+                ),
+                ct
+            );
 
     private async Task<IReadOnlyList<CheckpointEntity>> RowsAsync(long jobId, CancellationToken ct) =>
         await Db.From<CheckpointEntity>()

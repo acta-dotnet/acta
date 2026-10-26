@@ -46,7 +46,7 @@ through durable slots.
 - `JobRef`: the public handle, `job_` plus the 32 hex digits of a UUIDv7, such as `job_01a14f4e954e7bf68ac609f3fcad8e3d`, so a ref copies and searches as one word and refs sort by creation time. Parsing takes exactly that form, with the hex in any casing; a dashed or bare Guid does not parse. The ref is copied onto events and alerts, so they still name the job after its row is purged, but a lookup by the ref then finds nothing.
 - `DeduplicationKey`: the caller's key for a root job, unique within the namespace while the job holding it exists; retention frees it.
 
-`JobRequestBuilder.Deduplicate(businessKey)` composes `<job-name>:<business-key>`. The static `DeduplicationKey` helpers (`ForDefinition`, `PerHour`, `PerDay`, `PerTimeBucket`, `ForTenant`, `AcrossDefinitions`) compose a final key for `JobEnqueueOptionsBuilder.DeduplicationKey(key)`. Keys are case-exact, so `Order-1` and `order-1` are two keys, and namespace-scoped, never tenant-scoped: compose a tenant-relative key with `DeduplicationKey.ForTenant(tenantName, businessKey)`.
+`JobRequestBuilder.Deduplicate(businessKey)` composes `<job-name>:<business-key>`. The static `DeduplicationKey` helpers (`ForDefinition`, `PerHour`, `PerDay`, `PerTimeBucket`, `ForTenant`, `AcrossDefinitions`) compose a final key for `JobEnqueueOptionsBuilder.DeduplicationKey(key)`. Keys are case-exact, so `Order-1` and `order-1` are two keys, and namespace-scoped, never tenant-scoped: compose a tenant-relative key with `DeduplicationKey.ForTenant(tenantName, businessKey)`. A key shared across definitions returns the job that holds it, whatever its definition, and a typed wait on that job throws when its definition produces a different result type.
 
 ### Namespace vs tenant
 
@@ -445,7 +445,7 @@ JobHandle<Receipt> job = await jobs.EnqueueAsync(BillingJobs.SendInvoice(invoice
 ```
 
 - The record is the job's `TIn`, stored as JSON: `{"invoiceId":"…","recipient":"billing@example.com"}`. The parameter names are its contract fields, so renaming one is a contract change; see [contract evolution](#contract-evolution).
-- Under Native AOT, add `[JsonSerializable(typeof(BillingJobs.SendInvoiceArgs))]` to the context passed to `UseJsonPayloads`.
+- Under Native AOT, declare the input record yourself and give the handler that one parameter. System.Text.Json's source generator never sees a type another generator emits, so it writes no metadata for the generated record (warning SYSLIB1030), and its first enqueue throws.
 - An interface parameter other than a collection such as `IReadOnlyList<T>` is rejected (ACTA0103): it reads as a dependency, and dependencies come from the constructor.
 - Such a handler cannot carry `[JobSchedule]` (ACTA0123), since a recurring slot seeds its input from a parameterless constructor the record lacks.
 

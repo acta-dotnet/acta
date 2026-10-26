@@ -128,7 +128,8 @@ public abstract class OutboxRelayIntegrationBase : ActaRuntimeTestBase<Conforman
                     name,
                     ValueFormatId: 1,
                     JsonSerializer.SerializeToUtf8Bytes(payload, OutboxSignalJsonContext.Default.OutboxSignalPayload),
-                    StaleBeforeUtc: DateTime.UtcNow.AddHours(-1)
+                    StaleBeforeUtc: DateTime.UtcNow.AddHours(-1),
+                    ReplaceableValue: null
                 ),
                 ct
             );

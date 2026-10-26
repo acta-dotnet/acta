@@ -12,7 +12,8 @@ internal sealed class ParkOutboxSignalHandler(
     ISqlDialect dialect,
     IJobs jobs,
     IActaClock clock,
-    IOptions<JobsOptions> options
+    IOptions<JobsOptions> options,
+    GetOutboxSignalHandler getSignal
 )
 {
     public Task<ParkOutboxSignalResponse> HandleAsync(ParkOutboxSignalCommand command, CancellationToken ct) =>
@@ -25,6 +26,7 @@ internal sealed class ParkOutboxSignalHandler(
                 cmd.Parameters.Add(dialect.CreateParameter(ActaSchema.Checkpoint.ValueFormatId, command.ValueFormatId));
                 cmd.Parameters.Add(dialect.CreateParameter(ActaSchema.Checkpoint.Value, command.Value));
                 cmd.Parameters.Add(dialect.CreateParameter(ActaSchema.Sql.StaleBefore, command.StaleBeforeUtc));
+                cmd.Parameters.Add(dialect.CreateParameter(ActaSchema.Sql.ReplaceableValue, command.ReplaceableValue));
             },
             DbProjectionResolver.Resolve<ParkOutboxSignalResponse>(),
             ct
@@ -67,19 +69,56 @@ internal sealed class ParkOutboxSignalHandler(
             outboxIds
         );
         var nowUtc = await clock.GetUtcNowAsync(ct);
-        var admission = await HandleAsync(
-            new ParkOutboxSignalCommand(
-                slot.JobId,
-                name,
-                JobPayloadFormat.Json.Id,
-                JsonSerializer.SerializeToUtf8Bytes(payload, OutboxSignalJsonContext.Default.OutboxSignalPayload),
-                StaleBeforeUtc: nowUtc - options.Value.WorkerDeadAfter
-            ),
+        var admission = await AdmitAsync(
+            slot.JobId,
+            name,
+            JsonSerializer.SerializeToUtf8Bytes(payload, OutboxSignalJsonContext.Default.OutboxSignalPayload),
+            nowUtc - options.Value.WorkerDeadAfter,
             ct
         );
 
         return admission.Action == (byte)ControlAction.Applied
             ? (ControlAction.Accepted, null)
             : (ControlAction.Rejected, admission.PendingSinceUtc);
+    }
+
+    /// <summary>
+    /// Admits one serialized command. A stale pending command is replaced only while it is still the unplanned one this
+    /// read found: a planned one may already have changed the source, and the next relay pass replays its plan and
+    /// writes its evidence, which a replacement would erase.
+    /// </summary>
+    internal async Task<ParkOutboxSignalResponse> AdmitAsync(
+        long slotJobId,
+        string name,
+        byte[] value,
+        DateTime staleBeforeUtc,
+        CancellationToken ct
+    )
+    {
+        var pending = (await getSignal.HandleAsync(new GetOutboxSignalQuery(slotJobId, name), ct))?.Signal.Value;
+        return await HandleAsync(
+            new ParkOutboxSignalCommand(
+                slotJobId,
+                name,
+                JobPayloadFormat.Json.Id,
+                value,
+                staleBeforeUtc,
+                ReplaceableValue: pending is not null && !IsPlanned(pending) ? pending : null
+            ),
+            ct
+        );
+    }
+
+    // A malformed command changed nothing, and the relay consumes it unapplied, so it may be replaced.
+    private static bool IsPlanned(byte[] value)
+    {
+        try
+        {
+            return JsonSerializer.Deserialize(value, OutboxSignalJsonContext.Default.OutboxSignalPayload)?.PlannedIds is not null;
+        }
+        catch (JsonException)
+        {
+            return false;
+        }
     }
 }

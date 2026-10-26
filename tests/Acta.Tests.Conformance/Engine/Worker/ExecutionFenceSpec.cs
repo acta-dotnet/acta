@@ -23,6 +23,7 @@ public sealed class ExecutionFenceSpec : ActaRuntimeTestBase<ConformanceFixture,
 {
     private const int LeaseTtlSeconds = 300;
     private const string Receipt = "receipt";
+    private static readonly JobControlInput WaitTimedOut = new(null, EventReason.WaitTimedOut, "Parent's child wait timed out.");
 
     private ExecutionOperations Execution => Services.GetRequiredService<ExecutionOperations>();
 
@@ -251,6 +252,72 @@ public sealed class ExecutionFenceSpec : ActaRuntimeTestBase<ConformanceFixture,
 
         await Assert.ThrowsAsync<SignalSuspendSignal>(() => current.Ctx.WaitChildAsync(child.JobId, ct));
         await AssertCompletionAcceptedAsync(current, ct);
+    }
+
+    // Execution 1's child wait expired and it is about to cancel the child when it loses the parent. The operator's
+    // cancel takes the child down with the parent and the operator restarts both, then execution 2 resets and waits
+    // on the same child again. Execution 1's late cancel must leave that child and that wait alone.
+    [Theory(DisplayName = "A superseded timed-out child cancel leaves the child the current attempt restarted and waits on")]
+    [InlineData(false)]
+    [InlineData(true)]
+    public async Task Timed_out_child_cancel(bool sameWorker)
+    {
+        var ct = TestContext.Current.CancellationToken;
+        EnqueueJobResponse child = null!;
+        var (old, current) = await SupersedeAsync(
+            sameWorker,
+            ct,
+            async first =>
+                child = await first.Ctx.StartChildAsync(
+                    "child-a",
+                    TestNamespace,
+                    "add-numbers",
+                    JobPayload.Json(new AddNumbers(1, 1)),
+                    ct: ct
+                )
+        );
+        using var oldAttempt = old;
+        using var currentAttempt = current;
+        Assert.Equal(ControlAction.Applied, (await Jobs.RestartAsync(JobLookup.ById(child.JobId), ct: ct)).Action);
+        await current.Ctx.ResetStateAsync(ct);
+        await Assert.ThrowsAsync<SignalSuspendSignal>(() => current.Ctx.TryWaitChildAsync(child.JobId, TimeSpan.FromHours(1), ct));
+        var parentBefore = await DurableStateAsync(current.Claim.JobId, ct);
+
+        await Assert.ThrowsAsync<ExecutionFencedException>(() =>
+            Services.GetRequiredService<JobsOperations>().CancelTreeAsync(child.JobId, WaitTimedOut, old.Fence, ct)
+        );
+
+        Assert.Equal(JobStatusCode.Ready, (await ReadStateAsync(child.JobId, ct)).Status);
+        Assert.Equal(parentBefore, await DurableStateAsync(current.Claim.JobId, ct));
+    }
+
+    [Fact(DisplayName = "A timed-out child cancel under the holding attempt's fence cancels the child and its descendants")]
+    public async Task Timed_out_child_cancel_under_a_live_fence()
+    {
+        var ct = TestContext.Current.CancellationToken;
+        var worker = await ChaosSpecHelpers.WorkerIdAsync(Db, Runtime.RegisteredNamespaceIds[TestNamespace], ct);
+        var parent = await Jobs.EnqueueAsync(
+            new EnqueueJobRequest(TestNamespace, "add-numbers", JobPayload.Json(new AddNumbers(2, 3))),
+            ct
+        );
+        using var attempt = await ClaimAsync(parent, worker, ct);
+        var child = await attempt.Ctx.StartChildAsync(
+            "child-a",
+            TestNamespace,
+            "add-numbers",
+            JobPayload.Json(new AddNumbers(1, 1)),
+            ct: ct
+        );
+        var grandchild = await Jobs.EnqueueAsync(
+            new EnqueueJobRequest(TestNamespace, "add-numbers", JobPayload.Json(new AddNumbers(1, 2)), ParentJobId: child.JobId),
+            ct
+        );
+
+        await Services.GetRequiredService<JobsOperations>().CancelTreeAsync(child.JobId, WaitTimedOut, attempt.Fence, ct);
+
+        Assert.Equal(JobStatusCode.Cancelled, (await ReadStateAsync(child.JobId, ct)).Status);
+        Assert.Equal(JobStatusCode.Cancelled, (await ReadStateAsync(grandchild.JobId, ct)).Status);
+        Assert.Equal(JobStatusCode.Executing, (await ReadStateAsync(parent.JobId, ct)).Status);
     }
 
     [Theory(DisplayName = "A superseded child start creates no child, so the current attempt's child is its own")]

@@ -46,6 +46,23 @@ public sealed class JobHandleSpec : ActaRuntimeTestBase<ConformanceFixture, Test
         Assert.Equal(9, (await handle.WaitAsync<AddNumbersResult>(ct: ct)).ValueOrThrow().Sum);
     }
 
+    [Fact(DisplayName = "A typed handle deduplicated onto another definition's job refuses its result rather than decoding it")]
+    public async Task Handle_deduplicated_onto_another_definition_refuses_its_result()
+    {
+        var ct = TestContext.Current.CancellationToken;
+        var key = $"shared-{Guid.NewGuid():N}";
+        var sum = await Jobs.EnqueueAsync(TestJobsManifest.AddNumbers(new AddNumbers(2, 3)), o => o.DeduplicationKey(key), ct);
+        Assert.Equal(RunOnceStatus.Completed, await Runtime.RunOnceAsync(sum, ct));
+
+        var invoice = await Jobs.EnqueueAsync(TestJobsManifest.FormatInvoice(7, "acme"), o => o.DeduplicationKey(key), ct);
+
+        Assert.Equal(EnqueueJobAction.Deduplicated, invoice.Action);
+        Assert.Equal(sum.JobRef, invoice.JobRef);
+        var refused = await Assert.ThrowsAsync<InvalidOperationException>(async () => await invoice.WaitAsync(ct: ct));
+        Assert.Contains(typeof(AddNumbersResult).FullName!, refused.Message, StringComparison.Ordinal);
+        Assert.Equal(5, (await sum.WaitAsync(ct: ct)).ValueOrThrow().Sum);
+    }
+
     [Fact(DisplayName = "A wait that times out reports the job's status and leaves it to run")]
     public async Task Timed_out_wait_leaves_the_job_running()
     {

@@ -65,6 +65,17 @@ internal static partial class ActaSchema
         public static readonly DbValueSpec<int?> ParentWorkerId = new("p_parent_worker_id", DbKind.Int32);
 
         /// <summary>
+        /// cancel_job's fence: the attempt of the ancestor whose expired child wait cancels this subtree, all NULL for an
+        /// operator's or the engine's cancel. Set, they hold the cancel to that attempt (docs/sql-internals.md,
+        /// "Execution fence").
+        /// </summary>
+        public static readonly DbValueSpec<long?> FenceJobId = new("p_fence_job_id", DbKind.Int64);
+
+        public static readonly DbValueSpec<int?> FenceExecutionNumber = new("p_fence_execution_number", DbKind.Int32);
+
+        public static readonly DbValueSpec<int?> FenceWorkerId = new("p_fence_worker_id", DbKind.Int32);
+
+        /// <summary>
         /// extend_worker_leases drain flag: true flips an Active worker to Draining as the heartbeat
         /// refreshes its leases, so a graceful stop surfaces the draining phase without a dedicated routine.
         /// </summary>
@@ -307,6 +318,12 @@ internal static partial class ActaSchema
         /// so a new command may overwrite it; anything younger rejects instead.
         /// </summary>
         public static readonly DbValueSpec<DateTime> StaleBefore = new("p_stale_before_utc", DbKind.UtcInstant);
+
+        /// <summary>
+        /// park_outbox_signal's compare-and-swap: the pending command a stale park may replace, as the park read it, or
+        /// null when none may (a planned command, or none pending).
+        /// </summary>
+        public static readonly DbValueSpec<byte[]?> ReplaceableValue = new("p_replaceable_value", DbKind.BinaryPayload);
 
         /// <summary>PlanOutboxSignal's replacement value: the command it read, carrying the rows it targets.</summary>
         public static readonly DbValueSpec<byte[]> PlannedValue = new("p_planned_value", DbKind.BinaryPayload);

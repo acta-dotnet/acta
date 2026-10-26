@@ -1,3 +1,4 @@
+using System.Text.Json;
 using Acta.Tests.Conformance.Contracts;
 using Acta.Tests.Conformance.Testing;
 using Microsoft.Extensions.DependencyInjection;
@@ -58,6 +59,55 @@ public sealed class OutboxRelaySignalReplaySpec : OutboxRelayIntegrationBase
         Assert.Contains(second.OutboxId.ToString(), evidence.EventMessage, StringComparison.Ordinal);
     }
 
+    [Fact(DisplayName = "A discard that crashed before its evidence is never replaced by a newer one, so its deletion keeps its event")]
+    public async Task Planned_discard_is_never_replaced()
+    {
+        var ct = TestContext.Current.CancellationToken;
+        var signals = Services.GetRequiredService<OutboxOperations>();
+        var first = EchoRow(Unique("discard-first"), status: 90, failureCount: 5);
+        var second = EchoRow(Unique("discard-second"), status: 90, failureCount: 5);
+        await Fixture.SeedOutboxRowAsync(SourceTable, first);
+        await Fixture.SeedOutboxRowAsync(SourceTable, second);
+        var slotJobId = await SeedSlotJobAsync(ct);
+        Assert.Equal(1, await ParkAsync(slotJobId, OutboxSignalNames.Discard, "first row", [first.OutboxId], ct));
+
+        // The crashing pass plans and deletes, then dies before the statement that records and consumes.
+        var crashing = ActivatorUtilities.CreateInstance<OutboxOperations>(
+            Services,
+            new ConsumeOutboxSignalHandler(
+                new HookedSession(Services.GetRequiredService<IDbSession>(), _ => throw new InvalidOperationException("crashed")),
+                Services.GetRequiredService<ISqlDialect>()
+            )
+        );
+        await Assert.ThrowsAsync<InvalidOperationException>(() =>
+            Relay(SourceStore, OwnedSubmission).ApplyOperatorSignalsAsync(slotJobId, crashing, ct)
+        );
+        Assert.False((await Fixture.ReadOutboxRowAsync(SourceTable, first.OutboxId)).Exists);
+
+        var newer = await AdmitAsync(slotJobId, OutboxSignalNames.Discard, "second row", [second.OutboxId], ct);
+        Assert.Equal((byte)ControlAction.Rejected, newer.Action);
+
+        Assert.Equal((0, 1), await Relay(SourceStore, OwnedSubmission).ApplyOperatorSignalsAsync(slotJobId, signals, ct));
+        var evidence = Assert.Single(await SlotEventsAsync(slotJobId, ct));
+        Assert.Contains(first.OutboxId.ToString(), evidence.EventMessage, StringComparison.Ordinal);
+        Assert.Equal((byte)OutboxStatusCode.Quarantined, (await Fixture.ReadOutboxRowAsync(SourceTable, second.OutboxId)).StatusCode);
+    }
+
+    [Fact(DisplayName = "A stale command no pass has planned is replaced by a newer one")]
+    public async Task Stale_unplanned_command_is_replaced()
+    {
+        var ct = TestContext.Current.CancellationToken;
+        var signals = Services.GetRequiredService<OutboxOperations>();
+        var slotJobId = await SeedSlotJobAsync(ct);
+        Assert.Equal(1, await ParkAsync(slotJobId, OutboxSignalNames.Discard, "first", [Guid.NewGuid()], ct));
+
+        var newer = await AdmitAsync(slotJobId, OutboxSignalNames.Discard, "second", [Guid.NewGuid()], ct);
+
+        Assert.Equal((byte)ControlAction.Applied, newer.Action);
+        var pending = (await signals.GetOutboxSignalAsync(slotJobId, OutboxSignalNames.Discard, ct))!.Signal.Value;
+        Assert.Equal("second", JsonSerializer.Deserialize(pending, OutboxSignalJsonContext.Default.OutboxSignalPayload)!.ReasonMessage);
+    }
+
     [Fact(DisplayName = "A pass that read the command before another pass planned it never touches the source")]
     public async Task Pass_that_loses_the_plan_never_touches_the_source()
     {
@@ -96,4 +146,25 @@ public sealed class OutboxRelaySignalReplaySpec : OutboxRelayIntegrationBase
 
     private async Task<IReadOnlyList<EventEntity>> SlotEventsAsync(long slotJobId, CancellationToken ct) =>
         await Db.From<EventEntity>().Where(e => e.EntityCode == EntityCode.Job && e.EntityId == slotJobId).ToListAsync(ct);
+
+    // Admits a new command as an operator's park does, with every pending command past the worker-dead window.
+    private Task<ParkOutboxSignalResponse> AdmitAsync(
+        long slotJobId,
+        string name,
+        string reasonMessage,
+        IReadOnlyList<Guid> outboxIds,
+        CancellationToken ct
+    ) =>
+        Services
+            .GetRequiredService<ParkOutboxSignalHandler>()
+            .AdmitAsync(
+                slotJobId,
+                name,
+                JsonSerializer.SerializeToUtf8Bytes(
+                    new OutboxSignalPayload(Guid.NewGuid(), "marko", reasonMessage, outboxIds),
+                    OutboxSignalJsonContext.Default.OutboxSignalPayload
+                ),
+                DateTime.UtcNow.AddHours(1),
+                ct
+            );
 }

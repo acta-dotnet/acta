@@ -78,8 +78,8 @@ public sealed class ControlVerbEventRecordingSpec : ActaRuntimeTestBase<Conforma
         await SetEventRecordingAsync(Db, jobL, EventRecordingCode.Off, ct);
         await SetEventRecordingAsync(Db, jobF, EventRecordingCode.Audit, ct);
 
-        var outcomeL = await Services.GetRequiredService<CancelJobHandler>().CancelAsync(jobL, input, ct);
-        var outcomeF = await Services.GetRequiredService<CancelJobHandler>().CancelAsync(jobF, input, ct);
+        var outcomeL = await Services.GetRequiredService<CancelJobHandler>().CancelAsync(jobL, input, fence: null, ct);
+        var outcomeF = await Services.GetRequiredService<CancelJobHandler>().CancelAsync(jobF, input, fence: null, ct);
 
         Assert.Equal(ControlAction.Applied, outcomeL.Action);
         Assert.Equal(JobStatusCode.Cancelled, outcomeL.Status);

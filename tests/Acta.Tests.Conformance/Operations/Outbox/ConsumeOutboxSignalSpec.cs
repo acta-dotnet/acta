@@ -50,7 +50,7 @@ public sealed class ConsumeOutboxSignalSpec : ActaStorageTestBase<ConformanceFix
         var jobId = await SeedSlotJobAsync(ct);
         byte[] newer = [2];
         await ParkAsync(jobId, OutboxSignalNames.Discard, [1], NothingIsStale, ct);
-        await ParkAsync(jobId, OutboxSignalNames.Discard, newer, EverythingIsStale, ct);
+        await ParkAsync(jobId, OutboxSignalNames.Discard, newer, EverythingIsStale, ct, replacing: [1]);
 
         Assert.False(await ConsumeAsync(jobId, OutboxSignalNames.Discard, [1], ct));
 
@@ -145,11 +145,12 @@ public sealed class ConsumeOutboxSignalSpec : ActaStorageTestBase<ConformanceFix
         string name,
         byte[] value,
         DateTime staleBeforeUtc,
-        CancellationToken ct
+        CancellationToken ct,
+        byte[]? replacing = null
     ) =>
         Services
             .GetRequiredService<ParkOutboxSignalHandler>()
-            .HandleAsync(new ParkOutboxSignalCommand(jobId, name, ValueFormatId: 1, value, staleBeforeUtc), ct);
+            .HandleAsync(new ParkOutboxSignalCommand(jobId, name, ValueFormatId: 1, value, staleBeforeUtc, replacing), ct);
 
     private async Task<IReadOnlyList<CheckpointEntity>> RowsAsync(long jobId, string name, CancellationToken ct) =>
         await Db.From<CheckpointEntity>()

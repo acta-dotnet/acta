@@ -100,6 +100,7 @@ internal static class JobRunAndWait
         switch (snapshot.Status)
         {
             case JobStatusCode.Succeeded:
+                routing.EnsureResultType<TResult>(snapshot.JobNamespace, snapshot.JobName);
                 var result =
                     await getResult.ReadAsync(snapshot.JobId, snapshot.ExecutionNumber, ct)
                     ?? throw new InvalidOperationException(

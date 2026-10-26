@@ -250,10 +250,11 @@ internal sealed class JobsOperations(
 
     /// <summary>
     /// Cancels a job and then its descendants under one input, waking every worker namespace once if any cancel
-    /// promoted a lane member: a parent abandoning a child whose bounded wait expired.
+    /// promoted a lane member: a parent abandoning a child whose bounded wait expired, and only while
+    /// <paramref name="parent"/> holds the parent.
     /// </summary>
-    internal Task CancelTreeAsync(long rootJobId, JobControlInput input, CancellationToken ct) =>
-        cancelJob.CancelTreeAsync(rootJobId, input, ct);
+    internal Task CancelTreeAsync(long rootJobId, JobControlInput input, ExecutionFence parent, CancellationToken ct) =>
+        cancelJob.CancelTreeAsync(rootJobId, input, parent, ct);
 
     /// <summary>
     /// Clears a job's durable step and checkpoint state ahead of a fresh attempt, behind <c>ctx.ResetStateAsync</c>, while

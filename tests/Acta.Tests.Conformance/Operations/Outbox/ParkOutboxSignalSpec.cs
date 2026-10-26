@@ -15,6 +15,7 @@ namespace Acta.Tests.Conformance.Operations.Outbox;
 public sealed class ParkOutboxSignalSpec : ActaStorageTestBase<ConformanceFixture>
 {
     private static readonly DateTime NothingIsStale = new(2000, 1, 1, 0, 0, 0, DateTimeKind.Utc);
+    private static readonly DateTime EverythingIsStale = new(2999, 1, 1, 0, 0, 0, DateTimeKind.Utc);
 
     private const byte Json = 1;
 
@@ -71,17 +72,34 @@ public sealed class ParkOutboxSignalSpec : ActaStorageTestBase<ConformanceFixtur
         await ParkAsync(jobId, OutboxSignalNames.Requeue, [1], NothingIsStale, ct);
         var parkedAt = (await RowAsync(jobId, OutboxSignalNames.Requeue, ct)).ModifiedAtUtc;
 
-        var early = await ParkAsync(jobId, OutboxSignalNames.Requeue, [2], parkedAt.AddMilliseconds(-1), ct);
+        var early = await ParkAsync(jobId, OutboxSignalNames.Requeue, [2], parkedAt.AddMilliseconds(-1), ct, replacing: [1]);
         Assert.Equal((byte)ControlAction.Rejected, early.Action);
 
         byte[] superseding = [3];
-        var atCutoff = await ParkAsync(jobId, OutboxSignalNames.Requeue, superseding, parkedAt, ct);
+        var atCutoff = await ParkAsync(jobId, OutboxSignalNames.Requeue, superseding, parkedAt, ct, replacing: [1]);
         Assert.Equal((byte)ControlAction.Applied, atCutoff.Action);
 
         var row = await RowAsync(jobId, OutboxSignalNames.Requeue, ct);
         Assert.Equal(superseding, row.Value);
         Assert.Equal(1, row.Version);
         Assert.True(row.ModifiedAtUtc >= parkedAt, "a supersede re-stamps the park instant");
+    }
+
+    [Fact(DisplayName = "A stale command is replaced only while it holds the value the park read, so a plan landing in between wins")]
+    public async Task Stale_replace_loses_to_a_plan_landing_in_between()
+    {
+        var ct = TestContext.Current.CancellationToken;
+        var jobId = await SeedSlotJobAsync(ct);
+        byte[] read = [1];
+        byte[] planned = [1, 9];
+        await ParkAsync(jobId, OutboxSignalNames.Discard, read, NothingIsStale, ct);
+        var outbox = Services.GetRequiredService<OutboxOperations>();
+        Assert.True((await outbox.PlanOutboxSignalAsync(jobId, OutboxSignalNames.Discard, read, planned, ct)).Planned);
+
+        var admission = await ParkAsync(jobId, OutboxSignalNames.Discard, [2], EverythingIsStale, ct, replacing: read);
+
+        Assert.Equal((byte)ControlAction.Rejected, admission.Action);
+        Assert.Equal(planned, (await RowAsync(jobId, OutboxSignalNames.Discard, ct)).Value);
     }
 
     [Fact(DisplayName = "A retried park of the same command reads as landed and writes nothing again")]
@@ -130,11 +148,12 @@ public sealed class ParkOutboxSignalSpec : ActaStorageTestBase<ConformanceFixtur
         string name,
         byte[] value,
         DateTime staleBeforeUtc,
-        CancellationToken ct
+        CancellationToken ct,
+        byte[]? replacing = null
     ) =>
         Services
             .GetRequiredService<ParkOutboxSignalHandler>()
-            .HandleAsync(new ParkOutboxSignalCommand(jobId, name, Json, value, staleBeforeUtc), ct);
+            .HandleAsync(new ParkOutboxSignalCommand(jobId, name, Json, value, staleBeforeUtc, replacing), ct);
 
     private async Task<CheckpointEntity> RowAsync(long jobId, string name, CancellationToken ct) =>
         Assert.Single(

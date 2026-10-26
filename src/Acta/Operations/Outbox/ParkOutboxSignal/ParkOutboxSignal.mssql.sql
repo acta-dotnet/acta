@@ -1,5 +1,5 @@
 -- Park admission for the sys.outbox operator inbox: insert when the slot is free, supersede when the
--- pending command has outlived the worker-dead window, reject otherwise.
+-- pending command has outlived the worker-dead window and is still the unplanned one the park read, reject otherwise.
 SET NOCOUNT ON;
 SET XACT_ABORT ON;
 
@@ -9,7 +9,7 @@ BEGIN TRY
         BEGIN TRANSACTION;
 
     DECLARE @now DATETIME2(7) = SYSUTCDATETIME();
-    DECLARE @modified DATETIME2(7);
+    DECLARE @modified DATETIME2(7), @replaceable BIT;
 
     -- The slot's own lock, as wait_signal names it (docs/sql-internals.md, "Slot locks").
     DECLARE @slot_lock NVARCHAR(255) = CONCAT(N'{{schema}}.slot:', @p_job_id, N':20:', @p_checkpoint_name);
@@ -19,7 +19,7 @@ BEGIN TRY
     IF @slot_lock_result < 0
         THROW 51205, 'ACTA:SLOT_LOCK:The checkpoint slot lock was not granted (deadlock victim or cancelled).', 1;
 
-    SELECT @modified = modified_at_utc
+    SELECT @modified = modified_at_utc, @replaceable = CASE WHEN value = @p_replaceable_value THEN 1 ELSE 0 END
     FROM {{schema}}.checkpoints WITH (UPDLOCK)
     WHERE job_id = @p_job_id AND checkpoint_kind_code = 20 /* CheckpointKindCode.Signal */ AND checkpoint_name = @p_checkpoint_name;
 
@@ -32,7 +32,7 @@ BEGIN TRY
             @p_job_id, 20 /* CheckpointKindCode.Signal */, @p_checkpoint_name, 20 /* CheckpointStatusCode.Set */,
             @p_value_format_id, @p_value, @now, @now, 0
         );
-    ELSE IF @modified <= @p_stale_before_utc
+    ELSE IF @modified <= @p_stale_before_utc AND @replaceable = 1
         UPDATE {{schema}}.checkpoints
         SET
             checkpoint_status_code = 20 /* CheckpointStatusCode.Set */,

@@ -42,6 +42,7 @@ provisioned before 1.0.
 - **`OnTerminal` and `Info` never alert on a recurring job's ordinary failures**, which roll over instead of landing Failed. Use `OnFailure` for recurring work.
 - **The alert projector assumes the database clock never steps backwards.** After a step, failures stamped below the cursor are missed. Repair by setting the `alerts-cursor` variable of the namespace's `sys.alerts` slot in `checkpoints` to `{"Ticks":<UTC ticks of an instant before the step>,"EventId":0}`, no further back than `AlertRetention`.
 - **A writer that freezes past twice the command timeout** can commit an event the projector already passed, which is then missed (never wrong). Keep command timeouts the same across the fleet.
+- **A requeue command can requeue a row a second time.** A relay pass that stalls between planning the command and requeueing its rows, while another pass finishes it and the row is quarantined again, requeues that row once more and records no event for it. The row retries as the operator asked; nothing else changes.
 
 ## Ordering
 

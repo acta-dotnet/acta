@@ -1,4 +1,5 @@
 using System.Diagnostics.Metrics;
+using Microsoft.Extensions.Logging;
 using Xunit;
 
 namespace Acta.Tests.Runtime;
@@ -305,6 +306,44 @@ public sealed class WorkerWakeupTests
     }
 
     [Fact]
+    public async Task A_throwing_logger_never_breaks_the_publishing_caller()
+    {
+        var publisher = new WorkerWakeupPublisher(new ThrowingWakeup(), new ThrowingLogger());
+
+        await publisher.WakeAsync(
+            WorkerWakeupChannel.WorkerNamespace("billing"),
+            WorkerWakeupReason.WorkAvailable,
+            TestContext.Current.CancellationToken
+        );
+    }
+
+    [Fact]
+    public async Task A_throwing_metric_listener_never_breaks_the_publishing_caller()
+    {
+        // A cancel awaits its wake after the cancel committed and before it walks the descendants.
+        using var metrics = new ActaMetrics();
+        var publisher = new WorkerWakeupPublisher(new ThrowingWakeup(), metrics: metrics);
+        using var listener = new MeterListener
+        {
+            InstrumentPublished = (inst, l) =>
+            {
+                if (ReferenceEquals(inst.Meter, metrics.Meter))
+                {
+                    l.EnableMeasurementEvents(inst);
+                }
+            },
+        };
+        listener.SetMeasurementEventCallback<long>((_, _, _, _) => throw new InvalidOperationException("listener down"));
+        listener.Start();
+
+        await publisher.WakeAsync(
+            WorkerWakeupChannel.WorkerNamespace("billing"),
+            WorkerWakeupReason.WorkAvailable,
+            TestContext.Current.CancellationToken
+        );
+    }
+
+    [Fact]
     public async Task A_cancelled_caller_token_never_breaks_the_publishing_caller()
     {
         // Every wake is published after its durable mutation committed; surfacing the caller's
@@ -395,6 +434,22 @@ public sealed class WorkerWakeupTests
 
         public ValueTask<WorkerWakeupWaitStatus> WaitAsync(WorkerWakeupChannel channel, TimeSpan timeout, CancellationToken ct) =>
             throw new InvalidOperationException("transport down");
+    }
+
+    private sealed class ThrowingLogger : ILogger<WorkerWakeupPublisher>
+    {
+        public IDisposable? BeginScope<TState>(TState state)
+            where TState : notnull => null;
+
+        public bool IsEnabled(LogLevel logLevel) => true;
+
+        public void Log<TState>(
+            LogLevel logLevel,
+            EventId eventId,
+            TState state,
+            Exception? exception,
+            Func<TState, Exception?, string> formatter
+        ) => throw new InvalidOperationException("log sink down");
     }
 
     private static List<(long Value, IReadOnlyDictionary<string, object?> Tags)> NewCapture() => [];

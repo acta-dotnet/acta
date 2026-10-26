@@ -1,3 +1,18 @@
+-- A cancel an ancestor's expired child wait makes lands only while that attempt holds the ancestor's row
+-- (docs/sql-internals.md, "Execution fence"); an operator's or the engine's cancel carries no fence.
+SELECT ACTA_ERROR('ACTA:EXECUTION_FENCED:cancel_job: the awaiting job is no longer executing this attempt.')
+WHERE
+    @p_fence_job_id IS NOT NULL
+    AND NOT EXISTS (
+        SELECT 1
+        FROM {{schema}}.jobs_state fr
+        WHERE
+            fr.job_id = @p_fence_job_id
+            AND fr.job_status_code = 50 /* JobStatusCode.Executing */
+            AND fr.execution_number = @p_fence_execution_number
+            AND fr.leased_by_worker_id = @p_fence_worker_id
+    );
+
 DROP TABLE IF EXISTS temp._cancel_job;
 
 CREATE TEMP TABLE _cancel_job AS

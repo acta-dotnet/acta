@@ -56,8 +56,8 @@ public sealed class CancelJobSpec : ActaRuntimeTestBase<ConformanceFixture, Test
         // db_now-derived instant against this process's clock would fold container clock skew into a
         // one-second lower bound, and skew is not what this fact is about.
         var tBefore = (await NowAsync(ct)).AddSeconds(-1);
-        var cancelSuspended = await Services.GetRequiredService<CancelJobHandler>().CancelAsync(suspendedJob, input, ct);
-        var cancelExecuting = await Services.GetRequiredService<CancelJobHandler>().CancelAsync(executingJob, input, ct);
+        var cancelSuspended = await Services.GetRequiredService<CancelJobHandler>().CancelAsync(suspendedJob, input, fence: null, ct);
+        var cancelExecuting = await Services.GetRequiredService<CancelJobHandler>().CancelAsync(executingJob, input, fence: null, ct);
         var tAfter = (await NowAsync(ct)).AddDays(91);
 
         Assert.Equal(ControlAction.Applied, cancelSuspended.Action);
@@ -84,14 +84,14 @@ public sealed class CancelJobSpec : ActaRuntimeTestBase<ConformanceFixture, Test
 
         var jobId = await EnqueueAsync(ct);
 
-        var first = await Services.GetRequiredService<CancelJobHandler>().CancelAsync(jobId, input, ct);
+        var first = await Services.GetRequiredService<CancelJobHandler>().CancelAsync(jobId, input, fence: null, ct);
         Assert.Equal(ControlAction.Applied, first.Action);
         Assert.Equal(JobStatusCode.Cancelled, first.Status);
 
         var afterFirst = await ReadJobAsync(jobId, ct);
         var retentionAfterFirst = afterFirst.RetentionUntilUtc;
 
-        var second = await Services.GetRequiredService<CancelJobHandler>().CancelAsync(jobId, input, ct);
+        var second = await Services.GetRequiredService<CancelJobHandler>().CancelAsync(jobId, input, fence: null, ct);
         Assert.Equal(ControlAction.Rejected, second.Action);
         Assert.Equal(JobStatusCode.Cancelled, second.Status);
 

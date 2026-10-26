@@ -50,7 +50,7 @@ public sealed class GetOutboxSignalSpec : ActaStorageTestBase<ConformanceFixture
         Assert.Equal(first, parked.Value);
         Assert.Equal(0, parked.Version);
 
-        await ParkAsync(jobId, OutboxSignalNames.Requeue, valueFormatId: 3, superseding, EverythingIsStale, ct);
+        await ParkAsync(jobId, OutboxSignalNames.Requeue, valueFormatId: 3, superseding, EverythingIsStale, ct, replacing: first);
 
         var current = await GetAsync(jobId, OutboxSignalNames.Requeue, ct);
         Assert.NotNull(current);
@@ -102,11 +102,12 @@ public sealed class GetOutboxSignalSpec : ActaStorageTestBase<ConformanceFixture
         byte valueFormatId,
         byte[] value,
         DateTime staleBeforeUtc,
-        CancellationToken ct
+        CancellationToken ct,
+        byte[]? replacing = null
     ) =>
         Services
             .GetRequiredService<ParkOutboxSignalHandler>()
-            .HandleAsync(new ParkOutboxSignalCommand(jobId, name, valueFormatId, value, staleBeforeUtc), ct);
+            .HandleAsync(new ParkOutboxSignalCommand(jobId, name, valueFormatId, value, staleBeforeUtc, replacing), ct);
 
     private async Task<long> SeedSlotJobAsync(CancellationToken ct) => (await Seeder.SeedJobAsync(TestNamespaceId, DefId, ct: ct)).JobId;
 }
