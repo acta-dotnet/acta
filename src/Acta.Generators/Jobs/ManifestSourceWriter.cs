@@ -30,6 +30,7 @@ internal static class ManifestSourceWriter
         string rootNamespace,
         string manifestTypeName,
         DiscoveredJob[] jobs,
+        DiscoveredCalendar[] calendars,
         IReadOnlyDictionary<string, byte> customFormatById,
         ISet<string> contractCollisions
     )
@@ -71,6 +72,22 @@ internal static class ManifestSourceWriter
         for (var i = 0; i < jobs.Length; i++)
         {
             EmitDescriptor(sb, jobs[i], dispatch, jobs[i].DispatchSuffix(i), i == jobs.Length - 1 ? "" : ",", customFormatById);
+        }
+        if (calendars.Length > 0)
+        {
+            sb.AppendLine("            ),");
+            sb.AppendLine(
+                "            Calendars: global::System.Collections.Immutable.ImmutableArray.Create<global::Acta.CalendarDescriptor>("
+            );
+            for (var i = 0; i < calendars.Length; i++)
+            {
+                var c = calendars[i];
+                var flags = $"{(c.Occurrence ? "true" : "false")}, {(c.Availability ? "true" : "false")}";
+                var trailing = i == calendars.Length - 1 ? "" : ",";
+                sb.AppendLine(
+                    $"                new global::Acta.CalendarDescriptor({FormatString(c.CalendarName)}, typeof({DisplayName(c.ImplementationType)}), {flags}){trailing}"
+                );
+            }
         }
         sb.AppendLine("            ));");
         EmitCalls(sb, jobs, manifestTypeName, contractCollisions);
@@ -299,8 +316,9 @@ internal static class ManifestSourceWriter
                 $"                            ExpireAfterSeconds: {s.ExpireAfterSeconds?.ToString(System.Globalization.CultureInfo.InvariantCulture) ?? "null"},"
             );
             sb.AppendLine(
-                $"                            ExpireAction: global::Acta.ScheduleExpireActionCode.{JobPolicyValues.ScheduleExpireActionIdToName(s.ExpireActionId) ?? "Unspecified"}){trailing}"
+                $"                            ExpireAction: global::Acta.ScheduleExpireActionCode.{JobPolicyValues.ScheduleExpireActionIdToName(s.ExpireActionId) ?? "Unspecified"},"
             );
+            sb.AppendLine($"                            AvailabilityCalendarName: {LitOrNull(s.AvailabilityName)}){trailing}");
         }
     }
 

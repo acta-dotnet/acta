@@ -69,7 +69,7 @@ The endpoint returns `202 Accepted` with the job's ref as soon as the row is sto
 process runs it. To run a job later or follow it to its outcome:
 
 ```csharp
-// Run it later: one job, held until its time. A recurring schedule is [JobSchedule].
+// Run it later: one job, held until its time. A recurring schedule is [Schedule].
 var reminder = await jobs.ScheduleAsync(new ShipOrder(1043), TimeSpan.FromMinutes(10));
 
 // Follow a job: the handle waits for the outcome, and a timeout stops the wait, never the job.

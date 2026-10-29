@@ -14,6 +14,9 @@ public static class NameSyntax
     /// <summary>The bare reserved name: the seeded <c>sys</c> namespace.</summary>
     public const string ReservedSystemName = "sys";
 
+    /// <summary>The seeded <c>sys</c> namespace's id: cross-namespace audit events and the shared calendar catalog live under it.</summary>
+    public const int SystemNamespaceId = 1;
+
     /// <summary>Default length cap (64 chars): namespaces, payload format names, and worker names.</summary>
     public const int DefaultMaxLength = 64;
 

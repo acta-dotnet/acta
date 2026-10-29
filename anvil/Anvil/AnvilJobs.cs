@@ -290,8 +290,8 @@ public static class PulseJob
     // Two independently moving schedule cursors on one recurring slot (an ISO interval plus a cron
     // sweep), so the dashboard always has live recurring executions to show.
     [Job("pulse")]
-    [JobSchedule("pulse", "PT1M")]
-    [JobSchedule("cron-sweep", Cron.Every5Minutes)]
+    [Schedule("pulse", "PT1M")]
+    [Schedule("cron-sweep", Cron.Every5Minutes)]
     public static void Handle(Pulse input) { }
 }
 

@@ -1,7 +1,15 @@
 // Run with Node's built-in test runner (see "npm test").
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { jobsListSql, eventsListSql, schedulesListSql } from './copyAsSql.ts';
+import { calendarsListSql, jobsListSql, eventsListSql, schedulesListSql } from './copyAsSql.ts';
+
+test('calendarsListSql scopes a namespace with the shared sys families and orders versions together', () => {
+  assert.equal(
+    calendarsListSql({ namespace: 'Billing', role: 'availability', nameSearch: "O'Clock" }),
+    "SELECT * FROM acta.calendars_view WHERE namespace IN ('billing', 'sys') AND role = 'availability' AND calendar_name LIKE '%o''clock%' ORDER BY namespace, calendar_name, version DESC LIMIT 100;"
+  );
+  assert.equal(calendarsListSql({}), 'SELECT * FROM acta.calendars_view ORDER BY namespace, calendar_name, version DESC LIMIT 100;');
+});
 
 test('jobsListSql with no filters selects the whole view, no WHERE clause', () => {
   assert.equal(jobsListSql({}), 'SELECT * FROM acta.jobs_view ORDER BY created_at_utc DESC LIMIT 100;');

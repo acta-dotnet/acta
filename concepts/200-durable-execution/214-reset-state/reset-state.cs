@@ -10,7 +10,7 @@ builder.Services.UseActa(j =>
     j.Run<ResetStateJobs>("reset-state");
 });
 
-// The [JobSchedule] recurs every 5s, so there's nothing to enqueue; just run the worker.
+// The [Schedule] recurs every 5s, so there's nothing to enqueue; just run the worker.
 await builder.Build().RunAsync();
 
 namespace Acta.Concepts.ResetState
@@ -22,7 +22,7 @@ namespace Acta.Concepts.ResetState
         // Each fire re-runs the same durable job, so variables persist across fires unless the handler
         // clears its durable state as the final act of the cycle.
         [Job("collect-metrics", EventRecording = EventRecordingCode.Off)]
-        [JobSchedule("every-5-seconds", "PT5S")]
+        [Schedule("every-5-seconds", "PT5S")]
         public async Task Handle(CollectMetrics input, JobContext context, CancellationToken ct)
         {
             // Reads 0 because the previous cycle's reset wiped this variable; without it, reads 3.

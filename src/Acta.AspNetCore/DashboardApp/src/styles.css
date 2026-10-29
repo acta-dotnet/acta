@@ -1415,6 +1415,8 @@ button.copy:hover { color: var(--accent); }
   }
   table.data.mobile-cards td:first-child { grid-column: 1 / -1; }
   table.data.mobile-cards td.mobile-hide { display: none; }
+  /* A column whose values are too wide to pair takes the card's whole row. */
+  table.data.mobile-cards td.mobile-wide { grid-column: 1 / -1; }
   table.data.mobile-cards td.col-actions { grid-column: 1 / -1; }
   table.data.mobile-cards td.col-actions::before { content: none; }
   table.data.mobile-cards td.col-actions button { flex: 1; justify-content: center; }

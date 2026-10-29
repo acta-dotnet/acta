@@ -24,6 +24,7 @@ public sealed partial class OperationsIndexTests
         "Jobs",
         "Ledger",
         "Schedules",
+        "Calendars",
         "Definitions",
         "Workers",
         "Alerts",

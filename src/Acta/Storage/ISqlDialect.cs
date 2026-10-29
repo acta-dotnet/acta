@@ -109,6 +109,9 @@ internal interface ISqlDialect
     /// <summary>Binds an admission plan as the provider-native JSON text the apply reads.</summary>
     void BindAdmitFirings(DbCommand command, AdmitFiringsCommand request);
 
+    /// <summary>Binds the schedules a calendar publication retimes as the provider-native JSON text the apply reads.</summary>
+    void BindPublishCalendar(DbCommand command, IReadOnlyList<PublishCalendarValues> rows);
+
     /// <summary>Binds a batch completion's rows in the provider-native shape (typed arrays, a table type, or JSON array text).</summary>
     void BindCompleteExecutions(DbCommand command, CompleteExecutionsCommand request, string schema);
 }

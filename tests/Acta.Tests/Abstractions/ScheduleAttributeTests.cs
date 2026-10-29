@@ -1,0 +1,25 @@
+using Xunit;
+
+namespace Acta.Tests.Abstractions;
+
+/// <summary>
+/// The runtime fallback default for a <c>[Schedule]</c> with no explicit misfire is Skip
+/// (forward-only, drop missed occurrences), matching the generator default and the production
+/// scheduler. CatchUpOnce is opt-in.
+/// </summary>
+public sealed class ScheduleAttributeTests
+{
+    [Fact]
+    public void Misfire_defaults_to_skip_when_unset()
+    {
+        var attr = new ScheduleAttribute("nightly", "PT5M");
+        Assert.Equal(MisfireStrategyCode.Skip, attr.MisfireStrategy);
+    }
+
+    [Fact]
+    public void Time_zone_defaults_to_UTC_when_unset()
+    {
+        var attr = new ScheduleAttribute("nightly", "0 0 * * *");
+        Assert.Equal("UTC", attr.TimeZoneId);
+    }
+}

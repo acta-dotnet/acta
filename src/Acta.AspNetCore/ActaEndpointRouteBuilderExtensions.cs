@@ -141,6 +141,7 @@ public static class ActaEndpointRouteBuilderExtensions
         OutboxEndpoints.Map(api, controls, options);
         DefinitionsEndpoints.Map(api, controls, options);
         SchedulesEndpoints.Map(api, controls, options);
+        CalendarsEndpoints.Map(api, controls, options);
         LedgerEndpoints.Map(api, options);
         GetCapabilitiesEndpoint.Map(api, options);
     }

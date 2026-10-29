@@ -398,6 +398,8 @@ public class DbSessionRetryRegionTests
             throw new NotSupportedException();
 
         public void BindAdmitFirings(DbCommand command, AdmitFiringsCommand request) => throw new NotSupportedException();
+
+        public void BindPublishCalendar(DbCommand command, IReadOnlyList<PublishCalendarValues> rows) => throw new NotSupportedException();
     }
 
     private sealed class FakeConnection(FakeDialect dialect, List<string> log) : DbConnection

@@ -94,7 +94,7 @@
             <pre><code><span class="k">public sealed class</span> CleanupJobs
 {
     <span class="a">[Job(<span class="s">"cleanup-expired-sessions"</span>)]</span>
-    <span class="a">[JobSchedule(<span class="s">"every-5-minutes"</span>, <span class="s">"5m"</span>)]</span>
+    <span class="a">[Schedule(<span class="s">"every-5-minutes"</span>, <span class="s">"5m"</span>)]</span>
     <span class="k">public</span> Task CleanupExpiredSessions(CancellationToken ct)
     {
         <span class="k">return</span> Task.CompletedTask;

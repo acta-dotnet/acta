@@ -288,6 +288,11 @@ internal static class SqlServerTableParameters
         new("full_behavior_code", SqlDbType.TinyInt),
         new("expire_after_seconds", SqlDbType.Int),
         new("expire_action_code", SqlDbType.TinyInt),
+        new("calendar_origin_code", SqlDbType.TinyInt),
+        new("calendar_version", SqlDbType.Int),
+        new("availability_calendar_name", SqlDbType.VarChar, 128),
+        new("availability_calendar_origin_code", SqlDbType.TinyInt),
+        new("availability_calendar_version", SqlDbType.Int),
     ];
 
     internal static IEnumerable<SqlDataRecord>? BuildScheduleUpsertRecords(IReadOnlyList<DefinitionSchedules> definitions)
@@ -315,6 +320,11 @@ internal static class SqlServerTableParameters
                     record.SetByte(11, (byte)schedule.FullBehavior);
                     SetNullableInt32(record, 12, schedule.ExpireAfterSeconds);
                     SetNullableByte(record, 13, (byte?)schedule.ExpireAction);
+                    SetNullableByte(record, 14, (byte?)schedule.CalendarOrigin);
+                    SetNullableInt32(record, 15, schedule.CalendarVersion);
+                    SetNullableString(record, 16, schedule.AvailabilityCalendarName);
+                    SetNullableByte(record, 17, (byte?)schedule.AvailabilityOrigin);
+                    SetNullableInt32(record, 18, schedule.AvailabilityVersion);
                     yield return record;
                 }
             }

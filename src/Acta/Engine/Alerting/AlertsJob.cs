@@ -88,7 +88,7 @@ internal sealed class AlertsJob(
         EventRecording = EventRecordingCode.Failures,
         AlertProfile = AlertProfileCode.SysCritical
     )]
-    [JobSchedule("default", Cron.EveryMinute)]
+    [Schedule("default", Cron.EveryMinute)]
     public async Task Handle(JobContext ctx, CancellationToken ct)
     {
         // The database clock is read once, here, and every settlement below stamps itself from that

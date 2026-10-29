@@ -6,7 +6,7 @@ using Xunit;
 namespace Acta.Tests.Conformance.Engine.Worker;
 
 /// <summary>
-/// Environment-gated schedule registration: at startup a <c>[JobSchedule]</c> registers only when it is
+/// Environment-gated schedule registration: at startup a <c>[Schedule]</c> registers only when it is
 /// active in this worker's <see cref="JobsOptions.EnvironmentName"/>: a schedule that declares no
 /// environments is a wildcard, otherwise its declared set must contain the worker's environment
 /// (case-insensitive). Driven through the real <c>CatalogRegistrar</c> reconcile by running the

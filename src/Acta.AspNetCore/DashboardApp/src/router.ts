@@ -13,6 +13,8 @@ export interface Route {
   scheduleNamespace?: string;
   scheduleJobName?: string;
   scheduleName?: string;
+  calendarNamespace?: string;
+  calendarName?: string;
 }
 
 function splitHash(hash: string): { path: string; query: string } {
@@ -55,6 +57,11 @@ export function parseRouteHash(hash: string): Route {
       if (parts.length === 1) return { name: 'schedules' };
       return parts.length === 4
         ? { name: 'schedule-detail', scheduleNamespace: decoded(parts, 1), scheduleJobName: decoded(parts, 2), scheduleName: decoded(parts, 3) }
+        : { name: 'not-found' };
+    case 'calendars':
+      if (parts.length === 1) return { name: 'calendars' };
+      return parts.length === 3
+        ? { name: 'calendar-detail', calendarNamespace: decoded(parts, 1), calendarName: decoded(parts, 2) }
         : { name: 'not-found' };
     case 'workers':
       if (parts.length === 1) return { name: 'workers' };

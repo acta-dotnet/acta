@@ -13,11 +13,11 @@ namespace TestJobs;
 public static class EnvironmentScopedPingHandler
 {
     [Job("env-gated-ping")]
-    [JobSchedule("staging-tick", Cron.Every5Minutes, Environments = new[] { "staging" })]
-    [JobSchedule("prod-tick", Cron.Every5Minutes, Environments = new[] { "production" })]
+    [Schedule("staging-tick", Cron.Every5Minutes, Environments = new[] { "staging" })]
+    [Schedule("prod-tick", Cron.Every5Minutes, Environments = new[] { "production" })]
     public static Task Run() => Task.CompletedTask;
 
     [Job("env-prod-only-ping")]
-    [JobSchedule("prod-tick", Cron.Every5Minutes, Environments = new[] { "production" })]
+    [Schedule("prod-tick", Cron.Every5Minutes, Environments = new[] { "production" })]
     public static Task RunProdOnly() => Task.CompletedTask;
 }

@@ -63,7 +63,7 @@ GO
 -- ===== refuse a database a newer release already upgraded =====
 IF EXISTS (
     SELECT 1 FROM acta.migrations
-    WHERE name NOT IN ('M20261029171733_init')
+    WHERE name NOT IN ('M20261029203554_init')
 )
 BEGIN
     RAISERROR(N'A newer Acta release already upgraded this database. Run the newest provisioning script; this one would move it backwards.', 16, 1);
@@ -71,7 +71,7 @@ BEGIN
     SET NOEXEC ON;
 END
 GO
--- ===== BEGIN M20261029171733_init =====
+-- ===== BEGIN M20261029203554_init =====
 SET QUOTED_IDENTIFIER ON;
 SET ANSI_NULLS ON;
 GO
@@ -386,6 +386,31 @@ BEGIN
 END
 GO
 
+-- calendars
+IF OBJECT_ID(N'acta.calendars', N'U') IS NULL
+BEGIN
+CREATE TABLE acta.calendars (
+    calendar_id int IDENTITY(1,1) NOT NULL,
+    namespace_id int NOT NULL,
+    calendar_name varchar(128) NOT NULL,
+    version int NOT NULL,
+    calendar_role_code tinyint NOT NULL,
+    definition_format_id tinyint DEFAULT 0 NOT NULL,
+    definition varbinary(max) NOT NULL,
+    content_hash varchar(64) NOT NULL,
+    calendar_status_code tinyint NOT NULL,
+    created_at_utc datetime2(3) DEFAULT SYSUTCDATETIME() NOT NULL,
+    published_at_utc datetime2(3) NULL,
+    modified_at_utc datetime2(3) DEFAULT SYSUTCDATETIME() NOT NULL
+    , CONSTRAINT pk_calendars PRIMARY KEY (calendar_id)
+    , CONSTRAINT ck_calendars_version CHECK (version > 0)
+    , CONSTRAINT fk_calendars_namespaces FOREIGN KEY (namespace_id) REFERENCES acta.namespaces (namespace_id)
+);
+CREATE UNIQUE INDEX ux_calendars_namespace_name_version ON acta.calendars (namespace_id, calendar_name, version);
+CREATE UNIQUE INDEX ux_calendars_current ON acta.calendars (namespace_id, calendar_name) WHERE calendar_status_code = 20;
+END
+GO
+
 -- schedules
 IF OBJECT_ID(N'acta.schedules', N'U') IS NULL
 BEGIN
@@ -407,6 +432,11 @@ CREATE TABLE acta.schedules (
     full_behavior_code tinyint NOT NULL,
     expire_after_seconds int NULL,
     expire_action_code tinyint NULL,
+    calendar_origin_code tinyint NULL,
+    calendar_version int NULL,
+    availability_calendar_name varchar(128) NULL,
+    availability_calendar_origin_code tinyint NULL,
+    availability_calendar_version int NULL,
     schedule_status_code tinyint NOT NULL,
     paused_until_utc datetime2(3) NULL,
     description nvarchar(512) NULL,
@@ -420,6 +450,9 @@ CREATE TABLE acta.schedules (
     , CONSTRAINT ck_schedules_max_outstanding CHECK (max_outstanding >= 1)
     , CONSTRAINT ck_schedules_expire_pair CHECK ((expire_after_seconds IS NULL AND expire_action_code IS NULL) OR (expire_after_seconds IS NOT NULL AND expire_action_code IS NOT NULL))
     , CONSTRAINT ck_schedules_expire_after CHECK (expire_after_seconds IS NULL OR expire_after_seconds > 0)
+    , CONSTRAINT ck_schedules_calendar_binding CHECK ((expression_kind_code = 30 AND calendar_origin_code IS NOT NULL AND calendar_version IS NOT NULL) OR (expression_kind_code <> 30 AND calendar_origin_code IS NULL AND calendar_version IS NULL))
+    , CONSTRAINT ck_schedules_availability_triple CHECK ((availability_calendar_name IS NULL AND availability_calendar_origin_code IS NULL AND availability_calendar_version IS NULL) OR (availability_calendar_name IS NOT NULL AND availability_calendar_origin_code IS NOT NULL AND availability_calendar_version IS NOT NULL))
+    , CONSTRAINT ck_schedules_calendar_version CHECK ((calendar_version IS NULL OR calendar_version > 0) AND (availability_calendar_version IS NULL OR availability_calendar_version > 0))
     , CONSTRAINT fk_schedules_definitions FOREIGN KEY (definition_id) REFERENCES acta.definitions (definition_id)
 );
 CREATE INDEX ix_schedules_job ON acta.schedules (job_id, schedule_id) WHERE job_id IS NOT NULL;
@@ -671,6 +704,11 @@ EXEC(N'CREATE TYPE acta.register_schedules AS TABLE (
     full_behavior_code            TINYINT      NOT NULL,
     expire_after_seconds          INT          NULL,
     expire_action_code            TINYINT      NULL,
+    calendar_origin_code          TINYINT      NULL,
+    calendar_version              INT          NULL,
+    availability_calendar_name    VARCHAR(128) NULL,
+    availability_calendar_origin_code TINYINT      NULL,
+    availability_calendar_version INT          NULL,
     PRIMARY KEY (definition_id, schedule_name)
 );');
 GO
@@ -4711,6 +4749,24 @@ LEFT JOIN acta.jobs AS j ON j.job_id = a.job_id
 LEFT JOIN acta.definitions AS d ON d.definition_id = j.definition_id
 GO
 
+CREATE OR ALTER VIEW acta.calendars_view AS
+SELECT
+    c.calendar_id,
+    ns.namespace_name AS namespace,
+    c.calendar_name,
+    c.version,
+    CASE c.calendar_role_code WHEN 0 THEN 'unspecified' WHEN 10 THEN 'occurrence' WHEN 20 THEN 'availability' END AS role,
+    c.calendar_role_code,
+    CASE c.calendar_status_code WHEN 0 THEN 'unspecified' WHEN 10 THEN 'draft' WHEN 20 THEN 'published' WHEN 30 THEN 'superseded' WHEN 240 THEN 'archived' END AS status,
+    c.calendar_status_code,
+    c.content_hash,
+    c.created_at_utc,
+    c.published_at_utc,
+    c.modified_at_utc
+FROM acta.calendars AS c
+JOIN acta.namespaces AS ns ON ns.namespace_id = c.namespace_id
+GO
+
 CREATE OR ALTER VIEW acta.checkpoints_view AS
 SELECT
     c.job_id,
@@ -4817,10 +4873,10 @@ SELECT
     e.created_at_utc,
     ns.namespace_name AS namespace,
     e.namespace_id,
-    CASE e.entity_code WHEN 0 THEN 'unspecified' WHEN 10 THEN 'alert' WHEN 20 THEN 'checkpoint' WHEN 30 THEN 'definition' WHEN 40 THEN 'event' WHEN 50 THEN 'job' WHEN 60 THEN 'lane' WHEN 70 THEN 'lock' WHEN 80 THEN 'namespace' WHEN 90 THEN 'schedule' WHEN 100 THEN 'step' WHEN 110 THEN 'tag' WHEN 120 THEN 'tenant' WHEN 130 THEN 'worker' END AS entity_kind,
+    CASE e.entity_code WHEN 0 THEN 'unspecified' WHEN 10 THEN 'alert' WHEN 15 THEN 'calendar' WHEN 20 THEN 'checkpoint' WHEN 30 THEN 'definition' WHEN 40 THEN 'event' WHEN 50 THEN 'job' WHEN 60 THEN 'lane' WHEN 70 THEN 'lock' WHEN 80 THEN 'namespace' WHEN 90 THEN 'schedule' WHEN 100 THEN 'step' WHEN 110 THEN 'tag' WHEN 120 THEN 'tenant' WHEN 130 THEN 'worker' END AS entity_kind,
     e.entity_code,
     e.entity_id,
-    CASE e.event_code WHEN 0 THEN 'unspecified' WHEN 10 THEN 'tenant.suspended' WHEN 11 THEN 'tenant.resumed' WHEN 12 THEN 'tenant.updated' WHEN 20 THEN 'namespace.suspended' WHEN 21 THEN 'namespace.resumed' WHEN 22 THEN 'namespace.updated' WHEN 30 THEN 'definition.overrides-updated' WHEN 31 THEN 'definition.retired' WHEN 40 THEN 'job.execution-succeeded' WHEN 41 THEN 'job.execution-failed' WHEN 42 THEN 'job.execution-orphaned' WHEN 43 THEN 'job.execution-yielded' WHEN 44 THEN 'job.failed' WHEN 60 THEN 'job.suspended' WHEN 61 THEN 'job.rescheduled' WHEN 70 THEN 'job.cancelled' WHEN 71 THEN 'job.paused' WHEN 72 THEN 'job.resumed' WHEN 73 THEN 'job.restarted' WHEN 74 THEN 'job.reprioritized' WHEN 75 THEN 'job.purged' WHEN 76 THEN 'job.input-amended' WHEN 80 THEN 'job.signal-raised' WHEN 81 THEN 'job.state-reset' WHEN 90 THEN 'job.note-recorded' WHEN 100 THEN 'schedule.paused' WHEN 101 THEN 'schedule.resumed' WHEN 102 THEN 'schedule.pause-expired' WHEN 104 THEN 'schedule.triggered' WHEN 105 THEN 'schedule.admitted' WHEN 106 THEN 'schedule.skipped' WHEN 107 THEN 'schedule.retimed' WHEN 120 THEN 'worker.started' WHEN 121 THEN 'worker.stopped' WHEN 122 THEN 'worker.died' WHEN 140 THEN 'alert.acknowledged' WHEN 141 THEN 'alert.resolved' WHEN 180 THEN 'outbox.requeued' WHEN 181 THEN 'outbox.discarded' END AS event,
+    CASE e.event_code WHEN 0 THEN 'unspecified' WHEN 10 THEN 'tenant.suspended' WHEN 11 THEN 'tenant.resumed' WHEN 12 THEN 'tenant.updated' WHEN 20 THEN 'namespace.suspended' WHEN 21 THEN 'namespace.resumed' WHEN 22 THEN 'namespace.updated' WHEN 30 THEN 'definition.overrides-updated' WHEN 31 THEN 'definition.retired' WHEN 40 THEN 'job.execution-succeeded' WHEN 41 THEN 'job.execution-failed' WHEN 42 THEN 'job.execution-orphaned' WHEN 43 THEN 'job.execution-yielded' WHEN 44 THEN 'job.failed' WHEN 60 THEN 'job.suspended' WHEN 61 THEN 'job.rescheduled' WHEN 70 THEN 'job.cancelled' WHEN 71 THEN 'job.paused' WHEN 72 THEN 'job.resumed' WHEN 73 THEN 'job.restarted' WHEN 74 THEN 'job.reprioritized' WHEN 75 THEN 'job.purged' WHEN 76 THEN 'job.input-amended' WHEN 80 THEN 'job.signal-raised' WHEN 81 THEN 'job.state-reset' WHEN 90 THEN 'job.note-recorded' WHEN 100 THEN 'schedule.paused' WHEN 101 THEN 'schedule.resumed' WHEN 102 THEN 'schedule.pause-expired' WHEN 104 THEN 'schedule.triggered' WHEN 105 THEN 'schedule.admitted' WHEN 106 THEN 'schedule.skipped' WHEN 107 THEN 'schedule.retimed' WHEN 110 THEN 'calendar.draft-saved' WHEN 111 THEN 'calendar.published' WHEN 112 THEN 'calendar.archived' WHEN 120 THEN 'worker.started' WHEN 121 THEN 'worker.stopped' WHEN 122 THEN 'worker.died' WHEN 140 THEN 'alert.acknowledged' WHEN 141 THEN 'alert.resolved' WHEN 180 THEN 'outbox.requeued' WHEN 181 THEN 'outbox.discarded' END AS event,
     e.event_code,
     e.definition_id,
     d.definition_name AS job_name,
@@ -4929,7 +4985,7 @@ SELECT
     s.schedule_status_code,
     s.expression,
     s.time_zone_id,
-    CASE s.expression_kind_code WHEN 0 THEN 'unspecified' WHEN 10 THEN 'cron' WHEN 20 THEN 'interval' END AS expression_kind,
+    CASE s.expression_kind_code WHEN 0 THEN 'unspecified' WHEN 10 THEN 'cron' WHEN 20 THEN 'interval' WHEN 30 THEN 'calendar' END AS expression_kind,
     s.expression_kind_code,
     CASE s.misfire_strategy_code WHEN 0 THEN 'unspecified' WHEN 10 THEN 'catch-up-once' WHEN 20 THEN 'skip' WHEN 30 THEN 'catch-up-latest' WHEN 40 THEN 'catch-up-all' END AS misfire_strategy,
     s.misfire_strategy_code,
@@ -4945,6 +5001,13 @@ SELECT
     s.expire_after_seconds,
     CASE s.expire_action_code WHEN 0 THEN 'unspecified' WHEN 10 THEN 'discard' WHEN 20 THEN 'pause' END AS expire_action,
     s.expire_action_code,
+    CASE s.calendar_origin_code WHEN 0 THEN 'unspecified' WHEN 10 THEN 'registered' WHEN 20 THEN 'catalog' END AS calendar_origin,
+    s.calendar_origin_code,
+    s.calendar_version,
+    s.availability_calendar_name,
+    CASE s.availability_calendar_origin_code WHEN 0 THEN 'unspecified' WHEN 10 THEN 'registered' WHEN 20 THEN 'catalog' END AS availability_calendar_origin,
+    s.availability_calendar_origin_code,
+    s.availability_calendar_version,
     st.outstanding_count,
     s.paused_until_utc,
     s.description,
@@ -4995,7 +5058,7 @@ GO
 
 CREATE OR ALTER VIEW acta.tags_view AS
 SELECT
-    CASE t.entity_code WHEN 0 THEN 'unspecified' WHEN 10 THEN 'alert' WHEN 20 THEN 'checkpoint' WHEN 30 THEN 'definition' WHEN 40 THEN 'event' WHEN 50 THEN 'job' WHEN 60 THEN 'lane' WHEN 70 THEN 'lock' WHEN 80 THEN 'namespace' WHEN 90 THEN 'schedule' WHEN 100 THEN 'step' WHEN 110 THEN 'tag' WHEN 120 THEN 'tenant' WHEN 130 THEN 'worker' END AS entity_kind,
+    CASE t.entity_code WHEN 0 THEN 'unspecified' WHEN 10 THEN 'alert' WHEN 15 THEN 'calendar' WHEN 20 THEN 'checkpoint' WHEN 30 THEN 'definition' WHEN 40 THEN 'event' WHEN 50 THEN 'job' WHEN 60 THEN 'lane' WHEN 70 THEN 'lock' WHEN 80 THEN 'namespace' WHEN 90 THEN 'schedule' WHEN 100 THEN 'step' WHEN 110 THEN 'tag' WHEN 120 THEN 'tenant' WHEN 130 THEN 'worker' END AS entity_kind,
     t.entity_code,
     t.entity_id,
     t.tag_name,
@@ -5026,11 +5089,11 @@ JOIN acta.namespaces AS ns ON ns.namespace_id = w.namespace_id
 GO
 
 
-IF NOT EXISTS (SELECT 1 FROM acta.migrations WHERE name = 'M20261029171733_init')
+IF NOT EXISTS (SELECT 1 FROM acta.migrations WHERE name = 'M20261029203554_init')
 INSERT INTO acta.migrations (name)
-VALUES ('M20261029171733_init');
+VALUES ('M20261029203554_init');
 GO
--- ===== END M20261029171733_init =====
+-- ===== END M20261029203554_init =====
 GO
 COMMIT TRANSACTION;
 GO

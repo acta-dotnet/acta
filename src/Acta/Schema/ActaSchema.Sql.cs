@@ -247,6 +247,8 @@ internal static partial class ActaSchema
 
         public static readonly DbValueSpec<string?> CursorJobName = new("p_cursor_job_name", DbKind.AsciiString, 128);
 
+        public static readonly DbValueSpec<string?> CursorCalendarName = new("p_cursor_calendar_name", DbKind.AsciiString, 128);
+
         /// <summary>
         /// List-read tri-state flags: true applies the restriction, NULL skips it.
         /// </summary>
@@ -301,6 +303,15 @@ internal static partial class ActaSchema
         /// Admin metadata CAS guard: the caller's expected row version; a mismatch rejects with the row's current version.
         /// </summary>
         public static readonly DbValueSpec<int> ExpectedRowVersion = new("p_expected_version", DbKind.Int32);
+
+        /// <summary>SaveCalendarDraft's guard: the family's latest version the caller saw, 0 for a family with none yet.</summary>
+        public static readonly DbValueSpec<int> ExpectedLatestVersion = new("p_expected_latest_version", DbKind.Int32);
+
+        /// <summary>ArchiveCalendar's and PublishCalendar's guard: the family's current, published version the caller saw.</summary>
+        public static readonly DbValueSpec<int> ExpectedCurrentVersion = new("p_expected_current_version", DbKind.Int32);
+
+        /// <summary>PublishCalendar's candidate: the draft version that becomes current.</summary>
+        public static readonly DbValueSpec<int> CandidateVersion = new("p_candidate_version", DbKind.Int32);
 
         /// <summary>
         /// park_outbox_signal supersede guard: a pending command whose park instant is at or before

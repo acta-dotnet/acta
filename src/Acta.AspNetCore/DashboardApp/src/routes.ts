@@ -10,6 +10,8 @@ export type RouteName =
   | 'definition-detail'
   | 'schedules'
   | 'schedule-detail'
+  | 'calendars'
+  | 'calendar-detail'
   | 'workers'
   | 'worker-detail'
   | 'alerts'
@@ -49,10 +51,13 @@ const routeRegistry: RouteMetadata[] = [
   { name: 'workers', label: 'Workers', section: 'Operate', fullHeight: true, activeNav: 'workers', navPath: 'workers', navOrder: 5, icon: 'desktop' },
   { name: 'worker-detail', label: 'Worker', section: 'Operate', fullHeight: false, activeNav: 'workers' },
   { name: 'events', label: 'Events', section: 'Operate', fullHeight: true, activeNav: 'events', navPath: 'events', navOrder: 6, icon: 'activity-log' },
-  { name: 'schedules', label: 'Schedules', section: 'Configure', fullHeight: true, activeNav: 'schedules', navPath: 'schedules', navOrder: 0, icon: 'calendar' },
+  // Schedules are cadences (a clock); the calendar catalog is days and hours (a calendar).
+  { name: 'schedules', label: 'Schedules', section: 'Configure', fullHeight: true, activeNav: 'schedules', navPath: 'schedules', navOrder: 0, icon: 'clock' },
   { name: 'schedule-detail', label: 'Schedule', section: 'Configure', fullHeight: false, activeNav: 'schedules' },
   { name: 'definitions', label: 'Definitions', section: 'Configure', fullHeight: true, activeNav: 'definitions', navPath: 'definitions', navOrder: 1, icon: 'reader' },
   { name: 'definition-detail', label: 'Definition', section: 'Configure', fullHeight: false, activeNav: 'definitions' },
+  { name: 'calendars', label: 'Calendars', section: 'Configure', fullHeight: true, activeNav: 'calendars', navPath: 'calendars', navOrder: 2, icon: 'calendar' },
+  { name: 'calendar-detail', label: 'Calendar', section: 'Configure', fullHeight: false, activeNav: 'calendars' },
   { name: 'namespaces', label: 'Namespaces', section: 'Admin', fullHeight: true, activeNav: 'namespaces', navPath: 'namespaces', navOrder: 0, icon: 'layers' },
   { name: 'namespace-detail', label: 'Namespace', section: 'Admin', fullHeight: false, activeNav: 'namespaces' },
   { name: 'tenants', label: 'Tenants', section: 'Admin', fullHeight: true, activeNav: 'tenants', navPath: 'tenants', navOrder: 1, icon: 'person' },
@@ -108,6 +113,10 @@ export const routes = {
     href(`definitions/${encodeURIComponent(jobNamespace)}/${encodeURIComponent(jobName)}`, { ns: ns(options.namespace ?? jobNamespace) }),
   schedules: (options: { namespace?: string | null } = {}) => href('schedules', { ns: ns(options.namespace) }),
   schedule: (namespace: string, jobName: string, scheduleName: string) => href(`schedules/${encodeURIComponent(namespace)}/${encodeURIComponent(jobName)}/${encodeURIComponent(scheduleName)}`, { ns: namespace }),
+  calendars: (options: { namespace?: string | null; role?: string | null } = {}) => href('calendars', { ns: ns(options.namespace), role: options.role }),
+  // A family is addressed by its natural key; `version` shows one version, `role` opens the editor for a family that does not exist yet.
+  calendar: (jobNamespace: string, calendarName: string, options: { namespace?: string | null; version?: number | null; role?: string | null } = {}) =>
+    href(`calendars/${encodeURIComponent(jobNamespace)}/${encodeURIComponent(calendarName)}`, { ns: ns(options.namespace), v: options.version, role: options.role }),
   namespaces: (options: { namespace?: string | null } = {}) => href('namespaces', { ns: ns(options.namespace) }),
   namespace: (name: string, options: { namespace?: string | null } = {}) => href(`namespaces/${encodeURIComponent(name)}`, { ns: ns(options.namespace) }),
   tenants: (options: { namespace?: string | null } = {}) => href('tenants', { ns: ns(options.namespace) }),

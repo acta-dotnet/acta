@@ -86,7 +86,7 @@ outcome is the event code itself; steps and checkpoints carry `step_status_code`
 fact is the event code (with `details.reason` where one code spans causes), the prose is
 `event_message`, both on the event, never on the `jobs_state` row.
 
-A **firing** is one scheduled occurrence of a recurring `[JobSchedule]`; the **execution** is the
+A **firing** is one scheduled occurrence of a recurring `[Schedule]`; the **execution** is the
 handler run that processes it (1:1 in steady state; misfire policy decides missed firings).
 
 ## Settled decisions ledger
@@ -202,7 +202,7 @@ The terms for internal structure; where each piece lives is [source layout](../C
 
 ### Handler contract
 
-- **Two handler attributes and two invocation modes.** `[Job]` and `[JobSchedule]` (namespace declared at `Run(...)`; steps have no attribute); callers use `EnqueueAsync` or `ScheduleAsync`, follow the answered `JobHandle` with `WaitAsync`, or do both in one `RunAndWaitAsync`. *Reason:* the declarative surface stays small.
+- **Two handler attributes and two invocation modes.** `[Job]` and `[Schedule]` (namespace declared at `Run(...)`; steps have no attribute); callers use `EnqueueAsync` or `ScheduleAsync`, follow the answered `JobHandle` with `WaitAsync`, or do both in one `RunAndWaitAsync`. *Reason:* the declarative surface stays small.
 - **The handler-contract specification lives in [the handler contract](./developer-guide.md#handler-contract)**: shapes, placement, payload inference, exception semantics, diagnostics. *Reason:* one decision record per seam.
 
 ### Tooling

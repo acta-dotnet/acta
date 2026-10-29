@@ -1,10 +1,10 @@
 namespace Acta;
 
 /// <summary>
-/// The one evaluator every scheduling path shares: given a schedule's timing, policy, cursor, and the capacity the
+/// The one evaluator every scheduling path shares: given a schedule's source, policy, cursor, and the capacity the
 /// admitter read, decides at the instant it is given what to admit, what to skip or expire, where the cursor moves,
-/// and when to look again. Pure: no clock, no database, no provider call. Occurrences are nominal instants; a missed
-/// one is decided by the misfire policy and never shifted.
+/// and when to look again. Pure: no clock, no database, no provider call of its own. Occurrences are nominal instants;
+/// a missed one is decided by the misfire policy and never shifted.
 /// </summary>
 internal static class ScheduleEvaluator
 {
@@ -18,7 +18,7 @@ internal static class ScheduleEvaluator
     private const int MaxDueWalk = 1_000_000;
 
     public static ScheduleEvaluation Evaluate(
-        ScheduleTiming timing,
+        ScheduleSource source,
         SchedulePolicy policy,
         ScheduleCursor cursor,
         AdmissionCapacity capacity,
@@ -76,7 +76,30 @@ internal static class ScheduleEvaluator
         var pausedByExpiry = false;
         try
         {
-            latest = LatestDue(timing, next, now);
+            // A calendar is code or catalog content that can change under a stored cursor: an occurrence the source no
+            // longer produces is skipped as such, and the cursor moves to the first it does, decided on the next pass.
+            if (source.Calendar is not null || source.Availability is not null)
+            {
+                var still = NextOccurrenceCalculator.Next(source, next.AddTicks(-1));
+                if (still != next)
+                {
+                    return new ScheduleEvaluation(
+                        null,
+                        next,
+                        next,
+                        null,
+                        null,
+                        still,
+                        still,
+                        still is null ? EvaluationStatusCode.Exhausted : EvaluationStatusCode.Scheduled,
+                        pauseEnded,
+                        false,
+                        SourceChanged: true
+                    );
+                }
+            }
+
+            latest = LatestDue(source, next, now);
 
             // Expiration comes before the misfire policy: every due occurrence that aged past the expiry is decided
             // without work, and under Pause the schedule then stops for an operator. An operator's resume and a timed
@@ -84,12 +107,12 @@ internal static class ScheduleEvaluator
             if (policy.ExpireAfter is { } age && next <= now - age)
             {
                 expiredFrom = next;
-                expiredThrough = LatestDue(timing, next, now - age);
+                expiredThrough = LatestDue(source, next, now - age);
                 pausedByExpiry =
                     policy.ExpireAction == ScheduleExpireActionCode.Pause
                     && !pauseEnded
                     && cursor.EvaluationStatus != EvaluationStatusCode.Resumed;
-                var remaining = NextAfter(timing, expiredThrough.Value);
+                var remaining = NextAfter(source, expiredThrough.Value);
                 if (remaining is null || remaining > now)
                 {
                     return new ScheduleEvaluation(
@@ -109,17 +132,11 @@ internal static class ScheduleEvaluator
                 next = remaining.Value;
             }
 
-            following = NextOccurrenceCalculator.FirstAfter(
-                timing.Expression,
-                timing.TimeZoneId,
-                timing.ExpressionKind,
-                timing.IntervalAnchorAtUtc ?? latest,
-                now
-            );
+            following = NextOccurrenceCalculator.FirstAfter(source, source.Timing.IntervalAnchorAtUtc ?? latest, now);
         }
         catch (Exception ex) when (ex is FormatException or ArgumentException or InvalidOperationException or TimeZoneNotFoundException)
         {
-            return Unchanged(cursor, EvaluationStatusCode.EvaluationError, now + ErrorRetryDelay, pauseEnded);
+            return Unchanged(cursor, EvaluationStatusCode.EvaluationError, now + ErrorRetryDelay, pauseEnded) with { Error = ex.Message };
         }
 
         // The window a pause or downtime covered holds missed occurrences; a due one since then is on time within the
@@ -140,21 +157,21 @@ internal static class ScheduleEvaluator
                 if (next < latest)
                 {
                     skippedFrom = next;
-                    skippedThrough = PreviousDue(timing, next, latest);
+                    skippedThrough = PreviousDue(source, next, latest);
                 }
                 break;
             case MisfireStrategyCode.CatchUpAll:
                 // The earliest due occurrence fires alone; the rest of the backlog is due again at once, so the next pass
                 // comes straight back and admits the next one as capacity allows.
                 admit = new AdmittedOccurrence(next, next);
-                following = NextAfter(timing, next);
+                following = NextAfter(source, next);
                 break;
             case MisfireStrategyCode.Skip:
                 admit = onTime ? new AdmittedOccurrence(latest, latest) : null;
                 if (next < latest || !onTime)
                 {
                     skippedFrom = next;
-                    skippedThrough = onTime ? PreviousDue(timing, next, latest) : latest;
+                    skippedThrough = onTime ? PreviousDue(source, next, latest) : latest;
                 }
                 break;
             default:
@@ -183,19 +200,17 @@ internal static class ScheduleEvaluator
     ) => new(null, null, null, null, null, cursor.NextOccurrenceAtUtc, nextEvaluationAtUtc, status, pauseEnded, false);
 
     /// <summary>The first occurrence strictly after <paramref name="fromUtc"/>, an anchored interval stepping from its anchor.</summary>
-    private static DateTime? NextAfter(ScheduleTiming timing, DateTime fromUtc) =>
-        NextOccurrenceCalculator.FirstAfter(
-            timing.Expression,
-            timing.TimeZoneId,
-            timing.ExpressionKind,
-            timing.IntervalAnchorAtUtc ?? fromUtc,
-            fromUtc
-        );
+    private static DateTime? NextAfter(ScheduleSource source, DateTime fromUtc) =>
+        NextOccurrenceCalculator.FirstAfter(source, source.Timing.IntervalAnchorAtUtc ?? fromUtc, fromUtc);
 
-    /// <summary>The last occurrence at or before <paramref name="nowUtc"/>, starting from the due <paramref name="fromUtc"/>.</summary>
-    private static DateTime LatestDue(ScheduleTiming timing, DateTime fromUtc, DateTime nowUtc)
+    /// <summary>
+    /// The last occurrence at or before <paramref name="nowUtc"/>, starting from the due <paramref name="fromUtc"/>: an
+    /// interval's grid arithmetic, or a bounded walk when the source is a cron, a calendar, or filtered by availability.
+    /// </summary>
+    internal static DateTime LatestDue(ScheduleSource source, DateTime fromUtc, DateTime nowUtc)
     {
-        if (timing.ExpressionKind == ScheduleExpressionKindCode.Interval)
+        var timing = source.Timing;
+        if (timing.ExpressionKind == ScheduleExpressionKindCode.Interval && source.Availability is null)
         {
             var interval = NextOccurrenceCalculator.ParseInterval(timing.Expression);
             var anchor = DateTime.SpecifyKind(timing.IntervalAnchorAtUtc ?? fromUtc, DateTimeKind.Utc);
@@ -207,10 +222,7 @@ internal static class ScheduleEvaluator
         var current = fromUtc;
         for (var walked = 0; walked < MaxDueWalk; walked++)
         {
-            if (
-                NextOccurrenceCalculator.Next(timing.Expression, timing.TimeZoneId, timing.ExpressionKind, current) is not { } candidate
-                || candidate > nowUtc
-            )
+            if (NextAfter(source, current) is not { } candidate || candidate > nowUtc)
             {
                 return current;
             }
@@ -224,18 +236,15 @@ internal static class ScheduleEvaluator
     }
 
     /// <summary>The occurrence just before <paramref name="latestUtc"/>, walking from <paramref name="fromUtc"/>; the end of a skipped range.</summary>
-    private static DateTime PreviousDue(ScheduleTiming timing, DateTime fromUtc, DateTime latestUtc)
+    private static DateTime PreviousDue(ScheduleSource source, DateTime fromUtc, DateTime latestUtc)
     {
-        if (timing.ExpressionKind == ScheduleExpressionKindCode.Interval)
+        if (source.Timing.ExpressionKind == ScheduleExpressionKindCode.Interval && source.Availability is null)
         {
-            return latestUtc - NextOccurrenceCalculator.ParseInterval(timing.Expression);
+            return latestUtc - NextOccurrenceCalculator.ParseInterval(source.Timing.Expression);
         }
 
         var current = fromUtc;
-        while (
-            NextOccurrenceCalculator.Next(timing.Expression, timing.TimeZoneId, timing.ExpressionKind, current) is { } candidate
-            && candidate < latestUtc
-        )
+        while (NextAfter(source, current) is { } candidate && candidate < latestUtc)
         {
             current = candidate;
         }

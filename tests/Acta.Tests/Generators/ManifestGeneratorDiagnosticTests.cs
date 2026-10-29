@@ -926,7 +926,7 @@ public class ManifestGeneratorDiagnosticTests
     // ACTA0121: invalid schedule declaration
 
     [Fact]
-    public void JobSchedule_without_Job_errors_ACTA0121()
+    public void Schedule_without_Job_errors_ACTA0121()
     {
         var result = RunGenerator(
             """
@@ -935,7 +935,7 @@ public class ManifestGeneratorDiagnosticTests
 
             public static class Handler
             {
-                [JobSchedule("orphan", Cron.Hourly)]
+                [Schedule("orphan", Cron.Hourly)]
                 public static void Run() { }
             }
             """
@@ -955,8 +955,8 @@ public class ManifestGeneratorDiagnosticTests
             public static class Handler
             {
                 [Job("dup-schedule")]
-                [JobSchedule("tick", Cron.Hourly)]
-                [JobSchedule("tick", Cron.Daily)]
+                [Schedule("tick", Cron.Hourly)]
+                [Schedule("tick", Cron.Daily)]
                 public static void Run() { }
             }
             """
@@ -976,7 +976,7 @@ public class ManifestGeneratorDiagnosticTests
             public static class Handler
             {
                 [Job("bad-schedule-name")]
-                [JobSchedule("Every Morning", Cron.Daily)]
+                [Schedule("Every Morning", Cron.Daily)]
                 public static void Run() { }
             }
             """
@@ -996,7 +996,7 @@ public class ManifestGeneratorDiagnosticTests
             public static class Handler
             {
                 [Job("blank-expression")]
-                [JobSchedule("tick", "   ")]
+                [Schedule("tick", "   ")]
                 public static void Run() { }
             }
             """
@@ -1016,7 +1016,7 @@ public class ManifestGeneratorDiagnosticTests
             public static class Handler
             {
                 [Job("blank-environment")]
-                [JobSchedule("tick", Cron.Hourly, Environments = new[] { "production", " " })]
+                [Schedule("tick", Cron.Hourly, Environments = new[] { "production", " " })]
                 public static void Run() { }
             }
             """
@@ -1040,7 +1040,7 @@ public class ManifestGeneratorDiagnosticTests
             public static class Handler
             {
                 [Job("no-capacity", ScheduledDelivery = ScheduledDeliveryCode.PerOccurrence)]
-                [JobSchedule("tick", Cron.Hourly, MaxOutstanding = {{maxOutstanding}})]
+                [Schedule("tick", Cron.Hourly, MaxOutstanding = {{maxOutstanding}})]
                 public static void Run() { }
             }
             """
@@ -1063,7 +1063,7 @@ public class ManifestGeneratorDiagnosticTests
             public static class Handler
             {
                 [Job("bad-full-behavior", ScheduledDelivery = ScheduledDeliveryCode.PerOccurrence)]
-                [JobSchedule("tick", Cron.Hourly, FullBehavior = {{behavior}})]
+                [Schedule("tick", Cron.Hourly, FullBehavior = {{behavior}})]
                 public static void Run() { }
             }
             """
@@ -1085,7 +1085,7 @@ public class ManifestGeneratorDiagnosticTests
             public static class Handler
             {
                 [Job("slot-capacity"{{delivery}})]
-                [JobSchedule("tick", Cron.Hourly, MaxOutstanding = 3)]
+                [Schedule("tick", Cron.Hourly, MaxOutstanding = 3)]
                 public static void Run() { }
             }
             """
@@ -1106,11 +1106,11 @@ public class ManifestGeneratorDiagnosticTests
             public static class Handler
             {
                 [Job("per-occurrence", ScheduledDelivery = ScheduledDeliveryCode.PerOccurrence)]
-                [JobSchedule("tick", Cron.Hourly, MaxOutstanding = 3, FullBehavior = ScheduleFullBehaviorCode.Drop)]
+                [Schedule("tick", Cron.Hourly, MaxOutstanding = 3, FullBehavior = ScheduleFullBehaviorCode.Drop)]
                 public static void PerOccurrence() { }
 
                 [Job("permanent")]
-                [JobSchedule("tock", Cron.Hourly)]
+                [Schedule("tock", Cron.Hourly)]
                 public static void Permanent() { }
             }
             """
@@ -1139,7 +1139,7 @@ public class ManifestGeneratorDiagnosticTests
             public static class Handler
             {
                 [Job("catch-up", ScheduledDelivery = ScheduledDeliveryCode.PerOccurrence)]
-                [JobSchedule("tick", Cron.Hourly, MisfireStrategy = MisfireStrategyCode.{{strategy}})]
+                [Schedule("tick", Cron.Hourly, MisfireStrategy = MisfireStrategyCode.{{strategy}})]
                 public static void Run() { }
             }
             """
@@ -1162,7 +1162,7 @@ public class ManifestGeneratorDiagnosticTests
             public static class Handler
             {
                 [Job("bad-misfire")]
-                [JobSchedule("tick", Cron.Hourly, MisfireStrategy = {{strategy}})]
+                [Schedule("tick", Cron.Hourly, MisfireStrategy = {{strategy}})]
                 public static void Run() { }
             }
             """
@@ -1182,11 +1182,11 @@ public class ManifestGeneratorDiagnosticTests
             public static class Handler
             {
                 [Job("expiring", ScheduledDelivery = ScheduledDeliveryCode.PerOccurrence)]
-                [JobSchedule("tick", Cron.Hourly, ExpireAfter = "1h", ExpireAction = ScheduleExpireActionCode.Discard)]
+                [Schedule("tick", Cron.Hourly, ExpireAfter = "1h", ExpireAction = ScheduleExpireActionCode.Discard)]
                 public static void Expiring() { }
 
                 [Job("lasting")]
-                [JobSchedule("tock", Cron.Hourly)]
+                [Schedule("tock", Cron.Hourly)]
                 public static void Lasting() { }
             }
             """
@@ -1195,9 +1195,9 @@ public class ManifestGeneratorDiagnosticTests
         Assert.Empty(result.Diagnostics);
         var source = Assert.Single(result.GeneratedTrees).ToString();
         Assert.Contains("ExpireAfterSeconds: 3600,", source);
-        Assert.Contains("ExpireAction: global::Acta.ScheduleExpireActionCode.Discard)", source);
+        Assert.Contains("ExpireAction: global::Acta.ScheduleExpireActionCode.Discard,", source);
         Assert.Contains("ExpireAfterSeconds: null,", source);
-        Assert.Contains("ExpireAction: global::Acta.ScheduleExpireActionCode.Unspecified)", source);
+        Assert.Contains("ExpireAction: global::Acta.ScheduleExpireActionCode.Unspecified,", source);
     }
 
     [Theory]
@@ -1215,7 +1215,7 @@ public class ManifestGeneratorDiagnosticTests
             public static class Handler
             {
                 [Job("half-expiring")]
-                [JobSchedule("tick", Cron.Hourly, {{expiration}})]
+                [Schedule("tick", Cron.Hourly, {{expiration}})]
                 public static void Run() { }
             }
             """
@@ -1223,6 +1223,257 @@ public class ManifestGeneratorDiagnosticTests
 
         Assert.Single(Of(result, "ACTA0126"));
     }
+
+    // ACTA0127: a schedule's occurrences come from an expression or a named calendar, and a declared calendar binds in its role
+
+    [Fact]
+    public void A_calendar_schedule_emits_the_calendar_kind_with_its_name_as_the_expression()
+    {
+        // No class declares `pay-days`: a catalog may hold it, so the binding builds.
+        var result = RunGenerator(
+            """
+            using Acta;
+            namespace GenTests;
+
+            public static class Handler
+            {
+                [Job("payroll")]
+                [Schedule("pay-day", Calendar = "pay-days")]
+                public static void Run() { }
+            }
+            """,
+            "GenTests",
+            out var compilation
+        );
+
+        Assert.Empty(result.Diagnostics);
+        AssertCompilesCleanly(compilation);
+        var source = Assert.Single(result.GeneratedTrees).ToString();
+        Assert.Contains("Expression: \"pay-days\",", source);
+        Assert.Contains("ExpressionKind: global::Acta.ScheduleExpressionKindCode.Calendar,", source);
+        Assert.Contains("AvailabilityCalendarName: null)", source);
+        Assert.DoesNotContain("Origin:", source);
+        Assert.DoesNotContain("Version:", source);
+        Assert.DoesNotContain("Calendars:", source);
+    }
+
+    [Fact]
+    public void An_availability_calendar_is_emitted_beside_an_expression()
+    {
+        var result = RunGenerator(
+            """
+            using Acta;
+            namespace GenTests;
+
+            public static class Handler
+            {
+                [Job("support-sweep")]
+                [Schedule("tick", Cron.Hourly, Availability = "office-hours")]
+                public static void Run() { }
+            }
+            """,
+            "GenTests",
+            out var compilation
+        );
+
+        Assert.Empty(result.Diagnostics);
+        AssertCompilesCleanly(compilation);
+        var source = Assert.Single(result.GeneratedTrees).ToString();
+        Assert.Contains("ExpressionKind: global::Acta.ScheduleExpressionKindCode.Cron,", source);
+        Assert.Contains("AvailabilityCalendarName: \"office-hours\")", source);
+    }
+
+    [Theory]
+    [InlineData("\"tick\", Cron.Hourly, Calendar = \"pay-days\"")]
+    [InlineData("\"tick\"")]
+    [InlineData("\"tick\", Calendar = \" \"")]
+    [InlineData("\"tick\", Calendar = \"Pay Days\"")]
+    [InlineData("\"tick\", Cron.Hourly, Availability = \"\"")]
+    [InlineData("\"tick\", Cron.Hourly, Availability = \"Office Hours\"")]
+    public void An_incomplete_schedule_source_errors_ACTA0127(string arguments)
+    {
+        var result = RunGenerator(
+            $$"""
+            using Acta;
+            namespace GenTests;
+
+            public static class Handler
+            {
+                [Job("half-sourced")]
+                [Schedule({{arguments}})]
+                public static void Run() { }
+            }
+            """
+        );
+
+        Assert.Single(Of(result, "ACTA0127"));
+        Assert.Empty(Of(result, "ACTA0121"));
+        Assert.Empty(Of(result, "ACTA0122"));
+    }
+
+    [Theory]
+    [InlineData("Calendar = \"office-hours\"", "an availability calendar", "Availability")]
+    [InlineData("Cron.Hourly, Availability = \"pay-days\"", "an occurrence source", "Calendar")]
+    public void A_calendar_class_bound_in_a_role_it_lacks_errors_ACTA0127(string binding, string role, string bindAs)
+    {
+        var result = RunGenerator(
+            $$"""
+            using System;
+            using Acta;
+            namespace GenTests;
+
+            [Calendar("pay-days")]
+            public sealed class PayDays : IActaCalendar
+            {
+                public DateTime? GetNextOccurrence(CalendarContext context) => null;
+            }
+
+            [Calendar("office-hours")]
+            public sealed class OfficeHours : IActaAvailabilityCalendar
+            {
+                public CalendarWindow? GetWindowAtOrAfter(AvailabilityContext context) => null;
+            }
+
+            public static class Handler
+            {
+                [Job("payroll")]
+                [Schedule("pay-day", {{binding}})]
+                public static void Run() { }
+            }
+            """
+        );
+
+        var message = Assert.Single(Of(result, "ACTA0127")).GetMessage(System.Globalization.CultureInfo.InvariantCulture);
+        Assert.Contains("`[Schedule(\"pay-day\")]` on `[Job(\"payroll\")]`", message);
+        Assert.Contains($"is {role} only", message);
+        Assert.Contains($"Bind it as `{bindAs}`", message);
+    }
+
+    // ACTA0128: a [Calendar] class is one the manifest can name and Acta can create, a calendar, under a unique valid name
+
+    [Fact]
+    public void Calendar_classes_are_emitted_into_the_manifest_by_name()
+    {
+        // An assembly that declares calendars and no job still emits its manifest.
+        var result = RunGenerator(
+            """
+            using System;
+            using Acta;
+            namespace GenTests;
+
+            [Calendar("pay-days")]
+            public sealed class PayDays : IActaCalendar
+            {
+                public DateTime? GetNextOccurrence(CalendarContext context) => null;
+            }
+
+            [Calendar("bank-holidays")]
+            internal sealed class BankHolidays : IActaCalendar
+            {
+                public DateTime? GetNextOccurrence(CalendarContext context) => null;
+            }
+            """,
+            "GenTests",
+            out var compilation
+        );
+
+        Assert.Empty(result.Diagnostics);
+        AssertCompilesCleanly(compilation);
+        var source = Assert.Single(result.GeneratedTrees).ToString();
+        var payDays = source.IndexOf(
+            "new global::Acta.CalendarDescriptor(\"pay-days\", typeof(global::GenTests.PayDays), true, false)",
+            StringComparison.Ordinal
+        );
+        var bankHolidays = source.IndexOf(
+            "new global::Acta.CalendarDescriptor(\"bank-holidays\", typeof(global::GenTests.BankHolidays), true, false)",
+            StringComparison.Ordinal
+        );
+        Assert.True(bankHolidays >= 0, source);
+        Assert.True(payDays > bankHolidays, source);
+    }
+
+    [Fact]
+    public void A_calendar_class_implementing_both_interfaces_emits_both_roles_and_binds_in_either()
+    {
+        var result = RunGenerator(
+            """
+            using System;
+            using Acta;
+            namespace GenTests;
+
+            public abstract class WorkdaySource : IActaCalendar
+            {
+                public DateTime? GetNextOccurrence(CalendarContext context) => null;
+            }
+
+            [Calendar("office-days")]
+            public sealed class OfficeDays : WorkdaySource, IActaAvailabilityCalendar
+            {
+                public CalendarWindow? GetWindowAtOrAfter(AvailabilityContext context) => null;
+            }
+
+            public static class Handler
+            {
+                [Job("payroll")]
+                [Schedule("pay-day", Calendar = "office-days", Availability = "office-days")]
+                public static void Run() { }
+            }
+            """,
+            "GenTests",
+            out var compilation
+        );
+
+        Assert.Empty(result.Diagnostics);
+        AssertCompilesCleanly(compilation);
+        var source = Assert.Single(result.GeneratedTrees).ToString();
+        Assert.Contains("new global::Acta.CalendarDescriptor(\"office-days\", typeof(global::GenTests.OfficeDays), true, true)", source);
+    }
+
+    [Theory]
+    [InlineData("[Calendar(\"pay-days\")] public abstract class PayDays : IActaCalendar { " + NextOccurrenceAbstract + " }")]
+    [InlineData("[Calendar(\"pay-days\")] public sealed class PayDays { }")]
+    [InlineData("[Calendar(\" \")] public sealed class PayDays : IActaCalendar { " + NextOccurrence + " }")]
+    [InlineData("[Calendar(\"Pay Days\")] public sealed class PayDays : IActaCalendar { " + NextOccurrence + " }")]
+    [InlineData("[Calendar(\"sys.pay-days\")] public sealed class PayDays : IActaCalendar { " + NextOccurrence + " }")]
+    [InlineData("[Calendar(\"pay-days\")] public sealed class PayDays<T> : IActaCalendar { " + NextOccurrence + " }")]
+    [InlineData(
+        "public static class Outer { [Calendar(\"pay-days\")] private sealed class PayDays : IActaCalendar { " + NextOccurrence + " } }"
+    )]
+    public void A_calendar_declaration_that_is_not_whole_errors_ACTA0128(string declaration)
+    {
+        var result = RunGenerator(
+            $$"""
+            using System;
+            using Acta;
+            namespace GenTests;
+
+            {{declaration}}
+            """
+        );
+
+        var error = Assert.Single(Of(result, "ACTA0128"));
+        Assert.Equal(DiagnosticSeverity.Error, error.Severity);
+    }
+
+    [Fact]
+    public void Two_calendar_classes_declaring_one_name_error_ACTA0128()
+    {
+        var result = RunGenerator(
+            $$"""
+            using System;
+            using Acta;
+            namespace GenTests;
+
+            [Calendar("pay-days")] public sealed class PayDays : IActaCalendar { {{NextOccurrence}} }
+            [Calendar("pay-days")] public sealed class Paydays : IActaCalendar { {{NextOccurrence}} }
+            """
+        );
+
+        Assert.Equal(2, Of(result, "ACTA0128").Length);
+    }
+
+    private const string NextOccurrence = "public DateTime? GetNextOccurrence(CalendarContext context) => null;";
+    private const string NextOccurrenceAbstract = "public abstract DateTime? GetNextOccurrence(CalendarContext context);";
 
     // ACTA0122: invalid schedule expression
 
@@ -1248,7 +1499,7 @@ public class ManifestGeneratorDiagnosticTests
             public static class Handler
             {
                 [Job("bad-cron")]
-                [JobSchedule("tick", "{{expression}}")]
+                [Schedule("tick", "{{expression}}")]
                 public static void Run() { }
             }
             """
@@ -1277,7 +1528,7 @@ public class ManifestGeneratorDiagnosticTests
             public static class Handler
             {
                 [Job("bad-interval")]
-                [JobSchedule("tick", "{{expression}}")]
+                [Schedule("tick", "{{expression}}")]
                 public static void Run() { }
             }
             """
@@ -1312,7 +1563,7 @@ public class ManifestGeneratorDiagnosticTests
             public static class Handler
             {
                 [Job("good-cron")]
-                [JobSchedule("tick", "{{expression}}")]
+                [Schedule("tick", "{{expression}}")]
                 public static void Run() { }
             }
             """
@@ -1332,7 +1583,7 @@ public class ManifestGeneratorDiagnosticTests
             public static class Handler
             {
                 [Job("described")]
-                [JobSchedule("tick", Cron.Hourly, Description = "first line\nsecond \"line\"")]
+                [Schedule("tick", Cron.Hourly, Description = "first line\nsecond \"line\"")]
                 public static void Run() { }
             }
             """
@@ -1356,7 +1607,7 @@ public class ManifestGeneratorDiagnosticTests
                 public static class Handler
                 {
                     [Job("cron-constant")]
-                    [JobSchedule("tick", "{{expression}}")]
+                    [Schedule("tick", "{{expression}}")]
                     public static void Run() { }
                 }
                 """
@@ -1384,7 +1635,7 @@ public class ManifestGeneratorDiagnosticTests
             public static class Handler
             {
                 [Job("scheduled-bad-input")]
-                [JobSchedule("tick", Cron.Hourly)]
+                [Schedule("tick", Cron.Hourly)]
                 public static void Run(Input input) { }
             }
             """
@@ -1805,7 +2056,7 @@ public class ManifestGeneratorDiagnosticTests
     {
         var names = jobNames.Split(',');
         var handlers = string.Concat(
-            names.Select((name, i) => $"[Job(\"{name}\")] [JobSchedule(\"tick\", Cron.Hourly)] public static void Run{i}() {{ }}\n")
+            names.Select((name, i) => $"[Job(\"{name}\")] [Schedule(\"tick\", Cron.Hourly)] public static void Run{i}() {{ }}\n")
         );
         var result = RunGenerator(
             $$"""
@@ -1903,11 +2154,11 @@ public class ManifestGeneratorDiagnosticTests
             compilation.GetDiagnostics(TestContext.Current.CancellationToken).Where(d => d.Severity >= DiagnosticSeverity.Warning)
         );
 
-    // MisfireStrategy default: an unset [JobSchedule] misfire emits Skip (forward-only, drop missed),
+    // MisfireStrategy default: an unset [Schedule] misfire emits Skip (forward-only, drop missed),
     // matching the production scheduler's default; CatchUpOnce is opt-in.
 
     [Fact]
-    public void JobSchedule_without_Misfire_defaults_to_Skip()
+    public void Schedule_without_Misfire_defaults_to_Skip()
     {
         var result = RunGenerator(
             """
@@ -1917,7 +2168,7 @@ public class ManifestGeneratorDiagnosticTests
             public static class Handler
             {
                 [Job("daily-report")]
-                [JobSchedule("nightly", Cron.Daily)]
+                [Schedule("nightly", Cron.Daily)]
                 public static void Run() { }
             }
             """
@@ -1929,7 +2180,7 @@ public class ManifestGeneratorDiagnosticTests
     }
 
     [Fact]
-    public void JobSchedule_without_TimeZone_emits_UTC()
+    public void Schedule_without_TimeZone_emits_UTC()
     {
         var result = RunGenerator(
             """
@@ -1939,7 +2190,7 @@ public class ManifestGeneratorDiagnosticTests
             public static class Handler
             {
                 [Job("daily-report")]
-                [JobSchedule("nightly", Cron.Daily)]
+                [Schedule("nightly", Cron.Daily)]
                 public static void Run() { }
             }
             """
@@ -1950,7 +2201,7 @@ public class ManifestGeneratorDiagnosticTests
     }
 
     [Fact]
-    public void JobSchedule_with_explicit_CatchUpOnce_is_emitted()
+    public void Schedule_with_explicit_CatchUpOnce_is_emitted()
     {
         var result = RunGenerator(
             """
@@ -1960,7 +2211,7 @@ public class ManifestGeneratorDiagnosticTests
             public static class Handler
             {
                 [Job("catch-up-job")]
-                [JobSchedule("nightly", Cron.Daily, MisfireStrategy = MisfireStrategyCode.CatchUpOnce)]
+                [Schedule("nightly", Cron.Daily, MisfireStrategy = MisfireStrategyCode.CatchUpOnce)]
                 public static void Run() { }
             }
             """

@@ -16,6 +16,9 @@ public enum EntityCode : byte
     [Code("alert", "One alert.")]
     Alert = 10,
 
+    [Code("calendar", "One version of a catalog calendar.")]
+    Calendar = 15,
+
     [Code("checkpoint", "One checkpoint slot of a job.")]
     Checkpoint = 20,
 

@@ -14,6 +14,8 @@ internal sealed class FakeOperations : IActaOperations
 
     public FakeSchedules Schedules { get; } = new();
 
+    public FakeCalendars Calendars { get; } = new();
+
     public FakeDefinitions Definitions { get; } = new();
 
     public FakeWorkers Workers { get; } = new();
@@ -33,6 +35,8 @@ internal sealed class FakeOperations : IActaOperations
     ILedger IActaOperations.Ledger => Ledger;
 
     ISchedules IActaOperations.Schedules => Schedules;
+
+    ICalendars IActaOperations.Calendars => Calendars;
 
     IDefinitions IActaOperations.Definitions => Definitions;
 

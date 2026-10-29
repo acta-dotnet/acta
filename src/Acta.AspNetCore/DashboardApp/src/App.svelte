@@ -18,6 +18,8 @@
   import DefinitionDetail from './routes/DefinitionDetail.svelte';
   import SchedulesList from './routes/SchedulesList.svelte';
   import ScheduleDetail from './routes/ScheduleDetail.svelte';
+  import CalendarsList from './routes/CalendarsList.svelte';
+  import CalendarDetail from './routes/CalendarDetail.svelte';
   import WorkersList from './routes/WorkersList.svelte';
   import WorkerDetail from './routes/WorkerDetail.svelte';
   import AlertsList from './routes/AlertsList.svelte';
@@ -186,6 +188,12 @@
           jobNamespace={$route.scheduleNamespace}
           jobName={$route.scheduleJobName}
           scheduleName={$route.scheduleName} />
+      {/key}
+    {:else if $route.name === 'calendars'}
+      <CalendarsList />
+    {:else if $route.name === 'calendar-detail'}
+      {#key $route.calendarNamespace + '/' + $route.calendarName}
+        <CalendarDetail jobNamespace={$route.calendarNamespace} calendarName={$route.calendarName} />
       {/key}
     {:else if $route.name === 'workers'}
       <WorkersList />

@@ -71,7 +71,7 @@ public sealed class LaneGeneratorTests
             public static class Handler
             {
                 [Job("laned-tick", Lane = "orders")]
-                [JobSchedule("tick", Cron.Hourly)]
+                [Schedule("tick", Cron.Hourly)]
                 public static void Run() { }
             }
             """

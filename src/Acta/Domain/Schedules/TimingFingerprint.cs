@@ -6,8 +6,9 @@ namespace Acta;
 
 /// <summary>
 /// The identity of a schedule's timing: a hash over everything that decides its occurrences, the expression, its
-/// kind, the zone and that zone's rules, and an interval's anchor. Two declarations with the same fingerprint produce
-/// the same occurrences, so registration leaves the cursor alone; a changed fingerprint is a timing change.
+/// kind, the zone and that zone's rules, an interval's anchor, and the calendars it binds. Two declarations with the
+/// same fingerprint produce the same occurrences, so registration leaves the cursor alone; a changed fingerprint is a
+/// timing change.
 /// </summary>
 internal static class TimingFingerprint
 {
@@ -16,29 +17,41 @@ internal static class TimingFingerprint
 
     public static string Compute(ScheduleTiming timing)
     {
+        var c = CultureInfo.InvariantCulture;
         var text = new StringBuilder(EvaluatorVersion)
             .Append('|')
-            .Append(((byte)timing.ExpressionKind).ToString(CultureInfo.InvariantCulture))
+            .Append(((byte)timing.ExpressionKind).ToString(c))
             .Append('|')
             .Append(timing.Expression)
             .Append('|')
-            .Append(timing.IntervalAnchorAtUtc?.Ticks.ToString(CultureInfo.InvariantCulture))
+            .Append(timing.IntervalAnchorAtUtc?.Ticks.ToString(c))
+            .Append('|')
+            .Append(timing.CalendarOrigin is { } calendarOrigin ? ((byte)calendarOrigin).ToString(c) : null)
+            .Append('|')
+            .Append(timing.CalendarVersion?.ToString(c))
+            .Append('|')
+            .Append(timing.AvailabilityCalendarName)
+            .Append('|')
+            .Append(timing.AvailabilityOrigin is { } availabilityOrigin ? ((byte)availabilityOrigin).ToString(c) : null)
+            .Append('|')
+            .Append(timing.AvailabilityVersion?.ToString(c))
             .Append('|');
-        // A cron resolves in its zone, and the zone's rules are part of what it means; an interval is absolute.
-        if (timing.ExpressionKind != ScheduleExpressionKindCode.Interval)
+        // A cron, a calendar, and an availability window resolve in the zone, and the zone's rules are part of what they
+        // mean; a bare interval is absolute.
+        if (timing.ExpressionKind != ScheduleExpressionKindCode.Interval || timing.AvailabilityCalendarName is not null)
         {
             var zone = string.IsNullOrWhiteSpace(timing.TimeZoneId)
                 ? TimeZoneInfo.Utc
                 : TimeZoneInfo.FindSystemTimeZoneById(timing.TimeZoneId);
-            text.Append(zone.Id).Append('|').Append(zone.BaseUtcOffset.Ticks.ToString(CultureInfo.InvariantCulture));
+            text.Append(zone.Id).Append('|').Append(zone.BaseUtcOffset.Ticks.ToString(c));
             foreach (var rule in zone.GetAdjustmentRules())
             {
                 text.Append('|')
-                    .Append(rule.DateStart.Ticks.ToString(CultureInfo.InvariantCulture))
+                    .Append(rule.DateStart.Ticks.ToString(c))
                     .Append(',')
-                    .Append(rule.DateEnd.Ticks.ToString(CultureInfo.InvariantCulture))
+                    .Append(rule.DateEnd.Ticks.ToString(c))
                     .Append(',')
-                    .Append(rule.DaylightDelta.Ticks.ToString(CultureInfo.InvariantCulture))
+                    .Append(rule.DaylightDelta.Ticks.ToString(c))
                     .Append(',')
                     .Append(Transition(rule.DaylightTransitionStart))
                     .Append(',')

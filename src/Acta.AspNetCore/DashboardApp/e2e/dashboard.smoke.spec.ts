@@ -47,7 +47,50 @@ const event = {
   detailsText: '{"reason":"unhandled-exception"}'
 };
 
-async function mockDashboard(page: Page, options: { controls: boolean; onRestart?: () => void }): Promise<void> {
+// A shared availability calendar: version 2 is current, version 3 a draft that opens Saturday mornings.
+const calendarVersions = [
+  { version: 3, status: 'draft', contentHash: 'c3', createdAtUtc: timestamp, publishedAtUtc: null, modifiedAtUtc: timestamp },
+  { version: 2, status: 'published', contentHash: 'c2', createdAtUtc: '2026-07-01T08:00:00Z', publishedAtUtc: '2026-07-02T08:00:00Z', modifiedAtUtc: '2026-07-02T08:00:00Z' },
+  { version: 1, status: 'superseded', contentHash: 'c1', createdAtUtc: '2026-06-01T08:00:00Z', publishedAtUtc: '2026-06-02T08:00:00Z', modifiedAtUtc: '2026-07-02T08:00:00Z' }
+];
+const weekdays = ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday'];
+const officeHours = (shown: number) => ({
+  jobNamespace: 'sys',
+  calendarName: 'office-hours',
+  role: 'availability',
+  currentVersion: 2,
+  versions: calendarVersions,
+  shownVersion: shown,
+  definition: JSON.stringify({
+    kind: 'weekly-availability',
+    timeZone: 'schedule',
+    weekly: shown === 3
+      ? [{ days: weekdays, windows: [['09:00', '17:00']] }, { days: ['Saturday'], windows: [['09:00', '12:00']] }]
+      : [{ days: weekdays, windows: [['09:00', '17:00']] }]
+  }),
+  dependents: [
+    { jobNamespace: 'billing', jobName: 'send-invoice', scheduleName: 'nightly', binding: 'availability', status: 'active', pinnedVersion: 2, scheduledDelivery: 'permanent' }
+  ]
+});
+const officeHoursPreview = (version: number) => ({
+  role: 'availability',
+  version,
+  currentVersion: 2,
+  occurrencesUtc: [],
+  currentOccurrencesUtc: [],
+  windows: [
+    { startUtc: '2026-07-17T07:00:00Z', endUtc: '2026-07-17T15:00:00Z' },
+    ...(version === 3 ? [{ startUtc: '2026-07-18T07:00:00Z', endUtc: '2026-07-18T10:00:00Z' }] : []),
+    { startUtc: '2026-07-20T07:00:00Z', endUtc: '2026-07-20T15:00:00Z' }
+  ],
+  currentWindows: [
+    { startUtc: '2026-07-17T07:00:00Z', endUtc: '2026-07-17T15:00:00Z' },
+    { startUtc: '2026-07-20T07:00:00Z', endUtc: '2026-07-20T15:00:00Z' }
+  ],
+  schedules: [{ jobNamespace: 'billing', jobName: 'send-invoice', scheduleName: 'nightly', binding: 'availability', status: 'active', pinnedVersion: 2, overdue: false }]
+});
+
+async function mockDashboard(page: Page, options: { controls: boolean; onRestart?: () => void; onPublish?: (body: unknown) => void }): Promise<void> {
   await page.route('**/api/v1/**', async (route: Route) => {
     const request = route.request();
     const url = new URL(request.url());
@@ -97,6 +140,26 @@ async function mockDashboard(page: Page, options: { controls: boolean; onRestart
       }]));
     }
     if (path === 'tenants') return json(paged([]));
+    if (path === 'calendars') {
+      return json(paged([{
+        jobNamespace: 'sys',
+        calendarName: 'office-hours',
+        role: 'availability',
+        currentVersion: 2,
+        latestVersion: 3,
+        latestStatus: 'draft',
+        publishedAtUtc: '2026-07-02T08:00:00Z',
+        modifiedAtUtc: timestamp,
+        dependentCount: 1
+      }]));
+    }
+    if (path === 'calendars/sys/office-hours') return json(officeHours(Number(url.searchParams.get('version') ?? '2')));
+    if (path === 'calendars/sys/office-hours/preview') return json(officeHoursPreview(Number(url.searchParams.get('version') ?? '2')));
+    if (path === 'calendars/sys/office-hours/publish' && request.method() === 'POST') {
+      if (!options.controls) return json({ title: 'Controls disabled.' }, 404);
+      options.onPublish?.(request.postDataJSON());
+      return json({ action: 'applied', version: 3, retimedSchedules: ['billing/send-invoice/nightly'], overdueSchedules: [], reason: null });
+    }
     if (path === 'jobs/by-key') return json(job);
     if (path === `jobs/${jobRef}/events` || path === 'events') return json(paged([event]));
     // The aggregate the detail page actually reads (JobDetailView in api.ts). Without it the
@@ -214,6 +277,45 @@ test('safe single-job control sends exactly one restart request', async ({ page 
 
   await expect(page.getByText('Restart applied.')).toBeVisible();
   expect(restartRequests).toBe(1);
+});
+
+test('calendar catalog: list to a draft version, the week bars and the forecast diff', async ({ page }) => {
+  await mockDashboard(page, { controls: false });
+  await page.goto('/#/calendars?ns=billing');
+
+  await expect(page.getByRole('link', { name: 'office-hours', exact: true })).toBeVisible();
+  await expect(page.getByText('shared', { exact: true })).toBeVisible();
+  await page.getByRole('link', { name: 'office-hours', exact: true }).click();
+
+  await expect(page.getByRole('heading', { name: 'Version 2 definition' })).toBeVisible();
+  await expect(page.getByRole('group', { name: 'Weekly hours' })).toBeVisible();
+  await expect(page.getByLabel('Monday: 8h')).toBeVisible();
+  await expect(page.getByLabel('Saturday: closed')).toBeVisible();
+  await expect(page.getByRole('button', { name: /Publish version/ })).toHaveCount(0);
+
+  await page.getByRole('link', { name: 'Version 3, draft' }).click();
+  await expect(page.getByRole('heading', { name: 'Version 3 definition' })).toBeVisible();
+  await expect(page.getByLabel('Saturday: 3h')).toBeVisible();
+  await expect(page.getByText('Version 3 beside current version 2')).toBeVisible();
+  await expect(page.getByText('1 added')).toBeVisible();
+  await expect(page.getByRole('link', { name: 'billing/send-invoice/nightly' })).toBeVisible();
+});
+
+test('publishing a draft calendar sends one publish request carrying the candidate and the reason', async ({ page }) => {
+  const publishes: unknown[] = [];
+  await mockDashboard(page, { controls: true, onPublish: (body) => publishes.push(body) });
+  await page.goto('/#/calendars/sys/office-hours?ns=billing&v=3');
+
+  await page.getByRole('button', { name: 'Publish version 3' }).click();
+  const dialog = page.getByRole('dialog');
+  await expect(dialog.getByText(/the 1 bound schedule is retimed/)).toBeVisible();
+  await dialog.getByLabel(/Reason \(required/).fill('Saturday mornings open from July.');
+  await dialog.getByRole('button', { name: 'Publish', exact: true }).click();
+
+  await expect(page.getByText('Version 3 published; 1 schedule retimed.')).toBeVisible();
+  expect(publishes).toEqual([
+    { expectedCurrentVersion: 2, candidateVersion: 3, overdueDecision: 'refuse', reasonMessage: 'Saturday mornings open from July.' }
+  ]);
 });
 
 test('read-only deployment hides controls and rejects a direct request', async ({ page }) => {

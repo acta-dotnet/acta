@@ -238,6 +238,11 @@ internal sealed class SqlServerDdlDialect : SqlDdlDialect
                 full_behavior_code            TINYINT      NOT NULL,
                 expire_after_seconds          INT          NULL,
                 expire_action_code            TINYINT      NULL,
+                calendar_origin_code          TINYINT      NULL,
+                calendar_version              INT          NULL,
+                availability_calendar_name    VARCHAR(128) NULL,
+                availability_calendar_origin_code TINYINT      NULL,
+                availability_calendar_version INT          NULL,
                 PRIMARY KEY (definition_id, schedule_name)
             );');
             GO

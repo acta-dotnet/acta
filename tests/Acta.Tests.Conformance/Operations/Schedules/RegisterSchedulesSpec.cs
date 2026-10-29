@@ -379,7 +379,18 @@ public sealed class RegisterSchedulesSpec : ActaRuntimeTestBase<ConformanceFixtu
                 []
             ),
         };
-        await RegisterAsync(defId, jobName, ScheduleRegistrationPlan.Plan(declared, storedForDef, nowUtc), ct);
+        await RegisterAsync(
+            defId,
+            jobName,
+            ScheduleRegistrationPlan.Plan(
+                declared,
+                storedForDef,
+                nowUtc,
+                CalendarRegistry.Empty.Source,
+                ScheduleRegistrationPlan.NoCalendars
+            ),
+            ct
+        );
     }
 
     private Task SetRuntimeAsync(long slotId, JobStatusCode status, DateTime? nextRunAtUtc, CancellationToken ct) =>

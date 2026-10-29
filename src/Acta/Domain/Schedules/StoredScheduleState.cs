@@ -6,7 +6,7 @@ namespace Acta;
 /// <see cref="PausedUntilUtc"/> keep a paused schedule out of the recomputed slot cursor across redeploys, or, when timed, only
 /// a wake point in it; the <c>Slot</c> fields are the owning slot job's, the same on every row of one slot, and null for a
 /// PerOccurrence definition, which has no slot; the expression kind, expression, time zone, misfire strategy,
-/// description, capacity, and expiry are the stored declaration.
+/// description, capacity, expiry, and calendar bindings are the stored declaration.
 /// </summary>
 [DbProjection(ByName = true)]
 internal sealed record StoredScheduleState(
@@ -29,5 +29,25 @@ internal sealed record StoredScheduleState(
     int? MaxOutstanding = null,
     ScheduleFullBehaviorCode? FullBehavior = null,
     int? ExpireAfterSeconds = null,
-    ScheduleExpireActionCode? ExpireAction = null
-);
+    ScheduleExpireActionCode? ExpireAction = null,
+    CalendarOriginCode? CalendarOrigin = null,
+    int? CalendarVersion = null,
+    string? AvailabilityCalendarName = null,
+    CalendarOriginCode? AvailabilityOrigin = null,
+    int? AvailabilityVersion = null
+)
+{
+    /// <summary>The stored timing with its bindings as registration resolved them; a row with no declaration has an unspecified kind.</summary>
+    public ScheduleTiming Timing() =>
+        new(
+            Expression ?? "",
+            ExpressionKind ?? ScheduleExpressionKindCode.Unspecified,
+            TimeZoneId,
+            IntervalAnchorAtUtc,
+            CalendarOrigin,
+            CalendarVersion,
+            AvailabilityCalendarName,
+            AvailabilityOrigin,
+            AvailabilityVersion
+        );
+}

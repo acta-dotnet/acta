@@ -56,7 +56,18 @@ internal sealed class ResolveScheduleTargetHandler(IDbSession session, ISqlDiale
             live,
             row.MaxOutstanding,
             row.OutstandingCount,
-            row.StateVersion
+            row.StateVersion,
+            new ScheduleTiming(
+                row.Expression,
+                row.ExpressionKind,
+                row.TimeZoneId,
+                row.IntervalAnchorAtUtc,
+                row.CalendarOrigin,
+                row.CalendarVersion,
+                row.AvailabilityCalendarName,
+                row.AvailabilityOrigin,
+                row.AvailabilityVersion
+            )
         );
     }
 }

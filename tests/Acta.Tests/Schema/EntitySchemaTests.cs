@@ -75,7 +75,7 @@ public class EntitySchemaTests
     }
 
     [Fact]
-    public void JobScheduleSchema_Does_Not_Carry_ActorColumns()
+    public void ScheduleSchema_Does_Not_Carry_ActorColumns()
     {
         var columns = ActaSchema.For<ScheduleEntity>().Columns.Select(static c => c.Name).ToHashSet(StringComparer.Ordinal);
 

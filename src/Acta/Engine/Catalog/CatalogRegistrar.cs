@@ -20,6 +20,7 @@ internal sealed class CatalogRegistrar(
     AlertRoutingCheck? alertRouting,
     IOptions<JobsOptions> options,
     WorkerContext context,
+    CalendarsOperations calendars,
     ILogger log
 )
 {
@@ -247,7 +248,7 @@ internal sealed class CatalogRegistrar(
             if (descriptor.DeadlineSeconds is not null && !descriptor.Schedules.IsDefaultOrEmpty)
             {
                 throw new InvalidOperationException(
-                    $"Job '{descriptor.JobName}' declares Deadline together with [JobSchedule]. "
+                    $"Job '{descriptor.JobName}' declares Deadline together with [Schedule]. "
                         + "A deadline anchors to job creation, and a recurring slot is created once and lives "
                         + "forever, so the combination would cancel the slot instead of bounding an occurrence."
                 );
@@ -290,7 +291,7 @@ internal sealed class CatalogRegistrar(
             if (descriptor.TenantRequirement == DefinitionTenantRequirementCode.Required && !descriptor.Schedules.IsDefaultOrEmpty)
             {
                 throw new InvalidOperationException(
-                    $"Job '{descriptor.JobName}' declares TenantRequirement = Required together with [JobSchedule]. "
+                    $"Job '{descriptor.JobName}' declares TenantRequirement = Required together with [Schedule]. "
                         + "Recurring slots are enqueued without a tenant, so a scheduled definition cannot require one."
                 );
             }
@@ -300,7 +301,7 @@ internal sealed class CatalogRegistrar(
     /// <summary>
     /// Definition-sourced recurring slots: reconcile each scheduled definition's slot + schedules
     /// against persisted cursors at startup. The upsert set is the union of {descriptors that
-    /// declare >= 1 [JobSchedule]} and {definitions with persisted schedule state}, so removed
+    /// declare >= 1 [Schedule]} and {definitions with persisted schedule state}, so removed
     /// schedules can pause an existing slot, while ordinary non-scheduled jobs are never touched.
     /// The registration stores the hash of <paramref name="catalogParts"/> and the plan's declarations on the namespace.
     /// </summary>
@@ -348,6 +349,11 @@ internal sealed class CatalogRegistrar(
         }
 
         var nowUtc = await _clock.GetUtcNowAsync(ct);
+        // The catalog's current families, the namespace's and sys's, which a binding resolves to after the code calendars.
+        var current = (await calendars.GetCurrentCalendarsAsync(namespaceId, ct)).Calendars.ToDictionary(
+            c => c.CalendarName,
+            StringComparer.Ordinal
+        );
         var definitions = new List<DefinitionSchedules>(inScope.Count);
 
         foreach (var defId in inScope.Order())
@@ -366,7 +372,24 @@ internal sealed class CatalogRegistrar(
                 ? byName
                 : (IReadOnlyDictionary<string, StoredScheduleState>)new Dictionary<string, StoredScheduleState>();
 
-            var slotSchedules = ScheduleRegistrationPlan.Plan(declared, storedForDef, nowUtc);
+            // The plan pins catalog bindings, so every version it may pick is compiled first: stored pins and current ones.
+            await calendars.PreloadAsync(
+                namespaceId,
+                storedForDef
+                    .Values.SelectMany(s => s.Timing().CatalogBindings())
+                    .Concat(current.Values.Select(c => (c.CalendarName, c.Version))),
+                ct
+            );
+            var slotSchedules = ScheduleRegistrationPlan.Plan(
+                declared,
+                storedForDef,
+                nowUtc,
+                t => calendars.Source(namespaceId, t),
+                (name, role) =>
+                    calendars.HasCode(name, role) ? (CalendarOriginCode.Registered, 1)
+                    : current.TryGetValue(name, out var c) && c.Role == role ? (CalendarOriginCode.Catalog, c.Version)
+                    : null
+            );
 
             // Registration leaves a held slot as it stands; say so at every start.
             var slot = storedForDef.Values.FirstOrDefault();
@@ -446,6 +469,11 @@ internal sealed class CatalogRegistrar(
                     ((byte)s.FullBehavior).ToString(c),
                     s.ExpireAfterSeconds?.ToString(c),
                     s.ExpireAction is { } expireAction ? ((byte)expireAction).ToString(c) : null,
+                    s.CalendarOrigin is { } calendarOrigin ? ((byte)calendarOrigin).ToString(c) : null,
+                    s.CalendarVersion?.ToString(c),
+                    s.AvailabilityCalendarName,
+                    s.AvailabilityOrigin is { } availabilityOrigin ? ((byte)availabilityOrigin).ToString(c) : null,
+                    s.AvailabilityVersion?.ToString(c),
                 ]);
             }
         }
@@ -455,9 +483,9 @@ internal sealed class CatalogRegistrar(
 
     /// <summary>
     /// Whether <c>register_schedules</c> would write nothing for <paramref name="plan"/>: each planned schedule is stored
-    /// with its planned cursor, capacity, and expiry, no stored schedule is left to orphan, and the slot, when there is
-    /// one, either rests where registration leaves it (in flight, waiting, finished, or held) or already stands at the
-    /// planned status, next run, and priority.
+    /// with its planned cursor, capacity, expiry, and calendar bindings, no stored schedule is left to orphan, and the
+    /// slot, when there is one, either rests where registration leaves it (in flight, waiting, finished, or held) or
+    /// already stands at the planned status, next run, and priority.
     /// </summary>
     internal static bool IsRegistered(DefinitionSchedules plan, Dictionary<string, StoredScheduleState>? stored, JobPriorityCode priority)
     {
@@ -472,6 +500,11 @@ internal sealed class CatalogRegistrar(
                 && st.FullBehavior == s.FullBehavior
                 && st.ExpireAfterSeconds == s.ExpireAfterSeconds
                 && st.ExpireAction == s.ExpireAction
+                && st.CalendarOrigin == s.CalendarOrigin
+                && st.CalendarVersion == s.CalendarVersion
+                && st.AvailabilityCalendarName == s.AvailabilityCalendarName
+                && st.AvailabilityOrigin == s.AvailabilityOrigin
+                && st.AvailabilityVersion == s.AvailabilityVersion
             )
         )
         {
@@ -653,7 +686,7 @@ internal static class SystemJobs
 }
 
 /// <summary>
-/// Environment gating for declared schedules. A <c>[JobSchedule]</c> whose <c>Environments</c> is empty
+/// Environment gating for declared schedules. A <c>[Schedule]</c> whose <c>Environments</c> is empty
 /// is a wildcard active in every environment; otherwise it registers only when the worker's current
 /// environment (<see cref="JobsOptions.EnvironmentName"/>) matches one of its declared names,
 /// case-insensitively, mirroring .NET host-environment comparison. A scoped schedule is inactive when

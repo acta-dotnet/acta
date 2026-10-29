@@ -287,6 +287,15 @@ sealed record Acta.AlertTarget
 static class Acta.AlertTransportKinds
     const System.String Log = "log"
     const System.String SlackWebhook = "slack-webhook"
+sealed record Acta.ArchiveCalendarResponse : Acta.ICalendarControlResponse
+    .ctor(Acta.ControlAction Action, System.Nullable<System.Int32> Version, System.Int32 DependentCount)
+    Acta.ControlAction Action { get;init; }
+    System.Int32 DependentCount { get;init; }
+    System.Nullable<System.Int32> Version { get;init; }
+record struct Acta.AvailabilityContext
+    .ctor(System.DateTime AtOrAfterUtc, System.TimeZoneInfo TimeZone)
+    System.DateTime AtOrAfterUtc { get;init; }
+    System.TimeZoneInfo TimeZone { get;init; }
 record struct Acta.Backoff
     Acta.Backoff WithJitter(System.Double fraction)
     System.Double Jitter { get; }
@@ -306,6 +315,83 @@ sealed class Acta.BytesJobPayloadSerializer : Acta.IJobPayloadSerializer
     Acta.JobPayloadFormat Format { get; }
     T Deserialize<T>(Acta.JobPayload payload)
     static Acta.BytesJobPayloadSerializer Default { get; }
+sealed class Acta.CalendarAttribute : System.Attribute
+    .ctor(System.String name)
+    System.String Name { get; }
+record struct Acta.CalendarContext
+    .ctor(System.DateTime AfterUtc, System.TimeZoneInfo TimeZone)
+    System.DateTime AfterUtc { get;init; }
+    System.TimeZoneInfo TimeZone { get;init; }
+sealed record Acta.CalendarDescriptor
+    .ctor(System.String CalendarName, System.Type ImplementationType, System.Boolean Occurrence, System.Boolean Availability)
+    System.Boolean Availability { get;init; }
+    System.Boolean Occurrence { get;init; }
+    System.String CalendarName { get;init; }
+    System.Type ImplementationType { get;init; }
+sealed record Acta.CalendarLookup
+    .ctor(System.String JobNamespace, System.String CalendarName)
+    System.String CalendarName { get;init; }
+    System.String JobNamespace { get;init; }
+enum Acta.CalendarOriginCode : System.Byte
+    Catalog = 20
+    Registered = 10
+    Unspecified = 0
+static class Acta.CalendarOriginCodeExtensions
+    static Acta.CalendarOriginCode FromCode(System.String code)
+    static Acta.CalendarOriginCode FromId(System.Byte id)
+    static System.Boolean IsKnownId(System.Byte id)
+    static System.Boolean IsWritableId(System.Byte id)
+    static System.Byte get_ToId(Acta.CalendarOriginCode value)
+    static System.Collections.Generic.IReadOnlyList<Acta.CodeManifestEntry> get_Manifest()
+    static System.String get_Code(Acta.CalendarOriginCode value)
+    static System.String get_CodeKind()
+    static System.String get_Description(Acta.CalendarOriginCode value)
+sealed class Acta.CalendarOriginCodeJsonConverter : System.Text.Json.Serialization.JsonConverter<Acta.CalendarOriginCode>
+    .ctor()
+    Acta.CalendarOriginCode Read(ref System.Text.Json.Utf8JsonReader reader, System.Type typeToConvert, System.Text.Json.JsonSerializerOptions options)
+    System.Void Write(System.Text.Json.Utf8JsonWriter writer, Acta.CalendarOriginCode value, System.Text.Json.JsonSerializerOptions options)
+enum Acta.CalendarRoleCode : System.Byte
+    Availability = 20
+    Occurrence = 10
+    Unspecified = 0
+static class Acta.CalendarRoleCodeExtensions
+    static Acta.CalendarRoleCode FromCode(System.String code)
+    static Acta.CalendarRoleCode FromId(System.Byte id)
+    static System.Boolean IsKnownId(System.Byte id)
+    static System.Boolean IsWritableId(System.Byte id)
+    static System.Byte get_ToId(Acta.CalendarRoleCode value)
+    static System.Collections.Generic.IReadOnlyList<Acta.CodeManifestEntry> get_Manifest()
+    static System.String get_Code(Acta.CalendarRoleCode value)
+    static System.String get_CodeKind()
+    static System.String get_Description(Acta.CalendarRoleCode value)
+sealed class Acta.CalendarRoleCodeJsonConverter : System.Text.Json.Serialization.JsonConverter<Acta.CalendarRoleCode>
+    .ctor()
+    Acta.CalendarRoleCode Read(ref System.Text.Json.Utf8JsonReader reader, System.Type typeToConvert, System.Text.Json.JsonSerializerOptions options)
+    System.Void Write(System.Text.Json.Utf8JsonWriter writer, Acta.CalendarRoleCode value, System.Text.Json.JsonSerializerOptions options)
+enum Acta.CalendarStatusCode : System.Byte
+    Archived = 240
+    Draft = 10
+    Published = 20
+    Superseded = 30
+    Unspecified = 0
+static class Acta.CalendarStatusCodeExtensions
+    static Acta.CalendarStatusCode FromCode(System.String code)
+    static Acta.CalendarStatusCode FromId(System.Byte id)
+    static System.Boolean IsKnownId(System.Byte id)
+    static System.Boolean IsWritableId(System.Byte id)
+    static System.Byte get_ToId(Acta.CalendarStatusCode value)
+    static System.Collections.Generic.IReadOnlyList<Acta.CodeManifestEntry> get_Manifest()
+    static System.String get_Code(Acta.CalendarStatusCode value)
+    static System.String get_CodeKind()
+    static System.String get_Description(Acta.CalendarStatusCode value)
+sealed class Acta.CalendarStatusCodeJsonConverter : System.Text.Json.Serialization.JsonConverter<Acta.CalendarStatusCode>
+    .ctor()
+    Acta.CalendarStatusCode Read(ref System.Text.Json.Utf8JsonReader reader, System.Type typeToConvert, System.Text.Json.JsonSerializerOptions options)
+    System.Void Write(System.Text.Json.Utf8JsonWriter writer, Acta.CalendarStatusCode value, System.Text.Json.JsonSerializerOptions options)
+record struct Acta.CalendarWindow
+    .ctor(System.DateTime StartUtc, System.Nullable<System.DateTime> EndUtc)
+    System.DateTime StartUtc { get;init; }
+    System.Nullable<System.DateTime> EndUtc { get;init; }
 sealed record Acta.CancelJobResponse : Acta.IJobControlResponse
     .ctor(System.Int64 JobId, Acta.ControlAction Action, System.Nullable<Acta.JobStatusCode> Status, System.Nullable<System.Int32> Version)
     Acta.ControlAction Action { get;init; }
@@ -590,6 +676,7 @@ enum Acta.EnqueueRejectionReason : System.Byte
     TenantUnknown = 3
 enum Acta.EntityCode : System.Byte
     Alert = 10
+    Calendar = 15
     Checkpoint = 20
     Definition = 30
     Event = 40
@@ -642,6 +729,9 @@ sealed class Acta.EvaluationStatusCodeJsonConverter : System.Text.Json.Serializa
 enum Acta.EventCode : System.Byte
     AlertAcknowledged = 140
     AlertResolved = 141
+    CalendarArchived = 112
+    CalendarDraftSaved = 110
+    CalendarPublished = 111
     JobCancelled = 70
     JobDefinitionOverridesUpdated = 30
     JobDefinitionRetired = 31
@@ -751,6 +841,33 @@ sealed record Acta.GetAlertResponse
     System.String JobNamespace { get;init; }
     System.String Message { get;init; }
     System.String Title { get;init; }
+sealed record Acta.GetCalendarDependent
+    .ctor(System.String JobNamespace, System.String JobName, System.String ScheduleName, Acta.CalendarRoleCode Binding, Acta.ScheduleStatusCode Status, System.Int32 PinnedVersion, Acta.ScheduledDeliveryCode ScheduledDelivery)
+    Acta.CalendarRoleCode Binding { get;init; }
+    Acta.ScheduleStatusCode Status { get;init; }
+    Acta.ScheduledDeliveryCode ScheduledDelivery { get;init; }
+    System.Int32 PinnedVersion { get;init; }
+    System.String JobName { get;init; }
+    System.String JobNamespace { get;init; }
+    System.String ScheduleName { get;init; }
+sealed record Acta.GetCalendarResponse
+    .ctor(System.String JobNamespace, System.String CalendarName, Acta.CalendarRoleCode Role, System.Nullable<System.Int32> CurrentVersion, System.Collections.Generic.IReadOnlyList<Acta.GetCalendarVersion> Versions, System.Int32 ShownVersion, System.String Definition, System.Collections.Generic.IReadOnlyList<Acta.GetCalendarDependent> Dependents)
+    Acta.CalendarRoleCode Role { get;init; }
+    System.Collections.Generic.IReadOnlyList<Acta.GetCalendarDependent> Dependents { get;init; }
+    System.Collections.Generic.IReadOnlyList<Acta.GetCalendarVersion> Versions { get;init; }
+    System.Int32 ShownVersion { get;init; }
+    System.Nullable<System.Int32> CurrentVersion { get;init; }
+    System.String CalendarName { get;init; }
+    System.String Definition { get;init; }
+    System.String JobNamespace { get;init; }
+sealed record Acta.GetCalendarVersion
+    .ctor(System.Int32 Version, Acta.CalendarStatusCode Status, System.String ContentHash, System.DateTime CreatedAtUtc, System.Nullable<System.DateTime> PublishedAtUtc, System.DateTime ModifiedAtUtc)
+    Acta.CalendarStatusCode Status { get;init; }
+    System.DateTime CreatedAtUtc { get;init; }
+    System.DateTime ModifiedAtUtc { get;init; }
+    System.Int32 Version { get;init; }
+    System.Nullable<System.DateTime> PublishedAtUtc { get;init; }
+    System.String ContentHash { get;init; }
 sealed record Acta.GetCheckpointsItem
     .ctor(Acta.CheckpointKindCode Kind, System.String Name, System.Nullable<Acta.CheckpointStatusCode> Status, System.Nullable<System.DateTime> DueAtUtc, System.Nullable<Acta.JobPayload> Value, System.DateTime CreatedAtUtc, System.DateTime ModifiedAtUtc)
     Acta.CheckpointKindCode Kind { get;init; }
@@ -1021,7 +1138,11 @@ sealed class Acta.HandlerFailException : Acta.HandlerControlException
     .ctor(System.String reasonMessage = null)
 sealed class Acta.HandlerPauseException : Acta.HandlerControlException
     .ctor(System.String reasonMessage = null)
+interface Acta.IActaAvailabilityCalendar
+    System.Nullable<Acta.CalendarWindow> GetWindowAtOrAfter(Acta.AvailabilityContext context)
 interface Acta.IActaBuilder
+    Acta.IActaBuilder AddAvailabilityCalendar(System.String name, Acta.IActaAvailabilityCalendar implementation)
+    Acta.IActaBuilder AddCalendar(System.String name, Acta.IActaCalendar implementation)
     Acta.IActaBuilder AddPayloadSerializer<TSerializer>() where TSerializer : class, Acta.IJobPayloadSerializer
     Acta.IActaBuilder AddPipelineBehavior<TBehavior>(Microsoft.Extensions.DependencyInjection.ServiceLifetime lifetime = Microsoft.Extensions.DependencyInjection.ServiceLifetime.Scoped) where TBehavior : class, Acta.IJobPipelineBehavior
     Acta.IActaBuilder ConfigureOptions(System.Action<Acta.JobsOptions> configure)
@@ -1031,9 +1152,12 @@ interface Acta.IActaBuilder
     Acta.IActaBuilder Run<TManifest>(System.String namespaceName, System.String ownerTeam = null, System.String description = null) where TManifest : class, Acta.IJobManifest
     Acta.IActaBuilder UseJsonPayloads(System.Text.Json.Serialization.Metadata.IJsonTypeInfoResolver resolver)
     Microsoft.Extensions.DependencyInjection.IServiceCollection Services { get; }
+interface Acta.IActaCalendar
+    System.Nullable<System.DateTime> GetNextOccurrence(Acta.CalendarContext context)
 interface Acta.IActaOperations
     Acta.DbProvider Provider { get; }
     Acta.IAlerts Alerts { get; }
+    Acta.ICalendars Calendars { get; }
     Acta.IDefinitions Definitions { get; }
     Acta.ILedger Ledger { get; }
     Acta.INamespaces Namespaces { get; }
@@ -1054,6 +1178,14 @@ interface Acta.IAlerts
     System.Threading.Tasks.ValueTask<Acta.GetAlertResponse> GetAsync(Acta.AlertRef alertRef, System.Threading.CancellationToken ct = default)
     System.Threading.Tasks.ValueTask<Acta.ListAlertsResponse> ListAsync(Acta.ListAlertsQuery query, System.Threading.CancellationToken ct = default)
     System.Threading.Tasks.ValueTask<Acta.ResolveAlertResponse> ResolveAsync(Acta.AlertRef alertRef, System.String reasonMessage = null, System.String actor = null, System.Threading.CancellationToken ct = default)
+interface Acta.ICalendarControlResponse : Acta.IControlResponse
+interface Acta.ICalendars
+    System.Threading.Tasks.ValueTask<Acta.ArchiveCalendarResponse> ArchiveAsync(Acta.CalendarLookup calendar, System.Int32 expectedCurrentVersion, System.String reasonMessage = null, System.String actor = null, System.Threading.CancellationToken ct = default)
+    System.Threading.Tasks.ValueTask<Acta.GetCalendarResponse> GetAsync(Acta.CalendarLookup calendar, System.Nullable<System.Int32> version = null, System.Threading.CancellationToken ct = default)
+    System.Threading.Tasks.ValueTask<Acta.ListCalendarsResponse> ListAsync(Acta.ListCalendarsQuery query, System.Threading.CancellationToken ct = default)
+    System.Threading.Tasks.ValueTask<Acta.PreviewCalendarResponse> PreviewAsync(Acta.CalendarLookup calendar, System.Int32 version, System.Nullable<System.DateTime> fromUtc = null, System.Int32 count = 10, System.String timeZoneId = null, System.Threading.CancellationToken ct = default)
+    System.Threading.Tasks.ValueTask<Acta.PublishCalendarResponse> PublishAsync(Acta.CalendarLookup calendar, System.Int32 expectedCurrentVersion, System.Int32 candidateVersion, Acta.OverdueDecisionCode overdue = Acta.OverdueDecisionCode.Refuse, System.String reasonMessage = null, System.String actor = null, System.Threading.CancellationToken ct = default)
+    System.Threading.Tasks.ValueTask<Acta.SaveCalendarDraftResponse> SaveDraftAsync(Acta.CalendarLookup calendar, Acta.CalendarRoleCode role, System.String definition, System.Int32 expectedLatestVersion, System.String reasonMessage = null, System.String actor = null, System.Threading.CancellationToken ct = default)
 interface Acta.IControlResponse
     Acta.ControlAction Action { get; }
     System.Nullable<System.Int32> Version { get; }
@@ -1345,7 +1477,8 @@ sealed record Acta.JobDescriptor
     System.Type InputType { get;init; }
     System.Type OutputType { get;init; }
 sealed record Acta.JobDescriptorManifest
-    .ctor(System.Collections.Immutable.ImmutableArray<Acta.JobDescriptor> Descriptors)
+    .ctor(System.Collections.Immutable.ImmutableArray<Acta.JobDescriptor> Descriptors, System.Collections.Immutable.ImmutableArray<Acta.CalendarDescriptor> Calendars = default)
+    System.Collections.Immutable.ImmutableArray<Acta.CalendarDescriptor> Calendars { get;init; }
     System.Collections.Immutable.ImmutableArray<Acta.JobDescriptor> Descriptors { get;init; }
 class Acta.JobEnqueueOptions
     .ctor()
@@ -1538,18 +1671,6 @@ sealed class Acta.JobRequestBuilder
     Acta.JobRequestBuilder Tags(params Acta.TagInput[] tags)
     Acta.JobRequestBuilder TenantName(System.String tenantName, System.Boolean overrideParent = false)
     static Acta.JobRequestBuilder Create(System.String jobNamespace, System.String jobName)
-sealed class Acta.JobScheduleAttribute : System.Attribute
-    .ctor(System.String name, System.String expression)
-    Acta.MisfireStrategyCode MisfireStrategy { get;init; }
-    Acta.ScheduleExpireActionCode ExpireAction { get;init; }
-    Acta.ScheduleFullBehaviorCode FullBehavior { get;init; }
-    System.Int32 MaxOutstanding { get;init; }
-    System.String Description { get;init; }
-    System.String ExpireAfter { get;init; }
-    System.String Expression { get; }
-    System.String Name { get; }
-    System.String TimeZoneId { get;init; }
-    System.String[] Environments { get;init; }
 enum Acta.JobStatusCode : System.Byte
     Blocked = 15
     Cancelled = 220
@@ -1663,6 +1784,32 @@ sealed record Acta.ListAlertsResponse : Acta.IPagedResponse<Acta.ListAlertsItem>
     .ctor(System.Collections.Generic.IReadOnlyList<Acta.ListAlertsItem> Items, System.String NextCursor, System.Boolean HasMore, System.Int32 PageSize, System.Nullable<System.Int64> TotalCount)
     System.Boolean HasMore { get;init; }
     System.Collections.Generic.IReadOnlyList<Acta.ListAlertsItem> Items { get;init; }
+    System.Int32 PageSize { get;init; }
+    System.Nullable<System.Int64> TotalCount { get;init; }
+    System.String NextCursor { get;init; }
+sealed record Acta.ListCalendarsItem
+    .ctor(System.String JobNamespace, System.String CalendarName, Acta.CalendarRoleCode Role, System.Nullable<System.Int32> CurrentVersion, System.Int32 LatestVersion, Acta.CalendarStatusCode LatestStatus, System.Nullable<System.DateTime> PublishedAtUtc, System.DateTime ModifiedAtUtc, System.Int32 DependentCount)
+    Acta.CalendarRoleCode Role { get;init; }
+    Acta.CalendarStatusCode LatestStatus { get;init; }
+    System.DateTime ModifiedAtUtc { get;init; }
+    System.Int32 DependentCount { get;init; }
+    System.Int32 LatestVersion { get;init; }
+    System.Nullable<System.DateTime> PublishedAtUtc { get;init; }
+    System.Nullable<System.Int32> CurrentVersion { get;init; }
+    System.String CalendarName { get;init; }
+    System.String JobNamespace { get;init; }
+sealed record Acta.ListCalendarsQuery
+    .ctor(System.String JobNamespace = null, System.Nullable<Acta.CalendarRoleCode> Role = null, System.String NameSearch = null, System.Nullable<System.Int32> PageSize = null, System.String Cursor = null, System.Boolean IncludeTotal = false)
+    System.Boolean IncludeTotal { get;init; }
+    System.Nullable<Acta.CalendarRoleCode> Role { get;init; }
+    System.Nullable<System.Int32> PageSize { get;init; }
+    System.String Cursor { get;init; }
+    System.String JobNamespace { get;init; }
+    System.String NameSearch { get;init; }
+sealed record Acta.ListCalendarsResponse : Acta.IPagedResponse<Acta.ListCalendarsItem>
+    .ctor(System.Collections.Generic.IReadOnlyList<Acta.ListCalendarsItem> Items, System.String NextCursor, System.Boolean HasMore, System.Int32 PageSize, System.Nullable<System.Int64> TotalCount)
+    System.Boolean HasMore { get;init; }
+    System.Collections.Generic.IReadOnlyList<Acta.ListCalendarsItem> Items { get;init; }
     System.Int32 PageSize { get;init; }
     System.Nullable<System.Int64> TotalCount { get;init; }
     System.String NextCursor { get;init; }
@@ -1860,7 +2007,7 @@ sealed record Acta.ListOutboxSourcesResponse : Acta.IPagedResponse<Acta.ListOutb
     System.Nullable<System.Int64> TotalCount { get;init; }
     System.String NextCursor { get;init; }
 sealed record Acta.ListSchedulesItem
-    .ctor(System.Int32 ScheduleId, System.Nullable<System.Int64> JobId, System.Int32 DefinitionId, System.String JobNamespace, System.String JobName, System.String ScheduleName, Acta.ScheduleOriginCode Origin, Acta.ScheduleExpressionKindCode ExpressionKind, System.String Expression, System.String TimeZoneId, Acta.MisfireStrategyCode MisfireStrategy, System.Nullable<System.DateTime> NextOccurrenceAtUtc, System.Nullable<System.DateTime> NextEvaluationAtUtc, Acta.EvaluationStatusCode EvaluationStatus, Acta.ScheduleStatusCode Status, System.Nullable<System.DateTime> PausedUntilUtc, System.DateTime CreatedAtUtc, System.DateTime ModifiedAtUtc, System.Int32 Version, System.Nullable<Acta.JobRef> JobRef, System.Int32 MaxOutstanding, System.Int32 OutstandingCount, Acta.ScheduleFullBehaviorCode FullBehavior, Acta.ScheduledDeliveryCode ScheduledDelivery, System.Nullable<System.Int32> ExpireAfterSeconds, System.Nullable<Acta.ScheduleExpireActionCode> ExpireAction)
+    .ctor(System.Int32 ScheduleId, System.Nullable<System.Int64> JobId, System.Int32 DefinitionId, System.String JobNamespace, System.String JobName, System.String ScheduleName, Acta.ScheduleOriginCode Origin, Acta.ScheduleExpressionKindCode ExpressionKind, System.String Expression, System.String TimeZoneId, Acta.MisfireStrategyCode MisfireStrategy, System.Nullable<System.DateTime> NextOccurrenceAtUtc, System.Nullable<System.DateTime> NextEvaluationAtUtc, Acta.EvaluationStatusCode EvaluationStatus, Acta.ScheduleStatusCode Status, System.Nullable<System.DateTime> PausedUntilUtc, System.DateTime CreatedAtUtc, System.DateTime ModifiedAtUtc, System.Int32 Version, System.Nullable<Acta.JobRef> JobRef, System.Int32 MaxOutstanding, System.Int32 OutstandingCount, Acta.ScheduleFullBehaviorCode FullBehavior, Acta.ScheduledDeliveryCode ScheduledDelivery, System.Nullable<System.Int32> ExpireAfterSeconds, System.Nullable<Acta.ScheduleExpireActionCode> ExpireAction, System.Nullable<Acta.CalendarOriginCode> CalendarOrigin, System.Nullable<System.Int32> CalendarVersion, System.String AvailabilityCalendarName, System.Nullable<Acta.CalendarOriginCode> AvailabilityOrigin, System.Nullable<System.Int32> AvailabilityVersion)
     Acta.EvaluationStatusCode EvaluationStatus { get;init; }
     Acta.MisfireStrategyCode MisfireStrategy { get;init; }
     Acta.ScheduleExpressionKindCode ExpressionKind { get;init; }
@@ -1875,13 +2022,18 @@ sealed record Acta.ListSchedulesItem
     System.Int32 OutstandingCount { get;init; }
     System.Int32 ScheduleId { get;init; }
     System.Int32 Version { get;init; }
+    System.Nullable<Acta.CalendarOriginCode> AvailabilityOrigin { get;init; }
+    System.Nullable<Acta.CalendarOriginCode> CalendarOrigin { get;init; }
     System.Nullable<Acta.JobRef> JobRef { get;init; }
     System.Nullable<Acta.ScheduleExpireActionCode> ExpireAction { get;init; }
     System.Nullable<System.DateTime> NextEvaluationAtUtc { get;init; }
     System.Nullable<System.DateTime> NextOccurrenceAtUtc { get;init; }
     System.Nullable<System.DateTime> PausedUntilUtc { get;init; }
+    System.Nullable<System.Int32> AvailabilityVersion { get;init; }
+    System.Nullable<System.Int32> CalendarVersion { get;init; }
     System.Nullable<System.Int32> ExpireAfterSeconds { get;init; }
     System.Nullable<System.Int64> JobId { get;init; }
+    System.String AvailabilityCalendarName { get;init; }
     System.String Expression { get;init; }
     System.String JobName { get;init; }
     System.String JobNamespace { get;init; }
@@ -1999,6 +2151,7 @@ sealed class Acta.MisfireStrategyCodeJsonConverter : System.Text.Json.Serializat
 static class Acta.NameSyntax
     const System.Int32 DefaultMaxLength = 64
     const System.Int32 ExtendedMaxLength = 128
+    const System.Int32 SystemNamespaceId = 1
     const System.String ReservedSystemName = "sys"
     const System.String SystemPrefix = "sys."
     static System.Boolean StartsWithSystemPrefix(System.String value)
@@ -2041,6 +2194,24 @@ sealed class Acta.OutboxStatusCodeJsonConverter : System.Text.Json.Serialization
     .ctor()
     Acta.OutboxStatusCode Read(ref System.Text.Json.Utf8JsonReader reader, System.Type typeToConvert, System.Text.Json.JsonSerializerOptions options)
     System.Void Write(System.Text.Json.Utf8JsonWriter writer, Acta.OutboxStatusCode value, System.Text.Json.JsonSerializerOptions options)
+enum Acta.OverdueDecisionCode : System.Byte
+    Discard = 20
+    Refuse = 10
+    Unspecified = 0
+static class Acta.OverdueDecisionCodeExtensions
+    static Acta.OverdueDecisionCode FromCode(System.String code)
+    static Acta.OverdueDecisionCode FromId(System.Byte id)
+    static System.Boolean IsKnownId(System.Byte id)
+    static System.Boolean IsWritableId(System.Byte id)
+    static System.Byte get_ToId(Acta.OverdueDecisionCode value)
+    static System.Collections.Generic.IReadOnlyList<Acta.CodeManifestEntry> get_Manifest()
+    static System.String get_Code(Acta.OverdueDecisionCode value)
+    static System.String get_CodeKind()
+    static System.String get_Description(Acta.OverdueDecisionCode value)
+sealed class Acta.OverdueDecisionCodeJsonConverter : System.Text.Json.Serialization.JsonConverter<Acta.OverdueDecisionCode>
+    .ctor()
+    Acta.OverdueDecisionCode Read(ref System.Text.Json.Utf8JsonReader reader, System.Type typeToConvert, System.Text.Json.JsonSerializerOptions options)
+    System.Void Write(System.Text.Json.Utf8JsonWriter writer, Acta.OverdueDecisionCode value, System.Text.Json.JsonSerializerOptions options)
 sealed class Acta.ParallelBuilder
     .ctor()
     Acta.ParallelBuilder Child<TInput>(System.String branchName, TInput input)
@@ -2074,11 +2245,37 @@ sealed class Acta.PayloadTooLargeException : System.Exception
     System.Int32 ActualBytes { get; }
     System.Int32 MaxBytes { get; }
     System.String EntryPoint { get; }
+sealed record Acta.PreviewCalendarItem
+    .ctor(System.String JobNamespace, System.String JobName, System.String ScheduleName, Acta.CalendarRoleCode Binding, Acta.ScheduleStatusCode Status, System.Int32 PinnedVersion, System.Boolean Overdue)
+    Acta.CalendarRoleCode Binding { get;init; }
+    Acta.ScheduleStatusCode Status { get;init; }
+    System.Boolean Overdue { get;init; }
+    System.Int32 PinnedVersion { get;init; }
+    System.String JobName { get;init; }
+    System.String JobNamespace { get;init; }
+    System.String ScheduleName { get;init; }
+sealed record Acta.PreviewCalendarResponse
+    .ctor(Acta.CalendarRoleCode Role, System.Int32 Version, System.Nullable<System.Int32> CurrentVersion, System.Collections.Generic.IReadOnlyList<System.DateTime> OccurrencesUtc, System.Collections.Generic.IReadOnlyList<System.DateTime> CurrentOccurrencesUtc, System.Collections.Generic.IReadOnlyList<Acta.CalendarWindow> Windows, System.Collections.Generic.IReadOnlyList<Acta.CalendarWindow> CurrentWindows, System.Collections.Generic.IReadOnlyList<Acta.PreviewCalendarItem> Schedules)
+    Acta.CalendarRoleCode Role { get;init; }
+    System.Collections.Generic.IReadOnlyList<Acta.CalendarWindow> CurrentWindows { get;init; }
+    System.Collections.Generic.IReadOnlyList<Acta.CalendarWindow> Windows { get;init; }
+    System.Collections.Generic.IReadOnlyList<Acta.PreviewCalendarItem> Schedules { get;init; }
+    System.Collections.Generic.IReadOnlyList<System.DateTime> CurrentOccurrencesUtc { get;init; }
+    System.Collections.Generic.IReadOnlyList<System.DateTime> OccurrencesUtc { get;init; }
+    System.Int32 Version { get;init; }
+    System.Nullable<System.Int32> CurrentVersion { get;init; }
 sealed record Acta.PreviewScheduleResponse
     .ctor(System.String Expression, System.String TimeZoneId, System.Collections.Generic.IReadOnlyList<System.DateTime> NextOccurrencesUtc)
     System.Collections.Generic.IReadOnlyList<System.DateTime> NextOccurrencesUtc { get;init; }
     System.String Expression { get;init; }
     System.String TimeZoneId { get;init; }
+sealed record Acta.PublishCalendarResponse : Acta.ICalendarControlResponse
+    .ctor(Acta.ControlAction Action, System.Nullable<System.Int32> Version, System.Collections.Generic.IReadOnlyList<System.String> RetimedSchedules, System.Collections.Generic.IReadOnlyList<System.String> OverdueSchedules, System.String Reason)
+    Acta.ControlAction Action { get;init; }
+    System.Collections.Generic.IReadOnlyList<System.String> OverdueSchedules { get;init; }
+    System.Collections.Generic.IReadOnlyList<System.String> RetimedSchedules { get;init; }
+    System.Nullable<System.Int32> Version { get;init; }
+    System.String Reason { get;init; }
 sealed record Acta.PurgeJobResponse : Acta.IJobControlResponse
     .ctor(System.Int64 JobId, Acta.ControlAction Action, System.Nullable<Acta.JobStatusCode> Status, System.Nullable<System.Int32> Version)
     Acta.ControlAction Action { get;init; }
@@ -2169,8 +2366,29 @@ sealed record Acta.RetireDefinitionResponse : Acta.IDefinitionControlResponse
     .ctor(Acta.ControlAction Action, System.Nullable<System.Int32> Version)
     Acta.ControlAction Action { get;init; }
     System.Nullable<System.Int32> Version { get;init; }
+sealed record Acta.SaveCalendarDraftResponse : Acta.ICalendarControlResponse
+    .ctor(Acta.ControlAction Action, System.Nullable<System.Int32> Version, System.String ContentHash, System.Collections.Generic.IReadOnlyList<System.String> Problems)
+    Acta.ControlAction Action { get;init; }
+    System.Collections.Generic.IReadOnlyList<System.String> Problems { get;init; }
+    System.Nullable<System.Int32> Version { get;init; }
+    System.String ContentHash { get;init; }
+sealed class Acta.ScheduleAttribute : System.Attribute
+    .ctor(System.String name)
+    .ctor(System.String name, System.String expression)
+    Acta.MisfireStrategyCode MisfireStrategy { get;init; }
+    Acta.ScheduleExpireActionCode ExpireAction { get;init; }
+    Acta.ScheduleFullBehaviorCode FullBehavior { get;init; }
+    System.Int32 MaxOutstanding { get;init; }
+    System.String Availability { get;init; }
+    System.String Calendar { get;init; }
+    System.String Description { get;init; }
+    System.String ExpireAfter { get;init; }
+    System.String Expression { get; }
+    System.String Name { get; }
+    System.String TimeZoneId { get;init; }
+    System.String[] Environments { get;init; }
 sealed record Acta.ScheduleDescriptor
-    .ctor(System.String JobName, System.String ScheduleName, System.String Expression, System.String TimeZoneId, Acta.MisfireStrategyCode MisfireStrategy, Acta.ScheduleExpressionKindCode ExpressionKind, System.String Description, System.Collections.Immutable.ImmutableArray<System.String> Environments, System.Int32 MaxOutstanding = 1, Acta.ScheduleFullBehaviorCode FullBehavior = Acta.ScheduleFullBehaviorCode.Wait, System.Nullable<System.Int32> ExpireAfterSeconds = null, Acta.ScheduleExpireActionCode ExpireAction = Acta.ScheduleExpireActionCode.Unspecified)
+    .ctor(System.String JobName, System.String ScheduleName, System.String Expression, System.String TimeZoneId, Acta.MisfireStrategyCode MisfireStrategy, Acta.ScheduleExpressionKindCode ExpressionKind, System.String Description, System.Collections.Immutable.ImmutableArray<System.String> Environments, System.Int32 MaxOutstanding = 1, Acta.ScheduleFullBehaviorCode FullBehavior = Acta.ScheduleFullBehaviorCode.Wait, System.Nullable<System.Int32> ExpireAfterSeconds = null, Acta.ScheduleExpireActionCode ExpireAction = Acta.ScheduleExpireActionCode.Unspecified, System.String AvailabilityCalendarName = null)
     Acta.MisfireStrategyCode MisfireStrategy { get;init; }
     Acta.ScheduleExpireActionCode ExpireAction { get;init; }
     Acta.ScheduleExpressionKindCode ExpressionKind { get;init; }
@@ -2178,6 +2396,7 @@ sealed record Acta.ScheduleDescriptor
     System.Collections.Immutable.ImmutableArray<System.String> Environments { get;init; }
     System.Int32 MaxOutstanding { get;init; }
     System.Nullable<System.Int32> ExpireAfterSeconds { get;init; }
+    System.String AvailabilityCalendarName { get;init; }
     System.String Description { get;init; }
     System.String Expression { get;init; }
     System.String JobName { get;init; }
@@ -2202,6 +2421,7 @@ sealed class Acta.ScheduleExpireActionCodeJsonConverter : System.Text.Json.Seria
     Acta.ScheduleExpireActionCode Read(ref System.Text.Json.Utf8JsonReader reader, System.Type typeToConvert, System.Text.Json.JsonSerializerOptions options)
     System.Void Write(System.Text.Json.Utf8JsonWriter writer, Acta.ScheduleExpireActionCode value, System.Text.Json.JsonSerializerOptions options)
 enum Acta.ScheduleExpressionKindCode : System.Byte
+    Calendar = 30
     Cron = 10
     Interval = 20
     Unspecified = 0

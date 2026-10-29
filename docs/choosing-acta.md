@@ -78,7 +78,7 @@ scheduling.
 
 | Pain | Acta's answer |
 | --- | --- |
-| Every team uses a different timer, hosted service, or scheduler | One durable job model: `[Job]`, `EnqueueAsync`, `ScheduleAsync`, and `[JobSchedule]` |
+| Every team uses a different timer, hosted service, or scheduler | One durable job model: `[Job]`, `EnqueueAsync`, `ScheduleAsync`, and `[Schedule]` |
 | Scheduled jobs vanish or double-run after restarts | Jobs, schedules, cursors, leases, attempts, and events are persisted in SQL |
 | Nobody knows what happened last night | Job status, event timelines, alerts, dashboard/API, CLI, and SQL inspection |
 | A worker died mid-job | Worker leases lapse and recovery reclaims eligible jobs for retry |
@@ -134,7 +134,7 @@ because Acta also schedules jobs.
 | --- | --- |
 | Background job | `[Job]` + `IJobs.EnqueueAsync` |
 | Delayed job | `IJobs.ScheduleAsync` with a `TimeSpan` or `DateTimeOffset` |
-| Recurring job | `[JobSchedule]` on the `[Job]` method |
+| Recurring job | `[Schedule]` on the `[Job]` method |
 | Dashboard | `MapActa()` under `/acta` |
 | Retry policy | `[Job(MaxAttempts = ...)]` and backoff settings |
 | Queue | Job namespace and worker registration |
@@ -191,7 +191,7 @@ error history, and recovery. Replace both with a scheduled job:
 public sealed class ImportJobs
 {
     [Job("import-files")]
-    [JobSchedule("default", "PT10M")]
+    [Schedule("default", "PT10M")]
     public Task ImportFiles(CancellationToken ct)
     {
         return Task.CompletedTask;
@@ -202,7 +202,7 @@ public sealed class ImportJobs
 | Custom table field | Acta replacement |
 | --- | --- |
 | `Name` | `[Job("import-files")]` |
-| `Interval` | `[JobSchedule("default", "PT10M")]` or cron |
+| `Interval` | `[Schedule("default", "PT10M")]` or cron |
 | `LastRunTime` | event timeline and schedule cursor |
 | `Status` | `jobs_view.status`, schedule status, worker lease state |
 | `Error` | failed execution event, its details reason, alert, result/details payload |
@@ -216,7 +216,7 @@ control actions.
 ### Checklist
 
 - Pick one namespace per owning service, such as `billing`, `users`, or `imports`.
-- Convert recurring work to `[Job]` + `[JobSchedule]`.
+- Convert recurring work to `[Job]` + `[Schedule]`.
 - Keep platform clocks only when the organization already standardizes on them.
 - Add deduplication keys to platform-triggered jobs and user-triggered duplicate-prone jobs.
 - Use `JobContext.JobRef` or `JobContext.JobId` in logger scopes for correlation.
@@ -262,7 +262,7 @@ Use a scheduled Acta job when the interval matters enough to be durable and visi
 public sealed class CleanupJobs
 {
     [Job("cleanup-expired-sessions")]
-    [JobSchedule("every-5-minutes", "*/5 * * * *")]
+    [Schedule("every-5-minutes", "*/5 * * * *")]
     public Task CleanupExpiredSessions(CancellationToken ct)
     {
         return Task.CompletedTask;

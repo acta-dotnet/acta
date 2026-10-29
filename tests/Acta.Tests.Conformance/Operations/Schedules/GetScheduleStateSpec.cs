@@ -45,7 +45,7 @@ public sealed class GetScheduleStateSpec : ActaRuntimeTestBase<ConformanceFixtur
             await Services.GetRequiredService<GetScheduleStateHandler>().HandleAsync(new GetScheduleStateQuery(namespaceId), ct)
         ).States;
 
-        // TestJobs declares at least one recurring [JobSchedule], so InitializeAsync seeds at least one live row.
+        // TestJobs declares at least one recurring [Schedule], so InitializeAsync seeds at least one live row.
         Assert.NotEmpty(states);
         foreach (var s in states)
         {

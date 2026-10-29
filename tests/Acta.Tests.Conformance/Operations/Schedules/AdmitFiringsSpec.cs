@@ -101,7 +101,7 @@ public sealed class AdmitFiringsSpec : ActaStorageTestBase<ConformanceFixture>
         var due = await Services
             .GetRequiredService<GetDueSchedulesHandler>()
             .HandleAsync(new GetDueSchedulesQuery(TestNamespaceId, nowUtc, 100), ct);
-        return ScheduleAdmitter.Plan(TestNamespaceId, due.Schedules, nowUtc);
+        return ScheduleAdmitter.Plan(TestNamespaceId, due.Schedules, nowUtc, Services.GetRequiredService<CalendarsOperations>());
     }
 
     private Task<AdmitFiringsResponse> Admit(AdmitFiringsCommand plan, CancellationToken ct) =>

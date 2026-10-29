@@ -28,6 +28,18 @@ namespace Acta;
     Sql = "(expire_after_seconds IS NULL AND expire_action_code IS NULL) OR (expire_after_seconds IS NOT NULL AND expire_action_code IS NOT NULL)"
 )]
 [DbCheck(Name = "ck_schedules_expire_after", Sql = "expire_after_seconds IS NULL OR expire_after_seconds > 0")]
+[DbCheck(
+    Name = "ck_schedules_calendar_binding",
+    Sql = "(expression_kind_code = 30 AND calendar_origin_code IS NOT NULL AND calendar_version IS NOT NULL) OR (expression_kind_code <> 30 AND calendar_origin_code IS NULL AND calendar_version IS NULL)"
+)]
+[DbCheck(
+    Name = "ck_schedules_availability_triple",
+    Sql = "(availability_calendar_name IS NULL AND availability_calendar_origin_code IS NULL AND availability_calendar_version IS NULL) OR (availability_calendar_name IS NOT NULL AND availability_calendar_origin_code IS NOT NULL AND availability_calendar_version IS NOT NULL)"
+)]
+[DbCheck(
+    Name = "ck_schedules_calendar_version",
+    Sql = "(calendar_version IS NULL OR calendar_version > 0) AND (availability_calendar_version IS NULL OR availability_calendar_version > 0)"
+)]
 internal sealed class ScheduleEntity : IEntity<int>
 {
     /// <summary>
@@ -59,14 +71,14 @@ internal sealed class ScheduleEntity : IEntity<int>
 
     /// <summary>
     /// Operator-readable schedule name, unique within its definition. For Definition-origin it matches the
-    /// <c>[JobSchedule(name)]</c> attribute parameter. Kebab-case ASCII. The <c>sys.</c> prefix is reserved for
+    /// <c>[Schedule(name)]</c> attribute parameter. Kebab-case ASCII. The <c>sys.</c> prefix is reserved for
     /// system-owned schedule names, for parity with the other Name columns.
     /// </summary>
     [DbColumn("schedule_name", DbKind.AsciiString, Size = 128)]
     public string ScheduleName { get; init; } = default!;
 
     /// <summary>
-    /// Origin of the row's existence: <c>Definition</c> (declared in a <c>[JobSchedule]</c> attribute,
+    /// Origin of the row's existence: <c>Definition</c> (declared in a <c>[Schedule]</c> attribute,
     /// refreshed by catalog upsert) or <c>Operator</c>.
     /// </summary>
     [DbColumn("schedule_origin_code")]
@@ -74,7 +86,10 @@ internal sealed class ScheduleEntity : IEntity<int>
 
     // ---------- Schedule expression (code-owned, refreshed by catalog upsert) ----------
 
-    /// <summary>Cron or interval duration, human ("5m") or ISO 8601 ("PT5M").</summary>
+    /// <summary>
+    /// Cron or interval duration, human ("5m") or ISO 8601 ("PT5M"); <c>expression</c> holds the calendar's name when the
+    /// kind is Calendar.
+    /// </summary>
     [DbColumn("expression", DbKind.AsciiString, Size = 128)]
     public string Expression { get; set; } = default!;
 
@@ -86,7 +101,7 @@ internal sealed class ScheduleEntity : IEntity<int>
     public string TimeZoneId { get; set; } = default!;
 
     /// <summary>
-    /// Whether <see cref="Expression"/> is a cron expression or an ISO 8601 interval. Set at compile
+    /// Whether <see cref="Expression"/> is a cron expression, an ISO 8601 interval, or a calendar's name. Set at compile
     /// time by the source generator and refreshed by catalog upsert.
     /// </summary>
     [DbColumn("expression_kind_code")]
@@ -121,7 +136,7 @@ internal sealed class ScheduleEntity : IEntity<int>
     public string TimingFingerprint { get; init; } = default!;
 
     /// <summary>
-    /// How many admitted occurrences may be unsettled at once, from <c>[JobSchedule(MaxOutstanding)]</c>; a Permanent
+    /// How many admitted occurrences may be unsettled at once, from <c>[Schedule(MaxOutstanding)]</c>; a Permanent
     /// definition's schedules hold 1, the slot.
     /// </summary>
     [DbColumn("max_outstanding", DbKind.Int32)]
@@ -133,7 +148,7 @@ internal sealed class ScheduleEntity : IEntity<int>
 
     /// <summary>
     /// The age past its instant an occurrence may reach before it expires unadmitted, from
-    /// <c>[JobSchedule(ExpireAfter)]</c>; NULL means it never expires. Set together with <see cref="ExpireAction"/>.
+    /// <c>[Schedule(ExpireAfter)]</c>; NULL means it never expires. Set together with <see cref="ExpireAction"/>.
     /// </summary>
     [DbColumn("expire_after_seconds", DbKind.Int32)]
     public int? ExpireAfterSeconds { get; init; }
@@ -141,6 +156,32 @@ internal sealed class ScheduleEntity : IEntity<int>
     /// <summary>What an occurrence older than <see cref="ExpireAfterSeconds"/> does when evaluated: discard or pause.</summary>
     [DbColumn("expire_action_code")]
     public ScheduleExpireActionCode? ExpireAction { get; init; }
+
+    /// <summary>
+    /// Where the calendar named by <see cref="Expression"/> comes from, from <c>[Schedule(CalendarOrigin)]</c>; set
+    /// exactly when the kind is Calendar, together with <see cref="CalendarVersion"/>.
+    /// </summary>
+    [DbColumn("calendar_origin_code")]
+    public CalendarOriginCode? CalendarOrigin { get; init; }
+
+    /// <summary>The calendar version the schedule is bound to, at least 1; NULL unless the kind is Calendar.</summary>
+    [DbColumn("calendar_version", DbKind.Int32)]
+    public int? CalendarVersion { get; init; }
+
+    /// <summary>
+    /// The availability calendar the schedule observes, from <c>[Schedule(Availability)]</c>, whatever the
+    /// expression kind; NULL means none. Set together with its origin and version.
+    /// </summary>
+    [DbColumn("availability_calendar_name", DbKind.AsciiString, Size = 128)]
+    public string? AvailabilityCalendarName { get; init; }
+
+    /// <summary>Where <see cref="AvailabilityCalendarName"/> comes from; NULL when the schedule has no availability calendar.</summary>
+    [DbColumn("availability_calendar_origin_code")]
+    public CalendarOriginCode? AvailabilityCalendarOrigin { get; init; }
+
+    /// <summary>The availability calendar version the schedule is bound to, at least 1; NULL when it has none.</summary>
+    [DbColumn("availability_calendar_version", DbKind.Int32)]
+    public int? AvailabilityCalendarVersion { get; init; }
 
     // ---------- Operator lifecycle ----------
 
@@ -164,7 +205,7 @@ internal sealed class ScheduleEntity : IEntity<int>
     // ---------- Description / operator note ----------
 
     /// <summary>
-    /// Dev-authored explanation of the schedule from the [JobSchedule] attribute; NULL when the
+    /// Dev-authored explanation of the schedule from the [Schedule] attribute; NULL when the
     /// attribute sets none. Distinct from <see cref="PauseMessage"/>, which is operator-written.
     /// </summary>
     [DbColumn("description", DbKind.UnicodeString, Size = 512)]

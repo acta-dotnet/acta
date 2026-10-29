@@ -61,7 +61,7 @@
       <dl class="ref">
         <div class="ref-row"><dt>Background job</dt><dd><code>[Job("name")]</code> on a handler method; <code>jobs.EnqueueAsync(...)</code> stores the row and answers a <code>JobHandle</code> you can wait on. The name is the durable, operator-facing contract used in SQL, the dashboard, the CLI, and alerts.</dd></div>
         <div class="ref-row"><dt>Delayed job</dt><dd><code>ScheduleAsync(input, TimeSpan)</code> or <code>ScheduleAsync(input, DateTimeOffset)</code>: one job row whose first claim waits for the time, counted on the database clock.</dd></div>
-        <div class="ref-row"><dt>Recurring job</dt><dd><code>[JobSchedule]</code> on the same <code>[Job]</code> method: an interval such as <code>5m</code> or a cron expression, backed by persistent schedule cursors with explicit misfire policy.</dd></div>
+        <div class="ref-row"><dt>Recurring job</dt><dd><code>[Schedule]</code> on the same <code>[Job]</code> method: an interval such as <code>5m</code> or a cron expression, backed by persistent schedule cursors with explicit misfire policy.</dd></div>
         <div class="ref-row"><dt>Dashboard</dt><dd><code>MapActa()</code> serves the embedded dashboard under <code>/acta</code>: local-only by default, every mutating verb off until you enable it.</dd></div>
         <div class="ref-row"><dt>Retry policy</dt><dd><code>[Job("...", MaxAttempts = ...)]</code> and typed backoff settings: policy on the job, not folklore in a catch block.</dd></div>
         <div class="ref-row"><dt>Queue</dt><dd>A job namespace plus worker registration: one owning service per namespace, and its replicas are the peer workers that drain it.</dd></div>
@@ -108,7 +108,7 @@ RecurringJob.AddOrUpdate&lt;ICleanupService&gt;(
 {
     <span class="c">// recurring: the schedule is declared on the job</span>
     <span class="a">[Job(<span class="s">"cleanup-expired-sessions"</span>)]</span>
-    <span class="a">[JobSchedule(<span class="s">"every-5-minutes"</span>, <span class="s">"*/5 * * * *"</span>)]</span>
+    <span class="a">[Schedule(<span class="s">"every-5-minutes"</span>, <span class="s">"*/5 * * * *"</span>)]</span>
     <span class="k">public</span> Task Cleanup(CancellationToken ct) =&gt; sessions.DeleteExpiredAsync(ct);
 }
 

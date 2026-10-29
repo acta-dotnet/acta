@@ -98,7 +98,12 @@ SELECT
     json_extract(s.value, '$.max_outstanding') AS max_outstanding,
     json_extract(s.value, '$.full_behavior_code') AS full_behavior_code,
     json_extract(s.value, '$.expire_after_seconds') AS expire_after_seconds,
-    json_extract(s.value, '$.expire_action_code') AS expire_action_code
+    json_extract(s.value, '$.expire_action_code') AS expire_action_code,
+    json_extract(s.value, '$.calendar_origin_code') AS calendar_origin_code,
+    json_extract(s.value, '$.calendar_version') AS calendar_version,
+    json_extract(s.value, '$.availability_calendar_name') AS availability_calendar_name,
+    json_extract(s.value, '$.availability_calendar_origin_code') AS availability_calendar_origin_code,
+    json_extract(s.value, '$.availability_calendar_version') AS availability_calendar_version
 FROM json_each(@p_schedules) s
 -- A PerOccurrence definition's schedules have no slot, so their job_id is NULL.
 LEFT JOIN temp._reg_slots sl ON sl.definition_id = json_extract(s.value, '$.definition_id');
@@ -162,6 +167,11 @@ SET
     full_behavior_code = src.full_behavior_code,
     expire_after_seconds = src.expire_after_seconds,
     expire_action_code = src.expire_action_code,
+    calendar_origin_code = src.calendar_origin_code,
+    calendar_version = src.calendar_version,
+    availability_calendar_name = src.availability_calendar_name,
+    availability_calendar_origin_code = src.availability_calendar_origin_code,
+    availability_calendar_version = src.availability_calendar_version,
     schedule_status_code = CASE WHEN tgt.schedule_status_code = 230 /* ScheduleStatusCode.Orphaned */
         THEN 10 /* ScheduleStatusCode.Active */
         ELSE tgt.schedule_status_code END,
@@ -184,6 +194,11 @@ WHERE
         OR tgt.full_behavior_code IS NOT src.full_behavior_code
         OR tgt.expire_after_seconds IS NOT src.expire_after_seconds
         OR tgt.expire_action_code IS NOT src.expire_action_code
+        OR tgt.calendar_origin_code IS NOT src.calendar_origin_code
+        OR tgt.calendar_version IS NOT src.calendar_version
+        OR tgt.availability_calendar_name IS NOT src.availability_calendar_name
+        OR tgt.availability_calendar_origin_code IS NOT src.availability_calendar_origin_code
+        OR tgt.availability_calendar_version IS NOT src.availability_calendar_version
         OR st.next_occurrence_at_utc IS NOT src.next_occurrence_at_utc
         OR tgt.description IS NOT src.description
     );
@@ -205,6 +220,11 @@ INSERT INTO {{schema}}.schedules (
     full_behavior_code,
     expire_after_seconds,
     expire_action_code,
+    calendar_origin_code,
+    calendar_version,
+    availability_calendar_name,
+    availability_calendar_origin_code,
+    availability_calendar_version,
     schedule_status_code,
     paused_until_utc,
     description)
@@ -225,6 +245,11 @@ SELECT
     src.full_behavior_code,
     src.expire_after_seconds,
     src.expire_action_code,
+    src.calendar_origin_code,
+    src.calendar_version,
+    src.availability_calendar_name,
+    src.availability_calendar_origin_code,
+    src.availability_calendar_version,
     10 /* ScheduleStatusCode.Active */,
     NULL,
     src.description

@@ -29,6 +29,7 @@ public static partial class ConstantCatalog
         AddConstant(constants, $"{nameof(JobPayloadFormat)}.{nameof(JobPayloadFormat.None)}", JobPayloadFormat.None.Id);
         AddConstant(constants, $"{nameof(JobPayloadFormat)}.{nameof(JobPayloadFormat.Json)}", JobPayloadFormat.Json.Id);
         AddConstant(constants, $"{nameof(JobPayloadFormat)}.{nameof(JobPayloadFormat.Bytes)}", JobPayloadFormat.Bytes.Id);
+        AddConstant(constants, $"{nameof(NameSyntax)}.{nameof(NameSyntax.SystemNamespaceId)}", NameSyntax.SystemNamespaceId);
         return constants;
     }
 

@@ -5,7 +5,7 @@
 > Generated reference for Acta code families and the payload-format registry.
 > Every persisted code is documented here exactly once; the data-model reference [`data-model.md`](./data-model.md) links into this file from every code-bearing column.
 
-This release: **33 families**, **187 values**.
+This release: **37 families**, **206 values**.
 
 > Numeric IDs are stable family-local persistence identifiers. Enum members carry programmatic meaning; textual codes carry operator-facing meaning.
 > Numeric grouping is a readability convention, not a runtime schema. Canonical failure states use `200`.
@@ -40,6 +40,9 @@ This pattern makes raw values easier to scan in database rows, logs, and diagnos
 | [`AlertOriginCode`](#code-family-alertorigincode) | `alert-origin` | `byte` |
 | [`AlertProfileCode`](#code-family-alertprofilecode) | `alert-profile` | `byte` |
 | [`AlertSeverityCode`](#code-family-alertseveritycode) | `alert-severity` | `byte` |
+| [`CalendarOriginCode`](#code-family-calendarorigincode) | `calendar-origin` | `byte` |
+| [`CalendarRoleCode`](#code-family-calendarrolecode) | `calendar-role` | `byte` |
+| [`CalendarStatusCode`](#code-family-calendarstatuscode) | `calendar-status` | `byte` |
 | [`CheckpointKindCode`](#code-family-checkpointkindcode) | `job-checkpoint-kind` | `byte` |
 | [`CheckpointStatusCode`](#code-family-checkpointstatuscode) | `job-checkpoint-status` | `byte` |
 | [`DeadlineBehaviorCode`](#code-family-deadlinebehaviorcode) | `deadline-behavior` | `byte` |
@@ -57,6 +60,7 @@ This pattern makes raw values easier to scan in database rows, logs, and diagnos
 | [`MisfireStrategyCode`](#code-family-misfirestrategycode) | `misfire-strategy` | `byte` |
 | [`NamespaceStatusCode`](#code-family-namespacestatuscode) | `namespace-status` | `byte` |
 | [`OutboxStatusCode`](#code-family-outboxstatuscode) | `outbox-status` | `byte` |
+| [`OverdueDecisionCode`](#code-family-overduedecisioncode) | `overdue-decision` | `byte` |
 | [`ScheduleExpireActionCode`](#code-family-scheduleexpireactioncode) | `schedule-expire-action` | `byte` |
 | [`ScheduleExpressionKindCode`](#code-family-scheduleexpressionkindcode) | `schedule-expression-kind` | `byte` |
 | [`ScheduleFullBehaviorCode`](#code-family-schedulefullbehaviorcode) | `schedule-full-behavior` | `byte` |
@@ -128,6 +132,32 @@ This pattern makes raw values easier to scan in database rows, logs, and diagnos
 | `Error` | 30 | `error` | Terminal failure or operator-attention event. | Active |
 | `Critical` | 40 | `critical` | Highest severity; emitted by system Jobs (AlertProfile = SysCritical) and operator alerts for incidents. Whether it pages depends on the routed channel's transport and config. | Active |
 
+### `CalendarOriginCode` · `calendar-origin` <a id="code-family-calendarorigincode"></a>
+
+| Member | Id | Code | Description | Lifecycle |
+|---|---:|---|---|---|
+| `Unspecified` | 0 | `unspecified` | Calendar origin not recognized by this build; the row was written by a newer Acta. | Active |
+| `Registered` | 10 | `registered` | A calendar registered by the application in code, by name and exact version. | Active |
+| `Catalog` | 20 | `catalog` | A calendar published in the namespace's catalog; the published version binds the schedule. | Active |
+
+### `CalendarRoleCode` · `calendar-role` <a id="code-family-calendarrolecode"></a>
+
+| Member | Id | Code | Description | Lifecycle |
+|---|---:|---|---|---|
+| `Unspecified` | 0 | `unspecified` | Calendar role not recognized by this build; the row was written by a newer Acta. | Active |
+| `Occurrence` | 10 | `occurrence` | A calendar whose instants are a schedule's occurrences. | Active |
+| `Availability` | 20 | `availability` | A calendar whose windows bound when a schedule's occurrences may fire. | Active |
+
+### `CalendarStatusCode` · `calendar-status` <a id="code-family-calendarstatuscode"></a>
+
+| Member | Id | Code | Description | Lifecycle |
+|---|---:|---|---|---|
+| `Unspecified` | 0 | `unspecified` | Calendar status not recognized by this build; the row was written by a newer Acta. | Active |
+| `Draft` | 10 | `draft` | A saved version that was never published; no schedule follows it. | Active |
+| `Published` | 20 | `published` | The family's current version, the one its catalog-bound schedules follow. | Active |
+| `Superseded` | 30 | `superseded` | A version that was current until a newer one was published; history still pins it. | Active |
+| `Archived` | 240 | `archived` | The family's current version, retired; the family has no current version until another is published. | Active |
+
 ### `CheckpointKindCode` · `job-checkpoint-kind` <a id="code-family-checkpointkindcode"></a>
 
 | Member | Id | Code | Description | Lifecycle |
@@ -183,6 +213,7 @@ This pattern makes raw values easier to scan in database rows, logs, and diagnos
 |---|---:|---|---|---|
 | `Unspecified` | 0 | `unspecified` | Entity kind not recognized by this build; the row was written by a newer Acta. | Active |
 | `Alert` | 10 | `alert` | One alert. | Active |
+| `Calendar` | 15 | `calendar` | One version of a catalog calendar. | Active |
 | `Checkpoint` | 20 | `checkpoint` | One checkpoint slot of a job. | Active |
 | `Definition` | 30 | `definition` | One job definition. | Active |
 | `Event` | 40 | `event` | One event. | Active |
@@ -245,6 +276,9 @@ This pattern makes raw values easier to scan in database rows, logs, and diagnos
 | `ScheduleAdmitted` | 105 | `schedule.admitted` | The admission engine selected one of the schedule's occurrences for a firing; details carry the schedule, the occurrence, the covered-through boundary, and the firing id. | Active |
 | `ScheduleSkipped` | 106 | `schedule.skipped` | The misfire policy discarded a range of the schedule's occurrences without work; details carry the schedule and the range. | Active |
 | `ScheduleRetimed` | 107 | `schedule.retimed` | A deploy changed the schedule's timing; the undecided occurrences of the old timing were discarded and the cursor moved to the first occurrence of the new one. Details carry the schedule name. | Active |
+| `CalendarDraftSaved` | 110 | `calendar.draft-saved` | An operator saved a new draft version of a catalog calendar. Details carry the calendar, the version, and the role; EventMessage carries the reason. | Active |
+| `CalendarPublished` | 111 | `calendar.published` | An operator published a catalog calendar version, which became the family's current one. Details carry the calendar, the version, the version it replaced, the overdue decision, and the schedules it affected. | Active |
+| `CalendarArchived` | 112 | `calendar.archived` | An operator archived a catalog calendar's current version; the family has no current version until another is published. Details carry the calendar and the version. | Active |
 | `WorkerStarted` | 120 | `worker.started` | Worker process registered; a workers row was appended (Status: Active). | Active |
 | `WorkerStopped` | 121 | `worker.stopped` | Worker process shut down cleanly (Status: Active/Draining to Stopped). | Active |
 | `WorkerDied` | 122 | `worker.died` | Worker heartbeat went stale; crash recovery flipped the worker to Dead. | Active |
@@ -343,6 +377,14 @@ This pattern makes raw values easier to scan in database rows, logs, and diagnos
 | `Claimed` | 20 | `claimed` | Leased by a relay claim; claim_token and claim_until_utc are set until the lease finalizes or expires. | Active |
 | `Quarantined` | 90 | `quarantined` | Excluded from normal claims after exhausting delivery policy or a non-recoverable contract error; requires an operator requeue or delete. | Active |
 
+### `OverdueDecisionCode` · `overdue-decision` <a id="code-family-overduedecisioncode"></a>
+
+| Member | Id | Code | Description | Lifecycle |
+|---|---:|---|---|---|
+| `Unspecified` | 0 | `unspecified` | Overdue decision not recognized by this build; the value was written by a newer Acta. | Active |
+| `Refuse` | 10 | `refuse` | A publication with undecided overdue occurrences on a dependent schedule is rejected. | Active |
+| `Discard` | 20 | `discard` | The old stream's undecided prefix is audited as skipped, and the new stream starts after now. | Active |
+
 ### `ScheduleExpireActionCode` · `schedule-expire-action` <a id="code-family-scheduleexpireactioncode"></a>
 
 | Member | Id | Code | Description | Lifecycle |
@@ -358,6 +400,7 @@ This pattern makes raw values easier to scan in database rows, logs, and diagnos
 | `Unspecified` | 0 | `unspecified` | Schedule expression kind not recognized by this build; the row was written by a newer Acta. | Active |
 | `Cron` | 10 | `cron` | Cron expression (Cronos dialect). Set at compile time by the source generator. | Active |
 | `Interval` | 20 | `interval` | Interval duration: human (e.g. "5m") or ISO 8601 (e.g. "PT5M", "P1D"). Set at compile time by the source generator. | Active |
+| `Calendar` | 30 | `calendar` | A calendar named by the expression: its occurrences come from the bound calendar implementation. Set at compile time by the source generator. | Active |
 
 ### `ScheduleFullBehaviorCode` · `schedule-full-behavior` <a id="code-family-schedulefullbehaviorcode"></a>
 
@@ -373,7 +416,7 @@ This pattern makes raw values easier to scan in database rows, logs, and diagnos
 |---|---:|---|---|---|
 | `Unspecified` | 0 | `unspecified` | Schedule origin not recognized by this build; the row was written by a newer Acta. | Active |
 | `Operator` | 20 | `operator` | Operator-driven schedule add/remove. No code path produces rows with this origin today. | Active |
-| `Definition` | 40 | `definition` | Declared in [JobSchedule] attribute; refreshed by catalog upsert. | Active |
+| `Definition` | 40 | `definition` | Declared in [Schedule] attribute; refreshed by catalog upsert. | Active |
 
 ### `ScheduleStatusCode` · `schedule-status` <a id="code-family-schedulestatuscode"></a>
 

@@ -15,6 +15,10 @@ internal static class EventDetails
     /// <summary>The format id a payload from <see cref="Write"/> is stored with: JSON, or none when there is no payload.</summary>
     public static byte FormatId(byte[]? details) => details is null ? JobPayloadFormat.None.Id : JobPayloadFormat.Json.Id;
 
+    /// <summary>An instant as a detail fact: UTC at millisecond precision, the way a decision's range is recorded.</summary>
+    public static string Instant(DateTime value) =>
+        DbParams.ToUtc(value).ToString("yyyy-MM-dd'T'HH:mm:ss.fff'Z'", System.Globalization.CultureInfo.InvariantCulture);
+
     /// <summary>The facts as UTF-8 JSON, or null when every value is null.</summary>
     public static byte[]? Write(params ReadOnlySpan<(string Name, string? Value)> facts)
     {

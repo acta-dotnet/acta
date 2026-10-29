@@ -136,6 +136,82 @@
       "ForeignKeys": []
     },
     {
+      "Table": "calendars",
+      "PrimaryKey": "pk_calendars(calendar_id)|manual=False|seq=False",
+      "Columns": [
+        {
+          "Name": "calendar_id",
+          "Signature": "Int32|0|0|0|False|None||coded=False|codeKind=|caseExact=False"
+        },
+        {
+          "Name": "namespace_id",
+          "Signature": "Int32|0|0|0|False|None||coded=False|codeKind=|caseExact=False"
+        },
+        {
+          "Name": "calendar_name",
+          "Signature": "AsciiString|128|0|0|False|None||coded=False|codeKind=|caseExact=False"
+        },
+        {
+          "Name": "version",
+          "Signature": "Int32|0|0|0|False|None||coded=False|codeKind=|caseExact=False"
+        },
+        {
+          "Name": "calendar_role_code",
+          "Signature": "Byte|0|0|0|False|None||coded=True|codeKind=calendar-role|caseExact=False"
+        },
+        {
+          "Name": "definition_format_id",
+          "Signature": "Byte|0|0|0|False|Zero||coded=False|codeKind=|caseExact=False"
+        },
+        {
+          "Name": "definition",
+          "Signature": "BinaryPayload|0|0|0|False|None||coded=False|codeKind=|caseExact=False"
+        },
+        {
+          "Name": "content_hash",
+          "Signature": "AsciiString|64|0|0|False|None||coded=False|codeKind=|caseExact=False"
+        },
+        {
+          "Name": "calendar_status_code",
+          "Signature": "Byte|0|0|0|False|None||coded=True|codeKind=calendar-status|caseExact=False"
+        },
+        {
+          "Name": "created_at_utc",
+          "Signature": "UtcInstant|0|0|0|False|UtcNow||coded=False|codeKind=|caseExact=False"
+        },
+        {
+          "Name": "published_at_utc",
+          "Signature": "UtcInstant|0|0|0|True|None||coded=False|codeKind=|caseExact=False"
+        },
+        {
+          "Name": "modified_at_utc",
+          "Signature": "UtcInstant|0|0|0|False|UtcNow||coded=False|codeKind=|caseExact=False"
+        }
+      ],
+      "Indexes": [
+        {
+          "Name": "ux_calendars_current",
+          "Signature": "U|cols=namespace_id,calendar_name|inc=|desc=|filter=calendar_status_code = 20|seq=False"
+        },
+        {
+          "Name": "ux_calendars_namespace_name_version",
+          "Signature": "U|cols=namespace_id,calendar_name,version|inc=|desc=|filter=|seq=False"
+        }
+      ],
+      "Checks": [
+        {
+          "Name": "ck_calendars_version",
+          "Sql": "version \u003E 0"
+        }
+      ],
+      "ForeignKeys": [
+        {
+          "Name": "fk_calendars_namespaces",
+          "Signature": "namespace_id-\u003Enamespaces.namespace_id|NoAction"
+        }
+      ]
+    },
+    {
       "Table": "checkpoints",
       "PrimaryKey": "pk_checkpoints(job_id,checkpoint_kind_code,checkpoint_name)|manual=False|seq=False",
       "Columns": [
@@ -1031,6 +1107,26 @@
           "Signature": "Byte|0|0|0|True|None||coded=True|codeKind=schedule-expire-action|caseExact=False"
         },
         {
+          "Name": "calendar_origin_code",
+          "Signature": "Byte|0|0|0|True|None||coded=True|codeKind=calendar-origin|caseExact=False"
+        },
+        {
+          "Name": "calendar_version",
+          "Signature": "Int32|0|0|0|True|None||coded=False|codeKind=|caseExact=False"
+        },
+        {
+          "Name": "availability_calendar_name",
+          "Signature": "AsciiString|128|0|0|True|None||coded=False|codeKind=|caseExact=False"
+        },
+        {
+          "Name": "availability_calendar_origin_code",
+          "Signature": "Byte|0|0|0|True|None||coded=True|codeKind=calendar-origin|caseExact=False"
+        },
+        {
+          "Name": "availability_calendar_version",
+          "Signature": "Int32|0|0|0|True|None||coded=False|codeKind=|caseExact=False"
+        },
+        {
           "Name": "schedule_status_code",
           "Signature": "Byte|0|0|0|False|None||coded=True|codeKind=schedule-status|caseExact=False"
         },
@@ -1070,6 +1166,18 @@
         }
       ],
       "Checks": [
+        {
+          "Name": "ck_schedules_availability_triple",
+          "Sql": "(availability_calendar_name IS NULL AND availability_calendar_origin_code IS NULL AND availability_calendar_version IS NULL) OR (availability_calendar_name IS NOT NULL AND availability_calendar_origin_code IS NOT NULL AND availability_calendar_version IS NOT NULL)"
+        },
+        {
+          "Name": "ck_schedules_calendar_binding",
+          "Sql": "(expression_kind_code = 30 AND calendar_origin_code IS NOT NULL AND calendar_version IS NOT NULL) OR (expression_kind_code \u003C\u003E 30 AND calendar_origin_code IS NULL AND calendar_version IS NULL)"
+        },
+        {
+          "Name": "ck_schedules_calendar_version",
+          "Sql": "(calendar_version IS NULL OR calendar_version \u003E 0) AND (availability_calendar_version IS NULL OR availability_calendar_version \u003E 0)"
+        },
         {
           "Name": "ck_schedules_expire_after",
           "Sql": "expire_after_seconds IS NULL OR expire_after_seconds \u003E 0"
@@ -1413,6 +1521,7 @@
       "access_checkpoint": "db1e6fc819ed1917ddbd64c963b1d52150993d5104a54ec251b1347c2c185a5f",
       "alerts_view": "2d1336bd0137c80ab7a28f216d1db3d38f228e6e63a0e1d437361ffcd05c0573",
       "arm_or_consume_sleep_timer": "d03e84864dfec5f24ecd928a6c64b95038e625af61df78c436225089650716f5",
+      "calendars_view": "f6e9e6a8c19a09b669a6ab0d29c8bc7bff443b5b43186b98474dfcee63158c40",
       "checkpoints_view": "a4db45b3c95bf90ecc29e130cf5c1a23b78bc46a0881c4d114c7f5e5c58e8c16",
       "claim_jobs": "bc99509a8152e0cff4d2ea31bf2ebe731ad5871b6082715bc41cfaba21cf4cb0",
       "complete_executions": "fb1cdd5ab6054eedb4e20ca78f68f6e7666f5ad0cda20c39581db6a09f21c842",
@@ -1420,17 +1529,17 @@
       "definitions_view": "d236a2eb9db1ea2e42fa6a5199d42c7a9d2313d9cbb50abe5cc8c4128a83bde5",
       "enqueue_job": "01b6443d9ae282023009e6534c7b2df270d984f48391474fbacf8a7dd3ceb313",
       "enqueue_jobs": "b822a9e78c523d1b4a0be7dc5cf15259caa1b10984f1bb0d1bab6953a24f5fa6",
-      "events_view": "33b006c8ba0817b9c10e05c4c5c650c5b961b7e5664620afe80aed4d2dfca399",
+      "events_view": "3402bcde3de50d84a5a52f7871151391a2a28a71072dd492533361045c1d490c",
       "extend_worker_leases": "fc682824dcc18f2339f5cdf1105981a8e1014d35bc76be59913f372fd1e3beb0",
       "jobs_view": "0cef700e5d7972f213a4718e32c98f41792bca437ec90d5efba4391a261d3e1f",
       "purge_expired_data": "772e0b4cc5a54c9fb652e4b0ef5befdfb3a072ef75f281f080048a3cce463e14",
       "raise_signal": "434e29aa75677b92f1da2d06c141b02af6db481f8f6b80deaf4d5b4cca58389d",
       "reclaim_stuck_jobs": "85c3510cc17092b3f940400e9c92d8b9a53f2f671bf482c5d3ac80769e9686ac",
       "reserve_rate": "d2e111fb260e1b057b86c7086c8ad33567d2f0dbe0875c39acd74734d363d4bb",
-      "schedules_view": "a5fc400ec8ce3a6bcf15c693a33e1e6f682a925f0f68591dc07067ca2b977702",
+      "schedules_view": "a1b3c8a0a01d95385360ec40ce6d784de49ebf0074dcbf17fc512618f153f905",
       "start_step": "7fd76ffb218bc6e5094476844aff7b8d95ced83e35c1653f1ce1d91691e75c44",
       "steps_view": "ee571121539eb7068e88122e36433a8e390de370d8732d1e15a2d52d62e444c2",
-      "tags_view": "8ba6f3cd40ab636b977e77ecec2b7684d9fe9859f3e51e330891e541dc0c560e",
+      "tags_view": "6c0b64abc25d5488fe7e171499d6e6eabe2b23e44d10b5507797188b4141a883",
       "wait_signal": "09ed16f6e36cee171bef2affd7a5bd675b2a48f2c2930a937fc462b152f0e28d",
       "workers_view": "9e7f7a984ee4553ad4a50b07da1025109384eff8c29c1e4055ed59ff7a61a855"
     },
@@ -1438,6 +1547,7 @@
       "access_checkpoint": "1824de9d485567657a638b541207e25cc28fa9ec449407391b5169984ed6405c",
       "alerts_view": "26e7a640981ff32e8c1753851779660421d60e20174fb7c936f6d35c8fbceef5",
       "arm_or_consume_sleep_timer": "8b9c130d0667cb2f3645e3987bac2db7fbd477d7fc8e3bfefa731d783ae89d50",
+      "calendars_view": "82972bd66b0bc24e04ef95f6a5dcc31ea6c5f0090a4476923f55e54c9495e8a1",
       "checkpoints_view": "04bf5cf7b9ec4f97d8a2596b0c69214945cb2f23d2c7756bd61ba736bd4b2f81",
       "claim_jobs": "f2dfda1339c2f8c5f9c97df45594691a746c29c224bba5c343d39a3bda077237",
       "complete_executions": "bd97a92cb9201326b0187371bc3e0420539664db20f9b7a317464256455c5f40",
@@ -1445,29 +1555,30 @@
       "definitions_view": "80df7550b25d88b9b3c6a273bc0527de0204b9da835ace2f8fe9ddbc8a32bc7a",
       "enqueue_job": "b12d73be34fb10644f872b60106960980ca0b696253fd46d692d3a9345688b83",
       "enqueue_jobs": "63c3bb5e1acdea138095b9e2e97c96993e95f43420a896c47058318a6f10d7c8",
-      "events_view": "c064afa98f548450128a6cd935e0f8574e977df773af9468c51b22cb36d1fc30",
+      "events_view": "67dbb84358170280dbae4b054a66caa1687ccce3a56bb2d89f94c17dd8002a46",
       "extend_worker_leases": "b4b1024b01ac8e8a68a1d768364d2602371e1ba7acd647a0b27be5d4bf65aa1b",
       "jobs_view": "fa9264ceff2d499cd7bbf7a5c7df83fe6c82e3a2324f3ca26d67666f96e53c54",
       "purge_expired_data": "1b47159dcbf87566a0c8cf99f4dfccc601d67a13291daa3786a4326526e922f9",
       "raise_signal": "e82c59366c775e103da0b3ade0a97d1b28d99666663e33a6e194f0113b379ea5",
       "reclaim_stuck_jobs": "993618d5e3653d7fb69b7aa461a496f4f99d35c028360003712fab0646adf682",
       "reserve_rate": "147eb58a9780d3a3a0f0660d4d0301c93a2a310dfbff598c2996b88d71eb6543",
-      "schedules_view": "0bccc43544b6fa6457ec6dc6177cd4dbd561e80765fb444d790d2115bb24d212",
+      "schedules_view": "252a3183c46c4072863eca341be2f3fdcf4df4e38e2b0b076899453a55fa953b",
       "start_step": "c2ad8dcfd427bd4a09989fa1f94ae0829dfd81e718cb81be2ab8ef405782e769",
       "steps_view": "ff485996bd4e3e1de5c8be8c58544a32263f5fa8588e9f56d87c554f0156a1f0",
-      "tags_view": "d1689cfc259ad186f478f3d0f571dd60545935dfe6e3c2d9666faeb114697aad",
+      "tags_view": "fa260ed1022dec12725dabfc9f9c1e45ed97a632af6d06767193d0e8262b62a2",
       "wait_signal": "0bca51e6ee8cf22ffbef78e577dc89983f4cf142a62121fb7a4f965cf7ef3a77",
       "workers_view": "9cb3bd7e8e52176698ce819ad36075a3281eb2a159523de8ce87bf00f85fff5e"
     },
     "sqlite": {
       "alerts_view": "961e5904924b6cf4f3166b9f161a69804cd730640495f70ce18d30dc11a05f57",
+      "calendars_view": "0dfcae050a816d7e68b261c0961212ef4ddb64264ad1ca4426075a3d03242db0",
       "checkpoints_view": "8cd534b8cf3ba9119c04163e75e7ab5e96d01c02625cdfc6aff3071cb6b0afbb",
       "definitions_view": "971e0b5860a1b3702ec8a688f02813a099f1ead525671b13172e5e55798849ef",
-      "events_view": "d337e73e0a0ae42c9ab8fbe463262b3a6bb7a69fad2c2a488ca9ab422c06c617",
+      "events_view": "cc81930456fe0b1e76efd7e31c2cc61b6e634c41860de3879c660497182ccc6c",
       "jobs_view": "d192672248828116001427cbad643c9d4fa3ae997627b1a023acc7ea1b6010e0",
-      "schedules_view": "571fee58bceebf428c15957ae3ce1657112f7a4eb2436ff2c342eaac338283ea",
+      "schedules_view": "b769dbb3b7f18a000cbfd85ef1c4823193abe8d11bc90d6a3b85b9fb34cda951",
       "steps_view": "4276417e2eb111528319489e02bd83f5c4be85095dc34cbfdf9db075a7fda1a0",
-      "tags_view": "692b58d065d9d6be0a156fccdfeea7595cae9d4d5b0aefcc75aece5fecfbd135",
+      "tags_view": "bb85236bf4130ec9945faff107492ff3b5904d2cff9a38aef6584c3e6b48ef85",
       "workers_view": "a41ac7a6db86ea1e51f6b1fb88c483e92f94ebe8209ee82df48db2019b20b06d"
     }
   }

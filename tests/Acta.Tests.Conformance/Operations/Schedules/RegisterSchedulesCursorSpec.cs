@@ -120,7 +120,18 @@ public sealed class RegisterSchedulesCursorSpec : ActaStorageTestBase<Conformanc
         var storedForDef = stored.Where(s => s.DefinitionId == defId).ToDictionary(s => s.ScheduleName, s => s, StringComparer.Ordinal);
 
         var declared = new[] { new ScheduleDescriptor(jobName, ScheduleName, expression, null, misfire, kind, null, []) };
-        return await RegisterAsync(defId, jobName, ScheduleRegistrationPlan.Plan(declared, storedForDef, nowUtc), ct);
+        return await RegisterAsync(
+            defId,
+            jobName,
+            ScheduleRegistrationPlan.Plan(
+                declared,
+                storedForDef,
+                nowUtc,
+                CalendarRegistry.Empty.Source,
+                ScheduleRegistrationPlan.NoCalendars
+            ),
+            ct
+        );
     }
 
     private async Task<long> RegisterAsync(int defId, string jobName, IReadOnlyList<SlotSchedule> schedules, CancellationToken ct)

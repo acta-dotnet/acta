@@ -23,7 +23,7 @@ public static class FailuresAuditSlot
     public static int Fires(string jobNamespace) => _fires.TryGetValue(jobNamespace, out var n) ? n : 0;
 
     [Job("failures-audit-slot", MaxAttempts = 1, EventRecording = EventRecordingCode.Failures)]
-    [JobSchedule("default", Cron.Daily)]
+    [Schedule("default", Cron.Daily)]
     public static async Task Run(JobContext ctx, CancellationToken ct)
     {
         var fire = _fires.AddOrUpdate(ctx.JobNamespace, 1, static (_, n) => n + 1);

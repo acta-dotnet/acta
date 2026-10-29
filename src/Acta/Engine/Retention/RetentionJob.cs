@@ -29,8 +29,6 @@ internal sealed class RetentionJob(
     private const string JobsCursorVariable = "purge-cursor";
 
     /// <summary>The seeded sys namespace, which owns the tenant events and where no worker runs a pass of its own.</summary>
-    private const int SysNamespaceId = 1;
-
     /// <summary>
     /// These casts truncate nothing: JobsOptionsValidator already rejected any events or alerts
     /// window that is not a whole number of days. Without that rule a 47-hour alert window would
@@ -53,7 +51,7 @@ internal sealed class RetentionJob(
         EventRecording = EventRecordingCode.Failures,
         AlertProfile = AlertProfileCode.SysCritical
     )]
-    [JobSchedule("default", Cron.Hourly)]
+    [Schedule("default", Cron.Hourly)]
     public async Task Handle(JobContext ctx, CancellationToken ct)
     {
         var swept = await PurgeExpiredDataAsync(
@@ -146,7 +144,12 @@ internal sealed class RetentionJob(
                     for (var iteration = 0; iteration < command.MaxIterations; iteration++)
                     {
                         ct.ThrowIfCancellationRequested();
-                        var system = batch with { NamespaceId = SysNamespaceId, AlertFloorUtc = null, AlertFloorEventId = null };
+                        var system = batch with
+                        {
+                            NamespaceId = NameSyntax.SystemNamespaceId,
+                            AlertFloorUtc = null,
+                            AlertFloorEventId = null,
+                        };
                         if ((await maintenance.PurgeExpiredDataAsync(system, ct)).Purged == 0)
                         {
                             break;

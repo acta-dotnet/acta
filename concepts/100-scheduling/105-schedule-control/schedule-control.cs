@@ -22,7 +22,7 @@ var queries = host.Services.GetRequiredService<IActaOperations>();
 // The recurring slot registers on StartAsync; give the worker a moment to reconcile.
 await Task.Delay(500);
 
-var lookup = new ScheduleLookup(JobLookup.ByDeduplicationKey("schedule-control", "hourly-report"), "every-hour");
+var lookup = new ScheduleLookup("schedule-control", "hourly-report", "every-hour");
 
 // Step 1: indefinite pause - the schedule does not fire until an operator explicitly resumes it.
 Console.WriteLine("Pausing schedule indefinitely...");
@@ -55,7 +55,7 @@ namespace Acta.Concepts.ScheduleControl
     {
         // 1h interval: will not fire during the short demo run, so only schedule-control is exercised.
         [Job("hourly-report", EventRecording = EventRecordingCode.Off)]
-        [JobSchedule("every-hour", "1h")]
+        [Schedule("every-hour", "1h")]
         public async Task Handle(GenerateHourlyReport input, CancellationToken ct)
         {
             await Task.Delay(100, ct);

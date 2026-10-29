@@ -29,11 +29,11 @@ import { readFileSync } from 'node:fs';
 import { join, dirname } from 'node:path';
 import { fileURLToPath } from 'node:url';
 
-/** Bundle bytes measured on 2026-08-21, the build this gate was set from. */
-const BASELINE = { raw: 450_804, gzip: 133_130 };
+/** Bundle bytes measured on 2026-10-29, the build that added the calendar catalog pages and their week editor. */
+const BASELINE = { raw: 500_800, gzip: 148_030 };
 
 /** BASELINE + ~10%. Over this, the build fails. */
-const BUDGET = { raw: 496_000, gzip: 146_000 };
+const BUDGET = { raw: 551_000, gzip: 163_000 };
 
 const distDir = join(dirname(fileURLToPath(import.meta.url)), '..', 'dist');
 const manifestPath = join(distDir, '.vite', 'manifest.json');

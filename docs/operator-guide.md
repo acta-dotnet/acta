@@ -350,7 +350,7 @@ app.MapActa("/acta", options =>
 
 - **Local only by default.** Remote requests answer 403, and a local one must address `localhost` or an IP. To expose it, set `LocalOnly = false` and require your own authorization through `ConfigureEndpoints`, which covers the page, its assets, and the API; without it startup throws unless `UnsafeAllowAnonymousRemoteAccess = true`. The package ships no authentication, and CORS is not authorization. `MapActaApi` maps the API alone.
 - **Reads expose payloads.** Anyone who can read can see every job's input, result, and checkpoint values, up to `MaxInlinePayloadBytes`. Treat read access as access to every payload in the ledger.
-- **Controls are opt-in.** `EnableControls = true` maps the control routes (job verbs, signals, schedules, alerts, tenants, namespaces, outbox). Each control request must send `X-Acta-Control: true`, a guard against cross-site requests, not authentication. An outcome answers 200 applied, 404 not found, or 409 rejected; problem details are kept for malformed input, authorization, and faults.
+- **Controls are opt-in.** `EnableControls = true` maps the control routes (job verbs, signals, schedules, calendars, alerts, tenants, namespaces, outbox). Each control request must send `X-Acta-Control: true`, a guard against cross-site requests, not authentication. An outcome answers 200 applied, 404 not found, or 409 rejected; problem details are kept for malformed input, authorization, and faults.
 - **Jobs are addressed by ref** (`/acta/api/v1/jobs/{jobRef}`) or by deduplication key (`/jobs/by-key?jobNamespace=&deduplicationKey=`). `EnableNumericIdLookup = true` also allows `/jobs/id:{n}` on reads, for debugging from a log line.
 - **Lists page by cursor.** Pass `NextCursor` back as `Cursor`; a cursor is tied to its query, and a stale one is rejected. Pages default to 50 and cap at 100, and `IncludeTotal` adds a count (events only with a job filter).
 - `GET /capabilities` reports whether controls are enabled, so a client can hide edit UI.
@@ -368,6 +368,9 @@ route carries two mutations the method says which, as in `tags.add` and `tags.re
 ```text
 alerts.acknowledge
 alerts.resolve
+calendars.archive
+calendars.drafts
+calendars.publish
 cancel
 definitions.retire
 definitions.tags.add
@@ -826,7 +829,7 @@ handler from a deploy never cancels anything by itself; see
 
 A recurring job follows the same rule. A deploy that drops every schedule of one leaves its slot `Idle`
 with nothing due, and a deploy that brings a schedule back puts the schedule in front of the admitter
-again. A deploy that adds a `[JobSchedule]` registers the slot beside any ordinary job of that name: the
+again. A deploy that adds a `[Schedule]` registers the slot beside any ordinary job of that name: the
 slot carries no deduplication key, so an ordinary job keyed by the job name is unrelated to it. See
 [Schedule operations](./developer-guide.md#schedule-operations).
 
@@ -1256,10 +1259,12 @@ job's attempt budget until its own step budget is exhausted.
 ### Recurring Schedules
 
 ```sql
-SELECT namespace, job_name, schedule_name, status, origin, expression, time_zone_id, misfire_strategy, next_occurrence_at_utc, next_evaluation_at_utc, evaluation_status, max_outstanding, outstanding_count, full_behavior, expire_after_seconds, expire_action, paused_until_utc, description, pause_message
+SELECT namespace, job_name, schedule_name, status, origin, expression, expression_kind, time_zone_id, misfire_strategy, next_occurrence_at_utc, next_evaluation_at_utc, evaluation_status, max_outstanding, outstanding_count, full_behavior, expire_after_seconds, expire_action, calendar_origin, calendar_version, availability_calendar_name, availability_calendar_origin, availability_calendar_version, paused_until_utc, description, pause_message
   FROM acta.schedules_view
  ORDER BY namespace, next_occurrence_at_utc NULLS LAST, schedule_name;
 ```
+
+A schedule whose `expression_kind` is `calendar` names its calendar in `expression`; `calendar_origin` says what the name resolved to at registration (`registered`: a calendar the application declares in code; `catalog`: the family in the namespace's catalog or the shared one in `sys`, pinned at `calendar_version` until a publication moves it); the availability triple says the same for a schedule that fires only inside an availability calendar's windows. An `evaluation_status` of `evaluation-error` on such a schedule usually means the host lacks the code calendar or a calendar broke its contract; the worker log names the reason. The catalog itself is `calendars_view`: one row per version with its role, status, and hash.
 
 `expire_after_seconds` and `expire_action` are null together when occurrences never expire; a schedule paused
 by its expiry carries the pause message `Paused by the expiration policy: an occurrence expired unadmitted.`

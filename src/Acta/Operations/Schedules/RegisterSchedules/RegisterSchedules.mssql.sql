@@ -181,6 +181,11 @@ BEGIN TRY
         full_behavior_code = src.full_behavior_code,
         expire_after_seconds = src.expire_after_seconds,
         expire_action_code = src.expire_action_code,
+        calendar_origin_code = src.calendar_origin_code,
+        calendar_version = src.calendar_version,
+        availability_calendar_name = src.availability_calendar_name,
+        availability_calendar_origin_code = src.availability_calendar_origin_code,
+        availability_calendar_version = src.availability_calendar_version,
         schedule_status_code = CASE
             WHEN tgt.schedule_status_code = 230 /* ScheduleStatusCode.Orphaned */
                 THEN 10 /* ScheduleStatusCode.Active */
@@ -200,17 +205,21 @@ BEGIN TRY
         OR EXISTS (
             SELECT tgt.expression, tgt.time_zone_id, tgt.expression_kind_code, tgt.misfire_strategy_code,
                 st.next_occurrence_at_utc, tgt.description, tgt.timing_fingerprint, tgt.max_outstanding, tgt.full_behavior_code,
-                tgt.expire_after_seconds, tgt.expire_action_code
+                tgt.expire_after_seconds, tgt.expire_action_code, tgt.calendar_origin_code, tgt.calendar_version,
+                tgt.availability_calendar_name, tgt.availability_calendar_origin_code, tgt.availability_calendar_version
             EXCEPT
             SELECT src.expression, src.time_zone_id, src.expression_kind_code, src.misfire_strategy_code,
                 src.next_occurrence_at_utc, src.description, src.timing_fingerprint, src.max_outstanding, src.full_behavior_code,
-                src.expire_after_seconds, src.expire_action_code);
+                src.expire_after_seconds, src.expire_action_code, src.calendar_origin_code, src.calendar_version,
+                src.availability_calendar_name, src.availability_calendar_origin_code, src.availability_calendar_version);
 
     INSERT INTO {{schema}}.schedules (
         namespace_id, job_id, definition_id, schedule_name, schedule_origin_code,
         expression, time_zone_id, expression_kind_code, misfire_strategy_code,
         interval_anchor_at_utc, misfire_grace_seconds, timing_fingerprint,
         max_outstanding, full_behavior_code, expire_after_seconds, expire_action_code,
+        calendar_origin_code, calendar_version,
+        availability_calendar_name, availability_calendar_origin_code, availability_calendar_version,
         schedule_status_code, paused_until_utc, description,
         created_at_utc, modified_at_utc, version
     )
@@ -231,6 +240,11 @@ BEGIN TRY
         src.full_behavior_code,
         src.expire_after_seconds,
         src.expire_action_code,
+        src.calendar_origin_code,
+        src.calendar_version,
+        src.availability_calendar_name,
+        src.availability_calendar_origin_code,
+        src.availability_calendar_version,
         10 /* ScheduleStatusCode.Active */,
         NULL,
         src.description,

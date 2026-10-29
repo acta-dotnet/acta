@@ -2,10 +2,7 @@ using Xunit;
 
 namespace Acta.Tests.Runtime;
 
-/// <summary>
-/// Pure next-occurrence math: cron (5- and 6-field), ISO 8601 intervals, and the
-/// CatchUpOnce / Skip misfire policies. No clock, no DB.
-/// </summary>
+/// <summary>Pure next-occurrence math: cron (5- and 6-field) and ISO 8601 or human intervals. No clock, no DB.</summary>
 public sealed class NextOccurrenceCalculatorTests
 {
     private static DateTime Utc(int h, int m, int s = 0) => new(2024, 1, 1, h, m, s, DateTimeKind.Utc);
@@ -67,93 +64,11 @@ public sealed class NextOccurrenceCalculatorTests
     }
 
     [Fact]
-    public void Reconcile_new_schedule_seeds_first_after_now()
-    {
-        var next = NextOccurrenceCalculator.Reconcile(
-            "*/5 * * * *",
-            null,
-            ScheduleExpressionKindCode.Cron,
-            MisfireStrategyCode.Skip,
-            storedNextRunUtc: null,
-            nowUtc: Utc(12, 1)
-        );
-        Assert.Equal(Utc(12, 5), next);
-    }
-
-    [Fact]
-    public void Reconcile_future_cursor_is_unchanged()
-    {
-        var stored = Utc(13, 0);
-        var next = NextOccurrenceCalculator.Reconcile(
-            "*/5 * * * *",
-            null,
-            ScheduleExpressionKindCode.Cron,
-            MisfireStrategyCode.CatchUpOnce,
-            stored,
-            nowUtc: Utc(12, 0)
-        );
-        Assert.Equal(stored, next);
-    }
-
-    [Fact]
-    public void Reconcile_cron_fire_once_catch_up_keeps_missed_cursor()
-    {
-        // Missed (stored in the past) => fire once now: keep the past instant so the next fire coalesces.
-        var stored = Utc(11, 0);
-        var next = NextOccurrenceCalculator.Reconcile(
-            "*/5 * * * *",
-            null,
-            ScheduleExpressionKindCode.Cron,
-            MisfireStrategyCode.CatchUpOnce,
-            stored,
-            nowUtc: Utc(12, 3)
-        );
-        Assert.Equal(stored, next);
-    }
-
-    [Fact]
-    public void Reconcile_cron_skip_advances_past_now()
-    {
-        var stored = Utc(11, 0);
-        var next = NextOccurrenceCalculator.Reconcile(
-            "*/5 * * * *",
-            null,
-            ScheduleExpressionKindCode.Cron,
-            MisfireStrategyCode.Skip,
-            stored,
-            nowUtc: Utc(12, 3)
-        );
-        Assert.Equal(Utc(12, 5), next);
-    }
-
-    [Fact]
-    public void Reconcile_iso_skip_steps_drift_free_past_now()
+    public void An_anchored_interval_steps_on_its_grid_from_any_instant()
     {
         // Anchor 12:00, 5-min interval, now 12:17 => first occurrence strictly after now = 12:20.
-        var next = NextOccurrenceCalculator.Reconcile(
-            "PT5M",
-            null,
-            ScheduleExpressionKindCode.Interval,
-            MisfireStrategyCode.Skip,
-            storedNextRunUtc: Utc(12, 0),
-            nowUtc: Utc(12, 17)
-        );
+        var next = NextOccurrenceCalculator.FirstAfter("PT5M", null, ScheduleExpressionKindCode.Interval, Utc(12, 0), nowUtc: Utc(12, 17));
         Assert.Equal(Utc(12, 20), next);
-    }
-
-    [Fact]
-    public void Reconcile_iso_fire_once_catch_up_keeps_missed_cursor()
-    {
-        var stored = Utc(12, 0);
-        var next = NextOccurrenceCalculator.Reconcile(
-            "PT5M",
-            null,
-            ScheduleExpressionKindCode.Interval,
-            MisfireStrategyCode.CatchUpOnce,
-            stored,
-            nowUtc: Utc(12, 17)
-        );
-        Assert.Equal(stored, next);
     }
 
     [Fact]

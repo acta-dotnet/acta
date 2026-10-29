@@ -386,6 +386,11 @@ internal sealed class PostgresDialect : ISqlDialect
         var fullBehaviors = new short[scheduleCount];
         var expireAfters = new int?[scheduleCount];
         var expireActions = new short?[scheduleCount];
+        var calendarOrigins = new short?[scheduleCount];
+        var calendarVersions = new int?[scheduleCount];
+        var availabilityNames = new string?[scheduleCount];
+        var availabilityOrigins = new short?[scheduleCount];
+        var availabilityVersions = new int?[scheduleCount];
         var scheduleIndex = 0;
         foreach (var definition in definitions)
         {
@@ -405,6 +410,11 @@ internal sealed class PostgresDialect : ISqlDialect
                 fullBehaviors[scheduleIndex] = (short)schedule.FullBehavior;
                 expireAfters[scheduleIndex] = schedule.ExpireAfterSeconds;
                 expireActions[scheduleIndex] = (short?)schedule.ExpireAction;
+                calendarOrigins[scheduleIndex] = (short?)schedule.CalendarOrigin;
+                calendarVersions[scheduleIndex] = schedule.CalendarVersion;
+                availabilityNames[scheduleIndex] = schedule.AvailabilityCalendarName;
+                availabilityOrigins[scheduleIndex] = (short?)schedule.AvailabilityOrigin;
+                availabilityVersions[scheduleIndex] = schedule.AvailabilityVersion;
                 scheduleIndex++;
             }
         }
@@ -429,7 +439,33 @@ internal sealed class PostgresDialect : ISqlDialect
         AddArray(postgres, "@p_s_full_behavior_code", NpgsqlDbType.Smallint, fullBehaviors);
         AddArray(postgres, "@p_s_expire_after_seconds", NpgsqlDbType.Integer, expireAfters);
         AddArray(postgres, "@p_s_expire_action_code", NpgsqlDbType.Smallint, expireActions);
+        AddArray(postgres, "@p_s_calendar_origin_code", NpgsqlDbType.Smallint, calendarOrigins);
+        AddArray(postgres, "@p_s_calendar_version", NpgsqlDbType.Integer, calendarVersions);
+        AddArray(postgres, "@p_s_availability_calendar_name", NpgsqlDbType.Varchar, availabilityNames);
+        AddArray(postgres, "@p_s_availability_calendar_origin_code", NpgsqlDbType.Smallint, availabilityOrigins);
+        AddArray(postgres, "@p_s_availability_calendar_version", NpgsqlDbType.Integer, availabilityVersions);
     }
+
+    public void BindPublishCalendar(DbCommand command, IReadOnlyList<PublishCalendarValues> rows) =>
+        AddScalar(
+            (NpgsqlCommand)command,
+            "@p_rows",
+            NpgsqlDbType.Text,
+            PublishCalendarJson.Rows(
+                rows,
+                static (writer, name, value) =>
+                {
+                    if (value is { } instant)
+                    {
+                        writer.WriteString(name, DbParams.ToUtc(instant).ToString("O", CultureInfo.InvariantCulture));
+                    }
+                    else
+                    {
+                        writer.WriteNull(name);
+                    }
+                }
+            )
+        );
 
     public void BindAdmitFirings(DbCommand command, AdmitFiringsCommand request)
     {

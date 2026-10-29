@@ -129,7 +129,7 @@ public sealed class JobsOptions
 
     /// <summary>
     /// Per-process deployment environment name this worker runs as, matched case-insensitively against a
-    /// <c>[JobSchedule]</c>'s <c>Environments</c> list to decide whether that schedule registers here. A schedule with
+    /// <c>[Schedule]</c>'s <c>Environments</c> list to decide whether that schedule registers here. A schedule with
     /// no declared environments is a wildcard; a scoped one registers only when its list contains this name. Defaults
     /// to the .NET host environment (<c>DOTNET_ENVIRONMENT</c>, then <c>ASPNETCORE_ENVIRONMENT</c>, then
     /// <c>"Production"</c>); set it explicitly (<c>o.EnvironmentName = builder.Environment.EnvironmentName</c>) to bind

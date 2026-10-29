@@ -16,6 +16,7 @@ internal sealed class ScheduleAdmitter(
     IWorkerWakeup wakeup,
     WorkerWakeupPublisher publisher,
     JobsOptions options,
+    CalendarsOperations calendars,
     ILogger log,
     ActaMetrics? metrics
 )
@@ -90,7 +91,8 @@ internal sealed class ScheduleAdmitter(
         {
             var now = await clock.GetUtcNowAsync(ct);
             var due = (await schedules.GetDueSchedulesAsync(namespaceId, now, SchedulesPerPass, ct)).Schedules;
-            var plan = Plan(namespaceId, due, now);
+            await calendars.PreloadAsync(namespaceId, due.SelectMany(s => s.Timing().CatalogBindings()), ct);
+            var plan = Plan(namespaceId, due, now, calendars, log);
             if (plan.Groups.Count == 0)
             {
                 break;
@@ -117,20 +119,27 @@ internal sealed class ScheduleAdmitter(
     /// <summary>
     /// The plan: one group per slot, every member whose evaluation selected an occurrence contributing to its one
     /// firing, and one group per per-occurrence schedule. A schedule nothing changed for writes no row. A group's
-    /// ordinal is its index.
+    /// ordinal is its index. Calendars resolve through <paramref name="calendars"/>, preloaded for the rows; a schedule
+    /// whose source fails is parked as an evaluation error and, given a logger, said so.
     /// </summary>
-    internal static AdmitFiringsCommand Plan(int namespaceId, IReadOnlyList<GetDueSchedulesRow> due, DateTime nowUtc)
+    internal static AdmitFiringsCommand Plan(
+        int namespaceId,
+        IReadOnlyList<DueSchedule> due,
+        DateTime nowUtc,
+        CalendarsOperations calendars,
+        ILogger? log = null
+    )
     {
         var groups = new List<AdmitFiringsGroup>();
         var rows = new List<AdmitFiringsValues>();
         foreach (var slot in due.Where(d => d.JobId is not null).GroupBy(d => d.JobId!.Value))
         {
-            PlanSlot(slot.Key, [.. slot], nowUtc, groups, rows);
+            PlanSlot(slot.Key, [.. slot], nowUtc, namespaceId, calendars, log, groups, rows);
         }
 
         foreach (var schedule in due.Where(d => d.JobId is null))
         {
-            PlanOccurrence(schedule, nowUtc, groups, rows);
+            PlanOccurrence(schedule, nowUtc, namespaceId, calendars, log, groups, rows);
         }
 
         return new AdmitFiringsCommand(namespaceId, groups, rows);
@@ -139,8 +148,11 @@ internal sealed class ScheduleAdmitter(
     /// <summary>A slot admits at most one firing per pass, the contributors frozen in its envelope.</summary>
     private static void PlanSlot(
         long jobId,
-        IReadOnlyList<GetDueSchedulesRow> members,
+        IReadOnlyList<DueSchedule> members,
         DateTime nowUtc,
+        int namespaceId,
+        CalendarsOperations calendars,
+        ILogger? log,
         List<AdmitFiringsGroup> groups,
         List<AdmitFiringsValues> rows
     )
@@ -158,7 +170,7 @@ internal sealed class ScheduleAdmitter(
         var firingId = Guid.CreateVersion7();
         foreach (var s in members)
         {
-            var e = Evaluate(s, capacity, nowUtc, out var cursor);
+            var e = Evaluate(s, capacity, nowUtc, namespaceId, calendars, log, out var cursor);
             if (!e.Changes(cursor, s.EvaluationStatus, s.NextEvaluationAtUtc))
             {
                 continue;
@@ -197,11 +209,19 @@ internal sealed class ScheduleAdmitter(
     /// occurrence is never admitted twice. At <c>MaxOutstanding</c> the schedule waits for a settlement, or under Drop
     /// skips the occurrence with the reason <c>capacity</c> and moves on.
     /// </summary>
-    private static void PlanOccurrence(GetDueSchedulesRow s, DateTime nowUtc, List<AdmitFiringsGroup> groups, List<AdmitFiringsValues> rows)
+    private static void PlanOccurrence(
+        DueSchedule s,
+        DateTime nowUtc,
+        int namespaceId,
+        CalendarsOperations calendars,
+        ILogger? log,
+        List<AdmitFiringsGroup> groups,
+        List<AdmitFiringsValues> rows
+    )
     {
         var full = s.OutstandingCount >= s.MaxOutstanding;
         var capacity = full && s.FullBehavior != ScheduleFullBehaviorCode.Drop ? AdmissionCapacity.Full : AdmissionCapacity.Available;
-        var e = Evaluate(s, capacity, nowUtc, out var cursor);
+        var e = Evaluate(s, capacity, nowUtc, namespaceId, calendars, log, out var cursor);
         if (!e.Changes(cursor, s.EvaluationStatus, s.NextEvaluationAtUtc))
         {
             return;
@@ -257,9 +277,16 @@ internal sealed class ScheduleAdmitter(
     internal static string OccurrenceKey(int scheduleId, DateTime occurrenceUtc) =>
         string.Create(CultureInfo.InvariantCulture, $"sys.occurrence.{scheduleId}.{DbParams.ToUtc(occurrenceUtc).Ticks}");
 
-    private static ScheduleEvaluation Evaluate(GetDueSchedulesRow s, AdmissionCapacity capacity, DateTime nowUtc, out ScheduleCursor cursor)
+    private static ScheduleEvaluation Evaluate(
+        DueSchedule s,
+        AdmissionCapacity capacity,
+        DateTime nowUtc,
+        int namespaceId,
+        CalendarsOperations calendars,
+        ILogger? log,
+        out ScheduleCursor cursor
+    )
     {
-        var timing = new ScheduleTiming(s.Expression, s.ExpressionKind, s.TimeZoneId, s.IntervalAnchorAtUtc);
         var policy = new SchedulePolicy(
             s.MisfireStrategy,
             TimeSpan.FromSeconds(s.MisfireGraceSeconds),
@@ -267,15 +294,21 @@ internal sealed class ScheduleAdmitter(
             s.ExpireAction ?? ScheduleExpireActionCode.Unspecified
         );
         cursor = new ScheduleCursor(s.NextOccurrenceAtUtc, s.Status, s.PausedUntilUtc, s.EvaluationStatus);
-        return ScheduleEvaluator.Evaluate(timing, policy, cursor, capacity, nowUtc);
+        var e = ScheduleEvaluator.Evaluate(calendars.Source(namespaceId, s.Timing()), policy, cursor, capacity, nowUtc);
+        if (e.Error is { } error && log is not null && s.EvaluationStatus != EvaluationStatusCode.EvaluationError)
+        {
+            ActaLog.ScheduleEvaluationFailed(log, s.DefinitionName, $"schedule '{s.ScheduleName}': {error}");
+        }
+
+        return e;
     }
 
-    private static FiringContributor Contributor(GetDueSchedulesRow s, AdmittedOccurrence admit) =>
+    private static FiringContributor Contributor(DueSchedule s, AdmittedOccurrence admit) =>
         new(s.ScheduleId, s.ScheduleName, admit.OccurrenceAtUtc, s.TimeZoneId ?? "UTC", admit.CoveredThroughUtc, s.TimingFingerprint);
 
     private static AdmitFiringsValues Row(
         int ordinal,
-        GetDueSchedulesRow s,
+        DueSchedule s,
         ScheduleEvaluation e,
         string? admittedDetails,
         string? skippedDetails
@@ -295,7 +328,7 @@ internal sealed class ScheduleAdmitter(
             e.PausedByExpiry
         );
 
-    private static string AdmittedDetails(GetDueSchedulesRow s, AdmittedOccurrence admit, Guid firingId) =>
+    private static string AdmittedDetails(DueSchedule s, AdmittedOccurrence admit, Guid firingId) =>
         Details(
             ("schedule", s.ScheduleName),
             ("occurrence", Iso(admit.OccurrenceAtUtc)),
@@ -303,12 +336,18 @@ internal sealed class ScheduleAdmitter(
             ("firingId", firingId.ToString("N"))
         );
 
-    private static string? SkippedDetails(GetDueSchedulesRow s, ScheduleEvaluation e) =>
-        e.SkippedFromUtc is { } from
-            ? Details(("schedule", s.ScheduleName), ("from", Iso(from)), ("through", Iso(e.SkippedThroughUtc!.Value)))
-            : null;
+    private static string? SkippedDetails(DueSchedule s, ScheduleEvaluation e) =>
+        e.SkippedFromUtc is not { } from ? null
+        : e.SourceChanged
+            ? Details(
+                ("schedule", s.ScheduleName),
+                ("from", Iso(from)),
+                ("through", Iso(e.SkippedThroughUtc!.Value)),
+                ("reason", "source-changed")
+            )
+        : Details(("schedule", s.ScheduleName), ("from", Iso(from)), ("through", Iso(e.SkippedThroughUtc!.Value)));
 
-    private static string? ExpiredDetails(GetDueSchedulesRow s, ScheduleEvaluation e) =>
+    private static string? ExpiredDetails(DueSchedule s, ScheduleEvaluation e) =>
         e.ExpiredFromUtc is { } from
             ? Details(
                 ("schedule", s.ScheduleName),
@@ -318,7 +357,7 @@ internal sealed class ScheduleAdmitter(
             )
             : null;
 
-    private static string Iso(DateTime value) => DbParams.ToUtc(value).ToString("yyyy-MM-ddTHH:mm:ss.fffZ", CultureInfo.InvariantCulture);
+    private static string Iso(DateTime value) => EventDetails.Instant(value);
 
     /// <summary>ASCII JSON for a decision event: names are dotted kebab, the rest are instants and ids, so nothing needs escaping.</summary>
     private static string Details(params ReadOnlySpan<(string Name, string Value)> facts)

@@ -40,6 +40,9 @@ internal sealed class ActaBuilder(IServiceCollection services) : IActaBuilder
     /// </summary>
     internal IReadOnlyList<Func<IServiceProvider, IJobPipelineBehavior>> PipelineBehaviors => _pipelineBehaviors;
 
+    /// <summary>The calendars registered in code, read by <see cref="ActaServiceCollectionExtensions.UseActa"/> as the process registry.</summary>
+    internal CalendarRegistry Calendars { get; } = new();
+
     /// <summary>Suppresses the CLI host swap.</summary>
     internal bool CliDisabled { get; private set; }
 
@@ -140,6 +143,18 @@ internal sealed class ActaBuilder(IServiceCollection services) : IActaBuilder
             Services.Add(new ServiceDescriptor(typeof(TBehavior), typeof(TBehavior), lifetime));
             _pipelineBehaviors.Add(static sp => sp.GetRequiredService<TBehavior>());
         }
+        return this;
+    }
+
+    public IActaBuilder AddCalendar(string name, IActaCalendar implementation)
+    {
+        Calendars.Add(name, implementation);
+        return this;
+    }
+
+    public IActaBuilder AddAvailabilityCalendar(string name, IActaAvailabilityCalendar implementation)
+    {
+        Calendars.AddAvailability(name, implementation);
         return this;
     }
 

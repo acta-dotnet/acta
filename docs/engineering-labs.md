@@ -113,12 +113,14 @@ curated-view rows.
 | 024 | [aspnet-enqueue-api](../concepts/000-fundamentals/024-aspnet-enqueue-api/) | Minimal HTTP API: POST returns 202 + JobRef; GET polls status/result; deduplication key, correlation id, tags |
 | 025 | [large-payload-reference](../concepts/000-fundamentals/025-large-payload-reference/) | Store big files in blob/object storage; enqueue a verified reference (URI + checksum + size), not the bytes |
 | 028 | [deduplication-time-buckets](../concepts/000-fundamentals/028-deduplication-time-buckets/) | Time-bucketed deduplication keys (`PerHour`/`PerDay`/`PerTimeBucket`) dedupe within a bucket, insert across it |
-| 101 | [recurring-job](../concepts/100-scheduling/101-recurring-job/) | `[JobSchedule]` cron recurring slot - fires itself, no enqueue |
+| 101 | [recurring-job](../concepts/100-scheduling/101-recurring-job/) | `[Schedule]` cron recurring slot - fires itself, no enqueue |
 | 102 | [interval-schedule](../concepts/100-scheduling/102-interval-schedule/) | Replace a simple `PeriodicTimer` cleanup with an interval schedule (`10s`) |
 | 103 | [multiple-schedules](../concepts/100-scheduling/103-multiple-schedules/) | **Engineering Lab.** One recurring job row, several moving schedule cursors, event-backed occurrence history |
 | 104 | [timezone-schedule](../concepts/100-scheduling/104-timezone-schedule/) | A cron schedule pinned to a wall clock (`TimeZoneId = "Europe/Ljubljana"`), DST-safe |
 | 105 | [schedule-control](../concepts/100-scheduling/105-schedule-control/) | Pause (indefinite + timed) and resume a recurring schedule with `operations.Schedules` |
 | 106 | [schedule-misfire](../concepts/100-scheduling/106-schedule-misfire/) | **Engineering Lab.** Watch `Skip` and `CatchUpOnce` move overdue cursor rows differently |
+| 107 | [calendar-schedule](../concepts/100-scheduling/107-calendar-schedule/) | Schedules bound by name to `[Calendar]` classes: an occurrence calendar as the source, an availability calendar as the filter |
+| 108 | [calendar-catalog](../concepts/100-scheduling/108-calendar-catalog/) | A calendar published as data through `operations.Calendars`; a publication retimes the bound schedule while the worker runs |
 | 201 | [durable-checkout](../concepts/200-durable-execution/201-durable-checkout/) | **Engineering Lab flagship.** Durable orchestration as inspectable jobs, steps, checkpoints, events, and results |
 | 202 | [durable-step](../concepts/200-durable-execution/202-durable-step/) | **Engineering Lab.** Completed step outcome replays while the job advances to execution two |
 | 203 | [durable-variable](../concepts/200-durable-execution/203-durable-variable/) | A durable variable pins a value (a sync watermark) across retries |

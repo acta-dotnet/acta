@@ -15,7 +15,7 @@
     <GenerateDocumentationFile>true</GenerateDocumentationFile>
     <!-- Suppress "missing XML comment" warnings: not every public member needs one. -->
     <NoWarn>$(NoWarn);1591</NoWarn>
-    <Description>Acta: the [Job]/[JobSchedule] attributes, IJobs, JobContext, and code families, with the engine, its operations, database access, the schema, and hosting. Ships the source generator and ACTA analyzers; the provider packages bring the SQL dialect.</Description>
+    <Description>Acta: the [Job]/[Schedule] attributes, IJobs, JobContext, and code families, with the engine, its operations, database access, the schema, and hosting. Ships the source generator and ACTA analyzers; the provider packages bring the SQL dialect.</Description>
   </PropertyGroup>
 
   <ItemGroup>

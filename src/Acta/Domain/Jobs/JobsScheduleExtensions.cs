@@ -4,7 +4,7 @@ namespace Acta;
 
 /// <summary>
 /// <c>ScheduleAsync</c>: enqueue with the first run's time as an argument, one job whose earliest claim waits for it; a
-/// recurring schedule is <c>[JobSchedule]</c>. A delay counts on the database clock, rounded up to whole seconds, and the
+/// recurring schedule is <c>[Schedule]</c>. A delay counts on the database clock, rounded up to whole seconds, and the
 /// time is applied after <c>configure</c>, so it wins over a <c>Delayed</c> or <c>NextRunAt</c> set there.
 /// </summary>
 public static class JobsScheduleExtensions

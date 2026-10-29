@@ -109,17 +109,24 @@ SELECT
     s.max_outstanding,
     s.full_behavior_code,
     s.expire_after_seconds,
-    s.expire_action_code
+    s.expire_action_code,
+    s.calendar_origin_code,
+    s.calendar_version,
+    s.availability_calendar_name,
+    s.availability_calendar_origin_code,
+    s.availability_calendar_version
 FROM unnest(
     @p_s_definition_id, @p_s_schedule_name, @p_s_expression, @p_s_time_zone,
     @p_s_expression_kind, @p_s_misfire, @p_s_next_occurrence_at_utc, @p_s_description,
     @p_s_interval_anchor_at_utc, @p_s_timing_fingerprint, @p_s_max_outstanding, @p_s_full_behavior_code,
-    @p_s_expire_after_seconds, @p_s_expire_action_code)
+    @p_s_expire_after_seconds, @p_s_expire_action_code, @p_s_calendar_origin_code, @p_s_calendar_version,
+    @p_s_availability_calendar_name, @p_s_availability_calendar_origin_code, @p_s_availability_calendar_version)
 AS s(
     definition_id, schedule_name, expression, time_zone_id,
     expression_kind_code, misfire_strategy_code, next_occurrence_at_utc, description,
     interval_anchor_at_utc, timing_fingerprint, max_outstanding, full_behavior_code,
-    expire_after_seconds, expire_action_code)
+    expire_after_seconds, expire_action_code, calendar_origin_code, calendar_version,
+    availability_calendar_name, availability_calendar_origin_code, availability_calendar_version)
 -- A PerOccurrence definition's schedules have no slot, so their job_id is NULL.
 LEFT JOIN _reg_slots AS sl ON sl.definition_id = s.definition_id;
 
@@ -193,6 +200,11 @@ SET
     full_behavior_code = src.full_behavior_code,
     expire_after_seconds = src.expire_after_seconds,
     expire_action_code = src.expire_action_code,
+    calendar_origin_code = src.calendar_origin_code,
+    calendar_version = src.calendar_version,
+    availability_calendar_name = src.availability_calendar_name,
+    availability_calendar_origin_code = src.availability_calendar_origin_code,
+    availability_calendar_version = src.availability_calendar_version,
     schedule_status_code = CASE WHEN tgt.schedule_status_code = 230 /* ScheduleStatusCode.Orphaned */
         THEN 10 /* ScheduleStatusCode.Active */ ELSE tgt.schedule_status_code END,
     description = src.description,
@@ -214,6 +226,11 @@ WHERE
         OR tgt.full_behavior_code IS DISTINCT FROM src.full_behavior_code
         OR tgt.expire_after_seconds IS DISTINCT FROM src.expire_after_seconds
         OR tgt.expire_action_code IS DISTINCT FROM src.expire_action_code
+        OR tgt.calendar_origin_code IS DISTINCT FROM src.calendar_origin_code
+        OR tgt.calendar_version IS DISTINCT FROM src.calendar_version
+        OR tgt.availability_calendar_name IS DISTINCT FROM src.availability_calendar_name
+        OR tgt.availability_calendar_origin_code IS DISTINCT FROM src.availability_calendar_origin_code
+        OR tgt.availability_calendar_version IS DISTINCT FROM src.availability_calendar_version
         OR st.next_occurrence_at_utc IS DISTINCT FROM src.next_occurrence_at_utc
         OR tgt.description IS DISTINCT FROM src.description
     );
@@ -235,6 +252,11 @@ INSERT INTO {{schema}}.schedules (
     full_behavior_code,
     expire_after_seconds,
     expire_action_code,
+    calendar_origin_code,
+    calendar_version,
+    availability_calendar_name,
+    availability_calendar_origin_code,
+    availability_calendar_version,
     schedule_status_code,
     paused_until_utc,
     description,
@@ -258,6 +280,11 @@ SELECT
     src.full_behavior_code,
     src.expire_after_seconds,
     src.expire_action_code,
+    src.calendar_origin_code,
+    src.calendar_version,
+    src.availability_calendar_name,
+    src.availability_calendar_origin_code,
+    src.availability_calendar_version,
     10 /* ScheduleStatusCode.Active */,
     NULL,
     src.description,

@@ -102,6 +102,35 @@ public sealed class ControlContractTests
         .. ScheduleVerb("pause", typeof(PauseScheduleResponse)),
         .. ScheduleVerb("resume", typeof(ResumeScheduleResponse)),
         .. ScheduleVerb("trigger", typeof(TriggerScheduleNowResponse)),
+        .. CalendarVerb(
+            "drafts",
+            typeof(SaveCalendarDraftResponse),
+            "rejected",
+            static expected => new
+            {
+                role = "availability",
+                definition = new { kind = "weekly-availability" },
+                expectedLatestVersion = expected,
+                reasonMessage = "because",
+            }
+        ),
+        .. CalendarVerb(
+            "publish",
+            typeof(PublishCalendarResponse),
+            "versionConflict",
+            static expected => new
+            {
+                expectedCurrentVersion = expected,
+                candidateVersion = 2,
+                reasonMessage = "because",
+            }
+        ),
+        .. CalendarVerb(
+            "archive",
+            typeof(ArchiveCalendarResponse),
+            "rejected",
+            static expected => new { expectedCurrentVersion = expected, reasonMessage = "because" }
+        ),
         .. DefinitionOverrides(),
         .. DefinitionRetire(),
         .. AlertVerb("acknowledge", typeof(AcknowledgeAlertResponse)),
@@ -357,6 +386,33 @@ public sealed class ControlContractTests
         object body,
         int? version = null
     ) => new("schedules", route, "POST", outcome, path, status, declared, action, body, version);
+
+    // A calendar name of "missing" reads as absent and "rejected" as refused, and an expected version of 999 is stale, so
+    // each verb stages its 409 the way it can answer one.
+    private static IEnumerable<Case> CalendarVerb(string verb, Type declared, string conflict, Func<int, object> body)
+    {
+        var route = $"/calendars/{{jobNamespace}}/{{calendarName}}/{verb}";
+        Case Row(string outcome, string calendarName, int status, int expected) =>
+            new(
+                "calendars",
+                route,
+                "POST",
+                outcome,
+                $"/calendars/billing/{calendarName}/{verb}",
+                status,
+                declared,
+                outcome,
+                body(expected)
+            );
+        return
+        [
+            Row("applied", "office-hours", StatusCodes.Status200OK, 1),
+            conflict == "rejected"
+                ? Row("rejected", "rejected", StatusCodes.Status409Conflict, 1)
+                : Row("versionConflict", "office-hours", StatusCodes.Status409Conflict, 999),
+            Row("notFound", "missing", StatusCodes.Status404NotFound, 1),
+        ];
+    }
 
     // Both definition verbs answer the definition's version after the attempt: one past the expected on
     // an apply, the current one on a conflict.

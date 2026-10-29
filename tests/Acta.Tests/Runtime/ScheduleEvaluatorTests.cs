@@ -27,7 +27,14 @@ public class ScheduleEvaluatorTests
         AdmissionCapacity capacity = AdmissionCapacity.Available,
         TimeSpan? expireAfter = null,
         ScheduleExpireActionCode expireAction = ScheduleExpireActionCode.Unspecified
-    ) => ScheduleEvaluator.Evaluate(timing, new SchedulePolicy(misfire, Grace, expireAfter, expireAction), cursor, capacity, now);
+    ) =>
+        ScheduleEvaluator.Evaluate(
+            new ScheduleSource(timing, null, null),
+            new SchedulePolicy(misfire, Grace, expireAfter, expireAction),
+            cursor,
+            capacity,
+            now
+        );
 
     [Fact]
     public void An_occurrence_ahead_is_the_next_evaluation_and_moves_nothing()

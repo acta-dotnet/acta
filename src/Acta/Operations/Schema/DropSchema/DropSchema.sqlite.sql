@@ -2,6 +2,7 @@
 -- Foreign keys are off for the drops, which leaves their order free; indexes go with their tables.
 PRAGMA foreign_keys = OFF;
 DROP VIEW IF EXISTS {{schema}}.alerts_view;
+DROP VIEW IF EXISTS {{schema}}.calendars_view;
 DROP VIEW IF EXISTS {{schema}}.checkpoints_view;
 DROP VIEW IF EXISTS {{schema}}.definitions_view;
 DROP VIEW IF EXISTS {{schema}}.events_view;
@@ -11,6 +12,7 @@ DROP VIEW IF EXISTS {{schema}}.steps_view;
 DROP VIEW IF EXISTS {{schema}}.tags_view;
 DROP VIEW IF EXISTS {{schema}}.workers_view;
 DROP TABLE IF EXISTS {{schema}}.alerts;
+DROP TABLE IF EXISTS {{schema}}.calendars;
 DROP TABLE IF EXISTS {{schema}}.checkpoints;
 DROP TABLE IF EXISTS {{schema}}.definitions;
 DROP TABLE IF EXISTS {{schema}}.events;

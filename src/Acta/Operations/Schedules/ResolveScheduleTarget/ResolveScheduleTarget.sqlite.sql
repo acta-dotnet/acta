@@ -16,7 +16,13 @@ SELECT
     t.version,
     t.max_outstanding,
     st.outstanding_count,
-    st.version AS state_version
+    st.version AS state_version,
+    t.interval_anchor_at_utc,
+    t.calendar_origin_code AS calendar_origin,
+    t.calendar_version,
+    t.availability_calendar_name,
+    t.availability_calendar_origin_code AS availability_origin,
+    t.availability_calendar_version AS availability_version
 FROM {{schema}}.namespaces n
 INNER JOIN {{schema}}.definitions d ON d.namespace_id = n.namespace_id AND d.definition_name = @p_job_name
 INNER JOIN {{schema}}.schedules t ON t.definition_id = d.definition_id AND t.schedule_name = @p_schedule_name

@@ -75,6 +75,7 @@ internal sealed class WorkerRuntime
                 alertRouting,
                 options,
                 _context,
+                rootServices.GetRequiredService<CalendarsOperations>(),
                 logger
             ),
             rootServices.GetRequiredService<WorkersOperations>(),
@@ -124,6 +125,7 @@ internal sealed class WorkerRuntime
             wake,
             publisher,
             options.Value,
+            rootServices.GetRequiredService<CalendarsOperations>(),
             logger,
             metrics
         );

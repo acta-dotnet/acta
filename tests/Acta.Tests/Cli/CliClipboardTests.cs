@@ -276,6 +276,7 @@ public class CliRunnerClipboardTests
             throw new NotSupportedException();
 
         public ISchedules Schedules => throw new NotSupportedException();
+        public ICalendars Calendars => throw new NotSupportedException();
         public IDefinitions Definitions => throw new NotSupportedException();
         public IWorkers Workers => throw new NotSupportedException();
         public IAlerts Alerts => throw new NotSupportedException();

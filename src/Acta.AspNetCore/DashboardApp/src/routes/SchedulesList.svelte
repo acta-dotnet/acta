@@ -101,7 +101,7 @@
         Live only
       </label>
       <span class="dim schedule-help">
-        Schedules aren't created here - they're declared in code with a <span class="mono">[JobSchedule]</span> attribute on a
+        Schedules aren't created here - they're declared in code with a <span class="mono">[Schedule]</span> attribute on a
         <span class="mono">[Job]</span> handler and synced at host startup.
       </span>
       <CopyButton value={copySql} label="Copy SQL" title={COPY_SQL_TITLE} />
@@ -140,7 +140,7 @@
       initialPageSize={Number(initial.get('pageSize') ?? '50') || 50}
       onPageSizeChange={(size) => updateHashParams({ pageSize: String(size) })}
       loadingText="Loading schedules..."
-      emptyText="No schedules yet. Declare one with a [JobSchedule] attribute on a [Job] handler; it appears here after the host syncs at startup."
+      emptyText="No schedules yet. Declare one with a [Schedule] attribute on a [Job] handler; it appears here after the host syncs at startup."
       cells={{ scheduleName: scheduleCell, status: statusCell, job: jobCell, nextOccurrenceAtUtc: nextOccurrenceCell, actions: actionsCell }}
       rowClass={(schedule: ScheduleRow) =>
         schedule.status === 'paused'

@@ -22,6 +22,22 @@ test('definition detail route parses the namespace and name pair', () => {
   });
 });
 
+test('calendar detail route parses the namespace and name pair, the version staying in the query', () => {
+  assert.deepEqual(parseRouteHash('#/calendars/sys/office-hours?ns=billing&v=3'), {
+    name: 'calendar-detail',
+    calendarNamespace: 'sys',
+    calendarName: 'office-hours'
+  });
+  assert.deepEqual(parseRouteHash('#/calendars'), { name: 'calendars' });
+  assert.deepEqual(parseRouteHash('#/calendars/sys'), { name: 'not-found' });
+});
+
+test('calendar links keep the scope and carry the version or the new family role', () => {
+  assert.equal(routes.calendar('sys', 'office-hours', { namespace: 'billing', version: 3 }), '#/calendars/sys/office-hours?ns=billing&v=3');
+  assert.equal(routes.calendar('billing', 'pay-days', { role: 'occurrence' }), '#/calendars/billing/pay-days?role=occurrence');
+  assert.equal(routes.calendars({ namespace: 'billing' }), '#/calendars?ns=billing');
+});
+
 test('over-long and unknown routes resolve to not found', () => {
   assert.deepEqual(parseRouteHash('#/workers/a/b'), { name: 'not-found' });
   assert.deepEqual(parseRouteHash('#/definitions/billing'), { name: 'not-found' });

@@ -2,13 +2,14 @@
 
 # Data model reference
 
-Structural reference for the Acta persistence model: **15 entities**, **234 columns**, **37 indexes**, **37 check constraints**, **3 foreign keys**. Names render with the default `acta` schema prefix; substitute the configured schema if different. Code families resolve into [`code-families.md`](./code-families.md). The foreign-key enforcement policy (which references are CASCADE, RESTRICT, or deliberately unenforced) is in [SQL recipes](../operator-guide.md#foreign-key-policy).
+Structural reference for the Acta persistence model: **16 entities**, **251 columns**, **39 indexes**, **41 check constraints**, **4 foreign keys**. Names render with the default `acta` schema prefix; substitute the configured schema if different. Code families resolve into [`code-families.md`](./code-families.md). The foreign-key enforcement policy (which references are CASCADE, RESTRICT, or deliberately unenforced) is in [SQL recipes](../operator-guide.md#foreign-key-policy).
 
 ## Schema inventory
 
 | Entity | Purpose | Key code families |
 |---|---|---|
 | [`acta.alerts`](#entity-acta-alerts) | One materialized alert. | [`AlertOriginCode`](./code-families.md#code-family-alertorigincode), [`AlertSeverityCode`](./code-families.md#code-family-alertseveritycode), [`AlertKindCode`](./code-families.md#code-family-alertkindcode), [`AlertDeliveryStatusCode`](./code-families.md#code-family-alertdeliverystatuscode) |
+| [`acta.calendars`](#entity-acta-calendars) | One immutable content version of a namespace's named catalog calendar. | [`CalendarRoleCode`](./code-families.md#code-family-calendarrolecode), [`CalendarStatusCode`](./code-families.md#code-family-calendarstatuscode), [`JobPayloadFormat`](./code-families.md#code-family-jobpayloadformat) |
 | [`acta.checkpoints`](#entity-acta-checkpoints) | One durable slot per `(JobId, Kind, CheckpointName)`: variables, signals, sleep timers, the progress slot, child latches, and the scheduler's firing envelope share this shape, told apart by `Kind` (steps keep their own `steps` table). | [`CheckpointKindCode`](./code-families.md#code-family-checkpointkindcode), [`CheckpointStatusCode`](./code-families.md#code-family-checkpointstatuscode), [`JobPayloadFormat`](./code-families.md#code-family-jobpayloadformat) |
 | [`acta.definitions`](#entity-acta-definitions) | The live job policy: one row per definition, the single source of truth for every per-job policy. | [`DefinitionStatusCode`](./code-families.md#code-family-definitionstatuscode), [`DefinitionTenantRequirementCode`](./code-families.md#code-family-definitiontenantrequirementcode), [`JobPriorityCode`](./code-families.md#code-family-jobprioritycode), [`DeadlineBehaviorCode`](./code-families.md#code-family-deadlinebehaviorcode), [`EventRecordingCode`](./code-families.md#code-family-eventrecordingcode), [`AlertProfileCode`](./code-families.md#code-family-alertprofilecode), [`FiringFailurePolicyCode`](./code-families.md#code-family-firingfailurepolicycode), [`ScheduledDeliveryCode`](./code-families.md#code-family-scheduleddeliverycode), [`JobPayloadFormat`](./code-families.md#code-family-jobpayloadformat) |
 | [`acta.events`](#entity-acta-events) | The append-only ledger: what happened to an entity, named by `EventCode` and the `EntityCode`/`EntityId` subject pair, with a human `EventMessage` and a small encoded `Details` payload for the facts the code does not imply. | [`EntityCode`](./code-families.md#code-family-entitycode), [`EventCode`](./code-families.md#code-family-eventcode), [`JobPayloadFormat`](./code-families.md#code-family-jobpayloadformat) |
@@ -17,7 +18,7 @@ Structural reference for the Acta persistence model: **15 entities**, **234 colu
 | [`acta.lanes`](#entity-acta-lanes) | One lane in one namespace: the Jobs that reference it run one at a time, in job-id order. | · |
 | [`acta.locks`](#entity-acta-locks) | One named lock: the handler's `RunWithLockAsync` rows, the runner's concurrency slots (`{key}.0` to `{key}.{N-1}`), and the rate meter's bucket and reservation rows, which are never held. | · |
 | [`acta.namespaces`](#entity-acta-namespaces) | Service-owned execution boundary. | [`NamespaceStatusCode`](./code-families.md#code-family-namespacestatuscode) |
-| [`acta.schedules`](#entity-acta-schedules) | One named recurring schedule of a definition, with its own identity: its declaration and operator lifecycle. | [`ScheduleOriginCode`](./code-families.md#code-family-scheduleorigincode), [`ScheduleExpressionKindCode`](./code-families.md#code-family-scheduleexpressionkindcode), [`MisfireStrategyCode`](./code-families.md#code-family-misfirestrategycode), [`ScheduleFullBehaviorCode`](./code-families.md#code-family-schedulefullbehaviorcode), [`ScheduleExpireActionCode`](./code-families.md#code-family-scheduleexpireactioncode), [`ScheduleStatusCode`](./code-families.md#code-family-schedulestatuscode) |
+| [`acta.schedules`](#entity-acta-schedules) | One named recurring schedule of a definition, with its own identity: its declaration and operator lifecycle. | [`ScheduleOriginCode`](./code-families.md#code-family-scheduleorigincode), [`ScheduleExpressionKindCode`](./code-families.md#code-family-scheduleexpressionkindcode), [`MisfireStrategyCode`](./code-families.md#code-family-misfirestrategycode), [`ScheduleFullBehaviorCode`](./code-families.md#code-family-schedulefullbehaviorcode), [`ScheduleExpireActionCode`](./code-families.md#code-family-scheduleexpireactioncode), [`CalendarOriginCode`](./code-families.md#code-family-calendarorigincode), [`ScheduleStatusCode`](./code-families.md#code-family-schedulestatuscode) |
 | [`acta.schedules_state`](#entity-acta-schedules-state) | The decision and wake state of one schedule, split from `ScheduleEntity` so an admission rewrites only this narrow row. | [`EvaluationStatusCode`](./code-families.md#code-family-evaluationstatuscode) |
 | [`acta.steps`](#entity-acta-steps) | The durable retry and result state of one step, one row per `(JobId, StepName)`, written by `start_step` and `complete_step` behind `ctx.RunStepAsync`: inserted Pending on first run, updated across retries, and ended Succeeded, Exhausted, or Interrupted (a job restart deletes ... | [`StepStatusCode`](./code-families.md#code-family-stepstatuscode), [`StepFailureCode`](./code-families.md#code-family-stepfailurecode), [`JobPayloadFormat`](./code-families.md#code-family-jobpayloadformat) |
 | [`acta.tags`](#entity-acta-tags) | Exact searchable metadata attached to one entity. | [`EntityCode`](./code-families.md#code-family-entitycode) |
@@ -77,6 +78,50 @@ One materialized alert. A non-null `DeduplicationKey` makes it an incident: the 
 |---|---|
 | `ck_alerts_job_ref_pair` | `(job_id IS NULL AND job_ref IS NULL) OR (job_id IS NOT NULL AND job_ref IS NOT NULL)` |
 | `ck_alerts_occurrence_count` | `occurrence_count >= 1` |
+
+---
+
+### `acta.calendars` <a id="entity-acta-calendars"></a>
+
+One immutable content version of a namespace's named catalog calendar. The rows sharing `(namespace_id, calendar_name)` are the calendar's family, numbered from 1 with no gap; the family's first row fixes its role, and its one Published row is its current version. An operator saves drafts, publishes, and archives under the namespace's exclusive schedule lock; a version's definition never changes, only its status.
+
+**CLR type** `Acta.CalendarEntity` · **Primary key** `pk_calendars` (`calendar_id`)
+
+**Columns**
+
+| Column | Kind | Size | Nullable | Default | Codes | Description |
+|---|---|---|---|---|---|---|
+| `calendar_id`<a id="column-acta-calendars--calendar-id"></a> | `Int32` | · | no | `Identity` | PK | Primary key, database-assigned at INSERT and never reused: the subject of the version's calendar.* events. Internal: the public selector is the namespace, the calendar name, and the version. |
+| `namespace_id`<a id="column-acta-calendars--namespace-id"></a> | `Int32` | · | no | · | · | The namespace whose catalog holds the calendar. |
+| `calendar_name`<a id="column-acta-calendars--calendar-name"></a> | `AsciiString` | 128 | no | · | · | The family's name, dotted kebab-case, unique within the namespace; a schedule binds the family by it. |
+| `version`<a id="column-acta-calendars--version"></a> | `Int32` | · | no | · | · | The version within the family, from 1; a draft takes the family's latest version plus one. |
+| `calendar_role_code`<a id="column-acta-calendars--calendar-role-code"></a> | `Byte` | · | no | · | [`CalendarRoleCode`](./code-families.md#code-family-calendarrolecode) (`calendar-role`) | Whether the calendar supplies occurrences or availability windows; the same on every row of a family. |
+| `definition_format_id`<a id="column-acta-calendars--definition-format-id"></a> | `Byte` | · | no | `0` | [`JobPayloadFormat`](./code-families.md#code-family-jobpayloadformat) | The payload format of `Definition`: JSON (1). |
+| `definition`<a id="column-acta-calendars--definition"></a> | `BinaryPayload` | max | no | · | · | The declarative definition in its canonical form, UTF-8 JSON without insignificant whitespace. |
+| `content_hash`<a id="column-acta-calendars--content-hash"></a> | `AsciiString` | 64 | no | · | · | SHA-256 hex of `Definition`, so two versions with the same content compare equal. |
+| `calendar_status_code`<a id="column-acta-calendars--calendar-status-code"></a> | `Byte` | · | no | · | [`CalendarStatusCode`](./code-families.md#code-family-calendarstatuscode) (`calendar-status`) | Draft, Published (the family's current version), Superseded, or Archived. |
+| `created_at_utc`<a id="column-acta-calendars--created-at-utc"></a> | `UtcInstant` | · | no | `UtcNow` | · | When the version was saved. Set server-side. |
+| `published_at_utc`<a id="column-acta-calendars--published-at-utc"></a> | `UtcInstant` | · | yes | · | · | When the version was published; NULL for a version that never was. |
+| `modified_at_utc`<a id="column-acta-calendars--modified-at-utc"></a> | `UtcInstant` | · | no | `UtcNow` | · | When the row was last written: saved, published, superseded, or archived. |
+
+**Indexes**
+
+| Name | Columns | Uniqueness | Filter | Usage |
+|---|---|---|---|---|
+| `ux_calendars_namespace_name_version` | `namespace_id`, `calendar_name`, `version` | unique | none | `uniqueness` |
+| `ux_calendars_current` | `namespace_id`, `calendar_name` | unique | `calendar_status_code = 20` | `uniqueness` |
+
+**Check constraints**
+
+| Name | SQL expression |
+|---|---|
+| `ck_calendars_version` | `version > 0` |
+
+**Foreign keys**
+
+| Constraint | Column → Target | On delete |
+|---|---|---|
+| `fk_calendars_namespaces` | `namespace_id` → `acta.namespaces(namespace_id)` | NO ACTION |
 
 ---
 
@@ -452,22 +497,27 @@ One named recurring schedule of a definition, with its own identity: its declara
 | `namespace_id`<a id="column-acta-schedules--namespace-id"></a> | `Int32` | · | no | · | · | The definition's namespace, written once at insert. The startup reconcile reads a namespace's schedules by it. |
 | `job_id`<a id="column-acta-schedules--job-id"></a> | `Int64` | · | yes | · | · | The permanent slot this schedule fires, NULL for a PerOccurrence definition. The slot owns its schedules, and purge and retention delete them with it. |
 | `definition_id`<a id="column-acta-schedules--definition-id"></a> | `Int32` | · | no | · | · | The definition the schedule belongs to, written at INSERT and never mutated. With the name it is the key registration and the schedule verbs find the row by, slot or no slot. |
-| `schedule_name`<a id="column-acta-schedules--schedule-name"></a> | `AsciiString` | 128 | no | · | · | Operator-readable schedule name, unique within its definition. For Definition-origin it matches the `[JobSchedule(name)]` attribute parameter. Kebab-case ASCII. The `sys.` prefix is reserved for system-owned schedule names, for parity with the other Name columns. |
-| `schedule_origin_code`<a id="column-acta-schedules--schedule-origin-code"></a> | `Byte` | · | no | · | [`ScheduleOriginCode`](./code-families.md#code-family-scheduleorigincode) (`schedule-origin`) | Origin of the row's existence: `Definition` (declared in a `[JobSchedule]` attribute, refreshed by catalog upsert) or `Operator`. |
-| `expression`<a id="column-acta-schedules--expression"></a> | `AsciiString` | 128 | no | · | · | Cron or interval duration, human ("5m") or ISO 8601 ("PT5M"). |
+| `schedule_name`<a id="column-acta-schedules--schedule-name"></a> | `AsciiString` | 128 | no | · | · | Operator-readable schedule name, unique within its definition. For Definition-origin it matches the `[Schedule(name)]` attribute parameter. Kebab-case ASCII. The `sys.` prefix is reserved for system-owned schedule names, for parity with the other Name columns. |
+| `schedule_origin_code`<a id="column-acta-schedules--schedule-origin-code"></a> | `Byte` | · | no | · | [`ScheduleOriginCode`](./code-families.md#code-family-scheduleorigincode) (`schedule-origin`) | Origin of the row's existence: `Definition` (declared in a `[Schedule]` attribute, refreshed by catalog upsert) or `Operator`. |
+| `expression`<a id="column-acta-schedules--expression"></a> | `AsciiString` | 128 | no | · | · | Cron or interval duration, human ("5m") or ISO 8601 ("PT5M"); `expression` holds the calendar's name when the kind is Calendar. |
 | `time_zone_id`<a id="column-acta-schedules--time-zone-id"></a> | `AsciiString` | 128 | no | · | · | IANA tz id. "tz id" is the IANA standard term, a string-identifier exception to the integer-`_id` convention. |
-| `expression_kind_code`<a id="column-acta-schedules--expression-kind-code"></a> | `Byte` | · | no | · | [`ScheduleExpressionKindCode`](./code-families.md#code-family-scheduleexpressionkindcode) (`schedule-expression-kind`) | Whether `Expression` is a cron expression or an ISO 8601 interval. Set at compile time by the source generator and refreshed by catalog upsert. |
+| `expression_kind_code`<a id="column-acta-schedules--expression-kind-code"></a> | `Byte` | · | no | · | [`ScheduleExpressionKindCode`](./code-families.md#code-family-scheduleexpressionkindcode) (`schedule-expression-kind`) | Whether `Expression` is a cron expression, an ISO 8601 interval, or a calendar's name. Set at compile time by the source generator and refreshed by catalog upsert. |
 | `misfire_strategy_code`<a id="column-acta-schedules--misfire-strategy-code"></a> | `Byte` | · | no | · | [`MisfireStrategyCode`](./code-families.md#code-family-misfirestrategycode) (`misfire-strategy`) | MisfireStrategy policy when occurrences are missed during downtime (catch-up once vs. skip). |
 | `interval_anchor_at_utc`<a id="column-acta-schedules--interval-anchor-at-utc"></a> | `UtcInstant` | · | yes | · | · | The instant an interval's ticks step from, written at the schedule's first registration and kept across deploys, so a late evaluation never shifts the sequence. NULL for a cron, which resolves in its zone. |
 | `misfire_grace_seconds`<a id="column-acta-schedules--misfire-grace-seconds"></a> | `Int32` | · | no | · | · | How long past its instant a due occurrence still counts as on time rather than missed: the misfire policy decides only what is older. Covers a slow admission pass, not downtime. |
 | `timing_fingerprint`<a id="column-acta-schedules--timing-fingerprint"></a> | `AsciiString` | 64 | no | · | · | `TimingFingerprint` of the declaration as registered: the expression, its kind, the zone and its rules, and the anchor. A registration whose fingerprint matches leaves the cursor alone; one that differs is a timing change. |
-| `max_outstanding`<a id="column-acta-schedules--max-outstanding"></a> | `Int32` | · | no | · | · | How many admitted occurrences may be unsettled at once, from `[JobSchedule(MaxOutstanding)]`; a Permanent definition's schedules hold 1, the slot. |
+| `max_outstanding`<a id="column-acta-schedules--max-outstanding"></a> | `Int32` | · | no | · | · | How many admitted occurrences may be unsettled at once, from `[Schedule(MaxOutstanding)]`; a Permanent definition's schedules hold 1, the slot. |
 | `full_behavior_code`<a id="column-acta-schedules--full-behavior-code"></a> | `Byte` | · | no | · | [`ScheduleFullBehaviorCode`](./code-families.md#code-family-schedulefullbehaviorcode) (`schedule-full-behavior`) | What a due occurrence does while the schedule is at `MaxOutstanding`: wait or drop. |
-| `expire_after_seconds`<a id="column-acta-schedules--expire-after-seconds"></a> | `Int32` | · | yes | · | · | The age past its instant an occurrence may reach before it expires unadmitted, from `[JobSchedule(ExpireAfter)]`; NULL means it never expires. Set together with `ExpireAction`. |
+| `expire_after_seconds`<a id="column-acta-schedules--expire-after-seconds"></a> | `Int32` | · | yes | · | · | The age past its instant an occurrence may reach before it expires unadmitted, from `[Schedule(ExpireAfter)]`; NULL means it never expires. Set together with `ExpireAction`. |
 | `expire_action_code`<a id="column-acta-schedules--expire-action-code"></a> | `Byte` | · | yes | · | [`ScheduleExpireActionCode`](./code-families.md#code-family-scheduleexpireactioncode) (`schedule-expire-action`) | What an occurrence older than `ExpireAfterSeconds` does when evaluated: discard or pause. |
+| `calendar_origin_code`<a id="column-acta-schedules--calendar-origin-code"></a> | `Byte` | · | yes | · | [`CalendarOriginCode`](./code-families.md#code-family-calendarorigincode) (`calendar-origin`) | Where the calendar named by `Expression` comes from, from `[Schedule(CalendarOrigin)]`; set exactly when the kind is Calendar, together with `CalendarVersion`. |
+| `calendar_version`<a id="column-acta-schedules--calendar-version"></a> | `Int32` | · | yes | · | · | The calendar version the schedule is bound to, at least 1; NULL unless the kind is Calendar. |
+| `availability_calendar_name`<a id="column-acta-schedules--availability-calendar-name"></a> | `AsciiString` | 128 | yes | · | · | The availability calendar the schedule observes, from `[Schedule(Availability)]`, whatever the expression kind; NULL means none. Set together with its origin and version. |
+| `availability_calendar_origin_code`<a id="column-acta-schedules--availability-calendar-origin-code"></a> | `Byte` | · | yes | · | [`CalendarOriginCode`](./code-families.md#code-family-calendarorigincode) (`calendar-origin`) | Where `AvailabilityCalendarName` comes from; NULL when the schedule has no availability calendar. |
+| `availability_calendar_version`<a id="column-acta-schedules--availability-calendar-version"></a> | `Int32` | · | yes | · | · | The availability calendar version the schedule is bound to, at least 1; NULL when it has none. |
 | `schedule_status_code`<a id="column-acta-schedules--schedule-status-code"></a> | `Byte` | · | no | · | [`ScheduleStatusCode`](./code-families.md#code-family-schedulestatuscode) (`schedule-status`) | Lifecycle state. `Active` schedules fire; `Paused` ones do not and leave the slot's MIN; `Orphaned` marks a `Definition`-origin row whose declaration disappeared, which the walker ignores. A re-declared orphan resets to `Active`, dropping any pause: a schedule that came back warrants a fresh operator decision. |
 | `paused_until_utc`<a id="column-acta-schedules--paused-until-utc"></a> | `UtcInstant` | · | yes | · | · | When a timed pause expires. NULL means an indefinite pause (resume is operator-driven) or not paused. While set, the slot's cursor includes this instant so the scheduler wakes to auto-resume: the walker flips the row back to `Active` and reconciles the cursor by misfire policy. |
-| `description`<a id="column-acta-schedules--description"></a> | `UnicodeString` | 512 | yes | · | · | Dev-authored explanation of the schedule from the [JobSchedule] attribute; NULL when the attribute sets none. Distinct from `PauseMessage`, which is operator-written. |
+| `description`<a id="column-acta-schedules--description"></a> | `UnicodeString` | 512 | yes | · | · | Dev-authored explanation of the schedule from the [Schedule] attribute; NULL when the attribute sets none. Distinct from `PauseMessage`, which is operator-written. |
 | `pause_message`<a id="column-acta-schedules--pause-message"></a> | `UnicodeString` | 512 | yes | · | · | The operator's reason for the current pause, the same reasonMessage text the audit event records, kept on the row so a paused schedule explains itself. NULL whenever the row is not Paused: resume, an elapsed timed pause, and orphaning clear it; events keep the history. |
 | `created_at_utc`<a id="column-acta-schedules--created-at-utc"></a> | `UtcInstant` | · | no | `UtcNow` | · | When the schedule row was created. Set server-side. |
 | `modified_at_utc`<a id="column-acta-schedules--modified-at-utc"></a> | `UtcInstant` | · | no | `UtcNow` | · | When this row was last written; a plain advance writes only the cursor row. |
@@ -489,6 +539,9 @@ One named recurring schedule of a definition, with its own identity: its declara
 | `ck_schedules_max_outstanding` | `max_outstanding >= 1` |
 | `ck_schedules_expire_pair` | `(expire_after_seconds IS NULL AND expire_action_code IS NULL) OR (expire_after_seconds IS NOT NULL AND expire_action_code IS NOT NULL)` |
 | `ck_schedules_expire_after` | `expire_after_seconds IS NULL OR expire_after_seconds > 0` |
+| `ck_schedules_calendar_binding` | `(expression_kind_code = 30 AND calendar_origin_code IS NOT NULL AND calendar_version IS NOT NULL) OR (expression_kind_code <> 30 AND calendar_origin_code IS NULL AND calendar_version IS NULL)` |
+| `ck_schedules_availability_triple` | `(availability_calendar_name IS NULL AND availability_calendar_origin_code IS NULL AND availability_calendar_version IS NULL) OR (availability_calendar_name IS NOT NULL AND availability_calendar_origin_code IS NOT NULL AND availability_calendar_version IS NOT NULL)` |
+| `ck_schedules_calendar_version` | `(calendar_version IS NULL OR calendar_version > 0) AND (availability_calendar_version IS NULL OR availability_calendar_version > 0)` |
 
 **Foreign keys**
 

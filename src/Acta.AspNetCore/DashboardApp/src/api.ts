@@ -1,6 +1,6 @@
 import { writable } from 'svelte/store';
 import { advanceNow } from './time.ts';
-import { stringifyBody, type RawJson } from './lib/rawJson.ts';
+import { RawJson, stringifyBody } from './lib/rawJson.ts';
 import type { JobDetail, JobExplanation, JobLineage, JobWorker } from './routes/job-detail/types.ts';
 
 export const online = writable(true);
@@ -380,6 +380,175 @@ export async function previewSchedule(
   scheduleName: string
 ): Promise<SchedulePreview> {
   return api<SchedulePreview>(`schedules/${jobNamespace}/${jobName}/${scheduleName}/preview`, { limit: 10 });
+}
+
+// One calendar family in the GET /calendars page: the Published version (current) and the highest one
+// (latest), the shared families of `sys` listed beside a namespace's own. `dependentCount` counts the
+// live schedules that bind the family through the catalog.
+export interface CalendarListItem {
+  jobNamespace: string;
+  calendarName: string;
+  role: string;
+  currentVersion: number | null;
+  latestVersion: number;
+  latestStatus: string;
+  publishedAtUtc: string | null;
+  modifiedAtUtc: string;
+  dependentCount: number;
+}
+
+export interface CalendarVersionView {
+  version: number;
+  status: string;
+  contentHash: string;
+  createdAtUtc: string;
+  publishedAtUtc: string | null;
+  modifiedAtUtc: string;
+}
+
+// A schedule bound to the family through the catalog, as GET /calendars/{ns}/{name} lists it: how it
+// binds the family (occurrence source or availability filter), its status, and the version it pins.
+export interface CalendarDependent {
+  jobNamespace: string;
+  jobName: string;
+  scheduleName: string;
+  binding: string;
+  status: string;
+  pinnedVersion: number;
+  scheduledDelivery: string;
+}
+
+// GET /calendars/{ns}/{name}?version=: every version newest first, one version's definition as JSON text
+// (the requested one, else the current, else the latest), and the dependents.
+export interface CalendarDetailView {
+  jobNamespace: string;
+  calendarName: string;
+  role: string;
+  currentVersion: number | null;
+  versions: CalendarVersionView[];
+  shownVersion: number;
+  definition: string;
+  dependents: CalendarDependent[];
+}
+
+export interface CalendarWindowView {
+  startUtc: string;
+  endUtc: string | null;
+}
+
+export interface CalendarPreviewSchedule {
+  jobNamespace: string;
+  jobName: string;
+  scheduleName: string;
+  binding: string;
+  status: string;
+  pinnedVersion: number;
+  overdue: boolean;
+}
+
+// GET /calendars/{ns}/{name}/preview?version=: one version's forecast beside the current version's over
+// the same horizon (instants for an occurrence calendar, windows for an availability one), and the bound
+// schedules with the overdue flag a Refuse publication rejects on. A read, so always available.
+export interface CalendarPreview {
+  role: string;
+  version: number;
+  currentVersion: number | null;
+  occurrencesUtc: string[];
+  currentOccurrencesUtc: string[];
+  windows: CalendarWindowView[];
+  currentWindows: CalendarWindowView[];
+  schedules: CalendarPreviewSchedule[];
+}
+
+export async function previewCalendar(
+  jobNamespace: string,
+  calendarName: string,
+  version: number,
+  options: { limit?: number; timeZoneId?: string; signal?: AbortSignal } = {}
+): Promise<CalendarPreview> {
+  return api<CalendarPreview>(
+    `calendars/${encodeURIComponent(jobNamespace)}/${encodeURIComponent(calendarName)}/preview`,
+    { version, limit: options.limit ?? 10, timeZoneId: options.timeZoneId },
+    { signal: options.signal }
+  );
+}
+
+// POST calendars/{ns}/{name}/drafts: applied (200) with the new version and its content hash, rejected (409)
+// with the compiler's problems, versionConflict (409) when the latest version moved. The definition is the
+// operator's JSON text, spliced into the body verbatim as the `definition` object.
+export interface CalendarDraftResponse {
+  action: ControlAction;
+  version: number | null;
+  contentHash: string | null;
+  problems: string[];
+}
+
+export async function saveCalendarDraft(
+  jobNamespace: string,
+  calendarName: string,
+  role: string,
+  definition: string,
+  expectedLatestVersion: number,
+  note?: string
+): Promise<CalendarDraftResponse> {
+  return controlRequest<CalendarDraftResponse>(
+    `calendars/${encodeURIComponent(jobNamespace)}/${encodeURIComponent(calendarName)}/drafts`,
+    { role, definition: new RawJson(definition), expectedLatestVersion, reasonMessage: note?.trim() || null },
+    { action: 'notFound', version: null, contentHash: null, problems: [] },
+    'POST',
+    { action: 'versionConflict', version: null, contentHash: null, problems: [] }
+  );
+}
+
+// POST calendars/{ns}/{name}/publish: applied with the schedules retimed, notFound when the candidate is
+// no version of the family, versionConflict when the current version moved, rejected with the reason and
+// the schedules holding overdue occurrences (under the refuse decision).
+export interface CalendarPublishResponse {
+  action: ControlAction;
+  version: number | null;
+  retimedSchedules: string[];
+  overdueSchedules: string[];
+  reason: string | null;
+}
+
+export async function publishCalendar(
+  jobNamespace: string,
+  calendarName: string,
+  expectedCurrentVersion: number,
+  candidateVersion: number,
+  overdueDecision: 'refuse' | 'discard',
+  note?: string
+): Promise<CalendarPublishResponse> {
+  return controlRequest<CalendarPublishResponse>(
+    `calendars/${encodeURIComponent(jobNamespace)}/${encodeURIComponent(calendarName)}/publish`,
+    { expectedCurrentVersion, candidateVersion, overdueDecision, reasonMessage: note?.trim() || null },
+    { action: 'notFound', version: null, retimedSchedules: [], overdueSchedules: [], reason: null },
+    'POST',
+    { action: 'versionConflict', version: null, retimedSchedules: [], overdueSchedules: [], reason: null }
+  );
+}
+
+// POST calendars/{ns}/{name}/archive: applied with the version archived, rejected with how many live
+// schedules still bind the family, notFound when it has no current version.
+export interface CalendarArchiveResponse {
+  action: ControlAction;
+  version: number | null;
+  dependentCount: number;
+}
+
+export async function archiveCalendar(
+  jobNamespace: string,
+  calendarName: string,
+  expectedCurrentVersion: number,
+  note?: string
+): Promise<CalendarArchiveResponse> {
+  return controlRequest<CalendarArchiveResponse>(
+    `calendars/${encodeURIComponent(jobNamespace)}/${encodeURIComponent(calendarName)}/archive`,
+    { expectedCurrentVersion, reasonMessage: note?.trim() || null },
+    { action: 'notFound', version: null, dependentCount: 0 },
+    'POST',
+    { action: 'versionConflict', version: null, dependentCount: 0 }
+  );
 }
 
 // Format-dispatched payload projection served by the input/result/checkpoint reads (part of the

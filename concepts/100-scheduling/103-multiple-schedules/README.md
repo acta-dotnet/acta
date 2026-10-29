@@ -21,7 +21,7 @@ history, but it also creates unbounded job rows and more duplicate-fire edges.
 ## Why this design
 
 Acta stores one reusable job identity and one cursor per schedule. Due schedules re-arm the same slot;
-coincident schedules can coalesce into one execution, whose `TriggeringScheduleNames` says what fired.
+coincident schedules can coalesce into one execution, whose `TriggeringSchedules` names what fired.
 
 ## Trade-offs
 

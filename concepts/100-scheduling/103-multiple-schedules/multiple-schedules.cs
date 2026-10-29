@@ -65,14 +65,16 @@ namespace Acta.Concepts.MultipleSchedules
 
     public sealed class ReportJob
     {
-        // Several [JobSchedule]s share one recurring slot; schedules due at the same instant coalesce
-        // into ONE execution, and context.TriggeringScheduleNames reports which fired.
+        // Several [Schedule]s share one recurring slot; schedules due at the same instant coalesce
+        // into ONE execution, and context.TriggeringSchedules reports which fired.
         [Job("report")]
-        [JobSchedule("fast", "PT10S")]
-        [JobSchedule("faster", "PT5S")]
+        [Schedule("fast", "PT10S")]
+        [Schedule("faster", "PT5S")]
         public Task Handle(Report input, JobContext context, CancellationToken ct)
         {
-            Console.WriteLine($"{DateTime.Now:HH:mm:ss} fired by [{string.Join(", ", context.TriggeringScheduleNames)}]");
+            Console.WriteLine(
+                $"{DateTime.Now:HH:mm:ss} fired by [{string.Join(", ", context.TriggeringSchedules.Select(s => s.ScheduleName))}]"
+            );
             return Task.CompletedTask;
         }
     }

@@ -12,6 +12,6 @@ public enum ScheduleOriginCode : byte
     [Code("operator", "Operator-driven schedule add/remove. No code path produces rows with this origin today.")]
     Operator = 20,
 
-    [Code("definition", "Declared in [JobSchedule] attribute; refreshed by catalog upsert.")]
+    [Code("definition", "Declared in [Schedule] attribute; refreshed by catalog upsert.")]
     Definition = 40,
 }

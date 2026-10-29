@@ -42,6 +42,11 @@
     scheduledDelivery: string;
     expireAfterSeconds: number | null;
     expireAction: string | null;
+    calendarOrigin: string | null;
+    calendarVersion: number | null;
+    availabilityCalendarName: string | null;
+    availabilityOrigin: string | null;
+    availabilityVersion: number | null;
   }
 
   let {

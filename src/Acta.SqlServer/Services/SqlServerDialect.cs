@@ -235,6 +235,28 @@ internal sealed class SqlServerDialect : ISqlDialect
         );
     }
 
+    public void BindPublishCalendar(DbCommand command, IReadOnlyList<PublishCalendarValues> rows) =>
+        AddParameter(
+            (SqlCommand)command,
+            "@p_rows",
+            SqlDbType.NVarChar,
+            PublishCalendarJson.Rows(
+                rows,
+                static (writer, name, value) =>
+                {
+                    if (value is { } instant)
+                    {
+                        writer.WriteString(name, DbParams.ToUtc(instant).ToString("yyyy-MM-ddTHH:mm:ss.fff", CultureInfo.InvariantCulture));
+                    }
+                    else
+                    {
+                        writer.WriteNull(name);
+                    }
+                }
+            ),
+            size: -1
+        );
+
     public void BindAdmitFirings(DbCommand command, AdmitFiringsCommand request)
     {
         var sql = (SqlCommand)command;

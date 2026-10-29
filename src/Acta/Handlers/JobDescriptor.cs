@@ -74,7 +74,7 @@ public sealed record JobDescriptor(
     public string? Lane { get; init; }
 
     /// <summary>
-    /// Declared recurring schedules (one per <c>[JobSchedule]</c>). Empty for non-scheduled jobs.
+    /// Declared recurring schedules (one per <c>[Schedule]</c>). Empty for non-scheduled jobs.
     /// </summary>
     public ImmutableArray<ScheduleDescriptor> Schedules { get; init; } = [];
 

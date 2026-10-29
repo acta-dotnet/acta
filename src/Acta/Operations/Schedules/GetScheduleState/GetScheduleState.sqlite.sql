@@ -20,7 +20,12 @@ SELECT
     t.max_outstanding,
     t.full_behavior_code AS full_behavior,
     t.expire_after_seconds,
-    t.expire_action_code AS expire_action
+    t.expire_action_code AS expire_action,
+    t.calendar_origin_code AS calendar_origin,
+    t.calendar_version,
+    t.availability_calendar_name,
+    t.availability_calendar_origin_code AS availability_origin,
+    t.availability_calendar_version AS availability_version
 FROM {{schema}}.schedules t
 INNER JOIN {{schema}}.definitions d ON d.definition_id = t.definition_id
 INNER JOIN {{schema}}.schedules_state st ON st.schedule_id = t.schedule_id

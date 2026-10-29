@@ -28,11 +28,12 @@
     'job.signal-raised', 'job.state-reset', 'job.note-recorded',
     'schedule.paused', 'schedule.resumed', 'schedule.pause-expired', 'schedule.triggered',
     'schedule.admitted', 'schedule.skipped', 'schedule.retimed',
+    'calendar.draft-saved', 'calendar.published', 'calendar.archived',
     'worker.started', 'worker.stopped', 'worker.died',
     'alert.acknowledged', 'alert.resolved',
     'outbox.requeued', 'outbox.discarded'
   ];
-  const ENTITY_KINDS = ['alert', 'definition', 'job', 'namespace', 'tenant', 'worker'];
+  const ENTITY_KINDS = ['alert', 'calendar', 'definition', 'job', 'namespace', 'tenant', 'worker'];
 
   // tenantName and jobRef arrive only by link (a tenant's or a job's page); the bar edits the rest.
   const filters = createUrlFilters(

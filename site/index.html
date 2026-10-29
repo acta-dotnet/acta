@@ -522,7 +522,7 @@
         </div>
         <div class="build">
           <h3>Pipelines, backfills, and ETL</h3>
-          <span class="carries"><b>[JobSchedule]</b> with cron or a duration<br />retries budgeted, not unbounded<br />the ledger is the audit trail</span>
+          <span class="carries"><b>[Schedule]</b> with cron or a duration<br />retries budgeted, not unbounded<br />the ledger is the audit trail</span>
         </div>
       </div>
 
@@ -681,7 +681,7 @@
         <div class="fcol">
           <h3>Jobs &amp; scheduling</h3>
           <ul>
-            <li><b>Fire-and-forget · delayed · recurring</b> under one model: <code>EnqueueAsync</code>, <code>ScheduleAsync</code>, <code>[JobSchedule]</code></li>
+            <li><b>Fire-and-forget · delayed · recurring</b> under one model: <code>EnqueueAsync</code>, <code>ScheduleAsync</code>, <code>[Schedule]</code></li>
             <li><b>Durable retries</b> with typed backoff: policy, not folklore</li>
             <li><b>Persistent schedule cursors</b>: missed windows explicit; one stable job row</li>
             <li><b>Deduplication keys</b> stop blind repeats at enqueue</li>

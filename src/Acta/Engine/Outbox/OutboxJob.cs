@@ -19,7 +19,7 @@ internal sealed class OutboxJob(OutboxRelayRegistry registry, OutboxOperations o
         EventRecording = EventRecordingCode.Failures,
         AlertProfile = AlertProfileCode.SysCritical
     )]
-    [JobSchedule("default", Cron.Every5Seconds)]
+    [Schedule("default", Cron.Every5Seconds)]
     public async Task Handle(JobContext ctx, CancellationToken ct)
     {
         // The relay is the executing namespace's own: resolve THIS namespace's registration and a source

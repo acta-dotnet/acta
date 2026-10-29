@@ -124,6 +124,22 @@ export interface SchedulesSqlFilters {
   liveOnly?: boolean;
 }
 
+export interface CalendarsSqlFilters {
+  namespace?: string | null;
+  role?: string | null;
+  nameSearch?: string | null;
+}
+
+// calendars_view is one row per version; the dashboard's family list folds them, so the copy orders a
+// family's versions together, newest first. A namespace scope shows the shared `sys` families beside its own.
+export function calendarsListSql(filters: CalendarsSqlFilters, dialect: SqlDialect = {}): string {
+  const predicates: Predicate[] = [];
+  if (text(filters.namespace)) predicates.push({ raw: `namespace IN (${sqlLiteral(name(filters.namespace))}, 'sys')` });
+  if (text(filters.role)) predicates.push({ column: 'role', op: '=', value: name(filters.role) });
+  if (text(filters.nameSearch)) predicates.push({ raw: `calendar_name LIKE ${sqlLiteral('%' + name(filters.nameSearch) + '%')}` });
+  return select(dialect, 'calendars_view', predicates, 'namespace, calendar_name, version DESC');
+}
+
 export function schedulesListSql(filters: SchedulesSqlFilters, dialect: SqlDialect = {}): string {
   const predicates: Predicate[] = [];
   if (text(filters.namespace)) predicates.push({ column: 'namespace', op: '=', value: name(filters.namespace) });

@@ -8,7 +8,7 @@ namespace Acta.Tests.Conformance.Engine.Worker;
 
 /// <summary>
 /// The older generation's manifest: the test manifest with <c>recurring-ping</c> declaring no schedule,
-/// the way a build looks before a deploy adds <c>[JobSchedule]</c> to a job it already runs.
+/// the way a build looks before a deploy adds <c>[Schedule]</c> to a job it already runs.
 /// </summary>
 public sealed class UnscheduledPingManifest : IJobManifest
 {

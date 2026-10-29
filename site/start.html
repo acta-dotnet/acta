@@ -148,7 +148,7 @@ public static class ShippingHandlers
 # the app prints: Shipping order 1042</pre>
       </div>
       <p class="lede">The endpoint answers <code>202 Accepted</code> with the job's ref once the row is stored. Open <code>/acta</code> on the same port: the Jobs screen lists <code>ship-order</code> as completed. Ctrl+C stops the app.</p>
-      <p class="hint">Run a job later with <code>ScheduleAsync(input, TimeSpan.FromMinutes(10))</code>, and follow one with <code>await job.WaitAsync()</code>: a timeout stops the wait, never the job. A recurring schedule is <code>[JobSchedule]</code>.</p>
+      <p class="hint">Run a job later with <code>ScheduleAsync(input, TimeSpan.FromMinutes(10))</code>, and follow one with <code>await job.WaitAsync()</code>: a timeout stops the wait, never the job. A recurring schedule is <code>[Schedule]</code>.</p>
       <p class="hint"><code>ShippingJobs</code> is generated: the last segment of your project's root namespace plus <code>Jobs</code>. Name the project <code>Orders</code> and it is <code>OrdersJobs</code>.</p>
       <p class="hint">The job was a row in <code>acta-local.db</code> before it was a method call. Swap the package and <code>UseSqlite</code> for <code>UsePostgres</code> or <code>UseSqlServer</code>, point the connection string at your server, and nothing else changes.</p>
     </section>

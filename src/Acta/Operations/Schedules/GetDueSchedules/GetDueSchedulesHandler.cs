@@ -13,7 +13,7 @@ internal sealed class GetDueSchedulesHandler(IDbSession session, ISqlDialect dia
                     cmd.Parameters.Add(dialect.CreateParameter(ActaSchema.Sql.NowUtc, query.NowUtc));
                     cmd.Parameters.Add(dialect.CreateParameter(ActaSchema.Sql.PageTake, query.Take));
                 },
-                DbProjectionResolver.Resolve<GetDueSchedulesRow>(),
+                DbProjectionResolver.Resolve<DueSchedule>(),
                 ct
             )
         );

@@ -60,7 +60,7 @@
       <p class="lede">The scheduling half translates directly. The execution half, everything after the trigger fires, is where Acta adds what Quartz never claimed to own.</p>
       <dl class="ref">
         <div class="ref-row"><dt>IJob and its Execute method</dt><dd><code>[Job("name")]</code> on an ordinary handler method, plus typed <code>EnqueueAsync</code> for on-demand work. The name is the durable, operator-facing contract.</dd></div>
-        <div class="ref-row"><dt>Trigger, cron or interval</dt><dd><code>[JobSchedule]</code> on the same <code>[Job]</code> method: an interval such as <code>5m</code> or a cron expression, with <code>Cron</code> constants for the common cases.</dd></div>
+        <div class="ref-row"><dt>Trigger, cron or interval</dt><dd><code>[Schedule]</code> on the same <code>[Job]</code> method: an interval such as <code>5m</code> or a cron expression, with <code>Cron</code> constants for the common cases.</dd></div>
         <div class="ref-row"><dt>One-shot trigger, StartAt</dt><dd><code>ScheduleAsync(input, DateTimeOffset)</code> or <code>ScheduleAsync(input, TimeSpan)</code>: one job row whose first claim waits for the time, counted on the database clock.</dd></div>
         <div class="ref-row"><dt>JobDataMap</dt><dd>The handler's own parameters, or one record you declare: checked by the compiler, stored as JSON, readable on the job row afterwards.</dd></div>
         <div class="ref-row"><dt>Job key</dt><dd>The <code>[Job]</code> name, plus <code>JobRef</code> for public references and <code>JobId</code> internally.</dd></div>
@@ -98,7 +98,7 @@
             <pre><code><span class="k">public sealed class</span> CleanupJobs
 {
     <span class="a">[Job(<span class="s">"cleanup-expired-sessions"</span>)]</span>
-    <span class="a">[JobSchedule(<span class="s">"every-5-minutes"</span>, <span class="s">"*/5 * * * *"</span>)]</span>
+    <span class="a">[Schedule(<span class="s">"every-5-minutes"</span>, <span class="s">"*/5 * * * *"</span>)]</span>
     <span class="c">// The cron you already write, or an interval such as "5m", or a Cron.* constant.</span>
     <span class="k">public</span> Task CleanupExpiredSessions(CancellationToken ct)
     {

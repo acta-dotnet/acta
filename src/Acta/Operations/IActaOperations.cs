@@ -1,7 +1,7 @@
 namespace Acta;
 
 /// <summary>
-/// The operator and administration facade: resource-oriented domains (schedules, definitions,
+/// The operator and administration facade: resource-oriented domains (schedules, calendars, definitions,
 /// workers, alerts, tenants, namespaces, tags), the ledger reads, and runtime capabilities.
 /// Application code injects <see cref="IJobs"/> alone; dashboards, CLIs, and operator hosts inject
 /// this. The two facades never overlap.
@@ -10,6 +10,9 @@ public interface IActaOperations
 {
     /// <summary>Schedules domain (pause/resume/list). See <see cref="ISchedules"/>.</summary>
     ISchedules Schedules { get; }
+
+    /// <summary>Calendar catalog domain (list/get/save draft/archive). See <see cref="ICalendars"/>.</summary>
+    ICalendars Calendars { get; }
 
     /// <summary>Job definitions domain (overrides/detail/list). See <see cref="IDefinitions"/>.</summary>
     IDefinitions Definitions { get; }

@@ -27,7 +27,7 @@ see [architecture decisions](./architecture-decisions.md).
 | **Execution** | One recorded run of a handler. At the default recording level every run is recorded as one outcome event on `(JobId, ExecutionNumber)` — succeeded, failed, orphaned, yielded, or terminally failed — carrying the worker and the handler's duration; the `Failures` and `Off` levels record less. A run in progress is its `jobs_state` row. |
 | **Attempt** | One try at the work that counts against retry policy when it fails. `MaxAttempts` is the unified retry budget for both jobs and steps. Successful executions are recorded but do not consume the budget. |
 | **Status** | The lifecycle-or-outcome code on every entity that has one, named for its table (`jobs_state.job_status_code`, `workers.worker_status_code`, `steps.step_status_code`, `checkpoints.checkpoint_status_code`, ...). The job's `jobs_state` row stores current status; events explain transitions. |
-| **Firing** | One scheduled occurrence of a recurring `[JobSchedule]` (a moment in time). 1:1 with an execution in steady state; misfire policy decides what happens to missed firings. |
+| **Firing** | One scheduled occurrence of a recurring `[Schedule]` (a moment in time). 1:1 with an execution in steady state; misfire policy decides what happens to missed firings. |
 | **Namespace** | The service-owned execution boundary. A worker claims only jobs in its own namespace. One `Run(...)` owns one namespace; a process can host several. |
 | **Lane** | An ordered sequence of jobs within a namespace, named at enqueue or on the definition. A lane runs one job at a time, in enqueue order, and the jobs behind its head wait as `Blocked`. See [Lanes](#lanes). |
 | **Tenant** | Optional, validated scope naming the customer / business entity a job is *about*. Registered in the Acta-owned `tenants` catalog by a `TenantName`, a kebab-case name such as `acme-corp` (fold or prefix an external id that is not one) and resolved to `jobs.tenant_id` at enqueue. Audit / query / runtime scope only, not an ownership, claim, or scheduling boundary. |
@@ -165,7 +165,7 @@ Retention follows the same rule. A permanent slot keeps its slots and the childr
 
 ```csharp
 [Job("import-files", ScheduledDelivery = ScheduledDeliveryCode.PerOccurrence)]
-[JobSchedule("hourly", "PT1H", MaxOutstanding = 1)]
+[Schedule("hourly", "PT1H", MaxOutstanding = 1)]
 public async Task ImportFiles(JobContext ctx, CancellationToken ct)
 {
     // One root per admitted hour: its children and steps belong to it, and retention purges it once it is terminal.
@@ -440,7 +440,7 @@ JobHandle<Receipt> job = await jobs.EnqueueAsync(BillingJobs.SendInvoice(invoice
 - The record is the job's `TIn`, stored as JSON: `{"invoiceId":"…","recipient":"billing@example.com"}`. The parameter names are its contract fields, so renaming one is a contract change; see [contract evolution](#contract-evolution).
 - Under Native AOT, declare the input record yourself and give the handler that one parameter. System.Text.Json's source generator never sees a type another generator emits, so it writes no metadata for the generated record (warning SYSLIB1030), and its first enqueue throws.
 - An interface parameter other than a collection such as `IReadOnlyList<T>` is rejected (ACTA0103): it reads as a dependency, and dependencies come from the constructor.
-- Such a handler cannot carry `[JobSchedule]` (ACTA0123), since a recurring slot seeds its input from a parameterless constructor the record lacks.
+- Such a handler cannot carry `[Schedule]` (ACTA0123), since a recurring slot seeds its input from a parameterless constructor the record lacks.
 
 ### Input payload format inference
 
@@ -584,12 +584,14 @@ The generator reports these at build time. All are errors unless noted, and an e
 | `ACTA0104` | Duplicate input type within the manifest (warning); typed enqueue cannot resolve a unique route.                                                                                                                  |
 | `ACTA0105` | Invalid `[Job]` policy value (malformed duration, out-of-bounds retry knobs, undefined code, invalid lane, rate, or concurrency value).                                                                                                            |
 | `ACTA0106` | A job's generated member name (its call factory, or the argument record of a job taking several parameters) collides with another job's, or with `Descriptors`, the manifest type name, or an `object` member, once separators and case are ignored, such as `send-mail` and `sendmail` (warning); the colliding members are left out and dispatch is unaffected. |
-| `ACTA0121` | Invalid `[JobSchedule]` declaration (no `[Job]`, bad or duplicate name, blank expression or environment, a definition that also declares a `Lane`).                                                                                                         |
+| `ACTA0121` | Invalid `[Schedule]` declaration (no `[Job]`, bad or duplicate name, blank expression or environment, a definition that also declares a `Lane`).                                                                                                            |
 | `ACTA0122` | Invalid schedule expression; cron (Cronos dialect, 5 or 6 fields) or an interval of at least one second such as `5m`.                                                                                           |
-| `ACTA0123` | `[JobSchedule]` handler whose input has no accessible parameterless constructor, or that takes several input parameters.                                                                                         |
-| `ACTA0124` | Invalid `[JobSchedule]` policy value: `MaxOutstanding` below 1, or an undefined `FullBehavior` or `MisfireStrategy`. |
+| `ACTA0123` | `[Schedule]` handler whose input has no accessible parameterless constructor, or that takes several input parameters.                                                                                            |
+| `ACTA0124` | Invalid `[Schedule]` policy value: `MaxOutstanding` below 1, or an undefined `FullBehavior` or `MisfireStrategy`. |
 | `ACTA0125` | `MaxOutstanding` other than 1 on a schedule of a `Permanent` definition, whose one slot holds one occurrence at a time. |
-| `ACTA0126` | Incomplete `[JobSchedule]` expiration: `ExpireAfter` without `ExpireAction` or the reverse, an `ExpireAfter` of zero, or an undefined `ExpireAction`. |
+| `ACTA0126` | Incomplete `[Schedule]` expiration: `ExpireAfter` without `ExpireAction` or the reverse, an `ExpireAfter` of zero, or an undefined `ExpireAction`. |
+| `ACTA0127` | Incomplete `[Schedule]` source: an expression and `Calendar` together or neither, a blank or invalid `Calendar` or `Availability` name, or a name whose `[Calendar]` class in the same compilation lacks the interface the binding needs (`IActaCalendar` for `Calendar`, `IActaAvailabilityCalendar` for `Availability`). A name no class declares is resolved at registration. |
+| `ACTA0128` | Invalid `[Calendar]` declaration: an abstract, generic, or private class, a class implementing neither `IActaCalendar` nor `IActaAvailabilityCalendar`, a name that is not dotted kebab-case or is `sys`-reserved, or a name two classes declare. |
 | `ACTA0131` | Invalid `[JobPayloadFormatDeclaration]` (reserved id, bad or duplicate name/id, not an `IJobPayloadSerializer`).                                                                                                  |
 | `ACTA0132` | Invalid `[Job]` payload-format usage (`Format` paired with `InputFormat`/`OutputFormat`, `OutputFormat` on a no-result handler, `none` or `bytes` on a handler taking several input parameters, or a name matching no built-in or declared format). |
 | `ACTA0142` | A duration written with an uppercase or calendar unit; durations use lowercase `ms`, `s`, `m`, `h`, or `d`. |
@@ -690,7 +692,7 @@ alert settings, or lease/heartbeat relationships fail fast.
 | `PayloadContractDriftMode` | `Warn` | startup policy | `Warn` or `Fail` when eligible registrations change input/output contract columns. |
 | `ManifestGenerationUtc` | entry assembly file time | deployment metadata | Optional. Set explicitly only when you need deterministic definition promotion, especially single-file or AOT publishes. |
 | `DeploymentVersion` | assembly informational version | per process | Written to `workers`; should identify the deployed build and differ across rolling deploys. |
-| `EnvironmentName` | `DOTNET_ENVIRONMENT`, then `ASPNETCORE_ENVIRONMENT`, then `Production` | per process | Matched against a `[JobSchedule]`'s `Environments`; a schedule without environments registers everywhere. |
+| `EnvironmentName` | `DOTNET_ENVIRONMENT`, then `ASPNETCORE_ENVIRONMENT`, then `Production` | per process | Matched against a `[Schedule]`'s `Environments`; a schedule without environments registers everywhere. |
 | `AllowClockSkew` | `false` | startup policy | Downgrades excessive host/database clock skew from failure to warning. |
 
 Set only `HeartbeatInterval`, the same on every replica of a namespace: the lease and dead-worker windows derive from it at x4 and x7, and crash recovery runs once a lease. Long-running handlers stay alive by heartbeating, not by a longer lease. `AlertReminderInterval` (24 hours) is how often a still-broken job pages again.
@@ -705,7 +707,7 @@ A worker claims one row for every free executor and moves it straight to `Execut
 
 ### Handler Policy Lives Elsewhere
 
-Retries, backoff, execution timeout, deadline, retention, alert profile, event recording, priority, concurrency limit, rate limit, and schedule policy are declared on `[Job(...)]` and `[JobSchedule(...)]`, not on `JobsOptions`. An operator overrides them without a deploy through `IActaOperations.Definitions.UpdateOverridesAsync`, `PATCH /definitions/{jobNamespace}/{jobName}`, or the dashboard: a null field clears an override, the definition's `version` guards a concurrent edit, and workers pick the change up on their next heartbeat.
+Retries, backoff, execution timeout, deadline, retention, alert profile, event recording, priority, concurrency limit, rate limit, and schedule policy are declared on `[Job(...)]` and `[Schedule(...)]`, not on `JobsOptions`. An operator overrides them without a deploy through `IActaOperations.Definitions.UpdateOverridesAsync`, `PATCH /definitions/{jobNamespace}/{jobName}`, or the dashboard: a null field clears an override, the definition's `version` guards a concurrent edit, and workers pick the change up on their next heartbeat.
 
 The default retry policy (`MaxAttempts = 15`, backoff `"1m..1d x2 ~10%"`) keeps a failing job retrying for about 4.4 days before it lands Failed.
 
@@ -737,7 +739,7 @@ Receipt sent = (await receipt.WaitAsync()).ValueOrThrow();
 - `WaitAsync` returns the outcome, never throws it; a timeout (30 seconds by default) or a cancelled token stops the wait, never the job. It throws when no job matches, for a non-positive timeout, when its token is cancelled, and when a typed wait finds a success that stored no result.
 - A successful wait's result is the one the execution it saw succeed stored.
 - `IJobs.WaitAsync(jobRef)` waits on a job another process enqueued, and `IJobs.GetHandleAsync(jobRef)` rebuilds a handle for it, or answers null when no job matches.
-- `ScheduleAsync` takes a `TimeSpan`, counted on the database clock and rounded up to whole seconds, or a `DateTimeOffset`, and it accepts the same `configure` callback as `EnqueueAsync`; the time wins over one set there. It creates one job; a recurring schedule is `[JobSchedule]`.
+- `ScheduleAsync` takes a `TimeSpan`, counted on the database clock and rounded up to whole seconds, or a `DateTimeOffset`, and it accepts the same `configure` callback as `EnqueueAsync`; the time wins over one set there. It creates one job; a recurring schedule is `[Schedule]`.
 - `RunAndWaitAsync` is enqueue then wait in one call; its `JobExecutionOptions` carry the enqueue options plus the wait: `new JobExecutionOptions { DeduplicationKey = "invoice-8", WaitTimeout = TimeSpan.FromMinutes(1) }`.
 - The raw `EnqueueJobRequest`, batch, transactional, and child enqueues answer the plain `EnqueueJobResponse`.
 
@@ -835,7 +837,7 @@ slot, or inserts the occurrence's root, when a cursor is due, and the claim runs
 
 ### Normal recurring cursor
 
-Each `[JobSchedule]` has its own cursor (`next_occurrence_at_utc`), the next undecided occurrence; every
+Each `[Schedule]` has its own cursor (`next_occurrence_at_utc`), the next undecided occurrence; every
 earlier one was admitted, skipped, or coalesced, and the ledger's `schedule.admitted` and `schedule.skipped`
 events carry each decision's range. The admission engine evaluates a schedule when it is due, admits one
 firing per slot per pass, and moves the cursor at admission, not at completion. A firing is outstanding until its attempt settles: a schedule that comes due meanwhile
@@ -859,7 +861,7 @@ once registered: a changed mode fails the worker's start, so a new mode takes a 
   key of the schedule and the nominal instant, so an occurrence is never admitted twice. Three schedules
   due at one instant make three roots.
 
-`[JobSchedule(MaxOutstanding = 1, FullBehavior = ScheduleFullBehaviorCode.Wait)]` bounds a per-occurrence
+`[Schedule(MaxOutstanding = 1, FullBehavior = ScheduleFullBehaviorCode.Wait)]` bounds a per-occurrence
 schedule's unsettled roots: queued, executing, retrying, paused, and suspended roots all count, children
 and ordinary enqueues do not, and a manual trigger counts like an occurrence. Every terminalization
 releases the charge once (a completion, a cancel, a reclaim that spends the budget, a retire), a restart of
@@ -907,7 +909,7 @@ Under `CatchUpAll` the schedule is due again the moment a firing is admitted: a 
 
 The admission engine applies the strategy whenever it evaluates a stored occurrence that is already past: after downtime, when a paused schedule resumes, and when a timed pause ends. An occurrence less than `misfire_grace_seconds` (60) overdue still counts as due. A worker start never decides an occurrence: it registers the declaration and leaves the decision to the running fleet, so a redeploy with an unchanged schedule changes nothing. A changed expression, time zone, or interval anchor retimes the schedule at the start: the old timing's undecided occurrences are discarded (`schedule.retimed`) and the cursor seeds from the new timing's first occurrence after now. A timed pause decides as of its end: an occurrence inside the window is skipped under `Skip`, runs once under `CatchUpOnce`, runs as the latest under `CatchUpLatest`, and runs in order under `CatchUpAll`.
 
-`[JobSchedule(ExpireAfter = "1h", ExpireAction = ScheduleExpireActionCode.Discard)]` bounds how old an occurrence may be when it is evaluated. Occurrences older than the age are decided first and without work, audited as `schedule.skipped` with the reason `expired`, and the strategy then decides the rest. `Discard` moves on. `Pause` also pauses the schedule, with the pause message `Paused by the expiration policy: an occurrence expired unadmitted.` and a `schedule.paused` event with the reason `expired`, so an operator learns that the schedule fell behind. The first evaluation after an operator's resume (`evaluation_status` is `resumed` until then) and the end of a timed pause expire the stale part of the backlog without pausing again, so a resumed schedule moves on. Expiration is judged when the schedule has capacity: an occurrence that waited behind a busy slot or a full schedule can expire by the time it is evaluated. Without an expiry, `CatchUpAll` runs the whole backlog.
+`[Schedule(ExpireAfter = "1h", ExpireAction = ScheduleExpireActionCode.Discard)]` bounds how old an occurrence may be when it is evaluated. Occurrences older than the age are decided first and without work, audited as `schedule.skipped` with the reason `expired`, and the strategy then decides the rest. `Discard` moves on. `Pause` also pauses the schedule, with the pause message `Paused by the expiration policy: an occurrence expired unadmitted.` and a `schedule.paused` event with the reason `expired`, so an operator learns that the schedule fell behind. The first evaluation after an operator's resume (`evaluation_status` is `resumed` until then) and the end of a timed pause expire the stale part of the backlog without pausing again, so a resumed schedule moves on. Expiration is judged when the schedule has capacity: an occurrence that waited behind a busy slot or a full schedule can expire by the time it is evaluated. Without an expiry, `CatchUpAll` runs the whole backlog.
 
 What the admitter does, by what it finds:
 
@@ -919,6 +921,64 @@ What the admitter does, by what it finds:
 | A timed pause ended | The window's occurrences are skipped; one at its end fires | One firing for the window | The latest fires | In order |
 | A busy slot or a full schedule | Parks as `waiting-for-capacity`; decides as above when the settlement wakes it | same | same | Parks between firings |
 | Occurrences older than `ExpireAfter` | Expired first, with the reason; `Pause` then pauses the schedule | same | same | same |
+
+### Calendars
+
+A schedule's occurrences come from a cron, an interval, or a calendar: something that answers "the first occurrence after this instant". A settlement calendar, a payroll calendar, or a list of release dates is such a calendar. An availability calendar is the other role: it says when a schedule may fire at all (office hours, the complement of a maintenance blackout), and it filters any source. A schedule binds either by name alone.
+
+```csharp
+[Calendar("settlement-days")]
+public sealed class SettlementDays : IActaCalendar
+{
+    // UTC in, UTC out, strictly after, whole milliseconds; null when no occurrence remains.
+    public DateTime? GetNextOccurrence(CalendarContext context) =>
+        NextBusinessDayAt(context.AfterUtc, context.TimeZone, hour: 16);
+}
+
+[Calendar("office-hours")]
+public sealed class OfficeHours(IOptions<OfficeOptions> options) : IActaAvailabilityCalendar
+{
+    // The window containing the instant or the earliest later one; null when no open time remains.
+    public CalendarWindow? GetWindowAtOrAfter(AvailabilityContext context) =>
+        WeekdayWindow(context.AtOrAfterUtc, context.TimeZone, options.Value.From, options.Value.To);
+}
+
+[Job("settle")]
+[Schedule("business-day", Calendar = "settlement-days", TimeZoneId = "Europe/Ljubljana")]
+public Task Settle(JobContext ctx, CancellationToken ct) => ...;
+
+[Job("sync-crm")]
+[Schedule("quarter-hourly", "*/15 * * * *", Availability = "office-hours", TimeZoneId = "Europe/Ljubljana")]
+public Task Sync(JobContext ctx, CancellationToken ct) => ...;
+```
+
+- A code calendar is a class marked `[Calendar(name)]` implementing `IActaCalendar`, `IActaAvailabilityCalendar`, or both; the generator carries it in the manifest and the worker creates it through DI at start, so it may take constructor dependencies. A calendar built from data at startup is registered instead with `AddCalendar(name, implementation)` or `AddAvailabilityCalendar` on `UseActa`. One name is one calendar in a process.
+- A name resolves at registration, in order: a calendar declared in the process, then the namespace's calendar catalog, then the shared catalog in `sys` ([catalog calendars](#catalog-calendars)). What it resolved to is stored on the schedule row and is part of the timing fingerprint, so a binding that moves between scopes retimes the schedule like a changed expression. A name nothing resolves fails the worker start with the schedule's name.
+- Code calendars have no versions. A changed calendar takes effect at the next evaluation: an occurrence the calendar no longer produces is skipped with the reason `source-changed` and the cursor moves to the first it does, which the misfire policy then decides. Dates added before the cursor are not backfilled. Two variants that must coexist are two names.
+- The engine passes the schedule's zone in the context; a calendar never reads an ambient zone or clock, does no I/O, and answers from its own configuration. An availability window is `[StartUtc, EndUtc)`, UTC, the end after the start or null for open-ended; windows are ordered, disjoint, and merged when adjacent, and a firing exactly at an opening counts.
+- An occurrence outside every window is omitted, never shifted: an interval tick in a closed window is dropped and the next tick inside an open one fires on the grid; a cron tick or a calendar instant likewise. An availability calendar opens no time the source does not produce.
+- Exhaustion is null: a calendar with no instant left, or an availability calendar with no open time left, leaves the schedule `exhausted`. Everything else is an error, never exhaustion: a calendar the host lacks, an exception, an instant that is not UTC, does not advance, or is finer than a millisecond, a window that ends before the instant it was asked for. The schedule then reads `evaluation-error`, the worker logs the reason once, and the admitter retries after a minute.
+- Every host that evaluates or previews a schedule resolves a code calendar in its own process: put the calendar classes in a manifest the workers and the API host run or reference. A catalog calendar is read from the database by any host.
+
+### Catalog calendars
+
+The catalog keeps calendars as data an operator edits and publishes: `IActaOperations.Calendars`, the dashboard's calendar pages, and `calendars_view`. A family is a name in a namespace, or in `sys`, the shared scope every namespace binds; a name belongs to one scope. Each save is a new immutable version; the one Published version is what a schedule binds, pinned on the schedule row until the next publication moves it.
+
+```csharp
+var holidays = new CalendarLookup("sys", "office-hours");
+var draft = await calendars.SaveDraftAsync(holidays, CalendarRoleCode.Availability, """
+    {"kind":"weekly-availability","timeZone":"schedule",
+     "weekly":[{"days":["Monday","Tuesday","Wednesday","Thursday","Friday"],"windows":[["09:00","12:00"],["13:00","17:00"]]}],
+     "dateOverrides":{"2027-12-24":[["09:00","12:00"]],"2027-12-25":[]},
+     "excludedRanges":[{"from":"2027-08-01","to":"2027-08-14"}]}
+    """, expectedLatestVersion: 2, reasonMessage: "Summer closure");
+var preview = await calendars.PreviewAsync(holidays, draft.Version!.Value, timeZoneId: "Europe/Ljubljana");
+var published = await calendars.PublishAsync(holidays, expectedCurrentVersion: 2, candidateVersion: draft.Version.Value);
+```
+
+- Definitions are JSON with a `kind`. Availability: `weekly-availability` (weekly rules of local windows, an overnight window ending on the next date, `dateOverrides` replacing one date's windows or closing it with `[]`, `excludedRanges` of dates or instants subtracted last), and `union`, `intersection`, `subtraction` of inline definitions. Occurrence: `explicit-instants`, `daily-local-time` (times on weekdays minus dates), `business-day` (the first or last nth business day of each week, month, quarter, or year over its own business days and holidays, at a local time), `at-opening` (each window start of an inline availability definition), and `union`. `timeZone` is `"schedule"` (the schedule's zone) or a fixed zone id. A local time in a DST gap resolves to the instant time resumes; an ambiguous one to its earlier instant. Every problem is reported with its JSON path.
+- `SaveDraftAsync` takes the latest version the caller saw (`VersionConflict` otherwise) and creates a namespace no worker has run in yet. `PreviewAsync` forecasts a version beside the current one and lists the bound schedules with an overdue flag. `PublishAsync` makes a draft current and retimes every bound schedule in one transaction: each pins the new version, its cursor seeds from the first occurrence after now, and `schedule.retimed` is recorded; paused and orphaned schedules keep their state. A schedule holding an undecided overdue occurrence refuses the publication (`OverdueDecisionCode.Refuse`, the default) until it is drained, or is audited as `schedule.skipped` with the reason `retimed` under `OverdueDecisionCode.Discard`. A publication retimes at most 200 schedules. `ArchiveAsync` retires a family nothing live binds.
+- Publishing a shared calendar locks every namespace it retimes, in id order, so a registration or another publication in those namespaces waits rather than racing.
 
 ### Backfill
 

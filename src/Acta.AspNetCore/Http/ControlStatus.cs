@@ -88,4 +88,18 @@ internal static class ControlStatus
                 },
             [StatusCodes.Status200OK, StatusCodes.Status409Conflict, StatusCodes.Status404NotFound]
         );
+
+    /// <summary>The calendar verbs: Applied 200, Rejected and VersionConflict 409 (the family's state or a stale version), NotFound 404.</summary>
+    public static ControlStatus<T> Calendar<T>()
+        where T : ICalendarControlResponse =>
+        new(
+            static response =>
+                response.Action switch
+                {
+                    ControlAction.Applied => StatusCodes.Status200OK,
+                    ControlAction.Rejected or ControlAction.VersionConflict => StatusCodes.Status409Conflict,
+                    _ => StatusCodes.Status404NotFound,
+                },
+            [StatusCodes.Status200OK, StatusCodes.Status409Conflict, StatusCodes.Status404NotFound]
+        );
 }

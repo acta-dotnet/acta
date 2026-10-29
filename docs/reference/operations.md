@@ -21,6 +21,21 @@ One row per operation folder, `src/Acta/Operations/<Group>/<Operation>/`, and on
 | `ResolveAlerts` | · | · | · | inline | inline | inline | `alerts` | `ResolveAlertsSpec` |
 | `UpdateAlertDelivery` | · | · | · | inline | inline | inline | `alerts` | `UpdateAlertDeliverySpec` |
 
+## Calendars
+
+| Operation | Facade | HTTP | CLI | pg | mssql | sqlite | Writes | Specs |
+| --- | --- | --- | --- | --- | --- | --- | --- | --- |
+| `ArchiveCalendar` | `ICalendars.ArchiveAsync` | `POST /calendars/{jobNamespace}/{calendarName}/archive` | · | inline | inline | inline | `calendars`, `events` | `ArchiveCalendarSpec` |
+| `GetCalendar` | `ICalendars.GetAsync` | `GET /calendars/{jobNamespace}/{calendarName}` | · | · | · | · | · | `GetCalendarPublicationSpec`, `GetCalendarSchedulesSpec`, `GetCalendarSpec` |
+| `GetCalendarPublication` | · | · | · | inline | inline | inline | · | `GetCalendarPublicationSpec` |
+| `GetCalendarSchedules` | · | · | · | inline | inline | inline | · | `GetCalendarSchedulesSpec` |
+| `GetCurrentCalendars` | · | · | · | inline | inline | inline | · | `GetCurrentCalendarsSpec` |
+| `ListCalendars` | `ICalendars.ListAsync` | `GET /calendars` | · | inline | inline | inline | · | `ListCalendarsSpec` |
+| `PreviewCalendar` | `ICalendars.PreviewAsync` | `GET /calendars/{jobNamespace}/{calendarName}/preview` | · | · | · | · | · | `PreviewCalendarSpec` |
+| `PublishCalendar` | `ICalendars.PublishAsync` | `POST /calendars/{jobNamespace}/{calendarName}/publish` | · | inline | inline | inline | `calendars`, `events`, `schedules`, `schedules_state` | `PublishCalendarSpec` |
+| `ResolveCalendarVersion` | · | · | · | inline | inline | inline | · | `ResolveCalendarVersionSpec` |
+| `SaveCalendarDraft` | `ICalendars.SaveDraftAsync` | `POST /calendars/{jobNamespace}/{calendarName}/drafts` | · | inline | inline | inline | `calendars`, `events`, `namespaces` | `SaveCalendarDraftSpec` |
+
 ## Capabilities
 
 | Operation | Facade | HTTP | CLI | pg | mssql | sqlite | Writes | Specs |

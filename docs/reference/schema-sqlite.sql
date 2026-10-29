@@ -53,11 +53,11 @@ CREATE TEMP TABLE release_guard (
 INSERT INTO release_guard
 SELECT EXISTS (
     SELECT 1 FROM main.migrations
-    WHERE name NOT IN ('M20261029171733_init')
+    WHERE name NOT IN ('M20261029203554_init')
 );
 DROP TABLE release_guard;
 
--- ===== BEGIN M20261029171733_init =====
+-- ===== BEGIN M20261029203554_init =====
 CREATE TABLE IF NOT EXISTS main.alerts (
     alert_id integer PRIMARY KEY AUTOINCREMENT,
     alert_ref text NOT NULL,
@@ -322,6 +322,27 @@ CREATE UNIQUE INDEX IF NOT EXISTS main.ux_namespaces_name ON namespaces (namespa
 INSERT OR IGNORE INTO main.namespaces (namespace_id, namespace_name, namespace_status_code, description, created_at_utc, modified_at_utc)
 VALUES (1, 'sys', 10, 'Reserved system namespace for cross-namespace audit events.', CAST(unixepoch('now', 'subsec') * 1000 AS INTEGER), CAST(unixepoch('now', 'subsec') * 1000 AS INTEGER));
 
+-- calendars
+CREATE TABLE IF NOT EXISTS main.calendars (
+    calendar_id integer PRIMARY KEY AUTOINCREMENT,
+    namespace_id integer NOT NULL,
+    calendar_name text NOT NULL,
+    version integer NOT NULL,
+    calendar_role_code integer NOT NULL,
+    definition_format_id integer DEFAULT 0 NOT NULL,
+    definition blob NOT NULL,
+    content_hash text NOT NULL,
+    calendar_status_code integer NOT NULL,
+    created_at_utc integer DEFAULT (CAST(unixepoch('now', 'subsec') * 1000 AS INTEGER)) NOT NULL,
+    published_at_utc integer NULL,
+    modified_at_utc integer DEFAULT (CAST(unixepoch('now', 'subsec') * 1000 AS INTEGER)) NOT NULL
+    , CONSTRAINT ck_calendars_version CHECK (version > 0)
+    , CONSTRAINT ck_calendars_definition_format_id_byte CHECK (definition_format_id BETWEEN 0 AND 255)
+    , CONSTRAINT fk_calendars_namespaces FOREIGN KEY (namespace_id) REFERENCES namespaces (namespace_id)
+) STRICT;
+CREATE UNIQUE INDEX IF NOT EXISTS main.ux_calendars_namespace_name_version ON calendars (namespace_id, calendar_name, version);
+CREATE UNIQUE INDEX IF NOT EXISTS main.ux_calendars_current ON calendars (namespace_id, calendar_name) WHERE calendar_status_code = 20;
+
 -- schedules
 CREATE TABLE IF NOT EXISTS main.schedules (
     schedule_id integer PRIMARY KEY AUTOINCREMENT,
@@ -341,6 +362,11 @@ CREATE TABLE IF NOT EXISTS main.schedules (
     full_behavior_code integer NOT NULL,
     expire_after_seconds integer NULL,
     expire_action_code integer NULL,
+    calendar_origin_code integer NULL,
+    calendar_version integer NULL,
+    availability_calendar_name text NULL,
+    availability_calendar_origin_code integer NULL,
+    availability_calendar_version integer NULL,
     schedule_status_code integer NOT NULL,
     paused_until_utc integer NULL,
     description text NULL,
@@ -353,6 +379,9 @@ CREATE TABLE IF NOT EXISTS main.schedules (
     , CONSTRAINT ck_schedules_max_outstanding CHECK (max_outstanding >= 1)
     , CONSTRAINT ck_schedules_expire_pair CHECK ((expire_after_seconds IS NULL AND expire_action_code IS NULL) OR (expire_after_seconds IS NOT NULL AND expire_action_code IS NOT NULL))
     , CONSTRAINT ck_schedules_expire_after CHECK (expire_after_seconds IS NULL OR expire_after_seconds > 0)
+    , CONSTRAINT ck_schedules_calendar_binding CHECK ((expression_kind_code = 30 AND calendar_origin_code IS NOT NULL AND calendar_version IS NOT NULL) OR (expression_kind_code <> 30 AND calendar_origin_code IS NULL AND calendar_version IS NULL))
+    , CONSTRAINT ck_schedules_availability_triple CHECK ((availability_calendar_name IS NULL AND availability_calendar_origin_code IS NULL AND availability_calendar_version IS NULL) OR (availability_calendar_name IS NOT NULL AND availability_calendar_origin_code IS NOT NULL AND availability_calendar_version IS NOT NULL))
+    , CONSTRAINT ck_schedules_calendar_version CHECK ((calendar_version IS NULL OR calendar_version > 0) AND (availability_calendar_version IS NULL OR availability_calendar_version > 0))
     , CONSTRAINT fk_schedules_definitions FOREIGN KEY (definition_id) REFERENCES definitions (definition_id)
 ) STRICT;
 CREATE INDEX IF NOT EXISTS main.ix_schedules_job ON schedules (job_id, schedule_id) WHERE job_id IS NOT NULL;
@@ -481,6 +510,24 @@ JOIN main.namespaces AS ns ON ns.namespace_id = a.namespace_id
 LEFT JOIN main.jobs AS j ON j.job_id = a.job_id
 LEFT JOIN main.definitions AS d ON d.definition_id = j.definition_id;
 
+DROP VIEW IF EXISTS main.calendars_view;
+CREATE VIEW main.calendars_view AS
+SELECT
+    c.calendar_id,
+    ns.namespace_name AS namespace,
+    c.calendar_name,
+    c.version,
+    CASE c.calendar_role_code WHEN 0 THEN 'unspecified' WHEN 10 THEN 'occurrence' WHEN 20 THEN 'availability' END AS role,
+    c.calendar_role_code,
+    CASE c.calendar_status_code WHEN 0 THEN 'unspecified' WHEN 10 THEN 'draft' WHEN 20 THEN 'published' WHEN 30 THEN 'superseded' WHEN 240 THEN 'archived' END AS status,
+    c.calendar_status_code,
+    c.content_hash,
+    c.created_at_utc,
+    c.published_at_utc,
+    c.modified_at_utc
+FROM main.calendars AS c
+JOIN main.namespaces AS ns ON ns.namespace_id = c.namespace_id;
+
 DROP VIEW IF EXISTS main.checkpoints_view;
 CREATE VIEW main.checkpoints_view AS
 SELECT
@@ -584,10 +631,10 @@ SELECT
     e.created_at_utc,
     ns.namespace_name AS namespace,
     e.namespace_id,
-    CASE e.entity_code WHEN 0 THEN 'unspecified' WHEN 10 THEN 'alert' WHEN 20 THEN 'checkpoint' WHEN 30 THEN 'definition' WHEN 40 THEN 'event' WHEN 50 THEN 'job' WHEN 60 THEN 'lane' WHEN 70 THEN 'lock' WHEN 80 THEN 'namespace' WHEN 90 THEN 'schedule' WHEN 100 THEN 'step' WHEN 110 THEN 'tag' WHEN 120 THEN 'tenant' WHEN 130 THEN 'worker' END AS entity_kind,
+    CASE e.entity_code WHEN 0 THEN 'unspecified' WHEN 10 THEN 'alert' WHEN 15 THEN 'calendar' WHEN 20 THEN 'checkpoint' WHEN 30 THEN 'definition' WHEN 40 THEN 'event' WHEN 50 THEN 'job' WHEN 60 THEN 'lane' WHEN 70 THEN 'lock' WHEN 80 THEN 'namespace' WHEN 90 THEN 'schedule' WHEN 100 THEN 'step' WHEN 110 THEN 'tag' WHEN 120 THEN 'tenant' WHEN 130 THEN 'worker' END AS entity_kind,
     e.entity_code,
     e.entity_id,
-    CASE e.event_code WHEN 0 THEN 'unspecified' WHEN 10 THEN 'tenant.suspended' WHEN 11 THEN 'tenant.resumed' WHEN 12 THEN 'tenant.updated' WHEN 20 THEN 'namespace.suspended' WHEN 21 THEN 'namespace.resumed' WHEN 22 THEN 'namespace.updated' WHEN 30 THEN 'definition.overrides-updated' WHEN 31 THEN 'definition.retired' WHEN 40 THEN 'job.execution-succeeded' WHEN 41 THEN 'job.execution-failed' WHEN 42 THEN 'job.execution-orphaned' WHEN 43 THEN 'job.execution-yielded' WHEN 44 THEN 'job.failed' WHEN 60 THEN 'job.suspended' WHEN 61 THEN 'job.rescheduled' WHEN 70 THEN 'job.cancelled' WHEN 71 THEN 'job.paused' WHEN 72 THEN 'job.resumed' WHEN 73 THEN 'job.restarted' WHEN 74 THEN 'job.reprioritized' WHEN 75 THEN 'job.purged' WHEN 76 THEN 'job.input-amended' WHEN 80 THEN 'job.signal-raised' WHEN 81 THEN 'job.state-reset' WHEN 90 THEN 'job.note-recorded' WHEN 100 THEN 'schedule.paused' WHEN 101 THEN 'schedule.resumed' WHEN 102 THEN 'schedule.pause-expired' WHEN 104 THEN 'schedule.triggered' WHEN 105 THEN 'schedule.admitted' WHEN 106 THEN 'schedule.skipped' WHEN 107 THEN 'schedule.retimed' WHEN 120 THEN 'worker.started' WHEN 121 THEN 'worker.stopped' WHEN 122 THEN 'worker.died' WHEN 140 THEN 'alert.acknowledged' WHEN 141 THEN 'alert.resolved' WHEN 180 THEN 'outbox.requeued' WHEN 181 THEN 'outbox.discarded' END AS event,
+    CASE e.event_code WHEN 0 THEN 'unspecified' WHEN 10 THEN 'tenant.suspended' WHEN 11 THEN 'tenant.resumed' WHEN 12 THEN 'tenant.updated' WHEN 20 THEN 'namespace.suspended' WHEN 21 THEN 'namespace.resumed' WHEN 22 THEN 'namespace.updated' WHEN 30 THEN 'definition.overrides-updated' WHEN 31 THEN 'definition.retired' WHEN 40 THEN 'job.execution-succeeded' WHEN 41 THEN 'job.execution-failed' WHEN 42 THEN 'job.execution-orphaned' WHEN 43 THEN 'job.execution-yielded' WHEN 44 THEN 'job.failed' WHEN 60 THEN 'job.suspended' WHEN 61 THEN 'job.rescheduled' WHEN 70 THEN 'job.cancelled' WHEN 71 THEN 'job.paused' WHEN 72 THEN 'job.resumed' WHEN 73 THEN 'job.restarted' WHEN 74 THEN 'job.reprioritized' WHEN 75 THEN 'job.purged' WHEN 76 THEN 'job.input-amended' WHEN 80 THEN 'job.signal-raised' WHEN 81 THEN 'job.state-reset' WHEN 90 THEN 'job.note-recorded' WHEN 100 THEN 'schedule.paused' WHEN 101 THEN 'schedule.resumed' WHEN 102 THEN 'schedule.pause-expired' WHEN 104 THEN 'schedule.triggered' WHEN 105 THEN 'schedule.admitted' WHEN 106 THEN 'schedule.skipped' WHEN 107 THEN 'schedule.retimed' WHEN 110 THEN 'calendar.draft-saved' WHEN 111 THEN 'calendar.published' WHEN 112 THEN 'calendar.archived' WHEN 120 THEN 'worker.started' WHEN 121 THEN 'worker.stopped' WHEN 122 THEN 'worker.died' WHEN 140 THEN 'alert.acknowledged' WHEN 141 THEN 'alert.resolved' WHEN 180 THEN 'outbox.requeued' WHEN 181 THEN 'outbox.discarded' END AS event,
     e.event_code,
     e.definition_id,
     d.definition_name AS job_name,
@@ -684,7 +731,7 @@ SELECT
     s.schedule_status_code,
     s.expression,
     s.time_zone_id,
-    CASE s.expression_kind_code WHEN 0 THEN 'unspecified' WHEN 10 THEN 'cron' WHEN 20 THEN 'interval' END AS expression_kind,
+    CASE s.expression_kind_code WHEN 0 THEN 'unspecified' WHEN 10 THEN 'cron' WHEN 20 THEN 'interval' WHEN 30 THEN 'calendar' END AS expression_kind,
     s.expression_kind_code,
     CASE s.misfire_strategy_code WHEN 0 THEN 'unspecified' WHEN 10 THEN 'catch-up-once' WHEN 20 THEN 'skip' WHEN 30 THEN 'catch-up-latest' WHEN 40 THEN 'catch-up-all' END AS misfire_strategy,
     s.misfire_strategy_code,
@@ -700,6 +747,13 @@ SELECT
     s.expire_after_seconds,
     CASE s.expire_action_code WHEN 0 THEN 'unspecified' WHEN 10 THEN 'discard' WHEN 20 THEN 'pause' END AS expire_action,
     s.expire_action_code,
+    CASE s.calendar_origin_code WHEN 0 THEN 'unspecified' WHEN 10 THEN 'registered' WHEN 20 THEN 'catalog' END AS calendar_origin,
+    s.calendar_origin_code,
+    s.calendar_version,
+    s.availability_calendar_name,
+    CASE s.availability_calendar_origin_code WHEN 0 THEN 'unspecified' WHEN 10 THEN 'registered' WHEN 20 THEN 'catalog' END AS availability_calendar_origin,
+    s.availability_calendar_origin_code,
+    s.availability_calendar_version,
     st.outstanding_count,
     s.paused_until_utc,
     s.description,
@@ -746,7 +800,7 @@ JOIN main.definitions AS d ON d.definition_id = j.definition_id;
 DROP VIEW IF EXISTS main.tags_view;
 CREATE VIEW main.tags_view AS
 SELECT
-    CASE t.entity_code WHEN 0 THEN 'unspecified' WHEN 10 THEN 'alert' WHEN 20 THEN 'checkpoint' WHEN 30 THEN 'definition' WHEN 40 THEN 'event' WHEN 50 THEN 'job' WHEN 60 THEN 'lane' WHEN 70 THEN 'lock' WHEN 80 THEN 'namespace' WHEN 90 THEN 'schedule' WHEN 100 THEN 'step' WHEN 110 THEN 'tag' WHEN 120 THEN 'tenant' WHEN 130 THEN 'worker' END AS entity_kind,
+    CASE t.entity_code WHEN 0 THEN 'unspecified' WHEN 10 THEN 'alert' WHEN 15 THEN 'calendar' WHEN 20 THEN 'checkpoint' WHEN 30 THEN 'definition' WHEN 40 THEN 'event' WHEN 50 THEN 'job' WHEN 60 THEN 'lane' WHEN 70 THEN 'lock' WHEN 80 THEN 'namespace' WHEN 90 THEN 'schedule' WHEN 100 THEN 'step' WHEN 110 THEN 'tag' WHEN 120 THEN 'tenant' WHEN 130 THEN 'worker' END AS entity_kind,
     t.entity_code,
     t.entity_id,
     t.tag_name,
@@ -777,10 +831,10 @@ JOIN main.namespaces AS ns ON ns.namespace_id = w.namespace_id;
 
 
 INSERT INTO main.migrations (name)
-VALUES ('M20261029171733_init')
+VALUES ('M20261029203554_init')
 ON CONFLICT (name) DO NOTHING;
 
--- ===== END M20261029171733_init =====
+-- ===== END M20261029203554_init =====
 
 COMMIT;
 

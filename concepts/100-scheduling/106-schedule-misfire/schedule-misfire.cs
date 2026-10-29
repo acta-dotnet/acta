@@ -34,8 +34,8 @@ while (
     await Task.Delay(50, registrationTimeout.Token);
 }
 
-var skipLookup = new ScheduleLookup(JobLookup.ByDeduplicationKey("schedule-misfire", "skip-report"), "every-2s-skip");
-var catchUpLookup = new ScheduleLookup(JobLookup.ByDeduplicationKey("schedule-misfire", "catch-up-report"), "every-2s-catchup");
+var skipLookup = new ScheduleLookup("schedule-misfire", "skip-report", "every-2s-skip");
+var catchUpLookup = new ScheduleLookup("schedule-misfire", "catch-up-report", "every-2s-catchup");
 
 // Pause both schedules indefinitely so no occurrences fire while we wait.
 Console.WriteLine("Pausing both schedules indefinitely...");
@@ -120,7 +120,7 @@ namespace Acta.Concepts.ScheduleMisfire
     public sealed class SkipReportJob
     {
         [Job("skip-report", EventRecording = EventRecordingCode.Off)]
-        [JobSchedule("every-2s-skip", "PT2S", MisfireStrategy = MisfireStrategyCode.Skip)]
+        [Schedule("every-2s-skip", "PT2S", MisfireStrategy = MisfireStrategyCode.Skip)]
         public async Task Handle(SkipReportInput input, CancellationToken ct)
         {
             await Task.Delay(100, ct);
@@ -147,7 +147,7 @@ namespace Acta.Concepts.ScheduleMisfire
         public static Task WaitForExecutionAsync(CancellationToken ct) => _completed.Task.WaitAsync(ct);
 
         [Job("catch-up-report", EventRecording = EventRecordingCode.Off)]
-        [JobSchedule("every-2s-catchup", "PT2S", MisfireStrategy = MisfireStrategyCode.CatchUpOnce)]
+        [Schedule("every-2s-catchup", "PT2S", MisfireStrategy = MisfireStrategyCode.CatchUpOnce)]
         public async Task Handle(CatchUpReportInput input, CancellationToken ct)
         {
             var controlledRecoveryExecution = false;

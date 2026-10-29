@@ -81,8 +81,13 @@ public static class ShippingHandlers
 - Enqueue is type-driven: the input record's type routes the call, one `EnqueueAsync` for every
   job. It answers a `JobHandle`: `await job.WaitAsync()` follows the job to its outcome without stopping it.
   `ScheduleAsync(input, TimeSpan)` or `ScheduleAsync(input, DateTimeOffset)` runs one job later; a recurring
-  schedule is `[JobSchedule]`. The host that enqueues can also execute; there is no separate worker process
+  schedule is `[Schedule]`. The host that enqueues can also execute; there is no separate worker process
   unless you want one.
+- A schedule's instants come from a cron, an interval, or a calendar bound by name (`Calendar = "pay-days"`),
+  and any schedule fires only inside an availability calendar's windows when it names one
+  (`Availability = "office-hours"`). A name is a `[Calendar("office-hours")]` class in the process implementing
+  `IActaCalendar` or `IActaAvailabilityCalendar`, or a family an operator publishes as JSON through
+  `IActaOperations.Calendars` or the dashboard's Calendars page, in the namespace or shared in `sys`.
 - Each job's member on `ShippingJobs` is a factory taking the handler's input parameters and returning the
   job's call: `jobs.EnqueueAsync(ShippingJobs.ShipOrder(new ShipOrder(orderId)), o => o.DeduplicationKey(key))`
   names the job outright, and a result job's call answers `JobHandle<TResult>`. A handler may take several input parameters before `JobContext` and

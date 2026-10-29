@@ -90,7 +90,14 @@ public sealed class PauseScheduleSpec : ActaStorageTestBase<ConformanceFixture>
                 []
             ),
         };
-        await RegisterAsync(db, dialect, defId, jobName, ScheduleRegistrationPlan.Plan(declared, storedForDef, now), ct);
+        await RegisterAsync(
+            db,
+            dialect,
+            defId,
+            jobName,
+            ScheduleRegistrationPlan.Plan(declared, storedForDef, now, CalendarRegistry.Empty.Source, ScheduleRegistrationPlan.NoCalendars),
+            ct
+        );
     }
 
     private Task<long> SlotIdAsync(string jobName, CancellationToken ct) => ScheduleTestOps.SlotIdAsync(Db, TestNamespace, jobName, ct);

@@ -17,6 +17,8 @@ WITH due AS (
 )
 SELECT
     s.schedule_id,
+    s.namespace_id,
+    n.namespace_name,
     s.job_id,
     s.definition_id,
     s.schedule_name,
@@ -29,12 +31,18 @@ SELECT
     s.misfire_grace_seconds,
     s.interval_anchor_at_utc,
     s.timing_fingerprint,
+    s.calendar_origin_code AS calendar_origin,
+    s.calendar_version,
+    s.availability_calendar_name,
+    s.availability_calendar_origin_code AS availability_origin,
+    s.availability_calendar_version AS availability_version,
     s.max_outstanding,
     s.full_behavior_code AS full_behavior,
     s.expire_after_seconds,
     s.expire_action_code AS expire_action,
     s.schedule_status_code AS status,
     s.paused_until_utc,
+    s.version AS schedule_version,
     st.next_occurrence_at_utc,
     st.next_evaluation_at_utc,
     st.evaluation_status_code AS evaluation_status,
@@ -46,6 +54,7 @@ SELECT
 FROM {{schema}}.schedules s
 INNER JOIN {{schema}}.schedules_state st ON st.schedule_id = s.schedule_id
 INNER JOIN {{schema}}.definitions d ON d.definition_id = s.definition_id
+INNER JOIN {{schema}}.namespaces n ON n.namespace_id = s.namespace_id
 LEFT JOIN {{schema}}.jobs_state r ON r.job_id = s.job_id
 LEFT JOIN {{schema}}.checkpoints cp
     ON cp.job_id = s.job_id AND cp.checkpoint_kind_code = 60 /* CheckpointKindCode.Firing */ AND cp.checkpoint_name = 'sys.firing'

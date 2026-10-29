@@ -1802,6 +1802,75 @@
 
 ## Scheduling
 
+### A calendar family's current version archives when nothing live depends on it
+- **Contract:** Archive retires the expected current version and records calendar.archived, and is Rejected while a live schedule binds the family.
+- **Guarantees:**
+  - Archiving a family with no current version, or an unknown family, is NotFound
+  - Archiving the current version applies, leaves the family without one, and records calendar.archived
+  - A stale expected version, or a live catalog-bound schedule, rejects the archive until the schedule is orphaned
+
+### A family's bound schedules read back, across namespaces when shared
+- **Contract:** The schedules bound to a family through the catalog read back with timing and cursor, the namespace's own for a local family and every namespace's when shared.
+- **Guarantees:**
+  - A shared family's schedules read back from every namespace; a local family's from its own
+
+### A namespace's current calendars are its families' Published versions
+- **Contract:** The current calendars are each family's Published version by name with its role, and a family of drafts or an archived one has none.
+- **Guarantees:**
+  - Only a family's Published version is current; drafts and an archived version are not
+
+### A calendar family reads with its versions, a definition, and its dependents
+- **Contract:** Get answers every version newest first, the requested, current, or latest definition, and every catalog-bound schedule, or null.
+- **Guarantees:**
+  - Get lists the versions newest first and shows the latest definition while none is current
+  - Get shows the current version by default and a requested one on demand; a version or family it lacks is null
+  - Get lists every schedule bound through the catalog with its pinned version, an orphan with its status
+
+### Calendar families list by name with their current and latest versions
+- **Contract:** The list answers one item per family by name with its versions and live bound schedules, in one namespace with sys or in all, filtered and paged.
+- **Guarantees:**
+  - A family of drafts lists once, with its latest version and no current version
+  - A published family lists its current version and counts its live catalog-bound schedules
+  - The list filters by role and name fragment, counts the filter on request, and pages by name
+  - A namespace's list adds the shared families, and a list without a namespace spans every namespace
+
+### A calendar version previews beside the current one
+- **Contract:** A preview forecasts a version's next instants or windows beside the current version's over the same horizon, and a version the family lacks previews as null.
+- **Guarantees:**
+  - A draft previews its windows beside the current version's; a version the family lacks previews as null
+
+### A publication reads the current version and its candidate with their definitions
+- **Contract:** The read answers the family's Published version and the version asked for with their definitions, in a namespace or in sys, and nothing for an unknown family.
+- **Guarantees:**
+  - The current version and the asked-for draft read back with their definitions; an unknown family reads nothing
+  - A shared family reads back from sys with its namespace id
+
+### A catalog calendar sources a schedule and a publication retimes every bound one
+- **Contract:** A schedule pins the catalog's current version, and a publication moves every bound schedule to it atomically, refusing or discarding an overdue backlog.
+- **Guarantees:**
+  - A schedule pins the catalog's current version at registration and fires its instants
+  - A publication moves every bound schedule to the new version and audits the retime
+  - An overdue occurrence refuses a publication until the caller discards it as a skipped range
+  - A publication is a conflict on a stale expected version and rejected for a version that is no draft
+  - A preview shows the candidate beside the current version and the bound schedules
+  - An availability publication moves a cron schedule's next tick into the new window
+
+### A calendar draft saves as the family's next version under its expected latest
+- **Contract:** A draft saves as the next version only against the family's latest version and role, writes nothing otherwise, and records calendar.draft-saved.
+- **Guarantees:**
+  - A first draft saves as version 1, a Draft, and records calendar.draft-saved against the calendar
+  - A draft against the latest version saves the next one; a stale expected version is a conflict naming the latest
+  - A draft in the other role is Rejected naming the family's role and writes nothing
+  - A definition that does not compile is Rejected with its problems and writes nothing
+  - A shared calendar and a namespace's cannot share a name, in either order
+  - A first draft creates a namespace no worker has run in, and a role other than Occurrence or Availability throws
+
+### Any calendar version reads back with its definition, whatever its status
+- **Contract:** A version reads back with its role, status, and stored definition whatever its status, and a version the family lacks reads as null.
+- **Guarantees:**
+  - An archived version reads back with its role, status, and definition; a version the family lacks is null
+  - A version in the shared sys catalog resolves from any namespace
+
 ### The live-schedule read returns a slot's non-orphaned schedules by name
 - **Contract:** GetLiveSchedules returns one slot's non-orphaned schedules in name order, each with its effective and declared expression and time zone, cursor, and status.
 - **Guarantees:**
@@ -1862,6 +1931,12 @@
   - A pass admits a due schedule's firing: the slot is Ready with the envelope naming it and the cursor advanced
   - A pass with nothing due admits nothing and reports the earliest next evaluation as its horizon
   - An outstanding firing fills the slot: a later occurrence waits for capacity until settlement wakes it
+
+### A registered calendar sources a schedule, an availability calendar filters one
+- **Contract:** A registered calendar's instants fire in order and then exhaust, and an availability calendar omits the occurrences outside its windows without shifting them.
+- **Guarantees:**
+  - A calendar schedule fires each of the calendar's instants in order and exhausts after the last
+  - An availability calendar omits the cron ticks outside its window and never shifts them
 
 ### The due read returns whole slots in evaluation order and leaves out the dead
 - **Contract:** A due read returns every member of each slot with a schedule due by now, in slot then name order, at most Take due schedules, less the orphaned and retired.
@@ -1967,10 +2042,11 @@
   - A lost attempt that spends the budget settles the root on reclaim as a completion would
 
 ### PerOccurrence schedules register without a slot and are addressed by path
-- **Contract:** A PerOccurrence definition's schedules register with no slot and their capacity and expiry, and the verbs address them by path and audit the definition.
+- **Contract:** PerOccurrence schedules register with no slot and their capacity, expiry, and availability, and the verbs address them by path and audit the definition.
 - **Guarantees:**
   - A PerOccurrence definition's schedules register with no slot, their declared capacity, and nothing outstanding
   - A schedule's expiry and misfire strategy register, a changed expiry re-registers in place, and a plain restart writes nothing
+  - A schedule's availability calendar registers and reads back, a changed version re-registers in place, and a plain restart writes nothing
   - A slot-less schedule resolves by path, pauses and resumes with the audit on its definition, and triggers a manual root
 
 ### Schedule insert seeds a new cursor, keeps a stored one, and upserts one row
@@ -2371,6 +2447,7 @@
 | `AcquireSchemaLock` | yes | yes | yes |
 | `AcquireSlot` | yes | yes | yes |
 | `AdmitFirings` | yes | yes | yes |
+| `ArchiveCalendar` | yes | yes | yes |
 | `ArmOrConsumeSleepTimer` | yes | yes | yes |
 | `CancelJob` | yes | yes | yes |
 | `ClaimJob` | yes | yes | yes |
@@ -2391,8 +2468,13 @@
 | `GetAlert` | yes | yes | yes |
 | `GetAlertFloor` | yes | yes | yes |
 | `GetAlertableEvents` | yes | yes | yes |
+| `GetCalendarDependents` | yes | yes | yes |
+| `GetCalendarPublication` | yes | yes | yes |
+| `GetCalendarSchedules` | yes | yes | yes |
+| `GetCalendarVersions` | yes | yes | yes |
 | `GetCheckpoints` | yes | yes | yes |
 | `GetChildJobIds` | yes | yes | yes |
+| `GetCurrentCalendars` | yes | yes | yes |
 | `GetDefinition` | yes | yes | yes |
 | `GetDefinitionContracts` | yes | yes | yes |
 | `GetDeliverableAlerts` | yes | yes | yes |
@@ -2417,6 +2499,7 @@
 | `GetUtcNow` | yes | yes | yes |
 | `GetWorker` | yes | yes | yes |
 | `ListAlerts` | yes | yes | yes |
+| `ListCalendars` | yes | yes | yes |
 | `ListDefinitions` | yes | yes | yes |
 | `ListEvents` | yes | yes | yes |
 | `ListJobs` | yes | yes | yes |
@@ -2432,6 +2515,7 @@
 | `PauseJob` | yes | yes | yes |
 | `PauseSchedule` | yes | yes | yes |
 | `PlanOutboxSignal` | yes | yes | yes |
+| `PublishCalendar` | yes | yes | yes |
 | `PurgeExpiredData` | yes | yes | yes |
 | `PurgeJob` | yes | yes | yes |
 | `QuarantineOutbox` | yes | yes | yes |
@@ -2454,6 +2538,7 @@
 | `ResetJobState` | yes | yes | yes |
 | `ResolveAlert` | yes | yes | yes |
 | `ResolveAlerts` | yes | yes | yes |
+| `ResolveCalendarVersion` | yes | yes | yes |
 | `ResolveJobIdByDeduplicationKey` | yes | yes | yes |
 | `ResolveJobIdByRef` | yes | yes | yes |
 | `ResolveScheduleTarget` | yes | yes | yes |
@@ -2464,6 +2549,7 @@
 | `ResumeSchedule` | yes | yes | yes |
 | `ResumeTenant` | yes | yes | yes |
 | `RetireDefinition` | yes | yes | yes |
+| `SaveCalendarDraft` | yes | yes | yes |
 | `SetDefinitionOverrides` | yes | yes | yes |
 | `StartStep` | yes | yes | yes |
 | `StartWorker` | yes | yes | yes |

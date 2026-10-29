@@ -17,4 +17,10 @@ public enum ScheduleExpressionKindCode : byte
         "Interval duration: human (e.g. \"5m\") or ISO 8601 (e.g. \"PT5M\", \"P1D\"). Set at compile time by the source generator."
     )]
     Interval = 20,
+
+    [Code(
+        "calendar",
+        "A calendar named by the expression: its occurrences come from the bound calendar implementation. Set at compile time by the source generator."
+    )]
+    Calendar = 30,
 }

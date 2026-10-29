@@ -299,7 +299,7 @@ internal sealed class WorkerExecutor(
         // and the slot row lives forever, so the Strict paths would cancel the slot
         // terminally and the advisory surface (ctx.IsOverdue, ctx.TimeUntilDeadline) would
         // report permanently overdue to every occurrence. Worker init rejects the
-        // Deadline + [JobSchedule] combination; a null here covers slots that predate the
+        // Deadline + [Schedule] combination; a null here covers slots that predate the
         // rule or gained a deadline through an override, in the one place every consumer
         // reads from.
         DateTime? deadlineAtUtc =

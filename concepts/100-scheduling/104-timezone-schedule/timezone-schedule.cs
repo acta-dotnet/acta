@@ -28,11 +28,13 @@ namespace Acta.Concepts.TimezoneSchedule
         // TimeZoneId pins cron to wall-clock local time across DST switches (IANA or Windows ids; an
         // unresolvable id fails fast at worker startup). Intervals are absolute gaps and take no timezone.
         [Job("daily-digest")]
-        [JobSchedule("morning-ljubljana", "0 8 * * *", TimeZoneId = "Europe/Ljubljana")]
-        [JobSchedule("demo-tick", "PT15S")]
+        [Schedule("morning-ljubljana", "0 8 * * *", TimeZoneId = "Europe/Ljubljana")]
+        [Schedule("demo-tick", "PT15S")]
         public Task Handle(DailyDigest input, JobContext context, CancellationToken ct)
         {
-            Console.WriteLine($"{DateTime.Now:HH:mm:ss} fired by [{string.Join(", ", context.TriggeringScheduleNames)}]");
+            Console.WriteLine(
+                $"{DateTime.Now:HH:mm:ss} fired by [{string.Join(", ", context.TriggeringSchedules.Select(s => s.ScheduleName))}]"
+            );
             return Task.CompletedTask;
         }
     }

@@ -10,7 +10,7 @@ builder.Services.UseActa(j =>
     j.Run<RecurringJobs>("recurring-job");
 });
 
-// No enqueue: the [JobSchedule] below creates a recurring slot that fires on its cron cadence.
+// No enqueue: the [Schedule] below creates a recurring slot that fires on its cron cadence.
 await builder.Build().RunAsync();
 
 namespace Acta.Concepts.Recurring
@@ -22,13 +22,13 @@ namespace Acta.Concepts.Recurring
         // One stable recurring slot fires on the cadence, and each successful fire's count replaces the last one stored;
         // EventRecordingCode.Off skips the events per fire.
         [Job("purge-stale-sessions", EventRecording = EventRecordingCode.Off)]
-        [JobSchedule("every-15-seconds", Cron.Every15Seconds)]
+        [Schedule("every-15-seconds", Cron.Every15Seconds)]
         public async Task<int> Handle(PurgeStaleSessions input, JobContext context, CancellationToken ct)
         {
             await Task.Delay(100, ct);
             var purged = Random.Shared.Next(0, 25);
             Console.WriteLine(
-                $"{DateTime.Now:HH:mm:ss} [{string.Join(", ", context.TriggeringScheduleNames)}] purged {purged} stale sessions"
+                $"{DateTime.Now:HH:mm:ss} [{string.Join(", ", context.TriggeringSchedules.Select(s => s.ScheduleName))}] purged {purged} stale sessions"
             );
             return purged;
         }

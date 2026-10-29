@@ -5,23 +5,24 @@ using System.Linq;
 using System.Text;
 using Microsoft.CodeAnalysis;
 using Microsoft.CodeAnalysis.CSharp.Syntax;
+using static Acta.Generators.CalendarReader;
 using static Acta.Generators.JobPolicyReader;
-using static Acta.Generators.JobScheduleReader;
 using static Acta.Generators.JobSignatureReader;
 using static Acta.Generators.ManifestSourceWriter;
+using static Acta.Generators.ScheduleReader;
 
 namespace Acta.Generators;
 
 /// <summary>
 /// Emits a per-assembly <c>{Area}JobsManifest : IJobManifest</c> (area = RootNamespace's last segment) with one
-/// <c>JobDescriptor</c> per <c>[Job]</c>-annotated handler, plus the
-/// <c>GeneratedHandlerDispatch</c> delegates the runtime calls per attempt.
+/// <c>JobDescriptor</c> per <c>[Job]</c>-annotated handler and one <c>CalendarDescriptor</c> per <c>[Calendar]</c>
+/// class, plus the <c>GeneratedHandlerDispatch</c> delegates the runtime calls per attempt.
 /// </summary>
 [Generator(LanguageNames.CSharp)]
 public sealed class ActaManifestGenerator : IIncrementalGenerator
 {
     internal const string JobAttributeMetadataName = "Acta.JobAttribute";
-    internal const string JobScheduleAttributeMetadataName = "Acta.JobScheduleAttribute";
+    internal const string ScheduleAttributeMetadataName = "Acta.ScheduleAttribute";
 
     internal const string JobContextMetadataName = "Acta.JobContext";
     internal const string CancellationTokenMetadataName = "System.Threading.CancellationToken";
@@ -35,6 +36,10 @@ public sealed class ActaManifestGenerator : IIncrementalGenerator
     internal const string ValueTaskOfTMetadataName = "System.Threading.Tasks.ValueTask`1";
 
     internal const string JobPayloadFormatDeclarationAttributeMetadataName = "Acta.JobPayloadFormatDeclarationAttribute";
+
+    internal const string CalendarAttributeMetadataName = "Acta.CalendarAttribute";
+    internal const string ActaCalendarMetadataName = "Acta.IActaCalendar";
+    internal const string ActaAvailabilityCalendarMetadataName = "Acta.IActaAvailabilityCalendar";
 
     public void Initialize(IncrementalGeneratorInitializationContext context)
     {
@@ -56,6 +61,15 @@ public sealed class ActaManifestGenerator : IIncrementalGenerator
             .Where(static f => f is not null)
             .Select(static (f, _) => f!.Value);
 
+        var calendars = context
+            .SyntaxProvider.ForAttributeWithMetadataName(
+                CalendarAttributeMetadataName,
+                predicate: static (node, _) => node is TypeDeclarationSyntax,
+                transform: static (ctx, _) => TransformCalendar(ctx)
+            )
+            .Where(static c => c is not null)
+            .Select(static (c, _) => c!);
+
         var rootNamespace = context.AnalyzerConfigOptionsProvider.Select(
             static (provider, _) =>
             {
@@ -66,7 +80,7 @@ public sealed class ActaManifestGenerator : IIncrementalGenerator
 
         var orphanSchedules = context
             .SyntaxProvider.ForAttributeWithMetadataName(
-                JobScheduleAttributeMetadataName,
+                ScheduleAttributeMetadataName,
                 predicate: static (node, _) => node is MethodDeclarationSyntax,
                 transform: static (ctx, _) => TransformOrphanSchedule(ctx)
             )
@@ -74,13 +88,16 @@ public sealed class ActaManifestGenerator : IIncrementalGenerator
 
         context.RegisterSourceOutput(orphanSchedules, static (spc, d) => ReportDiagnostic(spc, d!));
 
-        var collected = discoveredJobs.Collect().Combine(customFormats.Collect()).Combine(rootNamespace);
+        var collected = discoveredJobs.Collect().Combine(customFormats.Collect()).Combine(calendars.Collect()).Combine(rootNamespace);
 
-        context.RegisterSourceOutput(collected, static (spc, tuple) => Emit(spc, tuple.Left.Left, tuple.Left.Right, tuple.Right));
+        context.RegisterSourceOutput(
+            collected,
+            static (spc, tuple) => Emit(spc, tuple.Left.Left.Left, tuple.Left.Left.Right, tuple.Left.Right, tuple.Right)
+        );
     }
 
     /// <summary>
-    /// A [JobSchedule] rides a [Job] definition; without one it would silently never fire.
+    /// A [Schedule] rides a [Job] definition; without one it would silently never fire.
     /// </summary>
     internal static DiagnosticRecord? TransformOrphanSchedule(GeneratorAttributeSyntaxContext ctx)
     {
@@ -323,6 +340,7 @@ public sealed class ActaManifestGenerator : IIncrementalGenerator
         SourceProductionContext spc,
         ImmutableArray<DiscoveredJob> jobs,
         ImmutableArray<CustomPayloadFormat> customFormats,
+        ImmutableArray<DiscoveredCalendar> calendars,
         string rootNamespace
     )
     {
@@ -337,10 +355,13 @@ public sealed class ActaManifestGenerator : IIncrementalGenerator
             validFormatNames.Add(customName);
         }
 
-        if (jobs.IsDefaultOrEmpty)
+        // The manifest carries the calendars too, so an assembly declaring calendars and no jobs still emits one.
+        var declaredCalendars = ValidateCalendars(spc, calendars);
+        if (jobs.IsDefaultOrEmpty && declaredCalendars.Length == 0)
         {
             return;
         }
+        var calendarsByName = declaredCalendars.ToDictionary(c => c.CalendarName, StringComparer.Ordinal);
 
         foreach (var job in jobs)
         {
@@ -360,7 +381,7 @@ public sealed class ActaManifestGenerator : IIncrementalGenerator
                 ReportDiagnostic(spc, ManifestDiagnostics.InvalidJobName(job));
                 invalid.Add(job);
             }
-            if (!ValidateSchedules(spc, job, isFrameworkAssembly))
+            if (!ValidateSchedules(spc, job, isFrameworkAssembly, calendarsByName))
             {
                 invalid.Add(job);
             }
@@ -452,7 +473,7 @@ public sealed class ActaManifestGenerator : IIncrementalGenerator
             }
         }
 
-        var manifest = BuildManifestSource(rootNamespace, manifestTypeName, valid, customFormatById, contractCollisions);
+        var manifest = BuildManifestSource(rootNamespace, manifestTypeName, valid, declaredCalendars, customFormatById, contractCollisions);
         spc.AddSource($"{manifestTypeName}.g.cs", manifest);
     }
 
@@ -537,6 +558,18 @@ public sealed class ActaManifestGenerator : IIncrementalGenerator
     internal sealed record DiagnosticRecord(string Id, string Message, Location Location);
 
     internal readonly record struct CustomPayloadFormat(byte Id, string Name, bool ImplementsSerializer, Location Location);
+
+    /// <summary>
+    /// A <c>[Calendar]</c> class: <see cref="Occurrence"/> when it implements <c>IActaCalendar</c>,
+    /// <see cref="Availability"/> when it implements <c>IActaAvailabilityCalendar</c>.
+    /// </summary>
+    internal sealed record DiscoveredCalendar(
+        string CalendarName,
+        INamedTypeSymbol ImplementationType,
+        bool Occurrence,
+        bool Availability,
+        Location Location
+    );
 
     /// <summary>
     /// Dispatch shape of a handler's declared return type; the source writer derives the generated
@@ -626,6 +659,8 @@ public sealed class ActaManifestGenerator : IIncrementalGenerator
         int MaxOutstanding,
         byte FullBehaviorId,
         int? ExpireAfterSeconds,
-        byte ExpireActionId
+        byte ExpireActionId,
+        string? CalendarName,
+        string? AvailabilityName
     );
 }

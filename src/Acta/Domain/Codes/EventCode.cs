@@ -176,6 +176,28 @@ public enum EventCode : byte
     )]
     ScheduleRetimed = 107,
 
+    /// <summary>
+    /// The calendar version row is the subject of every calendar.* event; details carry the calendar's name and the
+    /// version. Always emitted regardless of event recording: catalog changes are low-volume operator activity.
+    /// </summary>
+    [Code(
+        "calendar.draft-saved",
+        "An operator saved a new draft version of a catalog calendar. Details carry the calendar, the version, and the role; EventMessage carries the reason."
+    )]
+    CalendarDraftSaved = 110,
+
+    [Code(
+        "calendar.published",
+        "An operator published a catalog calendar version, which became the family's current one. Details carry the calendar, the version, the version it replaced, the overdue decision, and the schedules it affected."
+    )]
+    CalendarPublished = 111,
+
+    [Code(
+        "calendar.archived",
+        "An operator archived a catalog calendar's current version; the family has no current version until another is published. Details carry the calendar and the version."
+    )]
+    CalendarArchived = 112,
+
     /// <summary>The worker is the subject of every worker.* event.</summary>
     [Code("worker.started", "Worker process registered; a workers row was appended (Status: Active).")]
     WorkerStarted = 120,

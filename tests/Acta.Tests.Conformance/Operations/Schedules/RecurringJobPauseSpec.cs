@@ -90,7 +90,7 @@ public sealed class RecurringJobPauseSpec : ActaRuntimeTestBase<ConformanceFixtu
     {
         var ct = TestContext.Current.CancellationToken;
 
-        // A build without the schedule starts, as a deploy that removed [JobSchedule] would.
+        // A build without the schedule starts, as a deploy that removed [Schedule] would.
         await using (var dropped = BuildGenerationProvider<UnscheduledPingManifest>(DateTime.UtcNow, "dropped"))
         {
             await dropped.GetServices<WorkerRuntime>().Single().InitializeAsync(ct);

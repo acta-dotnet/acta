@@ -138,7 +138,7 @@ public class ManifestCallsTests
             public static class Handler
             {
                 [Job("nightly")]
-                [JobSchedule("tick", Cron.Daily)]
+                [Schedule("tick", Cron.Daily)]
                 public static void Run(int day, string region) { }
             }
             """

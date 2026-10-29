@@ -144,7 +144,7 @@ namespace Acta.Concepts.DashboardSample
     public sealed class HeartbeatJob
     {
         [Job("heartbeat")]
-        [JobSchedule("every-15-seconds", Cron.Every15Seconds)]
+        [Schedule("every-15-seconds", Cron.Every15Seconds)]
         public Task Handle(HeartbeatTick input) => Task.Delay(50);
     }
 }

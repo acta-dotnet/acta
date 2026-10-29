@@ -65,6 +65,12 @@ internal static partial class ActaLog
 
     [LoggerMessage(
         Level = LogLevel.Warning,
+        Message = "WorkerRuntime: a schedule of job {ActaJobName} cannot be evaluated and is retried after a minute ({ActaDetail})."
+    )]
+    public static partial void ScheduleEvaluationFailed(ILogger log, string actaJobName, string actaDetail);
+
+    [LoggerMessage(
+        Level = LogLevel.Warning,
         Message = "Acta worker clock skew {ActaDurationMs}ms exceeds the warn threshold for namespace ({ActaNamespace}) ({ActaDetail}); lease and schedule timing may drift."
     )]
     public static partial void ClockSkewOverWarnThreshold(ILogger log, long actaDurationMs, string actaNamespace, string actaDetail);

@@ -4801,6 +4801,390 @@
         }
       }
     },
+    "/acta/api/v1/calendars/{jobNamespace}/{calendarName}/drafts": {
+      "post": {
+        "tags": [
+          "Calendars"
+        ],
+        "summary": "Save a calendar definition as the family's next draft version.",
+        "parameters": [
+          {
+            "name": "jobNamespace",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "calendarName",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/SaveCalendarDraftRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "400": {
+            "description": "Bad Request",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          },
+          "413": {
+            "description": "Payload Too Large",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "Internal Server Error",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          },
+          "503": {
+            "description": "Service Unavailable",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Forbidden",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          },
+          "415": {
+            "description": "Unsupported Media Type",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          },
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SaveCalendarDraftResponse"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "Conflict",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SaveCalendarDraftResponse"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Not Found",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SaveCalendarDraftResponse"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/acta/api/v1/calendars/{jobNamespace}/{calendarName}/publish": {
+      "post": {
+        "tags": [
+          "Calendars"
+        ],
+        "summary": "Publish a draft as the family's current version and retime the schedules bound to it.",
+        "parameters": [
+          {
+            "name": "jobNamespace",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "calendarName",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/PublishCalendarRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "400": {
+            "description": "Bad Request",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          },
+          "413": {
+            "description": "Payload Too Large",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "Internal Server Error",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          },
+          "503": {
+            "description": "Service Unavailable",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Forbidden",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          },
+          "415": {
+            "description": "Unsupported Media Type",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          },
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/PublishCalendarResponse"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "Conflict",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/PublishCalendarResponse"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Not Found",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/PublishCalendarResponse"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/acta/api/v1/calendars/{jobNamespace}/{calendarName}/archive": {
+      "post": {
+        "tags": [
+          "Calendars"
+        ],
+        "summary": "Archive the family's current version.",
+        "parameters": [
+          {
+            "name": "jobNamespace",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "calendarName",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ArchiveCalendarRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "400": {
+            "description": "Bad Request",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          },
+          "413": {
+            "description": "Payload Too Large",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "Internal Server Error",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          },
+          "503": {
+            "description": "Service Unavailable",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Forbidden",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          },
+          "415": {
+            "description": "Unsupported Media Type",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          },
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ArchiveCalendarResponse"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "Conflict",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ArchiveCalendarResponse"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Not Found",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ArchiveCalendarResponse"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/acta/api/v1/jobs/{jobRef}": {
       "get": {
         "tags": [
@@ -6231,6 +6615,343 @@
         }
       }
     },
+    "/acta/api/v1/calendars": {
+      "get": {
+        "tags": [
+          "Calendars"
+        ],
+        "summary": "List calendar families, the shared ones in sys included.",
+        "parameters": [
+          {
+            "name": "jobNamespace",
+            "in": "query",
+            "description": "Only this namespace's families and the shared ones in sys; omit for every namespace.",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "role",
+            "in": "query",
+            "description": "Exact calendar role as a kebab code.",
+            "schema": {
+              "enum": [
+                "unspecified",
+                "occurrence",
+                "availability"
+              ],
+              "type": "string"
+            }
+          },
+          {
+            "name": "nameSearch",
+            "in": "query",
+            "description": "A dotted kebab fragment matched anywhere in the calendar name.",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "pageSize",
+            "in": "query",
+            "description": "Rows per page; the server clamps to its bounds.",
+            "schema": {
+              "type": "integer",
+              "format": "int32"
+            }
+          },
+          {
+            "name": "cursor",
+            "in": "query",
+            "description": "Opaque keyset cursor from the previous page's nextCursor; omit for the first page.",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "includeTotal",
+            "in": "query",
+            "description": "Also compute the filter-wide row count (an extra aggregate read).",
+            "schema": {
+              "type": "boolean"
+            }
+          }
+        ],
+        "responses": {
+          "400": {
+            "description": "Bad Request",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          },
+          "413": {
+            "description": "Payload Too Large",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "Internal Server Error",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          },
+          "503": {
+            "description": "Service Unavailable",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          },
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ListCalendarsResponse"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/acta/api/v1/calendars/{jobNamespace}/{calendarName}": {
+      "get": {
+        "tags": [
+          "Calendars"
+        ],
+        "summary": "Read a calendar family: its versions, one definition, and the schedules bound to it.",
+        "parameters": [
+          {
+            "name": "jobNamespace",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "calendarName",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "version",
+            "in": "query",
+            "description": "The version whose definition to show; omit for the current version, else the latest.",
+            "schema": {
+              "type": "integer",
+              "format": "int32"
+            }
+          }
+        ],
+        "responses": {
+          "400": {
+            "description": "Bad Request",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          },
+          "413": {
+            "description": "Payload Too Large",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "Internal Server Error",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          },
+          "503": {
+            "description": "Service Unavailable",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          },
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/GetCalendarResponse"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Not Found",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/acta/api/v1/calendars/{jobNamespace}/{calendarName}/preview": {
+      "get": {
+        "tags": [
+          "Calendars"
+        ],
+        "summary": "Preview a calendar version beside the current one.",
+        "parameters": [
+          {
+            "name": "jobNamespace",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "calendarName",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "version",
+            "in": "query",
+            "description": "The version to forecast.",
+            "required": true,
+            "schema": {
+              "type": "integer",
+              "format": "int32"
+            }
+          },
+          {
+            "name": "fromUtc",
+            "in": "query",
+            "description": "Forecast from this instant; omit for the database clock.",
+            "schema": {
+              "type": "string",
+              "format": "date-time"
+            }
+          },
+          {
+            "name": "limit",
+            "in": "query",
+            "description": "How many instants or windows to forecast per version.",
+            "schema": {
+              "type": "integer",
+              "format": "int32"
+            }
+          },
+          {
+            "name": "timeZoneId",
+            "in": "query",
+            "description": "The zone a schedule would evaluate the calendar in; omit for UTC.",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "400": {
+            "description": "Bad Request",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          },
+          "413": {
+            "description": "Payload Too Large",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "Internal Server Error",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          },
+          "503": {
+            "description": "Service Unavailable",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          },
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/PreviewCalendarResponse"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Not Found",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/acta/api/v1/events": {
       "get": {
         "tags": [
@@ -6301,6 +7022,9 @@
                 "schedule.admitted",
                 "schedule.skipped",
                 "schedule.retimed",
+                "calendar.draft-saved",
+                "calendar.published",
+                "calendar.archived",
                 "worker.started",
                 "worker.stopped",
                 "worker.died",
@@ -6320,6 +7044,7 @@
               "enum": [
                 "unspecified",
                 "alert",
+                "calendar",
                 "checkpoint",
                 "definition",
                 "event",
@@ -6523,6 +7248,9 @@
                 "schedule.admitted",
                 "schedule.skipped",
                 "schedule.retimed",
+                "calendar.draft-saved",
+                "calendar.published",
+                "calendar.archived",
                 "worker.started",
                 "worker.stopped",
                 "worker.died",
@@ -6686,6 +7414,9 @@
                 "schedule.admitted",
                 "schedule.skipped",
                 "schedule.retimed",
+                "calendar.draft-saved",
+                "calendar.published",
+                "calendar.archived",
                 "worker.started",
                 "worker.stopped",
                 "worker.died",
@@ -6967,6 +7698,83 @@
         "description": "Public stable reference for one alert row: \"alr_\" plus the Guid's 32 lowercase hex digits, such as\n`alr_01a14f5038c17d0e9b2f6a4c81d3e5f7`. Dashboards, HTTP APIs, and alert transports address\nalerts by this value; the numeric alert id stays the internal engine identity. Deduplication never\nre-mints it: a condition that re-fires while its incident is open keeps that incident's ref."
       },
       "AlertSeverityCode": { },
+      "ArchiveCalendarRequest": {
+        "required": [
+          "expectedCurrentVersion"
+        ],
+        "type": "object",
+        "properties": {
+          "expectedCurrentVersion": {
+            "pattern": "^-?(?:0|[1-9]\\d*)$",
+            "type": [
+              "integer",
+              "string"
+            ],
+            "format": "int32"
+          },
+          "reasonMessage": {
+            "type": [
+              "null",
+              "string"
+            ]
+          }
+        }
+      },
+      "ArchiveCalendarResponse": {
+        "required": [
+          "action",
+          "version",
+          "dependentCount"
+        ],
+        "type": "object",
+        "properties": {
+          "action": {
+            "$ref": "#/components/schemas/ControlAction"
+          },
+          "version": {
+            "pattern": "^-?(?:0|[1-9]\\d*)$",
+            "type": [
+              "null",
+              "integer",
+              "string"
+            ],
+            "format": "int32"
+          },
+          "dependentCount": {
+            "pattern": "^-?(?:0|[1-9]\\d*)$",
+            "type": [
+              "integer",
+              "string"
+            ],
+            "format": "int32"
+          }
+        },
+        "description": "What archiving a family's current version did. `Version` is the family's current version, archived when Applied;\n`DependentCount` counts the live schedules of active definitions that bind the family through the catalog, which\nreject the archive while any remain."
+      },
+      "CalendarOriginCode": { },
+      "CalendarRoleCode": {
+        "description": "What a catalog calendar family gives a schedule: its occurrences, or the windows they may fire in. The family's first\nversion fixes its role, and every newer version keeps it."
+      },
+      "CalendarStatusCode": {
+        "description": "Where one version of a catalog calendar family stands. At most one version of a family is Published at a time, and\nthat version is the family's current one; a version's content never changes, only its status."
+      },
+      "CalendarWindow": {
+        "type": "object",
+        "properties": {
+          "startUtc": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "endUtc": {
+            "type": [
+              "null",
+              "string"
+            ],
+            "format": "date-time"
+          }
+        },
+        "description": "One open range of an availability calendar: `[StartUtc, EndUtc)`, both UTC, the end after the start; a null\nend is open forever."
+      },
       "CancelJobRequest": {
         "type": "object",
         "properties": {
@@ -7383,6 +8191,147 @@
           }
         },
         "description": "The single-alert read model returned by ValueTask&lt;GetAlertResponse?&gt; IAlerts.GetAsync(AlertRef alertRef, CancellationToken ct = default(CancellationToken)). It carries the list row's fields today and\nis a distinct type because a detail read can grow additively (delivery history, the alerting event's detail)\nwithout the list row paying for it. Two delivery fields read differently than their names suggest:\n`RetryCount` is the attempts spent in the current send series, not over the row's life (a delivered send\nends the series and resets it), and `RetryAfterUtc` is the earliest instant the alert may be sent again, the\nnext retry while delivery is unsettled or the next reminder once it has settled, null when nothing is scheduled."
+      },
+      "GetCalendarDependent": {
+        "required": [
+          "jobNamespace",
+          "jobName",
+          "scheduleName",
+          "binding",
+          "status",
+          "pinnedVersion",
+          "scheduledDelivery"
+        ],
+        "type": "object",
+        "properties": {
+          "jobNamespace": {
+            "type": "string"
+          },
+          "jobName": {
+            "type": "string"
+          },
+          "scheduleName": {
+            "type": "string"
+          },
+          "binding": {
+            "$ref": "#/components/schemas/CalendarRoleCode"
+          },
+          "status": {
+            "$ref": "#/components/schemas/ScheduleStatusCode"
+          },
+          "pinnedVersion": {
+            "pattern": "^-?(?:0|[1-9]\\d*)$",
+            "type": [
+              "integer",
+              "string"
+            ],
+            "format": "int32"
+          },
+          "scheduledDelivery": {
+            "$ref": "#/components/schemas/ScheduledDeliveryCode"
+          }
+        },
+        "description": "A schedule bound to the family through the catalog: its path, how it binds the family (as its occurrence source\nor its availability filter), its status (orphaned ones are listed), the version it pins, and its definition's\ndelivery. A shared family's dependents span namespaces, so the path carries the namespace."
+      },
+      "GetCalendarResponse": {
+        "required": [
+          "jobNamespace",
+          "calendarName",
+          "role",
+          "currentVersion",
+          "versions",
+          "shownVersion",
+          "definition",
+          "dependents"
+        ],
+        "type": "object",
+        "properties": {
+          "jobNamespace": {
+            "type": "string"
+          },
+          "calendarName": {
+            "type": "string"
+          },
+          "role": {
+            "$ref": "#/components/schemas/CalendarRoleCode"
+          },
+          "currentVersion": {
+            "pattern": "^-?(?:0|[1-9]\\d*)$",
+            "type": [
+              "null",
+              "integer",
+              "string"
+            ],
+            "format": "int32"
+          },
+          "versions": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/GetCalendarVersion"
+            }
+          },
+          "shownVersion": {
+            "pattern": "^-?(?:0|[1-9]\\d*)$",
+            "type": [
+              "integer",
+              "string"
+            ],
+            "format": "int32"
+          },
+          "definition": {
+            "type": "string"
+          },
+          "dependents": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/GetCalendarDependent"
+            }
+          }
+        },
+        "description": "One catalog calendar family as ValueTask&lt;GetCalendarResponse?&gt; ICalendars.GetAsync(CalendarLookup calendar, int? version = null, CancellationToken ct = default(CancellationToken)) reads it. `CurrentVersion` is the Published\nversion, null while the family has none; `Versions` lists every version newest first; `Definition` is the\nJSON of `ShownVersion`; `Dependents` lists every schedule bound to the family through the catalog, by job name\nand then schedule name."
+      },
+      "GetCalendarVersion": {
+        "required": [
+          "version",
+          "status",
+          "contentHash",
+          "createdAtUtc",
+          "publishedAtUtc",
+          "modifiedAtUtc"
+        ],
+        "type": "object",
+        "properties": {
+          "version": {
+            "pattern": "^-?(?:0|[1-9]\\d*)$",
+            "type": [
+              "integer",
+              "string"
+            ],
+            "format": "int32"
+          },
+          "status": {
+            "$ref": "#/components/schemas/CalendarStatusCode"
+          },
+          "contentHash": {
+            "type": "string"
+          },
+          "createdAtUtc": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "publishedAtUtc": {
+            "type": [
+              "null",
+              "string"
+            ],
+            "format": "date-time"
+          },
+          "modifiedAtUtc": {
+            "type": "string",
+            "format": "date-time"
+          }
+        },
+        "description": "One version of a family in IReadOnlyList&lt;GetCalendarVersion&gt; GetCalendarResponse.Versions: its status, the hash of its content, when it was\nsaved and last written, and when it was published, null for a version that never was."
       },
       "GetCapabilitiesResponse": {
         "required": [
@@ -9083,6 +10032,121 @@
         },
         "description": "One page of ValueTask&lt;ListAlertsResponse&gt; IAlerts.ListAsync(ListAlertsQuery query, CancellationToken ct = default(CancellationToken))."
       },
+      "ListCalendarsItem": {
+        "required": [
+          "jobNamespace",
+          "calendarName",
+          "role",
+          "currentVersion",
+          "latestVersion",
+          "latestStatus",
+          "publishedAtUtc",
+          "modifiedAtUtc",
+          "dependentCount"
+        ],
+        "type": "object",
+        "properties": {
+          "jobNamespace": {
+            "type": "string"
+          },
+          "calendarName": {
+            "type": "string"
+          },
+          "role": {
+            "$ref": "#/components/schemas/CalendarRoleCode"
+          },
+          "currentVersion": {
+            "pattern": "^-?(?:0|[1-9]\\d*)$",
+            "type": [
+              "null",
+              "integer",
+              "string"
+            ],
+            "format": "int32"
+          },
+          "latestVersion": {
+            "pattern": "^-?(?:0|[1-9]\\d*)$",
+            "type": [
+              "integer",
+              "string"
+            ],
+            "format": "int32"
+          },
+          "latestStatus": {
+            "$ref": "#/components/schemas/CalendarStatusCode"
+          },
+          "publishedAtUtc": {
+            "type": [
+              "null",
+              "string"
+            ],
+            "format": "date-time"
+          },
+          "modifiedAtUtc": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "dependentCount": {
+            "pattern": "^-?(?:0|[1-9]\\d*)$",
+            "type": [
+              "integer",
+              "string"
+            ],
+            "format": "int32"
+          }
+        },
+        "description": "One calendar family in a ValueTask&lt;ListCalendarsResponse&gt; ICalendars.ListAsync(ListCalendarsQuery query, CancellationToken ct = default(CancellationToken)) page. `CurrentVersion` and `PublishedAtUtc` are the\nPublished version's, null while the family has none; `LatestVersion`, `LatestStatus`, and `ModifiedAtUtc`\nare the highest version's; `DependentCount` counts the schedules, orphans aside, that bind the family through the\ncatalog: the namespace's, or every namespace's for a shared family in `sys`."
+      },
+      "ListCalendarsResponse": {
+        "required": [
+          "items",
+          "nextCursor",
+          "hasMore",
+          "pageSize",
+          "totalCount"
+        ],
+        "type": "object",
+        "properties": {
+          "items": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/ListCalendarsItem"
+            },
+            "description": "The page's calendar families, at most `PageSize` of them."
+          },
+          "nextCursor": {
+            "type": [
+              "null",
+              "string"
+            ],
+            "description": "Opaque cursor for the next page, or null on the final page."
+          },
+          "hasMore": {
+            "type": "boolean",
+            "description": "Whether more families exist beyond this page."
+          },
+          "pageSize": {
+            "pattern": "^-?(?:0|[1-9]\\d*)$",
+            "type": [
+              "integer",
+              "string"
+            ],
+            "description": "The effective page size after defaulting and clamping.",
+            "format": "int32"
+          },
+          "totalCount": {
+            "pattern": "^-?(?:0|[1-9]\\d*)$",
+            "type": [
+              "null",
+              "integer",
+              "string"
+            ],
+            "description": "The filter-wide count, populated only when the query set `IncludeTotal`.",
+            "format": "int64"
+          }
+        },
+        "description": "One page of ValueTask&lt;ListCalendarsResponse&gt; ICalendars.ListAsync(ListCalendarsQuery query, CancellationToken ct = default(CancellationToken))."
+      },
       "ListDefinitionsItem": {
         "required": [
           "jobNamespace",
@@ -9918,7 +10982,12 @@
           "fullBehavior",
           "scheduledDelivery",
           "expireAfterSeconds",
-          "expireAction"
+          "expireAction",
+          "calendarOrigin",
+          "calendarVersion",
+          "availabilityCalendarName",
+          "availabilityOrigin",
+          "availabilityVersion"
         ],
         "type": "object",
         "properties": {
@@ -10039,9 +11108,53 @@
                 "$ref": "#/components/schemas/ScheduleExpireActionCode"
               }
             ]
+          },
+          "calendarOrigin": {
+            "oneOf": [
+              {
+                "type": "null"
+              },
+              {
+                "$ref": "#/components/schemas/CalendarOriginCode"
+              }
+            ]
+          },
+          "calendarVersion": {
+            "pattern": "^-?(?:0|[1-9]\\d*)$",
+            "type": [
+              "null",
+              "integer",
+              "string"
+            ],
+            "format": "int32"
+          },
+          "availabilityCalendarName": {
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "availabilityOrigin": {
+            "oneOf": [
+              {
+                "type": "null"
+              },
+              {
+                "$ref": "#/components/schemas/CalendarOriginCode"
+              }
+            ]
+          },
+          "availabilityVersion": {
+            "pattern": "^-?(?:0|[1-9]\\d*)$",
+            "type": [
+              "null",
+              "integer",
+              "string"
+            ],
+            "format": "int32"
           }
         },
-        "description": "One schedule row in a ValueTask&lt;ListSchedulesResponse&gt; ISchedules.ListAsync(ListSchedulesQuery query, CancellationToken ct = default(CancellationToken)) page. `NextOccurrenceAtUtc` is the next undecided occurrence;\n`NextEvaluationAtUtc` and `EvaluationStatus` say when and why the engine next looks; `Status` is Active, Paused,\nor Orphaned, with `PausedUntilUtc` for a timed pause; `Version` is the row version a CAS control verb takes as\nexpected; `JobRef` is the permanent slot's public ref, null for a PerOccurrence definition; `OutstandingCount` counts\nits unsettled roots; `ExpireAfterSeconds` and `ExpireAction` are null together when occurrences never expire. The\nids stay off the wire: the list pages by `ScheduleId` inside its opaque cursor."
+        "description": "One schedule row in a ValueTask&lt;ListSchedulesResponse&gt; ISchedules.ListAsync(ListSchedulesQuery query, CancellationToken ct = default(CancellationToken)) page. `NextOccurrenceAtUtc` is the next undecided occurrence;\n`NextEvaluationAtUtc` and `EvaluationStatus` say when and why the engine next looks; `Status` is Active, Paused,\nor Orphaned, with `PausedUntilUtc` for a timed pause; `Version` is the row version a CAS control verb takes as\nexpected; `JobRef` is the permanent slot's public ref, null for a PerOccurrence definition; `OutstandingCount` counts\nits unsettled roots; the expiry pair, the calendar pair (set for a Calendar-kind `Expression`), and the availability\ntriple are each null together when unused. The ids stay off the wire: the list pages by `ScheduleId` in its cursor."
       },
       "ListSchedulesResponse": {
         "required": [
@@ -10442,6 +11555,115 @@
         },
         "description": "What pausing a schedule did, and the schedule's state after the attempt."
       },
+      "PreviewCalendarItem": {
+        "required": [
+          "jobNamespace",
+          "jobName",
+          "scheduleName",
+          "binding",
+          "status",
+          "pinnedVersion",
+          "overdue"
+        ],
+        "type": "object",
+        "properties": {
+          "jobNamespace": {
+            "type": "string"
+          },
+          "jobName": {
+            "type": "string"
+          },
+          "scheduleName": {
+            "type": "string"
+          },
+          "binding": {
+            "$ref": "#/components/schemas/CalendarRoleCode"
+          },
+          "status": {
+            "$ref": "#/components/schemas/ScheduleStatusCode"
+          },
+          "pinnedVersion": {
+            "pattern": "^-?(?:0|[1-9]\\d*)$",
+            "type": [
+              "integer",
+              "string"
+            ],
+            "format": "int32"
+          },
+          "overdue": {
+            "type": "boolean"
+          }
+        },
+        "description": "A schedule bound to the family, as a publication would meet it: its path, binding, status, pinned version, and overdue flag."
+      },
+      "PreviewCalendarResponse": {
+        "required": [
+          "role",
+          "version",
+          "currentVersion",
+          "occurrencesUtc",
+          "currentOccurrencesUtc",
+          "windows",
+          "currentWindows",
+          "schedules"
+        ],
+        "type": "object",
+        "properties": {
+          "role": {
+            "$ref": "#/components/schemas/CalendarRoleCode"
+          },
+          "version": {
+            "pattern": "^-?(?:0|[1-9]\\d*)$",
+            "type": [
+              "integer",
+              "string"
+            ],
+            "format": "int32"
+          },
+          "currentVersion": {
+            "pattern": "^-?(?:0|[1-9]\\d*)$",
+            "type": [
+              "null",
+              "integer",
+              "string"
+            ],
+            "format": "int32"
+          },
+          "occurrencesUtc": {
+            "type": "array",
+            "items": {
+              "type": "string",
+              "format": "date-time"
+            }
+          },
+          "currentOccurrencesUtc": {
+            "type": "array",
+            "items": {
+              "type": "string",
+              "format": "date-time"
+            }
+          },
+          "windows": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/CalendarWindow"
+            }
+          },
+          "currentWindows": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/CalendarWindow"
+            }
+          },
+          "schedules": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/PreviewCalendarItem"
+            }
+          }
+        },
+        "description": "A version's forecast beside the current version's over the same horizon, so an operator sees what a publication\nadds and removes: instants for an occurrence calendar, windows for an availability calendar, and the bound\nschedules with their overdue flag, which a Refuse publication would reject on."
+      },
       "PreviewScheduleResponse": {
         "required": [
           "expression",
@@ -10503,6 +11725,83 @@
             ]
           }
         }
+      },
+      "PublishCalendarRequest": {
+        "required": [
+          "expectedCurrentVersion",
+          "candidateVersion"
+        ],
+        "type": "object",
+        "properties": {
+          "expectedCurrentVersion": {
+            "pattern": "^-?(?:0|[1-9]\\d*)$",
+            "type": [
+              "integer",
+              "string"
+            ],
+            "format": "int32"
+          },
+          "candidateVersion": {
+            "pattern": "^-?(?:0|[1-9]\\d*)$",
+            "type": [
+              "integer",
+              "string"
+            ],
+            "format": "int32"
+          },
+          "overdueDecision": {
+            "description": "What a calendar publication does with the occurrences a dependent schedule has not decided yet that are already due\nunder the version it replaces."
+          },
+          "reasonMessage": {
+            "type": [
+              "null",
+              "string"
+            ]
+          }
+        }
+      },
+      "PublishCalendarResponse": {
+        "required": [
+          "action",
+          "version",
+          "retimedSchedules",
+          "overdueSchedules",
+          "reason"
+        ],
+        "type": "object",
+        "properties": {
+          "action": {
+            "$ref": "#/components/schemas/ControlAction"
+          },
+          "version": {
+            "pattern": "^-?(?:0|[1-9]\\d*)$",
+            "type": [
+              "null",
+              "integer",
+              "string"
+            ],
+            "format": "int32"
+          },
+          "retimedSchedules": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          },
+          "overdueSchedules": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          },
+          "reason": {
+            "type": [
+              "null",
+              "string"
+            ]
+          }
+        },
+        "description": "The outcome of a publication: Applied with the version now current and the schedules retimed (as\n`job/schedule` paths), NotFound when the candidate is no version of the family, VersionConflict when the\ncurrent version is not the one the caller saw, or Rejected with the reason and, when the old version left overdue\noccurrences undecided, the schedules holding them."
       },
       "PurgeJobRequest": {
         "type": "object"
@@ -11096,6 +12395,72 @@
         },
         "description": "What retiring a definition did, and the definition's version after the attempt."
       },
+      "SaveCalendarDraftRequest": {
+        "required": [
+          "role",
+          "definition",
+          "expectedLatestVersion"
+        ],
+        "type": "object",
+        "properties": {
+          "role": {
+            "$ref": "#/components/schemas/CalendarRoleCode"
+          },
+          "definition": {
+            "$ref": "#/components/schemas/JsonElement"
+          },
+          "expectedLatestVersion": {
+            "pattern": "^-?(?:0|[1-9]\\d*)$",
+            "type": [
+              "integer",
+              "string"
+            ],
+            "format": "int32"
+          },
+          "reasonMessage": {
+            "type": [
+              "null",
+              "string"
+            ]
+          }
+        }
+      },
+      "SaveCalendarDraftResponse": {
+        "required": [
+          "action",
+          "version",
+          "contentHash",
+          "problems"
+        ],
+        "type": "object",
+        "properties": {
+          "action": {
+            "$ref": "#/components/schemas/ControlAction"
+          },
+          "version": {
+            "pattern": "^-?(?:0|[1-9]\\d*)$",
+            "type": [
+              "null",
+              "integer",
+              "string"
+            ],
+            "format": "int32"
+          },
+          "contentHash": {
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "problems": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          }
+        },
+        "description": "What saving a draft did. Applied carries the new version and its content hash; Rejected carries each reason in\n`Problems`, a compiler problem starting with its JSON path, and, when the store refused it, the family's latest\nversion, 0 for a family with none. A namespace no worker has run in yet is created, so the save never answers NotFound."
+      },
       "ScheduledDeliveryCode": {
         "description": "How a schedule delivers a definition's work: one durable slot job fired again and again, or a fresh root job per\nadmitted occurrence. Immutable once the definition is registered."
       },
@@ -11571,6 +12936,9 @@
     },
     {
       "name": "Schedules"
+    },
+    {
+      "name": "Calendars"
     },
     {
       "name": "Workers"

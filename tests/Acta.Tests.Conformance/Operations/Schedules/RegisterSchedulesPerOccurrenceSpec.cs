@@ -7,13 +7,14 @@ namespace Acta.Tests.Conformance.Operations.Schedules;
 
 /// <summary>
 /// Conformance for a PerOccurrence definition's schedules: registration writes them with no slot and with their
-/// declared capacity and expiry, and the schedule verbs address them by path, auditing against the definition.
+/// declared capacity, expiry, and availability calendar, and the schedule verbs address them by path, auditing against the
+/// definition.
 /// </summary>
 [ConformanceSpec(
     "schedule.per-occurrence-registration",
     "PerOccurrence schedules register without a slot and are addressed by path",
     Area = "Scheduling",
-    Contract = "A PerOccurrence definition's schedules register with no slot and their capacity and expiry, and the verbs address them by path and audit the definition."
+    Contract = "PerOccurrence schedules register with no slot and their capacity, expiry, and availability, and the verbs address them by path and audit the definition."
 )]
 public sealed class RegisterSchedulesPerOccurrenceSpec : ActaStorageTestBase<ConformanceFixture>
 {
@@ -93,6 +94,54 @@ public sealed class RegisterSchedulesPerOccurrenceSpec : ActaStorageTestBase<Con
         (changed, _) = await ScheduleAsync(defId, "only", ct);
         Assert.Null(changed.ExpireAfterSeconds);
         Assert.Null(changed.ExpireAction);
+    }
+
+    [Fact(
+        DisplayName = "A schedule's availability calendar registers and reads back, a changed version re-registers in place, and a plain restart writes nothing"
+    )]
+    public async Task A_schedule_registers_its_availability_calendar_and_changes_it_in_place()
+    {
+        var ct = TestContext.Current.CancellationToken;
+        var jobName = Unique("roots");
+        var defId = await CreateDefinitionAsync(jobName, ct);
+        var available = Slot("only", FloorSeconds(DateTime.UtcNow.AddHours(6))) with
+        {
+            AvailabilityCalendarName = "office-hours",
+            AvailabilityOrigin = CalendarOriginCode.Registered,
+            AvailabilityVersion = 1,
+        };
+
+        await RegisterAsync(defId, [available], ct);
+        var (config, _) = await ScheduleAsync(defId, "only", ct);
+        Assert.Equal("office-hours", config.AvailabilityCalendarName);
+        Assert.Equal(CalendarOriginCode.Registered, config.AvailabilityCalendarOrigin);
+        Assert.Equal(1, config.AvailabilityCalendarVersion);
+        Assert.Null(config.CalendarOrigin);
+        Assert.Null(config.CalendarVersion);
+        var stored = (await StoredAsync(defId, ct))["only"];
+        Assert.Equal("office-hours", stored.AvailabilityCalendarName);
+        Assert.Equal(CalendarOriginCode.Registered, stored.AvailabilityOrigin);
+        Assert.Equal(1, stored.AvailabilityVersion);
+        var listed = Assert.Single(
+            (await Schedules.ListAsync(new ListSchedulesQuery(JobNamespace: TestNamespace, JobName: jobName, LiveOnly: false), ct)).Items
+        );
+        Assert.Equal("office-hours", listed.AvailabilityCalendarName);
+        Assert.Equal(CalendarOriginCode.Registered, listed.AvailabilityOrigin);
+        Assert.Equal(1, listed.AvailabilityVersion);
+        Assert.Null(listed.CalendarOrigin);
+
+        // The stored state reads back as the plan, so a restart of the same build skips the registration.
+        Assert.True(CatalogRegistrar.IsRegistered(Plan(defId, [available]), await StoredAsync(defId, ct), JobPriorityCode.Normal));
+        await RegisterAsync(defId, [available], ct);
+        Assert.Equal(config.Version, (await ScheduleAsync(defId, "only", ct)).Config.Version);
+
+        var bumped = available with { AvailabilityVersion = 2 };
+        Assert.False(CatalogRegistrar.IsRegistered(Plan(defId, [bumped]), await StoredAsync(defId, ct), JobPriorityCode.Normal));
+        await RegisterAsync(defId, [bumped], ct);
+        var (changed, _) = await ScheduleAsync(defId, "only", ct);
+        Assert.Equal(config.Id, changed.Id);
+        Assert.Equal(config.Version + 1, changed.Version);
+        Assert.Equal(2, changed.AvailabilityCalendarVersion);
     }
 
     [Fact(
