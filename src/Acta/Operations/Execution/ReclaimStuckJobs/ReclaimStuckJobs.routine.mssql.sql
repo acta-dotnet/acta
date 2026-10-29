@@ -25,7 +25,8 @@ BEGIN
                 to_status_code TINYINT NOT NULL,
                 event_recording_code TINYINT NOT NULL,
                 alert_profile_code TINYINT NOT NULL,
-                parent_job_id BIGINT NULL
+                parent_job_id BIGINT NULL,
+                schedule_id INT NULL
             );
 
         /* A pass visits at most 1,000 of the namespace's lanes from a random lane id with wrap and repairs at
@@ -287,11 +288,12 @@ BEGIN
             INSERTED.job_id, j.namespace_id, INSERTED.execution_number,
             j.lineage_root_job_id, j.definition_id, j.tenant_id, DELETED.leased_by_worker_id,
             INSERTED.job_status_code, j.event_recording_code, s.alert_profile_code,
-            j.parent_job_id
+            j.parent_job_id, j.schedule_id
         INTO
             @reclaimed (
                 job_id, namespace_id, execution_number, lineage_root_job_id,
-                definition_id, tenant_id, worker_id, to_status_code, event_recording_code, alert_profile_code, parent_job_id
+                definition_id, tenant_id, worker_id, to_status_code, event_recording_code, alert_profile_code, parent_job_id,
+                schedule_id
             )
         -- FORCESEEK keeps this update on a key seek instead of a lock-escalating scan of jobs_state;
         -- see docs/sql-internals.md.
@@ -348,7 +350,8 @@ BEGIN
             event_recording_code IN (10 /* EventRecordingCode.Failures */, 20 /* EventRecordingCode.Audit */)
             OR alert_profile_code <> 0 /* AlertProfileCode.None */;
 
-        -- A slot's lost attempt that spent the budget settles its firing Failed and wakes the members parked on the slot.
+        -- A lost attempt that spent the budget settles the firing Failed: a slot's, which wakes the members parked on
+        -- the slot, or a charged root's, which releases its schedule's capacity.
         UPDATE cp
         SET
             checkpoint_status_code = 120 /* CheckpointStatusCode.Failed */,
@@ -360,7 +363,7 @@ BEGIN
             cp.checkpoint_kind_code = 60 /* CheckpointKindCode.Firing */
             AND cp.checkpoint_name = 'sys.firing'
             AND cp.checkpoint_status_code = 10 /* CheckpointStatusCode.Pending */
-            AND r.to_status_code = 40 /* JobStatusCode.Idle */;
+            AND (r.to_status_code = 40 /* JobStatusCode.Idle */ OR (r.to_status_code = 200 /* JobStatusCode.Failed */ AND r.schedule_id IS NOT NULL));
 
         UPDATE st
         SET
@@ -374,6 +377,67 @@ BEGIN
         WHERE
             r.to_status_code = 40 /* JobStatusCode.Idle */
             AND st.evaluation_status_code IN (20 /* EvaluationStatusCode.WaitingForCapacity */, 50 /* EvaluationStatusCode.SlotUnavailable */);
+
+        UPDATE st
+        SET
+            outstanding_count = st.outstanding_count - s.settled,
+            next_evaluation_at_utc = CASE
+                WHEN st.evaluation_status_code = 20 /* EvaluationStatusCode.WaitingForCapacity */ THEN @now
+                ELSE st.next_evaluation_at_utc
+            END,
+            evaluation_status_code = CASE
+                WHEN st.evaluation_status_code = 20 /* EvaluationStatusCode.WaitingForCapacity */ THEN 10 /* EvaluationStatusCode.Scheduled */
+                ELSE st.evaluation_status_code
+            END,
+            modified_at_utc = @now,
+            version = st.version + 1
+        FROM {{schema}}.schedules_state st WITH (FORCESEEK)
+        INNER JOIN (
+            SELECT r.schedule_id, COUNT(*) AS settled
+            FROM @reclaimed r
+            WHERE r.schedule_id IS NOT NULL AND r.to_status_code = 200 /* JobStatusCode.Failed */
+            GROUP BY r.schedule_id
+        ) s ON s.schedule_id = st.schedule_id;
+
+        /* A lost attempt that spent the budget is a firing that failed for good: the definition's firing failure policy
+           applies as it does on a completion. */
+        DECLARE @policy_paused TABLE (
+            schedule_id INT NOT NULL PRIMARY KEY,
+            schedule_name VARCHAR(128) COLLATE Latin1_General_100_BIN2_UTF8 NOT NULL,
+            job_id BIGINT NOT NULL
+        );
+
+        UPDATE js
+        SET
+            schedule_status_code = 30 /* ScheduleStatusCode.Paused */,
+            paused_until_utc = NULL,
+            pause_message = 'Paused by the firing failure policy: the last firing failed for good.',
+            modified_at_utc = @now,
+            version = js.version + 1
+        OUTPUT INSERTED.schedule_id, INSERTED.schedule_name, r.job_id INTO @policy_paused (schedule_id, schedule_name, job_id)
+        FROM {{schema}}.schedules js
+        INNER JOIN {{schema}}.definitions jd ON jd.definition_id = js.definition_id
+        INNER JOIN @reclaimed r ON r.definition_id = jd.definition_id
+        WHERE
+            js.schedule_status_code = 10 /* ScheduleStatusCode.Active */
+            AND (r.to_status_code = 40 /* JobStatusCode.Idle */ OR (r.to_status_code = 200 /* JobStatusCode.Failed */ AND r.schedule_id IS NOT NULL))
+            AND jd.firing_failure_policy_code = 20 /* FiringFailurePolicyCode.PauseScheduling */;
+
+        UPDATE st
+        SET next_evaluation_at_utc = NULL, modified_at_utc = @now, version = st.version + 1
+        FROM {{schema}}.schedules_state st WITH (FORCESEEK)
+        INNER JOIN @policy_paused p ON p.schedule_id = st.schedule_id;
+
+        INSERT INTO {{schema}}.events (
+            event_code, created_at_utc, namespace_id, entity_code, entity_id,
+            definition_id, tenant_id, lineage_root_job_id, execution_number, event_message, details_format_id, details)
+        SELECT
+            100 /* EventCode.SchedulePaused */, @now, r.namespace_id, 50 /* EntityCode.Job */, r.job_id,
+            r.definition_id, r.tenant_id, COALESCE(r.lineage_root_job_id, r.job_id), r.execution_number, 'Paused by the firing failure policy: the last firing failed for good.',
+            1 /* JobPayloadFormat.Json */, CONVERT(VARBINARY(MAX), '{"schedule":"' + p.schedule_name + '","reason":"firing-failed"}')
+        FROM @policy_paused p
+        INNER JOIN @reclaimed r ON r.job_id = p.job_id
+        WHERE r.event_recording_code = 20 /* EventRecordingCode.Audit */;
 
         /* A head reclaimed to Failed hands its lane on; a head re-armed Ready keeps it. Promotion runs
            under the lane locks and re-reads each head rather than trusting the walk. */

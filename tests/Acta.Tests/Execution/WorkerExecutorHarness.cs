@@ -213,6 +213,8 @@ internal sealed class WorkerExecutorHarness(
             MaxAttempts: maxAttempts,
             EventRecording: EventRecordingCode.Audit,
             AlertProfile: AlertProfileCode.OnFailure,
+            FiringFailurePolicy: FiringFailurePolicyCode.Continue,
+            ScheduledDelivery: ScheduledDeliveryCode.Permanent,
             Invoker: async (_, _, ctx, token) =>
             {
                 await handler(ctx, token);

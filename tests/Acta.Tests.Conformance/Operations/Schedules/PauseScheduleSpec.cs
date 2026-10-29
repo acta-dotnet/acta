@@ -57,6 +57,7 @@ public sealed class PauseScheduleSpec : ActaStorageTestBase<ConformanceFixture>
             InputFormatId: 0,
             Input: ReadOnlyMemory<byte>.Empty,
             EventRecording: EventRecordingCode.Audit,
+            ScheduledDelivery: ScheduledDeliveryCode.Permanent,
             Schedules: schedules
         );
         await ScheduleTestOps.RegisterAsync(Services, [definition], ct);
@@ -121,6 +122,8 @@ public sealed class PauseScheduleSpec : ActaStorageTestBase<ConformanceFixture>
             MaxAttempts: 1,
             EventRecording: default,
             AlertProfile: default,
+            FiringFailurePolicy: FiringFailurePolicyCode.Continue,
+            ScheduledDelivery: ScheduledDeliveryCode.Permanent,
             Invoker: null!,
             DeserializeInput: null!,
             SerializeOutput: null
@@ -185,7 +188,7 @@ public sealed class PauseScheduleSpec : ActaStorageTestBase<ConformanceFixture>
             var schedule = await ScheduleAsync(Db, jobName, "only", ct);
             Assert.Equal(ScheduleStatusCode.Active, schedule.Status);
             Assert.Null(schedule.PausedUntilUtc);
-            Assert.Equal(EvaluationStatusCode.Scheduled, schedule.EvaluationStatus);
+            Assert.Equal(EvaluationStatusCode.Resumed, schedule.EvaluationStatus);
             Assert.InRange(schedule.NextEvaluationAtUtc!.Value, now, now.AddMinutes(1));
 
             var slot = await SlotAsync(jobName, ct);
@@ -295,7 +298,6 @@ public sealed class PauseScheduleSpec : ActaStorageTestBase<ConformanceFixture>
         Assert.Equal(ScheduleStatusCode.Orphaned, schedule.Status);
         Assert.Null(schedule.PausedUntilUtc);
         Assert.Null(schedule.NextOccurrenceAtUtc);
-        Assert.Null(schedule.DecidedThroughAtUtc);
         Assert.Null(schedule.NextEvaluationAtUtc);
     }
 

@@ -5,6 +5,26 @@ SELECT
     j.job_id,
     r.job_status_code AS from_status,
     r.version AS from_version,
+    -- An Idle or Paused permanent slot with no firing outstanding takes a manual firing at the instant; a slot
+    -- mid-firing moves its instant like any waiting job. Idle applies to a slot alone.
+    CASE
+        WHEN
+            j.job_kind_code = 20 /* JobKindCode.PermanentSlot */
+            AND r.job_status_code IN (40 /* JobStatusCode.Idle */, 30 /* JobStatusCode.Paused */)
+            AND NOT EXISTS (
+                SELECT 1
+                FROM {{schema}}.checkpoints cp
+                WHERE cp.job_id = j.job_id AND cp.checkpoint_kind_code = 60 /* CheckpointKindCode.Firing */
+                    AND cp.checkpoint_name = 'sys.firing' AND cp.checkpoint_status_code = 10 /* CheckpointStatusCode.Pending */
+            )
+            THEN 1
+        ELSE 0
+    END AS fires,
+    CASE
+        WHEN r.job_status_code IN (30 /* JobStatusCode.Paused */, 20 /* JobStatusCode.Suspended */, 10 /* JobStatusCode.Ready */, 15 /* JobStatusCode.Blocked */) THEN 1
+        WHEN r.job_status_code = 40 /* JobStatusCode.Idle */ AND j.job_kind_code = 20 /* JobKindCode.PermanentSlot */ THEN 1
+        ELSE 0
+    END AS applies,
     -- A laned job is rescheduled Ready unless another member runs, or it was not running and an older
     -- member is unfinished; a Blocked job's new instant applies once it is promoted. The immediate
     -- transaction is the lane's mutex on SQLite.
@@ -74,36 +94,57 @@ WHERE
     j.job_id = @p_job_id
     AND j.event_recording_code = 20 /* EventRecordingCode.Audit */
     AND (@p_expected_version IS NULL OR r.version = @p_expected_version)
-    AND r.job_status_code IN (30 /* JobStatusCode.Paused */, 20 /* JobStatusCode.Suspended */, 10 /* JobStatusCode.Ready */, 15 /* JobStatusCode.Blocked */);
+    AND EXISTS (SELECT 1 FROM temp._reschedule_job s WHERE s.applies = 1);
 
+-- A null instant is now; a manual firing starts with a fresh failure budget.
 UPDATE {{schema}}.jobs_state
 SET
-    next_run_at_utc = @p_next_run_at_utc,
+    next_run_at_utc = COALESCE(@p_next_run_at_utc, {{now}}),
     job_status_code = (SELECT s.to_status FROM temp._reschedule_job s),
+    failure_count = CASE WHEN (SELECT s.fires FROM temp._reschedule_job s) = 1 THEN 0 ELSE failure_count END,
     modified_at_utc = {{now}},
     version = version + 1
 WHERE
     job_id = @p_job_id
     AND (@p_expected_version IS NULL OR version = @p_expected_version)
-    AND job_status_code IN (30 /* JobStatusCode.Paused */, 20 /* JobStatusCode.Suspended */, 10 /* JobStatusCode.Ready */, 15 /* JobStatusCode.Blocked */);
+    AND (SELECT s.applies FROM temp._reschedule_job s) = 1;
+
+-- The manual envelope replaces the settled one of the slot's previous firing.
+INSERT INTO {{schema}}.checkpoints (
+    job_id, checkpoint_kind_code, checkpoint_name, checkpoint_status_code,
+    value_format_id, value, created_at_utc, modified_at_utc, version)
+SELECT
+    @p_job_id, 60 /* CheckpointKindCode.Firing */, 'sys.firing', 10 /* CheckpointStatusCode.Pending */,
+    1 /* JobPayloadFormat.Json */, CAST(@p_envelope AS BLOB), {{now}}, {{now}}, 0
+WHERE EXISTS (
+    SELECT 1
+    FROM temp._reschedule_job s
+    WHERE s.fires = 1 AND (@p_expected_version IS NULL OR s.from_version = @p_expected_version)
+)
+ON CONFLICT (job_id, checkpoint_kind_code, checkpoint_name) DO UPDATE SET
+    checkpoint_status_code = excluded.checkpoint_status_code,
+    value_format_id = excluded.value_format_id,
+    value = excluded.value,
+    modified_at_utc = {{now}},
+    version = version + 1;
 
 SELECT
     CASE
         WHEN s.job_id IS NULL THEN 2 /* ControlAction.NotFound */
         WHEN @p_expected_version IS NOT NULL AND s.from_version <> @p_expected_version THEN 5 /* ControlAction.VersionConflict */
-        WHEN s.from_status IN (30 /* JobStatusCode.Paused */, 20 /* JobStatusCode.Suspended */, 10 /* JobStatusCode.Ready */, 15 /* JobStatusCode.Blocked */) THEN 1 /* ControlAction.Applied */
+        WHEN s.applies = 1 THEN 1 /* ControlAction.Applied */
         ELSE 3 /* ControlAction.Rejected */
     END AS action,
     CASE
         WHEN s.job_id IS NULL THEN NULL
         WHEN @p_expected_version IS NOT NULL AND s.from_version <> @p_expected_version THEN s.from_status
-        WHEN s.from_status IN (30 /* JobStatusCode.Paused */, 20 /* JobStatusCode.Suspended */, 10 /* JobStatusCode.Ready */, 15 /* JobStatusCode.Blocked */) THEN s.to_status
+        WHEN s.applies = 1 THEN s.to_status
         ELSE s.from_status
     END AS status,
     CASE
         WHEN s.job_id IS NULL THEN NULL
         WHEN @p_expected_version IS NOT NULL AND s.from_version <> @p_expected_version THEN s.from_version
-        WHEN s.from_status IN (30 /* JobStatusCode.Paused */, 20 /* JobStatusCode.Suspended */, 10 /* JobStatusCode.Ready */, 15 /* JobStatusCode.Blocked */) THEN s.from_version + 1
+        WHEN s.applies = 1 THEN s.from_version + 1
         ELSE s.from_version
     END AS version
 FROM (SELECT @p_job_id AS qid) q

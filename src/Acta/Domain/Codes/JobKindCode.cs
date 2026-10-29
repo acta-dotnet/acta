@@ -14,7 +14,10 @@ public enum JobKindCode : byte
     [Code("unspecified", "Job kind not recognized by this build; the row was written by a newer Acta.")]
     Unspecified = 0,
 
-    [Code("ordinary", "A job enqueued by an application, an operator, or a parent handler; it ends in a terminal status.")]
+    [Code(
+        "ordinary",
+        "A job enqueued by an application, an operator, or a parent handler, or admitted by a schedule as a per-occurrence root; it ends in a terminal status."
+    )]
     Ordinary = 10,
 
     [Code(

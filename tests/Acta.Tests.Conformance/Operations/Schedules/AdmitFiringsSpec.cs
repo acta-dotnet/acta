@@ -32,9 +32,9 @@ public sealed class AdmitFiringsSpec : ActaStorageTestBase<ConformanceFixture>
         var before = Assert.Single(await ScheduleTestOps.ReadAsync(Db, slotId, ct));
 
         var plan = await PlanAsync(now, ct);
-        var applied = Assert.Single((await Admit(plan, ct)).Slots);
+        var applied = Assert.Single((await Admit(plan, ct)).Groups);
 
-        Assert.Equal(slotId, applied.JobId);
+        Assert.Equal(0, applied.Ordinal);
         Assert.True(applied.Applied);
         var slot = await ReadJobAsync(slotId, ct);
         Assert.Equal(JobStatusCode.Ready, slot.Status);
@@ -62,7 +62,7 @@ public sealed class AdmitFiringsSpec : ActaStorageTestBase<ConformanceFixture>
         var plan = await PlanAsync(now, ct);
         Assert.Equal(ControlAction.Applied, (await Jobs.PauseAsync(JobLookup.ById(slotId), ct: ct)).Action);
 
-        var stale = Assert.Single((await Admit(plan, ct)).Slots);
+        var stale = Assert.Single((await Admit(plan, ct)).Groups);
 
         Assert.False(stale.Applied);
         Assert.Equal(JobStatusCode.Paused, (await ReadJobAsync(slotId, ct)).Status);
@@ -87,7 +87,7 @@ public sealed class AdmitFiringsSpec : ActaStorageTestBase<ConformanceFixture>
         var group = Assert.Single(plan.Groups);
         Assert.False(group.Admit);
 
-        Assert.True(Assert.Single((await Admit(plan, ct)).Slots).Applied);
+        Assert.True(Assert.Single((await Admit(plan, ct)).Groups).Applied);
         var member = Assert.Single(await ScheduleTestOps.ReadAsync(Db, slotId, ct));
         Assert.Equal(EvaluationStatusCode.WaitingForCapacity, member.EvaluationStatus);
         Assert.Null(member.NextEvaluationAtUtc);
@@ -117,6 +117,7 @@ public sealed class AdmitFiringsSpec : ActaStorageTestBase<ConformanceFixture>
             InputFormatId: 0,
             Input: ReadOnlyMemory<byte>.Empty,
             EventRecording: EventRecordingCode.Audit,
+            ScheduledDelivery: ScheduledDeliveryCode.Permanent,
             Schedules: [new SlotSchedule("only", Cron5, null, MisfireStrategyCode.Skip, ScheduleExpressionKindCode.Cron, null, cursor)]
         );
         return (await ScheduleTestOps.RegisterAsync(Services, [definition], ct))[defId];
@@ -137,6 +138,8 @@ public sealed class AdmitFiringsSpec : ActaStorageTestBase<ConformanceFixture>
             MaxAttempts: 1,
             EventRecording: default,
             AlertProfile: default,
+            FiringFailurePolicy: FiringFailurePolicyCode.Continue,
+            ScheduledDelivery: ScheduledDeliveryCode.Permanent,
             Invoker: null!,
             DeserializeInput: null!,
             SerializeOutput: null

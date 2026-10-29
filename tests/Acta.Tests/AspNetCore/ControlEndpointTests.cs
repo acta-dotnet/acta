@@ -343,11 +343,11 @@ public sealed class ControlEndpointTests
         Assert.Equal(HttpStatusCode.OK, response.StatusCode);
         Assert.Contains("\"action\":\"applied\"", body);
         var call = Assert.Single(fakes.Jobs.RescheduleCalls);
-        Assert.Equal((FakeJobs.FoundJobRef, nextRunAtUtc, "because", (string?)null, (int?)null), call);
+        Assert.Equal((FakeJobs.FoundJobRef, (DateTime?)nextRunAtUtc, "because", (string?)null, (int?)null), call);
     }
 
     [Fact]
-    public async Task Reschedule_missing_next_run_instant_is_400()
+    public async Task Reschedule_without_an_instant_runs_now()
     {
         var fakes = new FakeOperations();
         var (app, client) = await StartWithControlsAsync(fakes);
@@ -358,8 +358,9 @@ public sealed class ControlEndpointTests
             TestContext.Current.CancellationToken
         );
 
-        Assert.Equal(HttpStatusCode.BadRequest, response.StatusCode);
-        Assert.Empty(fakes.Jobs.RescheduleCalls);
+        Assert.Equal(HttpStatusCode.OK, response.StatusCode);
+        var call = Assert.Single(fakes.Jobs.RescheduleCalls);
+        Assert.Equal((FakeJobs.FoundJobRef, (DateTime?)null, "because", (string?)null, (int?)null), call);
     }
 
     [Fact]

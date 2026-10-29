@@ -132,7 +132,7 @@ public sealed class ActaManifestGenerator : IIncrementalGenerator
 
         var location = method.Locations.FirstOrDefault() ?? Location.None;
         var diagnostics = new List<DiagnosticRecord>();
-        var schedules = ReadSchedules(method, jobName);
+        var schedules = ReadSchedules(method, jobName, diagnostics, location);
 
         if (method.IsGenericMethod)
         {
@@ -274,6 +274,8 @@ public sealed class ActaManifestGenerator : IIncrementalGenerator
             Lane: policy.Lane,
             EventRecordingName: eventRecordingName,
             AlertProfileName: policy.AlertProfileName,
+            FiringFailurePolicyName: policy.FiringFailurePolicyName,
+            ScheduledDeliveryName: policy.ScheduledDeliveryName,
             TenantRequirementId: policy.TenantRequirementId,
             InputTemplateJson: inputTemplateJson,
             Backoff: policy.Backoff,
@@ -303,6 +305,8 @@ public sealed class ActaManifestGenerator : IIncrementalGenerator
         string? Lane,
         string? EventRecordingName,
         string AlertProfileName,
+        string FiringFailurePolicyName,
+        string ScheduledDeliveryName,
         byte TenantRequirementId,
         string? Backoff,
         int? ExecutionTimeoutSeconds,
@@ -569,6 +573,8 @@ public sealed class ActaManifestGenerator : IIncrementalGenerator
         string? Lane,
         string EventRecordingName,
         string AlertProfileName,
+        string FiringFailurePolicyName,
+        string ScheduledDeliveryName,
         byte TenantRequirementId,
         string? InputTemplateJson,
         string? Backoff,
@@ -613,9 +619,13 @@ public sealed class ActaManifestGenerator : IIncrementalGenerator
         string ScheduleName,
         string Expression,
         string? TimeZoneId,
-        string MisfireName,
+        byte MisfireStrategyId,
         string ExpressionKindName,
         string? Description,
-        ImmutableArray<string> Environments
+        ImmutableArray<string> Environments,
+        int MaxOutstanding,
+        byte FullBehaviorId,
+        int? ExpireAfterSeconds,
+        byte ExpireActionId
     );
 }

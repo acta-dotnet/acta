@@ -183,7 +183,7 @@ internal sealed partial class SqliteDialect : ISqlDialect
             : WithoutSection(sql, "shapes");
         sql = rows.Any(c => c.HasParent) ? sql : WithoutSection(sql, "children");
         sql = rows.Any(c => c.HasLane) ? sql : WithoutSection(sql, "lanes");
-        sql = rows.Any(c => c.FinalStatus is not null) ? sql : WithoutSection(sql, "recurring");
+        sql = rows.Any(c => c.FinalStatus is not null || c.HasSchedule) ? sql : WithoutSection(sql, "recurring");
 
         command.CommandText = sql;
         AddText(command, "@p_completions", DbParams.JsonCompletions(rows));
@@ -393,6 +393,10 @@ internal sealed partial class SqliteDialect : ISqlDialect
                 writer.WriteString("output_format_name", row.OutputFormatName);
                 writer.WriteNumber("event_recording_code", row.EventRecordingCode);
                 writer.WriteNumber("alert_profile_code", row.AlertProfileCode);
+                writer.WriteNumber("firing_failure_policy_code", row.FiringFailurePolicyCode);
+                writer.WriteNumber("scheduled_delivery_code", row.ScheduledDeliveryCode);
+                writer.WriteNumber("default_input_format_id", row.DefaultInputFormatId);
+                WriteBase64OrNull(writer, "default_input", row.DefaultInputFormatId == 0 ? null : row.DefaultInput);
                 writer.WriteNumber("tenant_requirement_code", row.TenantRequirementCode);
                 WriteStringOrNull(writer, "alert_channel_name", row.AlertChannelName);
                 WriteStringOrNull(writer, "runbook_url", row.RunbookUrl);
@@ -425,6 +429,7 @@ internal sealed partial class SqliteDialect : ISqlDialect
                     definition.InputFormatId == JobPayloadFormat.None.Id ? (ReadOnlyMemory<byte>?)null : definition.Input
                 );
                 writer.WriteNumber("event_recording_code", (short)definition.EventRecording);
+                writer.WriteNumber("scheduled_delivery_code", (short)definition.ScheduledDelivery);
             }
         );
 
@@ -451,6 +456,10 @@ internal sealed partial class SqliteDialect : ISqlDialect
                 WriteStringOrNull(writer, "description", item.Schedule.Description);
                 WriteUtcOrNull(writer, "interval_anchor_at_utc", item.Schedule.IntervalAnchorAtUtc);
                 writer.WriteString("timing_fingerprint", item.Schedule.TimingFingerprint);
+                writer.WriteNumber("max_outstanding", item.Schedule.MaxOutstanding);
+                writer.WriteNumber("full_behavior_code", (short)item.Schedule.FullBehavior);
+                WriteNumberOrNull(writer, "expire_after_seconds", item.Schedule.ExpireAfterSeconds);
+                WriteNumberOrNull(writer, "expire_action_code", (short?)item.Schedule.ExpireAction);
             }
         );
 

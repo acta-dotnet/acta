@@ -127,6 +127,24 @@ BEGIN TRY
         AND cp.checkpoint_name = 'sys.firing'
         AND cp.checkpoint_status_code = 10 /* CheckpointStatusCode.Pending */;
 
+    -- A cancelled charged root releases its schedule's capacity and wakes the schedule when it waited for it.
+    UPDATE st
+    SET
+        outstanding_count = st.outstanding_count - 1,
+        next_evaluation_at_utc = CASE
+            WHEN st.evaluation_status_code = 20 /* EvaluationStatusCode.WaitingForCapacity */ THEN @now
+            ELSE st.next_evaluation_at_utc
+        END,
+        evaluation_status_code = CASE
+            WHEN st.evaluation_status_code = 20 /* EvaluationStatusCode.WaitingForCapacity */ THEN 10 /* EvaluationStatusCode.Scheduled */
+            ELSE st.evaluation_status_code
+        END,
+        modified_at_utc = @now,
+        version = st.version + 1
+    FROM {{schema}}.schedules_state st WITH (FORCESEEK)
+    INNER JOIN {{schema}}.jobs j WITH (FORCESEEK) ON j.schedule_id = st.schedule_id
+    WHERE j.job_id = @p_job_id;
+
     /* A cancelled head hands its lane to the next member; a cancelled Blocked follower leaves the
        head where it is, which the promotion reads for itself. Promotion runs under the lane lock and
        re-reads rather than trusting an update that matched nothing. */

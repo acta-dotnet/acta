@@ -135,6 +135,30 @@ WHERE
             AND s.from_status IN (40 /* JobStatusCode.Idle */, 30 /* JobStatusCode.Paused */, 20 /* JobStatusCode.Suspended */, 10 /* JobStatusCode.Ready */, 15 /* JobStatusCode.Blocked */, 50 /* JobStatusCode.Executing */)
     );
 
+-- A cancelled charged root releases its schedule's capacity and wakes the schedule when it waited for it.
+UPDATE {{schema}}.schedules_state
+SET
+    outstanding_count = outstanding_count - 1,
+    next_evaluation_at_utc = CASE
+        WHEN evaluation_status_code = 20 /* EvaluationStatusCode.WaitingForCapacity */ THEN {{now}}
+        ELSE next_evaluation_at_utc
+    END,
+    evaluation_status_code = CASE
+        WHEN evaluation_status_code = 20 /* EvaluationStatusCode.WaitingForCapacity */ THEN 10 /* EvaluationStatusCode.Scheduled */
+        ELSE evaluation_status_code
+    END,
+    modified_at_utc = {{now}},
+    version = version + 1
+WHERE
+    schedule_id = (SELECT j.schedule_id FROM {{schema}}.jobs j WHERE j.job_id = @p_job_id)
+    AND EXISTS (
+        SELECT 1
+        FROM temp._cancel_job s
+        WHERE
+            (@p_expected_version IS NULL OR s.from_version = @p_expected_version)
+            AND s.from_status IN (40 /* JobStatusCode.Idle */, 30 /* JobStatusCode.Paused */, 20 /* JobStatusCode.Suspended */, 10 /* JobStatusCode.Ready */, 15 /* JobStatusCode.Blocked */, 50 /* JobStatusCode.Executing */)
+    );
+
 -- A cancelled head hands its lane to the next member; a cancelled Blocked follower leaves the head where
 -- it is, which the promotion reads for itself. A restarted member can wait Blocked below a running one,
 -- so it promotes only while no member runs. The immediate transaction is the lane's mutex on SQLite.

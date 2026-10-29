@@ -19,6 +19,8 @@ internal sealed record EffectiveJobPolicy(
     int JobRetentionSeconds,
     EventRecordingCode EventRecording,
     AlertProfileCode AlertProfile,
+    FiringFailurePolicyCode FiringFailurePolicy,
+    ScheduledDeliveryCode ScheduledDelivery,
     string? AlertChannelName,
     string? RunbookUrl
 );

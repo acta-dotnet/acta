@@ -9,6 +9,24 @@ namespace Acta;
 internal static class JobDefinitionRegistration
 {
     /// <summary>
+    /// The descriptor's default input as registration stores it, on the definition row and on a permanent slot: a new
+    /// default instance through the descriptor's serializer; format 0 with no bytes when the definition takes no input.
+    /// </summary>
+    public static (byte FormatId, ReadOnlyMemory<byte> Bytes) DefaultInputOf(
+        JobDescriptor descriptor,
+        IJobPayloadSerializerRegistry serializers
+    )
+    {
+        if (descriptor.InputPayloadFormat.IsNone || descriptor.CreateDefaultInput is null || descriptor.SerializeInput is null)
+        {
+            return (0, ReadOnlyMemory<byte>.Empty);
+        }
+
+        var payload = descriptor.SerializeInput(serializers.Resolve(descriptor.InputPayloadFormat.Id), descriptor.CreateDefaultInput());
+        return (payload.Format.Id, payload.Data);
+    }
+
+    /// <summary>
     /// Canonical default expression - parses exactly to Backoff.Default (initial 60s, max 86400s,
     /// multiplier 2.0000, jitter 0.1000). Spelled out rather than "1m..1d": a ranged expression
     /// silently implies x2 growth and 10% jitter, so the short form hid the actual policy from

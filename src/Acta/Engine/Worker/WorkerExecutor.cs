@@ -341,12 +341,12 @@ internal sealed class WorkerExecutor(
     }
 
     /// <summary>
-    /// A slot's firing envelope, read under the attempt's fence: the contributors the admission froze, the same on every
-    /// retry and reclaim. Null for an ordinary job, and for a slot whose claim the attempt lost, which the completion
-    /// write then refuses.
+    /// The firing envelope of a slot or of a per-occurrence root, read under the attempt's fence: the contributors the
+    /// admission froze, the same on every retry and reclaim. Null for an enqueued job, and for a firing whose claim
+    /// the attempt lost, which the completion write then refuses.
     /// </summary>
     private async Task<FiringEnvelope?> ReadFiringAsync(ClaimedJob job, int workerId, CancellationToken ct) =>
-        job.Kind == JobKindCode.PermanentSlot
+        job.Kind == JobKindCode.PermanentSlot || job.ScheduleId is not null
             ? await WorkerFinalizer.RepeatAsync(
                 async token => await _execution.GetFiringAsync(new ExecutionFence(job.JobId, job.ExecutionNumber, workerId), token),
                 _log,

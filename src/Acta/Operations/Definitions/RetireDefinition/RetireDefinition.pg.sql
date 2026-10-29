@@ -108,21 +108,30 @@ settled AS (
         AND cp.checkpoint_name = 'sys.firing'
         AND cp.checkpoint_status_code = 10 /* CheckpointStatusCode.Pending */
 ),
+-- One write per state row, since a row updated twice in one statement keeps only one of the updates: the exhaustion,
+-- and the capacity every cancelled charged root releases, so the count stays true on the exhausted schedule.
 cleared AS (
     UPDATE {{schema}}.schedules_state st
     SET
         next_occurrence_at_utc = NULL,
 
-        decided_through_at_utc = NULL,
-
         next_evaluation_at_utc = NULL,
 
         evaluation_status_code = 30 /* EvaluationStatusCode.Exhausted */,
+
+        outstanding_count = st.outstanding_count - COALESCE(c.settled, 0),
 
         version = st.version + 1,
         modified_at_utc = now()
     FROM {{schema}}.schedules s
     INNER JOIN retired d ON d.definition_id = s.definition_id
+    LEFT JOIN (
+        SELECT j.schedule_id, COUNT(*) AS settled
+        FROM parked p
+        INNER JOIN {{schema}}.jobs j ON j.job_id = p.job_id
+        WHERE j.schedule_id IS NOT NULL
+        GROUP BY j.schedule_id
+    ) c ON c.schedule_id = s.schedule_id
     WHERE
         st.schedule_id = s.schedule_id
 ),

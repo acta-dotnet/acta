@@ -53,6 +53,7 @@ internal sealed class CatalogRegistrar(
         // authoritative generation gate for the policy write itself.
         var manifestGenerationUtc = ManifestGenerationResolver.Resolve(_options.Value, Assembly.GetEntryAssembly(), _log);
         var storedContracts = (await _definitions.GetDefinitionContractsAsync(namespaceId, ct)).Contracts;
+        ValidateScheduledDelivery(ns, allDescriptors, storedContracts);
         var contractDrifts = ContractDriftDetector.Detect(manifestGenerationUtc, allDescriptors, storedContracts);
         ContractDriftPolicy.Apply(_options.Value.PayloadContractDriftMode, contractDrifts, ns, _log);
 
@@ -255,6 +256,30 @@ internal sealed class CatalogRegistrar(
     }
 
     /// <summary>
+    /// Refuses a definition whose declared delivery differs from the stored one, before any catalog write: a permanent
+    /// slot and per-occurrence roots are different rows with different owners, so a mode never changes in place.
+    /// </summary>
+    internal static void ValidateScheduledDelivery(
+        string namespaceName,
+        ImmutableArray<JobDescriptor> descriptors,
+        IReadOnlyCollection<StoredDefinitionContract> stored
+    )
+    {
+        var storedByName = stored.ToDictionary(s => s.DefinitionName, s => s.Effective.ScheduledDelivery, StringComparer.Ordinal);
+        foreach (var descriptor in descriptors)
+        {
+            if (storedByName.TryGetValue(descriptor.JobName, out var registered) && registered != descriptor.ScheduledDelivery)
+            {
+                throw new InvalidOperationException(
+                    $"Job '{descriptor.JobName}' declares ScheduledDelivery = {descriptor.ScheduledDelivery}, but namespace "
+                        + $"'{namespaceName}' registered it as {registered}. A definition's delivery is immutable once registered: "
+                        + $"register the {descriptor.ScheduledDelivery} mode under a new job name."
+                );
+            }
+        }
+    }
+
+    /// <summary>
     /// Fail fast on a tenant-required recurring definition: schedule slots are enqueued tenant-less by the runtime, so
     /// every slot fire would trip the enqueue guard instead of surfacing at startup.
     /// </summary>
@@ -350,7 +375,7 @@ internal sealed class CatalogRegistrar(
                 ActaLog.RecurringJobPaused(_log, ns, descriptor.JobName);
             }
 
-            var (inputFormatId, inputBytes) = SerializeSlotInput(descriptor);
+            var (inputFormatId, inputBytes) = JobDefinitionRegistration.DefaultInputOf(descriptor, _serializers);
 
             definitions.Add(
                 new DefinitionSchedules(
@@ -359,6 +384,7 @@ internal sealed class CatalogRegistrar(
                     InputFormatId: inputFormatId,
                     Input: inputBytes,
                     EventRecording: descriptor.EventRecording,
+                    ScheduledDelivery: descriptor.ScheduledDelivery,
                     Schedules: slotSchedules
                 )
             );
@@ -416,6 +442,10 @@ internal sealed class CatalogRegistrar(
                     ((byte)s.ExpressionKind).ToString(c),
                     ((byte)s.MisfireStrategy).ToString(c),
                     s.Description,
+                    s.MaxOutstanding.ToString(c),
+                    ((byte)s.FullBehavior).ToString(c),
+                    s.ExpireAfterSeconds?.ToString(c),
+                    s.ExpireAction is { } expireAction ? ((byte)expireAction).ToString(c) : null,
                 ]);
             }
         }
@@ -425,10 +455,11 @@ internal sealed class CatalogRegistrar(
 
     /// <summary>
     /// Whether <c>register_schedules</c> would write nothing for <paramref name="plan"/>: each planned schedule is stored
-    /// with its planned cursor, no stored schedule is left to orphan, and the slot either rests where registration leaves
-    /// it (in flight, waiting, finished, or held) or already stands at the planned status, next run, and priority.
+    /// with its planned cursor, capacity, and expiry, no stored schedule is left to orphan, and the slot, when there is
+    /// one, either rests where registration leaves it (in flight, waiting, finished, or held) or already stands at the
+    /// planned status, next run, and priority.
     /// </summary>
-    private static bool IsRegistered(DefinitionSchedules plan, Dictionary<string, StoredScheduleState>? stored, JobPriorityCode priority)
+    internal static bool IsRegistered(DefinitionSchedules plan, Dictionary<string, StoredScheduleState>? stored, JobPriorityCode priority)
     {
         if (
             stored is null
@@ -437,6 +468,10 @@ internal sealed class CatalogRegistrar(
                 stored.TryGetValue(s.ScheduleName, out var st)
                 && st.NextOccurrenceAtUtc == s.NextOccurrenceAtUtc
                 && st.TimingFingerprint == s.TimingFingerprint
+                && st.MaxOutstanding == s.MaxOutstanding
+                && st.FullBehavior == s.FullBehavior
+                && st.ExpireAfterSeconds == s.ExpireAfterSeconds
+                && st.ExpireAction == s.ExpireAction
             )
         )
         {
@@ -446,22 +481,6 @@ internal sealed class CatalogRegistrar(
         // The declaration's priority reaches only an Idle slot; any other keeps its own until it is Idle again.
         var slot = stored.Values.First();
         return slot.SlotStatus != JobStatusCode.Idle || slot.SlotPriority == priority;
-    }
-
-    /// <summary>
-    /// Slot default input: fabricate new TIn() and serialize via the descriptor's emitted delegate.
-    /// No-payload / data-less inputs persist as format 0 with empty bytes.
-    /// </summary>
-    private (byte InputFormatId, ReadOnlyMemory<byte> Input) SerializeSlotInput(JobDescriptor descriptor)
-    {
-        if (descriptor.InputPayloadFormat.IsNone || descriptor.CreateDefaultInput is null || descriptor.SerializeInput is null)
-        {
-            return (0, ReadOnlyMemory<byte>.Empty);
-        }
-
-        var serializer = _serializers.Resolve(descriptor.InputPayloadFormat.Id);
-        var payload = descriptor.SerializeInput(serializer, descriptor.CreateDefaultInput());
-        return (payload.Format.Id, payload.Data);
     }
 }
 

@@ -218,20 +218,18 @@ public sealed class RegisterSchedulesSpec : ActaRuntimeTestBase<ConformanceFixtu
         await RegisterAsync(defId, jobName, [Slot("only", due)], ct);
         var slotId = await SlotIdAsync(jobName, ct);
 
-        // The old timing's undecided occurrence is discarded: the watermark moves to now and the cursor to the new
-        // timing's first occurrence after it.
+        // The old timing's undecided occurrence is discarded: the cursor moves to the new timing's first occurrence
+        // after now.
         await PlanAndRegisterAsync(defId, jobName, "*/7 * * * *", description: null, now, ct);
 
         var retimed = Assert.Single(await ScheduleTestOps.ReadAsync(Db, slotId, ct));
         Assert.True(retimed.NextOccurrenceAtUtc > now, $"cursor {retimed.NextOccurrenceAtUtc:O} must move past now");
-        Assert.InRange(retimed.DecidedThroughAtUtc!.Value, now, now.AddMinutes(1));
         Assert.Equal(1, await CountEventsAsync(slotId, EventCode.ScheduleRetimed, ct));
 
         await PlanAndRegisterAsync(defId, jobName, "*/7 * * * *", description: "edited", now, ct);
 
         var edited = Assert.Single(await ScheduleTestOps.ReadAsync(Db, slotId, ct));
         Assert.Equal(retimed.NextOccurrenceAtUtc, edited.NextOccurrenceAtUtc);
-        Assert.Equal(retimed.DecidedThroughAtUtc, edited.DecidedThroughAtUtc);
         Assert.Equal("edited", edited.Description);
         Assert.Equal(1, await CountEventsAsync(slotId, EventCode.ScheduleRetimed, ct));
     }
@@ -300,6 +298,7 @@ public sealed class RegisterSchedulesSpec : ActaRuntimeTestBase<ConformanceFixtu
                 InputFormatId: input.Format.Id,
                 Input: input.Data,
                 EventRecording: EventRecordingCode.Audit,
+                ScheduledDelivery: ScheduledDeliveryCode.Permanent,
                 Schedules: [Slot("only", cursor)]
             );
 
@@ -347,6 +346,7 @@ public sealed class RegisterSchedulesSpec : ActaRuntimeTestBase<ConformanceFixtu
             InputFormatId: 0,
             Input: ReadOnlyMemory<byte>.Empty,
             EventRecording: EventRecordingCode.Audit,
+            ScheduledDelivery: ScheduledDeliveryCode.Permanent,
             Schedules: schedules
         );
         return await ScheduleTestOps.RegisterAsync(Services, [definition], ct);
@@ -409,6 +409,8 @@ public sealed class RegisterSchedulesSpec : ActaRuntimeTestBase<ConformanceFixtu
             MaxAttempts: 1,
             EventRecording: default,
             AlertProfile: default,
+            FiringFailurePolicy: FiringFailurePolicyCode.Continue,
+            ScheduledDelivery: ScheduledDeliveryCode.Permanent,
             Invoker: null!,
             DeserializeInput: null!,
             SerializeOutput: null

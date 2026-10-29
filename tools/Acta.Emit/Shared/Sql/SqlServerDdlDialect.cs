@@ -191,13 +191,17 @@ internal sealed class SqlServerDdlDialect : SqlDdlDialect
                 output_format_name                   VARCHAR(128)  NOT NULL,
                 event_recording_code                 TINYINT       NOT NULL,
                 alert_profile_code                   TINYINT       NOT NULL,
-                alert_channel_name                   VARCHAR(128)  NULL,
+                firing_failure_policy_code           TINYINT       NOT NULL,
+                scheduled_delivery_code              TINYINT       NOT NULL,
+                alert_channel_name                  VARCHAR(128)  NULL,
                 runbook_url                          VARCHAR(512)  NULL,
                 display_name                         NVARCHAR(128) NULL,
                 description                          NVARCHAR(512) NULL,
                 definition_hash                      VARCHAR(128)  NOT NULL,
                 tenant_requirement_code              TINYINT       NOT NULL,
                 lane_name                            VARCHAR(128)  NULL,
+                default_input_format_id              TINYINT       NOT NULL,
+                default_input                        VARBINARY(MAX) NULL,
                 PRIMARY KEY (definition_name)
             );');
             GO
@@ -210,7 +214,8 @@ internal sealed class SqlServerDdlDialect : SqlDdlDialect
                 job_ref              UNIQUEIDENTIFIER NOT NULL,
                 input_format_id      TINYINT        NOT NULL,
                 input                VARBINARY(MAX) NULL,
-                event_recording_code TINYINT        NOT NULL
+                event_recording_code TINYINT        NOT NULL,
+                scheduled_delivery_code TINYINT     NOT NULL
             );');
             GO
 
@@ -229,6 +234,10 @@ internal sealed class SqlServerDdlDialect : SqlDdlDialect
                 description                   NVARCHAR(512) NULL,
                 interval_anchor_at_utc        DATETIME2(3) NULL,
                 timing_fingerprint            VARCHAR(64)  NOT NULL,
+                max_outstanding               INT          NOT NULL,
+                full_behavior_code            TINYINT      NOT NULL,
+                expire_after_seconds          INT          NULL,
+                expire_action_code            TINYINT      NULL,
                 PRIMARY KEY (definition_id, schedule_name)
             );');
             GO

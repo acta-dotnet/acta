@@ -53,12 +53,12 @@ One row per operation folder, `src/Acta/Operations/<Group>/<Operation>/`, and on
 | `ArmOrConsumeSleepTimer` | · | · | · | routine | routine | inline | `checkpoints`, `jobs_state` | `ArmOrConsumeSleepTimerSpec` |
 | `ClaimJob` | · | · | · | inline | inline | inline | `jobs_state` | `ClaimJobSpec` |
 | `ClaimJobs` | · | · | · | routine | routine | inline | `jobs_state` | `ClaimJobsSkewSpec`, `ClaimJobsSpec` |
-| `CompleteExecutions` | · | · | · | routine | routine | inline | `checkpoints`, `events`, `jobs_state`, `schedules_state` | `CompleteExecutionsSpec` |
+| `CompleteExecutions` | · | · | · | routine | routine | inline | `checkpoints`, `events`, `jobs_state`, `schedules`, `schedules_state` | `CompleteExecutionsSpec` |
 | `CompleteStep` | · | · | · | routine | routine | inline | `steps` | `CompleteStepSpec` |
 | `GetChildJobIds` | · | · | · | inline | inline | inline | · | `GetChildJobIdsSpec` |
 | `GetFiring` | · | · | · | inline | inline | inline | · | `GetFiringSpec` |
 | `GetStaleChildLatches` | · | · | · | inline | inline | inline | · | `GetStaleChildLatchesSpec` |
-| `ReclaimStuckJobs` | · | · | · | routine | routine | inline | `checkpoints`, `events`, `jobs_state`, `schedules_state`, `workers` | `ReclaimStuckJobsSpec`, `ReclaimStuckJobsWaitTimeoutSpec` |
+| `ReclaimStuckJobs` | · | · | · | routine | routine | inline | `checkpoints`, `events`, `jobs_state`, `schedules`, `schedules_state`, `workers` | `ReclaimStuckJobsSpec`, `ReclaimStuckJobsWaitTimeoutSpec` |
 | `RecordNote` | · | · | · | inline | inline | inline | `events` | `RecordNoteSpec` |
 | `StartStep` | · | · | · | routine | routine | inline | `steps` | `StartStepSpec` |
 
@@ -66,7 +66,7 @@ One row per operation folder, `src/Acta/Operations/<Group>/<Operation>/`, and on
 
 | Operation | Facade | HTTP | CLI | pg | mssql | sqlite | Writes | Specs |
 | --- | --- | --- | --- | --- | --- | --- | --- | --- |
-| `CancelJob` | `IJobs.CancelAsync` | `POST /jobs/{jobRef}/cancel` | `cancel` | inline | inline | inline | `checkpoints`, `events`, `jobs_state` | `CancelJobSpec` |
+| `CancelJob` | `IJobs.CancelAsync` | `POST /jobs/{jobRef}/cancel` | `cancel` | inline | inline | inline | `checkpoints`, `events`, `jobs_state`, `schedules_state` | `CancelJobSpec` |
 | `EnqueueJob` | `IJobs.EnqueueAsync`<br>`IJobs.WaitAsync`<br>`IJobs.RunAndWaitAsync` | `POST /jobs` | · | routine | routine | inline | `jobs`, `jobs_state`, `lanes`, `tags` | `EnqueueJobTransactionalSpec` |
 | `EnqueueJobs` | `IJobs.EnqueueBatchAsync` | · | · | routine | routine | inline | `jobs`, `jobs_state`, `lanes`, `tags` | `EnqueueJobsConcurrencySpec`, `EnqueueJobsRejectionSpec`, `EnqueueJobsSpec` |
 | `GetCheckpoints` | `IJobs.GetCheckpointsAsync` | · | · | inline | inline | inline | · | `GetCheckpointsSpec` |
@@ -83,12 +83,12 @@ One row per operation folder, `src/Acta/Operations/<Group>/<Operation>/`, and on
 | `PauseJob` | `IJobs.PauseAsync` | `POST /jobs/{jobRef}/pause` | `pause` | inline | inline | inline | `events`, `jobs_state` | `PauseJobSpec` |
 | `PurgeJob` | `IJobs.PurgeAsync` | `POST /jobs/{jobRef}/purge` | · | inline | inline | inline | `alerts`, `checkpoints`, `events`, `jobs`, `jobs_state`, `schedules`, `schedules_state`, `steps`, `tags` | `PurgeJobSpec` |
 | `ReprioritizeJob` | `IJobs.ReprioritizeAsync` | `POST /jobs/{jobRef}/reprioritize` | · | inline | inline | inline | `events`, `jobs_state` | `ReprioritizeJobSpec` |
-| `RescheduleJob` | `IJobs.RescheduleAsync` | `POST /jobs/{jobRef}/reschedule` | · | inline | inline | inline | `events`, `jobs_state` | `RescheduleJobSpec` |
+| `RescheduleJob` | `IJobs.RescheduleAsync` | `POST /jobs/{jobRef}/reschedule` | · | inline | inline | inline | `checkpoints`, `events`, `jobs_state` | `RescheduleJobSpec` |
 | `ResetJobState` | · | · | · | inline | inline | inline | `checkpoints`, `events`, `steps` | `ResetJobStateSpec` |
 | `ResolveJobIdByDeduplicationKey` | · | · | · | inline | inline | inline | · | `ResolveJobIdByDeduplicationKeySpec` |
 | `ResolveJobIdByRef` | · | · | · | inline | inline | inline | · | `ResolveJobIdByRefSpec` |
 | `ResolveSlotId` | · | · | · | inline | inline | inline | · | `ResolveSlotIdSpec` |
-| `RestartJob` | `IJobs.RestartAsync` | `POST /jobs/{jobRef}/restart` | `restart` | inline | inline | inline | `events`, `jobs_state`, `schedules_state`, `steps` | `RestartJobSpec` |
+| `RestartJob` | `IJobs.RestartAsync` | `POST /jobs/{jobRef}/restart` | `restart` | inline | inline | inline | `checkpoints`, `events`, `jobs_state`, `schedules_state`, `steps` | `RestartJobSpec` |
 | `ResumeJob` | `IJobs.ResumeAsync` | `POST /jobs/{jobRef}/resume` | `resume` | inline | inline | inline | `events`, `jobs_state`, `schedules_state` | `ResumeJobSpec` |
 | `UpdateJobInput` | `IJobs.UpdateJobInputAsync` | `POST /jobs/{jobRef}/input` | · | inline | inline | inline | `events`, `jobs` | `UpdateJobInputSpec` |
 
@@ -152,7 +152,7 @@ One row per operation folder, `src/Acta/Operations/<Group>/<Operation>/`, and on
 
 | Operation | Facade | HTTP | CLI | pg | mssql | sqlite | Writes | Specs |
 | --- | --- | --- | --- | --- | --- | --- | --- | --- |
-| `AdmitFirings` | · | · | · | inline | inline | inline | `checkpoints`, `events`, `jobs_state`, `schedules`, `schedules_state` | `AdmitFiringsSpec` |
+| `AdmitFirings` | · | · | · | inline | inline | inline | `checkpoints`, `events`, `jobs`, `jobs_state`, `schedules`, `schedules_state` | `AdmitFiringsSpec` |
 | `GetDueSchedules` | · | · | · | inline | inline | inline | · | `GetDueSchedulesSpec` |
 | `GetLiveSchedules` | · | · | · | inline | inline | inline | · | `GetLiveSchedulesSpec` |
 | `GetScheduleHorizon` | · | · | · | inline | inline | inline | · | `GetScheduleHorizonSpec` |
@@ -160,8 +160,8 @@ One row per operation folder, `src/Acta/Operations/<Group>/<Operation>/`, and on
 | `ListSchedules` | `ISchedules.ListAsync` | `GET /schedules` | · | inline | inline | inline | · | `ListSchedulesFilterMatrixSpec`, `ListSchedulesSpec` |
 | `PauseSchedule` | `ISchedules.PauseAsync` | `POST /schedules/{jobNamespace}/{jobName}/{scheduleName}/pause` | · | inline | inline | inline | `events`, `schedules`, `schedules_state` | `PauseScheduleSpec` |
 | `PreviewSchedule` | `ISchedules.PreviewAsync` | `GET /schedules/{jobNamespace}/{jobName}/{scheduleName}/preview` | · | · | · | · | · | `PreviewScheduleSysNameSpec` |
-| `RegisterSchedules` | · | · | · | inline | inline | inline | `events`, `jobs`, `jobs_state`, `namespaces`, `schedules`, `schedules_state` | `RegisterSchedulesCursorSpec`, `RegisterSchedulesNoteSpec`, `RegisterSchedulesSpec` |
-| `ResolveScheduleTarget` | · | · | · | · | · | · | · | `ResolveScheduleTargetSpec` |
+| `RegisterSchedules` | · | · | · | inline | inline | inline | `events`, `jobs`, `jobs_state`, `namespaces`, `schedules`, `schedules_state` | `RegisterSchedulesCursorSpec`, `RegisterSchedulesNoteSpec`, `RegisterSchedulesPerOccurrenceSpec`, `RegisterSchedulesSpec` |
+| `ResolveScheduleTarget` | · | · | · | inline | inline | inline | · | `ResolveScheduleTargetSpec` |
 | `ResumeSchedule` | `ISchedules.ResumeAsync` | `POST /schedules/{jobNamespace}/{jobName}/{scheduleName}/resume` | · | inline | inline | inline | `events`, `schedules`, `schedules_state` | `ResumeScheduleSpec` |
 | `TriggerScheduleNow` | `ISchedules.TriggerNowAsync` | `POST /schedules/{jobNamespace}/{jobName}/{scheduleName}/trigger` | · | inline | inline | inline | `checkpoints`, `events`, `jobs_state` | `TriggerScheduleNowSpec` |
 

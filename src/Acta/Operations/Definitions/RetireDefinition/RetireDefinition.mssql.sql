@@ -152,11 +152,24 @@ BEGIN TRY
             AND cp.checkpoint_name = 'sys.firing'
             AND cp.checkpoint_status_code = 10 /* CheckpointStatusCode.Pending */;
 
+        -- A cancelled charged root releases its schedule's capacity, so the count stays true on the exhausted schedule.
+        UPDATE st
+        SET
+            outstanding_count = st.outstanding_count - c.settled,
+            modified_at_utc = @now,
+            version = st.version + 1
+        FROM {{schema}}.schedules_state st WITH (FORCESEEK)
+        INNER JOIN (
+            SELECT j.schedule_id, COUNT(*) AS settled
+            FROM @parked p
+            INNER JOIN {{schema}}.jobs j WITH (FORCESEEK) ON j.job_id = p.job_id
+            WHERE j.schedule_id IS NOT NULL
+            GROUP BY j.schedule_id
+        ) c ON c.schedule_id = st.schedule_id;
+
         UPDATE st
         SET
             next_occurrence_at_utc = NULL,
-
-            decided_through_at_utc = NULL,
 
             next_evaluation_at_utc = NULL,
 

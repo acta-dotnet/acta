@@ -10,8 +10,8 @@ BEGIN TRY
     DECLARE
         @from_status TINYINT, @namespace_id INT,
         @lineage_root_job_id BIGINT, @definition_id INT, @tenant_id INT, @execution_number INT, @event_recording TINYINT,
-        @version INT;
-    DECLARE @lane_id BIGINT, @to_status TINYINT = 10 /* JobStatusCode.Ready */;
+        @version INT, @kind TINYINT;
+    DECLARE @lane_id BIGINT, @to_status TINYINT = 10 /* JobStatusCode.Ready */, @fires BIT = 0;
 
     /* Lock order: the lane, then the job's rows (docs/sql-internals.md, "Lane lock
        order"). lane_id never changes, so the unlocked read is safe. */
@@ -32,7 +32,8 @@ BEGIN TRY
         @tenant_id = j.tenant_id,
         @execution_number = r.execution_number,
         @event_recording = j.event_recording_code,
-        @version = r.version
+        @version = r.version,
+        @kind = j.job_kind_code
     FROM {{schema}}.jobs_state r WITH (UPDLOCK, ROWLOCK)
     INNER JOIN {{schema}}.jobs j ON j.job_id = r.job_id
     WHERE r.job_id = @p_job_id;
@@ -57,6 +58,7 @@ BEGIN TRY
             GOTO Finish;
         END;
 
+    -- Idle applies to a permanent slot alone.
     IF
         @from_status NOT IN (
             30 /* JobStatusCode.Paused */,
@@ -64,6 +66,7 @@ BEGIN TRY
             10 /* JobStatusCode.Ready */,
             15 /* JobStatusCode.Blocked */
         )
+        AND NOT (@from_status = 40 /* JobStatusCode.Idle */ AND @kind = 20 /* JobKindCode.PermanentSlot */)
         BEGIN
 
             SELECT
@@ -72,6 +75,19 @@ BEGIN TRY
                 @version AS version;
             GOTO Finish;
         END;
+
+    -- An Idle or Paused permanent slot with no firing outstanding takes a manual firing at the instant; a slot
+    -- mid-firing moves its instant like any waiting job.
+    IF
+        @kind = 20 /* JobKindCode.PermanentSlot */
+        AND @from_status IN (40 /* JobStatusCode.Idle */, 30 /* JobStatusCode.Paused */)
+        AND NOT EXISTS (
+            SELECT 1
+            FROM {{schema}}.checkpoints cp WITH (FORCESEEK)
+            WHERE cp.job_id = @p_job_id AND cp.checkpoint_kind_code = 60 /* CheckpointKindCode.Firing */
+                AND cp.checkpoint_name = 'sys.firing' AND cp.checkpoint_status_code = 10 /* CheckpointStatusCode.Pending */
+        )
+        SET @fires = 1;
 
     /* A laned job is rescheduled Ready unless another member runs, or it was not running and an older
        member is unfinished (docs/sql-internals.md, "Lane lock order"). */
@@ -103,14 +119,42 @@ BEGIN TRY
         )
         SET @to_status = 15 /* JobStatusCode.Blocked */;
 
+    -- A null instant is now; a manual firing starts with a fresh failure budget.
     UPDATE {{schema}}.jobs_state
     SET
-        next_run_at_utc = @p_next_run_at_utc,
+        next_run_at_utc = COALESCE(@p_next_run_at_utc, @now),
         job_status_code = @to_status,
+        failure_count = CASE WHEN @fires = 1 THEN 0 ELSE failure_count END,
         modified_at_utc = @now,
         version = version + 1
     WHERE job_id = @p_job_id;
     SET @version = @version + 1;
+
+    -- The manual envelope replaces the settled one of the slot's previous firing. The JSON is ASCII by construction,
+    -- so the VARCHAR cast is its UTF-8.
+    IF @fires = 1
+        BEGIN
+            UPDATE cp
+            SET
+                checkpoint_status_code = 10 /* CheckpointStatusCode.Pending */,
+                value_format_id = 1 /* JobPayloadFormat.Json */,
+                value = CAST(CAST(@p_envelope AS VARCHAR(MAX)) AS VARBINARY(MAX)),
+                modified_at_utc = @now,
+                version = cp.version + 1
+            FROM {{schema}}.checkpoints cp WITH (FORCESEEK)
+            WHERE
+                cp.job_id = @p_job_id
+                AND cp.checkpoint_kind_code = 60 /* CheckpointKindCode.Firing */
+                AND cp.checkpoint_name = 'sys.firing';
+
+            IF @@ROWCOUNT = 0
+                INSERT INTO {{schema}}.checkpoints (
+                    job_id, checkpoint_kind_code, checkpoint_name, checkpoint_status_code,
+                    value_format_id, value, created_at_utc, modified_at_utc, version)
+                VALUES (
+                    @p_job_id, 60 /* CheckpointKindCode.Firing */, 'sys.firing', 10 /* CheckpointStatusCode.Pending */,
+                    1 /* JobPayloadFormat.Json */, CAST(CAST(@p_envelope AS VARCHAR(MAX)) AS VARBINARY(MAX)), @now, @now, 0);
+        END;
 
     IF @event_recording = 20 /* EventRecordingCode.Audit */
         BEGIN

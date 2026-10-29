@@ -16,17 +16,17 @@ internal static class AdmitFiringsJson
             command.Groups,
             static (writer, g) =>
             {
-                writer.WriteNumber("job_id", g.JobId);
-                writer.WriteNumber("expected_job_version", g.ExpectedJobVersion);
+                writer.WriteNumber("ordinal", g.Ordinal);
+                Number(writer, "job_id", g.JobId);
+                Number(writer, "expected_job_version", g.ExpectedJobVersion);
+                Number(writer, "schedule_id", g.ScheduleId);
+                Number(writer, "expected_state_version", g.ExpectedStateVersion);
                 writer.WriteBoolean("admit", g.Admit);
-                if (g.Envelope is null)
-                {
-                    writer.WriteNull("envelope");
-                }
-                else
-                {
-                    writer.WriteString("envelope", g.Envelope);
-                }
+                Text(writer, "envelope", g.Envelope);
+                Text(writer, "job_ref", g.JobRef?.ToString());
+                Text(writer, "deduplication_key", g.DeduplicationKey);
+                Text(writer, "trigger_message", g.TriggerMessage);
+                Text(writer, "trigger_details", g.TriggerDetails);
             }
         );
 
@@ -35,19 +35,32 @@ internal static class AdmitFiringsJson
             command.Rows,
             (writer, r) =>
             {
+                writer.WriteNumber("group_ordinal", r.GroupOrdinal);
                 writer.WriteNumber("schedule_id", r.ScheduleId);
-                writer.WriteNumber("job_id", r.JobId);
                 writer.WriteString("schedule_name", r.ScheduleName);
                 writer.WriteNumber("expected_version", r.ExpectedVersion);
                 writeInstant(writer, "next_occurrence_at_utc", r.NextOccurrenceAtUtc);
-                writeInstant(writer, "decided_through_at_utc", r.DecidedThroughAtUtc);
                 writeInstant(writer, "next_evaluation_at_utc", r.NextEvaluationAtUtc);
                 writer.WriteNumber("evaluation_status_code", (byte)r.EvaluationStatus);
                 writer.WriteBoolean("pause_ended", r.PauseEnded);
                 Text(writer, "admitted_details", r.AdmittedDetails);
                 Text(writer, "skipped_details", r.SkippedDetails);
+                Text(writer, "expired_details", r.ExpiredDetails);
+                writer.WriteBoolean("expire_paused", r.ExpirePaused);
             }
         );
+
+    private static void Number(Utf8JsonWriter writer, string name, long? value)
+    {
+        if (value is { } number)
+        {
+            writer.WriteNumber(name, number);
+        }
+        else
+        {
+            writer.WriteNull(name);
+        }
+    }
 
     private static void Text(Utf8JsonWriter writer, string name, string? value)
     {

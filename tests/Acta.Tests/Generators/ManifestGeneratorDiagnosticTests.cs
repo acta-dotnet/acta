@@ -708,6 +708,98 @@ public class ManifestGeneratorDiagnosticTests
         Assert.Single(Of(result, "ACTA0105"));
     }
 
+    [Theory]
+    [InlineData("(FiringFailurePolicyCode)42")]
+    [InlineData("FiringFailurePolicyCode.Unspecified")]
+    public void An_undeclarable_firing_failure_policy_errors_ACTA0105(string policy)
+    {
+        var result = RunGenerator(
+            $$"""
+            using Acta;
+            namespace GenTests;
+
+            public static class Handler
+            {
+                [Job("bad-firing-policy", FiringFailurePolicy = {{policy}})]
+                public static void Run() { }
+            }
+            """
+        );
+
+        Assert.Single(Of(result, "ACTA0105"));
+    }
+
+    [Fact]
+    public void Firing_failure_policy_is_emitted_into_the_descriptor_and_defaults_to_Continue()
+    {
+        var result = RunGenerator(
+            """
+            using Acta;
+            namespace GenTests;
+
+            public static class Handler
+            {
+                [Job("pausing", FiringFailurePolicy = FiringFailurePolicyCode.PauseScheduling)]
+                public static void Pausing() { }
+
+                [Job("continuing")]
+                public static void Continuing() { }
+            }
+            """
+        );
+
+        Assert.Empty(result.Diagnostics);
+        var source = Assert.Single(result.GeneratedTrees).ToString();
+        Assert.Contains("FiringFailurePolicy: global::Acta.FiringFailurePolicyCode.PauseScheduling,", source);
+        Assert.Contains("FiringFailurePolicy: global::Acta.FiringFailurePolicyCode.Continue,", source);
+    }
+
+    [Theory]
+    [InlineData("(ScheduledDeliveryCode)42")]
+    [InlineData("ScheduledDeliveryCode.Unspecified")]
+    public void An_undeclarable_scheduled_delivery_errors_ACTA0105(string delivery)
+    {
+        var result = RunGenerator(
+            $$"""
+            using Acta;
+            namespace GenTests;
+
+            public static class Handler
+            {
+                [Job("bad-delivery", ScheduledDelivery = {{delivery}})]
+                public static void Run() { }
+            }
+            """
+        );
+
+        Assert.Single(Of(result, "ACTA0105"));
+    }
+
+    [Fact]
+    public void Scheduled_delivery_is_emitted_into_the_descriptor_and_defaults_to_Permanent()
+    {
+        var result = RunGenerator(
+            """
+            using Acta;
+            namespace GenTests;
+
+            public static class Handler
+            {
+                [Job("per-occurrence", ScheduledDelivery = ScheduledDeliveryCode.PerOccurrence)]
+                public static void PerOccurrence() { }
+
+                [Job("permanent")]
+                public static void Permanent() { }
+            }
+            """
+        );
+
+        Assert.Empty(result.Diagnostics);
+        var source = Assert.Single(result.GeneratedTrees).ToString();
+        Assert.Contains("ScheduledDelivery: global::Acta.ScheduledDeliveryCode.PerOccurrence,", source);
+        Assert.Contains("ScheduledDelivery: global::Acta.ScheduledDeliveryCode.Permanent,", source);
+    }
+
     [Fact]
     public void Valid_policy_values_produce_no_diagnostics()
     {
@@ -931,6 +1023,205 @@ public class ManifestGeneratorDiagnosticTests
         );
 
         Assert.Single(Of(result, "ACTA0121"));
+    }
+
+    // ACTA0124: invalid schedule capacity; ACTA0125: capacity above the one slot of a Permanent definition
+
+    [Theory]
+    [InlineData(0)]
+    [InlineData(-1)]
+    public void Max_outstanding_below_one_errors_ACTA0124(int maxOutstanding)
+    {
+        var result = RunGenerator(
+            $$"""
+            using Acta;
+            namespace GenTests;
+
+            public static class Handler
+            {
+                [Job("no-capacity", ScheduledDelivery = ScheduledDeliveryCode.PerOccurrence)]
+                [JobSchedule("tick", Cron.Hourly, MaxOutstanding = {{maxOutstanding}})]
+                public static void Run() { }
+            }
+            """
+        );
+
+        Assert.Single(Of(result, "ACTA0124"));
+        Assert.Empty(Of(result, "ACTA0125"));
+    }
+
+    [Theory]
+    [InlineData("(ScheduleFullBehaviorCode)42")]
+    [InlineData("ScheduleFullBehaviorCode.Unspecified")]
+    public void An_undeclarable_full_behavior_errors_ACTA0124(string behavior)
+    {
+        var result = RunGenerator(
+            $$"""
+            using Acta;
+            namespace GenTests;
+
+            public static class Handler
+            {
+                [Job("bad-full-behavior", ScheduledDelivery = ScheduledDeliveryCode.PerOccurrence)]
+                [JobSchedule("tick", Cron.Hourly, FullBehavior = {{behavior}})]
+                public static void Run() { }
+            }
+            """
+        );
+
+        Assert.Single(Of(result, "ACTA0124"));
+    }
+
+    [Theory]
+    [InlineData("")]
+    [InlineData(", ScheduledDelivery = ScheduledDeliveryCode.Permanent")]
+    public void Max_outstanding_above_one_on_a_permanent_definition_errors_ACTA0125(string delivery)
+    {
+        var result = RunGenerator(
+            $$"""
+            using Acta;
+            namespace GenTests;
+
+            public static class Handler
+            {
+                [Job("slot-capacity"{{delivery}})]
+                [JobSchedule("tick", Cron.Hourly, MaxOutstanding = 3)]
+                public static void Run() { }
+            }
+            """
+        );
+
+        Assert.Single(Of(result, "ACTA0125"));
+        Assert.Empty(Of(result, "ACTA0124"));
+    }
+
+    [Fact]
+    public void Schedule_capacity_is_emitted_into_the_descriptor_and_defaults_to_one_and_Wait()
+    {
+        var result = RunGenerator(
+            """
+            using Acta;
+            namespace GenTests;
+
+            public static class Handler
+            {
+                [Job("per-occurrence", ScheduledDelivery = ScheduledDeliveryCode.PerOccurrence)]
+                [JobSchedule("tick", Cron.Hourly, MaxOutstanding = 3, FullBehavior = ScheduleFullBehaviorCode.Drop)]
+                public static void PerOccurrence() { }
+
+                [Job("permanent")]
+                [JobSchedule("tock", Cron.Hourly)]
+                public static void Permanent() { }
+            }
+            """
+        );
+
+        Assert.Empty(result.Diagnostics);
+        var source = Assert.Single(result.GeneratedTrees).ToString();
+        Assert.Contains("MaxOutstanding: 3,", source);
+        Assert.Contains("FullBehavior: global::Acta.ScheduleFullBehaviorCode.Drop,", source);
+        Assert.Contains("MaxOutstanding: 1,", source);
+        Assert.Contains("FullBehavior: global::Acta.ScheduleFullBehaviorCode.Wait,", source);
+    }
+
+    // ACTA0124 for the misfire strategy; ACTA0126: an expiration is an ExpireAfter and an ExpireAction together, or neither
+
+    [Theory]
+    [InlineData("CatchUpLatest")]
+    [InlineData("CatchUpAll")]
+    public void A_catch_up_misfire_strategy_is_emitted_into_the_descriptor(string strategy)
+    {
+        var result = RunGenerator(
+            $$"""
+            using Acta;
+            namespace GenTests;
+
+            public static class Handler
+            {
+                [Job("catch-up", ScheduledDelivery = ScheduledDeliveryCode.PerOccurrence)]
+                [JobSchedule("tick", Cron.Hourly, MisfireStrategy = MisfireStrategyCode.{{strategy}})]
+                public static void Run() { }
+            }
+            """
+        );
+
+        Assert.Empty(result.Diagnostics);
+        Assert.Contains($"MisfireStrategy: global::Acta.MisfireStrategyCode.{strategy},", Assert.Single(result.GeneratedTrees).ToString());
+    }
+
+    [Theory]
+    [InlineData("(MisfireStrategyCode)42")]
+    [InlineData("MisfireStrategyCode.Unspecified")]
+    public void An_undeclarable_misfire_strategy_errors_ACTA0124(string strategy)
+    {
+        var result = RunGenerator(
+            $$"""
+            using Acta;
+            namespace GenTests;
+
+            public static class Handler
+            {
+                [Job("bad-misfire")]
+                [JobSchedule("tick", Cron.Hourly, MisfireStrategy = {{strategy}})]
+                public static void Run() { }
+            }
+            """
+        );
+
+        Assert.Single(Of(result, "ACTA0124"));
+    }
+
+    [Fact]
+    public void Schedule_expiration_is_emitted_into_the_descriptor_and_defaults_to_none()
+    {
+        var result = RunGenerator(
+            """
+            using Acta;
+            namespace GenTests;
+
+            public static class Handler
+            {
+                [Job("expiring", ScheduledDelivery = ScheduledDeliveryCode.PerOccurrence)]
+                [JobSchedule("tick", Cron.Hourly, ExpireAfter = "1h", ExpireAction = ScheduleExpireActionCode.Discard)]
+                public static void Expiring() { }
+
+                [Job("lasting")]
+                [JobSchedule("tock", Cron.Hourly)]
+                public static void Lasting() { }
+            }
+            """
+        );
+
+        Assert.Empty(result.Diagnostics);
+        var source = Assert.Single(result.GeneratedTrees).ToString();
+        Assert.Contains("ExpireAfterSeconds: 3600,", source);
+        Assert.Contains("ExpireAction: global::Acta.ScheduleExpireActionCode.Discard)", source);
+        Assert.Contains("ExpireAfterSeconds: null,", source);
+        Assert.Contains("ExpireAction: global::Acta.ScheduleExpireActionCode.Unspecified)", source);
+    }
+
+    [Theory]
+    [InlineData("ExpireAfter = \"1h\"")]
+    [InlineData("ExpireAction = ScheduleExpireActionCode.Pause")]
+    [InlineData("ExpireAfter = \"0s\", ExpireAction = ScheduleExpireActionCode.Discard")]
+    [InlineData("ExpireAfter = \"PT1H\", ExpireAction = (ScheduleExpireActionCode)42")]
+    public void A_partial_or_out_of_range_expiration_errors_ACTA0126(string expiration)
+    {
+        var result = RunGenerator(
+            $$"""
+            using Acta;
+            namespace GenTests;
+
+            public static class Handler
+            {
+                [Job("half-expiring")]
+                [JobSchedule("tick", Cron.Hourly, {{expiration}})]
+                public static void Run() { }
+            }
+            """
+        );
+
+        Assert.Single(Of(result, "ACTA0126"));
     }
 
     // ACTA0122: invalid schedule expression

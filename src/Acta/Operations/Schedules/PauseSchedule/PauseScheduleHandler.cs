@@ -4,7 +4,7 @@ namespace Acta;
 /// <see cref="ISchedules.PauseAsync"/>: pauses one schedule, indefinitely or until an instant, and parks its next
 /// evaluation at that instant. The slot is not touched: a firing the schedule already admitted runs on, and the other
 /// schedules of the slot keep their own cursors. One routine call writes the schedule and its state and records
-/// <c>schedule.paused</c> against the slot job.
+/// <c>schedule.paused</c> against the slot job, or against the definition when the schedule has no slot.
 /// </summary>
 internal sealed class PauseScheduleHandler(ResolveScheduleTargetHandler resolveScheduleTarget, IDbSession session, ISqlDialect dialect)
 {
@@ -28,8 +28,7 @@ internal sealed class PauseScheduleHandler(ResolveScheduleTargetHandler resolveS
             new StoreCommand("PauseSchedule"),
             cmd =>
             {
-                cmd.Parameters.Add(dialect.CreateParameter(ActaSchema.Schedule.JobId, target.JobId));
-                cmd.Parameters.Add(dialect.CreateParameter(ActaSchema.Schedule.ScheduleName, name));
+                cmd.Parameters.Add(dialect.CreateParameter(ActaSchema.Schedule.ScheduleId, target.ScheduleId));
                 cmd.Parameters.Add(dialect.CreateParameter(ActaSchema.Schedule.PausedUntilUtc, command.UntilUtc));
                 cmd.Parameters.Add(
                     dialect.CreateParameter(ActaSchema.Schedule.PauseMessage, ScheduleControl.Reason(command.ReasonMessage))

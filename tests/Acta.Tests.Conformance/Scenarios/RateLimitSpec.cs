@@ -629,6 +629,8 @@ public sealed class RateLimitSpec : ActaRuntimeTestBase<ConformanceFixture, Test
             MaxAttempts: 3,
             EventRecording: EventRecordingCode.Audit,
             AlertProfile: AlertProfileCode.OnFailure,
+            FiringFailurePolicy: FiringFailurePolicyCode.Continue,
+            ScheduledDelivery: ScheduledDeliveryCode.Permanent,
             Invoker: static (_, _, _, _) => ValueTask.FromResult(new JobHandlerOutput(false, null)),
             DeserializeInput: static (_, _) => string.Empty,
             SerializeOutput: null

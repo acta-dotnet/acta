@@ -111,7 +111,7 @@ public sealed class ScheduleRegistrationSkipSpec : ActaTestBase<ConformanceFixtu
         var definitions = await Db.From<DefinitionEntity>().Where(d => d.NamespaceId == nsId).ToListAsync(ct);
         var schedules = await Db.From<ScheduleEntity>().Where(s => s.NamespaceId == nsId).ToListAsync(ct);
         var cursors = await Db.From<ScheduleStateEntity>().Where(s => s.NamespaceId == nsId).ToListAsync(ct);
-        var slotIds = schedules.Select(s => s.JobId).Distinct().ToList();
+        var slotIds = schedules.Select(s => s.JobId).OfType<long>().Distinct().ToList();
         var slots = await Db.From<JobStateEntity>().Where(r => slotIds.Contains(r.Id)).ToListAsync(ct);
         return string.Join(
             "|",

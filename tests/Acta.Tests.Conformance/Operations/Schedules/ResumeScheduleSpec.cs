@@ -57,6 +57,7 @@ public sealed class ResumeScheduleSpec : ActaStorageTestBase<ConformanceFixture>
             InputFormatId: 0,
             Input: ReadOnlyMemory<byte>.Empty,
             EventRecording: EventRecordingCode.Audit,
+            ScheduledDelivery: ScheduledDeliveryCode.Permanent,
             Schedules: schedules
         );
         await ScheduleTestOps.RegisterAsync(Services, [definition], ct);
@@ -121,6 +122,8 @@ public sealed class ResumeScheduleSpec : ActaStorageTestBase<ConformanceFixture>
             MaxAttempts: 1,
             EventRecording: default,
             AlertProfile: default,
+            FiringFailurePolicy: FiringFailurePolicyCode.Continue,
+            ScheduledDelivery: ScheduledDeliveryCode.Permanent,
             Invoker: null!,
             DeserializeInput: null!,
             SerializeOutput: null
@@ -150,7 +153,7 @@ public sealed class ResumeScheduleSpec : ActaStorageTestBase<ConformanceFixture>
         Assert.Equal(missed, resumed.NextOccurrenceAtUtc);
         var schedule = await ScheduleAsync(Db, jobName, "only", ct);
         Assert.Equal(missed, schedule.NextOccurrenceAtUtc);
-        Assert.Equal(EvaluationStatusCode.Scheduled, schedule.EvaluationStatus);
+        Assert.Equal(EvaluationStatusCode.Resumed, schedule.EvaluationStatus);
         Assert.InRange(schedule.NextEvaluationAtUtc!.Value, now, now.AddMinutes(1));
         var slot = await SlotAsync(jobName, ct);
         Assert.Equal(JobStatusCode.Idle, slot.Status);

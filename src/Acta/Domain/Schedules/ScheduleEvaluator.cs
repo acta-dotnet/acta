@@ -2,9 +2,9 @@ namespace Acta;
 
 /// <summary>
 /// The one evaluator every scheduling path shares: given a schedule's timing, policy, cursor, and the capacity the
-/// admitter read, decides at the instant it is given what to admit, what to skip, where the cursor moves, and when
-/// to look again. Pure: no clock, no database, no provider call. Occurrences are nominal instants; a missed one is
-/// decided by the misfire policy and never shifted.
+/// admitter read, decides at the instant it is given what to admit, what to skip or expire, where the cursor moves,
+/// and when to look again. Pure: no clock, no database, no provider call. Occurrences are nominal instants; a missed
+/// one is decided by the misfire policy and never shifted.
 /// </summary>
 internal static class ScheduleEvaluator
 {
@@ -19,8 +19,7 @@ internal static class ScheduleEvaluator
 
     public static ScheduleEvaluation Evaluate(
         ScheduleTiming timing,
-        MisfireStrategyCode misfire,
-        TimeSpan grace,
+        SchedulePolicy policy,
         ScheduleCursor cursor,
         AdmissionCapacity capacity,
         DateTime nowUtc
@@ -72,9 +71,44 @@ internal static class ScheduleEvaluator
 
         DateTime latest;
         DateTime? following;
+        DateTime? expiredFrom = null;
+        DateTime? expiredThrough = null;
+        var pausedByExpiry = false;
         try
         {
             latest = LatestDue(timing, next, now);
+
+            // Expiration comes before the misfire policy: every due occurrence that aged past the expiry is decided
+            // without work, and under Pause the schedule then stops for an operator. An operator's resume and a timed
+            // pause's end expire the stale backlog once without pausing again, so the schedule can move on.
+            if (policy.ExpireAfter is { } age && next <= now - age)
+            {
+                expiredFrom = next;
+                expiredThrough = LatestDue(timing, next, now - age);
+                pausedByExpiry =
+                    policy.ExpireAction == ScheduleExpireActionCode.Pause
+                    && !pauseEnded
+                    && cursor.EvaluationStatus != EvaluationStatusCode.Resumed;
+                var remaining = NextAfter(timing, expiredThrough.Value);
+                if (remaining is null || remaining > now)
+                {
+                    return new ScheduleEvaluation(
+                        null,
+                        null,
+                        null,
+                        expiredFrom,
+                        expiredThrough,
+                        remaining,
+                        pausedByExpiry ? null : remaining,
+                        remaining is null ? EvaluationStatusCode.Exhausted : EvaluationStatusCode.Scheduled,
+                        pauseEnded,
+                        pausedByExpiry
+                    );
+                }
+
+                next = remaining.Value;
+            }
+
             following = NextOccurrenceCalculator.FirstAfter(
                 timing.Expression,
                 timing.TimeZoneId,
@@ -90,15 +124,30 @@ internal static class ScheduleEvaluator
 
         // The window a pause or downtime covered holds missed occurrences; a due one since then is on time within the
         // grace, and the grace is what keeps a slow pass from counting as a misfire.
-        var onTime = latest >= downtimeEndUtc && latest >= now - grace;
+        var onTime = latest >= downtimeEndUtc && latest >= now - policy.Grace;
         AdmittedOccurrence? admit;
         DateTime? skippedFrom = null;
         DateTime? skippedThrough = null;
-        switch (misfire)
+        switch (policy.Misfire)
         {
             case MisfireStrategyCode.CatchUpOnce:
                 // One firing stands for every due occurrence: the earliest is the nominal one, the latest the boundary.
                 admit = new AdmittedOccurrence(next, latest);
+                break;
+            case MisfireStrategyCode.CatchUpLatest:
+                // The latest due occurrence fires however late it is; the earlier ones are coalesced into it as a skip.
+                admit = new AdmittedOccurrence(latest, latest);
+                if (next < latest)
+                {
+                    skippedFrom = next;
+                    skippedThrough = PreviousDue(timing, next, latest);
+                }
+                break;
+            case MisfireStrategyCode.CatchUpAll:
+                // The earliest due occurrence fires alone; the rest of the backlog is due again at once, so the next pass
+                // comes straight back and admits the next one as capacity allows.
+                admit = new AdmittedOccurrence(next, next);
+                following = NextAfter(timing, next);
                 break;
             case MisfireStrategyCode.Skip:
                 admit = onTime ? new AdmittedOccurrence(latest, latest) : null;
@@ -109,18 +158,20 @@ internal static class ScheduleEvaluator
                 }
                 break;
             default:
-                throw new NotSupportedException($"Misfire strategy {misfire} is not supported by this build.");
+                throw new NotSupportedException($"Misfire strategy {policy.Misfire} is not supported by this build.");
         }
 
         return new ScheduleEvaluation(
             admit,
             skippedFrom,
             skippedThrough,
+            expiredFrom,
+            expiredThrough,
             following,
-            latest,
-            following,
+            pausedByExpiry ? null : following,
             following is null ? EvaluationStatusCode.Exhausted : EvaluationStatusCode.Scheduled,
-            pauseEnded
+            pauseEnded,
+            pausedByExpiry
         );
     }
 
@@ -129,7 +180,17 @@ internal static class ScheduleEvaluator
         EvaluationStatusCode status,
         DateTime? nextEvaluationAtUtc,
         bool pauseEnded
-    ) => new(null, null, null, cursor.NextOccurrenceAtUtc, cursor.DecidedThroughAtUtc, nextEvaluationAtUtc, status, pauseEnded);
+    ) => new(null, null, null, null, null, cursor.NextOccurrenceAtUtc, nextEvaluationAtUtc, status, pauseEnded, false);
+
+    /// <summary>The first occurrence strictly after <paramref name="fromUtc"/>, an anchored interval stepping from its anchor.</summary>
+    private static DateTime? NextAfter(ScheduleTiming timing, DateTime fromUtc) =>
+        NextOccurrenceCalculator.FirstAfter(
+            timing.Expression,
+            timing.TimeZoneId,
+            timing.ExpressionKind,
+            timing.IntervalAnchorAtUtc ?? fromUtc,
+            fromUtc
+        );
 
     /// <summary>The last occurrence at or before <paramref name="nowUtc"/>, starting from the due <paramref name="fromUtc"/>.</summary>
     private static DateTime LatestDue(ScheduleTiming timing, DateTime fromUtc, DateTime nowUtc)

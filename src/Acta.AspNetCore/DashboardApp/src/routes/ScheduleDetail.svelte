@@ -20,7 +20,7 @@
   interface ScheduleItem {
     jobNamespace: string;
     jobName: string;
-    // The recurring slot job this schedule fires; null only while the slot has not been created yet.
+    // The permanent slot job this schedule fires; null for a per-occurrence definition, which has no slot.
     jobRef: string | null;
     scheduleName: string;
     origin: string;
@@ -29,7 +29,6 @@
     timeZoneId: string;
     misfireStrategy: string;
     nextOccurrenceAtUtc: string | null;
-    decidedThroughAtUtc: string | null;
     nextEvaluationAtUtc: string | null;
     evaluationStatus: string;
     status: string;
@@ -37,6 +36,12 @@
     createdAtUtc: string;
     modifiedAtUtc: string;
     version: number;
+    maxOutstanding: number;
+    outstandingCount: number;
+    fullBehavior: string;
+    scheduledDelivery: string;
+    expireAfterSeconds: number | null;
+    expireAction: string | null;
   }
 
   let {
@@ -144,7 +149,6 @@
             <div><dt>Misfire strategy</dt><dd>{schedule.misfireStrategy}</dd></div>
             <div><dt>Origin</dt><dd>{schedule.origin}</dd></div>
             <div><dt>Next occurrence</dt><dd><RelativeTime value={schedule.nextOccurrenceAtUtc} /></dd></div>
-            <div><dt>Decided through</dt><dd><RelativeTime value={schedule.decidedThroughAtUtc} /></dd></div>
             <div><dt>Next evaluation</dt><dd><RelativeTime value={schedule.nextEvaluationAtUtc} /> · {schedule.evaluationStatus}</dd></div>
           </dl>
           <p class="detail-help">

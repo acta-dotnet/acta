@@ -174,6 +174,7 @@ await jobs.ResumeAsync(job);                            // Paused -> Ready, or I
 await jobs.RestartAsync(job);                           // resets failure budget + retention and Exhausted steps, runs now
 await jobs.RaiseSignalAsync(job, "approval", payload);  // releases a Suspended WaitSignalAsync
 await jobs.RescheduleAsync(job, inTwoHours);             // move a waiting job's next run (re-arms Ready)
+await jobs.RescheduleAsync(job);                         // run now: an idle scheduled slot takes a manual firing
 await jobs.ReprioritizeAsync(job, JobPriorityCode.High); // change claim priority in place
 await jobs.PurgeAsync(job);                              // hard-delete a terminal job (audited as job.purged)
 ```
@@ -194,7 +195,9 @@ current version instead of overwriting someone else's decision.
 ### Schedule controls
 
 Address a schedule by its path: the namespace, the scheduled job's name, and the schedule's name. The
-slot job carries no deduplication key; `GET /schedules` and the dashboard carry its ref.
+slot job carries no deduplication key; `GET /schedules` and the dashboard carry its ref. A schedule of a
+`PerOccurrence` definition has no slot: trigger-now admits a fresh root charged to the schedule, and is
+rejected while the schedule is at `MaxOutstanding`.
 
 ```csharp
 var nightly = new ScheduleLookup("billing", "reconcile-ledger", "nightly");
@@ -959,7 +962,9 @@ Schedules have their own control surface through `operations.Schedules`; pausing
 from pausing the job itself.
 
 A permanent slot whose schedules are all paused, exhausted, or removed by a deploy sits `Idle` with
-nothing due, and fires again by itself once a schedule offers a run. See
+nothing due, and fires again by itself once a schedule offers a run. A per-occurrence schedule has no
+slot: its roots are ordinary jobs with the schedule as provenance, and `schedules_view` shows how many
+are outstanding against `max_outstanding`. See
 [Schedule operations](./developer-guide.md#schedule-operations).
 
 ### A Job Keeps Retrying Or Failed
@@ -1251,15 +1256,21 @@ job's attempt budget until its own step budget is exhausted.
 ### Recurring Schedules
 
 ```sql
-SELECT namespace, job_name, schedule_name, status, origin, expression, time_zone_id, next_occurrence_at_utc, decided_through_at_utc, next_evaluation_at_utc, evaluation_status, paused_until_utc, description, pause_message
+SELECT namespace, job_name, schedule_name, status, origin, expression, time_zone_id, misfire_strategy, next_occurrence_at_utc, next_evaluation_at_utc, evaluation_status, max_outstanding, outstanding_count, full_behavior, expire_after_seconds, expire_action, paused_until_utc, description, pause_message
   FROM acta.schedules_view
  ORDER BY namespace, next_occurrence_at_utc NULLS LAST, schedule_name;
 ```
+
+`expire_after_seconds` and `expire_action` are null together when occurrences never expire; a schedule paused
+by its expiry carries the pause message `Paused by the expiration policy: an occurrence expired unadmitted.`
+and `evaluation_status` reads `resumed` between an operator's resume and the admitter's next look.
 
 Each schedule's cursor lives in `schedules_state`, beside its `schedules` row, and the view joins the
 two. `next_occurrence_at_utc` is the next instant the schedule is due; an orphaned schedule, and every
 schedule of a retired definition, has none. `next_evaluation_at_utc` and `evaluation_status` say when
 and why the admitter next looks; the slot job carries no cursor of its own and sits `idle` between firings.
+`outstanding_count` is a per-occurrence schedule's roots not yet settled, bounded by `max_outstanding`,
+and `full_behavior` says whether a due occurrence waits or is dropped at that bound.
 
 ### Job Definitions And Effective Policy
 

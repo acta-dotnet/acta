@@ -3,7 +3,8 @@ namespace Acta;
 /// <summary>
 /// <see cref="ISchedules.ResumeAsync"/>: lifts the pause and hands the schedule back to the admission engine, which
 /// applies its misfire policy at the next pass; the remembered cursor is not moved here. One routine call writes the
-/// schedule and its state and records <c>schedule.resumed</c> against the slot job.
+/// schedule and its state and records <c>schedule.resumed</c> against the slot job, or against the definition when the
+/// schedule has no slot.
 /// </summary>
 internal sealed class ResumeScheduleHandler(
     ResolveScheduleTargetHandler resolveScheduleTarget,
@@ -26,8 +27,7 @@ internal sealed class ResumeScheduleHandler(
             new StoreCommand("ResumeSchedule"),
             cmd =>
             {
-                cmd.Parameters.Add(dialect.CreateParameter(ActaSchema.Schedule.JobId, target.JobId));
-                cmd.Parameters.Add(dialect.CreateParameter(ActaSchema.Schedule.ScheduleName, name));
+                cmd.Parameters.Add(dialect.CreateParameter(ActaSchema.Schedule.ScheduleId, target.ScheduleId));
                 ScheduleControl.BindTail(cmd, dialect, name, command.Actor, command.ReasonMessage);
             },
             DbProjectionResolver.Resolve<ResumeScheduleRow>(),

@@ -57,6 +57,8 @@ public sealed record GetDefinitionResponse(
     AlertProfileCode AlertProfile,
     AlertProfileCode? AlertProfileOverride,
     AlertProfileCode AlertProfileEffective,
+    FiringFailurePolicyCode FiringFailurePolicy,
+    ScheduledDeliveryCode ScheduledDelivery,
     string? AlertChannelName,
     string? AlertChannelNameOverride,
     string? AlertChannelNameEffective,

@@ -109,6 +109,9 @@ public sealed class PersistedCodeContractTests
         EventRecordingCode.Off=0|off
         EventRecordingCode.Failures=10|failures
         EventRecordingCode.Audit=20|audit
+        FiringFailurePolicyCode.Unspecified=0|unspecified
+        FiringFailurePolicyCode.Continue=10|continue
+        FiringFailurePolicyCode.PauseScheduling=20|pause-scheduling
         JobKindCode.Unspecified=0|unspecified
         JobKindCode.Ordinary=10|ordinary
         JobKindCode.PermanentSlot=20|permanent-slot
@@ -140,6 +143,8 @@ public sealed class PersistedCodeContractTests
         MisfireStrategyCode.Unspecified=0|unspecified
         MisfireStrategyCode.CatchUpOnce=10|catch-up-once
         MisfireStrategyCode.Skip=20|skip
+        MisfireStrategyCode.CatchUpLatest=30|catch-up-latest
+        MisfireStrategyCode.CatchUpAll=40|catch-up-all
         ScheduleExpressionKindCode.Unspecified=0|unspecified
         ScheduleExpressionKindCode.Cron=10|cron
         ScheduleExpressionKindCode.Interval=20|interval
@@ -150,12 +155,22 @@ public sealed class PersistedCodeContractTests
         ScheduleStatusCode.Active=10|active
         ScheduleStatusCode.Paused=30|paused
         ScheduleStatusCode.Orphaned=230|orphaned
+        ScheduledDeliveryCode.Unspecified=0|unspecified
+        ScheduledDeliveryCode.Permanent=10|permanent
+        ScheduledDeliveryCode.PerOccurrence=20|per-occurrence
+        ScheduleFullBehaviorCode.Unspecified=0|unspecified
+        ScheduleFullBehaviorCode.Wait=10|wait
+        ScheduleFullBehaviorCode.Drop=20|drop
+        ScheduleExpireActionCode.Unspecified=0|unspecified
+        ScheduleExpireActionCode.Discard=10|discard
+        ScheduleExpireActionCode.Pause=20|pause
         EvaluationStatusCode.Unspecified=0|unspecified
         EvaluationStatusCode.Scheduled=10|scheduled
         EvaluationStatusCode.WaitingForCapacity=20|waiting-for-capacity
         EvaluationStatusCode.Exhausted=30|exhausted
         EvaluationStatusCode.EvaluationError=40|evaluation-error
         EvaluationStatusCode.SlotUnavailable=50|slot-unavailable
+        EvaluationStatusCode.Resumed=60|resumed
         EntityCode.Unspecified=0|unspecified
         EntityCode.Alert=10|alert
         EntityCode.Checkpoint=20|checkpoint
@@ -180,10 +195,10 @@ public sealed class PersistedCodeContractTests
         WorkerStatusCode.Dead=200|dead
         """;
 
-    private const string ExpectedDescriptionHash = "2E8E915245BDEA4DAA26000F7CAA69EDBC87DCF72B3575779BC0BD8DF7C67F60";
+    private const string ExpectedDescriptionHash = "3ACBDBB29C073BD0A8DD92E5E4B6DD939429B6E3790701F2FDECEFF9B03CDB85";
 
     [Fact]
-    public void Frozen_contract_covers_all_28_families_and_167_values()
+    public void Frozen_contract_covers_all_32_families_and_184_values()
     {
         var expected = ExpectedContract
             .Split('\n', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries)
@@ -192,8 +207,8 @@ public sealed class PersistedCodeContractTests
         var families = CodeFamilies();
         var actual = families.SelectMany(ReadFamily).ToDictionary(x => x.Key, StringComparer.Ordinal);
 
-        Assert.Equal(28, families.Length);
-        Assert.Equal(169, expected.Count);
+        Assert.Equal(32, families.Length);
+        Assert.Equal(184, expected.Count);
         Assert.Equal(expected.Keys.Order(), actual.Keys.Order());
 
         foreach (var (key, contract) in expected)
@@ -204,7 +219,7 @@ public sealed class PersistedCodeContractTests
             Assert.False(string.IsNullOrWhiteSpace(value.Description));
         }
 
-        Assert.Equal(169, CodeManifests.All.Count);
+        Assert.Equal(184, CodeManifests.All.Count);
         Assert.Equal(40, Enum.GetValues<EventCode>().Length);
 
         Assert.Equal((byte)200, (byte)JobStatusCode.Failed);
@@ -213,7 +228,7 @@ public sealed class PersistedCodeContractTests
         Assert.Equal((byte)200, (byte)WorkerStatusCode.Dead);
 
         var payloads = new[] { JobPayloadFormat.None, JobPayloadFormat.Json, JobPayloadFormat.Bytes };
-        Assert.Equal(172, actual.Count + payloads.Length);
+        Assert.Equal(187, actual.Count + payloads.Length);
         Assert.Equal([0, 1, 2], payloads.Select(p => (int)p.Id));
 
         var canonical = string.Join(

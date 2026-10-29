@@ -23,6 +23,8 @@ public class RegisterDefinitionsTests
             MaxAttempts: 1,
             EventRecording: default,
             AlertProfile: default,
+            FiringFailurePolicy: FiringFailurePolicyCode.Continue,
+            ScheduledDelivery: ScheduledDeliveryCode.Permanent,
             Invoker: null!,
             DeserializeInput: null!,
             SerializeOutput: null
@@ -37,7 +39,7 @@ public class RegisterDefinitionsTests
         var descriptors = ImmutableArray.Create(Desc("bad-job", "garbage"));
 
         var ex = await Assert.ThrowsAsync<ArgumentException>(() =>
-            new RegisterDefinitionsHandler(null!, null!).HandleAsync(
+            new RegisterDefinitionsHandler(null!, null!, null!).HandleAsync(
                 new RegisterDefinitionsCommand(1, DateTime.UtcNow, descriptors, []),
                 TestContext.Current.CancellationToken
             )
@@ -54,7 +56,7 @@ public class RegisterDefinitionsTests
         var descriptors = ImmutableArray.Create(Desc("bad-length", tooLong));
 
         var ex = await Assert.ThrowsAsync<ArgumentException>(() =>
-            new RegisterDefinitionsHandler(null!, null!).HandleAsync(
+            new RegisterDefinitionsHandler(null!, null!, null!).HandleAsync(
                 new RegisterDefinitionsCommand(1, DateTime.UtcNow, descriptors, []),
                 TestContext.Current.CancellationToken
             )

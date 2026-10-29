@@ -17,10 +17,18 @@ SELECT
     {{decode:misfire-strategy:s.misfire_strategy_code}} AS misfire_strategy,
     s.misfire_strategy_code,
     st.next_occurrence_at_utc,
-    st.decided_through_at_utc,
     st.next_evaluation_at_utc,
     {{decode:schedule-evaluation-status:st.evaluation_status_code}} AS evaluation_status,
     st.evaluation_status_code,
+    {{decode:scheduled-delivery:d.scheduled_delivery_code}} AS scheduled_delivery,
+    d.scheduled_delivery_code,
+    s.max_outstanding,
+    {{decode:schedule-full-behavior:s.full_behavior_code}} AS full_behavior,
+    s.full_behavior_code,
+    s.expire_after_seconds,
+    {{decode:schedule-expire-action:s.expire_action_code}} AS expire_action,
+    s.expire_action_code,
+    st.outstanding_count,
     s.paused_until_utc,
     s.description,
     s.pause_message,
@@ -30,5 +38,5 @@ SELECT
 FROM {{schema}}.schedules AS s
 JOIN {{schema}}.schedules_state AS st ON st.schedule_id = s.schedule_id
 JOIN {{schema}}.namespaces AS ns ON ns.namespace_id = s.namespace_id
-JOIN {{schema}}.jobs AS j ON j.job_id = s.job_id
 JOIN {{schema}}.definitions AS d ON d.definition_id = s.definition_id
+LEFT JOIN {{schema}}.jobs AS j ON j.job_id = s.job_id

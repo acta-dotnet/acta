@@ -71,6 +71,8 @@ public sealed class InvalidBackoffManifest : IJobManifest
                     MaxAttempts: 1,
                     EventRecording: EventRecordingCode.Audit,
                     AlertProfile: AlertProfileCode.None,
+                    FiringFailurePolicy: FiringFailurePolicyCode.Continue,
+                    ScheduledDelivery: ScheduledDeliveryCode.Permanent,
                     Invoker: static async (_, _, _, _) =>
                     {
                         await Task.CompletedTask;

@@ -80,7 +80,8 @@ SELECT
     NULL AS db_now,
     NULL AS next_ready_at_utc,
     r.lane_id,
-    j.parent_job_id
+    j.parent_job_id,
+    j.schedule_id
 FROM {{schema}}.jobs j
 JOIN {{schema}}.jobs_state r ON r.job_id = j.job_id
 WHERE j.job_id IN (SELECT job_id FROM temp._claimed)
@@ -129,6 +130,7 @@ SELECT
         FROM temp._claim_bands b
     ) AS next_ready_at_utc,
     NULL AS lane_id,
-    NULL AS parent_job_id
+    NULL AS parent_job_id,
+    NULL AS schedule_id
 WHERE NOT EXISTS (SELECT 1 FROM temp._claimed)
 ORDER BY job_id;

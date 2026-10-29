@@ -38,6 +38,8 @@ public sealed class IntervalPingManifest : IJobManifest
                 MaxAttempts: 2,
                 EventRecording: EventRecordingCode.Audit,
                 AlertProfile: AlertProfileCode.OnFailure,
+                FiringFailurePolicy: FiringFailurePolicyCode.Continue,
+                ScheduledDelivery: ScheduledDeliveryCode.Permanent,
                 Invoker: static async (_, _, ctx, ct) =>
                 {
                     await IntervalPingHandler.Run(ctx, ct);

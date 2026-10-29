@@ -227,7 +227,6 @@ public sealed class RetireDefinitionSpec : ActaRuntimeTestBase<ConformanceFixtur
             s =>
             {
                 Assert.Null(s.NextOccurrenceAtUtc);
-                Assert.Null(s.DecidedThroughAtUtc);
             }
         );
     }

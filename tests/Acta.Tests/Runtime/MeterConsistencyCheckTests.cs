@@ -33,6 +33,8 @@ public sealed class MeterConsistencyCheckTests
                 JobRetentionSeconds: 3600,
                 EventRecording: EventRecordingCode.Audit,
                 AlertProfile: AlertProfileCode.OnFailure,
+                FiringFailurePolicy: FiringFailurePolicyCode.Continue,
+                ScheduledDelivery: ScheduledDeliveryCode.Permanent,
                 AlertChannelName: null,
                 RunbookUrl: null
             )

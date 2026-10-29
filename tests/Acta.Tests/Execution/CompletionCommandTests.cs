@@ -19,6 +19,8 @@ public sealed class CompletionCommandTests
             1,
             default,
             default,
+            default,
+            default,
             null!,
             null!,
             null

@@ -167,6 +167,8 @@ internal sealed class FakeDefinitions : IDefinitions
         AlertProfile: AlertProfileCode.None,
         AlertProfileOverride: null,
         AlertProfileEffective: AlertProfileCode.None,
+        FiringFailurePolicy: FiringFailurePolicyCode.Continue,
+        ScheduledDelivery: ScheduledDeliveryCode.Permanent,
         AlertChannelName: null,
         AlertChannelNameOverride: null,
         AlertChannelNameEffective: null,

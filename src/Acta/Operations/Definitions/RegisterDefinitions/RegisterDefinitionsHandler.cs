@@ -6,7 +6,7 @@ namespace Acta;
 /// <see cref="DefinitionsOperations.RegisterDefinitionsAsync"/>: resolves descriptors to rows, then skips the upsert
 /// entirely when every definition is stored unchanged, Active, and at this manifest generation or a newer one.
 /// </summary>
-internal sealed class RegisterDefinitionsHandler(IDbSession session, ISqlDialect dialect)
+internal sealed class RegisterDefinitionsHandler(IDbSession session, ISqlDialect dialect, IJobPayloadSerializerRegistry serializers)
 {
     public async Task<RegisterDefinitionsResponse> HandleAsync(RegisterDefinitionsCommand command, CancellationToken ct)
     {
@@ -19,7 +19,7 @@ internal sealed class RegisterDefinitionsHandler(IDbSession session, ISqlDialect
         var rows = new List<DefinitionValues>(command.Descriptors.Length);
         foreach (var descriptor in command.Descriptors)
         {
-            rows.Add(BuildRow(descriptor, command.NamespaceId));
+            rows.Add(BuildRow(descriptor, command.NamespaceId, serializers));
         }
 
         ValidateSharedRateNames(rows, command.NamespaceId);
@@ -159,9 +159,10 @@ internal sealed class RegisterDefinitionsHandler(IDbSession session, ISqlDialect
         }
     }
 
-    private static DefinitionValues BuildRow(JobDescriptor descriptor, int namespaceId)
+    private static DefinitionValues BuildRow(JobDescriptor descriptor, int namespaceId, IJobPayloadSerializerRegistry serializers)
     {
         var priorityCode = (byte)descriptor.Priority;
+        var (defaultInputFormatId, defaultInput) = JobDefinitionRegistration.DefaultInputOf(descriptor, serializers);
         var maxAttempts = descriptor.MaxAttempts;
         var concurrencyLimit = descriptor.ConcurrencyLimit;
         // Stored canonical so two spellings of one rate ("10/s" and " 10/s") are one value on a shared
@@ -180,6 +181,8 @@ internal sealed class RegisterDefinitionsHandler(IDbSession session, ISqlDialect
         var jobRetention = descriptor.JobRetentionSeconds ?? JobDefinitionRegistration.DefaultJobRetentionSeconds;
         var eventRecordingCode = (byte)descriptor.EventRecording;
         var alertProfileCode = (byte)descriptor.AlertProfile;
+        var firingFailurePolicyCode = (byte)descriptor.FiringFailurePolicy;
+        var scheduledDeliveryCode = (byte)descriptor.ScheduledDelivery;
         var tenantRequirementCode = (byte)descriptor.TenantRequirement;
         var alertChannelName = descriptor.AlertChannelName;
         var runbookUrl = descriptor.RunbookUrl;
@@ -207,6 +210,10 @@ internal sealed class RegisterDefinitionsHandler(IDbSession session, ISqlDialect
             jobRetention.ToString(c),
             eventRecordingCode.ToString(c),
             alertProfileCode.ToString(c),
+            firingFailurePolicyCode.ToString(c),
+            scheduledDeliveryCode.ToString(c),
+            defaultInputFormatId.ToString(c),
+            Convert.ToBase64String(defaultInput.Span),
             tenantRequirementCode.ToString(c),
             alertChannelName,
             runbookUrl,
@@ -242,6 +249,10 @@ internal sealed class RegisterDefinitionsHandler(IDbSession session, ISqlDialect
             OutputFormatName: contract.OutputFormatName,
             EventRecordingCode: eventRecordingCode,
             AlertProfileCode: alertProfileCode,
+            FiringFailurePolicyCode: firingFailurePolicyCode,
+            ScheduledDeliveryCode: scheduledDeliveryCode,
+            DefaultInputFormatId: defaultInputFormatId,
+            DefaultInput: defaultInput,
             TenantRequirementCode: tenantRequirementCode,
             AlertChannelName: alertChannelName,
             RunbookUrl: runbookUrl,

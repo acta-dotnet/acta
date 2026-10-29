@@ -22,6 +22,8 @@ SELECT
     jd.retention_seconds_effective AS job_retention_seconds,
     jd.event_recording_code_effective AS event_recording,
     jd.alert_profile_code_effective AS alert_profile,
+    jd.firing_failure_policy_code AS firing_failure_policy,
+    jd.scheduled_delivery_code AS scheduled_delivery,
     jd.alert_channel_name_effective AS alert_channel_name,
     jd.runbook_url_effective AS runbook_url
 FROM {{schema}}.definitions jd

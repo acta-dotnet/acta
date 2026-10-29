@@ -319,6 +319,32 @@ internal sealed class DefinitionEntity : IEntity<int>
     public AlertProfileCode AlertProfileEffective { get; internal set; }
 
     /// <summary>
+    /// What a firing that fails for good does to the definition's schedules (<c>Continue</c> /
+    /// <c>PauseScheduling</c>). Code-owned and deliberately without an override triple.
+    /// </summary>
+    [DbColumn("firing_failure_policy_code")]
+    public FiringFailurePolicyCode FiringFailurePolicy { get; internal set; }
+
+    /// <summary>
+    /// How the definition's schedules deliver its work (<c>Permanent</c> slot / <c>PerOccurrence</c> roots).
+    /// Code-owned, without an override triple, and immutable once registered: worker start refuses a changed mode.
+    /// </summary>
+    [DbColumn("scheduled_delivery_code")]
+    public ScheduledDeliveryCode ScheduledDelivery { get; internal set; }
+
+    /// <summary>
+    /// The descriptor's default input, serialized at registration under the generation fence: the bytes a per-occurrence
+    /// root is created with, copied at admission on any host, whether or not it holds the handler. Format 0 with no
+    /// bytes for a definition that takes no input.
+    /// </summary>
+    [DbColumn("default_input_format_id", DbKind.Byte, Default = DbDefault.Zero)]
+    public byte DefaultInputFormatId { get; internal set; }
+
+    /// <summary>The default input's bytes; NULL when the format is none.</summary>
+    [DbColumn("default_input", DbKind.BinaryPayload)]
+    public byte[]? DefaultInput { get; internal set; }
+
+    /// <summary>
     /// Channel that automatic alerts route to; must resolve to a startup-configured alert channel at
     /// delivery / config-validation time. The database stores only this logical routing name.
     /// </summary>

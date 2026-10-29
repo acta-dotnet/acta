@@ -1815,6 +1815,13 @@
   - A namespace id with no live schedule rows returns an empty list
   - After InitializeAsync seeds a recurring definition, at least one cursor returns with a non-empty ScheduleName
 
+### A reschedule of an idle permanent slot is a manual firing at the instant
+- **Contract:** RescheduleAsync on an Idle slot, or a Paused one with no firing, admits a manual firing at the instant, now when null, while a slot mid-firing keeps its firing.
+- **Guarantees:**
+  - A reschedule with no instant fires an Idle slot now with a manual envelope, and the firing settles the slot Idle
+  - A Paused slot with no firing outstanding rescheduled to an instant fires at it with a manual envelope
+  - A slot paused mid-firing keeps its firing when rescheduled: only the instant moves
+
 ### Schedule registration is gated by the worker's environment
 - **Contract:** Schedule registration honors each schedule's declared environments, registering only those active in the worker's environment and withholding the rest.
 - **Guarantees:**
@@ -1836,10 +1843,10 @@
   - A second distinct pending sleep is rejected and re-arms without touching the existing timer
   - Unknown control exception fails the attempt like a handler exception, not a reschedule or suspend
 
-### ResolveScheduleTarget finds a live schedule and its slot job, null when absent
-- **Contract:** ResolveScheduleTarget returns a named live schedule with its slot job, the database clock, and the slot's live set, or null when the job or schedule is absent.
+### ResolveScheduleTarget finds a live schedule by its path, null when absent
+- **Contract:** ResolveScheduleTarget returns a named live schedule with its id, slot job, definition, and the database clock, or null when the job or schedule is absent.
 - **Guarantees:**
-  - A live schedule resolves with its slot job, the database clock, and the slot's live schedules
+  - A live schedule resolves with its id, its slot job, its definition, and the database clock
   - A schedule the slot does not carry, or a job that does not exist, resolves to null
 
 ### An admission plan applies whole per slot, or not at all when stale
@@ -1875,6 +1882,13 @@
   - A firing that spends its budget returns the slot to Idle, never Failed, and the next firing starts a fresh budget
   - Handler cancel terminates the whole slot to Cancelled and settles the firing
 
+### A firing that fails for good pauses the schedules under PauseScheduling, or not
+- **Contract:** A spent firing budget pauses a PauseScheduling definition's active schedules with the reason, on completion or reclaim, and leaves a Continue one scheduled.
+- **Guarantees:**
+  - Under PauseScheduling the failed firing pauses the schedule with the reason, and a resume puts it back in front of the admitter
+  - Under Continue the failed firing leaves the schedule scheduled, and the next occurrence fires
+  - A lost attempt that spends the budget applies the policy on reclaim as a completion would
+
 ### The horizon is the namespace's earliest next evaluation
 - **Contract:** The horizon is the earliest next evaluation among the namespace's schedules, and null when none has one.
 - **Guarantees:**
@@ -1895,6 +1909,14 @@
   - Pausing, resuming, or triggering a schedule of a paused recurring job leaves the job paused
   - A cancelled recurring job stays cancelled when the worker starts again
   - A deploy that drops a recurring job's schedules leaves it Idle with nothing due, and their return re-arms the schedule
+
+### CatchUpAll drains a backlog in order, expiration discards or pauses stale work
+- **Contract:** CatchUpAll admits a backlog one occurrence per settlement within capacity, and an occurrence older than the expiry is skipped as expired, pausing under Pause.
+- **Guarantees:**
+  - A slot under CatchUpAll fires each missed occurrence in order, one per settlement, and then waits for the next
+  - A per-occurrence schedule under CatchUpAll admits one root per pass up to its capacity, then waits for a settlement
+  - Under Discard the occurrences older than the expiry are skipped with the reason expired and the rest fire
+  - Under Pause an expiry pauses the schedule with the reason, and a resume expires what is stale by then without pausing again
 
 ### A multi-schedule slot takes one firing per pass from every due schedule
 - **Contract:** A slot with several schedules takes one firing per pass: every due schedule contributes to it and advances its own cursor, and the rest keep theirs.
@@ -1932,6 +1954,24 @@
   - A timed pause ends at its expiry, admits the occurrence due by then, returns to Active, and emits pause-expired
   - A timed pause whose window holds no occurrence ends at its expiry without admitting anything
   - Under Skip an occurrence inside a timed pause is skipped at its expiry, not admitted late
+
+### A PerOccurrence schedule admits roots charged to it and settles them once
+- **Contract:** A PerOccurrence schedule admits each occurrence as a root charged to it, releases the charge once per terminalization, and waits or drops when full.
+- **Guarantees:**
+  - An admitted occurrence is a Ready root with the schedule as provenance, one charge, and its own envelope, settled on completion
+  - At MaxOutstanding a Wait schedule parks until a settlement wakes it, then admits the waiting occurrence
+  - At MaxOutstanding a Drop schedule skips the occurrence with the reason capacity and moves on
+  - A cancel releases the charge, a restart takes it again, and a restart into a full schedule is Rejected
+  - A manual trigger admits a charged root with an empty envelope, and a full schedule rejects it
+  - A root that fails for good settles its envelope Failed, releases the charge, and pauses the schedules under PauseScheduling
+  - A lost attempt that spends the budget settles the root on reclaim as a completion would
+
+### PerOccurrence schedules register without a slot and are addressed by path
+- **Contract:** A PerOccurrence definition's schedules register with no slot and their capacity and expiry, and the verbs address them by path and audit the definition.
+- **Guarantees:**
+  - A PerOccurrence definition's schedules register with no slot, their declared capacity, and nothing outstanding
+  - A schedule's expiry and misfire strategy register, a changed expiry re-registers in place, and a plain restart writes nothing
+  - A slot-less schedule resolves by path, pauses and resumes with the audit on its definition, and triggers a manual root
 
 ### Schedule insert seeds a new cursor, keeps a stored one, and upserts one row
 - **Contract:** The startup schedule insert seeds a new schedule after now, keeps a stored cursor whether due or not, and upserts the single schedule row.
@@ -2416,6 +2456,7 @@
 | `ResolveAlerts` | yes | yes | yes |
 | `ResolveJobIdByDeduplicationKey` | yes | yes | yes |
 | `ResolveJobIdByRef` | yes | yes | yes |
+| `ResolveScheduleTarget` | yes | yes | yes |
 | `ResolveSlotId` | yes | yes | yes |
 | `RestartJob` | yes | yes | yes |
 | `ResumeJob` | yes | yes | yes |

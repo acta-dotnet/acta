@@ -29,7 +29,7 @@ updated AS (
         r.job_id, j.definition_id, j.tenant_id,
         r.execution_number, j.deduplication_key, j.job_kind_code, j.correlation_key, j.concurrency_key,
         j.input_format_id, j.input, r.next_run_at_utc, j.created_at_utc,
-        r.failure_count, j.job_ref, r.lane_id, j.parent_job_id
+        r.failure_count, j.job_ref, r.lane_id, j.parent_job_id, j.schedule_id
 )
 SELECT
     u.job_id,
@@ -47,5 +47,6 @@ SELECT
     u.job_ref,
     u.tenant_id,
     u.lane_id,
-    u.parent_job_id
+    u.parent_job_id,
+    u.schedule_id
 FROM updated u;

@@ -38,6 +38,8 @@ public sealed class SetDefinitionOverridesBindMatrixSpec : ActaStorageTestBase<C
             MaxAttempts: 3,
             EventRecording: default, // Off = 0
             AlertProfile: default, // None = 0
+            FiringFailurePolicy: FiringFailurePolicyCode.Continue,
+            ScheduledDelivery: ScheduledDeliveryCode.Permanent,
             Invoker: null!,
             DeserializeInput: null!,
             SerializeOutput: null

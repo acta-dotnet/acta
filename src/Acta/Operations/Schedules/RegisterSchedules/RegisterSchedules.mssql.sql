@@ -61,7 +61,9 @@ BEGIN TRY
         @now
     FROM @p_definitions AS d
     WHERE
-        NOT EXISTS (
+        -- A PerOccurrence definition has no slot: each admitted occurrence is a root of its own.
+        d.scheduled_delivery_code = 10 /* ScheduledDeliveryCode.Permanent */
+        AND NOT EXISTS (
             SELECT 1
             FROM {{schema}}.jobs AS j
             WHERE j.definition_id = d.definition_id AND j.job_kind_code = 20 /* JobKindCode.PermanentSlot */
@@ -96,6 +98,7 @@ BEGIN TRY
 
     DECLARE @slots TABLE (definition_id INT NOT NULL PRIMARY KEY, slot_id BIGINT NOT NULL);
 
+    -- The definition's slot, inserted by this call or found by its kind.
     INSERT INTO @slots (definition_id, slot_id)
     SELECT
         d.definition_id,
@@ -104,9 +107,7 @@ BEGIN TRY
     INNER JOIN {{schema}}.jobs AS j
         ON
             j.definition_id = d.definition_id
-            AND j.job_kind_code = 20 /* JobKindCode.PermanentSlot */
-    -- The slot this call inserted, or one that already owns schedules.
-    WHERE j.job_ref = d.job_ref OR EXISTS (SELECT 1 FROM {{schema}}.schedules AS s WHERE s.job_id = j.job_id);
+            AND j.job_kind_code = 20 /* JobKindCode.PermanentSlot */;
 
     -- The schedule writes seek by key (docs/sql-internals.md, "Locking reads seek").
     /* A schedule whose timing changed is retimed: the old stream's undecided prefix is discarded, so the watermark moves to
@@ -126,30 +127,43 @@ BEGIN TRY
         r.execution_number,
         1 /* JobPayloadFormat.Json */, CAST('{"schedule":"' + s.schedule_name + '"}' AS VARBINARY(MAX))
     FROM @p_schedules AS src
-    INNER JOIN @slots AS sl ON sl.definition_id = src.definition_id
-    INNER JOIN {{schema}}.schedules AS s ON s.job_id = sl.slot_id AND s.schedule_name = src.schedule_name
+    INNER JOIN {{schema}}.schedules AS s ON s.definition_id = src.definition_id AND s.schedule_name = src.schedule_name
     INNER JOIN {{schema}}.jobs AS j ON j.job_id = s.job_id
     INNER JOIN {{schema}}.jobs_state AS r ON r.job_id = s.job_id
     WHERE s.timing_fingerprint <> src.timing_fingerprint AND j.event_recording_code = 20 /* EventRecordingCode.Audit */;
 
+    -- A schedule with no slot records its retime against its definition.
+    INSERT INTO {{schema}}.events (
+        event_code, created_at_utc, namespace_id,
+        entity_code, entity_id,
+        definition_id,
+        details_format_id, details
+    )
+    SELECT
+        107 /* EventCode.ScheduleRetimed */, @now, @p_namespace_id,
+        30 /* EntityCode.Definition */, s.definition_id,
+        s.definition_id,
+        1 /* JobPayloadFormat.Json */, CAST('{"schedule":"' + s.schedule_name + '"}' AS VARBINARY(MAX))
+    FROM @p_schedules AS src
+    INNER JOIN {{schema}}.schedules AS s ON s.definition_id = src.definition_id AND s.schedule_name = src.schedule_name
+    INNER JOIN {{schema}}.definitions AS d ON d.definition_id = s.definition_id
+    WHERE
+        s.job_id IS NULL
+        AND s.timing_fingerprint <> src.timing_fingerprint
+        AND d.event_recording_code_effective = 20 /* EventRecordingCode.Audit */;
+
     UPDATE st
     SET
         next_occurrence_at_utc = src.next_occurrence_at_utc,
-        decided_through_at_utc = CASE
-            WHEN s.timing_fingerprint <> src.timing_fingerprint
-                THEN CASE WHEN st.decided_through_at_utc > @now THEN st.decided_through_at_utc ELSE @now END
-            ELSE st.decided_through_at_utc
-        END,
         next_evaluation_at_utc = CASE WHEN s.schedule_status_code = 30 /* ScheduleStatusCode.Paused */ THEN s.paused_until_utc ELSE src.next_occurrence_at_utc END,
         evaluation_status_code = CASE WHEN src.next_occurrence_at_utc IS NULL THEN 30 /* EvaluationStatusCode.Exhausted */ ELSE 10 /* EvaluationStatusCode.Scheduled */ END,
         version = st.version + 1,
         modified_at_utc = @now
     FROM {{schema}}.schedules_state AS st WITH (FORCESEEK)
     INNER JOIN {{schema}}.schedules AS s ON s.schedule_id = st.schedule_id
-    INNER JOIN @slots AS sl ON sl.slot_id = s.job_id
     INNER JOIN @p_schedules AS src
         ON
-            src.definition_id = sl.definition_id
+            src.definition_id = s.definition_id
             AND src.schedule_name = s.schedule_name
     WHERE
         EXISTS (SELECT st.next_occurrence_at_utc EXCEPT SELECT src.next_occurrence_at_utc)
@@ -163,7 +177,10 @@ BEGIN TRY
         misfire_strategy_code = src.misfire_strategy_code,
         interval_anchor_at_utc = src.interval_anchor_at_utc,
         timing_fingerprint = src.timing_fingerprint,
-        definition_id = src.definition_id,
+        max_outstanding = src.max_outstanding,
+        full_behavior_code = src.full_behavior_code,
+        expire_after_seconds = src.expire_after_seconds,
+        expire_action_code = src.expire_action_code,
         schedule_status_code = CASE
             WHEN tgt.schedule_status_code = 230 /* ScheduleStatusCode.Orphaned */
                 THEN 10 /* ScheduleStatusCode.Active */
@@ -173,25 +190,27 @@ BEGIN TRY
         modified_at_utc = @now,
         version = tgt.version + 1
     FROM {{schema}}.schedules AS tgt WITH (FORCESEEK)
-    INNER JOIN @slots AS sl ON sl.slot_id = tgt.job_id
     INNER JOIN @p_schedules AS src
         ON
-            src.definition_id = sl.definition_id
+            src.definition_id = tgt.definition_id
             AND src.schedule_name = tgt.schedule_name
     INNER JOIN {{schema}}.schedules_state AS st ON st.schedule_id = tgt.schedule_id
     WHERE
         tgt.schedule_status_code = 230 /* ScheduleStatusCode.Orphaned */
         OR EXISTS (
             SELECT tgt.expression, tgt.time_zone_id, tgt.expression_kind_code, tgt.misfire_strategy_code,
-                st.next_occurrence_at_utc, tgt.definition_id, tgt.description, tgt.timing_fingerprint
+                st.next_occurrence_at_utc, tgt.description, tgt.timing_fingerprint, tgt.max_outstanding, tgt.full_behavior_code,
+                tgt.expire_after_seconds, tgt.expire_action_code
             EXCEPT
             SELECT src.expression, src.time_zone_id, src.expression_kind_code, src.misfire_strategy_code,
-                src.next_occurrence_at_utc, src.definition_id, src.description, src.timing_fingerprint);
+                src.next_occurrence_at_utc, src.description, src.timing_fingerprint, src.max_outstanding, src.full_behavior_code,
+                src.expire_after_seconds, src.expire_action_code);
 
     INSERT INTO {{schema}}.schedules (
         namespace_id, job_id, definition_id, schedule_name, schedule_origin_code,
         expression, time_zone_id, expression_kind_code, misfire_strategy_code,
         interval_anchor_at_utc, misfire_grace_seconds, timing_fingerprint,
+        max_outstanding, full_behavior_code, expire_after_seconds, expire_action_code,
         schedule_status_code, paused_until_utc, description,
         created_at_utc, modified_at_utc, version
     )
@@ -208,6 +227,10 @@ BEGIN TRY
         src.interval_anchor_at_utc,
         60,
         src.timing_fingerprint,
+        src.max_outstanding,
+        src.full_behavior_code,
+        src.expire_after_seconds,
+        src.expire_action_code,
         10 /* ScheduleStatusCode.Active */,
         NULL,
         src.description,
@@ -215,31 +238,32 @@ BEGIN TRY
         @now,
         0
     FROM @p_schedules AS src
-    INNER JOIN @slots AS sl ON sl.definition_id = src.definition_id
+    -- A PerOccurrence definition's schedules have no slot, so their job_id is NULL.
+    LEFT JOIN @slots AS sl ON sl.definition_id = src.definition_id
     WHERE NOT EXISTS (
         SELECT 1
         FROM {{schema}}.schedules AS tgt
         WHERE
-            tgt.job_id = sl.slot_id
+            tgt.definition_id = src.definition_id
             AND tgt.schedule_name = src.schedule_name
     );
 
     INSERT INTO {{schema}}.schedules_state (
         schedule_id, namespace_id,
-        next_occurrence_at_utc, decided_through_at_utc, next_evaluation_at_utc, evaluation_status_code, version, modified_at_utc
+        next_occurrence_at_utc, next_evaluation_at_utc, evaluation_status_code, outstanding_count,
+        version, modified_at_utc
     )
     SELECT
         s.schedule_id,
         @p_namespace_id,
         src.next_occurrence_at_utc,
-        NULL,
         src.next_occurrence_at_utc,
         CASE WHEN src.next_occurrence_at_utc IS NULL THEN 30 /* EvaluationStatusCode.Exhausted */ ELSE 10 /* EvaluationStatusCode.Scheduled */ END,
         0,
+        0,
         @now
     FROM @p_schedules AS src
-    INNER JOIN @slots AS sl ON sl.definition_id = src.definition_id
-    INNER JOIN {{schema}}.schedules AS s ON s.job_id = sl.slot_id AND s.schedule_name = src.schedule_name
+    INNER JOIN {{schema}}.schedules AS s ON s.definition_id = src.definition_id AND s.schedule_name = src.schedule_name
     WHERE NOT EXISTS (
         SELECT 1
         FROM {{schema}}.schedules_state AS st
@@ -251,7 +275,7 @@ BEGIN TRY
     INSERT INTO @candidates (schedule_id)
     SELECT js.schedule_id
     FROM {{schema}}.schedules AS js
-    INNER JOIN @slots AS sl ON sl.slot_id = js.job_id
+    INNER JOIN @p_definitions AS d ON d.definition_id = js.definition_id
     WHERE
         js.schedule_status_code <> 230 /* ScheduleStatusCode.Orphaned */
         AND js.schedule_origin_code = 40 /* ScheduleOriginCode.Definition */
@@ -259,7 +283,7 @@ BEGIN TRY
             SELECT 1
             FROM @p_schedules AS src
             WHERE
-                src.definition_id = sl.definition_id
+                src.definition_id = js.definition_id
                 AND src.schedule_name = js.schedule_name
         );
 
@@ -277,8 +301,6 @@ BEGIN TRY
     SET
         next_occurrence_at_utc = NULL,
 
-        decided_through_at_utc = NULL,
-
         next_evaluation_at_utc = NULL,
 
         evaluation_status_code = 30 /* EvaluationStatusCode.Exhausted */,
@@ -293,8 +315,6 @@ BEGIN TRY
     UPDATE st
     SET
         next_occurrence_at_utc = NULL,
-
-        decided_through_at_utc = NULL,
 
         next_evaluation_at_utc = NULL,
 

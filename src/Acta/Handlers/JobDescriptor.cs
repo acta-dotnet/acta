@@ -19,6 +19,8 @@ public sealed record JobDescriptor(
     int MaxAttempts,
     EventRecordingCode EventRecording,
     AlertProfileCode AlertProfile,
+    FiringFailurePolicyCode FiringFailurePolicy,
+    ScheduledDeliveryCode ScheduledDelivery,
     JobHandlerInvokeDelegate Invoker,
     Func<IJobPayloadSerializer, JobPayload, object> DeserializeInput,
     Func<IJobPayloadSerializer, object?, JobPayload>? SerializeOutput

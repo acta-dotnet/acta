@@ -53,11 +53,11 @@ CREATE TEMP TABLE release_guard (
 INSERT INTO release_guard
 SELECT EXISTS (
     SELECT 1 FROM main.migrations
-    WHERE name NOT IN ('M20261029124218_init')
+    WHERE name NOT IN ('M20261029171733_init')
 );
 DROP TABLE release_guard;
 
--- ===== BEGIN M20261029124218_init =====
+-- ===== BEGIN M20261029171733_init =====
 CREATE TABLE IF NOT EXISTS main.alerts (
     alert_id integer PRIMARY KEY AUTOINCREMENT,
     alert_ref text NOT NULL,
@@ -161,6 +161,10 @@ CREATE TABLE IF NOT EXISTS main.definitions (
     alert_profile_code integer NOT NULL,
     alert_profile_code_override integer NULL,
     alert_profile_code_effective integer AS (COALESCE(alert_profile_code_override, alert_profile_code)) STORED,
+    firing_failure_policy_code integer NOT NULL,
+    scheduled_delivery_code integer NOT NULL,
+    default_input_format_id integer DEFAULT 0 NOT NULL,
+    default_input blob NULL,
     alert_channel_name text NULL,
     alert_channel_name_override text NULL,
     alert_channel_name_effective text AS (COALESCE(alert_channel_name_override, alert_channel_name)) STORED,
@@ -186,6 +190,7 @@ CREATE TABLE IF NOT EXISTS main.definitions (
     , CONSTRAINT ck_definitions_retention_override CHECK (retention_seconds_override IS NULL OR retention_seconds_override >= 0)
     , CONSTRAINT ck_definitions_input_format_id_byte CHECK (input_format_id BETWEEN 0 AND 255)
     , CONSTRAINT ck_definitions_output_format_id_byte CHECK (output_format_id BETWEEN 0 AND 255)
+    , CONSTRAINT ck_definitions_default_input_format_id_byte CHECK (default_input_format_id BETWEEN 0 AND 255)
 ) STRICT;
 CREATE UNIQUE INDEX IF NOT EXISTS main.ux_definitions_namespace_name ON definitions (namespace_id, definition_name);
 
@@ -225,6 +230,7 @@ CREATE TABLE IF NOT EXISTS main.jobs (
     lineage_root_job_id integer NULL,
     parent_job_id integer NULL,
     tenant_id integer NULL,
+    schedule_id integer NULL,
     deduplication_key text NULL,
     correlation_key text NULL,
     concurrency_key text NULL,
@@ -320,7 +326,7 @@ VALUES (1, 'sys', 10, 'Reserved system namespace for cross-namespace audit event
 CREATE TABLE IF NOT EXISTS main.schedules (
     schedule_id integer PRIMARY KEY AUTOINCREMENT,
     namespace_id integer NOT NULL,
-    job_id integer NOT NULL,
+    job_id integer NULL,
     definition_id integer NOT NULL,
     schedule_name text NOT NULL,
     schedule_origin_code integer NOT NULL,
@@ -331,6 +337,10 @@ CREATE TABLE IF NOT EXISTS main.schedules (
     interval_anchor_at_utc integer NULL,
     misfire_grace_seconds integer NOT NULL,
     timing_fingerprint text NOT NULL,
+    max_outstanding integer NOT NULL,
+    full_behavior_code integer NOT NULL,
+    expire_after_seconds integer NULL,
+    expire_action_code integer NULL,
     schedule_status_code integer NOT NULL,
     paused_until_utc integer NULL,
     description text NULL,
@@ -340,9 +350,12 @@ CREATE TABLE IF NOT EXISTS main.schedules (
     version integer DEFAULT 0 NOT NULL
     , CONSTRAINT ck_schedules_paused_pair CHECK (schedule_status_code = 30 OR paused_until_utc IS NULL)
     , CONSTRAINT ck_schedules_orphan_origin CHECK (schedule_origin_code = 40 OR schedule_status_code <> 230)
+    , CONSTRAINT ck_schedules_max_outstanding CHECK (max_outstanding >= 1)
+    , CONSTRAINT ck_schedules_expire_pair CHECK ((expire_after_seconds IS NULL AND expire_action_code IS NULL) OR (expire_after_seconds IS NOT NULL AND expire_action_code IS NOT NULL))
+    , CONSTRAINT ck_schedules_expire_after CHECK (expire_after_seconds IS NULL OR expire_after_seconds > 0)
     , CONSTRAINT fk_schedules_definitions FOREIGN KEY (definition_id) REFERENCES definitions (definition_id)
 ) STRICT;
-CREATE INDEX IF NOT EXISTS main.ix_schedules_job ON schedules (job_id, schedule_id);
+CREATE INDEX IF NOT EXISTS main.ix_schedules_job ON schedules (job_id, schedule_id) WHERE job_id IS NOT NULL;
 CREATE UNIQUE INDEX IF NOT EXISTS main.ux_schedules_definition_name ON schedules (definition_id, schedule_name);
 
 -- schedules_state
@@ -350,12 +363,13 @@ CREATE TABLE IF NOT EXISTS main.schedules_state (
     schedule_id integer NOT NULL,
     namespace_id integer NOT NULL,
     next_occurrence_at_utc integer NULL,
-    decided_through_at_utc integer NULL,
     next_evaluation_at_utc integer NULL,
     evaluation_status_code integer NOT NULL,
+    outstanding_count integer DEFAULT 0 NOT NULL,
     version integer DEFAULT 0 NOT NULL,
     modified_at_utc integer DEFAULT (CAST(unixepoch('now', 'subsec') * 1000 AS INTEGER)) NOT NULL
     , CONSTRAINT pk_schedules_state PRIMARY KEY (schedule_id)
+    , CONSTRAINT ck_schedules_state_outstanding_count CHECK (outstanding_count >= 0)
 ) STRICT;
 CREATE INDEX IF NOT EXISTS main.ix_schedules_state_namespace_next ON schedules_state (namespace_id, next_occurrence_at_utc, schedule_id) WHERE next_occurrence_at_utc IS NOT NULL;
 CREATE INDEX IF NOT EXISTS main.ix_schedules_state_due ON schedules_state (namespace_id, next_evaluation_at_utc, schedule_id) WHERE next_evaluation_at_utc IS NOT NULL;
@@ -547,6 +561,10 @@ SELECT
     d.alert_profile_code,
     d.alert_profile_code_override,
     d.alert_profile_code_effective,
+    CASE d.firing_failure_policy_code WHEN 0 THEN 'unspecified' WHEN 10 THEN 'continue' WHEN 20 THEN 'pause-scheduling' END AS firing_failure_policy,
+    d.firing_failure_policy_code,
+    CASE d.scheduled_delivery_code WHEN 0 THEN 'unspecified' WHEN 10 THEN 'permanent' WHEN 20 THEN 'per-occurrence' END AS scheduled_delivery,
+    d.scheduled_delivery_code,
     d.alert_channel_name,
     d.alert_channel_name_override,
     d.alert_channel_name_effective,
@@ -668,13 +686,21 @@ SELECT
     s.time_zone_id,
     CASE s.expression_kind_code WHEN 0 THEN 'unspecified' WHEN 10 THEN 'cron' WHEN 20 THEN 'interval' END AS expression_kind,
     s.expression_kind_code,
-    CASE s.misfire_strategy_code WHEN 0 THEN 'unspecified' WHEN 10 THEN 'catch-up-once' WHEN 20 THEN 'skip' END AS misfire_strategy,
+    CASE s.misfire_strategy_code WHEN 0 THEN 'unspecified' WHEN 10 THEN 'catch-up-once' WHEN 20 THEN 'skip' WHEN 30 THEN 'catch-up-latest' WHEN 40 THEN 'catch-up-all' END AS misfire_strategy,
     s.misfire_strategy_code,
     st.next_occurrence_at_utc,
-    st.decided_through_at_utc,
     st.next_evaluation_at_utc,
-    CASE st.evaluation_status_code WHEN 0 THEN 'unspecified' WHEN 10 THEN 'scheduled' WHEN 20 THEN 'waiting-for-capacity' WHEN 30 THEN 'exhausted' WHEN 40 THEN 'evaluation-error' WHEN 50 THEN 'slot-unavailable' END AS evaluation_status,
+    CASE st.evaluation_status_code WHEN 0 THEN 'unspecified' WHEN 10 THEN 'scheduled' WHEN 20 THEN 'waiting-for-capacity' WHEN 30 THEN 'exhausted' WHEN 40 THEN 'evaluation-error' WHEN 50 THEN 'slot-unavailable' WHEN 60 THEN 'resumed' END AS evaluation_status,
     st.evaluation_status_code,
+    CASE d.scheduled_delivery_code WHEN 0 THEN 'unspecified' WHEN 10 THEN 'permanent' WHEN 20 THEN 'per-occurrence' END AS scheduled_delivery,
+    d.scheduled_delivery_code,
+    s.max_outstanding,
+    CASE s.full_behavior_code WHEN 0 THEN 'unspecified' WHEN 10 THEN 'wait' WHEN 20 THEN 'drop' END AS full_behavior,
+    s.full_behavior_code,
+    s.expire_after_seconds,
+    CASE s.expire_action_code WHEN 0 THEN 'unspecified' WHEN 10 THEN 'discard' WHEN 20 THEN 'pause' END AS expire_action,
+    s.expire_action_code,
+    st.outstanding_count,
     s.paused_until_utc,
     s.description,
     s.pause_message,
@@ -684,8 +710,8 @@ SELECT
 FROM main.schedules AS s
 JOIN main.schedules_state AS st ON st.schedule_id = s.schedule_id
 JOIN main.namespaces AS ns ON ns.namespace_id = s.namespace_id
-JOIN main.jobs AS j ON j.job_id = s.job_id
-JOIN main.definitions AS d ON d.definition_id = s.definition_id;
+JOIN main.definitions AS d ON d.definition_id = s.definition_id
+LEFT JOIN main.jobs AS j ON j.job_id = s.job_id;
 
 DROP VIEW IF EXISTS main.steps_view;
 CREATE VIEW main.steps_view AS
@@ -751,10 +777,10 @@ JOIN main.namespaces AS ns ON ns.namespace_id = w.namespace_id;
 
 
 INSERT INTO main.migrations (name)
-VALUES ('M20261029124218_init')
+VALUES ('M20261029171733_init')
 ON CONFLICT (name) DO NOTHING;
 
--- ===== END M20261029124218_init =====
+-- ===== END M20261029171733_init =====
 
 COMMIT;
 

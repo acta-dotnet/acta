@@ -5,7 +5,7 @@
 > Generated reference for Acta code families and the payload-format registry.
 > Every persisted code is documented here exactly once; the data-model reference [`data-model.md`](./data-model.md) links into this file from every code-bearing column.
 
-This release: **29 families**, **172 values**.
+This release: **33 families**, **187 values**.
 
 > Numeric IDs are stable family-local persistence identifiers. Enum members carry programmatic meaning; textual codes carry operator-facing meaning.
 > Numeric grouping is a readability convention, not a runtime schema. Canonical failure states use `200`.
@@ -49,6 +49,7 @@ This pattern makes raw values easier to scan in database rows, logs, and diagnos
 | [`EvaluationStatusCode`](#code-family-evaluationstatuscode) | `schedule-evaluation-status` | `byte` |
 | [`EventCode`](#code-family-eventcode) | `event` | `byte` |
 | [`EventRecordingCode`](#code-family-eventrecordingcode) | `event-recording` | `byte` |
+| [`FiringFailurePolicyCode`](#code-family-firingfailurepolicycode) | `firing-failure-policy` | `byte` |
 | [`JobKindCode`](#code-family-jobkindcode) | `job-kind` | `byte` |
 | [`JobPayloadFormat`](#code-family-jobpayloadformat) | `payload-format` | `byte` |
 | [`JobPriorityCode`](#code-family-jobprioritycode) | `job-priority` | `byte` |
@@ -56,9 +57,12 @@ This pattern makes raw values easier to scan in database rows, logs, and diagnos
 | [`MisfireStrategyCode`](#code-family-misfirestrategycode) | `misfire-strategy` | `byte` |
 | [`NamespaceStatusCode`](#code-family-namespacestatuscode) | `namespace-status` | `byte` |
 | [`OutboxStatusCode`](#code-family-outboxstatuscode) | `outbox-status` | `byte` |
+| [`ScheduleExpireActionCode`](#code-family-scheduleexpireactioncode) | `schedule-expire-action` | `byte` |
 | [`ScheduleExpressionKindCode`](#code-family-scheduleexpressionkindcode) | `schedule-expression-kind` | `byte` |
+| [`ScheduleFullBehaviorCode`](#code-family-schedulefullbehaviorcode) | `schedule-full-behavior` | `byte` |
 | [`ScheduleOriginCode`](#code-family-scheduleorigincode) | `schedule-origin` | `byte` |
 | [`ScheduleStatusCode`](#code-family-schedulestatuscode) | `schedule-status` | `byte` |
+| [`ScheduledDeliveryCode`](#code-family-scheduleddeliverycode) | `scheduled-delivery` | `byte` |
 | [`StepFailureCode`](#code-family-stepfailurecode) | `step-failure` | `byte` |
 | [`StepStatusCode`](#code-family-stepstatuscode) | `job-step-status` | `byte` |
 | [`TenantStatusCode`](#code-family-tenantstatuscode) | `tenant-status` | `byte` |
@@ -202,6 +206,7 @@ This pattern makes raw values easier to scan in database rows, logs, and diagnos
 | `Exhausted` | 30 | `exhausted` | The source offers no further occurrence; a declaration or calendar change reactivates it. | Active |
 | `EvaluationError` | 40 | `evaluation-error` | The source could not be evaluated; the cursor is kept and the evaluation retries after a bounded delay. | Active |
 | `SlotUnavailable` | 50 | `slot-unavailable` | An occurrence is due but the permanent slot is held, cancelled, or failed terminally; a job resume or restart wakes it. | Active |
+| `Resumed` | 60 | `resumed` | An operator resumed the schedule; its first evaluation decides the backlog under the misfire policy and expires the stale part without pausing again. | Active |
 
 ### `EventCode` · `event` <a id="code-family-eventcode"></a>
 
@@ -262,12 +267,20 @@ This pattern makes raw values easier to scan in database rows, logs, and diagnos
 | `Failures` | 10 | `failures` | Emit failed, orphaned, and terminally failed attempts, a success only when it recovers from counted failures, and lane repairs; suppress other recording-filtered per-job events. | Active |
 | `Audit` | 20 | `audit` | Emit all recording-filtered per-job events. User Jobs default. | Active |
 
+### `FiringFailurePolicyCode` · `firing-failure-policy` <a id="code-family-firingfailurepolicycode"></a>
+
+| Member | Id | Code | Description | Lifecycle |
+|---|---:|---|---|---|
+| `Unspecified` | 0 | `unspecified` | Firing failure policy not recognized by this build; the row was written by a newer Acta. | Active |
+| `Continue` | 10 | `continue` | Default. A firing that fails for good leaves the definition's schedules scheduled; the next occurrence fires. | Active |
+| `PauseScheduling` | 20 | `pause-scheduling` | A firing that fails for good pauses every schedule of the definition with a pause message until an operator resumes them. | Active |
+
 ### `JobKindCode` · `job-kind` <a id="code-family-jobkindcode"></a>
 
 | Member | Id | Code | Description | Lifecycle |
 |---|---:|---|---|---|
 | `Unspecified` | 0 | `unspecified` | Job kind not recognized by this build; the row was written by a newer Acta. | Active |
-| `Ordinary` | 10 | `ordinary` | A job enqueued by an application, an operator, or a parent handler; it ends in a terminal status. | Active |
+| `Ordinary` | 10 | `ordinary` | A job enqueued by an application, an operator, or a parent handler, or admitted by a schedule as a per-occurrence root; it ends in a terminal status. | Active |
 | `PermanentSlot` | 20 | `permanent-slot` | The one reusable job of a scheduled definition; registration creates it, every firing of the definition's schedules runs through it, and it is never terminal by itself. | Active |
 
 ### `JobPayloadFormat` · `payload-format` <a id="code-family-jobpayloadformat"></a>
@@ -310,6 +323,8 @@ This pattern makes raw values easier to scan in database rows, logs, and diagnos
 | `Unspecified` | 0 | `unspecified` | Misfire strategy not recognized by this build; the row was written by a newer Acta. | Active |
 | `CatchUpOnce` | 10 | `catch-up-once` | After downtime, fire once immediately for all missed occurrences, then resume from the next occurrence after now. | Active |
 | `Skip` | 20 | `skip` | After downtime, skip all missed occurrences and resume from the first occurrence strictly after now. | Active |
+| `CatchUpLatest` | 30 | `catch-up-latest` | After downtime, fire once for the latest missed occurrence, the earlier ones coalesced into it, then resume from the next occurrence after now. | Active |
+| `CatchUpAll` | 40 | `catch-up-all` | After downtime, fire every missed occurrence in order, one per settlement, subject to the schedule's capacity. | Active |
 
 ### `NamespaceStatusCode` · `namespace-status` <a id="code-family-namespacestatuscode"></a>
 
@@ -328,6 +343,14 @@ This pattern makes raw values easier to scan in database rows, logs, and diagnos
 | `Claimed` | 20 | `claimed` | Leased by a relay claim; claim_token and claim_until_utc are set until the lease finalizes or expires. | Active |
 | `Quarantined` | 90 | `quarantined` | Excluded from normal claims after exhausting delivery policy or a non-recoverable contract error; requires an operator requeue or delete. | Active |
 
+### `ScheduleExpireActionCode` · `schedule-expire-action` <a id="code-family-scheduleexpireactioncode"></a>
+
+| Member | Id | Code | Description | Lifecycle |
+|---|---:|---|---|---|
+| `Unspecified` | 0 | `unspecified` | Schedule expire action not recognized by this build; the row was written by a newer Acta. | Active |
+| `Discard` | 10 | `discard` | An occurrence older than the schedule's expiry when it is evaluated is skipped, audited with the reason expired, and the schedule moves on. | Active |
+| `Pause` | 20 | `pause` | An occurrence older than the schedule's expiry when it is evaluated is skipped, audited with the reason expired, and the schedule is paused with the reason until an operator resumes it. | Active |
+
 ### `ScheduleExpressionKindCode` · `schedule-expression-kind` <a id="code-family-scheduleexpressionkindcode"></a>
 
 | Member | Id | Code | Description | Lifecycle |
@@ -335,6 +358,14 @@ This pattern makes raw values easier to scan in database rows, logs, and diagnos
 | `Unspecified` | 0 | `unspecified` | Schedule expression kind not recognized by this build; the row was written by a newer Acta. | Active |
 | `Cron` | 10 | `cron` | Cron expression (Cronos dialect). Set at compile time by the source generator. | Active |
 | `Interval` | 20 | `interval` | Interval duration: human (e.g. "5m") or ISO 8601 (e.g. "PT5M", "P1D"). Set at compile time by the source generator. | Active |
+
+### `ScheduleFullBehaviorCode` · `schedule-full-behavior` <a id="code-family-schedulefullbehaviorcode"></a>
+
+| Member | Id | Code | Description | Lifecycle |
+|---|---:|---|---|---|
+| `Unspecified` | 0 | `unspecified` | Schedule full behavior not recognized by this build; the row was written by a newer Acta. | Active |
+| `Wait` | 10 | `wait` | Default. An occurrence of a full schedule stays undecided until a settlement frees capacity. | Active |
+| `Drop` | 20 | `drop` | An occurrence of a full schedule is skipped, audited, and the schedule moves on. | Active |
 
 ### `ScheduleOriginCode` · `schedule-origin` <a id="code-family-scheduleorigincode"></a>
 
@@ -352,6 +383,14 @@ This pattern makes raw values easier to scan in database rows, logs, and diagnos
 | `Active` | 10 | `active` | Schedule is eligible to fire. | Active |
 | `Paused` | 30 | `paused` | Operator-paused; does not fire until resumed, or until PausedUntilUtc passes when set. | Active |
 | `Orphaned` | 230 | `orphaned` | Origin declaration disappeared from the catalog; set by reconciliation. Cannot fire or be paused/resumed. | Active |
+
+### `ScheduledDeliveryCode` · `scheduled-delivery` <a id="code-family-scheduleddeliverycode"></a>
+
+| Member | Id | Code | Description | Lifecycle |
+|---|---:|---|---|---|
+| `Unspecified` | 0 | `unspecified` | Scheduled delivery not recognized by this build; the row was written by a newer Acta. | Active |
+| `Permanent` | 10 | `permanent` | Default. The definition's schedules fire one durable slot job again and again. | Active |
+| `PerOccurrence` | 20 | `per-occurrence` | Each admitted occurrence enqueues a fresh ordinary root job with its own state, retries, and retention. | Active |
 
 ### `StepFailureCode` · `step-failure` <a id="code-family-stepfailurecode"></a>
 

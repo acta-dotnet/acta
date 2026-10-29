@@ -181,6 +181,8 @@ internal static class SqlServerTableParameters
         new("output_format_name", SqlDbType.VarChar, 128),
         new("event_recording_code", SqlDbType.TinyInt),
         new("alert_profile_code", SqlDbType.TinyInt),
+        new("firing_failure_policy_code", SqlDbType.TinyInt),
+        new("scheduled_delivery_code", SqlDbType.TinyInt),
         new("alert_channel_name", SqlDbType.VarChar, 128),
         new("runbook_url", SqlDbType.VarChar, 512),
         new("display_name", SqlDbType.NVarChar, 128),
@@ -188,6 +190,8 @@ internal static class SqlServerTableParameters
         new("definition_hash", SqlDbType.VarChar, 128),
         new("tenant_requirement_code", SqlDbType.TinyInt),
         new("lane_name", SqlDbType.VarChar, 128),
+        new("default_input_format_id", SqlDbType.TinyInt),
+        new("default_input", SqlDbType.VarBinary, -1),
     ];
 
     internal static IEnumerable<SqlDataRecord>? BuildDefinitionRecords(IReadOnlyList<DefinitionValues> rows)
@@ -218,13 +222,17 @@ internal static class SqlServerTableParameters
                 record.SetString(16, row.OutputFormatName);
                 record.SetByte(17, row.EventRecordingCode);
                 record.SetByte(18, row.AlertProfileCode);
-                SetNullableString(record, 19, row.AlertChannelName);
-                SetNullableString(record, 20, row.RunbookUrl);
-                SetNullableString(record, 21, row.DisplayName);
-                SetNullableString(record, 22, row.Description);
-                record.SetString(23, row.DefinitionHash);
-                record.SetByte(24, row.TenantRequirementCode);
-                SetNullableString(record, 25, row.LaneName);
+                record.SetByte(19, row.FiringFailurePolicyCode);
+                record.SetByte(20, row.ScheduledDeliveryCode);
+                SetNullableString(record, 21, row.AlertChannelName);
+                SetNullableString(record, 22, row.RunbookUrl);
+                SetNullableString(record, 23, row.DisplayName);
+                SetNullableString(record, 24, row.Description);
+                record.SetString(25, row.DefinitionHash);
+                record.SetByte(26, row.TenantRequirementCode);
+                SetNullableString(record, 27, row.LaneName);
+                record.SetByte(28, row.DefaultInputFormatId);
+                SetBytesOrNull(record, 29, row.DefaultInput, row.DefaultInputFormatId != 0);
                 yield return record;
             }
         }
@@ -237,6 +245,7 @@ internal static class SqlServerTableParameters
         new("input_format_id", SqlDbType.TinyInt),
         new("input", SqlDbType.VarBinary, -1),
         new("event_recording_code", SqlDbType.TinyInt),
+        new("scheduled_delivery_code", SqlDbType.TinyInt),
     ];
 
     internal static IEnumerable<SqlDataRecord>? BuildSlotRecords(
@@ -257,6 +266,7 @@ internal static class SqlServerTableParameters
                 record.SetByte(2, definition.InputFormatId);
                 SetBytesOrNull(record, 3, definition.Input, definition.InputFormatId != JobPayloadFormat.None.Id);
                 record.SetByte(4, (byte)definition.EventRecording);
+                record.SetByte(5, (byte)definition.ScheduledDelivery);
                 yield return record;
             }
         }
@@ -274,6 +284,10 @@ internal static class SqlServerTableParameters
         new("description", SqlDbType.NVarChar, 512),
         new("interval_anchor_at_utc", SqlDbType.DateTime2),
         new("timing_fingerprint", SqlDbType.VarChar, 64),
+        new("max_outstanding", SqlDbType.Int),
+        new("full_behavior_code", SqlDbType.TinyInt),
+        new("expire_after_seconds", SqlDbType.Int),
+        new("expire_action_code", SqlDbType.TinyInt),
     ];
 
     internal static IEnumerable<SqlDataRecord>? BuildScheduleUpsertRecords(IReadOnlyList<DefinitionSchedules> definitions)
@@ -297,6 +311,10 @@ internal static class SqlServerTableParameters
                     SetNullableString(record, 7, schedule.Description);
                     SetNullableDateTime(record, 8, schedule.IntervalAnchorAtUtc);
                     record.SetString(9, schedule.TimingFingerprint);
+                    record.SetInt32(10, schedule.MaxOutstanding);
+                    record.SetByte(11, (byte)schedule.FullBehavior);
+                    SetNullableInt32(record, 12, schedule.ExpireAfterSeconds);
+                    SetNullableByte(record, 13, (byte?)schedule.ExpireAction);
                     yield return record;
                 }
             }

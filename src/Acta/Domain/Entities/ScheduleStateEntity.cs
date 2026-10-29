@@ -26,6 +26,7 @@ namespace Acta;
     Filter = "next_evaluation_at_utc IS NOT NULL",
     Usage = "claim_hot_path"
 )]
+[DbCheck(Name = "ck_schedules_state_outstanding_count", Sql = "outstanding_count >= 0")]
 internal sealed class ScheduleStateEntity : IEntity<int>
 {
     /// <summary>The schedule this state belongs to; the primary key, supplied by registration from the config row.</summary>
@@ -47,14 +48,6 @@ internal sealed class ScheduleStateEntity : IEntity<int>
     public DateTime? NextOccurrenceAtUtc { get; set; }
 
     /// <summary>
-    /// The watermark every earlier occurrence was decided through: admitted, skipped, or coalesced into a firing. A
-    /// decision, not a run, and not necessarily an occurrence itself. NULL until the schedule first decides, and
-    /// again once it is orphaned or its definition retired.
-    /// </summary>
-    [DbColumn("decided_through_at_utc", DbKind.UtcInstant)]
-    public DateTime? DecidedThroughAtUtc { get; set; }
-
-    /// <summary>
     /// When the engine next looks at this schedule: the next occurrence, a timed pause's end, or an evaluation retry.
     /// NULL while nothing timed ends the wait, which keeps the row out of <c>ix_schedules_state_due</c>; settlement,
     /// a resume, or a restart writes it back.
@@ -65,6 +58,13 @@ internal sealed class ScheduleStateEntity : IEntity<int>
     /// <summary>Why the next evaluation is when it is; the engine's state, apart from the operator lifecycle.</summary>
     [DbColumn("evaluation_status_code")]
     public EvaluationStatusCode EvaluationStatus { get; set; }
+
+    /// <summary>
+    /// Unsettled roots charged to a PerOccurrence schedule; a Permanent slot's capacity is the slot, so its schedules
+    /// keep 0.
+    /// </summary>
+    [DbColumn("outstanding_count", DbKind.Int32, Default = DbDefault.Zero)]
+    public int OutstandingCount { get; set; }
 
     /// <summary>
     /// Optimistic-concurrency token, bumped by every write to this row. An admission plan carries the version it read

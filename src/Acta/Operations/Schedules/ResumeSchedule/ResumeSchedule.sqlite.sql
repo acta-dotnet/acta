@@ -1,15 +1,15 @@
 DROP TABLE IF EXISTS temp._rs_target;
 
 CREATE TEMP TABLE _rs_target AS
-SELECT js.schedule_name
+SELECT js.schedule_id
 FROM {{schema}}.schedules js
 INNER JOIN {{schema}}.definitions d ON d.definition_id = js.definition_id
 WHERE
-    js.job_id = @p_job_id
-    AND js.schedule_name = @p_schedule_name
+    js.schedule_id = @p_schedule_id
     AND js.schedule_status_code <> 230 /* ScheduleStatusCode.Orphaned */
     AND d.definition_status_code <> 240 /* DefinitionStatusCode.Retired */;
 
+-- Audited against the slot, or against the definition when the schedule has none.
 INSERT INTO {{schema}}.events (
     event_code,
     created_at_utc,
@@ -25,21 +25,21 @@ INSERT INTO {{schema}}.events (
 SELECT
     101 /* EventCode.ScheduleResumed */,
     {{now}},
-    j.namespace_id,
-    50 /* EntityCode.Job */,
-    j.job_id,
-    j.definition_id,
+    js.namespace_id,
+    CASE WHEN js.job_id IS NULL THEN 30 /* EntityCode.Definition */ ELSE 50 /* EntityCode.Job */ END,
+    COALESCE(js.job_id, js.definition_id),
+    js.definition_id,
     COALESCE(j.lineage_root_job_id, j.job_id),
     r.execution_number,
     @p_event_message,
     @p_details_format_id,
     @p_details
-FROM {{schema}}.jobs j
-JOIN {{schema}}.jobs_state r ON r.job_id = j.job_id
-WHERE
-    j.job_id = @p_job_id
-    AND j.event_recording_code = 20 /* EventRecordingCode.Audit */
-    AND EXISTS (SELECT 1 FROM temp._rs_target);
+FROM temp._rs_target t
+JOIN {{schema}}.schedules js ON js.schedule_id = t.schedule_id
+JOIN {{schema}}.definitions d ON d.definition_id = js.definition_id
+LEFT JOIN {{schema}}.jobs j ON j.job_id = js.job_id
+LEFT JOIN {{schema}}.jobs_state r ON r.job_id = js.job_id
+WHERE COALESCE(j.event_recording_code, d.event_recording_code_effective) = 20 /* EventRecordingCode.Audit */;
 
 UPDATE {{schema}}.schedules
 SET
@@ -48,35 +48,28 @@ SET
     pause_message = NULL,
     modified_at_utc = {{now}},
     version = version + 1
-WHERE
-    job_id = @p_job_id
-    AND schedule_name IN (SELECT t.schedule_name FROM temp._rs_target t);
+WHERE schedule_id IN (SELECT t.schedule_id FROM temp._rs_target t);
 
 UPDATE {{schema}}.schedules_state
 SET
     -- The remembered cursor stays; the admitter applies the misfire policy to it at its next pass.
     next_evaluation_at_utc = {{now}},
-    evaluation_status_code = 10 /* EvaluationStatusCode.Scheduled */,
+    evaluation_status_code = 60 /* EvaluationStatusCode.Resumed */,
     version = version + 1,
     modified_at_utc = {{now}}
-WHERE
-    schedule_id IN (
-        SELECT js.schedule_id
-        FROM {{schema}}.schedules js
-        WHERE js.job_id = @p_job_id AND js.schedule_name IN (SELECT t.schedule_name FROM temp._rs_target t)
-    );
+WHERE schedule_id IN (SELECT t.schedule_id FROM temp._rs_target t);
 
 
 SELECT
     CASE
-        WHEN t.schedule_name IS NULL THEN 2 /* ControlAction.NotFound */
+        WHEN t.schedule_id IS NULL THEN 2 /* ControlAction.NotFound */
         ELSE 1 /* ControlAction.Applied */
     END AS action,
     js.schedule_status_code AS status,
     js.paused_until_utc,
     st.next_occurrence_at_utc,
     js.version AS version
-FROM (SELECT @p_job_id AS qid) q
+FROM (SELECT @p_schedule_id AS qid) q
 LEFT JOIN temp._rs_target t ON 1 = 1
-LEFT JOIN {{schema}}.schedules js ON js.job_id = @p_job_id AND js.schedule_name = t.schedule_name
+LEFT JOIN {{schema}}.schedules js ON js.schedule_id = t.schedule_id
 LEFT JOIN {{schema}}.schedules_state st ON st.schedule_id = js.schedule_id;

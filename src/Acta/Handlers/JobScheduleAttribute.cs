@@ -47,4 +47,30 @@ public sealed class JobScheduleAttribute(string name, string expression) : Attri
     /// one coalesced catch-up occurrence on recovery.
     /// </summary>
     public MisfireStrategyCode MisfireStrategy { get; init; } = MisfireStrategyCode.Skip;
+
+    /// <summary>
+    /// How many admitted occurrences of this schedule may be unsettled at once; a Permanent definition's schedules
+    /// allow exactly 1, the slot.
+    /// </summary>
+    public int MaxOutstanding { get; init; } = 1;
+
+    /// <summary>
+    /// What an occurrence does when the schedule is at <see cref="MaxOutstanding"/>: <c>Wait</c> keeps it undecided
+    /// until a settlement frees capacity; <c>Drop</c> skips it, audited, and moves on.
+    /// </summary>
+    public ScheduleFullBehaviorCode FullBehavior { get; init; } = ScheduleFullBehaviorCode.Wait;
+
+    /// <summary>
+    /// The age an occurrence may reach past its instant before it expires unadmitted, in Acta duration syntax, e.g.
+    /// <c>"1h"</c> or <c>"PT1H"</c>. Null = never. Set together with <see cref="ExpireAction"/>; one without the other is
+    /// a build error.
+    /// </summary>
+    public string? ExpireAfter { get; init; }
+
+    /// <summary>
+    /// What an occurrence older than <see cref="ExpireAfter"/> does when it is evaluated: <c>Discard</c> skips it,
+    /// audited, and moves on; <c>Pause</c> skips it, audited, and pauses the schedule until an operator resumes it.
+    /// Default <c>Unspecified</c>, no expiry.
+    /// </summary>
+    public ScheduleExpireActionCode ExpireAction { get; init; }
 }

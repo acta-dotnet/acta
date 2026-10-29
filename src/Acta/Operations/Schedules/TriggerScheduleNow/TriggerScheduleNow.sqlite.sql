@@ -5,7 +5,7 @@ DROP TABLE IF EXISTS temp._tsn_target;
 -- no contributors.
 CREATE TEMP TABLE _tsn_target AS
 SELECT
-    js.schedule_name,
+    js.schedule_id,
     r.execution_number,
     CASE
         WHEN js.schedule_status_code = 30 /* ScheduleStatusCode.Paused */ THEN 3 /* ControlAction.Rejected */
@@ -19,8 +19,7 @@ JOIN {{schema}}.jobs_state r ON r.job_id = js.job_id
 LEFT JOIN {{schema}}.checkpoints cp
     ON cp.job_id = r.job_id AND cp.checkpoint_kind_code = 60 /* CheckpointKindCode.Firing */ AND cp.checkpoint_name = 'sys.firing'
 WHERE
-    js.job_id = @p_job_id
-    AND js.schedule_name = @p_schedule_name
+    js.schedule_id = @p_schedule_id
     AND js.schedule_status_code <> 230 /* ScheduleStatusCode.Orphaned */
     AND d.definition_status_code <> 240 /* DefinitionStatusCode.Retired */;
 
@@ -80,12 +79,12 @@ WHERE
     AND j.event_recording_code = 20 /* EventRecordingCode.Audit */;
 
 SELECT
-    CASE WHEN t.schedule_name IS NULL THEN 2 /* ControlAction.NotFound */ ELSE t.action END AS action,
+    CASE WHEN t.schedule_id IS NULL THEN 2 /* ControlAction.NotFound */ ELSE t.action END AS action,
     js.schedule_status_code AS status,
     js.paused_until_utc,
     st.next_occurrence_at_utc,
     js.version AS version
 FROM (SELECT 1) one
 LEFT JOIN temp._tsn_target t ON 1 = 1
-LEFT JOIN {{schema}}.schedules js ON js.job_id = @p_job_id AND js.schedule_name = t.schedule_name
+LEFT JOIN {{schema}}.schedules js ON js.schedule_id = t.schedule_id
 LEFT JOIN {{schema}}.schedules_state st ON st.schedule_id = js.schedule_id;

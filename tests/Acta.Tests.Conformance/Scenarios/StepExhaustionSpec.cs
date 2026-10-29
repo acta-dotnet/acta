@@ -78,6 +78,8 @@ public sealed class StepExhaustionManifest : IJobManifest
                 MaxAttempts: 2,
                 EventRecording: EventRecordingCode.Audit,
                 AlertProfile: AlertProfileCode.OnFailure,
+                FiringFailurePolicy: FiringFailurePolicyCode.Continue,
+                ScheduledDelivery: ScheduledDeliveryCode.Permanent,
                 Invoker: static async (_, _, ctx, ct) =>
                 {
                     await StepExhaustionProbes.ExhaustReplay(ctx, ct);
@@ -101,6 +103,8 @@ public sealed class StepExhaustionManifest : IJobManifest
                 MaxAttempts: 1,
                 EventRecording: EventRecordingCode.Audit,
                 AlertProfile: AlertProfileCode.OnFailure,
+                FiringFailurePolicy: FiringFailurePolicyCode.Continue,
+                ScheduledDelivery: ScheduledDeliveryCode.Permanent,
                 Invoker: static async (_, _, ctx, ct) =>
                 {
                     await StepExhaustionProbes.WindowExhaust(ctx, ct);

@@ -72,6 +72,7 @@ public sealed class GetFiringSpec : ActaStorageTestBase<ConformanceFixture>
             InputFormatId: 0,
             Input: ReadOnlyMemory<byte>.Empty,
             EventRecording: EventRecordingCode.Audit,
+            ScheduledDelivery: ScheduledDeliveryCode.Permanent,
             Schedules: [new SlotSchedule("only", Cron5, null, MisfireStrategyCode.Skip, ScheduleExpressionKindCode.Cron, null, cursor)]
         );
         return (await ScheduleTestOps.RegisterAsync(Services, [definition], ct))[defId];
@@ -90,6 +91,8 @@ public sealed class GetFiringSpec : ActaStorageTestBase<ConformanceFixture>
             MaxAttempts: 1,
             EventRecording: default,
             AlertProfile: default,
+            FiringFailurePolicy: FiringFailurePolicyCode.Continue,
+            ScheduledDelivery: ScheduledDeliveryCode.Permanent,
             Invoker: null!,
             DeserializeInput: null!,
             SerializeOutput: null

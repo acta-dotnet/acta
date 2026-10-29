@@ -42,6 +42,8 @@ public sealed class RollingGenerationBManifest : IJobManifest
                 MaxAttempts: 2,
                 EventRecording: EventRecordingCode.Audit,
                 AlertProfile: AlertProfileCode.OnFailure,
+                FiringFailurePolicy: FiringFailurePolicyCode.Continue,
+                ScheduledDelivery: ScheduledDeliveryCode.Permanent,
                 Invoker: static async (_, _, ctx, ct) =>
                 {
                     await RollingOnlyHandler.Run(ctx, ct);

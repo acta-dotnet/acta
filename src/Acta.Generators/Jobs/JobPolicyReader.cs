@@ -22,6 +22,8 @@ internal static class JobPolicyReader
     internal const string DefaultPriorityName = "Normal";
     internal const string DefaultEventRecordingName = "Audit";
     internal const string DefaultAlertProfileName = "OnFailure";
+    internal const string DefaultFiringFailurePolicyName = "Continue";
+    internal const string DefaultScheduledDeliveryName = "Permanent";
 
     internal static AttributePolicy ReadAttributePolicy(AttributeData attr, List<DiagnosticRecord> diagnostics, Location location)
     {
@@ -63,6 +65,8 @@ internal static class JobPolicyReader
             draft.Lane,
             draft.EventRecordingName,
             draft.AlertProfileName,
+            draft.FiringFailurePolicyName,
+            draft.ScheduledDeliveryName,
             draft.TenantRequirementId,
             draft.BackoffExpression,
             draft.ExecutionTimeoutSeconds,
@@ -90,6 +94,8 @@ internal static class JobPolicyReader
         public string? Lane { get; set; }
         public string? EventRecordingName { get; set; }
         public string AlertProfileName { get; set; } = DefaultAlertProfileName;
+        public string FiringFailurePolicyName { get; set; } = DefaultFiringFailurePolicyName;
+        public string ScheduledDeliveryName { get; set; } = DefaultScheduledDeliveryName;
         public byte TenantRequirementId { get; set; }
         public string? BackoffExpression { get; set; }
         public int? ExecutionTimeoutSeconds { get; set; }
@@ -216,6 +222,44 @@ internal static class JobPolicyReader
                         );
                     }
                     draft.AlertProfileName = name ?? DefaultAlertProfileName;
+                }
+                return true;
+
+            case "FiringFailurePolicy":
+                if (TryGetEnumByte(named.Value, out var ffp))
+                {
+                    var name = FiringFailurePolicyIdToName(ffp);
+                    if (name is null)
+                    {
+                        diagnostics.Add(
+                            ManifestDiagnostics.InvalidPolicyValue(
+                                named.Key,
+                                ffp.ToString(System.Globalization.CultureInfo.InvariantCulture),
+                                "The policy is `FiringFailurePolicyCode.Continue` or `FiringFailurePolicyCode.PauseScheduling`.",
+                                location
+                            )
+                        );
+                    }
+                    draft.FiringFailurePolicyName = name ?? DefaultFiringFailurePolicyName;
+                }
+                return true;
+
+            case "ScheduledDelivery":
+                if (TryGetEnumByte(named.Value, out var sd))
+                {
+                    var name = ScheduledDeliveryIdToName(sd);
+                    if (name is null)
+                    {
+                        diagnostics.Add(
+                            ManifestDiagnostics.InvalidPolicyValue(
+                                named.Key,
+                                sd.ToString(System.Globalization.CultureInfo.InvariantCulture),
+                                "The delivery is `ScheduledDeliveryCode.Permanent` or `ScheduledDeliveryCode.PerOccurrence`.",
+                                location
+                            )
+                        );
+                    }
+                    draft.ScheduledDeliveryName = name ?? DefaultScheduledDeliveryName;
                 }
                 return true;
 

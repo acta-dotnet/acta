@@ -265,6 +265,10 @@ internal sealed class PostgresDialect : ISqlDialect
         var outputFormatNames = new string[count];
         var eventRecordingCodes = new short[count];
         var alertProfileCodes = new short[count];
+        var firingFailurePolicyCodes = new short[count];
+        var scheduledDeliveryCodes = new short[count];
+        var defaultInputFormatIds = new short[count];
+        var defaultInputs = new byte[]?[count];
         var tenantRequirementCodes = new short[count];
         var alertChannelNames = new string?[count];
         var runbookUrls = new string?[count];
@@ -294,6 +298,10 @@ internal sealed class PostgresDialect : ISqlDialect
             outputFormatNames[i] = row.OutputFormatName;
             eventRecordingCodes[i] = row.EventRecordingCode;
             alertProfileCodes[i] = row.AlertProfileCode;
+            firingFailurePolicyCodes[i] = row.FiringFailurePolicyCode;
+            scheduledDeliveryCodes[i] = row.ScheduledDeliveryCode;
+            defaultInputFormatIds[i] = row.DefaultInputFormatId;
+            defaultInputs[i] = row.DefaultInputFormatId == 0 ? null : row.DefaultInput.ToArray();
             tenantRequirementCodes[i] = row.TenantRequirementCode;
             alertChannelNames[i] = row.AlertChannelName;
             runbookUrls[i] = row.RunbookUrl;
@@ -323,6 +331,10 @@ internal sealed class PostgresDialect : ISqlDialect
         AddArray(postgres, "@p_d_output_format_name", NpgsqlDbType.Varchar, outputFormatNames);
         AddArray(postgres, "@p_d_event_recording_code", NpgsqlDbType.Smallint, eventRecordingCodes);
         AddArray(postgres, "@p_d_alert_profile_code", NpgsqlDbType.Smallint, alertProfileCodes);
+        AddArray(postgres, "@p_d_firing_failure_policy_code", NpgsqlDbType.Smallint, firingFailurePolicyCodes);
+        AddArray(postgres, "@p_d_scheduled_delivery_code", NpgsqlDbType.Smallint, scheduledDeliveryCodes);
+        AddArray(postgres, "@p_d_default_input_format_id", NpgsqlDbType.Smallint, defaultInputFormatIds);
+        AddArray(postgres, "@p_d_default_input", NpgsqlDbType.Bytea, defaultInputs);
         AddArray(postgres, "@p_d_tenant_requirement", NpgsqlDbType.Smallint, tenantRequirementCodes);
         AddArray(postgres, "@p_d_alert_channel_name", NpgsqlDbType.Varchar, alertChannelNames);
         AddArray(postgres, "@p_d_runbook_url", NpgsqlDbType.Varchar, runbookUrls);
@@ -346,6 +358,7 @@ internal sealed class PostgresDialect : ISqlDialect
         var inputFormatIds = new short[definitionCount];
         byte[]?[] inputs = new byte[definitionCount][];
         var eventRecordings = new short[definitionCount];
+        var scheduledDeliveries = new short[definitionCount];
         var scheduleCount = 0;
         for (var i = 0; i < definitionCount; i++)
         {
@@ -355,6 +368,7 @@ internal sealed class PostgresDialect : ISqlDialect
             inputFormatIds[i] = definition.InputFormatId;
             inputs[i] = definition.InputFormatId == JobPayloadFormat.None.Id ? null : definition.Input.ToArray();
             eventRecordings[i] = (short)definition.EventRecording;
+            scheduledDeliveries[i] = (short)definition.ScheduledDelivery;
             scheduleCount += definition.Schedules.Count;
         }
 
@@ -368,6 +382,10 @@ internal sealed class PostgresDialect : ISqlDialect
         var descriptions = new string?[scheduleCount];
         var anchors = new DateTime?[scheduleCount];
         var fingerprints = new string[scheduleCount];
+        var maxOutstandings = new int[scheduleCount];
+        var fullBehaviors = new short[scheduleCount];
+        var expireAfters = new int?[scheduleCount];
+        var expireActions = new short?[scheduleCount];
         var scheduleIndex = 0;
         foreach (var definition in definitions)
         {
@@ -383,6 +401,10 @@ internal sealed class PostgresDialect : ISqlDialect
                 descriptions[scheduleIndex] = schedule.Description;
                 anchors[scheduleIndex] = schedule.IntervalAnchorAtUtc;
                 fingerprints[scheduleIndex] = schedule.TimingFingerprint;
+                maxOutstandings[scheduleIndex] = schedule.MaxOutstanding;
+                fullBehaviors[scheduleIndex] = (short)schedule.FullBehavior;
+                expireAfters[scheduleIndex] = schedule.ExpireAfterSeconds;
+                expireActions[scheduleIndex] = (short?)schedule.ExpireAction;
                 scheduleIndex++;
             }
         }
@@ -392,6 +414,7 @@ internal sealed class PostgresDialect : ISqlDialect
         AddArray(postgres, "@p_d_input_format_id", NpgsqlDbType.Smallint, inputFormatIds);
         AddArray(postgres, "@p_d_input", NpgsqlDbType.Bytea, inputs);
         AddArray(postgres, "@p_d_event_recording_code", NpgsqlDbType.Smallint, eventRecordings);
+        AddArray(postgres, "@p_d_scheduled_delivery_code", NpgsqlDbType.Smallint, scheduledDeliveries);
         AddArray(postgres, "@p_s_definition_id", NpgsqlDbType.Integer, scheduleDefinitionIds);
         AddArray(postgres, "@p_s_schedule_name", NpgsqlDbType.Varchar, scheduleNames);
         AddArray(postgres, "@p_s_expression", NpgsqlDbType.Varchar, expressions);
@@ -402,6 +425,10 @@ internal sealed class PostgresDialect : ISqlDialect
         AddArray(postgres, "@p_s_description", NpgsqlDbType.Varchar, descriptions);
         AddArray(postgres, "@p_s_interval_anchor_at_utc", NpgsqlDbType.TimestampTz, anchors);
         AddArray(postgres, "@p_s_timing_fingerprint", NpgsqlDbType.Varchar, fingerprints);
+        AddArray(postgres, "@p_s_max_outstanding", NpgsqlDbType.Integer, maxOutstandings);
+        AddArray(postgres, "@p_s_full_behavior_code", NpgsqlDbType.Smallint, fullBehaviors);
+        AddArray(postgres, "@p_s_expire_after_seconds", NpgsqlDbType.Integer, expireAfters);
+        AddArray(postgres, "@p_s_expire_action_code", NpgsqlDbType.Smallint, expireActions);
     }
 
     public void BindAdmitFirings(DbCommand command, AdmitFiringsCommand request)
@@ -478,6 +505,7 @@ internal sealed class PostgresDialect : ISqlDialect
         );
         AddArray(postgres, "@p_final_job_status_codes", NpgsqlDbType.Smallint, completions.Select(c => (short?)c.FinalStatus).ToArray());
         AddArray(postgres, "@p_job_next_run_at_utc", NpgsqlDbType.TimestampTz, completions.Select(c => c.JobNextRunAtUtc).ToArray());
+        AddArray(postgres, "@p_has_schedule", NpgsqlDbType.Boolean, completions.Select(c => c.HasSchedule).ToArray());
 
         AddScalar(postgres, "@p_plain", NpgsqlDbType.Boolean, completions.All(c => c.IsPlain));
     }

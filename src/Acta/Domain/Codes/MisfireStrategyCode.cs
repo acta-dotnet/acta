@@ -17,4 +17,13 @@ public enum MisfireStrategyCode : byte
 
     [Code("skip", "After downtime, skip all missed occurrences and resume from the first occurrence strictly after now.")]
     Skip = 20,
+
+    [Code(
+        "catch-up-latest",
+        "After downtime, fire once for the latest missed occurrence, the earlier ones coalesced into it, then resume from the next occurrence after now."
+    )]
+    CatchUpLatest = 30,
+
+    [Code("catch-up-all", "After downtime, fire every missed occurrence in order, one per settlement, subject to the schedule's capacity.")]
+    CatchUpAll = 40,
 }

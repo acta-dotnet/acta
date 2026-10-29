@@ -401,9 +401,9 @@ Each namespace has one schedule lock, held until its transaction ends: `sp_getap
 `pg_advisory_xact_lock(hashtext('{schema}.schedules'), namespace_id)` or its `_shared` form on PostgreSQL.
 
 - `register_schedules` and `RetireDefinition` take it exclusive.
-- Admission (`AdmitFirings`), a completion that settles a permanent slot, and the schedule verbs (pause, resume,
-  trigger) take it shared, so admissions, settlements, and verbs run together and wait only for a registration or a
-  retire. A completion with no slot in its batch takes none.
+- Admission (`AdmitFirings`), a completion that settles a permanent slot or a per-occurrence root, and the schedule
+  verbs (pause, resume, trigger) take it shared, so admissions, settlements, and verbs run together and wait only for
+  a registration or a retire. A completion with neither a slot nor a charged root in its batch takes none.
 - It is a transaction's first lock: a shared holder that took a row first could wait on a registration that waits on
   that row.
 - A statement that starts after the grant reads committed schedule config, because a read-committed-snapshot statement
@@ -412,9 +412,14 @@ Each namespace has one schedule lock, held until its transaction ends: `sp_getap
 - Rows inside it still lock in order: the slot's `jobs_state` row, then its `sys.firing` checkpoint, then its
   `schedules_state` rows, slots and schedules in id order. Admission, settlement, cancel, restart, resume, reclaim,
   retire, and purge take them so. An admission plan is made without locks and applies only while the slot's version
-  and every member's state version still hold; a stale group replans on the next pass. On PostgreSQL, registration
+  and every member's state version still hold; a stale group replans on the next pass. A per-occurrence admission
+  locks the schedule's state row, inserts the root and its envelope after it, and applies only while that state
+  version holds, which every settlement bumps, so the capacity the plan read still holds. On PostgreSQL, registration
   locks its slots' `jobs_state` rows in key order, because a completion that settles a child locks its slot parent's
   row without the schedule lock.
+- A PostgreSQL statement that updates one `schedules_state` row twice keeps only one of the updates, so the reclaim
+  and retire routines fold the capacity a charged root releases, the wake, and the policy's park into one write per
+  row.
 - The registration heal clears every orphaned or retired schedule's cursor in the namespace: a retire that commits after
   a worker read its stored schedules leaves that worker's registration writing cursors for the retired definition.
 - A worker start skips `register_schedules`, and so the lock, when the namespace stores the start's catalog hash and the

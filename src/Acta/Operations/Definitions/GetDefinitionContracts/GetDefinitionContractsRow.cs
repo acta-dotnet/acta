@@ -28,6 +28,8 @@ internal sealed record GetDefinitionContractsRow(
     int JobRetentionSeconds,
     EventRecordingCode EventRecording,
     AlertProfileCode AlertProfile,
+    FiringFailurePolicyCode FiringFailurePolicy,
+    ScheduledDeliveryCode ScheduledDelivery,
     string? AlertChannelName,
     string? RunbookUrl
 )
@@ -53,6 +55,8 @@ internal sealed record GetDefinitionContractsRow(
                 JobRetentionSeconds,
                 EventRecording,
                 AlertProfile,
+                FiringFailurePolicy,
+                ScheduledDelivery,
                 AlertChannelName,
                 RunbookUrl
             )

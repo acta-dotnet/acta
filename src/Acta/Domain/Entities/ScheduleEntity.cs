@@ -12,7 +12,7 @@ namespace Acta;
 [DbPrimaryKey(Name = "pk_schedules", Columns = ["schedule_id"])]
 [DbUniqueIndex(Name = "ux_schedules_definition_name", Columns = ["definition_id", "schedule_name"], Usage = "uniqueness")]
 // A slot's schedules: the fire plan, the verbs, and purge read every schedule of one slot job.
-[DbIndex(Name = "ix_schedules_job", Columns = ["job_id", "schedule_id"], Usage = "read_api")]
+[DbIndex(Name = "ix_schedules_job", Columns = ["job_id", "schedule_id"], Filter = "job_id IS NOT NULL", Usage = "read_api")]
 [DbForeignKey(
     Name = "fk_schedules_definitions",
     Target = typeof(DefinitionEntity),
@@ -22,6 +22,12 @@ namespace Acta;
 )]
 [DbCheck(Name = "ck_schedules_paused_pair", Sql = "schedule_status_code = 30 OR paused_until_utc IS NULL")]
 [DbCheck(Name = "ck_schedules_orphan_origin", Sql = "schedule_origin_code = 40 OR schedule_status_code <> 230")]
+[DbCheck(Name = "ck_schedules_max_outstanding", Sql = "max_outstanding >= 1")]
+[DbCheck(
+    Name = "ck_schedules_expire_pair",
+    Sql = "(expire_after_seconds IS NULL AND expire_action_code IS NULL) OR (expire_after_seconds IS NOT NULL AND expire_action_code IS NOT NULL)"
+)]
+[DbCheck(Name = "ck_schedules_expire_after", Sql = "expire_after_seconds IS NULL OR expire_after_seconds > 0")]
 internal sealed class ScheduleEntity : IEntity<int>
 {
     /// <summary>
@@ -32,22 +38,21 @@ internal sealed class ScheduleEntity : IEntity<int>
     public int Id { get; init; }
 
     /// <summary>
-    /// The owning slot Job's namespace, written once at insert. The startup reconcile reads a namespace's schedules by it.
+    /// The definition's namespace, written once at insert. The startup reconcile reads a namespace's schedules by it.
     /// </summary>
     [DbColumn("namespace_id", DbKind.Int32)]
     public int NamespaceId { get; init; }
 
     /// <summary>
-    /// The recurring Job row this schedule fires. The recurring Job row owns its schedules, and purge and retention
-    /// delete them with it.
+    /// The permanent slot this schedule fires, NULL for a PerOccurrence definition. The slot owns its schedules, and
+    /// purge and retention delete them with it.
     /// </summary>
     [DbColumn("job_id", DbKind.Int64)]
-    public long JobId { get; init; }
+    public long? JobId { get; init; }
 
     /// <summary>
-    /// Denormalized from <c>jobs.definition_id</c> at INSERT and never mutated, since a job's definition never
-    /// changes. Retained for the per-namespace reconcile read and the catalog-upsert "find Definition-origin slot for
-    /// this (ns, def)" lookup without joining <c>jobs</c>.
+    /// The definition the schedule belongs to, written at INSERT and never mutated. With the name it is the key
+    /// registration and the schedule verbs find the row by, slot or no slot.
     /// </summary>
     [DbColumn("definition_id", DbKind.Int32)]
     public int DefinitionId { get; init; }
@@ -114,6 +119,28 @@ internal sealed class ScheduleEntity : IEntity<int>
     /// </summary>
     [DbColumn("timing_fingerprint", DbKind.AsciiString, Size = 64)]
     public string TimingFingerprint { get; init; } = default!;
+
+    /// <summary>
+    /// How many admitted occurrences may be unsettled at once, from <c>[JobSchedule(MaxOutstanding)]</c>; a Permanent
+    /// definition's schedules hold 1, the slot.
+    /// </summary>
+    [DbColumn("max_outstanding", DbKind.Int32)]
+    public int MaxOutstanding { get; init; }
+
+    /// <summary>What a due occurrence does while the schedule is at <see cref="MaxOutstanding"/>: wait or drop.</summary>
+    [DbColumn("full_behavior_code")]
+    public ScheduleFullBehaviorCode FullBehavior { get; init; }
+
+    /// <summary>
+    /// The age past its instant an occurrence may reach before it expires unadmitted, from
+    /// <c>[JobSchedule(ExpireAfter)]</c>; NULL means it never expires. Set together with <see cref="ExpireAction"/>.
+    /// </summary>
+    [DbColumn("expire_after_seconds", DbKind.Int32)]
+    public int? ExpireAfterSeconds { get; init; }
+
+    /// <summary>What an occurrence older than <see cref="ExpireAfterSeconds"/> does when evaluated: discard or pause.</summary>
+    [DbColumn("expire_action_code")]
+    public ScheduleExpireActionCode? ExpireAction { get; init; }
 
     // ---------- Operator lifecycle ----------
 

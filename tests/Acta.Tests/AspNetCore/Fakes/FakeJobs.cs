@@ -90,7 +90,7 @@ internal sealed class FakeJobs : IJobs
 
     public List<(string Verb, JobRef JobRef, string? Reason, string? Actor, int? ExpectedVersion)> ControlCalls { get; } = [];
 
-    public List<(JobRef JobRef, DateTime NextRunAtUtc, string? Reason, string? Actor, int? ExpectedVersion)> RescheduleCalls { get; } = [];
+    public List<(JobRef JobRef, DateTime? NextRunAtUtc, string? Reason, string? Actor, int? ExpectedVersion)> RescheduleCalls { get; } = [];
 
     public List<(JobRef JobRef, JobPriorityCode Priority, string? Reason, string? Actor, int? ExpectedVersion)> ReprioritizeCalls { get; } =
     [];
@@ -131,7 +131,7 @@ internal sealed class FakeJobs : IJobs
 
     public Func<JobLookup, string?, string?, int?, CancellationToken, ValueTask<CancelJobResponse>> Cancel { get; set; }
 
-    public Func<JobLookup, DateTime, string?, string?, int?, CancellationToken, ValueTask<RescheduleJobResponse>> Reschedule { get; set; }
+    public Func<JobLookup, DateTime?, string?, string?, int?, CancellationToken, ValueTask<RescheduleJobResponse>> Reschedule { get; set; }
 
     public Func<
         JobLookup,
@@ -202,7 +202,7 @@ internal sealed class FakeJobs : IJobs
 
     ValueTask<RescheduleJobResponse> IJobs.RescheduleAsync(
         JobLookup job,
-        DateTime nextRunAtUtc,
+        DateTime? nextRunAtUtc,
         string? reasonMessage,
         string? actor,
         int? expectedVersion,

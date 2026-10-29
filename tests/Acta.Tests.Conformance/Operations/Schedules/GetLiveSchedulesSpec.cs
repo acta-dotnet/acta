@@ -102,6 +102,7 @@ public sealed class GetLiveSchedulesSpec : ActaStorageTestBase<ConformanceFixtur
             InputFormatId: 0,
             Input: ReadOnlyMemory<byte>.Empty,
             EventRecording: EventRecordingCode.Audit,
+            ScheduledDelivery: ScheduledDeliveryCode.Permanent,
             Schedules: schedules
         );
         return (await ScheduleTestOps.RegisterAsync(Services, [definition], ct))[defId];
@@ -120,6 +121,8 @@ public sealed class GetLiveSchedulesSpec : ActaStorageTestBase<ConformanceFixtur
             MaxAttempts: 1,
             EventRecording: default,
             AlertProfile: default,
+            FiringFailurePolicy: FiringFailurePolicyCode.Continue,
+            ScheduledDelivery: ScheduledDeliveryCode.Permanent,
             Invoker: null!,
             DeserializeInput: null!,
             SerializeOutput: null

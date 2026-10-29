@@ -144,7 +144,7 @@ internal static class JobsEndpoints
         );
         controls.MapCommand(
             "/jobs/{jobRef}/reschedule",
-            "Move the job's next-run instant.",
+            "Move the job's next-run instant, or run it now.",
             options,
             DashboardJsonContext.Default.RescheduleJobRequest,
             "Invalid request.",
@@ -153,15 +153,17 @@ internal static class JobsEndpoints
             static (call, job) =>
                 call.Jobs.RescheduleAsync(
                     job,
-                    call.Body!.NextRunAtUtc > DateTime.MinValue
-                        ? call.Body.NextRunAtUtc
-                        : throw new InvalidControlException("Invalid request.", "nextRunAtUtc is required."),
+                    call.Body?.NextRunAtUtc is { } instant
+                        ? instant > DateTime.MinValue
+                            ? instant
+                            : throw new InvalidControlException("Invalid request.", "nextRunAtUtc must be an instant, or omitted for now.")
+                        : null,
                     call.ReasonMessage,
                     call.Actor,
-                    call.Body.ExpectedVersion,
+                    call.Body?.ExpectedVersion,
                     call.Ct
                 ),
-            bodyRequired: true
+            bodyRequired: false
         );
         controls.MapCommand(
             "/jobs/{jobRef}/reprioritize",

@@ -57,6 +57,8 @@ public sealed class DeferredRetryStepManifest : IJobManifest
                 MaxAttempts: 5,
                 EventRecording: EventRecordingCode.Audit,
                 AlertProfile: AlertProfileCode.OnFailure,
+                FiringFailurePolicy: FiringFailurePolicyCode.Continue,
+                ScheduledDelivery: ScheduledDeliveryCode.Permanent,
                 Invoker: static async (_, _, ctx, ct) =>
                 {
                     await DeferredRetryStepHandler.RunAsync(ctx, ct);

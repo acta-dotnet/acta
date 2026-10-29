@@ -46,6 +46,8 @@ SELECT
     jd.alert_profile_code AS alert_profile,
     jd.alert_profile_code_override AS alert_profile_override,
     jd.alert_profile_code_effective AS alert_profile_effective,
+    jd.firing_failure_policy_code AS firing_failure_policy,
+    jd.scheduled_delivery_code AS scheduled_delivery,
     jd.alert_channel_name,
     jd.alert_channel_name_override,
     jd.alert_channel_name_effective,

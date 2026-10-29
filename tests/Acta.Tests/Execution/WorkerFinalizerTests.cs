@@ -553,6 +553,8 @@ public sealed class WorkerFinalizerTests
         MaxAttempts: 1,
         EventRecording: default,
         AlertProfile: default,
+        FiringFailurePolicy: FiringFailurePolicyCode.Continue,
+        ScheduledDelivery: ScheduledDeliveryCode.Permanent,
         Invoker: null!,
         DeserializeInput: null!,
         SerializeOutput: null

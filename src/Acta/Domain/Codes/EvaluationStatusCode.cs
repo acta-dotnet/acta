@@ -33,4 +33,10 @@ public enum EvaluationStatusCode : byte
         "An occurrence is due but the permanent slot is held, cancelled, or failed terminally; a job resume or restart wakes it."
     )]
     SlotUnavailable = 50,
+
+    [Code(
+        "resumed",
+        "An operator resumed the schedule; its first evaluation decides the backlog under the misfire policy and expires the stale part without pausing again."
+    )]
+    Resumed = 60,
 }

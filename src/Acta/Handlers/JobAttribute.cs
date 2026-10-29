@@ -144,6 +144,21 @@ public sealed class JobAttribute(string name) : Attribute
     public AlertProfileCode AlertProfile { get; init; } = AlertProfileCode.OnFailure;
 
     /// <summary>
+    /// What happens to a scheduled definition's schedules when a firing fails for good (its attempts are
+    /// spent, or an exception is not retryable). <c>Continue</c>, the default, leaves them scheduled, so the
+    /// next occurrence fires; <c>PauseScheduling</c> pauses every schedule of the definition with a pause
+    /// message until an operator resumes them. Code-owned, with no operator override.
+    /// </summary>
+    public FiringFailurePolicyCode FiringFailurePolicy { get; init; } = FiringFailurePolicyCode.Continue;
+
+    /// <summary>
+    /// How a schedule delivers this definition's work: <c>Permanent</c>, one durable slot job the schedules fire
+    /// again and again; <c>PerOccurrence</c>, a fresh ordinary root per admitted occurrence, with its own state,
+    /// retries, and retention. Immutable once registered: change it under a new job name.
+    /// </summary>
+    public ScheduledDeliveryCode ScheduledDelivery { get; init; } = ScheduledDeliveryCode.Permanent;
+
+    /// <summary>
     /// Operator-stable alert channel name to which this Job's alerts route.
     /// </summary>
     public string? AlertChannelName { get; init; }

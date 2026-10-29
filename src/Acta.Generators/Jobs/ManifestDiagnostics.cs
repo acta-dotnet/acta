@@ -95,6 +95,33 @@ internal static class ManifestDiagnostics
         isEnabledByDefault: true
     );
 
+    internal static readonly DiagnosticDescriptor InvalidSchedulePolicy = new(
+        id: "ACTA0124",
+        title: "Job schedule policy values must be valid",
+        messageFormat: "{0}",
+        category: "Acta",
+        defaultSeverity: DiagnosticSeverity.Error,
+        isEnabledByDefault: true
+    );
+
+    internal static readonly DiagnosticDescriptor PermanentCapacity = new(
+        id: "ACTA0125",
+        title: "A permanent slot's schedules allow one outstanding occurrence",
+        messageFormat: "{0}",
+        category: "Acta",
+        defaultSeverity: DiagnosticSeverity.Error,
+        isEnabledByDefault: true
+    );
+
+    internal static readonly DiagnosticDescriptor InvalidScheduleExpiration = new(
+        id: "ACTA0126",
+        title: "Job schedule expiration must be whole",
+        messageFormat: "{0}",
+        category: "Acta",
+        defaultSeverity: DiagnosticSeverity.Error,
+        isEnabledByDefault: true
+    );
+
     internal static readonly DiagnosticDescriptor InvalidPayloadFormat = new(
         id: "ACTA0131",
         title: "Payload format declarations must be valid",
@@ -134,6 +161,9 @@ internal static class ManifestDiagnostics
             "ACTA0121" => InvalidSchedule,
             "ACTA0122" => InvalidScheduleExpr,
             "ACTA0123" => ScheduledInputCtor,
+            "ACTA0124" => InvalidSchedulePolicy,
+            "ACTA0125" => PermanentCapacity,
+            "ACTA0126" => InvalidScheduleExpiration,
             "ACTA0131" => InvalidPayloadFormat,
             "ACTA0132" => InvalidPayloadFormatUsage,
             "ACTA0142" => InvalidDurationUnitDescriptor,
@@ -358,6 +388,71 @@ internal static class ManifestDiagnostics
             "ACTA0123",
             $"`[Job]` method `{method.Name}` declares one or more `[JobSchedule]` but takes several input parameters. The recurring slot seeds its payload from a parameterless constructor, which the generated argument record has none of; take one input record with a parameterless constructor.",
             location
+        );
+
+    /// <summary>
+    /// ACTA0124: invalid [JobSchedule] policy value; one ID, per-variant messages.
+    /// </summary>
+    public static DiagnosticRecord InvalidScheduleMaxOutstanding(DiscoveredJob job, string scheduleName, int maxOutstanding) =>
+        new(
+            "ACTA0124",
+            $"`[JobSchedule(\"{scheduleName}\")]` on `[Job(\"{job.JobName}\")]` sets `MaxOutstanding = {maxOutstanding}`. A schedule allows at least one unsettled occurrence.",
+            job.Location
+        );
+
+    public static DiagnosticRecord InvalidScheduleFullBehavior(DiscoveredJob job, string scheduleName, byte fullBehaviorId) =>
+        new(
+            "ACTA0124",
+            $"`[JobSchedule(\"{scheduleName}\")]` on `[Job(\"{job.JobName}\")]` sets `FullBehavior` to `{fullBehaviorId}`. The behavior is `ScheduleFullBehaviorCode.Wait` or `ScheduleFullBehaviorCode.Drop`.",
+            job.Location
+        );
+
+    public static DiagnosticRecord InvalidScheduleMisfireStrategy(DiscoveredJob job, string scheduleName, byte misfireStrategyId) =>
+        new(
+            "ACTA0124",
+            $"`[JobSchedule(\"{scheduleName}\")]` on `[Job(\"{job.JobName}\")]` sets `MisfireStrategy` to `{misfireStrategyId}`. The strategy is `MisfireStrategyCode.Skip`, `CatchUpOnce`, `CatchUpLatest`, or `CatchUpAll`.",
+            job.Location
+        );
+
+    /// <summary>
+    /// ACTA0125: a Permanent definition's schedule asking for more than its one slot.
+    /// </summary>
+    public static DiagnosticRecord PermanentScheduleCapacity(DiscoveredJob job, string scheduleName, int maxOutstanding) =>
+        new(
+            "ACTA0125",
+            $"`[JobSchedule(\"{scheduleName}\")]` on `[Job(\"{job.JobName}\")]` sets `MaxOutstanding = {maxOutstanding}`, but the definition delivers through one permanent slot, which holds one occurrence at a time. Drop `MaxOutstanding`, or declare `ScheduledDelivery = ScheduledDeliveryCode.PerOccurrence` under a new job name.",
+            job.Location
+        );
+
+    /// <summary>
+    /// ACTA0126: a [JobSchedule] expiration missing its other half or out of range; one ID, per-variant messages.
+    /// </summary>
+    public static DiagnosticRecord ScheduleExpireAfterWithoutAction(DiscoveredJob job, string scheduleName) =>
+        new(
+            "ACTA0126",
+            $"`[JobSchedule(\"{scheduleName}\")]` on `[Job(\"{job.JobName}\")]` sets `ExpireAfter` but no `ExpireAction`. Say what an expired occurrence does: `ScheduleExpireActionCode.Discard` or `ScheduleExpireActionCode.Pause`.",
+            job.Location
+        );
+
+    public static DiagnosticRecord ScheduleExpireActionWithoutAfter(DiscoveredJob job, string scheduleName) =>
+        new(
+            "ACTA0126",
+            $"`[JobSchedule(\"{scheduleName}\")]` on `[Job(\"{job.JobName}\")]` sets `ExpireAction` but no `ExpireAfter`. Give the age an occurrence expires at, e.g. `ExpireAfter = \"1h\"`, or drop `ExpireAction`.",
+            job.Location
+        );
+
+    public static DiagnosticRecord ScheduleExpireAfterNotPositive(DiscoveredJob job, string scheduleName) =>
+        new(
+            "ACTA0126",
+            $"`[JobSchedule(\"{scheduleName}\")]` on `[Job(\"{job.JobName}\")]` sets `ExpireAfter` to zero. An occurrence expires at an age of at least one second.",
+            job.Location
+        );
+
+    public static DiagnosticRecord InvalidScheduleExpireAction(DiscoveredJob job, string scheduleName, byte expireActionId) =>
+        new(
+            "ACTA0126",
+            $"`[JobSchedule(\"{scheduleName}\")]` on `[Job(\"{job.JobName}\")]` sets `ExpireAction` to `{expireActionId}`. The action is `ScheduleExpireActionCode.Discard` or `ScheduleExpireActionCode.Pause`.",
+            job.Location
         );
 
     /// <summary>

@@ -234,7 +234,8 @@ JOIN temp._reclaim_jobs rj ON rj.job_id = j.job_id
 WHERE
     j.job_id = jobs_state.job_id;
 
--- A slot's lost attempt that spent the budget settles its firing Failed and wakes the members parked on the slot.
+-- A lost attempt that spent the budget settles the firing Failed: a slot's, which wakes the members parked on the slot,
+-- or a charged root's, which releases its schedule's capacity.
 UPDATE {{schema}}.checkpoints
 SET
     checkpoint_status_code = 120 /* CheckpointStatusCode.Failed */,
@@ -244,7 +245,34 @@ WHERE
     checkpoint_kind_code = 60 /* CheckpointKindCode.Firing */
     AND checkpoint_name = 'sys.firing'
     AND checkpoint_status_code = 10 /* CheckpointStatusCode.Pending */
-    AND job_id IN (SELECT rj.job_id FROM temp._reclaim_jobs rj WHERE rj.to_status = 40 /* JobStatusCode.Idle */);
+    AND job_id IN (
+        SELECT rj.job_id
+        FROM temp._reclaim_jobs rj
+        JOIN {{schema}}.jobs j ON j.job_id = rj.job_id
+        WHERE rj.to_status = 40 /* JobStatusCode.Idle */ OR (rj.to_status = 200 /* JobStatusCode.Failed */ AND j.schedule_id IS NOT NULL)
+    );
+
+UPDATE {{schema}}.schedules_state AS st
+SET
+    outstanding_count = st.outstanding_count - c.settled,
+    next_evaluation_at_utc = CASE
+        WHEN st.evaluation_status_code = 20 /* EvaluationStatusCode.WaitingForCapacity */ THEN {{now}}
+        ELSE st.next_evaluation_at_utc
+    END,
+    evaluation_status_code = CASE
+        WHEN st.evaluation_status_code = 20 /* EvaluationStatusCode.WaitingForCapacity */ THEN 10 /* EvaluationStatusCode.Scheduled */
+        ELSE st.evaluation_status_code
+    END,
+    modified_at_utc = {{now}},
+    version = st.version + 1
+FROM (
+    SELECT j.schedule_id, COUNT(*) AS settled
+    FROM temp._reclaim_jobs rj
+    JOIN {{schema}}.jobs j ON j.job_id = rj.job_id
+    WHERE j.schedule_id IS NOT NULL AND rj.to_status = 200 /* JobStatusCode.Failed */
+    GROUP BY j.schedule_id
+) c
+WHERE st.schedule_id = c.schedule_id;
 
 UPDATE {{schema}}.schedules_state
 SET
@@ -260,6 +288,49 @@ WHERE
         JOIN temp._reclaim_jobs rj ON rj.job_id = js.job_id
         WHERE rj.to_status = 40 /* JobStatusCode.Idle */
     );
+
+-- A lost attempt that spent the budget is a firing that failed for good: the definition's firing failure policy applies
+-- as it does on a completion.
+DROP TABLE IF EXISTS temp._reclaim_policy_paused;
+
+CREATE TEMP TABLE _reclaim_policy_paused AS
+SELECT js.schedule_id, js.schedule_name, j.job_id, j.namespace_id, j.definition_id, j.tenant_id,
+    COALESCE(j.lineage_root_job_id, j.job_id) AS lineage_root_job_id, r.execution_number, j.event_recording_code
+FROM temp._reclaim_jobs rj
+INNER JOIN {{schema}}.jobs j ON j.job_id = rj.job_id
+INNER JOIN {{schema}}.jobs_state r ON r.job_id = rj.job_id
+INNER JOIN {{schema}}.definitions jd ON jd.definition_id = j.definition_id
+INNER JOIN {{schema}}.schedules js ON js.definition_id = jd.definition_id
+WHERE
+    (rj.to_status = 40 /* JobStatusCode.Idle */ OR (rj.to_status = 200 /* JobStatusCode.Failed */ AND j.schedule_id IS NOT NULL))
+    AND jd.firing_failure_policy_code = 20 /* FiringFailurePolicyCode.PauseScheduling */
+    AND js.schedule_status_code = 10 /* ScheduleStatusCode.Active */;
+
+UPDATE {{schema}}.schedules
+SET
+    schedule_status_code = 30 /* ScheduleStatusCode.Paused */,
+    paused_until_utc = NULL,
+    pause_message = 'Paused by the firing failure policy: the last firing failed for good.',
+    modified_at_utc = {{now}},
+    version = version + 1
+WHERE schedule_id IN (SELECT p.schedule_id FROM temp._reclaim_policy_paused p);
+
+UPDATE {{schema}}.schedules_state
+SET
+    next_evaluation_at_utc = NULL,
+    modified_at_utc = {{now}},
+    version = version + 1
+WHERE schedule_id IN (SELECT p.schedule_id FROM temp._reclaim_policy_paused p);
+
+INSERT INTO {{schema}}.events (
+    event_code, created_at_utc, namespace_id, entity_code, entity_id,
+    definition_id, tenant_id, lineage_root_job_id, execution_number, event_message, details_format_id, details)
+SELECT
+    100 /* EventCode.SchedulePaused */, {{now}}, p.namespace_id, 50 /* EntityCode.Job */, p.job_id,
+    p.definition_id, p.tenant_id, p.lineage_root_job_id, p.execution_number, 'Paused by the firing failure policy: the last firing failed for good.',
+    1 /* JobPayloadFormat.Json */, CAST('{"schedule":"' || p.schedule_name || '","reason":"firing-failed"}' AS BLOB)
+FROM temp._reclaim_policy_paused p
+WHERE p.event_recording_code = 20 /* EventRecordingCode.Audit */;
 
 -- A head reclaimed to Failed hands its lane to the lowest-id unfinished member when that member is
 -- Blocked and no member runs; a head re-armed Ready keeps its lane.

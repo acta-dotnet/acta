@@ -81,9 +81,8 @@ public sealed class ScheduleFiresOnTickSpec : ActaRuntimeTestBase<ConformanceFix
         await FireOnceAsync(slotId, ct);
         var schedule = Assert.Single(await ScheduleTestOps.ReadAsync(Db, slotId, ct));
 
-        // Every-5-minute cadence: the cursor rolled forward exactly one period, decided through the admitted one.
+        // Every-5-minute cadence: the cursor rolled forward exactly one period past the admitted occurrence.
         Assert.Equal(before.AddMinutes(5), schedule.NextOccurrenceAtUtc);
-        Assert.Equal(before, schedule.DecidedThroughAtUtc);
         Assert.Equal(schedule.NextOccurrenceAtUtc, schedule.NextEvaluationAtUtc);
 
         var slot = await ReadJobAsync(slotId, ct);

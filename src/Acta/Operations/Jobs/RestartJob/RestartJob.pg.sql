@@ -16,7 +16,9 @@ CREATE TEMP TABLE _restart_job (
     execution_number INT NOT NULL,
     event_recording_code SMALLINT NOT NULL,
     action SMALLINT NOT NULL,
-    to_status SMALLINT NOT NULL
+    to_status SMALLINT NOT NULL,
+    schedule_id INT,
+    recharge BOOLEAN NOT NULL
 ) ON COMMIT DROP;
 
 INSERT INTO _restart_job_lane (lane_id)
@@ -27,10 +29,13 @@ FOR UPDATE;
 
 INSERT INTO _restart_job (
     from_status, from_version, lane_id, parent_job_id, namespace_id, lineage_root_job_id, definition_id, tenant_id,
-    execution_number, event_recording_code, action, to_status)
+    execution_number, event_recording_code, schedule_id, recharge, action, to_status)
 SELECT
     r.job_status_code, r.version, r.lane_id, j.parent_job_id, j.namespace_id, j.lineage_root_job_id, j.definition_id, j.tenant_id,
     r.execution_number, j.event_recording_code,
+    j.schedule_id,
+    -- A finished charged root runs again as a new firing of its schedule, charged to it again.
+    j.schedule_id IS NOT NULL AND r.job_status_code IN (100 /* JobStatusCode.Succeeded */, 200 /* JobStatusCode.Failed */, 220 /* JobStatusCode.Cancelled */),
     CASE
         WHEN @p_expected_version IS NOT NULL AND r.version <> @p_expected_version THEN 5 /* ControlAction.VersionConflict */
         WHEN r.job_status_code = 50 /* JobStatusCode.Executing */ THEN 3 /* ControlAction.Rejected */
@@ -122,6 +127,44 @@ WHERE
                 )
             )
     );
+
+-- A charged root is re-charged only while its schedule is live and below MaxOutstanding, the check and the charge one
+-- write under the state row's lock; otherwise the restart is Rejected.
+WITH charged AS (
+    UPDATE {{schema}}.schedules_state st
+    SET
+        outstanding_count = st.outstanding_count + 1,
+        modified_at_utc = now(),
+        version = st.version + 1
+    FROM _restart_job s
+    INNER JOIN {{schema}}.schedules js ON js.schedule_id = s.schedule_id
+    INNER JOIN {{schema}}.definitions d ON d.definition_id = js.definition_id
+    WHERE
+        st.schedule_id = s.schedule_id
+        AND s.recharge
+        AND s.action = 1 /* ControlAction.Applied */
+        AND js.schedule_status_code <> 230 /* ScheduleStatusCode.Orphaned */
+        AND d.definition_status_code <> 240 /* DefinitionStatusCode.Retired */
+        AND st.outstanding_count < js.max_outstanding
+    RETURNING st.schedule_id
+)
+UPDATE _restart_job s
+SET action = 3 /* ControlAction.Rejected */
+WHERE s.recharge AND s.action = 1 /* ControlAction.Applied */ AND NOT EXISTS (SELECT 1 FROM charged);
+
+-- A re-charged root's settled envelope is outstanding again.
+UPDATE {{schema}}.checkpoints cp
+SET
+    checkpoint_status_code = 10 /* CheckpointStatusCode.Pending */,
+    modified_at_utc = now(),
+    version = cp.version + 1
+FROM _restart_job s
+WHERE
+    cp.job_id = @p_job_id
+    AND cp.checkpoint_kind_code = 60 /* CheckpointKindCode.Firing */
+    AND cp.checkpoint_name = 'sys.firing'
+    AND s.recharge
+    AND s.action = 1 /* ControlAction.Applied */;
 
 UPDATE {{schema}}.jobs_state AS r
 SET

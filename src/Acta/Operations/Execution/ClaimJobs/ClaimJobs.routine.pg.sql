@@ -24,7 +24,8 @@ RETURNS TABLE (
     db_now TIMESTAMPTZ,
     next_ready_at_utc TIMESTAMPTZ,
     lane_id BIGINT,
-    parent_job_id BIGINT
+    parent_job_id BIGINT,
+    schedule_id INT
 )
 LANGUAGE sql
 AS $$
@@ -105,7 +106,8 @@ AS $$
             r.failure_count,
             j.job_ref,
             r.lane_id,
-            j.parent_job_id
+            j.parent_job_id,
+            j.schedule_id
     ),
     clock AS (
         SELECT now() AS db_now
@@ -128,7 +130,8 @@ AS $$
         NULL::timestamptz AS db_now,
         NULL::timestamptz AS next_ready_at_utc,
         u.lane_id,
-        u.parent_job_id
+        u.parent_job_id,
+        u.schedule_id
     FROM updated u
     UNION ALL
     SELECT
@@ -173,7 +176,8 @@ AS $$
                 LIMIT 1
             ) head),
         NULL::bigint,
-        NULL::bigint
+        NULL::bigint,
+        NULL::int
     FROM clock c
     WHERE NOT EXISTS (SELECT 1 FROM updated)
     ORDER BY job_id NULLS LAST;

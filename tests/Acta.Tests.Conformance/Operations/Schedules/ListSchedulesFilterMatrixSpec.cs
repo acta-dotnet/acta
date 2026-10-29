@@ -39,7 +39,17 @@ public sealed class ListSchedulesFilterMatrixSpec : ActaRuntimeTestBase<Conforma
     private Task RegisterSchedulesAsync(int nsId, int defId, string jobName, IReadOnlyList<SlotSchedule> schedules, CancellationToken ct) =>
         ScheduleTestOps.RegisterAsync(
             Services,
-            [new DefinitionSchedules(nsId, defId, 0, ReadOnlyMemory<byte>.Empty, EventRecordingCode.Audit, schedules)],
+            [
+                new DefinitionSchedules(
+                    nsId,
+                    defId,
+                    0,
+                    ReadOnlyMemory<byte>.Empty,
+                    EventRecordingCode.Audit,
+                    ScheduledDeliveryCode.Permanent,
+                    schedules
+                ),
+            ],
             ct
         );
 
@@ -59,12 +69,14 @@ public sealed class ListSchedulesFilterMatrixSpec : ActaRuntimeTestBase<Conforma
             MaxAttempts: 1,
             EventRecording: default,
             AlertProfile: default,
+            FiringFailurePolicy: FiringFailurePolicyCode.Continue,
+            ScheduledDelivery: ScheduledDeliveryCode.Permanent,
             Invoker: null!,
             DeserializeInput: null!,
             SerializeOutput: null
         );
 
-    private static (long JobId, string ScheduleName) Key(ListSchedulesItem s) => (s.JobId, s.ScheduleName);
+    private static (long? JobId, string ScheduleName) Key(ListSchedulesItem s) => (s.JobId, s.ScheduleName);
 
     [Fact(DisplayName = "JobName filter returns only that job's schedules and excludes all other jobs' schedules")]
     public async Task JobName_filter_returns_exact_schedule_set()

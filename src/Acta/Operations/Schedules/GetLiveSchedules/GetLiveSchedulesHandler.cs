@@ -1,6 +1,6 @@
 namespace Acta;
 
-/// <summary><see cref="SchedulesOperations.GetLiveSchedulesAsync"/>: one read, which every schedule control verb runs too.</summary>
+/// <summary><see cref="SchedulesOperations.GetLiveSchedulesAsync"/>: one read.</summary>
 internal sealed class GetLiveSchedulesHandler(IDbSession session, ISqlDialect dialect)
 {
     public async Task<GetLiveSchedulesResponse> HandleAsync(GetLiveSchedulesQuery query, CancellationToken ct) =>

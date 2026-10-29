@@ -14,5 +14,9 @@ public sealed record ScheduleDescriptor(
     MisfireStrategyCode MisfireStrategy,
     ScheduleExpressionKindCode ExpressionKind,
     string? Description,
-    ImmutableArray<string> Environments
+    ImmutableArray<string> Environments,
+    int MaxOutstanding = 1,
+    ScheduleFullBehaviorCode FullBehavior = ScheduleFullBehaviorCode.Wait,
+    int? ExpireAfterSeconds = null,
+    ScheduleExpireActionCode ExpireAction = ScheduleExpireActionCode.Unspecified
 );

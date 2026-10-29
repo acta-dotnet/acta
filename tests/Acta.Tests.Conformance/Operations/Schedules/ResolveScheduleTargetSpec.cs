@@ -6,35 +6,37 @@ using Xunit;
 namespace Acta.Tests.Conformance.Operations.Schedules;
 
 /// <summary>
-/// Conformance for <c>ResolveScheduleTarget</c>, the lookup every schedule control verb starts from: the named live
-/// schedule with its recurring slot job, the database clock, and the slot's live schedules, or <c>null</c> when the job
-/// or the schedule is absent.
+// Conformance for <c>ResolveScheduleTarget</c>, the lookup every schedule control verb starts from: the named live
+/// schedule with its id, its slot job, its definition, and the database clock, or <c>null</c> when the job or the
+/// schedule is absent.
 /// </summary>
 [ConformanceSpec(
     "resolve-schedule-target.lookup",
-    "ResolveScheduleTarget finds a live schedule and its slot job, null when absent",
+    "ResolveScheduleTarget finds a live schedule by its path, null when absent",
     Area = "Scheduling",
-    Contract = "ResolveScheduleTarget returns a named live schedule with its slot job, the database clock, and the slot's live set, or null when the job or schedule is absent."
+    Contract = "ResolveScheduleTarget returns a named live schedule with its id, slot job, definition, and the database clock, or null when the job or schedule is absent."
 )]
 public sealed class ResolveScheduleTargetSpec : ActaRuntimeTestBase<ConformanceFixture, TestJobs.TestJobsManifest>
 {
     private const string JobName = "recurring-ping";
     private const string ScheduleName = "every-5-minutes";
 
-    [Fact(DisplayName = "A live schedule resolves with its slot job, the database clock, and the slot's live schedules")]
+    [Fact(DisplayName = "A live schedule resolves with its id, its slot job, its definition, and the database clock")]
     public async Task A_live_schedule_resolves_with_its_slot()
     {
         var ct = TestContext.Current.CancellationToken;
         var slotId = await ScheduleTestOps.SlotIdAsync(Db, TestNamespace, JobName, ct);
+        var schedule = Assert.Single(await ScheduleTestOps.ReadAsync(Db, slotId, ct), s => s.ScheduleName == ScheduleName).Config;
         var before = await NowAsync(ct);
 
         var target = await ResolveAsync(new ScheduleLookup(TestNamespace, JobName, ScheduleName), ct);
         var after = await NowAsync(ct);
 
         Assert.NotNull(target);
+        Assert.Equal(schedule.Id, target.ScheduleId);
         Assert.Equal(slotId, target.JobId);
+        Assert.Equal(schedule.DefinitionId, target.DefinitionId);
         Assert.Equal(ScheduleName, target.Schedule.ScheduleName);
-        Assert.Equal([ScheduleName], target.Live.Select(s => s.ScheduleName));
         Assert.InRange(target.NowUtc, before.AddSeconds(-1), after.AddSeconds(1));
     }
 

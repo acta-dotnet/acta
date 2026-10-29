@@ -59,6 +59,7 @@ internal sealed partial class WorkerFinalizer
             RescheduleDelaySeconds = _handBackDelaySeconds,
             HasLane = job.LaneId is not null,
             HasParent = job.ParentJobId is not null,
+            HasSchedule = job.ScheduleId is not null,
         };
 
     // The handler-status shape, so the job's lane hands on and its parent's latch is raised. The retention is the
@@ -81,6 +82,7 @@ internal sealed partial class WorkerFinalizer
             HandlerStatusCode = (byte)JobStatusCode.Cancelled,
             HasLane = job.LaneId is not null,
             HasParent = job.ParentJobId is not null,
+            HasSchedule = job.ScheduleId is not null,
         };
 
     internal static CompleteExecutionsValues BuildCommand(
@@ -113,6 +115,7 @@ internal sealed partial class WorkerFinalizer
         {
             HasLane = job.LaneId is not null,
             HasParent = job.ParentJobId is not null,
+            HasSchedule = job.ScheduleId is not null,
         };
 
         if (oneShotSuccess)

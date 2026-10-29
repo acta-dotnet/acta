@@ -19,6 +19,7 @@ BEGIN
             execution_number INT NOT NULL,
             lane_id BIGINT NULL,
             parent_job_id BIGINT NULL,
+            schedule_id INT NULL,
             sig_state TINYINT NULL,
             sig_due DATETIME2(3) NULL,
             PRIMARY KEY (job_id, execution_number)
@@ -43,8 +44,8 @@ BEGIN
             SELECT c.job_id, c.execution_number
             FROM @p_batch c;
         ELSE
-            INSERT INTO @rows (job_id, execution_number, lane_id, parent_job_id)
-            SELECT c.job_id, c.execution_number, r.lane_id, j.parent_job_id
+            INSERT INTO @rows (job_id, execution_number, lane_id, parent_job_id, schedule_id)
+            SELECT c.job_id, c.execution_number, r.lane_id, j.parent_job_id, j.schedule_id
             FROM @p_batch c
             INNER JOIN {{schema}}.jobs_state r WITH (FORCESEEK) ON r.job_id = c.job_id
             INNER JOIN {{schema}}.jobs j WITH (FORCESEEK) ON j.job_id = c.job_id;
@@ -66,15 +67,19 @@ BEGIN
                 ),
                 @recurring = MAX(CASE WHEN final_job_status_code IS NOT NULL THEN 1 ELSE 0 END)
             FROM @p_batch;
+            IF EXISTS (SELECT 1 FROM @rows WHERE schedule_id IS NOT NULL)
+                SET @recurring = 1;
 
-            -- Each fired slot's namespace schedule lock, shared, before any other lock (same policy, "Schedule lock").
+            -- Each fired slot's or charged root's namespace schedule lock, shared, before any other lock (same policy,
+            -- "Schedule lock").
             IF @recurring = 1
                 BEGIN
                     DECLARE @schedule_ns INT = (
                         SELECT MIN(r.namespace_id)
                         FROM @p_batch c
+                        INNER JOIN @rows x ON x.job_id = c.job_id AND x.execution_number = c.execution_number
                         INNER JOIN {{schema}}.jobs_state r WITH (FORCESEEK) ON r.job_id = c.job_id
-                        WHERE c.final_job_status_code IS NOT NULL
+                        WHERE c.final_job_status_code IS NOT NULL OR x.schedule_id IS NOT NULL
                     );
                     DECLARE @schedule_lock NVARCHAR(255), @schedule_lock_result INT;
                     WHILE @schedule_ns IS NOT NULL
@@ -86,8 +91,9 @@ BEGIN
                             SET @schedule_ns = (
                                 SELECT MIN(r.namespace_id)
                                 FROM @p_batch c
+                                INNER JOIN @rows x ON x.job_id = c.job_id AND x.execution_number = c.execution_number
                                 INNER JOIN {{schema}}.jobs_state r WITH (FORCESEEK) ON r.job_id = c.job_id
-                                WHERE c.final_job_status_code IS NOT NULL AND r.namespace_id > @schedule_ns
+                                WHERE (c.final_job_status_code IS NOT NULL OR x.schedule_id IS NOT NULL) AND r.namespace_id > @schedule_ns
                             );
                         END;
                 END
@@ -251,6 +257,8 @@ BEGIN
                         AND j.job_kind_code = 20 /* JobKindCode.PermanentSlot */
                         AND st.evaluation_status_code IN (20 /* EvaluationStatusCode.WaitingForCapacity */, 50 /* EvaluationStatusCode.SlotUnavailable */);
 
+                    /* The envelope settles once: a slot's when the slot lands Idle, Failed, or Cancelled, a charged root's
+                       when the root lands terminal. */
                     UPDATE cp
                     SET
                         checkpoint_status_code = CASE
@@ -268,8 +276,86 @@ BEGIN
                         cp.checkpoint_kind_code = 60 /* CheckpointKindCode.Firing */
                         AND cp.checkpoint_name = 'sys.firing'
                         AND cp.checkpoint_status_code = 10 /* CheckpointStatusCode.Pending */
-                        AND d.job_status_code IN (40 /* JobStatusCode.Idle */, 200 /* JobStatusCode.Failed */, 220 /* JobStatusCode.Cancelled */)
-                        AND j.job_kind_code = 20 /* JobKindCode.PermanentSlot */;
+                        AND (
+                            (j.job_kind_code = 20 /* JobKindCode.PermanentSlot */ AND d.job_status_code IN (40 /* JobStatusCode.Idle */, 200 /* JobStatusCode.Failed */, 220 /* JobStatusCode.Cancelled */))
+                            OR (j.schedule_id IS NOT NULL AND d.job_status_code IN (100 /* JobStatusCode.Succeeded */, 200 /* JobStatusCode.Failed */, 220 /* JobStatusCode.Cancelled */))
+                        );
+
+                    /* A charged root that landed terminal releases its schedule's capacity, once per root, and wakes the
+                       schedule when it waited for that capacity. */
+                    UPDATE st
+                    SET
+                        outstanding_count = st.outstanding_count - s.settled,
+                        next_evaluation_at_utc = CASE
+                            WHEN st.evaluation_status_code = 20 /* EvaluationStatusCode.WaitingForCapacity */ THEN @now
+                            ELSE st.next_evaluation_at_utc
+                        END,
+                        evaluation_status_code = CASE
+                            WHEN st.evaluation_status_code = 20 /* EvaluationStatusCode.WaitingForCapacity */ THEN 10 /* EvaluationStatusCode.Scheduled */
+                            ELSE st.evaluation_status_code
+                        END,
+                        modified_at_utc = @now,
+                        version = st.version + 1
+                    FROM {{schema}}.schedules_state st WITH (FORCESEEK)
+                    INNER JOIN (
+                        SELECT x.schedule_id, COUNT(*) AS settled
+                        FROM @done d
+                        INNER JOIN @rows x ON x.job_id = d.job_id AND x.execution_number = d.execution_number
+                        WHERE
+                            x.schedule_id IS NOT NULL
+                            AND d.job_status_code IN (100 /* JobStatusCode.Succeeded */, 200 /* JobStatusCode.Failed */, 220 /* JobStatusCode.Cancelled */)
+                        GROUP BY x.schedule_id
+                    ) s ON s.schedule_id = st.schedule_id;
+
+                    /* The firing failure policy: a firing that failed for good (a spent budget, the slot back to Idle; a charged
+                       root landed Failed) pauses every active schedule of the definition, with the reason as the pause message,
+                       until an operator resumes them. A slot its handler held or stopped is not a failed firing. */
+                    DECLARE @policy_paused TABLE (
+                        schedule_id INT NOT NULL PRIMARY KEY,
+                        schedule_name VARCHAR(128) COLLATE Latin1_General_100_BIN2_UTF8 NOT NULL,
+                        job_id BIGINT NOT NULL
+                    );
+
+                    UPDATE js
+                    SET
+                        schedule_status_code = 30 /* ScheduleStatusCode.Paused */,
+                        paused_until_utc = NULL,
+                        pause_message = 'Paused by the firing failure policy: the last firing failed for good.',
+                        modified_at_utc = @now,
+                        version = js.version + 1
+                    OUTPUT INSERTED.schedule_id, INSERTED.schedule_name, f.job_id INTO @policy_paused (schedule_id, schedule_name, job_id)
+                    FROM {{schema}}.schedules js
+                    INNER JOIN {{schema}}.definitions jd ON jd.definition_id = js.definition_id
+                    INNER JOIN (
+                        SELECT j.job_id, j.definition_id, j.job_kind_code, j.schedule_id, d.job_status_code, c.succeeded
+                        FROM @done d
+                        INNER JOIN @p_batch c ON c.job_id = d.job_id AND c.execution_number = d.execution_number
+                        INNER JOIN {{schema}}.jobs j WITH (FORCESEEK) ON j.job_id = d.job_id
+                    ) f ON f.definition_id = jd.definition_id
+                    WHERE
+                        js.schedule_status_code = 10 /* ScheduleStatusCode.Active */
+                        AND (
+                            (f.job_kind_code = 20 /* JobKindCode.PermanentSlot */ AND f.job_status_code = 40 /* JobStatusCode.Idle */ AND f.succeeded = 0)
+                            OR (f.schedule_id IS NOT NULL AND f.job_status_code = 200 /* JobStatusCode.Failed */)
+                        )
+                        AND jd.firing_failure_policy_code = 20 /* FiringFailurePolicyCode.PauseScheduling */;
+
+                    UPDATE st
+                    SET next_evaluation_at_utc = NULL, modified_at_utc = @now, version = st.version + 1
+                    FROM {{schema}}.schedules_state st WITH (FORCESEEK)
+                    INNER JOIN @policy_paused p ON p.schedule_id = st.schedule_id;
+
+                    INSERT INTO {{schema}}.events (
+                        event_code, created_at_utc, namespace_id, entity_code, entity_id,
+                        definition_id, tenant_id, lineage_root_job_id, execution_number, event_message, details_format_id, details)
+                    SELECT
+                        100 /* EventCode.SchedulePaused */, @now, j.namespace_id, 50 /* EntityCode.Job */, p.job_id,
+                        j.definition_id, j.tenant_id, COALESCE(j.lineage_root_job_id, j.job_id), r.execution_number, 'Paused by the firing failure policy: the last firing failed for good.',
+                        1 /* JobPayloadFormat.Json */, CONVERT(VARBINARY(MAX), '{"schedule":"' + p.schedule_name + '","reason":"firing-failed"}')
+                    FROM @policy_paused p
+                    INNER JOIN {{schema}}.jobs j WITH (FORCESEEK) ON j.job_id = p.job_id
+                    INNER JOIN {{schema}}.jobs_state r WITH (FORCESEEK) ON r.job_id = p.job_id
+                    WHERE j.event_recording_code = 20 /* EventRecordingCode.Audit */;
                 END
             END
 

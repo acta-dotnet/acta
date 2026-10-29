@@ -31,7 +31,20 @@ internal static class ScheduleRegistrationPlan
                 : anchor is { } a ? NextOccurrenceCalculator.FirstAfter(d.Expression, timeZone, d.ExpressionKind, a, nowUtc)
                 : NextOccurrenceCalculator.Next(d.Expression, timeZone, d.ExpressionKind, nowUtc);
             schedules.Add(
-                new SlotSchedule(d.ScheduleName, d.Expression, timeZone, d.MisfireStrategy, d.ExpressionKind, d.Description, next, anchor)
+                new SlotSchedule(
+                    d.ScheduleName,
+                    d.Expression,
+                    timeZone,
+                    d.MisfireStrategy,
+                    d.ExpressionKind,
+                    d.Description,
+                    next,
+                    anchor,
+                    d.MaxOutstanding,
+                    d.FullBehavior,
+                    d.ExpireAfterSeconds,
+                    d.ExpireAction == ScheduleExpireActionCode.Unspecified ? null : d.ExpireAction
+                )
             );
         }
 

@@ -274,7 +274,7 @@ BEGIN
         RETURNING
             r.job_id, j.namespace_id, r.execution_number, j.lineage_root_job_id,
             j.definition_id, j.tenant_id, s.worker_id, r.job_status_code AS new_status, s.event_recording_code,
-            s.alert_profile_code, j.parent_job_id
+            s.alert_profile_code, j.parent_job_id, j.schedule_id
     ),
     /* An orphaned attempt that spent the budget is the job failing for good; any other lands Ready or back on its
        wait. Failures and Audit record it, and so does an enabled alert profile at any level, in this transaction, so
@@ -325,7 +325,8 @@ BEGIN
             r.event_recording_code IN (10 /* EventRecordingCode.Failures */, 20 /* EventRecordingCode.Audit */)
             OR r.alert_profile_code <> 0 /* AlertProfileCode.None */
     ),
-    -- A slot's lost attempt that spent the budget settles its firing Failed and wakes the members parked on the slot.
+    -- A lost attempt that spent the budget settles the firing Failed: a slot's, which wakes the members parked on the
+    -- slot, or a charged root's, which releases its schedule's capacity.
     settled AS (
         UPDATE {{schema}}.checkpoints cp
         SET
@@ -338,21 +339,83 @@ BEGIN
             AND cp.checkpoint_kind_code = 60 /* CheckpointKindCode.Firing */
             AND cp.checkpoint_name = 'sys.firing'
             AND cp.checkpoint_status_code = 10 /* CheckpointStatusCode.Pending */
-            AND r.new_status = 40 /* JobStatusCode.Idle */
+            AND (r.new_status = 40 /* JobStatusCode.Idle */ OR (r.new_status = 200 /* JobStatusCode.Failed */ AND r.schedule_id IS NOT NULL))
     ),
-    woken AS (
+    -- A lost attempt that spent the budget is a firing that failed for good: the definition's firing failure policy
+    -- applies as it does on a completion.
+    policy_paused AS (
+        UPDATE {{schema}}.schedules js
+        SET
+            schedule_status_code = 30 /* ScheduleStatusCode.Paused */,
+            paused_until_utc = NULL,
+            pause_message = 'Paused by the firing failure policy: the last firing failed for good.',
+            modified_at_utc = now(),
+            version = js.version + 1
+        FROM reclaimed r
+        INNER JOIN {{schema}}.definitions jd ON jd.definition_id = r.definition_id
+        WHERE
+            js.definition_id = jd.definition_id
+            AND js.schedule_status_code = 10 /* ScheduleStatusCode.Active */
+            AND (r.new_status = 40 /* JobStatusCode.Idle */ OR (r.new_status = 200 /* JobStatusCode.Failed */ AND r.schedule_id IS NOT NULL))
+            AND jd.firing_failure_policy_code = 20 /* FiringFailurePolicyCode.PauseScheduling */
+        RETURNING
+            js.schedule_id, js.schedule_name, r.job_id, r.namespace_id, r.definition_id, r.tenant_id,
+            COALESCE(r.lineage_root_job_id, r.job_id) AS lineage_root_job_id, r.execution_number, r.event_recording_code
+    ),
+    -- One write per schedule state, since a row updated twice in one statement keeps only one of the updates: the wake
+    -- of a slot's parked members or of a schedule waiting for a root's capacity, the released capacity, and the
+    -- policy's park, which wins over a wake.
+    state_written AS (
         UPDATE {{schema}}.schedules_state st
         SET
-            next_evaluation_at_utc = now(),
-            evaluation_status_code = 10 /* EvaluationStatusCode.Scheduled */,
+            outstanding_count = st.outstanding_count - k.released,
+            next_evaluation_at_utc = CASE
+                WHEN k.paused THEN NULL
+                WHEN k.wake AND st.evaluation_status_code IN (20 /* EvaluationStatusCode.WaitingForCapacity */, 50 /* EvaluationStatusCode.SlotUnavailable */) THEN now()
+                ELSE st.next_evaluation_at_utc
+            END,
+            evaluation_status_code = CASE
+                WHEN NOT k.paused AND k.wake AND st.evaluation_status_code IN (20 /* EvaluationStatusCode.WaitingForCapacity */, 50 /* EvaluationStatusCode.SlotUnavailable */)
+                    THEN 10 /* EvaluationStatusCode.Scheduled */
+                ELSE st.evaluation_status_code
+            END,
             modified_at_utc = now(),
             version = st.version + 1
-        FROM {{schema}}.schedules js
-        INNER JOIN reclaimed r ON r.job_id = js.job_id
+        FROM (
+            SELECT u.schedule_id, SUM(u.released) AS released, BOOL_OR(u.paused) AS paused, BOOL_OR(u.wake) AS wake
+            FROM (
+                SELECT js.schedule_id, 0 AS released, false AS paused, true AS wake
+                FROM {{schema}}.schedules js
+                INNER JOIN reclaimed r ON r.job_id = js.job_id
+                WHERE r.new_status = 40 /* JobStatusCode.Idle */
+                UNION ALL
+                SELECT r.schedule_id, 1, false, true
+                FROM reclaimed r
+                WHERE r.schedule_id IS NOT NULL AND r.new_status = 200 /* JobStatusCode.Failed */
+                UNION ALL
+                SELECT p.schedule_id, 0, true, false
+                FROM policy_paused p
+            ) u
+            GROUP BY u.schedule_id
+        ) k
         WHERE
-            st.schedule_id = js.schedule_id
-            AND r.new_status = 40 /* JobStatusCode.Idle */
-            AND st.evaluation_status_code IN (20 /* EvaluationStatusCode.WaitingForCapacity */, 50 /* EvaluationStatusCode.SlotUnavailable */)
+            st.schedule_id = k.schedule_id
+            AND (
+                k.released > 0
+                OR k.paused
+                OR st.evaluation_status_code IN (20 /* EvaluationStatusCode.WaitingForCapacity */, 50 /* EvaluationStatusCode.SlotUnavailable */)
+            )
+    ),
+    policy_events AS (
+        INSERT INTO {{schema}}.events (
+            event_code, created_at_utc, namespace_id, entity_code, entity_id,
+            definition_id, tenant_id, lineage_root_job_id, execution_number, event_message, details_format_id, details)
+        SELECT
+            100 /* EventCode.SchedulePaused */, now(), p.namespace_id, 50 /* EntityCode.Job */, p.job_id,
+            p.definition_id, p.tenant_id, p.lineage_root_job_id, p.execution_number, 'Paused by the firing failure policy: the last firing failed for good.',
+            1 /* JobPayloadFormat.Json */, convert_to('{"schedule":"' || p.schedule_name || '","reason":"firing-failed"}', 'UTF8')
+        FROM policy_paused p
+        WHERE p.event_recording_code = 20 /* EventRecordingCode.Audit */
     )
     SELECT r.job_id, r.new_status, r.parent_job_id, 0::SMALLINT
     FROM reclaimed r;

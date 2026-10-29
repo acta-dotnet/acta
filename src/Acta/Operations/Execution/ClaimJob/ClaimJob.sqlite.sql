@@ -42,7 +42,8 @@ SELECT
     j.job_ref,
     j.tenant_id,
     r.lane_id,
-    j.parent_job_id
+    j.parent_job_id,
+    j.schedule_id
 FROM {{schema}}.jobs j
 JOIN {{schema}}.jobs_state r ON r.job_id = j.job_id
 WHERE j.job_id IN (SELECT job_id FROM temp._claimed_by_id);

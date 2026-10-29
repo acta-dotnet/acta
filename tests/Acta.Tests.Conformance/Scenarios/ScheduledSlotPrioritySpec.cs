@@ -33,6 +33,8 @@ public sealed class ScheduledSlotPriorityManifest : IJobManifest
                 MaxAttempts: 2,
                 EventRecording: EventRecordingCode.Audit,
                 AlertProfile: AlertProfileCode.OnFailure,
+                FiringFailurePolicy: FiringFailurePolicyCode.Continue,
+                ScheduledDelivery: ScheduledDeliveryCode.Permanent,
                 Invoker: static async (_, _, ctx, ct) =>
                 {
                     await PrioritySlotHandler.Run(ctx, ct);
@@ -140,6 +142,7 @@ public sealed class ScheduledSlotPrioritySpec : ActaRuntimeTestBase<ConformanceF
             slot!.InputFormatId,
             slot.Input is null ? ReadOnlyMemory<byte>.Empty : slot.Input,
             slot.EventRecording,
+            ScheduledDeliveryCode.Permanent,
             slotSchedules
         );
 

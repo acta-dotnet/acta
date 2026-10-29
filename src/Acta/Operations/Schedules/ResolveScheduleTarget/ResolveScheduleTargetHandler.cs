@@ -1,15 +1,11 @@
 namespace Acta;
 
 /// <summary>
-/// Finds the live schedule a path names: the definition's permanent slot, and among the slot's live (non-orphaned)
-/// schedules the one named, with the database clock a verb decides against. Null when the definition, its slot, or
-/// the schedule is absent; each surfaces as NotFound.
+/// Finds the live schedule a path names, through the definition to the schedule's own key, with the database clock a
+/// verb decides against. Null when the namespace, the definition, or the live schedule is absent; each surfaces as
+/// NotFound.
 /// </summary>
-internal sealed class ResolveScheduleTargetHandler(
-    ResolveSlotIdHandler resolveSlotId,
-    IActaClock clock,
-    GetLiveSchedulesHandler liveSchedules
-)
+internal sealed class ResolveScheduleTargetHandler(IDbSession session, ISqlDialect dialect, IActaClock clock)
 {
     public async ValueTask<ResolveScheduleTargetResponse?> HandleAsync(ResolveScheduleTargetQuery query, CancellationToken ct)
     {
@@ -23,14 +19,44 @@ internal sealed class ResolveScheduleTargetHandler(
             maxLength: NameSyntax.ExtendedMaxLength
         );
 
-        if (await resolveSlotId.HandleAsync(new ResolveSlotIdQuery(jobNamespace, jobName), ct) is not { } jobId)
+        var row = await session.QuerySingleAsync(
+            "ResolveScheduleTarget",
+            cmd =>
+            {
+                cmd.Parameters.Add(dialect.CreateParameter(ActaSchema.Sql.NamespaceName, jobNamespace));
+                cmd.Parameters.Add(dialect.CreateParameter(ActaSchema.Sql.JobNameFilter, jobName));
+                cmd.Parameters.Add(dialect.CreateParameter(ActaSchema.Schedule.ScheduleName, scheduleName));
+            },
+            DbProjectionResolver.Resolve<ResolveScheduleTargetRow>(),
+            ct
+        );
+        if (row is null)
         {
             return null;
         }
 
         var nowUtc = await clock.GetUtcNowAsync(ct);
-        var live = (await liveSchedules.HandleAsync(new GetLiveSchedulesQuery(jobId), ct)).Schedules;
-        var target = live.FirstOrDefault(s => s.ScheduleName == scheduleName);
-        return target is null ? null : new ResolveScheduleTargetResponse(jobId, nowUtc, live, target);
+        var live = new LiveSchedule(
+            row.ScheduleName,
+            row.Expression,
+            row.TimeZoneId,
+            row.MisfireStrategy,
+            row.ExpressionKind,
+            row.NextOccurrenceAtUtc,
+            row.Status,
+            row.PausedUntilUtc,
+            row.Version
+        );
+        return new ResolveScheduleTargetResponse(
+            row.ScheduleId,
+            row.JobId,
+            row.DefinitionId,
+            row.NamespaceId,
+            nowUtc,
+            live,
+            row.MaxOutstanding,
+            row.OutstandingCount,
+            row.StateVersion
+        );
     }
 }

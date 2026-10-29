@@ -10,7 +10,7 @@ BEGIN TRY
     DECLARE
         @from_status TINYINT, @namespace_id INT,
         @lineage_root_job_id BIGINT, @definition_id INT, @tenant_id INT, @execution_number INT, @event_recording TINYINT,
-        @version INT, @parent_job_id BIGINT;
+        @version INT, @parent_job_id BIGINT, @schedule_id INT;
     DECLARE @lane_id BIGINT, @to_status TINYINT = 10 /* JobStatusCode.Ready */;
 
     /* Lock order: the lane, then the job's rows (docs/sql-internals.md, "Lane lock
@@ -33,7 +33,8 @@ BEGIN TRY
         @execution_number = r.execution_number,
         @event_recording = j.event_recording_code,
         @version = r.version,
-        @parent_job_id = j.parent_job_id
+        @parent_job_id = j.parent_job_id,
+        @schedule_id = j.schedule_id
     FROM {{schema}}.jobs_state r WITH (UPDLOCK, ROWLOCK)
     INNER JOIN {{schema}}.jobs j ON j.job_id = r.job_id
     WHERE r.job_id = @p_job_id;
@@ -185,6 +186,45 @@ BEGIN TRY
                 )
         )
         SET @to_status = 15 /* JobStatusCode.Blocked */;
+
+    -- A finished charged root runs again as a new firing of its schedule, charged to it again, only while the schedule
+    -- is live and below MaxOutstanding, the check and the charge one write under the state row's lock; otherwise the
+    -- restart is Rejected. Its settled envelope is then outstanding again.
+    IF @schedule_id IS NOT NULL AND @from_status IN (100 /* JobStatusCode.Succeeded */, 200 /* JobStatusCode.Failed */, 220 /* JobStatusCode.Cancelled */)
+        BEGIN
+            UPDATE st
+            SET
+                outstanding_count = st.outstanding_count + 1,
+                modified_at_utc = @now,
+                version = st.version + 1
+            FROM {{schema}}.schedules_state st WITH (UPDLOCK, ROWLOCK, FORCESEEK)
+            INNER JOIN {{schema}}.schedules js ON js.schedule_id = st.schedule_id
+            INNER JOIN {{schema}}.definitions d ON d.definition_id = js.definition_id
+            WHERE
+                st.schedule_id = @schedule_id
+                AND js.schedule_status_code <> 230 /* ScheduleStatusCode.Orphaned */
+                AND d.definition_status_code <> 240 /* DefinitionStatusCode.Retired */
+                AND st.outstanding_count < js.max_outstanding;
+            IF @@ROWCOUNT = 0
+                BEGIN
+                    SELECT
+                        CAST(3 /* ControlAction.Rejected */ AS TINYINT) AS action,
+                        @from_status AS status,
+                        @version AS version;
+                    GOTO Finish;
+                END;
+
+            UPDATE cp
+            SET
+                checkpoint_status_code = 10 /* CheckpointStatusCode.Pending */,
+                modified_at_utc = @now,
+                version = cp.version + 1
+            FROM {{schema}}.checkpoints cp WITH (FORCESEEK)
+            WHERE
+                cp.job_id = @p_job_id
+                AND cp.checkpoint_kind_code = 60 /* CheckpointKindCode.Firing */
+                AND cp.checkpoint_name = 'sys.firing';
+        END;
 
     UPDATE {{schema}}.jobs_state
     SET

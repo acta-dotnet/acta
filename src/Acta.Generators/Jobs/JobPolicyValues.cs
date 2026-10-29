@@ -190,6 +190,53 @@ internal static class JobPolicyValues
             _ => null,
         };
 
+    /// <summary>The declarable policies; <c>Unspecified</c> only reads back a newer Acta's row.</summary>
+    internal static string? FiringFailurePolicyIdToName(byte id) =>
+        id switch
+        {
+            10 => "Continue",
+            20 => "PauseScheduling",
+            _ => null,
+        };
+
+    /// <summary>The declarable deliveries; <c>Unspecified</c> only reads back a newer Acta's row.</summary>
+    internal static string? ScheduledDeliveryIdToName(byte id) =>
+        id switch
+        {
+            10 => "Permanent",
+            20 => "PerOccurrence",
+            _ => null,
+        };
+
+    /// <summary>The declarable behaviors; <c>Unspecified</c> only reads back a newer Acta's row.</summary>
+    internal static string? ScheduleFullBehaviorIdToName(byte id) =>
+        id switch
+        {
+            10 => "Wait",
+            20 => "Drop",
+            _ => null,
+        };
+
+    /// <summary>The declarable strategies; <c>Unspecified</c> only reads back a newer Acta's row.</summary>
+    internal static string? MisfireStrategyIdToName(byte id) =>
+        id switch
+        {
+            10 => "CatchUpOnce",
+            20 => "Skip",
+            30 => "CatchUpLatest",
+            40 => "CatchUpAll",
+            _ => null,
+        };
+
+    /// <summary>The declarable actions; <c>Unspecified</c> means the schedule declares no expiry.</summary>
+    internal static string? ScheduleExpireActionIdToName(byte id) =>
+        id switch
+        {
+            10 => "Discard",
+            20 => "Pause",
+            _ => null,
+        };
+
     internal static string? TenantRequirementIdToName(byte id) =>
         id switch
         {

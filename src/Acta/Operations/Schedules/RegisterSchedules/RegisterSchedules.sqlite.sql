@@ -26,7 +26,8 @@ SELECT
     NULL,
     json_extract(d.value, '$.event_recording_code')
 FROM json_each(@p_definitions) d
-WHERE true
+-- A PerOccurrence definition has no slot: each admitted occurrence is a root of its own.
+WHERE json_extract(d.value, '$.scheduled_delivery_code') = 10 /* ScheduledDeliveryCode.Permanent */
 ORDER BY json_extract(d.value, '$.definition_id')
 ON CONFLICT (definition_id) WHERE job_kind_code = 20 /* JobKindCode.PermanentSlot */
 DO UPDATE SET
@@ -93,9 +94,14 @@ SELECT
     json_extract(s.value, '$.next_occurrence_at_utc') AS next_occurrence_at_utc,
     json_extract(s.value, '$.description') AS description,
     json_extract(s.value, '$.interval_anchor_at_utc') AS interval_anchor_at_utc,
-    json_extract(s.value, '$.timing_fingerprint') AS timing_fingerprint
+    json_extract(s.value, '$.timing_fingerprint') AS timing_fingerprint,
+    json_extract(s.value, '$.max_outstanding') AS max_outstanding,
+    json_extract(s.value, '$.full_behavior_code') AS full_behavior_code,
+    json_extract(s.value, '$.expire_after_seconds') AS expire_after_seconds,
+    json_extract(s.value, '$.expire_action_code') AS expire_action_code
 FROM json_each(@p_schedules) s
-JOIN temp._reg_slots sl ON sl.definition_id = json_extract(s.value, '$.definition_id');
+-- A PerOccurrence definition's schedules have no slot, so their job_id is NULL.
+LEFT JOIN temp._reg_slots sl ON sl.definition_id = json_extract(s.value, '$.definition_id');
 
 -- A schedule whose timing changed is retimed: the old stream's undecided prefix is discarded, so the watermark moves to
 -- now and never back; the plan's cursor is the new timing's first occurrence. Written before the declaration, which
@@ -108,24 +114,35 @@ SELECT
     s.definition_id, j.tenant_id, COALESCE(j.lineage_root_job_id, j.job_id), r.execution_number,
     1 /* JobPayloadFormat.Json */, CAST('{"schedule":"' || s.schedule_name || '"}' AS BLOB)
 FROM temp._reg_schedules src
-JOIN {{schema}}.schedules s ON s.job_id = src.job_id AND s.schedule_name = src.schedule_name
+JOIN {{schema}}.schedules s ON s.definition_id = src.definition_id AND s.schedule_name = src.schedule_name
 JOIN {{schema}}.jobs j ON j.job_id = s.job_id
 JOIN {{schema}}.jobs_state r ON r.job_id = s.job_id
 WHERE s.timing_fingerprint <> src.timing_fingerprint AND j.event_recording_code = 20 /* EventRecordingCode.Audit */;
 
+-- A schedule with no slot records its retime against its definition.
+INSERT INTO {{schema}}.events (
+    event_code, created_at_utc, namespace_id, entity_code, entity_id,
+    definition_id, details_format_id, details)
+SELECT
+    107 /* EventCode.ScheduleRetimed */, {{now}}, @p_namespace_id, 30 /* EntityCode.Definition */, s.definition_id,
+    s.definition_id, 1 /* JobPayloadFormat.Json */, CAST('{"schedule":"' || s.schedule_name || '"}' AS BLOB)
+FROM temp._reg_schedules src
+JOIN {{schema}}.schedules s ON s.definition_id = src.definition_id AND s.schedule_name = src.schedule_name
+JOIN {{schema}}.definitions d ON d.definition_id = s.definition_id
+WHERE
+    s.job_id IS NULL
+    AND s.timing_fingerprint <> src.timing_fingerprint
+    AND d.event_recording_code_effective = 20 /* EventRecordingCode.Audit */;
+
 UPDATE {{schema}}.schedules_state AS st
 SET
     next_occurrence_at_utc = src.next_occurrence_at_utc,
-    decided_through_at_utc = CASE
-        WHEN s.timing_fingerprint <> src.timing_fingerprint THEN MAX(COALESCE(st.decided_through_at_utc, {{now}}), {{now}})
-        ELSE st.decided_through_at_utc
-    END,
     next_evaluation_at_utc = CASE WHEN s.schedule_status_code = 30 /* ScheduleStatusCode.Paused */ THEN s.paused_until_utc ELSE src.next_occurrence_at_utc END,
     evaluation_status_code = CASE WHEN src.next_occurrence_at_utc IS NULL THEN 30 /* EvaluationStatusCode.Exhausted */ ELSE 10 /* EvaluationStatusCode.Scheduled */ END,
     version = st.version + 1,
     modified_at_utc = {{now}}
 FROM temp._reg_schedules src
-JOIN {{schema}}.schedules s ON s.job_id = src.job_id AND s.schedule_name = src.schedule_name
+JOIN {{schema}}.schedules s ON s.definition_id = src.definition_id AND s.schedule_name = src.schedule_name
 WHERE
     st.schedule_id = s.schedule_id
     AND (
@@ -141,7 +158,10 @@ SET
     misfire_strategy_code = src.misfire_strategy_code,
     interval_anchor_at_utc = src.interval_anchor_at_utc,
     timing_fingerprint = src.timing_fingerprint,
-    definition_id = src.definition_id,
+    max_outstanding = src.max_outstanding,
+    full_behavior_code = src.full_behavior_code,
+    expire_after_seconds = src.expire_after_seconds,
+    expire_action_code = src.expire_action_code,
     schedule_status_code = CASE WHEN tgt.schedule_status_code = 230 /* ScheduleStatusCode.Orphaned */
         THEN 10 /* ScheduleStatusCode.Active */
         ELSE tgt.schedule_status_code END,
@@ -149,7 +169,7 @@ SET
     modified_at_utc = {{now}},
     version = tgt.version + 1
 FROM temp._reg_schedules src
-JOIN {{schema}}.schedules cur ON cur.job_id = src.job_id AND cur.schedule_name = src.schedule_name
+JOIN {{schema}}.schedules cur ON cur.definition_id = src.definition_id AND cur.schedule_name = src.schedule_name
 JOIN {{schema}}.schedules_state st ON st.schedule_id = cur.schedule_id
 WHERE
     tgt.schedule_id = cur.schedule_id
@@ -160,8 +180,11 @@ WHERE
         OR tgt.expression_kind_code IS NOT src.expression_kind_code
         OR tgt.misfire_strategy_code IS NOT src.misfire_strategy_code
         OR tgt.timing_fingerprint IS NOT src.timing_fingerprint
+        OR tgt.max_outstanding IS NOT src.max_outstanding
+        OR tgt.full_behavior_code IS NOT src.full_behavior_code
+        OR tgt.expire_after_seconds IS NOT src.expire_after_seconds
+        OR tgt.expire_action_code IS NOT src.expire_action_code
         OR st.next_occurrence_at_utc IS NOT src.next_occurrence_at_utc
-        OR tgt.definition_id IS NOT src.definition_id
         OR tgt.description IS NOT src.description
     );
 
@@ -178,6 +201,10 @@ INSERT INTO {{schema}}.schedules (
     interval_anchor_at_utc,
     misfire_grace_seconds,
     timing_fingerprint,
+    max_outstanding,
+    full_behavior_code,
+    expire_after_seconds,
+    expire_action_code,
     schedule_status_code,
     paused_until_utc,
     description)
@@ -194,6 +221,10 @@ SELECT
     src.interval_anchor_at_utc,
     60,
     src.timing_fingerprint,
+    src.max_outstanding,
+    src.full_behavior_code,
+    src.expire_after_seconds,
+    src.expire_action_code,
     10 /* ScheduleStatusCode.Active */,
     NULL,
     src.description
@@ -205,29 +236,29 @@ INSERT INTO {{schema}}.schedules_state (
     schedule_id,
     namespace_id,
     next_occurrence_at_utc,
-    decided_through_at_utc,
     next_evaluation_at_utc,
     evaluation_status_code,
+    outstanding_count,
     version)
 SELECT
     s.schedule_id,
     @p_namespace_id,
     src.next_occurrence_at_utc,
-    NULL,
     src.next_occurrence_at_utc,
     CASE WHEN src.next_occurrence_at_utc IS NULL THEN 30 /* EvaluationStatusCode.Exhausted */ ELSE 10 /* EvaluationStatusCode.Scheduled */ END,
+    0,
     0
 FROM temp._reg_schedules src
-JOIN {{schema}}.schedules s ON s.job_id = src.job_id AND s.schedule_name = src.schedule_name
+JOIN {{schema}}.schedules s ON s.definition_id = src.definition_id AND s.schedule_name = src.schedule_name
 WHERE true
 ON CONFLICT (schedule_id) DO NOTHING;
 
 DROP TABLE IF EXISTS temp._reg_orphaned;
 
 CREATE TEMP TABLE _reg_orphaned AS
-SELECT js.schedule_id, js.job_id, js.schedule_name
-FROM {{schema}}.schedules js
-JOIN temp._reg_slots sl ON sl.slot_id = js.job_id
+SELECT js.schedule_id
+FROM json_each(@p_definitions) d
+JOIN {{schema}}.schedules js ON js.definition_id = json_extract(d.value, '$.definition_id')
 WHERE
     js.schedule_status_code <> 230 /* ScheduleStatusCode.Orphaned */
     AND js.schedule_origin_code = 40 /* ScheduleOriginCode.Definition */
@@ -235,7 +266,7 @@ WHERE
         SELECT 1
         FROM temp._reg_schedules src
         WHERE
-            src.job_id = js.job_id
+            src.definition_id = js.definition_id
             AND src.schedule_name = js.schedule_name
     );
 
@@ -247,15 +278,11 @@ SET
     modified_at_utc = {{now}},
     version = js.version + 1
 FROM temp._reg_orphaned o
-WHERE
-    js.job_id = o.job_id
-    AND js.schedule_name = o.schedule_name;
+WHERE js.schedule_id = o.schedule_id;
 
 UPDATE {{schema}}.schedules_state AS st
 SET
     next_occurrence_at_utc = NULL,
-
-    decided_through_at_utc = NULL,
 
     next_evaluation_at_utc = NULL,
 
@@ -271,8 +298,6 @@ WHERE st.schedule_id = o.schedule_id;
 UPDATE {{schema}}.schedules_state AS st
 SET
     next_occurrence_at_utc = NULL,
-
-    decided_through_at_utc = NULL,
 
     next_evaluation_at_utc = NULL,
 

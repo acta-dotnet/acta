@@ -11,7 +11,7 @@ CREATE TEMP TABLE _trigger_schedule_now_slot (
     firing_status_code SMALLINT,
     execution_number INT NOT NULL
 ) ON COMMIT DROP;
-CREATE TEMP TABLE _trigger_schedule_now_target (schedule_name VARCHAR(128) NOT NULL, schedule_status_code SMALLINT NOT NULL) ON COMMIT DROP;
+CREATE TEMP TABLE _trigger_schedule_now_target (schedule_id INT NOT NULL, schedule_status_code SMALLINT NOT NULL) ON COMMIT DROP;
 CREATE TEMP TABLE _trigger_schedule_now_action (action SMALLINT NOT NULL) ON COMMIT DROP;
 
 INSERT INTO _trigger_schedule_now_lock (granted)
@@ -30,13 +30,12 @@ LEFT JOIN {{schema}}.checkpoints cp
 WHERE r.job_id = @p_job_id
 FOR UPDATE OF r;
 
-INSERT INTO _trigger_schedule_now_target (schedule_name, schedule_status_code)
-SELECT js.schedule_name, js.schedule_status_code
+INSERT INTO _trigger_schedule_now_target (schedule_id, schedule_status_code)
+SELECT js.schedule_id, js.schedule_status_code
 FROM {{schema}}.schedules js
 INNER JOIN {{schema}}.definitions d ON d.definition_id = js.definition_id
 WHERE
-    js.job_id = @p_job_id
-    AND js.schedule_name = @p_schedule_name
+    js.schedule_id = @p_schedule_id
     AND js.schedule_status_code <> 230 /* ScheduleStatusCode.Orphaned */
     AND d.definition_status_code <> 240 /* DefinitionStatusCode.Retired */
 FOR UPDATE OF js;
@@ -46,7 +45,7 @@ FOR UPDATE OF js;
 INSERT INTO _trigger_schedule_now_action (action)
 SELECT
     CASE
-        WHEN t.schedule_name IS NULL THEN 2 /* ControlAction.NotFound */
+        WHEN t.schedule_id IS NULL THEN 2 /* ControlAction.NotFound */
         WHEN t.schedule_status_code = 30 /* ScheduleStatusCode.Paused */ THEN 3 /* ControlAction.Rejected */
         WHEN s.job_status_code = 40 /* JobStatusCode.Idle */ AND s.firing_status_code IS DISTINCT FROM 10 /* CheckpointStatusCode.Pending */
             THEN 1 /* ControlAction.Applied */
@@ -109,5 +108,5 @@ SELECT
     js.version AS version
 FROM _trigger_schedule_now_action a
 LEFT JOIN _trigger_schedule_now_target t ON true
-LEFT JOIN {{schema}}.schedules js ON js.job_id = @p_job_id AND js.schedule_name = t.schedule_name
+LEFT JOIN {{schema}}.schedules js ON js.schedule_id = t.schedule_id
 LEFT JOIN {{schema}}.schedules_state st ON st.schedule_id = js.schedule_id;

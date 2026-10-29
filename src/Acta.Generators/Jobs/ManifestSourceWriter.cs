@@ -118,6 +118,8 @@ internal static class ManifestSourceWriter
         sb.AppendLine($"                    MaxAttempts: {j.MaxAttempts},");
         sb.AppendLine($"                    EventRecording: global::Acta.EventRecordingCode.{j.EventRecordingName},");
         sb.AppendLine($"                    AlertProfile: global::Acta.AlertProfileCode.{j.AlertProfileName},");
+        sb.AppendLine($"                    FiringFailurePolicy: global::Acta.FiringFailurePolicyCode.{j.FiringFailurePolicyName},");
+        sb.AppendLine($"                    ScheduledDelivery: global::Acta.ScheduledDeliveryCode.{j.ScheduledDeliveryName},");
         sb.AppendLine($"                    Invoker: {dispatch}.Invoke_{dispatchSuffix},");
         sb.AppendLine($"                    DeserializeInput: {dispatch}.DeserializeInput_{dispatchSuffix},");
         var serExpr = j.OutputType is null ? "null" : $"{dispatch}.SerializeOutput_{dispatchSuffix}";
@@ -283,10 +285,22 @@ internal static class ManifestSourceWriter
             sb.AppendLine($"                            ScheduleName: {FormatString(s.ScheduleName)},");
             sb.AppendLine($"                            Expression: {FormatString(s.Expression)},");
             sb.AppendLine($"                            TimeZoneId: {LitOrNull(s.TimeZoneId)},");
-            sb.AppendLine($"                            MisfireStrategy: global::Acta.MisfireStrategyCode.{s.MisfireName},");
+            sb.AppendLine(
+                $"                            MisfireStrategy: global::Acta.MisfireStrategyCode.{JobPolicyValues.MisfireStrategyIdToName(s.MisfireStrategyId)},"
+            );
             sb.AppendLine($"                            ExpressionKind: global::Acta.ScheduleExpressionKindCode.{s.ExpressionKindName},");
             sb.AppendLine($"                            Description: {LitOrNull(s.Description)},");
-            sb.AppendLine($"                            Environments: {envExpr}){trailing}");
+            sb.AppendLine($"                            Environments: {envExpr},");
+            sb.AppendLine($"                            MaxOutstanding: {s.MaxOutstanding},");
+            sb.AppendLine(
+                $"                            FullBehavior: global::Acta.ScheduleFullBehaviorCode.{JobPolicyValues.ScheduleFullBehaviorIdToName(s.FullBehaviorId)},"
+            );
+            sb.AppendLine(
+                $"                            ExpireAfterSeconds: {s.ExpireAfterSeconds?.ToString(System.Globalization.CultureInfo.InvariantCulture) ?? "null"},"
+            );
+            sb.AppendLine(
+                $"                            ExpireAction: global::Acta.ScheduleExpireActionCode.{JobPolicyValues.ScheduleExpireActionIdToName(s.ExpireActionId) ?? "Unspecified"}){trailing}"
+            );
         }
     }
 

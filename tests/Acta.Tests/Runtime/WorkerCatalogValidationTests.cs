@@ -105,6 +105,69 @@ public sealed class WorkerCatalogValidationTests
         CatalogRegistrar.ValidateDeadlineRequirements([oneShot, scheduled]);
     }
 
+    [Fact]
+    public void A_definition_declaring_another_delivery_than_it_registered_fails_startup_naming_a_new_job_name()
+    {
+        var changed = Descriptor("nightly", typeof(HandlerA)) with { ScheduledDelivery = ScheduledDeliveryCode.PerOccurrence };
+        var unchanged = Descriptor("hourly", typeof(HandlerB));
+
+        var ex = Assert.Throws<InvalidOperationException>(() =>
+            CatalogRegistrar.ValidateScheduledDelivery(
+                "billing",
+                [changed, unchanged],
+                [Stored("nightly", ScheduledDeliveryCode.Permanent), Stored("hourly", ScheduledDeliveryCode.Permanent)]
+            )
+        );
+
+        Assert.Contains("nightly", ex.Message);
+        Assert.Contains("new job name", ex.Message);
+        Assert.DoesNotContain("hourly", ex.Message);
+    }
+
+    [Fact]
+    public void A_definition_keeping_its_delivery_or_registering_for_the_first_time_passes()
+    {
+        var kept = Descriptor("nightly", typeof(HandlerA)) with { ScheduledDelivery = ScheduledDeliveryCode.PerOccurrence };
+        var fresh = Descriptor("hourly", typeof(HandlerB)) with { ScheduledDelivery = ScheduledDeliveryCode.PerOccurrence };
+
+        CatalogRegistrar.ValidateScheduledDelivery("billing", [kept, fresh], [Stored("nightly", ScheduledDeliveryCode.PerOccurrence)]);
+    }
+
+    private static StoredDefinitionContract Stored(string name, ScheduledDeliveryCode delivery) =>
+        new(
+            DefinitionName: name,
+            ManifestGenerationAtUtc: new DateTime(2026, 1, 1, 0, 0, 0, DateTimeKind.Utc),
+            Contract: new DefinitionContract(
+                "Input",
+                null,
+                JobPayloadFormat.None.Id,
+                JobPayloadFormat.None.Name,
+                0,
+                JobPayloadFormat.NoneName
+            ),
+            DefinitionId: 1,
+            DefinitionHash: "hash",
+            Status: DefinitionStatusCode.Active,
+            Effective: new EffectiveJobPolicy(
+                JobPriorityCode.Normal,
+                MaxAttempts: 1,
+                ConcurrencyLimit: null,
+                RateLimit: null,
+                RateName: null,
+                Backoff: JobDefinitionRegistration.DefaultBackoffExpression,
+                ExecutionTimeoutSeconds: JobDefinitionRegistration.DefaultExecutionTimeoutSeconds,
+                DeadlineSeconds: 0,
+                DeadlineBehavior: DeadlineBehaviorCode.Strict,
+                JobRetentionSeconds: JobDefinitionRegistration.DefaultJobRetentionSeconds,
+                EventRecording: EventRecordingCode.Audit,
+                AlertProfile: AlertProfileCode.None,
+                FiringFailurePolicy: FiringFailurePolicyCode.Continue,
+                ScheduledDelivery: delivery,
+                AlertChannelName: null,
+                RunbookUrl: null
+            )
+        );
+
     private sealed class HandlerA;
 
     private sealed class HandlerB;
@@ -122,6 +185,8 @@ public sealed class WorkerCatalogValidationTests
             MaxAttempts: 1,
             EventRecording: EventRecordingCode.Audit,
             AlertProfile: AlertProfileCode.None,
+            FiringFailurePolicy: FiringFailurePolicyCode.Continue,
+            ScheduledDelivery: ScheduledDeliveryCode.Permanent,
             Invoker: static async (_, _, _, _) =>
             {
                 await Task.CompletedTask;

@@ -98,6 +98,13 @@ internal sealed class JobEntity : IEntity<long>
     [DbColumn("tenant_id", DbKind.Int32)]
     public int? TenantId { get; init; }
 
+    /// <summary>
+    /// The schedule that admitted this root: provenance, never ownership, so no foreign key ties the two. NULL for an
+    /// ordinary enqueue and for a permanent slot. Set at INSERT, never mutated.
+    /// </summary>
+    [DbColumn("schedule_id", DbKind.Int32)]
+    public int? ScheduleId { get; init; }
+
     // ---------- Caller keys ----------
 
     /// <summary>

@@ -6,7 +6,7 @@ State of rc6 on 2026-10-25. Nothing is pushed. The v1 data model plan (temp-plan
 
 - rc6 is the rc.6 release, its follow-ups, the v1 data model, the PostgreSQL completion fix, the Acta Bench measurement standard, rc.6 polish, one commit per review fix (B1-B10), and the 2026-10-24 batch below.
 - Every unpushed commit is dated outside 09:00-17:00 and carries no attribution line.
-- The init baseline is `M20261029124218_init` (re-cut for the scheduling redesign, step by step). Startup and apply now refuse a database whose history names another `_init`, so drop the `acta-test` database on both Compose servers after any baseline re-cut (CONTRIBUTING.md, "Database lifecycle").
+- The init baseline is `M20261029171733_init` (re-cut for the scheduling redesign, step by step). Startup and apply now refuse a database whose history names another `_init`, so drop the `acta-test` database on both Compose servers after any baseline re-cut (CONTRIBUTING.md, "Database lifecycle").
 - The release path is done: the engine is certified on `599e28e8`, the bench fixes are `fb8f8414`, `988764e6`, `05e5c27c`, and `5511252d`, and `v1.0.0-rc.6` tags the evidence commit that follows them.
 
 ## Landed 2026-10-24

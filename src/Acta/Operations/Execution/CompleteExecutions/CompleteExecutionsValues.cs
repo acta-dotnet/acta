@@ -41,7 +41,16 @@ internal sealed record CompleteExecutionsValues(
     /// <summary>The job has a parent, as its claim read it; parent_job_id never changes.</summary>
     public bool HasParent { get; init; }
 
-    /// <summary>A landing with no shape field, lane, or parent: the routine writes only its own row, result, and event.</summary>
+    /// <summary>The job is a per-occurrence root charged to a schedule, as its claim read it; schedule_id never changes.</summary>
+    public bool HasSchedule { get; init; }
+
+    /// <summary>A landing with no shape field, lane, parent, or schedule: the routine writes only its own row, result, and event.</summary>
     public bool IsPlain =>
-        RescheduleEventCode is null && HandlerStatusCode is null && FinalStatus is null && WaitSignalName is null && !HasLane && !HasParent;
+        RescheduleEventCode is null
+        && HandlerStatusCode is null
+        && FinalStatus is null
+        && WaitSignalName is null
+        && !HasLane
+        && !HasParent
+        && !HasSchedule;
 }

@@ -14,6 +14,9 @@ ACTA0106 | Acta | Warning | Duplicate contract member name; colliding members ar
 ACTA0121 | Acta | Error | Invalid [JobSchedule] declaration
 ACTA0122 | Acta | Error | Invalid schedule expression (cron or positive ISO 8601 duration)
 ACTA0123 | Acta | Error | Scheduled input has no accessible parameterless constructor
+ACTA0124 | Acta | Error | Invalid [JobSchedule] policy value (MaxOutstanding below 1, undefined FullBehavior or MisfireStrategy)
+ACTA0125 | Acta | Error | MaxOutstanding other than 1 on a Permanent definition's schedule
+ACTA0126 | Acta | Error | Incomplete [JobSchedule] expiration (ExpireAfter without ExpireAction or the reverse, zero, undefined action)
 ACTA0131 | Acta | Error | Invalid [JobPayloadFormatDeclaration]
 ACTA0132 | Acta | Error | Invalid [Job] payload-format usage (Format vs Input/OutputFormat, output on void, unknown name)
 ACTA0142 | Acta | Error | Invalid Acta duration unit (uppercase or calendar unit)

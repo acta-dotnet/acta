@@ -67,6 +67,8 @@ public sealed class AtMostOnceStepManifest : IJobManifest
             MaxAttempts: 5,
             EventRecording: EventRecordingCode.Audit,
             AlertProfile: AlertProfileCode.OnFailure,
+            FiringFailurePolicy: FiringFailurePolicyCode.Continue,
+            ScheduledDelivery: ScheduledDeliveryCode.Permanent,
             Invoker: async (_, _, ctx, ct) =>
             {
                 await run(ctx, ct);

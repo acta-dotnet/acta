@@ -896,7 +896,7 @@
         "tags": [
           "Jobs"
         ],
-        "summary": "Move the job's next-run instant.",
+        "summary": "Move the job's next-run instant, or run it now.",
         "parameters": [
           {
             "name": "jobRef",
@@ -914,8 +914,7 @@
                 "$ref": "#/components/schemas/RescheduleJobRequest"
               }
             }
-          },
-          "required": true
+          }
         },
         "responses": {
           "400": {
@@ -7275,6 +7274,9 @@
         "description": "Stable family-local event identifiers. Nearby values improve catalog readability but carry no runtime subject,\nsubgroup, or outcome semantics; match events by enum member or textual code. There is no `job.enqueued`\nevent on purpose: the Job row's own `(created_at_utc, namespace_id, definition_id)` records the enqueue fact,\nand a separate event row would be write amplification on the narrow append-heavy events table; dedup outcomes\nreach the caller via `EnqueueJobResponse.Action`, and cross-job rate analytics query `acta.jobs` directly."
       },
       "EventRecordingCode": { },
+      "FiringFailurePolicyCode": {
+        "description": "What happens to a scheduled definition's schedules when a firing fails for good: its attempts are\nspent, or an exception is not retryable."
+      },
       "GetAlertResponse": {
         "required": [
           "alertRef",
@@ -7457,6 +7459,8 @@
           "alertProfile",
           "alertProfileOverride",
           "alertProfileEffective",
+          "firingFailurePolicy",
+          "scheduledDelivery",
           "alertChannelName",
           "alertChannelNameOverride",
           "alertChannelNameEffective",
@@ -7754,6 +7758,12 @@
           },
           "alertProfileEffective": {
             "$ref": "#/components/schemas/AlertProfileCode"
+          },
+          "firingFailurePolicy": {
+            "$ref": "#/components/schemas/FiringFailurePolicyCode"
+          },
+          "scheduledDelivery": {
+            "$ref": "#/components/schemas/ScheduledDeliveryCode"
           },
           "alertChannelName": {
             "type": [
@@ -9895,7 +9905,6 @@
           "timeZoneId",
           "misfireStrategy",
           "nextOccurrenceAtUtc",
-          "decidedThroughAtUtc",
           "nextEvaluationAtUtc",
           "evaluationStatus",
           "status",
@@ -9903,7 +9912,13 @@
           "createdAtUtc",
           "modifiedAtUtc",
           "version",
-          "jobRef"
+          "jobRef",
+          "maxOutstanding",
+          "outstandingCount",
+          "fullBehavior",
+          "scheduledDelivery",
+          "expireAfterSeconds",
+          "expireAction"
         ],
         "type": "object",
         "properties": {
@@ -9932,13 +9947,6 @@
             "$ref": "#/components/schemas/MisfireStrategyCode"
           },
           "nextOccurrenceAtUtc": {
-            "type": [
-              "null",
-              "string"
-            ],
-            "format": "date-time"
-          },
-          "decidedThroughAtUtc": {
             "type": [
               "null",
               "string"
@@ -9990,9 +9998,50 @@
                 "$ref": "#/components/schemas/JobRef"
               }
             ]
+          },
+          "maxOutstanding": {
+            "pattern": "^-?(?:0|[1-9]\\d*)$",
+            "type": [
+              "integer",
+              "string"
+            ],
+            "format": "int32"
+          },
+          "outstandingCount": {
+            "pattern": "^-?(?:0|[1-9]\\d*)$",
+            "type": [
+              "integer",
+              "string"
+            ],
+            "format": "int32"
+          },
+          "fullBehavior": {
+            "$ref": "#/components/schemas/ScheduleFullBehaviorCode"
+          },
+          "scheduledDelivery": {
+            "$ref": "#/components/schemas/ScheduledDeliveryCode"
+          },
+          "expireAfterSeconds": {
+            "pattern": "^-?(?:0|[1-9]\\d*)$",
+            "type": [
+              "null",
+              "integer",
+              "string"
+            ],
+            "format": "int32"
+          },
+          "expireAction": {
+            "oneOf": [
+              {
+                "type": "null"
+              },
+              {
+                "$ref": "#/components/schemas/ScheduleExpireActionCode"
+              }
+            ]
           }
         },
-        "description": "One schedule row in a ValueTask&lt;ListSchedulesResponse&gt; ISchedules.ListAsync(ListSchedulesQuery query, CancellationToken ct = default(CancellationToken)) page. `DecidedThroughAtUtc` is the watermark every\nearlier occurrence was decided through, skips included; `NextEvaluationAtUtc` and `EvaluationStatus` say\nwhen and why the engine next looks; `Status` is Active, Paused, or Orphaned, with `PausedUntilUtc` for a\ntimed pause; `Version` is the row version a CAS control verb takes as expected; `JobRef` is the recurring\nslot job's public ref, null when the slot row was purged. The ids stay off the wire: the list pages by\n`ScheduleId` inside its opaque cursor."
+        "description": "One schedule row in a ValueTask&lt;ListSchedulesResponse&gt; ISchedules.ListAsync(ListSchedulesQuery query, CancellationToken ct = default(CancellationToken)) page. `NextOccurrenceAtUtc` is the next undecided occurrence;\n`NextEvaluationAtUtc` and `EvaluationStatus` say when and why the engine next looks; `Status` is Active, Paused,\nor Orphaned, with `PausedUntilUtc` for a timed pause; `Version` is the row version a CAS control verb takes as\nexpected; `JobRef` is the permanent slot's public ref, null for a PerOccurrence definition; `OutstandingCount` counts\nits unsettled roots; `ExpireAfterSeconds` and `ExpireAction` are null together when occurrences never expire. The\nids stay off the wire: the list pages by `ScheduleId` inside its opaque cursor."
       },
       "ListSchedulesResponse": {
         "required": [
@@ -10675,7 +10724,10 @@
         "type": "object",
         "properties": {
           "nextRunAtUtc": {
-            "type": "string",
+            "type": [
+              "null",
+              "string"
+            ],
             "format": "date-time"
           },
           "reasonMessage": {
@@ -11044,7 +11096,14 @@
         },
         "description": "What retiring a definition did, and the definition's version after the attempt."
       },
+      "ScheduledDeliveryCode": {
+        "description": "How a schedule delivers a definition's work: one durable slot job fired again and again, or a fresh root job per\nadmitted occurrence. Immutable once the definition is registered."
+      },
+      "ScheduleExpireActionCode": { },
       "ScheduleExpressionKindCode": { },
+      "ScheduleFullBehaviorCode": {
+        "description": "What a due occurrence does when its schedule already has its maximum of unsettled occurrences."
+      },
       "ScheduleOriginCode": { },
       "ScheduleStatusCode": { },
       "SetDefinitionOverridesRequest": {

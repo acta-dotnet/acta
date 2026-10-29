@@ -94,6 +94,7 @@ public sealed partial class OpenApiContractTests
         "occurrenceCount",
         "failureCount",
         "retryCount",
+        "outstandingCount",
         "version",
         // The CAS token a patch echoes back: the same counter as "version", read then re-sent.
         "expectedVersion",
@@ -111,6 +112,7 @@ public sealed partial class OpenApiContractTests
         "executionTimeoutSeconds",
         "executionTimeoutSecondsEffective",
         "executionTimeoutSecondsOverride",
+        "expireAfterSeconds",
         "jobRetentionSeconds",
         "jobRetentionSecondsEffective",
         "jobRetentionSecondsOverride",
@@ -121,6 +123,7 @@ public sealed partial class OpenApiContractTests
         "concurrencyLimitEffective",
         "concurrencyLimitOverride",
         "maxConcurrentExecutors",
+        "maxOutstanding",
         "oldestReadyAgeSeconds",
         "scheduleLagSeconds",
         // The operating-system process id a worker runs under: an external value, not an Acta row.

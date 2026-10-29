@@ -80,6 +80,14 @@
       requireReason: false,
       warning: ''
     },
+    runNow: {
+      title: 'Run now?',
+      body: 'Runs the job at once: a scheduled job with no firing outstanding takes a manual firing and returns to idle when it settles; a waiting job moves its next run to now.',
+      label: 'Run now',
+      danger: false,
+      requireReason: false,
+      warning: ''
+    },
     reprioritize: {
       title: 'Change job priority?',
       body: 'Applies to the next claim only; an in-flight attempt (if any) is unaffected.',
@@ -182,6 +190,12 @@
       return;
     }
 
+    // Run now is a reschedule with no instant: the server takes its own clock.
+    if (action === 'runNow') {
+      void run('reschedule', reason, {});
+      return;
+    }
+
     void run(action, reason, action === 'reprioritize' ? { priority: newPriority } : undefined);
   }
 </script>
@@ -193,6 +207,7 @@
       {#if canPause}<button disabled={busy} onclick={() => openAction('pause')}><Icon name="pause" />Pause</button>{/if}
       {#if canResume}<button disabled={busy} onclick={() => openAction('resume')}><Icon name="play" />Resume</button>{/if}
       {#if canRestart}<button disabled={busy} onclick={() => openAction('restart')}><Icon name="reload" />Run again</button>{/if}
+      {#if canReschedule}<button disabled={busy} onclick={() => openAction('runNow')}><Icon name="lightning-bolt" />Run now</button>{/if}
       {#if canReschedule}<button disabled={busy} onclick={() => openAction('reschedule')}><Icon name="clock" />Change run time</button>{/if}
       {#if canReprioritize}<button disabled={busy} onclick={() => openAction('reprioritize')}><Icon name="chevron-right" />Change priority</button>{/if}
       {#if canCancel}<button class="danger-outline" disabled={busy} onclick={() => openAction('cancel')}><Icon name="x" />Cancel job</button>{/if}

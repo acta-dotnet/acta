@@ -30,6 +30,8 @@ public sealed class DefinitionRegistrationValidationTests
             MaxAttempts: 1,
             EventRecording: EventRecordingCode.Audit,
             AlertProfile: AlertProfileCode.None,
+            FiringFailurePolicy: FiringFailurePolicyCode.Continue,
+            ScheduledDelivery: ScheduledDeliveryCode.Permanent,
             Invoker: static async (_, _, _, _) =>
             {
                 await Task.CompletedTask;
@@ -42,7 +44,7 @@ public sealed class DefinitionRegistrationValidationTests
     private static Task RegisterAsync(params JobDescriptor[] descriptors) => RegisterAsync([.. descriptors], []);
 
     private static Task RegisterAsync(JobDescriptor[] descriptors, StoredDefinitionContract[] stored) =>
-        new RegisterDefinitionsHandler(new DbSessionStub(), null!).HandleAsync(
+        new RegisterDefinitionsHandler(new DbSessionStub(), null!, null!).HandleAsync(
             new RegisterDefinitionsCommand(1, Gen, [.. descriptors], stored),
             TestContext.Current.CancellationToken
         );
@@ -77,6 +79,8 @@ public sealed class DefinitionRegistrationValidationTests
                 JobRetentionSeconds: JobDefinitionRegistration.DefaultJobRetentionSeconds,
                 EventRecording: EventRecordingCode.Audit,
                 AlertProfile: AlertProfileCode.None,
+                FiringFailurePolicy: FiringFailurePolicyCode.Continue,
+                ScheduledDelivery: ScheduledDeliveryCode.Permanent,
                 AlertChannelName: null,
                 RunbookUrl: null
             )

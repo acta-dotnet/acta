@@ -4,7 +4,7 @@ using Microsoft.Extensions.Logging;
 namespace Acta;
 
 /// <summary>
-/// The scheduling-admission loop of one worker namespace: reads the schedules due for evaluation, plans each slot's
+/// The scheduling-admission loop of one worker namespace: reads the schedules due for evaluation, plans each group's
 /// decision with <see cref="ScheduleEvaluator"/> outside any transaction, applies the plan atomically, and wakes the
 /// claim loop when it admitted a firing. Leaderless: every host runs one, a plan another host beat to the row is
 /// stale and replans, and the claim loop never waits on it. <see cref="AdmitOnceAsync"/> is one pass, the test seam.
@@ -78,8 +78,8 @@ internal sealed class ScheduleAdmitter(
     }
 
     /// <summary>
-    /// One pass over the namespace: plan every slot with a due schedule, apply, replan the groups another writer
-    /// moved, and say what was admitted and when the engine next has something to do.
+    /// One pass over the namespace: plan every slot and per-occurrence schedule that is due, apply, replan the groups
+    /// another writer moved, and say what was admitted and when the engine next has something to do.
     /// </summary>
     public async Task<AdmissionPass> AdmitOnceAsync(string namespaceName, CancellationToken ct)
     {
@@ -96,8 +96,8 @@ internal sealed class ScheduleAdmitter(
                 break;
             }
 
-            var outcomes = (await schedules.AdmitFiringsAsync(plan, ct)).Slots;
-            var appliedAdmissions = outcomes.Count(o => o.Applied && plan.Groups.Any(g => g.JobId == o.JobId && g.Admit));
+            var outcomes = (await schedules.AdmitFiringsAsync(plan, ct)).Groups;
+            var appliedAdmissions = outcomes.Count(o => o.Applied && plan.Groups[o.Ordinal].Admit);
             admitted += appliedAdmissions;
             stale = outcomes.Count(o => !o.Applied);
             if (appliedAdmissions > 0)
@@ -115,97 +115,129 @@ internal sealed class ScheduleAdmitter(
     }
 
     /// <summary>
-    /// The plan: one group per slot. A slot admits at most one firing per pass, every member whose evaluation
-    /// selected an occurrence contributing to it; a member nothing changed for writes no row.
+    /// The plan: one group per slot, every member whose evaluation selected an occurrence contributing to its one
+    /// firing, and one group per per-occurrence schedule. A schedule nothing changed for writes no row. A group's
+    /// ordinal is its index.
     /// </summary>
     internal static AdmitFiringsCommand Plan(int namespaceId, IReadOnlyList<GetDueSchedulesRow> due, DateTime nowUtc)
     {
         var groups = new List<AdmitFiringsGroup>();
         var rows = new List<AdmitFiringsValues>();
-        foreach (var slot in due.GroupBy(d => d.JobId))
+        foreach (var slot in due.Where(d => d.JobId is not null).GroupBy(d => d.JobId!.Value))
         {
-            var first = slot.First();
-            var capacity = Capacity(first.SlotStatus, first.FiringStatus);
-            var contributors = new List<FiringContributor>();
-            var slotRows = new List<AdmitFiringsValues>();
-            var firingId = Guid.CreateVersion7();
-            foreach (var s in slot)
-            {
-                var timing = new ScheduleTiming(s.Expression, s.ExpressionKind, s.TimeZoneId, s.IntervalAnchorAtUtc);
-                var cursor = new ScheduleCursor(s.NextOccurrenceAtUtc, s.DecidedThroughAtUtc, s.Status, s.PausedUntilUtc);
-                var e = ScheduleEvaluator.Evaluate(
-                    timing,
-                    s.MisfireStrategy,
-                    TimeSpan.FromSeconds(s.MisfireGraceSeconds),
-                    cursor,
-                    capacity,
-                    nowUtc
-                );
-                if (!e.Changes(cursor, s.EvaluationStatus, s.NextEvaluationAtUtc))
-                {
-                    continue;
-                }
+            PlanSlot(slot.Key, [.. slot], nowUtc, groups, rows);
+        }
 
-                string? admittedDetails = null;
-                if (e.Admit is { } admit)
-                {
-                    contributors.Add(
-                        new FiringContributor(
-                            s.ScheduleId,
-                            s.ScheduleName,
-                            admit.OccurrenceAtUtc,
-                            s.TimeZoneId ?? "UTC",
-                            admit.CoveredThroughUtc,
-                            s.TimingFingerprint
-                        )
-                    );
-                    admittedDetails = Details(
-                        ("schedule", s.ScheduleName),
-                        ("occurrence", Iso(admit.OccurrenceAtUtc)),
-                        ("coveredThrough", Iso(admit.CoveredThroughUtc)),
-                        ("firingId", firingId.ToString("N"))
-                    );
-                }
+        foreach (var schedule in due.Where(d => d.JobId is null))
+        {
+            PlanOccurrence(schedule, nowUtc, groups, rows);
+        }
 
-                var skippedDetails = e.SkippedFromUtc is { } from
-                    ? Details(("schedule", s.ScheduleName), ("from", Iso(from)), ("through", Iso(e.SkippedThroughUtc!.Value)))
-                    : null;
-                slotRows.Add(
-                    new AdmitFiringsValues(
-                        s.ScheduleId,
-                        s.JobId,
-                        s.ScheduleName,
-                        s.StateVersion,
-                        e.NextOccurrenceAtUtc,
-                        e.DecidedThroughAtUtc,
-                        e.NextEvaluationAtUtc,
-                        e.Status,
-                        e.PauseEnded,
-                        admittedDetails,
-                        skippedDetails
-                    )
-                );
-            }
+        return new AdmitFiringsCommand(namespaceId, groups, rows);
+    }
 
-            if (slotRows.Count == 0)
+    /// <summary>A slot admits at most one firing per pass, the contributors frozen in its envelope.</summary>
+    private static void PlanSlot(
+        long jobId,
+        IReadOnlyList<GetDueSchedulesRow> members,
+        DateTime nowUtc,
+        List<AdmitFiringsGroup> groups,
+        List<AdmitFiringsValues> rows
+    )
+    {
+        var first = members[0];
+        if (first is not { SlotStatus: { } slotStatus, SlotVersion: { } slotVersion })
+        {
+            return;
+        }
+
+        var ordinal = groups.Count;
+        var capacity = Capacity(slotStatus, first.FiringStatus);
+        var contributors = new List<FiringContributor>();
+        var slotRows = new List<AdmitFiringsValues>();
+        var firingId = Guid.CreateVersion7();
+        foreach (var s in members)
+        {
+            var e = Evaluate(s, capacity, nowUtc, out var cursor);
+            if (!e.Changes(cursor, s.EvaluationStatus, s.NextEvaluationAtUtc))
             {
                 continue;
             }
 
-            var envelope =
-                contributors.Count == 0
-                    ? null
-                    : new FiringEnvelope(
-                        firingId,
-                        FiringEnvelope.ScheduledKind,
-                        nowUtc,
-                        contributors.OrderBy(c => c.ScheduleName, StringComparer.Ordinal).ToList()
-                    ).ToJson();
-            groups.Add(new AdmitFiringsGroup(first.JobId, first.SlotVersion, contributors.Count > 0, envelope));
-            rows.AddRange(slotRows);
+            string? admittedDetails = null;
+            if (e.Admit is { } admit)
+            {
+                contributors.Add(Contributor(s, admit));
+                admittedDetails = AdmittedDetails(s, admit, firingId);
+            }
+
+            slotRows.Add(Row(ordinal, s, e, admittedDetails, SkippedDetails(s, e)));
         }
 
-        return new AdmitFiringsCommand(namespaceId, groups, rows);
+        if (slotRows.Count == 0)
+        {
+            return;
+        }
+
+        var envelope =
+            contributors.Count == 0
+                ? null
+                : new FiringEnvelope(
+                    firingId,
+                    FiringEnvelope.ScheduledKind,
+                    nowUtc,
+                    contributors.OrderBy(c => c.ScheduleName, StringComparer.Ordinal).ToList()
+                ).ToJson();
+        groups.Add(new AdmitFiringsGroup(ordinal, jobId, slotVersion, null, null, contributors.Count > 0, envelope));
+        rows.AddRange(slotRows);
+    }
+
+    /// <summary>
+    /// A per-occurrence schedule is a group of its own: an admitted occurrence becomes a fresh root, keyed so the same
+    /// occurrence is never admitted twice. At <c>MaxOutstanding</c> the schedule waits for a settlement, or under Drop
+    /// skips the occurrence with the reason <c>capacity</c> and moves on.
+    /// </summary>
+    private static void PlanOccurrence(GetDueSchedulesRow s, DateTime nowUtc, List<AdmitFiringsGroup> groups, List<AdmitFiringsValues> rows)
+    {
+        var full = s.OutstandingCount >= s.MaxOutstanding;
+        var capacity = full && s.FullBehavior != ScheduleFullBehaviorCode.Drop ? AdmissionCapacity.Full : AdmissionCapacity.Available;
+        var e = Evaluate(s, capacity, nowUtc, out var cursor);
+        if (!e.Changes(cursor, s.EvaluationStatus, s.NextEvaluationAtUtc))
+        {
+            return;
+        }
+
+        var ordinal = groups.Count;
+        var group = new AdmitFiringsGroup(ordinal, null, null, s.ScheduleId, s.StateVersion, false, null);
+        string? admittedDetails = null;
+        var skippedDetails = SkippedDetails(s, e);
+        if (e.Admit is { } admit)
+        {
+            if (full)
+            {
+                skippedDetails = Details(
+                    ("schedule", s.ScheduleName),
+                    ("from", Iso(e.SkippedFromUtc ?? admit.OccurrenceAtUtc)),
+                    ("through", Iso(admit.CoveredThroughUtc)),
+                    ("reason", "capacity")
+                );
+            }
+            else
+            {
+                var firingId = Guid.CreateVersion7();
+                admittedDetails = AdmittedDetails(s, admit, firingId);
+                group = group with
+                {
+                    Admit = true,
+                    Envelope = new FiringEnvelope(firingId, FiringEnvelope.ScheduledKind, nowUtc, [Contributor(s, admit)]).ToJson(),
+                    JobRef = Guid.CreateVersion7(),
+                    DeduplicationKey = OccurrenceKey(s.ScheduleId, admit.OccurrenceAtUtc),
+                };
+            }
+        }
+
+        groups.Add(group);
+        rows.Add(Row(ordinal, s, e, admittedDetails, skippedDetails));
     }
 
     /// <summary>
@@ -220,6 +252,71 @@ internal sealed class ScheduleAdmitter(
                 AdmissionCapacity.Full,
             _ => AdmissionCapacity.Unavailable,
         };
+
+    /// <summary>The key an automatic occurrence's root is inserted under: one root per schedule and nominal instant.</summary>
+    internal static string OccurrenceKey(int scheduleId, DateTime occurrenceUtc) =>
+        string.Create(CultureInfo.InvariantCulture, $"sys.occurrence.{scheduleId}.{DbParams.ToUtc(occurrenceUtc).Ticks}");
+
+    private static ScheduleEvaluation Evaluate(GetDueSchedulesRow s, AdmissionCapacity capacity, DateTime nowUtc, out ScheduleCursor cursor)
+    {
+        var timing = new ScheduleTiming(s.Expression, s.ExpressionKind, s.TimeZoneId, s.IntervalAnchorAtUtc);
+        var policy = new SchedulePolicy(
+            s.MisfireStrategy,
+            TimeSpan.FromSeconds(s.MisfireGraceSeconds),
+            s.ExpireAfterSeconds is { } expireAfter ? TimeSpan.FromSeconds(expireAfter) : null,
+            s.ExpireAction ?? ScheduleExpireActionCode.Unspecified
+        );
+        cursor = new ScheduleCursor(s.NextOccurrenceAtUtc, s.Status, s.PausedUntilUtc, s.EvaluationStatus);
+        return ScheduleEvaluator.Evaluate(timing, policy, cursor, capacity, nowUtc);
+    }
+
+    private static FiringContributor Contributor(GetDueSchedulesRow s, AdmittedOccurrence admit) =>
+        new(s.ScheduleId, s.ScheduleName, admit.OccurrenceAtUtc, s.TimeZoneId ?? "UTC", admit.CoveredThroughUtc, s.TimingFingerprint);
+
+    private static AdmitFiringsValues Row(
+        int ordinal,
+        GetDueSchedulesRow s,
+        ScheduleEvaluation e,
+        string? admittedDetails,
+        string? skippedDetails
+    ) =>
+        new(
+            ordinal,
+            s.ScheduleId,
+            s.ScheduleName,
+            s.StateVersion,
+            e.NextOccurrenceAtUtc,
+            e.NextEvaluationAtUtc,
+            e.Status,
+            e.PauseEnded,
+            admittedDetails,
+            skippedDetails,
+            ExpiredDetails(s, e),
+            e.PausedByExpiry
+        );
+
+    private static string AdmittedDetails(GetDueSchedulesRow s, AdmittedOccurrence admit, Guid firingId) =>
+        Details(
+            ("schedule", s.ScheduleName),
+            ("occurrence", Iso(admit.OccurrenceAtUtc)),
+            ("coveredThrough", Iso(admit.CoveredThroughUtc)),
+            ("firingId", firingId.ToString("N"))
+        );
+
+    private static string? SkippedDetails(GetDueSchedulesRow s, ScheduleEvaluation e) =>
+        e.SkippedFromUtc is { } from
+            ? Details(("schedule", s.ScheduleName), ("from", Iso(from)), ("through", Iso(e.SkippedThroughUtc!.Value)))
+            : null;
+
+    private static string? ExpiredDetails(GetDueSchedulesRow s, ScheduleEvaluation e) =>
+        e.ExpiredFromUtc is { } from
+            ? Details(
+                ("schedule", s.ScheduleName),
+                ("from", Iso(from)),
+                ("through", Iso(e.ExpiredThroughUtc!.Value)),
+                ("reason", "expired")
+            )
+            : null;
 
     private static string Iso(DateTime value) => DbParams.ToUtc(value).ToString("yyyy-MM-ddTHH:mm:ss.fffZ", CultureInfo.InvariantCulture);
 

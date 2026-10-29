@@ -1,16 +1,18 @@
 namespace Acta;
 
 /// <summary>
-/// One schedule as the admitter plans it: its declaration and timing, its state with the version the plan will
-/// carry, and its slot's status, version, and envelope status, the same on every member of one slot. Read without
-/// locks; the apply validates the versions.
+/// One schedule as the admitter plans it: its declaration, timing, capacity, and expiry, its state with the version the
+/// plan will carry, its definition's delivery, and its slot's status, version, and envelope status, the same on every
+/// member of one slot and null for a schedule with no slot. Read without locks; the apply validates the versions.
 /// </summary>
 [DbProjection(ByName = true)]
 internal sealed record GetDueSchedulesRow(
     int ScheduleId,
-    long JobId,
+    long? JobId,
+    int DefinitionId,
     string ScheduleName,
     string DefinitionName,
+    ScheduledDeliveryCode ScheduledDelivery,
     string Expression,
     string? TimeZoneId,
     ScheduleExpressionKindCode ExpressionKind,
@@ -18,14 +20,18 @@ internal sealed record GetDueSchedulesRow(
     int MisfireGraceSeconds,
     DateTime? IntervalAnchorAtUtc,
     string TimingFingerprint,
+    int MaxOutstanding,
+    ScheduleFullBehaviorCode FullBehavior,
+    int? ExpireAfterSeconds,
+    ScheduleExpireActionCode? ExpireAction,
     ScheduleStatusCode Status,
     DateTime? PausedUntilUtc,
     DateTime? NextOccurrenceAtUtc,
-    DateTime? DecidedThroughAtUtc,
     DateTime? NextEvaluationAtUtc,
     EvaluationStatusCode EvaluationStatus,
+    int OutstandingCount,
     int StateVersion,
-    JobStatusCode SlotStatus,
-    int SlotVersion,
+    JobStatusCode? SlotStatus,
+    int? SlotVersion,
     CheckpointStatusCode? FiringStatus
 );

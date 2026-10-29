@@ -50,8 +50,7 @@ BEGIN TRY
     INNER JOIN {{schema}}.definitions d ON d.definition_id = js.definition_id
     INNER JOIN {{schema}}.schedules_state st ON st.schedule_id = js.schedule_id
     WHERE
-        js.job_id = @p_job_id
-        AND js.schedule_name = @p_schedule_name
+        js.schedule_id = @p_schedule_id
         AND js.schedule_status_code <> 230 /* ScheduleStatusCode.Orphaned */
         AND d.definition_status_code <> 240 /* DefinitionStatusCode.Retired */;
 

@@ -31,7 +31,8 @@ BEGIN TRY
             created_at_utc DATETIME2(3) NOT NULL,
             failure_count INT NOT NULL,
             lane_id BIGINT NULL,
-            parent_job_id BIGINT NULL
+            parent_job_id BIGINT NULL,
+            schedule_id INT NULL
         );
 
     WITH candidates AS (
@@ -61,13 +62,13 @@ BEGIN TRY
         INSERTED.job_id, j.job_ref, j.definition_id, j.tenant_id,
         INSERTED.execution_number, j.deduplication_key, j.job_kind_code, j.correlation_key, j.concurrency_key,
         j.input_format_id, j.input, INSERTED.next_run_at_utc, j.created_at_utc,
-        INSERTED.failure_count, INSERTED.lane_id, j.parent_job_id
+        INSERTED.failure_count, INSERTED.lane_id, j.parent_job_id, j.schedule_id
     INTO
         @claimed (
             job_id, job_ref, definition_id, tenant_id, execution_number,
             deduplication_key, job_kind_code, correlation_key, concurrency_key,
             input_format_id, input, next_run_at_utc, created_at_utc,
-            failure_count, lane_id, parent_job_id
+            failure_count, lane_id, parent_job_id, schedule_id
         )
     -- FORCESEEK keeps this update on a key seek instead of a lock-escalating scan of jobs_state. The seek above holds
     -- claim-index keys, so READPAST skips a row a verb holds instead of waiting for it, which would invert the lock
@@ -92,7 +93,8 @@ BEGIN TRY
         job_ref,
         tenant_id,
         lane_id,
-        parent_job_id
+        parent_job_id,
+        schedule_id
     FROM @claimed;
 
     IF @entry_trancount = 0

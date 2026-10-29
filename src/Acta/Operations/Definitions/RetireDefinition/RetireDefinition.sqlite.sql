@@ -65,11 +65,24 @@ WHERE
     AND checkpoint_status_code = 10 /* CheckpointStatusCode.Pending */
     AND job_id IN (SELECT p.job_id FROM temp._retire_parked_jobs p);
 
+-- A cancelled charged root releases its schedule's capacity, so the count stays true for the schedules exhausted below.
+UPDATE {{schema}}.schedules_state AS st
+SET
+    outstanding_count = st.outstanding_count - c.settled,
+    modified_at_utc = {{now}},
+    version = st.version + 1
+FROM (
+    SELECT j.schedule_id, COUNT(*) AS settled
+    FROM temp._retire_parked_jobs p
+    JOIN {{schema}}.jobs j ON j.job_id = p.job_id
+    WHERE j.schedule_id IS NOT NULL
+    GROUP BY j.schedule_id
+) c
+WHERE st.schedule_id = c.schedule_id;
+
 UPDATE {{schema}}.schedules_state AS st
 SET
     next_occurrence_at_utc = NULL,
-
-    decided_through_at_utc = NULL,
 
     next_evaluation_at_utc = NULL,
 

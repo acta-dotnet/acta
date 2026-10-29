@@ -48,10 +48,34 @@ SELECT
             )
             THEN 15 /* JobStatusCode.Blocked */
         ELSE 10 /* JobStatusCode.Ready */
-    END AS to_status
+    END AS to_status,
+    -- A finished charged root runs again as a new firing of its schedule, charged to it again.
+    CASE
+        WHEN j.schedule_id IS NOT NULL AND r.job_status_code IN (100 /* JobStatusCode.Succeeded */, 200 /* JobStatusCode.Failed */, 220 /* JobStatusCode.Cancelled */)
+            THEN 1
+        ELSE 0
+    END AS recharge
 FROM {{schema}}.jobs j
 JOIN {{schema}}.jobs_state r ON r.job_id = j.job_id
 WHERE j.job_id = @p_job_id;
+
+-- A charged root is re-charged only while its schedule is live and below MaxOutstanding; otherwise the restart is Rejected.
+UPDATE temp._restart_job
+SET rejected = 1
+WHERE
+    recharge = 1
+    AND NOT EXISTS (
+        SELECT 1
+        FROM {{schema}}.jobs j
+        JOIN {{schema}}.schedules js ON js.schedule_id = j.schedule_id
+        JOIN {{schema}}.schedules_state st ON st.schedule_id = js.schedule_id
+        JOIN {{schema}}.definitions d ON d.definition_id = js.definition_id
+        WHERE
+            j.job_id = @p_job_id
+            AND js.schedule_status_code <> 230 /* ScheduleStatusCode.Orphaned */
+            AND d.definition_status_code <> 240 /* DefinitionStatusCode.Retired */
+            AND st.outstanding_count < js.max_outstanding
+    );
 
 -- A finished laned job is not reactivated while an unfinished ancestor or descendant sits in its lane, the
 -- state the enqueue ancestor guard refuses (docs/sql-internals.md, "Lane lock order").
@@ -159,6 +183,35 @@ WHERE
     job_id = @p_job_id
     AND (@p_expected_version IS NULL OR version = @p_expected_version)
     AND (SELECT s.rejected FROM temp._restart_job s) = 0;
+
+-- A re-charged root takes its schedule's capacity again, and its settled envelope is outstanding again.
+UPDATE {{schema}}.schedules_state
+SET
+    outstanding_count = outstanding_count + 1,
+    modified_at_utc = {{now}},
+    version = version + 1
+WHERE
+    schedule_id = (SELECT j.schedule_id FROM {{schema}}.jobs j WHERE j.job_id = @p_job_id)
+    AND EXISTS (
+        SELECT 1
+        FROM temp._restart_job s
+        WHERE s.recharge = 1 AND s.rejected = 0 AND (@p_expected_version IS NULL OR s.from_version = @p_expected_version)
+    );
+
+UPDATE {{schema}}.checkpoints
+SET
+    checkpoint_status_code = 10 /* CheckpointStatusCode.Pending */,
+    modified_at_utc = {{now}},
+    version = version + 1
+WHERE
+    job_id = @p_job_id
+    AND checkpoint_kind_code = 60 /* CheckpointKindCode.Firing */
+    AND checkpoint_name = 'sys.firing'
+    AND EXISTS (
+        SELECT 1
+        FROM temp._restart_job s
+        WHERE s.recharge = 1 AND s.rejected = 0 AND (@p_expected_version IS NULL OR s.from_version = @p_expected_version)
+    );
 
 -- The members parked on the slot evaluate again now that it is Idle.
 UPDATE {{schema}}.schedules_state

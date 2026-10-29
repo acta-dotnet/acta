@@ -12,7 +12,16 @@ namespace Acta.Generators;
 /// <summary>Reads the <c>[JobSchedule]</c> attributes on a handler and checks each expression.</summary>
 internal static class JobScheduleReader
 {
-    internal static ImmutableArray<DiscoveredSchedule> ReadSchedules(IMethodSymbol method, string jobName)
+    /// <summary>
+    /// Reads every <c>[JobSchedule]</c> on <paramref name="method"/>; an <c>ExpireAfter</c> that is no Acta duration is
+    /// reported into <paramref name="diagnostics"/> like a <c>[Job]</c> duration.
+    /// </summary>
+    internal static ImmutableArray<DiscoveredSchedule> ReadSchedules(
+        IMethodSymbol method,
+        string jobName,
+        List<DiagnosticRecord> diagnostics,
+        Location location
+    )
     {
         var builder = ImmutableArray.CreateBuilder<DiscoveredSchedule>();
         foreach (var attr in method.GetAttributes())
@@ -35,8 +44,12 @@ internal static class JobScheduleReader
             // generated descriptor so persistence never receives an empty time-zone sentinel.
             string? timeZone = "UTC";
             string? description = null;
-            var misfireName = "Skip";
+            byte misfireStrategyId = 20;
             var environments = ImmutableArray<string>.Empty;
+            var maxOutstanding = 1;
+            byte fullBehaviorId = 10;
+            int? expireAfterSeconds = null;
+            byte expireActionId = 0;
 
             foreach (var named in attr.NamedArguments)
             {
@@ -51,17 +64,42 @@ internal static class JobScheduleReader
                     // MisfireStrategyCode is byte-backed; read it through TryGetEnumByte rather than an
                     // `is int` pattern that never matches a boxed byte and silently drops the value.
                     case "MisfireStrategy" when TryGetEnumByte(named.Value, out var mf):
-                        misfireName = mf == 20 ? "Skip" : "CatchUpOnce";
+                        misfireStrategyId = mf;
                         break;
                     case "Environments" when !named.Value.IsNull:
                         environments = [.. named.Value.Values.Select(v => v.Value as string ?? "")];
+                        break;
+                    case "MaxOutstanding" when named.Value.Value is int max:
+                        maxOutstanding = max;
+                        break;
+                    case "FullBehavior" when TryGetEnumByte(named.Value, out var fb):
+                        fullBehaviorId = fb;
+                        break;
+                    case "ExpireAfter":
+                        expireAfterSeconds = ReadDurationSeconds(named, diagnostics, location);
+                        break;
+                    case "ExpireAction" when TryGetEnumByte(named.Value, out var ea):
+                        expireActionId = ea;
                         break;
                 }
             }
 
             var kindName = InferExpressionKindName(expression);
             builder.Add(
-                new DiscoveredSchedule(jobName, scheduleName, expression, timeZone, misfireName, kindName, description, environments)
+                new DiscoveredSchedule(
+                    jobName,
+                    scheduleName,
+                    expression,
+                    timeZone,
+                    misfireStrategyId,
+                    kindName,
+                    description,
+                    environments,
+                    maxOutstanding,
+                    fullBehaviorId,
+                    expireAfterSeconds,
+                    expireActionId
+                )
             );
         }
         return builder.ToImmutable();
@@ -78,7 +116,8 @@ internal static class JobScheduleReader
     }
 
     /// <summary>
-    /// ACTA0121 / ACTA0122: declaration and expression validity for every [JobSchedule].
+    /// ACTA0121 / ACTA0122 / ACTA0124 / ACTA0125 / ACTA0126: declaration, expression, policy, capacity, and expiration
+    /// validity for every [JobSchedule].
     /// </summary>
     internal static bool ValidateSchedules(SourceProductionContext spc, DiscoveredJob job, bool isFrameworkAssembly)
     {
@@ -128,6 +167,68 @@ internal static class JobScheduleReader
                     ok = false;
                 }
             }
+
+            if (schedule.MaxOutstanding < 1)
+            {
+                ReportDiagnostic(
+                    spc,
+                    ManifestDiagnostics.InvalidScheduleMaxOutstanding(job, schedule.ScheduleName, schedule.MaxOutstanding)
+                );
+                ok = false;
+            }
+            else if (schedule.MaxOutstanding != 1 && job.ScheduledDeliveryName == "Permanent")
+            {
+                ReportDiagnostic(spc, ManifestDiagnostics.PermanentScheduleCapacity(job, schedule.ScheduleName, schedule.MaxOutstanding));
+                ok = false;
+            }
+
+            if (ScheduleFullBehaviorIdToName(schedule.FullBehaviorId) is null)
+            {
+                ReportDiagnostic(spc, ManifestDiagnostics.InvalidScheduleFullBehavior(job, schedule.ScheduleName, schedule.FullBehaviorId));
+                ok = false;
+            }
+
+            if (MisfireStrategyIdToName(schedule.MisfireStrategyId) is null)
+            {
+                ReportDiagnostic(
+                    spc,
+                    ManifestDiagnostics.InvalidScheduleMisfireStrategy(job, schedule.ScheduleName, schedule.MisfireStrategyId)
+                );
+                ok = false;
+            }
+
+            ok &= ValidateExpiration(spc, job, schedule);
+        }
+        return ok;
+    }
+
+    /// <summary>ACTA0126: an expiry is a positive <c>ExpireAfter</c> and a defined <c>ExpireAction</c>, or neither.</summary>
+    private static bool ValidateExpiration(SourceProductionContext spc, DiscoveredJob job, DiscoveredSchedule schedule)
+    {
+        var ok = true;
+        if (schedule.ExpireActionId != 0 && ScheduleExpireActionIdToName(schedule.ExpireActionId) is null)
+        {
+            ReportDiagnostic(spc, ManifestDiagnostics.InvalidScheduleExpireAction(job, schedule.ScheduleName, schedule.ExpireActionId));
+            ok = false;
+        }
+
+        if (schedule.ExpireAfterSeconds is { } expireAfter)
+        {
+            if (expireAfter <= 0)
+            {
+                ReportDiagnostic(spc, ManifestDiagnostics.ScheduleExpireAfterNotPositive(job, schedule.ScheduleName));
+                ok = false;
+            }
+            else if (schedule.ExpireActionId == 0)
+            {
+                ReportDiagnostic(spc, ManifestDiagnostics.ScheduleExpireAfterWithoutAction(job, schedule.ScheduleName));
+                ok = false;
+            }
+        }
+        else if (schedule.ExpireActionId != 0)
+        {
+            ReportDiagnostic(spc, ManifestDiagnostics.ScheduleExpireActionWithoutAfter(job, schedule.ScheduleName));
+            ok = false;
         }
         return ok;
     }

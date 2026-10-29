@@ -18,7 +18,6 @@ FROM (
             s.time_zone_id,
             s.misfire_strategy_code AS misfire_strategy,
             st.next_occurrence_at_utc,
-            st.decided_through_at_utc,
             st.next_evaluation_at_utc,
             st.evaluation_status_code AS evaluation_status,
             s.schedule_status_code AS status,
@@ -26,7 +25,13 @@ FROM (
             s.created_at_utc,
             s.modified_at_utc,
             s.version,
-            sj.job_ref
+            sj.job_ref,
+            s.max_outstanding,
+            st.outstanding_count,
+            s.full_behavior_code AS full_behavior,
+            jd.scheduled_delivery_code AS scheduled_delivery,
+            s.expire_after_seconds,
+            s.expire_action_code AS expire_action
         FROM {{schema}}.schedules_state st
         JOIN {{schema}}.schedules s ON s.schedule_id = st.schedule_id
         JOIN {{schema}}.namespaces ns ON ns.namespace_id = st.namespace_id
@@ -67,7 +72,6 @@ FROM (
             s.time_zone_id,
             s.misfire_strategy_code AS misfire_strategy,
             st.next_occurrence_at_utc,
-            st.decided_through_at_utc,
             st.next_evaluation_at_utc,
             st.evaluation_status_code AS evaluation_status,
             s.schedule_status_code AS status,
@@ -75,7 +79,13 @@ FROM (
             s.created_at_utc,
             s.modified_at_utc,
             s.version,
-            sj.job_ref
+            sj.job_ref,
+            s.max_outstanding,
+            st.outstanding_count,
+            s.full_behavior_code AS full_behavior,
+            jd.scheduled_delivery_code AS scheduled_delivery,
+            s.expire_after_seconds,
+            s.expire_action_code AS expire_action
         FROM {{schema}}.schedules s
         JOIN {{schema}}.namespaces ns ON ns.namespace_id = s.namespace_id
         JOIN {{schema}}.definitions jd ON jd.definition_id = s.definition_id

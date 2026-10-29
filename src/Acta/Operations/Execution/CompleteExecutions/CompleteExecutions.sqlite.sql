@@ -141,6 +141,8 @@ WHERE
     AND j.job_kind_code = 20 /* JobKindCode.PermanentSlot */
     AND st.evaluation_status_code IN (20 /* EvaluationStatusCode.WaitingForCapacity */, 50 /* EvaluationStatusCode.SlotUnavailable */);
 
+/* The envelope settles once: a slot's when the slot lands Idle, Failed, or Cancelled, a charged root's when the root
+   lands terminal. */
 UPDATE {{schema}}.checkpoints AS cp
 SET
     checkpoint_status_code = CASE
@@ -157,8 +159,82 @@ WHERE
     AND cp.checkpoint_kind_code = 60 /* CheckpointKindCode.Firing */
     AND cp.checkpoint_name = 'sys.firing'
     AND cp.checkpoint_status_code = 10 /* CheckpointStatusCode.Pending */
-    AND d.to_status IN (40 /* JobStatusCode.Idle */, 200 /* JobStatusCode.Failed */, 220 /* JobStatusCode.Cancelled */)
-    AND j.job_kind_code = 20 /* JobKindCode.PermanentSlot */;
+    AND (
+        (j.job_kind_code = 20 /* JobKindCode.PermanentSlot */ AND d.to_status IN (40 /* JobStatusCode.Idle */, 200 /* JobStatusCode.Failed */, 220 /* JobStatusCode.Cancelled */))
+        OR (j.schedule_id IS NOT NULL AND d.to_status IN (100 /* JobStatusCode.Succeeded */, 200 /* JobStatusCode.Failed */, 220 /* JobStatusCode.Cancelled */))
+    );
+
+/* A charged root that landed terminal releases its schedule's capacity, once per root, and wakes the schedule when it
+   waited for that capacity. */
+UPDATE {{schema}}.schedules_state AS st
+SET
+    outstanding_count = st.outstanding_count - c.settled,
+    next_evaluation_at_utc = CASE
+        WHEN st.evaluation_status_code = 20 /* EvaluationStatusCode.WaitingForCapacity */ THEN (SELECT now_utc FROM temp._ces_done LIMIT 1)
+        ELSE st.next_evaluation_at_utc
+    END,
+    evaluation_status_code = CASE
+        WHEN st.evaluation_status_code = 20 /* EvaluationStatusCode.WaitingForCapacity */ THEN 10 /* EvaluationStatusCode.Scheduled */
+        ELSE st.evaluation_status_code
+    END,
+    modified_at_utc = (SELECT now_utc FROM temp._ces_done LIMIT 1),
+    version = st.version + 1
+FROM (
+    SELECT j.schedule_id, COUNT(*) AS settled
+    FROM temp._ces_done d
+    INNER JOIN {{schema}}.jobs j ON j.job_id = d.job_id
+    WHERE
+        j.schedule_id IS NOT NULL
+        AND d.to_status IN (100 /* JobStatusCode.Succeeded */, 200 /* JobStatusCode.Failed */, 220 /* JobStatusCode.Cancelled */)
+    GROUP BY j.schedule_id
+) c
+WHERE st.schedule_id = c.schedule_id;
+
+/* The definition's firing failure policy: a firing that failed for good (a spent budget, the slot back to Idle; a
+   charged root landed Failed) pauses every active schedule of the definition, with the reason as the pause message,
+   until an operator resumes them. A slot its handler held or stopped is not a failed firing. */
+DROP TABLE IF EXISTS temp._ces_policy_paused;
+
+CREATE TEMP TABLE _ces_policy_paused AS
+SELECT js.schedule_id, js.schedule_name, j.job_id, j.namespace_id, j.definition_id, j.tenant_id,
+    COALESCE(j.lineage_root_job_id, j.job_id) AS lineage_root_job_id, d.execution_number, j.event_recording_code
+FROM temp._ces_done d
+INNER JOIN {{schema}}.jobs j ON j.job_id = d.job_id
+INNER JOIN {{schema}}.definitions jd ON jd.definition_id = j.definition_id
+INNER JOIN {{schema}}.schedules js ON js.definition_id = jd.definition_id
+WHERE
+    (
+        (j.job_kind_code = 20 /* JobKindCode.PermanentSlot */ AND d.to_status = 40 /* JobStatusCode.Idle */ AND d.succeeded = 0)
+        OR (j.schedule_id IS NOT NULL AND d.to_status = 200 /* JobStatusCode.Failed */)
+    )
+    AND jd.firing_failure_policy_code = 20 /* FiringFailurePolicyCode.PauseScheduling */
+    AND js.schedule_status_code = 10 /* ScheduleStatusCode.Active */;
+
+UPDATE {{schema}}.schedules
+SET
+    schedule_status_code = 30 /* ScheduleStatusCode.Paused */,
+    paused_until_utc = NULL,
+    pause_message = 'Paused by the firing failure policy: the last firing failed for good.',
+    modified_at_utc = (SELECT now_utc FROM temp._ces_done LIMIT 1),
+    version = version + 1
+WHERE schedule_id IN (SELECT p.schedule_id FROM temp._ces_policy_paused p);
+
+UPDATE {{schema}}.schedules_state
+SET
+    next_evaluation_at_utc = NULL,
+    modified_at_utc = (SELECT now_utc FROM temp._ces_done LIMIT 1),
+    version = version + 1
+WHERE schedule_id IN (SELECT p.schedule_id FROM temp._ces_policy_paused p);
+
+INSERT INTO {{schema}}.events (
+    event_code, created_at_utc, namespace_id, entity_code, entity_id,
+    definition_id, tenant_id, lineage_root_job_id, execution_number, event_message, details_format_id, details)
+SELECT
+    100 /* EventCode.SchedulePaused */, (SELECT now_utc FROM temp._ces_done LIMIT 1), p.namespace_id, 50 /* EntityCode.Job */, p.job_id,
+    p.definition_id, p.tenant_id, p.lineage_root_job_id, p.execution_number, 'Paused by the firing failure policy: the last firing failed for good.',
+    1 /* JobPayloadFormat.Json */, CAST('{"schedule":"' || p.schedule_name || '","reason":"firing-failed"}' AS BLOB)
+FROM temp._ces_policy_paused p
+WHERE p.event_recording_code = 20 /* EventRecordingCode.Audit */;
 -- end recurring
 
 /* The attempt's own event under the recording gate (EventRecordingCode) plus the alert overlay, which also writes a one-shot's

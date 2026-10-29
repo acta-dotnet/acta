@@ -84,7 +84,8 @@ public abstract class ActaRuntimeTestBase<TFixture, TManifest> : ActaTestBase<TF
             // filtered index through the test query layer's parameters, and scans the whole shared schema.
             var parked = DateTime.UtcNow.AddDays(1);
             var dialect = Services.GetRequiredService<ISqlDialect>();
-            var scheduleIds = (await Db.From<ScheduleEntity>().Where(s => slots.Contains(s.JobId)).ToListAsync(ct))
+            var slotKeys = slots.ConvertAll(id => (long?)id);
+            var scheduleIds = (await Db.From<ScheduleEntity>().Where(s => slotKeys.Contains(s.JobId)).ToListAsync(ct))
                 .Select(s => s.Id)
                 .ToList();
             await RetryTransientConflictAsync(
