@@ -327,7 +327,7 @@ internal sealed partial class WorkerFinalizer(
             return new(entry, completion, HandBack(job, completion), RunOnceStatus.Rearmed);
         }
 
-        var retry = PlanRetry(descriptor, job, entry.Fire, completion);
+        var retry = PlanRetry(descriptor, job, completion);
 
         // Deadline reschedule guard (Strict): if the next retry would land after the deadline,
         // terminate Cancelled+JobDeadlineExceeded via the handler status instead of re-arming.
@@ -357,7 +357,7 @@ internal sealed partial class WorkerFinalizer(
             CompletionKind.Rescheduled or CompletionKind.Suspended or CompletionKind.Paused => RunOnceStatus.Rearmed,
             _ => RunOnceStatus.Failed,
         };
-        return new(entry, completion, BuildCommand(descriptor, job, entry.Fire, completion, retry), status);
+        return new(entry, completion, BuildCommand(descriptor, job, completion, retry), status);
     }
 
     /// <summary>

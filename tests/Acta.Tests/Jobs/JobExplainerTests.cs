@@ -318,9 +318,9 @@ public class JobExplainerTests
     }
 
     [Fact]
-    public void Paused_with_no_next_run_points_at_the_schedules()
+    public void Idle_points_at_the_schedules()
     {
-        var x = GetJobExplanationHandler.Explain(Data(Header(JobStatusCode.Paused)), Now);
+        var x = GetJobExplanationHandler.Explain(Data(Header(JobStatusCode.Idle)), Now);
         Assert.Contains("schedules", x.Headline);
         Assert.DoesNotContain(x.NextActions, a => a.Kind == "resume");
     }

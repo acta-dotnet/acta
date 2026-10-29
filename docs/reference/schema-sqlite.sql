@@ -53,11 +53,11 @@ CREATE TEMP TABLE release_guard (
 INSERT INTO release_guard
 SELECT EXISTS (
     SELECT 1 FROM main.migrations
-    WHERE name NOT IN ('M20261024213527_init')
+    WHERE name NOT IN ('M20261029124218_init')
 );
 DROP TABLE release_guard;
 
--- ===== BEGIN M20261024213527_init =====
+-- ===== BEGIN M20261029124218_init =====
 CREATE TABLE IF NOT EXISTS main.alerts (
     alert_id integer PRIMARY KEY AUTOINCREMENT,
     alert_ref text NOT NULL,
@@ -106,7 +106,7 @@ CREATE TABLE IF NOT EXISTS main.checkpoints (
     version integer DEFAULT 0 NOT NULL
     , CONSTRAINT pk_checkpoints PRIMARY KEY (job_id, checkpoint_kind_code, checkpoint_name)
     , CONSTRAINT ck_checkpoints_value_pair CHECK ((value_format_id = 0 AND value IS NULL) OR (value_format_id <> 0 AND value IS NOT NULL))
-    , CONSTRAINT ck_checkpoints_kind_shape CHECK ((checkpoint_kind_code NOT IN (10, 40) OR (checkpoint_status_code IS NULL AND due_at_utc IS NULL)) AND (checkpoint_kind_code NOT IN (20, 30, 50) OR checkpoint_status_code IS NOT NULL) AND (checkpoint_kind_code <> 30 OR due_at_utc IS NOT NULL))
+    , CONSTRAINT ck_checkpoints_kind_shape CHECK ((checkpoint_kind_code NOT IN (10, 40) OR (checkpoint_status_code IS NULL AND due_at_utc IS NULL)) AND (checkpoint_kind_code NOT IN (20, 30, 50, 60) OR checkpoint_status_code IS NOT NULL) AND (checkpoint_kind_code <> 30 OR due_at_utc IS NOT NULL))
     , CONSTRAINT ck_checkpoints_value_format_id_byte CHECK (value_format_id BETWEEN 0 AND 255)
 ) STRICT;
 CREATE INDEX IF NOT EXISTS main.ix_checkpoints_pending_latches ON checkpoints (job_id, checkpoint_name) WHERE checkpoint_kind_code = 50 AND checkpoint_status_code = 10;
@@ -219,6 +219,7 @@ CREATE INDEX IF NOT EXISTS main.ix_events_duration ON events (namespace_id, defi
 CREATE TABLE IF NOT EXISTS main.jobs (
     job_id integer PRIMARY KEY AUTOINCREMENT,
     job_ref text NOT NULL,
+    job_kind_code integer NOT NULL,
     namespace_id integer NOT NULL,
     definition_id integer NOT NULL,
     lineage_root_job_id integer NULL,
@@ -239,6 +240,7 @@ CREATE INDEX IF NOT EXISTS main.ix_jobs_namespace_created ON jobs (namespace_id,
 CREATE UNIQUE INDEX IF NOT EXISTS main.ux_jobs_ref ON jobs (job_ref);
 CREATE UNIQUE INDEX IF NOT EXISTS main.ux_jobs_deduplication_key_root ON jobs (namespace_id, deduplication_key) WHERE deduplication_key IS NOT NULL AND parent_job_id IS NULL;
 CREATE UNIQUE INDEX IF NOT EXISTS main.ux_jobs_deduplication_key_child ON jobs (parent_job_id, deduplication_key) WHERE deduplication_key IS NOT NULL AND parent_job_id IS NOT NULL;
+CREATE UNIQUE INDEX IF NOT EXISTS main.ux_jobs_slot ON jobs (definition_id) WHERE job_kind_code = 20;
 
 -- lanes
 CREATE TABLE IF NOT EXISTS main.lanes (
@@ -273,6 +275,7 @@ CREATE TABLE IF NOT EXISTS main.jobs_state (
     , CONSTRAINT ck_jobs_state_status_lease CHECK (job_status_code = 50 OR leased_by_worker_id IS NULL)
     , CONSTRAINT ck_jobs_state_inflight_leased CHECK (job_status_code <> 50 OR leased_by_worker_id IS NOT NULL)
     , CONSTRAINT ck_jobs_state_ready_due CHECK (job_status_code <> 10 OR next_run_at_utc IS NOT NULL)
+    , CONSTRAINT ck_jobs_state_idle CHECK (job_status_code <> 40 OR next_run_at_utc IS NULL)
     , CONSTRAINT ck_jobs_state_result_pair CHECK ((result_format_id = 0 AND result IS NULL) OR (result_format_id <> 0 AND result IS NOT NULL))
     , CONSTRAINT ck_jobs_state_result_idle CHECK (result_format_id = 0 OR job_status_code <> 50)
     , CONSTRAINT ck_jobs_state_result_format_id_byte CHECK (result_format_id BETWEEN 0 AND 255)
@@ -315,43 +318,47 @@ VALUES (1, 'sys', 10, 'Reserved system namespace for cross-namespace audit event
 
 -- schedules
 CREATE TABLE IF NOT EXISTS main.schedules (
+    schedule_id integer PRIMARY KEY AUTOINCREMENT,
     namespace_id integer NOT NULL,
     job_id integer NOT NULL,
     definition_id integer NOT NULL,
     schedule_name text NOT NULL,
     schedule_origin_code integer NOT NULL,
     expression text NOT NULL,
-    expression_override text NULL,
-    expression_effective text AS (COALESCE(expression_override, expression)) STORED,
     time_zone_id text NOT NULL,
-    time_zone_id_override text NULL,
-    time_zone_id_effective text AS (COALESCE(time_zone_id_override, time_zone_id)) STORED,
     expression_kind_code integer NOT NULL,
     misfire_strategy_code integer NOT NULL,
+    interval_anchor_at_utc integer NULL,
+    misfire_grace_seconds integer NOT NULL,
+    timing_fingerprint text NOT NULL,
     schedule_status_code integer NOT NULL,
     paused_until_utc integer NULL,
     description text NULL,
-    change_message text NULL,
+    pause_message text NULL,
     created_at_utc integer DEFAULT (CAST(unixepoch('now', 'subsec') * 1000 AS INTEGER)) NOT NULL,
     modified_at_utc integer DEFAULT (CAST(unixepoch('now', 'subsec') * 1000 AS INTEGER)) NOT NULL,
     version integer DEFAULT 0 NOT NULL
-    , CONSTRAINT pk_schedules PRIMARY KEY (job_id, schedule_name)
     , CONSTRAINT ck_schedules_paused_pair CHECK (schedule_status_code = 30 OR paused_until_utc IS NULL)
     , CONSTRAINT ck_schedules_orphan_origin CHECK (schedule_origin_code = 40 OR schedule_status_code <> 230)
     , CONSTRAINT fk_schedules_definitions FOREIGN KEY (definition_id) REFERENCES definitions (definition_id)
 ) STRICT;
+CREATE INDEX IF NOT EXISTS main.ix_schedules_job ON schedules (job_id, schedule_id);
+CREATE UNIQUE INDEX IF NOT EXISTS main.ux_schedules_definition_name ON schedules (definition_id, schedule_name);
 
 -- schedules_state
 CREATE TABLE IF NOT EXISTS main.schedules_state (
-    job_id integer NOT NULL,
-    schedule_name text NOT NULL,
+    schedule_id integer NOT NULL,
     namespace_id integer NOT NULL,
     next_occurrence_at_utc integer NULL,
-    last_advanced_occurrence_at_utc integer NULL,
+    decided_through_at_utc integer NULL,
+    next_evaluation_at_utc integer NULL,
+    evaluation_status_code integer NOT NULL,
+    version integer DEFAULT 0 NOT NULL,
     modified_at_utc integer DEFAULT (CAST(unixepoch('now', 'subsec') * 1000 AS INTEGER)) NOT NULL
-    , CONSTRAINT pk_schedules_state PRIMARY KEY (job_id, schedule_name)
+    , CONSTRAINT pk_schedules_state PRIMARY KEY (schedule_id)
 ) STRICT;
-CREATE INDEX IF NOT EXISTS main.ix_schedules_state_namespace_next ON schedules_state (namespace_id, next_occurrence_at_utc, job_id, schedule_name) WHERE next_occurrence_at_utc IS NOT NULL;
+CREATE INDEX IF NOT EXISTS main.ix_schedules_state_namespace_next ON schedules_state (namespace_id, next_occurrence_at_utc, schedule_id) WHERE next_occurrence_at_utc IS NOT NULL;
+CREATE INDEX IF NOT EXISTS main.ix_schedules_state_due ON schedules_state (namespace_id, next_evaluation_at_utc, schedule_id) WHERE next_evaluation_at_utc IS NOT NULL;
 
 -- steps
 CREATE TABLE IF NOT EXISTS main.steps (
@@ -468,9 +475,9 @@ SELECT
     ns.namespace_name AS namespace,
     d.definition_name AS job_name,
     c.checkpoint_name,
-    CASE c.checkpoint_kind_code WHEN 0 THEN 'unspecified' WHEN 10 THEN 'variable' WHEN 20 THEN 'signal' WHEN 30 THEN 'timer' WHEN 40 THEN 'progress' WHEN 50 THEN 'child-latch' END AS kind,
+    CASE c.checkpoint_kind_code WHEN 0 THEN 'unspecified' WHEN 10 THEN 'variable' WHEN 20 THEN 'signal' WHEN 30 THEN 'timer' WHEN 40 THEN 'progress' WHEN 50 THEN 'child-latch' WHEN 60 THEN 'firing' END AS kind,
     c.checkpoint_kind_code,
-    CASE c.checkpoint_status_code WHEN 0 THEN 'unspecified' WHEN 10 THEN 'pending' WHEN 20 THEN 'set' WHEN 30 THEN 'expired' WHEN 100 THEN 'consumed' END AS status,
+    CASE c.checkpoint_status_code WHEN 0 THEN 'unspecified' WHEN 10 THEN 'pending' WHEN 20 THEN 'set' WHEN 30 THEN 'expired' WHEN 100 THEN 'consumed' WHEN 110 THEN 'succeeded' WHEN 120 THEN 'failed' WHEN 130 THEN 'cancelled' END AS status,
     c.checkpoint_status_code,
     c.due_at_utc,
     CASE c.value_format_id
@@ -562,7 +569,7 @@ SELECT
     CASE e.entity_code WHEN 0 THEN 'unspecified' WHEN 10 THEN 'alert' WHEN 20 THEN 'checkpoint' WHEN 30 THEN 'definition' WHEN 40 THEN 'event' WHEN 50 THEN 'job' WHEN 60 THEN 'lane' WHEN 70 THEN 'lock' WHEN 80 THEN 'namespace' WHEN 90 THEN 'schedule' WHEN 100 THEN 'step' WHEN 110 THEN 'tag' WHEN 120 THEN 'tenant' WHEN 130 THEN 'worker' END AS entity_kind,
     e.entity_code,
     e.entity_id,
-    CASE e.event_code WHEN 0 THEN 'unspecified' WHEN 10 THEN 'tenant.suspended' WHEN 11 THEN 'tenant.resumed' WHEN 12 THEN 'tenant.updated' WHEN 20 THEN 'namespace.suspended' WHEN 21 THEN 'namespace.resumed' WHEN 22 THEN 'namespace.updated' WHEN 30 THEN 'definition.overrides-updated' WHEN 31 THEN 'definition.retired' WHEN 40 THEN 'job.execution-succeeded' WHEN 41 THEN 'job.execution-failed' WHEN 42 THEN 'job.execution-orphaned' WHEN 43 THEN 'job.execution-yielded' WHEN 44 THEN 'job.failed' WHEN 50 THEN 'job.recurring-rolled-over' WHEN 60 THEN 'job.suspended' WHEN 61 THEN 'job.rescheduled' WHEN 70 THEN 'job.cancelled' WHEN 71 THEN 'job.paused' WHEN 72 THEN 'job.resumed' WHEN 73 THEN 'job.restarted' WHEN 74 THEN 'job.reprioritized' WHEN 75 THEN 'job.purged' WHEN 76 THEN 'job.input-amended' WHEN 80 THEN 'job.signal-raised' WHEN 81 THEN 'job.state-reset' WHEN 90 THEN 'job.note-recorded' WHEN 100 THEN 'schedule.paused' WHEN 101 THEN 'schedule.resumed' WHEN 102 THEN 'schedule.pause-expired' WHEN 103 THEN 'schedule.overrides-updated' WHEN 104 THEN 'schedule.triggered' WHEN 120 THEN 'worker.started' WHEN 121 THEN 'worker.stopped' WHEN 122 THEN 'worker.died' WHEN 140 THEN 'alert.acknowledged' WHEN 141 THEN 'alert.resolved' WHEN 180 THEN 'outbox.requeued' WHEN 181 THEN 'outbox.discarded' END AS event,
+    CASE e.event_code WHEN 0 THEN 'unspecified' WHEN 10 THEN 'tenant.suspended' WHEN 11 THEN 'tenant.resumed' WHEN 12 THEN 'tenant.updated' WHEN 20 THEN 'namespace.suspended' WHEN 21 THEN 'namespace.resumed' WHEN 22 THEN 'namespace.updated' WHEN 30 THEN 'definition.overrides-updated' WHEN 31 THEN 'definition.retired' WHEN 40 THEN 'job.execution-succeeded' WHEN 41 THEN 'job.execution-failed' WHEN 42 THEN 'job.execution-orphaned' WHEN 43 THEN 'job.execution-yielded' WHEN 44 THEN 'job.failed' WHEN 60 THEN 'job.suspended' WHEN 61 THEN 'job.rescheduled' WHEN 70 THEN 'job.cancelled' WHEN 71 THEN 'job.paused' WHEN 72 THEN 'job.resumed' WHEN 73 THEN 'job.restarted' WHEN 74 THEN 'job.reprioritized' WHEN 75 THEN 'job.purged' WHEN 76 THEN 'job.input-amended' WHEN 80 THEN 'job.signal-raised' WHEN 81 THEN 'job.state-reset' WHEN 90 THEN 'job.note-recorded' WHEN 100 THEN 'schedule.paused' WHEN 101 THEN 'schedule.resumed' WHEN 102 THEN 'schedule.pause-expired' WHEN 104 THEN 'schedule.triggered' WHEN 105 THEN 'schedule.admitted' WHEN 106 THEN 'schedule.skipped' WHEN 107 THEN 'schedule.retimed' WHEN 120 THEN 'worker.started' WHEN 121 THEN 'worker.stopped' WHEN 122 THEN 'worker.died' WHEN 140 THEN 'alert.acknowledged' WHEN 141 THEN 'alert.resolved' WHEN 180 THEN 'outbox.requeued' WHEN 181 THEN 'outbox.discarded' END AS event,
     e.event_code,
     e.definition_id,
     d.definition_name AS job_name,
@@ -597,7 +604,7 @@ SELECT
     j.job_ref,
     ns.namespace_name AS namespace,
     d.definition_name AS job_name,
-    CASE r.job_status_code WHEN 0 THEN 'unspecified' WHEN 10 THEN 'ready' WHEN 15 THEN 'blocked' WHEN 20 THEN 'suspended' WHEN 30 THEN 'paused' WHEN 50 THEN 'executing' WHEN 100 THEN 'succeeded' WHEN 200 THEN 'failed' WHEN 220 THEN 'cancelled' END AS status,
+    CASE r.job_status_code WHEN 0 THEN 'unspecified' WHEN 10 THEN 'ready' WHEN 15 THEN 'blocked' WHEN 20 THEN 'suspended' WHEN 30 THEN 'paused' WHEN 40 THEN 'idle' WHEN 50 THEN 'executing' WHEN 100 THEN 'succeeded' WHEN 200 THEN 'failed' WHEN 220 THEN 'cancelled' END AS status,
     r.job_status_code,
     j.deduplication_key,
     j.correlation_key,
@@ -646,6 +653,7 @@ LEFT JOIN main.lanes AS lane ON lane.lane_id = r.lane_id;
 DROP VIEW IF EXISTS main.schedules_view;
 CREATE VIEW main.schedules_view AS
 SELECT
+    s.schedule_id,
     ns.namespace_name AS namespace,
     s.job_id,
     j.job_ref,
@@ -656,26 +664,25 @@ SELECT
     s.schedule_origin_code,
     CASE s.schedule_status_code WHEN 0 THEN 'unspecified' WHEN 10 THEN 'active' WHEN 30 THEN 'paused' WHEN 230 THEN 'orphaned' END AS status,
     s.schedule_status_code,
-    s.expression_effective,
     s.expression,
-    s.expression_override,
-    s.time_zone_id_effective,
     s.time_zone_id,
-    s.time_zone_id_override,
     CASE s.expression_kind_code WHEN 0 THEN 'unspecified' WHEN 10 THEN 'cron' WHEN 20 THEN 'interval' END AS expression_kind,
     s.expression_kind_code,
     CASE s.misfire_strategy_code WHEN 0 THEN 'unspecified' WHEN 10 THEN 'catch-up-once' WHEN 20 THEN 'skip' END AS misfire_strategy,
     s.misfire_strategy_code,
     st.next_occurrence_at_utc,
-    st.last_advanced_occurrence_at_utc,
+    st.decided_through_at_utc,
+    st.next_evaluation_at_utc,
+    CASE st.evaluation_status_code WHEN 0 THEN 'unspecified' WHEN 10 THEN 'scheduled' WHEN 20 THEN 'waiting-for-capacity' WHEN 30 THEN 'exhausted' WHEN 40 THEN 'evaluation-error' WHEN 50 THEN 'slot-unavailable' END AS evaluation_status,
+    st.evaluation_status_code,
     s.paused_until_utc,
     s.description,
-    s.change_message,
+    s.pause_message,
     s.created_at_utc,
     s.modified_at_utc,
     s.version
 FROM main.schedules AS s
-JOIN main.schedules_state AS st ON st.job_id = s.job_id AND st.schedule_name = s.schedule_name
+JOIN main.schedules_state AS st ON st.schedule_id = s.schedule_id
 JOIN main.namespaces AS ns ON ns.namespace_id = s.namespace_id
 JOIN main.jobs AS j ON j.job_id = s.job_id
 JOIN main.definitions AS d ON d.definition_id = s.definition_id;
@@ -744,10 +751,10 @@ JOIN main.namespaces AS ns ON ns.namespace_id = w.namespace_id;
 
 
 INSERT INTO main.migrations (name)
-VALUES ('M20261024213527_init')
+VALUES ('M20261029124218_init')
 ON CONFLICT (name) DO NOTHING;
 
--- ===== END M20261024213527_init =====
+-- ===== END M20261029124218_init =====
 
 COMMIT;
 

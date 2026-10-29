@@ -7,7 +7,12 @@ namespace Acta;
 /// the slot's <see cref="OutboxTickSummary.VariableName"/> variable, so it never opens a source database. Paging
 /// follows the namespace catalog. The registry is present only in processes that declared a relay.
 /// </summary>
-internal sealed class ListOutboxSourcesHandler(IJobs jobs, INamespaces namespaces, OutboxRelayRegistry? registry = null)
+internal sealed class ListOutboxSourcesHandler(
+    ResolveSlotIdHandler resolveSlotId,
+    IJobs jobs,
+    INamespaces namespaces,
+    OutboxRelayRegistry? registry = null
+)
 {
     public async ValueTask<ListOutboxSourcesResponse> HandleAsync(ListOutboxSourcesQuery query, CancellationToken ct)
     {
@@ -42,7 +47,7 @@ internal sealed class ListOutboxSourcesHandler(IJobs jobs, INamespaces namespace
 
     private async ValueTask<ListOutboxSourcesItem?> ComposeAsync(string jobNamespace, CancellationToken ct)
     {
-        if (await OutboxSlot.FindAsync(jobs, jobNamespace, ct) is not { } slot)
+        if (await OutboxSlot.FindAsync(resolveSlotId, jobs, jobNamespace, ct) is not { } slot)
         {
             return null;
         }

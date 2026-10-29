@@ -677,12 +677,9 @@ public sealed class PurgeExpiredDataSpec : ActaRuntimeTestBase<ConformanceFixtur
                 new DefinitionSchedules(
                     NamespaceId: ns,
                     DefinitionId: defId,
-                    JobName: jobName,
                     InputFormatId: 0,
                     Input: ReadOnlyMemory<byte>.Empty,
                     EventRecording: EventRecordingCode.Audit,
-                    SlotStatus: JobStatusCode.Ready,
-                    SlotMinNextRunAtUtc: cursor,
                     Schedules:
                     [
                         new SlotSchedule(

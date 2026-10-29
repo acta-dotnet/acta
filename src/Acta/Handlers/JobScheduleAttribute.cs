@@ -2,9 +2,9 @@ namespace Acta;
 
 /// <summary>
 /// Declares a named recurring schedule on a <c>[Job]</c> handler. Several may decorate one handler; each becomes a
-/// <c>schedules</c> row under the definition's single recurring slot <c>job</c>, whose hot-path cursor is the MIN of
-/// its live schedules' next occurrences, and currently-due schedules coalesce into one execution whose due set the
-/// handler reads via <see cref="JobContext.TriggeringScheduleNames"/>.
+/// <c>schedules</c> row with its own cursor under the definition's single permanent slot <c>job</c>. The admission
+/// engine evaluates each schedule and admits one firing of the slot at a time; schedules due together contribute to
+/// the same firing, which the handler reads via <see cref="JobContext.TriggeringSchedules"/>.
 /// </summary>
 /// <param name="name">Operator-stable kebab-case schedule name, unique within the definition.</param>
 /// <param name="expression">Cron (Cronos; 6 fields for seconds), an ISO 8601 duration ("PT5M"), or a plain one ("5m", "1h").</param>

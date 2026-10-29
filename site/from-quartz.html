@@ -136,7 +136,7 @@
         <li><b>Misfires become explicit policy on persistent cursors.</b> A schedule carries a durable cursor; missed windows are visible and handled by declared misfire policy, not by per-trigger misfire instructions.</li>
         <li><b>Clustering configuration becomes leases.</b> No clustered job store to configure: a claimed job carries a lease held by a heartbeating worker, and when the worker dies the lease lapses and any peer reclaims the job, leaderless.</li>
         <li><b>Logs become a ledger.</b> Every job carries an append-only event timeline as queryable rows, and <code>jobs explain</code> answers why a job is in its current state from those rows, not from log archaeology.</li>
-        <li><b>Time zones stay first-class.</b> Recurring schedules run in a named time zone, operators preview upcoming instants, and expression or zone overrides carry expected-version checks.</li>
+        <li><b>Time zones stay first-class.</b> Recurring schedules run in a named time zone, operators preview upcoming instants, and a pause records its reason and an optional resume time.</li>
       </ul>
     </section>
 

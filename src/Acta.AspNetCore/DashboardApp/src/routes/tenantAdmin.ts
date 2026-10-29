@@ -1,5 +1,5 @@
 // Pure helpers for the tenant admin controls (suspend/resume/details edit): CAS payload building
-// and the reload-on-conflict decision, mirroring scheduleOverrides.ts. Split out so node --test can
+// and the reload-on-conflict decision, like the definition editor. Split out so node --test can
 // exercise them without the Svelte compiler.
 import type { AdminControlAction } from '../api.ts';
 

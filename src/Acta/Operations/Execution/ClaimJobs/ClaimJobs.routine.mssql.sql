@@ -40,6 +40,7 @@ BEGIN
                 tenant_id INT NULL,
                 execution_number INT NOT NULL,
                 deduplication_key VARCHAR(128) COLLATE Latin1_General_100_BIN2_UTF8 NULL,
+                job_kind_code TINYINT NOT NULL,
                 correlation_key VARCHAR(64) NULL,
                 concurrency_key VARCHAR(128) COLLATE Latin1_General_100_BIN2_UTF8 NULL,
                 input_format_id TINYINT NOT NULL,
@@ -122,6 +123,7 @@ BEGIN
             j.tenant_id,
             INSERTED.execution_number,
             j.deduplication_key,
+            j.job_kind_code,
             j.correlation_key,
             j.concurrency_key,
             j.input_format_id,
@@ -134,7 +136,7 @@ BEGIN
         INTO
             @claimed (
                 job_id, job_ref, definition_id, tenant_id, execution_number,
-                deduplication_key, correlation_key, concurrency_key,
+                deduplication_key, job_kind_code, correlation_key, concurrency_key,
                 input_format_id, input, next_run_at_utc, created_at_utc,
                 failure_count, lane_id, parent_job_id
             )
@@ -152,6 +154,7 @@ BEGIN
                     definition_id,
                     execution_number,
                     deduplication_key,
+                    job_kind_code,
                     correlation_key,
                     concurrency_key,
                     input_format_id,
@@ -175,6 +178,7 @@ BEGIN
                     CAST(NULL AS INT) AS definition_id,
                     CAST(NULL AS INT) AS execution_number,
                     CAST(NULL AS VARCHAR(128)) AS deduplication_key,
+                    CAST(NULL AS TINYINT) AS job_kind_code,
                     CAST(NULL AS VARCHAR(64)) AS correlation_key,
                     CAST(NULL AS VARCHAR(128)) AS concurrency_key,
                     CAST(NULL AS TINYINT) AS input_format_id,

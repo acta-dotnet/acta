@@ -975,6 +975,7 @@ public class ManifestGeneratorDiagnosticTests
     [InlineData("0s")]
     [InlineData("500ms")]
     [InlineData("PT0.5S")]
+    [InlineData("PT1.0000001S")]
     public void Invalid_interval_errors_ACTA0122(string expression)
     {
         var result = RunGenerator(

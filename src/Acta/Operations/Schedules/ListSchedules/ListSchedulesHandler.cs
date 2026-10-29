@@ -4,7 +4,7 @@ namespace Acta;
 
 /// <summary>
 /// <see cref="ISchedules.ListAsync"/>: the live list pages by next occurrence; the full list, which includes schedules
-/// with no next occurrence, pages by slot job and schedule name.
+/// with no next occurrence, pages by schedule id.
 /// </summary>
 internal sealed class ListSchedulesHandler(IDbSession session, ISqlDialect dialect)
 {
@@ -26,20 +26,13 @@ internal sealed class ListSchedulesHandler(IDbSession session, ISqlDialect diale
         var paging = liveOnly is true
             ? Paging.Start(
                 "ListSchedules",
-                "next_occurrence_at_utc asc, job_id asc, schedule_name asc",
-                [CursorKeyKind.Utc, CursorKeyKind.Long, CursorKeyKind.Text],
+                "next_occurrence_at_utc asc, schedule_id asc",
+                [CursorKeyKind.Utc, CursorKeyKind.Long],
                 query.Cursor,
                 query.PageSize,
                 filters
             )
-            : Paging.Start(
-                "ListSchedules",
-                "job_id asc, schedule_name asc",
-                [CursorKeyKind.Long, CursorKeyKind.Text],
-                query.Cursor,
-                query.PageSize,
-                filters
-            );
+            : Paging.Start("ListSchedules", "schedule_id asc", [CursorKeyKind.Long], query.Cursor, query.PageSize, filters);
         var after = paging.After;
         var keyOffset = liveOnly is true ? 1 : 0;
 
@@ -55,7 +48,6 @@ internal sealed class ListSchedulesHandler(IDbSession session, ISqlDialect diale
                     dialect.CreateParameter(ActaSchema.Sql.CursorNextOccurrenceAtUtc, liveOnly is true ? (DateTime?)after?[0] : null)
                 );
                 cmd.Parameters.Add(dialect.CreateParameter(ActaSchema.Sql.CursorId, (long?)after?[keyOffset]));
-                cmd.Parameters.Add(dialect.CreateParameter(ActaSchema.Sql.CursorScheduleName, (string?)after?[keyOffset + 1]));
                 cmd.Parameters.Add(dialect.CreateParameter(ActaSchema.Sql.PageTake, paging.Fetch));
                 cmd.Parameters.Add(dialect.CreateParameter(ActaSchema.Sql.IncludeTotalFlag, query.IncludeTotal ? true : (bool?)null));
             },
@@ -65,8 +57,8 @@ internal sealed class ListSchedulesHandler(IDbSession session, ISqlDialect diale
 
         // The live list holds only rows with a next occurrence, so its first cursor key is always present.
         var (items, nextCursor, hasMore, pageSize, totalCount) = liveOnly is true
-            ? paging.Page(rows, total, static item => [item.NextOccurrenceAtUtc!.Value, item.JobId, item.ScheduleName])
-            : paging.Page(rows, total, static item => [item.JobId, item.ScheduleName]);
+            ? paging.Page(rows, total, static item => [item.NextOccurrenceAtUtc!.Value, (long)item.ScheduleId])
+            : paging.Page(rows, total, static item => [(long)item.ScheduleId]);
         return new ListSchedulesResponse(items, nextCursor, hasMore, pageSize, totalCount);
     }
 }

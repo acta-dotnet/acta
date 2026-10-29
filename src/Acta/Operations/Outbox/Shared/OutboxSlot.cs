@@ -6,9 +6,16 @@ internal static class OutboxSlot
     public const string JobName = "sys.outbox";
 
     /// <summary>
-    /// The slot by its fixed deduplication key, gated on the job name so a user job that happens to reuse the
-    /// key can never receive operator commands or spoof a source line.
+    /// The slot through its definition's path and its kind, so no user job can receive operator commands or spoof a
+    /// source line.
     /// </summary>
-    public static async ValueTask<GetJobResponse?> FindAsync(IJobs jobs, string jobNamespace, CancellationToken ct) =>
-        await jobs.GetAsync(JobLookup.ByDeduplicationKey(jobNamespace, JobName), ct) is { JobName: JobName } slot ? slot : null;
+    public static async ValueTask<GetJobResponse?> FindAsync(
+        ResolveSlotIdHandler slots,
+        IJobs jobs,
+        string jobNamespace,
+        CancellationToken ct
+    ) =>
+        await slots.HandleAsync(new ResolveSlotIdQuery(jobNamespace, JobName), ct) is { } id
+            ? await jobs.GetAsync(JobLookup.ById(id), ct)
+            : null;
 }

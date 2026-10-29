@@ -135,12 +135,15 @@ internal static class JobScheduleReader
     /// <summary>
     /// Mirrors NextOccurrenceCalculator.ParseInterval: an interval is the human form (number + ms/s/m/h/d)
     /// or an ISO 8601 duration via XmlConvert, of at least one second, as often as cron can fire, which keeps a slot's
-    /// 32-bit counters inside their range for decades; cron uses the conservative Cronos-dialect validator.
+    /// 32-bit counters inside their range for decades, and of whole milliseconds, the precision an occurrence is
+    /// stored at; cron uses the conservative Cronos-dialect validator.
     /// </summary>
     internal static bool IsValidScheduleExpression(string expression, string kindName)
     {
         return kindName == "Interval"
-            ? TryParseInterval(expression.Trim(), out var span) && span >= TimeSpan.FromSeconds(1)
+            ? TryParseInterval(expression.Trim(), out var span)
+                && span >= TimeSpan.FromSeconds(1)
+                && span.Ticks % TimeSpan.TicksPerMillisecond == 0
             : CronExpressionValidator.IsValid(expression);
     }
 

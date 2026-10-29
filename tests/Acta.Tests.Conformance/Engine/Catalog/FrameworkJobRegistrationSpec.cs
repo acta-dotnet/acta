@@ -15,7 +15,7 @@ namespace Acta.Tests.Conformance.Engine.Catalog;
     "system-jobs.auto-register",
     "Init auto-registers system definitions, slots and schedules",
     Area = "Catalog",
-    Contract = "InitializeAsync registers system definitions with a Ready recurring slot keyed on the job name and a default schedule."
+    Contract = "InitializeAsync registers system definitions with an Idle permanent slot and a default schedule."
 )]
 public sealed class FrameworkJobRegistrationSpec : ActaRuntimeTestBase<ConformanceFixture, TestJobs.TestJobsManifest>
 {
@@ -24,7 +24,7 @@ public sealed class FrameworkJobRegistrationSpec : ActaRuntimeTestBase<Conforman
 
     protected override bool RegisterSystemJobs => true;
 
-    [Fact(DisplayName = "Init makes the sys.alerts definition Active with a Ready name-keyed slot, a NextRunAtUtc, and a default schedule")]
+    [Fact(DisplayName = "Init makes the sys.alerts definition Active with an Idle permanent slot and a default schedule")]
     public async Task Initialize_auto_registers_the_maintenance_system_job()
     {
         var ct = TestContext.Current.CancellationToken;
@@ -36,20 +36,20 @@ public sealed class FrameworkJobRegistrationSpec : ActaRuntimeTestBase<Conforman
         Assert.NotNull(def);
         Assert.Equal(DefinitionStatusCode.Active, def!.Status);
 
-        // The recurring slot job carries the job name as its deduplication_key.
+        // The permanent slot is the definition's one job of its kind; it carries no key.
         var slot = await Db.From<JobEntity>()
-            .Where(j => j.NamespaceId == ns && j.DeduplicationKey == "sys.alerts")
+            .Where(j => j.DefinitionId == def.Id && j.Kind == JobKindCode.PermanentSlot)
             .SingleOrDefaultAsync(ct);
         Assert.NotNull(slot);
         var slotRow = await ReadJobAsync(slot!.Id, ct);
-        Assert.Equal(JobStatusCode.Ready, slotRow.Status);
-        Assert.NotNull(slotRow.NextRunAtUtc);
+        Assert.Equal(JobStatusCode.Idle, slotRow.Status);
+        Assert.Null(slotRow.NextRunAtUtc);
 
         var schedules = await Db.From<ScheduleEntity>().Where(s => s.DefinitionId == def.Id).ToListAsync(ct);
         Assert.Equal("default", Assert.Single(schedules).ScheduleName);
     }
 
-    [Fact(DisplayName = "Init makes the sys.retention definition Active with a Ready name-keyed slot and an hourly default schedule")]
+    [Fact(DisplayName = "Init makes the sys.retention definition Active with an Idle permanent slot and an hourly default schedule")]
     public async Task Initialize_auto_registers_the_purge_expired_data_system_job()
     {
         var ct = TestContext.Current.CancellationToken;
@@ -61,13 +61,14 @@ public sealed class FrameworkJobRegistrationSpec : ActaRuntimeTestBase<Conforman
         Assert.NotNull(def);
         Assert.Equal(DefinitionStatusCode.Active, def!.Status);
 
+        // The permanent slot is the definition's one job of its kind; it carries no key.
         var slot = await Db.From<JobEntity>()
-            .Where(j => j.NamespaceId == ns && j.DeduplicationKey == "sys.retention")
+            .Where(j => j.DefinitionId == def.Id && j.Kind == JobKindCode.PermanentSlot)
             .SingleOrDefaultAsync(ct);
         Assert.NotNull(slot);
         var slotRow = await ReadJobAsync(slot!.Id, ct);
-        Assert.Equal(JobStatusCode.Ready, slotRow.Status);
-        Assert.NotNull(slotRow.NextRunAtUtc);
+        Assert.Equal(JobStatusCode.Idle, slotRow.Status);
+        Assert.Null(slotRow.NextRunAtUtc);
 
         var schedule = Assert.Single(await Db.From<ScheduleEntity>().Where(s => s.DefinitionId == def.Id).ToListAsync(ct));
         Assert.Equal("default", schedule.ScheduleName);

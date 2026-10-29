@@ -61,6 +61,7 @@ BEGIN TRY
 
     IF
         @from_status NOT IN (
+            40 /* JobStatusCode.Idle */,
             30 /* JobStatusCode.Paused */,
             20 /* JobStatusCode.Suspended */,
             10 /* JobStatusCode.Ready */,
@@ -79,7 +80,7 @@ BEGIN TRY
     UPDATE {{schema}}.jobs_state
     SET
         job_status_code = 30 /* JobStatusCode.Paused */,
-        -- Always a next run, which is what marks this pause as held (ScheduleWalker, "held").
+        -- Always a next run: a resume re-arms a one-shot at it, and a slot's resume decides Idle or Ready for itself.
         next_run_at_utc = COALESCE(next_run_at_utc, @now),
         modified_at_utc = @now,
         version = version + 1

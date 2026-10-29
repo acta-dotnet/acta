@@ -67,6 +67,16 @@ BEGIN TRY
             GOTO Finish;
         END;
 
+    -- A slot with no firing outstanding resumes Idle, for admission to find; one paused mid-firing resumes Ready to run it.
+    IF EXISTS (SELECT 1 FROM {{schema}}.jobs j WHERE j.job_id = @p_job_id AND j.job_kind_code = 20 /* JobKindCode.PermanentSlot */)
+        AND NOT EXISTS (
+            SELECT 1
+            FROM {{schema}}.checkpoints cp
+            WHERE cp.job_id = @p_job_id AND cp.checkpoint_kind_code = 60 /* CheckpointKindCode.Firing */
+                AND cp.checkpoint_name = 'sys.firing' AND cp.checkpoint_status_code = 10 /* CheckpointStatusCode.Pending */
+        )
+        SET @to_status = 40 /* JobStatusCode.Idle */;
+
     /* A laned job resumes Ready unless another member runs or an older member is unfinished
        (docs/sql-internals.md, "Lane lock order"). */
     IF
@@ -95,11 +105,25 @@ BEGIN TRY
     UPDATE {{schema}}.jobs_state
     SET
         job_status_code = @to_status,
-        next_run_at_utc = COALESCE(@p_next_run_at_utc, @now),
+        next_run_at_utc = CASE WHEN @to_status = 40 /* JobStatusCode.Idle */ THEN NULL ELSE COALESCE(@p_next_run_at_utc, @now) END,
         modified_at_utc = @now,
         version = version + 1
     WHERE job_id = @p_job_id;
     SET @version = @version + 1;
+
+    -- The members parked on the slot evaluate again now that it is Idle.
+    IF @to_status = 40 /* JobStatusCode.Idle */
+        UPDATE st
+        SET
+            next_evaluation_at_utc = @now,
+            evaluation_status_code = 10 /* EvaluationStatusCode.Scheduled */,
+            modified_at_utc = @now,
+            version = st.version + 1
+        FROM {{schema}}.schedules_state st WITH (FORCESEEK)
+        INNER JOIN {{schema}}.schedules js ON js.schedule_id = st.schedule_id
+        WHERE
+            js.job_id = @p_job_id
+            AND st.evaluation_status_code IN (20 /* EvaluationStatusCode.WaitingForCapacity */, 50 /* EvaluationStatusCode.SlotUnavailable */);
 
     IF @event_recording = 20 /* EventRecordingCode.Audit */
         BEGIN

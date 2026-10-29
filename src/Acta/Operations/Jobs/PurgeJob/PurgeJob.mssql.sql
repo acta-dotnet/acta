@@ -34,12 +34,29 @@ BEGIN TRY
             GOTO Finish;
         END;
 
-    IF
-        @from_status NOT IN (
-            100 /* JobStatusCode.Succeeded */,
-            200 /* JobStatusCode.Failed */,
-            220 /* JobStatusCode.Cancelled */
-        )
+    /* A finished job may go; a permanent slot only with no firing outstanding and no live schedule pinning it, the
+       deliberate decommission of a slot whose schedules are all orphaned or whose definition is retired. */
+    DECLARE @eligible BIT = CASE
+        WHEN NOT EXISTS (SELECT 1 FROM {{schema}}.jobs j WHERE j.job_id = @p_job_id AND j.job_kind_code = 20 /* JobKindCode.PermanentSlot */)
+            THEN CASE WHEN @from_status IN (100 /* JobStatusCode.Succeeded */, 200 /* JobStatusCode.Failed */, 220 /* JobStatusCode.Cancelled */) THEN 1 ELSE 0 END
+        WHEN @from_status NOT IN (40 /* JobStatusCode.Idle */, 200 /* JobStatusCode.Failed */, 220 /* JobStatusCode.Cancelled */) THEN 0
+        WHEN EXISTS (
+            SELECT 1
+            FROM {{schema}}.checkpoints cp WITH (FORCESEEK)
+            WHERE cp.job_id = @p_job_id AND cp.checkpoint_kind_code = 60 /* CheckpointKindCode.Firing */
+                AND cp.checkpoint_name = 'sys.firing' AND cp.checkpoint_status_code = 10 /* CheckpointStatusCode.Pending */
+        ) THEN 0
+        WHEN EXISTS (
+            SELECT 1
+            FROM {{schema}}.schedules sc
+            INNER JOIN {{schema}}.definitions d ON d.definition_id = sc.definition_id
+            WHERE sc.job_id = @p_job_id AND sc.schedule_status_code <> 230 /* ScheduleStatusCode.Orphaned */
+                AND d.definition_status_code <> 240 /* DefinitionStatusCode.Retired */
+        ) THEN 0
+        ELSE 1
+    END;
+
+    IF @eligible = 0
         BEGIN
 
             SELECT
@@ -100,8 +117,9 @@ BEGIN TRY
         WHERE job_id = @p_job_id
     );
     DECLARE @cursors_locked INT = (
-        SELECT COUNT(*) FROM {{schema}}.schedules_state WITH (UPDLOCK, ROWLOCK, FORCESEEK)
-        WHERE job_id = @p_job_id
+        SELECT COUNT(*) FROM {{schema}}.schedules_state st WITH (UPDLOCK, ROWLOCK, FORCESEEK)
+        INNER JOIN {{schema}}.schedules s ON s.schedule_id = st.schedule_id
+        WHERE s.job_id = @p_job_id
     );
     -- The job's alerts are read through ix_alerts_job without locks, which the held job row makes safe, then
     -- each identity row is locked through its identity key before the row and the delete locks the rest
@@ -131,10 +149,11 @@ BEGIN TRY
     WHERE c.job_id = @p_job_id;
     DELETE t FROM {{schema}}.steps t WITH (FORCESEEK)
     WHERE t.job_id = @p_job_id;
+    DELETE st FROM {{schema}}.schedules_state st WITH (FORCESEEK)
+    INNER JOIN {{schema}}.schedules s ON s.schedule_id = st.schedule_id
+    WHERE s.job_id = @p_job_id;
     DELETE s FROM {{schema}}.schedules s WITH (FORCESEEK)
     WHERE s.job_id = @p_job_id;
-    DELETE st FROM {{schema}}.schedules_state st WITH (FORCESEEK)
-    WHERE st.job_id = @p_job_id;
     DELETE FROM {{schema}}.jobs
     WHERE job_id = @p_job_id;
     DELETE FROM {{schema}}.jobs_state

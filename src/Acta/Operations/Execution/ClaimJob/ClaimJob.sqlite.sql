@@ -31,6 +31,7 @@ SELECT
     j.definition_id,
     r.execution_number,
     j.deduplication_key,
+    j.job_kind_code,
     j.correlation_key,
     j.concurrency_key,
     j.input_format_id,

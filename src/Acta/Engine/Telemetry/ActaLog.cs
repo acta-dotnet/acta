@@ -58,6 +58,12 @@ internal static partial class ActaLog
     public static partial void ClaimIterationFailed(ILogger log, Exception exception, long actaDurationMs);
 
     [LoggerMessage(
+        Level = LogLevel.Error,
+        Message = "WorkerRuntime: admission pass failed for namespace ({ActaNamespace}); retrying after the safety poll."
+    )]
+    public static partial void AdmissionPassFailed(ILogger log, Exception exception, string actaNamespace);
+
+    [LoggerMessage(
         Level = LogLevel.Warning,
         Message = "Acta worker clock skew {ActaDurationMs}ms exceeds the warn threshold for namespace ({ActaNamespace}) ({ActaDetail}); lease and schedule timing may drift."
     )]

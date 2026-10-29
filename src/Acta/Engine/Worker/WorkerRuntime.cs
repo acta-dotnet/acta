@@ -23,6 +23,7 @@ internal sealed class WorkerRuntime
     private readonly WorkerClaimer _claimer;
     private readonly int _executorCount;
     private readonly WorkerHeartbeat _heartbeat;
+    private readonly ScheduleAdmitter _admitter;
 
     /// <summary>
     /// Cancelled by BeginDrain to stop the claimer while the heartbeat and
@@ -116,6 +117,16 @@ internal sealed class WorkerRuntime
             logger,
             metrics
         );
+        _admitter = new ScheduleAdmitter(
+            rootServices.GetRequiredService<SchedulesOperations>(),
+            clock,
+            _context,
+            wake,
+            publisher,
+            options.Value,
+            logger,
+            metrics
+        );
         _heartbeat = new WorkerHeartbeat(
             rootServices.GetRequiredService<WorkersOperations>(),
             rootServices.GetRequiredService<DefinitionsOperations>(),
@@ -154,9 +165,6 @@ internal sealed class WorkerRuntime
 
     public IReadOnlyDictionary<string, int> RegisteredNamespaceIds => _context.RegisteredNamespaceIds;
 
-    /// <summary>The recurring slot jobs this worker registered or recognized on claim.</summary>
-    internal ICollection<long> RecurringSlotJobIds => _context.RecurringSlotJobIds.Keys;
-
     public bool TryGetDefinitionId(string namespaceName, string jobName, out int definitionId) =>
         _context.TryGetDefinitionId(namespaceName, jobName, out definitionId);
 
@@ -179,7 +187,9 @@ internal sealed class WorkerRuntime
         // takes, and in-flight execution run on ct, so a drain finishes in-flight work before DrainCompletion completes.
         var pipeline = RunPipelineAsync(ct, _drainCts.Token);
         DrainCompletion = pipeline;
-        return Task.WhenAll(DrainCompletion, _heartbeat.RunAsync(ct));
+        // The admitter stops with the claimer on a drain: a draining host admits nothing new.
+        var admission = WorkerNamespaceName is null ? Task.CompletedTask : _admitter.RunAsync(WorkerNamespaceName, _drainCts.Token);
+        return Task.WhenAll(DrainCompletion, _heartbeat.RunAsync(ct), admission);
     }
 
     public Task RunLoopAsync(CancellationToken ct) => RunPipelineAsync(ct, ct);
@@ -260,4 +270,10 @@ internal sealed class WorkerRuntime
     /// cancel handlers whose job or lock was lost. Drives deterministic tests and the CLI's jobs debug pump.
     /// </summary>
     public Task RunHeartbeatOnceAsync(CancellationToken ct) => _heartbeat.TickAsync(ct);
+
+    /// <summary>
+    /// Run exactly one admission pass over <paramref name="namespaceName"/>: evaluate every slot with a due schedule,
+    /// admit what the policies select, and park the rest. Drives deterministic tests; the host runs it in a loop.
+    /// </summary>
+    public Task<AdmissionPass> AdmitOnceAsync(string namespaceName, CancellationToken ct) => _admitter.AdmitOnceAsync(namespaceName, ct);
 }

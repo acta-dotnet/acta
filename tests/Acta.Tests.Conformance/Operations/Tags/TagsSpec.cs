@@ -221,8 +221,12 @@ public sealed class TagsSpec : ActaRuntimeTestBase<ConformanceFixture, TestJobsM
     public async Task Manual_purge_cleans_the_job_tags()
     {
         var ct = TestContext.Current.CancellationToken;
-        var lookup = JobLookup.ByDeduplicationKey(TestNamespace, "recurring-ping");
-        var jobId = Assert.IsType<long>((await Jobs.GetJobIdAsync(lookup, ct))?.JobId);
+        var enqueued = await Jobs.EnqueueAsync(
+            new EnqueueJobRequest(TestNamespace, "echo", JobPayload.Json(new TestJobs.Echo("tagged"))),
+            ct
+        );
+        var lookup = JobLookup.ById(enqueued.JobId);
+        var jobId = enqueued.JobId;
         var namespaceId = Runtime.RegisteredNamespaceIds[TestNamespace];
 
         Assert.Equal(ControlAction.Applied, (await Jobs.CancelAsync(lookup, ct: ct)).Action);
@@ -246,8 +250,12 @@ public sealed class TagsSpec : ActaRuntimeTestBase<ConformanceFixture, TestJobsM
     public async Task Mutation_delete_race_leaves_no_orphan_tag()
     {
         var ct = TestContext.Current.CancellationToken;
-        var lookup = JobLookup.ByDeduplicationKey(TestNamespace, "recurring-ping");
-        var jobId = Assert.IsType<long>((await Jobs.GetJobIdAsync(lookup, ct))?.JobId);
+        var enqueued = await Jobs.EnqueueAsync(
+            new EnqueueJobRequest(TestNamespace, "echo", JobPayload.Json(new TestJobs.Echo("tagged"))),
+            ct
+        );
+        var lookup = JobLookup.ById(enqueued.JobId);
+        var jobId = enqueued.JobId;
         Assert.Equal(ControlAction.Applied, (await Jobs.CancelAsync(lookup, ct: ct)).Action);
 
         var mutationTask = Operations.Tags.UpsertAsync(TagTarget.ForJob(lookup), new TagInput("race", "mutation"), ct: ct).AsTask();

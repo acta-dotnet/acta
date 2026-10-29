@@ -7,10 +7,9 @@ using Xunit;
 namespace Acta.Tests.Conformance.Operations.Schedules;
 
 /// <summary>
-/// An operator's pause or cancel of a recurring job holds until an operator lifts it. A job pause leaves a
-/// next run, which marks it held (<c>ScheduleWalker.IsHeld</c>), and startup and the schedule verbs leave a
-/// held or finished slot alone. A slot whose schedules offer no run, a deploy that dropped them included,
-/// is Paused with no next run and runs again once a schedule offers one.
+/// An operator's pause or cancel of a recurring job holds until an operator lifts it: startup, the schedule verbs,
+/// and the admitter leave a held or finished slot alone. A slot whose schedules offer no run, a deploy that dropped
+/// them included, stays Idle and fires again once a schedule offers one.
 /// </summary>
 [ConformanceSpec(
     "schedule.job-pause-holds",
@@ -23,69 +22,71 @@ public sealed class RecurringJobPauseSpec : ActaRuntimeTestBase<ConformanceFixtu
     private const string JobName = "recurring-ping";
     private const string ScheduleName = "every-5-minutes";
 
-    private JobLookup Slot => JobLookup.ByDeduplicationKey(TestNamespace, JobName);
+    private ScheduleLookup Schedule => new(TestNamespace, JobName, ScheduleName);
 
-    [Fact(DisplayName = "A paused recurring job stays paused when the worker starts again, and a resume makes it Ready")]
+    private async Task<JobLookup> SlotAsync(CancellationToken ct) =>
+        JobLookup.ById(await ScheduleTestOps.SlotIdAsync(Db, TestNamespace, JobName, ct));
+
+    [Fact(DisplayName = "A paused recurring job stays paused when the worker starts again, and a resume returns it to Idle")]
     public async Task A_paused_recurring_job_stays_paused_across_a_restart()
     {
         var ct = TestContext.Current.CancellationToken;
-        Assert.Equal(ControlAction.Applied, (await Jobs.PauseAsync(Slot, ct: ct)).Action);
+        Assert.Equal(ControlAction.Applied, (await Jobs.PauseAsync(await SlotAsync(ct), ct: ct)).Action);
 
         // A second startup on the same runtime re-runs registration and the schedule reconcile.
         await Runtime.InitializeAsync(ct);
 
-        Assert.Equal(JobStatusCode.Paused, (await Jobs.GetStatusAsync(Slot, ct))?.Status);
-        Assert.Equal(ControlAction.Applied, (await Jobs.ResumeAsync(Slot, ct: ct)).Action);
-        Assert.Equal(JobStatusCode.Ready, (await Jobs.GetStatusAsync(Slot, ct))?.Status);
+        Assert.Equal(JobStatusCode.Paused, (await Jobs.GetStatusAsync(await SlotAsync(ct), ct))?.Status);
+        Assert.Equal(ControlAction.Applied, (await Jobs.ResumeAsync(await SlotAsync(ct), ct: ct)).Action);
+        Assert.Equal(JobStatusCode.Idle, (await Jobs.GetStatusAsync(await SlotAsync(ct), ct))?.Status);
     }
 
     [Fact(DisplayName = "Pausing and resuming the only schedule of a paused recurring job leaves the job paused")]
     public async Task Pausing_and_resuming_its_only_schedule_leaves_a_paused_job_paused()
     {
         var ct = TestContext.Current.CancellationToken;
-        Assert.Equal(ControlAction.Applied, (await Jobs.PauseAsync(Slot, ct: ct)).Action);
-        var lookup = new ScheduleLookup(Slot, ScheduleName);
+        Assert.Equal(ControlAction.Applied, (await Jobs.PauseAsync(await SlotAsync(ct), ct: ct)).Action);
+        var lookup = Schedule;
 
         Assert.Equal(ControlAction.Applied, (await Operations.Schedules.PauseAsync(lookup, ct: ct)).Action);
         Assert.Equal(ControlAction.Applied, (await Operations.Schedules.ResumeAsync(lookup, ct: ct)).Action);
 
-        Assert.Equal(JobStatusCode.Paused, (await Jobs.GetStatusAsync(Slot, ct))?.Status);
-        Assert.Equal(ControlAction.Applied, (await Jobs.ResumeAsync(Slot, ct: ct)).Action);
-        Assert.Equal(JobStatusCode.Ready, (await Jobs.GetStatusAsync(Slot, ct))?.Status);
+        Assert.Equal(JobStatusCode.Paused, (await Jobs.GetStatusAsync(await SlotAsync(ct), ct))?.Status);
+        Assert.Equal(ControlAction.Applied, (await Jobs.ResumeAsync(await SlotAsync(ct), ct: ct)).Action);
+        Assert.Equal(JobStatusCode.Idle, (await Jobs.GetStatusAsync(await SlotAsync(ct), ct))?.Status);
     }
 
-    [Fact(DisplayName = "Editing or triggering a schedule of a paused recurring job leaves the job paused")]
+    [Fact(DisplayName = "Pausing, resuming, or triggering a schedule of a paused recurring job leaves the job paused")]
     public async Task Schedule_verbs_leave_a_paused_recurring_job_paused()
     {
         var ct = TestContext.Current.CancellationToken;
-        Assert.Equal(ControlAction.Applied, (await Jobs.PauseAsync(Slot, ct: ct)).Action);
-        var slotId = ((await Jobs.GetJobIdAsync(Slot, ct))?.JobId)!.Value;
-        var schedule = Assert.Single(
-            await Db.From<ScheduleEntity>().Where(s => s.JobId == slotId && s.ScheduleName == ScheduleName).ToListAsync(ct)
-        );
-        var lookup = new ScheduleLookup(Slot, ScheduleName);
+        Assert.Equal(ControlAction.Applied, (await Jobs.PauseAsync(await SlotAsync(ct), ct: ct)).Action);
+        var lookup = Schedule;
 
-        var edited = await Operations.Schedules.UpdateOverridesAsync(lookup, schedule.Version, "*/10 * * * *", null, ct: ct);
-        Assert.Equal(ControlAction.Applied, edited.Action);
-        Assert.Equal(JobStatusCode.Paused, (await Jobs.GetStatusAsync(Slot, ct))?.Status);
+        Assert.Equal(ControlAction.Applied, (await Operations.Schedules.PauseAsync(lookup, ct: ct)).Action);
+        Assert.Equal(JobStatusCode.Paused, (await Jobs.GetStatusAsync(await SlotAsync(ct), ct))?.Status);
+        Assert.Equal(ControlAction.Applied, (await Operations.Schedules.ResumeAsync(lookup, ct: ct)).Action);
+        Assert.Equal(JobStatusCode.Paused, (await Jobs.GetStatusAsync(await SlotAsync(ct), ct))?.Status);
 
         Assert.Equal(ControlAction.Rejected, (await Operations.Schedules.TriggerNowAsync(lookup, ct: ct)).Action);
-        Assert.Equal(JobStatusCode.Paused, (await Jobs.GetStatusAsync(Slot, ct))?.Status);
+        Assert.Equal(JobStatusCode.Paused, (await Jobs.GetStatusAsync(await SlotAsync(ct), ct))?.Status);
     }
 
     [Fact(DisplayName = "A cancelled recurring job stays cancelled when the worker starts again")]
     public async Task A_cancelled_recurring_job_stays_cancelled_across_a_restart()
     {
         var ct = TestContext.Current.CancellationToken;
-        Assert.Equal(ControlAction.Applied, (await Jobs.CancelAsync(Slot, ct: ct)).Action);
+        Assert.Equal(ControlAction.Applied, (await Jobs.CancelAsync(await SlotAsync(ct), ct: ct)).Action);
 
         await Runtime.InitializeAsync(ct);
 
-        Assert.Equal(JobStatusCode.Cancelled, (await Jobs.GetStatusAsync(Slot, ct))?.Status);
+        Assert.Equal(JobStatusCode.Cancelled, (await Jobs.GetStatusAsync(await SlotAsync(ct), ct))?.Status);
     }
 
-    [Fact(DisplayName = "A deploy that drops a recurring job's schedules pauses it, and their return makes it Ready")]
-    public async Task Dropped_schedules_pause_the_job_until_they_return()
+    [Fact(
+        DisplayName = "A deploy that drops a recurring job's schedules leaves it Idle with nothing due, and their return re-arms the schedule"
+    )]
+    public async Task Dropped_schedules_leave_the_job_idle_until_they_return()
     {
         var ct = TestContext.Current.CancellationToken;
 
@@ -94,16 +95,20 @@ public sealed class RecurringJobPauseSpec : ActaRuntimeTestBase<ConformanceFixtu
         {
             await dropped.GetServices<WorkerRuntime>().Single().InitializeAsync(ct);
         }
-        var slotId = ((await Jobs.GetJobIdAsync(Slot, ct))?.JobId)!.Value;
+        var slotId = await ScheduleTestOps.SlotIdAsync(Db, TestNamespace, JobName, ct);
         var idle = await ReadJobAsync(slotId, ct);
-        Assert.Equal(JobStatusCode.Paused, idle.Status);
+        Assert.Equal(JobStatusCode.Idle, idle.Status);
         Assert.Null(idle.NextRunAtUtc);
+        var orphaned = Assert.Single(await ScheduleTestOps.ReadAsync(Db, slotId, ct));
+        Assert.Equal(ScheduleStatusCode.Orphaned, orphaned.Status);
+        Assert.Null(orphaned.NextEvaluationAtUtc);
 
-        // The schedule comes back with the next deploy.
+        // The schedule comes back with the next deploy, due for the admitter again.
         await Runtime.InitializeAsync(ct);
 
-        var back = await ReadJobAsync(slotId, ct);
-        Assert.Equal(JobStatusCode.Ready, back.Status);
-        Assert.NotNull(back.NextRunAtUtc);
+        Assert.Equal(JobStatusCode.Idle, (await ReadJobAsync(slotId, ct)).Status);
+        var back = Assert.Single(await ScheduleTestOps.ReadAsync(Db, slotId, ct));
+        Assert.Equal(ScheduleStatusCode.Active, back.Status);
+        Assert.NotNull(back.NextEvaluationAtUtc);
     }
 }

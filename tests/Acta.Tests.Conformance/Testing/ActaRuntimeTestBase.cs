@@ -38,9 +38,9 @@ public abstract class ActaRuntimeTestBase<TFixture, TManifest> : ActaTestBase<TF
     protected virtual bool RegisterSystemJobs => false;
 
     /// <summary>
-    /// When <c>true</c> (default), the manifest's seeded schedule slots are parked a day out after
-    /// <c>InitializeAsync</c>. Slots seed <c>next_run_at_utc</c> at the next cron boundary, so any
-    /// test that straddles that instant would see them become claimable and contaminate
+    /// When <c>true</c> (default), the manifest's seeded schedules are parked a day out after
+    /// <c>InitializeAsync</c>. Schedules seed their cursor and next evaluation at the next cron boundary, so any
+    /// test that straddles that instant would see the admitter fire their slots and contaminate
     /// namespace-wide claim, drain, and overview assertions. Schedule specs that assert real
     /// firing/cursor behavior override to <c>false</c>.
     /// </summary>
@@ -72,19 +72,27 @@ public abstract class ActaRuntimeTestBase<TFixture, TManifest> : ActaTestBase<TF
         var ct = TestContext.Current.CancellationToken;
         await Runtime.InitializeAsync(ct);
 
-        var slots = Runtime.RecurringSlotJobIds.ToList();
+        var namespaceId = Runtime.RegisteredNamespaceIds[TestNamespace];
+        var slots = (
+            await Db.From<JobEntity>().Where(j => j.NamespaceId == namespaceId && j.Kind == JobKindCode.PermanentSlot).ToListAsync(ct)
+        )
+            .Select(j => j.Id)
+            .ToList();
         if (ParkScheduleSlots && slots.Count > 0)
         {
             // Addressed by job id, so every write seeks: a filter on namespace and status reaches no
             // filtered index through the test query layer's parameters, and scans the whole shared schema.
             var parked = DateTime.UtcNow.AddDays(1);
             var dialect = Services.GetRequiredService<ISqlDialect>();
+            var scheduleIds = (await Db.From<ScheduleEntity>().Where(s => slots.Contains(s.JobId)).ToListAsync(ct))
+                .Select(s => s.Id)
+                .ToList();
             await RetryTransientConflictAsync(
                 dialect,
                 () =>
                     Db.From<ScheduleStateEntity>()
-                        .Where(s => slots.Contains(s.JobId) && s.NextOccurrenceAtUtc != null)
-                        .UpdateOnlyAsync(() => new ScheduleStateEntity { NextOccurrenceAtUtc = parked }, ct),
+                        .Where(s => scheduleIds.Contains(s.Id) && s.NextOccurrenceAtUtc != null)
+                        .UpdateOnlyAsync(() => new ScheduleStateEntity { NextOccurrenceAtUtc = parked, NextEvaluationAtUtc = parked }, ct),
                 ct
             );
             await RetryTransientConflictAsync(

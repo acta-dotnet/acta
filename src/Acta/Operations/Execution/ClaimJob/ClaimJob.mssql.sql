@@ -22,6 +22,7 @@ BEGIN TRY
             tenant_id INT NULL,
             execution_number INT NOT NULL,
             deduplication_key VARCHAR(128) COLLATE Latin1_General_100_BIN2_UTF8 NULL,
+            job_kind_code TINYINT NOT NULL,
             correlation_key VARCHAR(64) NULL,
             concurrency_key VARCHAR(128) COLLATE Latin1_General_100_BIN2_UTF8 NULL,
             input_format_id TINYINT NOT NULL,
@@ -58,13 +59,13 @@ BEGIN TRY
         version = r.version + 1
     OUTPUT
         INSERTED.job_id, j.job_ref, j.definition_id, j.tenant_id,
-        INSERTED.execution_number, j.deduplication_key, j.correlation_key, j.concurrency_key,
+        INSERTED.execution_number, j.deduplication_key, j.job_kind_code, j.correlation_key, j.concurrency_key,
         j.input_format_id, j.input, INSERTED.next_run_at_utc, j.created_at_utc,
         INSERTED.failure_count, INSERTED.lane_id, j.parent_job_id
     INTO
         @claimed (
             job_id, job_ref, definition_id, tenant_id, execution_number,
-            deduplication_key, correlation_key, concurrency_key,
+            deduplication_key, job_kind_code, correlation_key, concurrency_key,
             input_format_id, input, next_run_at_utc, created_at_utc,
             failure_count, lane_id, parent_job_id
         )
@@ -80,6 +81,7 @@ BEGIN TRY
         definition_id,
         execution_number,
         deduplication_key,
+        job_kind_code,
         correlation_key,
         concurrency_key,
         input_format_id,

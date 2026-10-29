@@ -40,7 +40,7 @@ public sealed class CodeFamilyEmitterTests
         Assert.DoesNotContain("| Style |", markdown, StringComparison.Ordinal);
         Assert.DoesNotContain("| Set by |", markdown, StringComparison.Ordinal);
         Assert.DoesNotContain("At a glance", markdown, StringComparison.Ordinal);
-        Assert.DoesNotContain("Capacity", markdown, StringComparison.Ordinal);
+        Assert.DoesNotContain("| Capacity |", markdown, StringComparison.Ordinal);
     }
 
     private static string ResolveRepoRoot()

@@ -59,7 +59,9 @@ public sealed class ReclaimStuckJobsSpec : ActaRuntimeTestBase<ConformanceFixtur
         }
     }
 
-    [Theory(DisplayName = "Reclaim saturates the failure count at 32,767: a recurring slot keeps re-arming and the count stops climbing")]
+    [Theory(
+        DisplayName = "Reclaim saturates the failure count at 32,767: a slot's spent budget returns it to Idle and the count stops climbing"
+    )]
     [InlineData(32_766)]
     [InlineData(32_767)]
     public async Task Reclaim_saturates_the_failure_count(int staged)
@@ -90,7 +92,7 @@ public sealed class ReclaimStuckJobsSpec : ActaRuntimeTestBase<ConformanceFixtur
         Assert.Equal(1, (await RecoverySweep.ReclaimAtLeastOneAsync(Services, ns, ct)).Reclaimed);
 
         var slot = await ReadJobAsync(slotId, ct);
-        Assert.Equal(JobStatusCode.Ready, slot.Status);
+        Assert.Equal(JobStatusCode.Idle, slot.Status);
         Assert.Equal(32_767, slot.FailureCount);
         Assert.Equal(
             EventReason.LeaseExpired,

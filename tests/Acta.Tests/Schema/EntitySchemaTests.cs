@@ -89,21 +89,31 @@ public class EntitySchemaTests
         var config = ActaSchema.For<ScheduleEntity>();
         var state = ActaSchema.For<ScheduleStateEntity>();
 
-        Assert.Equal(["job_id", "schedule_name"], config.PrimaryKey.Columns);
+        Assert.Equal(["schedule_id"], config.PrimaryKey.Columns);
         Assert.Equal("schedules_state", state.TableName);
         Assert.Equal("pk_schedules_state", state.PrimaryKey.Name);
-        Assert.Equal(["job_id", "schedule_name"], state.PrimaryKey.Columns);
+        Assert.Equal(["schedule_id"], state.PrimaryKey.Columns);
         Assert.DoesNotContain(config.Columns, c => c.Name.Contains("occurrence", StringComparison.Ordinal));
-        Assert.Empty(config.Indexes);
         Assert.Equal(
-            ["job_id", "schedule_name", "namespace_id", "next_occurrence_at_utc", "last_advanced_occurrence_at_utc", "modified_at_utc"],
+            [
+                "schedule_id",
+                "namespace_id",
+                "next_occurrence_at_utc",
+                "decided_through_at_utc",
+                "next_evaluation_at_utc",
+                "evaluation_status_code",
+                "version",
+                "modified_at_utc",
+            ],
             state.Columns.Select(c => c.Name)
         );
 
-        var index = Assert.Single(state.Indexes);
-        Assert.Equal("ix_schedules_state_namespace_next", index.Name);
-        Assert.Equal(["namespace_id", "next_occurrence_at_utc", "job_id", "schedule_name"], index.Columns);
+        var index = Assert.Single(state.Indexes, i => i.Name == "ix_schedules_state_namespace_next");
+        Assert.Equal(["namespace_id", "next_occurrence_at_utc", "schedule_id"], index.Columns);
         Assert.Equal("next_occurrence_at_utc IS NOT NULL", index.Filter);
+        var due = Assert.Single(state.Indexes, i => i.Name == "ix_schedules_state_due");
+        Assert.Equal(["namespace_id", "next_evaluation_at_utc", "schedule_id"], due.Columns);
+        Assert.Equal("next_evaluation_at_utc IS NOT NULL", due.Filter);
     }
 
     [Fact]

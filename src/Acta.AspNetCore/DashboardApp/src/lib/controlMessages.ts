@@ -17,8 +17,8 @@ export function jobControlMessage(verb: string, action: string): string {
   }
 }
 
-// Schedule verbs at schedules/{ns}/{job}/{schedule}/{verb}: pause, resume, trigger, overrides. Only the
-// overrides save is version-guarded, so only it answers versionConflict.
+// Schedule verbs at schedules/{ns}/{job}/{schedule}/{verb}: pause, resume, trigger. None is version-guarded,
+// so versionConflict is wording kept for a verb that gains a token.
 export function scheduleControlMessage(verb: string, action: string): string {
   switch (action) {
     case 'applied':

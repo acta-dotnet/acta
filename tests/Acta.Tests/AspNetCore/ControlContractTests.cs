@@ -102,7 +102,6 @@ public sealed class ControlContractTests
         .. ScheduleVerb("pause", typeof(PauseScheduleResponse)),
         .. ScheduleVerb("resume", typeof(ResumeScheduleResponse)),
         .. ScheduleVerb("trigger", typeof(TriggerScheduleNowResponse)),
-        .. ScheduleOverrides(),
         .. DefinitionOverrides(),
         .. DefinitionRetire(),
         .. AlertVerb("acknowledge", typeof(AcknowledgeAlertResponse)),
@@ -348,47 +347,6 @@ public sealed class ControlContractTests
         ];
     }
 
-    // The one schedule verb with a CAS token: its 409 is a version conflict, and the response carries
-    // the row's current version so the caller retries without a re-read.
-    private static IEnumerable<Case> ScheduleOverrides()
-    {
-        const string route = "/schedules/{jobNamespace}/{jobName}/{scheduleName}/overrides";
-        object body = new { expectedVersion = 1, reasonMessage = "because" };
-        static string Path(string scheduleName) => $"/schedules/billing/send-invoice/{scheduleName}/overrides";
-        return
-        [
-            Schedule(
-                route,
-                "applied",
-                Path("nightly"),
-                StatusCodes.Status200OK,
-                typeof(SetScheduleOverridesResponse),
-                "applied",
-                body,
-                version: 2
-            ),
-            Schedule(
-                route,
-                "versionConflict",
-                Path("nightly"),
-                StatusCodes.Status409Conflict,
-                typeof(SetScheduleOverridesResponse),
-                "versionConflict",
-                new { expectedVersion = 999, reasonMessage = "because" },
-                version: 7
-            ),
-            Schedule(
-                route,
-                "notFound",
-                Path("missing"),
-                StatusCodes.Status404NotFound,
-                typeof(SetScheduleOverridesResponse),
-                "notFound",
-                body
-            ),
-        ];
-    }
-
     private static Case Schedule(
         string route,
         string outcome,
@@ -608,8 +566,9 @@ public sealed class ControlContractTests
         var failures = new List<string>();
 
         // A table that lost its rows, or a graph read that found no declarations, would pass every
-        // check below by having nothing to check. Both counts only grow, so they pin the traversal.
-        Assert.True(Table.Count > 100, $"the contract table holds only {Table.Count} rows; it lost its families.");
+        // check below by having nothing to check. The floors sit just under the counts a deleted verb
+        // leaves (rc.7 deleted the schedule overrides), so they pin the traversal without pinning a family.
+        Assert.True(Table.Count > 90, $"the contract table holds only {Table.Count} rows; it lost its families.");
         Assert.True(declared.Count > 50, $"the endpoint graph declared only {declared.Count} JSON responses; the read is broken.");
 
         // The required-member check below reads the committed document by type name, so a renamed

@@ -239,17 +239,8 @@ internal static class AlertTestOps
     /// The internal job id of a seeded recurring slot, looked up by its deduplication key, which for
     /// a recurring slot is the definition's job name.
     /// </summary>
-    public static async Task<long> RecurringSlotIdAsync(
-        IServiceProvider services,
-        string jobNamespace,
-        string jobName,
-        CancellationToken ct
-    )
-    {
-        var id = (await services.GetRequiredService<IJobs>().GetJobIdAsync(JobLookup.ByDeduplicationKey(jobNamespace, jobName), ct))?.JobId;
-        Assert.NotNull(id);
-        return id!.Value;
-    }
+    public static Task<long> RecurringSlotIdAsync(IServiceProvider services, string jobNamespace, string jobName, CancellationToken ct) =>
+        ScheduleTestOps.SlotIdAsync(services.GetRequiredService<IDbSession>(), jobNamespace, jobName, ct);
 
     // Claim with the lease already lapsed so the recovery sweep reclaims the attempt with no
     // real-time wait, exactly as ReclaimStuckJobsSpec does. Never reaches JobsOptions, which rejects a
@@ -278,8 +269,8 @@ internal static class AlertTestOps
     }
 
     /// <summary>
-    /// The harness parks seeded slots a day out; this pulls one back so a by-id claim, which filters
-    /// on <c>next_run_at_utc</c> like every other claim, can take it.
+    /// A slot sits Idle until admission; this stages it Ready and due, as an admitted firing would, so a by-id
+    /// claim can take it with no envelope.
     /// </summary>
     public static Task MakeSlotClaimableAsync(IServiceProvider services, long slotId, CancellationToken ct)
     {
@@ -288,7 +279,7 @@ internal static class AlertTestOps
             .GetRequiredService<IDbSession>()
             .From<JobStateEntity>()
             .Where(r => r.Id == slotId)
-            .UpdateOnlyAsync(() => new JobStateEntity { NextRunAtUtc = due }, ct);
+            .UpdateOnlyAsync(() => new JobStateEntity { Status = JobStatusCode.Ready, NextRunAtUtc = due }, ct);
     }
 
     // A JobContext standing in for the sys.alerts slot: the projector reads ctx.NamespaceId / JobNamespace
@@ -329,7 +320,7 @@ internal static class AlertTestOps
             serializers: services.GetRequiredService<IJobPayloadSerializerRegistry>(),
             locks: services.GetRequiredService<LocksOperations>(),
             cancellationToken: CancellationToken.None,
-            triggeringScheduleNames: [],
+            firing: null,
             deadlineAtUtc: null,
             workerId: owner.WorkerId
         );

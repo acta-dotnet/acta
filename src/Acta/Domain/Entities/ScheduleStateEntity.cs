@@ -1,58 +1,81 @@
 namespace Acta;
 
 /// <summary>
-/// The cursor of one schedule, split from <see cref="ScheduleEntity"/> so the per-occurrence advance rewrites only
-/// this narrow row. Keyed like its config row, and created and deleted with it in the same transaction. No foreign
-/// key ties the pair: a key here would have to be composite, and the schema model declares single-column keys only.
-/// An orphaned schedule, and every schedule of a retired definition, carries a NULL cursor, which keeps it out of
-/// <c>ix_schedules_state_namespace_next</c>.
+/// The decision and wake state of one schedule, split from <see cref="ScheduleEntity"/> so an admission rewrites only
+/// this narrow row. Keyed by the schedule's id, and created and deleted with its config row in the same transaction.
+/// No foreign key ties the pair: every writer locks the config row first and the pair is deleted together, so a key
+/// would only add a check to the hot advance. An orphaned schedule, and every schedule of a retired definition,
+/// carries a NULL cursor and no wake.
 /// </summary>
 [DbTable("schedules_state")]
-[DbPrimaryKey(Name = "pk_schedules_state", Columns = ["job_id", "schedule_name"])]
+[DbPrimaryKey(Name = "pk_schedules_state", Columns = ["schedule_id"], Manual = true)]
 // A namespace's upcoming occurrences in due order: the schedule list pages through it, and the overview's due-soon
 // count and schedule lag seek it.
 [DbIndex(
     Name = "ix_schedules_state_namespace_next",
-    Columns = ["namespace_id", "next_occurrence_at_utc", "job_id", "schedule_name"],
+    Columns = ["namespace_id", "next_occurrence_at_utc", "schedule_id"],
     Filter = "next_occurrence_at_utc IS NOT NULL",
     Usage = "dashboard"
 )]
-internal sealed class ScheduleStateEntity : IEntity
+// The admission loop's seek: a namespace's schedules in the order they next need the engine, a timed pause's end and
+// an evaluation retry included; a schedule with no wake (indefinitely paused, parked on a busy slot, exhausted) is
+// out of the index and reached only by the event that ends its wait.
+[DbIndex(
+    Name = "ix_schedules_state_due",
+    Columns = ["namespace_id", "next_evaluation_at_utc", "schedule_id"],
+    Filter = "next_evaluation_at_utc IS NOT NULL",
+    Usage = "claim_hot_path"
+)]
+internal sealed class ScheduleStateEntity : IEntity<int>
 {
-    /// <summary>The slot Job of the schedule; the key's first column.</summary>
-    [DbColumn("job_id", DbKind.Int64)]
-    public long JobId { get; init; }
-
-    /// <summary>The schedule's name; the key's second column.</summary>
-    [DbColumn("schedule_name", DbKind.AsciiString, Size = 128)]
-    public string ScheduleName { get; init; } = default!;
+    /// <summary>The schedule this state belongs to; the primary key, supplied by registration from the config row.</summary>
+    [DbColumn("schedule_id", DbKind.Int32)]
+    public int Id { get; init; }
 
     /// <summary>
     /// Immutable copy of the schedule's namespace, written once at insert so the reads that walk a namespace's
-    /// upcoming occurrences seek <c>ix_schedules_state_namespace_next</c> without joining the config row first.
+    /// schedules seek their index without joining the config row first.
     /// </summary>
     [DbColumn("namespace_id", DbKind.Int32)]
     public int NamespaceId { get; init; }
 
     /// <summary>
-    /// The next instant this schedule is due; the slot Job's <c>next_run_at_utc</c> is the MIN over its live
-    /// schedules. NULL when the schedule offers no further occurrence: exhausted, orphaned, or its definition retired.
-    /// Computed in C# (<c>NextOccurrenceCalculator</c> / <c>ScheduleWalker</c>); the SQL appliers only persist it.
+    /// The next undecided nominal occurrence. NULL when the source offers no further occurrence: exhausted, orphaned,
+    /// or its definition retired. Computed in C# by the evaluator; the SQL appliers only persist it.
     /// </summary>
     [DbColumn("next_occurrence_at_utc", DbKind.UtcInstant)]
     public DateTime? NextOccurrenceAtUtc { get; set; }
 
     /// <summary>
-    /// The most recent occurrence this schedule was advanced past, set to the outgoing
-    /// <see cref="NextOccurrenceAtUtc"/> on every advance. An occurrence, not a run: the cursor also moves when the
-    /// misfire policy skips, so this records the latest schedule point crossed rather than a completed execution. NULL
-    /// until the schedule first advances, and again once it is orphaned or its definition retired. The only
-    /// per-schedule history when several schedules share one recurring slot Job.
+    /// The watermark every earlier occurrence was decided through: admitted, skipped, or coalesced into a firing. A
+    /// decision, not a run, and not necessarily an occurrence itself. NULL until the schedule first decides, and
+    /// again once it is orphaned or its definition retired.
     /// </summary>
-    [DbColumn("last_advanced_occurrence_at_utc", DbKind.UtcInstant)]
-    public DateTime? LastAdvancedOccurrenceAtUtc { get; set; }
+    [DbColumn("decided_through_at_utc", DbKind.UtcInstant)]
+    public DateTime? DecidedThroughAtUtc { get; set; }
 
-    /// <summary>When the cursor last moved. Set server-side.</summary>
+    /// <summary>
+    /// When the engine next looks at this schedule: the next occurrence, a timed pause's end, or an evaluation retry.
+    /// NULL while nothing timed ends the wait, which keeps the row out of <c>ix_schedules_state_due</c>; settlement,
+    /// a resume, or a restart writes it back.
+    /// </summary>
+    [DbColumn("next_evaluation_at_utc", DbKind.UtcInstant)]
+    public DateTime? NextEvaluationAtUtc { get; set; }
+
+    /// <summary>Why the next evaluation is when it is; the engine's state, apart from the operator lifecycle.</summary>
+    [DbColumn("evaluation_status_code")]
+    public EvaluationStatusCode EvaluationStatus { get; set; }
+
+    /// <summary>
+    /// Optimistic-concurrency token, bumped by every write to this row. An admission plan carries the version it read
+    /// and applies only while the row still holds it, so a plan made before a settlement, a resume, or another host's
+    /// admission replans instead of overwriting them.
+    /// </summary>
+    [DbColumn("version", DbKind.Int32, Default = DbDefault.Zero)]
+    [DbConcurrencyToken]
+    public int Version { get; set; }
+
+    /// <summary>When the row last moved. Set server-side.</summary>
     [DbColumn("modified_at_utc", DbKind.UtcInstant, Default = DbDefault.UtcNow)]
     public DateTime ModifiedAtUtc { get; set; }
 }

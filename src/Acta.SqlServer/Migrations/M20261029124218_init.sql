@@ -1,0 +1,4770 @@
+SET QUOTED_IDENTIFIER ON;
+SET ANSI_NULLS ON;
+GO
+
+IF SCHEMA_ID('{{schema}}') IS NULL EXEC('CREATE SCHEMA {{schema}}');
+GO
+
+-- alerts
+IF OBJECT_ID(N'{{schema}}.alerts', N'U') IS NULL
+BEGIN
+CREATE TABLE {{schema}}.alerts (
+    alert_id bigint IDENTITY(1,1) NOT NULL,
+    alert_ref uniqueidentifier NOT NULL,
+    namespace_id int NOT NULL,
+    job_id bigint NULL,
+    job_ref uniqueidentifier NULL,
+    alert_origin_code tinyint NOT NULL,
+    alert_severity_code tinyint NOT NULL,
+    alert_kind_code tinyint NOT NULL,
+    title nvarchar(512) NOT NULL,
+    alert_message nvarchar(512) NOT NULL,
+    channel_name varchar(128) NOT NULL,
+    deduplication_key varchar(128) COLLATE Latin1_General_100_BIN2_UTF8 NULL,
+    occurrence_count int NOT NULL,
+    last_projected_event_id bigint NULL,
+    resolved_at_utc datetime2(3) NULL,
+    acknowledged_at_utc datetime2(3) NULL,
+    delivery_status_code tinyint NOT NULL,
+    retry_count int NOT NULL,
+    retry_after_utc datetime2(3) NULL,
+    created_at_utc datetime2(3) DEFAULT SYSUTCDATETIME() NOT NULL,
+    modified_at_utc datetime2(3) DEFAULT SYSUTCDATETIME() NOT NULL,
+    version int DEFAULT 0 NOT NULL
+    , CONSTRAINT pk_alerts PRIMARY KEY (alert_id)
+    , CONSTRAINT ck_alerts_job_ref_pair CHECK ((job_id IS NULL AND job_ref IS NULL) OR (job_id IS NOT NULL AND job_ref IS NOT NULL))
+    , CONSTRAINT ck_alerts_occurrence_count CHECK (occurrence_count >= 1)
+);
+CREATE INDEX ix_alerts_deduplication_key_identity ON {{schema}}.alerts (namespace_id, deduplication_key) WHERE deduplication_key IS NOT NULL;
+CREATE INDEX ix_alerts_delivery_due ON {{schema}}.alerts (namespace_id, delivery_status_code, retry_after_utc, alert_id);
+CREATE INDEX ix_alerts_namespace_created ON {{schema}}.alerts (namespace_id, created_at_utc DESC, alert_id DESC);
+CREATE INDEX ix_alerts_namespace_unresolved ON {{schema}}.alerts (namespace_id, created_at_utc DESC, alert_id DESC) WHERE resolved_at_utc IS NULL;
+CREATE INDEX ix_alerts_job ON {{schema}}.alerts (job_id, alert_id) WHERE job_id IS NOT NULL;
+CREATE UNIQUE INDEX ux_alerts_ref ON {{schema}}.alerts (alert_ref);
+CREATE UNIQUE INDEX ux_alerts_deduplication_key ON {{schema}}.alerts (namespace_id, deduplication_key) WHERE deduplication_key IS NOT NULL AND resolved_at_utc IS NULL;
+END
+GO
+
+-- checkpoints
+IF OBJECT_ID(N'{{schema}}.checkpoints', N'U') IS NULL
+BEGIN
+CREATE TABLE {{schema}}.checkpoints (
+    job_id bigint NOT NULL,
+    checkpoint_kind_code tinyint NOT NULL,
+    checkpoint_name varchar(128) NOT NULL,
+    checkpoint_status_code tinyint NULL,
+    due_at_utc datetime2(3) NULL,
+    value_format_id tinyint DEFAULT 0 NOT NULL,
+    value varbinary(max) NULL,
+    created_at_utc datetime2(3) DEFAULT SYSUTCDATETIME() NOT NULL,
+    modified_at_utc datetime2(3) DEFAULT SYSUTCDATETIME() NOT NULL,
+    version int DEFAULT 0 NOT NULL
+    , CONSTRAINT pk_checkpoints PRIMARY KEY (job_id, checkpoint_kind_code, checkpoint_name)
+    , CONSTRAINT ck_checkpoints_value_pair CHECK ((value_format_id = 0 AND value IS NULL) OR (value_format_id <> 0 AND value IS NOT NULL))
+    , CONSTRAINT ck_checkpoints_kind_shape CHECK ((checkpoint_kind_code NOT IN (10, 40) OR (checkpoint_status_code IS NULL AND due_at_utc IS NULL)) AND (checkpoint_kind_code NOT IN (20, 30, 50, 60) OR checkpoint_status_code IS NOT NULL) AND (checkpoint_kind_code <> 30 OR due_at_utc IS NOT NULL))
+);
+CREATE INDEX ix_checkpoints_pending_latches ON {{schema}}.checkpoints (job_id, checkpoint_name) WHERE checkpoint_kind_code = 50 AND checkpoint_status_code = 10;
+END
+GO
+
+-- definitions
+IF OBJECT_ID(N'{{schema}}.definitions', N'U') IS NULL
+BEGIN
+CREATE TABLE {{schema}}.definitions (
+    definition_id int IDENTITY(1,1) NOT NULL,
+    namespace_id int NOT NULL,
+    definition_name varchar(128) NOT NULL,
+    definition_status_code tinyint NOT NULL,
+    definition_hash varchar(128) NOT NULL,
+    manifest_generation_at_utc datetime2(3) NOT NULL,
+    input_type_name varchar(512) NOT NULL,
+    input_format_id tinyint NOT NULL,
+    input_format_name varchar(128) NOT NULL,
+    output_type_name varchar(512) NULL,
+    output_format_id tinyint NOT NULL,
+    output_format_name varchar(128) NOT NULL,
+    tenant_requirement_code tinyint NOT NULL,
+    job_priority_code tinyint NOT NULL,
+    job_priority_code_override tinyint NULL,
+    job_priority_code_effective AS (COALESCE(job_priority_code_override, job_priority_code)) PERSISTED,
+    max_attempts int NOT NULL,
+    max_attempts_override int NULL,
+    max_attempts_effective AS (COALESCE(max_attempts_override, max_attempts)) PERSISTED,
+    concurrency_limit int NULL,
+    concurrency_limit_override int NULL,
+    concurrency_limit_effective AS (COALESCE(concurrency_limit_override, concurrency_limit)) PERSISTED,
+    rate_limit varchar(16) NULL,
+    rate_limit_override varchar(16) NULL,
+    rate_limit_effective AS (COALESCE(rate_limit_override, rate_limit)) PERSISTED,
+    rate_name varchar(128) NULL,
+    lane_name varchar(128) NULL,
+    backoff nvarchar(64) NOT NULL,
+    backoff_override nvarchar(64) NULL,
+    backoff_effective AS (COALESCE(backoff_override, backoff)) PERSISTED,
+    execution_timeout_seconds int NOT NULL,
+    execution_timeout_seconds_override int NULL,
+    execution_timeout_seconds_effective AS (COALESCE(execution_timeout_seconds_override, execution_timeout_seconds)) PERSISTED,
+    deadline_seconds int NOT NULL,
+    deadline_seconds_override int NULL,
+    deadline_seconds_effective AS (COALESCE(deadline_seconds_override, deadline_seconds)) PERSISTED,
+    deadline_behavior_code tinyint NOT NULL,
+    deadline_behavior_code_override tinyint NULL,
+    deadline_behavior_code_effective AS (COALESCE(deadline_behavior_code_override, deadline_behavior_code)) PERSISTED,
+    retention_seconds int NOT NULL,
+    retention_seconds_override int NULL,
+    retention_seconds_effective AS (COALESCE(retention_seconds_override, retention_seconds)) PERSISTED,
+    event_recording_code tinyint NOT NULL,
+    event_recording_code_override tinyint NULL,
+    event_recording_code_effective AS (COALESCE(event_recording_code_override, event_recording_code)) PERSISTED,
+    alert_profile_code tinyint NOT NULL,
+    alert_profile_code_override tinyint NULL,
+    alert_profile_code_effective AS (COALESCE(alert_profile_code_override, alert_profile_code)) PERSISTED,
+    alert_channel_name varchar(128) NULL,
+    alert_channel_name_override varchar(128) NULL,
+    alert_channel_name_effective AS (COALESCE(alert_channel_name_override, alert_channel_name)) PERSISTED,
+    runbook_url varchar(512) NULL,
+    runbook_url_override varchar(512) NULL,
+    runbook_url_effective AS (COALESCE(runbook_url_override, runbook_url)) PERSISTED,
+    display_name nvarchar(128) NULL,
+    display_name_override nvarchar(128) NULL,
+    display_name_effective AS (COALESCE(display_name_override, display_name)) PERSISTED,
+    description nvarchar(512) NULL,
+    description_override nvarchar(512) NULL,
+    description_effective AS (COALESCE(description_override, description)) PERSISTED,
+    created_at_utc datetime2(3) DEFAULT SYSUTCDATETIME() NOT NULL,
+    modified_at_utc datetime2(3) DEFAULT SYSUTCDATETIME() NOT NULL,
+    version int DEFAULT 0 NOT NULL
+    , CONSTRAINT pk_definitions PRIMARY KEY (definition_id)
+    , CONSTRAINT ck_definitions_max_attempts CHECK (max_attempts >= 1)
+    , CONSTRAINT ck_definitions_max_attempts_override CHECK (max_attempts_override IS NULL OR max_attempts_override >= 1)
+    , CONSTRAINT ck_definitions_execution_timeout CHECK (execution_timeout_seconds > 0)
+    , CONSTRAINT ck_definitions_execution_timeout_override CHECK (execution_timeout_seconds_override IS NULL OR execution_timeout_seconds_override > 0)
+    , CONSTRAINT ck_definitions_deadline CHECK (deadline_seconds >= 0)
+    , CONSTRAINT ck_definitions_deadline_override CHECK (deadline_seconds_override IS NULL OR deadline_seconds_override >= 0)
+    , CONSTRAINT ck_definitions_retention CHECK (retention_seconds >= 0)
+    , CONSTRAINT ck_definitions_retention_override CHECK (retention_seconds_override IS NULL OR retention_seconds_override >= 0)
+);
+CREATE UNIQUE INDEX ux_definitions_namespace_name ON {{schema}}.definitions (namespace_id, definition_name);
+END
+GO
+
+-- events
+IF OBJECT_ID(N'{{schema}}.events', N'U') IS NULL
+BEGIN
+CREATE TABLE {{schema}}.events (
+    event_id bigint IDENTITY(1,1) NOT NULL,
+    namespace_id int NOT NULL,
+    worker_id int DEFAULT 0 NOT NULL,
+    created_at_utc datetime2(3) DEFAULT SYSUTCDATETIME() NOT NULL,
+    entity_code tinyint NOT NULL,
+    entity_id bigint NOT NULL,
+    event_code tinyint NOT NULL,
+    definition_id int NULL,
+    tenant_id int NULL,
+    lineage_root_job_id bigint NULL,
+    execution_number int NULL,
+    duration_ms int NULL,
+    event_message nvarchar(512) NULL,
+    details_format_id tinyint DEFAULT 0 NOT NULL,
+    details varbinary(max) NULL
+    , CONSTRAINT pk_events PRIMARY KEY (worker_id, event_id) WITH (OPTIMIZE_FOR_SEQUENTIAL_KEY = ON)
+    , CONSTRAINT ck_events_details_pair CHECK ((details_format_id = 0 AND details IS NULL) OR (details_format_id <> 0 AND details IS NOT NULL))
+) WITH (DATA_COMPRESSION = PAGE);
+CREATE INDEX ix_events_lineage_timeline ON {{schema}}.events (lineage_root_job_id, created_at_utc, event_id) WHERE lineage_root_job_id IS NOT NULL;
+CREATE INDEX ix_events_namespace_timeline ON {{schema}}.events (namespace_id, event_code, created_at_utc, event_id);
+CREATE INDEX ix_events_entity_timeline ON {{schema}}.events (entity_code, entity_id, created_at_utc, event_id);
+CREATE INDEX ix_events_namespace_created ON {{schema}}.events (namespace_id, created_at_utc DESC, event_id DESC);
+CREATE INDEX ix_events_duration ON {{schema}}.events (namespace_id, definition_id, created_at_utc) INCLUDE (event_code, duration_ms) WHERE event_code IN (40, 41, 44) AND duration_ms IS NOT NULL;
+END
+GO
+
+-- jobs
+IF OBJECT_ID(N'{{schema}}.jobs', N'U') IS NULL
+BEGIN
+CREATE TABLE {{schema}}.jobs (
+    job_id bigint IDENTITY(1,1) NOT NULL,
+    job_ref uniqueidentifier NOT NULL,
+    job_kind_code tinyint NOT NULL,
+    namespace_id int NOT NULL,
+    definition_id int NOT NULL,
+    lineage_root_job_id bigint NULL,
+    parent_job_id bigint NULL,
+    tenant_id int NULL,
+    deduplication_key varchar(128) COLLATE Latin1_General_100_BIN2_UTF8 NULL,
+    correlation_key varchar(64) COLLATE Latin1_General_100_BIN2_UTF8 NULL,
+    concurrency_key varchar(128) COLLATE Latin1_General_100_BIN2_UTF8 NULL,
+    input_format_id tinyint NOT NULL,
+    input varbinary(max) NULL,
+    event_recording_code tinyint NOT NULL,
+    created_at_utc datetime2(3) DEFAULT SYSUTCDATETIME() NOT NULL
+    , CONSTRAINT pk_jobs PRIMARY KEY (job_id) WITH (OPTIMIZE_FOR_SEQUENTIAL_KEY = ON)
+    , CONSTRAINT ck_jobs_input_pair CHECK ((input_format_id = 0 AND input IS NULL) OR (input_format_id <> 0 AND input IS NOT NULL))
+);
+ALTER TABLE {{schema}}.jobs SET (LOCK_ESCALATION = DISABLE);
+CREATE INDEX ix_jobs_parent ON {{schema}}.jobs (parent_job_id) WHERE parent_job_id IS NOT NULL;
+CREATE INDEX ix_jobs_namespace_created ON {{schema}}.jobs (namespace_id, created_at_utc DESC, job_id DESC);
+CREATE UNIQUE INDEX ux_jobs_ref ON {{schema}}.jobs (job_ref);
+CREATE UNIQUE INDEX ux_jobs_deduplication_key_root ON {{schema}}.jobs (namespace_id, deduplication_key) WHERE deduplication_key IS NOT NULL AND parent_job_id IS NULL;
+CREATE UNIQUE INDEX ux_jobs_deduplication_key_child ON {{schema}}.jobs (parent_job_id, deduplication_key) WHERE deduplication_key IS NOT NULL AND parent_job_id IS NOT NULL;
+CREATE UNIQUE INDEX ux_jobs_slot ON {{schema}}.jobs (definition_id) WHERE job_kind_code = 20;
+END
+GO
+
+-- lanes
+IF OBJECT_ID(N'{{schema}}.lanes', N'U') IS NULL
+BEGIN
+CREATE TABLE {{schema}}.lanes (
+    lane_id bigint IDENTITY(1,1) NOT NULL,
+    namespace_id int NOT NULL,
+    lane_name varchar(128) NOT NULL,
+    created_at_utc datetime2(3) DEFAULT SYSUTCDATETIME() NOT NULL
+    , CONSTRAINT pk_lanes PRIMARY KEY (lane_id)
+);
+CREATE UNIQUE INDEX ux_lanes_namespace_name ON {{schema}}.lanes (namespace_id, lane_name);
+END
+GO
+
+-- jobs_state
+IF OBJECT_ID(N'{{schema}}.jobs_state', N'U') IS NULL
+BEGIN
+CREATE TABLE {{schema}}.jobs_state (
+    job_id bigint NOT NULL,
+    namespace_id int NOT NULL,
+    lane_id bigint NULL,
+    job_status_code tinyint NOT NULL,
+    job_priority_code tinyint NOT NULL,
+    next_run_at_utc datetime2(3) NULL,
+    execution_number int NOT NULL,
+    failure_count int NOT NULL,
+    leased_by_worker_id int NULL,
+    lease_expires_at_utc datetime2(3) NULL,
+    retention_until_utc datetime2(3) NULL,
+    modified_at_utc datetime2(3) DEFAULT SYSUTCDATETIME() NOT NULL,
+    result_format_id tinyint DEFAULT 0 NOT NULL,
+    result varbinary(max) NULL,
+    version int DEFAULT 0 NOT NULL
+    , CONSTRAINT pk_jobs_state PRIMARY KEY (job_id) WITH (OPTIMIZE_FOR_SEQUENTIAL_KEY = ON)
+    , CONSTRAINT ck_jobs_state_blocked_lane CHECK (job_status_code <> 15 OR lane_id IS NOT NULL)
+    , CONSTRAINT ck_jobs_state_lease_consistency CHECK ((leased_by_worker_id IS NULL AND lease_expires_at_utc IS NULL) OR (leased_by_worker_id IS NOT NULL AND lease_expires_at_utc IS NOT NULL))
+    , CONSTRAINT ck_jobs_state_counters CHECK (execution_number >= 0 AND failure_count >= 0)
+    , CONSTRAINT ck_jobs_state_status_lease CHECK (job_status_code = 50 OR leased_by_worker_id IS NULL)
+    , CONSTRAINT ck_jobs_state_inflight_leased CHECK (job_status_code <> 50 OR leased_by_worker_id IS NOT NULL)
+    , CONSTRAINT ck_jobs_state_ready_due CHECK (job_status_code <> 10 OR next_run_at_utc IS NOT NULL)
+    , CONSTRAINT ck_jobs_state_idle CHECK (job_status_code <> 40 OR next_run_at_utc IS NULL)
+    , CONSTRAINT ck_jobs_state_result_pair CHECK ((result_format_id = 0 AND result IS NULL) OR (result_format_id <> 0 AND result IS NOT NULL))
+    , CONSTRAINT ck_jobs_state_result_idle CHECK (result_format_id = 0 OR job_status_code <> 50)
+    , CONSTRAINT fk_jobs_state_lanes FOREIGN KEY (lane_id) REFERENCES {{schema}}.lanes (lane_id)
+);
+CREATE INDEX ix_jobs_state_claim_ready ON {{schema}}.jobs_state (namespace_id, job_priority_code DESC, next_run_at_utc, job_id, job_status_code) WHERE job_status_code IN (10, 20) AND next_run_at_utc IS NOT NULL;
+CREATE INDEX ix_jobs_state_worker_inflight ON {{schema}}.jobs_state (leased_by_worker_id, job_id) WHERE leased_by_worker_id IS NOT NULL AND job_status_code = 50;
+CREATE INDEX ix_jobs_state_lane ON {{schema}}.jobs_state (lane_id, job_id) WHERE lane_id IS NOT NULL AND job_status_code IN (10, 15, 20, 30, 50);
+CREATE INDEX ix_jobs_state_failed ON {{schema}}.jobs_state (namespace_id, job_id DESC) WHERE job_status_code = 200;
+CREATE INDEX ix_jobs_state_lane_member ON {{schema}}.jobs_state (lane_id) WHERE lane_id IS NOT NULL;
+END
+GO
+
+-- locks
+IF OBJECT_ID(N'{{schema}}.locks', N'U') IS NULL
+BEGIN
+CREATE TABLE {{schema}}.locks (
+    lock_key varchar(256) COLLATE Latin1_General_100_BIN2_UTF8 NOT NULL,
+    job_id bigint NOT NULL,
+    expires_at_utc datetime2(3) NOT NULL,
+    hold_token uniqueidentifier NOT NULL
+    , CONSTRAINT pk_locks PRIMARY KEY (lock_key)
+);
+CREATE INDEX ix_locks_reclaim_expired ON {{schema}}.locks (expires_at_utc);
+END
+GO
+
+-- namespaces
+IF OBJECT_ID(N'{{schema}}.namespaces', N'U') IS NULL
+BEGIN
+CREATE TABLE {{schema}}.namespaces (
+    namespace_id int IDENTITY(1,1) NOT NULL,
+    namespace_name varchar(128) NOT NULL,
+    owner_team nvarchar(512) NULL,
+    description nvarchar(512) NULL,
+    namespace_status_code tinyint NOT NULL,
+    catalog_hash varchar(128) NULL,
+    created_at_utc datetime2(3) DEFAULT SYSUTCDATETIME() NOT NULL,
+    modified_at_utc datetime2(3) DEFAULT SYSUTCDATETIME() NOT NULL,
+    version int DEFAULT 0 NOT NULL,
+    recovery_due_at_utc datetime2(3) NULL
+    , CONSTRAINT pk_namespaces PRIMARY KEY (namespace_id)
+);
+CREATE UNIQUE INDEX ux_namespaces_name ON {{schema}}.namespaces (namespace_name);
+END
+GO
+
+-- Seed: reserved system namespace (namespace_id=1, 'sys') for cross-namespace audit events. Collation-neutral.
+IF NOT EXISTS (SELECT 1 FROM {{schema}}.namespaces WHERE namespace_id = 1)
+BEGIN
+    SET IDENTITY_INSERT {{schema}}.namespaces ON;
+    INSERT INTO {{schema}}.namespaces (namespace_id, namespace_name, namespace_status_code, description, created_at_utc, modified_at_utc)
+    VALUES (1, N'sys', 10, N'Reserved system namespace for cross-namespace audit events.', SYSUTCDATETIME(), SYSUTCDATETIME());
+    SET IDENTITY_INSERT {{schema}}.namespaces OFF;
+END
+GO
+
+-- schedules
+IF OBJECT_ID(N'{{schema}}.schedules', N'U') IS NULL
+BEGIN
+CREATE TABLE {{schema}}.schedules (
+    schedule_id int IDENTITY(1,1) NOT NULL,
+    namespace_id int NOT NULL,
+    job_id bigint NOT NULL,
+    definition_id int NOT NULL,
+    schedule_name varchar(128) NOT NULL,
+    schedule_origin_code tinyint NOT NULL,
+    expression varchar(128) NOT NULL,
+    time_zone_id varchar(128) NOT NULL,
+    expression_kind_code tinyint NOT NULL,
+    misfire_strategy_code tinyint NOT NULL,
+    interval_anchor_at_utc datetime2(3) NULL,
+    misfire_grace_seconds int NOT NULL,
+    timing_fingerprint varchar(64) NOT NULL,
+    schedule_status_code tinyint NOT NULL,
+    paused_until_utc datetime2(3) NULL,
+    description nvarchar(512) NULL,
+    pause_message nvarchar(512) NULL,
+    created_at_utc datetime2(3) DEFAULT SYSUTCDATETIME() NOT NULL,
+    modified_at_utc datetime2(3) DEFAULT SYSUTCDATETIME() NOT NULL,
+    version int DEFAULT 0 NOT NULL
+    , CONSTRAINT pk_schedules PRIMARY KEY (schedule_id)
+    , CONSTRAINT ck_schedules_paused_pair CHECK (schedule_status_code = 30 OR paused_until_utc IS NULL)
+    , CONSTRAINT ck_schedules_orphan_origin CHECK (schedule_origin_code = 40 OR schedule_status_code <> 230)
+    , CONSTRAINT fk_schedules_definitions FOREIGN KEY (definition_id) REFERENCES {{schema}}.definitions (definition_id)
+);
+CREATE INDEX ix_schedules_job ON {{schema}}.schedules (job_id, schedule_id);
+CREATE UNIQUE INDEX ux_schedules_definition_name ON {{schema}}.schedules (definition_id, schedule_name);
+END
+GO
+
+-- schedules_state
+IF OBJECT_ID(N'{{schema}}.schedules_state', N'U') IS NULL
+BEGIN
+CREATE TABLE {{schema}}.schedules_state (
+    schedule_id int NOT NULL,
+    namespace_id int NOT NULL,
+    next_occurrence_at_utc datetime2(3) NULL,
+    decided_through_at_utc datetime2(3) NULL,
+    next_evaluation_at_utc datetime2(3) NULL,
+    evaluation_status_code tinyint NOT NULL,
+    version int DEFAULT 0 NOT NULL,
+    modified_at_utc datetime2(3) DEFAULT SYSUTCDATETIME() NOT NULL
+    , CONSTRAINT pk_schedules_state PRIMARY KEY (schedule_id)
+);
+CREATE INDEX ix_schedules_state_namespace_next ON {{schema}}.schedules_state (namespace_id, next_occurrence_at_utc, schedule_id) WHERE next_occurrence_at_utc IS NOT NULL;
+CREATE INDEX ix_schedules_state_due ON {{schema}}.schedules_state (namespace_id, next_evaluation_at_utc, schedule_id) WHERE next_evaluation_at_utc IS NOT NULL;
+END
+GO
+
+-- steps
+IF OBJECT_ID(N'{{schema}}.steps', N'U') IS NULL
+BEGIN
+CREATE TABLE {{schema}}.steps (
+    job_id bigint NOT NULL,
+    step_name varchar(128) NOT NULL,
+    step_status_code tinyint NOT NULL,
+    attempt_number int NOT NULL,
+    next_retry_at_utc datetime2(3) NULL,
+    failure_code tinyint NULL,
+    failure_message nvarchar(512) NULL,
+    result_format_id tinyint NOT NULL,
+    result varbinary(max) NULL,
+    created_at_utc datetime2(3) DEFAULT SYSUTCDATETIME() NOT NULL,
+    modified_at_utc datetime2(3) DEFAULT SYSUTCDATETIME() NOT NULL,
+    version int DEFAULT 0 NOT NULL
+    , CONSTRAINT pk_steps PRIMARY KEY (job_id, step_name)
+    , CONSTRAINT ck_steps_result_pair CHECK ((result_format_id = 0 AND result IS NULL) OR (result_format_id <> 0 AND result IS NOT NULL))
+    , CONSTRAINT ck_steps_attempt_number CHECK (attempt_number >= 1)
+    , CONSTRAINT ck_steps_terminal_no_retry CHECK (step_status_code NOT IN (100, 200, 230) OR next_retry_at_utc IS NULL)
+    , CONSTRAINT ck_steps_result_succeeded CHECK (result_format_id = 0 OR step_status_code = 100)
+    , CONSTRAINT ck_steps_failure_pair CHECK (failure_message IS NULL OR failure_code IS NOT NULL)
+);
+END
+GO
+
+-- tags
+IF OBJECT_ID(N'{{schema}}.tags', N'U') IS NULL
+BEGIN
+CREATE TABLE {{schema}}.tags (
+    entity_code tinyint NOT NULL,
+    entity_id bigint NOT NULL,
+    tag_name varchar(128) NOT NULL,
+    tag_value nvarchar(128) NULL,
+    tag_value_search nvarchar(128) COLLATE Latin1_General_100_BIN2_UTF8 NULL
+    , CONSTRAINT pk_tags PRIMARY KEY (entity_code, entity_id, tag_name)
+    , CONSTRAINT ck_tags_entity_id CHECK (entity_id > 0)
+    , CONSTRAINT ck_tags_value_search CHECK ((tag_value IS NULL AND tag_value_search IS NULL) OR (tag_value IS NOT NULL AND tag_value_search IS NOT NULL))
+);
+END
+GO
+
+-- tenants
+IF OBJECT_ID(N'{{schema}}.tenants', N'U') IS NULL
+BEGIN
+CREATE TABLE {{schema}}.tenants (
+    tenant_id int IDENTITY(1,1) NOT NULL,
+    tenant_name varchar(128) NOT NULL,
+    tenant_status_code tinyint NOT NULL,
+    display_name nvarchar(128) NULL,
+    description nvarchar(512) NULL,
+    created_at_utc datetime2(3) DEFAULT SYSUTCDATETIME() NOT NULL,
+    modified_at_utc datetime2(3) DEFAULT SYSUTCDATETIME() NOT NULL,
+    version int DEFAULT 0 NOT NULL
+    , CONSTRAINT pk_tenants PRIMARY KEY (tenant_id)
+);
+CREATE UNIQUE INDEX ux_tenants_name ON {{schema}}.tenants (tenant_name);
+END
+GO
+
+-- workers
+IF OBJECT_ID(N'{{schema}}.workers', N'U') IS NULL
+BEGIN
+CREATE TABLE {{schema}}.workers (
+    worker_id int IDENTITY(1,1) NOT NULL,
+    worker_ref uniqueidentifier NOT NULL,
+    namespace_id int NOT NULL,
+    worker_status_code tinyint NOT NULL,
+    deployment_version varchar(128) NOT NULL,
+    host_name varchar(256) NOT NULL,
+    engine_version varchar(128) NULL,
+    dotnet_version varchar(64) NULL,
+    process_id int NULL,
+    max_concurrent_executors int NOT NULL,
+    last_seen_at_utc datetime2(3) NOT NULL,
+    created_at_utc datetime2(3) DEFAULT SYSUTCDATETIME() NOT NULL,
+    modified_at_utc datetime2(3) DEFAULT SYSUTCDATETIME() NOT NULL,
+    version int DEFAULT 0 NOT NULL
+    , CONSTRAINT pk_workers PRIMARY KEY (worker_id)
+    , CONSTRAINT ck_workers_max_concurrent_executors CHECK (max_concurrent_executors > 0)
+    , CONSTRAINT fk_workers_namespaces FOREIGN KEY (namespace_id) REFERENCES {{schema}}.namespaces (namespace_id)
+);
+CREATE INDEX ix_workers_namespace_status_last_seen ON {{schema}}.workers (namespace_id, worker_status_code, last_seen_at_utc);
+CREATE INDEX ix_workers_status_last_seen ON {{schema}}.workers (worker_status_code, last_seen_at_utc);
+CREATE INDEX ix_workers_namespace_last_seen ON {{schema}}.workers (namespace_id, last_seen_at_utc DESC, worker_id DESC);
+CREATE UNIQUE INDEX ux_workers_ref ON {{schema}}.workers (worker_ref);
+END
+GO
+
+-- TVP table types used by hot-path routines + their batched parameters.
+
+-- Per-row enqueue batch: one row per Job to enqueue (1..5000 per call).
+-- Consumed by acta.enqueue_jobs's @p_batch sproc parameter.
+IF TYPE_ID(N'{{schema}}.enqueue_jobs') IS NULL
+EXEC(N'CREATE TYPE {{schema}}.enqueue_jobs AS TABLE (
+    ordinal                    INT              NOT NULL,
+    job_ref                    UNIQUEIDENTIFIER NOT NULL,
+    namespace_name             VARCHAR(128)     NOT NULL,
+    job_name                   VARCHAR(128)     NOT NULL,
+    deduplication_key          VARCHAR(128)     COLLATE Latin1_General_100_BIN2_UTF8 NULL,
+    correlation_key            VARCHAR(64)      COLLATE Latin1_General_100_BIN2_UTF8 NULL,
+    job_priority_code_override TINYINT          NULL,
+    input_format_id            TINYINT          NOT NULL,
+    input                      VARBINARY(MAX)   NULL,
+    concurrency_key            VARCHAR(128)     COLLATE Latin1_General_100_BIN2_UTF8 NULL,
+    next_run_at_utc            DATETIME2(3)     NULL,
+    delay_seconds              INT              NULL,
+    parent_job_id              BIGINT           NULL,
+    tenant_name                VARCHAR(128)     NULL,
+    tenant_override            BIT              NOT NULL,
+    lane_name                  VARCHAR(128)     NULL,
+    PRIMARY KEY (ordinal)
+);');
+GO
+
+-- Per-tag enqueue batch: zero-or-more rows per Job, joined to the main batch by ordinal.
+-- Consumed by the @p_tags sproc parameter of acta.enqueue_jobs and acta.enqueue_job.
+IF TYPE_ID(N'{{schema}}.enqueue_tags') IS NULL
+EXEC(N'CREATE TYPE {{schema}}.enqueue_tags AS TABLE (
+    ordinal          INT           NOT NULL,
+    tag_name         VARCHAR(128)  NOT NULL,
+    tag_value        NVARCHAR(128) NULL,
+    tag_value_search NVARCHAR(128) COLLATE Latin1_General_100_BIN2_UTF8 NULL,
+    PRIMARY KEY (ordinal, tag_name)
+);');
+GO
+
+-- Per-completion batch: one row per completion by one worker, whose id is a scalar.
+-- Consumed by acta.complete_executions's @p_batch sproc parameter, which joins it by its key.
+IF TYPE_ID(N'{{schema}}.complete_executions') IS NULL
+EXEC(N'CREATE TYPE {{schema}}.complete_executions AS TABLE (
+    job_id                   BIGINT         NOT NULL,
+    execution_number         INT            NOT NULL,
+    succeeded                BIT            NOT NULL,
+    result_format_id         TINYINT        NOT NULL,
+    result                   VARBINARY(MAX) NULL,
+    event_code               TINYINT        NOT NULL,
+    reason                   VARCHAR(64)    NULL,
+    event_message            NVARCHAR(512)  NULL,
+    duration_ms              INT            NULL,
+    failure_count            INT            NULL,
+    retention_seconds        INT            NULL,
+    reschedule_event_code    TINYINT        NULL,
+    reschedule_delay_seconds INT            NULL,
+    reschedule_resume_at_utc DATETIME2(3)   NULL,
+    wait_signal_name         NVARCHAR(128)  NULL,
+    handler_job_status_code  TINYINT        NULL,
+    final_job_status_code    TINYINT        NULL,
+    job_next_run_at_utc      DATETIME2(3)   NULL,
+    PRIMARY KEY (job_id, execution_number)
+);');
+GO
+
+-- Per-definition registration batch: one row per [Job] descriptor under a single namespace.
+-- Consumed by acta.register_definitions's @p_definitions sproc parameter (one round trip per
+-- worker regardless of definition count). definition_name is the per-namespace natural key.
+IF TYPE_ID(N'{{schema}}.register_definitions') IS NULL
+EXEC(N'CREATE TYPE {{schema}}.register_definitions AS TABLE (
+    definition_name                      VARCHAR(128)  NOT NULL,
+    job_priority_code                    TINYINT       NOT NULL,
+    max_attempts                         INT           NOT NULL,
+    concurrency_limit                    INT           NULL,
+    rate_limit                           VARCHAR(16)   NULL,
+    rate_name                            VARCHAR(128)  NULL,
+    backoff                              NVARCHAR(64)  NOT NULL,
+    execution_timeout_seconds            INT           NOT NULL,
+    deadline_seconds                     INT           NOT NULL,
+    deadline_behavior_code               TINYINT       NOT NULL,
+    retention_seconds                    INT           NOT NULL,
+    input_type_name                      VARCHAR(512)  NOT NULL,
+    output_type_name                     VARCHAR(512)  NULL,
+    input_format_id                      TINYINT       NOT NULL,
+    input_format_name                    VARCHAR(128)  NOT NULL,
+    output_format_id                     TINYINT       NOT NULL,
+    output_format_name                   VARCHAR(128)  NOT NULL,
+    event_recording_code                 TINYINT       NOT NULL,
+    alert_profile_code                   TINYINT       NOT NULL,
+    alert_channel_name                   VARCHAR(128)  NULL,
+    runbook_url                          VARCHAR(512)  NULL,
+    display_name                         NVARCHAR(128) NULL,
+    description                          NVARCHAR(512) NULL,
+    definition_hash                      VARCHAR(128)  NOT NULL,
+    tenant_requirement_code              TINYINT       NOT NULL,
+    lane_name                            VARCHAR(128)  NULL,
+    PRIMARY KEY (definition_name)
+);');
+GO
+
+-- Per-definition recurring slot batch: one row per definition reconciled in a single
+-- acta.register_schedules call (all definitions share one namespace, passed as a scalar).
+IF TYPE_ID(N'{{schema}}.register_slots') IS NULL
+EXEC(N'CREATE TYPE {{schema}}.register_slots AS TABLE (
+    definition_id    INT              NOT NULL PRIMARY KEY,
+    job_ref              UNIQUEIDENTIFIER NOT NULL,
+    input_format_id      TINYINT        NOT NULL,
+    input                VARBINARY(MAX) NULL,
+    event_recording_code TINYINT        NOT NULL
+);');
+GO
+
+-- All definitions' reconciled schedules for one acta.register_schedules call, tagged with
+-- definition_id so each schedule links to its definition's slot. next_occurrence_at_utc is the
+-- C#-computed cursor; description is the declared one.
+IF TYPE_ID(N'{{schema}}.register_schedules') IS NULL
+EXEC(N'CREATE TYPE {{schema}}.register_schedules AS TABLE (
+    definition_id                 INT          NOT NULL,
+    schedule_name                 VARCHAR(128) NOT NULL,
+    expression                    VARCHAR(128) NOT NULL,
+    time_zone_id                  VARCHAR(128) NOT NULL,
+    expression_kind_code          TINYINT      NOT NULL,
+    misfire_strategy_code         TINYINT      NOT NULL,
+    next_occurrence_at_utc        DATETIME2(3) NULL,
+    description                   NVARCHAR(512) NULL,
+    interval_anchor_at_utc        DATETIME2(3) NULL,
+    timing_fingerprint            VARCHAR(64)  NOT NULL,
+    PRIMARY KEY (definition_id, schedule_name)
+);');
+GO
+
+CREATE OR ALTER PROCEDURE {{schema}}.access_checkpoint
+    @p_action SMALLINT,
+    @p_job_id BIGINT,
+    @p_execution_number INT,
+    @p_leased_by_worker_id INT,
+    @p_checkpoint_kind_code TINYINT,
+    @p_checkpoint_name VARCHAR(128),
+    @p_value_format_id TINYINT,
+    @p_value VARBINARY(MAX)
+AS
+BEGIN
+    SET NOCOUNT ON;
+    SET XACT_ABORT ON;
+
+    DECLARE @entry_trancount INT = @@TRANCOUNT;
+    BEGIN TRY
+        IF @entry_trancount = 0
+            BEGIN TRANSACTION;
+
+        IF
+            @p_action IN (10 /* AccessCheckpointAction.Set */, 30 /* AccessCheckpointAction.GetOrSet */)
+            AND (@p_value_format_id = 0 /* JobPayloadFormat.None */ OR @p_value IS NULL)
+            THROW 50002, 'Variable payload must use a non-zero format id and non-NULL value.', 1;
+
+        -- The slot's own lock serializes the writers of one slot to commit (docs/sql-internals.md,
+        -- "Slot locks"); every statement that may insert a checkpoint takes it under the same name.
+        IF @p_action IN (10 /* AccessCheckpointAction.Set */, 30 /* AccessCheckpointAction.GetOrSet */)
+            BEGIN
+                DECLARE @slot_lock NVARCHAR(255) = CONCAT(N'{{schema}}.slot:', @p_job_id, N':', @p_checkpoint_kind_code, N':', @p_checkpoint_name);
+                DECLARE @slot_lock_result INT;
+                -- Positional: resource, mode, owner, timeout (-1 waits like any lock).
+                EXEC @slot_lock_result = sp_getapplock @slot_lock, 'Exclusive', 'Transaction', -1;
+                IF @slot_lock_result < 0
+                    THROW 51205, 'ACTA:SLOT_LOCK:The checkpoint slot lock was not granted (deadlock victim or cancelled).', 1;
+            END
+
+        -- A write lands only while this attempt holds the job's row, update-locked to commit after the slot lock
+        -- (docs/sql-internals.md, "Execution fence"). Reads take no lock.
+        IF @p_action IN (10 /* AccessCheckpointAction.Set */, 30 /* AccessCheckpointAction.GetOrSet */, 50 /* AccessCheckpointAction.Delete */)
+            BEGIN
+                IF NOT EXISTS (
+                    SELECT 1
+                    FROM {{schema}}.jobs_state r WITH (UPDLOCK, ROWLOCK)
+                    WHERE
+                        r.job_id = @p_job_id
+                        AND r.job_status_code = 50 /* JobStatusCode.Executing */
+                        AND r.execution_number = @p_execution_number
+                        AND r.leased_by_worker_id = @p_leased_by_worker_id
+                )
+                    THROW 50012, 'ACTA:EXECUTION_FENCED:access_checkpoint: the job is no longer executing this attempt.', 1;
+            END
+
+        DECLARE @now DATETIME2(7) = SYSUTCDATETIME();
+        DECLARE @row TABLE (
+            found INT NOT NULL,
+            value_format_id TINYINT NULL,
+            value VARBINARY(MAX) NULL,
+            version INT NULL
+        );
+
+        IF @p_action = 10 /* AccessCheckpointAction.Set */
+            BEGIN
+
+                UPDATE jv
+                SET
+                    value_format_id = @p_value_format_id,
+                    value = @p_value,
+                    modified_at_utc = @now,
+                    version = version + 1
+                FROM {{schema}}.checkpoints AS jv WITH (UPDLOCK)
+                WHERE
+                    jv.job_id = @p_job_id
+                    AND jv.checkpoint_kind_code = @p_checkpoint_kind_code
+                    AND jv.checkpoint_name = @p_checkpoint_name;
+
+                IF @@ROWCOUNT = 0
+                    BEGIN
+                        INSERT INTO {{schema}}.checkpoints (
+                            job_id, checkpoint_kind_code, checkpoint_name,
+                            value_format_id, value,
+                            created_at_utc, modified_at_utc, version
+                        )
+                        VALUES (
+                            @p_job_id, @p_checkpoint_kind_code, @p_checkpoint_name,
+                            @p_value_format_id, @p_value,
+                            @now, @now, 0
+                        );
+                    END
+
+                INSERT INTO @row (found, value_format_id, value, version) VALUES (1, NULL, NULL, NULL);
+            END
+        ELSE IF @p_action = 20 /* AccessCheckpointAction.Get */
+            BEGIN
+                INSERT INTO @row (found, value_format_id, value, version)
+                SELECT
+                    1,
+                    jv.value_format_id,
+                    jv.value,
+                    jv.version
+                FROM {{schema}}.checkpoints AS jv
+                WHERE
+                    jv.job_id = @p_job_id
+                    AND jv.checkpoint_kind_code = @p_checkpoint_kind_code
+                    AND jv.checkpoint_name = @p_checkpoint_name;
+
+                IF @@ROWCOUNT = 0
+                    BEGIN
+                        INSERT INTO @row (found, value_format_id, value, version) VALUES (0, NULL, NULL, NULL);
+                    END
+            END
+        ELSE IF @p_action = 30 /* AccessCheckpointAction.GetOrSet */
+            BEGIN
+
+                INSERT INTO @row (found, value_format_id, value, version)
+                SELECT
+                    1,
+                    jv.value_format_id,
+                    jv.value,
+                    jv.version
+                FROM {{schema}}.checkpoints AS jv WITH (UPDLOCK)
+                WHERE
+                    jv.job_id = @p_job_id
+                    AND jv.checkpoint_kind_code = @p_checkpoint_kind_code
+                    AND jv.checkpoint_name = @p_checkpoint_name;
+
+                IF @@ROWCOUNT = 0
+                    BEGIN
+                        INSERT INTO {{schema}}.checkpoints (
+                            job_id, checkpoint_kind_code, checkpoint_name,
+                            value_format_id, value,
+                            created_at_utc, modified_at_utc, version
+                        )
+                        VALUES (
+                            @p_job_id, @p_checkpoint_kind_code, @p_checkpoint_name,
+                            @p_value_format_id, @p_value,
+                            @now, @now, 0
+                        );
+
+                        INSERT INTO @row (found, value_format_id, value, version)
+                        VALUES (1, @p_value_format_id, @p_value, 0);
+                    END
+
+            END
+        ELSE IF @p_action = 40 /* AccessCheckpointAction.Exists */
+            BEGIN
+                INSERT INTO @row (found, value_format_id, value, version)
+                SELECT
+                    CASE WHEN EXISTS (
+                        SELECT 1
+                        FROM {{schema}}.checkpoints AS jv
+                        WHERE
+                            jv.job_id = @p_job_id
+                            AND jv.checkpoint_kind_code = @p_checkpoint_kind_code
+                            AND jv.checkpoint_name = @p_checkpoint_name
+                    ) THEN 1 ELSE 0 END,
+                    NULL,
+                    NULL,
+                    NULL;
+            END
+        ELSE IF @p_action = 50 /* AccessCheckpointAction.Delete */
+            BEGIN
+                DELETE FROM {{schema}}.checkpoints
+                WHERE
+                    job_id = @p_job_id
+                    AND checkpoint_kind_code = @p_checkpoint_kind_code
+                    AND checkpoint_name = @p_checkpoint_name;
+
+                INSERT INTO @row (found, value_format_id, value, version)
+                VALUES (CASE WHEN @@ROWCOUNT > 0 THEN 1 ELSE 0 END, NULL, NULL, NULL);
+            END
+        ELSE
+            BEGIN
+                THROW 50002, 'access_checkpoint received an unknown action.', 1;
+            END
+
+        SELECT
+            found,
+            value_format_id,
+            value,
+            version
+        FROM @row;
+
+        IF @entry_trancount = 0
+            COMMIT TRANSACTION;
+    END TRY
+    BEGIN CATCH
+        IF @entry_trancount = 0 AND XACT_STATE() <> 0
+            ROLLBACK TRANSACTION;
+        THROW;
+    END CATCH;
+END;
+GO
+
+CREATE OR ALTER PROCEDURE {{schema}}.arm_or_consume_sleep_timer
+    @p_job_id BIGINT,
+    @p_execution_number INT,
+    @p_leased_by_worker_id INT,
+    @p_checkpoint_name VARCHAR(128),
+    @p_delay_seconds INT = NULL,
+    @p_resume_at_utc DATETIME2(3) = NULL
+AS
+BEGIN
+    SET NOCOUNT ON;
+    SET XACT_ABORT ON;
+
+    DECLARE @entry_trancount INT = @@TRANCOUNT;
+    BEGIN TRY
+        IF @entry_trancount = 0
+            BEGIN TRANSACTION;
+
+        DECLARE @now DATETIME2(3) = SYSUTCDATETIME();
+        DECLARE @due DATETIME2(3) = COALESCE(@p_resume_at_utc, DATEADD(SECOND, @p_delay_seconds, @now));
+        DECLARE @outcome SMALLINT;
+        DECLARE @result_due DATETIME2(3) = NULL;
+        DECLARE @existing_state TINYINT;
+        DECLARE @existing_due DATETIME2(3);
+        DECLARE @lock_id BIGINT;
+
+        -- The job's row is the timer's job-level mutex, and the execution fence: the timer changes only while this
+        -- attempt holds it (docs/sql-internals.md, "Execution fence").
+        SELECT @lock_id = job_id
+        FROM {{schema}}.jobs_state WITH (UPDLOCK, ROWLOCK)
+        WHERE
+            job_id = @p_job_id
+            AND job_status_code = 50 /* JobStatusCode.Executing */
+            AND execution_number = @p_execution_number
+            AND leased_by_worker_id = @p_leased_by_worker_id;
+
+        IF @lock_id IS NULL
+            THROW 50012, 'ACTA:EXECUTION_FENCED:arm_or_consume_sleep_timer: the job is no longer executing this attempt.', 1;
+
+        SELECT
+            @existing_state = checkpoint_status_code,
+            @existing_due = due_at_utc
+        FROM {{schema}}.checkpoints
+        WHERE
+            job_id = @p_job_id
+            AND checkpoint_kind_code = 30 /* CheckpointKindCode.Timer */
+            AND checkpoint_name = @p_checkpoint_name;
+
+        IF @existing_state = 10 /* CheckpointStatusCode.Pending */ AND @existing_due > @now
+            BEGIN
+
+                SET @outcome = 1 /* ArmOrConsumeSleepTimerOutcomeCode.Suspend */;
+                SET @result_due = @existing_due;
+            END
+        ELSE IF @existing_state = 10 /* CheckpointStatusCode.Pending */
+            BEGIN
+
+                UPDATE {{schema}}.checkpoints
+                SET
+                    checkpoint_status_code = 100 /* CheckpointStatusCode.Consumed */,
+                    modified_at_utc = @now,
+                    version = version + 1
+                WHERE job_id = @p_job_id AND checkpoint_kind_code = 30 /* CheckpointKindCode.Timer */ AND checkpoint_name = @p_checkpoint_name;
+
+                /* Only the worker still executing may clear the instant. A reclaimed row is Ready again
+                   on an instant the reclaim owns, and ck_jobs_state_ready_due requires Ready to keep one. */
+                UPDATE {{schema}}.jobs_state
+                SET
+                    next_run_at_utc = NULL,
+                    modified_at_utc = @now,
+                    version = version + 1
+                WHERE job_id = @p_job_id AND job_status_code = 50 /* JobStatusCode.Executing */;
+
+                SET @outcome = 2 /* ArmOrConsumeSleepTimerOutcomeCode.Continue */;
+            END
+        ELSE IF @existing_state IS NOT NULL
+            BEGIN
+
+                SET @outcome = 2 /* ArmOrConsumeSleepTimerOutcomeCode.Continue */;
+            END
+        ELSE IF @due <= @now
+            BEGIN
+
+                SET @outcome = 2 /* ArmOrConsumeSleepTimerOutcomeCode.Continue */;
+            END
+        ELSE IF
+            EXISTS (
+                SELECT 1 FROM {{schema}}.checkpoints
+                WHERE
+                    job_id = @p_job_id AND checkpoint_kind_code = 30 /* CheckpointKindCode.Timer */ AND checkpoint_status_code = 10
+            /* CheckpointStatusCode.Pending */
+            )
+            BEGIN
+                SET @outcome = 3 /* ArmOrConsumeSleepTimerOutcomeCode.Reject */;
+            END
+        ELSE
+            BEGIN
+                INSERT INTO {{schema}}.checkpoints (
+                    job_id, checkpoint_kind_code, checkpoint_name, checkpoint_status_code, due_at_utc,
+                    created_at_utc, modified_at_utc, version
+                )
+                VALUES (
+                    @p_job_id, 30 /* CheckpointKindCode.Timer */, @p_checkpoint_name, 10 /* CheckpointStatusCode.Pending */, @due,
+                    @now, @now, 0
+                );
+
+                SET @outcome = 1 /* ArmOrConsumeSleepTimerOutcomeCode.Suspend */;
+                SET @result_due = @due;
+            END
+
+        SELECT
+            @outcome AS outcome_code,
+            @result_due AS due_at_utc;
+
+        IF @entry_trancount = 0
+            COMMIT TRANSACTION;
+    END TRY
+    BEGIN CATCH
+        IF @entry_trancount = 0 AND XACT_STATE() <> 0
+            ROLLBACK TRANSACTION;
+        THROW;
+    END CATCH;
+END;
+GO
+
+CREATE OR ALTER PROCEDURE {{schema}}.claim_jobs
+    @p_namespace_id INT,
+    @p_leased_by_worker_id INT,
+    @p_claim_limit INT,
+    @p_lease_ttl_seconds INT,
+    @p_excluded_definition_ids NVARCHAR(MAX) = NULL,
+    @p_claim_from_utc DATETIME2(3) = NULL
+AS
+BEGIN
+    SET NOCOUNT ON;
+    SET XACT_ABORT ON;
+
+    DECLARE @entry_trancount INT = @@TRANCOUNT;
+    BEGIN TRY
+        IF @entry_trancount = 0
+            BEGIN TRANSACTION;
+
+        DECLARE @now DATETIME2(7) = SYSUTCDATETIME();
+        DECLARE @lease_expires DATETIME2(3) = DATEADD(SECOND, @p_lease_ttl_seconds, @now);
+        /* Dueness compares at the column's DATETIME2(3) precision: enqueue rounds next_run_at_utc up to
+           0.5 ms into the future, so a full-precision @now can transiently see a just-enqueued row as
+           not yet due. Rounding is monotonic, so the same-precision comparison never can. */
+        DECLARE @due_now DATETIME2(3) = @now;
+
+        /* Rolling-deploy exclusion: the definitions this worker already bounced for want of a handler,
+           passed as JSON array text. Expanded once here so neither the claim nor the horizon pays for
+           OPENJSON per row, and counted so the healthy fleet's empty set short-circuits both. */
+        DECLARE @excluded TABLE (definition_id INT NOT NULL PRIMARY KEY);
+        IF @p_excluded_definition_ids IS NOT NULL
+            INSERT INTO @excluded (definition_id)
+            SELECT CAST(value AS INT) FROM OPENJSON(@p_excluded_definition_ids);
+        DECLARE @excluded_count INT = (SELECT COUNT(*) FROM @excluded);
+
+        DECLARE
+            @claimed TABLE
+            (
+                job_id BIGINT NOT NULL PRIMARY KEY,
+                job_ref UNIQUEIDENTIFIER NOT NULL,
+                definition_id INT NOT NULL,
+                tenant_id INT NULL,
+                execution_number INT NOT NULL,
+                deduplication_key VARCHAR(128) COLLATE Latin1_General_100_BIN2_UTF8 NULL,
+                job_kind_code TINYINT NOT NULL,
+                correlation_key VARCHAR(64) NULL,
+                concurrency_key VARCHAR(128) COLLATE Latin1_General_100_BIN2_UTF8 NULL,
+                input_format_id TINYINT NOT NULL,
+                input VARBINARY(MAX) NULL,
+                next_run_at_utc DATETIME2(3) NULL,
+                created_at_utc DATETIME2(3) NOT NULL,
+                failure_count INT NOT NULL,
+                lane_id BIGINT NULL,
+                parent_job_id BIGINT NULL
+            );
+
+        /* Every JobPriorityCode, listed once: the claim seeks each band in turn and the horizon reads each band's head. */
+        DECLARE @bands TABLE (job_priority_code TINYINT NOT NULL PRIMARY KEY);
+        INSERT INTO @bands (job_priority_code)
+        VALUES
+            (100 /* JobPriorityCode.Realtime */),
+            (85 /* JobPriorityCode.Critical */),
+            (70 /* JobPriorityCode.High */),
+            (50 /* JobPriorityCode.Normal */),
+            (0 /* JobPriorityCode.Bulk */);
+
+        DECLARE @candidates TABLE (job_id BIGINT NOT NULL PRIMARY KEY);
+        DECLARE @remaining INT = @p_claim_limit;
+        DECLARE @band TINYINT = (SELECT MAX(job_priority_code) FROM @bands);
+
+        /* One seek per band, highest band first, each stopping at the band's first row not yet due. The
+           UPDLOCK holds every candidate to the end of the transaction, so the update below finds each one
+           as this loop left it. */
+        WHILE @band IS NOT NULL AND @remaining > 0
+            BEGIN
+                /* Pure claim-index seek on ix_jobs_state_claim_ready via the denormalized namespace; concurrency-key admission is
+                   executor-owned (lock store) after the start CAS, and the one jobs lookup is the exclusion below. */
+                INSERT INTO @candidates (job_id)
+                SELECT TOP (@remaining) r.job_id
+                FROM {{schema}}.jobs_state r WITH (READPAST, UPDLOCK, ROWLOCK, READCOMMITTEDLOCK)
+                WHERE
+                    r.namespace_id = @p_namespace_id
+                    AND r.job_priority_code = @band
+                    /* ix_jobs_state_claim_ready's filter restated whole: filtered-index matching takes top-level AND-terms
+                       only, and without it the claim scans jobs_state and widens its UPDLOCK footprint to match. Ready always
+                       carries its due instant (ck_jobs_state_ready_due); a Suspended NULL never comes due. */
+                    AND r.job_status_code IN (10 /* JobStatusCode.Ready */, 20 /* JobStatusCode.Suspended */)
+                    AND r.next_run_at_utc IS NOT NULL
+                    AND r.next_run_at_utc <= @due_now
+                    /* The worker's watermark starts the seek past the ghost records earlier claims left at the band's
+                       head (docs/sql-internals.md, "Claim watermark"); NULL seeks from the head. */
+                    AND r.next_run_at_utc >= ISNULL(@p_claim_from_utc, CAST('0001-01-01' AS DATETIME2(3)))
+                    /* Empty on a healthy fleet, so the count test settles it before the jobs lookup and
+                       the seek above stays as it was. */
+                    AND (
+                        @excluded_count = 0
+                        OR NOT EXISTS (
+                            SELECT 1
+                            FROM {{schema}}.jobs j
+                            WHERE j.job_id = r.job_id AND j.definition_id IN (SELECT e.definition_id FROM @excluded e)
+                        )
+                    )
+                ORDER BY
+                    r.next_run_at_utc ASC,
+                    r.job_id ASC;
+
+                SET @remaining -= @@ROWCOUNT;
+                SET @band = (SELECT MAX(job_priority_code) FROM @bands WHERE job_priority_code < @band);
+            END
+
+        UPDATE r
+        SET
+            job_status_code = 50 /* JobStatusCode.Executing */,
+            execution_number = r.execution_number + 1,
+            leased_by_worker_id = @p_leased_by_worker_id,
+            lease_expires_at_utc = @lease_expires,
+            result_format_id = 0 /* JobPayloadFormat.None */,
+            result = NULL,
+            modified_at_utc = @now,
+            version = r.version + 1
+        OUTPUT
+            INSERTED.job_id,
+            j.job_ref,
+            j.definition_id,
+            j.tenant_id,
+            INSERTED.execution_number,
+            j.deduplication_key,
+            j.job_kind_code,
+            j.correlation_key,
+            j.concurrency_key,
+            j.input_format_id,
+            j.input,
+            INSERTED.next_run_at_utc,
+            j.created_at_utc,
+            INSERTED.failure_count,
+            INSERTED.lane_id,
+            j.parent_job_id
+        INTO
+            @claimed (
+                job_id, job_ref, definition_id, tenant_id, execution_number,
+                deduplication_key, job_kind_code, correlation_key, concurrency_key,
+                input_format_id, input, next_run_at_utc, created_at_utc,
+                failure_count, lane_id, parent_job_id
+            )
+        -- FORCESEEK keeps this update on a key seek instead of a lock-escalating scan of jobs_state. The seek above holds
+        -- claim-index keys, so READPAST skips a row a verb holds instead of waiting for it, which would invert the lock
+        -- order (docs/sql-internals.md); a skipped candidate is simply not claimed.
+        FROM {{schema}}.jobs_state r WITH (INDEX (pk_jobs_state), FORCESEEK, ROWLOCK, READPAST)
+        INNER JOIN @candidates c ON c.job_id = r.job_id
+        INNER JOIN {{schema}}.jobs j WITH (FORCESEEK) ON j.job_id = r.job_id;
+
+        IF EXISTS (SELECT 1 FROM @claimed)
+            BEGIN
+                SELECT
+                    job_id,
+                    definition_id,
+                    execution_number,
+                    deduplication_key,
+                    job_kind_code,
+                    correlation_key,
+                    concurrency_key,
+                    input_format_id,
+                    input,
+                    next_run_at_utc,
+                    created_at_utc,
+                    failure_count,
+                    job_ref,
+                    tenant_id,
+                    CAST(NULL AS DATETIME2(7)) AS db_now,
+                    CAST(NULL AS DATETIME2(3)) AS next_ready_at_utc,
+                    lane_id,
+                    parent_job_id
+                FROM @claimed
+                ORDER BY job_id;
+            END
+        ELSE
+            BEGIN
+                SELECT
+                    CAST(NULL AS BIGINT) AS job_id,
+                    CAST(NULL AS INT) AS definition_id,
+                    CAST(NULL AS INT) AS execution_number,
+                    CAST(NULL AS VARCHAR(128)) AS deduplication_key,
+                    CAST(NULL AS TINYINT) AS job_kind_code,
+                    CAST(NULL AS VARCHAR(64)) AS correlation_key,
+                    CAST(NULL AS VARCHAR(128)) AS concurrency_key,
+                    CAST(NULL AS TINYINT) AS input_format_id,
+                    CAST(NULL AS VARBINARY(MAX)) AS input,
+                    CAST(NULL AS DATETIME2(3)) AS next_run_at_utc,
+                    CAST(NULL AS DATETIME2(3)) AS created_at_utc,
+                    CAST(NULL AS INT) AS failure_count,
+                    CAST(NULL AS UNIQUEIDENTIFIER) AS job_ref,
+                    CAST(NULL AS INT) AS tenant_id,
+                    @now AS db_now,
+                    /* The earliest head across the bands: each band's first index row is its earliest instant. */
+                    (
+                        SELECT MIN(head.next_run_at_utc)
+                        FROM @bands b
+                        CROSS APPLY (
+                            SELECT TOP (1) r.next_run_at_utc
+                            FROM {{schema}}.jobs_state r
+                            WHERE
+                                r.namespace_id = @p_namespace_id
+                                AND r.job_priority_code = b.job_priority_code
+                                AND r.job_status_code IN (10 /* JobStatusCode.Ready */, 20 /* JobStatusCode.Suspended */)
+                                AND r.next_run_at_utc IS NOT NULL
+                                /* Excluded rows are invisible to this worker's horizon too: a horizon at or
+                                   before now is what tells the caller to retry at the anti-spin floor, so
+                                   counting rows this worker will never claim would spin it. */
+                                AND (
+                                    @excluded_count = 0
+                                    OR NOT EXISTS (
+                                        SELECT 1
+                                        FROM {{schema}}.jobs j
+                                        WHERE j.job_id = r.job_id AND j.definition_id IN (SELECT e.definition_id FROM @excluded e)
+                                    )
+                                )
+                            ORDER BY r.next_run_at_utc ASC
+                        ) head
+                    ) AS next_ready_at_utc,
+                    CAST(NULL AS BIGINT) AS lane_id,
+                    CAST(NULL AS BIGINT) AS parent_job_id;
+            END
+
+        IF @entry_trancount = 0
+            COMMIT TRANSACTION;
+    END TRY
+    BEGIN CATCH
+        IF @entry_trancount = 0 AND XACT_STATE() <> 0
+            ROLLBACK TRANSACTION;
+        THROW;
+    END CATCH;
+END;
+GO
+
+CREATE OR ALTER PROCEDURE {{schema}}.complete_executions
+    @p_leased_by_worker_id INT,
+    @p_batch {{schema}}.complete_executions READONLY,
+    @p_plain BIT = 0
+AS
+BEGIN
+    SET NOCOUNT ON;
+    SET XACT_ABORT ON;
+
+    DECLARE @entry_trancount INT = @@TRANCOUNT;
+    BEGIN TRY
+        IF @entry_trancount = 0
+            BEGIN TRANSACTION;
+
+        DECLARE @now DATETIME2(7) = SYSUTCDATETIME();
+        DECLARE @locked INT, @lanes BIT = 0, @children BIT = 0, @waits BIT = 0, @shapes BIT = 0, @recurring BIT = 0;
+        DECLARE @rows TABLE (
+            job_id BIGINT NOT NULL,
+            execution_number INT NOT NULL,
+            lane_id BIGINT NULL,
+            parent_job_id BIGINT NULL,
+            sig_state TINYINT NULL,
+            sig_due DATETIME2(3) NULL,
+            PRIMARY KEY (job_id, execution_number)
+        );
+        DECLARE @done TABLE (
+            job_id BIGINT NOT NULL PRIMARY KEY,
+            execution_number INT NOT NULL,
+            job_status_code TINYINT NOT NULL,
+            lane_id BIGINT NULL,
+            parent_job_id BIGINT NULL,
+            parent_released BIT NOT NULL DEFAULT 0,
+            lane_promoted BIT NOT NULL DEFAULT 0,
+            prior_failure_count INT NOT NULL
+        );
+
+        /* Each step is skipped when no row needs it, and a plain batch (the binder marks one with no shape, lane, or parent)
+           reads no lane or parent and skips them all. Locks: a fire's schedule lock, lanes, slot locks, awaited slots, own jobs_state
+           rows, schedules, parent latches and rows, in key order (docs/sql-internals.md, "Lane lock order"); lane and parent ids never change. */
+        -- Every join from the batch into jobs or jobs_state seeks (same policy, "Locking reads seek").
+        IF @p_plain = 1
+            INSERT INTO @rows (job_id, execution_number)
+            SELECT c.job_id, c.execution_number
+            FROM @p_batch c;
+        ELSE
+            INSERT INTO @rows (job_id, execution_number, lane_id, parent_job_id)
+            SELECT c.job_id, c.execution_number, r.lane_id, j.parent_job_id
+            FROM @p_batch c
+            INNER JOIN {{schema}}.jobs_state r WITH (FORCESEEK) ON r.job_id = c.job_id
+            INNER JOIN {{schema}}.jobs j WITH (FORCESEEK) ON j.job_id = c.job_id;
+
+        IF @p_plain = 0
+            BEGIN
+            SELECT
+                @lanes = MAX(CASE WHEN lane_id IS NOT NULL THEN 1 ELSE 0 END),
+                @children = MAX(CASE WHEN parent_job_id IS NOT NULL THEN 1 ELSE 0 END)
+            FROM @rows;
+
+            SELECT
+                @waits = MAX(CASE WHEN wait_signal_name IS NOT NULL THEN 1 ELSE 0 END),
+                @shapes = MAX(
+                    CASE
+                        WHEN reschedule_event_code IS NOT NULL OR handler_job_status_code IS NOT NULL OR final_job_status_code IS NOT NULL THEN 1
+                        ELSE 0
+                    END
+                ),
+                @recurring = MAX(CASE WHEN final_job_status_code IS NOT NULL THEN 1 ELSE 0 END)
+            FROM @p_batch;
+
+            -- Each fired slot's namespace schedule lock, shared, before any other lock (same policy, "Schedule lock").
+            IF @recurring = 1
+                BEGIN
+                    DECLARE @schedule_ns INT = (
+                        SELECT MIN(r.namespace_id)
+                        FROM @p_batch c
+                        INNER JOIN {{schema}}.jobs_state r WITH (FORCESEEK) ON r.job_id = c.job_id
+                        WHERE c.final_job_status_code IS NOT NULL
+                    );
+                    DECLARE @schedule_lock NVARCHAR(255), @schedule_lock_result INT;
+                    WHILE @schedule_ns IS NOT NULL
+                        BEGIN
+                            SET @schedule_lock = N'{{schema}}.schedules.' + CAST(@schedule_ns AS NVARCHAR(12));
+                            EXEC @schedule_lock_result = sp_getapplock @schedule_lock, 'Shared', 'Transaction', -1;
+                            IF @schedule_lock_result < 0
+                                THROW 51205, 'ACTA:SCHEDULE_LOCK:The namespace schedule lock was not granted (deadlock victim or cancelled).', 1;
+                            SET @schedule_ns = (
+                                SELECT MIN(r.namespace_id)
+                                FROM @p_batch c
+                                INNER JOIN {{schema}}.jobs_state r WITH (FORCESEEK) ON r.job_id = c.job_id
+                                WHERE c.final_job_status_code IS NOT NULL AND r.namespace_id > @schedule_ns
+                            );
+                        END;
+                END
+
+            IF @lanes = 1
+                BEGIN
+                    CREATE TABLE #lanes (lane_id BIGINT NOT NULL PRIMARY KEY);
+                    INSERT INTO #lanes (lane_id)
+                    SELECT DISTINCT lane_id FROM @rows WHERE lane_id IS NOT NULL;
+
+                    SELECT @locked = COUNT(*)
+                    FROM #lanes x
+                    INNER JOIN {{schema}}.lanes l WITH (UPDLOCK, ROWLOCK, FORCESEEK) ON l.lane_id = x.lane_id
+                    OPTION (FORCE ORDER, LOOP JOIN);
+                END
+
+            /* Each slot this batch may read or write takes the slot's own lock, as wait_signal and raise_signal name it, all in
+               name order and before any slot row or jobs_state row (docs/sql-internals.md, "Slot locks"): each awaited slot
+               under both kinds a wait can name, and each parent's latch for a child here, whether or not the child lands terminal. */
+            IF @waits = 1 OR @children = 1
+                BEGIN
+                    DECLARE @slot_locks TABLE (name NVARCHAR(255) COLLATE Latin1_General_100_BIN2 NOT NULL PRIMARY KEY);
+                    INSERT INTO @slot_locks (name)
+                    SELECT CONCAT(N'{{schema}}.slot:', c.job_id, N':', k.kind_code, N':', c.wait_signal_name)
+                    FROM @p_batch c
+                    CROSS JOIN (VALUES (20 /* CheckpointKindCode.Signal */), (50 /* CheckpointKindCode.ChildLatch */)) k (kind_code)
+                    WHERE c.wait_signal_name IS NOT NULL
+                    UNION
+                    SELECT CONCAT(N'{{schema}}.slot:', x.parent_job_id, N':50:sys.child.', x.job_id)
+                    FROM @rows x
+                    WHERE x.parent_job_id IS NOT NULL;
+                    DECLARE @slot_lock NVARCHAR(255) = (SELECT MIN(name) FROM @slot_locks), @slot_lock_result INT;
+                    WHILE @slot_lock IS NOT NULL
+                        BEGIN
+                            -- Positional: resource, mode, owner, timeout (-1 waits like any lock).
+                            EXEC @slot_lock_result = sp_getapplock @slot_lock, 'Exclusive', 'Transaction', -1;
+                            IF @slot_lock_result < 0
+                                THROW 51205, 'ACTA:SLOT_LOCK:The checkpoint slot lock was not granted (deadlock victim or cancelled).', 1;
+                            SET @slot_lock = (SELECT MIN(name) FROM @slot_locks WHERE name > @slot_lock);
+                        END;
+                END
+
+            -- The awaited slot is the only place a wait's deadline lives; its lock lets a raise that won the race land the job
+            -- Ready, and makes a raise that creates a missing slot wait for this landing and then wake the job.
+            IF @waits = 1
+                UPDATE x
+                SET sig_state = s.checkpoint_status_code, sig_due = s.due_at_utc
+                FROM @rows x
+                INNER JOIN @p_batch c ON c.job_id = x.job_id AND c.execution_number = x.execution_number AND c.wait_signal_name IS NOT NULL
+                INNER JOIN {{schema}}.checkpoints s WITH (UPDLOCK, FORCESEEK)
+                    ON
+                        s.job_id = x.job_id
+                        AND s.checkpoint_kind_code IN (20 /* CheckpointKindCode.Signal */, 50 /* CheckpointKindCode.ChildLatch */)
+                        AND s.checkpoint_name = c.wait_signal_name
+                OPTION (FORCE ORDER, LOOP JOIN);
+            END
+
+        /* Locks each row by its clustered key in job_id order. A row that re-arms, waits, is held, or fires stays Executing and
+           leased here and takes its status, and a fire its result (ck_jobs_state_result_idle), with its next run below: it enters
+           ix_jobs_state_claim_ready once, a consumed timer never meets ck_jobs_state_ready_due, and landings never write next_run_at_utc. */
+        UPDATE r
+        SET
+            job_status_code = CASE WHEN s.shaped = 1 THEN r.job_status_code ELSE s.to_status END,
+            failure_count = COALESCE(c.failure_count, r.failure_count),
+            leased_by_worker_id = CASE WHEN s.shaped = 1 THEN r.leased_by_worker_id END,
+            lease_expires_at_utc = CASE WHEN s.shaped = 1 THEN r.lease_expires_at_utc END,
+            retention_until_utc = CASE
+                WHEN
+                    s.to_status IN (100 /* JobStatusCode.Succeeded */, 200 /* JobStatusCode.Failed */, 220 /* JobStatusCode.Cancelled */)
+                    AND c.retention_seconds IS NOT NULL
+                    THEN DATEADD(SECOND, c.retention_seconds, @now)
+                ELSE r.retention_until_utc
+            END,
+            result_format_id = CASE WHEN s.shaped = 1 THEN r.result_format_id ELSE c.result_format_id END,
+            result = CASE WHEN s.shaped = 1 THEN r.result ELSE c.result END,
+            modified_at_utc = @now,
+            version = r.version + 1
+        OUTPUT
+            INSERTED.job_id, INSERTED.execution_number, s.to_status, x.lane_id, x.parent_job_id, DELETED.failure_count
+        INTO @done (job_id, execution_number, job_status_code, lane_id, parent_job_id, prior_failure_count)
+        FROM @rows x
+        INNER JOIN {{schema}}.jobs_state r WITH (INDEX (pk_jobs_state), FORCESEEK, ROWLOCK) ON r.job_id = x.job_id
+        INNER JOIN @p_batch c ON c.job_id = x.job_id AND c.execution_number = x.execution_number
+        CROSS APPLY (
+            SELECT CASE
+                WHEN c.wait_signal_name IS NOT NULL AND x.sig_state = 20 /* CheckpointStatusCode.Set */ THEN 10 /* JobStatusCode.Ready */
+                WHEN c.wait_signal_name IS NOT NULL THEN 20 /* JobStatusCode.Suspended */
+                WHEN c.reschedule_event_code IS NOT NULL THEN 10 /* JobStatusCode.Ready */
+                WHEN c.handler_job_status_code IS NOT NULL THEN c.handler_job_status_code
+                WHEN c.final_job_status_code IS NOT NULL THEN c.final_job_status_code
+                WHEN c.succeeded = 1 THEN 100 /* JobStatusCode.Succeeded */
+                ELSE 200 /* JobStatusCode.Failed */
+            END AS to_status,
+            CASE
+                WHEN c.reschedule_event_code IS NOT NULL OR c.handler_job_status_code IS NOT NULL OR c.final_job_status_code IS NOT NULL THEN 1
+                ELSE 0
+            END AS shaped
+        ) s
+        WHERE
+            r.execution_number = x.execution_number
+            AND r.job_status_code = 50 /* JobStatusCode.Executing */
+            AND r.leased_by_worker_id = @p_leased_by_worker_id
+        OPTION (FORCE ORDER);
+
+        -- A recurring fire takes both in its own step, from the schedules as they stand after the advance.
+        IF @shapes = 1
+            UPDATE r
+            SET
+                job_status_code = d.job_status_code,
+                leased_by_worker_id = NULL,
+                lease_expires_at_utc = NULL,
+                next_run_at_utc = CASE
+                    WHEN c.wait_signal_name IS NOT NULL AND x.sig_state = 20 /* CheckpointStatusCode.Set */ THEN @now
+                    WHEN c.wait_signal_name IS NOT NULL THEN x.sig_due
+                    WHEN c.reschedule_event_code IS NOT NULL
+                        THEN COALESCE(c.reschedule_resume_at_utc, DATEADD(SECOND, c.reschedule_delay_seconds, @now))
+                    -- A handler's pause keeps a next run, which marks it held (ScheduleWalker, "held").
+                    WHEN c.handler_job_status_code = 30 /* JobStatusCode.Paused */ THEN @now
+                    ELSE NULL
+                END
+            FROM @done d
+            INNER JOIN @rows x ON x.job_id = d.job_id AND x.execution_number = d.execution_number
+            INNER JOIN @p_batch c ON c.job_id = d.job_id AND c.execution_number = d.execution_number
+            INNER JOIN {{schema}}.jobs_state r WITH (INDEX (pk_jobs_state), FORCESEEK, ROWLOCK) ON r.job_id = d.job_id
+            WHERE (c.reschedule_event_code IS NOT NULL OR c.handler_job_status_code IS NOT NULL) AND c.final_job_status_code IS NULL;
+
+        IF @p_plain = 0
+            BEGIN
+            IF @recurring = 1
+                BEGIN
+                    /* A slot's final landing: the status the finalizer said, the lease goes, the next run is what it said (none
+                       for Idle), and a success keeps its result. */
+                    UPDATE r
+                    SET
+                        job_status_code = d.job_status_code,
+                        next_run_at_utc = c.job_next_run_at_utc,
+                        leased_by_worker_id = NULL,
+                        lease_expires_at_utc = NULL,
+                        result_format_id = c.result_format_id,
+                        result = c.result
+                    FROM @done d
+                    INNER JOIN @p_batch c ON c.job_id = d.job_id AND c.execution_number = d.execution_number
+                    INNER JOIN {{schema}}.jobs_state r WITH (INDEX (pk_jobs_state), FORCESEEK, ROWLOCK) ON r.job_id = d.job_id
+                    WHERE c.final_job_status_code IS NOT NULL;
+
+                    /* A permanent slot that landed Idle, Failed, or Cancelled settled its firing. Every member schedule parked
+                       on the slot is woken to evaluate again, and the envelope records the outcome once. The cursors stay where
+                       the admission left them: completion never computes an occurrence. */
+                    UPDATE st
+                    SET
+                        next_evaluation_at_utc = @now,
+                        evaluation_status_code = 10 /* EvaluationStatusCode.Scheduled */,
+                        modified_at_utc = @now,
+                        version = st.version + 1
+                    FROM {{schema}}.schedules_state st WITH (FORCESEEK)
+                    INNER JOIN {{schema}}.schedules js ON js.schedule_id = st.schedule_id
+                    INNER JOIN @done d ON d.job_id = js.job_id
+                    INNER JOIN {{schema}}.jobs j WITH (FORCESEEK) ON j.job_id = d.job_id
+                    WHERE
+                        d.job_status_code IN (40 /* JobStatusCode.Idle */, 200 /* JobStatusCode.Failed */, 220 /* JobStatusCode.Cancelled */)
+                        AND j.job_kind_code = 20 /* JobKindCode.PermanentSlot */
+                        AND st.evaluation_status_code IN (20 /* EvaluationStatusCode.WaitingForCapacity */, 50 /* EvaluationStatusCode.SlotUnavailable */);
+
+                    UPDATE cp
+                    SET
+                        checkpoint_status_code = CASE
+                            WHEN d.job_status_code = 220 /* JobStatusCode.Cancelled */ THEN 130 /* CheckpointStatusCode.Cancelled */
+                            WHEN d.job_status_code = 200 /* JobStatusCode.Failed */ OR c.succeeded = 0 THEN 120 /* CheckpointStatusCode.Failed */
+                            ELSE 110 /* CheckpointStatusCode.Succeeded */
+                        END,
+                        modified_at_utc = @now,
+                        version = cp.version + 1
+                    FROM {{schema}}.checkpoints cp WITH (FORCESEEK)
+                    INNER JOIN @done d ON d.job_id = cp.job_id
+                    INNER JOIN @p_batch c ON c.job_id = d.job_id AND c.execution_number = d.execution_number
+                    INNER JOIN {{schema}}.jobs j WITH (FORCESEEK) ON j.job_id = d.job_id
+                    WHERE
+                        cp.checkpoint_kind_code = 60 /* CheckpointKindCode.Firing */
+                        AND cp.checkpoint_name = 'sys.firing'
+                        AND cp.checkpoint_status_code = 10 /* CheckpointStatusCode.Pending */
+                        AND d.job_status_code IN (40 /* JobStatusCode.Idle */, 200 /* JobStatusCode.Failed */, 220 /* JobStatusCode.Cancelled */)
+                        AND j.job_kind_code = 20 /* JobKindCode.PermanentSlot */;
+                END
+            END
+
+        /* The attempt's own event under the recording gate (EventRecordingCode) plus the alert overlay, which also writes a one-shot's
+           success past attempt 1, since a restart zeroes the count yet the success must resolve what the failure opened; a recurring
+           fire keeps the recovery rule, or every idle tick would write. Details are fixed kebab words, so the JSON needs no escaping. */
+        INSERT INTO {{schema}}.events (
+            event_code, created_at_utc, namespace_id,
+            entity_code, entity_id,
+            definition_id, tenant_id, lineage_root_job_id,
+            worker_id, execution_number, duration_ms,
+            event_message, details_format_id, details
+        )
+        SELECT
+            c.event_code, @now, j.namespace_id,
+            50 /* EntityCode.Job */, d.job_id,
+            j.definition_id, j.tenant_id, COALESCE(j.lineage_root_job_id, d.job_id),
+            @p_leased_by_worker_id, d.execution_number, c.duration_ms,
+            c.event_message,
+            CASE WHEN x.details IS NULL THEN 0 /* JobPayloadFormat.None */ ELSE 1 /* JobPayloadFormat.Json */ END,
+            CAST(x.details AS VARBINARY(MAX))
+        FROM @done d
+        INNER JOIN @p_batch c ON c.job_id = d.job_id AND c.execution_number = d.execution_number
+        INNER JOIN {{schema}}.jobs j WITH (FORCESEEK) ON j.job_id = d.job_id
+        INNER JOIN {{schema}}.definitions jd WITH (FORCESEEK) ON jd.definition_id = j.definition_id
+        CROSS APPLY (
+            SELECT CASE
+                WHEN c.event_code = 41 /* EventCode.JobExecutionFailed */
+                    THEN ',"to":"' + CASE d.job_status_code
+                        WHEN 10 /* JobStatusCode.Ready */ THEN 'ready'
+                        WHEN 20 /* JobStatusCode.Suspended */ THEN 'suspended'
+                        WHEN 30 /* JobStatusCode.Paused */ THEN 'paused'
+                        WHEN 40 /* JobStatusCode.Idle */ THEN 'idle'
+                    END + '"'
+                WHEN c.event_code = 43 /* EventCode.JobExecutionYielded */
+                    THEN ',"outcome":"' + CASE
+                        WHEN c.reschedule_event_code = 60 /* EventCode.JobSuspended */ THEN 'suspended'
+                        WHEN c.reschedule_event_code IS NOT NULL THEN 'rescheduled'
+                        WHEN c.handler_job_status_code = 30 /* JobStatusCode.Paused */ THEN 'paused'
+                        ELSE 'cancelled'
+                    END + '"'
+            END AS head
+        ) h
+        CROSS APPLY (
+            SELECT NULLIF(CONCAT('{', STUFF(CONCAT(h.head, ',"reason":"' + c.reason + '"'), 1, 1, ''), '}'), '{}') AS details
+        ) x
+        WHERE
+            j.event_recording_code = 20 /* EventRecordingCode.Audit */
+            OR (
+                j.event_recording_code = 10 /* EventRecordingCode.Failures */
+                AND (
+                    c.event_code IN (41 /* EventCode.JobExecutionFailed */, 44 /* EventCode.JobFailed */)
+                    OR (c.event_code = 40 /* EventCode.JobExecutionSucceeded */ AND d.prior_failure_count > 0)
+                )
+            )
+            OR (
+                jd.alert_profile_code_effective <> 0 /* AlertProfileCode.None */
+                AND (
+                    c.event_code IN (41 /* EventCode.JobExecutionFailed */, 44 /* EventCode.JobFailed */)
+                    OR (
+                        c.event_code = 40 /* EventCode.JobExecutionSucceeded */
+                        AND (d.prior_failure_count > 0 OR (d.execution_number > 1 AND c.final_job_status_code IS NULL))
+                    )
+                )
+            );
+
+        IF @p_plain = 0
+            BEGIN
+            /* At Audit each shape also says what it did: held or cancelled a slot, re-armed, or held by its
+               handler. A suspension lands Ready on a sleep and Suspended on a wait, so its details say where. */
+            IF @shapes = 1
+                INSERT INTO {{schema}}.events (
+                    event_code, created_at_utc, namespace_id,
+                    entity_code, entity_id,
+                    definition_id, tenant_id, lineage_root_job_id,
+                    worker_id, execution_number,
+                    event_message, details_format_id, details
+                )
+                SELECT
+                    k.event_code, @now, j.namespace_id,
+                    50 /* EntityCode.Job */, d.job_id,
+                    j.definition_id, j.tenant_id, COALESCE(j.lineage_root_job_id, d.job_id),
+                    @p_leased_by_worker_id, d.execution_number,
+                    c.event_message,
+                    CASE WHEN x.details IS NULL THEN 0 /* JobPayloadFormat.None */ ELSE 1 /* JobPayloadFormat.Json */ END,
+                    CAST(x.details AS VARBINARY(MAX))
+                FROM @done d
+                INNER JOIN @p_batch c ON c.job_id = d.job_id AND c.execution_number = d.execution_number
+                INNER JOIN {{schema}}.jobs j WITH (FORCESEEK) ON j.job_id = d.job_id
+                CROSS APPLY (
+                    VALUES
+                    (
+                        1,
+                        -- A slot held by its handler, or cancelled by it; a settled firing needs no shape event beside the attempt's.
+                        CASE c.final_job_status_code
+                            WHEN 30 /* JobStatusCode.Paused */ THEN 71 /* EventCode.JobPaused */
+                            WHEN 220 /* JobStatusCode.Cancelled */ THEN 70 /* EventCode.JobCancelled */
+                        END
+                    ),
+                    (
+                        2,
+                        -- A wait whose signal had already arrived landed Ready and re-armed nothing.
+                        CASE
+                            WHEN c.reschedule_event_code IS NOT NULL AND NOT (c.wait_signal_name IS NOT NULL AND d.job_status_code = 10 /* JobStatusCode.Ready */)
+                                THEN c.reschedule_event_code
+                        END
+                    ),
+                    (
+                        3,
+                        CASE
+                            WHEN c.handler_job_status_code = 220 /* JobStatusCode.Cancelled */ THEN 70 /* EventCode.JobCancelled */
+                            WHEN c.handler_job_status_code = 30 /* JobStatusCode.Paused */ THEN 71 /* EventCode.JobPaused */
+                        END
+                    )
+                ) k (ord, event_code)
+                CROSS APPLY (
+                    SELECT NULLIF(
+                        CONCAT(
+                            '{',
+                            STUFF(
+                                CONCAT(
+                                    CASE
+                                        WHEN k.event_code = 60 /* EventCode.JobSuspended */
+                                            THEN CASE d.job_status_code
+                                                WHEN 10 /* JobStatusCode.Ready */ THEN ',"to":"ready"'
+                                                WHEN 20 /* JobStatusCode.Suspended */ THEN ',"to":"suspended"'
+                                            END
+                                    END,
+                                    ',"reason":"' + c.reason + '"'
+                                ),
+                                1, 1, ''
+                            ),
+                            '}'
+                        ),
+                        '{}'
+                    ) AS details
+                ) x
+                WHERE j.event_recording_code = 20 /* EventRecordingCode.Audit */ AND k.event_code IS NOT NULL
+                ORDER BY d.job_id, k.ord;
+
+            -- A child that landed terminal sets its latch on the parent and wakes a Suspended parent.
+            IF @children = 1
+                BEGIN
+                    CREATE TABLE #parents (
+                        parent_job_id BIGINT NOT NULL,
+                        child_job_id BIGINT NOT NULL,
+                        latch_name VARCHAR(128) NOT NULL,
+                        envelope VARBINARY(MAX) NOT NULL,
+                        reason VARCHAR(64) NULL,
+                        event_message NVARCHAR(512) NULL,
+                        latch_state TINYINT NULL,
+                        parent_status TINYINT NULL,
+                        parent_execution INT NULL,
+                        -- The latches' own key order: the name sorts as text, so child 10 comes before child 9.
+                        PRIMARY KEY (parent_job_id, latch_name)
+                    );
+
+                    INSERT INTO #parents (parent_job_id, child_job_id, latch_name, envelope, reason, event_message)
+                    SELECT
+                        d.parent_job_id,
+                        d.job_id,
+                        'sys.child.' + CAST(d.job_id AS VARCHAR(20)),
+                        CAST(
+                            CAST(
+                                N'{"childJobId":' + CAST(d.job_id AS NVARCHAR(20))
+                                + N',"status":' + CAST(d.job_status_code AS NVARCHAR(3))
+                                + N',"executionNumber":' + CAST(d.execution_number AS NVARCHAR(11)) + N'}'
+                                AS VARCHAR(MAX)
+                            ) COLLATE latin1_general_100_bin2_utf8 AS VARBINARY(MAX)
+                        ),
+                        c.reason,
+                        c.event_message
+                    FROM @done d
+                    INNER JOIN @p_batch c ON c.job_id = d.job_id AND c.execution_number = d.execution_number
+                    WHERE
+                        d.parent_job_id IS NOT NULL
+                        AND d.job_status_code IN (100 /* JobStatusCode.Succeeded */, 200 /* JobStatusCode.Failed */, 220 /* JobStatusCode.Cancelled */);
+
+                    UPDATE p
+                    SET latch_state = s.checkpoint_status_code
+                    FROM #parents p
+                    LEFT JOIN {{schema}}.checkpoints s WITH (UPDLOCK, FORCESEEK)
+                        ON s.job_id = p.parent_job_id AND s.checkpoint_kind_code = 50 /* CheckpointKindCode.ChildLatch */ AND s.checkpoint_name = p.latch_name
+                    OPTION (FORCE ORDER, LOOP JOIN);
+
+                    UPDATE p
+                    SET parent_status = pr.job_status_code, parent_execution = pr.execution_number
+                    FROM #parents p
+                    INNER JOIN {{schema}}.jobs_state pr WITH (UPDLOCK, ROWLOCK, FORCESEEK) ON pr.job_id = p.parent_job_id
+                    OPTION (FORCE ORDER, LOOP JOIN);
+
+                    /* No revival: an Expired latch already timed the parent's wait out under this same slot lock, so a later
+                       child writes no latch and wakes no one, though the audit event records it. A finished parent takes
+                       nothing. */
+                    UPDATE s
+                    SET
+                        checkpoint_status_code = 20 /* CheckpointStatusCode.Set */,
+                        value_format_id = 1 /* JobPayloadFormat.Json */,
+                        value = p.envelope,
+                        modified_at_utc = @now,
+                        version = s.version + 1
+                    FROM #parents p
+                    INNER JOIN {{schema}}.checkpoints s WITH (FORCESEEK)
+                        ON s.job_id = p.parent_job_id AND s.checkpoint_kind_code = 50 /* CheckpointKindCode.ChildLatch */ AND s.checkpoint_name = p.latch_name
+                    WHERE
+                        p.latch_state <> 30 /* CheckpointStatusCode.Expired */
+                        AND p.parent_status NOT IN (100 /* JobStatusCode.Succeeded */, 200 /* JobStatusCode.Failed */, 220 /* JobStatusCode.Cancelled */);
+
+                    INSERT INTO {{schema}}.checkpoints (
+                        job_id, checkpoint_kind_code, checkpoint_name, checkpoint_status_code, value_format_id, value,
+                        created_at_utc, modified_at_utc, version
+                    )
+                    SELECT
+                        p.parent_job_id, 50 /* CheckpointKindCode.ChildLatch */, p.latch_name,
+                        20 /* CheckpointStatusCode.Set */, 1 /* JobPayloadFormat.Json */, p.envelope,
+                        @now, @now, 0
+                    FROM #parents p
+                    WHERE
+                        p.latch_state IS NULL
+                        AND p.parent_status NOT IN (100 /* JobStatusCode.Succeeded */, 200 /* JobStatusCode.Failed */, 220 /* JobStatusCode.Cancelled */)
+                    OPTION (LOOP JOIN);
+
+                    -- The child's reason and message ride the parent's event, the message capped because it can already sit at the column width.
+                    INSERT INTO {{schema}}.events (
+                        event_code, created_at_utc, namespace_id,
+                        entity_code, entity_id,
+                        definition_id, tenant_id, lineage_root_job_id,
+                        execution_number,
+                        event_message, details_format_id, details
+                    )
+                    SELECT
+                        80 /* EventCode.JobSignalRaised */, @now, pj.namespace_id,
+                        50 /* EntityCode.Job */, p.parent_job_id,
+                        pj.definition_id, pj.tenant_id, COALESCE(pj.lineage_root_job_id, p.parent_job_id),
+                        p.parent_execution,
+                        CASE
+                            WHEN p.latch_state = 30 /* CheckpointStatusCode.Expired */
+                                THEN LEFT(
+                                    COALESCE(p.event_message + N' ', N'') + N'Child outcome not applied: the wait had already expired.',
+                                    512
+                                )
+                            ELSE p.event_message
+                        END,
+                        CASE WHEN p.reason IS NULL THEN 0 /* JobPayloadFormat.None */ ELSE 1 /* JobPayloadFormat.Json */ END,
+                        CAST('{"reason":"' + p.reason + '"}' AS VARBINARY(MAX))
+                    FROM #parents p
+                    INNER JOIN {{schema}}.jobs pj ON pj.job_id = p.parent_job_id
+                    WHERE
+                        pj.event_recording_code = 20 /* EventRecordingCode.Audit */
+                        AND p.parent_status NOT IN (100 /* JobStatusCode.Succeeded */, 200 /* JobStatusCode.Failed */, 220 /* JobStatusCode.Cancelled */)
+                    ORDER BY p.parent_job_id, p.child_job_id;
+
+                    UPDATE pr
+                    SET
+                        job_status_code = 10 /* JobStatusCode.Ready */,
+                        next_run_at_utc = @now,
+                        modified_at_utc = @now,
+                        version = pr.version + 1
+                    FROM (
+                        SELECT DISTINCT parent_job_id
+                        FROM #parents
+                        WHERE
+                            parent_status = 20 /* JobStatusCode.Suspended */
+                            AND (latch_state IS NULL OR latch_state <> 30 /* CheckpointStatusCode.Expired */)
+                    ) w
+                    INNER JOIN {{schema}}.jobs_state pr WITH (INDEX (pk_jobs_state), FORCESEEK, ROWLOCK) ON pr.job_id = w.parent_job_id
+                    WHERE pr.job_status_code = 20 /* JobStatusCode.Suspended */;
+
+                    INSERT INTO {{schema}}.events (
+                        event_code, created_at_utc, namespace_id,
+                        entity_code, entity_id,
+                        definition_id, tenant_id, lineage_root_job_id,
+                        execution_number,
+                        details_format_id, details
+                    )
+                    SELECT
+                        72 /* EventCode.JobResumed */, @now, pj.namespace_id,
+                        50 /* EntityCode.Job */, w.parent_job_id,
+                        pj.definition_id, pj.tenant_id, COALESCE(pj.lineage_root_job_id, w.parent_job_id),
+                        w.parent_execution,
+                        1 /* JobPayloadFormat.Json */, CAST('{"reason":"signal-released"}' AS VARBINARY(MAX))
+                    FROM (
+                        SELECT DISTINCT parent_job_id, parent_execution
+                        FROM #parents
+                        WHERE
+                            parent_status = 20 /* JobStatusCode.Suspended */
+                            AND (latch_state IS NULL OR latch_state <> 30 /* CheckpointStatusCode.Expired */)
+                    ) w
+                    INNER JOIN {{schema}}.jobs pj ON pj.job_id = w.parent_job_id
+                    WHERE pj.event_recording_code = 20 /* EventRecordingCode.Audit */;
+
+                    UPDATE d
+                    SET parent_released = 1
+                    FROM @done d
+                    INNER JOIN #parents p ON p.child_job_id = d.job_id
+                    WHERE
+                        p.parent_status = 20 /* JobStatusCode.Suspended */
+                        AND (p.latch_state IS NULL OR p.latch_state <> 30 /* CheckpointStatusCode.Expired */);
+                END
+
+            /* A laned job that finished, or that its handler paused, leaves the lane with no runner: the lowest-id
+               unfinished member becomes Ready at its own due instant or now when it is Blocked, and any other head keeps
+               the lane. The lane lock taken above makes the read and the write one step. */
+            IF @lanes = 1
+                BEGIN
+                    CREATE TABLE #promoted (lane_id BIGINT NOT NULL PRIMARY KEY);
+
+                    UPDATE m
+                    SET
+                        job_status_code = 10 /* JobStatusCode.Ready */,
+                        next_run_at_utc = CASE WHEN m.next_run_at_utc > @now THEN m.next_run_at_utc ELSE @now END,
+                        modified_at_utc = @now,
+                        version = m.version + 1
+                    OUTPUT INSERTED.lane_id INTO #promoted (lane_id)
+                    FROM (
+                        SELECT DISTINCT d.lane_id
+                        FROM @done d
+                        WHERE
+                            d.lane_id IS NOT NULL
+                            AND d.job_status_code IN (
+                                30 /* JobStatusCode.Paused */, 100 /* JobStatusCode.Succeeded */, 200 /* JobStatusCode.Failed */,
+                                220 /* JobStatusCode.Cancelled */
+                            )
+                    ) settled
+                    CROSS APPLY (
+                        SELECT TOP (1) h.job_id, h.job_status_code
+                        FROM {{schema}}.jobs_state h WITH (INDEX (ix_jobs_state_lane), FORCESEEK)
+                        WHERE
+                            h.lane_id = settled.lane_id
+                            AND h.lane_id IS NOT NULL
+                            AND h.job_status_code IN (
+                                10 /* JobStatusCode.Ready */, 15 /* JobStatusCode.Blocked */, 20 /* JobStatusCode.Suspended */,
+                                30 /* JobStatusCode.Paused */, 50 /* JobStatusCode.Executing */
+                            )
+                        ORDER BY h.job_id
+                    ) head
+                    INNER JOIN {{schema}}.jobs_state m WITH (INDEX (pk_jobs_state), FORCESEEK, ROWLOCK) ON m.job_id = head.job_id
+                    WHERE head.job_status_code = 15 /* JobStatusCode.Blocked */ AND m.job_status_code = 15 /* JobStatusCode.Blocked */;
+
+                    UPDATE d
+                    SET lane_promoted = 1
+                    FROM @done d
+                    INNER JOIN #promoted p ON p.lane_id = d.lane_id;
+                END
+            END
+
+        SELECT
+            c.job_id,
+            c.execution_number,
+            CASE
+                WHEN d.job_id IS NOT NULL THEN 1 /* CompleteExecutionsAction.Completed */
+                WHEN
+                    r.job_status_code IS NULL
+                    OR r.job_status_code IN (
+                        100 /* JobStatusCode.Succeeded */, 200 /* JobStatusCode.Failed */, 220 /* JobStatusCode.Cancelled */
+                    )
+                    THEN 3 /* CompleteExecutionsAction.AlreadyTerminal */
+                WHEN r.leased_by_worker_id IS NULL OR r.leased_by_worker_id <> @p_leased_by_worker_id
+                    THEN 2 /* CompleteExecutionsAction.NotOwner */
+                ELSE 3 /* CompleteExecutionsAction.AlreadyTerminal */
+            END AS action,
+            r.job_status_code AS final_job_status_code,
+            r.next_run_at_utc AS final_next_run_at_utc,
+            @now AS db_now,
+            CAST(COALESCE(d.parent_released, 0) AS TINYINT) AS parent_released,
+            CAST(COALESCE(d.lane_promoted, 0) AS TINYINT) AS lane_promoted
+        FROM @p_batch c
+        LEFT JOIN @done d ON d.job_id = c.job_id AND d.execution_number = c.execution_number
+        LEFT JOIN {{schema}}.jobs_state r WITH (FORCESEEK) ON r.job_id = c.job_id;
+
+        IF @entry_trancount = 0
+            COMMIT TRANSACTION;
+    END TRY
+    BEGIN CATCH
+        IF @entry_trancount = 0 AND XACT_STATE() <> 0
+            ROLLBACK TRANSACTION;
+        THROW;
+    END CATCH;
+END;
+GO
+
+CREATE OR ALTER PROCEDURE {{schema}}.complete_step
+    @p_job_id BIGINT,
+    @p_execution_number INT,
+    @p_leased_by_worker_id INT,
+    @p_step_name VARCHAR(128),
+    @p_succeeded BIT,
+    @p_result_format_id TINYINT,
+    @p_result VARBINARY(MAX),
+    @p_failure_code TINYINT,
+    @p_failure_message NVARCHAR(512),
+    @p_delay_seconds INT,
+    @p_max_attempts INT,
+    @p_retry_window_seconds INT,
+    @p_version INT
+AS
+BEGIN
+    SET NOCOUNT ON;
+    SET XACT_ABORT ON;
+
+    DECLARE @entry_trancount INT = @@TRANCOUNT;
+    BEGIN TRY
+        IF @entry_trancount = 0
+            BEGIN TRANSACTION;
+
+        DECLARE @now DATETIME2(3) = SYSUTCDATETIME();
+        DECLARE @attempt INT;
+        DECLARE @created DATETIME2(3);
+        DECLARE @next DATETIME2(3);
+        DECLARE @outcome SMALLINT;
+
+        -- The step changes only while this attempt holds the job's row, update-locked to commit before the step row
+        -- (docs/sql-internals.md, "Execution fence").
+        IF NOT EXISTS (
+            SELECT 1
+            FROM {{schema}}.jobs_state r WITH (UPDLOCK, ROWLOCK)
+            WHERE
+                r.job_id = @p_job_id
+                AND r.job_status_code = 50 /* JobStatusCode.Executing */
+                AND r.execution_number = @p_execution_number
+                AND r.leased_by_worker_id = @p_leased_by_worker_id
+        )
+            THROW 50012, 'ACTA:EXECUTION_FENCED:complete_step: the job is no longer executing this attempt.', 1;
+
+        SELECT
+            @attempt = attempt_number,
+            @created = created_at_utc
+        FROM {{schema}}.steps
+        WHERE job_id = @p_job_id AND step_name = @p_step_name;
+
+        IF @p_succeeded = 1
+            BEGIN
+                UPDATE {{schema}}.steps
+                SET
+                    step_status_code = 100 /* StepStatusCode.Succeeded */,
+                    result_format_id = @p_result_format_id,
+                    result = @p_result,
+                    next_retry_at_utc = NULL,
+                    /* A success supersedes any earlier failed attempt, so the row must not keep that attempt's
+                       failure snapshot: a Succeeded row with a failure_code reads as a failure to every post-mortem query. */
+                    failure_code = NULL,
+                    failure_message = NULL,
+                    modified_at_utc = @now,
+                    version = version + 1
+                WHERE job_id = @p_job_id AND step_name = @p_step_name AND version = @p_version;
+
+                IF @@ROWCOUNT = 0
+                    SET @outcome = 4 /* CompleteStepOutcomeCode.StaleVersion */;
+                ELSE
+                    SET @outcome = 1 /* CompleteStepOutcomeCode.Succeeded */;
+                SET @next = NULL;
+            END
+        ELSE
+            BEGIN
+                SET @next = DATEADD(SECOND, @p_delay_seconds, @now);
+
+                IF
+                    @attempt >= @p_max_attempts
+                    OR (
+                        @p_retry_window_seconds IS NOT NULL
+                        AND @next > DATEADD(SECOND, @p_retry_window_seconds, @created)
+                    )
+                    BEGIN
+                        UPDATE {{schema}}.steps
+                        SET
+                            step_status_code = 200 /* StepStatusCode.Exhausted */,
+                            next_retry_at_utc = NULL,
+                            failure_code = @p_failure_code,
+                            failure_message = @p_failure_message,
+                            modified_at_utc = @now,
+                            version = version + 1
+                        WHERE job_id = @p_job_id AND step_name = @p_step_name AND version = @p_version;
+
+                        IF @@ROWCOUNT = 0
+                            SET @outcome = 4 /* CompleteStepOutcomeCode.StaleVersion */;
+                        ELSE
+                            SET @outcome = 3 /* CompleteStepOutcomeCode.Exhausted */;
+                        SET @next = NULL;
+                    END
+                ELSE
+                    BEGIN
+                        UPDATE {{schema}}.steps
+                        SET
+                            next_retry_at_utc = @next,
+                            failure_code = @p_failure_code,
+                            failure_message = @p_failure_message,
+                            modified_at_utc = @now,
+                            version = version + 1
+                        WHERE job_id = @p_job_id AND step_name = @p_step_name AND version = @p_version;
+
+                        IF @@ROWCOUNT = 0
+                            BEGIN
+                                SET @outcome = 4 /* CompleteStepOutcomeCode.StaleVersion */;
+                                SET @next = NULL;
+                            END
+                        ELSE
+                            SET @outcome = 2 /* CompleteStepOutcomeCode.RetryScheduled */;
+                    END
+            END
+
+        SELECT
+            @outcome AS outcome_code,
+            @next AS next_retry_at_utc;
+
+        IF @entry_trancount = 0
+            COMMIT TRANSACTION;
+    END TRY
+    BEGIN CATCH
+        IF @entry_trancount = 0 AND XACT_STATE() <> 0
+            ROLLBACK TRANSACTION;
+        THROW;
+    END CATCH;
+END;
+GO
+
+-- Only @p_namespace_name and @p_job_name are required; other scalars default (@p_job_ref is
+-- server-generated when omitted; @p_input_format_id defaults json/none by input presence). The tag TVP
+-- has no default (SQL Server TVPs cannot); pass an empty table variable for a tag-free enqueue.
+CREATE OR ALTER PROCEDURE {{schema}}.enqueue_job
+    @p_job_ref UNIQUEIDENTIFIER = NULL,
+    @p_namespace_name VARCHAR(128) = NULL,
+    @p_job_name VARCHAR(128) = NULL,
+    @p_deduplication_key VARCHAR(128) = NULL,
+    @p_correlation_key VARCHAR(64) = NULL,
+    @p_job_priority_code_override TINYINT = NULL,
+    @p_input_format_id TINYINT = NULL,
+    @p_input VARBINARY(MAX) = NULL,
+    @p_concurrency_key VARCHAR(128) = NULL,
+    @p_next_run_at_utc DATETIME2(3) = NULL,
+    @p_delay_seconds INT = NULL,
+    @p_parent_job_id BIGINT = NULL,
+    @p_tenant_name VARCHAR(128) = NULL,
+    @p_tenant_override BIT = 0,
+    @p_tags {{schema}}.enqueue_tags READONLY,
+    @p_lane_name VARCHAR(128) = NULL,
+    @p_parent_execution_number INT = NULL,
+    @p_parent_worker_id INT = NULL
+AS
+BEGIN
+    SET NOCOUNT ON;
+    SET XACT_ABORT ON;
+
+    DECLARE @entry_trancount INT = @@TRANCOUNT;
+    BEGIN TRY
+        IF @entry_trancount = 0
+            BEGIN TRANSACTION;
+
+        DECLARE @now DATETIME2(7) = SYSUTCDATETIME();
+        DECLARE @ns_id INT, @ns_status TINYINT, @def_id INT, @def_priority SMALLINT;
+        DECLARE @def_event_recording TINYINT, @def_status TINYINT, @def_tenant_req TINYINT;
+        DECLARE @tenant_id INT, @tenant_status TINYINT, @lineage BIGINT, @parent_corr VARCHAR(64), @parent_tenant INT;
+        DECLARE @existing_id BIGINT, @existing_ref UNIQUEIDENTIFIER, @job_id BIGINT;
+        DECLARE @lane VARCHAR(128), @lane_id BIGINT, @ancestor_lane_hits INT;
+
+        -- Own a local transaction only when invoked outside one. Inside a caller's transaction (direct
+        -- transactional enqueue) the entry count is > 0: run the work but neither commit nor roll back it;
+        -- on error rethrow and let the caller roll back the whole transaction.
+
+        -- Server-generate the job ref when the caller omits it (a proc default cannot be NEWID()).
+        SET @p_job_ref = COALESCE(@p_job_ref, NEWID());
+
+        SELECT
+            @ns_id = ns.namespace_id,
+            @ns_status = ns.namespace_status_code,
+            @def_id = jd.definition_id,
+            @def_priority = jd.job_priority_code_effective,
+            @def_event_recording = jd.event_recording_code_effective,
+            @def_status = jd.definition_status_code,
+            @def_tenant_req = jd.tenant_requirement_code,
+            @lane = COALESCE(@p_lane_name, jd.lane_name)
+        FROM {{schema}}.namespaces ns
+        INNER JOIN {{schema}}.definitions jd
+            ON
+                jd.namespace_id = ns.namespace_id
+                AND jd.definition_name = @p_job_name
+        WHERE ns.namespace_name = @p_namespace_name;
+
+        IF @def_id IS NULL
+            BEGIN
+                DECLARE
+                    @route_msg NVARCHAR(2048) = 'ACTA:ENQ_ROUTE_UNKNOWN:Enqueue rejected: one or more rows reference an unknown'
+                    + ' namespace or job. Has the owning worker run InitializeAsync yet?';
+                THROW 50001, @route_msg, 1;
+            END;
+
+        IF @ns_status <> 10 /* NamespaceStatusCode.Active */
+            BEGIN
+                THROW 50005, 'ACTA:ENQ_NS_SUSPENDED:Enqueue rejected: one or more rows reference a suspended namespace.', 1;
+            END;
+
+        IF @def_status <> 10 /* DefinitionStatusCode.Active */
+            BEGIN
+                THROW 50003, 'ACTA:ENQ_DEF_RETIRED:Enqueue rejected: the job definition is retired.', 1;
+            END;
+
+        IF @p_tenant_name IS NOT NULL
+            BEGIN
+                SELECT
+                    @tenant_id = t.tenant_id,
+                    @tenant_status = t.tenant_status_code
+                FROM {{schema}}.tenants t
+                WHERE t.tenant_name = @p_tenant_name;
+
+                IF @tenant_id IS NULL
+                    BEGIN
+                        THROW 50004, 'ACTA:ENQ_TENANT_UNKNOWN:Enqueue rejected: one or more rows reference an unknown tenant.', 1;
+                    END;
+
+                IF @tenant_status <> 10 /* TenantStatusCode.Active */
+                    BEGIN
+                        THROW 50006, 'ACTA:ENQ_TENANT_SUSPENDED:Enqueue rejected: one or more rows reference a suspended tenant.', 1;
+                    END;
+            END;
+
+        IF @def_tenant_req = 20 /* DefinitionTenantRequirementCode.Forbidden */ AND @p_tenant_name IS NOT NULL
+            BEGIN
+                THROW 50008, 'ACTA:ENQ_TENANT_FORBIDDEN:Enqueue rejected: the job definition forbids a tenant and the row names one.', 1;
+            END;
+
+        -- The lane row is the lane's mutex, held to commit (docs/sql-internals.md, "Lane
+        -- lock order"). The name only resolves the id; the lock is taken by id, on the clustered key.
+        -- Ready versus Blocked is read after the lane lock, which a SNAPSHOT transaction (level 5) never sees.
+        IF @lane IS NOT NULL
+            AND (SELECT s.transaction_isolation_level FROM sys.dm_exec_sessions s WHERE s.session_id = @@SPID) = 5
+            THROW 50011, 'ACTA:ENQ_LANE_ISOLATION:Enqueue rejected: a laned enqueue cannot run in a SNAPSHOT caller transaction.', 1;
+
+        DECLARE @lane_found BIGINT;
+        WHILE @lane IS NOT NULL AND @lane_id IS NULL
+            BEGIN
+                SET @lane_found = NULL;
+                SELECT @lane_found = l.lane_id
+                FROM {{schema}}.lanes l
+                WHERE
+                    l.namespace_id = @ns_id
+                    AND l.lane_name = @lane;
+
+                IF @lane_found IS NOT NULL
+                    SELECT @lane_id = l.lane_id
+                    FROM {{schema}}.lanes l WITH (UPDLOCK, ROWLOCK)
+                    WHERE l.lane_id = @lane_found;
+
+                IF @lane_found IS NULL
+                    BEGIN
+                        SET XACT_ABORT OFF;
+                        BEGIN TRY
+                            INSERT INTO {{schema}}.lanes (namespace_id, lane_name, created_at_utc)
+                            VALUES (@ns_id, @lane, @now);
+                        END TRY
+                        BEGIN CATCH
+                            SET XACT_ABORT ON;
+                            IF ERROR_NUMBER() NOT IN (2601, 2627)
+                                THROW;
+                        END CATCH;
+                        SET XACT_ABORT ON;
+                    END;
+            END;
+
+        IF @p_deduplication_key IS NOT NULL
+            BEGIN
+                -- The key's own lock serializes enqueues of one key to commit (docs/sql-internals.md,
+                -- "Deduplication lock"); the same name in enqueue_jobs.
+                DECLARE @dedup_lock NVARCHAR(255) = CONCAT(
+                    N'{{schema}}.dedup:',
+                    CASE WHEN @p_parent_job_id IS NULL THEN CONCAT(N'n', @ns_id) ELSE CONCAT(N'p', @p_parent_job_id) END,
+                    N':',
+                    @p_deduplication_key
+                );
+                DECLARE @dedup_lock_result INT;
+                -- Positional: resource, mode, owner, timeout (-1 waits like any lock).
+                EXEC @dedup_lock_result = sp_getapplock @dedup_lock, 'Exclusive', 'Transaction', -1;
+                IF @dedup_lock_result < 0
+                    THROW 51205, 'ACTA:DEDUP_LOCK:The deduplication key lock was not granted (deadlock victim or cancelled).', 1;
+
+                -- Each probe seeks its dedup index, the index's filter restated: a scan under UPDLOCK locks every row it
+                -- reads and escalates to a table lock on jobs, which a stale row estimate makes the cheaper plan.
+                IF @p_parent_job_id IS NOT NULL
+                    BEGIN
+                        SELECT
+                            @existing_id = j.job_id,
+                            @existing_ref = j.job_ref
+                        FROM {{schema}}.jobs j WITH (UPDLOCK, FORCESEEK, INDEX (ux_jobs_deduplication_key_child))
+                        WHERE
+                            j.parent_job_id = @p_parent_job_id
+                            AND j.deduplication_key = @p_deduplication_key
+                            AND j.parent_job_id IS NOT NULL
+                            AND j.deduplication_key IS NOT NULL;
+                    END
+                ELSE
+                    BEGIN
+                        SELECT
+                            @existing_id = j.job_id,
+                            @existing_ref = j.job_ref
+                        FROM {{schema}}.jobs j WITH (UPDLOCK, FORCESEEK, INDEX (ux_jobs_deduplication_key_root))
+                        WHERE
+                            j.namespace_id = @ns_id
+                            AND j.deduplication_key = @p_deduplication_key
+                            AND j.parent_job_id IS NULL
+                            AND j.deduplication_key IS NOT NULL;
+                    END;
+            END;
+
+        IF @p_parent_job_id IS NOT NULL
+            BEGIN
+                SELECT
+                    @lineage = COALESCE(pj.lineage_root_job_id, pj.job_id),
+                    @parent_corr = pj.correlation_key,
+                    @parent_tenant = pj.tenant_id
+                FROM {{schema}}.jobs pj WITH (UPDLOCK, ROWLOCK, FORCESEEK)
+                INNER JOIN {{schema}}.jobs_state pr ON pr.job_id = pj.job_id
+                WHERE
+                    pj.job_id = @p_parent_job_id
+                    AND pr.job_status_code NOT IN (100 /* JobStatusCode.Succeeded */, 200 /* JobStatusCode.Failed */, 220 /* JobStatusCode.Cancelled */);
+
+                -- A child its parent's handler starts lands only while that attempt holds the parent's row, update-locked
+                -- to commit after the parent's jobs row (docs/sql-internals.md, "Execution fence").
+                IF @p_parent_execution_number IS NOT NULL
+                    BEGIN
+                        IF NOT EXISTS (
+                            SELECT 1
+                            FROM {{schema}}.jobs_state fr WITH (UPDLOCK, ROWLOCK)
+                            WHERE
+                                fr.job_id = @p_parent_job_id
+                                AND fr.job_status_code = 50 /* JobStatusCode.Executing */
+                                AND fr.execution_number = @p_parent_execution_number
+                                AND fr.leased_by_worker_id = @p_parent_worker_id
+                        )
+                            THROW 50012, 'ACTA:EXECUTION_FENCED:enqueue_job: the parent job is no longer executing this attempt.', 1;
+                    END;
+
+                IF @lineage IS NULL
+                    BEGIN
+                        THROW 50002, 'Enqueue rejected: one or more child rows reference a missing or terminal parent job.', 1;
+                    END;
+
+                IF @lane_id IS NOT NULL
+                    BEGIN
+                        WITH ancestors AS (
+                            SELECT a.job_id, a.parent_job_id
+                            FROM {{schema}}.jobs a
+                            WHERE a.job_id = @p_parent_job_id
+                            UNION ALL
+                            SELECT a.job_id, a.parent_job_id
+                            FROM {{schema}}.jobs a
+                            INNER JOIN ancestors c ON a.job_id = c.parent_job_id
+                        )
+
+                        SELECT @ancestor_lane_hits = COUNT(*)
+                        FROM ancestors c
+                        INNER JOIN {{schema}}.jobs_state ar ON ar.job_id = c.job_id
+                        WHERE
+                            ar.lane_id = @lane_id
+                            AND ar.job_status_code IN (
+                                10 /* JobStatusCode.Ready */, 15 /* JobStatusCode.Blocked */, 20 /* JobStatusCode.Suspended */,
+                                30 /* JobStatusCode.Paused */, 50 /* JobStatusCode.Executing */
+                            )
+                        -- A lineage has no depth bound, so neither has the walk.
+                        OPTION (MAXRECURSION 0);
+
+                        IF @ancestor_lane_hits > 0
+                            BEGIN
+                                DECLARE
+                                    @ancestor_msg NVARCHAR(2048) = 'ACTA:ENQ_ANCESTOR_LANE:Enqueue rejected: a child names the lane of an'
+                                    + ' unfinished ancestor, so it would wait behind the ancestor that waits for it.';
+                                THROW 50010, @ancestor_msg, 1;
+                            END;
+                    END;
+            END;
+
+        IF @def_tenant_req = 10 /* DefinitionTenantRequirementCode.Required */ AND @tenant_id IS NULL AND @parent_tenant IS NULL
+            BEGIN
+                THROW 50007, 'ACTA:ENQ_TENANT_REQUIRED:Enqueue rejected: the job definition requires a tenant and the row carries none.', 1;
+            END;
+
+        IF @tenant_id IS NOT NULL AND @parent_tenant IS NOT NULL AND @tenant_id <> @parent_tenant AND @p_tenant_override = 0
+            BEGIN
+                THROW 50009,
+                'ACTA:ENQ_TENANT_MISMATCH:Enqueue rejected: a child TenantName differs from the parent tenant without an explicit override.',
+                1;
+            END;
+
+        IF @existing_id IS NULL
+            BEGIN
+                INSERT INTO {{schema}}.jobs (
+                    job_kind_code, job_ref, lineage_root_job_id, parent_job_id,
+                    deduplication_key, correlation_key,
+                    namespace_id, definition_id, tenant_id,
+                    input_format_id, input,
+                    concurrency_key, event_recording_code,
+                    created_at_utc
+                )
+                VALUES (
+                    10 /* JobKindCode.Ordinary */, @p_job_ref, @lineage, @p_parent_job_id,
+                    @p_deduplication_key, COALESCE(@p_correlation_key, @parent_corr),
+                    @ns_id, @def_id,
+                    CASE
+                        WHEN @def_tenant_req = 20 /* DefinitionTenantRequirementCode.Forbidden */ THEN NULL
+                        ELSE COALESCE(@tenant_id, @parent_tenant)
+                    END,
+                    COALESCE(
+                        @p_input_format_id,
+                        CASE WHEN @p_input IS NULL THEN 0 /* JobPayloadFormat.None */ ELSE 1 /* JobPayloadFormat.Json */ END
+                    ),
+                    @p_input,
+                    @p_concurrency_key, @def_event_recording,
+                    @now
+                );
+
+                SET @job_id = SCOPE_IDENTITY();
+
+                -- A laned job enters Ready only when no member of its lane is unfinished; otherwise it waits
+                -- as Blocked, keeping its due instant for when the settle ahead of it promotes it.
+                DECLARE @status TINYINT = 10 /* JobStatusCode.Ready */;
+                IF
+                    @lane_id IS NOT NULL
+                    AND EXISTS (
+                        SELECT 1
+                        FROM {{schema}}.jobs_state m WITH (INDEX (ix_jobs_state_lane), FORCESEEK)
+                        WHERE
+                            m.lane_id = @lane_id
+                            AND m.lane_id IS NOT NULL
+                            AND m.job_status_code IN (
+                                10 /* JobStatusCode.Ready */, 15 /* JobStatusCode.Blocked */, 20 /* JobStatusCode.Suspended */,
+                                30 /* JobStatusCode.Paused */, 50 /* JobStatusCode.Executing */
+                            )
+                    )
+                    SET @status = 15 /* JobStatusCode.Blocked */;
+
+                INSERT INTO {{schema}}.jobs_state (
+                    job_id, namespace_id, lane_id, job_status_code, job_priority_code, next_run_at_utc,
+                    execution_number, failure_count, retention_until_utc,
+                    modified_at_utc, version
+                )
+                VALUES (
+                    @job_id, @ns_id, @lane_id, @status,
+                    COALESCE(@p_job_priority_code_override, @def_priority),
+                    COALESCE(@p_next_run_at_utc, DATEADD(SECOND, COALESCE(@p_delay_seconds, 0), @now)),
+                    0, 0, NULL,
+                    @now, 0
+                );
+
+                INSERT INTO {{schema}}.tags (entity_code, entity_id, tag_name, tag_value, tag_value_search)
+                SELECT
+                    50 /* EntityCode.Job */,
+                    @job_id,
+                    t.tag_name,
+                    t.tag_value,
+                    t.tag_value_search
+                FROM @p_tags t;
+            END;
+
+        SELECT
+            0 AS ordinal,
+            COALESCE(@job_id, @existing_id) AS job_id,
+            CASE WHEN @job_id IS NOT NULL THEN @p_job_ref ELSE @existing_ref END AS job_ref,
+            CASE
+                WHEN @job_id IS NOT NULL
+                    THEN 1 /* EnqueueJobAction.Inserted */
+                ELSE 2 /* EnqueueJobAction.Deduplicated */
+            END AS action;
+
+        IF @entry_trancount = 0
+            COMMIT TRANSACTION;
+    END TRY
+    BEGIN CATCH
+        IF @entry_trancount = 0 AND XACT_STATE() <> 0
+            ROLLBACK TRANSACTION;
+        THROW;
+    END CATCH;
+END;
+GO
+
+-- Lock order: the batch's lanes in id order, then job rows (docs/sql-internals.md,
+-- "Lane lock order").
+CREATE OR ALTER PROCEDURE {{schema}}.enqueue_jobs
+    @p_batch {{schema}}.enqueue_jobs READONLY,
+    @p_tags {{schema}}.enqueue_tags READONLY
+AS
+BEGIN
+    SET NOCOUNT ON;
+    SET XACT_ABORT ON;
+
+    DECLARE @entry_trancount INT = @@TRANCOUNT;
+    BEGIN TRY
+        IF @entry_trancount = 0
+            BEGIN TRANSACTION;
+
+        DECLARE @now DATETIME2(7) = SYSUTCDATETIME();
+
+        -- Own a local transaction only when invoked outside one. Inside a caller's transaction (direct
+        -- transactional enqueue) the entry count is > 0: run the work but neither commit nor roll back it;
+        -- on error rethrow and let the caller roll back the whole transaction.
+
+        DECLARE @resolved TABLE (
+            ordinal INT PRIMARY KEY,
+            ns_id INT NOT NULL,
+            ns_status TINYINT NOT NULL,
+            def_id INT NOT NULL,
+            def_priority SMALLINT NOT NULL,
+            def_event_recording TINYINT NOT NULL,
+            def_status TINYINT NOT NULL,
+            def_tenant_req TINYINT NOT NULL,
+            tenant_id INT NULL,
+            lane VARCHAR(128) NULL,
+            lane_id BIGINT NULL,
+            lane_head BIT NOT NULL DEFAULT 0
+        );
+
+        INSERT INTO @resolved (ordinal, ns_id, ns_status, def_id, def_priority, def_event_recording, def_status, def_tenant_req, lane)
+        SELECT
+            b.ordinal,
+            ns.namespace_id,
+            ns.namespace_status_code,
+            jd.definition_id,
+            jd.job_priority_code_effective,
+            jd.event_recording_code_effective,
+            jd.definition_status_code,
+            jd.tenant_requirement_code,
+            COALESCE(b.lane_name, jd.lane_name)
+        FROM @p_batch b
+        INNER JOIN {{schema}}.namespaces ns ON ns.namespace_name = b.namespace_name
+        INNER JOIN {{schema}}.definitions jd
+            ON
+                jd.namespace_id = ns.namespace_id
+                AND jd.definition_name = b.job_name;
+
+        IF (SELECT COUNT(*) FROM @resolved) < (SELECT COUNT(*) FROM @p_batch)
+            BEGIN
+                DECLARE
+                    @route_msg NVARCHAR(2048) = 'ACTA:ENQ_ROUTE_UNKNOWN:Enqueue rejected: one or more rows reference an unknown'
+                    + ' namespace or job. Has the owning worker run InitializeAsync yet?';
+                THROW 50001, @route_msg, 1;
+            END;
+
+        IF
+            EXISTS (
+                SELECT 1 FROM @resolved
+                WHERE ns_status <> 10 /* NamespaceStatusCode.Active */
+            )
+            BEGIN
+                THROW 50005, 'ACTA:ENQ_NS_SUSPENDED:Enqueue rejected: one or more rows reference a suspended namespace.', 1;
+            END;
+
+        IF
+            EXISTS (
+                SELECT 1 FROM @resolved
+                WHERE def_status <> 10 /* DefinitionStatusCode.Active */
+            )
+            BEGIN
+                THROW 50003, 'ACTA:ENQ_DEF_RETIRED:Enqueue rejected: the job definition is retired.', 1;
+            END;
+
+        IF
+            EXISTS (
+                SELECT 1 FROM @p_batch
+                WHERE tenant_name IS NOT NULL
+            )
+            BEGIN
+                UPDATE r
+                SET tenant_id = t.tenant_id
+                FROM @resolved r
+                INNER JOIN @p_batch b ON b.ordinal = r.ordinal
+                INNER JOIN {{schema}}.tenants t
+                    ON
+                        t.tenant_name = b.tenant_name
+                        AND t.tenant_status_code = 10 /* TenantStatusCode.Active */
+                WHERE b.tenant_name IS NOT NULL;
+
+                IF
+                    EXISTS (
+                        SELECT 1 FROM @p_batch b
+                        WHERE
+                            b.tenant_name IS NOT NULL
+                            AND NOT EXISTS (
+                                SELECT 1 FROM {{schema}}.tenants t
+                                WHERE t.tenant_name = b.tenant_name
+                            )
+                    )
+                    BEGIN
+                        THROW 50004, 'ACTA:ENQ_TENANT_UNKNOWN:Enqueue rejected: one or more rows reference an unknown tenant.', 1;
+                    END;
+                IF
+                    EXISTS (
+                        SELECT 1 FROM @p_batch b JOIN {{schema}}.tenants t ON t.tenant_name = b.tenant_name
+                        WHERE b.tenant_name IS NOT NULL AND t.tenant_status_code <> 10 /* TenantStatusCode.Active */
+                    )
+                    BEGIN
+                        THROW 50006, 'ACTA:ENQ_TENANT_SUSPENDED:Enqueue rejected: one or more rows reference a suspended tenant.', 1;
+                    END;
+            END;
+
+        -- Missing lanes are inserted in name order without a range lock, then every lane is locked one row
+        -- at a time in id order (docs/sql-internals.md, "Lane lock order").
+        DECLARE @lanes TABLE (
+            ns_id INT NOT NULL,
+            lane_name VARCHAR(128) NOT NULL,
+            lane_id BIGINT NULL,
+            PRIMARY KEY (ns_id, lane_name)
+        );
+
+        INSERT INTO @lanes (ns_id, lane_name)
+        SELECT DISTINCT r.ns_id, r.lane
+        FROM @resolved r
+        WHERE r.lane IS NOT NULL;
+
+        DECLARE @laned BIT = CASE WHEN EXISTS (SELECT 1 FROM @lanes) THEN 1 ELSE 0 END;
+        DECLARE @lanes_pending BIT = @laned;
+        DECLARE @lane_cursor BIGINT, @lane_next BIGINT, @lane_locked BIGINT;
+
+        -- Ready versus Blocked is read after the lane locks, which a SNAPSHOT transaction (level 5) never sees.
+        IF @lanes_pending = 1
+            AND (SELECT s.transaction_isolation_level FROM sys.dm_exec_sessions s WHERE s.session_id = @@SPID) = 5
+            THROW 50011, 'ACTA:ENQ_LANE_ISOLATION:Enqueue rejected: a laned enqueue cannot run in a SNAPSHOT caller transaction.', 1;
+
+        WHILE @lanes_pending = 1
+            BEGIN
+                SET XACT_ABORT OFF;
+                BEGIN TRY
+                    INSERT INTO {{schema}}.lanes (namespace_id, lane_name, created_at_utc)
+                    SELECT e.ns_id, e.lane_name, @now
+                    FROM @lanes e
+                    WHERE NOT EXISTS (
+                        SELECT 1
+                        FROM {{schema}}.lanes l
+                        WHERE
+                            l.namespace_id = e.ns_id
+                            AND l.lane_name = e.lane_name
+                    )
+                    ORDER BY e.lane_name;
+                END TRY
+                BEGIN CATCH
+                    SET XACT_ABORT ON;
+                    IF ERROR_NUMBER() NOT IN (2601, 2627)
+                        THROW;
+                END CATCH;
+                SET XACT_ABORT ON;
+
+                UPDATE e
+                SET lane_id = l.lane_id
+                FROM @lanes e
+                LEFT JOIN {{schema}}.lanes l
+                    ON
+                        l.namespace_id = e.ns_id
+                        AND l.lane_name = e.lane_name;
+
+                SET @lanes_pending = CASE WHEN EXISTS (SELECT 1 FROM @lanes WHERE lane_id IS NULL) THEN 1 ELSE 0 END;
+                SET @lane_cursor = 0;
+                WHILE @lanes_pending = 0
+                    BEGIN
+                        SET @lane_next = NULL;
+                        SELECT TOP (1) @lane_next = e.lane_id
+                        FROM @lanes e
+                        WHERE e.lane_id > @lane_cursor
+                        ORDER BY e.lane_id;
+
+                        IF @lane_next IS NULL
+                            BREAK;
+
+                        SET @lane_locked = NULL;
+                        SELECT @lane_locked = l.lane_id
+                        FROM {{schema}}.lanes l WITH (UPDLOCK, ROWLOCK)
+                        WHERE l.lane_id = @lane_next;
+
+                        IF @lane_locked IS NULL
+                            SET @lanes_pending = 1;
+                        SET @lane_cursor = @lane_next;
+                    END;
+            END;
+
+        UPDATE r
+        SET lane_id = e.lane_id
+        FROM @resolved r
+        INNER JOIN @lanes e
+            ON
+                e.ns_id = r.ns_id
+                AND e.lane_name = r.lane;
+
+        DECLARE @existing TABLE (
+            ordinal INT PRIMARY KEY,
+            job_id BIGINT NOT NULL,
+            job_ref UNIQUEIDENTIFIER NOT NULL
+        );
+
+        IF
+            EXISTS (
+                SELECT 1 FROM @p_batch
+                WHERE deduplication_key IS NOT NULL
+            )
+            BEGIN
+                -- Each key's own lock, named as enqueue_job names it, taken in name order so two batches sharing keys
+                -- never deadlock (docs/sql-internals.md, "Deduplication lock").
+                DECLARE @dedup_locks TABLE (name NVARCHAR(255) COLLATE Latin1_General_100_BIN2 NOT NULL PRIMARY KEY);
+                INSERT INTO @dedup_locks (name)
+                SELECT DISTINCT
+                    CONCAT(
+                        N'{{schema}}.dedup:',
+                        CASE WHEN b.parent_job_id IS NULL THEN CONCAT(N'n', r.ns_id) ELSE CONCAT(N'p', b.parent_job_id) END,
+                        N':',
+                        b.deduplication_key
+                    )
+                FROM @p_batch b
+                LEFT JOIN @resolved r ON r.ordinal = b.ordinal
+                WHERE
+                    b.deduplication_key IS NOT NULL
+                    AND (b.parent_job_id IS NOT NULL OR r.ns_id IS NOT NULL);
+
+                DECLARE @dedup_lock NVARCHAR(255) = (SELECT MIN(name) FROM @dedup_locks), @dedup_lock_result INT;
+                WHILE @dedup_lock IS NOT NULL
+                    BEGIN
+                        -- Positional: resource, mode, owner, timeout (-1 waits like any lock).
+                        EXEC @dedup_lock_result = sp_getapplock @dedup_lock, 'Exclusive', 'Transaction', -1;
+                        IF @dedup_lock_result < 0
+                            THROW 51205, 'ACTA:DEDUP_LOCK:The deduplication key lock was not granted (deadlock victim or cancelled).', 1;
+                        SET @dedup_lock = (SELECT MIN(name) FROM @dedup_locks WHERE name > @dedup_lock);
+                    END;
+
+                -- Each probe seeks its dedup index on both key columns, the index's filter restated: a scan under UPDLOCK
+                -- locks every row it reads and escalates to a table lock on jobs, which a stale row estimate makes the
+                -- cheaper plan, and a seek on the leading column alone reads every key under it once per batch row.
+                INSERT INTO @existing (ordinal, job_id, job_ref)
+                SELECT
+                    b.ordinal,
+                    j.job_id,
+                    j.job_ref
+                FROM @p_batch b
+                INNER JOIN {{schema}}.jobs j WITH (UPDLOCK, FORCESEEK (ux_jobs_deduplication_key_child (parent_job_id, deduplication_key)))
+                    ON
+                        j.parent_job_id = b.parent_job_id
+                        AND j.deduplication_key = b.deduplication_key
+                        AND j.parent_job_id IS NOT NULL
+                        AND j.deduplication_key IS NOT NULL
+                WHERE
+                    b.deduplication_key IS NOT NULL
+                    AND b.parent_job_id IS NOT NULL;
+
+                INSERT INTO @existing (ordinal, job_id, job_ref)
+                SELECT
+                    b.ordinal,
+                    j.job_id,
+                    j.job_ref
+                FROM @p_batch b
+                INNER JOIN @resolved r ON r.ordinal = b.ordinal
+                INNER JOIN {{schema}}.jobs j WITH (UPDLOCK, FORCESEEK (ux_jobs_deduplication_key_root (namespace_id, deduplication_key)))
+                    ON
+                        j.namespace_id = r.ns_id
+                        AND j.deduplication_key = b.deduplication_key
+                        AND j.parent_job_id IS NULL
+                        AND j.deduplication_key IS NOT NULL
+                WHERE
+                    b.deduplication_key IS NOT NULL
+                    AND b.parent_job_id IS NULL;
+            END;
+
+        DECLARE @parents TABLE (
+            ordinal INT PRIMARY KEY,
+            lineage_root_job_id BIGINT NOT NULL,
+            correlation_key VARCHAR(64) COLLATE Latin1_General_100_BIN2_UTF8 NULL,
+            tenant_id INT NULL
+        );
+
+        INSERT INTO @parents (ordinal, lineage_root_job_id, correlation_key, tenant_id)
+        SELECT
+            b.ordinal,
+            COALESCE(pj.lineage_root_job_id, pj.job_id),
+            pj.correlation_key,
+            pj.tenant_id
+        FROM @p_batch b
+        INNER JOIN {{schema}}.jobs pj WITH (UPDLOCK, ROWLOCK, FORCESEEK) ON pj.job_id = b.parent_job_id
+        INNER JOIN {{schema}}.jobs_state pr ON pr.job_id = pj.job_id
+        WHERE
+            b.parent_job_id IS NOT NULL
+            AND pr.job_status_code NOT IN (100 /* JobStatusCode.Succeeded */, 200 /* JobStatusCode.Failed */, 220 /* JobStatusCode.Cancelled */)
+        ORDER BY pj.job_id DESC;
+
+        IF (
+            SELECT COUNT(*) FROM @parents) < (
+            SELECT COUNT(*) FROM @p_batch
+            WHERE parent_job_id IS NOT NULL
+        )
+            BEGIN
+                THROW 50002, 'Enqueue rejected: one or more child rows reference a missing or terminal parent job.', 1;
+            END;
+
+        IF
+            EXISTS (
+                SELECT 1
+                FROM @resolved r
+                INNER JOIN @p_batch b ON b.ordinal = r.ordinal
+                LEFT JOIN @parents p ON p.ordinal = b.ordinal
+                WHERE
+                    r.def_tenant_req = 10 /* DefinitionTenantRequirementCode.Required */
+                    AND r.tenant_id IS NULL
+                    AND p.tenant_id IS NULL
+            )
+            BEGIN
+                THROW 50007,
+                'ACTA:ENQ_TENANT_REQUIRED:Enqueue rejected: one or more rows target a definition that requires a tenant and carry none.',
+                1;
+            END;
+
+        IF
+            EXISTS (
+                SELECT 1
+                FROM @resolved r
+                INNER JOIN @p_batch b ON b.ordinal = r.ordinal
+                WHERE
+                    r.def_tenant_req = 20 /* DefinitionTenantRequirementCode.Forbidden */
+                    AND b.tenant_name IS NOT NULL
+            )
+            BEGIN
+                THROW 50008,
+                'ACTA:ENQ_TENANT_FORBIDDEN:Enqueue rejected: one or more rows target a definition that forbids a tenant and name one.',
+                1;
+            END;
+
+        IF
+            EXISTS (
+                SELECT 1
+                FROM @resolved r
+                INNER JOIN @p_batch b ON b.ordinal = r.ordinal
+                INNER JOIN @parents p ON p.ordinal = b.ordinal
+                WHERE
+                    r.tenant_id IS NOT NULL
+                    AND p.tenant_id IS NOT NULL
+                    AND r.tenant_id <> p.tenant_id
+                    AND b.tenant_override = 0
+            )
+            BEGIN
+                DECLARE
+                    @tenant_msg NVARCHAR(2048) = 'ACTA:ENQ_TENANT_MISMATCH:Enqueue rejected: one or more child rows name a'
+                    + ' TenantName that differs from the parent tenant without an explicit override.';
+                THROW 50009, @tenant_msg, 1;
+            END;
+
+        -- A child may not wait behind an unfinished ancestor in its own lane: the ancestor waits for it.
+        DECLARE @ancestor_lane_hits INT = 0;
+        IF
+            EXISTS (
+                SELECT 1
+                FROM @resolved r
+                INNER JOIN @p_batch b ON b.ordinal = r.ordinal
+                WHERE
+                    r.lane_id IS NOT NULL
+                    AND b.parent_job_id IS NOT NULL
+            )
+            BEGIN
+                WITH ancestors AS (
+                    SELECT r.lane_id, a.job_id, a.parent_job_id
+                    FROM @resolved r
+                    INNER JOIN @p_batch b ON b.ordinal = r.ordinal
+                    INNER JOIN {{schema}}.jobs a ON a.job_id = b.parent_job_id
+                    WHERE r.lane_id IS NOT NULL
+                    UNION ALL
+                    SELECT c.lane_id, a.job_id, a.parent_job_id
+                    FROM {{schema}}.jobs a
+                    INNER JOIN ancestors c ON a.job_id = c.parent_job_id
+                )
+
+                SELECT @ancestor_lane_hits = COUNT(*)
+                FROM ancestors c
+                INNER JOIN {{schema}}.jobs_state ar ON ar.job_id = c.job_id
+                WHERE
+                    ar.lane_id = c.lane_id
+                    AND ar.job_status_code IN (
+                        10 /* JobStatusCode.Ready */, 15 /* JobStatusCode.Blocked */, 20 /* JobStatusCode.Suspended */,
+                        30 /* JobStatusCode.Paused */, 50 /* JobStatusCode.Executing */
+                    )
+                -- A lineage has no depth bound, so neither has the walk.
+                OPTION (MAXRECURSION 0);
+            END;
+
+        IF @ancestor_lane_hits > 0
+            BEGIN
+                DECLARE
+                    @ancestor_msg NVARCHAR(2048) = 'ACTA:ENQ_ANCESTOR_LANE:Enqueue rejected: one or more child rows name the lane of'
+                    + ' an unfinished ancestor, so they would wait behind the ancestor that waits for them.';
+                THROW 50010, @ancestor_msg, 1;
+            END;
+
+        DECLARE @map TABLE (
+            job_ref UNIQUEIDENTIFIER PRIMARY KEY,
+            job_id BIGINT NOT NULL
+        );
+
+        -- An unlaned batch runs the plain inserts; only a laned one pays for batch order and lane heads.
+        -- Both jobs_state inserts force nested loops so the foreign-key checks seek their parent rows
+        -- (docs/sql-internals.md, "Foreign keys in set-based writes").
+        IF @laned = 0
+            BEGIN
+                INSERT INTO {{schema}}.jobs (
+                    job_kind_code, job_ref, lineage_root_job_id, parent_job_id,
+                    deduplication_key, correlation_key,
+                    namespace_id, definition_id, tenant_id,
+                    input_format_id, input,
+                    concurrency_key, event_recording_code,
+                    created_at_utc
+                )
+                OUTPUT INSERTED.job_ref, INSERTED.job_id INTO @map (job_ref, job_id)
+                SELECT
+                    10 /* JobKindCode.Ordinary */,
+                    b.job_ref,
+                    p.lineage_root_job_id,
+                    b.parent_job_id,
+                    b.deduplication_key,
+                    COALESCE(b.correlation_key, p.correlation_key),
+                    r.ns_id,
+                    r.def_id,
+                    CASE
+                        WHEN r.def_tenant_req = 20 /* DefinitionTenantRequirementCode.Forbidden */ THEN NULL
+                        ELSE COALESCE(r.tenant_id, p.tenant_id)
+                    END,
+                    b.input_format_id,
+                    b.input,
+                    b.concurrency_key,
+                    r.def_event_recording,
+                    @now
+                FROM @p_batch b
+                INNER JOIN @resolved r ON r.ordinal = b.ordinal
+                LEFT JOIN @parents p ON p.ordinal = b.ordinal
+                LEFT JOIN @existing e ON e.ordinal = b.ordinal
+                WHERE e.ordinal IS NULL;
+
+                INSERT INTO {{schema}}.jobs_state (
+                    job_id, namespace_id, job_status_code, job_priority_code, next_run_at_utc,
+                    execution_number, failure_count, retention_until_utc,
+                    modified_at_utc, version
+                )
+                SELECT
+                    m.job_id,
+                    r.ns_id,
+                    10 /* JobStatusCode.Ready */,
+                    COALESCE(b.job_priority_code_override, r.def_priority),
+                    COALESCE(b.next_run_at_utc, DATEADD(SECOND, COALESCE(b.delay_seconds, 0), @now)),
+                    0,
+                    0,
+                    NULL,
+                    @now,
+                    0
+                FROM @map m
+                INNER JOIN @p_batch b ON b.job_ref = m.job_ref
+                INNER JOIN @resolved r ON r.ordinal = b.ordinal
+                OPTION (LOOP JOIN);
+            END
+        ELSE
+            BEGIN
+                INSERT INTO {{schema}}.jobs (
+                    job_kind_code, job_ref, lineage_root_job_id, parent_job_id,
+                    deduplication_key, correlation_key,
+                    namespace_id, definition_id, tenant_id,
+                    input_format_id, input,
+                    concurrency_key, event_recording_code,
+                    created_at_utc
+                )
+                OUTPUT INSERTED.job_ref, INSERTED.job_id INTO @map (job_ref, job_id)
+                SELECT
+                    10 /* JobKindCode.Ordinary */,
+                    b.job_ref,
+                    p.lineage_root_job_id,
+                    b.parent_job_id,
+                    b.deduplication_key,
+                    COALESCE(b.correlation_key, p.correlation_key),
+                    r.ns_id,
+                    r.def_id,
+                    CASE
+                        WHEN r.def_tenant_req = 20 /* DefinitionTenantRequirementCode.Forbidden */ THEN NULL
+                        ELSE COALESCE(r.tenant_id, p.tenant_id)
+                    END,
+                    b.input_format_id,
+                    b.input,
+                    b.concurrency_key,
+                    r.def_event_recording,
+                    @now
+                FROM @p_batch b
+                INNER JOIN @resolved r ON r.ordinal = b.ordinal
+                LEFT JOIN @parents p ON p.ordinal = b.ordinal
+                LEFT JOIN @existing e ON e.ordinal = b.ordinal
+                WHERE e.ordinal IS NULL
+                -- Identity values follow this order, so job-id order equals the caller's batch order, which
+                -- is the order a lane runs in.
+                ORDER BY b.ordinal;
+
+                -- A lane's head is its first inserted row, the lowest ordinal the dedup probe kept, and only
+                -- when no unfinished member is already there; every other laned row waits as Blocked. The
+                -- probe runs under the lane locks, before this batch has any jobs_state row.
+                UPDATE r
+                SET lane_head = 1
+                FROM @resolved r
+                INNER JOIN (
+                    SELECT MIN(h.ordinal) AS ordinal
+                    FROM @resolved h
+                    LEFT JOIN @existing x ON x.ordinal = h.ordinal
+                    WHERE
+                        h.lane_id IS NOT NULL
+                        AND x.ordinal IS NULL
+                    GROUP BY h.lane_id
+                ) f ON f.ordinal = r.ordinal
+                WHERE NOT EXISTS (
+                    SELECT 1
+                    FROM {{schema}}.jobs_state x WITH (FORCESEEK)
+                    WHERE
+                        x.lane_id = r.lane_id
+                        AND x.lane_id IS NOT NULL
+                        AND x.job_status_code IN (
+                            10 /* JobStatusCode.Ready */, 15 /* JobStatusCode.Blocked */, 20 /* JobStatusCode.Suspended */,
+                            30 /* JobStatusCode.Paused */, 50 /* JobStatusCode.Executing */
+                        )
+                );
+
+                INSERT INTO {{schema}}.jobs_state (
+                    job_id, namespace_id, lane_id, job_status_code, job_priority_code, next_run_at_utc,
+                    execution_number, failure_count, retention_until_utc,
+                    modified_at_utc, version
+                )
+                SELECT
+                    m.job_id,
+                    r.ns_id,
+                    r.lane_id,
+                    CASE
+                        WHEN r.lane_id IS NULL OR r.lane_head = 1 THEN 10 /* JobStatusCode.Ready */
+                        ELSE 15 /* JobStatusCode.Blocked */
+                    END,
+                    COALESCE(b.job_priority_code_override, r.def_priority),
+                    COALESCE(b.next_run_at_utc, DATEADD(SECOND, COALESCE(b.delay_seconds, 0), @now)),
+                    0,
+                    0,
+                    NULL,
+                    @now,
+                    0
+                FROM @map m
+                INNER JOIN @p_batch b ON b.job_ref = m.job_ref
+                INNER JOIN @resolved r ON r.ordinal = b.ordinal
+                OPTION (LOOP JOIN);
+            END;
+
+        INSERT INTO {{schema}}.tags (entity_code, entity_id, tag_name, tag_value, tag_value_search)
+        SELECT
+            50 /* EntityCode.Job */,
+            m.job_id,
+            t.tag_name,
+            t.tag_value,
+            t.tag_value_search
+        FROM @p_tags t
+        INNER JOIN @p_batch b ON b.ordinal = t.ordinal
+        INNER JOIN @map m ON m.job_ref = b.job_ref;
+
+        SELECT
+            b.ordinal,
+            COALESCE(m.job_id, e.job_id) AS job_id,
+            COALESCE(m.job_ref, e.job_ref) AS job_ref,
+            CASE
+                WHEN m.job_id IS NOT NULL
+                    THEN 1 /* EnqueueJobAction.Inserted */
+                ELSE 2 /* EnqueueJobAction.Deduplicated */
+            END AS action
+        FROM @p_batch b
+        LEFT JOIN @map m ON m.job_ref = b.job_ref
+        LEFT JOIN @existing e ON e.ordinal = b.ordinal
+        ORDER BY b.ordinal;
+
+        IF @entry_trancount = 0
+            COMMIT TRANSACTION;
+    END TRY
+    BEGIN CATCH
+        IF @entry_trancount = 0 AND XACT_STATE() <> 0
+            ROLLBACK TRANSACTION;
+        THROW;
+    END CATCH;
+END;
+GO
+
+CREATE OR ALTER PROCEDURE {{schema}}.extend_worker_leases
+    @p_leased_by_worker_id INT,
+    @p_lease_ttl_seconds INT,
+    @p_draining BIT,
+    @p_executions NVARCHAR(MAX),
+    @p_locks NVARCHAR(MAX),
+    @p_recovery_interval_seconds INT = NULL
+AS
+BEGIN
+    SET NOCOUNT ON;
+    SET XACT_ABORT ON;
+
+    DECLARE @entry_trancount INT = @@TRANCOUNT;
+    BEGIN TRY
+        IF @entry_trancount = 0
+            BEGIN TRANSACTION;
+
+        DECLARE @now DATETIME2(7) = SYSUTCDATETIME();
+        DECLARE @new_expiry DATETIME2(7) = DATEADD(SECOND, @p_lease_ttl_seconds, @now);
+        DECLARE @namespace_id INT = (SELECT w.namespace_id FROM {{schema}}.workers w WHERE w.worker_id = @p_leased_by_worker_id);
+
+        UPDATE {{schema}}.workers
+        SET
+            last_seen_at_utc = @now,
+            -- A worker marked Dead through a database outage longer than its dead-after window is alive again the
+            -- moment it heartbeats; Stopped stays Stopped.
+            worker_status_code = CASE
+                WHEN @p_draining = 1 AND worker_status_code IN (10 /* WorkerStatusCode.Active */, 200 /* WorkerStatusCode.Dead */)
+                    THEN 80 /* WorkerStatusCode.Draining */
+                WHEN worker_status_code = 200 /* WorkerStatusCode.Dead */ THEN 10 /* WorkerStatusCode.Active */
+                ELSE worker_status_code
+            END,
+            modified_at_utc = @now,
+            version = version + 1
+        WHERE worker_id = @p_leased_by_worker_id;
+
+        /* The held executions and lock holds arrive as JSON array text, expanded once into keyed tables. A process
+           can hold two executions of one job, or two holds on one key, while a stale attempt unwinds. */
+        DECLARE @held TABLE (job_id BIGINT NOT NULL, execution_number INT NOT NULL, PRIMARY KEY (job_id, execution_number));
+        INSERT INTO @held (job_id, execution_number)
+        SELECT job_id, execution_number
+        FROM OPENJSON(@p_executions) WITH (job_id BIGINT '$.job_id', execution_number INT '$.execution_number');
+
+        DECLARE @lock_held TABLE (
+            lock_key VARCHAR(256) COLLATE Latin1_General_100_BIN2_UTF8 NOT NULL,
+            hold_token UNIQUEIDENTIFIER NOT NULL,
+            PRIMARY KEY (lock_key, hold_token)
+        );
+        INSERT INTO @lock_held (lock_key, hold_token)
+        SELECT lock_key, hold_token
+        FROM OPENJSON(@p_locks) WITH (
+            lock_key VARCHAR(256) COLLATE Latin1_General_100_BIN2_UTF8 '$.lock_key',
+            hold_token UNIQUEIDENTIFIER '$.hold_token'
+        );
+
+        -- Lock holds renew first and never skip: no routine locks both locks and jobs_state. A hold whose token
+        -- moved is not answered, and the attempt that relied on it stops.
+        DECLARE @lock_renewed TABLE (lock_key VARCHAR(256) COLLATE Latin1_General_100_BIN2_UTF8 NOT NULL PRIMARY KEY);
+        UPDATE k
+        SET expires_at_utc = @new_expiry
+        OUTPUT INSERTED.lock_key INTO @lock_renewed (lock_key)
+        FROM {{schema}}.locks k
+        INNER JOIN @lock_held h ON h.lock_key = k.lock_key AND h.hold_token = k.hold_token;
+
+        /* Push the held executions' leases forward. Only a row this worker still leases at the execution the
+           process holds is answered, so a row the process lost lapses and recovery takes it. Deliberately no
+           version bump: a lease refresh is not a claim-generation change. */
+        -- Read the matched ids first so the update locks base rows only, never an index key;
+        -- complete_executions locks in the other order. See docs/sql-internals.md.
+        DECLARE @matched TABLE (job_id BIGINT NOT NULL PRIMARY KEY, execution_number INT NOT NULL);
+        INSERT INTO @matched (job_id, execution_number)
+        SELECT r.job_id, r.execution_number
+        FROM {{schema}}.jobs_state r
+        INNER JOIN @held h ON h.job_id = r.job_id AND h.execution_number = r.execution_number
+        WHERE
+            r.leased_by_worker_id = @p_leased_by_worker_id
+            AND r.job_status_code = 50 /* JobStatusCode.Executing */;
+
+        -- A row another transaction holds is skipped and reported unrenewed, so the renewal never waits
+        -- (docs/sql-internals.md, "Explicit exceptions and maintenance").
+        DECLARE @renewed TABLE (job_id BIGINT NOT NULL PRIMARY KEY);
+        UPDATE r
+        SET lease_expires_at_utc = @new_expiry
+        OUTPUT INSERTED.job_id INTO @renewed (job_id)
+        FROM {{schema}}.jobs_state r WITH (INDEX(pk_jobs_state), FORCESEEK, ROWLOCK, READPAST)
+        INNER JOIN @matched m ON m.job_id = r.job_id AND m.execution_number = r.execution_number
+        WHERE
+            r.leased_by_worker_id = @p_leased_by_worker_id
+            AND r.job_status_code = 50 /* JobStatusCode.Executing */;
+
+        -- Takes the namespace's recovery pass when it is due, moving the next one an interval out; this worker runs it.
+        -- A namespace row another transaction holds is skipped, so the heartbeat never waits on it.
+        DECLARE @recovery_claimed BIT = 0;
+        IF @p_recovery_interval_seconds IS NOT NULL
+            BEGIN
+                UPDATE n
+                SET recovery_due_at_utc = DATEADD(SECOND, @p_recovery_interval_seconds, @now)
+                FROM {{schema}}.namespaces n WITH (ROWLOCK, READPAST)
+                WHERE n.namespace_id = @namespace_id AND (n.recovery_due_at_utc IS NULL OR n.recovery_due_at_utc <= @now);
+                SET @recovery_claimed = CASE WHEN @@ROWCOUNT > 0 THEN 1 ELSE 0 END;
+            END;
+
+        SELECT
+            CAST(NULL AS BIGINT) AS job_id,
+            CAST(NULL AS INT) AS execution_number,
+            l.lock_key,
+            CAST(1 AS BIT) AS renewed,
+            CAST(NULL AS DATETIME2(3)) AS definitions_modified_at_utc,
+            CAST(0 AS BIT) AS recovery_claimed
+        FROM @lock_renewed l
+        UNION ALL
+        SELECT
+            m.job_id,
+            m.execution_number,
+            CAST(NULL AS VARCHAR(256)),
+            CAST(CASE WHEN n.job_id IS NULL THEN 0 ELSE 1 END AS BIT),
+            CAST(NULL AS DATETIME2(3)),
+            CAST(0 AS BIT)
+        FROM @matched m
+        LEFT JOIN @renewed n ON n.job_id = m.job_id
+        UNION ALL
+        -- The namespace's newest definition change: the worker re-reads its catalog only when it moves.
+        SELECT
+            CAST(NULL AS BIGINT) AS job_id,
+            CAST(NULL AS INT) AS execution_number,
+            CAST(NULL AS VARCHAR(256)) AS lock_key,
+            CAST(0 AS BIT) AS renewed,
+            MAX(d.modified_at_utc) AS definitions_modified_at_utc,
+            @recovery_claimed AS recovery_claimed
+        FROM {{schema}}.definitions d
+        WHERE d.namespace_id = @namespace_id;
+
+        IF @entry_trancount = 0
+            COMMIT TRANSACTION;
+    END TRY
+    BEGIN CATCH
+        IF @entry_trancount = 0 AND XACT_STATE() <> 0
+            ROLLBACK TRANSACTION;
+        THROW;
+    END CATCH;
+END;
+GO
+
+/* One section, one bounded atomic batch; section numbers match RetentionSection. Alert-required events above the
+   namespace floor stay with their jobs (PurgeExpiredDataCommand). */
+CREATE OR ALTER PROCEDURE {{schema}}.purge_expired_data
+    @p_namespace_id INT,
+    @p_section INT,
+    @p_cutoff_utc DATETIME2(7),
+    @p_batch_size INT,
+    @p_before_job_id BIGINT = 0,
+    @p_alert_floor_utc DATETIME2(7) = NULL,
+    @p_alert_floor_event_id BIGINT = NULL
+AS
+BEGIN
+    SET NOCOUNT ON;
+    SET XACT_ABORT ON;
+
+    DECLARE @entry_trancount INT = @@TRANCOUNT;
+    BEGIN TRY
+        IF @entry_trancount = 0
+            BEGIN TRANSACTION;
+
+        IF @p_batch_size <= 0 OR @p_section NOT BETWEEN 1 AND 7
+            THROW 50002, 'Invalid retention section or batch size.', 1;
+
+        DECLARE @rows INT = 0;
+        DECLARE @next_job_id BIGINT = 0;
+        DECLARE @job_del TABLE (job_id BIGINT NOT NULL);
+        DECLARE @event_del TABLE (worker_id INT NOT NULL, event_id BIGINT NOT NULL, PRIMARY KEY (worker_id, event_id));
+        DECLARE @lock_del TABLE (lock_key VARCHAR(256) COLLATE Latin1_General_100_BIN2_UTF8 NOT NULL);
+        DECLARE @alert_del TABLE (alert_id BIGINT NOT NULL PRIMARY KEY, deduplication_key VARCHAR(128) COLLATE Latin1_General_100_BIN2_UTF8 NULL);
+        DECLARE @alert_locked TABLE (alert_id BIGINT NOT NULL PRIMARY KEY);
+        DECLARE @worker_del TABLE (worker_id BIGINT NOT NULL);
+        DECLARE @lane_del TABLE (lane_id BIGINT NOT NULL);
+        DECLARE @floor_utc DATETIME2(7) = COALESCE(@p_alert_floor_utc, @p_cutoff_utc);
+        DECLARE @floor_id BIGINT = COALESCE(@p_alert_floor_event_id, 9223372036854775807);
+        IF @p_section = 1
+            BEGIN
+                DELETE @job_del;
+
+                /* No retention index: walk jobs_state downward from the cursor, ten batches a slice, and delete this
+                   namespace's expired jobs in it; downward, so a walk has a fixed end however fast enqueues arrive.
+                   A full batch ends the slice at its last delete; the oldest row answers zero, and the walk restarts. */
+                DECLARE @below BIGINT = CASE WHEN @p_before_job_id = 0 THEN 9223372036854775807 ELSE @p_before_job_id END;
+                DECLARE @slice_end BIGINT = (
+                    SELECT MIN(s.job_id)
+                    FROM (
+                        SELECT TOP (@p_batch_size * 10) r.job_id
+                        FROM {{schema}}.jobs_state r
+                        WHERE r.job_id < @below
+                        ORDER BY r.job_id DESC
+                    ) s
+                );
+
+                -- A locking read seeks (docs/sql-internals.md, "Locking reads seek").
+                INSERT INTO @job_del (job_id)
+                SELECT TOP (@p_batch_size) j.job_id
+                FROM {{schema}}.jobs_state r WITH (UPDLOCK, READPAST, FORCESEEK)
+                INNER JOIN {{schema}}.jobs j WITH (UPDLOCK, READPAST, FORCESEEK) ON j.job_id = r.job_id
+                WHERE
+                    r.job_id < @below
+                    AND r.job_id >= @slice_end
+                    AND r.namespace_id = @p_namespace_id
+                    AND r.job_status_code IN (100 /* JobStatusCode.Succeeded */, 200 /* JobStatusCode.Failed */, 220 /* JobStatusCode.Cancelled */)
+                    AND r.retention_until_utc IS NOT NULL
+                    AND r.retention_until_utc <= @p_cutoff_utc
+                    -- Lineage guard: parent_job_id carries no FK, so purging a parent whose children still
+                    -- exist would orphan their lineage (same rule as the manual purge_job). Only leaves
+                    -- delete; a fully-expired subtree drains bottom-up across iterations.
+                    AND NOT EXISTS (
+                        SELECT 1 FROM {{schema}}.jobs c
+                        WHERE c.parent_job_id = j.job_id
+                    )
+                    -- A completed child of a live parent is kept: the parent's replay dedupes onto its row
+                    -- and reads its result, so purging it would run the child again. The tree drains once
+                    -- the parent is terminal.
+                    AND NOT EXISTS (
+                        SELECT 1 FROM {{schema}}.jobs_state p
+                        WHERE p.job_id = j.parent_job_id
+                            AND p.job_status_code NOT IN (100 /* JobStatusCode.Succeeded */, 200 /* JobStatusCode.Failed */, 220 /* JobStatusCode.Cancelled */)
+                    )
+                    -- A stopped recurring job stays while its definition is live: the next start would register
+                    -- its declaration as a new job and undo the cancel or failure. Retiring the definition lets
+                    -- it drain.
+                    AND NOT EXISTS (
+                        SELECT 1 FROM {{schema}}.schedules s
+                        INNER JOIN {{schema}}.definitions d ON d.definition_id = j.definition_id
+                        WHERE s.job_id = j.job_id AND d.definition_status_code <> 240 /* DefinitionStatusCode.Retired */
+                    )
+                    -- A job stays while the projector still owes one of its events, since raising an alert reads the job row.
+                    AND NOT EXISTS (
+                        SELECT 1
+                        FROM {{schema}}.events e
+                        INNER JOIN {{schema}}.definitions d ON d.definition_id = e.definition_id
+                        WHERE
+                            e.entity_code = 50 /* EntityCode.Job */
+                            AND e.entity_id = j.job_id
+                            AND e.created_at_utc >= @floor_utc
+                            AND (e.created_at_utc > @floor_utc OR e.event_id > @floor_id)
+                            AND (
+                                e.event_code IN (41 /* EventCode.JobExecutionFailed */, 42 /* EventCode.JobExecutionOrphaned */, 44 /* EventCode.JobFailed */)
+                                OR (e.event_code = 40 /* EventCode.JobExecutionSucceeded */ AND e.execution_number > 1)
+                            )
+                            AND d.alert_profile_code_effective <> 0 /* AlertProfileCode.None */
+                    )
+                ORDER BY r.job_id DESC;
+
+                SET @next_job_id = CASE
+                    WHEN @slice_end IS NULL THEN 0
+                    WHEN (SELECT COUNT(*) FROM @job_del) = @p_batch_size THEN (SELECT MIN(job_id) FROM @job_del)
+                    ELSE @slice_end
+                END;
+
+                DELETE FROM {{schema}}.tags
+                WHERE entity_code = 50 /* EntityCode.Job */ AND entity_id IN (SELECT d.job_id FROM @job_del d);
+
+                -- Each delete below seeks its rows by job id: an unhinted plan can scan
+                -- the whole child table under update locks
+                -- (docs/sql-internals.md, "Foreign keys in set-based writes").
+                DELETE c FROM {{schema}}.checkpoints c WITH (FORCESEEK) INNER JOIN @job_del d ON d.job_id = c.job_id;
+                DELETE r FROM {{schema}}.jobs_state r WITH (FORCESEEK) INNER JOIN @job_del d ON d.job_id = r.job_id;
+                DELETE s FROM {{schema}}.steps s WITH (FORCESEEK) INNER JOIN @job_del d ON d.job_id = s.job_id;
+                DELETE st FROM {{schema}}.schedules_state st WITH (FORCESEEK)
+                INNER JOIN {{schema}}.schedules s ON s.schedule_id = st.schedule_id
+                INNER JOIN @job_del d ON d.job_id = s.job_id;
+                DELETE s FROM {{schema}}.schedules s WITH (FORCESEEK) INNER JOIN @job_del d ON d.job_id = s.job_id;
+                DELETE j FROM {{schema}}.jobs j WITH (FORCESEEK) INNER JOIN @job_del d ON d.job_id = j.job_id;
+                SET @rows = (SELECT COUNT(*) FROM @job_del);
+
+            END;
+
+        ELSE IF @p_section = 2
+            BEGIN
+                DELETE @event_del;
+
+                -- Collected by the clustered key, so each delete is a direct seek on pk_events.
+                -- Events still owed to the alert projector stay past the cutoff; see the floor above.
+                INSERT INTO @event_del (worker_id, event_id)
+                SELECT TOP (@p_batch_size) e.worker_id, e.event_id
+                FROM {{schema}}.events e WITH (UPDLOCK, READPAST, FORCESEEK (ix_events_namespace_created (namespace_id)))
+                WHERE
+                    e.namespace_id = @p_namespace_id
+                    AND e.created_at_utc <= @p_cutoff_utc
+                    AND NOT (
+                        e.entity_code = 50 /* EntityCode.Job */
+                        AND e.created_at_utc >= @floor_utc
+                        AND (e.created_at_utc > @floor_utc OR e.event_id > @floor_id)
+                        AND (
+                            e.event_code IN (41 /* EventCode.JobExecutionFailed */, 42 /* EventCode.JobExecutionOrphaned */, 44 /* EventCode.JobFailed */)
+                            OR (e.event_code = 40 /* EventCode.JobExecutionSucceeded */ AND e.execution_number > 1)
+                        )
+                        AND EXISTS (
+                            SELECT 1
+                            FROM {{schema}}.definitions d
+                            WHERE d.definition_id = e.definition_id AND d.alert_profile_code_effective <> 0 /* AlertProfileCode.None */
+                        )
+                    )
+                ORDER BY e.created_at_utc, e.event_id;
+                DELETE e FROM {{schema}}.events e WITH (FORCESEEK) INNER JOIN @event_del d ON d.worker_id = e.worker_id AND d.event_id = e.event_id;
+                SET @rows = (SELECT COUNT(*) FROM @event_del);
+
+            END;
+
+        ELSE IF @p_section = 3
+            BEGIN
+                DELETE @alert_del;
+                DELETE @alert_locked;
+
+                INSERT INTO @alert_del (alert_id, deduplication_key)
+                SELECT TOP (@p_batch_size) alert_id, deduplication_key
+                FROM {{schema}}.alerts WITH (READPAST)
+                WHERE
+                    namespace_id = @p_namespace_id
+                    AND created_at_utc <= @p_cutoff_utc
+                    AND delivery_status_code IN (
+                        30 /* AlertDeliveryStatusCode.Suppressed */,
+                        100 /* AlertDeliveryStatusCode.Delivered */,
+                        200 /* AlertDeliveryStatusCode.Failed */
+                    )
+                ORDER BY created_at_utc, alert_id;
+
+                -- Staged without locks, then each identity row is locked through its ix_alerts_deduplication_key_identity
+                -- key before the row and the rest by key, skipping a row another transaction holds
+                -- (docs/sql-internals.md, "Alert lock order").
+                INSERT INTO @alert_locked (alert_id)
+                SELECT a.alert_id
+                FROM @alert_del d
+                INNER JOIN {{schema}}.alerts a WITH (UPDLOCK, READPAST, FORCESEEK (ix_alerts_deduplication_key_identity (namespace_id, deduplication_key)))
+                    ON
+                        a.namespace_id = @p_namespace_id
+                        AND a.deduplication_key = d.deduplication_key
+                        AND a.alert_id = d.alert_id
+                WHERE d.deduplication_key IS NOT NULL;
+                INSERT INTO @alert_locked (alert_id)
+                SELECT a.alert_id
+                FROM @alert_del d
+                INNER JOIN {{schema}}.alerts a WITH (UPDLOCK, READPAST, FORCESEEK) ON a.alert_id = d.alert_id
+                WHERE d.deduplication_key IS NULL;
+
+                DELETE a
+                FROM {{schema}}.alerts a WITH (FORCESEEK)
+                INNER JOIN @alert_locked l ON l.alert_id = a.alert_id
+                WHERE
+                    a.created_at_utc <= @p_cutoff_utc
+                    AND a.delivery_status_code IN (
+                        30 /* AlertDeliveryStatusCode.Suppressed */,
+                        100 /* AlertDeliveryStatusCode.Delivered */,
+                        200 /* AlertDeliveryStatusCode.Failed */
+                    );
+                SET @rows = @@ROWCOUNT;
+
+            END;
+
+        ELSE IF @p_section = 4
+            BEGIN
+                DELETE @alert_del;
+                DELETE @alert_locked;
+
+                INSERT INTO @alert_del (alert_id, deduplication_key)
+                SELECT TOP (@p_batch_size) alert_id, deduplication_key
+                FROM {{schema}}.alerts WITH (READPAST)
+                WHERE
+                    namespace_id = @p_namespace_id
+                    AND created_at_utc <= @p_cutoff_utc
+                    AND delivery_status_code IN (
+                        10 /* AlertDeliveryStatusCode.Pending */,
+                        20 /* AlertDeliveryStatusCode.RetryAfter */
+                    )
+                ORDER BY created_at_utc, alert_id;
+
+                -- Staged without locks, then each identity row is locked through its ix_alerts_deduplication_key_identity
+                -- key before the row and the rest by key, skipping a row another transaction holds
+                -- (docs/sql-internals.md, "Alert lock order").
+                INSERT INTO @alert_locked (alert_id)
+                SELECT a.alert_id
+                FROM @alert_del d
+                INNER JOIN {{schema}}.alerts a WITH (UPDLOCK, READPAST, FORCESEEK (ix_alerts_deduplication_key_identity (namespace_id, deduplication_key)))
+                    ON
+                        a.namespace_id = @p_namespace_id
+                        AND a.deduplication_key = d.deduplication_key
+                        AND a.alert_id = d.alert_id
+                WHERE d.deduplication_key IS NOT NULL;
+                INSERT INTO @alert_locked (alert_id)
+                SELECT a.alert_id
+                FROM @alert_del d
+                INNER JOIN {{schema}}.alerts a WITH (UPDLOCK, READPAST, FORCESEEK) ON a.alert_id = d.alert_id
+                WHERE d.deduplication_key IS NULL;
+
+                DELETE a
+                FROM {{schema}}.alerts a WITH (FORCESEEK)
+                INNER JOIN @alert_locked l ON l.alert_id = a.alert_id
+                WHERE
+                    a.created_at_utc <= @p_cutoff_utc
+                    AND a.delivery_status_code IN (
+                        10 /* AlertDeliveryStatusCode.Pending */,
+                        20 /* AlertDeliveryStatusCode.RetryAfter */
+                    );
+                SET @rows = @@ROWCOUNT;
+
+            END;
+
+        ELSE IF @p_section = 5
+            BEGIN
+                DELETE @worker_del;
+
+                -- Events about a terminal worker land after its last heartbeat, and each one stamps modified_at_utc, so
+                -- the row goes once both are past the window and no Executing job it leases is left for recovery.
+                INSERT INTO @worker_del (worker_id)
+                SELECT TOP (@p_batch_size) w.worker_id
+                FROM {{schema}}.workers w WITH (UPDLOCK, READPAST)
+                WHERE
+                    w.namespace_id = @p_namespace_id
+                    AND w.worker_status_code IN (100 /* WorkerStatusCode.Stopped */, 200 /* WorkerStatusCode.Dead */)
+                    AND w.last_seen_at_utc <= @p_cutoff_utc
+                    AND w.modified_at_utc <= @p_cutoff_utc
+                    AND NOT EXISTS (
+                        SELECT 1
+                        FROM {{schema}}.jobs_state r
+                        WHERE
+                            r.leased_by_worker_id = w.worker_id
+                            -- ix_jobs_state_worker_inflight's filter restated: a filtered index serves only a query that states it.
+                            AND r.leased_by_worker_id IS NOT NULL
+                            AND r.job_status_code = 50 /* JobStatusCode.Executing */
+                    )
+                ORDER BY w.last_seen_at_utc, w.worker_id;
+                DELETE w FROM {{schema}}.workers w WITH (FORCESEEK) INNER JOIN @worker_del d ON d.worker_id = w.worker_id;
+                SET @rows = (SELECT COUNT(*) FROM @worker_del);
+
+            END;
+
+        ELSE IF @p_section = 6
+            BEGIN
+            -- The batch is staged without holding locks, then the delete seeks each row by clustered key, first
+            -- as every lock writer does, skipping a row a writer holds and re-checking its expiry. Taking the
+            -- expiry index key first deadlocks against reserve_rate moving a bucket's expiry.
+                DELETE @lock_del;
+                INSERT INTO @lock_del (lock_key)
+                SELECT TOP (@p_batch_size) lock_key
+                FROM {{schema}}.locks WITH (READPAST)
+                WHERE
+                    expires_at_utc <= @p_cutoff_utc
+                ORDER BY expires_at_utc;
+                DELETE t
+                FROM {{schema}}.locks t WITH (READPAST, FORCESEEK (pk_locks (lock_key)))
+                INNER JOIN @lock_del d ON d.lock_key = t.lock_key
+                WHERE t.expires_at_utc <= @p_cutoff_utc;
+                SET @rows = @@ROWCOUNT;
+            END;
+
+        ELSE IF @p_section = 7
+            BEGIN
+            -- Unreferenced lanes, locked by id on the clustered key skipping a lane an enqueue or settle
+            -- holds, then re-checked under the lock (docs/sql-internals.md, "Lane lock order").
+                DELETE @lane_del;
+                INSERT INTO @lane_del (lane_id)
+                SELECT l.lane_id
+                FROM {{schema}}.lanes l WITH (UPDLOCK, READPAST, ROWLOCK, INDEX (pk_lanes))
+                WHERE l.lane_id IN (
+                    SELECT TOP (@p_batch_size) c.lane_id
+                    FROM {{schema}}.lanes c
+                    WHERE
+                        c.namespace_id = @p_namespace_id
+                        AND NOT EXISTS (SELECT 1 FROM {{schema}}.jobs_state r WHERE r.lane_id = c.lane_id)
+                    ORDER BY c.lane_id
+                );
+                DELETE l
+                FROM {{schema}}.lanes l WITH (FORCESEEK)
+                INNER JOIN @lane_del d ON d.lane_id = l.lane_id
+                WHERE NOT EXISTS (SELECT 1 FROM {{schema}}.jobs_state r WHERE r.lane_id = l.lane_id)
+                OPTION (LOOP JOIN);
+                SET @rows = @@ROWCOUNT;
+            END;
+
+        SELECT @rows AS deleted_count, @next_job_id AS next_job_id;
+
+        IF @entry_trancount = 0
+            COMMIT TRANSACTION;
+    END TRY
+    BEGIN CATCH
+        IF @entry_trancount = 0 AND XACT_STATE() <> 0
+            ROLLBACK TRANSACTION;
+        THROW;
+    END CATCH;
+END;
+GO
+
+CREATE OR ALTER PROCEDURE {{schema}}.raise_signal
+    @p_job_id BIGINT,
+    @p_checkpoint_kind_code TINYINT,
+    @p_checkpoint_name VARCHAR(128),
+    @p_value_format_id TINYINT,
+    @p_value VARBINARY(MAX),
+    @p_event_message NVARCHAR(512),
+    @p_details_format_id TINYINT,
+    @p_details VARBINARY(MAX)
+AS
+BEGIN
+    SET NOCOUNT ON;
+    SET XACT_ABORT ON;
+
+    DECLARE @entry_trancount INT = @@TRANCOUNT;
+    BEGIN TRY
+        IF @entry_trancount = 0
+            BEGIN TRANSACTION;
+
+        DECLARE @now DATETIME2(7) = SYSUTCDATETIME();
+        DECLARE @existing TINYINT;
+        DECLARE @expired BIT = 0;
+        DECLARE @message NVARCHAR(512);
+        DECLARE
+            @from_status TINYINT, @namespace_id INT, @lineage_root_job_id BIGINT,
+            @definition_id INT, @tenant_id INT, @execution_number INT, @event_recording TINYINT;
+
+        -- The slot's own lock, as wait_signal names it (docs/sql-internals.md, "Slot locks").
+        DECLARE @slot_lock NVARCHAR(255) = CONCAT(N'{{schema}}.slot:', @p_job_id, N':', @p_checkpoint_kind_code, N':', @p_checkpoint_name);
+        DECLARE @slot_lock_result INT;
+        -- Positional: resource, mode, owner, timeout (-1 waits like any lock).
+        EXEC @slot_lock_result = sp_getapplock @slot_lock, 'Exclusive', 'Transaction', -1;
+        IF @slot_lock_result < 0
+            THROW 51205, 'ACTA:SLOT_LOCK:The checkpoint slot lock was not granted (deadlock victim or cancelled).', 1;
+
+        SELECT @existing = checkpoint_status_code
+        FROM {{schema}}.checkpoints WITH (UPDLOCK)
+        WHERE job_id = @p_job_id AND checkpoint_kind_code = @p_checkpoint_kind_code AND checkpoint_name = @p_checkpoint_name;
+
+        SELECT
+            @from_status = r.job_status_code,
+            @namespace_id = j.namespace_id,
+            @lineage_root_job_id = j.lineage_root_job_id,
+            @definition_id = j.definition_id,
+            @tenant_id = j.tenant_id,
+            @execution_number = r.execution_number,
+            @event_recording = j.event_recording_code
+        FROM {{schema}}.jobs_state r WITH (UPDLOCK, ROWLOCK)
+        INNER JOIN {{schema}}.jobs j ON j.job_id = r.job_id
+        WHERE r.job_id = @p_job_id;
+
+        IF @from_status IS NULL
+            BEGIN
+
+                SELECT
+                    CAST(2 /* ControlAction.NotFound */ AS TINYINT) AS action,
+                    CAST(NULL AS TINYINT) AS status;
+                GOTO Finish;
+            END;
+
+        IF @from_status IN (100 /* JobStatusCode.Succeeded */, 200 /* JobStatusCode.Failed */, 220 /* JobStatusCode.Cancelled */)
+            BEGIN
+
+                SELECT
+                    CAST(3 /* ControlAction.Rejected */ AS TINYINT) AS action,
+                    @from_status AS status;
+                GOTO Finish;
+            END;
+
+        /* No revival: an Expired slot already resolved the wait TimedOut, so a late raise writes no
+           slot and releases no job. The raise still happened, so it is still recorded: the event below
+           carries a message saying why it changed nothing, and the verb reports the unchanged status. */
+        SET @expired = CASE WHEN @existing = 30 /* CheckpointStatusCode.Expired */ THEN 1 ELSE 0 END;
+        SET @message = CASE
+            WHEN @expired = 1
+                THEN LEFT(COALESCE(@p_event_message + N' ', N'') + N'Signal not applied: the wait had already expired.', 512)
+            ELSE @p_event_message
+        END;
+
+        IF @expired = 0
+            BEGIN
+                IF @existing IS NULL
+                    INSERT INTO {{schema}}.checkpoints (
+                        job_id, checkpoint_kind_code, checkpoint_name, checkpoint_status_code, value_format_id, value,
+                        created_at_utc, modified_at_utc, version
+                    )
+                    VALUES (
+                        @p_job_id, @p_checkpoint_kind_code, @p_checkpoint_name, 20 /* CheckpointStatusCode.Set */,
+                        @p_value_format_id, @p_value, @now, @now, 0
+                    );
+                ELSE
+                    UPDATE {{schema}}.checkpoints
+                    SET
+                        checkpoint_status_code = 20 /* CheckpointStatusCode.Set */,
+                        value_format_id = @p_value_format_id,
+                        value = @p_value,
+                        modified_at_utc = @now,
+                        version = version + 1
+                    WHERE
+                        job_id = @p_job_id AND checkpoint_kind_code = @p_checkpoint_kind_code AND checkpoint_name = @p_checkpoint_name;
+            END
+
+        IF @event_recording = 20 /* EventRecordingCode.Audit */
+            INSERT INTO {{schema}}.events (
+                event_code, created_at_utc, namespace_id,
+                entity_code, entity_id,
+                definition_id, tenant_id, lineage_root_job_id,
+                execution_number,
+                event_message, details_format_id, details
+            )
+            VALUES (
+                80 /* EventCode.JobSignalRaised */, @now, @namespace_id,
+                50 /* EntityCode.Job */, @p_job_id,
+                @definition_id, @tenant_id, COALESCE(@lineage_root_job_id, @p_job_id),
+                @execution_number,
+                @message, @p_details_format_id, @p_details
+            );
+
+        IF @from_status = 20 /* JobStatusCode.Suspended */ AND @expired = 0
+            BEGIN
+                UPDATE {{schema}}.jobs_state
+                SET
+                    job_status_code = 10 /* JobStatusCode.Ready */,
+                    next_run_at_utc = @now,
+                    modified_at_utc = @now,
+                    version = version + 1
+                WHERE job_id = @p_job_id;
+
+                IF @event_recording = 20 /* EventRecordingCode.Audit */
+                    INSERT INTO {{schema}}.events (
+                        event_code, created_at_utc, namespace_id,
+                        entity_code, entity_id,
+                        definition_id, tenant_id, lineage_root_job_id,
+                        execution_number,
+                        event_message, details_format_id, details
+                    )
+                    VALUES (
+                        72 /* EventCode.JobResumed */, @now, @namespace_id,
+                        50 /* EntityCode.Job */, @p_job_id,
+                        @definition_id, @tenant_id, COALESCE(@lineage_root_job_id, @p_job_id),
+                        @execution_number,
+                        @p_event_message, @p_details_format_id, @p_details
+                    );
+
+                SELECT
+                    CAST(1 /* ControlAction.Applied */ AS TINYINT) AS action,
+                    CAST(10 /* JobStatusCode.Ready */ AS TINYINT) AS status;
+                GOTO Finish;
+            END
+
+        SELECT
+            CAST(1 /* ControlAction.Applied */ AS TINYINT) AS action,
+            @from_status AS status;
+
+    Finish:
+
+        IF @entry_trancount = 0
+            COMMIT TRANSACTION;
+    END TRY
+    BEGIN CATCH
+        IF @entry_trancount = 0 AND XACT_STATE() <> 0
+            ROLLBACK TRANSACTION;
+        THROW;
+    END CATCH;
+END;
+GO
+
+CREATE OR ALTER PROCEDURE {{schema}}.reclaim_stuck_jobs
+    @p_namespace_id INT
+AS
+BEGIN
+    SET NOCOUNT ON;
+    SET XACT_ABORT ON;
+
+    DECLARE @entry_trancount INT = @@TRANCOUNT;
+    BEGIN TRY
+        IF @entry_trancount = 0
+            BEGIN TRANSACTION;
+
+        DECLARE @now DATETIME2(7) = SYSUTCDATETIME();
+
+        DECLARE
+            @reclaimed TABLE
+            (
+                job_id BIGINT NOT NULL PRIMARY KEY,
+                namespace_id INT NOT NULL,
+                execution_number INT NOT NULL,
+                lineage_root_job_id BIGINT NULL,
+                definition_id INT NOT NULL,
+                tenant_id INT NULL,
+                worker_id INT NOT NULL,
+                to_status_code TINYINT NOT NULL,
+                event_recording_code TINYINT NOT NULL,
+                alert_profile_code TINYINT NOT NULL,
+                parent_job_id BIGINT NULL
+            );
+
+        /* A pass visits at most 1,000 of the namespace's lanes from a random lane id with wrap and repairs at
+           most 100 stranded ones in visiting order (docs/sql-internals.md, "Lane lock order").
+           Each head is sought through ix_jobs_state_lane, named because a small jobs_state table tempts a scan. */
+        DECLARE @window TABLE (ord INT IDENTITY (1, 1) PRIMARY KEY, lane_id BIGINT NOT NULL);
+        DECLARE @stranded TABLE (lane_id BIGINT NOT NULL PRIMARY KEY);
+        DECLARE @repaired TABLE (job_id BIGINT NOT NULL PRIMARY KEY);
+        DECLARE @min_lane BIGINT, @max_lane BIGINT, @start_lane BIGINT, @window_count INT;
+        SELECT @min_lane = MIN(l.lane_id), @max_lane = MAX(l.lane_id) FROM {{schema}}.lanes l;
+        IF @max_lane IS NOT NULL
+            BEGIN
+                SET @start_lane = @min_lane + CAST(FLOOR(RAND(CHECKSUM(NEWID())) * (@max_lane - @min_lane + 1)) AS BIGINT);
+                INSERT INTO @window (lane_id)
+                SELECT TOP (1000) l.lane_id
+                FROM {{schema}}.lanes l
+                WHERE l.namespace_id = @p_namespace_id AND l.lane_id >= @start_lane
+                ORDER BY l.lane_id;
+                SET @window_count = @@ROWCOUNT;
+                INSERT INTO @window (lane_id)
+                SELECT TOP (1000 - @window_count) l.lane_id
+                FROM {{schema}}.lanes l
+                WHERE l.namespace_id = @p_namespace_id AND l.lane_id < @start_lane
+                ORDER BY l.lane_id;
+
+                INSERT INTO @stranded (lane_id)
+                SELECT TOP (100) w.lane_id
+                FROM @window w
+                CROSS APPLY (
+                    SELECT TOP (1) m.job_status_code
+                    FROM {{schema}}.jobs_state m WITH (INDEX (ix_jobs_state_lane), FORCESEEK)
+                    WHERE
+                        m.lane_id = w.lane_id
+                        AND m.lane_id IS NOT NULL
+                        AND m.job_status_code IN (
+                            10 /* JobStatusCode.Ready */, 15 /* JobStatusCode.Blocked */, 20 /* JobStatusCode.Suspended */,
+                            30 /* JobStatusCode.Paused */, 50 /* JobStatusCode.Executing */
+                        )
+                    ORDER BY m.job_id
+                ) h
+                WHERE
+                    h.job_status_code = 15 /* JobStatusCode.Blocked */
+                    AND NOT EXISTS (
+                        SELECT 1
+                        FROM {{schema}}.jobs_state o WITH (INDEX (ix_jobs_state_lane), FORCESEEK)
+                        WHERE
+                            o.lane_id = w.lane_id
+                            AND o.lane_id IS NOT NULL
+                            AND o.job_status_code IN (
+                                10 /* JobStatusCode.Ready */, 20 /* JobStatusCode.Suspended */,
+                                50 /* JobStatusCode.Executing */
+                            )
+                    )
+                ORDER BY w.ord;
+            END;
+
+        /* Stuck candidates are read through the filtered ix_jobs_state_worker_inflight without holding locks,
+           and only those rows are locked below, by primary key: the index is shared by every namespace, so
+           holding its keys would make another namespace's sweep skip its own rows under READPAST. */
+        DECLARE @stuck TABLE (job_id BIGINT NOT NULL PRIMARY KEY, lane_id BIGINT NULL, worker_id INT NOT NULL);
+        INSERT INTO @stuck (job_id, lane_id, worker_id)
+        SELECT r.job_id, r.lane_id, r.leased_by_worker_id
+        FROM {{schema}}.jobs_state r WITH (INDEX (ix_jobs_state_worker_inflight), READPAST)
+        WHERE
+            r.job_status_code = 50 /* JobStatusCode.Executing */
+            AND r.leased_by_worker_id IS NOT NULL
+            AND r.lease_expires_at_utc < @now
+            AND r.namespace_id = @p_namespace_id;
+
+        /* Lanes are locked one UPDLOCK seek at a time in id order, skipping a lane another transaction holds,
+           whose stuck rows and repair wait for a later pass. */
+        DECLARE @candidates TABLE (lane_id BIGINT NOT NULL PRIMARY KEY);
+        INSERT INTO @candidates (lane_id)
+        SELECT k.lane_id
+        FROM @stuck k
+        WHERE k.lane_id IS NOT NULL
+        UNION
+        SELECT s.lane_id
+        FROM @stranded s;
+
+        DECLARE @lanes TABLE (lane_id BIGINT NOT NULL PRIMARY KEY);
+        DECLARE @lane_cursor BIGINT = 0, @lane_next BIGINT, @lane_locked BIGINT;
+        WHILE 1 = 1
+            BEGIN
+                SET @lane_next = NULL;
+                SELECT TOP (1) @lane_next = c.lane_id
+                FROM @candidates c
+                WHERE c.lane_id > @lane_cursor
+                ORDER BY c.lane_id;
+
+                IF @lane_next IS NULL
+                    BREAK;
+
+                SET @lane_locked = NULL;
+                SELECT @lane_locked = l.lane_id
+                FROM {{schema}}.lanes l WITH (UPDLOCK, READPAST, ROWLOCK)
+                WHERE l.lane_id = @lane_next;
+
+                IF @lane_locked IS NOT NULL
+                    INSERT INTO @lanes (lane_id) VALUES (@lane_locked);
+
+                SET @lane_cursor = @lane_next;
+            END;
+
+        /* Each worker a stuck row names is stamped at the instant of the Orphaned event below, so the purge keeps it
+           while that event lasts. Workers lock before any jobs_state row, the order the heartbeat takes them. */
+        UPDATE w
+        SET
+            modified_at_utc = @now,
+            version = w.version + 1
+        FROM {{schema}}.workers w WITH (FORCESEEK, ROWLOCK)
+        INNER JOIN (
+            SELECT DISTINCT k.worker_id
+            FROM @stuck k
+            WHERE
+                k.lane_id IS NULL
+                OR k.lane_id IN (SELECT e.lane_id FROM @lanes e)
+        ) s ON s.worker_id = w.worker_id;
+
+        /* The walk read without locks, so each stranded lane's head is re-read under its lock and promoted
+           only while it is still Blocked and no member runs. */
+        UPDATE r
+        SET
+            job_status_code = 10 /* JobStatusCode.Ready */,
+            next_run_at_utc = CASE WHEN r.next_run_at_utc > @now THEN r.next_run_at_utc ELSE @now END,
+            modified_at_utc = @now,
+            version = r.version + 1
+        OUTPUT INSERTED.job_id INTO @repaired (job_id)
+        FROM @stranded s
+        INNER JOIN @lanes e ON e.lane_id = s.lane_id
+        CROSS APPLY (
+            SELECT TOP (1) m.job_id, m.job_status_code
+            FROM {{schema}}.jobs_state m WITH (INDEX (ix_jobs_state_lane), FORCESEEK)
+            WHERE
+                m.lane_id = s.lane_id
+                AND m.lane_id IS NOT NULL
+                AND m.job_status_code IN (
+                    10 /* JobStatusCode.Ready */, 15 /* JobStatusCode.Blocked */, 20 /* JobStatusCode.Suspended */,
+                    30 /* JobStatusCode.Paused */, 50 /* JobStatusCode.Executing */
+                )
+            ORDER BY m.job_id
+        ) h
+        INNER JOIN {{schema}}.jobs_state r WITH (FORCESEEK) ON r.job_id = h.job_id
+        WHERE
+            h.job_status_code = 15 /* JobStatusCode.Blocked */
+            AND r.job_status_code = 15 /* JobStatusCode.Blocked */
+            AND NOT EXISTS (
+                SELECT 1
+                FROM {{schema}}.jobs_state o WITH (INDEX (ix_jobs_state_lane), FORCESEEK)
+                WHERE
+                    o.lane_id = s.lane_id
+                    AND o.lane_id IS NOT NULL
+                    AND o.job_status_code IN (
+                        10 /* JobStatusCode.Ready */, 20 /* JobStatusCode.Suspended */,
+                        50 /* JobStatusCode.Executing */
+                    )
+            );
+
+        INSERT INTO {{schema}}.events (
+            event_code,
+            created_at_utc,
+            namespace_id,
+            entity_code,
+            entity_id,
+            definition_id,
+            tenant_id,
+            lineage_root_job_id,
+            execution_number,
+            event_message,
+            details_format_id,
+            details
+        )
+        SELECT
+            72 /* EventCode.JobResumed */,
+            @now,
+            j.namespace_id,
+            50 /* EntityCode.Job */,
+            j.job_id,
+            j.definition_id,
+            j.tenant_id,
+            COALESCE(j.lineage_root_job_id, j.job_id),
+            r.execution_number,
+            N'Lane had no live head; crash recovery released its lowest Blocked member.',
+            1 /* JobPayloadFormat.Json */,
+            CAST('{"reason":"lane-repaired"}' AS VARBINARY(MAX))
+        FROM @repaired x
+        INNER JOIN {{schema}}.jobs j ON j.job_id = x.job_id
+        INNER JOIN {{schema}}.jobs_state r ON r.job_id = x.job_id
+        WHERE j.event_recording_code IN (10 /* EventRecordingCode.Failures */, 20 /* EventRecordingCode.Audit */);
+
+        WITH stuck AS (
+            SELECT
+                r.job_id,
+                -- Saturates at 32767, the ceiling WorkerFinalizer.FailureCountCeiling names; registration caps MaxAttempts there.
+                CASE WHEN r.failure_count >= 32767 THEN 32767 ELSE r.failure_count + 1 END AS new_failure_count,
+                jd.max_attempts_effective AS max_attempts,
+                jd.retention_seconds_effective AS retention_seconds,
+                jd.alert_profile_code_effective AS alert_profile_code,
+                /* The job was parked on THIS slot: the suspend copied the slot's due into
+                   next_run_at_utc, so the equality names the wait this attempt woke for, and an
+                   unbounded wait (NULL due) matches nothing. Expired means the timeout had resolved. */
+                CASE WHEN EXISTS (
+                    SELECT 1
+                    FROM {{schema}}.checkpoints c
+                    WHERE
+                        c.job_id = r.job_id
+                        AND c.checkpoint_kind_code IN (20 /* CheckpointKindCode.Signal */, 50 /* CheckpointKindCode.ChildLatch */)
+                        AND c.checkpoint_status_code = 30 /* CheckpointStatusCode.Expired */
+                        AND c.due_at_utc = r.next_run_at_utc
+                ) THEN 1 ELSE 0 END AS wait_resolved,
+                -- A slot's spent budget returns it to Idle with its firing settled Failed, never to Failed itself.
+                CASE WHEN j.job_kind_code = 20 /* JobKindCode.PermanentSlot */ THEN 1 ELSE 0 END AS is_slot
+            FROM @stuck k
+            INNER JOIN {{schema}}.jobs_state r WITH (READPAST, UPDLOCK, ROWLOCK, FORCESEEK) ON r.job_id = k.job_id
+            INNER JOIN {{schema}}.jobs j ON j.job_id = r.job_id
+            INNER JOIN {{schema}}.definitions jd ON jd.definition_id = j.definition_id
+            WHERE
+                r.job_status_code = 50 /* JobStatusCode.Executing */
+                AND r.leased_by_worker_id IS NOT NULL
+                AND r.lease_expires_at_utc < @now
+                AND r.namespace_id = @p_namespace_id
+                AND (r.lane_id IS NULL OR r.lane_id IN (SELECT e.lane_id FROM @lanes e))
+        )
+
+        /* Budget-neutral for a resolved wait: the surviving path would have ended this attempt at no
+           cost, so the job goes back to Suspended on the same past deadline, unclaimed and uncharged,
+           and the replay lands whatever outcome the waiting overload chooses. */
+        UPDATE r
+        SET
+            job_status_code = CASE
+                WHEN s.wait_resolved = 1
+                    THEN 20 /* JobStatusCode.Suspended */
+                WHEN s.new_failure_count >= s.max_attempts
+                    THEN CASE WHEN s.is_slot = 1 THEN 40 /* JobStatusCode.Idle */ ELSE 200 /* JobStatusCode.Failed */ END
+                ELSE 10  /* JobStatusCode.Ready */
+            END,
+            failure_count = CASE
+                WHEN s.wait_resolved = 1
+                    THEN r.failure_count
+                ELSE s.new_failure_count
+            END,
+            next_run_at_utc = CASE
+                WHEN s.wait_resolved = 1
+                    THEN r.next_run_at_utc
+                WHEN s.new_failure_count >= s.max_attempts
+                    THEN CASE WHEN s.is_slot = 1 THEN NULL ELSE r.next_run_at_utc END
+                ELSE @now
+            END,
+            leased_by_worker_id = NULL,
+            lease_expires_at_utc = NULL,
+            retention_until_utc = CASE
+                WHEN s.wait_resolved = 0 AND s.is_slot = 0 AND s.new_failure_count >= s.max_attempts
+                    THEN DATEADD(SECOND, s.retention_seconds, @now)
+                ELSE r.retention_until_utc
+            END,
+            modified_at_utc = @now,
+            version = r.version + 1
+        OUTPUT
+            INSERTED.job_id, j.namespace_id, INSERTED.execution_number,
+            j.lineage_root_job_id, j.definition_id, j.tenant_id, DELETED.leased_by_worker_id,
+            INSERTED.job_status_code, j.event_recording_code, s.alert_profile_code,
+            j.parent_job_id
+        INTO
+            @reclaimed (
+                job_id, namespace_id, execution_number, lineage_root_job_id,
+                definition_id, tenant_id, worker_id, to_status_code, event_recording_code, alert_profile_code, parent_job_id
+            )
+        -- FORCESEEK keeps this update on a key seek instead of a lock-escalating scan of jobs_state;
+        -- see docs/sql-internals.md.
+        FROM {{schema}}.jobs_state r WITH (FORCESEEK)
+        INNER JOIN stuck s ON s.job_id = r.job_id
+        INNER JOIN {{schema}}.jobs j ON j.job_id = r.job_id;
+
+        /* An orphaned attempt that spent the budget is the job failing for good; any other lands Ready or back on its
+           wait. Failures and Audit record it, and so does an enabled alert profile at any level, in this transaction,
+           so the projector meets every lease-loss transition it alerts on. */
+        INSERT INTO {{schema}}.events (
+            event_code,
+            created_at_utc,
+            namespace_id,
+            entity_code,
+            entity_id,
+            definition_id,
+            tenant_id,
+            lineage_root_job_id,
+            worker_id,
+            execution_number,
+            event_message,
+            details_format_id,
+            details
+        )
+        SELECT
+            CASE WHEN to_status_code = 200 /* JobStatusCode.Failed */ THEN 44 /* EventCode.JobFailed */ ELSE 42 /* EventCode.JobExecutionOrphaned */ END,
+            @now,
+            namespace_id,
+            50 /* EntityCode.Job */,
+            job_id,
+            definition_id,
+            tenant_id,
+            COALESCE(lineage_root_job_id, job_id),
+            worker_id,
+            execution_number,
+            /* Suspended is reachable only through the resolved-wait arm above, so the landed status is
+               what tells the two messages apart. */
+            CASE WHEN to_status_code = 20 /* JobStatusCode.Suspended */
+                THEN N'Worker lease expired while an expired wait was resolving; re-armed on the same deadline with no attempt charged.'
+                ELSE N'Worker lease expired; reclaimed by crash recovery.'
+            END,
+            1 /* JobPayloadFormat.Json */,
+            CAST(
+                CASE to_status_code
+                    WHEN 200 /* JobStatusCode.Failed */ THEN '{"reason":"lease-expired"}'
+                    WHEN 40 /* JobStatusCode.Idle */ THEN '{"reason":"lease-expired","to":"idle"}'
+                    WHEN 20 /* JobStatusCode.Suspended */ THEN '{"reason":"lease-expired","to":"suspended"}'
+                    ELSE '{"reason":"lease-expired","to":"ready"}'
+                END AS VARBINARY(MAX)
+            )
+        FROM @reclaimed
+        WHERE
+            event_recording_code IN (10 /* EventRecordingCode.Failures */, 20 /* EventRecordingCode.Audit */)
+            OR alert_profile_code <> 0 /* AlertProfileCode.None */;
+
+        -- A slot's lost attempt that spent the budget settles its firing Failed and wakes the members parked on the slot.
+        UPDATE cp
+        SET
+            checkpoint_status_code = 120 /* CheckpointStatusCode.Failed */,
+            modified_at_utc = @now,
+            version = cp.version + 1
+        FROM {{schema}}.checkpoints cp WITH (FORCESEEK)
+        INNER JOIN @reclaimed r ON r.job_id = cp.job_id
+        WHERE
+            cp.checkpoint_kind_code = 60 /* CheckpointKindCode.Firing */
+            AND cp.checkpoint_name = 'sys.firing'
+            AND cp.checkpoint_status_code = 10 /* CheckpointStatusCode.Pending */
+            AND r.to_status_code = 40 /* JobStatusCode.Idle */;
+
+        UPDATE st
+        SET
+            next_evaluation_at_utc = @now,
+            evaluation_status_code = 10 /* EvaluationStatusCode.Scheduled */,
+            modified_at_utc = @now,
+            version = st.version + 1
+        FROM {{schema}}.schedules_state st WITH (FORCESEEK)
+        INNER JOIN {{schema}}.schedules js ON js.schedule_id = st.schedule_id
+        INNER JOIN @reclaimed r ON r.job_id = js.job_id
+        WHERE
+            r.to_status_code = 40 /* JobStatusCode.Idle */
+            AND st.evaluation_status_code IN (20 /* EvaluationStatusCode.WaitingForCapacity */, 50 /* EvaluationStatusCode.SlotUnavailable */);
+
+        /* A head reclaimed to Failed hands its lane on; a head re-armed Ready keeps it. Promotion runs
+           under the lane locks and re-reads each head rather than trusting the walk. */
+        UPDATE r
+        SET
+            job_status_code = 10 /* JobStatusCode.Ready */,
+            next_run_at_utc = CASE WHEN r.next_run_at_utc > @now THEN r.next_run_at_utc ELSE @now END,
+            modified_at_utc = @now,
+            version = r.version + 1
+        FROM @lanes e
+        CROSS APPLY (
+            SELECT TOP (1) m.job_id, m.job_status_code
+            FROM {{schema}}.jobs_state m WITH (INDEX (ix_jobs_state_lane), FORCESEEK)
+            WHERE
+                m.lane_id = e.lane_id
+                AND m.lane_id IS NOT NULL
+                AND m.job_status_code IN (
+                    10 /* JobStatusCode.Ready */, 15 /* JobStatusCode.Blocked */, 20 /* JobStatusCode.Suspended */,
+                    30 /* JobStatusCode.Paused */, 50 /* JobStatusCode.Executing */
+                )
+            ORDER BY m.job_id
+        ) h
+        INNER JOIN {{schema}}.jobs_state r WITH (FORCESEEK) ON r.job_id = h.job_id
+        WHERE
+            h.job_status_code = 15 /* JobStatusCode.Blocked */
+            AND r.job_status_code = 15 /* JobStatusCode.Blocked */
+            AND NOT EXISTS (
+                SELECT 1
+                FROM {{schema}}.jobs_state o WITH (INDEX (ix_jobs_state_lane), FORCESEEK)
+                WHERE
+                    o.lane_id = e.lane_id
+                    AND o.lane_id IS NOT NULL
+                    AND o.job_status_code IN (
+                        10 /* JobStatusCode.Ready */, 20 /* JobStatusCode.Suspended */,
+                        50 /* JobStatusCode.Executing */
+                    )
+            );
+
+        SELECT
+            job_id,
+            to_status_code AS to_status,
+            parent_job_id,
+            CAST(0 AS TINYINT) AS lane_repaired
+        FROM @reclaimed
+        UNION ALL
+        SELECT
+            job_id,
+            CAST(10 /* JobStatusCode.Ready */ AS TINYINT) AS to_status,
+            NULL AS parent_job_id,
+            CAST(1 AS TINYINT) AS lane_repaired
+        FROM @repaired;
+
+        IF @entry_trancount = 0
+            COMMIT TRANSACTION;
+    END TRY
+    BEGIN CATCH
+        IF @entry_trancount = 0 AND XACT_STATE() <> 0
+            ROLLBACK TRANSACTION;
+        THROW;
+    END CATCH;
+END;
+GO
+
+-- GCRA with a reservation; the full contract is on Locks.ReserveRateAsync. A turn is honoured
+-- while it is fresh, one second past its instant (one interval when that is longer); a stale one goes
+-- back through the meter, so a queue of overdue jobs cannot all start at once after a long stall.
+
+-- The meter's own lock serializes the calls on one meter to commit (docs/sql-internals.md,
+-- "Slot locks"); a range lock on a bucket not yet stored would hold the gap its reservations and the
+-- next meters fall in.
+
+-- The bucket row stays locked to commit once read or inserted, so the sweep's READPAST delete skips it
+-- rather than races it, and the charge this call books is always persisted before it admits anything.
+
+-- The clock is read once the bucket row is locked, not when the call began: judged against a stale
+-- instant, every call a convoy on this meter delayed would be admitted together the moment the lock
+-- freed, four times the contract in one second under a flood of metered claims.
+CREATE OR ALTER PROCEDURE {{schema}}.reserve_rate
+    @p_lock_key VARCHAR(256),
+    @p_job_id BIGINT,
+    @p_rate_interval_ms INT,
+    @p_rate_burst INT,
+    @p_grace_seconds INT,
+    @p_hold_token UNIQUEIDENTIFIER
+AS
+BEGIN
+    SET NOCOUNT ON;
+    SET XACT_ABORT ON;
+
+    DECLARE @entry_trancount INT = @@TRANCOUNT;
+    BEGIN TRY
+        IF @entry_trancount = 0
+            BEGIN TRANSACTION;
+
+        -- Everything is judged at the column's precision: a 7-digit reading rounds when it is stored,
+        -- so a meter read back can sit half a millisecond ahead of an unrounded now and refuse a
+        -- burst's last job. PostgreSQL and SQLite keep one precision in both places by construction.
+        DECLARE @now DATETIME2(3);
+        DECLARE @reservation VARCHAR(256) = @p_lock_key + '.' + CAST(@p_job_id AS VARCHAR(20));
+        -- How far behind now an idle meter is allowed to be, which is what hands out the burst: one
+        -- interval short of a whole period, so the burst-th request lands on now and the next waits.
+        DECLARE @lookback_ms INT = (@p_rate_burst - 1) * @p_rate_interval_ms;
+        -- How long a booked turn stays valid past its instant: a second covers the claim-path pickup
+        -- at any rate, and a slower meter keeps its whole interval, so the window is the larger.
+        DECLARE @window_ms INT = CASE WHEN @p_rate_interval_ms > 1000 THEN @p_rate_interval_ms ELSE 1000 END;
+        DECLARE @consumed TABLE (expires_at_utc DATETIME2(3));
+        DECLARE @stored DATETIME2(3);
+        DECLARE @due DATETIME2(3);
+        DECLARE @turn DATETIME2(3);
+
+        -- Held for the rest of the call, so consume, hand back and allocate all decide against one
+        -- serialized meter and no instant is ever handed to two jobs.
+        DECLARE @meter_lock NVARCHAR(255) = CONCAT(N'{{schema}}.rate:', @p_lock_key);
+        DECLARE @meter_lock_result INT;
+        -- Positional: resource, mode, owner, timeout (-1 waits like any lock).
+        EXEC @meter_lock_result = sp_getapplock @meter_lock, 'Exclusive', 'Transaction', -1;
+        IF @meter_lock_result < 0
+            THROW 51205, 'ACTA:SLOT_LOCK:The rate meter lock was not granted (deadlock victim or cancelled).', 1;
+
+        SELECT @stored = b.expires_at_utc
+        FROM {{schema}}.locks AS b WITH (UPDLOCK)
+        WHERE b.lock_key = @p_lock_key;
+
+        -- The bucket stores the arrival time plus the lookback, so the row expires exactly when an
+        -- idle meter stops saying anything a missing one would not. A missing meter starts at now.
+        IF @@ROWCOUNT = 0
+            BEGIN
+                SET @stored = SYSUTCDATETIME();
+                INSERT INTO {{schema}}.locks (lock_key, job_id, expires_at_utc, hold_token)
+                VALUES (@p_lock_key, @p_job_id, @stored, @p_hold_token);
+            END;
+
+        SET @now = SYSUTCDATETIME();
+
+        -- The OUTPUT decides consumption, never a later absence: the sweep cannot slip between a read
+        -- and the delete and give away a free admission. A stale turn is spent here too, then re-metered.
+        DELETE FROM {{schema}}.locks
+        OUTPUT DELETED.expires_at_utc INTO @consumed
+        WHERE
+            lock_key = @reservation
+            AND expires_at_utc <= DATEADD(SECOND, @p_grace_seconds, @now);
+
+        SELECT @due = DATEADD(SECOND, -@p_grace_seconds, c.expires_at_utc) FROM @consumed AS c;
+
+        IF @due IS NOT NULL AND @due >= DATEADD(MILLISECOND, -@window_ms, @now)
+            -- Back on time: the bucket counted this job when it allocated the turn, so charging it
+            -- again would meter one job twice.
+            SELECT @due AS resume_at_utc, CAST(1 AS INT) AS admitted, CAST(0 AS BIGINT) AS wait_ms;
+        ELSE
+            BEGIN
+                IF @due IS NULL
+                    -- A turn still ahead of now: the job is early, not owed a new instant.
+                    SELECT @turn = DATEADD(SECOND, -@p_grace_seconds, r.expires_at_utc)
+                    FROM {{schema}}.locks AS r
+                    WHERE r.lock_key = @reservation;
+
+                IF @turn IS NOT NULL
+                    SELECT @turn AS resume_at_utc, CAST(0 AS INT) AS admitted, DATEDIFF_BIG(MILLISECOND, @now, @turn) AS wait_ms;
+                ELSE
+                    BEGIN
+                        IF @stored < @now
+                            SET @stored = @now;
+                        SET @turn = DATEADD(MILLISECOND, -@lookback_ms, @stored);
+
+                        UPDATE {{schema}}.locks
+                        SET
+                            job_id = @p_job_id,
+                            expires_at_utc = DATEADD(MILLISECOND, @p_rate_interval_ms, @stored),
+                            hold_token = @p_hold_token
+                        WHERE lock_key = @p_lock_key;
+
+                        IF @turn <= @now
+                            SELECT @turn AS resume_at_utc, CAST(1 AS INT) AS admitted, CAST(0 AS BIGINT) AS wait_ms;
+                        ELSE
+                            BEGIN
+                                UPDATE {{schema}}.locks
+                                SET
+                                    job_id = @p_job_id,
+                                    expires_at_utc = DATEADD(SECOND, @p_grace_seconds, @turn),
+                                    hold_token = @p_hold_token
+                                WHERE lock_key = @reservation;
+
+                                IF @@ROWCOUNT = 0
+                                    INSERT INTO {{schema}}.locks (lock_key, job_id, expires_at_utc, hold_token)
+                                    VALUES (@reservation, @p_job_id, DATEADD(SECOND, @p_grace_seconds, @turn), @p_hold_token);
+
+                                -- Measured on this clock so the caller never subtracts a host reading from a database one.
+                                SELECT @turn AS resume_at_utc, CAST(0 AS INT) AS admitted, DATEDIFF_BIG(MILLISECOND, @now, @turn) AS wait_ms;
+                            END;
+                    END;
+            END;
+
+        IF @entry_trancount = 0
+            COMMIT TRANSACTION;
+    END TRY
+    BEGIN CATCH
+        IF @entry_trancount = 0 AND XACT_STATE() <> 0
+            ROLLBACK TRANSACTION;
+
+        THROW;
+    END CATCH;
+END;
+GO
+
+CREATE OR ALTER PROCEDURE {{schema}}.start_step
+    @p_job_id BIGINT,
+    @p_execution_number INT,
+    @p_leased_by_worker_id INT,
+    @p_step_name VARCHAR(128),
+    @p_at_most_once BIT
+AS
+BEGIN
+    SET NOCOUNT ON;
+    SET XACT_ABORT ON;
+
+    DECLARE @entry_trancount INT = @@TRANCOUNT;
+    BEGIN TRY
+        IF @entry_trancount = 0
+            BEGIN TRANSACTION;
+
+        DECLARE @now DATETIME2(3) = SYSUTCDATETIME();
+        DECLARE @outcome SMALLINT;
+        DECLARE @attempt INT;
+        DECLARE @version INT;
+        DECLARE @next DATETIME2(3) = NULL;
+        DECLARE @rfid TINYINT = 0;
+        DECLARE @result VARBINARY(MAX) = NULL;
+        DECLARE @rcode SMALLINT = NULL;
+        DECLARE @rmsg NVARCHAR(512) = NULL;
+        DECLARE @state TINYINT;
+        DECLARE @existing_next DATETIME2(3);
+
+        -- The step's own lock serializes starts of one step to commit (docs/sql-internals.md,
+        -- "Slot locks"); a range lock on a step not yet stored would hold the gap every running job's next step
+        -- falls in.
+        DECLARE @step_lock NVARCHAR(255) = CONCAT(N'{{schema}}.step:', @p_job_id, N':', @p_step_name);
+        DECLARE @step_lock_result INT;
+        -- Positional: resource, mode, owner, timeout (-1 waits like any lock).
+        EXEC @step_lock_result = sp_getapplock @step_lock, 'Exclusive', 'Transaction', -1;
+        IF @step_lock_result < 0
+            THROW 51205, 'ACTA:SLOT_LOCK:The step lock was not granted (deadlock victim or cancelled).', 1;
+
+        -- The step changes only while this attempt holds the job's row, update-locked to commit after the step lock
+        -- (docs/sql-internals.md, "Execution fence").
+        IF NOT EXISTS (
+            SELECT 1
+            FROM {{schema}}.jobs_state r WITH (UPDLOCK, ROWLOCK)
+            WHERE
+                r.job_id = @p_job_id
+                AND r.job_status_code = 50 /* JobStatusCode.Executing */
+                AND r.execution_number = @p_execution_number
+                AND r.leased_by_worker_id = @p_leased_by_worker_id
+        )
+            THROW 50012, 'ACTA:EXECUTION_FENCED:start_step: the job is no longer executing this attempt.', 1;
+
+        SELECT
+            @state = step_status_code,
+            @attempt = attempt_number,
+            @version = version,
+            @existing_next = next_retry_at_utc,
+            @rfid = result_format_id,
+            @result = result,
+            @rcode = failure_code,
+            @rmsg = failure_message
+        FROM {{schema}}.steps WITH (UPDLOCK)
+        WHERE job_id = @p_job_id AND step_name = @p_step_name;
+
+        IF @state IS NULL
+            BEGIN
+                INSERT INTO {{schema}}.steps (
+                    job_id, step_name, step_status_code, attempt_number,
+                    result_format_id, created_at_utc, modified_at_utc, version
+                )
+                VALUES (
+                    @p_job_id, @p_step_name, 10 /* StepStatusCode.Pending */, 1,
+                    0 /* JobPayloadFormat.None */, @now, @now, 0
+                );
+
+                SET @outcome = 1 /* StartStepOutcomeCode.Invoke */;
+                SET @attempt = 1;
+                SET @version = 0;
+                SET @rfid = 0 /* JobPayloadFormat.None */;
+                SET @result = NULL;
+                SET @rcode = NULL;
+                SET @rmsg = NULL;
+                SET @next = NULL;
+            END
+        ELSE IF @state = 100 /* StepStatusCode.Succeeded */
+            BEGIN
+                SET @outcome = 3 /* StartStepOutcomeCode.ReplaySuccess */;
+                SET @next = NULL;
+                SET @rcode = NULL;
+                SET @rmsg = NULL;
+            END
+        ELSE IF @state = 200 /* StepStatusCode.Exhausted */
+            BEGIN
+                SET @outcome = 4 /* StartStepOutcomeCode.Exhausted */;
+                SET @next = NULL;
+                SET @rfid = 0 /* JobPayloadFormat.None */;
+                SET @result = NULL;
+            END
+        ELSE IF @state = 230 /* StepStatusCode.Interrupted */
+            BEGIN
+            -- Terminal at-most-once ambiguity from an earlier replay; re-throw consistently, no mutation.
+                SET @outcome = 5 /* StartStepOutcomeCode.Interrupted */;
+                SET @next = NULL;
+                SET @rfid = 0 /* JobPayloadFormat.None */;
+                SET @result = NULL;
+                SET @rcode = NULL;
+                SET @rmsg = NULL;
+            END
+        ELSE IF @existing_next IS NOT NULL AND @existing_next > @now
+            BEGIN
+                SET @outcome = 2 /* StartStepOutcomeCode.Suspend */;
+                SET @next = @existing_next;
+                SET @rfid = 0 /* JobPayloadFormat.None */;
+                SET @result = NULL;
+                SET @rcode = NULL;
+                SET @rmsg = NULL;
+            END
+        ELSE IF @p_at_most_once = 1
+            BEGIN
+            -- Pending slot re-entered on replay under AtMostOnce: the worker died after start_step recorded
+            -- the pending row but before complete_step. Do not re-invoke; terminalize the row Interrupted
+            -- (one transition, one version bump) and let the orchestration throw StepInterruptedException.
+                UPDATE {{schema}}.steps
+                SET
+                    step_status_code = 230 /* StepStatusCode.Interrupted */,
+                    next_retry_at_utc = NULL,
+                    failure_code = 20 /* StepFailureCode.Interrupted */,
+                    failure_message = N'At-most-once step re-entered before completion; outcome unknown.',
+                    modified_at_utc = @now,
+                    version = version + 1
+                WHERE job_id = @p_job_id AND step_name = @p_step_name;
+
+                SET @version = @version + 1;
+                SET @outcome = 5 /* StartStepOutcomeCode.Interrupted */;
+                SET @next = NULL;
+                SET @rfid = 0 /* JobPayloadFormat.None */;
+                SET @result = NULL;
+                SET @rcode = NULL;
+                SET @rmsg = NULL;
+            END
+        ELSE
+            BEGIN
+                -- The next attempt spends the retry instant, as SQLite's start_step does.
+                UPDATE {{schema}}.steps
+                SET
+                    attempt_number = attempt_number + 1,
+                    next_retry_at_utc = NULL,
+                    modified_at_utc = @now,
+                    version = version + 1
+                WHERE job_id = @p_job_id AND step_name = @p_step_name;
+
+                SET @attempt = @attempt + 1;
+                SET @version = @version + 1;
+                SET @outcome = 1 /* StartStepOutcomeCode.Invoke */;
+                SET @next = NULL;
+                SET @rfid = 0 /* JobPayloadFormat.None */;
+                SET @result = NULL;
+                SET @rcode = NULL;
+                SET @rmsg = NULL;
+            END
+
+        SELECT
+            @outcome AS outcome_code,
+            @attempt AS attempt_number,
+            @version AS version,
+            @next AS next_retry_at_utc,
+            @rfid AS result_format_id,
+            @result AS result,
+            @rcode AS failure_code,
+            @rmsg AS failure_message;
+
+        IF @entry_trancount = 0
+            COMMIT TRANSACTION;
+    END TRY
+    BEGIN CATCH
+        IF @entry_trancount = 0 AND XACT_STATE() <> 0
+            ROLLBACK TRANSACTION;
+        THROW;
+    END CATCH;
+END;
+GO
+
+/* Slot-locked arbiter for one durable wait: Set wins even past the due, an overdue Pending flips to
+   Expired, Expired replays TimedOut forever. */
+/* Arming is one-directional. A NULL due_at_utc is armed when the caller carries a bound (a length, or an instant: a
+   group's stored deadline), so code redeployed with a bound can un-strand a wait suspended without one; a stored due
+   is never overwritten, never extended, and never cleared by a subsequent unbounded call. */
+/* The read below needs no re-read after a lost insert the way pg's does: the slot's own lock, taken
+   first (docs/sql-internals.md, "Slot locks"), makes a concurrent first arrival wait
+   here and then read the winner's row, arriving at the same resolution instead of racing the insert. */
+/* A wait this call armed with a length suspends once: the length is positive and the arm is the last
+   act of its branch. A slot this call arms at or past an instant is armed Expired, so a child landing
+   after it cannot revive the wait, and the wait times out now. Pg states the same rules. */
+CREATE OR ALTER PROCEDURE {{schema}}.wait_signal
+    @p_job_id BIGINT,
+    @p_execution_number INT,
+    @p_leased_by_worker_id INT,
+    @p_checkpoint_kind_code TINYINT,
+    @p_checkpoint_name VARCHAR(128),
+    @p_timeout_seconds INT = NULL,
+    @p_due_at_utc DATETIME2(3) = NULL
+AS
+BEGIN
+    SET NOCOUNT ON;
+    SET XACT_ABORT ON;
+
+    DECLARE @entry_trancount INT = @@TRANCOUNT;
+    BEGIN TRY
+        IF @entry_trancount = 0
+            BEGIN TRANSACTION;
+
+        DECLARE @now DATETIME2(3) = SYSUTCDATETIME();
+        DECLARE @state TINYINT, @fmt TINYINT = 0;
+        DECLARE @val VARBINARY(MAX) = NULL;
+        DECLARE @due DATETIME2(3) = NULL;
+        DECLARE @outcome SMALLINT;
+        DECLARE @arm_due DATETIME2(3) = COALESCE(@p_due_at_utc, DATEADD(SECOND, @p_timeout_seconds, @now));
+        DECLARE @arm_state TINYINT = CASE
+            WHEN @arm_due <= @now THEN 30 /* CheckpointStatusCode.Expired */
+            ELSE 10 /* CheckpointStatusCode.Pending */
+        END;
+
+        DECLARE @slot_lock NVARCHAR(255) = CONCAT(N'{{schema}}.slot:', @p_job_id, N':', @p_checkpoint_kind_code, N':', @p_checkpoint_name);
+        DECLARE @slot_lock_result INT;
+        -- Positional: resource, mode, owner, timeout (-1 waits like any lock).
+        EXEC @slot_lock_result = sp_getapplock @slot_lock, 'Exclusive', 'Transaction', -1;
+        IF @slot_lock_result < 0
+            THROW 51205, 'ACTA:SLOT_LOCK:The checkpoint slot lock was not granted (deadlock victim or cancelled).', 1;
+
+        -- The wait changes the slot only while this attempt holds the job's row, update-locked to commit after the
+        -- slot lock (docs/sql-internals.md, "Execution fence").
+        IF NOT EXISTS (
+            SELECT 1
+            FROM {{schema}}.jobs_state r WITH (UPDLOCK, ROWLOCK)
+            WHERE
+                r.job_id = @p_job_id
+                AND r.job_status_code = 50 /* JobStatusCode.Executing */
+                AND r.execution_number = @p_execution_number
+                AND r.leased_by_worker_id = @p_leased_by_worker_id
+        )
+            THROW 50012, 'ACTA:EXECUTION_FENCED:wait_signal: the job is no longer executing this attempt.', 1;
+
+        SELECT
+            @state = checkpoint_status_code,
+            @fmt = value_format_id,
+            @val = value,
+            @due = due_at_utc
+        FROM {{schema}}.checkpoints WITH (UPDLOCK)
+        WHERE job_id = @p_job_id AND checkpoint_kind_code = @p_checkpoint_kind_code AND checkpoint_name = @p_checkpoint_name;
+
+        IF @state = 20 /* CheckpointStatusCode.Set */
+            BEGIN
+                SET @outcome = 2 /* WaitSignalOutcomeCode.ContinueSet */;
+            END
+        ELSE IF @state = 30 /* CheckpointStatusCode.Expired */
+            BEGIN
+                SET @outcome = 3 /* WaitSignalOutcomeCode.TimedOut */;
+                SET @fmt = 0 /* JobPayloadFormat.None */;
+                SET @val = NULL;
+            END
+        ELSE IF @state = 10 /* CheckpointStatusCode.Pending */ AND @due IS NOT NULL AND @due <= @now
+            BEGIN
+                UPDATE {{schema}}.checkpoints
+                SET
+                    checkpoint_status_code = 30 /* CheckpointStatusCode.Expired */,
+                    modified_at_utc = @now,
+                    version = version + 1
+                WHERE job_id = @p_job_id AND checkpoint_kind_code = @p_checkpoint_kind_code AND checkpoint_name = @p_checkpoint_name;
+
+                SET @outcome = 3 /* WaitSignalOutcomeCode.TimedOut */;
+                SET @fmt = 0 /* JobPayloadFormat.None */;
+                SET @val = NULL;
+            END
+        ELSE
+            BEGIN
+                SET @outcome = 1 /* WaitSignalOutcomeCode.SuspendPending */;
+                IF @state IS NULL
+                    BEGIN
+                        INSERT INTO {{schema}}.checkpoints (
+                            job_id, checkpoint_kind_code, checkpoint_name, checkpoint_status_code, due_at_utc, value_format_id, value,
+                            created_at_utc, modified_at_utc, version
+                        )
+                        VALUES (
+                            @p_job_id, @p_checkpoint_kind_code, @p_checkpoint_name, @arm_state, @arm_due,
+                            0 /* JobPayloadFormat.None */, NULL, @now, @now, 0
+                        );
+                        IF @arm_state = 30 /* CheckpointStatusCode.Expired */
+                            SET @outcome = 3 /* WaitSignalOutcomeCode.TimedOut */;
+                    END
+                ELSE IF @state = 10 /* CheckpointStatusCode.Pending */ AND @due IS NULL AND @arm_due IS NOT NULL
+                    BEGIN
+                        UPDATE {{schema}}.checkpoints
+                        SET
+                            checkpoint_status_code = @arm_state,
+                            due_at_utc = @arm_due,
+                            modified_at_utc = @now,
+                            version = version + 1
+                        WHERE
+                            job_id = @p_job_id AND checkpoint_kind_code = @p_checkpoint_kind_code AND checkpoint_name = @p_checkpoint_name
+                            AND checkpoint_status_code = 10 /* CheckpointStatusCode.Pending */
+                            AND due_at_utc IS NULL;
+                        IF @arm_state = 30 /* CheckpointStatusCode.Expired */
+                            SET @outcome = 3 /* WaitSignalOutcomeCode.TimedOut */;
+                    END
+                SET @fmt = 0 /* JobPayloadFormat.None */;
+                SET @val = NULL;
+            END
+
+        SELECT
+            @outcome AS outcome_code,
+            @fmt AS value_format_id,
+            @val AS value;
+
+        IF @entry_trancount = 0
+            COMMIT TRANSACTION;
+    END TRY
+    BEGIN CATCH
+        IF @entry_trancount = 0 AND XACT_STATE() <> 0
+            ROLLBACK TRANSACTION;
+        THROW;
+    END CATCH;
+END;
+GO
+
+CREATE OR ALTER VIEW {{schema}}.alerts_view AS
+SELECT
+    a.alert_id,
+    a.alert_ref,
+    ns.namespace_name AS namespace,
+    a.job_id,
+    a.job_ref,
+    j.definition_id,
+    d.definition_name AS job_name,
+    CASE a.alert_origin_code WHEN 0 THEN 'unspecified' WHEN 10 THEN 'automatic' WHEN 20 THEN 'manual' END AS origin,
+    a.alert_origin_code,
+    CASE a.alert_severity_code WHEN 0 THEN 'unspecified' WHEN 10 THEN 'info' WHEN 20 THEN 'warning' WHEN 30 THEN 'error' WHEN 40 THEN 'critical' END AS severity,
+    a.alert_severity_code,
+    CASE a.alert_kind_code WHEN 0 THEN 'unspecified' WHEN 10 THEN 'first-failure' WHEN 20 THEN 'threshold-reached' WHEN 30 THEN 'final-failure' WHEN 40 THEN 'manual' END AS kind,
+    a.alert_kind_code,
+    CASE a.delivery_status_code WHEN 0 THEN 'unspecified' WHEN 10 THEN 'pending' WHEN 20 THEN 'retry-after' WHEN 30 THEN 'suppressed' WHEN 100 THEN 'delivered' WHEN 200 THEN 'failed' END AS delivery_status,
+    a.delivery_status_code,
+    a.title,
+    a.alert_message,
+    a.channel_name,
+    a.deduplication_key,
+    a.occurrence_count,
+    a.resolved_at_utc,
+    a.acknowledged_at_utc,
+    a.retry_count,
+    a.retry_after_utc,
+    a.created_at_utc,
+    a.modified_at_utc,
+    a.version
+FROM {{schema}}.alerts AS a
+JOIN {{schema}}.namespaces AS ns ON ns.namespace_id = a.namespace_id
+LEFT JOIN {{schema}}.jobs AS j ON j.job_id = a.job_id
+LEFT JOIN {{schema}}.definitions AS d ON d.definition_id = j.definition_id
+GO
+
+CREATE OR ALTER VIEW {{schema}}.checkpoints_view AS
+SELECT
+    c.job_id,
+    j.job_ref,
+    ns.namespace_name AS namespace,
+    d.definition_name AS job_name,
+    c.checkpoint_name,
+    CASE c.checkpoint_kind_code WHEN 0 THEN 'unspecified' WHEN 10 THEN 'variable' WHEN 20 THEN 'signal' WHEN 30 THEN 'timer' WHEN 40 THEN 'progress' WHEN 50 THEN 'child-latch' WHEN 60 THEN 'firing' END AS kind,
+    c.checkpoint_kind_code,
+    CASE c.checkpoint_status_code WHEN 0 THEN 'unspecified' WHEN 10 THEN 'pending' WHEN 20 THEN 'set' WHEN 30 THEN 'expired' WHEN 100 THEN 'consumed' WHEN 110 THEN 'succeeded' WHEN 120 THEN 'failed' WHEN 130 THEN 'cancelled' END AS status,
+    c.checkpoint_status_code,
+    c.due_at_utc,
+    CASE c.value_format_id
+        WHEN 0 /* JobPayloadFormat.None */ THEN 'none'
+        WHEN 1 /* JobPayloadFormat.Json */ THEN 'json'
+        WHEN 2 /* JobPayloadFormat.Bytes */ THEN 'bytes'
+        ELSE CONCAT('custom-', c.value_format_id)
+    END AS value_format,
+    CASE
+        WHEN
+            c.value_format_id = 1 /* JobPayloadFormat.Json */
+            THEN CAST(c.value AS VARCHAR(MAX)) COLLATE latin1_general_100_bin2_utf8
+    END AS value_text,
+    c.created_at_utc,
+    c.modified_at_utc,
+    c.version
+FROM {{schema}}.checkpoints AS c
+JOIN {{schema}}.jobs AS j ON j.job_id = c.job_id
+JOIN {{schema}}.namespaces AS ns ON ns.namespace_id = j.namespace_id
+JOIN {{schema}}.definitions AS d ON d.definition_id = j.definition_id
+GO
+
+CREATE OR ALTER VIEW {{schema}}.definitions_view AS
+SELECT
+    d.definition_id,
+    ns.namespace_name AS namespace,
+    d.definition_name,
+    CASE d.definition_status_code WHEN 0 THEN 'unspecified' WHEN 10 THEN 'active' WHEN 240 THEN 'retired' END AS status,
+    d.definition_status_code,
+    d.definition_hash,
+    d.manifest_generation_at_utc,
+    d.input_type_name,
+    d.input_format_name,
+    d.output_type_name,
+    d.output_format_name,
+    CASE d.job_priority_code_effective WHEN 0 THEN 'bulk' WHEN 50 THEN 'normal' WHEN 70 THEN 'high' WHEN 85 THEN 'critical' WHEN 100 THEN 'realtime' END AS priority,
+    d.job_priority_code,
+    d.job_priority_code_override,
+    d.job_priority_code_effective,
+    d.max_attempts,
+    d.max_attempts_override,
+    d.max_attempts_effective,
+    d.concurrency_limit,
+    d.concurrency_limit_override,
+    d.concurrency_limit_effective,
+    d.rate_limit,
+    d.rate_limit_override,
+    d.rate_limit_effective,
+    d.rate_name,
+    d.backoff,
+    d.backoff_override,
+    d.backoff_effective,
+    d.execution_timeout_seconds,
+    d.execution_timeout_seconds_override,
+    d.execution_timeout_seconds_effective,
+    d.deadline_seconds,
+    d.deadline_seconds_override,
+    d.deadline_seconds_effective,
+    CASE d.deadline_behavior_code_effective WHEN 0 THEN 'unspecified' WHEN 10 THEN 'strict' WHEN 20 THEN 'advisory' END AS deadline_behavior,
+    d.deadline_behavior_code,
+    d.deadline_behavior_code_override,
+    d.deadline_behavior_code_effective,
+    d.retention_seconds,
+    d.retention_seconds_override,
+    d.retention_seconds_effective,
+    CASE d.event_recording_code_effective WHEN 0 THEN 'off' WHEN 10 THEN 'failures' WHEN 20 THEN 'audit' END AS event_recording,
+    d.event_recording_code,
+    d.event_recording_code_override,
+    d.event_recording_code_effective,
+    CASE d.alert_profile_code_effective WHEN 0 THEN 'none' WHEN 10 THEN 'on-failure' WHEN 20 THEN 'info' WHEN 30 THEN 'on-terminal' WHEN 40 THEN 'sys-critical' END AS alert_profile,
+    d.alert_profile_code,
+    d.alert_profile_code_override,
+    d.alert_profile_code_effective,
+    d.alert_channel_name,
+    d.alert_channel_name_override,
+    d.alert_channel_name_effective,
+    d.runbook_url,
+    d.runbook_url_override,
+    d.runbook_url_effective,
+    d.created_at_utc,
+    d.modified_at_utc,
+    d.version
+FROM {{schema}}.definitions AS d
+JOIN {{schema}}.namespaces AS ns ON ns.namespace_id = d.namespace_id
+GO
+
+CREATE OR ALTER VIEW {{schema}}.events_view AS
+SELECT
+    e.event_id,
+    e.created_at_utc,
+    ns.namespace_name AS namespace,
+    e.namespace_id,
+    CASE e.entity_code WHEN 0 THEN 'unspecified' WHEN 10 THEN 'alert' WHEN 20 THEN 'checkpoint' WHEN 30 THEN 'definition' WHEN 40 THEN 'event' WHEN 50 THEN 'job' WHEN 60 THEN 'lane' WHEN 70 THEN 'lock' WHEN 80 THEN 'namespace' WHEN 90 THEN 'schedule' WHEN 100 THEN 'step' WHEN 110 THEN 'tag' WHEN 120 THEN 'tenant' WHEN 130 THEN 'worker' END AS entity_kind,
+    e.entity_code,
+    e.entity_id,
+    CASE e.event_code WHEN 0 THEN 'unspecified' WHEN 10 THEN 'tenant.suspended' WHEN 11 THEN 'tenant.resumed' WHEN 12 THEN 'tenant.updated' WHEN 20 THEN 'namespace.suspended' WHEN 21 THEN 'namespace.resumed' WHEN 22 THEN 'namespace.updated' WHEN 30 THEN 'definition.overrides-updated' WHEN 31 THEN 'definition.retired' WHEN 40 THEN 'job.execution-succeeded' WHEN 41 THEN 'job.execution-failed' WHEN 42 THEN 'job.execution-orphaned' WHEN 43 THEN 'job.execution-yielded' WHEN 44 THEN 'job.failed' WHEN 60 THEN 'job.suspended' WHEN 61 THEN 'job.rescheduled' WHEN 70 THEN 'job.cancelled' WHEN 71 THEN 'job.paused' WHEN 72 THEN 'job.resumed' WHEN 73 THEN 'job.restarted' WHEN 74 THEN 'job.reprioritized' WHEN 75 THEN 'job.purged' WHEN 76 THEN 'job.input-amended' WHEN 80 THEN 'job.signal-raised' WHEN 81 THEN 'job.state-reset' WHEN 90 THEN 'job.note-recorded' WHEN 100 THEN 'schedule.paused' WHEN 101 THEN 'schedule.resumed' WHEN 102 THEN 'schedule.pause-expired' WHEN 104 THEN 'schedule.triggered' WHEN 105 THEN 'schedule.admitted' WHEN 106 THEN 'schedule.skipped' WHEN 107 THEN 'schedule.retimed' WHEN 120 THEN 'worker.started' WHEN 121 THEN 'worker.stopped' WHEN 122 THEN 'worker.died' WHEN 140 THEN 'alert.acknowledged' WHEN 141 THEN 'alert.resolved' WHEN 180 THEN 'outbox.requeued' WHEN 181 THEN 'outbox.discarded' END AS event,
+    e.event_code,
+    e.definition_id,
+    d.definition_name AS job_name,
+    e.tenant_id,
+    t.tenant_name,
+    e.lineage_root_job_id,
+    root.job_ref AS lineage_root_job_ref,
+    e.worker_id,
+    wkr.worker_ref,
+    e.execution_number,
+    e.duration_ms,
+    e.event_message,
+    CASE e.details_format_id
+        WHEN 0 /* JobPayloadFormat.None */ THEN 'none'
+        WHEN 1 /* JobPayloadFormat.Json */ THEN 'json'
+        WHEN 2 /* JobPayloadFormat.Bytes */ THEN 'bytes'
+        ELSE CONCAT('custom-', e.details_format_id)
+    END AS details_format,
+    CASE
+        WHEN
+            e.details_format_id = 1 /* JobPayloadFormat.Json */
+            THEN CAST(e.details AS VARCHAR(MAX)) COLLATE latin1_general_100_bin2_utf8
+    END AS details_text
+FROM {{schema}}.events AS e
+JOIN {{schema}}.namespaces AS ns ON ns.namespace_id = e.namespace_id
+LEFT JOIN {{schema}}.definitions AS d ON d.definition_id = e.definition_id
+LEFT JOIN {{schema}}.tenants AS t
+    ON t.tenant_id = COALESCE(e.tenant_id, CASE WHEN e.entity_code = 120 /* EntityCode.Tenant */ THEN e.entity_id END)
+LEFT JOIN {{schema}}.jobs AS root ON root.job_id = e.lineage_root_job_id
+LEFT JOIN {{schema}}.workers AS wkr ON wkr.worker_id = e.worker_id
+GO
+
+CREATE OR ALTER VIEW {{schema}}.jobs_view AS
+SELECT
+    j.job_id,
+    j.job_ref,
+    ns.namespace_name AS namespace,
+    d.definition_name AS job_name,
+    CASE r.job_status_code WHEN 0 THEN 'unspecified' WHEN 10 THEN 'ready' WHEN 15 THEN 'blocked' WHEN 20 THEN 'suspended' WHEN 30 THEN 'paused' WHEN 40 THEN 'idle' WHEN 50 THEN 'executing' WHEN 100 THEN 'succeeded' WHEN 200 THEN 'failed' WHEN 220 THEN 'cancelled' END AS status,
+    r.job_status_code,
+    j.deduplication_key,
+    j.correlation_key,
+    j.concurrency_key,
+    j.parent_job_id,
+    COALESCE(j.lineage_root_job_id, j.job_id) AS lineage_root_job_id,
+    root.job_ref AS lineage_root_job_ref,
+    j.tenant_id,
+    t.tenant_name,
+    CASE r.job_priority_code WHEN 0 THEN 'bulk' WHEN 50 THEN 'normal' WHEN 70 THEN 'high' WHEN 85 THEN 'critical' WHEN 100 THEN 'realtime' END AS priority,
+    r.job_priority_code,
+    CASE j.input_format_id
+        WHEN 0 /* JobPayloadFormat.None */ THEN 'none'
+        WHEN 1 /* JobPayloadFormat.Json */ THEN 'json'
+        WHEN 2 /* JobPayloadFormat.Bytes */ THEN 'bytes'
+        ELSE CONCAT('custom-', j.input_format_id)
+    END AS input_format,
+    CASE
+        WHEN
+            j.input_format_id = 1 /* JobPayloadFormat.Json */
+            THEN CAST(j.input AS VARCHAR(MAX)) COLLATE latin1_general_100_bin2_utf8
+    END AS input_text,
+    CASE r.result_format_id
+        WHEN 0 /* JobPayloadFormat.None */ THEN 'none'
+        WHEN 1 /* JobPayloadFormat.Json */ THEN 'json'
+        WHEN 2 /* JobPayloadFormat.Bytes */ THEN 'bytes'
+        ELSE CONCAT('custom-', r.result_format_id)
+    END AS result_format,
+    CASE
+        WHEN
+            r.result_format_id = 1 /* JobPayloadFormat.Json */
+            THEN CAST(r.result AS VARCHAR(MAX)) COLLATE latin1_general_100_bin2_utf8
+    END AS result_text,
+    r.next_run_at_utc,
+    r.execution_number,
+    r.failure_count,
+    r.leased_by_worker_id,
+    w.host_name AS leased_by_worker_host_name,
+    r.lease_expires_at_utc,
+    r.retention_until_utc,
+    j.created_at_utc,
+    r.modified_at_utc,
+    r.version,
+    lane.lane_name AS lane
+FROM {{schema}}.jobs AS j
+JOIN {{schema}}.jobs_state AS r ON r.job_id = j.job_id
+JOIN {{schema}}.namespaces AS ns ON ns.namespace_id = j.namespace_id
+JOIN {{schema}}.definitions AS d ON d.definition_id = j.definition_id
+LEFT JOIN {{schema}}.jobs AS root ON root.job_id = COALESCE(j.lineage_root_job_id, j.job_id)
+LEFT JOIN {{schema}}.tenants AS t ON t.tenant_id = j.tenant_id
+LEFT JOIN {{schema}}.workers AS w ON w.worker_id = r.leased_by_worker_id
+LEFT JOIN {{schema}}.lanes AS lane ON lane.lane_id = r.lane_id
+GO
+
+CREATE OR ALTER VIEW {{schema}}.schedules_view AS
+SELECT
+    s.schedule_id,
+    ns.namespace_name AS namespace,
+    s.job_id,
+    j.job_ref,
+    s.definition_id,
+    d.definition_name AS job_name,
+    s.schedule_name,
+    CASE s.schedule_origin_code WHEN 0 THEN 'unspecified' WHEN 20 THEN 'operator' WHEN 40 THEN 'definition' END AS origin,
+    s.schedule_origin_code,
+    CASE s.schedule_status_code WHEN 0 THEN 'unspecified' WHEN 10 THEN 'active' WHEN 30 THEN 'paused' WHEN 230 THEN 'orphaned' END AS status,
+    s.schedule_status_code,
+    s.expression,
+    s.time_zone_id,
+    CASE s.expression_kind_code WHEN 0 THEN 'unspecified' WHEN 10 THEN 'cron' WHEN 20 THEN 'interval' END AS expression_kind,
+    s.expression_kind_code,
+    CASE s.misfire_strategy_code WHEN 0 THEN 'unspecified' WHEN 10 THEN 'catch-up-once' WHEN 20 THEN 'skip' END AS misfire_strategy,
+    s.misfire_strategy_code,
+    st.next_occurrence_at_utc,
+    st.decided_through_at_utc,
+    st.next_evaluation_at_utc,
+    CASE st.evaluation_status_code WHEN 0 THEN 'unspecified' WHEN 10 THEN 'scheduled' WHEN 20 THEN 'waiting-for-capacity' WHEN 30 THEN 'exhausted' WHEN 40 THEN 'evaluation-error' WHEN 50 THEN 'slot-unavailable' END AS evaluation_status,
+    st.evaluation_status_code,
+    s.paused_until_utc,
+    s.description,
+    s.pause_message,
+    s.created_at_utc,
+    s.modified_at_utc,
+    s.version
+FROM {{schema}}.schedules AS s
+JOIN {{schema}}.schedules_state AS st ON st.schedule_id = s.schedule_id
+JOIN {{schema}}.namespaces AS ns ON ns.namespace_id = s.namespace_id
+JOIN {{schema}}.jobs AS j ON j.job_id = s.job_id
+JOIN {{schema}}.definitions AS d ON d.definition_id = s.definition_id
+GO
+
+CREATE OR ALTER VIEW {{schema}}.steps_view AS
+SELECT
+    s.job_id,
+    j.job_ref,
+    ns.namespace_name AS namespace,
+    d.definition_name AS job_name,
+    s.step_name,
+    CASE s.step_status_code WHEN 0 THEN 'unspecified' WHEN 10 THEN 'pending' WHEN 100 THEN 'succeeded' WHEN 200 THEN 'exhausted' WHEN 230 THEN 'interrupted' END AS status,
+    s.step_status_code,
+    s.attempt_number,
+    s.next_retry_at_utc,
+    CASE s.failure_code WHEN 0 THEN 'unspecified' WHEN 10 THEN 'unhandled-exception' WHEN 20 THEN 'interrupted' END AS failure,
+    s.failure_code,
+    s.failure_message,
+    CASE s.result_format_id
+        WHEN 0 /* JobPayloadFormat.None */ THEN 'none'
+        WHEN 1 /* JobPayloadFormat.Json */ THEN 'json'
+        WHEN 2 /* JobPayloadFormat.Bytes */ THEN 'bytes'
+        ELSE CONCAT('custom-', s.result_format_id)
+    END AS result_format,
+    CASE
+        WHEN
+            s.result_format_id = 1 /* JobPayloadFormat.Json */
+            THEN CAST(s.result AS VARCHAR(MAX)) COLLATE latin1_general_100_bin2_utf8
+    END AS result_text,
+    s.created_at_utc,
+    s.modified_at_utc,
+    s.version
+FROM {{schema}}.steps AS s
+JOIN {{schema}}.jobs AS j ON j.job_id = s.job_id
+JOIN {{schema}}.namespaces AS ns ON ns.namespace_id = j.namespace_id
+JOIN {{schema}}.definitions AS d ON d.definition_id = j.definition_id
+GO
+
+CREATE OR ALTER VIEW {{schema}}.tags_view AS
+SELECT
+    CASE t.entity_code WHEN 0 THEN 'unspecified' WHEN 10 THEN 'alert' WHEN 20 THEN 'checkpoint' WHEN 30 THEN 'definition' WHEN 40 THEN 'event' WHEN 50 THEN 'job' WHEN 60 THEN 'lane' WHEN 70 THEN 'lock' WHEN 80 THEN 'namespace' WHEN 90 THEN 'schedule' WHEN 100 THEN 'step' WHEN 110 THEN 'tag' WHEN 120 THEN 'tenant' WHEN 130 THEN 'worker' END AS entity_kind,
+    t.entity_code,
+    t.entity_id,
+    t.tag_name,
+    t.tag_value,
+    t.tag_value_search
+FROM {{schema}}.tags AS t
+GO
+
+CREATE OR ALTER VIEW {{schema}}.workers_view AS
+SELECT
+    w.worker_id,
+    w.worker_ref,
+    ns.namespace_name AS namespace,
+    CASE w.worker_status_code WHEN 0 THEN 'unspecified' WHEN 10 THEN 'active' WHEN 80 THEN 'draining' WHEN 100 THEN 'stopped' WHEN 200 THEN 'dead' END AS status,
+    w.worker_status_code,
+    w.deployment_version,
+    w.host_name,
+    w.engine_version,
+    w.dotnet_version,
+    w.process_id,
+    w.max_concurrent_executors,
+    w.last_seen_at_utc,
+    w.created_at_utc,
+    w.modified_at_utc,
+    w.version
+FROM {{schema}}.workers AS w
+JOIN {{schema}}.namespaces AS ns ON ns.namespace_id = w.namespace_id
+GO
+
+
+IF NOT EXISTS (SELECT 1 FROM {{schema}}.migrations WHERE name = 'M20261029124218_init')
+INSERT INTO {{schema}}.migrations (name)
+VALUES ('M20261029124218_init');
+GO

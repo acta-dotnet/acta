@@ -1,14 +1,7 @@
 namespace Acta;
 
 /// <summary><see cref="IJobs.RestartAsync"/>: reruns a job that is not executing, at its slot's next run when it is recurring.</summary>
-internal sealed class RestartJobHandler(
-    GetJobIdHandler getJobId,
-    GetLiveSchedulesHandler liveSchedules,
-    IActaClock clock,
-    IDbSession session,
-    ISqlDialect dialect,
-    WorkerWakeupPublisher wakeup
-)
+internal sealed class RestartJobHandler(GetJobIdHandler getJobId, IDbSession session, ISqlDialect dialect, WorkerWakeupPublisher wakeup)
 {
     public async ValueTask<RestartJobResponse> HandleAsync(RestartJobCommand command, CancellationToken ct)
     {
@@ -17,15 +10,8 @@ internal sealed class RestartJobHandler(
             return new RestartJobResponse(0, ControlAction.NotFound, null, null);
         }
 
-        var live = (await liveSchedules.HandleAsync(new GetLiveSchedulesQuery(jobId), ct)).Schedules;
-        var (reject, nextRun) = await JobControl.RecurringNextRunAsync(live, clock, ct);
-        if (reject)
-        {
-            return new RestartJobResponse(jobId, ControlAction.Rejected, JobStatusCode.Paused, null);
-        }
-
         var input = JobControl.Operator(command.ReasonMessage, command.Actor, command.ExpectedVersion);
-        var row = await RestartAsync(jobId, input, nextRun, ct);
+        var row = await RestartAsync(jobId, input, null, ct);
         await JobControl.WakeIfReadyAsync(wakeup, row.Action, row.Status, ct);
         return new RestartJobResponse(jobId, row.Action, row.Status, row.Version);
     }

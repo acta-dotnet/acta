@@ -91,13 +91,6 @@ internal sealed class WorkerContext(WorkerRegistration? workerRegistration)
         }
     }
 
-    /// <summary>
-    /// Slot job ids (one per recurring definition): those the startup schedule upsert returned, and any
-    /// slot another runtime registered that an executor recognized on claiming it. Consulted on the
-    /// execution hot path to branch a claimed slot fire into the recurring path.
-    /// </summary>
-    public ConcurrentDictionary<long, byte> RecurringSlotJobIds { get; } = new();
-
     /// <summary>Whether this worker runs crash recovery for its namespace, decided at registration.</summary>
     public bool RunsRecovery { get; set; }
 

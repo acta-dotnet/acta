@@ -10,14 +10,14 @@ namespace Acta.Tests.Conformance.Operations.Jobs;
 /// <summary>
 /// Conformance for <c>reset_job_state</c> (<c>ctx.ResetStateAsync</c>): clears a Job's checkpoints /
 /// steps rows so the next execution starts as new,
-/// leaving the job row and sibling jobs untouched, and emits one audit-filtered <c>job.state-reset</c>
-/// substrate event (no status transition).
+/// leaving the job row, the scheduler's firing envelope, and sibling jobs untouched, and emits one audit-filtered
+/// <c>job.state-reset</c> substrate event (no status transition).
 /// </summary>
 [ConformanceSpec(
     "reset-job-state.clears-substrate",
     "Reset clears one job's substrate and emits an audit-gated state-reset event",
     Area = "Execution",
-    Contract = "Reset clears a job's substrate rows leaving siblings intact and emits one audit-gated state-reset event with no status transition."
+    Contract = "Reset clears a job's substrate rows, leaves siblings and the scheduler's firing envelope intact, and emits one audit-gated state-reset event."
 )]
 public sealed class ResetJobStateSpec : ActaRuntimeTestBase<ConformanceFixture, TestJobs.TestJobsManifest>
 {
@@ -35,6 +35,27 @@ public sealed class ResetJobStateSpec : ActaRuntimeTestBase<ConformanceFixture, 
 
         await AssertSubstrateCountsAsync(Db, target.JobId, 0, ct);
         await AssertSubstrateCountsAsync(Db, sibling.JobId, 1, ct);
+    }
+
+    [Fact(DisplayName = "The scheduler's firing envelope survives a reset while every handler slot is cleared")]
+    public async Task Reset_keeps_the_firing_envelope()
+    {
+        var ct = TestContext.Current.CancellationToken;
+
+        var job = await EnqueueAsync(ct);
+        await SeedSubstrateAsync(Db, job, ct);
+
+        await Services.GetRequiredService<ResetJobStateHandler>().HandleAsync(new ResetJobStateCommand(job), ct);
+
+        await AssertSubstrateCountsAsync(Db, job.JobId, 0, ct);
+        var firing = Assert.Single(
+            await Db.From<CheckpointEntity>().Where(c => c.JobId == job.JobId && c.Kind == CheckpointKindCode.Firing).ToListAsync(ct)
+        );
+        Assert.Equal("sys.firing", firing.CheckpointName);
+        Assert.Equal(CheckpointStatusCode.Pending, firing.Status);
+        // The handler-state read never lists it either: the envelope is the scheduler's, shown by the firing view.
+        var slots = await Jobs.GetCheckpointsAsync(JobLookup.ById(job.JobId), ct);
+        Assert.DoesNotContain(slots!.Items, s => s.Kind == CheckpointKindCode.Firing);
     }
 
     [Fact(DisplayName = "One JobStateReset event is emitted with the job as its actor and no reason")]
@@ -98,9 +119,19 @@ public sealed class ResetJobStateSpec : ActaRuntimeTestBase<ConformanceFixture, 
     }
 
     // Populates every substrate table for one job: variable/timer/signal via their operations,
-    // step via a direct insert (no op surface creates one mid-handler).
+    // step and the firing envelope via a direct insert (no op surface creates either mid-handler).
     private async Task SeedSubstrateAsync(IDbSession db, ExecutionFence job, CancellationToken ct)
     {
+        await db.ExecuteRawAsync(
+            "INSERT INTO {schema}.checkpoints (job_id, checkpoint_kind_code, checkpoint_name, checkpoint_status_code, value_format_id, value)"
+                + " VALUES (@p_job_id, @p_kind, @p_name, @p_status, 1, @p_value)",
+            ct,
+            ("@p_job_id", job.JobId),
+            ("@p_kind", (byte)CheckpointKindCode.Firing),
+            ("@p_name", "sys.firing"),
+            ("@p_status", (byte)CheckpointStatusCode.Pending),
+            ("@p_value", "{}"u8.ToArray())
+        );
         var execution = Services.GetRequiredService<ExecutionOperations>();
         await CheckpointSlot.SetAsync(execution, job, CheckpointKindCode.Variable, "v.test", JobPayload.Json("x"), ct);
         await execution.ArmOrConsumeSleepTimerAsync(new ArmOrConsumeSleepTimerCommand(job, "t.test", 60, null), ct);

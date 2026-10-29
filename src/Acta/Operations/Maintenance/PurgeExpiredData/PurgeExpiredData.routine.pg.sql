@@ -97,8 +97,9 @@ BEGIN
                 AND entity_id = ANY(v_ids);
             DELETE FROM {{schema}}.checkpoints c WHERE c.job_id = ANY(v_ids);
             DELETE FROM {{schema}}.steps s WHERE s.job_id = ANY(v_ids);
+            DELETE FROM {{schema}}.schedules_state st
+            WHERE st.schedule_id IN (SELECT s.schedule_id FROM {{schema}}.schedules s WHERE s.job_id = ANY(v_ids));
             DELETE FROM {{schema}}.schedules s WHERE s.job_id = ANY(v_ids);
-            DELETE FROM {{schema}}.schedules_state st WHERE st.job_id = ANY(v_ids);
             DELETE FROM {{schema}}.jobs j WHERE j.job_id = ANY(v_ids);
             DELETE FROM {{schema}}.jobs_state r WHERE r.job_id = ANY(v_ids);
         END IF;

@@ -266,7 +266,7 @@ BEGIN
         IF @existing_id IS NULL
             BEGIN
                 INSERT INTO {{schema}}.jobs (
-                    job_ref, lineage_root_job_id, parent_job_id,
+                    job_kind_code, job_ref, lineage_root_job_id, parent_job_id,
                     deduplication_key, correlation_key,
                     namespace_id, definition_id, tenant_id,
                     input_format_id, input,
@@ -274,7 +274,7 @@ BEGIN
                     created_at_utc
                 )
                 VALUES (
-                    @p_job_ref, @lineage, @p_parent_job_id,
+                    10 /* JobKindCode.Ordinary */, @p_job_ref, @lineage, @p_parent_job_id,
                     @p_deduplication_key, COALESCE(@p_correlation_key, @parent_corr),
                     @ns_id, @def_id,
                     CASE

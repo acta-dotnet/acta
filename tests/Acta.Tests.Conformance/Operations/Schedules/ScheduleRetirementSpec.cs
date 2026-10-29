@@ -27,41 +27,32 @@ public sealed class ScheduleRetirementSpec : ActaRuntimeTestBase<ConformanceFixt
 
     private int TestNamespaceId => Runtime.RegisteredNamespaceIds[TestNamespace];
 
-    [Fact(
-        DisplayName = "A completion planned before the retire neither advances nor unpauses the retired schedules, nor wakes the slot for them"
-    )]
-    public async Task A_completion_planned_before_the_retire_leaves_the_schedules_inert()
+    [Fact(DisplayName = "A firing that lands after the retire returns the slot to Idle and leaves the retired schedules as they were")]
+    public async Task A_firing_that_lands_after_the_retire_leaves_the_schedules_inert()
     {
         var ct = TestContext.Current.CancellationToken;
         var cursor = FloorSeconds(DateTime.UtcNow.AddHours(6));
         var jobName = Unique("retired-fire");
         var defId = await CreateDefinitionAsync(jobName, ct);
-        await RegisterAsync(defId, jobName, cursor, [Slot("tick", cursor), Slot("lapsed", cursor), Slot("held", cursor)], ct);
+        await RegisterAsync(defId, jobName, [Slot("tick", cursor), Slot("lapsed", cursor), Slot("held", cursor)], ct);
         var slotId = await SlotIdAsync(jobName, ct);
 
-        // A timed pause that has run out, which a fire would end, and one still running, which would wake the slot.
+        // A timed pause that has run out and one still running: neither moves once the definition is retired.
         await PauseUntilAsync(slotId, "lapsed", FloorSeconds(DateTime.UtcNow.AddHours(-1)), ct);
-        var heldUntil = FloorSeconds(DateTime.UtcNow.AddHours(1));
-        await PauseUntilAsync(slotId, "held", heldUntil, ct);
+        await PauseUntilAsync(slotId, "held", FloorSeconds(DateTime.UtcNow.AddHours(1)), ct);
         var planned = await ScheduleTestOps.ReadAsync(Db, slotId, ct);
         var workerId = await LeaseInFlightAsync(slotId, ct);
 
         await RetireAsync(jobName, ct);
         Assert.Equal(JobStatusCode.Executing, (await ReadJobAsync(slotId, ct)).Status);
 
-        var plannedNext = cursor.AddMinutes(5);
-        var result = await CompleteAsync(
-            slotId,
-            workerId,
-            [.. planned.Where(s => s.ScheduleName != "held").Select(s => new ScheduleAdvance(s.ScheduleName, plannedNext, s.Version))],
-            ct
-        );
+        var result = await CompleteAsync(slotId, workerId, ct);
 
         Assert.Equal(CompleteExecutionsAction.Completed, result.Action);
-        Assert.Equal((byte)JobStatusCode.Paused, result.FinalJobStatusCode);
+        Assert.Equal((byte)JobStatusCode.Idle, result.FinalJobStatusCode);
         Assert.Null(result.FinalNextRunAtUtc);
         var slot = await ReadJobAsync(slotId, ct);
-        Assert.Equal(JobStatusCode.Paused, slot.Status);
+        Assert.Equal(JobStatusCode.Idle, slot.Status);
         Assert.Null(slot.NextRunAtUtc);
 
         var after = await ScheduleTestOps.ReadAsync(Db, slotId, ct);
@@ -83,7 +74,7 @@ public sealed class ScheduleRetirementSpec : ActaRuntimeTestBase<ConformanceFixt
         var cursor = FloorSeconds(DateTime.UtcNow.AddHours(6));
         var jobName = Unique("retired-read");
         var defId = await CreateDefinitionAsync(jobName, ct);
-        await RegisterAsync(defId, jobName, cursor, [Slot("only", cursor)], ct);
+        await RegisterAsync(defId, jobName, [Slot("only", cursor)], ct);
         var slotId = await SlotIdAsync(jobName, ct);
         var schedules = Services.GetRequiredService<SchedulesOperations>();
         Assert.Single((await schedules.GetLiveSchedulesAsync(slotId, ct)).Schedules);
@@ -95,8 +86,8 @@ public sealed class ScheduleRetirementSpec : ActaRuntimeTestBase<ConformanceFixt
         Assert.DoesNotContain((await schedules.GetScheduleStateAsync(TestNamespaceId, ct)).States, s => s.DefinitionId == defId);
     }
 
-    [Fact(DisplayName = "Resume and an override set that found the schedule before the retire write no cursor after it")]
-    public async Task Resume_and_overrides_resolved_before_the_retire_write_no_cursor()
+    [Fact(DisplayName = "A resume that found the schedule before the retire writes no cursor after it")]
+    public async Task A_resume_resolved_before_the_retire_writes_no_cursor()
     {
         var ct = TestContext.Current.CancellationToken;
         var cursor = FloorSeconds(DateTime.UtcNow.AddHours(6));
@@ -107,20 +98,6 @@ public sealed class ScheduleRetirementSpec : ActaRuntimeTestBase<ConformanceFixt
         var resumed = await resume.HandleAsync(new ResumeScheduleCommand(Lookup(resumeJob), "after the retire", null), ct);
         Assert.Equal(ControlAction.NotFound, resumed.Action);
         Assert.Null(Assert.Single(await ScheduleTestOps.ReadAsync(Db, resumeSlot, ct)).NextOccurrenceAtUtc);
-
-        var overridesJob = Unique("retired-overrides");
-        var overridesSlot = await RegisterOneAsync(overridesJob, cursor, ct);
-        var version = Assert.Single(await ScheduleTestOps.ReadAsync(Db, overridesSlot, ct)).Version;
-        var overrides = Verb<SetScheduleOverridesHandler>("SetScheduleOverrides", () => RetireAsync(overridesJob, ct));
-        var overridden = await overrides.HandleAsync(
-            new SetScheduleOverridesCommand(Lookup(overridesJob), version, "*/10 * * * *", null, "after the retire", null),
-            ct
-        );
-        Assert.Equal(ControlAction.NotFound, overridden.Action);
-        var schedule = Assert.Single(await ScheduleTestOps.ReadAsync(Db, overridesSlot, ct));
-        Assert.Null(schedule.NextOccurrenceAtUtc);
-        Assert.Null(schedule.ExpressionOverride);
-        Assert.Equal(version, schedule.Version);
     }
 
     [Fact(DisplayName = "A pause that found the schedule before the retire leaves the retired schedule as the retire left it")]
@@ -142,31 +119,30 @@ public sealed class ScheduleRetirementSpec : ActaRuntimeTestBase<ConformanceFixt
         Assert.Equal(0, await CountEventsAsync(slotId, EventCode.SchedulePaused, ct));
     }
 
-    [Fact(DisplayName = "A trigger that found the schedule before the retire leaves the parked slot of the retired definition parked")]
-    public async Task A_trigger_resolved_before_the_retire_leaves_the_slot_parked()
+    [Fact(DisplayName = "A trigger that found the schedule before the retire admits nothing on the retired definition's Idle slot")]
+    public async Task A_trigger_resolved_before_the_retire_admits_nothing()
     {
         var ct = TestContext.Current.CancellationToken;
         var cursor = FloorSeconds(DateTime.UtcNow.AddHours(6));
         var jobName = Unique("retired-trigger");
         var slotId = await RegisterOneAsync(jobName, cursor, ct);
-        var planned = Assert.Single(await ScheduleTestOps.ReadAsync(Db, slotId, ct));
         var workerId = await LeaseInFlightAsync(slotId, ct);
 
-        // The retire leaves the running attempt alone, and its landing parks the slot with no next run, the one
-        // state a trigger would otherwise make due.
+        // The retire leaves the running attempt alone, and its landing returns the slot to Idle, the one state a
+        // trigger would otherwise admit a firing on.
         var trigger = Verb<TriggerScheduleNowHandler>(
             "TriggerScheduleNow",
             async () =>
             {
                 await RetireAsync(jobName, ct);
-                await CompleteAsync(slotId, workerId, [new ScheduleAdvance("only", cursor.AddMinutes(5), planned.Version)], ct);
+                await CompleteAsync(slotId, workerId, ct);
             }
         );
         var triggered = await trigger.HandleAsync(new TriggerScheduleNowCommand(Lookup(jobName), "after the retire", null), ct);
 
         Assert.Equal(ControlAction.NotFound, triggered.Action);
         var slot = await ReadJobAsync(slotId, ct);
-        Assert.Equal(JobStatusCode.Paused, slot.Status);
+        Assert.Equal(JobStatusCode.Idle, slot.Status);
         Assert.Null(slot.NextRunAtUtc);
         Assert.Equal(0, await CountEventsAsync(slotId, EventCode.ScheduleTriggered, ct));
     }
@@ -215,12 +191,7 @@ public sealed class ScheduleRetirementSpec : ActaRuntimeTestBase<ConformanceFixt
         return worker.Id;
     }
 
-    private Task<CompleteExecutionsRow> CompleteAsync(
-        long jobId,
-        int workerId,
-        IReadOnlyList<ScheduleAdvance> advances,
-        CancellationToken ct
-    ) =>
+    private Task<CompleteExecutionsRow> CompleteAsync(long jobId, int workerId, CancellationToken ct) =>
         Services
             .GetRequiredService<ExecutionOperations>()
             .CompleteAsync(
@@ -239,16 +210,14 @@ public sealed class ScheduleRetirementSpec : ActaRuntimeTestBase<ConformanceFixt
                     null
                 )
                 {
-                    ScheduleAdvances = advances,
-                    FinalStatus = JobStatusCode.Ready,
-                    JobNextRunAtUtc = advances.Count == 0 ? null : advances.Min(a => a.NextOccurrenceAtUtc),
+                    FinalStatus = JobStatusCode.Idle,
                 },
                 ct
             );
 
     private async Task<long> RegisterOneAsync(string jobName, DateTime cursor, CancellationToken ct)
     {
-        await RegisterAsync(await CreateDefinitionAsync(jobName, ct), jobName, cursor, [Slot("only", cursor)], ct);
+        await RegisterAsync(await CreateDefinitionAsync(jobName, ct), jobName, [Slot("only", cursor)], ct);
         return await SlotIdAsync(jobName, ct);
     }
 
@@ -258,36 +227,22 @@ public sealed class ScheduleRetirementSpec : ActaRuntimeTestBase<ConformanceFixt
         return map[jobName];
     }
 
-    private async Task RegisterAsync(
-        int defId,
-        string jobName,
-        DateTime slotMin,
-        IReadOnlyList<SlotSchedule> schedules,
-        CancellationToken ct
-    )
+    private async Task RegisterAsync(int defId, string jobName, IReadOnlyList<SlotSchedule> schedules, CancellationToken ct)
     {
         var definition = new DefinitionSchedules(
             NamespaceId: TestNamespaceId,
             DefinitionId: defId,
-            JobName: jobName,
             InputFormatId: 0,
             Input: ReadOnlyMemory<byte>.Empty,
             EventRecording: EventRecordingCode.Audit,
-            SlotStatus: JobStatusCode.Ready,
-            SlotMinNextRunAtUtc: slotMin,
             Schedules: schedules
         );
         await ScheduleTestOps.RegisterAsync(Services, [definition], ct);
     }
 
-    private async Task<long> SlotIdAsync(string jobName, CancellationToken ct)
-    {
-        var id = (await Jobs.GetJobIdAsync(JobLookup.ByDeduplicationKey(TestNamespace, jobName), ct))?.JobId;
-        Assert.NotNull(id);
-        return id!.Value;
-    }
+    private Task<long> SlotIdAsync(string jobName, CancellationToken ct) => ScheduleTestOps.SlotIdAsync(Db, TestNamespace, jobName, ct);
 
-    private ScheduleLookup Lookup(string jobName) => new(JobLookup.ByDeduplicationKey(TestNamespace, jobName), "only");
+    private ScheduleLookup Lookup(string jobName) => new(TestNamespace, jobName, "only");
 
     private static DateTime FloorSeconds(DateTime t) => new(t.Ticks - (t.Ticks % TimeSpan.TicksPerSecond), t.Kind);
 

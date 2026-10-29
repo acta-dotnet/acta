@@ -17,6 +17,6 @@ internal static class ActaTextLimits
     public const int DefinitionDescription = 512;
     public const int DefinitionRunbookUrl = 512;
     public const int DefinitionTypeName = 512;
-    public const int ScheduleChangeMessage = 512;
+    public const int SchedulePauseMessage = 512;
     public const int StepFailureMessage = 512;
 }

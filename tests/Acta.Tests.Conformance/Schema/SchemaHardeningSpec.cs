@@ -654,13 +654,12 @@ public sealed class SchemaHardeningSpec : ActaRuntimeTestBase<ConformanceFixture
     public async Task Recurring_slot_schedule_agrees_with_its_job_namespace_and_definition()
     {
         var ct = TestContext.Current.CancellationToken;
-        var slotId = (await Jobs.GetJobIdAsync(JobLookup.ByDeduplicationKey(TestNamespace, "recurring-ping"), ct))?.JobId;
-        Assert.NotNull(slotId);
+        var slotId = await ScheduleTestOps.SlotIdAsync(Db, TestNamespace, "recurring-ping", ct);
 
         var job = await Db.From<JobEntity>().Where(j => j.Id == slotId).SingleOrDefaultAsync(ct);
         Assert.NotNull(job);
 
-        var schedule = Assert.Single(await ScheduleTestOps.ReadAsync(Db, slotId!.Value, ct));
+        var schedule = Assert.Single(await ScheduleTestOps.ReadAsync(Db, slotId, ct));
         Assert.Equal(job!.NamespaceId, schedule.Config.NamespaceId);
         Assert.Equal(job.NamespaceId, schedule.Cursor.NamespaceId);
         Assert.Equal(job.DefinitionId, schedule.DefinitionId);

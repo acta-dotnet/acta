@@ -46,7 +46,8 @@ public sealed class ListOutboxSourcesStatusSpec : OutboxRelayHostBase
             )
         );
         await ChaosSpecHelpers.SetReadyAsync(Db, slotId, ct);
-        Assert.Equal(RunOnceStatus.Failed, await Runtime.RunOnceAsync(TestNamespace, slotId, ct));
+        // A failed tick re-arms the firing for another attempt, like any attempt within its budget.
+        Assert.Equal(RunOnceStatus.Rearmed, await Runtime.RunOnceAsync(TestNamespace, slotId, ct));
 
         var after = Assert.Single((await Outbox.ListSourcesAsync(new ListOutboxSourcesQuery(JobNamespace: TestNamespace), ct)).Items);
         Assert.Equal(settled, after);

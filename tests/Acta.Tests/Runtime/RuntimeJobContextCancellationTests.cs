@@ -36,7 +36,7 @@ public sealed class RuntimeJobContextCancellationTests
             new ThrowingSerializerRegistry(),
             ScriptedSession.Unreachable.GetRequiredService<LocksOperations>(),
             cancellationToken: CancellationToken.None,
-            triggeringScheduleNames: [],
+            firing: null,
             deadlineAtUtc: null
         );
 
@@ -84,7 +84,7 @@ public sealed class RuntimeJobContextCancellationTests
             new ThrowingSerializerRegistry(),
             ScriptedSession.Unreachable.GetRequiredService<LocksOperations>(),
             cancellationToken: CancellationToken.None,
-            triggeringScheduleNames: [],
+            firing: null,
             deadlineAtUtc: null
         );
 

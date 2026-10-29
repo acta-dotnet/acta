@@ -118,8 +118,10 @@ BEGIN
                 DELETE c FROM {{schema}}.checkpoints c WITH (FORCESEEK) INNER JOIN @job_del d ON d.job_id = c.job_id;
                 DELETE r FROM {{schema}}.jobs_state r WITH (FORCESEEK) INNER JOIN @job_del d ON d.job_id = r.job_id;
                 DELETE s FROM {{schema}}.steps s WITH (FORCESEEK) INNER JOIN @job_del d ON d.job_id = s.job_id;
+                DELETE st FROM {{schema}}.schedules_state st WITH (FORCESEEK)
+                INNER JOIN {{schema}}.schedules s ON s.schedule_id = st.schedule_id
+                INNER JOIN @job_del d ON d.job_id = s.job_id;
                 DELETE s FROM {{schema}}.schedules s WITH (FORCESEEK) INNER JOIN @job_del d ON d.job_id = s.job_id;
-                DELETE st FROM {{schema}}.schedules_state st WITH (FORCESEEK) INNER JOIN @job_del d ON d.job_id = st.job_id;
                 DELETE j FROM {{schema}}.jobs j WITH (FORCESEEK) INNER JOIN @job_del d ON d.job_id = j.job_id;
                 SET @rows = (SELECT COUNT(*) FROM @job_del);
 

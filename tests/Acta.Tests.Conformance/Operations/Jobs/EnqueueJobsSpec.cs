@@ -115,10 +115,9 @@ public sealed class EnqueueJobsSpec : ActaRuntimeTestBase<ConformanceFixture, Te
             Assert.Equal(EnqueueJobAction.Inserted, result[i].Action);
         }
 
-        // Count only the enqueued jobs (null deduplication_key). The shared test manifest declares a
-        // recurring definition, so InitializeAsync also created its recurring slot row
-        // with a non-null deduplication key in this namespace - exclude it.
-        var jobCount = await Db.From<JobEntity>().Where(j => j.NamespaceId == namespaceId && j.DeduplicationKey == null).CountAsync(ct);
+        // Count only the enqueued jobs: the shared test manifest declares scheduled definitions, whose permanent
+        // slots InitializeAsync also created in this namespace.
+        var jobCount = await Db.From<JobEntity>().Where(j => j.NamespaceId == namespaceId && j.Kind == JobKindCode.Ordinary).CountAsync(ct);
         Assert.Equal(batchSize, jobCount);
 
         // No events rows on enqueue (see class-level summary). Filter to job-subject events so the

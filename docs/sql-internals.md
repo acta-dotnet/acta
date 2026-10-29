@@ -222,7 +222,7 @@ lock. `enqueue_job` and `enqueue_jobs` take `sp_getapplock`, exclusive and owned
 `<schema>.dedup:n<namespace id>:<key>` for a root job or `<schema>.dedup:p<parent id>:<key>` for a
 child, and only then probe the deduplication index under `UPDLOCK`. An application lock binds only
 the code that asks for it, so every statement that inserts a keyed job takes it: the two enqueue
-routines and `RegisterSchedules`, which inserts the recurring slots under their names.
+routines. A permanent slot has no key, so `RegisterSchedules` takes none.
 
 - A probe under `HOLDLOCK` for a key not yet stored locks the gap the key falls in. A key newer than every
   stored key shares the last gap with every other new key, so enqueues of different keys in a namespace
@@ -351,10 +351,10 @@ the lock.
 - An enqueue batch first inserts the missing lane names, sorted by name, without locking existing
   rows, then locks the whole set in id order. A lane inserted by an uncommitted transaction is
   invisible to every other transaction, so no settle can contend for it.
-- The completion batch (`CompleteExecutions`) takes the schedule lock of each namespace it fires a recurring slot in
+- The completion batch (`CompleteExecutions`) takes the schedule lock of each namespace it settles a permanent slot in
   first ("Schedule lock"), then locks every lane its rows belong to, in id order, then the awaited signal slots, its own
-  `jobs_state` rows in `job_id` order, its fired slots' `schedules` rows and cursors, and last the parents' latches and
-  `jobs_state` rows in parent id order, and promotes each settled lane once.
+  `jobs_state` rows in `job_id` order, the settled slots' `sys.firing` checkpoints and `schedules_state` rows, and last
+  the parents' latches and `jobs_state` rows in parent id order, and promotes each settled lane once.
 - The upsert retries when retention deleted the lane between the lookup and the lock: the lock finds
   no row, and the next pass inserts the lane again.
 - On SQL Server every lane lock is an `UPDLOCK` seek by `lane_id` on the clustered key. A lookup by name
@@ -401,20 +401,24 @@ Each namespace has one schedule lock, held until its transaction ends: `sp_getap
 `pg_advisory_xact_lock(hashtext('{schema}.schedules'), namespace_id)` or its `_shared` form on PostgreSQL.
 
 - `register_schedules` and `RetireDefinition` take it exclusive.
-- A completion that fires a recurring slot and the schedule verbs (pause, resume, overrides, trigger) take it shared, so
-  fires and verbs run together and wait only for a registration or a retire. A completion that fires nothing takes none.
+- Admission (`AdmitFirings`), a completion that settles a permanent slot, and the schedule verbs (pause, resume,
+  trigger) take it shared, so admissions, settlements, and verbs run together and wait only for a registration or a
+  retire. A completion with no slot in its batch takes none.
 - It is a transaction's first lock: a shared holder that took a row first could wait on a registration that waits on
   that row.
 - A statement that starts after the grant reads committed schedule config, because a read-committed-snapshot statement
   and a PostgreSQL read-committed statement take their snapshot when they start. The config joins therefore take no row
   locks, and the retirement and orphan filters stay in every reader and writer.
-- Rows inside it still lock in order. A verb locks the slot's `jobs_state` row before its `schedules` row, the order a
-  fire's completion takes them in. On PostgreSQL, registration locks its slots' `jobs_state` rows in key order, because
-  a completion that settles a child locks its slot parent's row without the schedule lock.
+- Rows inside it still lock in order: the slot's `jobs_state` row, then its `sys.firing` checkpoint, then its
+  `schedules_state` rows, slots and schedules in id order. Admission, settlement, cancel, restart, resume, reclaim,
+  retire, and purge take them so. An admission plan is made without locks and applies only while the slot's version
+  and every member's state version still hold; a stale group replans on the next pass. On PostgreSQL, registration
+  locks its slots' `jobs_state` rows in key order, because a completion that settles a child locks its slot parent's
+  row without the schedule lock.
 - The registration heal clears every orphaned or retired schedule's cursor in the namespace: a retire that commits after
   a worker read its stored schedules leaves that worker's registration writing cursors for the retired definition.
 - A worker start skips `register_schedules`, and so the lock, when the namespace stores the start's catalog hash and the
-  start's plan moves no stored cursor or slot.
+  start's plan changes no stored declaration or cursor.
 - SQLite runs one writer at a time and takes none of these locks.
 
 ## Provisioning, compatibility, and SQL access

@@ -2,23 +2,23 @@
 
 # Data model reference
 
-Structural reference for the Acta persistence model: **15 entities**, **222 columns**, **33 indexes**, **32 check constraints**, **3 foreign keys**. Names render with the default `acta` schema prefix; substitute the configured schema if different. Code families resolve into [`code-families.md`](./code-families.md). The foreign-key enforcement policy (which references are CASCADE, RESTRICT, or deliberately unenforced) is in [SQL recipes](../operator-guide.md#foreign-key-policy).
+Structural reference for the Acta persistence model: **15 entities**, **225 columns**, **37 indexes**, **33 check constraints**, **3 foreign keys**. Names render with the default `acta` schema prefix; substitute the configured schema if different. Code families resolve into [`code-families.md`](./code-families.md). The foreign-key enforcement policy (which references are CASCADE, RESTRICT, or deliberately unenforced) is in [SQL recipes](../operator-guide.md#foreign-key-policy).
 
 ## Schema inventory
 
 | Entity | Purpose | Key code families |
 |---|---|---|
 | [`acta.alerts`](#entity-acta-alerts) | One materialized alert. | [`AlertOriginCode`](./code-families.md#code-family-alertorigincode), [`AlertSeverityCode`](./code-families.md#code-family-alertseveritycode), [`AlertKindCode`](./code-families.md#code-family-alertkindcode), [`AlertDeliveryStatusCode`](./code-families.md#code-family-alertdeliverystatuscode) |
-| [`acta.checkpoints`](#entity-acta-checkpoints) | One durable slot per `(JobId, Kind, CheckpointName)`: variables, signals, sleep timers, the progress slot, and child latches share this shape, told apart by `Kind` (steps keep their own `steps` table). | [`CheckpointKindCode`](./code-families.md#code-family-checkpointkindcode), [`CheckpointStatusCode`](./code-families.md#code-family-checkpointstatuscode), [`JobPayloadFormat`](./code-families.md#code-family-jobpayloadformat) |
+| [`acta.checkpoints`](#entity-acta-checkpoints) | One durable slot per `(JobId, Kind, CheckpointName)`: variables, signals, sleep timers, the progress slot, child latches, and the scheduler's firing envelope share this shape, told apart by `Kind` (steps keep their own `steps` table). | [`CheckpointKindCode`](./code-families.md#code-family-checkpointkindcode), [`CheckpointStatusCode`](./code-families.md#code-family-checkpointstatuscode), [`JobPayloadFormat`](./code-families.md#code-family-jobpayloadformat) |
 | [`acta.definitions`](#entity-acta-definitions) | The live job policy: one row per definition, the single source of truth for every per-job policy. | [`DefinitionStatusCode`](./code-families.md#code-family-definitionstatuscode), [`DefinitionTenantRequirementCode`](./code-families.md#code-family-definitiontenantrequirementcode), [`JobPriorityCode`](./code-families.md#code-family-jobprioritycode), [`DeadlineBehaviorCode`](./code-families.md#code-family-deadlinebehaviorcode), [`EventRecordingCode`](./code-families.md#code-family-eventrecordingcode), [`AlertProfileCode`](./code-families.md#code-family-alertprofilecode), [`JobPayloadFormat`](./code-families.md#code-family-jobpayloadformat) |
 | [`acta.events`](#entity-acta-events) | The append-only ledger: what happened to an entity, named by `EventCode` and the `EntityCode`/`EntityId` subject pair, with a human `EventMessage` and a small encoded `Details` payload for the facts the code does not imply. | [`EntityCode`](./code-families.md#code-family-entitycode), [`EventCode`](./code-families.md#code-family-eventcode), [`JobPayloadFormat`](./code-families.md#code-family-jobpayloadformat) |
-| [`acta.jobs`](#entity-acta-jobs) | One row in `acta.jobs`, Acta's only work unit: the append-mostly identity/input record. | [`EventRecordingCode`](./code-families.md#code-family-eventrecordingcode), [`JobPayloadFormat`](./code-families.md#code-family-jobpayloadformat) |
+| [`acta.jobs`](#entity-acta-jobs) | One row in `acta.jobs`, Acta's only work unit: the append-mostly identity/input record. | [`JobKindCode`](./code-families.md#code-family-jobkindcode), [`EventRecordingCode`](./code-families.md#code-family-eventrecordingcode), [`JobPayloadFormat`](./code-families.md#code-family-jobpayloadformat) |
 | [`acta.jobs_state`](#entity-acta-jobs-state) | The hot, mutable state of one job, one row per `jobs` row, split out so claim and complete churn never rewrites the identity and input row. | [`JobStatusCode`](./code-families.md#code-family-jobstatuscode), [`JobPriorityCode`](./code-families.md#code-family-jobprioritycode), [`JobPayloadFormat`](./code-families.md#code-family-jobpayloadformat) |
 | [`acta.lanes`](#entity-acta-lanes) | One lane in one namespace: the Jobs that reference it run one at a time, in job-id order. | · |
 | [`acta.locks`](#entity-acta-locks) | One named lock: the handler's `RunWithLockAsync` rows, the runner's concurrency slots (`{key}.0` to `{key}.{N-1}`), and the rate meter's bucket and reservation rows, which are never held. | · |
 | [`acta.namespaces`](#entity-acta-namespaces) | Service-owned execution boundary. | [`NamespaceStatusCode`](./code-families.md#code-family-namespacestatuscode) |
-| [`acta.schedules`](#entity-acta-schedules) | One named recurring schedule of a definition's slot Job, keyed by that job and its name: its declaration and operator lifecycle. | [`ScheduleOriginCode`](./code-families.md#code-family-scheduleorigincode), [`ScheduleExpressionKindCode`](./code-families.md#code-family-scheduleexpressionkindcode), [`MisfireStrategyCode`](./code-families.md#code-family-misfirestrategycode), [`ScheduleStatusCode`](./code-families.md#code-family-schedulestatuscode) |
-| [`acta.schedules_state`](#entity-acta-schedules-state) | The cursor of one schedule, split from `ScheduleEntity` so the per-occurrence advance rewrites only this narrow row. | · |
+| [`acta.schedules`](#entity-acta-schedules) | One named recurring schedule of a definition, with its own identity: its declaration and operator lifecycle. | [`ScheduleOriginCode`](./code-families.md#code-family-scheduleorigincode), [`ScheduleExpressionKindCode`](./code-families.md#code-family-scheduleexpressionkindcode), [`MisfireStrategyCode`](./code-families.md#code-family-misfirestrategycode), [`ScheduleStatusCode`](./code-families.md#code-family-schedulestatuscode) |
+| [`acta.schedules_state`](#entity-acta-schedules-state) | The decision and wake state of one schedule, split from `ScheduleEntity` so an admission rewrites only this narrow row. | [`EvaluationStatusCode`](./code-families.md#code-family-evaluationstatuscode) |
 | [`acta.steps`](#entity-acta-steps) | The durable retry and result state of one step, one row per `(JobId, StepName)`, written by `start_step` and `complete_step` behind `ctx.RunStepAsync`: inserted Pending on first run, updated across retries, and ended Succeeded, Exhausted, or Interrupted (a job restart deletes ... | [`StepStatusCode`](./code-families.md#code-family-stepstatuscode), [`StepFailureCode`](./code-families.md#code-family-stepfailurecode), [`JobPayloadFormat`](./code-families.md#code-family-jobpayloadformat) |
 | [`acta.tags`](#entity-acta-tags) | Exact searchable metadata attached to one entity. | [`EntityCode`](./code-families.md#code-family-entitycode) |
 | [`acta.tenants`](#entity-acta-tenants) | The tenants a job can be about: an optional, validated scope on individual jobs, orthogonal to the namespace, which stays the work-ownership boundary. | [`TenantStatusCode`](./code-families.md#code-family-tenantstatuscode) |
@@ -82,7 +82,7 @@ One materialized alert. A non-null `DeduplicationKey` makes it an incident: the 
 
 ### `acta.checkpoints` <a id="entity-acta-checkpoints"></a>
 
-One durable slot per `(JobId, Kind, CheckpointName)`: variables, signals, sleep timers, the progress slot, and child latches share this shape, told apart by `Kind` (steps keep their own `steps` table). Variables and progress are last-writer-wins upserts with a null `Status`; signals and latches move Pending to Set, or to Expired past `DueAtUtc`; timers move Pending to Consumed. The composite key is the identity.
+One durable slot per `(JobId, Kind, CheckpointName)`: variables, signals, sleep timers, the progress slot, child latches, and the scheduler's firing envelope share this shape, told apart by `Kind` (steps keep their own `steps` table). Variables and progress are last-writer-wins upserts with a null `Status`; signals and latches move Pending to Set, or to Expired past `DueAtUtc`; timers move Pending to Consumed; the firing envelope moves Pending to its outcome. The composite key is the identity.
 
 **CLR type** `Acta.CheckpointEntity` · **Primary key** `pk_checkpoints` (`job_id`, `checkpoint_kind_code`, `checkpoint_name`)
 
@@ -92,8 +92,8 @@ One durable slot per `(JobId, Kind, CheckpointName)`: variables, signals, sleep 
 |---|---|---|---|---|---|---|
 | `job_id`<a id="column-acta-checkpoints--job-id"></a> | `Int64` | · | no | · | PK | Owning Job; purge and retention delete a job's checkpoints with it. Leading column of the composite PK. |
 | `checkpoint_kind_code`<a id="column-acta-checkpoints--checkpoint-kind-code"></a> | `Byte` | · | no | · | [`CheckpointKindCode`](./code-families.md#code-family-checkpointkindcode) (`job-checkpoint-kind`) | Which substrate feature owns this slot (variable / signal / timer / progress / child-latch). Part of the composite PK, so identical names under different kinds never collide. |
-| `checkpoint_name`<a id="column-acta-checkpoints--checkpoint-name"></a> | `AsciiString` | 128 | no | · | PK | Slot name. Dotted-kebab ASCII for user variables and signals; `sys.progress` for the progress slot; `sys.child.{childId}` for child latches; `sys.wait-group.{hash}` for a bounded group wait's shared deadline. The `sys.` prefix stays system-reserved for user-writable kinds. Part of the composite PK. |
-| `checkpoint_status_code`<a id="column-acta-checkpoints--checkpoint-status-code"></a> | `Byte` | · | yes | · | [`CheckpointStatusCode`](./code-families.md#code-family-checkpointstatuscode) (`job-checkpoint-status`) | `Pending` / `Set` / `Expired` (signals, child latches) or `Pending` / `Consumed` (timers). NULL for the stateless kinds (variable, progress). Bound to `Kind` with `DueAtUtc` by `ck_checkpoints_kind_shape`. |
+| `checkpoint_name`<a id="column-acta-checkpoints--checkpoint-name"></a> | `AsciiString` | 128 | no | · | PK | Slot name. Dotted-kebab ASCII for user variables and signals; `sys.progress` for the progress slot; `sys.child.{childId}` for child latches; `sys.wait-group.{hash}` for a bounded group wait's shared deadline; `sys.firing` for the scheduler's envelope. The `sys.` prefix stays system-reserved for user-writable kinds. Part of the composite PK. |
+| `checkpoint_status_code`<a id="column-acta-checkpoints--checkpoint-status-code"></a> | `Byte` | · | yes | · | [`CheckpointStatusCode`](./code-families.md#code-family-checkpointstatuscode) (`job-checkpoint-status`) | `Pending` / `Set` / `Expired` (signals, child latches), `Pending` / `Consumed` (timers), or `Pending` / an outcome (the firing envelope). NULL for the stateless kinds (variable, progress). Bound to `Kind` with `DueAtUtc` by `ck_checkpoints_kind_shape`. |
 | `due_at_utc`<a id="column-acta-checkpoints--due-at-utc"></a> | `UtcInstant` | · | yes | · | · | The named wait's absolute expiration: a timer's due instant, or a bounded signal / child wait's deadline (NULL on an unbounded wait and on every stateless kind). Written once when the slot is armed and never extended, so a replay reuses it. Distinct from the Job's `next_run_at_utc`, which is the job-level claimability cache derived from it on suspend. |
 | `value_format_id`<a id="column-acta-checkpoints--value-format-id"></a> | `Byte` | · | no | `0` | [`JobPayloadFormat`](./code-families.md#code-family-jobpayloadformat) | Format-id selector for `Value`. `0` means no payload (pending signal, timer, presence-only raise), and is the server default so payload-free kinds omit the pair; `ck_checkpoints_value_pair` enforces `(value_format_id = 0) = (value IS NULL)`. |
 | `value`<a id="column-acta-checkpoints--value"></a> | `BinaryPayload` | max | yes | · | · | Encoded slot payload; opaque bytes governed by `ValueFormatId`. |
@@ -112,7 +112,7 @@ One durable slot per `(JobId, Kind, CheckpointName)`: variables, signals, sleep 
 | Name | SQL expression |
 |---|---|
 | `ck_checkpoints_value_pair` | `(value_format_id = 0 AND value IS NULL) OR (value_format_id <> 0 AND value IS NOT NULL)` |
-| `ck_checkpoints_kind_shape` | `(checkpoint_kind_code NOT IN (10, 40) OR (checkpoint_status_code IS NULL AND due_at_utc IS NULL)) AND (checkpoint_kind_code NOT IN (20, 30, 50) OR checkpoint_status_code IS NOT NULL) AND (checkpoint_kind_code <> 30 OR due_at_utc IS NOT NULL)` |
+| `ck_checkpoints_kind_shape` | `(checkpoint_kind_code NOT IN (10, 40) OR (checkpoint_status_code IS NULL AND due_at_utc IS NULL)) AND (checkpoint_kind_code NOT IN (20, 30, 50, 60) OR checkpoint_status_code IS NOT NULL) AND (checkpoint_kind_code <> 30 OR due_at_utc IS NOT NULL)` |
 
 ---
 
@@ -267,6 +267,7 @@ One row in `acta.jobs`, Acta's only work unit: the append-mostly identity/input 
 |---|---|---|---|---|---|---|
 | `job_id`<a id="column-acta-jobs--job-id"></a> | `Int64` | · | no | `Identity` | PK | Primary key and internal engine identity, used by every join, claim, event, and lock; the public handle is `JobRef`. Provider-native IDENTITY: the database assigns the id at INSERT, and `enqueue_jobs` correlates the `RETURNING`/`OUTPUT` rows back to their input via the caller-supplied `JobRef` (insertion order is not guaranteed). |
 | `job_ref`<a id="column-acta-jobs--job-ref"></a> | `Guid` | · | no | · | · | The public reference clients see in place of the numeric id ("job_" plus the Guid's 32 hex digits), minted in C# as a UUIDv7 (`New`) and never defaulted by the database. It is copied onto events and alerts so it survives a purge, and never used for joins, claim order, or keyset paging. |
+| `job_kind_code`<a id="column-acta-jobs--job-kind-code"></a> | `Byte` | · | no | · | [`JobKindCode`](./code-families.md#code-family-jobkindcode) (`job-kind`) | Ordinary, or the permanent slot of a scheduled definition (`ux_jobs_slot` allows one per definition). Written at insert, never mutated: what the row is does not depend on the schedules it owns or on its key. |
 | `namespace_id`<a id="column-acta-jobs--namespace-id"></a> | `Int32` | · | no | · | · | Service-owned execution boundary and the hot-path claim filter. FK semantics enforced by SP, not DB. |
 | `definition_id`<a id="column-acta-jobs--definition-id"></a> | `Int32` | · | no | · | · | Surrogate key into `definitions`; keeps the hot row narrow. |
 | `lineage_root_job_id`<a id="column-acta-jobs--lineage-root-job-id"></a> | `Int64` | · | yes | · | · | Identifies the lineage tree this Job belongs to. `NULL` for root jobs (the root is its own `Id`); children carry `parent.LineageRootJobId`. Set at INSERT, never mutated. Event-emitting routines resolve the effective root as `COALESCE(lineage_root_job_id, job_id)` so a root's own events still land on the `events` lineage timeline index. |
@@ -289,6 +290,7 @@ One row in `acta.jobs`, Acta's only work unit: the append-mostly identity/input 
 | `ux_jobs_ref` | `job_ref` | unique | none | `uniqueness` |
 | `ux_jobs_deduplication_key_root` | `namespace_id`, `deduplication_key` | unique | `deduplication_key IS NOT NULL AND parent_job_id IS NULL` | `uniqueness` |
 | `ux_jobs_deduplication_key_child` | `parent_job_id`, `deduplication_key` | unique | `deduplication_key IS NOT NULL AND parent_job_id IS NOT NULL` | `uniqueness` |
+| `ux_jobs_slot` | `definition_id` | unique | `job_kind_code = 20` | `uniqueness` |
 
 **Check constraints**
 
@@ -344,6 +346,7 @@ The hot, mutable state of one job, one row per `jobs` row, split out so claim an
 | `ck_jobs_state_status_lease` | `job_status_code = 50 OR leased_by_worker_id IS NULL` |
 | `ck_jobs_state_inflight_leased` | `job_status_code <> 50 OR leased_by_worker_id IS NOT NULL` |
 | `ck_jobs_state_ready_due` | `job_status_code <> 10 OR next_run_at_utc IS NOT NULL` |
+| `ck_jobs_state_idle` | `job_status_code <> 40 OR next_run_at_utc IS NULL` |
 | `ck_jobs_state_result_pair` | `(result_format_id = 0 AND result IS NULL) OR (result_format_id <> 0 AND result IS NOT NULL)` |
 | `ck_jobs_state_result_idle` | `result_format_id = 0 OR job_status_code <> 50` |
 
@@ -432,34 +435,41 @@ Service-owned execution boundary. One deployable service owns one `NamespaceEnti
 
 ### `acta.schedules` <a id="entity-acta-schedules"></a>
 
-One named recurring schedule of a definition's slot Job, keyed by that job and its name: its declaration and operator lifecycle. Sparse override model (mirrors `definitions`): the bare field carries the origin-of-truth default and its `*_override` the operator edit (NULL = inherit); effective = `COALESCE(_override, default)`. Only `expression` and `time_zone_id` are operator-overridable. The cursor lives on `ScheduleStateEntity`, so a fire's plain advance never rewrites this row.
+One named recurring schedule of a definition, with its own identity: its declaration and operator lifecycle. `(definition_id, schedule_name)` is the natural key the path `namespace/job/schedule` resolves to, and registration keeps the row's identity across deploys; a renamed schedule is a new identity. The declaration (expression, time zone, kind, misfire policy, description) is code-owned and refreshed by catalog upsert; an operator pauses, resumes, and triggers, never edits timing. The cursor lives on `ScheduleStateEntity`, so a fire's plain advance never rewrites this row.
 
-**CLR type** `Acta.ScheduleEntity` · **Primary key** `pk_schedules` (`job_id`, `schedule_name`)
+**CLR type** `Acta.ScheduleEntity` · **Primary key** `pk_schedules` (`schedule_id`)
 
 **Columns**
 
 | Column | Kind | Size | Nullable | Default | Codes | Description |
 |---|---|---|---|---|---|---|
+| `schedule_id`<a id="column-acta-schedules--schedule-id"></a> | `Int32` | · | no | `Identity` | PK | Primary key and the schedule's identity, database-assigned at INSERT and never reused. `schedules_state` is keyed by it. Internal: the public selector is the three-part path. |
 | `namespace_id`<a id="column-acta-schedules--namespace-id"></a> | `Int32` | · | no | · | · | The owning slot Job's namespace, written once at insert. The startup reconcile reads a namespace's schedules by it. |
-| `job_id`<a id="column-acta-schedules--job-id"></a> | `Int64` | · | no | · | PK | Structural identity for the recurring Job row this schedule fires. The recurring Job row owns its schedules, and purge and retention delete them with it. The key's first column. |
+| `job_id`<a id="column-acta-schedules--job-id"></a> | `Int64` | · | no | · | · | The recurring Job row this schedule fires. The recurring Job row owns its schedules, and purge and retention delete them with it. |
 | `definition_id`<a id="column-acta-schedules--definition-id"></a> | `Int32` | · | no | · | · | Denormalized from `jobs.definition_id` at INSERT and never mutated, since a job's definition never changes. Retained for the per-namespace reconcile read and the catalog-upsert "find Definition-origin slot for this (ns, def)" lookup without joining `jobs`. |
-| `schedule_name`<a id="column-acta-schedules--schedule-name"></a> | `AsciiString` | 128 | no | · | PK | Operator-readable schedule name. For Definition-origin it matches the `[JobSchedule(name)]` attribute parameter. Kebab-case ASCII. The `sys.` prefix is reserved for system-owned schedule names, for parity with the other Name columns. The key's second column. |
-| `schedule_origin_code`<a id="column-acta-schedules--schedule-origin-code"></a> | `Byte` | · | no | · | [`ScheduleOriginCode`](./code-families.md#code-family-scheduleorigincode) (`schedule-origin`) | Origin of the row's existence: `Definition` (declared in a `[JobSchedule]` attribute, refreshed by catalog upsert) or `Operator`. Override columns apply to any origin. |
-| `expression`<a id="column-acta-schedules--expression"></a> | `AsciiString` | 128 | no | · | · | Cron or interval duration, human ("5m") or ISO 8601 ("PT5M") (the origin-of-truth default). |
-| `expression_override`<a id="column-acta-schedules--expression-override"></a> | `AsciiString` | 128 | yes | · | · | Operator-overridden cron or interval expression, human ("5m") or ISO 8601 ("PT5M"). NULL = no override. |
-| `expression_effective`<a id="column-acta-schedules--expression-effective"></a> | `AsciiString` | 128 | no | · | · | Effective expression (DB-computed); read-only. |
-| `time_zone_id`<a id="column-acta-schedules--time-zone-id"></a> | `AsciiString` | 128 | no | · | · | IANA tz id (the origin-of-truth default). "tz id" is the IANA standard term, a string-identifier exception to the integer-`_id` convention. |
-| `time_zone_id_override`<a id="column-acta-schedules--time-zone-id-override"></a> | `AsciiString` | 128 | yes | · | · | Operator-overridden IANA tz id. NULL = no override. |
-| `time_zone_id_effective`<a id="column-acta-schedules--time-zone-id-effective"></a> | `AsciiString` | 128 | no | · | · | Effective IANA tz id (DB-computed); read-only. |
-| `expression_kind_code`<a id="column-acta-schedules--expression-kind-code"></a> | `Byte` | · | no | · | [`ScheduleExpressionKindCode`](./code-families.md#code-family-scheduleexpressionkindcode) (`schedule-expression-kind`) | Whether `Expression` is a cron expression or an ISO 8601 interval. Set at compile time by the source generator and refreshed by catalog upsert. No override. |
+| `schedule_name`<a id="column-acta-schedules--schedule-name"></a> | `AsciiString` | 128 | no | · | · | Operator-readable schedule name, unique within its definition. For Definition-origin it matches the `[JobSchedule(name)]` attribute parameter. Kebab-case ASCII. The `sys.` prefix is reserved for system-owned schedule names, for parity with the other Name columns. |
+| `schedule_origin_code`<a id="column-acta-schedules--schedule-origin-code"></a> | `Byte` | · | no | · | [`ScheduleOriginCode`](./code-families.md#code-family-scheduleorigincode) (`schedule-origin`) | Origin of the row's existence: `Definition` (declared in a `[JobSchedule]` attribute, refreshed by catalog upsert) or `Operator`. |
+| `expression`<a id="column-acta-schedules--expression"></a> | `AsciiString` | 128 | no | · | · | Cron or interval duration, human ("5m") or ISO 8601 ("PT5M"). |
+| `time_zone_id`<a id="column-acta-schedules--time-zone-id"></a> | `AsciiString` | 128 | no | · | · | IANA tz id. "tz id" is the IANA standard term, a string-identifier exception to the integer-`_id` convention. |
+| `expression_kind_code`<a id="column-acta-schedules--expression-kind-code"></a> | `Byte` | · | no | · | [`ScheduleExpressionKindCode`](./code-families.md#code-family-scheduleexpressionkindcode) (`schedule-expression-kind`) | Whether `Expression` is a cron expression or an ISO 8601 interval. Set at compile time by the source generator and refreshed by catalog upsert. |
 | `misfire_strategy_code`<a id="column-acta-schedules--misfire-strategy-code"></a> | `Byte` | · | no | · | [`MisfireStrategyCode`](./code-families.md#code-family-misfirestrategycode) (`misfire-strategy`) | MisfireStrategy policy when occurrences are missed during downtime (catch-up once vs. skip). |
+| `interval_anchor_at_utc`<a id="column-acta-schedules--interval-anchor-at-utc"></a> | `UtcInstant` | · | yes | · | · | The instant an interval's ticks step from, written at the schedule's first registration and kept across deploys, so a late evaluation never shifts the sequence. NULL for a cron, which resolves in its zone. |
+| `misfire_grace_seconds`<a id="column-acta-schedules--misfire-grace-seconds"></a> | `Int32` | · | no | · | · | How long past its instant a due occurrence still counts as on time rather than missed: the misfire policy decides only what is older. Covers a slow admission pass, not downtime. |
+| `timing_fingerprint`<a id="column-acta-schedules--timing-fingerprint"></a> | `AsciiString` | 64 | no | · | · | `TimingFingerprint` of the declaration as registered: the expression, its kind, the zone and its rules, and the anchor. A registration whose fingerprint matches leaves the cursor alone; one that differs is a timing change. |
 | `schedule_status_code`<a id="column-acta-schedules--schedule-status-code"></a> | `Byte` | · | no | · | [`ScheduleStatusCode`](./code-families.md#code-family-schedulestatuscode) (`schedule-status`) | Lifecycle state. `Active` schedules fire; `Paused` ones do not and leave the slot's MIN; `Orphaned` marks a `Definition`-origin row whose declaration disappeared, which the walker ignores. A re-declared orphan resets to `Active`, dropping any pause: a schedule that came back warrants a fresh operator decision. |
 | `paused_until_utc`<a id="column-acta-schedules--paused-until-utc"></a> | `UtcInstant` | · | yes | · | · | When a timed pause expires. NULL means an indefinite pause (resume is operator-driven) or not paused. While set, the slot's cursor includes this instant so the scheduler wakes to auto-resume: the walker flips the row back to `Active` and reconciles the cursor by misfire policy. |
-| `description`<a id="column-acta-schedules--description"></a> | `UnicodeString` | 512 | yes | · | · | Dev-authored explanation of the schedule from the [JobSchedule] attribute; NULL when the attribute sets none. Distinct from `ChangeMessage`, which is operator-written. |
-| `change_message`<a id="column-acta-schedules--change-message"></a> | `UnicodeString` | 512 | yes | · | · | Operator-authored justification for the last pause/resume/overrides change: the same reasonMessage text the audit event records, kept on the row so the current state explains itself. |
+| `description`<a id="column-acta-schedules--description"></a> | `UnicodeString` | 512 | yes | · | · | Dev-authored explanation of the schedule from the [JobSchedule] attribute; NULL when the attribute sets none. Distinct from `PauseMessage`, which is operator-written. |
+| `pause_message`<a id="column-acta-schedules--pause-message"></a> | `UnicodeString` | 512 | yes | · | · | The operator's reason for the current pause, the same reasonMessage text the audit event records, kept on the row so a paused schedule explains itself. NULL whenever the row is not Paused: resume, an elapsed timed pause, and orphaning clear it; events keep the history. |
 | `created_at_utc`<a id="column-acta-schedules--created-at-utc"></a> | `UtcInstant` | · | no | `UtcNow` | · | When the schedule row was created. Set server-side. |
 | `modified_at_utc`<a id="column-acta-schedules--modified-at-utc"></a> | `UtcInstant` | · | no | `UtcNow` | · | When this row was last written; a plain advance writes only the cursor row. |
-| `version`<a id="column-acta-schedules--version"></a> | `Int32` | · | no | `0` | concurrency token | Optimistic-concurrency token, bumped by every write to this row: an operator edit, a registration that changes the declaration or moves the cursor, and the fire that ends an elapsed timed pause. A plain advance writes only the cursor row. A recurring completion advances a schedule only at the version its plan read, so an edit or registration that landed while the attempt ran wins. |
+| `version`<a id="column-acta-schedules--version"></a> | `Int32` | · | no | `0` | concurrency token | Optimistic-concurrency token, bumped by every write to this row: a pause or resume, a registration that changes the declaration or moves the cursor, and the fire that ends an elapsed timed pause. A plain advance writes only the cursor row. A recurring completion advances a schedule only at the version its plan read, so an edit or registration that landed while the attempt ran wins. |
+
+**Indexes**
+
+| Name | Columns | Uniqueness | Filter | Usage |
+|---|---|---|---|---|
+| `ix_schedules_job` | `job_id`, `schedule_id` | not unique | none | `read_api` |
+| `ux_schedules_definition_name` | `definition_id`, `schedule_name` | unique | none | `uniqueness` |
 
 **Check constraints**
 
@@ -478,26 +488,29 @@ One named recurring schedule of a definition's slot Job, keyed by that job and i
 
 ### `acta.schedules_state` <a id="entity-acta-schedules-state"></a>
 
-The cursor of one schedule, split from `ScheduleEntity` so the per-occurrence advance rewrites only this narrow row. Keyed like its config row, and created and deleted with it in the same transaction. No foreign key ties the pair: a key here would have to be composite, and the schema model declares single-column keys only. An orphaned schedule, and every schedule of a retired definition, carries a NULL cursor, which keeps it out of `ix_schedules_state_namespace_next`.
+The decision and wake state of one schedule, split from `ScheduleEntity` so an admission rewrites only this narrow row. Keyed by the schedule's id, and created and deleted with its config row in the same transaction. No foreign key ties the pair: every writer locks the config row first and the pair is deleted together, so a key would only add a check to the hot advance. An orphaned schedule, and every schedule of a retired definition, carries a NULL cursor and no wake.
 
-**CLR type** `Acta.ScheduleStateEntity` · **Primary key** `pk_schedules_state` (`job_id`, `schedule_name`)
+**CLR type** `Acta.ScheduleStateEntity` · **Primary key** `pk_schedules_state` (`schedule_id`)
 
 **Columns**
 
 | Column | Kind | Size | Nullable | Default | Codes | Description |
 |---|---|---|---|---|---|---|
-| `job_id`<a id="column-acta-schedules-state--job-id"></a> | `Int64` | · | no | · | PK | The slot Job of the schedule; the key's first column. |
-| `schedule_name`<a id="column-acta-schedules-state--schedule-name"></a> | `AsciiString` | 128 | no | · | PK | The schedule's name; the key's second column. |
-| `namespace_id`<a id="column-acta-schedules-state--namespace-id"></a> | `Int32` | · | no | · | · | Immutable copy of the schedule's namespace, written once at insert so the reads that walk a namespace's upcoming occurrences seek `ix_schedules_state_namespace_next` without joining the config row first. |
-| `next_occurrence_at_utc`<a id="column-acta-schedules-state--next-occurrence-at-utc"></a> | `UtcInstant` | · | yes | · | · | The next instant this schedule is due; the slot Job's `next_run_at_utc` is the MIN over its live schedules. NULL when the schedule offers no further occurrence: exhausted, orphaned, or its definition retired. Computed in C# (`NextOccurrenceCalculator` / `ScheduleWalker`); the SQL appliers only persist it. |
-| `last_advanced_occurrence_at_utc`<a id="column-acta-schedules-state--last-advanced-occurrence-at-utc"></a> | `UtcInstant` | · | yes | · | · | The most recent occurrence this schedule was advanced past, set to the outgoing `NextOccurrenceAtUtc` on every advance. An occurrence, not a run: the cursor also moves when the misfire policy skips, so this records the latest schedule point crossed rather than a completed execution. NULL until the schedule first advances, and again once it is orphaned or its definition retired. The only per-schedule history when several schedules share one recurring slot Job. |
-| `modified_at_utc`<a id="column-acta-schedules-state--modified-at-utc"></a> | `UtcInstant` | · | no | `UtcNow` | · | When the cursor last moved. Set server-side. |
+| `schedule_id`<a id="column-acta-schedules-state--schedule-id"></a> | `Int32` | · | no | · | PK | The schedule this state belongs to; the primary key, supplied by registration from the config row. |
+| `namespace_id`<a id="column-acta-schedules-state--namespace-id"></a> | `Int32` | · | no | · | · | Immutable copy of the schedule's namespace, written once at insert so the reads that walk a namespace's schedules seek their index without joining the config row first. |
+| `next_occurrence_at_utc`<a id="column-acta-schedules-state--next-occurrence-at-utc"></a> | `UtcInstant` | · | yes | · | · | The next undecided nominal occurrence. NULL when the source offers no further occurrence: exhausted, orphaned, or its definition retired. Computed in C# by the evaluator; the SQL appliers only persist it. |
+| `decided_through_at_utc`<a id="column-acta-schedules-state--decided-through-at-utc"></a> | `UtcInstant` | · | yes | · | · | The watermark every earlier occurrence was decided through: admitted, skipped, or coalesced into a firing. A decision, not a run, and not necessarily an occurrence itself. NULL until the schedule first decides, and again once it is orphaned or its definition retired. |
+| `next_evaluation_at_utc`<a id="column-acta-schedules-state--next-evaluation-at-utc"></a> | `UtcInstant` | · | yes | · | · | When the engine next looks at this schedule: the next occurrence, a timed pause's end, or an evaluation retry. NULL while nothing timed ends the wait, which keeps the row out of `ix_schedules_state_due`; settlement, a resume, or a restart writes it back. |
+| `evaluation_status_code`<a id="column-acta-schedules-state--evaluation-status-code"></a> | `Byte` | · | no | · | [`EvaluationStatusCode`](./code-families.md#code-family-evaluationstatuscode) (`schedule-evaluation-status`) | Why the next evaluation is when it is; the engine's state, apart from the operator lifecycle. |
+| `version`<a id="column-acta-schedules-state--version"></a> | `Int32` | · | no | `0` | concurrency token | Optimistic-concurrency token, bumped by every write to this row. An admission plan carries the version it read and applies only while the row still holds it, so a plan made before a settlement, a resume, or another host's admission replans instead of overwriting them. |
+| `modified_at_utc`<a id="column-acta-schedules-state--modified-at-utc"></a> | `UtcInstant` | · | no | `UtcNow` | · | When the row last moved. Set server-side. |
 
 **Indexes**
 
 | Name | Columns | Uniqueness | Filter | Usage |
 |---|---|---|---|---|
-| `ix_schedules_state_namespace_next` | `namespace_id`, `next_occurrence_at_utc`, `job_id`, `schedule_name` | not unique | `next_occurrence_at_utc IS NOT NULL` | `dashboard` |
+| `ix_schedules_state_namespace_next` | `namespace_id`, `next_occurrence_at_utc`, `schedule_id` | not unique | `next_occurrence_at_utc IS NOT NULL` | `dashboard` |
+| `ix_schedules_state_due` | `namespace_id`, `next_evaluation_at_utc`, `schedule_id` | not unique | `next_evaluation_at_utc IS NOT NULL` | `claim_hot_path` |
 
 ---
 

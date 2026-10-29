@@ -1,12 +1,10 @@
 <script lang="ts">
   import { createQuery } from '@tanstack/svelte-query';
   import { useControlMutation } from '../lib/useControlMutation.ts';
-  import ZonePicker from './ZonePicker.svelte';
   import { previewSchedule, type ScheduleControlResponse, type SchedulePreview } from '../api.ts';
   import { scheduleControlMessage } from '../lib/controlMessages.ts';
   import { capabilitiesQuery, canControl } from '../query.ts';
   import { scheduleControlState } from './scheduleControlState.ts';
-  import { buildOverridesPayload, overridesNeedsReload } from './scheduleOverrides.ts';
   import { displayFormatter, parseUtcDateTimeInput } from '../format.ts';
   import ConfirmAction from './ConfirmAction.svelte';
   import Icon from './Icon.svelte';
@@ -17,9 +15,6 @@
     jobName,
     scheduleName,
     status,
-    version,
-    expression = '',
-    timeZoneId = '',
     mode = 'all',
     onChanged = () => {}
   }: {
@@ -27,9 +22,6 @@
     jobName: string;
     scheduleName: string;
     status: string;
-    version: number;
-    expression?: string;
-    timeZoneId?: string;
     mode?: 'all' | 'editor' | 'actions';
     onChanged?: () => void;
   } = $props();
@@ -48,9 +40,8 @@
   let showEditor = $derived(mode !== 'actions');
   let showActions = $derived(mode !== 'editor');
 
-  // pause/resume/trigger/overrides all live at schedules/{ns}/{job}/{schedule}/{action}, share the
-  // note-only body shape (overrides layers expectedVersion/expression/timeZoneId on top via `extra`), and
-  // return ScheduleControlResponse; invalidating the 'schedules' key prefix refreshes every cached list.
+  // pause/resume/trigger all live at schedules/{ns}/{job}/{schedule}/{action}, share the note-only body
+  // shape, and return ScheduleControlResponse; invalidating the 'schedules' key prefix refreshes every cached list.
   const mutation = useControlMutation<
     { action: string; reason?: string; extra?: Record<string, unknown> },
     ScheduleControlResponse
@@ -125,71 +116,6 @@
       previewLoading = false;
     }
   }
-
-  // Overrides editor: set/clear expression and time zone. A stale expectedVersion comes back
-  // Rejected with the schedule's current version/state;
-  // that must never be silently resent, only reloaded (see scheduleOverrides.ts).
-  let overridesOpen = $state(false);
-  let expressionInput = $state('');
-  let timeZoneInput = $state('');
-  let draftVersion = $state(0);
-  let overridesNote = $state('');
-  let overridesMessage = $state('');
-  let overridesMessageKind = $state('');
-  let overridesReloadRequired = $state(false);
-
-  // Keep a closed editor synchronized with the refreshed row. Once open, the draft is left alone so
-  // no prop change can clobber in-flight operator input, and the save claims the version its fields
-  // were read at: a change that lands meanwhile comes back as a version conflict instead of being
-  // reverted.
-  $effect(() => {
-    if (overridesOpen) return;
-    expressionInput = expression;
-    timeZoneInput = timeZoneId;
-    draftVersion = version;
-  });
-
-  function toggleOverrides() {
-    overridesOpen = !overridesOpen;
-    if (!overridesOpen) return;
-    overridesNote = '';
-    overridesMessage = '';
-    overridesReloadRequired = false;
-  }
-
-  async function saveOverrides() {
-    overridesMessage = '';
-    try {
-      const result = await mutation.mutateAsync({
-        action: 'overrides',
-        reason: overridesNote,
-        extra: { expectedVersion: draftVersion, ...buildOverridesPayload({ expression: expressionInput, timeZoneId: timeZoneInput }) }
-      });
-      if (overridesNeedsReload(result.action)) {
-        // Never clobber: the row changed or went away since it was loaded - surface it and refetch,
-        // do not resend.
-        overridesMessage = `${scheduleControlMessage('overrides', result.action)} Reload and try again.`;
-        overridesMessageKind = 'warn';
-        overridesReloadRequired = true;
-      } else {
-        overridesMessage = scheduleControlMessage('overrides', result.action);
-        overridesMessageKind = 'ok';
-        overridesReloadRequired = false;
-        overridesOpen = false;
-        onChanged();
-      }
-    } catch (e) {
-      overridesMessage = (e as Error).message;
-      overridesMessageKind = 'bad';
-    }
-  }
-
-  function reloadOverrides() {
-    overridesOpen = false;
-    overridesReloadRequired = false;
-    overridesMessage = '';
-    onChanged();
-  }
 </script>
 
 <div class="control-row">
@@ -203,9 +129,6 @@
     {#if canTrigger}
       <button disabled={busy} onclick={() => (confirming = 'trigger')}><Icon name="play" />Trigger now</button>
     {/if}
-  {/if}
-  {#if showEditor && canControlNow}
-    <button disabled={busy} onclick={toggleOverrides}><Icon name="chevron-right" />{overridesOpen ? 'Hide' : 'Show'} overrides</button>
   {/if}
   {#if showEditor}
     <button onclick={togglePreview}><Icon name="clock" />{previewOpen ? 'Hide' : 'Preview'} next 10 runs</button>
@@ -247,7 +170,7 @@
       <div class="control-message bad" role="status">{previewError}</div>
     {:else if previewData}
       <div class="preview-head">
-        <span>Effective: <span class="mono">{previewData.expression}</span> · {previewData.timeZoneId}</span>
+        <span>Expression: <span class="mono">{previewData.expression}</span> · {previewData.timeZoneId}</span>
         <label class="preview-zone">
           Show in
           <select bind:value={previewZone} aria-label="Preview time zone">
@@ -272,42 +195,13 @@
   </div>
 {/if}
 
-{#if showEditor && overridesOpen}
-  <div class="overrides-panel">
-    <label class="until-field">
-      <span class="until-text">Expression override</span>
-      <input bind:value={expressionInput} placeholder="blank clears the override" />
-    </label>
-    <div class="until-field">
-      <span class="until-text">Time zone override</span>
-      <ZonePicker bind:value={timeZoneInput} disabled={busy} />
-    </div>
-    <label class="until-field">
-      <span class="until-text">Note</span>
-      <input bind:value={overridesNote} placeholder="recorded on the audit event" />
-    </label>
-    <div class="overrides-actions">
-      {#if overridesReloadRequired}<button disabled={busy} onclick={reloadOverrides}>Reload current values</button>{/if}
-      <button disabled={busy} onclick={saveOverrides}>Save overrides</button>
-      <button disabled={busy} onclick={() => (overridesOpen = false)}>Cancel</button>
-    </div>
-    {#if overridesMessage}
-      <div class="control-message {overridesMessageKind}" role="status">{overridesMessage}</div>
-    {/if}
-  </div>
-{/if}
-
 <style>
-  .until,
-  .overrides-panel {
+  .until {
     display: flex;
     gap: 8px;
     align-items: center;
     flex-wrap: wrap;
     margin-bottom: 12px;
-  }
-  .overrides-panel {
-    align-items: flex-start;
   }
   .until-field {
     display: inline-flex;
@@ -338,11 +232,6 @@
     color: var(--bad);
     font-size: var(--text-sm);
     margin: -6px 0 12px;
-  }
-  .overrides-actions {
-    display: flex;
-    gap: 8px;
-    width: 100%;
   }
   .preview-panel {
     margin-bottom: 12px;

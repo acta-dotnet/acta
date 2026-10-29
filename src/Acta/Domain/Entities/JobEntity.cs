@@ -22,6 +22,8 @@ namespace Acta;
     Filter = "deduplication_key IS NOT NULL AND parent_job_id IS NOT NULL",
     Usage = "uniqueness"
 )]
+// One permanent slot per scheduled definition: registration inserts through it and finds the slot by it.
+[DbUniqueIndex(Name = "ux_jobs_slot", Columns = ["definition_id"], Filter = "job_kind_code = 20", Usage = "uniqueness")]
 [DbIndex(Name = "ix_jobs_parent", Columns = ["parent_job_id"], Filter = "parent_job_id IS NOT NULL", Usage = "child_fanout")]
 [DbIndex(
     Name = "ix_jobs_namespace_created",
@@ -50,6 +52,13 @@ internal sealed class JobEntity : IEntity<long>
     /// </summary>
     [DbColumn("job_ref", DbKind.Guid)]
     public Guid JobRef { get; init; }
+
+    /// <summary>
+    /// Ordinary, or the permanent slot of a scheduled definition (<c>ux_jobs_slot</c> allows one per definition).
+    /// Written at insert, never mutated: what the row is does not depend on the schedules it owns or on its key.
+    /// </summary>
+    [DbColumn("job_kind_code")]
+    public JobKindCode Kind { get; init; }
 
     // ---------- Scope / routing ----------
 

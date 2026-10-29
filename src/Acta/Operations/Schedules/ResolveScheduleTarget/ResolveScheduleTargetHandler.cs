@@ -1,23 +1,29 @@
 namespace Acta;
 
 /// <summary>
-/// Finds the live schedule a lookup names, with what a control verb needs to recompute the slot cursor in C#, cron
-/// math the database cannot do: the owning recurring slot job, the database clock, and the slot's live (non-orphaned)
-/// schedules; no SQL of its own. Null when the job or the schedule is absent; both surface as NotFound.
+/// Finds the live schedule a path names: the definition's permanent slot, and among the slot's live (non-orphaned)
+/// schedules the one named, with the database clock a verb decides against. Null when the definition, its slot, or
+/// the schedule is absent; each surfaces as NotFound.
 /// </summary>
-internal sealed class ResolveScheduleTargetHandler(GetJobIdHandler getJobId, IActaClock clock, GetLiveSchedulesHandler liveSchedules)
+internal sealed class ResolveScheduleTargetHandler(
+    ResolveSlotIdHandler resolveSlotId,
+    IActaClock clock,
+    GetLiveSchedulesHandler liveSchedules
+)
 {
     public async ValueTask<ResolveScheduleTargetResponse?> HandleAsync(ResolveScheduleTargetQuery query, CancellationToken ct)
     {
         var schedule = query.Schedule;
         ArgumentNullException.ThrowIfNull(schedule);
+        var jobNamespace = NameSyntax.Canonicalize(schedule.JobNamespace, nameof(schedule.JobNamespace));
+        var jobName = NameSyntax.Canonicalize(schedule.JobName, nameof(schedule.JobName));
         var scheduleName = NameSyntax.Canonicalize(
             schedule.ScheduleName,
             nameof(schedule.ScheduleName),
             maxLength: NameSyntax.ExtendedMaxLength
         );
 
-        if (await getJobId.HandleAsync(new GetJobIdQuery(schedule.Job), ct) is not { JobId: var jobId })
+        if (await resolveSlotId.HandleAsync(new ResolveSlotIdQuery(jobNamespace, jobName), ct) is not { } jobId)
         {
             return null;
         }

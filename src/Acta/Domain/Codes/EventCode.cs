@@ -85,9 +85,6 @@ public enum EventCode : byte
     )]
     JobFailed = 44,
 
-    [Code("job.recurring-rolled-over", "Recurring Job's NextRunAtUtc advanced to the next firing instant.")]
-    JobRecurringRolledOver = 50,
-
     [Code(
         "job.suspended",
         "The attempt parked on a durable wait: a ctx.SleepAsync timer re-armed the job Ready at its due instant, or a signal or child wait left it Suspended. Budget-neutral; details carry to."
@@ -132,7 +129,7 @@ public enum EventCode : byte
 
     [Code(
         "job.state-reset",
-        "Handler called ctx.ResetStateAsync; the job's checkpoints and steps were cleared so the next execution starts as new."
+        "Handler called ctx.ResetStateAsync; the job's checkpoints and steps were cleared so the next execution starts as new. The scheduler's firing envelope stays."
     )]
     JobStateReset = 81,
 
@@ -156,16 +153,28 @@ public enum EventCode : byte
     SchedulePauseExpired = 102,
 
     [Code(
-        "schedule.overrides-updated",
-        "Operator changed a schedule's expression/timezone overrides; EventMessage summarizes the change and details carry the schedule name."
-    )]
-    ScheduleOverridesUpdated = 103,
-
-    [Code(
         "schedule.triggered",
-        "Operator fired a schedule manually; the slot's cursor was pulled to now. Details carry the schedule name."
+        "Operator admitted a manual firing of the slot; no schedule cursor moved. Details carry the schedule name."
     )]
     ScheduleTriggered = 104,
+
+    [Code(
+        "schedule.admitted",
+        "The admission engine selected one of the schedule's occurrences for a firing; details carry the schedule, the occurrence, the covered-through boundary, and the firing id."
+    )]
+    ScheduleAdmitted = 105,
+
+    [Code(
+        "schedule.skipped",
+        "The misfire policy discarded a range of the schedule's occurrences without work; details carry the schedule and the range."
+    )]
+    ScheduleSkipped = 106,
+
+    [Code(
+        "schedule.retimed",
+        "A deploy changed the schedule's timing; the undecided occurrences of the old timing were discarded and the cursor moved to the first occurrence of the new one. Details carry the schedule name."
+    )]
+    ScheduleRetimed = 107,
 
     /// <summary>The worker is the subject of every worker.* event.</summary>
     [Code("worker.started", "Worker process registered; a workers row was appended (Status: Active).")]

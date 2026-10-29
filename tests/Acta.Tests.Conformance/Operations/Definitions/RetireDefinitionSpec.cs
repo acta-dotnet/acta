@@ -193,8 +193,8 @@ public sealed class RetireDefinitionSpec : ActaRuntimeTestBase<ConformanceFixtur
         await AssertCancelledByTheWorkerAsync(stranded.JobId, ct);
     }
 
-    [Fact(DisplayName = "A recurring slot retired mid-occurrence lands Cancelled instead of rolling over")]
-    public async Task A_recurring_slot_retired_mid_occurrence_does_not_roll_over()
+    [Fact(DisplayName = "A recurring slot retired mid-occurrence lands Cancelled instead of returning to Idle")]
+    public async Task A_recurring_slot_retired_mid_occurrence_lands_cancelled()
     {
         var ct = TestContext.Current.CancellationToken;
         RecurringPingHandler.Reset(TestNamespace);
@@ -209,7 +209,6 @@ public sealed class RetireDefinitionSpec : ActaRuntimeTestBase<ConformanceFixtur
         Assert.Equal(RunOnceStatus.Completed, await Runtime.RunOnceAsync(slotId, ct));
         Assert.Single(RecurringPingHandler.TriggersFor(TestNamespace));
         await AssertCancelledByTheWorkerAsync(slotId, ct);
-        Assert.Equal(0, await CountEventsAsync(slotId, EventCode.JobRecurringRolledOver, ct));
     }
 
     [Fact(DisplayName = "A retired definition's schedules keep no cursor, which takes them out of the upcoming-occurrence index")]
@@ -228,7 +227,7 @@ public sealed class RetireDefinitionSpec : ActaRuntimeTestBase<ConformanceFixtur
             s =>
             {
                 Assert.Null(s.NextOccurrenceAtUtc);
-                Assert.Null(s.LastAdvancedOccurrenceAtUtc);
+                Assert.Null(s.DecidedThroughAtUtc);
             }
         );
     }

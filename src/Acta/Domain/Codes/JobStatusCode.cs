@@ -27,6 +27,12 @@ public enum JobStatusCode : byte
     [Code("paused", "Not running, awaiting an external trigger to resume.")]
     Paused = 30,
 
+    [Code(
+        "idle",
+        "A permanent slot between firings: no outstanding firing, no lease, no claim time. Admission makes it Ready; it is never terminal."
+    )]
+    Idle = 40,
+
     [Code("executing", "Claimed by a worker under a live lease; its handler is running or about to start.")]
     Executing = 50,
 

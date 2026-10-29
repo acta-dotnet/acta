@@ -19,7 +19,7 @@ export function matchesTimelineCategory(evt: TimelineEvent, category: TimelineCa
     return /job\.(paused|resumed|restarted|cancelled|rescheduled|reprioritized|purged)/.test(code);
   }
   if (category === 'signal') return code.startsWith('job.signal-');
-  if (category === 'schedule') return code.startsWith('schedule.') || code === 'job.recurring-rolled-over';
+  if (category === 'schedule') return code.startsWith('schedule.');
   return true;
 }
 
@@ -54,8 +54,6 @@ export function timelinePresentation(evt: TimelineEvent): TimelinePresentation {
       return { icon: 'x-circle', tone: 'bad', title: 'Job failed' };
     case 'job.rescheduled':
       return { icon: 'counter-clockwise-clock', tone: 'warn', title: 'Rescheduled' };
-    case 'job.recurring-rolled-over':
-      return { icon: 'calendar', tone: 'held', title: 'Recurrence advanced' };
     case 'job.suspended':
       return { icon: 'clock', tone: 'held', title: 'Sleeping' };
     case 'job.cancelled':

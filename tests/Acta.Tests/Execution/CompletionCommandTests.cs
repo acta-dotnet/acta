@@ -37,7 +37,7 @@ public sealed class CompletionCommandTests
             Result = new byte[] { 4, 5, 6 },
             DurationMs = 9,
         };
-        var expected = WorkerFinalizer.BuildCommand(descriptor, job, null, completion, default);
+        var expected = WorkerFinalizer.BuildCommand(descriptor, job, completion, default);
         Assert.Equal(completion.Result, expected.Result);
         Assert.Equal(completion.ResultFormatId, expected.ResultFormatId);
         Assert.Equal(123, expected.RetentionSeconds);
@@ -50,7 +50,6 @@ public sealed class CompletionCommandTests
         var cancelled = WorkerFinalizer.BuildCommand(
             descriptor,
             job,
-            null,
             completion with
             {
                 HandlerStatusCode = JobStatusCode.Cancelled,
@@ -62,7 +61,6 @@ public sealed class CompletionCommandTests
         var rescheduled = WorkerFinalizer.BuildCommand(
             descriptor,
             job,
-            null,
             completion with
             {
                 Outcome = CompletionKind.Rescheduled,
@@ -74,7 +72,7 @@ public sealed class CompletionCommandTests
         Assert.True(rescheduled.Result.IsEmpty);
 
         var oneRecord = Allocations(() => expected with { });
-        var actual = Allocations(() => WorkerFinalizer.BuildCommand(descriptor, job, null, completion, default));
+        var actual = Allocations(() => WorkerFinalizer.BuildCommand(descriptor, job, completion, default));
         Assert.True(
             actual <= oneRecord + 1024,
             $"Successful completions allocated {actual:N0} bytes; one command each needs {oneRecord:N0}."

@@ -51,7 +51,7 @@ public sealed class RuntimeJobContextLockReleaseTests
             new ThrowingSerializerRegistry(),
             locks,
             cancellationToken: CancellationToken.None,
-            triggeringScheduleNames: [],
+            firing: null,
             deadlineAtUtc: null,
             log: logger
         );

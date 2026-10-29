@@ -5,12 +5,12 @@ using Xunit;
 
 namespace Acta.Tests.Conformance.Operations.Schedules;
 
-/// <summary>Conformance for operator schedule resume: the cursor reconciles by the schedule's misfire policy.</summary>
+/// <summary>Conformance for operator schedule resume: the remembered cursor stays, and the admitter decides it under the misfire policy at its next pass.</summary>
 [ConformanceSpec(
     "schedule.resume",
-    "Resume reconciles a paused schedule's cursor by its misfire policy",
+    "Resume returns a paused schedule to the admitter with its cursor kept",
     Area = "Scheduling",
-    Contract = "Resuming a schedule reconciles its cursor by misfire: Skip advances past now, and CatchUpOnce keeps the missed past instant."
+    Contract = "Resuming a schedule keeps its cursor, marks it for evaluation now, and leaves the misfire decision to the admitter's next pass."
 )]
 public sealed class ResumeScheduleSpec : ActaStorageTestBase<ConformanceFixture>
 {
@@ -27,8 +27,7 @@ public sealed class ResumeScheduleSpec : ActaStorageTestBase<ConformanceFixture>
 
     private async Task<DateTime> NowAsync(CancellationToken ct) => await Services.GetRequiredService<IActaClock>().GetUtcNowAsync(ct);
 
-    private ScheduleLookup Lookup(string jobName, string scheduleName) =>
-        new(JobLookup.ByDeduplicationKey(TestNamespace, jobName), scheduleName);
+    private ScheduleLookup Lookup(string jobName, string scheduleName) => new(TestNamespace, jobName, scheduleName);
 
     private static SlotSchedule Slot(
         string name,
@@ -48,21 +47,16 @@ public sealed class ResumeScheduleSpec : ActaStorageTestBase<ConformanceFixture>
         ISqlDialect dialect,
         int defId,
         string jobName,
-        DateTime? slotMin,
         IReadOnlyList<SlotSchedule> schedules,
-        JobStatusCode slotStatus,
         CancellationToken ct
     )
     {
         var definition = new DefinitionSchedules(
             NamespaceId: TestNamespaceId,
             DefinitionId: defId,
-            JobName: jobName,
             InputFormatId: 0,
             Input: ReadOnlyMemory<byte>.Empty,
             EventRecording: EventRecordingCode.Audit,
-            SlotStatus: slotStatus,
-            SlotMinNextRunAtUtc: slotMin,
             Schedules: schedules
         );
         await ScheduleTestOps.RegisterAsync(Services, [definition], ct);
@@ -95,16 +89,10 @@ public sealed class ResumeScheduleSpec : ActaStorageTestBase<ConformanceFixture>
                 []
             ),
         };
-        var (slotSchedules, slotStatus, slotNextRun) = ScheduleWalker.Reconcile(declared, storedForDef, now);
-        await RegisterAsync(db, dialect, defId, jobName, slotNextRun, slotSchedules, slotStatus, ct);
+        await RegisterAsync(db, dialect, defId, jobName, ScheduleRegistrationPlan.Plan(declared, storedForDef, now), ct);
     }
 
-    private async Task<long> SlotIdAsync(string jobName, CancellationToken ct)
-    {
-        var id = (await Jobs().GetJobIdAsync(JobLookup.ByDeduplicationKey(TestNamespace, jobName), ct))?.JobId;
-        Assert.NotNull(id);
-        return id!.Value;
-    }
+    private Task<long> SlotIdAsync(string jobName, CancellationToken ct) => ScheduleTestOps.SlotIdAsync(Db, TestNamespace, jobName, ct);
 
     private IJobs Jobs() => Services.GetRequiredService<IJobs>();
 
@@ -138,50 +126,33 @@ public sealed class ResumeScheduleSpec : ActaStorageTestBase<ConformanceFixture>
             SerializeOutput: null
         );
 
-    [Fact(DisplayName = "Resume reconciles the cursor by misfire: Skip advances past now and CatchUpOnce keeps the past instant")]
-    public async Task Resume_with_skip_advances_past_now_and_fire_once_catch_up_keeps_the_past_instant()
+    [Theory(
+        DisplayName = "Resume keeps the remembered cursor, whatever the misfire policy, and puts the schedule back in the admitter's seek now"
+    )]
+    [InlineData(MisfireStrategyCode.Skip)]
+    [InlineData(MisfireStrategyCode.CatchUpOnce)]
+    public async Task Resume_keeps_the_cursor_and_returns_the_schedule_to_the_admitter(MisfireStrategyCode misfire)
     {
         var ct = TestContext.Current.CancellationToken;
         var (db, dialect) = Store();
         var now = FloorSeconds(await NowAsync(ct));
+        var jobName = Unique(misfire == MisfireStrategyCode.Skip ? "skip" : "catch");
+        var defId = await CreateDefinitionAsync(db, dialect, jobName, ct);
+        var missed = now.AddMinutes(-35);
+        await RegisterAsync(db, dialect, defId, jobName, [Slot("only", missed, misfire)], ct);
+        await Schedules.PauseAsync(Lookup(jobName, "only"), ct: ct);
 
-        // Skip: a missed cursor reconciles forward to the next occurrence after now.
-        var skipJob = Unique("skip");
-        var skipDef = await CreateDefinitionAsync(db, dialect, skipJob, ct);
-        await RegisterAsync(
-            db,
-            dialect,
-            skipDef,
-            skipJob,
-            now.AddMinutes(-37),
-            [Slot("only", now.AddMinutes(-37), MisfireStrategyCode.Skip)],
-            JobStatusCode.Ready,
-            ct
-        );
-        await Schedules.PauseAsync(Lookup(skipJob, "only"), ct: ct);
-        var skipResumed = await Schedules.ResumeAsync(Lookup(skipJob, "only"), ct: ct);
-        Assert.Equal(ControlAction.Applied, skipResumed.Action);
-        Assert.NotNull(skipResumed.NextOccurrenceAtUtc);
-        Assert.True(skipResumed.NextOccurrenceAtUtc > now, "Skip resume advances strictly past now");
+        var resumed = await Schedules.ResumeAsync(Lookup(jobName, "only"), ct: ct);
 
-        // CatchUpOnce: the past instant is kept so the slot fires once on resume.
-        var catchJob = Unique("catch");
-        var catchDef = await CreateDefinitionAsync(db, dialect, catchJob, ct);
-        var past = now.AddMinutes(-35); // a real */5 occurrence relative to a 5-minute aligned base is not required here
-        await RegisterAsync(
-            db,
-            dialect,
-            catchDef,
-            catchJob,
-            past,
-            [Slot("only", past, MisfireStrategyCode.CatchUpOnce)],
-            JobStatusCode.Ready,
-            ct
-        );
-        await Schedules.PauseAsync(Lookup(catchJob, "only"), ct: ct);
-        var catchResumed = await Schedules.ResumeAsync(Lookup(catchJob, "only"), ct: ct);
-        Assert.Equal(ControlAction.Applied, catchResumed.Action);
-        Assert.NotNull(catchResumed.NextOccurrenceAtUtc);
-        Assert.True(catchResumed.NextOccurrenceAtUtc <= now, "CatchUpOnce resume keeps a past instant for one catch-up fire");
+        Assert.Equal(ControlAction.Applied, resumed.Action);
+        Assert.Equal(ScheduleStatusCode.Active, resumed.Status);
+        // The missed occurrence is the admitter's to decide under the policy at its next pass, not the verb's.
+        Assert.Equal(missed, resumed.NextOccurrenceAtUtc);
+        var schedule = await ScheduleAsync(Db, jobName, "only", ct);
+        Assert.Equal(missed, schedule.NextOccurrenceAtUtc);
+        Assert.Equal(EvaluationStatusCode.Scheduled, schedule.EvaluationStatus);
+        Assert.InRange(schedule.NextEvaluationAtUtc!.Value, now, now.AddMinutes(1));
+        var slot = await SlotAsync(jobName, ct);
+        Assert.Equal(JobStatusCode.Idle, slot.Status);
     }
 }

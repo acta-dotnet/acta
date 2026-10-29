@@ -123,7 +123,7 @@ SELECT
        lands whatever outcome the waiting overload chooses. */
     CASE
         WHEN s.wait_resolved = 1 THEN 20 /* JobStatusCode.Suspended */
-        WHEN s.is_recurring = 0 AND s.new_failure_count >= s.max_attempts THEN 200 /* JobStatusCode.Failed */
+        WHEN s.new_failure_count >= s.max_attempts THEN CASE WHEN s.is_slot = 1 THEN 40 /* JobStatusCode.Idle */ ELSE 200 /* JobStatusCode.Failed */ END
         ELSE 10 /* JobStatusCode.Ready */ END AS to_status
 FROM (
     SELECT
@@ -146,14 +146,8 @@ FROM (
                 AND c.checkpoint_status_code = 30 /* CheckpointStatusCode.Expired */
                 AND c.due_at_utc = r.next_run_at_utc
         ) THEN 1 ELSE 0 END AS wait_resolved,
-        /* MaxAttempts is the one-off retry budget and a slot's failure_count accumulates across
-           occurrences, so a recurring reclaim always re-arms Ready instead of terminally failing the
-           schedule - mirroring ComputeRecurringOutcome on the worker path. */
-        CASE WHEN EXISTS (
-            SELECT 1
-            FROM {{schema}}.schedules sc
-            WHERE sc.job_id = r.job_id
-        ) THEN 1 ELSE 0 END AS is_recurring
+        -- A slot's spent budget returns it to Idle with its firing settled Failed, never to Failed itself.
+        CASE WHEN j.job_kind_code = 20 /* JobKindCode.PermanentSlot */ THEN 1 ELSE 0 END AS is_slot
     FROM {{schema}}.jobs_state r
     INNER JOIN {{schema}}.jobs j ON j.job_id = r.job_id
     INNER JOIN {{schema}}.definitions jd ON jd.definition_id = j.definition_id
@@ -198,6 +192,7 @@ SELECT
     CAST(
         CASE rj.to_status
             WHEN 200 /* JobStatusCode.Failed */ THEN '{"reason":"lease-expired"}'
+            WHEN 40 /* JobStatusCode.Idle */ THEN '{"reason":"lease-expired","to":"idle"}'
             WHEN 20 /* JobStatusCode.Suspended */ THEN '{"reason":"lease-expired","to":"suspended"}'
             ELSE '{"reason":"lease-expired","to":"ready"}'
         END AS BLOB
@@ -224,6 +219,7 @@ SET
         ELSE rj.new_failure_count END,
     next_run_at_utc = CASE
         WHEN rj.to_status = 10 /* JobStatusCode.Ready */ THEN {{now}}
+        WHEN rj.to_status = 40 /* JobStatusCode.Idle */ THEN NULL
         ELSE jobs_state.next_run_at_utc END,
     leased_by_worker_id = NULL,
     lease_expires_at_utc = NULL,
@@ -237,6 +233,33 @@ JOIN {{schema}}.definitions jd ON jd.definition_id = j.definition_id
 JOIN temp._reclaim_jobs rj ON rj.job_id = j.job_id
 WHERE
     j.job_id = jobs_state.job_id;
+
+-- A slot's lost attempt that spent the budget settles its firing Failed and wakes the members parked on the slot.
+UPDATE {{schema}}.checkpoints
+SET
+    checkpoint_status_code = 120 /* CheckpointStatusCode.Failed */,
+    modified_at_utc = {{now}},
+    version = version + 1
+WHERE
+    checkpoint_kind_code = 60 /* CheckpointKindCode.Firing */
+    AND checkpoint_name = 'sys.firing'
+    AND checkpoint_status_code = 10 /* CheckpointStatusCode.Pending */
+    AND job_id IN (SELECT rj.job_id FROM temp._reclaim_jobs rj WHERE rj.to_status = 40 /* JobStatusCode.Idle */);
+
+UPDATE {{schema}}.schedules_state
+SET
+    next_evaluation_at_utc = {{now}},
+    evaluation_status_code = 10 /* EvaluationStatusCode.Scheduled */,
+    modified_at_utc = {{now}},
+    version = version + 1
+WHERE
+    evaluation_status_code IN (20 /* EvaluationStatusCode.WaitingForCapacity */, 50 /* EvaluationStatusCode.SlotUnavailable */)
+    AND schedule_id IN (
+        SELECT js.schedule_id
+        FROM {{schema}}.schedules js
+        JOIN temp._reclaim_jobs rj ON rj.job_id = js.job_id
+        WHERE rj.to_status = 40 /* JobStatusCode.Idle */
+    );
 
 -- A head reclaimed to Failed hands its lane to the lowest-id unfinished member when that member is
 -- Blocked and no member runs; a head re-armed Ready keeps its lane.

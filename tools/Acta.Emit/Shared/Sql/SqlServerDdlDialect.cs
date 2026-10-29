@@ -204,17 +204,13 @@ internal sealed class SqlServerDdlDialect : SqlDdlDialect
 
             -- Per-definition recurring slot batch: one row per definition reconciled in a single
             -- acta.register_schedules call (all definitions share one namespace, passed as a scalar).
-            -- deduplication_key is the slot job's natural key (the job name).
             IF TYPE_ID(N'{{schema}}.register_slots') IS NULL
             EXEC(N'CREATE TYPE {{schema}}.register_slots AS TABLE (
                 definition_id    INT              NOT NULL PRIMARY KEY,
                 job_ref              UNIQUEIDENTIFIER NOT NULL,
-                deduplication_key           VARCHAR(128)     COLLATE Latin1_General_100_BIN2_UTF8 NOT NULL,
                 input_format_id      TINYINT        NOT NULL,
                 input                VARBINARY(MAX) NULL,
-                event_recording_code TINYINT        NOT NULL,
-                slot_status_code     TINYINT        NOT NULL,
-                slot_next_run_at_utc DATETIME2(3)   NULL
+                event_recording_code TINYINT        NOT NULL
             );');
             GO
 
@@ -231,6 +227,8 @@ internal sealed class SqlServerDdlDialect : SqlDdlDialect
                 misfire_strategy_code         TINYINT      NOT NULL,
                 next_occurrence_at_utc        DATETIME2(3) NULL,
                 description                   NVARCHAR(512) NULL,
+                interval_anchor_at_utc        DATETIME2(3) NULL,
+                timing_fingerprint            VARCHAR(64)  NOT NULL,
                 PRIMARY KEY (definition_id, schedule_name)
             );');
             GO

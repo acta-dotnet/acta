@@ -5,18 +5,21 @@ SELECT page.*
 FROM (
     (
         SELECT
-            st.job_id,
+            s.schedule_id,
+            s.job_id,
             s.definition_id,
             ns.namespace_name AS job_namespace,
             jd.definition_name AS job_name,
-            st.schedule_name,
+            s.schedule_name,
             s.schedule_origin_code AS origin,
             s.expression_kind_code AS expression_kind,
-            s.expression_effective AS expression,
-            s.time_zone_id_effective AS time_zone_id,
+            s.expression,
+            s.time_zone_id,
             s.misfire_strategy_code AS misfire_strategy,
             st.next_occurrence_at_utc,
-            st.last_advanced_occurrence_at_utc,
+            st.decided_through_at_utc,
+            st.next_evaluation_at_utc,
+            st.evaluation_status_code AS evaluation_status,
             s.schedule_status_code AS status,
             s.paused_until_utc,
             s.created_at_utc,
@@ -24,10 +27,10 @@ FROM (
             s.version,
             sj.job_ref
         FROM {{schema}}.schedules_state st
-        JOIN {{schema}}.schedules s ON s.job_id = st.job_id AND s.schedule_name = st.schedule_name
+        JOIN {{schema}}.schedules s ON s.schedule_id = st.schedule_id
         JOIN {{schema}}.namespaces ns ON ns.namespace_id = st.namespace_id
         JOIN {{schema}}.definitions jd ON jd.definition_id = s.definition_id
-        LEFT JOIN {{schema}}.jobs sj ON sj.job_id = st.job_id
+        LEFT JOIN {{schema}}.jobs sj ON sj.job_id = s.job_id
         WHERE
             @p_live_only IS NOT NULL
             AND st.next_occurrence_at_utc IS NOT NULL
@@ -41,15 +44,14 @@ FROM (
             AND (@p_schedule_origin_code IS NULL OR s.schedule_origin_code = @p_schedule_origin_code)
             AND (@p_cursor_next_occurrence_at_utc IS NULL
                 OR st.next_occurrence_at_utc > @p_cursor_next_occurrence_at_utc
-                OR (st.next_occurrence_at_utc = @p_cursor_next_occurrence_at_utc AND st.job_id > @p_cursor_id)
-                OR (st.next_occurrence_at_utc = @p_cursor_next_occurrence_at_utc AND st.job_id = @p_cursor_id
-                    AND st.schedule_name > @p_cursor_schedule_name))
-        ORDER BY st.next_occurrence_at_utc ASC, st.job_id ASC, st.schedule_name ASC
+                OR (st.next_occurrence_at_utc = @p_cursor_next_occurrence_at_utc AND st.schedule_id > @p_cursor_id))
+        ORDER BY st.next_occurrence_at_utc ASC, st.schedule_id ASC
         LIMIT @p_take
     )
     UNION ALL
     (
         SELECT
+            s.schedule_id,
             s.job_id,
             s.definition_id,
             ns.namespace_name AS job_namespace,
@@ -57,11 +59,13 @@ FROM (
             s.schedule_name,
             s.schedule_origin_code AS origin,
             s.expression_kind_code AS expression_kind,
-            s.expression_effective AS expression,
-            s.time_zone_id_effective AS time_zone_id,
+            s.expression,
+            s.time_zone_id,
             s.misfire_strategy_code AS misfire_strategy,
             st.next_occurrence_at_utc,
-            st.last_advanced_occurrence_at_utc,
+            st.decided_through_at_utc,
+            st.next_evaluation_at_utc,
+            st.evaluation_status_code AS evaluation_status,
             s.schedule_status_code AS status,
             s.paused_until_utc,
             s.created_at_utc,
@@ -71,7 +75,7 @@ FROM (
         FROM {{schema}}.schedules s
         JOIN {{schema}}.namespaces ns ON ns.namespace_id = s.namespace_id
         JOIN {{schema}}.definitions jd ON jd.definition_id = s.definition_id
-        LEFT JOIN {{schema}}.schedules_state st ON st.job_id = s.job_id AND st.schedule_name = s.schedule_name
+        LEFT JOIN {{schema}}.schedules_state st ON st.schedule_id = s.schedule_id
         LEFT JOIN {{schema}}.jobs sj ON sj.job_id = s.job_id
         WHERE
             @p_live_only IS NULL
@@ -81,20 +85,18 @@ FROM (
             )
             AND (@p_job_name IS NULL OR jd.definition_name = @p_job_name)
             AND (@p_schedule_origin_code IS NULL OR s.schedule_origin_code = @p_schedule_origin_code)
-            AND (@p_cursor_id IS NULL
-                OR s.job_id > @p_cursor_id
-                OR (s.job_id = @p_cursor_id AND s.schedule_name > @p_cursor_schedule_name))
-        ORDER BY s.job_id ASC, s.schedule_name ASC
+            AND (@p_cursor_id IS NULL OR s.schedule_id > @p_cursor_id)
+        ORDER BY s.schedule_id ASC
         LIMIT @p_take
     )
 ) page
-ORDER BY CASE WHEN @p_live_only IS NOT NULL THEN page.next_occurrence_at_utc END, page.job_id, page.schedule_name;
+ORDER BY CASE WHEN @p_live_only IS NOT NULL THEN page.next_occurrence_at_utc END, page.schedule_id;
 
 SELECT CASE WHEN @p_include_total IS NOT NULL THEN (
     CASE WHEN @p_live_only IS NOT NULL THEN (
         SELECT COUNT(*)
         FROM {{schema}}.schedules_state st
-        JOIN {{schema}}.schedules s ON s.job_id = st.job_id AND s.schedule_name = st.schedule_name
+        JOIN {{schema}}.schedules s ON s.schedule_id = st.schedule_id
         JOIN {{schema}}.definitions jd ON jd.definition_id = s.definition_id
         WHERE
             st.next_occurrence_at_utc IS NOT NULL

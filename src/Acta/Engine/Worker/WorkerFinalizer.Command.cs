@@ -1,6 +1,6 @@
 namespace Acta;
 
-/// <summary>The completion command math: the retry plan, the command for each completion shape, and the recurring outcome.</summary>
+/// <summary>The completion command math: the retry plan and the command for each completion shape.</summary>
 internal sealed partial class WorkerFinalizer
 {
     /// <summary>
@@ -13,18 +13,16 @@ internal sealed partial class WorkerFinalizer
     internal static int NextFailureCount(int failureCount) => failureCount >= FailureCountCeiling ? FailureCountCeiling : failureCount + 1;
 
     /// <summary>
-    /// One-shot failure retry math, shared by the deadline reschedule guard and the re-arm shape. One-shot only:
-    /// MaxAttempts is the one-off retry budget, and a recurring slot rolls over instead (its null DeadlineAtUtc
-    /// keeps the deadline guard off it too).
+    /// Failure retry math, shared by the deadline reschedule guard and the re-arm shape. MaxAttempts is the budget of
+    /// a one-shot job and of a slot's firing alike: admission zeroes the slot's count, so each firing spends its own.
     /// </summary>
     internal static (int Attempted, int DelaySeconds, bool InBudget) PlanRetry(
         JobDescriptor descriptor,
         ClaimedJob job,
-        RecurringFirePlan? fire,
         ExecutionCompletion completion
     )
     {
-        if (fire is not null || completion.Outcome != CompletionKind.Failed || !IsRetryable(completion.Reason))
+        if (completion.Outcome != CompletionKind.Failed || !IsRetryable(completion.Reason))
         {
             return (0, 0, false);
         }
@@ -88,17 +86,17 @@ internal sealed partial class WorkerFinalizer
     internal static CompleteExecutionsValues BuildCommand(
         JobDescriptor descriptor,
         ClaimedJob job,
-        RecurringFirePlan? fire,
         ExecutionCompletion s,
         (int Attempted, int DelaySeconds, bool InBudget) retry
     )
     {
+        var slot = job.Kind == JobKindCode.PermanentSlot;
         // Resolved once and passed on every completion shape; complete_executions stamps it onto
         // jobs_state.retention_until_utc only at a terminal landing (Succeeded/Failed/Cancelled) and ignores it on
         // re-arm / suspend / pause. Per-definition policy with the framework default as the fallback.
-        // Every shape but the recurring and the success one writes no result payload.
+        // Every shape but the success ones writes no result payload.
         // A one-shot success carries its result immediately, avoiding a second command object for the common path.
-        var oneShotSuccess = fire is null && s.Outcome == CompletionKind.Succeeded && s.HandlerStatusCode is null;
+        var oneShotSuccess = !slot && s.Outcome == CompletionKind.Succeeded && s.HandlerStatusCode is null;
         var command = new CompleteExecutionsValues(
             job.JobId,
             job.ExecutionNumber,
@@ -122,28 +120,9 @@ internal sealed partial class WorkerFinalizer
             return command;
         }
 
-        if (fire is { NothingDue: true })
-        {
-            // The recurring shape applies the advances, which clear the elapsed pauses, and reads the slot's
-            // next run from the schedules; the re-arm records a yield rather than a run, so the failure count and
-            // any open incident stand as they were.
-            return command with
-            {
-                EventCode = EventCode.JobExecutionYielded,
-                Reason = null,
-                ScheduleAdvances = fire.Advances,
-                FinalStatus = JobStatusCode.Ready,
-                JobNextRunAtUtc = fire.SlotMinNextRunAtUtc,
-                RescheduleEventCode = EventCode.JobRescheduled,
-                // A Ready row must carry a next run before the recurring block sets the real one.
-                RescheduleResumeAtUtc = fire.SlotMinNextRunAtUtc ?? DateTime.UtcNow,
-            };
-        }
-
         if (s.Outcome is CompletionKind.Rescheduled or CompletionKind.Suspended)
         {
-            // Re-arm takes the non-recurring shape even on a recurring slot so its schedule
-            // cursors are never advanced; no result payload is written (budget-neutral re-arm).
+            // A re-arm on a slot keeps its firing outstanding; no result payload is written (budget-neutral re-arm).
             return command with
             {
                 EventCode = EventCode.JobExecutionYielded,
@@ -154,42 +133,51 @@ internal sealed partial class WorkerFinalizer
             };
         }
 
-        // A non-retryable exception ends a one-off job, but a fire's is one more failed occurrence: it rolls over below,
-        // since a library throwing NotSupportedException on one night's data must not stop the schedule for good.
-        if (s.HandlerStatusCode is { } handlerStatus && !(fire is not null && s.Reason == EventReason.NonRetryableException))
+        if (s.HandlerStatusCode is { } handlerStatus)
         {
-            // Handler fail/cancel/pause: a deliberate terminal/hold decision. Takes the non-recurring
-            // shape even on a recurring slot (like the re-arm shape) so its schedule cursors are never
-            // advanced; the whole Job stops. No result payload; budget untouched.
-            return command with
-            {
-                EventCode = handlerStatus == JobStatusCode.Failed ? EventCode.JobFailed : EventCode.JobExecutionYielded,
-                HandlerStatusCode = (byte)handlerStatus,
-            };
+            // Handler fail/cancel/pause: a deliberate terminal/hold decision; the whole Job stops. No result payload; budget
+            // untouched. A slot takes the same landing through its final status, so completion settles its firing (Failed,
+            // Cancelled) or keeps it outstanding under the hold (Paused, with the next run that marks it held).
+            var eventCode = handlerStatus == JobStatusCode.Failed ? EventCode.JobFailed : EventCode.JobExecutionYielded;
+            return slot
+                ? command with
+                {
+                    EventCode = eventCode,
+                    FinalStatus = handlerStatus,
+                    JobNextRunAtUtc = handlerStatus == JobStatusCode.Paused ? DateTime.UtcNow : null,
+                }
+                : command with
+                {
+                    EventCode = eventCode,
+                    HandlerStatusCode = (byte)handlerStatus,
+                };
         }
 
-        if (fire is not null)
+        if (slot)
         {
-            var (finalStatus, failureCount, reason, reasonMessage) = ComputeRecurringOutcome(
-                s.Outcome,
-                job,
-                fire,
-                s.Reason,
-                s.ReasonMessage
-            );
-            return command with
+            // A firing settles: a success and a spent budget both return the slot to Idle, where admission finds it,
+            // and the envelope records which; the job lives on, so the failure is the attempt's event, never a terminal
+            // one. A retryable failure within budget re-arms below like a one-shot's.
+            if (s.Outcome == CompletionKind.Succeeded)
             {
-                ResultFormatId = s.ResultFormatId,
-                Result = s.Result,
-                // A fire never lands Failed: a failed occurrence rolls the slot over or pauses it.
-                EventCode = s.Outcome == CompletionKind.Succeeded ? EventCode.JobExecutionSucceeded : EventCode.JobExecutionFailed,
-                Reason = reason,
-                EventMessage = reasonMessage,
-                ScheduleAdvances = fire.Advances,
-                FinalStatus = finalStatus,
-                JobNextRunAtUtc = fire.SlotMinNextRunAtUtc,
-                FailureCount = failureCount,
-            };
+                return command with
+                {
+                    ResultFormatId = s.ResultFormatId,
+                    Result = s.Result,
+                    FinalStatus = JobStatusCode.Idle,
+                    FailureCount = 0,
+                };
+            }
+
+            if (s.Outcome == CompletionKind.Failed && !retry.InBudget)
+            {
+                return command with
+                {
+                    EventCode = EventCode.JobExecutionFailed,
+                    FinalStatus = JobStatusCode.Idle,
+                    FailureCount = retry.Attempted > 0 ? retry.Attempted : NextFailureCount(job.FailureCount),
+                };
+            }
         }
 
         if (s.Outcome == CompletionKind.Failed && IsRetryable(s.Reason))
@@ -219,30 +207,6 @@ internal sealed partial class WorkerFinalizer
             ResultFormatId = s.ResultFormatId,
             Result = s.Result,
         };
-    }
-
-    /// <summary>
-    /// Recurring completion outcome from the attempt and the planned slot MIN. A recurring slot re-arms Ready on any
-    /// failure (MaxAttempts is the one-off budget only); exhausted schedules pause; a success resets the failure
-    /// counter and a failure bumps it, saturating. The Ready rollover keeps the attempt's reason like every other
-    /// shape, so a nightly job that throws every night still alerts and explains.
-    /// </summary>
-    internal static (JobStatusCode FinalStatus, int FailureCount, string? Reason, string? ReasonMessage) ComputeRecurringOutcome(
-        CompletionKind outcome,
-        ClaimedJob job,
-        RecurringFirePlan fire,
-        string? failureReason,
-        string? failureMessage
-    )
-    {
-        var failureCount = outcome == CompletionKind.Succeeded ? 0 : NextFailureCount(job.FailureCount);
-
-        if (fire.SlotMinNextRunAtUtc is null)
-        {
-            return (JobStatusCode.Paused, failureCount, EventReason.SchedulesExhausted, null);
-        }
-
-        return (JobStatusCode.Ready, failureCount, failureReason, failureMessage);
     }
 
     /// <summary>

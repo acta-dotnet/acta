@@ -6,8 +6,9 @@ namespace Acta;
 /// State machine for stateful <c>checkpoints</c> kinds. Signals and child latches move
 /// <c>Pending</c> (awaited, no raise yet) to <c>Set</c> (raised, payload stored) or to
 /// <c>Expired</c> (a re-entering bounded wait found the slot overdue); timers move <c>Pending</c> (armed) to
-/// <c>Consumed</c> (the replayed handler passed the due instant). Stateless kinds (variable,
-/// progress) carry a NULL state.
+/// <c>Consumed</c> (the replayed handler passed the due instant); the firing envelope moves <c>Pending</c>
+/// (outstanding) to <c>Succeeded</c>, <c>Failed</c>, or <c>Cancelled</c> (settled, and the last outcome on record).
+/// Stateless kinds (variable, progress) carry a NULL state.
 /// </summary>
 [JsonConverter(typeof(CheckpointStatusCodeJsonConverter))]
 [CodeKind("job-checkpoint-status")]
@@ -36,4 +37,16 @@ public enum CheckpointStatusCode : byte
     /// <summary>Due instant reached and the replayed handler consumed the timer.</summary>
     [Code("consumed", "Due instant reached; the replayed handler consumed the timer and proceeded.")]
     Consumed = 100,
+
+    /// <summary>A firing envelope settled by a successful firing; the slot's last outcome until the next admission.</summary>
+    [Code("succeeded", "The firing settled successfully; the envelope is the slot's last outcome until the next admission replaces it.")]
+    Succeeded = 110,
+
+    /// <summary>A firing envelope settled by a final failure.</summary>
+    [Code("failed", "The firing settled as a final failure; the envelope is the slot's last outcome until the next admission replaces it.")]
+    Failed = 120,
+
+    /// <summary>A firing envelope settled by a cancellation.</summary>
+    [Code("cancelled", "The firing settled by cancellation; the envelope is the slot's last outcome until the next admission replaces it.")]
+    Cancelled = 130,
 }

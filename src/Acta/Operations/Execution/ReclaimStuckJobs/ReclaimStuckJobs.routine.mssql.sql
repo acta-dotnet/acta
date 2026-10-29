@@ -236,14 +236,8 @@ BEGIN
                         AND c.checkpoint_status_code = 30 /* CheckpointStatusCode.Expired */
                         AND c.due_at_utc = r.next_run_at_utc
                 ) THEN 1 ELSE 0 END AS wait_resolved,
-                /* MaxAttempts is the one-off retry budget and a slot's failure_count accumulates
-                   across occurrences, so a recurring reclaim always re-arms Ready instead of
-                   terminally failing the schedule - mirroring ComputeRecurringOutcome on the worker path. */
-                CASE WHEN EXISTS (
-                    SELECT 1
-                    FROM {{schema}}.schedules sc
-                    WHERE sc.job_id = r.job_id
-                ) THEN 1 ELSE 0 END AS is_recurring
+                -- A slot's spent budget returns it to Idle with its firing settled Failed, never to Failed itself.
+                CASE WHEN j.job_kind_code = 20 /* JobKindCode.PermanentSlot */ THEN 1 ELSE 0 END AS is_slot
             FROM @stuck k
             INNER JOIN {{schema}}.jobs_state r WITH (READPAST, UPDLOCK, ROWLOCK, FORCESEEK) ON r.job_id = k.job_id
             INNER JOIN {{schema}}.jobs j ON j.job_id = r.job_id
@@ -264,8 +258,8 @@ BEGIN
             job_status_code = CASE
                 WHEN s.wait_resolved = 1
                     THEN 20 /* JobStatusCode.Suspended */
-                WHEN s.is_recurring = 0 AND s.new_failure_count >= s.max_attempts
-                    THEN 200 /* JobStatusCode.Failed */
+                WHEN s.new_failure_count >= s.max_attempts
+                    THEN CASE WHEN s.is_slot = 1 THEN 40 /* JobStatusCode.Idle */ ELSE 200 /* JobStatusCode.Failed */ END
                 ELSE 10  /* JobStatusCode.Ready */
             END,
             failure_count = CASE
@@ -276,14 +270,14 @@ BEGIN
             next_run_at_utc = CASE
                 WHEN s.wait_resolved = 1
                     THEN r.next_run_at_utc
-                WHEN s.is_recurring = 0 AND s.new_failure_count >= s.max_attempts
-                    THEN r.next_run_at_utc
+                WHEN s.new_failure_count >= s.max_attempts
+                    THEN CASE WHEN s.is_slot = 1 THEN NULL ELSE r.next_run_at_utc END
                 ELSE @now
             END,
             leased_by_worker_id = NULL,
             lease_expires_at_utc = NULL,
             retention_until_utc = CASE
-                WHEN s.wait_resolved = 0 AND s.is_recurring = 0 AND s.new_failure_count >= s.max_attempts
+                WHEN s.wait_resolved = 0 AND s.is_slot = 0 AND s.new_failure_count >= s.max_attempts
                     THEN DATEADD(SECOND, s.retention_seconds, @now)
                 ELSE r.retention_until_utc
             END,
@@ -344,6 +338,7 @@ BEGIN
             CAST(
                 CASE to_status_code
                     WHEN 200 /* JobStatusCode.Failed */ THEN '{"reason":"lease-expired"}'
+                    WHEN 40 /* JobStatusCode.Idle */ THEN '{"reason":"lease-expired","to":"idle"}'
                     WHEN 20 /* JobStatusCode.Suspended */ THEN '{"reason":"lease-expired","to":"suspended"}'
                     ELSE '{"reason":"lease-expired","to":"ready"}'
                 END AS VARBINARY(MAX)
@@ -352,6 +347,33 @@ BEGIN
         WHERE
             event_recording_code IN (10 /* EventRecordingCode.Failures */, 20 /* EventRecordingCode.Audit */)
             OR alert_profile_code <> 0 /* AlertProfileCode.None */;
+
+        -- A slot's lost attempt that spent the budget settles its firing Failed and wakes the members parked on the slot.
+        UPDATE cp
+        SET
+            checkpoint_status_code = 120 /* CheckpointStatusCode.Failed */,
+            modified_at_utc = @now,
+            version = cp.version + 1
+        FROM {{schema}}.checkpoints cp WITH (FORCESEEK)
+        INNER JOIN @reclaimed r ON r.job_id = cp.job_id
+        WHERE
+            cp.checkpoint_kind_code = 60 /* CheckpointKindCode.Firing */
+            AND cp.checkpoint_name = 'sys.firing'
+            AND cp.checkpoint_status_code = 10 /* CheckpointStatusCode.Pending */
+            AND r.to_status_code = 40 /* JobStatusCode.Idle */;
+
+        UPDATE st
+        SET
+            next_evaluation_at_utc = @now,
+            evaluation_status_code = 10 /* EvaluationStatusCode.Scheduled */,
+            modified_at_utc = @now,
+            version = st.version + 1
+        FROM {{schema}}.schedules_state st WITH (FORCESEEK)
+        INNER JOIN {{schema}}.schedules js ON js.schedule_id = st.schedule_id
+        INNER JOIN @reclaimed r ON r.job_id = js.job_id
+        WHERE
+            r.to_status_code = 40 /* JobStatusCode.Idle */
+            AND st.evaluation_status_code IN (20 /* EvaluationStatusCode.WaitingForCapacity */, 50 /* EvaluationStatusCode.SlotUnavailable */);
 
         /* A head reclaimed to Failed hands its lane on; a head re-armed Ready keeps it. Promotion runs
            under the lane locks and re-reads each head rather than trusting the walk. */

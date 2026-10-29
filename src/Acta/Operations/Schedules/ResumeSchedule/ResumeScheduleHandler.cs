@@ -1,9 +1,9 @@
 namespace Acta;
 
 /// <summary>
-/// <see cref="ISchedules.ResumeAsync"/>: reconciles the schedule's stored cursor by its misfire policy
-/// (Skip jumps forward, CatchUpOnce fires once) and recomputes the slot cursor over the now-active set,
-/// then one routine call sets both and records <c>schedule.resumed</c> against the slot job.
+/// <see cref="ISchedules.ResumeAsync"/>: lifts the pause and hands the schedule back to the admission engine, which
+/// applies its misfire policy at the next pass; the remembered cursor is not moved here. One routine call writes the
+/// schedule and its state and records <c>schedule.resumed</c> against the slot job.
 /// </summary>
 internal sealed class ResumeScheduleHandler(
     ResolveScheduleTargetHandler resolveScheduleTarget,
@@ -21,37 +21,24 @@ internal sealed class ResumeScheduleHandler(
             return NotFound;
         }
 
-        var t = target.Schedule;
-        var reconciled = NextOccurrenceCalculator.Reconcile(
-            t.Expression,
-            t.TimeZoneId,
-            t.ExpressionKind,
-            t.MisfireStrategy,
-            t.NextOccurrenceAtUtc,
-            target.NowUtc
-        );
-        var jobNextRun = target.SlotNextRunWith(s =>
-            s with
-            {
-                Status = ScheduleStatusCode.Active,
-                PausedUntilUtc = null,
-                NextOccurrenceAtUtc = reconciled,
-            }
-        );
-
+        var name = target.Schedule.ScheduleName;
         var row = await session.ExecuteOneAsync(
             new StoreCommand("ResumeSchedule"),
             cmd =>
             {
                 cmd.Parameters.Add(dialect.CreateParameter(ActaSchema.Schedule.JobId, target.JobId));
-                cmd.Parameters.Add(dialect.CreateParameter(ActaSchema.Schedule.ScheduleName, t.ScheduleName));
-                cmd.Parameters.Add(dialect.CreateParameter(ActaSchema.ScheduleState.NextOccurrenceAtUtc, reconciled));
-                ScheduleControl.BindTail(cmd, dialect, jobNextRun, t.ScheduleName, command.Actor, command.ReasonMessage);
+                cmd.Parameters.Add(dialect.CreateParameter(ActaSchema.Schedule.ScheduleName, name));
+                ScheduleControl.BindTail(cmd, dialect, name, command.Actor, command.ReasonMessage);
             },
             DbProjectionResolver.Resolve<ResumeScheduleRow>(),
             ct
         );
-        await ScheduleControl.WakeIfDueAsync(wakeup, jobNextRun, row.Action, ct);
+        if (row.Action == ControlAction.Applied)
+        {
+            // The admitter listens on the same channel as the claim loop; it evaluates the schedule at once.
+            await wakeup.WakeAsync(WorkerWakeupChannel.AllWorkerNamespaces, WorkerWakeupReason.WorkAvailable, ct);
+        }
+
         return new ResumeScheduleResponse(row.Action, row.Status, row.PausedUntilUtc, row.NextOccurrenceAtUtc, row.Version);
     }
 }

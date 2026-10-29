@@ -321,6 +321,7 @@ export function statusIcon(status: string): string {
     case 'ready':
     case 'blocked':
     case 'pending':
+    case 'idle':
       return 'clock';
     case 'orphaned':
       return 'minus-circle';

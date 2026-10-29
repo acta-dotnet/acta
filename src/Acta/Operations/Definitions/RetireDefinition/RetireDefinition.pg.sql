@@ -28,7 +28,7 @@ WHERE l.lane_id IN (
         j.definition_id = @p_definition_id
         AND r.lane_id IS NOT NULL
         AND r.job_status_code IN (
-            10 /* JobStatusCode.Ready */, 15 /* JobStatusCode.Blocked */, 20 /* JobStatusCode.Suspended */, 30 /* JobStatusCode.Paused */
+            10 /* JobStatusCode.Ready */, 15 /* JobStatusCode.Blocked */, 20 /* JobStatusCode.Suspended */, 30 /* JobStatusCode.Paused */, 40 /* JobStatusCode.Idle */
         )
 )
 ORDER BY l.lane_id
@@ -70,7 +70,7 @@ parked AS (
     WHERE
         j.definition_id IN (SELECT d.definition_id FROM retired d)
         AND r.job_status_code IN (
-            10 /* JobStatusCode.Ready */, 15 /* JobStatusCode.Blocked */, 20 /* JobStatusCode.Suspended */, 30 /* JobStatusCode.Paused */
+            10 /* JobStatusCode.Ready */, 15 /* JobStatusCode.Blocked */, 20 /* JobStatusCode.Suspended */, 30 /* JobStatusCode.Paused */, 40 /* JobStatusCode.Idle */
         )
         AND (r.lane_id IS NULL OR r.lane_id IN (SELECT rl.lane_id FROM _retire_lanes rl))
     -- Locked here so the execution_number each event records is the one the sweep below cancels.
@@ -90,21 +90,41 @@ swept AS (
     WHERE
         r.job_id = p.job_id
         AND r.job_status_code IN (
-            10 /* JobStatusCode.Ready */, 15 /* JobStatusCode.Blocked */, 20 /* JobStatusCode.Suspended */, 30 /* JobStatusCode.Paused */
+            10 /* JobStatusCode.Ready */, 15 /* JobStatusCode.Blocked */, 20 /* JobStatusCode.Suspended */, 30 /* JobStatusCode.Paused */, 40 /* JobStatusCode.Idle */
         )
     RETURNING r.job_id
+),
+-- A retired slot's outstanding firing settles with it.
+settled AS (
+    UPDATE {{schema}}.checkpoints cp
+    SET
+        checkpoint_status_code = 130 /* CheckpointStatusCode.Cancelled */,
+        modified_at_utc = now(),
+        version = cp.version + 1
+    FROM parked p
+    WHERE
+        cp.job_id = p.job_id
+        AND cp.checkpoint_kind_code = 60 /* CheckpointKindCode.Firing */
+        AND cp.checkpoint_name = 'sys.firing'
+        AND cp.checkpoint_status_code = 10 /* CheckpointStatusCode.Pending */
 ),
 cleared AS (
     UPDATE {{schema}}.schedules_state st
     SET
         next_occurrence_at_utc = NULL,
-        last_advanced_occurrence_at_utc = NULL,
+
+        decided_through_at_utc = NULL,
+
+        next_evaluation_at_utc = NULL,
+
+        evaluation_status_code = 30 /* EvaluationStatusCode.Exhausted */,
+
+        version = st.version + 1,
         modified_at_utc = now()
     FROM {{schema}}.schedules s
     INNER JOIN retired d ON d.definition_id = s.definition_id
     WHERE
-        st.job_id = s.job_id
-        AND st.schedule_name = s.schedule_name
+        st.schedule_id = s.schedule_id
 ),
 cancel_events AS (
     INSERT INTO {{schema}}.events (

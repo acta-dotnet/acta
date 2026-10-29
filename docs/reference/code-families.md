@@ -5,7 +5,7 @@
 > Generated reference for Acta code families and the payload-format registry.
 > Every persisted code is documented here exactly once; the data-model reference [`data-model.md`](./data-model.md) links into this file from every code-bearing column.
 
-This release: **27 families**, **157 values**.
+This release: **29 families**, **172 values**.
 
 > Numeric IDs are stable family-local persistence identifiers. Enum members carry programmatic meaning; textual codes carry operator-facing meaning.
 > Numeric grouping is a readability convention, not a runtime schema. Canonical failure states use `200`.
@@ -46,8 +46,10 @@ This pattern makes raw values easier to scan in database rows, logs, and diagnos
 | [`DefinitionStatusCode`](#code-family-definitionstatuscode) | `job-definition-status` | `byte` |
 | [`DefinitionTenantRequirementCode`](#code-family-definitiontenantrequirementcode) | `job-tenant-requirement` | `byte` |
 | [`EntityCode`](#code-family-entitycode) | `entity` | `byte` |
+| [`EvaluationStatusCode`](#code-family-evaluationstatuscode) | `schedule-evaluation-status` | `byte` |
 | [`EventCode`](#code-family-eventcode) | `event` | `byte` |
 | [`EventRecordingCode`](#code-family-eventrecordingcode) | `event-recording` | `byte` |
+| [`JobKindCode`](#code-family-jobkindcode) | `job-kind` | `byte` |
 | [`JobPayloadFormat`](#code-family-jobpayloadformat) | `payload-format` | `byte` |
 | [`JobPriorityCode`](#code-family-jobprioritycode) | `job-priority` | `byte` |
 | [`JobStatusCode`](#code-family-jobstatuscode) | `job-status` | `byte` |
@@ -132,6 +134,7 @@ This pattern makes raw values easier to scan in database rows, logs, and diagnos
 | `Timer` | 30 | `timer` | Durable sleep timer; Pending until due, Consumed on replay past the due instant. | Active |
 | `Progress` | 40 | `progress` | Progress slot; UPSERT, last-writer-wins, one per job. | Active |
 | `ChildLatch` | 50 | `child-latch` | Child terminal-outcome latch on the parent; Pending while awaited, Set when the child lands terminal. | Active |
+| `Firing` | 60 | `firing` | The scheduler's firing envelope for a slot or scheduled root; Pending while outstanding, settled with the outcome; survives a handler reset. | Active |
 
 ### `CheckpointStatusCode` · `job-checkpoint-status` <a id="code-family-checkpointstatuscode"></a>
 
@@ -142,6 +145,9 @@ This pattern makes raw values easier to scan in database rows, logs, and diagnos
 | `Set` | 20 | `set` | Raised; the payload is stored and a waiting job proceeds. | Active |
 | `Expired` | 30 | `expired` | The re-entering wait found the slot overdue and settled it TimedOut; a raise then skips the slot. | Active |
 | `Consumed` | 100 | `consumed` | Due instant reached; the replayed handler consumed the timer and proceeded. | Active |
+| `Succeeded` | 110 | `succeeded` | The firing settled successfully; the envelope is the slot's last outcome until the next admission replaces it. | Active |
+| `Failed` | 120 | `failed` | The firing settled as a final failure; the envelope is the slot's last outcome until the next admission replaces it. | Active |
+| `Cancelled` | 130 | `cancelled` | The firing settled by cancellation; the envelope is the slot's last outcome until the next admission replaces it. | Active |
 
 ### `DeadlineBehaviorCode` · `deadline-behavior` <a id="code-family-deadlinebehaviorcode"></a>
 
@@ -186,6 +192,17 @@ This pattern makes raw values easier to scan in database rows, logs, and diagnos
 | `Tenant` | 120 | `tenant` | One tenant. | Active |
 | `Worker` | 130 | `worker` | One worker process lifetime. | Active |
 
+### `EvaluationStatusCode` · `schedule-evaluation-status` <a id="code-family-evaluationstatuscode"></a>
+
+| Member | Id | Code | Description | Lifecycle |
+|---|---:|---|---|---|
+| `Unspecified` | 0 | `unspecified` | Evaluation status not recognized by this build; the row was written by a newer Acta. | Active |
+| `Scheduled` | 10 | `scheduled` | The next evaluation is the next nominal occurrence, or the end of a timed pause. | Active |
+| `WaitingForCapacity` | 20 | `waiting-for-capacity` | An occurrence is due but the permanent slot is busy or the schedule is at its outstanding limit; settlement wakes it. | Active |
+| `Exhausted` | 30 | `exhausted` | The source offers no further occurrence; a declaration or calendar change reactivates it. | Active |
+| `EvaluationError` | 40 | `evaluation-error` | The source could not be evaluated; the cursor is kept and the evaluation retries after a bounded delay. | Active |
+| `SlotUnavailable` | 50 | `slot-unavailable` | An occurrence is due but the permanent slot is held, cancelled, or failed terminally; a job resume or restart wakes it. | Active |
+
 ### `EventCode` · `event` <a id="code-family-eventcode"></a>
 
 | Member | Id | Code | Description | Lifecycle |
@@ -204,7 +221,6 @@ This pattern makes raw values easier to scan in database rows, logs, and diagnos
 | `JobExecutionOrphaned` | 42 | `job.execution-orphaned` | The attempt's worker lease expired and crash recovery reclaimed the job without ending it. WorkerId names the stale holder; details carry reason and to. | Active |
 | `JobExecutionYielded` | 43 | `job.execution-yielded` | The attempt ended without succeeding or failing: rescheduled, suspended, paused, or cancelled by its handler or the engine. Audit only; details carry outcome and reason. | Active |
 | `JobFailed` | 44 | `job.failed` | The job failed for good: its retry budget is spent, its handler failed it, or its failure is not retryable. DurationMs is set when an attempt ran; details carry reason. | Active |
-| `JobRecurringRolledOver` | 50 | `job.recurring-rolled-over` | Recurring Job's NextRunAtUtc advanced to the next firing instant. | Active |
 | `JobSuspended` | 60 | `job.suspended` | The attempt parked on a durable wait: a ctx.SleepAsync timer re-armed the job Ready at its due instant, or a signal or child wait left it Suspended. Budget-neutral; details carry to. | Active |
 | `JobRescheduled` | 61 | `job.rescheduled` | The job re-armed Ready with a new NextRunAtUtc: a handler reschedule, a failed attempt's retry within budget, or an operator RescheduleAsync; details carry actor or reason. | Active |
 | `JobCancelled` | 70 | `job.cancelled` | Job was cancelled (Status to Cancelled, terminal). | Active |
@@ -215,13 +231,15 @@ This pattern makes raw values easier to scan in database rows, logs, and diagnos
 | `JobPurged` | 75 | `job.purged` | Operator hard-deleted a terminal job; the subject is the deleted job's id. Details snapshot its jobRef, correlationKey, and actor. Always emitted regardless of event recording. | Active |
 | `JobInputAmended` | 76 | `job.input-amended` | Operator amended a job's stored input payload; details carry the actor and bounded metadata (format name and byte count) about the previous payload, and EventMessage carries the why. | Active |
 | `JobSignalRaised` | 80 | `job.signal-raised` | Signal delivered via IJobs.RaiseSignalAsync; matching signal checkpoint (State = Set) UPSERTed. | Active |
-| `JobStateReset` | 81 | `job.state-reset` | Handler called ctx.ResetStateAsync; the job's checkpoints and steps were cleared so the next execution starts as new. | Active |
+| `JobStateReset` | 81 | `job.state-reset` | Handler called ctx.ResetStateAsync; the job's checkpoints and steps were cleared so the next execution starts as new. The scheduler's firing envelope stays. | Active |
 | `JobNoteRecorded` | 90 | `job.note-recorded` | Application-authored note from ctx.NoteAsync. The only event code an application can write and one the runtime never emits, so every other event stays provably system-written. EventMessage carries the line; details carry the optional payload. | Active |
 | `SchedulePaused` | 100 | `schedule.paused` | A recurring schedule was paused; details carry the schedule name. | Active |
 | `ScheduleResumed` | 101 | `schedule.resumed` | A recurring schedule was resumed; details carry the schedule name. | Active |
 | `SchedulePauseExpired` | 102 | `schedule.pause-expired` | A timed pause elapsed; the scheduler auto-resumed the schedule. Details carry the schedule name. | Active |
-| `ScheduleOverridesUpdated` | 103 | `schedule.overrides-updated` | Operator changed a schedule's expression/timezone overrides; EventMessage summarizes the change and details carry the schedule name. | Active |
-| `ScheduleTriggered` | 104 | `schedule.triggered` | Operator fired a schedule manually; the slot's cursor was pulled to now. Details carry the schedule name. | Active |
+| `ScheduleTriggered` | 104 | `schedule.triggered` | Operator admitted a manual firing of the slot; no schedule cursor moved. Details carry the schedule name. | Active |
+| `ScheduleAdmitted` | 105 | `schedule.admitted` | The admission engine selected one of the schedule's occurrences for a firing; details carry the schedule, the occurrence, the covered-through boundary, and the firing id. | Active |
+| `ScheduleSkipped` | 106 | `schedule.skipped` | The misfire policy discarded a range of the schedule's occurrences without work; details carry the schedule and the range. | Active |
+| `ScheduleRetimed` | 107 | `schedule.retimed` | A deploy changed the schedule's timing; the undecided occurrences of the old timing were discarded and the cursor moved to the first occurrence of the new one. Details carry the schedule name. | Active |
 | `WorkerStarted` | 120 | `worker.started` | Worker process registered; a workers row was appended (Status: Active). | Active |
 | `WorkerStopped` | 121 | `worker.stopped` | Worker process shut down cleanly (Status: Active/Draining to Stopped). | Active |
 | `WorkerDied` | 122 | `worker.died` | Worker heartbeat went stale; crash recovery flipped the worker to Dead. | Active |
@@ -243,6 +261,14 @@ This pattern makes raw values easier to scan in database rows, logs, and diagnos
 | `Off` | 0 | `off` | No recording-filtered per-job events; always-on system/catalog events still emit, and an enabled alert profile still records the failed, orphaned, terminally failed, and recovering attempts its alerts read. | Active |
 | `Failures` | 10 | `failures` | Emit failed, orphaned, and terminally failed attempts, a success only when it recovers from counted failures, and lane repairs; suppress other recording-filtered per-job events. | Active |
 | `Audit` | 20 | `audit` | Emit all recording-filtered per-job events. User Jobs default. | Active |
+
+### `JobKindCode` · `job-kind` <a id="code-family-jobkindcode"></a>
+
+| Member | Id | Code | Description | Lifecycle |
+|---|---:|---|---|---|
+| `Unspecified` | 0 | `unspecified` | Job kind not recognized by this build; the row was written by a newer Acta. | Active |
+| `Ordinary` | 10 | `ordinary` | A job enqueued by an application, an operator, or a parent handler; it ends in a terminal status. | Active |
+| `PermanentSlot` | 20 | `permanent-slot` | The one reusable job of a scheduled definition; registration creates it, every firing of the definition's schedules runs through it, and it is never terminal by itself. | Active |
 
 ### `JobPayloadFormat` · `payload-format` <a id="code-family-jobpayloadformat"></a>
 
@@ -271,6 +297,7 @@ This pattern makes raw values easier to scan in database rows, logs, and diagnos
 | `Blocked` | 15 | `blocked` | Waiting behind an earlier unfinished job of its lane; the claim never offers it, and the settle of the job ahead promotes it to Ready. | Active |
 | `Suspended` | 20 | `suspended` | Parked and not progressing: awaiting an external signal via ctx.WaitSignalAsync, or awaiting children via ctx.WaitChildAsync / WaitChildrenAsync. | Active |
 | `Paused` | 30 | `paused` | Not running, awaiting an external trigger to resume. | Active |
+| `Idle` | 40 | `idle` | A permanent slot between firings: no outstanding firing, no lease, no claim time. Admission makes it Ready; it is never terminal. | Active |
 | `Executing` | 50 | `executing` | Claimed by a worker under a live lease; its handler is running or about to start. | Active |
 | `Succeeded` | 100 | `succeeded` | Terminal success. | Active |
 | `Failed` | 200 | `failed` | Terminal failure: MaxAttempts exhausted, a non-retryable exception, an interrupted at-most-once step, or ctx.FailAsync. | Active |

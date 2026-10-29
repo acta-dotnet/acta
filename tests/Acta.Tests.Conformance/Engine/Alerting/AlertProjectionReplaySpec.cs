@@ -237,7 +237,7 @@ public sealed class AlertProjectionReplaySpec : ActaRuntimeTestBase<ConformanceF
 
     /// <summary>
     /// One successful fire of the slot. The reclaim above leaves it claimable immediately; no schedule
-    /// is due, so the handler runs with an empty triggering set and the slot rolls over to Ready with
+    /// is due, so the handler runs with an empty triggering set and the slot returns to Idle with
     /// its failure count reset.
     /// </summary>
     private async Task SucceedOneFireAsync(long slotId, CancellationToken ct)
@@ -247,7 +247,7 @@ public sealed class AlertProjectionReplaySpec : ActaRuntimeTestBase<ConformanceF
         Assert.Equal(before + 1, RecurringPingHandler.TriggersFor(TestNamespace).Count);
 
         var slot = await ReadJobAsync(slotId, ct);
-        Assert.Equal(JobStatusCode.Ready, slot.Status);
+        Assert.Equal(JobStatusCode.Idle, slot.Status);
         Assert.Equal(0, slot.FailureCount);
     }
 

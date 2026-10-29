@@ -118,12 +118,13 @@ A signal or child wait can take a timeout (`WaitSignalAsync(name, timeout)`, `Tr
 
 ### Schedules, workers, and providers
 
-A **Schedule** is catalog metadata plus a recurring job slot. Due schedules coalesce into one
-execution of the same durable slot; `JobContext.TriggeringScheduleNames` names what fired. A failed
-fire re-arms the slot for the next occurrence however many attempts failed; `ctx.FailAsync` or
-`ctx.CancelAsync` stops the whole slot. A job pause holds until a job resume, restart, or cancel,
-whatever startup or the schedule verbs do, and a deploy that drops every schedule pauses the slot
-rather than cancelling it. [Schedule operations](#schedule-operations) covers the rest.
+A **Schedule** is catalog metadata plus a permanent slot job, which sits `Idle` between firings. The
+admission engine admits a firing when a schedule is due: due schedules coalesce into one firing of the
+same slot, and `JobContext.TriggeringSchedules` names what fired, each with its occurrence. A firing
+retries under `MaxAttempts` like a one-shot; a spent budget returns the slot to `Idle` for its next
+firing, while `ctx.FailAsync` or `ctx.CancelAsync` stops the whole slot. A job pause holds until a job
+resume, restart, or cancel, whatever startup or the schedule verbs do, and a deploy that drops every
+schedule leaves the slot `Idle` with nothing due. [Schedule operations](#schedule-operations) covers the rest.
 
 A **Worker** is a peer process loop: it registers a namespace, heartbeats, claims ready rows,
 executes handlers, and refreshes leases. There is no leader or control-plane service.
@@ -824,30 +825,34 @@ understandable in SQL and the dashboard.
 
 Acta represents a recurring job as one durable slot job plus one row per named schedule, whose cursor
 sits in a narrow companion row. It does not create future job rows for every calendar occurrence. The
-schedule cursors move; the stable slot job runs when the earliest active cursor is due.
+schedule cursors move; the admission engine admits a firing onto the `Idle` slot when a cursor is due,
+and the claim runs it.
 
 ### The four operations
 
 | Operation | Changes the recurring cursor? | Creates historical work? | Use it when |
 | --- | --- | --- | --- |
-| Normal recurring fire | Yes, after the firing is handled | No | The schedule reaches its next due instant normally. |
+| Normal recurring fire | Yes, when the firing is admitted | No | The schedule reaches its next due instant normally. |
 | Trigger now | No | No | An operator wants one immediate run without changing cadence. |
-| MisfireStrategy reconciliation | Yes | At most one coalesced catch-up run | A schedule returns after downtime or resumes after a pause. |
+| MisfireStrategy reconciliation | Yes | At most one coalesced catch-up run | The admitter finds a stored occurrence already past: after downtime, a resume, or a timed pause's end. |
 | Backfill | Not automatically | Yes, explicitly | The application must process named historical periods as separate business work. |
 
 ### Normal recurring cursor
 
-Each `[JobSchedule]` has its own next-run cursor. If a job has several schedules, the owning slot's
-`next_run_at_utc` is the minimum across active schedule cursors. One execution can report several
-`JobContext.TriggeringScheduleNames` when due schedules coalesce at the same claim.
+Each `[JobSchedule]` has its own cursor (`next_occurrence_at_utc`) and a watermark
+(`decided_through_at_utc`) every earlier occurrence was decided through. The admission engine evaluates
+a schedule when it is due, admits one firing per slot per pass, and moves the cursor at admission, not
+at completion. A firing is outstanding until its attempt settles: a schedule that comes due meanwhile
+waits for capacity and is woken by the settlement. One firing can carry several
+`JobContext.TriggeringSchedules` when due schedules coalesce; `JobContext.FiringId` names the firing.
 
-The recurring controller is reused. Historical executions are visible in the event timeline; Acta
-does not pre-materialize a queue of future occurrences.
+Historical executions are visible in the event timeline (`schedule.admitted`, `schedule.skipped`);
+Acta does not pre-materialize a queue of future occurrences.
 
 ### Trigger now
 
-`IActaOperations.Schedules.TriggerNowAsync(...)` pulls the owning slot due now. It leaves the selected
-schedule's own cursor and cadence untouched.
+`IActaOperations.Schedules.TriggerNowAsync(...)` admits a manual firing on the owning slot, due now. It
+leaves the selected schedule's own cursor and cadence untouched.
 
 Use it for:
 
@@ -858,15 +863,15 @@ Use it for:
 Do not use it to represent “run the 2026-06-01 occurrence.” A trigger-now execution has no historical
 period identity unless the job input or application data supplies one.
 
-The dashboard confirmation records an optional note. Triggering is rejected when the schedule or its
-recurring job is paused, the recurring job is cancelled or failed, the schedule is missing/orphaned,
-or its slot already has a firing in flight.
+The dashboard confirmation records an optional note. Triggering is rejected when the schedule is paused
+or its slot is not `Idle` (paused, cancelled, failed, or with a firing outstanding); a missing or
+orphaned schedule is not found.
 
 ### Catch-up and misfire
 
 `MisfireStrategy` decides what a schedule does when its stored occurrence is already past: `Skip` (the default) advances to the first occurrence after now, and `CatchUpOnce` runs one coalesced catch-up, then resumes. Ten missed hourly occurrences produce at most one catch-up run.
 
-It applies when a worker starts, when a paused schedule resumes, and when a timed pause ends. At a start, an occurrence less than a minute overdue still counts as due, and a slot whose occurrence is already running or waiting is left alone. A resume gives no grace: under `Skip` an occurrence that came due during the pause is skipped. A timed pause decides as of its end: an occurrence inside the window runs once under `CatchUpOnce` and is skipped under `Skip`.
+The admission engine applies it whenever it evaluates a stored occurrence that is already past: after downtime, when a paused schedule resumes, and when a timed pause ends. An occurrence less than `misfire_grace_seconds` (60) overdue still counts as due. A worker start never decides an occurrence: it registers the declaration and leaves the decision to the running fleet, so a redeploy with an unchanged schedule changes nothing. A changed expression, time zone, or interval anchor retimes the schedule at the start: the old timing's undecided occurrences are discarded (`schedule.retimed`) and the cursor seeds from the new timing's first occurrence after now. A timed pause decides as of its end: an occurrence inside the window runs once under `CatchUpOnce` and is skipped under `Skip`.
 
 ### Backfill
 
@@ -903,13 +908,13 @@ Before a large backfill:
 
 ### Pause, resume, preview, and overrides
 
-- Pausing a schedule removes it from the job's next run. An indefinite pause needs a resume; a timed pause ends by itself and reconciles by misfire policy.
-- Pausing the recurring job (`IJobs.PauseAsync`) stops all its schedules until an operator resumes, restarts, or cancels it; restarts and deploys leave it paused, and trigger-now is rejected.
-- A recurring job whose schedules are all paused or removed is Paused with no next run until a schedule offers one.
-- Cancelling a recurring job ends it until a restart. A manual purge deletes it, and the next start registers it as a new job.
-- A recurring job's slot uses the job name as its deduplication key, so a worker refuses to start while an ordinary job holds that key.
+- Pausing a schedule takes it out of admission without moving its cursor. An indefinite pause needs a resume; a timed pause ends by itself, and the admitter applies the misfire policy as of its end.
+- Pausing the recurring job (`IJobs.PauseAsync`) stops all its schedules until an operator resumes, restarts, or cancels it; worker restarts and deploys leave it paused, and trigger-now is rejected.
+- A recurring job whose schedules are all paused or removed sits `Idle` with nothing due until a schedule offers a run.
+- Cancelling a recurring job ends it until a restart. A manual purge deletes it only when nothing pins it (every schedule orphaned, or the definition retired), and the next start registers a new slot.
+- A recurring job's slot has no deduplication key: an ordinary job keyed by the job name is unrelated to it, and `IJobs.GetJobIdAsync` never returns a slot.
 - Preview computes upcoming instants without touching the cursor, and is safe on a paused schedule.
-- Expression and time-zone overrides are version-checked operator state. The version moves with operator edits and deploys, not with each fire. A deploy that switches a schedule between interval and cron drops its expression override.
+- A schedule's expression and time zone are code-owned: a deploy changes them, and an operator pauses, resumes, or triggers. The version moves with those operator actions and with deploys, not with each fire.
 
 Concepts [`103-multiple-schedules`](../concepts/100-scheduling/103-multiple-schedules/), [`105-schedule-control`](../concepts/100-scheduling/105-schedule-control/), and [`106-schedule-misfire`](../concepts/100-scheduling/106-schedule-misfire/) show each behavior.
 
@@ -1080,9 +1085,9 @@ public sealed class SendWelcomeEmailTests : IAsyncLifetime
 
 | Outcome | Meaning | Row status afterwards |
 |---------|---------|----------------------|
-| `Completed` | The handler finished (or the run was cancelled) | `Succeeded` / `Cancelled`; a recurring slot goes back to `Ready` for its next occurrence |
+| `Completed` | The handler finished (or the run was cancelled) | `Succeeded` / `Cancelled`; a permanent slot returns to `Idle` until its next firing |
 | `Rearmed` | The job re-armed for a later claim: the handler rescheduled, slept, paused, suspended on a signal, or threw with retry attempts remaining, or a concurrency or rate limit bounced it | `Ready` (forward-dated `NextRunAtUtc`), `Suspended`, or `Paused` |
-| `Failed` | The handler threw and the row settled terminally (attempts exhausted, or a [non-retryable exception](#exception-semantics)) | `Failed` |
+| `Failed` | The handler threw and the row settled terminally (attempts exhausted, or a [non-retryable exception](#exception-semantics)) | `Failed`; a permanent slot returns to `Idle` with its firing settled `failed` |
 | `NothingClaimed` | No claimable row this tick (not enqueued, not yet due, or already claimed) | unchanged |
 
 A first failure of a job with default policy (`MaxAttempts = 15`) returns `Rearmed`, not `Failed`:

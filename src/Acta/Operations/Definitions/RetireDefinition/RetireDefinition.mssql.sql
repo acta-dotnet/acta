@@ -46,7 +46,7 @@ BEGIN TRY
         j.definition_id = @p_definition_id
         AND r.lane_id IS NOT NULL
         AND r.job_status_code IN (
-            10 /* JobStatusCode.Ready */, 15 /* JobStatusCode.Blocked */, 20 /* JobStatusCode.Suspended */, 30 /* JobStatusCode.Paused */
+            10 /* JobStatusCode.Ready */, 15 /* JobStatusCode.Blocked */, 20 /* JobStatusCode.Suspended */, 30 /* JobStatusCode.Paused */, 40 /* JobStatusCode.Idle */
         );
 
     WHILE 1 = 1
@@ -117,7 +117,7 @@ BEGIN TRY
         WHERE
             j.definition_id = @p_definition_id
             AND r.job_status_code IN (
-                10 /* JobStatusCode.Ready */, 15 /* JobStatusCode.Blocked */, 20 /* JobStatusCode.Suspended */, 30 /* JobStatusCode.Paused */
+                10 /* JobStatusCode.Ready */, 15 /* JobStatusCode.Blocked */, 20 /* JobStatusCode.Suspended */, 30 /* JobStatusCode.Paused */, 40 /* JobStatusCode.Idle */
             )
             -- A laned job is parked here only in a lane locked above.
             AND (r.lane_id IS NULL OR r.lane_id IN (SELECT l.lane_id FROM @lanes l));
@@ -136,16 +136,36 @@ BEGIN TRY
         INNER JOIN @parked p ON p.job_id = r.job_id
         WHERE
             r.job_status_code IN (
-                10 /* JobStatusCode.Ready */, 15 /* JobStatusCode.Blocked */, 20 /* JobStatusCode.Suspended */, 30 /* JobStatusCode.Paused */
+                10 /* JobStatusCode.Ready */, 15 /* JobStatusCode.Blocked */, 20 /* JobStatusCode.Suspended */, 30 /* JobStatusCode.Paused */, 40 /* JobStatusCode.Idle */
             );
+
+        -- A retired slot's outstanding firing settles with it.
+        UPDATE cp
+        SET
+            checkpoint_status_code = 130 /* CheckpointStatusCode.Cancelled */,
+            modified_at_utc = @now,
+            version = cp.version + 1
+        FROM {{schema}}.checkpoints cp WITH (FORCESEEK)
+        INNER JOIN @parked p ON p.job_id = cp.job_id
+        WHERE
+            cp.checkpoint_kind_code = 60 /* CheckpointKindCode.Firing */
+            AND cp.checkpoint_name = 'sys.firing'
+            AND cp.checkpoint_status_code = 10 /* CheckpointStatusCode.Pending */;
 
         UPDATE st
         SET
             next_occurrence_at_utc = NULL,
-            last_advanced_occurrence_at_utc = NULL,
+
+            decided_through_at_utc = NULL,
+
+            next_evaluation_at_utc = NULL,
+
+            evaluation_status_code = 30 /* EvaluationStatusCode.Exhausted */,
+
+            version = st.version + 1,
             modified_at_utc = @now
         FROM {{schema}}.schedules s
-        INNER JOIN {{schema}}.schedules_state st WITH (FORCESEEK) ON st.job_id = s.job_id AND st.schedule_name = s.schedule_name
+        INNER JOIN {{schema}}.schedules_state st WITH (FORCESEEK) ON st.schedule_id = s.schedule_id
         WHERE s.definition_id = @p_definition_id;
 
         INSERT INTO {{schema}}.events (

@@ -46,9 +46,6 @@
             jobName={schedule.jobName}
             scheduleName={schedule.scheduleName}
             status={schedule.status}
-            version={schedule.version}
-            expression={schedule.expression}
-            timeZoneId={schedule.timeZoneId}
             onChanged={onChanged} />
         </div>
       {/each}

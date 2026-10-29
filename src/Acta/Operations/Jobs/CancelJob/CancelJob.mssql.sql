@@ -80,6 +80,7 @@ BEGIN TRY
 
     IF
         @from_status NOT IN (
+            40 /* JobStatusCode.Idle */,
             30 /* JobStatusCode.Paused */,
             20 /* JobStatusCode.Suspended */,
             10 /* JobStatusCode.Ready */,
@@ -111,6 +112,20 @@ BEGIN TRY
         version = version + 1
     WHERE job_id = @p_job_id;
     SET @version = @version + 1;
+
+    -- A cancelled slot's outstanding firing settles with it; a running attempt's completion then finds the row moved
+    -- and settles nothing twice.
+    UPDATE cp
+    SET
+        checkpoint_status_code = 130 /* CheckpointStatusCode.Cancelled */,
+        modified_at_utc = @now,
+        version = cp.version + 1
+    FROM {{schema}}.checkpoints cp WITH (FORCESEEK)
+    WHERE
+        cp.job_id = @p_job_id
+        AND cp.checkpoint_kind_code = 60 /* CheckpointKindCode.Firing */
+        AND cp.checkpoint_name = 'sys.firing'
+        AND cp.checkpoint_status_code = 10 /* CheckpointStatusCode.Pending */;
 
     /* A cancelled head hands its lane to the next member; a cancelled Blocked follower leaves the
        head where it is, which the promotion reads for itself. Promotion runs under the lane lock and

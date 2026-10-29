@@ -45,27 +45,25 @@ UPDATE {{schema}}.schedules
 SET
     schedule_status_code = 30 /* ScheduleStatusCode.Paused */,
     paused_until_utc = @p_paused_until_utc,
-    change_message = @p_change_message,
+    pause_message = @p_pause_message,
     modified_at_utc = {{now}},
     version = version + 1
 WHERE
     job_id = @p_job_id
     AND schedule_name IN (SELECT t.schedule_name FROM temp._ps_target t);
 
--- Paused with a next run is an operator's or handler's hold and is left alone; Paused with none only
--- means no schedule offered a run (ScheduleWalker, "held").
-UPDATE {{schema}}.jobs_state
+UPDATE {{schema}}.schedules_state
 SET
-    next_run_at_utc = @p_job_next_run_at_utc,
-    job_status_code = CASE WHEN @p_job_next_run_at_utc IS NULL
-        THEN 30 /* JobStatusCode.Paused */
-        ELSE 10 /* JobStatusCode.Ready */ END,
-    modified_at_utc = {{now}},
-    version = version + 1
+    next_evaluation_at_utc = @p_paused_until_utc,
+    version = version + 1,
+    modified_at_utc = {{now}}
 WHERE
-    job_id = @p_job_id
-    AND EXISTS (SELECT 1 FROM temp._ps_target)
-    AND (job_status_code = 10 /* JobStatusCode.Ready */ OR (job_status_code = 30 /* JobStatusCode.Paused */ AND next_run_at_utc IS NULL));
+    schedule_id IN (
+        SELECT js.schedule_id
+        FROM {{schema}}.schedules js
+        WHERE js.job_id = @p_job_id AND js.schedule_name IN (SELECT t.schedule_name FROM temp._ps_target t)
+    );
+
 
 SELECT
     CASE
@@ -79,4 +77,4 @@ SELECT
 FROM (SELECT @p_job_id AS qid) q
 LEFT JOIN temp._ps_target t ON 1 = 1
 LEFT JOIN {{schema}}.schedules js ON js.job_id = @p_job_id AND js.schedule_name = t.schedule_name
-LEFT JOIN {{schema}}.schedules_state st ON st.job_id = js.job_id AND st.schedule_name = js.schedule_name;
+LEFT JOIN {{schema}}.schedules_state st ON st.schedule_id = js.schedule_id;

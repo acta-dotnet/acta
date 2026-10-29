@@ -7,8 +7,19 @@ SELECT
     j.job_id,
     r.job_status_code AS from_status,
     r.version AS from_version,
-    CASE WHEN r.job_status_code = 50 /* JobStatusCode.Executing */ THEN 1 ELSE 0 END AS rejected,
     CASE
+        WHEN r.job_status_code = 50 /* JobStatusCode.Executing */ THEN 1
+        -- A slot whose firing is still outstanding is not restarted around it; one with none restarts Idle, for admission.
+        WHEN j.job_kind_code = 20 /* JobKindCode.PermanentSlot */ AND EXISTS (
+            SELECT 1
+            FROM {{schema}}.checkpoints cp
+            WHERE cp.job_id = j.job_id AND cp.checkpoint_kind_code = 60 /* CheckpointKindCode.Firing */
+                AND cp.checkpoint_name = 'sys.firing' AND cp.checkpoint_status_code = 10 /* CheckpointStatusCode.Pending */
+        ) THEN 1
+        ELSE 0
+    END AS rejected,
+    CASE
+        WHEN j.job_kind_code = 20 /* JobKindCode.PermanentSlot */ THEN 40 /* JobStatusCode.Idle */
         WHEN
             r.lane_id IS NOT NULL
             AND EXISTS (
@@ -133,7 +144,10 @@ UPDATE {{schema}}.jobs_state
 SET
     job_status_code = (SELECT s.to_status FROM temp._restart_job s),
     failure_count = 0,
-    next_run_at_utc = COALESCE(@p_next_run_at_utc, {{now}}),
+    next_run_at_utc = CASE
+        WHEN (SELECT s.to_status FROM temp._restart_job s) = 40 /* JobStatusCode.Idle */ THEN NULL
+        ELSE COALESCE(@p_next_run_at_utc, {{now}})
+    END,
     leased_by_worker_id = NULL,
     lease_expires_at_utc = NULL,
     retention_until_utc = NULL,
@@ -145,6 +159,25 @@ WHERE
     job_id = @p_job_id
     AND (@p_expected_version IS NULL OR version = @p_expected_version)
     AND (SELECT s.rejected FROM temp._restart_job s) = 0;
+
+-- The members parked on the slot evaluate again now that it is Idle.
+UPDATE {{schema}}.schedules_state
+SET
+    next_evaluation_at_utc = {{now}},
+    evaluation_status_code = 10 /* EvaluationStatusCode.Scheduled */,
+    modified_at_utc = {{now}},
+    version = version + 1
+WHERE
+    schedule_id IN (SELECT js.schedule_id FROM {{schema}}.schedules js WHERE js.job_id = @p_job_id)
+    AND evaluation_status_code IN (20 /* EvaluationStatusCode.WaitingForCapacity */, 50 /* EvaluationStatusCode.SlotUnavailable */)
+    AND EXISTS (
+        SELECT 1
+        FROM temp._restart_job s
+        WHERE
+            s.rejected = 0
+            AND s.to_status = 40 /* JobStatusCode.Idle */
+            AND (@p_expected_version IS NULL OR s.from_version = @p_expected_version)
+    );
 
 SELECT
     CASE

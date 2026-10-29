@@ -4,7 +4,7 @@ using Microsoft.AspNetCore.Routing;
 namespace Acta.AspNetCore;
 
 /// <summary>
-/// The Schedules routes: the list, a schedule's preview, and pause, resume, trigger, and the overrides update. A schedule is addressed by its natural key, the namespace, job name, and schedule name.
+/// The Schedules routes: the list, a schedule's preview, and pause, resume, and trigger. A schedule is addressed by its natural key, the namespace, job name, and schedule name.
 /// </summary>
 internal static class SchedulesEndpoints
 {
@@ -92,26 +92,6 @@ internal static class SchedulesEndpoints
             Key,
             static (call, schedule) => call.Operations.Schedules.TriggerNowAsync(schedule, call.ReasonMessage, call.Actor, call.Ct)
         );
-        controls.MapCommand(
-            "/schedules/{jobNamespace}/{jobName}/{scheduleName}/overrides",
-            "Set or clear the schedule's expression and time-zone overrides.",
-            options,
-            DashboardJsonContext.Default.SetScheduleOverridesRequest,
-            "Invalid schedule request.",
-            ControlStatus.Schedule<SetScheduleOverridesResponse>(),
-            Key,
-            static (call, schedule) =>
-                call.Operations.Schedules.UpdateOverridesAsync(
-                    schedule,
-                    call.Body!.ExpectedVersion ?? throw new InvalidControlException("Invalid request.", "expectedVersion is required."),
-                    call.Body.Expression,
-                    call.Body.TimeZoneId,
-                    call.ReasonMessage,
-                    call.Actor,
-                    call.Ct
-                ),
-            bodyRequired: true
-        );
     }
 
     private static ScheduleLookup Key(HttpContext http)
@@ -119,7 +99,8 @@ internal static class SchedulesEndpoints
         try
         {
             return new(
-                JobLookup.ByDeduplicationKey(RouteKeys.Value(http, "jobNamespace"), RouteKeys.Value(http, "jobName")),
+                NameSyntax.Canonicalize(RouteKeys.Value(http, "jobNamespace"), "jobNamespace"),
+                NameSyntax.Canonicalize(RouteKeys.Value(http, "jobName"), "jobName"),
                 NameSyntax.Canonicalize(RouteKeys.Value(http, "scheduleName"), "scheduleName", NameSyntax.ExtendedMaxLength)
             );
         }

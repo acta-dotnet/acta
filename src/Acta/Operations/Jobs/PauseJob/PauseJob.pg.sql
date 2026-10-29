@@ -34,7 +34,8 @@ SELECT
     j.event_recording_code,
     (@p_expected_version IS NULL OR r.version = @p_expected_version)
     AND r.job_status_code IN (
-        30 /* JobStatusCode.Paused */, 20 /* JobStatusCode.Suspended */, 10 /* JobStatusCode.Ready */, 15 /* JobStatusCode.Blocked */
+        40 /* JobStatusCode.Idle */, 30 /* JobStatusCode.Paused */, 20 /* JobStatusCode.Suspended */, 10 /* JobStatusCode.Ready */,
+        15 /* JobStatusCode.Blocked */
     )
 FROM {{schema}}.jobs_state r
 JOIN {{schema}}.jobs j ON j.job_id = r.job_id
@@ -44,7 +45,7 @@ FOR UPDATE OF r;
 UPDATE {{schema}}.jobs_state AS r
 SET
     job_status_code = 30 /* JobStatusCode.Paused */,
-    -- Always a next run, which is what marks this pause as held (ScheduleWalker, "held").
+    -- Always a next run: a resume re-arms a one-shot at it, and a slot's resume decides Idle or Ready for itself.
     next_run_at_utc = COALESCE(r.next_run_at_utc, now()),
     modified_at_utc = now(),
     version = r.version + 1

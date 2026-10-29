@@ -45,34 +45,11 @@ public sealed class GetLiveSchedulesSpec : ActaStorageTestBase<ConformanceFixtur
         Assert.Equal(["alpha", "beta"], live.Select(s => s.ScheduleName));
         var alpha = live[0];
         Assert.Equal(DailyCron, alpha.Expression);
-        Assert.Equal(DailyCron, alpha.BaseExpression);
-        Assert.Equal(alpha.BaseTimeZone, alpha.TimeZoneId);
         Assert.Equal(ScheduleExpressionKindCode.Cron, alpha.ExpressionKind);
         Assert.Equal(MisfireStrategyCode.Skip, alpha.MisfireStrategy);
         Assert.Equal(ScheduleStatusCode.Active, alpha.Status);
         Assert.Equal(now.AddDays(1), alpha.NextOccurrenceAtUtc);
         Assert.Equal(now.AddMinutes(5), live[1].NextOccurrenceAtUtc);
-    }
-
-    [Fact(DisplayName = "An override becomes the effective expression and time zone while the declared ones stay")]
-    public async Task Override_is_effective_and_declaration_stays()
-    {
-        var ct = TestContext.Current.CancellationToken;
-        var now = FloorSeconds(await NowAsync(ct));
-        var jobName = Unique("live-ovr");
-        var defId = await CreateDefinitionAsync(jobName, ct);
-        var slotId = await RegisterAsync(defId, jobName, [Slot("only", Cron5, now.AddMinutes(5))], ct);
-        var before = Assert.Single(await ReadAsync(slotId, ct));
-
-        var set = await Schedules.UpdateOverridesAsync(Lookup(jobName, "only"), before.Version, DailyCron, "Europe/Ljubljana", ct: ct);
-        Assert.Equal(ControlAction.Applied, set.Action);
-
-        var after = Assert.Single(await ReadAsync(slotId, ct));
-        Assert.Equal(DailyCron, after.Expression);
-        Assert.Equal("Europe/Ljubljana", after.TimeZoneId);
-        Assert.Equal(Cron5, after.BaseExpression);
-        Assert.Equal(before.BaseTimeZone, after.BaseTimeZone);
-        Assert.Equal(before.Version + 1, after.Version);
     }
 
     [Fact(DisplayName = "An orphaned schedule drops out while a paused one stays with its pause")]
@@ -109,8 +86,7 @@ public sealed class GetLiveSchedulesSpec : ActaStorageTestBase<ConformanceFixtur
     /// <summary>Whole seconds round-trip exactly through every provider's cursor column.</summary>
     private static DateTime FloorSeconds(DateTime t) => new(t.Ticks - (t.Ticks % TimeSpan.TicksPerSecond), t.Kind);
 
-    private ScheduleLookup Lookup(string jobName, string scheduleName) =>
-        new(JobLookup.ByDeduplicationKey(TestNamespace, jobName), scheduleName);
+    private ScheduleLookup Lookup(string jobName, string scheduleName) => new(TestNamespace, jobName, scheduleName);
 
     private static SlotSchedule Slot(string name, string expression, DateTime cursor) =>
         new(name, expression, null, MisfireStrategyCode.Skip, ScheduleExpressionKindCode.Cron, null, cursor);
@@ -123,12 +99,9 @@ public sealed class GetLiveSchedulesSpec : ActaStorageTestBase<ConformanceFixtur
         var definition = new DefinitionSchedules(
             NamespaceId: TestNamespaceId,
             DefinitionId: defId,
-            JobName: jobName,
             InputFormatId: 0,
             Input: ReadOnlyMemory<byte>.Empty,
             EventRecording: EventRecordingCode.Audit,
-            SlotStatus: JobStatusCode.Ready,
-            SlotMinNextRunAtUtc: schedules.Min(s => s.NextOccurrenceAtUtc),
             Schedules: schedules
         );
         return (await ScheduleTestOps.RegisterAsync(Services, [definition], ct))[defId];

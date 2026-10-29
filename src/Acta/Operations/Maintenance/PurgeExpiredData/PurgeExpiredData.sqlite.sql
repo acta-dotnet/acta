@@ -79,8 +79,9 @@ DELETE FROM {{schema}}.tags WHERE entity_code = 50 /* EntityCode.Job */ AND enti
 
 DELETE FROM {{schema}}.checkpoints WHERE job_id IN (SELECT p.job_id FROM temp._purge_jobs p);
 DELETE FROM {{schema}}.steps WHERE job_id IN (SELECT p.job_id FROM temp._purge_jobs p);
+DELETE FROM {{schema}}.schedules_state
+WHERE schedule_id IN (SELECT s.schedule_id FROM {{schema}}.schedules s WHERE s.job_id IN (SELECT p.job_id FROM temp._purge_jobs p));
 DELETE FROM {{schema}}.schedules WHERE job_id IN (SELECT p.job_id FROM temp._purge_jobs p);
-DELETE FROM {{schema}}.schedules_state WHERE job_id IN (SELECT p.job_id FROM temp._purge_jobs p);
 DELETE FROM {{schema}}.jobs WHERE job_id IN (SELECT p.job_id FROM temp._purge_jobs p);
 DELETE FROM {{schema}}.jobs_state WHERE job_id IN (SELECT p.job_id FROM temp._purge_jobs p);
 

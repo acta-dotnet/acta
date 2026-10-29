@@ -34,4 +34,15 @@ public enum CheckpointKindCode : byte
     /// <summary>Child terminal-outcome latch raised on the parent when a child lands terminal.</summary>
     [Code("child-latch", "Child terminal-outcome latch on the parent; Pending while awaited, Set when the child lands terminal.")]
     ChildLatch = 50,
+
+    /// <summary>
+    /// The engine's firing envelope, one <c>sys.firing</c> slot per scheduled job: the contributing schedules and
+    /// occurrences an admission froze, Pending while the firing is outstanding and settled with its outcome. Owned by
+    /// the scheduler, never by the handler: <c>ResetJobState</c> leaves it alone and the checkpoint read omits it.
+    /// </summary>
+    [Code(
+        "firing",
+        "The scheduler's firing envelope for a slot or scheduled root; Pending while outstanding, settled with the outcome; survives a handler reset."
+    )]
+    Firing = 60,
 }

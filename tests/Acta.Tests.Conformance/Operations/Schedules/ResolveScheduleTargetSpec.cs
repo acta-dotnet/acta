@@ -21,16 +21,14 @@ public sealed class ResolveScheduleTargetSpec : ActaRuntimeTestBase<ConformanceF
     private const string JobName = "recurring-ping";
     private const string ScheduleName = "every-5-minutes";
 
-    private JobLookup Slot => JobLookup.ByDeduplicationKey(TestNamespace, JobName);
-
     [Fact(DisplayName = "A live schedule resolves with its slot job, the database clock, and the slot's live schedules")]
     public async Task A_live_schedule_resolves_with_its_slot()
     {
         var ct = TestContext.Current.CancellationToken;
-        var slotId = (await Jobs.GetJobIdAsync(Slot, ct))?.JobId;
+        var slotId = await ScheduleTestOps.SlotIdAsync(Db, TestNamespace, JobName, ct);
         var before = await NowAsync(ct);
 
-        var target = await ResolveAsync(new ScheduleLookup(Slot, ScheduleName), ct);
+        var target = await ResolveAsync(new ScheduleLookup(TestNamespace, JobName, ScheduleName), ct);
         var after = await NowAsync(ct);
 
         Assert.NotNull(target);
@@ -38,8 +36,6 @@ public sealed class ResolveScheduleTargetSpec : ActaRuntimeTestBase<ConformanceF
         Assert.Equal(ScheduleName, target.Schedule.ScheduleName);
         Assert.Equal([ScheduleName], target.Live.Select(s => s.ScheduleName));
         Assert.InRange(target.NowUtc, before.AddSeconds(-1), after.AddSeconds(1));
-        // Paused indefinitely, the slot's only schedule leaves the slot no next run.
-        Assert.Null(target.SlotNextRunWith(s => s with { Status = ScheduleStatusCode.Paused, PausedUntilUtc = null }));
     }
 
     [Fact(DisplayName = "A schedule the slot does not carry, or a job that does not exist, resolves to null")]
@@ -47,8 +43,8 @@ public sealed class ResolveScheduleTargetSpec : ActaRuntimeTestBase<ConformanceF
     {
         var ct = TestContext.Current.CancellationToken;
 
-        Assert.Null(await ResolveAsync(new ScheduleLookup(Slot, "no-such-schedule"), ct));
-        Assert.Null(await ResolveAsync(new ScheduleLookup(JobLookup.ByRef(JobRef.New()), ScheduleName), ct));
+        Assert.Null(await ResolveAsync(new ScheduleLookup(TestNamespace, JobName, "no-such-schedule"), ct));
+        Assert.Null(await ResolveAsync(new ScheduleLookup(TestNamespace, "no-such-job", ScheduleName), ct));
     }
 
     private ValueTask<ResolveScheduleTargetResponse?> ResolveAsync(ScheduleLookup schedule, CancellationToken ct) =>

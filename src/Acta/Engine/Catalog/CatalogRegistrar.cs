@@ -341,11 +341,11 @@ internal sealed class CatalogRegistrar(
                 ? byName
                 : (IReadOnlyDictionary<string, StoredScheduleState>)new Dictionary<string, StoredScheduleState>();
 
-            var (slotSchedules, slotStatus, slotNextRun) = ScheduleWalker.Reconcile(declared, storedForDef, nowUtc);
+            var slotSchedules = ScheduleRegistrationPlan.Plan(declared, storedForDef, nowUtc);
 
-            // Registration leaves a held job as it stands (ScheduleWalker.IsHeld); say so at every start.
+            // Registration leaves a held slot as it stands; say so at every start.
             var slot = storedForDef.Values.FirstOrDefault();
-            if (declared.Count > 0 && ScheduleWalker.IsHeld(slot?.SlotStatus, slot?.SlotNextRunAtUtc))
+            if (declared.Count > 0 && slot?.SlotStatus == JobStatusCode.Paused)
             {
                 ActaLog.RecurringJobPaused(_log, ns, descriptor.JobName);
             }
@@ -356,12 +356,9 @@ internal sealed class CatalogRegistrar(
                 new DefinitionSchedules(
                     NamespaceId: namespaceId,
                     DefinitionId: defId,
-                    JobName: descriptor.JobName,
                     InputFormatId: inputFormatId,
                     Input: inputBytes,
                     EventRecording: descriptor.EventRecording,
-                    SlotStatus: slotStatus,
-                    SlotMinNextRunAtUtc: slotNextRun,
                     Schedules: slotSchedules
                 )
             );
@@ -379,10 +376,6 @@ internal sealed class CatalogRegistrar(
             )
         )
         {
-            foreach (var d in definitions)
-            {
-                _context.RecurringSlotJobIds[storedByDefinition[d.DefinitionId].Values.First().SlotId] = 0;
-            }
             return;
         }
 
@@ -394,26 +387,7 @@ internal sealed class CatalogRegistrar(
             slotRefs[i] = JobRef.New().Value;
         }
 
-        var slots = (
-            await _schedules.RegisterSchedulesAsync(new RegisterSchedulesCommand(namespaceId, definitions, slotRefs, catalogHash), ct)
-        ).Slots;
-        if (slots.Count != definitions.Count)
-        {
-            // A recurring slot's deduplication key is its job name, so an ordinary job that took that key
-            // first is the one way a declared slot goes missing; registration leaves it untouched.
-            var registered = slots.Select(s => s.DefinitionId).ToHashSet();
-            var blocked = string.Join(", ", definitions.Where(d => !registered.Contains(d.DefinitionId)).Select(d => d.JobName));
-            throw new InvalidOperationException(
-                $"Namespace ({ns}): recurring job(s) {blocked} cannot register, because a job "
-                    + "that is not the recurring slot already holds the deduplication key a slot uses, its job name. "
-                    + "Finish and purge that job, or re-enqueue it under another key, then start the worker again."
-            );
-        }
-
-        foreach (var slot in slots)
-        {
-            _context.RecurringSlotJobIds[slot.SlotId] = 0;
-        }
+        await _schedules.RegisterSchedulesAsync(new RegisterSchedulesCommand(namespaceId, definitions, slotRefs, catalogHash), ct);
     }
 
     /// <summary>
@@ -459,21 +433,19 @@ internal sealed class CatalogRegistrar(
         if (
             stored is null
             || stored.Count != plan.Schedules.Count
-            || !plan.Schedules.All(s => stored.TryGetValue(s.ScheduleName, out var st) && st.NextOccurrenceAtUtc == s.NextOccurrenceAtUtc)
+            || !plan.Schedules.All(s =>
+                stored.TryGetValue(s.ScheduleName, out var st)
+                && st.NextOccurrenceAtUtc == s.NextOccurrenceAtUtc
+                && st.TimingFingerprint == s.TimingFingerprint
+            )
         )
         {
             return false;
         }
 
+        // The declaration's priority reaches only an Idle slot; any other keeps its own until it is Idle again.
         var slot = stored.Values.First();
-        return slot.SlotStatus
-                is JobStatusCode.Executing
-                    or JobStatusCode.Suspended
-                    or JobStatusCode.Succeeded
-                    or JobStatusCode.Failed
-                    or JobStatusCode.Cancelled
-            || ScheduleWalker.IsHeld(slot.SlotStatus, slot.SlotNextRunAtUtc)
-            || (slot.SlotStatus == plan.SlotStatus && slot.SlotNextRunAtUtc == plan.SlotMinNextRunAtUtc && slot.SlotPriority == priority);
+        return slot.SlotStatus != JobStatusCode.Idle || slot.SlotPriority == priority;
     }
 
     /// <summary>

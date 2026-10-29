@@ -6,15 +6,15 @@ using Xunit;
 namespace Acta.Tests.Conformance.Operations.Schedules;
 
 /// <summary>
-/// Operator manual trigger of a single named schedule: pulls the owning slot's cursor to now so the
-/// next claim sweep fires it immediately, leaving the schedule's own cursor (and cadence) untouched. A
-/// paused schedule or a slot already in flight (Executing) rejects rather than firing twice.
+/// Operator manual trigger of a single named schedule: admits a manual firing of the owning slot, a pending envelope
+/// with no contributors, so the next claim runs it, leaving the schedule's own cursor (and cadence) untouched. A
+/// paused schedule, or a slot that is not Idle, rejects rather than queueing a second firing.
 /// </summary>
 [ConformanceSpec(
     "schedule.trigger-now",
     "Operator manually fires a schedule now without disturbing its cadence",
     Area = "Scheduling",
-    Contract = "Triggering an eligible schedule makes its slot claimable now without moving the schedule's own cursor, while paused or in-flight schedules reject."
+    Contract = "Triggering a schedule on an Idle slot admits a manual firing without moving the schedule's own cursor, and a paused schedule or a busy slot rejects."
 )]
 public sealed class TriggerScheduleNowSpec : ActaStorageTestBase<ConformanceFixture>
 {
@@ -30,9 +30,9 @@ public sealed class TriggerScheduleNowSpec : ActaStorageTestBase<ConformanceFixt
     private static DateTime FloorSeconds(DateTime t) => new(t.Ticks - (t.Ticks % TimeSpan.TicksPerSecond), t.Kind);
 
     [Fact(
-        DisplayName = "Triggering a Ready schedule pulls the slot cursor to now, leaves the schedule's own cursor untouched, and audits the fire"
+        DisplayName = "Triggering an Idle slot's schedule admits a manual firing now, leaves the schedule's own cursor untouched, audits it, and rejects a second one behind it"
     )]
-    public async Task Triggering_a_ready_schedule_pulls_the_slot_cursor_to_now_and_audits_it()
+    public async Task Triggering_an_idle_slot_admits_a_manual_firing_and_audits_it()
     {
         var ct = TestContext.Current.CancellationToken;
         var (db, dialect) = Store();
@@ -40,7 +40,7 @@ public sealed class TriggerScheduleNowSpec : ActaStorageTestBase<ConformanceFixt
         var jobName = Unique("fire");
         var defId = await CreateDefinitionAsync(db, dialect, jobName, ct);
         var farFuture = now.AddHours(6);
-        await RegisterAsync(db, dialect, defId, jobName, farFuture, [Slot("only", farFuture)], JobStatusCode.Ready, ct);
+        await RegisterAsync(db, dialect, defId, jobName, [Slot("only", farFuture)], ct);
 
         var before = await ScheduleAsync(Db, jobName, "only", ct);
 
@@ -50,11 +50,21 @@ public sealed class TriggerScheduleNowSpec : ActaStorageTestBase<ConformanceFixt
 
         Assert.Equal(ControlAction.Applied, result.Action);
 
-        // The slot is now claimable immediately: its cursor moved to (approximately) now and it's Ready.
+        // The slot is claimable at once, carrying the manual firing's envelope for the attempt to read.
         var slot = await SlotAsync(jobName, ct);
         Assert.Equal(JobStatusCode.Ready, slot.Status);
         Assert.NotNull(slot.NextRunAtUtc);
         Assert.InRange(slot.NextRunAtUtc!.Value, tBefore.AddSeconds(-2), tAfter.AddSeconds(10));
+        var slotId = await SlotIdAsync(jobName, ct);
+        var firing = await FiringAsync(slotId, ct);
+        Assert.Equal(CheckpointStatusCode.Pending, firing.Status);
+        var envelope = FiringEnvelope.FromJson(firing.Value);
+        Assert.NotNull(envelope);
+        Assert.Equal(FiringEnvelope.ManualKind, envelope.Kind);
+        Assert.Empty(envelope.Contributors);
+
+        // A second trigger finds the slot busy with the first firing and rejects rather than queueing behind it.
+        Assert.Equal(ControlAction.Rejected, (await Schedules.TriggerNowAsync(Lookup(jobName, "only"), ct: ct)).Action);
 
         // The schedule's OWN cursor and version are never written by this verb: cadence is preserved.
         var after = await ScheduleAsync(Db, jobName, "only", ct);
@@ -62,7 +72,6 @@ public sealed class TriggerScheduleNowSpec : ActaStorageTestBase<ConformanceFixt
         Assert.Equal(before.Version, after.Version);
         Assert.Equal(ScheduleStatusCode.Active, after.Status);
 
-        var slotId = await SlotIdAsync(jobName, ct);
         var triggered = await ReadSingleEventAsync(slotId, EventCode.ScheduleTriggered, ct);
         Assert.Equal("only", EventDetail(triggered, "schedule"));
         Assert.Equal("fire now", triggered.EventMessage);
@@ -77,7 +86,7 @@ public sealed class TriggerScheduleNowSpec : ActaStorageTestBase<ConformanceFixt
         var jobName = Unique("paused");
         var defId = await CreateDefinitionAsync(db, dialect, jobName, ct);
         var farFuture = now.AddHours(6);
-        await RegisterAsync(db, dialect, defId, jobName, farFuture, [Slot("only", farFuture)], JobStatusCode.Ready, ct);
+        await RegisterAsync(db, dialect, defId, jobName, [Slot("only", farFuture)], ct);
 
         var paused = await Schedules.PauseAsync(Lookup(jobName, "only"), untilUtc: null, ct: ct);
         Assert.Equal(ControlAction.Applied, paused.Action);
@@ -104,7 +113,7 @@ public sealed class TriggerScheduleNowSpec : ActaStorageTestBase<ConformanceFixt
         var jobName = Unique("inflight");
         var defId = await CreateDefinitionAsync(db, dialect, jobName, ct);
         var farFuture = now.AddHours(6);
-        await RegisterAsync(db, dialect, defId, jobName, farFuture, [Slot("only", farFuture)], JobStatusCode.Ready, ct);
+        await RegisterAsync(db, dialect, defId, jobName, [Slot("only", farFuture)], ct);
 
         var slotId = await SlotIdAsync(jobName, ct);
         await SetRuntimeStatusAsync(db, slotId, (byte)JobStatusCode.Executing, ct);
@@ -114,7 +123,7 @@ public sealed class TriggerScheduleNowSpec : ActaStorageTestBase<ConformanceFixt
 
         var slot = await SlotAsync(jobName, ct);
         Assert.Equal(JobStatusCode.Executing, slot.Status); // untouched: the in-flight execution owns the row
-        Assert.Equal(farFuture, slot.NextRunAtUtc);
+        Assert.Null(slot.NextRunAtUtc);
 
         var schedule = await ScheduleAsync(Db, jobName, "only", ct);
         Assert.Equal(farFuture, schedule.NextOccurrenceAtUtc); // the schedule's own cursor is never touched by this verb
@@ -129,7 +138,7 @@ public sealed class TriggerScheduleNowSpec : ActaStorageTestBase<ConformanceFixt
         var jobName = Unique("terminal");
         var defId = await CreateDefinitionAsync(db, dialect, jobName, ct);
         var farFuture = now.AddHours(6);
-        await RegisterAsync(db, dialect, defId, jobName, farFuture, [Slot("only", farFuture)], JobStatusCode.Ready, ct);
+        await RegisterAsync(db, dialect, defId, jobName, [Slot("only", farFuture)], ct);
 
         var slotId = await SlotIdAsync(jobName, ct);
         await SetRuntimeStatusAsync(db, slotId, (byte)JobStatusCode.Succeeded, ct);
@@ -139,7 +148,7 @@ public sealed class TriggerScheduleNowSpec : ActaStorageTestBase<ConformanceFixt
 
         var slot = await SlotAsync(jobName, ct);
         Assert.Equal(JobStatusCode.Succeeded, slot.Status); // untouched
-        Assert.Equal(farFuture, slot.NextRunAtUtc); // no phantom cursor move
+        Assert.Null(slot.NextRunAtUtc); // no phantom cursor move
         Assert.Equal(0, await CountEventsAsync(slotId, EventCode.ScheduleTriggered, ct)); // no schedule.triggered
     }
 
@@ -151,22 +160,26 @@ public sealed class TriggerScheduleNowSpec : ActaStorageTestBase<ConformanceFixt
         var now = FloorSeconds(await NowAsync(ct));
         var jobName = Unique("orphan");
         var defId = await CreateDefinitionAsync(db, dialect, jobName, ct);
-        await RegisterAsync(db, dialect, defId, jobName, now.AddMinutes(5), [Slot("gone", now.AddMinutes(5))], JobStatusCode.Ready, ct);
+        await RegisterAsync(db, dialect, defId, jobName, [Slot("gone", now.AddMinutes(5))], ct);
 
         Assert.Equal(ControlAction.NotFound, (await Schedules.TriggerNowAsync(Lookup(jobName, "nope"), ct: ct)).Action);
 
         // Re-register with no declared schedules: the orphan sweep orphans "gone".
-        await RegisterAsync(db, dialect, defId, jobName, null, [], JobStatusCode.Paused, ct);
+        await RegisterAsync(db, dialect, defId, jobName, [], ct);
         Assert.Equal(ControlAction.NotFound, (await Schedules.TriggerNowAsync(Lookup(jobName, "gone"), ct: ct)).Action);
     }
 
     private async Task<DateTime> NowAsync(CancellationToken ct) => await Services.GetRequiredService<IActaClock>().GetUtcNowAsync(ct);
 
-    private ScheduleLookup Lookup(string jobName, string scheduleName) =>
-        new(JobLookup.ByDeduplicationKey(TestNamespace, jobName), scheduleName);
+    private ScheduleLookup Lookup(string jobName, string scheduleName) => new(TestNamespace, jobName, scheduleName);
 
     private static SlotSchedule Slot(string name, DateTime? cursor) =>
         new(name, Cron5, null, MisfireStrategyCode.Skip, ScheduleExpressionKindCode.Cron, null, cursor);
+
+    private async Task<CheckpointEntity> FiringAsync(long slotId, CancellationToken ct) =>
+        Assert.Single(
+            await Db.From<CheckpointEntity>().Where(c => c.JobId == slotId && c.Kind == CheckpointKindCode.Firing).ToListAsync(ct)
+        );
 
     private static Task SetRuntimeStatusAsync(IDbSession db, long jobId, byte statusCode, CancellationToken ct) =>
         JobStateStaging.SetStatusAsync(db, jobId, statusCode, ct);
@@ -182,32 +195,22 @@ public sealed class TriggerScheduleNowSpec : ActaStorageTestBase<ConformanceFixt
         ISqlDialect dialect,
         int defId,
         string jobName,
-        DateTime? slotMin,
         IReadOnlyList<SlotSchedule> schedules,
-        JobStatusCode slotStatus,
         CancellationToken ct
     )
     {
         var definition = new DefinitionSchedules(
             NamespaceId: TestNamespaceId,
             DefinitionId: defId,
-            JobName: jobName,
             InputFormatId: 0,
             Input: ReadOnlyMemory<byte>.Empty,
             EventRecording: EventRecordingCode.Audit,
-            SlotStatus: slotStatus,
-            SlotMinNextRunAtUtc: slotMin,
             Schedules: schedules
         );
         await ScheduleTestOps.RegisterAsync(Services, [definition], ct);
     }
 
-    private async Task<long> SlotIdAsync(string jobName, CancellationToken ct)
-    {
-        var id = (await Jobs().GetJobIdAsync(JobLookup.ByDeduplicationKey(TestNamespace, jobName), ct))?.JobId;
-        Assert.NotNull(id);
-        return id!.Value;
-    }
+    private Task<long> SlotIdAsync(string jobName, CancellationToken ct) => ScheduleTestOps.SlotIdAsync(Db, TestNamespace, jobName, ct);
 
     private IJobs Jobs() => Services.GetRequiredService<IJobs>();
 

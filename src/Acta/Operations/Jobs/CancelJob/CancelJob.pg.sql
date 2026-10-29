@@ -37,7 +37,7 @@ SELECT
     r.execution_number, r.leased_by_worker_id, j.event_recording_code,
     (@p_expected_version IS NULL OR r.version = @p_expected_version)
     AND r.job_status_code IN (
-        30 /* JobStatusCode.Paused */, 20 /* JobStatusCode.Suspended */, 10 /* JobStatusCode.Ready */,
+        40 /* JobStatusCode.Idle */, 30 /* JobStatusCode.Paused */, 20 /* JobStatusCode.Suspended */, 10 /* JobStatusCode.Ready */,
         15 /* JobStatusCode.Blocked */, 50 /* JobStatusCode.Executing */
     )
 FROM {{schema}}.jobs j
@@ -79,6 +79,21 @@ SET
 FROM _cancel_job s
 JOIN {{schema}}.definitions jd ON jd.definition_id = s.definition_id
 WHERE r.job_id = @p_job_id AND s.applied;
+
+-- A cancelled slot's outstanding firing settles with it; a running attempt's completion then finds the row moved and
+-- settles nothing twice.
+UPDATE {{schema}}.checkpoints cp
+SET
+    checkpoint_status_code = 130 /* CheckpointStatusCode.Cancelled */,
+    modified_at_utc = now(),
+    version = cp.version + 1
+FROM _cancel_job s
+WHERE
+    s.applied
+    AND cp.job_id = @p_job_id
+    AND cp.checkpoint_kind_code = 60 /* CheckpointKindCode.Firing */
+    AND cp.checkpoint_name = 'sys.firing'
+    AND cp.checkpoint_status_code = 10 /* CheckpointStatusCode.Pending */;
 
 -- A cancelled head hands its lane on; a cancelled Blocked follower leaves the head where it is. A restarted
 -- member can wait Blocked below a running one, so the oldest unfinished member is promoted only while no

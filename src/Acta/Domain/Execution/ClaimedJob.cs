@@ -21,7 +21,8 @@ internal sealed record ClaimedJob(
     DateTime CreatedAtUtc,
     int FailureCount,
     long? LaneId = null,
-    long? ParentJobId = null
+    long? ParentJobId = null,
+    JobKindCode Kind = JobKindCode.Ordinary
 )
 {
     /// <summary>Reads a job row of either claim routine; the horizon sentinel row is the claim scan's own.</summary>
@@ -43,7 +44,8 @@ internal sealed record ClaimedJob(
             CreatedAtUtc: Required(row.CreatedAtUtc, "created_at_utc"),
             FailureCount: Required(row.FailureCount, "failure_count"),
             LaneId: row.LaneId,
-            ParentJobId: row.ParentJobId
+            ParentJobId: row.ParentJobId,
+            Kind: Required(row.JobKindCode, "job_kind_code")
         );
 
     private static T Required<T>(T? value, string column)

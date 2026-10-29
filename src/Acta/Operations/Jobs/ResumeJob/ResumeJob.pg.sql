@@ -28,7 +28,18 @@ INSERT INTO _resume_job (
     event_recording_code, to_status)
 SELECT
     r.job_status_code, r.version, r.lane_id, j.namespace_id, j.lineage_root_job_id, j.definition_id, j.tenant_id, r.execution_number,
-    j.event_recording_code, 10 /* JobStatusCode.Ready */
+    j.event_recording_code,
+    -- A slot with no firing outstanding resumes Idle, for admission to find; one paused mid-firing resumes Ready to
+    -- run it.
+    CASE
+        WHEN j.job_kind_code = 20 /* JobKindCode.PermanentSlot */ AND NOT EXISTS (
+            SELECT 1
+            FROM {{schema}}.checkpoints cp
+            WHERE cp.job_id = j.job_id AND cp.checkpoint_kind_code = 60 /* CheckpointKindCode.Firing */
+                AND cp.checkpoint_name = 'sys.firing' AND cp.checkpoint_status_code = 10 /* CheckpointStatusCode.Pending */
+        ) THEN 40 /* JobStatusCode.Idle */
+        ELSE 10 /* JobStatusCode.Ready */
+    END
 FROM {{schema}}.jobs_state r
 JOIN {{schema}}.jobs j ON j.job_id = r.job_id
 WHERE r.job_id = @p_job_id
@@ -62,7 +73,7 @@ WHERE
 UPDATE {{schema}}.jobs_state AS r
 SET
     job_status_code = s.to_status,
-    next_run_at_utc = COALESCE(@p_next_run_at_utc, now()),
+    next_run_at_utc = CASE WHEN s.to_status = 40 /* JobStatusCode.Idle */ THEN NULL ELSE COALESCE(@p_next_run_at_utc, now()) END,
     modified_at_utc = now(),
     version = r.version + 1
 FROM _resume_job s
@@ -70,6 +81,23 @@ WHERE
     r.job_id = @p_job_id
     AND (@p_expected_version IS NULL OR s.from_version = @p_expected_version)
     AND s.from_status = 30 /* JobStatusCode.Paused */;
+
+-- The members parked on the slot evaluate again now that it is Idle.
+UPDATE {{schema}}.schedules_state st
+SET
+    next_evaluation_at_utc = now(),
+    evaluation_status_code = 10 /* EvaluationStatusCode.Scheduled */,
+    modified_at_utc = now(),
+    version = st.version + 1
+FROM {{schema}}.schedules js
+JOIN _resume_job s ON true
+WHERE
+    st.schedule_id = js.schedule_id
+    AND js.job_id = @p_job_id
+    AND s.to_status = 40 /* JobStatusCode.Idle */
+    AND s.from_status = 30 /* JobStatusCode.Paused */
+    AND (@p_expected_version IS NULL OR s.from_version = @p_expected_version)
+    AND st.evaluation_status_code IN (20 /* EvaluationStatusCode.WaitingForCapacity */, 50 /* EvaluationStatusCode.SlotUnavailable */);
 
 INSERT INTO {{schema}}.events (
     event_code, created_at_utc, namespace_id,

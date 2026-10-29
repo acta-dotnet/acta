@@ -17,9 +17,8 @@ public sealed class ListOutboxSourcesSpec : OutboxRelayIntegrationBase
 {
     private IOutbox Outbox => Services.GetRequiredService<IActaOperations>().Outbox;
 
-    // A ledger job standing in for the namespace's sys.outbox slot: resolved by the fixed
-    // deduplication key and gated on the definition-supplied job name, with the jobs_state row the
-    // status read and the evidence event's join expect.
+    // A ledger job standing in for the namespace's sys.outbox slot: resolved through its definition's name
+    // and its kind, with the jobs_state row the status read and the evidence event's join expect.
     private async Task<(long JobId, Guid JobRef)> SeedSlotJobAsync(string jobName, CancellationToken ct)
     {
         var seeder = new ActaTestSeeder(Db);
@@ -32,7 +31,7 @@ public sealed class ListOutboxSourcesSpec : OutboxRelayIntegrationBase
                     JobRef = jobRef,
                     NamespaceId = NamespaceId,
                     DefinitionId = definitionId,
-                    DeduplicationKey = "sys.outbox",
+                    Kind = JobKindCode.PermanentSlot,
                     InputFormatId = 1,
                     Input = [0],
                     EventRecording = EventRecordingCode.Off,

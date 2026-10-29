@@ -77,4 +77,6 @@ internal class OutboxSourceDialect(ISqlDialect inner) : ISqlDialect
     ) => throw NotOutbox();
 
     public void BindCompleteExecutions(DbCommand command, CompleteExecutionsCommand request, string schema) => throw NotOutbox();
+
+    public void BindAdmitFirings(DbCommand command, AdmitFiringsCommand request) => throw NotOutbox();
 }

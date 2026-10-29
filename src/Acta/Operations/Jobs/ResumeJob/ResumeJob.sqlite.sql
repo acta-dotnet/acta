@@ -5,10 +5,16 @@ SELECT
     j.job_id,
     r.job_status_code AS from_status,
     r.version AS from_version,
-    -- A laned job resumes Ready unless another member runs or an older member is unfinished
-    -- (docs/sql-internals.md, "Lane lock order"). The immediate transaction is the
-    -- lane's mutex on SQLite.
+    -- A slot with no firing outstanding resumes Idle, for admission to find; one paused mid-firing resumes Ready to
+    -- run it. A laned job resumes Ready unless another member runs or an older member is unfinished
+    -- (docs/sql-internals.md, "Lane lock order"). The immediate transaction is the lane's mutex on SQLite.
     CASE
+        WHEN j.job_kind_code = 20 /* JobKindCode.PermanentSlot */ AND NOT EXISTS (
+            SELECT 1
+            FROM {{schema}}.checkpoints cp
+            WHERE cp.job_id = j.job_id AND cp.checkpoint_kind_code = 60 /* CheckpointKindCode.Firing */
+                AND cp.checkpoint_name = 'sys.firing' AND cp.checkpoint_status_code = 10 /* CheckpointStatusCode.Pending */
+        ) THEN 40 /* JobStatusCode.Idle */
         WHEN
             r.lane_id IS NOT NULL
             AND EXISTS (
@@ -74,13 +80,35 @@ WHERE
 UPDATE {{schema}}.jobs_state
 SET
     job_status_code = (SELECT s.to_status FROM temp._resume_job s),
-    next_run_at_utc = COALESCE(@p_next_run_at_utc, {{now}}),
+    next_run_at_utc = CASE
+        WHEN (SELECT s.to_status FROM temp._resume_job s) = 40 /* JobStatusCode.Idle */ THEN NULL
+        ELSE COALESCE(@p_next_run_at_utc, {{now}})
+    END,
     modified_at_utc = {{now}},
     version = version + 1
 WHERE
     job_id = @p_job_id
     AND (@p_expected_version IS NULL OR version = @p_expected_version)
     AND job_status_code = 30 /* JobStatusCode.Paused */;
+
+-- The members parked on the slot evaluate again now that it is Idle.
+UPDATE {{schema}}.schedules_state
+SET
+    next_evaluation_at_utc = {{now}},
+    evaluation_status_code = 10 /* EvaluationStatusCode.Scheduled */,
+    modified_at_utc = {{now}},
+    version = version + 1
+WHERE
+    schedule_id IN (SELECT js.schedule_id FROM {{schema}}.schedules js WHERE js.job_id = @p_job_id)
+    AND evaluation_status_code IN (20 /* EvaluationStatusCode.WaitingForCapacity */, 50 /* EvaluationStatusCode.SlotUnavailable */)
+    AND EXISTS (
+        SELECT 1
+        FROM temp._resume_job s
+        WHERE
+            s.to_status = 40 /* JobStatusCode.Idle */
+            AND s.from_status = 30 /* JobStatusCode.Paused */
+            AND (@p_expected_version IS NULL OR s.from_version = @p_expected_version)
+    );
 
 SELECT
     CASE

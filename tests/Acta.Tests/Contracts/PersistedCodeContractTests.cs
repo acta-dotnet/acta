@@ -54,7 +54,6 @@ public sealed class PersistedCodeContractTests
         EventCode.JobExecutionOrphaned=42|job.execution-orphaned
         EventCode.JobExecutionYielded=43|job.execution-yielded
         EventCode.JobFailed=44|job.failed
-        EventCode.JobRecurringRolledOver=50|job.recurring-rolled-over
         EventCode.JobSuspended=60|job.suspended
         EventCode.JobRescheduled=61|job.rescheduled
         EventCode.JobCancelled=70|job.cancelled
@@ -70,8 +69,10 @@ public sealed class PersistedCodeContractTests
         EventCode.SchedulePaused=100|schedule.paused
         EventCode.ScheduleResumed=101|schedule.resumed
         EventCode.SchedulePauseExpired=102|schedule.pause-expired
-        EventCode.ScheduleOverridesUpdated=103|schedule.overrides-updated
         EventCode.ScheduleTriggered=104|schedule.triggered
+        EventCode.ScheduleAdmitted=105|schedule.admitted
+        EventCode.ScheduleSkipped=106|schedule.skipped
+        EventCode.ScheduleRetimed=107|schedule.retimed
         EventCode.WorkerStarted=120|worker.started
         EventCode.WorkerStopped=121|worker.stopped
         EventCode.WorkerDied=122|worker.died
@@ -85,11 +86,15 @@ public sealed class PersistedCodeContractTests
         CheckpointKindCode.Timer=30|timer
         CheckpointKindCode.Progress=40|progress
         CheckpointKindCode.ChildLatch=50|child-latch
+        CheckpointKindCode.Firing=60|firing
         CheckpointStatusCode.Unspecified=0|unspecified
         CheckpointStatusCode.Pending=10|pending
         CheckpointStatusCode.Set=20|set
         CheckpointStatusCode.Expired=30|expired
         CheckpointStatusCode.Consumed=100|consumed
+        CheckpointStatusCode.Succeeded=110|succeeded
+        CheckpointStatusCode.Failed=120|failed
+        CheckpointStatusCode.Cancelled=130|cancelled
         StepStatusCode.Unspecified=0|unspecified
         StepStatusCode.Pending=10|pending
         StepStatusCode.Succeeded=100|succeeded
@@ -104,6 +109,9 @@ public sealed class PersistedCodeContractTests
         EventRecordingCode.Off=0|off
         EventRecordingCode.Failures=10|failures
         EventRecordingCode.Audit=20|audit
+        JobKindCode.Unspecified=0|unspecified
+        JobKindCode.Ordinary=10|ordinary
+        JobKindCode.PermanentSlot=20|permanent-slot
         JobPriorityCode.Bulk=0|bulk
         JobPriorityCode.Normal=50|normal
         JobPriorityCode.High=70|high
@@ -117,6 +125,7 @@ public sealed class PersistedCodeContractTests
         JobStatusCode.Blocked=15|blocked
         JobStatusCode.Suspended=20|suspended
         JobStatusCode.Paused=30|paused
+        JobStatusCode.Idle=40|idle
         JobStatusCode.Executing=50|executing
         JobStatusCode.Succeeded=100|succeeded
         JobStatusCode.Failed=200|failed
@@ -141,6 +150,12 @@ public sealed class PersistedCodeContractTests
         ScheduleStatusCode.Active=10|active
         ScheduleStatusCode.Paused=30|paused
         ScheduleStatusCode.Orphaned=230|orphaned
+        EvaluationStatusCode.Unspecified=0|unspecified
+        EvaluationStatusCode.Scheduled=10|scheduled
+        EvaluationStatusCode.WaitingForCapacity=20|waiting-for-capacity
+        EvaluationStatusCode.Exhausted=30|exhausted
+        EvaluationStatusCode.EvaluationError=40|evaluation-error
+        EvaluationStatusCode.SlotUnavailable=50|slot-unavailable
         EntityCode.Unspecified=0|unspecified
         EntityCode.Alert=10|alert
         EntityCode.Checkpoint=20|checkpoint
@@ -165,10 +180,10 @@ public sealed class PersistedCodeContractTests
         WorkerStatusCode.Dead=200|dead
         """;
 
-    private const string ExpectedDescriptionHash = "1AEF0C9B0717720F91A4622CCCDD52FD82EE3BA4D37D3FEBB2D0C84CF68EA5CA";
+    private const string ExpectedDescriptionHash = "2E8E915245BDEA4DAA26000F7CAA69EDBC87DCF72B3575779BC0BD8DF7C67F60";
 
     [Fact]
-    public void Frozen_contract_covers_all_26_families_and_154_values()
+    public void Frozen_contract_covers_all_28_families_and_167_values()
     {
         var expected = ExpectedContract
             .Split('\n', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries)
@@ -177,8 +192,8 @@ public sealed class PersistedCodeContractTests
         var families = CodeFamilies();
         var actual = families.SelectMany(ReadFamily).ToDictionary(x => x.Key, StringComparer.Ordinal);
 
-        Assert.Equal(26, families.Length);
-        Assert.Equal(154, expected.Count);
+        Assert.Equal(28, families.Length);
+        Assert.Equal(169, expected.Count);
         Assert.Equal(expected.Keys.Order(), actual.Keys.Order());
 
         foreach (var (key, contract) in expected)
@@ -189,8 +204,8 @@ public sealed class PersistedCodeContractTests
             Assert.False(string.IsNullOrWhiteSpace(value.Description));
         }
 
-        Assert.Equal(154, CodeManifests.All.Count);
-        Assert.Equal(39, Enum.GetValues<EventCode>().Length);
+        Assert.Equal(169, CodeManifests.All.Count);
+        Assert.Equal(40, Enum.GetValues<EventCode>().Length);
 
         Assert.Equal((byte)200, (byte)JobStatusCode.Failed);
         Assert.Equal((byte)200, (byte)StepStatusCode.Exhausted);
@@ -198,7 +213,7 @@ public sealed class PersistedCodeContractTests
         Assert.Equal((byte)200, (byte)WorkerStatusCode.Dead);
 
         var payloads = new[] { JobPayloadFormat.None, JobPayloadFormat.Json, JobPayloadFormat.Bytes };
-        Assert.Equal(157, actual.Count + payloads.Length);
+        Assert.Equal(172, actual.Count + payloads.Length);
         Assert.Equal([0, 1, 2], payloads.Select(p => (int)p.Id));
 
         var canonical = string.Join(
@@ -276,7 +291,7 @@ public sealed class PersistedCodeContractTests
     {
         // The two widest families are the ones whose headroom is worth pinning: their assigned ids
         // (the manifest is the assigned set) plus the architecture reserve held out of EventCode.
-        Assert.Equal(39, EventCode.Manifest.Count);
+        Assert.Equal(40, EventCode.Manifest.Count);
         Assert.Equal(31, typeof(EventCode).GetCustomAttributes<ReservedCodeRangeAttribute>().Sum(range => range.End - range.Start + 1));
         Assert.All(
             CodeFamilies(),

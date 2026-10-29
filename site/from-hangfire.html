@@ -144,7 +144,7 @@ builder.Services.UseActa(j =&gt;
         <li><b>Enqueue answers a handle.</b> <code>var job = await jobs.EnqueueAsync(...)</code> gives you the <code>JobRef</code> plus <code>WaitAsync</code>, <code>GetResultAsync</code>, <code>CancelAsync</code>, and <code>ExplainAsync</code> on that job, in place of monitoring-API lookups by id string. Another process rebuilds the handle from the ref with <code>GetHandleAsync</code>.</li>
         <li><b>Curated SQL views replace a private storage schema.</b> <code>jobs_view</code>, <code>events_view</code>, and friends are the supported operator surface: backlog, stuck jobs, worker liveness, and history are queries, not dashboard-only knowledge.</li>
         <li><b>Durable steps, sleeps, signals, and lineage are first-class.</b> The patterns that continuations and batches approximate become recorded state: a step's outcome survives a crash, a wait holds no worker, and children stay traceable to their parent.</li>
-        <li><b>Operators get verbs, not just views.</b> Pause, resume, cancel, restart, signal, reprioritize a live job in place, amend a payload before a restart, override a schedule's expression or time zone with version checks.</li>
+        <li><b>Operators get verbs, not just views.</b> Pause, resume, cancel, restart, signal, reprioritize a live job in place, amend a payload before a restart, pause and trigger a schedule with a recorded reason.</li>
         <li><b>Dashboard verbs are off until you turn them on.</b> Both dashboards ship embedded in your app and default to local requests only.</li>
       </ul>
     </section>

@@ -36,8 +36,9 @@ WHERE
     j.job_id = @p_job_id
     AND j.event_recording_code = 20 /* EventRecordingCode.Audit */;
 
+-- The scheduler's firing envelope is not the handler's state and stays.
 DELETE FROM {{schema}}.checkpoints
-WHERE job_id = @p_job_id;
+WHERE job_id = @p_job_id AND checkpoint_kind_code <> 60 /* CheckpointKindCode.Firing */;
 DELETE FROM {{schema}}.steps
 WHERE job_id = @p_job_id;
 

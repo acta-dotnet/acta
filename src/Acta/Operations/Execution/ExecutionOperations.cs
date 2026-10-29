@@ -16,7 +16,8 @@ internal sealed class ExecutionOperations(
     RecordNoteHandler recordNote,
     GetChildJobIdsHandler getChildJobIds,
     GetStaleChildLatchesHandler getStaleChildLatches,
-    ArmOrConsumeSleepTimerHandler armOrConsumeSleepTimer
+    ArmOrConsumeSleepTimerHandler armOrConsumeSleepTimer,
+    GetFiringHandler getFiring
 )
 {
     /// <summary>
@@ -53,6 +54,10 @@ internal sealed class ExecutionOperations(
     /// surviving path never spends that retry: it returns to Suspended on the same past deadline, and the replay
     /// resolves the timeout as the waiting overload defines it.
     /// </summary>
+    /// <summary>The envelope of the firing the attempt holds, under its fence; null for a lost claim or an ordinary job.</summary>
+    public async Task<FiringEnvelope?> GetFiringAsync(ExecutionFence fence, CancellationToken ct) =>
+        (await getFiring.HandleAsync(new GetFiringQuery(fence), ct))?.Firing;
+
     public Task<ReclaimStuckJobsResponse> ReclaimStuckJobsAsync(int namespaceId, CancellationToken ct) =>
         reclaimStuckJobs.HandleAsync(new ReclaimStuckJobsCommand(namespaceId), ct);
 

@@ -115,7 +115,7 @@ public sealed class FailuresAuditFailureEventSpec : ActaRuntimeTestBase<Conforma
         await FireAsync(slotId, expectedFires: 1, ct);
         var failure = Assert.Single(await FailureEventsAsync(slotId, ct));
         Assert.Equal(EventCode.JobExecutionFailed, failure.EventCode);
-        Assert.Equal(JobStatusCode.Ready.Code, failure.To);
+        Assert.Equal(JobStatusCode.Idle.Code, failure.To);
 
         await RunAlertsAsync(slotId, ct);
         var raised = Assert.Single(await ReadAlertsAsync(NamespaceId, ct));

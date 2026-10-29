@@ -362,8 +362,8 @@ export interface ScheduleControlResponse {
   action: ControlAction;
 }
 
-// Schedule pause/resume/trigger/overrides live at schedules/{ns}/{job}/{schedule}/{action} and return
-// ScheduleControlResponse; ScheduleControls.svelte drives all four through useControlMutation
+// Schedule pause/resume/trigger live at schedules/{ns}/{job}/{schedule}/{action} and return
+// ScheduleControlResponse; ScheduleControls.svelte drives all three through useControlMutation
 // (controlRequest, above) rather than a per-verb fetch function.
 
 // Read-only forecast of a schedule's upcoming fire instants (effective expression/timezone plus the

@@ -15,7 +15,9 @@ WITH target AS (
     FOR UPDATE OF r
 ),
 cleared_checkpoints AS (
-    DELETE FROM {{schema}}.checkpoints WHERE job_id IN (SELECT t.job_id FROM target t)
+    -- The scheduler's firing envelope is not the handler's state and stays.
+    DELETE FROM {{schema}}.checkpoints
+    WHERE job_id IN (SELECT t.job_id FROM target t) AND checkpoint_kind_code <> 60 /* CheckpointKindCode.Firing */
 ),
 cleared_steps AS (
     DELETE FROM {{schema}}.steps WHERE job_id IN (SELECT t.job_id FROM target t)

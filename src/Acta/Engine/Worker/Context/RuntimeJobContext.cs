@@ -23,7 +23,7 @@ internal sealed partial class RuntimeJobContext(
     ExecutionOperations executionStore,
     IJobPayloadSerializerRegistry serializers,
     LocksOperations locks,
-    IReadOnlyList<string> triggeringScheduleNames,
+    FiringEnvelope? firing,
     DateTime? deadlineAtUtc,
     CancellationToken cancellationToken,
     int maxInlinePayloadBytes = int.MaxValue,
@@ -108,7 +108,8 @@ internal sealed partial class RuntimeJobContext(
     public override int ExecutionNumber { get; } = job.ExecutionNumber;
     public override int WorkerId { get; } = workerId;
     public override CancellationToken CancellationToken { get; } = cancellationToken;
-    public override IReadOnlyList<string> TriggeringScheduleNames { get; } = triggeringScheduleNames;
+    public override IReadOnlyList<TriggeringSchedule> TriggeringSchedules { get; } = firing?.TriggeringSchedules ?? [];
+    public override Guid? FiringId { get; } = firing?.FiringId;
     public override DateTime? DeadlineAtUtc { get; } = deadlineAtUtc;
 
     private protected override Task SetProgressCoreAsync<T>(T value, CancellationToken ct)

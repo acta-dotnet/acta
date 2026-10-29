@@ -84,6 +84,8 @@ namespace Acta;
 // RescheduleJob, TriggerScheduleNow, RaiseSignal, CompleteExecutions (re-arm and signal release),
 // ReclaimStuckJobs. NULL is reserved for a Suspended row's unbounded wait.
 [DbCheck(Name = "ck_jobs_state_ready_due", Sql = "job_status_code <> 10 OR next_run_at_utc IS NOT NULL")]
+// An Idle permanent slot has nothing admitted, so nothing to come due: admission is what gives it a claim time.
+[DbCheck(Name = "ck_jobs_state_idle", Sql = "job_status_code <> 40 OR next_run_at_utc IS NULL")]
 [DbCheck(
     Name = "ck_jobs_state_result_pair",
     Sql = "(result_format_id = 0 AND result IS NULL) OR (result_format_id <> 0 AND result IS NOT NULL)"

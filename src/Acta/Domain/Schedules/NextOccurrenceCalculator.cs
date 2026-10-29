@@ -16,12 +16,19 @@ internal static class NextOccurrenceCalculator
     /// Parses an interval expression to a <see cref="TimeSpan"/>: the human duration syntax (<c>5m</c>,
     /// <c>10s</c>) or full ISO 8601 (<c>PT5M</c>, and calendar forms such as <c>P1D</c>). A <c>P</c>/<c>p</c>
     /// prefix routes to <see cref="XmlConvert.ToTimeSpan"/> (so calendar durations keep working); everything
-    /// else is the human form.
+    /// else is the human form. Whole milliseconds only: an occurrence is stored at millisecond precision on every
+    /// provider, and a finer interval would make two ticks one stored instant.
     /// </summary>
     internal static TimeSpan ParseInterval(string expression)
     {
         var e = expression.TrimStart();
-        return e.Length > 0 && e[0] is 'P' or 'p' ? XmlConvert.ToTimeSpan(e) : DurationSyntax.ParseHuman(e);
+        var span = e.Length > 0 && e[0] is 'P' or 'p' ? XmlConvert.ToTimeSpan(e) : DurationSyntax.ParseHuman(e);
+        return span.Ticks % TimeSpan.TicksPerMillisecond == 0
+            ? span
+            : throw new ArgumentException(
+                $"Interval '{expression}' is finer than a millisecond, the precision an occurrence is stored at.",
+                nameof(expression)
+            );
     }
 
     /// <summary>

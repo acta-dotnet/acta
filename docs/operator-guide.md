@@ -170,7 +170,7 @@ JobLookup job = JobRef.Parse("job_01a14f4e954e7bf68ac609f3fcad8e3d");
 
 await jobs.CancelAsync(job, "superseded by order-9");  // cascades to non-terminal descendants
 await jobs.PauseAsync(job);                             // hold a not-yet-running job
-await jobs.ResumeAsync(job);                            // Paused -> Ready (recurring-aware)
+await jobs.ResumeAsync(job);                            // Paused -> Ready, or Idle for a slot with no firing outstanding
 await jobs.RestartAsync(job);                           // resets failure budget + retention and Exhausted steps, runs now
 await jobs.RaiseSignalAsync(job, "approval", payload);  // releases a Suspended WaitSignalAsync
 await jobs.RescheduleAsync(job, inTwoHours);             // move a waiting job's next run (re-arms Ready)
@@ -193,13 +193,11 @@ current version instead of overwriting someone else's decision.
 
 ### Schedule controls
 
-Address a schedule by its recurring slot job plus schedule name. Definition-backed slot jobs use the
-job name as their deduplication key.
+Address a schedule by its path: the namespace, the scheduled job's name, and the schedule's name. The
+slot job carries no deduplication key; `GET /schedules` and the dashboard carry its ref.
 
 ```csharp
-var nightly = new ScheduleLookup(
-    JobLookup.ByDeduplicationKey("billing", "reconcile-ledger"),
-    "nightly");
+var nightly = new ScheduleLookup("billing", "reconcile-ledger", "nightly");
 
 await operations.Schedules.TriggerNowAsync(nightly, reasonMessage: "validate repaired upstream");
 await operations.Schedules.PauseAsync(nightly, untilUtc: maintenanceEndsUtc, reasonMessage: "maintenance");
@@ -253,8 +251,9 @@ Five rules the table cannot show:
   may already have read the payload. A job that stored no input has nothing to
   amend and answers `409` from the endpoint before the routine is reached.
 - **`restart` and `resume` have two more refusals.** A finished laned job is not restarted while an
-  unfinished ancestor or descendant sits in its lane, and a recurring job whose schedules offer no
-  run is neither resumed nor restarted. A recurring job restarts at its next scheduled run, not now.
+  unfinished ancestor or descendant sits in its lane, and a permanent slot whose firing is still
+  outstanding is not restarted around it. A restarted or resumed slot with no firing outstanding
+  returns to `Idle`, where the next due schedule admits it; it does not run now.
 
 ## Tenant and namespace administration
 
@@ -386,7 +385,6 @@ reprioritize
 reschedule
 restart
 resume
-schedules.overrides
 schedules.pause
 schedules.resume
 schedules.trigger
@@ -405,14 +403,14 @@ tenants.update
 
 A job landing terminal gets `retention_until_utc` from its definition's `JobRetention` (default 90 days). The hourly `sys.retention` job deletes terminal jobs past it, with their checkpoints and steps, and deletes events and alerts past `JobEventsRetention` and `AlertRetention`, and stopped or dead workers once both `WorkerRetention` and `JobEventsRetention` have passed, so every event keeps its worker. Each tick walks `jobs_state` from where the last one stopped, up to two million rows, so a job goes within one walk of its deadline.
 
-A recurring slot is never purged while its definition is live. Like every job it holds at most one result: its latest successful occurrence's, cleared when the next occurrence is claimed.
+A permanent slot is purged only by deliberate decommission: `Idle`, `Failed`, or `Cancelled`, no firing outstanding, and no live schedule pinning it (every schedule orphaned, or the definition retired); the retention sweep never deletes a slot whose definition is live. Like every job it holds at most one result: its latest successful firing's, cleared when the next firing is claimed.
 
 `AlertRetention` is a hard cap: an alert past it is deleted even if it was never delivered or is still open, and a pass that deleted undelivered alerts logs one warning (`reason=alert-retention-cap`). If that line appears, find out why delivery is not settling.
 
 | | Retention sweep | Manual purge |
 | --- | --- | --- |
 | Trigger | `sys.retention` finds terminal jobs past `retention_until_utc` | `IJobs.PurgeAsync`, `POST /jobs/{jobRef}/purge`, or the dashboard |
-| Eligible job | Terminal and past its deadline, unless it is a stopped recurring job whose definition is live | Terminal now |
+| Eligible job | Terminal and past its deadline, unless it is a stopped permanent slot whose definition is live | Terminal now; a permanent slot only when nothing pins it |
 | Child jobs | Keeps a completed child while its parent is live; a finished tree drains leaves first | Refuses a parent with children and a child whose parent is live |
 | Job event | None | `job.purged`, carrying the job's ref and name |
 | The job's events and alerts | Age out on their own windows | Deleted at once |
@@ -699,7 +697,7 @@ included, is one durable system.
 - `SysCritical` is for Acta's own jobs. `None` turns off automatic alerts only; `ctx.AlertAsync` still raises manual ones.
 - A `Cancelled` job never alerts, whether an operator, `ctx.CancelAsync`, or a deadline cancelled it. Budget-neutral re-arms (a held concurrency key, a rate limit, a step retry) do not alert either.
 - Automatic alerts are independent of the recording level: an enabled alert profile captures the failed, orphaned, terminal, and recovery transitions durably even at `EventRecording = Off`, so every profile fires and resolves the same at every level.
-- For recurring work use `OnFailure`: a recurring job's failures never land `Failed`, so `OnTerminal` and `Info` stay silent for them.
+- For recurring work use `OnFailure`: a permanent slot's failures never land `Failed` (a spent budget returns it to `Idle`), so `OnTerminal` and `Info` stay silent for them.
 
 ### Incidents
 
@@ -734,7 +732,8 @@ expected transition and the application responsibility behind it.
 
 The claim already moved the job to `Executing` under the worker lease. After the lease expires,
 the next recovery pass returns it to `Ready` while retry budget remains, or marks it `Failed` when the budget
-is exhausted (a recurring slot always returns to `Ready`, for its next occurrence). No handler side
+is exhausted (a permanent slot returns to `Ready` for another attempt of its firing while budget remains,
+and to `Idle` with the firing settled `failed` once it is spent). No handler side
 effect occurred, but the lost attempt counts against the budget like any other crashed attempt.
 
 ### …a worker crashes while the handler is running?
@@ -822,11 +821,11 @@ handler, or to retire the definition from the dashboard, which cancels its parke
 handler from a deploy never cancels anything by itself; see
 [Production § rolling deploys](#rolling-deploys).
 
-A recurring job follows the same rule. A deploy that drops every schedule of one pauses its slot with
-no next run, and a deploy that brings a schedule back makes it `Ready`. A deploy that adds a
-`[JobSchedule]` refuses to start, naming the recurring job, while an ordinary job of the namespace
-holds the slot's deduplication key (the job name): let that job finish and purge it, or enqueue its
-work under another key. See [Schedule operations](./developer-guide.md#schedule-operations).
+A recurring job follows the same rule. A deploy that drops every schedule of one leaves its slot `Idle`
+with nothing due, and a deploy that brings a schedule back puts the schedule in front of the admitter
+again. A deploy that adds a `[JobSchedule]` registers the slot beside any ordinary job of that name: the
+slot carries no deduplication key, so an ordinary job keyed by the job name is unrelated to it. See
+[Schedule operations](./developer-guide.md#schedule-operations).
 
 ### …a checkpoint name changes during a deployment?
 
@@ -837,11 +836,11 @@ migration, not a refactor.
 
 ### …the service is down across scheduled occurrences?
 
-The schedule's misfire policy decides the cursor when the schedule reloads or resumes. `Skip` moves
+The schedule's misfire policy decides the cursor when the admitter next evaluates it. `Skip` moves
 past missed occurrences; `CatchUpOnce` produces one coalesced catch-up execution. Neither policy
-creates one historical job per missed period. A worker start counts an occurrence less than a minute
-overdue as due rather than missed, and leaves a slot with an attempt in flight, or parked part-way
-through an occurrence, to the running fleet. See [Schedule operations](./developer-guide.md#schedule-operations).
+creates one historical job per missed period. An occurrence less than a minute overdue counts as due
+rather than missed, and a worker start decides nothing: it registers the declaration and leaves every
+occurrence to the running fleet's admitter. See [Schedule operations](./developer-guide.md#schedule-operations).
 
 ### …an operator restarts a failed or cancelled job?
 
@@ -959,9 +958,9 @@ control endpoint.
 Schedules have their own control surface through `operations.Schedules`; pausing a schedule is distinct
 from pausing the job itself.
 
-A recurring job whose schedules are all paused, exhausted, or removed by a deploy is Paused with no next
-run. A job resume answers 409 until a schedule offers a run, and the job goes back to Ready by itself
-once one does. See [Schedule operations](./developer-guide.md#schedule-operations).
+A permanent slot whose schedules are all paused, exhausted, or removed by a deploy sits `Idle` with
+nothing due, and fires again by itself once a schedule offers a run. See
+[Schedule operations](./developer-guide.md#schedule-operations).
 
 ### A Job Keeps Retrying Or Failed
 
@@ -1252,15 +1251,15 @@ job's attempt budget until its own step budget is exhausted.
 ### Recurring Schedules
 
 ```sql
-SELECT namespace, job_name, schedule_name, status, origin, expression_effective, time_zone_id_effective, next_occurrence_at_utc, last_advanced_occurrence_at_utc, paused_until_utc, description, change_message
+SELECT namespace, job_name, schedule_name, status, origin, expression, time_zone_id, next_occurrence_at_utc, decided_through_at_utc, next_evaluation_at_utc, evaluation_status, paused_until_utc, description, pause_message
   FROM acta.schedules_view
  ORDER BY namespace, next_occurrence_at_utc NULLS LAST, schedule_name;
 ```
 
 Each schedule's cursor lives in `schedules_state`, beside its `schedules` row, and the view joins the
 two. `next_occurrence_at_utc` is the next instant the schedule is due; an orphaned schedule, and every
-schedule of a retired definition, has none. The recurring slot job uses the minimum live schedule
-cursor as its `next_run_at_utc`.
+schedule of a retired definition, has none. `next_evaluation_at_utc` and `evaluation_status` say when
+and why the admitter next looks; the slot job carries no cursor of its own and sits `idle` between firings.
 
 ### Job Definitions And Effective Policy
 

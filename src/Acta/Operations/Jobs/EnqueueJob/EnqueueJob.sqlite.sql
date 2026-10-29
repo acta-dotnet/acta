@@ -161,11 +161,12 @@ WHERE
 -- end child-only
 
 INSERT INTO {{schema}}.jobs (
-    job_ref, lineage_root_job_id, parent_job_id, deduplication_key, correlation_key,
+    job_kind_code, job_ref, lineage_root_job_id, parent_job_id, deduplication_key, correlation_key,
     namespace_id, definition_id, tenant_id,
     input_format_id, input, concurrency_key, event_recording_code
 )
 SELECT
+    10 /* JobKindCode.Ordinary */,
     @p_job_ref,
     NULL,
     NULL,
@@ -189,11 +190,12 @@ WHERE
 ON CONFLICT (namespace_id, deduplication_key) WHERE deduplication_key IS NOT NULL AND parent_job_id IS NULL DO NOTHING;
 
 INSERT INTO {{schema}}.jobs (
-    job_ref, lineage_root_job_id, parent_job_id, deduplication_key, correlation_key,
+    job_kind_code, job_ref, lineage_root_job_id, parent_job_id, deduplication_key, correlation_key,
     namespace_id, definition_id, tenant_id,
     input_format_id, input, concurrency_key, event_recording_code
 )
 SELECT
+    10 /* JobKindCode.Ordinary */,
     @p_job_ref,
     COALESCE(pj.lineage_root_job_id, pj.job_id),
     @p_parent_job_id,

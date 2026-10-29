@@ -68,6 +68,29 @@ BEGIN TRY
             GOTO Finish;
         END;
 
+    DECLARE @slot BIT = CASE WHEN EXISTS (
+        SELECT 1 FROM {{schema}}.jobs j WHERE j.job_id = @p_job_id AND j.job_kind_code = 20 /* JobKindCode.PermanentSlot */
+    ) THEN 1 ELSE 0 END;
+
+    -- A slot whose firing is still outstanding is not restarted around it; one with none restarts Idle, for admission.
+    IF @slot = 1 AND EXISTS (
+        SELECT 1
+        FROM {{schema}}.checkpoints cp
+        WHERE cp.job_id = @p_job_id AND cp.checkpoint_kind_code = 60 /* CheckpointKindCode.Firing */
+            AND cp.checkpoint_name = 'sys.firing' AND cp.checkpoint_status_code = 10 /* CheckpointStatusCode.Pending */
+    )
+        BEGIN
+
+            SELECT
+                CAST(3 /* ControlAction.Rejected */ AS TINYINT) AS action,
+                @from_status AS status,
+                @version AS version;
+            GOTO Finish;
+        END;
+
+    IF @slot = 1
+        SET @to_status = 40 /* JobStatusCode.Idle */;
+
     /* A finished laned job is not reactivated while an unfinished ancestor or descendant sits in its
        lane, the state the enqueue ancestor guard refuses (docs/sql-internals.md, "Lane
        lock order"). Both walks run under the lane lock, which every enqueue into the lane takes too. */
@@ -167,7 +190,7 @@ BEGIN TRY
     SET
         job_status_code = @to_status,
         failure_count = 0,
-        next_run_at_utc = COALESCE(@p_next_run_at_utc, @now),
+        next_run_at_utc = CASE WHEN @to_status = 40 /* JobStatusCode.Idle */ THEN NULL ELSE COALESCE(@p_next_run_at_utc, @now) END,
         leased_by_worker_id = NULL,
         lease_expires_at_utc = NULL,
         retention_until_utc = NULL,
@@ -177,6 +200,20 @@ BEGIN TRY
         version = version + 1
     WHERE job_id = @p_job_id;
     SET @version = @version + 1;
+
+    -- The members parked on the slot evaluate again now that it is Idle.
+    IF @to_status = 40 /* JobStatusCode.Idle */
+        UPDATE st
+        SET
+            next_evaluation_at_utc = @now,
+            evaluation_status_code = 10 /* EvaluationStatusCode.Scheduled */,
+            modified_at_utc = @now,
+            version = st.version + 1
+        FROM {{schema}}.schedules_state st WITH (FORCESEEK)
+        INNER JOIN {{schema}}.schedules js ON js.schedule_id = st.schedule_id
+        WHERE
+            js.job_id = @p_job_id
+            AND st.evaluation_status_code IN (20 /* EvaluationStatusCode.WaitingForCapacity */, 50 /* EvaluationStatusCode.SlotUnavailable */);
 
     -- An exhausted step runs again from a fresh budget and retry window; an interrupted at-most-once
     -- step stays, since only someone who reconciled its outcome can say it may run again.

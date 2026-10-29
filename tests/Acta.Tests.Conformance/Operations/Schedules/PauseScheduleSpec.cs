@@ -5,12 +5,12 @@ using Xunit;
 
 namespace Acta.Tests.Conformance.Operations.Schedules;
 
-/// <summary>Conformance for operator schedule pause: the slot is recomputed without the paused schedule, timed pauses wake the slot, and the pause survives redeploy.</summary>
+/// <summary>Conformance for operator schedule pause: the schedule leaves the admitter's seek with its cursor kept, a timed pause ends on its own, and the pause survives redeploy.</summary>
 [ConformanceSpec(
     "schedule.pause",
-    "Operator pause excludes a schedule from its slot and survives redeploy",
+    "Operator pause takes a schedule out of admission and survives redeploy",
     Area = "Scheduling",
-    Contract = "Pausing a schedule drops it from the slot MIN without moving its cursor, wakes the slot at a timed expiry, and survives catalog re-sync."
+    Contract = "Pausing a schedule keeps its cursor, leaves its slot alone, is re-evaluated at a timed expiry and not before, and survives catalog re-sync."
 )]
 public sealed class PauseScheduleSpec : ActaStorageTestBase<ConformanceFixture>
 {
@@ -27,8 +27,7 @@ public sealed class PauseScheduleSpec : ActaStorageTestBase<ConformanceFixture>
 
     private async Task<DateTime> NowAsync(CancellationToken ct) => await Services.GetRequiredService<IActaClock>().GetUtcNowAsync(ct);
 
-    private ScheduleLookup Lookup(string jobName, string scheduleName) =>
-        new(JobLookup.ByDeduplicationKey(TestNamespace, jobName), scheduleName);
+    private ScheduleLookup Lookup(string jobName, string scheduleName) => new(TestNamespace, jobName, scheduleName);
 
     private static SlotSchedule Slot(
         string name,
@@ -48,21 +47,16 @@ public sealed class PauseScheduleSpec : ActaStorageTestBase<ConformanceFixture>
         ISqlDialect dialect,
         int defId,
         string jobName,
-        DateTime? slotMin,
         IReadOnlyList<SlotSchedule> schedules,
-        JobStatusCode slotStatus,
         CancellationToken ct
     )
     {
         var definition = new DefinitionSchedules(
             NamespaceId: TestNamespaceId,
             DefinitionId: defId,
-            JobName: jobName,
             InputFormatId: 0,
             Input: ReadOnlyMemory<byte>.Empty,
             EventRecording: EventRecordingCode.Audit,
-            SlotStatus: slotStatus,
-            SlotMinNextRunAtUtc: slotMin,
             Schedules: schedules
         );
         await ScheduleTestOps.RegisterAsync(Services, [definition], ct);
@@ -95,16 +89,10 @@ public sealed class PauseScheduleSpec : ActaStorageTestBase<ConformanceFixture>
                 []
             ),
         };
-        var (slotSchedules, slotStatus, slotNextRun) = ScheduleWalker.Reconcile(declared, storedForDef, now);
-        await RegisterAsync(db, dialect, defId, jobName, slotNextRun, slotSchedules, slotStatus, ct);
+        await RegisterAsync(db, dialect, defId, jobName, ScheduleRegistrationPlan.Plan(declared, storedForDef, now), ct);
     }
 
-    private async Task<long> SlotIdAsync(string jobName, CancellationToken ct)
-    {
-        var id = (await Jobs().GetJobIdAsync(JobLookup.ByDeduplicationKey(TestNamespace, jobName), ct))?.JobId;
-        Assert.NotNull(id);
-        return id!.Value;
-    }
+    private Task<long> SlotIdAsync(string jobName, CancellationToken ct) => ScheduleTestOps.SlotIdAsync(Db, TestNamespace, jobName, ct);
 
     private IJobs Jobs() => Services.GetRequiredService<IJobs>();
 
@@ -138,8 +126,10 @@ public sealed class PauseScheduleSpec : ActaStorageTestBase<ConformanceFixture>
             SerializeOutput: null
         );
 
-    [Fact(DisplayName = "Pause keeps the schedule's cursor and sets the slot MIN to the remaining firing schedules")]
-    public async Task Pausing_one_of_several_schedules_keeps_its_cursor_and_sets_slot_min_to_the_rest()
+    [Fact(
+        DisplayName = "Pause keeps the schedule's cursor, takes it out of the admitter's seek, and leaves its sibling and the slot alone"
+    )]
+    public async Task Pausing_one_of_several_schedules_keeps_its_cursor_and_leaves_the_rest_alone()
     {
         var ct = TestContext.Current.CancellationToken;
         var (db, dialect) = Store();
@@ -149,16 +139,7 @@ public sealed class PauseScheduleSpec : ActaStorageTestBase<ConformanceFixture>
 
         var soon = now.AddMinutes(10);
         var late = now.AddMinutes(20);
-        await RegisterAsync(
-            db,
-            dialect,
-            defId,
-            jobName,
-            now.AddMinutes(10),
-            [Slot("soon", soon), Slot("late", late)],
-            JobStatusCode.Ready,
-            ct
-        );
+        await RegisterAsync(db, dialect, defId, jobName, [Slot("soon", soon), Slot("late", late)], ct);
 
         var result = await Schedules.PauseAsync(Lookup(jobName, "late"), untilUtc: null, reasonMessage: "drain", ct: ct);
         Assert.Equal(ControlAction.Applied, result.Action);
@@ -168,28 +149,31 @@ public sealed class PauseScheduleSpec : ActaStorageTestBase<ConformanceFixture>
         Assert.Equal(ScheduleStatusCode.Paused, paused.Status);
         Assert.Null(paused.PausedUntilUtc);
         Assert.Equal(late, paused.NextOccurrenceAtUtc); // a pause never moves the schedule's own cursor
+        Assert.Null(paused.NextEvaluationAtUtc); // nothing timed ends an indefinite pause
 
+        var sibling = await ScheduleAsync(Db, jobName, "soon", ct);
+        Assert.Equal(soon, sibling.NextEvaluationAtUtc);
         var slot = await SlotAsync(jobName, ct);
-        Assert.Equal(JobStatusCode.Ready, slot.Status);
-        Assert.Equal(soon, slot.NextRunAtUtc); // MIN over the remaining firing schedule
+        Assert.Equal(JobStatusCode.Idle, slot.Status);
+        Assert.Null(slot.NextRunAtUtc);
     }
 
-    [Fact(DisplayName = "Pausing the only schedule system-pauses the slot job and resume re-arms it")]
-    public async Task Pausing_the_only_schedule_system_pauses_the_slot_and_resume_re_arms_it()
+    [Fact(DisplayName = "Pausing the only schedule leaves the slot Idle, and a resume returns the schedule to the admitter at once")]
+    public async Task Pausing_the_only_schedule_leaves_the_slot_idle_and_resume_returns_it_to_the_admitter()
     {
         var ct = TestContext.Current.CancellationToken;
         var (db, dialect) = Store();
         var now = FloorSeconds(await NowAsync(ct));
         var jobName = Unique("solo");
         var defId = await CreateDefinitionAsync(db, dialect, jobName, ct);
-        await RegisterAsync(db, dialect, defId, jobName, now.AddMinutes(5), [Slot("only", now.AddMinutes(5))], JobStatusCode.Ready, ct);
+        await RegisterAsync(db, dialect, defId, jobName, [Slot("only", now.AddMinutes(5))], ct);
 
         var paused = await Schedules.PauseAsync(Lookup(jobName, "only"), ct: ct);
         Assert.Equal(ControlAction.Applied, paused.Action);
 
         {
             var slot = await SlotAsync(jobName, ct);
-            Assert.Equal(JobStatusCode.Paused, slot.Status);
+            Assert.Equal(JobStatusCode.Idle, slot.Status);
             Assert.Null(slot.NextRunAtUtc);
         }
 
@@ -201,22 +185,24 @@ public sealed class PauseScheduleSpec : ActaStorageTestBase<ConformanceFixture>
             var schedule = await ScheduleAsync(Db, jobName, "only", ct);
             Assert.Equal(ScheduleStatusCode.Active, schedule.Status);
             Assert.Null(schedule.PausedUntilUtc);
+            Assert.Equal(EvaluationStatusCode.Scheduled, schedule.EvaluationStatus);
+            Assert.InRange(schedule.NextEvaluationAtUtc!.Value, now, now.AddMinutes(1));
 
             var slot = await SlotAsync(jobName, ct);
-            Assert.Equal(JobStatusCode.Ready, slot.Status);
-            Assert.NotNull(slot.NextRunAtUtc);
+            Assert.Equal(JobStatusCode.Idle, slot.Status);
+            Assert.Null(slot.NextRunAtUtc);
         }
     }
 
-    [Fact(DisplayName = "A timed pause sets the slot wake point to the pause expiry")]
-    public async Task Timed_pause_sets_the_slot_wake_point_to_the_expiry()
+    [Fact(DisplayName = "A timed pause sets the schedule's next evaluation to the pause expiry")]
+    public async Task Timed_pause_sets_the_next_evaluation_to_the_expiry()
     {
         var ct = TestContext.Current.CancellationToken;
         var (db, dialect) = Store();
         var now = FloorSeconds(await NowAsync(ct));
         var jobName = Unique("timed");
         var defId = await CreateDefinitionAsync(db, dialect, jobName, ct);
-        await RegisterAsync(db, dialect, defId, jobName, now.AddMinutes(30), [Slot("only", now.AddMinutes(30))], JobStatusCode.Ready, ct);
+        await RegisterAsync(db, dialect, defId, jobName, [Slot("only", now.AddMinutes(30))], ct);
 
         var until = now.AddMinutes(10);
         var result = await Schedules.PauseAsync(Lookup(jobName, "only"), untilUtc: until, ct: ct);
@@ -226,10 +212,11 @@ public sealed class PauseScheduleSpec : ActaStorageTestBase<ConformanceFixture>
         var schedule = await ScheduleAsync(Db, jobName, "only", ct);
         Assert.Equal(ScheduleStatusCode.Paused, schedule.Status);
         Assert.Equal(until, schedule.PausedUntilUtc);
+        Assert.Equal(until, schedule.NextEvaluationAtUtc); // the admitter ends the pause at its expiry
 
         var slot = await SlotAsync(jobName, ct);
-        Assert.Equal(JobStatusCode.Ready, slot.Status);
-        Assert.Equal(until, slot.NextRunAtUtc); // the slot wakes at the pause expiry to auto-resume
+        Assert.Equal(JobStatusCode.Idle, slot.Status);
+        Assert.Null(slot.NextRunAtUtc);
     }
 
     [Fact(DisplayName = "A timed pause with an expiry in the past is rejected")]
@@ -240,7 +227,7 @@ public sealed class PauseScheduleSpec : ActaStorageTestBase<ConformanceFixture>
         var now = FloorSeconds(await NowAsync(ct));
         var jobName = Unique("past");
         var defId = await CreateDefinitionAsync(db, dialect, jobName, ct);
-        await RegisterAsync(db, dialect, defId, jobName, now.AddMinutes(5), [Slot("only", now.AddMinutes(5))], JobStatusCode.Ready, ct);
+        await RegisterAsync(db, dialect, defId, jobName, [Slot("only", now.AddMinutes(5))], ct);
 
         var result = await Schedules.PauseAsync(Lookup(jobName, "only"), untilUtc: now.AddMinutes(-1), ct: ct);
         Assert.Equal(ControlAction.Rejected, result.Action);
@@ -254,10 +241,10 @@ public sealed class PauseScheduleSpec : ActaStorageTestBase<ConformanceFixture>
         var now = FloorSeconds(await NowAsync(ct));
         var jobName = Unique("orphan");
         var defId = await CreateDefinitionAsync(db, dialect, jobName, ct);
-        await RegisterAsync(db, dialect, defId, jobName, now.AddMinutes(5), [Slot("gone", now.AddMinutes(5))], JobStatusCode.Ready, ct);
+        await RegisterAsync(db, dialect, defId, jobName, [Slot("gone", now.AddMinutes(5))], ct);
 
         // Re-register with no declared schedules: the orphan sweep orphans "gone".
-        await RegisterAsync(db, dialect, defId, jobName, null, [], JobStatusCode.Paused, ct);
+        await RegisterAsync(db, dialect, defId, jobName, [], ct);
 
         Assert.Equal(ControlAction.NotFound, (await Schedules.PauseAsync(Lookup(jobName, "gone"), ct: ct)).Action);
         Assert.Equal(ControlAction.NotFound, (await Schedules.ResumeAsync(Lookup(jobName, "gone"), ct: ct)).Action);
@@ -271,18 +258,19 @@ public sealed class PauseScheduleSpec : ActaStorageTestBase<ConformanceFixture>
         var now = FloorSeconds(await NowAsync(ct));
         var jobName = Unique("redeploy");
         var defId = await CreateDefinitionAsync(db, dialect, jobName, ct);
-        await RegisterAsync(db, dialect, defId, jobName, now.AddMinutes(30), [Slot("only", now.AddMinutes(30))], JobStatusCode.Ready, ct);
+        await RegisterAsync(db, dialect, defId, jobName, [Slot("only", now.AddMinutes(30))], ct);
 
         var until = now.AddMinutes(45);
         await Schedules.PauseAsync(Lookup(jobName, "only"), untilUtc: until, ct: ct);
 
-        // Re-run the startup catalog reconcile for the same definition (GetScheduleState -> Reconcile ->
+        // Re-run the startup catalog reconcile for the same definition (GetScheduleState -> ScheduleRegistrationPlan ->
         // RegisterSchedules), exactly as CatalogRegistrar.ReconcileSchedulesAsync does.
         await ReReconcileAsync(db, dialect, defId, jobName, now, ct);
 
         var schedule = await ScheduleAsync(Db, jobName, "only", ct);
         Assert.Equal(ScheduleStatusCode.Paused, schedule.Status);
         Assert.Equal(until, schedule.PausedUntilUtc);
+        Assert.Equal(until, schedule.NextEvaluationAtUtc);
     }
 
     [Fact(DisplayName = "Orphaning a timed-paused schedule clears the pause deadline along with the status")]
@@ -296,18 +284,19 @@ public sealed class PauseScheduleSpec : ActaStorageTestBase<ConformanceFixture>
         var now = FloorSeconds(await NowAsync(ct));
         var jobName = Unique("orphan-paused");
         var defId = await CreateDefinitionAsync(db, dialect, jobName, ct);
-        await RegisterAsync(db, dialect, defId, jobName, now.AddMinutes(30), [Slot("only", now.AddMinutes(30))], JobStatusCode.Ready, ct);
+        await RegisterAsync(db, dialect, defId, jobName, [Slot("only", now.AddMinutes(30))], ct);
 
         await Schedules.PauseAsync(Lookup(jobName, "only"), untilUtc: now.AddMinutes(45), ct: ct);
 
         // Re-register with the declaration gone: reconciliation orphans the surviving row.
-        await RegisterAsync(db, dialect, defId, jobName, null, [], JobStatusCode.Paused, ct);
+        await RegisterAsync(db, dialect, defId, jobName, [], ct);
 
         var schedule = await ScheduleAsync(Db, jobName, "only", ct);
         Assert.Equal(ScheduleStatusCode.Orphaned, schedule.Status);
         Assert.Null(schedule.PausedUntilUtc);
         Assert.Null(schedule.NextOccurrenceAtUtc);
-        Assert.Null(schedule.LastAdvancedOccurrenceAtUtc);
+        Assert.Null(schedule.DecidedThroughAtUtc);
+        Assert.Null(schedule.NextEvaluationAtUtc);
     }
 
     [Fact(DisplayName = "Pause and resume emit audit events against the slot job")]
@@ -318,7 +307,7 @@ public sealed class PauseScheduleSpec : ActaStorageTestBase<ConformanceFixture>
         var now = FloorSeconds(await NowAsync(ct));
         var jobName = Unique("audit");
         var defId = await CreateDefinitionAsync(db, dialect, jobName, ct);
-        await RegisterAsync(db, dialect, defId, jobName, now.AddMinutes(5), [Slot("only", now.AddMinutes(5))], JobStatusCode.Ready, ct);
+        await RegisterAsync(db, dialect, defId, jobName, [Slot("only", now.AddMinutes(5))], ct);
 
         await Schedules.PauseAsync(Lookup(jobName, "only"), reasonMessage: "maintenance", ct: ct);
         await Schedules.ResumeAsync(Lookup(jobName, "only"), ct: ct);

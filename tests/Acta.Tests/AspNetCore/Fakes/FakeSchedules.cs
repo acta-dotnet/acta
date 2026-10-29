@@ -2,8 +2,7 @@ namespace Acta.Tests.AspNetCore.Fakes;
 
 /// <summary>
 /// <see cref="ISchedules"/> staged by schedule name: "missing" reads as absent and "rejected" as a transition the
-/// schedule's state forbids; every other name applies. The overrides verb answers an expectedVersion of 999 as the stale
-/// CAS token, and an override expression of "bad-expr" throws like production.
+/// schedule's state forbids; every other name applies.
 /// </summary>
 internal sealed class FakeSchedules : ISchedules
 {
@@ -19,8 +18,6 @@ internal sealed class FakeSchedules : ISchedules
                 Staged(schedule, static (action, status) => new ResumeScheduleResponse(action, status, null, null, null))
                     ?? new ResumeScheduleResponse(ControlAction.Applied, null, null, null, null)
             );
-        UpdateOverrides = (schedule, expectedVersion, expression, timeZoneId, reason, actor, _) =>
-            ValueTask.FromResult(SetOverrides(schedule, expectedVersion, expression, timeZoneId, reason, actor));
         TriggerNow = (schedule, reason, actor, _) => ValueTask.FromResult(Trigger(schedule, reason, actor));
         List = static (_, _) => ValueTask.FromResult(new ListSchedulesResponse([], null, false, 50, null));
         Preview = static (schedule, _, _) =>
@@ -31,33 +28,12 @@ internal sealed class FakeSchedules : ISchedules
             );
     }
 
-    /// <summary>Applied override writes; a staged outcome records nothing.</summary>
-    public List<(
-        string ScheduleName,
-        int ExpectedVersion,
-        string? Expression,
-        string? TimeZoneId,
-        string? Note,
-        string? Actor
-    )> SetOverridesCalls { get; } = [];
-
     /// <summary>Applied triggers; a staged outcome records nothing.</summary>
     public List<(string ScheduleName, string? Note, string? Actor)> TriggerCalls { get; } = [];
 
     public Func<ScheduleLookup, DateTime?, string?, string?, CancellationToken, ValueTask<PauseScheduleResponse>> Pause { get; set; }
 
     public Func<ScheduleLookup, string?, string?, CancellationToken, ValueTask<ResumeScheduleResponse>> Resume { get; set; }
-
-    public Func<
-        ScheduleLookup,
-        int,
-        string?,
-        string?,
-        string?,
-        string?,
-        CancellationToken,
-        ValueTask<SetScheduleOverridesResponse>
-    > UpdateOverrides { get; set; }
 
     public Func<ScheduleLookup, string?, string?, CancellationToken, ValueTask<TriggerScheduleNowResponse>> TriggerNow { get; set; }
 
@@ -79,16 +55,6 @@ internal sealed class FakeSchedules : ISchedules
         string? actor,
         CancellationToken ct
     ) => Resume(schedule, reasonMessage, actor, ct);
-
-    ValueTask<SetScheduleOverridesResponse> ISchedules.UpdateOverridesAsync(
-        ScheduleLookup schedule,
-        int expectedVersion,
-        string? expression,
-        string? timeZoneId,
-        string? reasonMessage,
-        string? actor,
-        CancellationToken ct
-    ) => UpdateOverrides(schedule, expectedVersion, expression, timeZoneId, reasonMessage, actor, ct);
 
     ValueTask<TriggerScheduleNowResponse> ISchedules.TriggerNowAsync(
         ScheduleLookup schedule,
@@ -112,41 +78,6 @@ internal sealed class FakeSchedules : ISchedules
             "rejected" => response(ControlAction.Rejected, ScheduleStatusCode.Paused),
             _ => null,
         };
-
-    private SetScheduleOverridesResponse SetOverrides(
-        ScheduleLookup schedule,
-        int expectedVersion,
-        string? expression,
-        string? timeZoneId,
-        string? reasonMessage,
-        string? actor
-    )
-    {
-        // Mirror the production guard: an invalid expression surfaces as ArgumentException.
-        if (expression == "bad-expr")
-        {
-            throw new ArgumentException("Expression 'bad-expr' is not a valid schedule expression.", nameof(expression));
-        }
-
-        if (schedule.ScheduleName == "missing")
-        {
-            return new SetScheduleOverridesResponse(ControlAction.NotFound, null, null, null, null);
-        }
-
-        if (expectedVersion == 999)
-        {
-            return new SetScheduleOverridesResponse(ControlAction.VersionConflict, ScheduleStatusCode.Active, null, DateTime.UnixEpoch, 7);
-        }
-
-        SetOverridesCalls.Add((schedule.ScheduleName, expectedVersion, expression, timeZoneId, reasonMessage, actor));
-        return new SetScheduleOverridesResponse(
-            ControlAction.Applied,
-            ScheduleStatusCode.Active,
-            null,
-            DateTime.UnixEpoch,
-            expectedVersion + 1
-        );
-    }
 
     private TriggerScheduleNowResponse Trigger(ScheduleLookup schedule, string? reasonMessage, string? actor)
     {

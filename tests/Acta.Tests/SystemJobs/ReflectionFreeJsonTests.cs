@@ -100,7 +100,7 @@ public sealed class ReflectionFreeJsonTests
             services.GetRequiredService<IJobPayloadSerializerRegistry>(),
             services.GetRequiredService<LocksOperations>(),
             cancellationToken: CancellationToken.None,
-            triggeringScheduleNames: [],
+            firing: null,
             deadlineAtUtc: null
         );
 

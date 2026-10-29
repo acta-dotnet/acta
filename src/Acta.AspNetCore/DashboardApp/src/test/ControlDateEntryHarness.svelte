@@ -4,7 +4,7 @@
   import JobControls from '../components/JobControls.svelte';
   import ScheduleControls from '../components/ScheduleControls.svelte';
 
-  let { kind, version = 4 }: { kind: 'job' | 'schedule' | 'schedule-editor'; version?: number } = $props();
+  let { kind }: { kind: 'job' | 'schedule' | 'schedule-editor' } = $props();
   const client = new QueryClient({ defaultOptions: { queries: { retry: false } } });
 </script>
 
@@ -18,7 +18,6 @@
         jobName="invoice"
         scheduleName="daily"
         status="active"
-        {version}
         mode="editor" />
     {:else}
       <ScheduleControls
@@ -26,7 +25,6 @@
         jobName="invoice"
         scheduleName="daily"
         status="active"
-        version={1}
         mode="actions" />
     {/if}
   {/snippet}

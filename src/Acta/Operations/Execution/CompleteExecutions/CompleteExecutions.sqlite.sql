@@ -48,7 +48,6 @@ SELECT
     {{now}} AS now_utc,
     NULL AS sig_state,
     NULL AS sig_due,
-    NULL AS slot_wake,
     NULL AS parent_status,
     NULL AS latch_state,
     NULL AS head_id
@@ -124,99 +123,42 @@ FROM temp._ces_done d
 WHERE r.job_id = d.job_id;
 
 -- begin recurring
-/* A fire advances its schedules: an edit made while it ran wins over the older plan, an operator pause wins unless it
-   was timed and has elapsed, and an orphaned or retired schedule is left alone. The audit insert shares the update's
-   predicate. A schedule name is dotted kebab ASCII, so it sits in the JSON details unescaped. */
-INSERT INTO {{schema}}.events (
-    event_code, created_at_utc, namespace_id, entity_code, entity_id,
-    definition_id, tenant_id, lineage_root_job_id, execution_number, details_format_id, details)
-SELECT
-    102 /* EventCode.SchedulePauseExpired */, (SELECT now_utc FROM temp._ces_done LIMIT 1), d.namespace_id, 50 /* EntityCode.Job */, d.job_id,
-    d.definition_id, d.tenant_id, COALESCE(d.lineage_root_job_id, d.job_id), d.execution_number,
-    1 /* JobPayloadFormat.Json */, CAST('{"schedule":"' || js.schedule_name || '"}' AS BLOB)
-FROM json_each(@p_schedule_advances) a
-INNER JOIN temp._ces_done d ON d.job_id = json_extract(a.value, '$.job_id')
-INNER JOIN {{schema}}.schedules js ON js.job_id = d.job_id AND js.schedule_name = json_extract(a.value, '$.schedule_name')
-INNER JOIN {{schema}}.definitions sd ON sd.definition_id = js.definition_id
-WHERE
-    (json_extract(a.value, '$.expected_version') IS NULL OR json_extract(a.value, '$.expected_version') = js.version)
-    AND sd.definition_status_code <> 240 /* DefinitionStatusCode.Retired */
-    AND d.event_recording_code = 20 /* EventRecordingCode.Audit */
-    AND js.schedule_status_code = 30 /* ScheduleStatusCode.Paused */
-    AND js.paused_until_utc IS NOT NULL
-    AND js.paused_until_utc <= (SELECT now_utc FROM temp._ces_done LIMIT 1);
-
+/* A permanent slot that landed Idle, Failed, or Cancelled settled its firing. Every member schedule parked on the slot
+   is woken to evaluate again, and the envelope records the outcome once. The cursors stay where the admission left
+   them: completion never computes an occurrence. */
 UPDATE {{schema}}.schedules_state AS st
 SET
-    next_occurrence_at_utc = json_extract(a.value, '$.next_occurrence_at_utc'),
-    last_advanced_occurrence_at_utc = st.next_occurrence_at_utc,
-    modified_at_utc = (SELECT now_utc FROM temp._ces_done LIMIT 1)
-FROM json_each(@p_schedule_advances) a
-INNER JOIN {{schema}}.schedules js
-    ON js.job_id = json_extract(a.value, '$.job_id') AND js.schedule_name = json_extract(a.value, '$.schedule_name')
-INNER JOIN {{schema}}.definitions sd ON sd.definition_id = js.definition_id
-WHERE
-    st.job_id = js.job_id
-    AND st.schedule_name = js.schedule_name
-    AND js.job_id IN (SELECT d.job_id FROM temp._ces_done d)
-    AND (json_extract(a.value, '$.expected_version') IS NULL OR json_extract(a.value, '$.expected_version') = js.version)
-    AND sd.definition_status_code <> 240 /* DefinitionStatusCode.Retired */
-    AND js.schedule_status_code <> 230 /* ScheduleStatusCode.Orphaned */
-    AND (
-        js.schedule_status_code <> 30 /* ScheduleStatusCode.Paused */
-        OR (js.paused_until_utc IS NOT NULL AND js.paused_until_utc <= (SELECT now_utc FROM temp._ces_done LIMIT 1))
-    );
-
--- A timed pause the advance passed is over, and only then does the fire touch the schedules row.
-UPDATE {{schema}}.schedules AS js
-SET
-    schedule_status_code = 10 /* ScheduleStatusCode.Active */,
-    paused_until_utc = NULL,
+    next_evaluation_at_utc = (SELECT now_utc FROM temp._ces_done LIMIT 1),
+    evaluation_status_code = 10 /* EvaluationStatusCode.Scheduled */,
     modified_at_utc = (SELECT now_utc FROM temp._ces_done LIMIT 1),
-    version = js.version + 1
-FROM json_each(@p_schedule_advances) a
+    version = st.version + 1
+FROM {{schema}}.schedules js
+INNER JOIN temp._ces_done d ON d.job_id = js.job_id
+INNER JOIN {{schema}}.jobs j ON j.job_id = d.job_id
 WHERE
-    js.job_id = json_extract(a.value, '$.job_id')
-    AND js.schedule_name = json_extract(a.value, '$.schedule_name')
-    AND js.job_id IN (SELECT d.job_id FROM temp._ces_done d)
-    AND (json_extract(a.value, '$.expected_version') IS NULL OR json_extract(a.value, '$.expected_version') = js.version)
-    AND js.schedule_status_code = 30 /* ScheduleStatusCode.Paused */
-    AND js.paused_until_utc IS NOT NULL
-    AND js.paused_until_utc <= (SELECT now_utc FROM temp._ces_done LIMIT 1)
-    AND EXISTS (
-        SELECT 1
-        FROM {{schema}}.definitions sd
-        WHERE sd.definition_id = js.definition_id AND sd.definition_status_code <> 240 /* DefinitionStatusCode.Retired */
-    );
+    st.schedule_id = js.schedule_id
+    AND d.to_status IN (40 /* JobStatusCode.Idle */, 200 /* JobStatusCode.Failed */, 220 /* JobStatusCode.Cancelled */)
+    AND j.job_kind_code = 20 /* JobKindCode.PermanentSlot */
+    AND st.evaluation_status_code IN (20 /* EvaluationStatusCode.WaitingForCapacity */, 50 /* EvaluationStatusCode.SlotUnavailable */);
 
--- The slot's next state is read from the schedules as they stand now, not from the plan made before the handler ran.
-UPDATE temp._ces_done
-SET slot_wake = (
-    SELECT
-        MIN(
-            CASE
-                WHEN js.schedule_status_code = 30 /* ScheduleStatusCode.Paused */ THEN js.paused_until_utc
-                ELSE st.next_occurrence_at_utc
-            END
-        )
-    FROM {{schema}}.schedules js
-    INNER JOIN {{schema}}.definitions sd ON sd.definition_id = js.definition_id
-    INNER JOIN {{schema}}.schedules_state st ON st.job_id = js.job_id AND st.schedule_name = js.schedule_name
-    WHERE
-        js.job_id = temp._ces_done.job_id
-        AND js.schedule_status_code <> 230 /* ScheduleStatusCode.Orphaned */
-        AND sd.definition_status_code <> 240 /* DefinitionStatusCode.Retired */
-)
-WHERE final_job_status_code IS NOT NULL;
-
-UPDATE temp._ces_done
-SET to_status = CASE WHEN slot_wake IS NULL THEN 30 /* JobStatusCode.Paused */ ELSE 10 /* JobStatusCode.Ready */ END
-WHERE final_job_status_code IS NOT NULL;
-
-UPDATE {{schema}}.jobs_state AS r
-SET job_status_code = d.to_status, next_run_at_utc = d.slot_wake
+UPDATE {{schema}}.checkpoints AS cp
+SET
+    checkpoint_status_code = CASE
+        WHEN d.to_status = 220 /* JobStatusCode.Cancelled */ THEN 130 /* CheckpointStatusCode.Cancelled */
+        WHEN d.to_status = 200 /* JobStatusCode.Failed */ OR d.succeeded = 0 THEN 120 /* CheckpointStatusCode.Failed */
+        ELSE 110 /* CheckpointStatusCode.Succeeded */
+    END,
+    modified_at_utc = (SELECT now_utc FROM temp._ces_done LIMIT 1),
+    version = cp.version + 1
 FROM temp._ces_done d
-WHERE r.job_id = d.job_id AND d.final_job_status_code IS NOT NULL;
+INNER JOIN {{schema}}.jobs j ON j.job_id = d.job_id
+WHERE
+    cp.job_id = d.job_id
+    AND cp.checkpoint_kind_code = 60 /* CheckpointKindCode.Firing */
+    AND cp.checkpoint_name = 'sys.firing'
+    AND cp.checkpoint_status_code = 10 /* CheckpointStatusCode.Pending */
+    AND d.to_status IN (40 /* JobStatusCode.Idle */, 200 /* JobStatusCode.Failed */, 220 /* JobStatusCode.Cancelled */)
+    AND j.job_kind_code = 20 /* JobKindCode.PermanentSlot */;
 -- end recurring
 
 /* The attempt's own event under the recording gate (EventRecordingCode) plus the alert overlay, which also writes a one-shot's
@@ -245,6 +187,7 @@ FROM (
                                 WHEN 10 /* JobStatusCode.Ready */ THEN 'ready'
                                 WHEN 20 /* JobStatusCode.Suspended */ THEN 'suspended'
                                 WHEN 30 /* JobStatusCode.Paused */ THEN 'paused'
+                                WHEN 40 /* JobStatusCode.Idle */ THEN 'idle'
                             END || '"'
                         WHEN d.event_code = 43 /* EventCode.JobExecutionYielded */
                             THEN ',"outcome":"' || CASE
@@ -285,7 +228,7 @@ WHERE
     );
 
 -- begin shapes
-/* At Audit each shape also says what it did: rolled over or paused a recurring slot, re-armed, or held by its handler.
+/* At Audit each shape also says what it did: held or cancelled a slot, re-armed, or held by its handler.
    A suspension lands Ready on a sleep and Suspended on a wait, so its details say where. */
 INSERT INTO {{schema}}.events (
     event_code, created_at_utc, namespace_id, entity_code, entity_id,
@@ -324,9 +267,10 @@ FROM (
             d.*,
             n.ord,
             CASE n.ord
-                WHEN 1 THEN CASE
-                    WHEN d.final_job_status_code IN (10 /* JobStatusCode.Ready */, 30 /* JobStatusCode.Paused */)
-                        THEN CASE WHEN d.to_status = 10 /* JobStatusCode.Ready */ THEN 50 /* EventCode.JobRecurringRolledOver */ ELSE 71 /* EventCode.JobPaused */ END
+                -- A slot held by its handler, or cancelled by it; a settled firing needs no shape event beside the attempt's.
+                WHEN 1 THEN CASE d.final_job_status_code
+                    WHEN 30 /* JobStatusCode.Paused */ THEN 71 /* EventCode.JobPaused */
+                    WHEN 220 /* JobStatusCode.Cancelled */ THEN 70 /* EventCode.JobCancelled */
                 END
                 -- A wait whose signal had already arrived landed Ready and re-armed nothing.
                 WHEN 2 THEN CASE

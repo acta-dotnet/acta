@@ -4,13 +4,15 @@ namespace Acta;
 internal sealed class SchedulesOperations(
     PauseScheduleHandler pauseSchedule,
     ResumeScheduleHandler resumeSchedule,
-    SetScheduleOverridesHandler setScheduleOverrides,
     TriggerScheduleNowHandler triggerScheduleNow,
     ListSchedulesHandler listSchedules,
     PreviewScheduleHandler previewSchedule,
     RegisterSchedulesHandler registerSchedules,
     GetScheduleStateHandler getScheduleState,
-    GetLiveSchedulesHandler getLiveSchedules
+    GetLiveSchedulesHandler getLiveSchedules,
+    GetDueSchedulesHandler getDueSchedules,
+    GetScheduleHorizonHandler getScheduleHorizon,
+    AdmitFiringsHandler admitFirings
 ) : ISchedules
 {
     public ValueTask<PauseScheduleResponse> PauseAsync(
@@ -27,20 +29,6 @@ internal sealed class SchedulesOperations(
         string? actor = null,
         CancellationToken ct = default
     ) => resumeSchedule.HandleAsync(new ResumeScheduleCommand(schedule, reasonMessage, actor), ct);
-
-    public ValueTask<SetScheduleOverridesResponse> UpdateOverridesAsync(
-        ScheduleLookup schedule,
-        int expectedVersion,
-        string? expression,
-        string? timeZoneId,
-        string? reasonMessage = null,
-        string? actor = null,
-        CancellationToken ct = default
-    ) =>
-        setScheduleOverrides.HandleAsync(
-            new SetScheduleOverridesCommand(schedule, expectedVersion, expression, timeZoneId, reasonMessage, actor),
-            ct
-        );
 
     public ValueTask<TriggerScheduleNowResponse> TriggerNowAsync(
         ScheduleLookup schedule,
@@ -72,9 +60,21 @@ internal sealed class SchedulesOperations(
         getScheduleState.HandleAsync(new GetScheduleStateQuery(namespaceId), ct);
 
     /// <summary>
-    /// The effective (non-orphaned) schedules of one recurring slot, expression and time zone resolved to
-    /// override-or-original. Read once per recurring fire for the due set and the recompute.
+    /// The live (non-orphaned) schedules of one recurring slot. Read once per recurring fire for the due set and
+    /// the recompute.
     /// </summary>
     internal Task<GetLiveSchedulesResponse> GetLiveSchedulesAsync(long jobId, CancellationToken ct) =>
         getLiveSchedules.HandleAsync(new GetLiveSchedulesQuery(jobId), ct);
+
+    /// <summary>Every member of each slot with a schedule due for evaluation; the admitter's read.</summary>
+    internal Task<GetDueSchedulesResponse> GetDueSchedulesAsync(int namespaceId, DateTime nowUtc, int take, CancellationToken ct) =>
+        getDueSchedules.HandleAsync(new GetDueSchedulesQuery(namespaceId, nowUtc, take), ct);
+
+    /// <summary>The namespace's earliest next evaluation, or null; how long the admitter may sleep.</summary>
+    internal async Task<DateTime?> GetScheduleHorizonAsync(int namespaceId, CancellationToken ct) =>
+        (await getScheduleHorizon.HandleAsync(new GetScheduleHorizonQuery(namespaceId), ct)).NextEvaluationAtUtc;
+
+    /// <summary>Applies an admission plan atomically; a stale group answers unapplied and the admitter replans it.</summary>
+    internal Task<AdmitFiringsResponse> AdmitFiringsAsync(AdmitFiringsCommand command, CancellationToken ct) =>
+        admitFirings.HandleAsync(command, ct);
 }

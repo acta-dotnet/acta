@@ -30,7 +30,7 @@ WHERE
         WHERE s.version = @p_version AND s.definition_status_code <> 240 /* DefinitionStatusCode.Retired */
     )
     AND r.job_status_code IN (
-        10 /* JobStatusCode.Ready */, 15 /* JobStatusCode.Blocked */, 20 /* JobStatusCode.Suspended */, 30 /* JobStatusCode.Paused */
+        10 /* JobStatusCode.Ready */, 15 /* JobStatusCode.Blocked */, 20 /* JobStatusCode.Suspended */, 30 /* JobStatusCode.Paused */, 40 /* JobStatusCode.Idle */
     );
 
 UPDATE {{schema}}.definitions
@@ -53,15 +53,33 @@ SET
     version = version + 1
 WHERE job_id IN (SELECT p.job_id FROM temp._retire_parked_jobs p);
 
+-- A retired slot's outstanding firing settles with it.
+UPDATE {{schema}}.checkpoints
+SET
+    checkpoint_status_code = 130 /* CheckpointStatusCode.Cancelled */,
+    modified_at_utc = {{now}},
+    version = version + 1
+WHERE
+    checkpoint_kind_code = 60 /* CheckpointKindCode.Firing */
+    AND checkpoint_name = 'sys.firing'
+    AND checkpoint_status_code = 10 /* CheckpointStatusCode.Pending */
+    AND job_id IN (SELECT p.job_id FROM temp._retire_parked_jobs p);
+
 UPDATE {{schema}}.schedules_state AS st
 SET
     next_occurrence_at_utc = NULL,
-    last_advanced_occurrence_at_utc = NULL,
+
+    decided_through_at_utc = NULL,
+
+    next_evaluation_at_utc = NULL,
+
+    evaluation_status_code = 30 /* EvaluationStatusCode.Exhausted */,
+
+    version = st.version + 1,
     modified_at_utc = {{now}}
 FROM {{schema}}.schedules s
 WHERE
-    st.job_id = s.job_id
-    AND st.schedule_name = s.schedule_name
+    st.schedule_id = s.schedule_id
     AND s.definition_id IN (
         SELECT d.definition_id
         FROM temp._retire_job_definition d

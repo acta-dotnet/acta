@@ -8,12 +8,35 @@ CREATE TEMP TABLE _purge_job (
     definition_id INT NOT NULL,
     tenant_id INT,
     lineage_root_job_id BIGINT,
-    parent_job_id BIGINT
+    parent_job_id BIGINT,
+    eligible BOOLEAN NOT NULL
 ) ON COMMIT DROP;
 CREATE TEMP TABLE _purge_job_action (action SMALLINT NOT NULL, blocked BOOLEAN NOT NULL) ON COMMIT DROP;
 
-INSERT INTO _purge_job (from_status, namespace_id, definition_id, tenant_id, lineage_root_job_id, parent_job_id)
-SELECT r.job_status_code, j.namespace_id, j.definition_id, j.tenant_id, j.lineage_root_job_id, j.parent_job_id
+-- A finished job may go; a permanent slot only with no firing outstanding and no live schedule pinning it, the
+-- deliberate decommission of a slot whose schedules are all orphaned or whose definition is retired.
+INSERT INTO _purge_job (from_status, namespace_id, definition_id, tenant_id, lineage_root_job_id, parent_job_id, eligible)
+SELECT
+    r.job_status_code, j.namespace_id, j.definition_id, j.tenant_id, j.lineage_root_job_id, j.parent_job_id,
+    CASE
+        WHEN j.job_kind_code <> 20 /* JobKindCode.PermanentSlot */
+            THEN r.job_status_code IN (100 /* JobStatusCode.Succeeded */, 200 /* JobStatusCode.Failed */, 220 /* JobStatusCode.Cancelled */)
+        WHEN r.job_status_code NOT IN (40 /* JobStatusCode.Idle */, 200 /* JobStatusCode.Failed */, 220 /* JobStatusCode.Cancelled */) THEN false
+        WHEN EXISTS (
+            SELECT 1
+            FROM {{schema}}.checkpoints cp
+            WHERE cp.job_id = j.job_id AND cp.checkpoint_kind_code = 60 /* CheckpointKindCode.Firing */
+                AND cp.checkpoint_name = 'sys.firing' AND cp.checkpoint_status_code = 10 /* CheckpointStatusCode.Pending */
+        ) THEN false
+        WHEN EXISTS (
+            SELECT 1
+            FROM {{schema}}.schedules sc
+            JOIN {{schema}}.definitions d ON d.definition_id = sc.definition_id
+            WHERE sc.job_id = j.job_id AND sc.schedule_status_code <> 230 /* ScheduleStatusCode.Orphaned */
+                AND d.definition_status_code <> 240 /* DefinitionStatusCode.Retired */
+        ) THEN false
+        ELSE true
+    END
 FROM {{schema}}.jobs j
 JOIN {{schema}}.jobs_state r ON r.job_id = j.job_id
 WHERE j.job_id = @p_job_id
@@ -26,8 +49,7 @@ INSERT INTO _purge_job_action (action, blocked)
 SELECT
     CASE
         WHEN s.from_status IS NULL THEN 2 /* ControlAction.NotFound */
-        WHEN s.from_status NOT IN (100 /* JobStatusCode.Succeeded */, 200 /* JobStatusCode.Failed */, 220 /* JobStatusCode.Cancelled */)
-            THEN 3 /* ControlAction.Rejected */
+        WHEN NOT s.eligible THEN 3 /* ControlAction.Rejected */
         WHEN EXISTS (SELECT 1 FROM {{schema}}.jobs c WHERE c.parent_job_id = @p_job_id) THEN 3 /* ControlAction.Rejected */
         WHEN EXISTS (
             SELECT 1
@@ -82,9 +104,11 @@ DELETE FROM {{schema}}.checkpoints
 WHERE job_id = @p_job_id AND EXISTS (SELECT 1 FROM _purge_job_action a WHERE a.action = 1 /* ControlAction.Applied */);
 DELETE FROM {{schema}}.steps
 WHERE job_id = @p_job_id AND EXISTS (SELECT 1 FROM _purge_job_action a WHERE a.action = 1 /* ControlAction.Applied */);
-DELETE FROM {{schema}}.schedules
-WHERE job_id = @p_job_id AND EXISTS (SELECT 1 FROM _purge_job_action a WHERE a.action = 1 /* ControlAction.Applied */);
 DELETE FROM {{schema}}.schedules_state
+WHERE
+    schedule_id IN (SELECT s.schedule_id FROM {{schema}}.schedules s WHERE s.job_id = @p_job_id)
+    AND EXISTS (SELECT 1 FROM _purge_job_action a WHERE a.action = 1 /* ControlAction.Applied */);
+DELETE FROM {{schema}}.schedules
 WHERE job_id = @p_job_id AND EXISTS (SELECT 1 FROM _purge_job_action a WHERE a.action = 1 /* ControlAction.Applied */);
 DELETE FROM {{schema}}.jobs
 WHERE job_id = @p_job_id AND EXISTS (SELECT 1 FROM _purge_job_action a WHERE a.action = 1 /* ControlAction.Applied */);

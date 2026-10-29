@@ -36,10 +36,9 @@ public sealed class ScheduleEnvironmentGatingSpec : ActaRuntimeTestBase<Conforma
     {
         var ct = TestContext.Current.CancellationToken;
 
-        var slotId = (await Jobs.GetJobIdAsync(JobLookup.ByDeduplicationKey(TestNamespace, "env-gated-ping"), ct))?.JobId;
-        Assert.NotNull(slotId);
+        var slotId = await ScheduleTestOps.SlotIdAsync(Db, TestNamespace, "env-gated-ping", ct);
 
-        var rows = await Db.From<ScheduleEntity>().Where(s => s.JobId == slotId!.Value).ToListAsync(ct);
+        var rows = await Db.From<ScheduleEntity>().Where(s => s.JobId == slotId).ToListAsync(ct);
         var row = Assert.Single(rows);
         Assert.Equal("staging-tick", row.ScheduleName);
     }
@@ -49,7 +48,6 @@ public sealed class ScheduleEnvironmentGatingSpec : ActaRuntimeTestBase<Conforma
     {
         var ct = TestContext.Current.CancellationToken;
 
-        var slotId = (await Jobs.GetJobIdAsync(JobLookup.ByDeduplicationKey(TestNamespace, "env-prod-only-ping"), ct))?.JobId;
-        Assert.Null(slotId);
+        Assert.Null(await ScheduleTestOps.TrySlotIdAsync(Db, TestNamespace, "env-prod-only-ping", ct));
     }
 }

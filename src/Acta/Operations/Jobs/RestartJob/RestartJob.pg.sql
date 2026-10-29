@@ -34,9 +34,16 @@ SELECT
     CASE
         WHEN @p_expected_version IS NOT NULL AND r.version <> @p_expected_version THEN 5 /* ControlAction.VersionConflict */
         WHEN r.job_status_code = 50 /* JobStatusCode.Executing */ THEN 3 /* ControlAction.Rejected */
+        -- A slot whose firing is still outstanding is not restarted around it; one with none restarts Idle, for admission.
+        WHEN j.job_kind_code = 20 /* JobKindCode.PermanentSlot */ AND EXISTS (
+            SELECT 1
+            FROM {{schema}}.checkpoints cp
+            WHERE cp.job_id = j.job_id AND cp.checkpoint_kind_code = 60 /* CheckpointKindCode.Firing */
+                AND cp.checkpoint_name = 'sys.firing' AND cp.checkpoint_status_code = 10 /* CheckpointStatusCode.Pending */
+        ) THEN 3 /* ControlAction.Rejected */
         ELSE 1 /* ControlAction.Applied */
     END,
-    10 /* JobStatusCode.Ready */
+    CASE WHEN j.job_kind_code = 20 /* JobKindCode.PermanentSlot */ THEN 40 /* JobStatusCode.Idle */ ELSE 10 /* JobStatusCode.Ready */ END
 FROM {{schema}}.jobs_state r
 JOIN {{schema}}.jobs j ON j.job_id = r.job_id
 WHERE r.job_id = @p_job_id
@@ -120,7 +127,7 @@ UPDATE {{schema}}.jobs_state AS r
 SET
     job_status_code = s.to_status,
     failure_count = 0,
-    next_run_at_utc = COALESCE(@p_next_run_at_utc, now()),
+    next_run_at_utc = CASE WHEN s.to_status = 40 /* JobStatusCode.Idle */ THEN NULL ELSE COALESCE(@p_next_run_at_utc, now()) END,
     leased_by_worker_id = NULL,
     lease_expires_at_utc = NULL,
     retention_until_utc = NULL,
@@ -130,6 +137,22 @@ SET
     version = r.version + 1
 FROM _restart_job s
 WHERE r.job_id = @p_job_id AND s.action = 1 /* ControlAction.Applied */;
+
+-- The members parked on the slot evaluate again now that it is Idle.
+UPDATE {{schema}}.schedules_state st
+SET
+    next_evaluation_at_utc = now(),
+    evaluation_status_code = 10 /* EvaluationStatusCode.Scheduled */,
+    modified_at_utc = now(),
+    version = st.version + 1
+FROM {{schema}}.schedules js
+JOIN _restart_job s ON true
+WHERE
+    st.schedule_id = js.schedule_id
+    AND js.job_id = @p_job_id
+    AND s.action = 1 /* ControlAction.Applied */
+    AND s.to_status = 40 /* JobStatusCode.Idle */
+    AND st.evaluation_status_code IN (20 /* EvaluationStatusCode.WaitingForCapacity */, 50 /* EvaluationStatusCode.SlotUnavailable */);
 
 -- An exhausted step runs again from a fresh budget and retry window; an interrupted at-most-once step stays,
 -- since only someone who reconciled its outcome can say it may run again.

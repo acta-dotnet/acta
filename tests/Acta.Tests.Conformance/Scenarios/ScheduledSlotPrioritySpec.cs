@@ -111,21 +111,16 @@ public sealed class ScheduledSlotPrioritySpec : ActaRuntimeTestBase<ConformanceF
         Assert.Equal(JobPriorityCode.High, runtime!.Priority);
     }
 
-    private async Task<long> SlotIdAsync(CancellationToken ct)
-    {
-        var id = (await Jobs.GetJobIdAsync(JobLookup.ByDeduplicationKey(TestNamespace, JobName), ct))?.JobId;
-        Assert.NotNull(id);
-        return id!.Value;
-    }
+    private Task<long> SlotIdAsync(CancellationToken ct) => ScheduleTestOps.SlotIdAsync(Db, TestNamespace, JobName, ct);
 
     // Rebuilds the whole-namespace registration command from the persisted slot and reruns it through
     // the store port, exactly as a worker redeploy does, so the priority propagation goes through the routine.
     private async Task ReRegisterAsync(int ns, int definitionId, CancellationToken ct)
     {
-        var slot = await Db.From<JobEntity>().Where(j => j.NamespaceId == ns && j.DeduplicationKey == JobName).SingleOrDefaultAsync(ct);
+        var slotId = await ScheduleTestOps.SlotIdAsync(Db, ns, JobName, ct);
+        var slot = await Db.From<JobEntity>().Where(j => j.Id == slotId).SingleOrDefaultAsync(ct);
         Assert.NotNull(slot);
-        var runtime = await Db.From<JobStateEntity>().Where(r => r.Id == slot!.Id).SingleOrDefaultAsync(ct);
-        var schedules = await ScheduleTestOps.ReadAsync(Db, slot!.Id, ct);
+        var schedules = await ScheduleTestOps.ReadAsync(Db, slotId, ct);
 
         var slotSchedules = schedules
             .Select(s => new SlotSchedule(
@@ -142,12 +137,9 @@ public sealed class ScheduledSlotPrioritySpec : ActaRuntimeTestBase<ConformanceF
         var command = new DefinitionSchedules(
             ns,
             definitionId,
-            JobName,
             slot!.InputFormatId,
             slot.Input is null ? ReadOnlyMemory<byte>.Empty : slot.Input,
             slot.EventRecording,
-            runtime!.Status,
-            runtime.NextRunAtUtc,
             slotSchedules
         );
 

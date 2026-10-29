@@ -183,18 +183,7 @@ internal sealed partial class SqliteDialect : ISqlDialect
             : WithoutSection(sql, "shapes");
         sql = rows.Any(c => c.HasParent) ? sql : WithoutSection(sql, "children");
         sql = rows.Any(c => c.HasLane) ? sql : WithoutSection(sql, "lanes");
-        if (rows.Any(c => c.FinalStatus is not null))
-        {
-            AddText(
-                command,
-                "@p_schedule_advances",
-                JsonScheduleAdvances([.. rows.SelectMany(c => (c.ScheduleAdvances ?? []).Select(a => (c.JobId, Advance: a)))])
-            );
-        }
-        else
-        {
-            sql = WithoutSection(sql, "recurring");
-        }
+        sql = rows.Any(c => c.FinalStatus is not null) ? sql : WithoutSection(sql, "recurring");
 
         command.CommandText = sql;
         AddText(command, "@p_completions", DbParams.JsonCompletions(rows));
@@ -429,7 +418,6 @@ internal sealed partial class SqliteDialect : ISqlDialect
             {
                 writer.WriteNumber("definition_id", definition.DefinitionId);
                 writer.WriteString("job_ref", slotRefs[index].ToString());
-                writer.WriteString("deduplication_key", definition.JobName);
                 writer.WriteNumber("input_format_id", definition.InputFormatId);
                 WriteBase64OrNull(
                     writer,
@@ -437,8 +425,6 @@ internal sealed partial class SqliteDialect : ISqlDialect
                     definition.InputFormatId == JobPayloadFormat.None.Id ? (ReadOnlyMemory<byte>?)null : definition.Input
                 );
                 writer.WriteNumber("event_recording_code", (short)definition.EventRecording);
-                writer.WriteNumber("slot_status_code", (short)definition.SlotStatus);
-                WriteUtcOrNull(writer, "slot_next_run_at_utc", definition.SlotMinNextRunAtUtc);
             }
         );
 
@@ -463,6 +449,8 @@ internal sealed partial class SqliteDialect : ISqlDialect
                 writer.WriteNumber("misfire_strategy_code", (short)item.Schedule.MisfireStrategy);
                 WriteUtcOrNull(writer, "next_occurrence_at_utc", item.Schedule.NextOccurrenceAtUtc);
                 WriteStringOrNull(writer, "description", item.Schedule.Description);
+                WriteUtcOrNull(writer, "interval_anchor_at_utc", item.Schedule.IntervalAnchorAtUtc);
+                writer.WriteString("timing_fingerprint", item.Schedule.TimingFingerprint);
             }
         );
 
@@ -470,25 +458,11 @@ internal sealed partial class SqliteDialect : ISqlDialect
         AddText(command, "@p_schedules", scheduleRows);
     }
 
-    private static string JsonScheduleAdvances(IReadOnlyList<(long JobId, ScheduleAdvance Advance)> advances) =>
-        JsonArray(
-            advances,
-            (writer, item, _) =>
-            {
-                var advance = item.Advance;
-                writer.WriteNumber("job_id", item.JobId);
-                writer.WriteString("schedule_name", advance.ScheduleName);
-                WriteUtcOrNull(writer, "next_occurrence_at_utc", advance.NextOccurrenceAtUtc);
-                if (advance.ExpectedVersion is { } expected)
-                {
-                    writer.WriteNumber("expected_version", expected);
-                }
-                else
-                {
-                    writer.WriteNull("expected_version");
-                }
-            }
-        );
+    public void BindAdmitFirings(DbCommand command, AdmitFiringsCommand request)
+    {
+        AddText(command, "@p_groups", AdmitFiringsJson.Groups(request));
+        AddText(command, "@p_rows", AdmitFiringsJson.Rows(request, static (writer, name, value) => WriteUtcOrNull(writer, name, value)));
+    }
 
     /// <summary>Typed SQLite parameter primitives the dialect's own binders use.</summary>
     private static void AddText(DbCommand command, string name, string value) =>

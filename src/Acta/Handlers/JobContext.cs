@@ -54,10 +54,17 @@ public abstract partial class JobContext
     public abstract CancellationToken CancellationToken { get; }
 
     /// <summary>
-    /// For a recurring fire, the names of the schedules that were due and coalesced into this
-    /// execution, ordered by name. Empty for non-recurring jobs.
+    /// The schedules that admitted this firing, ordered by name, each with the nominal occurrence it selected: frozen at
+    /// admission, so every retry, reclaim, and resumed wait of the firing sees the same list. Empty for an ordinary job
+    /// and for a firing an operator triggered by hand.
     /// </summary>
-    public virtual IReadOnlyList<string> TriggeringScheduleNames => [];
+    public virtual IReadOnlyList<TriggeringSchedule> TriggeringSchedules => [];
+
+    /// <summary>
+    /// The durable id of the firing this execution belongs to, the same across its retries and reclaims; null for an
+    /// ordinary job. Not an idempotency key for external effects, which still need the application's own.
+    /// </summary>
+    public virtual Guid? FiringId => null;
 
     /// <summary>
     /// Which attempt this is: <c>1</c> on the first execution, incrementing on every retry and on every reclaim after

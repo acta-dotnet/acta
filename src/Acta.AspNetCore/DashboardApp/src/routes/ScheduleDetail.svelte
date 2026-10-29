@@ -29,7 +29,9 @@
     timeZoneId: string;
     misfireStrategy: string;
     nextOccurrenceAtUtc: string | null;
-    lastAdvancedOccurrenceAtUtc: string | null;
+    decidedThroughAtUtc: string | null;
+    nextEvaluationAtUtc: string | null;
+    evaluationStatus: string;
     status: string;
     pausedUntilUtc: string | null;
     createdAtUtc: string;
@@ -79,7 +81,7 @@
   // dominated by execution/rollover rows. Query each lifecycle code directly (server-side eventCode
   // filter) so a busy schedule's executions can't crowd them out, then merge newest-first. The slot
   // can carry several schedules, so a row whose details.schedule names another one is dropped.
-  const HISTORY_CODES = ['schedule.paused', 'schedule.resumed', 'schedule.pause-expired', 'schedule.overrides-updated', 'schedule.triggered'];
+  const HISTORY_CODES = ['schedule.paused', 'schedule.resumed', 'schedule.pause-expired', 'schedule.triggered'];
   const history = createQuery(() => ({
     queryKey: keys.detail('schedule-history', `${schedule?.jobRef ?? ''}/${scheduleName}`),
     queryFn: async ({ signal }: { signal: AbortSignal }) => {
@@ -133,7 +135,7 @@
     <div class="detail-workspace">
       <div class="detail-main">
         <section class="detail-panel">
-          <h2>Timing &amp; overrides</h2>
+          <h2>Timing</h2>
 
           <dl class="detail-readonly detail-readonly-grid">
             <div><dt>Expression</dt><dd><span class="mono">{schedule.expression}</span> <CopyButton value={schedule.expression} label="Copy expression" /></dd></div>
@@ -142,6 +144,8 @@
             <div><dt>Misfire strategy</dt><dd>{schedule.misfireStrategy}</dd></div>
             <div><dt>Origin</dt><dd>{schedule.origin}</dd></div>
             <div><dt>Next occurrence</dt><dd><RelativeTime value={schedule.nextOccurrenceAtUtc} /></dd></div>
+            <div><dt>Decided through</dt><dd><RelativeTime value={schedule.decidedThroughAtUtc} /></dd></div>
+            <div><dt>Next evaluation</dt><dd><RelativeTime value={schedule.nextEvaluationAtUtc} /> · {schedule.evaluationStatus}</dd></div>
           </dl>
           <p class="detail-help">
             Misfire strategy governs fires missed while the host was down: it decides, on recovery, whether to
@@ -154,9 +158,6 @@
             jobName={schedule.jobName}
             scheduleName={schedule.scheduleName}
             status={schedule.status}
-            version={schedule.version}
-            expression={schedule.expression}
-            timeZoneId={schedule.timeZoneId}
             onChanged={() => { void detail.refetch(); void history.refetch(); }} />
         </section>
 
@@ -176,9 +177,6 @@
             jobName={schedule.jobName}
             scheduleName={schedule.scheduleName}
             status={schedule.status}
-            version={schedule.version}
-            expression={schedule.expression}
-            timeZoneId={schedule.timeZoneId}
             onChanged={() => { void detail.refetch(); void history.refetch(); }} />
         </section>
 

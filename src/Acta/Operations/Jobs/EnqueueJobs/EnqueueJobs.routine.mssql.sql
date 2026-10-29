@@ -416,7 +416,7 @@ BEGIN
         IF @laned = 0
             BEGIN
                 INSERT INTO {{schema}}.jobs (
-                    job_ref, lineage_root_job_id, parent_job_id,
+                    job_kind_code, job_ref, lineage_root_job_id, parent_job_id,
                     deduplication_key, correlation_key,
                     namespace_id, definition_id, tenant_id,
                     input_format_id, input,
@@ -425,6 +425,7 @@ BEGIN
                 )
                 OUTPUT INSERTED.job_ref, INSERTED.job_id INTO @map (job_ref, job_id)
                 SELECT
+                    10 /* JobKindCode.Ordinary */,
                     b.job_ref,
                     p.lineage_root_job_id,
                     b.parent_job_id,
@@ -471,7 +472,7 @@ BEGIN
         ELSE
             BEGIN
                 INSERT INTO {{schema}}.jobs (
-                    job_ref, lineage_root_job_id, parent_job_id,
+                    job_kind_code, job_ref, lineage_root_job_id, parent_job_id,
                     deduplication_key, correlation_key,
                     namespace_id, definition_id, tenant_id,
                     input_format_id, input,
@@ -480,6 +481,7 @@ BEGIN
                 )
                 OUTPUT INSERTED.job_ref, INSERTED.job_id INTO @map (job_ref, job_id)
                 SELECT
+                    10 /* JobKindCode.Ordinary */,
                     b.job_ref,
                     p.lineage_root_job_id,
                     b.parent_job_id,

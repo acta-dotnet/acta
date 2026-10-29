@@ -27,8 +27,7 @@ public sealed class RegisterSchedulesNoteSpec : ActaStorageTestBase<ConformanceF
 
     private async Task<DateTime> NowAsync(CancellationToken ct) => await Services.GetRequiredService<IActaClock>().GetUtcNowAsync(ct);
 
-    private ScheduleLookup Lookup(string jobName, string scheduleName) =>
-        new(JobLookup.ByDeduplicationKey(TestNamespace, jobName), scheduleName);
+    private ScheduleLookup Lookup(string jobName, string scheduleName) => new(TestNamespace, jobName, scheduleName);
 
     private static SlotSchedule Slot(
         string name,
@@ -48,21 +47,16 @@ public sealed class RegisterSchedulesNoteSpec : ActaStorageTestBase<ConformanceF
         ISqlDialect dialect,
         int defId,
         string jobName,
-        DateTime? slotMin,
         IReadOnlyList<SlotSchedule> schedules,
-        JobStatusCode slotStatus,
         CancellationToken ct
     )
     {
         var definition = new DefinitionSchedules(
             NamespaceId: TestNamespaceId,
             DefinitionId: defId,
-            JobName: jobName,
             InputFormatId: 0,
             Input: ReadOnlyMemory<byte>.Empty,
             EventRecording: EventRecordingCode.Audit,
-            SlotStatus: slotStatus,
-            SlotMinNextRunAtUtc: slotMin,
             Schedules: schedules
         );
         await ScheduleTestOps.RegisterAsync(Services, [definition], ct);
@@ -95,16 +89,10 @@ public sealed class RegisterSchedulesNoteSpec : ActaStorageTestBase<ConformanceF
                 []
             ),
         };
-        var (slotSchedules, slotStatus, slotNextRun) = ScheduleWalker.Reconcile(declared, storedForDef, now);
-        await RegisterAsync(db, dialect, defId, jobName, slotNextRun, slotSchedules, slotStatus, ct);
+        await RegisterAsync(db, dialect, defId, jobName, ScheduleRegistrationPlan.Plan(declared, storedForDef, now), ct);
     }
 
-    private async Task<long> SlotIdAsync(string jobName, CancellationToken ct)
-    {
-        var id = (await Jobs().GetJobIdAsync(JobLookup.ByDeduplicationKey(TestNamespace, jobName), ct))?.JobId;
-        Assert.NotNull(id);
-        return id!.Value;
-    }
+    private Task<long> SlotIdAsync(string jobName, CancellationToken ct) => ScheduleTestOps.SlotIdAsync(Db, TestNamespace, jobName, ct);
 
     private IJobs Jobs() => Services.GetRequiredService<IJobs>();
 
@@ -149,20 +137,11 @@ public sealed class RegisterSchedulesNoteSpec : ActaStorageTestBase<ConformanceF
         var jobName = Unique("desc");
         var defId = await CreateDefinitionAsync(db, dialect, jobName, ct);
         const string description = "Nightly cleanup of stale rows.";
-        await RegisterAsync(
-            db,
-            dialect,
-            defId,
-            jobName,
-            now.AddMinutes(5),
-            [Slot("only", now.AddMinutes(5), description: description)],
-            JobStatusCode.Ready,
-            ct
-        );
+        await RegisterAsync(db, dialect, defId, jobName, [Slot("only", now.AddMinutes(5), description: description)], ct);
 
         var seeded = await ScheduleAsync(Db, jobName, "only", ct);
         Assert.Equal(description, seeded.Description);
-        Assert.Null(seeded.ChangeMessage);
+        Assert.Null(seeded.PauseMessage);
 
         await Schedules.PauseAsync(Lookup(jobName, "only"), reasonMessage: "operator drain", ct: ct);
 
@@ -172,6 +151,6 @@ public sealed class RegisterSchedulesNoteSpec : ActaStorageTestBase<ConformanceF
 
         var resynced = await ScheduleAsync(Db, jobName, "only", ct);
         Assert.Equal(description, resynced.Description); // description keeps tracking the attribute
-        Assert.Equal("operator drain", resynced.ChangeMessage); // the operator note survives the re-sync
+        Assert.Equal("operator drain", resynced.PauseMessage); // the operator note survives the re-sync
     }
 }

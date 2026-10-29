@@ -47,7 +47,7 @@ public sealed class SetupReadChaosSpec : ActaRuntimeTestBase<ConformanceFixture,
 
         var slot = await Jobs.GetAsync(JobLookup.ById(slotId), ct);
         Assert.NotNull(slot);
-        Assert.Equal(JobStatusCode.Ready, slot!.Status);
+        Assert.Equal(JobStatusCode.Idle, slot!.Status);
         Assert.Null(slot.LeasedByWorkerId);
     }
 }

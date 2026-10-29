@@ -2,10 +2,10 @@ namespace Acta;
 
 /// <summary>
 /// One durable slot per <c>(JobId, Kind, CheckpointName)</c>: variables, signals, sleep timers, the progress slot,
-/// and child latches share this shape, told apart by <see cref="Kind"/> (steps keep their own <c>steps</c> table).
-/// Variables and progress are last-writer-wins upserts with a null <see cref="Status"/>; signals and latches move
-/// Pending to Set, or to Expired past <see cref="DueAtUtc"/>; timers move Pending to Consumed. The composite key is
-/// the identity.
+/// child latches, and the scheduler's firing envelope share this shape, told apart by <see cref="Kind"/> (steps keep
+/// their own <c>steps</c> table). Variables and progress are last-writer-wins upserts with a null
+/// <see cref="Status"/>; signals and latches move Pending to Set, or to Expired past <see cref="DueAtUtc"/>; timers
+/// move Pending to Consumed; the firing envelope moves Pending to its outcome. The composite key is the identity.
 /// </summary>
 [DbTable("checkpoints")]
 [DbPrimaryKey(Name = "pk_checkpoints", Columns = ["job_id", "checkpoint_kind_code", "checkpoint_name"])]
@@ -17,7 +17,7 @@ namespace Acta;
 [DbCheck(
     Name = "ck_checkpoints_kind_shape",
     Sql = "(checkpoint_kind_code NOT IN (10, 40) OR (checkpoint_status_code IS NULL AND due_at_utc IS NULL))"
-        + " AND (checkpoint_kind_code NOT IN (20, 30, 50) OR checkpoint_status_code IS NOT NULL)"
+        + " AND (checkpoint_kind_code NOT IN (20, 30, 50, 60) OR checkpoint_status_code IS NOT NULL)"
         + " AND (checkpoint_kind_code <> 30 OR due_at_utc IS NOT NULL)"
 )]
 // The recovery pass's stale-latch read: a latch is Pending only while its parent waits on that child, so the pass
@@ -46,15 +46,16 @@ internal sealed class CheckpointEntity : IEntity
     /// <summary>
     /// Slot name. Dotted-kebab ASCII for user variables and signals; <c>sys.progress</c> for the
     /// progress slot; <c>sys.child.{childId}</c> for child latches; <c>sys.wait-group.{hash}</c>
-    /// for a bounded group wait's shared deadline. The <c>sys.</c> prefix stays
-    /// system-reserved for user-writable kinds. Part of the composite PK.
+    /// for a bounded group wait's shared deadline; <c>sys.firing</c> for the scheduler's envelope. The <c>sys.</c>
+    /// prefix stays system-reserved for user-writable kinds. Part of the composite PK.
     /// </summary>
     [DbColumn("checkpoint_name", DbKind.AsciiString, Size = 128)]
     public string CheckpointName { get; init; } = default!;
 
     /// <summary>
-    /// <c>Pending</c> / <c>Set</c> / <c>Expired</c> (signals, child latches) or <c>Pending</c> /
-    /// <c>Consumed</c> (timers). NULL for the stateless kinds (variable, progress). Bound to
+    /// <c>Pending</c> / <c>Set</c> / <c>Expired</c> (signals, child latches), <c>Pending</c> /
+    /// <c>Consumed</c> (timers), or <c>Pending</c> / an outcome (the firing envelope). NULL for the stateless kinds
+    /// (variable, progress). Bound to
     /// <see cref="Kind"/> with <see cref="DueAtUtc"/> by <c>ck_checkpoints_kind_shape</c>.
     /// </summary>
     [DbColumn("checkpoint_status_code")]

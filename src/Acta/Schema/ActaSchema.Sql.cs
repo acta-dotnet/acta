@@ -174,6 +174,12 @@ internal static partial class ActaSchema
         /// </summary>
         public static readonly DbValueSpec<int> PageTake = new("p_take", DbKind.Int32);
 
+        /// <summary>The instant a pass decides at, read from the database clock before the read it binds to.</summary>
+        public static readonly DbValueSpec<DateTime> NowUtc = new("p_now_utc", DbKind.UtcInstant);
+
+        /// <summary>A manual firing's envelope, the ASCII JSON of a <c>FiringEnvelope</c> with no contributors.</summary>
+        public static readonly DbValueSpec<string> FiringEnvelope = new("p_envelope", DbKind.UnicodeString, 512);
+
         /// <summary>Last-seen age in seconds after which a live worker counts as stale.</summary>
         public static readonly DbValueSpec<int> StaleAfterSeconds = new("p_stale_after_seconds", DbKind.Int32);
 
@@ -241,8 +247,6 @@ internal static partial class ActaSchema
 
         public static readonly DbValueSpec<string?> CursorJobName = new("p_cursor_job_name", DbKind.AsciiString, 128);
 
-        public static readonly DbValueSpec<string?> CursorScheduleName = new("p_cursor_schedule_name", DbKind.AsciiString, 128);
-
         /// <summary>
         /// List-read tri-state flags: true applies the restriction, NULL skips it.
         /// </summary>
@@ -286,12 +290,6 @@ internal static partial class ActaSchema
         public static readonly DbValueSpec<string?> TenantSearch = new("p_search", DbKind.UnicodeString, 512);
 
         /// <summary>
-        /// set_schedule_overrides CAS guard: the caller's expected schedules.version; a mismatch rejects
-        /// with the row's current state instead of writing.
-        /// </summary>
-        public static readonly DbValueSpec<int> ExpectedScheduleVersion = new("p_expected_version", DbKind.Int32);
-
-        /// <summary>
         /// Optional CAS guard for the job control verbs:
         /// null skips the version check (last write wins); non-null requires an existing row at exactly
         /// that version, else the write is rejected with VersionConflict (or NotFound when no row exists
@@ -303,14 +301,6 @@ internal static partial class ActaSchema
         /// Admin metadata CAS guard: the caller's expected row version; a mismatch rejects with the row's current version.
         /// </summary>
         public static readonly DbValueSpec<int> ExpectedRowVersion = new("p_expected_version", DbKind.Int32);
-
-        /// <summary>
-        /// set_schedule_overrides full-set override values: NULL clears the respective override column.
-        /// Sized to match schedules.expression / schedules.time_zone_id (the columns they fall back to).
-        /// </summary>
-        public static readonly DbValueSpec<string?> ScheduleExpressionOverride = new("p_expression", DbKind.AsciiString, 128);
-
-        public static readonly DbValueSpec<string?> ScheduleTimeZoneIdOverride = new("p_time_zone_id", DbKind.AsciiString, 128);
 
         /// <summary>
         /// park_outbox_signal supersede guard: a pending command whose park instant is at or before

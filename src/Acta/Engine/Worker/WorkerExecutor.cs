@@ -203,10 +203,10 @@ internal sealed class WorkerExecutor(
             var attemptScope = _rootServices.CreateAsyncScope();
             try
             {
-                (RuntimeJobContext Context, RecurringFirePlan? Fire) attempt;
+                RuntimeJobContext jobContext;
                 try
                 {
-                    attempt = await PrepareAsync(
+                    jobContext = await PrepareAsync(
                         entry,
                         descriptor,
                         namespaceName,
@@ -225,19 +225,12 @@ internal sealed class WorkerExecutor(
                     );
                 }
 
-                var (jobContext, fire) = attempt;
                 ExecutionCompletion? completion;
                 try
                 {
-                    // A fire that only ends timed pauses with nothing due takes no slot, no turn, and no handler call;
-                    // it completes as a re-arm that applies the advances (ScheduleWalker.PlanFire).
-                    completion = fire is { NothingDue: true }
-                        ? new ExecutionCompletion(CompletionKind.Rescheduled)
-                        {
-                            ReasonMessage = "A timed schedule pause ended with no occurrence due; the handler did not run.",
-                        }
-                        : await _admission.AdmitAsync(descriptor, job, jobContext, hostCt)
-                            ?? await _invocation.InvokeAsync(attemptScope.ServiceProvider, descriptor, job, jobContext, hostCt);
+                    completion =
+                        await _admission.AdmitAsync(descriptor, job, jobContext, hostCt)
+                        ?? await _invocation.InvokeAsync(attemptScope.ServiceProvider, descriptor, job, jobContext, hostCt);
                 }
                 finally
                 {
@@ -254,7 +247,6 @@ internal sealed class WorkerExecutor(
 
                 entry.Descriptor = descriptor;
                 entry.Context = jobContext;
-                entry.Fire = fire;
                 return Finalizing(entry, completion);
             }
             finally
@@ -272,11 +264,11 @@ internal sealed class WorkerExecutor(
     }
 
     /// <summary>
-    /// What an attempt needs before its handler runs: the recurring fire plan and the tenant name, each read repeated
+    /// What an attempt needs before its handler runs: a slot's firing envelope and the tenant name, each read repeated
     /// like the writes on the host token, then the context, published on the attempt scope so DI-resolved handlers
     /// (e.g. MediatR) inject it from the same scope the handler resolves from.
     /// </summary>
-    private async Task<(RuntimeJobContext Context, RecurringFirePlan? Fire)> PrepareAsync(
+    private async Task<RuntimeJobContext> PrepareAsync(
         InFlightJob entry,
         JobDescriptor descriptor,
         string namespaceName,
@@ -287,7 +279,7 @@ internal sealed class WorkerExecutor(
     )
     {
         var job = entry.Claim;
-        var fire = await PlanFireAsync(job, descriptor, ct);
+        var firing = await ReadFiringAsync(job, workerId, ct);
         var backoff = Backoff.Parse(descriptor.Backoff ?? JobDefinitionRegistration.DefaultBackoffExpression);
 
         // Resolve the external tenant name off the process-lifetime cache (one point read per
@@ -311,7 +303,7 @@ internal sealed class WorkerExecutor(
         // rule or gained a deadline through an override, in the one place every consumer
         // reads from.
         DateTime? deadlineAtUtc =
-            fire is null && descriptor.DeadlineSeconds is { } deadlineSecs && deadlineSecs > 0
+            job.Kind != JobKindCode.PermanentSlot && descriptor.DeadlineSeconds is { } deadlineSecs && deadlineSecs > 0
                 ? job.CreatedAtUtc.AddSeconds(deadlineSecs)
                 : null;
         var jobContext = new RuntimeJobContext(
@@ -326,7 +318,7 @@ internal sealed class WorkerExecutor(
             _execution,
             _serializers,
             locks,
-            fire?.TriggeringScheduleNames ?? [],
+            firing,
             deadlineAtUtc,
             entry.AttemptToken,
             _options.MaxInlinePayloadBytes,
@@ -345,40 +337,24 @@ internal sealed class WorkerExecutor(
             clock
         );
         attemptServices.GetRequiredService<IJobContextAccessor>().JobContext = jobContext;
-        return (jobContext, fire);
+        return jobContext;
     }
 
     /// <summary>
-    /// Recurring slot fire: reads live schedules once and plans the due set + cursor advances at a single
-    /// captured nowUtc. The due names are visible to the handler; the advances + slot MIN apply at
-    /// completion. Null for a one-shot job, which keeps the unchanged one-shot path.
+    /// A slot's firing envelope, read under the attempt's fence: the contributors the admission froze, the same on every
+    /// retry and reclaim. Null for an ordinary job, and for a slot whose claim the attempt lost, which the completion
+    /// write then refuses.
     /// </summary>
-    private async Task<RecurringFirePlan?> PlanFireAsync(ClaimedJob job, JobDescriptor descriptor, CancellationToken ct)
-    {
-        var isRecurring = context.RecurringSlotJobIds.ContainsKey(job.JobId);
-        if (!isRecurring && !string.Equals(job.DeduplicationKey, descriptor.JobName, StringComparison.Ordinal))
-        {
-            return null;
-        }
-
-        var nowUtc = await WorkerFinalizer.RepeatAsync(async token => await clock.GetUtcNowAsync(token), _log, job.JobId, ct, metrics);
-        var schedules = _rootServices.GetRequiredService<SchedulesOperations>();
-        var live = await WorkerFinalizer.RepeatAsync(
-            async token => (await schedules.GetLiveSchedulesAsync(job.JobId, token)).Schedules,
-            _log,
-            job.JobId,
-            ct,
-            metrics
-        );
-        // A slot another runtime registered after this one started is not in the startup set. Its
-        // deduplication key is its job name, which a one-off may share, so live schedules decide.
-        if (!isRecurring && live.Count > 0)
-        {
-            isRecurring = true;
-            context.RecurringSlotJobIds.TryAdd(job.JobId, 0);
-        }
-        return isRecurring ? ScheduleWalker.PlanFire(live, nowUtc) : null;
-    }
+    private async Task<FiringEnvelope?> ReadFiringAsync(ClaimedJob job, int workerId, CancellationToken ct) =>
+        job.Kind == JobKindCode.PermanentSlot
+            ? await WorkerFinalizer.RepeatAsync(
+                async token => await _execution.GetFiringAsync(new ExecutionFence(job.JobId, job.ExecutionNumber, workerId), token),
+                _log,
+                job.JobId,
+                ct,
+                metrics
+            )
+            : null;
 
     // The outcome is decided before the attempt's services are disposed, so a service that throws while disposing is
     // logged and the outcome stands: an escaping throw would leave the entry Finalizing, never written or released.

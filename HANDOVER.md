@@ -1,12 +1,12 @@
 # Handover
 
-State of rc6 on 2026-10-25. Nothing is pushed. temp-plan.md stays the maintained plan; EVENTS-SPEC.md and RENAME-MANIFEST.md were implemented and deleted, and temp-plan.md keeps the two SQL Server events layouts that rc7 decides between.
+State of rc6 on 2026-10-25. Nothing is pushed. The v1 data model plan (temp-plan.md), EVENTS-SPEC.md, and RENAME-MANIFEST.md were implemented and deleted; the schema reference is docs/reference/data-model.md.
 
 ## State
 
 - rc6 is the rc.6 release, its follow-ups, the v1 data model, the PostgreSQL completion fix, the Acta Bench measurement standard, rc.6 polish, one commit per review fix (B1-B10), and the 2026-10-24 batch below.
 - Every unpushed commit is dated outside 09:00-17:00 and carries no attribution line.
-- The init baseline is `M20261024213527_init`. Startup and apply now refuse a database whose history names another `_init`, so drop the `acta-test` database on both Compose servers after any baseline re-cut (CONTRIBUTING.md, "Database lifecycle").
+- The init baseline is `M20261029124218_init` (re-cut for the scheduling redesign, step by step). Startup and apply now refuse a database whose history names another `_init`, so drop the `acta-test` database on both Compose servers after any baseline re-cut (CONTRIBUTING.md, "Database lifecycle").
 - The release path is done: the engine is certified on `599e28e8`, the bench fixes are `fb8f8414`, `988764e6`, `05e5c27c`, and `5511252d`, and `v1.0.0-rc.6` tags the evidence commit that follows them.
 
 ## Landed 2026-10-24
@@ -30,7 +30,7 @@ State of rc6 on 2026-10-25. Nothing is pushed. temp-plan.md stays the maintained
 
 ## After rc.6
 
-- rc7: decide the SQL Server events clustering by ruling 14. The lean campaign has repetitions 1-2 for both layouts (`pwsh run-campaign.ps1 -ProtocolPath protocol-lean.json` in the clustering kit, output in the 2026-10-23 session scratchpad `overnight/clustering`); repetition 3 and the reads/retention pass remain.
+- rc7: decide the SQL Server events clustering between the shipping worker-clustered key and the namespace/bucket/time candidate, by the criteria in the clustering kit's protocol. The lean campaign has repetitions 1-2 for both layouts (`pwsh run-campaign.ps1 -ProtocolPath protocol-lean.json` in the clustering kit, output in the 2026-10-23 session scratchpad `overnight/clustering`); repetition 3 and the reads/retention pass remain.
 - Remaining review proposals, one at a time and weighed by how often they bite: a committed catalog revision, the alert completeness contract, one certification record that gates publication, more operating metrics (oldest-ready age, outbox command age).
 - Bench, from the rc.6 evidence run: the controller holds every 64 KB M04 payload in memory (up to 43 GB), so stream them; SQL Server's E03 offered too little to grow a backlog; O03 validates no rate on either server, and PostgreSQL's I05 sustains about 310 roots/s, below its lowest frozen rate; certify PgBouncer transaction pooling before docs recommend it.
 - Open: one-worker PostgreSQL drains run in two modes per trial (about 16K or 20K jobs/s) with identical plans. Next probe: synchronous_commit=off and WAL sync timing.

@@ -36,30 +36,10 @@ public sealed class ListSchedulesFilterMatrixSpec : ActaRuntimeTestBase<Conforma
     }
 
     /// <summary>Registers a slot job and its schedules in the given namespace.</summary>
-    private Task RegisterSchedulesAsync(
-        int nsId,
-        int defId,
-        string jobName,
-        DateTime? slotMin,
-        IReadOnlyList<SlotSchedule> schedules,
-        JobStatusCode slotStatus,
-        CancellationToken ct
-    ) =>
+    private Task RegisterSchedulesAsync(int nsId, int defId, string jobName, IReadOnlyList<SlotSchedule> schedules, CancellationToken ct) =>
         ScheduleTestOps.RegisterAsync(
             Services,
-            [
-                new DefinitionSchedules(
-                    nsId,
-                    defId,
-                    jobName,
-                    0,
-                    ReadOnlyMemory<byte>.Empty,
-                    EventRecordingCode.Audit,
-                    slotStatus,
-                    slotMin,
-                    schedules
-                ),
-            ],
+            [new DefinitionSchedules(nsId, defId, 0, ReadOnlyMemory<byte>.Empty, EventRecordingCode.Audit, schedules)],
             ct
         );
 
@@ -96,7 +76,7 @@ public sealed class ListSchedulesFilterMatrixSpec : ActaRuntimeTestBase<Conforma
         // Job B: synthetic job alongside the manifest-seeded recurring-ping (job A)
         var jobBName = Unique("sched-b");
         var defBId = await CreateDefinitionAsync(nsId, jobBName, ct);
-        await RegisterSchedulesAsync(nsId, defBId, jobBName, soon, [Slot("tick", soon)], JobStatusCode.Ready, ct);
+        await RegisterSchedulesAsync(nsId, defBId, jobBName, [Slot("tick", soon)], ct);
 
         // Capture keys via namespace-only read (independent of jobName filter)
         var all = (await Queries.Schedules.ListAsync(new ListSchedulesQuery(JobNamespace: TestNamespace, PageSize: 100), ct)).Items;
@@ -130,7 +110,7 @@ public sealed class ListSchedulesFilterMatrixSpec : ActaRuntimeTestBase<Conforma
         // Add a second schedule so the namespace has a non-trivial set (all with Origin=Definition)
         var jobBName = Unique("sched-src");
         var defBId = await CreateDefinitionAsync(nsId, jobBName, ct);
-        await RegisterSchedulesAsync(nsId, defBId, jobBName, soon, [Slot("tick", soon)], JobStatusCode.Ready, ct);
+        await RegisterSchedulesAsync(nsId, defBId, jobBName, [Slot("tick", soon)], ct);
 
         // Capture all schedule keys via namespace read (independent of origin filter)
         var all = (await Queries.Schedules.ListAsync(new ListSchedulesQuery(JobNamespace: TestNamespace, PageSize: 100), ct)).Items;
@@ -159,26 +139,26 @@ public sealed class ListSchedulesFilterMatrixSpec : ActaRuntimeTestBase<Conforma
         // Job A: stays live
         var jobAName = Unique("live");
         var defAId = await CreateDefinitionAsync(nsId, jobAName, ct);
-        await RegisterSchedulesAsync(nsId, defAId, jobAName, soon, [Slot("tick", soon)], JobStatusCode.Ready, ct);
+        await RegisterSchedulesAsync(nsId, defAId, jobAName, [Slot("tick", soon)], ct);
 
         // Job B: register then orphan by re-registering with no schedules
         var jobBName = Unique("orphan");
         var defBId = await CreateDefinitionAsync(nsId, jobBName, ct);
-        await RegisterSchedulesAsync(nsId, defBId, jobBName, soon, [Slot("gone", soon)], JobStatusCode.Ready, ct);
-        await RegisterSchedulesAsync(nsId, defBId, jobBName, null, [], JobStatusCode.Paused, ct);
+        await RegisterSchedulesAsync(nsId, defBId, jobBName, [Slot("gone", soon)], ct);
+        await RegisterSchedulesAsync(nsId, defBId, jobBName, [], ct);
 
         // Job C: paused by an operator, which keeps its cursor
         var jobCName = Unique("paused");
         var defCId = await CreateDefinitionAsync(nsId, jobCName, ct);
-        await RegisterSchedulesAsync(nsId, defCId, jobCName, soon, [Slot("tick", soon)], JobStatusCode.Ready, ct);
-        var lookupC = new ScheduleLookup(JobLookup.ByDeduplicationKey(TestNamespace, jobCName), "tick");
+        await RegisterSchedulesAsync(nsId, defCId, jobCName, [Slot("tick", soon)], ct);
+        var lookupC = new ScheduleLookup(TestNamespace, jobCName, "tick");
         Assert.Equal(ControlAction.Applied, (await Queries.Schedules.PauseAsync(lookupC, untilUtc: null, ct: ct)).Action);
 
         // Job D: exhausted, with no further occurrence
         var jobDName = Unique("exhausted");
         var defDId = await CreateDefinitionAsync(nsId, jobDName, ct);
         var exhausted = new SlotSchedule("tick", Cron5, null, MisfireStrategyCode.Skip, ScheduleExpressionKindCode.Cron, null, null);
-        await RegisterSchedulesAsync(nsId, defDId, jobDName, null, [exhausted], JobStatusCode.Paused, ct);
+        await RegisterSchedulesAsync(nsId, defDId, jobDName, [exhausted], ct);
 
         var livePage = await Queries.Schedules.ListAsync(
             new ListSchedulesQuery(JobNamespace: TestNamespace, LiveOnly: true, PageSize: 100, IncludeTotal: true),
@@ -233,14 +213,14 @@ public sealed class ListSchedulesFilterMatrixSpec : ActaRuntimeTestBase<Conforma
         // Add a synthetic schedule to the primary namespace so TotalCount > 0 is asserted against a pinned count
         var ns1JobName = Unique("sched-ns1");
         var ns1DefId = await CreateDefinitionAsync(nsId, ns1JobName, ct);
-        await RegisterSchedulesAsync(nsId, ns1DefId, ns1JobName, soon, [Slot("tick", soon)], JobStatusCode.Ready, ct);
+        await RegisterSchedulesAsync(nsId, ns1DefId, ns1JobName, [Slot("tick", soon)], ct);
 
         // Second namespace: one synthetic definition + schedule
         var ns2 = Unique("ns2");
         var ns2Id = await new ActaTestSeeder(Db).SeedJobNamespaceAsync(ns2, "test", ct);
         var ns2JobName = Unique("sched-ns2");
         var ns2DefId = await CreateDefinitionAsync(ns2Id, ns2JobName, ct);
-        await RegisterSchedulesAsync(ns2Id, ns2DefId, ns2JobName, soon, [Slot("tick", soon)], JobStatusCode.Ready, ct);
+        await RegisterSchedulesAsync(ns2Id, ns2DefId, ns2JobName, [Slot("tick", soon)], ct);
 
         // Read each namespace independently (the reads are the independent origin for each partition)
         var ns1Page = await Queries.Schedules.ListAsync(

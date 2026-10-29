@@ -391,6 +391,7 @@ BEGIN
     -- and only a later statement's sees it to return its id (the register_tenant pattern).
     WITH inserted_root AS (
         INSERT INTO {{schema}}.jobs (
+            job_kind_code,
             job_id,
             job_ref,
             lineage_root_job_id,
@@ -407,6 +408,7 @@ BEGIN
             created_at_utc)
         OVERRIDING SYSTEM VALUE
         SELECT
+            10 /* JobKindCode.Ordinary */,
             e.job_id,
             e.job_ref,
             NULL,
@@ -430,6 +432,7 @@ BEGIN
     ),
     inserted_child AS (
         INSERT INTO {{schema}}.jobs (
+            job_kind_code,
             job_id,
             job_ref,
             lineage_root_job_id,
@@ -446,6 +449,7 @@ BEGIN
             created_at_utc)
         OVERRIDING SYSTEM VALUE
         SELECT
+            10 /* JobKindCode.Ordinary */,
             e.job_id,
             e.job_ref,
             e.lineage_root_job_id,

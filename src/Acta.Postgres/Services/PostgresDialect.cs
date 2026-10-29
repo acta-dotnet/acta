@@ -1,5 +1,6 @@
 using System.Data;
 using System.Data.Common;
+using System.Globalization;
 using System.Text;
 using Npgsql;
 using NpgsqlTypes;
@@ -342,24 +343,18 @@ internal sealed class PostgresDialect : ISqlDialect
         var definitionCount = definitions.Count;
         var jobRefs = new Guid[definitionCount];
         var definitionIds = new int[definitionCount];
-        var deduplicationKeys = new string[definitionCount];
         var inputFormatIds = new short[definitionCount];
         byte[]?[] inputs = new byte[definitionCount][];
         var eventRecordings = new short[definitionCount];
-        var slotStatuses = new short[definitionCount];
-        var slotNextRuns = new DateTime?[definitionCount];
         var scheduleCount = 0;
         for (var i = 0; i < definitionCount; i++)
         {
             var definition = definitions[i];
             jobRefs[i] = slotRefs[i];
             definitionIds[i] = definition.DefinitionId;
-            deduplicationKeys[i] = definition.JobName;
             inputFormatIds[i] = definition.InputFormatId;
             inputs[i] = definition.InputFormatId == JobPayloadFormat.None.Id ? null : definition.Input.ToArray();
             eventRecordings[i] = (short)definition.EventRecording;
-            slotStatuses[i] = (short)definition.SlotStatus;
-            slotNextRuns[i] = definition.SlotMinNextRunAtUtc;
             scheduleCount += definition.Schedules.Count;
         }
 
@@ -371,6 +366,8 @@ internal sealed class PostgresDialect : ISqlDialect
         var misfires = new short[scheduleCount];
         var nextRuns = new DateTime?[scheduleCount];
         var descriptions = new string?[scheduleCount];
+        var anchors = new DateTime?[scheduleCount];
+        var fingerprints = new string[scheduleCount];
         var scheduleIndex = 0;
         foreach (var definition in definitions)
         {
@@ -384,18 +381,17 @@ internal sealed class PostgresDialect : ISqlDialect
                 misfires[scheduleIndex] = (short)schedule.MisfireStrategy;
                 nextRuns[scheduleIndex] = schedule.NextOccurrenceAtUtc;
                 descriptions[scheduleIndex] = schedule.Description;
+                anchors[scheduleIndex] = schedule.IntervalAnchorAtUtc;
+                fingerprints[scheduleIndex] = schedule.TimingFingerprint;
                 scheduleIndex++;
             }
         }
 
         AddArray(postgres, "@p_d_job_ref", NpgsqlDbType.Uuid, jobRefs);
         AddArray(postgres, "@p_d_definition_id", NpgsqlDbType.Integer, definitionIds);
-        AddArray(postgres, "@p_d_deduplication_key", NpgsqlDbType.Varchar, deduplicationKeys);
         AddArray(postgres, "@p_d_input_format_id", NpgsqlDbType.Smallint, inputFormatIds);
         AddArray(postgres, "@p_d_input", NpgsqlDbType.Bytea, inputs);
         AddArray(postgres, "@p_d_event_recording_code", NpgsqlDbType.Smallint, eventRecordings);
-        AddArray(postgres, "@p_d_slot_status", NpgsqlDbType.Smallint, slotStatuses);
-        AddArray(postgres, "@p_d_slot_next_run_at_utc", NpgsqlDbType.TimestampTz, slotNextRuns);
         AddArray(postgres, "@p_s_definition_id", NpgsqlDbType.Integer, scheduleDefinitionIds);
         AddArray(postgres, "@p_s_schedule_name", NpgsqlDbType.Varchar, scheduleNames);
         AddArray(postgres, "@p_s_expression", NpgsqlDbType.Varchar, expressions);
@@ -404,6 +400,33 @@ internal sealed class PostgresDialect : ISqlDialect
         AddArray(postgres, "@p_s_misfire", NpgsqlDbType.Smallint, misfires);
         AddArray(postgres, "@p_s_next_occurrence_at_utc", NpgsqlDbType.TimestampTz, nextRuns);
         AddArray(postgres, "@p_s_description", NpgsqlDbType.Varchar, descriptions);
+        AddArray(postgres, "@p_s_interval_anchor_at_utc", NpgsqlDbType.TimestampTz, anchors);
+        AddArray(postgres, "@p_s_timing_fingerprint", NpgsqlDbType.Varchar, fingerprints);
+    }
+
+    public void BindAdmitFirings(DbCommand command, AdmitFiringsCommand request)
+    {
+        var postgres = (NpgsqlCommand)command;
+        AddScalar(postgres, "@p_groups", NpgsqlDbType.Text, AdmitFiringsJson.Groups(request));
+        AddScalar(
+            postgres,
+            "@p_rows",
+            NpgsqlDbType.Text,
+            AdmitFiringsJson.Rows(
+                request,
+                static (writer, name, value) =>
+                {
+                    if (value is { } instant)
+                    {
+                        writer.WriteString(name, DbParams.ToUtc(instant).ToString("O", CultureInfo.InvariantCulture));
+                    }
+                    else
+                    {
+                        writer.WriteNull(name);
+                    }
+                }
+            )
+        );
     }
 
     public void BindCompleteExecutions(DbCommand command, CompleteExecutionsCommand request, string schema)
@@ -456,16 +479,6 @@ internal sealed class PostgresDialect : ISqlDialect
         AddArray(postgres, "@p_final_job_status_codes", NpgsqlDbType.Smallint, completions.Select(c => (short?)c.FinalStatus).ToArray());
         AddArray(postgres, "@p_job_next_run_at_utc", NpgsqlDbType.TimestampTz, completions.Select(c => c.JobNextRunAtUtc).ToArray());
 
-        var advances = completions.SelectMany(c => (c.ScheduleAdvances ?? []).Select(a => (c.JobId, Advance: a))).ToList();
-        AddArray(postgres, "@p_advance_job_ids", NpgsqlDbType.Bigint, advances.Select(a => a.JobId).ToArray());
-        AddArray(postgres, "@p_advance_schedule_names", NpgsqlDbType.Varchar, advances.Select(a => a.Advance.ScheduleName).ToArray());
-        AddArray(
-            postgres,
-            "@p_advance_next_occurrences",
-            NpgsqlDbType.TimestampTz,
-            advances.Select(a => a.Advance.NextOccurrenceAtUtc).ToArray()
-        );
-        AddArray(postgres, "@p_advance_versions", NpgsqlDbType.Integer, advances.Select(a => a.Advance.ExpectedVersion).ToArray());
         AddScalar(postgres, "@p_plain", NpgsqlDbType.Boolean, completions.All(c => c.IsPlain));
     }
 

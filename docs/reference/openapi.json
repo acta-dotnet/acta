@@ -1471,6 +1471,7 @@
                 "blocked",
                 "suspended",
                 "paused",
+                "idle",
                 "executing",
                 "succeeded",
                 "failed",
@@ -4801,142 +4802,6 @@
         }
       }
     },
-    "/acta/api/v1/schedules/{jobNamespace}/{jobName}/{scheduleName}/overrides": {
-      "post": {
-        "tags": [
-          "Schedules"
-        ],
-        "summary": "Set or clear the schedule's expression and time-zone overrides.",
-        "parameters": [
-          {
-            "name": "jobNamespace",
-            "in": "path",
-            "required": true,
-            "schema": {
-              "type": "string"
-            }
-          },
-          {
-            "name": "jobName",
-            "in": "path",
-            "required": true,
-            "schema": {
-              "type": "string"
-            }
-          },
-          {
-            "name": "scheduleName",
-            "in": "path",
-            "required": true,
-            "schema": {
-              "type": "string"
-            }
-          }
-        ],
-        "requestBody": {
-          "content": {
-            "application/json": {
-              "schema": {
-                "$ref": "#/components/schemas/SetScheduleOverridesRequest"
-              }
-            }
-          },
-          "required": true
-        },
-        "responses": {
-          "400": {
-            "description": "Bad Request",
-            "content": {
-              "application/problem+json": {
-                "schema": {
-                  "$ref": "#/components/schemas/ProblemDetails"
-                }
-              }
-            }
-          },
-          "413": {
-            "description": "Payload Too Large",
-            "content": {
-              "application/problem+json": {
-                "schema": {
-                  "$ref": "#/components/schemas/ProblemDetails"
-                }
-              }
-            }
-          },
-          "500": {
-            "description": "Internal Server Error",
-            "content": {
-              "application/problem+json": {
-                "schema": {
-                  "$ref": "#/components/schemas/ProblemDetails"
-                }
-              }
-            }
-          },
-          "503": {
-            "description": "Service Unavailable",
-            "content": {
-              "application/problem+json": {
-                "schema": {
-                  "$ref": "#/components/schemas/ProblemDetails"
-                }
-              }
-            }
-          },
-          "403": {
-            "description": "Forbidden",
-            "content": {
-              "application/problem+json": {
-                "schema": {
-                  "$ref": "#/components/schemas/ProblemDetails"
-                }
-              }
-            }
-          },
-          "415": {
-            "description": "Unsupported Media Type",
-            "content": {
-              "application/problem+json": {
-                "schema": {
-                  "$ref": "#/components/schemas/ProblemDetails"
-                }
-              }
-            }
-          },
-          "200": {
-            "description": "OK",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/SetScheduleOverridesResponse"
-                }
-              }
-            }
-          },
-          "409": {
-            "description": "Conflict",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/SetScheduleOverridesResponse"
-                }
-              }
-            }
-          },
-          "404": {
-            "description": "Not Found",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/SetScheduleOverridesResponse"
-                }
-              }
-            }
-          }
-        }
-      }
-    },
     "/acta/api/v1/jobs/{jobRef}": {
       "get": {
         "tags": [
@@ -6418,7 +6283,6 @@
                 "job.execution-orphaned",
                 "job.execution-yielded",
                 "job.failed",
-                "job.recurring-rolled-over",
                 "job.suspended",
                 "job.rescheduled",
                 "job.cancelled",
@@ -6434,8 +6298,10 @@
                 "schedule.paused",
                 "schedule.resumed",
                 "schedule.pause-expired",
-                "schedule.overrides-updated",
                 "schedule.triggered",
+                "schedule.admitted",
+                "schedule.skipped",
+                "schedule.retimed",
                 "worker.started",
                 "worker.stopped",
                 "worker.died",
@@ -6639,7 +6505,6 @@
                 "job.execution-orphaned",
                 "job.execution-yielded",
                 "job.failed",
-                "job.recurring-rolled-over",
                 "job.suspended",
                 "job.rescheduled",
                 "job.cancelled",
@@ -6655,8 +6520,10 @@
                 "schedule.paused",
                 "schedule.resumed",
                 "schedule.pause-expired",
-                "schedule.overrides-updated",
                 "schedule.triggered",
+                "schedule.admitted",
+                "schedule.skipped",
+                "schedule.retimed",
                 "worker.started",
                 "worker.stopped",
                 "worker.died",
@@ -6801,7 +6668,6 @@
                 "job.execution-orphaned",
                 "job.execution-yielded",
                 "job.failed",
-                "job.recurring-rolled-over",
                 "job.suspended",
                 "job.rescheduled",
                 "job.cancelled",
@@ -6817,8 +6683,10 @@
                 "schedule.paused",
                 "schedule.resumed",
                 "schedule.pause-expired",
-                "schedule.overrides-updated",
                 "schedule.triggered",
+                "schedule.admitted",
+                "schedule.skipped",
+                "schedule.retimed",
                 "worker.started",
                 "worker.stopped",
                 "worker.died",
@@ -7399,6 +7267,9 @@
       },
       "EntityCode": {
         "description": "Names a kind of Acta entity, so one `(entity_code, entity_id)` pair can point at a row of any table. Tags\nattach only to tenants, namespaces, definitions, and jobs, the targets TagTarget can build."
+      },
+      "EvaluationStatusCode": {
+        "description": "Why a schedule's next evaluation is when it is: the scheduling engine's state for one schedule, distinct from the\noperator lifecycle (ScheduleStatusCode) and from the slot job's status."
       },
       "EventCode": {
         "description": "Stable family-local event identifiers. Nearby values improve catalog readability but carry no runtime subject,\nsubgroup, or outcome semantics; match events by enum member or textual code. There is no `job.enqueued`\nevent on purpose: the Job row's own `(created_at_utc, namespace_id, definition_id)` records the enqueue fact,\nand a separate event row would be write amplification on the narrow append-heavy events table; dedup outcomes\nreach the caller via `EnqueueJobResponse.Action`, and cross-job rate analytics query `acta.jobs` directly."
@@ -10024,7 +9895,9 @@
           "timeZoneId",
           "misfireStrategy",
           "nextOccurrenceAtUtc",
-          "lastAdvancedOccurrenceAtUtc",
+          "decidedThroughAtUtc",
+          "nextEvaluationAtUtc",
+          "evaluationStatus",
           "status",
           "pausedUntilUtc",
           "createdAtUtc",
@@ -10065,12 +9938,22 @@
             ],
             "format": "date-time"
           },
-          "lastAdvancedOccurrenceAtUtc": {
+          "decidedThroughAtUtc": {
             "type": [
               "null",
               "string"
             ],
             "format": "date-time"
+          },
+          "nextEvaluationAtUtc": {
+            "type": [
+              "null",
+              "string"
+            ],
+            "format": "date-time"
+          },
+          "evaluationStatus": {
+            "$ref": "#/components/schemas/EvaluationStatusCode"
           },
           "status": {
             "$ref": "#/components/schemas/ScheduleStatusCode"
@@ -10109,7 +9992,7 @@
             ]
           }
         },
-        "description": "One schedule row in a ValueTask&lt;ListSchedulesResponse&gt; ISchedules.ListAsync(ListSchedulesQuery query, CancellationToken ct = default(CancellationToken)) page. `Expression` and `TimeZoneId` are the\neffective values, the operator override when present and else the original; `LastAdvancedOccurrenceAtUtc` is the\nmost recent occurrence the schedule was advanced past, misfires included; `Status` is Active, Paused, or Orphaned, with\n`PausedUntilUtc` for a timed pause; `Version` is the row version a CAS control verb takes as expected;\n`JobRef` is the recurring slot job's public ref, null when the slot row was purged."
+        "description": "One schedule row in a ValueTask&lt;ListSchedulesResponse&gt; ISchedules.ListAsync(ListSchedulesQuery query, CancellationToken ct = default(CancellationToken)) page. `DecidedThroughAtUtc` is the watermark every\nearlier occurrence was decided through, skips included; `NextEvaluationAtUtc` and `EvaluationStatus` say\nwhen and why the engine next looks; `Status` is Active, Paused, or Orphaned, with `PausedUntilUtc` for a\ntimed pause; `Version` is the row version a CAS control verb takes as expected; `JobRef` is the recurring\nslot job's public ref, null when the slot row was purged. The ids stay off the wire: the list pages by\n`ScheduleId` inside its opaque cursor."
       },
       "ListSchedulesResponse": {
         "required": [
@@ -11214,87 +11097,6 @@
           }
         },
         "description": "What setting a definition's policy overrides did, and the definition's version after the attempt."
-      },
-      "SetScheduleOverridesRequest": {
-        "type": "object",
-        "properties": {
-          "expectedVersion": {
-            "pattern": "^-?(?:0|[1-9]\\d*)$",
-            "type": [
-              "null",
-              "integer",
-              "string"
-            ],
-            "format": "int32"
-          },
-          "expression": {
-            "type": [
-              "null",
-              "string"
-            ]
-          },
-          "timeZoneId": {
-            "type": [
-              "null",
-              "string"
-            ]
-          },
-          "reasonMessage": {
-            "type": [
-              "null",
-              "string"
-            ]
-          }
-        }
-      },
-      "SetScheduleOverridesResponse": {
-        "required": [
-          "action",
-          "status",
-          "pausedUntilUtc",
-          "nextOccurrenceAtUtc",
-          "version"
-        ],
-        "type": "object",
-        "properties": {
-          "action": {
-            "$ref": "#/components/schemas/ControlAction"
-          },
-          "status": {
-            "oneOf": [
-              {
-                "type": "null"
-              },
-              {
-                "$ref": "#/components/schemas/ScheduleStatusCode"
-              }
-            ]
-          },
-          "pausedUntilUtc": {
-            "type": [
-              "null",
-              "string"
-            ],
-            "format": "date-time"
-          },
-          "nextOccurrenceAtUtc": {
-            "type": [
-              "null",
-              "string"
-            ],
-            "format": "date-time"
-          },
-          "version": {
-            "pattern": "^-?(?:0|[1-9]\\d*)$",
-            "type": [
-              "null",
-              "integer",
-              "string"
-            ],
-            "format": "int32"
-          }
-        },
-        "description": "What setting a schedule's overrides did, and the schedule's state after the attempt."
       },
       "StepStatusCode": {
         "description": "State machine for `steps` rows. INSERT-once on first invocation (`Pending`);\nUPDATE-in-place across retries; terminal transition to `Succeeded` (with `Result` populated),\n`Exhausted` (parent receives `StepExhaustedException`), or `Interrupted` (an\n`AtMostOnce` step re-entered before completion; parent receives `StepInterruptedException`). One row per\n`(JobId, StepName)`; the framework never INSERTs a second step row for the same slot."

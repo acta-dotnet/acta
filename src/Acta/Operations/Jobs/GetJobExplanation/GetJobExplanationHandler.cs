@@ -122,10 +122,10 @@ internal sealed class GetJobExplanationHandler(GetJobIdHandler getJobId, IDbSess
                 }
                 break;
 
-            case JobStatusCode.Paused when h.NextRunAtUtc is null:
-                // Not held (ScheduleWalker.IsHeld): a recurring job whose schedules offer no run.
-                headline = "Paused because none of its schedules has an upcoming run.";
-                actions.Add(Move("none", "resume or edit one of its schedules to give it a next run"));
+            case JobStatusCode.Idle:
+                headline = "Idle between firings; its schedules decide the next one.";
+                actions.Add(Move("none", "no action needed - the next due schedule admits a firing"));
+                actions.Add(Move("cancel", "cancel the job to stop its schedules firing it"));
                 break;
 
             case JobStatusCode.Paused:

@@ -234,12 +234,9 @@ internal static class SqlServerTableParameters
     [
         new("definition_id", SqlDbType.Int),
         new("job_ref", SqlDbType.UniqueIdentifier),
-        new("deduplication_key", SqlDbType.VarChar, 128),
         new("input_format_id", SqlDbType.TinyInt),
         new("input", SqlDbType.VarBinary, -1),
         new("event_recording_code", SqlDbType.TinyInt),
-        new("slot_status_code", SqlDbType.TinyInt),
-        new("slot_next_run_at_utc", SqlDbType.DateTime2),
     ];
 
     internal static IEnumerable<SqlDataRecord>? BuildSlotRecords(
@@ -257,12 +254,9 @@ internal static class SqlServerTableParameters
                 var definition = definitions[i];
                 record.SetInt32(0, definition.DefinitionId);
                 record.SetGuid(1, slotRefs[i]);
-                record.SetString(2, definition.JobName);
-                record.SetByte(3, definition.InputFormatId);
-                SetBytesOrNull(record, 4, definition.Input, definition.InputFormatId != JobPayloadFormat.None.Id);
-                record.SetByte(5, (byte)definition.EventRecording);
-                record.SetByte(6, (byte)definition.SlotStatus);
-                SetNullableDateTime(record, 7, definition.SlotMinNextRunAtUtc);
+                record.SetByte(2, definition.InputFormatId);
+                SetBytesOrNull(record, 3, definition.Input, definition.InputFormatId != JobPayloadFormat.None.Id);
+                record.SetByte(4, (byte)definition.EventRecording);
                 yield return record;
             }
         }
@@ -278,6 +272,8 @@ internal static class SqlServerTableParameters
         new("misfire_strategy_code", SqlDbType.TinyInt),
         new("next_occurrence_at_utc", SqlDbType.DateTime2),
         new("description", SqlDbType.NVarChar, 512),
+        new("interval_anchor_at_utc", SqlDbType.DateTime2),
+        new("timing_fingerprint", SqlDbType.VarChar, 64),
     ];
 
     internal static IEnumerable<SqlDataRecord>? BuildScheduleUpsertRecords(IReadOnlyList<DefinitionSchedules> definitions)
@@ -299,6 +295,8 @@ internal static class SqlServerTableParameters
                     record.SetByte(5, (byte)schedule.MisfireStrategy);
                     SetNullableDateTime(record, 6, schedule.NextOccurrenceAtUtc);
                     SetNullableString(record, 7, schedule.Description);
+                    SetNullableDateTime(record, 8, schedule.IntervalAnchorAtUtc);
+                    record.SetString(9, schedule.TimingFingerprint);
                     yield return record;
                 }
             }

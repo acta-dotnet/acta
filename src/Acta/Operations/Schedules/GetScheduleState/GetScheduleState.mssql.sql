@@ -9,17 +9,17 @@ SELECT
     r.job_status_code AS slot_status,
     r.next_run_at_utc AS slot_next_run_at_utc,
     t.expression_kind_code AS expression_kind,
-    t.expression_override,
-    t.time_zone_id_override,
     t.expression,
     t.time_zone_id,
     t.misfire_strategy_code AS misfire_strategy,
     t.description,
+    t.interval_anchor_at_utc,
+    t.timing_fingerprint,
     t.job_id AS slot_id,
     r.job_priority_code AS slot_priority
 FROM {{schema}}.schedules t
 INNER JOIN {{schema}}.definitions d ON d.definition_id = t.definition_id
-INNER JOIN {{schema}}.schedules_state st ON st.job_id = t.job_id AND st.schedule_name = t.schedule_name
+INNER JOIN {{schema}}.schedules_state st ON st.schedule_id = t.schedule_id
 LEFT JOIN {{schema}}.jobs_state r ON r.job_id = t.job_id
 WHERE
     t.namespace_id = @p_namespace_id

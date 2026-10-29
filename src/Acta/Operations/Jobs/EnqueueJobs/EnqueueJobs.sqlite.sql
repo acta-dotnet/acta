@@ -146,11 +146,12 @@ WHERE EXISTS (
 -- which is the order a lane runs in. The untargeted DO NOTHING skips a row that repeats a
 -- deduplication key under either unique index.
 INSERT INTO {{schema}}.jobs (
-    job_ref, lineage_root_job_id, parent_job_id, deduplication_key, correlation_key,
+    job_kind_code, job_ref, lineage_root_job_id, parent_job_id, deduplication_key, correlation_key,
     namespace_id, definition_id, tenant_id,
     input_format_id, input, concurrency_key, event_recording_code
 )
 SELECT
+    10 /* JobKindCode.Ordinary */,
     JSON_EXTRACT(r.value, '$.job_ref'),
     CASE WHEN pj.job_id IS NOT NULL THEN COALESCE(pj.lineage_root_job_id, pj.job_id) END,
     pj.job_id,

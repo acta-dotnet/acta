@@ -23,11 +23,11 @@
     'namespace.suspended', 'namespace.resumed', 'namespace.updated',
     'definition.overrides-updated', 'definition.retired',
     'job.execution-succeeded', 'job.execution-failed', 'job.execution-orphaned', 'job.execution-yielded', 'job.failed',
-    'job.recurring-rolled-over',
     'job.suspended', 'job.rescheduled', 'job.cancelled', 'job.paused', 'job.resumed',
     'job.restarted', 'job.reprioritized', 'job.purged', 'job.input-amended',
     'job.signal-raised', 'job.state-reset', 'job.note-recorded',
-    'schedule.paused', 'schedule.resumed', 'schedule.pause-expired', 'schedule.overrides-updated', 'schedule.triggered',
+    'schedule.paused', 'schedule.resumed', 'schedule.pause-expired', 'schedule.triggered',
+    'schedule.admitted', 'schedule.skipped', 'schedule.retimed',
     'worker.started', 'worker.stopped', 'worker.died',
     'alert.acknowledged', 'alert.resolved',
     'outbox.requeued', 'outbox.discarded'

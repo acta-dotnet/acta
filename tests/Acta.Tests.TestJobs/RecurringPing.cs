@@ -13,7 +13,7 @@ public sealed record RecurringPingResult(int Sequence);
 /// </summary>
 public static class RecurringPingHandler
 {
-    // namespace -> the TriggeringScheduleNames seen on each fire, in order.
+    // namespace -> the names of the TriggeringSchedules seen on each fire, in order.
     public static readonly ConcurrentDictionary<string, List<IReadOnlyList<string>>> Triggers = new(StringComparer.Ordinal);
 
     // namespace -> fail every fire whose 1-based sequence is <= this value (drives the failure-budget specs).
@@ -45,7 +45,7 @@ public static class RecurringPingHandler
         int sequence;
         lock (list)
         {
-            list.Add(ctx.TriggeringScheduleNames);
+            list.Add([.. ctx.TriggeringSchedules.Select(s => s.ScheduleName)]);
             sequence = list.Count;
         }
 

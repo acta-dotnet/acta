@@ -95,7 +95,7 @@ WHERE
     j.job_id = @p_job_id
     AND j.event_recording_code = 20 /* EventRecordingCode.Audit */
     AND (@p_expected_version IS NULL OR r.version = @p_expected_version)
-    AND r.job_status_code IN (30 /* JobStatusCode.Paused */, 20 /* JobStatusCode.Suspended */, 10 /* JobStatusCode.Ready */, 15 /* JobStatusCode.Blocked */, 50 /* JobStatusCode.Executing */);
+    AND r.job_status_code IN (40 /* JobStatusCode.Idle */, 30 /* JobStatusCode.Paused */, 20 /* JobStatusCode.Suspended */, 10 /* JobStatusCode.Ready */, 15 /* JobStatusCode.Blocked */, 50 /* JobStatusCode.Executing */);
 
 UPDATE {{schema}}.jobs_state
 SET
@@ -113,7 +113,27 @@ SET
 WHERE
     job_id = @p_job_id
     AND (@p_expected_version IS NULL OR version = @p_expected_version)
-    AND job_status_code IN (30 /* JobStatusCode.Paused */, 20 /* JobStatusCode.Suspended */, 10 /* JobStatusCode.Ready */, 15 /* JobStatusCode.Blocked */, 50 /* JobStatusCode.Executing */);
+    AND job_status_code IN (40 /* JobStatusCode.Idle */, 30 /* JobStatusCode.Paused */, 20 /* JobStatusCode.Suspended */, 10 /* JobStatusCode.Ready */, 15 /* JobStatusCode.Blocked */, 50 /* JobStatusCode.Executing */);
+
+-- A cancelled slot's outstanding firing settles with it; a running attempt's completion then finds the row moved and
+-- settles nothing twice.
+UPDATE {{schema}}.checkpoints
+SET
+    checkpoint_status_code = 130 /* CheckpointStatusCode.Cancelled */,
+    modified_at_utc = {{now}},
+    version = version + 1
+WHERE
+    job_id = @p_job_id
+    AND checkpoint_kind_code = 60 /* CheckpointKindCode.Firing */
+    AND checkpoint_name = 'sys.firing'
+    AND checkpoint_status_code = 10 /* CheckpointStatusCode.Pending */
+    AND EXISTS (
+        SELECT 1
+        FROM temp._cancel_job s
+        WHERE
+            (@p_expected_version IS NULL OR s.from_version = @p_expected_version)
+            AND s.from_status IN (40 /* JobStatusCode.Idle */, 30 /* JobStatusCode.Paused */, 20 /* JobStatusCode.Suspended */, 10 /* JobStatusCode.Ready */, 15 /* JobStatusCode.Blocked */, 50 /* JobStatusCode.Executing */)
+    );
 
 -- A cancelled head hands its lane to the next member; a cancelled Blocked follower leaves the head where
 -- it is, which the promotion reads for itself. A restarted member can wait Blocked below a running one,
@@ -156,20 +176,20 @@ SELECT
     CASE
         WHEN s.job_id IS NULL THEN 2 /* ControlAction.NotFound */
         WHEN @p_expected_version IS NOT NULL AND s.from_version <> @p_expected_version THEN 5 /* ControlAction.VersionConflict */
-        WHEN s.from_status IN (30 /* JobStatusCode.Paused */, 20 /* JobStatusCode.Suspended */, 10 /* JobStatusCode.Ready */, 15 /* JobStatusCode.Blocked */, 50 /* JobStatusCode.Executing */) THEN 1 /* ControlAction.Applied */
+        WHEN s.from_status IN (40 /* JobStatusCode.Idle */, 30 /* JobStatusCode.Paused */, 20 /* JobStatusCode.Suspended */, 10 /* JobStatusCode.Ready */, 15 /* JobStatusCode.Blocked */, 50 /* JobStatusCode.Executing */) THEN 1 /* ControlAction.Applied */
         ELSE 3 /* ControlAction.Rejected */
     END AS action,
     CASE
         WHEN s.job_id IS NULL THEN NULL
         WHEN @p_expected_version IS NOT NULL AND s.from_version <> @p_expected_version THEN s.from_status
-        WHEN s.from_status IN (30 /* JobStatusCode.Paused */, 20 /* JobStatusCode.Suspended */, 10 /* JobStatusCode.Ready */, 15 /* JobStatusCode.Blocked */, 50 /* JobStatusCode.Executing */) THEN 220 /* JobStatusCode.Cancelled */
+        WHEN s.from_status IN (40 /* JobStatusCode.Idle */, 30 /* JobStatusCode.Paused */, 20 /* JobStatusCode.Suspended */, 10 /* JobStatusCode.Ready */, 15 /* JobStatusCode.Blocked */, 50 /* JobStatusCode.Executing */) THEN 220 /* JobStatusCode.Cancelled */
         ELSE s.from_status
     END AS status,
     s.parent_job_id,
     CASE
         WHEN s.job_id IS NULL THEN NULL
         WHEN @p_expected_version IS NOT NULL AND s.from_version <> @p_expected_version THEN s.from_version
-        WHEN s.from_status IN (30 /* JobStatusCode.Paused */, 20 /* JobStatusCode.Suspended */, 10 /* JobStatusCode.Ready */, 15 /* JobStatusCode.Blocked */, 50 /* JobStatusCode.Executing */) THEN s.from_version + 1
+        WHEN s.from_status IN (40 /* JobStatusCode.Idle */, 30 /* JobStatusCode.Paused */, 20 /* JobStatusCode.Suspended */, 10 /* JobStatusCode.Ready */, 15 /* JobStatusCode.Blocked */, 50 /* JobStatusCode.Executing */) THEN s.from_version + 1
         ELSE s.from_version
     END AS version,
     CASE WHEN changes() > 0 THEN 1 ELSE 0 END AS lane_promoted

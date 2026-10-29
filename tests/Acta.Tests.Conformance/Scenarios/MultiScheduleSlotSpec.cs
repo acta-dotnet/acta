@@ -7,7 +7,7 @@ namespace Acta.Tests.Conformance.Scenarios;
 
 /// <summary>
 /// Minimal handler for the multi-schedule ping job. Records nothing; the spec verifies
-/// cursor/slot-MIN state, not handler-observable side effects.
+/// cursor and envelope state, not handler-observable side effects.
 /// </summary>
 internal static class MultiSchedulePingHandler
 {
@@ -77,18 +77,18 @@ public sealed class MultiScheduleSlotManifest : IJobManifest
 }
 
 /// <summary>
-/// End-to-end conformance for multi-schedule slots: MIN cursor selection, per-schedule advance on fire,
-/// and MIN recompute across all schedules after each execution.
+/// End-to-end conformance for multi-schedule slots: each schedule keeps its own cursor, a firing is admitted once
+/// per pass with every due schedule contributing to it, and only the contributors advance.
 /// </summary>
 [ConformanceSpec(
-    "schedule.multi-slot-min",
-    "Multi-schedule slot picks MIN next_run and recomputes on fire",
+    "schedule.multi-slot-firing",
+    "A multi-schedule slot takes one firing per pass from every due schedule",
     Area = "Scheduling",
-    Contract = "A slot with multiple schedules arms next_run_at_utc to the MIN cursor and recomputes the MIN after each fire."
+    Contract = "A slot with several schedules takes one firing per pass: every due schedule contributes to it and advances its own cursor, and the rest keep theirs."
 )]
 public sealed class MultiScheduleSlotSpec : ActaRuntimeTestBase<ConformanceFixture, MultiScheduleSlotManifest>
 {
-    // Live slot cursors are this spec's subject; the harness default would park them.
+    // Live schedule cursors are this spec's subject; the harness default would park them.
     protected override bool ParkScheduleSlots => false;
 
     private const string JobName = "multi-ping";
@@ -98,7 +98,7 @@ public sealed class MultiScheduleSlotSpec : ActaRuntimeTestBase<ConformanceFixtu
     private static readonly TimeSpan Fast = TimeSpan.FromSeconds(30);
     private static readonly TimeSpan Slow = TimeSpan.FromSeconds(50);
 
-    // Far-past anchor so fake-derived cursors are always past-due from the real DB clock.
+    // Far-past anchor so an admitted firing is always due on the real DB clock.
     private static readonly DateTime T0 = new(2024, 1, 1, 0, 0, 0, DateTimeKind.Utc);
 
     private FakeClock Clock { get; set; } = null!;
@@ -111,78 +111,64 @@ public sealed class MultiScheduleSlotSpec : ActaRuntimeTestBase<ConformanceFixtu
         base.ConfigureServices(services, testNamespace);
     }
 
-    [Fact(DisplayName = "Slot next_run_at_utc is the MIN across its two schedule cursors after registration")]
-    public async Task Slot_next_run_is_min_across_schedules()
+    [Fact(DisplayName = "After registration each schedule holds its own first occurrence and the Idle slot carries none")]
+    public async Task Each_schedule_holds_its_own_cursor_and_the_slot_none()
     {
         var ct = TestContext.Current.CancellationToken;
         var slotId = await SlotIdAsync(ct);
 
         // Anchored at T0: fast first fires at T0+30s, slow at T0+50s.
-        var fastCursor = await ScheduleCursorAsync(slotId, FastName, ct);
-        var slowCursor = await ScheduleCursorAsync(slotId, SlowName, ct);
-        Assert.Equal(T0 + Fast, fastCursor); // T0+30s
-        Assert.Equal(T0 + Slow, slowCursor); // T0+50s
+        Assert.Equal(T0 + Fast, await ScheduleCursorAsync(slotId, FastName, ct));
+        Assert.Equal(T0 + Slow, await ScheduleCursorAsync(slotId, SlowName, ct));
 
-        // Slot arms to the MIN: the fast schedule.
         var slot = await ReadJobAsync(slotId, ct);
-        Assert.Equal(T0 + Fast, slot.NextRunAtUtc); // T0+30s
+        Assert.Equal(JobStatusCode.Idle, slot.Status);
+        Assert.Null(slot.NextRunAtUtc);
     }
 
-    [Fact(DisplayName = "Firing the earlier schedule advances only its cursor and recomputes slot MIN")]
-    public async Task Firing_earlier_schedule_advances_only_it_and_recomputes_min()
+    [Fact(DisplayName = "A firing of the earlier schedule names only it and advances only its cursor")]
+    public async Task Firing_the_earlier_schedule_advances_only_it()
     {
         var ct = TestContext.Current.CancellationToken;
         var slotId = await SlotIdAsync(ct);
 
-        // Advance clock to T0+30s (fast cursor) and fire.
-        await FireOnceAsync(slotId, ct);
+        // At T0+30s only the fast schedule is due.
+        await AdmitAtAsync(slotId, T0 + Fast, ct);
+        Assert.Equal([FastName], await ContributorsAsync(slotId, ct));
+        Assert.NotEqual(RunOnceStatus.NothingClaimed, await Runtime.RunOnceAsync(slotId, ct));
 
         // Fast advanced one period; slow unchanged.
-        var fastCursor = await ScheduleCursorAsync(slotId, FastName, ct);
-        var slowCursor = await ScheduleCursorAsync(slotId, SlowName, ct);
-        Assert.Equal(T0 + Fast + Fast, fastCursor); // T0+60s
-        Assert.Equal(T0 + Slow, slowCursor); // T0+50s: not due, not advanced
+        Assert.Equal(T0 + Fast + Fast, await ScheduleCursorAsync(slotId, FastName, ct)); // T0+60s
+        Assert.Equal(T0 + Slow, await ScheduleCursorAsync(slotId, SlowName, ct)); // T0+50s: not due, not advanced
 
-        // Slot re-arms to the new MIN: now the slow schedule.
         var slot = await ReadJobAsync(slotId, ct);
-        Assert.Equal(T0 + Slow, slot.NextRunAtUtc); // T0+50s
+        Assert.Equal(JobStatusCode.Idle, slot.Status);
         Assert.Equal(1, slot.ExecutionNumber);
     }
 
-    [Fact(DisplayName = "Firing when both schedules are due advances both cursors and re-arms to new MIN")]
-    public async Task Firing_when_both_due_advances_both_and_recomputes_min()
+    [Fact(DisplayName = "When both schedules are due, one firing carries both and advances both cursors")]
+    public async Task Firing_when_both_due_carries_both_and_advances_both()
     {
         var ct = TestContext.Current.CancellationToken;
         var slotId = await SlotIdAsync(ct);
 
-        // Advance clock to T0+60s: fast was due at T0+30s, slow at T0+50s. Both overdue.
-        Clock.AdvanceTo(T0 + TimeSpan.FromSeconds(60));
-        var outcome = await Runtime.RunOnceAsync(slotId, ct);
-        Assert.NotEqual(RunOnceStatus.NothingClaimed, outcome);
+        // At T0+60s fast was due at T0+30s and slow at T0+50s: both contribute to the one firing.
+        await AdmitAtAsync(slotId, T0 + TimeSpan.FromSeconds(60), ct);
+        Assert.Equal([FastName, SlowName], await ContributorsAsync(slotId, ct));
+        Assert.NotEqual(RunOnceStatus.NothingClaimed, await Runtime.RunOnceAsync(slotId, ct));
 
         // FirstAfter math (anchor-locked, drift-free):
-        //   fast: steps = floor(60/30)+1 = 3 → T0+90s
-        //   slow: steps = floor(60/50)+1 = 2 → T0+100s
-        var expectedFast = T0 + TimeSpan.FromSeconds(90);
-        var expectedSlow = T0 + TimeSpan.FromSeconds(100);
+        //   fast: steps = floor(60/30)+1 = 3 -> T0+90s
+        //   slow: steps = floor(60/50)+1 = 2 -> T0+100s
+        Assert.Equal(T0 + TimeSpan.FromSeconds(90), await ScheduleCursorAsync(slotId, FastName, ct));
+        Assert.Equal(T0 + TimeSpan.FromSeconds(100), await ScheduleCursorAsync(slotId, SlowName, ct));
 
-        var fastCursor = await ScheduleCursorAsync(slotId, FastName, ct);
-        var slowCursor = await ScheduleCursorAsync(slotId, SlowName, ct);
-        Assert.Equal(expectedFast, fastCursor); // T0+90s
-        Assert.Equal(expectedSlow, slowCursor); // T0+100s
-
-        // Slot re-arms to the new MIN.
         var slot = await ReadJobAsync(slotId, ct);
-        Assert.Equal(expectedFast, slot.NextRunAtUtc); // T0+90s
+        Assert.Equal(JobStatusCode.Idle, slot.Status);
         Assert.Equal(1, slot.ExecutionNumber);
     }
 
-    private async Task<long> SlotIdAsync(CancellationToken ct)
-    {
-        var id = (await Jobs.GetJobIdAsync(JobLookup.ByDeduplicationKey(TestNamespace, JobName), ct))?.JobId;
-        Assert.NotNull(id);
-        return id!.Value;
-    }
+    private Task<long> SlotIdAsync(CancellationToken ct) => ScheduleTestOps.SlotIdAsync(Db, TestNamespace, JobName, ct);
 
     private async Task<DateTime> ScheduleCursorAsync(long slotId, string scheduleName, CancellationToken ct)
     {
@@ -191,15 +177,23 @@ public sealed class MultiScheduleSlotSpec : ActaRuntimeTestBase<ConformanceFixtu
         return row.NextOccurrenceAtUtc!.Value;
     }
 
-    private async Task FireOnceAsync(long slotId, CancellationToken ct)
+    /// <summary>The schedule names the pending firing's envelope carries, in name order.</summary>
+    private async Task<IReadOnlyList<string>> ContributorsAsync(long slotId, CancellationToken ct)
     {
-        {
-            var slot = await ReadJobAsync(slotId, ct);
-            Assert.NotNull(slot!.NextRunAtUtc);
-            Clock.AdvanceTo(slot.NextRunAtUtc!.Value);
-        }
+        var firing = Assert.Single(
+            await Db.From<CheckpointEntity>().Where(c => c.JobId == slotId && c.Kind == CheckpointKindCode.Firing).ToListAsync(ct)
+        );
+        Assert.Equal(CheckpointStatusCode.Pending, firing.Status);
+        var envelope = FiringEnvelope.FromJson(firing.Value);
+        Assert.NotNull(envelope);
+        return [.. envelope.Contributors.Select(c => c.ScheduleName)];
+    }
 
-        var outcome = await Runtime.RunOnceAsync(slotId, ct);
-        Assert.NotEqual(RunOnceStatus.NothingClaimed, outcome);
+    // Runs one admission pass at the fake instant and checks it admitted the slot's firing.
+    private async Task AdmitAtAsync(long slotId, DateTime nowUtc, CancellationToken ct)
+    {
+        Clock.AdvanceTo(nowUtc);
+        await Runtime.AdmitOnceAsync(TestNamespace, ct);
+        Assert.Equal(JobStatusCode.Ready, (await ReadJobAsync(slotId, ct)).Status);
     }
 }

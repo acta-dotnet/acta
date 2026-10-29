@@ -116,13 +116,6 @@ internal sealed class SqlServerDialect : ISqlDialect
             typeName: $"{schema}.complete_executions"
         );
         AddParameter(sql, "@p_plain", SqlDbType.Bit, request.Completions.All(c => c.IsPlain));
-
-        // JSON text rather than a second table-valued parameter, which SQL Server would build on every call even empty.
-        var advances = request.Completions.SelectMany(c => (c.ScheduleAdvances ?? []).Select(a => (c.JobId, Advance: a))).ToList();
-        if (advances.Count > 0)
-        {
-            AddParameter(sql, "@p_schedule_advances", SqlDbType.NVarChar, JsonScheduleAdvances(advances), size: -1);
-        }
     }
 
     public void BindEnqueueJobs(DbCommand command, IReadOnlyList<JobEnqueueValues> rows, IReadOnlyList<Guid> jobRefs, string schema)
@@ -242,19 +235,31 @@ internal sealed class SqlServerDialect : ISqlDialect
         );
     }
 
-    /// <summary>The batch's schedule advances as JSON text, each instant as an ISO-8601 UTC string, for OPENJSON.</summary>
-    private static string JsonScheduleAdvances(IReadOnlyList<(long JobId, ScheduleAdvance Advance)> advances) =>
-        "["
-        + string.Join(
-            ",",
-            advances.Select(item =>
-                string.Create(
-                    CultureInfo.InvariantCulture,
-                    $"{{\"job_id\":{item.JobId},\"schedule_name\":\"{JsonEncodedText.Encode(item.Advance.ScheduleName)}\",\"next_occurrence_at_utc\":{(item.Advance.NextOccurrenceAtUtc is { } next ? $"\"{DbParams.ToUtc(next):yyyy-MM-ddTHH:mm:ss.fff}\"" : "null")},\"expected_version\":{item.Advance.ExpectedVersion?.ToString(CultureInfo.InvariantCulture) ?? "null"}}}"
-                )
-            )
-        )
-        + "]";
+    public void BindAdmitFirings(DbCommand command, AdmitFiringsCommand request)
+    {
+        var sql = (SqlCommand)command;
+        AddParameter(sql, "@p_groups", SqlDbType.NVarChar, AdmitFiringsJson.Groups(request), size: -1);
+        AddParameter(
+            sql,
+            "@p_rows",
+            SqlDbType.NVarChar,
+            AdmitFiringsJson.Rows(
+                request,
+                static (writer, name, value) =>
+                {
+                    if (value is { } instant)
+                    {
+                        writer.WriteString(name, DbParams.ToUtc(instant).ToString("yyyy-MM-ddTHH:mm:ss.fff", CultureInfo.InvariantCulture));
+                    }
+                    else
+                    {
+                        writer.WriteNull(name);
+                    }
+                }
+            ),
+            size: -1
+        );
+    }
 
     private static void AddParameter(
         SqlCommand command,

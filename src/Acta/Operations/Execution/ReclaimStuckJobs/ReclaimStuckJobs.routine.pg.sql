@@ -229,14 +229,8 @@ BEGIN
                     AND c.checkpoint_status_code = 30 /* CheckpointStatusCode.Expired */
                     AND c.due_at_utc = r.next_run_at_utc
             ) AS wait_resolved,
-            /* MaxAttempts is the one-off retry budget and a slot's failure_count accumulates across
-               occurrences, so a recurring reclaim always re-arms Ready instead of terminally failing
-               the schedule - mirroring ComputeRecurringOutcome on the worker path. */
-            EXISTS (
-                SELECT 1
-                FROM {{schema}}.schedules sc
-                WHERE sc.job_id = r.job_id
-            ) AS is_recurring
+            -- A slot's spent budget returns it to Idle with its firing settled Failed, never to Failed itself.
+            j.job_kind_code = 20 /* JobKindCode.PermanentSlot */ AS is_slot
         FROM {{schema}}.jobs_state r
         INNER JOIN {{schema}}.jobs j ON j.job_id = r.job_id
         INNER JOIN {{schema}}.definitions jd ON jd.definition_id = j.definition_id
@@ -257,18 +251,19 @@ BEGIN
         SET
             job_status_code = CASE
                 WHEN s.wait_resolved THEN 20 /* JobStatusCode.Suspended */
-                WHEN NOT s.is_recurring AND s.new_failure_count >= s.max_attempts THEN 200 /* JobStatusCode.Failed */
+                WHEN s.new_failure_count >= s.max_attempts
+                    THEN CASE WHEN s.is_slot THEN 40 /* JobStatusCode.Idle */ ELSE 200 /* JobStatusCode.Failed */ END
                 ELSE 10 /* JobStatusCode.Ready */ END,
             failure_count = CASE WHEN s.wait_resolved
                 THEN r.failure_count
                 ELSE s.new_failure_count END,
             next_run_at_utc = CASE
                 WHEN s.wait_resolved THEN r.next_run_at_utc
-                WHEN NOT s.is_recurring AND s.new_failure_count >= s.max_attempts THEN r.next_run_at_utc
+                WHEN s.new_failure_count >= s.max_attempts THEN CASE WHEN s.is_slot THEN NULL ELSE r.next_run_at_utc END
                 ELSE now() END,
             leased_by_worker_id = NULL,
             lease_expires_at_utc = NULL,
-            retention_until_utc = CASE WHEN NOT s.wait_resolved AND NOT s.is_recurring AND s.new_failure_count >= s.max_attempts
+            retention_until_utc = CASE WHEN NOT s.wait_resolved AND NOT s.is_slot AND s.new_failure_count >= s.max_attempts
                 THEN now() + make_interval(secs => s.retention_seconds)
                 ELSE r.retention_until_utc END,
             modified_at_utc = now(),
@@ -319,6 +314,7 @@ BEGIN
             convert_to(
                 CASE r.new_status
                     WHEN 200 /* JobStatusCode.Failed */ THEN '{"reason":"lease-expired"}'
+                    WHEN 40 /* JobStatusCode.Idle */ THEN '{"reason":"lease-expired","to":"idle"}'
                     WHEN 20 /* JobStatusCode.Suspended */ THEN '{"reason":"lease-expired","to":"suspended"}'
                     ELSE '{"reason":"lease-expired","to":"ready"}'
                 END,
@@ -328,6 +324,35 @@ BEGIN
         WHERE
             r.event_recording_code IN (10 /* EventRecordingCode.Failures */, 20 /* EventRecordingCode.Audit */)
             OR r.alert_profile_code <> 0 /* AlertProfileCode.None */
+    ),
+    -- A slot's lost attempt that spent the budget settles its firing Failed and wakes the members parked on the slot.
+    settled AS (
+        UPDATE {{schema}}.checkpoints cp
+        SET
+            checkpoint_status_code = 120 /* CheckpointStatusCode.Failed */,
+            modified_at_utc = now(),
+            version = cp.version + 1
+        FROM reclaimed r
+        WHERE
+            cp.job_id = r.job_id
+            AND cp.checkpoint_kind_code = 60 /* CheckpointKindCode.Firing */
+            AND cp.checkpoint_name = 'sys.firing'
+            AND cp.checkpoint_status_code = 10 /* CheckpointStatusCode.Pending */
+            AND r.new_status = 40 /* JobStatusCode.Idle */
+    ),
+    woken AS (
+        UPDATE {{schema}}.schedules_state st
+        SET
+            next_evaluation_at_utc = now(),
+            evaluation_status_code = 10 /* EvaluationStatusCode.Scheduled */,
+            modified_at_utc = now(),
+            version = st.version + 1
+        FROM {{schema}}.schedules js
+        INNER JOIN reclaimed r ON r.job_id = js.job_id
+        WHERE
+            st.schedule_id = js.schedule_id
+            AND r.new_status = 40 /* JobStatusCode.Idle */
+            AND st.evaluation_status_code IN (20 /* EvaluationStatusCode.WaitingForCapacity */, 50 /* EvaluationStatusCode.SlotUnavailable */)
     )
     SELECT r.job_id, r.new_status, r.parent_job_id, 0::SMALLINT
     FROM reclaimed r;

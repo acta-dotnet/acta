@@ -63,7 +63,7 @@ GO
 -- ===== refuse a database a newer release already upgraded =====
 IF EXISTS (
     SELECT 1 FROM acta.migrations
-    WHERE name NOT IN ('M20261024213527_init')
+    WHERE name NOT IN ('M20261029124218_init')
 )
 BEGIN
     RAISERROR(N'A newer Acta release already upgraded this database. Run the newest provisioning script; this one would move it backwards.', 16, 1);
@@ -71,7 +71,7 @@ BEGIN
     SET NOEXEC ON;
 END
 GO
--- ===== BEGIN M20261024213527_init =====
+-- ===== BEGIN M20261029124218_init =====
 SET QUOTED_IDENTIFIER ON;
 SET ANSI_NULLS ON;
 GO
@@ -135,7 +135,7 @@ CREATE TABLE acta.checkpoints (
     version int DEFAULT 0 NOT NULL
     , CONSTRAINT pk_checkpoints PRIMARY KEY (job_id, checkpoint_kind_code, checkpoint_name)
     , CONSTRAINT ck_checkpoints_value_pair CHECK ((value_format_id = 0 AND value IS NULL) OR (value_format_id <> 0 AND value IS NOT NULL))
-    , CONSTRAINT ck_checkpoints_kind_shape CHECK ((checkpoint_kind_code NOT IN (10, 40) OR (checkpoint_status_code IS NULL AND due_at_utc IS NULL)) AND (checkpoint_kind_code NOT IN (20, 30, 50) OR checkpoint_status_code IS NOT NULL) AND (checkpoint_kind_code <> 30 OR due_at_utc IS NOT NULL))
+    , CONSTRAINT ck_checkpoints_kind_shape CHECK ((checkpoint_kind_code NOT IN (10, 40) OR (checkpoint_status_code IS NULL AND due_at_utc IS NULL)) AND (checkpoint_kind_code NOT IN (20, 30, 50, 60) OR checkpoint_status_code IS NOT NULL) AND (checkpoint_kind_code <> 30 OR due_at_utc IS NOT NULL))
 );
 CREATE INDEX ix_checkpoints_pending_latches ON acta.checkpoints (job_id, checkpoint_name) WHERE checkpoint_kind_code = 50 AND checkpoint_status_code = 10;
 END
@@ -258,6 +258,7 @@ BEGIN
 CREATE TABLE acta.jobs (
     job_id bigint IDENTITY(1,1) NOT NULL,
     job_ref uniqueidentifier NOT NULL,
+    job_kind_code tinyint NOT NULL,
     namespace_id int NOT NULL,
     definition_id int NOT NULL,
     lineage_root_job_id bigint NULL,
@@ -279,6 +280,7 @@ CREATE INDEX ix_jobs_namespace_created ON acta.jobs (namespace_id, created_at_ut
 CREATE UNIQUE INDEX ux_jobs_ref ON acta.jobs (job_ref);
 CREATE UNIQUE INDEX ux_jobs_deduplication_key_root ON acta.jobs (namespace_id, deduplication_key) WHERE deduplication_key IS NOT NULL AND parent_job_id IS NULL;
 CREATE UNIQUE INDEX ux_jobs_deduplication_key_child ON acta.jobs (parent_job_id, deduplication_key) WHERE deduplication_key IS NOT NULL AND parent_job_id IS NOT NULL;
+CREATE UNIQUE INDEX ux_jobs_slot ON acta.jobs (definition_id) WHERE job_kind_code = 20;
 END
 GO
 
@@ -322,6 +324,7 @@ CREATE TABLE acta.jobs_state (
     , CONSTRAINT ck_jobs_state_status_lease CHECK (job_status_code = 50 OR leased_by_worker_id IS NULL)
     , CONSTRAINT ck_jobs_state_inflight_leased CHECK (job_status_code <> 50 OR leased_by_worker_id IS NOT NULL)
     , CONSTRAINT ck_jobs_state_ready_due CHECK (job_status_code <> 10 OR next_run_at_utc IS NOT NULL)
+    , CONSTRAINT ck_jobs_state_idle CHECK (job_status_code <> 40 OR next_run_at_utc IS NULL)
     , CONSTRAINT ck_jobs_state_result_pair CHECK ((result_format_id = 0 AND result IS NULL) OR (result_format_id <> 0 AND result IS NOT NULL))
     , CONSTRAINT ck_jobs_state_result_idle CHECK (result_format_id = 0 OR job_status_code <> 50)
     , CONSTRAINT fk_jobs_state_lanes FOREIGN KEY (lane_id) REFERENCES acta.lanes (lane_id)
@@ -382,31 +385,33 @@ GO
 IF OBJECT_ID(N'acta.schedules', N'U') IS NULL
 BEGIN
 CREATE TABLE acta.schedules (
+    schedule_id int IDENTITY(1,1) NOT NULL,
     namespace_id int NOT NULL,
     job_id bigint NOT NULL,
     definition_id int NOT NULL,
     schedule_name varchar(128) NOT NULL,
     schedule_origin_code tinyint NOT NULL,
     expression varchar(128) NOT NULL,
-    expression_override varchar(128) NULL,
-    expression_effective AS (COALESCE(expression_override, expression)) PERSISTED,
     time_zone_id varchar(128) NOT NULL,
-    time_zone_id_override varchar(128) NULL,
-    time_zone_id_effective AS (COALESCE(time_zone_id_override, time_zone_id)) PERSISTED,
     expression_kind_code tinyint NOT NULL,
     misfire_strategy_code tinyint NOT NULL,
+    interval_anchor_at_utc datetime2(3) NULL,
+    misfire_grace_seconds int NOT NULL,
+    timing_fingerprint varchar(64) NOT NULL,
     schedule_status_code tinyint NOT NULL,
     paused_until_utc datetime2(3) NULL,
     description nvarchar(512) NULL,
-    change_message nvarchar(512) NULL,
+    pause_message nvarchar(512) NULL,
     created_at_utc datetime2(3) DEFAULT SYSUTCDATETIME() NOT NULL,
     modified_at_utc datetime2(3) DEFAULT SYSUTCDATETIME() NOT NULL,
     version int DEFAULT 0 NOT NULL
-    , CONSTRAINT pk_schedules PRIMARY KEY (job_id, schedule_name)
+    , CONSTRAINT pk_schedules PRIMARY KEY (schedule_id)
     , CONSTRAINT ck_schedules_paused_pair CHECK (schedule_status_code = 30 OR paused_until_utc IS NULL)
     , CONSTRAINT ck_schedules_orphan_origin CHECK (schedule_origin_code = 40 OR schedule_status_code <> 230)
     , CONSTRAINT fk_schedules_definitions FOREIGN KEY (definition_id) REFERENCES acta.definitions (definition_id)
 );
+CREATE INDEX ix_schedules_job ON acta.schedules (job_id, schedule_id);
+CREATE UNIQUE INDEX ux_schedules_definition_name ON acta.schedules (definition_id, schedule_name);
 END
 GO
 
@@ -414,15 +419,18 @@ GO
 IF OBJECT_ID(N'acta.schedules_state', N'U') IS NULL
 BEGIN
 CREATE TABLE acta.schedules_state (
-    job_id bigint NOT NULL,
-    schedule_name varchar(128) NOT NULL,
+    schedule_id int NOT NULL,
     namespace_id int NOT NULL,
     next_occurrence_at_utc datetime2(3) NULL,
-    last_advanced_occurrence_at_utc datetime2(3) NULL,
+    decided_through_at_utc datetime2(3) NULL,
+    next_evaluation_at_utc datetime2(3) NULL,
+    evaluation_status_code tinyint NOT NULL,
+    version int DEFAULT 0 NOT NULL,
     modified_at_utc datetime2(3) DEFAULT SYSUTCDATETIME() NOT NULL
-    , CONSTRAINT pk_schedules_state PRIMARY KEY (job_id, schedule_name)
+    , CONSTRAINT pk_schedules_state PRIMARY KEY (schedule_id)
 );
-CREATE INDEX ix_schedules_state_namespace_next ON acta.schedules_state (namespace_id, next_occurrence_at_utc, job_id, schedule_name) WHERE next_occurrence_at_utc IS NOT NULL;
+CREATE INDEX ix_schedules_state_namespace_next ON acta.schedules_state (namespace_id, next_occurrence_at_utc, schedule_id) WHERE next_occurrence_at_utc IS NOT NULL;
+CREATE INDEX ix_schedules_state_due ON acta.schedules_state (namespace_id, next_evaluation_at_utc, schedule_id) WHERE next_evaluation_at_utc IS NOT NULL;
 END
 GO
 
@@ -616,17 +624,13 @@ GO
 
 -- Per-definition recurring slot batch: one row per definition reconciled in a single
 -- acta.register_schedules call (all definitions share one namespace, passed as a scalar).
--- deduplication_key is the slot job's natural key (the job name).
 IF TYPE_ID(N'acta.register_slots') IS NULL
 EXEC(N'CREATE TYPE acta.register_slots AS TABLE (
     definition_id    INT              NOT NULL PRIMARY KEY,
     job_ref              UNIQUEIDENTIFIER NOT NULL,
-    deduplication_key           VARCHAR(128)     COLLATE Latin1_General_100_BIN2_UTF8 NOT NULL,
     input_format_id      TINYINT        NOT NULL,
     input                VARBINARY(MAX) NULL,
-    event_recording_code TINYINT        NOT NULL,
-    slot_status_code     TINYINT        NOT NULL,
-    slot_next_run_at_utc DATETIME2(3)   NULL
+    event_recording_code TINYINT        NOT NULL
 );');
 GO
 
@@ -643,6 +647,8 @@ EXEC(N'CREATE TYPE acta.register_schedules AS TABLE (
     misfire_strategy_code         TINYINT      NOT NULL,
     next_occurrence_at_utc        DATETIME2(3) NULL,
     description                   NVARCHAR(512) NULL,
+    interval_anchor_at_utc        DATETIME2(3) NULL,
+    timing_fingerprint            VARCHAR(64)  NOT NULL,
     PRIMARY KEY (definition_id, schedule_name)
 );');
 GO
@@ -1006,6 +1012,7 @@ BEGIN
                 tenant_id INT NULL,
                 execution_number INT NOT NULL,
                 deduplication_key VARCHAR(128) COLLATE Latin1_General_100_BIN2_UTF8 NULL,
+                job_kind_code TINYINT NOT NULL,
                 correlation_key VARCHAR(64) NULL,
                 concurrency_key VARCHAR(128) COLLATE Latin1_General_100_BIN2_UTF8 NULL,
                 input_format_id TINYINT NOT NULL,
@@ -1088,6 +1095,7 @@ BEGIN
             j.tenant_id,
             INSERTED.execution_number,
             j.deduplication_key,
+            j.job_kind_code,
             j.correlation_key,
             j.concurrency_key,
             j.input_format_id,
@@ -1100,7 +1108,7 @@ BEGIN
         INTO
             @claimed (
                 job_id, job_ref, definition_id, tenant_id, execution_number,
-                deduplication_key, correlation_key, concurrency_key,
+                deduplication_key, job_kind_code, correlation_key, concurrency_key,
                 input_format_id, input, next_run_at_utc, created_at_utc,
                 failure_count, lane_id, parent_job_id
             )
@@ -1118,6 +1126,7 @@ BEGIN
                     definition_id,
                     execution_number,
                     deduplication_key,
+                    job_kind_code,
                     correlation_key,
                     concurrency_key,
                     input_format_id,
@@ -1141,6 +1150,7 @@ BEGIN
                     CAST(NULL AS INT) AS definition_id,
                     CAST(NULL AS INT) AS execution_number,
                     CAST(NULL AS VARCHAR(128)) AS deduplication_key,
+                    CAST(NULL AS TINYINT) AS job_kind_code,
                     CAST(NULL AS VARCHAR(64)) AS correlation_key,
                     CAST(NULL AS VARCHAR(128)) AS concurrency_key,
                     CAST(NULL AS TINYINT) AS input_format_id,
@@ -1195,8 +1205,7 @@ GO
 CREATE OR ALTER PROCEDURE acta.complete_executions
     @p_leased_by_worker_id INT,
     @p_batch acta.complete_executions READONLY,
-    @p_plain BIT = 0,
-    @p_schedule_advances NVARCHAR(MAX) = NULL
+    @p_plain BIT = 0
 AS
 BEGIN
     SET NOCOUNT ON;
@@ -1224,7 +1233,6 @@ BEGIN
             job_status_code TINYINT NOT NULL,
             lane_id BIGINT NULL,
             parent_job_id BIGINT NULL,
-            slot_wake DATETIME2(3) NULL,
             parent_released BIT NOT NULL DEFAULT 0,
             lane_promoted BIT NOT NULL DEFAULT 0,
             prior_failure_count INT NOT NULL
@@ -1414,109 +1422,12 @@ BEGIN
             BEGIN
             IF @recurring = 1
                 BEGIN
-                    /* A fire advances its schedules: an edit made while it ran wins over the older plan, an operator pause
-                       wins unless it was timed and has elapsed, and an orphaned or retired schedule is left alone. The audit
-                       insert shares the update's predicate. A schedule name is dotted kebab ASCII, so it sits in the JSON unescaped. */
-                    INSERT INTO acta.events (
-                        event_code, created_at_utc, namespace_id,
-                        entity_code, entity_id,
-                        definition_id, tenant_id, lineage_root_job_id,
-                        execution_number,
-                        details_format_id, details
-                    )
-                    SELECT
-                        102 /* EventCode.SchedulePauseExpired */, @now, j.namespace_id,
-                        50 /* EntityCode.Job */, d.job_id,
-                        j.definition_id, j.tenant_id, COALESCE(j.lineage_root_job_id, d.job_id),
-                        d.execution_number,
-                        1 /* JobPayloadFormat.Json */, CAST('{"schedule":"' + js.schedule_name + '"}' AS VARBINARY(MAX))
-                    FROM OPENJSON(@p_schedule_advances) WITH (
-                        job_id BIGINT '$.job_id', schedule_name VARCHAR(128) '$.schedule_name',
-                        next_occurrence_at_utc DATETIME2(3) '$.next_occurrence_at_utc', expected_version INT '$.expected_version'
-                    ) adv
-                    INNER JOIN @done d ON d.job_id = adv.job_id
-                    INNER JOIN acta.schedules js ON js.job_id = d.job_id AND js.schedule_name = adv.schedule_name
-                    INNER JOIN acta.definitions sd ON sd.definition_id = js.definition_id
-                    INNER JOIN acta.jobs j WITH (FORCESEEK) ON j.job_id = d.job_id
-                    WHERE
-                        (adv.expected_version IS NULL OR js.version = adv.expected_version)
-                        AND sd.definition_status_code <> 240 /* DefinitionStatusCode.Retired */
-                        AND j.event_recording_code = 20 /* EventRecordingCode.Audit */
-                        AND js.schedule_status_code = 30 /* ScheduleStatusCode.Paused */
-                        AND js.paused_until_utc IS NOT NULL
-                        AND js.paused_until_utc <= @now;
-
-                    UPDATE st
-                    SET
-                        st.next_occurrence_at_utc = adv.next_occurrence_at_utc,
-                        st.last_advanced_occurrence_at_utc = st.next_occurrence_at_utc,
-                        st.modified_at_utc = @now
-                    FROM OPENJSON(@p_schedule_advances) WITH (
-                        job_id BIGINT '$.job_id', schedule_name VARCHAR(128) '$.schedule_name',
-                        next_occurrence_at_utc DATETIME2(3) '$.next_occurrence_at_utc', expected_version INT '$.expected_version'
-                    ) adv
-                    INNER JOIN @done d ON d.job_id = adv.job_id
-                    INNER JOIN acta.schedules js ON js.job_id = d.job_id AND js.schedule_name = adv.schedule_name
-                    INNER JOIN acta.definitions sd ON sd.definition_id = js.definition_id
-                    INNER JOIN acta.schedules_state st WITH (FORCESEEK) ON st.job_id = js.job_id AND st.schedule_name = js.schedule_name
-                    WHERE
-                        (adv.expected_version IS NULL OR js.version = adv.expected_version)
-                        AND sd.definition_status_code <> 240 /* DefinitionStatusCode.Retired */
-                        AND js.schedule_status_code <> 230 /* ScheduleStatusCode.Orphaned */
-                        AND (
-                            js.schedule_status_code <> 30 /* ScheduleStatusCode.Paused */
-                            OR (js.paused_until_utc IS NOT NULL AND js.paused_until_utc <= @now)
-                        );
-
-                    -- A timed pause the advance passed is over, and only then does the fire touch the schedules row.
-                    UPDATE js
-                    SET
-                        js.schedule_status_code = 10 /* ScheduleStatusCode.Active */,
-                        js.paused_until_utc = NULL,
-                        js.modified_at_utc = @now,
-                        js.version = js.version + 1
-                    FROM OPENJSON(@p_schedule_advances) WITH (
-                        job_id BIGINT '$.job_id', schedule_name VARCHAR(128) '$.schedule_name', expected_version INT '$.expected_version'
-                    ) adv
-                    INNER JOIN @done d ON d.job_id = adv.job_id
-                    INNER JOIN acta.schedules js WITH (FORCESEEK) ON js.job_id = d.job_id AND js.schedule_name = adv.schedule_name
-                    INNER JOIN acta.definitions sd ON sd.definition_id = js.definition_id
-                    WHERE
-                        (adv.expected_version IS NULL OR js.version = adv.expected_version)
-                        AND sd.definition_status_code <> 240 /* DefinitionStatusCode.Retired */
-                        AND js.schedule_status_code = 30 /* ScheduleStatusCode.Paused */
-                        AND js.paused_until_utc IS NOT NULL
-                        AND js.paused_until_utc <= @now;
-
-                    -- The slot's next state is read from the schedules as they stand now, not from the plan made before the handler ran.
-                    UPDATE d
-                    SET
-                        d.job_status_code = CASE WHEN w.wake IS NULL THEN 30 /* JobStatusCode.Paused */ ELSE 10 /* JobStatusCode.Ready */ END,
-                        d.slot_wake = w.wake
-                    FROM @done d
-                    INNER JOIN @p_batch c ON c.job_id = d.job_id AND c.execution_number = d.execution_number
-                    OUTER APPLY (
-                        SELECT
-                            MIN(
-                                CASE
-                                    WHEN js.schedule_status_code = 30 /* ScheduleStatusCode.Paused */ THEN js.paused_until_utc
-                                    ELSE st.next_occurrence_at_utc
-                                END
-                            ) AS wake
-                        FROM acta.schedules js
-                        INNER JOIN acta.definitions sd ON sd.definition_id = js.definition_id
-                        INNER JOIN acta.schedules_state st ON st.job_id = js.job_id AND st.schedule_name = js.schedule_name
-                        WHERE
-                            js.job_id = d.job_id
-                            AND js.schedule_status_code <> 230 /* ScheduleStatusCode.Orphaned */
-                            AND sd.definition_status_code <> 240 /* DefinitionStatusCode.Retired */
-                    ) w
-                    WHERE c.final_job_status_code IS NOT NULL;
-
+                    /* A slot's final landing: the status the finalizer said, the lease goes, the next run is what it said (none
+                       for Idle), and a success keeps its result. */
                     UPDATE r
                     SET
                         job_status_code = d.job_status_code,
-                        next_run_at_utc = d.slot_wake,
+                        next_run_at_utc = c.job_next_run_at_utc,
                         leased_by_worker_id = NULL,
                         lease_expires_at_utc = NULL,
                         result_format_id = c.result_format_id,
@@ -1525,6 +1436,44 @@ BEGIN
                     INNER JOIN @p_batch c ON c.job_id = d.job_id AND c.execution_number = d.execution_number
                     INNER JOIN acta.jobs_state r WITH (INDEX (pk_jobs_state), FORCESEEK, ROWLOCK) ON r.job_id = d.job_id
                     WHERE c.final_job_status_code IS NOT NULL;
+
+                    /* A permanent slot that landed Idle, Failed, or Cancelled settled its firing. Every member schedule parked
+                       on the slot is woken to evaluate again, and the envelope records the outcome once. The cursors stay where
+                       the admission left them: completion never computes an occurrence. */
+                    UPDATE st
+                    SET
+                        next_evaluation_at_utc = @now,
+                        evaluation_status_code = 10 /* EvaluationStatusCode.Scheduled */,
+                        modified_at_utc = @now,
+                        version = st.version + 1
+                    FROM acta.schedules_state st WITH (FORCESEEK)
+                    INNER JOIN acta.schedules js ON js.schedule_id = st.schedule_id
+                    INNER JOIN @done d ON d.job_id = js.job_id
+                    INNER JOIN acta.jobs j WITH (FORCESEEK) ON j.job_id = d.job_id
+                    WHERE
+                        d.job_status_code IN (40 /* JobStatusCode.Idle */, 200 /* JobStatusCode.Failed */, 220 /* JobStatusCode.Cancelled */)
+                        AND j.job_kind_code = 20 /* JobKindCode.PermanentSlot */
+                        AND st.evaluation_status_code IN (20 /* EvaluationStatusCode.WaitingForCapacity */, 50 /* EvaluationStatusCode.SlotUnavailable */);
+
+                    UPDATE cp
+                    SET
+                        checkpoint_status_code = CASE
+                            WHEN d.job_status_code = 220 /* JobStatusCode.Cancelled */ THEN 130 /* CheckpointStatusCode.Cancelled */
+                            WHEN d.job_status_code = 200 /* JobStatusCode.Failed */ OR c.succeeded = 0 THEN 120 /* CheckpointStatusCode.Failed */
+                            ELSE 110 /* CheckpointStatusCode.Succeeded */
+                        END,
+                        modified_at_utc = @now,
+                        version = cp.version + 1
+                    FROM acta.checkpoints cp WITH (FORCESEEK)
+                    INNER JOIN @done d ON d.job_id = cp.job_id
+                    INNER JOIN @p_batch c ON c.job_id = d.job_id AND c.execution_number = d.execution_number
+                    INNER JOIN acta.jobs j WITH (FORCESEEK) ON j.job_id = d.job_id
+                    WHERE
+                        cp.checkpoint_kind_code = 60 /* CheckpointKindCode.Firing */
+                        AND cp.checkpoint_name = 'sys.firing'
+                        AND cp.checkpoint_status_code = 10 /* CheckpointStatusCode.Pending */
+                        AND d.job_status_code IN (40 /* JobStatusCode.Idle */, 200 /* JobStatusCode.Failed */, 220 /* JobStatusCode.Cancelled */)
+                        AND j.job_kind_code = 20 /* JobKindCode.PermanentSlot */;
                 END
             END
 
@@ -1557,6 +1506,7 @@ BEGIN
                         WHEN 10 /* JobStatusCode.Ready */ THEN 'ready'
                         WHEN 20 /* JobStatusCode.Suspended */ THEN 'suspended'
                         WHEN 30 /* JobStatusCode.Paused */ THEN 'paused'
+                        WHEN 40 /* JobStatusCode.Idle */ THEN 'idle'
                     END + '"'
                 WHEN c.event_code = 43 /* EventCode.JobExecutionYielded */
                     THEN ',"outcome":"' + CASE
@@ -1592,7 +1542,7 @@ BEGIN
 
         IF @p_plain = 0
             BEGIN
-            /* At Audit each shape also says what it did: rolled over or paused a recurring slot, re-armed, or held by its
+            /* At Audit each shape also says what it did: held or cancelled a slot, re-armed, or held by its
                handler. A suspension lands Ready on a sleep and Suspended on a wait, so its details say where. */
             IF @shapes = 1
                 INSERT INTO acta.events (
@@ -1617,12 +1567,10 @@ BEGIN
                     VALUES
                     (
                         1,
-                        CASE
-                            WHEN c.final_job_status_code IN (10 /* JobStatusCode.Ready */, 30 /* JobStatusCode.Paused */)
-                                THEN CASE
-                                    WHEN d.job_status_code = 10 /* JobStatusCode.Ready */ THEN 50 /* EventCode.JobRecurringRolledOver */
-                                    ELSE 71 /* EventCode.JobPaused */
-                                END
+                        -- A slot held by its handler, or cancelled by it; a settled firing needs no shape event beside the attempt's.
+                        CASE c.final_job_status_code
+                            WHEN 30 /* JobStatusCode.Paused */ THEN 71 /* EventCode.JobPaused */
+                            WHEN 220 /* JobStatusCode.Cancelled */ THEN 70 /* EventCode.JobCancelled */
                         END
                     ),
                     (
@@ -2309,7 +2257,7 @@ BEGIN
         IF @existing_id IS NULL
             BEGIN
                 INSERT INTO acta.jobs (
-                    job_ref, lineage_root_job_id, parent_job_id,
+                    job_kind_code, job_ref, lineage_root_job_id, parent_job_id,
                     deduplication_key, correlation_key,
                     namespace_id, definition_id, tenant_id,
                     input_format_id, input,
@@ -2317,7 +2265,7 @@ BEGIN
                     created_at_utc
                 )
                 VALUES (
-                    @p_job_ref, @lineage, @p_parent_job_id,
+                    10 /* JobKindCode.Ordinary */, @p_job_ref, @lineage, @p_parent_job_id,
                     @p_deduplication_key, COALESCE(@p_correlation_key, @parent_corr),
                     @ns_id, @def_id,
                     CASE
@@ -2815,7 +2763,7 @@ BEGIN
         IF @laned = 0
             BEGIN
                 INSERT INTO acta.jobs (
-                    job_ref, lineage_root_job_id, parent_job_id,
+                    job_kind_code, job_ref, lineage_root_job_id, parent_job_id,
                     deduplication_key, correlation_key,
                     namespace_id, definition_id, tenant_id,
                     input_format_id, input,
@@ -2824,6 +2772,7 @@ BEGIN
                 )
                 OUTPUT INSERTED.job_ref, INSERTED.job_id INTO @map (job_ref, job_id)
                 SELECT
+                    10 /* JobKindCode.Ordinary */,
                     b.job_ref,
                     p.lineage_root_job_id,
                     b.parent_job_id,
@@ -2870,7 +2819,7 @@ BEGIN
         ELSE
             BEGIN
                 INSERT INTO acta.jobs (
-                    job_ref, lineage_root_job_id, parent_job_id,
+                    job_kind_code, job_ref, lineage_root_job_id, parent_job_id,
                     deduplication_key, correlation_key,
                     namespace_id, definition_id, tenant_id,
                     input_format_id, input,
@@ -2879,6 +2828,7 @@ BEGIN
                 )
                 OUTPUT INSERTED.job_ref, INSERTED.job_id INTO @map (job_ref, job_id)
                 SELECT
+                    10 /* JobKindCode.Ordinary */,
                     b.job_ref,
                     p.lineage_root_job_id,
                     b.parent_job_id,
@@ -3256,8 +3206,10 @@ BEGIN
                 DELETE c FROM acta.checkpoints c WITH (FORCESEEK) INNER JOIN @job_del d ON d.job_id = c.job_id;
                 DELETE r FROM acta.jobs_state r WITH (FORCESEEK) INNER JOIN @job_del d ON d.job_id = r.job_id;
                 DELETE s FROM acta.steps s WITH (FORCESEEK) INNER JOIN @job_del d ON d.job_id = s.job_id;
+                DELETE st FROM acta.schedules_state st WITH (FORCESEEK)
+                INNER JOIN acta.schedules s ON s.schedule_id = st.schedule_id
+                INNER JOIN @job_del d ON d.job_id = s.job_id;
                 DELETE s FROM acta.schedules s WITH (FORCESEEK) INNER JOIN @job_del d ON d.job_id = s.job_id;
-                DELETE st FROM acta.schedules_state st WITH (FORCESEEK) INNER JOIN @job_del d ON d.job_id = st.job_id;
                 DELETE j FROM acta.jobs j WITH (FORCESEEK) INNER JOIN @job_del d ON d.job_id = j.job_id;
                 SET @rows = (SELECT COUNT(*) FROM @job_del);
 
@@ -3883,14 +3835,8 @@ BEGIN
                         AND c.checkpoint_status_code = 30 /* CheckpointStatusCode.Expired */
                         AND c.due_at_utc = r.next_run_at_utc
                 ) THEN 1 ELSE 0 END AS wait_resolved,
-                /* MaxAttempts is the one-off retry budget and a slot's failure_count accumulates
-                   across occurrences, so a recurring reclaim always re-arms Ready instead of
-                   terminally failing the schedule - mirroring ComputeRecurringOutcome on the worker path. */
-                CASE WHEN EXISTS (
-                    SELECT 1
-                    FROM acta.schedules sc
-                    WHERE sc.job_id = r.job_id
-                ) THEN 1 ELSE 0 END AS is_recurring
+                -- A slot's spent budget returns it to Idle with its firing settled Failed, never to Failed itself.
+                CASE WHEN j.job_kind_code = 20 /* JobKindCode.PermanentSlot */ THEN 1 ELSE 0 END AS is_slot
             FROM @stuck k
             INNER JOIN acta.jobs_state r WITH (READPAST, UPDLOCK, ROWLOCK, FORCESEEK) ON r.job_id = k.job_id
             INNER JOIN acta.jobs j ON j.job_id = r.job_id
@@ -3911,8 +3857,8 @@ BEGIN
             job_status_code = CASE
                 WHEN s.wait_resolved = 1
                     THEN 20 /* JobStatusCode.Suspended */
-                WHEN s.is_recurring = 0 AND s.new_failure_count >= s.max_attempts
-                    THEN 200 /* JobStatusCode.Failed */
+                WHEN s.new_failure_count >= s.max_attempts
+                    THEN CASE WHEN s.is_slot = 1 THEN 40 /* JobStatusCode.Idle */ ELSE 200 /* JobStatusCode.Failed */ END
                 ELSE 10  /* JobStatusCode.Ready */
             END,
             failure_count = CASE
@@ -3923,14 +3869,14 @@ BEGIN
             next_run_at_utc = CASE
                 WHEN s.wait_resolved = 1
                     THEN r.next_run_at_utc
-                WHEN s.is_recurring = 0 AND s.new_failure_count >= s.max_attempts
-                    THEN r.next_run_at_utc
+                WHEN s.new_failure_count >= s.max_attempts
+                    THEN CASE WHEN s.is_slot = 1 THEN NULL ELSE r.next_run_at_utc END
                 ELSE @now
             END,
             leased_by_worker_id = NULL,
             lease_expires_at_utc = NULL,
             retention_until_utc = CASE
-                WHEN s.wait_resolved = 0 AND s.is_recurring = 0 AND s.new_failure_count >= s.max_attempts
+                WHEN s.wait_resolved = 0 AND s.is_slot = 0 AND s.new_failure_count >= s.max_attempts
                     THEN DATEADD(SECOND, s.retention_seconds, @now)
                 ELSE r.retention_until_utc
             END,
@@ -3991,6 +3937,7 @@ BEGIN
             CAST(
                 CASE to_status_code
                     WHEN 200 /* JobStatusCode.Failed */ THEN '{"reason":"lease-expired"}'
+                    WHEN 40 /* JobStatusCode.Idle */ THEN '{"reason":"lease-expired","to":"idle"}'
                     WHEN 20 /* JobStatusCode.Suspended */ THEN '{"reason":"lease-expired","to":"suspended"}'
                     ELSE '{"reason":"lease-expired","to":"ready"}'
                 END AS VARBINARY(MAX)
@@ -3999,6 +3946,33 @@ BEGIN
         WHERE
             event_recording_code IN (10 /* EventRecordingCode.Failures */, 20 /* EventRecordingCode.Audit */)
             OR alert_profile_code <> 0 /* AlertProfileCode.None */;
+
+        -- A slot's lost attempt that spent the budget settles its firing Failed and wakes the members parked on the slot.
+        UPDATE cp
+        SET
+            checkpoint_status_code = 120 /* CheckpointStatusCode.Failed */,
+            modified_at_utc = @now,
+            version = cp.version + 1
+        FROM acta.checkpoints cp WITH (FORCESEEK)
+        INNER JOIN @reclaimed r ON r.job_id = cp.job_id
+        WHERE
+            cp.checkpoint_kind_code = 60 /* CheckpointKindCode.Firing */
+            AND cp.checkpoint_name = 'sys.firing'
+            AND cp.checkpoint_status_code = 10 /* CheckpointStatusCode.Pending */
+            AND r.to_status_code = 40 /* JobStatusCode.Idle */;
+
+        UPDATE st
+        SET
+            next_evaluation_at_utc = @now,
+            evaluation_status_code = 10 /* EvaluationStatusCode.Scheduled */,
+            modified_at_utc = @now,
+            version = st.version + 1
+        FROM acta.schedules_state st WITH (FORCESEEK)
+        INNER JOIN acta.schedules js ON js.schedule_id = st.schedule_id
+        INNER JOIN @reclaimed r ON r.job_id = js.job_id
+        WHERE
+            r.to_status_code = 40 /* JobStatusCode.Idle */
+            AND st.evaluation_status_code IN (20 /* EvaluationStatusCode.WaitingForCapacity */, 50 /* EvaluationStatusCode.SlotUnavailable */);
 
         /* A head reclaimed to Failed hands its lane on; a head re-armed Ready keeps it. Promotion runs
            under the lane locks and re-reads each head rather than trusting the walk. */
@@ -4568,9 +4542,9 @@ SELECT
     ns.namespace_name AS namespace,
     d.definition_name AS job_name,
     c.checkpoint_name,
-    CASE c.checkpoint_kind_code WHEN 0 THEN 'unspecified' WHEN 10 THEN 'variable' WHEN 20 THEN 'signal' WHEN 30 THEN 'timer' WHEN 40 THEN 'progress' WHEN 50 THEN 'child-latch' END AS kind,
+    CASE c.checkpoint_kind_code WHEN 0 THEN 'unspecified' WHEN 10 THEN 'variable' WHEN 20 THEN 'signal' WHEN 30 THEN 'timer' WHEN 40 THEN 'progress' WHEN 50 THEN 'child-latch' WHEN 60 THEN 'firing' END AS kind,
     c.checkpoint_kind_code,
-    CASE c.checkpoint_status_code WHEN 0 THEN 'unspecified' WHEN 10 THEN 'pending' WHEN 20 THEN 'set' WHEN 30 THEN 'expired' WHEN 100 THEN 'consumed' END AS status,
+    CASE c.checkpoint_status_code WHEN 0 THEN 'unspecified' WHEN 10 THEN 'pending' WHEN 20 THEN 'set' WHEN 30 THEN 'expired' WHEN 100 THEN 'consumed' WHEN 110 THEN 'succeeded' WHEN 120 THEN 'failed' WHEN 130 THEN 'cancelled' END AS status,
     c.checkpoint_status_code,
     c.due_at_utc,
     CASE c.value_format_id
@@ -4666,7 +4640,7 @@ SELECT
     CASE e.entity_code WHEN 0 THEN 'unspecified' WHEN 10 THEN 'alert' WHEN 20 THEN 'checkpoint' WHEN 30 THEN 'definition' WHEN 40 THEN 'event' WHEN 50 THEN 'job' WHEN 60 THEN 'lane' WHEN 70 THEN 'lock' WHEN 80 THEN 'namespace' WHEN 90 THEN 'schedule' WHEN 100 THEN 'step' WHEN 110 THEN 'tag' WHEN 120 THEN 'tenant' WHEN 130 THEN 'worker' END AS entity_kind,
     e.entity_code,
     e.entity_id,
-    CASE e.event_code WHEN 0 THEN 'unspecified' WHEN 10 THEN 'tenant.suspended' WHEN 11 THEN 'tenant.resumed' WHEN 12 THEN 'tenant.updated' WHEN 20 THEN 'namespace.suspended' WHEN 21 THEN 'namespace.resumed' WHEN 22 THEN 'namespace.updated' WHEN 30 THEN 'definition.overrides-updated' WHEN 31 THEN 'definition.retired' WHEN 40 THEN 'job.execution-succeeded' WHEN 41 THEN 'job.execution-failed' WHEN 42 THEN 'job.execution-orphaned' WHEN 43 THEN 'job.execution-yielded' WHEN 44 THEN 'job.failed' WHEN 50 THEN 'job.recurring-rolled-over' WHEN 60 THEN 'job.suspended' WHEN 61 THEN 'job.rescheduled' WHEN 70 THEN 'job.cancelled' WHEN 71 THEN 'job.paused' WHEN 72 THEN 'job.resumed' WHEN 73 THEN 'job.restarted' WHEN 74 THEN 'job.reprioritized' WHEN 75 THEN 'job.purged' WHEN 76 THEN 'job.input-amended' WHEN 80 THEN 'job.signal-raised' WHEN 81 THEN 'job.state-reset' WHEN 90 THEN 'job.note-recorded' WHEN 100 THEN 'schedule.paused' WHEN 101 THEN 'schedule.resumed' WHEN 102 THEN 'schedule.pause-expired' WHEN 103 THEN 'schedule.overrides-updated' WHEN 104 THEN 'schedule.triggered' WHEN 120 THEN 'worker.started' WHEN 121 THEN 'worker.stopped' WHEN 122 THEN 'worker.died' WHEN 140 THEN 'alert.acknowledged' WHEN 141 THEN 'alert.resolved' WHEN 180 THEN 'outbox.requeued' WHEN 181 THEN 'outbox.discarded' END AS event,
+    CASE e.event_code WHEN 0 THEN 'unspecified' WHEN 10 THEN 'tenant.suspended' WHEN 11 THEN 'tenant.resumed' WHEN 12 THEN 'tenant.updated' WHEN 20 THEN 'namespace.suspended' WHEN 21 THEN 'namespace.resumed' WHEN 22 THEN 'namespace.updated' WHEN 30 THEN 'definition.overrides-updated' WHEN 31 THEN 'definition.retired' WHEN 40 THEN 'job.execution-succeeded' WHEN 41 THEN 'job.execution-failed' WHEN 42 THEN 'job.execution-orphaned' WHEN 43 THEN 'job.execution-yielded' WHEN 44 THEN 'job.failed' WHEN 60 THEN 'job.suspended' WHEN 61 THEN 'job.rescheduled' WHEN 70 THEN 'job.cancelled' WHEN 71 THEN 'job.paused' WHEN 72 THEN 'job.resumed' WHEN 73 THEN 'job.restarted' WHEN 74 THEN 'job.reprioritized' WHEN 75 THEN 'job.purged' WHEN 76 THEN 'job.input-amended' WHEN 80 THEN 'job.signal-raised' WHEN 81 THEN 'job.state-reset' WHEN 90 THEN 'job.note-recorded' WHEN 100 THEN 'schedule.paused' WHEN 101 THEN 'schedule.resumed' WHEN 102 THEN 'schedule.pause-expired' WHEN 104 THEN 'schedule.triggered' WHEN 105 THEN 'schedule.admitted' WHEN 106 THEN 'schedule.skipped' WHEN 107 THEN 'schedule.retimed' WHEN 120 THEN 'worker.started' WHEN 121 THEN 'worker.stopped' WHEN 122 THEN 'worker.died' WHEN 140 THEN 'alert.acknowledged' WHEN 141 THEN 'alert.resolved' WHEN 180 THEN 'outbox.requeued' WHEN 181 THEN 'outbox.discarded' END AS event,
     e.event_code,
     e.definition_id,
     d.definition_name AS job_name,
@@ -4705,7 +4679,7 @@ SELECT
     j.job_ref,
     ns.namespace_name AS namespace,
     d.definition_name AS job_name,
-    CASE r.job_status_code WHEN 0 THEN 'unspecified' WHEN 10 THEN 'ready' WHEN 15 THEN 'blocked' WHEN 20 THEN 'suspended' WHEN 30 THEN 'paused' WHEN 50 THEN 'executing' WHEN 100 THEN 'succeeded' WHEN 200 THEN 'failed' WHEN 220 THEN 'cancelled' END AS status,
+    CASE r.job_status_code WHEN 0 THEN 'unspecified' WHEN 10 THEN 'ready' WHEN 15 THEN 'blocked' WHEN 20 THEN 'suspended' WHEN 30 THEN 'paused' WHEN 40 THEN 'idle' WHEN 50 THEN 'executing' WHEN 100 THEN 'succeeded' WHEN 200 THEN 'failed' WHEN 220 THEN 'cancelled' END AS status,
     r.job_status_code,
     j.deduplication_key,
     j.correlation_key,
@@ -4762,6 +4736,7 @@ GO
 
 CREATE OR ALTER VIEW acta.schedules_view AS
 SELECT
+    s.schedule_id,
     ns.namespace_name AS namespace,
     s.job_id,
     j.job_ref,
@@ -4772,26 +4747,25 @@ SELECT
     s.schedule_origin_code,
     CASE s.schedule_status_code WHEN 0 THEN 'unspecified' WHEN 10 THEN 'active' WHEN 30 THEN 'paused' WHEN 230 THEN 'orphaned' END AS status,
     s.schedule_status_code,
-    s.expression_effective,
     s.expression,
-    s.expression_override,
-    s.time_zone_id_effective,
     s.time_zone_id,
-    s.time_zone_id_override,
     CASE s.expression_kind_code WHEN 0 THEN 'unspecified' WHEN 10 THEN 'cron' WHEN 20 THEN 'interval' END AS expression_kind,
     s.expression_kind_code,
     CASE s.misfire_strategy_code WHEN 0 THEN 'unspecified' WHEN 10 THEN 'catch-up-once' WHEN 20 THEN 'skip' END AS misfire_strategy,
     s.misfire_strategy_code,
     st.next_occurrence_at_utc,
-    st.last_advanced_occurrence_at_utc,
+    st.decided_through_at_utc,
+    st.next_evaluation_at_utc,
+    CASE st.evaluation_status_code WHEN 0 THEN 'unspecified' WHEN 10 THEN 'scheduled' WHEN 20 THEN 'waiting-for-capacity' WHEN 30 THEN 'exhausted' WHEN 40 THEN 'evaluation-error' WHEN 50 THEN 'slot-unavailable' END AS evaluation_status,
+    st.evaluation_status_code,
     s.paused_until_utc,
     s.description,
-    s.change_message,
+    s.pause_message,
     s.created_at_utc,
     s.modified_at_utc,
     s.version
 FROM acta.schedules AS s
-JOIN acta.schedules_state AS st ON st.job_id = s.job_id AND st.schedule_name = s.schedule_name
+JOIN acta.schedules_state AS st ON st.schedule_id = s.schedule_id
 JOIN acta.namespaces AS ns ON ns.namespace_id = s.namespace_id
 JOIN acta.jobs AS j ON j.job_id = s.job_id
 JOIN acta.definitions AS d ON d.definition_id = s.definition_id
@@ -4864,11 +4838,11 @@ JOIN acta.namespaces AS ns ON ns.namespace_id = w.namespace_id
 GO
 
 
-IF NOT EXISTS (SELECT 1 FROM acta.migrations WHERE name = 'M20261024213527_init')
+IF NOT EXISTS (SELECT 1 FROM acta.migrations WHERE name = 'M20261029124218_init')
 INSERT INTO acta.migrations (name)
-VALUES ('M20261024213527_init');
+VALUES ('M20261029124218_init');
 GO
--- ===== END M20261024213527_init =====
+-- ===== END M20261029124218_init =====
 GO
 COMMIT TRANSACTION;
 GO

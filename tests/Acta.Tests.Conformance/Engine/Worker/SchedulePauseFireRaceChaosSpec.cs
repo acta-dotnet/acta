@@ -8,9 +8,9 @@ using Xunit;
 namespace Acta.Tests.Conformance.Engine.Worker;
 
 /// <summary>
-/// The window between a recurring fire being planned and that fire reaching the ledger. A slot reads
-/// its live schedules once at claim and applies the resulting advances at completion, so an operator
-/// pausing a schedule in between is racing a decision already made.
+/// The window between a firing being admitted and its attempt reaching the ledger. Settlement wakes the members
+/// parked on the slot, so an operator pausing a schedule in between is racing a write that could put it back in
+/// front of the admitter.
 /// </summary>
 /// <remarks>
 /// Deterministic by construction. The pause runs inside the completion hook, so the interleaving is
@@ -19,13 +19,13 @@ namespace Acta.Tests.Conformance.Engine.Worker;
 /// </remarks>
 [ConformanceSpec(
     "schedule.pause-fire-race",
-    "An operator pause landing inside a planned fire keeps the schedule paused",
+    "An operator pause landing inside a firing keeps the schedule paused",
     Area = "Scheduling",
-    Contract = "A pause applied while a fire is in flight survives the completion, and only a timed pause that has elapsed is auto-resumed by an advance."
+    Contract = "A pause applied while a firing is in flight survives its completion: settlement never wakes a paused schedule."
 )]
 public sealed class SchedulePauseFireRaceChaosSpec : ActaRuntimeTestBase<ConformanceFixture, TestJobs.TestJobsManifest>
 {
-    // Live slot cursors are this spec's subject; the harness default would park them.
+    // Live schedule cursors are this spec's subject; the harness default would park them.
     protected override bool ParkScheduleSlots => false;
 
     private const string JobName = "recurring-ping";
@@ -44,22 +44,23 @@ public sealed class SchedulePauseFireRaceChaosSpec : ActaRuntimeTestBase<Conform
         _faults = services.AddStoreFaultInjection();
     }
 
-    [Fact(DisplayName = "A pause applied while the fire is in flight is still in force after the completion")]
-    public async Task Pause_inside_the_fire_window_survives_the_completion()
+    [Fact(DisplayName = "A pause applied while the firing is in flight is still in force after the completion")]
+    public async Task Pause_inside_the_firing_window_survives_the_completion()
     {
         var ct = TestContext.Current.CancellationToken;
         RecurringPingHandler.Reset(TestNamespace);
         var slotId = await SlotIdAsync(ct);
 
-        // Reach the schedule's due instant, or the planner finds nothing due and the completion carries
-        // no advance at all - which would make this spec pass for the wrong reason.
-        var due = await SlotNextRunAsync(slotId, ct);
-        Clock.AdvanceTo(due);
-        var cursorBefore = await ScheduleCursorAsync(slotId, ct);
+        // Admit the firing at the schedule's occurrence: the cursor moves here, before the attempt runs.
+        var due = await ScheduleAsync(Db, slotId, ct);
+        Assert.NotNull(due.NextOccurrenceAtUtc);
+        Clock.AdvanceTo(due.NextOccurrenceAtUtc!.Value);
+        await Runtime.AdmitOnceAsync(TestNamespace, ct);
+        Assert.Equal(JobStatusCode.Ready, (await ReadJobAsync(slotId, ct)).Status);
+        var admitted = await ScheduleAsync(Db, slotId, ct);
 
-        // The fire is planned from the pre-pause snapshot; the pause lands before the advance is
-        // written. An operator who pauses rarely, and means it, must not have it undone by a fire that
-        // was already decided.
+        // The pause lands while the attempt runs, before the completion settles the firing. An operator who pauses
+        // rarely, and means it, must not have it undone by the settlement waking the slot's members.
         _faults.RunBeforeCompleteOnce(async () =>
         {
             var paused = await Schedules.PauseAsync(Lookup(), untilUtc: null, reasonMessage: "operator drain", ct: ct);
@@ -68,16 +69,17 @@ public sealed class SchedulePauseFireRaceChaosSpec : ActaRuntimeTestBase<Conform
 
         Assert.NotEqual(RunOnceStatus.NothingClaimed, await Runtime.RunOnceAsync(slotId, ct));
 
-        // The fire really happened: without this the pause could survive simply because nothing ran.
+        // The firing really ran: without this the pause could survive simply because nothing ran.
         Assert.Single(RecurringPingHandler.TriggersFor(TestNamespace));
 
         var after = await ScheduleAsync(Db, slotId, ct);
         Assert.Equal(ScheduleStatusCode.Paused, after.Status);
         Assert.Null(after.PausedUntilUtc);
+        Assert.Null(after.NextEvaluationAtUtc);
 
-        // The cursor does not move, which is what pausing always does: resume reconciles it by the
-        // misfire policy rather than the fire silently consuming an occurrence.
-        Assert.Equal(cursorBefore, after.NextOccurrenceAtUtc);
+        // The cursor stays where the admission left it: completion never computes an occurrence.
+        Assert.Equal(admitted.NextOccurrenceAtUtc, after.NextOccurrenceAtUtc);
+        Assert.Equal(JobStatusCode.Idle, (await ReadJobAsync(slotId, ct)).Status);
 
         // And the timeline must not claim an expiry. Nothing expired: an operator paused it.
         var events = await GetEventsByJobId.Run(Services, slotId, ct);
@@ -85,47 +87,9 @@ public sealed class SchedulePauseFireRaceChaosSpec : ActaRuntimeTestBase<Conform
         Assert.DoesNotContain(events, e => e.EventCode == EventCode.SchedulePauseExpired);
     }
 
-    [Fact(DisplayName = "A timed pause that has elapsed is still auto-resumed by the advance")]
-    public async Task Elapsed_timed_pause_is_still_auto_resumed()
-    {
-        var ct = TestContext.Current.CancellationToken;
-        RecurringPingHandler.Reset(TestNamespace);
-        var slotId = await SlotIdAsync(ct);
+    private ScheduleLookup Lookup() => new(TestNamespace, JobName, ScheduleName);
 
-        // The guard must not break the case it was carved around: a pause whose expiry has passed is
-        // due, is advanced, and returns to Active with the pause cleared.
-        var until = await SlotNextRunAsync(slotId, ct);
-        Assert.Equal(ControlAction.Applied, (await Schedules.PauseAsync(Lookup(), until, reasonMessage: "window", ct: ct)).Action);
-        Clock.AdvanceTo(until);
-
-        Assert.NotEqual(RunOnceStatus.NothingClaimed, await Runtime.RunOnceAsync(slotId, ct));
-
-        var after = await ScheduleAsync(Db, slotId, ct);
-        Assert.Equal(ScheduleStatusCode.Active, after.Status);
-        Assert.Null(after.PausedUntilUtc);
-
-        var events = await GetEventsByJobId.Run(Services, slotId, ct);
-        Assert.Contains(events, e => e.EventCode == EventCode.SchedulePauseExpired);
-    }
-
-    private ScheduleLookup Lookup() => new(JobLookup.ByDeduplicationKey(TestNamespace, JobName), ScheduleName);
-
-    private async Task<long> SlotIdAsync(CancellationToken ct)
-    {
-        var id = (await Jobs.GetJobIdAsync(JobLookup.ByDeduplicationKey(TestNamespace, JobName), ct))?.JobId;
-        Assert.NotNull(id);
-        return id!.Value;
-    }
-
-    private async Task<DateTime> SlotNextRunAsync(long slotId, CancellationToken ct)
-    {
-        var slot = await ReadJobAsync(slotId, ct);
-        Assert.NotNull(slot!.NextRunAtUtc);
-        return slot.NextRunAtUtc!.Value;
-    }
-
-    private async Task<DateTime?> ScheduleCursorAsync(long slotId, CancellationToken ct) =>
-        (await ScheduleAsync(Db, slotId, ct)).NextOccurrenceAtUtc;
+    private Task<long> SlotIdAsync(CancellationToken ct) => ScheduleTestOps.SlotIdAsync(Db, TestNamespace, JobName, ct);
 
     private static async Task<ScheduleRow> ScheduleAsync(IDbSession session, long slotId, CancellationToken ct) =>
         Assert.Single(await ScheduleTestOps.ReadAsync(session, slotId, ct), s => s.ScheduleName == ScheduleName);

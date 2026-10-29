@@ -67,18 +67,18 @@ public sealed class IntervalPingManifest : IJobManifest
 }
 
 /// <summary>
-/// End-to-end conformance for ISO 8601 interval schedules: cursor advance, miss coalescing
-/// (Skip misfire), and exclusive single-claim under worker contention.
+/// End-to-end conformance for ISO 8601 interval schedules: cursor advance per admitted firing, miss
+/// coalescing (Skip misfire) at admission, and exclusive single-claim of an admitted slot under worker contention.
 /// </summary>
 [ConformanceSpec(
     "schedule.interval-fire",
     "Interval slot fires end-to-end advancing cursors and coalescing misses",
     Area = "Scheduling",
-    Contract = "An interval slot fires, advances its cursor by exactly one period, coalesces misses with Skip, and claims exclusively under contention."
+    Contract = "An interval slot fires, advances its cursor by exactly one period, skips misses with Skip to fire the latest once, and claims exclusively under contention."
 )]
 public sealed class IntervalScheduleFireSpec : ActaRuntimeTestBase<ConformanceFixture, IntervalPingManifest>
 {
-    // Live slot cursors are this spec's subject; the harness default would park them.
+    // Live schedule cursors are this spec's subject; the harness default would park them.
     protected override bool ParkScheduleSlots => false;
 
     private const string JobName = "interval-ping";
@@ -86,7 +86,7 @@ public sealed class IntervalScheduleFireSpec : ActaRuntimeTestBase<ConformanceFi
     // PT30S: every 30 seconds, drift-free, anchor-locked.
     private static readonly TimeSpan Interval = TimeSpan.FromSeconds(30);
 
-    // Far-past anchor so fake-derived cursors are always past-due from the real DB clock.
+    // Far-past anchor so an admitted firing is always due on the real DB clock.
     private static readonly DateTime T0 = new(2024, 1, 1, 0, 0, 0, DateTimeKind.Utc);
 
     private FakeClock Clock { get; set; } = null!;
@@ -99,7 +99,7 @@ public sealed class IntervalScheduleFireSpec : ActaRuntimeTestBase<ConformanceFi
         base.ConfigureServices(services, testNamespace);
     }
 
-    [Fact(DisplayName = "Interval cursor advances exactly one period on a clean single fire")]
+    [Fact(DisplayName = "Interval cursor advances exactly one period on an admitted firing")]
     public async Task Interval_cursor_advances_exactly_one_period()
     {
         var ct = TestContext.Current.CancellationToken;
@@ -109,52 +109,52 @@ public sealed class IntervalScheduleFireSpec : ActaRuntimeTestBase<ConformanceFi
         var before = await ScheduleCursorAsync(slotId, ct);
         Assert.Equal(T0 + Interval, before);
 
-        await FireOnceAsync(slotId, ct);
+        await AdmitAtAsync(slotId, before, ct);
+        Assert.NotEqual(RunOnceStatus.NothingClaimed, await Runtime.RunOnceAsync(slotId, ct));
 
         // Cursor rolled forward exactly one interval (drift-free, anchor-locked).
         var after = await ScheduleCursorAsync(slotId, ct);
         Assert.Equal(before + Interval, after);
 
-        // Slot's hot-path cursor tracks the single-schedule MIN.
+        // The slot is back to Idle with no cursor of its own; the schedule carries the next occurrence.
         var slot = await ReadJobAsync(slotId, ct);
-        Assert.Equal(after, slot.NextRunAtUtc);
+        Assert.Equal(JobStatusCode.Idle, slot.Status);
+        Assert.Null(slot.NextRunAtUtc);
         Assert.Equal(1, slot.ExecutionNumber);
 
         // Audit events confirm a complete recurring lifecycle.
         var events = await GetEventsByJobId.Run(Services, slotId, ct);
         var codes = events.Select(e => e.EventCode).ToHashSet();
+        Assert.Contains(EventCode.ScheduleAdmitted, codes);
         Assert.Contains(EventCode.JobExecutionSucceeded, codes);
-        Assert.Contains(EventCode.JobRecurringRolledOver, codes);
     }
 
-    [Fact(DisplayName = "Missed periods are coalesced into a single fire with Skip misfire")]
-    public async Task Missed_periods_coalesce_into_one_fire_with_skip()
+    [Fact(DisplayName = "Missed periods are skipped under Skip and the latest one fires once")]
+    public async Task Missed_periods_are_skipped_and_the_latest_fires_once()
     {
         var ct = TestContext.Current.CancellationToken;
         var slotId = await SlotIdAsync(ct);
 
-        // Anchor is the initial cursor: T0 + 30s.
-        // Advance past 3.5 intervals from the anchor: 3.5 * 30s = 105s → now = T0 + 135s.
-        var anchor = T0 + Interval;
-        var now = anchor + TimeSpan.FromSeconds(105);
-        Clock.AdvanceTo(now);
+        // The first occurrence is T0 + 30s. Advance 3.5 intervals past it: now = T0 + 135s, with occurrences at
+        // +30, +60, +90, and +120 undecided. The latest is within the misfire grace, so it fires; the rest are skipped.
+        var first = T0 + Interval;
+        await AdmitAtAsync(slotId, first + TimeSpan.FromSeconds(105), ct);
+        Assert.NotEqual(RunOnceStatus.NothingClaimed, await Runtime.RunOnceAsync(slotId, ct));
 
-        var outcome = await Runtime.RunOnceAsync(slotId, ct);
-        Assert.NotEqual(RunOnceStatus.NothingClaimed, outcome);
-
-        // Exactly one execution despite 3.5 missed periods: Skip coalesces them.
+        // Exactly one execution despite 3.5 missed periods.
         var slot = await ReadJobAsync(slotId, ct);
         Assert.Equal(1, slot.ExecutionNumber);
 
-        // Cursor jumps to the first occurrence strictly after now (anchor-locked, drift-free):
-        // FirstAfter(anchor, now, 30s): steps = floor(105/30) + 1 = 4 → next = anchor + 120s = T0 + 150s.
-        var expectedNext = anchor + TimeSpan.FromSeconds(120);
-        Assert.Equal(expectedNext, await ScheduleCursorAsync(slotId, ct));
-        Assert.Equal(expectedNext, slot.NextRunAtUtc);
+        // Cursor is the first occurrence strictly after the fired one (anchor-locked, drift-free): T0 + 150s.
+        Assert.Equal(first + TimeSpan.FromSeconds(120), await ScheduleCursorAsync(slotId, ct));
+
+        var codes = (await GetEventsByJobId.Run(Services, slotId, ct)).Select(e => e.EventCode).ToHashSet();
+        Assert.Contains(EventCode.ScheduleSkipped, codes);
+        Assert.Contains(EventCode.ScheduleAdmitted, codes);
     }
 
-    [Fact(DisplayName = "A due slot is claimed exactly once under sequential worker contention")]
-    public async Task Due_slot_claims_exactly_once_under_contention()
+    [Fact(DisplayName = "An admitted slot is claimed exactly once under sequential worker contention")]
+    public async Task Admitted_slot_claims_exactly_once_under_contention()
     {
         var ct = TestContext.Current.CancellationToken;
         var slotId = await SlotIdAsync(ct);
@@ -162,9 +162,10 @@ public sealed class IntervalScheduleFireSpec : ActaRuntimeTestBase<ConformanceFi
         var nsId = Runtime.RegisteredNamespaceIds[TestNamespace];
         var workerId = await ChaosSpecHelpers.WorkerIdAsync(Db, nsId, ct);
 
-        // Real DB clock >> 2024-epoch cursor: the slot is always past-due without advancing the fake clock.
+        // The admitted firing is due on the real DB clock at once.
+        await AdmitAtAsync(slotId, T0 + Interval, ct);
 
-        // Worker 1 claims the slot (Ready → Executing, execution_number bumped to 1).
+        // Worker 1 claims the slot (Ready -> Executing, execution_number bumped to 1).
         var claim1 = (
             await Services
                 .GetRequiredService<ExecutionOperations>()
@@ -186,12 +187,7 @@ public sealed class IntervalScheduleFireSpec : ActaRuntimeTestBase<ConformanceFi
         Assert.Equal(1, slot.ExecutionNumber);
     }
 
-    private async Task<long> SlotIdAsync(CancellationToken ct)
-    {
-        var id = (await Jobs.GetJobIdAsync(JobLookup.ByDeduplicationKey(TestNamespace, JobName), ct))?.JobId;
-        Assert.NotNull(id);
-        return id!.Value;
-    }
+    private Task<long> SlotIdAsync(CancellationToken ct) => ScheduleTestOps.SlotIdAsync(Db, TestNamespace, JobName, ct);
 
     private async Task<DateTime> ScheduleCursorAsync(long slotId, CancellationToken ct)
     {
@@ -200,15 +196,11 @@ public sealed class IntervalScheduleFireSpec : ActaRuntimeTestBase<ConformanceFi
         return row.NextOccurrenceAtUtc!.Value;
     }
 
-    private async Task FireOnceAsync(long slotId, CancellationToken ct)
+    // Runs one admission pass at the fake instant and checks it admitted the slot's firing.
+    private async Task AdmitAtAsync(long slotId, DateTime nowUtc, CancellationToken ct)
     {
-        {
-            var slot = await ReadJobAsync(slotId, ct);
-            Assert.NotNull(slot!.NextRunAtUtc);
-            Clock.AdvanceTo(slot.NextRunAtUtc!.Value);
-        }
-
-        var outcome = await Runtime.RunOnceAsync(slotId, ct);
-        Assert.NotEqual(RunOnceStatus.NothingClaimed, outcome);
+        Clock.AdvanceTo(nowUtc);
+        await Runtime.AdmitOnceAsync(TestNamespace, ct);
+        Assert.Equal(JobStatusCode.Ready, (await ReadJobAsync(slotId, ct)).Status);
     }
 }

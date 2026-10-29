@@ -76,12 +76,10 @@ public sealed class OutboxRelayDispatchSpec : ActaRuntimeTestBase<ConformanceFix
         await EnqueueAndRunAsync("echo", new TestJobs.Echo("before"), ct);
 
         // Dispatch the due sys.outbox slot: the missing source fails only this tick.
-        var slot = await Db.From<JobEntity>()
-            .Where(j => j.NamespaceId == ns && j.DeduplicationKey == "sys.outbox")
-            .SingleOrDefaultAsync(ct);
-        Assert.NotNull(slot);
-        await ChaosSpecHelpers.SetReadyAsync(Db, slot!.Id, ct);
-        Assert.Equal(RunOnceStatus.Failed, await Runtime.RunOnceAsync(TestNamespace, slot.Id, ct));
+        var slotId = await ScheduleTestOps.SlotIdAsync(Db, ns, "sys.outbox", ct);
+        await ChaosSpecHelpers.SetReadyAsync(Db, slotId, ct);
+        // A failed tick re-arms the firing for another attempt, like any attempt within its budget.
+        Assert.Equal(RunOnceStatus.Rearmed, await Runtime.RunOnceAsync(TestNamespace, slotId, ct));
 
         // Ordinary jobs keep running after the relay tick failed.
         var after = await EnqueueAndRunAsync("echo", new TestJobs.Echo("after"), ct);

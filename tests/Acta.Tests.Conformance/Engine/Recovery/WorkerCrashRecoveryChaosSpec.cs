@@ -121,7 +121,7 @@ public sealed class WorkerCrashRecoveryChaosSpec : ActaRuntimeTestBase<Conforman
         ChaosSpecHelpers.AssertSingleAttempt(events, EventCode.JobExecutionSucceeded);
     }
 
-    [Fact(DisplayName = "Reclaim at the accumulated failure budget re-arms a recurring slot Ready, never Failed")]
+    [Fact(DisplayName = "Reclaim at a firing's spent budget returns a slot to Idle, never Failed")]
     public async Task Reclaim_never_terminalizes_a_recurring_slot()
     {
         var ct = TestContext.Current.CancellationToken;
@@ -129,8 +129,8 @@ public sealed class WorkerCrashRecoveryChaosSpec : ActaRuntimeTestBase<Conforman
         var workerId = await ChaosSpecHelpers.WorkerIdAsync(Db, ns, ct);
         var slotId = await AlertTestOps.RecurringSlotIdAsync(Services, TestNamespace, "recurring-ping", ct);
 
-        // recurring-ping declares MaxAttempts = 2: one accumulated failed occurrence plus this
-        // crashed one lands exactly on the budget - the count the Failed arm used to fire on.
+        // recurring-ping declares MaxAttempts = 2: one failed attempt plus this crashed one lands exactly on
+        // the firing's budget, the count the Failed arm fires on for a one-shot.
         var affected = await Db.From<Acta.JobStateEntity>()
             .Where(r => r.Id == slotId)
             .UpdateOnlyAsync(
@@ -148,10 +148,10 @@ public sealed class WorkerCrashRecoveryChaosSpec : ActaRuntimeTestBase<Conforman
 
         await ChaosSpecHelpers.ReclaimAsync(Services, ns, ct);
 
-        // MaxAttempts is the one-off retry budget: the slot re-arms Ready with the failure counted
-        // and no retention stamp, because a schedule must never be terminalized by a crash.
+        // The slot returns to Idle with the failure counted and no retention stamp: a crash settles the
+        // firing, never the schedule.
         var reclaimed = await Jobs.GetAsync(JobLookup.ById(slotId), ct);
-        Assert.Equal(JobStatusCode.Ready, reclaimed!.Status);
+        Assert.Equal(JobStatusCode.Idle, reclaimed!.Status);
         Assert.Equal(2, reclaimed.FailureCount);
         Assert.Null(reclaimed.RetentionUntilUtc);
     }

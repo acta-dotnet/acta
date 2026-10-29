@@ -38,19 +38,19 @@ WHERE
     j.job_id = @p_job_id
     AND j.event_recording_code = 20 /* EventRecordingCode.Audit */
     AND (@p_expected_version IS NULL OR r.version = @p_expected_version)
-    AND r.job_status_code IN (30 /* JobStatusCode.Paused */, 20 /* JobStatusCode.Suspended */, 10 /* JobStatusCode.Ready */, 15 /* JobStatusCode.Blocked */);
+    AND r.job_status_code IN (40 /* JobStatusCode.Idle */, 30 /* JobStatusCode.Paused */, 20 /* JobStatusCode.Suspended */, 10 /* JobStatusCode.Ready */, 15 /* JobStatusCode.Blocked */);
 
 UPDATE {{schema}}.jobs_state
 SET
     job_status_code = 30 /* JobStatusCode.Paused */,
-    -- Always a next run, which is what marks this pause as held (ScheduleWalker, "held").
+    -- Always a next run: a resume re-arms a one-shot at it, and a slot's resume decides Idle or Ready for itself.
     next_run_at_utc = COALESCE(next_run_at_utc, {{now}}),
     modified_at_utc = {{now}},
     version = version + 1
 WHERE
     job_id = @p_job_id
     AND (@p_expected_version IS NULL OR version = @p_expected_version)
-    AND job_status_code IN (30 /* JobStatusCode.Paused */, 20 /* JobStatusCode.Suspended */, 10 /* JobStatusCode.Ready */, 15 /* JobStatusCode.Blocked */);
+    AND job_status_code IN (40 /* JobStatusCode.Idle */, 30 /* JobStatusCode.Paused */, 20 /* JobStatusCode.Suspended */, 10 /* JobStatusCode.Ready */, 15 /* JobStatusCode.Blocked */);
 
 -- A paused running member leaves its lane with no runner, so the lane hands on as a settle would: to an
 -- older Blocked member, the one a restart left waiting. This is the last write, so changes() counts it.
@@ -101,19 +101,19 @@ SELECT
     CASE
         WHEN s.job_id IS NULL THEN 2 /* ControlAction.NotFound */
         WHEN @p_expected_version IS NOT NULL AND s.from_version <> @p_expected_version THEN 5 /* ControlAction.VersionConflict */
-        WHEN s.from_status IN (30 /* JobStatusCode.Paused */, 20 /* JobStatusCode.Suspended */, 10 /* JobStatusCode.Ready */, 15 /* JobStatusCode.Blocked */) THEN 1 /* ControlAction.Applied */
+        WHEN s.from_status IN (40 /* JobStatusCode.Idle */, 30 /* JobStatusCode.Paused */, 20 /* JobStatusCode.Suspended */, 10 /* JobStatusCode.Ready */, 15 /* JobStatusCode.Blocked */) THEN 1 /* ControlAction.Applied */
         ELSE 3 /* ControlAction.Rejected */
     END AS action,
     CASE
         WHEN s.job_id IS NULL THEN NULL
         WHEN @p_expected_version IS NOT NULL AND s.from_version <> @p_expected_version THEN s.from_status
-        WHEN s.from_status IN (30 /* JobStatusCode.Paused */, 20 /* JobStatusCode.Suspended */, 10 /* JobStatusCode.Ready */, 15 /* JobStatusCode.Blocked */) THEN 30 /* JobStatusCode.Paused */
+        WHEN s.from_status IN (40 /* JobStatusCode.Idle */, 30 /* JobStatusCode.Paused */, 20 /* JobStatusCode.Suspended */, 10 /* JobStatusCode.Ready */, 15 /* JobStatusCode.Blocked */) THEN 30 /* JobStatusCode.Paused */
         ELSE s.from_status
     END AS status,
     CASE
         WHEN s.job_id IS NULL THEN NULL
         WHEN @p_expected_version IS NOT NULL AND s.from_version <> @p_expected_version THEN s.from_version
-        WHEN s.from_status IN (30 /* JobStatusCode.Paused */, 20 /* JobStatusCode.Suspended */, 10 /* JobStatusCode.Ready */, 15 /* JobStatusCode.Blocked */) THEN s.from_version + 1
+        WHEN s.from_status IN (40 /* JobStatusCode.Idle */, 30 /* JobStatusCode.Paused */, 20 /* JobStatusCode.Suspended */, 10 /* JobStatusCode.Ready */, 15 /* JobStatusCode.Blocked */) THEN s.from_version + 1
         ELSE s.from_version
     END AS version,
     CASE WHEN changes() > 0 THEN 1 ELSE 0 END AS lane_promoted

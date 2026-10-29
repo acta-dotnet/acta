@@ -14,6 +14,8 @@ internal interface IClaimColumns
 
     string? DeduplicationKey { get; }
 
+    JobKindCode? JobKindCode { get; }
+
     string? CorrelationKey { get; }
 
     string? ConcurrencyKey { get; }

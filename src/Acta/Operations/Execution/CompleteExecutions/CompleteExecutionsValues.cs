@@ -35,8 +35,6 @@ internal sealed record CompleteExecutionsValues(
 
     public DateTime? JobNextRunAtUtc { get; init; }
 
-    public IReadOnlyList<ScheduleAdvance>? ScheduleAdvances { get; init; }
-
     /// <summary>The job is in a lane, as its claim read it; lane_id never changes.</summary>
     public bool HasLane { get; init; }
 

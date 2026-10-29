@@ -54,8 +54,6 @@ internal sealed class InFlightJob : IDisposable
 
     public RuntimeJobContext? Context { get; set; }
 
-    public RecurringFirePlan? Fire { get; set; }
-
     public ExecutionCompletion? Completion { get; set; }
 
     public InFlightJobState State

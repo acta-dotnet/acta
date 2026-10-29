@@ -1,8 +1,9 @@
 namespace Acta;
 
 /// <summary>
-/// <see cref="ISchedules.TriggerNowAsync"/>: one routine call pulls the slot cursor to now. The paused and
-/// in-flight guards live in the routine alone, so transition legality has one home.
+/// <see cref="ISchedules.TriggerNowAsync"/>: admits a manual firing of the schedule's slot, an envelope with no
+/// contributors, when the slot is Idle; a busy, held, cancelled, or finished slot and a paused schedule are Rejected.
+/// No schedule cursor moves: the next scheduled occurrence stays where the engine left it.
 /// </summary>
 internal sealed class TriggerScheduleNowHandler(
     ResolveScheduleTargetHandler resolveScheduleTarget,
@@ -21,12 +22,14 @@ internal sealed class TriggerScheduleNowHandler(
         }
 
         var name = target.Schedule.ScheduleName;
+        var envelope = new FiringEnvelope(Guid.CreateVersion7(), FiringEnvelope.ManualKind, target.NowUtc, []).ToJson();
         var row = await session.ExecuteOneAsync(
             new StoreCommand("TriggerScheduleNow"),
             cmd =>
             {
                 cmd.Parameters.Add(dialect.CreateParameter(ActaSchema.Schedule.JobId, target.JobId));
                 cmd.Parameters.Add(dialect.CreateParameter(ActaSchema.Schedule.ScheduleName, name));
+                cmd.Parameters.Add(dialect.CreateParameter(ActaSchema.Sql.FiringEnvelope, envelope));
                 cmd.AddEventFields(
                     dialect,
                     command.ReasonMessage.Truncate(ActaTextLimits.EventMessage),
@@ -38,8 +41,6 @@ internal sealed class TriggerScheduleNowHandler(
         );
         if (row.Action == ControlAction.Applied)
         {
-            // A trigger always makes the slot due now, so unlike the other verbs this wake does not wait
-            // on an upcoming slot cursor.
             await wakeup.WakeAsync(WorkerWakeupChannel.AllWorkerNamespaces, WorkerWakeupReason.WorkAvailable, ct);
         }
 

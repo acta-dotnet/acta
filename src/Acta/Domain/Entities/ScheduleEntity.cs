@@ -1,14 +1,18 @@
 namespace Acta;
 
 /// <summary>
-/// One named recurring schedule of a definition's slot Job, keyed by that job and its name: its declaration and
-/// operator lifecycle. Sparse override model (mirrors <c>definitions</c>): the bare field carries the origin-of-truth
-/// default and its <c>*_override</c> the operator edit (NULL = inherit); effective = <c>COALESCE(_override, default)</c>.
-/// Only <c>expression</c> and <c>time_zone_id</c> are operator-overridable. The cursor lives on
-/// <see cref="ScheduleStateEntity"/>, so a fire's plain advance never rewrites this row.
+/// One named recurring schedule of a definition, with its own identity: its declaration and operator lifecycle.
+/// <c>(definition_id, schedule_name)</c> is the natural key the path <c>namespace/job/schedule</c> resolves to, and
+/// registration keeps the row's identity across deploys; a renamed schedule is a new identity. The declaration
+/// (expression, time zone, kind, misfire policy, description) is code-owned and refreshed by catalog upsert; an
+/// operator pauses, resumes, and triggers, never edits timing. The cursor lives on <see cref="ScheduleStateEntity"/>,
+/// so a fire's plain advance never rewrites this row.
 /// </summary>
 [DbTable("schedules")]
-[DbPrimaryKey(Name = "pk_schedules", Columns = ["job_id", "schedule_name"])]
+[DbPrimaryKey(Name = "pk_schedules", Columns = ["schedule_id"])]
+[DbUniqueIndex(Name = "ux_schedules_definition_name", Columns = ["definition_id", "schedule_name"], Usage = "uniqueness")]
+// A slot's schedules: the fire plan, the verbs, and purge read every schedule of one slot job.
+[DbIndex(Name = "ix_schedules_job", Columns = ["job_id", "schedule_id"], Usage = "read_api")]
 [DbForeignKey(
     Name = "fk_schedules_definitions",
     Target = typeof(DefinitionEntity),
@@ -18,8 +22,15 @@ namespace Acta;
 )]
 [DbCheck(Name = "ck_schedules_paused_pair", Sql = "schedule_status_code = 30 OR paused_until_utc IS NULL")]
 [DbCheck(Name = "ck_schedules_orphan_origin", Sql = "schedule_origin_code = 40 OR schedule_status_code <> 230")]
-internal sealed class ScheduleEntity : IEntity
+internal sealed class ScheduleEntity : IEntity<int>
 {
+    /// <summary>
+    /// Primary key and the schedule's identity, database-assigned at INSERT and never reused. <c>schedules_state</c>
+    /// is keyed by it. Internal: the public selector is the three-part path.
+    /// </summary>
+    [DbColumn("schedule_id", DbKind.Int32)]
+    public int Id { get; init; }
+
     /// <summary>
     /// The owning slot Job's namespace, written once at insert. The startup reconcile reads a namespace's schedules by it.
     /// </summary>
@@ -27,8 +38,8 @@ internal sealed class ScheduleEntity : IEntity
     public int NamespaceId { get; init; }
 
     /// <summary>
-    /// Structural identity for the recurring Job row this schedule fires. The recurring Job row owns its
-    /// schedules, and purge and retention delete them with it. The key's first column.
+    /// The recurring Job row this schedule fires. The recurring Job row owns its schedules, and purge and retention
+    /// delete them with it.
     /// </summary>
     [DbColumn("job_id", DbKind.Int64)]
     public long JobId { get; init; }
@@ -42,55 +53,36 @@ internal sealed class ScheduleEntity : IEntity
     public int DefinitionId { get; init; }
 
     /// <summary>
-    /// Operator-readable schedule name. For Definition-origin it matches the <c>[JobSchedule(name)]</c>
-    /// attribute parameter. Kebab-case ASCII. The <c>sys.</c> prefix is reserved for system-owned
-    /// schedule names, for parity with the other Name columns. The key's second column.
+    /// Operator-readable schedule name, unique within its definition. For Definition-origin it matches the
+    /// <c>[JobSchedule(name)]</c> attribute parameter. Kebab-case ASCII. The <c>sys.</c> prefix is reserved for
+    /// system-owned schedule names, for parity with the other Name columns.
     /// </summary>
     [DbColumn("schedule_name", DbKind.AsciiString, Size = 128)]
     public string ScheduleName { get; init; } = default!;
 
     /// <summary>
     /// Origin of the row's existence: <c>Definition</c> (declared in a <c>[JobSchedule]</c> attribute,
-    /// refreshed by catalog upsert) or <c>Operator</c>. Override columns apply to any origin.
+    /// refreshed by catalog upsert) or <c>Operator</c>.
     /// </summary>
     [DbColumn("schedule_origin_code")]
     public ScheduleOriginCode Origin { get; init; }
 
-    // ---------- Schedule expression (paired: code/origin default, then operator _override) ----------
-    // Convention matches DefinitionEntity: the bare-named field is the origin-of-truth default (Definition:
-    // refreshed by catalog upsert; Operator: set at creation); its _override is the operator edit
-    // (NULL = inherit). Effective = COALESCE(_override, bare), coalesced at the read site.
+    // ---------- Schedule expression (code-owned, refreshed by catalog upsert) ----------
 
-    /// <summary>Cron or interval duration, human ("5m") or ISO 8601 ("PT5M") (the origin-of-truth default).</summary>
+    /// <summary>Cron or interval duration, human ("5m") or ISO 8601 ("PT5M").</summary>
     [DbColumn("expression", DbKind.AsciiString, Size = 128)]
     public string Expression { get; set; } = default!;
 
-    /// <summary>Operator-overridden cron or interval expression, human ("5m") or ISO 8601 ("PT5M"). NULL = no override.</summary>
-    [DbColumn("expression_override", DbKind.AsciiString, Size = 128)]
-    public string? ExpressionOverride { get; set; }
-
-    /// <summary>Effective expression (DB-computed); read-only.</summary>
-    [DbColumn("expression_effective", DbKind.AsciiString, Size = 128, Generated = "COALESCE(expression_override, expression)")]
-    public string ExpressionEffective { get; internal set; } = default!;
-
     /// <summary>
-    /// IANA tz id (the origin-of-truth default). "tz id" is the IANA standard term, a string-identifier
-    /// exception to the integer-<c>_id</c> convention.
+    /// IANA tz id. "tz id" is the IANA standard term, a string-identifier exception to the integer-<c>_id</c>
+    /// convention.
     /// </summary>
     [DbColumn("time_zone_id", DbKind.AsciiString, Size = 128)]
     public string TimeZoneId { get; set; } = default!;
 
-    /// <summary>Operator-overridden IANA tz id. NULL = no override.</summary>
-    [DbColumn("time_zone_id_override", DbKind.AsciiString, Size = 128)]
-    public string? TimeZoneIdOverride { get; set; }
-
-    /// <summary>Effective IANA tz id (DB-computed); read-only.</summary>
-    [DbColumn("time_zone_id_effective", DbKind.AsciiString, Size = 128, Generated = "COALESCE(time_zone_id_override, time_zone_id)")]
-    public string TimeZoneIdEffective { get; internal set; } = default!;
-
     /// <summary>
     /// Whether <see cref="Expression"/> is a cron expression or an ISO 8601 interval. Set at compile
-    /// time by the source generator and refreshed by catalog upsert. No override.
+    /// time by the source generator and refreshed by catalog upsert.
     /// </summary>
     [DbColumn("expression_kind_code")]
     public ScheduleExpressionKindCode ExpressionKind { get; init; }
@@ -100,6 +92,28 @@ internal sealed class ScheduleEntity : IEntity
     /// </summary>
     [DbColumn("misfire_strategy_code")]
     public MisfireStrategyCode MisfireStrategy { get; init; }
+
+    /// <summary>
+    /// The instant an interval's ticks step from, written at the schedule's first registration and kept across
+    /// deploys, so a late evaluation never shifts the sequence. NULL for a cron, which resolves in its zone.
+    /// </summary>
+    [DbColumn("interval_anchor_at_utc", DbKind.UtcInstant)]
+    public DateTime? IntervalAnchorAtUtc { get; init; }
+
+    /// <summary>
+    /// How long past its instant a due occurrence still counts as on time rather than missed: the misfire policy
+    /// decides only what is older. Covers a slow admission pass, not downtime.
+    /// </summary>
+    [DbColumn("misfire_grace_seconds", DbKind.Int32)]
+    public int MisfireGraceSeconds { get; init; }
+
+    /// <summary>
+    /// <see cref="TimingFingerprint"/> of the declaration as registered: the expression, its kind, the zone and its
+    /// rules, and the anchor. A registration whose fingerprint matches leaves the cursor alone; one that differs is a
+    /// timing change.
+    /// </summary>
+    [DbColumn("timing_fingerprint", DbKind.AsciiString, Size = 64)]
+    public string TimingFingerprint { get; init; } = default!;
 
     // ---------- Operator lifecycle ----------
 
@@ -124,18 +138,18 @@ internal sealed class ScheduleEntity : IEntity
 
     /// <summary>
     /// Dev-authored explanation of the schedule from the [JobSchedule] attribute; NULL when the
-    /// attribute sets none. Distinct from <see cref="ChangeMessage"/>, which is operator-written.
+    /// attribute sets none. Distinct from <see cref="PauseMessage"/>, which is operator-written.
     /// </summary>
     [DbColumn("description", DbKind.UnicodeString, Size = 512)]
     public string? Description { get; internal set; }
 
     /// <summary>
-    /// Operator-authored justification for the last pause/resume/overrides change: the same
-    /// reasonMessage text the audit event records, kept on the row so the current state explains
-    /// itself.
+    /// The operator's reason for the current pause, the same reasonMessage text the audit event records, kept on
+    /// the row so a paused schedule explains itself. NULL whenever the row is not Paused: resume, an elapsed timed
+    /// pause, and orphaning clear it; events keep the history.
     /// </summary>
-    [DbColumn("change_message", DbKind.UnicodeString, Size = 512)]
-    public string? ChangeMessage { get; set; }
+    [DbColumn("pause_message", DbKind.UnicodeString, Size = 512)]
+    public string? PauseMessage { get; set; }
 
     /// <summary>When the schedule row was created. Set server-side.</summary>
     [DbColumn("created_at_utc", DbKind.UtcInstant, Default = DbDefault.UtcNow)]
@@ -146,7 +160,7 @@ internal sealed class ScheduleEntity : IEntity
     public DateTime ModifiedAtUtc { get; set; }
 
     /// <summary>
-    /// Optimistic-concurrency token, bumped by every write to this row: an operator edit, a registration that changes
+    /// Optimistic-concurrency token, bumped by every write to this row: a pause or resume, a registration that changes
     /// the declaration or moves the cursor, and the fire that ends an elapsed timed pause. A plain advance writes only
     /// the cursor row. A recurring completion advances a schedule only at the version its plan read, so an edit or
     /// registration that landed while the attempt ran wins.

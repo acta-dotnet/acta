@@ -97,7 +97,7 @@ SELECT
     (
         SELECT COUNT(*)
         FROM {{schema}}.schedules_state st
-        INNER JOIN {{schema}}.schedules s ON s.job_id = st.job_id AND s.schedule_name = st.schedule_name
+        INNER JOIN {{schema}}.schedules s ON s.schedule_id = st.schedule_id
         INNER JOIN {{schema}}.definitions d ON d.definition_id = s.definition_id
         WHERE
             st.next_occurrence_at_utc IS NOT NULL
@@ -123,7 +123,7 @@ SELECT
     (
         SELECT FLOOR(EXTRACT(EPOCH FROM now() - MIN(st.next_occurrence_at_utc)))::bigint
         FROM {{schema}}.schedules_state st
-        INNER JOIN {{schema}}.schedules s ON s.job_id = st.job_id AND s.schedule_name = st.schedule_name
+        INNER JOIN {{schema}}.schedules s ON s.schedule_id = st.schedule_id
         INNER JOIN {{schema}}.definitions d ON d.definition_id = s.definition_id
         WHERE
             st.next_occurrence_at_utc IS NOT NULL

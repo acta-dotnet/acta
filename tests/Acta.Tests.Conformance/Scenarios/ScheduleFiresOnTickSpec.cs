@@ -7,9 +7,9 @@ using Xunit;
 namespace Acta.Tests.Conformance.Scenarios;
 
 /// <summary>
-/// Deterministic <see cref="IActaClock"/> for the recurring specs. The C# walker reads this clock;
-/// the SQL claim uses the real DB clock, so fake-past cursors stay claimable and fires are driven by
-/// advancing this clock to the slot's due instant.
+/// Deterministic <see cref="IActaClock"/> for the recurring specs. The admitter reads this clock to find what is
+/// due; the SQL claim uses the real DB clock, against which an admitted firing is due at once, so fires are driven
+/// by advancing this clock to a schedule's occurrence and running one admission pass.
 /// </summary>
 internal sealed class FakeClock(DateTime initialUtc) : IActaClock
 {
@@ -22,19 +22,20 @@ internal sealed class FakeClock(DateTime initialUtc) : IActaClock
 }
 
 /// <summary>
-/// Recurring-schedule conformance: a definition-sourced slot fires repeatedly on one stable Job id,
-/// advances its per-schedule + slot cursors, surfaces the due set to the handler, keeps the result of
-/// its last successful occurrence, applies the failure budget, and emits the audit-gated lifecycle events.
+/// Recurring-schedule conformance: a definition-sourced slot fires repeatedly on one stable Job id. The admitter
+/// admits a due schedule's firing and advances its cursor, the attempt runs it with the triggering schedule in hand,
+/// and the slot returns to Idle keeping its last result, spending one failure budget per firing, and emitting the
+/// audit-gated lifecycle events.
 /// </summary>
 [ConformanceSpec(
     "schedule.fires-on-tick",
-    "A recurring slot fires repeatedly on one stable id advancing cursors",
+    "A permanent slot fires repeatedly on one stable id and returns to Idle",
     Area = "Scheduling",
-    Contract = "A recurring slot fires on one stable id, advancing cursors, keeping one result that each claim clears, applying the failure budget and emitting rollover events."
+    Contract = "A permanent slot fires on one stable id: admission advances the cursor, the attempt runs the firing, and the slot returns to Idle with one result per firing."
 )]
 public sealed class ScheduleFiresOnTickSpec : ActaRuntimeTestBase<ConformanceFixture, TestJobs.TestJobsManifest>
 {
-    // Live slot cursors are this spec's subject; the harness default would park them.
+    // Live schedule cursors are this spec's subject; the harness default would park them.
     protected override bool ParkScheduleSlots => false;
 
     private const string JobName = "recurring-ping";
@@ -50,8 +51,8 @@ public sealed class ScheduleFiresOnTickSpec : ActaRuntimeTestBase<ConformanceFix
         base.ConfigureServices(services, testNamespace);
     }
 
-    [Fact(DisplayName = "One stable slot id fires repeatedly, returning to Ready and tracking execution_number")]
-    public async Task Slot_fires_repeatedly_on_one_stable_id_returning_to_ready()
+    [Fact(DisplayName = "One stable slot id fires repeatedly, returning to Idle and tracking execution_number")]
+    public async Task Slot_fires_repeatedly_on_one_stable_id_returning_to_idle()
     {
         var ct = TestContext.Current.CancellationToken;
         RecurringPingHandler.Reset(TestNamespace);
@@ -60,7 +61,7 @@ public sealed class ScheduleFiresOnTickSpec : ActaRuntimeTestBase<ConformanceFix
         for (var i = 1; i <= 3; i++)
         {
             await FireOnceAsync(slotId, ct);
-            Assert.Equal(JobStatusCode.Ready, (await Jobs.GetStatusAsync(JobLookup.ById(slotId), ct))?.Status);
+            Assert.Equal(JobStatusCode.Idle, (await Jobs.GetStatusAsync(JobLookup.ById(slotId), ct))?.Status);
         }
 
         // One stable slot row - no per-firing row inflation; execution_number tracked the fires.
@@ -69,8 +70,8 @@ public sealed class ScheduleFiresOnTickSpec : ActaRuntimeTestBase<ConformanceFix
         Assert.Equal(3, slot!.ExecutionNumber);
     }
 
-    [Fact(DisplayName = "Schedule and slot cursors advance one period and the slot tracks the MIN")]
-    public async Task Schedule_and_slot_cursor_advance_and_track_the_min()
+    [Fact(DisplayName = "Admission advances the schedule's cursor one period, and the Idle slot carries no cursor of its own")]
+    public async Task Admission_advances_the_schedule_cursor_one_period()
     {
         var ct = TestContext.Current.CancellationToken;
         RecurringPingHandler.Reset(TestNamespace);
@@ -78,14 +79,16 @@ public sealed class ScheduleFiresOnTickSpec : ActaRuntimeTestBase<ConformanceFix
 
         var before = await ScheduleCursorAsync(slotId, ct);
         await FireOnceAsync(slotId, ct);
-        var after = await ScheduleCursorAsync(slotId, ct);
+        var schedule = Assert.Single(await ScheduleTestOps.ReadAsync(Db, slotId, ct));
 
-        // Every-5-minute cadence: the schedule cursor rolled forward exactly one period.
-        Assert.Equal(before.AddMinutes(5), after);
+        // Every-5-minute cadence: the cursor rolled forward exactly one period, decided through the admitted one.
+        Assert.Equal(before.AddMinutes(5), schedule.NextOccurrenceAtUtc);
+        Assert.Equal(before, schedule.DecidedThroughAtUtc);
+        Assert.Equal(schedule.NextOccurrenceAtUtc, schedule.NextEvaluationAtUtc);
 
-        // The slot's hot-path cursor tracks the MIN over its (single) live schedule.
         var slot = await ReadJobAsync(slotId, ct);
-        Assert.Equal(after, slot.NextRunAtUtc);
+        Assert.Equal(JobStatusCode.Idle, slot.Status);
+        Assert.Null(slot.NextRunAtUtc);
     }
 
     [Fact(DisplayName = "Handler sees the triggering schedule name in the due set")]
@@ -102,8 +105,8 @@ public sealed class ScheduleFiresOnTickSpec : ActaRuntimeTestBase<ConformanceFix
         Assert.Equal([ScheduleName], triggers[0]);
     }
 
-    [Fact(DisplayName = "Audit recording emits succeeded and rolled-over events")]
-    public async Task Audit_recording_emits_succeeded_and_rolled_over()
+    [Fact(DisplayName = "Audit recording emits the admission and the succeeded attempt")]
+    public async Task Audit_recording_emits_admitted_and_succeeded()
     {
         var ct = TestContext.Current.CancellationToken;
         RecurringPingHandler.Reset(TestNamespace);
@@ -113,12 +116,12 @@ public sealed class ScheduleFiresOnTickSpec : ActaRuntimeTestBase<ConformanceFix
 
         var events = await GetEventsByJobId.Run(Services, slotId, ct);
         var codes = events.Select(e => e.EventCode).ToHashSet();
+        Assert.Contains(EventCode.ScheduleAdmitted, codes);
         Assert.Contains(EventCode.JobExecutionSucceeded, codes);
-        Assert.Contains(EventCode.JobRecurringRolledOver, codes);
     }
 
     [Fact(
-        DisplayName = "The slot keeps its last successful occurrence's result, none while the next one runs, and none after a failed one"
+        DisplayName = "The slot keeps its last successful firing's result, none while the next one runs, and none after a failed attempt"
     )]
     public async Task Slot_keeps_one_result_that_every_claim_clears()
     {
@@ -142,20 +145,23 @@ public sealed class ScheduleFiresOnTickSpec : ActaRuntimeTestBase<ConformanceFix
         Assert.Null(whileRunning);
         Assert.Equal(2, (await Jobs.GetResultAsync<RecurringPingResult>(slot, ct))?.Sequence);
 
+        // A failed attempt re-arms the firing for its second try and keeps no result.
         RecurringPingHandler.FailWhileSequenceAtMost[TestNamespace] = 3;
         await FireOnceAsync(slotId, ct);
         Assert.Equal(JobStatusCode.Ready, (await ReadJobAsync(slotId, ct)).Status);
         Assert.Null(await Jobs.GetResultAsync(slot, ct));
     }
 
-    [Fact(DisplayName = "In-budget failure re-arms Ready and a later success resets the failure count")]
-    public async Task In_budget_failure_re_arms_ready_then_success_resets_the_count()
+    [Fact(
+        DisplayName = "An in-budget failure re-arms the firing Ready, and its later success returns the slot to Idle with the count reset"
+    )]
+    public async Task In_budget_failure_re_arms_then_success_resets_the_count()
     {
         var ct = TestContext.Current.CancellationToken;
         RecurringPingHandler.Reset(TestNamespace);
         var slotId = await SlotIdAsync(ct);
 
-        // Fail the first fire only (MaxAttempts = 2, so one failure stays in budget).
+        // Fail the first attempt only (MaxAttempts = 2, so one failure stays in budget).
         RecurringPingHandler.FailWhileSequenceAtMost[TestNamespace] = 1;
         await FireOnceAsync(slotId, ct);
 
@@ -163,67 +169,70 @@ public sealed class ScheduleFiresOnTickSpec : ActaRuntimeTestBase<ConformanceFix
             var afterFailure = await ReadJobAsync(slotId, ct);
             Assert.Equal(JobStatusCode.Ready, afterFailure.Status);
             Assert.Equal(1, afterFailure.FailureCount);
+            Assert.Equal(CheckpointStatusCode.Pending, (await FiringAsync(slotId, ct)).Status);
         }
 
-        // The next fire succeeds and resets the consecutive-failure count.
-        await FireOnceAsync(slotId, ct);
+        // The firing's second attempt succeeds, settles it, and resets the count.
+        await RetryNowAsync(slotId, ct);
         {
             var afterSuccess = await ReadJobAsync(slotId, ct);
-            Assert.Equal(JobStatusCode.Ready, afterSuccess.Status);
+            Assert.Equal(JobStatusCode.Idle, afterSuccess.Status);
             Assert.Equal(0, afterSuccess.FailureCount);
+            Assert.Equal(CheckpointStatusCode.Succeeded, (await FiringAsync(slotId, ct)).Status);
         }
     }
 
-    [Fact(DisplayName = "Consecutive failures past MaxAttempts never terminalize a recurring slot")]
-    public async Task Consecutive_failures_never_terminalize_the_recurring_slot()
+    [Fact(
+        DisplayName = "A firing that spends its budget returns the slot to Idle, never Failed, and the next firing starts a fresh budget"
+    )]
+    public async Task A_spent_budget_returns_the_slot_to_idle_and_the_next_firing_starts_afresh()
     {
         var ct = TestContext.Current.CancellationToken;
         RecurringPingHandler.Reset(TestNamespace);
         var slotId = await SlotIdAsync(ct);
 
-        // Fail every fire well past MaxAttempts = 2: a recurring slot re-arms Ready regardless of the
-        // consecutive-failure count. MaxAttempts is the one-off retry budget only and never terminalizes a slot.
         RecurringPingHandler.FailWhileSequenceAtMost[TestNamespace] = 99;
-        await FireOnceAsync(slotId, ct); // failure_count 1 -> Ready
-        await FireOnceAsync(slotId, ct); // failure_count 2 -> Ready (would have been terminal under a budget)
-        await FireOnceAsync(slotId, ct); // failure_count 3 -> Ready
+        await FireOnceAsync(slotId, ct); // attempt 1 fails: re-armed
+        await RetryNowAsync(slotId, ct); // attempt 2 fails: the budget of 2 is spent
 
-        var slot = await ReadJobAsync(slotId, ct);
-        Assert.Equal(JobStatusCode.Ready, slot.Status);
-        Assert.Equal(3, slot.FailureCount);
+        var spent = await ReadJobAsync(slotId, ct);
+        Assert.Equal(JobStatusCode.Idle, spent.Status);
+        Assert.Equal(2, spent.FailureCount);
+        Assert.Equal(CheckpointStatusCode.Failed, (await FiringAsync(slotId, ct)).Status);
+
+        // The next admission zeroes the count: each firing spends its own budget.
+        await FireOnceAsync(slotId, ct);
+        var next = await ReadJobAsync(slotId, ct);
+        Assert.Equal(JobStatusCode.Ready, next.Status);
+        Assert.Equal(1, next.FailureCount);
     }
 
-    [Fact(DisplayName = "Handler cancel terminates the whole slot to Cancelled and stops the schedule")]
+    [Fact(DisplayName = "Handler cancel terminates the whole slot to Cancelled and settles the firing")]
     public async Task Handler_cancel_terminates_the_whole_slot()
     {
         var ct = TestContext.Current.CancellationToken;
         RecurringPingHandler.Reset(TestNamespace);
         var slotId = await SlotIdAsync(ct);
 
-        // First fire rolls over as usual; the second fire's handler calls ctx.CancelAsync.
+        // The first firing settles as usual; the second firing's handler calls ctx.CancelAsync.
         await FireOnceAsync(slotId, ct);
-        Assert.Equal(JobStatusCode.Ready, (await Jobs.GetStatusAsync(JobLookup.ById(slotId), ct))?.Status);
+        Assert.Equal(JobStatusCode.Idle, (await Jobs.GetStatusAsync(JobLookup.ById(slotId), ct))?.Status);
 
         RecurringPingHandler.CancelOnSequence[TestNamespace] = 2;
         await FireOnceAsync(slotId, ct);
 
-        // A deliberate handler cancel acts on the whole slot: terminal Cancelled, schedule stops.
+        // A deliberate handler cancel acts on the whole slot: terminal Cancelled, the firing settled with it.
         var slot = await ReadJobAsync(slotId, ct);
         Assert.Equal(JobStatusCode.Cancelled, slot.Status);
         Assert.Null(slot.NextRunAtUtc);
+        Assert.Equal(CheckpointStatusCode.Cancelled, (await FiringAsync(slotId, ct)).Status);
 
         var events = await GetEventsByJobId.Run(Services, slotId, ct);
         var cancelEvent = Assert.Single(events, e => e.EventCode == EventCode.JobCancelled);
         Assert.Equal(EventReason.HandlerCancelled, cancelEvent.Reason);
     }
 
-    private async Task<long> SlotIdAsync(CancellationToken ct)
-    {
-        // The recurring slot's deduplication_key is the definition's job name.
-        var id = (await Jobs.GetJobIdAsync(JobLookup.ByDeduplicationKey(TestNamespace, JobName), ct))?.JobId;
-        Assert.NotNull(id);
-        return id!.Value;
-    }
+    private Task<long> SlotIdAsync(CancellationToken ct) => ScheduleTestOps.SlotIdAsync(Db, TestNamespace, JobName, ct);
 
     private async Task<DateTime> ScheduleCursorAsync(long slotId, CancellationToken ct)
     {
@@ -232,18 +241,25 @@ public sealed class ScheduleFiresOnTickSpec : ActaRuntimeTestBase<ConformanceFix
         return row.NextOccurrenceAtUtc!.Value;
     }
 
-    // Advance the fake clock to the slot's due instant so the walker sees the schedule due, then run
-    // one tick. The SQL claim filter uses the (real) DB clock, against which the fake-derived cursor
-    // is in the past, so the slot is always claimable.
+    private async Task<CheckpointEntity> FiringAsync(long slotId, CancellationToken ct) =>
+        Assert.Single(
+            await Db.From<CheckpointEntity>().Where(c => c.JobId == slotId && c.Kind == CheckpointKindCode.Firing).ToListAsync(ct)
+        );
+
+    // Advances the fake clock to the schedule's next occurrence and runs one admission pass, which admits the firing
+    // and makes the slot due on the DB clock, then runs the attempt.
     private async Task FireOnceAsync(long slotId, CancellationToken ct)
     {
-        {
-            var slot = await ReadJobAsync(slotId, ct);
-            Assert.NotNull(slot!.NextRunAtUtc);
-            Clock.AdvanceTo(slot.NextRunAtUtc!.Value);
-        }
+        Clock.AdvanceTo(await ScheduleCursorAsync(slotId, ct));
+        await Runtime.AdmitOnceAsync(TestNamespace, ct);
+        Assert.Equal(JobStatusCode.Ready, (await ReadJobAsync(slotId, ct)).Status);
+        Assert.NotEqual(RunOnceStatus.NothingClaimed, await Runtime.RunOnceAsync(slotId, ct));
+    }
 
-        var outcome = await Runtime.RunOnceAsync(slotId, ct);
-        Assert.NotEqual(RunOnceStatus.NothingClaimed, outcome);
+    // A re-armed attempt waits out its backoff on the DB clock; this makes it due now and runs it.
+    private async Task RetryNowAsync(long slotId, CancellationToken ct)
+    {
+        await ChaosSpecHelpers.SetReadyAsync(Db, slotId, ct);
+        Assert.NotEqual(RunOnceStatus.NothingClaimed, await Runtime.RunOnceAsync(slotId, ct));
     }
 }

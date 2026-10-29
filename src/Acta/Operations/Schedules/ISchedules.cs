@@ -23,17 +23,6 @@ public interface ISchedules
         CancellationToken ct = default
     );
 
-    /// <summary>Sets a full-set operator override on <paramref name="schedule"/>'s expression and/or time zone, CAS-guarded on <paramref name="expectedVersion"/>. A null <paramref name="expression"/>/<paramref name="timeZoneId"/> clears that override (falls back to the definition default); a non-null value replaces it after validating that it parses (Cron or ISO 8601, per the schedule's existing kind) and, for a time zone, that the id resolves via <see cref="TimeZoneInfo.FindSystemTimeZoneById(string)"/>; an invalid value throws <see cref="ArgumentException"/> before any write. <paramref name="actor"/> is recorded on the audit event as the operator identity; null when unknown. Missing/orphaned schedule is NotFound; a stale <paramref name="expectedVersion"/> is VersionConflict carrying the schedule's current state so the caller can re-read.</summary>
-    ValueTask<SetScheduleOverridesResponse> UpdateOverridesAsync(
-        ScheduleLookup schedule,
-        int expectedVersion,
-        string? expression,
-        string? timeZoneId,
-        string? reasonMessage = null,
-        string? actor = null,
-        CancellationToken ct = default
-    );
-
     /// <summary>Fires the schedule identified by <paramref name="schedule"/> right now: pulls the owning slot's cursor to the current instant so the next claim sweep picks it up immediately, leaving the schedule's own cursor (and cadence) untouched. <paramref name="actor"/> is recorded on the audit event as the operator identity; null when unknown. <paramref name="reasonMessage"/> rides the audit event's reason message alongside the schedule name (this verb writes no schedule row, so the reasonMessage is not persisted anywhere else). Missing/orphaned schedule is NotFound; a paused schedule is Rejected (resume first); a slot already Executing is Rejected (a fire is already in flight).</summary>
     ValueTask<TriggerScheduleNowResponse> TriggerNowAsync(
         ScheduleLookup schedule,
@@ -47,10 +36,10 @@ public interface ISchedules
 
     /// <summary>
     /// Previews up to <paramref name="count"/> (clamped to [1, 50]) upcoming fire instants for the schedule identified
-    /// by <paramref name="schedule"/>, computed live from the current clock with its effective expression and time
+    /// by <paramref name="schedule"/>, computed live from the current clock with its expression and time
     /// zone; no persisted cursor is read or advanced, so this is a pure "what would it do" projection, safe to poll. A
-    /// paused schedule still previews: pause is an operator override of whether it fires, not a property of the
-    /// expression. Returns fewer entries, down to none, when the expression is exhausted (an unsatisfiable cron field
+    /// paused schedule still previews: pause decides whether it fires, not what the expression says. Returns fewer
+    /// entries, down to none, when the expression is exhausted (an unsatisfiable cron field
     /// combination); a missing schedule is null.
     /// </summary>
     ValueTask<PreviewScheduleResponse?> PreviewAsync(ScheduleLookup schedule, int count = 10, CancellationToken ct = default);

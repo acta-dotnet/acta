@@ -189,9 +189,9 @@
   - A recurring slot that fails one fire raises, its next fire resolves, and the fires after that write nothing
 
 ### A recurring job whose handler throws raises an alert
-- **Contract:** A recurring slot re-arming Ready after a failed fire records why that attempt failed, so the projector can alert on a job that would otherwise fail unwatched.
+- **Contract:** A permanent slot's failed attempt records why it failed, re-armed or returned to Idle, so the projector can alert on a job that would otherwise fail unwatched.
 - **Guarantees:**
-  - A recurring fire whose handler throws attributes the reason on its Ready rollover and raises one alert
+  - A firing whose handler throws attributes the reason on each failed attempt and raises one alert
 
 ### A replayed alert batch neither inflates an incident nor opens a ghost one
 - **Contract:** Re-projecting events the sys.alerts cursor never advanced past leaves the incidents they moved untouched and opens none behind a resolution.
@@ -290,7 +290,7 @@
   - A failing attempt in flight at the retire lands Cancelled instead of retrying, and nothing claims it again
   - A job that recovery reclaims after the retire lands Cancelled without its handler running
   - A worker that bounced a definition before its retire still claims the job recovery reclaims, and lands it Cancelled
-  - A recurring slot retired mid-occurrence lands Cancelled instead of rolling over
+  - A recurring slot retired mid-occurrence lands Cancelled instead of returning to Idle
   - A retired definition's schedules keep no cursor, which takes them out of the upcoming-occurrence index
   - A Suspended parent waiting on a child of the retired definition is released without a recovery pass
   - Enqueue against a retired definition is rejected with DefinitionRetired
@@ -357,10 +357,10 @@
   - A definition-scoped policy-changed event is emitted
 
 ### Init auto-registers system definitions, slots and schedules
-- **Contract:** InitializeAsync registers system definitions with a Ready recurring slot keyed on the job name and a default schedule.
+- **Contract:** InitializeAsync registers system definitions with an Idle permanent slot and a default schedule.
 - **Guarantees:**
-  - Init makes the sys.alerts definition Active with a Ready name-keyed slot, a NextRunAtUtc, and a default schedule
-  - Init makes the sys.retention definition Active with a Ready name-keyed slot and an hourly default schedule
+  - Init makes the sys.alerts definition Active with an Idle permanent slot and a default schedule
+  - Init makes the sys.retention definition Active with an Idle permanent slot and an hourly default schedule
 
 ### An invalid descriptor fails startup before the catalog is written
 - **Contract:** InitializeAsync validates every descriptor's shape before writing the worker row, so an invalid descriptor leaves no workers row and no WorkerStarted event.
@@ -423,7 +423,7 @@
   - Crash after the claim orphans and charges the started execution before retry and finishes once
   - Crash before CompleteExecutions does not replay the durable step on recovery
   - Lease expiry mid-handler cancels the lost lease and a fresh run completes the job once
-  - Reclaim at the accumulated failure budget re-arms a recurring slot Ready, never Failed
+  - Reclaim at a firing's spent budget returns a slot to Idle, never Failed
 
 ## ChildJobs
 
@@ -951,6 +951,12 @@
   - A worker's superseded attempt stops at its fenced write with no completion, and its next attempt lands
   - A worker's superseded attempt stops at its fenced write while another worker's attempt holds the job and lands
 
+### An attempt reads its firing's envelope under its fence
+- **Contract:** The envelope read answers the firing the fenced attempt holds, and nothing for a lost fence or an ordinary job.
+- **Guarantees:**
+  - The fenced attempt reads the manual firing it holds, and a lost fence reads nothing
+  - An ordinary job's attempt reads no envelope
+
 ### A lease renewal never deadlocks with a child's completion
 - **Contract:** A lease renewal skips an in-flight row another transaction holds, reporting it unrenewed, so it never waits on a completing child.
 - **Guarantees:**
@@ -962,14 +968,6 @@
   - CompleteExecutions with wrong worker returns NotOwner and writes no attempt event
   - Second CompleteExecutions on a terminal job returns AlreadyTerminal with no additional attempt event
   - Stale CompleteExecutions by a displaced worker returns NotOwner and leaves job owned by the new claimant
-
-### Completing an in-flight attempt respects schedule changes made while it ran
-- **Contract:** A recurring completion never advances an orphaned or edited schedule, and derives the slot's status and next run from the schedules current at completion.
-- **Guarantees:**
-  - Removing the last schedule during execution: completion leaves it orphaned and pauses the slot
-  - Removing the earliest of several schedules: completion re-arms at the earliest survivor
-  - Adding a schedule during execution: its cursor takes part in the slot's next run
-  - Editing a schedule during execution: completion keeps the edit and refuses its stale advance
 
 ### A claim with no handler is handed back, and its definition is not claimed again
 - **Contract:** A claimed job this worker has no descriptor for returns to Ready budget-neutral, and the worker stops claiming that definition.
@@ -1042,9 +1040,10 @@
   - A one-shot that throws twice and then succeeds records both retried attempts as failed at Audit recording
 
 ### Reset clears one job's substrate and emits an audit-gated state-reset event
-- **Contract:** Reset clears a job's substrate rows leaving siblings intact and emits one audit-gated state-reset event with no status transition.
+- **Contract:** Reset clears a job's substrate rows, leaves siblings and the scheduler's firing envelope intact, and emits one audit-gated state-reset event.
 - **Guarantees:**
   - Target job substrate is cleared while sibling jobs are left untouched
+  - The scheduler's firing envelope survives a reset while every handler slot is cleared
   - One JobStateReset event is emitted with the job as its actor and no reason
   - Reset below Audit recording clears the rows but emits no event
   - A reset from an attempt that no longer holds the job is refused and clears nothing
@@ -1078,6 +1077,13 @@
   - An unpublished Ready row is discovered by the safety poll
   - RunAndWaitAsync observes a colocated completion at wake speed
   - A re-arming completion wakes the loop for its own retry
+
+## Jobs
+
+### A permanent slot resolves by its definition's path, not by any key
+- **Contract:** A scheduled definition's slot resolves by namespace and job name through the definition and the row's kind, and an unknown path resolves to nothing.
+- **Guarantees:**
+  - The slot resolves by path beside an ordinary job keyed by the job name, and an unknown path resolves to null
 
 ## Lanes
 
@@ -1694,7 +1700,7 @@
 - **Contract:** An expired-lease job returns to Ready charged one failure, or lands terminal Failed once MaxAttempts is reached.
 - **Guarantees:**
   - Job goes terminal Failed once failure_count reaches MaxAttempts
-  - Reclaim saturates the failure count at 32,767: a recurring slot keeps re-arming and the count stops climbing
+  - Reclaim saturates the failure count at 32,767: a slot's spent budget returns it to Idle and the count stops climbing
   - Expired EXECUTING lease is reclaimed as Orphaned, returning the job to Ready with failure_count bumped
   - Live EXECUTING lease is not reclaimed: the job stays Executing with no LeaseExpired event
   - A stale worker's sleep-timer consume is refused and leaves the reclaimed row and its timer alone
@@ -1800,7 +1806,6 @@
 - **Contract:** GetLiveSchedules returns one slot's non-orphaned schedules in name order, each with its effective and declared expression and time zone, cursor, and status.
 - **Guarantees:**
   - A slot's schedules read back in name order with their declaration, cursor, and status
-  - An override becomes the effective expression and time zone while the declared ones stay
   - An orphaned schedule drops out while a paused one stays with its pause
   - A job that owns no schedules reads an empty list
 
@@ -1815,15 +1820,6 @@
 - **Guarantees:**
   - A staging worker registers the staging-scoped schedule and withholds the production-scoped one
   - A staging worker creates no recurring slot for a job whose only schedule is production-scoped
-
-### Schedule insert reconciles the cursor per misfire policy and upserts one row
-- **Contract:** The startup schedule insert persists the misfire-reconciled next-run cursor and upserts the single schedule row.
-- **Guarantees:**
-  - Insert persists the misfire-reconciled cursor across new, future, and missed cron and interval cells: new seeds after now, future is kept, Skip advances past now, CatchUpOnce keeps the past instant
-  - Re-registration upserts the single schedule row and its misfire code rather than duplicating it
-  - A cursor due less than a minute ago is not a misfire: a start leaves it and its slot due for the running fleet
-  - A missed cursor reconciles under the operator's expression override, not the declared expression
-  - A deploy that switches a schedule between interval and cron drops an override set for the old kind
 
 ### Reschedule re-arms Ready and durable sleep arms an idempotent timer
 - **Contract:** Reschedule re-arms to Ready without charging the budget and durable sleep arms one idempotent timer checkpoint consumed by the replayed handler once due.
@@ -1846,114 +1842,121 @@
   - A live schedule resolves with its slot job, the database clock, and the slot's live schedules
   - A schedule the slot does not carry, or a job that does not exist, resolves to null
 
-### A recurring slot fires repeatedly on one stable id advancing cursors
-- **Contract:** A recurring slot fires on one stable id, advancing cursors, keeping one result that each claim clears, applying the failure budget and emitting rollover events.
+### An admission plan applies whole per slot, or not at all when stale
+- **Contract:** A planned group applies whole at the versions it read, moving the slot to Ready with its envelope and the members' cursors, and a moved group applies nothing.
 - **Guarantees:**
-  - One stable slot id fires repeatedly, returning to Ready and tracking execution_number
-  - Schedule and slot cursors advance one period and the slot tracks the MIN
+  - An applied admitting group makes the slot Ready with the envelope, advances the member, and audits the admission
+  - A group planned against a version another writer moved applies nothing
+  - A cursor-only group parks a member on a busy slot without touching the slot
+
+### A pass admits due firings, fills the slot, and sleeps until the horizon
+- **Contract:** A pass admits a due firing onto its Idle slot, reports the earliest next evaluation, and later occurrences wait on the outstanding firing until settlement.
+- **Guarantees:**
+  - A pass admits a due schedule's firing: the slot is Ready with the envelope naming it and the cursor advanced
+  - A pass with nothing due admits nothing and reports the earliest next evaluation as its horizon
+  - An outstanding firing fills the slot: a later occurrence waits for capacity until settlement wakes it
+
+### The due read returns whole slots in evaluation order and leaves out the dead
+- **Contract:** A due read returns every member of each slot with a schedule due by now, in slot then name order, at most Take due schedules, less the orphaned and retired.
+- **Guarantees:**
+  - A slot with one due schedule is read whole, every member carrying the slot's state, in name order
+  - A slot with nothing due, an orphaned schedule, and a retired definition's schedule are left out
+  - The read pages by evaluation instant then id, at most Take due schedules per pass
+
+### A permanent slot fires repeatedly on one stable id and returns to Idle
+- **Contract:** A permanent slot fires on one stable id: admission advances the cursor, the attempt runs the firing, and the slot returns to Idle with one result per firing.
+- **Guarantees:**
+  - One stable slot id fires repeatedly, returning to Idle and tracking execution_number
+  - Admission advances the schedule's cursor one period, and the Idle slot carries no cursor of its own
   - Handler sees the triggering schedule name in the due set
-  - Audit recording emits succeeded and rolled-over events
-  - The slot keeps its last successful occurrence's result, none while the next one runs, and none after a failed one
-  - In-budget failure re-arms Ready and a later success resets the failure count
-  - Consecutive failures past MaxAttempts never terminalize a recurring slot
-  - Handler cancel terminates the whole slot to Cancelled and stops the schedule
+  - Audit recording emits the admission and the succeeded attempt
+  - The slot keeps its last successful firing's result, none while the next one runs, and none after a failed attempt
+  - An in-budget failure re-arms the firing Ready, and its later success returns the slot to Idle with the count reset
+  - A firing that spends its budget returns the slot to Idle, never Failed, and the next firing starts a fresh budget
+  - Handler cancel terminates the whole slot to Cancelled and settles the firing
+
+### The horizon is the namespace's earliest next evaluation
+- **Contract:** The horizon is the earliest next evaluation among the namespace's schedules, and null when none has one.
+- **Guarantees:**
+  - The horizon follows the earliest next evaluation and is null once every schedule is paused indefinitely
 
 ### Interval slot fires end-to-end advancing cursors and coalescing misses
-- **Contract:** An interval slot fires, advances its cursor by exactly one period, coalesces misses with Skip, and claims exclusively under contention.
+- **Contract:** An interval slot fires, advances its cursor by exactly one period, skips misses with Skip to fire the latest once, and claims exclusively under contention.
 - **Guarantees:**
-  - Interval cursor advances exactly one period on a clean single fire
-  - Missed periods are coalesced into a single fire with Skip misfire
-  - A due slot is claimed exactly once under sequential worker contention
+  - Interval cursor advances exactly one period on an admitted firing
+  - Missed periods are skipped under Skip and the latest one fires once
+  - An admitted slot is claimed exactly once under sequential worker contention
 
 ### A paused or cancelled recurring job stays so until an operator lifts it
 - **Contract:** A recurring job an operator paused or cancelled keeps that status through worker restarts, schedule edits, and trigger-now.
 - **Guarantees:**
-  - A paused recurring job stays paused when the worker starts again, and a resume makes it Ready
+  - A paused recurring job stays paused when the worker starts again, and a resume returns it to Idle
   - Pausing and resuming the only schedule of a paused recurring job leaves the job paused
-  - Editing or triggering a schedule of a paused recurring job leaves the job paused
+  - Pausing, resuming, or triggering a schedule of a paused recurring job leaves the job paused
   - A cancelled recurring job stays cancelled when the worker starts again
-  - A deploy that drops a recurring job's schedules pauses it, and their return makes it Ready
+  - A deploy that drops a recurring job's schedules leaves it Idle with nothing due, and their return re-arms the schedule
 
-### Schedule writers serialize on the namespace's schedule lock
-- **Contract:** Fires and schedule verbs share the namespace's schedule lock that registration and retire hold alone, so no write acts on config another has not committed.
+### A multi-schedule slot takes one firing per pass from every due schedule
+- **Contract:** A slot with several schedules takes one firing per pass: every due schedule contributes to it and advances its own cursor, and the rest keep theirs.
 - **Guarantees:**
-  - A completion that waits on a registration's uncommitted schedule edit re-reads the version once it commits and keeps it
-  - A slot-firing completion waits for a held exclusive schedule lock, and two slot fires in one namespace do not block each other
-  - The registration heal cannot clear a schedule a concurrent registration revives, because the two serialize
-  - A registration that lands after a retire of a definition it registers leaves the retired schedules with no cursor
-  - A registration racing a fire's completion never deadlocks, and the registered cursor stands either way
-  - A retire racing a fire's completion never deadlocks, and the retired schedules end with no cursor either way
-  - The PostgreSQL registration locks its slots' jobs_state rows in key order, whatever order it is given them in
-
-### Multi-schedule slot picks MIN next_run and recomputes on fire
-- **Contract:** A slot with multiple schedules arms next_run_at_utc to the MIN cursor and recomputes the MIN after each fire.
-- **Guarantees:**
-  - Slot next_run_at_utc is the MIN across its two schedule cursors after registration
-  - Firing the earlier schedule advances only its cursor and recomputes slot MIN
-  - Firing when both schedules are due advances both cursors and re-arms to new MIN
+  - After registration each schedule holds its own first occurrence and the Idle slot carries none
+  - A firing of the earlier schedule names only it and advances only its cursor
+  - When both schedules are due, one firing carries both and advances both cursors
 
 ### Catalog sync stores the description and keeps an operator note
 - **Contract:** Registering scheduled jobs stores the attribute description with the note left NULL, and a later re-sync never overwrites an operator note.
 - **Guarantees:**
   - Initial sync stores the attribute description with Note left NULL, and catalog re-sync does not overwrite an operator note
 
-### Operator pause excludes a schedule from its slot and survives redeploy
-- **Contract:** Pausing a schedule drops it from the slot MIN without moving its cursor, wakes the slot at a timed expiry, and survives catalog re-sync.
+### Operator pause takes a schedule out of admission and survives redeploy
+- **Contract:** Pausing a schedule keeps its cursor, leaves its slot alone, is re-evaluated at a timed expiry and not before, and survives catalog re-sync.
 - **Guarantees:**
-  - Pause keeps the schedule's cursor and sets the slot MIN to the remaining firing schedules
-  - Pausing the only schedule system-pauses the slot job and resume re-arms it
-  - A timed pause sets the slot wake point to the pause expiry
+  - Pause keeps the schedule's cursor, takes it out of the admitter's seek, and leaves its sibling and the slot alone
+  - Pausing the only schedule leaves the slot Idle, and a resume returns the schedule to the admitter at once
+  - A timed pause sets the schedule's next evaluation to the pause expiry
   - A timed pause with an expiry in the past is rejected
   - An orphaned schedule cannot be paused or resumed
   - Catalog re-registration preserves operator pause state
   - Orphaning a timed-paused schedule clears the pause deadline along with the status
   - Pause and resume emit audit events against the slot job
 
-### An operator pause landing inside a planned fire keeps the schedule paused
-- **Contract:** A pause applied while a fire is in flight survives the completion, and only a timed pause that has elapsed is auto-resumed by an advance.
+### An operator pause landing inside a firing keeps the schedule paused
+- **Contract:** A pause applied while a firing is in flight survives its completion: settlement never wakes a paused schedule.
 - **Guarantees:**
-  - A pause applied while the fire is in flight is still in force after the completion
-  - A timed pause that has elapsed is still auto-resumed by the advance
+  - A pause applied while the firing is in flight is still in force after the completion
 
-### A paused slot does not fire, and a timed pause resumes by the misfire policy
-- **Contract:** A paused schedule's slot is not claimable, and a timed pause resumes at its expiry by the misfire policy, firing only an occurrence due by then.
+### A paused schedule admits nothing, and a timed pause ends by the misfire policy
+- **Contract:** A paused schedule admits nothing, and a timed pause ends at its expiry by the misfire policy, admitting only an occurrence due by then.
 - **Guarantees:**
-  - An indefinitely paused schedule makes the slot yield NothingClaimed
-  - A timed pause fires once at expiry, returns the schedule to Active with no pause window, and emits pause-expired
-  - A timed pause whose window holds no occurrence clears at its expiry without running the handler
-  - Under Skip an occurrence inside a timed pause is skipped at its expiry, not run late
+  - An indefinitely paused schedule admits nothing at its occurrence
+  - A timed pause ends at its expiry, admits the occurrence due by then, returns to Active, and emits pause-expired
+  - A timed pause whose window holds no occurrence ends at its expiry without admitting anything
+  - Under Skip an occurrence inside a timed pause is skipped at its expiry, not admitted late
 
-### Resume reconciles a paused schedule's cursor by its misfire policy
-- **Contract:** Resuming a schedule reconciles its cursor by misfire: Skip advances past now, and CatchUpOnce keeps the missed past instant.
+### Schedule insert seeds a new cursor, keeps a stored one, and upserts one row
+- **Contract:** The startup schedule insert seeds a new schedule after now, keeps a stored cursor whether due or not, and upserts the single schedule row.
 - **Guarantees:**
-  - Resume reconciles the cursor by misfire: Skip advances past now and CatchUpOnce keeps the past instant
+  - Insert persists the planned cursor across new, future, and missed cron and interval cells: new seeds after now, a stored cursor is kept under either misfire policy
+  - Re-registration upserts the single schedule row and its misfire code rather than duplicating it
+
+### Resume returns a paused schedule to the admitter with its cursor kept
+- **Contract:** Resuming a schedule keeps its cursor, marks it for evaluation now, and leaves the misfire decision to the admitter's next pass.
+- **Guarantees:**
+  - Resume keeps the remembered cursor, whatever the misfire policy, and puts the schedule back in the admitter's seek now
 
 ### A retired definition's schedules stay inert to every reader and writer
 - **Contract:** After a retire, no reader returns its schedules, and no completion or verb, even one that read them first, writes their cursors or wakes their slot.
 - **Guarantees:**
-  - A completion planned before the retire neither advances nor unpauses the retired schedules, nor wakes the slot for them
+  - A firing that lands after the retire returns the slot to Idle and leaves the retired schedules as they were
   - The slot's live schedules and a worker start's stored state leave out a retired definition's schedules
-  - Resume and an override set that found the schedule before the retire write no cursor after it
+  - A resume that found the schedule before the retire writes no cursor after it
   - A pause that found the schedule before the retire leaves the retired schedule as the retire left it
-  - A trigger that found the schedule before the retire leaves the parked slot of the retired definition parked
-
-### Operator sets a CAS-guarded full-set schedule expression/time-zone override
-- **Contract:** A matching version applies the override and moves the cursor to the new expression, while a stale version is a VersionConflict with current state.
-- **Guarantees:**
-  - Setting an expression override moves the cursor to the new expression's next instant and audits the change
-  - A stale expected version is VersionConflict with the schedule's current state and nothing changes
-  - Clearing both overrides returns the schedule to its defaults
-  - An invalid expression is rejected in C# before any write
-  - An interval override under one second is rejected in C# before any write
-  - An unrecognized time zone is rejected in C# before any write
-  - An unknown or orphaned schedule reports not found
-  - Overriding a paused schedule updates its cursor without waking the slot, and resume honors the new expression
+  - A trigger that found the schedule before the retire admits nothing on the retired definition's Idle slot
 
 ### An older generation fires a slot a newer one registered as recurring
-- **Contract:** An older worker fires a slot a newer generation registered as recurring, and no registration adopts an ordinary job holding the key.
+- **Contract:** An older worker lands a slot a newer generation registered Idle, as a permanent slot, never finished like a one-shot.
 - **Guarantees:**
   - An older generation fires a slot a newer one registered after it started as a recurring job
-  - A deploy that schedules a job refuses to start while an ordinary job holds its key, and leaves that job's lane as it was
 
 ### Recurring slot claims at its definition's priority
 - **Contract:** A recurring slot's runtime priority is stamped from the owning definition's effective priority, and re-registration propagates a changed priority.
@@ -1962,17 +1965,16 @@
   - Re-registration after the definition priority changes updates the existing slot jobs_state row
 
 ### A second host starting does not disturb a slot the first host is executing
-- **Contract:** Registration writes an idle slot only on a changed declaration, leaves one in flight, finished, or parked mid-occurrence, and never adopts an ordinary job.
+- **Contract:** Registration never moves a slot, writes a cursor only on a changed declaration, retimes on a timing change, and never adopts an ordinary job.
 - **Guarantees:**
   - Re-registering a slot that is executing leaves its status, lease, and cursor to the running execution
-  - Re-registering an idle slot re-asserts the declared cursor and status
+  - Re-registering an Idle slot leaves it Idle and lands the declared cursor on its schedule
   - Re-registering an unchanged declaration writes nothing: no version moves on the slot or its schedule
   - Re-registering a finished slot leaves it finished: only an operator's restart brings it back
-  - Registration leaves an ordinary job that holds the slot's key untouched and returns no slot for it
+  - An ordinary job keyed by the job name and the slot coexist: registration adopts nothing
   - A start leaves a slot parked part-way through an occurrence where it waits: Suspended, or Ready at its wake instant
   - A start leaves an attempt in flight its due cursor, so a reclaim or re-arm of it still sees its occurrence
-  - A start never puts back to sleep a waiting slot that a signal woke after the start read it
-  - A start that edits a catch-up schedule whose occurrence is in flight moves its cursor past that occurrence
+  - A start that changes a schedule's timing reseeds its cursor after now and audits the retime; an edit of its text does not
   - Registration clears a cursor a racing fire left on an orphaned schedule or a retired definition's schedule
   - A slot input with a format and no bytes registers and re-registers as a zero-length input, not NULL
 
@@ -1982,9 +1984,9 @@
   - Preview on a sys. system schedule returns occurrences instead of a reserved-name error
 
 ### Operator manually fires a schedule now without disturbing its cadence
-- **Contract:** Triggering an eligible schedule makes its slot claimable now without moving the schedule's own cursor, while paused or in-flight schedules reject.
+- **Contract:** Triggering a schedule on an Idle slot admits a manual firing without moving the schedule's own cursor, and a paused schedule or a busy slot rejects.
 - **Guarantees:**
-  - Triggering a Ready schedule pulls the slot cursor to now, leaves the schedule's own cursor untouched, and audits the fire
+  - Triggering an Idle slot's schedule admits a manual firing now, leaves the schedule's own cursor untouched, audits it, and rejects a second one behind it
   - Triggering a paused schedule is rejected and leaves the slot and schedule untouched
   - Triggering a schedule whose slot is mid-execution is rejected because a fire is already in flight
   - Triggering a schedule whose slot is terminal is rejected with no phantom applied and no schedule.triggered event
@@ -2304,7 +2306,6 @@
 - **Guarantees:**
   - A second worker of the same build registers nothing and takes no schedule lock
   - A changed manifest takes the full registration and waits for the schedule lock
-  - A start of the same build after a missed occurrence still reconciles it under the misfire policy
 
 ### StartWorker writes the namespace on a metadata change and appends a worker row
 - **Contract:** StartWorker writes the namespace only when its owner, description, or name is new, never its catalog hash, and appends one worker row and WorkerStarted event.
@@ -2329,6 +2330,7 @@
 | `AcquireLock` | yes | yes | yes |
 | `AcquireSchemaLock` | yes | yes | yes |
 | `AcquireSlot` | yes | yes | yes |
+| `AdmitFirings` | yes | yes | yes |
 | `ArmOrConsumeSleepTimer` | yes | yes | yes |
 | `CancelJob` | yes | yes | yes |
 | `ClaimJob` | yes | yes | yes |
@@ -2354,6 +2356,8 @@
 | `GetDefinition` | yes | yes | yes |
 | `GetDefinitionContracts` | yes | yes | yes |
 | `GetDeliverableAlerts` | yes | yes | yes |
+| `GetDueSchedules` | yes | yes | yes |
+| `GetFiring` | yes | yes | yes |
 | `GetJob` | yes | yes | yes |
 | `GetJobExplanation` | yes | yes | yes |
 | `GetJobInput` | yes | yes | yes |
@@ -2364,6 +2368,7 @@
 | `GetOverview` | yes | yes | yes |
 | `GetPoisonAlertEvents` | yes | yes | yes |
 | `GetResult` | yes | yes | yes |
+| `GetScheduleHorizon` | yes | yes | yes |
 | `GetScheduleState` | yes | yes | yes |
 | `GetStaleChildLatches` | yes | yes | yes |
 | `GetTags` | yes | yes | yes |
@@ -2411,6 +2416,7 @@
 | `ResolveAlerts` | yes | yes | yes |
 | `ResolveJobIdByDeduplicationKey` | yes | yes | yes |
 | `ResolveJobIdByRef` | yes | yes | yes |
+| `ResolveSlotId` | yes | yes | yes |
 | `RestartJob` | yes | yes | yes |
 | `ResumeJob` | yes | yes | yes |
 | `ResumeNamespace` | yes | yes | yes |
@@ -2418,7 +2424,6 @@
 | `ResumeTenant` | yes | yes | yes |
 | `RetireDefinition` | yes | yes | yes |
 | `SetDefinitionOverrides` | yes | yes | yes |
-| `SetScheduleOverrides` | yes | yes | yes |
 | `StartStep` | yes | yes | yes |
 | `StartWorker` | yes | yes | yes |
 | `StopWorker` | yes | yes | yes |

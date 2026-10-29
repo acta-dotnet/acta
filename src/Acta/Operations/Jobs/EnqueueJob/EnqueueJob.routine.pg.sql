@@ -185,6 +185,7 @@ BEGIN
         END IF;
 
         INSERT INTO {{schema}}.jobs (
+            job_kind_code,
             job_ref,
             lineage_root_job_id,
             parent_job_id,
@@ -199,6 +200,7 @@ BEGIN
             event_recording_code,
             created_at_utc)
         VALUES (
+            10 /* JobKindCode.Ordinary */,
             p_job_ref,
             v_lineage,
             p_parent_job_id,
@@ -224,6 +226,7 @@ BEGIN
         END IF;
 
         INSERT INTO {{schema}}.jobs (
+            job_kind_code,
             job_ref,
             lineage_root_job_id,
             parent_job_id,
@@ -238,6 +241,7 @@ BEGIN
             event_recording_code,
             created_at_utc)
         VALUES (
+            10 /* JobKindCode.Ordinary */,
             p_job_ref,
             NULL,
             NULL,

@@ -39,7 +39,7 @@ provisioned before 1.0.
 - **A recurring job keeps what it adds on each fire.** Its slots and the children it started stay as long as the job, which lives as long as its schedule, so a child or a step named per period is never purged. Enqueue a root job per occurrence for that work ([developer guide](./developer-guide.md#execution-semantics)).
 - **On SQL Server, a child enqueued in a transaction still open when its parent is cancelled escapes the cancel.** The cancel does not wait for the uncommitted child, which runs once the transaction commits. Cancelling the parent again walks it.
 - **A worker that crashes on every replay of a timed-out wait loops without spending budget.** The job re-alerts on every reminder, and an operator cancel ends it.
-- **`OnTerminal` and `Info` never alert on a recurring job's ordinary failures**, which roll over instead of landing Failed. Use `OnFailure` for recurring work.
+- **`OnTerminal` and `Info` never alert on a recurring job's ordinary failures**, which return the slot to `Idle` instead of landing Failed. Use `OnFailure` for recurring work.
 - **The alert projector assumes the database clock never steps backwards.** After a step, failures stamped below the cursor are missed. Repair by setting the `alerts-cursor` variable of the namespace's `sys.alerts` slot in `checkpoints` to `{"Ticks":<UTC ticks of an instant before the step>,"EventId":0}`, no further back than `AlertRetention`.
 - **A writer that freezes past twice the command timeout** can commit an event the projector already passed, which is then missed (never wrong). Keep command timeouts the same across the fleet.
 - **A requeue command can requeue a row a second time.** A relay pass that stalls between planning the command and requeueing its rows, while another pass finishes it and the row is quarantined again, requeues that row once more and records no event for it. The row retries as the operator asked; nothing else changes.
@@ -67,7 +67,6 @@ provisioned before 1.0.
 - **A worker excludes a definition it has no handler for only for its own lifetime.** A long run of such jobs slows its claims until the definition is retired or its build returns.
 - **Retiring a definition cancels its parked jobs but not their descendants.**
 - **A worker learns of a retire on its next heartbeat**, so an attempt that starts in that gap still runs once. A job its handler paused stays Paused until it is resumed or cancelled.
-- **Two schedule writes can act on a read a moment old.** A worker start racing a recurring completion can run that occurrence once more, and a schedule verb racing another can run the job once with no schedule due, or hold it until its next start.
 
 ## Dashboard and API exposure
 

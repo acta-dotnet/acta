@@ -314,6 +314,7 @@ sealed record Acta.CancelJobResponse : Acta.IJobControlResponse
     System.Nullable<System.Int32> Version { get;init; }
 enum Acta.CheckpointKindCode : System.Byte
     ChildLatch = 50
+    Firing = 60
     Progress = 40
     Signal = 20
     Timer = 30
@@ -334,10 +335,13 @@ sealed class Acta.CheckpointKindCodeJsonConverter : System.Text.Json.Serializati
     Acta.CheckpointKindCode Read(ref System.Text.Json.Utf8JsonReader reader, System.Type typeToConvert, System.Text.Json.JsonSerializerOptions options)
     System.Void Write(System.Text.Json.Utf8JsonWriter writer, Acta.CheckpointKindCode value, System.Text.Json.JsonSerializerOptions options)
 enum Acta.CheckpointStatusCode : System.Byte
+    Cancelled = 130
     Consumed = 100
     Expired = 30
+    Failed = 120
     Pending = 10
     Set = 20
+    Succeeded = 110
     Unspecified = 0
 static class Acta.CheckpointStatusCodeExtensions
     static Acta.CheckpointStatusCode FromCode(System.String code)
@@ -613,6 +617,27 @@ sealed class Acta.EntityCodeJsonConverter : System.Text.Json.Serialization.JsonC
     .ctor()
     Acta.EntityCode Read(ref System.Text.Json.Utf8JsonReader reader, System.Type typeToConvert, System.Text.Json.JsonSerializerOptions options)
     System.Void Write(System.Text.Json.Utf8JsonWriter writer, Acta.EntityCode value, System.Text.Json.JsonSerializerOptions options)
+enum Acta.EvaluationStatusCode : System.Byte
+    EvaluationError = 40
+    Exhausted = 30
+    Scheduled = 10
+    SlotUnavailable = 50
+    Unspecified = 0
+    WaitingForCapacity = 20
+static class Acta.EvaluationStatusCodeExtensions
+    static Acta.EvaluationStatusCode FromCode(System.String code)
+    static Acta.EvaluationStatusCode FromId(System.Byte id)
+    static System.Boolean IsKnownId(System.Byte id)
+    static System.Boolean IsWritableId(System.Byte id)
+    static System.Byte get_ToId(Acta.EvaluationStatusCode value)
+    static System.Collections.Generic.IReadOnlyList<Acta.CodeManifestEntry> get_Manifest()
+    static System.String get_Code(Acta.EvaluationStatusCode value)
+    static System.String get_CodeKind()
+    static System.String get_Description(Acta.EvaluationStatusCode value)
+sealed class Acta.EvaluationStatusCodeJsonConverter : System.Text.Json.Serialization.JsonConverter<Acta.EvaluationStatusCode>
+    .ctor()
+    Acta.EvaluationStatusCode Read(ref System.Text.Json.Utf8JsonReader reader, System.Type typeToConvert, System.Text.Json.JsonSerializerOptions options)
+    System.Void Write(System.Text.Json.Utf8JsonWriter writer, Acta.EvaluationStatusCode value, System.Text.Json.JsonSerializerOptions options)
 enum Acta.EventCode : System.Byte
     AlertAcknowledged = 140
     AlertResolved = 141
@@ -628,7 +653,6 @@ enum Acta.EventCode : System.Byte
     JobNoteRecorded = 90
     JobPaused = 71
     JobPurged = 75
-    JobRecurringRolledOver = 50
     JobReprioritized = 74
     JobRescheduled = 61
     JobRestarted = 73
@@ -641,10 +665,12 @@ enum Acta.EventCode : System.Byte
     NamespaceUpdated = 22
     OutboxDiscarded = 181
     OutboxRequeued = 180
-    ScheduleOverridesUpdated = 103
+    ScheduleAdmitted = 105
     SchedulePauseExpired = 102
     SchedulePaused = 100
     ScheduleResumed = 101
+    ScheduleRetimed = 107
+    ScheduleSkipped = 106
     ScheduleTriggered = 104
     TenantResumed = 11
     TenantSuspended = 10
@@ -1108,7 +1134,6 @@ interface Acta.ISchedules
     System.Threading.Tasks.ValueTask<Acta.PauseScheduleResponse> PauseAsync(Acta.ScheduleLookup schedule, System.Nullable<System.DateTime> untilUtc = null, System.String reasonMessage = null, System.String actor = null, System.Threading.CancellationToken ct = default)
     System.Threading.Tasks.ValueTask<Acta.PreviewScheduleResponse> PreviewAsync(Acta.ScheduleLookup schedule, System.Int32 count = 10, System.Threading.CancellationToken ct = default)
     System.Threading.Tasks.ValueTask<Acta.ResumeScheduleResponse> ResumeAsync(Acta.ScheduleLookup schedule, System.String reasonMessage = null, System.String actor = null, System.Threading.CancellationToken ct = default)
-    System.Threading.Tasks.ValueTask<Acta.SetScheduleOverridesResponse> UpdateOverridesAsync(Acta.ScheduleLookup schedule, System.Int32 expectedVersion, System.String expression, System.String timeZoneId, System.String reasonMessage = null, System.String actor = null, System.Threading.CancellationToken ct = default)
     System.Threading.Tasks.ValueTask<Acta.TriggerScheduleNowResponse> TriggerNowAsync(Acta.ScheduleLookup schedule, System.String reasonMessage = null, System.String actor = null, System.Threading.CancellationToken ct = default)
 interface Acta.ITagMutationResponse : Acta.IControlResponse
 interface Acta.ITags
@@ -1179,12 +1204,13 @@ record struct Acta.JobCall<TInput, TResult>
 abstract class Acta.JobContext
     Acta.JobRef JobRef { get; }
     System.Boolean IsOverdue { get; }
-    System.Collections.Generic.IReadOnlyList<System.String> TriggeringScheduleNames { get; }
+    System.Collections.Generic.IReadOnlyList<Acta.TriggeringSchedule> TriggeringSchedules { get; }
     System.Int32 ExecutionNumber { get; }
     System.Int32 NamespaceId { get; }
     System.Int32 WorkerId { get; }
     System.Int64 JobId { get; }
     System.Nullable<System.DateTime> DeadlineAtUtc { get; }
+    System.Nullable<System.Guid> FiringId { get; }
     System.Nullable<System.Int32> TenantId { get; }
     System.Nullable<System.TimeSpan> TimeUntilDeadline { get; }
     System.String JobName { get; }
@@ -1355,6 +1381,24 @@ record struct Acta.JobHandlerOutput
     .ctor(System.Boolean HasResult, System.Object Result)
     System.Boolean HasResult { get;init; }
     System.Object Result { get;init; }
+enum Acta.JobKindCode : System.Byte
+    Ordinary = 10
+    PermanentSlot = 20
+    Unspecified = 0
+static class Acta.JobKindCodeExtensions
+    static Acta.JobKindCode FromCode(System.String code)
+    static Acta.JobKindCode FromId(System.Byte id)
+    static System.Boolean IsKnownId(System.Byte id)
+    static System.Boolean IsWritableId(System.Byte id)
+    static System.Byte get_ToId(Acta.JobKindCode value)
+    static System.Collections.Generic.IReadOnlyList<Acta.CodeManifestEntry> get_Manifest()
+    static System.String get_Code(Acta.JobKindCode value)
+    static System.String get_CodeKind()
+    static System.String get_Description(Acta.JobKindCode value)
+sealed class Acta.JobKindCodeJsonConverter : System.Text.Json.Serialization.JsonConverter<Acta.JobKindCode>
+    .ctor()
+    Acta.JobKindCode Read(ref System.Text.Json.Utf8JsonReader reader, System.Type typeToConvert, System.Text.Json.JsonSerializerOptions options)
+    System.Void Write(System.Text.Json.Utf8JsonWriter writer, Acta.JobKindCode value, System.Text.Json.JsonSerializerOptions options)
 record struct Acta.JobLookup
     Acta.JobLookupKind Kind { get; }
     Acta.JobRef JobRef { get; }
@@ -1482,6 +1526,7 @@ enum Acta.JobStatusCode : System.Byte
     Cancelled = 220
     Executing = 50
     Failed = 200
+    Idle = 40
     Paused = 30
     Ready = 10
     Succeeded = 100
@@ -1786,7 +1831,8 @@ sealed record Acta.ListOutboxSourcesResponse : Acta.IPagedResponse<Acta.ListOutb
     System.Nullable<System.Int64> TotalCount { get;init; }
     System.String NextCursor { get;init; }
 sealed record Acta.ListSchedulesItem
-    .ctor(System.Int64 JobId, System.Int32 DefinitionId, System.String JobNamespace, System.String JobName, System.String ScheduleName, Acta.ScheduleOriginCode Origin, Acta.ScheduleExpressionKindCode ExpressionKind, System.String Expression, System.String TimeZoneId, Acta.MisfireStrategyCode MisfireStrategy, System.Nullable<System.DateTime> NextOccurrenceAtUtc, System.Nullable<System.DateTime> LastAdvancedOccurrenceAtUtc, Acta.ScheduleStatusCode Status, System.Nullable<System.DateTime> PausedUntilUtc, System.DateTime CreatedAtUtc, System.DateTime ModifiedAtUtc, System.Int32 Version, System.Nullable<Acta.JobRef> JobRef)
+    .ctor(System.Int32 ScheduleId, System.Int64 JobId, System.Int32 DefinitionId, System.String JobNamespace, System.String JobName, System.String ScheduleName, Acta.ScheduleOriginCode Origin, Acta.ScheduleExpressionKindCode ExpressionKind, System.String Expression, System.String TimeZoneId, Acta.MisfireStrategyCode MisfireStrategy, System.Nullable<System.DateTime> NextOccurrenceAtUtc, System.Nullable<System.DateTime> DecidedThroughAtUtc, System.Nullable<System.DateTime> NextEvaluationAtUtc, Acta.EvaluationStatusCode EvaluationStatus, Acta.ScheduleStatusCode Status, System.Nullable<System.DateTime> PausedUntilUtc, System.DateTime CreatedAtUtc, System.DateTime ModifiedAtUtc, System.Int32 Version, System.Nullable<Acta.JobRef> JobRef)
+    Acta.EvaluationStatusCode EvaluationStatus { get;init; }
     Acta.MisfireStrategyCode MisfireStrategy { get;init; }
     Acta.ScheduleExpressionKindCode ExpressionKind { get;init; }
     Acta.ScheduleOriginCode Origin { get;init; }
@@ -1794,10 +1840,12 @@ sealed record Acta.ListSchedulesItem
     System.DateTime CreatedAtUtc { get;init; }
     System.DateTime ModifiedAtUtc { get;init; }
     System.Int32 DefinitionId { get;init; }
+    System.Int32 ScheduleId { get;init; }
     System.Int32 Version { get;init; }
     System.Int64 JobId { get;init; }
     System.Nullable<Acta.JobRef> JobRef { get;init; }
-    System.Nullable<System.DateTime> LastAdvancedOccurrenceAtUtc { get;init; }
+    System.Nullable<System.DateTime> DecidedThroughAtUtc { get;init; }
+    System.Nullable<System.DateTime> NextEvaluationAtUtc { get;init; }
     System.Nullable<System.DateTime> NextOccurrenceAtUtc { get;init; }
     System.Nullable<System.DateTime> PausedUntilUtc { get;init; }
     System.String Expression { get;init; }
@@ -2114,8 +2162,9 @@ sealed class Acta.ScheduleExpressionKindCodeJsonConverter : System.Text.Json.Ser
     Acta.ScheduleExpressionKindCode Read(ref System.Text.Json.Utf8JsonReader reader, System.Type typeToConvert, System.Text.Json.JsonSerializerOptions options)
     System.Void Write(System.Text.Json.Utf8JsonWriter writer, Acta.ScheduleExpressionKindCode value, System.Text.Json.JsonSerializerOptions options)
 sealed record Acta.ScheduleLookup
-    .ctor(Acta.JobLookup Job, System.String ScheduleName)
-    Acta.JobLookup Job { get;init; }
+    .ctor(System.String JobNamespace, System.String JobName, System.String ScheduleName)
+    System.String JobName { get;init; }
+    System.String JobNamespace { get;init; }
     System.String ScheduleName { get;init; }
 enum Acta.ScheduleOriginCode : System.Byte
     Definition = 40
@@ -2157,13 +2206,6 @@ sealed class Acta.ScheduleStatusCodeJsonConverter : System.Text.Json.Serializati
 sealed record Acta.SetDefinitionOverridesResponse : Acta.IDefinitionControlResponse
     .ctor(Acta.ControlAction Action, System.Nullable<System.Int32> Version)
     Acta.ControlAction Action { get;init; }
-    System.Nullable<System.Int32> Version { get;init; }
-sealed record Acta.SetScheduleOverridesResponse : Acta.IScheduleControlResponse
-    .ctor(Acta.ControlAction Action, System.Nullable<Acta.ScheduleStatusCode> Status, System.Nullable<System.DateTime> PausedUntilUtc, System.Nullable<System.DateTime> NextOccurrenceAtUtc, System.Nullable<System.Int32> Version)
-    Acta.ControlAction Action { get;init; }
-    System.Nullable<Acta.ScheduleStatusCode> Status { get;init; }
-    System.Nullable<System.DateTime> NextOccurrenceAtUtc { get;init; }
-    System.Nullable<System.DateTime> PausedUntilUtc { get;init; }
     System.Nullable<System.Int32> Version { get;init; }
 sealed record Acta.SignalWaitOutcome
     System.Boolean Received { get; }
@@ -2308,6 +2350,12 @@ sealed record Acta.TriggerScheduleNowResponse : Acta.IScheduleControlResponse
     System.Nullable<System.DateTime> NextOccurrenceAtUtc { get;init; }
     System.Nullable<System.DateTime> PausedUntilUtc { get;init; }
     System.Nullable<System.Int32> Version { get;init; }
+record struct Acta.TriggeringSchedule
+    .ctor(System.String ScheduleName, System.DateTime OccurrenceAtUtc, System.String TimeZoneId, System.DateTime CoveredThroughUtc)
+    System.DateTime CoveredThroughUtc { get;init; }
+    System.DateTime OccurrenceAtUtc { get;init; }
+    System.String ScheduleName { get;init; }
+    System.String TimeZoneId { get;init; }
 sealed record Acta.UpdateJobInputResponse : Acta.IJobControlResponse
     .ctor(System.Int64 JobId, Acta.ControlAction Action, System.Nullable<Acta.JobStatusCode> Status, System.Nullable<System.Int32> Version)
     Acta.ControlAction Action { get;init; }

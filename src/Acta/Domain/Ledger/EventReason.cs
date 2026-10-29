@@ -30,9 +30,6 @@ internal static class EventReason
     /// </summary>
     public const string AttemptAborted = "attempt-aborted";
 
-    /// <summary>A recurring slot has no live schedule yielding a next instant, so it paused.</summary>
-    public const string SchedulesExhausted = "schedules-exhausted";
-
     /// <summary>An ancestor job in the lineage was cancelled, and the cancel cascaded.</summary>
     public const string ParentCancelled = "parent-cancelled";
 

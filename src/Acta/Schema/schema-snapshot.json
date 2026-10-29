@@ -189,7 +189,7 @@
       "Checks": [
         {
           "Name": "ck_checkpoints_kind_shape",
-          "Sql": "(checkpoint_kind_code NOT IN (10, 40) OR (checkpoint_status_code IS NULL AND due_at_utc IS NULL)) AND (checkpoint_kind_code NOT IN (20, 30, 50) OR checkpoint_status_code IS NOT NULL) AND (checkpoint_kind_code \u003C\u003E 30 OR due_at_utc IS NOT NULL)"
+          "Sql": "(checkpoint_kind_code NOT IN (10, 40) OR (checkpoint_status_code IS NULL AND due_at_utc IS NULL)) AND (checkpoint_kind_code NOT IN (20, 30, 50, 60) OR checkpoint_status_code IS NOT NULL) AND (checkpoint_kind_code \u003C\u003E 30 OR due_at_utc IS NOT NULL)"
         },
         {
           "Name": "ck_checkpoints_value_pair",
@@ -605,6 +605,10 @@
           "Signature": "Guid|0|0|0|False|None||coded=False|codeKind=|caseExact=False"
         },
         {
+          "Name": "job_kind_code",
+          "Signature": "Byte|0|0|0|False|None||coded=True|codeKind=job-kind|caseExact=False"
+        },
+        {
           "Name": "namespace_id",
           "Signature": "Int32|0|0|0|False|None||coded=False|codeKind=|caseExact=False"
         },
@@ -673,6 +677,10 @@
         {
           "Name": "ux_jobs_ref",
           "Signature": "U|cols=job_ref|inc=|desc=|filter=|seq=False"
+        },
+        {
+          "Name": "ux_jobs_slot",
+          "Signature": "U|cols=definition_id|inc=|desc=|filter=job_kind_code = 20|seq=False"
         }
       ],
       "Checks": [
@@ -779,6 +787,10 @@
         {
           "Name": "ck_jobs_state_counters",
           "Sql": "execution_number \u003E= 0 AND failure_count \u003E= 0"
+        },
+        {
+          "Name": "ck_jobs_state_idle",
+          "Sql": "job_status_code \u003C\u003E 40 OR next_run_at_utc IS NULL"
         },
         {
           "Name": "ck_jobs_state_inflight_leased",
@@ -928,8 +940,12 @@
     },
     {
       "Table": "schedules",
-      "PrimaryKey": "pk_schedules(job_id,schedule_name)|manual=False|seq=False",
+      "PrimaryKey": "pk_schedules(schedule_id)|manual=False|seq=False",
       "Columns": [
+        {
+          "Name": "schedule_id",
+          "Signature": "Int32|0|0|0|False|None||coded=False|codeKind=|caseExact=False"
+        },
         {
           "Name": "namespace_id",
           "Signature": "Int32|0|0|0|False|None||coded=False|codeKind=|caseExact=False"
@@ -955,24 +971,8 @@
           "Signature": "AsciiString|128|0|0|False|None||coded=False|codeKind=|caseExact=False"
         },
         {
-          "Name": "expression_override",
-          "Signature": "AsciiString|128|0|0|True|None||coded=False|codeKind=|caseExact=False"
-        },
-        {
-          "Name": "expression_effective",
-          "Signature": "AsciiString|128|0|0|False|None|COALESCE(expression_override, expression)|coded=False|codeKind=|caseExact=False"
-        },
-        {
           "Name": "time_zone_id",
           "Signature": "AsciiString|128|0|0|False|None||coded=False|codeKind=|caseExact=False"
-        },
-        {
-          "Name": "time_zone_id_override",
-          "Signature": "AsciiString|128|0|0|True|None||coded=False|codeKind=|caseExact=False"
-        },
-        {
-          "Name": "time_zone_id_effective",
-          "Signature": "AsciiString|128|0|0|False|None|COALESCE(time_zone_id_override, time_zone_id)|coded=False|codeKind=|caseExact=False"
         },
         {
           "Name": "expression_kind_code",
@@ -981,6 +981,18 @@
         {
           "Name": "misfire_strategy_code",
           "Signature": "Byte|0|0|0|False|None||coded=True|codeKind=misfire-strategy|caseExact=False"
+        },
+        {
+          "Name": "interval_anchor_at_utc",
+          "Signature": "UtcInstant|0|0|0|True|None||coded=False|codeKind=|caseExact=False"
+        },
+        {
+          "Name": "misfire_grace_seconds",
+          "Signature": "Int32|0|0|0|False|None||coded=False|codeKind=|caseExact=False"
+        },
+        {
+          "Name": "timing_fingerprint",
+          "Signature": "AsciiString|64|0|0|False|None||coded=False|codeKind=|caseExact=False"
         },
         {
           "Name": "schedule_status_code",
@@ -995,7 +1007,7 @@
           "Signature": "UnicodeString|512|0|0|True|None||coded=False|codeKind=|caseExact=False"
         },
         {
-          "Name": "change_message",
+          "Name": "pause_message",
           "Signature": "UnicodeString|512|0|0|True|None||coded=False|codeKind=|caseExact=False"
         },
         {
@@ -1011,7 +1023,16 @@
           "Signature": "Int32|0|0|0|False|Zero||coded=False|codeKind=|caseExact=False"
         }
       ],
-      "Indexes": [],
+      "Indexes": [
+        {
+          "Name": "ix_schedules_job",
+          "Signature": "I|cols=job_id,schedule_id|inc=|desc=|filter=|seq=False"
+        },
+        {
+          "Name": "ux_schedules_definition_name",
+          "Signature": "U|cols=definition_id,schedule_name|inc=|desc=|filter=|seq=False"
+        }
+      ],
       "Checks": [
         {
           "Name": "ck_schedules_orphan_origin",
@@ -1031,15 +1052,11 @@
     },
     {
       "Table": "schedules_state",
-      "PrimaryKey": "pk_schedules_state(job_id,schedule_name)|manual=False|seq=False",
+      "PrimaryKey": "pk_schedules_state(schedule_id)|manual=True|seq=False",
       "Columns": [
         {
-          "Name": "job_id",
-          "Signature": "Int64|0|0|0|False|None||coded=False|codeKind=|caseExact=False"
-        },
-        {
-          "Name": "schedule_name",
-          "Signature": "AsciiString|128|0|0|False|None||coded=False|codeKind=|caseExact=False"
+          "Name": "schedule_id",
+          "Signature": "Int32|0|0|0|False|None||coded=False|codeKind=|caseExact=False"
         },
         {
           "Name": "namespace_id",
@@ -1050,8 +1067,20 @@
           "Signature": "UtcInstant|0|0|0|True|None||coded=False|codeKind=|caseExact=False"
         },
         {
-          "Name": "last_advanced_occurrence_at_utc",
+          "Name": "decided_through_at_utc",
           "Signature": "UtcInstant|0|0|0|True|None||coded=False|codeKind=|caseExact=False"
+        },
+        {
+          "Name": "next_evaluation_at_utc",
+          "Signature": "UtcInstant|0|0|0|True|None||coded=False|codeKind=|caseExact=False"
+        },
+        {
+          "Name": "evaluation_status_code",
+          "Signature": "Byte|0|0|0|False|None||coded=True|codeKind=schedule-evaluation-status|caseExact=False"
+        },
+        {
+          "Name": "version",
+          "Signature": "Int32|0|0|0|False|Zero||coded=False|codeKind=|caseExact=False"
         },
         {
           "Name": "modified_at_utc",
@@ -1060,8 +1089,12 @@
       ],
       "Indexes": [
         {
+          "Name": "ix_schedules_state_due",
+          "Signature": "I|cols=namespace_id,next_evaluation_at_utc,schedule_id|inc=|desc=|filter=next_evaluation_at_utc IS NOT NULL|seq=False"
+        },
+        {
           "Name": "ix_schedules_state_namespace_next",
-          "Signature": "I|cols=namespace_id,next_occurrence_at_utc,job_id,schedule_name|inc=|desc=|filter=next_occurrence_at_utc IS NOT NULL|seq=False"
+          "Signature": "I|cols=namespace_id,next_occurrence_at_utc,schedule_id|inc=|desc=|filter=next_occurrence_at_utc IS NOT NULL|seq=False"
         }
       ],
       "Checks": [],
@@ -1327,21 +1360,21 @@
       "access_checkpoint": "db1e6fc819ed1917ddbd64c963b1d52150993d5104a54ec251b1347c2c185a5f",
       "alerts_view": "2d1336bd0137c80ab7a28f216d1db3d38f228e6e63a0e1d437361ffcd05c0573",
       "arm_or_consume_sleep_timer": "d03e84864dfec5f24ecd928a6c64b95038e625af61df78c436225089650716f5",
-      "checkpoints_view": "ecb5312180d6404dd87ac078cb845f56054af3524e7204f8537c344eac315510",
-      "claim_jobs": "6469065187fd6aa7c8e1bf6651373c8daf7fcfad46b898a520e8ac6bc5c69fc5",
-      "complete_executions": "aa6d61a228bfb33dc1ac100640861280ba10d23ff542643d7c0bfdfc1bccfce2",
+      "checkpoints_view": "a4db45b3c95bf90ecc29e130cf5c1a23b78bc46a0881c4d114c7f5e5c58e8c16",
+      "claim_jobs": "a4f9a3ebe770a5e8b983580ac8597d7d83470755376abd40614cb74713d5fafe",
+      "complete_executions": "048a956d9fd4573bcce73e1cd497725a270fe7968ce6defd4746187142402235",
       "complete_step": "5b7ba38a3f136de5b2770dd878931dc0bbb54d1f2fe25f95fd30be19e9bb823c",
       "definitions_view": "73b5444e05c232be00a034c2320dc2880df7fd7eccb55d810ad18bf105392d2c",
-      "enqueue_job": "1692b3328557c0ef6147c8e8ba4c8b688e659a09bd69b291cf3faed358d51cbb",
-      "enqueue_jobs": "b2e4eea471e3af543d7b57f0dcf5e5d48db505366f61fd234d8bf9acaea47178",
-      "events_view": "295fd675b90472db72faf9e0b6a951ea7b4b9ca909868a31b2bb159fccd1cf7e",
+      "enqueue_job": "01b6443d9ae282023009e6534c7b2df270d984f48391474fbacf8a7dd3ceb313",
+      "enqueue_jobs": "b822a9e78c523d1b4a0be7dc5cf15259caa1b10984f1bb0d1bab6953a24f5fa6",
+      "events_view": "33b006c8ba0817b9c10e05c4c5c650c5b961b7e5664620afe80aed4d2dfca399",
       "extend_worker_leases": "fc682824dcc18f2339f5cdf1105981a8e1014d35bc76be59913f372fd1e3beb0",
-      "jobs_view": "9598fcdf212846620f4445bdb28d26003876734df6d0797ab269fa7b27bb90c0",
-      "purge_expired_data": "166c06e1df8ea411f73e3e60e8385dbd12eb67661627c5b3bb6a14947c0dc0a0",
+      "jobs_view": "0cef700e5d7972f213a4718e32c98f41792bca437ec90d5efba4391a261d3e1f",
+      "purge_expired_data": "772e0b4cc5a54c9fb652e4b0ef5befdfb3a072ef75f281f080048a3cce463e14",
       "raise_signal": "434e29aa75677b92f1da2d06c141b02af6db481f8f6b80deaf4d5b4cca58389d",
-      "reclaim_stuck_jobs": "6aa7cf6ba1f71eb05fd064e5662d2b79b14baa0605c5578cd6f2f1d2d0c409f3",
+      "reclaim_stuck_jobs": "bc396db50921dbfdc63452347798eca1c21019a69ffe09ba255513aaac557eba",
       "reserve_rate": "d2e111fb260e1b057b86c7086c8ad33567d2f0dbe0875c39acd74734d363d4bb",
-      "schedules_view": "2bf321ffaf55101f7d040b0a2d09ecccc78d9db231973a81c3fece7d1156c631",
+      "schedules_view": "267b964a0dceeddf6e94a1a1b538dc3eac1fda41eb18ee34f332d5380fcd7c6d",
       "start_step": "7fd76ffb218bc6e5094476844aff7b8d95ced83e35c1653f1ce1d91691e75c44",
       "steps_view": "ee571121539eb7068e88122e36433a8e390de370d8732d1e15a2d52d62e444c2",
       "tags_view": "8ba6f3cd40ab636b977e77ecec2b7684d9fe9859f3e51e330891e541dc0c560e",
@@ -1352,21 +1385,21 @@
       "access_checkpoint": "1824de9d485567657a638b541207e25cc28fa9ec449407391b5169984ed6405c",
       "alerts_view": "26e7a640981ff32e8c1753851779660421d60e20174fb7c936f6d35c8fbceef5",
       "arm_or_consume_sleep_timer": "8b9c130d0667cb2f3645e3987bac2db7fbd477d7fc8e3bfefa731d783ae89d50",
-      "checkpoints_view": "7af5e8c16efc6fe82d989703a224fb2478af073eba6cb82a026627f990d24f9b",
-      "claim_jobs": "2e58c34cf7969dda3a2b4f7de27cb8a051dc68353436fff42bf3cda77c268c73",
-      "complete_executions": "3314b14f27d71edf9868b93e607130ea15253077ecacfa0697974849e594486e",
+      "checkpoints_view": "04bf5cf7b9ec4f97d8a2596b0c69214945cb2f23d2c7756bd61ba736bd4b2f81",
+      "claim_jobs": "3e8bda13288548bae2c6badf685a13bc60e80a1f03ee92fe57bf35496453db75",
+      "complete_executions": "0bd24594cd41d553117b59731a088b2ec6dce37196df62da296093d9bb4c1e36",
       "complete_step": "800c0ed9bea2eeb4b25cd4c6a0c1aa4523fe012837882923cba98f4cd62d31b3",
       "definitions_view": "c7dfbfbc64b7d3df4a69954dec56572a73d9ed8eda8479021bd5f38151aeb051",
-      "enqueue_job": "46d35e19b3d3055bf491bb730e75e4fbe555b7f8f3bd6f42ce38090d6a31d939",
-      "enqueue_jobs": "56720ef8e2f86182229ee2afd5fa4f7ec1af4ce04839685642e4ccf5ff8de75d",
-      "events_view": "912fda805972c9965b1c3f52a9fcf9bd5208fd3f19a75bd87a6ef355bb19bedf",
+      "enqueue_job": "b12d73be34fb10644f872b60106960980ca0b696253fd46d692d3a9345688b83",
+      "enqueue_jobs": "63c3bb5e1acdea138095b9e2e97c96993e95f43420a896c47058318a6f10d7c8",
+      "events_view": "c064afa98f548450128a6cd935e0f8574e977df773af9468c51b22cb36d1fc30",
       "extend_worker_leases": "b4b1024b01ac8e8a68a1d768364d2602371e1ba7acd647a0b27be5d4bf65aa1b",
-      "jobs_view": "b2f901242794d637ddec420b5f25cd258d8096f881dd877a855e833388886aa6",
-      "purge_expired_data": "0e9ab374779fdf15252722f99f00861e944d4977b26d2d59b53e8fcde8ba2153",
+      "jobs_view": "fa9264ceff2d499cd7bbf7a5c7df83fe6c82e3a2324f3ca26d67666f96e53c54",
+      "purge_expired_data": "1b47159dcbf87566a0c8cf99f4dfccc601d67a13291daa3786a4326526e922f9",
       "raise_signal": "e82c59366c775e103da0b3ade0a97d1b28d99666663e33a6e194f0113b379ea5",
-      "reclaim_stuck_jobs": "82a345164e916cd9eee4dee9d922beb3a2b3ec99e0f42eba4d9b895ad20158e4",
+      "reclaim_stuck_jobs": "db1085b06e0cd13cc1c51b7a58538815053b9a5083e7722a24b0bb52f81b95a1",
       "reserve_rate": "147eb58a9780d3a3a0f0660d4d0301c93a2a310dfbff598c2996b88d71eb6543",
-      "schedules_view": "575a1dc9330032fa95ee025fb1be0f9d4d64a636a37e7bda827dfc6a34dfdca3",
+      "schedules_view": "f7090e85be2d8c42ac1625c553327c252da8f9b59cbc488df65ac60bc924486d",
       "start_step": "c2ad8dcfd427bd4a09989fa1f94ae0829dfd81e718cb81be2ab8ef405782e769",
       "steps_view": "ff485996bd4e3e1de5c8be8c58544a32263f5fa8588e9f56d87c554f0156a1f0",
       "tags_view": "d1689cfc259ad186f478f3d0f571dd60545935dfe6e3c2d9666faeb114697aad",
@@ -1375,11 +1408,11 @@
     },
     "sqlite": {
       "alerts_view": "961e5904924b6cf4f3166b9f161a69804cd730640495f70ce18d30dc11a05f57",
-      "checkpoints_view": "55005cef1e4a543a8df671c4d73011a94b25ca25daab0bba5f6c2e046d07e2e4",
+      "checkpoints_view": "8cd534b8cf3ba9119c04163e75e7ab5e96d01c02625cdfc6aff3071cb6b0afbb",
       "definitions_view": "aa9a9e542bdcf051ebea5b3e3321795152978b490766988d963351611e56aa20",
-      "events_view": "633da385e0ef6c98b1a26a7f3c6629400d4e27b4ba686a96936e653ae9964570",
-      "jobs_view": "55dfe65fad5fc20c89e7b9da70b9abe58625401243a0d0e1d29c824b2b78e90b",
-      "schedules_view": "7ceeb63315813014ec705aa184e744b2b1e89433b27e1b662488a4e45ee8b460",
+      "events_view": "d337e73e0a0ae42c9ab8fbe463262b3a6bb7a69fad2c2a488ca9ab422c06c617",
+      "jobs_view": "d192672248828116001427cbad643c9d4fa3ae997627b1a023acc7ea1b6010e0",
+      "schedules_view": "4fb3b2e339ff330ea897767e01b8efddaeddef450ef646343d62dd96e2d67f9f",
       "steps_view": "4276417e2eb111528319489e02bd83f5c4be85095dc34cbfdf9db075a7fda1a0",
       "tags_view": "692b58d065d9d6be0a156fccdfeea7595cae9d4d5b0aefcc75aece5fecfbd135",
       "workers_view": "a41ac7a6db86ea1e51f6b1fb88c483e92f94ebe8209ee82df48db2019b20b06d"
