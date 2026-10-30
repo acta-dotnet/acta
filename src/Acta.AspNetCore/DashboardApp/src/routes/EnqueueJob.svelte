@@ -4,6 +4,8 @@
   import { capabilitiesQuery, canControl, keys } from '../query.ts';
   import { hashParams } from '../router.ts';
   import { cloneInputState, enqueueInputFields, inputContractLabel, templateSeed } from './enqueueTemplate.ts';
+  import { checkKey, keyHint } from './enqueueKeys.ts';
+  import { readAllPages } from '../lib/pagedWalk.ts';
   import { isSysNamespace } from './namespaceAdmin.ts';
   import { scope } from '../scope.ts';
   import { routes } from '../routes.ts';
@@ -40,15 +42,7 @@
   const namespacesQuery = createQuery(() => ({
     queryKey: keys.list('enqueue-namespaces', {}),
     queryFn: async ({ signal }: { signal: AbortSignal }) => {
-      const all: NamespaceListItem[] = [];
-      let cursor: string | undefined;
-      // Bounded walk: the catalog is small, but a misbehaving cursor must never spin forever.
-      for (let guard = 0; guard < 100; guard++) {
-        const page = await api<Paged<NamespaceListItem>>('namespaces', { pageSize: 100, cursor }, { signal });
-        all.push(...page.items);
-        if (!page.hasMore || !page.nextCursor) break;
-        cursor = page.nextCursor;
-      }
+      const all = await readAllPages((cursor) => api<Paged<NamespaceListItem>>('namespaces', { pageSize: 100, cursor }, { signal }));
       return all.filter((item) => !isSysNamespace(item.jobNamespace)).map((item) => item.jobNamespace);
     },
     enabled: canControlNow,
@@ -56,22 +50,27 @@
   }));
   let namespaceNames = $derived(namespacesQuery.data ?? []);
 
-  // Retired definitions reject enqueue, so the picker offers active ones only.
+  // Retired definitions reject enqueue, so the picker offers active ones only. The server pages at 100, so the
+  // whole catalog is a cursor walk; the key carries the namespace, so a late answer for another one lands in
+  // its own cache entry and never replaces this one's options.
   const definitionsQuery = createQuery(() => {
     const jobNamespace = namespace.trim();
     return {
       queryKey: keys.list('enqueue-definitions', { jobNamespace }),
-      queryFn: ({ signal }: { signal: AbortSignal }) =>
-        api<Paged<{ jobName: string }>>(
-          'definitions',
-          { jobNamespace, status: 'active', pageSize: 200 },
-          { signal }
-        ),
+      queryFn: async ({ signal }: { signal: AbortSignal }) => {
+        const all = await readAllPages((cursor) =>
+          api<Paged<{ jobName: string }>>('definitions', { jobNamespace, status: 'active', pageSize: 100, cursor }, { signal })
+        );
+        return all.map((item) => item.jobName);
+      },
       enabled: canControlNow && jobNamespace.length > 0,
       staleTime: 60_000
     };
   });
-  let definitionNames = $derived(definitionsQuery.data?.items.map((item) => item.jobName) ?? []);
+  let definitionNames = $derived(definitionsQuery.data ?? []);
+  let definitionsError = $derived(
+    definitionsQuery.error instanceof Error ? definitionsQuery.error.message : definitionsQuery.error ? String(definitionsQuery.error) : ''
+  );
 
   // Both catalogs are long and data-driven, so they get the filtering Dropdown rather than a native
   // select. A value carried in from the URL stays selectable while its catalog loads, which is why
@@ -153,7 +152,17 @@
     inputJson = value;
   }
 
-  let canSubmit = $derived(canControlNow && !busy && namespace.trim().length > 0 && jobName.trim().length > 0);
+  // The keys are checked as typed, in the server's words; the field keeps the raw text so a bad paste can be fixed, not retyped.
+  let dedupCheck = $derived(checkKey(deduplicationKey, 'deduplication'));
+  let correlationCheck = $derived(checkKey(correlationKey, 'correlation'));
+  let canSubmit = $derived(
+    canControlNow &&
+      !busy &&
+      namespace.trim().length > 0 &&
+      jobName.trim().length > 0 &&
+      dedupCheck.error === null &&
+      correlationCheck.error === null
+  );
 
   async function submit(): Promise<void> {
     if (!canSubmit) return;
@@ -172,8 +181,8 @@
         jobNamespace: namespace,
         jobName,
         ...inputFields.fields,
-        deduplicationKey: deduplicationKey || null,
-        correlationKey: correlationKey || null,
+        deduplicationKey: dedupCheck.value,
+        correlationKey: correlationCheck.value,
         tenantName: tenantName || null,
         priority: priority || null,
         delaySeconds: delaySeconds ?? null
@@ -223,7 +232,11 @@
                 options={jobNameOptions}
                 bind:value={jobName}
                 disabled={busy || namespace.trim().length === 0} />
-              {#if inputContract}<span class="field-hint">{inputContract}</span>{/if}
+              {#if definitionsError}
+                <span class="field-error" role="alert">The job catalog did not load: {definitionsError}</span>
+              {:else if inputContract}
+                <span class="field-hint">{inputContract}</span>
+              {/if}
             </div>
 
             <label class="detail-field checkbox">
@@ -236,11 +249,29 @@
 
             <label class="detail-field">
               <span>Deduplication key</span>
-              <input bind:value={deduplicationKey} maxlength="256" placeholder="Optional; a matching key returns the existing job" disabled={busy} />
+              <input
+                bind:value={deduplicationKey}
+                placeholder="Optional; a matching key returns the existing job"
+                disabled={busy}
+                aria-invalid={dedupCheck.error !== null} />
+              {#if dedupCheck.error}
+                <span class="field-error" role="alert">{dedupCheck.error}</span>
+              {:else}
+                <span class="field-hint">{keyHint('deduplication')} Never starts with sys.</span>
+              {/if}
             </label>
             <label class="detail-field">
               <span>Correlation key</span>
-              <input bind:value={correlationKey} maxlength="256" placeholder="Optional trace / request / order id" disabled={busy} />
+              <input
+                bind:value={correlationKey}
+                placeholder="Optional trace / request / order id"
+                disabled={busy}
+                aria-invalid={correlationCheck.error !== null} />
+              {#if correlationCheck.error}
+                <span class="field-error" role="alert">{correlationCheck.error}</span>
+              {:else}
+                <span class="field-hint">{keyHint('correlation')}</span>
+              {/if}
             </label>
             <label class="detail-field">
               <span>Tenant name</span>
@@ -285,4 +316,6 @@
   .detail-field.checkbox input { justify-self: start; }
   .enqueue-input { margin-top: 12px; }
   .field-hint { color: var(--muted); font-size: var(--text-xs); font-weight: 400; }
+  .field-error { color: var(--bad); font-size: var(--text-xs); font-weight: 400; }
+  .detail-field input[aria-invalid='true'] { border-color: var(--bad); }
 </style>

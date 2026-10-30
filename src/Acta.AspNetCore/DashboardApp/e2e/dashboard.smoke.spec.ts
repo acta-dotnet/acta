@@ -90,7 +90,10 @@ const officeHoursPreview = (version: number) => ({
   schedules: [{ jobNamespace: 'billing', jobName: 'send-invoice', scheduleName: 'nightly', binding: 'availability', status: 'active', pinnedVersion: 2, overdue: false }]
 });
 
-async function mockDashboard(page: Page, options: { controls: boolean; onRestart?: () => void; onPublish?: (body: unknown) => void }): Promise<void> {
+async function mockDashboard(
+  page: Page,
+  options: { controls: boolean; catalogPages?: boolean; onRestart?: () => void; onPublish?: (body: unknown) => void }
+): Promise<void> {
   await page.route('**/api/v1/**', async (route: Route) => {
     const request = route.request();
     const url = new URL(request.url());
@@ -126,9 +129,9 @@ async function mockDashboard(page: Page, options: { controls: boolean; onRestart
     if (path === 'workers') return json(paged([]));
     if (path === 'schedules') return json(paged([]));
     if (path === 'definitions') {
-      return json(paged([{
+      const definition = (jobName: string) => ({
         jobNamespace: 'billing',
-        jobName: 'send-invoice',
+        jobName,
         status: 'active',
         inputTypeName: 'SendInvoice',
         outputTypeName: null,
@@ -137,7 +140,17 @@ async function mockDashboard(page: Page, options: { controls: boolean; onRestart
         maxAttemptsEffective: 3,
         maxAttemptsOverride: null,
         modifiedAtUtc: timestamp
-      }]));
+      });
+      // The enqueue picker walks the catalog in pages of 100; the job on page three proves the walk.
+      if (options.catalogPages) {
+        const all = ['send-invoice', ...Array.from({ length: 204 }, (_, i) => `report-${String(i + 1).padStart(3, '0')}`)];
+        const cursor = url.searchParams.get('cursor');
+        const start = cursor === 'page-2' ? 100 : cursor === 'page-3' ? 200 : 0;
+        const items = all.slice(start, start + 100).map(definition);
+        const next = start + 100 < all.length ? (start === 0 ? 'page-2' : 'page-3') : null;
+        return json({ items, nextCursor: next, hasMore: next !== null, pageSize: 100, totalCount: all.length });
+      }
+      return json(paged([definition('send-invoice')]));
     }
     if (path === 'tenants') return json(paged([]));
     if (path === 'calendars') {
@@ -316,6 +329,18 @@ test('publishing a draft calendar sends one publish request carrying the candida
   expect(publishes).toEqual([
     { expectedCurrentVersion: 2, candidateVersion: 3, overdueDecision: 'refuse', reasonMessage: 'Saturday mornings open from July.' }
   ]);
+});
+
+test('the enqueue picker walks every catalog page and offers a job from page three', async ({ page }) => {
+  await mockDashboard(page, { controls: true, catalogPages: true });
+  await page.goto('/#/enqueue?ns=billing');
+
+  await page.getByRole('button', { name: 'Job name' }).click();
+  await page.getByRole('textbox', { name: 'Job name filter' }).fill('report-204');
+  const option = page.getByRole('option', { name: 'report-204' });
+  await expect(option).toBeVisible();
+  await option.click();
+  await expect(page.getByRole('button', { name: 'Job name' })).toContainText('report-204');
 });
 
 test('read-only deployment hides controls and rejects a direct request', async ({ page }) => {
