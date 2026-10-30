@@ -171,8 +171,8 @@
       <div class="hero-grid">
         <div>
           <p class="tagline">Durable background jobs for <em>.NET</em>.</p>
-          <p class="subhead">Workers come and go. The work keeps moving.</p>
-          <p class="lede">Every job is a row in the Postgres, SQL Server, or SQLite you already run. When a worker dies mid-job, the next one continues from the committed state.</p>
+          <p class="subhead">Everything is a job, and every job is a row.</p>
+          <p class="lede">Tasks, recurring syncs, parents with children, and long waits run through one engine, on the Postgres, SQL Server, or SQLite you already run. When a worker dies mid-job, the next one continues from the committed state.</p>
           <div class="actions">
             <a class="button primary" href="/start">Get started</a>
             <a class="button" href="/how-it-works">How Acta works</a>
@@ -181,7 +181,7 @@
         <nav class="toc" aria-label="What you get">
           <p class="toc-head">What you get</p>
           <a href="/how-it-works#crash"><span><span class="t">Retries and crash recovery</span><span class="s">A dead worker's jobs go to another worker, and retries follow a backoff you declare.</span></span></a>
-          <a href="/how-it-works#steps"><span><span class="t">Steps, sleeps, and signals</span><span class="s">Wait hours or days without holding a thread, and a recorded step never runs twice.</span></span></a>
+          <a href="/how-it-works#steps"><span><span class="t">Steps, sleeps, and signals</span><span class="s">Wait hours or days without holding a thread; a finished step returns its recorded result instead of running again.</span></span></a>
           <a href="/how-it-works#permanent"><span><span class="t">Recurring jobs on a schedule</span><span class="s">A cron or an interval fires one permanent job again and again; it keeps its state between firings.</span></span></a>
           <a href="/gates"><span><span class="t">Order, concurrency, and rate limits</span><span class="s">Lanes keep one customer's jobs in order, keys and limits bound how many run, rates pace how often.</span></span></a>
           <a href="/fleet"><span><span class="t">Many workers, no coordinator</span><span class="s">Add a worker and it starts claiming; stop one and its work goes to the others.</span></span></a>
@@ -194,7 +194,7 @@
       <h2>A job that runs every five seconds, remembers how far it got, and survives losing its worker.</h2>
       <p class="lede">One job keeps a local copy of a web shop's orders current: each firing reads where the last one stopped, applies the next batch, and writes the new position back.</p>
       <div class="panel solo flagship-code">
-        <div class="panel-tab">C# · the whole handler</div>
+        <div class="panel-tab">C# · the handler, simplified from the lab</div>
         <pre><code><span class="a">[Job(<span class="s">"sync-orders"</span>)]</span>
 <span class="a">[Schedule(<span class="s">"every-5s"</span>, <span class="s">"PT5S"</span>)]</span>
 <span class="k">public async</span> Task Sync(JobContext ctx, CancellationToken ct)

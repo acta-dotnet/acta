@@ -19,9 +19,9 @@ public sealed class ContinuousSynchronizationTests : IAsyncLifetime
 
     private readonly string _schema = "acta_test_" + Guid.NewGuid().ToString("N")[..12];
     private readonly TestCrashSignal _crash = new();
-    private readonly ErpOutage _outage = new();
+    private readonly ShopOutage _outage = new();
     private IActaTestHost _host = null!;
-    private ErpFeed _erp = null!;
+    private ShopFeed _shop = null!;
     private OrderStore _store = null!;
     private string _connectionString = null!;
     private long _slotId;
@@ -32,7 +32,7 @@ public sealed class ContinuousSynchronizationTests : IAsyncLifetime
     {
         // The feed and the orders live in the same file as Acta's tables, as they do in the lab.
         _connectionString = $"Data Source={_schema}.db";
-        _erp = new ErpFeed(_connectionString, _outage);
+        _shop = new ShopFeed(_connectionString, _outage);
         _store = new OrderStore(_connectionString);
         _host = await ActaTestHost.StartAsync(
             (j, schema) =>
@@ -49,7 +49,7 @@ public sealed class ContinuousSynchronizationTests : IAsyncLifetime
                 Schema = _schema,
                 ConfigureServices = services =>
                 {
-                    services.AddSingleton(_erp);
+                    services.AddSingleton(_shop);
                     services.AddSingleton(_store);
                     services.AddSingleton<CrashSignal>(_crash);
                     // Only the lab's schedule is in the namespace, so an admission pass admits that one or nothing.
@@ -58,7 +58,7 @@ public sealed class ContinuousSynchronizationTests : IAsyncLifetime
             },
             Ct
         );
-        await _erp.EnsureCreatedAsync(Ct);
+        await _shop.EnsureCreatedAsync(Ct);
         await _store.EnsureCreatedAsync(Ct);
         var listed = await _host.Operations.Schedules.ListAsync(
             new ListSchedulesQuery(JobNamespace: Namespace, JobName: "sync-orders"),
@@ -77,7 +77,7 @@ public sealed class ContinuousSynchronizationTests : IAsyncLifetime
     [Fact]
     public async Task A_firing_syncs_one_bounded_batch_and_moves_the_watermark_to_its_last_change()
     {
-        await _erp.AppendAsync(50, Ct);
+        await _shop.AppendAsync(50, Ct);
 
         Assert.Equal(ActaRunStatus.Completed, await FireAsync());
         Assert.Equal(40, await WatermarkAsync()); // one batch of forty, then the firing returns
@@ -91,7 +91,7 @@ public sealed class ContinuousSynchronizationTests : IAsyncLifetime
     [Fact]
     public async Task The_watermark_is_a_variable_on_the_job_and_outlives_the_firing_that_wrote_it()
     {
-        await _erp.AppendAsync(20, Ct);
+        await _shop.AppendAsync(20, Ct);
         Assert.Equal(ActaRunStatus.Completed, await FireAsync());
 
         // Idle, no attempt running, and the watermark is still there: a row of the job's, not of the attempt's.
@@ -105,7 +105,7 @@ public sealed class ContinuousSynchronizationTests : IAsyncLifetime
     [Fact]
     public async Task Repeated_firings_use_one_permanent_job_identity()
     {
-        await _erp.AppendAsync(100, Ct);
+        await _shop.AppendAsync(100, Ct);
         var before = (await JobAsync()).JobRef;
         var firings = new List<Guid>();
 
@@ -134,7 +134,7 @@ public sealed class ContinuousSynchronizationTests : IAsyncLifetime
         Assert.Equal(0, await WatermarkAsync());
 
         // A manual trigger syncs the backlog and moves the watermark; the cursor stays where the firing left it.
-        await _erp.AppendAsync(10, Ct);
+        await _shop.AppendAsync(10, Ct);
         Assert.Equal(ControlAction.Applied, (await _host.Operations.Schedules.TriggerNowAsync(Schedule, ct: Ct)).Action);
         Assert.Equal(ActaRunStatus.Completed, await _host.RunOnceAsync(_slotId, Ct));
         Assert.Equal(10, await WatermarkAsync());
@@ -144,7 +144,7 @@ public sealed class ContinuousSynchronizationTests : IAsyncLifetime
     [Fact]
     public async Task A_lost_attempt_is_reclaimed_and_the_next_execution_continues_at_the_watermark()
     {
-        await _erp.AppendAsync(60, Ct);
+        await _shop.AppendAsync(60, Ct);
         _crash.CrashAfter = 40;
 
         // The attempt applies its batch, writes the watermark, and then stalls at the crash point, holding its lease.
@@ -182,7 +182,7 @@ public sealed class ContinuousSynchronizationTests : IAsyncLifetime
     [Fact]
     public async Task A_failed_attempt_keeps_the_watermark_it_wrote_for_the_retry()
     {
-        await _erp.AppendAsync(60, Ct);
+        await _shop.AppendAsync(60, Ct);
         _crash.CrashAfter = 40;
         _crash.Release.TrySetResult(); // the crash point throws at once: the attempt fails with budget left
 
@@ -202,11 +202,11 @@ public sealed class ContinuousSynchronizationTests : IAsyncLifetime
     [Fact]
     public async Task A_replayed_batch_changes_nothing()
     {
-        await _erp.AppendAsync(20, Ct);
+        await _shop.AppendAsync(20, Ct);
         Assert.Equal(ActaRunStatus.Completed, await FireAsync());
         var synced = await _store.SummaryAsync(Ct);
 
-        await _store.ApplyAsync(await _erp.ChangesAfterAsync(0, 20, Ct), Ct);
+        await _store.ApplyAsync(await _shop.ChangesAfterAsync(0, 20, Ct), Ct);
 
         Assert.Equal(synced, await _store.SummaryAsync(Ct));
     }
@@ -214,8 +214,8 @@ public sealed class ContinuousSynchronizationTests : IAsyncLifetime
     [Fact]
     public async Task A_batch_that_fails_mid_apply_advances_nothing()
     {
-        await _erp.AppendAsync(5, Ct);
-        await _erp.AppendAsync([new OrderChange(0, "ORD-1005", "paid", -1)], Ct);
+        await _shop.AppendAsync(5, Ct);
+        await _shop.AppendAsync([new OrderChange(0, "ORD-1005", "paid", -1)], Ct);
 
         Assert.Equal(ActaRunStatus.Rearmed, await FireAsync()); // the attempt failed with budget left
         Assert.Equal(0, await WatermarkAsync());
@@ -225,7 +225,7 @@ public sealed class ContinuousSynchronizationTests : IAsyncLifetime
     [Fact]
     public async Task Changes_that_accumulated_while_nothing_fired_are_drained_by_the_following_firings()
     {
-        await _erp.AppendAsync(100, Ct);
+        await _shop.AppendAsync(100, Ct);
 
         Assert.Equal(ActaRunStatus.Completed, await FireAsync());
         Assert.Equal(40, await WatermarkAsync());

@@ -2,26 +2,26 @@ using Microsoft.Data.Sqlite;
 
 namespace Acta.Concepts.ContinuousSynchronization;
 
-/// <summary>One change the ERP published: the order it concerns and the state the order reached.</summary>
+/// <summary>One change the shop published: the order it concerns and the state the order reached.</summary>
 public sealed record OrderChange(long ChangeId, string OrderId, string Status, long AmountCents);
 
 /// <summary>Thrown by the feed while an outage is switched on; the attempt fails and Acta retries it under the job's budget.</summary>
-public sealed class ErpUnavailableException() : Exception("The ERP change feed is unavailable; try again later.");
+public sealed class ShopUnavailableException() : Exception("The shop change feed is unavailable; try again later.");
 
 /// <summary>A switch the lab flips to make the feed unavailable, so a transient failure and its retry can be watched.</summary>
-public sealed class ErpOutage
+public sealed class ShopOutage
 {
     public Func<bool> IsActive { get; set; } = () => false;
 }
 
 /// <summary>
-/// The mock external system: an ERP that publishes order changes as an append-only feed. Its change-tracking contract,
+/// The mock external system: a web shop that publishes order changes as an append-only feed. Its change-tracking contract,
 /// the one the handler's watermark relies on, is that every change gets a change id greater than every earlier one,
 /// changes are served in that order, and no change is ever deleted, so a reader that remembers the last id it
 /// processed can always ask for what came after it. The feed lives in the lab's own SQLite file beside Acta's tables,
 /// as a stand-in for a remote API; the handler reads it through this class and never through Acta.
 /// </summary>
-public sealed class ErpFeed(string connectionString, ErpOutage outage)
+public sealed class ShopFeed(string connectionString, ShopOutage outage)
 {
     private const int OrderCount = 40;
     private static readonly string[] Statuses = ["created", "paid", "shipped"];
@@ -32,7 +32,7 @@ public sealed class ErpFeed(string connectionString, ErpOutage outage)
         await connection.OpenAsync(ct);
         await using var command = connection.CreateCommand();
         command.CommandText = """
-            CREATE TABLE IF NOT EXISTS erp_changes (
+            CREATE TABLE IF NOT EXISTS shop_changes (
                 change_id INTEGER PRIMARY KEY AUTOINCREMENT,
                 order_id TEXT NOT NULL,
                 status TEXT NOT NULL,
@@ -47,14 +47,14 @@ public sealed class ErpFeed(string connectionString, ErpOutage outage)
     {
         if (outage.IsActive())
         {
-            throw new ErpUnavailableException();
+            throw new ShopUnavailableException();
         }
 
         await using var connection = new SqliteConnection(connectionString);
         await connection.OpenAsync(ct);
         await using var command = connection.CreateCommand();
         command.CommandText =
-            "SELECT change_id, order_id, status, amount_cents FROM erp_changes WHERE change_id > @since ORDER BY change_id LIMIT @take";
+            "SELECT change_id, order_id, status, amount_cents FROM shop_changes WHERE change_id > @since ORDER BY change_id LIMIT @take";
         command.Parameters.AddWithValue("@since", sinceChangeId);
         command.Parameters.AddWithValue("@take", take);
         var changes = new List<OrderChange>(take);
@@ -73,7 +73,7 @@ public sealed class ErpFeed(string connectionString, ErpOutage outage)
         await using var connection = new SqliteConnection(connectionString);
         await connection.OpenAsync(ct);
         await using var command = connection.CreateCommand();
-        command.CommandText = "SELECT COALESCE(MAX(change_id), 0) FROM erp_changes";
+        command.CommandText = "SELECT COALESCE(MAX(change_id), 0) FROM shop_changes";
         return (long)(await command.ExecuteScalarAsync(ct))!;
     }
 
@@ -106,7 +106,7 @@ public sealed class ErpFeed(string connectionString, ErpOutage outage)
         {
             await using var insert = connection.CreateCommand();
             insert.Transaction = (SqliteTransaction)transaction;
-            insert.CommandText = "INSERT INTO erp_changes (order_id, status, amount_cents) VALUES (@order, @status, @amount)";
+            insert.CommandText = "INSERT INTO shop_changes (order_id, status, amount_cents) VALUES (@order, @status, @amount)";
             insert.Parameters.AddWithValue("@order", change.OrderId);
             insert.Parameters.AddWithValue("@status", change.Status);
             insert.Parameters.AddWithValue("@amount", change.AmountCents);

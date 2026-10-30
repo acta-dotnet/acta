@@ -44,13 +44,13 @@ if (mode == "outage")
     if (File.Exists(outageMarker))
     {
         File.Delete(outageMarker);
-        Console.WriteLine("The ERP feed is reachable again; the next retry succeeds.");
+        Console.WriteLine("The shop feed is reachable again; the next retry succeeds.");
     }
     else
     {
         File.WriteAllText(outageMarker, DateTime.UtcNow.ToString("O"));
         Console.WriteLine(
-            "The ERP feed is down: the next firing fails and retries under the job's budget. Run outage again to restore it."
+            "The shop feed is down: the next firing fails and retries under the job's budget. Run outage again to restore it."
         );
     }
     return;
@@ -62,7 +62,7 @@ var builder = Host.CreateApplicationBuilder(hostArgs);
 var provider = builder.Configuration["Acta:Provider"] ?? Environment.GetEnvironmentVariable("ACTA_LOCAL_PROVIDER") ?? "sqlite";
 if (!LocalDatabase.IsSqlite(provider))
 {
-    Console.WriteLine("This lab runs on embedded SQLite: its ERP feed and local orders live in the same file as Acta's tables.");
+    Console.WriteLine("This lab runs on embedded SQLite: its shop feed and local orders live in the same file as Acta's tables.");
     Console.WriteLine("Unset ACTA_LOCAL_PROVIDER (or set it to sqlite) and run again.");
     return;
 }
@@ -70,14 +70,14 @@ if (!LocalDatabase.IsSqlite(provider))
 // One file of its own, so reset can start the story from nothing without touching another rung's database.
 builder.Configuration["ConnectionStrings:acta"] ??= $"Data Source={labDatabase}";
 var connectionString = LocalDatabase.ResolveConnectionString(builder.Configuration, provider);
-var outage = new ErpOutage { IsActive = () => File.Exists(outageMarker) };
-var erp = new ErpFeed(connectionString, outage);
+var outage = new ShopOutage { IsActive = () => File.Exists(outageMarker) };
+var shop = new ShopFeed(connectionString, outage);
 var store = new OrderStore(connectionString);
-await erp.EnsureCreatedAsync(default);
+await shop.EnsureCreatedAsync(default);
 await store.EnsureCreatedAsync(default);
 
 var lab = new ConceptLab(builder.Configuration, args);
-builder.Services.AddSingleton(erp);
+builder.Services.AddSingleton(shop);
 builder.Services.AddSingleton(store);
 builder.Services.AddSingleton<CrashSignal>(new ProcessCrashSignal(crashMarker));
 builder.Services.UseActa(j =>
@@ -104,23 +104,23 @@ var schedules = host.Services.GetRequiredService<IActaOperations>().Schedules;
 if (mode == "more")
 {
     var count = args.Select(a => int.TryParse(a, out var n) ? n : 0).FirstOrDefault(n => n > 0);
-    var head = await erp.AppendAsync(count == 0 ? 60 : count, default);
-    Console.WriteLine($"The ERP published more changes; the feed now ends at change {head}.");
+    var head = await shop.AppendAsync(count == 0 ? 60 : count, default);
+    Console.WriteLine($"The shop published more changes; the feed now ends at change {head}.");
     await host.StopAsync();
     return;
 }
 
 if (mode == "inspect")
 {
-    await ShowStateAsync(lab, jobs, schedules, store, erp);
+    await ShowStateAsync(lab, jobs, schedules, store, shop);
     await host.StopAsync();
     return;
 }
 
-if (await erp.HeadAsync(default) == 0)
+if (await shop.HeadAsync(default) == 0)
 {
-    var seeded = await erp.AppendAsync(120, default);
-    Console.WriteLine($"Seeded the ERP feed with {seeded} order changes; the local orders hold none yet.");
+    var seeded = await shop.AppendAsync(120, default);
+    Console.WriteLine($"Seeded the shop feed with {seeded} order changes; the local orders hold none yet.");
 }
 
 if (mode == "worker")
@@ -140,7 +140,7 @@ while ((await jobs.GetAsync(JobLookup.ById(slotId), tourTimeout.Token))?.Executi
     await Task.Delay(250, tourTimeout.Token);
 }
 
-await ShowStateAsync(lab, jobs, schedules, store, erp);
+await ShowStateAsync(lab, jobs, schedules, store, shop);
 await host.StopAsync();
 
 static async Task<long> SlotIdAsync(IJobs jobs, ISchedules schedules)
@@ -151,7 +151,7 @@ static async Task<long> SlotIdAsync(IJobs jobs, ISchedules schedules)
     return (await jobs.GetJobIdAsync(JobLookup.ByRef(schedule.JobRef!.Value)))!.JobId;
 }
 
-static async Task ShowStateAsync(ConceptLab lab, IJobs jobs, ISchedules schedules, OrderStore store, ErpFeed erp)
+static async Task ShowStateAsync(ConceptLab lab, IJobs jobs, ISchedules schedules, OrderStore store, ShopFeed shop)
 {
     var slotId = await SlotIdAsync(jobs, schedules);
     await lab.ShowAllAsync(
@@ -226,7 +226,7 @@ static async Task ShowStateAsync(ConceptLab lab, IJobs jobs, ISchedules schedule
     var (orders, lastChangeId) = await store.SummaryAsync(default);
     Console.WriteLine();
     Console.WriteLine("--- The destination against the feed ---");
-    Console.WriteLine($"feed head: change {await erp.HeadAsync(default)}; local orders: {orders} (newest change {lastChangeId})");
+    Console.WriteLine($"feed head: change {await shop.HeadAsync(default)}; local orders: {orders} (newest change {lastChangeId})");
 }
 
 static void PrintCommands()
@@ -234,9 +234,9 @@ static void PrintCommands()
     Console.WriteLine("dotnet run --project concepts/100-scheduling/109-continuous-synchronization -- <mode>");
     Console.WriteLine("  tour     seed the feed, watch three firings, print the rows, exit (the default)");
     Console.WriteLine("  worker   run the worker until Ctrl+C, or until an armed crash");
-    Console.WriteLine("  more [n] publish n more ERP changes (default 60)");
+    Console.WriteLine("  more [n] publish n more shop changes (default 60)");
     Console.WriteLine("  crash    arm a process crash after the next committed batch");
-    Console.WriteLine("  outage   switch the ERP feed off, or back on");
+    Console.WriteLine("  outage   switch the shop feed off, or back on");
     Console.WriteLine("  inspect  print the slot, the cursor, the envelope, the watermark, and the ledger");
     Console.WriteLine("  reset    delete the lab's database and markers");
 }

@@ -883,7 +883,7 @@ once registered: a changed mode fails the worker's start, so a new mode takes a 
 ```csharp
 [Job("sync-orders")]                                                              // Permanent: one slot, fired again and again
 [Schedule("every-5s", "PT5S")]
-public Task Sync(SyncOrders input, JobContext ctx, CancellationToken ct) => ...;
+public Task Sync(JobContext ctx, CancellationToken ct) => ...;
 
 [Job("import-files", ScheduledDelivery = ScheduledDeliveryCode.PerOccurrence)]    // a fresh root per occurrence
 [Schedule("hourly", "PT1H", MaxOutstanding = 1)]

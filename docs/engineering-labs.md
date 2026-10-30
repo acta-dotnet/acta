@@ -21,7 +21,7 @@ Seven labs, in order, that cover the model end to end:
 3. [`204-wait-signal`](../concepts/200-durable-execution/204-wait-signal/): a job suspends on a
    named signal without holding a worker, then resumes when the signal arrives.
 4. [`109-continuous-synchronization`](../concepts/100-scheduling/109-continuous-synchronization/):
-   one permanent job keeps an ERP's orders synchronized from a watermark it holds as a durable
+   one permanent job keeps a web shop's orders synchronized from a watermark it holds as a durable
    variable; kill the worker after a batch and watch the restarted one reclaim the same firing and
    continue at the watermark.
 5. [`705-worker-crash-recovery`](../concepts/700-topology-and-deployment/705-worker-crash-recovery/):
@@ -126,7 +126,7 @@ curated-view rows.
 | 105 | [schedule-control](../concepts/100-scheduling/105-schedule-control/) | Pause (indefinite + timed) and resume a recurring schedule with `operations.Schedules` |
 | 106 | [schedule-misfire](../concepts/100-scheduling/106-schedule-misfire/) | **Engineering Lab.** Watch `Skip` and `CatchUpOnce` move overdue cursor rows differently |
 | 107 | [calendar-schedule](../concepts/100-scheduling/107-calendar-schedule/) | Schedules bound by name to `[Calendar]` classes: an occurrence calendar as the source, an availability calendar as the filter |
-| 109 | [continuous-synchronization](../concepts/100-scheduling/109-continuous-synchronization/) | **Engineering Lab.** One permanent job keeps an ERP's orders synchronized in bounded batches: `Idle` between firings, the watermark a durable variable on the job, a real worker crash after a batch, and the restarted worker reclaiming the same firing |
+| 109 | [continuous-synchronization](../concepts/100-scheduling/109-continuous-synchronization/) | **Engineering Lab.** One permanent job keeps a web shop's orders synchronized in bounded batches: `Idle` between firings, the watermark a durable variable on the job, a real worker crash after a batch, and the restarted worker reclaiming the same firing |
 | 108 | [calendar-catalog](../concepts/100-scheduling/108-calendar-catalog/) | A calendar published as data through `operations.Calendars`; a publication retimes the bound schedule while the worker runs |
 | 201 | [durable-checkout](../concepts/200-durable-execution/201-durable-checkout/) | **Engineering Lab flagship.** Durable orchestration as inspectable jobs, steps, checkpoints, events, and results |
 | 202 | [durable-step](../concepts/200-durable-execution/202-durable-step/) | **Engineering Lab.** Completed step outcome replays while the job advances to execution two |

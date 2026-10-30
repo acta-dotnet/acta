@@ -1,6 +1,6 @@
 # Acta
 
-**Kill the worker. Keep the work.** Acta is the durable work ledger for .NET: background jobs with named checkpoints, SQL-visible state, and operator control.
+**Everything is a job, and every job is a row.** Acta is the durable work ledger for .NET: background jobs with named checkpoints, SQL-visible state, and operator control.
 
 [![CI](https://github.com/acta-dotnet/acta/actions/workflows/ci.yml/badge.svg?branch=main)](https://github.com/acta-dotnet/acta/actions/workflows/ci.yml)
 [![NuGet](https://img.shields.io/nuget/vpre/Acta.svg?label=nuget)](https://www.nuget.org/packages/Acta)
@@ -88,7 +88,7 @@ your project's `RootNamespace` plus `Jobs` (`Shipping` → `ShippingJobs`), gene
 namespace and registered once. One worker runtime owns one namespace, and the host that enqueues
 also executes, so there is no separate worker process to deploy unless you want one. Swap
 `UseSqlite` for `UsePostgres` or `UseSqlServer` and nothing else changes. No web host? The same
-program runs on `Host.CreateApplicationBuilder` without the dashboard —
+program runs on `Host.CreateApplicationBuilder` without the dashboard;
 [`docs/quickstart.md`](./docs/quickstart.md) says what to change.
 
 Full walkthrough: [`docs/quickstart.md`](./docs/quickstart.md). Deeper docs start at [`docs/README.md`](./docs/README.md).
