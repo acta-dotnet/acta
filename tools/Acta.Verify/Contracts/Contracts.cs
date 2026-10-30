@@ -44,8 +44,6 @@ public sealed record RunPlan(
     int Repetitions,
     int SoakSeconds,
     int ObserverCadenceMs,
-    int ProducerConcurrency,
-    int BufferCapacity,
     int DrainSeconds,
     double ReferenceSloMs,
     JsonElement FullPolicy
@@ -117,22 +115,55 @@ public sealed record RunPlan(
     /// </summary>
     public async Task DrainAsync(Func<Task<long>> remaining, int deadline, CancellationToken ct)
     {
-        ArgumentNullException.ThrowIfNull(remaining);
-        var watch = Stopwatch.StartNew();
-        var lastCompletion = TimeSpan.Zero;
-        var previous = long.MaxValue;
-        while (await remaining() is var left && left > 0)
+        if (!await TryDrainAsync(remaining, _ => deadline, Stopwatch.GetTimestamp(), 25, ct))
         {
+            throw new TimeoutException("Declared recovery bound elapsed.");
+        }
+    }
+
+    /// <summary>
+    /// Waits until <paramref name="remaining"/> reads zero jobs, counting each fall as a completion landing, and returns
+    /// false once the wait, timed from <paramref name="since"/>, is <see cref="DrainOverdue"/> past the deadline the
+    /// first count implies.
+    /// </summary>
+    public async Task<bool> TryDrainAsync(
+        Func<Task<long>> remaining,
+        Func<long, int> deadline,
+        long since,
+        int delayMs,
+        CancellationToken ct
+    )
+    {
+        ArgumentNullException.ThrowIfNull(remaining);
+        ArgumentNullException.ThrowIfNull(deadline);
+        var lastLanding = Stopwatch.GetTimestamp();
+        var previous = long.MaxValue;
+        int? limit = null;
+        while (true)
+        {
+            var left = await remaining();
+            var now = Stopwatch.GetTimestamp();
             if (left < previous)
             {
-                lastCompletion = watch.Elapsed;
+                lastLanding = now;
             }
             previous = left;
-            if (DrainOverdue(watch.Elapsed.TotalSeconds, (watch.Elapsed - lastCompletion).TotalSeconds, deadline))
+            limit ??= deadline(left);
+            if (left == 0)
             {
-                throw new TimeoutException("Declared recovery bound elapsed.");
+                return true;
             }
-            await Task.Delay(25, ct);
+            if (
+                DrainOverdue(
+                    Stopwatch.GetElapsedTime(since, now).TotalSeconds,
+                    Stopwatch.GetElapsedTime(lastLanding, now).TotalSeconds,
+                    limit.Value
+                )
+            )
+            {
+                return false;
+            }
+            await Task.Delay(delayMs, ct);
         }
     }
 
@@ -152,6 +183,9 @@ public sealed record RunPlan(
 
     public IReadOnlyList<string> RequestedDiagnosticCells { get; init; } = [];
     public IReadOnlyDictionary<string, int> PreloadedBacklogRoots { get; init; } = new Dictionary<string, int>();
+
+    /// <summary>The enqueue calls a measured trial keeps in flight at most, per provider.</summary>
+    public IReadOnlyDictionary<string, int> ProducerCalls { get; init; } = new Dictionary<string, int>();
     public int AdmissionBatchSize { get; init; }
     public double GeneratorLagToleranceMs { get; init; }
     public IReadOnlyList<TrialCell> DiagnosticCells { get; init; } = [];

@@ -30,13 +30,10 @@ public sealed class EvidenceTests
     }
 
     [Fact]
-    public void Drain_ends_at_the_first_full_count_and_its_steady_rate_interpolates_the_20_and_80_percent_crossings()
+    public void A_drains_steady_rate_interpolates_the_20_and_80_percent_crossings()
     {
         // A 100-root cohort on a 10-tick clock: idle for a second, then 50 roots a second.
         DrainSample[] samples = [new(0, 0), new(10, 0), new(20, 50), new(30, 100), new(40, 100)];
-        Assert.Equal(30L, DrainCurve.Reached(samples, 100));
-        Assert.Equal(20L, DrainCurve.Reached(samples, 1));
-        Assert.Null(DrainCurve.Reached(samples[..3], 100));
         Assert.Equal(14, DrainCurve.Crossing(samples, 20)!.Value, 9);
         Assert.Equal(26, DrainCurve.Crossing(samples, 80)!.Value, 9);
         Assert.Equal(50, DrainCurve.SteadyRate(samples, 100, 10)!.Value, 9);
@@ -45,21 +42,16 @@ public sealed class EvidenceTests
     }
 
     [Fact]
-    public void Percentile_ranks_pick_the_row_percentile_disc_returns()
+    public void Backlog_counts_each_arrival_from_its_schedule_until_the_completion_curve_reaches_it()
     {
-        Assert.Equal(99_999, DrainCurve.PercentileRank(500_000, 20));
-        Assert.Equal(399_999, DrainCurve.PercentileRank(500_000, 80));
-        Assert.Equal(2, DrainCurve.PercentileRank(12, 20));
-        Assert.Equal(9, DrainCurve.PercentileRank(12, 80));
-    }
-
-    [Fact]
-    public void Backlog_is_rebuilt_from_acknowledgements_and_completion_stamps()
-    {
-        // The last root completed before its acknowledgement returned, so it never counts.
-        (long, long)[] roots = [(0, 10), (5, 15), (8, long.MaxValue), (12, 4)];
-        int[] expected = [1, 2, 2, 1, 1];
-        Assert.Equal(expected, BacklogTrend.Reconstruct(roots, 0, 20, 5).Select(s => s.Backlog).ToArray());
+        // Four arrivals scheduled at 0, 5, 8 and 12; completions reach one at 10 and two at 15, and the rest never land.
+        long[] scheduled = [0, 5, 8, 12];
+        DrainSample[] completed = [new(10, 1), new(15, 2)];
+        int[] expected = [1, 2, 2, 2, 2];
+        Assert.Equal(
+            expected,
+            BacklogTrend.Reconstruct(t => scheduled.Count(s => s <= t), completed, 0, 20, 5).Select(s => s.Backlog).ToArray()
+        );
     }
 
     [Fact]

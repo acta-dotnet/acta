@@ -5,29 +5,31 @@ public readonly record struct BacklogSample(long Timestamp, int Backlog);
 public static class BacklogTrend
 {
     /// <summary>
-    /// The backlog every <paramref name="step"/> ticks from <paramref name="from"/> to <paramref name="to"/>: the roots
-    /// acknowledged and not yet completed at each instant. A root completed before its acknowledgement returned never
-    /// counts, and one never completed stays counted.
+    /// The backlog every <paramref name="step"/> ticks from <paramref name="from"/> to <paramref name="to"/>: the arrivals
+    /// <paramref name="scheduledBy"/> each instant, less the completions the cumulative curve <paramref name="completed"/>
+    /// had reached by it. An arrival counts from its scheduled instant, so a stream that fell behind its schedule stays in
+    /// the backlog, and one that never completed stays counted.
     /// </summary>
-    public static BacklogSample[] Reconstruct(IEnumerable<(long Acknowledged, long Completed)> roots, long from, long to, long step)
+    public static BacklogSample[] Reconstruct(
+        Func<long, long> scheduledBy,
+        IReadOnlyList<DrainSample> completed,
+        long from,
+        long to,
+        long step
+    )
     {
+        ArgumentNullException.ThrowIfNull(scheduledBy);
+        ArgumentNullException.ThrowIfNull(completed);
         ArgumentOutOfRangeException.ThrowIfNegativeOrZero(step);
-        var all = roots.ToArray();
-        var opened = all.Select(r => r.Acknowledged).Order().ToArray();
-        var closed = all.Select(r => Math.Max(r.Acknowledged, r.Completed)).Order().ToArray();
         List<BacklogSample> samples = [];
-        var (open, close) = (0, 0);
+        var (next, done) = (0, 0L);
         for (var t = from; t <= to; t += step)
         {
-            while (open < opened.Length && opened[open] <= t)
+            for (; next < completed.Count && completed[next].Timestamp <= t; next++)
             {
-                open++;
+                done = completed[next].Completed;
             }
-            while (close < closed.Length && closed[close] <= t)
-            {
-                close++;
-            }
-            samples.Add(new(t, open - close));
+            samples.Add(new(t, (int)(scheduledBy(t) - done)));
         }
         return [.. samples];
     }

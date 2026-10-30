@@ -44,8 +44,24 @@ public static class ServerTuning
             ["effective_cache_size"] = Mb(Math.Floor(capMb * Term(plan, "postgres", "effective_cache_size_fraction_of_cap"))),
             ["maintenance_work_mem"] = Mb(Term(plan, "postgres", "maintenance_work_mem_mb")),
             ["max_wal_size"] = Mb(Term(plan, "postgres", "max_wal_size_mb")),
-            ["max_connections"] = Number(Term(plan, "postgres", "max_connections")),
+            ["max_connections"] = Number(MaxConnections(plan)),
         };
+
+    /// <summary>
+    /// The connections an owned PostgreSQL server allows: the most worker processes the plan runs at once, each on the
+    /// drivers default pool of 100, the controllers enqueue pool, and a margin for the observer, the ledger checks and
+    /// the readback. A normal trial opens a fraction of it; the chaos fleet is what needs the headroom.
+    /// </summary>
+    public static int MaxConnections(RunPlan plan)
+    {
+        ArgumentNullException.ThrowIfNull(plan);
+        var cellWorkers = plan
+            .DiagnosticCells.Where(c => plan.IsExtended || plan.RequestedDiagnosticCells.Contains(c.Name))
+            .Select(c => c.Workers)
+            .DefaultIfEmpty(1)
+            .Max();
+        return Math.Max(plan.ChaosWorkers("pg"), cellWorkers) * 100 + OwnedProvider.EnqueuePoolSize(plan.ProducerCalls["pg"]) + 64;
+    }
 
     /// <summary>The server settings an owned SQL Server container is configured with, as its readback names them.</summary>
     public static Dictionary<string, string> SqlServerSettings(RunPlan plan, int capMb, int cpus) =>

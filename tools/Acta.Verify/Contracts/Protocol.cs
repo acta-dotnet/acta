@@ -90,8 +90,6 @@ public static class Protocol
             Timing("independent_repetitions"),
             Timing("soak_seconds"),
             runtime.GetProperty("observer_poll_ms").GetInt32(),
-            runtime.GetProperty("producer_concurrency_limit").GetInt32(),
-            runtime.GetProperty("arrival_buffer_capacity").GetInt32(),
             Timing("drain_seconds"),
             root.GetProperty("capacity").GetProperty("reference_noop_root_p99_slo_ms").GetDouble(),
             root.Clone()
@@ -106,6 +104,10 @@ public static class Protocol
             ChaosSeed = root.GetProperty("faults").GetProperty("chaos_seed").GetInt32() ^ seed ^ 1729,
             PreloadedBacklogRoots = timing
                 .GetProperty("preloaded_backlog_roots")
+                .EnumerateObject()
+                .ToDictionary(p => p.Name, p => p.Value.GetInt32(), StringComparer.Ordinal),
+            ProducerCalls = runtime
+                .GetProperty("producer_calls")
                 .EnumerateObject()
                 .ToDictionary(p => p.Name, p => p.Value.GetInt32(), StringComparer.Ordinal),
             AdmissionBatchSize = root.GetProperty("measurement").GetProperty("canonical_admission_batch_size").GetInt32(),

@@ -260,6 +260,10 @@ public static class VerifyCommand
                 : plan.PreloadedBacklogRoots,
         };
         Protocol.Validate(plan);
+        if (!await CleanStart.CheckAsync(plan.MeasurementGatesVerdict, ct))
+        {
+            return 3;
+        }
         // The same command against the same output continues the run a crash or a stop interrupted there.
         return replay is null && RunResume.Find(output, plan) is { } interrupted
             ? await SuiteRunner.RunAsync(plan with { RunId = interrupted }, output, ct, resume: true)

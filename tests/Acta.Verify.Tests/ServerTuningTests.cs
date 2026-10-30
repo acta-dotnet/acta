@@ -33,6 +33,13 @@ public sealed class ServerTuningTests
     }
 
     [Fact]
+    public void Postgres_allows_the_largest_fleet_on_the_driver_pool_plus_the_controller()
+    {
+        Assert.Equal(3 * 100 + 256 + 16 + 64, ServerTuning.MaxConnections(Plan));
+        Assert.Equal(24 * 100 + 256 + 16 + 64, ServerTuning.MaxConnections(Protocol.Plan("full", ["pg"], 1729)));
+    }
+
+    [Fact]
     public void Postgres_sizes_its_memory_from_the_cap()
     {
         Assert.Equal(
@@ -42,7 +49,7 @@ public sealed class ServerTuningTests
                 ["effective_cache_size"] = "24024MB",
                 ["maintenance_work_mem"] = "1024MB",
                 ["max_wal_size"] = "8192MB",
-                ["max_connections"] = "2500",
+                ["max_connections"] = "636",
             },
             ServerTuning.PostgresFlags(Plan, 32032)
         );

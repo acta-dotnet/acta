@@ -24,6 +24,7 @@ public sealed class DiskCounters : IDisposable
 
     private readonly Process? _process;
     private readonly List<(string Phase, Sample Sample)> _samples = [];
+    private readonly Queue<(long Ticks, Sample Sample)> _recent = [];
 
     // Null between a save and the next phase, so a late sample cannot reopen a phase already saved.
     private volatile string? _phase = "before";
@@ -162,6 +163,82 @@ public sealed class DiskCounters : IDisposable
         _process.Dispose();
     }
 
+    /// <summary>
+    /// Waits until every drive has been quiet for <paramref name="quiet"/>: idle at least <paramref name="minIdlePercent"/>
+    /// and writing at most <paramref name="maxWritesPerSecond"/> in every sample. It waits at most
+    /// <paramref name="limit"/> and never refuses: a run that starts without its quiet minute says so, with the
+    /// processes writing most, since a writer the run cannot see, such as a probe inside a container, still shows here.
+    /// </summary>
+    public async Task<string> WaitForQuietAsync(
+        TimeSpan quiet,
+        TimeSpan limit,
+        double minIdlePercent,
+        double maxWritesPerSecond,
+        CancellationToken ct
+    )
+    {
+        if (_process is null)
+        {
+            return "unknown: Windows disk counters are unavailable";
+        }
+        var waited = Stopwatch.StartNew();
+        while (true)
+        {
+            (long Ticks, Sample Sample)[] window;
+            lock (_samples)
+            {
+                var since = Stopwatch.GetTimestamp() - (long)(quiet.TotalSeconds * Stopwatch.Frequency);
+                window = [.. _recent.Where(r => r.Ticks >= since)];
+            }
+            var covered = window.Length > 0 && Stopwatch.GetElapsedTime(window.Min(r => r.Ticks)) >= quiet * 0.9;
+            var loud = window.Where(r => r.Sample.IdlePercent < minIdlePercent || r.Sample.WritesPerSecond > maxWritesPerSecond).ToArray();
+            if (covered && loud.Length == 0)
+            {
+                return string.Create(CultureInfo.InvariantCulture, $"yes, after {waited.Elapsed.TotalSeconds:F0} s");
+            }
+            if (waited.Elapsed >= limit)
+            {
+                var worst = loud.Length == 0 ? "too few samples" : Describe(loud.MaxBy(r => r.Sample.WritesPerSecond).Sample);
+                var writers = await TopWritersAsync(ct);
+                return string.Create(
+                    CultureInfo.InvariantCulture,
+                    $"no, after {waited.Elapsed.TotalSeconds:F0} s: {worst}; writing most: {writers}"
+                );
+            }
+            await Task.Delay(2000, ct);
+        }
+
+        static string Describe(Sample s) =>
+            string.Create(CultureInfo.InvariantCulture, $"{s.Drive} {s.WritesPerSecond:F0} writes/s, {s.IdlePercent:F0}% idle");
+    }
+
+    /// <summary>The three processes writing the most bytes right now, by the per-process Windows counter.</summary>
+    private static async Task<string> TopWritersAsync(CancellationToken ct)
+    {
+        try
+        {
+            var output = await OwnedProvider.RunAsync(
+                "pwsh",
+                [
+                    "-NoProfile",
+                    "-NonInteractive",
+                    "-Command",
+                    "[Threading.Thread]::CurrentThread.CurrentCulture = [Globalization.CultureInfo]::InvariantCulture; "
+                        + "(Get-Counter '\\Process(*)\\IO Write Bytes/sec' -ErrorAction SilentlyContinue).CounterSamples "
+                        + "| Where-Object { $_.InstanceName -notin '_total', 'idle' } | Sort-Object CookedValue -Descending "
+                        + "| Select-Object -First 3 | ForEach-Object { '{0} {1:F1} MB/s' -f $_.InstanceName, ($_.CookedValue / 1MB) }",
+                ],
+                null,
+                ct
+            );
+            return string.Join(", ", output.Split(['\r', '\n'], StringSplitOptions.RemoveEmptyEntries));
+        }
+        catch (Exception ex) when (ex is System.ComponentModel.Win32Exception or InvalidOperationException)
+        {
+            return "unknown";
+        }
+    }
+
     private void Add(string? line)
     {
         if (Parse(line) is { } sample)
@@ -171,6 +248,12 @@ public sealed class DiskCounters : IDisposable
                 if (_phase is { } phase)
                 {
                     _samples.Add((phase, sample));
+                }
+                _recent.Enqueue((Stopwatch.GetTimestamp(), sample));
+                // Five minutes of samples for every drive is more than any quiet window asks for.
+                while (_recent.Count > 600)
+                {
+                    _recent.Dequeue();
                 }
             }
         }

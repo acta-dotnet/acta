@@ -701,6 +701,49 @@ internal sealed class OwnedProvider : IAsyncDisposable
         return trial;
     }
 
+    /// <summary>
+    /// The connection the controller's enqueue calls use: a pool of its own, sized to the calls in flight, so a call
+    /// never waits for a connection and the observer's reads never queue behind the calls.
+    /// </summary>
+    public string EnqueueConnectionString(int calls) =>
+        Provider switch
+        {
+            "pg" => new NpgsqlConnectionStringBuilder(ConnectionString)
+            {
+                MaxPoolSize = EnqueuePoolSize(calls),
+                Timeout = 15,
+                ApplicationName = "acta-verify-enqueue",
+            }.ToString(),
+            "mssql" => new SqlConnectionStringBuilder(ConnectionString)
+            {
+                MaxPoolSize = EnqueuePoolSize(calls),
+                ConnectTimeout = 15,
+                ApplicationName = "acta-verify-enqueue",
+            }.ToString(),
+            _ => ConnectionString,
+        };
+
+    /// <summary>The enqueue pool for <paramref name="calls"/> calls in flight, with room for the host's own reads.</summary>
+    internal static int EnqueuePoolSize(int calls) => calls + 16;
+
+    /// <summary>
+    /// Flushes the server's dirty pages before a measured window, so the window never pays for the writes of the trial
+    /// or the seeding before it. SQLite trials start from a fresh file and need none. Returns whether one ran.
+    /// </summary>
+    public async Task<bool> CheckpointAsync(CancellationToken ct)
+    {
+        if (Provider == "sqlite")
+        {
+            return false;
+        }
+        await using var c = await OpenAsync(ct);
+        await using var command = c.CreateCommand();
+        command.CommandText = "CHECKPOINT;";
+        command.CommandTimeout = 300;
+        await command.ExecuteNonQueryAsync(ct);
+        return true;
+    }
+
     public async Task<DbConnection> OpenAsync(CancellationToken ct, bool pooling = true)
     {
         var connectionString = pooling
@@ -776,24 +819,11 @@ internal sealed class OwnedProvider : IAsyncDisposable
     public static async Task<int> CleanupAsync(bool remove, CancellationToken ct)
     {
         var failed = false;
-        List<int> running = [];
-        foreach (var name in new[] { "acta-verify", "Acta.Verify", "acta-bench", "Acta.Bench" })
-        {
-            foreach (var process in Process.GetProcessesByName(name))
-            {
-                using (process)
-                {
-                    if (process.Id != Environment.ProcessId)
-                    {
-                        running.Add(process.Id);
-                    }
-                }
-            }
-        }
+        var running = CleanStart.Running(["acta-verify", "Acta.Verify", "acta-bench", "Acta.Bench"], new Dictionary<int, string>());
         if (remove && running.Count > 0)
         {
             // An ownership marker cannot tell an active run's resources from an abandoned run's.
-            Console.WriteLine($"Another Acta Verify process is running (PID {string.Join(", ", running)}); nothing is removed.");
+            Console.WriteLine($"Another Acta Verify process is running (PID {string.Join(", ", running.Keys)}); nothing is removed.");
             (remove, failed) = (false, true);
         }
         var containers = await DockerAsync(
@@ -900,14 +930,22 @@ internal sealed class OwnedProvider : IAsyncDisposable
         }
     }
 
-    private static async Task<string> DockerAsync(
+    internal static Task<string> DockerAsync(
+        IEnumerable<string> arguments,
+        Dictionary<string, string>? environment,
+        CancellationToken ct
+    ) => RunAsync("docker", arguments, environment, ct);
+
+    /// <summary>Runs a tool to its end and returns its output; a cancelled run is killed, and a failing one throws.</summary>
+    internal static async Task<string> RunAsync(
+        string file,
         IEnumerable<string> arguments,
         Dictionary<string, string>? environment,
         CancellationToken ct
     )
     {
         using var process = new Process();
-        process.StartInfo = new("docker")
+        process.StartInfo = new(file)
         {
             UseShellExecute = false,
             RedirectStandardOutput = true,
@@ -944,7 +982,7 @@ internal sealed class OwnedProvider : IAsyncDisposable
         {
             // Docker stderr may include configuration. Keep the public error credential-free.
             await error;
-            throw new InvalidOperationException($"Docker {process.StartInfo.ArgumentList[0]} failed (exit {process.ExitCode}).");
+            throw new InvalidOperationException($"{file} {process.StartInfo.ArgumentList[0]} failed (exit {process.ExitCode}).");
         }
         await error;
         return await output;

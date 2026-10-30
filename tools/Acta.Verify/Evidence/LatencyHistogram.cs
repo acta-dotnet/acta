@@ -34,6 +34,19 @@ public sealed class LatencyHistogram
         _maximum = Math.Max(_maximum, milliseconds);
     }
 
+    /// <summary>Folds <paramref name="other"/>'s samples into this histogram.</summary>
+    public void Add(LatencyHistogram other)
+    {
+        ArgumentNullException.ThrowIfNull(other);
+        for (var i = 0; i < _bins.Length; i++)
+        {
+            _bins[i] += other._bins[i];
+        }
+        _count += other._count;
+        _overflow += other._overflow;
+        _maximum = Math.Max(_maximum, other._maximum);
+    }
+
     public double? Percentile(double percentile)
     {
         ArgumentOutOfRangeException.ThrowIfLessThan(percentile, 0);

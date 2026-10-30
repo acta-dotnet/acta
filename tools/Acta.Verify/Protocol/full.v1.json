@@ -113,7 +113,6 @@
         "effective_cache_size_fraction_of_cap": 0.75,
         "maintenance_work_mem_mb": 1024,
         "max_wal_size_mb": 8192,
-        "max_connections": 2500,
         "shm_size_fraction_of_cap": 0.25,
         "shm_size_max_mb": 8192
       },
@@ -301,8 +300,8 @@
       "observer_poll_ms": 25,
       "pin_workers_to_performance_cores": true,
       "generator_lag_tolerance_ms": 100,
-      "producer_concurrency_limit": 64,
-      "arrival_buffer_capacity": 1024
+      "producer_calls": { "sqlite": 8, "pg": 256, "mssql": 256 },
+      "disk_quiet": { "seconds": 10, "limit_seconds": 60, "min_idle_percent": 97, "max_writes_per_second": 100 }
     },
     "namespace_sweep": [
       1,

@@ -127,7 +127,7 @@ internal static class StorageCases
         ScenarioDescriptor scenario,
         OwnedProvider state,
         IJobs jobs,
-        ResourceSampler resources,
+        ResourceSampler? resources,
         CancellationToken ct,
         int? population = null
     )
@@ -140,7 +140,7 @@ internal static class StorageCases
             new ParallelOptions { MaxDegreeOfParallelism = (int)plan.Policy("measurement", "preload_producers"), CancellationToken = ct },
             async (index, token) =>
             {
-                if (resources.BudgetExceeded)
+                if (resources?.BudgetExceeded == true)
                 {
                     throw new ResourceBudgetException("Background population exceeded its memory/disk budget.");
                 }
@@ -177,12 +177,10 @@ internal static class StorageCases
 
     internal static async Task<Check[]> CheckBackgroundAsync(OwnedProvider state, string scenario, int population, CancellationToken ct)
     {
-        var rows = (await new DurableReader(state).ReadAllAsync(0, ct))
-            .Where(r => r.Key.StartsWith("history-", StringComparison.Ordinal))
-            .ToArray();
         var seen = new BitArray(population);
         List<Check> checks = [];
-        foreach (var row in rows)
+        await foreach (var page in new DurableReader(state).RootPagesAsync(0, ct))
+        foreach (var row in page.Where(r => r.Key.StartsWith("history-", StringComparison.Ordinal)))
         {
             if (
                 !int.TryParse(row.Key.AsSpan(8), CultureInfo.InvariantCulture, out var ordinal)
@@ -218,12 +216,7 @@ internal static class StorageCases
             }
         }
         checks.Add(
-            new(
-                "background-reconciled",
-                scenario,
-                checks.Count == 0 && rows.Length == population,
-                $"Exact {population}-identity background reconciled independently."
-            )
+            new("background-reconciled", scenario, checks.Count == 0, $"Exact {population}-identity background reconciled independently.")
         );
         return [.. checks];
     }

@@ -10,6 +10,7 @@ public sealed class EvidenceBundle
 {
     private readonly object _journalLock = new();
     private long _writeTicks;
+    private int _quiet;
     public string DirectoryPath { get; }
 
     public EvidenceBundle(string root, string runId)
@@ -89,13 +90,64 @@ public sealed class EvidenceBundle
     /// <summary>Seconds spent writing evidence files through this bundle.</summary>
     public double WriteSeconds => Interlocked.Read(ref _writeTicks) / (double)Stopwatch.Frequency;
 
-    public void Write<T>(string relative, T value, JsonTypeInfo<T> type)
+    /// <summary>
+    /// Holds evidence off the disk while a measured window is open, since the databases write to the same drive: any
+    /// write until the scope is disposed throws.
+    /// </summary>
+    public IDisposable Quiet()
     {
+        Interlocked.Increment(ref _quiet);
+        return new QuietScope(this);
+    }
+
+    private sealed class QuietScope(EvidenceBundle bundle) : IDisposable
+    {
+        private int _disposed;
+
+        public void Dispose()
+        {
+            if (Interlocked.Exchange(ref _disposed, 1) == 0)
+            {
+                Interlocked.Decrement(ref bundle._quiet);
+            }
+        }
+    }
+
+    private void ThrowIfQuiet()
+    {
+        if (Volatile.Read(ref _quiet) > 0)
+        {
+            throw new InvalidOperationException("Evidence write inside a measured window.");
+        }
+    }
+
+    public void WriteLines(string relative, IEnumerable<string> lines) => WriteAtomic(relative, temp => File.WriteAllLines(temp, lines));
+
+    /// <summary>Appends lines to a journal in one write.</summary>
+    public void AppendLines(string relative, IReadOnlyCollection<string> lines)
+    {
+        ThrowIfQuiet();
+        if (lines.Count == 0)
+        {
+            return;
+        }
+        lock (_journalLock)
+        {
+            File.AppendAllLines(Resolve(relative), lines);
+        }
+    }
+
+    public void Write<T>(string relative, T value, JsonTypeInfo<T> type) =>
+        WriteAtomic(relative, temp => File.WriteAllText(temp, JsonSerializer.Serialize(value, type)));
+
+    /// <summary>Writes a file beside its path and moves it into place, so a reader never sees half of it.</summary>
+    private void WriteAtomic(string relative, Action<string> write)
+    {
+        ThrowIfQuiet();
         var started = Stopwatch.GetTimestamp();
         var path = Resolve(relative);
         Directory.CreateDirectory(Path.GetDirectoryName(path)!);
-        var content = JsonSerializer.Serialize(value, type);
-        File.WriteAllText(path + ".tmp", content);
+        write(path + ".tmp");
         File.Move(path + ".tmp", path, overwrite: true);
         Interlocked.Add(ref _writeTicks, Stopwatch.GetTimestamp() - started);
     }
@@ -126,6 +178,7 @@ public sealed class EvidenceBundle
 
     public void Append<T>(string relative, T value, JsonTypeInfo<T> type)
     {
+        ThrowIfQuiet();
         var compact = JsonSerializer.SerializeToElement(value, type).GetRawText();
         using var document = JsonDocument.Parse(compact);
         using var buffer = new MemoryStream();

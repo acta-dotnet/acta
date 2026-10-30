@@ -37,9 +37,6 @@ internal sealed class DurableReader(OwnedProvider provider)
 {
     private const int Page = 10_000;
 
-    /// <summary>The parallel connections a full verification read splits its id range over.</summary>
-    private const int Slices = 8;
-
     /// <summary>The predicates of the claim and in-flight partial indexes: ready or timed, and executing.</summary>
     private static readonly string[] IndexedLiveStates =
     [
@@ -48,18 +45,6 @@ internal sealed class DurableReader(OwnedProvider provider)
     ];
 
     private string Table(string name) => provider.Provider == "sqlite" ? $"main.{name}" : $"{provider.Schema}.{name}";
-
-    /// <summary>
-    /// Every non-system job above <paramref name="afterJobId"/>, in job-id order, read as contiguous id slices over
-    /// parallel connections.
-    /// </summary>
-    public async Task<List<DurableRow>> ReadAllAsync(long afterJobId, CancellationToken ct)
-    {
-        var last = await LastJobIdAsync(ct);
-        var bounds = Enumerable.Range(0, Slices + 1).Select(i => afterJobId + (last - afterJobId) * i / Slices).ToArray();
-        var slices = await Task.WhenAll(Enumerable.Range(0, Slices).Select(i => ReadAsync(null, ct, bounds[i], bounds[i + 1])));
-        return [.. slices.SelectMany(slice => slice)];
-    }
 
     /// <summary>
     /// Every non-system job above <paramref name="afterJobId"/> up to <paramref name="throughJobId"/>, or those of
@@ -73,50 +58,122 @@ internal sealed class DurableReader(OwnedProvider provider)
     )
     {
         List<DurableRow> rows = [];
+        if (ids is { Count: 0 })
+        {
+            return rows;
+        }
+        await foreach (var page in PagesAsync(afterJobId, throughJobId, false, ids, ct))
+        {
+            rows.AddRange(page);
+        }
+        return rows;
+    }
+
+    /// <summary>
+    /// Every non-system root above <paramref name="afterJobId"/>, a job-id page at a time, so a caller holds one page of
+    /// rows however large the trial.
+    /// </summary>
+    public IAsyncEnumerable<List<DurableRow>> RootPagesAsync(long afterJobId, CancellationToken ct) =>
+        PagesAsync(afterJobId, long.MaxValue, true, null, ct);
+
+    /// <summary>
+    /// The descendants of the non-system jobs above <paramref name="afterJobId"/>, those that succeeded, and the
+    /// workload's committed checkpoints, in one round trip.
+    /// </summary>
+    public async Task<(long Descendants, long Succeeded, long Steps)> TreeTotalsAsync(long afterJobId, CancellationToken ct)
+    {
+        await using var connection = await provider.OpenAsync(ct);
+        await using var command = connection.CreateCommand();
+        Add(command, "@after", afterJobId);
+        var jobs = Table("jobs");
+        var states = Table("jobs_state");
+        var definitions = Table("definitions");
+        var steps = Table("steps");
+        command.CommandText = $"""
+            SELECT COUNT(*), COALESCE(SUM(CASE WHEN r.job_status_code = 100 THEN 1 ELSE 0 END), 0),
+                   (SELECT COUNT(*) FROM {steps} s JOIN {jobs} sj ON sj.job_id = s.job_id JOIN {definitions} sd ON sd.definition_id = sj.definition_id
+                    WHERE sj.job_id > @after AND sd.definition_name NOT LIKE 'sys.%' AND s.step_status_code = 100
+                      AND (s.step_name LIKE 'step-%' OR s.step_name = 'effect'))
+            FROM {jobs} j JOIN {definitions} d ON d.definition_id = j.definition_id LEFT JOIN {states} r ON r.job_id = j.job_id
+            WHERE j.job_id > @after AND j.parent_job_id IS NOT NULL AND d.definition_name NOT LIKE 'sys.%'
+            """;
+        await using var reader = await command.ExecuteReaderAsync(ct);
+        await reader.ReadAsync(ct);
+        return (
+            Convert.ToInt64(reader.GetValue(0), CultureInfo.InvariantCulture),
+            Convert.ToInt64(reader.GetValue(1), CultureInfo.InvariantCulture),
+            Convert.ToInt64(reader.GetValue(2), CultureInfo.InvariantCulture)
+        );
+    }
+
+    private async IAsyncEnumerable<List<DurableRow>> PagesAsync(
+        long afterJobId,
+        long throughJobId,
+        bool rootsOnly,
+        IReadOnlyCollection<long>? ids,
+        [System.Runtime.CompilerServices.EnumeratorCancellation] CancellationToken ct
+    )
+    {
         await using var c = await provider.OpenAsync(ct);
         var after = afterJobId;
-        do
+        while (true)
         {
-            await using var command = c.CreateCommand();
-            var where = $"j.job_id > @after AND j.job_id <= {Add(command, "@through", throughJobId)}";
-            if (ids is not null)
+            var page = await PageAsync(c, after, throughJobId, rootsOnly, ids, ct);
+            if (page.Count > 0)
             {
-                if (ids.Count == 0)
-                {
-                    return rows;
-                }
-                var names = ids.Select((id, i) => Add(command, $"@id{i}", id)).ToArray();
-                where += $" AND j.job_id IN ({string.Join(',', names)})";
+                yield return page;
             }
-            Add(command, "@after", after);
-            command.CommandText =
-                $"SELECT {(provider.Provider == "mssql" ? $"TOP ({Page})" : "")} j.job_id, j.deduplication_key, j.parent_job_id, r.job_status_code, r.result, r.execution_number, n.namespace_name, j.lineage_root_job_id, r.modified_at_utc FROM {Table("jobs")} j JOIN {Table("jobs_state")} r ON r.job_id=j.job_id JOIN {Table("namespaces")} n ON n.namespace_id=j.namespace_id JOIN {Table("definitions")} d ON d.definition_id=j.definition_id WHERE d.definition_name NOT LIKE 'sys.%' AND {where} ORDER BY j.job_id {(provider.Provider != "mssql" ? $"LIMIT {Page}" : "")}";
-            var count = 0;
-            await using var reader = await command.ExecuteReaderAsync(ct);
-            while (await reader.ReadAsync(ct))
+            if (page.Count < Page)
             {
-                var jobId = Convert.ToInt64(reader.GetValue(0), CultureInfo.InvariantCulture);
-                rows.Add(
-                    new(
-                        jobId,
-                        reader.IsDBNull(1) ? $"unkeyed-{jobId}" : reader.GetString(1),
-                        reader.IsDBNull(2) ? null : Convert.ToInt64(reader.GetValue(2), CultureInfo.InvariantCulture),
-                        Convert.ToInt32(reader.GetValue(3), CultureInfo.InvariantCulture),
-                        reader.IsDBNull(4) ? null : Decode((byte[])reader.GetValue(4)),
-                        Convert.ToInt32(reader.GetValue(5), CultureInfo.InvariantCulture),
-                        reader.GetString(6),
-                        reader.IsDBNull(7) ? null : Convert.ToInt64(reader.GetValue(7), CultureInfo.InvariantCulture),
-                        DatabaseTicks(reader.GetValue(8))
-                    )
-                );
-                after = jobId;
-                count++;
+                yield break;
             }
-            if (count < Page)
-            {
-                return rows;
-            }
-        } while (true);
+            after = page[^1].JobId;
+        }
+    }
+
+    private async Task<List<DurableRow>> PageAsync(
+        DbConnection c,
+        long after,
+        long through,
+        bool rootsOnly,
+        IReadOnlyCollection<long>? ids,
+        CancellationToken ct
+    )
+    {
+        await using var command = c.CreateCommand();
+        var where = $"j.job_id > {Add(command, "@after", after)} AND j.job_id <= {Add(command, "@through", through)}";
+        if (rootsOnly)
+        {
+            where += " AND j.parent_job_id IS NULL";
+        }
+        if (ids is not null)
+        {
+            var names = ids.Select((id, i) => Add(command, $"@id{i}", id)).ToArray();
+            where += $" AND j.job_id IN ({string.Join(',', names)})";
+        }
+        command.CommandText =
+            $"SELECT {(provider.Provider == "mssql" ? $"TOP ({Page})" : "")} j.job_id, j.deduplication_key, j.parent_job_id, r.job_status_code, r.result, r.execution_number, n.namespace_name, j.lineage_root_job_id, r.modified_at_utc FROM {Table("jobs")} j JOIN {Table("jobs_state")} r ON r.job_id=j.job_id JOIN {Table("namespaces")} n ON n.namespace_id=j.namespace_id JOIN {Table("definitions")} d ON d.definition_id=j.definition_id WHERE d.definition_name NOT LIKE 'sys.%' AND {where} ORDER BY j.job_id {(provider.Provider != "mssql" ? $"LIMIT {Page}" : "")}";
+        List<DurableRow> rows = new(Page);
+        await using var reader = await command.ExecuteReaderAsync(ct);
+        while (await reader.ReadAsync(ct))
+        {
+            var jobId = reader.GetInt64(0);
+            rows.Add(
+                new(
+                    jobId,
+                    reader.IsDBNull(1) ? $"unkeyed-{jobId}" : reader.GetString(1),
+                    reader.IsDBNull(2) ? null : reader.GetInt64(2),
+                    // A status is a tinyint on SQL Server and a smallint elsewhere.
+                    Convert.ToInt32(reader.GetValue(3), CultureInfo.InvariantCulture),
+                    reader.IsDBNull(4) ? null : Decode((byte[])reader.GetValue(4)),
+                    reader.GetInt32(5),
+                    reader.GetString(6),
+                    reader.IsDBNull(7) ? null : reader.GetInt64(7),
+                    DatabaseTicks(reader.GetValue(8))
+                )
+            );
+        }
+        return rows;
     }
 
     /// <summary>The steps of every bench job above <paramref name="afterJobId"/>, or of <paramref name="ids"/>.</summary>
@@ -254,10 +311,27 @@ internal sealed class DurableReader(OwnedProvider provider)
     }
 
     /// <summary>
+    /// A failed check for each descendant above <paramref name="after"/> still live under a terminal root, skipping those
+    /// already in <paramref name="reported"/>. A root waits for its descendants, so the violation is visible only while
+    /// the descendant runs: a final read misses it once the descendant finishes too.
+    /// </summary>
+    public async Task<Check[]> LiveChildChecksAsync(long after, HashSet<long> reported, CancellationToken ct) =>
+        [
+            .. (await LiveDescendantsAsync(after, ct))
+                .Where(d => reported.Add(d.Descendant))
+                .Select(d => new Check(
+                    "terminal-parent-live-child",
+                    d.RootKey,
+                    false,
+                    $"Root job {d.Root} reached a terminal outcome while its descendant job {d.Descendant} was not terminal."
+                )),
+        ];
+
+    /// <summary>
     /// Ready, timed or executing descendants above <paramref name="after"/> whose root is already terminal, with that
     /// root's id and key, read in one statement through the claim and in-flight partial indexes.
     /// </summary>
-    public async Task<List<(long Root, string RootKey, long Descendant)>> LiveDescendantsAsync(long after, CancellationToken ct)
+    private async Task<List<(long Root, string RootKey, long Descendant)>> LiveDescendantsAsync(long after, CancellationToken ct)
     {
         await using var connection = await provider.OpenAsync(ct);
         await using var command = connection.CreateCommand();

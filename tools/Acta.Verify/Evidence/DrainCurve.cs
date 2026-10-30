@@ -1,15 +1,11 @@
 namespace Acta.Verify;
 
-/// <summary>One count of a fixed cohort's durably terminal roots, stamped when the count returned, with the count's own duration.</summary>
+/// <summary>One count of a cohort's durably terminal roots at an instant, with the count's own duration where a query took it.</summary>
 public readonly record struct DrainSample(long Timestamp, long Completed, long QueryTicks = 0);
 
-/// <summary>Instants and rates read off a fixed-cohort drain's sampled terminal counts.</summary>
+/// <summary>Instants and rates read off a cumulative curve of terminal counts.</summary>
 public static class DrainCurve
 {
-    /// <summary>The first sampled instant at which the count had reached <paramref name="target"/>; null if none had.</summary>
-    public static long? Reached(IReadOnlyList<DrainSample> samples, long target) =>
-        samples.Where(s => s.Completed >= target).Select(s => (long?)s.Timestamp).FirstOrDefault();
-
     /// <summary>
     /// The instant the count crossed <paramref name="target"/>, interpolated linearly between the samples either side;
     /// null when no sample reached it, or the first one did and leaves nothing to interpolate from.
@@ -34,7 +30,4 @@ public static class DrainCurve
         Crossing(samples, 0.2 * cohort) is { } lower && Crossing(samples, 0.8 * cohort) is { } upper && upper > lower
             ? 0.6 * cohort * clockFrequency / (upper - lower)
             : null;
-
-    /// <summary>The 0-based ascending rank of <paramref name="count"/> values' <paramref name="percent"/>th percentile, as percentile_disc picks it.</summary>
-    public static long PercentileRank(long count, int percent) => (count * percent + 99) / 100 - 1;
 }

@@ -53,8 +53,8 @@ internal static class BundleComparison
             && pa.MeasurementSeconds == pb.MeasurementSeconds
             && pa.Repetitions == pb.Repetitions
             && pa.ObserverCadenceMs == pb.ObserverCadenceMs
-            && pa.ProducerConcurrency == pb.ProducerConcurrency
-            && pa.BufferCapacity == pb.BufferCapacity
+            && pa.ProducerCalls.OrderBy(p => p.Key, StringComparer.Ordinal)
+                .SequenceEqual(pb.ProducerCalls.OrderBy(p => p.Key, StringComparer.Ordinal))
             && pa.ReferenceSloMs == pb.ReferenceSloMs
             && pa.LatencySloMs.OrderBy(p => p.Key, StringComparer.Ordinal)
                 .SequenceEqual(pb.LatencySloMs.OrderBy(p => p.Key, StringComparer.Ordinal))

@@ -30,7 +30,9 @@ internal sealed class ResourceSampler : IAsyncDisposable
     private readonly object _summaryLock = new();
     private readonly Dictionary<string, (double First, double Last)> _cpu = new(StringComparer.Ordinal);
     private readonly HashSet<string> _explained = new(StringComparer.Ordinal);
+    private readonly List<string> _samples = [];
     private long _peakWorkingSet;
+    private long _peakConnections;
     private double? _containerCpuFirst;
     private double? _containerCpuLast;
     private int _containerCpuSamples;
@@ -98,6 +100,12 @@ internal sealed class ResourceSampler : IAsyncDisposable
         }
         catch (OperationCanceledException) { }
         _stop.Dispose();
+        // The samples reach the disk once the trial is over, never during its window.
+        lock (_samples)
+        {
+            _bundle.AppendLines("metrics.jsonl", _samples);
+            _samples.Clear();
+        }
     }
 
     private async Task SampleAsync()
@@ -201,6 +209,14 @@ internal sealed class ResourceSampler : IAsyncDisposable
                                 ? "Container CPU counter reset during this trial; a complete lifecycle delta is unavailable."
                                 : "At least two container CPU samples are required. " + _containerUnavailable
                         ),
+                ["database_peak_connections"] =
+                    _peakConnections > 0
+                        ? new(
+                            _peakConnections,
+                            "connections",
+                            Reason: "Peak sampled client sessions on the server, every database on it included."
+                        )
+                        : Metric.Missing("connections", "No client session count was sampled."),
                 ["database_waits"] = Metric.Missing("seconds", "Provider wait-event collector is unavailable."),
                 ["database_live_storage"] = Metric.Missing(
                     "bytes",
@@ -384,19 +400,23 @@ internal sealed class ResourceSampler : IAsyncDisposable
             await using var command = connection.CreateCommand();
             command.CommandText =
                 _provider.Provider == "pg"
-                    ? "SELECT wal_bytes FROM pg_stat_wal;"
-                    : "SELECT SUM(num_of_bytes_read), SUM(num_of_bytes_written) FROM sys.dm_io_virtual_file_stats(DB_ID(), NULL);";
+                    ? "SELECT (SELECT count(*) FROM pg_stat_activity WHERE backend_type = 'client backend'), wal_bytes FROM pg_stat_wal;"
+                    : "SELECT (SELECT COUNT(*) FROM sys.dm_exec_sessions WHERE is_user_process = 1), SUM(num_of_bytes_read), SUM(num_of_bytes_written) FROM sys.dm_io_virtual_file_stats(DB_ID(), NULL);";
             await using var reader = await command.ExecuteReaderAsync(ct);
             if (await reader.ReadAsync(ct))
             {
+                lock (_summaryLock)
+                {
+                    _peakConnections = Math.Max(_peakConnections, Convert.ToInt64(reader.GetValue(0), CultureInfo.InvariantCulture));
+                }
                 Counter(
                     "database",
                     _provider.Provider == "pg" ? "wal_bytes" : "file_read_bytes",
-                    Convert.ToDouble(reader.GetValue(0), CultureInfo.InvariantCulture)
+                    Convert.ToDouble(reader.GetValue(1), CultureInfo.InvariantCulture)
                 );
-                if (reader.FieldCount > 1)
+                if (reader.FieldCount > 2)
                 {
-                    Counter("database", "file_write_bytes", Convert.ToDouble(reader.GetValue(1), CultureInfo.InvariantCulture));
+                    Counter("database", "file_write_bytes", Convert.ToDouble(reader.GetValue(2), CultureInfo.InvariantCulture));
                 }
             }
         }
@@ -430,6 +450,9 @@ internal sealed class ResourceSampler : IAsyncDisposable
             reason = null;
         }
         var sample = new ResourceSample(Stopwatch.GetTimestamp(), $"{_tag}/{component}", name, value, unit, reason, reset);
-        File.AppendAllText(_bundle.Resolve("metrics.jsonl"), JsonSerializer.Serialize(sample, ResourceJson.Default.ResourceSample) + "\n");
+        lock (_samples)
+        {
+            _samples.Add(JsonSerializer.Serialize(sample, ResourceJson.Default.ResourceSample));
+        }
     }
 }

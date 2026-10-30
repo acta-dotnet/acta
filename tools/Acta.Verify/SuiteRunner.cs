@@ -161,6 +161,20 @@ internal static class SuiteRunner
                     var settings = await environment.CaptureSettingsAsync(ct);
                     providerVerified = environment.SettingsVerified;
                     bundle.Write($"histories/{provider}-settings.json", settings, VerifyJson.Default.DictionaryStringString);
+                    if (plan.MeasurementGatesVerdict)
+                    {
+                        // Provisioning writes, and so can anything else on the box: the measurements start once the
+                        // drives have been quiet a few seconds, or within a minute saying they were not.
+                        var quiet = await disk.WaitForQuietAsync(
+                            TimeSpan.FromSeconds(plan.Policy("measurement", "runtime", "disk_quiet", "seconds")),
+                            TimeSpan.FromSeconds(plan.Policy("measurement", "runtime", "disk_quiet", "limit_seconds")),
+                            plan.Policy("measurement", "runtime", "disk_quiet", "min_idle_percent"),
+                            plan.Policy("measurement", "runtime", "disk_quiet", "max_writes_per_second"),
+                            ct
+                        );
+                        Console.WriteLine($"{provider}: quiet disk before measuring: {quiet}");
+                        RecordEnvironment(bundle, new() { [$"disk_quiet_before_{provider}"] = quiet });
+                    }
                     await ScenarioRunner.RunAsync(plan, environment, bundle, Record, ct);
                     foreach (var gap in CoveragePolicy.Missing(plan, provider, results))
                     {

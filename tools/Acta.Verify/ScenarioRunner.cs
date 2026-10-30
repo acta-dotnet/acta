@@ -260,12 +260,6 @@ internal static class ScenarioRunner
                 var harnessBound = false;
                 for (var attempt = 0; attempt < discoveryLimit; attempt++)
                 {
-                    if (!TrialRunner.CohortFitsBudget(descriptor.Id, (long)rate * plan.MeasurementSeconds))
-                    {
-                        discoveryStop =
-                            "The next measured cohort would exceed the declared controller model memory budget; no larger rate was attempted.";
-                        break;
-                    }
                     var discovery = await RecordAsync(
                         await TrialRunner.RunAsync(plan, descriptor, environment, bundle, "discover", attempt, rate, ct)
                     );
