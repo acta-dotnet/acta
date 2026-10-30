@@ -652,6 +652,15 @@ export interface EnqueueJobRequest {
   tenantName?: string | null;
   priority?: string | null;
   delaySeconds?: number | null;
+  lane?: string | null;
+  concurrencyKey?: string | null;
+  // Left out of the request when empty, so a job enqueued without tags carries none, as before.
+  tags?: EnqueueTag[];
+}
+
+export interface EnqueueTag {
+  name: string;
+  value: string | null;
 }
 
 // Enqueue a job through POST /jobs. A 201 returns the ref + action; validation (400), an enqueue
@@ -671,7 +680,10 @@ export async function enqueueJob(spec: EnqueueJobRequest): Promise<JobEnqueueRes
       correlationKey: spec.correlationKey?.trim() || null,
       tenantName: spec.tenantName?.trim() || null,
       priority: spec.priority || null,
-      delaySeconds: spec.delaySeconds ?? null
+      delaySeconds: spec.delaySeconds ?? null,
+      lane: spec.lane?.trim() || null,
+      concurrencyKey: spec.concurrencyKey?.trim() || null,
+      tags: spec.tags && spec.tags.length > 0 ? spec.tags : undefined
     }
   });
 

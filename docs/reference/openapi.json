@@ -2,6 +2,7 @@
   "openapi": "3.1.1",
   "info": {
     "title": "Acta API",
+    "description": "Acta's operator API, the one the dashboard uses. Lists page by cursor: pass a page's nextCursor back as cursor until hasMore is false; a cursor is tied to its query. Every POST, PATCH, and DELETE is a control, mapped only where the host enables controls, and where the host requires it the call carries the confirmation header the operation lists, with the value true. POST /jobs answers 201 when it inserted the job and 200 when a deduplication key matched an existing one, with the job's URL in Location either way.",
     "version": "1.0.0"
   },
   "servers": [
@@ -16,12 +17,25 @@
           "Jobs"
         ],
         "summary": "Add or update one tag on the job.",
+        "operationId": "PostJobsByJobRefTags",
         "parameters": [
           {
             "name": "jobRef",
             "in": "path",
             "required": true,
             "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "X-Acta-Control",
+            "in": "header",
+            "description": "Confirms a control call. The value is true; a missing header or any other value answers 400.",
+            "required": true,
+            "schema": {
+              "enum": [
+                "true"
+              ],
               "type": "string"
             }
           }
@@ -31,6 +45,10 @@
             "application/json": {
               "schema": {
                 "$ref": "#/components/schemas/UpsertJobTagsRequest"
+              },
+              "example": {
+                "name": "env",
+                "value": "prod"
               }
             }
           },
@@ -124,6 +142,7 @@
           "Jobs"
         ],
         "summary": "Read the job's tags.",
+        "operationId": "GetJobsByJobRefTags",
         "parameters": [
           {
             "name": "jobRef",
@@ -204,6 +223,7 @@
           "Jobs"
         ],
         "summary": "Remove one tag from the job.",
+        "operationId": "DeleteJobsByJobRefTagsByTagName",
         "parameters": [
           {
             "name": "jobRef",
@@ -218,6 +238,18 @@
             "in": "path",
             "required": true,
             "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "X-Acta-Control",
+            "in": "header",
+            "description": "Confirms a control call. The value is true; a missing header or any other value answers 400.",
+            "required": true,
+            "schema": {
+              "enum": [
+                "true"
+              ],
               "type": "string"
             }
           }
@@ -302,12 +334,25 @@
           "Jobs"
         ],
         "summary": "Pause the job until an operator resumes it.",
+        "operationId": "PostJobsByJobRefPause",
         "parameters": [
           {
             "name": "jobRef",
             "in": "path",
             "required": true,
             "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "X-Acta-Control",
+            "in": "header",
+            "description": "Confirms a control call. The value is true; a missing header or any other value answers 400.",
+            "required": true,
+            "schema": {
+              "enum": [
+                "true"
+              ],
               "type": "string"
             }
           }
@@ -421,12 +466,25 @@
           "Jobs"
         ],
         "summary": "Resume a paused job.",
+        "operationId": "PostJobsByJobRefResume",
         "parameters": [
           {
             "name": "jobRef",
             "in": "path",
             "required": true,
             "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "X-Acta-Control",
+            "in": "header",
+            "description": "Confirms a control call. The value is true; a missing header or any other value answers 400.",
+            "required": true,
+            "schema": {
+              "enum": [
+                "true"
+              ],
               "type": "string"
             }
           }
@@ -540,12 +598,25 @@
           "Jobs"
         ],
         "summary": "Restart a terminal job with its original input.",
+        "operationId": "PostJobsByJobRefRestart",
         "parameters": [
           {
             "name": "jobRef",
             "in": "path",
             "required": true,
             "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "X-Acta-Control",
+            "in": "header",
+            "description": "Confirms a control call. The value is true; a missing header or any other value answers 400.",
+            "required": true,
+            "schema": {
+              "enum": [
+                "true"
+              ],
               "type": "string"
             }
           }
@@ -659,12 +730,25 @@
           "Jobs"
         ],
         "summary": "Cancel the job.",
+        "operationId": "PostJobsByJobRefCancel",
         "parameters": [
           {
             "name": "jobRef",
             "in": "path",
             "required": true,
             "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "X-Acta-Control",
+            "in": "header",
+            "description": "Confirms a control call. The value is true; a missing header or any other value answers 400.",
+            "required": true,
+            "schema": {
+              "enum": [
+                "true"
+              ],
               "type": "string"
             }
           }
@@ -778,12 +862,25 @@
           "Jobs"
         ],
         "summary": "Delete the job's record from the ledger.",
+        "operationId": "PostJobsByJobRefPurge",
         "parameters": [
           {
             "name": "jobRef",
             "in": "path",
             "required": true,
             "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "X-Acta-Control",
+            "in": "header",
+            "description": "Confirms a control call. The value is true; a missing header or any other value answers 400.",
+            "required": true,
+            "schema": {
+              "enum": [
+                "true"
+              ],
               "type": "string"
             }
           }
@@ -897,12 +994,25 @@
           "Jobs"
         ],
         "summary": "Move the job's next-run instant, or run it now.",
+        "operationId": "PostJobsByJobRefReschedule",
         "parameters": [
           {
             "name": "jobRef",
             "in": "path",
             "required": true,
             "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "X-Acta-Control",
+            "in": "header",
+            "description": "Confirms a control call. The value is true; a missing header or any other value answers 400.",
+            "required": true,
+            "schema": {
+              "enum": [
+                "true"
+              ],
               "type": "string"
             }
           }
@@ -1016,12 +1126,25 @@
           "Jobs"
         ],
         "summary": "Change the job's priority.",
+        "operationId": "PostJobsByJobRefReprioritize",
         "parameters": [
           {
             "name": "jobRef",
             "in": "path",
             "required": true,
             "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "X-Acta-Control",
+            "in": "header",
+            "description": "Confirms a control call. The value is true; a missing header or any other value answers 400.",
+            "required": true,
+            "schema": {
+              "enum": [
+                "true"
+              ],
               "type": "string"
             }
           }
@@ -1136,12 +1259,25 @@
           "Jobs"
         ],
         "summary": "Amend a waiting job's stored input.",
+        "operationId": "PostJobsByJobRefInput",
         "parameters": [
           {
             "name": "jobRef",
             "in": "path",
             "required": true,
             "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "X-Acta-Control",
+            "in": "header",
+            "description": "Confirms a control call. The value is true; a missing header or any other value answers 400.",
+            "required": true,
+            "schema": {
+              "enum": [
+                "true"
+              ],
               "type": "string"
             }
           }
@@ -1254,6 +1390,7 @@
           "Jobs"
         ],
         "summary": "Read the job's stored input payload.",
+        "operationId": "GetJobsByJobRefInput",
         "parameters": [
           {
             "name": "jobRef",
@@ -1334,11 +1471,42 @@
           "Jobs"
         ],
         "summary": "Enqueue a job.",
+        "operationId": "PostJobs",
+        "parameters": [
+          {
+            "name": "X-Acta-Control",
+            "in": "header",
+            "description": "Confirms a control call. The value is true; a missing header or any other value answers 400.",
+            "required": true,
+            "schema": {
+              "enum": [
+                "true"
+              ],
+              "type": "string"
+            }
+          }
+        ],
         "requestBody": {
           "content": {
             "application/json": {
               "schema": {
                 "$ref": "#/components/schemas/EnqueueJobRequest"
+              },
+              "example": {
+                "jobNamespace": "billing",
+                "jobName": "send-invoice",
+                "input": {
+                  "invoiceId": 42
+                },
+                "deduplicationKey": "invoice-42",
+                "lane": "reports",
+                "concurrencyKey": "customer:42",
+                "tags": [
+                  {
+                    "name": "source",
+                    "value": "api"
+                  }
+                ]
               }
             }
           },
@@ -1397,6 +1565,14 @@
           },
           "201": {
             "description": "Created",
+            "headers": {
+              "Location": {
+                "description": "The job's URL under this mount, {this path}/{jobRef}: on 201 the job this request inserted, on 200 the one its deduplication key matched.",
+                "schema": {
+                  "type": "string"
+                }
+              }
+            },
             "content": {
               "application/json": {
                 "schema": {
@@ -1407,6 +1583,14 @@
           },
           "200": {
             "description": "OK",
+            "headers": {
+              "Location": {
+                "description": "The job's URL under this mount, {this path}/{jobRef}: on 201 the job this request inserted, on 200 the one its deduplication key matched.",
+                "schema": {
+                  "type": "string"
+                }
+              }
+            },
             "content": {
               "application/json": {
                 "schema": {
@@ -1442,6 +1626,7 @@
           "Jobs"
         ],
         "summary": "List jobs, filtered and keyset-paged.",
+        "operationId": "GetJobs",
         "parameters": [
           {
             "name": "jobNamespace",
@@ -1634,6 +1819,7 @@
           "Jobs"
         ],
         "summary": "Raise a named signal on the job, with an optional JSON value.",
+        "operationId": "PostJobsByJobRefSignalsBySignalName",
         "parameters": [
           {
             "name": "jobRef",
@@ -1648,6 +1834,18 @@
             "in": "path",
             "required": true,
             "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "X-Acta-Control",
+            "in": "header",
+            "description": "Confirms a control call. The value is true; a missing header or any other value answers 400.",
+            "required": true,
+            "schema": {
+              "enum": [
+                "true"
+              ],
               "type": "string"
             }
           }
@@ -1761,12 +1959,25 @@
           "Namespaces"
         ],
         "summary": "Add or update one tag on the namespace.",
+        "operationId": "PostNamespacesByJobNamespaceTags",
         "parameters": [
           {
             "name": "jobNamespace",
             "in": "path",
             "required": true,
             "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "X-Acta-Control",
+            "in": "header",
+            "description": "Confirms a control call. The value is true; a missing header or any other value answers 400.",
+            "required": true,
+            "schema": {
+              "enum": [
+                "true"
+              ],
               "type": "string"
             }
           }
@@ -1776,6 +1987,10 @@
             "application/json": {
               "schema": {
                 "$ref": "#/components/schemas/UpsertNamespaceTagsRequest"
+              },
+              "example": {
+                "name": "env",
+                "value": "prod"
               }
             }
           },
@@ -1869,6 +2084,7 @@
           "Namespaces"
         ],
         "summary": "Read the namespace's tags.",
+        "operationId": "GetNamespacesByJobNamespaceTags",
         "parameters": [
           {
             "name": "jobNamespace",
@@ -1949,6 +2165,7 @@
           "Namespaces"
         ],
         "summary": "Remove one tag from the namespace.",
+        "operationId": "DeleteNamespacesByJobNamespaceTagsByTagName",
         "parameters": [
           {
             "name": "jobNamespace",
@@ -1963,6 +2180,18 @@
             "in": "path",
             "required": true,
             "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "X-Acta-Control",
+            "in": "header",
+            "description": "Confirms a control call. The value is true; a missing header or any other value answers 400.",
+            "required": true,
+            "schema": {
+              "enum": [
+                "true"
+              ],
               "type": "string"
             }
           }
@@ -2047,12 +2276,25 @@
           "Namespaces"
         ],
         "summary": "Suspend the namespace: new work is rejected at enqueue.",
+        "operationId": "PostNamespacesByJobNamespaceSuspend",
         "parameters": [
           {
             "name": "jobNamespace",
             "in": "path",
             "required": true,
             "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "X-Acta-Control",
+            "in": "header",
+            "description": "Confirms a control call. The value is true; a missing header or any other value answers 400.",
+            "required": true,
+            "schema": {
+              "enum": [
+                "true"
+              ],
               "type": "string"
             }
           }
@@ -2156,12 +2398,25 @@
           "Namespaces"
         ],
         "summary": "Resume a suspended namespace.",
+        "operationId": "PostNamespacesByJobNamespaceResume",
         "parameters": [
           {
             "name": "jobNamespace",
             "in": "path",
             "required": true,
             "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "X-Acta-Control",
+            "in": "header",
+            "description": "Confirms a control call. The value is true; a missing header or any other value answers 400.",
+            "required": true,
+            "schema": {
+              "enum": [
+                "true"
+              ],
               "type": "string"
             }
           }
@@ -2265,12 +2520,25 @@
           "Namespaces"
         ],
         "summary": "Update the namespace's owner team and description.",
+        "operationId": "PatchNamespacesByJobNamespace",
         "parameters": [
           {
             "name": "jobNamespace",
             "in": "path",
             "required": true,
             "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "X-Acta-Control",
+            "in": "header",
+            "description": "Confirms a control call. The value is true; a missing header or any other value answers 400.",
+            "required": true,
+            "schema": {
+              "enum": [
+                "true"
+              ],
               "type": "string"
             }
           }
@@ -2385,12 +2653,25 @@
           "Tenants"
         ],
         "summary": "Add or update one tag on the tenant.",
+        "operationId": "PostTenantsByTenantNameTags",
         "parameters": [
           {
             "name": "tenantName",
             "in": "path",
             "required": true,
             "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "X-Acta-Control",
+            "in": "header",
+            "description": "Confirms a control call. The value is true; a missing header or any other value answers 400.",
+            "required": true,
+            "schema": {
+              "enum": [
+                "true"
+              ],
               "type": "string"
             }
           }
@@ -2400,6 +2681,10 @@
             "application/json": {
               "schema": {
                 "$ref": "#/components/schemas/UpsertTenantTagsRequest"
+              },
+              "example": {
+                "name": "env",
+                "value": "prod"
               }
             }
           },
@@ -2493,6 +2778,7 @@
           "Tenants"
         ],
         "summary": "Read the tenant's tags.",
+        "operationId": "GetTenantsByTenantNameTags",
         "parameters": [
           {
             "name": "tenantName",
@@ -2573,6 +2859,7 @@
           "Tenants"
         ],
         "summary": "Remove one tag from the tenant.",
+        "operationId": "DeleteTenantsByTenantNameTagsByTagName",
         "parameters": [
           {
             "name": "tenantName",
@@ -2587,6 +2874,18 @@
             "in": "path",
             "required": true,
             "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "X-Acta-Control",
+            "in": "header",
+            "description": "Confirms a control call. The value is true; a missing header or any other value answers 400.",
+            "required": true,
+            "schema": {
+              "enum": [
+                "true"
+              ],
               "type": "string"
             }
           }
@@ -2671,6 +2970,21 @@
           "Tenants"
         ],
         "summary": "Register a tenant, or return the existing one.",
+        "operationId": "PostTenants",
+        "parameters": [
+          {
+            "name": "X-Acta-Control",
+            "in": "header",
+            "description": "Confirms a control call. The value is true; a missing header or any other value answers 400.",
+            "required": true,
+            "schema": {
+              "enum": [
+                "true"
+              ],
+              "type": "string"
+            }
+          }
+        ],
         "requestBody": {
           "content": {
             "application/json": {
@@ -2759,6 +3073,7 @@
           "Tenants"
         ],
         "summary": "List tenants.",
+        "operationId": "GetTenants",
         "parameters": [
           {
             "name": "status",
@@ -2878,12 +3193,25 @@
           "Tenants"
         ],
         "summary": "Suspend the tenant: new work is rejected at enqueue.",
+        "operationId": "PostTenantsByTenantNameSuspend",
         "parameters": [
           {
             "name": "tenantName",
             "in": "path",
             "required": true,
             "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "X-Acta-Control",
+            "in": "header",
+            "description": "Confirms a control call. The value is true; a missing header or any other value answers 400.",
+            "required": true,
+            "schema": {
+              "enum": [
+                "true"
+              ],
               "type": "string"
             }
           }
@@ -2987,12 +3315,25 @@
           "Tenants"
         ],
         "summary": "Resume a suspended tenant.",
+        "operationId": "PostTenantsByTenantNameResume",
         "parameters": [
           {
             "name": "tenantName",
             "in": "path",
             "required": true,
             "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "X-Acta-Control",
+            "in": "header",
+            "description": "Confirms a control call. The value is true; a missing header or any other value answers 400.",
+            "required": true,
+            "schema": {
+              "enum": [
+                "true"
+              ],
               "type": "string"
             }
           }
@@ -3096,12 +3437,25 @@
           "Tenants"
         ],
         "summary": "Update the tenant's display name and description.",
+        "operationId": "PatchTenantsByTenantName",
         "parameters": [
           {
             "name": "tenantName",
             "in": "path",
             "required": true,
             "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "X-Acta-Control",
+            "in": "header",
+            "description": "Confirms a control call. The value is true; a missing header or any other value answers 400.",
+            "required": true,
+            "schema": {
+              "enum": [
+                "true"
+              ],
               "type": "string"
             }
           }
@@ -3214,6 +3568,7 @@
           "Tenants"
         ],
         "summary": "Read one tenant.",
+        "operationId": "GetTenantsByTenantName",
         "parameters": [
           {
             "name": "tenantName",
@@ -3294,12 +3649,25 @@
           "Alerts"
         ],
         "summary": "Acknowledge the alert: an operator has seen it.",
+        "operationId": "PostAlertsByAlertRefAcknowledge",
         "parameters": [
           {
             "name": "alertRef",
             "in": "path",
             "required": true,
             "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "X-Acta-Control",
+            "in": "header",
+            "description": "Confirms a control call. The value is true; a missing header or any other value answers 400.",
+            "required": true,
+            "schema": {
+              "enum": [
+                "true"
+              ],
               "type": "string"
             }
           }
@@ -3403,12 +3771,25 @@
           "Alerts"
         ],
         "summary": "Resolve the alert: its cause is handled.",
+        "operationId": "PostAlertsByAlertRefResolve",
         "parameters": [
           {
             "name": "alertRef",
             "in": "path",
             "required": true,
             "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "X-Acta-Control",
+            "in": "header",
+            "description": "Confirms a control call. The value is true; a missing header or any other value answers 400.",
+            "required": true,
+            "schema": {
+              "enum": [
+                "true"
+              ],
               "type": "string"
             }
           }
@@ -3512,12 +3893,25 @@
           "Outbox"
         ],
         "summary": "Return quarantined outbox rows to pending; the next relay pass applies it.",
+        "operationId": "PostOutboxByJobNamespaceRequeue",
         "parameters": [
           {
             "name": "jobNamespace",
             "in": "path",
             "required": true,
             "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "X-Acta-Control",
+            "in": "header",
+            "description": "Confirms a control call. The value is true; a missing header or any other value answers 400.",
+            "required": true,
+            "schema": {
+              "enum": [
+                "true"
+              ],
               "type": "string"
             }
           }
@@ -3631,12 +4025,25 @@
           "Outbox"
         ],
         "summary": "Delete quarantined outbox rows, keeping the ids as audit evidence.",
+        "operationId": "PostOutboxByJobNamespaceDiscard",
         "parameters": [
           {
             "name": "jobNamespace",
             "in": "path",
             "required": true,
             "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "X-Acta-Control",
+            "in": "header",
+            "description": "Confirms a control call. The value is true; a missing header or any other value answers 400.",
+            "required": true,
+            "schema": {
+              "enum": [
+                "true"
+              ],
               "type": "string"
             }
           }
@@ -3750,6 +4157,7 @@
           "Definitions"
         ],
         "summary": "Add or update one tag on the definition.",
+        "operationId": "PostDefinitionsByJobNamespaceByJobNameTags",
         "parameters": [
           {
             "name": "jobNamespace",
@@ -3766,6 +4174,18 @@
             "schema": {
               "type": "string"
             }
+          },
+          {
+            "name": "X-Acta-Control",
+            "in": "header",
+            "description": "Confirms a control call. The value is true; a missing header or any other value answers 400.",
+            "required": true,
+            "schema": {
+              "enum": [
+                "true"
+              ],
+              "type": "string"
+            }
           }
         ],
         "requestBody": {
@@ -3773,6 +4193,10 @@
             "application/json": {
               "schema": {
                 "$ref": "#/components/schemas/UpsertDefinitionTagsRequest"
+              },
+              "example": {
+                "name": "env",
+                "value": "prod"
               }
             }
           },
@@ -3866,6 +4290,7 @@
           "Definitions"
         ],
         "summary": "Read the definition's tags.",
+        "operationId": "GetDefinitionsByJobNamespaceByJobNameTags",
         "parameters": [
           {
             "name": "jobNamespace",
@@ -3954,6 +4379,7 @@
           "Definitions"
         ],
         "summary": "Remove one tag from the definition.",
+        "operationId": "DeleteDefinitionsByJobNamespaceByJobNameTagsByTagName",
         "parameters": [
           {
             "name": "jobNamespace",
@@ -3976,6 +4402,18 @@
             "in": "path",
             "required": true,
             "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "X-Acta-Control",
+            "in": "header",
+            "description": "Confirms a control call. The value is true; a missing header or any other value answers 400.",
+            "required": true,
+            "schema": {
+              "enum": [
+                "true"
+              ],
               "type": "string"
             }
           }
@@ -4060,6 +4498,7 @@
           "Definitions"
         ],
         "summary": "Set or clear the definition's operator policy overrides.",
+        "operationId": "PatchDefinitionsByJobNamespaceByJobName",
         "parameters": [
           {
             "name": "jobNamespace",
@@ -4074,6 +4513,18 @@
             "in": "path",
             "required": true,
             "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "X-Acta-Control",
+            "in": "header",
+            "description": "Confirms a control call. The value is true; a missing header or any other value answers 400.",
+            "required": true,
+            "schema": {
+              "enum": [
+                "true"
+              ],
               "type": "string"
             }
           }
@@ -4186,6 +4637,7 @@
           "Definitions"
         ],
         "summary": "Read one job definition and its effective policy.",
+        "operationId": "GetDefinitionsByJobNamespaceByJobName",
         "parameters": [
           {
             "name": "jobNamespace",
@@ -4274,6 +4726,7 @@
           "Definitions"
         ],
         "summary": "Retire the definition and cancel its parked jobs.",
+        "operationId": "PostDefinitionsByJobNamespaceByJobNameRetire",
         "parameters": [
           {
             "name": "jobNamespace",
@@ -4288,6 +4741,18 @@
             "in": "path",
             "required": true,
             "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "X-Acta-Control",
+            "in": "header",
+            "description": "Confirms a control call. The value is true; a missing header or any other value answers 400.",
+            "required": true,
+            "schema": {
+              "enum": [
+                "true"
+              ],
               "type": "string"
             }
           }
@@ -4402,6 +4867,7 @@
           "Schedules"
         ],
         "summary": "Pause a recurring schedule, indefinitely or until an instant.",
+        "operationId": "PostSchedulesByJobNamespaceByJobNameByScheduleNamePause",
         "parameters": [
           {
             "name": "jobNamespace",
@@ -4424,6 +4890,18 @@
             "in": "path",
             "required": true,
             "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "X-Acta-Control",
+            "in": "header",
+            "description": "Confirms a control call. The value is true; a missing header or any other value answers 400.",
+            "required": true,
+            "schema": {
+              "enum": [
+                "true"
+              ],
               "type": "string"
             }
           }
@@ -4537,6 +5015,7 @@
           "Schedules"
         ],
         "summary": "Resume a paused schedule, reconciled by its misfire policy.",
+        "operationId": "PostSchedulesByJobNamespaceByJobNameByScheduleNameResume",
         "parameters": [
           {
             "name": "jobNamespace",
@@ -4559,6 +5038,18 @@
             "in": "path",
             "required": true,
             "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "X-Acta-Control",
+            "in": "header",
+            "description": "Confirms a control call. The value is true; a missing header or any other value answers 400.",
+            "required": true,
+            "schema": {
+              "enum": [
+                "true"
+              ],
               "type": "string"
             }
           }
@@ -4672,6 +5163,7 @@
           "Schedules"
         ],
         "summary": "Fire the schedule now, without moving its cadence.",
+        "operationId": "PostSchedulesByJobNamespaceByJobNameByScheduleNameTrigger",
         "parameters": [
           {
             "name": "jobNamespace",
@@ -4694,6 +5186,18 @@
             "in": "path",
             "required": true,
             "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "X-Acta-Control",
+            "in": "header",
+            "description": "Confirms a control call. The value is true; a missing header or any other value answers 400.",
+            "required": true,
+            "schema": {
+              "enum": [
+                "true"
+              ],
               "type": "string"
             }
           }
@@ -4807,6 +5311,7 @@
           "Calendars"
         ],
         "summary": "Save a calendar definition as the family's next draft version.",
+        "operationId": "PostCalendarsByJobNamespaceByCalendarNameDrafts",
         "parameters": [
           {
             "name": "jobNamespace",
@@ -4821,6 +5326,18 @@
             "in": "path",
             "required": true,
             "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "X-Acta-Control",
+            "in": "header",
+            "description": "Confirms a control call. The value is true; a missing header or any other value answers 400.",
+            "required": true,
+            "schema": {
+              "enum": [
+                "true"
+              ],
               "type": "string"
             }
           }
@@ -4935,6 +5452,7 @@
           "Calendars"
         ],
         "summary": "Publish a draft as the family's current version and retime the schedules bound to it.",
+        "operationId": "PostCalendarsByJobNamespaceByCalendarNamePublish",
         "parameters": [
           {
             "name": "jobNamespace",
@@ -4949,6 +5467,18 @@
             "in": "path",
             "required": true,
             "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "X-Acta-Control",
+            "in": "header",
+            "description": "Confirms a control call. The value is true; a missing header or any other value answers 400.",
+            "required": true,
+            "schema": {
+              "enum": [
+                "true"
+              ],
               "type": "string"
             }
           }
@@ -5063,6 +5593,7 @@
           "Calendars"
         ],
         "summary": "Archive the family's current version.",
+        "operationId": "PostCalendarsByJobNamespaceByCalendarNameArchive",
         "parameters": [
           {
             "name": "jobNamespace",
@@ -5077,6 +5608,18 @@
             "in": "path",
             "required": true,
             "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "X-Acta-Control",
+            "in": "header",
+            "description": "Confirms a control call. The value is true; a missing header or any other value answers 400.",
+            "required": true,
+            "schema": {
+              "enum": [
+                "true"
+              ],
               "type": "string"
             }
           }
@@ -5191,6 +5734,7 @@
           "Jobs"
         ],
         "summary": "Read one job.",
+        "operationId": "GetJobsByJobRef",
         "parameters": [
           {
             "name": "jobRef",
@@ -5271,6 +5815,7 @@
           "Jobs"
         ],
         "summary": "Resolve a job by namespace and deduplication key.",
+        "operationId": "GetJobsByKey",
         "parameters": [
           {
             "name": "jobNamespace",
@@ -5361,6 +5906,7 @@
           "Jobs"
         ],
         "summary": "Read a job's compile-time input template.",
+        "operationId": "GetJobsInputTemplate",
         "parameters": [
           {
             "name": "jobNamespace",
@@ -5451,6 +5997,7 @@
           "Jobs"
         ],
         "summary": "Read the job's full detail aggregate in one request.",
+        "operationId": "GetJobsByJobRefDetail",
         "parameters": [
           {
             "name": "jobRef",
@@ -5531,6 +6078,7 @@
           "Workers"
         ],
         "summary": "List workers.",
+        "operationId": "GetWorkers",
         "parameters": [
           {
             "name": "jobNamespace",
@@ -5641,6 +6189,7 @@
           "Workers"
         ],
         "summary": "Read one worker.",
+        "operationId": "GetWorkersByWorkerRef",
         "parameters": [
           {
             "name": "workerRef",
@@ -5721,6 +6270,7 @@
           "Namespaces"
         ],
         "summary": "List namespaces.",
+        "operationId": "GetNamespaces",
         "parameters": [
           {
             "name": "status",
@@ -5840,6 +6390,7 @@
           "Alerts"
         ],
         "summary": "List alerts.",
+        "operationId": "GetAlerts",
         "parameters": [
           {
             "name": "jobNamespace",
@@ -5993,6 +6544,7 @@
           "Alerts"
         ],
         "summary": "Read one alert.",
+        "operationId": "GetAlertsByAlertRef",
         "parameters": [
           {
             "name": "alertRef",
@@ -6073,6 +6625,7 @@
           "Outbox"
         ],
         "summary": "List outbox relay sources with backlog and quarantine totals.",
+        "operationId": "GetOutboxSources",
         "parameters": [
           {
             "name": "jobNamespace",
@@ -6160,6 +6713,7 @@
           "Outbox"
         ],
         "summary": "List a relay source's quarantined staging rows.",
+        "operationId": "GetOutboxByJobNamespaceQuarantined",
         "parameters": [
           {
             "name": "jobNamespace",
@@ -6265,6 +6819,7 @@
           "Definitions"
         ],
         "summary": "List job definitions.",
+        "operationId": "GetDefinitions",
         "parameters": [
           {
             "name": "jobNamespace",
@@ -6392,6 +6947,7 @@
           "Schedules"
         ],
         "summary": "List recurring schedules, next run first.",
+        "operationId": "GetSchedules",
         "parameters": [
           {
             "name": "jobNamespace",
@@ -6516,6 +7072,7 @@
           "Schedules"
         ],
         "summary": "Preview a schedule's upcoming fire instants.",
+        "operationId": "GetSchedulesByJobNamespaceByJobNameByScheduleNamePreview",
         "parameters": [
           {
             "name": "jobNamespace",
@@ -6621,6 +7178,7 @@
           "Calendars"
         ],
         "summary": "List calendar families, the shared ones in sys included.",
+        "operationId": "GetCalendars",
         "parameters": [
           {
             "name": "jobNamespace",
@@ -6737,6 +7295,7 @@
           "Calendars"
         ],
         "summary": "Read a calendar family: its versions, one definition, and the schedules bound to it.",
+        "operationId": "GetCalendarsByJobNamespaceByCalendarName",
         "parameters": [
           {
             "name": "jobNamespace",
@@ -6834,6 +7393,7 @@
           "Calendars"
         ],
         "summary": "Preview a calendar version beside the current one.",
+        "operationId": "GetCalendarsByJobNamespaceByCalendarNamePreview",
         "parameters": [
           {
             "name": "jobNamespace",
@@ -6958,6 +7518,7 @@
           "Events"
         ],
         "summary": "List ledger events, filtered and keyset-paged.",
+        "operationId": "GetEvents",
         "parameters": [
           {
             "name": "jobNamespace",
@@ -7200,6 +7761,7 @@
           "Jobs"
         ],
         "summary": "List one job's event timeline.",
+        "operationId": "GetJobsByJobRefEvents",
         "parameters": [
           {
             "name": "jobRef",
@@ -7358,6 +7920,7 @@
           "Definitions"
         ],
         "summary": "List a definition's ledger events (its jobs' lineage, not just changes).",
+        "operationId": "GetDefinitionsByJobNamespaceByJobNameEvents",
         "parameters": [
           {
             "name": "jobNamespace",
@@ -7516,6 +8079,7 @@
           "Overview"
         ],
         "summary": "Read the ledger's health-overview counters.",
+        "operationId": "GetOverview",
         "parameters": [
           {
             "name": "jobNamespace",
@@ -7586,6 +8150,7 @@
           "Capabilities"
         ],
         "summary": "Read this host's API capabilities.",
+        "operationId": "GetCapabilities",
         "responses": {
           "400": {
             "description": "Bad Request",
@@ -8052,6 +8617,27 @@
               "string"
             ],
             "format": "date-time"
+          },
+          "lane": {
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "concurrencyKey": {
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "tags": {
+            "type": [
+              "null",
+              "array"
+            ],
+            "items": {
+              "$ref": "#/components/schemas/TagInput"
+            }
           }
         }
       },
@@ -12529,6 +13115,24 @@
           }
         },
         "description": "What suspending a tenant did, and the tenant's version after the attempt."
+      },
+      "TagInput": {
+        "required": [
+          "name"
+        ],
+        "type": "object",
+        "properties": {
+          "name": {
+            "type": "string"
+          },
+          "value": {
+            "type": [
+              "null",
+              "string"
+            ]
+          }
+        },
+        "description": "Caller-supplied per-tag wire row attached to an enqueued Job. Names are unique within a\nrequest; string? TagInput.Value is null for presence-only tags."
       },
       "TenantStatusCode": {
         "description": "Tenant state machine. 10-spaced ids; live states 10..80."

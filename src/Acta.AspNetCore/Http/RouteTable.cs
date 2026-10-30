@@ -92,7 +92,7 @@ internal static class RouteTable
                 (HttpContext http, IActaOperations operations, CancellationToken ct) =>
                     TagRoutes.UpsertAsync(http, operations, options, upsert, () => target(http), ct)
             )
-            .AcceptsJson<TBody>()
+            .AcceptsJson<TBody>(example: """{ "name": "env", "value": "prod" }""")
             .WithSummary($"Add or update one tag on the {entity}.")
             .Produces<UpsertTagsResponse>(StatusCodes.Status200OK)
             .Produces<UpsertTagsResponse>(StatusCodes.Status404NotFound)

@@ -21,7 +21,8 @@ namespace Acta.AspNetCore;
 /// control-enabled one is a supported deployment with its own test. A route-derived name would
 /// collide between those mounts, and a mount-derived one would put the host's chosen path inside
 /// every operation id in a document that is supposed to describe the API, not the deployment. So the
-/// document carries no operation ids; the drift gate is over paths, methods, and shapes.
+/// framework assigns no operation ids; the contract generator derives each from the method and the
+/// route below the version segment, the same under any mount, and the drift gate covers those too.
 /// </para>
 /// </remarks>
 internal static class ActaEndpointIdentity

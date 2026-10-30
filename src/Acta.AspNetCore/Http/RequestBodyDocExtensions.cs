@@ -6,10 +6,11 @@ internal static class RequestBodyDocExtensions
 {
     /// <summary>
     /// Declares the <c>application/json</c> body <typeparamref name="TBody"/> this endpoint reads.
-    /// <paramref name="optional"/> marks a body the endpoint acts without.
+    /// <paramref name="optional"/> marks a body the endpoint acts without; <paramref name="example"/>
+    /// is one valid body as JSON text, for the document.
     /// </summary>
-    public static RouteHandlerBuilder AcceptsJson<TBody>(this RouteHandlerBuilder builder, bool optional = false)
-        where TBody : notnull => builder.WithMetadata(new RequestBodyDoc(typeof(TBody), optional));
+    public static RouteHandlerBuilder AcceptsJson<TBody>(this RouteHandlerBuilder builder, bool optional = false, string? example = null)
+        where TBody : notnull => builder.WithMetadata(new RequestBodyDoc(typeof(TBody), optional, example));
 }
 
 /// <summary>
@@ -28,4 +29,4 @@ internal static class RequestBodyDocExtensions
 /// which content type is wanted, and an optional body has to reach a handler that treats absence as
 /// "act with defaults".
 /// </remarks>
-internal sealed record RequestBodyDoc(Type BodyType, bool Optional);
+internal sealed record RequestBodyDoc(Type BodyType, bool Optional, string? Example = null);

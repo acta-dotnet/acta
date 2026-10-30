@@ -355,7 +355,7 @@ app.MapActa("/acta", options =>
 - **Lists page by cursor.** Pass `NextCursor` back as `Cursor`; a cursor is tied to its query, and a stale one is rejected. Pages default to 50 and cap at 100, and `IncludeTotal` adds a count (events only with a job filter).
 - `GET /capabilities` reports whether controls are enabled, so a client can hide edit UI.
 
-The [OpenAPI document](./reference/openapi.json) lists every route.
+The [OpenAPI document](./reference/openapi.json) lists every route, each with an id derived from its method and route (`GetJobsByJobRef`, `PostJobsByJobRefPause`) and, on a control, the confirmation header the mount requires.
 
 ### Control authorization
 

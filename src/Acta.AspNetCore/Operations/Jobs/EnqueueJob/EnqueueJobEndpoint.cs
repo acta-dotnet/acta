@@ -105,7 +105,10 @@ internal static class EnqueueJobEndpoint
                         Priority: body.Priority,
                         NextRunAtUtc: body.NextRunAtUtc,
                         DelaySeconds: body.DelaySeconds,
-                        TenantName: body.TenantName
+                        TenantName: body.TenantName,
+                        Lane: body.Lane,
+                        ConcurrencyKey: body.ConcurrencyKey,
+                        Tags: body.Tags
                     );
 
                     try
@@ -142,7 +145,25 @@ internal static class EnqueueJobEndpoint
             // Both carry Location; 409 is a namespace or tenant guard refusing the enqueue outright.
             .WithSummary("Enqueue a job.")
             // The body is read manually rather than bound, so the document only learns its shape here.
-            .AcceptsJson<EnqueueJobRequest>()
+            .AcceptsJson<EnqueueJobRequest>(
+                example: """
+                {
+                  "jobNamespace": "billing",
+                  "jobName": "send-invoice",
+                  "input": { "invoiceId": 42 },
+                  "deduplicationKey": "invoice-42",
+                  "lane": "reports",
+                  "concurrencyKey": "customer:42",
+                  "tags": [{ "name": "source", "value": "api" }]
+                }
+                """
+            )
+            .WithMetadata(
+                new ResponseHeaderDoc(
+                    "Location",
+                    "The job's URL under this mount, {this path}/{jobRef}: on 201 the job this request inserted, on 200 the one its deduplication key matched."
+                )
+            )
             .Produces<EnqueueJobResponse>(StatusCodes.Status201Created)
             .Produces<EnqueueJobResponse>(StatusCodes.Status200OK)
             .ProducesProblem(StatusCodes.Status409Conflict)

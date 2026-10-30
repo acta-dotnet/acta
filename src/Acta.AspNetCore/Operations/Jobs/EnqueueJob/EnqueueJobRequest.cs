@@ -5,7 +5,9 @@ namespace Acta.AspNetCore;
 /// <summary>
 /// Body of <c>POST /jobs</c>. At most one of <c>Input</c> (raw JSON stored as json) or <c>Base64</c> (stored as the
 /// binary format named by <c>FormatId</c>, which must be 2 or 128..255) supplies the input; both absent enqueues a
-/// no-input job. <c>Priority</c> accepts the code string (e.g. "high").
+/// no-input job. <c>Priority</c> accepts the code string (e.g. "high"). <c>Lane</c>, <c>ConcurrencyKey</c>, and
+/// <c>Tags</c> are the metadata <c>IJobs.EnqueueAsync</c> takes, under its rules: a lane is a dotted kebab name and
+/// defaults to the definition's, a key is case-exact printable ASCII, and tag names are unique once folded.
 /// </summary>
 internal sealed record EnqueueJobRequest(
     string? JobNamespace = null,
@@ -20,5 +22,8 @@ internal sealed record EnqueueJobRequest(
     string? TenantName = null,
     JobPriorityCode? Priority = null,
     int? DelaySeconds = null,
-    DateTime? NextRunAtUtc = null
+    DateTime? NextRunAtUtc = null,
+    string? Lane = null,
+    string? ConcurrencyKey = null,
+    IReadOnlyList<TagInput>? Tags = null
 );

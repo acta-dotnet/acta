@@ -46,6 +46,11 @@ Not tagged yet. rc.7 redesigns scheduling (the sections below grow with each ste
 
 **Native AOT with a multi-parameter handler:** declare the input record yourself. The developer guide used to say to add the generated `Args` record to your JSON context, which cannot work. System.Text.Json's generator never sees a generator-emitted type.
 
+### Additions
+
+- The OpenAPI reference gives every operation an id derived from its route, `GetJobsByJobRef` or `PostJobsByJobRefPause`, the same under any mount; every control lists the mount's confirmation header with its one value; `POST /jobs` documents its `Location` header on 201 and 200 and carries a request example, as does a tag upsert; and the document's description states the cursor paging. The generator writes one document per mount, a read-only mount's without the controls. ASP.NET endpoint names stay unset.
+- `POST /jobs` takes `lane`, `concurrencyKey`, and `tags` (`[{ "name": "source", "value": "dashboard" }]`, the value optional), the metadata `IJobs.EnqueueAsync` already took, under the same rules and defaults; an omitted member behaves as before. The dashboard's enqueue form shows the three fields and checks them before sending.
+
 ### Fixes
 
 - A parent whose bounded child wait expired cancels the child and its subtree only while its attempt still holds the parent. Before, an attempt that lost the parent after its wait expired could cancel a child that a newer attempt had restarted and was waiting on.

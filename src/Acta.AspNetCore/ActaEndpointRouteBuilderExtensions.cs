@@ -131,6 +131,10 @@ public static class ActaEndpointRouteBuilderExtensions
             controls = api.MapGroup("");
             ControlAuthorizationFilter.Attach(controls);
             controls.ProducesProblem(StatusCodes.Status403Forbidden);
+            // What a control call needs, said once for the group so the contract generator can render it on every control.
+            controls.WithMetadata(
+                new ControlEndpointDoc(options.RequireControlConfirmationHeader ? options.ControlConfirmationHeaderName : null)
+            );
         }
 
         JobsEndpoints.Map(api, controls, options);

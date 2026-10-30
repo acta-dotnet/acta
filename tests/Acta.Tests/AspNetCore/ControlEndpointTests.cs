@@ -827,6 +827,45 @@ public sealed class ControlEndpointTests
         Assert.Empty(fakes.Jobs.EnqueueRequests);
     }
 
+    /// <summary>
+    /// The lane, concurrency key, and tags reach the engine as the body carries them, where the same
+    /// normalization the .NET request goes through applies; an absent member stays absent, so the
+    /// definition's lane and an unconstrained key apply as before.
+    /// </summary>
+    [Fact]
+    public async Task Enqueue_forwards_lane_concurrency_key_and_tags_and_leaves_absent_ones_null()
+    {
+        var fakes = new FakeOperations();
+        var (app, client) = await StartWithControlsAsync(fakes);
+        await using var _ = app;
+        var ct = TestContext.Current.CancellationToken;
+
+        var full = await client.SendAsync(
+            PostEnqueue(
+                new
+                {
+                    jobNamespace = "billing",
+                    jobName = "send-invoice",
+                    lane = "reports",
+                    concurrencyKey = "customer:42",
+                    tags = new object[] { new { name = "source", value = "dashboard" }, new { name = "review-needed" } },
+                }
+            ),
+            ct
+        );
+        var bare = await client.SendAsync(PostEnqueue(new { jobNamespace = "billing", jobName = "send-invoice" }), ct);
+
+        Assert.Equal(HttpStatusCode.Created, full.StatusCode);
+        Assert.Equal(HttpStatusCode.Created, bare.StatusCode);
+        var (withMetadata, without) = (fakes.Jobs.EnqueueRequests[0], fakes.Jobs.EnqueueRequests[1]);
+        Assert.Equal("reports", withMetadata.Lane);
+        Assert.Equal("customer:42", withMetadata.ConcurrencyKey);
+        Assert.Equal([new TagInput("source", "dashboard"), new TagInput("review-needed")], withMetadata.Tags);
+        Assert.Null(without.Lane);
+        Assert.Null(without.ConcurrencyKey);
+        Assert.Null(without.Tags);
+    }
+
     private static HttpRequestMessage PostTenant(object body, bool confirm = true)
     {
         var request = new HttpRequestMessage(HttpMethod.Post, "/acta/api/v1/tenants");

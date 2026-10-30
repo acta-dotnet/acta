@@ -5,6 +5,7 @@
   import { hashParams } from '../router.ts';
   import { cloneInputState, enqueueInputFields, inputContractLabel, templateSeed } from './enqueueTemplate.ts';
   import { checkKey, keyHint } from './enqueueKeys.ts';
+  import { checkName, checkTags, TAG_LIMITS, type TagDraft } from './enqueueNames.ts';
   import { readAllPages } from '../lib/pagedWalk.ts';
   import { isSysNamespace } from './namespaceAdmin.ts';
   import { scope } from '../scope.ts';
@@ -25,6 +26,10 @@
   let inputJson = $state('{}');
   let deduplicationKey = $state('');
   let correlationKey = $state('');
+  let lane = $state('');
+  let concurrencyKey = $state('');
+  // The tag rows are a draft the enqueue sends; editing them saves nothing.
+  let tagRows = $state<TagDraft[]>([]);
   let tenantName = $state('');
   let priority = $state('');
   let delaySeconds = $state<number | null>(null);
@@ -155,13 +160,19 @@
   // The keys are checked as typed, in the server's words; the field keeps the raw text so a bad paste can be fixed, not retyped.
   let dedupCheck = $derived(checkKey(deduplicationKey, 'deduplication'));
   let correlationCheck = $derived(checkKey(correlationKey, 'correlation'));
+  let laneCheck = $derived(checkName(lane));
+  let concurrencyCheck = $derived(checkKey(concurrencyKey, 'concurrency'));
+  let tagsCheck = $derived(checkTags(tagRows));
   let canSubmit = $derived(
     canControlNow &&
       !busy &&
       namespace.trim().length > 0 &&
       jobName.trim().length > 0 &&
       dedupCheck.error === null &&
-      correlationCheck.error === null
+      correlationCheck.error === null &&
+      laneCheck.error === null &&
+      concurrencyCheck.error === null &&
+      tagsCheck.error === null
   );
 
   async function submit(): Promise<void> {
@@ -183,6 +194,9 @@
         ...inputFields.fields,
         deduplicationKey: dedupCheck.value,
         correlationKey: correlationCheck.value,
+        lane: laneCheck.value,
+        concurrencyKey: concurrencyCheck.value,
+        tags: tagsCheck.tags,
         tenantName: tenantName || null,
         priority: priority || null,
         delaySeconds: delaySeconds ?? null
@@ -274,6 +288,62 @@
               {/if}
             </label>
             <label class="detail-field">
+              <span>Lane</span>
+              <input
+                bind:value={lane}
+                placeholder="Optional; the definition's lane applies when empty"
+                disabled={busy}
+                aria-invalid={laneCheck.error !== null} />
+              {#if laneCheck.error}
+                <span class="field-error" role="alert">{laneCheck.error}</span>
+              {:else}
+                <span class="field-hint">Dotted kebab-case, up to 128 characters, folded to lowercase; never sys.</span>
+              {/if}
+            </label>
+            <label class="detail-field">
+              <span>Concurrency key</span>
+              <input
+                bind:value={concurrencyKey}
+                placeholder="Optional; one job per key runs at a time"
+                disabled={busy}
+                aria-invalid={concurrencyCheck.error !== null} />
+              {#if concurrencyCheck.error}
+                <span class="field-error" role="alert">{concurrencyCheck.error}</span>
+              {:else}
+                <span class="field-hint">{keyHint('concurrency')}</span>
+              {/if}
+            </label>
+            <div class="detail-field">
+              <span>Tags</span>
+              {#each tagRows as row, index (index)}
+                {@const check = tagsCheck.rows[index]}
+                <div class="tag-row">
+                  <input
+                    bind:value={row.name}
+                    placeholder="name"
+                    aria-label={`Tag ${index + 1} name`}
+                    disabled={busy}
+                    aria-invalid={check.nameError !== null} />
+                  <input
+                    bind:value={row.value}
+                    placeholder="value (optional)"
+                    aria-label={`Tag ${index + 1} value`}
+                    disabled={busy}
+                    aria-invalid={check.valueError !== null} />
+                  <button type="button" class="tag-remove" aria-label={`Remove tag ${index + 1}`} disabled={busy} onclick={() => tagRows.splice(index, 1)}>
+                    <Icon name="x" />
+                  </button>
+                  {#if check.nameError ?? check.valueError}
+                    <span class="field-error tag-row-error" role="alert">{check.nameError ?? check.valueError}</span>
+                  {/if}
+                </div>
+              {/each}
+              <div class="tag-actions">
+                <button type="button" disabled={busy || tagRows.length >= TAG_LIMITS.count} onclick={() => tagRows.push({ name: '', value: '' })}>Add tag</button>
+                <span class="field-hint">Up to {TAG_LIMITS.count} tags; a name is dotted kebab-case, a value is optional text up to {TAG_LIMITS.value} characters.</span>
+              </div>
+            </div>
+            <label class="detail-field">
               <span>Tenant name</span>
               <input bind:value={tenantName} maxlength="128" placeholder="Optional tenant name" disabled={busy} />
             </label>
@@ -304,7 +374,7 @@
       <aside class="detail-rail">
         <section class="detail-panel">
           <h2>Notes</h2>
-          <p class="detail-help">A deduplication key makes the enqueue idempotent: a repeat with the same key returns the existing job instead of inserting a new one. Priority and delay default to the definition policy when left unset.</p>
+          <p class="detail-help">A deduplication key makes the enqueue idempotent: a repeat with the same key returns the existing job instead of inserting a new one, and never rewrites its lane, key, or tags. Priority, delay, and lane default to the definition policy when left unset; a concurrency key lets one job per key run at a time; tags are stored with the job and filter the Jobs page.</p>
         </section>
       </aside>
     </div>
@@ -318,4 +388,9 @@
   .field-hint { color: var(--muted); font-size: var(--text-xs); font-weight: 400; }
   .field-error { color: var(--bad); font-size: var(--text-xs); font-weight: 400; }
   .detail-field input[aria-invalid='true'] { border-color: var(--bad); }
+  .tag-row { display: grid; grid-template-columns: 1fr 1fr auto; gap: 8px; align-items: center; }
+  .tag-row-error { grid-column: 1 / -1; }
+  .tag-remove { padding: 0; border: 0; background: transparent; color: var(--muted); cursor: pointer; line-height: 1; }
+  .tag-remove:hover:not(:disabled) { color: var(--bad); }
+  .tag-actions { display: flex; flex-wrap: wrap; align-items: center; gap: 12px; }
 </style>

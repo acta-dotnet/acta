@@ -92,7 +92,13 @@ const officeHoursPreview = (version: number) => ({
 
 async function mockDashboard(
   page: Page,
-  options: { controls: boolean; catalogPages?: boolean; onRestart?: () => void; onPublish?: (body: unknown) => void }
+  options: {
+    controls: boolean;
+    catalogPages?: boolean;
+    onRestart?: () => void;
+    onPublish?: (body: unknown) => void;
+    onEnqueue?: (body: unknown) => void;
+  }
 ): Promise<void> {
   await page.route('**/api/v1/**', async (route: Route) => {
     const request = route.request();
@@ -122,6 +128,10 @@ async function mockDashboard(
       });
     }
     if (path === 'jobs' && request.method() === 'GET') return json(paged([job]));
+    if (path === 'jobs' && request.method() === 'POST') {
+      options.onEnqueue?.(request.postDataJSON());
+      return json({ jobRef, action: 'inserted' }, 201);
+    }
     // The Overview's outbox sources read had no fixture, so every test that lands on the Overview
     // failed at its first assertion rather than on anything it was written to check.
     if (path === 'outbox/sources') return json(paged([]));
@@ -341,6 +351,31 @@ test('the enqueue picker walks every catalog page and offers a job from page thr
   await expect(option).toBeVisible();
   await option.click();
   await expect(page.getByRole('button', { name: 'Job name' })).toContainText('report-204');
+});
+
+test('the enqueue form sends lane, concurrency key, and tags as the server would store them', async ({ page }) => {
+  let sent: unknown = null;
+  await mockDashboard(page, { controls: true, onEnqueue: (body) => { sent = body; } });
+  await page.goto('/#/enqueue?ns=billing&jobName=send-invoice');
+
+  await page.getByLabel('Lane').fill(' Reports ');
+  await page.getByLabel('Concurrency key').fill('customer:42');
+  await page.getByRole('button', { name: 'Add tag' }).click();
+  await page.getByLabel('Tag 1 name').fill('Source');
+  await page.getByLabel('Tag 1 value').fill('dashboard');
+  await page.getByRole('button', { name: 'Add tag' }).click();
+  await page.getByLabel('Tag 2 name').fill('review-needed');
+  await page.getByRole('button', { name: 'Enqueue job' }).click();
+
+  await expect(page.locator('.control-message')).toContainText('Job enqueued.');
+  expect(sent).toMatchObject({
+    lane: 'reports',
+    concurrencyKey: 'customer:42',
+    tags: [
+      { name: 'source', value: 'dashboard' },
+      { name: 'review-needed', value: null }
+    ]
+  });
 });
 
 test('read-only deployment hides controls and rejects a direct request', async ({ page }) => {

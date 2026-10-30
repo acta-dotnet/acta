@@ -36,6 +36,12 @@ test('the sys. prefix is reserved for deduplication keys only, in any case', () 
   assert.deepEqual(checkKey('system-42', 'deduplication'), { value: 'system-42', error: null });
 });
 
+test('a concurrency key keeps its case, may start with sys., and is at most 128 characters', () => {
+  assert.deepEqual(checkKey(' Customer:42 ', 'concurrency'), { value: 'Customer:42', error: null });
+  assert.deepEqual(checkKey('sys.lock', 'concurrency'), { value: 'sys.lock', error: null });
+  assert.equal(checkKey('k'.repeat(129), 'concurrency').error, 'Key length 129 exceeds the 128-char limit.');
+});
+
 test('the hint names the limit of each kind', () => {
   assert.match(keyHint('deduplication'), /128/);
   assert.match(keyHint('correlation'), /64/);
