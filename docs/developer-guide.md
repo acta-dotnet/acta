@@ -294,7 +294,7 @@ public sealed class LoggingBehavior(ILogger<LoggingBehavior> log) : IJobPipeline
     public async ValueTask<JobHandlerOutput> InvokeAsync(
         object request, JobContext context, JobBehaviorDelegate next, CancellationToken ct)
     {
-        using (log.BeginScope("Job {JobId}", context.JobId))
+        using (log.BeginScope("Tenant {TenantName}", context.TenantName))
         {
             return await next();
         }
@@ -532,7 +532,7 @@ For large files, exports, media, archives, reports, or model inputs, store the b
 
 Unhandled exceptions escape the handler and are captured as attempt failures. The framework records the exception's `Message`, truncated to 512 characters, as the attempt's failure message, at the job's event recording level; retry policy decides whether the job retries or becomes terminal. Nothing redacts that message: it is shown on the read surface and sent to alert channels, so keep secrets and personal data out of exception messages.
 
-`NotImplementedException`, `NotSupportedException`, and an uncaught `StepExhaustedException` are non-retryable: the job lands terminal `Failed` immediately (reason `non-retryable-exception`) without consuming retry budget, since retrying cannot change the outcome. A recurring job instead rolls over to its next occurrence, as it does after any failure. For custom non-retryable types, call `ctx.FailAsync` in the handler or register a pipeline behavior that translates them.
+`NotImplementedException`, `NotSupportedException`, and an uncaught `StepExhaustedException` are non-retryable: the job lands terminal `Failed` immediately (reason `non-retryable-exception`) without consuming retry budget, since retrying cannot change the outcome. A recurring job's slot instead settles that firing as failed and returns to `Idle` for its next one, as a spent budget does. For custom non-retryable types, call `ctx.FailAsync` in the handler or register a pipeline behavior that translates them.
 
 Handlers should not return failure-as-result unless the domain considers that a successful outcome.
 
@@ -599,7 +599,7 @@ The generator reports these at build time. All are errors unless noted, and an e
 | `ACTA0105` | Invalid `[Job]` policy value (malformed duration, out-of-bounds retry knobs, undefined code, invalid lane, rate, or concurrency value).                                                                                                            |
 | `ACTA0106` | A job's generated member name (its call factory, or the argument record of a job taking several parameters) collides with another job's, or with `Descriptors`, the manifest type name, or an `object` member, once separators and case are ignored, such as `send-mail` and `sendmail` (warning); the colliding members are left out and dispatch is unaffected. |
 | `ACTA0121` | Invalid `[Schedule]` declaration (no `[Job]`, bad or duplicate name, blank expression or environment, a definition that also declares a `Lane`).                                                                                                            |
-| `ACTA0122` | Invalid schedule expression; cron (Cronos dialect, 5 or 6 fields) or an interval of at least one second such as `5m`.                                                                                           |
+| `ACTA0122` | Invalid schedule expression; cron (Cronos dialect, 5 or 6 fields) or an interval of whole milliseconds and at least one second such as `5m` or `PT1.5S`.                                                       |
 | `ACTA0123` | `[Schedule]` handler whose input has no accessible parameterless constructor, or that takes several input parameters.                                                                                            |
 | `ACTA0124` | Invalid `[Schedule]` policy value: `MaxOutstanding` below 1, or an undefined `FullBehavior` or `MisfireStrategy`. |
 | `ACTA0125` | `MaxOutstanding` other than 1 on a schedule of a `Permanent` definition, whose one slot holds one occurrence at a time. |
@@ -721,7 +721,7 @@ A worker claims one row for every free executor and moves it straight to `Execut
 
 ### Handler Policy Lives Elsewhere
 
-Retries, backoff, execution timeout, deadline, retention, alert profile, event recording, priority, concurrency limit, rate limit, and schedule policy are declared on `[Job(...)]` and `[Schedule(...)]`, not on `JobsOptions`. An operator overrides them without a deploy through `IActaOperations.Definitions.UpdateOverridesAsync`, `PATCH /definitions/{jobNamespace}/{jobName}`, or the dashboard: a null field clears an override, the definition's `version` guards a concurrent edit, and workers pick the change up on their next heartbeat.
+Retries, backoff, execution timeout, deadline, retention, alert profile, event recording, priority, concurrency limit, and rate limit are declared on `[Job(...)]`, and schedule policy on `[Schedule(...)]`, not on `JobsOptions`. An operator overrides the job policy without a deploy through `IActaOperations.Definitions.UpdateOverridesAsync`, `PATCH /definitions/{jobNamespace}/{jobName}`, or the dashboard: a null field clears an override, the definition's `version` guards a concurrent edit, and workers pick the change up on their next heartbeat.
 
 The default retry policy (`MaxAttempts = 15`, backoff `"1m..1d x2 ~10%"`) keeps a failing job retrying for about 4.4 days before it lands Failed.
 
@@ -944,7 +944,7 @@ Under `CatchUpAll` the schedule is due again the moment a firing is admitted: a 
 
 The admission engine applies the strategy whenever it evaluates a stored occurrence that is already past: after downtime, when a paused schedule resumes, and when a timed pause ends. An occurrence less than `misfire_grace_seconds` (60) overdue still counts as due. A worker start never decides an occurrence: it registers the declaration and leaves the decision to the running fleet, so a redeploy with an unchanged schedule changes nothing. A changed expression, time zone, or interval anchor retimes the schedule at the start: the old timing's undecided occurrences are discarded (`schedule.retimed`) and the cursor seeds from the new timing's first occurrence after now. A timed pause decides as of its end: an occurrence inside the window is skipped under `Skip`, runs once under `CatchUpOnce`, runs as the latest under `CatchUpLatest`, and runs in order under `CatchUpAll`.
 
-`[Schedule(ExpireAfter = "1h", ExpireAction = ScheduleExpireActionCode.Discard)]` bounds how old an occurrence may be when it is evaluated. Occurrences older than the age are decided first and without work, audited as `schedule.skipped` with the reason `expired`, and the strategy then decides the rest. `Discard` moves on. `Pause` also pauses the schedule, with the pause message `Paused by the expiration policy: an occurrence expired unadmitted.` and a `schedule.paused` event with the reason `expired`, so an operator learns that the schedule fell behind. The first evaluation after an operator's resume (`evaluation_status` is `resumed` until then) and the end of a timed pause expire the stale part of the backlog without pausing again, so a resumed schedule moves on. Expiration is judged when the schedule has capacity: an occurrence that waited behind a busy slot or a full schedule can expire by the time it is evaluated. Without an expiry, `CatchUpAll` runs the whole backlog.
+`[Schedule(ExpireAfter = "1h", ExpireAction = ScheduleExpireActionCode.Discard)]` bounds how old an occurrence may be when it is evaluated. Occurrences older than the age are decided first and without work, audited as `schedule.skipped` with the reason `expired`, and the strategy then decides the rest. `Discard` moves on. `Pause` also pauses the schedule, with the pause message `Paused by the expiration policy: an occurrence expired unadmitted.` and a `schedule.paused` event with the reason `expired`, so an operator learns that the schedule fell behind. The first evaluation after an operator's resume (`evaluation_status` is `resumed` until then) and the end of a timed pause expire the stale part of the backlog without pausing again, so a resumed schedule moves on. Expiration does not wait for capacity: an evaluation expires every occurrence past the age before it asks whether the slot or the schedule can take one, so a schedule parked behind a busy slot or a full schedule discards its stale backlog at once. Without an expiry, `CatchUpAll` runs the whole backlog.
 
 What the admitter does, by what it finds:
 
@@ -1048,7 +1048,7 @@ Before a large backfill:
 - verify retention is long enough for the incident/audit window;
 - start with a small range and inspect the dashboard timeline and alerts.
 
-### Pause, resume, preview, and overrides
+### Pause, resume, and preview
 
 - Pausing a schedule takes it out of admission without moving its cursor. An indefinite pause needs a resume; a timed pause ends by itself, and the admitter applies the misfire policy as of its end.
 - Pausing the recurring job (`IJobs.PauseAsync`) stops all its schedules until an operator resumes, restarts, or cancels it; worker restarts and deploys leave it paused, and trigger-now is rejected.
@@ -1056,7 +1056,7 @@ Before a large backfill:
 - Rescheduling a recurring job (`IJobs.RescheduleAsync`, the dashboard's Run now, or `POST /jobs/{jobRef}/reschedule` with no instant) runs it now: an `Idle` slot, or a Paused one with no firing outstanding, takes a manual firing at the instant, the same firing a schedule trigger admits, and returns to `Idle` when it settles; a slot mid-firing keeps its firing and moves its instant.
 - Cancelling a recurring job ends it until a restart. A manual purge deletes it only when nothing pins it (every schedule orphaned, or the definition retired), and the next start registers a new slot.
 - `[Job(FiringFailurePolicy = ...)]` decides what a firing that fails for good does to the definition's schedules: `Continue` (the default) leaves them scheduled, so the next occurrence fires; `PauseScheduling` pauses every active one with the pause message `Paused by the firing failure policy: the last firing failed for good.`, each resumable on its own. A completion that spends the budget and a reclaim that does apply it alike, as does a per-occurrence root that lands `Failed`; a handler's own fail or cancel stops a slot instead.
-- A recurring job's slot has no deduplication key: an ordinary job keyed by the job name is unrelated to it, and `IJobs.GetJobIdAsync` never returns a slot. A per-occurrence root's key is `sys.occurrence.{schedule_id}.{ticks}`, and a manually triggered one's `sys.manual.{schedule_id}.{firingId}`.
+- A recurring job's slot has no deduplication key: an ordinary job keyed by the job name is unrelated to it, so `IJobs.GetJobIdAsync` finds a slot by its ref or id, never by a key; `GET /schedules` and `ISchedules.ListAsync` carry the slot's ref. A per-occurrence root's key is `sys.occurrence.{schedule_id}.{ticks}`, and a manually triggered one's `sys.manual.{schedule_id}.{firingId}`.
 - Preview computes upcoming instants without touching the cursor, and is safe on a paused schedule.
 - A schedule's expression and time zone are code-owned: a deploy changes them, and an operator pauses, resumes, or triggers. The version moves with those operator actions and with deploys, not with each fire.
 
@@ -1288,6 +1288,8 @@ runs the firing like any job, and a success returns the slot to `Idle`.
 
 ```csharp
 var lookup = new ScheduleLookup("shipping", "sync-orders", "every-5s");
+var listed = await host.Operations.Schedules.ListAsync(new ListSchedulesQuery(JobNamespace: "shipping", JobName: "sync-orders"));
+var slotId = (await host.Jobs.GetJobIdAsync(JobLookup.ByRef(listed.Items[0].JobRef!.Value)))!.JobId;
 await host.ForceScheduleDueAsync(lookup);
 Assert.Equal(1, (await host.AdmitOnceAsync("shipping")).Admitted);
 Assert.Equal(ActaRunStatus.Completed, await host.RunOnceAsync(slotId));

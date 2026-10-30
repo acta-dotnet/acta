@@ -26,7 +26,7 @@ Reference docs: [`data-model.md`](./reference/data-model.md) (every table and co
 ## Status quick reference
 
 Live statuses: `Ready = 10`, `Blocked = 15` (a laned job waiting behind its lane's head), `Suspended = 20`,
-`Paused = 30`, `Executing = 50`.
+`Paused = 30`, `Idle = 40` (a recurring job's slot between firings), `Executing = 50`.
 Terminal statuses follow the band rule: `100` is success (`Succeeded`), `200+` is unsuccessful
 (`Failed = 200`, `Cancelled = 220`). The reason for a transition lives on `events`, not on the
 `jobs_state` row.
@@ -182,7 +182,7 @@ await jobs.PurgeAsync(job);                              // hard-delete a termin
 Cancel of a parent cancels the whole non-terminal subtree (descendants carry reason
 `job.parent-cancelled`). Restart leaves a terminal row's history intact and re-arms the same id; there
 is never a replacement row. Reschedule applies to Paused/Suspended/Ready/Blocked rows and re-arms them
-Ready, or Blocked behind their lane; purge refuses a non-terminal job, a job that has child jobs, and a child whose parent is not
+Ready, or Blocked behind their lane, and gives an Idle slot a manual firing; purge refuses a non-terminal job, a job that has child jobs, and a child whose parent is not
 terminal (finish or cancel the tree, then purge the leaves first).
 Every verb returns Applied / Rejected / NotFound rather than throwing on an illegal transition.
 
@@ -218,20 +218,20 @@ Read from the provider routines, not from intent. Every verb answers one of thre
 since you read it), and nothing is written. All four carry the same body, so a
 client reads `action`, the resulting `status`, and the row's `version` without special-casing the code.
 
-`R` Ready · `B` Blocked · `S` Suspended · `P` Paused · `X` Executing · `✓` Succeeded · `F` Failed ·
+`R` Ready · `B` Blocked · `S` Suspended · `P` Paused · `I` Idle · `X` Executing · `✓` Succeeded · `F` Failed ·
 `C` Cancelled. **A** applied, **409** rejected.
 
-| Verb | R | B | S | P | X | ✓ | F | C | Result on applied |
-|---|---|---|---|---|---|---|---|---|---|
-| `pause` | A | A | A | A | 409 | 409 | 409 | 409 | Paused |
-| `resume` | 409 | 409 | 409 | A | 409 | 409 | 409 | 409 | Ready, or Blocked behind its lane |
-| `restart` | A | A | A | A | 409 | A | A | A | Ready, or Blocked behind its lane; failure budget, retention, and Exhausted steps reset |
-| `cancel` | A | A | A | A | A | 409 | 409 | 409 | Cancelled, cascading to non-terminal descendants |
-| `purge` | 409 | 409 | 409 | 409 | 409 | A | A | A | Row hard-deleted, `job.purged` event kept |
-| `reschedule` | A | A | A | A | 409 | 409 | 409 | 409 | Ready at the new instant, or Blocked behind its lane |
-| `reprioritize` | A | A | A | A | A | 409 | 409 | 409 | Priority changed, status untouched |
-| `input` (amend) | A | A | A | A | 409 | A | A | A | Input replaced, format round-tripped |
-| `signal` | A | A | A | A | A | 409 | 409 | 409 | Slot set; a Suspended job goes Ready, and its replay re-suspends any wait the raise did not satisfy |
+| Verb | R | B | S | P | I | X | ✓ | F | C | Result on applied |
+|---|---|---|---|---|---|---|---|---|---|---|
+| `pause` | A | A | A | A | A | 409 | 409 | 409 | 409 | Paused |
+| `resume` | 409 | 409 | 409 | A | 409 | 409 | 409 | 409 | 409 | Ready, or Blocked behind its lane; a slot with no firing outstanding returns to Idle |
+| `restart` | A | A | A | A | A | 409 | A | A | A | Ready, or Blocked behind its lane, or Idle for a slot; failure budget, retention, and Exhausted steps reset |
+| `cancel` | A | A | A | A | A | A | 409 | 409 | 409 | Cancelled, cascading to non-terminal descendants |
+| `purge` | 409 | 409 | 409 | 409 | A | 409 | A | A | A | Row hard-deleted, `job.purged` event kept |
+| `reschedule` | A | A | A | A | A | 409 | 409 | 409 | 409 | Ready at the new instant, or Blocked behind its lane; an Idle slot takes a manual firing |
+| `reprioritize` | A | A | A | A | A | A | 409 | 409 | 409 | Priority changed, status untouched |
+| `input` (amend) | A | A | A | A | A | 409 | A | A | A | Input replaced, format round-tripped |
+| `signal` | A | A | A | A | A | A | 409 | 409 | 409 | Slot set; a Suspended job goes Ready, and its replay re-suspends any wait the raise did not satisfy |
 
 Repeating a verb is a no-op only where the table says so. **`pause` is idempotent** (Paused stays
 Paused, applied). **`resume` is not**: it accepts only Paused, so resuming an already-running job is
@@ -244,7 +244,8 @@ Five rules the table cannot show:
   database cascade, so purging a parent would leave a child pointing at a row that no longer exists.
   It also rejects a completed child whose parent is not terminal: the parent's replay dedupes onto
   that child and reads its result, so purging it would run the child again. Once the tree is
-  terminal, purge the leaves first.
+  terminal, purge the leaves first. A recurring job's slot is purged only to decommission it: Idle,
+  Failed, or Cancelled, with no firing outstanding and no live schedule pinning it.
 - **`cancel` on an Executing job** marks the row Cancelled and cancels the running attempt's token;
   the handler still has to return. The row is terminal before the process notices.
 - **`signal` on a Paused job** records the slot and leaves the job Paused. The signal is not lost;
@@ -253,9 +254,10 @@ Five rules the table cannot show:
   failed job, then `restart` it. Only Executing rejects, because that is the state where a worker
   may already have read the payload. A job that stored no input has nothing to
   amend and answers `409` from the endpoint before the routine is reached.
-- **`restart` and `resume` have two more refusals.** A finished laned job is not restarted while an
-  unfinished ancestor or descendant sits in its lane, and a permanent slot whose firing is still
-  outstanding is not restarted around it. A restarted or resumed slot with no firing outstanding
+- **`restart` and `resume` have three more refusals.** A finished laned job is not restarted while an
+  unfinished ancestor or descendant sits in its lane, a permanent slot whose firing is still
+  outstanding is not restarted around it, and a finished per-occurrence root is not restarted into a
+  schedule that is full or gone. A restarted or resumed slot with no firing outstanding
   returns to `Idle`, where the next due schedule admits it; it does not run now.
 
 ## Tenant and namespace administration
@@ -657,6 +659,37 @@ startup.
 { "Logging": { "LogLevel": { "Acta.WorkerRuntime": "Error" } } }
 ```
 
+### Metrics
+
+Acta publishes on one .NET meter, `Acta`: add it to an OpenTelemetry pipeline with `AddMeter("Acta")`.
+Every instrument but `acta.completions.unsettled` carries a `namespace` tag; the wakeup counters carry
+it when the wake names one.
+
+| Instrument | Unit | What it measures |
+| --- | --- | --- |
+| `acta.executions` | execution | Completed job executions, tagged by outcome. |
+| `acta.duration` | ms | Handler execution duration. |
+| `acta.claims` | claim | Claim attempts, tagged by result. |
+| `acta.steps` | step | Durable step outcomes, tagged by outcome. |
+| `acta.jobs.inflight` | job | Jobs this process holds, tagged by state: claimed, executing, or finalizing. |
+| `acta.completions.batch` | completion | Completions the finalizer wrote in one call. |
+| `acta.completions.unsettled` | completion | Completion writes still repeating after a failure. |
+| `acta.executions.fenced` | execution | Attempts stopped because a write found their job held by another execution. |
+| `acta.lease.headroom` | ms | Time an attempt had left on its lease when a renewal confirmed it. |
+| `acta.recovery.passes` | pass | Recovery passes this process ran, tagged by outcome. |
+| `acta.lock.release.failures` | failure | Lock releases that failed and were left to expire. |
+| `acta.wakeup.publish.attempts` | publish | Wake publishes, tagged by channel and reason. |
+| `acta.wakeup.publish.failures` | publish | Wake publishes the transport failed to deliver. |
+| `acta.wakeup.waits` | wait | Idle claim-loop waits, tagged by how they returned. |
+| `acta.alerts.lag` | s | How far the alert projector stood behind the database clock when a pass began. |
+| `acta.alert.projection.skips` | skip | Poison alert events the projector skipped. |
+| `acta.schedule.decisions` | decision | Decisions an admission pass applied: admitted, skipped, expired, blocked, exhausted, or error. |
+| `acta.schedule.lag` | ms | How far past its nominal instant an occurrence stood when it was admitted. |
+| `acta.schedule.due.age` | s | How long past its evaluation instant a due schedule stood when a pass read it. |
+| `acta.schedule.pass` | ms | Wall time of one admission pass. |
+| `acta.schedule.stale` | group | Plan groups another writer moved first; each replans. |
+| `acta.firing.start.delay` | ms | Time from a firing's admission to the first attempt that ran it, tagged by job name too. |
+
 ### Retention
 
 Set retention long enough for audit, incident response, and late restarts; the rules are in [retention and purge](#retention-and-purge).
@@ -844,9 +877,10 @@ migration, not a refactor.
 
 ### …the service is down across scheduled occurrences?
 
-The schedule's misfire policy decides the cursor when the admitter next evaluates it. `Skip` moves
-past missed occurrences; `CatchUpOnce` produces one coalesced catch-up execution. Neither policy
-creates one historical job per missed period. An occurrence less than a minute overdue counts as due
+The schedule's misfire policy decides the missed occurrences when the admitter next evaluates it:
+`Skip` moves past them, `CatchUpOnce` runs one coalesced catch-up firing, `CatchUpLatest` runs the
+latest, and `CatchUpAll` admits every one in order: one per settlement on a permanent slot, and under
+`PerOccurrence` delivery as many root jobs at once as `MaxOutstanding` allows. An occurrence less than a minute overdue counts as due
 rather than missed, and a worker start decides nothing: it registers the declaration and leaves every
 occurrence to the running fleet's admitter. See [Schedule operations](./developer-guide.md#schedule-operations).
 

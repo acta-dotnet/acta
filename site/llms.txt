@@ -92,7 +92,7 @@ public static class ShippingHandlers
   job's call: `jobs.EnqueueAsync(ShippingJobs.ShipOrder(new ShipOrder(orderId)), o => o.DeduplicationKey(key))`
   names the job outright, and a result job's call answers `JobHandle<TResult>`. A handler may take several input parameters before `JobContext` and
   `CancellationToken`; they travel as one generated record, `ShippingJobs.{Job}Args`, whose parameter names
-  are stored JSON keys. Under Native AOT, register that record in the `UseJsonPayloads` context.
+  are stored JSON keys. Under Native AOT, declare the input record yourself and take it as the one parameter.
 - Handlers resolve through DI: an instance class's constructor dependencies must be registered.
 
 ## Wiring rules by situation
@@ -294,8 +294,9 @@ HTTP enqueue in the json format sends strict JSON (one value, no comments or tra
   starts clean. Never at the top: a reset there also runs on every retry and replay of the same fire,
   erasing its own progress, so a failing step never exhausts and an `AtMostOnce` body can run twice.
 - Children a recurring job starts are never purged while its schedule lives, since retention keeps a
-  child as long as its parent is unfinished. For per-occurrence fan-out, enqueue one root job per
-  occurrence with a per-period deduplication key, and start the children from that job.
+  child as long as its parent is unfinished. For per-occurrence fan-out, declare the definition
+  `ScheduledDelivery = ScheduledDeliveryCode.PerOccurrence`: each occurrence is then a root job of its
+  own, and the children it starts drain with it.
 
 ## When you are unsure
 

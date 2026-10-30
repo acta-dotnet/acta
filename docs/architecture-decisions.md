@@ -98,7 +98,7 @@ Reopening an entry means writing a proposal, not editing this file.
 ### Identity
 
 - **Leaderless.** Every worker is a peer and every claim is a competitive race; no leader role, election, or lock. *Reason:* removes failover and split-brain as operational concerns.
-- **One work-unit shape.** All work units (one-shot, recurring, coordinating parents, system maintenance) share one shape (a `jobs` row plus its 1:1 `jobs_state` row); no `JobKind` enum, no per-kind tables. *Reason:* one substrate carries claim, lease, audit, and retention without per-kind branching.
+- **One work-unit shape.** All work units (one-shot, recurring, coordinating parents, system maintenance) share one shape (a `jobs` row plus its 1:1 `jobs_state` row) and no per-kind tables; the one stored kind code separates an ordinary job from a scheduled definition's permanent slot. *Reason:* one substrate carries claim, lease, audit, and retention without per-kind branching.
 - **SQL is the operational interface; curated views are the supported query surface.** The runtime and operators query the same database; no proprietary query layer. Storage tables are not a compatibility contract. *Reason:* operators write ad-hoc production queries without coordinating with the framework.
 - **No reflection on the hot path.** Source generators emit all dispatch and persistence code; AOT-clean by construction. *Reason:* trim-friendly, no reflection cost per attempt.
 - **Category: durable work ledger for .NET.** Never positioned as a workflow engine, message bus, or scheduler; "workflow" appears only in non-goals, comparisons, and search metadata. *Reason:* the positive category claim stays singular.
