@@ -364,7 +364,7 @@ public sealed class ChildGroupTimeoutSpec : ActaRuntimeTestBase<ConformanceFixtu
         var report = await Jobs.GetResultAsync<ChildExecuteReport>(parent, ct);
         Assert.True(report!.IsTimedOut);
         Assert.False(report.IsSuccess);
-        Assert.Equal(JobStatusCode.Cancelled, report.TerminalStatus);
+        Assert.Equal(JobStatusCode.Cancelled, report.Status);
         Assert.Equal(JobStatusCode.Cancelled, (await ReadJobAsync(child, ct)).Status);
         Assert.Equal(JobStatusCode.Succeeded, (await ReadJobAsync(parent.JobId, ct)).Status);
     }

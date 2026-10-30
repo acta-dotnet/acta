@@ -2,11 +2,13 @@ namespace Acta;
 
 /// <summary>
 /// Thrown by <c>JobOutcome.ThrowIfFailed</c> / <c>JobOutcome&lt;T&gt;.ValueOrThrow()</c> when the Job
-/// terminated as <c>Failed</c> or <c>Cancelled</c>. Carries the <see cref="JobId"/> and
-/// <see cref="TerminalStatus"/>; the terminal cause lives in the Job's event timeline.
+/// terminated as <c>Failed</c> or <c>Cancelled</c>. Carries the <see cref="JobId"/>, the public
+/// <see cref="JobRef"/>, and <see cref="TerminalStatus"/>; the terminal cause lives in the Job's event timeline.
 /// </summary>
-public sealed class JobFailedException(long jobId, JobStatusCode terminalStatus) : Exception($"Job {jobId} terminated as {terminalStatus}.")
+public sealed class JobFailedException(long jobId, JobRef jobRef, JobStatusCode terminalStatus)
+    : Exception($"Job {jobRef} terminated as {terminalStatus}.")
 {
     public long JobId { get; } = jobId;
+    public JobRef JobRef { get; } = jobRef;
     public JobStatusCode TerminalStatus { get; } = terminalStatus;
 }

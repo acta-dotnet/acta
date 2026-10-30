@@ -26,7 +26,7 @@ var parent = await jobs.EnqueueAsync(new RunReport("q4-2024"));
 Console.WriteLine("waiting for lineage to finish...");
 var finished = await parent.WaitAsync();
 
-Console.WriteLine($"parent finished with status: {finished.TerminalStatus}");
+Console.WriteLine($"parent finished with status: {finished.Status}");
 
 // Query the full lineage event timeline scoped to the lineage root (the parent job's id).
 // Events are returned newest-first; reverse to print in chronological order.

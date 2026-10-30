@@ -1496,7 +1496,8 @@ sealed class Acta.JobExecutionOptions : Acta.JobEnqueueOptions
     System.TimeSpan PollInterval { get;init; }
     System.TimeSpan WaitTimeout { get;init; }
 sealed class Acta.JobFailedException : System.Exception
-    .ctor(System.Int64 jobId, Acta.JobStatusCode terminalStatus)
+    .ctor(System.Int64 jobId, Acta.JobRef jobRef, Acta.JobStatusCode terminalStatus)
+    Acta.JobRef JobRef { get; }
     Acta.JobStatusCode TerminalStatus { get; }
     System.Int64 JobId { get; }
 record Acta.JobHandle : Acta.EnqueueJobResponse
@@ -1558,7 +1559,7 @@ enum Acta.JobLookupKind : System.Byte
     None = 0
 class Acta.JobOutcome
     Acta.JobRef JobRef { get; }
-    Acta.JobStatusCode TerminalStatus { get; }
+    Acta.JobStatusCode Status { get; }
     System.Boolean IsFailed { get; }
     System.Boolean IsSuccess { get; }
     System.Boolean IsTimedOut { get; }

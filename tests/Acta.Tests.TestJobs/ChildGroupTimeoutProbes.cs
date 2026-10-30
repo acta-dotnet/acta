@@ -28,7 +28,7 @@ public sealed record ChildGroupReport(bool TimedOut, bool Succeeded, IReadOnlyLi
 public sealed record TwoGroupReport(ChildGroupReport First, ChildGroupReport Second);
 
 /// <summary>What a parent handler observed after a bounded single-child ExecuteChild resolved.</summary>
-public sealed record ChildExecuteReport(bool IsTimedOut, bool IsSuccess, JobStatusCode TerminalStatus);
+public sealed record ChildExecuteReport(bool IsTimedOut, bool IsSuccess, JobStatusCode Status);
 
 /// <summary>
 /// Bounded group-wait probes. Every group is armed far enough out that only a deliberate rewind of the
@@ -139,7 +139,7 @@ public static class ChildGroupTimeoutProbes
     {
         var outcome = await ctx.ExecuteChildAsync("only", new GroupHold("only"), LongWait, ct);
         await ctx.NoteAsync("execute child resumed", ct);
-        return new ChildExecuteReport(outcome.IsTimedOut, outcome.IsSuccess, outcome.TerminalStatus);
+        return new ChildExecuteReport(outcome.IsTimedOut, outcome.IsSuccess, outcome.Status);
     }
 
     [Job("job-parent-join-bounded")]

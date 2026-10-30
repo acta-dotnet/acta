@@ -1,29 +1,29 @@
 namespace Acta;
 
 /// <summary>
-/// Await-to-completion outcome returned by <see cref="IJobs.WaitAsync"/> and <see cref="IJobs.RunAndWaitAsync{TInput}(TInput, JobExecutionOptions, CancellationToken)"/>: the terminal outcome
-/// (<c>Succeeded</c>, <c>Failed</c>, or <c>Cancelled</c>) plus the wait-timeout flag; returned, never thrown.
-/// Construction is gated to the framework (private-protected constructor, internal factories) so no caller can
-/// synthesise an inconsistent <c>(TerminalStatus, IsTimedOut)</c> pair. The terminal cause is not carried here; read
-/// it from the Job's event timeline.
+/// Await-to-completion outcome returned by <see cref="IJobs.WaitAsync"/> and <see cref="IJobs.RunAndWaitAsync{TInput}(TInput, JobExecutionOptions, CancellationToken)"/>: the job's
+/// <see cref="Status"/> as last observed, terminal (<c>Succeeded</c>, <c>Failed</c>, or <c>Cancelled</c>) unless
+/// <see cref="IsTimedOut"/> says the wait ended first; returned, never thrown. Construction is gated to the framework
+/// (private-protected constructor, internal factories) so no caller can synthesise an inconsistent
+/// <c>(Status, IsTimedOut)</c> pair. The terminal cause is not carried here; read it from the Job's event timeline.
 /// </summary>
 public class JobOutcome
 {
-    private protected JobOutcome(long jobId, JobRef jobRef, JobStatusCode terminalStatus, bool isTimedOut)
+    private protected JobOutcome(long jobId, JobRef jobRef, JobStatusCode status, bool isTimedOut)
     {
         JobId = jobId;
         JobRef = jobRef;
-        TerminalStatus = terminalStatus;
+        Status = status;
         IsTimedOut = isTimedOut;
     }
 
     public long JobId { get; }
     public JobRef JobRef { get; }
-    public JobStatusCode TerminalStatus { get; }
+    public JobStatusCode Status { get; }
     public bool IsTimedOut { get; }
 
-    public bool IsSuccess => !IsTimedOut && TerminalStatus == JobStatusCode.Succeeded;
-    public bool IsFailed => !IsTimedOut && TerminalStatus == JobStatusCode.Failed;
+    public bool IsSuccess => !IsTimedOut && Status == JobStatusCode.Succeeded;
+    public bool IsFailed => !IsTimedOut && Status == JobStatusCode.Failed;
 
     /// <summary>
     /// No-op when <see cref="IsSuccess"/>; throws <c>JobFailedException</c> on <c>Failed</c>/<c>Cancelled</c>
@@ -38,10 +38,10 @@ public class JobOutcome
 
         if (IsTimedOut)
         {
-            throw new TimeoutException($"Job {JobId} did not terminate before WaitTimeout expired.");
+            throw new TimeoutException($"Job {JobRef} did not terminate before WaitTimeout expired.");
         }
 
-        throw new JobFailedException(JobId, TerminalStatus);
+        throw new JobFailedException(JobId, JobRef, Status);
     }
 
     internal static JobOutcome Succeeded(long jobId, JobRef jobRef) => new(jobId, jobRef, JobStatusCode.Succeeded, isTimedOut: false);
@@ -62,8 +62,8 @@ public class JobOutcome
 public sealed class JobOutcome<T> : JobOutcome
     where T : notnull
 {
-    private JobOutcome(long jobId, JobRef jobRef, JobStatusCode terminalStatus, bool isTimedOut, T? value)
-        : base(jobId, jobRef, terminalStatus, isTimedOut)
+    private JobOutcome(long jobId, JobRef jobRef, JobStatusCode status, bool isTimedOut, T? value)
+        : base(jobId, jobRef, status, isTimedOut)
     {
         Value = value;
     }
@@ -90,7 +90,7 @@ public sealed class JobOutcome<T> : JobOutcome
     public T ValueOrThrow()
     {
         ThrowIfFailed();
-        return Value ?? throw new InvalidOperationException($"Job {JobId} succeeded but the result Value is null.");
+        return Value ?? throw new InvalidOperationException($"Job {JobRef} succeeded but the result Value is null.");
     }
 
     internal static JobOutcome<T> Succeeded(long jobId, JobRef jobRef, T value) =>

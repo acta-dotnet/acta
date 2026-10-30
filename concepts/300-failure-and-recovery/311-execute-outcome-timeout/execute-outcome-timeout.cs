@@ -35,7 +35,7 @@ try
 }
 catch (JobFailedException ex)
 {
-    Console.WriteLine($"ThrowIfFailed threw: {ex.GetType().Name} status={ex.TerminalStatus}");
+    Console.WriteLine($"ThrowIfFailed threw: {ex.GetType().Name} job={ex.JobRef} status={ex.TerminalStatus}");
 }
 Console.WriteLine($"TryGetValue: {failed.TryGetValue(out _)}");
 

@@ -194,7 +194,7 @@ public sealed class WorkerLoopDispatchSpec : ActaRuntimeTestBase<ConformanceFixt
         await loopCts.CancelAsync();
         await loop;
 
-        Assert.True(outcome.IsSuccess, $"Execute outcome: timedOut={outcome.IsTimedOut}, status={outcome.TerminalStatus}.");
+        Assert.True(outcome.IsSuccess, $"Execute outcome: timedOut={outcome.IsTimedOut}, status={outcome.Status}.");
         // Not one completion wait fell through to its poll interval, so the colocated completion's
         // wake is what returned this call.
         Assert.DoesNotContain(WorkerWakeupWaitStatus.TimedOut, _wakeup.WaitsOn(WorkerWakeupChannelKind.JobCompletion));

@@ -72,7 +72,7 @@ public sealed class JobHandleSpec : ActaRuntimeTestBase<ConformanceFixture, Test
         var outcome = await handle.WaitAsync(TimeSpan.FromMilliseconds(300), ct);
 
         Assert.True(outcome.IsTimedOut);
-        Assert.Equal(JobStatusCode.Ready, outcome.TerminalStatus);
+        Assert.Equal(JobStatusCode.Ready, outcome.Status);
         Assert.Equal(RunOnceStatus.Completed, await Runtime.RunOnceAsync(handle, ct));
         Assert.True((await handle.WaitAsync(ct: ct)).IsSuccess);
     }
