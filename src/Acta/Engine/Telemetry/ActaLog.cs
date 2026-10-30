@@ -174,7 +174,7 @@ internal static partial class ActaLog
     )]
     public static partial void AttemptAborted(ILogger log, long actaJobId);
 
-    [LoggerMessage(Level = LogLevel.Warning, Message = "Handler for job ({ActaJobName}) id {ActaJobId} threw; transitioning to Failed.")]
+    [LoggerMessage(Level = LogLevel.Warning, Message = "Handler for job ({ActaJobName}) id {ActaJobId} threw; the attempt failed.")]
     public static partial void HandlerThrew(ILogger log, Exception exception, string actaJobName, long actaJobId);
 
     [LoggerMessage(
