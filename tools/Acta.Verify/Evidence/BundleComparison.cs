@@ -57,8 +57,8 @@ internal static class BundleComparison
             && MachineKeys.All(k => ea.ContainsKey(k) && ea.GetValueOrDefault(k) == eb.GetValueOrDefault(k));
         foreach (var provider in pa.Providers)
         {
-            var sa = Read(a, baseline, $"histories/{provider}-settings.json");
-            var sb = Read(b, candidate, $"histories/{provider}-settings.json");
+            var sa = Read(a, baseline, $"histories/{provider}-performance-settings.json");
+            var sb = Read(b, candidate, $"histories/{provider}-performance-settings.json");
             compatible &= DurabilityKeys.All(k => sa.GetValueOrDefault(k) == sb.GetValueOrDefault(k));
         }
         if (!compatible)

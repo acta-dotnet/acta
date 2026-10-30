@@ -141,7 +141,8 @@ public sealed class DiskCounters : IDisposable
             && double.TryParse(ms, NumberStyles.Float, CultureInfo.InvariantCulture, out var writeMs)
             && double.TryParse(writes, NumberStyles.Float, CultureInfo.InvariantCulture, out var writesPerSecond)
             && double.TryParse(idle, NumberStyles.Float, CultureInfo.InvariantCulture, out var idlePercent)
-            ? new(drive, writeMs, writesPerSecond, idlePercent)
+            // Windows reports % Idle Time a little above 100 on an idle drive.
+            ? new(drive, writeMs, writesPerSecond, Math.Min(100, idlePercent))
             : null;
     }
 

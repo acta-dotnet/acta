@@ -17,6 +17,12 @@ public sealed class ServerTuningTests
     }
 
     [Fact]
+    public void Two_containers_side_by_side_split_the_cap_one_would_take_alone()
+    {
+        Assert.Equal(16000, ServerTuning.MemoryCapMb(Plan, 48000L * 1048576, 0.5));
+    }
+
+    [Fact]
     public void A_docker_vm_too_small_for_an_8_gb_cap_refuses_to_start()
     {
         var refusal = Assert.ThrowsAny<InvalidOperationException>(() => ServerTuning.MemoryCapMb(Plan, 12000L * 1048576));

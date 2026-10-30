@@ -60,19 +60,13 @@ internal sealed class ResourceSampler : IAsyncDisposable
         _stop = CancellationTokenSource.CreateLinkedTokenSource(ct);
         _memoryBudget = GC.GetGCMemoryInfo().TotalAvailableMemoryBytes * 0.65;
         _drive = new DriveInfo(Path.GetPathRoot(bundle.DirectoryPath)!);
-        var environment = JsonSerializer.Deserialize(
-            File.ReadAllText(bundle.Resolve("environment.json")),
-            VerifyJson.Default.DictionaryStringString
-        );
-        _freeDiskAtStart =
-            environment is not null
-            && long.TryParse(
-                environment.GetValueOrDefault("artifact_disk_free_at_start_bytes"),
-                CultureInfo.InvariantCulture,
-                out var runFree
-            )
-                ? runFree
-                : _drive.AvailableFreeSpace;
+        _freeDiskAtStart = long.TryParse(
+            bundle.ReadEnvironment().GetValueOrDefault("artifact_disk_free_at_start_bytes"),
+            CultureInfo.InvariantCulture,
+            out var runFree
+        )
+            ? runFree
+            : _drive.AvailableFreeSpace;
         _sampling = SampleAsync();
     }
 

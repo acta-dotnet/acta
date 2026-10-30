@@ -19,6 +19,9 @@ internal sealed class OwnedProvider : IAsyncDisposable
     public string Ownership { get; } = Guid.NewGuid().ToString("N");
     public bool SettingsVerified { get; private set; }
     public bool RetainState { get; set; } = true;
+
+    /// <summary>The share of the memory cap this provider's container took; a container it starts besides takes the same.</summary>
+    public double CapShare { get; private set; } = 1;
     private readonly string _stateDirectory;
     private readonly List<OwnedProvider> _trials = [];
     private bool _ownsContainer;
@@ -52,8 +55,9 @@ internal sealed class OwnedProvider : IAsyncDisposable
     /// the protocol, or on the acta-dev Compose server when <paramref name="useComposeServer"/> is set. A server whose
     /// settings read back other than requested throws <see cref="ServerSetupException"/>.
     /// </summary>
-    public async Task ProvisionAsync(RunPlan plan, bool useComposeServer, CancellationToken ct)
+    public async Task ProvisionAsync(RunPlan plan, bool useComposeServer, CancellationToken ct, double capShare = 1)
     {
+        CapShare = capShare;
         Directory.CreateDirectory(_stateDirectory);
         if (Provider == "mssql" && !System.Runtime.CompilerServices.RuntimeFeature.IsDynamicCodeSupported)
         {
@@ -93,7 +97,7 @@ internal sealed class OwnedProvider : IAsyncDisposable
         }
         else
         {
-            requested = await StartContainerAsync(plan, ServerTuning.MemoryCapMb(plan, vmMemoryBytes), ct);
+            requested = await StartContainerAsync(plan, ServerTuning.MemoryCapMb(plan, vmMemoryBytes, capShare), ct);
         }
         await CreateDatabaseAsync(plan, ct);
         if (Provider == "mssql")
@@ -700,6 +704,55 @@ internal sealed class OwnedProvider : IAsyncDisposable
         _trials.Add(trial);
         return trial;
     }
+
+    /// <summary>
+    /// Drops this trial's schema, or deletes its SQLite file, once its result is recorded. A file a worker still holds
+    /// stays for the provider's cleanup.
+    /// </summary>
+    public async Task DropAsync(CancellationToken ct)
+    {
+        if (Provider == "sqlite")
+        {
+            SqliteConnection.ClearAllPools();
+            foreach (var file in new[] { "engine.db", "engine.db-wal", "engine.db-shm" })
+            {
+                try
+                {
+                    File.Delete(Path.Combine(_stateDirectory, file));
+                }
+                catch (IOException) { }
+            }
+            return;
+        }
+        await using var c = await OpenAsync(ct);
+        await using var command = c.CreateCommand();
+        command.CommandTimeout = 600;
+        command.CommandText =
+            Provider == "pg"
+                ? $"DROP SCHEMA IF EXISTS \"{Schema}\" CASCADE;"
+                : DropSqlServerSchema.Replace("{schema}", Schema, StringComparison.Ordinal);
+        await command.ExecuteNonQueryAsync(ct);
+    }
+
+    // SQL Server has no DROP SCHEMA ... CASCADE. Routines go first, since they pin the table types in their
+    // signatures, then foreign keys, views, tables, sequences and types, then the schema. Acta's own drop does the same.
+    private const string DropSqlServerSchema = """
+        DECLARE @sql NVARCHAR(MAX) = N'';
+        SELECT @sql += N'DROP PROCEDURE [{schema}].' + QUOTENAME(name) + N';' FROM sys.procedures WHERE SCHEMA_NAME(schema_id) = N'{schema}';
+        SELECT @sql += N'DROP FUNCTION [{schema}].' + QUOTENAME(name) + N';' FROM sys.objects WHERE type IN ('FN', 'IF', 'TF') AND SCHEMA_NAME(schema_id) = N'{schema}';
+        IF LEN(@sql) > 0 EXEC sp_executesql @sql;
+        SET @sql = N'';
+        SELECT @sql += N'ALTER TABLE [{schema}].' + QUOTENAME(t.name) + N' DROP CONSTRAINT ' + QUOTENAME(fk.name) + N';'
+        FROM sys.foreign_keys fk JOIN sys.tables t ON t.object_id = fk.parent_object_id WHERE SCHEMA_NAME(t.schema_id) = N'{schema}';
+        IF LEN(@sql) > 0 EXEC sp_executesql @sql;
+        SET @sql = N'';
+        SELECT @sql += N'DROP VIEW [{schema}].' + QUOTENAME(name) + N';' FROM sys.views WHERE SCHEMA_NAME(schema_id) = N'{schema}';
+        SELECT @sql += N'DROP TABLE [{schema}].' + QUOTENAME(name) + N';' FROM sys.tables WHERE SCHEMA_NAME(schema_id) = N'{schema}';
+        SELECT @sql += N'DROP SEQUENCE [{schema}].' + QUOTENAME(name) + N';' FROM sys.sequences WHERE SCHEMA_NAME(schema_id) = N'{schema}';
+        SELECT @sql += N'DROP TYPE [{schema}].' + QUOTENAME(name) + N';' FROM sys.types WHERE is_user_defined = 1 AND SCHEMA_NAME(schema_id) = N'{schema}';
+        IF LEN(@sql) > 0 EXEC sp_executesql @sql;
+        IF SCHEMA_ID(N'{schema}') IS NOT NULL EXEC (N'DROP SCHEMA [{schema}]');
+        """;
 
     /// <summary>
     /// The connection the controller's enqueue calls use: a pool of its own, sized to the calls in flight, so a call

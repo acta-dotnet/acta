@@ -4,8 +4,8 @@ namespace Acta.Verify;
 
 /// <summary>
 /// Continues an interrupted run. The same command against the same output finds the newest unfinished or aborted run
-/// there with an identical plan; a provider that finished keeps its results, and every other provider runs again from
-/// the start.
+/// there with an identical plan. A run is made of units, one phase on one database; a unit that finished keeps its
+/// results, and every other unit runs again from the start.
 /// </summary>
 public static class RunResume
 {
@@ -46,12 +46,15 @@ public static class RunResume
         }
     }
 
-    /// <summary>The marker a provider's run writes once all its results are recorded.</summary>
-    public static string MarkerPath(string provider) => $"histories/{provider}-finished.json";
+    /// <summary>The unit of one phase on one database, named as its files are: <c>pg-performance</c>.</summary>
+    public static string Unit(string phase, string provider) => $"{provider}-{phase}";
 
-    public static void MarkFinished(EvidenceBundle bundle, string provider, bool complete, bool settingsVerified, double wallSeconds) =>
+    /// <summary>The marker a unit writes once all its results are recorded.</summary>
+    public static string MarkerPath(string unit) => $"histories/{unit}-finished.json";
+
+    public static void MarkFinished(EvidenceBundle bundle, string unit, bool complete, bool settingsVerified, double wallSeconds) =>
         bundle.Write(
-            MarkerPath(provider),
+            MarkerPath(unit),
             new Dictionary<string, string>
             {
                 ["complete"] = complete.ToString(),
@@ -62,54 +65,54 @@ public static class RunResume
         );
 
     /// <summary>
-    /// What an interrupted run keeps: the harness checks when all of them were recorded, and the providers that finished.
-    /// Every other provider's journal lines and files are removed, so its rerun is the only record of it; each journal is
+    /// What an interrupted run keeps: the harness checks when all of them were recorded, and the units that finished.
+    /// Every other unit's journal lines and files are removed, so its rerun is the only record of it; each journal is
     /// replaced whole, so a crash here leaves the old journal or the new one.
     /// </summary>
     public static Kept Load(EvidenceBundle bundle, RunPlan plan)
     {
+        ArgumentNullException.ThrowIfNull(bundle);
+        ArgumentNullException.ThrowIfNull(plan);
         Dictionary<string, Dictionary<string, string>> finished = [];
-        foreach (var provider in plan.Providers.Where(p => File.Exists(bundle.Resolve(MarkerPath(p)))))
+        foreach (var unit in plan.Providers.SelectMany(p => ScenarioRunner.Phases.Select(phase => Unit(phase, p))))
         {
-            finished[provider] = JsonSerializer.Deserialize(
-                File.ReadAllText(bundle.Resolve(MarkerPath(provider))),
-                VerifyJson.Default.DictionaryStringString
-            )!;
+            if (File.Exists(bundle.Resolve(MarkerPath(unit))))
+            {
+                finished[unit] = JsonSerializer.Deserialize(
+                    File.ReadAllText(bundle.Resolve(MarkerPath(unit))),
+                    VerifyJson.Default.DictionaryStringString
+                )!;
+            }
         }
 
         var (recorded, _) = EvidenceBundle.ReadCases(bundle.Resolve("cases.jsonl"));
         var harnessComplete = HarnessControls.Names.All(id => recorded.Any(r => r.Provider == "harness" && r.Id == id));
-        bool Keeps(string? provider) => provider == "harness" ? harnessComplete : provider is not null && finished.ContainsKey(provider);
+        bool Keeps(string? provider, string? id) =>
+            provider == "harness"
+                ? harnessComplete
+                : provider is not null && id is not null && UnitOf(plan, provider, id) is { } unit && finished.ContainsKey(unit);
 
-        List<CaseResult> results = [.. recorded.Where(r => Keeps(r.Provider))];
+        List<CaseResult> results = [.. recorded.Where(r => Keeps(r.Provider, r.Id))];
         Replace(bundle.Resolve("cases.jsonl"), results.Select(r => JsonSerializer.Serialize(r, VerifyJson.Default.CaseResult)));
-        Filter(bundle.Resolve("faults.jsonl"), root => Keeps(Text(root, "provider")));
-        Filter(
-            bundle.Resolve("metrics.jsonl"),
-            root => Text(root, "Component") is not { } component || Owner(component, plan.Providers) is not { } owner || Keeps(owner)
-        );
+        Filter(bundle.Resolve("faults.jsonl"), root => Keeps(Text(root, "provider"), Text(root, "case_id")));
+        Filter(bundle.Resolve("metrics.jsonl"), root => Text(root, "Component") is not { } component || Keep(component));
 
-        foreach (var provider in plan.Providers.Where(p => !finished.ContainsKey(p)))
+        foreach (var folder in new[] { "histories", "histograms", "logs", "repro/state" })
         {
-            foreach (var folder in new[] { "histories", "histograms", "logs", "repro/state" })
+            var path = bundle.Resolve(folder);
+            if (!Directory.Exists(path))
             {
-                var path = bundle.Resolve(folder);
-                if (!Directory.Exists(path))
+                continue;
+            }
+            foreach (var entry in Directory.EnumerateFileSystemEntries(path).Where(e => !Keep(Path.GetFileName(e))))
+            {
+                if (Directory.Exists(entry))
                 {
-                    continue;
+                    Directory.Delete(entry, recursive: true);
                 }
-                foreach (
-                    var entry in Directory.EnumerateFileSystemEntries(path).Where(e => Owner(Path.GetFileName(e), [provider]) is not null)
-                )
+                else
                 {
-                    if (Directory.Exists(entry))
-                    {
-                        Directory.Delete(entry, recursive: true);
-                    }
-                    else
-                    {
-                        File.Delete(entry);
-                    }
+                    File.Delete(entry);
                 }
             }
         }
@@ -121,9 +124,34 @@ public static class RunResume
             finished.Values.All(f => f["settings_verified"] == bool.TrueString),
             finished.Values.Sum(f => double.Parse(f["wall_seconds"], System.Globalization.CultureInfo.InvariantCulture))
         );
+
+        // A name a unit owns is kept when that unit finished; a database's name no unit owns, when any of its units did.
+        bool Keep(string name)
+        {
+            if (Owner(name, plan.Providers) is not { } provider)
+            {
+                return true;
+            }
+            var rest = name.Length > provider.Length ? name[(provider.Length + 1)..] : "";
+            var owner =
+                ScenarioRunner.Phases.FirstOrDefault(p => rest == p || rest.StartsWith(p + "-", StringComparison.Ordinal)) is { } phase
+                    ? Unit(phase, provider)
+                : plan
+                    .Scenarios.Where(s => rest == s.Id || rest.StartsWith(s.Id + "-", StringComparison.Ordinal))
+                    .MaxBy(s => s.Id.Length)
+                    ?.Id
+                    is { } id
+                    ? UnitOf(plan, provider, id)
+                : null;
+            return owner is null ? ScenarioRunner.Phases.Any(p => finished.ContainsKey(Unit(p, provider))) : finished.ContainsKey(owner);
+        }
     }
 
-    /// <summary>The providers that finished, their results, and the wall time they took before the interruption.</summary>
+    /// <summary>The unit that runs scenario <paramref name="id"/> on <paramref name="provider"/>, or null for no planned scenario.</summary>
+    private static string? UnitOf(RunPlan plan, string provider, string id) =>
+        plan.Scenarios.FirstOrDefault(s => s.Id == id) is { } scenario ? Unit(ScenarioRunner.PhaseOf(scenario), provider) : null;
+
+    /// <summary>The units that finished, their results, and the wall time they took before the interruption.</summary>
     public sealed record Kept(
         IReadOnlyList<CaseResult> Results,
         IReadOnlyList<string> Finished,

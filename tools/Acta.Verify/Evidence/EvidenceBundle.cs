@@ -9,6 +9,7 @@ namespace Acta.Verify;
 public sealed class EvidenceBundle
 {
     private readonly object _journalLock = new();
+    private readonly object _environmentLock = new();
     private long _writeTicks;
     private int _quiet;
     public string DirectoryPath { get; }
@@ -175,6 +176,38 @@ public sealed class EvidenceBundle
     }
 
     public void AppendCase(CaseResult result) => Append("cases.jsonl", result, VerifyJson.Default.CaseResult);
+
+    /// <summary>The run's environment record.</summary>
+    public Dictionary<string, string> ReadEnvironment()
+    {
+        lock (_environmentLock)
+        {
+            return JsonSerializer.Deserialize(File.ReadAllText(Resolve("environment.json")), VerifyJson.Default.DictionaryStringString)
+                ?? [];
+        }
+    }
+
+    /// <summary>
+    /// Adds entries to the run's environment record: a provisioned server's Docker VM, container and readback settings,
+    /// or the run's wall time. The databases of a parallel phase record at once, so each read and rewrite is whole.
+    /// </summary>
+    public void RecordEnvironment(Dictionary<string, string> specs)
+    {
+        ArgumentNullException.ThrowIfNull(specs);
+        if (specs.Count == 0)
+        {
+            return;
+        }
+        lock (_environmentLock)
+        {
+            var environment = ReadEnvironment();
+            foreach (var (key, value) in specs)
+            {
+                environment[key] = value;
+            }
+            Write("environment.json", environment, VerifyJson.Default.DictionaryStringString);
+        }
+    }
 
     /// <summary>The results a run's journal at <paramref name="path"/> holds, up to a line a crash cut short, and whether one was.</summary>
     public static (List<CaseResult> Results, bool Truncated) ReadCases(string path)

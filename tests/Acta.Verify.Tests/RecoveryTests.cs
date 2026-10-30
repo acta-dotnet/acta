@@ -295,53 +295,66 @@ public sealed class RecoveryTests : IDisposable
         bundle.Write("resolved-plan.json", plan, VerifyJson.Default.RunPlan);
         bundle.AppendCase(HarnessControls.Run(plan, bundle)[0]);
         bundle.AppendCase(new("throughput", "sqlite", "verify", 1, "PASS", null, "PASS", "PASS", "COMPLETE", "NOT_MEASURED", [], []));
-        File.WriteAllLines(bundle.Resolve("faults.jsonl"), ["{\"provider\":\"sqlite\"}", "{\"provider\":\"sql"]);
-        RunResume.MarkFinished(bundle, "sqlite", complete: true, settingsVerified: true, wallSeconds: 1);
+        File.WriteAllLines(bundle.Resolve("faults.jsonl"), ["{\"provider\":\"sqlite\",\"case_id\":\"throughput\"}", "{\"provider\":\"sql"]);
+        RunResume.MarkFinished(bundle, RunResume.Unit("performance", "sqlite"), complete: true, settingsVerified: true, wallSeconds: 1);
 
         var kept = RunResume.Load(bundle, plan);
 
         Assert.DoesNotContain(kept.Results, r => r.Provider == "harness");
         Assert.Contains(kept.Results, r => r.Provider == "sqlite");
-        Assert.Equal(["{\"provider\":\"sqlite\"}"], File.ReadAllLines(bundle.Resolve("faults.jsonl")));
+        Assert.Equal(["{\"provider\":\"sqlite\",\"case_id\":\"throughput\"}"], File.ReadAllLines(bundle.Resolve("faults.jsonl")));
     }
 
     [Fact]
-    public void A_resume_keeps_the_providers_that_finished_and_removes_every_trace_of_the_rest()
+    public void A_resume_keeps_the_units_that_finished_and_removes_every_trace_of_the_rest()
     {
-        var plan = Protocol.Plan("release", ["sqlite", "pg"], 1729, ["throughput"]);
+        var plan = Protocol.Plan("release", ["sqlite", "pg"], 1729, ["throughput", "checkpoint-depths"]);
         var bundle = new EvidenceBundle(_root, plan.RunId);
         bundle.Write("resolved-plan.json", plan, VerifyJson.Default.RunPlan);
         foreach (var row in HarnessControls.Run(plan, bundle))
         {
             bundle.AppendCase(row);
         }
-        bundle.AppendCase(new("throughput", "sqlite", "verify", 1, "PASS", null, "PASS", "PASS", "COMPLETE", "NOT_MEASURED", [], []));
-        bundle.AppendCase(new("throughput", "pg", "verify", 1, "PASS", null, "PASS", "PASS", "COMPLETE", "NOT_MEASURED", [], []));
+        foreach (var provider in plan.Providers)
+        {
+            foreach (var id in new[] { "throughput", "checkpoint-depths" })
+            {
+                bundle.AppendCase(new(id, provider, "verify", 1, "PASS", null, "PASS", "PASS", "COMPLETE", "NOT_MEASURED", [], []));
+                File.WriteAllText(bundle.Resolve($"histories/{provider}-{id}-verify-1-0-checks.json"), "{}");
+            }
+        }
         File.AppendAllText(bundle.Resolve("cases.jsonl"), "{\"cut\":");
-        File.WriteAllLines(bundle.Resolve("faults.jsonl"), ["{\"provider\":\"sqlite\"}", "{\"provider\":\"pg\"}"]);
+        File.WriteAllLines(
+            bundle.Resolve("faults.jsonl"),
+            ["{\"provider\":\"pg\",\"case_id\":\"throughput\"}", "{\"provider\":\"pg\",\"case_id\":\"checkpoint-depths\"}"]
+        );
         File.WriteAllLines(
             bundle.Resolve("metrics.jsonl"),
-            ["{\"Component\":\"sqlite-throughput-verify-1-0/worker\"}", "{\"Component\":\"pg-throughput-verify-1-0/worker\"}"]
+            ["{\"Component\":\"pg-throughput-measure-1-10000/worker\"}", "{\"Component\":\"pg-checkpoint-depths-verify-1-0/worker\"}"]
         );
-        File.WriteAllText(bundle.Resolve("histories/sqlite-throughput-verify-1-0-checks.json"), "{}");
-        File.WriteAllText(bundle.Resolve("histories/pg-throughput-verify-1-0-checks.json"), "{}");
-        Directory.CreateDirectory(bundle.Resolve("repro/state/pg-throughput-verify-1-0"));
-        RunResume.MarkFinished(bundle, "sqlite", complete: true, settingsVerified: true, wallSeconds: 120);
+        Directory.CreateDirectory(bundle.Resolve("repro/state/pg-performance"));
+        Directory.CreateDirectory(bundle.Resolve("repro/state/pg-correctness"));
+        // PostgreSQL's correctness unit was interrupted; everything else finished.
+        foreach (var unit in new[] { "sqlite-performance", "sqlite-correctness", "pg-performance" })
+        {
+            RunResume.MarkFinished(bundle, unit, complete: true, settingsVerified: true, wallSeconds: 60);
+        }
 
         var kept = RunResume.Load(bundle, plan);
 
-        Assert.Equal(["sqlite"], kept.Finished);
-        Assert.Equal(["sqlite"], kept.Complete);
-        Assert.Equal(120, kept.WallSeconds);
-        Assert.DoesNotContain(kept.Results, r => r.Provider == "pg");
-        Assert.Contains(kept.Results, r => r.Provider == "sqlite");
+        Assert.Equal(["sqlite-performance", "sqlite-correctness", "pg-performance"], kept.Finished);
+        Assert.Equal(180, kept.WallSeconds);
+        Assert.Contains(kept.Results, r => r is { Provider: "pg", Id: "throughput" });
+        Assert.DoesNotContain(kept.Results, r => r is { Provider: "pg", Id: "checkpoint-depths" });
+        Assert.Contains(kept.Results, r => r is { Provider: "sqlite", Id: "checkpoint-depths" });
         Assert.Contains(kept.Results, r => r.Provider == "harness");
         Assert.Equal(kept.Results.Count, File.ReadAllLines(bundle.Resolve("cases.jsonl")).Length);
-        Assert.Equal(["{\"provider\":\"sqlite\"}"], File.ReadAllLines(bundle.Resolve("faults.jsonl")));
-        Assert.Equal(["{\"Component\":\"sqlite-throughput-verify-1-0/worker\"}"], File.ReadAllLines(bundle.Resolve("metrics.jsonl")));
-        Assert.True(File.Exists(bundle.Resolve("histories/sqlite-throughput-verify-1-0-checks.json")));
-        Assert.False(File.Exists(bundle.Resolve("histories/pg-throughput-verify-1-0-checks.json")));
-        Assert.False(Directory.Exists(bundle.Resolve("repro/state/pg-throughput-verify-1-0")));
+        Assert.Equal(["{\"provider\":\"pg\",\"case_id\":\"throughput\"}"], File.ReadAllLines(bundle.Resolve("faults.jsonl")));
+        Assert.Equal(["{\"Component\":\"pg-throughput-measure-1-10000/worker\"}"], File.ReadAllLines(bundle.Resolve("metrics.jsonl")));
+        Assert.True(File.Exists(bundle.Resolve("histories/pg-throughput-verify-1-0-checks.json")));
+        Assert.False(File.Exists(bundle.Resolve("histories/pg-checkpoint-depths-verify-1-0-checks.json")));
+        Assert.True(Directory.Exists(bundle.Resolve("repro/state/pg-performance")));
+        Assert.False(Directory.Exists(bundle.Resolve("repro/state/pg-correctness")));
     }
 
     public void Dispose()

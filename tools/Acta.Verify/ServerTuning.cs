@@ -9,16 +9,17 @@ namespace Acta.Verify;
 public static class ServerTuning
 {
     /// <summary>
-    /// The container memory cap in MB: the protocol's fraction of the Docker VM memory, never above its maximum.
-    /// Throws when the cap falls below the protocol's minimum.
+    /// The container memory cap in MB: the protocol's fraction of the Docker VM memory, never above its maximum, and
+    /// <paramref name="share"/> of that when several containers run at once. Throws when the cap falls below the
+    /// protocol's minimum.
     /// </summary>
-    public static int MemoryCapMb(RunPlan plan, long dockerVmMemoryBytes)
+    public static int MemoryCapMb(RunPlan plan, long dockerVmMemoryBytes, double share = 1)
     {
         ArgumentNullException.ThrowIfNull(plan);
         var vmMb = dockerVmMemoryBytes / 1048576;
         var fraction = Owned(plan, "memory_cap_fraction_of_docker_vm");
         var minimum = (int)Owned(plan, "memory_cap_min_mb");
-        var cap = (int)Math.Min(Owned(plan, "memory_cap_max_mb"), Math.Floor(vmMb * fraction));
+        var cap = (int)Math.Floor(Math.Min(Owned(plan, "memory_cap_max_mb"), vmMb * fraction) * share);
         if (cap < minimum)
         {
             throw new ServerSetupException(

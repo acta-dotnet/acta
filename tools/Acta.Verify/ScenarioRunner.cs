@@ -111,6 +111,19 @@ public static class ScenarioRunner
         }
     }
 
+    /// <summary>
+    /// A run's phases in order: performance measures one database at a time on a quiet box, then correctness, faults
+    /// and chaos run on every database at once, since they judge outcomes rather than time.
+    /// </summary>
+    public static readonly string[] Phases = ["performance", "correctness"];
+
+    /// <summary>The phase <paramref name="scenario"/> runs in.</summary>
+    public static string PhaseOf(Scenario scenario)
+    {
+        ArgumentNullException.ThrowIfNull(scenario);
+        return scenario.Group == "performance" ? "performance" : "correctness";
+    }
+
     /// <summary>The passes a measured scenario owes: the suite's headline passes for a headline, its passes otherwise.</summary>
     public static int Passes(RunPlan plan, Scenario scenario)
     {
@@ -161,22 +174,31 @@ public static class ScenarioRunner
     }
 
     /// <summary>
-    /// Runs <paramref name="scenarios"/> on one database in order. A scenario that skips the database, or writes no
-    /// load for it, records why and does not run.
+    /// Runs <paramref name="scenarios"/> on one database in order, printing before each how far the database is and
+    /// about how long its remaining scenarios take by <paramref name="estimate"/>. A scenario that skips the database,
+    /// or writes no load for it, records why and does not run.
     /// </summary>
     internal static async Task RunAsync(
         RunPlan plan,
-        IEnumerable<Scenario> scenarios,
+        IReadOnlyList<Scenario> scenarios,
         OwnedProvider environment,
         EvidenceBundle bundle,
         Action<CaseResult> emit,
+        Func<Scenario, double> estimate,
         CancellationToken ct
     )
     {
-        var lastRecorded = System.Diagnostics.Stopwatch.GetTimestamp();
-        foreach (var scenario in scenarios)
+        var started = System.Diagnostics.Stopwatch.GetTimestamp();
+        var lastRecorded = started;
+        for (var index = 0; index < scenarios.Count; index++)
         {
             ct.ThrowIfCancellationRequested();
+            var scenario = scenarios[index];
+            var elapsed = System.Diagnostics.Stopwatch.GetElapsedTime(started).TotalMinutes;
+            var left = scenarios.Skip(index).Sum(estimate) / 60;
+            Console.WriteLine(
+                $"[{environment.Provider} {index + 1}/{scenarios.Count} {scenario.Id} | {elapsed:F0} min in | about {left:F0} min left]"
+            );
             var run = new ScenarioRun(plan, scenario, environment, bundle, RecordAsync, ct);
             if (Unwritten(scenario, environment.Provider) is { } skipped)
             {
@@ -206,7 +228,8 @@ public static class ScenarioRunner
 
         async Task<CaseResult> RecordAsync(CaseResult result)
         {
-            result = await LedgerValidation.ApplyAsync(result, environment.TakeTrials(), bundle, ct);
+            var trials = environment.TakeTrials();
+            result = await LedgerValidation.ApplyAsync(result, trials, bundle, ct);
             // Results are recorded one after another, so the time since the previous one is the time this one took.
             var recorded = System.Diagnostics.Stopwatch.GetTimestamp();
             result.Metrics["wall_seconds"] = new(
@@ -224,6 +247,23 @@ public static class ScenarioRunner
                 environment.DrainRate = Math.Min(environment.DrainRate ?? drain, drain);
             }
             emit(result);
+            // A trial that passed, or missed only its rate, leaves nothing to inspect: dropping its schema keeps later
+            // trials on a database holding their own rows only. A failure keeps its schema, and so does a failed drop,
+            // which the database's own cleanup removes.
+            if (result.Status == "PASS")
+            {
+                foreach (var trial in trials)
+                {
+                    try
+                    {
+                        await trial.DropAsync(ct);
+                    }
+                    catch (Exception ex) when (ex is not OperationCanceledException)
+                    {
+                        Console.WriteLine($"  {result.Id} {result.Provider}: schema drop failed ({ex.GetType().Name}: {ex.Message}).");
+                    }
+                }
+            }
             return result;
         }
     }

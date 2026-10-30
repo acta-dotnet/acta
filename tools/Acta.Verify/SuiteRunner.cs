@@ -51,19 +51,16 @@ internal static class SuiteRunner
             var resumes = JsonSerializer
                 .Deserialize(File.ReadAllText(bundle.Resolve("environment.json")), VerifyJson.Default.DictionaryStringString)!
                 .GetValueOrDefault("resumes", "0");
-            RecordEnvironment(
-                bundle,
+            bundle.RecordEnvironment(
                 new()
                 {
                     ["resumes"] = (int.Parse(resumes, System.Globalization.CultureInfo.InvariantCulture) + 1).ToString(
                         System.Globalization.CultureInfo.InvariantCulture
                     ),
-                    ["providers_kept_on_resume"] = kept.Finished.Count == 0 ? "none" : string.Join(",", kept.Finished),
+                    ["units_kept_on_resume"] = kept.Finished.Count == 0 ? "none" : string.Join(",", kept.Finished),
                 }
             );
-            Console.WriteLine(
-                $"Resuming {plan.RunId}: kept {(kept.Finished.Count == 0 ? "no provider" : string.Join(", ", kept.Finished))}."
-            );
+            Console.WriteLine($"Resuming {plan.RunId}: kept {(kept.Finished.Count == 0 ? "nothing" : string.Join(", ", kept.Finished))}.");
         }
         else
         {
@@ -84,6 +81,10 @@ internal static class SuiteRunner
         var settingsVerified = kept?.SettingsVerified ?? true;
         var aborted = false;
         var harnessError = false;
+        // The databases of the correctness phase run at once and share these: the results, the environment record,
+        // the run's flags and the disk record.
+        var gate = new object();
+        var history = DryRun.History(output);
         using var disk = DiskCounters.Start();
         disk.Enter(resume ? "at resume" : "before");
         Console.WriteLine($"Acta Verify {plan.SuiteName} | {string.Join(", ", plan.Providers)} | {bundle.DirectoryPath}");
@@ -109,19 +110,15 @@ internal static class SuiteRunner
                 harnessError = true;
                 throw new InvalidOperationException("Harness negative controls failed.");
             }
-            // Half a minute of the drive at rest before any provider writes to it.
-            await Task.Delay(TimeSpan.FromSeconds(30), ct);
-            foreach (var provider in plan.Providers.Where(p => kept?.Finished.Contains(p) != true))
+            if (
+                plan.SuiteName != "quick"
+                && typeof(VerifyCommand).Assembly.GetCustomAttribute<AssemblyConfigurationAttribute>()?.Configuration != "Release"
+            )
             {
-                ct.ThrowIfCancellationRequested();
-                disk.Enter(provider);
-                if (
-                    plan.SuiteName != "quick"
-                    && typeof(VerifyCommand).Assembly.GetCustomAttribute<AssemblyConfigurationAttribute>()?.Configuration != "Release"
-                )
+                harnessError = true;
+                settingsVerified = false;
+                foreach (var provider in plan.Providers)
                 {
-                    harnessError = true;
-                    settingsVerified = false;
                     foreach (var scenario in plan.Scenarios)
                     {
                         Record(
@@ -133,107 +130,28 @@ internal static class SuiteRunner
                             )
                         );
                     }
-                    continue;
                 }
-                var before = results.Count;
-                var providerWall = Stopwatch.StartNew();
-                var providerVerified = true;
-                var providerEnded = false;
-#pragma warning disable CA2000 // Disposed in the finally below, where a failed disposal is logged.
-                var environment = new OwnedProvider(provider, bundle.Resolve($"repro/state/{provider}"));
-#pragma warning restore CA2000
-                try
+            }
+            else
+            {
+                // Half a minute of the drive at rest before any database writes to it.
+                await Task.Delay(TimeSpan.FromSeconds(30), ct);
+                Scenario[] performance = [.. plan.Scenarios.Where(s => ScenarioRunner.PhaseOf(s) == "performance")];
+                Scenario[] correctness = [.. plan.Scenarios.Where(s => ScenarioRunner.PhaseOf(s) == "correctness")];
+                foreach (var provider in performance.Length > 0 ? plan.Providers : [])
                 {
-                    Console.WriteLine($"Preflight/provision {provider}");
-                    try
-                    {
-                        await environment.ProvisionAsync(plan, plan.UseComposeServers, ct);
-                    }
-                    finally
-                    {
-                        RecordEnvironment(bundle, environment.ServerSpecs);
-                    }
-                    var settings = await environment.CaptureSettingsAsync(ct);
-                    providerVerified = environment.SettingsVerified;
-                    bundle.Write($"histories/{provider}-settings.json", settings, VerifyJson.Default.DictionaryStringString);
-                    if (plan.MeasurementGatesVerdict)
-                    {
-                        // Provisioning writes, and so can anything else on the box: the measurements start once the
-                        // drives have been quiet a few seconds, or within a minute saying they were not.
-                        var quiet = await disk.WaitForQuietAsync(
-                            TimeSpan.FromSeconds(plan.Policy("measurement", "disk_quiet", "seconds")),
-                            TimeSpan.FromSeconds(plan.Policy("measurement", "disk_quiet", "limit_seconds")),
-                            plan.Policy("measurement", "disk_quiet", "min_idle_percent"),
-                            plan.Policy("measurement", "disk_quiet", "max_writes_per_second"),
-                            ct
-                        );
-                        Console.WriteLine($"{provider}: quiet disk before measuring: {quiet}");
-                        RecordEnvironment(bundle, new() { [$"disk_quiet_before_{provider}"] = quiet });
-                    }
-                    await ScenarioRunner.RunAsync(plan, plan.Scenarios, environment, bundle, Record, ct);
-                    foreach (var gap in CoveragePolicy.Missing(plan, provider, results))
-                    {
-                        Record(gap);
-                    }
-                    if (results.Skip(before).All(c => c.Status is "PASS" or "NOT_APPLICABLE"))
-                    {
-                        complete.Add(provider);
-                        environment.RetainState = false;
-                    }
-                    providerEnded = true;
+                    ct.ThrowIfCancellationRequested();
+                    disk.Enter(provider);
+                    await RunUnitAsync("performance", provider, performance, 1);
                 }
-                catch (OperationCanceledException) when (ct.IsCancellationRequested)
+                if (correctness.Length > 0)
                 {
-                    throw;
-                }
-                catch (Exception ex) when (ex is not ServerSetupException)
-                {
-                    providerVerified = false;
-                    providerEnded = true;
-                    Console.WriteLine($"{provider}: incomplete ({ex.GetType().Name}: {ex.Message}); retained evidence.");
-                    File.WriteAllText(bundle.Resolve($"logs/{provider}-error.txt"), ex.ToString());
-                    foreach (var c in plan.Scenarios.Where(c => !results.Skip(before).Any(r => r.Id == c.Id)))
-                    {
-                        Record(
-                            CaseResult.Incomplete(
-                                c.Id,
-                                provider,
-                                "verify",
-                                ex is ResourceBudgetException ? $"The resource budget stopped this provider: {ex.Message}"
-                                    : provider == "mssql" && !System.Runtime.CompilerServices.RuntimeFeature.IsDynamicCodeSupported
-                                        ? "SQL Server requires dynamic code support; publish the managed build with -p:PublishAot=false. Native and AOT-constrained managed runs do not cover SQL Server."
-                                    : $"Provider setup/execution unavailable ({ex.GetType().Name}: {ex.Message})."
-                            )
-                        );
-                    }
-                }
-                finally
-                {
-                    // A provider's verdicts are recorded by now; leftover resources do not stop the next provider.
-                    try
-                    {
-                        await environment.DisposeAsync();
-                    }
-                    catch (Exception ex)
-                    {
-                        Console.WriteLine(
-                            $"{provider}: cleanup failed ({ex.GetType().Name}: {ex.Message}); acta-verify cleanup lists what remains."
-                        );
-                        File.WriteAllText(bundle.Resolve($"logs/{provider}-cleanup-error.txt"), ex.ToString());
-                    }
-                    settingsVerified &= providerVerified;
-                    // Only a provider that ran to its end is kept by a resume; an interrupted one runs again.
-                    if (providerEnded)
-                    {
-                        disk.Save(bundle);
-                        RunResume.MarkFinished(
-                            bundle,
-                            provider,
-                            complete.Contains(provider),
-                            providerVerified,
-                            providerWall.Elapsed.TotalSeconds
-                        );
-                    }
+                    disk.Enter("correctness");
+                    string[] pending = [.. plan.Providers.Where(p => kept?.Finished.Contains(RunResume.Unit("correctness", p)) != true)];
+                    // The server containers running side by side split the memory cap one would take alone.
+                    var servers = pending.Count(p => p != "sqlite");
+                    await Task.WhenAll(pending.Select(p => RunUnitAsync("correctness", p, correctness, servers > 1 ? 1.0 / servers : 1)));
+                    disk.Save(bundle);
                 }
             }
         }
@@ -247,7 +165,7 @@ internal static class SuiteRunner
             Console.WriteLine($"Harness failure ({ex.GetType().Name}: {ex.Message}); no full verdict is established.");
             File.WriteAllText(bundle.Resolve("logs/harness-error.txt"), $"No full verdict is established.\n{ex}");
         }
-        // And half a minute after the last provider, while the drive settles from the run's writes.
+        // And half a minute after the last database, while the drive settles from the run's writes.
         disk.Enter("after");
         if (!aborted)
         {
@@ -305,15 +223,24 @@ internal static class SuiteRunner
             "real_execution",
             status,
             provenance,
-            new(plan.Providers, [.. complete], ["physical_power_loss", "vm_crash", "multi_region_failover"]),
+            new(
+                plan.Providers,
+                [
+                    .. plan.Providers.Where(p =>
+                        ScenarioRunner
+                            .Phases.Where(phase => plan.Scenarios.Any(s => ScenarioRunner.PhaseOf(s) == phase))
+                            .All(phase => complete.Contains(RunResume.Unit(phase, p)))
+                    ),
+                ],
+                ["physical_power_loss", "vm_crash", "multi_region_failover"]
+            ),
             coverage,
             new("single_node_durable", settingsVerified, false),
             [.. results],
             [],
             harnessError
         );
-        RecordEnvironment(
-            bundle,
+        bundle.RecordEnvironment(
             new()
             {
                 ["run_wall_seconds"] = (wall.Elapsed.TotalSeconds + (kept?.WallSeconds ?? 0)).ToString(
@@ -329,49 +256,169 @@ internal static class SuiteRunner
 
         void Record(CaseResult result)
         {
-            results.Add(result);
-            bundle.AppendCase(result);
-            if (result.Phase == "fault")
+            lock (gate)
             {
-                bundle.Append(
-                    "faults.jsonl",
-                    new Dictionary<string, string>
-                    {
-                        ["event"] = "case_result",
-                        ["provider"] = result.Provider,
-                        ["case_id"] = result.Id,
-                        ["repetition"] = result.Repetition.ToString(System.Globalization.CultureInfo.InvariantCulture),
-                        ["recorded_at_utc"] = DateTimeOffset.UtcNow.ToString("O", System.Globalization.CultureInfo.InvariantCulture),
-                        ["status"] = result.Status,
-                        ["coverage"] = result.Coverage,
-                        ["evidence"] = string.Join(";", result.Evidence),
-                    },
-                    VerifyJson.Default.DictionaryStringString
-                );
+                results.Add(result);
+                bundle.AppendCase(result);
+                if (result.Phase == "fault")
+                {
+                    bundle.Append(
+                        "faults.jsonl",
+                        new Dictionary<string, string>
+                        {
+                            ["event"] = "case_result",
+                            ["provider"] = result.Provider,
+                            ["case_id"] = result.Id,
+                            ["repetition"] = result.Repetition.ToString(System.Globalization.CultureInfo.InvariantCulture),
+                            ["recorded_at_utc"] = DateTimeOffset.UtcNow.ToString("O", System.Globalization.CultureInfo.InvariantCulture),
+                            ["status"] = result.Status,
+                            ["coverage"] = result.Coverage,
+                            ["evidence"] = string.Join(";", result.Evidence),
+                        },
+                        VerifyJson.Default.DictionaryStringString
+                    );
+                }
+                Console.WriteLine($"  {result.Id} {result.Provider} {result.Phase} #{result.Repetition}: {result.Status}");
             }
-            Console.WriteLine($"  {result.Id} {result.Provider} {result.Phase} #{result.Repetition}: {result.Status}");
         }
-    }
 
-    /// <summary>
-    /// Adds entries to the run's environment record: a provisioned server's Docker VM, container and readback settings,
-    /// or the run's wall time.
-    /// </summary>
-    private static void RecordEnvironment(EvidenceBundle bundle, Dictionary<string, string> specs)
-    {
-        if (specs.Count == 0)
+        // One phase on one database: provision, measure on a quiet disk where the suite gates on it, run the phase's
+        // scenarios, owe their coverage, and mark the unit finished so a resume keeps it.
+        async Task RunUnitAsync(string phase, string provider, Scenario[] scenarios, double capShare)
         {
-            return;
+            var unit = RunResume.Unit(phase, provider);
+            if (kept?.Finished.Contains(unit) == true)
+            {
+                return;
+            }
+            var unitWall = Stopwatch.StartNew();
+            var verified = true;
+            var ended = false;
+#pragma warning disable CA2000 // Disposed in the finally below, where a failed disposal is logged.
+            var environment = new OwnedProvider(provider, bundle.Resolve($"repro/state/{unit}"));
+#pragma warning restore CA2000
+            try
+            {
+                Console.WriteLine($"Preflight/provision {unit}");
+                try
+                {
+                    await environment.ProvisionAsync(plan, plan.UseComposeServers, ct, capShare);
+                }
+                finally
+                {
+                    // The performance servers' specifications are the ones a comparison reads; later phases are prefixed.
+                    bundle.RecordEnvironment(
+                        environment.ServerSpecs.ToDictionary(s => phase == "performance" ? s.Key : $"{phase}_{s.Key}", s => s.Value)
+                    );
+                }
+                var settings = await environment.CaptureSettingsAsync(ct);
+                verified = environment.SettingsVerified;
+                bundle.Write($"histories/{unit}-settings.json", settings, VerifyJson.Default.DictionaryStringString);
+                if (phase == "performance" && plan.MeasurementGatesVerdict)
+                {
+                    // Provisioning writes, and so can anything else on the box: the measurements start once the
+                    // drives have been quiet a few seconds, or within a minute saying they were not.
+                    var quiet = await disk.WaitForQuietAsync(
+                        TimeSpan.FromSeconds(plan.Policy("measurement", "disk_quiet", "seconds")),
+                        TimeSpan.FromSeconds(plan.Policy("measurement", "disk_quiet", "limit_seconds")),
+                        plan.Policy("measurement", "disk_quiet", "min_idle_percent"),
+                        plan.Policy("measurement", "disk_quiet", "max_writes_per_second"),
+                        ct
+                    );
+                    Console.WriteLine($"{provider}: quiet disk before measuring: {quiet}");
+                    bundle.RecordEnvironment(new() { [$"disk_quiet_before_{provider}"] = quiet });
+                }
+                await ScenarioRunner.RunAsync(
+                    plan,
+                    scenarios,
+                    environment,
+                    bundle,
+                    Record,
+                    s => DryRun.Estimate(plan, s, provider, history).Seconds,
+                    ct
+                );
+                foreach (var gap in CoveragePolicy.Missing(plan with { Scenarios = scenarios }, provider, Snapshot()))
+                {
+                    Record(gap);
+                }
+                if (
+                    Snapshot()
+                        .Where(r => r.Provider == provider && scenarios.Any(s => s.Id == r.Id))
+                        .All(c => c.Status is "PASS" or "NOT_APPLICABLE")
+                )
+                {
+                    lock (gate)
+                    {
+                        complete.Add(unit);
+                    }
+                    environment.RetainState = false;
+                }
+                ended = true;
+            }
+            catch (OperationCanceledException) when (ct.IsCancellationRequested)
+            {
+                throw;
+            }
+            catch (Exception ex) when (ex is not ServerSetupException)
+            {
+                verified = false;
+                ended = true;
+                Console.WriteLine($"{unit}: incomplete ({ex.GetType().Name}: {ex.Message}); retained evidence.");
+                File.WriteAllText(bundle.Resolve($"logs/{unit}-error.txt"), ex.ToString());
+                var recorded = Snapshot();
+                foreach (var c in scenarios.Where(c => !recorded.Any(r => r.Provider == provider && r.Id == c.Id)))
+                {
+                    Record(
+                        CaseResult.Incomplete(
+                            c.Id,
+                            provider,
+                            "verify",
+                            ex is ResourceBudgetException ? $"The resource budget stopped this database: {ex.Message}"
+                                : provider == "mssql" && !System.Runtime.CompilerServices.RuntimeFeature.IsDynamicCodeSupported
+                                    ? "SQL Server requires dynamic code support; publish the managed build with -p:PublishAot=false. Native and AOT-constrained managed runs do not cover SQL Server."
+                                : $"Provider setup/execution unavailable ({ex.GetType().Name}: {ex.Message})."
+                        )
+                    );
+                }
+            }
+            finally
+            {
+                // A unit's verdicts are recorded by now; leftover resources do not stop the next unit.
+                try
+                {
+                    await environment.DisposeAsync();
+                }
+                catch (Exception ex)
+                {
+                    Console.WriteLine(
+                        $"{unit}: cleanup failed ({ex.GetType().Name}: {ex.Message}); acta-verify cleanup lists what remains."
+                    );
+                    File.WriteAllText(bundle.Resolve($"logs/{unit}-cleanup-error.txt"), ex.ToString());
+                }
+                lock (gate)
+                {
+                    settingsVerified &= verified;
+                    // Only a unit that ran to its end is kept by a resume; an interrupted one runs again.
+                    if (ended)
+                    {
+                        // The parallel phase saves its disk record once every database is done; saving ends a phase.
+                        if (phase == "performance")
+                        {
+                            disk.Save(bundle);
+                        }
+                        RunResume.MarkFinished(bundle, unit, complete.Contains(unit), verified, unitWall.Elapsed.TotalSeconds);
+                    }
+                }
+            }
         }
-        var environment = JsonSerializer.Deserialize(
-            File.ReadAllText(bundle.Resolve("environment.json")),
-            VerifyJson.Default.DictionaryStringString
-        )!;
-        foreach (var (key, value) in specs)
+
+        CaseResult[] Snapshot()
         {
-            environment[key] = value;
+            lock (gate)
+            {
+                return [.. results];
+            }
         }
-        bundle.Write("environment.json", environment, VerifyJson.Default.DictionaryStringString);
     }
 
     private static async Task<Provenance> CaptureAsync(RunPlan plan, EvidenceBundle bundle, CancellationToken ct)

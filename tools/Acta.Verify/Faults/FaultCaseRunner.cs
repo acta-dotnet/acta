@@ -34,7 +34,7 @@ internal static class FaultCaseRunner
                 environment.Provider,
                 bundle.Resolve($"repro/state/{environment.Provider}-database-crash-owned-{repetition}")
             );
-            await crashDatabase.ProvisionAsync(plan, useComposeServer: false, ct);
+            await crashDatabase.ProvisionAsync(plan, useComposeServer: false, ct, environment.CapShare);
             var settings = await crashDatabase.CaptureSettingsAsync(ct);
             foreach (var (key, value) in crashDatabase.ServerSpecs)
             {

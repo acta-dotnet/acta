@@ -14,43 +14,71 @@ internal static class DryRun
     // after the window, the paged verification and the ledger checks.
     private const double AssumedTrialOverhead = 25;
 
+    /// <summary>
+    /// The plan as a table per database, with the time of each phase: performance runs one database at a time, so its
+    /// times add up; correctness runs every database at once, so the slowest one sets its time.
+    /// </summary>
     public static string Describe(RunPlan plan, string output)
     {
-        var history = LastResults(output);
+        var history = History(output);
         var text = new StringBuilder().Append(
             CultureInfo.InvariantCulture,
             $"{plan.SuiteName}: {plan.Scenarios.Count} scenarios on {string.Join(", ", plan.Providers)}, at most:\n"
         );
-        double total = 0;
+        Dictionary<string, double> phases = new(StringComparer.Ordinal);
         foreach (var provider in plan.Providers)
         {
-            double seconds = 0;
             text.Append(CultureInfo.InvariantCulture, $"\n{provider}\n");
-            foreach (var scenario in plan.Scenarios)
+            foreach (var phase in ScenarioRunner.Phases)
             {
-                if (ScenarioRunner.Unwritten(scenario, provider) is { } skipped)
+                double seconds = 0;
+                foreach (var scenario in plan.Scenarios.Where(s => ScenarioRunner.PhaseOf(s) == phase))
                 {
-                    text.Append(CultureInfo.InvariantCulture, $"  {scenario.Id, -40} skipped: {skipped}\n");
-                    continue;
+                    if (ScenarioRunner.Unwritten(scenario, provider) is { } skipped)
+                    {
+                        text.Append(CultureInfo.InvariantCulture, $"  {scenario.Id, -40} skipped: {skipped}\n");
+                        continue;
+                    }
+                    var (trials, jobs, _) = Size(plan, scenario, provider);
+                    var (estimate, measured) = Estimate(plan, scenario, provider, history);
+                    seconds += estimate;
+                    text.Append(
+                        CultureInfo.InvariantCulture,
+                        $"  {scenario.Id, -40} {trials, 4} trials {(jobs is { } count ? count.ToString("N0", CultureInfo.InvariantCulture) : "-"), 12} jobs {estimate / 60, 7:F1} min{(measured ? "" : " (assumed)")}\n"
+                    );
                 }
-                var (trials, jobs, windows) = Size(plan, scenario, provider);
-                var past = history.Where(r => r.Id == scenario.Id && r.Provider == provider && r.Phase != "reconcile").ToArray();
-                var overhead = past.Length == 0 ? AssumedTrialOverhead : past.Average(r => Wall(r) - Window(r));
-                var estimate = trials * overhead + windows;
-                seconds += estimate;
-                text.Append(
-                    CultureInfo.InvariantCulture,
-                    $"  {scenario.Id, -40} {trials, 4} trials {(jobs is { } count ? count.ToString("N0", CultureInfo.InvariantCulture) : "-"), 12} jobs {estimate / 60, 7:F1} min{(past.Length == 0 ? " (assumed)" : "")}\n"
-                );
+                text.Append(CultureInfo.InvariantCulture, $"  {phase, -40} {seconds / 60, 38:F1} min\n");
+                phases[phase] =
+                    phase == "performance" ? phases.GetValueOrDefault(phase) + seconds : Math.Max(phases.GetValueOrDefault(phase), seconds);
             }
-            text.Append(CultureInfo.InvariantCulture, $"  {"total", -40} {seconds / 60, 38:F1} min\n");
-            total += seconds;
         }
+        var total = phases.Values.Sum();
         text.Append(
             CultureInfo.InvariantCulture,
-            $"\nEstimated {total / 3600:F1} h; the release target is 3 h and the ceiling 10 h. Times marked assumed have no earlier bundle under {output}.\n"
+            $"\nPerformance, one database at a time: {phases.GetValueOrDefault("performance") / 60:F0} min. Correctness, every database at once: {phases.GetValueOrDefault("correctness") / 60:F0} min.\n"
+                + $"Estimated {total / 3600:F1} h; the release target is 3 h and the ceiling 10 h. Times marked assumed have no earlier bundle under {output}.\n"
         );
         return text.ToString();
+    }
+
+    /// <summary>
+    /// About how many seconds <paramref name="scenario"/> takes on <paramref name="provider"/>, and whether an earlier
+    /// bundle measured its overhead.
+    /// </summary>
+    public static (double Seconds, bool Measured) Estimate(
+        RunPlan plan,
+        Scenario scenario,
+        string provider,
+        IReadOnlyList<CaseResult> history
+    )
+    {
+        if (ScenarioRunner.Unwritten(scenario, provider) is not null)
+        {
+            return (0, true);
+        }
+        var (trials, _, windows) = Size(plan, scenario, provider);
+        var past = history.Where(r => r.Id == scenario.Id && r.Provider == provider && r.Phase != "reconcile").ToArray();
+        return (trials * (past.Length == 0 ? AssumedTrialOverhead : past.Average(r => Wall(r) - Window(r))) + windows, past.Length > 0);
     }
 
     /// <summary>
@@ -106,7 +134,7 @@ internal static class DryRun
             + (result.Metrics.GetValueOrDefault("scheduled_window_seconds")?.Value ?? 0);
 
     /// <summary>The results of the newest bundle under <paramref name="output"/>, or none.</summary>
-    private static List<CaseResult> LastResults(string output) =>
+    public static List<CaseResult> History(string output) =>
         Directory.Exists(output)
         && Directory
             .EnumerateDirectories(output)
