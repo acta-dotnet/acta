@@ -374,8 +374,11 @@ static async Task<int> RunSmokeAsync(string? repoRoot)
                 !f.Contains($"{Path.DirectorySeparatorChar}obj{Path.DirectorySeparatorChar}", StringComparison.Ordinal)
                 && !f.Contains($"{Path.DirectorySeparatorChar}bin{Path.DirectorySeparatorChar}", StringComparison.Ordinal)
             );
+        // A concept that also offers a worker mode but whose default mode runs to completion opts back in through its
+        // project file, since the source scan cannot tell which mode runs by default.
         if (
-            sources.Any(f =>
+            !project.Contains("<ActaSmoke>run</ActaSmoke>", StringComparison.Ordinal)
+            && sources.Any(f =>
                 File.ReadAllText(f) is var text
                 && (
                     text.Contains("WaitForShutdownAsync", StringComparison.Ordinal)

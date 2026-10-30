@@ -2,5 +2,6 @@
   <PropertyGroup>
     <OutputType>Exe</OutputType>
     <RootNamespace>Acta.Concepts.ContinuousSynchronization</RootNamespace>
+    <ActaSmoke>run</ActaSmoke>
   </PropertyGroup>
 </Project>

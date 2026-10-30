@@ -21,7 +21,7 @@ Concepts and demos default to embedded **SQLite**: no server, no connection stri
 ```bash
 dotnet run --project tools/Acta.Doctor        # optional preflight: SDK, SQLite, Docker, ports, env vars
 dotnet run --project concepts/000-fundamentals/002-job-input
-dotnet run --project tools/Acta.Doctor -- smoke   # runs every run-to-completion concept on SQLite
+dotnet run --project tools/Acta.Doctor -- smoke   # runs every run-to-completion concept on SQLite; a concept with a worker mode whose default mode exits declares <ActaSmoke>run</ActaSmoke>
 ```
 
 SQLite creates the database file on first connection (`acta-local.db` under `%TEMP%` / `$TMPDIR` /
