@@ -57,10 +57,10 @@ public interface ICalendars
 
     /// <summary>
     /// Makes <paramref name="candidateVersion"/>, a Draft, the family's current version and retimes every schedule that
-    /// names the family in its scope in one transaction: its cursor seeds from the candidate's first occurrence after now,
-    /// and <c>schedule.retimed</c> is recorded. <paramref name="expectedCurrentVersion"/> is the current version the caller
-    /// saw, 0 for none; another is VersionConflict. A bound schedule holding an undecided overdue occurrence is Rejected
-    /// under <see cref="OverdueDecisionCode.Refuse"/> and skipped as an audited range under
+    /// names the family in its scope in one transaction, none under a name the process declares in code: its cursor seeds
+    /// from the candidate's first occurrence after now, and <c>schedule.retimed</c> is recorded. <paramref name="expectedCurrentVersion"/>
+    /// is the current version the caller saw, 0 for none; another is VersionConflict. A bound schedule holding an undecided
+    /// overdue occurrence is Rejected under <see cref="OverdueDecisionCode.Refuse"/> and skipped as an audited range under
     /// <see cref="OverdueDecisionCode.Discard"/>. NotFound when the version is not the family's; Applied records <c>calendar.published</c>.
     /// </summary>
     ValueTask<PublishCalendarResponse> PublishAsync(

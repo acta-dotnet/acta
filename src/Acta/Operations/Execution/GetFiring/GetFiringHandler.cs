@@ -22,6 +22,6 @@ internal sealed class GetFiringHandler(IDbSession session, ISqlDialect dialect)
             DbProjectionResolver.Resolve<GetFiringRow>(),
             ct
         );
-        return row?.Value is { } value && FiringEnvelope.FromJson(value) is { } firing ? new(firing) : null;
+        return row?.Value is { } value && FiringEnvelope.FromJson(value) is { } firing ? new(firing, row.FirstAttempt) : null;
     }
 }

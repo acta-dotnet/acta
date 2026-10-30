@@ -6,9 +6,10 @@ namespace Acta;
 /// <summary>
 /// Resolves a schedule's calendar names into a <see cref="ScheduleSource"/>, afresh at every evaluation: a calendar
 /// declared in the process (<see cref="CalendarRegistry"/>) first, then the current family of the namespace's catalog
-/// or of the shared one in <c>sys</c>. Each catalog version compiles once per process and is kept, since a version's
-/// content never changes. The admitter preloads the names of a pass before it plans, so planning stays synchronous;
-/// registration, preview, and publication preload as they go. The engine reaches it through <see cref="CalendarsOperations"/>.
+/// or of the shared one in <c>sys</c>; a name the process declares never reads the catalog. Each catalog version
+/// compiles once per process and is kept, since a version's content never changes. The admitter preloads the names of
+/// a pass before it plans, so planning stays synchronous; registration, preview, and publication preload as they go.
+/// The engine reaches it through <see cref="CalendarsOperations"/>.
 /// </summary>
 internal sealed class CalendarSources(
     CalendarRegistry registry,
@@ -17,11 +18,14 @@ internal sealed class CalendarSources(
 )
 {
     private readonly ConcurrentDictionary<(int NamespaceId, string Name, int Version), CompiledCalendar> _compiled = new();
-    private readonly ConcurrentDictionary<int, Dictionary<string, int>> _current = new();
+    private readonly ConcurrentDictionary<int, ConcurrentDictionary<string, int>> _current = new();
+
+    /// <summary>Whether the process declares <paramref name="name"/> under <paramref name="role"/>, which the catalog never overrides.</summary>
+    public bool Declares(string name, CalendarRoleCode role) => registry.Declares(name, role);
 
     /// <summary>
-    /// The source of <paramref name="timing"/> from the declared calendars and the current versions the namespace's last
-    /// preload read; a name that resolves to nothing is reported when the source is used.
+    /// The source of <paramref name="timing"/> from the declared calendars and the current versions the namespace's
+    /// preloads read; a name that resolves to nothing is reported when the source is used.
     /// </summary>
     public ScheduleSource Source(int namespaceId, ScheduleTiming timing)
     {
@@ -46,13 +50,14 @@ internal sealed class CalendarSources(
     }
 
     /// <summary>
-    /// Reads the current families of the namespace and of <c>sys</c> once, compiles the current version of each of
-    /// <paramref name="names"/> this process has not met, and keeps the current versions for <see cref="Source"/>. No
-    /// names, no read.
+    /// For the names among <paramref name="names"/> the process does not declare: reads the current families of the
+    /// namespace and of <c>sys</c> once, compiles the current version of each this process has not met, and keeps those
+    /// versions for <see cref="Source"/>. Only the names asked for move, so a preload never points another caller's
+    /// name at a version it did not compile. No names, no read.
     /// </summary>
-    public async Task PreloadAsync(int namespaceId, IEnumerable<string> names, CancellationToken ct)
+    public async Task PreloadAsync(int namespaceId, IEnumerable<(string Name, CalendarRoleCode Role)> names, CancellationToken ct)
     {
-        var needed = names.Distinct(StringComparer.Ordinal).ToList();
+        var needed = names.Where(n => !registry.Declares(n.Name, n.Role)).Select(n => n.Name).Distinct(StringComparer.Ordinal).ToList();
         if (needed.Count == 0)
         {
             return;
@@ -63,15 +68,22 @@ internal sealed class CalendarSources(
             c => c.Version,
             StringComparer.Ordinal
         );
+        var known = _current.GetOrAdd(namespaceId, _ => new ConcurrentDictionary<string, int>(StringComparer.Ordinal));
         foreach (var name in needed)
         {
-            if (current.TryGetValue(name, out var version) && !_compiled.ContainsKey((namespaceId, name, version)))
+            if (!current.TryGetValue(name, out var version))
+            {
+                known.TryRemove(name, out _);
+                continue;
+            }
+
+            if (!_compiled.ContainsKey((namespaceId, name, version)))
             {
                 await CompileAsync(namespaceId, name, version, ct);
             }
-        }
 
-        _current[namespaceId] = current;
+            known[name] = version;
+        }
     }
 
     private CompiledCalendar? Current(int namespaceId, string name) =>

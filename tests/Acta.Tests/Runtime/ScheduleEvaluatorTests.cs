@@ -375,6 +375,80 @@ public class ScheduleEvaluatorTests
     }
 
     [Fact]
+    public void A_parked_schedule_expires_its_stale_backlog_at_once_and_a_resumed_one_is_not_paused_for_it()
+    {
+        // Resumed at 10:10 with the cursor still on 10:05 under a two-minute expiry, while the slot is busy: 10:05
+        // through 10:08 expire now, the schedule parks on 10:09, and the resume keeps the Pause action from firing.
+        var resumed = new ScheduleCursor(Utc(10, 5), ScheduleStatusCode.Active, null, EvaluationStatusCode.Resumed);
+        var d = Evaluate(
+            EveryMinute,
+            resumed,
+            Utc(10, 10),
+            MisfireStrategyCode.CatchUpAll,
+            AdmissionCapacity.Full,
+            TimeSpan.FromMinutes(2),
+            ScheduleExpireActionCode.Pause
+        );
+
+        Assert.Null(d.Admit);
+        Assert.Equal(Utc(10, 5), d.ExpiredFromUtc);
+        Assert.Equal(Utc(10, 8), d.ExpiredThroughUtc);
+        Assert.False(d.PausedByExpiry);
+        Assert.Equal(EvaluationStatusCode.WaitingForCapacity, d.Status);
+        Assert.Null(d.NextEvaluationAtUtc);
+        Assert.Equal(Utc(10, 9), d.NextOccurrenceAtUtc);
+
+        // Woken by a settlement half a minute later, nothing stale is left, so the backlog is admitted, not paused.
+        var woken = new ScheduleCursor(Utc(10, 9), ScheduleStatusCode.Active, null, EvaluationStatusCode.Scheduled);
+        var after = Evaluate(
+            EveryMinute,
+            woken,
+            Utc(10, 10, 30),
+            MisfireStrategyCode.CatchUpAll,
+            expireAfter: TimeSpan.FromMinutes(2),
+            expireAction: ScheduleExpireActionCode.Pause
+        );
+        Assert.Equal(new AdmittedOccurrence(Utc(10, 9), Utc(10, 9)), after.Admit);
+        Assert.False(after.PausedByExpiry);
+    }
+
+    [Fact]
+    public void A_parked_schedule_whose_backlog_expired_under_Pause_pauses_without_waiting_for_the_slot()
+    {
+        var d = Evaluate(
+            EveryMinute,
+            Active(Utc(10, 5)),
+            Utc(10, 10),
+            MisfireStrategyCode.Skip,
+            AdmissionCapacity.Full,
+            TimeSpan.FromMinutes(2),
+            ScheduleExpireActionCode.Pause
+        );
+
+        Assert.Null(d.Admit);
+        Assert.True(d.PausedByExpiry);
+        Assert.Equal(Utc(10, 8), d.ExpiredThroughUtc);
+        Assert.Equal(Utc(10, 9), d.NextOccurrenceAtUtc);
+        Assert.Null(d.NextEvaluationAtUtc);
+        Assert.Equal(EvaluationStatusCode.Scheduled, d.Status);
+    }
+
+    [Fact]
+    public void CatchUpAll_admits_from_a_backlog_too_deep_to_walk()
+    {
+        // Twenty days of per-second occurrences are due, more than one evaluation may walk; CatchUpAll needs only the
+        // cursor and the occurrence after it.
+        var everySecond = new ScheduleTiming("* * * * * *", ScheduleExpressionKindCode.Cron, "UTC", null);
+
+        var d = Evaluate(everySecond, Active(Utc(10, 5)), Utc(10, 5).AddDays(20), MisfireStrategyCode.CatchUpAll);
+
+        Assert.Equal(new AdmittedOccurrence(Utc(10, 5), Utc(10, 5)), d.Admit);
+        Assert.Equal(Utc(10, 5, 1), d.NextOccurrenceAtUtc);
+        Assert.Equal(Utc(10, 5, 1), d.NextEvaluationAtUtc);
+        Assert.Equal(EvaluationStatusCode.Scheduled, d.Status);
+    }
+
+    [Fact]
     public void An_interval_finer_than_a_millisecond_is_rejected()
     {
         Assert.Throws<ArgumentException>(() => NextOccurrenceCalculator.ParseInterval("PT1.0000001S"));

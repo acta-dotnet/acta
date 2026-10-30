@@ -3,8 +3,8 @@ namespace Acta;
 /// <summary>
 /// What a worker start writes for a definition's schedules, against what is stored: a new schedule seeds from the
 /// first occurrence after now; one whose timing fingerprint still matches keeps its cursor, paused or not; one whose
-/// timing changed discards the old stream's undecided occurrences and seeds from the new timing (registration moves
-/// the watermark and audits the retime). A calendar name only has to resolve now, through <c>resolve</c>; nothing about
+/// timing changed discards the old stream's undecided occurrences and seeds from the new timing (registration audits
+/// the retime). A calendar name only has to resolve now, through <c>resolve</c>; nothing about
 /// where it resolved is kept, since the name resolves afresh at every evaluation. A name that resolves to nothing
 /// fails the start, naming the schedule. The slot's status is never part of the plan: admission moves slots.
 /// </summary>

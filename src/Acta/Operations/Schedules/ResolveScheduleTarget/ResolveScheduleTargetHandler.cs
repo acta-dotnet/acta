@@ -40,6 +40,7 @@ internal sealed class ResolveScheduleTargetHandler(IDbSession session, ISqlDiale
             row.ScheduleId,
             row.JobId,
             row.NamespaceId,
+            row.NamespaceStatus,
             nowUtc,
             row.ScheduleName,
             row.Status,

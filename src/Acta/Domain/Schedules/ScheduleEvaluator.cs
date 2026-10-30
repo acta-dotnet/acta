@@ -62,18 +62,13 @@ internal static class ScheduleEvaluator
             return Unchanged(cursor, EvaluationStatusCode.Scheduled, next, pauseEnded);
         }
 
-        if (capacity != AdmissionCapacity.Available)
-        {
-            var parked =
-                capacity == AdmissionCapacity.Full ? EvaluationStatusCode.WaitingForCapacity : EvaluationStatusCode.SlotUnavailable;
-            return Unchanged(cursor, parked, null, pauseEnded);
-        }
-
-        DateTime latest;
-        DateTime? following;
         DateTime? expiredFrom = null;
         DateTime? expiredThrough = null;
         var pausedByExpiry = false;
+        AdmittedOccurrence? admit;
+        DateTime? following;
+        DateTime? skippedFrom = null;
+        DateTime? skippedThrough = null;
         try
         {
             // A calendar is code or catalog content that can change under a stored cursor: an occurrence the source no
@@ -87,11 +82,10 @@ internal static class ScheduleEvaluator
                 }
             }
 
-            latest = LatestDue(source, next, now);
-
-            // Expiration comes before the misfire policy: every due occurrence that aged past the expiry is decided
-            // without work, and under Pause the schedule then stops for an operator. An operator's resume and a timed
-            // pause's end expire the stale backlog once without pausing again, so the schedule can move on.
+            // Expiration comes before capacity and the misfire policy: every due occurrence that aged past the expiry
+            // is decided without work, whatever the slot or the schedule can take, and under Pause the schedule then
+            // stops for an operator. An operator's resume and a timed pause's end expire the stale backlog once without
+            // pausing again, so the schedule can move on.
             if (policy.ExpireAfter is { } age && next <= now - age)
             {
                 expiredFrom = next;
@@ -109,50 +103,74 @@ internal static class ScheduleEvaluator
                 next = remaining.Value;
             }
 
-            following = NextOccurrenceCalculator.FirstAfter(source, source.Timing.IntervalAnchorAtUtc ?? latest, now);
+            // Parked, the schedule keeps what the expiry decided and waits for the settlement or the operator that
+            // frees the slot; paused by the expiry, it waits for an operator instead.
+            if (capacity != AdmissionCapacity.Available)
+            {
+                var parked =
+                    capacity == AdmissionCapacity.Full ? EvaluationStatusCode.WaitingForCapacity : EvaluationStatusCode.SlotUnavailable;
+                return new ScheduleEvaluation(
+                    null,
+                    null,
+                    null,
+                    expiredFrom,
+                    expiredThrough,
+                    next,
+                    null,
+                    pausedByExpiry ? EvaluationStatusCode.Scheduled : parked,
+                    pauseEnded,
+                    pausedByExpiry
+                );
+            }
+
+            // The last due occurrence, walked only for a policy that coalesces into it: CatchUpAll admits the cursor
+            // alone, so a deep backlog costs it nothing per pass.
+            DateTime? latestDue = null;
+            DateTime Latest() => latestDue ??= LatestDue(source, next, now);
+
+            switch (policy.Misfire)
+            {
+                case MisfireStrategyCode.CatchUpOnce:
+                    // One firing stands for every due occurrence: the earliest is the nominal one, the latest the boundary.
+                    admit = new AdmittedOccurrence(next, Latest());
+                    break;
+                case MisfireStrategyCode.CatchUpLatest:
+                    // The latest due occurrence fires however late it is; the earlier ones are coalesced into it as a skip.
+                    admit = new AdmittedOccurrence(Latest(), Latest());
+                    if (next < Latest())
+                    {
+                        skippedFrom = next;
+                        skippedThrough = PreviousDue(source, next, Latest());
+                    }
+                    break;
+                case MisfireStrategyCode.CatchUpAll:
+                    // The earliest due occurrence fires alone; the rest of the backlog is due again at once, so the next
+                    // pass comes straight back and admits the next one as capacity allows.
+                    admit = new AdmittedOccurrence(next, next);
+                    break;
+                case MisfireStrategyCode.Skip:
+                    // The window a pause or downtime covered holds missed occurrences; a due one since then is on time
+                    // within the grace, and the grace is what keeps a slow pass from counting as a misfire.
+                    var onTime = Latest() >= downtimeEndUtc && Latest() >= now - policy.Grace;
+                    admit = onTime ? new AdmittedOccurrence(Latest(), Latest()) : null;
+                    if (next < Latest() || !onTime)
+                    {
+                        skippedFrom = next;
+                        skippedThrough = onTime ? PreviousDue(source, next, Latest()) : Latest();
+                    }
+                    break;
+                default:
+                    throw new NotSupportedException($"Misfire strategy {policy.Misfire} is not supported by this build.");
+            }
+
+            following =
+                policy.Misfire == MisfireStrategyCode.CatchUpAll
+                    ? NextOccurrenceCalculator.Next(source, next)
+                    : NextOccurrenceCalculator.FirstAfter(source, source.Timing.IntervalAnchorAtUtc ?? Latest(), now);
         }
         catch (Exception ex) when (ex is FormatException or ArgumentException or InvalidOperationException or TimeZoneNotFoundException)
         {
             return Unchanged(cursor, EvaluationStatusCode.EvaluationError, now + ErrorRetryDelay, pauseEnded) with { Error = ex.Message };
-        }
-
-        // The window a pause or downtime covered holds missed occurrences; a due one since then is on time within the
-        // grace, and the grace is what keeps a slow pass from counting as a misfire.
-        var onTime = latest >= downtimeEndUtc && latest >= now - policy.Grace;
-        AdmittedOccurrence? admit;
-        DateTime? skippedFrom = null;
-        DateTime? skippedThrough = null;
-        switch (policy.Misfire)
-        {
-            case MisfireStrategyCode.CatchUpOnce:
-                // One firing stands for every due occurrence: the earliest is the nominal one, the latest the boundary.
-                admit = new AdmittedOccurrence(next, latest);
-                break;
-            case MisfireStrategyCode.CatchUpLatest:
-                // The latest due occurrence fires however late it is; the earlier ones are coalesced into it as a skip.
-                admit = new AdmittedOccurrence(latest, latest);
-                if (next < latest)
-                {
-                    skippedFrom = next;
-                    skippedThrough = PreviousDue(source, next, latest);
-                }
-                break;
-            case MisfireStrategyCode.CatchUpAll:
-                // The earliest due occurrence fires alone; the rest of the backlog is due again at once, so the next pass
-                // comes straight back and admits the next one as capacity allows.
-                admit = new AdmittedOccurrence(next, next);
-                following = NextOccurrenceCalculator.Next(source, next);
-                break;
-            case MisfireStrategyCode.Skip:
-                admit = onTime ? new AdmittedOccurrence(latest, latest) : null;
-                if (next < latest || !onTime)
-                {
-                    skippedFrom = next;
-                    skippedThrough = onTime ? PreviousDue(source, next, latest) : latest;
-                }
-                break;
-            default:
-                throw new NotSupportedException($"Misfire strategy {policy.Misfire} is not supported by this build.");
         }
 
         return Moved(following, pauseEnded, pausedByExpiry, admit, skippedFrom, skippedThrough, expiredFrom, expiredThrough);

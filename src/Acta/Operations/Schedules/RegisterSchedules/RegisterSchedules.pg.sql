@@ -124,9 +124,9 @@ AS s(
 -- A PerOccurrence definition's schedules have no slot, so their job_id is NULL.
 LEFT JOIN _reg_slots AS sl ON sl.definition_id = s.definition_id;
 
--- A schedule whose timing changed is retimed: the old stream's undecided prefix is discarded, so the watermark moves to
--- now and never back; the plan's cursor is the new timing's first occurrence. Written before the declaration, which
--- overwrites the fingerprint the retime is decided by.
+-- A schedule whose timing changed is retimed: the old stream's undecided occurrences are discarded and the plan's
+-- cursor is the new timing's first occurrence. Written before the declaration, which overwrites the fingerprint the
+-- retime is decided by.
 INSERT INTO {{schema}}.events (
     event_code, created_at_utc, namespace_id,
     entity_code, entity_id,
@@ -166,6 +166,9 @@ WHERE
     AND s.timing_fingerprint <> src.timing_fingerprint
     AND d.event_recording_code_effective = 20 /* EventRecordingCode.Audit */;
 
+-- The cursor is written on a retime, from the plan, and seeded when the stored one was cleared by the orphaning or the
+-- retire the schedule now comes back from. A cursor the plan copied from the stored one is never written back: the
+-- plan read it unlocked, and another host's admission may have moved it since.
 UPDATE {{schema}}.schedules_state AS st
 SET
     next_occurrence_at_utc = src.next_occurrence_at_utc,
@@ -178,8 +181,27 @@ INNER JOIN {{schema}}.schedules AS s ON s.definition_id = src.definition_id AND 
 WHERE
     st.schedule_id = s.schedule_id
     AND (
-        st.next_occurrence_at_utc IS DISTINCT FROM src.next_occurrence_at_utc
-        OR s.timing_fingerprint <> src.timing_fingerprint
+        s.timing_fingerprint <> src.timing_fingerprint
+        OR (st.next_occurrence_at_utc IS NULL AND src.next_occurrence_at_utc IS NOT NULL)
+    );
+
+-- A schedule parked at its declared capacity waits for a settlement; a declaration that changes the capacity wakes it
+-- instead, so the admitter re-plans against the new one. Written before the declaration overwrites the capacity.
+UPDATE {{schema}}.schedules_state AS st
+SET
+    next_evaluation_at_utc = now(),
+    evaluation_status_code = 10 /* EvaluationStatusCode.Scheduled */,
+    version = st.version + 1,
+    modified_at_utc = now()
+FROM _reg_schedules AS src
+INNER JOIN {{schema}}.schedules AS s ON s.definition_id = src.definition_id AND s.schedule_name = src.schedule_name
+WHERE
+    st.schedule_id = s.schedule_id
+    AND st.evaluation_status_code = 20 /* EvaluationStatusCode.WaitingForCapacity */
+    AND s.schedule_status_code = 10 /* ScheduleStatusCode.Active */
+    AND (
+        s.max_outstanding <> src.max_outstanding
+        OR s.full_behavior_code <> src.full_behavior_code
     );
 
 UPDATE {{schema}}.schedules AS tgt

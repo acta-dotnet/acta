@@ -6,9 +6,9 @@ namespace Acta;
 /// <summary>
 /// <see cref="ICalendars.PublishAsync"/>: plans a publication in C# from a snapshot, then applies it atomically. The
 /// plan compiles the candidate and resolves each bound schedule's calendars as they stand, retimes every schedule that
-/// names the family (its first occurrence after the database clock, from the candidate), and decides the overdue
-/// occurrences the old source left undecided: refused, or discarded as an audited skipped range. A fence another
-/// writer moved replans.
+/// names the family (its first occurrence after the database clock, from the candidate) unless the process declares
+/// the name in code, and decides the overdue occurrences the old source left undecided: refused, or discarded as an
+/// audited skipped range. A fence another writer moved replans.
 /// </summary>
 internal sealed class PublishCalendarHandler(
     IDbSession session,
@@ -76,14 +76,18 @@ internal sealed class PublishCalendarHandler(
 
             var nowUtc = await clock.GetUtcNowAsync(ct);
             var compiled = CalendarDefinition.Compile(candidate.Role, candidate.Definition);
-            foreach (var ns in bound.GroupBy(s => s.NamespaceId))
+            // A name the process declares in code resolves there before the catalog, so under it the publication moves
+            // no schedule: the version becomes current for a fleet without the code calendar.
+            var affected = sources.Declares(calendarName, candidate.Role) ? [] : bound;
+            foreach (var ns in affected.GroupBy(s => s.NamespaceId))
             {
                 await sources.PreloadAsync(ns.Key, ns.SelectMany(s => s.Timing().CalendarNames()), ct);
             }
 
-            var plan = new List<PublishCalendarValues>(bound.Count);
+            var plan = new List<PublishCalendarValues>(affected.Count);
+            var retimed = new List<string>(affected.Count);
             var overdue = new List<string>();
-            foreach (var s in bound)
+            foreach (var s in affected)
             {
                 // An orphaned schedule has no cursor to move; its declaration comes back with its definition.
                 if (s.Status == ScheduleStatusCode.Orphaned)
@@ -94,35 +98,36 @@ internal sealed class PublishCalendarHandler(
                 var oldSource = sources.Source(s.NamespaceId, s.Timing());
                 var newSource = Rebind(oldSource, calendarName, compiled);
                 DateTime? next;
+                string? skipped = null;
                 try
                 {
                     next = NextOccurrenceCalculator.Next(newSource, nowUtc);
+                    if (s.NextOccurrenceAtUtc is { } due && due <= nowUtc)
+                    {
+                        if (command.Overdue == OverdueDecisionCode.Refuse)
+                        {
+                            overdue.Add(Path(s));
+                            continue;
+                        }
+
+                        var through = ScheduleEvaluator.LatestDue(oldSource, DateTime.SpecifyKind(due, DateTimeKind.Utc), nowUtc);
+                        skipped = EventDetails.Text(
+                            ("schedule", s.ScheduleName),
+                            ("from", EventDetails.Instant(due)),
+                            ("through", EventDetails.Instant(through)),
+                            ("reason", "retimed")
+                        );
+                    }
                 }
                 catch (CalendarUnavailableException)
                 {
-                    // Its other calendar resolves to nothing, so the admitter already parks it as an evaluation error;
-                    // the publication leaves it as it is rather than failing for every bound schedule.
+                    // Its other calendar, or the family before this version, resolves to nothing here, so the admitter
+                    // already parks it as an evaluation error; the publication leaves it as it is rather than failing
+                    // for every bound schedule.
                     continue;
                 }
 
-                string? skipped = null;
-                if (s.NextOccurrenceAtUtc is { } due && due <= nowUtc)
-                {
-                    if (command.Overdue == OverdueDecisionCode.Refuse)
-                    {
-                        overdue.Add(Path(s));
-                        continue;
-                    }
-
-                    var through = ScheduleEvaluator.LatestDue(oldSource, DateTime.SpecifyKind(due, DateTimeKind.Utc), nowUtc);
-                    skipped = EventDetails.Text(
-                        ("schedule", s.ScheduleName),
-                        ("from", EventDetails.Instant(due)),
-                        ("through", EventDetails.Instant(through)),
-                        ("reason", "retimed")
-                    );
-                }
-
+                retimed.Add(Path(s));
                 plan.Add(
                     new PublishCalendarValues(
                         s.ScheduleId,
@@ -179,7 +184,7 @@ internal sealed class PublishCalendarHandler(
             last = new PublishCalendarResponse(
                 outcome.Action,
                 outcome.Action == ControlAction.Applied ? candidate.Version : outcome.CurrentVersion,
-                outcome.Action == ControlAction.Applied ? [.. bound.Select(Path)] : [],
+                outcome.Action == ControlAction.Applied ? retimed : [],
                 [],
                 outcome.Action == ControlAction.Applied
                     ? null

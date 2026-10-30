@@ -14,7 +14,7 @@ namespace Acta.Tests.Conformance.Operations.Schedules;
     "schedule.slot-re-registration",
     "A second host starting does not disturb a slot the first host is executing",
     Area = "Scheduling",
-    Contract = "Registration never moves a slot, writes a cursor only on a changed declaration, retimes on a timing change, and never adopts an ordinary job."
+    Contract = "Registration never moves a slot, writes a cursor only on a retime or where the stored one was cleared, and never adopts an ordinary job."
 )]
 public sealed class RegisterSchedulesSpec : ActaRuntimeTestBase<ConformanceFixture, TestJobs.TestJobsManifest>
 {
@@ -42,8 +42,8 @@ public sealed class RegisterSchedulesSpec : ActaRuntimeTestBase<ConformanceFixtu
         var slotId = await SlotIdAsync(jobName, ct);
         await LeaseInFlightAsync(Db, slotId, DateTime.UtcNow.AddMinutes(5), ct);
 
-        // The second host's startup reconcile: same definition, a later declared cursor.
-        await RegisterAsync(defId, jobName, [Slot("only", secondCursor)], ct);
+        // The second host's startup reconcile: same definition, a changed timing with its first occurrence.
+        await RegisterAsync(defId, jobName, [Slot("only", secondCursor) with { Expression = "*/10 * * * *" }], ct);
 
         var slot = await ReadJobAsync(slotId, ct);
         Assert.Equal(JobStatusCode.Executing, slot.Status);
@@ -54,13 +54,13 @@ public sealed class RegisterSchedulesSpec : ActaRuntimeTestBase<ConformanceFixtu
         Assert.NotNull(runtime.LeasedByWorkerId);
         Assert.Equal(JobStatusCode.Executing, runtime.Status);
 
-        // The declaration still lands, on the row that carries it: admission reads the cursor from the schedule,
-        // so skipping the slot does not lose the new cadence.
+        // The retime still lands, on the row that carries it: admission reads the cursor from the schedule, so
+        // skipping the slot does not lose the new cadence.
         var schedule = Assert.Single(await ScheduleTestOps.ReadAsync(Db, slotId, ct), s => s.ScheduleName == "only");
         Assert.Equal(secondCursor, schedule.NextOccurrenceAtUtc);
     }
 
-    [Fact(DisplayName = "Re-registering an Idle slot leaves it Idle and lands the declared cursor on its schedule")]
+    [Fact(DisplayName = "Re-registering an Idle slot leaves it Idle, keeps its cursor under an unchanged timing, and lands a retime's")]
     public async Task Re_registering_an_idle_slot_lands_the_declaration_on_the_schedule()
     {
         var ct = TestContext.Current.CancellationToken;
@@ -70,9 +70,13 @@ public sealed class RegisterSchedulesSpec : ActaRuntimeTestBase<ConformanceFixtu
 
         var defId = await CreateDefinitionAsync(jobName, ct);
         await RegisterAsync(defId, jobName, [Slot("only", firstCursor)], ct);
-
         var slotId = await SlotIdAsync(jobName, ct);
+
+        // Another cursor under the same timing is a plan that copied a stale read: the stored cursor stands.
         await RegisterAsync(defId, jobName, [Slot("only", secondCursor)], ct);
+        Assert.Equal(firstCursor, Assert.Single(await ScheduleTestOps.ReadAsync(Db, slotId, ct)).NextOccurrenceAtUtc);
+
+        await RegisterAsync(defId, jobName, [Slot("only", secondCursor) with { Expression = "*/10 * * * *" }], ct);
 
         var slot = await ReadJobAsync(slotId, ct);
         Assert.Equal(JobStatusCode.Idle, slot.Status);

@@ -16,6 +16,9 @@ public enum NamespaceStatusCode : byte
     [Code("active", "Namespace resolves at enqueue; enqueue allowed.")]
     Active = 10,
 
-    [Code("suspended", "Enqueue into the namespace is rejected. Reversible (operator hold). Existing in-flight jobs are unaffected.")]
+    [Code(
+        "suspended",
+        "Enqueue into the namespace is rejected and its schedules hold. Reversible (operator hold). Existing in-flight jobs are unaffected."
+    )]
     Suspended = 20,
 }

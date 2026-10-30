@@ -27,6 +27,7 @@ public sealed class PerOccurrenceManifest : IJobManifest
     public const string TriggeredJobName = "roots-trigger";
     public const string FailingJobName = "roots-fail";
     public const string LostJobName = "roots-lost";
+    public const string HeldJobName = "roots-held";
     public const string ScheduleName = "every-5-minutes";
 
     public static JobDescriptorManifest Descriptors { get; } =
@@ -37,6 +38,7 @@ public sealed class PerOccurrenceManifest : IJobManifest
             Descriptor(TriggeredJobName, 1, ScheduleFullBehaviorCode.Wait, fails: false),
             Descriptor(FailingJobName, 2, ScheduleFullBehaviorCode.Wait, fails: true),
             Descriptor(LostJobName, 2, ScheduleFullBehaviorCode.Wait, fails: true),
+            Descriptor(HeldJobName, 1, ScheduleFullBehaviorCode.Wait, fails: false),
         ]);
 
     private static JobDescriptor Descriptor(string jobName, int maxOutstanding, ScheduleFullBehaviorCode fullBehavior, bool fails) =>
@@ -93,7 +95,7 @@ public sealed class PerOccurrenceManifest : IJobManifest
 /// A PerOccurrence definition's schedule admits each occurrence as a fresh ordinary root charged to the schedule: the
 /// root carries the schedule as provenance and a one-contributor envelope, every terminalization releases the charge
 /// once, a full schedule waits or drops by its declared behavior, a restart re-charges, a manual trigger is charged,
-/// and a root that fails for good applies the firing failure policy.
+/// a root that fails for good applies the firing failure policy, and a suspended namespace holds its schedules.
 /// </summary>
 [ConformanceSpec(
     "schedule.per-occurrence",
@@ -109,6 +111,8 @@ public sealed class PerOccurrenceSchedulingSpec : ActaRuntimeTestBase<Conformanc
     private FakeClock Clock { get; set; } = null!;
 
     private ISchedules Schedules => Services.GetRequiredService<IActaOperations>().Schedules;
+
+    private INamespaces Namespaces => Services.GetRequiredService<IActaOperations>().Namespaces;
 
     protected override void ConfigureServices(IServiceCollection services, string testNamespace)
     {
@@ -271,40 +275,84 @@ public sealed class PerOccurrenceSchedulingSpec : ActaRuntimeTestBase<Conformanc
         Assert.Equal("firing-failed", EventDetail(await ReadSingleEventAsync(root.Id, EventCode.SchedulePaused, ct), "reason"));
     }
 
-    [Fact(DisplayName = "A lost attempt that spends the budget settles the root on reclaim as a completion would")]
-    public async Task A_reclaim_that_spends_the_budget_settles_the_root()
+    [Fact(
+        DisplayName = "Lost attempts that spend the budget settle their roots on reclaim as a completion would, pausing the schedule once"
+    )]
+    public async Task A_reclaim_that_spends_the_budget_settles_the_roots()
     {
         var ct = TestContext.Current.CancellationToken;
         var ns = Runtime.RegisteredNamespaceIds[TestNamespace];
         var workerId = await ChaosSpecHelpers.WorkerIdAsync(Db, ns, ct);
         var (schedule, state) = await ScheduleAsync(PerOccurrenceManifest.LostJobName, ct);
-        await AdmitAtAsync(state.NextOccurrenceAtUtc!.Value, ct);
-        var root = Assert.Single(await RootsAsync(schedule.Id, ct));
+        var occurrence = state.NextOccurrenceAtUtc!.Value;
+        await AdmitAtAsync(occurrence, ct);
+        await AdmitAtAsync(occurrence.AddMinutes(5), ct);
+        var roots = await RootsAsync(schedule.Id, ct);
+        Assert.Equal(2, roots.Count);
 
-        // The root's only attempt is in flight on a lease that lapsed.
-        Assert.Equal(
-            1,
-            await Db.From<JobStateEntity>()
-                .Where(r => r.Id == root.Id)
-                .UpdateOnlyAsync(
-                    () =>
-                        new JobStateEntity
-                        {
-                            Status = JobStatusCode.Executing,
-                            LeasedByWorkerId = workerId,
-                            LeaseExpiresAtUtc = DateTime.UtcNow.AddMinutes(-5),
-                        },
-                    ct
-                )
-        );
+        // Each root's only attempt is in flight on a lease that lapsed, so one sweep settles both.
+        foreach (var root in roots)
+        {
+            Assert.Equal(
+                1,
+                await Db.From<JobStateEntity>()
+                    .Where(r => r.Id == root.Id)
+                    .UpdateOnlyAsync(
+                        () =>
+                            new JobStateEntity
+                            {
+                                Status = JobStatusCode.Executing,
+                                LeasedByWorkerId = workerId,
+                                LeaseExpiresAtUtc = DateTime.UtcNow.AddMinutes(-5),
+                            },
+                        ct
+                    )
+            );
+        }
 
         await ChaosSpecHelpers.ReclaimAsync(Services, ns, ct);
 
-        Assert.Equal(JobStatusCode.Failed, (await ReadJobAsync(root.Id, ct)).Status);
-        Assert.Equal(CheckpointStatusCode.Failed, (await EnvelopeAsync(root.Id, ct)).Status);
+        foreach (var root in roots)
+        {
+            Assert.Equal(JobStatusCode.Failed, (await ReadJobAsync(root.Id, ct)).Status);
+            Assert.Equal(CheckpointStatusCode.Failed, (await EnvelopeAsync(root.Id, ct)).Status);
+        }
         (schedule, state) = await ScheduleAsync(PerOccurrenceManifest.LostJobName, ct);
         Assert.Equal(0, state.OutstandingCount);
         Assert.Equal(ScheduleStatusCode.Paused, schedule.Status);
+        var paused = await Db.From<EventEntity>()
+            .Where(e => e.NamespaceId == ns && e.EventCode == EventCode.SchedulePaused)
+            .ToListAsync(ct);
+        Assert.Single(paused, e => e.DefinitionId == schedule.DefinitionId);
+    }
+
+    [Fact(
+        DisplayName = "A suspended namespace holds its schedules: nothing is admitted, a trigger is rejected, and a resume hands them back to the admitter"
+    )]
+    public async Task A_suspended_namespace_holds_its_schedules()
+    {
+        var ct = TestContext.Current.CancellationToken;
+        var (schedule, state) = await ScheduleAsync(PerOccurrenceManifest.HeldJobName, ct);
+        var occurrence = state.NextOccurrenceAtUtc!.Value;
+        var lookup = new ScheduleLookup(TestNamespace, PerOccurrenceManifest.HeldJobName, PerOccurrenceManifest.ScheduleName);
+        Assert.Equal(ControlAction.Applied, (await Namespaces.SuspendAsync(TestNamespace, "hold", ct: ct)).Action);
+        try
+        {
+            Clock.AdvanceTo(occurrence);
+            var pass = await Runtime.AdmitOnceAsync(TestNamespace, ct);
+            Assert.Equal(0, pass.Admitted);
+            Assert.Null(pass.NextWakeUtc);
+            Assert.Empty(await RootsAsync(schedule.Id, ct));
+            Assert.Equal(ControlAction.Rejected, (await Schedules.TriggerNowAsync(lookup, ct: ct)).Action);
+        }
+        finally
+        {
+            await Namespaces.ResumeAsync(TestNamespace, ct: ct);
+        }
+
+        await Runtime.AdmitOnceAsync(TestNamespace, ct);
+        Assert.Single(await RootsAsync(schedule.Id, ct));
+        Assert.Equal(occurrence.AddMinutes(5), (await ScheduleAsync(PerOccurrenceManifest.HeldJobName, ct)).State.NextOccurrenceAtUtc);
     }
 
     private async Task AdmitAtAsync(DateTime nowUtc, CancellationToken ct)

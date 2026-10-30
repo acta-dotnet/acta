@@ -96,6 +96,85 @@ public sealed class RegisterSchedulesPerOccurrenceSpec : ActaStorageTestBase<Con
         Assert.Null(changed.ExpireAction);
     }
 
+    [Fact(DisplayName = "Registration never moves a stored cursor back, retimes on a changed timing, and seeds a cleared cursor")]
+    public async Task Registration_moves_a_cursor_only_on_a_retime_or_from_nothing()
+    {
+        var ct = TestContext.Current.CancellationToken;
+        var defId = await CreateDefinitionAsync(Unique("roots"), ct);
+        var planned = FloorSeconds(DateTime.UtcNow.AddHours(6));
+        await RegisterAsync(defId, [Slot("only", planned)], ct);
+        var (config, _) = await ScheduleAsync(defId, "only", ct);
+
+        // Another host's admission moved the cursor after this plan copied it; the stale copy stays unwritten.
+        var moved = planned.AddMinutes(5);
+        Assert.Equal(
+            1,
+            await Db.From<ScheduleStateEntity>()
+                .Where(s => s.Id == config.Id)
+                .UpdateOnlyAsync(() => new ScheduleStateEntity { NextOccurrenceAtUtc = moved }, ct)
+        );
+        await RegisterAsync(defId, [Slot("only", planned, maxOutstanding: 2)], ct);
+        Assert.Equal(moved, (await ScheduleAsync(defId, "only", ct)).State.NextOccurrenceAtUtc);
+
+        // A changed timing takes the plan's cursor, however the stored one stands.
+        var retimed = Slot("only", planned) with
+        {
+            Expression = "*/10 * * * *",
+        };
+        await RegisterAsync(defId, [retimed], ct);
+        Assert.Equal(planned, (await ScheduleAsync(defId, "only", ct)).State.NextOccurrenceAtUtc);
+
+        // Orphaned, the cursor is cleared; declared again with the same timing, the schedule seeds from the plan.
+        await RegisterAsync(defId, [Slot("other", planned)], ct);
+        Assert.Null((await ScheduleAsync(defId, "only", ct)).State.NextOccurrenceAtUtc);
+        await RegisterAsync(defId, [retimed, Slot("other", planned)], ct);
+        var (back, state) = await ScheduleAsync(defId, "only", ct);
+        Assert.Equal(ScheduleStatusCode.Active, back.Status);
+        Assert.Equal(planned, state.NextOccurrenceAtUtc);
+        Assert.Equal(EvaluationStatusCode.Scheduled, state.EvaluationStatus);
+    }
+
+    [Fact(
+        DisplayName = "A declaration that changes the capacity wakes a schedule parked at the old one; one that keeps it leaves it parked"
+    )]
+    public async Task A_changed_capacity_wakes_a_parked_schedule()
+    {
+        var ct = TestContext.Current.CancellationToken;
+        var defId = await CreateDefinitionAsync(Unique("roots"), ct);
+        var cursor = FloorSeconds(DateTime.UtcNow.AddMinutes(-5));
+        await RegisterAsync(defId, [Slot("only", cursor)], ct);
+        var (config, _) = await ScheduleAsync(defId, "only", ct);
+
+        // Parked: the one root it may hold is outstanding, and the due cursor waits for that root's settlement.
+        Assert.Equal(
+            1,
+            await Db.From<ScheduleStateEntity>()
+                .Where(s => s.Id == config.Id)
+                .UpdateOnlyAsync(
+                    () =>
+                        new ScheduleStateEntity
+                        {
+                            NextEvaluationAtUtc = null,
+                            EvaluationStatus = EvaluationStatusCode.WaitingForCapacity,
+                            OutstandingCount = 1,
+                        },
+                    ct
+                )
+        );
+
+        await RegisterAsync(defId, [Slot("only", cursor) with { Description = "described" }], ct);
+        var (_, state) = await ScheduleAsync(defId, "only", ct);
+        Assert.Null(state.NextEvaluationAtUtc);
+        Assert.Equal(EvaluationStatusCode.WaitingForCapacity, state.EvaluationStatus);
+
+        await RegisterAsync(defId, [Slot("only", cursor, maxOutstanding: 2)], ct);
+        (_, state) = await ScheduleAsync(defId, "only", ct);
+        Assert.NotNull(state.NextEvaluationAtUtc);
+        Assert.Equal(EvaluationStatusCode.Scheduled, state.EvaluationStatus);
+        Assert.Equal(cursor, state.NextOccurrenceAtUtc);
+        Assert.Equal(1, state.OutstandingCount);
+    }
+
     [Fact(
         DisplayName = "A schedule's availability calendar registers and reads back, a changed name re-registers in place, and a plain restart writes nothing"
     )]

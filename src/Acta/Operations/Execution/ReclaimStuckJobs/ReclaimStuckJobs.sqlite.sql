@@ -290,11 +290,11 @@ WHERE
     );
 
 -- A lost attempt that spent the budget is a firing that failed for good: the definition's firing failure policy applies
--- as it does on a completion.
+-- as it does on a completion, each schedule paused once per sweep, the event attributed to the first.
 DROP TABLE IF EXISTS temp._reclaim_policy_paused;
 
 CREATE TEMP TABLE _reclaim_policy_paused AS
-SELECT js.schedule_id, js.schedule_name, j.job_id, j.namespace_id, j.definition_id, j.tenant_id,
+SELECT js.schedule_id, js.schedule_name, MIN(j.job_id) AS job_id, j.namespace_id, j.definition_id, j.tenant_id,
     COALESCE(j.lineage_root_job_id, j.job_id) AS lineage_root_job_id, r.execution_number, j.event_recording_code
 FROM temp._reclaim_jobs rj
 INNER JOIN {{schema}}.jobs j ON j.job_id = rj.job_id
@@ -304,7 +304,8 @@ INNER JOIN {{schema}}.schedules js ON js.definition_id = jd.definition_id
 WHERE
     (rj.to_status = 40 /* JobStatusCode.Idle */ OR (rj.to_status = 200 /* JobStatusCode.Failed */ AND j.schedule_id IS NOT NULL))
     AND jd.firing_failure_policy_code = 20 /* FiringFailurePolicyCode.PauseScheduling */
-    AND js.schedule_status_code = 10 /* ScheduleStatusCode.Active */;
+    AND js.schedule_status_code = 10 /* ScheduleStatusCode.Active */
+GROUP BY js.schedule_id;
 
 UPDATE {{schema}}.schedules
 SET

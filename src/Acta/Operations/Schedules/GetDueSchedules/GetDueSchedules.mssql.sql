@@ -1,13 +1,15 @@
 -- Every member of each slot with a schedule due for evaluation, so a plan sees the whole slot: the slot's state and
--- envelope ride every member row. A due schedule with no slot is a group of its own, its slot columns NULL. No locks;
--- the apply validates the versions it carries.
+-- envelope ride every member row. A due schedule with no slot is a group of its own, its slot columns NULL. A suspended
+-- namespace has nothing due: its schedules hold until a resume. No locks; the apply validates the versions it carries.
 WITH due AS (
     SELECT TOP (@p_take) dst.schedule_id, ds.job_id
     FROM {{schema}}.schedules_state dst
+    INNER JOIN {{schema}}.namespaces dn ON dn.namespace_id = dst.namespace_id
     INNER JOIN {{schema}}.schedules ds ON ds.schedule_id = dst.schedule_id
     INNER JOIN {{schema}}.definitions dd ON dd.definition_id = ds.definition_id
     WHERE
         dst.namespace_id = @p_namespace_id
+        AND dn.namespace_status_code = 10 /* NamespaceStatusCode.Active */
         AND dst.next_evaluation_at_utc IS NOT NULL
         AND dst.next_evaluation_at_utc <= @p_now_utc
         AND ds.schedule_status_code <> 230 /* ScheduleStatusCode.Orphaned */

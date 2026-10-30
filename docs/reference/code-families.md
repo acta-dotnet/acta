@@ -357,7 +357,7 @@ This pattern makes raw values easier to scan in database rows, logs, and diagnos
 |---|---:|---|---|---|
 | `Unspecified` | 0 | `unspecified` | Namespace status not recognized by this build; the row was written by a newer Acta. | Active |
 | `Active` | 10 | `active` | Namespace resolves at enqueue; enqueue allowed. | Active |
-| `Suspended` | 20 | `suspended` | Enqueue into the namespace is rejected. Reversible (operator hold). Existing in-flight jobs are unaffected. | Active |
+| `Suspended` | 20 | `suspended` | Enqueue into the namespace is rejected and its schedules hold. Reversible (operator hold). Existing in-flight jobs are unaffected. | Active |
 
 ### `OutboxStatusCode` · `outbox-status` <a id="code-family-outboxstatuscode"></a>
 

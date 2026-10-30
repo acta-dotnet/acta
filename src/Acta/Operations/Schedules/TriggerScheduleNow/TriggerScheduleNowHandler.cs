@@ -6,7 +6,8 @@ namespace Acta;
 /// <see cref="ISchedules.TriggerNowAsync"/>: a manual firing, an envelope with no contributors. On a Permanent
 /// definition it fires the slot when the slot is Idle; a busy, held, cancelled, or finished slot is Rejected. On a
 /// PerOccurrence definition it admits a manual root through the admission routine, charged to the schedule; a full
-/// schedule is Rejected. A paused schedule is Rejected either way, and no schedule cursor moves.
+/// schedule is Rejected. A paused schedule, or one in a suspended namespace, is Rejected either way, and no schedule
+/// cursor moves.
 /// </summary>
 internal sealed class TriggerScheduleNowHandler(
     ResolveScheduleTargetHandler resolveScheduleTarget,
@@ -28,6 +29,11 @@ internal sealed class TriggerScheduleNowHandler(
             if (await resolveScheduleTarget.HandleAsync(new ResolveScheduleTargetQuery(command.Schedule), ct) is not { } target)
             {
                 return NotFound;
+            }
+
+            if (target.NamespaceStatus != NamespaceStatusCode.Active)
+            {
+                return Answer(ControlAction.Rejected, target);
             }
 
             if (target.JobId is { } slotId)

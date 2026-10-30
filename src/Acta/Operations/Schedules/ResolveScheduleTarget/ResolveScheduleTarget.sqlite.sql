@@ -4,6 +4,7 @@ SELECT
     t.schedule_id,
     t.job_id,
     n.namespace_id,
+    n.namespace_status_code AS namespace_status,
     t.schedule_name,
     t.expression,
     t.time_zone_id,

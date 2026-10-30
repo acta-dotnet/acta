@@ -280,10 +280,11 @@ internal sealed class WorkerExecutor(
     {
         var job = entry.Claim;
         var firing = await ReadFiringAsync(job, workerId, ct);
-        if (firing is not null && job.ExecutionNumber == 1)
+        if (firing is { FirstAttempt: true })
         {
-            // The first attempt is the firing's start; a retry measures the budget, not the queue.
-            metrics?.RecordFiringStartDelay(namespaceName, descriptor.JobName, DateTime.UtcNow - firing.AdmittedAtUtc);
+            // The attempt the admission readied is the firing's start; a retry, a continuation after a sleep or a
+            // wait, and a reclaim measure the budget, not the queue.
+            metrics?.RecordFiringStartDelay(namespaceName, descriptor.JobName, DateTime.UtcNow - firing.Firing.AdmittedAtUtc);
         }
 
         var backoff = Backoff.Parse(descriptor.Backoff ?? JobDefinitionRegistration.DefaultBackoffExpression);
@@ -324,7 +325,7 @@ internal sealed class WorkerExecutor(
             _execution,
             _serializers,
             locks,
-            firing,
+            firing?.Firing,
             deadlineAtUtc,
             entry.AttemptToken,
             _options.MaxInlinePayloadBytes,
@@ -348,10 +349,10 @@ internal sealed class WorkerExecutor(
 
     /// <summary>
     /// The firing envelope of a slot or of a per-occurrence root, read under the attempt's fence: the contributors the
-    /// admission froze, the same on every retry and reclaim. Null for an enqueued job, and for a firing whose claim
-    /// the attempt lost, which the completion write then refuses.
+    /// admission froze, the same on every retry and reclaim, and whether this attempt is the firing's first. Null for
+    /// an enqueued job, and for a firing whose claim the attempt lost, which the completion write then refuses.
     /// </summary>
-    private async Task<FiringEnvelope?> ReadFiringAsync(ClaimedJob job, int workerId, CancellationToken ct) =>
+    private async Task<GetFiringResponse?> ReadFiringAsync(ClaimedJob job, int workerId, CancellationToken ct) =>
         job.Kind == JobKindCode.PermanentSlot || job.ScheduleId is not null
             ? await WorkerFinalizer.RepeatAsync(
                 async token => await _execution.GetFiringAsync(new ExecutionFence(job.JobId, job.ExecutionNumber, workerId), token),

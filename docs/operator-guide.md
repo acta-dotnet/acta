@@ -264,7 +264,9 @@ Tenants and namespaces carry an operator-controlled status: `active` resolves at
 withdraws admission. Tenant suspension is admission control, not work closure: new enqueues naming the
 tenant name are rejected once the suspend has committed, while jobs already admitted keep running and a
 running workflow may still create children that inherit the suspended tenant (an inherited tenant id
-carries no key to re-check). Suspension is reversible and status-only.
+carries no key to re-check). Namespace suspension also holds the namespace's schedules: nothing is admitted
+into it, by the admitter or by a manual trigger, and on resume the misfire policy decides the missed window
+as it does after downtime. Suspension is reversible and status-only.
 
 ```csharp
 await operations.Tenants.SuspendAsync("cust-4711", "billing hold");

@@ -192,11 +192,11 @@ WHERE st.schedule_id = c.schedule_id;
 
 /* The definition's firing failure policy: a firing that failed for good (a spent budget, the slot back to Idle; a
    charged root landed Failed) pauses every active schedule of the definition, with the reason as the pause message,
-   until an operator resumes them. A slot its handler held or stopped is not a failed firing. */
+   until an operator resumes them. A held or stopped slot is not a failed firing; two in a batch pause each once. */
 DROP TABLE IF EXISTS temp._ces_policy_paused;
 
 CREATE TEMP TABLE _ces_policy_paused AS
-SELECT js.schedule_id, js.schedule_name, j.job_id, j.namespace_id, j.definition_id, j.tenant_id,
+SELECT js.schedule_id, js.schedule_name, MIN(j.job_id) AS job_id, j.namespace_id, j.definition_id, j.tenant_id,
     COALESCE(j.lineage_root_job_id, j.job_id) AS lineage_root_job_id, d.execution_number, j.event_recording_code
 FROM temp._ces_done d
 INNER JOIN {{schema}}.jobs j ON j.job_id = d.job_id
@@ -208,7 +208,8 @@ WHERE
         OR (j.schedule_id IS NOT NULL AND d.to_status = 200 /* JobStatusCode.Failed */)
     )
     AND jd.firing_failure_policy_code = 20 /* FiringFailurePolicyCode.PauseScheduling */
-    AND js.schedule_status_code = 10 /* ScheduleStatusCode.Active */;
+    AND js.schedule_status_code = 10 /* ScheduleStatusCode.Active */
+GROUP BY js.schedule_id;
 
 UPDATE {{schema}}.schedules
 SET

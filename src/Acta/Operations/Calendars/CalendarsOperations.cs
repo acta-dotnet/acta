@@ -71,8 +71,8 @@ internal sealed class CalendarsOperations(
     internal Task<ScheduleSource> SourceAsync(int namespaceId, ScheduleTiming timing, CancellationToken ct) =>
         sources.SourceAsync(namespaceId, timing, ct);
 
-    /// <summary>Resolves <paramref name="names"/> against the current catalog in one read, so a pass plans without more.</summary>
-    internal Task PreloadAsync(int namespaceId, IEnumerable<string> names, CancellationToken ct) =>
+    /// <summary>Resolves the names among <paramref name="names"/> the process does not declare against the current catalog in one read, so a pass plans without more.</summary>
+    internal Task PreloadAsync(int namespaceId, IEnumerable<(string Name, CalendarRoleCode Role)> names, CancellationToken ct) =>
         sources.PreloadAsync(namespaceId, names, ct);
 
     /// <summary>The namespace's current calendars, one per family that has a Published version.</summary>

@@ -41,6 +41,10 @@ internal sealed class CalendarRegistry
         return this;
     }
 
+    /// <summary>Whether this process declares <paramref name="name"/> under <paramref name="role"/>; such a name never reads the catalog.</summary>
+    public bool Declares(string name, CalendarRoleCode role) =>
+        role == CalendarRoleCode.Occurrence ? _calendars.ContainsKey(name) : _availability.ContainsKey(name);
+
     /// <summary>The source of <paramref name="timing"/> from the code calendars; a name this process lacks is left null for the catalog.</summary>
     public ScheduleSource Source(ScheduleTiming timing) =>
         new(

@@ -1926,9 +1926,11 @@
   - An outstanding firing fills the slot: a later occurrence waits for capacity until settlement wakes it
 
 ### A registered calendar sources a schedule, an availability calendar filters one
-- **Contract:** A registered calendar's instants fire in order and then exhaust, and an availability calendar omits the occurrences outside its windows without shifting them.
+- **Contract:** A registered calendar fires its instants in order and exhausts, an availability calendar omits ticks outside its windows, a declared name shadows the catalog.
 - **Guarantees:**
   - A calendar schedule fires each of the calendar's instants in order and exhausts after the last
+  - A catalog family under a name the process declares moves no schedule and is never read
+  - A publication from a host without the code calendar leaves the schedule to the hosts that have it
   - An availability calendar omits the cron ticks outside its window and never shifts them
 
 ### The due read returns whole slots in evaluation order and leaves out the dead
@@ -2032,13 +2034,16 @@
   - A cancel releases the charge, a restart takes it again, and a restart into a full schedule is Rejected
   - A manual trigger admits a charged root with an empty envelope, and a full schedule rejects it
   - A root that fails for good settles its envelope Failed, releases the charge, and pauses the schedules under PauseScheduling
-  - A lost attempt that spends the budget settles the root on reclaim as a completion would
+  - Lost attempts that spend the budget settle their roots on reclaim as a completion would, pausing the schedule once
+  - A suspended namespace holds its schedules: nothing is admitted, a trigger is rejected, and a resume hands them back to the admitter
 
 ### PerOccurrence schedules register without a slot and are addressed by path
 - **Contract:** PerOccurrence schedules register with no slot and their capacity, expiry, and availability, and the verbs address them by path and audit the definition.
 - **Guarantees:**
   - A PerOccurrence definition's schedules register with no slot, their declared capacity, and nothing outstanding
   - A schedule's expiry and misfire strategy register, a changed expiry re-registers in place, and a plain restart writes nothing
+  - Registration never moves a stored cursor back, retimes on a changed timing, and seeds a cleared cursor
+  - A declaration that changes the capacity wakes a schedule parked at the old one; one that keeps it leaves it parked
   - A schedule's availability calendar registers and reads back, a changed name re-registers in place, and a plain restart writes nothing
   - A slot-less schedule resolves by path, pauses and resumes with the audit on its definition, and triggers a manual root
 
@@ -2074,10 +2079,10 @@
   - Re-registration after the definition priority changes updates the existing slot jobs_state row
 
 ### A second host starting does not disturb a slot the first host is executing
-- **Contract:** Registration never moves a slot, writes a cursor only on a changed declaration, retimes on a timing change, and never adopts an ordinary job.
+- **Contract:** Registration never moves a slot, writes a cursor only on a retime or where the stored one was cleared, and never adopts an ordinary job.
 - **Guarantees:**
   - Re-registering a slot that is executing leaves its status, lease, and cursor to the running execution
-  - Re-registering an Idle slot leaves it Idle and lands the declared cursor on its schedule
+  - Re-registering an Idle slot leaves it Idle, keeps its cursor under an unchanged timing, and lands a retime's
   - Re-registering an unchanged declaration writes nothing: no version moves on the slot or its schedule
   - Re-registering a finished slot leaves it finished: only an operator's restart brings it back
   - An ordinary job keyed by the job name and the slot coexist: registration adopts nothing
@@ -2328,6 +2333,11 @@
 - **Contract:** A job that runs to success adds one acta.executions measurement tagged with its namespace, its job name, and outcome succeeded.
 - **Guarantees:**
   - A succeeded run adds one acta.executions count tagged namespace, job_name, and outcome succeeded
+
+### A firing's start delay is recorded once, on the attempt its admission readied
+- **Contract:** acta.firing.start.delay records one sample per firing, on the attempt its admission readied and not on a continuation.
+- **Guarantees:**
+  - The admitted attempt records the delay, the continuation after a sleep does not, and the next firing records again
 
 ## Test ORM
 
