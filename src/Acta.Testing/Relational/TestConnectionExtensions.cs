@@ -42,6 +42,7 @@ internal static class TestConnectionExtensions
         var p = cmd.CreateParameter();
         p.ParameterName = name;
         p.Value = DbValueCoercion.Coerce(value, value?.GetType() ?? typeof(object), provider);
+        DbValueCoercion.ApplyType(p, value?.GetType() ?? typeof(object), provider);
         cmd.Parameters.Add(p);
     }
 }
