@@ -20,8 +20,8 @@ history, but it also creates unbounded job rows and more duplicate-fire edges.
 
 ## Why this design
 
-Acta stores one reusable job identity and one cursor per schedule. Due schedules re-arm the same slot;
-coincident schedules can coalesce into one execution, whose `TriggeringSchedules` names what fired.
+Acta stores one reusable job identity and one cursor per schedule. A due schedule admits a firing onto the
+same slot; schedules due together coalesce into one firing, whose `TriggeringSchedules` names what fired.
 
 ## Trade-offs
 
@@ -63,5 +63,5 @@ outside the Acta database.
 
 - [The related Engineering Lab](../../../docs/engineering-labs.md)
 - [`multiple-schedules.cs`](./multiple-schedules.cs)
-- [`ScheduleWalker.cs`](../../../src/Acta/Domain/Schedules/ScheduleWalker.cs)
+- [`ScheduleAdmitter.cs`](../../../src/Acta/Engine/Scheduling/ScheduleAdmitter.cs)
 - [`SchedulesView.sqlite.sql`](../../../src/Acta/Schema/Views/SchedulesView.sqlite.sql)

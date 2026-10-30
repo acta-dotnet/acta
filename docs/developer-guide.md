@@ -907,7 +907,9 @@ the backlog; `Drop` skips the occurrence with the audited reason `capacity` (`sc
 advances. A `Permanent` definition's schedules allow exactly 1 (`ACTA0125`).
 
 A per-occurrence schedule's decisions that make no root, a skip or an ended pause, are audited against the
-definition; an admission or a manual trigger is audited against the root. A `PerOccurrence` definition
+definition; an admission or a manual trigger is audited against the root. The
+[per-occurrence-delivery concept](../concepts/100-scheduling/110-per-occurrence-delivery/) runs one at a
+limit of two, dropping what arrives while it is full. A `PerOccurrence` definition
 declares no lane and no deadline in this release.
 
 ### Trigger now
@@ -1060,7 +1062,7 @@ Before a large backfill:
 - Preview computes upcoming instants without touching the cursor, and is safe on a paused schedule.
 - A schedule's expression and time zone are code-owned: a deploy changes them, and an operator pauses, resumes, or triggers. The version moves with those operator actions and with deploys, not with each fire.
 
-Concepts [`103-multiple-schedules`](../concepts/100-scheduling/103-multiple-schedules/), [`105-schedule-control`](../concepts/100-scheduling/105-schedule-control/), and [`106-schedule-misfire`](../concepts/100-scheduling/106-schedule-misfire/) show each behavior.
+Concepts [`103-multiple-schedules`](../concepts/100-scheduling/103-multiple-schedules/), [`105-schedule-control`](../concepts/100-scheduling/105-schedule-control/), [`106-schedule-misfire`](../concepts/100-scheduling/106-schedule-misfire/), [`110-per-occurrence-delivery`](../concepts/100-scheduling/110-per-occurrence-delivery/), and [`111-firing-failure-policy`](../concepts/100-scheduling/111-firing-failure-policy/) show each behavior.
 
 ## Contract evolution
 

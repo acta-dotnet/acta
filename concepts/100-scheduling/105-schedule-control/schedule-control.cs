@@ -35,7 +35,7 @@ Console.WriteLine($"Replacing with timed pause until {resumeAt:O}...");
 var r2 = await schedules.PauseAsync(lookup, untilUtc: resumeAt, reasonMessage: "drain window");
 Console.WriteLine($"After timed pause: status={r2.Status} paused-until={r2.PausedUntilUtc?.ToString("O") ?? "(none)"}");
 
-// Step 3: resume - clears the pause, reconciles the cursor, recomputes the slot's next run.
+// Step 3: resume - clears the pause and keeps the cursor; the next admission pass decides any missed occurrence.
 Console.WriteLine("Resuming schedule...");
 var r3 = await schedules.ResumeAsync(lookup, reasonMessage: "drain complete");
 Console.WriteLine($"After resume: status={r3.Status} next-run={r3.NextOccurrenceAtUtc?.ToString("O") ?? "(none)"}");

@@ -38,6 +38,8 @@
     <Project Path="100-scheduling/107-calendar-schedule/107-calendar-schedule.csproj" />
     <Project Path="100-scheduling/108-calendar-catalog/108-calendar-catalog.csproj" />
     <Project Path="100-scheduling/109-continuous-synchronization/109-continuous-synchronization.csproj" />
+    <Project Path="100-scheduling/110-per-occurrence-delivery/110-per-occurrence-delivery.csproj" />
+    <Project Path="100-scheduling/111-firing-failure-policy/111-firing-failure-policy.csproj" />
   </Folder>
   <Folder Name="/200-durable-execution/">
     <Project Path="200-durable-execution/201-durable-checkout/201-durable-checkout.csproj" />
