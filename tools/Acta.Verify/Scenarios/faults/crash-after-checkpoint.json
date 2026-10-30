@@ -1,0 +1,11 @@
+{
+  "title": "Crash after a checkpoint commits",
+  "question": "When a worker dies right after a checkpoint commits, does the job resume from that checkpoint without running the step again?",
+  "runner": "fault",
+  "work": [
+    {
+      "steps": 3,
+      "boundary": "checkpoint"
+    }
+  ]
+}

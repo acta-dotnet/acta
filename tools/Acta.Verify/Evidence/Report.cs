@@ -48,13 +48,7 @@ public static partial class Report
         {
             report.Append(
                 CultureInfo.InvariantCulture,
-                $"Capacity measurement is informational in the {plan.Profile} profile: safety, liveness, correctness coverage and the ledger checks decide each case and the verdict.\n\n"
-            );
-        }
-        if (plan?.Profile == "standard")
-        {
-            report.Append(
-                "Standard uses one conservative arrival rate, one measured trial, reduced populations and fault repetitions. It does not establish maximum capacity, repeated-trial confidence, or extended endurance.\n\n"
+                $"Measurement is informational in the {plan.SuiteName} suite: safety, liveness, correctness coverage and the ledger checks decide each case and the verdict.\n\n"
             );
         }
         report.Append(
@@ -84,7 +78,7 @@ public static partial class Report
         var lead = new StringBuilder();
         lead.Append(
             CultureInfo.InvariantCulture,
-            $"# Acta Verify: {result.Status}\n\n{plan?.Profile ?? "Unknown"} profile on {string.Join(", ", result.Scope.RequestedProviders)}. "
+            $"# Acta Verify: {result.Status}\n\n{plan?.SuiteName ?? "Unknown"} suite on {string.Join(", ", result.Scope.RequestedProviders)}. "
         );
         if (notPassing == 0)
         {
@@ -100,38 +94,29 @@ public static partial class Report
                 $"{notPassing} of {result.Cases.Count} case results did not pass ({result.Cases.Count(c => c.Safety == "FAIL")} safety failures, {result.Cases.Count(c => c.Liveness == "FAIL")} liveness failures, {result.Cases.Count(c => c.Coverage == "INCOMPLETE")} coverage gaps); they are listed under Not passing.\n"
             );
         }
-        foreach (var measured in result.Cases.Where(c => c.Phase is "measure" or "soak").GroupBy(c => c.Id))
+        foreach (var measured in result.Cases.Where(c => c.Phase is "measure" or "confirm").GroupBy(c => c.Id))
         {
-            var drain = measured.Key == "L04";
-            // L02 and L03 measure admission itself; every other case measures scheduled arrival to completion.
-            var (latency, latencyLabel) = measured.Key is "L02" or "L03" ? ("admission", "Admission") : ("latency", "End-to-end");
-            lead.Append(
-                CultureInfo.InvariantCulture,
-                $"\n## {measured.Key}: {plan?.Cases.FirstOrDefault(s => s.Id == measured.Key)?.Name}\n\n"
-            );
+            var scenario = plan?.Scenarios.FirstOrDefault(s => s.Id == measured.Key);
+            var drain = scenario?.Runner == "drain";
+            // An admission scenario measures admission itself; every other one measures scheduled arrival to completion.
+            var (latency, latencyLabel) = scenario?.AdmissionOnly == true ? ("admission", "Admission") : ("latency", "End-to-end");
+            lead.Append(CultureInfo.InvariantCulture, $"\n## {measured.Key}: {scenario?.Title}\n\n");
             if (drain)
             {
                 lead.Append(
-                    "| Provider | Cell | Workers | Roots | Measurement | Database steady roots/s | Steady roots/s | Drain roots/s, median (min-max) | First completion s |\n|---|---|---:|---:|---|---:|---:|---:|---:|\n"
+                    "| Provider | Phase | Workers | Roots | Measurement | Database steady roots/s | Steady roots/s | Drain roots/s, median (min-max) | First completion s |\n|---|---|---:|---:|---|---:|---:|---:|---:|\n"
                 );
             }
             else
             {
                 lead.Append(
                     CultureInfo.InvariantCulture,
-                    $"| Provider | Cell | Offered roots/s | Measurement | Rate, median (min-max) | Unit | {latencyLabel} p50 ms | {latencyLabel} p99 ms |\n|---|---|---:|---|---:|---|---:|---:|\n"
+                    $"| Provider | Phase | Offered roots/s | Measurement | Rate, median (min-max) | Unit | {latencyLabel} p50 ms | {latencyLabel} p99 ms |\n|---|---|---:|---|---:|---|---:|---:|\n"
                 );
             }
             foreach (
                 var cell in measured
-                    .GroupBy(c =>
-                        (
-                            c.Provider,
-                            Cell: c.DiagnosticCellName ?? "canonical",
-                            Offered: Value(c, "offered_rate"),
-                            Roots: Value(c, "intended_roots")
-                        )
-                    )
+                    .GroupBy(c => (c.Provider, Cell: c.Phase, Offered: Value(c, "offered_rate"), Roots: Value(c, "intended_roots")))
                     .OrderBy(g => g.Key.Provider, StringComparer.Ordinal)
                     .ThenBy(g => g.Key.Cell, StringComparer.Ordinal)
                     .ThenBy(g => g.Key.Roots)
@@ -139,13 +124,10 @@ public static partial class Report
             )
             {
                 CaseResult[] trials = [.. cell];
-                // Trials past the plan's repetitions ran because the predeclared instability rule fired for the cell.
-                var added = trials.Count(c => c.Repetition > (plan?.Repetitions ?? int.MaxValue));
-                var counted =
-                    string.Join(
-                        ", ",
-                        trials.GroupBy(c => c.Measurement).OrderBy(g => g.Key, StringComparer.Ordinal).Select(g => $"{g.Count()} {g.Key}")
-                    ) + (added > 0 ? $"; {added} added by the instability rule" : "");
+                var counted = string.Join(
+                    ", ",
+                    trials.GroupBy(c => c.Measurement).OrderBy(g => g.Key, StringComparer.Ordinal).Select(g => $"{g.Count()} {g.Key}")
+                );
                 double[] rates = [.. trials.Select(c => Value(c, "primary_rate")).OfType<double>().Order()];
                 var rate = rates.Length == 0 ? "-" : $"{Number(Median(rates))} ({Number(rates[0])}-{Number(rates[^1])})";
                 if (drain)

@@ -1,0 +1,5 @@
+{
+  "title": "Order in one hot lane",
+  "question": "In one lane of 30 jobs whose first job is slow and fails once, does every job start only after the one before it has finished, retry included?",
+  "runner": "scheduling"
+}

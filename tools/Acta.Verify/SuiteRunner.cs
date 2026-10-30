@@ -86,13 +86,8 @@ internal static class SuiteRunner
         var harnessError = false;
         using var disk = DiskCounters.Start();
         disk.Enter(resume ? "at resume" : "before");
-        Console.WriteLine($"Acta Verify {plan.Profile} | {string.Join(", ", plan.Providers)} | {bundle.DirectoryPath}");
-        if (plan.Profile == "standard")
-        {
-            Console.WriteLine(
-                "Short all-case campaign: one conservative rate, one measured trial, reduced populations and fault repetitions. Capacity search, repeated-trial confidence and extended endurance are not established."
-            );
-        }
+        Console.WriteLine($"Acta Verify {plan.SuiteName} | {string.Join(", ", plan.Providers)} | {bundle.DirectoryPath}");
+        Console.WriteLine(plan.Suite.Purpose);
         try
         {
             ct.ThrowIfCancellationRequested();
@@ -121,20 +116,20 @@ internal static class SuiteRunner
                 ct.ThrowIfCancellationRequested();
                 disk.Enter(provider);
                 if (
-                    plan.Profile != "quick"
+                    plan.SuiteName != "quick"
                     && typeof(VerifyCommand).Assembly.GetCustomAttribute<AssemblyConfigurationAttribute>()?.Configuration != "Release"
                 )
                 {
                     harnessError = true;
                     settingsVerified = false;
-                    foreach (var scenario in plan.Cases.Where(c => c.Family != "harness"))
+                    foreach (var scenario in plan.Scenarios)
                     {
                         Record(
                             CaseResult.Incomplete(
                                 scenario.Id,
                                 provider,
                                 "verify",
-                                "The full protocol requires a Release executable. Rebuild or publish with -c Release; no engine workload was started."
+                                $"The {plan.SuiteName} suite requires a Release executable. Rebuild or publish with -c Release; no engine workload was started."
                             )
                         );
                     }
@@ -166,16 +161,16 @@ internal static class SuiteRunner
                         // Provisioning writes, and so can anything else on the box: the measurements start once the
                         // drives have been quiet a few seconds, or within a minute saying they were not.
                         var quiet = await disk.WaitForQuietAsync(
-                            TimeSpan.FromSeconds(plan.Policy("measurement", "runtime", "disk_quiet", "seconds")),
-                            TimeSpan.FromSeconds(plan.Policy("measurement", "runtime", "disk_quiet", "limit_seconds")),
-                            plan.Policy("measurement", "runtime", "disk_quiet", "min_idle_percent"),
-                            plan.Policy("measurement", "runtime", "disk_quiet", "max_writes_per_second"),
+                            TimeSpan.FromSeconds(plan.Policy("measurement", "disk_quiet", "seconds")),
+                            TimeSpan.FromSeconds(plan.Policy("measurement", "disk_quiet", "limit_seconds")),
+                            plan.Policy("measurement", "disk_quiet", "min_idle_percent"),
+                            plan.Policy("measurement", "disk_quiet", "max_writes_per_second"),
                             ct
                         );
                         Console.WriteLine($"{provider}: quiet disk before measuring: {quiet}");
                         RecordEnvironment(bundle, new() { [$"disk_quiet_before_{provider}"] = quiet });
                     }
-                    await ScenarioRunner.RunAsync(plan, environment, bundle, Record, ct);
+                    await ScenarioRunner.RunAsync(plan, plan.Scenarios, environment, bundle, Record, ct);
                     foreach (var gap in CoveragePolicy.Missing(plan, provider, results))
                     {
                         Record(gap);
@@ -197,7 +192,7 @@ internal static class SuiteRunner
                     providerEnded = true;
                     Console.WriteLine($"{provider}: incomplete ({ex.GetType().Name}: {ex.Message}); retained evidence.");
                     File.WriteAllText(bundle.Resolve($"logs/{provider}-error.txt"), ex.ToString());
-                    foreach (var c in plan.Cases.Where(c => c.Family != "harness" && !results.Skip(before).Any(r => r.Id == c.Id)))
+                    foreach (var c in plan.Scenarios.Where(c => !results.Skip(before).Any(r => r.Id == c.Id)))
                     {
                         Record(
                             CaseResult.Incomplete(
@@ -261,9 +256,9 @@ internal static class SuiteRunner
         disk.Stop(bundle);
         foreach (var provider in plan.Providers)
         {
-            foreach (var c in plan.Cases.Where(c => c.Family != "harness" && !results.Any(r => r.Provider == provider && r.Id == c.Id)))
+            foreach (var c in plan.Scenarios.Where(c => !results.Any(r => r.Provider == provider && r.Id == c.Id)))
             {
-                Record(CaseResult.Incomplete(c.Id, provider, "verify", "Run ended before this required case was executed."));
+                Record(CaseResult.Incomplete(c.Id, provider, "verify", "Run ended before this scenario ran."));
             }
         }
         foreach (var provider in plan.Providers)
@@ -277,9 +272,9 @@ internal static class SuiteRunner
                 Record(gap);
             }
         }
-        foreach (var control in plan.Cases.Where(c => c.Family == "harness" && !results.Any(r => r.Id == c.Id && r.Provider == "harness")))
+        foreach (var name in HarnessControls.Names.Where(name => !results.Any(r => r.Id == name && r.Provider == "harness")))
         {
-            Record(CaseResult.Incomplete(control.Id, "harness", "self_test", "Required harness check did not finish."));
+            Record(CaseResult.Incomplete(name, "harness", "self_test", "The self-check did not finish."));
         }
         var status = Verdicts.Overall(results, aborted, settingsVerified);
         // A passing run whose evidence outgrew its budget wrote per-job data it should not have; heavy writes also
@@ -410,8 +405,8 @@ internal static class SuiteRunner
             ["worker_compilation_mode"] = BuildMode.Current(),
             ["observer"] =
                 "Aggregate SQL counts during a trial and one paged read after it; completion times are database completion stamps on the controller stopwatch.",
-            ["repetitions"] = plan.Repetitions.ToString(System.Globalization.CultureInfo.InvariantCulture),
-            ["preloaded_backlog_roots"] = string.Join(",", plan.PreloadedBacklogRoots.Select(p => $"{p.Key}={p.Value}")),
+            ["suite"] = plan.SuiteName,
+            ["measurement_version"] = plan.MeasurementVersion.ToString(System.Globalization.CultureInfo.InvariantCulture),
             ["monotonic_clock_frequency"] = Stopwatch.Frequency.ToString(System.Globalization.CultureInfo.InvariantCulture),
             ["build_configuration"] =
                 typeof(VerifyCommand).Assembly.GetCustomAttribute<AssemblyConfigurationAttribute>()?.Configuration ?? "unknown",

@@ -2,3 +2,5 @@ llms.txt text eol=lf
 site/llms.txt text eol=lf
 # Versioned benchmark inputs have byte-stable hashes on every platform.
 tools/Acta.Verify/Protocol/** text eol=lf
+tools/Acta.Verify/Scenarios/** text eol=lf
+tools/Acta.Verify/Suites/** text eol=lf

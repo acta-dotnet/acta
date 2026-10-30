@@ -1,0 +1,21 @@
+{
+  "title": "Worker kills under mixed load",
+  "question": "When a worker is killed every few seconds across stepped, laned, rate-limited, at-most-once and outbox work, does every job reach an allowed outcome once the run quiets, with the outbox fully delivered and the ledger checks clean?",
+  "runner": "chaos",
+  "jobs": {
+    "pg": 1000000,
+    "mssql": 1000000,
+    "sqlite": 10000
+  },
+  "workers": {
+    "pg": 24,
+    "mssql": 24,
+    "sqlite": 3
+  },
+  "executors": 64,
+  "seconds": 420,
+  "settings": {
+    "step_ms": 250,
+    "busy_kills": 10
+  }
+}

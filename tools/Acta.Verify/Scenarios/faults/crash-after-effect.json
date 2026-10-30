@@ -1,0 +1,11 @@
+{
+  "title": "Crash after an effect, before its checkpoint",
+  "question": "When a worker dies after an external effect applies but before its step commits, does recovery run the step again and finish the job, with the repeated application visible at the sink?",
+  "runner": "fault",
+  "work": [
+    {
+      "effect_mode": "append",
+      "boundary": "effect"
+    }
+  ]
+}

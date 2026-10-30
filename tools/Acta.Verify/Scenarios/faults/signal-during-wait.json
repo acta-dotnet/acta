@@ -1,0 +1,5 @@
+{
+  "title": "Signal sent during wait registration",
+  "question": "Whether a signal arrives just after a job's wait registration commits or once the job has suspended, does the job receive it and finish?",
+  "runner": "race"
+}

@@ -6,26 +6,33 @@ namespace Acta.Verify;
 
 internal static class FaultCaseRunner
 {
-    public static bool Handles(string id) =>
-        id is "C03" or "C04" or "C05" or "P04" or "P07" or "F01" or "F02" or "F05" or "I04" or "I05" or "D01" or "T01";
-
-    /// <summary>The cases that kill a worker holding the work they watch, so recovery must reclaim an attempt.</summary>
-    public static bool RequiresReclaim(string id) => id == "F09" || Handles(id) && id is not ("T01" or "P07" or "F05" or "D01");
+    /// <summary>The scenarios that kill a worker holding the work they watch, so recovery must reclaim an attempt.</summary>
+    public static bool RequiresReclaim(string id) =>
+        id
+            is "chaos"
+                or "crash-after-checkpoint"
+                or "crash-after-effect"
+                or "at-most-once"
+                or "parent-dies-during-fan-out"
+                or "kill-busy-worker"
+                or "kill-all-workers"
+                or "non-idempotent-sink"
+                or "idempotent-sink-crash";
 
     public static async Task<CaseResult> RunAsync(
         RunPlan plan,
-        ScenarioDescriptor scenario,
+        Scenario scenario,
         OwnedProvider environment,
         EvidenceBundle bundle,
         int repetition,
         CancellationToken ct
     )
     {
-        if (scenario.Id == "F05" && !environment.OwnsDatabaseProcess)
+        if (scenario.Id == "database-crash" && !environment.OwnsDatabaseProcess)
         {
             await using var crashDatabase = new OwnedProvider(
                 environment.Provider,
-                bundle.Resolve($"repro/state/{environment.Provider}-F05-owned-{repetition}")
+                bundle.Resolve($"repro/state/{environment.Provider}-database-crash-owned-{repetition}")
             );
             await crashDatabase.ProvisionAsync(plan, useComposeServer: false, ct);
             var settings = await crashDatabase.CaptureSettingsAsync(ct);
@@ -34,7 +41,7 @@ internal static class FaultCaseRunner
                 settings[key] = value;
             }
             bundle.Write(
-                $"histories/{environment.Provider}-F05-owned-{repetition}-settings.json",
+                $"histories/{environment.Provider}-database-crash-owned-{repetition}-settings.json",
                 settings,
                 VerifyJson.Default.DictionaryStringString
             );
@@ -53,25 +60,16 @@ internal static class FaultCaseRunner
         var jobs = host.Services.GetRequiredService<IJobs>();
         using var effects = new EffectService(bundle.Resolve($"repro/state/{tag}/effects.db"));
         await effects.StartAsync(ct);
-        var input = WorkloadModel.Input(scenario.Id, "root");
-        input = scenario.Id switch
-        {
-            "C03" => input with { Boundary = "checkpoint" },
-            "P04" => input with { Boundary = "children" },
-            "I05" => input with { Boundary = "effect" },
-            "P07" => input with { Boundary = "children", Children = 10 },
-            "F01" or "F02" or "F05" or "D01" => input with { Boundary = "claim" },
-            _ => input,
-        };
-        var sideInputs = scenario.Id is "F01" or "F02" or "F05" or "D01"
+        var input = scenario.Work[0].ToInput("root", 0, plan.Seed);
+        var sideInputs = scenario.Id is "kill-busy-worker" or "kill-all-workers" or "database-crash" or "rolling-restart"
             ? Enumerable.Range(0, 32).Select(i => new WorkInput($"side-{i}", WorkMs: 1000)).ToArray()
             : [];
         var expected = WorkloadModel.Expected(new[] { input }.Concat(sideInputs));
-        if (scenario.Id == "C05")
+        if (scenario.Id == "at-most-once")
         {
             expected[0] = expected[0] with { Status = "Failed", Output = null, Steps = ["effect=uncommitted"] };
         }
-        if (scenario.Id == "P07")
+        if (scenario.Id == "cancel-descendants")
         {
             expected = expected
                 .Where(e => e.Parent is null || Enumerable.Range(0, 4).Any(i => e.Key == $"root/child-{i}"))
@@ -90,7 +88,7 @@ internal static class FaultCaseRunner
             workers.Add(worker);
             await worker.ReadyAsync(ct);
             bound = plan.Deadline(expected.Length, worker.Settings!.LeaseSeconds, environment.DrainRate);
-            if (scenario.Id is "F01" or "F02" or "D01")
+            if (scenario.Id is "kill-busy-worker" or "kill-all-workers" or "rolling-restart")
             {
                 var survivor = OwnedWorker.Start(state, effects);
                 workers.Add(survivor);
@@ -108,7 +106,7 @@ internal static class FaultCaseRunner
                 );
             }
             var reader = new DurableReader(state);
-            if (scenario.Id == "T01")
+            if (scenario.Id == "durable-timer")
             {
                 await WaitAsync(
                     async () =>
@@ -175,7 +173,7 @@ internal static class FaultCaseRunner
                         "Required barrier was not observed on a durably in-flight root."
                     );
                 }
-                if (scenario.Id == "C03")
+                if (scenario.Id == "crash-after-checkpoint")
                 {
                     var snapshot = await reader.OutcomesAsync(ct);
                     checks.Add(
@@ -187,7 +185,7 @@ internal static class FaultCaseRunner
                         )
                     );
                 }
-                if (scenario.Id == "P04")
+                if (scenario.Id == "parent-dies-during-fan-out")
                 {
                     var snapshot = await reader.ReadAsync(null, ct);
                     checks.Add(
@@ -199,14 +197,14 @@ internal static class FaultCaseRunner
                         )
                     );
                 }
-                if (scenario.Id == "F05")
+                if (scenario.Id == "database-crash")
                 {
                     await environment.RestartDatabaseAsync(ct);
                     await effects.ReleaseAsync(ct);
                 }
                 else
                 {
-                    if (scenario.Id == "D01")
+                    if (scenario.Id == "rolling-restart")
                     {
                         await effects.ReleaseAsync(ct);
                         checks.Add(
@@ -218,7 +216,7 @@ internal static class FaultCaseRunner
                             )
                         );
                     }
-                    else if (scenario.Id == "F02")
+                    else if (scenario.Id == "kill-all-workers")
                     {
                         foreach (var process in workers)
                         {
@@ -245,13 +243,13 @@ internal static class FaultCaseRunner
                             );
                         }
                     }
-                    if (scenario.Id == "P07")
+                    if (scenario.Id == "cancel-descendants")
                     {
                         await jobs.CancelAsync(root, ct: ct);
                     }
-                    if (scenario.Id != "F01")
+                    if (scenario.Id != "kill-busy-worker")
                     {
-                        for (var i = 0; i < (scenario.Id == "F02" ? 2 : 1); i++)
+                        for (var i = 0; i < (scenario.Id == "kill-all-workers" ? 2 : 1); i++)
                         {
                             var replacement = OwnedWorker.Start(state, effects);
                             workers.Add(replacement);
@@ -269,13 +267,13 @@ internal static class FaultCaseRunner
                 var finalRoot = await RecoveryReadAsync(() => jobs.GetAsync(root, ct).AsTask());
                 var reclaim = finalRoot is { ExecutionNumber: > 1 };
                 fault = fault with { ReclaimObserved = reclaim };
-                if (scenario.Id != "P07")
+                if (scenario.Id != "cancel-descendants")
                 {
                     checks.Add(
                         new(
                             "observed-reclaim",
                             input.Key,
-                            reclaim || scenario.Id is "F05" or "D01",
+                            reclaim || scenario.Id is "database-crash" or "rolling-restart",
                             "Recovered attempt observed in durable execution number."
                         )
                     );
@@ -285,7 +283,7 @@ internal static class FaultCaseRunner
             {
                 await plan.DrainAsync(async () => (await RecoveryReadAsync(() => reader.UnfinishedRootsAsync(0, ct))).Count, bound, ct);
             }
-            if (scenario.Id == "C03")
+            if (scenario.Id == "crash-after-checkpoint")
             {
                 var events = await host
                     .Services.GetRequiredService<IActaOperations>()
@@ -306,7 +304,7 @@ internal static class FaultCaseRunner
                 }
             }
             var actual = await RecoveryReadAsync(() => reader.OutcomesAsync(ct));
-            if (scenario.Id == "P07")
+            if (scenario.Id == "cancel-descendants")
             {
                 checks.AddRange(OutcomeCheck.Reconcile(expected, actual));
                 checks.Add(
@@ -366,7 +364,7 @@ internal static class FaultCaseRunner
                     : "INCONCLUSIVE",
                 !passed ? "Fault outcome check failed; exact evidence retained."
                     : covered
-                        ? scenario.Id == "F05"
+                        ? scenario.Id == "database-crash"
                                 ? "Controller probes retry transient post-crash reads; the worker process is not restarted by the harness."
                             : null
                     : "Required injection/reclaim condition was not established.",
@@ -462,7 +460,7 @@ internal static class FaultCaseRunner
                 {
                     return await query();
                 }
-                catch (DbException ex) when (scenario.Id == "F05" && ex.IsTransient && Stopwatch.GetTimestamp() < deadline)
+                catch (DbException ex) when (scenario.Id == "database-crash" && ex.IsTransient && Stopwatch.GetTimestamp() < deadline)
                 {
                     transientReadRetries++;
                     await Task.Delay(100, ct);

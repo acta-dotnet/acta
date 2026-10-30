@@ -1,0 +1,13 @@
+{
+  "title": "Poison jobs beside healthy ones",
+  "question": "When one job in four always throws, do those jobs end failed with no result while every healthy job beside them still succeeds with its expected result?",
+  "runner": "verify",
+  "work": [
+    {
+      "poison": true
+    },
+    {},
+    {},
+    {}
+  ]
+}

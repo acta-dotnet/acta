@@ -80,16 +80,17 @@ public sealed class EvidenceTests
     }
 
     [Fact]
-    public void Catalogue_has_exact_required_identity_set_and_preserves_full_defaults()
+    public void The_release_suite_keeps_its_written_timings_and_round_trips_its_scenarios()
     {
-        var plan = Protocol.Plan("full", ["sqlite", "pg", "mssql"], 1729);
-        Assert.Equal(69, plan.Cases.Count);
-        Assert.Equal(10, plan.WarmupSeconds);
-        Assert.Equal(30, plan.MeasurementSeconds);
-        Assert.Equal(3, plan.Repetitions);
-        Assert.Equal(600, plan.SoakSeconds);
+        var plan = Protocol.Plan("release", ["sqlite", "pg", "mssql"], 1729);
+        Assert.Equal(5, plan.Suite.WarmupSeconds);
+        Assert.Equal(20, plan.Suite.LadderSeconds);
+        Assert.Equal(15, plan.Suite.SingleSeconds);
+        Assert.Equal(3, plan.Suite.HeadlinePasses);
+        Assert.Equal(120, plan.Suite.ConfirmSeconds);
+        Assert.Equal(300, plan.Scenario("soak").Seconds);
         var roundTrip = JsonSerializer.Deserialize(JsonSerializer.Serialize(plan, VerifyJson.Default.RunPlan), VerifyJson.Default.RunPlan)!;
-        Assert.Equal(plan.Cases.Select(c => c.Id), roundTrip.Cases.Select(c => c.Id));
+        Assert.Equal(plan.Scenarios.Select(c => c.Id), roundTrip.Scenarios.Select(c => c.Id));
     }
 
     [Fact]
@@ -163,7 +164,7 @@ public sealed class EvidenceTests
     [Fact]
     public void Missing_coverage_and_unsafe_settings_cannot_pass()
     {
-        var missing = CaseResult.Incomplete("L01", "pg", "verify", "No evidence.");
+        var missing = CaseResult.Incomplete("throughput", "pg", "verify", "No evidence.");
         Assert.Equal("INCONCLUSIVE", Verdicts.Overall([missing], false, true));
         Assert.Equal("INCONCLUSIVE", Verdicts.Overall([], false, true));
         Assert.Equal("ABORTED", Verdicts.Overall([missing], true, true));

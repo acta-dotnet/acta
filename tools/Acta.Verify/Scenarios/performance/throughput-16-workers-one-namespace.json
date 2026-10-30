@@ -1,0 +1,15 @@
+{
+  "title": "Throughput, sixteen workers on one namespace",
+  "question": "Do sixteen worker processes sharing one namespace hold a high offered rate with p99 under 2 s?",
+  "runner": "rate-ladder",
+  "workers": 16,
+  "rates": {
+    "pg": [
+      15000
+    ],
+    "mssql": [
+      7500
+    ]
+  },
+  "p99_ms": 2000
+}

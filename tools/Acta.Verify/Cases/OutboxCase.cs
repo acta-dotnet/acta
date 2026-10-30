@@ -8,13 +8,14 @@ internal static class OutboxCase
 {
     public static async Task<CaseResult> RunAsync(
         RunPlan plan,
+        Scenario scenario,
         OwnedProvider environment,
         EvidenceBundle bundle,
         CancellationToken ct,
         int repetition = 1
     )
     {
-        var tag = $"{environment.Provider}-I03-outbox-{repetition}";
+        var tag = $"{environment.Provider}-{scenario.Id}-{repetition}";
         var state = environment.Trial(bundle.Resolve($"repro/state/{tag}"));
         var source = new SqliteConnectionStringBuilder { DataSource = bundle.Resolve($"repro/state/{tag}/producer.db") }.ToString();
         var input = Enumerable.Range(0, 12).Select(i => new WorkInput($"root-{i}")).ToArray();
@@ -51,13 +52,18 @@ internal static class OutboxCase
         var pid = await effects.WaitBarrierAsync("outbox-enqueued", TimeSpan.FromSeconds(60), ct);
         if (pid != original.Id)
         {
-            return CaseResult.Incomplete("I03", environment.Provider, "fault", "Relay enqueue/acknowledgement boundary was not reached.");
+            return CaseResult.Incomplete(
+                scenario.Id,
+                environment.Provider,
+                "fault",
+                "Relay enqueue/acknowledgement boundary was not reached."
+            );
         }
         var reader = new DurableReader(state);
         var before = await reader.ReadAsync(null, ct);
         if (!original.Kill())
         {
-            return CaseResult.Incomplete("I03", environment.Provider, "fault", "Owned relay termination was not acknowledged.");
+            return CaseResult.Incomplete(scenario.Id, environment.Provider, "fault", "Owned relay termination was not acknowledged.");
         }
         using var replacement = OwnedWorker.Start(state, outboxSource: source);
         await replacement.ReadyAsync(ct);
@@ -94,7 +100,7 @@ internal static class OutboxCase
         bundle.Write($"histories/{tag}-checks.json", checks.ToArray(), VerifyJson.Default.CheckArray);
         var passed = checks.All(c => c.Passed);
         return new(
-            "I03",
+            scenario.Id,
             environment.Provider,
             "fault",
             repetition,

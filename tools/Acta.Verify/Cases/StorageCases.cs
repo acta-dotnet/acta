@@ -8,28 +8,17 @@ internal static class StorageCases
 {
     public static async Task<CaseResult> RunAsync(
         RunPlan plan,
-        ScenarioDescriptor scenario,
+        Scenario scenario,
         OwnedProvider environment,
         EvidenceBundle bundle,
         CancellationToken ct
     )
     {
-        if (scenario.Id is "S04" or "S05")
+        if (scenario.Id is "retention-during-load" or "retention-live-dependencies")
         {
             return await RetentionAsync(plan, scenario, environment, bundle, ct);
         }
-        int[] populations =
-            scenario.Id == "S01"
-                ?
-                [
-                    .. plan
-                        .FullPolicy.GetProperty("profiles")
-                        .GetProperty(plan.Profile)
-                        .GetProperty("retained_history_populations")
-                        .EnumerateArray()
-                        .Select(p => p.GetInt32()),
-                ]
-                : [BackgroundRoots(plan, scenario.Id)];
+        var populations = scenario.SettingList("populations", environment.Provider);
         List<Check> checks = [];
         List<string> evidence = [];
         foreach (var population in populations)
@@ -69,12 +58,15 @@ internal static class StorageCases
                 new Dictionary<string, string>
                 {
                     ["keys"] = $"history-0 through history-{population - 1}; each identity exactly once",
-                    ["expected_status"] = DurableReader.Status(ExpectedStatus(scenario.Id)),
-                    ["result_model"] = scenario.Id == "S01" ? "SHA256(UTF8(logical key)); no input transformation" : "no result",
+                    ["expected_status"] = DurableReader.Status(BackgroundStatus(scenario, environment.Provider)),
+                    ["result_model"] =
+                        BackgroundStatus(scenario, environment.Provider) == 100
+                            ? "SHA256(UTF8(logical key)); no input transformation"
+                            : "no result",
                 },
                 VerifyJson.Default.DictionaryStringString
             );
-            await PrepareBackgroundAsync(plan, scenario, state, jobs, resources, ct, population);
+            await PrepareBackgroundAsync(plan, scenario, state, jobs, resources, population, ct);
             var due = Enumerable.Range(0, 12).Select(i => new WorkInput($"root-{i}")).ToArray();
             var ids = new List<long>();
             foreach (var work in due)
@@ -106,7 +98,7 @@ internal static class StorageCases
             Check[] populationChecks =
             [
                 .. OutcomeCheck.Reconcile(WorkloadModel.Expected(due), observedDue),
-                .. await CheckBackgroundAsync(state, scenario.Id, population, ct),
+                .. await CheckBackgroundAsync(state, scenario, population, ct),
             ];
             checks.AddRange(populationChecks);
             var failing = populationChecks.Where(c => !c.Passed).Select(c => c.Identity).ToHashSet(StringComparer.Ordinal);
@@ -124,15 +116,15 @@ internal static class StorageCases
 
     internal static async Task<int> PrepareBackgroundAsync(
         RunPlan plan,
-        ScenarioDescriptor scenario,
+        Scenario scenario,
         OwnedProvider state,
         IJobs jobs,
         ResourceSampler? resources,
-        CancellationToken ct,
-        int? population = null
+        int size,
+        CancellationToken ct
     )
     {
-        var size = population ?? BackgroundRoots(plan, scenario.Id);
+        var status = BackgroundStatus(scenario, state.Provider);
         var future = DateTime.UtcNow.AddDays(1);
         // The population is seeded before any measurement, so its batches go in concurrently.
         await Parallel.ForEachAsync(
@@ -149,14 +141,14 @@ internal static class StorageCases
                     .Range(first, Math.Min(1000, size - first))
                     .Select(i =>
                     {
-                        var work = new WorkInput($"history-{i}", Signal: scenario.Id == "S02" ? "park" : null);
+                        var work = new WorkInput($"history-{i}", Signal: status == 20 ? "park" : null);
                         return new EnqueueJobRequest(
                             "verify",
                             "work",
                             JobPayload.Json(work, WorkJson.Default.WorkInput),
                             DeduplicationKey: work.Key,
-                            Priority: scenario.Id == "S03" ? JobPriorityCode.High : JobPriorityCode.Normal,
-                            NextRunAtUtc: scenario.Id == "S03" ? future : null
+                            Priority: status == 10 ? JobPriorityCode.High : JobPriorityCode.Normal,
+                            NextRunAtUtc: status == 10 ? future : null
                         );
                     })
                     .ToArray();
@@ -168,15 +160,16 @@ internal static class StorageCases
             }
         );
         await plan.DrainAsync(
-            async () => size - await PopulationCountAsync(state, ExpectedStatus(scenario.Id), ct),
+            async () => size - await PopulationCountAsync(state, status, ct),
             plan.Deadline(size, 0, state.DrainRate),
             ct
         );
         return size;
     }
 
-    internal static async Task<Check[]> CheckBackgroundAsync(OwnedProvider state, string scenario, int population, CancellationToken ct)
+    internal static async Task<Check[]> CheckBackgroundAsync(OwnedProvider state, Scenario scenario, int population, CancellationToken ct)
     {
+        var status = BackgroundStatus(scenario, state.Provider);
         var seen = new BitArray(population);
         List<Check> checks = [];
         await foreach (var page in new DurableReader(state).RootPagesAsync(0, ct))
@@ -187,7 +180,7 @@ internal static class StorageCases
                 || ordinal < 0
                 || ordinal >= population
                 || seen[ordinal]
-                || row.Status != ExpectedStatus(scenario)
+                || row.Status != status
             )
             {
                 checks.Add(
@@ -196,7 +189,7 @@ internal static class StorageCases
                 continue;
             }
             seen[ordinal] = true;
-            if (scenario == "S01" && row.Output != WorkloadModel.Expected([new(row.Key)])[0].Output)
+            if (status == 100 && row.Output != WorkloadModel.Expected([new(row.Key)])[0].Output)
             {
                 checks.Add(new("retained-result", row.Key, false, "Retained result differs from independent output."));
             }
@@ -216,14 +209,19 @@ internal static class StorageCases
             }
         }
         checks.Add(
-            new("background-reconciled", scenario, checks.Count == 0, $"Exact {population}-identity background reconciled independently.")
+            new(
+                "background-reconciled",
+                scenario.Id,
+                checks.Count == 0,
+                $"Exact {population}-identity background reconciled independently."
+            )
         );
         return [.. checks];
     }
 
     private static async Task<CaseResult> RetentionAsync(
         RunPlan plan,
-        ScenarioDescriptor scenario,
+        Scenario scenario,
         OwnedProvider environment,
         EvidenceBundle bundle,
         CancellationToken ct
@@ -241,9 +239,9 @@ internal static class StorageCases
         await worker.ReadyAsync(ct);
         var input = new WorkInput(
             "root",
-            Children: scenario.Id == "S05" ? 10 : 0,
-            Signal: scenario.Id == "S04" ? "hold" : null,
-            AfterChildrenSignal: scenario.Id == "S05" ? "hold" : null
+            Children: scenario.Id == "retention-live-dependencies" ? 10 : 0,
+            Signal: scenario.Id == "retention-during-load" ? "hold" : null,
+            AfterChildrenSignal: scenario.Id == "retention-live-dependencies" ? "hold" : null
         );
         var root = await jobs.EnqueueAsync(
             new EnqueueJobRequest("verify", "work", JobPayload.Json(input, WorkJson.Default.WorkInput), DeduplicationKey: input.Key),
@@ -292,7 +290,7 @@ internal static class StorageCases
                 "A waiting live root survives eligible-state retention."
             )
         );
-        if (scenario.Id == "S05")
+        if (scenario.Id == "retention-live-dependencies")
         {
             checks.Add(
                 new(
@@ -358,17 +356,17 @@ internal static class StorageCases
         );
     }
 
-    /// <summary>The profile's background population: S02 parks it on a signal, S03 schedules it in the future.</summary>
-    private static int BackgroundRoots(RunPlan plan, string scenario) =>
-        (int)plan.ProfilePolicy(scenario == "S02" ? "parked_background_roots" : "future_background_roots");
-
-    /// <summary>The status a history job settles in: S02's wait on a signal, S03's future due instant, S01's completion.</summary>
-    private static int ExpectedStatus(string scenario) =>
-        scenario switch
+    /// <summary>
+    /// The status a background job settles in, by the scenario's <c>background_state</c>: waiting on a signal, scheduled
+    /// for tomorrow at high priority, or, unwritten, succeeded and retained.
+    /// </summary>
+    private static int BackgroundStatus(Scenario scenario, string provider) =>
+        scenario.SettingText("background_state", provider) switch
         {
-            "S02" => 20,
-            "S03" => 10,
-            _ => 100,
+            null => 100,
+            "waiting" => 20,
+            "scheduled" => 10,
+            var other => throw new InvalidOperationException($"Scenario {scenario.Id} writes an unknown background_state {other}."),
         };
 
     private static async Task<long> PopulationCountAsync(OwnedProvider state, int status, CancellationToken ct)

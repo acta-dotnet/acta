@@ -1,0 +1,5 @@
+{
+  "title": "Wake signals dropped",
+  "question": "With every in-process wake signal dropped, does a parent with ten children still finish with its expected result through polling alone?",
+  "runner": "timeout-wakeup"
+}

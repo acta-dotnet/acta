@@ -1,0 +1,28 @@
+{
+  "title": "Payloads of 256 B, 4 KB and 64 KB mixed",
+  "question": "Do jobs carrying payloads of three sizes in turn hold their offered rate with p99 under 2 s?",
+  "runner": "rate-ladder",
+  "work": [
+    {
+      "payload_bytes": 256
+    },
+    {
+      "payload_bytes": 4096
+    },
+    {
+      "payload_bytes": 65536
+    }
+  ],
+  "rates": {
+    "pg": [
+      2500
+    ],
+    "mssql": [
+      1000
+    ],
+    "sqlite": [
+      40
+    ]
+  },
+  "p99_ms": 2000
+}

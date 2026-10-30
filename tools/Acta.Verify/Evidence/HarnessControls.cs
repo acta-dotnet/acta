@@ -2,6 +2,19 @@ namespace Acta.Verify;
 
 public static class HarnessControls
 {
+    /// <summary>The self-checks every run starts with, each a planted defect the checks must reject.</summary>
+    public static readonly string[] Names =
+    [
+        "self-check-missing-job",
+        "self-check-missing-checkpoint",
+        "self-check-duplicate-job",
+        "self-check-missing-child",
+        "self-check-wrong-result",
+        "self-check-unlanded-fault",
+        "self-check-harness-lateness",
+        "self-check-interrupted-run",
+    ];
+
     public static CaseResult[] Run(RunPlan plan, EvidenceBundle bundle)
     {
         ArgumentNullException.ThrowIfNull(plan);
@@ -14,18 +27,18 @@ public static class HarnessControls
             throw new InvalidOperationException("The outcome check rejects the valid control fixture.");
         }
         var results = new List<CaseResult>();
-        Test("H01", [valid[1]], "missing-identity");
-        Test("H02", [valid[0] with { Steps = ["one=1"] }, valid[1]], "committed-steps");
-        Test("H03", [.. valid, valid[0]], "unique-terminal");
-        Test("H04", [valid[0], valid[1] with { Key = "substitute" }], "missing-identity");
-        Test("H05", [valid[0] with { Output = "43" }, valid[1]], "logical-result");
-        Record("H06", !OutcomeCheck.FaultCovered(new("busy-kill", [], false, true, false), true));
+        Test("self-check-missing-job", [valid[1]], "missing-identity");
+        Test("self-check-missing-checkpoint", [valid[0] with { Steps = ["one=1"] }, valid[1]], "committed-steps");
+        Test("self-check-duplicate-job", [.. valid, valid[0]], "unique-terminal");
+        Test("self-check-missing-child", [valid[0], valid[1] with { Key = "substitute" }], "missing-identity");
+        Test("self-check-wrong-result", [valid[0] with { Output = "43" }, valid[1]], "logical-result");
+        Record("self-check-unlanded-fault", !OutcomeCheck.FaultCovered(new("busy-kill", [], false, true, false), true));
         Record(
-            "H07",
+            "self-check-harness-lateness",
             Verdicts.Measurement(1000, 10, false, 1, 1000, 0, 0.1, missedFraction) == "GENERATOR_LIMITED"
                 && Verdicts.Measurement(1000, 0, true, 1, 1000, 0, 0.1, missedFraction) == "OBSERVER_LIMITED"
         );
-        Record("H08", Verdicts.Overall([], true, true) == "ABORTED");
+        Record("self-check-interrupted-run", Verdicts.Overall([], true, true) == "ABORTED");
         return [.. results];
 
         void Test(string id, ObservedOutcome[] corrupted, string rejectedBy)

@@ -1,0 +1,93 @@
+{
+  "measurement_version": 2,
+  "provisioning": {
+    "owned_server": {
+      "memory_cap_fraction_of_docker_vm": 0.6667,
+      "memory_cap_max_mb": 32768,
+      "memory_cap_min_mb": 8192,
+      "postgres": {
+        "shared_buffers_fraction_of_cap": 0.25,
+        "effective_cache_size_fraction_of_cap": 0.75,
+        "maintenance_work_mem_mb": 1024,
+        "max_wal_size_mb": 8192,
+        "shm_size_fraction_of_cap": 0.25,
+        "shm_size_max_mb": 8192
+      },
+      "sqlserver": {
+        "max_server_memory_fraction_of_cap": 0.85,
+        "trace_flag": 3979,
+        "max_degree_of_parallelism": 8,
+        "cost_threshold_for_parallelism": 50,
+        "optimize_for_ad_hoc_workloads": 1,
+        "memory_optimized_tempdb_metadata": 1,
+        "tempdb_data_files_min": 4,
+        "tempdb_data_files_max": 8,
+        "tempdb_data_file_mb": 1024,
+        "tempdb_data_growth_mb": 256,
+        "tempdb_log_mb": 1024,
+        "tempdb_log_growth_mb": 256
+      }
+    },
+    "verify_database": {
+      "sqlserver": {
+        "data_mb": 4096,
+        "data_growth_mb": 512,
+        "log_mb": 2048,
+        "log_growth_mb": 512
+      }
+    }
+  },
+  "measurement": {
+    "progress_count_ms": 250,
+    "observer_poll_ms": 25,
+    "preload_producers": 8,
+    "generator_lag_tolerance_ms": 100,
+    "producer_calls": { "sqlite": 8, "pg": 256, "mssql": 256 },
+    "default_p99_ms": 2000,
+    "minimum_p99_samples": 10000,
+    "verification_jobs": 12,
+    "worker_ready_seconds": 120,
+    "pin_workers_to_performance_cores": true,
+    "disk_quiet": { "seconds": 10, "limit_seconds": 60, "min_idle_percent": 97, "max_writes_per_second": 100 }
+  },
+  "capacity": {
+    "backlog_slope_tolerance_fraction_of_offered_rate": 0.01,
+    "backlog_slope_resolution_floor_roots_per_interval": 1,
+    "max_generator_missed_fraction_for_valid_capacity": 0.001,
+    "overload": {
+      "backlog_threshold_floor_roots": 8,
+      "backlog_threshold_fraction_of_overload_rate": 0.1,
+      "saturation_backlog_slope_fraction_of_overload_rate": 0.001
+    }
+  },
+  "faults": {
+    "reclaim_lease_terms": 2,
+    "chaos_kill_interval_seconds": 5,
+    "chaos_replacement_start_attempts": 3,
+    "chaos_mix": {
+      "shape_fraction": 0.1,
+      "metered_roots_cap": 10000,
+      "laned_roots_cap": 20000,
+      "lane_depth": 10,
+      "lane_steps": 3,
+      "slow_steps": 5,
+      "metered_dwell_ms": 300,
+      "charge_work_steps": 2,
+      "meter_shares": { "metered-10": 0.2, "metered-50": 0.4, "metered-100": 0.4 },
+      "outbox_fraction": 0.5,
+      "outbox_rows_min": 200,
+      "outbox_rows_cap": 5000,
+      "outbox_chunk_rows": 200
+    }
+  },
+  "liveness": {
+    "drain_seconds": 120,
+    "minimum_progress_jobs_per_second": 2,
+    "measured_drain_divisor": 20,
+    "stall_seconds": 60,
+    "deadline_ceiling_seconds": 14400
+  },
+  "output": {
+    "passing_bundle_budget_mb": 50
+  }
+}

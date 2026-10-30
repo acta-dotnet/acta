@@ -1,0 +1,13 @@
+{
+  "title": "Signal sent before the wait",
+  "question": "When a signal is raised for a job before the job starts waiting for it, is the signal kept so the job receives it and finishes?",
+  "runner": "verify",
+  "work": [
+    {
+      "signal": "go"
+    }
+  ],
+  "settings": {
+    "send_signal": "before-wait"
+  }
+}

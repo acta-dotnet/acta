@@ -1,0 +1,29 @@
+{
+  "title": "Overload, then recovery",
+  "question": "Offered more than it can run, does the backlog grow, and does it fall back once the offered rate drops?",
+  "runner": "overload",
+  "seconds": 60,
+  "rates": {
+    "pg": [
+      5000
+    ],
+    "mssql": [
+      2500
+    ],
+    "sqlite": [
+      50
+    ]
+  },
+  "settings": {
+    "overload_rate": {
+      "pg": 40000,
+      "mssql": 20000,
+      "sqlite": 800
+    },
+    "recovery_rate": {
+      "pg": 5000,
+      "mssql": 2500,
+      "sqlite": 50
+    }
+  }
+}

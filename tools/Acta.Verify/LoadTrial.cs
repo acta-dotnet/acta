@@ -46,8 +46,7 @@ internal sealed record LoadSpec(
     string? ConcurrencyKey,
     bool NeedsEffectService = false,
     bool CrossNamespace = false,
-    bool QueriesDuringProcessing = false,
-    string? CellName = null,
+    double QueriesPerSecond = 0,
     int? PayloadBytes = null,
     double OverloadRate = 0,
     Func<IJobs, OwnedProvider, ResourceSampler, CancellationToken, Task<int>>? PrepareBackground = null,
@@ -86,9 +85,7 @@ internal static class LoadTrial
     {
         var rate = spec.OfferedRate;
         var cohort = spec.Mode == LoadMode.Cohort;
-        var tag =
-            $"{environment.Provider}-{spec.CaseId}-{spec.Phase}-{spec.Repetition}-{(int)rate}"
-            + (spec.CellName is null ? "" : "-" + spec.CellName);
+        var tag = $"{environment.Provider}-{spec.CaseId}-{spec.Phase}-{spec.Repetition}-{(int)rate}";
         var trialStarted = Stopwatch.GetTimestamp();
         var writeSecondsAtStart = bundle.WriteSeconds;
         Console.WriteLine($"  START {tag}");
@@ -425,7 +422,7 @@ internal static class LoadTrial
                 plan.Policy("capacity", "max_generator_missed_fraction_for_valid_capacity")
             );
 
-        // E03 must grow the backlog in its overload half and bring it under the threshold in its recovery half.
+        // An overload trial must grow the backlog in its overload half and bring it under the threshold in its recovery half.
         string? overloadGap = null;
         if (spec.OverloadRate > 0)
         {
@@ -555,8 +552,7 @@ internal static class LoadTrial
             measurement,
             metrics,
             evidence,
-            "Acta native jobs/checkpoints/children; independent committed-state SQL observer",
-            DiagnosticCellName: spec.CellName
+            "Acta native jobs/checkpoints/children; independent committed-state SQL observer"
         );
 
         bool Measured(int i) => spec.WarmupSeconds == 0 || Scheduled(i) >= start;
@@ -763,13 +759,13 @@ internal static class LoadTrial
                         }
                         nextLive = cycle + progressTicks;
                     }
-                    if (spec.QueriesDuringProcessing && cycle >= nextQuery)
+                    if (spec.QueriesPerSecond > 0 && cycle >= nextQuery)
                     {
                         var operations = host.Services.GetRequiredService<IActaOperations>();
                         await operations.Ledger.ListJobsAsync(new(JobNamespace: "verify", PageSize: 20), token);
                         await operations.Ledger.ListEventsAsync(new(JobNamespace: "verify", PageSize: 20), token);
                         queryLatency.Record(Ms(Stopwatch.GetTimestamp() - cycle));
-                        nextQuery += Stopwatch.Frequency;
+                        nextQuery += (long)(Stopwatch.Frequency / spec.QueriesPerSecond);
                     }
                     if (cycle >= nextProgress)
                     {
@@ -805,7 +801,7 @@ internal static class LoadTrial
 
         Dictionary<string, Metric> Metrics()
         {
-            var minimumSamples = plan.Policy("measurement", "publication_p99_sample_policy", "minimum_observed_completed_samples");
+            var minimumSamples = plan.Policy("measurement", "minimum_p99_samples");
             var primarySamples = admissionOnly ? admission.Snapshot().Count : latency.Snapshot().Count;
             var cohortRate = completedRoots / Math.Max(1e-9, Seconds(drainEnded - drainStart));
             var result = new Dictionary<string, Metric>(StringComparer.Ordinal)
@@ -820,14 +816,9 @@ internal static class LoadTrial
                 ["worker_processes"] = new(spec.Workers, "processes"),
                 ["live_worker_processes_at_reconciliation"] = new(workers.LiveCount, "processes"),
                 ["namespace_count"] = new(spec.Namespaces, "namespaces"),
-                ["diagnostic_cell"] = new(spec.CellName is null ? 0 : 1, "boolean"),
-                ["calibration_candidate"] = new(
-                    spec.Phase == "discover" && measurement is "VALID" or "UNSTABLE" && p99 <= spec.LatencyTargetMs ? 1 : 0,
-                    "boolean"
-                ),
                 ["payload_bytes"] = spec.PayloadBytes is { } payloadBytes
                     ? new(payloadBytes, "bytes")
-                    : Metric.Missing("bytes", "Declared workload uses its canonical input or size mixture."),
+                    : Metric.Missing("bytes", "The scenario mixes payload sizes or writes none."),
                 ["background_jobs"] = new(background, "jobs"),
                 ["checkpoint_before_window"] = new(checkpointed ? 1 : 0, "boolean"),
                 ["warmup_seconds"] = new(spec.WarmupSeconds, "seconds"),
@@ -923,7 +914,7 @@ internal static class LoadTrial
                     Reason: "Drain start to the first completion, including worker startup."
                 );
             }
-            if (spec.QueriesDuringProcessing)
+            if (spec.QueriesPerSecond > 0)
             {
                 result["query_batches"] = new(queryLatency.Snapshot().Count, "batches");
                 result["query_p95"] = queryLatency.Percentile(0.95) is { } q95

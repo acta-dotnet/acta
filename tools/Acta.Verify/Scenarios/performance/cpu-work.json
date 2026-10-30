@@ -1,0 +1,22 @@
+{
+  "title": "Fixed CPU work",
+  "question": "Do jobs that each hash for a fixed number of rounds hold their offered rate with p99 under 2 s?",
+  "runner": "rate-ladder",
+  "work": [
+    {
+      "cpu_rounds": 1000
+    }
+  ],
+  "rates": {
+    "pg": [
+      5000
+    ],
+    "mssql": [
+      2500
+    ],
+    "sqlite": [
+      40
+    ]
+  },
+  "p99_ms": 2000
+}

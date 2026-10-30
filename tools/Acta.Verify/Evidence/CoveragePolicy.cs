@@ -1,288 +1,177 @@
 namespace Acta.Verify;
 
-// Execution recipes may combine verification and reconciliation in one fault case.
-// Catalogue presence alone never establishes that the declared measurements ran.
+/// <summary>
+/// Checks that every planned scenario produced the results its runner owes on each database: each ladder pass climbed
+/// until its first miss, a headline confirmed its rate, every fault repetition ran, and every measured trial ran the
+/// topology its file writes. A result that is missing becomes a reconcile row, so a run never passes by omission.
+/// </summary>
 public static class CoveragePolicy
 {
-    public static bool IsCanonical(RunPlan plan, string id) =>
-        plan
-            .FullPolicy.GetProperty("measurement")
-            .GetProperty("canonical_measured_case_ids")
-            .EnumerateArray()
-            .Any(e => e.GetString() == id);
-
-    /// <summary>The profile's validation fractions of the best qualifying discovery rate, frozen before measurement.</summary>
-    public static double[] SelectedRates(RunPlan plan, IEnumerable<CaseResult> results) =>
-        Rates(plan, results, "validation_load_fractions");
-
-    /// <summary>
-    /// The profile's lower fractions of the same rate, frozen with the selected rates; the runner measures each in turn
-    /// only while no higher rate has validated.
-    /// </summary>
-    public static double[] FallbackRates(RunPlan plan, IEnumerable<CaseResult> results)
-    {
-        var rows = results.ToArray();
-        return [.. Rates(plan, rows, "fallback_load_fractions").Except(SelectedRates(plan, rows))];
-    }
-
-    private static double[] Rates(RunPlan plan, IEnumerable<CaseResult> results, string fractions)
-    {
-        var best = BestDiscoveryRate(results);
-        return best <= 0
-            ? []
-            : plan
-                .FullPolicy.GetProperty("profiles")
-                .GetProperty(plan.Profile)
-                .GetProperty(fractions)
-                .EnumerateArray()
-                .Select(f => (double)Math.Max(1, (int)(best * f.GetDouble())))
-                .Distinct()
-                .ToArray();
-    }
-
-    /// <summary>
-    /// The lowest discovery rate above the best qualifying one that did not qualify, or the protocol's multiple of the
-    /// best qualifying rate when every attempted rate qualified.
-    /// </summary>
-    public static double OverloadRate(RunPlan plan, IEnumerable<CaseResult> results)
-    {
-        var best = BestDiscoveryRate(results);
-        return Discovery(results)
-            .Where(r => !IsDiscoveryCandidate(r))
-            .Select(OfferedRate)
-            .Where(rate => rate > best)
-            .DefaultIfEmpty(best * plan.Policy("capacity", "overload", "rate_multiple_without_a_failed_discovery_rate"))
-            .Min();
-    }
-
-    /// <summary>
-    /// The rate E01 and E03 derive their load from: the prerequisite case's validated capacity or, when none validated
-    /// and the profile does not gate its verdict on measurement, its best qualifying discovery rate. Zero when neither
-    /// exists.
-    /// </summary>
-    public static double PrerequisiteRate(RunPlan plan, IEnumerable<CaseResult> results)
-    {
-        var validated = ValidatedCapacity(plan, results);
-        return validated > 0 || plan.MeasurementGatesVerdict ? validated : BestDiscoveryRate(results);
-    }
-
-    private static double BestDiscoveryRate(IEnumerable<CaseResult> results) =>
-        Discovery(results).Where(IsDiscoveryCandidate).Select(OfferedRate).DefaultIfEmpty(0).Max();
-
-    private static IEnumerable<CaseResult> Discovery(IEnumerable<CaseResult> results) =>
-        results.Where(r => r.Phase == "discover" && r.Metrics.GetValueOrDefault("diagnostic_cell")?.Value != 1);
-
-    private static double OfferedRate(CaseResult result) => result.Metrics.GetValueOrDefault("offered_rate")?.Value ?? 0;
-
-    public static bool IsDiscoveryCandidate(CaseResult result) =>
-        result.Phase == "discover"
-        && result.Status == "PASS"
-        && (
-            result.Measurement == "VALID"
-            || result.Measurement == "UNSTABLE" && result.Metrics.GetValueOrDefault("calibration_candidate")?.Value == 1
-        );
-
-    public static double ValidatedCapacity(RunPlan plan, IEnumerable<CaseResult> results) =>
-        results
-            .Where(r => r.Phase == "measure" && r.Metrics.GetValueOrDefault("diagnostic_cell")?.Value != 1)
-            .GroupBy(r => r.Metrics.GetValueOrDefault("offered_rate")?.Value)
-            .Where(g => g.Key > 0 && g.All(r => r.Status == "PASS" && r.Measurement == "VALID") && RepetitionsComplete(plan, g))
-            .Select(g => g.Key!.Value)
-            .DefaultIfEmpty(0)
-            .Max();
-
-    public static bool RepetitionsComplete(RunPlan plan, IEnumerable<CaseResult> results)
-    {
-        var rows = results.ToArray();
-        return Enumerable.Range(1, plan.Repetitions).All(i => rows.Any(r => r.Repetition == i))
-            && (
-                !plan.IsExtended
-                || !PerformanceSummary.IsVariable(plan, rows.Where(r => r.Repetition <= plan.Repetitions))
-                || Enumerable.Range(plan.Repetitions + 1, plan.AdditionalRepetitions).All(i => rows.Any(r => r.Repetition == i))
-            );
-    }
-
-    /// <summary>
-    /// The diagnostic cells the runner executes for a case, and so exactly the cells coverage requires: the requested
-    /// cells, or every cell in the full profile when none is requested.
-    /// </summary>
-    public static IEnumerable<TrialCell> RequiredCells(RunPlan plan, string provider, string id) =>
-        plan.DiagnosticCells.Where(c =>
-            c.CaseId == id
-            && (provider != "sqlite" || c.Workers == 1)
-            && (
-                plan.RequestedDiagnosticCells.Count > 0
-                    ? plan.RequestedDiagnosticCells.Contains(c.Name, StringComparer.Ordinal)
-                    : plan.IsExtended
-            )
-        );
-
     public static CaseResult[] Missing(RunPlan plan, string provider, IEnumerable<CaseResult> results)
     {
-        var rows = results.Where(r => r.Provider == provider).ToArray();
+        ArgumentNullException.ThrowIfNull(plan);
+        var rows = results.Where(r => r.Provider == provider && r.Phase != "reconcile").ToArray();
         List<CaseResult> missing = [];
-        foreach (var scenario in plan.Cases.Where(c => c.Family != "harness"))
+        foreach (var scenario in plan.Scenarios)
         {
-            var cases = rows.Where(r => r.Id == scenario.Id && r.Phase != "reconcile").ToArray();
-            if (cases.Length == 0)
+            var trials = rows.Where(r => r.Id == scenario.Id).ToArray();
+            if (trials.Length == 0)
             {
-                Add("No execution evidence for the requested case.");
+                Add("No result for the planned scenario.");
                 continue;
             }
-            if (cases.All(r => r.Status == "NOT_APPLICABLE"))
+            if (trials.All(r => r.Status == "NOT_APPLICABLE"))
             {
-                if (!(scenario.Id == "D04" || provider == "sqlite" && scenario.Id is "F04" or "F05"))
+                if (ScenarioRunner.Unwritten(scenario, provider) is null)
                 {
-                    Add("Case was not applicable without a predeclared provider exception.");
+                    Add("The scenario did not run, and its file writes no reason it skips this database.");
                 }
                 continue;
             }
-            if (!cases.Any(r => r.Phase is "verify" or "fault" or "soak"))
+            switch (scenario.Runner)
             {
-                Add("No verification/reconciliation execution accompanies the measurement.");
-            }
-            if (scenario.Id == "F09")
-            {
-                var requiredKills = plan.ProfilePolicy("chaos_minimum_busy_kills");
-                if (
-                    !cases.Any(r =>
-                        r.Metrics.GetValueOrDefault("observed_busy_kills")?.Value >= requiredKills
-                        && r.Metrics.GetValueOrDefault("kills_with_reclaim")?.Value >= requiredKills
-                        && r.Metrics.GetValueOrDefault("acknowledged_roots")?.Value == plan.ChaosJobs
-                    )
-                )
-                {
-                    Add("Required seeded busy kills, reclaim evidence, or acknowledged cohort accounting is incomplete.");
-                }
-            }
-            if (
-                scenario.Id == "E01"
-                && !cases.Any(r =>
-                    r.Phase == "soak"
-                    && (r.Measurement == "VALID" || !plan.MeasurementGatesVerdict)
-                    && r.Metrics.GetValueOrDefault("scheduled_window_seconds")?.Value >= plan.SoakSeconds
-                )
-            )
-            {
-                Add("Required sustained soak interval or measurement validity is incomplete.");
-            }
-            if (plan.IsExtended && scenario.Phases.Contains("fault", StringComparer.Ordinal) && scenario.Id != "F09")
-            {
-                for (var trial = 1; trial <= plan.TargetedFaultRepetitions; trial++)
-                {
-                    if (!cases.Any(r => r.Repetition == trial && r.Phase is "fault" or "verify"))
+                case "rate-ladder":
+                    Ladder(scenario, trials, Gap);
+                    break;
+                case "drain":
+                    for (var pass = 1; pass <= ScenarioRunner.Passes(plan, scenario); pass++)
                     {
-                        Add($"Missing required boundary repetition {trial}.");
+                        if (trials.FirstOrDefault(r => r.Phase == "measure" && r.Repetition == pass) is not { } drain)
+                        {
+                            Gap($"Drain pass {pass} has no result.");
+                        }
+                        else if (Verdicts.RateOutcome(drain) is not "held" and var outcome)
+                        {
+                            Gap($"Drain pass {pass} did not qualify: {outcome}.");
+                        }
                     }
-                }
-            }
-            if (!IsCanonical(plan, scenario.Id))
-            {
-                continue;
-            }
-            foreach (var cell in RequiredCells(plan, provider, scenario.Id))
-            {
-                for (var trial = 1; trial <= plan.Repetitions; trial++)
-                {
+                    break;
+                case "overload":
+                    if (!trials.Any(r => r.Phase == "measure"))
+                    {
+                        Gap("The overload trial has no result.");
+                    }
+                    break;
+                case "chaos":
+                    var kills = scenario.Setting("busy_kills", provider);
+                    var jobs = scenario.Jobs[provider];
                     if (
-                        !cases.Any(r =>
-                            r.Phase == "measure"
-                            && r.DiagnosticCellName == cell.Name
-                            && r.Repetition == trial
-                            && r.Metrics.GetValueOrDefault("diagnostic_cell")?.Value == 1
-                            && (cell.Executors is null || r.Metrics.GetValueOrDefault("executors_per_worker")?.Value == cell.Executors)
-                            && r.Metrics.GetValueOrDefault("worker_processes")?.Value == cell.Workers
-                            && r.Metrics.GetValueOrDefault("namespace_count")?.Value == cell.Namespaces
-                            && (cell.PayloadBytes is null || r.Metrics.GetValueOrDefault("payload_bytes")?.Value == cell.PayloadBytes)
-                            && (cell.BatchSize is null || r.Metrics.GetValueOrDefault("batch_size")?.Value == cell.BatchSize)
+                        !trials.Any(r =>
+                            r.Metrics.GetValueOrDefault("observed_busy_kills")?.Value >= kills
+                            && r.Metrics.GetValueOrDefault("kills_with_reclaim")?.Value >= kills
+                            && r.Metrics.GetValueOrDefault("acknowledged_roots")?.Value == jobs
                         )
                     )
                     {
-                        AddMeasurementGap($"Missing diagnostic cell {cell.Name}, independent trial {trial}.");
+                        Add($"Chaos did not show {kills} busy kills with reclaim over all {jobs} acknowledged jobs.");
                     }
-                }
-                var cellTrials = cases.Where(r => r.Phase == "measure" && r.DiagnosticCellName == cell.Name).ToArray();
-                if (
-                    plan.IsExtended
-                    && PerformanceSummary.IsVariable(plan, cellTrials.Where(r => r.Repetition <= plan.Repetitions))
-                    && !RepetitionsComplete(plan, cellTrials)
-                )
-                {
-                    AddMeasurementGap(
-                        $"Predeclared dispersion rule requires {plan.AdditionalRepetitions} additional retained trials for diagnostic cell {cell.Name}."
-                    );
-                }
+                    break;
             }
-            var canonical = cases.Where(r => r.Metrics.GetValueOrDefault("diagnostic_cell")?.Value != 1).ToArray();
-            if (scenario.Id == "L04")
+            if (scenario.Group == "faults")
             {
-                for (var trial = 1; trial <= plan.Repetitions; trial++)
+                for (var repetition = 1; repetition <= ScenarioRunner.Repetitions(plan, scenario); repetition++)
                 {
-                    if (
-                        !canonical.Any(r => r.Phase == "measure" && r.Repetition == trial && r.Measurement == "VALID" && r.Status == "PASS")
-                    )
+                    if (!trials.Any(r => r.Repetition == repetition))
                     {
-                        AddMeasurementGap(
-                            $"Missing valid fixed-cohort backlog-drain trial {trial}; this workload has no offered arrival rate."
-                        );
+                        Add($"Repetition {repetition} has no result.");
                     }
                 }
-                if (
-                    plan.IsExtended
-                    && PerformanceSummary.IsVariable(plan, canonical.Where(r => r.Phase == "measure" && r.Repetition <= plan.Repetitions))
-                    && !RepetitionsComplete(plan, canonical.Where(r => r.Phase == "measure"))
-                )
-                {
-                    AddMeasurementGap(
-                        $"Predeclared dispersion rule requires {plan.AdditionalRepetitions} additional retained backlog-drain trials."
-                    );
-                }
-                continue;
             }
-            var rates = SelectedRates(plan, canonical);
-            if (rates.Length == 0)
+            foreach (var trial in trials.Where(r => r.Phase is "measure" or "confirm"))
             {
-                AddMeasurementGap("Capacity discovery did not find a valid arrival rate.");
-                continue;
-            }
-            foreach (var rate in rates)
-            {
-                for (var trial = 1; trial <= plan.Repetitions; trial++)
+                if (Topology(scenario, provider, trial) is { } wrong)
                 {
-                    if (
-                        !canonical.Any(r =>
-                            r.Phase == "measure" && r.Repetition == trial && r.Metrics.GetValueOrDefault("offered_rate")?.Value == rate
-                        )
-                    )
-                    {
-                        AddMeasurementGap($"Missing fresh measured trial {trial} at the frozen selected rate {rate}.");
-                    }
+                    Add($"{trial.Phase} trial {trial.Repetition} ran {wrong}.");
                 }
-                var trials = canonical
-                    .Where(r => r.Phase == "measure" && r.Metrics.GetValueOrDefault("offered_rate")?.Value == rate)
-                    .ToArray();
-                if (
-                    plan.IsExtended
-                    && PerformanceSummary.IsVariable(plan, trials.Where(r => r.Repetition <= plan.Repetitions))
-                    && Enumerable.Range(plan.Repetitions + 1, plan.AdditionalRepetitions).Any(i => !trials.Any(r => r.Repetition == i))
-                )
-                {
-                    AddMeasurementGap(
-                        $"Predeclared dispersion rule requires {plan.AdditionalRepetitions} additional retained trials at rate {rate}."
-                    );
-                }
-            }
-            if (ValidatedCapacity(plan, canonical) <= 0)
-            {
-                AddMeasurementGap(
-                    "No arrival rate passed all required independent validation trials; correctness results remain separate."
-                );
             }
 
             void Add(string reason) => missing.Add(CaseResult.Incomplete(scenario.Id, provider, "reconcile", reason));
-            void AddMeasurementGap(string reason) =>
-                missing.Add(CaseResult.MeasurementGap(plan, scenario.Id, provider, "reconcile", reason));
+            void Gap(string reason) => missing.Add(CaseResult.MeasurementGap(plan, scenario.Id, provider, "reconcile", reason));
         }
         return [.. missing];
+
+        // Each pass climbs until its first rate that does not hold. The floor must hold in every pass where the suite
+        // gates on measurement, and a headline confirms the highest rate held in every pass, once more one rate lower.
+        void Ladder(Scenario scenario, CaseResult[] trials, Action<string> gap)
+        {
+            var rates = ScenarioRunner.LadderRates(plan, scenario, provider);
+            var heldEverywhere = rates.Length;
+            for (var pass = 1; pass <= ScenarioRunner.Passes(plan, scenario); pass++)
+            {
+                var held = 0;
+                foreach (var rate in rates)
+                {
+                    var trial = trials.FirstOrDefault(r => r.Phase == "measure" && r.Repetition == pass && OfferedRate(r) == rate);
+                    if (trial is null)
+                    {
+                        gap($"Pass {pass} has no result at {rate}/s.");
+                        break;
+                    }
+                    var outcome = Verdicts.RateOutcome(trial);
+                    if (outcome != "held")
+                    {
+                        // A harness error stops the climb short of the engine's limit wherever it lands.
+                        if (outcome == "harness error")
+                        {
+                            gap($"Pass {pass} stopped on a harness error at {rate}/s.");
+                        }
+                        else if (held == 0 && outcome == "missed")
+                        {
+                            var reason = $"Pass {pass} missed the floor of {rate}/s.";
+                            if (plan.MeasurementGatesVerdict)
+                            {
+                                missing.Add(Floor(scenario.Id, provider, reason));
+                            }
+                            else
+                            {
+                                gap(reason);
+                            }
+                        }
+                        break;
+                    }
+                    held++;
+                }
+                heldEverywhere = Math.Min(heldEverywhere, held);
+            }
+            if (scenario.Headline is null || plan.Suite.ConfirmSeconds == 0 || heldEverywhere == 0)
+            {
+                return;
+            }
+            var confirmations = trials.Where(r => r.Phase == "confirm").ToArray();
+            var top = confirmations.FirstOrDefault(r => OfferedRate(r) == rates[heldEverywhere - 1]);
+            var lower = heldEverywhere > 1 ? confirmations.FirstOrDefault(r => OfferedRate(r) == rates[heldEverywhere - 2]) : null;
+            if (top is null)
+            {
+                gap($"The confirmation at {rates[heldEverywhere - 1]}/s has no result.");
+            }
+            else if (Verdicts.RateOutcome(top) != "held" && (lower is null || Verdicts.RateOutcome(lower) != "held"))
+            {
+                gap("Neither confirmation held, so the scenario has no confirmed rate.");
+            }
+            foreach (var confirmation in confirmations.Where(c => Verdicts.RateOutcome(c) == "harness error"))
+            {
+                gap($"The confirmation at {OfferedRate(confirmation)}/s stopped on a harness error.");
+            }
+        }
     }
+
+    private static double OfferedRate(CaseResult result) => result.Metrics.GetValueOrDefault("offered_rate")?.Value ?? 0;
+
+    /// <summary>What a measured trial ran that its file does not write, or null when its topology matches.</summary>
+    private static string? Topology(Scenario scenario, string provider, CaseResult trial)
+    {
+        double? Metric(string name) => trial.Metrics.GetValueOrDefault(name)?.Value;
+        return Metric("worker_processes") != scenario.Workers[provider]
+                ? $"{Metric("worker_processes")} workers, not {scenario.Workers[provider]}"
+            : Metric("namespace_count") != scenario.Namespaces[provider]
+                ? $"{Metric("namespace_count")} namespaces, not {scenario.Namespaces[provider]}"
+            : scenario.Executors is { } executors && Metric("executors_per_worker") != executors
+                ? $"{Metric("executors_per_worker")} executors per worker, not {executors}"
+            : Metric("batch_size") != scenario.JobsPerCall ? $"{Metric("batch_size")} jobs per call, not {scenario.JobsPerCall}"
+            : null;
+    }
+
+    /// <summary>A ladder that missed its first rate where the suite gates on measurement: performance fails.</summary>
+    private static CaseResult Floor(string id, string provider, string reason) =>
+        new(id, provider, "reconcile", 0, "FAIL", reason, "NOT_APPLICABLE", "NOT_APPLICABLE", "COMPLETE", "MISSED", [], []);
 }

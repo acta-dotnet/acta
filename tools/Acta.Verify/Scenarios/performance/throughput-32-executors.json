@@ -1,0 +1,18 @@
+{
+  "title": "Throughput, 32 executors",
+  "question": "Does one worker with 32 executors hold the stream its default configuration holds?",
+  "runner": "rate-ladder",
+  "executors": 32,
+  "rates": {
+    "pg": [
+      5000
+    ],
+    "mssql": [
+      2500
+    ],
+    "sqlite": [
+      50
+    ]
+  },
+  "p99_ms": 2000
+}

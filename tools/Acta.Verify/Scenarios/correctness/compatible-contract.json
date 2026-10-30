@@ -1,0 +1,5 @@
+{
+  "title": "Compatible step result change",
+  "question": "When a waiting job is resumed by a new worker version whose step result type gained an optional field, does it reuse the stored step result and finish with the same output?",
+  "runner": "registration"
+}

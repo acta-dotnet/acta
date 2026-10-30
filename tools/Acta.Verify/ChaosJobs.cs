@@ -5,7 +5,7 @@ using System.Text;
 namespace Acta.Verify;
 
 /// <summary>
-/// The crash-recovery shapes F09 seeds. Each body writes the witness notes certify.sql reads, and each returns what
+/// The crash-recovery shapes the chaos scenario seeds. Each body writes the witness notes certify.sql reads, and each returns what
 /// <see cref="WorkloadModel"/> computes for its input, so the identity effects stays the one home of the expectation.
 /// </summary>
 public static class ChaosJobs

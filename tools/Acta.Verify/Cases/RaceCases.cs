@@ -6,7 +6,7 @@ internal static class RaceCases
 {
     public static async Task<CaseResult> RunAsync(
         RunPlan plan,
-        ScenarioDescriptor scenario,
+        Scenario scenario,
         OwnedProvider environment,
         EvidenceBundle bundle,
         CancellationToken ct,
@@ -53,11 +53,11 @@ internal static class RaceCases
             using var host = await RuntimeHost.StartAsync(state.Provider, state.ConnectionString, state.Schema, false, true, ct);
             var jobs = host.Services.GetRequiredService<IJobs>();
             var input =
-                scenario.Id == "P05"
+                scenario.Id == "last-child-join-race"
                     ? new WorkInput("root", Children: 10, Boundary: "join-" + ordering)
-                    : new WorkInput("root", Signal: "go", SignalTimeoutSeconds: scenario.Id == "T05" ? 5 : 0);
+                    : new WorkInput("root", Signal: "go", SignalTimeoutSeconds: scenario.Id == "signal-timeout-race" ? 5 : 0);
             var expected = WorkloadModel.Expected([input]);
-            if (scenario.Id == "T05")
+            if (scenario.Id == "signal-timeout-race")
             {
                 expected[0] = expected[0] with { Output = ordering == "before" ? "signalled" : "expired" };
             }
@@ -65,10 +65,14 @@ internal static class RaceCases
                 new EnqueueJobRequest("verify", "work", JobPayload.Json(input, WorkJson.Default.WorkInput), DeduplicationKey: input.Key),
                 ct
             );
-            using var worker = OwnedWorker.Start(state, effects, scenario.Id == "T03" ? new("WaitSignal", "wait-registered") : null);
+            using var worker = OwnedWorker.Start(
+                state,
+                effects,
+                scenario.Id == "signal-during-wait" ? new("WaitSignal", "wait-registered") : null
+            );
             await worker.ReadyAsync(ct);
             var reader = new DurableReader(state);
-            if (scenario.Id == "P05")
+            if (scenario.Id == "last-child-join-race")
             {
                 var boundary = ordering == "before" ? "join-before" : "claim";
                 var reached = await effects.WaitBarrierAsync(boundary, TimeSpan.FromSeconds(30), ct) is not null;
@@ -96,7 +100,7 @@ internal static class RaceCases
                 }
                 await effects.ReleaseAsync(ct);
             }
-            else if (scenario.Id == "T03")
+            else if (scenario.Id == "signal-during-wait")
             {
                 var hit = await effects.WaitBarrierAsync("wait-registered", TimeSpan.FromSeconds(30), ct) is not null;
                 var checkpoints = await jobs.GetCheckpointsAsync(root, ct);

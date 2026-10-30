@@ -1,0 +1,5 @@
+{
+  "title": "Last child against the join",
+  "question": "Whether the last child finishes before or after its parent starts waiting on the join, does the parent always wake and finish with every child counted?",
+  "runner": "race"
+}

@@ -1,0 +1,11 @@
+{
+  "title": "Children in another namespace",
+  "question": "When a job starts ten children in another namespace and joins them, does each child run in that namespace and does the parent finish with all ten counted?",
+  "runner": "verify",
+  "work": [
+    {
+      "children": 10,
+      "child_namespace": "verify-other"
+    }
+  ]
+}

@@ -115,15 +115,30 @@ public static class VerifyCommand
         if (args is [] or ["--help"] or ["-h"])
         {
             Console.WriteLine(
-                "Acta Verify\n  acta-verify --standard|--full|--quick [--db sqlite|pg|mssql|all] [--seed N] [--output DIR] [--case ID] [--cell NAME] [--chaos-jobs N] [--repetitions N] [--preload N] [--use-compose-servers]\n  --quick: small smoke suite; --standard: all cases, short trials; --full: extended repeated campaign\n  --cell: run only the named diagnostic cells of their cases; --repetitions: independent trials per cell; --preload: L04 preloaded roots per provider\n  --use-compose-servers: run PostgreSQL and SQL Server on the acta-dev Compose services instead of owned containers\n  acta-verify replay PLAN [--output DIR]\n  acta-verify report RUN_DIRECTORY\n  acta-verify compare BASELINE_DIRECTORY CANDIDATE_DIRECTORY\n  acta-verify publish RUN_DIRECTORY --to FILE\n  acta-verify list\n  acta-verify cleanup [--yes]: list owned containers and marked b_ databases with sizes; --yes removes them unless another run is active"
+                """
+                Acta Verify runs the written scenarios in Scenarios/ and judges them by the rules in README.md.
+                  acta-verify quick|check|release [--db pg|mssql|sqlite|all] [--scenario NAME]... [--seed N] [--output DIR] [--use-compose-servers] [--dry-run]
+                    quick: a few minutes while changing code; check: every scenario, short; release: the certification record
+                  acta-verify run NAME... [--suite quick|check|release] [same options]: the named scenarios, with the release suite's timings unless --suite says otherwise
+                  acta-verify list: every scenario's title and question
+                  acta-verify replay PLAN [--output DIR]: run a bundle's resolved-plan.json again
+                  acta-verify report RUN_DIRECTORY
+                  acta-verify compare BEFORE_DIRECTORY AFTER_DIRECTORY
+                  acta-verify publish RUN_DIRECTORY --to FILE
+                  acta-verify cleanup [--yes]: list Verify's leftover containers, processes and databases; --yes removes them
+                """
             );
             return 0;
         }
         if (args is ["list"])
         {
-            foreach (var c in Protocol.Catalog().Cases)
+            foreach (var group in ScenarioFiles.All(null).GroupBy(s => s.Group))
             {
-                Console.WriteLine($"{c.Id}  {c.Family, -14} {c.Name}");
+                Console.WriteLine($"{group.Key}:");
+                foreach (var scenario in group)
+                {
+                    Console.WriteLine($"  {scenario.Id}: {scenario.Title}\n    {scenario.Question}");
+                }
             }
             return 0;
         }
@@ -150,116 +165,96 @@ public static class VerifyCommand
             File.Copy(Path.Combine(source, "report.md"), target, overwrite: true);
             return 0;
         }
-        string? profile = null;
-        string db = "all";
-        string output = Path.Combine("artifacts", "verify");
-        int seed = 1729;
-        int? chaosJobs = null;
-        int? repetitions = null;
-        int? preload = null;
+        string? suite = null;
+        var db = "all";
+        var output = Path.Combine("artifacts", "verify");
+        var seed = 1729;
         var useComposeServers = false;
-        List<string> cases = [];
-        List<string> requestedCells = [];
+        var dryRun = false;
+        List<string> scenarios = [];
         RunPlan? replay = null;
-        var start = 0;
-        if (args is ["replay", var planFile, ..])
+        var start = 1;
+        switch (args)
         {
-            replay =
-                JsonSerializer.Deserialize(File.ReadAllText(planFile), VerifyJson.Default.RunPlan)
-                ?? throw new ArgumentException("Invalid plan.");
-            if (replay.ProtocolSha256 != Protocol.Plan("full", ["sqlite"], seed).ProtocolSha256)
-            {
-                throw new ArgumentException("Replay protocol hash does not match this executable.");
-            }
-            start = 2;
+            case ["replay", var planFile, ..]:
+                replay =
+                    JsonSerializer.Deserialize(File.ReadAllText(planFile), VerifyJson.Default.RunPlan)
+                    ?? throw new ArgumentException("Invalid plan.");
+                if (replay.ProtocolSha256 != Protocol.StandardHash())
+                {
+                    throw new ArgumentException("The plan was written by a build with other scenario files; replay it with that build.");
+                }
+                start = 2;
+                break;
+            case [var name, ..] when ScenarioFiles.SuiteNames().Contains(name):
+                suite = args[0];
+                break;
+            case ["run", ..]:
+                suite = "release";
+                for (; start < args.Length && !args[start].StartsWith("--", StringComparison.Ordinal); start++)
+                {
+                    scenarios.Add(args[start]);
+                }
+                if (scenarios.Count == 0)
+                {
+                    throw new ArgumentException("Name the scenarios to run; acta-verify list names every one.");
+                }
+                break;
+            default:
+                throw new ArgumentException("Unknown command: " + args[0] + ". acta-verify --help lists the commands.");
         }
         for (var i = start; i < args.Length; i++)
         {
             if (replay is not null && args[i] != "--output")
             {
-                throw new ArgumentException("Replay consumes the frozen plan; only --output may be overridden.");
+                throw new ArgumentException("Replay runs the frozen plan; only --output may be overridden.");
             }
             switch (args[i])
             {
-                case "--full":
-                    profile = "full";
-                    break;
-                case "--quick":
-                    profile = "quick";
-                    break;
-                case "--standard":
-                    profile = "standard";
-                    break;
                 case "--db":
                     db = Value(args, ref i);
                     break;
                 case "--seed":
                     seed = int.Parse(Value(args, ref i), CultureInfo.InvariantCulture);
                     break;
-                case "--chaos-jobs":
-                    chaosJobs = int.Parse(Value(args, ref i), CultureInfo.InvariantCulture);
-                    break;
-                case "--repetitions":
-                    repetitions = int.Parse(Value(args, ref i), CultureInfo.InvariantCulture);
-                    break;
-                case "--preload":
-                    preload = int.Parse(Value(args, ref i), CultureInfo.InvariantCulture);
-                    break;
                 case "--output":
                     output = Value(args, ref i);
                     break;
-                case "--cell":
-                    requestedCells.Add(Value(args, ref i));
+                case "--scenario":
+                    scenarios.Add(Value(args, ref i));
                     break;
-                case "--case":
-                    cases.Add(Value(args, ref i));
+                case "--suite" when args[0] == "run":
+                    suite = Value(args, ref i);
                     break;
                 case "--use-compose-servers":
                     useComposeServers = true;
+                    break;
+                case "--dry-run":
+                    dryRun = true;
                     break;
                 default:
                     throw new ArgumentException("Unknown option: " + args[i]);
             }
         }
-        if (requestedCells.Count > 0)
-        {
-            if (replay is not null)
-            {
-                throw new ArgumentException("Replay does not allow cell scope overrides.");
-            }
-            var available = Protocol.Plan(profile ?? "quick", ["sqlite"], seed).DiagnosticCells;
-            if (requestedCells.Any(name => !available.Any(c => c.Name == name)))
-            {
-                throw new ArgumentException("Unknown diagnostic cell. See the frozen diagnostic_cells catalogue in resolved-plan.json.");
-            }
-            cases.AddRange(available.Where(c => requestedCells.Contains(c.Name, StringComparer.Ordinal)).Select(c => c.CaseId));
-        }
         var plan = replay is null
-            ? Protocol.Plan(
-                profile ?? throw new ArgumentException("Choose --standard, --full, or --quick explicitly."),
-                db == "all" ? ["sqlite", "pg", "mssql"] : [db],
-                seed,
-                [.. cases]
-            )
+            ? Protocol.Plan(suite!, db == "all" ? Protocol.AllProviders : [db], seed, [.. scenarios]) with
+            {
+                UseComposeServers = useComposeServers,
+            }
             : replay with
             {
                 RunId = $"{DateTime.UtcNow:yyyyMMddTHHmmssfffZ}-{Guid.NewGuid():N}",
             };
-        if (chaosJobs is < 1 || repetitions is < 1 || preload is < 1)
+        // A replay runs a plan another process wrote; this build must plan exactly the same.
+        if (replay is not null)
         {
-            throw new ArgumentException("--chaos-jobs, --repetitions and --preload must be positive counts.");
+            Protocol.Validate(plan);
         }
-        plan = plan with
+        if (dryRun)
         {
-            RequestedDiagnosticCells = replay?.RequestedDiagnosticCells ?? requestedCells,
-            ChaosJobs = chaosJobs ?? plan.ChaosJobs,
-            UseComposeServers = replay?.UseComposeServers ?? useComposeServers,
-            Repetitions = repetitions ?? plan.Repetitions,
-            PreloadedBacklogRoots = preload is { } roots
-                ? plan.PreloadedBacklogRoots.ToDictionary(p => p.Key, _ => roots, StringComparer.Ordinal)
-                : plan.PreloadedBacklogRoots,
-        };
-        Protocol.Validate(plan);
+            Console.WriteLine(DryRun.Describe(plan, output));
+            return 0;
+        }
         if (!await CleanStart.CheckAsync(plan.MeasurementGatesVerdict, ct))
         {
             return 3;

@@ -1,0 +1,5 @@
+{
+  "title": "Signal against a wait timeout",
+  "question": "When a signal and a wait's timeout race, does the job keep exactly one outcome, signalled if the signal lands first and expired if the timeout does?",
+  "runner": "race"
+}

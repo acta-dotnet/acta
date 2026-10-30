@@ -4,79 +4,54 @@ using System.Text.Json.Serialization;
 
 namespace Acta.Verify;
 
-public sealed record ScenarioCatalog(string SchemaVersion, string Description, IReadOnlyList<ScenarioDescriptor> Cases);
-
-public sealed record ScenarioDescriptor(
-    string Id,
-    string Family,
-    string Name,
-    string Workload,
-    IReadOnlyList<string> Phases,
-    IReadOnlyList<string> Requirements,
-    bool RequiredInFull,
-    IReadOnlyList<string> SafetyInvariants,
-    IReadOnlyList<string> RequiredEvidence,
-    string Applicability,
-    string? MeasureUnit = null,
-    string? Subject = null
-);
-
-public sealed record TrialCell(
-    string Name,
-    string CaseId,
-    int? Executors = null,
-    int Workers = 1,
-    int? PayloadBytes = null,
-    int Namespaces = 1,
-    int? BatchSize = null
-);
-
+/// <summary>
+/// What a run executes: its suite, the suite's scenarios with its overrides applied, the databases, the seed, and the
+/// harness constants of <c>Protocol/verify.json</c>. A replay runs the scenarios frozen here, not the files of its build.
+/// </summary>
 public sealed record RunPlan(
     string ProtocolId,
     string ProtocolSha256,
     string RunId,
-    string Profile,
+    string SuiteName,
     int Seed,
     IReadOnlyList<string> Providers,
-    IReadOnlyList<ScenarioDescriptor> Cases,
-    int WarmupSeconds,
-    int MeasurementSeconds,
-    int Repetitions,
-    int SoakSeconds,
-    int ObserverCadenceMs,
-    int DrainSeconds,
-    double ReferenceSloMs,
-    JsonElement FullPolicy
+    IReadOnlyList<Scenario> Scenarios,
+    Suite Suite,
+    JsonElement Constants
 )
 {
+    /// <summary>Whether measurement decides scenario statuses and the verdict. Where it does not, it runs and is reported.</summary>
     [JsonIgnore]
-    public bool IsExtended => Profile == "full";
+    public bool MeasurementGatesVerdict => Suite.GatesPerformance;
 
-    /// <summary>
-    /// Whether capacity measurement decides case statuses and the verdict in this plan's profile. Where it does not,
-    /// measurement still runs and is reported, and only correctness decides.
-    /// </summary>
+    /// <summary>The version of the measurement rules; two bundles compare only when theirs match.</summary>
     [JsonIgnore]
-    public bool MeasurementGatesVerdict =>
-        FullPolicy.GetProperty("profiles").GetProperty(Profile).GetProperty("measurement_gates_verdict").GetBoolean();
+    public int MeasurementVersion => (int)Policy("measurement_version");
 
-    /// <summary>Reads the number the frozen protocol declares at <paramref name="path"/>.</summary>
+    [JsonIgnore]
+    public int ObserverCadenceMs => (int)Policy("measurement", "observer_poll_ms");
+
+    [JsonIgnore]
+    public double GeneratorLagToleranceMs => Policy("measurement", "generator_lag_tolerance_ms");
+
+    /// <summary>Reads the number <c>Protocol/verify.json</c> holds at <paramref name="path"/>.</summary>
     public double Policy(params string[] path)
     {
         ArgumentNullException.ThrowIfNull(path);
-        var element = FullPolicy;
+        var element = Constants;
         foreach (var name in path)
         {
-            element = element.GetProperty(name);
+            if (!element.TryGetProperty(name, out element))
+            {
+                throw new InvalidOperationException($"Protocol/verify.json has no {string.Join('.', path)}.");
+            }
         }
         return element.GetDouble();
     }
 
-    /// <summary>Reads the number the frozen protocol declares for this plan's profile.</summary>
-    public double ProfilePolicy(string name) => Policy("profiles", Profile, name);
-
-    /// <summary>The worker processes F09 runs on <paramref name="provider"/> in this plan's profile.</summary>
-    public int ChaosWorkers(string provider) => (int)Policy("profiles", Profile, "chaos_workers", provider);
+    /// <summary>The scenario named <paramref name="name"/>.</summary>
+    public Scenario Scenario(string name) =>
+        Scenarios.FirstOrDefault(s => s.Id == name) ?? throw new ArgumentException($"The plan has no scenario {name}.");
 
     /// <summary>
     /// Seconds a wait for <paramref name="jobs"/> logical jobs may last before it is a liveness failure, by the protocol's
@@ -93,7 +68,7 @@ public sealed record RunPlan(
         return (int)
             Math.Min(
                 Policy("liveness", "deadline_ceiling_seconds"),
-                DrainSeconds + Policy("faults", "reclaim_lease_terms") * leaseSeconds + jobs / rate
+                Policy("liveness", "drain_seconds") + Policy("faults", "reclaim_lease_terms") * leaseSeconds + jobs / rate
             );
     }
 
@@ -167,32 +142,6 @@ public sealed record RunPlan(
         }
     }
 
-    /// <summary>The setting the frozen protocol overrides for this plan's profile; null keeps the product default.</summary>
-    public double? ProfileOverride(string name) =>
-        FullPolicy.GetProperty("profiles").GetProperty(Profile).GetProperty(name) is { ValueKind: not JsonValueKind.Null } value
-            ? value.GetDouble()
-            : null;
-
-    /// <summary>The trials a cell adds when its first <see cref="Repetitions"/> break the dispersion rule.</summary>
-    [JsonIgnore]
-    public int AdditionalRepetitions => (int)Policy("measurement", "additional_repetitions_for_predeclared_instability");
-
-    /// <summary>The independent repetitions of each targeted fault boundary in this plan's profile.</summary>
-    [JsonIgnore]
-    public int TargetedFaultRepetitions => (int)ProfilePolicy("targeted_fault_repetitions");
-
-    public IReadOnlyList<string> RequestedDiagnosticCells { get; init; } = [];
-    public IReadOnlyDictionary<string, int> PreloadedBacklogRoots { get; init; } = new Dictionary<string, int>();
-
-    /// <summary>The enqueue calls a measured trial keeps in flight at most, per provider.</summary>
-    public IReadOnlyDictionary<string, int> ProducerCalls { get; init; } = new Dictionary<string, int>();
-    public int AdmissionBatchSize { get; init; }
-    public double GeneratorLagToleranceMs { get; init; }
-    public IReadOnlyList<TrialCell> DiagnosticCells { get; init; } = [];
-    public int ChaosSeed { get; init; }
-    public int ChaosJobs { get; init; }
-    public IReadOnlyDictionary<string, double> LatencySloMs { get; init; } = new Dictionary<string, double>();
-
     /// <summary>Whether PostgreSQL and SQL Server run on the acta-dev Compose servers instead of owned containers.</summary>
     public bool UseComposeServers { get; init; }
 }
@@ -216,34 +165,24 @@ public sealed record CaseResult(
     Dictionary<string, Metric> Metrics,
     IReadOnlyList<string> Evidence,
     string NativeTopology = "acta",
-    bool Instrumented = false,
-    string? DiagnosticCellName = null
+    bool Instrumented = false
 )
 {
     public static CaseResult Incomplete(string id, string provider, string phase, string reason) =>
         new(id, provider, phase, 0, "INCONCLUSIVE", reason, "UNVERIFIED", "UNVERIFIED", "INCOMPLETE", "NOT_MEASURED", [], []);
 
     /// <summary>
-    /// A gap in capacity measurement: incomplete where the plan's profile gates its verdict on measurement, otherwise a
+    /// A gap in capacity measurement: incomplete where the plan's suite gates its verdict on measurement, otherwise a
     /// not-applicable row that still reports the gap.
     /// </summary>
     public static CaseResult MeasurementGap(RunPlan plan, string id, string provider, string phase, string reason) =>
         plan.MeasurementGatesVerdict
             ? Incomplete(id, provider, phase, reason)
-            : new(
-                id,
-                provider,
-                phase,
-                0,
-                "NOT_APPLICABLE",
-                Verdicts.Informational(plan, reason),
-                "NOT_APPLICABLE",
-                "NOT_APPLICABLE",
-                "NOT_APPLICABLE",
-                "NOT_MEASURED",
-                [],
-                []
-            );
+            : NotApplicable(id, provider, Verdicts.Informational(plan, reason), phase);
+
+    /// <summary>A scenario that does not run on <paramref name="provider"/>, with the reason it says.</summary>
+    public static CaseResult NotApplicable(string id, string provider, string reason, string phase = "skip") =>
+        new(id, provider, phase, 0, "NOT_APPLICABLE", reason, "NOT_APPLICABLE", "NOT_APPLICABLE", "NOT_APPLICABLE", "NOT_MEASURED", [], []);
 }
 
 public sealed record Provenance(
@@ -283,13 +222,14 @@ public sealed record RunResult(
 );
 
 [JsonSourceGenerationOptions(PropertyNamingPolicy = JsonKnownNamingPolicy.SnakeCaseLower)]
-[JsonSerializable(typeof(ScenarioCatalog))]
 [JsonSerializable(typeof(RunPlan))]
 [JsonSerializable(typeof(RunResult))]
 [JsonSerializable(typeof(CaseResult))]
 [JsonSerializable(typeof(CaseResult[]))]
 [JsonSerializable(typeof(PerformanceCellSummary[]))]
-[JsonSerializable(typeof(TrialCell[]))]
+[JsonSerializable(typeof(Suite))]
+[JsonSerializable(typeof(WorkShape[]))]
+[JsonSerializable(typeof(System.Text.Json.Nodes.JsonObject))]
 [JsonSerializable(typeof(Dictionary<string, string>))]
 [JsonSerializable(typeof(ExpectedOutcome[]))]
 [JsonSerializable(typeof(ObservedOutcome[]))]

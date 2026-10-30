@@ -1,0 +1,5 @@
+{
+  "title": "Timed-out attempt that keeps running",
+  "question": "When an attempt times out while its external call keeps running, does the job fail without the late attempt committing a write, while the sink shows the call applied once?",
+  "runner": "timeout-wakeup"
+}

@@ -76,12 +76,10 @@ public static class BundleVerifier
         }
         if (result.Status == "PASS")
         {
-            var missing = plan
-                .Cases.Where(c => c.Family == "harness")
-                .Any(c => !result.Cases.Any(r => r.Id == c.Id && r.Provider == "harness" && r.Status == "PASS"));
-            missing |= plan.Providers.Any(p =>
-                plan.Cases.Where(c => c.Family != "harness").Any(c => !result.Cases.Any(r => r.Provider == p && r.Id == c.Id))
+            var missing = HarnessControls.Names.Any(name =>
+                !result.Cases.Any(r => r.Id == name && r.Provider == "harness" && r.Status == "PASS")
             );
+            missing |= plan.Providers.Any(p => plan.Scenarios.Any(s => !result.Cases.Any(r => r.Provider == p && r.Id == s.Id)));
             missing |= plan.Providers.Any(p => CoveragePolicy.Missing(plan, p, result.Cases).Any(g => g.Status != "NOT_APPLICABLE"));
             if (
                 missing

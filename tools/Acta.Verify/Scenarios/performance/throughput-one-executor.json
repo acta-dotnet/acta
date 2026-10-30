@@ -1,0 +1,18 @@
+{
+  "title": "Throughput, one executor",
+  "question": "Does a worker with a single executor keep up with a modest stream, so the result shows its serial cost?",
+  "runner": "rate-ladder",
+  "executors": 1,
+  "rates": {
+    "pg": [
+      200
+    ],
+    "mssql": [
+      200
+    ],
+    "sqlite": [
+      25
+    ]
+  },
+  "p99_ms": 2000
+}

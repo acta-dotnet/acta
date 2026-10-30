@@ -1,0 +1,11 @@
+{
+  "title": "New work beside retained history",
+  "question": "As the retained history of finished jobs grows, do new jobs still finish with their expected results while every retained job keeps its state and result?",
+  "runner": "storage",
+  "settings": {
+    "populations": [
+      0,
+      100000
+    ]
+  }
+}

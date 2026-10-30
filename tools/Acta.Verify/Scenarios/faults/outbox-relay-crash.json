@@ -1,0 +1,5 @@
+{
+  "title": "Outbox relay crash",
+  "question": "When the outbox relay dies after enqueuing its rows but before clearing them, does a new relay empty the outbox with each job enqueued once and finished?",
+  "runner": "outbox"
+}

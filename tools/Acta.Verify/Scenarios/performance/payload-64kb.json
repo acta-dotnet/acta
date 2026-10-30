@@ -1,0 +1,22 @@
+{
+  "title": "Payloads of 64 KB",
+  "question": "Do jobs carrying a 64 KB payload hold their offered rate with p99 under 2 s?",
+  "runner": "rate-ladder",
+  "work": [
+    {
+      "payload_bytes": 65536
+    }
+  ],
+  "rates": {
+    "pg": [
+      1000
+    ],
+    "mssql": [
+      500
+    ],
+    "sqlite": [
+      20
+    ]
+  },
+  "p99_ms": 2000
+}

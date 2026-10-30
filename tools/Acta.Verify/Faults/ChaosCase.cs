@@ -7,7 +7,7 @@ using Microsoft.Extensions.DependencyInjection;
 namespace Acta.Verify;
 
 /// <summary>
-/// F09, the certification: seeds the crash-recovery mix, kills a worker every few seconds for the chaos window while
+/// The chaos scenario, the certification: seeds the crash-recovery mix, kills a worker every few seconds for the chaos window while
 /// outbox rows stage into a producer database, quiesces, and reconciles every job against its model. The ledger checks
 /// follow in <see cref="LedgerValidation"/>.
 /// </summary>
@@ -17,9 +17,15 @@ internal static class ChaosCase
 
     private sealed record CohortJob(string JobName, WorkInput Work, int? DelaySeconds = null, string? Lane = null, bool High = false);
 
-    public static async Task<CaseResult> RunAsync(RunPlan plan, OwnedProvider environment, EvidenceBundle bundle, CancellationToken ct)
+    public static async Task<CaseResult> RunAsync(
+        RunPlan plan,
+        Scenario scenario,
+        OwnedProvider environment,
+        EvidenceBundle bundle,
+        CancellationToken ct
+    )
     {
-        var tag = $"{environment.Provider}-F09-chaos";
+        var tag = $"{environment.Provider}-chaos";
         var state = environment.Trial(bundle.Resolve($"repro/state/{tag}"));
         var source = new SqliteConnectionStringBuilder { DataSource = bundle.Resolve($"repro/state/{tag}/producer.db") }.ToString();
         await using (var producer = new SqliteConnection(source))
@@ -37,10 +43,10 @@ internal static class ChaosCase
         {
             await host.Services.GetRequiredService<IActaOperations>().Tenants.RegisterAsync(tenant, tenant, ct: ct);
         }
-        var heartbeat = (int?)plan.ProfileOverride("chaos_heartbeat_seconds");
-        var executors = (int?)plan.ProfileOverride("chaos_executors");
-        var workers = plan.ChaosWorkers(environment.Provider);
-        var random = new Random(plan.ChaosSeed);
+        var executors = scenario.Executors;
+        var workers = scenario.Workers[environment.Provider];
+        var size = scenario.Jobs[environment.Provider];
+        var random = new Random(plan.Seed);
         List<OwnedWorker> owned = [];
         try
         {
@@ -52,27 +58,26 @@ internal static class ChaosCase
             var settings = owned[0].Settings!;
             // A killed worker's lease lapses within one lease, and the recovery pass that reclaims it runs once a lease.
             var warmup = (int)(plan.Policy("faults", "reclaim_lease_terms") * settings.LeaseSeconds);
-            var chaos = (int)plan.ProfilePolicy("chaos_seconds");
+            var chaos = scenario.Seconds ?? throw new InvalidOperationException("The chaos scenario writes no seconds.");
             if (chaos <= warmup)
             {
                 return CaseResult.Incomplete(
-                    "F09",
+                    scenario.Id,
                     environment.Provider,
                     "fault",
                     $"The {chaos}s chaos window ends inside the {warmup}s warm-up, so no reclaim could be observed."
                 );
             }
-            var cohort = Cohort(plan, warmup, chaos - warmup);
+            var cohort = Cohort(plan, size, (int)scenario.Setting("step_ms", environment.Provider), warmup, chaos - warmup);
             bundle.Write(
                 $"histories/{tag}-model.json",
                 new Dictionary<string, string>
                 {
-                    ["seed"] = plan.ChaosSeed.ToString(CultureInfo.InvariantCulture),
+                    ["seed"] = plan.Seed.ToString(CultureInfo.InvariantCulture),
                     ["shapes"] = string.Join(", ", cohort.GroupBy(s => s.JobName).Select(g => $"{g.Key} {g.Count()}")),
                     ["warmup_seconds"] = warmup.ToString(CultureInfo.InvariantCulture),
                     ["chaos_seconds"] = chaos.ToString(CultureInfo.InvariantCulture),
                     ["kill"] = "one live worker every kill interval for the chaos window, paused, its in-flight attempts read, then killed",
-                    ["lease_timings"] = heartbeat is null ? "shipped" : "compressed",
                 },
                 VerifyJson.Default.DictionaryStringString
             );
@@ -105,7 +110,7 @@ internal static class ChaosCase
             );
             var outboxRows = (int)
                 Math.Clamp(
-                    plan.ChaosJobs * plan.Policy("faults", "chaos_mix", "outbox_fraction"),
+                    size * plan.Policy("faults", "chaos_mix", "outbox_fraction"),
                     plan.Policy("faults", "chaos_mix", "outbox_rows_min"),
                     plan.Policy("faults", "chaos_mix", "outbox_rows_cap")
                 );
@@ -158,7 +163,7 @@ internal static class ChaosCase
                             !victim.IsRunning,
                             false,
                             Provider: environment.Provider,
-                            CaseId: "F09",
+                            CaseId: scenario.Id,
                             RecordedAtUtc: DateTimeOffset.UtcNow
                         ),
                         VerifyJson.Default.FaultEvidence
@@ -248,14 +253,8 @@ internal static class ChaosCase
                 .ToHashSet(StringComparer.Ordinal);
             var safe = OutcomeCheck.SafetyFailures(checks.Where(c => c.Code != "outbox-drained"), unresolved, _ => true).Length == 0;
             var live = quiesced && producerCounts.Pending == 0;
-            var covered = refused == 0 && recoveredHits >= plan.ProfilePolicy("chaos_minimum_busy_kills");
+            var covered = refused == 0 && recoveredHits >= scenario.Setting("busy_kills", environment.Provider);
             List<string> limits = [];
-            if (heartbeat is not null)
-            {
-                limits.Add(
-                    $"Compressed lease timings (heartbeat {settings.HeartbeatSeconds}s, lease {settings.LeaseSeconds}s): this run tests the harness and does not certify the shipped configuration."
-                );
-            }
             if (environment.Provider == "sqlite")
             {
                 limits.Add(
@@ -263,7 +262,7 @@ internal static class ChaosCase
                 );
             }
             return new(
-                "F09",
+                scenario.Id,
                 environment.Provider,
                 "fault",
                 0,
@@ -282,7 +281,7 @@ internal static class ChaosCase
                 "NOT_MEASURED",
                 new()
                 {
-                    ["intended_roots"] = new(plan.ChaosJobs, "roots"),
+                    ["intended_roots"] = new(size, "roots"),
                     ["acknowledged_roots"] = new(acknowledged, "roots"),
                     ["staged_outbox_operations"] = new(producerCounts.Operations, "operations"),
                     ["delivered_outbox_jobs"] = new(delivered, "jobs"),
@@ -315,7 +314,8 @@ internal static class ChaosCase
             }
         }
 
-        OwnedWorker Start() => OwnedWorker.Start(state, outboxSource: source, executors: executors, heartbeatSeconds: heartbeat);
+        // Chaos certifies the shipped lease timings, not the fault scenarios' compressed heartbeat.
+        OwnedWorker Start() => OwnedWorker.Start(state, outboxSource: source, executors: executors, heartbeatSeconds: null);
     }
 
     /// <summary>
@@ -323,24 +323,22 @@ internal static class ChaosCase
     /// jobs. The meters come due together at the warm-up's end and the lanes and charges spread over the rest of the
     /// chaos window, where a kill can interrupt them and its reclaim be observed.
     /// </summary>
-    private static CohortJob[] Cohort(RunPlan plan, int warmup, int spread)
+    private static CohortJob[] Cohort(RunPlan plan, int jobs, int stepMs, int warmup, int spread)
     {
         double Mix(string name) => plan.Policy("faults", "chaos_mix", name);
-        var stepMs = (int)plan.ProfilePolicy("chaos_step_ms");
-        var slice = (int)(plan.ChaosJobs * Mix("shape_fraction"));
+        var slice = (int)(jobs * Mix("shape_fraction"));
         var laneDepth = (int)Mix("lane_depth");
+        var slowSteps = (int)Mix("slow_steps");
         var metered = Math.Min(Math.Max(3, slice), (int)Mix("metered_roots_cap"));
         var laned = Math.Min(Math.Max(laneDepth, slice), (int)Mix("laned_roots_cap"));
         var lanes = Math.Max(1, laned / laneDepth);
         var charges = Math.Max(1, slice);
-        var slow = Math.Max(0, plan.ChaosJobs - metered - laned - charges);
+        var slow = Math.Max(0, jobs - metered - laned - charges);
         List<CohortJob> cohort =
         [
-            .. Enumerable
-                .Range(0, slow)
-                .Select(i => new CohortJob("slow-success", new($"slow-{i}", Steps: (int)Mix("slow_steps"), WorkMs: stepMs))),
+            .. Enumerable.Range(0, slow).Select(i => new CohortJob("slow-success", new($"slow-{i}", Steps: slowSteps, WorkMs: stepMs))),
         ];
-        var meters = plan.FullPolicy.GetProperty("faults").GetProperty("chaos_mix").GetProperty("meter_shares").EnumerateObject().ToArray();
+        var meters = plan.Constants.GetProperty("faults").GetProperty("chaos_mix").GetProperty("meter_shares").EnumerateObject().ToArray();
         var remaining = metered;
         for (var m = 0; m < meters.Length; m++)
         {
@@ -420,7 +418,7 @@ internal static class ChaosCase
         }
         catch (Exception ex) when (ex is not OperationCanceledException)
         {
-            Console.WriteLine($"  F09 outbox staging stopped early ({ex.GetType().Name}: {ex.Message}).");
+            Console.WriteLine($"  chaos outbox staging stopped early ({ex.GetType().Name}: {ex.Message}).");
         }
     }
 

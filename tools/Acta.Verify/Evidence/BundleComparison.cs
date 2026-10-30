@@ -47,23 +47,13 @@ internal static class BundleComparison
         var compatible =
             a.Provenance.ProtocolSha256 == b.Provenance.ProtocolSha256
             && a.Durability == b.Durability
-            && pa.Profile == pb.Profile
+            && pa.SuiteName == pb.SuiteName
             && pa.Seed == pb.Seed
-            && pa.WarmupSeconds == pb.WarmupSeconds
-            && pa.MeasurementSeconds == pb.MeasurementSeconds
-            && pa.Repetitions == pb.Repetitions
-            && pa.ObserverCadenceMs == pb.ObserverCadenceMs
-            && pa.ProducerCalls.OrderBy(p => p.Key, StringComparer.Ordinal)
-                .SequenceEqual(pb.ProducerCalls.OrderBy(p => p.Key, StringComparer.Ordinal))
-            && pa.ReferenceSloMs == pb.ReferenceSloMs
-            && pa.LatencySloMs.OrderBy(p => p.Key, StringComparer.Ordinal)
-                .SequenceEqual(pb.LatencySloMs.OrderBy(p => p.Key, StringComparer.Ordinal))
-            && pa.PreloadedBacklogRoots.OrderBy(p => p.Key, StringComparer.Ordinal)
-                .SequenceEqual(pb.PreloadedBacklogRoots.OrderBy(p => p.Key, StringComparer.Ordinal))
+            && pa.MeasurementVersion == pb.MeasurementVersion
             && pa.Providers.Order(StringComparer.Ordinal).SequenceEqual(pb.Providers.Order(StringComparer.Ordinal))
-            && pa.Cases.Select(c => c.Id)
+            && pa.Scenarios.Select(c => c.Id)
                 .Order(StringComparer.Ordinal)
-                .SequenceEqual(pb.Cases.Select(c => c.Id).Order(StringComparer.Ordinal))
+                .SequenceEqual(pb.Scenarios.Select(c => c.Id).Order(StringComparer.Ordinal))
             && MachineKeys.All(k => ea.ContainsKey(k) && ea.GetValueOrDefault(k) == eb.GetValueOrDefault(k));
         foreach (var provider in pa.Providers)
         {
@@ -80,13 +70,13 @@ internal static class BundleComparison
         }
         var compared = 0;
         var regressions = 0;
-        var candidates = PerformanceSummary.Create(pb, b.Cases).Where(c => c.Validated).ToLookup(Key);
+        var candidates = PerformanceSummary.Create(pb, b.Cases).Where(c => c.Held).ToLookup(Key);
         Console.WriteLine(
             Invariant(
                 $"Acta evidence comparison: candidate ({b.Status}) versus baseline ({a.Status}). A regression is a cell validated only in the baseline, or a capacity drop or p99 rise beyond {Tolerance * 100:0}%."
             )
         );
-        foreach (var cells in PerformanceSummary.Create(pa, a.Cases).Where(c => c.Validated).GroupBy(Key))
+        foreach (var cells in PerformanceSummary.Create(pa, a.Cases).Where(c => c.Held).GroupBy(Key))
         {
             var others = candidates[cells.Key].ToArray();
             var (before, after) = (Capacity(cells), Capacity(others));
@@ -108,7 +98,7 @@ internal static class BundleComparison
             compared++;
             regressions += regressed ? 1 : 0;
             Console.WriteLine(
-                Invariant($"{cells.Key.Provider, -6} {cells.Key.Case, -4} {cells.Key.Cell, -20} {line}{(regressed ? "  REGRESSION" : "")}")
+                Invariant($"{cells.Key.Provider, -6} {cells.Key.Case, -36} {cells.Key.Phase, -8} {line}{(regressed ? "  REGRESSION" : "")}")
             );
         }
         if (compared == 0)
@@ -122,7 +112,7 @@ internal static class BundleComparison
         return regressions > 0 ? 1 : 0;
     }
 
-    private static (string Provider, string Case, string Cell) Key(PerformanceCellSummary c) => (c.Provider, c.CaseId, c.CellName);
+    private static (string Provider, string Case, string Phase) Key(PerformanceCellSummary c) => (c.Provider, c.CaseId, c.Phase);
 
     private static double Capacity(IEnumerable<PerformanceCellSummary> cells) =>
         cells.Select(c => c.OfferedRate > 0 ? c.OfferedRate : c.MedianCompletedRate ?? 0).DefaultIfEmpty(0).Max();

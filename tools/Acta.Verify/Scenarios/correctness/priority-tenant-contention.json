@@ -1,0 +1,5 @@
+{
+  "title": "Priority across tenants",
+  "question": "With one executor and a backlog that mixes priorities across two tenants, does every high-priority job start before any normal one, and does each job keep its tenant?",
+  "runner": "scheduling"
+}

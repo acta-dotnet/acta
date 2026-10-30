@@ -1,0 +1,25 @@
+{
+  "title": "Parked work alongside",
+  "question": "With a large population of jobs parked on signals, does the stream hold its rate with p99 under 2 s?",
+  "runner": "rate-ladder",
+  "rates": {
+    "pg": [
+      5000
+    ],
+    "mssql": [
+      640
+    ],
+    "sqlite": [
+      40
+    ]
+  },
+  "p99_ms": 2000,
+  "settings": {
+    "background_state": "waiting",
+    "background": {
+      "pg": 50000,
+      "mssql": 50000,
+      "sqlite": 100
+    }
+  }
+}

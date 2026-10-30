@@ -1,0 +1,5 @@
+{
+  "title": "Retention of a waiting parent's children",
+  "question": "Under a zero-second retention policy, do the finished children of a parent that is still waiting survive the purges, so the parent resumes with its expected result and is removed only after it finishes?",
+  "runner": "storage"
+}

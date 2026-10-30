@@ -54,7 +54,7 @@ Every case follows these rules.
 4. **Seed outside the window, fast.** Preloaded and background populations go in through the enqueue API with `measurement.preload_producers` concurrent batch producers, before any measurement starts.
 5. **Wait on conditions, never fixed sleeps.** A trial's drain ends when its count reaches zero or its liveness deadline passes.
 6. **Evidence is compact.** Every trial writes aggregates: checks, histograms, backlog, window, progress, ledger verdicts and settings. Per-job rows are written only for a trial that did not pass, and only for the identities it could not verify.
-7. **Workers run on the performance cores.** On a hybrid CPU under Windows, owned worker processes are pinned to the logical processors of the highest efficiency class (`measurement.runtime.pin_workers_to_performance_cores`), because the scheduler otherwise places whole workers on efficiency cores and the same trial lands in a slow or a fast mode. `environment.json` records the topology and whether the pin applied.
+7. **Workers run on the performance cores.** On a hybrid CPU under Windows, owned worker processes are pinned to the logical processors of the highest efficiency class (`measurement.pin_workers_to_performance_cores` in `Protocol/verify.json`), because the scheduler otherwise places whole workers on efficiency cores and the same trial lands in a slow or a fast mode. `environment.json` records the topology and whether the pin applied.
 
 ## Commands
 
@@ -81,7 +81,7 @@ acta-verify list
 - **SQLite:** each trial gets a fresh file.
 - **PostgreSQL and SQL Server:**
   - A run starts its own loopback-bound container with random credentials and an ownership label, one at a time, and creates a fresh `b_` database in it.
-  - The container's memory cap is 2/3 of the Docker VM's memory, at most 32 GB; a run refuses to start below 8 GB. `Protocol/full.v1.json` (`provisioning.owned_server`) holds the server settings sized from it.
+  - The container's memory cap is 2/3 of the Docker VM's memory, at most 32 GB; a run refuses to start below 8 GB. `Protocol/verify.json` (`provisioning.owned_server`) holds the server settings sized from it.
   - After setup the run reads the effective server settings back; any difference from what it requested is a harness error before any case runs. `environment.json` and the report record the Docker VM, the cap, and the readback.
   - `--use-compose-servers` runs on the `acta-dev` Docker Compose services instead, creating a fresh `b_` database carrying an ownership marker.
   - Database-crash cases always use their own container.
@@ -108,7 +108,6 @@ acta-verify list
 
 ## Protocol
 
-- `Protocol/full.v1.json` holds every number the runner uses: the profiles, the measurement policy, the liveness and fault terms, the capacity limits, and the owned database servers' sizing.
-- `Protocol/scenario-catalog.v1.json` holds the cases.
-- `Protocol/result.schema.v1.json` holds the result format.
-- A plan's hash covers all three, and a plan must equal what this build would resolve.
+- `Scenarios/<group>/<name>.json` holds one scenario each: its question, runner, workload, topology, written rates and target. `Suites/*.json` order them with their timings and passes.
+- `Protocol/verify.json` holds the harness constants: the measurement, liveness and fault terms, the capacity limits, and the owned database servers' sizing.
+- A plan's hash covers all of them, and a plan must equal what this build would resolve.

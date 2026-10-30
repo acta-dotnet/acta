@@ -1,0 +1,12 @@
+{
+  "title": "Drain, one worker",
+  "question": "How fast does one worker run and durably complete a backlog enqueued before it starts?",
+  "runner": "drain",
+  "calls": 8,
+  "jobs_per_call": 1000,
+  "jobs": {
+    "pg": 200000,
+    "mssql": 200000,
+    "sqlite": 50000
+  }
+}

@@ -48,19 +48,16 @@ public static class ServerTuning
         };
 
     /// <summary>
-    /// The connections an owned PostgreSQL server allows: the most worker processes the plan runs at once, each on the
-    /// drivers default pool of 100, the controllers enqueue pool, and a margin for the observer, the ledger checks and
-    /// the readback. A normal trial opens a fraction of it; the chaos fleet is what needs the headroom.
+    /// The connections an owned PostgreSQL server allows: the most worker processes a planned scenario runs at once, each
+    /// on the driver's default pool of 100, the controller's enqueue pool for the most calls a scenario keeps in flight,
+    /// and a margin for the observer, the ledger checks and the readback. A normal trial opens a fraction of it.
     /// </summary>
     public static int MaxConnections(RunPlan plan)
     {
         ArgumentNullException.ThrowIfNull(plan);
-        var cellWorkers = plan
-            .DiagnosticCells.Where(c => plan.IsExtended || plan.RequestedDiagnosticCells.Contains(c.Name))
-            .Select(c => c.Workers)
-            .DefaultIfEmpty(1)
-            .Max();
-        return Math.Max(plan.ChaosWorkers("pg"), cellWorkers) * 100 + OwnedProvider.EnqueuePoolSize(plan.ProducerCalls["pg"]) + 64;
+        var workers = plan.Scenarios.Select(s => s.Workers.GetValueOrDefault("pg", 1)).DefaultIfEmpty(1).Max();
+        var calls = plan.Scenarios.Select(s => ScenarioRunner.Calls(plan, s, "pg")).DefaultIfEmpty(0).Max();
+        return workers * 100 + OwnedProvider.EnqueuePoolSize(calls) + 64;
     }
 
     /// <summary>The server settings an owned SQL Server container is configured with, as its readback names them.</summary>

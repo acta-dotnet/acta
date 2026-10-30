@@ -1,0 +1,25 @@
+{
+  "title": "Transient failure and retry",
+  "question": "With one job in four failing twice before it succeeds, does the stream hold its rate with p99 under 10 s?",
+  "runner": "rate-ladder",
+  "work": [
+    {
+      "failures": 2
+    },
+    {},
+    {},
+    {}
+  ],
+  "rates": {
+    "pg": [
+      5000
+    ],
+    "mssql": [
+      2500
+    ],
+    "sqlite": [
+      40
+    ]
+  },
+  "p99_ms": 10000
+}

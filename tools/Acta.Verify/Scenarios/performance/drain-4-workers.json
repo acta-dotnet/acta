@@ -1,0 +1,13 @@
+{
+  "title": "Drain, four workers",
+  "question": "How fast do four workers over two namespaces drain a backlog enqueued before they start?",
+  "runner": "drain",
+  "workers": 4,
+  "namespaces": 2,
+  "calls": 8,
+  "jobs_per_call": 1000,
+  "jobs": {
+    "pg": 200000,
+    "mssql": 200000
+  }
+}

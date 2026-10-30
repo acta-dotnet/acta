@@ -1,0 +1,5 @@
+{
+  "title": "One-slot concurrency key",
+  "question": "When 30 jobs share a concurrency key with one slot, does at most one of them run at any moment?",
+  "runner": "scheduling"
+}

@@ -1,0 +1,11 @@
+{
+  "title": "Parent dies during fan-out",
+  "question": "When a parent's worker dies after four of its ten children exist, does recovery end with exactly the ten expected children, no duplicates, and the parent's expected result?",
+  "runner": "fault",
+  "work": [
+    {
+      "children": 10,
+      "boundary": "children"
+    }
+  ]
+}

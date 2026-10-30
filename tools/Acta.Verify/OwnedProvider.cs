@@ -35,7 +35,7 @@ internal sealed class OwnedProvider : IAsyncDisposable
     /// </summary>
     public Dictionary<string, string> ServerSpecs { get; } = new(StringComparer.Ordinal);
 
-    /// <summary>The slowest canonical L04 drain this provider measured in the run, in jobs a second; trials inherit it.</summary>
+    /// <summary>The slowest drain trial this provider measured in the run, in jobs a second; trials inherit it.</summary>
     public double? DrainRate { get; set; }
 
     /// <summary>The trial's tag: the name of its state directory.</summary>

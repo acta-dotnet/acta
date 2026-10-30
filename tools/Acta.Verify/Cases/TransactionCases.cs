@@ -6,7 +6,7 @@ internal static class TransactionCases
 {
     public static async Task<CaseResult> RunAsync(
         RunPlan plan,
-        ScenarioDescriptor scenario,
+        Scenario scenario,
         OwnedProvider environment,
         EvidenceBundle bundle,
         CancellationToken ct,
@@ -36,7 +36,7 @@ internal static class TransactionCases
                 new EnqueueJobRequest("verify", "work", JobPayload.Json(input, WorkJson.Default.WorkInput), DeduplicationKey: input.Key),
                 ct
             );
-            if (scenario.Id == "I01")
+            if (scenario.Id == "transactional-enqueue-commit")
             {
                 await transaction.CommitAsync(ct);
             }
@@ -48,7 +48,7 @@ internal static class TransactionCases
         using var worker = OwnedWorker.Start(state);
         await worker.ReadyAsync(ct);
         var reader = new DurableReader(state);
-        if (scenario.Id == "I01")
+        if (scenario.Id == "transactional-enqueue-commit")
         {
             await FaultCaseRunner.WaitAsync(
                 async () => (await jobs.GetAsync(JobLookup.ByDeduplicationKey("verify", "root"), ct))?.Status == JobStatusCode.Succeeded,
@@ -57,7 +57,7 @@ internal static class TransactionCases
             );
         }
         var actual = await reader.OutcomesAsync(ct);
-        ExpectedOutcome[] expected = scenario.Id == "I01" ? WorkloadModel.Expected([new("root")]) : [];
+        ExpectedOutcome[] expected = scenario.Id == "transactional-enqueue-commit" ? WorkloadModel.Expected([new("root")]) : [];
         var checks = OutcomeCheck.Reconcile(expected, actual).ToList();
         await using (var connection = await state.OpenAsync(ct))
         {
@@ -73,7 +73,9 @@ internal static class TransactionCases
                 new(
                     "domain-transaction",
                     "root",
-                    scenario.Id == "I01" ? obligations.Count == 1 && obligations[0] == "root" : obligations.Count == 0,
+                    scenario.Id == "transactional-enqueue-commit"
+                        ? obligations.Count == 1 && obligations[0] == "root"
+                        : obligations.Count == 0,
                     "Independently reconnected domain table agrees with the committed/rolled-back obligation model."
                 )
             );

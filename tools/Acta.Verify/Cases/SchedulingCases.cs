@@ -6,7 +6,7 @@ internal static class SchedulingCases
 {
     public static async Task<CaseResult> RunAsync(
         RunPlan plan,
-        ScenarioDescriptor scenario,
+        Scenario scenario,
         OwnedProvider environment,
         EvidenceBundle bundle,
         CancellationToken ct
@@ -17,29 +17,29 @@ internal static class SchedulingCases
         using var host = await RuntimeHost.StartAsync(state.Provider, state.ConnectionString, state.Schema, false, true, ct);
         var jobs = host.Services.GetRequiredService<IJobs>();
         var operations = host.Services.GetRequiredService<IActaOperations>();
-        if (scenario.Id == "O05")
+        if (scenario.Id == "rate-meters")
         {
             var definition =
                 await operations.Definitions.GetAsync("verify", "work", ct)
                 ?? throw new InvalidOperationException("Missing workload definition.");
             await operations.Definitions.UpdateOverridesAsync("verify", "work", definition.Version, new(RateLimit: "10/s"), ct: ct);
         }
-        if (scenario.Id == "O04")
+        if (scenario.Id == "priority-tenant-contention")
         {
             await operations.Tenants.RegisterAsync("one", "Tenant one", ct: ct);
             await operations.Tenants.RegisterAsync("two", "Tenant two", ct: ct);
         }
-        // O05 offers more roots than its widest window's budget, so a meter that over-admits fails every window.
+        // rate-meters offers more jobs than its widest window's budget, so a meter that over-admits fails every window.
         var count =
-            scenario.Id == "O01" ? 2000
-            : scenario.Id == "O05" ? 150
+            scenario.Id == "lane-order-many" ? 2000
+            : scenario.Id == "rate-meters" ? 150
             : 30;
         var input = Enumerable
             .Range(0, count)
             .Select(i => new WorkInput(
                 $"root-{i}",
-                WorkMs: scenario.Id == "O02" && i == 0 ? 250 : 10,
-                Failures: scenario.Id == "O02" && i == 0 ? 1 : 0,
+                WorkMs: scenario.Id == "lane-order-hot" && i == 0 ? 250 : 10,
+                Failures: scenario.Id == "lane-order-hot" && i == 0 ? 1 : 0,
                 Witness: true
             ))
             .ToArray();
@@ -47,8 +47,8 @@ internal static class SchedulingCases
         for (var i = 0; i < input.Length; i++)
         {
             var lane =
-                scenario.Id == "O01" ? $"lane-{i % 1000}"
-                : scenario.Id == "O02" ? "hot"
+                scenario.Id == "lane-order-many" ? $"lane-{i % 1000}"
+                : scenario.Id == "lane-order-hot" ? "hot"
                 : null;
             var request = new EnqueueJobRequest(
                 "verify",
@@ -56,9 +56,9 @@ internal static class SchedulingCases
                 JobPayload.Json(input[i], WorkJson.Default.WorkInput),
                 DeduplicationKey: input[i].Key,
                 Lane: lane,
-                ConcurrencyKey: scenario.Id == "O03" ? "hot" : null,
-                Priority: scenario.Id == "O04" && i % 2 == 0 ? JobPriorityCode.High : JobPriorityCode.Normal,
-                TenantName: scenario.Id == "O04"
+                ConcurrencyKey: scenario.Id == "concurrency-key-limit" ? "hot" : null,
+                Priority: scenario.Id == "priority-tenant-contention" && i % 2 == 0 ? JobPriorityCode.High : JobPriorityCode.Normal,
+                TenantName: scenario.Id == "priority-tenant-contention"
                     ? i % 3 == 0
                         ? "two"
                         : "one"
@@ -67,7 +67,13 @@ internal static class SchedulingCases
             admitted.Add((input[i], await jobs.EnqueueAsync(request, ct), lane));
         }
         using var workers = new OwnedWorkerPool();
-        await workers.StartAsync(state, null, scenario.Id == "O05" ? 2 : 1, scenario.Id == "O04" ? 1 : null, ct);
+        await workers.StartAsync(
+            state,
+            null,
+            scenario.Id == "rate-meters" ? 2 : 1,
+            scenario.Id == "priority-tenant-contention" ? 1 : null,
+            ct
+        );
         var reader = new DurableReader(state);
         await plan.DrainAsync(async () => (await reader.UnfinishedRootsAsync(0, ct)).Count, plan.Deadline(count, 0, state.DrainRate), ct);
         var actual = await reader.OutcomesAsync(ct);
@@ -82,7 +88,7 @@ internal static class SchedulingCases
                 "Every root left an independent durable entry witness."
             )
         );
-        if (scenario.Id is "O01" or "O02")
+        if (scenario.Id is "lane-order-many" or "lane-order-hot")
         {
             // Note ids are assigned in insert order, and a member's end note commits before the completion that
             // promotes the next member, so the ids order the two notes without a clock.
@@ -106,7 +112,7 @@ internal static class SchedulingCases
                 );
             }
         }
-        if (scenario.Id == "O03")
+        if (scenario.Id == "concurrency-key-limit")
         {
             var concurrency = 0;
             var maximum = 0;
@@ -124,7 +130,7 @@ internal static class SchedulingCases
                 )
             );
         }
-        if (scenario.Id == "O04")
+        if (scenario.Id == "priority-tenant-contention")
         {
             var starts = entries
                 .Select(e => int.Parse(e.Message!.AsSpan("begin root-".Length), System.Globalization.CultureInfo.InvariantCulture))
@@ -151,7 +157,7 @@ internal static class SchedulingCases
                 );
             }
         }
-        if (scenario.Id == "O05")
+        if (scenario.Id == "rate-meters")
         {
             var times = entries.Select(e => e.CreatedAtUtc).Order().ToArray();
             foreach (var window in new[] { 1, 5, 10 })
@@ -181,7 +187,7 @@ internal static class SchedulingCases
             "verify",
             0,
             passed ? "PASS" : "FAIL",
-            scenario.Id == "O04" ? "Finite strict-priority/tenant contention; no starvation-freedom claim." : null,
+            scenario.Id == "priority-tenant-contention" ? "Finite strict-priority/tenant contention; no starvation-freedom claim." : null,
             passed ? "PASS" : "FAIL",
             passed ? "PASS" : "UNVERIFIED",
             "COMPLETE",

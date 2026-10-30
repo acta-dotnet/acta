@@ -1,0 +1,22 @@
+{
+  "title": "Sustained throughput, one worker",
+  "question": "How many jobs per second does one worker process of default executors run and durably complete, one job per enqueue call, with a flat backlog and p99 under 2 s?",
+  "headline": "Throughput, one worker",
+  "runner": "rate-ladder",
+  "rates": {
+    "pg": [
+      5000,
+      7500,
+      10000,
+      12500,
+      15000
+    ],
+    "mssql": [
+      2500,
+      5000,
+      7500,
+      10000
+    ]
+  },
+  "p99_ms": 2000
+}

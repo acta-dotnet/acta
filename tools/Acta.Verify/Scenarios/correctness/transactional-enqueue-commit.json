@@ -1,0 +1,5 @@
+{
+  "title": "Enqueue in a committed transaction",
+  "question": "When a job is enqueued in the same transaction as an application row and the transaction commits, do both the row and the job exist, and does the job finish with its expected result?",
+  "runner": "transaction"
+}

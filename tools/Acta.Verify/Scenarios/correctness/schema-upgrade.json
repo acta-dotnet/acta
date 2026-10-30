@@ -1,0 +1,6 @@
+{
+  "title": "Schema upgrade from a supported release",
+  "question": "Does upgrading from a supported earlier schema to the current one keep live jobs and their state valid?",
+  "runner": "registration",
+  "skip": "Acta ships one baseline migration per database and no earlier supported release to upgrade from."
+}

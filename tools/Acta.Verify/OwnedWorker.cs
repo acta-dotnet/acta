@@ -27,20 +27,20 @@ internal sealed class OwnedWorker : IDisposable
     /// </summary>
     public const int FaultHeartbeatSeconds = 1;
 
-    private static readonly JsonNode Runtime = JsonNode.Parse(Protocol.Read("full.v1.json"))!["measurement"]!["runtime"]!;
+    private static readonly JsonNode Measurement = JsonNode.Parse(Protocol.Read("verify.json"))!["measurement"]!;
 
     /// <summary>
-    /// How long a started process may take to report ready, the protocol's <c>measurement.runtime.worker_ready_seconds</c>.
+    /// How long a started process may take to report ready, the protocol's <c>measurement.worker_ready_seconds</c>.
     /// A start queued behind a busy database is slow, not a harness failure.
     /// </summary>
-    private static readonly TimeSpan ReadyTimeout = TimeSpan.FromSeconds(Runtime["worker_ready_seconds"]!.GetValue<double>());
+    private static readonly TimeSpan ReadyTimeout = TimeSpan.FromSeconds(Measurement["worker_ready_seconds"]!.GetValue<double>());
 
     /// <summary>
     /// The logical processors every owned worker runs on: a hybrid CPU's performance cores when the protocol's
-    /// <c>measurement.runtime.pin_workers_to_performance_cores</c> asks for it, else null and the scheduler places them.
+    /// <c>measurement.pin_workers_to_performance_cores</c> asks for it, else null and the scheduler places them.
     /// Left to it, Windows runs whole worker processes on efficiency cores, so the same trial lands in a slow or a fast mode.
     /// </summary>
-    public static readonly ulong? Affinity = Runtime["pin_workers_to_performance_cores"]!.GetValue<bool>()
+    public static readonly ulong? Affinity = Measurement["pin_workers_to_performance_cores"]!.GetValue<bool>()
         ? HardwareDescription.PerformanceMask()
         : null;
 

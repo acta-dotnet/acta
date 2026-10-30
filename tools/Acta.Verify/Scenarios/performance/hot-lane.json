@@ -1,0 +1,18 @@
+{
+  "title": "One hot lane",
+  "question": "How fast does one ordered lane hand its jobs over, each waiting for the previous completion to commit?",
+  "runner": "rate-ladder",
+  "lane": "hot",
+  "rates": {
+    "pg": [
+      80
+    ],
+    "mssql": [
+      100
+    ],
+    "sqlite": [
+      20
+    ]
+  },
+  "p99_ms": 2000
+}

@@ -1,0 +1,14 @@
+{
+  "title": "Same signal sent twice",
+  "question": "When the same signal is raised twice for a waiting job, does the job finish once with its expected result and no extra outcome?",
+  "runner": "verify",
+  "work": [
+    {
+      "signal": "go"
+    }
+  ],
+  "settings": {
+    "send_signal": "after-wait",
+    "signal_copies": 2
+  }
+}

@@ -1,0 +1,20 @@
+{
+  "title": "Operator queries during processing",
+  "question": "While the stream runs, do the operator list queries answer quickly, and does the stream keep its rate?",
+  "runner": "rate-ladder",
+  "rates": {
+    "pg": [
+      5000
+    ],
+    "mssql": [
+      2500
+    ],
+    "sqlite": [
+      40
+    ]
+  },
+  "p99_ms": 2000,
+  "settings": {
+    "queries_per_second": 1
+  }
+}

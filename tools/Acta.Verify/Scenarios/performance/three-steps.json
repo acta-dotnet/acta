@@ -1,0 +1,22 @@
+{
+  "title": "Three persisted steps",
+  "question": "Do jobs that commit three checkpoints each hold their offered rate with p99 under 5 s?",
+  "runner": "rate-ladder",
+  "work": [
+    {
+      "steps": 3
+    }
+  ],
+  "rates": {
+    "pg": [
+      1000
+    ],
+    "mssql": [
+      1000
+    ],
+    "sqlite": [
+      20
+    ]
+  },
+  "p99_ms": 5000
+}

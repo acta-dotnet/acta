@@ -1,0 +1,11 @@
+{
+  "title": "Non-idempotent effect, crash before completion",
+  "question": "When a worker dies after a non-idempotent effect's step commits but before the job completes, does recovery reuse the committed step so the effect applies only once?",
+  "runner": "fault",
+  "work": [
+    {
+      "effect_mode": "append",
+      "boundary": "completion"
+    }
+  ]
+}

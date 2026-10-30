@@ -1,0 +1,18 @@
+{
+  "title": "One hot concurrency key",
+  "question": "With every job sharing one concurrency key of limit one, does a slow stream still complete with p99 under 10 s?",
+  "runner": "rate-ladder",
+  "concurrency_key": "hot",
+  "rates": {
+    "pg": [
+      1
+    ],
+    "mssql": [
+      1
+    ],
+    "sqlite": [
+      1
+    ]
+  },
+  "p99_ms": 10000
+}

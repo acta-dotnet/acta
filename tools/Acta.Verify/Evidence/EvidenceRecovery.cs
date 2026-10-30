@@ -11,44 +11,13 @@ public static class EvidenceRecovery
         var plan =
             JsonSerializer.Deserialize(File.ReadAllText(bundle.Resolve("resolved-plan.json")), VerifyJson.Default.RunPlan)
             ?? throw new InvalidDataException("Interrupted run has no readable plan.");
-        List<CaseResult> cases = [];
-        var journal = bundle.Resolve("cases.jsonl");
-        var truncated = false;
-        if (File.Exists(journal))
+        var (cases, truncated) = EvidenceBundle.ReadCases(bundle.Resolve("cases.jsonl"));
+        var owed = HarnessControls
+            .Names.Select(name => (Id: name, Provider: "harness", Phase: "self_test"))
+            .Concat(plan.Scenarios.SelectMany(s => plan.Providers.Select(p => (s.Id, Provider: p, Phase: "verify"))));
+        foreach (var (id, provider, phase) in owed.Where(o => !cases.Any(c => c.Provider == o.Provider && c.Id == o.Id)).ToArray())
         {
-            foreach (var line in File.ReadLines(journal))
-            {
-                if (string.IsNullOrWhiteSpace(line))
-                {
-                    continue;
-                }
-                try
-                {
-                    cases.Add(JsonSerializer.Deserialize(line, VerifyJson.Default.CaseResult) ?? throw new JsonException());
-                }
-                catch (JsonException)
-                {
-                    truncated = true;
-                    break;
-                }
-            }
-        }
-        foreach (var scenario in plan.Cases)
-        {
-            foreach (var provider in scenario.Family == "harness" ? new[] { "harness" } : plan.Providers)
-            {
-                if (!cases.Any(c => c.Provider == provider && c.Id == scenario.Id))
-                {
-                    cases.Add(
-                        CaseResult.Incomplete(
-                            scenario.Id,
-                            provider,
-                            scenario.Family == "harness" ? "self_test" : "verify",
-                            "Controller was interrupted before this required result was recorded."
-                        )
-                    );
-                }
-            }
+            cases.Add(CaseResult.Incomplete(id, provider, phase, "Controller was interrupted before this required result was recorded."));
         }
         foreach (var provider in plan.Providers)
         {

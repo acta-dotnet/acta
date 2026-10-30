@@ -1,0 +1,5 @@
+{
+  "title": "Enqueue in a rolled-back transaction",
+  "question": "When a job is enqueued in the same transaction as an application row and the transaction rolls back, do neither the row nor the job appear, even with a worker running?",
+  "runner": "transaction"
+}

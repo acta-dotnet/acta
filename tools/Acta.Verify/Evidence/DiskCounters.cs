@@ -8,7 +8,7 @@ namespace Acta.Verify;
 /// Windows disk counters for the whole run, read by one Get-Counter process every two seconds, so the harness writes
 /// nothing to measure the drive. Each sample is filed under the phase the run is in: before the first provider, each
 /// provider, and after the last. A QLC drive that folded its write cache after sustained writes shows it as write
-/// latency several times the fresh figure, and server cells measured in that state read about half.
+/// latency several times the fresh figure, and server trials measured in that state read about half.
 /// </summary>
 public sealed class DiskCounters : IDisposable
 {

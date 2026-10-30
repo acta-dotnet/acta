@@ -6,7 +6,7 @@ internal static class ReplyLossCases
 {
     public static async Task<CaseResult> RunAsync(
         RunPlan plan,
-        ScenarioDescriptor scenario,
+        Scenario scenario,
         OwnedProvider environment,
         EvidenceBundle bundle,
         CancellationToken ct,
@@ -17,7 +17,7 @@ internal static class ReplyLossCases
         var state = environment.Trial(bundle.Resolve($"repro/state/{tag}"));
         using var effects = new EffectService(bundle.Resolve($"repro/state/{tag}/effects.db"));
         await effects.StartAsync(ct);
-        var enqueueLoss = scenario.Id == "F07";
+        var enqueueLoss = scenario.Id == "lost-enqueue-reply";
         var injection = new StoreInjection(enqueueLoss ? "EnqueueJob" : "CompleteExecutions", "committed-reply", true);
         using var host = await RuntimeHost.StartAsync(
             state.Provider,

@@ -1,0 +1,5 @@
+{
+  "title": "Lost reply to a completion",
+  "question": "When a job's completion commits but the reply to the worker is lost, does the job keep its one completed outcome without a second attempt?",
+  "runner": "reply-loss"
+}

@@ -7,13 +7,14 @@ internal static class StaleAttemptCase
 {
     public static async Task<CaseResult> RunAsync(
         RunPlan plan,
+        Scenario scenario,
         OwnedProvider environment,
         EvidenceBundle bundle,
         CancellationToken ct,
         int repetition = 1
     )
     {
-        var tag = $"{environment.Provider}-F03-pause-{repetition}";
+        var tag = $"{environment.Provider}-{scenario.Id}-{repetition}";
         var state = environment.Trial(bundle.Resolve($"repro/state/{tag}"));
         using var effects = new EffectService(bundle.Resolve($"repro/state/{tag}/effects.db"));
         await effects.StartAsync(ct);
@@ -29,7 +30,7 @@ internal static class StaleAttemptCase
         var pid = await effects.WaitBarrierAsync("claim", TimeSpan.FromSeconds(30), ct);
         if (pid != original.Id)
         {
-            return CaseResult.Incomplete("F03", environment.Provider, "fault", "Busy worker boundary was not observed.");
+            return CaseResult.Incomplete(scenario.Id, environment.Provider, "fault", "Busy worker boundary was not observed.");
         }
         original.Pause();
         try
@@ -49,7 +50,12 @@ internal static class StaleAttemptCase
         }
         if (await effects.WaitBarrierAsync("claim-returned", TimeSpan.FromSeconds(30), ct) != original.Id)
         {
-            return CaseResult.Incomplete("F03", environment.Provider, "fault", "The stale attempt never returned a result to complete.");
+            return CaseResult.Incomplete(
+                scenario.Id,
+                environment.Provider,
+                "fault",
+                "The stale attempt never returned a result to complete."
+            );
         }
         // Permit the engine to attempt the stale attempt's guarded completion.
         await Task.Delay(3000, ct);
@@ -74,7 +80,7 @@ internal static class StaleAttemptCase
         bundle.Write($"histories/{tag}-checks.json", checks.ToArray(), VerifyJson.Default.CheckArray);
         var passed = checks.All(c => c.Passed);
         return new(
-            "F03",
+            scenario.Id,
             environment.Provider,
             "fault",
             repetition,

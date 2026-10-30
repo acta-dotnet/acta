@@ -724,10 +724,10 @@ dashboard visibility, and benchmark runs:
 
 ```bash
 dotnet run --project anvil/Anvil                                        # loopback UI + embedded dashboard at /acta
-dotnet run -c Release --project tools/Acta.Verify -- --quick --db sqlite # quick benchmark and conformance check
+dotnet run -c Release --project tools/Acta.Verify -- quick --db sqlite # quick benchmark and conformance check
 ```
 
-Anvil defaults to SQLite for a quick dashboard look. [Acta Verify](tools/Acta.Verify/README.md) is the headless benchmark and conformance standard: `--quick` checks a change, and `--standard` and `--full` are the longer campaigns. Each run writes an evidence bundle under `artifacts/verify/` and never touches tracked documentation.
+Anvil defaults to SQLite for a quick dashboard look. [Acta Verify](tools/Acta.Verify/README.md) is the headless benchmark and conformance standard: written scenarios run in suites, where `quick` checks a change, `check` runs every scenario briefly, and `release` is the certification record. Each run writes an evidence bundle under `artifacts/verify/` and never touches tracked documentation.
 
 ## Releasing
 
@@ -754,20 +754,20 @@ push the packages to nuget.org through Trusted Publishing (the `publish-nuget` j
 
 ### Benchmark and conformance evidence
 
-The evidence is one [Acta Verify](tools/Acta.Verify/README.md) `--full` run against A, on all three databases, which fits one night:
+The evidence is one [Acta Verify](tools/Acta.Verify/README.md) `release` run against A, on all three databases, which fits one night:
 
 ```bash
-dotnet run -c Release --project tools/Acta.Verify -- --full --db all --output artifacts/verify
+dotnet run -c Release --project tools/Acta.Verify -- release --db all --output artifacts/verify
 ```
 
 - A run a crash or a cancel stopped resumes when the same command runs again: the databases that finished keep their results, and the report records the resume.
 
-- Run it from a clean worktree of A on an idle box: no builds, other load tests, or disk-heavy work alongside, and the disk the databases live on checked first, since a QLC drive folded by sustained writes halves the server cells. Leave PostgreSQL autovacuum on.
+- Run it from a clean worktree of A on an idle box: no builds, other load tests, or disk-heavy work alongside, and the disk the databases live on checked first, since a QLC drive folded by sustained writes halves the server trials. Leave PostgreSQL autovacuum on.
 - The run starts its own PostgreSQL and SQL Server containers, one at a time, sized from the Docker VM and tuned for capacity, and records the VM, the limits, and the settings each server reads back in the bundle. The Compose servers stay sized for CI and serve the test suites; `--use-compose-servers` runs on them instead, and no release evidence does.
 - `dotnet run` gives the managed build, which covers SQL Server; a native publish covers only PostgreSQL and SQLite.
-- The run passes when it exits 0 for the requested scope. Every trial's ledger is checked against the certification checks, and F09 is the certification run under the shipped lease timings. A `--quick` or `--standard` verdict rests on correctness (safety, liveness, coverage, the ledger checks, and F09) and reports capacity as information; `--full` also gates on measurement.
-- The release notes' evidence paragraph names the profile and the scope that ran, and any resume.
-- Compare with the previous tag's bundle from the same machine: `acta-verify compare <previous> <candidate>`. Rerun a cell that reads as a regression on both trees, back to back, twice, and report only a gap that survives.
+- The run passes when it exits 0 for the requested scope. Every trial's ledger is checked against the certification checks, and the chaos scenario is the certification run under the shipped lease timings. A `quick` or `check` verdict rests on correctness (safety, liveness, coverage, the ledger checks, and chaos) and reports performance as information; `release` also gates on measurement.
+- The release notes' evidence paragraph names the suite and the scope that ran, and any resume.
+- Compare with the previous tag's bundle from the same machine: `acta-verify compare <previous> <candidate>`. Rerun a scenario that reads as a regression on both trees, back to back, twice, and report only a gap that survives.
 - Publish the report in B with `acta-verify publish <run-directory> --to docs/benchmark.md`, then remove the run's leftovers with `acta-verify cleanup --yes`.
 
 ### Release notes and docs

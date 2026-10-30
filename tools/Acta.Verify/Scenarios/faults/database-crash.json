@@ -1,0 +1,13 @@
+{
+  "title": "Database process crash",
+  "question": "When the database process is killed and restarted on the same storage while a job is in flight, does every accepted job still finish with its expected result?",
+  "runner": "fault",
+  "work": [
+    {
+      "boundary": "claim"
+    }
+  ],
+  "skip": {
+    "sqlite": "SQLite is embedded; there is no separate database process to crash."
+  }
+}

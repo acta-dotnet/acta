@@ -1,0 +1,10 @@
+{
+  "title": "Rolling restart",
+  "question": "When a worker holding a job is stopped gracefully while another stays up, does every in-flight and queued job still finish with its expected result?",
+  "runner": "fault",
+  "work": [
+    {
+      "boundary": "claim"
+    }
+  ]
+}

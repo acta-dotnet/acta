@@ -1,0 +1,13 @@
+{
+  "title": "Signal sent after the wait",
+  "question": "When a signal is raised for a job already suspended on its wait, does the job wake and finish with its expected result?",
+  "runner": "verify",
+  "work": [
+    {
+      "signal": "go"
+    }
+  ],
+  "settings": {
+    "send_signal": "after-wait"
+  }
+}

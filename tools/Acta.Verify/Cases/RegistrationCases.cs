@@ -6,30 +6,13 @@ internal static class RegistrationCases
 {
     public static async Task<CaseResult> RunAsync(
         RunPlan plan,
-        ScenarioDescriptor scenario,
+        Scenario scenario,
         OwnedProvider environment,
         EvidenceBundle bundle,
         CancellationToken ct,
         int repetition = 1
     )
     {
-        if (scenario.Id == "D04")
-        {
-            return new(
-                scenario.Id,
-                environment.Provider,
-                "verify",
-                0,
-                "NOT_APPLICABLE",
-                "This pre-1.0 tree publishes one baseline migration per provider and no supported predecessor upgrade pair.",
-                "NOT_APPLICABLE",
-                "NOT_APPLICABLE",
-                "NOT_APPLICABLE",
-                "NOT_MEASURED",
-                [],
-                ["resolved-plan.json"]
-            );
-        }
         var tag = $"{environment.Provider}-{scenario.Id}-contract-{repetition}";
         var state = environment.Trial(bundle.Resolve($"repro/state/{tag}"));
         using var host = await RuntimeHost.StartAsync(state.Provider, state.ConnectionString, state.Schema, false, true, ct);
@@ -39,8 +22,8 @@ internal static class RegistrationCases
         [
             new(
                 "root",
-                scenario.Id == "D03" ? "Suspended" : "Succeeded",
-                scenario.Id == "D03" ? null : "7",
+                scenario.Id == "incompatible-contract" ? "Suspended" : "Succeeded",
+                scenario.Id == "incompatible-contract" ? null : "7",
                 Steps: ["value={\"value\":7}"]
             ),
         ];
@@ -61,9 +44,9 @@ internal static class RegistrationCases
             ct
         );
         first.Kill();
-        using var second = OwnedWorker.Start(state, fixture: scenario.Id == "D03" ? "incompatible" : "v2");
+        using var second = OwnedWorker.Start(state, fixture: scenario.Id == "incompatible-contract" ? "incompatible" : "v2");
         var rejected = false;
-        if (scenario.Id == "D03")
+        if (scenario.Id == "incompatible-contract")
         {
             try
             {
@@ -87,7 +70,7 @@ internal static class RegistrationCases
         var actual = await new DurableReader(state).OutcomesAsync(ct);
 
         var checks = OutcomeCheck.Reconcile(expected, actual).ToList();
-        if (scenario.Id == "D03")
+        if (scenario.Id == "incompatible-contract")
         {
             checks.Add(
                 new(
@@ -108,7 +91,7 @@ internal static class RegistrationCases
             passed ? "PASS" : "FAIL",
             "Versioned fixture modes share one immutable executable: v1 persisted a result, v2 adds an optional result field; incompatible mode changes the registered input type. These are declared fixture contracts, not historical release upgrades.",
             passed ? "PASS" : "FAIL",
-            scenario.Id == "D03" ? "NOT_APPLICABLE"
+            scenario.Id == "incompatible-contract" ? "NOT_APPLICABLE"
                 : passed ? "PASS"
                 : "UNVERIFIED",
             "COMPLETE",

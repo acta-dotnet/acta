@@ -1,0 +1,10 @@
+{
+  "title": "Durable timer across a worker restart",
+  "question": "When a worker dies while a job sleeps on a durable timer, does a new worker resume the job no earlier than the original due time, without re-arming the timer?",
+  "runner": "fault",
+  "work": [
+    {
+      "sleep_seconds": 2
+    }
+  ]
+}

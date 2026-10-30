@@ -1,0 +1,8 @@
+{
+  "title": "Database connections cut",
+  "question": "When a worker's database connections are cut while a job runs and new jobs keep arriving, does every job finish with its expected result once the connections return?",
+  "runner": "connectivity",
+  "skip": {
+    "sqlite": "SQLite is embedded; there is no network connection to cut."
+  }
+}

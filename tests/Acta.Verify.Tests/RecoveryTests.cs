@@ -36,7 +36,7 @@ public sealed class RecoveryTests : IDisposable
         File.AppendAllText(bundle.Resolve("cases.jsonl"), "{\"interrupted\":");
         var recovered = EvidenceRecovery.FinalizeInterrupted(bundle.DirectoryPath);
         Assert.Equal("ABORTED", recovered.Status);
-        Assert.Contains(recovered.Cases, c => c.Id == "C02" && c.Status == "INCONCLUSIVE");
+        Assert.Contains(recovered.Cases, c => c.Id == "checkpoint-depths" && c.Status == "INCONCLUSIVE");
         Assert.Equal("ABORTED", BundleVerifier.Load(bundle.DirectoryPath).Status);
         File.AppendAllText(bundle.Resolve("environment.json"), " ");
         Assert.Throws<InvalidDataException>(() => BundleVerifier.Load(bundle.DirectoryPath));
@@ -54,13 +54,13 @@ public sealed class RecoveryTests : IDisposable
     [Fact]
     public void Interrupted_run_keeps_missing_measurement_phases_visible_after_verification_passed()
     {
-        var plan = Protocol.Plan("full", ["sqlite"], 1729, ["L01"]);
+        var plan = Protocol.Plan("release", ["sqlite"], 1729, ["throughput"]);
         var bundle = new EvidenceBundle(_root, plan.RunId);
         bundle.Write("resolved-plan.json", plan, VerifyJson.Default.RunPlan);
-        bundle.AppendCase(new("L01", "sqlite", "verify", 1, "PASS", null, "PASS", "PASS", "COMPLETE", "NOT_MEASURED", [], []));
+        bundle.AppendCase(new("throughput", "sqlite", "verify", 1, "PASS", null, "PASS", "PASS", "COMPLETE", "NOT_MEASURED", [], []));
         var result = EvidenceRecovery.FinalizeInterrupted(bundle.DirectoryPath);
         Assert.Equal("ABORTED", result.Status);
-        Assert.Contains(result.Cases, c => c.Id == "L01" && c.Phase == "reconcile" && c.Coverage == "INCOMPLETE");
+        Assert.Contains(result.Cases, c => c.Id == "throughput" && c.Phase == "reconcile" && c.Coverage == "INCOMPLETE");
         Assert.True(result.Coverage.UnresolvedRequiredInstances > 0);
     }
 
@@ -69,7 +69,7 @@ public sealed class RecoveryTests : IDisposable
     {
         var bundle = Create();
         bundle.AppendCase(
-            CaseResult.Incomplete("C02", "sqlite", "verify", "Synthetic known failure") with
+            CaseResult.Incomplete("checkpoint-depths", "sqlite", "verify", "Synthetic known failure") with
             {
                 Status = "FAIL",
                 Safety = "FAIL",
@@ -83,7 +83,7 @@ public sealed class RecoveryTests : IDisposable
     {
         var bundle = Create();
         bundle.AppendCase(
-            CaseResult.Incomplete("C02", "sqlite", "verify", "<script>alert('case')</script>") with
+            CaseResult.Incomplete("checkpoint-depths", "sqlite", "verify", "<script>alert('case')</script>") with
             {
                 Status = "FAIL",
                 Safety = "FAIL",
@@ -116,19 +116,19 @@ public sealed class RecoveryTests : IDisposable
     }
 
     [Fact]
-    public void Report_leads_with_each_measured_cell_and_names_the_trials_the_instability_rule_added()
+    public void Report_leads_with_each_measured_scenario()
     {
-        var plan = Protocol.Plan("full", ["pg"], 1729, ["L04"]) with { Repetitions = 1 };
+        var plan = Protocol.Plan("release", ["pg"], 1729, ["drain", "enqueue-one-per-call"]);
         var bundle = new EvidenceBundle(_root, plan.RunId);
         bundle.Write("resolved-plan.json", plan, VerifyJson.Default.RunPlan);
         Finish(
             bundle,
             "INCONCLUSIVE",
             [
-                Trial("L04", 1, "VALID", new() { ["primary_rate"] = new(19_000, "roots/s"), ["intended_roots"] = new(1000, "roots") }),
-                Trial("L04", 2, "VALID", new() { ["primary_rate"] = new(11_000, "roots/s"), ["intended_roots"] = new(1000, "roots") }),
+                Trial("drain", 1, "VALID", new() { ["primary_rate"] = new(19_000, "roots/s"), ["intended_roots"] = new(1000, "roots") }),
+                Trial("drain", 2, "VALID", new() { ["primary_rate"] = new(11_000, "roots/s"), ["intended_roots"] = new(1000, "roots") }),
                 Trial(
-                    "L02",
+                    "enqueue-one-per-call",
                     1,
                     "UNSTABLE",
                     new()
@@ -141,13 +141,13 @@ public sealed class RecoveryTests : IDisposable
             ]
         );
         var report = File.ReadAllText(bundle.Resolve("report.md"));
-        Assert.Contains("| 2 VALID; 1 added by the instability rule |", report, StringComparison.Ordinal);
+        Assert.Contains("| 2 VALID |", report, StringComparison.Ordinal);
         Assert.Contains("15,000 (11,000-19,000)", report, StringComparison.Ordinal);
         // Admission cases report admission latency, both percentiles from the same distribution.
         Assert.Contains("Admission p50 ms", report, StringComparison.Ordinal);
         Assert.Contains("| 1 UNSTABLE |", report, StringComparison.Ordinal);
         Assert.Contains("| 5 | 9 |", report, StringComparison.Ordinal);
-        Assert.True(report.IndexOf("## L04", StringComparison.Ordinal) < report.IndexOf("## Environment", StringComparison.Ordinal));
+        Assert.True(report.IndexOf("## drain", StringComparison.Ordinal) < report.IndexOf("## Environment", StringComparison.Ordinal));
 
         static CaseResult Trial(string id, int repetition, string measurement, Dictionary<string, Metric> metrics) =>
             new(id, "pg", "measure", repetition, "PASS", null, "PASS", "PASS", "COMPLETE", measurement, metrics, []);
@@ -170,19 +170,15 @@ public sealed class RecoveryTests : IDisposable
         Assert.Equal(1, await VerifyCommand.RunAsync(["compare", baseline, Measured((50, "VALID", 900), (100, "UNSTABLE", 1000))], ct));
         Assert.Equal(1, await VerifyCommand.RunAsync(["compare", baseline, Measured((50, "VALID", 900), (100, "VALID", 1500))], ct));
         Assert.Equal(1, await VerifyCommand.RunAsync(["compare", baseline, Measured((50, "UNSTABLE", 900))], ct));
-        // A different preload is a different workload, so the bundles are not comparable.
-        Assert.Equal(2, await VerifyCommand.RunAsync(["compare", baseline, Measured(1_000_000, (50, "VALID", 900))], ct));
+        // A different seed is a different workload, so the bundles are not comparable.
+        Assert.Equal(2, await VerifyCommand.RunAsync(["compare", baseline, Measured(7, (50, "VALID", 900))], ct));
     }
 
-    private string Measured(params (double Rate, string Measurement, double P99)[] trials) => Measured(null, trials);
+    private string Measured(params (double Rate, string Measurement, double P99)[] trials) => Measured(1729, trials);
 
-    private string Measured(int? preload, params (double Rate, string Measurement, double P99)[] trials)
+    private string Measured(int seed, params (double Rate, string Measurement, double P99)[] trials)
     {
-        var plan = Protocol.Plan("quick", ["pg"], 1729, ["C01"]);
-        if (preload is { } roots)
-        {
-            plan = plan with { PreloadedBacklogRoots = plan.PreloadedBacklogRoots.ToDictionary(p => p.Key, _ => roots) };
-        }
+        var plan = Protocol.Plan("quick", ["pg"], seed, ["three-steps"]);
         var bundle = new EvidenceBundle(_root, plan.RunId);
         bundle.Write("resolved-plan.json", plan, VerifyJson.Default.RunPlan);
         bundle.Write("environment.json", MachineKeys.ToDictionary(k => k, _ => "test"), VerifyJson.Default.DictionaryStringString);
@@ -192,7 +188,7 @@ public sealed class RecoveryTests : IDisposable
             "INCONCLUSIVE",
             [
                 .. trials.Select(t => new CaseResult(
-                    "C01",
+                    "three-steps",
                     "pg",
                     "measure",
                     1,
@@ -217,7 +213,7 @@ public sealed class RecoveryTests : IDisposable
 
     private EvidenceBundle Create()
     {
-        var plan = Protocol.Plan("quick", ["sqlite"], 1729, ["C02"]);
+        var plan = Protocol.Plan("quick", ["sqlite"], 1729, ["checkpoint-depths"]);
         var bundle = new EvidenceBundle(_root, plan.RunId);
         bundle.Write("resolved-plan.json", plan, VerifyJson.Default.RunPlan);
         return bundle;
@@ -255,7 +251,7 @@ public sealed class RecoveryTests : IDisposable
     [Fact]
     public void The_same_command_resumes_the_newest_unfinished_run_with_its_plan()
     {
-        var plan = Protocol.Plan("full", ["sqlite", "pg"], 1729, ["L01"]);
+        var plan = Protocol.Plan("release", ["sqlite", "pg"], 1729, ["throughput"]);
         string Bundle(RunPlan p, bool finished)
         {
             var bundle = new EvidenceBundle(_root, p.RunId);
@@ -266,18 +262,18 @@ public sealed class RecoveryTests : IDisposable
             }
             return p.RunId;
         }
-        Bundle(Protocol.Plan("full", ["sqlite", "pg"], 1729, ["L01"]), finished: true);
-        var unfinished = Bundle(Protocol.Plan("full", ["sqlite", "pg"], 1729, ["L01"]), finished: false);
-        Bundle(Protocol.Plan("full", ["sqlite"], 1729, ["L01"]), finished: false);
+        Bundle(Protocol.Plan("release", ["sqlite", "pg"], 1729, ["throughput"]), finished: true);
+        var unfinished = Bundle(Protocol.Plan("release", ["sqlite", "pg"], 1729, ["throughput"]), finished: false);
+        Bundle(Protocol.Plan("release", ["sqlite"], 1729, ["throughput"]), finished: false);
 
         Assert.Equal(unfinished, RunResume.Find(_root, plan));
-        Assert.Null(RunResume.Find(_root, Protocol.Plan("full", ["pg"], 1729, ["L01"])));
+        Assert.Null(RunResume.Find(_root, Protocol.Plan("release", ["pg"], 1729, ["throughput"])));
     }
 
     [Fact]
     public void A_cancelled_run_resumes_and_a_finished_one_does_not()
     {
-        var plan = Protocol.Plan("full", ["pg"], 1729, ["L01"]);
+        var plan = Protocol.Plan("release", ["pg"], 1729, ["throughput"]);
         var passed = new EvidenceBundle(_root, plan.RunId);
         passed.Write("resolved-plan.json", plan, VerifyJson.Default.RunPlan);
         File.WriteAllText(passed.Resolve("result.json"), "{\"status\":\"PASS\"}");
@@ -294,11 +290,11 @@ public sealed class RecoveryTests : IDisposable
     [Fact]
     public void A_partial_set_of_harness_checks_and_a_cut_journal_line_are_not_kept()
     {
-        var plan = Protocol.Plan("full", ["sqlite"], 1729, ["L01"]);
+        var plan = Protocol.Plan("release", ["sqlite"], 1729, ["throughput"]);
         var bundle = new EvidenceBundle(_root, plan.RunId);
         bundle.Write("resolved-plan.json", plan, VerifyJson.Default.RunPlan);
         bundle.AppendCase(HarnessControls.Run(plan, bundle)[0]);
-        bundle.AppendCase(new("L01", "sqlite", "verify", 1, "PASS", null, "PASS", "PASS", "COMPLETE", "NOT_MEASURED", [], []));
+        bundle.AppendCase(new("throughput", "sqlite", "verify", 1, "PASS", null, "PASS", "PASS", "COMPLETE", "NOT_MEASURED", [], []));
         File.WriteAllLines(bundle.Resolve("faults.jsonl"), ["{\"provider\":\"sqlite\"}", "{\"provider\":\"sql"]);
         RunResume.MarkFinished(bundle, "sqlite", complete: true, settingsVerified: true, wallSeconds: 1);
 
@@ -312,24 +308,24 @@ public sealed class RecoveryTests : IDisposable
     [Fact]
     public void A_resume_keeps_the_providers_that_finished_and_removes_every_trace_of_the_rest()
     {
-        var plan = Protocol.Plan("full", ["sqlite", "pg"], 1729, ["L01"]);
+        var plan = Protocol.Plan("release", ["sqlite", "pg"], 1729, ["throughput"]);
         var bundle = new EvidenceBundle(_root, plan.RunId);
         bundle.Write("resolved-plan.json", plan, VerifyJson.Default.RunPlan);
         foreach (var row in HarnessControls.Run(plan, bundle))
         {
             bundle.AppendCase(row);
         }
-        bundle.AppendCase(new("L01", "sqlite", "verify", 1, "PASS", null, "PASS", "PASS", "COMPLETE", "NOT_MEASURED", [], []));
-        bundle.AppendCase(new("L01", "pg", "verify", 1, "PASS", null, "PASS", "PASS", "COMPLETE", "NOT_MEASURED", [], []));
+        bundle.AppendCase(new("throughput", "sqlite", "verify", 1, "PASS", null, "PASS", "PASS", "COMPLETE", "NOT_MEASURED", [], []));
+        bundle.AppendCase(new("throughput", "pg", "verify", 1, "PASS", null, "PASS", "PASS", "COMPLETE", "NOT_MEASURED", [], []));
         File.AppendAllText(bundle.Resolve("cases.jsonl"), "{\"cut\":");
         File.WriteAllLines(bundle.Resolve("faults.jsonl"), ["{\"provider\":\"sqlite\"}", "{\"provider\":\"pg\"}"]);
         File.WriteAllLines(
             bundle.Resolve("metrics.jsonl"),
-            ["{\"Component\":\"sqlite-L01-verify-1-0/worker\"}", "{\"Component\":\"pg-L01-verify-1-0/worker\"}"]
+            ["{\"Component\":\"sqlite-throughput-verify-1-0/worker\"}", "{\"Component\":\"pg-throughput-verify-1-0/worker\"}"]
         );
-        File.WriteAllText(bundle.Resolve("histories/sqlite-L01-verify-1-0-checks.json"), "{}");
-        File.WriteAllText(bundle.Resolve("histories/pg-L01-verify-1-0-checks.json"), "{}");
-        Directory.CreateDirectory(bundle.Resolve("repro/state/pg-L01-verify-1-0"));
+        File.WriteAllText(bundle.Resolve("histories/sqlite-throughput-verify-1-0-checks.json"), "{}");
+        File.WriteAllText(bundle.Resolve("histories/pg-throughput-verify-1-0-checks.json"), "{}");
+        Directory.CreateDirectory(bundle.Resolve("repro/state/pg-throughput-verify-1-0"));
         RunResume.MarkFinished(bundle, "sqlite", complete: true, settingsVerified: true, wallSeconds: 120);
 
         var kept = RunResume.Load(bundle, plan);
@@ -342,10 +338,10 @@ public sealed class RecoveryTests : IDisposable
         Assert.Contains(kept.Results, r => r.Provider == "harness");
         Assert.Equal(kept.Results.Count, File.ReadAllLines(bundle.Resolve("cases.jsonl")).Length);
         Assert.Equal(["{\"provider\":\"sqlite\"}"], File.ReadAllLines(bundle.Resolve("faults.jsonl")));
-        Assert.Equal(["{\"Component\":\"sqlite-L01-verify-1-0/worker\"}"], File.ReadAllLines(bundle.Resolve("metrics.jsonl")));
-        Assert.True(File.Exists(bundle.Resolve("histories/sqlite-L01-verify-1-0-checks.json")));
-        Assert.False(File.Exists(bundle.Resolve("histories/pg-L01-verify-1-0-checks.json")));
-        Assert.False(Directory.Exists(bundle.Resolve("repro/state/pg-L01-verify-1-0")));
+        Assert.Equal(["{\"Component\":\"sqlite-throughput-verify-1-0/worker\"}"], File.ReadAllLines(bundle.Resolve("metrics.jsonl")));
+        Assert.True(File.Exists(bundle.Resolve("histories/sqlite-throughput-verify-1-0-checks.json")));
+        Assert.False(File.Exists(bundle.Resolve("histories/pg-throughput-verify-1-0-checks.json")));
+        Assert.False(Directory.Exists(bundle.Resolve("repro/state/pg-throughput-verify-1-0")));
     }
 
     public void Dispose()

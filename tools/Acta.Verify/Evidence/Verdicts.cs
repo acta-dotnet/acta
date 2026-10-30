@@ -16,9 +16,19 @@ public static class Verdicts
         return settingsVerified && cases.Length > 0 && cases.All(c => c.Status is "PASS" or "NOT_APPLICABLE") ? "PASS" : "INCONCLUSIVE";
     }
 
-    /// <summary><paramref name="reason"/>, marked as reported only because the plan's profile does not gate its verdict on measurement.</summary>
+    /// <summary><paramref name="reason"/>, marked as reported only because the plan's suite does not gate its verdict on measurement.</summary>
     public static string Informational(RunPlan plan, string reason) =>
-        $"{reason} Informational: capacity measurement does not decide the {plan.Profile} profile's verdict.";
+        $"{reason} Informational: measurement does not decide the {plan.SuiteName} suite's verdict.";
+
+    /// <summary>
+    /// What a measured trial says about its rate: held when its jobs reconciled and its measurement qualified; missed when
+    /// the engine fell behind or a call was refused; a harness error when the harness, not the engine, voids the window.
+    /// </summary>
+    public static string RateOutcome(CaseResult trial) =>
+        trial.Status == "FAIL" ? "failed"
+        : trial.Status != "PASS" || trial.Measurement is "GENERATOR_LIMITED" or "UNAVAILABLE" or "NOT_MEASURED" ? "harness error"
+        : trial.Measurement == "VALID" ? "held"
+        : "missed";
 
     public static int ExitCode(string status, bool harnessError = false) =>
         status switch

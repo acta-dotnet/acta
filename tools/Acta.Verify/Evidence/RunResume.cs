@@ -5,7 +5,7 @@ namespace Acta.Verify;
 /// <summary>
 /// Continues an interrupted run. The same command against the same output finds the newest unfinished or aborted run
 /// there with an identical plan; a provider that finished keeps its results, and every other provider runs again from
-/// the start, since a provider's cases build on each other (the soak and overload cases reuse L01's capacity).
+/// the start.
 /// </summary>
 public static class RunResume
 {
@@ -77,21 +77,8 @@ public static class RunResume
             )!;
         }
 
-        List<CaseResult> recorded = [];
-        foreach (var line in File.ReadLines(bundle.Resolve("cases.jsonl")).Where(l => !string.IsNullOrWhiteSpace(l)))
-        {
-            try
-            {
-                recorded.Add(JsonSerializer.Deserialize(line, VerifyJson.Default.CaseResult)!);
-            }
-            catch (JsonException)
-            {
-                // The crash cut the last record short.
-                break;
-            }
-        }
-        var harness = plan.Cases.Where(c => c.Family == "harness").Select(c => c.Id).ToHashSet();
-        var harnessComplete = harness.All(id => recorded.Any(r => r.Provider == "harness" && r.Id == id));
+        var (recorded, _) = EvidenceBundle.ReadCases(bundle.Resolve("cases.jsonl"));
+        var harnessComplete = HarnessControls.Names.All(id => recorded.Any(r => r.Provider == "harness" && r.Id == id));
         bool Keeps(string? provider) => provider == "harness" ? harnessComplete : provider is not null && finished.ContainsKey(provider);
 
         List<CaseResult> results = [.. recorded.Where(r => Keeps(r.Provider))];
@@ -165,7 +152,7 @@ public static class RunResume
 
     private static string Canonical(RunPlan plan) => JsonSerializer.Serialize(plan with { RunId = "" }, VerifyJson.Default.RunPlan);
 
-    // Trial names, components and files lead with their provider: "pg-L01-measure-1-25/worker", "sqlite-settings.json".
+    // Trial names, components and files lead with their provider: "pg-throughput-measure-1-10000/worker", "sqlite-settings.json".
     private static string? Owner(string name, IEnumerable<string> providers) =>
         providers.FirstOrDefault(p => name == p || name.StartsWith(p + "-", StringComparison.Ordinal));
 

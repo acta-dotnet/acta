@@ -1,0 +1,5 @@
+{
+  "title": "Order across 1000 lanes",
+  "question": "With 2000 jobs spread over 1000 lanes, does each job start only after the job before it in its lane has finished?",
+  "runner": "scheduling"
+}

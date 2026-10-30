@@ -7,308 +7,264 @@ namespace Acta.Verify.Tests;
 
 public sealed class PolicyTests
 {
+    private static readonly RunPlan Release = Protocol.Plan("release", ["pg"], 1729, ["throughput"]);
+    private static readonly int[] Rates = Release.Scenario("throughput").Rates["pg"];
+
     [Fact]
-    public void Release_is_not_a_profile()
+    public void Every_suite_plans_every_database_and_release_runs_every_written_scenario()
     {
-        Assert.Throws<ArgumentException>(() => Protocol.Plan("release", ["sqlite"], 1729));
+        foreach (var name in ScenarioFiles.SuiteNames())
+        {
+            var plan = Protocol.Plan(name, Protocol.AllProviders, 1729);
+            Protocol.Validate(plan);
+            Assert.NotEmpty(plan.Scenarios);
+        }
+        Assert.Equal(
+            ScenarioFiles.All(null).Select(s => s.Id).Order(StringComparer.Ordinal),
+            Protocol.Plan("release", ["pg"], 1729).Scenarios.Select(s => s.Id).Order(StringComparer.Ordinal)
+        );
     }
 
     [Fact]
-    public void Standard_keeps_the_catalogue_with_a_frozen_short_campaign_and_explicit_limitations()
+    public void A_field_its_runner_does_not_read_fails_the_load()
     {
-        var plan = Protocol.Plan("standard", ["pg"], 1729);
-        Assert.Equal(69, plan.Cases.Count);
-        Assert.False(plan.IsExtended);
-        Assert.Equal(5, plan.WarmupSeconds);
-        Assert.Equal(15, plan.MeasurementSeconds);
-        Assert.Equal(1, plan.Repetitions);
-        Assert.Equal(60, plan.SoakSeconds);
-        Assert.Equal(30, plan.DrainSeconds);
-        Assert.Equal(10000, plan.ChaosJobs);
-        Assert.Null(plan.ProfileOverride("chaos_heartbeat_seconds"));
-        Assert.Equal(1000, plan.PreloadedBacklogRoots["pg"]);
-        Assert.Empty(CoveragePolicy.RequiredCells(plan, "pg", "L01"));
-        Assert.Equal([25d], CoveragePolicy.SelectedRates(plan, [Row("discover", 0, 50)]));
-        Assert.True(CoveragePolicy.RepetitionsComplete(plan, [Row("measure", 1, 25)]));
+        foreach (var (scenario, field) in new[] { ("throughput", "bogus"), ("checkpoint-depths", "workers"), ("throughput", "jobs") })
+        {
+            var suite = ScenarioFiles.Suite("check") with
+            {
+                Overrides = new Dictionary<string, JsonObject> { [scenario] = new() { [field] = 1 } },
+            };
+            Assert.Throws<InvalidOperationException>(() => ScenarioFiles.All(suite));
+        }
+    }
+
+    [Fact]
+    public void A_setting_its_runner_does_not_read_fails_the_plan()
+    {
+        var scenario = Release.Scenario("throughput") with
+        {
+            Settings = new Dictionary<string, JsonElement> { ["bogus"] = JsonElement.Parse("1") },
+        };
+        Assert.Throws<InvalidOperationException>(() => ScenarioRunner.Validate(scenario));
+        Assert.Throws<InvalidOperationException>(() => ScenarioRunner.Validate(scenario with { Runner = "nonesuch" }));
+        var three = Release.Scenario("throughput") with { Namespaces = new Dictionary<string, int> { ["pg"] = 3 } };
+        Assert.Throws<InvalidOperationException>(() => ScenarioRunner.Validate(three));
+    }
+
+    [Fact]
+    public void One_skip_reason_covers_every_database_and_unwritten_calls_take_the_harness_default()
+    {
+        var plan = Protocol.Plan("release", Protocol.AllProviders, 1729, ["schema-upgrade", "three-steps"]);
+        Assert.All(Protocol.AllProviders, p => Assert.NotNull(ScenarioRunner.Unwritten(plan.Scenario("schema-upgrade"), p)));
+        Assert.Equal(
+            plan.Policy("measurement", "producer_calls", "sqlite"),
+            ScenarioRunner.Calls(plan, plan.Scenario("three-steps"), "sqlite")
+        );
+    }
+
+    [Fact]
+    public void A_suite_override_replaces_a_field_for_every_database_or_per_database()
+    {
+        var check = Protocol.Plan("check", Protocol.AllProviders, 1729);
+        Assert.All(
+            Protocol.AllProviders,
+            p => Assert.Equal([0, 1000, 10000], check.Scenario("retained-history").SettingList("populations", p))
+        );
+        Assert.Equal(10000, check.Scenario("chaos").Jobs["mssql"]);
+        Assert.Equal(8, check.Scenario("chaos").Workers["pg"]);
+        Assert.Equal(3, check.Scenario("chaos").Workers["sqlite"]);
+        Assert.Null(check.Scenario("chaos").Executors);
+        Assert.Equal(1_000_000, Protocol.Plan("release", ["pg"], 1729).Scenario("chaos").Jobs["pg"]);
+        Assert.Equal([1000], Protocol.Plan("quick", ["pg"], 1729).Scenario("throughput").Rates["pg"]);
+    }
+
+    [Fact]
+    public void A_plan_validates_only_as_its_build_plans_it_and_round_trips_for_replay()
+    {
+        var plan = Protocol.Plan("release", Protocol.AllProviders, 1729);
+        Protocol.Validate(plan);
+        Assert.Equal(2, plan.MeasurementVersion);
+        Protocol.Validate(
+            JsonSerializer.Deserialize(JsonSerializer.Serialize(plan, VerifyJson.Default.RunPlan), VerifyJson.Default.RunPlan)!
+        );
+        Assert.Throws<ArgumentException>(() =>
+            Protocol.Validate(plan with { Scenarios = [.. plan.Scenarios.Select(s => s.Id == "throughput" ? s with { P99Ms = 1e9 } : s)] })
+        );
+        Assert.Throws<ArgumentException>(() => Protocol.Validate(plan with { Suite = plan.Suite with { ConfirmSeconds = 1 } }));
+        var constants = JsonNode.Parse(plan.Constants.GetRawText())!;
+        constants["capacity"]!["max_generator_missed_fraction_for_valid_capacity"] = 1;
+        Assert.Throws<ArgumentException>(() => Protocol.Validate(plan with { Constants = JsonElement.Parse(constants.ToJsonString()) }));
+    }
+
+    [Fact]
+    public void A_ladder_that_climbs_to_its_first_miss_in_every_pass_and_confirms_is_complete()
+    {
+        Assert.Empty(CoveragePolicy.Missing(Release, "pg", [.. Climb(Release, held: 2), Trial(Release, "confirm", 1, Rates[1])]));
+    }
+
+    [Fact]
+    public void Holding_every_written_rate_ends_the_ladder_without_a_miss()
+    {
+        Assert.Empty(
+            CoveragePolicy.Missing(Release, "pg", [.. Climb(Release, held: Rates.Length), Trial(Release, "confirm", 1, Rates[^1])])
+        );
+    }
+
+    [Fact]
+    public void A_pass_that_stops_before_its_first_miss_leaves_a_gap()
+    {
+        var rows = Climb(Release, held: 2)
+            .Where(r => !(r.Repetition == 2 && Offered(r) == Rates[2]))
+            .Append(Trial(Release, "confirm", 1, Rates[1]));
+        var gap = Assert.Single(CoveragePolicy.Missing(Release, "pg", rows));
+        Assert.Equal($"Pass 2 has no result at {Rates[2]}/s.", gap.Reason);
+        Assert.Equal("INCONCLUSIVE", gap.Status);
+    }
+
+    [Fact]
+    public void Missing_the_floor_fails_only_where_the_suite_gates_on_measurement()
+    {
+        CaseResult[] missed = [.. Enumerable.Range(1, 3).Select(p => Trial(Release, "measure", p, Rates[0], "UNSTABLE"))];
+        var gaps = CoveragePolicy.Missing(Release, "pg", missed);
+        Assert.Contains(gaps, g => g.Status == "FAIL");
+        Assert.Equal("FAIL", Verdicts.Overall([.. missed, .. gaps], false, true));
+
+        var check = Protocol.Plan("check", ["pg"], 1729, ["throughput"]);
+        var floor = check.Scenario("throughput").Rates["pg"][0];
+        CaseResult[] slow =
+        [
+            .. Enumerable
+                .Range(1, ScenarioRunner.Passes(check, check.Scenario("throughput")))
+                .Select(p => Trial(check, "measure", p, floor, "UNSTABLE")),
+        ];
+        var informational = CoveragePolicy.Missing(check, "pg", slow);
+        Assert.All(informational, g => Assert.Equal("NOT_APPLICABLE", g.Status));
+        Assert.Equal("PASS", Verdicts.Overall([.. slow, .. informational], false, true));
+    }
+
+    [Fact]
+    public void A_harness_error_at_the_floor_is_incomplete_not_a_miss()
+    {
+        CaseResult[] late = [.. Enumerable.Range(1, 3).Select(p => Trial(Release, "measure", p, Rates[0], "GENERATOR_LIMITED"))];
+        var gaps = CoveragePolicy.Missing(Release, "pg", late);
+        Assert.NotEmpty(gaps);
+        Assert.All(gaps, g => Assert.Equal("INCONCLUSIVE", g.Status));
+    }
+
+    [Fact]
+    public void A_harness_error_above_the_floor_stops_the_ladder_short_and_leaves_a_gap()
+    {
+        CaseResult[] rows =
+        [
+            .. Climb(Release, held: 2).Where(r => !(r.Repetition == 1 && Offered(r) == Rates[2])),
+            Trial(Release, "measure", 1, Rates[2], "GENERATOR_LIMITED"),
+            Trial(Release, "confirm", 1, Rates[1]),
+        ];
+        var gap = Assert.Single(CoveragePolicy.Missing(Release, "pg", rows));
+        Assert.Equal($"Pass 1 stopped on a harness error at {Rates[2]}/s.", gap.Reason);
+    }
+
+    [Fact]
+    public void A_rate_some_pass_never_reached_is_not_summarized_as_held()
+    {
+        // Pass 1 misses the second rate, so passes 2 and 3 alone hold the third.
+        CaseResult[] rows =
+        [
+            Trial(Release, "measure", 1, Rates[0]),
+            Trial(Release, "measure", 1, Rates[1], "UNSTABLE"),
+            .. Enumerable.Range(2, 2).SelectMany(p => Rates.Take(3).Select(r => Trial(Release, "measure", p, r))),
+        ];
+        var summary = PerformanceSummary.Create(Release, rows);
+        Assert.True(summary.Single(s => s.OfferedRate == Rates[0]).Held);
+        Assert.False(summary.Single(s => s.OfferedRate == Rates[2]).Held);
+    }
+
+    [Fact]
+    public void A_headline_owes_a_confirmation_that_may_step_down_once()
+    {
+        var climbed = Climb(Release, held: 3);
+        Assert.Contains(CoveragePolicy.Missing(Release, "pg", climbed), g => g.Reason!.Contains("confirmation", StringComparison.Ordinal));
         Assert.Empty(
             CoveragePolicy.Missing(
-                plan with
-                {
-                    Cases = [plan.Cases.Single(c => c.Id == "C01")],
-                },
+                Release,
                 "pg",
-                [Row("verify", 1, 0), Row("discover", 0, 50), Row("measure", 1, 25)]
+                [.. climbed, Trial(Release, "confirm", 1, Rates[2], "UNSTABLE"), Trial(Release, "confirm", 1, Rates[1])]
             )
         );
-        Protocol.Validate(plan);
-        Assert.Throws<ArgumentException>(() => Protocol.Validate(plan with { MeasurementSeconds = 3 }));
-        var replay = JsonSerializer.Deserialize(JsonSerializer.Serialize(plan, VerifyJson.Default.RunPlan), VerifyJson.Default.RunPlan)!;
-        Protocol.Validate(replay);
-        Assert.Equal(plan.Profile, replay.Profile);
+        Assert.Contains(
+            CoveragePolicy.Missing(
+                Release,
+                "pg",
+                [.. climbed, Trial(Release, "confirm", 1, Rates[2], "UNSTABLE"), Trial(Release, "confirm", 1, Rates[1], "UNSTABLE")]
+            ),
+            g => g.Reason!.Contains("Neither confirmation", StringComparison.Ordinal)
+        );
     }
 
     [Fact]
-    public void Standard_still_rejects_invalid_measurements_and_supports_explicit_worker_sweeps()
+    public void Quick_owes_each_ladder_its_first_rate_only()
     {
-        var plan = Protocol.Plan("standard", ["pg"], 1729) with { RequestedDiagnosticCells = ["workers-16"] };
-        Protocol.Validate(plan);
-        Assert.Single(CoveragePolicy.RequiredCells(plan, "pg", "L01"));
-        Assert.Equal(0, CoveragePolicy.ValidatedCapacity(plan, [Row("measure", 1, 25, "GENERATOR_LIMITED")]));
-        Assert.Equal(0, CoveragePolicy.ValidatedCapacity(plan, [Row("measure", 1, 25, "UNSTABLE")]));
+        var quick = Protocol.Plan("quick", ["pg"], 1729, ["throughput"]);
+        Assert.Empty(CoveragePolicy.Missing(quick, "pg", [Trial(quick, "measure", 1, quick.Scenario("throughput").Rates["pg"][0])]));
     }
 
     [Fact]
-    public void A_requested_multi_worker_cell_is_neither_run_nor_required_on_sqlite()
+    public void A_trial_that_ran_another_topology_than_its_file_leaves_a_gap()
     {
-        var plan = Protocol.Plan("quick", ["sqlite"], 1729, ["L01"]) with { RequestedDiagnosticCells = ["workers-4"] };
-        Assert.Empty(CoveragePolicy.RequiredCells(plan, "sqlite", "L01"));
-        Assert.Single(CoveragePolicy.RequiredCells(plan, "pg", "L01"));
+        CaseResult[] rows = [.. Climb(Release, held: 2), Trial(Release, "confirm", 1, Rates[1])];
+        rows[0].Metrics["worker_processes"] = new(1, "processes");
+        Assert.Contains(CoveragePolicy.Missing(Release, "pg", rows), g => g.Reason!.Contains("1 workers, not 4", StringComparison.Ordinal));
     }
 
     [Fact]
-    public void A_full_run_may_narrow_its_cells_and_override_its_repetitions_and_preload()
+    public void Every_fault_repetition_owes_a_result()
     {
-        var plan = Protocol.Plan("full", ["pg"], 1729, ["L04"]) with
-        {
-            RequestedDiagnosticCells = ["drain-workers-8"],
-            Repetitions = 3,
-            PreloadedBacklogRoots = new Dictionary<string, int>
-            {
-                ["sqlite"] = 1_000_000,
-                ["pg"] = 1_000_000,
-                ["mssql"] = 1_000_000,
-            },
-        };
-        Protocol.Validate(plan);
-        Assert.Equal("drain-workers-8", Assert.Single(CoveragePolicy.RequiredCells(plan, "pg", "L04")).Name);
-        // The canonical L04 trial is the one-worker drain, so the cells start at four workers.
-        Assert.Equal(3, CoveragePolicy.RequiredCells(plan with { RequestedDiagnosticCells = [] }, "pg", "L04").Count());
-        Assert.Throws<ArgumentException>(() => Protocol.Validate(plan with { Repetitions = 0 }));
+        var plan = Protocol.Plan("release", ["pg"], 1729, ["kill-busy-worker"]);
+        var gaps = CoveragePolicy.Missing(plan, "pg", [Passed("kill-busy-worker", "fault", 1)]);
+        Assert.Equal(plan.Suite.FaultRepetitions - 1, gaps.Length);
+        Assert.Equal("Repetition 2 has no result.", gaps[0].Reason);
     }
 
     [Fact]
-    public void Latency_qualified_calibration_does_not_claim_validated_capacity()
+    public void A_scenario_that_did_not_run_passes_coverage_only_with_a_written_skip()
     {
-        var candidate = Row("discover", 0, 1600, "UNSTABLE");
-        candidate.Metrics["calibration_candidate"] = new(1, "boolean");
-        var plan = Protocol.Plan("full", ["pg"], 1729);
-        Assert.Equal([1280d], CoveragePolicy.SelectedRates(plan, [candidate]));
-        Assert.Equal(0, CoveragePolicy.ValidatedCapacity(plan, [candidate]));
-        Assert.False(CoveragePolicy.IsDiscoveryCandidate(candidate with { Measurement = "GENERATOR_LIMITED" }));
+        var plan = Protocol.Plan("check", ["sqlite"], 1729, ["database-crash", "checkpoint-depths"]);
+        var gaps = CoveragePolicy.Missing(
+            plan,
+            "sqlite",
+            [
+                CaseResult.NotApplicable("database-crash", "sqlite", "skipped"),
+                CaseResult.NotApplicable("checkpoint-depths", "sqlite", "skipped"),
+            ]
+        );
+        Assert.Equal("checkpoint-depths", Assert.Single(gaps).Id);
     }
 
     [Fact]
-    public void Variable_backlog_trials_require_all_predeclared_additional_repetitions()
+    public void Chaos_owes_its_written_busy_kills_with_reclaim_over_every_job()
     {
-        var plan = Protocol.Plan("full", ["sqlite"], 1729, ["L04"]);
-        var initial = Enumerable
-            .Range(1, 3)
-            .Select(i =>
-                Row("measure", i, 0) with
-                {
-                    Id = "L04",
-                    Provider = "sqlite",
-                    Metrics = new() { ["primary_rate"] = new(i % 2 == 0 ? 2000 : 1000, "backlog_roots/second") },
-                }
-            )
-            .ToArray();
-        Assert.False(CoveragePolicy.RepetitionsComplete(plan, initial));
-        var extra = Enumerable.Range(4, 2).Select(i => initial[0] with { Repetition = i });
-        Assert.True(CoveragePolicy.RepetitionsComplete(plan, initial.Concat(extra)));
-    }
-
-    [Fact]
-    public void Open_loop_dispersion_reads_p99_latency_because_completed_rate_tracks_the_offered_rate()
-    {
-        var plan = Protocol.Plan("full", ["pg"], 1729, ["C01"]);
-        var rows = Enumerable.Range(1, 3).Select(i => Row("measure", i, 50)).ToArray();
-        foreach (var row in rows)
-        {
-            row.Metrics["primary_latency_p99"] = new(100.0 * row.Repetition, "milliseconds");
-        }
-        Assert.False(CoveragePolicy.RepetitionsComplete(plan, rows));
-        var cell = Assert.Single(PerformanceSummary.Create(plan, rows));
-        Assert.Equal("primary_latency_p99", cell.DispersionMetric);
-        Assert.Equal(100, cell.MedianAbsoluteDeviation);
-    }
-
-    [Fact]
-    public void Correctness_alone_cannot_complete_a_canonical_case()
-    {
-        var plan = Protocol.Plan("full", ["sqlite"], 1729, ["L01"]);
-        Assert.NotEmpty(CoveragePolicy.Missing(plan, "sqlite", [Row("verify", 1, 0) with { Id = "L01", Provider = "sqlite" }]));
+        var plan = Protocol.Plan("release", ["pg"], 1729, ["chaos"]);
+        var kills = plan.Scenario("chaos").Setting("busy_kills", "pg");
+        var chaos = Passed("chaos", "fault", 0);
+        chaos.Metrics["observed_busy_kills"] = new(kills, "kills");
+        chaos.Metrics["kills_with_reclaim"] = new(kills, "kills");
+        chaos.Metrics["acknowledged_roots"] = new(plan.Scenario("chaos").Jobs["pg"], "roots");
+        Assert.Empty(CoveragePolicy.Missing(plan, "pg", [chaos]));
+        chaos.Metrics["kills_with_reclaim"] = new(kills - 1, "kills");
+        Assert.Single(CoveragePolicy.Missing(plan, "pg", [chaos]));
     }
 
     [Theory]
-    [InlineData("quick", "PASS")]
-    [InlineData("standard", "PASS")]
-    [InlineData("full", "INCONCLUSIVE")]
-    public void Capacity_gaps_decide_the_verdict_only_in_a_profile_that_gates_on_measurement(string profile, string verdict)
+    [InlineData("PASS", "VALID", "held")]
+    [InlineData("PASS", "UNSTABLE", "missed")]
+    [InlineData("PASS", "OBSERVER_LIMITED", "missed")]
+    [InlineData("PASS", "GENERATOR_LIMITED", "harness error")]
+    [InlineData("PASS", "UNAVAILABLE", "harness error")]
+    [InlineData("INCONCLUSIVE", "VALID", "harness error")]
+    [InlineData("FAIL", "VALID", "failed")]
+    public void A_trial_names_what_it_says_about_its_rate(string status, string measurement, string outcome)
     {
-        var plan = Protocol.Plan(profile, ["pg"], 1729, ["C01"]);
-        CaseResult[] rows =
-        [
-            Row("verify", 1, 0),
-            Row("discover", 0, 50),
-            Row("measure", 1, 25, "UNSTABLE"),
-            Row("measure", 1, 40, "UNSTABLE"),
-            Row("measure", 1, 50, "UNSTABLE"),
-        ];
-        var gaps = CoveragePolicy.Missing(plan, "pg", rows);
-        Assert.NotEmpty(gaps);
-        Assert.Equal(verdict, Verdicts.Overall([.. rows, .. gaps], false, true));
-    }
-
-    [Fact]
-    public void A_correctness_failure_in_a_quick_measured_trial_still_fails()
-    {
-        var plan = Protocol.Plan("quick", ["pg"], 1729, ["C01"]);
-        CaseResult[] rows =
-        [
-            Row("verify", 1, 0),
-            Row("discover", 0, 50),
-            Row("measure", 1, 25, "UNSTABLE") with
-            {
-                Status = "FAIL",
-                Safety = "FAIL",
-            },
-            Row("measure", 1, 40, "UNSTABLE"),
-            Row("measure", 1, 50, "UNSTABLE"),
-        ];
-        Assert.Equal("FAIL", Verdicts.Overall([.. rows, .. CoveragePolicy.Missing(plan, "pg", rows)], false, true));
-    }
-
-    [Fact]
-    public void Duplicate_trials_do_not_replace_missing_independent_repetitions()
-    {
-        var plan = Protocol.Plan("full", ["pg"], 1729, ["C01"]);
-        var rows = new[] { Row("discover", 0, 50) }.Concat(Enumerable.Repeat(Row("measure", 1, 50), 5));
-        Assert.Equal(0, CoveragePolicy.ValidatedCapacity(plan, rows));
-        Assert.Contains(CoveragePolicy.Missing(plan, "pg", rows), r => r.Reason!.Contains("trial 2", StringComparison.Ordinal));
-    }
-
-    [Fact]
-    public void One_invalid_repetition_disqualifies_its_rate_without_erasing_lower_valid_rates()
-    {
-        var plan = Protocol.Plan("full", ["pg"], 1729, ["C01"]);
-        var rows = Enumerable
-            .Range(1, 5)
-            .SelectMany(i => new[] { Row("measure", i, 40), Row("measure", i, 50, i == 3 ? "UNSTABLE" : "VALID") });
-        Assert.Equal(40, CoveragePolicy.ValidatedCapacity(plan, rows));
-    }
-
-    [Fact]
-    public void A_later_invalid_trial_cannot_be_discarded_to_keep_a_capacity_claim()
-    {
-        var plan = Protocol.Plan("full", ["pg"], 1729, ["C01"]);
-        var rows = Enumerable.Range(1, 5).Select(i => Row("measure", i, 50)).Append(Row("measure", 6, 50, "UNSTABLE"));
-        Assert.Equal(0, CoveragePolicy.ValidatedCapacity(plan, rows));
-    }
-
-    [Fact]
-    public void Discovery_never_fabricates_a_successful_starting_rate()
-    {
-        var plan = Protocol.Plan("full", ["pg"], 1729);
-        Assert.Empty(CoveragePolicy.SelectedRates(plan, [Row("discover", 0, 50, "UNSTABLE")]));
-        Assert.Equal([9d], CoveragePolicy.SelectedRates(plan, [Row("discover", 0, 50, "UNSTABLE"), Row("discover", 1, 12)]));
-    }
-
-    [Fact]
-    public void A_full_run_validates_the_highest_fallback_rate_that_holds_when_the_selected_rate_fails()
-    {
-        var plan = Protocol.Plan("full", ["pg"], 1729, ["C01"]);
-        CaseResult[] discovery = [Row("discover", 0, 6400), Row("discover", 1, 12800)];
-        Assert.Equal([10240d], CoveragePolicy.SelectedRates(plan, discovery));
-        Assert.Equal([8960d, 7680d, 6400d], CoveragePolicy.FallbackRates(plan, discovery));
-        Assert.Empty(CoveragePolicy.FallbackRates(Protocol.Plan("standard", ["pg"], 1729), discovery));
-        var rows = discovery.Concat(
-            Enumerable.Range(1, 5).SelectMany(i => new[] { Row("measure", i, 10240, "UNSTABLE"), Row("measure", i, 8960) })
-        );
-        Assert.Equal(8960, CoveragePolicy.ValidatedCapacity(plan, rows));
-        Assert.DoesNotContain(
-            CoveragePolicy.Missing(plan, "pg", rows),
-            r => r.Reason!.Contains("No arrival rate", StringComparison.Ordinal)
-        );
-    }
-
-    [Fact]
-    public void A_replayed_plan_cannot_relax_a_target_tolerance_or_cohort()
-    {
-        var plan = Protocol.Plan("standard", ["pg"], 1729);
-        Assert.Throws<ArgumentException>(() => Protocol.Validate(plan with { ReferenceSloMs = 1e9 }));
-        Assert.Throws<ArgumentException>(() =>
-            Protocol.Validate(plan with { LatencySloMs = new Dictionary<string, double> { ["C01"] = 1e9 } })
-        );
-        Assert.Throws<ArgumentException>(() => Protocol.Validate(plan with { GeneratorLagToleranceMs = 1e9 }));
-        Assert.Throws<ArgumentException>(() => Protocol.Validate(plan with { ChaosJobs = plan.ChaosJobs - 1 }));
-        Assert.Throws<ArgumentException>(() => Protocol.Validate(plan with { Cases = [.. plan.Cases.Where(c => c.Family != "harness")] }));
-    }
-
-    [Fact]
-    public void Overload_is_the_first_failed_discovery_rate_or_twice_the_best_qualifying_rate()
-    {
-        var plan = Protocol.Plan("standard", ["pg"], 1729);
-        Assert.Equal(50, CoveragePolicy.OverloadRate(plan, [Row("discover", 0, 50, "UNSTABLE"), Row("discover", 1, 25)]));
-        Assert.Equal(100, CoveragePolicy.OverloadRate(plan, [Row("discover", 0, 50)]));
-    }
-
-    [Theory]
-    [InlineData("quick", 50)]
-    [InlineData("standard", 50)]
-    [InlineData("full", 0)]
-    public void An_unvalidated_prerequisite_lends_its_best_discovery_rate_only_where_measurement_does_not_gate(string profile, double rate)
-    {
-        var plan = Protocol.Plan(profile, ["pg"], 1729, ["E03"]);
-        Assert.Equal(rate, CoveragePolicy.PrerequisiteRate(plan, [Row("discover", 0, 50), Row("measure", 1, 25, "UNSTABLE")]));
-        Assert.Equal(
-            25,
-            CoveragePolicy.PrerequisiteRate(
-                plan,
-                [Row("discover", 0, 50), .. Enumerable.Range(1, plan.Repetitions).Select(i => Row("measure", i, 25))]
-            )
-        );
-    }
-
-    [Fact]
-    public void Full_plan_cannot_silently_reduce_timing_or_omit_diagnostic_cells()
-    {
-        var plan = Protocol.Plan("full", ["pg"], 1729);
-        Protocol.Validate(plan);
-        Assert.Throws<ArgumentException>(() => Protocol.Validate(plan with { MeasurementSeconds = 3 }));
-        Assert.Throws<ArgumentException>(() => Protocol.Validate(plan with { DiagnosticCells = [] }));
-    }
-
-    [Fact]
-    public void Selecting_both_endurance_cases_keeps_both_capacity_dependencies()
-    {
-        var plan = Protocol.Plan("quick", ["sqlite"], 1729, ["E01", "E03"]);
-        Assert.Contains(plan.Cases, c => c.Id == "L01");
-        Assert.Contains(plan.Cases, c => c.Id == "M03");
-    }
-
-    [Fact]
-    public void Normal_campaign_is_small_and_an_explicit_million_job_plan_round_trips()
-    {
-        Assert.Equal(1000, Protocol.Plan("quick", ["sqlite"], 1729).ChaosJobs);
-        var plan = Protocol.Plan("full", ["pg"], 1729);
-        Assert.Equal(10000, plan.ChaosJobs);
-        var endurance = plan with { ChaosJobs = 1000000 };
-        var replay = JsonSerializer.Deserialize(
-            JsonSerializer.Serialize(endurance, VerifyJson.Default.RunPlan),
-            VerifyJson.Default.RunPlan
-        )!;
-        Assert.Equal(1000000, replay.ChaosJobs);
-        Assert.Equal(endurance.ChaosSeed, replay.ChaosSeed);
-        Protocol.Validate(replay);
-    }
-
-    [Fact]
-    public void F09_runs_three_workers_on_sqlite_and_the_profile_fleet_on_the_servers()
-    {
-        Assert.Equal(3, Protocol.Plan("standard", ["sqlite"], 1729).ChaosWorkers("sqlite"));
-        Assert.Equal(3, Protocol.Plan("full", ["sqlite"], 1729).ChaosWorkers("sqlite"));
-        Assert.Equal(8, Protocol.Plan("standard", ["pg"], 1729).ChaosWorkers("pg"));
-        Assert.Equal(24, Protocol.Plan("full", ["mssql"], 1729).ChaosWorkers("mssql"));
+        Assert.Equal(outcome, Verdicts.RateOutcome(Trial(Release, "measure", 1, Rates[0], measurement) with { Status = status }));
     }
 
     [Fact]
@@ -336,19 +292,20 @@ public sealed class PolicyTests
     [Fact]
     public void A_liveness_deadline_grows_with_the_jobs_the_lease_a_kill_leaves_and_a_slow_measured_drain_up_to_its_ceiling()
     {
-        var plan = Protocol.Plan("standard", ["pg"], 1729);
-        Assert.Equal(30 + 1001 / 2, plan.Deadline(1001, 0, null));
-        Assert.Equal(30 + 2 * 180 + 1001 / 2, plan.Deadline(1001, 180, null));
-        Assert.Equal(30 + 1001 / 2, plan.Deadline(1001, 0, 5000));
-        Assert.Equal(30 + 1001, plan.Deadline(1001, 0, 20));
+        var plan = Protocol.Plan("check", ["pg"], 1729);
+        var floor = plan.Policy("liveness", "drain_seconds");
+        Assert.Equal((int)(floor + 1001 / 2.0), plan.Deadline(1001, 0, null));
+        Assert.Equal((int)(floor + 2 * 180 + 1001 / 2.0), plan.Deadline(1001, 180, null));
+        Assert.Equal((int)(floor + 1001 / 2.0), plan.Deadline(1001, 0, 5000));
+        Assert.Equal((int)(floor + 1001), plan.Deadline(1001, 0, 20));
         Assert.Equal(14400, plan.Deadline(10_000_000, 0, null));
     }
 
     [Fact]
     public void A_slow_serialized_drain_that_keeps_completing_is_not_a_liveness_failure()
     {
-        var plan = Protocol.Plan("standard", ["pg"], 1729, ["O03"]);
-        // O03's 50 roots/s discovery queues 250 jobs on one key, and they complete about once a second.
+        var plan = Protocol.Plan("check", ["pg"], 1729);
+        // 250 jobs queued on one concurrency key complete about once a second.
         var deadline = plan.Deadline(250, 0, null);
         Assert.True(deadline < 250);
         Assert.All(Enumerable.Range(0, 250), second => Assert.False(plan.DrainOverdue(second, 1, deadline)));
@@ -357,7 +314,7 @@ public sealed class PolicyTests
     [Fact]
     public void A_drain_with_no_completion_for_the_stall_window_is_a_liveness_failure_past_its_deadline()
     {
-        var plan = Protocol.Plan("standard", ["pg"], 1729, ["O03"]);
+        var plan = Protocol.Plan("check", ["pg"], 1729);
         var deadline = plan.Deadline(250, 0, null);
         var stall = plan.Policy("liveness", "stall_seconds");
         // The cohort's last completion lands at 200 s.
@@ -408,35 +365,48 @@ public sealed class PolicyTests
         Assert.Contains(OutcomeCheck.Reconcile(expected, [new("charge-0", "Cancelled", null)]), c => !c.Passed);
     }
 
-    [Fact]
-    public void Scaling_declares_both_spread_and_single_namespace_contention()
-    {
-        var cells = Protocol.Plan("full", ["pg"], 1729).DiagnosticCells;
-        Assert.Contains(cells, c => c.Workers == 16 && c.Namespaces == 2);
-        Assert.Contains(cells, c => c.Workers == 16 && c.Namespaces == 1);
-    }
-
     private static RunPlan WithStallSeconds(double seconds)
     {
-        var plan = Protocol.Plan("standard", ["pg"], 1729);
-        var policy = JsonNode.Parse(plan.FullPolicy.GetRawText())!;
-        policy["liveness"]!["stall_seconds"] = seconds;
-        return plan with { FullPolicy = JsonElement.Parse(policy.ToJsonString()) };
+        var plan = Protocol.Plan("check", ["pg"], 1729);
+        var constants = JsonNode.Parse(plan.Constants.GetRawText())!;
+        constants["liveness"]!["stall_seconds"] = seconds;
+        return plan with { Constants = JsonElement.Parse(constants.ToJsonString()) };
     }
 
-    private static CaseResult Row(string phase, int repetition, double rate, string measurement = "VALID") =>
-        new(
-            "C01",
-            "pg",
-            phase,
-            repetition,
-            "PASS",
-            null,
-            "PASS",
-            "PASS",
-            "COMPLETE",
-            measurement,
-            new() { ["offered_rate"] = new(rate, "roots/second"), ["primary_rate"] = new(rate, "roots/second") },
-            ["checks.json"]
-        );
+    /// <summary>Every pass of the plan's throughput ladder holding its first <paramref name="held"/> rates, then missing the next.</summary>
+    private static CaseResult[] Climb(RunPlan plan, int held) =>
+        [
+            .. Enumerable
+                .Range(1, ScenarioRunner.Passes(plan, plan.Scenario("throughput")))
+                .SelectMany(pass =>
+                    Rates
+                        .Take(held)
+                        .Select(rate => Trial(plan, "measure", pass, rate))
+                        .Concat(held < Rates.Length ? [Trial(plan, "measure", pass, Rates[held], "UNSTABLE")] : [])
+                ),
+        ];
+
+    private static double Offered(CaseResult trial) => trial.Metrics["offered_rate"].Value!.Value;
+
+    /// <summary>A measured trial of the plan's throughput scenario on PostgreSQL, run with the topology its file writes.</summary>
+    private static CaseResult Trial(RunPlan plan, string phase, int pass, double rate, string measurement = "VALID")
+    {
+        var scenario = plan.Scenario("throughput");
+        Dictionary<string, Metric> metrics = new()
+        {
+            ["offered_rate"] = new(rate, "roots/second"),
+            ["primary_rate"] = new(rate, "roots/second"),
+            ["worker_processes"] = new(scenario.Workers["pg"], "processes"),
+            ["namespace_count"] = new(scenario.Namespaces["pg"], "namespaces"),
+            ["batch_size"] = new(scenario.JobsPerCall, "roots/call"),
+        };
+        if (scenario.Executors is { } executors)
+        {
+            metrics["executors_per_worker"] = new(executors, "executors");
+        }
+        return new("throughput", "pg", phase, pass, "PASS", null, "PASS", "PASS", "COMPLETE", measurement, metrics, ["checks.json"]);
+    }
+
+    private static CaseResult Passed(string id, string phase, int repetition) =>
+        new(id, "pg", phase, repetition, "PASS", null, "PASS", "PASS", "COMPLETE", "NOT_MEASURED", [], ["checks.json"]);
 }

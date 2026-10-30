@@ -9,7 +9,7 @@ internal sealed class OwnedWorkerPool : IDisposable
     /// <summary>The settings the first started worker reported; every worker in the pool starts with the same overrides.</summary>
     public WorkerSettings? Settings { get; private set; }
 
-    /// <summary>Starts workers on the product defaults, overriding only an executor count a diagnostic cell names.</summary>
+    /// <summary>Starts workers on the product defaults, overriding only the executor count a scenario writes.</summary>
     public async Task StartAsync(
         OwnedProvider provider,
         EffectService? effects,

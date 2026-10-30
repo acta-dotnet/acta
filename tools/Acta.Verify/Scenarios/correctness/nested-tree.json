@@ -1,0 +1,12 @@
+{
+  "title": "Nested tree five levels deep",
+  "question": "Does a job tree that fans out three ways at each of five levels match the expected tree exactly, with every job under the right parent and holding its expected result?",
+  "runner": "verify",
+  "work": [
+    {
+      "children": 3,
+      "depth": 5
+    }
+  ],
+  "jobs": 1
+}

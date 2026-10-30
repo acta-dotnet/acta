@@ -1,0 +1,34 @@
+{
+  "title": "Five-minute mixed soak",
+  "question": "Does the mixed workload hold a steady rate for five minutes with p99 under 5 s and a flat backlog?",
+  "runner": "rate-ladder",
+  "work": [
+    {},
+    {
+      "cpu_rounds": 1000
+    },
+    {
+      "effect_mode": "idempotent",
+      "work_ms": 5
+    },
+    {
+      "sleep_seconds": 1
+    },
+    {
+      "children": 10
+    }
+  ],
+  "seconds": 300,
+  "rates": {
+    "pg": [
+      700
+    ],
+    "mssql": [
+      350
+    ],
+    "sqlite": [
+      14
+    ]
+  },
+  "p99_ms": 5000
+}

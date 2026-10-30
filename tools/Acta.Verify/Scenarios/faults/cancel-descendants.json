@@ -1,0 +1,11 @@
+{
+  "title": "Cancelling a parent during fan-out",
+  "question": "When a parent is cancelled after its worker dies partway through starting children, does it stay cancelled, start no further children, and leave each existing child cancelled or succeeded?",
+  "runner": "fault",
+  "work": [
+    {
+      "children": 10,
+      "boundary": "children"
+    }
+  ]
+}

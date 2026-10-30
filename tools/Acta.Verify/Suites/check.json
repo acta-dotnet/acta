@@ -1,0 +1,130 @@
+{
+  "title": "Check",
+  "purpose": "Every scenario at shipped timings and smaller populations, to confirm correctness before a commit becomes a release candidate.",
+  "scenarios": [
+    "drain",
+    "throughput",
+    "throughput-one-worker",
+    "enqueue-one-per-call",
+    "enqueue-batches",
+    "enqueue-batches-of-1000",
+    "drain-one-worker",
+    "drain-4-workers",
+    "drain-16-workers",
+    "throughput-16-workers",
+    "throughput-16-workers-one-namespace",
+    "throughput-32-executors",
+    "three-steps",
+    "retries",
+    "cpu-work",
+    "payload-256b",
+    "payload-4kb",
+    "payload-mix",
+    "payload-64kb",
+    "many-lanes",
+    "queries-during-processing",
+    "parked-work-skew",
+    "future-priority-skew",
+    "ten-children",
+    "io-work",
+    "mixed-work",
+    "throughput-one-executor",
+    "hot-lane",
+    "hot-concurrency-key",
+    "soak",
+    "overload-then-recover",
+    "checkpoint-depths",
+    "wide-fan-out",
+    "nested-tree",
+    "partial-failure",
+    "cross-namespace-children",
+    "signal-before-wait",
+    "signal-after-wait",
+    "duplicate-signal",
+    "poison-neighbours",
+    "lane-order-many",
+    "lane-order-hot",
+    "concurrency-key-limit",
+    "priority-tenant-contention",
+    "rate-meters",
+    "retained-history",
+    "retention-during-load",
+    "retention-live-dependencies",
+    "transactional-enqueue-commit",
+    "transactional-enqueue-rollback",
+    "compatible-contract",
+    "incompatible-contract",
+    "schema-upgrade",
+    "crash-after-checkpoint",
+    "crash-after-effect",
+    "at-most-once",
+    "parent-dies-during-fan-out",
+    "last-child-join-race",
+    "cancel-descendants",
+    "durable-timer",
+    "signal-during-wait",
+    "signal-timeout-race",
+    "timeout-late-attempt",
+    "kill-busy-worker",
+    "kill-all-workers",
+    "pause-beyond-lease",
+    "database-disconnect",
+    "database-crash",
+    "lost-completion-reply",
+    "lost-enqueue-reply",
+    "wakeup-transport-down",
+    "outbox-relay-crash",
+    "non-idempotent-sink",
+    "idempotent-sink-crash",
+    "rolling-restart",
+    "chaos"
+  ],
+  "warmup_seconds": 5,
+  "ladder_seconds": 15,
+  "single_seconds": 10,
+  "passes": 1,
+  "headline_passes": 1,
+  "confirm_seconds": 0,
+  "gates_performance": false,
+  "first_rate_only": true,
+  "fault_repetitions": 1,
+  "overrides": {
+    "drain": {
+      "jobs": {
+        "pg": 200000,
+        "mssql": 200000,
+        "sqlite": 50000
+      }
+    },
+    "drain-16-workers": {
+      "jobs": 200000
+    },
+    "soak": {
+      "seconds": 60
+    },
+    "retained-history": {
+      "settings.populations": [
+        0,
+        1000,
+        10000
+      ]
+    },
+    "parked-work-skew": {
+      "settings.background": 100
+    },
+    "future-priority-skew": {
+      "settings.background": 100
+    },
+    "chaos": {
+      "jobs": 10000,
+      "workers": {
+        "pg": 8,
+        "mssql": 8,
+        "sqlite": 3
+      },
+      "executors": null,
+      "settings.step_ms": 1000,
+      "settings.busy_kills": 2
+    }
+  }
+}

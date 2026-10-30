@@ -1,0 +1,5 @@
+{
+  "title": "Worker paused past its lease",
+  "question": "When a worker freezes past its lease and another worker finishes the job, is the frozen worker's late result refused once it wakes?",
+  "runner": "stale-attempt"
+}

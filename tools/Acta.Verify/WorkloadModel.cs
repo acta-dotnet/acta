@@ -8,45 +8,8 @@ namespace Acta.Verify;
 internal static class WorkloadModel
 {
     private static readonly string[] EffectStep = ["effect=void"];
-    private static readonly int[] StepDepths = [1, 10, 100];
-    private static readonly int[] PayloadSizes = [256, 4096, 65536];
     private const string Alphabet = "abcdefghijklmnopqrstuvwxyz0123456789";
     private static readonly ConcurrentDictionary<WorkInput, (long, long, long)> Shapes = new();
-
-    /// <summary>The input of a case's arrival <paramref name="index"/>; <paramref name="payloadBytes"/> fixes a payload sweep's size.</summary>
-    public static WorkInput Input(string caseId, string key, int index = 0, int seed = 0, int? payloadBytes = null) =>
-        caseId switch
-        {
-            "C01" or "C03" => new(key, Steps: 3),
-            "C04" => new(key, EffectMode: "append", Boundary: "effect"),
-            "I04" => new(key, EffectMode: "append", Boundary: "completion"),
-            "C05" => new(key, EffectMode: "append", Boundary: "effect", AtMostOnce: true),
-            "I05" or "M02" => new(key, EffectMode: "idempotent", WorkMs: 5),
-            "M03" or "E01" => (index % 5) switch
-            {
-                0 => new(key),
-                1 => new(key, CpuRounds: 1000),
-                2 => new(key, EffectMode: "idempotent", WorkMs: 5),
-                3 => new(key, SleepSeconds: 1),
-                _ => new(key, Children: 10),
-            },
-            "C02" => new(key, Steps: StepDepths[index % 3]),
-            "P01" or "P04" or "P05" or "P07" or "P08" => new(
-                key,
-                Children: 10,
-                ChildNamespace: caseId == "P08" ? "verify-other" : "verify"
-            ),
-            "P02" => new(key, Children: 1000, ChildWindow: 32),
-            "P03" => new(key, Children: 3, Depth: 5),
-            "P06" => new(key, Children: 10, PartialFailure: true),
-            "T01" => new(key, SleepSeconds: 2),
-            "T02" or "T03" or "T04" or "T06" => new(key, Signal: "go"),
-            "R01" => new(key, Failures: index % 4 == 0 ? 2 : 0),
-            "R02" => new(key, Poison: index % 4 == 0),
-            "M01" => new(key, CpuRounds: 1000),
-            "M04" => new(key, Payload: Payload(payloadBytes ?? PayloadSizes[index % 3], unchecked(seed + index))),
-            _ => new(key),
-        };
 
     public static ExpectedOutcome[] Expected(IEnumerable<WorkInput> inputs)
     {

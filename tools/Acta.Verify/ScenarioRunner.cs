@@ -1,363 +1,191 @@
-using Microsoft.Extensions.DependencyInjection;
-
 namespace Acta.Verify;
 
-internal static class ScenarioRunner
+/// <summary>What a runner is given: the plan, its scenario, the database, the bundle, and where it records results.</summary>
+internal sealed record ScenarioRun(
+    RunPlan Plan,
+    Scenario Scenario,
+    OwnedProvider Environment,
+    EvidenceBundle Bundle,
+    Func<CaseResult, Task<CaseResult>> Record,
+    CancellationToken Ct
+)
 {
-    private static readonly HashSet<string> Implemented = new(StringComparer.Ordinal)
+    public string Provider => Environment.Provider;
+}
+
+/// <summary>
+/// Runs a plan's scenarios on one database, each by the runner its file names. A runner is the only place a scenario's
+/// behaviour lives in code: its workload, topology, rates and target come from the file.
+/// </summary>
+public static class ScenarioRunner
+{
+    private static readonly Dictionary<string, Func<ScenarioRun, Task>> Runners = new(StringComparer.Ordinal)
     {
-        "L01",
-        "L02",
-        "L03",
-        "L04",
-        "C01",
-        "C02",
-        "P01",
-        "P02",
-        "P03",
-        "P06",
-        "P08",
-        "R01",
-        "R02",
-        "M01",
-        "M02",
-        "M03",
-        "M04",
-        "T02",
-        "T04",
-        "T06",
-        "E02",
-        "I05",
-        "S02",
-        "S03",
+        ["rate-ladder"] = RateLadderAsync,
+        ["drain"] = DrainAsync,
+        ["overload"] = OverloadAsync,
+        ["verify"] = r => RepeatAsync(r, n => TrialRunner.VerifyAsync(r, n)),
+        ["fault"] = r => RepeatAsync(r, n => FaultCaseRunner.RunAsync(r.Plan, r.Scenario, r.Environment, r.Bundle, n, r.Ct)),
+        ["chaos"] = async r => await r.Record(await ChaosCase.RunAsync(r.Plan, r.Scenario, r.Environment, r.Bundle, r.Ct)),
+        ["storage"] = async r => await r.Record(await StorageCases.RunAsync(r.Plan, r.Scenario, r.Environment, r.Bundle, r.Ct)),
+        ["scheduling"] = async r => await r.Record(await SchedulingCases.RunAsync(r.Plan, r.Scenario, r.Environment, r.Bundle, r.Ct)),
+        ["race"] = r => RepeatAsync(r, n => RaceCases.RunAsync(r.Plan, r.Scenario, r.Environment, r.Bundle, r.Ct, n)),
+        ["transaction"] = r => RepeatAsync(r, n => TransactionCases.RunAsync(r.Plan, r.Scenario, r.Environment, r.Bundle, r.Ct, n)),
+        ["registration"] = r => RepeatAsync(r, n => RegistrationCases.RunAsync(r.Plan, r.Scenario, r.Environment, r.Bundle, r.Ct, n)),
+        ["reply-loss"] = r => RepeatAsync(r, n => ReplyLossCases.RunAsync(r.Plan, r.Scenario, r.Environment, r.Bundle, r.Ct, n)),
+        ["connectivity"] = r => RepeatAsync(r, n => ConnectivityCase.RunAsync(r.Plan, r.Scenario, r.Environment, r.Bundle, r.Ct, n)),
+        ["stale-attempt"] = r => RepeatAsync(r, n => StaleAttemptCase.RunAsync(r.Plan, r.Scenario, r.Environment, r.Bundle, r.Ct, n)),
+        ["timeout-wakeup"] = r => RepeatAsync(r, n => TimeoutAndWakeupCases.RunAsync(r.Plan, r.Scenario, r.Environment, r.Bundle, r.Ct, n)),
+        ["outbox"] = r => RepeatAsync(r, n => OutboxCase.RunAsync(r.Plan, r.Scenario, r.Environment, r.Bundle, r.Ct, n)),
     };
 
-    public static async Task RunAsync(
+    // Every scenario writes these; a runner missing from the tables below reads nothing else.
+    private static readonly string[] CommonFields = ["title", "question", "runner", "skip"];
+    private static readonly string[] LoadFields =
+    [
+        "work",
+        "workers",
+        "executors",
+        "namespaces",
+        "calls",
+        "jobs_per_call",
+        "lanes",
+        "lane",
+        "concurrency_key",
+    ];
+
+    /// <summary>The fields each runner reads beyond the common ones.</summary>
+    private static readonly Dictionary<string, string[]> FieldNames = new(StringComparer.Ordinal)
+    {
+        ["rate-ladder"] = [.. LoadFields, "headline", "rates", "seconds", "admission_only", "p99_ms", "settings"],
+        ["drain"] = [.. LoadFields, "headline", "jobs"],
+        ["overload"] = [.. LoadFields, "rates", "seconds", "p99_ms", "settings"],
+        ["verify"] = ["work", "jobs", "lanes", "lane", "concurrency_key", "settings"],
+        ["fault"] = ["work"],
+        ["chaos"] = ["jobs", "workers", "executors", "seconds", "settings"],
+        ["storage"] = ["settings"],
+    };
+
+    /// <summary>The settings each runner reads.</summary>
+    private static readonly Dictionary<string, string[]> SettingNames = new(StringComparer.Ordinal)
+    {
+        ["rate-ladder"] = ["background", "background_state", "queries_per_second"],
+        ["overload"] = ["overload_rate", "recovery_rate"],
+        ["verify"] = ["send_signal", "signal_copies"],
+        ["chaos"] = ["step_ms", "busy_kills"],
+        ["storage"] = ["populations"],
+    };
+
+    // The harness registers the work definition in these namespaces only.
+    private static readonly string[] ChildNamespaces = ["verify", "verify-other"];
+
+    /// <summary>Whether the <paramref name="runner"/> runner reads the scenario field <paramref name="field"/>.</summary>
+    public static bool Reads(string runner, string field) =>
+        CommonFields.Contains(field) || FieldNames.GetValueOrDefault(runner, []).Contains(field);
+
+    /// <summary>The runners a scenario file may name.</summary>
+    public static IReadOnlyCollection<string> Names => Runners.Keys;
+
+    /// <summary>
+    /// Refuses a scenario whose runner does not exist, that writes a setting its runner does not read, or that asks for
+    /// more namespaces than the harness registers.
+    /// </summary>
+    public static void Validate(Scenario scenario)
+    {
+        ArgumentNullException.ThrowIfNull(scenario);
+        if (!Runners.ContainsKey(scenario.Runner))
+        {
+            throw new InvalidOperationException($"Scenario {scenario.Id} names the runner {scenario.Runner}, which does not exist.");
+        }
+        if (scenario.Settings.Keys.FirstOrDefault(k => !SettingNames.GetValueOrDefault(scenario.Runner, []).Contains(k)) is { } unread)
+        {
+            throw new InvalidOperationException(
+                $"Scenario {scenario.Id} writes the setting {unread}, which the {scenario.Runner} runner does not read."
+            );
+        }
+        if (scenario.Namespaces.Values.Any(n => n is < 1 or > 2) || scenario.Work.Any(w => !ChildNamespaces.Contains(w.ChildNamespace)))
+        {
+            throw new InvalidOperationException(
+                $"Scenario {scenario.Id} writes namespaces the harness does not register: one or two, and children in {string.Join(" or ", ChildNamespaces)}."
+            );
+        }
+    }
+
+    /// <summary>The passes a measured scenario owes: the suite's headline passes for a headline, its passes otherwise.</summary>
+    public static int Passes(RunPlan plan, Scenario scenario)
+    {
+        ArgumentNullException.ThrowIfNull(plan);
+        ArgumentNullException.ThrowIfNull(scenario);
+        return scenario.Headline is null ? plan.Suite.Passes : plan.Suite.HeadlinePasses;
+    }
+
+    /// <summary>The rates a ladder climbs on <paramref name="provider"/>: the written ones, or the first only where the suite says so.</summary>
+    public static int[] LadderRates(RunPlan plan, Scenario scenario, string provider)
+    {
+        ArgumentNullException.ThrowIfNull(plan);
+        ArgumentNullException.ThrowIfNull(scenario);
+        var rates = scenario.Rates[provider];
+        return plan.Suite.FirstRateOnly ? rates[..1] : rates;
+    }
+
+    /// <summary>A measured window: the scenario's own, else the suite's for a ladder of <paramref name="rates"/> rates.</summary>
+    public static int Window(RunPlan plan, Scenario scenario, int rates)
+    {
+        ArgumentNullException.ThrowIfNull(plan);
+        ArgumentNullException.ThrowIfNull(scenario);
+        return scenario.Seconds ?? (rates > 1 ? plan.Suite.LadderSeconds : plan.Suite.SingleSeconds);
+    }
+
+    /// <summary>The repetitions of one bounded trial: the suite's for a fault scenario, one otherwise.</summary>
+    public static int Repetitions(RunPlan plan, Scenario scenario)
+    {
+        ArgumentNullException.ThrowIfNull(plan);
+        ArgumentNullException.ThrowIfNull(scenario);
+        return scenario.Group == "faults" ? plan.Suite.FaultRepetitions : 1;
+    }
+
+    /// <summary>The enqueue calls a measured trial keeps in flight: the scenario's, else the harness's for the database.</summary>
+    public static int Calls(RunPlan plan, Scenario scenario, string provider)
+    {
+        ArgumentNullException.ThrowIfNull(plan);
+        ArgumentNullException.ThrowIfNull(scenario);
+        return scenario.Calls.TryGetValue(provider, out var calls) ? calls : (int)plan.Policy("measurement", "producer_calls", provider);
+    }
+
+    /// <summary>The jobs a verification trial submits: the scenario's cohort, else the harness's verification count.</summary>
+    public static int VerificationJobs(RunPlan plan, Scenario scenario, string provider)
+    {
+        ArgumentNullException.ThrowIfNull(plan);
+        ArgumentNullException.ThrowIfNull(scenario);
+        return scenario.Jobs.GetValueOrDefault(provider, (int)plan.Policy("measurement", "verification_jobs"));
+    }
+
+    /// <summary>
+    /// Runs <paramref name="scenarios"/> on one database in order. A scenario that skips the database, or writes no
+    /// load for it, records why and does not run.
+    /// </summary>
+    internal static async Task RunAsync(
         RunPlan plan,
+        IEnumerable<Scenario> scenarios,
         OwnedProvider environment,
         EvidenceBundle bundle,
         Action<CaseResult> emit,
         CancellationToken ct
     )
     {
-        List<CaseResult> completed = [];
         var lastRecorded = System.Diagnostics.Stopwatch.GetTimestamp();
-        foreach (var descriptor in plan.Cases.Where(c => c.Family != "harness"))
+        foreach (var scenario in scenarios)
         {
             ct.ThrowIfCancellationRequested();
+            var run = new ScenarioRun(plan, scenario, environment, bundle, RecordAsync, ct);
+            if (Unwritten(scenario, environment.Provider) is { } skipped)
+            {
+                await RecordAsync(CaseResult.NotApplicable(scenario.Id, environment.Provider, skipped));
+                continue;
+            }
             try
             {
-                if (descriptor.Id is "E01" or "E03")
-                {
-                    var prerequisite = descriptor.Id == "E01" ? "M03" : "L01";
-                    var prerequisiteRows = completed.Where(r => r.Id == prerequisite).ToArray();
-                    var capacity = CoveragePolicy.PrerequisiteRate(plan, prerequisiteRows);
-                    if (capacity <= 0)
-                    {
-                        await RecordAsync(
-                            CaseResult.Incomplete(
-                                descriptor.Id,
-                                environment.Provider,
-                                descriptor.Id == "E01" ? "soak" : "fault",
-                                $"No independently validated {prerequisite} capacity is available for this declared workload."
-                            )
-                        );
-                    }
-                    else
-                    {
-                        var fallback =
-                            CoveragePolicy.ValidatedCapacity(plan, prerequisiteRows) > 0
-                                ? null
-                                : $"Ran at {prerequisite}'s best qualifying discovery rate of {capacity} roots/s: no {prerequisite} rate validated, and the {plan.Profile} profile does not gate its verdict on measurement.";
-                        var fraction = descriptor.Id == "E01" ? plan.Policy("soak", "offered_rate_fraction_of_validated_capacity") : 1;
-                        for (var repetition = 1; repetition <= BoundaryRepetitions(plan, descriptor); repetition++)
-                        {
-                            var result = await TrialRunner.RunAsync(
-                                plan,
-                                descriptor,
-                                environment,
-                                bundle,
-                                descriptor.Id == "E01" ? "soak" : "fault",
-                                repetition,
-                                Math.Max(1, (int)(capacity * fraction)),
-                                ct,
-                                overloadRate: descriptor.Id == "E03" ? (int)CoveragePolicy.OverloadRate(plan, prerequisiteRows) : 0
-                            );
-                            await RecordAsync(
-                                fallback is null
-                                    ? result
-                                    : result with
-                                    {
-                                        Reason = result.Reason is null ? fallback : $"{fallback} {result.Reason}",
-                                    }
-                            );
-                        }
-                    }
-                    continue;
-                }
-                if (descriptor.Id == "F09")
-                {
-                    await RecordAsync(await ChaosCase.RunAsync(plan, environment, bundle, ct));
-                    continue;
-                }
-                if (descriptor.Id == "I03")
-                {
-                    for (var repetition = 1; repetition <= BoundaryRepetitions(plan, descriptor); repetition++)
-                    {
-                        await RecordAsync(await OutboxCase.RunAsync(plan, environment, bundle, ct, repetition));
-                    }
-                    continue;
-                }
-                if (descriptor.Family == "storage")
-                {
-                    await RecordAsync(await StorageCases.RunAsync(plan, descriptor, environment, bundle, ct));
-                    if (descriptor.Id is not ("S02" or "S03"))
-                    {
-                        continue;
-                    }
-                }
-                if (descriptor.Id is "R03" or "F08")
-                {
-                    for (var repetition = 1; repetition <= BoundaryRepetitions(plan, descriptor); repetition++)
-                    {
-                        await RecordAsync(await TimeoutAndWakeupCases.RunAsync(plan, descriptor, environment, bundle, ct, repetition));
-                    }
-                    continue;
-                }
-                if (descriptor.Id == "F04")
-                {
-                    for (var repetition = 1; repetition <= BoundaryRepetitions(plan, descriptor); repetition++)
-                    {
-                        await RecordAsync(await ConnectivityCase.RunAsync(plan, environment, bundle, ct, repetition));
-                    }
-                    continue;
-                }
-                if (descriptor.Id == "F03")
-                {
-                    for (var repetition = 1; repetition <= BoundaryRepetitions(plan, descriptor); repetition++)
-                    {
-                        await RecordAsync(await StaleAttemptCase.RunAsync(plan, environment, bundle, ct, repetition));
-                    }
-                    continue;
-                }
-                if (descriptor.Id is "P05" or "T03" or "T05")
-                {
-                    for (var repetition = 1; repetition <= BoundaryRepetitions(plan, descriptor); repetition++)
-                    {
-                        await RecordAsync(await RaceCases.RunAsync(plan, descriptor, environment, bundle, ct, repetition));
-                    }
-                    continue;
-                }
-                if (descriptor.Family == "ordering")
-                {
-                    await RecordAsync(await SchedulingCases.RunAsync(plan, descriptor, environment, bundle, ct));
-                    if (descriptor.Id is "O04" or "O05")
-                    {
-                        continue;
-                    }
-                }
-                if (descriptor.Id is "I01" or "I02")
-                {
-                    for (var repetition = 1; repetition <= BoundaryRepetitions(plan, descriptor); repetition++)
-                    {
-                        await RecordAsync(await TransactionCases.RunAsync(plan, descriptor, environment, bundle, ct, repetition));
-                    }
-                    continue;
-                }
-                if (descriptor.Id is "D02" or "D03" or "D04")
-                {
-                    for (var repetition = 1; repetition <= BoundaryRepetitions(plan, descriptor); repetition++)
-                    {
-                        await RecordAsync(await RegistrationCases.RunAsync(plan, descriptor, environment, bundle, ct, repetition));
-                    }
-                    continue;
-                }
-                if (descriptor.Id is "F06" or "F07")
-                {
-                    for (var repetition = 1; repetition <= BoundaryRepetitions(plan, descriptor); repetition++)
-                    {
-                        await RecordAsync(await ReplyLossCases.RunAsync(plan, descriptor, environment, bundle, ct, repetition));
-                    }
-                    continue;
-                }
-                if (FaultCaseRunner.Handles(descriptor.Id))
-                {
-                    if (environment.Provider == "sqlite" && descriptor.Id == "F05")
-                    {
-                        await RecordAsync(
-                            new(
-                                descriptor.Id,
-                                environment.Provider,
-                                "fault",
-                                0,
-                                "NOT_APPLICABLE",
-                                "SQLite is embedded; the profile has no separate database process.",
-                                "NOT_APPLICABLE",
-                                "NOT_APPLICABLE",
-                                "NOT_APPLICABLE",
-                                "NOT_MEASURED",
-                                [],
-                                ["resolved-plan.json"]
-                            )
-                        );
-                    }
-                    else
-                    {
-                        for (var repetition = 1; repetition <= plan.TargetedFaultRepetitions; repetition++)
-                        {
-                            await RecordAsync(await FaultCaseRunner.RunAsync(plan, descriptor, environment, bundle, repetition, ct));
-                        }
-                    }
-                    if (descriptor.Id != "I05")
-                    {
-                        continue;
-                    }
-                }
-                if (!Implemented.Contains(descriptor.Id) && descriptor.Family != "ordering")
-                {
-                    await RecordAsync(
-                        CaseResult.Incomplete(
-                            descriptor.Id,
-                            environment.Provider,
-                            descriptor.Phases[0],
-                            "Required case execution is not implemented yet."
-                        )
-                    );
-                    continue;
-                }
-                for (var repetition = 1; repetition <= BoundaryRepetitions(plan, descriptor); repetition++)
-                {
-                    await RecordAsync(await TrialRunner.RunAsync(plan, descriptor, environment, bundle, "verify", repetition, 0, ct));
-                }
-                if (!descriptor.Phases.Contains("measure", StringComparer.Ordinal) || !CoveragePolicy.IsCanonical(plan, descriptor.Id))
-                {
-                    continue;
-                }
-                if (descriptor.Id == "L04")
-                {
-                    for (var repetition = 1; repetition <= plan.Repetitions; repetition++)
-                    {
-                        await RecordAsync(await TrialRunner.RunAsync(plan, descriptor, environment, bundle, "measure", repetition, 0, ct));
-                    }
-                    await RepeatVariableCellAsync(descriptor, 0, null);
-                    foreach (var cell in CoveragePolicy.RequiredCells(plan, environment.Provider, descriptor.Id))
-                    {
-                        for (var repetition = 1; repetition <= plan.Repetitions; repetition++)
-                        {
-                            await RecordAsync(
-                                await TrialRunner.RunAsync(plan, descriptor, environment, bundle, "measure", repetition, 0, ct, cell)
-                            );
-                        }
-                        await RepeatVariableCellAsync(descriptor, 0, cell);
-                    }
-                    continue;
-                }
-                // Discovery is explicitly separate evidence, followed by fresh measured repetitions.
-                var rate = (int)plan.Policy("capacity", "discovery_start_rate");
-                var best = 0;
-                var discoveryLimit = plan.ProfilePolicy("discovery_attempt_limit");
-                var discoveryStop = "Reached the predeclared discovery attempt limit; capacity is a highest observed lower bound.";
-                var harnessBound = false;
-                for (var attempt = 0; attempt < discoveryLimit; attempt++)
-                {
-                    var discovery = await RecordAsync(
-                        await TrialRunner.RunAsync(plan, descriptor, environment, bundle, "discover", attempt, rate, ct)
-                    );
-                    if (!CoveragePolicy.IsDiscoveryCandidate(discovery))
-                    {
-                        if (best == 0 && rate > 1)
-                        {
-                            rate = Math.Max(1, rate / 2);
-                            continue;
-                        }
-                        harnessBound = discovery.Measurement == "GENERATOR_LIMITED";
-                        discoveryStop = harnessBound
-                            ? "The harness could not offer the next discovery rate; the highest qualifying rate is a harness-bound lower bound, not a capacity."
-                            : "The next discovery point did not qualify; all trials are retained.";
-                        break;
-                    }
-                    best = rate;
-                    if (plan.Profile == "quick")
-                    {
-                        discoveryStop = "Quick mode stops at the first qualifying discovery point; it does not locate maximum capacity.";
-                        break;
-                    }
-                    rate *= 2;
-                }
-                if (best == 0)
-                {
-                    await RecordAsync(
-                        CaseResult.MeasurementGap(
-                            plan,
-                            descriptor.Id,
-                            environment.Provider,
-                            "measure",
-                            "Discovery did not establish a valid rate; no capacity score is available."
-                        )
-                    );
-                    continue;
-                }
-                var selectedRates = CoveragePolicy.SelectedRates(plan, completed.Where(r => r.Id == descriptor.Id));
-                var fallbackRates = CoveragePolicy.FallbackRates(plan, completed.Where(r => r.Id == descriptor.Id));
-                bundle.Write(
-                    $"histories/{environment.Provider}-{descriptor.Id}-selected-rates.json",
-                    new Dictionary<string, string>
-                    {
-                        ["offered_rates"] = string.Join(",", selectedRates),
-                        ["fallback_rates"] = string.Join(",", fallbackRates),
-                        ["frozen_before_measured_trials"] = "true",
-                        ["discovery_stop_reason"] = discoveryStop,
-                        ["harness_bound"] = harnessBound ? "true" : "false",
-                    },
-                    VerifyJson.Default.DictionaryStringString
-                );
-                // Rotate the frozen rates between repetitions to avoid a fixed low-to-high order.
-                for (var repetition = 1; repetition <= plan.Repetitions; repetition++)
-                {
-                    for (var index = 0; index < selectedRates.Length; index++)
-                    {
-                        var selectedRate = (int)selectedRates[(index + repetition - 1) % selectedRates.Length];
-                        await RecordAsync(
-                            await TrialRunner.RunAsync(plan, descriptor, environment, bundle, "measure", repetition, selectedRate, ct)
-                        );
-                    }
-                }
-                foreach (var selectedRate in selectedRates)
-                {
-                    await RepeatVariableCellAsync(descriptor, (int)selectedRate, null);
-                }
-                foreach (var fallbackRate in fallbackRates)
-                {
-                    if (CoveragePolicy.ValidatedCapacity(plan, completed.Where(r => r.Id == descriptor.Id)) > 0)
-                        break;
-                    for (var repetition = 1; repetition <= plan.Repetitions; repetition++)
-                    {
-                        await RecordAsync(
-                            await TrialRunner.RunAsync(plan, descriptor, environment, bundle, "measure", repetition, (int)fallbackRate, ct)
-                        );
-                    }
-                    await RepeatVariableCellAsync(descriptor, (int)fallbackRate, null);
-                }
-                foreach (var cell in CoveragePolicy.RequiredCells(plan, environment.Provider, descriptor.Id))
-                {
-                    for (var repetition = 1; repetition <= plan.Repetitions; repetition++)
-                    {
-                        await RecordAsync(
-                            await TrialRunner.RunAsync(
-                                plan,
-                                descriptor,
-                                environment,
-                                bundle,
-                                "measure",
-                                repetition,
-                                (int)selectedRates[0],
-                                ct,
-                                cell
-                            )
-                        );
-                    }
-                    await RepeatVariableCellAsync(descriptor, (int)selectedRates[0], cell);
-                }
+                await Runners[scenario.Runner](run);
             }
             catch (OperationCanceledException) when (ct.IsCancellationRequested)
             {
@@ -369,10 +197,10 @@ internal static class ScenarioRunner
             }
             catch (Exception ex)
             {
-                var reason = $"Case did not finish ({ex.GetType().Name}: {ex.Message}); partial histories retained.";
-                Console.WriteLine($"  {descriptor.Id} {environment.Provider}: {reason}");
-                File.WriteAllText(bundle.Resolve($"logs/{environment.Provider}-{descriptor.Id}-error.txt"), ex.ToString());
-                await RecordAsync(CaseResult.Incomplete(descriptor.Id, environment.Provider, "verify", reason));
+                var reason = $"Scenario did not finish ({ex.GetType().Name}: {ex.Message}); partial histories retained.";
+                Console.WriteLine($"  {scenario.Id} {environment.Provider}: {reason}");
+                File.WriteAllText(bundle.Resolve($"logs/{environment.Provider}-{scenario.Id}-error.txt"), ex.ToString());
+                await RecordAsync(CaseResult.Incomplete(scenario.Id, environment.Provider, "verify", reason));
             }
         }
 
@@ -387,40 +215,167 @@ internal static class ScenarioRunner
                 Reason: "Time from the previous recorded result to this one, its setup, trial and ledger checks included."
             );
             lastRecorded = recorded;
+            // A measured drain sets the pace the liveness deadline of later waits allows.
             if (
-                result is { Id: "L04", Phase: "measure", DiagnosticCellName: null, Status: "PASS" }
+                result is { Phase: "measure", Status: "PASS" }
                 && result.Metrics.GetValueOrDefault("backlog_drain_rate")?.Value is { } drain
             )
             {
                 environment.DrainRate = Math.Min(environment.DrainRate ?? drain, drain);
             }
-            completed.Add(result);
             emit(result);
             return result;
         }
+    }
 
-        async Task RepeatVariableCellAsync(ScenarioDescriptor descriptor, int rate, TrialCell? cell)
+    /// <summary>Why <paramref name="scenario"/> does not run on <paramref name="provider"/>, or null when it does.</summary>
+    public static string? Unwritten(Scenario scenario, string provider) =>
+        scenario.Skip.TryGetValue(provider, out var skipped) ? skipped
+        : scenario.Runner is "rate-ladder" or "overload" && !scenario.Rates.ContainsKey(provider)
+            ? $"The scenario writes no rate for {provider}."
+        : scenario.Runner == "drain" && !scenario.Jobs.ContainsKey(provider) ? $"The scenario writes no cohort for {provider}."
+        : null;
+
+    /// <summary>
+    /// Each pass climbs the written rates in order and stops at the first that misses. A rate held in every pass is the
+    /// result, and a headline confirms the highest such rate once over the suite's confirmation window, stepping down one
+    /// rate if that misses.
+    /// </summary>
+    private static async Task RateLadderAsync(ScenarioRun run)
+    {
+        var suite = run.Plan.Suite;
+        var rates = LadderRates(run.Plan, run.Scenario, run.Provider);
+        var seconds = Window(run.Plan, run.Scenario, rates.Length);
+        var heldEverywhere = rates.Length;
+        for (var pass = 1; pass <= Passes(run.Plan, run.Scenario); pass++)
         {
-            if (!plan.IsExtended)
-                return;
-            var initial = completed
-                .Where(r =>
-                    r.Id == descriptor.Id
-                    && r.Phase == "measure"
-                    && r.DiagnosticCellName == cell?.Name
-                    && r.Repetition <= plan.Repetitions
-                    && (r.Metrics.GetValueOrDefault("offered_rate")?.Value ?? 0) == rate
-                )
-                .ToArray();
-            if (!PerformanceSummary.IsVariable(plan, initial))
-                return;
-            for (var repetition = plan.Repetitions + 1; repetition <= plan.Repetitions + plan.AdditionalRepetitions; repetition++)
+            var held = 0;
+            foreach (var rate in rates)
             {
-                await RecordAsync(await TrialRunner.RunAsync(plan, descriptor, environment, bundle, "measure", repetition, rate, ct, cell));
+                var result = await run.Record(
+                    await LoadTrial.RunAsync(run.Plan, run.Environment, run.Bundle, Spec(run, "measure", pass, rate, seconds), run.Ct)
+                );
+                if (!Held(result))
+                {
+                    break;
+                }
+                held++;
+            }
+            heldEverywhere = Math.Min(heldEverywhere, held);
+        }
+        if (run.Scenario.Headline is null || suite.ConfirmSeconds == 0)
+        {
+            return;
+        }
+        for (var step = heldEverywhere - 1; step >= Math.Max(0, heldEverywhere - 2); step--)
+        {
+            var confirmed = await run.Record(
+                await LoadTrial.RunAsync(
+                    run.Plan,
+                    run.Environment,
+                    run.Bundle,
+                    Spec(run, "confirm", 1, rates[step], suite.ConfirmSeconds),
+                    run.Ct
+                )
+            );
+            if (Held(confirmed))
+            {
+                return;
             }
         }
     }
 
-    private static int BoundaryRepetitions(RunPlan plan, ScenarioDescriptor scenario) =>
-        scenario.Phases.Contains("fault", StringComparer.Ordinal) ? plan.TargetedFaultRepetitions : 1;
+    private static async Task DrainAsync(ScenarioRun run)
+    {
+        for (var pass = 1; pass <= Passes(run.Plan, run.Scenario); pass++)
+        {
+            await run.Record(
+                await LoadTrial.RunAsync(
+                    run.Plan,
+                    run.Environment,
+                    run.Bundle,
+                    Spec(run, "measure", pass, 0, 0) with
+                    {
+                        Mode = LoadMode.Cohort,
+                        Segments = [],
+                        Cohort = run.Scenario.Jobs[run.Provider],
+                        WarmupSeconds = 0,
+                    },
+                    run.Ct
+                )
+            );
+        }
+    }
+
+    /// <summary>Offers the written rate through a warmup, the overload rate for half the window, then the recovery rate.</summary>
+    private static async Task OverloadAsync(ScenarioRun run)
+    {
+        var suite = run.Plan.Suite;
+        var rate = run.Scenario.Rates[run.Provider][0];
+        var seconds = Window(run.Plan, run.Scenario, 1);
+        var overload = run.Scenario.Setting("overload_rate", run.Provider);
+        var recovery = run.Scenario.Setting("recovery_rate", run.Provider);
+        await run.Record(
+            await LoadTrial.RunAsync(
+                run.Plan,
+                run.Environment,
+                run.Bundle,
+                Spec(run, "measure", 1, rate, seconds) with
+                {
+                    Segments = [new(suite.WarmupSeconds, rate), new(seconds / 2, overload), new(seconds - seconds / 2, recovery)],
+                    OverloadRate = overload,
+                },
+                run.Ct
+            )
+        );
+    }
+
+    private static bool Held(CaseResult result) => Verdicts.RateOutcome(result) == "held";
+
+    private static async Task RepeatAsync(ScenarioRun run, Func<int, Task<CaseResult>> trial)
+    {
+        for (var repetition = 1; repetition <= Repetitions(run.Plan, run.Scenario); repetition++)
+        {
+            await run.Record(await trial(repetition));
+        }
+    }
+
+    /// <summary>The measured trial of <paramref name="run"/>'s scenario at <paramref name="rate"/>, for its database.</summary>
+    private static LoadSpec Spec(ScenarioRun run, string phase, int pass, double rate, int seconds)
+    {
+        var (plan, scenario, provider) = (run.Plan, run.Scenario, run.Provider);
+        var background = (int)(scenario.SettingOrNull("background", provider) ?? 0);
+        // Built once a trial, so an arrival picks its lane without formatting a name.
+        string?[] lanes = scenario.Lanes > 0 ? [.. Enumerable.Range(0, scenario.Lanes).Select(scenario.LaneAt)] : [scenario.Lane];
+        return new(
+            scenario.Id,
+            phase,
+            pass,
+            rate,
+            scenario.AdmissionOnly ? LoadMode.Admission : LoadMode.Stream,
+            [new(plan.Suite.WarmupSeconds + seconds, rate)],
+            0,
+            plan.Suite.WarmupSeconds,
+            seconds,
+            Calls(plan, scenario, provider),
+            scenario.JobsPerCall,
+            scenario.Workers[provider],
+            scenario.Executors,
+            scenario.Namespaces[provider],
+            scenario.P99Ms ?? plan.Policy("measurement", "default_p99_ms"),
+            i => scenario.WorkAt(i, plan.Seed),
+            i => lanes[i % lanes.Length],
+            scenario.ConcurrencyKey,
+            scenario.NeedsEffectService,
+            scenario.CrossNamespace,
+            scenario.SettingOrNull("queries_per_second", provider) ?? 0,
+            scenario.Work.Count == 1 ? scenario.Work[0].PayloadBytes : null,
+            0,
+            background > 0
+                ? (jobs, state, resources, ct) =>
+                    StorageCases.PrepareBackgroundAsync(plan, scenario, state, jobs, resources, background, ct)
+                : null,
+            background > 0 ? (state, population, ct) => StorageCases.CheckBackgroundAsync(state, scenario, population, ct) : null
+        );
+    }
 }

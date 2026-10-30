@@ -1,0 +1,10 @@
+{
+  "title": "Kill a busy worker",
+  "question": "When a worker is killed while it holds a job, does the surviving worker reclaim that job and finish it and every other job with its expected result?",
+  "runner": "fault",
+  "work": [
+    {
+      "boundary": "claim"
+    }
+  ]
+}

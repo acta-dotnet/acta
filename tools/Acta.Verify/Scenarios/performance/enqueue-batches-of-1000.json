@@ -1,0 +1,19 @@
+{
+  "title": "Enqueue in batches of 1,000",
+  "question": "How fast are batches of 1,000 jobs acknowledged, before any worker runs?",
+  "runner": "rate-ladder",
+  "admission_only": true,
+  "jobs_per_call": 1000,
+  "rates": {
+    "pg": [
+      20000
+    ],
+    "mssql": [
+      10000
+    ],
+    "sqlite": [
+      10000
+    ]
+  },
+  "p99_ms": 2000
+}

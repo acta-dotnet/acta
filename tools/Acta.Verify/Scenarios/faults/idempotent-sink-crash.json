@@ -1,0 +1,12 @@
+{
+  "title": "Idempotent effect, crash before its checkpoint",
+  "question": "When a worker dies after an idempotent effect applies but before its step commits, does the job finish with the sink seeing the repeated request and applying the effect only once?",
+  "runner": "fault",
+  "work": [
+    {
+      "effect_mode": "idempotent",
+      "work_ms": 5,
+      "boundary": "effect"
+    }
+  ]
+}

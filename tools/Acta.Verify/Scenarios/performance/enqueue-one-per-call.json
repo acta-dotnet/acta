@@ -1,0 +1,18 @@
+{
+  "title": "Enqueue, one job per call",
+  "question": "How fast are single-job enqueue calls acknowledged, each in its own transaction, before any worker runs?",
+  "runner": "rate-ladder",
+  "admission_only": true,
+  "rates": {
+    "pg": [
+      10000
+    ],
+    "mssql": [
+      5000
+    ],
+    "sqlite": [
+      200
+    ]
+  },
+  "p99_ms": 2000
+}

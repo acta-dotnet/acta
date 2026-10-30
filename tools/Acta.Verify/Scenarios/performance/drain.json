@@ -1,0 +1,23 @@
+{
+  "title": "Drain",
+  "question": "How fast do eight workers over two namespaces run and durably complete a backlog enqueued before they start?",
+  "headline": "Drain",
+  "runner": "drain",
+  "workers": {
+    "pg": 8,
+    "sqlite": 1,
+    "mssql": 8
+  },
+  "namespaces": {
+    "pg": 2,
+    "sqlite": 1,
+    "mssql": 2
+  },
+  "calls": 8,
+  "jobs_per_call": 1000,
+  "jobs": {
+    "pg": 1000000,
+    "mssql": 1000000,
+    "sqlite": 100000
+  }
+}

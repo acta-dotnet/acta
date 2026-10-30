@@ -1,0 +1,23 @@
+{
+  "title": "Controlled I/O through an idempotent sink",
+  "question": "Do jobs that each call an external idempotent sink for 5 ms hold their offered rate with p99 under 2 s?",
+  "runner": "rate-ladder",
+  "work": [
+    {
+      "effect_mode": "idempotent",
+      "work_ms": 5
+    }
+  ],
+  "rates": {
+    "pg": [
+      250
+    ],
+    "mssql": [
+      250
+    ],
+    "sqlite": [
+      20
+    ]
+  },
+  "p99_ms": 2000
+}

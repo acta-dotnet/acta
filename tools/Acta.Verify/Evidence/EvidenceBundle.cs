@@ -176,6 +176,28 @@ public sealed class EvidenceBundle
 
     public void AppendCase(CaseResult result) => Append("cases.jsonl", result, VerifyJson.Default.CaseResult);
 
+    /// <summary>The results a run's journal at <paramref name="path"/> holds, up to a line a crash cut short, and whether one was.</summary>
+    public static (List<CaseResult> Results, bool Truncated) ReadCases(string path)
+    {
+        List<CaseResult> results = [];
+        if (!File.Exists(path))
+        {
+            return (results, false);
+        }
+        foreach (var line in File.ReadLines(path).Where(l => !string.IsNullOrWhiteSpace(l)))
+        {
+            try
+            {
+                results.Add(JsonSerializer.Deserialize(line, VerifyJson.Default.CaseResult) ?? throw new JsonException());
+            }
+            catch (JsonException)
+            {
+                return (results, true);
+            }
+        }
+        return (results, false);
+    }
+
     public void Append<T>(string relative, T value, JsonTypeInfo<T> type)
     {
         ThrowIfQuiet();

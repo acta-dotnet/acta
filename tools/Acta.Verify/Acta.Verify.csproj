@@ -22,6 +22,8 @@
     <AssemblyMetadata Include="Acta.Verify.PublishAot" Value="$(PublishAot)" />
     <AssemblyMetadata Include="Acta.Verify.PublishSingleFile" Value="$(PublishSingleFile)" />
     <EmbeddedResource Include="Protocol/*.json" LogicalName="Acta.Verify.Protocol.%(Filename)%(Extension)" />
+    <EmbeddedResource Include="Scenarios/**/*.json" LogicalName="Acta.Verify.Scenarios.%(RecursiveDir)%(Filename)%(Extension)" />
+    <EmbeddedResource Include="Suites/*.json" LogicalName="Acta.Verify.Suites.%(Filename)%(Extension)" />
     <EmbeddedResource Include="Certification/certify.sql" LogicalName="Acta.Verify.Certification.certify.sql" />
     <ProjectReference
       Include="../../src/Acta.Generators/Acta.Generators.csproj"

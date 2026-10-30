@@ -6,30 +6,14 @@ internal static class ConnectivityCase
 {
     public static async Task<CaseResult> RunAsync(
         RunPlan plan,
+        Scenario scenario,
         OwnedProvider environment,
         EvidenceBundle bundle,
         CancellationToken ct,
         int repetition = 1
     )
     {
-        if (environment.Provider == "sqlite")
-        {
-            return new(
-                "F04",
-                "sqlite",
-                "fault",
-                0,
-                "NOT_APPLICABLE",
-                "SQLite uses embedded storage; this profile has no worker-to-database TCP connection.",
-                "NOT_APPLICABLE",
-                "NOT_APPLICABLE",
-                "NOT_APPLICABLE",
-                "NOT_MEASURED",
-                [],
-                ["resolved-plan.json"]
-            );
-        }
-        var tag = $"{environment.Provider}-F04-connectivity-{repetition}";
+        var tag = $"{environment.Provider}-{scenario.Id}-{repetition}";
         var state = environment.Trial(bundle.Resolve($"repro/state/{tag}"));
         using var host = await RuntimeHost.StartAsync(state.Provider, state.ConnectionString, state.Schema, false, true, ct);
         await using var proxy = new CutProxy(state.Provider, state.ConnectionString);
@@ -81,7 +65,7 @@ internal static class ConnectivityCase
         var covered = proxy.DroppedConnections > 0;
         var passed = checks.Where(c => c.Code != "live-connection-cut").All(c => c.Passed);
         return new(
-            "F04",
+            scenario.Id,
             environment.Provider,
             "fault",
             repetition,

@@ -1,0 +1,5 @@
+{
+  "title": "Rate limit shared by two workers",
+  "question": "With a 10-per-second rate limit shared by two workers, do the job starts in every 1, 5 and 10 second window stay within what the limit and its burst allow?",
+  "runner": "scheduling"
+}

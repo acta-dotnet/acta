@@ -1,0 +1,44 @@
+{
+  "title": "Quick",
+  "purpose": "A few minutes on one database while changing the code: the main workloads at their first written rate, correctness only.",
+  "scenarios": [
+    "drain-one-worker",
+    "throughput",
+    "enqueue-one-per-call",
+    "enqueue-batches",
+    "three-steps",
+    "ten-children",
+    "retries",
+    "cpu-work",
+    "payload-mix",
+    "signal-before-wait",
+    "signal-after-wait"
+  ],
+  "warmup_seconds": 1,
+  "ladder_seconds": 3,
+  "single_seconds": 3,
+  "passes": 1,
+  "headline_passes": 1,
+  "confirm_seconds": 0,
+  "gates_performance": false,
+  "first_rate_only": true,
+  "fault_repetitions": 1,
+  "overrides": {
+    "drain-one-worker": {
+      "jobs": 1000
+    },
+    "throughput": {
+      "rates": {
+        "pg": [
+          1000
+        ],
+        "mssql": [
+          1000
+        ],
+        "sqlite": [
+          25
+        ]
+      }
+    }
+  }
+}

@@ -1,0 +1,12 @@
+{
+  "title": "Crash inside an at-most-once step",
+  "question": "When a worker dies inside an at-most-once step after its effect applied, does recovery fail the job instead of running the effect a second time?",
+  "runner": "fault",
+  "work": [
+    {
+      "effect_mode": "append",
+      "boundary": "effect",
+      "at_most_once": true
+    }
+  ]
+}

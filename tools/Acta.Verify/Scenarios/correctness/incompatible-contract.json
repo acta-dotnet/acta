@@ -1,0 +1,5 @@
+{
+  "title": "Incompatible input type change",
+  "question": "When a new worker version registers an input type that no longer matches the stored contract, does the worker refuse to start and leave the waiting job and its stored step untouched?",
+  "runner": "registration"
+}

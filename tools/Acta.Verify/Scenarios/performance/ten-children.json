@@ -1,0 +1,22 @@
+{
+  "title": "Ten children and a join",
+  "question": "Do parents that fan out ten children and join them hold their offered rate with p99 under 10 s?",
+  "runner": "rate-ladder",
+  "work": [
+    {
+      "children": 10
+    }
+  ],
+  "rates": {
+    "pg": [
+      250
+    ],
+    "mssql": [
+      200
+    ],
+    "sqlite": [
+      20
+    ]
+  },
+  "p99_ms": 10000
+}

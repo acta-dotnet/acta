@@ -1,0 +1,12 @@
+{
+  "title": "Wide fan-out of 1000 children",
+  "question": "When one job starts 1000 children, 32 at a time, does each child exist exactly once under it with its expected result, and does the parent finish with all 1000 counted?",
+  "runner": "verify",
+  "work": [
+    {
+      "children": 1000,
+      "child_window": 32
+    }
+  ],
+  "jobs": 1
+}

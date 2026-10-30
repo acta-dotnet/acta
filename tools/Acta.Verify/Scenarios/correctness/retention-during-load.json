@@ -1,0 +1,5 @@
+{
+  "title": "Retention purges during traffic",
+  "question": "With a zero-second retention policy purging during traffic, does a job still waiting on a signal survive the purges, resume with its expected result, and get removed only after it finishes?",
+  "runner": "storage"
+}

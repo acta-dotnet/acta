@@ -1,0 +1,5 @@
+{
+  "title": "Lost reply to an enqueue",
+  "question": "When an enqueue commits but its reply is lost and the producer retries with the same deduplication key, does the retry return the existing job instead of adding a second one?",
+  "runner": "reply-loss"
+}

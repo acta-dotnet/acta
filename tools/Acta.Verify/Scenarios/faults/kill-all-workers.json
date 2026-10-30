@@ -1,0 +1,10 @@
+{
+  "title": "Kill every worker",
+  "question": "When every worker is killed while a job is in flight, do newly started workers reclaim it and finish every accepted job with its expected result?",
+  "runner": "fault",
+  "work": [
+    {
+      "boundary": "claim"
+    }
+  ]
+}

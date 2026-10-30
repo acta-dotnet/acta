@@ -1,0 +1,11 @@
+{
+  "title": "One failing child among ten",
+  "question": "When one of ten children fails for good, does the failure stay with that child while the parent still succeeds with the nine successes counted?",
+  "runner": "verify",
+  "work": [
+    {
+      "children": 10,
+      "partial_failure": true
+    }
+  ]
+}

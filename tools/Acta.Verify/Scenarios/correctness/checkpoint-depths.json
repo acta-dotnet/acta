@@ -1,0 +1,16 @@
+{
+  "title": "Checkpoint depths of 1, 10 and 100 steps",
+  "question": "Do jobs with 1, 10 and 100 durable steps commit every step with its expected result and finish with the matching total?",
+  "runner": "verify",
+  "work": [
+    {
+      "steps": 1
+    },
+    {
+      "steps": 10
+    },
+    {
+      "steps": 100
+    }
+  ]
+}

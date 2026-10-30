@@ -4,41 +4,24 @@ using Microsoft.Extensions.DependencyInjection;
 namespace Acta.Verify;
 
 /// <summary>
-/// A case's trial. A measured phase runs as a <see cref="LoadTrial"/>; a verification trial submits a few jobs, waits for
-/// every one, and reconciles each whole tree, children and checkpoints included, against its model.
+/// A verification trial: submits a few jobs of a scenario's work, waits for every one, and reconciles each whole tree,
+/// children and checkpoints included, against its model.
 /// </summary>
 internal static class TrialRunner
 {
-    public static async Task<CaseResult> RunAsync(
-        RunPlan plan,
-        ScenarioDescriptor scenario,
-        OwnedProvider environment,
-        EvidenceBundle bundle,
-        string phase,
-        int repetition,
-        int offeredRate,
-        CancellationToken ct,
-        TrialCell? cell = null,
-        int overloadRate = 0
-    )
+    /// <summary>
+    /// Runs <paramref name="run"/>'s scenario once. Its file writes the jobs to submit (the harness's verification count
+    /// otherwise) and, under <c>send_signal</c>, whether the controller raises each job's signal before any worker runs
+    /// (<c>before-wait</c>) or once the job waits (<c>after-wait</c>), <c>signal_copies</c> times.
+    /// </summary>
+    public static async Task<CaseResult> VerifyAsync(ScenarioRun run, int repetition)
     {
-        if (phase != "verify")
-        {
-            return await LoadTrial.RunAsync(
-                plan,
-                environment,
-                bundle,
-                Spec(plan, scenario, environment.Provider, phase, repetition, offeredRate, cell, overloadRate),
-                ct
-            );
-        }
-        var tag = $"{environment.Provider}-{scenario.Id}-{phase}-{repetition}-0";
+        var (plan, scenario, environment, bundle, ct) = (run.Plan, run.Scenario, run.Environment, run.Bundle, run.Ct);
+        var tag = $"{environment.Provider}-{scenario.Id}-verify-{repetition}-0";
         var trialStarted = Stopwatch.GetTimestamp();
         Console.WriteLine($"  START {tag}");
         var state = environment.Trial(bundle.Resolve($"repro/state/{tag}"));
-        using var effects = scenario.Requirements.Contains("external_oracle", StringComparer.Ordinal)
-            ? new EffectService(bundle.Resolve($"repro/state/{tag}/effects.db"))
-            : null;
+        using var effects = scenario.NeedsEffectService ? new EffectService(bundle.Resolve($"repro/state/{tag}/effects.db")) : null;
         if (effects is not null)
         {
             await effects.StartAsync(ct);
@@ -47,79 +30,46 @@ internal static class TrialRunner
         bundle.Write($"histories/{tag}-settings.json", await state.CaptureSettingsAsync(ct), VerifyJson.Default.DictionaryStringString);
         var jobs = host.Services.GetRequiredService<IJobs>();
         var reader = new DurableReader(state);
-        // L03 verification submits one batch of each size in the sweep.
-        int[] batchSweep =
-        [
-            .. plan.FullPolicy.GetProperty("measurement").GetProperty("batch_size_sweep").EnumerateArray().Select(e => e.GetInt32()),
-        ];
-        var count =
-            scenario.Id is "P02" or "P03" ? 1
-            : scenario.Id == "L03" ? batchSweep.Sum()
-            : 12;
-        var input = Enumerable.Range(0, count).Select(i => WorkloadModel.Input(scenario.Id, LoadTrial.Key(i), i, plan.Seed)).ToArray();
+        var count = ScenarioRunner.VerificationJobs(plan, scenario, environment.Provider);
+        var input = Enumerable.Range(0, count).Select(i => scenario.WorkAt(i, plan.Seed)).ToArray();
+        var signals = input.ToDictionary(i => i.Key, i => i.Signal, StringComparer.Ordinal);
         var expected = WorkloadModel.Expected(input);
         var expectedRoots = expected.Where(e => e.Parent is null).ToDictionary(e => e.Key, StringComparer.Ordinal);
+        var sendSignal = scenario.SettingText("send_signal", environment.Provider);
+        var copies = (int)(scenario.SettingOrNull("signal_copies", environment.Provider) ?? 1);
         using var workers = new OwnedWorkerPool();
-        // These cases admit their jobs before any worker runs: the signal must land before its wait registers, or
-        // admission is what the case is about.
-        var delayWorkers = scenario.Id is "L02" or "L03" or "L04" or "T02";
+        // A signal raised before the wait must land before any worker could register that wait.
+        var delayWorkers = sendSignal == "before-wait";
         if (!delayWorkers)
         {
-            await workers.StartAsync(state, effects, 1, null, ct, 1, scenario.Id == "P08");
+            await workers.StartAsync(state, effects, 1, null, ct, 1, scenario.CrossNamespace);
         }
-        var background = scenario.Id is "S02" or "S03"
-            ? await StorageCases.PrepareBackgroundAsync(plan, scenario, state, jobs, null, ct)
-            : 0;
         var floor = await reader.LastJobIdAsync(ct);
         Dictionary<string, long> acknowledged = new(StringComparer.Ordinal);
         HashSet<string> ambiguous = new(StringComparer.Ordinal);
         HashSet<string> failedSignals = new(StringComparer.Ordinal);
         List<Check> boundaryChecks = [];
-        if (scenario.Id == "L03")
+        for (var i = 0; i < input.Length; i++)
         {
-            var next = 0;
-            foreach (var size in batchSweep)
+            try
             {
-                var batch = input.Skip(next).Take(size).ToArray();
-                next += size;
-                try
+                var accepted = await jobs.EnqueueAsync(Request(scenario, input[i], i), ct);
+                acknowledged[input[i].Key] = accepted.JobId;
+                if (input[i].Signal is { } signal && sendSignal == "before-wait")
                 {
-                    var response = await jobs.EnqueueBatchAsync([.. batch.Select(w => Request(w, scenario.Id, 0))], ct);
-                    for (var i = 0; i < batch.Length; i++)
+                    try
                     {
-                        acknowledged[batch[i].Key] = response.Jobs[i].JobId;
+                        await RaiseAsync(jobs, accepted, signal, copies, ct);
                     }
-                }
-                catch (Exception ex) when (ex is not OperationCanceledException)
-                {
-                    ambiguous.UnionWith(batch.Select(w => w.Key));
+                    catch (Exception ex) when (ex is not OperationCanceledException)
+                    {
+                        failedSignals.Add(input[i].Key);
+                    }
                 }
             }
-        }
-        else
-        {
-            for (var i = 0; i < input.Length; i++)
+            catch (Exception ex) when (ex is not OperationCanceledException)
             {
-                try
-                {
-                    var accepted = await jobs.EnqueueAsync(Request(input[i], scenario.Id, i), ct);
-                    acknowledged[input[i].Key] = accepted.JobId;
-                    if (input[i].Signal is not null && scenario.Id == "T02")
-                    {
-                        try
-                        {
-                            await jobs.RaiseSignalAsync(accepted, input[i].Signal!, default(JobPayload), ct: ct);
-                        }
-                        catch (Exception ex) when (ex is not OperationCanceledException)
-                        {
-                            failedSignals.Add(input[i].Key);
-                        }
-                    }
-                }
-                catch (Exception ex) when (ex is not OperationCanceledException)
-                {
-                    ambiguous.Add(input[i].Key);
-                }
+                ambiguous.Add(input[i].Key);
             }
         }
         // An enqueue whose reply was lost may still have committed: its identity decides, by its deduplication key.
@@ -133,7 +83,7 @@ internal static class TrialRunner
         }
         if (delayWorkers)
         {
-            await workers.StartAsync(state, effects, 1, null, ct, 1, scenario.Id == "P08");
+            await workers.StartAsync(state, effects, 1, null, ct, 1, scenario.CrossNamespace);
         }
         var children = expected.Any(e => e.Parent is not null);
         HashSet<long> signalled = [];
@@ -147,18 +97,13 @@ internal static class TrialRunner
                 {
                     boundaryChecks.AddRange(await reader.LiveChildChecksAsync(floor, live, ct));
                 }
-                // T04 and T06 roots wait on a signal only the controller raises.
-                if (scenario.Id is "T04" or "T06")
+                if (sendSignal == "after-wait")
                 {
                     foreach (var row in await reader.ReadAsync(null, ct, floor))
                     {
-                        if (row.Status == 20 && signalled.Add(row.JobId))
+                        if (row.Status == 20 && signals.GetValueOrDefault(row.Key) is { } signal && signalled.Add(row.JobId))
                         {
-                            await jobs.RaiseSignalAsync(JobLookup.ById(row.JobId), "go", default(JobPayload), ct: ct);
-                            if (scenario.Id == "T06")
-                            {
-                                await jobs.RaiseSignalAsync(JobLookup.ById(row.JobId), "go", default(JobPayload), ct: ct);
-                            }
+                            await RaiseAsync(jobs, JobLookup.ById(row.JobId), signal, copies, ct);
                         }
                     }
                 }
@@ -205,7 +150,6 @@ internal static class TrialRunner
         [
             .. OutcomeCheck.Reconcile(expected.Where(e => submitted.Contains(e.Key.Split('/')[0])), observed),
             .. boundaryChecks,
-            .. background > 0 ? await StorageCases.CheckBackgroundAsync(state, scenario.Id, background, ct) : [],
             .. effects is null
                 ? []
                 : await effects.CheckIdempotentKeysAsync(
@@ -256,7 +200,7 @@ internal static class TrialRunner
         return new(
             scenario.Id,
             environment.Provider,
-            phase,
+            "verify",
             repetition,
             status,
             failures.Length > 0 ? $"{failures.Length} failed identity/output checks; exact identities retained."
@@ -279,96 +223,22 @@ internal static class TrialRunner
         );
     }
 
-    /// <summary>The measured trial a case's phase runs, at <paramref name="offeredRate"/>, in today's case vocabulary.</summary>
-    private static LoadSpec Spec(
-        RunPlan plan,
-        ScenarioDescriptor scenario,
-        string provider,
-        string phase,
-        int repetition,
-        int offeredRate,
-        TrialCell? cell,
-        int overloadRate
-    )
+    private static async Task RaiseAsync(IJobs jobs, JobLookup job, string signal, int copies, CancellationToken ct)
     {
-        var id = scenario.Id;
-        var seconds =
-            id == "E03" ? (int)plan.ProfilePolicy("overload_seconds")
-            : phase == "discover" ? (int)plan.ProfilePolicy("discovery_seconds")
-            : phase == "soak" ? plan.SoakSeconds
-            : plan.MeasurementSeconds;
-        // A measured window, and E03's overload, open after the warmup of the trial's own stream at the offered rate,
-        // on warm processes already carrying the backlog that rate sustains.
-        var warmup = phase == "measure" && id != "L04" || id == "E03" ? plan.WarmupSeconds : 0;
-        var recoveryRate = Math.Max(
-            1,
-            (int)(offeredRate * plan.Policy("capacity", "overload", "recovery_rate_fraction_of_validated_capacity"))
-        );
-        LoadSegment[] segments =
-            id == "E03"
-                ? [new(warmup, offeredRate), new(seconds / 2, overloadRate), new(seconds - seconds / 2, recoveryRate)]
-                : [new(warmup + seconds, offeredRate)];
-        var payload = cell?.PayloadBytes;
-        var spec = new LoadSpec(
-            id,
-            phase,
-            repetition,
-            offeredRate,
-            id is "L02" or "L03" ? LoadMode.Admission : LoadMode.Stream,
-            segments,
-            0,
-            warmup,
-            seconds,
-            plan.ProducerCalls[provider],
-            id == "L03" ? cell?.BatchSize ?? plan.AdmissionBatchSize : 1,
-            cell?.Workers ?? 1,
-            cell?.Executors,
-            cell?.Namespaces ?? 1,
-            plan.LatencySloMs.GetValueOrDefault(id, plan.ReferenceSloMs),
-            i => WorkloadModel.Input(id, LoadTrial.Key(i), i, plan.Seed, payload),
-            i => Lane(id, i),
-            ConcurrencyKey(id),
-            scenario.Requirements.Contains("external_oracle", StringComparer.Ordinal),
-            id == "P08",
-            id == "E02",
-            cell?.Name,
-            payload,
-            id == "E03" ? overloadRate : 0,
-            id is "S02" or "S03"
-                ? (jobs, state, resources, ct) => StorageCases.PrepareBackgroundAsync(plan, scenario, state, jobs, resources, ct)
-                : null,
-            id is "S02" or "S03" ? (state, population, ct) => StorageCases.CheckBackgroundAsync(state, id, population, ct) : null
-        );
-        return id == "L04"
-            ? spec with
-            {
-                Mode = LoadMode.Cohort,
-                Segments = [],
-                Cohort = plan.PreloadedBacklogRoots[provider],
-                WindowSeconds = 0,
-                Calls = (int)plan.Policy("measurement", "preload_producers"),
-                JobsPerCall = (int)plan.Policy("measurement", "preloaded_backlog_admission_batch_size"),
-            }
-            : spec;
+        for (var copy = 0; copy < copies; copy++)
+        {
+            await jobs.RaiseSignalAsync(job, signal, default(JobPayload), ct: ct);
+        }
     }
 
-    private static readonly string[] Lanes = [.. Enumerable.Range(0, 1000).Select(i => $"lane-{i}")];
-
-    private static string? Lane(string id, int index) =>
-        id == "O01" ? Lanes[index % Lanes.Length]
-        : id == "O02" ? "hot"
-        : null;
-
-    private static string? ConcurrencyKey(string id) => id == "O03" ? "hot" : null;
-
-    private static EnqueueJobRequest Request(WorkInput input, string scenario, int index) =>
+    private static EnqueueJobRequest Request(Scenario scenario, WorkInput input, int index) =>
         new(
             "verify",
             "work",
             JobPayload.Json(input, WorkJson.Default.WorkInput),
             DeduplicationKey: input.Key,
-            Lane: Lane(scenario, index),
-            ConcurrencyKey: ConcurrencyKey(scenario)
+            Lane: scenario.LaneAt(index),
+            ConcurrencyKey: scenario.ConcurrencyKey
         );
 
     private static double Seconds(long ticks) => ticks / (double)Stopwatch.Frequency;

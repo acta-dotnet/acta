@@ -1,0 +1,33 @@
+{
+  "title": "Short and long work mixed",
+  "question": "Do no-op, CPU, sink, timer and fan-out jobs mixed in turn hold their offered rate with p99 under 5 s?",
+  "runner": "rate-ladder",
+  "work": [
+    {},
+    {
+      "cpu_rounds": 1000
+    },
+    {
+      "effect_mode": "idempotent",
+      "work_ms": 5
+    },
+    {
+      "sleep_seconds": 1
+    },
+    {
+      "children": 10
+    }
+  ],
+  "rates": {
+    "pg": [
+      1000
+    ],
+    "mssql": [
+      500
+    ],
+    "sqlite": [
+      20
+    ]
+  },
+  "p99_ms": 5000
+}

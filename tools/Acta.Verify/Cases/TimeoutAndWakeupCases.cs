@@ -6,7 +6,7 @@ internal static class TimeoutAndWakeupCases
 {
     public static async Task<CaseResult> RunAsync(
         RunPlan plan,
-        ScenarioDescriptor scenario,
+        Scenario scenario,
         OwnedProvider environment,
         EvidenceBundle bundle,
         CancellationToken ct,
@@ -19,18 +19,18 @@ internal static class TimeoutAndWakeupCases
         await effects.StartAsync(ct);
         using var host = await RuntimeHost.StartAsync(state.Provider, state.ConnectionString, state.Schema, false, true, ct);
         var jobs = host.Services.GetRequiredService<IJobs>();
-        using var worker = OwnedWorker.Start(state, effects, suppressWakeup: scenario.Id == "F08");
+        using var worker = OwnedWorker.Start(state, effects, suppressWakeup: scenario.Id == "wakeup-transport-down");
         await worker.ReadyAsync(ct);
-        var input = new WorkInput("root", Children: scenario.Id == "F08" ? 10 : 0);
+        var input = new WorkInput("root", Children: scenario.Id == "wakeup-transport-down" ? 10 : 0);
         var expected = WorkloadModel.Expected([input]);
-        if (scenario.Id == "R03")
+        if (scenario.Id == "timeout-late-attempt")
         {
             expected[0] = expected[0] with { Status = "Failed", Output = null };
         }
         var root = await jobs.EnqueueAsync(
             new EnqueueJobRequest(
                 "verify",
-                scenario.Id == "R03" ? "late-work" : "work",
+                scenario.Id == "timeout-late-attempt" ? "late-work" : "work",
                 JobPayload.Json(input, WorkJson.Default.WorkInput),
                 DeduplicationKey: input.Key
             ),
@@ -41,13 +41,13 @@ internal static class TimeoutAndWakeupCases
             plan.Deadline(1 + input.Children, 0, state.DrainRate),
             ct
         );
-        if (scenario.Id == "R03")
+        if (scenario.Id == "timeout-late-attempt")
         {
             await Task.Delay(3000, ct);
         }
         var actual = await new DurableReader(state).OutcomesAsync(ct);
         var checks = OutcomeCheck.Reconcile(expected, actual).ToList();
-        if (scenario.Id == "R03")
+        if (scenario.Id == "timeout-late-attempt")
         {
             var checkpoints = await jobs.GetCheckpointsAsync(root, ct);
             checks.Add(
@@ -70,7 +70,7 @@ internal static class TimeoutAndWakeupCases
         }
         bundle.Write($"histories/{tag}-checks.json", checks.ToArray(), VerifyJson.Default.CheckArray);
         var passed = checks.All(c => c.Passed);
-        var covered = scenario.Id != "F08" || worker.DroppedWakeups > 0;
+        var covered = scenario.Id != "wakeup-transport-down" || worker.DroppedWakeups > 0;
         return new(
             scenario.Id,
             environment.Provider,
@@ -80,14 +80,14 @@ internal static class TimeoutAndWakeupCases
                 : covered ? "PASS"
                 : "INCONCLUSIVE",
             !covered ? "The worker dropped no wake signal, so the fallback had nothing to cover."
-                : scenario.Id == "F08"
+                : scenario.Id == "wakeup-transport-down"
                     ? "In-process wakeup accelerator disabled; durable safety polling completed the same native child/join workload."
                 : null,
             passed ? "PASS" : "FAIL",
             passed ? "PASS" : "UNVERIFIED",
             covered ? "COMPLETE" : "INCOMPLETE",
             "NOT_MEASURED",
-            scenario.Id == "F08" ? new() { ["dropped_wakeups"] = new(worker.DroppedWakeups, "signals") } : [],
+            scenario.Id == "wakeup-transport-down" ? new() { ["dropped_wakeups"] = new(worker.DroppedWakeups, "signals") } : [],
             [$"histories/{tag}-checks.json", .. bundle.WriteRows(tag, passed, expected, actual)],
             Instrumented: true
         );
