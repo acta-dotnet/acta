@@ -280,6 +280,12 @@ internal sealed class WorkerExecutor(
     {
         var job = entry.Claim;
         var firing = await ReadFiringAsync(job, workerId, ct);
+        if (firing is not null && job.ExecutionNumber == 1)
+        {
+            // The first attempt is the firing's start; a retry measures the budget, not the queue.
+            metrics?.RecordFiringStartDelay(namespaceName, descriptor.JobName, DateTime.UtcNow - firing.AdmittedAtUtc);
+        }
+
         var backoff = Backoff.Parse(descriptor.Backoff ?? JobDefinitionRegistration.DefaultBackoffExpression);
 
         // Resolve the external tenant name off the process-lifetime cache (one point read per

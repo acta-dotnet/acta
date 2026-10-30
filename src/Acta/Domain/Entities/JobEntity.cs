@@ -4,8 +4,8 @@ namespace Acta;
 /// One row in <c>acta.jobs</c>, Acta's only work unit: the append-mostly identity/input record.
 /// Hot mutable state (status, next run, counters, retention, the one stored result) lives on the 1:1
 /// <c>jobs_state</c> row, which also carries execution ownership/TTL (<c>locks</c> holds named locks only).
-/// Recurring Jobs are a single reusable row whose runtime <c>next_run_at_utc</c>
-/// rolls forward on terminal completion (no per-firing row inflation).
+/// A recurring job's permanent slot is one reusable row that sits Idle between firings; its schedules' cursors live
+/// on <c>schedules_state</c>, so a firing adds no job row (a per-occurrence definition's root is the exception).
 /// </summary>
 [DbTable("jobs", DisableLockEscalation = true)]
 [DbPrimaryKey(Name = "pk_jobs", Columns = ["job_id"], OptimizeForSequentialKey = true)]

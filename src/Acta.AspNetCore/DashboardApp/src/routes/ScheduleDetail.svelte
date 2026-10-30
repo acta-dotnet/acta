@@ -16,6 +16,7 @@
   import { eventFacts } from '../lib/eventFacts.ts';
   import { scope } from '../scope.ts';
   import { routes } from '../routes.ts';
+  import { displayFormatter } from '../format.ts';
 
   interface ScheduleItem {
     jobNamespace: string;
@@ -147,18 +148,61 @@
         <section class="detail-panel">
           <h2>Timing</h2>
 
+          {#snippet calendarBinding(name: string, origin: string | null, version: number | null)}
+            {#if origin === 'catalog'}
+              <a href={routes.calendars({ namespace: schedule?.jobNamespace, nameSearch: name })} title="Open the calendar family in the catalog">{name}</a>
+              <span class="dim">catalog{#if version !== null}, version {version}{/if}</span>
+            {:else}
+              <span class="mono">{name}</span> <span class="dim">declared in code</span>
+            {/if}
+          {/snippet}
           <dl class="detail-readonly detail-readonly-grid">
-            <div><dt>Expression</dt><dd><span class="mono">{schedule.expression}</span> <CopyButton value={schedule.expression} label="Copy expression" /></dd></div>
+            {#if schedule.expressionKind === 'calendar'}
+              <div><dt>Calendar</dt><dd>{@render calendarBinding(schedule.expression, schedule.calendarOrigin, schedule.calendarVersion)}</dd></div>
+            {:else}
+              <div><dt>Expression</dt><dd><span class="mono">{schedule.expression}</span> <CopyButton value={schedule.expression} label="Copy expression" /></dd></div>
+            {/if}
             <div><dt>Time zone</dt><dd>{schedule.timeZoneId} <CopyButton value={schedule.timeZoneId} label="Copy time zone" /></dd></div>
-            <div><dt>Expression kind</dt><dd>{schedule.expressionKind}</dd></div>
+            <div><dt>Source kind</dt><dd>{schedule.expressionKind}</dd></div>
+            <div>
+              <dt>Availability</dt>
+              <dd>
+                {#if schedule.availabilityCalendarName}
+                  {@render calendarBinding(schedule.availabilityCalendarName, schedule.availabilityOrigin, schedule.availabilityVersion)}
+                {:else}
+                  <span class="dim">any time</span>
+                {/if}
+              </dd>
+            </div>
             <div><dt>Misfire strategy</dt><dd>{schedule.misfireStrategy}</dd></div>
             <div><dt>Origin</dt><dd>{schedule.origin}</dd></div>
+            <div>
+              <dt>Delivery</dt>
+              <dd>
+                {schedule.scheduledDelivery}
+                {#if schedule.scheduledDelivery === 'per-occurrence'}
+                  <span class="dim">· {schedule.outstandingCount} of {schedule.maxOutstanding} outstanding, {schedule.fullBehavior} when full</span>
+                {/if}
+              </dd>
+            </div>
+            <div>
+              <dt>Expiry</dt>
+              <dd>
+                {#if schedule.expireAfterSeconds !== null}
+                  {displayFormatter.duration(schedule.expireAfterSeconds)} unadmitted, then {schedule.expireAction}
+                {:else}
+                  <span class="dim">never</span>
+                {/if}
+              </dd>
+            </div>
             <div><dt>Next occurrence</dt><dd><RelativeTime value={schedule.nextOccurrenceAtUtc} /></dd></div>
             <div><dt>Next evaluation</dt><dd><RelativeTime value={schedule.nextEvaluationAtUtc} /> · {schedule.evaluationStatus}</dd></div>
           </dl>
           <p class="detail-help">
-            Misfire strategy governs fires missed while the host was down: it decides, on recovery, whether to
-            catch up, fire once, or skip to the next scheduled time.
+            Misfire strategy governs occurrences missed while no host admitted them: skip to the next one, catch up once,
+            catch up the latest, or catch up all. An availability calendar omits occurrences outside its windows, never
+            shifts them. Per-occurrence delivery starts a fresh root per occurrence up to its capacity; permanent delivery
+            fires one slot job.
           </p>
 
           <ScheduleControls

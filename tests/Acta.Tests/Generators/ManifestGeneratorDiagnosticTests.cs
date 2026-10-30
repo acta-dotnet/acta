@@ -1224,6 +1224,27 @@ public class ManifestGeneratorDiagnosticTests
         Assert.Single(Of(result, "ACTA0126"));
     }
 
+    [Fact]
+    public void An_expiry_that_is_no_duration_is_reported_against_the_schedule_attribute()
+    {
+        var result = RunGenerator(
+            """
+            using Acta;
+            namespace GenTests;
+
+            public static class Handler
+            {
+                [Job("expiring")]
+                [Schedule("tick", Cron.Hourly, ExpireAfter = "soon", ExpireAction = ScheduleExpireActionCode.Discard)]
+                public static void Run() { }
+            }
+            """
+        );
+
+        var diagnostic = Assert.Single(Of(result, "ACTA0105"));
+        Assert.Contains("`[Schedule]` argument `ExpireAfter`", diagnostic.GetMessage());
+    }
+
     // ACTA0127: a schedule's occurrences come from an expression or a named calendar, and a declared calendar binds in its role
 
     [Fact]

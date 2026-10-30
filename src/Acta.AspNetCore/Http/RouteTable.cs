@@ -293,6 +293,11 @@ internal static class RouteTable
         {
             return ControlEndpointValidation.Problem(StatusCodes.Status409Conflict, ex.Title, ex.Message);
         }
+        catch (CalendarUnavailableException ex)
+        {
+            // The schedule exists; this host cannot evaluate its calendar. The message says which host could.
+            return ControlEndpointValidation.Problem(StatusCodes.Status409Conflict, "Calendar not available on this host.", ex.Message);
+        }
     }
 
     /// <summary>The internal id of the job a filter names, or null with no filter; a filter naming no job is the 404.</summary>

@@ -22,7 +22,9 @@
     jobName: string;
     scheduleName: string;
     status: string;
+    expressionKind: string;
     expression: string;
+    availabilityCalendarName: string | null;
     timeZoneId: string;
     misfireStrategy: string;
     nextOccurrenceAtUtc: string | null;
@@ -58,7 +60,7 @@
     { key: 'scheduleName', header: 'Schedule' },
     { key: 'status', header: 'Status' },
     { key: 'job', header: 'Job' },
-    { key: 'expression', header: 'Expression', class: 'mono' },
+    { key: 'expression', header: 'Source' },
     { key: 'timeZoneId', header: 'Time zone', class: 'mobile-hide' },
     { key: 'misfireStrategy', header: 'Misfire', class: 'mobile-hide' },
     { key: 'nextOccurrenceAtUtc', header: 'Next occurrence' },
@@ -114,6 +116,10 @@
     {#snippet jobCell(schedule: ScheduleRow)}
       <a href={jobsHref(schedule)}>{schedule.jobNamespace} / {schedule.jobName}</a>
     {/snippet}
+    {#snippet sourceCell(schedule: ScheduleRow)}
+      {#if schedule.expressionKind === 'calendar'}<span class="dim">calendar</span>{' '}{/if}<span class="mono">{schedule.expression}</span>
+      {#if schedule.availabilityCalendarName}<span class="dim source-availability">in {schedule.availabilityCalendarName}</span>{/if}
+    {/snippet}
     {#snippet nextOccurrenceCell(schedule: ScheduleRow)}
       {#if schedule.status === 'paused'}
         <RelativeTime value={schedule.pausedUntilUtc} />
@@ -141,7 +147,7 @@
       onPageSizeChange={(size) => updateHashParams({ pageSize: String(size) })}
       loadingText="Loading schedules..."
       emptyText="No schedules yet. Declare one with a [Schedule] attribute on a [Job] handler; it appears here after the host syncs at startup."
-      cells={{ scheduleName: scheduleCell, status: statusCell, job: jobCell, nextOccurrenceAtUtc: nextOccurrenceCell, actions: actionsCell }}
+      cells={{ scheduleName: scheduleCell, status: statusCell, job: jobCell, expression: sourceCell, nextOccurrenceAtUtc: nextOccurrenceCell, actions: actionsCell }}
       rowClass={(schedule: ScheduleRow) =>
         schedule.status === 'paused'
           ? 'held'
@@ -155,4 +161,5 @@
 
 <style>
   .schedule-help { flex-basis: 100%; }
+  .source-availability { display: block; font-size: var(--text-xs); }
 </style>

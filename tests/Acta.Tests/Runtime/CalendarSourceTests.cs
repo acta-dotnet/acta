@@ -40,7 +40,7 @@ public sealed class CalendarSourceTests
     [Fact]
     public void An_unregistered_calendar_is_an_error_not_exhaustion()
     {
-        var ex = Assert.Throws<InvalidOperationException>(() =>
+        var ex = Assert.Throws<CalendarUnavailableException>(() =>
             NextOccurrenceCalculator.Next(new ScheduleSource(Fixed, null, null), Utc(8, 0))
         );
 

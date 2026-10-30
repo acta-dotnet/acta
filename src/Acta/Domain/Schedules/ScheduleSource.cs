@@ -16,12 +16,12 @@ internal sealed record ScheduleSource(ScheduleTiming Timing, IActaCalendar? Cale
     {
         if (Timing.ExpressionKind == ScheduleExpressionKindCode.Calendar && Calendar is null)
         {
-            throw new InvalidOperationException(Missing("calendar", Timing.Expression, Timing.CalendarOrigin, Timing.CalendarVersion));
+            throw new CalendarUnavailableException(Missing("calendar", Timing.Expression, Timing.CalendarOrigin, Timing.CalendarVersion));
         }
 
         if (Timing.AvailabilityCalendarName is { } name && Availability is null)
         {
-            throw new InvalidOperationException(
+            throw new CalendarUnavailableException(
                 Missing("availability calendar", name, Timing.AvailabilityOrigin, Timing.AvailabilityVersion)
             );
         }

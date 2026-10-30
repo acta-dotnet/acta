@@ -308,6 +308,105 @@ public sealed class ActaMetricsTests
         Assert.Equal(0, Read("shipping", "executing"));
     }
 
+    // The decision tag's values are the ones ScheduleAdmitter.Decide emits, pinned as a set: a dashboard
+    // query binds to each name.
+    [Theory]
+    [InlineData("admitted")]
+    [InlineData("skipped")]
+    [InlineData("expired")]
+    [InlineData("blocked")]
+    [InlineData("exhausted")]
+    [InlineData("error")]
+    public void RecordScheduleDecision_increments_the_decisions_counter_with_the_decision_tag(string decision)
+    {
+        using var metrics = new ActaMetrics();
+
+        var (Value, Tags) = Assert.Single(
+            Collect<long>(metrics, "acta.schedule.decisions", () => metrics.RecordScheduleDecision("billing", decision))
+        );
+
+        Assert.Equal(1, Value);
+        Assert.Equal("billing", Tags["namespace"]);
+        Assert.Equal(decision, Tags["decision"]);
+        Assert.Equal("{decision}", CollectUnit(metrics, "acta.schedule.decisions"));
+    }
+
+    [Fact]
+    public void RecordScheduleLag_and_due_age_record_the_namespace_tag_and_floor_at_zero()
+    {
+        using var metrics = new ActaMetrics();
+
+        var lag = Assert.Single(
+            Collect<double>(metrics, "acta.schedule.lag", () => metrics.RecordScheduleLag("billing", TimeSpan.FromMilliseconds(250)))
+        );
+        var early = Assert.Single(
+            Collect<double>(metrics, "acta.schedule.lag", () => metrics.RecordScheduleLag("billing", TimeSpan.FromSeconds(-3)))
+        );
+        var age = Assert.Single(
+            Collect<double>(metrics, "acta.schedule.due.age", () => metrics.RecordScheduleDueAge("billing", TimeSpan.FromMinutes(1.5)))
+        );
+
+        Assert.Equal(250, lag.Value);
+        Assert.Equal(0, early.Value);
+        Assert.Equal(90, age.Value);
+        Assert.Equal("billing", lag.Tags["namespace"]);
+        Assert.Equal("billing", age.Tags["namespace"]);
+        Assert.Equal("ms", CollectUnit(metrics, "acta.schedule.lag"));
+        Assert.Equal("s", CollectUnit(metrics, "acta.schedule.due.age"));
+    }
+
+    [Fact]
+    public void RecordSchedulePass_records_the_wall_time_and_counts_stale_groups_only_when_there_are_any()
+    {
+        using var metrics = new ActaMetrics();
+
+        var pass = Assert.Single(
+            Collect<double>(metrics, "acta.schedule.pass", () => metrics.RecordSchedulePass("billing", TimeSpan.FromMilliseconds(12), 0))
+        );
+        var quiet = Collect<long>(
+            metrics,
+            "acta.schedule.stale",
+            () => metrics.RecordSchedulePass("billing", TimeSpan.FromMilliseconds(12), 0)
+        );
+        var stale = Assert.Single(
+            Collect<long>(metrics, "acta.schedule.stale", () => metrics.RecordSchedulePass("billing", TimeSpan.FromMilliseconds(40), 2))
+        );
+
+        Assert.Equal(12, pass.Value);
+        Assert.Equal("billing", pass.Tags["namespace"]);
+        Assert.Empty(quiet);
+        Assert.Equal(2, stale.Value);
+        Assert.Equal("{group}", CollectUnit(metrics, "acta.schedule.stale"));
+        Assert.Equal("ms", CollectUnit(metrics, "acta.schedule.pass"));
+    }
+
+    [Fact]
+    public void RecordFiringStartDelay_records_milliseconds_with_namespace_and_job_name_and_floors_skew_at_zero()
+    {
+        using var metrics = new ActaMetrics();
+
+        var delay = Assert.Single(
+            Collect<double>(
+                metrics,
+                "acta.firing.start.delay",
+                () => metrics.RecordFiringStartDelay("billing", "send-receipt", TimeSpan.FromMilliseconds(80))
+            )
+        );
+        var skewed = Assert.Single(
+            Collect<double>(
+                metrics,
+                "acta.firing.start.delay",
+                () => metrics.RecordFiringStartDelay("billing", "send-receipt", TimeSpan.FromMilliseconds(-5))
+            )
+        );
+
+        Assert.Equal(80, delay.Value);
+        Assert.Equal(0, skewed.Value);
+        Assert.Equal("billing", delay.Tags["namespace"]);
+        Assert.Equal("send-receipt", delay.Tags["job_name"]);
+        Assert.Equal("ms", CollectUnit(metrics, "acta.firing.start.delay"));
+    }
+
     // Captures every measurement the named instrument emits while act runs (or, for an observable
     // instrument, on a single forced collection). Tags are projected to a dictionary so assertions read
     // by key, mirroring JobLogScopeTests.Fields. Scoped to THIS test's meter instance - parallel test

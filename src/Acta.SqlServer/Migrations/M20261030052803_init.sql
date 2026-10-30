@@ -4848,6 +4848,7 @@ SELECT
     j.concurrency_key,
     j.parent_job_id,
     COALESCE(j.lineage_root_job_id, j.job_id) AS lineage_root_job_id,
+    j.schedule_id,
     root.job_ref AS lineage_root_job_ref,
     j.tenant_id,
     t.tenant_name,
@@ -5015,7 +5016,7 @@ JOIN {{schema}}.namespaces AS ns ON ns.namespace_id = w.namespace_id
 GO
 
 
-IF NOT EXISTS (SELECT 1 FROM {{schema}}.migrations WHERE name = 'M20261029203554_init')
+IF NOT EXISTS (SELECT 1 FROM {{schema}}.migrations WHERE name = 'M20261030052803_init')
 INSERT INTO {{schema}}.migrations (name)
-VALUES ('M20261029203554_init');
+VALUES ('M20261030052803_init');
 GO

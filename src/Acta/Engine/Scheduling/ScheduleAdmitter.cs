@@ -1,3 +1,4 @@
+using System.Diagnostics;
 using System.Globalization;
 using Microsoft.Extensions.Logging;
 
@@ -85,14 +86,28 @@ internal sealed class ScheduleAdmitter(
     public async Task<AdmissionPass> AdmitOnceAsync(string namespaceName, CancellationToken ct)
     {
         var namespaceId = context.NamespaceIds[namespaceName];
+        var started = Stopwatch.GetTimestamp();
         var admitted = 0;
         var stale = 0;
+        var staleTotal = 0;
         for (var replan = 0; replan <= MaxReplans; replan++)
         {
             var now = await clock.GetUtcNowAsync(ct);
             var due = (await schedules.GetDueSchedulesAsync(namespaceId, now, SchedulesPerPass, ct)).Schedules;
+            if (replan == 0 && metrics is not null)
+            {
+                foreach (var s in due)
+                {
+                    if (s.NextEvaluationAtUtc is { } at)
+                    {
+                        metrics.RecordScheduleDueAge(namespaceName, now - at);
+                    }
+                }
+            }
+
             await calendars.PreloadAsync(namespaceId, due.SelectMany(s => s.Timing().CatalogBindings()), ct);
-            var plan = Plan(namespaceId, due, now, calendars, log);
+            var decisions = metrics is null ? null : new List<PlannedMeasurement>();
+            var plan = Plan(namespaceId, due, now, calendars, log, decisions);
             if (plan.Groups.Count == 0)
             {
                 break;
@@ -102,6 +117,21 @@ internal sealed class ScheduleAdmitter(
             var appliedAdmissions = outcomes.Count(o => o.Applied && plan.Groups[o.Ordinal].Admit);
             admitted += appliedAdmissions;
             stale = outcomes.Count(o => !o.Applied);
+            staleTotal += stale;
+            if (decisions is not null)
+            {
+                // Only an applied group's decisions count; a stale group's replan records them when it lands.
+                var applied = outcomes.Where(o => o.Applied).Select(o => o.Ordinal).ToHashSet();
+                foreach (var decision in decisions.Where(d => applied.Contains(d.Ordinal)))
+                {
+                    metrics!.RecordScheduleDecision(namespaceName, decision.Decision);
+                    if (decision.Lag is { } lag)
+                    {
+                        metrics.RecordScheduleLag(namespaceName, lag);
+                    }
+                }
+            }
+
             if (appliedAdmissions > 0)
             {
                 await publisher.WakeAsync(WorkerWakeupChannel.WorkerNamespace(namespaceName), WorkerWakeupReason.WorkAvailable, ct);
@@ -113,6 +143,7 @@ internal sealed class ScheduleAdmitter(
             }
         }
 
+        metrics?.RecordSchedulePass(namespaceName, Stopwatch.GetElapsedTime(started), staleTotal);
         return new AdmissionPass(admitted, stale, await schedules.GetScheduleHorizonAsync(namespaceId, ct));
     }
 
@@ -120,26 +151,28 @@ internal sealed class ScheduleAdmitter(
     /// The plan: one group per slot, every member whose evaluation selected an occurrence contributing to its one
     /// firing, and one group per per-occurrence schedule. A schedule nothing changed for writes no row. A group's
     /// ordinal is its index. Calendars resolve through <paramref name="calendars"/>, preloaded for the rows; a schedule
-    /// whose source fails is parked as an evaluation error and, given a logger, said so.
+    /// whose source fails is parked as an evaluation error and, given a logger, said so. Given a list, the decisions each
+    /// group's rows took are collected for the meter, by ordinal.
     /// </summary>
     internal static AdmitFiringsCommand Plan(
         int namespaceId,
         IReadOnlyList<DueSchedule> due,
         DateTime nowUtc,
         CalendarsOperations calendars,
-        ILogger? log = null
+        ILogger? log = null,
+        List<PlannedMeasurement>? decisions = null
     )
     {
         var groups = new List<AdmitFiringsGroup>();
         var rows = new List<AdmitFiringsValues>();
         foreach (var slot in due.Where(d => d.JobId is not null).GroupBy(d => d.JobId!.Value))
         {
-            PlanSlot(slot.Key, [.. slot], nowUtc, namespaceId, calendars, log, groups, rows);
+            PlanSlot(slot.Key, [.. slot], nowUtc, namespaceId, calendars, log, groups, rows, decisions);
         }
 
         foreach (var schedule in due.Where(d => d.JobId is null))
         {
-            PlanOccurrence(schedule, nowUtc, namespaceId, calendars, log, groups, rows);
+            PlanOccurrence(schedule, nowUtc, namespaceId, calendars, log, groups, rows, decisions);
         }
 
         return new AdmitFiringsCommand(namespaceId, groups, rows);
@@ -154,7 +187,8 @@ internal sealed class ScheduleAdmitter(
         CalendarsOperations calendars,
         ILogger? log,
         List<AdmitFiringsGroup> groups,
-        List<AdmitFiringsValues> rows
+        List<AdmitFiringsValues> rows,
+        List<PlannedMeasurement>? decisions
     )
     {
         var first = members[0];
@@ -184,6 +218,7 @@ internal sealed class ScheduleAdmitter(
             }
 
             slotRows.Add(Row(ordinal, s, e, admittedDetails, SkippedDetails(s, e)));
+            Decide(decisions, ordinal, e, admitted: e.Admit is not null, dropped: false, nowUtc);
         }
 
         if (slotRows.Count == 0)
@@ -216,7 +251,8 @@ internal sealed class ScheduleAdmitter(
         CalendarsOperations calendars,
         ILogger? log,
         List<AdmitFiringsGroup> groups,
-        List<AdmitFiringsValues> rows
+        List<AdmitFiringsValues> rows,
+        List<PlannedMeasurement>? decisions
     )
     {
         var full = s.OutstandingCount >= s.MaxOutstanding;
@@ -258,6 +294,52 @@ internal sealed class ScheduleAdmitter(
 
         groups.Add(group);
         rows.Add(Row(ordinal, s, e, admittedDetails, skippedDetails));
+        Decide(decisions, ordinal, e, admitted: e.Admit is not null && !full, dropped: full && e.Admit is not null, nowUtc);
+    }
+
+    /// <summary>The decisions one evaluation took, for the meter; a range skipped or expired before an admitted occurrence counts too.</summary>
+    private static void Decide(
+        List<PlannedMeasurement>? decisions,
+        int ordinal,
+        ScheduleEvaluation e,
+        bool admitted,
+        bool dropped,
+        DateTime nowUtc
+    )
+    {
+        if (decisions is null)
+        {
+            return;
+        }
+
+        if (e.SkippedFromUtc is not null || dropped)
+        {
+            decisions.Add(new PlannedMeasurement(ordinal, "skipped", null));
+        }
+
+        if (e.ExpiredFromUtc is not null)
+        {
+            decisions.Add(new PlannedMeasurement(ordinal, "expired", null));
+        }
+
+        if (admitted && e.Admit is { } admit)
+        {
+            decisions.Add(new PlannedMeasurement(ordinal, "admitted", nowUtc - admit.OccurrenceAtUtc));
+        }
+        else if (e.Status == EvaluationStatusCode.WaitingForCapacity)
+        {
+            decisions.Add(new PlannedMeasurement(ordinal, "blocked", null));
+        }
+
+        if (e.Status == EvaluationStatusCode.Exhausted)
+        {
+            decisions.Add(new PlannedMeasurement(ordinal, "exhausted", null));
+        }
+
+        if (e.Error is not null)
+        {
+            decisions.Add(new PlannedMeasurement(ordinal, "error", null));
+        }
     }
 
     /// <summary>
@@ -374,3 +456,6 @@ internal sealed class ScheduleAdmitter(
 
 /// <summary>What one admission pass did, and when the namespace next needs the engine.</summary>
 internal sealed record AdmissionPass(int Admitted, int Stale, DateTime? NextWakeUtc);
+
+/// <summary>One decision a plan's group took, for the meter once the group applies; an admitted occurrence carries its lag.</summary>
+internal sealed record PlannedMeasurement(int Ordinal, string Decision, TimeSpan? Lag);

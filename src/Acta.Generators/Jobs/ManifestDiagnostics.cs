@@ -321,10 +321,10 @@ internal static class ManifestDiagnostics
     /// <summary>
     /// ACTA0105: invalid [Job] policy value; one ID, per-variant messages.
     /// </summary>
-    public static DiagnosticRecord InvalidDuration(string argument, string value, Location location) =>
+    public static DiagnosticRecord InvalidDuration(string argument, string value, Location location, string attribute = "[Job]") =>
         new(
             "ACTA0105",
-            $"`[Job]` argument `{argument}` value `\"{value}\"` is not a valid non-negative Acta duration (e.g. `\"30s\"`, `\"1m\"`, `\"2h\"`). The framework default is used until corrected.",
+            $"`{attribute}` argument `{argument}` value `\"{value}\"` is not a valid non-negative Acta duration (e.g. `\"30s\"`, `\"1m\"`, `\"2h\"`). The framework default is used until corrected.",
             location
         );
 

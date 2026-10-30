@@ -821,6 +821,26 @@ public sealed class DashboardApiEndpointTests
         Assert.Equal(HttpStatusCode.NotFound, missing.StatusCode);
     }
 
+    [Fact]
+    public async Task Schedule_preview_on_a_host_without_the_calendar_is_a_409_problem_naming_it()
+    {
+        var fakes = new FakeOperations();
+        fakes.Schedules.Preview = static (_, _, _) =>
+            throw new CalendarUnavailableException(
+                "The calendar 'pay-days' is not declared in this process; declare a [Calendar(\"pay-days\")] class."
+            );
+        var (app, client) = await TestDashboardHost.StartAsync(fakes: fakes);
+        await using var _ = app;
+        var ct = TestContext.Current.CancellationToken;
+
+        var response = await client.GetAsync("/acta/api/v1/schedules/billing/send-invoice/daily/preview", ct);
+        var body = await response.Content.ReadAsStringAsync(ct);
+
+        Assert.Equal(HttpStatusCode.Conflict, response.StatusCode);
+        Assert.Contains("Calendar not available on this host.", body);
+        Assert.Contains("'pay-days' is not declared in this process", body);
+    }
+
     [Theory]
     [InlineData("bad!/send-invoice/daily")]
     [InlineData("billing/send%20invoice/daily")]

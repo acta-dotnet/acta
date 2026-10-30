@@ -388,6 +388,8 @@ sealed class Acta.CalendarStatusCodeJsonConverter : System.Text.Json.Serializati
     .ctor()
     Acta.CalendarStatusCode Read(ref System.Text.Json.Utf8JsonReader reader, System.Type typeToConvert, System.Text.Json.JsonSerializerOptions options)
     System.Void Write(System.Text.Json.Utf8JsonWriter writer, Acta.CalendarStatusCode value, System.Text.Json.JsonSerializerOptions options)
+sealed class Acta.CalendarUnavailableException : System.InvalidOperationException
+    .ctor(System.String message)
 record struct Acta.CalendarWindow
     .ctor(System.DateTime StartUtc, System.Nullable<System.DateTime> EndUtc)
     System.DateTime StartUtc { get;init; }

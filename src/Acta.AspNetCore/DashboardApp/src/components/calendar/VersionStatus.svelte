@@ -14,6 +14,11 @@
 
 <span class="badge {badgeClass}">
   {#if icon}<Icon name={icon} />{:else}<i class="dot" aria-hidden="true"></i>{/if}
-  {#if version !== null}<span class="mono">v{version}</span>{/if}
+  {#if version !== null}<span class="mono version">v{version}</span>{/if}
   {status}
 </span>
+
+<style>
+  /* A badge capitalizes its word; a version marker is written v1, never V1. */
+  .version { text-transform: none; }
+</style>

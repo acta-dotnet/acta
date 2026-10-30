@@ -41,14 +41,14 @@ DO $$
 BEGIN
     IF EXISTS (
         SELECT 1 FROM acta.migrations
-        WHERE name NOT IN ('M20261029203554_init')
+        WHERE name NOT IN ('M20261030052803_init')
     ) THEN
         RAISE EXCEPTION 'A newer Acta release already upgraded this database. Run the newest provisioning script; this one would move it backwards.';
     END IF;
 END
 $$;
 
--- ===== BEGIN M20261029203554_init =====
+-- ===== BEGIN M20261030052803_init =====
 CREATE SCHEMA IF NOT EXISTS acta;
 
 -- alerts
@@ -4265,6 +4265,7 @@ SELECT
     j.concurrency_key,
     j.parent_job_id,
     COALESCE(j.lineage_root_job_id, j.job_id) AS lineage_root_job_id,
+    j.schedule_id,
     root.job_ref AS lineage_root_job_ref,
     j.tenant_id,
     t.tenant_name,
@@ -4416,10 +4417,10 @@ JOIN acta.namespaces AS ns ON ns.namespace_id = w.namespace_id;
 
 
 INSERT INTO acta.migrations (name)
-VALUES ('M20261029203554_init')
+VALUES ('M20261030052803_init')
 ON CONFLICT (name) DO NOTHING;
 
--- ===== END M20261029203554_init =====
+-- ===== END M20261030052803_init =====
 
 COMMIT;
 

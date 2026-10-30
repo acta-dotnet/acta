@@ -79,7 +79,7 @@ internal static class ScheduleReader
                         fullBehaviorId = fb;
                         break;
                     case "ExpireAfter":
-                        expireAfterSeconds = ReadDurationSeconds(named, diagnostics, location);
+                        expireAfterSeconds = ReadDurationSeconds(named, diagnostics, location, "[Schedule]");
                         break;
                     case "ExpireAction" when TryGetEnumByte(named.Value, out var ea):
                         expireActionId = ea;

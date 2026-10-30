@@ -101,7 +101,8 @@ internal static class JobPolicyValues
     internal static int? ReadDurationSeconds(
         KeyValuePair<string, TypedConstant> named,
         List<DiagnosticRecord> diagnostics,
-        Location location
+        Location location,
+        string attribute = "[Job]"
     )
     {
         if (named.Value.Value is not string text || string.IsNullOrWhiteSpace(text))
@@ -117,7 +118,7 @@ internal static class JobPolicyValues
             return seconds;
         }
 
-        ReportDurationSyntaxError(named.Key, text, error, diagnostics, location);
+        ReportDurationSyntaxError(named.Key, text, error, diagnostics, location, attribute);
         return null;
     }
 
@@ -126,13 +127,14 @@ internal static class JobPolicyValues
         string value,
         BackoffExpressionValidator.Error error,
         List<DiagnosticRecord> diagnostics,
-        Location location
+        Location location,
+        string attribute = "[Job]"
     )
     {
         diagnostics.Add(
             error.Kind == BackoffExpressionValidator.ErrorKind.InvalidUnit
                 ? ManifestDiagnostics.InvalidDurationUnit(error.Unit ?? value, location)
-                : ManifestDiagnostics.InvalidDuration(argument, value, location)
+                : ManifestDiagnostics.InvalidDuration(argument, value, location, attribute)
         );
     }
 

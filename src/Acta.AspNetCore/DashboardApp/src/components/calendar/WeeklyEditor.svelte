@@ -294,6 +294,8 @@
     display: grid;
     grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
     gap: 0 20px;
+    /* The zone field carries a help line; the description must not stretch to match it. */
+    align-items: start;
   }
   .field-help { font-weight: 400; color: var(--muted); font-size: var(--text-xs); }
   .weekly-section { margin-top: 20px; }

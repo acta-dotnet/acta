@@ -113,7 +113,8 @@ export const routes = {
     href(`definitions/${encodeURIComponent(jobNamespace)}/${encodeURIComponent(jobName)}`, { ns: ns(options.namespace ?? jobNamespace) }),
   schedules: (options: { namespace?: string | null } = {}) => href('schedules', { ns: ns(options.namespace) }),
   schedule: (namespace: string, jobName: string, scheduleName: string) => href(`schedules/${encodeURIComponent(namespace)}/${encodeURIComponent(jobName)}/${encodeURIComponent(scheduleName)}`, { ns: namespace }),
-  calendars: (options: { namespace?: string | null; role?: string | null } = {}) => href('calendars', { ns: ns(options.namespace), role: options.role }),
+  calendars: (options: { namespace?: string | null; role?: string | null; nameSearch?: string | null } = {}) =>
+    href('calendars', { ns: ns(options.namespace), role: options.role, q: options.nameSearch }),
   // A family is addressed by its natural key; `version` shows one version, `role` opens the editor for a family that does not exist yet.
   calendar: (jobNamespace: string, calendarName: string, options: { namespace?: string | null; version?: number | null; role?: string | null } = {}) =>
     href(`calendars/${encodeURIComponent(jobNamespace)}/${encodeURIComponent(calendarName)}`, { ns: ns(options.namespace), v: options.version, role: options.role }),

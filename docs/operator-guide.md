@@ -1275,7 +1275,26 @@ two. `next_occurrence_at_utc` is the next instant the schedule is due; an orphan
 schedule of a retired definition, has none. `next_evaluation_at_utc` and `evaluation_status` say when
 and why the admitter next looks; the slot job carries no cursor of its own and sits `idle` between firings.
 `outstanding_count` is a per-occurrence schedule's roots not yet settled, bounded by `max_outstanding`,
-and `full_behavior` says whether a due occurrence waits or is dropped at that bound.
+and `full_behavior` says whether a due occurrence waits or is dropped at that bound. Each such root names
+its schedule in `jobs_view.schedule_id`.
+
+### Per-Occurrence Capacity Drift
+
+```sql
+SELECT s.namespace, s.job_name, s.schedule_name, s.evaluation_status, s.outstanding_count, COUNT(j.job_id) AS live_roots
+  FROM acta.schedules_view s
+  LEFT JOIN acta.jobs_view j ON j.schedule_id = s.schedule_id AND j.status NOT IN ('succeeded', 'failed', 'cancelled')
+ WHERE s.scheduled_delivery = 'per-occurrence'
+ GROUP BY s.namespace, s.job_name, s.schedule_name, s.evaluation_status, s.outstanding_count
+HAVING s.outstanding_count <> COUNT(j.job_id)
+ ORDER BY s.namespace, s.job_name, s.schedule_name;
+```
+
+Every settlement path writes the count in the transaction that settles the root, so this answers no rows
+unless something wrote around the engine: a manual UPDATE, a partial restore, a bug. A row whose count
+sits at `max_outstanding` with fewer live roots is a schedule `waiting-for-capacity` for nothing. Run it
+when a schedule looks stuck, not on a timer: it reads every live root of the namespace. There is no verb
+that corrects the count; report a row as a defect with its evidence.
 
 ### Job Definitions And Effective Policy
 

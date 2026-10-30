@@ -306,7 +306,7 @@ The append-only ledger: what happened to an entity, named by `EventCode` and the
 
 ### `acta.jobs` <a id="entity-acta-jobs"></a>
 
-One row in `acta.jobs`, Acta's only work unit: the append-mostly identity/input record. Hot mutable state (status, next run, counters, retention, the one stored result) lives on the 1:1 `jobs_state` row, which also carries execution ownership/TTL (`locks` holds named locks only). Recurring Jobs are a single reusable row whose runtime `next_run_at_utc` rolls forward on terminal completion (no per-firing row inflation).
+One row in `acta.jobs`, Acta's only work unit: the append-mostly identity/input record. Hot mutable state (status, next run, counters, retention, the one stored result) lives on the 1:1 `jobs_state` row, which also carries execution ownership/TTL (`locks` holds named locks only). A recurring job's permanent slot is one reusable row that sits Idle between firings; its schedules' cursors live on `schedules_state`, so a firing adds no job row (a per-occurrence definition's root is the exception).
 
 **CLR type** `Acta.JobEntity` · **Primary key** `pk_jobs` (`job_id`)
 
