@@ -105,7 +105,7 @@ internal sealed class ScheduleAdmitter(
                 }
             }
 
-            await calendars.PreloadAsync(namespaceId, due.SelectMany(s => s.Timing().CatalogBindings()), ct);
+            await calendars.PreloadAsync(namespaceId, due.SelectMany(s => s.Timing().CalendarNames()), ct);
             var decisions = metrics is null ? null : new List<PlannedMeasurement>();
             var plan = Plan(namespaceId, due, now, calendars, log, decisions);
             if (plan.Groups.Count == 0)

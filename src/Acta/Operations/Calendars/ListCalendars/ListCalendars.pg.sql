@@ -20,12 +20,8 @@ SELECT
                 (
                     s.expression_kind_code = 30 /* ScheduleExpressionKindCode.Calendar */
                     AND s.expression = f.calendar_name
-                    AND s.calendar_origin_code = 20 /* CalendarOriginCode.Catalog */
                 )
-                OR (
-                    s.availability_calendar_name = f.calendar_name
-                    AND s.availability_calendar_origin_code = 20 /* CalendarOriginCode.Catalog */
-                )
+                OR s.availability_calendar_name = f.calendar_name
             )
     )::INT AS dependent_count
 FROM (

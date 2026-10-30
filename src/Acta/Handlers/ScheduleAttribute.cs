@@ -39,9 +39,9 @@ public sealed class ScheduleAttribute : Attribute
     /// <summary>
     /// The name of the calendar whose occurrences this schedule fires, in place of an expression; dotted kebab-case.
     /// Declared with the name-only constructor; an expression and a calendar together are a build error. The name is
-    /// found first among the calendars the process declares (<see cref="CalendarAttribute"/> classes and
-    /// <c>AddCalendar</c> registrations), then in the namespace's calendar catalog, then in the shared catalog in
-    /// <c>sys</c>.
+    /// found afresh at every evaluation, first among the calendars the process declares (<see cref="CalendarAttribute"/>
+    /// classes and <c>AddCalendar</c> registrations), then in the namespace's calendar catalog, then in the shared
+    /// catalog in <c>sys</c>; the schedule stores only the name.
     /// </summary>
     public string? Calendar { get; init; }
 

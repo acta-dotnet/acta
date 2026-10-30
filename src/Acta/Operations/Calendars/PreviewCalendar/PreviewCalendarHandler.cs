@@ -37,7 +37,6 @@ internal sealed class PreviewCalendarHandler(IActaClock clock, GetCalendarPublic
                     s.ScheduleName,
                     version.Role,
                     s.Status,
-                    version.Role == CalendarRoleCode.Occurrence ? s.CalendarVersion ?? 0 : s.AvailabilityVersion ?? 0,
                     s.Status != ScheduleStatusCode.Orphaned && s.NextOccurrenceAtUtc is { } due && due <= now
                 )),
             ]

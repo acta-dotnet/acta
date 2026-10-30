@@ -460,11 +460,7 @@ internal sealed partial class SqliteDialect : ISqlDialect
                 writer.WriteNumber("full_behavior_code", (short)item.Schedule.FullBehavior);
                 WriteNumberOrNull(writer, "expire_after_seconds", item.Schedule.ExpireAfterSeconds);
                 WriteNumberOrNull(writer, "expire_action_code", (short?)item.Schedule.ExpireAction);
-                WriteNumberOrNull(writer, "calendar_origin_code", (short?)item.Schedule.CalendarOrigin);
-                WriteNumberOrNull(writer, "calendar_version", item.Schedule.CalendarVersion);
                 WriteStringOrNull(writer, "availability_calendar_name", item.Schedule.AvailabilityCalendarName);
-                WriteNumberOrNull(writer, "availability_calendar_origin_code", (short?)item.Schedule.AvailabilityOrigin);
-                WriteNumberOrNull(writer, "availability_calendar_version", item.Schedule.AvailabilityVersion);
             }
         );
 

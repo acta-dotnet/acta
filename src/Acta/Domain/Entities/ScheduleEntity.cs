@@ -28,18 +28,6 @@ namespace Acta;
     Sql = "(expire_after_seconds IS NULL AND expire_action_code IS NULL) OR (expire_after_seconds IS NOT NULL AND expire_action_code IS NOT NULL)"
 )]
 [DbCheck(Name = "ck_schedules_expire_after", Sql = "expire_after_seconds IS NULL OR expire_after_seconds > 0")]
-[DbCheck(
-    Name = "ck_schedules_calendar_binding",
-    Sql = "(expression_kind_code = 30 AND calendar_origin_code IS NOT NULL AND calendar_version IS NOT NULL) OR (expression_kind_code <> 30 AND calendar_origin_code IS NULL AND calendar_version IS NULL)"
-)]
-[DbCheck(
-    Name = "ck_schedules_availability_triple",
-    Sql = "(availability_calendar_name IS NULL AND availability_calendar_origin_code IS NULL AND availability_calendar_version IS NULL) OR (availability_calendar_name IS NOT NULL AND availability_calendar_origin_code IS NOT NULL AND availability_calendar_version IS NOT NULL)"
-)]
-[DbCheck(
-    Name = "ck_schedules_calendar_version",
-    Sql = "(calendar_version IS NULL OR calendar_version > 0) AND (availability_calendar_version IS NULL OR availability_calendar_version > 0)"
-)]
 internal sealed class ScheduleEntity : IEntity<int>
 {
     /// <summary>
@@ -129,7 +117,7 @@ internal sealed class ScheduleEntity : IEntity<int>
 
     /// <summary>
     /// <see cref="TimingFingerprint"/> of the declaration as registered: the expression, its kind, the zone and its
-    /// rules, and the anchor. A registration whose fingerprint matches leaves the cursor alone; one that differs is a
+    /// rules, the anchor, and the availability calendar's name. A registration whose fingerprint matches leaves the cursor alone; one that differs is a
     /// timing change.
     /// </summary>
     [DbColumn("timing_fingerprint", DbKind.AsciiString, Size = 64)]
@@ -158,30 +146,12 @@ internal sealed class ScheduleEntity : IEntity<int>
     public ScheduleExpireActionCode? ExpireAction { get; init; }
 
     /// <summary>
-    /// Where the calendar named by <see cref="Expression"/> comes from, from <c>[Schedule(CalendarOrigin)]</c>; set
-    /// exactly when the kind is Calendar, together with <see cref="CalendarVersion"/>.
-    /// </summary>
-    [DbColumn("calendar_origin_code")]
-    public CalendarOriginCode? CalendarOrigin { get; init; }
-
-    /// <summary>The calendar version the schedule is bound to, at least 1; NULL unless the kind is Calendar.</summary>
-    [DbColumn("calendar_version", DbKind.Int32)]
-    public int? CalendarVersion { get; init; }
-
-    /// <summary>
-    /// The availability calendar the schedule observes, from <c>[Schedule(Availability)]</c>, whatever the
-    /// expression kind; NULL means none. Set together with its origin and version.
+    /// The name of the availability calendar the schedule observes, from <c>[Schedule(Availability)]</c>, whatever the
+    /// expression kind; NULL means none. Like a calendar's name in <see cref="Expression"/>, it is all the row keeps of
+    /// the binding: the name resolves afresh at every evaluation.
     /// </summary>
     [DbColumn("availability_calendar_name", DbKind.AsciiString, Size = 128)]
     public string? AvailabilityCalendarName { get; init; }
-
-    /// <summary>Where <see cref="AvailabilityCalendarName"/> comes from; NULL when the schedule has no availability calendar.</summary>
-    [DbColumn("availability_calendar_origin_code")]
-    public CalendarOriginCode? AvailabilityCalendarOrigin { get; init; }
-
-    /// <summary>The availability calendar version the schedule is bound to, at least 1; NULL when it has none.</summary>
-    [DbColumn("availability_calendar_version", DbKind.Int32)]
-    public int? AvailabilityCalendarVersion { get; init; }
 
     // ---------- Operator lifecycle ----------
 

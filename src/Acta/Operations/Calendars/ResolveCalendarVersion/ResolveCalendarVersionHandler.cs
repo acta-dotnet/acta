@@ -2,7 +2,7 @@ namespace Acta;
 
 /// <summary>
 /// <see cref="CalendarsOperations.ResolveCalendarVersionAsync"/>: one seek by the family's key, whatever the version's status,
-/// so a schedule pinned to a superseded or archived version still reads it.
+/// so a read of a superseded or archived version, or of a draft, still finds it.
 /// </summary>
 internal sealed class ResolveCalendarVersionHandler(IDbSession session, ISqlDialect dialect)
 {

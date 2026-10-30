@@ -382,13 +382,7 @@ public sealed class RegisterSchedulesSpec : ActaRuntimeTestBase<ConformanceFixtu
         await RegisterAsync(
             defId,
             jobName,
-            ScheduleRegistrationPlan.Plan(
-                declared,
-                storedForDef,
-                nowUtc,
-                CalendarRegistry.Empty.Source,
-                ScheduleRegistrationPlan.NoCalendars
-            ),
+            ScheduleRegistrationPlan.Plan(declared, storedForDef, nowUtc, CalendarRegistry.Empty.Source),
             ct
         );
     }

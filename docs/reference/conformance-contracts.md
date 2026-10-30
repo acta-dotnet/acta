@@ -1807,10 +1807,10 @@
 - **Guarantees:**
   - Archiving a family with no current version, or an unknown family, is NotFound
   - Archiving the current version applies, leaves the family without one, and records calendar.archived
-  - A stale expected version, or a live catalog-bound schedule, rejects the archive until the schedule is orphaned
+  - A stale expected version, or a live schedule naming the family, rejects the archive until the schedule is orphaned
 
 ### A family's bound schedules read back, across namespaces when shared
-- **Contract:** The schedules bound to a family through the catalog read back with timing and cursor, the namespace's own for a local family and every namespace's when shared.
+- **Contract:** The schedules naming a family read back with timing and cursor, the namespace's own for a local family and every namespace's when shared.
 - **Guarantees:**
   - A shared family's schedules read back from every namespace; a local family's from its own
 
@@ -1820,17 +1820,17 @@
   - Only a family's Published version is current; drafts and an archived version are not
 
 ### A calendar family reads with its versions, a definition, and its dependents
-- **Contract:** Get answers every version newest first, the requested, current, or latest definition, and every catalog-bound schedule, or null.
+- **Contract:** Get answers every version newest first, the requested, current, or latest definition, and every schedule naming the family, or null.
 - **Guarantees:**
   - Get lists the versions newest first and shows the latest definition while none is current
   - Get shows the current version by default and a requested one on demand; a version or family it lacks is null
-  - Get lists every schedule bound through the catalog with its pinned version, an orphan with its status
+  - Get lists every schedule that names the family, an orphan with its status
 
 ### Calendar families list by name with their current and latest versions
 - **Contract:** The list answers one item per family by name with its versions and live bound schedules, in one namespace with sys or in all, filtered and paged.
 - **Guarantees:**
   - A family of drafts lists once, with its latest version and no current version
-  - A published family lists its current version and counts its live catalog-bound schedules
+  - A published family lists its current version and counts the live schedules naming it
   - The list filters by role and name fragment, counts the filter on request, and pages by name
   - A namespace's list adds the shared families, and a list without a namespace spans every namespace
 
@@ -1846,10 +1846,10 @@
   - A shared family reads back from sys with its namespace id
 
 ### A catalog calendar sources a schedule and a publication retimes every bound one
-- **Contract:** A schedule pins the catalog's current version, and a publication moves every bound schedule to it atomically, refusing or discarding an overdue backlog.
+- **Contract:** A schedule follows the catalog's current version by name, and a publication retimes every bound schedule atomically, refusing or discarding an overdue backlog.
 - **Guarantees:**
-  - A schedule pins the catalog's current version at registration and fires its instants
-  - A publication moves every bound schedule to the new version and audits the retime
+  - A schedule resolves the catalog's current version by name and fires its instants
+  - A publication retimes every bound schedule from the new version and audits the retime
   - An overdue occurrence refuses a publication until the caller discards it as a skipped range
   - A publication is a conflict on a stale expected version and rejected for a version that is no draft
   - A preview shows the candidate beside the current version and the bound schedules
@@ -2046,7 +2046,7 @@
 - **Guarantees:**
   - A PerOccurrence definition's schedules register with no slot, their declared capacity, and nothing outstanding
   - A schedule's expiry and misfire strategy register, a changed expiry re-registers in place, and a plain restart writes nothing
-  - A schedule's availability calendar registers and reads back, a changed version re-registers in place, and a plain restart writes nothing
+  - A schedule's availability calendar registers and reads back, a changed name re-registers in place, and a plain restart writes nothing
   - A slot-less schedule resolves by path, pauses and resumes with the audit on its definition, and triggers a manual root
 
 ### Schedule insert seeds a new cursor, keeps a stored one, and upserts one row

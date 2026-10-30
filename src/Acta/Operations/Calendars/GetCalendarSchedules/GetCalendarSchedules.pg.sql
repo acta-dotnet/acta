@@ -1,6 +1,6 @@
--- Every schedule bound to the family through the catalog, as the admitter's row so a publication plans it the way a
--- pass evaluates it; orphaned schedules and retired definitions included, since their pins move too. A shared family
--- in sys binds every namespace. No locks; the apply validates the versions it carries.
+-- Every schedule that names the family, as the admitter's row so a publication plans it the way a pass evaluates it;
+-- orphaned schedules and retired definitions included, since their cursors move too. A shared family in sys binds the
+-- name in every namespace. No locks; the apply validates the versions it carries.
 SELECT
     s.schedule_id,
     s.namespace_id,
@@ -17,11 +17,7 @@ SELECT
     s.misfire_grace_seconds,
     s.interval_anchor_at_utc,
     s.timing_fingerprint,
-    s.calendar_origin_code AS calendar_origin,
-    s.calendar_version,
     s.availability_calendar_name,
-    s.availability_calendar_origin_code AS availability_origin,
-    s.availability_calendar_version AS availability_version,
     s.max_outstanding,
     s.full_behavior_code AS full_behavior,
     s.expire_after_seconds,
@@ -47,9 +43,7 @@ LEFT JOIN {{schema}}.checkpoints cp
 WHERE
     (s.namespace_id = @p_namespace_id OR @p_namespace_id = 1 /* NameSyntax.SystemNamespaceId */)
     AND (
-        (s.expression_kind_code = 30 /* ScheduleExpressionKindCode.Calendar */ AND s.expression = @p_calendar_name
-            AND s.calendar_origin_code = 20 /* CalendarOriginCode.Catalog */)
-        OR (s.availability_calendar_name = @p_calendar_name
-            AND s.availability_calendar_origin_code = 20 /* CalendarOriginCode.Catalog */)
+        (s.expression_kind_code = 30 /* ScheduleExpressionKindCode.Calendar */ AND s.expression = @p_calendar_name)
+        OR s.availability_calendar_name = @p_calendar_name
     )
 ORDER BY s.schedule_id;

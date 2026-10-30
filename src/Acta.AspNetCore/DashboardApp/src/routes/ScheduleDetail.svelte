@@ -43,11 +43,7 @@
     scheduledDelivery: string;
     expireAfterSeconds: number | null;
     expireAction: string | null;
-    calendarOrigin: string | null;
-    calendarVersion: number | null;
     availabilityCalendarName: string | null;
-    availabilityOrigin: string | null;
-    availabilityVersion: number | null;
   }
 
   let {
@@ -148,17 +144,15 @@
         <section class="detail-panel">
           <h2>Timing</h2>
 
-          {#snippet calendarBinding(name: string, origin: string | null, version: number | null)}
-            {#if origin === 'catalog'}
-              <a href={routes.calendars({ namespace: schedule?.jobNamespace, nameSearch: name })} title="Open the calendar family in the catalog">{name}</a>
-              <span class="dim">catalog{#if version !== null}, version {version}{/if}</span>
-            {:else}
-              <span class="mono">{name}</span> <span class="dim">declared in code</span>
-            {/if}
+          <!-- A name resolves afresh at every evaluation (a declared calendar first, then the catalog), so the
+               page shows the name and where the catalog would hold it, not a stored resolution. -->
+          {#snippet calendarBinding(name: string)}
+            <span class="mono">{name}</span>
+            <a class="dim" href={routes.calendars({ namespace: schedule?.jobNamespace, nameSearch: name })} title="A declared calendar of this name wins; otherwise the catalog's current version applies">in the catalog</a>
           {/snippet}
           <dl class="detail-readonly detail-readonly-grid">
             {#if schedule.expressionKind === 'calendar'}
-              <div><dt>Calendar</dt><dd>{@render calendarBinding(schedule.expression, schedule.calendarOrigin, schedule.calendarVersion)}</dd></div>
+              <div><dt>Calendar</dt><dd>{@render calendarBinding(schedule.expression)}</dd></div>
             {:else}
               <div><dt>Expression</dt><dd><span class="mono">{schedule.expression}</span> <CopyButton value={schedule.expression} label="Copy expression" /></dd></div>
             {/if}
@@ -168,7 +162,7 @@
               <dt>Availability</dt>
               <dd>
                 {#if schedule.availabilityCalendarName}
-                  {@render calendarBinding(schedule.availabilityCalendarName, schedule.availabilityOrigin, schedule.availabilityVersion)}
+                  {@render calendarBinding(schedule.availabilityCalendarName)}
                 {:else}
                   <span class="dim">any time</span>
                 {/if}

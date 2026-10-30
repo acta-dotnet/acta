@@ -16,13 +16,12 @@ public sealed record PreviewCalendarResponse(
     IReadOnlyList<PreviewCalendarItem> Schedules
 );
 
-/// <summary>A schedule bound to the family, as a publication would meet it: its path, binding, status, pinned version, and overdue flag.</summary>
+/// <summary>A schedule that names the family, as a publication would meet it: its path, binding, status, and overdue flag.</summary>
 public sealed record PreviewCalendarItem(
     string JobNamespace,
     string JobName,
     string ScheduleName,
     CalendarRoleCode Binding,
     ScheduleStatusCode Status,
-    int PinnedVersion,
     bool Overdue
 );

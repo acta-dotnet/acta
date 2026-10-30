@@ -69,7 +69,7 @@ const officeHours = (shown: number) => ({
       : [{ days: weekdays, windows: [['09:00', '17:00']] }]
   }),
   dependents: [
-    { jobNamespace: 'billing', jobName: 'send-invoice', scheduleName: 'nightly', binding: 'availability', status: 'active', pinnedVersion: 2, scheduledDelivery: 'permanent' }
+    { jobNamespace: 'billing', jobName: 'send-invoice', scheduleName: 'nightly', binding: 'availability', status: 'active', scheduledDelivery: 'permanent' }
   ]
 });
 const officeHoursPreview = (version: number) => ({
@@ -87,7 +87,7 @@ const officeHoursPreview = (version: number) => ({
     { startUtc: '2026-07-17T07:00:00Z', endUtc: '2026-07-17T15:00:00Z' },
     { startUtc: '2026-07-20T07:00:00Z', endUtc: '2026-07-20T15:00:00Z' }
   ],
-  schedules: [{ jobNamespace: 'billing', jobName: 'send-invoice', scheduleName: 'nightly', binding: 'availability', status: 'active', pinnedVersion: 2, overdue: false }]
+  schedules: [{ jobNamespace: 'billing', jobName: 'send-invoice', scheduleName: 'nightly', binding: 'availability', status: 'active', overdue: false }]
 });
 
 async function mockDashboard(

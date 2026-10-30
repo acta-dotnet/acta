@@ -5,7 +5,7 @@
 > Generated reference for Acta code families and the payload-format registry.
 > Every persisted code is documented here exactly once; the data-model reference [`data-model.md`](./data-model.md) links into this file from every code-bearing column.
 
-This release: **37 families**, **206 values**.
+This release: **36 families**, **203 values**.
 
 > Numeric IDs are stable family-local persistence identifiers. Enum members carry programmatic meaning; textual codes carry operator-facing meaning.
 > Numeric grouping is a readability convention, not a runtime schema. Canonical failure states use `200`.
@@ -40,7 +40,6 @@ This pattern makes raw values easier to scan in database rows, logs, and diagnos
 | [`AlertOriginCode`](#code-family-alertorigincode) | `alert-origin` | `byte` |
 | [`AlertProfileCode`](#code-family-alertprofilecode) | `alert-profile` | `byte` |
 | [`AlertSeverityCode`](#code-family-alertseveritycode) | `alert-severity` | `byte` |
-| [`CalendarOriginCode`](#code-family-calendarorigincode) | `calendar-origin` | `byte` |
 | [`CalendarRoleCode`](#code-family-calendarrolecode) | `calendar-role` | `byte` |
 | [`CalendarStatusCode`](#code-family-calendarstatuscode) | `calendar-status` | `byte` |
 | [`CheckpointKindCode`](#code-family-checkpointkindcode) | `job-checkpoint-kind` | `byte` |
@@ -131,14 +130,6 @@ This pattern makes raw values easier to scan in database rows, logs, and diagnos
 | `Warning` | 20 | `warning` | Non-terminal failure transition; repeats collapse onto the one open incident. | Active |
 | `Error` | 30 | `error` | Terminal failure or operator-attention event. | Active |
 | `Critical` | 40 | `critical` | Highest severity; emitted by system Jobs (AlertProfile = SysCritical) and operator alerts for incidents. Whether it pages depends on the routed channel's transport and config. | Active |
-
-### `CalendarOriginCode` · `calendar-origin` <a id="code-family-calendarorigincode"></a>
-
-| Member | Id | Code | Description | Lifecycle |
-|---|---:|---|---|---|
-| `Unspecified` | 0 | `unspecified` | Calendar origin not recognized by this build; the row was written by a newer Acta. | Active |
-| `Registered` | 10 | `registered` | A calendar registered by the application in code, by name and exact version. | Active |
-| `Catalog` | 20 | `catalog` | A calendar published in the namespace's catalog; the published version binds the schedule. | Active |
 
 ### `CalendarRoleCode` · `calendar-role` <a id="code-family-calendarrolecode"></a>
 

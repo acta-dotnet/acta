@@ -1259,12 +1259,12 @@ job's attempt budget until its own step budget is exhausted.
 ### Recurring Schedules
 
 ```sql
-SELECT namespace, job_name, schedule_name, status, origin, expression, expression_kind, time_zone_id, misfire_strategy, next_occurrence_at_utc, next_evaluation_at_utc, evaluation_status, max_outstanding, outstanding_count, full_behavior, expire_after_seconds, expire_action, calendar_origin, calendar_version, availability_calendar_name, availability_calendar_origin, availability_calendar_version, paused_until_utc, description, pause_message
+SELECT namespace, job_name, schedule_name, status, origin, expression, expression_kind, time_zone_id, misfire_strategy, next_occurrence_at_utc, next_evaluation_at_utc, evaluation_status, max_outstanding, outstanding_count, full_behavior, expire_after_seconds, expire_action, availability_calendar_name, paused_until_utc, description, pause_message
   FROM acta.schedules_view
  ORDER BY namespace, next_occurrence_at_utc NULLS LAST, schedule_name;
 ```
 
-A schedule whose `expression_kind` is `calendar` names its calendar in `expression`; `calendar_origin` says what the name resolved to at registration (`registered`: a calendar the application declares in code; `catalog`: the family in the namespace's catalog or the shared one in `sys`, pinned at `calendar_version` until a publication moves it); the availability triple says the same for a schedule that fires only inside an availability calendar's windows. An `evaluation_status` of `evaluation-error` on such a schedule usually means the host lacks the code calendar or a calendar broke its contract; the worker log names the reason. The catalog itself is `calendars_view`: one row per version with its role, status, and hash.
+A schedule whose `expression_kind` is `calendar` names its calendar in `expression`, and one that fires only inside an availability calendar's windows names it in `availability_calendar_name`. The row keeps the name only: each evaluation resolves it afresh, to a calendar the application declares in code, else the current version of the family in the namespace's catalog, else the shared one in `sys`. An `evaluation_status` of `evaluation-error` on such a schedule usually means the host lacks the code calendar or a calendar broke its contract; the worker log names the reason. The catalog itself is `calendars_view`: one row per version with its role, status, and hash.
 
 `expire_after_seconds` and `expire_action` are null together when occurrences never expire; a schedule paused
 by its expiry carries the pause message `Paused by the expiration policy: an occurrence expired unadmitted.`

@@ -2,36 +2,30 @@ namespace Acta;
 
 /// <summary>
 /// What decides a schedule's nominal occurrences: the expression, its kind, the zone a cron or a calendar resolves in,
-/// for an interval the anchor its ticks step from, so a late evaluation never shifts the sequence, and the calendars it
-/// binds as resolved at registration, by origin, name, and version (the expression is the calendar's name when the
-/// kind is Calendar). Everything the <see cref="TimingFingerprint"/> covers, and nothing the operator can edit.
+/// for an interval the anchor its ticks step from, so a late evaluation never shifts the sequence, and the name of the
+/// availability calendar it observes (the expression is the calendar's name when the kind is Calendar). A calendar is
+/// bound by name only; the name resolves afresh at every evaluation. Everything the <see cref="TimingFingerprint"/>
+/// covers, and nothing the operator can edit.
 /// </summary>
 internal sealed record ScheduleTiming(
     string Expression,
     ScheduleExpressionKindCode ExpressionKind,
     string? TimeZoneId,
     DateTime? IntervalAnchorAtUtc,
-    CalendarOriginCode? CalendarOrigin = null,
-    int? CalendarVersion = null,
-    string? AvailabilityCalendarName = null,
-    CalendarOriginCode? AvailabilityOrigin = null,
-    int? AvailabilityVersion = null
+    string? AvailabilityCalendarName = null
 )
 {
-    /// <summary>The catalog versions this timing binds, by name: what must be compiled before the source is built.</summary>
-    public IEnumerable<(string Name, int Version)> CatalogBindings()
+    /// <summary>The calendar names this timing binds: what must be resolved before the source is built.</summary>
+    public IEnumerable<string> CalendarNames()
     {
-        if (
-            this is
-            { ExpressionKind: ScheduleExpressionKindCode.Calendar, CalendarOrigin: CalendarOriginCode.Catalog, CalendarVersion: { } v }
-        )
+        if (ExpressionKind == ScheduleExpressionKindCode.Calendar)
         {
-            yield return (Expression, v);
+            yield return Expression;
         }
 
-        if (this is { AvailabilityCalendarName: { } name, AvailabilityOrigin: CalendarOriginCode.Catalog, AvailabilityVersion: { } av })
+        if (AvailabilityCalendarName is { } name)
         {
-            yield return (name, av);
+            yield return name;
         }
     }
 }

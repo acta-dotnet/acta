@@ -9,9 +9,6 @@ SELECT
     json_extract(r.value, '$.schedule_id') AS schedule_id,
     json_extract(r.value, '$.expected_version') AS expected_version,
     json_extract(r.value, '$.expected_state_version') AS expected_state_version,
-    json_extract(r.value, '$.calendar_version') AS calendar_version,
-    json_extract(r.value, '$.availability_calendar_version') AS availability_calendar_version,
-    json_extract(r.value, '$.timing_fingerprint') AS timing_fingerprint,
     json_extract(r.value, '$.next_occurrence_at_utc') AS next_occurrence_at_utc,
     json_extract(r.value, '$.retimed_details') AS retimed_details,
     json_extract(r.value, '$.skipped_details') AS skipped_details
@@ -50,7 +47,7 @@ UPDATE {{schema}}.calendars
 SET calendar_status_code = 20 /* CalendarStatusCode.Published */, published_at_utc = {{now}}, modified_at_utc = {{now}}
 WHERE calendar_id = (SELECT t.candidate_id FROM _pub_target t) AND EXISTS (SELECT 1 FROM _pub_valid);
 
--- The retime events are written before the declaration moves, as registration does: the discarded range first, then
+-- The retime events are written before the cursor moves, as registration does: the discarded range first, then
 -- the retime, each from the details the plan carries.
 INSERT INTO {{schema}}.events (
     event_code, created_at_utc, namespace_id,
@@ -103,9 +100,6 @@ ORDER BY r.schedule_id;
 
 UPDATE {{schema}}.schedules
 SET
-    calendar_version = COALESCE((SELECT r.calendar_version FROM _pub_rows r WHERE r.schedule_id = schedules.schedule_id), calendar_version),
-    availability_calendar_version = COALESCE((SELECT r.availability_calendar_version FROM _pub_rows r WHERE r.schedule_id = schedules.schedule_id), availability_calendar_version),
-    timing_fingerprint = (SELECT r.timing_fingerprint FROM _pub_rows r WHERE r.schedule_id = schedules.schedule_id),
     modified_at_utc = {{now}},
     version = version + 1
 WHERE schedule_id IN (SELECT r.schedule_id FROM _pub_rows r) AND EXISTS (SELECT 1 FROM _pub_valid);

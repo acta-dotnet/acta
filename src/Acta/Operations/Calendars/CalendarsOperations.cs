@@ -64,19 +64,16 @@ internal sealed class CalendarsOperations(
         CancellationToken ct = default
     ) => archiveCalendar.HandleAsync(new ArchiveCalendarCommand(calendar, expectedCurrentVersion, reasonMessage, actor), ct);
 
-    /// <summary>The source of <paramref name="timing"/> from the code calendars and the catalog versions preloaded so far.</summary>
+    /// <summary>The source of <paramref name="timing"/> from the code calendars and the current catalog versions the last preload read.</summary>
     internal ScheduleSource Source(int namespaceId, ScheduleTiming timing) => sources.Source(namespaceId, timing);
 
-    /// <summary>The source of <paramref name="timing"/>, its catalog versions read and compiled as needed.</summary>
+    /// <summary>The source of <paramref name="timing"/>, its calendar names resolved now.</summary>
     internal Task<ScheduleSource> SourceAsync(int namespaceId, ScheduleTiming timing, CancellationToken ct) =>
         sources.SourceAsync(namespaceId, timing, ct);
 
-    /// <summary>Compiles the catalog versions among <paramref name="bindings"/> this process has not met, so a pass plans without reads.</summary>
-    internal Task PreloadAsync(int namespaceId, IEnumerable<(string Name, int Version)> bindings, CancellationToken ct) =>
-        sources.PreloadAsync(namespaceId, bindings, ct);
-
-    /// <summary>Whether a code calendar of <paramref name="name"/> implements <paramref name="role"/>; code resolves before the catalog.</summary>
-    internal bool HasCode(string name, CalendarRoleCode role) => sources.HasCode(name, role);
+    /// <summary>Resolves <paramref name="names"/> against the current catalog in one read, so a pass plans without more.</summary>
+    internal Task PreloadAsync(int namespaceId, IEnumerable<string> names, CancellationToken ct) =>
+        sources.PreloadAsync(namespaceId, names, ct);
 
     /// <summary>The namespace's current calendars, one per family that has a Published version.</summary>
     internal Task<GetCurrentCalendarsResponse> GetCurrentCalendarsAsync(int namespaceId, CancellationToken ct) =>

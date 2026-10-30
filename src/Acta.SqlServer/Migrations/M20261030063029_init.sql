@@ -358,11 +358,7 @@ CREATE TABLE {{schema}}.schedules (
     full_behavior_code tinyint NOT NULL,
     expire_after_seconds int NULL,
     expire_action_code tinyint NULL,
-    calendar_origin_code tinyint NULL,
-    calendar_version int NULL,
     availability_calendar_name varchar(128) NULL,
-    availability_calendar_origin_code tinyint NULL,
-    availability_calendar_version int NULL,
     schedule_status_code tinyint NOT NULL,
     paused_until_utc datetime2(3) NULL,
     description nvarchar(512) NULL,
@@ -376,9 +372,6 @@ CREATE TABLE {{schema}}.schedules (
     , CONSTRAINT ck_schedules_max_outstanding CHECK (max_outstanding >= 1)
     , CONSTRAINT ck_schedules_expire_pair CHECK ((expire_after_seconds IS NULL AND expire_action_code IS NULL) OR (expire_after_seconds IS NOT NULL AND expire_action_code IS NOT NULL))
     , CONSTRAINT ck_schedules_expire_after CHECK (expire_after_seconds IS NULL OR expire_after_seconds > 0)
-    , CONSTRAINT ck_schedules_calendar_binding CHECK ((expression_kind_code = 30 AND calendar_origin_code IS NOT NULL AND calendar_version IS NOT NULL) OR (expression_kind_code <> 30 AND calendar_origin_code IS NULL AND calendar_version IS NULL))
-    , CONSTRAINT ck_schedules_availability_triple CHECK ((availability_calendar_name IS NULL AND availability_calendar_origin_code IS NULL AND availability_calendar_version IS NULL) OR (availability_calendar_name IS NOT NULL AND availability_calendar_origin_code IS NOT NULL AND availability_calendar_version IS NOT NULL))
-    , CONSTRAINT ck_schedules_calendar_version CHECK ((calendar_version IS NULL OR calendar_version > 0) AND (availability_calendar_version IS NULL OR availability_calendar_version > 0))
     , CONSTRAINT fk_schedules_definitions FOREIGN KEY (definition_id) REFERENCES {{schema}}.definitions (definition_id)
 );
 CREATE INDEX ix_schedules_job ON {{schema}}.schedules (job_id, schedule_id) WHERE job_id IS NOT NULL;
@@ -630,11 +623,7 @@ EXEC(N'CREATE TYPE {{schema}}.register_schedules AS TABLE (
     full_behavior_code            TINYINT      NOT NULL,
     expire_after_seconds          INT          NULL,
     expire_action_code            TINYINT      NULL,
-    calendar_origin_code          TINYINT      NULL,
-    calendar_version              INT          NULL,
     availability_calendar_name    VARCHAR(128) NULL,
-    availability_calendar_origin_code TINYINT      NULL,
-    availability_calendar_version INT          NULL,
     PRIMARY KEY (definition_id, schedule_name)
 );');
 GO
@@ -4928,13 +4917,7 @@ SELECT
     s.expire_after_seconds,
     CASE s.expire_action_code WHEN 0 THEN 'unspecified' WHEN 10 THEN 'discard' WHEN 20 THEN 'pause' END AS expire_action,
     s.expire_action_code,
-    CASE s.calendar_origin_code WHEN 0 THEN 'unspecified' WHEN 10 THEN 'registered' WHEN 20 THEN 'catalog' END AS calendar_origin,
-    s.calendar_origin_code,
-    s.calendar_version,
     s.availability_calendar_name,
-    CASE s.availability_calendar_origin_code WHEN 0 THEN 'unspecified' WHEN 10 THEN 'registered' WHEN 20 THEN 'catalog' END AS availability_calendar_origin,
-    s.availability_calendar_origin_code,
-    s.availability_calendar_version,
     st.outstanding_count,
     s.paused_until_utc,
     s.description,
@@ -5016,7 +4999,7 @@ JOIN {{schema}}.namespaces AS ns ON ns.namespace_id = w.namespace_id
 GO
 
 
-IF NOT EXISTS (SELECT 1 FROM {{schema}}.migrations WHERE name = 'M20261030052803_init')
+IF NOT EXISTS (SELECT 1 FROM {{schema}}.migrations WHERE name = 'M20261030063029_init')
 INSERT INTO {{schema}}.migrations (name)
-VALUES ('M20261030052803_init');
+VALUES ('M20261030063029_init');
 GO

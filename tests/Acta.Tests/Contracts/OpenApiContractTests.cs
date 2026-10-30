@@ -98,13 +98,9 @@ public sealed partial class OpenApiContractTests
         "version",
         // The CAS token a patch echoes back: the same counter as "version", read then re-sent.
         "expectedVersion",
-        // A schedule's bound calendar versions: declared in code, not a row identity.
-        "calendarVersion",
-        "availabilityVersion",
-        // A calendar family's content versions: the current, the latest, the one a schedule pins, the one a read shows.
+        // A calendar family's content versions: the current, the latest, the one a read shows.
         "currentVersion",
         "latestVersion",
-        "pinnedVersion",
         "shownVersion",
         // How many schedules bind a calendar family: a count.
         "dependentCount",

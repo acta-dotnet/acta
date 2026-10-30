@@ -14,23 +14,17 @@ BEGIN TRY
         schedule_id INT NOT NULL PRIMARY KEY,
         expected_version INT NOT NULL,
         expected_state_version INT NOT NULL,
-        calendar_version INT NULL,
-        availability_calendar_version INT NULL,
-        timing_fingerprint VARCHAR(64) NOT NULL,
         next_occurrence_at_utc DATETIME2(7) NULL,
         retimed_details NVARCHAR(MAX) NULL,
         skipped_details NVARCHAR(MAX) NULL
     );
     INSERT INTO @rows
     SELECT
-        r.schedule_id, r.expected_version, r.expected_state_version, r.calendar_version, r.availability_calendar_version,
-        r.timing_fingerprint, r.next_occurrence_at_utc, r.retimed_details, r.skipped_details
+        r.schedule_id, r.expected_version, r.expected_state_version, r.next_occurrence_at_utc, r.retimed_details, r.skipped_details
     FROM OPENJSON (@p_rows)
     WITH (
         schedule_id INT '$.schedule_id', expected_version INT '$.expected_version',
-        expected_state_version INT '$.expected_state_version', calendar_version INT '$.calendar_version',
-        availability_calendar_version INT '$.availability_calendar_version',
-        timing_fingerprint VARCHAR(64) '$.timing_fingerprint', next_occurrence_at_utc DATETIME2(7) '$.next_occurrence_at_utc',
+        expected_state_version INT '$.expected_state_version', next_occurrence_at_utc DATETIME2(7) '$.next_occurrence_at_utc',
         retimed_details NVARCHAR(MAX) '$.retimed_details', skipped_details NVARCHAR(MAX) '$.skipped_details') r;
 
     /* The schedule lock of every namespace the plan touches, exclusive, in namespace id order, before any row lock: a
@@ -81,7 +75,7 @@ BEGIN TRY
         SET calendar_status_code = 20 /* CalendarStatusCode.Published */, published_at_utc = @now, modified_at_utc = @now
         WHERE calendar_id = @candidate_id;
 
-        -- The retime events are written before the declaration moves, as registration does, from the rows the plan carries.
+        -- The retime events are written before the cursor moves, as registration does, from the rows the plan carries.
         INSERT INTO {{schema}}.events (
             event_code, created_at_utc, namespace_id,
             entity_code, entity_id,
@@ -113,9 +107,6 @@ BEGIN TRY
 
         UPDATE s
         SET
-            calendar_version = COALESCE(r.calendar_version, s.calendar_version),
-            availability_calendar_version = COALESCE(r.availability_calendar_version, s.availability_calendar_version),
-            timing_fingerprint = r.timing_fingerprint,
             modified_at_utc = @now,
             version = s.version + 1
         FROM {{schema}}.schedules s

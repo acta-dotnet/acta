@@ -378,12 +378,12 @@
               <StateView emptyText="No schedule binds this calendar through the catalog." />
             {:else}
               <p class="detail-help">
-                Each pins the version it was last retimed to; a publication moves every one here to the new version.
+                Each follows the current version; a publication retimes every one here to the new one in one transaction.
                 {#if impact.overdue > 0}{impact.overdue} of them hold an overdue occurrence, which a publication must decide.{/if}
               </p>
               <DataTable>
                 <caption class="sr-only">Bound schedules</caption>
-                <thead><tr><th>Schedule</th><th>Binding</th><th>Status</th><th>Pinned</th><th class="mobile-hide">Delivery</th></tr></thead>
+                <thead><tr><th>Schedule</th><th>Binding</th><th>Status</th><th class="mobile-hide">Delivery</th></tr></thead>
                 <tbody>
                   {#each family.dependents as dependent (`${dependent.jobNamespace}/${dependent.jobName}/${dependent.scheduleName}`)}
                     {@const key = `${dependent.jobNamespace}/${dependent.jobName}/${dependent.scheduleName}`}
@@ -391,10 +391,6 @@
                       <td><a href={routes.schedule(dependent.jobNamespace, dependent.jobName, dependent.scheduleName)}>{key}</a></td>
                       <td>{dependent.binding}</td>
                       <td><ScheduleStatus status={dependent.status} />{#if overdueKeys.has(key)} <span class="badge bad">overdue</span>{/if}</td>
-                      <td>
-                        <span class="mono">v{dependent.pinnedVersion}</span>
-                        {#if family.currentVersion !== null && dependent.pinnedVersion !== family.currentVersion}<span class="badge warn">behind</span>{/if}
-                      </td>
                       <td class="mobile-hide">{dependent.scheduledDelivery}</td>
                     </tr>
                   {/each}

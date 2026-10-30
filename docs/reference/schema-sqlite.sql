@@ -53,11 +53,11 @@ CREATE TEMP TABLE release_guard (
 INSERT INTO release_guard
 SELECT EXISTS (
     SELECT 1 FROM main.migrations
-    WHERE name NOT IN ('M20261030052803_init')
+    WHERE name NOT IN ('M20261030063029_init')
 );
 DROP TABLE release_guard;
 
--- ===== BEGIN M20261030052803_init =====
+-- ===== BEGIN M20261030063029_init =====
 CREATE TABLE IF NOT EXISTS main.alerts (
     alert_id integer PRIMARY KEY AUTOINCREMENT,
     alert_ref text NOT NULL,
@@ -362,11 +362,7 @@ CREATE TABLE IF NOT EXISTS main.schedules (
     full_behavior_code integer NOT NULL,
     expire_after_seconds integer NULL,
     expire_action_code integer NULL,
-    calendar_origin_code integer NULL,
-    calendar_version integer NULL,
     availability_calendar_name text NULL,
-    availability_calendar_origin_code integer NULL,
-    availability_calendar_version integer NULL,
     schedule_status_code integer NOT NULL,
     paused_until_utc integer NULL,
     description text NULL,
@@ -379,9 +375,6 @@ CREATE TABLE IF NOT EXISTS main.schedules (
     , CONSTRAINT ck_schedules_max_outstanding CHECK (max_outstanding >= 1)
     , CONSTRAINT ck_schedules_expire_pair CHECK ((expire_after_seconds IS NULL AND expire_action_code IS NULL) OR (expire_after_seconds IS NOT NULL AND expire_action_code IS NOT NULL))
     , CONSTRAINT ck_schedules_expire_after CHECK (expire_after_seconds IS NULL OR expire_after_seconds > 0)
-    , CONSTRAINT ck_schedules_calendar_binding CHECK ((expression_kind_code = 30 AND calendar_origin_code IS NOT NULL AND calendar_version IS NOT NULL) OR (expression_kind_code <> 30 AND calendar_origin_code IS NULL AND calendar_version IS NULL))
-    , CONSTRAINT ck_schedules_availability_triple CHECK ((availability_calendar_name IS NULL AND availability_calendar_origin_code IS NULL AND availability_calendar_version IS NULL) OR (availability_calendar_name IS NOT NULL AND availability_calendar_origin_code IS NOT NULL AND availability_calendar_version IS NOT NULL))
-    , CONSTRAINT ck_schedules_calendar_version CHECK ((calendar_version IS NULL OR calendar_version > 0) AND (availability_calendar_version IS NULL OR availability_calendar_version > 0))
     , CONSTRAINT fk_schedules_definitions FOREIGN KEY (definition_id) REFERENCES definitions (definition_id)
 ) STRICT;
 CREATE INDEX IF NOT EXISTS main.ix_schedules_job ON schedules (job_id, schedule_id) WHERE job_id IS NOT NULL;
@@ -748,13 +741,7 @@ SELECT
     s.expire_after_seconds,
     CASE s.expire_action_code WHEN 0 THEN 'unspecified' WHEN 10 THEN 'discard' WHEN 20 THEN 'pause' END AS expire_action,
     s.expire_action_code,
-    CASE s.calendar_origin_code WHEN 0 THEN 'unspecified' WHEN 10 THEN 'registered' WHEN 20 THEN 'catalog' END AS calendar_origin,
-    s.calendar_origin_code,
-    s.calendar_version,
     s.availability_calendar_name,
-    CASE s.availability_calendar_origin_code WHEN 0 THEN 'unspecified' WHEN 10 THEN 'registered' WHEN 20 THEN 'catalog' END AS availability_calendar_origin,
-    s.availability_calendar_origin_code,
-    s.availability_calendar_version,
     st.outstanding_count,
     s.paused_until_utc,
     s.description,
@@ -832,10 +819,10 @@ JOIN main.namespaces AS ns ON ns.namespace_id = w.namespace_id;
 
 
 INSERT INTO main.migrations (name)
-VALUES ('M20261030052803_init')
+VALUES ('M20261030063029_init')
 ON CONFLICT (name) DO NOTHING;
 
--- ===== END M20261030052803_init =====
+-- ===== END M20261030063029_init =====
 
 COMMIT;
 

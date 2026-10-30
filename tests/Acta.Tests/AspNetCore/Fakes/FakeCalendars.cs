@@ -204,7 +204,6 @@ internal sealed class FakeCalendars : ICalendars
                     "nightly",
                     CalendarRoleCode.Availability,
                     ScheduleStatusCode.Active,
-                    1,
                     ScheduledDeliveryCode.Permanent
                 ),
             ]

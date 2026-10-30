@@ -6,7 +6,7 @@ namespace Acta;
 /// Generator-emitted descriptor for one declared <c>[Schedule]</c>. Source-time facts only;
 /// next-occurrence instants are computed by the runtime, never here. For a calendar source <c>Expression</c> is the
 /// calendar's name and <c>ExpressionKind</c> is <c>Calendar</c>; <c>AvailabilityCalendarName</c> names the availability
-/// calendar, if any. A calendar is bound by name alone: registration resolves its origin and pins its version.
+/// calendar, if any. A calendar is bound by name alone, which resolves afresh at every evaluation.
 /// </summary>
 public sealed record ScheduleDescriptor(
     string JobName,

@@ -79,9 +79,9 @@ public sealed class PublishCalendarManifest : IJobManifest
 }
 
 /// <summary>
-/// The catalog as a schedule's source, by name: registration pins the family's current published version and the
-/// admitter fires its instants; a publication moves every bound schedule to the new version
-/// atomically, retiming it and auditing the move; an undecided overdue occurrence refuses the publication unless the
+/// The catalog as a schedule's source, by name: the admitter resolves the name to the family's current published
+/// version and fires its instants; a publication retimes every schedule that names the family from the new version
+/// atomically and audits the move; an undecided overdue occurrence refuses the publication unless the
 /// caller discards it, audited as a skipped range; a stale expected version is a conflict; a preview shows the
 /// candidate beside the current version.
 /// </summary>
@@ -89,7 +89,7 @@ public sealed class PublishCalendarManifest : IJobManifest
     "calendar.publish",
     "A catalog calendar sources a schedule and a publication retimes every bound one",
     Area = "Scheduling",
-    Contract = "A schedule pins the catalog's current version, and a publication moves every bound schedule to it atomically, refusing or discarding an overdue backlog."
+    Contract = "A schedule follows the catalog's current version by name, and a publication retimes every bound schedule atomically, refusing or discarding an overdue backlog."
 )]
 public sealed class PublishCalendarSpec : ActaRuntimeTestBase<ConformanceFixture, PublishCalendarManifest>
 {
@@ -124,15 +124,13 @@ public sealed class PublishCalendarSpec : ActaRuntimeTestBase<ConformanceFixture
         await PublishAsync(Hours, CalendarRoleCode.Availability, Window(2, 4), expectedLatest: 0, ct);
     }
 
-    [Fact(DisplayName = "A schedule pins the catalog's current version at registration and fires its instants")]
-    public async Task Registration_pins_the_current_version_and_admission_fires_it()
+    [Fact(DisplayName = "A schedule resolves the catalog's current version by name and fires its instants")]
+    public async Task A_schedule_resolves_the_current_version_and_admission_fires_it()
     {
         var ct = TestContext.Current.CancellationToken;
         await PauseAsync(PublishCalendarManifest.OfficeJobName, ct);
         var slotId = await ScheduleTestOps.SlotIdAsync(Db, TestNamespace, PublishCalendarManifest.DaysJobName, ct);
         var schedule = Assert.Single(await ScheduleTestOps.ReadAsync(Db, slotId, ct));
-        Assert.Equal(CalendarOriginCode.Catalog, schedule.Config.CalendarOrigin);
-        Assert.Equal(1, schedule.Config.CalendarVersion);
         Assert.Equal(Start.AddMinutes(1), schedule.NextOccurrenceAtUtc);
 
         Clock.AdvanceTo(Start.AddMinutes(1).AddSeconds(30));
@@ -144,10 +142,10 @@ public sealed class PublishCalendarSpec : ActaRuntimeTestBase<ConformanceFixture
             (await Calendars.GetAsync(Days, ct: ct))!.Dependents,
             d => d.JobName == PublishCalendarManifest.DaysJobName
         );
-        Assert.Equal(1, dependent.PinnedVersion);
+        Assert.Equal(CalendarRoleCode.Occurrence, dependent.Binding);
     }
 
-    [Fact(DisplayName = "A publication moves every bound schedule to the new version and audits the retime")]
+    [Fact(DisplayName = "A publication retimes every bound schedule from the new version and audits the retime")]
     public async Task A_publication_retimes_the_bound_schedules()
     {
         var ct = TestContext.Current.CancellationToken;
@@ -163,11 +161,12 @@ public sealed class PublishCalendarSpec : ActaRuntimeTestBase<ConformanceFixture
             published.RetimedSchedules
         );
         var after = Assert.Single(await ScheduleTestOps.ReadAsync(Db, slotId, ct));
-        Assert.Equal(2, after.Config.CalendarVersion);
-        Assert.NotEqual(before.Config.TimingFingerprint, after.Config.TimingFingerprint);
+        // The fingerprint covers the name, not the version it resolves to.
+        Assert.Equal(before.Config.TimingFingerprint, after.Config.TimingFingerprint);
         Assert.Equal(Start.AddMinutes(10), after.NextOccurrenceAtUtc);
         Assert.Equal(Start.AddMinutes(10), after.NextEvaluationAtUtc);
-        Assert.Equal(1, await CountEventsAsync(slotId, EventCode.ScheduleRetimed, ct));
+        var retimed = Assert.Single(await EventsAsync(slotId, EventCode.ScheduleRetimed, ct));
+        Assert.Equal(("1", "2"), (EventDetail(retimed, "fromVersion"), EventDetail(retimed, "toVersion")));
         var versions = (await Calendars.GetAsync(Days, ct: ct))!.Versions;
         Assert.Equal([2, 1], versions.Select(v => v.Version));
         Assert.Equal([CalendarStatusCode.Published, CalendarStatusCode.Superseded], versions.Select(v => v.Status));
@@ -191,16 +190,15 @@ public sealed class PublishCalendarSpec : ActaRuntimeTestBase<ConformanceFixture
             $"{TestNamespace}/{PublishCalendarManifest.DaysJobName}/{PublishCalendarManifest.ScheduleName}",
             refused.OverdueSchedules
         );
-        Assert.Equal(1, Assert.Single(await ScheduleTestOps.ReadAsync(Db, slotId, ct)).Config.CalendarVersion);
+        Assert.Equal(Start.AddMinutes(1), Assert.Single(await ScheduleTestOps.ReadAsync(Db, slotId, ct)).NextOccurrenceAtUtc);
         Assert.Equal(CalendarStatusCode.Draft, (await Calendars.GetAsync(Days, 2, ct))!.Versions.Single(v => v.Version == 2).Status);
 
         var discarded = await Calendars.PublishAsync(Days, 1, 2, OverdueDecisionCode.Discard, ct: ct);
 
         Assert.Equal(ControlAction.Applied, discarded.Action);
         var schedule = Assert.Single(await ScheduleTestOps.ReadAsync(Db, slotId, ct));
-        Assert.Equal(2, schedule.Config.CalendarVersion);
         Assert.Equal(Start.AddMinutes(20), schedule.NextOccurrenceAtUtc);
-        var skipped = Assert.Single(await SkippedEventsAsync(slotId, ct));
+        var skipped = Assert.Single(await EventsAsync(slotId, EventCode.ScheduleSkipped, ct));
         Assert.Equal(Iso(Start.AddMinutes(1)), EventDetail(skipped, "from"));
         Assert.Equal(Iso(Start.AddMinutes(2)), EventDetail(skipped, "through"));
         Assert.Equal("retimed", EventDetail(skipped, "reason"));
@@ -242,7 +240,7 @@ public sealed class PublishCalendarSpec : ActaRuntimeTestBase<ConformanceFixture
         Assert.Equal([Start.AddMinutes(5), Start.AddMinutes(6)], preview.OccurrencesUtc);
         Assert.Equal([Start.AddMinutes(1), Start.AddMinutes(2), Start.AddMinutes(3)], preview.CurrentOccurrencesUtc);
         var impact = Assert.Single(preview.Schedules, s => s.JobNamespace == TestNamespace);
-        Assert.Equal((PublishCalendarManifest.DaysJobName, 1, false), (impact.JobName, impact.PinnedVersion, impact.Overdue));
+        Assert.Equal((PublishCalendarManifest.DaysJobName, false), (impact.JobName, impact.Overdue));
     }
 
     [Fact(DisplayName = "An availability publication moves a cron schedule's next tick into the new window")]
@@ -257,8 +255,8 @@ public sealed class PublishCalendarSpec : ActaRuntimeTestBase<ConformanceFixture
 
         Assert.Equal(2, published.Version);
         var schedule = Assert.Single(await ScheduleTestOps.ReadAsync(Db, slotId, ct));
-        Assert.Equal(2, schedule.Config.AvailabilityCalendarVersion);
         Assert.Equal(Start.AddMinutes(6), schedule.NextOccurrenceAtUtc);
+        Assert.Equal(1, await CountEventsAsync(slotId, EventCode.ScheduleRetimed, ct));
     }
 
     private async Task<PublishCalendarResponse> PublishAsync(
@@ -307,10 +305,10 @@ public sealed class PublishCalendarSpec : ActaRuntimeTestBase<ConformanceFixture
         );
     }
 
-    private async Task<IReadOnlyList<EventEntity>> SkippedEventsAsync(long jobId, CancellationToken ct) =>
+    private async Task<IReadOnlyList<EventEntity>> EventsAsync(long jobId, EventCode code, CancellationToken ct) =>
         [
             .. (await Db.From<EventEntity>().Where(e => e.EntityCode == EntityCode.Job && e.EntityId == jobId).ToListAsync(ct)).Where(e =>
-                e.EventCode == EventCode.ScheduleSkipped
+                e.EventCode == code
             ),
         ];
 

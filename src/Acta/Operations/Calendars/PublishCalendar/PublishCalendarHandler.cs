@@ -5,9 +5,10 @@ namespace Acta;
 
 /// <summary>
 /// <see cref="ICalendars.PublishAsync"/>: plans a publication in C# from a snapshot, then applies it atomically. The
-/// plan compiles the candidate and the current version, retimes every schedule bound to the family (its pinned
-/// version, fingerprint, and first occurrence after the database clock), and decides the overdue occurrences the old
-/// version left undecided: refused, or discarded as an audited skipped range. A fence another writer moved replans.
+/// plan compiles the candidate and resolves each bound schedule's calendars as they stand, retimes every schedule that
+/// names the family (its first occurrence after the database clock, from the candidate), and decides the overdue
+/// occurrences the old source left undecided: refused, or discarded as an audited skipped range. A fence another
+/// writer moved replans.
 /// </summary>
 internal sealed class PublishCalendarHandler(
     IDbSession session,
@@ -74,18 +75,40 @@ internal sealed class PublishCalendarHandler(
             }
 
             var nowUtc = await clock.GetUtcNowAsync(ct);
+            var compiled = CalendarDefinition.Compile(candidate.Role, Encoding.UTF8.GetString(candidate.Definition.Span));
+            foreach (var ns in bound.GroupBy(s => s.NamespaceId))
+            {
+                await sources.PreloadAsync(ns.Key, ns.SelectMany(s => s.Timing().CalendarNames()), ct);
+            }
+
             var plan = new List<PublishCalendarValues>(bound.Count);
             var overdue = new List<string>();
             foreach (var s in bound)
             {
-                var old = s.Timing();
-                var retimed = Rebind(old, candidate.Role, candidate.Version);
-                var newSource = await sources.SourceAsync(s.NamespaceId, retimed, ct);
-                var next = retimed.IntervalAnchorAtUtc is { } anchor
-                    ? NextOccurrenceCalculator.FirstAfter(newSource, anchor, nowUtc)
-                    : NextOccurrenceCalculator.Next(newSource, nowUtc);
+                // An orphaned schedule has no cursor to move; its declaration comes back with its definition.
+                if (s.Status == ScheduleStatusCode.Orphaned)
+                {
+                    continue;
+                }
+
+                var oldSource = sources.Source(s.NamespaceId, s.Timing());
+                var newSource = Rebind(oldSource, calendarName, compiled);
+                DateTime? next;
+                try
+                {
+                    next = s.IntervalAnchorAtUtc is { } anchor
+                        ? NextOccurrenceCalculator.FirstAfter(newSource, anchor, nowUtc)
+                        : NextOccurrenceCalculator.Next(newSource, nowUtc);
+                }
+                catch (CalendarUnavailableException)
+                {
+                    // Its other calendar resolves to nothing, so the admitter already parks it as an evaluation error;
+                    // the publication leaves it as it is rather than failing for every bound schedule.
+                    continue;
+                }
+
                 string? skipped = null;
-                if (s.Status != ScheduleStatusCode.Orphaned && s.NextOccurrenceAtUtc is { } due && due <= nowUtc)
+                if (s.NextOccurrenceAtUtc is { } due && due <= nowUtc)
                 {
                     if (command.Overdue == OverdueDecisionCode.Refuse)
                     {
@@ -93,7 +116,6 @@ internal sealed class PublishCalendarHandler(
                         continue;
                     }
 
-                    var oldSource = await sources.SourceAsync(s.NamespaceId, old, ct);
                     var through = ScheduleEvaluator.LatestDue(oldSource, DateTime.SpecifyKind(due, DateTimeKind.Utc), nowUtc);
                     skipped = Facts(
                         ("schedule", s.ScheduleName),
@@ -108,9 +130,6 @@ internal sealed class PublishCalendarHandler(
                         s.ScheduleId,
                         s.ScheduleVersion,
                         s.StateVersion,
-                        candidate.Role == CalendarRoleCode.Occurrence ? candidate.Version : null,
-                        candidate.Role == CalendarRoleCode.Availability ? candidate.Version : null,
-                        TimingFingerprint.Compute(retimed),
                         next,
                         Facts(
                             ("schedule", s.ScheduleName),
@@ -182,9 +201,27 @@ internal sealed class PublishCalendarHandler(
     /// <summary>A bound schedule's path, the way <see cref="ScheduleLookup"/> addresses it.</summary>
     internal static string Path(DueSchedule s) => $"{s.NamespaceName}/{s.DefinitionName}/{s.ScheduleName}";
 
-    /// <summary>The schedule's timing with the family's binding moved to <paramref name="version"/>; the other binding is untouched.</summary>
-    internal static ScheduleTiming Rebind(ScheduleTiming timing, CalendarRoleCode role, int version) =>
-        role == CalendarRoleCode.Occurrence ? timing with { CalendarVersion = version } : timing with { AvailabilityVersion = version };
+    /// <summary>
+    /// The source with the candidate in place of the family wherever the timing names <paramref name="calendarName"/> in
+    /// the candidate's role; the other calendar stays as it resolved.
+    /// </summary>
+    private static ScheduleSource Rebind(ScheduleSource source, string calendarName, CompiledCalendar candidate)
+    {
+        var timing = source.Timing;
+        if (candidate.Role == CalendarRoleCode.Occurrence)
+        {
+            if (timing.ExpressionKind == ScheduleExpressionKindCode.Calendar && timing.Expression == calendarName)
+            {
+                return source with { Calendar = candidate.Calendar };
+            }
+        }
+        else if (timing.AvailabilityCalendarName == calendarName)
+        {
+            return source with { Availability = candidate.Availability };
+        }
+
+        return source;
+    }
 
     /// <summary>A decision's details as the JSON text the apply stores, in the form every schedule event carries.</summary>
     private static string Facts(params ReadOnlySpan<(string Name, string? Value)> facts) =>

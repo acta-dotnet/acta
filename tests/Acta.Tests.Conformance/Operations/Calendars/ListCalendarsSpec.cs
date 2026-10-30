@@ -6,7 +6,7 @@ namespace Acta.Tests.Conformance.Operations.Calendars;
 
 /// <summary>
 /// Conformance for listing calendar families: one item per family by name, its current and latest versions, the live
-/// schedules that bind it through the catalog, a namespace's list with the shared families in <c>sys</c> or a list across
+/// schedules that name it, a namespace's list with the shared families in <c>sys</c> or a list across
 /// every namespace, the role and name filters, and keyset paging. Other specs leave shared families behind, so every read
 /// here keeps to this test's own names.
 /// </summary>
@@ -39,7 +39,7 @@ public sealed class ListCalendarsSpec : ActaStorageTestBase<ConformanceFixture>
         Assert.Equal((2, CalendarStatusCode.Draft, 0), (item.LatestVersion, item.LatestStatus, item.DependentCount));
     }
 
-    [Fact(DisplayName = "A published family lists its current version and counts its live catalog-bound schedules")]
+    [Fact(DisplayName = "A published family lists its current version and counts the live schedules naming it")]
     public async Task A_published_family_lists_its_current_version_and_dependents()
     {
         var ct = TestContext.Current.CancellationToken;
@@ -47,14 +47,15 @@ public sealed class ListCalendarsSpec : ActaStorageTestBase<ConformanceFixture>
         await Calendars.SaveDraftAsync(calendar, CalendarRoleCode.Availability, CalendarTestOps.AvailabilityDefinition, 0, ct: ct);
         await CalendarTestOps.PublishAsync(Db, TestNamespaceId, calendar.CalendarName, 1, ct);
         await Calendars.SaveDraftAsync(calendar, CalendarRoleCode.Availability, CalendarTestOps.AvailabilityDefinition, 1, ct: ct);
-        await CalendarTestOps.BindAvailabilityAsync(
+        var defId = await CalendarTestOps.BindAvailabilityAsync(
             Services,
             TestNamespaceId,
             Unique("support-sweep"),
             calendar.CalendarName,
-            [("catalog", CalendarOriginCode.Catalog, 1), ("code", CalendarOriginCode.Registered, 1)],
+            ["kept", "dropped"],
             ct
         );
+        await CalendarTestOps.RegisterAsync(Services, TestNamespaceId, defId, calendar.CalendarName, ["kept"], ct);
 
         var item = Assert.Single(await OwnAsync(new ListCalendarsQuery(TestNamespace), ct));
 

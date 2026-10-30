@@ -1107,24 +1107,8 @@
           "Signature": "Byte|0|0|0|True|None||coded=True|codeKind=schedule-expire-action|caseExact=False"
         },
         {
-          "Name": "calendar_origin_code",
-          "Signature": "Byte|0|0|0|True|None||coded=True|codeKind=calendar-origin|caseExact=False"
-        },
-        {
-          "Name": "calendar_version",
-          "Signature": "Int32|0|0|0|True|None||coded=False|codeKind=|caseExact=False"
-        },
-        {
           "Name": "availability_calendar_name",
           "Signature": "AsciiString|128|0|0|True|None||coded=False|codeKind=|caseExact=False"
-        },
-        {
-          "Name": "availability_calendar_origin_code",
-          "Signature": "Byte|0|0|0|True|None||coded=True|codeKind=calendar-origin|caseExact=False"
-        },
-        {
-          "Name": "availability_calendar_version",
-          "Signature": "Int32|0|0|0|True|None||coded=False|codeKind=|caseExact=False"
         },
         {
           "Name": "schedule_status_code",
@@ -1166,18 +1150,6 @@
         }
       ],
       "Checks": [
-        {
-          "Name": "ck_schedules_availability_triple",
-          "Sql": "(availability_calendar_name IS NULL AND availability_calendar_origin_code IS NULL AND availability_calendar_version IS NULL) OR (availability_calendar_name IS NOT NULL AND availability_calendar_origin_code IS NOT NULL AND availability_calendar_version IS NOT NULL)"
-        },
-        {
-          "Name": "ck_schedules_calendar_binding",
-          "Sql": "(expression_kind_code = 30 AND calendar_origin_code IS NOT NULL AND calendar_version IS NOT NULL) OR (expression_kind_code \u003C\u003E 30 AND calendar_origin_code IS NULL AND calendar_version IS NULL)"
-        },
-        {
-          "Name": "ck_schedules_calendar_version",
-          "Sql": "(calendar_version IS NULL OR calendar_version \u003E 0) AND (availability_calendar_version IS NULL OR availability_calendar_version \u003E 0)"
-        },
         {
           "Name": "ck_schedules_expire_after",
           "Sql": "expire_after_seconds IS NULL OR expire_after_seconds \u003E 0"
@@ -1536,7 +1508,7 @@
       "raise_signal": "434e29aa75677b92f1da2d06c141b02af6db481f8f6b80deaf4d5b4cca58389d",
       "reclaim_stuck_jobs": "85c3510cc17092b3f940400e9c92d8b9a53f2f671bf482c5d3ac80769e9686ac",
       "reserve_rate": "d2e111fb260e1b057b86c7086c8ad33567d2f0dbe0875c39acd74734d363d4bb",
-      "schedules_view": "a1b3c8a0a01d95385360ec40ce6d784de49ebf0074dcbf17fc512618f153f905",
+      "schedules_view": "4765d6868545db83271093fbea0c2c280879c2e5eba344d3ae3df703fec4583c",
       "start_step": "7fd76ffb218bc6e5094476844aff7b8d95ced83e35c1653f1ce1d91691e75c44",
       "steps_view": "ee571121539eb7068e88122e36433a8e390de370d8732d1e15a2d52d62e444c2",
       "tags_view": "6c0b64abc25d5488fe7e171499d6e6eabe2b23e44d10b5507797188b4141a883",
@@ -1562,7 +1534,7 @@
       "raise_signal": "e82c59366c775e103da0b3ade0a97d1b28d99666663e33a6e194f0113b379ea5",
       "reclaim_stuck_jobs": "993618d5e3653d7fb69b7aa461a496f4f99d35c028360003712fab0646adf682",
       "reserve_rate": "147eb58a9780d3a3a0f0660d4d0301c93a2a310dfbff598c2996b88d71eb6543",
-      "schedules_view": "252a3183c46c4072863eca341be2f3fdcf4df4e38e2b0b076899453a55fa953b",
+      "schedules_view": "5b78743653ebbdc0ee7f9c8b90d455f33618a8fde78b8763b3027e0122e5f64f",
       "start_step": "c2ad8dcfd427bd4a09989fa1f94ae0829dfd81e718cb81be2ab8ef405782e769",
       "steps_view": "ff485996bd4e3e1de5c8be8c58544a32263f5fa8588e9f56d87c554f0156a1f0",
       "tags_view": "fa260ed1022dec12725dabfc9f9c1e45ed97a632af6d06767193d0e8262b62a2",
@@ -1576,7 +1548,7 @@
       "definitions_view": "971e0b5860a1b3702ec8a688f02813a099f1ead525671b13172e5e55798849ef",
       "events_view": "cc81930456fe0b1e76efd7e31c2cc61b6e634c41860de3879c660497182ccc6c",
       "jobs_view": "53836e5eceebdd474d564b4e37fc9bf7cd08e0baee19d9c036d6aaa398a6cea4",
-      "schedules_view": "b769dbb3b7f18a000cbfd85ef1c4823193abe8d11bc90d6a3b85b9fb34cda951",
+      "schedules_view": "82e28c4feeb3d3e16d1396ae7263350f74eb4eb2db164d23b16b3d4d5e89b754",
       "steps_view": "4276417e2eb111528319489e02bd83f5c4be85095dc34cbfdf9db075a7fda1a0",
       "tags_view": "bb85236bf4130ec9945faff107492ff3b5904d2cff9a38aef6584c3e6b48ef85",
       "workers_view": "a41ac7a6db86ea1e51f6b1fb88c483e92f94ebe8209ee82df48db2019b20b06d"

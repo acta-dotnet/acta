@@ -7,13 +7,13 @@ namespace Acta.Tests.Conformance.Operations.Calendars;
 
 /// <summary>
 /// Conformance for reading one calendar family: every version newest first, the shown version's definition, and every
-/// schedule bound to the family through the catalog, orphans included.
+/// schedule that names the family, orphans included.
 /// </summary>
 [ConformanceSpec(
     "calendar.get",
     "A calendar family reads with its versions, a definition, and its dependents",
     Area = "Scheduling",
-    Contract = "Get answers every version newest first, the requested, current, or latest definition, and every catalog-bound schedule, or null."
+    Contract = "Get answers every version newest first, the requested, current, or latest definition, and every schedule naming the family, or null."
 )]
 public sealed class GetCalendarSpec : ActaStorageTestBase<ConformanceFixture>
 {
@@ -64,8 +64,8 @@ public sealed class GetCalendarSpec : ActaStorageTestBase<ConformanceFixture>
         Assert.Null(await Calendars.GetAsync(new CalendarLookup(TestNamespace, Unique("no-such-calendar")), ct: ct));
     }
 
-    [Fact(DisplayName = "Get lists every schedule bound through the catalog with its pinned version, an orphan with its status")]
-    public async Task Get_lists_the_catalog_bound_schedules()
+    [Fact(DisplayName = "Get lists every schedule that names the family, an orphan with its status")]
+    public async Task Get_lists_the_schedules_naming_the_family()
     {
         var ct = TestContext.Current.CancellationToken;
         var calendar = new CalendarLookup(TestNamespace, Unique("office-hours"));
@@ -76,21 +76,10 @@ public sealed class GetCalendarSpec : ActaStorageTestBase<ConformanceFixture>
             TestNamespaceId,
             jobName,
             calendar.CalendarName,
-            [
-                ("evening", CalendarOriginCode.Catalog, 1),
-                ("morning", CalendarOriginCode.Catalog, 1),
-                ("code", CalendarOriginCode.Registered, 1),
-            ],
+            ["evening", "morning"],
             ct
         );
-        await CalendarTestOps.RegisterAsync(
-            Services,
-            TestNamespaceId,
-            defId,
-            calendar.CalendarName,
-            [("morning", CalendarOriginCode.Catalog, 1), ("code", CalendarOriginCode.Registered, 1)],
-            ct
-        );
+        await CalendarTestOps.RegisterAsync(Services, TestNamespaceId, defId, calendar.CalendarName, ["morning"], ct);
 
         var read = await Calendars.GetAsync(calendar, ct: ct);
 
@@ -102,7 +91,6 @@ public sealed class GetCalendarSpec : ActaStorageTestBase<ConformanceFixture>
                     "evening",
                     CalendarRoleCode.Availability,
                     ScheduleStatusCode.Orphaned,
-                    1,
                     ScheduledDeliveryCode.PerOccurrence
                 ),
                 new GetCalendarDependent(
@@ -111,7 +99,6 @@ public sealed class GetCalendarSpec : ActaStorageTestBase<ConformanceFixture>
                     "morning",
                     CalendarRoleCode.Availability,
                     ScheduleStatusCode.Active,
-                    1,
                     ScheduledDeliveryCode.PerOccurrence
                 ),
             ],

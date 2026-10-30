@@ -4,7 +4,7 @@ namespace Acta.Tests.Conformance.Testing;
 
 /// <summary>
 /// Test support for the calendar catalog specs: one definition per role, a publication written straight to a version's
-/// row, and a per-occurrence definition whose schedule binds a family through the catalog.
+/// row, and a per-occurrence definition whose schedules name an availability calendar.
 /// </summary>
 internal static class CalendarTestOps
 {
@@ -30,46 +30,44 @@ internal static class CalendarTestOps
     }
 
     /// <summary>
-    /// Registers a per-occurrence definition with one schedule per entry, each filtered by the availability calendar
-    /// <paramref name="calendarName"/> from the given origin at the given version; returns the definition's id.
+    /// Registers a per-occurrence definition with one schedule per name, each filtered by the availability calendar
+    /// <paramref name="calendarName"/>; returns the definition's id.
     /// </summary>
     public static async Task<int> BindAvailabilityAsync(
         IServiceProvider services,
         int namespaceId,
         string jobName,
         string calendarName,
-        IReadOnlyList<(string ScheduleName, CalendarOriginCode Origin, int Version)> schedules,
+        IReadOnlyList<string> scheduleNames,
         CancellationToken ct
     )
     {
         var defId = (await DefinitionTestOps.RegisterAsync(services, namespaceId, Generation, [Def(jobName)], ct))[jobName];
-        await RegisterAsync(services, namespaceId, defId, calendarName, schedules, ct);
+        await RegisterAsync(services, namespaceId, defId, calendarName, scheduleNames, ct);
         return defId;
     }
 
-    /// <summary>Re-registers the definition's schedules as <paramref name="schedules"/>; a schedule it drops is orphaned.</summary>
+    /// <summary>Re-registers the definition's schedules as <paramref name="scheduleNames"/>; a schedule it drops is orphaned.</summary>
     public static Task RegisterAsync(
         IServiceProvider services,
         int namespaceId,
         int defId,
         string calendarName,
-        IReadOnlyList<(string ScheduleName, CalendarOriginCode Origin, int Version)> schedules,
+        IReadOnlyList<string> scheduleNames,
         CancellationToken ct
     )
     {
         var cursor = DateTime.UtcNow.Date.AddDays(1);
-        var slots = schedules
-            .Select(s => new SlotSchedule(
-                s.ScheduleName,
+        var slots = scheduleNames
+            .Select(name => new SlotSchedule(
+                name,
                 "*/5 * * * *",
                 null,
                 MisfireStrategyCode.Skip,
                 ScheduleExpressionKindCode.Cron,
                 null,
                 cursor,
-                AvailabilityCalendarName: calendarName,
-                AvailabilityOrigin: s.Origin,
-                AvailabilityVersion: s.Version
+                AvailabilityCalendarName: calendarName
             ))
             .ToList();
         return ScheduleTestOps.RegisterAsync(

@@ -1,7 +1,7 @@
 namespace Acta;
 
 /// <summary>
-/// One schedule as registration writes it: the declared fields, capacity, expiry, and calendar bindings, the reconciled
+/// One schedule as registration writes it: the declared fields, capacity, expiry, and calendar names, the reconciled
 /// cursor, and for an interval the anchor its ticks step from. The fingerprint is computed from the timing fields, so a
 /// declaration registers with the identity the evaluator will compare it against.
 /// </summary>
@@ -18,13 +18,11 @@ internal sealed record SlotSchedule(
     ScheduleFullBehaviorCode FullBehavior = ScheduleFullBehaviorCode.Wait,
     int? ExpireAfterSeconds = null,
     ScheduleExpireActionCode? ExpireAction = null,
-    CalendarOriginCode? CalendarOrigin = null,
-    int? CalendarVersion = null,
-    string? AvailabilityCalendarName = null,
-    CalendarOriginCode? AvailabilityOrigin = null,
-    int? AvailabilityVersion = null
+    string? AvailabilityCalendarName = null
 )
 {
     public string TimingFingerprint =>
-        Acta.TimingFingerprint.Compute(new ScheduleTiming(Expression, ExpressionKind, TimeZoneId, IntervalAnchorAtUtc));
+        Acta.TimingFingerprint.Compute(
+            new ScheduleTiming(Expression, ExpressionKind, TimeZoneId, IntervalAnchorAtUtc, AvailabilityCalendarName)
+        );
 }

@@ -5,8 +5,8 @@ namespace Acta;
 /// <summary>
 /// The calendars this process holds in code, by name: the <c>[Calendar]</c> classes of every manifest the host runs or
 /// references, created through DI when the registry is first needed, and the instances the builder registered with
-/// <c>AddCalendar</c>. A schedule's binding resolves here first, before the catalog. One name is one implementation,
-/// under each role it implements; a second registration of a name with another instance throws.
+/// <c>AddCalendar</c>. A schedule's calendar name resolves here first, at every evaluation, before the catalog. One name
+/// is one implementation, under each role it implements; a second registration of a name with another instance throws.
 /// </summary>
 internal sealed class CalendarRegistry
 {
@@ -41,19 +41,12 @@ internal sealed class CalendarRegistry
         return this;
     }
 
-    public bool Has(string name, CalendarRoleCode role) =>
-        role == CalendarRoleCode.Occurrence ? _calendars.ContainsKey(name) : _availability.ContainsKey(name);
-
-    /// <summary>The source of <paramref name="timing"/> from the code calendars; a catalog binding is left for the caller to fill.</summary>
+    /// <summary>The source of <paramref name="timing"/> from the code calendars; a name this process lacks is left null for the catalog.</summary>
     public ScheduleSource Source(ScheduleTiming timing) =>
         new(
             timing,
-            timing is { ExpressionKind: ScheduleExpressionKindCode.Calendar, CalendarOrigin: CalendarOriginCode.Registered }
-                ? _calendars.GetValueOrDefault(timing.Expression)
-                : null,
-            timing is { AvailabilityCalendarName: { } name, AvailabilityOrigin: CalendarOriginCode.Registered }
-                ? _availability.GetValueOrDefault(name)
-                : null
+            timing.ExpressionKind == ScheduleExpressionKindCode.Calendar ? _calendars.GetValueOrDefault(timing.Expression) : null,
+            timing.AvailabilityCalendarName is { } name ? _availability.GetValueOrDefault(name) : null
         );
 
     private static void Register<T>(Dictionary<string, T> registry, string role, string name, T implementation)

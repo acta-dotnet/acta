@@ -31,11 +31,7 @@ FROM (
             jd.scheduled_delivery_code AS scheduled_delivery,
             s.expire_after_seconds,
             s.expire_action_code AS expire_action,
-            s.calendar_origin_code AS calendar_origin,
-            s.calendar_version,
-            s.availability_calendar_name,
-            s.availability_calendar_origin_code AS availability_origin,
-            s.availability_calendar_version AS availability_version
+            s.availability_calendar_name
         FROM {{schema}}.schedules_state st
         JOIN {{schema}}.schedules s ON s.schedule_id = st.schedule_id
         JOIN {{schema}}.namespaces ns ON ns.namespace_id = st.namespace_id
@@ -87,11 +83,7 @@ FROM (
             jd.scheduled_delivery_code AS scheduled_delivery,
             s.expire_after_seconds,
             s.expire_action_code AS expire_action,
-            s.calendar_origin_code AS calendar_origin,
-            s.calendar_version,
-            s.availability_calendar_name,
-            s.availability_calendar_origin_code AS availability_origin,
-            s.availability_calendar_version AS availability_version
+            s.availability_calendar_name
         FROM {{schema}}.schedules s
         JOIN {{schema}}.namespaces ns ON ns.namespace_id = s.namespace_id
         JOIN {{schema}}.definitions jd ON jd.definition_id = s.definition_id

@@ -30,7 +30,7 @@ var officeHours = new CalendarLookup("sys", "office-hours");
 }
 
 // Phase 2: the worker registers every-10s-in-hours against the catalog. Nothing in this process declares
-// office-hours, so the name resolves to the shared family and the schedule pins its current version.
+// office-hours, so the name resolves to the shared family's current version, afresh at every evaluation.
 var builder = Host.CreateApplicationBuilder(args);
 builder.Services.UseActa(j =>
 {
@@ -46,7 +46,7 @@ Console.WriteLine("Ticking every 10s inside the open window...");
 await Task.Delay(TimeSpan.FromSeconds(25));
 
 // The operator closes today. The draft is previewed beside the current version, then published: the bound
-// schedule pins the new version and its cursor moves to the first instant inside the next window.
+// schedule's cursor moves to the first instant inside the next window.
 var today = DateTime.UtcNow.ToString("yyyy-MM-dd", CultureInfo.InvariantCulture);
 var current = (await operations.Calendars.GetAsync(officeHours))!;
 var closed = await operations.Calendars.SaveDraftAsync(
@@ -74,9 +74,7 @@ Console.WriteLine($"Published: {result.Action}; retimed [{string.Join(", ", resu
 var schedule = (
     await operations.Schedules.ListAsync(new ListSchedulesQuery(JobNamespace: "calendar-catalog", JobName: "tick"))
 ).Items.Single();
-Console.WriteLine(
-    $"The schedule pins {schedule.AvailabilityCalendarName} version {schedule.AvailabilityVersion}; next occurrence {schedule.NextOccurrenceAtUtc:O}."
-);
+Console.WriteLine($"Next occurrence {schedule.NextOccurrenceAtUtc:O}.");
 
 Console.WriteLine("Watching 15s for a tick that must not come...");
 await Task.Delay(TimeSpan.FromSeconds(15));

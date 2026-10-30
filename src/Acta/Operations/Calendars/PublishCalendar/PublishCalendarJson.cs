@@ -19,9 +19,6 @@ internal static class PublishCalendarJson
                 writer.WriteNumber("schedule_id", r.ScheduleId);
                 writer.WriteNumber("expected_version", r.ExpectedVersion);
                 writer.WriteNumber("expected_state_version", r.ExpectedStateVersion);
-                Number(writer, "calendar_version", r.CalendarVersion);
-                Number(writer, "availability_calendar_version", r.AvailabilityCalendarVersion);
-                writer.WriteString("timing_fingerprint", r.TimingFingerprint);
                 writeInstant(writer, "next_occurrence_at_utc", r.NextOccurrenceAtUtc);
                 writer.WriteString("retimed_details", r.RetimedDetails);
                 if (r.SkippedDetails is { } skipped)
@@ -40,17 +37,5 @@ internal static class PublishCalendarJson
         }
 
         return Encoding.UTF8.GetString(buffer.WrittenSpan);
-    }
-
-    private static void Number(Utf8JsonWriter writer, string name, int? value)
-    {
-        if (value is { } number)
-        {
-            writer.WriteNumber(name, number);
-        }
-        else
-        {
-            writer.WriteNull(name);
-        }
     }
 }

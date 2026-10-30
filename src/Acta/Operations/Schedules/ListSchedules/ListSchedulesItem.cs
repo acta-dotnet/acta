@@ -7,8 +7,8 @@ namespace Acta;
 /// <c>NextEvaluationAtUtc</c> and <c>EvaluationStatus</c> say when and why the engine next looks; <c>Status</c> is Active, Paused,
 /// or Orphaned, with <c>PausedUntilUtc</c> for a timed pause; <c>Version</c> is the row version a CAS control verb takes as
 /// expected; <c>JobRef</c> is the permanent slot's public ref, null for a PerOccurrence definition; <c>OutstandingCount</c> counts
-/// its unsettled roots; the expiry pair, the calendar pair (set for a Calendar-kind <c>Expression</c>), and the availability
-/// triple are each null together when unused. The ids stay off the wire: the list pages by <c>ScheduleId</c> in its cursor.
+/// its unsettled roots; the expiry pair is null together when unused, and <c>AvailabilityCalendarName</c> when the schedule
+/// observes no availability calendar. The ids stay off the wire: the list pages by <c>ScheduleId</c> in its cursor.
 /// </summary>
 public sealed record ListSchedulesItem(
     [property: JsonIgnore] int ScheduleId,
@@ -37,9 +37,5 @@ public sealed record ListSchedulesItem(
     ScheduledDeliveryCode ScheduledDelivery,
     int? ExpireAfterSeconds,
     ScheduleExpireActionCode? ExpireAction,
-    CalendarOriginCode? CalendarOrigin,
-    int? CalendarVersion,
-    string? AvailabilityCalendarName,
-    CalendarOriginCode? AvailabilityOrigin,
-    int? AvailabilityVersion
+    string? AvailabilityCalendarName
 );

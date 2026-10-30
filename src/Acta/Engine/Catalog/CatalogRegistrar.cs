@@ -349,10 +349,18 @@ internal sealed class CatalogRegistrar(
         }
 
         var nowUtc = await _clock.GetUtcNowAsync(ct);
-        // The catalog's current families, the namespace's and sys's, which a binding resolves to after the code calendars.
-        var current = (await calendars.GetCurrentCalendarsAsync(namespaceId, ct)).Calendars.ToDictionary(
-            c => c.CalendarName,
-            StringComparer.Ordinal
+        // Every calendar name a declared schedule binds, read against the catalog's current families once; the plan only
+        // checks that each resolves, a calendar declared in the process before the catalog's. Nothing about the resolution
+        // is stored: the admitter resolves each name afresh at every evaluation.
+        await calendars.PreloadAsync(
+            namespaceId,
+            _context
+                .DescriptorByDefinitionId.Values.Where(d => !d.Schedules.IsDefaultOrEmpty)
+                .SelectMany(d => d.Schedules)
+                .SelectMany(s =>
+                    new ScheduleTiming(s.Expression, s.ExpressionKind, null, null, s.AvailabilityCalendarName).CalendarNames()
+                ),
+            ct
         );
         var definitions = new List<DefinitionSchedules>(inScope.Count);
 
@@ -372,24 +380,7 @@ internal sealed class CatalogRegistrar(
                 ? byName
                 : (IReadOnlyDictionary<string, StoredScheduleState>)new Dictionary<string, StoredScheduleState>();
 
-            // The plan pins catalog bindings, so every version it may pick is compiled first: stored pins and current ones.
-            await calendars.PreloadAsync(
-                namespaceId,
-                storedForDef
-                    .Values.SelectMany(s => s.Timing().CatalogBindings())
-                    .Concat(current.Values.Select(c => (c.CalendarName, c.Version))),
-                ct
-            );
-            var slotSchedules = ScheduleRegistrationPlan.Plan(
-                declared,
-                storedForDef,
-                nowUtc,
-                t => calendars.Source(namespaceId, t),
-                (name, role) =>
-                    calendars.HasCode(name, role) ? (CalendarOriginCode.Registered, 1)
-                    : current.TryGetValue(name, out var c) && c.Role == role ? (CalendarOriginCode.Catalog, c.Version)
-                    : null
-            );
+            var slotSchedules = ScheduleRegistrationPlan.Plan(declared, storedForDef, nowUtc, t => calendars.Source(namespaceId, t));
 
             // Registration leaves a held slot as it stands; say so at every start.
             var slot = storedForDef.Values.FirstOrDefault();
@@ -469,11 +460,7 @@ internal sealed class CatalogRegistrar(
                     ((byte)s.FullBehavior).ToString(c),
                     s.ExpireAfterSeconds?.ToString(c),
                     s.ExpireAction is { } expireAction ? ((byte)expireAction).ToString(c) : null,
-                    s.CalendarOrigin is { } calendarOrigin ? ((byte)calendarOrigin).ToString(c) : null,
-                    s.CalendarVersion?.ToString(c),
                     s.AvailabilityCalendarName,
-                    s.AvailabilityOrigin is { } availabilityOrigin ? ((byte)availabilityOrigin).ToString(c) : null,
-                    s.AvailabilityVersion?.ToString(c),
                 ]);
             }
         }
@@ -483,7 +470,7 @@ internal sealed class CatalogRegistrar(
 
     /// <summary>
     /// Whether <c>register_schedules</c> would write nothing for <paramref name="plan"/>: each planned schedule is stored
-    /// with its planned cursor, capacity, expiry, and calendar bindings, no stored schedule is left to orphan, and the
+    /// with its planned cursor, capacity, expiry, and availability calendar, no stored schedule is left to orphan, and the
     /// slot, when there is one, either rests where registration leaves it (in flight, waiting, finished, or held) or
     /// already stands at the planned status, next run, and priority.
     /// </summary>
@@ -500,11 +487,7 @@ internal sealed class CatalogRegistrar(
                 && st.FullBehavior == s.FullBehavior
                 && st.ExpireAfterSeconds == s.ExpireAfterSeconds
                 && st.ExpireAction == s.ExpireAction
-                && st.CalendarOrigin == s.CalendarOrigin
-                && st.CalendarVersion == s.CalendarVersion
                 && st.AvailabilityCalendarName == s.AvailabilityCalendarName
-                && st.AvailabilityOrigin == s.AvailabilityOrigin
-                && st.AvailabilityVersion == s.AvailabilityVersion
             )
         )
         {

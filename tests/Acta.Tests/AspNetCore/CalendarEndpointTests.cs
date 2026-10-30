@@ -102,7 +102,7 @@ public sealed class CalendarEndpointTests
         using var family = JsonDocument.Parse(await current.Content.ReadAsStringAsync(ct));
         Assert.Equal(1, family.RootElement.GetProperty("shownVersion").GetInt32());
         Assert.Equal("""{"kind":"weekly-availability"}""", family.RootElement.GetProperty("definition").GetString());
-        Assert.Equal(1, family.RootElement.GetProperty("dependents")[0].GetProperty("pinnedVersion").GetInt32());
+        Assert.Equal("nightly", family.RootElement.GetProperty("dependents")[0].GetProperty("scheduleName").GetString());
         Assert.Contains("\"shownVersion\":2", await versioned.Content.ReadAsStringAsync(ct));
         Assert.Equal(HttpStatusCode.OK, shared.StatusCode);
         Assert.Equal(HttpStatusCode.NotFound, missing.StatusCode);

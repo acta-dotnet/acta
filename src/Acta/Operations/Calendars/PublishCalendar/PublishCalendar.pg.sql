@@ -8,11 +8,10 @@ DROP TABLE IF EXISTS pg_temp._pub_states;
 DROP TABLE IF EXISTS pg_temp._pub_valid;
 CREATE TEMP TABLE _pub_rows ON COMMIT DROP AS
 SELECT
-    r.schedule_id, r.expected_version, r.expected_state_version, r.calendar_version, r.availability_calendar_version,
-    r.timing_fingerprint, r.next_occurrence_at_utc, r.retimed_details, r.skipped_details
+    r.schedule_id, r.expected_version, r.expected_state_version, r.next_occurrence_at_utc, r.retimed_details, r.skipped_details
 FROM json_to_recordset(@p_rows::json) AS r (
-    schedule_id INT, expected_version INT, expected_state_version INT, calendar_version INT, availability_calendar_version INT,
-    timing_fingerprint VARCHAR, next_occurrence_at_utc TIMESTAMPTZ, retimed_details TEXT, skipped_details TEXT);
+    schedule_id INT, expected_version INT, expected_state_version INT, next_occurrence_at_utc TIMESTAMPTZ, retimed_details TEXT,
+    skipped_details TEXT);
 CREATE TEMP TABLE _pub_lock (granted INT NOT NULL) ON COMMIT DROP;
 CREATE TEMP TABLE _pub_states (schedule_id INT NOT NULL, version INT NOT NULL) ON COMMIT DROP;
 CREATE TEMP TABLE _pub_valid (ok INT NOT NULL) ON COMMIT DROP;
@@ -69,7 +68,7 @@ UPDATE {{schema}}.calendars c
 SET calendar_status_code = 20 /* CalendarStatusCode.Published */, published_at_utc = now(), modified_at_utc = now()
 WHERE c.calendar_id = (SELECT t.candidate_id FROM _pub_target t) AND EXISTS (SELECT 1 FROM _pub_valid);
 
--- The retime events are written before the declaration moves, as registration does, from the rows the plan carries.
+-- The retime events are written before the cursor moves, as registration does, from the rows the plan carries.
 INSERT INTO {{schema}}.events (
     event_code, created_at_utc, namespace_id,
     entity_code, entity_id,
@@ -102,9 +101,6 @@ ORDER BY r.schedule_id, e.ord;
 
 UPDATE {{schema}}.schedules s
 SET
-    calendar_version = COALESCE(r.calendar_version, s.calendar_version),
-    availability_calendar_version = COALESCE(r.availability_calendar_version, s.availability_calendar_version),
-    timing_fingerprint = r.timing_fingerprint,
     modified_at_utc = now(),
     version = s.version + 1
 FROM _pub_rows r

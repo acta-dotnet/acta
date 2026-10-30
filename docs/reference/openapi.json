@@ -7749,9 +7749,8 @@
             "format": "int32"
           }
         },
-        "description": "What archiving a family's current version did. `Version` is the family's current version, archived when Applied;\n`DependentCount` counts the live schedules of active definitions that bind the family through the catalog, which\nreject the archive while any remain."
+        "description": "What archiving a family's current version did. `Version` is the family's current version, archived when Applied;\n`DependentCount` counts the live schedules of active definitions that name the family in its scope, which reject\nthe archive while any remain."
       },
-      "CalendarOriginCode": { },
       "CalendarRoleCode": {
         "description": "What a catalog calendar family gives a schedule: its occurrences, or the windows they may fire in. The family's first\nversion fixes its role, and every newer version keeps it."
       },
@@ -8199,7 +8198,6 @@
           "scheduleName",
           "binding",
           "status",
-          "pinnedVersion",
           "scheduledDelivery"
         ],
         "type": "object",
@@ -8219,19 +8217,11 @@
           "status": {
             "$ref": "#/components/schemas/ScheduleStatusCode"
           },
-          "pinnedVersion": {
-            "pattern": "^-?(?:0|[1-9]\\d*)$",
-            "type": [
-              "integer",
-              "string"
-            ],
-            "format": "int32"
-          },
           "scheduledDelivery": {
             "$ref": "#/components/schemas/ScheduledDeliveryCode"
           }
         },
-        "description": "A schedule bound to the family through the catalog: its path, how it binds the family (as its occurrence source\nor its availability filter), its status (orphaned ones are listed), the version it pins, and its definition's\ndelivery. A shared family's dependents span namespaces, so the path carries the namespace."
+        "description": "A schedule that names the family: its path, how it names the family (as its occurrence source or its availability\nfilter), its status (orphaned ones are listed), and its definition's delivery. A shared family's dependents span\nnamespaces, so the path carries the namespace. The name resolves at every evaluation, a calendar declared in the\nprocess before the catalog's, so a dependent follows the family's current version unless its process declares one."
       },
       "GetCalendarResponse": {
         "required": [
@@ -8288,7 +8278,7 @@
             }
           }
         },
-        "description": "One catalog calendar family as ValueTask&lt;GetCalendarResponse?&gt; ICalendars.GetAsync(CalendarLookup calendar, int? version = null, CancellationToken ct = default(CancellationToken)) reads it. `CurrentVersion` is the Published\nversion, null while the family has none; `Versions` lists every version newest first; `Definition` is the\nJSON of `ShownVersion`; `Dependents` lists every schedule bound to the family through the catalog, by job name\nand then schedule name."
+        "description": "One catalog calendar family as ValueTask&lt;GetCalendarResponse?&gt; ICalendars.GetAsync(CalendarLookup calendar, int? version = null, CancellationToken ct = default(CancellationToken)) reads it. `CurrentVersion` is the Published\nversion, null while the family has none; `Versions` lists every version newest first; `Definition` is the\nJSON of `ShownVersion`; `Dependents` lists every schedule that names the family in its scope, by job name and\nthen schedule name."
       },
       "GetCalendarVersion": {
         "required": [
@@ -10983,11 +10973,7 @@
           "scheduledDelivery",
           "expireAfterSeconds",
           "expireAction",
-          "calendarOrigin",
-          "calendarVersion",
-          "availabilityCalendarName",
-          "availabilityOrigin",
-          "availabilityVersion"
+          "availabilityCalendarName"
         ],
         "type": "object",
         "properties": {
@@ -11109,52 +11095,14 @@
               }
             ]
           },
-          "calendarOrigin": {
-            "oneOf": [
-              {
-                "type": "null"
-              },
-              {
-                "$ref": "#/components/schemas/CalendarOriginCode"
-              }
-            ]
-          },
-          "calendarVersion": {
-            "pattern": "^-?(?:0|[1-9]\\d*)$",
-            "type": [
-              "null",
-              "integer",
-              "string"
-            ],
-            "format": "int32"
-          },
           "availabilityCalendarName": {
             "type": [
               "null",
               "string"
             ]
-          },
-          "availabilityOrigin": {
-            "oneOf": [
-              {
-                "type": "null"
-              },
-              {
-                "$ref": "#/components/schemas/CalendarOriginCode"
-              }
-            ]
-          },
-          "availabilityVersion": {
-            "pattern": "^-?(?:0|[1-9]\\d*)$",
-            "type": [
-              "null",
-              "integer",
-              "string"
-            ],
-            "format": "int32"
           }
         },
-        "description": "One schedule row in a ValueTask&lt;ListSchedulesResponse&gt; ISchedules.ListAsync(ListSchedulesQuery query, CancellationToken ct = default(CancellationToken)) page. `NextOccurrenceAtUtc` is the next undecided occurrence;\n`NextEvaluationAtUtc` and `EvaluationStatus` say when and why the engine next looks; `Status` is Active, Paused,\nor Orphaned, with `PausedUntilUtc` for a timed pause; `Version` is the row version a CAS control verb takes as\nexpected; `JobRef` is the permanent slot's public ref, null for a PerOccurrence definition; `OutstandingCount` counts\nits unsettled roots; the expiry pair, the calendar pair (set for a Calendar-kind `Expression`), and the availability\ntriple are each null together when unused. The ids stay off the wire: the list pages by `ScheduleId` in its cursor."
+        "description": "One schedule row in a ValueTask&lt;ListSchedulesResponse&gt; ISchedules.ListAsync(ListSchedulesQuery query, CancellationToken ct = default(CancellationToken)) page. `NextOccurrenceAtUtc` is the next undecided occurrence;\n`NextEvaluationAtUtc` and `EvaluationStatus` say when and why the engine next looks; `Status` is Active, Paused,\nor Orphaned, with `PausedUntilUtc` for a timed pause; `Version` is the row version a CAS control verb takes as\nexpected; `JobRef` is the permanent slot's public ref, null for a PerOccurrence definition; `OutstandingCount` counts\nits unsettled roots; the expiry pair is null together when unused, and `AvailabilityCalendarName` when the schedule\nobserves no availability calendar. The ids stay off the wire: the list pages by `ScheduleId` in its cursor."
       },
       "ListSchedulesResponse": {
         "required": [
@@ -11562,7 +11510,6 @@
           "scheduleName",
           "binding",
           "status",
-          "pinnedVersion",
           "overdue"
         ],
         "type": "object",
@@ -11582,19 +11529,11 @@
           "status": {
             "$ref": "#/components/schemas/ScheduleStatusCode"
           },
-          "pinnedVersion": {
-            "pattern": "^-?(?:0|[1-9]\\d*)$",
-            "type": [
-              "integer",
-              "string"
-            ],
-            "format": "int32"
-          },
           "overdue": {
             "type": "boolean"
           }
         },
-        "description": "A schedule bound to the family, as a publication would meet it: its path, binding, status, pinned version, and overdue flag."
+        "description": "A schedule that names the family, as a publication would meet it: its path, binding, status, and overdue flag."
       },
       "PreviewCalendarResponse": {
         "required": [

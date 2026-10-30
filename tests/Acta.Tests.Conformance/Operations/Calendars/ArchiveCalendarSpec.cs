@@ -6,7 +6,7 @@ namespace Acta.Tests.Conformance.Operations.Calendars;
 
 /// <summary>
 /// Conformance for archiving a calendar family's current version: only the expected current version archives, only
-/// while no live schedule of an active definition binds the family through the catalog, and the archive is audited.
+/// while no live schedule of an active definition names the family, and the archive is audited.
 /// </summary>
 [ConformanceSpec(
     "calendar.archive",
@@ -63,7 +63,9 @@ public sealed class ArchiveCalendarSpec : ActaStorageTestBase<ConformanceFixture
         );
     }
 
-    [Fact(DisplayName = "A stale expected version, or a live catalog-bound schedule, rejects the archive until the schedule is orphaned")]
+    [Fact(
+        DisplayName = "A stale expected version, or a live schedule naming the family, rejects the archive until the schedule is orphaned"
+    )]
     public async Task A_stale_version_or_a_live_dependent_rejects_the_archive()
     {
         var ct = TestContext.Current.CancellationToken;
@@ -75,20 +77,13 @@ public sealed class ArchiveCalendarSpec : ActaStorageTestBase<ConformanceFixture
             TestNamespaceId,
             Unique("support-sweep"),
             calendar.CalendarName,
-            [("tick", CalendarOriginCode.Catalog, 1)],
+            ["tick"],
             ct
         );
 
         var stale = await Calendars.ArchiveAsync(calendar, 2, ct: ct);
         var bound = await Calendars.ArchiveAsync(calendar, 1, ct: ct);
-        await CalendarTestOps.RegisterAsync(
-            Services,
-            TestNamespaceId,
-            defId,
-            calendar.CalendarName,
-            [("code", CalendarOriginCode.Registered, 1)],
-            ct
-        );
+        await CalendarTestOps.RegisterAsync(Services, TestNamespaceId, defId, Unique("other-hours"), ["other"], ct);
         var orphaned = await Calendars.ArchiveAsync(calendar, 1, ct: ct);
 
         Assert.Equal((ControlAction.Rejected, 1), (stale.Action, stale.Version));

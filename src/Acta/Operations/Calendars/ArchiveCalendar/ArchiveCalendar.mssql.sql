@@ -44,12 +44,8 @@ BEGIN TRY
                     (
                         s.expression_kind_code = 30 /* ScheduleExpressionKindCode.Calendar */
                         AND s.expression = @p_calendar_name
-                        AND s.calendar_origin_code = 20 /* CalendarOriginCode.Catalog */
                     )
-                    OR (
-                        s.availability_calendar_name = @p_calendar_name
-                        AND s.availability_calendar_origin_code = 20 /* CalendarOriginCode.Catalog */
-                    )
+                    OR s.availability_calendar_name = @p_calendar_name
                 );
 
             IF @version = @p_expected_current_version AND @dependent_count = 0

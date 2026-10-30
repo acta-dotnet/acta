@@ -5,10 +5,11 @@ using System.Text;
 namespace Acta;
 
 /// <summary>
-/// The identity of a schedule's timing: a hash over everything that decides its occurrences, the expression, its
-/// kind, the zone and that zone's rules, an interval's anchor, and the calendars it binds. Two declarations with the
-/// same fingerprint produce the same occurrences, so registration leaves the cursor alone; a changed fingerprint is a
-/// timing change.
+/// The identity of a schedule's timing: a hash over the declaration that decides its occurrences, the expression, its
+/// kind, the zone and that zone's rules, an interval's anchor, and the availability calendar's name. A calendar enters
+/// by name only, never by where it resolved, so a calendar whose content or source changes leaves the fingerprint
+/// alone and the admitter's cursor heals the difference. A matching fingerprint keeps the cursor at registration; a
+/// changed one is a timing change.
 /// </summary>
 internal static class TimingFingerprint
 {
@@ -26,15 +27,7 @@ internal static class TimingFingerprint
             .Append('|')
             .Append(timing.IntervalAnchorAtUtc?.Ticks.ToString(c))
             .Append('|')
-            .Append(timing.CalendarOrigin is { } calendarOrigin ? ((byte)calendarOrigin).ToString(c) : null)
-            .Append('|')
-            .Append(timing.CalendarVersion?.ToString(c))
-            .Append('|')
             .Append(timing.AvailabilityCalendarName)
-            .Append('|')
-            .Append(timing.AvailabilityOrigin is { } availabilityOrigin ? ((byte)availabilityOrigin).ToString(c) : null)
-            .Append('|')
-            .Append(timing.AvailabilityVersion?.ToString(c))
             .Append('|');
         // A cron, a calendar, and an availability window resolve in the zone, and the zone's rules are part of what they
         // mean; a bare interval is absolute.

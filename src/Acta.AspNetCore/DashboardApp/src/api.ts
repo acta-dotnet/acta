@@ -406,15 +406,15 @@ export interface CalendarVersionView {
   modifiedAtUtc: string;
 }
 
-// A schedule bound to the family through the catalog, as GET /calendars/{ns}/{name} lists it: how it
-// binds the family (occurrence source or availability filter), its status, and the version it pins.
+// A schedule bound to the family by name, as GET /calendars/{ns}/{name} lists it: how it binds the
+// family (occurrence source or availability filter), its status, and its delivery. A binding resolves
+// afresh at every evaluation, so there is no pinned version to show.
 export interface CalendarDependent {
   jobNamespace: string;
   jobName: string;
   scheduleName: string;
   binding: string;
   status: string;
-  pinnedVersion: number;
   scheduledDelivery: string;
 }
 
@@ -442,7 +442,6 @@ export interface CalendarPreviewSchedule {
   scheduleName: string;
   binding: string;
   status: string;
-  pinnedVersion: number;
   overdue: boolean;
 }
 

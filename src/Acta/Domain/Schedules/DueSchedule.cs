@@ -1,7 +1,7 @@
 namespace Acta;
 
 /// <summary>
-/// One schedule as the admitter plans it: its declaration, timing, calendar bindings, capacity, and expiry, its state with
+/// One schedule as the admitter plans it: its declaration, timing, calendar names, capacity, and expiry, its state with
 /// the version the plan will carry, its definition's delivery, and its slot's status, version, and envelope status, the
 /// same on every member of one slot and null for a schedule with no slot. Read without locks; the apply validates the
 /// versions.
@@ -23,11 +23,7 @@ internal sealed record DueSchedule(
     int MisfireGraceSeconds,
     DateTime? IntervalAnchorAtUtc,
     string TimingFingerprint,
-    CalendarOriginCode? CalendarOrigin,
-    int? CalendarVersion,
     string? AvailabilityCalendarName,
-    CalendarOriginCode? AvailabilityOrigin,
-    int? AvailabilityVersion,
     int MaxOutstanding,
     ScheduleFullBehaviorCode FullBehavior,
     int? ExpireAfterSeconds,
@@ -45,17 +41,6 @@ internal sealed record DueSchedule(
     CheckpointStatusCode? FiringStatus
 )
 {
-    /// <summary>The schedule's timing with its bindings as registration resolved them.</summary>
-    public ScheduleTiming Timing() =>
-        new(
-            Expression,
-            ExpressionKind,
-            TimeZoneId,
-            IntervalAnchorAtUtc,
-            CalendarOrigin,
-            CalendarVersion,
-            AvailabilityCalendarName,
-            AvailabilityOrigin,
-            AvailabilityVersion
-        );
+    /// <summary>The schedule's timing as stored.</summary>
+    public ScheduleTiming Timing() => new(Expression, ExpressionKind, TimeZoneId, IntervalAnchorAtUtc, AvailabilityCalendarName);
 }

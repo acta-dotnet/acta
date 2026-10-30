@@ -8,23 +8,16 @@ namespace Acta.Tests.Runtime;
 /// in order and its exhaustion; an availability calendar omitting the cron ticks, interval ticks, and calendar instants
 /// outside its windows without shifting them, keeping one exactly at an opening; the provider contract enforced (UTC,
 /// advancing, whole milliseconds, a window that contains or follows the instant); the registry's one implementation
-/// per version; and the fingerprint following the bindings.
+/// per name; the fingerprint following the names; and registration keeping nothing but the names.
 /// </summary>
 public sealed class CalendarSourceTests
 {
     private static DateTime Utc(int h, int m, int s = 0) => new(2024, 1, 1, h, m, s, DateTimeKind.Utc);
 
-    private static readonly ScheduleTiming Fixed = new(
-        "fixed",
-        ScheduleExpressionKindCode.Calendar,
-        "UTC",
-        null,
-        CalendarOriginCode.Registered,
-        1
-    );
+    private static readonly ScheduleTiming Fixed = new("fixed", ScheduleExpressionKindCode.Calendar, "UTC", null);
 
     private static ScheduleSource Available(string expression, ScheduleExpressionKindCode kind, DateTime? anchor, Windows windows) =>
-        new(new ScheduleTiming(expression, kind, "UTC", anchor, null, null, "office", CalendarOriginCode.Registered, 1), null, windows);
+        new(new ScheduleTiming(expression, kind, "UTC", anchor, "office"), null, windows);
 
     [Fact]
     public void A_calendar_yields_its_instants_in_order_and_then_exhausts()
@@ -97,12 +90,7 @@ public sealed class CalendarSourceTests
     [Fact]
     public void An_availability_window_filters_a_calendar_source()
     {
-        var timing = Fixed with
-        {
-            AvailabilityCalendarName = "office",
-            AvailabilityOrigin = CalendarOriginCode.Registered,
-            AvailabilityVersion = 1,
-        };
+        var timing = Fixed with { AvailabilityCalendarName = "office" };
         var source = new ScheduleSource(timing, new FixedCalendar(Utc(9, 0), Utc(12, 30), Utc(14, 0)), new Windows((Utc(13, 0), null)));
 
         Assert.Equal(Utc(14, 0), NextOccurrenceCalculator.Next(source, Utc(0, 0)));
@@ -112,12 +100,7 @@ public sealed class CalendarSourceTests
     public void A_window_that_ends_before_the_instant_is_a_provider_error()
     {
         var stale = new Lambda(_ => Utc(9, 0), _ => new CalendarWindow(Utc(8, 0), Utc(8, 30)));
-        var timing = Fixed with
-        {
-            AvailabilityCalendarName = "office",
-            AvailabilityOrigin = CalendarOriginCode.Registered,
-            AvailabilityVersion = 1,
-        };
+        var timing = Fixed with { AvailabilityCalendarName = "office" };
 
         var ex = Assert.Throws<InvalidOperationException>(() =>
             NextOccurrenceCalculator.Next(new ScheduleSource(timing, stale, stale), Utc(0, 0))
@@ -139,46 +122,29 @@ public sealed class CalendarSourceTests
         Assert.Throws<InvalidOperationException>(() => registry.Add("fixed", two));
         Assert.Throws<ArgumentException>(() => registry.Add("sys.fixed", two));
 
-        Assert.True(registry.Has("fixed", CalendarRoleCode.Occurrence));
-        Assert.False(registry.Has("fixed", CalendarRoleCode.Availability));
         Assert.Same(one, registry.Source(Fixed).Calendar);
+        Assert.Null(registry.Source(Fixed with { AvailabilityCalendarName = "fixed" }).Availability);
         Assert.Same(two, registry.Source(Fixed with { Expression = "other" }).Calendar);
         Assert.Null(registry.Source(Fixed with { Expression = "missing" }).Calendar);
-        Assert.Null(registry.Source(Fixed with { CalendarOrigin = CalendarOriginCode.Catalog }).Calendar);
     }
 
     [Fact]
-    public void The_fingerprint_follows_the_bindings_and_the_zone_an_availability_window_resolves_in()
+    public void The_fingerprint_follows_the_names_and_the_zone_an_availability_window_resolves_in()
     {
         var a = TimingFingerprint.Compute(Fixed);
 
         Assert.Equal(a, TimingFingerprint.Compute(Fixed with { }));
-        Assert.NotEqual(a, TimingFingerprint.Compute(Fixed with { CalendarVersion = 2 }));
-        Assert.NotEqual(
-            a,
-            TimingFingerprint.Compute(
-                Fixed with
-                {
-                    AvailabilityCalendarName = "office",
-                    AvailabilityOrigin = CalendarOriginCode.Registered,
-                    AvailabilityVersion = 1,
-                }
-            )
-        );
+        Assert.NotEqual(a, TimingFingerprint.Compute(Fixed with { Expression = "other" }));
+        Assert.NotEqual(a, TimingFingerprint.Compute(Fixed with { AvailabilityCalendarName = "office" }));
         var bare = new ScheduleTiming("PT5M", ScheduleExpressionKindCode.Interval, "UTC", Utc(9, 0));
         Assert.Equal(a.Length, TimingFingerprint.Compute(bare).Length);
         Assert.Equal(TimingFingerprint.Compute(bare), TimingFingerprint.Compute(bare with { TimeZoneId = "Europe/Ljubljana" }));
-        var windowed = bare with
-        {
-            AvailabilityCalendarName = "office",
-            AvailabilityOrigin = CalendarOriginCode.Registered,
-            AvailabilityVersion = 1,
-        };
+        var windowed = bare with { AvailabilityCalendarName = "office" };
         Assert.NotEqual(TimingFingerprint.Compute(windowed), TimingFingerprint.Compute(windowed with { TimeZoneId = "Europe/Ljubljana" }));
     }
 
     [Fact]
-    public void A_registration_plan_refuses_a_binding_nothing_resolves_and_keeps_a_stored_catalog_pin()
+    public void A_registration_plan_refuses_a_name_nothing_resolves_and_keeps_a_cursor_whose_name_still_matches()
     {
         var declared = new ScheduleDescriptor(
             "settle",
@@ -193,38 +159,36 @@ public sealed class CalendarSourceTests
         var none = new Dictionary<string, StoredScheduleState>();
 
         var ex = Assert.Throws<InvalidOperationException>(() =>
-            ScheduleRegistrationPlan.Plan([declared], none, Utc(8, 0), CalendarRegistry.Empty.Source, ScheduleRegistrationPlan.NoCalendars)
+            ScheduleRegistrationPlan.Plan([declared], none, Utc(8, 0), CalendarRegistry.Empty.Source)
         );
 
         Assert.Contains("Schedule 'daily' of job 'settle'", ex.Message);
         Assert.Contains("'spec.days' is not declared in this process and has no published version", ex.Message);
 
-        // A catalog binding the stored schedule pinned keeps its version although the catalog has moved on; the source
-        // is resolved for that pin, so the plan asks for it and fails when this process has not compiled it.
+        var planned = Assert.Single(
+            ScheduleRegistrationPlan.Plan([declared], none, Utc(8, 0), t => new ScheduleSource(t, new FixedCalendar(Utc(9, 0)), null))
+        );
+        Assert.Equal(Utc(9, 0), planned.NextOccurrenceAtUtc);
+
+        // The fingerprint holds the name only, so a name that now resolves to another calendar keeps the stored cursor;
+        // the admitter's cursor heals an occurrence the new calendar does not produce.
         var stored = new Dictionary<string, StoredScheduleState>
         {
             ["daily"] = new(
                 1,
                 "daily",
-                Utc(9, 0),
+                Utc(13, 0),
                 ScheduleStatusCode.Active,
                 null,
                 ExpressionKind: ScheduleExpressionKindCode.Calendar,
                 Expression: "spec.days",
-                CalendarOrigin: CalendarOriginCode.Catalog,
-                CalendarVersion: 2
+                TimingFingerprint: planned.TimingFingerprint
             ),
         };
-        var pinned = Assert.Throws<InvalidOperationException>(() =>
-            ScheduleRegistrationPlan.Plan(
-                [declared],
-                stored,
-                Utc(8, 0),
-                CalendarRegistry.Empty.Source,
-                static (_, _) => (CalendarOriginCode.Catalog, 3)
-            )
+        var moved = Assert.Single(
+            ScheduleRegistrationPlan.Plan([declared], stored, Utc(8, 0), t => new ScheduleSource(t, new FixedCalendar(Utc(10, 0)), null))
         );
-        Assert.Contains("'spec.days' version 2 is not in the namespace's calendar catalog", pinned.Message);
+        Assert.Equal(Utc(13, 0), moved.NextOccurrenceAtUtc);
     }
 
     [Fact]
@@ -234,9 +198,8 @@ public sealed class CalendarSourceTests
 
         var registry = new CalendarRegistry().AddDeclared(services, [new CalendarDescriptor("office", typeof(DeclaredOffice), true, true)]);
 
-        Assert.True(registry.Has("office", CalendarRoleCode.Occurrence));
-        Assert.True(registry.Has("office", CalendarRoleCode.Availability));
-        var timing = new ScheduleTiming("office", ScheduleExpressionKindCode.Calendar, "UTC", null, CalendarOriginCode.Registered, 1);
+        var timing = new ScheduleTiming("office", ScheduleExpressionKindCode.Calendar, "UTC", null);
+        Assert.NotNull(registry.Source(timing with { AvailabilityCalendarName = "office" }).Availability);
         Assert.Equal(Utc(9, 0), NextOccurrenceCalculator.Next(registry.Source(timing), Utc(8, 0)));
     }
 
