@@ -1884,6 +1884,12 @@
   - A Paused slot with no firing outstanding rescheduled to an instant fires at it with a manual envelope
   - A slot paused mid-firing keeps its firing when rescheduled: only the instant moves
 
+### A slot restarts only with no firing outstanding and is purged only unpinned
+- **Contract:** RestartAsync rejects a slot with a firing outstanding, and PurgeAsync refuses a slot a live schedule pins, even a cancelled one, until a retire unpins it.
+- **Guarantees:**
+  - A restart of a slot with a firing outstanding is rejected, and one with none returns the slot to Idle
+  - A purge refuses a slot its live schedule pins, even cancelled; after a retire the purge deletes it
+
 ### Schedule registration is gated by the worker's environment
 - **Contract:** Schedule registration honors each schedule's declared environments, registering only those active in the worker's environment and withholding the rest.
 - **Guarantees:**
@@ -1924,6 +1930,7 @@
   - A pass admits a due schedule's firing: the slot is Ready with the envelope naming it and the cursor advanced
   - A pass with nothing due admits nothing and reports the earliest next evaluation as its horizon
   - An outstanding firing fills the slot: a later occurrence waits for capacity until settlement wakes it
+  - A pass reports its decision, lag, overdue frontier, and wall time on the meter
 
 ### A registered calendar sources a schedule, an availability calendar filters one
 - **Contract:** A registered calendar fires its instants in order and exhausts, an availability calendar omits ticks outside its windows, a declared name shadows the catalog.

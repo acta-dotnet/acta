@@ -26,10 +26,11 @@ public class ScheduleEvaluatorTests
         MisfireStrategyCode misfire = MisfireStrategyCode.Skip,
         AdmissionCapacity capacity = AdmissionCapacity.Available,
         TimeSpan? expireAfter = null,
-        ScheduleExpireActionCode expireAction = ScheduleExpireActionCode.Unspecified
+        ScheduleExpireActionCode expireAction = ScheduleExpireActionCode.Unspecified,
+        IActaCalendar? calendar = null
     ) =>
         ScheduleEvaluator.Evaluate(
-            new ScheduleSource(timing, null, null),
+            new ScheduleSource(timing, calendar, null),
             new SchedulePolicy(misfire, Grace, expireAfter, expireAction),
             cursor,
             capacity,
@@ -446,6 +447,31 @@ public class ScheduleEvaluatorTests
         Assert.Equal(Utc(10, 5, 1), d.NextOccurrenceAtUtc);
         Assert.Equal(Utc(10, 5, 1), d.NextEvaluationAtUtc);
         Assert.Equal(EvaluationStatusCode.Scheduled, d.Status);
+    }
+
+    [Fact]
+    public void A_stored_occurrence_the_calendar_no_longer_produces_is_skipped_as_source_changed()
+    {
+        // The cursor names 10:05, but the calendar now produces only the tens of minutes, so 10:05 is decided without
+        // work and the cursor moves to the first instant the calendar does produce, for the next pass to decide.
+        var tenMinutes = new ScheduleTiming("ten-minutes", ScheduleExpressionKindCode.Calendar, "UTC", null);
+
+        var d = Evaluate(tenMinutes, Active(Utc(10, 5)), Utc(10, 6), MisfireStrategyCode.CatchUpAll, calendar: new EveryTenMinutes());
+
+        Assert.Null(d.Admit);
+        Assert.True(d.SourceChanged);
+        Assert.Equal((Utc(10, 5), Utc(10, 5)), (d.SkippedFromUtc, d.SkippedThroughUtc));
+        Assert.Equal(Utc(10, 10), d.NextOccurrenceAtUtc);
+    }
+
+    private sealed class EveryTenMinutes : IActaCalendar
+    {
+        public DateTime? GetNextOccurrence(CalendarContext context)
+        {
+            var after = context.AfterUtc;
+            var hour = new DateTime(after.Year, after.Month, after.Day, after.Hour, 0, 0, DateTimeKind.Utc);
+            return hour.AddMinutes((after.Minute / 10 + 1) * 10);
+        }
     }
 
     [Fact]
