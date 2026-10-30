@@ -2,9 +2,10 @@ namespace Acta;
 
 /// <summary>
 /// Declares a named recurring schedule on a <c>[Job]</c> handler. Several may decorate one handler; each becomes a
-/// <c>schedules</c> row with its own cursor under the definition's single permanent slot <c>job</c>. The admission
-/// engine evaluates each schedule and admits one firing of the slot at a time; schedules due together contribute to
-/// the same firing, which the handler reads via <see cref="JobContext.TriggeringSchedules"/>.
+/// <c>schedules</c> row with its own cursor. Under the default <see cref="ScheduledDeliveryCode.Permanent"/> delivery
+/// the admission engine admits one firing of the definition's single permanent slot at a time, and schedules due
+/// together contribute to the same firing, which the handler reads via <see cref="JobContext.TriggeringSchedules"/>;
+/// under <see cref="ScheduledDeliveryCode.PerOccurrence"/> each admitted occurrence is a fresh root job instead.
 /// </summary>
 [AttributeUsage(AttributeTargets.Method, AllowMultiple = true)]
 public sealed class ScheduleAttribute : Attribute

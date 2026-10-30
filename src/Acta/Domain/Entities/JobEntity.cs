@@ -110,8 +110,9 @@ internal sealed class JobEntity : IEntity<long>
     /// <summary>
     /// Deduplication key on enqueue and a stable address for <c>IJobs.GetJobIdAsync</c>, compared exactly; user keys
     /// cannot start with <c>"sys."</c> in any case. Root jobs are unique per namespace (<c>ux_jobs_deduplication_key_root</c>) and children per direct
-    /// parent (<c>ux_jobs_deduplication_key_child</c>). A recurring slot takes the job's name as its key, so a root
-    /// enqueue keyed by that name deduplicates onto the slot.
+    /// parent (<c>ux_jobs_deduplication_key_child</c>). A recurring job's permanent slot carries no key, so an
+    /// ordinary job keyed by the job's name is unrelated to it; a per-occurrence root carries
+    /// <c>sys.occurrence.{schedule_id}.{ticks}</c>.
     /// </summary>
     [DbColumn("deduplication_key", DbKind.AsciiString, Size = 128, CaseExact = true)]
     public string? DeduplicationKey { get; init; }

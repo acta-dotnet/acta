@@ -293,8 +293,8 @@ internal sealed partial class WorkerFinalizer(
 
     /// <summary>
     /// Plans <paramref name="entry"/>'s write and the status it reports once the write lands. A job whose definition is
-    /// retired never runs again, so a landing that would leave it runnable (a re-arm, a hand-back, or a recurring
-    /// rollover) lands Cancelled instead.
+    /// retired never runs again, so a landing that would leave it runnable (a re-arm, a hand-back, or a slot's return
+    /// to Idle) lands Cancelled instead.
     /// </summary>
     private PlannedWrite Plan(InFlightJob entry)
     {

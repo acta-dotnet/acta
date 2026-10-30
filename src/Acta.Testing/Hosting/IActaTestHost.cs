@@ -98,7 +98,10 @@ public enum ActaRunStatus : byte
     /// </summary>
     Completed = 2,
 
-    /// <summary>A job ran and settled terminal <c>Failed</c>: its budget spent, or a non-retryable exception.</summary>
+    /// <summary>
+    /// A job ran and settled terminal <c>Failed</c>: its budget spent, or a non-retryable exception. A recurring job's
+    /// firing that spends its budget reports this too, while the slot returns to <c>Idle</c> for its next admission.
+    /// </summary>
     Failed = 3,
 
     /// <summary>

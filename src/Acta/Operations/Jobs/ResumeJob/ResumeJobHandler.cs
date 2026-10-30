@@ -1,6 +1,6 @@
 namespace Acta;
 
-/// <summary><see cref="IJobs.ResumeAsync"/>: moves a paused job to Ready, at its slot's next run when it is recurring.</summary>
+/// <summary><see cref="IJobs.ResumeAsync"/>: moves a paused job to Ready, or a recurring job's paused slot with no firing outstanding back to Idle.</summary>
 internal sealed class ResumeJobHandler(GetJobIdHandler getJobId, IDbSession session, ISqlDialect dialect, WorkerWakeupPublisher wakeup)
 {
     public async ValueTask<ResumeJobResponse> HandleAsync(ResumeJobCommand command, CancellationToken ct)

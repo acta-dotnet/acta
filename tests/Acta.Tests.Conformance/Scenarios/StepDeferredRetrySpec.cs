@@ -89,8 +89,7 @@ public sealed class StepDeferredRetrySpec : ActaRuntimeTestBase<ConformanceFixtu
 
     private static readonly DateTime FakeT0 = new(2024, 1, 1, 0, 0, 0, DateTimeKind.Utc);
 
-    // Registered before UseActa so TryAddSingleton<IActaClock> no-ops; gives us a deterministic clock
-    // for any C#-side schedule walker calls (unused here but consistent with the spec-local pattern).
+    // Registered before UseActa so TryAddSingleton<IActaClock> no-ops, giving the runtime a deterministic clock.
     private FakeClock Clock { get; set; } = null!;
 
     protected override void ConfigureServices(IServiceCollection services, string testNamespace)

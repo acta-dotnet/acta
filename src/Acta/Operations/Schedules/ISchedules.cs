@@ -15,7 +15,7 @@ public interface ISchedules
         CancellationToken ct = default
     );
 
-    /// <summary>Resume the schedule identified by <paramref name="schedule"/>: clears the pause and reconciles the cursor by misfire policy. <paramref name="actor"/> is recorded on the audit event as the operator identity (e.g. the authenticated principal name); null when unknown. A missing or orphaned schedule is NotFound.</summary>
+    /// <summary>Resume the schedule identified by <paramref name="schedule"/>: clears the pause and keeps the cursor, so the misfire policy decides the missed window at the next admission pass. <paramref name="actor"/> is recorded on the audit event as the operator identity (e.g. the authenticated principal name); null when unknown. A missing or orphaned schedule is NotFound.</summary>
     ValueTask<ResumeScheduleResponse> ResumeAsync(
         ScheduleLookup schedule,
         string? reasonMessage = null,

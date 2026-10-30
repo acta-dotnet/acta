@@ -295,7 +295,7 @@ internal static class RouteTable
         }
         catch (CalendarUnavailableException ex)
         {
-            // The schedule exists; this host cannot evaluate its calendar. The message says which host could.
+            // The schedule exists; this host cannot evaluate its calendar. The message names the calendar and where it was looked for.
             return ControlEndpointValidation.Problem(StatusCodes.Status409Conflict, "Calendar not available on this host.", ex.Message);
         }
     }

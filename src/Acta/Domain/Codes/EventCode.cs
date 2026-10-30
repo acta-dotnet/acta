@@ -63,7 +63,7 @@ public enum EventCode : byte
 
     [Code(
         "job.execution-failed",
-        "The attempt failed and the job runs again: a retry within budget or a recurring rollover. DurationMs and the failure's EventMessage are set; details carry reason and to."
+        "The attempt failed and the job lives on: a retry within budget, or a recurring job's firing that spent its budget and returned the slot to Idle. DurationMs and the failure's EventMessage are set; details carry reason and to."
     )]
     JobExecutionFailed = 41,
 
@@ -166,13 +166,13 @@ public enum EventCode : byte
 
     [Code(
         "schedule.skipped",
-        "The misfire policy discarded a range of the schedule's occurrences without work; details carry the schedule and the range."
+        "A range of the schedule's occurrences was decided without work: the misfire policy skipped it, it expired, the schedule was full, its calendar no longer produces it, or a calendar publication discarded it; details carry the schedule, the range, and the reason."
     )]
     ScheduleSkipped = 106,
 
     [Code(
         "schedule.retimed",
-        "A deploy changed the schedule's timing; the undecided occurrences of the old timing were discarded and the cursor moved to the first occurrence of the new one. Details carry the schedule name."
+        "A deploy changed the schedule's timing, or a calendar it names was published; the undecided occurrences of the old timing were discarded and the cursor moved to the first occurrence of the new one. Details carry the schedule name."
     )]
     ScheduleRetimed = 107,
 

@@ -110,7 +110,7 @@ public sealed class HandlerControlSpec : ActaRuntimeTestBase<ConformanceFixture,
         var job = await ReadJobAsync(enqueued.JobId, ct);
         Assert.Equal(JobStatusCode.Paused, job.Status);
         Assert.Null(job.LeasedByWorkerId);
-        // A next run is what marks the pause as held, so no schedule change can lift it (ScheduleWalker.IsHeld).
+        // A next run is what marks the pause as held, so no schedule change can lift it.
         Assert.NotNull(job.NextRunAtUtc);
         Assert.Equal(0, job.FailureCount);
         var pauseEvent = await ReadLatestEventAsync(enqueued.JobId, EventCode.JobPaused, ct);

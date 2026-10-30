@@ -156,8 +156,8 @@ internal sealed class ScheduleEntity : IEntity<int>
     // ---------- Operator lifecycle ----------
 
     /// <summary>
-    /// Lifecycle state. <c>Active</c> schedules fire; <c>Paused</c> ones do not and leave the slot's MIN;
-    /// <c>Orphaned</c> marks a <c>Definition</c>-origin row whose declaration disappeared, which the walker ignores. A
+    /// Lifecycle state. <c>Active</c> schedules fire; <c>Paused</c> ones do not, and keep their cursor;
+    /// <c>Orphaned</c> marks a <c>Definition</c>-origin row whose declaration disappeared, which admission ignores. A
     /// re-declared orphan resets to <c>Active</c>, dropping any pause: a schedule that came back warrants a fresh
     /// operator decision.
     /// </summary>
@@ -166,8 +166,8 @@ internal sealed class ScheduleEntity : IEntity<int>
 
     /// <summary>
     /// When a timed pause expires. NULL means an indefinite pause (resume is operator-driven) or not
-    /// paused. While set, the slot's cursor includes this instant so the scheduler wakes to auto-resume:
-    /// the walker flips the row back to <c>Active</c> and reconciles the cursor by misfire policy.
+    /// paused. While set, the schedule's next evaluation is this instant, so the admission engine wakes to end the
+    /// pause: it flips the row back to <c>Active</c> and its misfire policy decides the window as of the pause's end.
     /// </summary>
     [DbColumn("paused_until_utc", DbKind.UtcInstant)]
     public DateTime? PausedUntilUtc { get; set; }
@@ -199,9 +199,8 @@ internal sealed class ScheduleEntity : IEntity<int>
 
     /// <summary>
     /// Optimistic-concurrency token, bumped by every write to this row: a pause or resume, a registration that changes
-    /// the declaration or moves the cursor, and the fire that ends an elapsed timed pause. A plain advance writes only
-    /// the cursor row. A recurring completion advances a schedule only at the version its plan read, so an edit or
-    /// registration that landed while the attempt ran wins.
+    /// the declaration, and the admission pass that ends an elapsed timed pause. A plain admission writes only the
+    /// cursor row, at the version its own plan read, so an operator verb that lands mid-pass makes it replan.
     /// </summary>
     [DbColumn("version", DbKind.Int32, Default = DbDefault.Zero)]
     [DbConcurrencyToken]

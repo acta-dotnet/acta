@@ -37,8 +37,8 @@ internal sealed class CheckpointEntity : IEntity
     public long JobId { get; init; }
 
     /// <summary>
-    /// Which substrate feature owns this slot (variable / signal / timer / progress / child-latch).
-    /// Part of the composite PK, so identical names under different kinds never collide.
+    /// Which feature owns this slot, one of <see cref="CheckpointKindCode"/>. Part of the composite PK, so identical
+    /// names under different kinds never collide.
     /// </summary>
     [DbColumn("checkpoint_kind_code")]
     public CheckpointKindCode Kind { get; init; }

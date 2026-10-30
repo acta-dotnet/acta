@@ -1,7 +1,7 @@
 namespace Acta;
 
 /// <summary>
-/// An occurrence source a schedule binds by name and version instead of a cron or interval expression: a fixed,
+/// An occurrence source a schedule binds by name instead of a cron or interval expression: a fixed,
 /// ordered set of instants that depends on nothing but the provider's own configuration and the context it is given.
 /// Evaluation calls it with no lock held, so it must be quick and deterministic: no clock, no I/O, no ambient zone.
 /// </summary>

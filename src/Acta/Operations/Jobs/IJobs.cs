@@ -335,7 +335,7 @@ public interface IJobs
 
     /// <summary>
     /// Resume the job identified by <paramref name="job"/>: a <c>Paused</c> job moves to <c>Ready</c>
-    /// to run now. Stamps <c>actor = Operator</c>, <c>reason = ControlManual</c>;
+    /// to run now, and a recurring job's paused slot with no firing outstanding returns to <c>Idle</c>. Stamps <c>actor = Operator</c>, <c>reason = ControlManual</c>;
     /// <paramref name="reasonMessage"/> is recorded on the audit event only (the row's reason is
     /// cleared). <paramref name="actor"/> is recorded on the audit event as the operator identity (e.g. the
     /// authenticated principal name); null when unknown. A non-paused job is <see cref="ControlAction.Rejected"/>.
@@ -351,10 +351,10 @@ public interface IJobs
     /// <summary>
     /// Restart the job identified by <paramref name="job"/>: any status except <c>Executing</c> moves to <c>Ready</c>
     /// to run now, with the failure budget reset, the retention deadline cleared, and the attempt counter unchanged.
-    /// Stamps <c>actor = Operator</c>, <c>reason = ControlManual</c>; <paramref name="reasonMessage"/> and
-    /// <paramref name="actor"/> (the operator identity; null when unknown) go on the audit event only. An executing
-    /// job is <see cref="ControlAction.Rejected"/>. A laned job restarts in place under its lane's lock, <c>Blocked</c>
-    /// while another member runs or an older one is unfinished, then runs first, since promotion takes the lowest id.
+    /// A recurring job's slot returns to <c>Idle</c> instead, and is rejected while a firing is outstanding. Stamps
+    /// <c>actor = Operator</c>, <c>reason = ControlManual</c>; <paramref name="reasonMessage"/> and <paramref name="actor"/>
+    /// go on the audit event only. A laned job restarts in place under its lane's lock, <c>Blocked</c> while another
+    /// member runs or an older one is unfinished, then runs first, since promotion takes the lowest id.
     /// </summary>
     ValueTask<RestartJobResponse> RestartAsync(
         JobLookup job,

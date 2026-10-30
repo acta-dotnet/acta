@@ -115,7 +115,7 @@ internal static partial class ActaSchema
 
         public static readonly DbValueSpec<int?> StepRetryWindowSeconds = new("p_retry_window_seconds", DbKind.Int32);
 
-        /// <summary>The recurring slot's next run, as the schedule verbs recompute it.</summary>
+        /// <summary>The next run a slot's final status lands with: the pause instant when its handler paused it, which marks it held.</summary>
         public static readonly DbValueSpec<DateTime?> JobNextRunAtUtc = new("p_job_next_run_at_utc", DbKind.UtcInstant);
 
         /// <summary>

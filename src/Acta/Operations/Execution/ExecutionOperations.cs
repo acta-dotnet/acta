@@ -40,9 +40,9 @@ internal sealed class ExecutionOperations(
     /// <summary>
     /// Finalizes a batch of attempts in one transaction, each CAS-guarded on (job id, worker, execution number): flips the
     /// status to terminal or re-arm, writes <c>results</c> when the outcome carries bytes, inlines the attempt's event,
-    /// raises a parent's child-done latch, hands a lane on, and answers every row. A recurring rollover applies each planned
-    /// advance only where the schedule still carries the planned version, then reads the slot from the schedules as they
-    /// stand: one a deployment orphaned meanwhile is never advanced, and the slot lands Ready or Paused accordingly.
+    /// raises a parent's child-done latch, hands a lane on, and answers every row. A recurring job's firing settles here:
+    /// a success or a spent budget returns the slot to Idle, the firing envelope records which, and the schedules that
+    /// waited for the firing are woken.
     /// </summary>
     public Task<CompleteExecutionsResponse> CompleteExecutionsAsync(CompleteExecutionsCommand command, CancellationToken ct) =>
         completeExecutions.HandleAsync(command, ct);

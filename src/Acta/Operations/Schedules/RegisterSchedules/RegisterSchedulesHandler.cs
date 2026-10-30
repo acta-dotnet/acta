@@ -1,17 +1,16 @@
 namespace Acta;
 
 /// <summary>
-/// <see cref="SchedulesOperations.RegisterSchedulesAsync"/>: one call that ensures each slot job, refreshes input, audit, status, and
-/// cursor, upserts schedules, sweeps orphans, and stores the namespace's catalog hash.
+/// <see cref="SchedulesOperations.RegisterSchedulesAsync"/>: one call that ensures each permanent definition's slot job
+/// and refreshes its input, upserts the schedules, retimes one whose timing changed, sweeps orphans, and stores the
+/// namespace's catalog hash.
 /// </summary>
 internal sealed class RegisterSchedulesHandler(IDbSession session, ISqlDialect dialect)
 {
     public async Task<RegisterSchedulesResponse> HandleAsync(RegisterSchedulesCommand command, CancellationToken ct)
     {
-        // Resetting a running slot would strand its attempt, because the heartbeat cancels any running body
-        // missing from the id set it reads back; skipping costs nothing, because the recurring completion
-        // takes the next run from schedules rather than from the slot row. Only an operator lifts a hold
-        // (ScheduleWalker.IsHeld) or restarts a finished slot.
+        // Registration never moves a slot: a running one keeps its attempt, an Idle one waits for admission, and only
+        // an operator lifts a hold or restarts a finished slot.
         var slots = await session.ExecuteAsync(
             new StoreCommand("RegisterSchedules"),
             cmd =>

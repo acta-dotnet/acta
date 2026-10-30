@@ -119,7 +119,8 @@ internal sealed class JobStateEntity : IEntity<long>
     public long? LaneId { get; init; }
 
     /// <summary>
-    /// Durable lifecycle of the Job (Paused / Suspended / Ready / Blocked / Executing / Succeeded / Failed / Cancelled).
+    /// Durable lifecycle of the Job (Ready / Blocked / Suspended / Paused / Idle / Executing / Succeeded / Failed /
+    /// Cancelled); only a recurring job's permanent slot is ever Idle, between firings.
     /// </summary>
     [DbColumn("job_status_code")]
     public JobStatusCode Status { get; set; }
@@ -151,9 +152,8 @@ internal sealed class JobStateEntity : IEntity<long>
     public int ExecutionNumber { get; set; }
 
     /// <summary>
-    /// Failure counter for the current cycle, compared against <c>MaxAttempts</c> on a one-off job. A
-    /// recurring slot is not terminalized for crossing that budget, so its counter keeps climbing across
-    /// occurrences.
+    /// Failure counter for the current cycle, compared against <c>MaxAttempts</c>. A recurring job's slot counts its
+    /// current firing: admission zeroes it, and a spent budget returns the slot to Idle instead of failing it.
     /// </summary>
     [DbColumn("failure_count", DbKind.Int32)]
     public int FailureCount { get; set; }
