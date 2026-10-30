@@ -9,6 +9,7 @@ public class JobExplainerTests
 
     private static GetJobExplanationHeaderRow Header(
         JobStatusCode status,
+        JobKindCode kind = JobKindCode.Ordinary,
         int failureCount = 0,
         int maxAttempts = 3,
         DateTime? nextRunAtUtc = null,
@@ -31,6 +32,7 @@ public class JobExplainerTests
             JobRef: Guid.NewGuid(),
             JobNamespace: "payments",
             JobName: "checkout",
+            Kind: kind,
             Status: status,
             FailureCount: failureCount,
             MaxAttemptsEffective: maxAttempts,
@@ -315,6 +317,30 @@ public class JobExplainerTests
         var x = GetJobExplanationHandler.Explain(Data(Header(JobStatusCode.Paused, nextRunAtUtc: Now)), Now);
         Assert.Contains("Paused", x.Headline);
         Assert.Contains(x.NextActions, a => a.Kind == "resume");
+    }
+
+    [Fact]
+    public void A_slot_with_a_firing_outstanding_says_restart_and_trigger_wait_for_it()
+    {
+        var firing = Checkpoint(CheckpointKindCode.Firing, "sys.firing", CheckpointStatusCode.Pending);
+
+        var paused = GetJobExplanationHandler.Explain(
+            Data(Header(JobStatusCode.Paused, JobKindCode.PermanentSlot), checkpoints: [firing]),
+            Now
+        );
+        var settled = GetJobExplanationHandler.Explain(
+            Data(
+                Header(JobStatusCode.Paused, JobKindCode.PermanentSlot),
+                checkpoints: [firing with { Status = CheckpointStatusCode.Succeeded }]
+            ),
+            Now
+        );
+        // A per-occurrence root carries an envelope too, but restarts.
+        var root = GetJobExplanationHandler.Explain(Data(Header(JobStatusCode.Ready), checkpoints: [firing]), Now);
+
+        Assert.Contains("A firing is outstanding", paused.Headline);
+        Assert.DoesNotContain("firing", settled.Headline);
+        Assert.DoesNotContain("firing", root.Headline);
     }
 
     [Fact]

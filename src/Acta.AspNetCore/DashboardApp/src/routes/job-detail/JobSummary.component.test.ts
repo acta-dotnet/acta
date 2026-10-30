@@ -9,6 +9,7 @@ const head = 'job_019f71ce69e07b85bf41fc7bf0562501';
 function job(overrides: Partial<JobDetail>): JobDetail {
   return {
     jobRef: 'job_019f71ce69e07b85bf41fc7bf0562502',
+    kind: 'ordinary',
     jobNamespace: 'billing',
     jobName: 'send-invoice',
     lineageRootJobRef: null,

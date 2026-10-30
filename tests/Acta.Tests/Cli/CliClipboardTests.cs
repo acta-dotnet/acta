@@ -231,6 +231,7 @@ public class CliRunnerClipboardTests
                     ? new GetJobResponse(
                         JobId: KnownJobId,
                         JobRef: KnownJobRef,
+                        Kind: JobKindCode.Ordinary,
                         JobNamespace: "shop",
                         DefinitionId: 1,
                         JobName: "send-email",

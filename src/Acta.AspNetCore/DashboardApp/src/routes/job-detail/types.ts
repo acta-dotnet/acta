@@ -2,6 +2,7 @@
 // then its jobs_state row: identity, scope/routing, caller keys, input format, runtime state, audit.
 export interface JobDetail {
   jobRef: string;
+  kind: string;
   jobNamespace: string;
   jobName: string;
   lineageRootJobRef: string | null;

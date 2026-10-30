@@ -10002,6 +10002,7 @@
       "GetJobResponse": {
         "required": [
           "jobRef",
+          "kind",
           "jobNamespace",
           "jobName",
           "lineageRootJobRef",
@@ -10029,6 +10030,9 @@
         "properties": {
           "jobRef": {
             "$ref": "#/components/schemas/JobRef"
+          },
+          "kind": {
+            "$ref": "#/components/schemas/JobKindCode"
           },
           "jobNamespace": {
             "type": "string"
@@ -10442,6 +10446,9 @@
           }
         },
         "description": "Durable operator detail for one worker process registration."
+      },
+      "JobKindCode": {
+        "description": "What a `jobs` row is: an ordinary job, or the one permanent slot a scheduled definition fires through. The\nkind is written at insert and never changes; the executor and the operator verbs read it instead of guessing from\na deduplication key or from the schedules a row happens to own."
       },
       "JobPriorityCode": {
         "description": "Claim-priority value for `jobs_state.job_priority_code`. Discrete five-tier code-system enum\n(`Bulk` / `Normal` / `High` / `Critical` / `Realtime`); no intermediate\nvalues. Strict priority ordering on claim (no aging, no anti-starvation budget), so operators\nisolate bulk workloads in their own `JobNamespace`. Set by the definition policy, definition\noverride, or per-enqueue priority override."

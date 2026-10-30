@@ -236,7 +236,7 @@
       </div>
 
       <aside class="detail-rail">
-        <div id="job-actions"><JobControls {jobRef} status={job.status} priority={job.priority} onChanged={reload} /></div>
+        <div id="job-actions"><JobControls {jobRef} status={job.status} kind={job.kind} priority={job.priority} onChanged={reload} /></div>
         <div id="job-signals"><SignalDrawer {jobRef} suggestedName={explanation?.activeWait?.name ?? ''} onSent={reload} /></div>
         <section class="detail-panel go-to" aria-label="Go to">
           <p class="detail-kicker">Go to</p>

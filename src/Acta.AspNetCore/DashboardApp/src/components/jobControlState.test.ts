@@ -42,6 +42,18 @@ test('executing: only cancel/reprioritize available (in-flight rejects pause/res
   });
 });
 
+test("idle: a recurring job's slot between firings can be reset, run now, cancelled, or decommissioned", () => {
+  assert.deepEqual(jobControlState('idle', 'permanent-slot'), {
+    canPause: true,
+    canResume: false,
+    canRestart: true,
+    canCancel: true,
+    canReschedule: true,
+    canReprioritize: true,
+    canPurge: true
+  });
+});
+
 test('terminal statuses: only restart and purge are offered', () => {
   for (const status of TERMINAL_STATUSES) {
     assert.deepEqual(jobControlState(status), {

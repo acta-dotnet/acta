@@ -1,6 +1,13 @@
 import assert from 'node:assert/strict';
+import { readFileSync } from 'node:fs';
 import test from 'node:test';
-import { displayFormatter, failureCountText, parseUtcDateTimeInput } from './format.ts';
+import { JOB_STATUSES, displayFormatter, failureCountText, parseUtcDateTimeInput } from './format.ts';
+
+test("the jobs filter offers every status the server's jobs list accepts", () => {
+  const openApi = JSON.parse(readFileSync(new URL('../../../../docs/reference/openapi.json', import.meta.url), 'utf8'));
+  const status = openApi.paths['/acta/api/v1/jobs'].get.parameters.find((p: { name: string }) => p.name === 'status');
+  assert.deepEqual([...JOB_STATUSES].sort(), status.schema.enum.filter((s: string) => s !== 'unspecified').sort());
+});
 
 test('numbers use Latin digits, a decimal point, and no grouping', () => {
   assert.equal(displayFormatter.number(1234567.89), '1234567.89');

@@ -19,7 +19,7 @@
   import CopyButton from '../components/CopyButton.svelte';
   import { routes } from '../routes.ts';
   import type { ColumnDef } from '../components/grid/types.ts';
-  import { displayFormatter, failureCountText, TERMINAL_STATUSES } from '../format.ts';
+  import { displayFormatter, failureCountText, JOB_STATUSES, TERMINAL_STATUSES } from '../format.ts';
 
   interface JobRow {
     jobRef: string;
@@ -33,7 +33,7 @@
     failureCount: number;
   }
 
-  const statuses = ['', 'Paused', 'Suspended', 'Ready', 'Blocked', 'Executing', 'Done', 'Failed', 'Cancelled'];
+  const statuses = ['', ...JOB_STATUSES];
   const initial = hashParams();
   const filters = createUrlFilters(
     { status: 'status', jobName: 'jobName', correlationKey: 'correlationKey', tenantName: 'tenantName', lane: 'lane', tags: 'tags', view: 'view' },

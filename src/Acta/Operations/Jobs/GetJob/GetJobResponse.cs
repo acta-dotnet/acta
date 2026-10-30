@@ -13,6 +13,7 @@ namespace Acta;
 public sealed record GetJobResponse(
     [property: JsonIgnore] long JobId,
     JobRef JobRef,
+    JobKindCode Kind,
     string JobNamespace,
     [property: JsonIgnore] int DefinitionId,
     string JobName,

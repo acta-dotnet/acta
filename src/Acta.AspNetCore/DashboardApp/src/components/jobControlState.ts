@@ -14,7 +14,7 @@ export interface JobControlState {
   canPurge: boolean;
 }
 
-export function jobControlState(status: string): JobControlState {
+export function jobControlState(status: string, kind = 'ordinary'): JobControlState {
   const terminal = TERMINAL_STATUSES.includes(status);
   return {
     canPause: !terminal && status !== 'paused',
@@ -25,7 +25,8 @@ export function jobControlState(status: string): JobControlState {
     canReschedule: !terminal && status !== 'executing',
     // ReprioritizeAsync: any non-terminal row (including in-flight) accepts a new priority.
     canReprioritize: !terminal,
-    // PurgeAsync: only a terminal job (done/failed/cancelled) may be purged.
-    canPurge: terminal
+    // PurgeAsync: a terminal job, or a recurring job's Idle slot being decommissioned (the server checks
+    // that nothing pins it).
+    canPurge: terminal || (kind === 'permanent-slot' && status === 'idle')
   };
 }

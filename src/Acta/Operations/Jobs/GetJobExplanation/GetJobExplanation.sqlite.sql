@@ -9,6 +9,7 @@ SELECT
     j.job_ref,
     ns.namespace_name AS job_namespace,
     jd.definition_name AS job_name,
+    j.job_kind_code AS kind,
     r.job_status_code AS status,
     r.failure_count,
     jd.max_attempts_effective,
@@ -64,7 +65,7 @@ FROM {{schema}}.steps s
 WHERE s.job_id = @p_job_id
 ORDER BY s.created_at_utc, s.step_name;
 
--- 3) Checkpoints: signal / timer / variable / progress / child-latch slots, ordered by kind then name.
+-- 3) Checkpoints of every kind, ordered by kind then name.
 SELECT
     c.checkpoint_kind_code AS kind,
     c.checkpoint_name,

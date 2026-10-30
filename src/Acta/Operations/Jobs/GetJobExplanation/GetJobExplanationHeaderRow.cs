@@ -12,6 +12,7 @@ internal sealed record GetJobExplanationHeaderRow(
     Guid JobRef,
     string JobNamespace,
     string JobName,
+    JobKindCode Kind,
     JobStatusCode Status,
     int FailureCount,
     int MaxAttemptsEffective,

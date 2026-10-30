@@ -27,7 +27,7 @@
       queryFn: async ({ signal }) => {
         const [overview, failedJobs, criticalAlerts, workers, schedules, outbox] = await Promise.all([
           api('overview', { jobNamespace: ns }, { signal }),
-          api('jobs', { status: 'Failed', pageSize: 10, jobNamespace: ns }, { signal }),
+          api('jobs', { status: 'failed', pageSize: 10, jobNamespace: ns }, { signal }),
           api('alerts', { unresolvedOnly: true, severityAtLeast: 'Critical', pageSize: 10, jobNamespace: ns }, { signal }),
           api('workers', { pageSize: 10, jobNamespace: ns }, { signal }),
           api('schedules', { pageSize: 10, jobNamespace: ns }, { signal }),
@@ -88,7 +88,7 @@
         text: ns
           ? waiting + ' while ' + plural(o.executorCapacity, 'executor slot') + ' sit idle'
           : waiting + ' with nothing executing',
-        href: routes.jobs({ namespace: ns, status: 'Ready' })
+        href: routes.jobs({ namespace: ns, status: 'ready' })
       });
     }
 
@@ -97,14 +97,14 @@
     // do not feed the verdict at all.
     const soft = [];
     if (o.oldestReadyAgeSeconds > 300 && !stalled) {
-      soft.push({ text: 'oldest ready job waiting ' + displayFormatter.duration(o.oldestReadyAgeSeconds), href: routes.jobs({ namespace: ns, status: 'Ready' }) });
+      soft.push({ text: 'oldest ready job waiting ' + displayFormatter.duration(o.oldestReadyAgeSeconds), href: routes.jobs({ namespace: ns, status: 'ready' }) });
     }
     // A schedule that stops firing moves nothing else on this snapshot: no job is enqueued, so ready,
     // failed and the workers all stay quiet while the verdict would otherwise read clean.
     if (o.scheduleLagSeconds > SCHEDULE_LAG_ENVELOPE) {
       soft.push({ text: 'schedule overdue by ' + displayFormatter.duration(o.scheduleLagSeconds), href: routes.schedules({ namespace: ns }) });
     }
-    if (o.failedCount > 0) soft.push({ text: plural(o.failedCount, 'failed job'), href: routes.jobs({ namespace: ns, status: 'Failed' }) });
+    if (o.failedCount > 0) soft.push({ text: plural(o.failedCount, 'failed job'), href: routes.jobs({ namespace: ns, status: 'failed' }) });
     if (o.staleWorkerCount > 0) soft.push({ text: plural(o.staleWorkerCount, 'stale worker'), href: routes.workers({ namespace: ns }) });
     if (o.unresolvedAlertCount > 0 && o.unresolvedCriticalAlertCount === 0) {
       soft.push({ text: plural(o.unresolvedAlertCount, 'unresolved alert'), href: routes.alerts({ namespace: ns }) });
@@ -161,7 +161,7 @@
     {/if}
 
     <div class="metrics">
-      <MetricCard label="Ready" icon="clock" value={overview.readyCount} href={routes.jobs({ namespace: $scope, status: 'Ready' })} />
+      <MetricCard label="Ready" icon="clock" value={overview.readyCount} href={routes.jobs({ namespace: $scope, status: 'ready' })} />
       <MetricCard
         label="Oldest ready" icon="stopwatch"
         value={displayFormatter.duration(overview.oldestReadyAgeSeconds)}
@@ -174,12 +174,12 @@
         hint={overview.executorCapacity > 0
           ? 'Claimed jobs, including finished ones whose completion is queued for its write, so the count can pass the ' + displayFormatter.number(overview.executorCapacity) + ' executor slots across live workers'
           : 'No live workers, so nothing can be claimed'}
-        href={routes.jobs({ namespace: $scope, status: 'Executing' })} />
+        href={routes.jobs({ namespace: $scope, status: 'executing' })} />
       <MetricCard
         label="Failed" icon="x-circle"
         value={overview.failedCount}
         tone={overview.failedCount > 0 ? 'bad' : 'ok'}
-        href={routes.jobs({ namespace: $scope, status: 'Failed' })} />
+        href={routes.jobs({ namespace: $scope, status: 'failed' })} />
       <MetricCard
         label="Unresolved alerts" icon="bell"
         value={overview.unresolvedAlertCount}

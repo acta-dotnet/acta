@@ -330,6 +330,8 @@ export function statusIcon(status: string): string {
   }
 }
 
+// A job's statuses as the jobs filter offers them; format.test.ts pins the list to the server's own.
+export const JOB_STATUSES = ['idle', 'paused', 'suspended', 'ready', 'blocked', 'executing', 'succeeded', 'failed', 'cancelled'];
 export const TERMINAL_STATUSES = ['succeeded', 'failed', 'cancelled'];
 
 // A job's failure count saturates at 32767, so a count at the ceiling says "at least", not how many.

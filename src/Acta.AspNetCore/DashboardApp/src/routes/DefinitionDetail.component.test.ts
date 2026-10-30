@@ -12,6 +12,8 @@ const definition = {
   status: 'active',
   inputTypeName: 'SendInvoiceInput',
   outputTypeName: 'SendInvoiceOutput',
+  scheduledDelivery: 'per-occurrence',
+  firingFailurePolicy: 'pause-scheduling',
   priority: 'normal',
   priorityOverride: null,
   priorityEffective: 'normal',
@@ -186,6 +188,14 @@ describe('DefinitionDetail retire', () => {
     );
     return calls;
   }
+
+  it('shows what a schedule on the definition delivers and what a failed firing does', async () => {
+    stubDetail(definition);
+    render(DefinitionDetailHarness, { jobNamespace, jobName });
+
+    expect(await screen.findByText('per-occurrence')).toBeTruthy();
+    expect(screen.getByText('pause-scheduling')).toBeTruthy();
+  });
 
   it('offers the retire action on an active definition', async () => {
     stubDetail(definition);

@@ -76,7 +76,7 @@ export interface JobsSqlFilters {
 export function jobsListSql(filters: JobsSqlFilters, dialect: SqlDialect = {}): string {
   const predicates: Predicate[] = [];
   if (text(filters.namespace)) predicates.push({ column: 'namespace', op: '=', value: name(filters.namespace) });
-  // The view's status column is the decoded kebab code (lowercase); the filter carries the display casing.
+  // The view's status column is the decoded kebab code (lowercase); a bookmarked filter may carry another casing.
   if (text(filters.status)) predicates.push({ column: 'status', op: '=', value: text(filters.status).toLowerCase() });
   if (text(filters.jobName)) predicates.push({ column: 'job_name', op: '=', value: name(filters.jobName) });
   if (text(filters.correlationKey))

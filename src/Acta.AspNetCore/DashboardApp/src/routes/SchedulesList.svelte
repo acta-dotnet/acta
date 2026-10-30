@@ -28,6 +28,8 @@
     timeZoneId: string;
     misfireStrategy: string;
     nextOccurrenceAtUtc: string | null;
+    nextEvaluationAtUtc: string | null;
+    evaluationStatus: string;
     pausedUntilUtc: string | null;
   }
 
@@ -71,11 +73,16 @@
     return !!schedule.nextOccurrenceAtUtc && new Date(schedule.nextOccurrenceAtUtc).getTime() - nowMs < 900000;
   }
 
-  // An active schedule whose next-run time is already in the past should have fired - flag it so a
-  // stuck controller (or a namespace with no live worker) is obvious at a glance.
+  // A schedule whose next evaluation is already past is one the admitter should have reached - flag it
+  // so a namespace with no live worker is obvious at a glance. The engine leaves the instant empty while
+  // a schedule waits for its firing or its limit, or is paused for good.
   function isOverdue(schedule: ScheduleRow, nowMs: number): boolean {
-    return schedule.status !== 'paused' && !!schedule.nextOccurrenceAtUtc && new Date(schedule.nextOccurrenceAtUtc).getTime() < nowMs;
+    return !!schedule.nextEvaluationAtUtc && new Date(schedule.nextEvaluationAtUtc).getTime() < nowMs;
   }
+
+  // Every evaluation status but the normal ones is worth a badge; the two the engine cannot get past warn.
+  const QUIET_EVALUATIONS = ['scheduled', 'resumed', 'unspecified'];
+  const WARN_EVALUATIONS = ['evaluation-error', 'slot-unavailable'];
 
   function jobsHref(schedule: ScheduleRow): string {
     return routes.jobs({ jobName: schedule.jobName, namespace: schedule.jobNamespace });
@@ -126,6 +133,9 @@
       {:else}
         <RelativeTime value={schedule.nextOccurrenceAtUtc} />
         {#if isOverdue(schedule, $now)}<span class="badge warn">overdue</span>{/if}
+        {#if !QUIET_EVALUATIONS.includes(schedule.evaluationStatus)}
+          <span class="badge" class:warn={WARN_EVALUATIONS.includes(schedule.evaluationStatus)}>{schedule.evaluationStatus.replaceAll('-', ' ')}</span>
+        {/if}
       {/if}
     {/snippet}
     {#snippet actionsCell(schedule: ScheduleRow)}

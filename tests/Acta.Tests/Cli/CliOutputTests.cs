@@ -50,6 +50,7 @@ public class CliOutputTests
         var s = new GetJobResponse(
             JobId: 7,
             JobRef: SampleJobRef,
+            Kind: JobKindCode.Ordinary,
             LineageRootJobId: null,
             LineageRootJobRef: null,
             ParentJobId: null,
@@ -115,6 +116,7 @@ public class CliOutputTests
         new(
             JobId: 7,
             JobRef: JobRef.New(),
+            Kind: JobKindCode.Ordinary,
             LineageRootJobId: null,
             LineageRootJobRef: null,
             ParentJobId: null,
@@ -241,6 +243,7 @@ public class CliOutputTests
         var s = new GetJobResponse(
             JobId: 7,
             JobRef: JobRef.New(),
+            Kind: JobKindCode.Ordinary,
             LineageRootJobId: null,
             LineageRootJobRef: null,
             ParentJobId: null,
@@ -594,6 +597,7 @@ public class CliOutputTests
         new(
             JobId: SentinelJobId,
             JobRef: SampleJobRef,
+            Kind: JobKindCode.Ordinary,
             LineageRootJobId: SentinelLineageRootJobId,
             LineageRootJobRef: SentinelLineageRootJobRef,
             ParentJobId: SentinelParentJobId,

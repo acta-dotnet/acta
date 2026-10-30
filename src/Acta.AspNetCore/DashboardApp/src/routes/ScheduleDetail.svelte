@@ -84,24 +84,37 @@
   const capabilities = createQuery(() => capabilitiesQuery());
   let canControlNow = $derived(canControl(capabilities.data));
 
-  // Schedule lifecycle events (schedule.*) are recorded against the slot job, whose timeline is
-  // dominated by execution/rollover rows. Query each lifecycle code directly (server-side eventCode
-  // filter) so a busy schedule's executions can't crowd them out, then merge newest-first. The slot
-  // can carry several schedules, so a row whose details.schedule names another one is dropped.
-  const HISTORY_CODES = ['schedule.paused', 'schedule.resumed', 'schedule.pause-expired', 'schedule.triggered'];
+  // Schedule lifecycle events carry the definition's id whichever row they are recorded against: the
+  // slot job of a permanent definition, or the definition itself for a per-occurrence one, which has no
+  // slot. Read each code through the definition's events (server-side eventCode filter) so executions
+  // can't crowd them out, then merge newest-first. A definition can carry several schedules, so a row
+  // whose details.schedule names another one is dropped, and a code reads on until twenty are this one's.
+  const HISTORY_CODES = [
+    'schedule.paused',
+    'schedule.resumed',
+    'schedule.pause-expired',
+    'schedule.triggered',
+    'schedule.skipped',
+    'schedule.retimed'
+  ];
+  let definitionEvents = $derived(`definitions/${encodeURIComponent(jobNamespace)}/${encodeURIComponent(jobName)}/events`);
+  async function scheduleEvents(eventCode: string, signal: AbortSignal): Promise<HistoryEvent[]> {
+    const found: HistoryEvent[] = [];
+    let cursor: string | undefined;
+    for (let guard = 0; guard < 10 && found.length < 20; guard++) {
+      const page = await api<Paged<HistoryEvent>>(definitionEvents, { eventCode, pageSize: 100, cursor }, { signal });
+      found.push(...page.items.filter((ev) => (eventFacts(ev.detailsText).schedule ?? scheduleName) === scheduleName));
+      if (!page.hasMore || !page.nextCursor) break;
+      cursor = page.nextCursor;
+    }
+    return found;
+  }
   const history = createQuery(() => ({
-    queryKey: keys.detail('schedule-history', `${schedule?.jobRef ?? ''}/${scheduleName}`),
+    queryKey: keys.detail('schedule-history', `${jobNamespace}/${jobName}/${scheduleName}`),
     queryFn: async ({ signal }: { signal: AbortSignal }) => {
-      const pages = await Promise.all(
-        HISTORY_CODES.map((eventCode) =>
-          api<Paged<HistoryEvent>>('events', { jobRef: schedule!.jobRef, eventCode, pageSize: 20 }, { signal }).then(
-            (page) => page.items.filter((ev) => (eventFacts(ev.detailsText).schedule ?? scheduleName) === scheduleName)
-          )
-        )
-      );
+      const pages = await Promise.all(HISTORY_CODES.map((eventCode) => scheduleEvents(eventCode, signal)));
       return mergeHistory(pages);
-    },
-    enabled: !!schedule?.jobRef
+    }
   }));
 
   let loading = $derived(detail.isPending);
@@ -190,7 +203,7 @@
               </dd>
             </div>
             <div><dt>Next occurrence</dt><dd><RelativeTime value={schedule.nextOccurrenceAtUtc} /></dd></div>
-            <div><dt>Next evaluation</dt><dd><RelativeTime value={schedule.nextEvaluationAtUtc} /> · {schedule.evaluationStatus}</dd></div>
+            <div><dt>Next evaluation</dt><dd>{#if schedule.nextEvaluationAtUtc}<RelativeTime value={schedule.nextEvaluationAtUtc} /> · {/if}{schedule.evaluationStatus}</dd></div>
           </dl>
           <p class="detail-help">
             Misfire strategy governs occurrences missed while no host admitted them: skip to the next one, catch up once,

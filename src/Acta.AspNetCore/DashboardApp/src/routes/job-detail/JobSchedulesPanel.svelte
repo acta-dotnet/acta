@@ -26,8 +26,8 @@
   <section class="detail-panel" aria-label="Job schedules">
     <h2>Schedules</h2>
     <p class="detail-help">
-      Recurring schedules bound to this job's slot. Pause, resume, trigger, or override each one; open a
-      schedule for its full timing detail and change history.
+      Recurring schedules bound to this job's slot. Pause, resume, or trigger each one; open a schedule for
+      its full timing detail and change history.
     </p>
     <div class="schedule-list">
       {#each schedules as schedule (schedule.jobNamespace + '/' + schedule.jobName + '/' + schedule.scheduleName)}

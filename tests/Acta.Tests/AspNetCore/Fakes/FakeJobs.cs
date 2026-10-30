@@ -424,6 +424,7 @@ internal sealed class FakeJobs : IJobs
         new(
             JobId: jobId,
             JobRef: jobId == 42 ? FoundJobRef : JobRef.New(),
+            Kind: JobKindCode.Ordinary,
             LineageRootJobId: null,
             LineageRootJobRef: null,
             ParentJobId: null,

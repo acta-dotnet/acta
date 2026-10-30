@@ -1,6 +1,7 @@
 SELECT
     j.job_id,
     j.job_ref,
+    j.job_kind_code AS kind,
     j.lineage_root_job_id,
     lroot.job_ref AS lineage_root_job_ref,
     j.parent_job_id,

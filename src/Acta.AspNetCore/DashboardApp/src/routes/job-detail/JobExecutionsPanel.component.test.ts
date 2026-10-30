@@ -9,6 +9,7 @@ const workerRef = 'wrk_019f9b3508007e4dbfd13d9d20bc81f4';
 function executingJob(executionNumber: number): JobDetail {
   return {
     jobRef: 'job_019f9b3509487d1b911f2020158384a3',
+    kind: 'ordinary',
     jobNamespace: 'billing',
     jobName: 'send-invoice',
     lineageRootJobRef: null,

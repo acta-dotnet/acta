@@ -286,7 +286,7 @@
 {#if showActions && confirming === 'pause'}
   <ConfirmAction
     title={'Pause schedule ' + scheduleName + '?'}
-    body="The schedule stops firing until resumed; the owning slot is re-armed over its remaining schedules."
+    body="The schedule stops firing until resumed. Its cursor stays where it is, and a firing already running finishes."
     confirmLabel="Pause schedule"
     requireReason={true}
     onConfirm={(note) => run('pause', note)}
@@ -296,7 +296,7 @@
 {#if showActions && confirming === 'resume'}
   <ConfirmAction
     title={'Resume schedule ' + scheduleName + '?'}
-    body="The schedule becomes eligible to fire again, reconciled by its misfire policy."
+    body="The schedule fires again from its kept cursor; the occurrences it missed while paused are decided by its misfire policy at the next pass."
     confirmLabel="Resume schedule"
     requireReason={true}
     onConfirm={(note) => run('resume', note)}
@@ -306,8 +306,7 @@
 {#if showActions && confirming === 'trigger'}
   <ConfirmAction
     title={'Trigger schedule ' + scheduleName + ' now?'}
-    body="Fires the schedule immediately, independent of its cadence. The owning job's current slot state still governs legality - a terminal slot is cleanly rejected."
-    warning="This starts another execution now. It may run alongside work already in progress if the job is not idempotent."
+    body="Runs the job once now, outside the schedule's cadence, and leaves the cursor where it is. A recurring job must be idle with no firing outstanding, and a per-occurrence schedule must be under its limit, or the trigger is rejected."
     confirmLabel="Trigger now"
     requireReason={true}
     onConfirm={(note) => run('trigger', note)}

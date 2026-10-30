@@ -186,6 +186,18 @@ internal sealed class GetJobExplanationHandler(GetJobIdHandler getJobId, IDbSess
                 break;
         }
 
+        // A recurring job's slot refuses a restart and a trigger while a firing is outstanding; the envelope is the
+        // scheduler's own checkpoint, so this is where an operator learns why the verb was rejected. A per-occurrence
+        // root carries one too, but restarts, and its schedule triggers again below capacity.
+        if (
+            h.Kind == JobKindCode.PermanentSlot
+            && status != JobStatusCode.Executing
+            && data.Checkpoints.Any(c => c.Kind == CheckpointKindCode.Firing && c.Status == CheckpointStatusCode.Pending)
+        )
+        {
+            headline += " A firing is outstanding: restart and trigger now are rejected until it settles.";
+        }
+
         return new GetJobExplanationResponse(
             h.JobId,
             new JobRef(h.JobRef),

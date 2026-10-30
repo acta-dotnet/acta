@@ -10,9 +10,10 @@
   import ConfirmAction from './ConfirmAction.svelte';
   import Icon from './Icon.svelte';
 
-  let { jobRef, status, priority = null, onChanged = () => {} }: {
+  let { jobRef, status, kind = 'ordinary', priority = null, onChanged = () => {} }: {
     jobRef: string;
     status: string;
+    kind?: string;
     priority?: string | null;
     onChanged?: () => void;
   } = $props();
@@ -33,8 +34,9 @@
 
   // The server stays authoritative on legality; this only hides obviously inapplicable buttons.
   let { canPause, canResume, canRestart, canCancel, canReschedule, canReprioritize, canPurge } = $derived(
-    jobControlState(status)
+    jobControlState(status, kind)
   );
+  let slot = $derived(kind === 'permanent-slot');
 
   const text: Record<
     string,
@@ -105,6 +107,23 @@
       warning: 'This permanently removes the job and its entire history. It cannot be undone.'
     }
   };
+
+  // A recurring job's slot is never re-run directly: a restart or a resume returns it to Idle, where its next due
+  // schedule finds it, and a purge decommissions it, which the server allows only once nothing pins the slot.
+  const slotText: Record<string, Partial<(typeof text)[string]>> = {
+    restart: {
+      body: "Resets this recurring job's failure budget and returns it to Idle; its next due schedule runs it. Run now runs it at once.",
+      label: 'Reset recurring job',
+      warning: ''
+    },
+    resume: {
+      body: 'Returns this recurring job to Idle for its next due schedule, or, if it was paused mid-firing, lets that firing run.'
+    },
+    purge: {
+      body: "Permanently deletes this recurring job's slot with its steps, variables, and history. The server allows it only once nothing pins the slot: every schedule orphaned, or the definition retired."
+    }
+  };
+  let copy = $derived(confirming ? { ...text[confirming], ...(slot ? slotText[confirming] : undefined) } : null);
 
   // Echo back both readings so the operator can see the UTC entry is not their local clock -
   // same pattern as ScheduleControls' pause-until preview.
@@ -206,7 +225,7 @@
     {#if canControlNow}
       {#if canPause}<button disabled={busy} onclick={() => openAction('pause')}><Icon name="pause" />Pause</button>{/if}
       {#if canResume}<button disabled={busy} onclick={() => openAction('resume')}><Icon name="play" />Resume</button>{/if}
-      {#if canRestart}<button disabled={busy} onclick={() => openAction('restart')}><Icon name="reload" />Run again</button>{/if}
+      {#if canRestart}<button disabled={busy} onclick={() => openAction('restart')}><Icon name="reload" />{slot ? 'Reset' : 'Run again'}</button>{/if}
       {#if canReschedule}<button disabled={busy} onclick={() => openAction('runNow')}><Icon name="lightning-bolt" />Run now</button>{/if}
       {#if canReschedule}<button disabled={busy} onclick={() => openAction('reschedule')}><Icon name="clock" />Change run time</button>{/if}
       {#if canReprioritize}<button disabled={busy} onclick={() => openAction('reprioritize')}><Icon name="chevron-right" />Change priority</button>{/if}
@@ -262,15 +281,15 @@
   {/if}
 </section>
 
-{#if confirming}
+{#if copy}
   <ConfirmAction
-    title={text[confirming].title.replace('job?', 'job ' + jobRef + '?')}
-    body={confirming === 'reschedule' ? rescheduleBody : confirming === 'reprioritize' ? reprioritizeBody : text[confirming].body}
-    confirmLabel={text[confirming].label}
-    danger={text[confirming].danger}
-    requireReason={text[confirming].requireReason}
+    title={copy.title.replace('job?', 'job ' + jobRef + '?')}
+    body={confirming === 'reschedule' ? rescheduleBody : confirming === 'reprioritize' ? reprioritizeBody : copy.body}
+    confirmLabel={copy.label}
+    danger={copy.danger}
+    requireReason={copy.requireReason}
     showReason={confirming !== 'purge'}
-    warning={text[confirming].warning}
+    warning={copy.warning}
     confirmPhrase={confirming === 'purge' ? jobRef : ''}
     onConfirm={confirmAction}
     onCancel={cancelConfirmation} />
