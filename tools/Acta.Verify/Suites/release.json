@@ -80,8 +80,8 @@
     "chaos"
   ],
   "warmup_seconds": 5,
-  "ladder_seconds": 20,
-  "single_seconds": 15,
+  "ladder_seconds": 30,
+  "single_seconds": 30,
   "passes": 1,
   "headline_passes": 3,
   "confirm_seconds": 120,

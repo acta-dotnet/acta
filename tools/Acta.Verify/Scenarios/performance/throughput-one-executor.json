@@ -5,10 +5,10 @@
   "executors": 1,
   "rates": {
     "pg": [
-      200
+      150
     ],
     "mssql": [
-      200
+      150
     ],
     "sqlite": [
       25

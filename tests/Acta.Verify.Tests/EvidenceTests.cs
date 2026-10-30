@@ -84,8 +84,8 @@ public sealed class EvidenceTests
     {
         var plan = Protocol.Plan("release", ["sqlite", "pg", "mssql"], 1729);
         Assert.Equal(5, plan.Suite.WarmupSeconds);
-        Assert.Equal(20, plan.Suite.LadderSeconds);
-        Assert.Equal(15, plan.Suite.SingleSeconds);
+        Assert.Equal(30, plan.Suite.LadderSeconds);
+        Assert.Equal(30, plan.Suite.SingleSeconds);
         Assert.Equal(3, plan.Suite.HeadlinePasses);
         Assert.Equal(120, plan.Suite.ConfirmSeconds);
         Assert.Equal(300, plan.Scenario("soak").Seconds);

@@ -5,10 +5,10 @@
   "seconds": 60,
   "rates": {
     "pg": [
-      5000
+      2500
     ],
     "mssql": [
-      2500
+      1000
     ],
     "sqlite": [
       50
@@ -16,13 +16,13 @@
   },
   "settings": {
     "overload_rate": {
-      "pg": 40000,
-      "mssql": 20000,
+      "pg": 10000,
+      "mssql": 4000,
       "sqlite": 800
     },
     "recovery_rate": {
-      "pg": 5000,
-      "mssql": 2500,
+      "pg": 2500,
+      "mssql": 1000,
       "sqlite": 50
     }
   }

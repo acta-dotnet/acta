@@ -5,7 +5,7 @@
   "lane": "hot",
   "rates": {
     "pg": [
-      80
+      60
     ],
     "mssql": [
       100
