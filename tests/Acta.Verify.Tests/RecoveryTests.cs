@@ -1,3 +1,4 @@
+using System.Globalization;
 using System.Text.Json;
 using Acta.Verify;
 using Xunit;
@@ -116,41 +117,96 @@ public sealed class RecoveryTests : IDisposable
     }
 
     [Fact]
-    public void Report_leads_with_each_measured_scenario()
+    public void Report_answers_first_with_the_verdict_table_and_the_claim_line()
     {
-        var plan = Protocol.Plan("release", ["pg"], 1729, ["drain", "enqueue-one-per-call"]);
+        var plan = Protocol.Plan("release", ["pg"], 1729, ["drain", "throughput"]);
+        var floor = plan.Scenario("throughput").Rates["pg"][0];
+        var next = plan.Scenario("throughput").Rates["pg"][1];
         var bundle = new EvidenceBundle(_root, plan.RunId);
         bundle.Write("resolved-plan.json", plan, VerifyJson.Default.RunPlan);
+        bundle.Write(
+            "environment.json",
+            new Dictionary<string, string> { ["cpu_model"] = "Test CPU" },
+            VerifyJson.Default.DictionaryStringString
+        );
         Finish(
             bundle,
-            "INCONCLUSIVE",
+            "PASS",
             [
-                Trial("drain", 1, "VALID", new() { ["primary_rate"] = new(19_000, "roots/s"), ["intended_roots"] = new(1000, "roots") }),
-                Trial("drain", 2, "VALID", new() { ["primary_rate"] = new(11_000, "roots/s"), ["intended_roots"] = new(1000, "roots") }),
-                Trial(
-                    "enqueue-one-per-call",
-                    1,
-                    "UNSTABLE",
-                    new()
-                    {
-                        ["admission_p50"] = new(5, "ms"),
-                        ["admission_p99"] = new(9, "ms"),
-                        ["latency_p50"] = new(7861, "ms"),
-                    }
-                ),
+                .. Enumerable
+                    .Range(1, 3)
+                    .Select(pass =>
+                        Trial("drain", "measure", pass, "VALID", new() { ["db_steady_drain_rate"] = new(60_000 + pass * 5_000, "roots/s") })
+                    ),
+                .. Enumerable
+                    .Range(1, 3)
+                    .SelectMany(pass =>
+                        new[]
+                        {
+                            Trial("throughput", "measure", pass, "VALID", Rate(floor, floor, 900)),
+                            Trial("throughput", "measure", pass, "UNSTABLE", Rate(next, next * 0.9, 2500, backlog: 840)),
+                        }
+                    ),
+                Trial("throughput", "confirm", 1, "VALID", Rate(floor, 9_990, 1_000)),
             ]
         );
         var report = File.ReadAllText(bundle.Resolve("report.md"));
-        Assert.Contains("| 2 VALID |", report, StringComparison.Ordinal);
-        Assert.Contains("15,000 (11,000-19,000)", report, StringComparison.Ordinal);
-        // Admission cases report admission latency, both percentiles from the same distribution.
-        Assert.Contains("Admission p50 ms", report, StringComparison.Ordinal);
-        Assert.Contains("| 1 UNSTABLE |", report, StringComparison.Ordinal);
-        Assert.Contains("| 5 | 9 |", report, StringComparison.Ordinal);
-        Assert.True(report.IndexOf("## drain", StringComparison.Ordinal) < report.IndexOf("## Environment", StringComparison.Ordinal));
+        Assert.StartsWith("# Acta Verify: PASS", report, StringComparison.Ordinal);
+        Assert.Contains("| Throughput | 9,990 jobs/s |", report, StringComparison.Ordinal);
+        Assert.Contains("| Drain | 70,000 jobs/s |", report, StringComparison.Ordinal);
+        Assert.Contains("> **9,990 fully executed, durably completed jobs per second** on PostgreSQL", report, StringComparison.Ordinal);
+        Assert.Contains("missed: backlog grew 840 jobs/s", report, StringComparison.Ordinal);
+        Assert.Contains(
+            string.Create(CultureInfo.InvariantCulture, $"Highest rate held in every pass: PostgreSQL {floor:N0}/s"),
+            report,
+            StringComparison.Ordinal
+        );
+        Assert.True(
+            report.IndexOf("## Performance", StringComparison.Ordinal)
+                < report.IndexOf("## How this run was made", StringComparison.Ordinal)
+        );
 
-        static CaseResult Trial(string id, int repetition, string measurement, Dictionary<string, Metric> metrics) =>
-            new(id, "pg", "measure", repetition, "PASS", null, "PASS", "PASS", "COMPLETE", measurement, metrics, []);
+        static Dictionary<string, Metric> Rate(double offered, double completed, double p99, double backlog = 0) =>
+            new()
+            {
+                ["offered_rate"] = new(offered, "roots/second"),
+                ["window_completed_rate"] = new(completed, "roots/second"),
+                ["primary_latency_p99"] = new(p99, "milliseconds"),
+                ["backlog_slope"] = new(backlog, "roots/second"),
+                ["backlog_slope_tolerance"] = new(offered / 100, "roots/second"),
+                ["scheduled_window_seconds"] = new(20, "seconds"),
+                ["worker_processes"] = new(4, "processes"),
+            };
+
+        static CaseResult Trial(string id, string phase, int repetition, string measurement, Dictionary<string, Metric> metrics) =>
+            new(
+                id,
+                "pg",
+                phase,
+                repetition,
+                "PASS",
+                null,
+                "PASS",
+                "PASS",
+                "COMPLETE",
+                measurement,
+                metrics,
+                ["histories/trial-checks.json"]
+            );
+    }
+
+    [Fact]
+    public void The_site_benchmark_page_is_the_published_record()
+    {
+        var root = AppContext.BaseDirectory;
+        while (!File.Exists(Path.Combine(root, "Acta.slnx")))
+        {
+            root = Path.GetDirectoryName(root) ?? throw new InvalidOperationException("No repository root above the test binaries.");
+        }
+        var record = File.ReadAllText(Path.Combine(root, "docs", "benchmark.md"));
+        var page = File.ReadAllText(Path.Combine(root, "site", "benchmark.html")).Replace("\r\n", "\n", StringComparison.Ordinal);
+        // `acta-verify publish <run> --to docs/benchmark.md` writes both.
+        Assert.Equal(Report.SitePage(record), page);
     }
 
     [Fact]

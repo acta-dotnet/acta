@@ -160,9 +160,17 @@ public static class VerifyCommand
         }
         if (args is ["publish", var source, "--to", var target])
         {
-            _ = Load(source);
-            Directory.CreateDirectory(Path.GetDirectoryName(Path.GetFullPath(target))!);
-            File.Copy(Path.Combine(source, "report.md"), target, overwrite: true);
+            // A bundle is rendered afresh by this build; a Markdown record already published renders its site page only.
+            var markdown = Directory.Exists(source) ? Report.Markdown(source, Load(source)) : File.ReadAllText(source);
+            var record = Path.GetFullPath(target);
+            Directory.CreateDirectory(Path.GetDirectoryName(record)!);
+            File.WriteAllText(record, markdown.Replace("\r\n", "\n", StringComparison.Ordinal));
+            var site = Path.GetFullPath(Path.Combine(Path.GetDirectoryName(record)!, "..", "site"));
+            if (Directory.Exists(site))
+            {
+                File.WriteAllText(Path.Combine(site, "benchmark.html"), Report.SitePage(markdown));
+            }
+            Console.WriteLine($"Published {record}{(Directory.Exists(site) ? $" and {Path.Combine(site, "benchmark.html")}" : "")}.");
             return 0;
         }
         string? suite = null;

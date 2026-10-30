@@ -85,11 +85,11 @@ public sealed class NativeAotPublishTests
             foreach (
                 var argument in new[]
                 {
-                    "--quick",
+                    "quick",
                     "--db",
                     "sqlite",
-                    "--case",
-                    "C02",
+                    "--scenario",
+                    "checkpoint-depths",
                     "--output",
                     Path.Combine(publishDirectory, "smoke-evidence"),
                 }
