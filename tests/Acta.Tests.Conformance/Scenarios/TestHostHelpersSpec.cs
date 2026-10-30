@@ -10,7 +10,7 @@ namespace Acta.Tests.Conformance.Scenarios;
     "testing.test-host-helpers",
     "The test host's fast-forward helpers make only the named job's wait due",
     Area = "Testing",
-    Contract = "IActaTestHost makes a parked timer, step retry, bounded wait, child wait, or group wait due at once, and refuses a wait that has no deadline to move."
+    Contract = "IActaTestHost makes a parked timer, retry, bounded wait, or schedule due at once, admits a due schedule in one pass, and refuses a wait with no deadline."
 )]
 public sealed class TestHostHelpersSpec : ActaTestBase<ConformanceFixture>
 {
@@ -116,6 +116,39 @@ public sealed class TestHostHelpersSpec : ActaTestBase<ConformanceFixture>
         var single = await host.Jobs.EnqueueAsync(TestJobsManifest.JobWaitSignal(), ct: ct);
         await RunUntilWaitingAsync(host, single, "go", ct);
         await Assert.ThrowsAsync<InvalidOperationException>(() => host.ForceGroupWaitTimeoutDueAsync(single.JobId, ct));
+    }
+
+    /// <summary>
+    /// The host runs no admitter, so a scheduled job's slot stays Idle until a test forces its schedule due and
+    /// runs one admission pass; the pass is what moves the slot to Ready, and a run settles it back to Idle.
+    /// </summary>
+    [Fact(DisplayName = "The schedule helpers make a slot's schedule due and admit its firing")]
+    public async Task Schedule_helpers_make_the_slot_due_and_admit_it()
+    {
+        var ct = TestContext.Current.CancellationToken;
+        await using var host = await StartHostAsync(ct);
+        // The lookup canonicalizes like every schedule verb, so the name's casing does not matter.
+        var lookup = new ScheduleLookup(TestNamespace, "recurring-ping", "Every-5-Minutes");
+        var schedules = await host.Operations.Schedules.ListAsync(
+            new ListSchedulesQuery(JobNamespace: TestNamespace, JobName: "recurring-ping"),
+            ct
+        );
+        var slotId = (await host.Jobs.GetJobIdAsync(JobLookup.ByRef(Assert.Single(schedules.Items).JobRef!.Value), ct))!.JobId;
+
+        Assert.Equal(JobStatusCode.Idle, (await host.Jobs.GetStatusAsync(JobLookup.ById(slotId), ct))?.Status);
+        Assert.Equal(0, (await host.AdmitOnceAsync(TestNamespace, ct)).Admitted);
+
+        await host.ForceScheduleDueAsync(lookup, ct);
+        Assert.Equal(1, (await host.AdmitOnceAsync(TestNamespace, ct)).Admitted);
+        Assert.Equal(JobStatusCode.Ready, (await host.Jobs.GetStatusAsync(JobLookup.ById(slotId), ct))?.Status);
+
+        Assert.Equal(ActaRunStatus.Completed, await host.RunOnceAsync(slotId, ct));
+        var settled = (await host.Jobs.GetAsync(JobLookup.ById(slotId), ct))!;
+        Assert.Equal((JobStatusCode.Idle, 1), (settled.Status, settled.ExecutionNumber));
+
+        await Assert.ThrowsAsync<InvalidOperationException>(() =>
+            host.ForceScheduleDueAsync(new ScheduleLookup(TestNamespace, "recurring-ping", "no-such-schedule"), ct)
+        );
     }
 
     private static async Task RunUntilAsync(IActaTestHost host, EnqueueJobResponse job, JobStatusCode expected, CancellationToken ct)

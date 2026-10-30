@@ -1070,7 +1070,7 @@ The package is test-framework-agnostic (xUnit, NUnit, MSTest, TUnit). Its types 
 | Type | Role |
 |------|------|
 | `ActaTestHost.StartAsync(...)` | Stands up the full Acta runtime on a throwaway schema and returns the host; `ActaTestHostOptions` adds services and picks the schema |
-| `IActaTestHost` | `Jobs` (the public `IJobs` surface), `Operations`, `Services`, `Schema`, `RunOnceAsync`, `RunRecoveryOnceAsync`, and the `Force...DueAsync` helpers that make a retry, timer, wait timeout, or the job itself due now, plus `ExpireExecutionLeaseAsync` |
+| `IActaTestHost` | `Jobs` (the public `IJobs` surface), `Operations`, `Services`, `Schema`, `RunOnceAsync`, `RunRecoveryOnceAsync`, `AdmitOnceAsync`, and the `Force...DueAsync` helpers that make a retry, timer, wait timeout, schedule, or the job itself due now, plus `ExpireExecutionLeaseAsync` |
 | `ActaRunStatus` | What one drive tick did: `NothingClaimed`, `Completed`, `Failed`, `Rearmed` |
 
 ### The model
@@ -1241,6 +1241,27 @@ public async Task Retries_once_then_completes()
 
 With `MaxAttempts = 2`, making both attempts throw turns the second tick into
 `ActaRunStatus.Failed` and the row terminal.
+
+### Testing a scheduled job
+
+A `[Schedule]` registers a permanent slot that sits `Idle` until the admission engine finds a schedule
+due, and the test host runs no admitter loop, so a scheduled job fires through two helpers:
+`ForceScheduleDueAsync(lookup)` moves the schedule's next occurrence and evaluation instant to moments
+ago, inside the misfire grace, and `AdmitOnceAsync(namespace)` runs one admission pass, which admits
+the firing onto the slot and reports how many it admitted. The slot is then `Ready`, `RunOnceAsync`
+runs the firing like any job, and a success returns the slot to `Idle`.
+
+```csharp
+var lookup = new ScheduleLookup("shipping", "sync-orders", "every-5s");
+await host.ForceScheduleDueAsync(lookup);
+Assert.Equal(1, (await host.AdmitOnceAsync("shipping")).Admitted);
+Assert.Equal(ActaRunStatus.Completed, await host.RunOnceAsync(slotId));
+```
+
+A forced occurrence is admitted under the schedule's own misfire policy, a paused schedule stays
+paused, and a per-occurrence schedule admits a fresh root rather than a slot. A schedule bound to a
+calendar cannot be forced, since the admitter admits only the instants the calendar produces: give
+the host a clock and advance it to one of them, or fire the slot with `TriggerNowAsync`.
 
 ### Testing orchestration: signals
 

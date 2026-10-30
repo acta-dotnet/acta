@@ -48,6 +48,7 @@ Not tagged yet. rc.7 redesigns scheduling (the sections below grow with each ste
 
 ### Additions
 
+- `IActaTestHost` gains `ForceScheduleDueAsync(ScheduleLookup)` and `AdmitOnceAsync(namespace)`, so a test drives a scheduled job the way it drives a one-shot: force the schedule due, admit once, run once, with no admitter loop and no sleep. `ActaRunStatus.Completed` now says what a slot's success does: the slot returns to `Idle`.
 - The OpenAPI reference gives every operation an id derived from its route, `GetJobsByJobRef` or `PostJobsByJobRefPause`, the same under any mount; every control lists the mount's confirmation header with its one value; `POST /jobs` documents its `Location` header on 201 and 200 and carries a request example, as does a tag upsert; and the document's description states the cursor paging. The generator writes one document per mount, a read-only mount's without the controls. ASP.NET endpoint names stay unset.
 - `POST /jobs` takes `lane`, `concurrencyKey`, and `tags` (`[{ "name": "source", "value": "dashboard" }]`, the value optional), the metadata `IJobs.EnqueueAsync` already took, under the same rules and defaults; an omitted member behaves as before. The dashboard's enqueue form shows the three fields and checks them before sending.
 

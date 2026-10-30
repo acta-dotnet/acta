@@ -2352,12 +2352,13 @@
   - An IN predicate filters to the matching status set
 
 ### The test host's fast-forward helpers make only the named job's wait due
-- **Contract:** IActaTestHost makes a parked timer, step retry, bounded wait, child wait, or group wait due at once, and refuses a wait that has no deadline to move.
+- **Contract:** IActaTestHost makes a parked timer, retry, bounded wait, or schedule due at once, admits a due schedule in one pass, and refuses a wait with no deadline.
 - **Guarantees:**
   - The timer and step-retry helpers make the parked job due
   - The wait-timeout helper expires a bounded wait and rejects an unbounded one
   - The wait-timeout helper expires a bounded child wait by its latch name
   - The group wait-timeout helper expires a whole group and rejects a job without one
+  - The schedule helpers make a slot's schedule due and admit its firing
 
 ## Variables
 

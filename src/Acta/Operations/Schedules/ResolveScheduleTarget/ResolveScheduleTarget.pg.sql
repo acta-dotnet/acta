@@ -7,7 +7,6 @@ SELECT
     t.schedule_name,
     t.expression,
     t.time_zone_id,
-    t.misfire_strategy_code AS misfire_strategy,
     t.expression_kind_code AS expression_kind,
     st.next_occurrence_at_utc,
     t.schedule_status_code AS status,

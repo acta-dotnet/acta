@@ -236,6 +236,51 @@ public static class ActaTestHost
             }
         }
 
+        public async Task ForceScheduleDueAsync(ScheduleLookup schedule, CancellationToken ct = default)
+        {
+            ArgumentNullException.ThrowIfNull(schedule);
+            var path = $"{schedule.JobNamespace}/{schedule.JobName}/{schedule.ScheduleName}";
+            var target =
+                await provider.GetRequiredService<SchedulesOperations>().ResolveTargetAsync(schedule, ct)
+                ?? throw new InvalidOperationException($"Schedule '{path}' does not exist; register it before forcing it due.");
+            if (target.Timing.ExpressionKind == ScheduleExpressionKindCode.Calendar || target.Timing.AvailabilityCalendarName is not null)
+            {
+                // The admitter skips a cursor the calendar does not produce, so an arbitrary instant can never be due.
+                throw new InvalidOperationException(
+                    $"Schedule '{path}' is bound to a calendar, which admits only the instants the calendar produces; advance the host's clock to one of them, or fire the slot with TriggerNowAsync."
+                );
+            }
+
+            // Moments ago on the admitter's clock rather than a minute: the admitter decides a late occurrence by the
+            // misfire policy, and the default grace is sixty seconds, so a forced occurrence stays on time.
+            var due = target.NowUtc.AddSeconds(-5);
+            var affected = await Db.From<ScheduleStateEntity>()
+                .Where(r => r.Id == target.ScheduleId)
+                .UpdateOnlyAsync(
+                    () =>
+                        new ScheduleStateEntity
+                        {
+                            NextOccurrenceAtUtc = due,
+                            NextEvaluationAtUtc = due,
+                            ModifiedAtUtc = DbFn.UtcNow,
+                        },
+                    ct
+                );
+            if (affected != 1)
+            {
+                throw new InvalidOperationException(
+                    $"ForceScheduleDueAsync expected one schedules_state row for schedule {target.ScheduleId}, found {affected}."
+                );
+            }
+        }
+
+        public async Task<ActaAdmissionReport> AdmitOnceAsync(string jobNamespace, CancellationToken ct = default)
+        {
+            ArgumentException.ThrowIfNullOrWhiteSpace(jobNamespace);
+            var pass = await ResolveRuntime(jobNamespace).AdmitOnceAsync(jobNamespace, ct);
+            return new ActaAdmissionReport(pass.Admitted);
+        }
+
         public ValueTask DisposeAsync() => provider.DisposeAsync();
 
         private WorkerRuntime ResolveRuntime(string jobNamespace)

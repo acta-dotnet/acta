@@ -76,6 +76,9 @@ static class Acta.Sqlite.SqliteOutboxStagingExtensions
     static System.Threading.Tasks.Task AddToActaOutboxAsync(this Microsoft.Data.Sqlite.SqliteTransaction transaction, Acta.EnqueueJobRequest request, System.String table = "acta_outbox", System.String schema = null, System.Threading.CancellationToken cancellationToken = default)
 
 ## Acta.Testing
+sealed record Acta.Testing.ActaAdmissionReport
+    .ctor(System.Int32 Admitted)
+    System.Int32 Admitted { get;init; }
 sealed record Acta.Testing.ActaRecoveryReport
     .ctor(System.Int32 DeadWorkersMarked, System.Int32 ReclaimedJobs, System.Int32 ReleasedChildLatches)
     System.Int32 DeadWorkersMarked { get;init; }
@@ -100,9 +103,11 @@ interface Acta.Testing.IActaTestHost : System.IAsyncDisposable
     System.Threading.Tasks.Task ExpireExecutionLeaseAsync(System.Int64 jobId, System.Threading.CancellationToken ct = default)
     System.Threading.Tasks.Task ForceGroupWaitTimeoutDueAsync(System.Int64 jobId, System.Threading.CancellationToken ct = default)
     System.Threading.Tasks.Task ForceJobDueAsync(System.Int64 jobId, System.Threading.CancellationToken ct = default)
+    System.Threading.Tasks.Task ForceScheduleDueAsync(Acta.ScheduleLookup schedule, System.Threading.CancellationToken ct = default)
     System.Threading.Tasks.Task ForceStepRetryDueAsync(System.Int64 jobId, System.String name = null, System.Threading.CancellationToken ct = default)
     System.Threading.Tasks.Task ForceTimerDueAsync(System.Int64 jobId, System.String name = null, System.Threading.CancellationToken ct = default)
     System.Threading.Tasks.Task ForceWaitTimeoutDueAsync(System.Int64 jobId, System.String name = null, System.Threading.CancellationToken ct = default)
+    System.Threading.Tasks.Task<Acta.Testing.ActaAdmissionReport> AdmitOnceAsync(System.String jobNamespace, System.Threading.CancellationToken ct = default)
     System.Threading.Tasks.Task<Acta.Testing.ActaRecoveryReport> RunRecoveryOnceAsync(System.String jobNamespace, System.Threading.CancellationToken ct = default)
     System.Threading.Tasks.Task<Acta.Testing.ActaRunStatus> RunOnceAsync(Acta.EnqueueJobResponse enqueued, System.Threading.CancellationToken ct = default)
     System.Threading.Tasks.Task<Acta.Testing.ActaRunStatus> RunOnceAsync(System.Int64 jobId, System.Threading.CancellationToken ct = default)
