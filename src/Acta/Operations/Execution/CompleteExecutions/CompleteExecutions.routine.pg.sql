@@ -223,7 +223,7 @@ BEGIN
                 WHEN c.wait_signal_name IS NOT NULL THEN e.sig_due
                 WHEN c.reschedule_event_code IS NOT NULL
                     THEN COALESCE(c.reschedule_resume_at_utc, now() + make_interval(secs => c.reschedule_delay_seconds))
-                -- A handler's pause keeps a next run, which marks it held (ScheduleWalker, "held").
+                -- A handler's pause keeps a next run, which marks it held with its firing outstanding.
                 WHEN c.handler_job_status_code = 30 /* JobStatusCode.Paused */ THEN now()
                 WHEN c.handler_job_status_code IS NOT NULL THEN NULL
                 WHEN c.final_job_status_code IS NOT NULL THEN c.job_next_run_at_utc

@@ -93,7 +93,7 @@ SET next_run_at_utc = CASE
     WHEN d.wait_signal_name IS NOT NULL AND d.sig_state = 20 /* CheckpointStatusCode.Set */ THEN (SELECT now_utc FROM temp._ces_done LIMIT 1)
     WHEN d.wait_signal_name IS NOT NULL THEN d.sig_due
     WHEN d.reschedule_event_code IS NOT NULL THEN COALESCE(d.reschedule_resume_at_utc, (SELECT now_utc FROM temp._ces_done LIMIT 1) + d.reschedule_delay_seconds * 1000)
-    -- A handler's pause keeps a next run, which marks it held (ScheduleWalker, "held").
+    -- A handler's pause keeps a next run, which marks it held with its firing outstanding.
     WHEN d.handler_job_status_code = 30 /* JobStatusCode.Paused */ THEN (SELECT now_utc FROM temp._ces_done LIMIT 1)
     WHEN d.handler_job_status_code IS NOT NULL THEN NULL
     ELSE d.job_next_run_at_utc

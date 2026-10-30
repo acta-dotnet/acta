@@ -1393,7 +1393,7 @@ BEGIN
                     WHEN c.wait_signal_name IS NOT NULL THEN x.sig_due
                     WHEN c.reschedule_event_code IS NOT NULL
                         THEN COALESCE(c.reschedule_resume_at_utc, DATEADD(SECOND, c.reschedule_delay_seconds, @now))
-                    -- A handler's pause keeps a next run, which marks it held (ScheduleWalker, "held").
+                    -- A handler's pause keeps a next run, which marks it held with its firing outstanding.
                     WHEN c.handler_job_status_code = 30 /* JobStatusCode.Paused */ THEN @now
                     ELSE NULL
                 END
@@ -4830,6 +4830,8 @@ SELECT
     j.job_ref,
     ns.namespace_name AS namespace,
     d.definition_name AS job_name,
+    CASE j.job_kind_code WHEN 0 THEN 'unspecified' WHEN 10 THEN 'ordinary' WHEN 20 THEN 'permanent-slot' END AS job_kind,
+    j.job_kind_code,
     CASE r.job_status_code WHEN 0 THEN 'unspecified' WHEN 10 THEN 'ready' WHEN 15 THEN 'blocked' WHEN 20 THEN 'suspended' WHEN 30 THEN 'paused' WHEN 40 THEN 'idle' WHEN 50 THEN 'executing' WHEN 100 THEN 'succeeded' WHEN 200 THEN 'failed' WHEN 220 THEN 'cancelled' END AS status,
     r.job_status_code,
     j.deduplication_key,
@@ -4999,7 +5001,7 @@ JOIN {{schema}}.namespaces AS ns ON ns.namespace_id = w.namespace_id
 GO
 
 
-IF NOT EXISTS (SELECT 1 FROM {{schema}}.migrations WHERE name = 'M20261030063029_init')
+IF NOT EXISTS (SELECT 1 FROM {{schema}}.migrations WHERE name = 'M20261030172834_init')
 INSERT INTO {{schema}}.migrations (name)
-VALUES ('M20261030063029_init');
+VALUES ('M20261030172834_init');
 GO

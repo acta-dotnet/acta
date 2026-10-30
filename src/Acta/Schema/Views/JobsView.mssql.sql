@@ -3,6 +3,8 @@ SELECT
     j.job_ref,
     ns.namespace_name AS namespace,
     d.definition_name AS job_name,
+    {{decode:job-kind:j.job_kind_code}} AS job_kind,
+    j.job_kind_code,
     {{decode:job-status:r.job_status_code}} AS status,
     r.job_status_code,
     j.deduplication_key,

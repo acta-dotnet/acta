@@ -1075,7 +1075,7 @@ BEGIN
                 WHEN c.wait_signal_name IS NOT NULL THEN e.sig_due
                 WHEN c.reschedule_event_code IS NOT NULL
                     THEN COALESCE(c.reschedule_resume_at_utc, now() + make_interval(secs => c.reschedule_delay_seconds))
-                -- A handler's pause keeps a next run, which marks it held (ScheduleWalker, "held").
+                -- A handler's pause keeps a next run, which marks it held with its firing outstanding.
                 WHEN c.handler_job_status_code = 30 /* JobStatusCode.Paused */ THEN now()
                 WHEN c.handler_job_status_code IS NOT NULL THEN NULL
                 WHEN c.final_job_status_code IS NOT NULL THEN c.job_next_run_at_utc
@@ -4200,6 +4200,8 @@ SELECT
     j.job_ref,
     ns.namespace_name AS namespace,
     d.definition_name AS job_name,
+    CASE j.job_kind_code WHEN 0 THEN 'unspecified' WHEN 10 THEN 'ordinary' WHEN 20 THEN 'permanent-slot' END AS job_kind,
+    j.job_kind_code,
     CASE r.job_status_code WHEN 0 THEN 'unspecified' WHEN 10 THEN 'ready' WHEN 15 THEN 'blocked' WHEN 20 THEN 'suspended' WHEN 30 THEN 'paused' WHEN 40 THEN 'idle' WHEN 50 THEN 'executing' WHEN 100 THEN 'succeeded' WHEN 200 THEN 'failed' WHEN 220 THEN 'cancelled' END AS status,
     r.job_status_code,
     j.deduplication_key,
@@ -4353,5 +4355,5 @@ JOIN {{schema}}.namespaces AS ns ON ns.namespace_id = w.namespace_id;
 
 
 INSERT INTO {{schema}}.migrations (name)
-VALUES ('M20261030063029_init')
+VALUES ('M20261030172834_init')
 ON CONFLICT (name) DO NOTHING;

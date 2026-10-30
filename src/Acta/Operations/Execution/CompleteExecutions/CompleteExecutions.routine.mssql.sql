@@ -210,7 +210,7 @@ BEGIN
                     WHEN c.wait_signal_name IS NOT NULL THEN x.sig_due
                     WHEN c.reschedule_event_code IS NOT NULL
                         THEN COALESCE(c.reschedule_resume_at_utc, DATEADD(SECOND, c.reschedule_delay_seconds, @now))
-                    -- A handler's pause keeps a next run, which marks it held (ScheduleWalker, "held").
+                    -- A handler's pause keeps a next run, which marks it held with its firing outstanding.
                     WHEN c.handler_job_status_code = 30 /* JobStatusCode.Paused */ THEN @now
                     ELSE NULL
                 END
