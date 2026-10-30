@@ -574,7 +574,7 @@ A handler type registered in DI, such as a typed client from `AddHttpClient<Webh
 
 ### Diagnostics
 
-The generator reports these at build time. All are errors unless noted, and an erroring job is left out of the manifest.
+The generator reports these at build time. All are errors unless noted, and an erroring job is left out of the manifest. Each id's help link, which the IDE shows on the diagnostic, opens its section of [diagnostics.md](diagnostics.md) at the commit the package was built from: the cause, the fix, and the smallest example that clears it.
 
 | ID         | Rule                                                                                                                                                                                                              |
 | ---------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |

@@ -1,4 +1,6 @@
 using System;
+using System.Linq;
+using System.Reflection;
 using Microsoft.CodeAnalysis;
 using static Acta.Generators.ActaManifestGenerator;
 
@@ -11,6 +13,23 @@ namespace Acta.Generators;
 internal static class ManifestDiagnostics
 {
     /// <summary>
+    /// Prefix of every ACTA01xx help link: docs/diagnostics.md at the commit this generator was built
+    /// from, which SourceLink records as the build metadata of the informational version, or on main
+    /// for a build without one. The anchor is the id in lowercase.
+    /// </summary>
+    internal static readonly string HelpBase = HelpBaseFor(
+        typeof(ManifestDiagnostics).Assembly.GetCustomAttribute<AssemblyInformationalVersionAttribute>()?.InformationalVersion
+    );
+
+    internal static string HelpBaseFor(string? informationalVersion)
+    {
+        var plus = informationalVersion?.IndexOf('+') ?? -1;
+        var revision = plus < 0 ? "" : informationalVersion!.Substring(plus + 1);
+        var pinned = revision.Length == 40 && revision.All(c => (c >= '0' && c <= '9') || (c >= 'a' && c <= 'f'));
+        return $"https://github.com/acta-dotnet/acta/blob/{(pinned ? revision : "main")}/docs/diagnostics.md#";
+    }
+
+    /// <summary>
     /// ACTA01xx descriptors. Messages are fully formatted at the check site; every descriptor passes
     /// them through. Static descriptors keep the IDs discoverable for analyzer release tracking (RS2002).
     /// </summary>
@@ -20,7 +39,8 @@ internal static class ManifestDiagnostics
         messageFormat: "{0}",
         category: "Acta",
         defaultSeverity: DiagnosticSeverity.Error,
-        isEnabledByDefault: true
+        isEnabledByDefault: true,
+        helpLinkUri: HelpBase + "acta0101"
     );
 
     internal static readonly DiagnosticDescriptor InvalidName = new(
@@ -29,7 +49,8 @@ internal static class ManifestDiagnostics
         messageFormat: "{0}",
         category: "Acta",
         defaultSeverity: DiagnosticSeverity.Error,
-        isEnabledByDefault: true
+        isEnabledByDefault: true,
+        helpLinkUri: HelpBase + "acta0102"
     );
 
     internal static readonly DiagnosticDescriptor InvalidSignature = new(
@@ -38,7 +59,8 @@ internal static class ManifestDiagnostics
         messageFormat: "{0}",
         category: "Acta",
         defaultSeverity: DiagnosticSeverity.Error,
-        isEnabledByDefault: true
+        isEnabledByDefault: true,
+        helpLinkUri: HelpBase + "acta0103"
     );
 
     internal static readonly DiagnosticDescriptor DuplicateInput = new(
@@ -47,7 +69,8 @@ internal static class ManifestDiagnostics
         messageFormat: "{0}",
         category: "Acta",
         defaultSeverity: DiagnosticSeverity.Warning,
-        isEnabledByDefault: true
+        isEnabledByDefault: true,
+        helpLinkUri: HelpBase + "acta0104"
     );
 
     internal static readonly DiagnosticDescriptor InvalidPolicy = new(
@@ -56,7 +79,8 @@ internal static class ManifestDiagnostics
         messageFormat: "{0}",
         category: "Acta",
         defaultSeverity: DiagnosticSeverity.Error,
-        isEnabledByDefault: true
+        isEnabledByDefault: true,
+        helpLinkUri: HelpBase + "acta0105"
     );
 
     internal static readonly DiagnosticDescriptor ContractCollision = new(
@@ -65,7 +89,8 @@ internal static class ManifestDiagnostics
         messageFormat: "{0}",
         category: "Acta",
         defaultSeverity: DiagnosticSeverity.Warning,
-        isEnabledByDefault: true
+        isEnabledByDefault: true,
+        helpLinkUri: HelpBase + "acta0106"
     );
 
     internal static readonly DiagnosticDescriptor InvalidSchedule = new(
@@ -74,7 +99,8 @@ internal static class ManifestDiagnostics
         messageFormat: "{0}",
         category: "Acta",
         defaultSeverity: DiagnosticSeverity.Error,
-        isEnabledByDefault: true
+        isEnabledByDefault: true,
+        helpLinkUri: HelpBase + "acta0121"
     );
 
     internal static readonly DiagnosticDescriptor InvalidScheduleExpr = new(
@@ -83,7 +109,8 @@ internal static class ManifestDiagnostics
         messageFormat: "{0}",
         category: "Acta",
         defaultSeverity: DiagnosticSeverity.Error,
-        isEnabledByDefault: true
+        isEnabledByDefault: true,
+        helpLinkUri: HelpBase + "acta0122"
     );
 
     internal static readonly DiagnosticDescriptor ScheduledInputCtor = new(
@@ -92,7 +119,8 @@ internal static class ManifestDiagnostics
         messageFormat: "{0}",
         category: "Acta",
         defaultSeverity: DiagnosticSeverity.Error,
-        isEnabledByDefault: true
+        isEnabledByDefault: true,
+        helpLinkUri: HelpBase + "acta0123"
     );
 
     internal static readonly DiagnosticDescriptor InvalidSchedulePolicy = new(
@@ -101,7 +129,8 @@ internal static class ManifestDiagnostics
         messageFormat: "{0}",
         category: "Acta",
         defaultSeverity: DiagnosticSeverity.Error,
-        isEnabledByDefault: true
+        isEnabledByDefault: true,
+        helpLinkUri: HelpBase + "acta0124"
     );
 
     internal static readonly DiagnosticDescriptor PermanentCapacity = new(
@@ -110,7 +139,8 @@ internal static class ManifestDiagnostics
         messageFormat: "{0}",
         category: "Acta",
         defaultSeverity: DiagnosticSeverity.Error,
-        isEnabledByDefault: true
+        isEnabledByDefault: true,
+        helpLinkUri: HelpBase + "acta0125"
     );
 
     internal static readonly DiagnosticDescriptor InvalidScheduleExpiration = new(
@@ -119,7 +149,8 @@ internal static class ManifestDiagnostics
         messageFormat: "{0}",
         category: "Acta",
         defaultSeverity: DiagnosticSeverity.Error,
-        isEnabledByDefault: true
+        isEnabledByDefault: true,
+        helpLinkUri: HelpBase + "acta0126"
     );
 
     internal static readonly DiagnosticDescriptor InvalidScheduleSource = new(
@@ -128,7 +159,8 @@ internal static class ManifestDiagnostics
         messageFormat: "{0}",
         category: "Acta",
         defaultSeverity: DiagnosticSeverity.Error,
-        isEnabledByDefault: true
+        isEnabledByDefault: true,
+        helpLinkUri: HelpBase + "acta0127"
     );
 
     internal static readonly DiagnosticDescriptor InvalidCalendar = new(
@@ -137,7 +169,8 @@ internal static class ManifestDiagnostics
         messageFormat: "{0}",
         category: "Acta",
         defaultSeverity: DiagnosticSeverity.Error,
-        isEnabledByDefault: true
+        isEnabledByDefault: true,
+        helpLinkUri: HelpBase + "acta0128"
     );
 
     internal static readonly DiagnosticDescriptor InvalidPayloadFormat = new(
@@ -146,7 +179,8 @@ internal static class ManifestDiagnostics
         messageFormat: "{0}",
         category: "Acta",
         defaultSeverity: DiagnosticSeverity.Error,
-        isEnabledByDefault: true
+        isEnabledByDefault: true,
+        helpLinkUri: HelpBase + "acta0131"
     );
 
     internal static readonly DiagnosticDescriptor InvalidPayloadFormatUsage = new(
@@ -155,7 +189,8 @@ internal static class ManifestDiagnostics
         messageFormat: "{0}",
         category: "Acta",
         defaultSeverity: DiagnosticSeverity.Error,
-        isEnabledByDefault: true
+        isEnabledByDefault: true,
+        helpLinkUri: HelpBase + "acta0132"
     );
 
     internal static readonly DiagnosticDescriptor InvalidDurationUnitDescriptor = new(
@@ -164,7 +199,8 @@ internal static class ManifestDiagnostics
         messageFormat: "{0}",
         category: "Acta",
         defaultSeverity: DiagnosticSeverity.Error,
-        isEnabledByDefault: true
+        isEnabledByDefault: true,
+        helpLinkUri: HelpBase + "acta0142"
     );
 
     public static DiagnosticDescriptor For(string id) =>

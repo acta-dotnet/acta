@@ -32,6 +32,7 @@ Each line is one thing you are trying to do, with the shortest complete path thr
 
 ## Build jobs
 
+- [Job-authoring diagnostics](./diagnostics.md): what does each `ACTA01xx` build error mean, and what clears it? The build's help link lands on the matching section.
 - [Developer guide](./developer-guide.md): how do I understand, write, configure, and test jobs? Its sections: [concepts and glossary](./developer-guide.md#concepts-and-glossary), [handler contract](./developer-guide.md#handler-contract), [configuration](./developer-guide.md#configuration-and-options), [transactional enqueue and the outbox](./developer-guide.md#transactional-enqueue-and-the-external-outbox), [schedules](./developer-guide.md#schedule-operations), [contract evolution](./developer-guide.md#contract-evolution), and [testing](./developer-guide.md#testing-custom-jobs).
 
 ## Run in production
