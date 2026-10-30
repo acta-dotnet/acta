@@ -35,7 +35,8 @@ internal sealed class ScheduleAdmitter(
             return;
         }
 
-        var channel = WorkerWakeupChannel.WorkerNamespace(namespaceName);
+        // Its own signal, which every wake of the namespace also sets: a shared one would take wakes from the claim loop.
+        var channel = WorkerWakeupChannel.Admission(namespaceName);
         while (!ct.IsCancellationRequested)
         {
             TimeSpan sleep;

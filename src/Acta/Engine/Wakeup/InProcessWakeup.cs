@@ -36,6 +36,18 @@ internal sealed class InProcessWakeup : IWorkerWakeup
         else if (channel.AllocatesOnPublish)
         {
             _channels.GetOrAdd(channel.Name, static (_, kind) => new Entry(kind), channel.Kind).Signal.Set();
+            // A worker namespace has two waiters, its claim loop and its schedule admitter, each on a signal of its
+            // own: one auto-reset signal shared by both hands each wake to one of them, and a claim loop that misses
+            // a lane's promoted member finds it only at its safety poll.
+            if (
+                channel.Kind == WorkerWakeupChannelKind.WorkerNamespace
+                && !channel.Name.StartsWith(WorkerWakeupChannel.AdmissionPrefix, StringComparison.Ordinal)
+            )
+            {
+                _channels
+                    .GetOrAdd(WorkerWakeupChannel.AdmissionPrefix + channel.Name, static (_, kind) => new Entry(kind), channel.Kind)
+                    .Signal.Set();
+            }
         }
         else if (_channels.TryGetValue(channel.Name, out var entry))
         {

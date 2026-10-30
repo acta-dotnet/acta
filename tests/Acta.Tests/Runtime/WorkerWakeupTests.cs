@@ -73,6 +73,25 @@ public sealed class WorkerWakeupTests
     }
 
     [Fact]
+    public async Task Namespace_wake_reaches_both_the_claim_loop_and_the_schedule_admitter()
+    {
+        // One auto-reset signal shared by the two handed each wake to one of them, and a lane's promoted member then
+        // waited for the claim loop's safety poll: a hot lane ran about one job a second.
+        var wakeup = new InProcessWakeup();
+        var claim = wakeup.WaitAsync(WorkerWakeupChannel.WorkerNamespace("billing"), WaitGenerously, None).AsTask();
+        var admission = wakeup.WaitAsync(WorkerWakeupChannel.Admission("billing"), WaitGenerously, None).AsTask();
+
+        await wakeup.WakeAsync(
+            WorkerWakeupChannel.WorkerNamespace("billing"),
+            WorkerWakeupReason.WorkAvailable,
+            TestContext.Current.CancellationToken
+        );
+
+        Assert.Equal(WorkerWakeupWaitStatus.Signaled, await claim.WaitAsync(WaitGenerously, None));
+        Assert.Equal(WorkerWakeupWaitStatus.Signaled, await admission.WaitAsync(WaitGenerously, None));
+    }
+
+    [Fact]
     public async Task Namespace_wake_wakes_that_namespaces_waiter_only()
     {
         var wakeup = new InProcessWakeup();
