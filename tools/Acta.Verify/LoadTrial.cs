@@ -481,7 +481,21 @@ internal static class LoadTrial
             safety > 0 || unresolved > 0 ? "FAIL"
             : refused > 0 || !state.SettingsVerified || overloadGates || workerExit || !exercised ? "INCONCLUSIVE"
             : "PASS";
-        bundle.Write($"histories/{tag}-checks.json", failures.ToArray(), VerifyJson.Default.CheckArray);
+        // The checks stream in pages and keep only failures; a trial with none records what held, in aggregate.
+        Check[] checks =
+            failureCount > 0
+                ? [.. failures]
+                :
+                [
+                    new("roots-reconciled", "trial", true, $"Every one of {count} arrivals reached its modelled status and result."),
+                    new(
+                        "tree-totals",
+                        "trial",
+                        true,
+                        $"The roots imply {expectedDescendants} descendants and {expectedSteps} checkpoints, and the trial holds them."
+                    ),
+                ];
+        bundle.Write($"histories/{tag}-checks.json", checks, VerifyJson.Default.CheckArray);
         bundle.WriteLines(
             $"histories/{tag}-backlog.csv",
             backlog

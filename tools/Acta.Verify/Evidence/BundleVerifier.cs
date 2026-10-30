@@ -6,7 +6,8 @@ public static class BundleVerifier
 {
     public static RunResult Load(string directory)
     {
-        var root = Path.GetFullPath(directory);
+        // A trailing separator would fail every artifact's inside-the-bundle check.
+        var root = Path.TrimEndingDirectorySeparator(Path.GetFullPath(directory));
         EvidenceBundle.RejectLinks(root, root);
         EvidenceBundle.RejectLinks(root, Path.Combine(root, "result.json"));
         EvidenceBundle.RejectLinks(root, Path.Combine(root, "resolved-plan.json"));
