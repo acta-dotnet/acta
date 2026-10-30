@@ -48,7 +48,7 @@ provisioned before 1.0.
 
 ## Ordering
 
-- **Claims are ordered, work is not.** There is no global FIFO, and a retry can be overtaken by later jobs.
+- **Claims are ordered, work is not.** There is no global FIFO: a claim takes the highest priority and then the earliest due instant, so a retry waiting out its backoff is overtaken by whatever is due sooner. A lane is the exception on purpose: its jobs run one at a time in enqueue order, and a failing head holds the lane through its retries ([Lanes](./developer-guide.md#lanes)).
 - **Priority is strict, with no aging.** A sustained high-priority flood defers the rest; put bulk work in its own namespace.
 - **A `ConcurrencyKey` excludes, it does not order.** Waiters are admitted in no order with no bound on the wait, and the exclusion lasts only as long as the lease.
 - **Lanes order strictly, at a cost:**

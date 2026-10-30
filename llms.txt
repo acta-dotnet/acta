@@ -109,10 +109,13 @@ public static class ShippingHandlers
   it does not need the handler assembly.
 - Never enable `ApplyMigrationsOnStartup` outside an explicitly local or development
   configuration. Production schema comes from a deploy step.
-- Rolling deploys need no special handling: apply migrations, start the new build, stop the old
-  one. A worker hands back a job whose handler it lacks and stops claiming that definition;
-  registration never retires a definition the new build omits, so a rollback just works. Retiring
-  a dropped definition and cancelling its queue is an operator action on the definition.
+- Rolling deploys are routine: apply the migration, start the new build, stop the old one, with any
+  overlap. Acta's migrations are forward-only and keep an old and a new build working on one
+  schema; a worker hands back a job whose handler it lacks and stops claiming that definition;
+  registration never retires a definition the new build omits, so a rollback keeps the queue. What
+  the application keeps is its own, as in any rolling deploy: a queued input the new build still
+  reads, and a step name a running job still finds. Retiring a dropped definition and cancelling
+  its queue is an operator action on the definition.
 - Schedules follow the last build that registered, so an old worker starting mid-rollout can leave a
   schedule the new build added Orphaned until a new worker starts, and orphaning drops a schedule
   pause. To hold a recurring job across a rollback, pause the job, not the schedule.
@@ -160,6 +163,9 @@ public sealed class WebhookJobs(HttpClient http)
             request.Headers.Add("X-Signature", signature);
             request.Content = new StringContent(input.Payload);
             using var response = await http.SendAsync(request, token);
+            // A failed delivery throws, so the step records no success and the attempt retries; which
+            // statuses deserve a retry is this application's call, not a framework policy.
+            response.EnsureSuccessStatusCode();
             return (int)response.StatusCode;
         }, ct);
 
@@ -169,9 +175,13 @@ public sealed class WebhookJobs(HttpClient http)
 }
 ```
 
-Register `HttpClient` in DI (`builder.Services.AddHttpClient<WebhookJobs>();`). The receiver can
-deduplicate on `Idempotency-Key` because it never changes across retries; a crash between `post`
-and `record-response` re-sends with the same key, which is the at-least-once contract working.
+Register `HttpClient` in DI (`builder.Services.AddHttpClient<WebhookJobs>();`). A step that recorded
+its outcome is reused on re-entry, so a crash after `post` recorded its status never sends again;
+`record-response` replays from the row. The window for a duplicate is narrower: the receiver accepted
+the request, then the process died before Acta recorded the `post` outcome. The retry sends again
+with the same `Idempotency-Key`, because the key comes from the job's input and not from the attempt,
+and the receiver deduplicates on it. That is the at-least-once contract working: an effect can repeat
+only under its own key.
 
 ## Do this, not that
 
@@ -275,5 +285,6 @@ HTTP enqueue in the json format sends strict JSON (one value, no comments or tra
 
 Every pattern above exists as a compiled, runnable example under `concepts/` in the repository:
 numbered rungs from fundamentals to chaos recovery, each with a README. The demo apps under
-`demos/` are complete deployable applications built only from the published packages. Deeper docs:
-the `docs/` tree in the repository; start at useacta.net.
+`demos/` are complete deployable applications built only from the published packages. The one
+complete walk from enqueue to the first test, on the consumer packages, is `docs/first-job.md`; the
+rest of the `docs/` tree is indexed by task in `docs/README.md`. Start at useacta.net.

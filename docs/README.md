@@ -14,7 +14,21 @@ database you already run. Each page below answers one question, in the order you
 ## Get started
 
 - [Quickstart](./quickstart.md): how do I run a durable job in my own app on embedded SQLite, and what row does it leave?
+- [Your first job, end to end](./first-job.md): how do I read a typed result, tell a final failure from a retry, ask why, cancel, wait with a timeout, and test it all on SQLite?
 - [Engineering Labs](./engineering-labs.md): how do crash recovery, durable steps, signals, the dashboard, and deterministic tests behave, shown one runnable concept at a time?
+
+## By task
+
+Each line is one thing you are trying to do, with the shortest complete path through the pages above.
+
+- **Install Acta and run a job**: the [quickstart](./quickstart.md), then [your first job](./first-job.md) for the rest of the lifecycle.
+- **Choose how to enqueue**: by input type or through the generated call ([two ways to enqueue](./first-job.md#two-ways-to-enqueue)), later or on a schedule ([enqueue, schedule, and follow a job](./developer-guide.md#enqueue-schedule-and-follow-a-job)), or inside your own database transaction ([transactional enqueue and the outbox](./developer-guide.md#transactional-enqueue-and-the-external-outbox)).
+- **Read a typed result**: [status and result](./first-job.md#status-and-result) in the guide, [result persistence](./developer-guide.md#result-persistence) for what a job stores and for how long.
+- **Make an external side effect safe to repeat**: [durable slots inside a job](./developer-guide.md#durable-slots-inside-a-job) for steps, variables, and signals, and the webhook sample in the [agent guide](../llms.txt) for the idempotency key that survives retries.
+- **Run the worker apart from the API**: the [wiring shape](./developer-guide.md#wiring-shape) (`Run` for a worker host, `Reference` for an enqueue-only one), then the [production guide](./operator-guide.md#production-guide).
+- **Diagnose a failed or waiting job**: [ask why](./first-job.md#ask-why) in code, [`jobs explain`](./operator-guide.md#start-with-jobs-explain) on the command line, and the [failure modes](./operator-guide.md#what-happens-if) for what the engine does in each case.
+- **Understand a wait timeout**: [a wait timeout is not a cancellation](./first-job.md#a-wait-timeout-is-not-a-cancellation), and [wait deadlines](./developer-guide.md#wait-deadlines) for the deadlines a job sets on its own waits.
+- **Test without sleeps or polling**: [the first test](./first-job.md#the-first-test) on SQLite, then [testing custom jobs](./developer-guide.md#testing-custom-jobs) for retries, signals, timers, and crash recovery.
 
 ## Build jobs
 

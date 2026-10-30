@@ -112,6 +112,7 @@ curated-view rows.
 | 023 | [job-call](../concepts/000-fundamentals/023-job-call/) | Enqueue by the manifest's generated call (no input-type inference); several handler parameters as one input |
 | 024 | [aspnet-enqueue-api](../concepts/000-fundamentals/024-aspnet-enqueue-api/) | Minimal HTTP API: POST returns 202 + JobRef; GET polls status/result; deduplication key, correlation id, tags |
 | 025 | [large-payload-reference](../concepts/000-fundamentals/025-large-payload-reference/) | Store big files in blob/object storage; enqueue a verified reference (URI + checksum + size), not the bytes |
+| 026 | [first-job](../concepts/000-fundamentals/026-first-job/) | The [first-job guide](./first-job.md)'s app verbatim: typed result, explanation, cancel, and a wait that times out without stopping the job |
 | 028 | [deduplication-time-buckets](../concepts/000-fundamentals/028-deduplication-time-buckets/) | Time-bucketed deduplication keys (`PerHour`/`PerDay`/`PerTimeBucket`) dedupe within a bucket, insert across it |
 | 101 | [recurring-job](../concepts/100-scheduling/101-recurring-job/) | `[Schedule]` cron recurring slot - fires itself, no enqueue |
 | 102 | [interval-schedule](../concepts/100-scheduling/102-interval-schedule/) | Replace a simple `PeriodicTimer` cleanup with an interval schedule (`10s`) |
@@ -175,6 +176,7 @@ curated-view rows.
 | 706 | [API/worker split](../demos/ApiWorkerSplit/) | **Production capstone.** Open the focused solution and press F5 to run an enqueue-only API and independently scalable worker as separate processes |
 | 801 | [testing-jobs](../concepts/800-testing/801-testing-jobs/) | Test `[Job]` handlers with `Acta.Testing`: a class-fixture-shared `ActaTestHost`, deterministic `RunOnceAsync` ticks, `Rearmed`-vs-`Failed` retry semantics (`dotnet test`, not `dotnet run`) |
 | 802 | [testing-durable-jobs](../concepts/800-testing/802-testing-durable-jobs/) | Test a durable, multi-step job (step + approval signal) deterministically: drive suspend, raise the typed signal, drive resume; assert run-once across the replay |
+| 803 | [first-job-tests](../concepts/800-testing/803-first-job-tests/) | The [first-job guide](./first-job.md)'s test verbatim: the real runtime on a throwaway SQLite file, driven one tick at a time |
 | 901 | [native-aot-json](../concepts/900-runtime-and-tuning/901-native-aot-json/) | AOT-safe JSON payloads: `UseJsonPayloads(JsonSerializerContext)` + `JobPayload.Json(value, typeInfo)` |
 | 903 | [redis-wakeup](../concepts/900-runtime-and-tuning/903-redis-wakeup/) | Redis pub/sub wakes workers across processes (run worker + enqueue roles) |
 | 904 | [worker-tuning](../concepts/900-runtime-and-tuning/904-worker-tuning/) | Worker tuning: `MaxConcurrentExecutors` and `SafetyPollInterval` |

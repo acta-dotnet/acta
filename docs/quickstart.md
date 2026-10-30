@@ -223,6 +223,7 @@ The events view holds the append-only timeline per job: every transition, with a
 
 ## Where to go next
 
+- The same app through a job's whole life, typed result to first test: [Your first job, end to end](./first-job.md).
 - Idempotent enqueue with deduplication keys, durable steps, signals, sleeps, and child jobs:
   [Concepts](./developer-guide.md#concepts-and-glossary) and the [Engineering Labs](./engineering-labs.md).
 - Namespace naming, policy defaults, and production wiring: [Configuration](./developer-guide.md#configuration-and-options)

@@ -25,6 +25,7 @@
     <Project Path="000-fundamentals/023-job-call/023-job-call.csproj" />
     <Project Path="000-fundamentals/024-aspnet-enqueue-api/024-aspnet-enqueue-api.csproj" />
     <Project Path="000-fundamentals/025-large-payload-reference/025-large-payload-reference.csproj" />
+    <Project Path="000-fundamentals/026-first-job/026-first-job.csproj" />
     <Project Path="000-fundamentals/028-deduplication-time-buckets/028-deduplication-time-buckets.csproj" />
   </Folder>
   <Folder Name="/100-scheduling/">
@@ -103,6 +104,7 @@
   <Folder Name="/800-testing/">
     <Project Path="800-testing/801-testing-jobs/801-testing-jobs.csproj" />
     <Project Path="800-testing/802-testing-durable-jobs/802-testing-durable-jobs.csproj" />
+    <Project Path="800-testing/803-first-job-tests/803-first-job-tests.csproj" />
   </Folder>
   <Folder Name="/900-runtime-and-tuning/">
     <Project Path="900-runtime-and-tuning/901-native-aot-json/901-native-aot-json.csproj" />

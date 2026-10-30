@@ -1,0 +1,10 @@
+<Project Sdk="Microsoft.NET.Sdk.Web">
+  <PropertyGroup>
+    <!-- The first-job guide's app verbatim: docs/first-job.md shows these files, and a test keeps them equal. -->
+    <RootNamespace>Shipping</RootNamespace>
+  </PropertyGroup>
+  <ItemGroup>
+    <ProjectReference Include="..\..\..\src\Acta.AspNetCore\Acta.AspNetCore.csproj" />
+    <ProjectReference Include="..\..\..\src\Acta.Sqlite\Acta.Sqlite.csproj" />
+  </ItemGroup>
+</Project>
