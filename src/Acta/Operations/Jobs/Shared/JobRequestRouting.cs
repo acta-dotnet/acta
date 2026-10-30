@@ -72,6 +72,13 @@ internal sealed class JobRequestRouting(
     /// <summary>A payload a typed read returns, decoded through the serializer of its own format.</summary>
     public T? Decode<T>(JobPayload payload) => serializers.Resolve(payload.Format.Id).Deserialize<T>(payload);
 
+    /// <summary>A stored result read as <typeparamref name="TResult"/>, refused when its job produces another type.</summary>
+    public TResult? DecodeResult<TResult>(GetResultRow row)
+    {
+        EnsureResultType<TResult>(row.JobNamespace, row.JobName);
+        return Decode<TResult>(row.Payload);
+    }
+
     /// <summary>
     /// Refuses to read a registered job's result as another type. A deduplication key shared across definitions hands
     /// back the other definition's job, and a lenient decode of its result would fill the missing members with

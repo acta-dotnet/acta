@@ -38,7 +38,15 @@ internal static class JobRunAndWait
     {
         options = Validated(options);
         var enqueued = await jobs.EnqueueAsync(request(options), ct);
-        var wait = await AwaitAsync(jobs, wakeup, enqueued.JobId, options.WaitTimeout, options.PollInterval, ct);
+        var wait = await AwaitAsync(
+            jobs,
+            wakeup,
+            enqueued.JobId,
+            options.WaitTimeout,
+            options.PollInterval,
+            ct,
+            ResultTypeCheck<TResult>(routing)
+        );
         return await OutcomeAsync<TResult>(routing, getResult, wait.Snapshot ?? throw Vanished(enqueued.JobRef), wait.TimedOut, ct);
     }
 
@@ -65,7 +73,7 @@ internal static class JobRunAndWait
     )
         where TResult : notnull
     {
-        var (snapshot, timedOut) = await AwaitExistingAsync(jobs, wakeup, job, timeout, ct);
+        var (snapshot, timedOut) = await AwaitExistingAsync(jobs, wakeup, job, timeout, ct, ResultTypeCheck<TResult>(routing));
         return await OutcomeAsync<TResult>(routing, getResult, snapshot, timedOut, ct);
     }
 
@@ -100,7 +108,6 @@ internal static class JobRunAndWait
         switch (snapshot.Status)
         {
             case JobStatusCode.Succeeded:
-                routing.EnsureResultType<TResult>(snapshot.JobNamespace, snapshot.JobName);
                 var result =
                     await getResult.ReadAsync(snapshot.JobId, snapshot.ExecutionNumber, ct)
                     ?? throw new InvalidOperationException(
@@ -108,11 +115,7 @@ internal static class JobRunAndWait
                             + "result-less, in which case wait without a result type, or its result exceeded "
                             + "MaxInlinePayloadBytes and was dropped; the job's events say which."
                     );
-                return JobOutcome<TResult>.Succeeded(
-                    snapshot.JobId,
-                    snapshot.JobRef,
-                    routing.Decode<TResult>(JobPayload.Trusted(result.Format, result.Data.ToArray()))!
-                );
+                return JobOutcome<TResult>.Succeeded(snapshot.JobId, snapshot.JobRef, routing.DecodeResult<TResult>(result)!);
             case JobStatusCode.Cancelled:
                 return JobOutcome<TResult>.Cancelled(snapshot.JobId, snapshot.JobRef);
             default:
@@ -143,7 +146,8 @@ internal static class JobRunAndWait
         IWorkerWakeup wakeup,
         JobLookup job,
         TimeSpan? timeout,
-        CancellationToken ct
+        CancellationToken ct,
+        Action<GetJobResponse>? check = null
     )
     {
         var budget = timeout ?? Defaults.WaitTimeout;
@@ -155,7 +159,9 @@ internal static class JobRunAndWait
         var started = Stopwatch.GetTimestamp();
         var jobId = job.Kind == JobLookupKind.JobId ? job.JobId : (await jobs.GetJobIdAsync(job, ct))?.JobId;
         var remaining = budget - Stopwatch.GetElapsedTime(started);
-        var (snapshot, timedOut) = jobId is { } id ? await AwaitAsync(jobs, wakeup, id, remaining, Defaults.PollInterval, ct) : default;
+        var (snapshot, timedOut) = jobId is { } id
+            ? await AwaitAsync(jobs, wakeup, id, remaining, Defaults.PollInterval, ct, check)
+            : default;
         return snapshot is not null
             ? (snapshot, timedOut)
             : throw new InvalidOperationException(
@@ -173,20 +179,36 @@ internal static class JobRunAndWait
         long jobId,
         TimeSpan waitTimeout,
         TimeSpan pollInterval,
-        CancellationToken ct
+        CancellationToken ct,
+        Action<GetJobResponse>? check = null
     )
     {
         var job = JobLookup.ById(jobId);
         return await CompletionWait.AwaitAsync(
             wakeup,
             jobId,
-            c => jobs.GetAsync(job, c),
+            ReadAsync,
             static snapshot => snapshot.Status.IsTerminal,
             waitTimeout,
             pollInterval,
             ct
         );
+
+        async ValueTask<GetJobResponse?> ReadAsync(CancellationToken c)
+        {
+            var snapshot = await jobs.GetAsync(job, c);
+            if (snapshot is not null)
+            {
+                check?.Invoke(snapshot);
+            }
+            return snapshot;
+        }
     }
+
+    // Every read of a typed wait checks the result type, so a foreign definition's job fails on the first read, whatever
+    // its outcome, instead of after the budget.
+    private static Action<GetJobResponse> ResultTypeCheck<TResult>(JobRequestRouting routing) =>
+        snapshot => routing.EnsureResultType<TResult>(snapshot.JobNamespace, snapshot.JobName);
 
     private static InvalidOperationException Vanished(JobRef jobRef) =>
         new($"Job {jobRef} no longer exists: retention or an operator purged it while the caller waited.");

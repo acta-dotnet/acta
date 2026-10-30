@@ -827,7 +827,7 @@
 - **Guarantees:**
   - A result call's handle waits for the outcome and answers the typed result
   - An input-typed enqueue's handle names the result type at the wait
-  - A typed handle deduplicated onto another definition's job refuses its result rather than decoding it
+  - A typed handle deduplicated onto another definition's job refuses its outcome and its result rather than decoding them
   - A wait that times out reports the job's status and leaves it to run
   - A cancelled wait throws and never cancels the job
   - A handle rebuilt from the ref addresses the same job, and an unknown ref has none

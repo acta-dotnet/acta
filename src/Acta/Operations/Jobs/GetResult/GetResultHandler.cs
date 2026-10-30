@@ -3,16 +3,14 @@ namespace Acta;
 /// <summary><see cref="IJobs.GetResultAsync(JobLookup, CancellationToken)"/>: resolves the lookup, then reads the stored result.</summary>
 internal sealed class GetResultHandler(GetJobIdHandler getJobId, IDbSession session, ISqlDialect dialect)
 {
-    public async ValueTask<GetResultResponse?> HandleAsync(GetResultQuery query, CancellationToken ct)
-    {
-        if (await getJobId.HandleAsync(new GetJobIdQuery(query.Job), ct) is not { JobId: var jobId })
-        {
-            return null;
-        }
+    public async ValueTask<GetResultResponse?> HandleAsync(GetResultQuery query, CancellationToken ct) =>
+        await ReadAsync(query.Job, ct) is { } row ? new GetResultResponse(row.Payload) : null;
 
-        var record = await ReadAsync(jobId, executionNumber: null, ct);
-        return record is null ? null : new GetResultResponse(JobPayload.Trusted(record.Format, record.Data.ToArray()));
-    }
+    /// <summary>The latest stored result of the job the lookup names, or null when there is no job or no result.</summary>
+    internal async ValueTask<GetResultRow?> ReadAsync(JobLookup job, CancellationToken ct) =>
+        await getJobId.HandleAsync(new GetJobIdQuery(job), ct) is { JobId: var jobId }
+            ? await ReadAsync(jobId, executionNumber: null, ct)
+            : null;
 
     /// <summary>
     /// The job's stored result, or null when there is none or <paramref name="executionNumber"/> did not store it. Every

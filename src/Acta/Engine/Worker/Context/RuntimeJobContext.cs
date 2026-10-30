@@ -325,20 +325,12 @@ internal sealed partial class RuntimeJobContext(
     private protected override Task<EnqueueJobResponse> StartChildCoreAsync(EnqueueJobRequest request, CancellationToken ct) =>
         FencedAsync(() => _jobOperations.EnqueueChildAsync(request, Fence, ct).AsTask());
 
-    private protected override async Task<(bool Stored, TResult? Value)> ReadChildResultCoreAsync<TResult>(
+    private protected override Task<(bool Stored, TResult? Value)> ReadChildResultCoreAsync<TResult>(
         long childJobId,
         int? executionNumber,
         CancellationToken ct
     )
-        where TResult : default
-    {
-        if (await _jobOperations.ReadResultAsync(childJobId, executionNumber, ct) is not { } row)
-        {
-            return (false, default);
-        }
-        var serializer = _serializers.Resolve(row.FormatId);
-        return (true, serializer.Deserialize<TResult>(JobPayload.Trusted(serializer.Format, row.Data.ToArray())));
-    }
+        where TResult : default => _jobOperations.ReadResultAsync<TResult>(childJobId, executionNumber, ct);
 
     private protected override Task WriteNoteCoreAsync<T>(string message, T? detail, CancellationToken ct)
         where T : default

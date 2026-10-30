@@ -46,20 +46,24 @@ public sealed class JobHandleSpec : ActaRuntimeTestBase<ConformanceFixture, Test
         Assert.Equal(9, (await handle.WaitAsync<AddNumbersResult>(ct: ct)).ValueOrThrow().Sum);
     }
 
-    [Fact(DisplayName = "A typed handle deduplicated onto another definition's job refuses its result rather than decoding it")]
+    [Fact(
+        DisplayName = "A typed handle deduplicated onto another definition's job refuses its outcome and its result rather than decoding them"
+    )]
     public async Task Handle_deduplicated_onto_another_definition_refuses_its_result()
     {
         var ct = TestContext.Current.CancellationToken;
         var key = $"shared-{Guid.NewGuid():N}";
         var sum = await Jobs.EnqueueAsync(TestJobsManifest.AddNumbers(new AddNumbers(2, 3)), o => o.DeduplicationKey(key), ct);
-        Assert.Equal(RunOnceStatus.Completed, await Runtime.RunOnceAsync(sum, ct));
-
         var invoice = await Jobs.EnqueueAsync(TestJobsManifest.FormatInvoice(7, "acme"), o => o.DeduplicationKey(key), ct);
 
         Assert.Equal(EnqueueJobAction.Deduplicated, invoice.Action);
         Assert.Equal(sum.JobRef, invoice.JobRef);
+        // Refused on the first read, before the job runs, as well as after it succeeds.
+        await Assert.ThrowsAsync<InvalidOperationException>(async () => await invoice.WaitAsync(TimeSpan.FromMilliseconds(100), ct));
+        Assert.Equal(RunOnceStatus.Completed, await Runtime.RunOnceAsync(sum, ct));
         var refused = await Assert.ThrowsAsync<InvalidOperationException>(async () => await invoice.WaitAsync(ct: ct));
         Assert.Contains(typeof(AddNumbersResult).FullName!, refused.Message, StringComparison.Ordinal);
+        await Assert.ThrowsAsync<InvalidOperationException>(async () => await invoice.GetResultAsync(ct));
         Assert.Equal(5, (await sum.WaitAsync(ct: ct)).ValueOrThrow().Sum);
     }
 

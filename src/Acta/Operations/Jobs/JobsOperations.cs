@@ -152,11 +152,11 @@ internal sealed class JobsOperations(
         getResult.HandleAsync(new GetResultQuery(job), ct);
 
     public async ValueTask<TResult?> GetResultAsync<TResult>(JobLookup job, CancellationToken ct = default) =>
-        await GetResultAsync(job, ct) is { } response ? routing.Decode<TResult>(response.Result) : default;
+        await getResult.ReadAsync(job, ct) is { } row ? routing.DecodeResult<TResult>(row) : default;
 
-    /// <summary>The result <paramref name="executionNumber"/> stored, or the latest execution's when null; null when there is none.</summary>
-    internal Task<GetResultRow?> ReadResultAsync(long jobId, int? executionNumber, CancellationToken ct) =>
-        getResult.ReadAsync(jobId, executionNumber, ct);
+    /// <summary>The result <paramref name="executionNumber"/> stored, or the latest execution's when null, read as <typeparamref name="TResult"/>.</summary>
+    internal async Task<(bool Stored, TResult? Value)> ReadResultAsync<TResult>(long jobId, int? executionNumber, CancellationToken ct) =>
+        await getResult.ReadAsync(jobId, executionNumber, ct) is { } row ? (true, routing.DecodeResult<TResult>(row)) : (false, default);
 
     public ValueTask<GetCheckpointsResponse?> GetCheckpointsAsync(JobLookup job, CancellationToken ct = default) =>
         getCheckpoints.HandleAsync(new GetCheckpointsQuery(job), ct);
