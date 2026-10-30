@@ -1,5 +1,5 @@
 {
-  "schema_version": "acta-bench.catalog/1",
+  "schema_version": "acta-verify.catalog/1",
   "description": "Versioned scenario contracts implemented by Acta Bench. A catalogue entry alone never establishes successful execution or measurement.",
   "cases": [
     {

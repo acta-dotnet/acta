@@ -17,7 +17,7 @@ internal static class TransactionCases
         var state = environment.Trial(bundle.Resolve($"repro/state/{tag}"));
         using var host = await RuntimeHost.StartAsync(state.Provider, state.ConnectionString, state.Schema, false, true, ct);
         var jobs = host.Services.GetRequiredService<IJobs>();
-        var table = state.Provider == "sqlite" ? "main.bench_domain" : $"{state.Schema}.bench_domain";
+        var table = state.Provider == "sqlite" ? "main.verify_domain" : $"{state.Schema}.verify_domain";
         await using (var connection = await state.OpenAsync(ct))
         {
             await using (var create = connection.CreateCommand())
@@ -30,10 +30,10 @@ internal static class TransactionCases
             insert.Transaction = transaction;
             insert.CommandText = $"INSERT INTO {table}(business_key) VALUES('root')";
             await insert.ExecuteNonQueryAsync(ct);
-            var input = new BenchWork("root");
+            var input = new WorkInput("root");
             await jobs.EnqueueAsync(
                 transaction,
-                new EnqueueJobRequest("bench", "work", JobPayload.Json(input, WorkJson.Default.BenchWork), DeduplicationKey: input.Key),
+                new EnqueueJobRequest("verify", "work", JobPayload.Json(input, WorkJson.Default.WorkInput), DeduplicationKey: input.Key),
                 ct
             );
             if (scenario.Id == "I01")
@@ -51,14 +51,14 @@ internal static class TransactionCases
         if (scenario.Id == "I01")
         {
             await FaultCaseRunner.WaitAsync(
-                async () => (await jobs.GetAsync(JobLookup.ByDeduplicationKey("bench", "root"), ct))?.Status == JobStatusCode.Succeeded,
+                async () => (await jobs.GetAsync(JobLookup.ByDeduplicationKey("verify", "root"), ct))?.Status == JobStatusCode.Succeeded,
                 plan.Deadline(1, 0, state.DrainRate),
                 ct
             );
         }
         var actual = await reader.OutcomesAsync(ct);
         ExpectedOutcome[] expected = scenario.Id == "I01" ? WorkloadModel.Expected([new("root")]) : [];
-        var checks = OutcomeOracle.Reconcile(expected, actual).ToList();
+        var checks = OutcomeCheck.Reconcile(expected, actual).ToList();
         await using (var connection = await state.OpenAsync(ct))
         {
             await using var read = connection.CreateCommand();

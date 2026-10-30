@@ -10,11 +10,11 @@ public sealed class EvidenceTests
     public void Pending_work_is_distinct_from_lost_acknowledgements_and_wrong_identities()
     {
         HashSet<string> unresolved = ["root"];
-        var pending = OutcomeOracle.Reconcile([new("root", "Succeeded", "42", Steps: ["one=1"])], [new("root", "Executing", null)]);
-        Assert.Empty(OutcomeOracle.SafetyFailures(pending, unresolved, _ => true));
-        Assert.NotEmpty(OutcomeOracle.SafetyFailures([new("missing-identity", "root", false, "missing")], unresolved, _ => true));
-        Assert.Empty(OutcomeOracle.SafetyFailures([new("missing-identity", "root", false, "ambiguous")], unresolved, _ => false));
-        Assert.NotEmpty(OutcomeOracle.SafetyFailures([new("acknowledged-identity", "root", false, "wrong id")], unresolved, _ => true));
+        var pending = OutcomeCheck.Reconcile([new("root", "Succeeded", "42", Steps: ["one=1"])], [new("root", "Executing", null)]);
+        Assert.Empty(OutcomeCheck.SafetyFailures(pending, unresolved, _ => true));
+        Assert.NotEmpty(OutcomeCheck.SafetyFailures([new("missing-identity", "root", false, "missing")], unresolved, _ => true));
+        Assert.Empty(OutcomeCheck.SafetyFailures([new("missing-identity", "root", false, "ambiguous")], unresolved, _ => false));
+        Assert.NotEmpty(OutcomeCheck.SafetyFailures([new("acknowledged-identity", "root", false, "wrong id")], unresolved, _ => true));
     }
 
     [Fact]
@@ -110,7 +110,7 @@ public sealed class EvidenceTests
     {
         ExpectedOutcome[] expected = [new("root", "Succeeded", "10"), new("child", "Succeeded", "10", "root")];
         ObservedOutcome[] observed = [new("root", "Succeeded", "10"), new("replacement", "Succeeded", "10", "unrelated")];
-        var checks = OutcomeOracle.Reconcile(expected, observed);
+        var checks = OutcomeCheck.Reconcile(expected, observed);
         Assert.Contains(checks, c => c.Code == "missing-identity" && c.Identity == "child" && !c.Passed);
         Assert.Contains(checks, c => c.Code == "unexpected-identity" && c.Identity == "replacement" && !c.Passed);
     }
@@ -118,7 +118,7 @@ public sealed class EvidenceTests
     [Fact]
     public void Correct_count_with_wrong_checkpoint_output_fails()
     {
-        var checks = OutcomeOracle.Reconcile(
+        var checks = OutcomeCheck.Reconcile(
             [new("root", "Succeeded", "10", Steps: ["one=7"])],
             [new("root", "Succeeded", "10", Steps: ["one=8"])]
         );
@@ -181,9 +181,9 @@ public sealed class EvidenceTests
     [Fact]
     public void Scheduled_fault_and_idle_kill_are_not_recovery_evidence()
     {
-        Assert.False(OutcomeOracle.FaultCovered(new("claim", [], true, true, true), true));
-        Assert.False(OutcomeOracle.FaultCovered(new("claim", ["root"], false, true, true), true));
-        Assert.False(OutcomeOracle.FaultCovered(new("claim", ["root"], true, true, false), true));
-        Assert.True(OutcomeOracle.FaultCovered(new("claim", ["root"], true, true, true), true));
+        Assert.False(OutcomeCheck.FaultCovered(new("claim", [], true, true, true), true));
+        Assert.False(OutcomeCheck.FaultCovered(new("claim", ["root"], false, true, true), true));
+        Assert.False(OutcomeCheck.FaultCovered(new("claim", ["root"], true, true, false), true));
+        Assert.True(OutcomeCheck.FaultCovered(new("claim", ["root"], true, true, true), true));
     }
 }

@@ -33,7 +33,7 @@ public sealed record FaultEvidence(
     string Event = "fault_boundary"
 );
 
-public static class OutcomeOracle
+public static class OutcomeCheck
 {
     public static Check[] SafetyFailures(
         IEnumerable<Check> checks,

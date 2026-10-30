@@ -12,10 +12,10 @@ public sealed record IncompatibleFixtureInput(string RequiredContract);
 public static class EvolutionFixtureHandler
 {
     [Job("evolution-fixture")]
-    public static async Task<string> Run(BenchWork input, JobContext ctx, CancellationToken ct)
+    public static async Task<string> Run(WorkInput input, JobContext ctx, CancellationToken ct)
     {
         int result;
-        if (Environment.GetEnvironmentVariable("ACTA_BENCH_FIXTURE") == "v2")
+        if (Environment.GetEnvironmentVariable("ACTA_VERIFY_FIXTURE") == "v2")
         {
             var value = await ctx.RunStepAsync("value", _ => Task.FromResult(new FixtureValueV2(7)), ct: ct);
             result = value.Value + value.Additional;

@@ -176,7 +176,7 @@ internal sealed class DurableReader(OwnedProvider provider)
         return rows;
     }
 
-    /// <summary>The steps of every bench job above <paramref name="afterJobId"/>, or of <paramref name="ids"/>.</summary>
+    /// <summary>The steps of every workload job above <paramref name="afterJobId"/>, or of <paramref name="ids"/>.</summary>
     public async Task<StepObservation[]> StepsAsync(IReadOnlyCollection<long>? ids, CancellationToken ct, long afterJobId = 0)
     {
         if (ids is { Count: 0 })
@@ -187,7 +187,7 @@ internal sealed class DurableReader(OwnedProvider provider)
         await using var command = connection.CreateCommand();
         var filter = ids is null ? "" : $" AND s.job_id IN ({string.Join(',', ids.Select((id, i) => Add(command, $"@step{i}", id)))})";
         command.CommandText =
-            $"SELECT s.job_id, s.step_name, s.step_status_code, s.result, s.modified_at_utc FROM {Table("steps")} s JOIN {Table("jobs")} j ON j.job_id=s.job_id JOIN {Table("namespaces")} n ON n.namespace_id=j.namespace_id WHERE n.namespace_name IN ('bench','bench-other','bench-2') AND s.job_id > {Add(command, "@after", afterJobId)}{filter}";
+            $"SELECT s.job_id, s.step_name, s.step_status_code, s.result, s.modified_at_utc FROM {Table("steps")} s JOIN {Table("jobs")} j ON j.job_id=s.job_id JOIN {Table("namespaces")} n ON n.namespace_id=j.namespace_id WHERE n.namespace_name IN ('verify','verify-other','verify-2') AND s.job_id > {Add(command, "@after", afterJobId)}{filter}";
         List<StepObservation> result = [];
         await using var reader = await command.ExecuteReaderAsync(ct);
         while (await reader.ReadAsync(ct))

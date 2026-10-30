@@ -149,7 +149,7 @@ internal sealed class OwnedProvider : IAsyncDisposable
         [
             "create",
             "--label",
-            $"acta.bench.owner={Ownership}",
+            $"acta.verify.owner={Ownership}",
             "-p",
             $"127.0.0.1:{hostPort}:{port}",
             "--memory",
@@ -347,7 +347,7 @@ internal sealed class OwnedProvider : IAsyncDisposable
         for (var n = rows.Length + 1; n <= dataFiles; n++)
         {
             statements.Add(
-                $"ALTER DATABASE [{database}] ADD FILE (NAME = N'acta_bench_data{n}', FILENAME = N'{directory}acta_bench_data{n}.ndf', SIZE = {data.Mb}MB, FILEGROWTH = {data.GrowthMb}MB);"
+                $"ALTER DATABASE [{database}] ADD FILE (NAME = N'acta_verify_data{n}', FILENAME = N'{directory}acta_verify_data{n}.ndf', SIZE = {data.Mb}MB, FILEGROWTH = {data.GrowthMb}MB);"
             );
         }
         // A data file beyond the count is emptied and removed; one SQL Server has not opened yet only needs removing.
@@ -561,8 +561,8 @@ internal sealed class OwnedProvider : IAsyncDisposable
         await using var marker = database.CreateCommand();
         marker.CommandText =
             Provider == "pg"
-                ? $"COMMENT ON DATABASE \"{Schema}\" IS 'acta.bench.owner={Ownership}';"
-                : $"EXEC sys.sp_addextendedproperty @name=N'acta.bench.owner', @value=N'{Ownership}';";
+                ? $"COMMENT ON DATABASE \"{Schema}\" IS 'acta.verify.owner={Ownership}';"
+                : $"EXEC sys.sp_addextendedproperty @name=N'acta.verify.owner', @value=N'{Ownership}';";
         await marker.ExecuteNonQueryAsync(ct);
         _ownsDatabase = true;
     }
@@ -575,8 +575,8 @@ internal sealed class OwnedProvider : IAsyncDisposable
             marker.CommandText =
                 Provider == "pg"
                     ? "SELECT shobj_description(oid, 'pg_database') FROM pg_database WHERE datname=current_database();"
-                    : "SELECT CAST(value AS nvarchar(100)) FROM sys.extended_properties WHERE class=0 AND name=N'acta.bench.owner';";
-            var expected = Provider == "pg" ? "acta.bench.owner=" + Ownership : Ownership;
+                    : "SELECT CAST(value AS nvarchar(100)) FROM sys.extended_properties WHERE class=0 AND name=N'acta.verify.owner';";
+            var expected = Provider == "pg" ? "acta.verify.owner=" + Ownership : Ownership;
             if (
                 !string.Equals(
                     Convert.ToString(await marker.ExecuteScalarAsync(ct), CultureInfo.InvariantCulture),
@@ -789,7 +789,7 @@ internal sealed class OwnedProvider : IAsyncDisposable
         {
             throw new InvalidOperationException("This provider has no owned database process.");
         }
-        var label = await DockerAsync(["inspect", "--format", "{{index .Config.Labels \"acta.bench.owner\"}}", ContainerId], null, ct);
+        var label = await DockerAsync(["inspect", "--format", "{{index .Config.Labels \"acta.verify.owner\"}}", ContainerId], null, ct);
         if (label.Trim() != Ownership)
         {
             throw new InvalidOperationException("Database ownership marker mismatch.");
@@ -812,8 +812,11 @@ internal sealed class OwnedProvider : IAsyncDisposable
         }
     }
 
+    /// <summary>The label an owned container carries, then the one runs carried before the rename, which cleanup still finds.</summary>
+    internal static readonly string[] OwnerLabels = ["acta.verify.owner", "acta.bench.owner"];
+
     /// <summary>
-    /// Lists with sizes the containers labelled acta.bench.owner and the marked b_ databases on the acta-dev servers.
+    /// Lists with sizes the containers labelled acta.verify.owner and the marked b_ databases on the acta-dev servers.
     /// With remove it deletes them, unless another Acta Verify process is running.
     /// </summary>
     public static async Task<int> CleanupAsync(bool remove, CancellationToken ct)
@@ -826,19 +829,22 @@ internal sealed class OwnedProvider : IAsyncDisposable
             Console.WriteLine($"Another Acta Verify process is running (PID {string.Join(", ", running.Keys)}); nothing is removed.");
             (remove, failed) = (false, true);
         }
-        var containers = await DockerAsync(
-            ["ps", "-a", "--size", "--filter", "label=acta.bench.owner", "--format", "{{.ID}}\t{{.Image}}\t{{.Status}}\t{{.Size}}"],
-            null,
-            ct
-        );
-        Console.WriteLine("Containers labelled acta.bench.owner (writable layer size):");
-        foreach (var line in containers.Split(['\r', '\n'], StringSplitOptions.RemoveEmptyEntries))
+        foreach (var label in OwnerLabels)
         {
-            Console.WriteLine("  " + line);
-            var id = line.Split('\t')[0];
-            if (remove)
+            var containers = await DockerAsync(
+                ["ps", "-a", "--size", "--filter", "label=" + label, "--format", "{{.ID}}\t{{.Image}}\t{{.Status}}\t{{.Size}}"],
+                null,
+                ct
+            );
+            Console.WriteLine($"Containers labelled {label} (writable layer size):");
+            foreach (var line in containers.Split(['\r', '\n'], StringSplitOptions.RemoveEmptyEntries))
             {
-                failed |= !await RemoveAsync(id, DockerAsync(["rm", "-f", "-v", id], null, ct));
+                Console.WriteLine("  " + line);
+                var id = line.Split('\t')[0];
+                if (remove)
+                {
+                    failed |= !await RemoveAsync(id, DockerAsync(["rm", "-f", "-v", id], null, ct));
+                }
             }
         }
         foreach (var provider in new[] { "pg", "mssql" })
@@ -881,18 +887,18 @@ internal sealed class OwnedProvider : IAsyncDisposable
             }
         }
         var succeeded = true;
-        Console.WriteLine($"Databases on acta-dev {provider} carrying the acta.bench.owner marker:");
+        Console.WriteLine($"Databases on acta-dev {provider} carrying the acta.verify.owner marker:");
         foreach (
             var (name, comment, bytes) in databases.Where(d => d.Name.StartsWith("b_", StringComparison.Ordinal) && Hex32(d.Name[2..]))
         )
         {
             var marker =
-                comment?.StartsWith("acta.bench.owner=", StringComparison.Ordinal) == true ? comment["acta.bench.owner=".Length..] : null;
+                comment?.StartsWith("acta.verify.owner=", StringComparison.Ordinal) == true ? comment["acta.verify.owner=".Length..] : null;
             if (provider == "mssql")
             {
                 await using var read = admin.CreateCommand();
                 read.CommandText =
-                    $"SELECT CAST(value AS nvarchar(100)) FROM [{name}].sys.extended_properties WHERE class=0 AND name=N'acta.bench.owner';";
+                    $"SELECT CAST(value AS nvarchar(100)) FROM [{name}].sys.extended_properties WHERE class=0 AND name=N'acta.verify.owner';";
                 marker = await read.ExecuteScalarAsync(ct) as string;
             }
             if (marker is null || !Hex32(marker))

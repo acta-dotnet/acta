@@ -59,13 +59,13 @@ Every case follows these rules.
 ## Commands
 
 ```powershell
-acta-verify --standard --db all --seed 1729 --output ./artifacts/bench
+acta-verify --standard --db all --seed 1729 --output ./artifacts/verify
 acta-verify --quick --db sqlite --case C03 --case C05
 acta-verify --full --db pg --case L04 --repetitions 3 --preload 1000000
-acta-verify replay ./artifacts/bench/<run-id>/resolved-plan.json
-acta-verify report ./artifacts/bench/<run-id>
-acta-verify compare ./artifacts/bench/<baseline> ./artifacts/bench/<candidate>
-acta-verify publish ./artifacts/bench/<run-id> --to docs/benchmark.md
+acta-verify replay ./artifacts/verify/<run-id>/resolved-plan.json
+acta-verify report ./artifacts/verify/<run-id>
+acta-verify compare ./artifacts/verify/<baseline> ./artifacts/verify/<candidate>
+acta-verify publish ./artifacts/verify/<run-id> --to docs/benchmark.md
 acta-verify cleanup [--yes]
 acta-verify list
 ```
@@ -74,7 +74,7 @@ acta-verify list
 - `report` rebuilds a bundle's report. It finalizes an interrupted run as ABORTED, never PASS, and refuses an active run.
 - `compare` judges each cell by its validated capacity and by p99 at the highest rate both bundles validated, with a 10% tolerance. A cell validated only in the baseline counts as a regression. It exits 1 on a regression, 0 when clean, and 2 when the bundles are not comparable.
 - `publish` copies a bundle's report to the file named. Normal runs never touch tracked documentation, and no command uploads results.
-- `cleanup` lists the containers labelled `acta.bench.owner` and the `b_` databases carrying the ownership marker. With `--yes` it removes them, but refuses while another Acta Verify process runs.
+- `cleanup` lists the containers labelled `acta.verify.owner` and the `b_` databases carrying the ownership marker. With `--yes` it removes them, but refuses while another Acta Verify process runs.
 
 ## Databases and resources
 
@@ -95,7 +95,7 @@ acta-verify list
 
 ## Evidence and exit codes
 
-- **The bundle:** each run writes `artifacts/bench/<run-id>/`. It holds `result.json`, offline HTML and Markdown reports, the frozen plan, the environment, the checks, the fault and resource journals, the histograms, the per-trial aggregates, the per-job rows of any trial that did not pass, and `checksums.sha256`. Raw database state under `repro/state/` is outside the checksums.
+- **The bundle:** each run writes `artifacts/verify/<run-id>/`. It holds `result.json`, offline HTML and Markdown reports, the frozen plan, the environment, the checks, the fault and resource journals, the histograms, the per-trial aggregates, the per-job rows of any trial that did not pass, and `checksums.sha256`. Raw database state under `repro/state/` is outside the checksums.
 - **The report:** `report.md`, and `report.html` rendered from it, lead with a table per measured case (a row per cell, with its medians and the trials the instability rule added) and the run's overhead: wall time, bundle size, and the median setup, seeding, window, verification, ledger and evidence-writing time per trial. On Windows it also lists each drive's write latency, writes per second and idle time before, through and after the run, from the Windows disk counters, since a QLC drive whose write cache folded halves the server cells. Results that did not pass are listed individually, and the environment closes the report. The console prints the same lead at the end of a run.
 - **The evidence budget:** a passing run's bundle, everything outside `repro/state/`, stays under `output.passing_bundle_budget_mb`. A passing run over it prints the overrun, writes `logs/evidence-budget.txt`, and ends INCONCLUSIVE with a harness error.
 - **The external effect service:** it runs outside the workers with its own SQLite store, so idempotent effects are attributed to it, not to the engine.

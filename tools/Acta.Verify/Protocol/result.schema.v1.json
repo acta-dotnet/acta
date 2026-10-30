@@ -17,7 +17,7 @@
   ],
   "properties": {
     "schema_version": {
-      "const": "acta-bench.result/1"
+      "const": "acta-verify.result/1"
     },
     "run_id": {
       "type": "string",

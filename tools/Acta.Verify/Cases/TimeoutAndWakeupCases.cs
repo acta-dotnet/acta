@@ -15,13 +15,13 @@ internal static class TimeoutAndWakeupCases
     {
         var tag = $"{environment.Provider}-{scenario.Id}-{repetition}";
         var state = environment.Trial(bundle.Resolve($"repro/state/{tag}"));
-        using var oracle = new EffectService(bundle.Resolve($"repro/state/{tag}/oracle.db"));
-        await oracle.StartAsync(ct);
+        using var effects = new EffectService(bundle.Resolve($"repro/state/{tag}/effects.db"));
+        await effects.StartAsync(ct);
         using var host = await RuntimeHost.StartAsync(state.Provider, state.ConnectionString, state.Schema, false, true, ct);
         var jobs = host.Services.GetRequiredService<IJobs>();
-        using var worker = OwnedWorker.Start(state, oracle, suppressWakeup: scenario.Id == "F08");
+        using var worker = OwnedWorker.Start(state, effects, suppressWakeup: scenario.Id == "F08");
         await worker.ReadyAsync(ct);
-        var input = new BenchWork("root", Children: scenario.Id == "F08" ? 10 : 0);
+        var input = new WorkInput("root", Children: scenario.Id == "F08" ? 10 : 0);
         var expected = WorkloadModel.Expected([input]);
         if (scenario.Id == "R03")
         {
@@ -29,9 +29,9 @@ internal static class TimeoutAndWakeupCases
         }
         var root = await jobs.EnqueueAsync(
             new EnqueueJobRequest(
-                "bench",
+                "verify",
                 scenario.Id == "R03" ? "late-work" : "work",
-                JobPayload.Json(input, WorkJson.Default.BenchWork),
+                JobPayload.Json(input, WorkJson.Default.WorkInput),
                 DeduplicationKey: input.Key
             ),
             ct
@@ -46,7 +46,7 @@ internal static class TimeoutAndWakeupCases
             await Task.Delay(3000, ct);
         }
         var actual = await new DurableReader(state).OutcomesAsync(ct);
-        var checks = OutcomeOracle.Reconcile(expected, actual).ToList();
+        var checks = OutcomeCheck.Reconcile(expected, actual).ToList();
         if (scenario.Id == "R03")
         {
             var checkpoints = await jobs.GetCheckpointsAsync(root, ct);
@@ -58,12 +58,12 @@ internal static class TimeoutAndWakeupCases
                     "Late external operation remained observable but cancelled attempt could not commit a variable."
                 )
             );
-            var effects = await oracle.CountsAsync(ct);
+            var sink = await effects.CountsAsync(ct);
             checks.Add(
                 new(
                     "late-external-effect",
                     input.Key,
-                    effects.Requests == 1 && effects.Applications == 1,
+                    sink.Requests == 1 && sink.Applications == 1,
                     "External operation survived the engine timeout; no exactly-once cancellation claim."
                 )
             );

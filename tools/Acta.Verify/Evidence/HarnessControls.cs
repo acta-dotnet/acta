@@ -9,9 +9,9 @@ public static class HarnessControls
         var missedFraction = plan.Policy("capacity", "max_generator_missed_fraction_for_valid_capacity");
         ExpectedOutcome[] expected = [new("root", "Succeeded", "42", Steps: ["one=1", "two=2"]), new("child", "Succeeded", "40", "root")];
         ObservedOutcome[] valid = [new("root", "Succeeded", "42", Steps: ["one=1", "two=2"]), new("child", "Succeeded", "40", "root")];
-        if (OutcomeOracle.Reconcile(expected, valid).Any(c => !c.Passed))
+        if (OutcomeCheck.Reconcile(expected, valid).Any(c => !c.Passed))
         {
-            throw new InvalidOperationException("Oracle rejects the valid control fixture.");
+            throw new InvalidOperationException("The outcome check rejects the valid control fixture.");
         }
         var results = new List<CaseResult>();
         Test("H01", [valid[1]], "missing-identity");
@@ -19,7 +19,7 @@ public static class HarnessControls
         Test("H03", [.. valid, valid[0]], "unique-terminal");
         Test("H04", [valid[0], valid[1] with { Key = "substitute" }], "missing-identity");
         Test("H05", [valid[0] with { Output = "43" }, valid[1]], "logical-result");
-        Record("H06", !OutcomeOracle.FaultCovered(new("busy-kill", [], false, true, false), true));
+        Record("H06", !OutcomeCheck.FaultCovered(new("busy-kill", [], false, true, false), true));
         Record(
             "H07",
             Verdicts.Measurement(1000, 10, false, 1, 1000, 0, 0.1, missedFraction) == "GENERATOR_LIMITED"
@@ -30,7 +30,7 @@ public static class HarnessControls
 
         void Test(string id, ObservedOutcome[] corrupted, string rejectedBy)
         {
-            var checks = OutcomeOracle.Reconcile(expected, corrupted);
+            var checks = OutcomeCheck.Reconcile(expected, corrupted);
             bundle.Write($"histories/{id}-expected.json", expected, VerifyJson.Default.ExpectedOutcomeArray);
             bundle.Write($"histories/{id}-observed.json", corrupted, VerifyJson.Default.ObservedOutcomeArray);
             bundle.Write($"histories/{id}-checks.json", checks, VerifyJson.Default.CheckArray);

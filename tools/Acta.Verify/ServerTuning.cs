@@ -84,7 +84,7 @@ public static class ServerTuning
             ]),
         };
 
-    /// <summary>The files a SQL Server bench database is created with, as its readback names them.</summary>
+    /// <summary>The files a SQL Server run database is created with, as its readback names them.</summary>
     public static Dictionary<string, string> SqlServerDatabaseFiles(RunPlan plan) =>
         new(StringComparer.Ordinal)
         {
@@ -131,11 +131,11 @@ public static class ServerTuning
         return plan.Policy("provisioning", "owned_server", server, name);
     }
 
-    /// <summary>Reads a number from the protocol's <c>provisioning.bench_database.sqlserver</c> terms.</summary>
+    /// <summary>Reads a number from the protocol's <c>provisioning.verify_database.sqlserver</c> terms.</summary>
     public static double Database(RunPlan plan, string name)
     {
         ArgumentNullException.ThrowIfNull(plan);
-        return plan.Policy("provisioning", "bench_database", "sqlserver", name);
+        return plan.Policy("provisioning", "verify_database", "sqlserver", name);
     }
 
     private static double Owned(RunPlan plan, string name) => plan.Policy("provisioning", "owned_server", name);

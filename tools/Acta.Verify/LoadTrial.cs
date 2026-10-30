@@ -41,7 +41,7 @@ internal sealed record LoadSpec(
     int? Executors,
     int Namespaces,
     double LatencyTargetMs,
-    Func<int, BenchWork> Work,
+    Func<int, WorkInput> Work,
     Func<int, string?> Lane,
     string? ConcurrencyKey,
     bool NeedsEffectService = false,
@@ -93,10 +93,10 @@ internal static class LoadTrial
         var writeSecondsAtStart = bundle.WriteSeconds;
         Console.WriteLine($"  START {tag}");
         var state = environment.Trial(bundle.Resolve($"repro/state/{tag}"));
-        using var oracle = spec.NeedsEffectService ? new EffectService(bundle.Resolve($"repro/state/{tag}/oracle.db")) : null;
-        if (oracle is not null)
+        using var effects = spec.NeedsEffectService ? new EffectService(bundle.Resolve($"repro/state/{tag}/effects.db")) : null;
+        if (effects is not null)
         {
-            await oracle.StartAsync(ct);
+            await effects.StartAsync(ct);
         }
         using var host = await RuntimeHost.StartAsync(
             state.Provider,
@@ -128,12 +128,12 @@ internal static class LoadTrial
         using var workers = new OwnedWorkerPool();
         if (spec.Mode == LoadMode.Stream)
         {
-            await workers.StartAsync(state, oracle, spec.Workers, spec.Executors, ct, spec.Namespaces, spec.CrossNamespace);
+            await workers.StartAsync(state, effects, spec.Workers, spec.Executors, ct, spec.Namespaces, spec.CrossNamespace);
         }
         await using var resources = new ResourceSampler(state, bundle, tag, workers.ProcessIds, ct);
-        if (oracle is not null)
+        if (effects is not null)
         {
-            resources.AddProcess(oracle.ProcessId, "external_oracle");
+            resources.AddProcess(effects.ProcessId, "external_oracle");
         }
         var seeding = Stopwatch.GetTimestamp();
         var background = spec.PrepareBackground is null ? 0 : await spec.PrepareBackground(jobs, state, resources, ct);
@@ -210,7 +210,7 @@ internal static class LoadTrial
                 drainStart = Stopwatch.GetTimestamp();
                 if (spec.Mode != LoadMode.Stream)
                 {
-                    await workers.StartAsync(state, oracle, spec.Workers, spec.Executors, ct, spec.Namespaces, spec.CrossNamespace);
+                    await workers.StartAsync(state, effects, spec.Workers, spec.Executors, ct, spec.Namespaces, spec.CrossNamespace);
                     workerStartupMs = Ms(Stopwatch.GetTimestamp() - drainStart);
                     foreach (var pid in workers.ProcessIds)
                     {
@@ -268,7 +268,7 @@ internal static class LoadTrial
             expectedSteps = 0;
         await foreach (var page in reader.RootPagesAsync(floor, ct))
         {
-            var works = new BenchWork?[page.Count];
+            var works = new WorkInput?[page.Count];
             Parallel.For(0, page.Count, r => works[r] = Index(page[r].Key) is { } i && i < count ? spec.Work(i) : null);
             for (var r = 0; r < page.Count; r++)
             {
@@ -369,9 +369,9 @@ internal static class LoadTrial
         }
         var stored = await Task.WhenAll(
             spec.CheckBackground is null ? Task.FromResult<Check[]>([]) : spec.CheckBackground(state, background, ct),
-            oracle is null
+            effects is null
                 ? Task.FromResult<Check[]>([])
-                : oracle.CheckIdempotentKeysAsync(Enumerable.Range(0, count).Where(i => idempotent[i]).Select(Key), ct)
+                : effects.CheckIdempotentKeysAsync(Enumerable.Range(0, count).Where(i => idempotent[i]).Select(Key), ct)
         );
         foreach (var check in stored.SelectMany(c => c).Where(c => !c.Passed))
         {
@@ -588,7 +588,7 @@ internal static class LoadTrial
             return opened;
         }
 
-        string Namespace(int i) => i % spec.Namespaces == 0 ? "bench" : "bench-2";
+        string Namespace(int i) => i % spec.Namespaces == 0 ? "verify" : "verify-2";
 
         int? Index(string key) =>
             key.StartsWith("root-", StringComparison.Ordinal)
@@ -602,7 +602,7 @@ internal static class LoadTrial
             return new(
                 Namespace(i),
                 "work",
-                JobPayload.Json(work, WorkJson.Default.BenchWork),
+                JobPayload.Json(work, WorkJson.Default.WorkInput),
                 DeduplicationKey: work.Key,
                 Lane: spec.Lane(i),
                 ConcurrencyKey: spec.ConcurrencyKey
@@ -766,8 +766,8 @@ internal static class LoadTrial
                     if (spec.QueriesDuringProcessing && cycle >= nextQuery)
                     {
                         var operations = host.Services.GetRequiredService<IActaOperations>();
-                        await operations.Ledger.ListJobsAsync(new(JobNamespace: "bench", PageSize: 20), token);
-                        await operations.Ledger.ListEventsAsync(new(JobNamespace: "bench", PageSize: 20), token);
+                        await operations.Ledger.ListJobsAsync(new(JobNamespace: "verify", PageSize: 20), token);
+                        await operations.Ledger.ListEventsAsync(new(JobNamespace: "verify", PageSize: 20), token);
                         queryLatency.Record(Ms(Stopwatch.GetTimestamp() - cycle));
                         nextQuery += Stopwatch.Frequency;
                     }

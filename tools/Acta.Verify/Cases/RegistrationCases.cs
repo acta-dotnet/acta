@@ -34,7 +34,7 @@ internal static class RegistrationCases
         var state = environment.Trial(bundle.Resolve($"repro/state/{tag}"));
         using var host = await RuntimeHost.StartAsync(state.Provider, state.ConnectionString, state.Schema, false, true, ct);
         var jobs = host.Services.GetRequiredService<IJobs>();
-        var input = new BenchWork("root");
+        var input = new WorkInput("root");
         ExpectedOutcome[] expected =
         [
             new(
@@ -48,9 +48,9 @@ internal static class RegistrationCases
         await first.ReadyAsync(ct);
         var root = await jobs.EnqueueAsync(
             new EnqueueJobRequest(
-                "bench",
+                "verify",
                 "evolution-fixture",
-                JobPayload.Json(input, WorkJson.Default.BenchWork),
+                JobPayload.Json(input, WorkJson.Default.WorkInput),
                 DeduplicationKey: input.Key
             ),
             ct
@@ -86,7 +86,7 @@ internal static class RegistrationCases
         }
         var actual = await new DurableReader(state).OutcomesAsync(ct);
 
-        var checks = OutcomeOracle.Reconcile(expected, actual).ToList();
+        var checks = OutcomeCheck.Reconcile(expected, actual).ToList();
         if (scenario.Id == "D03")
         {
             checks.Add(

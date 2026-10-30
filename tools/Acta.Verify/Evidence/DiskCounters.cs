@@ -5,14 +5,14 @@ using System.Text.Json;
 namespace Acta.Verify;
 
 /// <summary>
-/// Windows disk counters for the whole run, read by one Get-Counter process every two seconds, so the bench writes
+/// Windows disk counters for the whole run, read by one Get-Counter process every two seconds, so the harness writes
 /// nothing to measure the drive. Each sample is filed under the phase the run is in: before the first provider, each
 /// provider, and after the last. A QLC drive that folded its write cache after sustained writes shows it as write
 /// latency several times the fresh figure, and server cells measured in that state read about half.
 /// </summary>
 public sealed class DiskCounters : IDisposable
 {
-    // Runs while the bench process lives, so a killed bench leaves no sampler behind.
+    // Runs while the run's process lives, so a killed run leaves no sampler behind.
     private const string Script =
         "[Threading.Thread]::CurrentThread.CurrentCulture = [Globalization.CultureInfo]::InvariantCulture; "
         + "$c = '\\PhysicalDisk(*)\\Avg. Disk sec/Write', '\\PhysicalDisk(*)\\Disk Writes/sec', '\\PhysicalDisk(*)\\% Idle Time'; "

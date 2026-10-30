@@ -727,7 +727,7 @@ dotnet run --project anvil/Anvil                                        # loopba
 dotnet run -c Release --project tools/Acta.Verify -- --quick --db sqlite # quick benchmark and conformance check
 ```
 
-Anvil defaults to SQLite for a quick dashboard look. [Acta Verify](tools/Acta.Verify/README.md) is the headless benchmark and conformance standard: `--quick` checks a change, and `--standard` and `--full` are the longer campaigns. Each run writes an evidence bundle under `artifacts/bench/` and never touches tracked documentation.
+Anvil defaults to SQLite for a quick dashboard look. [Acta Verify](tools/Acta.Verify/README.md) is the headless benchmark and conformance standard: `--quick` checks a change, and `--standard` and `--full` are the longer campaigns. Each run writes an evidence bundle under `artifacts/verify/` and never touches tracked documentation.
 
 ## Releasing
 
@@ -757,7 +757,7 @@ push the packages to nuget.org through Trusted Publishing (the `publish-nuget` j
 The evidence is one [Acta Verify](tools/Acta.Verify/README.md) `--full` run against A, on all three databases, which fits one night:
 
 ```bash
-dotnet run -c Release --project tools/Acta.Verify -- --full --db all --output artifacts/bench
+dotnet run -c Release --project tools/Acta.Verify -- --full --db all --output artifacts/verify
 ```
 
 - A run a crash or a cancel stopped resumes when the same command runs again: the databases that finished keep their results, and the report records the resume.

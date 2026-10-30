@@ -16,13 +16,13 @@ internal sealed class ParentLifetime : IDisposable
 
     public static ParentLifetime? ForInternalRole(string[] args)
     {
-        if (args is not (["--worker"] or ["--oracle"]))
+        if (args is not (["--worker"] or ["--effects"]))
         {
             return null;
         }
         if (
-            !int.TryParse(Environment.GetEnvironmentVariable("ACTA_BENCH_PARENT_PID"), CultureInfo.InvariantCulture, out var pid)
-            || !long.TryParse(Environment.GetEnvironmentVariable("ACTA_BENCH_PARENT_START"), CultureInfo.InvariantCulture, out var started)
+            !int.TryParse(Environment.GetEnvironmentVariable("ACTA_VERIFY_PARENT_PID"), CultureInfo.InvariantCulture, out var pid)
+            || !long.TryParse(Environment.GetEnvironmentVariable("ACTA_VERIFY_PARENT_START"), CultureInfo.InvariantCulture, out var started)
         )
         {
             throw new ArgumentException("Internal roles require an owning controller.");

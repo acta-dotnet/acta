@@ -48,7 +48,7 @@ internal sealed class OwnedWorker : IDisposable
     public bool IsRunning => !_process.HasExited;
     public int DroppedWakeups => Volatile.Read(ref _droppedWakeups);
 
-    /// <summary>The settings the worker resolved, reported before its readiness line; null for the oracle.</summary>
+    /// <summary>The settings the worker resolved, reported before its readiness line; null for the effects.</summary>
     public WorkerSettings? Settings { get; private set; }
 
     public void Pause() => WorkerPause.Set(_process, true);
@@ -65,16 +65,16 @@ internal sealed class OwnedWorker : IDisposable
         while (await reader.ReadLineAsync() is { } line)
         {
             _contractRejected |= line.Contains("PayloadContractDriftException", StringComparison.Ordinal);
-            if (readiness && line.StartsWith("ACTA_BENCH_SETTINGS ", StringComparison.Ordinal))
+            if (readiness && line.StartsWith("ACTA_VERIFY_SETTINGS ", StringComparison.Ordinal))
             {
                 var values = line.Split(' ')[1..].Select(v => double.Parse(v, CultureInfo.InvariantCulture)).ToArray();
                 Settings = new((int)values[0], values[1], (int)values[2], values[3], values[4]);
             }
-            if (readiness && line == "ACTA_BENCH_READY")
+            if (readiness && line == "ACTA_VERIFY_READY")
             {
                 _ready.TrySetResult();
             }
-            if (readiness && line == "ACTA_BENCH_WAKEUP_DROPPED")
+            if (readiness && line == "ACTA_VERIFY_WAKEUP_DROPPED")
             {
                 Interlocked.Increment(ref _droppedWakeups);
             }
@@ -124,7 +124,7 @@ internal sealed class OwnedWorker : IDisposable
 
     public static OwnedWorker Start(
         OwnedProvider provider,
-        EffectService? oracle = null,
+        EffectService? effects = null,
         StoreInjection? injection = null,
         string? connectionOverride = null,
         bool suppressWakeup = false,
@@ -154,40 +154,40 @@ internal sealed class OwnedWorker : IDisposable
         SetParent(info);
         if (jobNamespace is not null)
         {
-            info.Environment["ACTA_BENCH_NAMESPACE"] = jobNamespace;
+            info.Environment["ACTA_VERIFY_NAMESPACE"] = jobNamespace;
         }
         if (executors is not null)
         {
-            info.Environment["ACTA_BENCH_EXECUTORS"] = executors.Value.ToString(CultureInfo.InvariantCulture);
+            info.Environment["ACTA_VERIFY_EXECUTORS"] = executors.Value.ToString(CultureInfo.InvariantCulture);
         }
         if (heartbeatSeconds is not null)
         {
-            info.Environment["ACTA_BENCH_HEARTBEAT_SECONDS"] = heartbeatSeconds.Value.ToString(CultureInfo.InvariantCulture);
+            info.Environment["ACTA_VERIFY_HEARTBEAT_SECONDS"] = heartbeatSeconds.Value.ToString(CultureInfo.InvariantCulture);
         }
-        info.Environment["ACTA_BENCH_PROVIDER"] = provider.Provider;
-        info.Environment["ACTA_BENCH_CONNECTION"] = connectionOverride ?? provider.ConnectionString;
-        info.Environment["ACTA_BENCH_SCHEMA"] = provider.Schema;
-        info.Environment["ACTA_BENCH_OWNER"] = provider.Ownership;
-        info.Environment["ACTA_BENCH_SUPPRESS_WAKEUP"] = suppressWakeup ? "1" : "0";
+        info.Environment["ACTA_VERIFY_PROVIDER"] = provider.Provider;
+        info.Environment["ACTA_VERIFY_CONNECTION"] = connectionOverride ?? provider.ConnectionString;
+        info.Environment["ACTA_VERIFY_SCHEMA"] = provider.Schema;
+        info.Environment["ACTA_VERIFY_OWNER"] = provider.Ownership;
+        info.Environment["ACTA_VERIFY_SUPPRESS_WAKEUP"] = suppressWakeup ? "1" : "0";
         if (fixture is not null)
         {
-            info.Environment["ACTA_BENCH_FIXTURE"] = fixture;
+            info.Environment["ACTA_VERIFY_FIXTURE"] = fixture;
         }
         if (outboxSource is not null)
         {
-            info.Environment["ACTA_BENCH_OUTBOX_SOURCE"] = outboxSource;
+            info.Environment["ACTA_VERIFY_OUTBOX_SOURCE"] = outboxSource;
         }
-        if (oracle is not null)
+        if (effects is not null)
         {
-            info.Environment["ACTA_BENCH_ORACLE"] = oracle.Endpoint;
-            info.Environment["ACTA_BENCH_ORACLE_TOKEN"] = oracle.Token;
+            info.Environment["ACTA_VERIFY_EFFECTS"] = effects.Endpoint;
+            info.Environment["ACTA_VERIFY_EFFECTS_TOKEN"] = effects.Token;
         }
         if (injection is not null)
         {
-            info.Environment["ACTA_BENCH_INJECT_OPERATION"] = injection.Operation;
-            info.Environment["ACTA_BENCH_INJECT_BOUNDARY"] = injection.Boundary;
-            info.Environment["ACTA_BENCH_INJECT_LOSE_REPLY"] = injection.LoseReply ? "1" : "0";
-            info.Environment["ACTA_BENCH_INJECT_JOB_ID"] =
+            info.Environment["ACTA_VERIFY_INJECT_OPERATION"] = injection.Operation;
+            info.Environment["ACTA_VERIFY_INJECT_BOUNDARY"] = injection.Boundary;
+            info.Environment["ACTA_VERIFY_INJECT_LOSE_REPLY"] = injection.LoseReply ? "1" : "0";
+            info.Environment["ACTA_VERIFY_INJECT_JOB_ID"] =
                 injection.JobId?.ToString(System.Globalization.CultureInfo.InvariantCulture) ?? "";
         }
         var process = Process.Start(info) ?? throw new InvalidOperationException("Could not start owned worker.");
@@ -198,9 +198,9 @@ internal sealed class OwnedWorker : IDisposable
         return new OwnedWorker(process);
     }
 
-    public static OwnedWorker Oracle(EffectService oracle)
+    public static OwnedWorker Effects(EffectService effects)
     {
-        var executable = Environment.ProcessPath ?? throw new InvalidOperationException("Cannot locate oracle executable.");
+        var executable = Environment.ProcessPath ?? throw new InvalidOperationException("Cannot locate effects executable.");
         var info = new ProcessStartInfo(executable)
         {
             UseShellExecute = false,
@@ -215,17 +215,17 @@ internal sealed class OwnedWorker : IDisposable
                 Path.Combine(AppContext.BaseDirectory, System.Reflection.Assembly.GetEntryAssembly()!.GetName().Name + ".dll")
             );
         }
-        info.ArgumentList.Add("--oracle");
+        info.ArgumentList.Add("--effects");
         SetParent(info);
-        info.Environment["ACTA_BENCH_ORACLE"] = oracle.Endpoint;
-        info.Environment["ACTA_BENCH_ORACLE_TOKEN"] = oracle.Token;
-        info.Environment["ACTA_BENCH_ORACLE_STORE"] = oracle.StorePath;
-        return new(Process.Start(info) ?? throw new InvalidOperationException("Could not start owned oracle."));
+        info.Environment["ACTA_VERIFY_EFFECTS"] = effects.Endpoint;
+        info.Environment["ACTA_VERIFY_EFFECTS_TOKEN"] = effects.Token;
+        info.Environment["ACTA_VERIFY_EFFECTS_STORE"] = effects.StorePath;
+        return new(Process.Start(info) ?? throw new InvalidOperationException("Could not start owned effects."));
     }
 
     public async Task<bool> StopAsync(CancellationToken ct)
     {
-        await _process.StandardInput.WriteLineAsync("ACTA_BENCH_STOP");
+        await _process.StandardInput.WriteLineAsync("ACTA_VERIFY_STOP");
         await _process.StandardInput.FlushAsync(ct);
         await _process.WaitForExitAsync(ct).WaitAsync(TimeSpan.FromSeconds(15), ct);
         await Task.WhenAll(_output, _error);
@@ -245,8 +245,8 @@ internal sealed class OwnedWorker : IDisposable
     private static void SetParent(ProcessStartInfo info)
     {
         using var parent = Process.GetCurrentProcess();
-        info.Environment["ACTA_BENCH_PARENT_PID"] = parent.Id.ToString(System.Globalization.CultureInfo.InvariantCulture);
-        info.Environment["ACTA_BENCH_PARENT_START"] = parent
+        info.Environment["ACTA_VERIFY_PARENT_PID"] = parent.Id.ToString(System.Globalization.CultureInfo.InvariantCulture);
+        info.Environment["ACTA_VERIFY_PARENT_START"] = parent
             .StartTime.ToUniversalTime()
             .Ticks.ToString(System.Globalization.CultureInfo.InvariantCulture);
     }

@@ -20,9 +20,9 @@ internal static class SchedulingCases
         if (scenario.Id == "O05")
         {
             var definition =
-                await operations.Definitions.GetAsync("bench", "work", ct)
+                await operations.Definitions.GetAsync("verify", "work", ct)
                 ?? throw new InvalidOperationException("Missing workload definition.");
-            await operations.Definitions.UpdateOverridesAsync("bench", "work", definition.Version, new(RateLimit: "10/s"), ct: ct);
+            await operations.Definitions.UpdateOverridesAsync("verify", "work", definition.Version, new(RateLimit: "10/s"), ct: ct);
         }
         if (scenario.Id == "O04")
         {
@@ -36,14 +36,14 @@ internal static class SchedulingCases
             : 30;
         var input = Enumerable
             .Range(0, count)
-            .Select(i => new BenchWork(
+            .Select(i => new WorkInput(
                 $"root-{i}",
                 WorkMs: scenario.Id == "O02" && i == 0 ? 250 : 10,
                 Failures: scenario.Id == "O02" && i == 0 ? 1 : 0,
                 Witness: true
             ))
             .ToArray();
-        var admitted = new List<(BenchWork Work, EnqueueJobResponse Job, string? Lane)>();
+        var admitted = new List<(WorkInput Work, EnqueueJobResponse Job, string? Lane)>();
         for (var i = 0; i < input.Length; i++)
         {
             var lane =
@@ -51,9 +51,9 @@ internal static class SchedulingCases
                 : scenario.Id == "O02" ? "hot"
                 : null;
             var request = new EnqueueJobRequest(
-                "bench",
+                "verify",
                 "work",
-                JobPayload.Json(input[i], WorkJson.Default.BenchWork),
+                JobPayload.Json(input[i], WorkJson.Default.WorkInput),
                 DeduplicationKey: input[i].Key,
                 Lane: lane,
                 ConcurrencyKey: scenario.Id == "O03" ? "hot" : null,
@@ -71,7 +71,7 @@ internal static class SchedulingCases
         var reader = new DurableReader(state);
         await plan.DrainAsync(async () => (await reader.UnfinishedRootsAsync(0, ct)).Count, plan.Deadline(count, 0, state.DrainRate), ct);
         var actual = await reader.OutcomesAsync(ct);
-        var checks = OutcomeOracle.Reconcile(WorkloadModel.Expected(input), actual).ToList();
+        var checks = OutcomeCheck.Reconcile(WorkloadModel.Expected(input), actual).ToList();
         var notes = await NotesAsync(operations, ct);
         var entries = notes.Where(n => n.Message?.StartsWith("begin ", StringComparison.Ordinal) == true).OrderBy(n => n.EventId).ToArray();
         checks.Add(
@@ -203,7 +203,7 @@ internal static class SchedulingCases
         do
         {
             var page = await operations.Ledger.ListEventsAsync(
-                new(JobNamespace: "bench", EventCode: EventCode.JobNoteRecorded, PageSize: 100, Cursor: cursor),
+                new(JobNamespace: "verify", EventCode: EventCode.JobNoteRecorded, PageSize: 100, Cursor: cursor),
                 ct
             );
             notes.AddRange(page.Items);

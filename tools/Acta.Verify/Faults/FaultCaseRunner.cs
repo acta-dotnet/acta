@@ -51,8 +51,8 @@ internal static class FaultCaseRunner
         var state = environment.Trial(bundle.Resolve($"repro/state/{tag}"));
         using var host = await RuntimeHost.StartAsync(state.Provider, state.ConnectionString, state.Schema, false, true, ct);
         var jobs = host.Services.GetRequiredService<IJobs>();
-        using var oracle = new EffectService(bundle.Resolve($"repro/state/{tag}/oracle.db"));
-        await oracle.StartAsync(ct);
+        using var effects = new EffectService(bundle.Resolve($"repro/state/{tag}/effects.db"));
+        await effects.StartAsync(ct);
         var input = WorkloadModel.Input(scenario.Id, "root");
         input = scenario.Id switch
         {
@@ -64,7 +64,7 @@ internal static class FaultCaseRunner
             _ => input,
         };
         var sideInputs = scenario.Id is "F01" or "F02" or "F05" or "D01"
-            ? Enumerable.Range(0, 32).Select(i => new BenchWork($"side-{i}", WorkMs: 1000)).ToArray()
+            ? Enumerable.Range(0, 32).Select(i => new WorkInput($"side-{i}", WorkMs: 1000)).ToArray()
             : [];
         var expected = WorkloadModel.Expected(new[] { input }.Concat(sideInputs));
         if (scenario.Id == "C05")
@@ -86,24 +86,24 @@ internal static class FaultCaseRunner
         var observingRecovery = false;
         try
         {
-            var worker = OwnedWorker.Start(state, oracle);
+            var worker = OwnedWorker.Start(state, effects);
             workers.Add(worker);
             await worker.ReadyAsync(ct);
             bound = plan.Deadline(expected.Length, worker.Settings!.LeaseSeconds, environment.DrainRate);
             if (scenario.Id is "F01" or "F02" or "D01")
             {
-                var survivor = OwnedWorker.Start(state, oracle);
+                var survivor = OwnedWorker.Start(state, effects);
                 workers.Add(survivor);
                 await survivor.ReadyAsync(ct);
             }
             var root = await jobs.EnqueueAsync(
-                new EnqueueJobRequest("bench", "work", JobPayload.Json(input, WorkJson.Default.BenchWork), DeduplicationKey: input.Key),
+                new EnqueueJobRequest("verify", "work", JobPayload.Json(input, WorkJson.Default.WorkInput), DeduplicationKey: input.Key),
                 ct
             );
             foreach (var side in sideInputs)
             {
                 await jobs.EnqueueAsync(
-                    new EnqueueJobRequest("bench", "work", JobPayload.Json(side, WorkJson.Default.BenchWork), DeduplicationKey: side.Key),
+                    new EnqueueJobRequest("verify", "work", JobPayload.Json(side, WorkJson.Default.WorkInput), DeduplicationKey: side.Key),
                     ct
                 );
             }
@@ -128,7 +128,7 @@ internal static class FaultCaseRunner
                     false,
                     RecordedAtUtc: DateTimeOffset.UtcNow
                 );
-                var replacement = OwnedWorker.Start(state, oracle);
+                var replacement = OwnedWorker.Start(state, effects);
                 workers.Add(replacement);
                 await replacement.ReadyAsync(ct);
                 observingRecovery = true;
@@ -162,7 +162,7 @@ internal static class FaultCaseRunner
             else
             {
                 var boundary = input.Boundary!;
-                var pid = await oracle.WaitBarrierAsync(boundary, TimeSpan.FromSeconds(30), ct);
+                var pid = await effects.WaitBarrierAsync(boundary, TimeSpan.FromSeconds(30), ct);
                 worker = workers.FirstOrDefault(w => w.Id == pid) ?? worker;
                 var inFlight = await jobs.GetAsync(root, ct);
                 var reached = pid == worker.Id && inFlight?.Status == JobStatusCode.Executing;
@@ -202,13 +202,13 @@ internal static class FaultCaseRunner
                 if (scenario.Id == "F05")
                 {
                     await environment.RestartDatabaseAsync(ct);
-                    await oracle.ReleaseAsync(ct);
+                    await effects.ReleaseAsync(ct);
                 }
                 else
                 {
                     if (scenario.Id == "D01")
                     {
-                        await oracle.ReleaseAsync(ct);
+                        await effects.ReleaseAsync(ct);
                         checks.Add(
                             new(
                                 "graceful-worker-stop",
@@ -253,7 +253,7 @@ internal static class FaultCaseRunner
                     {
                         for (var i = 0; i < (scenario.Id == "F02" ? 2 : 1); i++)
                         {
-                            var replacement = OwnedWorker.Start(state, oracle);
+                            var replacement = OwnedWorker.Start(state, effects);
                             workers.Add(replacement);
                             await replacement.ReadyAsync(ct);
                         }
@@ -290,7 +290,7 @@ internal static class FaultCaseRunner
                 var events = await host
                     .Services.GetRequiredService<IActaOperations>()
                     .Ledger.ListEventsAsync(
-                        new(JobNamespace: "bench", JobId: root.JobId, EventCode: EventCode.JobNoteRecorded, PageSize: 100),
+                        new(JobNamespace: "verify", JobId: root.JobId, EventCode: EventCode.JobNoteRecorded, PageSize: 100),
                         ct
                     );
                 foreach (var step in Enumerable.Range(1, input.Steps))
@@ -308,7 +308,7 @@ internal static class FaultCaseRunner
             var actual = await RecoveryReadAsync(() => reader.OutcomesAsync(ct));
             if (scenario.Id == "P07")
             {
-                checks.AddRange(OutcomeOracle.Reconcile(expected, actual));
+                checks.AddRange(OutcomeCheck.Reconcile(expected, actual));
                 checks.Add(
                     new(
                         "cancelled-parent",
@@ -328,19 +328,19 @@ internal static class FaultCaseRunner
             }
             else
             {
-                checks.AddRange(OutcomeOracle.Reconcile(expected, actual));
+                checks.AddRange(OutcomeCheck.Reconcile(expected, actual));
             }
-            var effects = await oracle.CountsAsync(ct);
+            var sink = await effects.CountsAsync(ct);
             if (input.EffectMode is not null)
             {
                 checks.Add(
                     new(
                         "external-effect-applications",
                         input.Key,
-                        input.AtMostOnce || input.Boundary == "completion" ? effects.Requests == 1 && effects.Applications == 1
-                            : input.EffectMode == "idempotent" ? effects.Requests >= 2 && effects.Applications == 1
-                            : effects.Requests >= 2 && effects.Applications == effects.Requests,
-                        $"Independent sink: {effects.Requests} requests, {effects.Applications} applications. Idempotency belongs to the sink."
+                        input.AtMostOnce || input.Boundary == "completion" ? sink.Requests == 1 && sink.Applications == 1
+                            : input.EffectMode == "idempotent" ? sink.Requests >= 2 && sink.Applications == 1
+                            : sink.Requests >= 2 && sink.Applications == sink.Requests,
+                        $"Independent sink: {sink.Requests} requests, {sink.Applications} applications. Idempotency belongs to the sink."
                     )
                 );
             }
@@ -354,7 +354,7 @@ internal static class FaultCaseRunner
             };
             bundle.Write($"histories/{tag}-fault.json", fault, VerifyJson.Default.FaultEvidence);
             bundle.Append("faults.jsonl", fault!, VerifyJson.Default.FaultEvidence);
-            var covered = OutcomeOracle.FaultCovered(fault!, requireReclaim: RequiresReclaim(scenario.Id));
+            var covered = OutcomeCheck.FaultCovered(fault!, requireReclaim: RequiresReclaim(scenario.Id));
             var passed = checks.Where(c => c.Code != "observed-reclaim").All(c => c.Passed);
             return new(
                 scenario.Id,
@@ -376,8 +376,8 @@ internal static class FaultCaseRunner
                 "NOT_MEASURED",
                 new()
                 {
-                    ["external_requests"] = new(effects.Requests, "requests"),
-                    ["external_applications"] = new(effects.Applications, "applications"),
+                    ["external_requests"] = new(sink.Requests, "requests"),
+                    ["external_applications"] = new(sink.Applications, "applications"),
                     ["controller_recovery_read_retries"] = new(transientReadRetries, "retries"),
                 },
                 [
@@ -405,14 +405,14 @@ internal static class FaultCaseRunner
                     "The injected fault was acknowledged, but the controller could not reconcile durable state within the recovery bound."
                 );
             }
-            var reconciliation = OutcomeOracle.Reconcile(expected, actual);
+            var reconciliation = OutcomeCheck.Reconcile(expected, actual);
             var unresolved = actual
                 .Where(o => o.Status is not ("Succeeded" or "Failed" or "Cancelled"))
                 .Select(o => o.Key.Split('/')[0])
                 .ToHashSet(StringComparer.Ordinal);
             var acknowledged = expected.Where(o => o.Parent is null).Select(o => o.Key).ToHashSet(StringComparer.Ordinal);
             var safety =
-                OutcomeOracle.SafetyFailures(reconciliation, unresolved, acknowledged.Contains).Length > 0 ? "FAIL"
+                OutcomeCheck.SafetyFailures(reconciliation, unresolved, acknowledged.Contains).Length > 0 ? "FAIL"
                 : unresolved.Count > 0 ? "UNVERIFIED"
                 : "PASS";
             checks.AddRange(reconciliation);

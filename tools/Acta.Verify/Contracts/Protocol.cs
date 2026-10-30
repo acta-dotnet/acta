@@ -6,7 +6,7 @@ namespace Acta.Verify;
 
 public static class Protocol
 {
-    public const string Id = "acta-bench.full/1";
+    public const string Id = "acta-verify.full/1";
 
     public static string Read(string name)
     {

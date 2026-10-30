@@ -314,9 +314,9 @@ public sealed class PolicyTests
     [Fact]
     public void Namespace_replacement_cannot_hide_behind_matching_keys_and_totals()
     {
-        var checks = OutcomeOracle.Reconcile(
-            [new("root", "Succeeded", "result", JobNamespace: "bench")],
-            [new("root", "Succeeded", "result", JobNamespace: "bench-2")]
+        var checks = OutcomeCheck.Reconcile(
+            [new("root", "Succeeded", "result", JobNamespace: "verify")],
+            [new("root", "Succeeded", "result", JobNamespace: "verify-2")]
         );
         Assert.Contains(checks, c => c.Code == "namespace-identity" && !c.Passed);
     }
@@ -325,10 +325,10 @@ public sealed class PolicyTests
     public void Cancellation_allows_declared_outcomes_but_still_checks_successful_results_and_exact_children()
     {
         ExpectedOutcome[] expected = [new("root/child-0", "CancelledOrSucceeded", "expected", "root")];
-        Assert.All(OutcomeOracle.Reconcile(expected, [new("root/child-0", "Cancelled", null, "root")]), c => Assert.True(c.Passed));
-        Assert.Contains(OutcomeOracle.Reconcile(expected, [new("root/child-0", "Succeeded", "wrong", "root")]), c => !c.Passed);
+        Assert.All(OutcomeCheck.Reconcile(expected, [new("root/child-0", "Cancelled", null, "root")]), c => Assert.True(c.Passed));
+        Assert.Contains(OutcomeCheck.Reconcile(expected, [new("root/child-0", "Succeeded", "wrong", "root")]), c => !c.Passed);
         Assert.Contains(
-            OutcomeOracle.Reconcile(expected, [new("root/child-1", "Cancelled", null, "root")]),
+            OutcomeCheck.Reconcile(expected, [new("root/child-1", "Cancelled", null, "root")]),
             c => c.Code == "missing-identity" && !c.Passed
         );
     }
@@ -394,18 +394,18 @@ public sealed class PolicyTests
     {
         ExpectedOutcome[] expected = [new("charge-0", "FailedOrSucceeded", "hash", Steps: ["effect=void"])];
         Assert.All(
-            OutcomeOracle.Reconcile(expected, [new("charge-0", "Failed", null, Steps: ["effect=uncommitted"])]),
+            OutcomeCheck.Reconcile(expected, [new("charge-0", "Failed", null, Steps: ["effect=uncommitted"])]),
             c => Assert.True(c.Passed)
         );
         Assert.All(
-            OutcomeOracle.Reconcile(expected, [new("charge-0", "Succeeded", "hash", Steps: ["effect=void"])]),
+            OutcomeCheck.Reconcile(expected, [new("charge-0", "Succeeded", "hash", Steps: ["effect=void"])]),
             c => Assert.True(c.Passed)
         );
         Assert.Contains(
-            OutcomeOracle.Reconcile(expected, [new("charge-0", "Failed", "hash", Steps: ["effect=uncommitted"])]),
+            OutcomeCheck.Reconcile(expected, [new("charge-0", "Failed", "hash", Steps: ["effect=uncommitted"])]),
             c => !c.Passed
         );
-        Assert.Contains(OutcomeOracle.Reconcile(expected, [new("charge-0", "Cancelled", null)]), c => !c.Passed);
+        Assert.Contains(OutcomeCheck.Reconcile(expected, [new("charge-0", "Cancelled", null)]), c => !c.Passed);
     }
 
     [Fact]

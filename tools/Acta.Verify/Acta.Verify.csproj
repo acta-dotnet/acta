@@ -45,7 +45,7 @@
   </Target>
   <!-- Capture source state when the binary is built. An installed executable's current
        working directory cannot establish whether its original source tree was dirty. -->
-  <Target Name="CaptureBenchSourceState" BeforeTargets="GetAssemblyAttributes">
+  <Target Name="CaptureVerifySourceState" BeforeTargets="GetAssemblyAttributes">
     <Exec
       Command="git status --porcelain"
       WorkingDirectory="$(MSBuildProjectDirectory)"
@@ -54,17 +54,18 @@
       StandardOutputImportance="Low"
       StandardErrorImportance="Low"
     >
-      <Output TaskParameter="ConsoleOutput" ItemName="_BenchSourceStatus" />
-      <Output TaskParameter="ExitCode" PropertyName="_BenchGitStatusExitCode" />
+      <Output TaskParameter="ConsoleOutput" ItemName="_VerifySourceStatus" />
+      <Output TaskParameter="ExitCode" PropertyName="_VerifyGitStatusExitCode" />
     </Exec>
     <PropertyGroup>
-      <_BenchSourceDirty>false</_BenchSourceDirty>
-      <_BenchSourceDirty Condition="'@(_BenchSourceStatus->Count())' != '0' or '$(_BenchGitStatusExitCode)' != '0'">true</_BenchSourceDirty>
+      <_VerifySourceDirty>false</_VerifySourceDirty>
+      <_VerifySourceDirty Condition="'@(_VerifySourceStatus->Count())' != '0' or '$(_VerifyGitStatusExitCode)' != '0'"
+        >true</_VerifySourceDirty>
     </PropertyGroup>
     <ItemGroup>
       <AssemblyAttribute Include="System.Reflection.AssemblyMetadataAttribute">
         <_Parameter1>Acta.Verify.SourceDirty</_Parameter1>
-        <_Parameter2>$(_BenchSourceDirty)</_Parameter2>
+        <_Parameter2>$(_VerifySourceDirty)</_Parameter2>
       </AssemblyAttribute>
     </ItemGroup>
   </Target>

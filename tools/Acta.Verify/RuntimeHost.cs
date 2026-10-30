@@ -10,8 +10,8 @@ namespace Acta.Verify;
 
 internal static class RuntimeHost
 {
-    private static readonly string[] AllNamespaces = ["bench", "bench-other", "bench-2"];
-    private static readonly string[] CrossNamespaces = ["bench", "bench-other"];
+    private static readonly string[] AllNamespaces = ["verify", "verify-other", "verify-2"];
+    private static readonly string[] CrossNamespaces = ["verify", "verify-other"];
 
     public static async Task<IHost> StartAsync(
         string provider,
@@ -21,7 +21,7 @@ internal static class RuntimeHost
         bool migrate,
         CancellationToken ct,
         StoreInjection? injection = null,
-        EffectService? oracle = null,
+        EffectService? effects = null,
         int? executors = null,
         int? heartbeatSeconds = null,
         string? workerNamespace = null
@@ -29,13 +29,13 @@ internal static class RuntimeHost
     {
         if (!worker && migrate)
         {
-            using var registration = await StartAsync(provider, connection, schema, true, true, ct, oracle: oracle);
+            using var registration = await StartAsync(provider, connection, schema, true, true, ct, effects: effects);
             await registration.StopAsync(ct);
             migrate = false;
         }
         var builder = Host.CreateApplicationBuilder(new HostApplicationBuilderSettings { DisableDefaults = true });
         builder.Logging.ClearProviders();
-        builder.Services.AddSingleton(_ => oracle is null ? new OracleClient() : new OracleClient(oracle.Endpoint, oracle.Token));
+        builder.Services.AddSingleton(_ => effects is null ? new EffectClient() : new EffectClient(effects.Endpoint, effects.Token));
         builder.Services.UseActa(j =>
         {
             switch (provider)
@@ -72,11 +72,11 @@ internal static class RuntimeHost
                     ServiceDescriptor.Singleton<IDbSession>(sp => new InstrumentedSession(
                         sp.GetRequiredService<DbSession>(),
                         injection,
-                        sp.GetRequiredService<OracleClient>()
+                        sp.GetRequiredService<EffectClient>()
                     ))
                 );
             }
-            if (Environment.GetEnvironmentVariable("ACTA_BENCH_SUPPRESS_WAKEUP") == "1")
+            if (Environment.GetEnvironmentVariable("ACTA_VERIFY_SUPPRESS_WAKEUP") == "1")
             {
                 j.Services.Replace(ServiceDescriptor.Singleton<IWorkerWakeup>(new SuppressedWakeup()));
             }
@@ -92,9 +92,9 @@ internal static class RuntimeHost
                     o.HeartbeatInterval = TimeSpan.FromSeconds(heartbeat);
                 }
                 o.PayloadContractDriftMode = PayloadContractDriftMode.Fail;
-                if (Environment.GetEnvironmentVariable("ACTA_BENCH_FIXTURE") is { } fixture)
+                if (Environment.GetEnvironmentVariable("ACTA_VERIFY_FIXTURE") is { } fixture)
                 {
-                    o.DeploymentVersion = "bench-fixture-" + fixture;
+                    o.DeploymentVersion = "verify-fixture-" + fixture;
                 }
             });
             j.UseJsonPayloads(WorkJson.Default);
@@ -102,22 +102,22 @@ internal static class RuntimeHost
             {
                 var namespaces =
                     workerNamespace is null ? AllNamespaces
-                    : workerNamespace == "bench-cross" ? CrossNamespaces
+                    : workerNamespace == "verify-cross" ? CrossNamespaces
                     : [workerNamespace];
                 foreach (var ns in namespaces)
                 {
-                    if (ns == "bench" && Environment.GetEnvironmentVariable("ACTA_BENCH_FIXTURE") == "incompatible")
+                    if (ns == "verify" && Environment.GetEnvironmentVariable("ACTA_VERIFY_FIXTURE") == "incompatible")
                     {
                         j.Run<IncompatibleFixtureJobs>(ns);
                     }
-                    else if (ns == "bench" && Environment.GetEnvironmentVariable("ACTA_BENCH_OUTBOX_SOURCE") is { } source)
+                    else if (ns == "verify" && Environment.GetEnvironmentVariable("ACTA_VERIFY_OUTBOX_SOURCE") is { } source)
                     {
                         j.Run(
                             ns,
                             w =>
                             {
                                 w.AddManifest<VerifyJobs>();
-                                w.AddOutboxRelay("bench-source", o => o.UseSqlite(source));
+                                w.AddOutboxRelay("verify-source", o => o.UseSqlite(source));
                             }
                         );
                     }
@@ -129,9 +129,9 @@ internal static class RuntimeHost
             }
             else
             {
-                j.Reference<VerifyJobs>("bench");
-                j.Reference<VerifyJobs>("bench-other");
-                j.Reference<VerifyJobs>("bench-2");
+                j.Reference<VerifyJobs>("verify");
+                j.Reference<VerifyJobs>("verify-other");
+                j.Reference<VerifyJobs>("verify-2");
             }
         });
         var host = builder.Build();

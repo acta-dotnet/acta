@@ -36,12 +36,12 @@ internal static class TrialRunner
         var trialStarted = Stopwatch.GetTimestamp();
         Console.WriteLine($"  START {tag}");
         var state = environment.Trial(bundle.Resolve($"repro/state/{tag}"));
-        using var oracle = scenario.Requirements.Contains("external_oracle", StringComparer.Ordinal)
-            ? new EffectService(bundle.Resolve($"repro/state/{tag}/oracle.db"))
+        using var effects = scenario.Requirements.Contains("external_oracle", StringComparer.Ordinal)
+            ? new EffectService(bundle.Resolve($"repro/state/{tag}/effects.db"))
             : null;
-        if (oracle is not null)
+        if (effects is not null)
         {
-            await oracle.StartAsync(ct);
+            await effects.StartAsync(ct);
         }
         using var host = await RuntimeHost.StartAsync(state.Provider, state.ConnectionString, state.Schema, false, true, ct);
         bundle.Write($"histories/{tag}-settings.json", await state.CaptureSettingsAsync(ct), VerifyJson.Default.DictionaryStringString);
@@ -65,7 +65,7 @@ internal static class TrialRunner
         var delayWorkers = scenario.Id is "L02" or "L03" or "L04" or "T02";
         if (!delayWorkers)
         {
-            await workers.StartAsync(state, oracle, 1, null, ct, 1, scenario.Id == "P08");
+            await workers.StartAsync(state, effects, 1, null, ct, 1, scenario.Id == "P08");
         }
         var background = scenario.Id is "S02" or "S03"
             ? await StorageCases.PrepareBackgroundAsync(plan, scenario, state, jobs, null, ct)
@@ -125,7 +125,7 @@ internal static class TrialRunner
         // An enqueue whose reply was lost may still have committed: its identity decides, by its deduplication key.
         foreach (var key in ambiguous.ToArray())
         {
-            if (await jobs.GetAsync(JobLookup.ByDeduplicationKey("bench", key), ct) is { } committed)
+            if (await jobs.GetAsync(JobLookup.ByDeduplicationKey("verify", key), ct) is { } committed)
             {
                 acknowledged[key] = committed.JobId;
                 ambiguous.Remove(key);
@@ -133,7 +133,7 @@ internal static class TrialRunner
         }
         if (delayWorkers)
         {
-            await workers.StartAsync(state, oracle, 1, null, ct, 1, scenario.Id == "P08");
+            await workers.StartAsync(state, effects, 1, null, ct, 1, scenario.Id == "P08");
         }
         var children = expected.Any(e => e.Parent is not null);
         HashSet<long> signalled = [];
@@ -203,12 +203,12 @@ internal static class TrialRunner
         var submitted = acknowledged.Keys.Concat(ambiguous).ToHashSet(StringComparer.Ordinal);
         Check[] checks =
         [
-            .. OutcomeOracle.Reconcile(expected.Where(e => submitted.Contains(e.Key.Split('/')[0])), observed),
+            .. OutcomeCheck.Reconcile(expected.Where(e => submitted.Contains(e.Key.Split('/')[0])), observed),
             .. boundaryChecks,
             .. background > 0 ? await StorageCases.CheckBackgroundAsync(state, scenario.Id, background, ct) : [],
-            .. oracle is null
+            .. effects is null
                 ? []
-                : await oracle.CheckIdempotentKeysAsync(
+                : await effects.CheckIdempotentKeysAsync(
                     input.Where(i => i.EffectMode == "idempotent" && acknowledged.ContainsKey(i.Key)).Select(i => i.Key),
                     ct
                 ),
@@ -220,7 +220,7 @@ internal static class TrialRunner
             .ToHashSet(StringComparer.Ordinal);
         // An active row, or an admission whose reply was lost and that left no row, establishes an unresolved outcome, not
         // a wrong final result; an acknowledged identity absent from durable storage remains a safety failure.
-        var failures = OutcomeOracle.SafetyFailures(checks, unresolvedKeys, acknowledged.ContainsKey);
+        var failures = OutcomeCheck.SafetyFailures(checks, unresolvedKeys, acknowledged.ContainsKey);
         // A root whose signal call failed may wait forever without any engine fault: its liveness is unknown.
         var livenessFailed = unresolvedKeys.Any(k => acknowledged.ContainsKey(k) && !failedSignals.Contains(k));
         var exercised = observed.Length > 0 && submitted.Count > 0;
@@ -361,11 +361,11 @@ internal static class TrialRunner
 
     private static string? ConcurrencyKey(string id) => id == "O03" ? "hot" : null;
 
-    private static EnqueueJobRequest Request(BenchWork input, string scenario, int index) =>
+    private static EnqueueJobRequest Request(WorkInput input, string scenario, int index) =>
         new(
-            "bench",
+            "verify",
             "work",
-            JobPayload.Json(input, WorkJson.Default.BenchWork),
+            JobPayload.Json(input, WorkJson.Default.WorkInput),
             DeduplicationKey: input.Key,
             Lane: Lane(scenario, index),
             ConcurrencyKey: ConcurrencyKey(scenario)

@@ -15,7 +15,7 @@ internal static class ChaosCase
 {
     private static readonly string[] Tenants = ["acme", "globex", "initech"];
 
-    private sealed record CohortJob(string JobName, BenchWork Work, int? DelaySeconds = null, string? Lane = null, bool High = false);
+    private sealed record CohortJob(string JobName, WorkInput Work, int? DelaySeconds = null, string? Lane = null, bool High = false);
 
     public static async Task<CaseResult> RunAsync(RunPlan plan, OwnedProvider environment, EvidenceBundle bundle, CancellationToken ct)
     {
@@ -84,9 +84,9 @@ internal static class ChaosCase
                         .Select(
                             (s, i) =>
                                 new EnqueueJobRequest(
-                                    "bench",
+                                    "verify",
                                     s.JobName,
-                                    JobPayload.Json(s.Work, WorkJson.Default.BenchWork),
+                                    JobPayload.Json(s.Work, WorkJson.Default.WorkInput),
                                     DeduplicationKey: s.Work.Key,
                                     Priority: s.High ? JobPriorityCode.High : null,
                                     DelaySeconds: s.DelaySeconds,
@@ -216,12 +216,12 @@ internal static class ChaosCase
                 await Task.Delay(1000, ct);
             }
             var expected = WorkloadModel
-                .Expected(cohort.Select(s => s.Work).Concat(producerCounts.Keys.Select(k => new BenchWork(k))))
+                .Expected(cohort.Select(s => s.Work).Concat(producerCounts.Keys.Select(k => new WorkInput(k))))
                 .Select(e => e.Key.StartsWith("charge-", StringComparison.Ordinal) ? e with { Status = "FailedOrSucceeded" } : e)
                 .ToArray();
             var observed = await new DurableReader(state).OutcomesAsync(ct);
             var delivered = observed.Count(o => o.Key.StartsWith("outbox-", StringComparison.Ordinal));
-            List<Check> checks = [.. OutcomeOracle.Reconcile(expected, observed)];
+            List<Check> checks = [.. OutcomeCheck.Reconcile(expected, observed)];
             checks.Add(
                 new(
                     "outbox-drained",
@@ -246,7 +246,7 @@ internal static class ChaosCase
                 .Where(o => o.Status is not ("Succeeded" or "Failed" or "Cancelled"))
                 .Select(o => o.Key)
                 .ToHashSet(StringComparer.Ordinal);
-            var safe = OutcomeOracle.SafetyFailures(checks.Where(c => c.Code != "outbox-drained"), unresolved, _ => true).Length == 0;
+            var safe = OutcomeCheck.SafetyFailures(checks.Where(c => c.Code != "outbox-drained"), unresolved, _ => true).Length == 0;
             var live = quiesced && producerCounts.Pending == 0;
             var covered = refused == 0 && recoveredHits >= plan.ProfilePolicy("chaos_minimum_busy_kills");
             List<string> limits = [];
@@ -398,7 +398,7 @@ internal static class ChaosCase
                 await using var transaction = connection.BeginTransaction(deferred: false);
                 for (var i = first; i < Math.Min(total, first + chunk); i++)
                 {
-                    var work = new BenchWork($"outbox-{i}");
+                    var work = new WorkInput($"outbox-{i}");
                     await using var domain = connection.CreateCommand();
                     domain.Transaction = transaction;
                     domain.CommandText = "INSERT INTO domain_obligations VALUES(@key)";
@@ -406,9 +406,9 @@ internal static class ChaosCase
                     await domain.ExecuteNonQueryAsync(ct);
                     await transaction.AddToActaOutboxAsync(
                         new EnqueueJobRequest(
-                            "bench",
+                            "verify",
                             "work",
-                            JobPayload.Json(work, WorkJson.Default.BenchWork),
+                            JobPayload.Json(work, WorkJson.Default.WorkInput),
                             DeduplicationKey: work.Key
                         ),
                         cancellationToken: ct

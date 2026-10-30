@@ -47,36 +47,36 @@ public static class VerifyCommand
     private static async Task<int> DispatchAsync(string[] args, CancellationToken ct)
     {
         using var parentLifetime = ParentLifetime.ForInternalRole(args);
-        if (args is ["--oracle"])
+        if (args is ["--effects"])
         {
             await EffectService.ServeAsync(
-                Environment.GetEnvironmentVariable("ACTA_BENCH_ORACLE")!,
-                Environment.GetEnvironmentVariable("ACTA_BENCH_ORACLE_TOKEN")!,
-                Environment.GetEnvironmentVariable("ACTA_BENCH_ORACLE_STORE")!,
+                Environment.GetEnvironmentVariable("ACTA_VERIFY_EFFECTS")!,
+                Environment.GetEnvironmentVariable("ACTA_VERIFY_EFFECTS_TOKEN")!,
+                Environment.GetEnvironmentVariable("ACTA_VERIFY_EFFECTS_STORE")!,
                 ct
             );
             return 0;
         }
         if (args is ["--worker"])
         {
-            if (Environment.GetEnvironmentVariable("ACTA_BENCH_OWNER") is not { Length: 32 })
+            if (Environment.GetEnvironmentVariable("ACTA_VERIFY_OWNER") is not { Length: 32 })
             {
                 return 3;
             }
             using var host = await RuntimeHost.StartAsync(
-                Environment.GetEnvironmentVariable("ACTA_BENCH_PROVIDER")!,
-                Environment.GetEnvironmentVariable("ACTA_BENCH_CONNECTION")!,
-                Environment.GetEnvironmentVariable("ACTA_BENCH_SCHEMA")!,
+                Environment.GetEnvironmentVariable("ACTA_VERIFY_PROVIDER")!,
+                Environment.GetEnvironmentVariable("ACTA_VERIFY_CONNECTION")!,
+                Environment.GetEnvironmentVariable("ACTA_VERIFY_SCHEMA")!,
                 true,
                 false,
                 ct,
-                Environment.GetEnvironmentVariable("ACTA_BENCH_INJECT_OPERATION") is { } operation
+                Environment.GetEnvironmentVariable("ACTA_VERIFY_INJECT_OPERATION") is { } operation
                     ? new StoreInjection(
                         operation,
-                        Environment.GetEnvironmentVariable("ACTA_BENCH_INJECT_BOUNDARY")!,
-                        Environment.GetEnvironmentVariable("ACTA_BENCH_INJECT_LOSE_REPLY") == "1",
+                        Environment.GetEnvironmentVariable("ACTA_VERIFY_INJECT_BOUNDARY")!,
+                        Environment.GetEnvironmentVariable("ACTA_VERIFY_INJECT_LOSE_REPLY") == "1",
                         long.TryParse(
-                            Environment.GetEnvironmentVariable("ACTA_BENCH_INJECT_JOB_ID"),
+                            Environment.GetEnvironmentVariable("ACTA_VERIFY_INJECT_JOB_ID"),
                             CultureInfo.InvariantCulture,
                             out var jobId
                         )
@@ -84,25 +84,25 @@ public static class VerifyCommand
                             : null
                     )
                     : null,
-                executors: Environment.GetEnvironmentVariable("ACTA_BENCH_EXECUTORS") is { } executors
+                executors: Environment.GetEnvironmentVariable("ACTA_VERIFY_EXECUTORS") is { } executors
                     ? int.Parse(executors, CultureInfo.InvariantCulture)
                     : null,
-                heartbeatSeconds: Environment.GetEnvironmentVariable("ACTA_BENCH_HEARTBEAT_SECONDS") is { } heartbeat
+                heartbeatSeconds: Environment.GetEnvironmentVariable("ACTA_VERIFY_HEARTBEAT_SECONDS") is { } heartbeat
                     ? int.Parse(heartbeat, CultureInfo.InvariantCulture)
                     : null,
-                workerNamespace: Environment.GetEnvironmentVariable("ACTA_BENCH_NAMESPACE")
+                workerNamespace: Environment.GetEnvironmentVariable("ACTA_VERIFY_NAMESPACE")
             );
             var options = host.Services.GetRequiredService<IOptions<JobsOptions>>().Value;
             Console.WriteLine(
                 string.Create(
                     CultureInfo.InvariantCulture,
-                    $"ACTA_BENCH_SETTINGS {options.MaxConcurrentExecutors} {options.HeartbeatInterval.TotalSeconds} {options.LeaseTtlSeconds} {options.SafetyPollInterval.TotalMilliseconds} {options.WorkerDeadAfter.TotalSeconds}"
+                    $"ACTA_VERIFY_SETTINGS {options.MaxConcurrentExecutors} {options.HeartbeatInterval.TotalSeconds} {options.LeaseTtlSeconds} {options.SafetyPollInterval.TotalMilliseconds} {options.WorkerDeadAfter.TotalSeconds}"
                 )
             );
-            Console.WriteLine("ACTA_BENCH_READY");
+            Console.WriteLine("ACTA_VERIFY_READY");
             while (await Console.In.ReadLineAsync(ct) is { } command)
             {
-                if (command == "ACTA_BENCH_STOP")
+                if (command == "ACTA_VERIFY_STOP")
                 {
                     using var shutdown = CancellationTokenSource.CreateLinkedTokenSource(ct);
                     shutdown.CancelAfter(TimeSpan.FromSeconds(10));
@@ -152,7 +152,7 @@ public static class VerifyCommand
         }
         string? profile = null;
         string db = "all";
-        string output = Path.Combine("artifacts", "bench");
+        string output = Path.Combine("artifacts", "verify");
         int seed = 1729;
         int? chaosJobs = null;
         int? repetitions = null;

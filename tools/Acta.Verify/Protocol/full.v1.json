@@ -1,6 +1,6 @@
 {
-  "schema_version": "acta-bench.profile/1",
-  "protocol_id": "acta-bench.full/1",
+  "schema_version": "acta-verify.profile/1",
+  "protocol_id": "acta-verify.full/1",
   "engine_default": "acta",
   "profiles": {
     "quick": {
@@ -131,7 +131,7 @@
         "tempdb_log_growth_mb": 256
       }
     },
-    "bench_database": {
+    "verify_database": {
       "sqlserver": {
         "data_mb": 4096,
         "data_growth_mb": 512,
@@ -475,7 +475,7 @@
     "never_silently_reduce_required_cases": true
   },
   "output": {
-    "directory": "artifacts/bench/<run-id>",
+    "directory": "artifacts/verify/<run-id>",
     "formats": [
       "html_offline",
       "markdown",

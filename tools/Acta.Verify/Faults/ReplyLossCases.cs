@@ -15,8 +15,8 @@ internal static class ReplyLossCases
     {
         var tag = $"{environment.Provider}-{scenario.Id}-reply-loss-{repetition}";
         var state = environment.Trial(bundle.Resolve($"repro/state/{tag}"));
-        using var oracle = new EffectService(bundle.Resolve($"repro/state/{tag}/oracle.db"));
-        await oracle.StartAsync(ct);
+        using var effects = new EffectService(bundle.Resolve($"repro/state/{tag}/effects.db"));
+        await effects.StartAsync(ct);
         var enqueueLoss = scenario.Id == "F07";
         var injection = new StoreInjection(enqueueLoss ? "EnqueueJob" : "CompleteExecutions", "committed-reply", true);
         using var host = await RuntimeHost.StartAsync(
@@ -27,22 +27,22 @@ internal static class ReplyLossCases
             true,
             ct,
             enqueueLoss ? injection : null,
-            oracle
+            effects
         );
         var jobs = host.Services.GetRequiredService<IJobs>();
-        var input = new BenchWork("root");
+        var input = new WorkInput("root");
         var expected = WorkloadModel.Expected([input]);
         var request = new EnqueueJobRequest(
-            "bench",
+            "verify",
             "work",
-            JobPayload.Json(input, WorkJson.Default.BenchWork),
+            JobPayload.Json(input, WorkJson.Default.WorkInput),
             DeduplicationKey: input.Key
         );
         var submission = jobs.EnqueueAsync(request, ct).AsTask();
         // The worker starts after the enqueue, so the completion injection can name the case's job.
-        using var worker = OwnedWorker.Start(state, oracle, enqueueLoss ? null : injection with { JobId = (await submission).JobId });
+        using var worker = OwnedWorker.Start(state, effects, enqueueLoss ? null : injection with { JobId = (await submission).JobId });
         await worker.ReadyAsync(ct);
-        var boundary = await oracle.WaitBarrierAsync("committed-reply", TimeSpan.FromSeconds(30), ct);
+        var boundary = await effects.WaitBarrierAsync("committed-reply", TimeSpan.FromSeconds(30), ct);
         var reader = new DurableReader(state);
         var before = await reader.ReadAsync(null, ct);
         List<Check> checks =
@@ -54,13 +54,13 @@ internal static class ReplyLossCases
                     && before.Any(r =>
                         r.Key == input.Key
                         && r.ParentJobId is null
-                        && r.JobNamespace == "bench"
+                        && r.JobNamespace == "verify"
                         && (enqueueLoss || r.Status == 100 && r.Output == expected[0].Output)
                     ),
                 "Independent SQL reader saw the committed record while its caller was held before receiving the result."
             ),
         ];
-        await oracle.ReleaseAsync(ct);
+        await effects.ReleaseAsync(ct);
         var ambiguous = false;
         try
         {
@@ -99,7 +99,7 @@ internal static class ReplyLossCases
                 "The committed terminal outcome survived the lost reply without creating another authoritative attempt."
             )
         );
-        checks.AddRange(OutcomeOracle.Reconcile(expected, actual));
+        checks.AddRange(OutcomeCheck.Reconcile(expected, actual));
         bundle.Write($"histories/{tag}-checks.json", checks.ToArray(), VerifyJson.Default.CheckArray);
         var complete = boundary is not null;
         var passed = checks.All(c => c.Passed);

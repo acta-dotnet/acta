@@ -3,12 +3,12 @@ using System.Data.Common;
 namespace Acta.Verify;
 
 /// <summary>
-/// Holds the first matching store write at the oracle barrier and optionally loses its reply. With a job id, only a
+/// Holds the first matching store write at the effects barrier and optionally loses its reply. With a job id, only a
 /// completion batch that carries that job matches, so a system job's completion cannot take the injection.
 /// </summary>
 internal sealed record StoreInjection(string Operation, string Boundary, bool LoseReply = false, long? JobId = null);
 
-internal sealed class InstrumentedSession(IDbSession inner, StoreInjection injection, OracleClient oracle) : IDbSession
+internal sealed class InstrumentedSession(IDbSession inner, StoreInjection injection, EffectClient effects) : IDbSession
 {
     private int _fired;
     public DbProvider Provider => inner.Provider;
@@ -37,7 +37,7 @@ internal sealed class InstrumentedSession(IDbSession inner, StoreInjection injec
             && Interlocked.CompareExchange(ref _fired, 1, 0) == 0
         )
         {
-            await oracle.CallAsync("barrier", "root", injection.Boundary, false, 0, ct);
+            await effects.CallAsync("barrier", "root", injection.Boundary, false, 0, ct);
             if (injection.LoseReply)
             {
                 throw new TimeoutException("Instrumented committed reply loss.");
@@ -65,7 +65,7 @@ internal sealed class InstrumentedSession(IDbSession inner, StoreInjection injec
         var row = await inner.ExecuteSingleAsync(command, bind, mapRow, ct);
         if (command.Operation == injection.Operation && Interlocked.CompareExchange(ref _fired, 1, 0) == 0)
         {
-            await oracle.CallAsync("barrier", "root", injection.Boundary, false, 0, ct);
+            await effects.CallAsync("barrier", "root", injection.Boundary, false, 0, ct);
             if (injection.LoseReply)
             {
                 throw new TimeoutException("Instrumented committed reply loss.");

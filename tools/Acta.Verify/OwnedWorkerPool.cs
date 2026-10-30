@@ -12,7 +12,7 @@ internal sealed class OwnedWorkerPool : IDisposable
     /// <summary>Starts workers on the product defaults, overriding only an executor count a diagnostic cell names.</summary>
     public async Task StartAsync(
         OwnedProvider provider,
-        EffectService? oracle,
+        EffectService? effects,
         int workers,
         int? executors,
         CancellationToken ct,
@@ -24,12 +24,12 @@ internal sealed class OwnedWorkerPool : IDisposable
         {
             var worker = OwnedWorker.Start(
                 provider,
-                oracle,
+                effects,
                 executors: executors,
                 heartbeatSeconds: null,
-                jobNamespace: crossNamespace ? "bench-cross"
-                    : i % namespaces == 0 ? "bench"
-                    : "bench-2"
+                jobNamespace: crossNamespace ? "verify-cross"
+                    : i % namespaces == 0 ? "verify"
+                    : "verify-2"
             );
             _workers.Add(worker);
         }

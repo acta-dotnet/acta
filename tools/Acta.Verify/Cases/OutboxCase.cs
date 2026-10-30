@@ -17,7 +17,7 @@ internal static class OutboxCase
         var tag = $"{environment.Provider}-I03-outbox-{repetition}";
         var state = environment.Trial(bundle.Resolve($"repro/state/{tag}"));
         var source = new SqliteConnectionStringBuilder { DataSource = bundle.Resolve($"repro/state/{tag}/producer.db") }.ToString();
-        var input = Enumerable.Range(0, 12).Select(i => new BenchWork($"root-{i}")).ToArray();
+        var input = Enumerable.Range(0, 12).Select(i => new WorkInput($"root-{i}")).ToArray();
         await using (var connection = new SqliteConnection(source))
         {
             await connection.OpenAsync(ct);
@@ -37,18 +37,18 @@ internal static class OutboxCase
                 domain.Parameters.AddWithValue("@key", work.Key);
                 await domain.ExecuteNonQueryAsync(ct);
                 await transaction.AddToActaOutboxAsync(
-                    new EnqueueJobRequest("bench", "work", JobPayload.Json(work, WorkJson.Default.BenchWork), DeduplicationKey: work.Key),
+                    new EnqueueJobRequest("verify", "work", JobPayload.Json(work, WorkJson.Default.WorkInput), DeduplicationKey: work.Key),
                     cancellationToken: ct
                 );
             }
             await transaction.CommitAsync(ct);
         }
-        using var oracle = new EffectService(bundle.Resolve($"repro/state/{tag}/oracle.db"));
-        await oracle.StartAsync(ct);
+        using var effects = new EffectService(bundle.Resolve($"repro/state/{tag}/effects.db"));
+        await effects.StartAsync(ct);
         using var host = await RuntimeHost.StartAsync(state.Provider, state.ConnectionString, state.Schema, false, true, ct);
-        using var original = OwnedWorker.Start(state, oracle, new("EnqueueJobs", "outbox-enqueued"), outboxSource: source);
+        using var original = OwnedWorker.Start(state, effects, new("EnqueueJobs", "outbox-enqueued"), outboxSource: source);
         await original.ReadyAsync(ct);
-        var pid = await oracle.WaitBarrierAsync("outbox-enqueued", TimeSpan.FromSeconds(60), ct);
+        var pid = await effects.WaitBarrierAsync("outbox-enqueued", TimeSpan.FromSeconds(60), ct);
         if (pid != original.Id)
         {
             return CaseResult.Incomplete("I03", environment.Provider, "fault", "Relay enqueue/acknowledgement boundary was not reached.");
@@ -79,7 +79,7 @@ internal static class OutboxCase
             ct
         );
         var actual = await reader.OutcomesAsync(ct);
-        var checks = OutcomeOracle.Reconcile(WorkloadModel.Expected(input), actual).ToList();
+        var checks = OutcomeCheck.Reconcile(WorkloadModel.Expected(input), actual).ToList();
         checks.Add(
             new(
                 "committed-before-relay-kill",

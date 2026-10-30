@@ -12,7 +12,7 @@ internal sealed class EffectService : IDisposable
     public string Token { get; } = Guid.NewGuid().ToString("N");
     public string StorePath { get; }
     private OwnedWorker? _process;
-    public int ProcessId => _process?.Id ?? throw new InvalidOperationException("Oracle has not started.");
+    public int ProcessId => _process?.Id ?? throw new InvalidOperationException("The effect service has not started.");
 
     public EffectService(string storePath)
     {
@@ -25,7 +25,7 @@ internal sealed class EffectService : IDisposable
 
     public async Task StartAsync(CancellationToken ct)
     {
-        _process = OwnedWorker.Oracle(this);
+        _process = OwnedWorker.Effects(this);
         await _process.ReadyAsync(ct);
     }
 
@@ -52,7 +52,7 @@ internal sealed class EffectService : IDisposable
     {
         using var client = new HttpClient();
         using var request = new HttpRequestMessage(HttpMethod.Post, Endpoint + "release");
-        request.Headers.Add("X-Bench-Token", Token);
+        request.Headers.Add("X-Verify-Token", Token);
         using var response = await client.SendAsync(request, ct);
         response.EnsureSuccessStatusCode();
     }
@@ -135,7 +135,7 @@ internal sealed class EffectService : IDisposable
         using var listener = new HttpListener();
         listener.Prefixes.Add(endpoint);
         listener.Start();
-        Console.WriteLine("ACTA_BENCH_READY");
+        Console.WriteLine("ACTA_VERIFY_READY");
         var release = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
         using var slots = new SemaphoreSlim(64);
         ConcurrentDictionary<long, Task> active = [];
@@ -177,7 +177,7 @@ internal sealed class EffectService : IDisposable
         {
             try
             {
-                if (context.Request.Headers["X-Bench-Token"] != token)
+                if (context.Request.Headers["X-Verify-Token"] != token)
                 {
                     context.Response.StatusCode = 403;
                     return;

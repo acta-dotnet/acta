@@ -11,10 +11,10 @@ internal static class WorkloadModel
     private static readonly int[] StepDepths = [1, 10, 100];
     private static readonly int[] PayloadSizes = [256, 4096, 65536];
     private const string Alphabet = "abcdefghijklmnopqrstuvwxyz0123456789";
-    private static readonly ConcurrentDictionary<BenchWork, (long, long, long)> Shapes = new();
+    private static readonly ConcurrentDictionary<WorkInput, (long, long, long)> Shapes = new();
 
     /// <summary>The input of a case's arrival <paramref name="index"/>; <paramref name="payloadBytes"/> fixes a payload sweep's size.</summary>
-    public static BenchWork Input(string caseId, string key, int index = 0, int seed = 0, int? payloadBytes = null) =>
+    public static WorkInput Input(string caseId, string key, int index = 0, int seed = 0, int? payloadBytes = null) =>
         caseId switch
         {
             "C01" or "C03" => new(key, Steps: 3),
@@ -31,7 +31,11 @@ internal static class WorkloadModel
                 _ => new(key, Children: 10),
             },
             "C02" => new(key, Steps: StepDepths[index % 3]),
-            "P01" or "P04" or "P05" or "P07" or "P08" => new(key, Children: 10, ChildNamespace: caseId == "P08" ? "bench-other" : "bench"),
+            "P01" or "P04" or "P05" or "P07" or "P08" => new(
+                key,
+                Children: 10,
+                ChildNamespace: caseId == "P08" ? "verify-other" : "verify"
+            ),
             "P02" => new(key, Children: 1000, ChildWindow: 32),
             "P03" => new(key, Children: 3, Depth: 5),
             "P06" => new(key, Children: 10, PartialFailure: true),
@@ -44,16 +48,16 @@ internal static class WorkloadModel
             _ => new(key),
         };
 
-    public static ExpectedOutcome[] Expected(IEnumerable<BenchWork> inputs)
+    public static ExpectedOutcome[] Expected(IEnumerable<WorkInput> inputs)
     {
         List<ExpectedOutcome> expected = [];
         foreach (var input in inputs)
         {
-            Add(input, null, "bench");
+            Add(input, null, "verify");
         }
         return [.. expected];
 
-        void Add(BenchWork input, string? parent, string jobNamespace)
+        void Add(WorkInput input, string? parent, string jobNamespace)
         {
             expected.Add(Outcome(input, parent, jobNamespace));
             for (var i = 0; i < input.Children; i++)
@@ -73,13 +77,13 @@ internal static class WorkloadModel
     }
 
     /// <summary>A root's own expected outcome, without the descendants <see cref="Expected"/> would add.</summary>
-    public static ExpectedOutcome Root(BenchWork input) => Outcome(input, null, "bench");
+    public static ExpectedOutcome Root(WorkInput input) => Outcome(input, null, "verify");
 
     /// <summary>
     /// The descendants a root implies, those that succeed, and the checkpoints its tree commits. They follow from the
     /// input's shape alone, so each shape is modelled once.
     /// </summary>
-    public static (long Descendants, long Succeeded, long Steps) Totals(BenchWork input) =>
+    public static (long Descendants, long Succeeded, long Steps) Totals(WorkInput input) =>
         Shapes.GetOrAdd(
             input with
             {
@@ -94,7 +98,7 @@ internal static class WorkloadModel
         );
 
     // This model intentionally does not call the handler or an Acta transition helper.
-    private static ExpectedOutcome Outcome(BenchWork input, string? parent, string jobNamespace)
+    private static ExpectedOutcome Outcome(WorkInput input, string? parent, string jobNamespace)
     {
         string? output;
         if (input.Poison)

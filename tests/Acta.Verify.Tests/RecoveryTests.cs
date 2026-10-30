@@ -108,11 +108,11 @@ public sealed class RecoveryTests : IDisposable
     {
         var expected = Enumerable.Range(0, 10000).Select(i => new ExpectedOutcome("root-" + i, "Succeeded", "42")).ToArray();
         var observed = expected.Select(e => new ObservedOutcome(e.Key, e.Status, e.Output)).ToArray();
-        var valid = OutcomeOracle.Reconcile(expected, observed);
+        var valid = OutcomeCheck.Reconcile(expected, observed);
         Assert.All(valid, c => Assert.True(c.Passed));
         Assert.True(valid.Length < 20);
         observed[4321] = observed[4321] with { Output = "wrong" };
-        Assert.Contains(OutcomeOracle.Reconcile(expected, observed), c => !c.Passed && c.Identity == "root-4321");
+        Assert.Contains(OutcomeCheck.Reconcile(expected, observed), c => !c.Passed && c.Identity == "root-4321");
     }
 
     [Fact]
@@ -229,7 +229,7 @@ public sealed class RecoveryTests : IDisposable
         var plan = JsonSerializer.Deserialize(File.ReadAllText(planPath), VerifyJson.Default.RunPlan)!;
         bundle.Finish(
             new(
-                "acta-bench.result/1",
+                "acta-verify.result/1",
                 plan.RunId,
                 "real_execution",
                 status,

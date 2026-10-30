@@ -305,7 +305,7 @@ internal static class SuiteRunner
             results.Count(c => c.Status == "INCONCLUSIVE")
         );
         var report = new RunResult(
-            "acta-bench.result/1",
+            "acta-verify.result/1",
             plan.RunId,
             "real_execution",
             status,

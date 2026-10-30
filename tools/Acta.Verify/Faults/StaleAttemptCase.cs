@@ -15,18 +15,18 @@ internal static class StaleAttemptCase
     {
         var tag = $"{environment.Provider}-F03-pause-{repetition}";
         var state = environment.Trial(bundle.Resolve($"repro/state/{tag}"));
-        using var oracle = new EffectService(bundle.Resolve($"repro/state/{tag}/oracle.db"));
-        await oracle.StartAsync(ct);
+        using var effects = new EffectService(bundle.Resolve($"repro/state/{tag}/effects.db"));
+        await effects.StartAsync(ct);
         using var host = await RuntimeHost.StartAsync(state.Provider, state.ConnectionString, state.Schema, false, true, ct);
         var jobs = host.Services.GetRequiredService<IJobs>();
-        using var original = OwnedWorker.Start(state, oracle);
+        using var original = OwnedWorker.Start(state, effects);
         await original.ReadyAsync(ct);
-        var input = new BenchWork("root", Boundary: "claim");
+        var input = new WorkInput("root", Boundary: "claim");
         var root = await jobs.EnqueueAsync(
-            new EnqueueJobRequest("bench", "work", JobPayload.Json(input, WorkJson.Default.BenchWork), DeduplicationKey: input.Key),
+            new EnqueueJobRequest("verify", "work", JobPayload.Json(input, WorkJson.Default.WorkInput), DeduplicationKey: input.Key),
             ct
         );
-        var pid = await oracle.WaitBarrierAsync("claim", TimeSpan.FromSeconds(30), ct);
+        var pid = await effects.WaitBarrierAsync("claim", TimeSpan.FromSeconds(30), ct);
         if (pid != original.Id)
         {
             return CaseResult.Incomplete("F03", environment.Provider, "fault", "Busy worker boundary was not observed.");
@@ -34,27 +34,27 @@ internal static class StaleAttemptCase
         original.Pause();
         try
         {
-            using var replacement = OwnedWorker.Start(state, oracle);
+            using var replacement = OwnedWorker.Start(state, effects);
             await replacement.ReadyAsync(ct);
             await FaultCaseRunner.WaitAsync(
                 async () => (await jobs.GetAsync(root, ct)) is { Status: JobStatusCode.Succeeded, ExecutionNumber: > 1 },
                 plan.Deadline(1, original.Settings!.LeaseSeconds, state.DrainRate),
                 ct
             );
-            await oracle.ReleaseAsync(ct);
+            await effects.ReleaseAsync(ct);
         }
         finally
         {
             original.Resume();
         }
-        if (await oracle.WaitBarrierAsync("claim-returned", TimeSpan.FromSeconds(30), ct) != original.Id)
+        if (await effects.WaitBarrierAsync("claim-returned", TimeSpan.FromSeconds(30), ct) != original.Id)
         {
             return CaseResult.Incomplete("F03", environment.Provider, "fault", "The stale attempt never returned a result to complete.");
         }
         // Permit the engine to attempt the stale attempt's guarded completion.
         await Task.Delay(3000, ct);
         var actual = await new DurableReader(state).OutcomesAsync(ct);
-        var checks = OutcomeOracle.Reconcile(WorkloadModel.Expected([input]), actual).ToList();
+        var checks = OutcomeCheck.Reconcile(WorkloadModel.Expected([input]), actual).ToList();
         await using var connection = await state.OpenAsync(ct);
         await using var command = connection.CreateCommand();
         var table = state.Provider == "sqlite" ? "main.jobs_state" : $"{state.Schema}.jobs_state";

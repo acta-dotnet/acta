@@ -73,7 +73,7 @@ public static class EvidenceRecovery
         var status = cases.Any(c => c.Status == "FAIL") ? "FAIL" : "ABORTED";
         return bundle.Finish(
             new(
-                "acta-bench.result/1",
+                "acta-verify.result/1",
                 plan.RunId,
                 "real_execution",
                 status,

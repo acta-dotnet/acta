@@ -93,7 +93,7 @@ WHERE  e.entity_code = 50 AND e.event_code BETWEEN 40 AND 44
 -- Note what this does NOT assert: that every job Succeeded. A realistic workload contains shapes
 -- designed to fail, so "everything is Succeeded" would fail a healthy trial. Terminal-state
 -- completeness is the invariant that must hold here; each job's expected outcome belongs to the
--- bench's identity oracle, which reconciles every logical job against its model.
+-- harness's outcome check, which reconciles every logical job against its model.
 --
 -- One exception: a system recurring job whose lease is still live. A trial's workers stop with the
 -- trial, and sys.alerts fires on every minute, so a check that follows a fire meets an attempt whose
@@ -108,7 +108,7 @@ WHERE  r.job_status_code = 50
 -- ---------------------------------------------------------------------------------------------
 -- 5. expected outcome per job shape                      [retired]
 -- ---------------------------------------------------------------------------------------------
--- The bench's identity oracle owns each job's expected terminal state and result, so this file keeps
+-- The harness's outcome check owns each job's expected terminal state and result, so this file keeps
 -- no second copy of it. The at-most-once charge may end Failed there, and only there: a kill inside
 -- its body terminalizes the ambiguity instead of running the charge again, and its real assertion is
 -- check 10, which counts how many times the body ran.

@@ -36,9 +36,9 @@ internal static class ConnectivityCase
         using var worker = OwnedWorker.Start(state, connectionOverride: proxy.ConnectionString);
         await worker.ReadyAsync(ct);
         var jobs = host.Services.GetRequiredService<IJobs>();
-        var input = Enumerable.Range(0, 20).Select(i => new BenchWork($"root-{i}", WorkMs: i == 0 ? 2000 : 10)).ToArray();
+        var input = Enumerable.Range(0, 20).Select(i => new WorkInput($"root-{i}", WorkMs: i == 0 ? 2000 : 10)).ToArray();
         var root = await jobs.EnqueueAsync(
-            new EnqueueJobRequest("bench", "work", JobPayload.Json(input[0], WorkJson.Default.BenchWork), DeduplicationKey: input[0].Key),
+            new EnqueueJobRequest("verify", "work", JobPayload.Json(input[0], WorkJson.Default.WorkInput), DeduplicationKey: input[0].Key),
             ct
         );
         await FaultCaseRunner.WaitAsync(
@@ -51,9 +51,9 @@ internal static class ConnectivityCase
         {
             await jobs.EnqueueAsync(
                 new EnqueueJobRequest(
-                    "bench",
+                    "verify",
                     "work",
-                    JobPayload.Json(input[i], WorkJson.Default.BenchWork),
+                    JobPayload.Json(input[i], WorkJson.Default.WorkInput),
                     DeduplicationKey: input[i].Key
                 ),
                 ct
@@ -68,7 +68,7 @@ internal static class ConnectivityCase
             ct
         );
         var actual = await reader.OutcomesAsync(ct);
-        var checks = OutcomeOracle.Reconcile(WorkloadModel.Expected(input), actual).ToList();
+        var checks = OutcomeCheck.Reconcile(WorkloadModel.Expected(input), actual).ToList();
         checks.Add(
             new(
                 "live-connection-cut",

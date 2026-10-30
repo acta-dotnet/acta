@@ -75,7 +75,7 @@ internal static class StorageCases
                 VerifyJson.Default.DictionaryStringString
             );
             await PrepareBackgroundAsync(plan, scenario, state, jobs, resources, ct, population);
-            var due = Enumerable.Range(0, 12).Select(i => new BenchWork($"root-{i}")).ToArray();
+            var due = Enumerable.Range(0, 12).Select(i => new WorkInput($"root-{i}")).ToArray();
             var ids = new List<long>();
             foreach (var work in due)
             {
@@ -83,9 +83,9 @@ internal static class StorageCases
                     (
                         await jobs.EnqueueAsync(
                             new EnqueueJobRequest(
-                                "bench",
+                                "verify",
                                 "work",
-                                JobPayload.Json(work, WorkJson.Default.BenchWork),
+                                JobPayload.Json(work, WorkJson.Default.WorkInput),
                                 DeduplicationKey: work.Key
                             ),
                             ct
@@ -105,7 +105,7 @@ internal static class StorageCases
                 .ToArray();
             Check[] populationChecks =
             [
-                .. OutcomeOracle.Reconcile(WorkloadModel.Expected(due), observedDue),
+                .. OutcomeCheck.Reconcile(WorkloadModel.Expected(due), observedDue),
                 .. await CheckBackgroundAsync(state, scenario.Id, population, ct),
             ];
             checks.AddRange(populationChecks);
@@ -149,11 +149,11 @@ internal static class StorageCases
                     .Range(first, Math.Min(1000, size - first))
                     .Select(i =>
                     {
-                        var work = new BenchWork($"history-{i}", Signal: scenario.Id == "S02" ? "park" : null);
+                        var work = new WorkInput($"history-{i}", Signal: scenario.Id == "S02" ? "park" : null);
                         return new EnqueueJobRequest(
-                            "bench",
+                            "verify",
                             "work",
-                            JobPayload.Json(work, WorkJson.Default.BenchWork),
+                            JobPayload.Json(work, WorkJson.Default.WorkInput),
                             DeduplicationKey: work.Key,
                             Priority: scenario.Id == "S03" ? JobPriorityCode.High : JobPriorityCode.Normal,
                             NextRunAtUtc: scenario.Id == "S03" ? future : null
@@ -235,18 +235,18 @@ internal static class StorageCases
         var jobs = host.Services.GetRequiredService<IJobs>();
         var operations = host.Services.GetRequiredService<IActaOperations>();
         var definition =
-            await operations.Definitions.GetAsync("bench", "work", ct) ?? throw new InvalidOperationException("Missing work definition.");
-        await operations.Definitions.UpdateOverridesAsync("bench", "work", definition.Version, new(JobRetentionSeconds: 0), ct: ct);
+            await operations.Definitions.GetAsync("verify", "work", ct) ?? throw new InvalidOperationException("Missing work definition.");
+        await operations.Definitions.UpdateOverridesAsync("verify", "work", definition.Version, new(JobRetentionSeconds: 0), ct: ct);
         using var worker = OwnedWorker.Start(state);
         await worker.ReadyAsync(ct);
-        var input = new BenchWork(
+        var input = new WorkInput(
             "root",
             Children: scenario.Id == "S05" ? 10 : 0,
             Signal: scenario.Id == "S04" ? "hold" : null,
             AfterChildrenSignal: scenario.Id == "S05" ? "hold" : null
         );
         var root = await jobs.EnqueueAsync(
-            new EnqueueJobRequest("bench", "work", JobPayload.Json(input, WorkJson.Default.BenchWork), DeduplicationKey: input.Key),
+            new EnqueueJobRequest("verify", "work", JobPayload.Json(input, WorkJson.Default.WorkInput), DeduplicationKey: input.Key),
             ct
         );
         await FaultCaseRunner.WaitAsync(
@@ -256,15 +256,15 @@ internal static class StorageCases
         );
         List<Check> checks = [];
         var maintenance = host.Services.GetRequiredService<MaintenanceOperations>();
-        var ns = (await operations.Namespaces.ListAsync(new(), ct)).Items.Single(n => n.JobNamespace == "bench").NamespaceId;
-        var traffic = Enumerable.Range(0, 30).Select(i => new BenchWork($"traffic-{i}", WorkMs: 10)).ToArray();
+        var ns = (await operations.Namespaces.ListAsync(new(), ct)).Items.Single(n => n.JobNamespace == "verify").NamespaceId;
+        var traffic = Enumerable.Range(0, 30).Select(i => new WorkInput($"traffic-{i}", WorkMs: 10)).ToArray();
         foreach (var work in traffic)
         {
             await jobs.EnqueueAsync(
                 new EnqueueJobRequest(
-                    "bench",
+                    "verify",
                     "retained-work",
-                    JobPayload.Json(work, WorkJson.Default.BenchWork),
+                    JobPayload.Json(work, WorkJson.Default.WorkInput),
                     DeduplicationKey: work.Key
                 ),
                 ct
@@ -283,7 +283,7 @@ internal static class StorageCases
         );
         var before = await reader.ReadAsync(null, ct);
         var trafficActual = (await reader.OutcomesAsync(ct)).Where(r => r.Key.StartsWith("traffic-", StringComparison.Ordinal));
-        checks.AddRange(OutcomeOracle.Reconcile(WorkloadModel.Expected(traffic), trafficActual));
+        checks.AddRange(OutcomeCheck.Reconcile(WorkloadModel.Expected(traffic), trafficActual));
         checks.Add(
             new(
                 "live-parent-preserved",

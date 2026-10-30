@@ -21,12 +21,17 @@ internal static class CleanStart
         List<string> refusals = [.. Running(Leftovers, lines).Select(p => $"PID {p.Key} {p.Value}")];
         try
         {
-            var containers = await OwnedProvider.DockerAsync(
-                ["ps", "--filter", "label=acta.bench.owner", "--format", "{{.ID}} {{.Image}} {{.Status}}"],
-                null,
-                ct
-            );
-            refusals.AddRange(containers.Split(['\r', '\n'], StringSplitOptions.RemoveEmptyEntries).Select(c => $"owned container {c}"));
+            foreach (var label in OwnedProvider.OwnerLabels)
+            {
+                var containers = await OwnedProvider.DockerAsync(
+                    ["ps", "--filter", "label=" + label, "--format", "{{.ID}} {{.Image}} {{.Status}}"],
+                    null,
+                    ct
+                );
+                refusals.AddRange(
+                    containers.Split(['\r', '\n'], StringSplitOptions.RemoveEmptyEntries).Select(c => $"owned container {c}")
+                );
+            }
         }
         catch (Exception ex) when (ex is not OperationCanceledException)
         {

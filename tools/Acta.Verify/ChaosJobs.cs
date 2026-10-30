@@ -6,13 +6,13 @@ namespace Acta.Verify;
 
 /// <summary>
 /// The crash-recovery shapes F09 seeds. Each body writes the witness notes certify.sql reads, and each returns what
-/// <see cref="WorkloadModel"/> computes for its input, so the identity oracle stays the one home of the expectation.
+/// <see cref="WorkloadModel"/> computes for its input, so the identity effects stays the one home of the expectation.
 /// </summary>
 public static class ChaosJobs
 {
     /// <summary>The crash victims: durable steps, so a reclaimed attempt shows that recorded steps do not run twice.</summary>
     [Job("slow-success")]
-    public static async Task<string> SlowSuccess(BenchWork input, JobContext ctx, CancellationToken ct)
+    public static async Task<string> SlowSuccess(WorkInput input, JobContext ctx, CancellationToken ct)
     {
         // The tenant the handler saw after enqueue, claim, dispatch and decode; certify.sql check 13 compares it.
         await ctx.NoteAsync($"tenant {ctx.TenantName ?? "-"}", ct);
@@ -21,7 +21,7 @@ public static class ChaosJobs
 
     /// <summary>A lane member; the begin and end notes witness that members of one lane never overlap.</summary>
     [Job("laned")]
-    public static async Task<string> Laned(BenchWork input, JobContext ctx, CancellationToken ct)
+    public static async Task<string> Laned(WorkInput input, JobContext ctx, CancellationToken ct)
     {
         await ctx.NoteAsync("begin " + input.Key, ct);
         var result = await StepsAsync(input, ctx, ct);
@@ -30,20 +30,20 @@ public static class ChaosJobs
     }
 
     [Job("metered-10", RateLimit = "10/s")]
-    public static Task<string> Metered10(BenchWork input, JobContext ctx, CancellationToken ct) => AdmitAsync(input, ctx, ct);
+    public static Task<string> Metered10(WorkInput input, JobContext ctx, CancellationToken ct) => AdmitAsync(input, ctx, ct);
 
     [Job("metered-50", RateLimit = "50/s")]
-    public static Task<string> Metered50(BenchWork input, JobContext ctx, CancellationToken ct) => AdmitAsync(input, ctx, ct);
+    public static Task<string> Metered50(WorkInput input, JobContext ctx, CancellationToken ct) => AdmitAsync(input, ctx, ct);
 
     [Job("metered-100", RateLimit = "100/s")]
-    public static Task<string> Metered100(BenchWork input, JobContext ctx, CancellationToken ct) => AdmitAsync(input, ctx, ct);
+    public static Task<string> Metered100(WorkInput input, JobContext ctx, CancellationToken ct) => AdmitAsync(input, ctx, ct);
 
     /// <summary>
     /// The charge: its one effect runs zero or one times. A kill inside the body terminalizes the ambiguity as Failed
-    /// instead of charging again, so the oracle allows Failed with nothing committed.
+    /// instead of charging again, so the effects allows Failed with nothing committed.
     /// </summary>
     [Job("at-most-once-charge", MaxAttempts = 3, Backoff = "2s..4s")]
-    public static async Task<string> Charge(BenchWork input, JobContext ctx, CancellationToken ct)
+    public static async Task<string> Charge(WorkInput input, JobContext ctx, CancellationToken ct)
     {
         await ctx.NoteAsync($"tenant {ctx.TenantName ?? "-"}", ct);
         await ctx.RunStepAsync(
@@ -60,7 +60,7 @@ public static class ChaosJobs
         return Hash(input.Key);
     }
 
-    private static async Task<string> StepsAsync(BenchWork input, JobContext ctx, CancellationToken ct)
+    private static async Task<string> StepsAsync(WorkInput input, JobContext ctx, CancellationToken ct)
     {
         long sum = 0;
         for (var i = 1; i <= input.Steps; i++)
@@ -81,7 +81,7 @@ public static class ChaosJobs
         return sum.ToString(CultureInfo.InvariantCulture);
     }
 
-    private static async Task<string> AdmitAsync(BenchWork input, JobContext ctx, CancellationToken ct)
+    private static async Task<string> AdmitAsync(WorkInput input, JobContext ctx, CancellationToken ct)
     {
         // Written first, so it stands for the instant the meter admitted this attempt; certify.sql check 14 counts them.
         await ctx.NoteAsync("metered-admitted", ct);

@@ -5,7 +5,7 @@ internal sealed class SuppressedWakeup : IWorkerWakeup
 {
     public ValueTask WakeAsync(WorkerWakeupChannel channel, WorkerWakeupReason reason, CancellationToken ct = default)
     {
-        Console.WriteLine("ACTA_BENCH_WAKEUP_DROPPED");
+        Console.WriteLine("ACTA_VERIFY_WAKEUP_DROPPED");
         return ValueTask.CompletedTask;
     }
 

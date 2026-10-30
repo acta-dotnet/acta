@@ -5,7 +5,7 @@ using System.Text.Json.Serialization;
 
 namespace Acta.Verify;
 
-public sealed record BenchWork(
+public sealed record WorkInput(
     string Key,
     int Steps = 0,
     int Children = 0,
@@ -17,7 +17,7 @@ public sealed record BenchWork(
     int SleepSeconds = 0,
     string? Payload = null,
     int CpuRounds = 0,
-    string ChildNamespace = "bench",
+    string ChildNamespace = "verify",
     int ChildWindow = 100,
     bool PartialFailure = false,
     string? Boundary = null,
@@ -28,16 +28,16 @@ public sealed record BenchWork(
     string? AfterChildrenSignal = null
 );
 
-public sealed class BenchWorkHandler(OracleClient oracle)
+public sealed class WorkHandler(EffectClient effects)
 {
     [Job("resilient-work", MaxAttempts = 100, Backoff = "1s..1s")]
-    public Task<string> RunResilient(BenchWork input, JobContext ctx, CancellationToken ct) => Run(input, ctx, ct);
+    public Task<string> RunResilient(WorkInput input, JobContext ctx, CancellationToken ct) => Run(input, ctx, ct);
 
     [Job("retained-work", MaxAttempts = 4, Backoff = "1s..1s")]
-    public Task<string> RunRetained(BenchWork input, JobContext ctx, CancellationToken ct) => Run(input, ctx, ct);
+    public Task<string> RunRetained(WorkInput input, JobContext ctx, CancellationToken ct) => Run(input, ctx, ct);
 
     [Job("work", MaxAttempts = 4, Backoff = "1s..1s", EventRecording = EventRecordingCode.Audit)]
-    public async Task<string> Run(BenchWork input, JobContext ctx, CancellationToken ct)
+    public async Task<string> Run(WorkInput input, JobContext ctx, CancellationToken ct)
     {
         if (input.Witness)
         {
@@ -47,8 +47,8 @@ public sealed class BenchWorkHandler(OracleClient oracle)
         {
             // The held body ignores its attempt token, so an attempt whose lease lapsed at the barrier still returns a
             // result for the engine to complete, and the receipt records that it got that far.
-            await oracle.CallAsync("barrier", input.Key, "claim", false, 0, CancellationToken.None);
-            await oracle.CallAsync("receipt", input.Key, "claim-returned", false, 0, CancellationToken.None);
+            await effects.CallAsync("barrier", input.Key, "claim", false, 0, CancellationToken.None);
+            await effects.CallAsync("receipt", input.Key, "claim-returned", false, 0, CancellationToken.None);
         }
         if (input.Poison || ctx.ExecutionNumber <= input.Failures)
         {
@@ -78,10 +78,10 @@ public sealed class BenchWorkHandler(OracleClient oracle)
                 "effect",
                 async token =>
                 {
-                    await oracle.CallAsync("effect", input.Key, null, input.EffectMode == "idempotent", input.WorkMs, token);
+                    await effects.CallAsync("effect", input.Key, null, input.EffectMode == "idempotent", input.WorkMs, token);
                     if (input.Boundary == "effect" && ctx.ExecutionNumber == 1)
                     {
-                        await oracle.CallAsync("barrier", input.Key, "effect", false, 0, token);
+                        await effects.CallAsync("barrier", input.Key, "effect", false, 0, token);
                     }
                 },
                 configure: input.AtMostOnce ? o => o.AtMostOnce() : null,
@@ -89,7 +89,7 @@ public sealed class BenchWorkHandler(OracleClient oracle)
             );
             if (input.Boundary == "completion" && ctx.ExecutionNumber == 1)
             {
-                await oracle.CallAsync("barrier", input.Key, "completion", false, 0, ct);
+                await effects.CallAsync("barrier", input.Key, "completion", false, 0, ct);
             }
         }
         for (var i = 1; i <= input.Steps; i++)
@@ -109,7 +109,7 @@ public sealed class BenchWorkHandler(OracleClient oracle)
             );
             if (i == 2 && input.Boundary == "checkpoint" && ctx.ExecutionNumber == 1)
             {
-                await oracle.CallAsync("barrier", input.Key, "checkpoint", false, 0, ct);
+                await effects.CallAsync("barrier", input.Key, "checkpoint", false, 0, ct);
             }
         }
         if (input.Children > 0)
@@ -119,7 +119,7 @@ public sealed class BenchWorkHandler(OracleClient oracle)
                 List<long> children = [];
                 for (var i = first; i < Math.Min(first + input.ChildWindow, input.Children); i++)
                 {
-                    var child = new BenchWork(
+                    var child = new WorkInput(
                         $"{input.Key}/child-{i}",
                         Children: input.Depth > 1 ? 3 : 0,
                         Depth: Math.Max(0, input.Depth - 1),
@@ -131,18 +131,18 @@ public sealed class BenchWorkHandler(OracleClient oracle)
                         $"child-{i}",
                         input.ChildNamespace,
                         "work",
-                        JobPayload.Json(child, WorkJson.Default.BenchWork),
+                        JobPayload.Json(child, WorkJson.Default.WorkInput),
                         ct: ct
                     );
                     children.Add(handle.JobId);
                     if (i == 3 && input.Boundary == "children" && ctx.ExecutionNumber == 1)
                     {
-                        await oracle.CallAsync("barrier", input.Key, "children", false, 0, ct);
+                        await effects.CallAsync("barrier", input.Key, "children", false, 0, ct);
                     }
                 }
                 if (input.Boundary == "join-before" && ctx.ExecutionNumber == 1)
                 {
-                    await oracle.CallAsync("barrier", input.Key, "join-before", false, 0, ct);
+                    await effects.CallAsync("barrier", input.Key, "join-before", false, 0, ct);
                 }
                 var outcomes = await ctx.WaitChildrenAsync(children, ct);
                 foreach (var outcome in outcomes)
@@ -173,19 +173,19 @@ public sealed class BenchWorkHandler(OracleClient oracle)
     }
 }
 
-public sealed class LateWorkHandler(OracleClient oracle)
+public sealed class LateWorkHandler(EffectClient effects)
 {
     [Job("late-work", MaxAttempts = 1, ExecutionTimeout = "1s")]
-    public async Task<string> Run(BenchWork input, JobContext ctx, CancellationToken ct)
+    public async Task<string> Run(WorkInput input, JobContext ctx, CancellationToken ct)
     {
-        await oracle.CallAsync("effect", input.Key, null, false, 2500, CancellationToken.None);
+        await effects.CallAsync("effect", input.Key, null, false, 2500, CancellationToken.None);
         await ctx.SetVariableAsync("late-write", true, CancellationToken.None);
         return "late";
     }
 }
 
 [JsonSourceGenerationOptions]
-[JsonSerializable(typeof(BenchWork))]
+[JsonSerializable(typeof(WorkInput))]
 [JsonSerializable(typeof(string))]
 [JsonSerializable(typeof(long))]
 [JsonSerializable(typeof(bool))]
