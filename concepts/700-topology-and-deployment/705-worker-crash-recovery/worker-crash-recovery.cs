@@ -150,7 +150,7 @@ static async Task ShowStateAsync(ConceptLab lab, long jobId, string sessionId)
     await lab.ShowAsync(
         "Worker heartbeats are ordinary inspectable rows",
         """
-        SELECT worker_id, status, deployment_version, host, process_id, last_seen_at_utc
+        SELECT worker_id, status, deployment_version, host_name, process_id, last_seen_at_utc
         FROM workers_view
         WHERE namespace = @jobNamespace AND deployment_version IN (@workerADeployment, @workerBDeployment)
         ORDER BY worker_id

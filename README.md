@@ -114,6 +114,7 @@ SQLite state is one file (`acta-local*.db`); delete it to reset. Docker is neede
 
 - You already run SQL Server 2019+, PostgreSQL 18, or SQLite 3.51+. PostgreSQL 18 is the major Acta is tested and certified on; the SQL Server and SQLite floors come from features Acta's SQL uses (`OPTIMIZE_FOR_SEQUENTIAL_KEY` in the schema, and `jsonb_each` in batch completion). The SQLite provider checks its floor at startup, and the SQLite engine bundled by `Microsoft.Data.Sqlite` clears it.
 - You want durable background jobs without adding a broker.
+- You need a recurring job that keeps an external system current, with durable progress and no loop that must run forever: one permanent job, fired on schedule, `Idle` in between. The [continuous-synchronization lab](./concepts/100-scheduling/109-continuous-synchronization/) kills its worker after a committed batch and shows the restarted one continue at the next.
 - You want job state inspectable with SQL.
 - You need retries, delays, schedules, and operator controls.
 - You want deterministic tests around job behavior.

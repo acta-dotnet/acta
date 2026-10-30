@@ -15,6 +15,7 @@ database you already run. Each page below answers one question, in the order you
 
 - [Quickstart](./quickstart.md): how do I run a durable job in my own app on embedded SQLite, and what row does it leave?
 - [Your first job, end to end](./first-job.md): how do I read a typed result, tell a final failure from a retry, ask why, cancel, wait with a timeout, and test it all on SQLite?
+- [Continuous synchronization](../concepts/100-scheduling/109-continuous-synchronization/): how does one permanent job keep an external system current without a loop that runs forever, and what happens when its worker is killed after a committed batch? The lab prints the rows.
 - [Engineering Labs](./engineering-labs.md): how do crash recovery, durable steps, signals, the dashboard, and deterministic tests behave, shown one runnable concept at a time?
 
 ## By task
@@ -28,6 +29,7 @@ Each line is one thing you are trying to do, with the shortest complete path thr
 - **Run the worker apart from the API**: the [wiring shape](./developer-guide.md#wiring-shape) (`Run` for a worker host, `Reference` for an enqueue-only one), then the [production guide](./operator-guide.md#production-guide).
 - **Diagnose a failed or waiting job**: [ask why](./first-job.md#ask-why) in code, [`jobs explain`](./operator-guide.md#start-with-jobs-explain) on the command line, and the [failure modes](./operator-guide.md#what-happens-if) for what the engine does in each case.
 - **Understand a wait timeout**: [a wait timeout is not a cancellation](./first-job.md#a-wait-timeout-is-not-a-cancellation), and [wait deadlines](./developer-guide.md#wait-deadlines) for the deadlines a job sets on its own waits.
+- **Keep an external system synchronized**: [everything is a job](./developer-guide.md#one-durable-work-unit) for the model, [delivery and capacity](./developer-guide.md#delivery-and-capacity) for the permanent slot against a root per occurrence, and the [continuous-synchronization lab](../concepts/100-scheduling/109-continuous-synchronization/) for the watermark, the crash, and the recovery, with [its tests](../concepts/800-testing/804-continuous-synchronization-tests/).
 - **Test without sleeps or polling**: [the first test](./first-job.md#the-first-test) on SQLite, then [testing custom jobs](./developer-guide.md#testing-custom-jobs) for retries, signals, timers, and crash recovery.
 
 ## Build jobs

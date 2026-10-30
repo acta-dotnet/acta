@@ -233,7 +233,7 @@
   let lifecycleText = $derived.by(() => {
     if (!family || !shownState) return '';
     if (family.currentVersion === null) {
-      return 'No current version. A schedule bound to this calendar keeps the version it pinned until one is published.';
+      return 'No current version. A schedule bound to this calendar has nothing to resolve until one is published: its evaluation reports an error and retries.';
     }
     return `Version ${family.currentVersion} is current: a new binding follows it, and the next publication retimes every bound schedule.`;
   });

@@ -380,6 +380,7 @@ static async Task<int> RunSmokeAsync(string? repoRoot)
                 && (
                     text.Contains("WaitForShutdownAsync", StringComparison.Ordinal)
                     || text.Contains("RunAsync(", StringComparison.Ordinal)
+                    || text.Contains(".Run();", StringComparison.Ordinal)
                     || text.Contains("Console.ReadKey", StringComparison.Ordinal)
                 )
             )

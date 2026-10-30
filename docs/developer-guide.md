@@ -36,9 +36,23 @@ see [architecture decisions](./architecture-decisions.md).
 
 ### One durable work unit
 
-A **Job** is the only independently claimable work unit. Its stored kind says only whether it is an
-ordinary job or a scheduled definition's permanent slot; everything else about its shape comes from the
-descriptor and the row. Coordinating jobs are ordinary jobs that drive work through durable slots.
+A **Job** is the only independently claimable work unit: what a worker claims under a lease, retries
+under a budget, and the ledger audits. Its stored kind says only whether it is an ordinary job or a
+scheduled definition's permanent slot; everything else about its shape comes from the descriptor and
+the row.
+
+Everything is a job. A background task is a job. A recurring synchronization controller is a job: one
+permanent slot the schedule fires again and again, `Idle` between firings, keeping its durable state
+across them. A parent coordinating work is a job, and its children are ordinary jobs that carry their
+lineage. A job waiting days for a signal or a timer is still one job, holding a row and no worker.
+Steps, variables, timers, signals, and checkpoints are not jobs: they are durable state that belongs
+to a job and shares its claim, lease, retry budget, and event history, never claimed on their own. A
+workflow is a composition of these, not a second execution engine: the same claim, lease, recovery,
+and operator controls serve all of it, which is why there is no separate workflow runtime and nothing
+new to operate. Under per-occurrence delivery each scheduled occurrence is an ordinary root job of its
+own ([delivery and capacity](#delivery-and-capacity)); the
+[continuous-synchronization lab](../concepts/100-scheduling/109-continuous-synchronization/) runs a
+permanent job through a real worker crash.
 
 ### Three identities
 
@@ -832,7 +846,7 @@ slot, or inserts the occurrence's root, when a cursor is due, and the claim runs
 | --- | --- | --- | --- |
 | Normal recurring fire | Yes, when the firing is admitted | No | The schedule reaches its next due instant normally. |
 | Trigger now | No | No | An operator wants one immediate run without changing cadence. |
-| MisfireStrategy reconciliation | Yes | At most one coalesced catch-up run | The admitter finds a stored occurrence already past: after downtime, a resume, or a timed pause's end. |
+| MisfireStrategy reconciliation | Yes | One coalesced catch-up firing (`CatchUpOnce`, `CatchUpLatest`), or every missed occurrence in order (`CatchUpAll`) | The admitter finds a stored occurrence already past: after downtime, a resume, or a timed pause's end. |
 | Backfill | Not automatically | Yes, explicitly | The application must process named historical periods as separate business work. |
 
 ### Normal recurring cursor
@@ -860,6 +874,27 @@ once registered: a changed mode fails the worker's start, so a new mode takes a 
   its provenance (`jobs.schedule_id`), its own steps, children, retries, and retention, and a deduplication
   key of the schedule and the nominal instant, so an occurrence is never admitted twice. Three schedules
   due at one instant make three roots.
+
+| Mode | What a firing runs | Best for |
+| --- | --- | --- |
+| `Permanent` (the default) | The one durable slot, `Idle` between firings; its steps, variables, and progress persist across firings, and the handler may reset them as its final action | Synchronization, reconciliation, incremental controllers, repeated maintenance |
+| `PerOccurrence` | A fresh ordinary root per occurrence, with its own state, retries, result, and retention | Work where each period or event is distinct: a billing run, an import, a notification |
+
+```csharp
+[Job("sync-orders")]                                                              // Permanent: one slot, fired again and again
+[Schedule("every-5s", "PT5S")]
+public Task Sync(SyncOrders input, JobContext ctx, CancellationToken ct) => ...;
+
+[Job("import-files", ScheduledDelivery = ScheduledDeliveryCode.PerOccurrence)]    // a fresh root per occurrence
+[Schedule("hourly", "PT1H", MaxOutstanding = 1)]
+public Task Import(ImportFiles input, JobContext ctx, CancellationToken ct) => ...;
+```
+
+Both modes run through the same admission and execution engine, and a definition without schedules is
+an ordinary definition: no slot is created for it. Backfilling historical periods is application work
+under either mode ([backfill](#backfill)). The
+[continuous-synchronization lab](../concepts/100-scheduling/109-continuous-synchronization/) runs the
+permanent mode through a real worker crash and prints the rows.
 
 `[Schedule(MaxOutstanding = 1, FullBehavior = ScheduleFullBehaviorCode.Wait)]` bounds a per-occurrence
 schedule's unsettled roots: queued, executing, retrying, paused, and suspended roots all count, children
@@ -983,7 +1018,7 @@ var published = await calendars.PublishAsync(holidays, expectedCurrentVersion: 2
 ### Backfill
 
 Acta currently has no dedicated schedule-backfill API. Backfill is application work and should be
-materialized explicitly with a period in the input, an deduplication key, and usually a correlation id
+materialized explicitly with a period in the input, a deduplication key, and usually a correlation id
 or tags for operator search.
 
 ```csharp

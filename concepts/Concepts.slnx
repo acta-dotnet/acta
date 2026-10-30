@@ -37,6 +37,7 @@
     <Project Path="100-scheduling/106-schedule-misfire/106-schedule-misfire.csproj" />
     <Project Path="100-scheduling/107-calendar-schedule/107-calendar-schedule.csproj" />
     <Project Path="100-scheduling/108-calendar-catalog/108-calendar-catalog.csproj" />
+    <Project Path="100-scheduling/109-continuous-synchronization/109-continuous-synchronization.csproj" />
   </Folder>
   <Folder Name="/200-durable-execution/">
     <Project Path="200-durable-execution/201-durable-checkout/201-durable-checkout.csproj" />
@@ -105,6 +106,7 @@
     <Project Path="800-testing/801-testing-jobs/801-testing-jobs.csproj" />
     <Project Path="800-testing/802-testing-durable-jobs/802-testing-durable-jobs.csproj" />
     <Project Path="800-testing/803-first-job-tests/803-first-job-tests.csproj" />
+    <Project Path="800-testing/804-continuous-synchronization-tests/804-continuous-synchronization-tests.csproj" />
   </Folder>
   <Folder Name="/900-runtime-and-tuning/">
     <Project Path="900-runtime-and-tuning/901-native-aot-json/901-native-aot-json.csproj" />

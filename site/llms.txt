@@ -208,6 +208,22 @@ side is `await jobs.RaiseSignalAsync(JobLookup.ByRef(jobRef), "shipped", new Shi
 on `IJobs`. The deadline is stored once, as database time plus the timeout, so restarts and
 downtime never lengthen it, and a raise that lands before the parked job re-enters still wins.
 
+## Recurring work
+
+`[Schedule("every-5s", "PT5S")]` on a `[Job]` makes a permanent slot: one durable job the schedule
+fires again and again. The slot sits `Idle` between firings and holds no thread; the admission
+engine makes it `Ready` when a schedule is due, a worker claims it like any job, and the handler
+returns when its bounded work is done. Never loop forever inside the handler and never poll from it:
+a firing that finds nothing to do returns, and the next firing comes on schedule. Acta's progress is
+the schedule cursor (`next_occurrence_at_utc`); the handler's progress, such as a synchronization
+watermark, is a durable variable on the job (`ctx.GetVariableOrDefaultAsync` at the top of every
+execution, `ctx.SetVariableAsync` after the work it covers), carried across firings, retries, and
+workers, so a recovered firing continues where the lost one stopped. Write the work first and the
+variable after it, and make the work an upsert: an attempt that dies between the two replays one
+batch. A definition whose occurrences are each their own job, with
+their own retries, result, and retention, declares `ScheduledDelivery = ScheduledDeliveryCode.PerOccurrence`.
+The runnable proof, with a killed worker, is `concepts/100-scheduling/109-continuous-synchronization`.
+
 ## Choosing between a lane, a key, a limit, and a rate
 
 One axis each: a lane decides ORDER, a concurrency key and its limit decide HOW MANY run at once, and a

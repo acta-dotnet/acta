@@ -22,6 +22,10 @@
   --sky-wash: rgba(124, 184, 242, 0.10);
   --oxide-wash: rgba(208, 138, 69, 0.08);
   --bad-wash: rgba(232, 131, 123, 0.08);
+  --verdi-hover: #43E4BA;
+  --chrome: rgba(11, 14, 21, 0.88);
+  --wash-top: rgba(47, 214, 168, 0.15);
+  --wash-bottom: rgba(124, 184, 242, 0.13);
   --serif: "Fraunces", Georgia, serif;
   --sans: "IBM Plex Sans", system-ui, sans-serif;
   --mono: "IBM Plex Mono", Consolas, monospace;
@@ -31,14 +35,50 @@
   --label: 0.7rem;
   --section: clamp(3.4rem, 8vh, 5.6rem);
 }
+/* day: the same type, rules, and verdi accent on paper; assets/theme.js sets the attribute before the first paint */
+:root[data-theme="light"] {
+  --bg: #F4F6F8;
+  --panel: #FFFFFF;
+  --panel-2: #EDF1F5;
+  --text: #121823;
+  --muted: #46526A;
+  --faint: #66728A;
+  --verdi: #0B7F62;
+  --verdi-deep: #F4FFFA;
+  --oxide: #B0651F;
+  --bad: #C2453B;
+  --sky: #2A66AE;
+  --leaf: #2C7F4F;
+  --code: #1F2835;
+  --code-inline: #1F2835;
+  --hair: rgba(18, 24, 35, 0.13);
+  --hair-soft: rgba(18, 24, 35, 0.07);
+  --verdi-wash: rgba(11, 127, 98, 0.08);
+  --verdi-tint: rgba(11, 127, 98, 0.045);
+  --sky-wash: rgba(42, 102, 174, 0.10);
+  --oxide-wash: rgba(176, 101, 31, 0.09);
+  --bad-wash: rgba(194, 69, 59, 0.08);
+  --verdi-hover: #0A6E55;
+  --chrome: rgba(244, 246, 248, 0.86);
+  --wash-top: rgba(11, 127, 98, 0.15);
+  --wash-bottom: rgba(42, 102, 174, 0.13);
+}
 * { box-sizing: border-box; }
 html { background: var(--bg); color-scheme: dark; scroll-behavior: smooth; scroll-padding-top: 4rem; }
+:root[data-theme="light"] { color-scheme: light; }
 body {
   margin: 0; background: var(--bg); color: var(--text);
   font-family: var(--sans); font-size: 16px; line-height: 1.65;
   -webkit-font-smoothing: antialiased;
+  position: relative; isolation: isolate;
 }
-::selection { background: rgba(47, 214, 168, 0.3); color: #fff; }
+/* the page blends into a verdi wash at the top and a sky wash at the bottom, behind everything */
+body::before, body::after {
+  content: ""; position: absolute; left: 0; right: 0; height: min(60vh, 640px); z-index: -1; pointer-events: none;
+}
+body::before { top: 0; background: radial-gradient(75% 70% at 50% 0%, var(--wash-top), transparent 70%); }
+body::after { bottom: 0; background: radial-gradient(75% 70% at 50% 100%, var(--wash-bottom), transparent 70%); }
+::selection { background: rgba(47, 214, 168, 0.3); color: inherit; }
 :focus-visible { outline: 2px solid var(--verdi); outline-offset: 3px; border-radius: 2px; }
 a { color: inherit; }
 img { max-width: 100%; display: block; }
@@ -64,7 +104,7 @@ pre code { font-size: inherit; color: inherit; }
   position: sticky; top: 0; z-index: 10;
   display: flex; align-items: baseline; gap: 1.4rem;
   padding: 0.6rem clamp(20px, 2.5vw, 40px);
-  background: rgba(11, 14, 21, 0.9); backdrop-filter: blur(10px);
+  background: var(--chrome); backdrop-filter: blur(10px);
   border-bottom: 1px solid var(--hair);
   font-family: var(--mono); font-size: 0.72rem; letter-spacing: 0.14em; text-transform: uppercase; color: var(--faint);
 }
@@ -73,10 +113,24 @@ pre code { font-size: inherit; color: inherit; }
 .chrome nav { margin-left: auto; display: flex; gap: 1.6rem; }
 .chrome nav a { text-decoration: none; }
 .chrome nav a:hover { color: var(--verdi); }
+/* the day/night switch, added by assets/theme.js: a sun at night, a moon by day */
+.chrome .theme {
+  flex: none; align-self: center; width: 1.85rem; height: 1.85rem; padding: 0; margin-left: 0.2rem;
+  display: inline-flex; align-items: center; justify-content: center;
+  border: 1px solid var(--hair); border-radius: 50%; background: transparent; color: var(--faint); cursor: pointer;
+  transition: color 0.15s ease, border-color 0.15s ease;
+}
+.chrome .theme:hover { color: var(--verdi); border-color: var(--verdi); }
+.chrome .theme svg { width: 14px; height: 14px; }
+.chrome .theme .moon, :root[data-theme="light"] .chrome .theme .sun { display: none; }
+:root[data-theme="light"] .chrome .theme .moon { display: block; }
 @media (max-width: 700px) {
+  .chrome { gap: 0.9rem; font-size: 0.68rem; }
   .chrome .meta { display: none; }
-  .chrome nav { gap: 1rem; }
+  .chrome nav { gap: 0.8rem; }
+  .chrome nav a { white-space: nowrap; }
   .chrome nav .nav-more { display: none; }
+  .chrome .theme { width: 1.6rem; height: 1.6rem; margin-left: 0; }
 }
 
 /* the record line: a ledger stamp that opens every section */
@@ -113,7 +167,7 @@ h2 { font-size: clamp(1.9rem, 3vw, 2.75rem); max-width: 32ch; }
   transition: border-color 0.15s ease, background 0.15s ease, color 0.15s ease;
 }
 .button.primary { background: var(--verdi); border-color: var(--verdi); color: var(--verdi-deep); font-weight: 500; }
-.button.primary:hover { background: #43E4BA; }
+.button.primary:hover { background: var(--verdi-hover); }
 .button:not(.primary):hover { border-color: var(--verdi); color: var(--verdi); }
 .button:disabled { opacity: 0.35; cursor: default; }
 .copy {
@@ -232,11 +286,11 @@ footer .sep { margin: 0 0.9em; opacity: 0.5; }
 
 @media (prefers-reduced-motion: reduce) {
   html { scroll-behavior: auto; }
-  .skip-link, .button, .copy, .golink, .golink::after { transition: none; }
+  .skip-link, .button, .copy, .golink, .golink::after, .chrome .theme { transition: none; }
 }
 @media print {
   :root { --text: #111; --muted: #333; --faint: #555; --panel: #fff; --panel-2: #f4f4f4; --hair: #ccc; --hair-soft: #ddd; --verdi: #0a6b52; --code: #111; --code-inline: #111; }
   html, body { background: #fff; color: #111; }
-  .chrome, .skip-link, .copy, footer { display: none; }
+  .chrome, .skip-link, .copy, footer, body::before, body::after { display: none; }
   pre { white-space: pre-wrap; }
 }

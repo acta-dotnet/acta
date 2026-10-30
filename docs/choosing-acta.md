@@ -39,6 +39,7 @@ scheduling.
 | A local loop where missed ticks are acceptable | `BackgroundService`, `PeriodicTimer`, or a plain hosted service |
 | The platform starts one script, endpoint, or container on a calendar | cron, systemd timers, Windows Task Scheduler, Kubernetes CronJob, Azure Functions timer |
 | App-owned work that needs retries, state, audit, recovery, or operator visibility | Acta |
+| A controller that keeps an external system current: durable progress, bounded batches, a worker that may die mid-batch | Acta, as one permanent job ([the lab](../concepts/100-scheduling/109-continuous-synchronization/)) |
 | Distributed messaging, pub/sub, event streaming, or fan-out transport | a message bus or streaming platform |
 | Deterministic event-history replay, BPMN, or visual workflow orchestration | a workflow engine, not Acta |
 
@@ -108,7 +109,10 @@ If Hangfire, Quartz, or TickerQ already makes your background work boring, visib
 keep it. Acta is not here to replace every scheduler in every codebase.
 
 Acta fits when the problem has moved beyond **when should this run?** into **what durable state does
-this work create, and how do we operate it?**
+this work create, and how do we operate it?** The difference is not any one feature, since cron,
+retries, dashboards, and SQL storage exist everywhere; it is one durable work model: the timer, the
+queue, the retry loop, and the hand-maintained state table become one job with a schedule, a lease, a
+budget, and a ledger, and a parent, its children, and a long wait are jobs in the same model.
 
 | Existing tool | Keep it when | Consider Acta when |
 | --- | --- | --- |

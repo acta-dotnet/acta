@@ -1,0 +1,366 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>How Acta works · one job model for everything that outlives the request</title>
+  <meta name="description" content="How Acta works, in ten questions: what a job is, definitions and instances, steps and checkpoints, parents and children, the permanent job a schedule fires again and again, per-occurrence delivery, the scheduler and the executor, what survives a crash, where at-least-once ends, and why there is no separate workflow engine." />
+  <link rel="canonical" href="https://useacta.net/how-it-works" />
+  <meta name="theme-color" content="#0B0E15" />
+  <meta property="og:type" content="website" />
+  <meta property="og:site_name" content="Acta for .NET" />
+  <meta property="og:title" content="How Acta works · one job model for everything that outlives the request" />
+  <meta property="og:description" content="Everything is a job, and every job is a row: tasks, recurring controllers, parents, children, and long waits run through one engine. Ten questions, each answered with the rows that prove it." />
+  <meta property="og:url" content="https://useacta.net/how-it-works" />
+  <meta property="og:image" content="https://useacta.net/assets/social-card.png" />
+  <meta property="og:image:width" content="1200" />
+  <meta property="og:image:height" content="630" />
+  <meta property="og:image:alt" content="Acta: the durable work ledger for .NET. Postgres, SQL Server, SQLite." />
+  <meta name="twitter:card" content="summary_large_image" />
+  <link rel="icon" href="/favicon.svg" type="image/svg+xml" />
+  <link rel="preload" href="assets/fonts/fraunces-latin.woff2" as="font" type="font/woff2" crossorigin />
+  <link rel="preload" href="assets/fonts/ibm-plex-sans-latin.woff2" as="font" type="font/woff2" crossorigin />
+  <link rel="preload" href="assets/fonts/ibm-plex-mono-400-latin.woff2" as="font" type="font/woff2" crossorigin />
+  <style>
+    /* Self-hosted latin subsets of the three families, preloaded and served immutable (see _headers),
+       so a reload paints them from cache with no swap and a first visit swaps them in as they land.
+       Fraunces and Plex Sans are variable files. */
+    @font-face { font-family: "Fraunces"; font-style: normal; font-weight: 400 600; font-display: swap; src: url(assets/fonts/fraunces-latin.woff2) format("woff2"); unicode-range: U+0000-00FF, U+0131, U+0152-0153, U+02BB-02BC, U+02C6, U+02DA, U+02DC, U+0304, U+0308, U+0329, U+2000-206F, U+20AC, U+2122, U+2191, U+2193, U+2212, U+2215, U+FEFF, U+FFFD; }
+    @font-face { font-family: "Fraunces"; font-style: italic; font-weight: 400 500; font-display: swap; src: url(assets/fonts/fraunces-italic-latin.woff2) format("woff2"); unicode-range: U+0000-00FF, U+0131, U+0152-0153, U+02BB-02BC, U+02C6, U+02DA, U+02DC, U+0304, U+0308, U+0329, U+2000-206F, U+20AC, U+2122, U+2191, U+2193, U+2212, U+2215, U+FEFF, U+FFFD; }
+    @font-face { font-family: "IBM Plex Sans"; font-style: normal; font-weight: 400 600; font-display: swap; src: url(assets/fonts/ibm-plex-sans-latin.woff2) format("woff2"); unicode-range: U+0000-00FF, U+0131, U+0152-0153, U+02BB-02BC, U+02C6, U+02DA, U+02DC, U+0304, U+0308, U+0329, U+2000-206F, U+20AC, U+2122, U+2191, U+2193, U+2212, U+2215, U+FEFF, U+FFFD; }
+    @font-face { font-family: "IBM Plex Mono"; font-style: normal; font-weight: 400; font-display: swap; src: url(assets/fonts/ibm-plex-mono-400-latin.woff2) format("woff2"); unicode-range: U+0000-00FF, U+0131, U+0152-0153, U+02BB-02BC, U+02C6, U+02DA, U+02DC, U+0304, U+0308, U+0329, U+2000-206F, U+20AC, U+2122, U+2191, U+2193, U+2212, U+2215, U+FEFF, U+FFFD; }
+    @font-face { font-family: "IBM Plex Mono"; font-style: normal; font-weight: 500; font-display: swap; src: url(assets/fonts/ibm-plex-mono-500-latin.woff2) format("woff2"); unicode-range: U+0000-00FF, U+0131, U+0152-0153, U+02BB-02BC, U+02C6, U+02DA, U+02DC, U+0304, U+0308, U+0329, U+2000-206F, U+20AC, U+2122, U+2191, U+2193, U+2212, U+2215, U+FEFF, U+FFFD; }
+  </style>
+  <link rel="stylesheet" href="assets/site.css" />
+  <script src="assets/theme.js"></script>
+  <link rel="stylesheet" href="assets/explainers.css" />
+  <style>
+    /* The ten questions are ruled rows: the question in the serif, the answer beside it. */
+    .vs-row .who b { max-width: 14ch; }
+    .vs-row .why p { margin: 0 0 0.6rem; }
+    .vs-row .why .links { display: flex; flex-wrap: wrap; gap: 0.4rem 1.6rem; }
+    .vs-row .why .links .golink { margin-top: 0.3rem; }
+    .rows { margin-top: 2.2rem; max-width: 62rem; }
+    .rows pre { font-size: 0.82rem; }
+    .rows .c { display: block; }
+  </style>
+</head>
+<body>
+  <a class="skip-link" href="#content">Skip to content</a>
+  <div class="chrome">
+    <a class="brand" href="/">Acta<span class="dot">.</span></a>
+    <span class="meta">apache-2.0 · .net 10 · pg / mssql / sqlite</span>
+    <nav aria-label="Primary links">
+      <a href="/">Home</a>
+      <a href="https://github.com/acta-dotnet/acta/tree/main/concepts">Concepts</a>
+      <a href="/#compare" class="nav-more">Compare</a>
+      <a href="https://github.com/acta-dotnet/acta">GitHub</a>
+      <a href="https://github.com/acta-dotnet/acta/blob/main/docs/engineering-labs.md" class="nav-more">Labs</a>
+    </nav>
+  </div>
+
+  <main id="content">
+    <header class="wrap page-head">
+      <p class="record">How Acta works</p>
+      <h1>Everything is a job, and every job is a row.</h1>
+      <p class="lede">Acta is a library in your .NET process and tables in your database. Everything that has to outlive a request is a job: a row a worker claims under a lease, retries under a budget, and records in a ledger. Steps, waits, signals, and progress are durable state on that row. Children are more rows, with lineage. A schedule makes one row claimable again and again. One model, one engine, one set of views, and nothing else to run.</p>
+    </header>
+
+    <section class="wrap" id="lifecycle">
+      <p class="record">The model in one figure</p>
+      <h2>A permanent job, through one firing.</h2>
+      <p class="lede">A definition with a <code>[Schedule]</code> owns one durable slot. Admission makes the slot claimable when a schedule is due, a worker runs the handler for a bounded amount of work, and the slot returns to <code>Idle</code> holding no thread. Acta's progress and the job's are two different rows, and they never touch.</p>
+      <figure class="pipe">
+        <div class="pipe-scroll">
+          <svg class="pipe-wide" viewBox="0 0 1000 356" role="img" aria-label="A permanent job's slot moves from Idle through Admission, where a due schedule moves the cursor and writes the firing envelope, to Ready, to Executing under a lease for one batch, and back to Idle; beneath it the job's watermark, a durable variable, advances from 120 to 160 only while the handler executes, written after the batch; an empty firing moves the cursor and not the watermark, a manual trigger moves the watermark and not the cursor.">
+            <defs>
+              <marker id="lc-ah" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path d="M0 0 L10 5 L0 10 z" class="fill-fg"/></marker>
+            </defs>
+            <rect class="band" x="30" y="14" width="950" height="54" rx="4"/>
+            <text class="tt" x="48" y="38">Your database</text>
+            <text class="tm" x="48" y="57">the slot, its schedule cursor, its firing envelope, and its watermark are rows here</text>
+
+            <text class="tm" x="30" y="112">Acta's progress: the schedule cursor and the firing envelope, moved by admission and settlement</text>
+            <rect class="box" x="30" y="124" width="130" height="84" rx="4"/>
+            <text class="tt" x="48" y="154">Idle</text>
+            <text class="tm" x="48" y="176">no thread, no lease</text>
+            <line class="ln" x1="160" y1="166" x2="186" y2="166" marker-end="url(#lc-ah)"/>
+
+            <rect class="box" x="190" y="124" width="230" height="84" rx="4"/>
+            <text class="tt" x="208" y="154">Admission</text>
+            <text class="tm" x="208" y="176">a schedule is due: the cursor</text>
+            <text class="tm" x="208" y="194">moves, the envelope is written</text>
+            <line class="ln" x1="420" y1="166" x2="446" y2="166" marker-end="url(#lc-ah)"/>
+
+            <rect class="box" x="450" y="124" width="120" height="84" rx="4"/>
+            <text class="tt" x="468" y="154">Ready</text>
+            <text class="tm" x="468" y="176">any worker</text>
+            <text class="tm" x="468" y="194">may claim it</text>
+            <line class="ln" x1="570" y1="166" x2="596" y2="166" marker-end="url(#lc-ah)"/>
+
+            <rect class="box" x="600" y="124" width="230" height="84" rx="4"/>
+            <text class="tt" x="618" y="154">Executing</text>
+            <text class="tm" x="618" y="176">your handler, under a lease:</text>
+            <text class="tm" x="618" y="194">one batch, then return</text>
+            <line class="ln" x1="830" y1="166" x2="856" y2="166" marker-end="url(#lc-ah)"/>
+
+            <rect class="box" x="860" y="124" width="120" height="84" rx="4"/>
+            <text class="tt" x="878" y="154">Idle</text>
+            <text class="tm" x="878" y="176">until the next</text>
+            <text class="tm" x="878" y="194">firing</text>
+
+            <text class="tm" x="30" y="258">The job's progress: the watermark, a durable variable written after each batch, where the next firing, or a recovered one, continues</text>
+            <line class="ln dash" x1="30" y1="290" x2="980" y2="290"/>
+            <line class="ln acc" x1="655" y1="280" x2="655" y2="300"/>
+            <line class="ln acc" x1="775" y1="280" x2="775" y2="300"/>
+            <text class="tm acc-t" x="655" y="318" text-anchor="middle">120</text>
+            <text class="tm acc-t" x="775" y="318" text-anchor="middle">160</text>
+            <text class="tm" x="30" y="318">moves only while the handler executes</text>
+            <text class="t" x="505" y="348" text-anchor="middle">the two never touch: an empty firing moves the cursor and not the watermark; a manual trigger moves the watermark and not the cursor</text>
+          </svg>
+          <svg class="pipe-tall" viewBox="0 0 360 638" role="img" aria-label="A permanent job's slot moves from Idle through Admission, where a due schedule moves the cursor and writes the firing envelope, to Ready, to Executing under a lease for one batch, and back to Idle; the job's watermark, a durable variable, advances from 120 to 160 only while the handler executes, written after the batch, and the cursor and the watermark never touch.">
+            <defs>
+              <marker id="lc-m-ah" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path d="M0 0 L10 5 L0 10 z" class="fill-fg"/></marker>
+            </defs>
+            <rect class="band" x="10" y="10" width="340" height="50" rx="4"/>
+            <text class="tt" x="24" y="32">Your database</text>
+            <text class="tm" x="24" y="50">the slot, the cursor, the envelope, the watermark</text>
+
+            <rect class="box" x="40" y="84" width="280" height="66" rx="4"/>
+            <text class="tt" x="56" y="110">Idle</text>
+            <text class="tm" x="56" y="132">no thread, no lease</text>
+            <line class="ln" x1="180" y1="150" x2="180" y2="176" marker-end="url(#lc-m-ah)"/>
+
+            <rect class="box" x="40" y="180" width="280" height="66" rx="4"/>
+            <text class="tt" x="56" y="206">Admission</text>
+            <text class="tm" x="56" y="228">a schedule is due: cursor and envelope move</text>
+            <line class="ln" x1="180" y1="246" x2="180" y2="272" marker-end="url(#lc-m-ah)"/>
+
+            <rect class="box" x="40" y="276" width="280" height="66" rx="4"/>
+            <text class="tt" x="56" y="302">Ready</text>
+            <text class="tm" x="56" y="324">any worker may claim it</text>
+            <line class="ln" x1="180" y1="342" x2="180" y2="368" marker-end="url(#lc-m-ah)"/>
+
+            <rect class="box" x="40" y="372" width="280" height="66" rx="4"/>
+            <text class="tt" x="56" y="398">Executing</text>
+            <text class="tm" x="56" y="420">your handler under a lease, one batch</text>
+            <line class="ln" x1="180" y1="438" x2="180" y2="464" marker-end="url(#lc-m-ah)"/>
+
+            <rect class="box" x="40" y="468" width="280" height="66" rx="4"/>
+            <text class="tt" x="56" y="494">Idle</text>
+            <text class="tm" x="56" y="516">until the next firing</text>
+
+            <rect class="band" x="10" y="556" width="340" height="72" rx="4"/>
+            <text class="tt acc-t" x="24" y="578">The job's watermark</text>
+            <text class="tm" x="24" y="598">120 → 160, a variable written after the batch;</text>
+            <text class="tm" x="24" y="616">the cursor and the watermark never touch</text>
+          </svg>
+        </div>
+      </figure>
+      <div class="facts">
+        <div>
+          <b>Acta's progress</b>
+          <p>The schedule cursor says when the slot is next due; the firing envelope says which schedules admitted this firing and how it settled. Admission writes both in one apply, so an occurrence is admitted once across every worker.</p>
+        </div>
+        <div>
+          <b>The job's progress</b>
+          <p>The watermark is a variable on the job, written by the handler after each batch and read first on every execution. Acta keeps it the way it keeps the job: a row in <code>checkpoints_view</code>, carried across firings, retries, and workers. It is where the next firing starts, and where a recovered firing continues after a crash.</p>
+        </div>
+        <div>
+          <b>Why they never touch</b>
+          <p>A firing that finds nothing to sync still moves the cursor. A manual trigger moves the watermark and not the cursor. Each kind of progress answers one question, and neither has to be reconciled with the other.</p>
+        </div>
+      </div>
+    </section>
+
+    <section class="wrap" id="questions">
+      <p class="record">Ten questions</p>
+      <h2>The model, one question at a time.</h2>
+      <p class="lede">Each answer links to the section of the developer guide that states it in full, and where there are rows to look at, to the lab that prints them.</p>
+      <div class="vs">
+        <div class="vs-row" id="job">
+          <div class="who"><b>What is a job?</b><span>the unit</span></div>
+          <div class="why">
+            <p>The only thing a worker claims. A job is a row with a name, an input, a status, a lease, a retry budget, and a ledger of events. A worker claims it under the lease, runs your handler, and writes what happened. Nothing else is claimed on its own.</p>
+            <div class="links"><a class="golink" href="https://github.com/acta-dotnet/acta/blob/main/docs/developer-guide.md#one-durable-work-unit">One durable work unit</a></div>
+          </div>
+        </div>
+        <div class="vs-row" id="definition">
+          <div class="who"><b>Definition, or instance?</b><span>two things named job</span></div>
+          <div class="why">
+            <p>A definition is the <code>[Job]</code> on a handler: the durable name, the retry policy, the schedules. An instance is a row made from it, enqueued by your code, admitted by a schedule, or started by a parent. One definition, any number of rows, each with its own public handle.</p>
+            <div class="links"><a class="golink" href="https://github.com/acta-dotnet/acta/blob/main/docs/developer-guide.md#handler-contract">The handler contract</a><a class="golink" href="https://github.com/acta-dotnet/acta/blob/main/docs/developer-guide.md#three-identities">Three identities</a></div>
+          </div>
+        </div>
+        <div class="vs-row" id="steps">
+          <div class="who"><b>What are steps and checkpoints?</b><span>state on the row</span></div>
+          <div class="why">
+            <p>Durable state that belongs to a job. A step records its outcome, so a re-run returns the stored result instead of repeating the work; variables, timers, signals, and progress are checkpoints on the same job. They share the job's claim, lease, retry budget, and events, and are never claimed on their own.</p>
+            <div class="links"><a class="golink" href="https://github.com/acta-dotnet/acta/blob/main/docs/developer-guide.md#durable-slots-inside-a-job">Durable slots inside a job</a></div>
+          </div>
+        </div>
+        <div class="vs-row" id="children">
+          <div class="who"><b>What are parents and children?</b><span>more rows</span></div>
+          <div class="why">
+            <p>Ordinary jobs. A parent starts children through Map, Parallel, or Join; each child is a row with the parent's lineage, its own retries, and its own result, and the parent waits on a durable latch without holding a worker. Fan-out is more jobs, not another kind of thing.</p>
+            <div class="links"><a class="golink" href="https://github.com/acta-dotnet/acta/blob/main/docs/developer-guide.md#child-job-groups-map-parallel-join">Child-job groups</a><a class="golink" href="https://github.com/acta-dotnet/acta/tree/main/concepts/200-durable-execution/211-child-jobs">211-child-jobs</a></div>
+          </div>
+        </div>
+        <div class="vs-row" id="permanent">
+          <div class="who"><b>What is a permanent job?</b><span>one slot, fired again and again</span></div>
+          <div class="why">
+            <p>A definition with a <code>[Schedule]</code>: one durable slot the schedule fires again and again. The slot is <code>Idle</code> between firings and holds no thread; admission makes it <code>Ready</code> when a schedule is due, a worker claims it, and the handler does a bounded amount of work and returns. Its steps and progress persist across firings, and the handler may reset them as its final action. This is how a synchronization controller runs without a loop that must never die.</p>
+            <div class="links"><a class="golink" href="https://github.com/acta-dotnet/acta/blob/main/docs/developer-guide.md#delivery-and-capacity">Delivery and capacity</a><a class="golink" href="https://github.com/acta-dotnet/acta/tree/main/concepts/100-scheduling/109-continuous-synchronization">The synchronization lab</a></div>
+          </div>
+        </div>
+        <div class="vs-row" id="per-occurrence">
+          <div class="who"><b>What is per-occurrence delivery?</b><span>a job per occurrence</span></div>
+          <div class="why">
+            <p>The other mode for a schedule. Each occurrence becomes a fresh ordinary root job with its own state, retries, result, and retention, and <code>MaxOutstanding</code> bounds how many of one schedule's roots may be unsettled at once. Use it when each period is its own business event: a statement run, an import whose files must each be tracked. Backfilling past periods is application work under either mode.</p>
+            <div class="links"><a class="golink" href="https://github.com/acta-dotnet/acta/blob/main/docs/developer-guide.md#delivery-and-capacity">Delivery and capacity</a><a class="golink" href="https://github.com/acta-dotnet/acta/blob/main/docs/developer-guide.md#backfill">Backfill</a></div>
+          </div>
+        </div>
+        <div class="vs-row" id="scheduler">
+          <div class="who"><b>Scheduler, or executor?</b><span>two passes, no coordinator</span></div>
+          <div class="why">
+            <p>Two passes over the same rows, on every worker. Admission turns a due schedule into a firing: it moves the cursor and writes the firing envelope in one apply, so an occurrence is admitted once however many workers run. Claiming takes <code>Ready</code> rows under a lease and runs them. A schedule never runs code; it only makes a row claimable.</p>
+            <div class="links"><a class="golink" href="https://github.com/acta-dotnet/acta/blob/main/docs/developer-guide.md#schedule-operations">Schedule operations</a><a class="golink" href="/engine">Inside one worker</a><a class="golink" href="/claiming">Which job runs next</a></div>
+          </div>
+        </div>
+        <div class="vs-row" id="crash">
+          <div class="who"><b>What survives a crash?</b><span>everything that committed</span></div>
+          <div class="why">
+            <p>The row, its status, the lease, the firing envelope, every recorded step, every checkpoint, and every event are in your database. The dead worker's lease runs out, a heartbeat on any worker reclaims the row, and the next execution re-enters the handler from the top, where the recorded steps and your own committed progress say where to continue. The figure and the rows below are from a real kill.</p>
+            <div class="links"><a class="golink" href="#recovery">The crash, in rows</a><a class="golink" href="https://github.com/acta-dotnet/acta/blob/main/docs/developer-guide.md#execution-semantics">Execution semantics</a></div>
+          </div>
+        </div>
+        <div class="vs-row" id="at-least-once">
+          <div class="who"><b>Where does at-least-once end?</b><span>at your side effects</span></div>
+          <div class="why">
+            <p>A step's recorded outcome is repeat-safe, but your writes and Acta's record of them commit separately, so a handler can run again for work that already landed. An idempotency key, an upsert, or a watermark written after the work makes that harmless. <code>AtMostOnce()</code> trades a possible repeat for an explicitly ambiguous outcome.</p>
+            <div class="links"><a class="golink" href="https://github.com/acta-dotnet/acta/blob/main/docs/developer-guide.md#at-most-once-steps">At-most-once steps</a><a class="golink" href="https://github.com/acta-dotnet/acta/tree/main/concepts/200-durable-execution/220-at-most-once-step">220-at-most-once-step</a></div>
+          </div>
+        </div>
+        <div class="vs-row" id="no-workflow-engine">
+          <div class="who"><b>Why no workflow engine?</b><span>composition, not a runtime</span></div>
+          <div class="why">
+            <p>Because a workflow is a composition of jobs and their durable state, not a second runtime. A parent, its children, a long wait, a permanent controller: the same claim, lease, recovery, retry budget, dashboard, CLI, and SQL views serve all of them. There is nothing new to deploy or operate, and no determinism contract on your code.</p>
+            <div class="links"><a class="golink" href="https://github.com/acta-dotnet/acta/blob/main/docs/architecture-decisions.md#the-core-principle">The core principle</a><a class="golink" href="/vs-temporal">Against a replay engine</a></div>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <section class="wrap" id="recovery">
+      <p class="record">The crash, in rows</p>
+      <h2>Kill the worker after a batch. The next execution reads the same watermark and continues.</h2>
+      <p class="lede">The synchronization lab arms a crash after the next batch, kills its own process, and is restarted. What the rows said before and after, on embedded SQLite, from a fresh clone.</p>
+      <figure class="pipe">
+        <div class="pipe-scroll">
+          <svg class="pipe-wide" viewBox="0 0 1000 300" role="img" aria-label="Execution 7 applies a batch and writes watermark 160; the worker is killed before the attempt completes; the durable state is kept, the slot executing under a lease nobody renews, the envelope pending, the watermark at 160; the lease lapses and a heartbeat reclaims the row as job.execution-orphaned, back to Ready; execution 8 of the same firing re-enters from the top, reads watermark 160, and applies the next batch, nothing applied twice.">
+            <defs>
+              <marker id="cr-ah" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path d="M0 0 L10 5 L0 10 z" class="fill-fg"/></marker>
+              <marker id="cr-ah-acc" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path d="M0 0 L10 5 L0 10 z" class="fill-acc"/></marker>
+              <marker id="cr-ah-warn" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path d="M0 0 L10 5 L0 10 z" class="fill-warn"/></marker>
+            </defs>
+            <rect class="box" x="30" y="40" width="220" height="84" rx="4"/>
+            <text class="tt" x="48" y="70">Executing</text>
+            <text class="tm" x="48" y="92">execution 7, batch applied:</text>
+            <text class="tm" x="48" y="110">watermark 160</text>
+            <line class="ln warn" x1="250" y1="82" x2="276" y2="82" marker-end="url(#cr-ah-warn)"/>
+
+            <rect class="box warn" x="280" y="40" width="170" height="84" rx="4"/>
+            <text class="tt warn-t" x="298" y="70">Worker killed</text>
+            <text class="tm" x="298" y="92">before the attempt</text>
+            <text class="tm" x="298" y="110">completes</text>
+            <line class="ln" x1="450" y1="82" x2="476" y2="82" marker-end="url(#cr-ah)"/>
+
+            <rect class="band" x="480" y="40" width="260" height="84" rx="4"/>
+            <text class="tt" x="498" y="70">Durable state kept</text>
+            <text class="tm" x="498" y="92">slot executing, lease unrenewed,</text>
+            <text class="tm" x="498" y="110">envelope pending, watermark 160</text>
+            <line class="ln" x1="740" y1="82" x2="766" y2="82" marker-end="url(#cr-ah)"/>
+
+            <rect class="box" x="770" y="40" width="210" height="84" rx="4"/>
+            <text class="tt" x="788" y="70">Lease lapses</text>
+            <text class="tm" x="788" y="92">a heartbeat reclaims the row:</text>
+            <text class="tm" x="788" y="110">execution-orphaned, Ready</text>
+
+            <path class="ln acc" d="M 875 124 V 222 H 594" marker-end="url(#cr-ah-acc)"/>
+            <text class="tm acc-t" x="866" y="212" text-anchor="end">any peer, or the restarted worker</text>
+            <rect class="box acc" x="30" y="180" width="560" height="84" rx="4"/>
+            <text class="tt acc-t" x="48" y="210">Execution 8, the same firing</text>
+            <text class="tm" x="48" y="232">re-enters from the top, reads watermark 160, applies the next batch:</text>
+            <text class="tm" x="48" y="250">same job_ref, same firing id, one more execution_number, nothing applied twice</text>
+          </svg>
+          <svg class="pipe-tall" viewBox="0 0 360 540" role="img" aria-label="Execution 7 applies a batch and writes watermark 160; the worker is killed before the attempt completes; the durable state is kept, the slot executing under a lease nobody renews, the envelope pending, the watermark at 160; the lease lapses and a heartbeat reclaims the row as job.execution-orphaned, back to Ready; execution 8 of the same firing re-enters from the top, reads watermark 160, and applies the next batch, nothing applied twice.">
+            <defs>
+              <marker id="cr-m-ah" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path d="M0 0 L10 5 L0 10 z" class="fill-fg"/></marker>
+              <marker id="cr-m-ah-acc" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path d="M0 0 L10 5 L0 10 z" class="fill-acc"/></marker>
+              <marker id="cr-m-ah-warn" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path d="M0 0 L10 5 L0 10 z" class="fill-warn"/></marker>
+            </defs>
+            <rect class="box" x="40" y="10" width="280" height="66" rx="4"/>
+            <text class="tt" x="56" y="36">Executing</text>
+            <text class="tm" x="56" y="58">execution 7, batch applied, watermark 160</text>
+            <line class="ln warn" x1="180" y1="76" x2="180" y2="102" marker-end="url(#cr-m-ah-warn)"/>
+
+            <rect class="box warn" x="40" y="106" width="280" height="66" rx="4"/>
+            <text class="tt warn-t" x="56" y="132">Worker killed</text>
+            <text class="tm" x="56" y="154">before the attempt completes</text>
+            <line class="ln" x1="180" y1="172" x2="180" y2="198" marker-end="url(#cr-m-ah)"/>
+
+            <rect class="band" x="40" y="202" width="280" height="84" rx="4"/>
+            <text class="tt" x="56" y="228">Durable state kept</text>
+            <text class="tm" x="56" y="250">slot executing, lease unrenewed,</text>
+            <text class="tm" x="56" y="268">envelope pending, watermark 160</text>
+            <line class="ln" x1="180" y1="286" x2="180" y2="312" marker-end="url(#cr-m-ah)"/>
+
+            <rect class="box" x="40" y="316" width="280" height="66" rx="4"/>
+            <text class="tt" x="56" y="342">Lease lapses</text>
+            <text class="tm" x="56" y="364">a heartbeat reclaims the row: Ready</text>
+            <line class="ln acc" x1="180" y1="382" x2="180" y2="408" marker-end="url(#cr-m-ah-acc)"/>
+
+            <rect class="box acc" x="40" y="412" width="280" height="84" rx="4"/>
+            <text class="tt acc-t" x="56" y="438">Execution 8, the same firing</text>
+            <text class="tm" x="56" y="460">reads watermark 160, applies the next batch:</text>
+            <text class="tm" x="56" y="478">same job, same firing id, nothing applied twice</text>
+            <text class="tm" x="180" y="526" text-anchor="middle">any peer, or the restarted worker</text>
+          </svg>
+        </div>
+      </figure>
+      <div class="panel rows">
+        <div class="panel-tab output">SQL · what the rows said, on 2026-10-30</div>
+        <pre><code><span class="c">-- after the kill: the slot the dead worker left behind, and the watermark it wrote</span>
+job_ref                               status     execution_number  leased_by_worker_host_name  lease_expires_at_utc
+01a18cba-b966-7a5a-aaf2-83061ba0af99  executing  7                 DESKTOP-MVKQH5M             2026-10-30 12:14:08.857Z
+sys.firing  pending   {"firingId":"01a18cbb-422e-7ac2-9e3…
+watermark   variable  160
+feed head: change 180; local orders: 40 (newest change 160)
+
+<span class="c">-- after the restart: the reclaim, the same firing finished under execution 8, the next admission</span>
+19  job.execution-orphaned   7  {"reason":"lease-expired","to":"ready"}
+20  job.execution-succeeded  8
+21  schedule.skipped         8  {"schedule":"every-5s","from":"2026…
+22  schedule.admitted        8  {"schedule":"every-5s","occurrence"…
+watermark   variable  180
+feed head: change 180; local orders: 40 (newest change 180)</code></pre>
+      </div>
+      <p class="hint">No admission sits between the reclaim and execution 8, so execution 8 ran the firing execution 7 lost, not a new one: it read watermark 160 and applied the twenty changes the dead process never reached. The occurrences missed while no worker ran were skipped by the misfire policy, and event 22 admits the next firing with an id of its own. The destination holds forty orders at change 180, one row per order. <a href="https://github.com/acta-dotnet/acta/tree/main/concepts/100-scheduling/109-continuous-synchronization">The lab README</a> has every row in full, and <a href="https://github.com/acta-dotnet/acta/tree/main/concepts/800-testing/804-continuous-synchronization-tests">its tests</a> prove each claim on the real runtime without a sleep.</p>
+      <div class="actions">
+        <a class="button primary" href="https://github.com/acta-dotnet/acta/tree/main/concepts/100-scheduling/109-continuous-synchronization">Run the synchronization lab</a>
+        <a class="button" href="https://github.com/acta-dotnet/acta/blob/main/docs/developer-guide.md">The developer guide</a>
+        <a class="button" href="/start">Run your first durable job</a>
+      </div>
+      <p class="also">Also: <a href="/engine">how one worker runs a job</a><span class="sep">·</span><a href="/claiming">which job runs next</a><span class="sep">·</span><a href="/gates">order, concurrency, and rate</a><span class="sep">·</span><a href="/fleet">many workers, no coordinator</a></p>
+    </section>
+
+    <footer>
+      Apache-2.0 · built in the open
+      <span class="sep">·</span><a href="https://github.com/acta-dotnet/acta">GitHub</a>
+      <span class="sep">·</span><a href="https://github.com/acta-dotnet/acta/tree/main/docs">Docs</a>
+      <span class="sep">·</span><a href="https://github.com/acta-dotnet/acta/blob/main/docs/compatibility-and-support.md">Support</a>
+      <span class="sep">·</span>Created by <a href="https://www.linkedin.com/in/marko-voncina">Marko Vončina</a>
+    </footer>
+  </main>
+</body>
+</html>

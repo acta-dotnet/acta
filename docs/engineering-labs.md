@@ -12,7 +12,7 @@ clone: `dotnet run --project concepts/<category>/<lab>`.
 
 ## The 45-minute tour
 
-Six labs, in order, that cover the model end to end:
+Seven labs, in order, that cover the model end to end:
 
 1. [`001-hello-acta`](../concepts/000-fundamentals/001-hello-acta/): enqueue a job and watch a worker
    run it.
@@ -20,12 +20,16 @@ Six labs, in order, that cover the model end to end:
    its outcome; re-entry returns the stored result instead of repeating the work.
 3. [`204-wait-signal`](../concepts/200-durable-execution/204-wait-signal/): a job suspends on a
    named signal without holding a worker, then resumes when the signal arrives.
-4. [`705-worker-crash-recovery`](../concepts/700-topology-and-deployment/705-worker-crash-recovery/):
+4. [`109-continuous-synchronization`](../concepts/100-scheduling/109-continuous-synchronization/):
+   one permanent job keeps an ERP's orders synchronized from a watermark it holds as a durable
+   variable; kill the worker after a batch and watch the restarted one reclaim the same firing and
+   continue at the watermark.
+5. [`705-worker-crash-recovery`](../concepts/700-topology-and-deployment/705-worker-crash-recovery/):
    kill a real worker process mid-job; watch the lease lapse and a peer reclaim the work
    (PostgreSQL/SQL Server).
-5. [`022-dashboard`](../concepts/000-fundamentals/022-dashboard/): the embedded operator dashboard
+6. [`022-dashboard`](../concepts/000-fundamentals/022-dashboard/): the embedded operator dashboard
    reading the same rows you can query yourself.
-6. [`802-testing-durable-jobs`](../concepts/800-testing/802-testing-durable-jobs/): the
+7. [`802-testing-durable-jobs`](../concepts/800-testing/802-testing-durable-jobs/): the
    deterministic test host drives the real runtime one tick at a time; real-database tests in tens
    of milliseconds.
 
@@ -35,6 +39,7 @@ Six labs, in order, that cover the model end to end:
 | --- | --- |
 | [`201-durable-checkout`](../concepts/200-durable-execution/201-durable-checkout/) | The flagship: a checkout that waits on a review and a timer and re-enters from the top, each completed step replayed from its row. |
 | [`202-durable-step`](../concepts/200-durable-execution/202-durable-step/), [`220-at-most-once-step`](../concepts/200-durable-execution/220-at-most-once-step/) | Recorded step outcomes; refusing unsafe replay with `AtMostOnce()`. |
+| [`109-continuous-synchronization`](../concepts/100-scheduling/109-continuous-synchronization/) | One permanent job keeps an external system synchronized: a firing every five seconds applies one bounded batch and returns the slot to `Idle`; the watermark is a durable variable on the job, and it and Acta's schedule cursor move apart; a worker killed after a batch is reclaimed and the next execution continues at the watermark. |
 | [`103-multiple-schedules`](../concepts/100-scheduling/103-multiple-schedules/), [`106-schedule-misfire`](../concepts/100-scheduling/106-schedule-misfire/) | Recurring work on one stable row; explicit misfire policy. |
 | [`705-worker-crash-recovery`](../concepts/700-topology-and-deployment/705-worker-crash-recovery/) | Leaderless recovery after a real process kill. |
 | [`204-wait-signal`](../concepts/200-durable-execution/204-wait-signal/), [`205-durable-sleep`](../concepts/200-durable-execution/205-durable-sleep/) | Waiting for signals and timers without occupying workers. |
@@ -121,6 +126,7 @@ curated-view rows.
 | 105 | [schedule-control](../concepts/100-scheduling/105-schedule-control/) | Pause (indefinite + timed) and resume a recurring schedule with `operations.Schedules` |
 | 106 | [schedule-misfire](../concepts/100-scheduling/106-schedule-misfire/) | **Engineering Lab.** Watch `Skip` and `CatchUpOnce` move overdue cursor rows differently |
 | 107 | [calendar-schedule](../concepts/100-scheduling/107-calendar-schedule/) | Schedules bound by name to `[Calendar]` classes: an occurrence calendar as the source, an availability calendar as the filter |
+| 109 | [continuous-synchronization](../concepts/100-scheduling/109-continuous-synchronization/) | **Engineering Lab.** One permanent job keeps an ERP's orders synchronized in bounded batches: `Idle` between firings, the watermark a durable variable on the job, a real worker crash after a batch, and the restarted worker reclaiming the same firing |
 | 108 | [calendar-catalog](../concepts/100-scheduling/108-calendar-catalog/) | A calendar published as data through `operations.Calendars`; a publication retimes the bound schedule while the worker runs |
 | 201 | [durable-checkout](../concepts/200-durable-execution/201-durable-checkout/) | **Engineering Lab flagship.** Durable orchestration as inspectable jobs, steps, checkpoints, events, and results |
 | 202 | [durable-step](../concepts/200-durable-execution/202-durable-step/) | **Engineering Lab.** Completed step outcome replays while the job advances to execution two |
@@ -176,6 +182,7 @@ curated-view rows.
 | 706 | [API/worker split](../demos/ApiWorkerSplit/) | **Production capstone.** Open the focused solution and press F5 to run an enqueue-only API and independently scalable worker as separate processes |
 | 801 | [testing-jobs](../concepts/800-testing/801-testing-jobs/) | Test `[Job]` handlers with `Acta.Testing`: a class-fixture-shared `ActaTestHost`, deterministic `RunOnceAsync` ticks, `Rearmed`-vs-`Failed` retry semantics (`dotnet test`, not `dotnet run`) |
 | 802 | [testing-durable-jobs](../concepts/800-testing/802-testing-durable-jobs/) | Test a durable, multi-step job (step + approval signal) deterministically: drive suspend, raise the typed signal, drive resume; assert run-once across the replay |
+| 804 | [continuous-synchronization-tests](../concepts/800-testing/804-continuous-synchronization-tests/) | The [continuous-synchronization lab](../concepts/100-scheduling/109-continuous-synchronization/)'s claims as facts: a schedule forced due, one admission pass, one run per firing; one job identity across firings; the watermark a variable on the job; the cursor and the watermark moving apart; a lost attempt reclaimed and the next execution continuing at the watermark; a failed attempt's watermark kept for the retry; replay, a failed batch, and a backlog (`dotnet test`) |
 | 803 | [first-job-tests](../concepts/800-testing/803-first-job-tests/) | The [first-job guide](./first-job.md)'s test verbatim: the real runtime on a throwaway SQLite file, driven one tick at a time |
 | 901 | [native-aot-json](../concepts/900-runtime-and-tuning/901-native-aot-json/) | AOT-safe JSON payloads: `UseJsonPayloads(JsonSerializerContext)` + `JobPayload.Json(value, typeInfo)` |
 | 903 | [redis-wakeup](../concepts/900-runtime-and-tuning/903-redis-wakeup/) | Redis pub/sub wakes workers across processes (run worker + enqueue roles) |

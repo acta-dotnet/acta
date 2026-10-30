@@ -72,10 +72,9 @@ public sealed class ScheduleAttribute : Attribute
     public string[]? Environments { get; init; }
 
     /// <summary>
-    /// Behavior when occurrences were missed during downtime. Default
-    /// <see cref="MisfireStrategyCode.Skip"/> (forward-only: drop missed occurrences and resume from
-    /// the first occurrence after now). Set <see cref="MisfireStrategyCode.CatchUpOnce"/> to fire
-    /// one coalesced catch-up occurrence on recovery.
+    /// Behavior when occurrences were missed during downtime: skip them (the default), fire once for all of them,
+    /// fire once as the latest of them, or fire each in order. Each <see cref="MisfireStrategyCode"/> member says
+    /// exactly what it does.
     /// </summary>
     public MisfireStrategyCode MisfireStrategy { get; init; } = MisfireStrategyCode.Skip;
 
