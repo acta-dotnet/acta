@@ -25,7 +25,6 @@
   <link rel="icon" href="favicon.svg" type="image/svg+xml" />
   <link rel="stylesheet" href="assets/site.css" />
   <script src="assets/theme.js"></script>
-  <link rel="stylesheet" href="assets/explainers.css" />
   <link rel="preload" href="assets/fonts/fraunces-latin.woff2" as="font" type="font/woff2" crossorigin />
   <link rel="preload" href="assets/fonts/ibm-plex-sans-latin.woff2" as="font" type="font/woff2" crossorigin />
   <link rel="preload" href="assets/fonts/ibm-plex-mono-400-latin.woff2" as="font" type="font/woff2" crossorigin />
@@ -68,74 +67,72 @@
       text-wrap: balance;
     }
     .tagline em { font-style: normal; color: var(--verdi); }
-    .subhead { font-family: var(--serif); font-style: italic; font-size: clamp(1.05rem, 1.6vw, 1.35rem); color: var(--muted); margin: 0.7rem 0 0; }
-    .qa { display: grid; gap: 1rem; margin-top: 1.3rem; }
-    .qa > div { display: grid; grid-template-columns: 3.4rem 1fr; gap: 0.9rem; align-items: baseline; }
-    .qa b {
-      font-family: var(--mono); font-weight: 500; font-size: var(--label); letter-spacing: 0.2em;
-      text-transform: uppercase; color: var(--verdi);
-    }
-    .qa p { margin: 0; color: var(--muted); font-size: 1rem; max-width: 54ch; }
-    .qa p b, .qa p strong { color: var(--text); }
+    .subhead { font-family: var(--serif); font-style: italic; font-size: clamp(1.15rem, 1.8vw, 1.5rem); color: var(--muted); margin: 0.7rem 0 0; }
+    .hero .lede { margin-top: 1.3rem; max-width: 54ch; }
+    @media (max-width: 980px) { .hero-grid { grid-template-columns: 1fr; } }
 
-    /* the flagship: one handler, as wide as the install block */
-    .flagship-code { max-width: 62rem; }
-
-    /* one job model: four facts across, each naming the API it rests on */
-    .facts.four { grid-template-columns: repeat(4, 1fr); }
-    .facts .carries { display: block; margin-top: 0.7rem; font-family: var(--mono); font-size: 0.72rem; line-height: 1.7; color: var(--faint); }
-    .facts .carries b { display: inline; margin: 0; color: var(--verdi); font-weight: 400; }
-    @media (max-width: 980px) { .facts.four { grid-template-columns: repeat(2, 1fr); } }
-    @media (max-width: 760px) { .facts.four { grid-template-columns: 1fr; } }
-
-    /* the two recurring modes: two equal panels, each a declaration and what a firing runs */
-    .pair.modes { grid-template-columns: 1fr 1fr; }
-    @media (max-width: 900px) { .pair.modes { grid-template-columns: 1fr; } }
-    .mode-note { margin: 0; padding: 1rem 1.4rem 1.2rem; border-top: 1px solid var(--hair-soft); color: var(--muted); font-size: 0.95rem; }
-    .mode-note b { color: var(--text); font-weight: 600; }
-
-    /* claims: a ruled table of contents, not a card */
+    /* what you get: five ruled links into the deep pages */
     .toc { border-top: 1px solid var(--hair); }
     .toc-head {
       font-family: var(--mono); font-size: var(--label); letter-spacing: 0.2em; text-transform: uppercase; color: var(--faint);
       padding: 0.8rem 0 0.2rem;
     }
-    .toc a {
-      display: block;
-      padding: 0.85rem 0; border-bottom: 1px solid var(--hair-soft);
-      text-decoration: none;
-    }
+    .toc a { display: block; padding: 0.85rem 0; border-bottom: 1px solid var(--hair-soft); text-decoration: none; }
     .toc a:hover .t { color: var(--verdi); }
     .toc .t { font-family: var(--serif); font-weight: 500; font-size: clamp(1.05rem, 1.35vw, 1.3rem); line-height: 1.25; display: block; transition: color 0.15s ease; }
     .toc .s { display: block; color: var(--faint); font-size: 0.85rem; margin-top: 0.15rem; }
 
-    /* stat strip closes the fold */
-    .stats {
-      display: grid; grid-template-columns: repeat(4, auto); justify-content: space-between; gap: 1.2rem 2.5rem;
-      border-top: 1px solid var(--hair); border-bottom: 1px solid var(--hair);
-      padding: 1.3rem 0 1.4rem;
-    }
-    .stats b { display: block; font-family: var(--serif); font-weight: 500; font-size: clamp(1.7rem, 2.4vw, 2.4rem); line-height: 1; color: var(--text); }
-    .stats b em { font-style: normal; color: var(--verdi); }
-    .stats span { display: block; font-family: var(--mono); font-size: var(--label); letter-spacing: 0.06em; text-transform: uppercase; color: var(--faint); margin-top: 0.45rem; }
-    @media (max-width: 1100px) { .stats { grid-template-columns: repeat(2, minmax(0, 1fr)); justify-content: stretch; } }
-    @media (max-width: 980px) { .hero-grid { grid-template-columns: 1fr; } }
-    @media (max-width: 640px) { .stats { grid-template-columns: repeat(2, auto); justify-content: start; } }
+    /* the flagship: one handler, as wide as the install block */
+    .flagship-code { max-width: 62rem; }
 
-    /* what you can build and labs: a two-column head with a callout */
-    .example-head { display: grid; grid-template-columns: minmax(0, 1.25fr) minmax(18rem, 0.55fr); gap: clamp(2rem, 6vw, 7rem); align-items: end; }
-    .example-head h2 { max-width: 17ch; }
-    .example-subtitle { margin: 0.8rem 0 1.1rem; color: var(--verdi); font-family: var(--mono); font-size: clamp(0.92rem, 1.4vw, 1.12rem); letter-spacing: 0.025em; }
-    @media (max-width: 980px) {
-      .example-head { grid-template-columns: 1fr; }
-      .example-head h2 { max-width: 22ch; }
+    /* capabilities at a glance: seven groups of short links into the capabilities page */
+    .fgrid { display: grid; grid-template-columns: repeat(4, 1fr); gap: 2.2rem 2.4rem; margin-top: 2.4rem; }
+    .fcol h3 { margin: 0 0 0.8rem; font-family: var(--serif); font-weight: 500; font-size: 1.25rem; }
+    .fcol h3::after { content: ""; display: block; width: 2.4rem; border-top: 2px solid var(--verdi); margin-top: 0.5rem; }
+    .fcol ul { margin: 0; padding: 0; list-style: none; display: grid; gap: 0.5rem; }
+    .fcol li { color: var(--muted); font-size: 0.95rem; line-height: 1.45; padding-left: 1.1em; position: relative; }
+    .fcol li::before { content: "·"; position: absolute; left: 0; color: var(--verdi); }
+    .fcol a { text-decoration: none; }
+    .fcol a:hover { color: var(--verdi); }
+    @media (max-width: 1100px) { .fgrid { grid-template-columns: repeat(3, 1fr); } }
+    @media (max-width: 760px) { .fgrid { grid-template-columns: repeat(2, 1fr); } }
+    @media (max-width: 520px) { .fgrid { grid-template-columns: 1fr; } }
+
+    /* dashboard figure */
+    .shot { margin: 2.6rem auto 0; border: 1px solid var(--hair); border-radius: var(--r-panel); overflow: hidden; background: var(--panel-2); max-width: 1460px; }
+    .shot-media { overflow-x: hidden; scrollbar-color: var(--faint) var(--panel); }
+    .shot-media img { display: block; width: 100%; max-width: 100%; height: auto; }
+    @media (max-width: 700px) {
+      .shot-media { overflow-x: auto; }
+      .shot-media img { width: 1200px; max-width: none; }
     }
 
-    /* install block */
+    /* numbers: two figures, each linked to its evidence */
+    .bench-line { display: flex; flex-wrap: wrap; gap: 1.4rem 4rem; margin-top: 2.2rem; }
+    .bench-line a { text-decoration: none; }
+    .bench-line b { display: block; font-family: var(--serif); font-weight: 500; font-size: clamp(2rem, 3.4vw, 3rem); line-height: 1.05; color: var(--verdi); }
+    .bench-line span { display: block; font-family: var(--mono); font-size: var(--label); letter-spacing: 0.06em; text-transform: uppercase; color: var(--faint); margin-top: 0.4rem; max-width: 28ch; }
+
+    /* the rest of the site: ruled rows, a title and one clause each */
+    .more { margin-top: 2.2rem; border-top: 1px solid var(--hair); }
+    .more a {
+      display: grid; grid-template-columns: minmax(12rem, 18rem) 1fr; gap: 0.3rem 3rem; align-items: baseline;
+      padding: 1.1rem 0; border-bottom: 1px solid var(--hair-soft); text-decoration: none;
+    }
+    .more .t { font-family: var(--serif); font-weight: 500; font-size: clamp(1.1rem, 1.5vw, 1.4rem); line-height: 1.25; transition: color 0.15s ease; }
+    .more a:hover .t { color: var(--verdi); }
+    .more .s { color: var(--muted); font-size: 0.97rem; max-width: 72ch; }
+    @media (max-width: 760px) { .more a { grid-template-columns: 1fr; gap: 0.2rem; } }
+
+    /* prompts and the install block: one ruled container each */
+    .lede a { color: var(--verdi); text-underline-offset: 3px; }
     .install { margin: 2.2rem 0 0; border: 1px solid var(--hair); border-radius: var(--r-panel); background: var(--panel); overflow: hidden; max-width: 62rem; }
+    .prompt-row { display: grid; grid-template-columns: 1fr auto; align-items: center; gap: 1.2rem; padding: 1.1rem 1.2rem; border-bottom: 1px solid var(--hair-soft); }
+    .prompt-row:last-child { border-bottom: 0; }
+    .prompt-row p { margin: 0; color: var(--text); font-size: 1rem; line-height: 1.55; max-width: 70ch; }
     .install-row { display: grid; grid-template-columns: minmax(11rem, 0.5fr) 1fr auto; align-items: center; gap: 1.2rem; padding: 1rem 1.2rem; border-bottom: 1px solid var(--hair-soft); }
     .install-row:last-child { border-bottom: 0; }
-    .install-row.primary { background: rgba(47, 214, 168, 0.045); }
+    .install-row.primary { background: var(--verdi-tint); }
     .install-meta b { display: block; font-family: var(--mono); font-size: var(--label); letter-spacing: 0.15em; text-transform: uppercase; color: var(--verdi); }
     .install-meta span { font-size: 0.86rem; color: var(--faint); }
     .install-row code { font-size: 0.95rem; color: var(--text); overflow-x: auto; }
@@ -143,84 +140,7 @@
       .install-row { grid-template-columns: 1fr auto; gap: 0.5rem 1rem; }
       .install-meta { grid-column: 1 / -1; }
     }
-
-    /* what you can build, and the labs: ruled cells, no cards */
-    .builds { display: grid; grid-template-columns: repeat(3, 1fr); gap: 0; margin: 2.4rem 0 0; border-top: 1px solid var(--hair); }
-    .build { padding: 1.5rem 1.6rem 1.7rem 0; border-bottom: 1px solid var(--hair); }
-    .build:not(:nth-child(3n)) { border-right: 1px solid var(--hair); padding-right: 2.2rem; }
-    .build:not(:nth-child(3n)) + .build { padding-left: 1.8rem; }
-    .build h3 { margin: 0 0 0.5rem; font-family: var(--sans); font-size: 1.02rem; font-weight: 600; color: var(--text); }
-    .build p { margin: 0 0 0.8rem; color: var(--muted); font-size: 0.95rem; }
-    .build .carries { display: block; font-family: var(--mono); font-size: 0.72rem; line-height: 1.7; color: var(--faint); }
-    .build .carries b { color: var(--verdi); font-weight: 400; }
-    @media (max-width: 980px) {
-      .builds { grid-template-columns: repeat(2, 1fr); }
-      .build:not(:nth-child(3n)) { border-right: 0; padding-right: 1.6rem; }
-      .build:not(:nth-child(2n)) { border-right: 1px solid var(--hair); padding-right: 2.2rem; }
-      .build:not(:nth-child(2n)) + .build { padding-left: 1.8rem; }
-    }
-    @media (max-width: 640px) {
-      .builds { grid-template-columns: 1fr; }
-      .build, .build:not(:nth-child(2n)) { border-right: 0; padding: 1.3rem 0 1.4rem; }
-      .build:not(:nth-child(3n)) + .build, .build:not(:nth-child(2n)) + .build { padding-left: 0; }
-    }
-
-    /* dashboard figure with field-record stamp */
-    .shot { margin: 2.6rem auto 0; border: 1px solid var(--hair); border-radius: var(--r-panel); overflow: hidden; box-shadow: 0 48px 120px rgba(0, 0, 0, 0.55); max-width: 1460px; }
-    .shot-media { overflow-x: hidden; background: var(--panel-2); scrollbar-color: var(--faint) var(--panel); }
-    .shot-media img { display: block; width: 100%; max-width: 100%; height: auto; }
-    .shot figcaption {
-      display: flex; gap: 1.2rem; align-items: baseline; text-align: left;
-      padding: 0.85rem 1.2rem; border-top: 1px solid var(--hair); background: var(--panel);
-      font-size: 0.92rem; color: var(--muted);
-    }
-    .stamp {
-      flex: none; font-family: var(--mono); font-size: 0.68rem; letter-spacing: 0.18em; text-transform: uppercase;
-      color: var(--oxide); border: 1px solid rgba(208, 138, 69, 0.45); border-radius: 4px; padding: 0.25em 0.6em;
-    }
-    @media (max-width: 700px) {
-      .shot-media { overflow-x: auto; }
-      .shot-media img { width: 1200px; max-width: none; }
-      .shot figcaption { flex-direction: column; gap: 0.5rem; }
-    }
-
-    /* numbers & boundaries */
-    .bench-line { display: flex; flex-wrap: wrap; gap: 1.4rem 4rem; margin-top: 2.2rem; }
-    .bench-line b { display: block; font-family: var(--serif); font-weight: 500; font-size: clamp(2rem, 3.4vw, 3rem); line-height: 1.05; color: var(--verdi); }
-    .bench-line span { display: block; font-family: var(--mono); font-size: var(--label); letter-spacing: 0.06em; text-transform: uppercase; color: var(--faint); margin-top: 0.4rem; max-width: 24ch; }
-    .bench-note { margin-top: 1.4rem; color: var(--faint); font-size: 0.86rem; max-width: 80ch; }
-    .proof { margin-top: 3rem; padding-top: 2.2rem; border-top: 1px solid var(--hair); }
-    .proof h3 { margin: 0 0 0.8rem; font-family: var(--serif); font-weight: 500; font-size: clamp(1.45rem, 2.2vw, 1.9rem); line-height: 1.2; max-width: 30ch; text-wrap: balance; }
-    .proof h3 em { font-style: normal; color: var(--verdi); }
-    .proof .hint { margin-top: 1.2rem; max-width: 92ch; }
-    .nots { margin: 2rem 0 0; padding: 0; list-style: none; display: grid; grid-template-columns: 1fr 1fr; gap: 1rem 3.4rem; }
-    .nots li { padding-left: 1.6em; position: relative; color: var(--muted); font-size: 0.98rem; }
-    .nots li::before { content: "\00d7"; position: absolute; left: 0; color: var(--bad); }
-    .nots li b { color: var(--text); font-weight: 600; }
-    @media (max-width: 860px) { .nots { grid-template-columns: 1fr; } }
-
-    /* inventory */
-    .fgrid { display: grid; grid-template-columns: repeat(5, 1fr); gap: 2.2rem 2.4rem; margin-top: 2.4rem; }
-    .fcol h3 { margin: 0 0 1rem; font-family: var(--serif); font-weight: 500; font-size: 1.32rem; }
-    .fcol h3::after { content: ""; display: block; width: 2.4rem; border-top: 2px solid var(--verdi); margin-top: 0.55rem; transition: width 0.45s ease; }
-    .fcol { scroll-margin-top: 4.5rem; }
-    .fcol:target h3::after { width: 100%; }
-    .fcol ul { margin: 0; padding: 0; list-style: none; display: grid; gap: 0.7rem; }
-    .fcol li { color: var(--muted); font-size: 0.95rem; line-height: 1.5; padding-left: 1.1em; position: relative; }
-    .fcol li::before { content: "·"; position: absolute; left: 0; color: var(--verdi); }
-    .fcol li b { color: var(--text); font-weight: 600; }
-    @media (max-width: 1250px) { .fgrid { grid-template-columns: repeat(3, 1fr); } }
-    @media (max-width: 860px) { .fgrid { grid-template-columns: repeat(2, 1fr); } }
-    @media (max-width: 620px) { .fgrid { grid-template-columns: 1fr; } }
-
-    /* closer */
-    .term { margin: 2.2rem 0 0; border: 1px solid var(--hair); border-radius: var(--r-panel); background: var(--panel); overflow: hidden; max-width: 58rem; text-align: left; }
-    .term-bar { display: flex; gap: 0.45rem; align-items: center; padding: 0.55rem 1.1rem; border-bottom: 1px solid var(--hair); font-family: var(--mono); font-size: var(--label); letter-spacing: 0.12em; text-transform: uppercase; color: var(--faint); }
-    .term-bar i { width: 9px; height: 9px; border-radius: 50%; background: var(--hair); }
-    .term pre { font-size: 0.85rem; }
-    .term .p { color: var(--verdi); }
-    .term .out { color: var(--faint); }
-    @media (prefers-reduced-motion: reduce) { .toc .t, .fcol h3::after { transition: none; } }
+    @media (prefers-reduced-motion: reduce) { .toc .t, .more .t { transition: none; } }
   </style>
   <script type="application/ld+json">
     {"@context":"https://schema.org","@type":"SoftwareSourceCode","name":"Acta","description":"SQL-native durable background jobs and work ledger for .NET.","url":"https://useacta.net/","codeRepository":"https://github.com/acta-dotnet/acta","license":"https://www.apache.org/licenses/LICENSE-2.0","programmingLanguage":"C#","runtimePlatform":".NET 10","author":{"@type":"Person","name":"Marko Vončina","url":"https://www.linkedin.com/in/marko-voncina"}}
@@ -233,8 +153,8 @@
     <span class="meta">apache-2.0 · .net 10 · pg / mssql / sqlite</span>
     <nav aria-label="Primary links">
       <a href="/start">Get started</a>
-      <a href="https://github.com/acta-dotnet/acta/tree/main/concepts">Concepts</a>
-      <a href="#compare" class="nav-more">Compare</a>
+      <a href="/capabilities">Capabilities</a>
+      <a href="https://github.com/acta-dotnet/acta/tree/main/concepts" class="nav-more">Concepts</a>
       <a href="https://github.com/acta-dotnet/acta">GitHub</a>
       <a href="https://github.com/acta-dotnet/acta/blob/main/docs/engineering-labs.md" class="nav-more">Labs</a>
     </nav>
@@ -251,318 +171,208 @@
       <div class="hero-grid">
         <div>
           <p class="tagline">Durable background jobs for <em>.NET</em>.</p>
-          <p class="subhead">Kill the worker. Keep the work.</p>
-          <div class="qa">
-            <div>
-              <b>What</b>
-              <p>Enqueue, schedule, retry, and wait on work that survives crashes and deploys. Every job is a row in the Postgres, SQL Server, or SQLite you already run, with fan-out, recovery, a dashboard, and a CLI built in.</p>
-            </div>
-            <div>
-              <b>Why</b>
-              <p>Because production happens: workers die holding work, retries repeat side effects, jobs get "stuck" and nobody can say why. Acta makes every job, attempt, lease, and retry durable SQL state you can see, query, and act on: no broker, no sidecar, no workflow SaaS.</p>
-            </div>
-            <div>
-              <b>Where</b>
-              <p>In the app you already have. Almost every app needs background jobs, and Acta is that piece: a library in your .NET process and tables in your database. It works alongside the rest of your stack, with a message queue or without one, in an API, a worker service, or a console app.</p>
-            </div>
-          </div>
+          <p class="subhead">Workers come and go. The work keeps moving.</p>
+          <p class="lede">Every job is a row in the Postgres, SQL Server, or SQLite you already run. When a worker dies mid-job, the next one continues from the committed state.</p>
           <div class="actions">
-            <a class="button primary" href="/start">Run your first durable job in five minutes</a>
+            <a class="button primary" href="/start">Get started</a>
             <a class="button" href="/how-it-works">How Acta works</a>
-            <a class="button" href="/learn">Learn Acta: the full tutorial</a>
-            <a class="button" href="#flagship">Watch a job survive its worker</a>
-            <a class="button" href="https://github.com/acta-dotnet/acta">View on GitHub</a>
-            <a class="button" href="/llms.txt">For coding agents: llms.txt</a>
           </div>
         </div>
         <nav class="toc" aria-label="What you get">
           <p class="toc-head">What you get</p>
-          <a href="#one-job-model"><span><span class="t">One job model</span><span class="s">Tasks, recurring controllers, parents, children, and long waits are all jobs: one engine, nothing else to operate.</span></span></a>
-          <a href="#flagship"><span><span class="t">Work that survives its worker</span><span class="s">One permanent job keeps an ERP in sync; its worker is killed after a batch; the next execution reads the same watermark and continues.</span></span></a>
-          <a href="#code"><span><span class="t">Durable jobs</span><span class="s">Fire-and-forget, delayed, recurring: they survive crashes, deploys, and restarts.</span></span></a>
-          <a href="#recurring"><span><span class="t">Recurring work, two ways</span><span class="s">A permanent slot fired again and again, or a fresh job per occurrence.</span></span></a>
-          <a href="#how-it-runs"><span><span class="t">How a worker runs a job</span><span class="s">Claim, run, finalize: a job is done only when its completion commits, up to 128 per commit.</span></span></a>
-          <a href="#recovery"><span><span class="t">Retries &amp; recovery, built in</span><span class="s">Typed backoff; a dead worker's lease lapses and its jobs are reclaimed, leaderless.</span></span></a>
-          <a href="#primitives"><span><span class="t">Steps, sleeps &amp; signals</span><span class="s">Recorded step outcomes; wait hours or days without holding a worker thread.</span></span></a>
-          <a href="#who-runs-next"><span><span class="t">Which job runs next</span><span class="s">Lane heads and unlaned jobs enter the claim scan; blocked jobs wait outside it, and any peer can claim.</span></span></a>
-          <a href="#admission"><span><span class="t">Order, limits &amp; pacing</span><span class="s">Lanes for strict order, concurrency keys and limits for how many at once, rate limits for how often.</span></span></a>
-          <a href="#fleet"><span><span class="t">Many workers, no coordinator</span><span class="s">Peer workers coordinate through rows: claims, leases, heartbeats, and recovery that any of them can run.</span></span></a>
-          <a href="#dashboard"><span><span class="t">State you can SELECT</span><span class="s">Every job, attempt, and lease is a row, with a dashboard and CLI included.</span></span></a>
-          <a href="#data-model"><span><span class="t">A data model built to be read</span><span class="s">Hot runtime state split from job identity, an append-only event ledger, every column documented.</span></span></a>
+          <a href="/how-it-works#crash"><span><span class="t">Retries and crash recovery</span><span class="s">A dead worker's jobs go to another worker, and retries follow a backoff you declare.</span></span></a>
+          <a href="/how-it-works#steps"><span><span class="t">Steps, sleeps, and signals</span><span class="s">Wait hours or days without holding a thread, and a recorded step never runs twice.</span></span></a>
+          <a href="/how-it-works#permanent"><span><span class="t">Recurring jobs on a schedule</span><span class="s">A cron or an interval fires one permanent job again and again; it keeps its state between firings.</span></span></a>
+          <a href="/gates"><span><span class="t">Order, concurrency, and rate limits</span><span class="s">Lanes keep one customer's jobs in order, keys and limits bound how many run, rates pace how often.</span></span></a>
+          <a href="/fleet"><span><span class="t">Many workers, no coordinator</span><span class="s">Add a worker and it starts claiming; stop one and its work goes to the others.</span></span></a>
         </nav>
-      </div>
-      <div class="stats" aria-label="Key numbers">
-        <div><b><em>3</em></b><span>SQL providers: pg · mssql · sqlite</span></div>
-        <div><b><em>1</em></b><span>SQL round-trip per state change</span></div>
-        <div><b><a href="https://github.com/acta-dotnet/acta/tree/main/concepts" style="text-decoration:none">94</a></b><span>runnable concepts &amp; labs</span></div>
-        <div><b>5 min</b><span>empty folder → durable job + dashboard · .NET 10 only · zero Docker</span></div>
       </div>
     </header>
 
     <section class="wrap" id="flagship">
       <p class="record">The flagship</p>
-      <h2>A job that runs every five seconds, remembers how far it got, and survives being killed.</h2>
-      <p class="lede">An ERP publishes order changes all day, and one job keeps a local copy current. Each firing reads where the last one stopped, applies the next batch, and writes the new position back. Acta keeps that position the way it keeps the job: in your database, across firings, retries, and workers.</p>
+      <h2>A job that runs every five seconds, remembers how far it got, and survives losing its worker.</h2>
+      <p class="lede">One job keeps a local copy of a web shop's orders current: each firing reads where the last one stopped, applies the next batch, and writes the new position back.</p>
       <div class="panel solo flagship-code">
         <div class="panel-tab">C# · the whole handler</div>
         <pre><code><span class="a">[Job(<span class="s">"sync-orders"</span>)]</span>
 <span class="a">[Schedule(<span class="s">"every-5s"</span>, <span class="s">"PT5S"</span>)]</span>
-<span class="k">public async</span> Task Sync(SyncOrders input, JobContext ctx, CancellationToken ct)
+<span class="k">public async</span> Task Sync(JobContext ctx, CancellationToken ct)
 {
     <span class="c">// durable job state: it outlives the firing, the retry, and the worker</span>
     <span class="k">var</span> watermark = <span class="k">await</span> ctx.GetVariableOrDefaultAsync(<span class="s">"watermark"</span>, 0L, ct);
-    <span class="k">var</span> changes = <span class="k">await</span> erp.ChangesAfterAsync(watermark, 40, ct);
-    <span class="k">if</span> (changes.Count == 0) <span class="k">return</span>;   <span class="c">// up to date: the slot goes Idle</span>
+    <span class="k">var</span> changes = <span class="k">await</span> shop.ChangesAfterAsync(watermark, 40, ct);
+    <span class="k">if</span> (changes.Count == 0) <span class="k">return</span>;   <span class="c">// up to date: nothing to do until the next firing</span>
     <span class="k">await</span> store.ApplyAsync(changes, ct);   <span class="c">// an upsert: a replay lands once</span>
     <span class="k">await</span> ctx.SetVariableAsync(<span class="s">"watermark"</span>, changes[^1].ChangeId, ct);
 }</code></pre>
       </div>
-      <p class="hint">Kill the worker after a batch. Its lease runs out, another worker picks the job up, and the handler reads the same watermark and continues. Nothing is applied twice. The lab does exactly that, from a fresh clone on SQLite, and prints the rows.</p>
+      <p class="hint">Stop the worker mid-batch, with a deploy or a kill, and the next one picks the job up at the same watermark; a replayed batch is an upsert, so it lands once.</p>
       <div class="actions">
         <a class="button primary" href="https://github.com/acta-dotnet/acta/tree/main/concepts/100-scheduling/109-continuous-synchronization">Run the lab</a>
-        <a class="button" href="/how-it-works">How Acta works</a>
       </div>
     </section>
 
-    <section class="wrap" id="one-job-model">
-      <p class="record">Everything is a job</p>
-      <h2>One model for everything that has to outlive the request.</h2>
-      <p class="lede">A job is the only thing a worker claims: a row with a lease, a retry budget, and a ledger. Steps, variables, timers, signals, and progress are durable state on that row, never claimed on their own. Children are more rows, with lineage. A schedule makes one row claimable again and again. There is no second engine for workflows, and nothing new to operate.</p>
-      <div class="facts four">
-        <div>
-          <b>A background task</b>
-          <p>Enqueue it once. A row with a lease, a retry budget, and an event per attempt; a typed handle follows it. A dead worker's lease lapses and a peer takes the row.</p>
-          <span class="carries"><b>EnqueueAsync</b> · <b>WaitAsync</b></span>
+    <section class="wrap" id="capabilities">
+      <p class="record">Capabilities</p>
+      <h2>What Acta includes, by group.</h2>
+      <p class="lede">Every item links to its explanation on <a href="/capabilities">the capabilities page</a>.</p>
+      <div class="fgrid">
+        <div class="fcol">
+          <h3><a href="/capabilities#jobs">Jobs and how they start</a></h3>
+          <ul>
+            <li><a href="/capabilities#fire-and-forget">Fire-and-forget jobs</a></li>
+            <li><a href="/capabilities#delayed">Delayed jobs</a></li>
+            <li><a href="/capabilities#recurring">Recurring jobs</a></li>
+            <li><a href="/capabilities#per-occurrence">A fresh job per occurrence</a></li>
+            <li><a href="/capabilities#typed">Typed enqueue and handles</a></li>
+            <li><a href="/capabilities#identities">Three ways to address a job</a></li>
+            <li><a href="/capabilities#deduplication">Deduplication keys</a></li>
+            <li><a href="/capabilities#transactional">Enqueue in your own transaction</a></li>
+            <li><a href="/capabilities#outbox">An outbox across databases</a></li>
+            <li><a href="/capabilities#enqueue-from-sql">Enqueue from SQL</a></li>
+            <li><a href="/capabilities#namespaces">Namespaces and tenants</a></li>
+          </ul>
         </div>
-        <div>
-          <b>A synchronization controller</b>
-          <p>One permanent job with one schedule. <code>Idle</code> between firings, holding no thread; one bounded batch per firing; its watermark a durable variable Acta carries across firings, retries, and the worker that dies.</p>
-          <span class="carries"><b>[Schedule]</b> · <b>SetVariableAsync</b></span>
+        <div class="fcol">
+          <h3><a href="/capabilities#handler">Inside a handler</a></h3>
+          <ul>
+            <li><a href="/capabilities#re-entry">Re-entry you can reason about</a></li>
+            <li><a href="/capabilities#steps">Durable steps</a></li>
+            <li><a href="/capabilities#at-most-once">At-most-once steps</a></li>
+            <li><a href="/capabilities#variables">Durable variables</a></li>
+            <li><a href="/capabilities#sleeps">Durable sleeps and timers</a></li>
+            <li><a href="/capabilities#signals">Signals</a></li>
+            <li><a href="/capabilities#children">Child jobs with lineage</a></li>
+            <li><a href="/capabilities#fan-out">Map, Parallel, and Join</a></li>
+            <li><a href="/capabilities#locks">Handler locks</a></li>
+            <li><a href="/capabilities#plain-classes">Plain classes, constructor injection</a></li>
+            <li><a href="/capabilities#behaviors">Shared behavior around every handler</a></li>
+          </ul>
         </div>
-        <div>
-          <b>A parent and its children</b>
-          <p>A job that starts jobs. Children are ordinary rows with lineage and their own retries, and the parent waits on a durable latch without holding a worker.</p>
-          <span class="carries"><b>MapAsync</b> · <b>Parallel</b> · <b>Join</b></span>
+        <div class="fcol">
+          <h3><a href="/capabilities#recovery">Retries, failure, and recovery</a></h3>
+          <ul>
+            <li><a href="/capabilities#retries">Retries with a backoff you declare</a></li>
+            <li><a href="/capabilities#timeouts">Execution timeouts and deadlines</a></li>
+            <li><a href="/capabilities#leases">Leases and heartbeats</a></li>
+            <li><a href="/capabilities#scale-out">Distributed, leaderless workers</a></li>
+            <li><a href="/capabilities#crash-recovery">Crash recovery with no leader</a></li>
+            <li><a href="/capabilities#backpressure">A slow database never grows memory</a></li>
+            <li><a href="/capabilities#rolling-deploys">Rolling deploys and rollbacks</a></li>
+            <li><a href="/capabilities#restart">Restart with the stored input</a></li>
+            <li><a href="/capabilities#explain">Explain a stuck or failed job</a></li>
+            <li><a href="/capabilities#failure-alerts">A full alerting system for jobs</a></li>
+          </ul>
         </div>
-        <div>
-          <b>A job that waits</b>
-          <p>Days for a signal, hours for a timer: a row, not a thread. The same job continues when the signal arrives, on whichever worker claims it.</p>
-          <span class="carries"><b>WaitSignalAsync</b> · <b>SleepAsync</b></span>
+        <div class="fcol">
+          <h3><a href="/capabilities#gates">Order, concurrency, and pacing</a></h3>
+          <ul>
+            <li><a href="/capabilities#lanes">Lanes for strict order</a></li>
+            <li><a href="/capabilities#concurrency-keys">Concurrency keys</a></li>
+            <li><a href="/capabilities#concurrency-limits">Concurrency limits</a></li>
+            <li><a href="/capabilities#rate-limits">Rate limits</a></li>
+            <li><a href="/capabilities#overrides">Policy changes without a deploy</a></li>
+          </ul>
+        </div>
+        <div class="fcol">
+          <h3><a href="/capabilities#schedules">Schedules and calendars</a></h3>
+          <ul>
+            <li><a href="/capabilities#cron">Cron expressions and intervals</a></li>
+            <li><a href="/capabilities#several-schedules">Several schedules on one job</a></li>
+            <li><a href="/capabilities#misfire">Missed occurrences, four ways</a></li>
+            <li><a href="/capabilities#schedule-controls">Trigger now, pause, resume, preview</a></li>
+            <li><a href="/capabilities#code-calendars">Calendars in code</a></li>
+            <li><a href="/capabilities#catalog-calendars">Calendars as data</a></li>
+            <li><a href="/capabilities#backfill">Backfill</a></li>
+          </ul>
+        </div>
+        <div class="fcol">
+          <h3><a href="/capabilities#operations">Visibility and control</a></h3>
+          <ul>
+            <li><a href="/capabilities#sql">Every row queryable, with views</a></li>
+            <li><a href="/capabilities#ledger">An append-only event ledger</a></li>
+            <li><a href="/capabilities#logs">Job identifiers in your logs</a></li>
+            <li><a href="/capabilities#metrics">Built-in metrics</a></li>
+            <li><a href="/capabilities#dashboard">The embedded dashboard</a></li>
+            <li><a href="/capabilities#http-api">An HTTP API with OpenAPI</a></li>
+            <li><a href="/capabilities#verbs">Cancel, pause, restart, signal, purge</a></li>
+            <li><a href="/capabilities#cli">A control CLI in every host</a></li>
+            <li><a href="/capabilities#authorization">Control authorization</a></li>
+            <li><a href="/capabilities#retention">Retention and purge</a></li>
+          </ul>
+        </div>
+        <div class="fcol">
+          <h3><a href="/capabilities#quality">Engineering quality</a></h3>
+          <ul>
+            <li><a href="/capabilities#providers">Postgres, SQL Server, SQLite</a></li>
+            <li><a href="/capabilities#drivers">Plain database drivers, no ORM</a></li>
+            <li><a href="/capabilities#data-model">A small data model, frozen from 1.0</a></li>
+            <li><a href="/capabilities#performance">Performance, measured</a></li>
+            <li><a href="/capabilities#generated">Source-generated dispatch, Native AOT</a></li>
+            <li><a href="/capabilities#diagnostics">Build-time diagnostics</a></li>
+            <li><a href="/capabilities#startup-checks">Startup checks that fail fast</a></li>
+            <li><a href="/capabilities#testing">Fast, deterministic tests</a></li>
+            <li><a href="/capabilities#conformance">One conformance suite, three providers</a></li>
+            <li><a href="/capabilities#measured">Certified under chaos</a></li>
+            <li><a href="/capabilities#schema-scripts">Schema scripts for a DBA</a></li>
+            <li><a href="/capabilities#license">Apache-2.0, all of it</a></li>
+          </ul>
         </div>
       </div>
-      <a class="golink" href="/how-it-works">How Acta works, in ten questions</a>
     </section>
 
-    <section class="wrap" id="code">
-      <p class="record">The code</p>
-      <h2>A job that survives crashes, in a dozen lines of C#.</h2>
-      <p class="lede">The <code>[Job]</code> name is the durable, operator-facing contract; enqueue is typed, dispatch is source-generated. And the state it creates isn't hidden in a broker or a SaaS console: it's rows you <code>SELECT</code>.</p>
-      <div class="pair">
-        <div class="panel">
-          <div class="panel-tab">C# · the whole contract</div>
-          <pre><code><span class="k">public sealed record</span> DeliverWebhook(Guid DeliveryId, Uri Endpoint, <span class="k">string</span> Payload);
-
-<span class="k">public sealed class</span> WebhookJob(IWebhookSender sender)
-{
-    <span class="a">[Job(<span class="s">"deliver-webhook"</span>)]</span>
-    <span class="k">public</span> Task Handle(DeliverWebhook input, CancellationToken ct) =&gt;
-        sender.SendAsync(input.Endpoint, input.Payload,
-            idempotencyKey: input.DeliveryId.ToString(), ct);
-}
-
-<span class="c">// enqueue from anywhere in the host; the handle follows the job</span>
-<span class="k">var</span> job = <span class="k">await</span> jobs.EnqueueAsync(<span class="k">new</span> DeliverWebhook(
-    Guid.CreateVersion7(),
-    <span class="k">new</span> Uri(<span class="s">"https://partner.example.com/hooks/orders"</span>),
-    <span class="s">"""{"orderId":"ORD-1042","status":"shipped"}"""</span>), ct: ct);</code></pre>
-        </div>
-        <div>
-          <div class="panel">
-            <div class="panel-tab">SQL · the whole truth</div>
-            <pre><code><span class="c">-- In-flight work and who holds it.</span>
-<span class="k">select</span> job_id, job_name, status,
-       leased_by_worker_host_name,
-       lease_expires_at_utc
-<span class="k">from</span> acta.jobs_view
-<span class="k">where</span> status = <span class="s">'executing'</span>;</code></pre>
-          </div>
-          <p class="pair-note">Jobs, attempts, leases, events, schedules, checkpoints, workers, alerts: all rows, with curated operator views. A job that failed a month ago is still there to inspect, and to restart with its stored input.</p>
-        </div>
-      </div>
-
-      <p class="record" style="margin-top: 3.2rem" id="how-it-runs">How it runs</p>
-      <h2>How one worker claims, runs, and finalizes a job.</h2>
-      <figure class="pipe">
-        <div class="pipe-scroll">
-          <svg class="pipe-wide" viewBox="0 0 1000 300" role="img" aria-label="A worker claims due rows from your database, runs handlers in parallel, and finalizes their completions together, up to 128 in one commit; a heartbeat renews only what the worker holds; when the database is slow, finalizing falls behind and claiming waits.">
-            <defs>
-              <marker id="pipe-ah" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path d="M0 0 L10 5 L0 10 z" class="fill-fg"/></marker>
-              <marker id="pipe-ah-acc" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path d="M0 0 L10 5 L0 10 z" class="fill-acc"/></marker>
-              <marker id="pipe-ah-warn" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path d="M0 0 L10 5 L0 10 z" class="fill-warn"/></marker>
-            </defs>
-            <rect class="band" x="30" y="14" width="950" height="54" rx="4"/>
-            <text class="tt" x="48" y="38">Your database</text>
-            <text class="tm" x="48" y="57">every job your application enqueued is a row here</text>
-
-            <line class="ln" x1="135" y1="128" x2="135" y2="72" marker-end="url(#pipe-ah)" marker-start="url(#pipe-ah)"/>
-            <text class="tm" x="145" y="100">claims due rows</text>
-            <line class="ln acc" x1="695" y1="128" x2="695" y2="72" marker-end="url(#pipe-ah-acc)"/>
-            <text class="tm acc-t" x="685" y="92" text-anchor="end">commits up to 128</text>
-            <text class="tm acc-t" x="685" y="108" text-anchor="end">completions at once</text>
-            <line class="ln" x1="915" y1="128" x2="915" y2="72" marker-end="url(#pipe-ah)"/>
-            <text class="tm" x="905" y="100" text-anchor="end">renews what it holds</text>
-
-            <rect class="box" x="30" y="130" width="210" height="70" rx="4"/>
-            <text class="tt" x="48" y="160">Claim</text>
-            <text class="tm" x="48" y="182">due rows, in one call</text>
-            <line class="ln" x1="240" y1="165" x2="288" y2="165" marker-end="url(#pipe-ah)"/>
-
-            <rect class="ghost" x="310" y="110" width="200" height="70" rx="4"/>
-            <rect class="ghost" x="300" y="120" width="200" height="70" rx="4"/>
-            <rect class="box" x="290" y="130" width="200" height="70" rx="4"/>
-            <text class="tt" x="308" y="160">Run</text>
-            <text class="tm" x="308" y="182">your handlers, in parallel</text>
-            <line class="ln" x1="510" y1="165" x2="578" y2="165" marker-end="url(#pipe-ah)"/>
-
-            <rect class="box" x="580" y="130" width="230" height="70" rx="4"/>
-            <text class="tt" x="598" y="160">Finalize</text>
-            <text class="tm" x="598" y="182">what waits goes out together</text>
-
-            <rect class="box" x="850" y="130" width="130" height="70" rx="4"/>
-            <text class="tt" x="866" y="160">Heartbeat</text>
-            <text class="tm" x="866" y="182">every 45 s</text>
-
-            <path class="ln dash warn" d="M 650 202 C 650 262, 180 262, 180 204" marker-end="url(#pipe-ah-warn)"/>
-            <text class="t warn-t" x="415" y="286" text-anchor="middle">database slow → finalizing falls behind → claiming waits</text>
-          </svg>
-          <svg class="pipe-tall" viewBox="0 0 360 486" role="img" aria-label="A worker claims due rows from your database, runs handlers in parallel, and finalizes their completions together, up to 128 in one commit; a heartbeat renews only what the worker holds; when the database is slow, finalizing falls behind and claiming waits.">
-            <defs>
-              <marker id="pipe-m-ah" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path d="M0 0 L10 5 L0 10 z" class="fill-fg"/></marker>
-              <marker id="pipe-m-ah-acc" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path d="M0 0 L10 5 L0 10 z" class="fill-acc"/></marker>
-              <marker id="pipe-m-ah-warn" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path d="M0 0 L10 5 L0 10 z" class="fill-warn"/></marker>
-            </defs>
-            <rect class="band" x="10" y="10" width="340" height="50" rx="4"/>
-            <text class="tt" x="24" y="32">Your database</text>
-            <text class="tm" x="24" y="50">every job is a row here</text>
-
-            <line class="ln" x1="160" y1="98" x2="160" y2="64" marker-end="url(#pipe-m-ah)" marker-start="url(#pipe-m-ah)"/>
-            <text class="tm" x="170" y="86">claims due rows</text>
-            <rect class="box" x="40" y="100" width="240" height="56" rx="4"/>
-            <text class="tt" x="56" y="124">Claim</text>
-            <text class="tm" x="56" y="145">due rows, in one call</text>
-
-            <line class="ln" x1="160" y1="156" x2="160" y2="180" marker-end="url(#pipe-m-ah)"/>
-            <rect class="ghost" x="52" y="184" width="240" height="56" rx="4"/>
-            <rect class="ghost" x="46" y="190" width="240" height="56" rx="4"/>
-            <rect class="box" x="40" y="196" width="240" height="56" rx="4"/>
-            <text class="tt" x="56" y="220">Run</text>
-            <text class="tm" x="56" y="241">your handlers, in parallel</text>
-
-            <line class="ln" x1="160" y1="252" x2="160" y2="288" marker-end="url(#pipe-m-ah)"/>
-            <rect class="box" x="40" y="290" width="240" height="56" rx="4"/>
-            <text class="tt" x="56" y="314">Finalize</text>
-            <text class="tm" x="56" y="335">what waits goes out together</text>
-            <path class="ln acc" d="M 280 318 H 318 V 64" marker-end="url(#pipe-m-ah-acc)"/>
-            <text class="tm acc-t" x="40" y="368">commits up to 128 completions at once</text>
-
-            <path class="ln dash warn" d="M 40 330 H 20 V 128 H 36" marker-end="url(#pipe-m-ah-warn)"/>
-            <text class="tm warn-t" x="40" y="392">database slow: finalizing falls behind,</text>
-            <text class="tm warn-t" x="40" y="408">claiming waits</text>
-
-            <rect class="box" x="40" y="424" width="240" height="52" rx="4"/>
-            <text class="tt" x="56" y="446">Heartbeat</text>
-            <text class="tm" x="56" y="466">every 45 s, renews what it holds</text>
-            <path class="ln" d="M 280 450 H 340 V 64" marker-end="url(#pipe-m-ah)"/>
-          </svg>
+    <section class="wrap center" id="dashboard">
+      <p class="record centered">The dashboard</p>
+      <h2>A built-in dashboard shows what every job is doing.</h2>
+      <p class="lede">It runs inside your app and reads the same rows you can query yourself.</p>
+      <figure class="shot">
+        <div class="shot-media" tabindex="0" aria-label="Dashboard screenshot; horizontally scrollable on small screens">
+          <img src="assets/dash-dark-overview.webp" alt="Acta operator dashboard, dark theme: the Overview page mid-run, with a health verdict, a backlog of 25,745 ready jobs, 64 executing, no failures, no alerts, and two active workers with their heartbeats" loading="lazy" width="3200" height="2000" />
         </div>
       </figure>
-      <div class="facts">
-        <div>
-          <b>Done means committed</b>
-          <p>A job is done when its completion is a committed row, not when the handler returns. A crash before that commit runs the job again; a crash after it never loses it. That is where the guarantee ends: your own writes commit in your transaction and Acta's record of the attempt commits after, so a handler can run again for work that already landed, and an idempotency key, an upsert, or a watermark is what makes that harmless.</p>
-        </div>
-        <div>
-          <b>Durable, and still fast</b>
-          <p>Completions that arrive while the finalizer is writing go out in the next commit, up to 128 at a time, so durability does not cost a commit per job. One PostgreSQL worker sustained <em>7,680 fully executed, durably completed jobs per second</em>, with every job sent on its own. <a class="golink" href="https://github.com/acta-dotnet/acta/blob/v1.0.0-rc.6/docs/benchmark.md#7-capacity-on-postgresql-05e5c27c">Benchmark evidence</a></p>
-        </div>
-        <div>
-          <b>Bounded, and it heals</b>
-          <p>A slow database stops intake instead of filling memory. A worker renews only the rows it holds, so when one dies its rows run out their lease and any peer takes them.</p>
-        </div>
-      </div>
-      <p class="hiw-note">Optional Redis only rings the bell so idle workers wake sooner: SQL remains the only durable truth.</p>
-      <a class="golink" href="/engine">Every cap, inside one worker</a>
     </section>
 
-    <section class="wrap" id="recurring">
-      <p class="record">Recurring work</p>
-      <h2>Two ways to run work on a schedule.</h2>
-      <p class="lede">Both run through the same admission and execution engine, and a definition without schedules is an ordinary definition. The difference is what a firing runs.</p>
-      <div class="pair modes">
-        <div class="panel">
-          <div class="panel-tab">Permanent · the default</div>
-          <pre><code><span class="a">[Job(<span class="s">"sync-orders"</span>)]</span>
-<span class="a">[Schedule(<span class="s">"every-5s"</span>, <span class="s">"PT5S"</span>)]</span>
-<span class="k">public</span> Task Sync(SyncOrders input, CancellationToken ct) =&gt; ...;</code></pre>
-          <p class="mode-note"><b>One durable slot, fired again and again.</b> <code>Idle</code> between firings; its steps, variables, and progress persist across firings, and the handler may reset them as its final action. Several schedules on one definition share the slot. For synchronization, reconciliation, incremental controllers, and repeated maintenance.</p>
-        </div>
-        <div class="panel">
-          <div class="panel-tab">PerOccurrence</div>
-          <pre><code><span class="a">[Job(<span class="s">"import-files"</span>,
-     ScheduledDelivery = ScheduledDeliveryCode.PerOccurrence)]</span>
-<span class="a">[Schedule(<span class="s">"hourly"</span>, <span class="s">"PT1H"</span>, MaxOutstanding = 1)]</span>
-<span class="k">public</span> Task Import(ImportFiles input, CancellationToken ct) =&gt; ...;</code></pre>
-          <p class="mode-note"><b>A fresh ordinary root per occurrence.</b> Its own state, retries, result, and retention; <code>MaxOutstanding</code> bounds how many of one schedule's roots may be unsettled at once. For work where each period is its own event: a billing run, an import whose files must each be tracked, a notification.</p>
-        </div>
-      </div>
-      <p class="hiw-note">Missed occurrences follow the schedule's misfire policy: skipped, caught up once, or every one in order. Backfilling past periods is application work under either mode: enqueue each period explicitly, with a deduplication key per period. <a href="https://github.com/acta-dotnet/acta/blob/main/docs/developer-guide.md#delivery-and-capacity">Delivery and capacity</a> · <a href="https://github.com/acta-dotnet/acta/blob/main/docs/developer-guide.md#backfill">Backfill</a></p>
-    </section>
-
-    <section class="wrap" id="walkthroughs">
-      <p class="record">Walkthroughs</p>
-      <h2>Step through how jobs are ordered, limited, and shared across workers.</h2>
-      <p class="lede">Three interactive walkthroughs, each on its own page: a handful of jobs and workers, moved one step at a time, with what the database records at every step.</p>
-      <div class="dives">
-        <article class="dive" id="who-runs-next">
-          <h3>How Acta decides which job runs next.</h3>
-          <p>Only the head of each lane can be claimed, jobs without a lane run in parallel, and any worker can take the next one.</p>
-          <div class="dive-art" aria-hidden="true">
-            <div class="dive-lane"><span>customer-42</span><div class="walk-job ready"><b>A1</b><span>Ready</span></div><div class="walk-job blocked"><b>A2</b><span>Blocked</span></div><div class="walk-job blocked"><b>A3</b><span>Blocked</span></div></div>
-            <div class="dive-lane"><span>customer-73</span><div class="walk-job ready"><b>B1</b><span>Ready</span></div><div class="walk-job blocked"><b>B2</b><span>Blocked</span></div></div>
-            <div class="dive-lane"><span>no lane</span><div class="walk-job ready"><b>C1</b><span>Ready</span></div><div class="walk-job ready"><b>C2</b><span>Ready</span></div></div>
-          </div>
-          <a class="golink" href="/claiming">Step through it</a>
-        </article>
-        <article class="dive" id="admission">
-          <h3>Choose which jobs run in order, how many run at once, and how often they start.</h3>
-          <p>Four independent gates. A job passes every gate it carries, and a job that carries none is never slowed by them.</p>
-          <div class="dive-art dive-gates" aria-hidden="true">
-            <div><b>Lane</b><span>one at a time, in order</span></div>
-            <div><b>ConcurrencyKey</b><span>never two at once</span></div>
-            <div><b>ConcurrencyLimit</b><span>at most N at once</span></div>
-            <div><b>RateLimit</b><span>so many starts a second</span></div>
-          </div>
-          <a class="golink" href="/gates">Step through it</a>
-        </article>
-        <article class="dive" id="fleet">
-          <h3>Add as many workers as you like. They share the work through your database.</h3>
-          <p>Every worker is a peer on the same rows. Add one and it starts claiming; kill one and the work it held comes back to the others.</p>
-          <div class="dive-art dive-workers" aria-hidden="true">
-            <div class="walk-worker fleet-worker"><div class="fleet-worker-name"><span class="fleet-beat"></span><span>W1</span></div></div>
-            <div class="walk-worker fleet-worker"><div class="fleet-worker-name"><span class="fleet-beat"></span><span>W2</span></div></div>
-            <div class="walk-worker fleet-worker dead"><div class="fleet-worker-name"><span class="fleet-beat"></span><span>W3</span></div></div>
-            <div class="walk-worker fleet-worker"><div class="fleet-worker-name"><span class="fleet-beat"></span><span>W4</span></div></div>
-            <p>W3 stopped. Nothing renews its rows, so their leases run out and W1, W2, or W4 takes them.</p>
-          </div>
-          <a class="golink" href="/fleet">Step through it</a>
-        </article>
+    <section class="wrap" id="numbers">
+      <p class="record">Numbers</p>
+      <h2>What one PostgreSQL rig measured.</h2>
+      <p class="lede">One rig, 32 logical cores and NVMe, under Acta Bench: a measurement for rough sizing, not a promise for yours.</p>
+      <div class="bench-line">
+        <a href="https://github.com/acta-dotnet/acta/blob/v1.0.0-rc.6/docs/benchmark.md#7-capacity-on-postgresql-05e5c27c"><b>7,680</b><span>fully executed, durably completed jobs per second · one worker</span></a>
+        <a href="https://github.com/acta-dotnet/acta/blob/v1.0.0-rc.6/docs/release-notes.md#evidence"><b>1,000,000</b><span>jobs, none lost, no finished step run again, a worker killed every 5 s</span></a>
       </div>
     </section>
 
-    <section class="wrap" id="install">
-      <p class="record">Install</p>
-      <h2>Install one package for your database. Nothing else to run.</h2>
-      <p class="lede">The provider package carries the runtime, the source generator, the analyzers, and the operator CLI. No broker to stand up, no sidecar, no service to operate. The embedded dashboard is one more package, <code>Acta.AspNetCore</code>, when you want it.</p>
+    <section class="wrap" id="more">
+      <p class="record">The rest of the site</p>
+      <h2>Where the details are, one line each.</h2>
+      <nav class="more" aria-label="The rest of the site">
+        <a href="/how-it-works"><span class="t">How Acta works</span><span class="s">One job model for everything that outlives the request, in ten questions.</span></a>
+        <a href="/learn"><span class="t">Learn Acta</span><span class="s">The full tutorial: build a report service that survives a crash.</span></a>
+        <a href="/engine"><span class="t">Inside one worker</span><span class="s">How one worker claims, runs, and finalizes a job, and what happens when the database is slow.</span></a>
+        <a href="https://github.com/acta-dotnet/acta/blob/main/docs/engineering-labs.md"><span class="t">Engineering labs</span><span class="s">Every design decision as a small project you can run from a fresh clone.</span></a>
+        <a href="https://github.com/acta-dotnet/acta/blob/main/docs/architecture-decisions.md"><span class="t">What Acta leaves out</span><span class="s">No visual designer or BPMN, no message bus, no hosted control plane: a library in your process and tables in your database.</span></a>
+      </nav>
+    </section>
+
+    <section class="wrap" id="build">
+      <p class="record">Build it</p>
+      <h2>Build it with your coding agent.</h2>
+      <p class="lede">Paste one of these into Claude Code or Codex. The agent reads <a href="/llms.txt">useacta.net/llms.txt</a> and builds the app.</p>
+      <div class="install">
+        <div class="prompt-row">
+          <p>Read https://useacta.net/llms.txt, then build an Acta app on SQLite that shows a new joke every 10 seconds, fails every fifth time and retries after a second so I can watch the retries, and opens the dashboard.</p>
+          <button type="button" class="copy" data-copy="Read https://useacta.net/llms.txt, then build an Acta app on SQLite that shows a new joke every 10 seconds, fails every fifth time and retries after a second so I can watch the retries, and opens the dashboard." aria-label="Copy the joke app prompt">Copy</button>
+        </div>
+        <div class="prompt-row">
+          <p>Read https://useacta.net/llms.txt, then build an Acta pizza shop on SQLite: POST /orders bakes each pizza in a 30-second durable sleep that survives restarting the app mid-bake. Show me how to try the restart, then open the dashboard.</p>
+          <button type="button" class="copy" data-copy="Read https://useacta.net/llms.txt, then build an Acta pizza shop on SQLite: POST /orders bakes each pizza in a 30-second durable sleep that survives restarting the app mid-bake. Show me how to try the restart, then open the dashboard." aria-label="Copy the pizza shop prompt">Copy</button>
+        </div>
+        <div class="prompt-row">
+          <p>Read https://useacta.net/llms.txt, then add Acta to this app on the database it already uses, move one slow endpoint into a durable job with retries, tell me which one you picked, and show me the job's rows when it has run.</p>
+          <button type="button" class="copy" data-copy="Read https://useacta.net/llms.txt, then add Acta to this app on the database it already uses, move one slow endpoint into a durable job with retries, tell me which one you picked, and show me the job's rows when it has run." aria-label="Copy the existing app prompt">Copy</button>
+        </div>
+      </div>
       <div class="install">
         <div class="install-row primary">
           <div class="install-meta"><b>Zero setup</b><span>embedded SQLite, single node</span></div>
@@ -580,303 +390,21 @@
           <button type="button" class="copy" data-copy="dotnet add package Acta.SqlServer --prerelease" aria-label="Copy the SQL Server install command">Copy</button>
         </div>
       </div>
-      <p class="hiw-note">Requires .NET 10. The schema is a precondition, not a side effect: apply it with the committed provisioning script, or set <code>ApplyMigrationsOnStartup</code> for local work. Use Acta when the work must outlive the process that started it.</p>
-    </section>
-
-    <section class="wrap" id="model">
-      <p class="record">What you can build</p>
-      <div class="example-head">
-        <div>
-          <h2>Long-running work that survives crashes and deploys.</h2>
-          <p class="example-subtitle">Different domains, one shape</p>
-          <p class="lede">No domain types: a step may call a model, a payment rail, FFmpeg, or a machine. What these share is work measured in minutes or days, expensive to repeat, and unacceptable to lose.</p>
-        </div>
-        <aside class="callout">
-          <b>The common thread</b>
-          <p>A recorded step is not run again, and a long wait holds a row, not a worker.</p>
-        </aside>
-      </div>
-
-      <div class="builds">
-        <div class="build">
-          <h3>AI agents and LLM pipelines</h3>
-          <span class="carries"><b>RunStepAsync</b> persists a completed step<br /><b>WaitSignalAsync</b> holds approval for days<br /><b>GetOrSetVariableAsync</b> is memory that survives the process</span>
-        </div>
-        <div class="build">
-          <h3>Document processing</h3>
-          <span class="carries"><b>MapAsync</b> fans a batch out with lineage<br /><b>JobPayload</b> by reference for large artifacts<br /><b>ctx.NoteAsync</b> for the per-document audit line</span>
-        </div>
-        <div class="build">
-          <h3>Media and video encoding</h3>
-          <span class="carries"><b>MapAsync</b> fans out one encode per rendition<br /><b>AtMostOnce()</b> on the publish<br />leases reclaimed when the encoder box dies</span>
-        </div>
-        <div class="build">
-          <h3>Manufacturing and physical processes</h3>
-          <span class="carries"><b>SleepAsync</b> for a wait measured in hours<br /><b>AtMostOnce()</b> where a repeat is a physical event<br />never real-time or safety control</span>
-        </div>
-        <div class="build">
-          <h3>Orders, billing, and payments</h3>
-          <span class="carries"><b>Transactional enqueue</b> in your own commit<br /><b>DeduplicationKey</b> makes a retry free<br /><b>Lane</b> one at a time per customer, in order</span>
-        </div>
-        <div class="build">
-          <h3>Pipelines, backfills, and ETL</h3>
-          <span class="carries"><b>[Schedule]</b> with cron or a duration<br />retries budgeted, not unbounded<br />the ledger is the audit trail</span>
-        </div>
-      </div>
-
-    </section>
-
-    <section class="wrap" id="labs">
-      <p class="record">Engineering labs</p>
-      <div class="example-head">
-        <div>
-          <h2>Every design decision, as a project you can run.</h2>
-          <p class="example-subtitle">Ten questions, answered in rows</p>
-          <p class="lede">Each lab is a small project whose README asks the question and prints the rows that answer it. <a href="https://github.com/acta-dotnet/acta/blob/main/docs/engineering-labs.md">The field guide</a> orders them into a 45-minute tour.</p>
-        </div>
-        <aside class="callout">
-          <b>How to run one</b>
-          <p>From a fresh clone, on embedded SQLite; only the two-process crash lab 705 needs a real server.</p>
-        </aside>
-      </div>
-
-      <div class="builds">
-        <div class="build">
-          <h3>Can one permanent job keep a system in sync?</h3>
-          <p>A firing every five seconds applies one batch from a watermark the job keeps as a durable variable and returns the slot to <code>Idle</code>; the worker is killed after a batch, and the restarted one reclaims the same firing and continues at the watermark.</p>
-          <span class="carries"><a href="https://github.com/acta-dotnet/acta/tree/main/concepts/100-scheduling/109-continuous-synchronization"><b>109-continuous-synchronization</b></a><br /><a href="https://github.com/acta-dotnet/acta/tree/main/concepts/800-testing/804-continuous-synchronization-tests"><b>804-continuous-synchronization-tests</b></a></span>
-        </div>
-        <div class="build">
-          <h3>Can recurring work run forever on one row?</h3>
-          <p>One job row per recurring slot, re-armed on every fire, with coincident schedules coalesced and missed windows skipped or caught up once.</p>
-          <span class="carries"><a href="https://github.com/acta-dotnet/acta/tree/main/concepts/100-scheduling/103-multiple-schedules"><b>103-multiple-schedules</b></a><br /><a href="https://github.com/acta-dotnet/acta/tree/main/concepts/100-scheduling/106-schedule-misfire"><b>106-schedule-misfire</b></a></span>
-        </div>
-        <div class="build">
-          <h3>Can real-database tests take milliseconds and run in parallel?</h3>
-          <p><code>Acta.Testing</code> drives the real runtime one tick at a time, each test in its own schema, in tens of milliseconds.</p>
-          <span class="carries"><a href="https://github.com/acta-dotnet/acta/tree/main/concepts/800-testing/802-testing-durable-jobs"><b>802-testing-durable-jobs</b></a><br /><a href="https://github.com/acta-dotnet/acta/blob/main/docs/developer-guide.md#testing-custom-jobs"><b>docs/developer-guide.md</b></a></span>
-        </div>
-        <div class="build">
-          <h3>Can SQL replace a job queue, without a leader?</h3>
-          <p>Claim, lease, and recovery are SQL, and recovery rides every worker&rsquo;s heartbeat: the lab kills a worker mid-attempt and another recovers the job.</p>
-          <span class="carries"><a href="https://github.com/acta-dotnet/acta/tree/main/concepts/700-topology-and-deployment/705-worker-crash-recovery"><b>705-worker-crash-recovery</b></a><br />PostgreSQL or SQL Server</span>
-        </div>
-        <div class="build">
-          <h3>Can the worker binary be the admin tool, and can a job explain itself?</h3>
-          <p><code>app jobs explain</code> reads a job&rsquo;s durable state and says what to do; <code>jobs debug</code> runs one job under your debugger.</p>
-          <span class="carries"><a href="https://github.com/acta-dotnet/acta/tree/main/concepts/000-fundamentals/021-jobs-cli"><b>021-jobs-cli</b></a></span>
-        </div>
-        <div class="build">
-          <h3>Can hot keys stop blocking workers?</h3>
-          <p>A concurrency-key loser re-arms instead of waiting on a lock, and a rate limit books each job its turn.</p>
-          <span class="carries"><a href="https://github.com/acta-dotnet/acta/tree/main/concepts/200-durable-execution/209-concurrency-key"><b>209-concurrency-key</b></a></span>
-        </div>
-        <div class="build">
-          <h3>Can a job refuse unsafe replay?</h3>
-          <p><code>AtMostOnce()</code> never runs a step body twice: an interrupted step throws, and the handler reconciles.</p>
-          <span class="carries"><a href="https://github.com/acta-dotnet/acta/tree/main/concepts/200-durable-execution/220-at-most-once-step"><b>220-at-most-once-step</b></a></span>
-        </div>
-        <div class="build">
-          <h3>Can fan-out be ordinary jobs?</h3>
-          <p>Children are normal jobs, and the parent waits on a durable latch without holding a lease.</p>
-          <span class="carries"><a href="https://github.com/acta-dotnet/acta/tree/main/concepts/200-durable-execution/211-child-jobs"><b>211-child-jobs</b></a></span>
-        </div>
-        <div class="build">
-          <h3>Can the schema be the runtime?</h3>
-          <p>The worker runs from a handful of rows (steps, variables, signals, timers, results, events) that operators read through views.</p>
-          <span class="carries"><a href="https://github.com/acta-dotnet/acta/tree/main/concepts/200-durable-execution/201-durable-checkout"><b>201-durable-checkout</b></a></span>
-        </div>
-        <div class="build">
-          <h3 id="data-model">Can the data model stay this small?</h3>
-          <p>Codes are small integers, the hot row stays narrow, and the model is frozen at 1.0: only additive migrations from here.</p>
-          <span class="carries"><a href="https://github.com/acta-dotnet/acta/blob/main/docs/reference/data-model.md"><b>docs/reference/data-model.md</b></a><br /><a href="https://github.com/acta-dotnet/acta/blob/main/docs/architecture-decisions.md"><b>docs/architecture-decisions.md</b></a></span>
-        </div>
-      </div>
-    </section>
-
-    <section class="wrap" id="compare">
-      <p class="record">How it compares</p>
-      <h2>How Acta compares with Hangfire, Quartz.NET, TickerQ, Temporal, and message brokers.</h2>
-      <p class="lede">This table is the short version. The full fit guide covers when to keep exactly what you have. <a class="golink" href="https://github.com/acta-dotnet/acta/blob/main/docs/choosing-acta.md">Choosing Acta</a></p>
-      <div class="vs">
-        <div class="vs-row">
-          <div class="who"><b>Hangfire</b><span>background jobs</span></div>
-          <div class="why"><b>Keep Hangfire when its familiar persistent job runner is enough.</b> Consider Acta when job state should become first-class application data, with durable steps, signals, lineage, and curated SQL inspection. <a class="golink" href="/from-hangfire">Migration notes</a></div>
-        </div>
-        <div class="vs-row">
-          <div class="who"><b>TickerQ</b><span>source-generated scheduler</span></div>
-          <div class="why"><b>Keep TickerQ when you want a source-generated scheduler with persistence, dashboard tooling, chaining, priorities, and concurrency controls.</b> Consider Acta when SQL must serve as the durable operational ledger for resumable work: checkpoints, signals, recovery evidence, and operator intervention. <a class="golink" href="/from-tickerq">Migration notes</a></div>
-        </div>
-        <div class="vs-row">
-          <div class="who"><b>Quartz</b><span>scheduling</span></div>
-          <div class="why"><b>Keep Quartz when calendar sophistication, cron behavior, and misfire handling are the main problem.</b> Consider Acta when the execution lifecycle matters more than the calendar: durable steps, leases, waits, recovery, lineage, and operator controls. <a class="golink" href="/from-quartz">Migration notes</a></div>
-        </div>
-        <div class="vs-row">
-          <div class="who"><b>Temporal / Dapr Workflow / Durable Task</b><span>replay engines</span></div>
-          <div class="why"><b>Keep a replay engine when deterministic event-history replay and orchestration semantics are requirements.</b> Consider Acta when you want ordinary re-entrant .NET handlers with no determinism contract, checkpoints instead of replayed history, and application-owned SQL state. <a class="golink" href="/vs-temporal">The longer answer</a></div>
-        </div>
-        <div class="vs-row">
-          <div class="who"><b>A broker or message bus</b><span>Kafka, RabbitMQ, SQS, MassTransit, NServiceBus, …</span></div>
-          <div class="why"><b>Keep a broker when you need distributed messaging, pub/sub, transport abstraction, or endpoint contracts.</b> Use Acta for the work a message starts, which needs a database to be durable: with a broker in front of it or without one. <a class="golink" href="/vs-brokers">The longer answer</a></div>
-        </div>
-        <div class="vs-row">
-          <div class="who"><b>DIY queue table</b><span>+ hosted service</span></div>
-          <div class="why"><b>Keep a DIY queue table when enqueue, claim, and complete are genuinely enough, and you are prepared to own its failure modes.</b> Consider Acta before adding leases, retries, schedules, recovery, operator controls, a dashboard, and deterministic testing yourself.</div>
-        </div>
-      </div>
-    </section>
-
-    <section class="wrap center" id="dashboard">
-      <p class="record centered">The dashboard</p>
-      <h2>A built-in dashboard shows what every job is doing.</h2>
-      <p class="lede">The embedded dashboard reads the same durable rows you can query yourself (backlog, failures, dead workers with heartbeats, next schedules) and says what needs action. It ships inside your app as a library, local-only by default (browse to it as localhost or 127.0.0.1), with mutating verbs off until you enable them; removing the local-only guard without configuring authorization does not degrade, it refuses to start.</p>
-      <figure class="shot">
-        <div class="shot-media" tabindex="0" aria-label="Dashboard screenshot; horizontally scrollable on small screens">
-          <img src="assets/dash-dark-overview.webp" alt="Acta operator dashboard, dark theme: Overview page with health verdict, job counts, failed jobs, alerts, outbox relays, and workers with heartbeats, captured mid-run" loading="lazy" width="3200" height="2000" />
-        </div>
-        <figcaption>
-          <span class="stamp">Field record · Anvil steady run</span>
-          <span>Captured mid-run: 10,000 jobs draining through two workers. The ledger shows the backlog, the oldest ready job, live heartbeats, and the next schedule firings. <a class="golink" href="https://github.com/acta-dotnet/acta/blob/main/docs/operator-guide.md">Operator guide</a></span>
-        </figcaption>
-      </figure>
-    </section>
-
-    <section class="wrap" id="boundaries">
-      <p class="record">Numbers &amp; boundaries</p>
-      <h2>Benchmarks, tests, and what Acta does not do.</h2>
-      <div class="bench-line">
-        <div><b><a href="https://github.com/acta-dotnet/acta/blob/v1.0.0-rc.6/docs/benchmark.md#7-capacity-on-postgresql-05e5c27c" style="text-decoration:none">7,680</a></b><span>fully executed, durably completed jobs per second · PostgreSQL · one worker · rc.6 evidence</span></div>
-        <div><b><a href="https://github.com/acta-dotnet/acta/blob/v1.0.0-rc.6/docs/benchmark.md#2-postgresql-fb8f8414" style="text-decoration:none">77,662</a></b><span>jobs per second, steady drain of a 200k-job backlog · PostgreSQL · 8 workers</span></div>
-        <div><b><a href="https://github.com/acta-dotnet/acta/blob/v1.0.0-rc.6/docs/release-notes.md#evidence" style="text-decoration:none">1,000,000 jobs</a></b><span>none lost, no step run twice, while a worker was killed every 5 s · on Postgres <em>and</em> SQL Server</span></div>
-        <div><b>0 Docker</b><span>one package reference → a durable job on embedded SQLite</span></div>
-      </div>
-      <p class="bench-note">One rig (32 logical cores, NVMe), the Acta Bench full profile: a rate counts only when every repeated trial at it keeps up. A measurement of that rig for rough sizing, not a promise for yours.</p>
-      <div class="proof" id="tests">
-        <h3><em>5,053 tests</em> on every run. The median end-to-end test takes <em>27 ms</em> on PostgreSQL.</h3>
-        <p class="lede">Each of about 1,050 conformance specs drives a real Acta runtime, claiming, executing, settling, and recovering, against a real database, and the same spec runs on all three providers: 3,126 end-to-end runs plus 1,927 unit and contract tests. Test speed is a feature, so the suites are measured, too.</p>
-        <div class="table-scroll" tabindex="0" aria-label="Test suite sizes and timings; horizontally scrollable on small screens">
-          <table class="data-table">
-            <caption class="sr-only">Test suites: number of tests, wall time for the whole suite in parallel, and each test's own duration percentiles measured one test at a time</caption>
-            <thead><tr><th scope="col">Suite</th><th scope="col">Tests</th><th scope="col">Wall</th><th scope="col">p50</th><th scope="col">p90</th><th scope="col">p95</th><th scope="col">p99</th></tr></thead>
-            <tbody>
-              <tr><th scope="row">Unit and contract<small>no database</small></th><td>1,927</td><td class="lead">15 s</td><td>0.4 ms</td><td>54 ms</td><td>79 ms</td><td>434 ms</td></tr>
-              <tr><th scope="row">End to end<small>PostgreSQL</small></th><td>1,047</td><td class="lead">11 s</td><td>27 ms</td><td>81 ms</td><td>138 ms</td><td>1.73 s</td></tr>
-              <tr><th scope="row">End to end<small>SQLite</small></th><td>1,029<small>15 provider-skipped</small></td><td class="lead">22 s</td><td>11 ms</td><td>29 ms</td><td>70 ms</td><td>1.07 s</td></tr>
-              <tr><th scope="row">End to end<small>SQL Server</small></th><td>1,050</td><td class="lead">21 s</td><td>43 ms</td><td>135 ms</td><td>242 ms</td><td>2.11 s</td></tr>
-            </tbody>
-          </table>
-        </div>
-        <p class="hint">Wall is the whole suite as it normally runs, every test in parallel against one database, each suite on its own. The percentiles are each test's own time, from the same suite run one test at a time, so they leave out waiting for other tests. The p99 tail is the chaos and timing specs that wait out a lease or a poll on purpose. Measured 2026-10-17 against fresh databases, one rig: 32 logical cores, NVMe, Docker PostgreSQL 18 and SQL Server 2022. Beyond the suites, every release also runs a package smoke and the chaos certification. <a class="golink" href="https://github.com/acta-dotnet/acta/blob/v1.0.0-rc.6/docs/release-notes.md#evidence">Certification records</a></p>
-      </div>
-      <ul class="nots">
-        <li><b>No deterministic replay</b>, checkpoints instead; completed slots don't re-run.</li>
-        <li><b>No BPMN, no visual designer, no message bus, no hosted control plane.</b></li>
-        <li><b>At-least-once execution</b>, recorded step outcomes are repeat-safe; external effects still need idempotency or reconciliation. <code>AtMostOnce()</code> trades possible duplication for an explicitly ambiguous outcome. <a class="golink" href="https://github.com/acta-dotnet/acta/blob/main/docs/developer-guide.md#at-most-once-steps">At-most-once steps</a></li>
-        <li><b>Not for every job</b>: disposable local loops belong in <code>BackgroundService</code> or cron.</li>
-      </ul>
-    </section>
-
-    <section class="wrap" id="inventory">
-      <p class="record">Capabilities · quick reference</p>
-      <h2>Everything Acta includes, at a glance.</h2>
-      <p class="lede">The one-line version of everything Acta does. Each is explained, with the API behind it, in <a href="https://github.com/acta-dotnet/acta/blob/main/docs/developer-guide.md">the developer guide</a>.</p>
-      <div class="fgrid">
-        <div class="fcol">
-          <h3>Jobs &amp; scheduling</h3>
-          <ul>
-            <li><b>Fire-and-forget · delayed · recurring</b> under one model: <code>EnqueueAsync</code>, <code>ScheduleAsync</code>, <code>[Schedule]</code></li>
-            <li><b>Durable retries</b> with typed backoff: policy, not folklore</li>
-            <li><b>Persistent schedule cursors</b>: missed windows explicit; one stable job row</li>
-            <li><b>Deduplication keys</b> stop blind repeats at enqueue</li>
-            <li><b>Atomic enqueue with your data</b>: one transaction, or the external outbox</li>
-          </ul>
-        </div>
-        <div class="fcol" id="primitives">
-          <h3>Execution primitives</h3>
-          <ul>
-            <li><b>Named durable steps</b>: recorded outcomes return on re-entry</li>
-            <li><b><code>AtMostOnce()</code></b>: record intent before invocation; reconcile an interruption</li>
-            <li><b>Durable sleeps &amp; signals</b>: wait days, hold no thread</li>
-            <li><b>Checkpoint slots</b>: resume with intermediate results</li>
-            <li><b>Child jobs</b>: fan-out / fan-in, lineage</li>
-            <li><b>Lanes</b>: strict order per key; only the head is claimable</li>
-            <li><b>Concurrency keys, limits &amp; locks</b></li>
-            <li><b>Rate limits</b>: <code>600/m</code> per definition, one meter per key</li>
-          </ul>
-        </div>
-        <div class="fcol" id="recovery">
-          <h3>Failure &amp; recovery</h3>
-          <ul>
-            <li><b>Leases with automatic lapse</b>: leaderless reclaim &amp; retry</li>
-            <li><b>Survives crashes, rolling deploys,</b> restarts: two builds share a namespace, a rollback just works</li>
-            <li><b>Explain</b>: a job tells you why, and what next</li>
-            <li><b>Restart month-old failures</b> with stored input</li>
-            <li><b>Failure alerts</b>: queryable rows</li>
-          </ul>
-        </div>
-        <div class="fcol">
-          <h3>Visibility &amp; ops</h3>
-          <ul>
-            <li><b>Everything SQL-visible</b>: with curated operator views</li>
-            <li><b>Append-only event ledger</b> per job</li>
-            <li><b>Embedded dashboard</b>: an operational tool</li>
-            <li><b>CLI in every host</b>: incl. <code>jobs debug</code> under a breakpoint</li>
-            <li><b>Opt-in controls</b>: pause, cancel, restart, signal</li>
-            <li><b>Namespaces &amp; tenants</b>: who runs the work, who it is about</li>
-          </ul>
-        </div>
-        <div class="fcol">
-          <h3>Engineering quality</h3>
-          <ul>
-            <li><b>pg · mssql · sqlite</b>: one operational model</li>
-            <li><b>Generated dispatch,</b> NativeAOT, no reflection</li>
-            <li><b>1 SQL round-trip</b> per state change</li>
-            <li><b>Deterministic test host</b>: real-DB tests in tens of ms</li>
-            <li><b>Typed contracts</b>: <code>[Job]</code> is the durable name</li>
-            <li><b>Redis as a bell only</b>; pluggable payload serializers</li>
-            <li><b>Anvil lab</b>: a million jobs, kill workers, watch recovery</li>
-          </ul>
-        </div>
-      </div>
-    </section>
-
-
-    <section class="wrap" id="run">
-      <p class="record">Run it</p>
-      <h2>Run your first durable job in five minutes.</h2>
-      <p class="lede">Fresh clone to a running durable job on embedded SQLite: then point the same code at Postgres or SQL Server when it matters. Apache-2.0: the runtime, dashboard, CLI, and all SQL providers are free.</p>
-      <div class="term">
-        <div class="term-bar"><i></i><i></i><i></i>&nbsp;fresh clone → running durable job</div>
-        <pre><code><span class="p">$</span> git clone https://github.com/acta-dotnet/acta &amp;&amp; cd acta
-<span class="p">$</span> dotnet run --project concepts/000-fundamentals/001-hello-acta
-<span class="out">Enqueued. The worker is running - press Ctrl+C to stop.
-Hello, World!</span>
-<span class="c"># press Ctrl+C, then:</span>
-<span class="p">$</span> dotnet run --project anvil/Anvil
-<span class="out">Anvil         : http://127.0.0.1:5059/</span></code></pre>
-      </div>
-    </section>
-
-    <section class="wrap center" id="outro">
-      <div class="actions" style="justify-content:center">
-        <a class="button primary" href="https://github.com/acta-dotnet/acta">View on GitHub</a>
-        <a class="button" href="https://github.com/acta-dotnet/acta/tree/main/concepts/100-scheduling/109-continuous-synchronization">Run the synchronization lab</a>
-        <a class="button" href="https://github.com/acta-dotnet/acta/tree/main/docs">Read the docs</a>
-      </div>
+      <p class="hiw-note">Requires .NET 10. Add <code>Acta.AspNetCore</code> for the dashboard.</p>
     </section>
 
     <footer>
       Apache-2.0 · built in the open
       <span class="sep">·</span><a href="https://github.com/acta-dotnet/acta">GitHub</a>
       <span class="sep">·</span><a href="https://github.com/acta-dotnet/acta/tree/main/docs">Docs</a>
-      <span class="sep">·</span><a href="https://github.com/acta-dotnet/acta/blob/main/docs/compatibility-and-support.md">Support</a>
+      <span class="sep">·</span><a href="/llms.txt">llms.txt</a>
+      <span class="sep">·</span><a href="https://github.com/acta-dotnet/acta/blob/main/docs/compatibility-and-support.md">Compatibility</a>
       <span class="sep">·</span>Created by <a href="https://www.linkedin.com/in/marko-voncina">Marko Vončina</a>
     </footer>
   </main>
   <script>
-    // Two short links for the outside. useacta.net/#capabilities is the anchor on the full reference
-    // above; useacta.net/#concepts hands off to the runnable concepts in the repository, since the
-    // site has no page of its own for them.
+    // Two short links for the outside. useacta.net/#capabilities is the section above; useacta.net/#concepts
+    // hands off to the runnable concepts in the repository, since the site has no page of its own for them.
     const handOffConcepts = () => {
       if (location.hash === '#concepts') {
         location.replace('https://github.com/acta-dotnet/acta/tree/main/concepts');
@@ -885,8 +413,8 @@ Hello, World!</span>
     handOffConcepts();
     addEventListener('hashchange', handOffConcepts);
 
-    // Copy buttons on the install commands. Progressive enhancement: without JS the command is
-    // still selectable text, and the button simply does nothing rather than lying about it.
+    // Copy buttons on the prompts and the install commands. Progressive enhancement: without JS the
+    // text is still selectable, and the button simply does nothing rather than lying about it.
     for (const button of document.querySelectorAll('.copy')) {
       button.addEventListener('click', async () => {
         try {

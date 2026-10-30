@@ -113,24 +113,26 @@ pre code { font-size: inherit; color: inherit; }
 .chrome nav { margin-left: auto; display: flex; gap: 1.6rem; }
 .chrome nav a { text-decoration: none; }
 .chrome nav a:hover { color: var(--verdi); }
-/* the day/night switch, added by assets/theme.js: a sun at night, a moon by day */
+/* the day/night switch, added by assets/theme.js: two words in the chrome's own type, the one that is on lit */
 .chrome .theme {
-  flex: none; align-self: center; width: 1.85rem; height: 1.85rem; padding: 0; margin-left: 0.2rem;
-  display: inline-flex; align-items: center; justify-content: center;
-  border: 1px solid var(--hair); border-radius: 50%; background: transparent; color: var(--faint); cursor: pointer;
-  transition: color 0.15s ease, border-color 0.15s ease;
+  flex: none; margin-left: 0.2rem; padding: 0; border: 0; background: transparent; cursor: pointer;
+  display: inline-flex; gap: 0.6em; align-items: baseline;
+  font: inherit; letter-spacing: inherit; text-transform: inherit; color: var(--faint);
 }
-.chrome .theme:hover { color: var(--verdi); border-color: var(--verdi); }
-.chrome .theme svg { width: 14px; height: 14px; }
-.chrome .theme .moon, :root[data-theme="light"] .chrome .theme .sun { display: none; }
-:root[data-theme="light"] .chrome .theme .moon { display: block; }
+.chrome .theme span { transition: color 0.15s ease; }
+.chrome .theme .night, :root[data-theme="light"] .chrome .theme .day { color: var(--text); }
+:root[data-theme="light"] .chrome .theme .night { color: var(--faint); }
+.chrome .theme:hover .day, .chrome .theme:hover .night { color: var(--verdi); }
 @media (max-width: 700px) {
   .chrome { gap: 0.9rem; font-size: 0.68rem; }
   .chrome .meta { display: none; }
-  .chrome nav { gap: 0.8rem; }
+  .chrome nav { gap: 0.7rem; }
   .chrome nav a { white-space: nowrap; }
   .chrome nav .nav-more { display: none; }
-  .chrome .theme { width: 1.6rem; height: 1.6rem; margin-left: 0; }
+  /* on a phone only the word you can switch to is shown */
+  .chrome .theme { margin-left: 0; }
+  .chrome .theme .dot, .chrome .theme .night, :root[data-theme="light"] .chrome .theme .day { display: none; }
+  :root[data-theme="light"] .chrome .theme .night { display: inline; }
 }
 
 /* the record line: a ledger stamp that opens every section */
@@ -286,7 +288,7 @@ footer .sep { margin: 0 0.9em; opacity: 0.5; }
 
 @media (prefers-reduced-motion: reduce) {
   html { scroll-behavior: auto; }
-  .skip-link, .button, .copy, .golink, .golink::after, .chrome .theme { transition: none; }
+  .skip-link, .button, .copy, .golink, .golink::after, .chrome .theme span { transition: none; }
 }
 @media print {
   :root { --text: #111; --muted: #333; --faint: #555; --panel: #fff; --panel-2: #f4f4f4; --hair: #ccc; --hair-soft: #ddd; --verdi: #0a6b52; --code: #111; --code-inline: #111; }

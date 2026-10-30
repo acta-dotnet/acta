@@ -478,8 +478,24 @@ A type is `{Subject}{Role}`, one suffix per role. An operation is `VerbNoun` (`P
 
 **A database integer is never a wire identity.** Surrogate keys are the engine's own bookkeeping: they
 are dense, guessable, recycled by a restored backup, and meaningless to anyone outside the schema.
-Every entity a caller addresses therefore carries a public ref instead, and its integer stays behind
-the boundary. Ledger positions and counters are not caught by this rule - `jobEventId`,
+Its integer stays behind the boundary; the entity's naming determines its public identity.
+
+**Rule A: refs are for entities without a stable unique name.** Apply the same rule to every entity:
+
+- **Unnamed entities** use a public ref: Job, Alert, Worker. A job's definition name does not uniquely
+  name the job instance.
+- **Named entities** use their name or a composed path within the required scope: Definition,
+  Namespace, Tenant, Lane, Schedule. A schedule uses `namespace/job/schedule-name`. Being a first-class
+  entity does not itself require a ref.
+- **Owned entities** use their owner's public identity plus their local name: Checkpoint, Step, Tag.
+  They do not need a separate ref.
+
+If an entity gains renames that preserve its identity, introduce a stable public ref as part of that
+feature; names and paths remain convenient lookups. A new declaration under a different name follows
+the normal named-entity rule. Numeric ids remain internal, subject to the in-process and SQL exceptions
+below.
+
+Ledger positions and counters are not caught by this rule - `jobEventId`,
 `executionNumber`, `occurrenceCount`, `failureCount`, `version` are *values*, and a value is allowed to
 be a number.
 
@@ -495,8 +511,10 @@ keeps the ref its first firing minted.
 The boundary has three sides, and only two of them are inside it:
 
 - **HTTP/JSON and the CLI are inside.** No integer identity appears in a payload, a route, a query
-  parameter, or a printed line. Catalog entities - definition, namespace, tenant - are addressed by
-  their natural key (`{jobNamespace}/{jobName}`, `{tenantName}`) and carry no ref at all.
+  parameter, or a printed line. Named entities - definition, namespace, tenant, lane, schedule - use
+  their natural name/path (`{jobNamespace}/{jobName}`, `{tenantName}`,
+  `{jobNamespace}/{jobName}/{scheduleName}`) and carry no ref unless identity-preserving renames require
+  one under Rule A.
 - **The in-process .NET API is outside, by documented exception.** A handler is already running inside
   the engine, so making it round-trip a ref would buy nothing and cost a lookup. These categories are
   the whole list, not a pattern to extend:

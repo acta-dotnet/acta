@@ -7,6 +7,9 @@
     <loc>https://useacta.net/start</loc>
   </url>
   <url>
+    <loc>https://useacta.net/capabilities</loc>
+  </url>
+  <url>
     <loc>https://useacta.net/learn</loc>
   </url>
   <url>
@@ -26,20 +29,5 @@
   </url>
   <url>
     <loc>https://useacta.net/llms.txt</loc>
-  </url>
-  <url>
-    <loc>https://useacta.net/from-hangfire</loc>
-  </url>
-  <url>
-    <loc>https://useacta.net/from-quartz</loc>
-  </url>
-  <url>
-    <loc>https://useacta.net/from-tickerq</loc>
-  </url>
-  <url>
-    <loc>https://useacta.net/vs-temporal</loc>
-  </url>
-  <url>
-    <loc>https://useacta.net/vs-brokers</loc>
   </url>
 </urlset>

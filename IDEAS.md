@@ -98,44 +98,7 @@ The typed operations API, HTTP API, and dashboard would all follow the same deci
 
 ## Schedules created by operators
 
-Acta already has most of the vocabulary for this idea. `ScheduleOriginCode.Operator` is reserved, and
-the schedule table says that operator-origin schedules can be added and removed, but no current code
-path creates one. Today an operator can pause, resume, trigger, and override a schedule that was
-declared with `[JobSchedule]`; the operator cannot create a new schedule from the dashboard or API.
-
-An operator-created schedule would attach a new named cadence to a registered job definition. The
-creation screen could accept a name, cron or interval expression, time zone, misfire strategy,
-description, and reason. Before saving, it should preview the next occurrences using the same parser
-and clock rules as the real scheduler. Once created, it should appear beside code-declared schedules,
-clearly marked as operator-owned.
-
-Ownership should remain easy to understand. A code-declared schedule can be paused or overridden by
-an operator, but its declaration still comes from code. An operator-created schedule can be edited or
-removed by an operator and must survive ordinary catalog synchronization and application restarts.
-Removing it should write a durable audit event. If it was the last live schedule on the recurring
-slot, the slot should become visibly exhausted or paused rather than silently disappearing with its
-history.
-
-The main design question is the recurring slot's input. Several schedules for one definition share
-one stable slot job and therefore share its stored input. The smallest first version could allow an
-operator schedule only when that definition already has a recurring slot. A fuller version could
-also create the slot for an unscheduled definition when the handler has no input, has a generated
-default input, or the operator supplies a valid initial payload. The dashboard must explain that the
-input belongs to the shared slot, not independently to each schedule.
-
-Creation, update, and removal should use optimistic concurrency and the existing control
-authorization and confirmation rules. Name collisions between operator-owned and code-declared
-schedules must be rejected rather than resolved by precedence. The event ledger should record who
-created, changed, or removed the schedule and why.
-
-The same machinery could serve application code as well as operators: a registration created at
-runtime, such as `Recurring.AddOrUpdateAsync("customer-42-daily-report", new GenerateReport(42),
-Cron.Daily)`, the shape Hangfire users know. The difference from today is that each registration
-would own its input and tenant instead of sharing one slot's, so it needs its own slot job. The
-rules to settle first: the id is stable and namespace-scoped, repeating the call updates the
-registration, a running execution keeps the input it started with, removal stops future runs
-without cancelling the current one, and the time zone is UTC unless the caller says otherwise.
-Runtime registrations stay apart from code-declared ones, so a deploy never retires them.
+Deferred beyond rc7; see [runtime/operator-created schedules](PLAN.md#runtimeoperator-created-schedules). The rc7 identity/usability proposal is specified in [SCHEDULING.md](SCHEDULING.md).
 
 ## Application actions over HTTP
 
@@ -357,3 +320,11 @@ act as backpressure, and the conformance suites on three providers. The first st
 maps each strand to what already holds and the test that proves it, and lists the gaps. The ambiguous
 commit, where a completion's commit succeeded but its acknowledgement was lost, is the case most likely
 to need new tests.
+
+## Verify the migration recipe for consumers
+
+Verify, end to end, the recipe an application team follows to manage Acta's migrations in their own app:
+how the emitted `M..._init` and later scripts reach their database, who applies them (the app at start,
+a DBA, a pipeline), how a rolling deploy stays safe, and how the team tells a pending migration from an
+applied one. Write it so an LLM reading llms.txt or the docs gets it right on the first try: one path,
+exact commands, no choices left implicit.
