@@ -7,20 +7,13 @@ public abstract partial class JobContext
     private static readonly TimeSpan DefaultLockTimeout = TimeSpan.FromSeconds(30);
 
     /// <summary>
-    /// Runs <paramref name="action"/> while holding a mutual-exclusion lock on <paramref name="key"/> (an opaque user
-    /// key, segmented and scoped internally; <paramref name="scope"/> is namespace-wide by default or cluster-wide,
-    /// see <see cref="LockScope"/>). Acquisition is immediate-then-retry with exponential backoff until the
-    /// <paramref name="timeout"/> budget is spent (null is about 30 s, <see cref="TimeSpan.Zero"/> one attempt); the
-    /// lock is released when the action returns or throws.
+    /// Runs <paramref name="action"/> while holding a mutual-exclusion lock on <paramref name="key"/>, an opaque user
+    /// key scoped to the job's namespace, so two namespaces hold the same key without contending. Acquisition is
+    /// immediate-then-retry with exponential backoff until the <paramref name="timeout"/> budget is spent (null is
+    /// about 30 s, <see cref="TimeSpan.Zero"/> one attempt); the lock is released when the action returns or throws.
     /// </summary>
     /// <exception cref="LockAcquisitionTimeoutException">The lock was not acquired within the budget.</exception>
-    public Task RunWithLockAsync(
-        string key,
-        Func<Task> action,
-        TimeSpan? timeout = null,
-        LockScope scope = LockScope.Namespace,
-        CancellationToken ct = default
-    )
+    public Task RunWithLockAsync(string key, Func<Task> action, TimeSpan? timeout = null, CancellationToken ct = default)
     {
         ArgumentNullException.ThrowIfNull(action);
         return RunWithLockAsync(
@@ -31,20 +24,17 @@ public abstract partial class JobContext
                 return true;
             },
             timeout,
-            scope,
             ct
         );
     }
 
     /// <summary>
-    /// Result-returning overload of
-    /// <see cref="RunWithLockAsync(string, Func{Task}, TimeSpan?, LockScope, CancellationToken)"/>.
+    /// Result-returning overload of <see cref="RunWithLockAsync(string, Func{Task}, TimeSpan?, CancellationToken)"/>.
     /// </summary>
     public async Task<TResult> RunWithLockAsync<TResult>(
         string key,
         Func<Task<TResult>> action,
         TimeSpan? timeout = null,
-        LockScope scope = LockScope.Namespace,
         CancellationToken ct = default
     )
     {
@@ -66,7 +56,7 @@ public abstract partial class JobContext
         {
             lct.ThrowIfCancellationRequested();
 
-            if (await AcquireLockCoreAsync(key, scope, lct) is { } token)
+            if (await AcquireLockCoreAsync(key, lct) is { } token)
             {
                 try
                 {
@@ -79,13 +69,13 @@ public abstract partial class JobContext
                     // the action outcome; the runtime reports it and the lease TTL provides recovery.
                     try
                     {
-                        await ReleaseLockCoreAsync(key, scope, token, CancellationToken.None);
+                        await ReleaseLockCoreAsync(key, token, CancellationToken.None);
                     }
                     catch (Exception ex)
                     {
                         try
                         {
-                            OnLockReleaseFailure(key, scope, ex);
+                            OnLockReleaseFailure(key, ex);
                         }
                         catch
                         {
@@ -115,20 +105,17 @@ public abstract partial class JobContext
     }
 
     /// <summary>
-    /// Subclass sink: a single no-wait acquire attempt for the scoped <paramref name="key"/>.
-    /// Returns the per-hold token on success, or <c>null</c> when the lock is busy.
+    /// Subclass sink: a single no-wait acquire attempt for <paramref name="key"/>. Returns the per-hold token on
+    /// success, or <c>null</c> when the lock is busy.
     /// </summary>
-    private protected abstract Task<Guid?> AcquireLockCoreAsync(string key, LockScope scope, CancellationToken ct);
+    private protected abstract Task<Guid?> AcquireLockCoreAsync(string key, CancellationToken ct);
 
-    /// <summary>
-    /// Subclass sink: release the lock held under <paramref name="holdToken"/> for the scoped
-    /// <paramref name="key"/>.
-    /// </summary>
-    private protected abstract Task ReleaseLockCoreAsync(string key, LockScope scope, Guid holdToken, CancellationToken ct);
+    /// <summary>Subclass sink: release the lock held under <paramref name="holdToken"/> for <paramref name="key"/>.</summary>
+    private protected abstract Task ReleaseLockCoreAsync(string key, Guid holdToken, CancellationToken ct);
 
     /// <summary>
     /// Optional runtime observability hook for a best-effort release failure. Implementations must not
     /// throw; the wrapper defensively suppresses observer failures to preserve the handler outcome.
     /// </summary>
-    private protected virtual void OnLockReleaseFailure(string key, LockScope scope, Exception exception) { }
+    private protected virtual void OnLockReleaseFailure(string key, Exception exception) { }
 }

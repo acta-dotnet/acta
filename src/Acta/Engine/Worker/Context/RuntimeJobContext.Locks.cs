@@ -6,9 +6,9 @@ namespace Acta;
 
 internal sealed partial class RuntimeJobContext
 {
-    private protected override async Task<Guid?> AcquireLockCoreAsync(string key, LockScope scope, CancellationToken ct)
+    private protected override async Task<Guid?> AcquireLockCoreAsync(string key, CancellationToken ct)
     {
-        var token = (await _locks.AcquireLockAsync(ComposeLockKey(key, scope), TimeSpan.FromSeconds(_leaseTtlSeconds), JobId, ct)).Token;
+        var token = (await _locks.AcquireLockAsync(ComposeLockKey(key), TimeSpan.FromSeconds(_leaseTtlSeconds), JobId, ct)).Token;
         if (token is { } held)
         {
             // Register so the heartbeat renews this handler-acquired lock for as long as the
@@ -19,26 +19,26 @@ internal sealed partial class RuntimeJobContext
         return token?.HoldToken;
     }
 
-    private protected override Task ReleaseLockCoreAsync(string key, LockScope scope, Guid holdToken, CancellationToken ct)
+    private protected override Task ReleaseLockCoreAsync(string key, Guid holdToken, CancellationToken ct)
     {
-        var token = new LockToken(ComposeLockKey(key, scope), holdToken);
+        var token = new LockToken(ComposeLockKey(key), holdToken);
         // Untrack before the store release so a heartbeat tick racing this release sees Holds()==false
         // and does not mistake the normal release for a steal.
         _inFlightJob?.UntrackLock(token);
         return _locks.ReleaseLockAsync(token, ct);
     }
 
-    private protected override void OnLockReleaseFailure(string key, LockScope scope, Exception exception) =>
-        RecordLockReleaseFailure(scope == LockScope.Global ? "handler_global" : "handler_namespace", ComposeLockKey(key, scope), exception);
+    private protected override void OnLockReleaseFailure(string key, Exception exception) =>
+        RecordLockReleaseFailure("handler", ComposeLockKey(key), exception);
 
     private LockToken? _concurrencySlotToken;
 
     /// <summary>
     /// Concurrency-slot admission, taken by the runner after the start CAS and before the handler.
     /// The key owns slots 0..limit-1 under the prefix {ns_id}.sem.{key}, disjoint from RunWithLockAsync's
-    /// {ns_id}.lock.{key} / global.lock.{key}; limit 1 is slot 0 alone, the mutex. The key part is
-    /// exact, so two keys that differ only by case are two groups. A key derived from a definition name
-    /// may be a system job's (sys.retention with a limit), which the key rule allows.
+    /// {ns_id}.lock.{key}; limit 1 is slot 0 alone, the mutex. The key part is exact, so two keys that
+    /// differ only by case are two groups. A key derived from a definition name may be a system job's
+    /// (sys.retention with a limit), which the key rule allows.
     /// </summary>
     internal async Task<bool> TryAcquireConcurrencySlotAsync(string concurrencyKey, int limit, CancellationToken ct)
     {
@@ -100,13 +100,8 @@ internal sealed partial class RuntimeJobContext
     }
 
     /// <summary>
-    /// RunWithLockAsync key space: namespace-scoped {ns_id}.lock.{key}, or global.lock.{key}
-    /// cross-namespace, with the key part exact. The `global` sentinel cannot equal a numeric namespace
-    /// id, so a global lock never collides with a namespace-scoped one.
+    /// RunWithLockAsync key space: {ns_id}.lock.{key}, with the key part exact. A lock stops at the namespace, as
+    /// a concurrency slot and a rate meter do.
     /// </summary>
-    private string ComposeLockKey(string key, LockScope scope)
-    {
-        key = KeySyntax.Canonicalize(key, nameof(key));
-        return scope == LockScope.Global ? $"global.lock.{key}" : $"{_namespaceId}.lock.{key}";
-    }
+    private string ComposeLockKey(string key) => $"{_namespaceId}.lock.{KeySyntax.Canonicalize(key, nameof(key))}";
 }

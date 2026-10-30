@@ -32,6 +32,7 @@ provisioned before 1.0.
 - **A worker can claim a job it has no handler for.** It hands the job back once and stops claiming that definition; with no worker carrying it, the job waits Ready until a build with the handler returns or an operator retires the definition.
 - **An override reaches workers on their next heartbeat.** Two edits of one namespace committed in the same instant in reverse order can leave one unseen until the next edit.
 - **One rate meter is one row lock**, about a thousand admissions a second cluster-wide. A turn under a quarter second away is waited out holding the executor, and a worker that dies in that wait costs the job one attempt.
+- **A handler lock stops at the namespace.** `RunWithLockAsync` keys are scoped to the job's namespace, as concurrency slots and rate meters are, so two namespaces never serialize on one key. Jobs that share one external single-writer resource belong in one namespace.
 - **A meter can run at two rates** when a deploy moves a definition onto another meter or a retune races a worker start. Workers warn, and one override on any participant fixes it.
 - **A provider error at admission bounces the attempt** with `job.unclassified`, spending no budget and raising no alert; a concurrency slot it took without an answer stays taken for up to one lease.
 - **A wait deadline added in a code upgrade arms at the job's next claim**, so a job already suspended under the old code needs a reschedule.

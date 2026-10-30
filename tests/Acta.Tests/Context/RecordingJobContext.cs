@@ -177,17 +177,15 @@ internal class RecordingJobContext(IReadOnlyDictionary<string, ChildJobOutcome>?
         return await body(ct);
     }
 
-    private protected override Task<Guid?> AcquireLockCoreAsync(string key, LockScope scope, CancellationToken ct) =>
-        Task.FromResult<Guid?>(Guid.NewGuid());
+    private protected override Task<Guid?> AcquireLockCoreAsync(string key, CancellationToken ct) => Task.FromResult<Guid?>(Guid.NewGuid());
 
-    private protected override Task ReleaseLockCoreAsync(string key, LockScope scope, Guid holdToken, CancellationToken ct)
+    private protected override Task ReleaseLockCoreAsync(string key, Guid holdToken, CancellationToken ct)
     {
         LockReleaseCalls++;
         return LockReleaseException is null ? Task.CompletedTask : Task.FromException(LockReleaseException);
     }
 
-    private protected override void OnLockReleaseFailure(string key, LockScope scope, Exception exception) =>
-        LockReleaseFailures.Add(exception);
+    private protected override void OnLockReleaseFailure(string key, Exception exception) => LockReleaseFailures.Add(exception);
 
     private protected override Task WriteNoteCoreAsync<T>(string message, T? detail, CancellationToken ct)
         where T : default => Unsupported<Task>();

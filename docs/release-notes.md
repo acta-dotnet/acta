@@ -8,6 +8,8 @@ Not tagged yet. rc.7 redesigns scheduling (the sections below grow with each ste
 
 **`[JobSchedule]` is now `[Schedule]`.** Only the name changes: `JobScheduleAttribute` is `ScheduleAttribute`, and its arguments, defaults, and diagnostics are the same. Rename the attribute on each scheduled handler.
 
+**`LockScope` is gone.** `JobContext.RunWithLockAsync` takes no scope: a handler lock is scoped to the job's namespace, as a concurrency slot and a rate meter are, so remove the argument. A `LockScope.Global` lock has no replacement; two namespaces that must serialize on one external resource keep those jobs in one namespace ([known limitations](known-limitations.md#execution-model)).
+
 **Schedule overrides are gone.** A schedule's expression and time zone are code-owned: change them in `[Schedule]` and deploy. `ISchedules.UpdateOverridesAsync`, `POST /schedules/{jobNamespace}/{jobName}/{scheduleName}/overrides`, the dashboard's override editor, the `schedule.overrides-updated` event, and the `expression_override`, `expression_effective`, `time_zone_id_override`, and `time_zone_id_effective` columns of `schedules` and `schedules_view` are deleted. Read `expression` and `time_zone_id`. The schedules row's `change_message` is `pause_message`: it holds only the reason for the current pause and is cleared when the schedule leaves Paused; events keep the history.
 
 **An interval schedule is whole milliseconds.** `PT1.0000001S` is `ACTA0122` at compile time and an error at registration, since an occurrence is stored at millisecond precision on every provider and a finer interval would make two ticks one instant. `PT1.5S` is fine.

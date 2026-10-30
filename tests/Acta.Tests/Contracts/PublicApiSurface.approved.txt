@@ -1371,7 +1371,7 @@ abstract class Acta.JobContext
     System.Threading.Tasks.Task ResetStateAsync(System.Threading.CancellationToken ct = default)
     System.Threading.Tasks.Task RunStepAsync(System.String name, System.Func<System.Threading.CancellationToken, System.Threading.Tasks.Task> body, System.Action<Acta.StepOptionsBuilder> configure = null, System.Threading.CancellationToken ct = default)
     System.Threading.Tasks.Task RunStepAsync(System.String name, System.Func<System.Threading.CancellationToken, System.Threading.Tasks.Task> body, System.Threading.CancellationToken ct)
-    System.Threading.Tasks.Task RunWithLockAsync(System.String key, System.Func<System.Threading.Tasks.Task> action, System.Nullable<System.TimeSpan> timeout = null, Acta.LockScope scope = Acta.LockScope.Namespace, System.Threading.CancellationToken ct = default)
+    System.Threading.Tasks.Task RunWithLockAsync(System.String key, System.Func<System.Threading.Tasks.Task> action, System.Nullable<System.TimeSpan> timeout = null, System.Threading.CancellationToken ct = default)
     System.Threading.Tasks.Task SetProgressAsync<T>(T value, System.Threading.CancellationToken ct = default)
     System.Threading.Tasks.Task SetVariableAsync(System.String name, Acta.JobPayload payload, System.Threading.CancellationToken ct = default)
     System.Threading.Tasks.Task SetVariableAsync<T>(System.String name, T value, System.Threading.CancellationToken ct = default)
@@ -1415,7 +1415,7 @@ abstract class Acta.JobContext
     System.Threading.Tasks.Task<TResult> GetChildResultAsync<TResult>(System.Int64 childJobId, System.Threading.CancellationToken ct = default)
     System.Threading.Tasks.Task<TResult> RunStepAsync<TResult>(System.String name, System.Func<System.Threading.CancellationToken, System.Threading.Tasks.Task<TResult>> body, System.Action<Acta.StepOptionsBuilder> configure = null, System.Threading.CancellationToken ct = default)
     System.Threading.Tasks.Task<TResult> RunStepAsync<TResult>(System.String name, System.Func<System.Threading.CancellationToken, System.Threading.Tasks.Task<TResult>> body, System.Threading.CancellationToken ct)
-    System.Threading.Tasks.Task<TResult> RunWithLockAsync<TResult>(System.String key, System.Func<System.Threading.Tasks.Task<TResult>> action, System.Nullable<System.TimeSpan> timeout = null, Acta.LockScope scope = Acta.LockScope.Namespace, System.Threading.CancellationToken ct = default)
+    System.Threading.Tasks.Task<TResult> RunWithLockAsync<TResult>(System.String key, System.Func<System.Threading.Tasks.Task<TResult>> action, System.Nullable<System.TimeSpan> timeout = null, System.Threading.CancellationToken ct = default)
 record struct Acta.JobContract<TInput>
     .ctor(System.Type ManifestType, System.String JobName)
     System.String JobName { get;init; }
@@ -2098,9 +2098,6 @@ sealed class Acta.LockAcquisitionTimeoutException : System.Exception
     .ctor(System.String key, System.TimeSpan timeout)
     System.String Key { get; }
     System.TimeSpan Timeout { get; }
-enum Acta.LockScope : System.Int32
-    Global = 1
-    Namespace = 0
 sealed record Acta.MapItemOutcome<TKey>
     .ctor(TKey Key, System.Int64 ChildJobId, Acta.ChildJobOutcome Outcome)
     Acta.ChildJobOutcome Outcome { get;init; }

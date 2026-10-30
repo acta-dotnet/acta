@@ -15,7 +15,7 @@ internal sealed class LockEntity : IEntity
 {
     /// <summary>
     /// Opaque composite lock identity and primary key. Holds a discriminator-segmented string
-    /// (<c>{ns}.lock.{key}</c> / <c>global.lock.{key}</c> / <c>{ns}.sem.{key}.{slot}</c> /
+    /// (<c>{ns}.lock.{key}</c> / <c>{ns}.sem.{key}.{slot}</c> /
     /// <c>{ns}.rate.{key}</c> / <c>{ns}.rate.{key}.{job_id}</c>); never parsed for
     /// safety, since keys are compared as whole strings.
     /// </summary>

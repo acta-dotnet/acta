@@ -57,7 +57,6 @@
     <Project Path="200-durable-execution/215-map-parallel-join/215-map-parallel-join.csproj" />
     <Project Path="200-durable-execution/216-variable-lifecycle/216-variable-lifecycle.csproj" />
     <Project Path="200-durable-execution/217-absolute-time-controls/217-absolute-time-controls.csproj" />
-    <Project Path="200-durable-execution/218-global-lock/218-global-lock.csproj" />
     <Project Path="200-durable-execution/219-child-failure-outcomes/219-child-failure-outcomes.csproj" />
     <Project Path="200-durable-execution/220-at-most-once-step/220-at-most-once-step.csproj" />
   </Folder>

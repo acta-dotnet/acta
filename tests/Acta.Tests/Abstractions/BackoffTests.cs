@@ -317,11 +317,9 @@ internal sealed class StepOptionsCapturingContext : JobContext
     )
         where TResult : default => Unsupported<Task<(bool Stored, TResult? Value)>>();
 
-    private protected override Task<Guid?> AcquireLockCoreAsync(string key, LockScope scope, CancellationToken ct) =>
-        Unsupported<Task<Guid?>>();
+    private protected override Task<Guid?> AcquireLockCoreAsync(string key, CancellationToken ct) => Unsupported<Task<Guid?>>();
 
-    private protected override Task ReleaseLockCoreAsync(string key, LockScope scope, Guid holdToken, CancellationToken ct) =>
-        Unsupported<Task>();
+    private protected override Task ReleaseLockCoreAsync(string key, Guid holdToken, CancellationToken ct) => Unsupported<Task>();
 
     private protected override Task WriteNoteCoreAsync<T>(string message, T? detail, CancellationToken ct)
         where T : default => Unsupported<Task>();
