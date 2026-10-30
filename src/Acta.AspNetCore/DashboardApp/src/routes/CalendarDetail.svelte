@@ -160,18 +160,18 @@
     location.hash = routes.calendar(jobNamespace, calendarName, { namespace: $scope, version }).slice(1);
   }
 
-  async function saveDraft() {
+  // One shape for the three control verbs: busy while the call runs, the answer worded as the family's message, the
+  // page refreshed when the server applied it, and a failed call shown where the answer would be.
+  async function run(call: () => Promise<{ message: string; kind: string; applied: boolean; after?: () => void }>) {
     busy = true;
     message = '';
     try {
-      const result = await saveCalendarDraft(jobNamespace, calendarName, draftRole, draftText, expectedLatest, draftNote);
-      serverProblems = result.problems ?? [];
-      message = calendarControlMessage('draft', result.action, { version: result.version });
-      messageKind = result.action === 'applied' ? 'ok' : result.action === 'rejected' ? 'warn' : 'bad';
-      if (result.action === 'applied') {
-        editing = false;
+      const result = await call();
+      message = result.message;
+      messageKind = result.kind;
+      if (result.applied) {
         await refreshAll();
-        show(result.version);
+        result.after?.();
       }
     } catch (error) {
       message = (error as Error).message;
@@ -181,41 +181,48 @@
     }
   }
 
-  async function publish(note: string) {
-    confirming = null;
-    if (!family) return;
-    busy = true;
-    message = '';
-    try {
-      const result = await publishCalendar(jobNamespace, calendarName, family.currentVersion ?? 0, family.shownVersion, overdueDecision, note);
-      const reason = result.reason ?? (result.overdueSchedules.length > 0 ? `${result.overdueSchedules.length} schedules hold an overdue occurrence.` : null);
-      message = calendarControlMessage('publish', result.action, { version: result.version, retimed: result.retimedSchedules.length, reason });
-      messageKind = result.action === 'applied' ? 'ok' : 'warn';
-      if (result.action === 'applied') await refreshAll();
-    } catch (error) {
-      message = (error as Error).message;
-      messageKind = 'bad';
-    } finally {
-      busy = false;
-    }
+  function saveDraft() {
+    return run(async () => {
+      const result = await saveCalendarDraft(jobNamespace, calendarName, draftRole, draftText, expectedLatest, draftNote);
+      serverProblems = result.problems ?? [];
+      const applied = result.action === 'applied';
+      if (applied) editing = false;
+      return {
+        message: calendarControlMessage('draft', result.action, { version: result.version }),
+        kind: applied ? 'ok' : result.action === 'rejected' ? 'warn' : 'bad',
+        applied,
+        after: () => show(result.version)
+      };
+    });
   }
 
-  async function archive(note: string) {
+  function publish(note: string) {
+    confirming = null;
+    if (!family) return;
+    const shown = family;
+    return run(async () => {
+      const result = await publishCalendar(jobNamespace, calendarName, shown.currentVersion ?? 0, shown.shownVersion, overdueDecision, note);
+      const reason = result.reason ?? (result.overdueSchedules.length > 0 ? `${result.overdueSchedules.length} schedules hold an overdue occurrence.` : null);
+      return {
+        message: calendarControlMessage('publish', result.action, { version: result.version, retimed: result.retimedSchedules.length, reason }),
+        kind: result.action === 'applied' ? 'ok' : 'warn',
+        applied: result.action === 'applied'
+      };
+    });
+  }
+
+  function archive(note: string) {
     confirming = null;
     if (!family || family.currentVersion === null) return;
-    busy = true;
-    message = '';
-    try {
-      const result = await archiveCalendar(jobNamespace, calendarName, family.currentVersion, note);
-      message = calendarControlMessage('archive', result.action, { version: result.version, dependents: result.dependentCount });
-      messageKind = result.action === 'applied' ? 'ok' : 'warn';
-      if (result.action === 'applied') await refreshAll();
-    } catch (error) {
-      message = (error as Error).message;
-      messageKind = 'bad';
-    } finally {
-      busy = false;
-    }
+    const version = family.currentVersion;
+    return run(async () => {
+      const result = await archiveCalendar(jobNamespace, calendarName, version, note);
+      return {
+        message: calendarControlMessage('archive', result.action, { version: result.version, dependents: result.dependentCount }),
+        kind: result.action === 'applied' ? 'ok' : 'warn',
+        applied: result.action === 'applied'
+      };
+    });
   }
 
   let loading = $derived(detail.isPending);

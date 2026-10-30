@@ -16,11 +16,21 @@ internal sealed class WeeklyAvailabilityCalendar(
     /// <summary>Dates a weekly rule is followed before the exclusions are judged to close the calendar for good.</summary>
     internal const int MaxScanDays = 1100;
 
+    // The exclusions resolve in the zone once; a walk asks for window after window in the same zone.
+    private readonly System.Collections.Concurrent.ConcurrentDictionary<
+        string,
+        List<(DateTime StartUtc, DateTime EndUtc)>
+    > _exclusionsByZone = new(StringComparer.Ordinal);
+
     public CalendarWindow? GetWindowAtOrAfter(AvailabilityContext context)
     {
         var zone = fixedZone ?? context.TimeZone;
         var at = DateTime.SpecifyKind(context.AtOrAfterUtc, DateTimeKind.Utc);
-        var exclusions = excludedRanges.Select(r => r.Resolve(zone)).OrderBy(r => r.StartUtc).ToList();
+        var exclusions = _exclusionsByZone.GetOrAdd(
+            zone.Id,
+            static (_, state) => state.Ranges.Select(r => r.Resolve(state.Zone)).OrderBy(r => r.StartUtc).ToList(),
+            (Ranges: excludedRanges, Zone: zone)
+        );
         CalendarWindow? pending = null;
         foreach (var date in Dates(ZonedTime.LocalDate(at, zone).AddDays(-1)))
         {

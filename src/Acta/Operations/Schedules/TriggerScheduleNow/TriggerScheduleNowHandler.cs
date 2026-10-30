@@ -35,21 +35,20 @@ internal sealed class TriggerScheduleNowHandler(
                 return await FireSlotAsync(command, target, slotId, ct);
             }
 
-            var schedule = target.Schedule;
-            if (schedule.Status == ScheduleStatusCode.Paused || target.OutstandingCount >= target.MaxOutstanding)
+            if (target.Status == ScheduleStatusCode.Paused || target.OutstandingCount >= target.MaxOutstanding)
             {
-                return Answer(ControlAction.Rejected, schedule);
+                return Answer(ControlAction.Rejected, target);
             }
 
             if (await AdmitRootAsync(command, target, ct))
             {
                 await wakeup.WakeAsync(WorkerWakeupChannel.AllWorkerNamespaces, WorkerWakeupReason.WorkAvailable, ct);
-                return Answer(ControlAction.Applied, schedule);
+                return Answer(ControlAction.Applied, target);
             }
 
             if (replan == MaxReplans)
             {
-                return Answer(ControlAction.Rejected, schedule);
+                return Answer(ControlAction.Rejected, target);
             }
         }
     }
@@ -69,9 +68,7 @@ internal sealed class TriggerScheduleNowHandler(
             JobRef: Guid.CreateVersion7(),
             DeduplicationKey: string.Create(CultureInfo.InvariantCulture, $"sys.manual.{target.ScheduleId}.{firingId:N}"),
             TriggerMessage: command.ReasonMessage.Truncate(ActaTextLimits.EventMessage),
-            TriggerDetails: ScheduleControl.Details(target.Schedule.ScheduleName, command.Actor) is { } details
-                ? System.Text.Encoding.UTF8.GetString(details)
-                : null
+            TriggerDetails: ScheduleControl.DetailsText(target.ScheduleName, command.Actor)
         );
         var outcome = await admitFirings.HandleAsync(new AdmitFiringsCommand(target.NamespaceId, [group], []), ct);
         return outcome.Groups[0].Applied;
@@ -84,7 +81,7 @@ internal sealed class TriggerScheduleNowHandler(
         CancellationToken ct
     )
     {
-        var name = target.Schedule.ScheduleName;
+        var name = target.ScheduleName;
         var envelope = new FiringEnvelope(Guid.CreateVersion7(), FiringEnvelope.ManualKind, target.NowUtc, []).ToJson();
         var row = await session.ExecuteOneAsync(
             new StoreCommand("TriggerScheduleNow"),
@@ -102,14 +99,10 @@ internal sealed class TriggerScheduleNowHandler(
             DbProjectionResolver.Resolve<TriggerScheduleNowRow>(),
             ct
         );
-        if (row.Action == ControlAction.Applied)
-        {
-            await wakeup.WakeAsync(WorkerWakeupChannel.AllWorkerNamespaces, WorkerWakeupReason.WorkAvailable, ct);
-        }
-
+        await JobControl.WakeWorkersIfAsync(wakeup, row.Action == ControlAction.Applied, ct);
         return new TriggerScheduleNowResponse(row.Action, row.Status, row.PausedUntilUtc, row.NextOccurrenceAtUtc, row.Version);
     }
 
-    private static TriggerScheduleNowResponse Answer(ControlAction action, LiveSchedule schedule) =>
-        new(action, schedule.Status, schedule.PausedUntilUtc, schedule.NextOccurrenceAtUtc, schedule.Version);
+    private static TriggerScheduleNowResponse Answer(ControlAction action, ResolveScheduleTargetResponse target) =>
+        new(action, target.Status, target.PausedUntilUtc, target.NextOccurrenceAtUtc, target.Version);
 }

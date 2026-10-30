@@ -1871,13 +1871,6 @@
   - An archived version reads back with its role, status, and definition; a version the family lacks is null
   - A version in the shared sys catalog resolves from any namespace
 
-### The live-schedule read returns a slot's non-orphaned schedules by name
-- **Contract:** GetLiveSchedules returns one slot's non-orphaned schedules in name order, each with its effective and declared expression and time zone, cursor, and status.
-- **Guarantees:**
-  - A slot's schedules read back in name order with their declaration, cursor, and status
-  - An orphaned schedule drops out while a paused one stays with its pause
-  - A job that owns no schedules reads an empty list
-
 ### GetScheduleState returns live cursors for the namespace, empty when none exist
 - **Contract:** GetScheduleState returns the non-orphaned per-schedule cursors for the given namespace id, or an empty list when none exist.
 - **Guarantees:**
@@ -2064,7 +2057,7 @@
 - **Contract:** After a retire, no reader returns its schedules, and no completion or verb, even one that read them first, writes their cursors or wakes their slot.
 - **Guarantees:**
   - A firing that lands after the retire returns the slot to Idle and leaves the retired schedules as they were
-  - The slot's live schedules and a worker start's stored state leave out a retired definition's schedules
+  - A worker start's stored state leaves out a retired definition's schedules
   - A resume that found the schedule before the retire writes no cursor after it
   - A pause that found the schedule before the retire leaves the retired schedule as the retire left it
   - A trigger that found the schedule before the retire admits nothing on the retired definition's Idle slot
@@ -2485,7 +2478,6 @@
 | `GetJobInput` | yes | yes | yes |
 | `GetJobLineageMap` | yes | yes | yes |
 | `GetJobStatus` | yes | yes | yes |
-| `GetLiveSchedules` | yes | yes | yes |
 | `GetOutboxSignal` | yes | yes | yes |
 | `GetOverview` | yes | yes | yes |
 | `GetPoisonAlertEvents` | yes | yes | yes |

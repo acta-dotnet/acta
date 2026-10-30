@@ -35,8 +35,7 @@ public sealed class ResolveScheduleTargetSpec : ActaRuntimeTestBase<ConformanceF
         Assert.NotNull(target);
         Assert.Equal(schedule.Id, target.ScheduleId);
         Assert.Equal(slotId, target.JobId);
-        Assert.Equal(schedule.DefinitionId, target.DefinitionId);
-        Assert.Equal(ScheduleName, target.Schedule.ScheduleName);
+        Assert.Equal(ScheduleName, target.ScheduleName);
         Assert.InRange(target.NowUtc, before.AddSeconds(-1), after.AddSeconds(1));
     }
 

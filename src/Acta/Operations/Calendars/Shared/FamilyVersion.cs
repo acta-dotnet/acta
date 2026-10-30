@@ -4,10 +4,8 @@ namespace Acta;
 [DbProjection(ByName = true)]
 internal sealed record FamilyVersion(
     int NamespaceId,
-    int CalendarId,
     int Version,
     CalendarRoleCode Role,
     CalendarStatusCode Status,
-    byte DefinitionFormatId,
     ReadOnlyMemory<byte> Definition
 );

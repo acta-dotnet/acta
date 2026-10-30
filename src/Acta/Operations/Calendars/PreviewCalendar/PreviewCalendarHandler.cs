@@ -8,7 +8,7 @@ internal sealed class PreviewCalendarHandler(IActaClock clock, GetCalendarPublic
     public async Task<PreviewCalendarResponse?> HandleAsync(PreviewCalendarQuery query, CancellationToken ct)
     {
         var (jobNamespace, calendarName) = CalendarControl.Names(query.Calendar);
-        var zone = string.IsNullOrWhiteSpace(query.TimeZoneId) ? TimeZoneInfo.Utc : TimeZoneInfo.FindSystemTimeZoneById(query.TimeZoneId);
+        var zone = NextOccurrenceCalculator.ResolveTimeZone(query.TimeZoneId);
         var rows = (await family.HandleAsync(new GetCalendarPublicationQuery(jobNamespace, calendarName, query.Version), ct)).Rows;
         if (rows.FirstOrDefault(r => r.Version == query.Version) is not { } version)
         {
@@ -26,8 +26,8 @@ internal sealed class PreviewCalendarHandler(IActaClock clock, GetCalendarPublic
             version.Role,
             version.Version,
             current?.Version,
-            Occurrences(compiled.Calendar, from, zone, count),
-            Occurrences(compiledCurrent?.Calendar, from, zone, count),
+            Occurrences(compiled.Calendar, calendarName, query.TimeZoneId, from, count),
+            Occurrences(compiledCurrent?.Calendar, calendarName, query.TimeZoneId, from, count),
             Windows(compiled.Availability, from, zone, count),
             Windows(compiledCurrent?.Availability, from, zone, count),
             [
@@ -43,21 +43,23 @@ internal sealed class PreviewCalendarHandler(IActaClock clock, GetCalendarPublic
         );
     }
 
-    private static CompiledCalendar Compile(FamilyVersion row) =>
-        CalendarDefinition.Compile(row.Role, Encoding.UTF8.GetString(row.Definition.Span));
+    private static CompiledCalendar Compile(FamilyVersion row) => CalendarDefinition.Compile(row.Role, row.Definition);
 
-    private static List<DateTime> Occurrences(IActaCalendar? calendar, DateTime from, TimeZoneInfo zone, int count)
-    {
-        var instants = new List<DateTime>();
-        var after = from;
-        while (calendar is not null && instants.Count < count && calendar.GetNextOccurrence(new CalendarContext(after, zone)) is { } next)
-        {
-            instants.Add(next);
-            after = next;
-        }
-
-        return instants;
-    }
+    /// <summary>The calendar walked as a schedule bound to it alone would be, under the calculator's contract checks.</summary>
+    private static IReadOnlyList<DateTime> Occurrences(
+        IActaCalendar? calendar,
+        string calendarName,
+        string? timeZoneId,
+        DateTime from,
+        int count
+    ) =>
+        calendar is null
+            ? []
+            : NextOccurrenceCalculator.Walk(
+                new ScheduleSource(new ScheduleTiming(calendarName, ScheduleExpressionKindCode.Calendar, timeZoneId, null), calendar, null),
+                from,
+                count
+            );
 
     private static List<CalendarWindow> Windows(IActaAvailabilityCalendar? availability, DateTime from, TimeZoneInfo zone, int count)
     {

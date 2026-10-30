@@ -30,22 +30,27 @@ internal static class CalendarDefinition
     public static CompiledCalendar Compile(CalendarRoleCode role, string json)
     {
         ArgumentNullException.ThrowIfNull(json);
+        return Compile(role, Encoding.UTF8.GetBytes(json));
+    }
+
+    /// <summary>The same compile over the definition as a row stores it, so a reader never decodes it only to encode it again.</summary>
+    public static CompiledCalendar Compile(CalendarRoleCode role, ReadOnlyMemory<byte> utf8)
+    {
         if (role is not (CalendarRoleCode.Occurrence or CalendarRoleCode.Availability))
         {
             throw new ArgumentOutOfRangeException(nameof(role), role, "A calendar is an occurrence source or an availability calendar.");
         }
 
-        var bytes = Encoding.UTF8.GetBytes(json);
-        if (bytes.Length > MaxBytes)
+        if (utf8.Length > MaxBytes)
         {
-            throw new CalendarDefinitionException([$"$: the definition is {bytes.Length} bytes; the limit is {MaxBytes}."]);
+            throw new CalendarDefinitionException([$"$: the definition is {utf8.Length} bytes; the limit is {MaxBytes}."]);
         }
 
         JsonDocument document;
         try
         {
             document = JsonDocument.Parse(
-                bytes,
+                utf8,
                 new JsonDocumentOptions { MaxDepth = MaxDepth, CommentHandling = JsonCommentHandling.Disallow }
             );
         }

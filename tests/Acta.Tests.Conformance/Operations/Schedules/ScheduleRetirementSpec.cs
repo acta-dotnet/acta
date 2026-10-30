@@ -67,7 +67,7 @@ public sealed class ScheduleRetirementSpec : ActaRuntimeTestBase<ConformanceFixt
         Assert.Equal(0, await CountEventsAsync(slotId, EventCode.SchedulePauseExpired, ct));
     }
 
-    [Fact(DisplayName = "The slot's live schedules and a worker start's stored state leave out a retired definition's schedules")]
+    [Fact(DisplayName = "A worker start's stored state leaves out a retired definition's schedules")]
     public async Task Readers_leave_out_a_retired_definitions_schedules()
     {
         var ct = TestContext.Current.CancellationToken;
@@ -75,14 +75,11 @@ public sealed class ScheduleRetirementSpec : ActaRuntimeTestBase<ConformanceFixt
         var jobName = Unique("retired-read");
         var defId = await CreateDefinitionAsync(jobName, ct);
         await RegisterAsync(defId, jobName, [Slot("only", cursor)], ct);
-        var slotId = await SlotIdAsync(jobName, ct);
         var schedules = Services.GetRequiredService<SchedulesOperations>();
-        Assert.Single((await schedules.GetLiveSchedulesAsync(slotId, ct)).Schedules);
         Assert.Contains((await schedules.GetScheduleStateAsync(TestNamespaceId, ct)).States, s => s.DefinitionId == defId);
 
         await RetireAsync(jobName, ct);
 
-        Assert.Empty((await schedules.GetLiveSchedulesAsync(slotId, ct)).Schedules);
         Assert.DoesNotContain((await schedules.GetScheduleStateAsync(TestNamespaceId, ct)).States, s => s.DefinitionId == defId);
     }
 

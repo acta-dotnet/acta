@@ -14,7 +14,6 @@ const family = {
 test('a shown draft offers publish; any family with a current version offers archive', () => {
   const draft = familyState({ ...family, shownVersion: 3 }, true);
   assert.equal(draft.latestVersion, 3);
-  assert.equal(draft.nextVersion, 4);
   assert.deepEqual([draft.shownIsDraft, draft.shownIsCurrent, draft.canPublish, draft.canArchive], [true, false, true, true]);
 
   const current = familyState({ ...family, shownVersion: 2 }, true);
@@ -25,7 +24,7 @@ test('a read-only host offers nothing, and a family without a current version ca
   const readOnly = familyState({ ...family, shownVersion: 3 }, false);
   assert.deepEqual([readOnly.canPublish, readOnly.canArchive], [false, false]);
   const unpublished = familyState({ currentVersion: null, versions: [{ version: 1, status: 'draft' }], shownVersion: 1 }, true);
-  assert.deepEqual([unpublished.canPublish, unpublished.canArchive, unpublished.nextVersion], [true, false, 2]);
+  assert.deepEqual([unpublished.canPublish, unpublished.canArchive], [true, false]);
 });
 
 test('publish impact counts the bound schedules and the overdue ones', () => {

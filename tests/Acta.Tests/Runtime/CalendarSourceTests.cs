@@ -178,10 +178,7 @@ public sealed class CalendarSourceTests
                 1,
                 "daily",
                 Utc(13, 0),
-                ScheduleStatusCode.Active,
-                null,
                 ExpressionKind: ScheduleExpressionKindCode.Calendar,
-                Expression: "spec.days",
                 TimingFingerprint: planned.TimingFingerprint
             ),
         };

@@ -9,7 +9,6 @@ internal sealed class SchedulesOperations(
     PreviewScheduleHandler previewSchedule,
     RegisterSchedulesHandler registerSchedules,
     GetScheduleStateHandler getScheduleState,
-    GetLiveSchedulesHandler getLiveSchedules,
     GetDueSchedulesHandler getDueSchedules,
     GetScheduleHorizonHandler getScheduleHorizon,
     AdmitFiringsHandler admitFirings
@@ -58,13 +57,6 @@ internal sealed class SchedulesOperations(
     /// </summary>
     internal Task<GetScheduleStateResponse> GetScheduleStateAsync(int namespaceId, CancellationToken ct) =>
         getScheduleState.HandleAsync(new GetScheduleStateQuery(namespaceId), ct);
-
-    /// <summary>
-    /// The live (non-orphaned) schedules of one recurring slot. Read once per recurring fire for the due set and
-    /// the recompute.
-    /// </summary>
-    internal Task<GetLiveSchedulesResponse> GetLiveSchedulesAsync(long jobId, CancellationToken ct) =>
-        getLiveSchedules.HandleAsync(new GetLiveSchedulesQuery(jobId), ct);
 
     /// <summary>Every member of each slot with a schedule due for evaluation; the admitter's read.</summary>
     internal Task<GetDueSchedulesResponse> GetDueSchedulesAsync(int namespaceId, DateTime nowUtc, int take, CancellationToken ct) =>

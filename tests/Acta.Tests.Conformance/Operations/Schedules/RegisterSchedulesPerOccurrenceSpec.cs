@@ -148,7 +148,6 @@ public sealed class RegisterSchedulesPerOccurrenceSpec : ActaStorageTestBase<Con
         Assert.NotNull(target);
         Assert.Equal(config.Id, target.ScheduleId);
         Assert.Null(target.JobId);
-        Assert.Equal(defId, target.DefinitionId);
 
         Assert.Equal(ControlAction.Applied, (await Schedules.PauseAsync(lookup, reasonMessage: "hold", ct: ct)).Action);
         Assert.Equal(ScheduleStatusCode.Paused, (await ScheduleAsync(defId, "only", ct)).Config.Status);

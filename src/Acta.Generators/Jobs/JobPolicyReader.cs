@@ -1,3 +1,4 @@
+using System;
 using System.Collections.Generic;
 using Microsoft.CodeAnalysis;
 using static Acta.Generators.ActaManifestGenerator;
@@ -138,6 +139,41 @@ internal static class JobPolicyReader
         }
     }
 
+    /// <summary>
+    /// A code argument by its byte: the member's name, or the family's default with an ACTA0105 when the byte names no
+    /// member; a value the reader cannot read as a byte leaves <paramref name="current"/> as it was.
+    /// </summary>
+    private static string ReadCode(
+        KeyValuePair<string, TypedConstant> named,
+        Func<byte, string?> idToName,
+        string fallback,
+        string requirement,
+        string current,
+        List<DiagnosticRecord> diagnostics,
+        Location location
+    )
+    {
+        if (!TryGetEnumByte(named.Value, out var id))
+        {
+            return current;
+        }
+
+        var name = idToName(id);
+        if (name is null)
+        {
+            diagnostics.Add(
+                ManifestDiagnostics.InvalidPolicyValue(
+                    named.Key,
+                    id.ToString(System.Globalization.CultureInfo.InvariantCulture),
+                    requirement,
+                    location
+                )
+            );
+        }
+
+        return name ?? fallback;
+    }
+
     private static bool ReadCodeArgument(
         KeyValuePair<string, TypedConstant> named,
         PolicyDraft draft,
@@ -148,40 +184,30 @@ internal static class JobPolicyReader
         switch (named.Key)
         {
             case "Priority":
-                if (TryGetEnumByte(named.Value, out var p))
-                {
-                    var name = PriorityIdToName(p);
-                    if (name is null)
-                    {
-                        diagnostics.Add(
-                            ManifestDiagnostics.InvalidPolicyValue(
-                                named.Key,
-                                p.ToString(System.Globalization.CultureInfo.InvariantCulture),
-                                "The value is not a defined `JobPriorityCode`.",
-                                location
-                            )
-                        );
-                    }
-                    draft.PriorityName = name ?? DefaultPriorityName;
-                }
+                draft.PriorityName = ReadCode(
+                    named,
+                    PriorityIdToName,
+                    DefaultPriorityName,
+                    "The value is not a defined `JobPriorityCode`.",
+                    draft.PriorityName,
+                    diagnostics,
+                    location
+                );
                 return true;
 
             case "EventRecording":
-                if (TryGetEnumByte(named.Value, out var er))
+                // Null until set: the writer tells an unset recording from one set to the default.
+                if (TryGetEnumByte(named.Value, out _))
                 {
-                    var name = EventRecordingIdToName(er);
-                    if (name is null)
-                    {
-                        diagnostics.Add(
-                            ManifestDiagnostics.InvalidPolicyValue(
-                                named.Key,
-                                er.ToString(System.Globalization.CultureInfo.InvariantCulture),
-                                "The value is not a defined `EventRecordingCode`.",
-                                location
-                            )
-                        );
-                    }
-                    draft.EventRecordingName = name ?? DefaultEventRecordingName;
+                    draft.EventRecordingName = ReadCode(
+                        named,
+                        EventRecordingIdToName,
+                        DefaultEventRecordingName,
+                        "The value is not a defined `EventRecordingCode`.",
+                        DefaultEventRecordingName,
+                        diagnostics,
+                        location
+                    );
                 }
                 return true;
 
@@ -207,60 +233,39 @@ internal static class JobPolicyReader
                 return true;
 
             case "AlertProfile":
-                if (TryGetEnumByte(named.Value, out var ap))
-                {
-                    var name = AlertProfileIdToName(ap);
-                    if (name is null)
-                    {
-                        diagnostics.Add(
-                            ManifestDiagnostics.InvalidPolicyValue(
-                                named.Key,
-                                ap.ToString(System.Globalization.CultureInfo.InvariantCulture),
-                                "The value is not a defined `AlertProfileCode`.",
-                                location
-                            )
-                        );
-                    }
-                    draft.AlertProfileName = name ?? DefaultAlertProfileName;
-                }
+                draft.AlertProfileName = ReadCode(
+                    named,
+                    AlertProfileIdToName,
+                    DefaultAlertProfileName,
+                    "The value is not a defined `AlertProfileCode`.",
+                    draft.AlertProfileName,
+                    diagnostics,
+                    location
+                );
                 return true;
 
             case "FiringFailurePolicy":
-                if (TryGetEnumByte(named.Value, out var ffp))
-                {
-                    var name = FiringFailurePolicyIdToName(ffp);
-                    if (name is null)
-                    {
-                        diagnostics.Add(
-                            ManifestDiagnostics.InvalidPolicyValue(
-                                named.Key,
-                                ffp.ToString(System.Globalization.CultureInfo.InvariantCulture),
-                                "The policy is `FiringFailurePolicyCode.Continue` or `FiringFailurePolicyCode.PauseScheduling`.",
-                                location
-                            )
-                        );
-                    }
-                    draft.FiringFailurePolicyName = name ?? DefaultFiringFailurePolicyName;
-                }
+                draft.FiringFailurePolicyName = ReadCode(
+                    named,
+                    FiringFailurePolicyIdToName,
+                    DefaultFiringFailurePolicyName,
+                    "The policy is `FiringFailurePolicyCode.Continue` or `FiringFailurePolicyCode.PauseScheduling`.",
+                    draft.FiringFailurePolicyName,
+                    diagnostics,
+                    location
+                );
                 return true;
 
             case "ScheduledDelivery":
-                if (TryGetEnumByte(named.Value, out var sd))
-                {
-                    var name = ScheduledDeliveryIdToName(sd);
-                    if (name is null)
-                    {
-                        diagnostics.Add(
-                            ManifestDiagnostics.InvalidPolicyValue(
-                                named.Key,
-                                sd.ToString(System.Globalization.CultureInfo.InvariantCulture),
-                                "The delivery is `ScheduledDeliveryCode.Permanent` or `ScheduledDeliveryCode.PerOccurrence`.",
-                                location
-                            )
-                        );
-                    }
-                    draft.ScheduledDeliveryName = name ?? DefaultScheduledDeliveryName;
-                }
+                draft.ScheduledDeliveryName = ReadCode(
+                    named,
+                    ScheduledDeliveryIdToName,
+                    DefaultScheduledDeliveryName,
+                    "The delivery is `ScheduledDeliveryCode.Permanent` or `ScheduledDeliveryCode.PerOccurrence`.",
+                    draft.ScheduledDeliveryName,
+                    diagnostics,
+                    location
+                );
                 return true;
 
             case "DeadlineBehavior":

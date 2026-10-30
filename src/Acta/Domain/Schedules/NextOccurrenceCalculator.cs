@@ -106,11 +106,19 @@ internal static class NextOccurrenceCalculator
         int count
     ) => Walk(ScheduleSource.Native(expression, timeZone, kind), fromUtc, count);
 
-    internal static CronExpression ParseCron(string expression)
-    {
-        var fieldCount = expression.Split((char[]?)null, StringSplitOptions.RemoveEmptyEntries).Length;
-        return CronExpression.Parse(expression, fieldCount >= 6 ? CronFormat.IncludeSeconds : CronFormat.Standard);
-    }
+    // Parsed once per distinct expression: an evaluation steps a cron many times, and the expressions a process meets
+    // are the registered declarations and what the operator previews, so the cache stays small.
+    private static readonly System.Collections.Concurrent.ConcurrentDictionary<string, CronExpression> Crons = new(StringComparer.Ordinal);
+
+    internal static CronExpression ParseCron(string expression) =>
+        Crons.GetOrAdd(
+            expression,
+            static e =>
+            {
+                var fieldCount = e.Split((char[]?)null, StringSplitOptions.RemoveEmptyEntries).Length;
+                return CronExpression.Parse(e, fieldCount >= 6 ? CronFormat.IncludeSeconds : CronFormat.Standard);
+            }
+        );
 
     /// <summary>The bare source's first instant strictly after <paramref name="afterUtc"/>, an interval on the grid of <paramref name="anchorUtc"/>.</summary>
     private static DateTime? RawNext(ScheduleSource source, DateTime afterUtc, DateTime anchorUtc)
@@ -143,35 +151,8 @@ internal static class NextOccurrenceCalculator
     }
 
     /// <summary>The bare source's first instant at or after <paramref name="atUtc"/>: an occurrence exactly at a window's opening counts.</summary>
-    private static DateTime? RawAtOrAfter(ScheduleSource source, DateTime atUtc, DateTime anchorUtc)
-    {
-        var timing = source.Timing;
-        switch (timing.ExpressionKind)
-        {
-            case ScheduleExpressionKindCode.Interval:
-            {
-                var interval = ParseInterval(timing.Expression);
-                if (interval <= TimeSpan.Zero)
-                {
-                    return null;
-                }
-
-                if (atUtc <= anchorUtc)
-                {
-                    return anchorUtc;
-                }
-
-                var elapsed = (atUtc - anchorUtc).Ticks;
-                return anchorUtc.AddTicks(interval.Ticks * ((elapsed + interval.Ticks - 1) / interval.Ticks));
-            }
-            case ScheduleExpressionKindCode.Cron:
-                return ParseCron(timing.Expression).GetNextOccurrence(atUtc, ResolveTimeZone(timing.TimeZoneId), inclusive: true);
-            case ScheduleExpressionKindCode.Calendar:
-                return CalendarNext(source, atUtc.AddTicks(-1));
-            default:
-                throw new NotSupportedException($"Schedule expression kind {timing.ExpressionKind} is not supported by this build.");
-        }
-    }
+    private static DateTime? RawAtOrAfter(ScheduleSource source, DateTime atUtc, DateTime anchorUtc) =>
+        RawNext(source, atUtc.AddTicks(-1), anchorUtc);
 
     /// <summary>The calendar's next instant, checked against its contract: UTC, advancing, and whole milliseconds.</summary>
     private static DateTime? CalendarNext(ScheduleSource source, DateTime afterUtc)
@@ -284,6 +265,7 @@ internal static class NextOccurrenceCalculator
         );
     }
 
-    private static TimeZoneInfo ResolveTimeZone(string? timeZone) =>
+    /// <summary>The zone a timing names, UTC when it names none.</summary>
+    internal static TimeZoneInfo ResolveTimeZone(string? timeZone) =>
         string.IsNullOrWhiteSpace(timeZone) ? TimeZoneInfo.Utc : TimeZoneInfo.FindSystemTimeZoneById(timeZone);
 }

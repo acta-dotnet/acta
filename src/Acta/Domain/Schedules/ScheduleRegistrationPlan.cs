@@ -41,9 +41,9 @@ internal static class ScheduleRegistrationPlan
 
             var fingerprint = TimingFingerprint.Compute(timing);
             var next =
-                stored is not null && stored.TimingFingerprint == fingerprint ? stored.NextOccurrenceAtUtc
-                : anchor is { } a ? NextOccurrenceCalculator.FirstAfter(source, a, nowUtc)
-                : NextOccurrenceCalculator.Next(source, nowUtc);
+                stored is not null && stored.TimingFingerprint == fingerprint
+                    ? stored.NextOccurrenceAtUtc
+                    : NextOccurrenceCalculator.Next(source, nowUtc);
             schedules.Add(
                 new SlotSchedule(
                     d.ScheduleName,

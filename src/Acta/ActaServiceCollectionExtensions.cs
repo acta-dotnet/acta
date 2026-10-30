@@ -171,7 +171,6 @@ public static class ActaServiceCollectionExtensions
         services.TryAddSingleton<OutboxOperations>();
         services.TryAddSingleton<IOutbox>(sp => sp.GetRequiredService<OutboxOperations>());
 
-        services.TryAddSingleton<GetLiveSchedulesHandler>();
         services.TryAddSingleton<GetScheduleStateHandler>();
         services.TryAddSingleton<GetDueSchedulesHandler>();
         services.TryAddSingleton<GetScheduleHorizonHandler>();

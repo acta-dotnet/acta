@@ -15,6 +15,7 @@
   import { createUrlFilters } from '../urlFilters.ts';
   import { calendarsListSql, COPY_SQL_TITLE } from '../lib/copyAsSql.ts';
   import { routes } from '../routes.ts';
+  import { checkName } from './enqueueNames.ts';
   import type { ColumnDef } from '../components/grid/types.ts';
 
   const initial = hashParams();
@@ -47,15 +48,17 @@
   let newNamespace = $state('');
   let newName = $state('');
   let newRole = $state('availability');
-  let newNameOk = $derived(/^[a-z0-9][a-z0-9.-]*$/.test(newName.trim().toLowerCase()));
+  // The same name rule the server applies to a calendar family, checked as typed in the server's words.
+  let nameCheck = $derived(checkName(newName));
+  let newNameOk = $derived(nameCheck.value !== null);
   function openCreate() {
     creating = true;
     newNamespace = $scope || 'sys';
   }
   function create() {
-    if (!newNameOk) return;
+    if (nameCheck.value === null) return;
     location.hash = routes
-      .calendar(newNamespace.trim().toLowerCase() || 'sys', newName.trim().toLowerCase(), { namespace: $scope, role: newRole })
+      .calendar(newNamespace.trim().toLowerCase() || 'sys', nameCheck.value, { namespace: $scope, role: newRole })
       .slice(1);
   }
 
@@ -91,7 +94,8 @@
       </label>
       <label class="detail-field">
         Name
-        <input type="text" bind:value={newName} placeholder="office-hours" aria-invalid={newName !== '' && !newNameOk} />
+        <input type="text" bind:value={newName} placeholder="office-hours" aria-invalid={nameCheck.error !== null} />
+        {#if nameCheck.error}<span class="field-error" role="alert">{nameCheck.error}</span>{/if}
         <span class="field-help">Lowercase letters, digits, dots, and dashes.</span>
       </label>
       <label class="detail-field">
@@ -180,4 +184,5 @@
     gap: 10px;
     margin-top: 14px;
   }
+  .field-error { color: var(--bad); font-size: var(--text-xs); font-weight: 400; }
 </style>

@@ -9,8 +9,13 @@ internal static class ScheduleControl
     public static string? Reason(string? reasonMessage) => reasonMessage.Truncate(ActaTextLimits.SchedulePauseMessage);
 
     /// <summary>A schedule event's details: the operator, and the schedule by name, since a schedule has no numeric id.</summary>
-    public static byte[]? Details(string scheduleName, string? actor) =>
-        EventDetails.Write(("actor", JobControlActor.Operator(actor)), ("schedule", scheduleName));
+    public static byte[]? Details(string scheduleName, string? actor) => EventDetails.Write(Facts(scheduleName, actor));
+
+    /// <summary>The same details as text, for an apply that takes them as a string.</summary>
+    public static string? DetailsText(string scheduleName, string? actor) => EventDetails.Text(Facts(scheduleName, actor));
+
+    private static (string Name, string? Value)[] Facts(string scheduleName, string? actor) =>
+        [("actor", JobControlActor.Operator(actor)), ("schedule", scheduleName)];
 
     /// <summary>
     /// Binds what pause and resume take after their own arguments: the event's message and details. Pause binds its

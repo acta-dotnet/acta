@@ -1,7 +1,6 @@
 SELECT
     c.calendar_role_code AS role,
     c.calendar_status_code AS status,
-    c.definition_format_id,
     c.definition
 FROM {{schema}}.calendars c
 WHERE

@@ -21,7 +21,8 @@ internal sealed record FiringEnvelope(Guid FiringId, string Kind, DateTime Admit
     public static FiringEnvelope? FromJson(ReadOnlySpan<byte> utf8) =>
         JsonSerializer.Deserialize(utf8, FiringEnvelopeJsonContext.Default.FiringEnvelope);
 
-    /// <summary>The contributors as the handler sees them, in name order.</summary>
+    /// <summary>The contributors as the handler sees them, in name order; derived, so never stored.</summary>
+    [JsonIgnore]
     public IReadOnlyList<TriggeringSchedule> TriggeringSchedules =>
         [.. Contributors.Select(c => new TriggeringSchedule(c.ScheduleName, c.OccurrenceAtUtc, c.TimeZoneId, c.CoveredThroughUtc))];
 }

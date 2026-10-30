@@ -33,9 +33,7 @@ internal static class TimingFingerprint
         // mean; a bare interval is absolute.
         if (timing.ExpressionKind != ScheduleExpressionKindCode.Interval || timing.AvailabilityCalendarName is not null)
         {
-            var zone = string.IsNullOrWhiteSpace(timing.TimeZoneId)
-                ? TimeZoneInfo.Utc
-                : TimeZoneInfo.FindSystemTimeZoneById(timing.TimeZoneId);
+            var zone = NextOccurrenceCalculator.ResolveTimeZone(timing.TimeZoneId);
             text.Append(zone.Id).Append('|').Append(zone.BaseUtcOffset.Ticks.ToString(c));
             foreach (var rule in zone.GetAdjustmentRules())
             {

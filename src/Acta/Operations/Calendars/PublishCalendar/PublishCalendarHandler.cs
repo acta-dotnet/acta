@@ -75,7 +75,7 @@ internal sealed class PublishCalendarHandler(
             }
 
             var nowUtc = await clock.GetUtcNowAsync(ct);
-            var compiled = CalendarDefinition.Compile(candidate.Role, Encoding.UTF8.GetString(candidate.Definition.Span));
+            var compiled = CalendarDefinition.Compile(candidate.Role, candidate.Definition);
             foreach (var ns in bound.GroupBy(s => s.NamespaceId))
             {
                 await sources.PreloadAsync(ns.Key, ns.SelectMany(s => s.Timing().CalendarNames()), ct);
@@ -96,9 +96,7 @@ internal sealed class PublishCalendarHandler(
                 DateTime? next;
                 try
                 {
-                    next = s.IntervalAnchorAtUtc is { } anchor
-                        ? NextOccurrenceCalculator.FirstAfter(newSource, anchor, nowUtc)
-                        : NextOccurrenceCalculator.Next(newSource, nowUtc);
+                    next = NextOccurrenceCalculator.Next(newSource, nowUtc);
                 }
                 catch (CalendarUnavailableException)
                 {
@@ -117,7 +115,7 @@ internal sealed class PublishCalendarHandler(
                     }
 
                     var through = ScheduleEvaluator.LatestDue(oldSource, DateTime.SpecifyKind(due, DateTimeKind.Utc), nowUtc);
-                    skipped = Facts(
+                    skipped = EventDetails.Text(
                         ("schedule", s.ScheduleName),
                         ("from", EventDetails.Instant(due)),
                         ("through", EventDetails.Instant(through)),
@@ -131,12 +129,12 @@ internal sealed class PublishCalendarHandler(
                         s.ScheduleVersion,
                         s.StateVersion,
                         next,
-                        Facts(
+                        EventDetails.Text(
                             ("schedule", s.ScheduleName),
                             ("calendar", calendarName),
                             ("fromVersion", (current?.Version ?? 0).ToString(CultureInfo.InvariantCulture)),
                             ("toVersion", candidate.Version.ToString(CultureInfo.InvariantCulture))
-                        ),
+                        )!,
                         skipped
                     )
                 );
@@ -222,8 +220,4 @@ internal sealed class PublishCalendarHandler(
 
         return source;
     }
-
-    /// <summary>A decision's details as the JSON text the apply stores, in the form every schedule event carries.</summary>
-    private static string Facts(params ReadOnlySpan<(string Name, string? Value)> facts) =>
-        Encoding.UTF8.GetString(EventDetails.Write(facts)!);
 }

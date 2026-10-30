@@ -11,7 +11,7 @@ internal sealed class GetFiringHandler(IDbSession session, ISqlDialect dialect)
     public async Task<GetFiringResponse?> HandleAsync(GetFiringQuery query, CancellationToken ct)
     {
         var fence = query.Fence;
-        var rows = await session.QueryListAsync(
+        var row = await session.QuerySingleAsync(
             "GetFiring",
             cmd =>
             {
@@ -22,6 +22,6 @@ internal sealed class GetFiringHandler(IDbSession session, ISqlDialect dialect)
             DbProjectionResolver.Resolve<GetFiringRow>(),
             ct
         );
-        return rows.Count == 0 || rows[0].Value is null || FiringEnvelope.FromJson(rows[0].Value) is not { } firing ? null : new(firing);
+        return row?.Value is { } value && FiringEnvelope.FromJson(value) is { } firing ? new(firing) : null;
     }
 }

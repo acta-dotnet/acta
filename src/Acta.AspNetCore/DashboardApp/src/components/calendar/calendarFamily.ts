@@ -15,7 +15,6 @@ export interface FamilyLike {
 
 export interface FamilyState {
   latestVersion: number;
-  nextVersion: number;
   shownStatus: string;
   shownIsDraft: boolean;
   shownIsCurrent: boolean;
@@ -31,7 +30,6 @@ export function familyState(family: FamilyLike, controls: boolean): FamilyState 
   const shownIsCurrent = family.currentVersion !== null && family.shownVersion === family.currentVersion;
   return {
     latestVersion,
-    nextVersion: latestVersion + 1,
     shownStatus,
     shownIsDraft,
     shownIsCurrent,

@@ -10,7 +10,15 @@
   // A DOM listbox rather than a select: a native popup paints with UA colors before the page theme
   // reaches it, which shows as a dark flash on the light themes, and 400+ options make that first
   // paint slow enough to see. Typing filters, so a zone is a few keystrokes rather than a long scroll.
-  let { value = $bindable(''), disabled = false }: { value?: string; disabled?: boolean } = $props();
+  // `emptyLabel` names what an empty value means where the picker is used; `onchange` reports a choice to a
+  // parent that holds the value itself rather than binding it.
+  let {
+    value = $bindable(''),
+    disabled = false,
+    emptyLabel = 'No override (inherit)',
+    label = 'Time zone override',
+    onchange
+  }: { value?: string; disabled?: boolean; emptyLabel?: string; label?: string; onchange?: (value: string) => void } = $props();
 
   const uid = 'zone-' + seq++;
   const listId = uid + '-list';
@@ -48,6 +56,7 @@
 
   function choose(zone: string): void {
     value = zone;
+    onchange?.(zone);
     close();
     inputEl?.focus();
   }
@@ -92,17 +101,18 @@
     aria-expanded={open}
     aria-controls={listId}
     aria-autocomplete="list"
-    aria-label="Time zone override"
+    aria-label={label}
     autocomplete="off"
     spellcheck="false"
     {disabled}
-    placeholder={value === '' ? 'No override (inherit)' : ''}
+    placeholder={value === '' ? emptyLabel : ''}
     value={open ? query : value}
     onfocus={openList}
     oninput={(event) => {
       query = event.currentTarget.value;
       open = true;
-      active = 0;
+      // A typed filter means a zone is wanted, so Enter takes the first match rather than the empty row.
+      active = query === '' ? 0 : 1;
     }}
     onkeydown={onKeydown} />
 
@@ -115,7 +125,7 @@
         class="zone-option inherit"
         class:active={active === 0}
         onpointerdown={(event) => { event.preventDefault(); choose(''); }}>
-        No override (inherit)
+        {emptyLabel}
       </li>
       {#each matches as zone, index}
         <li

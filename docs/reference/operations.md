@@ -169,7 +169,6 @@ One row per operation folder, `src/Acta/Operations/<Group>/<Operation>/`, and on
 | --- | --- | --- | --- | --- | --- | --- | --- | --- |
 | `AdmitFirings` | · | · | · | inline | inline | inline | `checkpoints`, `events`, `jobs`, `jobs_state`, `schedules`, `schedules_state` | `AdmitFiringsSpec` |
 | `GetDueSchedules` | · | · | · | inline | inline | inline | · | `GetDueSchedulesSpec` |
-| `GetLiveSchedules` | · | · | · | inline | inline | inline | · | `GetLiveSchedulesSpec` |
 | `GetScheduleHorizon` | · | · | · | inline | inline | inline | · | `GetScheduleHorizonSpec` |
 | `GetScheduleState` | · | · | · | inline | inline | inline | · | `GetScheduleStateSpec` |
 | `ListSchedules` | `ISchedules.ListAsync` | `GET /schedules` | · | inline | inline | inline | · | `ListSchedulesFilterMatrixSpec`, `ListSchedulesSpec` |

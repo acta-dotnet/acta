@@ -50,26 +50,31 @@ export function windowProblem(window: LocalWindow): string | null {
   return null;
 }
 
-/** The window as percentages of a 24-hour bar: one span, or two when it wraps past midnight. */
-export function windowSpans(window: LocalWindow): { left: number; width: number }[] {
+/** The window's minutes of day, or null when a time is malformed or the window is empty, which draws and counts as nothing. */
+function span(window: LocalWindow): { from: number; to: number } | null {
   const from = minutesOf(window.from);
   const to = minutesOf(window.to);
-  if (from === null || to === null || from === to) return [];
+  return from === null || to === null || from === to ? null : { from, to };
+}
+
+/** The window as percentages of a 24-hour bar: one span, or two when it wraps past midnight. */
+export function windowSpans(window: LocalWindow): { left: number; width: number }[] {
+  const s = span(window);
+  if (s === null) return [];
   const pct = (minutes: number) => (minutes / 1440) * 100;
-  if (to > from) return [{ left: pct(from), width: pct(to - from) }];
+  if (s.to > s.from) return [{ left: pct(s.from), width: pct(s.to - s.from) }];
   return [
-    { left: pct(from), width: pct(1440 - from) },
-    { left: 0, width: pct(to) }
+    { left: pct(s.from), width: pct(1440 - s.from) },
+    { left: 0, width: pct(s.to) }
   ];
 }
 
 /** The day's open minutes, an overnight window counted on the day it starts. */
 export function openMinutes(windows: LocalWindow[]): number {
   return windows.reduce((sum, window) => {
-    const from = minutesOf(window.from);
-    const to = minutesOf(window.to);
-    if (from === null || to === null || from === to) return sum;
-    return sum + (to > from ? to - from : 1440 - from + to);
+    const s = span(window);
+    if (s === null) return sum;
+    return sum + (s.to > s.from ? s.to - s.from : 1440 - s.from + s.to);
   }, 0);
 }
 

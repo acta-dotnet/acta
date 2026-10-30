@@ -1,5 +1,6 @@
 <script lang="ts">
   import Icon from '../Icon.svelte';
+  import ZonePicker from '../ZonePicker.svelte';
   import {
     WEEKDAYS,
     openMinutes,
@@ -117,18 +118,16 @@
 </div>
 
 <div class="weekly-fields">
-  <label class="detail-field">
-    Time zone
-    <input
-      type="text"
-      value={model.timeZone}
+  <div class="detail-field">
+    <span>Time zone</span>
+    <ZonePicker
+      value={model.timeZone === 'schedule' ? '' : model.timeZone}
       disabled={readOnly}
-      placeholder="schedule"
-      list="weekly-zone-hints"
-      onchange={(event) => emit({ timeZone: event.currentTarget.value.trim() || 'schedule' })} />
-    <datalist id="weekly-zone-hints"><option value="schedule"></option><option value="UTC"></option></datalist>
-    <span class="field-help">"schedule" takes each bound schedule's own zone; a zone id such as Europe/Ljubljana fixes it.</span>
-  </label>
+      label="Calendar time zone"
+      emptyLabel="Each schedule's own zone"
+      onchange={(zone) => emit({ timeZone: zone || 'schedule' })} />
+    <span class="field-help">Left empty, the calendar reads in each bound schedule's own zone; a zone id such as Europe/Ljubljana fixes it.</span>
+  </div>
   <label class="detail-field">
     Description
     <input type="text" value={model.description} disabled={readOnly} maxlength="512" onchange={(event) => emit({ description: event.currentTarget.value })} />

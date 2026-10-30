@@ -139,6 +139,5 @@ SELECT
         WHEN t.candidate_id IS NULL THEN 2 /* ControlAction.NotFound */
         ELSE 3 /* ControlAction.Rejected */
     END::SMALLINT AS action,
-    (SELECT COUNT(*) FROM _pub_rows)::INT AS affected,
     t.current_version
 FROM _pub_target t;

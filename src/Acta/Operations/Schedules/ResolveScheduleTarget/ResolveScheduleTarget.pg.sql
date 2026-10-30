@@ -3,7 +3,6 @@
 SELECT
     t.schedule_id,
     t.job_id,
-    t.definition_id,
     n.namespace_id,
     t.schedule_name,
     t.expression,

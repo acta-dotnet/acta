@@ -22,7 +22,7 @@ internal sealed class ResumeScheduleHandler(
             return NotFound;
         }
 
-        var name = target.Schedule.ScheduleName;
+        var name = target.ScheduleName;
         var row = await session.ExecuteOneAsync(
             new StoreCommand("ResumeSchedule"),
             cmd =>
@@ -33,11 +33,8 @@ internal sealed class ResumeScheduleHandler(
             DbProjectionResolver.Resolve<ResumeScheduleRow>(),
             ct
         );
-        if (row.Action == ControlAction.Applied)
-        {
-            // The admitter listens on the same channel as the claim loop; it evaluates the schedule at once.
-            await wakeup.WakeAsync(WorkerWakeupChannel.AllWorkerNamespaces, WorkerWakeupReason.WorkAvailable, ct);
-        }
+        // The admitter listens on the same channel as the claim loop; it evaluates the schedule at once.
+        await JobControl.WakeWorkersIfAsync(wakeup, row.Action == ControlAction.Applied, ct);
 
         return new ResumeScheduleResponse(row.Action, row.Status, row.PausedUntilUtc, row.NextOccurrenceAtUtc, row.Version);
     }

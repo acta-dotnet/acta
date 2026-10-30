@@ -88,7 +88,7 @@ internal sealed class CalendarSources(
 
         try
         {
-            _compiled[(namespaceId, name, version)] = CalendarDefinition.Compile(row.Role, Encoding.UTF8.GetString(row.Definition.Span));
+            _compiled[(namespaceId, name, version)] = CalendarDefinition.Compile(row.Role, row.Definition);
         }
         catch (CalendarDefinitionException ex)
         {

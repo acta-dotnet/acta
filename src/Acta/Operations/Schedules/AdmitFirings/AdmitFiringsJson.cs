@@ -1,5 +1,3 @@
-using System.Buffers;
-using System.Text;
 using System.Text.Json;
 
 namespace Acta;
@@ -12,26 +10,26 @@ namespace Acta;
 internal static class AdmitFiringsJson
 {
     public static string Groups(AdmitFiringsCommand command) =>
-        Array(
+        JsonRows.Array(
             command.Groups,
             static (writer, g) =>
             {
                 writer.WriteNumber("ordinal", g.Ordinal);
-                Number(writer, "job_id", g.JobId);
-                Number(writer, "expected_job_version", g.ExpectedJobVersion);
-                Number(writer, "schedule_id", g.ScheduleId);
-                Number(writer, "expected_state_version", g.ExpectedStateVersion);
+                JsonRows.Number(writer, "job_id", g.JobId);
+                JsonRows.Number(writer, "expected_job_version", g.ExpectedJobVersion);
+                JsonRows.Number(writer, "schedule_id", g.ScheduleId);
+                JsonRows.Number(writer, "expected_state_version", g.ExpectedStateVersion);
                 writer.WriteBoolean("admit", g.Admit);
-                Text(writer, "envelope", g.Envelope);
-                Text(writer, "job_ref", g.JobRef?.ToString());
-                Text(writer, "deduplication_key", g.DeduplicationKey);
-                Text(writer, "trigger_message", g.TriggerMessage);
-                Text(writer, "trigger_details", g.TriggerDetails);
+                JsonRows.Text(writer, "envelope", g.Envelope);
+                JsonRows.Text(writer, "job_ref", g.JobRef?.ToString());
+                JsonRows.Text(writer, "deduplication_key", g.DeduplicationKey);
+                JsonRows.Text(writer, "trigger_message", g.TriggerMessage);
+                JsonRows.Text(writer, "trigger_details", g.TriggerDetails);
             }
         );
 
     public static string Rows(AdmitFiringsCommand command, Action<Utf8JsonWriter, string, DateTime?> writeInstant) =>
-        Array(
+        JsonRows.Array(
             command.Rows,
             (writer, r) =>
             {
@@ -43,52 +41,10 @@ internal static class AdmitFiringsJson
                 writeInstant(writer, "next_evaluation_at_utc", r.NextEvaluationAtUtc);
                 writer.WriteNumber("evaluation_status_code", (byte)r.EvaluationStatus);
                 writer.WriteBoolean("pause_ended", r.PauseEnded);
-                Text(writer, "admitted_details", r.AdmittedDetails);
-                Text(writer, "skipped_details", r.SkippedDetails);
-                Text(writer, "expired_details", r.ExpiredDetails);
+                JsonRows.Text(writer, "admitted_details", r.AdmittedDetails);
+                JsonRows.Text(writer, "skipped_details", r.SkippedDetails);
+                JsonRows.Text(writer, "expired_details", r.ExpiredDetails);
                 writer.WriteBoolean("expire_paused", r.ExpirePaused);
             }
         );
-
-    private static void Number(Utf8JsonWriter writer, string name, long? value)
-    {
-        if (value is { } number)
-        {
-            writer.WriteNumber(name, number);
-        }
-        else
-        {
-            writer.WriteNull(name);
-        }
-    }
-
-    private static void Text(Utf8JsonWriter writer, string name, string? value)
-    {
-        if (value is null)
-        {
-            writer.WriteNull(name);
-        }
-        else
-        {
-            writer.WriteString(name, value);
-        }
-    }
-
-    private static string Array<T>(IReadOnlyList<T> items, Action<Utf8JsonWriter, T> writeItem)
-    {
-        var buffer = new ArrayBufferWriter<byte>();
-        using (var writer = new Utf8JsonWriter(buffer))
-        {
-            writer.WriteStartArray();
-            foreach (var item in items)
-            {
-                writer.WriteStartObject();
-                writeItem(writer, item);
-                writer.WriteEndObject();
-            }
-            writer.WriteEndArray();
-        }
-
-        return Encoding.UTF8.GetString(buffer.WrittenSpan);
-    }
 }

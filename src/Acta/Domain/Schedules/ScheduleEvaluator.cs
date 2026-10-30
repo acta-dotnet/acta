@@ -83,19 +83,7 @@ internal static class ScheduleEvaluator
                 var still = NextOccurrenceCalculator.Next(source, next.AddTicks(-1));
                 if (still != next)
                 {
-                    return new ScheduleEvaluation(
-                        null,
-                        next,
-                        next,
-                        null,
-                        null,
-                        still,
-                        still,
-                        still is null ? EvaluationStatusCode.Exhausted : EvaluationStatusCode.Scheduled,
-                        pauseEnded,
-                        false,
-                        SourceChanged: true
-                    );
+                    return Moved(still, pauseEnded, pausedByExpiry: false, skippedFrom: next, skippedThrough: next, sourceChanged: true);
                 }
             }
 
@@ -112,21 +100,10 @@ internal static class ScheduleEvaluator
                     policy.ExpireAction == ScheduleExpireActionCode.Pause
                     && !pauseEnded
                     && cursor.EvaluationStatus != EvaluationStatusCode.Resumed;
-                var remaining = NextAfter(source, expiredThrough.Value);
+                var remaining = NextOccurrenceCalculator.Next(source, expiredThrough.Value);
                 if (remaining is null || remaining > now)
                 {
-                    return new ScheduleEvaluation(
-                        null,
-                        null,
-                        null,
-                        expiredFrom,
-                        expiredThrough,
-                        remaining,
-                        pausedByExpiry ? null : remaining,
-                        remaining is null ? EvaluationStatusCode.Exhausted : EvaluationStatusCode.Scheduled,
-                        pauseEnded,
-                        pausedByExpiry
-                    );
+                    return Moved(remaining, pauseEnded, pausedByExpiry, expiredFrom: expiredFrom, expiredThrough: expiredThrough);
                 }
 
                 next = remaining.Value;
@@ -164,7 +141,7 @@ internal static class ScheduleEvaluator
                 // The earliest due occurrence fires alone; the rest of the backlog is due again at once, so the next pass
                 // comes straight back and admits the next one as capacity allows.
                 admit = new AdmittedOccurrence(next, next);
-                following = NextAfter(source, next);
+                following = NextOccurrenceCalculator.Next(source, next);
                 break;
             case MisfireStrategyCode.Skip:
                 admit = onTime ? new AdmittedOccurrence(latest, latest) : null;
@@ -178,18 +155,7 @@ internal static class ScheduleEvaluator
                 throw new NotSupportedException($"Misfire strategy {policy.Misfire} is not supported by this build.");
         }
 
-        return new ScheduleEvaluation(
-            admit,
-            skippedFrom,
-            skippedThrough,
-            expiredFrom,
-            expiredThrough,
-            following,
-            pausedByExpiry ? null : following,
-            following is null ? EvaluationStatusCode.Exhausted : EvaluationStatusCode.Scheduled,
-            pauseEnded,
-            pausedByExpiry
-        );
+        return Moved(following, pauseEnded, pausedByExpiry, admit, skippedFrom, skippedThrough, expiredFrom, expiredThrough);
     }
 
     private static ScheduleEvaluation Unchanged(
@@ -199,9 +165,34 @@ internal static class ScheduleEvaluator
         bool pauseEnded
     ) => new(null, null, null, null, null, cursor.NextOccurrenceAtUtc, nextEvaluationAtUtc, status, pauseEnded, false);
 
-    /// <summary>The first occurrence strictly after <paramref name="fromUtc"/>, an anchored interval stepping from its anchor.</summary>
-    private static DateTime? NextAfter(ScheduleSource source, DateTime fromUtc) =>
-        NextOccurrenceCalculator.FirstAfter(source, source.Timing.IntervalAnchorAtUtc ?? fromUtc, fromUtc);
+    /// <summary>
+    /// A cursor moved to <paramref name="next"/>: Exhausted when nothing follows, evaluated again at the occurrence
+    /// unless an expiry pause holds the schedule for an operator.
+    /// </summary>
+    private static ScheduleEvaluation Moved(
+        DateTime? next,
+        bool pauseEnded,
+        bool pausedByExpiry,
+        AdmittedOccurrence? admit = null,
+        DateTime? skippedFrom = null,
+        DateTime? skippedThrough = null,
+        DateTime? expiredFrom = null,
+        DateTime? expiredThrough = null,
+        bool sourceChanged = false
+    ) =>
+        new(
+            admit,
+            skippedFrom,
+            skippedThrough,
+            expiredFrom,
+            expiredThrough,
+            next,
+            pausedByExpiry ? null : next,
+            next is null ? EvaluationStatusCode.Exhausted : EvaluationStatusCode.Scheduled,
+            pauseEnded,
+            pausedByExpiry,
+            SourceChanged: sourceChanged
+        );
 
     /// <summary>
     /// The last occurrence at or before <paramref name="nowUtc"/>, starting from the due <paramref name="fromUtc"/>: an
@@ -222,7 +213,7 @@ internal static class ScheduleEvaluator
         var current = fromUtc;
         for (var walked = 0; walked < MaxDueWalk; walked++)
         {
-            if (NextAfter(source, current) is not { } candidate || candidate > nowUtc)
+            if (NextOccurrenceCalculator.Next(source, current) is not { } candidate || candidate > nowUtc)
             {
                 return current;
             }
@@ -244,7 +235,7 @@ internal static class ScheduleEvaluator
         }
 
         var current = fromUtc;
-        while (NextAfter(source, current) is { } candidate && candidate < latestUtc)
+        while (NextOccurrenceCalculator.Next(source, current) is { } candidate && candidate < latestUtc)
         {
             current = candidate;
         }

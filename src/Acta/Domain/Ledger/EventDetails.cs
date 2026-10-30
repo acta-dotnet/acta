@@ -1,3 +1,4 @@
+using System.Text;
 using System.Text.Encodings.Web;
 using System.Text.Json;
 
@@ -18,6 +19,10 @@ internal static class EventDetails
     /// <summary>An instant as a detail fact: UTC at millisecond precision, the way a decision's range is recorded.</summary>
     public static string Instant(DateTime value) =>
         DbParams.ToUtc(value).ToString("yyyy-MM-dd'T'HH:mm:ss.fff'Z'", System.Globalization.CultureInfo.InvariantCulture);
+
+    /// <summary>The facts as JSON text, for a write that takes the details as a string; null when every value is null.</summary>
+    public static string? Text(params ReadOnlySpan<(string Name, string? Value)> facts) =>
+        Write(facts) is { } bytes ? Encoding.UTF8.GetString(bytes) : null;
 
     /// <summary>The facts as UTF-8 JSON, or null when every value is null.</summary>
     public static byte[]? Write(params ReadOnlySpan<(string Name, string? Value)> facts)

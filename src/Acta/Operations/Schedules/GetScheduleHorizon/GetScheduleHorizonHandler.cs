@@ -8,12 +8,12 @@ internal sealed class GetScheduleHorizonHandler(IDbSession session, ISqlDialect 
 {
     public async Task<GetScheduleHorizonResponse> HandleAsync(GetScheduleHorizonQuery query, CancellationToken ct)
     {
-        var rows = await session.QueryListAsync(
+        var row = await session.QuerySingleAsync(
             "GetScheduleHorizon",
             cmd => cmd.Parameters.Add(dialect.CreateParameter(ActaSchema.Namespace.NamespaceId, query.NamespaceId)),
             DbProjectionResolver.Resolve<GetScheduleHorizonRow>(),
             ct
         );
-        return new(rows.Count == 0 ? null : rows[0].NextEvaluationAtUtc);
+        return new(row?.NextEvaluationAtUtc);
     }
 }

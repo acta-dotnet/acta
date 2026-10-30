@@ -23,7 +23,7 @@ internal sealed class PauseScheduleHandler(ResolveScheduleTargetHandler resolveS
             return Rejected;
         }
 
-        var name = target.Schedule.ScheduleName;
+        var name = target.ScheduleName;
         var row = await session.ExecuteOneAsync(
             new StoreCommand("PauseSchedule"),
             cmd =>

@@ -9,7 +9,8 @@ namespace Acta;
 internal sealed class JobRequestRouting(
     IJobPayloadSerializerRegistry serializers,
     JobTypeRegistry typeRegistry,
-    JobContractRegistry contractRegistry
+    JobContractRegistry contractRegistry,
+    JobDescriptorRegistry descriptors
 )
 {
     /// <summary>The request for an input whose CLR type maps to exactly one registered job.</summary>
@@ -78,10 +79,10 @@ internal sealed class JobRequestRouting(
     /// </summary>
     public void EnsureResultType<TResult>(string jobNamespace, string jobName)
     {
-        if (contractRegistry.TryGetResultType(jobNamespace, jobName, out var resultType) && resultType != typeof(TResult))
+        if (descriptors.Find(jobNamespace, jobName) is { } descriptor && descriptor.OutputType != typeof(TResult))
         {
             throw new InvalidOperationException(
-                $"Job '{jobNamespace}/{jobName}' produces '{resultType?.FullName ?? "no result"}', not "
+                $"Job '{jobNamespace}/{jobName}' produces '{descriptor.OutputType?.FullName ?? "no result"}', not "
                     + $"'{typeof(TResult).FullName}'. A deduplication key shared across definitions returns the job that "
                     + "already holds it; wait on it with its own result type."
             );

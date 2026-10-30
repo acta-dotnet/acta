@@ -165,14 +165,15 @@ internal sealed class ScheduleAdmitter(
     {
         var groups = new List<AdmitFiringsGroup>();
         var rows = new List<AdmitFiringsValues>();
+        ScheduleSource Resolve(ScheduleTiming timing) => calendars.Source(namespaceId, timing);
         foreach (var slot in due.Where(d => d.JobId is not null).GroupBy(d => d.JobId!.Value))
         {
-            PlanSlot(slot.Key, [.. slot], nowUtc, namespaceId, calendars, log, groups, rows, decisions);
+            PlanSlot(slot.Key, [.. slot], nowUtc, Resolve, log, groups, rows, decisions);
         }
 
         foreach (var schedule in due.Where(d => d.JobId is null))
         {
-            PlanOccurrence(schedule, nowUtc, namespaceId, calendars, log, groups, rows, decisions);
+            PlanOccurrence(schedule, nowUtc, Resolve, log, groups, rows, decisions);
         }
 
         return new AdmitFiringsCommand(namespaceId, groups, rows);
@@ -183,8 +184,7 @@ internal sealed class ScheduleAdmitter(
         long jobId,
         IReadOnlyList<DueSchedule> members,
         DateTime nowUtc,
-        int namespaceId,
-        CalendarsOperations calendars,
+        Func<ScheduleTiming, ScheduleSource> resolve,
         ILogger? log,
         List<AdmitFiringsGroup> groups,
         List<AdmitFiringsValues> rows,
@@ -204,8 +204,8 @@ internal sealed class ScheduleAdmitter(
         var firingId = Guid.CreateVersion7();
         foreach (var s in members)
         {
-            var e = Evaluate(s, capacity, nowUtc, namespaceId, calendars, log, out var cursor);
-            if (!e.Changes(cursor, s.EvaluationStatus, s.NextEvaluationAtUtc))
+            var e = Evaluate(s, capacity, nowUtc, resolve, log);
+            if (!e.Changes(Cursor(s), s.EvaluationStatus, s.NextEvaluationAtUtc))
             {
                 continue;
             }
@@ -218,7 +218,7 @@ internal sealed class ScheduleAdmitter(
             }
 
             slotRows.Add(Row(ordinal, s, e, admittedDetails, SkippedDetails(s, e)));
-            Decide(decisions, ordinal, e, admitted: e.Admit is not null, dropped: false, nowUtc);
+            Decide(decisions, ordinal, e, dropped: false, nowUtc);
         }
 
         if (slotRows.Count == 0)
@@ -247,8 +247,7 @@ internal sealed class ScheduleAdmitter(
     private static void PlanOccurrence(
         DueSchedule s,
         DateTime nowUtc,
-        int namespaceId,
-        CalendarsOperations calendars,
+        Func<ScheduleTiming, ScheduleSource> resolve,
         ILogger? log,
         List<AdmitFiringsGroup> groups,
         List<AdmitFiringsValues> rows,
@@ -257,8 +256,8 @@ internal sealed class ScheduleAdmitter(
     {
         var full = s.OutstandingCount >= s.MaxOutstanding;
         var capacity = full && s.FullBehavior != ScheduleFullBehaviorCode.Drop ? AdmissionCapacity.Full : AdmissionCapacity.Available;
-        var e = Evaluate(s, capacity, nowUtc, namespaceId, calendars, log, out var cursor);
-        if (!e.Changes(cursor, s.EvaluationStatus, s.NextEvaluationAtUtc))
+        var e = Evaluate(s, capacity, nowUtc, resolve, log);
+        if (!e.Changes(Cursor(s), s.EvaluationStatus, s.NextEvaluationAtUtc))
         {
             return;
         }
@@ -271,12 +270,7 @@ internal sealed class ScheduleAdmitter(
         {
             if (full)
             {
-                skippedDetails = Details(
-                    ("schedule", s.ScheduleName),
-                    ("from", Iso(e.SkippedFromUtc ?? admit.OccurrenceAtUtc)),
-                    ("through", Iso(admit.CoveredThroughUtc)),
-                    ("reason", "capacity")
-                );
+                skippedDetails = RangeDetails(s, e.SkippedFromUtc ?? admit.OccurrenceAtUtc, admit.CoveredThroughUtc, "capacity");
             }
             else
             {
@@ -294,18 +288,14 @@ internal sealed class ScheduleAdmitter(
 
         groups.Add(group);
         rows.Add(Row(ordinal, s, e, admittedDetails, skippedDetails));
-        Decide(decisions, ordinal, e, admitted: e.Admit is not null && !full, dropped: full && e.Admit is not null, nowUtc);
+        Decide(decisions, ordinal, e, dropped: full && e.Admit is not null, nowUtc);
     }
 
-    /// <summary>The decisions one evaluation took, for the meter; a range skipped or expired before an admitted occurrence counts too.</summary>
-    private static void Decide(
-        List<PlannedMeasurement>? decisions,
-        int ordinal,
-        ScheduleEvaluation e,
-        bool admitted,
-        bool dropped,
-        DateTime nowUtc
-    )
+    /// <summary>
+    /// The decisions one evaluation took, for the meter; a range skipped or expired before an admitted occurrence
+    /// counts too, and an occurrence dropped at capacity counts as skipped rather than admitted.
+    /// </summary>
+    private static void Decide(List<PlannedMeasurement>? decisions, int ordinal, ScheduleEvaluation e, bool dropped, DateTime nowUtc)
     {
         if (decisions is null)
         {
@@ -322,7 +312,7 @@ internal sealed class ScheduleAdmitter(
             decisions.Add(new PlannedMeasurement(ordinal, "expired", null));
         }
 
-        if (admitted && e.Admit is { } admit)
+        if (!dropped && e.Admit is { } admit)
         {
             decisions.Add(new PlannedMeasurement(ordinal, "admitted", nowUtc - admit.OccurrenceAtUtc));
         }
@@ -359,14 +349,14 @@ internal sealed class ScheduleAdmitter(
     internal static string OccurrenceKey(int scheduleId, DateTime occurrenceUtc) =>
         string.Create(CultureInfo.InvariantCulture, $"sys.occurrence.{scheduleId}.{DbParams.ToUtc(occurrenceUtc).Ticks}");
 
+    private static ScheduleCursor Cursor(DueSchedule s) => new(s.NextOccurrenceAtUtc, s.Status, s.PausedUntilUtc, s.EvaluationStatus);
+
     private static ScheduleEvaluation Evaluate(
         DueSchedule s,
         AdmissionCapacity capacity,
         DateTime nowUtc,
-        int namespaceId,
-        CalendarsOperations calendars,
-        ILogger? log,
-        out ScheduleCursor cursor
+        Func<ScheduleTiming, ScheduleSource> resolve,
+        ILogger? log
     )
     {
         var policy = new SchedulePolicy(
@@ -375,8 +365,7 @@ internal sealed class ScheduleAdmitter(
             s.ExpireAfterSeconds is { } expireAfter ? TimeSpan.FromSeconds(expireAfter) : null,
             s.ExpireAction ?? ScheduleExpireActionCode.Unspecified
         );
-        cursor = new ScheduleCursor(s.NextOccurrenceAtUtc, s.Status, s.PausedUntilUtc, s.EvaluationStatus);
-        var e = ScheduleEvaluator.Evaluate(calendars.Source(namespaceId, s.Timing()), policy, cursor, capacity, nowUtc);
+        var e = ScheduleEvaluator.Evaluate(resolve(s.Timing()), policy, Cursor(s), capacity, nowUtc);
         if (e.Error is { } error && log is not null && s.EvaluationStatus != EvaluationStatusCode.EvaluationError)
         {
             ActaLog.ScheduleEvaluationFailed(log, s.DefinitionName, $"schedule '{s.ScheduleName}': {error}");
@@ -411,47 +400,27 @@ internal sealed class ScheduleAdmitter(
         );
 
     private static string AdmittedDetails(DueSchedule s, AdmittedOccurrence admit, Guid firingId) =>
-        Details(
+        EventDetails.Text(
             ("schedule", s.ScheduleName),
-            ("occurrence", Iso(admit.OccurrenceAtUtc)),
-            ("coveredThrough", Iso(admit.CoveredThroughUtc)),
+            ("occurrence", EventDetails.Instant(admit.OccurrenceAtUtc)),
+            ("coveredThrough", EventDetails.Instant(admit.CoveredThroughUtc)),
             ("firingId", firingId.ToString("N"))
-        );
+        )!;
 
     private static string? SkippedDetails(DueSchedule s, ScheduleEvaluation e) =>
-        e.SkippedFromUtc is not { } from ? null
-        : e.SourceChanged
-            ? Details(
-                ("schedule", s.ScheduleName),
-                ("from", Iso(from)),
-                ("through", Iso(e.SkippedThroughUtc!.Value)),
-                ("reason", "source-changed")
-            )
-        : Details(("schedule", s.ScheduleName), ("from", Iso(from)), ("through", Iso(e.SkippedThroughUtc!.Value)));
+        e.SkippedFromUtc is { } from ? RangeDetails(s, from, e.SkippedThroughUtc!.Value, e.SourceChanged ? "source-changed" : null) : null;
 
     private static string? ExpiredDetails(DueSchedule s, ScheduleEvaluation e) =>
-        e.ExpiredFromUtc is { } from
-            ? Details(
-                ("schedule", s.ScheduleName),
-                ("from", Iso(from)),
-                ("through", Iso(e.ExpiredThroughUtc!.Value)),
-                ("reason", "expired")
-            )
-            : null;
+        e.ExpiredFromUtc is { } from ? RangeDetails(s, from, e.ExpiredThroughUtc!.Value, "expired") : null;
 
-    private static string Iso(DateTime value) => EventDetails.Instant(value);
-
-    /// <summary>ASCII JSON for a decision event: names are dotted kebab, the rest are instants and ids, so nothing needs escaping.</summary>
-    private static string Details(params ReadOnlySpan<(string Name, string Value)> facts)
-    {
-        var text = new System.Text.StringBuilder("{");
-        for (var i = 0; i < facts.Length; i++)
-        {
-            text.Append(i == 0 ? "\"" : ",\"").Append(facts[i].Name).Append("\":\"").Append(facts[i].Value).Append('"');
-        }
-
-        return text.Append('}').ToString();
-    }
+    /// <summary>A decided range as the ledger records it; the reason is left out when the misfire policy alone decided it.</summary>
+    private static string RangeDetails(DueSchedule s, DateTime fromUtc, DateTime throughUtc, string? reason) =>
+        EventDetails.Text(
+            ("schedule", s.ScheduleName),
+            ("from", EventDetails.Instant(fromUtc)),
+            ("through", EventDetails.Instant(throughUtc)),
+            ("reason", reason)
+        )!;
 }
 
 /// <summary>What one admission pass did, and when the namespace next needs the engine.</summary>

@@ -141,7 +141,6 @@ BEGIN TRY
 
     SELECT
         CAST(CASE WHEN @valid = 1 THEN 1 /* ControlAction.Applied */ WHEN @candidate_id IS NULL THEN 2 /* ControlAction.NotFound */ ELSE 3 /* ControlAction.Rejected */ END AS SMALLINT) AS action,
-        (SELECT COUNT(*) FROM @rows) AS affected,
         @current_version AS current_version;
 
     IF @entry_trancount = 0

@@ -36,24 +36,16 @@ internal sealed class ResolveScheduleTargetHandler(IDbSession session, ISqlDiale
         }
 
         var nowUtc = await clock.GetUtcNowAsync(ct);
-        var live = new LiveSchedule(
-            row.ScheduleName,
-            row.Expression,
-            row.TimeZoneId,
-            row.MisfireStrategy,
-            row.ExpressionKind,
-            row.NextOccurrenceAtUtc,
-            row.Status,
-            row.PausedUntilUtc,
-            row.Version
-        );
         return new ResolveScheduleTargetResponse(
             row.ScheduleId,
             row.JobId,
-            row.DefinitionId,
             row.NamespaceId,
             nowUtc,
-            live,
+            row.ScheduleName,
+            row.Status,
+            row.PausedUntilUtc,
+            row.NextOccurrenceAtUtc,
+            row.Version,
             row.MaxOutstanding,
             row.OutstandingCount,
             row.StateVersion,
