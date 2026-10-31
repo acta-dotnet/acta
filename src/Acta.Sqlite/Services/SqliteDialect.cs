@@ -428,7 +428,6 @@ internal sealed partial class SqliteDialect : ISqlDialect
                     "input",
                     definition.InputFormatId == JobPayloadFormat.None.Id ? (ReadOnlyMemory<byte>?)null : definition.Input
                 );
-                writer.WriteNumber("event_recording_code", (short)definition.EventRecording);
                 writer.WriteNumber("scheduled_delivery_code", (short)definition.ScheduledDelivery);
             }
         );

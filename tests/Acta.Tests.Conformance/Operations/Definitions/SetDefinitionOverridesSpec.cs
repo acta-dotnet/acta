@@ -97,6 +97,65 @@ public sealed class SetDefinitionOverridesSpec : ActaStorageTestBase<Conformance
         return (await ReadAsync(name, ct)).Id;
     }
 
+    [Fact(
+        DisplayName = "An event-recording override reaches a recurring slot at once and outlasts a worker start that read the catalog before it; an enqueued job keeps the recording it took"
+    )]
+    public async Task Event_recording_override_reaches_the_slot_not_an_enqueued_job()
+    {
+        var ct = TestContext.Current.CancellationToken;
+        var name = Unique("recording");
+        var defId = await RegisterAsync(name, 3, ct);
+        // The declaration a worker builds from the catalog it read before the override: recording Off.
+        DefinitionSchedules[] declared =
+        [
+            new(
+                TestNamespaceId,
+                defId,
+                0,
+                ReadOnlyMemory<byte>.Empty,
+                EventRecordingCode.Off,
+                ScheduledDeliveryCode.Permanent,
+                [
+                    new SlotSchedule(
+                        "only",
+                        "*/5 * * * *",
+                        null,
+                        MisfireStrategyCode.Skip,
+                        ScheduleExpressionKindCode.Cron,
+                        null,
+                        DateTime.UtcNow.AddHours(6)
+                    ),
+                ]
+            ),
+        ];
+        var slotId = (await ScheduleTestOps.RegisterAsync(Services, declared, ct))[defId];
+        var jobs = Services.GetRequiredService<IJobs>();
+        var before = await jobs.EnqueueAsync(new EnqueueJobRequest(TestNamespace, name, JobPayload.Json(1)), ct);
+
+        var def = await ReadAsync(name, ct);
+        var applied = await DefinitionTestOps.UpdateOverridesAsync(
+            Services,
+            TestNamespace,
+            name,
+            def.Version,
+            new DefinitionPolicyOverrides(EventRecording: EventRecordingCode.Audit),
+            Actor,
+            null,
+            ct
+        );
+        var after = await jobs.EnqueueAsync(new EnqueueJobRequest(TestNamespace, name, JobPayload.Json(2)), ct);
+
+        Assert.Equal(ControlAction.Applied, applied.Action);
+        Assert.Equal(EventRecordingCode.Audit, (await JobAsync(slotId, ct)).EventRecording);
+        await ScheduleTestOps.RegisterAsync(Services, declared, ct);
+        Assert.Equal(EventRecordingCode.Audit, (await JobAsync(slotId, ct)).EventRecording);
+        Assert.Equal(EventRecordingCode.Off, (await JobAsync(before.JobId, ct)).EventRecording);
+        Assert.Equal(EventRecordingCode.Audit, (await JobAsync(after.JobId, ct)).EventRecording);
+    }
+
+    private async Task<JobEntity> JobAsync(long jobId, CancellationToken ct) =>
+        Assert.IsType<JobEntity>(await Db.From<JobEntity>().Where(j => j.Id == jobId).SingleOrDefaultAsync(ct));
+
     [Fact(DisplayName = "Setting an override recomputes effective and leaves the default + hash untouched")]
     public async Task Set_override_recomputes_effective()
     {

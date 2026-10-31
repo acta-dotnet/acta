@@ -24,8 +24,11 @@ SELECT
             THEN COALESCE(acta_blob(json_extract(d.value, '$.input')), X'')
     END,
     NULL,
-    json_extract(d.value, '$.event_recording_code')
+    -- The slot's event recording is the definition row's effective recording, so an override committed after this
+    -- worker read its catalog stands.
+    jd.event_recording_code_effective
 FROM json_each(@p_definitions) d
+INNER JOIN {{schema}}.definitions jd ON jd.definition_id = json_extract(d.value, '$.definition_id')
 -- A PerOccurrence definition has no slot: each admitted occurrence is a root of its own.
 WHERE json_extract(d.value, '$.scheduled_delivery_code') = 10 /* ScheduledDeliveryCode.Permanent */
 ORDER BY json_extract(d.value, '$.definition_id')

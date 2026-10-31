@@ -8,6 +8,20 @@ BEGIN TRY
 
     DECLARE @now DATETIME2(7) = SYSUTCDATETIME();
     DECLARE @ns INT, @existing_version INT, @rate_name VARCHAR(128), @name VARCHAR(128), @meter VARCHAR(128);
+    DECLARE @lock_result INT, @lock_resource NVARCHAR(255);
+
+    -- The namespace's schedule lock, exclusive, before any row lock (docs/sql-internals.md, "Schedule lock"): the
+    -- definition row and then its slot lock below, and registration writes the slot before its schedules check the row.
+    SELECT @lock_resource = N'{{schema}}.schedules.' + CAST(jd.namespace_id AS NVARCHAR(12))
+    FROM {{schema}}.definitions jd
+    WHERE jd.definition_id = @p_definition_id;
+
+    IF @lock_resource IS NOT NULL
+        BEGIN
+            EXEC @lock_result = sys.sp_getapplock @lock_resource, 'Exclusive', 'Transaction', -1;
+            IF @lock_result < 0
+                THROW 51205, 'ACTA:SCHEDULE_LOCK:The namespace schedule lock was not granted (deadlock victim or cancelled).', 1;
+        END;
 
     SELECT
         @ns = jd.namespace_id,
@@ -65,6 +79,17 @@ BEGIN TRY
         AND definition_id <> @p_definition_id
         AND (rate_limit IS NOT NULL OR rate_limit_override IS NOT NULL)
         AND LOWER(COALESCE(rate_name, definition_name)) = @meter;
+
+    -- A recurring job's slot is one long-lived job, so it takes the new event recording here, at once, rather than at
+    -- the next worker start's registration; an ordinary job keeps the recording it was enqueued with.
+    UPDATE j
+    SET event_recording_code = jd.event_recording_code_effective
+    FROM {{schema}}.jobs j
+    INNER JOIN {{schema}}.definitions jd ON jd.definition_id = j.definition_id
+    WHERE
+        j.definition_id = @p_definition_id
+        AND j.job_kind_code = 20 /* JobKindCode.PermanentSlot */
+        AND j.event_recording_code <> jd.event_recording_code_effective;
 
     INSERT INTO {{schema}}.events (
         event_code, created_at_utc, namespace_id,

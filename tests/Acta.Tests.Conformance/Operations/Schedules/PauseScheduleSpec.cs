@@ -127,7 +127,7 @@ public sealed class PauseScheduleSpec : ActaStorageTestBase<ConformanceFixture>
             OutputPayloadFormat: null,
             Priority: default,
             MaxAttempts: 1,
-            EventRecording: default,
+            EventRecording: EventRecordingCode.Audit,
             AlertProfile: default,
             FiringFailurePolicy: FiringFailurePolicyCode.Continue,
             ScheduledDelivery: ScheduledDeliveryCode.Permanent,

@@ -218,6 +218,13 @@ upgrade:
 Routine and view statements need no guard: `CREATE OR REPLACE`, `CREATE OR ALTER`, and SQLite's
 drop-then-create are idempotent as written.
 
+`schema add` writes an added column, check, or foreign key as a bare `ALTER TABLE`, with no
+existence guard and no `TODO` saying one is missing, so a second run of the published script fails
+on it. SQLite cannot add a check or foreign key by `ALTER TABLE`, so there it fails on the first run
+and needs the table-rebuild idiom. Before the first migration after init ships, the emitter must
+write these guards (a check or foreign key behind a catalog lookup on PostgreSQL and SQL Server);
+until it does, write them by hand and run the provider's full schema script twice.
+
 Adding one:
 
 1. Change the source: a table model, a routine body beside its operation, or a view under

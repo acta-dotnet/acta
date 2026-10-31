@@ -214,7 +214,6 @@ internal sealed class SqlServerDdlDialect : SqlDdlDialect
                 job_ref              UNIQUEIDENTIFIER NOT NULL,
                 input_format_id      TINYINT        NOT NULL,
                 input                VARBINARY(MAX) NULL,
-                event_recording_code TINYINT        NOT NULL,
                 scheduled_delivery_code TINYINT     NOT NULL
             );');
             GO

@@ -599,7 +599,6 @@ EXEC(N'CREATE TYPE {{schema}}.register_slots AS TABLE (
     job_ref              UNIQUEIDENTIFIER NOT NULL,
     input_format_id      TINYINT        NOT NULL,
     input                VARBINARY(MAX) NULL,
-    event_recording_code TINYINT        NOT NULL,
     scheduled_delivery_code TINYINT     NOT NULL
 );');
 GO
@@ -5001,7 +5000,7 @@ JOIN {{schema}}.namespaces AS ns ON ns.namespace_id = w.namespace_id
 GO
 
 
-IF NOT EXISTS (SELECT 1 FROM {{schema}}.migrations WHERE name = 'M20261030172834_init')
+IF NOT EXISTS (SELECT 1 FROM {{schema}}.migrations WHERE name = 'M20261031153619_init')
 INSERT INTO {{schema}}.migrations (name)
-VALUES ('M20261030172834_init');
+VALUES ('M20261031153619_init');
 GO

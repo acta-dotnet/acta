@@ -58,7 +58,7 @@ One row per operation folder, `src/Acta/Operations/<Group>/<Operation>/`, and on
 | `RegisterDefinitions` | · | · | · | inline | inline | inline | `definitions` | `RegisterDefinitionsSpec` |
 | `ResolveDefinitionId` | · | · | · | · | · | · | · | `ResolveDefinitionIdSpec` |
 | `RetireDefinition` | `IDefinitions.RetireAsync` | `POST /definitions/{jobNamespace}/{jobName}/retire` | · | inline | inline | inline | `checkpoints`, `definitions`, `events`, `jobs_state`, `schedules`, `schedules_state` | `RetireDefinitionSpec` |
-| `SetDefinitionOverrides` | `IDefinitions.UpdateOverridesAsync` | `PATCH /definitions/{jobNamespace}/{jobName}` | · | inline | inline | inline | `definitions`, `events` | `SetDefinitionOverridesBindMatrixSpec`, `SetDefinitionOverridesSpec` |
+| `SetDefinitionOverrides` | `IDefinitions.UpdateOverridesAsync` | `PATCH /definitions/{jobNamespace}/{jobName}` | · | inline | inline | inline | `definitions`, `events`, `jobs` | `SetDefinitionOverridesBindMatrixSpec`, `SetDefinitionOverridesSpec` |
 
 ## Execution
 

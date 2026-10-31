@@ -65,6 +65,17 @@ WHERE
         SELECT s.meter FROM temp._set_job_def_overrides s WHERE s.version = @p_version
     );
 
+-- A recurring job's slot is one long-lived job, so it takes the new event recording here, at once, rather than at the
+-- next worker start's registration; an ordinary job keeps the recording it was enqueued with.
+UPDATE {{schema}}.jobs
+SET event_recording_code = (
+    SELECT jd.event_recording_code_effective FROM {{schema}}.definitions jd WHERE jd.definition_id = @p_definition_id
+)
+WHERE
+    definition_id = @p_definition_id
+    AND job_kind_code = 20 /* JobKindCode.PermanentSlot */
+    AND EXISTS (SELECT 1 FROM temp._set_job_def_overrides s WHERE s.version = @p_version);
+
 SELECT
     CASE
         WHEN s.definition_id IS NULL THEN 2 /* DefinitionOverrideAction.NotFound */

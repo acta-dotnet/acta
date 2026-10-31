@@ -106,7 +106,8 @@ public interface IJobs
     /// <summary>
     /// <see cref="WaitAsync(JobLookup, TimeSpan?, CancellationToken)"/>, and on success the result stored by the execution the
     /// wait saw succeed, read as <typeparamref name="TResult"/>; a success that stored none throws, and so does a job whose
-    /// registered definition produces a result other than <typeparamref name="TResult"/>, whatever its outcome.
+    /// definition, as this process registers it, produces a result other than <typeparamref name="TResult"/>, whatever its
+    /// outcome. A job of a definition this process does not register is decoded without that check.
     /// </summary>
     ValueTask<JobOutcome<TResult>> WaitAsync<TResult>(JobLookup job, TimeSpan? timeout = null, CancellationToken ct = default)
         where TResult : notnull;
@@ -297,7 +298,8 @@ public interface IJobs
     /// Typed convenience over <see cref="GetResultAsync(JobLookup, CancellationToken)"/>: deserializes the
     /// stored result payload to <typeparamref name="TResult"/> via the registered serializer, or returns
     /// <c>default</c> when the job has produced no result. Non-blocking (does not wait for completion). Throws, rather
-    /// than decoding, when the stored result's job is registered with a result type other than <typeparamref name="TResult"/>.
+    /// than decoding, when this process registers the job's definition with a result type other than
+    /// <typeparamref name="TResult"/>; a definition it does not register is decoded without that check.
     /// </summary>
     ValueTask<TResult?> GetResultAsync<TResult>(JobLookup job, CancellationToken ct = default);
 

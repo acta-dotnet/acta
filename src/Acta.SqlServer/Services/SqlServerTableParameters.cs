@@ -244,7 +244,6 @@ internal static class SqlServerTableParameters
         new("job_ref", SqlDbType.UniqueIdentifier),
         new("input_format_id", SqlDbType.TinyInt),
         new("input", SqlDbType.VarBinary, -1),
-        new("event_recording_code", SqlDbType.TinyInt),
         new("scheduled_delivery_code", SqlDbType.TinyInt),
     ];
 
@@ -265,8 +264,7 @@ internal static class SqlServerTableParameters
                 record.SetGuid(1, slotRefs[i]);
                 record.SetByte(2, definition.InputFormatId);
                 SetBytesOrNull(record, 3, definition.Input, definition.InputFormatId != JobPayloadFormat.None.Id);
-                record.SetByte(4, (byte)definition.EventRecording);
-                record.SetByte(5, (byte)definition.ScheduledDelivery);
+                record.SetByte(4, (byte)definition.ScheduledDelivery);
                 yield return record;
             }
         }

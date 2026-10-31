@@ -357,7 +357,6 @@ internal sealed class PostgresDialect : ISqlDialect
         var definitionIds = new int[definitionCount];
         var inputFormatIds = new short[definitionCount];
         byte[]?[] inputs = new byte[definitionCount][];
-        var eventRecordings = new short[definitionCount];
         var scheduledDeliveries = new short[definitionCount];
         var scheduleCount = 0;
         for (var i = 0; i < definitionCount; i++)
@@ -367,7 +366,6 @@ internal sealed class PostgresDialect : ISqlDialect
             definitionIds[i] = definition.DefinitionId;
             inputFormatIds[i] = definition.InputFormatId;
             inputs[i] = definition.InputFormatId == JobPayloadFormat.None.Id ? null : definition.Input.ToArray();
-            eventRecordings[i] = (short)definition.EventRecording;
             scheduledDeliveries[i] = (short)definition.ScheduledDelivery;
             scheduleCount += definition.Schedules.Count;
         }
@@ -415,7 +413,6 @@ internal sealed class PostgresDialect : ISqlDialect
         AddArray(postgres, "@p_d_definition_id", NpgsqlDbType.Integer, definitionIds);
         AddArray(postgres, "@p_d_input_format_id", NpgsqlDbType.Smallint, inputFormatIds);
         AddArray(postgres, "@p_d_input", NpgsqlDbType.Bytea, inputs);
-        AddArray(postgres, "@p_d_event_recording_code", NpgsqlDbType.Smallint, eventRecordings);
         AddArray(postgres, "@p_d_scheduled_delivery_code", NpgsqlDbType.Smallint, scheduledDeliveries);
         AddArray(postgres, "@p_s_definition_id", NpgsqlDbType.Integer, scheduleDefinitionIds);
         AddArray(postgres, "@p_s_schedule_name", NpgsqlDbType.Varchar, scheduleNames);

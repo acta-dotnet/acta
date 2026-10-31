@@ -10,9 +10,8 @@ CREATE TEMP TABLE _reg_slots (definition_id INT PRIMARY KEY, slot_id BIGINT NOT 
 WITH defs AS (
     SELECT *
     FROM unnest(
-        @p_d_job_ref, @p_d_definition_id, @p_d_input_format_id, @p_d_input,
-        @p_d_event_recording_code, @p_d_scheduled_delivery_code)
-    AS d(job_ref, definition_id, input_format_id, input, event_recording_code, scheduled_delivery_code)
+        @p_d_job_ref, @p_d_definition_id, @p_d_input_format_id, @p_d_input, @p_d_scheduled_delivery_code)
+    AS d(job_ref, definition_id, input_format_id, input, scheduled_delivery_code)
 ),
 upserted AS (
     INSERT INTO {{schema}}.jobs (
@@ -39,9 +38,12 @@ upserted AS (
         d.input_format_id,
         d.input,
         NULL,
-        d.event_recording_code,
+        -- The slot's event recording is the definition row's effective recording, read under the lock, so an
+        -- override committed after this worker read its catalog stands.
+        jd.event_recording_code_effective,
         now()
     FROM defs AS d
+    INNER JOIN {{schema}}.definitions AS jd ON jd.definition_id = d.definition_id
     -- A PerOccurrence definition has no slot: each admitted occurrence is a root of its own.
     WHERE d.scheduled_delivery_code = 10 /* ScheduledDeliveryCode.Permanent */
     ORDER BY d.definition_id

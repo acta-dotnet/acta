@@ -141,6 +141,9 @@ WHERE  r.job_status_code IN (100, 200, 220)
 -- A second note is NOT a violation by itself: at-least-once means a body interrupted before its
 -- outcome committed legitimately re-runs, and that re-run is an attempt the engine counted. The
 -- violation is a body that ran without the engine admitting it, which is exactly notes > attempts.
+-- It is a count, so it cannot see an engine that admitted a step that had already succeeded and
+-- counted the attempt; StepSpec's "a succeeded step replays its stored result without re-running the
+-- body" carries that claim.
 SELECT 'step-replay' AS check_name, s.job_id, s.step_name, s.attempt_number, n.notes
 FROM   {s}steps s
 JOIN   (SELECT entity_id, event_message, COUNT(*) AS notes

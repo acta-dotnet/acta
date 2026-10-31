@@ -15,13 +15,16 @@ BEGIN TRY
     IF @lock_result < 0
         THROW 51205, 'ACTA:SCHEDULE_LOCK:The namespace schedule lock was not granted (deadlock victim or cancelled).', 1;
 
+    -- The slot's event recording is the definition row's effective recording, read under the lock, so an override
+    -- committed after this worker read its catalog stands.
     UPDATE j
     SET
         input_format_id = d.input_format_id,
         input = d.input,
-        event_recording_code = d.event_recording_code
+        event_recording_code = jd.event_recording_code_effective
     FROM {{schema}}.jobs AS j
     INNER JOIN @p_definitions AS d ON d.definition_id = j.definition_id
+    INNER JOIN {{schema}}.definitions AS jd ON jd.definition_id = d.definition_id
     WHERE j.job_kind_code = 20 /* JobKindCode.PermanentSlot */;
 
     -- The declaration's priority reaches a slot between firings; one an attempt or an operator holds keeps its own.
@@ -57,9 +60,10 @@ BEGIN TRY
         d.input_format_id,
         d.input,
         NULL,
-        d.event_recording_code,
+        jd.event_recording_code_effective,
         @now
     FROM @p_definitions AS d
+    INNER JOIN {{schema}}.definitions AS jd ON jd.definition_id = d.definition_id
     WHERE
         -- A PerOccurrence definition has no slot: each admitted occurrence is a root of its own.
         d.scheduled_delivery_code = 10 /* ScheduledDeliveryCode.Permanent */

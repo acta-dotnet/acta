@@ -406,11 +406,13 @@ Each namespace has one schedule lock, held until its transaction ends: `sp_getap
 `{schema}.schedules.{namespace_id}` with a `Transaction` owner on SQL Server, and
 `pg_advisory_xact_lock(hashtext('{schema}.schedules'), namespace_id)` or its `_shared` form on PostgreSQL.
 
-- `register_schedules`, `RetireDefinition`, and `SuspendNamespace` take it exclusive. A suspension takes it in a
-  statement of its own before the namespace row; SQLite's one writer orders a suspension and an admission without it.
+- `register_schedules`, `RetireDefinition`, `SetDefinitionOverrides`, and `SuspendNamespace` take it exclusive. A
+  suspension takes it in a statement of its own before the namespace row; SQLite's one writer orders a suspension and
+  an admission without it. An override takes it because it locks the definition row before the slot's `jobs` row,
+  the reverse of registration, whose schedules check the definition row after the slot write.
 - Admission (`AdmitFirings`), a completion that settles a permanent slot or a per-occurrence root, and the schedule
   verbs (pause, resume, trigger) take it shared, so admissions, settlements, and verbs run together and wait only for
-  a registration, a retire, or a suspension. A completion with neither a slot nor a charged root in its batch takes
+  a registration, a retire, an override, or a suspension. A completion with neither a slot nor a charged root in its batch takes
   none.
 - Admission and a manual firing read the namespace's status after the grant and admit nothing into a suspended
   namespace, so a plan read before a suspension either lands before it or applies nothing.

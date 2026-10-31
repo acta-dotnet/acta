@@ -1,5 +1,17 @@
 -- One batch, one implicit transaction; only the final SELECT returns rows. The definition row is locked and
 -- updated only at the expected version; its meter key comes from base columns the update leaves alone.
+
+-- The namespace's schedule lock, exclusive, before any row lock (docs/sql-internals.md, "Schedule lock"): the
+-- definition row and then its slot lock below, and registration writes the slot before its schedules check the row.
+DROP TABLE IF EXISTS pg_temp._set_definition_overrides_lock;
+CREATE TEMP TABLE _set_definition_overrides_lock ON COMMIT DROP AS
+SELECT 1 AS granted
+FROM (
+    SELECT pg_advisory_xact_lock(hashtext('{{schema}}.schedules'), jd.namespace_id)
+    FROM {{schema}}.definitions jd
+    WHERE jd.definition_id = @p_definition_id
+) AS l;
+
 DROP TABLE IF EXISTS pg_temp._set_definition_overrides;
 CREATE TEMP TABLE _set_definition_overrides (
     namespace_id INT NOT NULL,
@@ -48,6 +60,18 @@ WHERE
     AND sib.definition_id <> @p_definition_id
     AND (sib.rate_limit IS NOT NULL OR sib.rate_limit_override IS NOT NULL)
     AND lower(COALESCE(sib.rate_name, sib.definition_name)) = t.meter;
+
+-- A recurring job's slot is one long-lived job, so it takes the new event recording here, at once, rather than at the
+-- next worker start's registration; an ordinary job keeps the recording it was enqueued with.
+UPDATE {{schema}}.jobs j
+SET event_recording_code = jd.event_recording_code_effective
+FROM {{schema}}.definitions jd
+INNER JOIN _set_definition_overrides t ON t.version = @p_version
+WHERE
+    jd.definition_id = @p_definition_id
+    AND j.definition_id = jd.definition_id
+    AND j.job_kind_code = 20 /* JobKindCode.PermanentSlot */
+    AND j.event_recording_code <> jd.event_recording_code_effective;
 
 INSERT INTO {{schema}}.events (
     event_code, created_at_utc, namespace_id,
