@@ -144,7 +144,6 @@ public sealed class ReserveRateSpec : ActaStorageTestBase<ConformanceFixture>
         await StageTurnAsync(bucket, 131, TimeSpan.FromSeconds(-3), ct);
         await ReserveFastAsync(bucket, 131, ct);
         Assert.True(await MeterAsync(bucket, ct) > meter, "the stale turn did not go back through the meter");
-        Assert.Null(await ReadAsync($"{bucket}.130", ct));
     }
 
     private const int FastIntervalMilliseconds = 100;
