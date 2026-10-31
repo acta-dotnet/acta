@@ -113,6 +113,9 @@ pre code { font-size: inherit; color: inherit; }
 .chrome nav { margin-left: auto; display: flex; gap: 1.6rem; }
 .chrome nav a { text-decoration: none; }
 .chrome nav a:hover { color: var(--verdi); }
+/* the one link off the site: GitHub's mark, centred on the line, coloured like the words beside it */
+.chrome nav .gh { align-self: center; display: inline-flex; }
+.chrome nav .gh svg { display: block; width: 1.35em; height: 1.35em; }
 /* the day/night switch, added by assets/theme.js after a hairline: two words in the chrome's own type, the one in
    force lit, the other setting its theme */
 .chrome .theme { flex: none; margin-left: 0.2rem; display: inline-flex; gap: 0.6em; align-items: baseline; }
@@ -123,16 +126,16 @@ pre code { font-size: inherit; color: inherit; }
 }
 .chrome .theme button[aria-pressed="true"] { color: var(--text); cursor: default; }
 .chrome .theme button[aria-pressed="false"]:hover { color: var(--verdi); }
-/* the meta line and the links into the repository's docs give way first, so the header fits every width above a phone */
+/* the meta line gives way first, so the header fits every width above a phone */
 @media (max-width: 1000px) {
-  .chrome .meta, .chrome nav .nav-more { display: none; }
+  .chrome .meta { display: none; }
 }
 @media (max-width: 700px) {
   .chrome { gap: 0.9rem; font-size: 0.68rem; }
   .chrome nav { gap: 0.7rem; }
   .chrome nav a { white-space: nowrap; }
-  /* on a phone the header keeps Capabilities and Benchmark; the brand links home */
-  .chrome nav a:not([href="/capabilities"]):not([href="/benchmark"]) { display: none; }
+  /* on a phone the header keeps Capabilities, Benchmark and GitHub's mark; the brand links home */
+  .chrome nav a:not([href="/capabilities"]):not([href="/benchmark"]):not(.gh) { display: none; }
   /* on a phone only the word you can switch to is shown */
   .chrome .theme { margin-left: 0; }
   .chrome .theme .dot, .chrome .theme button[aria-pressed="true"] { display: none; }
