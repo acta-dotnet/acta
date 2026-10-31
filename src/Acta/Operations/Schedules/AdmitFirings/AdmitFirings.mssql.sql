@@ -74,10 +74,9 @@ BEGIN TRY
     IF @lock_result < 0
         THROW 51205, 'ACTA:SCHEDULE_LOCK:The namespace schedule lock was not granted (deadlock victim or cancelled).', 1;
 
-    -- Slot rows in id order, then every schedule state the plan touches, a member's or a per-occurrence group's own,
-    -- in id order, each a key seek under an update lock, with its declaration's version; every writer of a declaration
-    -- holds the schedule lock exclusive, so it reads settled. An admitting slot group needs the slot Idle at the version
-    -- it read; a cursor-only group needs only the version.
+    -- Slot rows, then each schedule state the plan touches (a member's or a per-occurrence group's own), in id order,
+    -- each a key seek under an update lock with its declaration's version, settled since its writers lock exclusive.
+    -- An admitting slot group needs the slot Idle at the version it read; a cursor-only group needs only the version.
     INSERT INTO @slots (job_id, valid)
     SELECT
         g.job_id,
