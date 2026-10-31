@@ -234,7 +234,7 @@ public static partial class Report
                 {
                     text.Append(
                         CultureInfo.InvariantCulture,
-                        $"| {Name(provider)} | {trial.Repetition} | {Number(Value(trial, "intended_roots"))} | {Number(Value(trial, "db_steady_drain_rate"))} jobs/s | {Number(Value(trial, "db_drain_seconds"))} s | {Cell(Outcome(trial))} |\n"
+                        $"| {Name(provider)} | {trial.Repetition} | {Number(Value(trial, "intended_roots"))} | {Number(Value(trial, "db_steady_drain_rate"))} jobs/s | {Number(Value(trial, "db_drain_seconds"))} s | {Cell(Outcome(plan, scenario, trial))} |\n"
                     );
                 }
             }
@@ -265,9 +265,11 @@ public static partial class Report
                 }
                 foreach (var trial in atRate)
                 {
+                    // An overload trial offers its overload rate first and the written rate after it.
+                    var offered = Value(trial, "overload_rate") is { } overload ? $"{Number(overload)}, then {Number(rate)}" : Number(rate);
                     text.Append(
                         CultureInfo.InvariantCulture,
-                        $"| {Name(provider)} | {Number(rate)} | {trial.Repetition} | {Number(Value(trial, "window_completed_rate"))} | {Milliseconds(Value(trial, "primary_latency_p99"))} | {Cell(Outcome(trial))} |\n"
+                        $"| {Name(provider)} | {offered} | {trial.Repetition} | {Number(Value(trial, "window_completed_rate"))} | {Milliseconds(Value(trial, "primary_latency_p99"))} | {Cell(Outcome(plan, scenario, trial))} |\n"
                     );
                 }
             }
@@ -275,7 +277,7 @@ public static partial class Report
             {
                 text.Append(
                     CultureInfo.InvariantCulture,
-                    $"| {Name(provider)} | {Number(Value(trial, "offered_rate"))} | confirm, {Number(Value(trial, "scheduled_window_seconds"))} s | {Number(Value(trial, "window_completed_rate"))} | {Milliseconds(Value(trial, "primary_latency_p99"))} | {Cell(Outcome(trial))} |\n"
+                    $"| {Name(provider)} | {Number(Value(trial, "offered_rate"))} | confirm, {Number(Value(trial, "scheduled_window_seconds"))} s | {Number(Value(trial, "window_completed_rate"))} | {Milliseconds(Value(trial, "primary_latency_p99"))} | {Cell(Outcome(plan, scenario, trial))} |\n"
                 );
             }
         }
@@ -316,23 +318,35 @@ public static partial class Report
         ];
         if (scenario.Runner != "drain")
         {
-            parts.Add($"p99 target: {Milliseconds(scenario.P99Ms ?? plan.Policy("measurement", "default_p99_ms"))}");
+            parts.Add($"p99 target: {Milliseconds(P99Target(plan, scenario))}");
         }
         return "Setup: " + string.Join("; ", parts) + ".";
     }
 
+    private static double P99Target(RunPlan plan, Scenario scenario) => scenario.P99Ms ?? plan.Policy("measurement", "default_p99_ms");
+
     /// <summary>What a measured trial says about its rate, with what ended a miss in plain words.</summary>
-    private static string Outcome(CaseResult trial)
+    private static string Outcome(RunPlan plan, Scenario scenario, CaseResult trial)
     {
+        // An overload runs past its p99 target by design; its verdict is whether the backlog grew and then fell back.
+        if (scenario.Runner == "overload")
+        {
+            return trial.Status == "PASS" && trial.Reason is null
+                ? "pass: the backlog grew, then fell back"
+                : $"{Word(trial.Status).ToLowerInvariant()}: {trial.Reason}";
+        }
         var outcome = Verdicts.RateOutcome(trial);
-        if (outcome is "held")
+        return outcome switch
         {
-            return "held";
-        }
-        if (outcome is "failed")
-        {
-            return $"failed: {trial.Reason}";
-        }
+            "held" => "held",
+            "failed" => $"failed: {trial.Reason}",
+            _ => $"{outcome}: {Why(plan, scenario, trial)}",
+        };
+    }
+
+    /// <summary>What ended a rate that did not hold, against the limit it crossed.</summary>
+    private static string Why(RunPlan plan, Scenario scenario, CaseResult trial)
+    {
         List<string> why = [];
         if (Value(trial, "refused_arrivals") is > 0 and var refused)
         {
@@ -344,17 +358,17 @@ public static partial class Report
         }
         if (Value(trial, "backlog_slope") is { } slope && Value(trial, "backlog_slope_tolerance") is { } tolerance && slope > tolerance)
         {
-            why.Add($"backlog grew {Number(slope)} jobs/s");
+            why.Add($"backlog grew {Number(slope)} jobs/s, {Number(tolerance)} allowed");
         }
         if (Value(trial, "primary_latency_p99") is { } p99 && trial.Measurement == "UNSTABLE" && why.Count == 0)
         {
-            why.Add($"p99 {Milliseconds(p99)}");
+            why.Add($"p99 {Milliseconds(p99)} against a {Milliseconds(P99Target(plan, scenario))} target");
         }
         if (why.Count == 0)
         {
             why.Add(trial.Reason ?? trial.Measurement.ToLowerInvariant().Replace('_', ' '));
         }
-        return $"{outcome}: {string.Join(", ", why)}";
+        return string.Join(", ", why);
     }
 
     private static void Correctness(StringBuilder text, RunPlan plan, CaseResult[] cases, string[] providers)
@@ -390,18 +404,59 @@ public static partial class Report
             return;
         }
         text.Append("## What did not pass\n\n");
-        foreach (var c in failing)
+        // A scenario's closing coverage check is left out where the scenario's own trial did not pass: it only repeats the
+        // cause. A missed floor is a finding of its own and always stays.
+        foreach (
+            var c in failing.Where(c =>
+                c.Phase != "reconcile"
+                || c.Measurement == "MISSED"
+                || !failing.Any(o => o.Id == c.Id && o.Provider == c.Provider && o.Phase != "reconcile")
+            )
+        )
         {
-            var title = plan.Scenarios.FirstOrDefault(s => s.Id == c.Id)?.Title ?? c.Id;
+            var scenario = plan.Scenarios.FirstOrDefault(s => s.Id == c.Id);
             var where = c.Provider == "harness" ? "the harness" : Name(c.Provider);
+            var reason = c.Reason ?? "no reason recorded";
+            if (
+                c.Measurement == "MISSED"
+                && scenario is not null
+                && FloorPass().Match(reason) is { Success: true } pass
+                && FloorMiss(plan, scenario, result.Cases, c.Provider, int.Parse(pass.Groups[1].Value, CultureInfo.InvariantCulture))
+                    is { } why
+            )
+            {
+                reason = $"{reason.TrimEnd('.')}: {why}.";
+            }
             var file = c.Evidence.FirstOrDefault(e => e.StartsWith("histories/", StringComparison.Ordinal));
             text.Append(
                 CultureInfo.InvariantCulture,
-                $"- **{title}** on {where}, {Word(c.Status).ToLowerInvariant()}: {c.Reason ?? "no reason recorded"}{(file is null ? "" : $" (`{file}`)")}\n"
+                $"- **{scenario?.Title ?? c.Id}** on {where}, {Word(c.Status).ToLowerInvariant()}: {reason}{(file is null ? "" : $" (`{file}`)")}\n"
             );
         }
         text.Append('\n');
     }
+
+    /// <summary>What ended pass <paramref name="pass"/> at a ladder's floor.</summary>
+    private static string? FloorMiss(RunPlan plan, Scenario scenario, IEnumerable<CaseResult> cases, string provider, int pass)
+    {
+        var floor = ScenarioRunner.LadderRates(plan, scenario, provider).FirstOrDefault();
+        return
+            cases.FirstOrDefault(c =>
+                c.Provider == provider
+                && c.Id == scenario.Id
+                && c.Phase == "measure"
+                && c.Repetition == pass
+                && Value(c, "offered_rate") == floor
+                && Verdicts.RateOutcome(c) == "missed"
+            )
+                is { } trial
+            ? Why(plan, scenario, trial)
+            : null;
+    }
+
+    /// <summary>The pass a floor miss names, as CoveragePolicy words it.</summary>
+    [GeneratedRegex(@"^Pass (\d+) missed the floor")]
+    private static partial Regex FloorPass();
 
     private static void Made(
         StringBuilder text,

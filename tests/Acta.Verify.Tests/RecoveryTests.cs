@@ -230,6 +230,68 @@ public sealed class RecoveryTests : IDisposable
         Assert.Equal(2, await VerifyCommand.RunAsync(["compare", baseline, Measured(7, (50, "VALID", 900))], ct));
     }
 
+    [Fact]
+    public void What_did_not_pass_says_what_missed_a_floor_and_leaves_out_a_check_that_repeats_its_cause()
+    {
+        var plan = Protocol.Plan("quick", ["pg", "sqlite"], 1729, ["three-steps"]);
+        var bundle = new EvidenceBundle(_root, plan.RunId);
+        bundle.Write("resolved-plan.json", plan, VerifyJson.Default.RunPlan);
+        bundle.Write("histories/trial-checks.json", new[] { new Check("trial", "root", true, "") }, VerifyJson.Default.CheckArray);
+        static CaseResult Row(
+            string provider,
+            string phase,
+            string status,
+            string measurement,
+            string? reason,
+            int pass = 0,
+            double p99 = 1000,
+            double slope = 0
+        ) =>
+            new(
+                "three-steps",
+                provider,
+                phase,
+                pass,
+                status,
+                reason,
+                "PASS",
+                "PASS",
+                "COMPLETE",
+                measurement,
+                phase == "measure"
+                    ? new()
+                    {
+                        ["offered_rate"] = new(15, "roots/second"),
+                        ["primary_latency_p99"] = new(p99, "milliseconds"),
+                        ["backlog_slope"] = new(slope, "roots/second"),
+                        ["backlog_slope_tolerance"] = new(1, "roots/second"),
+                    }
+                    : [],
+                status == "PASS" ? ["histories/trial-checks.json"] : []
+            );
+        Finish(
+            bundle,
+            "FAIL",
+            [
+                Row("sqlite", "measure", "PASS", "UNSTABLE", null, pass: 1, p99: 6000),
+                Row("sqlite", "measure", "PASS", "UNSTABLE", null, pass: 2, slope: 5),
+                Row("sqlite", "reconcile", "FAIL", "MISSED", "Pass 1 missed the floor of 15/s."),
+                Row("sqlite", "reconcile", "FAIL", "MISSED", "Pass 2 missed the floor of 15/s."),
+                Row("pg", "verify", "INCONCLUSIVE", "NOT_MEASURED", "Scenario did not finish."),
+                Row("pg", "reconcile", "INCONCLUSIVE", "NOT_MEASURED", "Chaos did not show 10 busy kills."),
+                Row("pg", "reconcile", "FAIL", "MISSED", "Pass 1 missed the floor of 1000/s."),
+            ]
+        );
+
+        var report = Report.Markdown(bundle.DirectoryPath, BundleVerifier.Load(bundle.DirectoryPath));
+
+        Assert.Contains("Pass 1 missed the floor of 15/s: p99 6.0 s against a 5.0 s target.", report);
+        Assert.Contains("Pass 2 missed the floor of 15/s: backlog grew 5 jobs/s, 1 allowed.", report);
+        Assert.Contains("Scenario did not finish.", report);
+        Assert.Contains("Pass 1 missed the floor of 1000/s.", report);
+        Assert.DoesNotContain("busy kills", report);
+    }
+
     private string Measured(params (double Rate, string Measurement, double P99)[] trials) => Measured(1729, trials);
 
     private string Measured(int seed, params (double Rate, string Measurement, double P99)[] trials)

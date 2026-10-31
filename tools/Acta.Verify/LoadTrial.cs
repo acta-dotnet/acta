@@ -199,7 +199,7 @@ internal static class LoadTrial
                     if (held > 0 && await reader.RangeCountAsync(firstId, lastId, ct) is var inRange && inRange != held)
                     {
                         throw new InvalidOperationException(
-                            $"The job-id range {firstId}..{lastId} of the {held} acknowledged roots holds {inRange} jobs; a count over it would include other rows."
+                            $"The job-id range {firstId}..{lastId} of the {held} acknowledged jobs holds {inRange}; a count over it would include other rows."
                         );
                     }
                     checkpointed = await state.CheckpointAsync(ct);
@@ -277,7 +277,7 @@ internal static class LoadTrial
                 }
                 if (seen[i])
                 {
-                    Fail("unique-terminal", row.Key, "Two roots carry one arrival's identity.");
+                    Fail("unique-terminal", row.Key, "Two jobs carry one arrival's identity.");
                     continue;
                 }
                 seen[i] = true;
@@ -357,7 +357,7 @@ internal static class LoadTrial
             Fail(
                 "tree-totals",
                 "trial",
-                $"The roots imply {expectedDescendants} descendants ({expectedSucceededDescendants} succeeded) and {expectedSteps} checkpoints; the trial holds {actualDescendants} ({actualSucceeded}) and {actualSteps}."
+                $"The top-level jobs imply {expectedDescendants} descendants ({expectedSucceededDescendants} succeeded) and {expectedSteps} checkpoints; the trial holds {actualDescendants} ({actualSucceeded}) and {actualSteps}."
             );
         }
         foreach (var check in liveChecks)
@@ -445,8 +445,16 @@ internal static class LoadTrial
                 );
             var recoveredBelow = backlog.Any(t => t.Timestamp >= overloadEnd && t.Timestamp < end && t.Backlog < threshold);
             overloadGap =
-                !saturated ? $"The offered overload of {spec.OverloadRate} roots/s did not grow the backlog during the overload half."
-                : !recoveredBelow ? $"The backlog did not fall below {threshold} roots during the recovery half."
+                !saturated
+                    ? string.Create(
+                        CultureInfo.InvariantCulture,
+                        $"The offered overload of {spec.OverloadRate:N0} jobs/s did not grow the backlog during the overload half."
+                    )
+                : !recoveredBelow
+                    ? string.Create(
+                        CultureInfo.InvariantCulture,
+                        $"The backlog did not fall below {threshold:N0} jobs during the recovery half."
+                    )
                 : null;
         }
         var overloadGates = overloadGap is not null && plan.MeasurementGatesVerdict;
@@ -492,7 +500,7 @@ internal static class LoadTrial
                         "tree-totals",
                         "trial",
                         true,
-                        $"The roots imply {expectedDescendants} descendants and {expectedSteps} checkpoints, and the trial holds them."
+                        $"The top-level jobs imply {expectedDescendants} descendants and {expectedSteps} checkpoints, and the trial holds them."
                     ),
                 ];
         bundle.Write($"histories/{tag}-checks.json", checks, VerifyJson.Default.CheckArray);
