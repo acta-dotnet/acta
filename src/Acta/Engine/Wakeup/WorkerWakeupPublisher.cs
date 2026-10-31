@@ -40,12 +40,13 @@ internal sealed class WorkerWakeupPublisher(IWorkerWakeup wakeup, ILogger<Worker
     /// <summary>
     /// Stable low-cardinality tag values are not derived from enum display text, so an enum rename
     /// cannot silently rename an operator-facing metric dimension. Job-completion channels omit the
-    /// namespace tag because a per-job value would explode tag cardinality.
+    /// namespace tag because a per-job value would explode tag cardinality. A namespace name holds no
+    /// colon, so it is what follows the last one in a claim loop's or an admitter's channel.
     /// </summary>
     internal static string? NamespaceTag(WorkerWakeupChannel channel) =>
         channel.Kind switch
         {
-            WorkerWakeupChannelKind.WorkerNamespace => channel.Name[WorkerWakeupChannel.WorkerNamespacePrefix.Length..],
+            WorkerWakeupChannelKind.WorkerNamespace => channel.Name[(channel.Name.LastIndexOf(':') + 1)..],
             WorkerWakeupChannelKind.AllWorkerNamespaces => WorkerWakeupChannel.AllWorkerNamespacesName,
             _ => null,
         };

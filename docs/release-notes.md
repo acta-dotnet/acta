@@ -7,6 +7,7 @@ Not tagged yet.
 ### Fixes
 
 - A schedule waiting on its slot or on its outstanding limit is evaluated as soon as the firing settles. Before, the admitter heard of the settlement only at its next safety poll, so a `CatchUpAll` backlog or a per-occurrence schedule at `MaxOutstanding` admitted about one occurrence per `SafetyPollInterval` (1 s by default) however fast its jobs ran.
+- The schedule admitter no longer runs on every enqueue. Each worker's admitter heard every wake of its namespace, so a stream of enqueues in the worker's own process, or arriving over Redis, ran an admission pass of four statements for every one or two jobs enqueued, with nothing to admit. It now wakes for a settled firing or a wake of every namespace, and when idle reads one row a second (the next evaluation and the database clock) instead of four statements.
 
 ## 1.0.0-rc.7
 

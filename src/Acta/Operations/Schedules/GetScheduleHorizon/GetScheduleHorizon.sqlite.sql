@@ -1,6 +1,7 @@
 -- The earliest wake in the namespace, one seek on ix_schedules_state_due and one on the namespace row; NULL when no
--- schedule has one or the namespace is suspended.
-SELECT MIN(st.next_evaluation_at_utc) AS next_evaluation_at_utc
+-- schedule has one or the namespace is suspended. The database clock comes back with it, so an idle admitter makes
+-- one read.
+SELECT MIN(st.next_evaluation_at_utc) AS next_evaluation_at_utc, {{now}} AS db_now_utc
 FROM {{schema}}.schedules_state st
 INNER JOIN {{schema}}.namespaces n ON n.namespace_id = st.namespace_id
 WHERE

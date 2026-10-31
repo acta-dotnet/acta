@@ -36,7 +36,7 @@ public sealed class RecoveryPassTests
     }
 
     [Fact]
-    public async Task Reclaimed_jobs_wake_the_namespace_and_a_released_parent_wakes_every_namespace()
+    public async Task Reclaimed_jobs_wake_the_namespace_and_its_admitter_and_a_released_parent_wakes_every_namespace()
     {
         var wakeups = new RecordingWakeup();
         // Two reclaimed leases, one of them a child that landed Failed under parent 8.
@@ -57,8 +57,12 @@ public sealed class RecoveryPassTests
 
         Assert.Equal((3, 2, 2), outcome);
         Assert.Equal(
-            [WorkerWakeupChannelKind.WorkerNamespace, WorkerWakeupChannelKind.AllWorkerNamespaces],
-            wakeups.Channels.Select(c => c.Kind)
+            [
+                WorkerWakeupChannel.WorkerNamespace("payments"),
+                WorkerWakeupChannel.Admission("payments"),
+                WorkerWakeupChannel.AllWorkerNamespaces,
+            ],
+            wakeups.Channels
         );
     }
 

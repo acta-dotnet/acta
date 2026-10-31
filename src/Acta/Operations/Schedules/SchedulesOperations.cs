@@ -67,9 +67,9 @@ internal sealed class SchedulesOperations(
     internal Task<GetDueSchedulesResponse> GetDueSchedulesAsync(int namespaceId, DateTime nowUtc, int take, CancellationToken ct) =>
         getDueSchedules.HandleAsync(new GetDueSchedulesQuery(namespaceId, nowUtc, take), ct);
 
-    /// <summary>The namespace's earliest next evaluation, or null; how long the admitter may sleep.</summary>
-    internal async Task<DateTime?> GetScheduleHorizonAsync(int namespaceId, CancellationToken ct) =>
-        (await getScheduleHorizon.HandleAsync(new GetScheduleHorizonQuery(namespaceId), ct)).NextEvaluationAtUtc;
+    /// <summary>The namespace's earliest next evaluation, or null, and the database's clock; how long the admitter may sleep.</summary>
+    internal Task<GetScheduleHorizonResponse> GetScheduleHorizonAsync(int namespaceId, CancellationToken ct) =>
+        getScheduleHorizon.HandleAsync(new GetScheduleHorizonQuery(namespaceId), ct);
 
     /// <summary>Applies an admission plan atomically; a stale group answers unapplied and the admitter replans it.</summary>
     internal Task<AdmitFiringsResponse> AdmitFiringsAsync(AdmitFiringsCommand command, CancellationToken ct) =>

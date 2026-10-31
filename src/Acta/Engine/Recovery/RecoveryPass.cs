@@ -44,6 +44,12 @@ internal sealed class RecoveryPass(
             await wakeupPublisher.WakeAsync(WorkerWakeupChannel.WorkerNamespace(namespaceName), WorkerWakeupReason.WorkAvailable, ct);
         }
 
+        // A reclaim that spent a firing's budget settled it, which makes the schedules waiting on it due.
+        if (result.Reclaimed > 0)
+        {
+            await wakeupPublisher.WakeAsync(WorkerWakeupChannel.Admission(namespaceName), WorkerWakeupReason.WorkAvailable, ct);
+        }
+
         // A budget-exhausted child landed Failed with no worker completion to raise its latch.
         var released = 0;
         foreach (var (childId, parentId) in result.FailedChildren)

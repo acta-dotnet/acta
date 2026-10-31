@@ -73,20 +73,28 @@ public sealed class WorkerWakeupTests
     }
 
     [Fact]
-    public async Task Namespace_wake_reaches_both_the_claim_loop_and_the_schedule_admitter()
+    public async Task The_claim_loop_and_the_schedule_admitter_wake_apart_and_both_hear_every_namespace()
     {
         // One auto-reset signal shared by the two handed each wake to one of them, and a lane's promoted member then
-        // waited for the claim loop's safety poll: a hot lane ran about one job a second.
+        // waited for the claim loop's safety poll: a hot lane ran about one job a second. Mirroring every namespace wake
+        // to the admitter instead ran an admission pass per enqueue.
+        var ct = TestContext.Current.CancellationToken;
         var wakeup = new InProcessWakeup();
         var claim = wakeup.WaitAsync(WorkerWakeupChannel.WorkerNamespace("billing"), WaitGenerously, None).AsTask();
-        var admission = wakeup.WaitAsync(WorkerWakeupChannel.Admission("billing"), WaitGenerously, None).AsTask();
+        var admission = wakeup.WaitAsync(WorkerWakeupChannel.Admission("billing"), WaitBriefly, None).AsTask();
+        await wakeup.WakeAsync(WorkerWakeupChannel.WorkerNamespace("billing"), WorkerWakeupReason.WorkAvailable, ct);
+        Assert.Equal(WorkerWakeupWaitStatus.Signaled, await claim.WaitAsync(WaitGenerously, None));
+        Assert.Equal(WorkerWakeupWaitStatus.TimedOut, await admission.WaitAsync(WaitGenerously, None));
 
-        await wakeup.WakeAsync(
-            WorkerWakeupChannel.WorkerNamespace("billing"),
-            WorkerWakeupReason.WorkAvailable,
-            TestContext.Current.CancellationToken
-        );
+        claim = wakeup.WaitAsync(WorkerWakeupChannel.WorkerNamespace("billing"), WaitBriefly, None).AsTask();
+        admission = wakeup.WaitAsync(WorkerWakeupChannel.Admission("billing"), WaitGenerously, None).AsTask();
+        await wakeup.WakeAsync(WorkerWakeupChannel.Admission("billing"), WorkerWakeupReason.WorkAvailable, ct);
+        Assert.Equal(WorkerWakeupWaitStatus.Signaled, await admission.WaitAsync(WaitGenerously, None));
+        Assert.Equal(WorkerWakeupWaitStatus.TimedOut, await claim.WaitAsync(WaitGenerously, None));
 
+        claim = wakeup.WaitAsync(WorkerWakeupChannel.WorkerNamespace("billing"), WaitGenerously, None).AsTask();
+        admission = wakeup.WaitAsync(WorkerWakeupChannel.Admission("billing"), WaitGenerously, None).AsTask();
+        await wakeup.WakeAsync(WorkerWakeupChannel.AllWorkerNamespaces, WorkerWakeupReason.WorkAvailable, ct);
         Assert.Equal(WorkerWakeupWaitStatus.Signaled, await claim.WaitAsync(WaitGenerously, None));
         Assert.Equal(WorkerWakeupWaitStatus.Signaled, await admission.WaitAsync(WaitGenerously, None));
     }

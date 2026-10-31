@@ -68,6 +68,12 @@ internal sealed class RedisWakeup : IWorkerWakeup, IDisposable, IAsyncDisposable
         // when Redis is unreachable.
         await _local.WakeAsync(channel, reason, ct);
 
+        // An admission wake is this host's own: every host runs its own schedule admitter.
+        if (channel.Name.StartsWith(WorkerWakeupChannel.AdmissionPrefix, StringComparison.Ordinal))
+        {
+            return;
+        }
+
         try
         {
             // FireAndForget: a wake is best-effort by contract, so delivery is never awaited and a

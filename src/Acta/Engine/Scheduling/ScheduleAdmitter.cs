@@ -35,23 +35,29 @@ internal sealed class ScheduleAdmitter(
             return;
         }
 
-        // Its own signal, which every wake of the namespace also sets: a shared one would take wakes from the claim loop.
+        // Its own signal, apart from the claim loop's: a shared auto-reset one would take wakes from the claim loop.
         var channel = WorkerWakeupChannel.Admission(namespaceName);
         while (!ct.IsCancellationRequested)
         {
             TimeSpan sleep;
             try
             {
-                var pass = await AdmitOnceAsync(namespaceName, ct);
-                if (pass.Admitted > 0 || pass.Stale > 0)
+                // The horizon read is the idle loop's one statement; a pass runs only when something is due.
+                var horizon = await schedules.GetScheduleHorizonAsync(context.NamespaceIds[namespaceName], ct);
+                var (now, next) = (horizon.DbNowUtc, horizon.NextEvaluationAtUtc);
+                if (next <= now)
                 {
-                    continue;
+                    var pass = await AdmitOnceAsync(namespaceName, ct);
+                    if (pass.Admitted > 0 || pass.Stale > 0)
+                    {
+                        continue;
+                    }
+                    (now, next) = (pass.DbNowUtc, pass.NextWakeUtc);
                 }
 
                 // The claim loop's sleep rule: until the horizon, floored and jittered, never past the safety poll.
-                var now = await clock.GetUtcNowAsync(ct);
                 sleep = WorkerClaimer.ComputeSleep(
-                    new ClaimHorizon(now, pass.NextWakeUtc),
+                    new ClaimHorizon(now, next),
                     options.SafetyPollInterval,
                     options.MinPollFloor,
                     options.ClaimIdleJitterMax
@@ -145,7 +151,8 @@ internal sealed class ScheduleAdmitter(
         }
 
         metrics?.RecordSchedulePass(namespaceName, Stopwatch.GetElapsedTime(started), staleTotal);
-        return new AdmissionPass(admitted, stale, await schedules.GetScheduleHorizonAsync(namespaceId, ct));
+        var horizon = await schedules.GetScheduleHorizonAsync(namespaceId, ct);
+        return new AdmissionPass(admitted, stale, horizon.NextEvaluationAtUtc, horizon.DbNowUtc);
     }
 
     /// <summary>
@@ -424,8 +431,8 @@ internal sealed class ScheduleAdmitter(
         )!;
 }
 
-/// <summary>What one admission pass did, and when the namespace next needs the engine.</summary>
-internal sealed record AdmissionPass(int Admitted, int Stale, DateTime? NextWakeUtc);
+/// <summary>What one admission pass did, and when the namespace next needs the engine by the database's clock.</summary>
+internal sealed record AdmissionPass(int Admitted, int Stale, DateTime? NextWakeUtc, DateTime DbNowUtc);
 
 /// <summary>One decision a plan's group took, for the meter once the group applies; an admitted occurrence carries its lag.</summary>
 internal sealed record PlannedMeasurement(int Ordinal, string Decision, TimeSpan? Lag);

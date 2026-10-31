@@ -590,15 +590,19 @@ internal sealed partial class WorkerFinalizer(
             await wakeupPublisher.WakeAsync(WorkerWakeupChannel.JobCompletion(job.JobId), WorkerWakeupReason.JobFinished, ct);
         }
 
-        // Inside complete_executions the completion handed a lane to its next member, or settled a firing (a slot back to
-        // Idle or stopped, a per-occurrence root finished) and so made the schedules waiting on it due. Lanes and
-        // schedules are namespace-scoped, so this namespace's claim loop and schedule admitter take it now instead of at
-        // their safety poll.
-        var scheduled = job.Kind == JobKindCode.PermanentSlot || job.ScheduleId is not null;
-        var settled = terminal || complete.FinalJobStatusCode == (byte)JobStatusCode.Idle;
-        if (complete.LanePromoted || (scheduled && settled))
+        // The completion handed a lane to its next member inside complete_executions; lanes are namespace-scoped,
+        // so the member is claimable in this namespace.
+        if (complete.LanePromoted)
         {
             await wakeupPublisher.WakeAsync(WorkerWakeupChannel.WorkerNamespace(ns), WorkerWakeupReason.WorkAvailable, ct);
+        }
+
+        // It settled a firing (a slot back to Idle or stopped, a per-occurrence root finished) and so made the schedules
+        // waiting on it due: this host's schedule admitter takes them now instead of at its safety poll.
+        var scheduled = job.Kind == JobKindCode.PermanentSlot || job.ScheduleId is not null;
+        if (scheduled && (terminal || complete.FinalJobStatusCode == (byte)JobStatusCode.Idle))
+        {
+            await wakeupPublisher.WakeAsync(WorkerWakeupChannel.Admission(ns), WorkerWakeupReason.WorkAvailable, ct);
         }
 
         // A terminal child's raise flipped its Suspended parent to Ready inside complete_executions;

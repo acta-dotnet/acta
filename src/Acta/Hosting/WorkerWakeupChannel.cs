@@ -61,8 +61,8 @@ public readonly record struct WorkerWakeupChannel
     internal const string AdmissionPrefix = "admit:";
 
     /// <summary>
-    /// The in-process channel one worker namespace's schedule admitter waits on, beside its claim loop. Every wake of
-    /// the namespace sets it as well, so each waiter gets every wake; it never travels on a transport.
+    /// The in-process channel one worker namespace's schedule admitter waits on, apart from its claim loop: a settled
+    /// firing and an all-namespaces wake set it, an enqueue or a completion does not. It never travels on a transport.
     /// </summary>
     internal static WorkerWakeupChannel Admission(string namespaceName) =>
         new(AdmissionPrefix + WorkerNamespace(namespaceName).Name, WorkerWakeupChannelKind.WorkerNamespace);

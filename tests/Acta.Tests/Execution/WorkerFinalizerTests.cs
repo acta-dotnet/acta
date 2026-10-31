@@ -304,10 +304,11 @@ public sealed class WorkerFinalizerTests
         Assert.Equal([WorkerWakeupChannel.JobCompletion(1)], wakeup.Woken);
     }
 
-    [Theory(DisplayName = "A completion that settles a firing wakes its namespace once, where the schedule admitter waits")]
+    [Theory(DisplayName = "A completion that settles a firing wakes this hosts schedule admitter; a lane promotion wakes the claim loop")]
     [InlineData(JobKindCode.PermanentSlot, null, JobStatusCode.Idle, false, false, false, true)]
     [InlineData(JobKindCode.PermanentSlot, null, JobStatusCode.Failed, false, false, true, true)]
     [InlineData(JobKindCode.PermanentSlot, null, JobStatusCode.Idle, false, true, false, true)]
+    [InlineData(JobKindCode.Ordinary, null, JobStatusCode.Succeeded, false, true, true, false)]
     [InlineData(JobKindCode.Ordinary, 7, JobStatusCode.Succeeded, false, false, true, true)]
     [InlineData(JobKindCode.Ordinary, 7, JobStatusCode.Cancelled, false, false, true, true)]
     [InlineData(JobKindCode.Ordinary, 7, JobStatusCode.Succeeded, true, false, true, true)]
@@ -319,7 +320,7 @@ public sealed class WorkerFinalizerTests
         bool answerLost,
         bool lanePromoted,
         bool wakesCompletion,
-        bool wakesNamespace
+        bool wakesAdmitter
     )
     {
         var ct = TestContext.Current.CancellationToken;
@@ -373,9 +374,13 @@ public sealed class WorkerFinalizerTests
         {
             expected.Add(WorkerWakeupChannel.JobCompletion(1));
         }
-        if (wakesNamespace)
+        if (lanePromoted)
         {
             expected.Add(WorkerWakeupChannel.WorkerNamespace("orders"));
+        }
+        if (wakesAdmitter)
+        {
+            expected.Add(WorkerWakeupChannel.Admission("orders"));
         }
         Assert.Equal(expected, wakeup.Woken);
     }
