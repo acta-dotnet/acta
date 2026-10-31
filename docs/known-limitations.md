@@ -4,7 +4,7 @@ Known boundaries to review before using Acta in production-like environments.
 
 ## Stability status
 
-Acta is at 1.0.0-rc.6, a release candidate. It re-cut the schema ([release notes](./release-notes.md)), so
+Acta is at 1.0.0-rc.7, a release candidate. It re-cut the schema ([release notes](./release-notes.md)), so
 every database an earlier release candidate provisioned is dropped and reprovisioned: no translation
 migration exists, and nothing in a database says which cut it came from. From 1.0.0 the public API,
 schema, and persisted codes are frozen, and the migration history with them: schema changes ship only

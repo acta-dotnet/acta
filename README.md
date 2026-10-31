@@ -7,7 +7,7 @@
 [![License](https://img.shields.io/badge/license-Apache--2.0-blue.svg)](./LICENSE)
 [![Website](https://img.shields.io/badge/website-useacta.net-2fd6a8.svg)](https://useacta.net/)
 
-> **1.0.0-rc.6.** A release candidate: the public API, the schema, and the persisted codes freeze at 1.0.0, and until then a new candidate may still change them. This one re-cuts the schema, so a database an earlier candidate provisioned is dropped and reprovisioned ([release notes](./docs/release-notes.md)). Bring a real workload; the evidence behind each tag is in the repository.
+> **1.0.0-rc.7.** A release candidate: the public API, the schema, and the persisted codes freeze at 1.0.0, and until then a new candidate may still change them. This one re-cuts the schema, so a database an earlier candidate provisioned is dropped and reprovisioned ([release notes](./docs/release-notes.md)). Bring a real workload; the evidence behind each tag is in the repository.
 
 Acta records jobs, retries, schedules, checkpoints, events, workers, and operator controls in your own SQL database, so every state transition is a row you can `SELECT`. No broker, no sidecar, no hosted control plane, no replay engine. Execution is **at-least-once**: Acta makes its own state repeat-safe, and handlers own the idempotency of their side effects.
 
