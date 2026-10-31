@@ -134,16 +134,28 @@ public sealed class ReserveRateSpec : ActaStorageTestBase<ConformanceFixture>
             Assert.True((await ReserveFastAsync(bucket, job, ct)).Admitted);
         }
 
-        // Two intervals late is inside the one-second floor, with most of a second to spare: honoured, and the meter stays.
-        var late = await StageTurnAsync(bucket, 130, TimeSpan.FromMilliseconds(-200), ct);
-        var meter = Assert.NotNull(await MeterAsync(bucket, ct));
-        Assert.Equal(new ReserveRateResponse(true, late, 0), await ReserveFastAsync(bucket, 130, ct));
-        Assert.Equal(meter, await MeterAsync(bucket, ct));
+        // Two intervals late is inside the one-second floor: honoured, and the meter stays. A reserve that a loaded server
+        // lands a second or more after its turn judges nothing, so the case runs again on a fresh turn.
+        var clock = Services.GetRequiredService<IActaClock>();
+        for (var job = 130; ; job++)
+        {
+            var meter = Assert.NotNull(await MeterAsync(bucket, ct));
+            var late = await StageTurnAsync(bucket, job, TimeSpan.FromMilliseconds(-200), ct);
+            var reserved = await ReserveFastAsync(bucket, job, ct);
+            if (await clock.GetUtcNowAsync(ct) - late < TimeSpan.FromSeconds(1))
+            {
+                Assert.Equal(new ReserveRateResponse(true, late, 0), reserved);
+                Assert.Equal(meter, await MeterAsync(bucket, ct));
+                break;
+            }
+            Assert.True(job < 134, "five reserves in a row landed a second or more after their turn");
+        }
 
         // Three seconds is past it: the turn is spent and the job charges the meter afresh.
-        await StageTurnAsync(bucket, 131, TimeSpan.FromSeconds(-3), ct);
-        await ReserveFastAsync(bucket, 131, ct);
-        Assert.True(await MeterAsync(bucket, ct) > meter, "the stale turn did not go back through the meter");
+        var charged = Assert.NotNull(await MeterAsync(bucket, ct));
+        await StageTurnAsync(bucket, 140, TimeSpan.FromSeconds(-3), ct);
+        await ReserveFastAsync(bucket, 140, ct);
+        Assert.True(await MeterAsync(bucket, ct) > charged, "the stale turn did not go back through the meter");
     }
 
     private const int FastIntervalMilliseconds = 100;
