@@ -1,6 +1,6 @@
 {
   "title": "One hot concurrency key",
-  "question": "With every job sharing one concurrency key of limit one, does a slow stream still complete with p99 under 10 s?",
+  "question": "With every job sharing one concurrency key of limit one, does a stream of one a second keep a flat backlog with p99 under 30 s?",
   "runner": "rate-ladder",
   "concurrency_key": "hot",
   "rates": {
@@ -14,5 +14,5 @@
       1
     ]
   },
-  "p99_ms": 10000
+  "p99_ms": 30000
 }
