@@ -9,21 +9,19 @@
     ],
     "mssql": [
       1000
-    ],
-    "sqlite": [
-      50
     ]
   },
   "settings": {
     "overload_rate": {
       "pg": 13000,
-      "mssql": 8000,
-      "sqlite": 1000
+      "mssql": 8000
     },
     "recovery_rate": {
       "pg": 2500,
-      "mssql": 1000,
-      "sqlite": 50
+      "mssql": 1000
     }
+  },
+  "skip": {
+    "sqlite": "SQLite's one writer serves the enqueues and the worker alike, so an offer past what it absorbs queues in the caller, not in the database."
   }
 }
