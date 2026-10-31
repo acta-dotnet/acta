@@ -1,51 +1,39 @@
 # Handover
 
-State of rc6 on 2026-10-25. Nothing is pushed. The v1 data model plan (temp-plan.md), EVENTS-SPEC.md, and RENAME-MANIFEST.md were implemented and deleted; the schema reference is docs/reference/data-model.md.
+State on 2026-10-31: 1.0.0-rc.7 is tagged, on nuget.org, and released on GitHub. main is the tagged commit plus the demos bump; rc7 is merged and can go.
 
 ## State
 
-- rc6 is the rc.6 release, its follow-ups, the v1 data model, the PostgreSQL completion fix, the Acta Bench measurement standard, rc.6 polish, one commit per review fix (B1-B10), and the 2026-10-24 batch below.
-- Every unpushed commit is dated outside 09:00-17:00 and carries no attribution line.
-- The init baseline is `M20261030172834_init` (re-cut for the scheduling redesign, step by step, last for the job kind on `jobs_view`). Startup and apply now refuse a database whose history names another `_init`, so drop the `acta-test` database on both Compose servers after any baseline re-cut (CONTRIBUTING.md, "Database lifecycle").
-- The release path is done: the engine is certified on `599e28e8`, the bench fixes are `fb8f8414`, `988764e6`, `05e5c27c`, and `5511252d`, and `v1.0.0-rc.6` tags the evidence commit that follows them.
-
-## Landed 2026-10-24
-
-- B6: a graceful drain waits for the rows repeating apart before it reads which descendant cancels to wait for.
-- Durable cancellation, scoped down by Marko to walk hardening: an operator cancel's walk no longer takes the caller's token; a handler cancel's walk in the worker repeats from the root until it finishes. The `sys.cascade` checkpoint obligation and the locked child enqueue were declined as too rare.
-- Startup and apply refuse a database cut from another baseline.
-- Recurring retention: the developer guide, known limitations and llms.txt teach one root job per occurrence; the engine keeps the live-parent guard.
-- Metrics: `acta.executions.fenced`, `acta.lease.headroom`, `acta.alerts.lag`.
-- MISSION.md states the mission and how a release follows it; Marko asked that releases follow it.
-- Acta Bench `--full` is the release evidence: trimmed to about nine hours for all three databases (3 repetitions at 0.8 of the discovered rate, 30 s trials, a 10-minute soak, 7 minutes of chaos), resumable after a crash, with the drive's Windows disk counters before, through and after the run in the report.
-- First whole-bench check of the review fixes (`--standard`, stopped after PostgreSQL): SQLite and PostgreSQL passed every case they ran, F09 included on both.
+- `v1.0.0-rc.7` tags `0ddaeffa0`. The engine is certified on `e294a8b91`; the commits after it change only Acta Verify (`31e0c2ee7`, `54ddd670e`) and the docs (`f0c7fafc2`, `0ddaeffa0`).
+- The init baseline is `M20261030172834_init`. Startup and apply refuse a database whose history names another `_init`, so drop the `acta-test` database on both Compose servers after any baseline re-cut (CONTRIBUTING.md, "Database lifecycle").
+- Acta Verify 2 is the measurement standard: written scenario files, suites quick, check and release, rate ladders with written floors, a report that answers first, and `publish` to docs/benchmark.md and site/benchmark.html.
+- The release run took 2 h 47 min on all three databases; the rerun of the four scenarios it could not judge took 1 h 8 min.
+- Calibration found the hot lane at about one job a second against rc.6's 80: the schedule admitter shared the claim loop's auto-reset wake. `329b5fa7e` gave it its own, before the certified commit.
 
 ## Release path
 
-1. Commit the batch; it is the certified commit A unless a run finds a defect (CONTRIBUTING.md, "Two commits").
-2. The candidate checks on A: the Release suites and concepts, csharpier, the Emit check, `tests/PackageSmoke/run.ps1`.
-3. Evidence on A from a clean worktree: `acta-verify --full --db all` with `--output` on D:, where Docker's disk lives, about nine hours. After a crash, the same command resumes it.
-4. Commit B, docs only: `acta-verify publish` of that one bundle to docs/benchmark.md, the release notes' evidence paragraph and header date, the front-page line in site/index.html and the README from its validated PostgreSQL L01 row.
-5. Marko tags, pushes and publishes.
+1. Commit the candidate; it is the certified commit A unless the run finds a defect (CONTRIBUTING.md, "Two commits").
+2. The candidate checks on A: the Release suites and concepts, csharpier, the Emit check, `tests/PackageSmoke/run.ps1`, the NativeAOT test.
+3. Evidence on A from a clean detached worktree on D:, where Docker's disk lives: `acta-verify release --db all --output <worktree>/artifacts/verify`, about three hours. After a crash, the same command resumes it.
+4. A scenario the run could not judge for a reason in Acta Verify gets a tools-only fix and a rerun of just that scenario against the same engine.
+5. Commit B, docs and site only: `acta-verify publish` of the bundles to docs/benchmark.md and site/benchmark.html, the release notes' date and evidence, the README status line, and the site's numbers and evidence links.
+6. Tag B after PR CI is green; the tag's CI publishes to nuget.org. Fast-forward main to B, create the GitHub release, then bump the demos.
 
-## After rc.6
+## After rc.7
 
-- rc7: decide the SQL Server events clustering between the shipping worker-clustered key and the namespace/bucket/time candidate, by the criteria in the clustering kit's protocol. The lean campaign has repetitions 1-2 for both layouts (`pwsh run-campaign.ps1 -ProtocolPath protocol-lean.json` in the clustering kit, output in the 2026-10-23 session scratchpad `overnight/clustering`); repetition 3 and the reads/retention pass remain.
-- Remaining review proposals, one at a time and weighed by how often they bite: a committed catalog revision, the alert completeness contract, one certification record that gates publication, more operating metrics (oldest-ready age, outbox command age).
-- Bench, from the rc.6 evidence run: the controller holds every 64 KB M04 payload in memory (up to 43 GB), so stream them; SQL Server's E03 offered too little to grow a backlog; O03 validates no rate on either server, and PostgreSQL's I05 sustains about 310 roots/s, below its lowest frozen rate; certify PgBouncer transaction pooling before docs recommend it.
-- Open: one-worker PostgreSQL drains run in two modes per trial (about 16K or 20K jobs/s) with identical plans. Next probe: synchronous_commit=off and WAL sync timing.
+- Acta Verify `compare` is still rc.6's: the planned before/after (correctness changes, per-scenario change with pass spread, exit codes) is not built. rc.7's bundles are the first baseline it would read.
+- Two latency gaps from the review of `329b5fa7e`, both older than it: a settled firing publishes no namespace wake, so the admitter waits up to its safety poll; two `RunAndWaitAsync` callers share one auto-reset completion signal, so one waits up to the 250 ms poll.
+- Carried from rc.6, not revisited: the SQL Server events clustering decision (its kit's worktree is gone); the review proposals (a committed catalog revision, the alert completeness contract, one certification record that gates publication, oldest-ready and outbox command age metrics); PgBouncer transaction pooling, uncertified; one-worker PostgreSQL drains running in two modes per trial.
 
 ## Rules in force
 
-- Never push. Commit messages and PR text carry no attribution of any kind.
+- Never push without Marko's word for that push. Commit messages and PR text carry no attribution of any kind.
 - History rewrites and squashes date every commit outside 09:00-17:00 on weekdays.
-- While a benchmark holds the machine, agents read and edit only; their builds and suites wait.
-- The quiet-minute gate (clustering kit, gate.ps1) kills any process whose command line names its patterns, bench processes and containers included: write a script in one call and launch it in another, and never run it beside another round.
+- While a measured run holds the machine, agents read and edit only; their builds and suites wait.
 - Agent conformance runs use their own `acta-test-<topic>` databases and drop them; never `acta-dev`.
 - No competitor benchmark until Marko asks.
 
 ## Where things are
 
-- Clustering kit: D:\Dev\acta-bench-perf\artifacts\clustering-20261022 (protocol-lean.json, run-campaign.ps1, gate.ps1, evaluate.py); frozen builds in the acta-bench-perf, acta-bench-candidate and acta-bench-baseline worktrees.
-- Release round, 1M drain and probe scripts: copied to the 2026-10-24 session scratchpad (release-pg.sh, measure-1m.sh, probe-backlog.sh); temp files, copy them before relying on them.
 - Measurement standard: tools/Acta.Verify/README.md.
+- rc.7 evidence: D:\Dev\acta-evidence\rc7 (the release and rerun bundles, the calibration and probe runs, and the scripts that composed docs/benchmark.md).
