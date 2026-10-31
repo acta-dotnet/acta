@@ -124,6 +124,37 @@ public sealed class ReserveRateSpec : ActaStorageTestBase<ConformanceFixture>
         Assert.False((await ReserveAsync(bucket, 200 + Burst, ct)).Admitted);
     }
 
+    [Fact(DisplayName = "On a meter faster than one a second, a turn up to a second late is honoured and a later one is metered afresh")]
+    public async Task Fast_meter_honours_a_turn_for_one_second()
+    {
+        var ct = TestContext.Current.CancellationToken;
+        var bucket = Unique("rate.fast");
+        for (var job = 100; job < 100 + FastBurst; job++)
+        {
+            Assert.True((await ReserveFastAsync(bucket, job, ct)).Admitted);
+        }
+
+        // Two intervals late is inside the one-second floor, with most of a second to spare: honoured, and the meter stays.
+        var late = await StageTurnAsync(bucket, 130, TimeSpan.FromMilliseconds(-200), ct);
+        var meter = Assert.NotNull(await MeterAsync(bucket, ct));
+        Assert.Equal(new ReserveRateResponse(true, late, 0), await ReserveFastAsync(bucket, 130, ct));
+        Assert.Equal(meter, await MeterAsync(bucket, ct));
+
+        // Three seconds is past it: the turn is spent and the job charges the meter afresh.
+        await StageTurnAsync(bucket, 131, TimeSpan.FromSeconds(-3), ct);
+        await ReserveFastAsync(bucket, 131, ct);
+        Assert.True(await MeterAsync(bucket, ct) > meter, "the stale turn did not go back through the meter");
+        Assert.Null(await ReadAsync($"{bucket}.130", ct));
+    }
+
+    private const int FastIntervalMilliseconds = 100;
+    private const int FastBurst = 10;
+
+    private Task<ReserveRateResponse> ReserveFastAsync(string bucket, long jobId, CancellationToken ct) =>
+        Services
+            .GetRequiredService<LocksOperations>()
+            .ReserveRateAsync(bucket, jobId, FastIntervalMilliseconds, FastBurst, GraceSeconds, ct);
+
     private Task<ReserveRateResponse> ReserveAsync(string bucket, long jobId, CancellationToken ct) =>
         Services.GetRequiredService<LocksOperations>().ReserveRateAsync(bucket, jobId, IntervalMilliseconds, Burst, GraceSeconds, ct);
 

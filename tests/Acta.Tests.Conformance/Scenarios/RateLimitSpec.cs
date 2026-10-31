@@ -208,8 +208,8 @@ public sealed class RateLimitSpec : ActaRuntimeTestBase<ConformanceFixture, Test
         }
         var window = DateTime.UtcNow - started;
 
-        // The R*T + N ceiling, measured over however long these round trips took: an idle meter's
-        // burst plus whatever the rate itself earned while they ran, and nothing like all of them.
+        // Every one of these is a fresh arrival, so no booked turn is taken late: an idle meter's burst plus
+        // whatever the rate earned while the round trips ran, one boundary either way, and nothing like all of them.
         var earned = (int)(window.TotalMilliseconds / IntervalMilliseconds);
         Assert.InRange(admitted, Burst, Burst + earned + 1);
     }
@@ -281,17 +281,17 @@ public sealed class RateLimitSpec : ActaRuntimeTestBase<ConformanceFixture, Test
         var admitted = RateLimitProbes.AdmittedAt(TestNamespace);
         Assert.Equal(jobs, admitted.Count);
 
-        // The safety property, stated over the window the drain actually took: a meter of R per second
-        // with a burst of N allocates at most R*T + N turns in any T seconds, and a turn may be taken
-        // up to one interval late, so the window can see one admission more than that: R*T + N + 1. The
-        // instants are stamped by the handler, a scheduling hop after the meter admitted it and on the
-        // host clock rather than the database's, so the window is read with a tolerance for that hop in
-        // either direction.
+        // The safety property is the documented envelope, stated over the window the drain actually took: a
+        // meter of R per second with burst B admits at most R*(T+W)+B in any T seconds, W being how long a
+        // booked turn stays valid, one second at 10/s. The instants are stamped by the handler, a scheduling
+        // hop after the meter admitted it and on the host clock rather than the database's, so the window is
+        // read with a tolerance for that hop in either direction.
         const double clockHopSeconds = 0.25;
+        const double freshSeconds = 1;
         var window = (admitted[^1] - admitted[0]).TotalSeconds;
         Assert.True(
-            admitted.Count <= (Burst * (window + clockHopSeconds)) + Burst + 1,
-            $"{admitted.Count} admissions in {window:F3}s exceeds the declared 10/s plus a burst of {Burst}, plus one late turn"
+            admitted.Count <= (Burst * (window + clockHopSeconds + freshSeconds)) + Burst,
+            $"{admitted.Count} admissions in {window:F3}s exceeds the declared 10/s over the window and a second's grace, plus a burst of {Burst}"
         );
 
         // The liveness half: the meter really throttled. Everything past the burst waits its interval,

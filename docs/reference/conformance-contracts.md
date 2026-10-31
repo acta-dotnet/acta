@@ -1229,6 +1229,7 @@
   - A booked turn returned up to one interval late is admitted once, spent, and never moves the meter
   - A booked turn returned later than its window is spent and the job is metered afresh
   - A meter idle past its arrival time admits a whole burst again
+  - On a meter faster than one a second, a turn up to a second late is honoured and a later one is metered afresh
 
 ## Outbox
 

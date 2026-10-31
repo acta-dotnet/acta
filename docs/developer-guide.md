@@ -733,7 +733,9 @@ The default retry policy (`MaxAttempts = 15`, backoff `"1m..1d x2 ~10%"`) keeps 
 
 `RateLimit = "N/s"`, `"N/m"`, or `"N/h"` (at most 1000 a second) caps how often attempts start, where the concurrency limit caps how many run at once; a job passes both. `RateName` names the meter within the namespace (the definition name by default). Definitions sharing a meter must declare the same rate, and an override on one of them applies to all.
 
-A job that arrives early is given the next free turn and re-arms Ready at that instant, budget-neutral, with reason `job.rate-limited`, so a backlog drains in arrival order at the rate. An override changes only turns not booked yet. The meter admits at most `R*T + B` starts in any `T` seconds, the burst `B` being one second's worth of the rate (at least one), and a booked turn may start up to one second late, or one interval when that is longer.
+A job that arrives early is booked the next free turn. A turn under a quarter second away is slept out in process; a farther one re-arms the job Ready at that instant, budget-neutral, with reason `rate-limited`, so a backlog drains at the rate in the order its jobs ask the meter. An override leaves turns already booked at their instants.
+
+The meter bounds admissions, not the gaps between starts. With `R` the rate per second, `B` the burst (one second's worth of the rate, at least one), and `W` the longest a booked turn is honoured past its instant (one second, or one interval when that is longer), any `T` seconds hold at most `R*(T+W)+B` admissions while every turn honoured was booked at the current rate; after an override, turns booked at the old rate still land at their instants. A turn later than `W` goes back through the meter. A delayed reservation can be admitted next to an on-time one, and a handler starts a moment after its admission, so `RateLimit` alone is not a hard quota for a partner API that rejects bursts.
 
 ## Enqueue, schedule, and follow a job
 

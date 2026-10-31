@@ -34,11 +34,11 @@ public sealed class JobAttribute(string name) : Attribute
 
     /// <summary>
     /// How often attempts of this definition may start across the namespace's workers: <c>N/s</c>, <c>N/m</c>, or
-    /// <c>N/h</c>, N a positive whole number up to 1000 per second, null for no limit. Admission is a reservation, not
-    /// a retry loop: an early job is booked the instant the meter admits it, waits in process when under a quarter
-    /// second away and is re-armed exactly once otherwise, so a backlog drains at the rate. An idle meter admits a
-    /// second's worth at once (<c>600/m</c> bursts ten), and a booked turn stays valid for a second. Per namespace and
-    /// <see cref="RateName"/>, independent of <see cref="ConcurrencyLimit"/>, and an operator-overridable policy slot.
+    /// <c>N/h</c>, N a positive whole number up to 1000 per second, null for no limit. An early job is booked the next
+    /// turn, sleeps it out when under a quarter second away, and is otherwise re-armed to it. An idle meter admits a
+    /// second's worth at once (<c>600/m</c> bursts ten), and a turn is honoured up to a second or one interval late,
+    /// so at a steady rate any T seconds hold at most R*(T+W)+B admissions, not evenly spaced ones. Per namespace and
+    /// <see cref="RateName"/>, independent of <see cref="ConcurrencyLimit"/>, and operator-overridable.
     /// </summary>
     public string? RateLimit { get; init; }
 
