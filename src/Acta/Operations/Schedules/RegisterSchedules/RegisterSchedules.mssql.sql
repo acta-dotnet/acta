@@ -152,9 +152,9 @@ BEGIN TRY
         AND s.timing_fingerprint <> src.timing_fingerprint
         AND d.event_recording_code_effective = 20 /* EventRecordingCode.Audit */;
 
-    -- The cursor is written on a retime, from the plan, and seeded when the stored one was cleared by the orphaning or the
-    -- retire the schedule now comes back from. A cursor the plan copied from the stored one is never written back: the
-    -- plan read it unlocked, and another host's admission may have moved it since.
+    -- The cursor is written on a retime, from the plan, and on a comeback from orphaning, which the plan seeded from now. A
+    -- cursor the plan copied from the stored one is never written back: the plan read it unlocked, and another host's
+    -- admission may have moved it since, to NULL when it admitted the last occurrence.
     UPDATE st
     SET
         next_occurrence_at_utc = src.next_occurrence_at_utc,
@@ -170,7 +170,7 @@ BEGIN TRY
             AND src.schedule_name = s.schedule_name
     WHERE
         s.timing_fingerprint <> src.timing_fingerprint
-        OR (st.next_occurrence_at_utc IS NULL AND src.next_occurrence_at_utc IS NOT NULL);
+        OR s.schedule_status_code = 230 /* ScheduleStatusCode.Orphaned */;
 
     -- A schedule parked at its declared capacity waits for a settlement; a declaration that changes the capacity wakes it
     -- instead, so the admitter re-plans against the new one. Written before the declaration overwrites the capacity.
@@ -217,16 +217,15 @@ BEGIN TRY
         ON
             src.definition_id = tgt.definition_id
             AND src.schedule_name = tgt.schedule_name
-    INNER JOIN {{schema}}.schedules_state AS st ON st.schedule_id = tgt.schedule_id
     WHERE
         tgt.schedule_status_code = 230 /* ScheduleStatusCode.Orphaned */
         OR EXISTS (
             SELECT tgt.expression, tgt.time_zone_id, tgt.expression_kind_code, tgt.misfire_strategy_code,
-                st.next_occurrence_at_utc, tgt.description, tgt.timing_fingerprint, tgt.max_outstanding, tgt.full_behavior_code,
+                tgt.description, tgt.timing_fingerprint, tgt.max_outstanding, tgt.full_behavior_code,
                 tgt.expire_after_seconds, tgt.expire_action_code, tgt.availability_calendar_name
             EXCEPT
             SELECT src.expression, src.time_zone_id, src.expression_kind_code, src.misfire_strategy_code,
-                src.next_occurrence_at_utc, src.description, src.timing_fingerprint, src.max_outstanding, src.full_behavior_code,
+                src.description, src.timing_fingerprint, src.max_outstanding, src.full_behavior_code,
                 src.expire_after_seconds, src.expire_action_code, src.availability_calendar_name);
 
     INSERT INTO {{schema}}.schedules (

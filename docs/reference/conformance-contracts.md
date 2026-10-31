@@ -2050,6 +2050,7 @@
   - A PerOccurrence definition's schedules register with no slot, their declared capacity, and nothing outstanding
   - A schedule's expiry and misfire strategy register, a changed expiry re-registers in place, and a plain restart writes nothing
   - Registration never moves a stored cursor back, retimes on a changed timing, and seeds a cleared cursor
+  - A plan copied before the last occurrence was admitted never writes it back over the exhausted cursor
   - A declaration that changes the capacity wakes a schedule parked at the old one; one that keeps it leaves it parked
   - A schedule's availability calendar registers and reads back, a changed name re-registers in place, and a plain restart writes nothing
   - A slot-less schedule resolves by path, pauses and resumes with the audit on its definition, and triggers a manual root

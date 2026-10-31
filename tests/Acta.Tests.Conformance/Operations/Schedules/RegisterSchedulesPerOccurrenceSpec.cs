@@ -134,6 +134,45 @@ public sealed class RegisterSchedulesPerOccurrenceSpec : ActaStorageTestBase<Con
         Assert.Equal(EvaluationStatusCode.Scheduled, state.EvaluationStatus);
     }
 
+    [Fact(DisplayName = "A plan copied before the last occurrence was admitted never writes it back over the exhausted cursor")]
+    public async Task Registration_keeps_a_cursor_an_admission_exhausted()
+    {
+        var ct = TestContext.Current.CancellationToken;
+        var defId = await CreateDefinitionAsync(Unique("roots"), ct);
+        var last = FloorSeconds(DateTime.UtcNow.AddHours(6));
+        await RegisterAsync(defId, [Slot("only", last)], ct);
+        var (config, _) = await ScheduleAsync(defId, "only", ct);
+
+        // Another host admitted the stream's last occurrence after this plan copied it, leaving the cursor exhausted.
+        Assert.Equal(
+            1,
+            await Db.From<ScheduleStateEntity>()
+                .Where(s => s.Id == config.Id)
+                .UpdateOnlyAsync(
+                    () =>
+                        new ScheduleStateEntity
+                        {
+                            NextOccurrenceAtUtc = null,
+                            NextEvaluationAtUtc = null,
+                            EvaluationStatus = EvaluationStatusCode.Exhausted,
+                        },
+                    ct
+                )
+        );
+
+        // The same plan writes nothing, and one that also changes the description rewrites only the declaration.
+        await RegisterAsync(defId, [Slot("only", last)], ct);
+        var (same, state) = await ScheduleAsync(defId, "only", ct);
+        Assert.Equal(config.Version, same.Version);
+        Assert.Null(state.NextOccurrenceAtUtc);
+        await RegisterAsync(defId, [Slot("only", last) with { Description = "described" }], ct);
+        (same, state) = await ScheduleAsync(defId, "only", ct);
+        Assert.Equal("described", same.Description);
+        Assert.Null(state.NextOccurrenceAtUtc);
+        Assert.Null(state.NextEvaluationAtUtc);
+        Assert.Equal(EvaluationStatusCode.Exhausted, state.EvaluationStatus);
+    }
+
     [Fact(
         DisplayName = "A declaration that changes the capacity wakes a schedule parked at the old one; one that keeps it leaves it parked"
     )]

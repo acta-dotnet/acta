@@ -6,6 +6,7 @@ Not tagged yet.
 
 ### Fixes
 
+- A worker start that read a schedule before another host admitted its last occurrence no longer writes that occurrence back. Before, a deploy racing a finite calendar's final firing restored the admitted occurrence, and a per-occurrence schedule then failed on the root's deduplication key at every pass. Registration now writes a cursor only on a retime or when an orphaned schedule comes back, and a stale copy no longer bumps the schedule's version.
 - A schedule waiting on its slot or on its outstanding limit is evaluated as soon as the firing settles. Before, the admitter heard of the settlement only at its next safety poll, so a `CatchUpAll` backlog or a per-occurrence schedule at `MaxOutstanding` admitted about one occurrence per `SafetyPollInterval` (1 s by default) however fast its jobs ran.
 - The schedule admitter no longer runs on every enqueue. Each worker's admitter heard every wake of its namespace, so a stream of enqueues in the worker's own process, or arriving over Redis, ran an admission pass of four statements for every one or two jobs enqueued, with nothing to admit. It now wakes for a settled firing or a wake of every namespace, and when idle reads one row a second (the next evaluation and the database clock) instead of four statements.
 

@@ -166,9 +166,9 @@ WHERE
     AND s.timing_fingerprint <> src.timing_fingerprint
     AND d.event_recording_code_effective = 20 /* EventRecordingCode.Audit */;
 
--- The cursor is written on a retime, from the plan, and seeded when the stored one was cleared by the orphaning or the
--- retire the schedule now comes back from. A cursor the plan copied from the stored one is never written back: the
--- plan read it unlocked, and another host's admission may have moved it since.
+-- The cursor is written on a retime, from the plan, and on a comeback from orphaning, which the plan seeded from now. A
+-- cursor the plan copied from the stored one is never written back: the plan read it unlocked, and another host's
+-- admission may have moved it since, to NULL when it admitted the last occurrence.
 UPDATE {{schema}}.schedules_state AS st
 SET
     next_occurrence_at_utc = src.next_occurrence_at_utc,
@@ -182,7 +182,7 @@ WHERE
     st.schedule_id = s.schedule_id
     AND (
         s.timing_fingerprint <> src.timing_fingerprint
-        OR (st.next_occurrence_at_utc IS NULL AND src.next_occurrence_at_utc IS NOT NULL)
+        OR s.schedule_status_code = 230 /* ScheduleStatusCode.Orphaned */
     );
 
 -- A schedule parked at its declared capacity waits for a settlement; a declaration that changes the capacity wakes it
@@ -224,7 +224,6 @@ SET
     version = tgt.version + 1
 FROM _reg_schedules AS src
 INNER JOIN {{schema}}.schedules AS cur ON cur.definition_id = src.definition_id AND cur.schedule_name = src.schedule_name
-INNER JOIN {{schema}}.schedules_state AS st ON st.schedule_id = cur.schedule_id
 WHERE
     tgt.schedule_id = cur.schedule_id
     AND (
@@ -239,7 +238,6 @@ WHERE
         OR tgt.expire_after_seconds IS DISTINCT FROM src.expire_after_seconds
         OR tgt.expire_action_code IS DISTINCT FROM src.expire_action_code
         OR tgt.availability_calendar_name IS DISTINCT FROM src.availability_calendar_name
-        OR st.next_occurrence_at_utc IS DISTINCT FROM src.next_occurrence_at_utc
         OR tgt.description IS DISTINCT FROM src.description
     );
 
