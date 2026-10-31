@@ -218,7 +218,7 @@ public sealed class RecoveryTests : IDisposable
     }
 
     [Fact]
-    public async Task Compare_flags_lost_capacity_a_slower_p99_and_a_cell_validated_only_in_the_baseline()
+    public async Task Compare_flags_a_lower_held_rate_a_slower_p99_and_a_rate_held_only_before()
     {
         var ct = TestContext.Current.CancellationToken;
         var baseline = Measured((50, "VALID", 900), (100, "VALID", 1000));
@@ -226,8 +226,48 @@ public sealed class RecoveryTests : IDisposable
         Assert.Equal(1, await VerifyCommand.RunAsync(["compare", baseline, Measured((50, "VALID", 900), (100, "UNSTABLE", 1000))], ct));
         Assert.Equal(1, await VerifyCommand.RunAsync(["compare", baseline, Measured((50, "VALID", 900), (100, "VALID", 1500))], ct));
         Assert.Equal(1, await VerifyCommand.RunAsync(["compare", baseline, Measured((50, "UNSTABLE", 900))], ct));
+        var quicker = Measured((50, "VALID", 900), (100, "VALID", 500));
+        Assert.Equal(0, await VerifyCommand.RunAsync(["compare", baseline, quicker], ct));
+        Assert.Contains("faster: p99 1.0 s, now 500 ms at 100/s", File.ReadAllText(Path.Combine(quicker, "compare.md")));
         // A different seed is a different workload, so the bundles are not comparable.
         Assert.Equal(2, await VerifyCommand.RunAsync(["compare", baseline, Measured(7, (50, "VALID", 900))], ct));
+    }
+
+    [Fact]
+    public async Task Compare_writes_a_scenario_that_no_longer_passes_and_skips_one_whose_settings_changed()
+    {
+        var ct = TestContext.Current.CancellationToken;
+        var baseline = Measured((50, "VALID", 900));
+
+        var failing = Measured(Protocol.Plan("quick", ["pg"], 1729, ["three-steps"]), "FAIL", (50, "VALID", 900));
+        Assert.Equal(1, await VerifyCommand.RunAsync(["compare", baseline, failing], ct));
+        Assert.Contains(
+            "- **Three persisted steps** on PostgreSQL: fail, before pass.",
+            File.ReadAllText(Path.Combine(failing, "compare.md"))
+        );
+
+        // A value written for another database leaves this one's scenario as it was.
+        var other = Protocol.Plan("quick", ["pg"], 1729, ["three-steps"]);
+        var sqliteOnly = new Dictionary<string, string> { ["sqlite"] = "not written" };
+        Assert.Equal(
+            0,
+            await VerifyCommand.RunAsync(
+                [
+                    "compare",
+                    baseline,
+                    Measured(other with { Scenarios = [other.Scenarios[0] with { Skip = sqliteOnly }] }, "PASS", (50, "VALID", 900)),
+                ],
+                ct
+            )
+        );
+
+        var plan = Protocol.Plan("quick", ["pg"], 1729, ["three-steps"]);
+        var changed = Measured(plan with { Scenarios = [plan.Scenarios[0] with { P99Ms = 1 }] }, "PASS", (50, "VALID", 900));
+        Assert.Equal(2, await VerifyCommand.RunAsync(["compare", baseline, changed], ct));
+        Assert.Contains(
+            "- **Three persisted steps** on PostgreSQL: the scenario changed.",
+            File.ReadAllText(Path.Combine(changed, "compare.md"))
+        );
     }
 
     [Fact]
@@ -294,9 +334,11 @@ public sealed class RecoveryTests : IDisposable
 
     private string Measured(params (double Rate, string Measurement, double P99)[] trials) => Measured(1729, trials);
 
-    private string Measured(int seed, params (double Rate, string Measurement, double P99)[] trials)
+    private string Measured(int seed, params (double Rate, string Measurement, double P99)[] trials) =>
+        Measured(Protocol.Plan("quick", ["pg"], seed, ["three-steps"]), "PASS", trials);
+
+    private string Measured(RunPlan plan, string status, params (double Rate, string Measurement, double P99)[] trials)
     {
-        var plan = Protocol.Plan("quick", ["pg"], seed, ["three-steps"]);
         var bundle = new EvidenceBundle(_root, plan.RunId);
         bundle.Write("resolved-plan.json", plan, VerifyJson.Default.RunPlan);
         bundle.Write("environment.json", MachineKeys.ToDictionary(k => k, _ => "test"), VerifyJson.Default.DictionaryStringString);
@@ -310,7 +352,7 @@ public sealed class RecoveryTests : IDisposable
                     "pg",
                     "measure",
                     1,
-                    "PASS",
+                    status,
                     null,
                     "PASS",
                     "PASS",

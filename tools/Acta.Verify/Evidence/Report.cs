@@ -575,9 +575,9 @@ public static partial class Report
     }
 
     /// <summary>The plain status word: INCONCLUSIVE in the JSON reads INCOMPLETE.</summary>
-    private static string Word(string status) => status == "INCONCLUSIVE" ? "INCOMPLETE" : status;
+    internal static string Word(string status) => status == "INCONCLUSIVE" ? "INCOMPLETE" : status;
 
-    private static string Name(string provider) =>
+    internal static string Name(string provider) =>
         provider switch
         {
             "pg" => "PostgreSQL",
@@ -591,7 +591,7 @@ public static partial class Report
         : seconds >= 60 ? $"{(int)(seconds / 60)} min"
         : $"{seconds:F0} s";
 
-    private static string Milliseconds(double? ms) =>
+    internal static string Milliseconds(double? ms) =>
         ms switch
         {
             null => "-",
@@ -776,7 +776,7 @@ public static partial class Report
             : (sorted[sorted.Length / 2 - 1] + sorted[sorted.Length / 2]) / 2;
     }
 
-    private static string Number(double? value) =>
+    internal static string Number(double? value) =>
         value switch
         {
             null => "-",

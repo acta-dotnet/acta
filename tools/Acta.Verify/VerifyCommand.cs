@@ -156,7 +156,7 @@ public static class VerifyCommand
         }
         if (args is ["compare", var baseline, var candidate])
         {
-            return BundleComparison.Print(baseline, candidate);
+            return BundleComparison.Write(baseline, candidate);
         }
         if (args is ["publish", var source, "--to", var target])
         {
