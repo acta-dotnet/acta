@@ -614,11 +614,17 @@ dotnet_diagnostic.CA1508.severity = none
 [src/Acta.Redis/RedisWakeup.cs]
 dotnet_diagnostic.CA1031.severity = none
 
-# CA1031: two catches around the repeat's own diagnostics, the unsettled gauge and the log line. The
-# repeat exists so a completion write is never abandoned while the worker lives; a metrics listener
-# or a logger that throws must not be the thing that abandons it, so those calls are swallowed and
-# the write's own failure stays the one being handled.
+# CA1031: one catch around the repeat's own log line. The repeat exists so a completion write is never
+# abandoned while the worker lives; a logger that throws must not be the thing that abandons it, so the
+# call is swallowed and the write's own failure stays the one being handled.
 [src/Acta/Engine/Worker/WorkerFinalizer.cs]
+dotnet_diagnostic.CA1031.severity = none
+
+# CA1031: three catches, one per instrument kind, around every metric write. A MeterListener is
+# application code and may throw anything; escaping would fault whichever loop recorded the measurement,
+# a claim loop, an admitter pass, a settlement, and leave a worker that heartbeats without claiming. A lost
+# measurement is the whole cost.
+[src/Acta/Engine/Telemetry/ActaMetrics.cs]
 dotnet_diagnostic.CA1031.severity = none
 
 # CA1031: one catch around the disposal of an attempt's DI scope, which runs the application's own Dispose
@@ -699,8 +705,12 @@ dotnet_diagnostic.CA1031.severity = none
 # zero benefit, IDisposable costs real safety: the source must stay usable for the whole process because
 # BeginDrain arrives from the host's StopAsync, and the public constructor is a documented direct test
 # seam whose callers would all have to take on a lifecycle they do not otherwise need.
+# CA2025: RunAsync's two linked sources, and RunLoopAsync's one, are disposed only after every loop that reads
+# them ended: the pipeline joins its claimer, executors, and finalizer whichever faulted, and RunAsync's
+# Task.WhenAll joins the pipeline, the heartbeat, and the admitter. The rule does not follow tasks into WhenAll.
 [src/Acta/Engine/Worker/WorkerRuntime.cs]
 dotnet_diagnostic.CA1001.severity = none
+dotnet_diagnostic.CA2025.severity = none
 
 # CA1031: shutdown must run to completion. A worker loop that faulted during drain is surfaced by
 # base.StopAsync; escaping here would abandon the remaining shutdown steps of every other runtime.

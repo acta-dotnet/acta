@@ -164,18 +164,18 @@ internal sealed class ActaMetrics : IDisposable
 
         // Duration excludes reason (a histogram bucket per reason multiplies series for no
         // operator value); the executions counter carries it so failures are sliceable by cause.
-        _executionDurationMs.Record(durationMs, tags);
+        Record(_executionDurationMs, durationMs, tags);
 
         if (reason is not null)
         {
             tags.Add("reason", reason);
         }
 
-        _executions.Add(1, tags);
+        Add(_executions, 1, tags);
     }
 
     public void RecordClaim(string @namespace, string result, int count = 1) =>
-        _claims.Add(count, new TagList { { "namespace", @namespace }, { "result", result } });
+        Add(_claims, count, new TagList { { "namespace", @namespace }, { "result", result } });
 
     /// <summary>
     /// namespace is the channel's namespace ("*" for all-worker-namespaces, ABSENT for
@@ -191,7 +191,7 @@ internal sealed class ActaMetrics : IDisposable
             tags.Add("namespace", @namespace);
         }
 
-        _wakeupPublishes.Add(1, tags);
+        Add(_wakeupPublishes, 1, tags);
     }
 
     public void RecordWakeupPublishFailure(string? @namespace, string channel, string reason, string exceptionType)
@@ -207,7 +207,7 @@ internal sealed class ActaMetrics : IDisposable
             tags.Add("namespace", @namespace);
         }
 
-        _wakeupPublishFailures.Add(1, tags);
+        Add(_wakeupPublishFailures, 1, tags);
     }
 
     /// <summary>
@@ -215,7 +215,7 @@ internal sealed class ActaMetrics : IDisposable
     /// sleep.
     /// </summary>
     public void RecordWakeupWait(string @namespace, string result) =>
-        _wakeupWaits.Add(1, new TagList { { "namespace", @namespace }, { "result", result } });
+        Add(_wakeupWaits, 1, new TagList { { "namespace", @namespace }, { "result", result } });
 
     /// <summary>
     /// outcome is one of { replayed, interrupted, succeeded, failed, exhausted } - the five
@@ -223,7 +223,8 @@ internal sealed class ActaMetrics : IDisposable
     /// deliberately excluded: user-defined, would blow up cardinality; it stays on the log scope.
     /// </summary>
     public void RecordStep(string @namespace, string jobName, string outcome) =>
-        _steps.Add(
+        Add(
+            _steps,
             1,
             new TagList
             {
@@ -234,7 +235,8 @@ internal sealed class ActaMetrics : IDisposable
         );
 
     public void RecordLockReleaseFailure(string @namespace, string jobName, string lockKind, string exceptionType) =>
-        _lockReleaseFailures.Add(
+        Add(
+            _lockReleaseFailures,
             1,
             new TagList
             {
@@ -250,59 +252,58 @@ internal sealed class ActaMetrics : IDisposable
     /// Untagged: the reading is the size of a provider outage this worker is riding out, and every
     /// tag that would slice it (namespace, job name) is already on the log lines the retry emits.
     /// </summary>
-    public void RecordUnsettledCompletion(int delta) => _unsettledCompletions.Add(delta);
+    public void RecordUnsettledCompletion(int delta) => Add(_unsettledCompletions, delta, default);
 
     /// <summary>How many completions each finalizer call carried: the batching an operator's load actually gets.</summary>
-    public void RecordCompletionBatch(string @namespace, int count) =>
-        _completionBatches.Record(count, new KeyValuePair<string, object?>("namespace", @namespace));
+    public void RecordCompletionBatch(string @namespace, int count) => Record(_completionBatches, count, Namespace(@namespace));
 
     /// <summary>outcome is one of { completed, failed }; a failed pass waits out the interval its heartbeat moved.</summary>
     public void RecordRecoveryPass(string @namespace, string outcome) =>
-        _recoveryPasses.Add(1, new TagList { { "namespace", @namespace }, { "outcome", outcome } });
+        Add(_recoveryPasses, 1, new TagList { { "namespace", @namespace }, { "outcome", outcome } });
 
     public void RecordAlertProjectionSkip(string @namespace, string reason) =>
-        _alertProjectionSkips.Add(1, new TagList { { "namespace", @namespace }, { "reason", reason } });
+        Add(_alertProjectionSkips, 1, new TagList { { "namespace", @namespace }, { "reason", reason } });
 
     public void RecordFencedAttempt(string @namespace, string jobName) =>
-        _fencedAttempts.Add(1, new TagList { { "namespace", @namespace }, { "job_name", jobName } });
+        Add(_fencedAttempts, 1, new TagList { { "namespace", @namespace }, { "job_name", jobName } });
 
     /// <summary>A reading near zero is an attempt its worker almost stopped for want of a renewal.</summary>
     public void RecordLeaseHeadroom(string @namespace, TimeSpan headroom) =>
-        _leaseHeadroomMs.Record(headroom.TotalMilliseconds, new KeyValuePair<string, object?>("namespace", @namespace));
+        Record(_leaseHeadroomMs, headroom.TotalMilliseconds, Namespace(@namespace));
 
     /// <summary>The wait an alert-required event had before a pass could project it, the safe horizon included.</summary>
-    public void RecordAlertLag(string @namespace, TimeSpan lag) =>
-        _alertLagSeconds.Record(lag.TotalSeconds, new KeyValuePair<string, object?>("namespace", @namespace));
+    public void RecordAlertLag(string @namespace, TimeSpan lag) => Record(_alertLagSeconds, lag.TotalSeconds, Namespace(@namespace));
 
     /// <summary>
     /// decision is one of { admitted, skipped, expired, blocked, exhausted, error }, pinned in ActaMetricsTests; one
     /// evaluation may take several (a skipped range before an admitted occurrence), each counted.
     /// </summary>
     public void RecordScheduleDecision(string @namespace, string decision) =>
-        _scheduleDecisions.Add(1, new TagList { { "namespace", @namespace }, { "decision", decision } });
+        Add(_scheduleDecisions, 1, new TagList { { "namespace", @namespace }, { "decision", decision } });
 
     /// <summary>A reading inside the grace is an admitter that arrived in time; past it, a range the misfire policy decided.</summary>
     public void RecordScheduleLag(string @namespace, TimeSpan lag) =>
-        _scheduleLagMs.Record(Math.Max(0, lag.TotalMilliseconds), new KeyValuePair<string, object?>("namespace", @namespace));
+        Record(_scheduleLagMs, Math.Max(0, lag.TotalMilliseconds), Namespace(@namespace));
 
     /// <summary>Recorded once per due schedule per pass; the maximum is the age of the namespace's overdue frontier.</summary>
     public void RecordScheduleDueAge(string @namespace, TimeSpan age) =>
-        _scheduleDueAgeSeconds.Record(Math.Max(0, age.TotalSeconds), new KeyValuePair<string, object?>("namespace", @namespace));
+        Record(_scheduleDueAgeSeconds, Math.Max(0, age.TotalSeconds), Namespace(@namespace));
 
     /// <summary>One pass's wall time, and the plan groups it had to replan because another host moved them first.</summary>
     public void RecordSchedulePass(string @namespace, TimeSpan elapsed, int staleGroups)
     {
-        var tag = new KeyValuePair<string, object?>("namespace", @namespace);
-        _schedulePassMs.Record(elapsed.TotalMilliseconds, tag);
+        var tags = Namespace(@namespace);
+        Record(_schedulePassMs, elapsed.TotalMilliseconds, tags);
         if (staleGroups > 0)
         {
-            _scheduleStaleGroups.Add(staleGroups, tag);
+            Add(_scheduleStaleGroups, staleGroups, tags);
         }
     }
 
     /// <summary>The admission instant is the database clock and the start the worker's, so the reading carries their skew; a negative one reads as zero.</summary>
     public void RecordFiringStartDelay(string @namespace, string jobName, TimeSpan delay) =>
-        _firingStartDelayMs.Record(
+        Record(
+            _firingStartDelayMs,
             Math.Max(0, delay.TotalMilliseconds),
             new TagList { { "namespace", @namespace }, { "job_name", jobName } }
         );
@@ -333,4 +334,49 @@ internal sealed class ActaMetrics : IDisposable
     }
 
     public void Dispose() => Meter.Dispose();
+
+    private static TagList Namespace(string @namespace) => new() { { "namespace", @namespace } };
+
+    /// <summary>
+    /// Every instrument write goes through here or a sibling below, so a listener that throws costs its measurement and
+    /// never its caller: a claim loop, an admitter pass, or a settlement carries on.
+    /// </summary>
+    private static void Add<T>(Counter<T> counter, T delta, in TagList tags)
+        where T : struct
+    {
+        try
+        {
+            counter.Add(delta, in tags);
+        }
+        catch (Exception)
+        {
+            // A listener that threw: the measurement is lost, the caller carries on.
+        }
+    }
+
+    private static void Add<T>(UpDownCounter<T> counter, T delta, in TagList tags)
+        where T : struct
+    {
+        try
+        {
+            counter.Add(delta, in tags);
+        }
+        catch (Exception)
+        {
+            // A listener that threw: the measurement is lost, the caller carries on.
+        }
+    }
+
+    private static void Record<T>(Histogram<T> histogram, T value, in TagList tags)
+        where T : struct
+    {
+        try
+        {
+            histogram.Record(value, in tags);
+        }
+        catch (Exception)
+        {
+            // A listener that threw: the measurement is lost, the caller carries on.
+        }
+    }
 }

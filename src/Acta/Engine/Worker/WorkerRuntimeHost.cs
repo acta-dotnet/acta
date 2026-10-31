@@ -44,7 +44,9 @@ internal sealed class WorkerRuntimeHost(
             return;
         }
 
-        await Task.WhenAll(_runtimes.Select(r => r.RunAsync(stoppingToken)));
+        // One runtime that faults stops the rest, so the host fails as a whole rather than running a namespace short.
+        using var stop = CancellationTokenSource.CreateLinkedTokenSource(stoppingToken);
+        await Task.WhenAll(_runtimes.Select(r => WorkerRuntime.StopOnFaultAsync(r.RunAsync(stop.Token), stop)));
     }
 
     /// <summary>

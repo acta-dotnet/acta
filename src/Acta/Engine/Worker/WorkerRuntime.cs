@@ -26,8 +26,8 @@ internal sealed class WorkerRuntime
     private readonly ScheduleAdmitter _admitter;
 
     /// <summary>
-    /// Cancelled by BeginDrain to stop the claimer while the heartbeat and
-    /// in-flight handlers run on under the host token. Lives for the runtime's lifetime so the
+    /// Cancelled by BeginDrain to stop the claimer and the admitter while the heartbeat and
+    /// in-flight handlers run on until the host stops. Lives for the runtime's lifetime so the
     /// drain signal is never lost to a startup race; a lightweight source with no timer and no
     /// WaitHandle needs no disposal (the CA1001 ruling in .editorconfig).
     /// </summary>
@@ -179,42 +179,72 @@ internal sealed class WorkerRuntime
     public Task StopAsync(CancellationToken ct) => _initializer.StopAsync(ct);
 
     /// <summary>
-    /// Host entry point: runs the claim/dispatch pipeline and the worker heartbeat concurrently under the same
-    /// <paramref name="ct"/>. The host runs <see cref="InitializeAsync"/> during startup, before this is reached. Every
-    /// loop self-gates on <see cref="WorkerRegistration"/>, so enqueue-only deployments fall through immediately.
+    /// Host entry point: runs the claim/dispatch pipeline, the worker heartbeat, and the schedule admitter concurrently
+    /// under the same <paramref name="ct"/>. The host runs <see cref="InitializeAsync"/> during startup, before this is
+    /// reached. Every loop self-gates on <see cref="WorkerRegistration"/>, so enqueue-only deployments fall through
+    /// immediately. A loop that faults stops the others, so the fault reaches the host instead of leaving a worker that
+    /// heartbeats without claiming.
     /// </summary>
-    public Task RunAsync(CancellationToken ct)
+    public async Task RunAsync(CancellationToken ct)
     {
-        // The claimer stops on _drainCts (graceful drain) or ct (hard stop); the heartbeat, the recovery pass it
-        // takes, and in-flight execution run on ct, so a drain finishes in-flight work before DrainCompletion completes.
-        var pipeline = RunPipelineAsync(ct, _drainCts.Token);
+        using var stop = CancellationTokenSource.CreateLinkedTokenSource(ct);
+        using var intake = CancellationTokenSource.CreateLinkedTokenSource(_drainCts.Token, stop.Token);
+        // The claimer stops on intake (a graceful drain or a stop) or on stop; the heartbeat, the recovery pass it
+        // takes, and in-flight execution run on stop, so a drain finishes in-flight work before DrainCompletion completes.
+        var pipeline = RunPipelineAsync(stop, intake.Token);
         DrainCompletion = pipeline;
         // The admitter stops with the claimer on a drain: a draining host admits nothing new.
-        var admission = WorkerNamespaceName is null ? Task.CompletedTask : _admitter.RunAsync(WorkerNamespaceName, _drainCts.Token);
-        return Task.WhenAll(DrainCompletion, _heartbeat.RunAsync(ct), admission);
+        var admission = WorkerNamespaceName is null
+            ? Task.CompletedTask
+            : StopOnFaultAsync(_admitter.RunAsync(WorkerNamespaceName, intake.Token), stop);
+        await Task.WhenAll(pipeline, StopOnFaultAsync(_heartbeat.RunAsync(stop.Token), stop), admission);
     }
 
-    public Task RunLoopAsync(CancellationToken ct) => RunPipelineAsync(ct, ct);
+    /// <summary>
+    /// Awaits <paramref name="loop"/>, and when it faults while <paramref name="stop"/> is still live, cancels it so the
+    /// sibling loops end, then rethrows the fault. A loop ended by that cancellation, or by the host's, is not a fault.
+    /// </summary>
+    internal static async Task StopOnFaultAsync(Task loop, CancellationTokenSource stop)
+    {
+        try
+        {
+            await loop;
+        }
+        catch (Exception) when (!stop.IsCancellationRequested)
+        {
+            await stop.CancelAsync();
+            throw;
+        }
+    }
+
+    public async Task RunLoopAsync(CancellationToken ct)
+    {
+        using var stop = CancellationTokenSource.CreateLinkedTokenSource(ct);
+        await RunPipelineAsync(stop, stop.Token);
+    }
 
     /// <summary>
     /// The claimer, the executor loops, and the finalizer; ends once the claimer stopped, the executors emptied
-    /// its channel, and the finalizers wrote every completion the executors handed them.
+    /// its channel, and the finalizer wrote every completion the executors handed it. Each loop runs on
+    /// <paramref name="stop"/>, so one that faults stops the rest, and every loop is joined before this ends.
     /// </summary>
-    private async Task RunPipelineAsync(CancellationToken ct, CancellationToken drainCt)
+    private async Task RunPipelineAsync(CancellationTokenSource stop, CancellationToken drainCt)
     {
         if (WorkerNamespaceName is null)
         {
             return;
         }
 
-        var executors = Enumerable.Range(0, _executorCount).Select(_ => _executor.RunLoopAsync(ct)).ToArray();
+        var ct = stop.Token;
+        var executors = Enumerable.Range(0, _executorCount).Select(_ => StopOnFaultAsync(_executor.RunLoopAsync(ct), stop)).ToArray();
         // One finalizer: while it writes a batch, everything the executors hand over queues behind it and is the
         // next batch, so the write falling behind is what forms the batches.
-        var finalizer = _finalizer.RunLoopAsync(ct);
-        await _claimer.RunAsync(ct, drainCt);
-        await Task.WhenAll(executors);
+        var finalizer = StopOnFaultAsync(_finalizer.RunLoopAsync(ct), stop);
+        var feeders = Task.WhenAll([StopOnFaultAsync(_claimer.RunAsync(ct, drainCt), stop), .. executors]);
+        // The finalizer's queue closes once everything that feeds it has ended, faulted or not.
+        await feeders.ConfigureAwait(ConfigureAwaitOptions.SuppressThrowing);
         _registry.Completed.Writer.TryComplete();
-        await finalizer;
+        await Task.WhenAll(feeders, finalizer);
     }
 
     /// <summary>

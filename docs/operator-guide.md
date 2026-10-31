@@ -663,7 +663,8 @@ startup.
 
 Acta publishes on one .NET meter, `Acta`: add it to an OpenTelemetry pipeline with `AddMeter("Acta")`.
 Every instrument but `acta.completions.unsettled` carries a `namespace` tag; the wakeup counters carry
-it when the wake names one.
+it when the wake names one. A listener that throws loses that measurement and nothing else: the worker
+keeps claiming, admitting, and settling.
 
 | Instrument | Unit | What it measures |
 | --- | --- | --- |

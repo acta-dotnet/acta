@@ -106,7 +106,6 @@ internal sealed partial class WorkerFinalizer(
 
                 try
                 {
-                    // Written first, so a metrics listener that throws cannot strand the batch unwritten.
                     await FinalizeAsync(entries, apart: true, hostCt);
                     metrics?.RecordCompletionBatch(context.WorkerRegistration!.NamespaceName, entries.Count);
                 }
@@ -518,8 +517,8 @@ internal sealed partial class WorkerFinalizer(
                     }
 
                     var delay = TimeSpan.FromSeconds(BackoffSchedule.ComputeDelaySeconds(attempt, backoff));
-                    // Diagnostics cannot be allowed to end the repeat: a metrics listener or a logger that
-                    // throws would abandon the row the repeat exists to keep.
+                    // Diagnostics cannot be allowed to end the repeat: a logger that throws would abandon the
+                    // row the repeat exists to keep.
                     try
                     {
                         if (!counted)
@@ -556,14 +555,7 @@ internal sealed partial class WorkerFinalizer(
         {
             if (counted)
             {
-                try
-                {
-                    metrics?.RecordUnsettledCompletion(-1);
-                }
-                catch (Exception)
-                {
-                    // A listener that throws must not turn a landed write into a failure.
-                }
+                metrics?.RecordUnsettledCompletion(-1);
             }
         }
     }

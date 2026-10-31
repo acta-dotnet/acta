@@ -31,8 +31,8 @@ internal sealed class WorkerWakeupPublisher(IWorkerWakeup wakeup, ILogger<Worker
             }
             catch (Exception)
             {
-                // A metric listener or log sink that throws costs this wake its diagnostics, never its caller's
-                // follow-up: a cancel walks its descendants after this returns.
+                // A log sink that throws costs this wake its diagnostics, never its caller's follow-up: a cancel
+                // walks its descendants after this returns.
             }
         }
     }

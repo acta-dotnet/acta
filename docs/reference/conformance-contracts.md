@@ -1735,6 +1735,16 @@
   - A worker stop with a job in-flight leaves it Executing for recovery and writes no terminal completion
   - After a worker stop, recovery reclaims the abandoned in-flight job back to Ready (it retries)
 
+### A worker loop that faults ends the worker with its fault
+- **Contract:** A loop of a running worker that faults stops its other loops, and RunAsync ends with that fault instead of heartbeating with no claim loop.
+- **Guarantees:**
+  - A claim loop whose idle wait throws ends RunAsync with that fault and stops the heartbeat with it
+
+### A metrics listener that throws never stops a worker's intake
+- **Contract:** A listener that throws on claim, wake-wait, or due-age measurements, once or on every call, leaves a running worker claiming jobs and admitting schedules.
+- **Guarantees:**
+  - A listener that throws on the idle worker's measurements leaves it claiming jobs and admitting schedules
+
 ## Results
 
 ### GetResult returns null before completion and the typed result after

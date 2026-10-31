@@ -289,14 +289,7 @@ internal sealed class WorkerHeartbeat(
                     ActaLog.RecoveryPassFailed(_log, ex, namespaceName);
                 }
 
-                try
-                {
-                    metrics?.RecordRecoveryPass(namespaceName, outcome);
-                }
-                catch (Exception)
-                {
-                    // A listener that throws must not fault the chain.
-                }
+                metrics?.RecordRecoveryPass(namespaceName, outcome);
             },
             CancellationToken.None
         );
@@ -366,16 +359,9 @@ internal sealed class WorkerHeartbeat(
             {
                 var headroom = entry.LeaseHeadroom;
                 entry.ArmLease(runway);
-                try
+                if (ns is not null && headroom is { } value)
                 {
-                    if (ns is not null && headroom is { } value)
-                    {
-                        metrics?.RecordLeaseHeadroom(ns, value);
-                    }
-                }
-                catch (Exception)
-                {
-                    // A listener that throws must not stop the feed: the renewals it reports have landed.
+                    metrics?.RecordLeaseHeadroom(ns, value);
                 }
             }
 

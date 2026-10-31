@@ -89,7 +89,6 @@ internal sealed class WorkerClaimer(
                         registry.Claimed.Writer.TryWrite(entry);
                     }
 
-                    // Counted once every row is handed off: a listener that throws must not strand a claimed row.
                     if (handedOff)
                     {
                         metrics?.RecordClaim(ns, "claimed", result.Jobs.Count);

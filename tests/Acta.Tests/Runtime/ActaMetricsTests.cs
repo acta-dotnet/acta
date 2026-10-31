@@ -407,6 +407,47 @@ public sealed class ActaMetricsTests
         Assert.Equal("ms", CollectUnit(metrics, "acta.firing.start.delay"));
     }
 
+    [Fact]
+    public void A_listener_that_throws_costs_the_measurement_never_the_caller()
+    {
+        using var metrics = new ActaMetrics();
+        using var listener = new MeterListener();
+        var calls = 0;
+        listener.InstrumentPublished = (instrument, l) =>
+        {
+            if (ReferenceEquals(instrument.Meter, metrics.Meter))
+            {
+                l.EnableMeasurementEvents(instrument);
+            }
+        };
+        listener.SetMeasurementEventCallback<long>((_, _, _, _) => throw new InvalidOperationException($"listener {++calls}"));
+        listener.SetMeasurementEventCallback<int>((_, _, _, _) => throw new InvalidOperationException($"listener {++calls}"));
+        listener.SetMeasurementEventCallback<double>((_, _, _, _) => throw new InvalidOperationException($"listener {++calls}"));
+        listener.Start();
+
+        metrics.RecordExecution("billing", "send-receipt", "failed", "unhandled-exception", 12);
+        metrics.RecordClaim("billing", "nothing-claimed");
+        metrics.RecordWakeupPublish("billing", "worker_namespace", "work_available");
+        metrics.RecordWakeupPublishFailure("billing", "worker_namespace", "work_available", "TimeoutException");
+        metrics.RecordWakeupWait("billing", "timed_out");
+        metrics.RecordStep("billing", "send-receipt", "succeeded");
+        metrics.RecordLockReleaseFailure("billing", "send-receipt", "slot", "TimeoutException");
+        metrics.RecordUnsettledCompletion(1);
+        metrics.RecordCompletionBatch("billing", 3);
+        metrics.RecordRecoveryPass("billing", "completed");
+        metrics.RecordAlertProjectionSkip("billing", "poison");
+        metrics.RecordFencedAttempt("billing", "send-receipt");
+        metrics.RecordLeaseHeadroom("billing", TimeSpan.FromSeconds(1));
+        metrics.RecordAlertLag("billing", TimeSpan.FromSeconds(1));
+        metrics.RecordScheduleDecision("billing", "admitted");
+        metrics.RecordScheduleLag("billing", TimeSpan.FromSeconds(1));
+        metrics.RecordScheduleDueAge("billing", TimeSpan.FromSeconds(1));
+        metrics.RecordSchedulePass("billing", TimeSpan.FromMilliseconds(5), 1);
+        metrics.RecordFiringStartDelay("billing", "send-receipt", TimeSpan.FromMilliseconds(5));
+
+        Assert.Equal(21, calls);
+    }
+
     // Captures every measurement the named instrument emits while act runs (or, for an observable
     // instrument, on a single forced collection). Tags are projected to a dictionary so assertions read
     // by key, mirroring JobLogScopeTests.Fields. Scoped to THIS test's meter instance - parallel test
