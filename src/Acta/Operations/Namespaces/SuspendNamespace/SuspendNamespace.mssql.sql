@@ -4,14 +4,30 @@ SET XACT_ABORT ON;
 DECLARE @entry_trancount INT = @@TRANCOUNT;
 DECLARE @now DATETIME2(7) = SYSUTCDATETIME();
 DECLARE @namespace_id INT, @status TINYINT, @version INT;
+DECLARE @lock_result INT, @lock_resource NVARCHAR(255);
 
 BEGIN TRY
     IF @entry_trancount = 0
         BEGIN TRANSACTION;
 
-    SELECT @namespace_id = n.namespace_id, @status = n.namespace_status_code, @version = n.version
-    FROM {{schema}}.namespaces n WITH (UPDLOCK, ROWLOCK)
+    -- The namespace's schedule lock, exclusive, before the row lock (docs/sql-internals.md, "Schedule lock"), so an
+    -- admission or a manual firing that read the namespace Active lands before the suspension or, after it, admits
+    -- nothing. The row locked after it is the one the lock names; a name it found no row for is NotFound.
+    SELECT @namespace_id = n.namespace_id
+    FROM {{schema}}.namespaces n
     WHERE n.namespace_name = @p_namespace_name;
+
+    IF @namespace_id IS NOT NULL
+        BEGIN
+            SET @lock_resource = N'{{schema}}.schedules.' + CAST(@namespace_id AS NVARCHAR(12));
+            EXEC @lock_result = sys.sp_getapplock @lock_resource, 'Exclusive', 'Transaction', -1;
+            IF @lock_result < 0
+                THROW 51205, 'ACTA:SCHEDULE_LOCK:The namespace schedule lock was not granted (deadlock victim or cancelled).', 1;
+
+            SELECT @status = n.namespace_status_code, @version = n.version
+            FROM {{schema}}.namespaces n WITH (UPDLOCK, ROWLOCK)
+            WHERE n.namespace_id = @namespace_id;
+        END
 
     IF @namespace_id IS NOT NULL AND @status <> 20 /* NamespaceStatusCode.Suspended */
     BEGIN

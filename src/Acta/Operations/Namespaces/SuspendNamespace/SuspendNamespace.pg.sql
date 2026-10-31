@@ -1,8 +1,23 @@
--- One statement: the name's row is locked, then suspended and audited only when it is not suspended yet.
+-- One batch, one implicit transaction; only the final SELECT returns rows. The namespace's schedule lock, exclusive,
+-- comes first in a statement of its own (docs/sql-internals.md, "Schedule lock"), so an admission or a manual firing
+-- that read the namespace Active lands before the suspension or, after it, admits nothing.
+DROP TABLE IF EXISTS pg_temp._suspend_namespace_lock;
+CREATE TEMP TABLE _suspend_namespace_lock (namespace_id INT NOT NULL) ON COMMIT DROP;
+
+INSERT INTO _suspend_namespace_lock (namespace_id)
+SELECT l.namespace_id
+FROM (
+    SELECT n.namespace_id, pg_advisory_xact_lock(hashtext('{{schema}}.schedules'), n.namespace_id)
+    FROM {{schema}}.namespaces n
+    WHERE n.namespace_name = @p_namespace_name
+) l;
+
+-- The row the lock names is locked, then suspended and audited only when it is not suspended yet; a name the lock
+-- found no row for is NotFound, even when a worker has created it since.
 WITH target AS (
     SELECT n.namespace_id, n.namespace_status_code, n.version
     FROM {{schema}}.namespaces n
-    WHERE n.namespace_name = @p_namespace_name
+    WHERE n.namespace_id = (SELECT k.namespace_id FROM _suspend_namespace_lock k)
     FOR UPDATE
 ),
 suspended AS (

@@ -57,6 +57,11 @@ WHERE
         JOIN {{schema}}.schedules_state st ON st.schedule_id = a.schedule_id
         JOIN {{schema}}.schedules s ON s.schedule_id = a.schedule_id
         WHERE a.group_ordinal = g.ordinal AND (st.version <> a.expected_version OR s.version <> a.expected_schedule_version)
+    )
+    -- A suspended namespace admits nothing: the one writer orders this read after any suspension that committed.
+    AND EXISTS (
+        SELECT 1 FROM {{schema}}.namespaces n
+        WHERE n.namespace_id = @p_namespace_id AND n.namespace_status_code = 10 /* NamespaceStatusCode.Active */
     );
 
 UPDATE {{schema}}.jobs_state

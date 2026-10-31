@@ -55,10 +55,16 @@ BEGIN TRY
         AND d.definition_status_code <> 240 /* DefinitionStatusCode.Retired */;
 
     -- Only an Idle slot takes a manual firing: a busy one is Rejected rather than queued behind, and a held, cancelled,
-    -- or finished one needs its operator verb first. A paused schedule is Rejected too.
+    -- or finished one needs its operator verb first. A paused schedule is Rejected too, and so is a suspended
+    -- namespace, read here after the lock a suspension holds exclusive.
     SET @action = CASE
         WHEN @found = 0 THEN 2 /* ControlAction.NotFound */
         WHEN @status = 30 /* ScheduleStatusCode.Paused */ THEN 3 /* ControlAction.Rejected */
+        WHEN NOT EXISTS (
+            SELECT 1 FROM {{schema}}.namespaces n
+            WHERE n.namespace_id = @ns AND n.namespace_status_code = 10 /* NamespaceStatusCode.Active */
+        )
+            THEN 3 /* ControlAction.Rejected */
         WHEN @slot_status = 40 /* JobStatusCode.Idle */ AND COALESCE(@firing_status, 0) <> 10 /* CheckpointStatusCode.Pending */
             THEN 1 /* ControlAction.Applied */
         ELSE 3 /* ControlAction.Rejected */

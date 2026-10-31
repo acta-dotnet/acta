@@ -1927,13 +1927,18 @@
   - A schedule the slot does not carry, or a job that does not exist, resolves to null
 
 ### An admission plan applies whole per slot, or not at all when stale
-- **Contract:** A planned group applies whole at the versions it read, moving the slot to Ready with its envelope and the members' cursors, and a moved group applies nothing.
+- **Contract:** A planned group applies whole at the versions it read, making the slot Ready with its envelope, and a moved group or a suspended namespace's applies nothing.
 - **Guarantees:**
   - An applied admitting group makes the slot Ready with the envelope, advances the member, and audits the admission
   - A group planned against a version another writer moved applies nothing
   - A cursor-only group parks a member on a busy slot without touching the slot
   - A slot group applies nothing when a member it left unchanged had its declaration changed after the plan read it
   - A per-occurrence plan read before its capacity was lowered admits nothing, and the outstanding count stays
+  - A slot plan read before a suspension committed admits nothing
+  - A per-occurrence plan read before a suspension committed inserts no root and charges nothing
+  - An admission waits for a suspension that holds the schedule lock, then admits nothing
+  - A suspension waits for an admission that holds the schedule lock, and the admission it waited for stands
+  - A manual firing that read its namespace Active waits for a suspension in flight, then is rejected
 
 ### A pass admits due firings, fills the slot, and sleeps until the horizon
 - **Contract:** A pass admits a due firing onto its Idle slot, reports the earliest next evaluation, and later occurrences wait on the outstanding firing until settlement.

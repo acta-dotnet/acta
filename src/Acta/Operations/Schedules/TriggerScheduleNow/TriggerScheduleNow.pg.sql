@@ -41,12 +41,20 @@ WHERE
 FOR UPDATE OF js;
 
 -- Only an Idle slot takes a manual firing: a busy one is Rejected rather than queued behind, and a held, cancelled, or
--- finished one needs its operator verb first. A paused schedule is Rejected too.
+-- finished one needs its operator verb first. A paused schedule is Rejected too, and so is a suspended namespace, read
+-- here after the lock a suspension holds exclusive.
 INSERT INTO _trigger_schedule_now_action (action)
 SELECT
     CASE
         WHEN t.schedule_id IS NULL THEN 2 /* ControlAction.NotFound */
         WHEN t.schedule_status_code = 30 /* ScheduleStatusCode.Paused */ THEN 3 /* ControlAction.Rejected */
+        WHEN NOT EXISTS (
+            SELECT 1
+            FROM {{schema}}.namespaces n
+            INNER JOIN {{schema}}.jobs j ON j.namespace_id = n.namespace_id
+            WHERE j.job_id = @p_job_id AND n.namespace_status_code = 10 /* NamespaceStatusCode.Active */
+        )
+            THEN 3 /* ControlAction.Rejected */
         WHEN s.job_status_code = 40 /* JobStatusCode.Idle */ AND s.firing_status_code IS DISTINCT FROM 10 /* CheckpointStatusCode.Pending */
             THEN 1 /* ControlAction.Applied */
         ELSE 3 /* ControlAction.Rejected */

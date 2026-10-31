@@ -9,6 +9,11 @@ SELECT
     r.execution_number,
     CASE
         WHEN js.schedule_status_code = 30 /* ScheduleStatusCode.Paused */ THEN 3 /* ControlAction.Rejected */
+        WHEN NOT EXISTS (
+            SELECT 1 FROM {{schema}}.namespaces n
+            WHERE n.namespace_id = js.namespace_id AND n.namespace_status_code = 10 /* NamespaceStatusCode.Active */
+        )
+            THEN 3 /* ControlAction.Rejected */
         WHEN r.job_status_code = 40 /* JobStatusCode.Idle */ AND COALESCE(cp.checkpoint_status_code, 0) <> 10 /* CheckpointStatusCode.Pending */
             THEN 1 /* ControlAction.Applied */
         ELSE 3 /* ControlAction.Rejected */

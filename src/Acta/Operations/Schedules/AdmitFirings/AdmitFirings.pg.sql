@@ -72,6 +72,12 @@ WHERE
         WHERE
             a.group_ordinal = g.ordinal
             AND (x.version <> a.expected_version OR x.schedule_version <> a.expected_schedule_version)
+    )
+    -- A suspended namespace admits nothing: a suspension holds the lock exclusive, so it committed before this
+    -- statement read the status, or waits for this transaction.
+    AND EXISTS (
+        SELECT 1 FROM {{schema}}.namespaces n
+        WHERE n.namespace_id = @p_namespace_id AND n.namespace_status_code = 10 /* NamespaceStatusCode.Active */
     );
 
 UPDATE {{schema}}.jobs_state r

@@ -7,13 +7,14 @@ namespace Acta.Tests.Conformance.Operations.Schedules;
 
 /// <summary>
 /// The atomic apply of an admission plan: a group applies whole against the versions it was planned at, an admitting
-/// group also needs its slot Idle, and a stale group applies nothing so the admitter replans it.
+/// group also needs its slot Idle, and a stale group applies nothing so the admitter replans it. A suspension takes the
+/// namespace's schedule lock exclusive, so a plan read before it either lands first or applies nothing.
 /// </summary>
 [ConformanceSpec(
     "schedule.admit-firings",
     "An admission plan applies whole per slot, or not at all when stale",
     Area = "Scheduling",
-    Contract = "A planned group applies whole at the versions it read, moving the slot to Ready with its envelope and the members' cursors, and a moved group applies nothing."
+    Contract = "A planned group applies whole at the versions it read, making the slot Ready with its envelope, and a moved group or a suspended namespace's applies nothing."
 )]
 public sealed class AdmitFiringsSpec : ActaStorageTestBase<ConformanceFixture>
 {
@@ -21,6 +22,8 @@ public sealed class AdmitFiringsSpec : ActaStorageTestBase<ConformanceFixture>
     private const string Cron5 = "*/5 * * * *";
 
     private IJobs Jobs => Services.GetRequiredService<IJobs>();
+
+    private INamespaces Namespaces => Services.GetRequiredService<IActaOperations>().Namespaces;
 
     [Fact(DisplayName = "An applied admitting group makes the slot Ready with the envelope, advances the member, and audits the admission")]
     public async Task An_applied_group_admits_the_firing()
@@ -157,6 +160,138 @@ public sealed class AdmitFiringsSpec : ActaStorageTestBase<ConformanceFixture>
         Assert.Equal(1, (await Db.From<ScheduleStateEntity>().Where(s => s.Id == scheduleId).SingleOrDefaultAsync(ct))!.OutstandingCount);
         Assert.Equal(0, await Db.From<JobEntity>().Where(j => j.DefinitionId == defId).CountAsync(ct));
     }
+
+    [Fact(DisplayName = "A slot plan read before a suspension committed admits nothing")]
+    public async Task A_slot_plan_across_a_suspension_admits_nothing()
+    {
+        var ct = TestContext.Current.CancellationToken;
+        var now = FloorSeconds(DateTime.UtcNow);
+        var slotId = await RegisterAsync(Unique("held"), now.AddMinutes(-1), ct);
+        var before = Assert.Single(await ScheduleTestOps.ReadAsync(Db, slotId, ct));
+        var plan = await PlanAsync(now, ct);
+        Assert.True(Assert.Single(plan.Groups).Admit);
+
+        Assert.Equal(ControlAction.Applied, (await Namespaces.SuspendAsync(TestNamespace, ct: ct)).Action);
+
+        Assert.False(Assert.Single((await Admit(plan, ct)).Groups).Applied);
+        Assert.Equal(JobStatusCode.Idle, (await ReadJobAsync(slotId, ct)).Status);
+        Assert.Empty(await Db.From<CheckpointEntity>().Where(c => c.JobId == slotId).ToListAsync(ct));
+        Assert.Equal(before.Cursor.Version, Assert.Single(await ScheduleTestOps.ReadAsync(Db, slotId, ct)).Cursor.Version);
+    }
+
+    [Fact(DisplayName = "A per-occurrence plan read before a suspension committed inserts no root and charges nothing")]
+    public async Task A_root_plan_across_a_suspension_admits_nothing()
+    {
+        var ct = TestContext.Current.CancellationToken;
+        var now = FloorSeconds(DateTime.UtcNow);
+        var (defId, _) = await RegisterAsync(
+            Unique("held-root"),
+            ScheduledDeliveryCode.PerOccurrence,
+            [Schedule("only", now.AddMinutes(-1))],
+            ct
+        );
+        var plan = await PlanAsync(now, ct);
+        Assert.True(Assert.Single(plan.Groups).Admit);
+
+        Assert.Equal(ControlAction.Applied, (await Namespaces.SuspendAsync(TestNamespace, ct: ct)).Action);
+
+        Assert.False(Assert.Single((await Admit(plan, ct)).Groups).Applied);
+        Assert.Equal(0, await Db.From<JobEntity>().Where(j => j.DefinitionId == defId).CountAsync(ct));
+        var scheduleId = (await Db.From<ScheduleEntity>().Where(s => s.DefinitionId == defId).SingleOrDefaultAsync(ct))!.Id;
+        Assert.Equal(0, (await Db.From<ScheduleStateEntity>().Where(s => s.Id == scheduleId).SingleOrDefaultAsync(ct))!.OutstandingCount);
+    }
+
+    [Fact(DisplayName = "An admission waits for a suspension that holds the schedule lock, then admits nothing")]
+    public async Task An_admission_waits_for_a_suspension_then_admits_nothing()
+    {
+        SkipOnSqlite();
+        var ct = TestContext.Current.CancellationToken;
+        var now = FloorSeconds(DateTime.UtcNow);
+        var slotId = await RegisterAsync(Unique("waits"), now.AddMinutes(-1), ct);
+        var plan = await PlanAsync(now, ct);
+
+        // A suspension mid-flight: the lock taken exclusive, then the namespace row written, as SuspendNamespace does.
+        await using var connection = await Db.OpenConnectionAsync(ct);
+        await using var suspension = await connection.BeginTransactionAsync(ct);
+        await ScheduleLockGate.HoldAsync(Db, connection, suspension, TestNamespaceId, exclusive: true, ct);
+        await using (var cmd = connection.CreateCommand())
+        {
+            cmd.Transaction = suspension;
+            cmd.CommandText =
+                $"UPDATE {Db.Schema}.namespaces SET namespace_status_code = {(int)NamespaceStatusCode.Suspended} WHERE namespace_id = {TestNamespaceId}";
+            Assert.Equal(1, await cmd.ExecuteNonQueryAsync(ct));
+        }
+
+        var pending = Admit(plan, ct);
+        await Task.Delay(TimeSpan.FromMilliseconds(500), ct);
+        Assert.False(pending.IsCompleted, "the admission did not wait for the suspension's schedule lock");
+        await suspension.CommitAsync(ct);
+
+        Assert.False(Assert.Single((await pending).Groups).Applied);
+        Assert.Equal(JobStatusCode.Idle, (await ReadJobAsync(slotId, ct)).Status);
+    }
+
+    [Fact(DisplayName = "A suspension waits for an admission that holds the schedule lock, and the admission it waited for stands")]
+    public async Task A_suspension_waits_for_an_admission_in_flight()
+    {
+        SkipOnSqlite();
+        var ct = TestContext.Current.CancellationToken;
+        var admission = await ScheduleLockGate.OpenAsync(Db, TestNamespaceId, exclusive: false, ct);
+        Task<SuspendNamespaceResponse> pending;
+        try
+        {
+            pending = Namespaces.SuspendAsync(TestNamespace, ct: ct).AsTask();
+            await Task.Delay(TimeSpan.FromMilliseconds(500), ct);
+            Assert.False(pending.IsCompleted, "the suspension did not wait for the admission's schedule lock");
+        }
+        finally
+        {
+            await admission.DisposeAsync();
+        }
+
+        Assert.Equal(ControlAction.Applied, (await pending).Action);
+    }
+
+    [Fact(DisplayName = "A manual firing that read its namespace Active waits for a suspension in flight, then is rejected")]
+    public async Task A_manual_firing_behind_a_suspension_is_rejected()
+    {
+        SkipOnSqlite();
+        var ct = TestContext.Current.CancellationToken;
+        var jobName = Unique("manual");
+        var slotId = await RegisterAsync(jobName, FloorSeconds(DateTime.UtcNow.AddHours(6)), ct);
+
+        await using var connection = await Db.OpenConnectionAsync(ct);
+        await using var suspension = await connection.BeginTransactionAsync(ct);
+        await ScheduleLockGate.HoldAsync(Db, connection, suspension, TestNamespaceId, exclusive: true, ct);
+        await using (var cmd = connection.CreateCommand())
+        {
+            cmd.Transaction = suspension;
+            cmd.CommandText =
+                $"UPDATE {Db.Schema}.namespaces SET namespace_status_code = {(int)NamespaceStatusCode.Suspended} WHERE namespace_id = {TestNamespaceId}";
+            Assert.Equal(1, await cmd.ExecuteNonQueryAsync(ct));
+        }
+
+        // A warm read first, so the firing's own read of its target lands before the suspension commits and the firing
+        // stops at the lock.
+        var lookup = new ScheduleLookup(TestNamespace, jobName, "only");
+        var target = await Services
+            .GetRequiredService<ResolveScheduleTargetHandler>()
+            .HandleAsync(new ResolveScheduleTargetQuery(lookup), ct);
+        Assert.Equal(NamespaceStatusCode.Active, target!.NamespaceStatus);
+        var schedules = Services.GetRequiredService<IActaOperations>().Schedules;
+        var pending = schedules.TriggerNowAsync(lookup, ct: ct).AsTask();
+        await Task.Delay(TimeSpan.FromMilliseconds(500), ct);
+        Assert.False(pending.IsCompleted, "the manual firing did not wait for the suspension's schedule lock");
+        await suspension.CommitAsync(ct);
+
+        Assert.Equal(ControlAction.Rejected, (await pending).Action);
+        Assert.Equal(JobStatusCode.Idle, (await ReadJobAsync(slotId, ct)).Status);
+        Assert.Empty(await Db.From<CheckpointEntity>().Where(c => c.JobId == slotId).ToListAsync(ct));
+    }
+
+    /// <summary>SQLite runs one writer at a time, so no transaction holds the schedule lock beside another.</summary>
+    private void SkipOnSqlite() =>
+        Assert.SkipWhen(Db.Provider == DbProvider.Sqlite, "SQLite runs one writer at a time, so no second transaction can hold the lock.");
 
     private async Task<AdmitFiringsCommand> PlanAsync(DateTime nowUtc, CancellationToken ct)
     {
