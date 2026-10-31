@@ -333,7 +333,7 @@ public class JobExplainerTests
         var settled = GetJobExplanationHandler.Explain(
             Data(
                 Header(JobStatusCode.Paused, JobKindCode.PermanentSlot),
-                checkpoints: [firing with { Status = CheckpointStatusCode.Succeeded }]
+                checkpoints: [firing with { CheckpointStatus = CheckpointStatusCode.Succeeded }]
             ),
             Now
         );

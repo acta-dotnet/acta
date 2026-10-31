@@ -7,15 +7,15 @@ using Xunit;
 namespace Acta.Tests.Conformance.Operations.Jobs;
 
 /// <summary>
-/// Conformance for <c>GetJobExplanation</c>: the composite explain read that returns three result sets
-/// (header snapshot + leasing worker + latest reason, step rows, checkpoint rows) for a known job id,
-/// and <c>null</c> for an unknown id. Exercises the multi-result-set mapping and the absent-row sentinel.
+/// Conformance for <c>GetJobExplanation</c>: the composite explain read of a job's header (snapshot, leasing worker,
+/// latest reason), steps, and checkpoints in one statement, so from one snapshot, for a known job id, and <c>null</c>
+/// for an unknown id.
 /// </summary>
 [ConformanceSpec(
     "get-job-explanation.point-read",
     "GetJobExplanation returns explain sets for a known id and null otherwise",
     Area = "Reads",
-    Contract = "GetJobExplanation returns the header, step, and checkpoint result sets for a matching job id and null when no row matches."
+    Contract = "GetJobExplanation returns the header, steps, and checkpoints of a matching job id from one snapshot, and null when no row matches."
 )]
 public sealed class GetJobExplanationSpec : ActaRuntimeTestBase<ConformanceFixture, TestJobs.TestJobsManifest>
 {
@@ -48,6 +48,78 @@ public sealed class GetJobExplanationSpec : ActaRuntimeTestBase<ConformanceFixtu
         Assert.Null(data.Header.LatestFailureDetails);
         Assert.Empty(data.Steps);
         Assert.Empty(data.Checkpoints);
+    }
+
+    [Fact(DisplayName = "A step and a checkpoint changed in one transaction are never read half-changed")]
+    public async Task A_step_and_a_checkpoint_written_together_are_read_together()
+    {
+        var ct = TestContext.Current.CancellationToken;
+        var job = await Jobs.EnqueueAsync(new EnqueueJobRequest(TestNamespace, "add-numbers", JobPayload.Json(new AddNumbers(1, 2))), ct);
+        await WriteAsync(
+            [
+                $"INSERT INTO {Db.Schema}.steps (job_id, step_name, step_status_code, attempt_number, result_format_id) VALUES ({job.JobId}, 'charge', 10, 1, 0)",
+                $"INSERT INTO {Db.Schema}.checkpoints (job_id, checkpoint_kind_code, checkpoint_name, checkpoint_status_code) VALUES ({job.JobId}, 20, 'approval', 10)",
+            ],
+            ct
+        );
+        var handler = Services.GetRequiredService<GetJobExplanationHandler>();
+
+        // The writer flips both rows in one transaction, Pending/Pending to Succeeded/Set and back, with the job's
+        // jobs_state row untouched, while the reader explains the job over and over until it has read 200 times and
+        // seen 20 flips commit.
+        using var done = CancellationTokenSource.CreateLinkedTokenSource(ct);
+        var flips = 0;
+        var writer = Task.Run(
+            async () =>
+            {
+                while (!done.IsCancellationRequested)
+                {
+                    var (step, checkpoint) = Volatile.Read(ref flips) % 2 == 0 ? (100, 20) : (10, 10);
+                    await WriteAsync(
+                        [
+                            $"UPDATE {Db.Schema}.steps SET step_status_code = {step} WHERE job_id = {job.JobId}",
+                            $"UPDATE {Db.Schema}.checkpoints SET checkpoint_status_code = {checkpoint} WHERE job_id = {job.JobId}",
+                        ],
+                        ct
+                    );
+                    Interlocked.Increment(ref flips);
+                }
+            },
+            ct
+        );
+        try
+        {
+            var waited = System.Diagnostics.Stopwatch.StartNew();
+            for (var read = 0; read < 200 || Volatile.Read(ref flips) < 20; read++)
+            {
+                Assert.True(waited.Elapsed < SpecWaits.Gate, $"the writer committed only {Volatile.Read(ref flips)} flips in time");
+                var data = Assert.IsType<GetJobExplanationRows>(await handler.ReadAsync(job.JobId, ct));
+                var step = Assert.Single(data.Steps).StepStatus;
+                var checkpoint = Assert.Single(data.Checkpoints).CheckpointStatus;
+                Assert.Equal(step == StepStatusCode.Succeeded, checkpoint == CheckpointStatusCode.Set);
+            }
+        }
+        finally
+        {
+            await done.CancelAsync();
+            await writer;
+        }
+    }
+
+    /// <summary>The statements in one transaction on a connection of its own.</summary>
+    private async Task WriteAsync(IReadOnlyList<string> statements, CancellationToken ct)
+    {
+        await using var connection = await Db.OpenConnectionAsync(ct);
+        await using var transaction = await connection.BeginTransactionAsync(ct);
+        foreach (var sql in statements)
+        {
+            await using var command = connection.CreateCommand();
+            command.Transaction = transaction;
+            command.CommandText = sql;
+            await command.ExecuteNonQueryAsync(ct);
+        }
+
+        await transaction.CommitAsync(ct);
     }
 
     [Fact(DisplayName = "An unknown job id returns null")]

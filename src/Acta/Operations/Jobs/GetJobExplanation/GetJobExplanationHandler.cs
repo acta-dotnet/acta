@@ -3,9 +3,9 @@ using System.Globalization;
 namespace Acta;
 
 /// <summary>
-/// <see cref="IJobs.ExplainAsync"/>: resolves the lookup, reads the header, steps, and checkpoints in one round
-/// trip, and narrates them against the database clock, so "lease expired 2m ago" measures against the clock
-/// that stamped the rows rather than this process's.
+/// <see cref="IJobs.ExplainAsync"/>: resolves the lookup, reads the header, steps, and checkpoints in one statement,
+/// so from one snapshot, and narrates them against the database clock, so "lease expired 2m ago" measures against the
+/// clock that stamped the rows rather than this process's.
 /// </summary>
 internal sealed class GetJobExplanationHandler(GetJobIdHandler getJobId, IDbSession session, ISqlDialect dialect, IActaClock clock)
 {
@@ -32,28 +32,23 @@ internal sealed class GetJobExplanationHandler(GetJobIdHandler getJobId, IDbSess
                 var readHeader = DbProjectionResolver.Resolve<GetJobExplanationHeaderRow>();
                 var readStep = DbProjectionResolver.Resolve<GetJobExplanationStepRow>();
                 var readCheckpoint = DbProjectionResolver.Resolve<GetJobExplanationCheckpointRow>();
-
                 GetJobExplanationHeaderRow? header = null;
+                var steps = new List<GetJobExplanationStepRow>();
+                var checkpoints = new List<GetJobExplanationCheckpointRow>();
                 while (await reader.ReadAsync(token))
                 {
-                    header = readHeader(reader);
-                }
-
-                var steps = new List<GetJobExplanationStepRow>();
-                if (await reader.NextResultAsync(token))
-                {
-                    while (await reader.ReadAsync(token))
+                    // row_kind leads every row: 1 the header, 2 a step, 3 a checkpoint.
+                    switch (Convert.ToInt32(reader.GetValue(0), CultureInfo.InvariantCulture))
                     {
-                        steps.Add(readStep(reader));
-                    }
-                }
-
-                var checkpoints = new List<GetJobExplanationCheckpointRow>();
-                if (await reader.NextResultAsync(token))
-                {
-                    while (await reader.ReadAsync(token))
-                    {
-                        checkpoints.Add(readCheckpoint(reader));
+                        case 1:
+                            header = readHeader(reader);
+                            break;
+                        case 2:
+                            steps.Add(readStep(reader));
+                            break;
+                        default:
+                            checkpoints.Add(readCheckpoint(reader));
+                            break;
                     }
                 }
 
@@ -197,7 +192,9 @@ internal sealed class GetJobExplanationHandler(GetJobIdHandler getJobId, IDbSess
         if (
             h.Kind == JobKindCode.PermanentSlot
             && status != JobStatusCode.Executing
-            && data.Checkpoints.Any(c => c.Kind == CheckpointKindCode.Firing && c.Status == CheckpointStatusCode.Pending)
+            && data.Checkpoints.Any(c =>
+                c.CheckpointKind == CheckpointKindCode.Firing && c.CheckpointStatus == CheckpointStatusCode.Pending
+            )
         )
         {
             headline += " A firing is outstanding: restart and trigger now are rejected until it settles.";
@@ -242,21 +239,21 @@ internal sealed class GetJobExplanationHandler(GetJobIdHandler getJobId, IDbSess
     {
         foreach (var c in checkpoints)
         {
-            if (c.Kind == CheckpointKindCode.Signal && c.Status == CheckpointStatusCode.Pending)
+            if (c.CheckpointKind == CheckpointKindCode.Signal && c.CheckpointStatus == CheckpointStatusCode.Pending)
             {
                 return new GetJobExplanationWait(CheckpointKindCode.Signal, c.CheckpointName, c.DueAtUtc);
             }
         }
         foreach (var c in checkpoints)
         {
-            if (c.Kind == CheckpointKindCode.ChildLatch && c.Status == CheckpointStatusCode.Pending)
+            if (c.CheckpointKind == CheckpointKindCode.ChildLatch && c.CheckpointStatus == CheckpointStatusCode.Pending)
             {
                 return new GetJobExplanationWait(CheckpointKindCode.ChildLatch, c.CheckpointName, c.DueAtUtc);
             }
         }
         foreach (var c in checkpoints)
         {
-            if (c.Kind == CheckpointKindCode.Timer && c.Status == CheckpointStatusCode.Pending)
+            if (c.CheckpointKind == CheckpointKindCode.Timer && c.CheckpointStatus == CheckpointStatusCode.Pending)
             {
                 return new GetJobExplanationWait(CheckpointKindCode.Timer, c.CheckpointName, c.DueAtUtc);
             }
@@ -324,13 +321,13 @@ internal sealed class GetJobExplanationHandler(GetJobIdHandler getJobId, IDbSess
         var list = new List<GetJobExplanationStep>(rows.Count);
         foreach (var s in rows)
         {
-            list.Add(new GetJobExplanationStep(s.StepName, s.Status, StepPhrase(s)));
+            list.Add(new GetJobExplanationStep(s.StepName, s.StepStatus, StepPhrase(s)));
         }
         return list;
     }
 
     private static string StepPhrase(GetJobExplanationStepRow s) =>
-        s.Status switch
+        s.StepStatus switch
         {
             StepStatusCode.Succeeded => "succeeded and will not rerun",
             StepStatusCode.Exhausted => s.FailureMessage is { Length: > 0 } m
@@ -343,7 +340,7 @@ internal sealed class GetJobExplanationHandler(GetJobIdHandler getJobId, IDbSess
                 : "is in progress",
             StepStatusCode.Interrupted =>
                 "was interrupted before its outcome was recorded; it may have run 0 or 1 times - reconcile externally",
-            _ => s.Status.Description,
+            _ => s.StepStatus.Description,
         };
 
     private static string Attempts(int count) => count == 1 ? "1 attempt" : $"{count} attempts";
@@ -412,7 +409,7 @@ internal sealed class GetJobExplanationHandler(GetJobIdHandler getJobId, IDbSess
     private static string? Blank(string? value) => string.IsNullOrEmpty(value) ? null : value;
 }
 
-/// <summary>The three consistent result sets the explain read returns for one Job.</summary>
+/// <summary>The header, steps, and checkpoints of one Job, read in one statement and so from one snapshot.</summary>
 internal sealed record GetJobExplanationRows(
     GetJobExplanationHeaderRow Header,
     IReadOnlyList<GetJobExplanationStepRow> Steps,

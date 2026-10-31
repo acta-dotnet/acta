@@ -40,6 +40,12 @@ separate calls one transaction.
 | Caller-transaction enqueue | All three providers join the supplied transaction. Acta never commits, disposes, or retries it. |
 | Ordinary read | No additional write transaction. |
 
+A read whose parts must agree has to be one statement. Under PostgreSQL's read committed, SQL Server's read-committed
+snapshot (without snapshot isolation), and SQLite's WAL, a statement reads one snapshot and the next statement another,
+so a batch of SELECTs can pair rows from before a commit with rows from after it. The explain read returns its header,
+steps, and checkpoints as one `UNION ALL` for that reason. The lineage map still reads its nodes and their latches in
+five statements, so a child can show finished beside a parent latch still pending.
+
 SQL Server procedures use `SET XACT_ABORT ON` and `TRY/CATCH`. They record `@@TRANCOUNT` at entry,
 begin and commit only if they own the transaction, and roll back an owned active transaction before
 rethrowing errors. An outer transaction remains the owner's responsibility. SQL Server does not

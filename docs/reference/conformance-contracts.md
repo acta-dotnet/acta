@@ -1511,9 +1511,10 @@
   - Display name and description overrides round-trip through the detail projection
 
 ### GetJobExplanation returns explain sets for a known id and null otherwise
-- **Contract:** GetJobExplanation returns the header, step, and checkpoint result sets for a matching job id and null when no row matches.
+- **Contract:** GetJobExplanation returns the header, steps, and checkpoints of a matching job id from one snapshot, and null when no row matches.
 - **Guarantees:**
   - A known job id returns a populated header (Ready) with no steps or checkpoints
+  - A step and a checkpoint changed in one transaction are never read half-changed
   - An unknown job id returns null
 
 ### GetJobId resolves a ref or deduplication key to the id, null for no match

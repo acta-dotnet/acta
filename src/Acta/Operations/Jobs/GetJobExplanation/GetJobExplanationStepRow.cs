@@ -1,10 +1,10 @@
 namespace Acta;
 
-/// <summary>One <c>steps</c> row for the explain read, in SELECT order.</summary>
-[DbProjection]
+/// <summary>One <c>steps</c> row for the explain read, bound by name from a row_kind 2 row.</summary>
+[DbProjection(ByName = true)]
 internal sealed record GetJobExplanationStepRow(
     string StepName,
-    StepStatusCode Status,
+    StepStatusCode StepStatus,
     int AttemptNumber,
     DateTime? NextRetryAtUtc,
     string? FailureMessage

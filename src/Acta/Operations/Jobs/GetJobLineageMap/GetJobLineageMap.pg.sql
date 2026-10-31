@@ -1,4 +1,5 @@
--- Lineage map: five result sets for one focused Job, read at one instant for a consistent snapshot.
+-- Lineage map: five result sets for one focused Job, each its own statement and so its own snapshot
+-- (docs/sql-internals.md, Transaction and retry ownership).
 -- Postgres and SQLite share this file (WITH RECURSIVE + LIMIT); SQL Server uses the .mssql variant.
 
 -- 1) Focus job.

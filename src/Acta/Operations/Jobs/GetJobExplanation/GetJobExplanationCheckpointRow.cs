@@ -1,10 +1,10 @@
 namespace Acta;
 
-/// <summary>One <c>checkpoints</c> row of any kind for the explain read, in SELECT order.</summary>
-[DbProjection]
+/// <summary>One <c>checkpoints</c> row of any kind for the explain read, bound by name from a row_kind 3 row.</summary>
+[DbProjection(ByName = true)]
 internal sealed record GetJobExplanationCheckpointRow(
-    CheckpointKindCode Kind,
+    CheckpointKindCode CheckpointKind,
     string CheckpointName,
-    CheckpointStatusCode? Status,
+    CheckpointStatusCode? CheckpointStatus,
     DateTime? DueAtUtc
 );

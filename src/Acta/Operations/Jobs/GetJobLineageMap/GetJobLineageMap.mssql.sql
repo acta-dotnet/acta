@@ -1,4 +1,5 @@
--- Lineage map: five result sets for one focused Job, read at one instant for a consistent snapshot.
+-- Lineage map: five result sets for one focused Job, each its own statement and so its own snapshot
+-- (docs/sql-internals.md, Transaction and retry ownership).
 -- SQL Server variant: recursive CTE without the RECURSIVE keyword, and TOP for the child cap.
 
 -- 1) Focus job.
