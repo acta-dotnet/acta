@@ -2,7 +2,7 @@
 
 ## 1.0.0-rc.7
 
-Not tagged yet. rc.7 redesigns scheduling around an admission engine, fixes what an external review of rc.6 found, renames Acta's log fields, and drops dependencies. The schema changes: reprovision, as every pre-1.0 release asks.
+Tagged 2026-10-31. rc.7 redesigns scheduling around an admission engine, fixes what an external review of rc.6 found, renames Acta's log fields, and drops dependencies. The schema changes: reprovision, as every pre-1.0 release asks.
 
 ### What a consumer must change
 
@@ -74,6 +74,22 @@ Not tagged yet. rc.7 redesigns scheduling around an admission engine, fixes what
 - The payload-formats concept no longer uses MessagePack; its two custom formats need no package.
 - The explicit SourceLink package is gone, because the .NET SDK ships it. The Microsoft.OpenApi pin is gone, because AspNetCore.OpenApi now requires a safe version itself.
 - Meziantou.Analyzer is gone. src logs through source-generated `[LoggerMessage]` classes, and `LogVocabularyTests` holds their fields.
+
+### Evidence
+
+The engine was certified on `e294a8b91` with the Acta Verify release suite on PostgreSQL, SQL Server, and SQLite, in two bundles reported in [`docs/benchmark.md`](./benchmark.md) and on [useacta.net/benchmark](https://useacta.net/benchmark). The commits after it change only Acta Verify and the docs.
+- **Acta Verify 2.** Each scenario is a written file stating its question, workload, topology, written rates, and target, and the release suite runs every one: 76 scenarios. Performance runs one database at a time on a quiet box, then correctness and faults on all three at once, then chaos one database at a time. A rate holds by rc.6's criteria; each scenario's first written rate is a floor the release suite requires to hold. The floors come from a calibration run of every performance scenario on this machine the same night.
+- **Result.** No scenario failed safety or liveness on any database, and every trial's ledger passed the certification checks.
+- **Found by the evidence, fixed before the certified commit.** Calibration found one hot lane running about one job a second, where rc.6 ran 80: rc.7's schedule admitter waited on the claim loop's auto-reset wake and took the wakes a lane promotion sent. The admitter now has a wake of its own (`329b5fa7e`), and the lane runs at rc.6's rate again.
+- **Reruns.** The release run could not judge four scenarios, for reasons in Acta Verify. `54ddd670e` fixes them, and the rerun against the same engine passed on every database:
+  - Overload, then recover offered PostgreSQL and SQL Server less than one worker absorbs, so no backlog grew; it now offers 13,000/s and 8,000/s.
+  - One hot concurrency key on SQL Server held 1/s with a flat backlog, but p99 was 12.7 s against a 10 s target set from shorter calibration windows; the target is now the 30 s window.
+  - Ten children on SQLite missed its 10/s floor on backlog noise; its floor is 2/s.
+  - Chaos on PostgreSQL and SQL Server ran side by side and starved the host into a query timeout and a worker login timeout; chaos now runs one database at a time, as rc.6's did.
+- **Chaos certification.** On the shipped lease timings, 1,000,000 jobs on PostgreSQL and on SQL Server, 24 workers of 64 executors, a worker killed every 5 s for 7 minutes: 84 kills on PostgreSQL, every one of a busy worker whose work was reclaimed, and 83 on SQL Server, 82 of them busy and reclaimed, where one replacement's start failed and its second start ran; 16 ledger checks on each, with no violation. SQLite passed at 10,000 jobs on 3 workers in both runs, with 30 and 44 busy kills reclaimed.
+- **Throughput.** Four PostgreSQL workers held 15,000/s offered in each of three 30 s passes; its 120 s confirmation missed on p99 (3.1 s), and the step down to 12,500/s held, completing 12,430 fully executed, durably completed jobs per second with p99 1.0 s. One worker completed 10,017 a second (rc.6: 7,680). SQL Server held 5,000 a second on four workers and on one; SQLite held 50 on one.
+- **Drain.** Eight workers drained a backlog of 1,000,000 jobs at 70,085 a second on PostgreSQL and 42,543 on SQL Server (the steady rate on the database clock, median of three passes); one SQLite worker drained 100,000 at 4,907.
+- **useacta.net.** The homepage states 12,430 fully executed, durably completed jobs per second on four PostgreSQL workers, and the million-job line points at this evidence. The benchmark report is a page of the site.
 
 ### Known limitations
 
