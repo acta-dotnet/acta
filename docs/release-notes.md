@@ -4,6 +4,10 @@
 
 Not tagged yet.
 
+### What a consumer must change
+
+**A retire leaves a recurring job's slot inert, and a newer build that registers the definition again resumes its schedules from now.** Before, a retire cancelled the permanent slot and cleared the schedules' cursors, and a reactivated definition kept both that way: its schedules never fired again. Now a retire settles a firing admitted and not yet claimed and returns the slot to `Idle`, keeps a paused or cancelled slot as the operator left it, lets an attempt already running land as usual, and writes `retired` into each schedule's `timing_fingerprint`, so the comeback registration is a retime: the next occurrence after it fires, and the retired interval is not caught up. Until then the slot refuses a manual firing. A retired definition's slot is no longer given a retention deadline; purge it to remove it. A firing that is retrying when its definition is retired is still cancelled ([known limitations](known-limitations.md)).
+
 ### Fixes
 
 - A worker start that read a schedule before another host admitted its last occurrence no longer writes that occurrence back. Before, a deploy racing a finite calendar's final firing restored the admitted occurrence, and a per-occurrence schedule then failed on the root's deduplication key at every pass. Registration now writes a cursor only on a retime or when an orphaned schedule comes back, and a stale copy no longer bumps the schedule's version.

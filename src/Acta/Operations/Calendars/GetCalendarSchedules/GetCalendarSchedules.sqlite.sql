@@ -1,6 +1,7 @@
 -- Every schedule that names the family, as the admitter's row so a publication plans it the way a pass evaluates it;
--- orphaned schedules and retired definitions included, since their cursors move too. A shared family in sys binds the
--- name in every namespace. No locks; the apply validates the versions it carries.
+-- orphaned schedules included, since their cursors move too, and a retired definition's left out, since the start that
+-- reactivates it retimes them. A shared family in sys binds the name in every namespace. No locks; the apply validates
+-- the versions it carries.
 SELECT
     s.schedule_id,
     s.namespace_id,
@@ -44,4 +45,5 @@ WHERE
         (s.expression_kind_code = 30 /* ScheduleExpressionKindCode.Calendar */ AND s.expression = @p_calendar_name)
         OR s.availability_calendar_name = @p_calendar_name
     )
+    AND d.definition_status_code <> 240 /* DefinitionStatusCode.Retired */
 ORDER BY s.schedule_id;

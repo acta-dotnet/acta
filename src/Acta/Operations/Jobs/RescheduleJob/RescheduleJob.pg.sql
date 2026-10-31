@@ -41,8 +41,18 @@ SELECT
             WHERE cp.job_id = j.job_id AND cp.checkpoint_kind_code = 60 /* CheckpointKindCode.Firing */
                 AND cp.checkpoint_name = 'sys.firing' AND cp.checkpoint_status_code = 10 /* CheckpointStatusCode.Pending */
         ),
-    r.job_status_code IN (30 /* JobStatusCode.Paused */, 20 /* JobStatusCode.Suspended */, 10 /* JobStatusCode.Ready */, 15 /* JobStatusCode.Blocked */)
+    (
+        r.job_status_code IN (30 /* JobStatusCode.Paused */, 20 /* JobStatusCode.Suspended */, 10 /* JobStatusCode.Ready */, 15 /* JobStatusCode.Blocked */)
         OR (r.job_status_code = 40 /* JobStatusCode.Idle */ AND j.job_kind_code = 20 /* JobKindCode.PermanentSlot */)
+    )
+    -- A retired definition's slot is inert: no manual firing until a build that carries the definition starts.
+    AND NOT (
+        j.job_kind_code = 20 /* JobKindCode.PermanentSlot */
+        AND EXISTS (
+            SELECT 1 FROM {{schema}}.definitions d
+            WHERE d.definition_id = j.definition_id AND d.definition_status_code = 240 /* DefinitionStatusCode.Retired */
+        )
+    )
 FROM {{schema}}.jobs j
 JOIN {{schema}}.jobs_state r ON r.job_id = j.job_id
 WHERE j.job_id = @p_job_id
@@ -99,7 +109,7 @@ SELECT
     @p_job_id, 60 /* CheckpointKindCode.Firing */, 'sys.firing', 10 /* CheckpointStatusCode.Pending */,
     1 /* JobPayloadFormat.Json */, convert_to(@p_envelope, 'UTF8'), now(), now(), 0
 FROM _reschedule_job s
-WHERE s.fires AND (@p_expected_version IS NULL OR s.from_version = @p_expected_version)
+WHERE s.fires AND s.applies AND (@p_expected_version IS NULL OR s.from_version = @p_expected_version)
 ON CONFLICT (job_id, checkpoint_kind_code, checkpoint_name) DO UPDATE SET
     checkpoint_status_code = EXCLUDED.checkpoint_status_code,
     value_format_id = EXCLUDED.value_format_id,

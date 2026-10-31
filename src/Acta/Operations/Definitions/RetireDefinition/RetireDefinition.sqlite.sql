@@ -31,6 +31,27 @@ WHERE
     )
     AND r.job_status_code IN (
         10 /* JobStatusCode.Ready */, 15 /* JobStatusCode.Blocked */, 20 /* JobStatusCode.Suspended */, 30 /* JobStatusCode.Paused */, 40 /* JobStatusCode.Idle */
+    )
+    AND j.job_kind_code <> 20 /* JobKindCode.PermanentSlot */;
+
+-- A permanent slot is left inert, not cancelled, so a newer build that registers the definition again finds it ready
+-- to fire: a queued firing settles below and the slot returns to Idle, a paused one keeps its hold, and one an attempt
+-- still runs lands as it would.
+DROP TABLE IF EXISTS temp._retire_slots;
+
+CREATE TEMP TABLE _retire_slots AS
+SELECT r.job_id
+FROM {{schema}}.jobs j
+JOIN {{schema}}.jobs_state r ON r.job_id = j.job_id
+WHERE
+    j.definition_id IN (
+        SELECT s.definition_id
+        FROM temp._retire_job_definition s
+        WHERE s.version = @p_version AND s.definition_status_code <> 240 /* DefinitionStatusCode.Retired */
+    )
+    AND j.job_kind_code = 20 /* JobKindCode.PermanentSlot */
+    AND r.job_status_code IN (
+        10 /* JobStatusCode.Ready */, 15 /* JobStatusCode.Blocked */, 20 /* JobStatusCode.Suspended */, 30 /* JobStatusCode.Paused */
     );
 
 UPDATE {{schema}}.definitions
@@ -53,7 +74,17 @@ SET
     version = version + 1
 WHERE job_id IN (SELECT p.job_id FROM temp._retire_parked_jobs p);
 
--- A retired slot's outstanding firing settles with it.
+UPDATE {{schema}}.jobs_state
+SET
+    job_status_code = 40 /* JobStatusCode.Idle */,
+    next_run_at_utc = NULL,
+    modified_at_utc = {{now}},
+    version = version + 1
+WHERE
+    job_id IN (SELECT rs.job_id FROM temp._retire_slots rs)
+    AND job_status_code <> 30 /* JobStatusCode.Paused */;
+
+-- An outstanding firing settles with the retire: a cancelled charged root's, and an inert slot's.
 UPDATE {{schema}}.checkpoints
 SET
     checkpoint_status_code = 130 /* CheckpointStatusCode.Cancelled */,
@@ -63,7 +94,20 @@ WHERE
     checkpoint_kind_code = 60 /* CheckpointKindCode.Firing */
     AND checkpoint_name = 'sys.firing'
     AND checkpoint_status_code = 10 /* CheckpointStatusCode.Pending */
-    AND job_id IN (SELECT p.job_id FROM temp._retire_parked_jobs p);
+    AND job_id IN (SELECT p.job_id FROM temp._retire_parked_jobs p UNION ALL SELECT rs.job_id FROM temp._retire_slots rs);
+
+-- The schedules lose their timing fingerprint, so a newer build that registers the definition again retimes them from
+-- now, as it would a changed declaration.
+UPDATE {{schema}}.schedules
+SET
+    timing_fingerprint = 'retired',
+    modified_at_utc = {{now}},
+    version = version + 1
+WHERE definition_id IN (
+    SELECT s.definition_id
+    FROM temp._retire_job_definition s
+    WHERE s.version = @p_version AND s.definition_status_code <> 240 /* DefinitionStatusCode.Retired */
+);
 
 -- A cancelled charged root releases its schedule's capacity, so the count stays true for the schedules exhausted below.
 UPDATE {{schema}}.schedules_state AS st

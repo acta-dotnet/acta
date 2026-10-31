@@ -15,6 +15,9 @@ DECLARE @parked TABLE (
 DECLARE @cancelled TABLE (
     job_id BIGINT NOT NULL PRIMARY KEY,
     execution_number INT NOT NULL);
+DECLARE @slots TABLE (
+    job_id BIGINT NOT NULL PRIMARY KEY,
+    job_status_code TINYINT NOT NULL);
 DECLARE @lanes TABLE (lane_id BIGINT NOT NULL PRIMARY KEY);
 DECLARE @heads TABLE (job_id BIGINT NOT NULL PRIMARY KEY);
 DECLARE @lane_cursor BIGINT = 0, @lane_next BIGINT, @lane_locked BIGINT, @promoted INT = 0;
@@ -120,7 +123,32 @@ BEGIN TRY
                 10 /* JobStatusCode.Ready */, 15 /* JobStatusCode.Blocked */, 20 /* JobStatusCode.Suspended */, 30 /* JobStatusCode.Paused */, 40 /* JobStatusCode.Idle */
             )
             -- A laned job is parked here only in a lane locked above.
-            AND (r.lane_id IS NULL OR r.lane_id IN (SELECT l.lane_id FROM @lanes l));
+            AND (r.lane_id IS NULL OR r.lane_id IN (SELECT l.lane_id FROM @lanes l))
+            AND j.job_kind_code <> 20 /* JobKindCode.PermanentSlot */;
+
+        /* A permanent slot is left inert, not cancelled, so a newer build that registers the definition again finds it
+           ready to fire: a queued firing settles below and the slot returns to Idle, a paused one keeps its hold, and one
+           an attempt still runs lands as it would. */
+        INSERT INTO @slots (job_id, job_status_code)
+        SELECT r.job_id, r.job_status_code
+        FROM {{schema}}.jobs j
+        INNER JOIN {{schema}}.jobs_state r WITH (UPDLOCK, ROWLOCK) ON r.job_id = j.job_id
+        WHERE
+            j.definition_id = @p_definition_id
+            AND j.job_kind_code = 20 /* JobKindCode.PermanentSlot */
+            AND r.job_status_code IN (
+                10 /* JobStatusCode.Ready */, 15 /* JobStatusCode.Blocked */, 20 /* JobStatusCode.Suspended */, 30 /* JobStatusCode.Paused */
+            );
+
+        UPDATE r
+        SET
+            job_status_code = 40 /* JobStatusCode.Idle */,
+            next_run_at_utc = NULL,
+            modified_at_utc = @now,
+            version = r.version + 1
+        FROM {{schema}}.jobs_state r WITH (FORCESEEK)
+        INNER JOIN @slots sl ON sl.job_id = r.job_id
+        WHERE r.job_status_code IN (10 /* JobStatusCode.Ready */, 15 /* JobStatusCode.Blocked */, 20 /* JobStatusCode.Suspended */);
 
         UPDATE r
         SET
@@ -139,14 +167,14 @@ BEGIN TRY
                 10 /* JobStatusCode.Ready */, 15 /* JobStatusCode.Blocked */, 20 /* JobStatusCode.Suspended */, 30 /* JobStatusCode.Paused */, 40 /* JobStatusCode.Idle */
             );
 
-        -- A retired slot's outstanding firing settles with it.
+        -- An outstanding firing settles with the retire: a cancelled charged root's, and an inert slot's.
         UPDATE cp
         SET
             checkpoint_status_code = 130 /* CheckpointStatusCode.Cancelled */,
             modified_at_utc = @now,
             version = cp.version + 1
         FROM {{schema}}.checkpoints cp WITH (FORCESEEK)
-        INNER JOIN @parked p ON p.job_id = cp.job_id
+        INNER JOIN (SELECT pk.job_id FROM @parked pk UNION ALL SELECT sl.job_id FROM @slots sl) p ON p.job_id = cp.job_id
         WHERE
             cp.checkpoint_kind_code = 60 /* CheckpointKindCode.Firing */
             AND cp.checkpoint_name = 'sys.firing'
@@ -180,6 +208,15 @@ BEGIN TRY
         FROM {{schema}}.schedules s
         INNER JOIN {{schema}}.schedules_state st WITH (FORCESEEK) ON st.schedule_id = s.schedule_id
         WHERE s.definition_id = @p_definition_id;
+
+        -- The schedules lose their timing fingerprint, so a newer build that registers the definition again retimes them
+        -- from now, as it would a changed declaration.
+        UPDATE {{schema}}.schedules
+        SET
+            timing_fingerprint = 'retired',
+            modified_at_utc = @now,
+            version = version + 1
+        WHERE definition_id = @p_definition_id;
 
         INSERT INTO {{schema}}.events (
             event_code,

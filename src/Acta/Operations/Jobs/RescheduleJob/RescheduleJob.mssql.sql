@@ -76,6 +76,22 @@ BEGIN TRY
             GOTO Finish;
         END;
 
+    -- A retired definition's slot is inert: no manual firing until a build that carries the definition starts.
+    IF
+        @kind = 20 /* JobKindCode.PermanentSlot */
+        AND EXISTS (
+            SELECT 1 FROM {{schema}}.definitions d
+            WHERE d.definition_id = @definition_id AND d.definition_status_code = 240 /* DefinitionStatusCode.Retired */
+        )
+        BEGIN
+
+            SELECT
+                CAST(3 /* ControlAction.Rejected */ AS TINYINT) AS action,
+                @from_status AS status,
+                @version AS version;
+            GOTO Finish;
+        END;
+
     -- An Idle or Paused permanent slot with no firing outstanding takes a manual firing at the instant; a slot
     -- mid-firing moves its instant like any waiting job.
     IF

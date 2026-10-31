@@ -868,6 +868,13 @@ again. A deploy that adds a `[Schedule]` registers the slot beside any ordinary 
 slot carries no deduplication key, so an ordinary job keyed by the job name is unrelated to it. See
 [Schedule operations](./developer-guide.md#schedule-operations).
 
+Retiring a recurring job's definition leaves its slot inert instead of cancelling it: a firing admitted and
+not yet claimed settles cancelled and the slot returns to `Idle`, a paused slot stays paused, a cancelled one
+stays cancelled, and an attempt already running lands as it would, except that a failure it would retry lands
+cancelled. The slot refuses a manual firing while the definition is retired. A newer build that registers the
+definition again retimes its schedules from now, so the slot fires at the first occurrence after the comeback and
+the retired interval is not caught up.
+
 ### …a checkpoint name changes during a deployment?
 
 The new name is a different durable slot. A step can repeat, a variable can appear absent, or a

@@ -357,6 +357,20 @@ BEGIN TRY
             OR d.definition_status_code = 240 /* DefinitionStatusCode.Retired */
         );
 
+    -- The same race wrote the declaration's fingerprint over the one the retire cleared; put it back, so the comeback
+    -- still retimes.
+    UPDATE s
+    SET
+        timing_fingerprint = 'retired',
+        modified_at_utc = @now,
+        version = s.version + 1
+    FROM {{schema}}.definitions AS d
+    INNER JOIN {{schema}}.schedules AS s WITH (FORCESEEK) ON s.definition_id = d.definition_id
+    WHERE
+        d.namespace_id = @p_namespace_id
+        AND d.definition_status_code = 240 /* DefinitionStatusCode.Retired */
+        AND s.timing_fingerprint <> 'retired';
+
     -- The catalog this call registered; a start that computes the same hash and moves no cursor skips the call.
     UPDATE n
     SET catalog_hash = @p_catalog_hash

@@ -62,10 +62,13 @@ internal sealed partial class WorkerFinalizer
             HasSchedule = job.ScheduleId is not null,
         };
 
-    // The handler-status shape, so the job's lane hands on and its parent's latch is raised. The retention is the
-    // retired definition's own, because a claim this worker carries no handler for has no descriptor to read it from.
-    private static CompleteExecutionsValues Retire(ClaimedJob job, ExecutionCompletion completion, int retentionSeconds) =>
-        new(
+    // The handler-status shape, so the job's lane hands on and its parent's latch is raised; a slot lands through its
+    // final status, as a handler's own cancel does, so completion settles its firing and a restart can revive it. The
+    // retention is the retired definition's own, because a claim this worker carries no handler for has no descriptor
+    // to read it from.
+    private static CompleteExecutionsValues Retire(ClaimedJob job, ExecutionCompletion completion, int retentionSeconds)
+    {
+        var command = new CompleteExecutionsValues(
             job.JobId,
             job.ExecutionNumber,
             Succeeded: false,
@@ -79,11 +82,20 @@ internal sealed partial class WorkerFinalizer
             retentionSeconds
         )
         {
-            HandlerStatusCode = (byte)JobStatusCode.Cancelled,
             HasLane = job.LaneId is not null,
             HasParent = job.ParentJobId is not null,
             HasSchedule = job.ScheduleId is not null,
         };
+        return job.Kind == JobKindCode.PermanentSlot
+            ? command with
+            {
+                FinalStatus = JobStatusCode.Cancelled,
+            }
+            : command with
+            {
+                HandlerStatusCode = (byte)JobStatusCode.Cancelled,
+            };
+    }
 
     internal static CompleteExecutionsValues BuildCommand(
         JobDescriptor descriptor,

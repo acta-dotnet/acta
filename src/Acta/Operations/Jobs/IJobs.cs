@@ -368,9 +368,9 @@ public interface IJobs
     /// Move the job identified by <paramref name="job"/>'s next-run instant to <paramref name="nextRunAtUtc"/>, or to
     /// now when null: the job page's "run now". Applies to Paused/Suspended/Ready rows (a paused or suspended row is
     /// re-armed Ready so the new instant actually fires); an in-flight or terminal row is rejected. An <c>Idle</c>
-    /// permanent slot, or a Paused one with no firing outstanding, takes a manual firing at the instant, as a
-    /// schedule trigger admits one, and returns to <c>Idle</c> when it settles. Audited as job.rescheduled with
-    /// <paramref name="reasonMessage"/> and <paramref name="actor"/> (the operator identity; null when unknown).
+    /// permanent slot, or a Paused one with no firing outstanding, takes a manual firing at the instant, as a schedule
+    /// trigger admits one, and returns to <c>Idle</c> when it settles; a retired definition's slot is rejected. Audited as
+    /// job.rescheduled with <paramref name="reasonMessage"/> and <paramref name="actor"/> (the operator; null when unknown).
     /// </summary>
     ValueTask<RescheduleJobResponse> RescheduleAsync(
         JobLookup job,

@@ -59,10 +59,12 @@ public sealed class ScheduleRetirementSpec : ActaRuntimeTestBase<ConformanceFixt
         Assert.All(after, s => Assert.Null(s.NextOccurrenceAtUtc));
         foreach (var before in planned)
         {
+            // The retire's own write, which clears the fingerprint so a comeback retimes, is the only one.
             var schedule = Assert.Single(after, s => s.ScheduleName == before.ScheduleName);
             Assert.Equal(before.Status, schedule.Status);
             Assert.Equal(before.PausedUntilUtc, schedule.PausedUntilUtc);
-            Assert.Equal(before.Version, schedule.Version);
+            Assert.Equal(before.Version + 1, schedule.Version);
+            Assert.Equal("retired", schedule.Config.TimingFingerprint);
         }
         Assert.Equal(0, await CountEventsAsync(slotId, EventCode.SchedulePauseExpired, ct));
     }
@@ -112,7 +114,7 @@ public sealed class ScheduleRetirementSpec : ActaRuntimeTestBase<ConformanceFixt
         Assert.Equal(ControlAction.NotFound, paused.Action);
         var after = Assert.Single(await ScheduleTestOps.ReadAsync(Db, slotId, ct));
         Assert.Equal(ScheduleStatusCode.Active, after.Status);
-        Assert.Equal(before.Version, after.Version);
+        Assert.Equal(before.Version + 1, after.Version);
         Assert.Equal(0, await CountEventsAsync(slotId, EventCode.SchedulePaused, ct));
     }
 

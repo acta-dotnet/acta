@@ -24,7 +24,8 @@ SELECT
     le.details,
     lxw.deployment_version AS last_executed_worker_name,
     w.worker_ref AS leased_by_worker_ref,
-    lxw.worker_ref AS last_executed_worker_ref
+    lxw.worker_ref AS last_executed_worker_ref,
+    jd.definition_status_code AS definition_status
 FROM {{schema}}.jobs j
 INNER JOIN {{schema}}.jobs_state r ON r.job_id = j.job_id
 INNER JOIN {{schema}}.namespaces ns ON ns.namespace_id = j.namespace_id

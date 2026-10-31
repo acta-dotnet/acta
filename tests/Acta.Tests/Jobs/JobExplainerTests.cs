@@ -25,7 +25,8 @@ public class JobExplainerTests
         Guid? lastExecutedByWorkerRef = null,
         // Retention deletes workers rows, so a jobs_state/events worker id can outlive its row. The LEFT
         // JOINs then yield neither a ref nor a deployment version while the id still points somewhere.
-        bool workerRowPurged = false
+        bool workerRowPurged = false,
+        DefinitionStatusCode definitionStatus = DefinitionStatusCode.Active
     ) =>
         new(
             JobId: 4821,
@@ -49,7 +50,8 @@ public class JobExplainerTests
             // The SQL LEFT JOINs produce a ref exactly when the id is present and its row still exists,
             // so the fixture mirrors that.
             LeasedByWorkerRef: workerRowPurged ? null : leasedByWorkerRef ?? (leasedByWorkerId is null ? null : LeaseWorkerRef.Value),
-            LastExecutedByWorkerRef: workerRowPurged ? null : lastExecutedByWorkerRef
+            LastExecutedByWorkerRef: workerRowPurged ? null : lastExecutedByWorkerRef,
+            DefinitionStatus: definitionStatus
         );
 
     private static GetJobExplanationRows Data(
@@ -349,6 +351,17 @@ public class JobExplainerTests
         var x = GetJobExplanationHandler.Explain(Data(Header(JobStatusCode.Idle)), Now);
         Assert.Contains("schedules", x.Headline);
         Assert.DoesNotContain(x.NextActions, a => a.Kind == "resume");
+    }
+
+    [Fact]
+    public void A_retired_definitions_idle_slot_points_at_the_build_that_carries_it()
+    {
+        var x = GetJobExplanationHandler.Explain(
+            Data(Header(JobStatusCode.Idle, JobKindCode.PermanentSlot, definitionStatus: DefinitionStatusCode.Retired)),
+            Now
+        );
+        Assert.Contains("retired", x.Headline);
+        Assert.Contains(x.NextActions, a => a.Kind == "none" && a.Description.Contains("resumes its schedules"));
     }
 
     [Fact]

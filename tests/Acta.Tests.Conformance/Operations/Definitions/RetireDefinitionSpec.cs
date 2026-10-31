@@ -193,44 +193,6 @@ public sealed class RetireDefinitionSpec : ActaRuntimeTestBase<ConformanceFixtur
         await AssertCancelledByTheWorkerAsync(stranded.JobId, ct);
     }
 
-    [Fact(DisplayName = "A recurring slot retired mid-occurrence lands Cancelled instead of returning to Idle")]
-    public async Task A_recurring_slot_retired_mid_occurrence_lands_cancelled()
-    {
-        var ct = TestContext.Current.CancellationToken;
-        RecurringPingHandler.Reset(TestNamespace);
-        var slotId = await AlertTestOps.RecurringSlotIdAsync(Services, TestNamespace, "recurring-ping", ct);
-        await ChaosSpecHelpers.SetReadyAsync(Db, slotId, ct);
-        RecurringPingHandler.DuringNextFire[TestNamespace] = async () =>
-        {
-            Assert.Equal(ControlAction.Applied, (await RetireAsync("recurring-ping", ct)).Action);
-            await Runtime.RunHeartbeatOnceAsync(ct);
-        };
-
-        Assert.Equal(RunOnceStatus.Completed, await Runtime.RunOnceAsync(slotId, ct));
-        Assert.Single(RecurringPingHandler.TriggersFor(TestNamespace));
-        await AssertCancelledByTheWorkerAsync(slotId, ct);
-    }
-
-    [Fact(DisplayName = "A retired definition's schedules keep no cursor, which takes them out of the upcoming-occurrence index")]
-    public async Task A_retired_definitions_schedules_keep_no_cursor()
-    {
-        var ct = TestContext.Current.CancellationToken;
-        var slotId = await AlertTestOps.RecurringSlotIdAsync(Services, TestNamespace, "recurring-ping", ct);
-        Assert.All(await ScheduleTestOps.ReadAsync(Db, slotId, ct), s => Assert.NotNull(s.NextOccurrenceAtUtc));
-
-        Assert.Equal(ControlAction.Applied, (await RetireAsync("recurring-ping", ct)).Action);
-
-        var schedules = await ScheduleTestOps.ReadAsync(Db, slotId, ct);
-        Assert.NotEmpty(schedules);
-        Assert.All(
-            schedules,
-            s =>
-            {
-                Assert.Null(s.NextOccurrenceAtUtc);
-            }
-        );
-    }
-
     [Fact(DisplayName = "A Suspended parent waiting on a child of the retired definition is released without a recovery pass")]
     public async Task A_parent_waiting_on_a_cancelled_child_is_released()
     {

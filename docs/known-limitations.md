@@ -69,6 +69,7 @@ provisioned before 1.0.
 - **The drift guard checks type names and payload formats, not JSON compatibility.** Wire compatibility is the application's.
 - **A worker excludes a definition it has no handler for only for its own lifetime.** A long run of such jobs slows its claims until the definition is retired or its build returns.
 - **Retiring a definition cancels its parked jobs but not their descendants.**
+- **A recurring firing that is retrying when its definition is retired is cancelled**, and its slot stays cancelled after a newer build registers the definition again; restart the slot. A firing that succeeds or spends its budget returns the slot to `Idle` as usual.
 - **A worker learns of a retire on its next heartbeat**, so an attempt that starts in that gap still runs once. A job its handler paused stays Paused until it is resumed or cancelled.
 
 ## Dashboard and API exposure

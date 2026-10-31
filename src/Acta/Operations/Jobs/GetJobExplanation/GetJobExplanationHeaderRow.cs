@@ -27,5 +27,6 @@ internal sealed record GetJobExplanationHeaderRow(
     byte[]? LatestFailureDetails,
     string? LastExecutedByWorkerName,
     Guid? LeasedByWorkerRef,
-    Guid? LastExecutedByWorkerRef
+    Guid? LastExecutedByWorkerRef,
+    DefinitionStatusCode DefinitionStatus
 );

@@ -73,8 +73,34 @@ parked AS (
             10 /* JobStatusCode.Ready */, 15 /* JobStatusCode.Blocked */, 20 /* JobStatusCode.Suspended */, 30 /* JobStatusCode.Paused */, 40 /* JobStatusCode.Idle */
         )
         AND (r.lane_id IS NULL OR r.lane_id IN (SELECT rl.lane_id FROM _retire_lanes rl))
+        AND j.job_kind_code <> 20 /* JobKindCode.PermanentSlot */
     -- Locked here so the execution_number each event records is the one the sweep below cancels.
     FOR UPDATE OF r
+),
+-- A permanent slot is left inert, not cancelled, so a newer build that registers the definition again finds it ready
+-- to fire: a queued firing settles below and the slot returns to Idle, a paused one keeps its hold, and one an attempt
+-- still runs lands as it would.
+slots AS (
+    SELECT r.job_id, r.job_status_code
+    FROM {{schema}}.jobs j
+    INNER JOIN {{schema}}.jobs_state r ON r.job_id = j.job_id
+    WHERE
+        j.definition_id IN (SELECT d.definition_id FROM retired d)
+        AND j.job_kind_code = 20 /* JobKindCode.PermanentSlot */
+        AND r.job_status_code IN (
+            10 /* JobStatusCode.Ready */, 15 /* JobStatusCode.Blocked */, 20 /* JobStatusCode.Suspended */, 30 /* JobStatusCode.Paused */
+        )
+    FOR UPDATE OF r
+),
+idled AS (
+    UPDATE {{schema}}.jobs_state r
+    SET
+        job_status_code = 40 /* JobStatusCode.Idle */,
+        next_run_at_utc = NULL,
+        modified_at_utc = now(),
+        version = r.version + 1
+    FROM slots sl
+    WHERE r.job_id = sl.job_id AND sl.job_status_code <> 30 /* JobStatusCode.Paused */
 ),
 swept AS (
     UPDATE {{schema}}.jobs_state r
@@ -94,14 +120,14 @@ swept AS (
         )
     RETURNING r.job_id
 ),
--- A retired slot's outstanding firing settles with it.
+-- An outstanding firing settles with the retire: a cancelled charged root's, and an inert slot's.
 settled AS (
     UPDATE {{schema}}.checkpoints cp
     SET
         checkpoint_status_code = 130 /* CheckpointStatusCode.Cancelled */,
         modified_at_utc = now(),
         version = cp.version + 1
-    FROM parked p
+    FROM (SELECT pk.job_id FROM parked pk UNION ALL SELECT sl.job_id FROM slots sl) p
     WHERE
         cp.job_id = p.job_id
         AND cp.checkpoint_kind_code = 60 /* CheckpointKindCode.Firing */
@@ -134,6 +160,17 @@ cleared AS (
     ) c ON c.schedule_id = s.schedule_id
     WHERE
         st.schedule_id = s.schedule_id
+),
+-- The schedules lose their timing fingerprint, so a newer build that registers the definition again retimes them from
+-- now, as it would a changed declaration.
+unfingerprinted AS (
+    UPDATE {{schema}}.schedules s
+    SET
+        timing_fingerprint = 'retired',
+        modified_at_utc = now(),
+        version = s.version + 1
+    FROM retired d
+    WHERE s.definition_id = d.definition_id
 ),
 cancel_events AS (
     INSERT INTO {{schema}}.events (

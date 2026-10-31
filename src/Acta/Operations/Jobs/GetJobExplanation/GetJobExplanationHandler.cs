@@ -122,6 +122,11 @@ internal sealed class GetJobExplanationHandler(GetJobIdHandler getJobId, IDbSess
                 }
                 break;
 
+            case JobStatusCode.Idle when h.DefinitionStatus == DefinitionStatusCode.Retired:
+                headline = "Idle, and its definition is retired: nothing fires it until a build that carries the definition starts.";
+                actions.Add(Move("none", "no action needed - that build's start resumes its schedules from then"));
+                break;
+
             case JobStatusCode.Idle:
                 headline = "Idle between firings; its schedules decide the next one.";
                 actions.Add(Move("none", "no action needed - the next due schedule admits a firing"));

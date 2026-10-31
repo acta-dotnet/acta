@@ -21,6 +21,14 @@ SELECT
         ELSE 0
     END AS fires,
     CASE
+        -- A retired definition's slot is inert: no manual firing until a build that carries the definition starts.
+        WHEN
+            j.job_kind_code = 20 /* JobKindCode.PermanentSlot */
+            AND EXISTS (
+                SELECT 1 FROM {{schema}}.definitions d
+                WHERE d.definition_id = j.definition_id AND d.definition_status_code = 240 /* DefinitionStatusCode.Retired */
+            )
+            THEN 0
         WHEN r.job_status_code IN (30 /* JobStatusCode.Paused */, 20 /* JobStatusCode.Suspended */, 10 /* JobStatusCode.Ready */, 15 /* JobStatusCode.Blocked */) THEN 1
         WHEN r.job_status_code = 40 /* JobStatusCode.Idle */ AND j.job_kind_code = 20 /* JobKindCode.PermanentSlot */ THEN 1
         ELSE 0
@@ -119,7 +127,7 @@ SELECT
 WHERE EXISTS (
     SELECT 1
     FROM temp._reschedule_job s
-    WHERE s.fires = 1 AND (@p_expected_version IS NULL OR s.from_version = @p_expected_version)
+    WHERE s.fires = 1 AND s.applies = 1 AND (@p_expected_version IS NULL OR s.from_version = @p_expected_version)
 )
 ON CONFLICT (job_id, checkpoint_kind_code, checkpoint_name) DO UPDATE SET
     checkpoint_status_code = excluded.checkpoint_status_code,

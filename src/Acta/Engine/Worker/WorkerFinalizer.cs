@@ -293,14 +293,15 @@ internal sealed partial class WorkerFinalizer(
 
     /// <summary>
     /// Plans <paramref name="entry"/>'s write and the status it reports once the write lands. A job whose definition is
-    /// retired never runs again, so a landing that would leave it runnable (a re-arm, a hand-back, or a slot's return
-    /// to Idle) lands Cancelled instead.
+    /// retired never runs again, so a landing that would leave it runnable (a re-arm or a hand-back) lands Cancelled
+    /// instead. A slot's return to Idle stays: an Idle slot is inert while its definition is retired, and ready to fire
+    /// when a newer build registers it again.
     /// </summary>
     private PlannedWrite Plan(InFlightJob entry)
     {
         var planned = PlanCompletion(entry);
         if (
-            planned.Row is { RescheduleEventCode: null, FinalStatus: null }
+            planned.Row is { RescheduleEventCode: null, FinalStatus: null or JobStatusCode.Idle }
             || !context.RetentionSecondsByRetiredDefinitionId.TryGetValue(entry.Claim.DefinitionId, out var retentionSeconds)
         )
         {

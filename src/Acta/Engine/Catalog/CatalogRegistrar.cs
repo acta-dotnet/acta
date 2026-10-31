@@ -103,7 +103,8 @@ internal sealed class CatalogRegistrar(
             catalogParts.Add(c.DefinitionHash);
         }
 
-        await ReconcileSchedulesAsync(ns, namespaceId, catalogParts, registeredCatalogHash, ct);
+        var retired = catalog.Where(c => c.Status == DefinitionStatusCode.Retired).Select(c => c.DefinitionId).ToHashSet();
+        await ReconcileSchedulesAsync(ns, namespaceId, catalogParts, registeredCatalogHash, retired, ct);
     }
 
     public ImmutableArray<JobDescriptor> CollectDescriptors(WorkerRegistration registration, string ns)
@@ -299,17 +300,18 @@ internal sealed class CatalogRegistrar(
     }
 
     /// <summary>
-    /// Definition-sourced recurring slots: reconcile each scheduled definition's slot + schedules
-    /// against persisted cursors at startup. The upsert set is the union of {descriptors that
-    /// declare >= 1 [Schedule]} and {definitions with persisted schedule state}, so removed
-    /// schedules can pause an existing slot, while ordinary non-scheduled jobs are never touched.
-    /// The registration stores the hash of <paramref name="catalogParts"/> and the plan's declarations on the namespace.
+    /// Definition-sourced recurring slots: reconcile each scheduled definition's slot + schedules against persisted
+    /// cursors at startup. The upsert set is the union of {descriptors that declare >= 1 [Schedule]} and {definitions
+    /// with persisted schedule state}, so removed schedules can pause an existing slot, while ordinary non-scheduled jobs
+    /// are never touched; a <paramref name="retired"/> definition keeps its schedules as the retire left them. The
+    /// registration stores the hash of <paramref name="catalogParts"/> and the plan's declarations on the namespace.
     /// </summary>
     private async Task ReconcileSchedulesAsync(
         string ns,
         int namespaceId,
         List<string?> catalogParts,
         string? registeredCatalogHash,
+        HashSet<int> retired,
         CancellationToken ct
     )
     {
@@ -366,10 +368,10 @@ internal sealed class CatalogRegistrar(
 
         foreach (var defId in inScope.Order())
         {
-            if (!_context.DescriptorByDefinitionId.TryGetValue(defId, out var descriptor))
+            if (!_context.DescriptorByDefinitionId.TryGetValue(defId, out var descriptor) || retired.Contains(defId))
             {
-                // Persisted schedules for a definition no longer in this manifest: leave its slot
-                // alone (definition retirement is a separate concern, not schedule reconciliation).
+                // Persisted schedules for a definition no longer in this manifest, or one still retired: leave its
+                // slot alone (definition retirement is a separate concern, not schedule reconciliation).
                 continue;
             }
 

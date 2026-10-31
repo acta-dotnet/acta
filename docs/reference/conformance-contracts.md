@@ -290,13 +290,22 @@
   - A failing attempt in flight at the retire lands Cancelled instead of retrying, and nothing claims it again
   - A job that recovery reclaims after the retire lands Cancelled without its handler running
   - A worker that bounced a definition before its retire still claims the job recovery reclaims, and lands it Cancelled
-  - A recurring slot retired mid-occurrence lands Cancelled instead of returning to Idle
-  - A retired definition's schedules keep no cursor, which takes them out of the upcoming-occurrence index
   - A Suspended parent waiting on a child of the retired definition is released without a recovery pass
   - Enqueue against a retired definition is rejected with DefinitionRetired
   - An unknown name is NotFound and a stale version is VersionConflict with the current version, and neither writes
   - Retiring an already retired definition is applied and writes no further events
   - An equal manifest generation reactivates a retired definition and an older one cannot
+
+### Retire leaves a recurring slot inert until a newer build resumes it
+- **Contract:** Retiring a recurring definition settles its queued firing, leaves the slot Idle or as the operator held it, and a newer build resumes its schedules from now.
+- **Guarantees:**
+  - A recurring slot retired mid-occurrence returns to Idle, where its retired definition leaves it inert
+  - A retired definition's schedules keep no cursor, which takes them out of the upcoming-occurrence index
+  - A newer build that registers a retired definition again resumes its schedules from now on the same Idle slot
+  - A retire settles a queued firing and leaves an operator's pause or cancel on the slot through the comeback
+  - An older build that starts while the definition is retired leaves its schedules as the retire left them
+  - A retired definition's slot refuses a manual firing until a build that carries the definition starts
+  - A firing that fails into a retry after the retire lands Cancelled with its firing settled, and a restart returns the slot to Idle
 
 ### The catalog read returns every definition of one namespace
 - **Contract:** GetDefinitionContracts returns every definition of one namespace, retired ones included, with its contract, hash, status, and override-aware effective policy.
