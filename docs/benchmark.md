@@ -2,9 +2,9 @@
 
 The 1.0.0-rc.7 release evidence on one machine, in two Acta Verify bundles. The release run on `e294a8b91` ran every scenario of the release suite on PostgreSQL, SQL Server, and SQLite: every correctness and fault scenario passed, and every trial's ledger passed the certification checks. Four scenarios it could not judge, for reasons in Acta Verify rather than the engine. `54ddd670e` changes only Acta Verify, and the rerun of those four against the same engine passed on every database. Both reports follow, the rerun last.
 
-- Overload, then recover offered PostgreSQL and SQL Server less than one worker absorbs, so no backlog grew. The rerun offers 13,000/s and 8,000/s.
-- One hot concurrency key on SQL Server held 1/s with a flat backlog, but p99 was 12.7 s against a 10 s target set from shorter calibration windows. The rerun's target is the 30 s window.
-- Ten children on SQLite missed its 10/s floor on the backlog trend, where at so low a rate the poll's jitter decides it. The rerun's floor is 2/s.
+- Overload, then recovery offered PostgreSQL and SQL Server less than one worker absorbs, so no backlog grew. The rerun offers 13,000/s and 8,000/s.
+- One hot concurrency key on SQL Server held 1/s with a flat backlog, but p99 was 12.7 s against a 10 s target set from shorter calibration windows. The rerun's target is the 30 s window, and its p99 was 8.4 s, inside the old 10 s target too.
+- Ten children on SQLite missed its 10/s floor on the backlog trend, 0.131 jobs/s against 0.1 allowed, where at so low a rate the poll's jitter decides it. The rerun's floor is 2/s.
 - Chaos on PostgreSQL and SQL Server ran side by side and starved the host: a quiesce count timed out, and a replacement worker's login timed out on all three starts. The rerun runs chaos one database at a time, as rc.6 did.
 
 # The release run on e294a8b91: FAIL
@@ -71,20 +71,20 @@ Setup: workers: 4 on PostgreSQL, 4 on SQL Server, 1 on SQLite; namespaces: 2 on 
 | PostgreSQL | 15,000 | 2 | 14,774 | 1.0 s | held |
 | PostgreSQL | 15,000 | 3 | 15,004 | 967 ms | held |
 | PostgreSQL | 17,500 | 1 | 17,902 | 684 ms | held |
-| PostgreSQL | 17,500 | 2 | 17,325 | 1.4 s | missed: backlog grew 244 jobs/s |
+| PostgreSQL | 17,500 | 2 | 17,325 | 1.4 s | missed: backlog grew 244 jobs/s, 175 allowed |
 | PostgreSQL | 17,500 | 3 | 17,604 | 791 ms | held |
-| PostgreSQL | 20,000 | 1 | 17,498 | 6.3 s | missed: backlog grew 2,538 jobs/s |
-| PostgreSQL | 20,000 | 3 | 17,438 | 6.2 s | missed: backlog grew 2,654 jobs/s |
+| PostgreSQL | 20,000 | 1 | 17,498 | 6.3 s | missed: backlog grew 2,538 jobs/s, 200 allowed |
+| PostgreSQL | 20,000 | 3 | 17,438 | 6.2 s | missed: backlog grew 2,654 jobs/s, 200 allowed |
 | PostgreSQL | 25,000 | | | | not run by rule |
 | PostgreSQL | 30,000 | | | | not run by rule |
-| PostgreSQL | 15,000 | confirm, 120 s | 14,666 | 3.1 s | missed: p99 3.1 s |
+| PostgreSQL | 15,000 | confirm, 120 s | 14,666 | 3.1 s | missed: p99 3.1 s against a 2.0 s target |
 | PostgreSQL | 12,500 | confirm, 120 s | 12,430 | 1.0 s | held |
 | SQL Server | 5,000 | 1 | 4,996 | 999 ms | held |
 | SQL Server | 5,000 | 2 | 5,092 | 906 ms | held |
 | SQL Server | 5,000 | 3 | 5,000 | 483 ms | held |
-| SQL Server | 7,500 | 1 | 6,435 | 6.3 s | missed: backlog grew 1,015 jobs/s |
-| SQL Server | 7,500 | 2 | 6,637 | 5.2 s | missed: backlog grew 867 jobs/s |
-| SQL Server | 7,500 | 3 | 6,737 | 4.5 s | missed: backlog grew 715 jobs/s |
+| SQL Server | 7,500 | 1 | 6,435 | 6.3 s | missed: backlog grew 1,015 jobs/s, 75 allowed |
+| SQL Server | 7,500 | 2 | 6,637 | 5.2 s | missed: backlog grew 867 jobs/s, 75 allowed |
+| SQL Server | 7,500 | 3 | 6,737 | 4.5 s | missed: backlog grew 715 jobs/s, 75 allowed |
 | SQL Server | 10,000 | | | | not run by rule |
 | SQL Server | 12,500 | | | | not run by rule |
 | SQL Server | 15,000 | | | | not run by rule |
@@ -95,9 +95,9 @@ Setup: workers: 4 on PostgreSQL, 4 on SQL Server, 1 on SQLite; namespaces: 2 on 
 | SQLite | 50 | 1 | 50.1 | 1.1 s | held |
 | SQLite | 50 | 2 | 51.4 | 1.1 s | held |
 | SQLite | 50 | 3 | 51.2 | 1.1 s | held |
-| SQLite | 100 | 1 | 97.8 | 4.8 s | missed: p99 4.8 s |
-| SQLite | 100 | 2 | 101 | 2.1 s | missed: p99 2.1 s |
-| SQLite | 100 | 3 | 98.9 | 5.5 s | missed: p99 5.5 s |
+| SQLite | 100 | 1 | 97.8 | 4.8 s | missed: p99 4.8 s against a 2.0 s target |
+| SQLite | 100 | 2 | 101 | 2.1 s | missed: p99 2.1 s against a 2.0 s target |
+| SQLite | 100 | 3 | 98.9 | 5.5 s | missed: p99 5.5 s against a 2.0 s target |
 | SQLite | 200 | | | | not run by rule |
 | SQLite | 400 | | | | not run by rule |
 | SQLite | 50 | confirm, 120 s | 50.3 | 1.1 s | held |
@@ -121,9 +121,9 @@ Setup: workers: 1; namespaces: 1; executors per worker: the product default; enq
 | PostgreSQL | 10,000 | 1 | 10,131 | 1.0 s | held |
 | PostgreSQL | 10,000 | 2 | 10,177 | 1.0 s | held |
 | PostgreSQL | 10,000 | 3 | 9,942 | 1.0 s | held |
-| PostgreSQL | 12,500 | 1 | 9,378 | 8.9 s | missed: backlog grew 3,451 jobs/s |
-| PostgreSQL | 12,500 | 2 | 11,763 | 3.2 s | missed: backlog grew 752 jobs/s |
-| PostgreSQL | 12,500 | 3 | 8,299 | 12.3 s | missed: backlog grew 4,202 jobs/s |
+| PostgreSQL | 12,500 | 1 | 9,378 | 8.9 s | missed: backlog grew 3,451 jobs/s, 125 allowed |
+| PostgreSQL | 12,500 | 2 | 11,763 | 3.2 s | missed: backlog grew 752 jobs/s, 125 allowed |
+| PostgreSQL | 12,500 | 3 | 8,299 | 12.3 s | missed: backlog grew 4,202 jobs/s, 125 allowed |
 | PostgreSQL | 15,000 | | | | not run by rule |
 | PostgreSQL | 10,000 | confirm, 120 s | 10,017 | 1.0 s | held |
 | SQL Server | 2,500 | 1 | 2,459 | 1.1 s | held |
@@ -132,9 +132,9 @@ Setup: workers: 1; namespaces: 1; executors per worker: the product default; enq
 | SQL Server | 5,000 | 1 | 5,021 | 962 ms | held |
 | SQL Server | 5,000 | 2 | 5,093 | 891 ms | held |
 | SQL Server | 5,000 | 3 | 5,060 | 1.0 s | held |
-| SQL Server | 7,500 | 1 | 6,231 | 8.6 s | missed: backlog grew 1,053 jobs/s |
-| SQL Server | 7,500 | 2 | 6,238 | 8.1 s | missed: backlog grew 1,251 jobs/s |
-| SQL Server | 7,500 | 3 | 5,984 | 10.0 s | missed: backlog grew 1,648 jobs/s |
+| SQL Server | 7,500 | 1 | 6,231 | 8.6 s | missed: backlog grew 1,053 jobs/s, 75 allowed |
+| SQL Server | 7,500 | 2 | 6,238 | 8.1 s | missed: backlog grew 1,251 jobs/s, 75 allowed |
+| SQL Server | 7,500 | 3 | 5,984 | 10.0 s | missed: backlog grew 1,648 jobs/s, 75 allowed |
 | SQL Server | 10,000 | | | | not run by rule |
 | SQL Server | 5,000 | confirm, 120 s | 5,007 | 817 ms | held |
 | SQLite | | | | | The scenario writes no rate for sqlite. |
@@ -425,7 +425,7 @@ Setup: workers: 1; namespaces: 1; executors per worker: the product default; enq
 |---|---:|---:|---:|---:|---|
 | PostgreSQL | 250 | 1 | 249 | 308 ms | held |
 | SQL Server | 200 | 1 | 201 | 347 ms | held |
-| SQLite | 10 | 1 | 10 | 1.8 s | missed: backlog grew 0.131 jobs/s |
+| SQLite | 10 | 1 | 10 | 1.8 s | missed: backlog grew 0.131 jobs/s, 0.1 allowed |
 
 Highest rate held in every pass: PostgreSQL 250/s, every written rate, so the ceiling is above the ladder; SQL Server 200/s, every written rate, so the ceiling is above the ladder; SQLite none, the floor missed.
 
@@ -494,7 +494,7 @@ Setup: workers: 1; namespaces: 1; executors per worker: the product default; enq
 | Database | Offered/s | Pass | Completed/s | p99 | Result |
 |---|---:|---:|---:|---:|---|
 | PostgreSQL | 1 | 1 | 1 | 5.1 s | held |
-| SQL Server | 1 | 1 | 0.967 | 12.7 s | missed: p99 12.7 s |
+| SQL Server | 1 | 1 | 0.967 | 12.7 s | missed: p99 12.7 s against a 10.0 s target |
 | SQLite | 1 | 1 | 1.03 | 1.1 s | held |
 
 Highest rate held in every pass: PostgreSQL 1/s, every written rate, so the ceiling is above the ladder; SQL Server none, the floor missed; SQLite 1/s, every written rate, so the ceiling is above the ladder.
@@ -521,9 +521,9 @@ Setup: workers: 1; namespaces: 1; executors per worker: the product default; enq
 
 | Database | Offered/s | Pass | Completed/s | p99 | Result |
 |---|---:|---:|---:|---:|---|
-| PostgreSQL | 2,500 | 1 | 6,234 | 1.0 s | harness error: The offered overload of 10000 roots/s did not grow the backlog during the overload half. |
-| SQL Server | 1,000 | 1 | 2,500 | 1.0 s | harness error: The offered overload of 4000 roots/s did not grow the backlog during the overload half. |
-| SQLite | 50 | 1 | 425 | 3.5 s | missed: p99 3.5 s |
+| PostgreSQL | 10,000, then 2,500 | 1 | 6,234 | 1.0 s | incomplete: The offered overload of 10,000 jobs/s did not grow the backlog during the overload half. |
+| SQL Server | 4,000, then 1,000 | 1 | 2,500 | 1.0 s | incomplete: The offered overload of 4,000 jobs/s did not grow the backlog during the overload half. |
+| SQLite | 800, then 50 | 1 | 425 | 3.5 s | pass: the backlog grew, then fell back |
 
 ## Correctness
 
@@ -587,14 +587,12 @@ Setup: workers: 1; namespaces: 1; executors per worker: the product default; enq
 
 ## What did not pass
 
-- **Overload, then recovery** on PostgreSQL, incomplete: The offered overload of 10000 roots/s did not grow the backlog during the overload half. (`histories/pg-overload-then-recover-measure-1-2500-checks.json`)
-- **Overload, then recovery** on SQL Server, incomplete: The offered overload of 4000 roots/s did not grow the backlog during the overload half. (`histories/mssql-overload-then-recover-measure-1-1000-checks.json`)
-- **One hot concurrency key** on SQL Server, fail: Pass 1 missed the floor of 1/s.
-- **Ten children and a join** on SQLite, fail: Pass 1 missed the floor of 10/s.
+- **Overload, then recovery** on PostgreSQL, incomplete: The offered overload of 10,000 jobs/s did not grow the backlog during the overload half. (`histories/pg-overload-then-recover-measure-1-2500-checks.json`)
+- **Overload, then recovery** on SQL Server, incomplete: The offered overload of 4,000 jobs/s did not grow the backlog during the overload half. (`histories/mssql-overload-then-recover-measure-1-1000-checks.json`)
+- **One hot concurrency key** on SQL Server, fail: Pass 1 missed the floor of 1/s: p99 12.7 s against a 10.0 s target.
+- **Ten children and a join** on SQLite, fail: Pass 1 missed the floor of 10/s: backlog grew 0.131 jobs/s, 0.1 allowed.
 - **Worker kills under mixed load** on SQL Server, incomplete: Scenario did not finish (InvalidOperationException: Owned worker exited before readiness: Acta Verify could not complete the command (Win32Exception: The wait operation timed out.).); partial histories retained. (`histories/mssql-chaos-ledger.json`)
-- **Worker kills under mixed load** on SQL Server, incomplete: Chaos did not show 10 busy kills with reclaim over all 1000000 acknowledged jobs.
 - **Worker kills under mixed load** on PostgreSQL, incomplete: Scenario did not finish (NpgsqlException: Exception while reading from stream); partial histories retained. (`histories/pg-chaos-ledger.json`)
-- **Worker kills under mixed load** on PostgreSQL, incomplete: Chaos did not show 10 busy kills with reclaim over all 1000000 acknowledged jobs.
 
 ## How this run was made
 
@@ -674,9 +672,9 @@ Setup: workers: 1; namespaces: 1; executors per worker: the product default; enq
 
 | Database | Offered/s | Pass | Completed/s | p99 | Result |
 |---|---:|---:|---:|---:|---|
-| PostgreSQL | 2,500 | 1 | 7,747 | 10.1 s | missed: p99 10.1 s |
-| SQL Server | 1,000 | 1 | 4,499 | 10.4 s | missed: p99 10.4 s |
-| SQLite | 50 | 1 | 425 | 19.0 s | missed: p99 19.0 s |
+| PostgreSQL | 13,000, then 2,500 | 1 | 7,747 | 10.1 s | pass: the backlog grew, then fell back |
+| SQL Server | 8,000, then 1,000 | 1 | 4,499 | 10.4 s | pass: the backlog grew, then fell back |
+| SQLite | 800, then 50 | 1 | 425 | 19.0 s | pass: the backlog grew, then fell back |
 
 ## Chaos
 
