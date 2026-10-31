@@ -39,12 +39,8 @@
     /* The same frame as every other page (.wrap): code, figures, and screenshots take the full column,
        while prose keeps a readable measure. */
     .article { max-width: 1560px; margin: 0 auto; padding: 0 clamp(20px, 4vw, 64px) 2rem; }
-    .article p, .article ul.plain, .standfirst { max-width: 50rem; }
-    .article p.record { max-width: none; }
-    .article-head { padding-top: clamp(2.4rem, 6vh, 4rem); }
-    .article h1 { font-size: clamp(2.2rem, 5vw, 3.3rem); line-height: 1.08; margin-bottom: 1.2rem; max-width: none; }
-    .standfirst { color: var(--muted); font-size: 1.14rem; line-height: 1.6; margin: 0 0 1.2rem; }
-    .byline { font-family: var(--mono); font-size: 0.72rem; letter-spacing: 0.12em; text-transform: uppercase; color: var(--faint); margin: 0; }
+    .article p, .article ul.plain { max-width: 50rem; }
+    .byline { font-family: var(--mono); font-size: 0.72rem; letter-spacing: 0.12em; text-transform: uppercase; color: var(--faint); margin: 1.1rem 0 0; }
 
     .contents { margin: 2.4rem 0 1rem; padding: 1.2rem 1.4rem; background: var(--panel); border: 1px solid var(--hair); border-radius: var(--r-panel); }
     .article .contents h2 { font-family: var(--mono); line-height: 1.4; font-size: 0.72rem; font-weight: 400; letter-spacing: 0.18em; text-transform: uppercase; color: var(--faint); margin: 0 0 0.8rem; }
@@ -64,7 +60,7 @@
       .article > * { grid-column: 2; }
       .article > .contents {
         grid-column: 1; grid-row: 1 / span 40; align-self: start;
-        position: sticky; top: 4.2rem; margin: clamp(2.4rem, 6vh, 4rem) 0 0;
+        position: sticky; top: 4.2rem; margin: 1.4rem 0 0;
         max-height: calc(100vh - 5.5rem); overflow-y: auto;
         background: none; border: 0; border-left: 1px solid var(--hair); border-radius: 0; padding: 0.2rem 0 0.2rem 1.2rem;
       }
@@ -144,14 +140,13 @@
   </div>
 
   <main id="content">
+    <header class="wrap page-head">
+      <p class="record">learn acta · a first-time tutorial</p>
+      <h1>Build a report service that survives a crash.</h1>
+      <p class="lede">In about an hour you will build a small ASP.NET Core application that generates sales reports in the background, watch a job fail and retry on its own, and then kill the process halfway through a report and see the same job finish after a restart. Along the way you will learn what Acta is, what each line of setup is for, and exactly what it does and does not promise.</p>
+      <p class="byline">.NET 10 · ASP.NET Core · embedded SQLite · no Docker</p>
+    </header>
     <article class="article">
-      <header class="article-head">
-        <p class="record">learn acta · a first-time tutorial</p>
-        <h1>Build a report service that survives a crash.</h1>
-        <p class="standfirst">In about an hour you will build a small ASP.NET Core application that generates sales reports in the background, watch a job fail and retry on its own, and then kill the process halfway through a report and see the same job finish after a restart. Along the way you will learn what Acta is, what each line of setup is for, and exactly what it does and does not promise.</p>
-        <p class="byline">.NET 10 · ASP.NET Core · embedded SQLite · no Docker</p>
-      </header>
-
       <nav class="contents" aria-labelledby="contents-title">
         <h2 id="contents-title">In this article</h2>
         <ol>

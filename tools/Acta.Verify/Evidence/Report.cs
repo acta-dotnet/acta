@@ -609,16 +609,38 @@ public static partial class Report
 
     /// <summary>
     /// The published report as a page of the site: the front page's stylesheet, theme switch and chrome around the same
-    /// body as report.html. A test keeps site/benchmark.html equal to this page of docs/benchmark.md.
+    /// body as report.html, opened like every other page by a record line, the title, and the paragraph under it as
+    /// the lede. A test keeps site/benchmark.html equal to this page of docs/benchmark.md.
     /// </summary>
     public static string SitePage(string markdown)
     {
         ArgumentNullException.ThrowIfNull(markdown);
-        var first = markdown.Replace("\r\n", "\n", StringComparison.Ordinal).Split('\n')[0];
-        var status = first.StartsWith("# Acta Verify: ", StringComparison.Ordinal) ? first["# Acta Verify: ".Length..].Trim() : "";
+        var lines = markdown.Replace("\r\n", "\n", StringComparison.Ordinal).Split('\n');
+        var status = lines[0].StartsWith("# Acta Verify: ", StringComparison.Ordinal) ? lines[0]["# Acta Verify: ".Length..].Trim() : "";
+        var lede = lines.Length > 1 ? Array.FindIndex(lines, 1, line => line.Length > 0) : -1;
+        var head = "";
+        if (
+            lines[0].StartsWith("# ", StringComparison.Ordinal)
+            && lede > 0
+            && !lines[lede].StartsWith('#')
+            && !lines[lede].StartsWith('|')
+            && !lines[lede].StartsWith("- ", StringComparison.Ordinal)
+            && !lines[lede].StartsWith("> ", StringComparison.Ordinal)
+        )
+        {
+            head =
+                "<header class=\"wrap page-head\">\n  <p class=\"record\">Benchmark</p>\n"
+                + (status.Length > 0 ? $"  <h1 class=\"{WebUtility.HtmlEncode(status)}\">" : "  <h1>")
+                + $"{Inline(lines[0][2..])}</h1>\n  <p class=\"lede\">{Inline(lines[lede])}</p>\n</header>\n";
+            lines = lines[(lede + 1)..];
+        }
+
         return SiteHead.Replace("\r\n", "\n", StringComparison.Ordinal)
-            + "<main id=\"content\" class=\"wrap benchmark\">\n"
-            + Body(markdown, status)
+            + "<main id=\"content\">\n"
+            + head
+            + "<div class=\"wrap benchmark\">\n"
+            + Body(string.Join('\n', lines), status)
+            + "</div>\n"
             + SiteFooter.Replace("\r\n", "\n", StringComparison.Ordinal)
             + "</main>\n</body>\n</html>\n";
     }
@@ -653,11 +675,11 @@ public static partial class Report
             @font-face { font-family: "Fraunces"; font-style: normal; font-weight: 400 600; font-display: swap; src: url(assets/fonts/fraunces-latin.woff2) format("woff2"); }
             @font-face { font-family: "IBM Plex Sans"; font-style: normal; font-weight: 400 600; font-display: swap; src: url(assets/fonts/ibm-plex-sans-latin.woff2) format("woff2"); }
             @font-face { font-family: "IBM Plex Mono"; font-style: normal; font-weight: 400; font-display: swap; src: url(assets/fonts/ibm-plex-mono-400-latin.woff2) format("woff2"); }
-            .benchmark { padding-block: 2.5rem 5rem; max-width: 1180px; }
+            .benchmark { padding-block: 1.5rem 5rem; }
             .benchmark h1 { max-width: none; }
-            .benchmark h1.PASS { color: var(--verdi); }
-            .benchmark h1.FAIL { color: var(--bad); }
-            .benchmark h1.INCOMPLETE, .benchmark h1.ABORTED { color: var(--oxide); }
+            .page-head h1.PASS, .benchmark h1.PASS { color: var(--verdi); }
+            .page-head h1.FAIL, .benchmark h1.FAIL { color: var(--bad); }
+            .page-head h1.INCOMPLETE, .page-head h1.ABORTED, .benchmark h1.INCOMPLETE, .benchmark h1.ABORTED { color: var(--oxide); }
             .benchmark h2 { margin-block-start: 3rem; }
             .benchmark h3 { font-family: var(--serif); font-weight: 500; font-size: 1.35rem; margin-block: 2.25rem .5rem; }
             .benchmark p, .benchmark li { color: var(--muted); max-width: 80ch; }
