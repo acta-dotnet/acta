@@ -664,6 +664,7 @@ public static partial class Report
             <nav aria-label="Primary links">
               <a href="/">Home</a>
               <a href="/capabilities">Capabilities</a>
+              <a href="/benchmark">Benchmark</a>
               <a href="https://github.com/acta-dotnet/acta/tree/main/concepts" class="nav-more">Concepts</a>
               <a href="https://github.com/acta-dotnet/acta">GitHub</a>
             </nav>

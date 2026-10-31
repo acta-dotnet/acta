@@ -1,5 +1,6 @@
-// Day and night. The visitor's stored choice wins, then the system's preference; the "day · night" button the script
-// adds to the chrome flips it and remembers it. Loaded in <head>, so the first paint is already the right theme.
+// Day and night. The visitor's stored choice wins, then the system's preference; the "day · night" words the script
+// adds to the chrome each set their own theme and remember it. Loaded in <head>, so the first paint is already the right
+// theme.
 (() => {
   const key = "acta-theme";
   const root = document.documentElement;
@@ -10,8 +11,12 @@
   } catch {
     stored = null;
   }
+  let buttons = [];
   const apply = (theme) => {
     root.dataset.theme = theme;
+    for (const button of buttons) {
+      button.setAttribute("aria-pressed", String(button.dataset.theme === theme));
+    }
   };
   apply(stored === "light" || stored === "dark" ? stored : system());
   matchMedia("(prefers-color-scheme: light)").addEventListener("change", () => {
@@ -21,27 +26,37 @@
   addEventListener("DOMContentLoaded", () => {
     const chrome = document.querySelector(".chrome");
     if (!chrome) return;
-    const button = document.createElement("button");
-    button.type = "button";
-    button.className = "theme";
-    // Two words in the chrome's own type; the stylesheet lights the one that is on.
-    button.innerHTML = '<span class="day">day</span><span class="dot" aria-hidden="true">·</span><span class="night">night</span>';
-    const label = () => {
-      const next = root.dataset.theme === "light" ? "night" : "day";
-      button.setAttribute("aria-label", `Switch to the ${next} theme`);
-      button.title = `Switch to ${next}`;
+    const group = document.createElement("span");
+    group.className = "theme";
+    group.setAttribute("role", "group");
+    group.setAttribute("aria-label", "Theme");
+    const word = (theme, label) => {
+      const button = document.createElement("button");
+      button.type = "button";
+      button.dataset.theme = theme;
+      button.textContent = label;
+      button.title = `Switch to ${label}`;
+      button.addEventListener("click", () => {
+        stored = theme;
+        apply(theme);
+        try {
+          localStorage.setItem(key, theme);
+        } catch {
+          // A private window keeps the choice for this page only.
+        }
+        // On a phone only the word you can switch to shows, so the pressed one hides: keep focus on the visible one.
+        const other = buttons.find((b) => b !== button);
+        if (button.offsetParent === null && other) other.focus();
+      });
+      return button;
     };
-    button.addEventListener("click", () => {
-      stored = root.dataset.theme === "light" ? "dark" : "light";
-      apply(stored);
-      try {
-        localStorage.setItem(key, stored);
-      } catch {
-        // A private window keeps the choice for this page only.
-      }
-      label();
-    });
-    label();
-    chrome.appendChild(button);
+    const dot = document.createElement("span");
+    dot.className = "dot";
+    dot.setAttribute("aria-hidden", "true");
+    dot.textContent = "·";
+    buttons = [word("light", "day"), word("dark", "night")];
+    group.append(buttons[0], dot, buttons[1]);
+    chrome.appendChild(group);
+    apply(root.dataset.theme);
   });
 })();
