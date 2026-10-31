@@ -304,6 +304,82 @@ public sealed class WorkerFinalizerTests
         Assert.Equal([WorkerWakeupChannel.JobCompletion(1)], wakeup.Woken);
     }
 
+    [Theory(DisplayName = "A completion that settles a firing wakes its namespace once, where the schedule admitter waits")]
+    [InlineData(JobKindCode.PermanentSlot, null, JobStatusCode.Idle, false, false, false, true)]
+    [InlineData(JobKindCode.PermanentSlot, null, JobStatusCode.Failed, false, false, true, true)]
+    [InlineData(JobKindCode.PermanentSlot, null, JobStatusCode.Idle, false, true, false, true)]
+    [InlineData(JobKindCode.Ordinary, 7, JobStatusCode.Succeeded, false, false, true, true)]
+    [InlineData(JobKindCode.Ordinary, 7, JobStatusCode.Cancelled, false, false, true, true)]
+    [InlineData(JobKindCode.Ordinary, 7, JobStatusCode.Succeeded, true, false, true, true)]
+    [InlineData(JobKindCode.Ordinary, null, JobStatusCode.Succeeded, false, false, true, false)]
+    public async Task A_settled_firing_wakes_the_schedule_admitter(
+        JobKindCode kind,
+        int? scheduleId,
+        JobStatusCode finalStatus,
+        bool answerLost,
+        bool lanePromoted,
+        bool wakesCompletion,
+        bool wakesNamespace
+    )
+    {
+        var ct = TestContext.Current.CancellationToken;
+        var session = new ScriptedSession(call =>
+            call.Stem switch
+            {
+                "CompleteExecutions" => new List<CompleteExecutionsRow>
+                {
+                    new(
+                        1,
+                        0,
+                        answerLost ? CompleteExecutionsAction.AlreadyTerminal : CompleteExecutionsAction.Completed,
+                        (byte)finalStatus,
+                        null,
+                        DateTime.UtcNow,
+                        false,
+                        lanePromoted
+                    ),
+                },
+                _ => throw new NotSupportedException(call.Stem),
+            }
+        );
+        var options = new JobsOptions();
+        var context = new WorkerContext(new WorkerRegistration("orders", null, null, [], []));
+        context.NamespaceIds["orders"] = 1;
+        context.WorkerIdByNamespace["orders"] = 1;
+        var registry = new InFlightJobRegistry(options);
+        var wakeup = new RecordingWakeup();
+        var finalizer = new WorkerFinalizer(
+            session.Services().GetRequiredService<ExecutionOperations>(),
+            null!,
+            new WorkerWakeupPublisher(wakeup),
+            options,
+            context,
+            registry,
+            NullLogger.Instance,
+            metrics: null
+        );
+        var claim = WorkerHeartbeatLeaseRunwayTests.Entry(1).Claim with { ScheduleId = scheduleId, Kind = kind };
+        var entry = new InFlightJob(claim, null, CancellationToken.None)
+        {
+            State = InFlightJobState.Finalizing,
+            Descriptor = Descriptor,
+            Completion = new ExecutionCompletion(CompletionKind.Succeeded),
+        };
+        registry.TryAdd(entry);
+
+        await finalizer.FinalizeAsync(entry, ct);
+        List<WorkerWakeupChannel> expected = [];
+        if (wakesCompletion)
+        {
+            expected.Add(WorkerWakeupChannel.JobCompletion(1));
+        }
+        if (wakesNamespace)
+        {
+            expected.Add(WorkerWakeupChannel.WorkerNamespace("orders"));
+        }
+        Assert.Equal(expected, wakeup.Woken);
+    }
+
     [Fact(DisplayName = "A row the database keeps refusing holds only itself: its batch and the completions behind it land")]
     public async Task A_refused_row_holds_only_itself()
     {

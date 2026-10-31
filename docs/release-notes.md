@@ -1,5 +1,13 @@
 # Release notes
 
+## 1.0.0-rc.8
+
+Not tagged yet.
+
+### Fixes
+
+- A schedule waiting on its slot or on its outstanding limit is evaluated as soon as the firing settles. Before, the admitter heard of the settlement only at its next safety poll, so a `CatchUpAll` backlog or a per-occurrence schedule at `MaxOutstanding` admitted about one occurrence per `SafetyPollInterval` (1 s by default) however fast its jobs ran.
+
 ## 1.0.0-rc.7
 
 Tagged 2026-10-31. rc.7 redesigns scheduling around an admission engine, fixes what an external review of rc.6 found, renames Acta's log fields, and drops dependencies. The schema changes: reprovision, as every pre-1.0 release asks.

@@ -576,6 +576,7 @@ internal sealed partial class WorkerFinalizer(
     /// </summary>
     private async Task WakeAsync(CompleteExecutionsRow complete, ClaimedJob job, string ns, CancellationToken ct)
     {
+        var terminal = complete.FinalJobStatusCode is { } finalStatus && ((JobStatusCode)finalStatus).IsTerminal;
         if (complete.FinalJobStatusCode == (byte)JobStatusCode.Ready)
         {
             var wakeReason =
@@ -584,14 +585,18 @@ internal sealed partial class WorkerFinalizer(
                     : WorkerWakeupReason.WorkAvailable;
             await wakeupPublisher.WakeAsync(WorkerWakeupChannel.WorkerNamespace(ns), wakeReason, ct);
         }
-        else if (complete.FinalJobStatusCode is { } finalStatus && ((JobStatusCode)finalStatus).IsTerminal)
+        else if (terminal)
         {
             await wakeupPublisher.WakeAsync(WorkerWakeupChannel.JobCompletion(job.JobId), WorkerWakeupReason.JobFinished, ct);
         }
 
-        // The completion handed a lane to its next member inside complete_executions; lanes are namespace-scoped,
-        // so the member is claimable in this namespace.
-        if (complete.LanePromoted)
+        // Inside complete_executions the completion handed a lane to its next member, or settled a firing (a slot back to
+        // Idle or stopped, a per-occurrence root finished) and so made the schedules waiting on it due. Lanes and
+        // schedules are namespace-scoped, so this namespace's claim loop and schedule admitter take it now instead of at
+        // their safety poll.
+        var scheduled = job.Kind == JobKindCode.PermanentSlot || job.ScheduleId is not null;
+        var settled = terminal || complete.FinalJobStatusCode == (byte)JobStatusCode.Idle;
+        if (complete.LanePromoted || (scheduled && settled))
         {
             await wakeupPublisher.WakeAsync(WorkerWakeupChannel.WorkerNamespace(ns), WorkerWakeupReason.WorkAvailable, ct);
         }
