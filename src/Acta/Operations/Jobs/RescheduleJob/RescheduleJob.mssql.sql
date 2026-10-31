@@ -12,9 +12,22 @@ BEGIN TRY
         @lineage_root_job_id BIGINT, @definition_id INT, @tenant_id INT, @execution_number INT, @event_recording TINYINT,
         @version INT, @kind TINYINT;
     DECLARE @lane_id BIGINT, @to_status TINYINT = 10 /* JobStatusCode.Ready */, @fires BIT = 0;
+    DECLARE @lock_result INT, @lock_resource NVARCHAR(255);
 
-    /* Lock order: the lane, then the job's rows (docs/sql-internals.md, "Lane lock
-       order"). lane_id never changes, so the unlocked read is safe. */
+    /* Lock order: a slot's schedule lock, the lane, then the job's rows (docs/sql-internals.md, "Schedule lock" and
+       "Lane lock order"): a slot's manual firing is an admission. Kind, namespace and lane_id never change, so the
+       unlocked reads that find them are safe. */
+    SELECT @lock_resource = N'{{schema}}.schedules.' + CAST(j.namespace_id AS NVARCHAR(12))
+    FROM {{schema}}.jobs j
+    WHERE j.job_id = @p_job_id AND j.job_kind_code = 20 /* JobKindCode.PermanentSlot */;
+
+    IF @lock_resource IS NOT NULL
+        BEGIN
+            EXEC @lock_result = sys.sp_getapplock @lock_resource, 'Shared', 'Transaction', -1;
+            IF @lock_result < 0
+                THROW 51205, 'ACTA:SCHEDULE_LOCK:The namespace schedule lock was not granted (deadlock victim or cancelled).', 1;
+        END
+
     SELECT @lane_id = r.lane_id
     FROM {{schema}}.jobs_state r
     WHERE r.job_id = @p_job_id;
@@ -104,6 +117,24 @@ BEGIN TRY
                 AND cp.checkpoint_name = 'sys.firing' AND cp.checkpoint_status_code = 10 /* CheckpointStatusCode.Pending */
         )
         SET @fires = 1;
+
+    -- A suspended namespace takes no manual firing, read here after the lock a suspension holds exclusive; a slot
+    -- mid-firing still moves its instant.
+    IF
+        @fires = 1
+        AND NOT EXISTS (
+            SELECT 1
+            FROM {{schema}}.namespaces n
+            WHERE n.namespace_id = @namespace_id AND n.namespace_status_code = 10 /* NamespaceStatusCode.Active */
+        )
+        BEGIN
+
+            SELECT
+                CAST(3 /* ControlAction.Rejected */ AS TINYINT) AS action,
+                @from_status AS status,
+                @version AS version;
+            GOTO Finish;
+        END;
 
     /* A laned job is rescheduled Ready unless another member runs, or it was not running and an older
        member is unfinished (docs/sql-internals.md, "Lane lock order"). */

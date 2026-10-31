@@ -70,6 +70,19 @@ FROM {{schema}}.jobs j
 JOIN {{schema}}.jobs_state r ON r.job_id = j.job_id
 WHERE j.job_id = @p_job_id;
 
+-- A slot's manual firing is an admission, so a suspended namespace takes none; a slot mid-firing still moves its
+-- instant. The immediate transaction orders it against a suspension.
+UPDATE temp._reschedule_job
+SET applies = 0
+WHERE
+    fires = 1
+    AND NOT EXISTS (
+        SELECT 1
+        FROM {{schema}}.jobs j
+        JOIN {{schema}}.namespaces n ON n.namespace_id = j.namespace_id
+        WHERE j.job_id = @p_job_id AND n.namespace_status_code = 10 /* NamespaceStatusCode.Active */
+    );
+
 INSERT INTO {{schema}}.events (
     event_code,
     created_at_utc,

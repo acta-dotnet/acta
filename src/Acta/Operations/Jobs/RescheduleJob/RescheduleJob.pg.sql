@@ -1,8 +1,10 @@
--- One batch, one implicit transaction; only the final SELECT returns rows. Lock order: the lane, then the
--- job's rows (docs/sql-internals.md, "Lane lock order"); lane_id never changes, so the
--- unlocked read that finds it is safe.
+-- One batch, one implicit transaction; only the final SELECT returns rows. Lock order: a slot's schedule lock, the
+-- lane, then the job's rows (docs/sql-internals.md, "Schedule lock" and "Lane lock order"); kind, namespace and
+-- lane_id never change, so the unlocked reads that find them are safe.
+DROP TABLE IF EXISTS pg_temp._reschedule_job_lock;
 DROP TABLE IF EXISTS pg_temp._reschedule_job_lane;
 DROP TABLE IF EXISTS pg_temp._reschedule_job;
+CREATE TEMP TABLE _reschedule_job_lock (granted INT NOT NULL) ON COMMIT DROP;
 CREATE TEMP TABLE _reschedule_job_lane (lane_id BIGINT NOT NULL) ON COMMIT DROP;
 CREATE TEMP TABLE _reschedule_job (
     from_status SMALLINT NOT NULL,
@@ -18,6 +20,15 @@ CREATE TEMP TABLE _reschedule_job (
     fires BOOLEAN NOT NULL,
     applies BOOLEAN NOT NULL
 ) ON COMMIT DROP;
+
+-- A slot's manual firing is an admission, so it holds the namespace's schedule lock, shared, as a trigger does.
+INSERT INTO _reschedule_job_lock (granted)
+SELECT 1
+FROM (
+    SELECT pg_advisory_xact_lock_shared(hashtext('{{schema}}.schedules'), j.namespace_id)
+    FROM {{schema}}.jobs j
+    WHERE j.job_id = @p_job_id AND j.job_kind_code = 20 /* JobKindCode.PermanentSlot */
+) l;
 
 INSERT INTO _reschedule_job_lane (lane_id)
 SELECT l.lane_id
@@ -85,6 +96,18 @@ WHERE
                     AND o.job_id < @p_job_id
                 )
             )
+    );
+
+-- A suspended namespace takes no manual firing, read here after the lock a suspension holds exclusive; a slot
+-- mid-firing still moves its instant.
+UPDATE _reschedule_job s
+SET applies = false
+WHERE
+    s.fires
+    AND NOT EXISTS (
+        SELECT 1
+        FROM {{schema}}.namespaces n
+        WHERE n.namespace_id = s.namespace_id AND n.namespace_status_code = 10 /* NamespaceStatusCode.Active */
     );
 
 -- A null instant is now; a manual firing starts with a fresh failure budget.

@@ -1900,11 +1900,15 @@
   - After InitializeAsync seeds a recurring definition, at least one cursor returns with a non-empty ScheduleName
 
 ### A reschedule of an idle permanent slot is a manual firing at the instant
-- **Contract:** RescheduleAsync on an Idle slot, or a Paused one with no firing, admits a manual firing at the instant, now when null, while a slot mid-firing keeps its firing.
+- **Contract:** RescheduleAsync fires an Idle slot, or a Paused one with no firing, at the instant unless its namespace is suspended, and a slot mid-firing keeps its firing.
 - **Guarantees:**
   - A reschedule with no instant fires an Idle slot now with a manual envelope, and the firing settles the slot Idle
   - A Paused slot with no firing outstanding rescheduled to an instant fires at it with a manual envelope
   - A slot paused mid-firing keeps its firing when rescheduled: only the instant moves
+  - A reschedule that would fire an Idle or a Paused slot in a suspended namespace is rejected and admits nothing
+  - A slot whose firing was admitted before a suspension still moves its instant when rescheduled
+  - A reschedule of an Idle slot waits for a suspension in flight, then is rejected
+  - A suspension waits for a reschedule of an Idle slot in flight, and the manual firing it waited for stands
 
 ### A slot restarts only with no firing outstanding and is purged only unpinned
 - **Contract:** RestartAsync rejects a slot with a firing outstanding, and PurgeAsync refuses a slot a live schedule pins, even a cancelled one, until a retire unpins it.

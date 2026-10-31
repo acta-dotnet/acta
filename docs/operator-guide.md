@@ -267,7 +267,7 @@ withdraws admission. Tenant suspension is admission control, not work closure: n
 tenant name are rejected once the suspend has committed, while jobs already admitted keep running and a
 running workflow may still create children that inherit the suspended tenant (an inherited tenant id
 carries no key to re-check). Namespace suspension also holds the namespace's schedules: nothing is admitted
-into it, by the admitter or by a manual trigger, and on resume the misfire policy decides the missed window
+into it, by the admitter, a manual trigger, or a recurring job's Run now, and on resume the misfire policy decides the missed window
 as it does after downtime. Suspension is reversible and status-only.
 
 ```csharp

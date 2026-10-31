@@ -410,11 +410,11 @@ Each namespace has one schedule lock, held until its transaction ends: `sp_getap
   suspension takes it in a statement of its own before the namespace row; SQLite's one writer orders a suspension and
   an admission without it. An override takes it because it locks the definition row before the slot's `jobs` row,
   the reverse of registration, whose schedules check the definition row after the slot write.
-- Admission (`AdmitFirings`), a completion that settles a permanent slot or a per-occurrence root, and the schedule
-  verbs (pause, resume, trigger) take it shared, so admissions, settlements, and verbs run together and wait only for
+- Admission (`AdmitFirings`), a completion that settles a permanent slot or a per-occurrence root, the schedule
+  verbs (pause, resume, trigger), and a reschedule of a permanent slot take it shared, so admissions, settlements, and verbs run together and wait only for
   a registration, a retire, an override, or a suspension. A completion with neither a slot nor a charged root in its batch takes
   none.
-- Admission and a manual firing read the namespace's status after the grant and admit nothing into a suspended
+- Admission and a manual firing, from a trigger or a slot's reschedule, read the namespace's status after the grant and admit nothing into a suspended
   namespace, so a plan read before a suspension either lands before it or applies nothing.
 - It is a transaction's first lock: a shared holder that took a row first could wait on a registration that waits on
   that row.

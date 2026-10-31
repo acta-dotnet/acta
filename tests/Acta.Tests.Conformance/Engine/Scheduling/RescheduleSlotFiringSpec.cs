@@ -65,13 +65,14 @@ public sealed class RescheduleSlotManifest : IJobManifest
 /// <summary>
 /// The job page's "run now" on a permanent slot: a reschedule of an Idle slot, or of a Paused one with no firing
 /// outstanding, is a manual firing at the instant (now when none is given), the same envelope a schedule trigger
-/// writes, and the slot returns to Idle when it settles; a slot mid-firing keeps its firing and moves its instant.
+/// writes, and the slot returns to Idle when it settles; a slot mid-firing keeps its firing and moves its instant. A
+/// manual firing is an admission: a suspended namespace takes none, and the slot holds the schedule lock shared for it.
 /// </summary>
 [ConformanceSpec(
     "job.reschedule-slot",
     "A reschedule of an idle permanent slot is a manual firing at the instant",
     Area = "Scheduling",
-    Contract = "RescheduleAsync on an Idle slot, or a Paused one with no firing, admits a manual firing at the instant, now when null, while a slot mid-firing keeps its firing."
+    Contract = "RescheduleAsync fires an Idle slot, or a Paused one with no firing, at the instant unless its namespace is suspended, and a slot mid-firing keeps its firing."
 )]
 public sealed class RescheduleSlotFiringSpec : ActaRuntimeTestBase<ConformanceFixture, RescheduleSlotManifest>
 {
@@ -79,6 +80,8 @@ public sealed class RescheduleSlotFiringSpec : ActaRuntimeTestBase<ConformanceFi
     protected override bool ParkScheduleSlots => false;
 
     private FakeClock Clock { get; set; } = null!;
+
+    private int TestNamespaceId => Runtime.RegisteredNamespaceIds[TestNamespace];
 
     protected override void ConfigureServices(IServiceCollection services, string testNamespace)
     {
@@ -156,11 +159,133 @@ public sealed class RescheduleSlotFiringSpec : ActaRuntimeTestBase<ConformanceFi
         Assert.Equal(FiringEnvelope.ScheduledKind, firing.Kind);
     }
 
+    [Fact(DisplayName = "A reschedule that would fire an Idle or a Paused slot in a suspended namespace is rejected and admits nothing")]
+    public async Task A_suspended_namespace_takes_no_manual_firing()
+    {
+        var ct = TestContext.Current.CancellationToken;
+        var slotId = await ScheduleTestOps.SlotIdAsync(Db, TestNamespace, RescheduleSlotManifest.JobName, ct);
+        Assert.Equal(ControlAction.Applied, (await Operations.Namespaces.SuspendAsync(TestNamespace, ct: ct)).Action);
+
+        await AssertRejectedUnchangedAsync(slotId, JobStatusCode.Idle, ct);
+        Assert.Equal(ControlAction.Applied, (await Jobs.PauseAsync(JobLookup.ById(slotId), ct: ct)).Action);
+        await AssertRejectedUnchangedAsync(slotId, JobStatusCode.Paused, ct);
+
+        // The suspension is the reason: resumed, the same reschedule fires.
+        Assert.Equal(ControlAction.Applied, (await Operations.Namespaces.ResumeAsync(TestNamespace, ct: ct)).Action);
+        Assert.Equal(ControlAction.Applied, (await Jobs.RescheduleAsync(JobLookup.ById(slotId), ct: ct)).Action);
+        Assert.Equal(FiringEnvelope.ManualKind, (await EnvelopeAsync(slotId, ct)).Firing.Kind);
+    }
+
+    [Fact(DisplayName = "A slot whose firing was admitted before a suspension still moves its instant when rescheduled")]
+    public async Task A_suspended_namespace_still_moves_an_admitted_firing()
+    {
+        var ct = TestContext.Current.CancellationToken;
+        var slotId = await ScheduleTestOps.SlotIdAsync(Db, TestNamespace, RescheduleSlotManifest.JobName, ct);
+        var occurrence = Assert.Single(await ScheduleTestOps.ReadAsync(Db, slotId, ct)).NextOccurrenceAtUtc!.Value;
+        Clock.AdvanceTo(occurrence);
+        await Runtime.AdmitOnceAsync(TestNamespace, ct);
+        var admitted = (await EnvelopeAsync(slotId, ct)).Firing;
+        Assert.Equal(ControlAction.Applied, (await Operations.Namespaces.SuspendAsync(TestNamespace, ct: ct)).Action);
+        var at = occurrence.AddMinutes(1);
+
+        var result = await Jobs.RescheduleAsync(JobLookup.ById(slotId), at, ct: ct);
+
+        Assert.Equal(ControlAction.Applied, result.Action);
+        Assert.Equal(at, (await ReadJobAsync(slotId, ct)).NextRunAtUtc);
+        Assert.Equal(admitted.FiringId, (await EnvelopeAsync(slotId, ct)).Firing.FiringId);
+    }
+
+    [Fact(DisplayName = "A reschedule of an Idle slot waits for a suspension in flight, then is rejected")]
+    public async Task A_manual_firing_behind_a_suspension_is_rejected()
+    {
+        SkipOnSqlite();
+        var ct = TestContext.Current.CancellationToken;
+        var slotId = await ScheduleTestOps.SlotIdAsync(Db, TestNamespace, RescheduleSlotManifest.JobName, ct);
+
+        // A suspension mid-flight: the lock taken exclusive, then the namespace row written, as SuspendNamespace does.
+        await using var connection = await Db.OpenConnectionAsync(ct);
+        await using var suspension = await connection.BeginTransactionAsync(ct);
+        await ScheduleLockGate.HoldAsync(Db, connection, suspension, TestNamespaceId, exclusive: true, ct);
+        await using (var cmd = connection.CreateCommand())
+        {
+            cmd.Transaction = suspension;
+            cmd.CommandText =
+                $"UPDATE {Db.Schema}.namespaces SET namespace_status_code = {(int)NamespaceStatusCode.Suspended} WHERE namespace_id = {TestNamespaceId}";
+            Assert.Equal(1, await cmd.ExecuteNonQueryAsync(ct));
+        }
+
+        var pending = Jobs.RescheduleAsync(JobLookup.ById(slotId), ct: ct).AsTask();
+        await LockWaitProbe.WaitAsync(Db, RescheduleSql, LockWait.ScheduleLock, pending, ct);
+        await suspension.CommitAsync(ct);
+
+        Assert.Equal(ControlAction.Rejected, (await pending).Action);
+        Assert.Equal(JobStatusCode.Idle, (await ReadJobAsync(slotId, ct)).Status);
+        Assert.Null(await FiringAsync(slotId, ct));
+    }
+
+    [Fact(DisplayName = "A suspension waits for a reschedule of an Idle slot in flight, and the manual firing it waited for stands")]
+    public async Task A_suspension_waits_for_a_manual_firing_in_flight()
+    {
+        SkipOnSqlite();
+        var ct = TestContext.Current.CancellationToken;
+        var slotId = await ScheduleTestOps.SlotIdAsync(Db, TestNamespace, RescheduleSlotManifest.JobName, ct);
+
+        // Holding the slot's row stops the reschedule after its schedule lock is granted and before it writes.
+        await using var connection = await Db.OpenConnectionAsync(ct);
+        await using var blocker = await connection.BeginTransactionAsync(ct);
+        await using (var cmd = connection.CreateCommand())
+        {
+            cmd.Transaction = blocker;
+            cmd.CommandText =
+                Db.Provider == DbProvider.SqlServer
+                    ? $"SELECT job_id FROM {Db.Schema}.jobs_state WITH (UPDLOCK, ROWLOCK) WHERE job_id = {slotId}"
+                    : $"SELECT job_id FROM {Db.Schema}.jobs_state WHERE job_id = {slotId} FOR UPDATE";
+            Assert.NotNull(await cmd.ExecuteScalarAsync(ct));
+        }
+
+        var reschedule = Jobs.RescheduleAsync(JobLookup.ById(slotId), ct: ct).AsTask();
+        await LockWaitProbe.WaitAsync(Db, RescheduleSql, LockWait.Row, reschedule, ct);
+        var suspend = Operations.Namespaces.SuspendAsync(TestNamespace, ct: ct).AsTask();
+        await LockWaitProbe.WaitAsync(Db, SuspendSql, LockWait.ScheduleLock, suspend, ct);
+        await blocker.RollbackAsync(ct);
+
+        Assert.Equal(ControlAction.Applied, (await reschedule).Action);
+        Assert.Equal(ControlAction.Applied, (await suspend).Action);
+        Assert.Equal(JobStatusCode.Ready, (await ReadJobAsync(slotId, ct)).Status);
+        Assert.Equal(FiringEnvelope.ManualKind, (await EnvelopeAsync(slotId, ct)).Firing.Kind);
+    }
+
+    /// <summary>Text only the reschedule's statements carry, for <see cref="LockWaitProbe"/>.</summary>
+    private string RescheduleSql => Db.Provider == DbProvider.SqlServer ? "@fires" : "_reschedule_job";
+
+    /// <summary>Text only the suspension's statements carry, for <see cref="LockWaitProbe"/>.</summary>
+    private string SuspendSql => Db.Provider == DbProvider.SqlServer ? "@p_namespace_name" : "_suspend_namespace_lock";
+
+    /// <summary>A reschedule of the slot is rejected and changes nothing: no state, instant, version, firing, or event.</summary>
+    private async Task AssertRejectedUnchangedAsync(long slotId, JobStatusCode status, CancellationToken ct)
+    {
+        var before = await ReadJobAsync(slotId, ct);
+        var events = await CountEventsAsync(slotId, EventCode.JobRescheduled, ct);
+
+        var result = await Jobs.RescheduleAsync(JobLookup.ById(slotId), ct: ct);
+
+        Assert.Equal((ControlAction.Rejected, status, before.Version), (result.Action, result.Status!.Value, result.Version!.Value));
+        var after = await ReadJobAsync(slotId, ct);
+        Assert.Equal((status, before.NextRunAtUtc, before.Version), (after.Status, after.NextRunAtUtc, after.Version));
+        Assert.Equal(events, await CountEventsAsync(slotId, EventCode.JobRescheduled, ct));
+        Assert.Null(await FiringAsync(slotId, ct));
+    }
+
+    /// <summary>SQLite runs one writer at a time, so no transaction holds a lock beside another.</summary>
+    private void SkipOnSqlite() =>
+        Assert.SkipWhen(Db.Provider == DbProvider.Sqlite, "SQLite runs one writer at a time, so no second transaction can hold the lock.");
+
+    private Task<CheckpointEntity?> FiringAsync(long jobId, CancellationToken ct) =>
+        Db.From<CheckpointEntity>().Where(c => c.JobId == jobId && c.Kind == CheckpointKindCode.Firing).SingleOrDefaultAsync(ct);
+
     private async Task<(CheckpointStatusCode? Status, FiringEnvelope Firing)> EnvelopeAsync(long jobId, CancellationToken ct)
     {
-        var checkpoint = await Db.From<CheckpointEntity>()
-            .Where(c => c.JobId == jobId && c.Kind == CheckpointKindCode.Firing)
-            .SingleOrDefaultAsync(ct);
+        var checkpoint = await FiringAsync(jobId, ct);
         Assert.NotNull(checkpoint);
         var firing = FiringEnvelope.FromJson(checkpoint.Value);
         Assert.NotNull(firing);
