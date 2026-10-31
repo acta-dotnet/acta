@@ -4,7 +4,7 @@ namespace Acta.Sqlite;
 /// Emits the canonical SQLite <c>acta_outbox</c> CREATE script for producer-owned migration systems. A
 /// plain, non-idempotent migration script (the producer's migration tool owns run-once semantics): the
 /// canonical CREATE TABLE with SQLite storage affinities and ISO-text UTC clock defaults, the keys,
-/// the three named claim indexes, and the seven named checks. Acta never executes it; the producer
+/// the three named claim indexes, and the named checks. Acta never executes it; the producer
 /// pipes it into its own migration system. SQLite has no schema namespace, so the script takes a table
 /// name only, validated by the same lowercase identifier rule as the relay source and staging extension.
 /// </summary>
@@ -21,6 +21,8 @@ public static class SqliteOutboxDdl
         // GLOB and length() stop at a NUL, so the bytes must be that many characters' worth in the database's
         // encoding (octet_length('x') is 1 in UTF-8, 2 in UTF-16). The relay matches an id in its dashless
         // lower-case form, so ux_{table}_outbox_id keys that form and two spellings of one UUID are one row.
+        // next_run_at_utc is UTC text SQLite reads as written, from year 0001, since the claim reads it into a DateTime: a
+        // date SQLite would roll over, or the hour 24 it keeps on some days, fails here.
         // id is the rowid under its own name and, with AUTOINCREMENT, the staging order: every index ends in it,
         // so ix_{table}_due serves the claim order and ix_{table}_lane the lane check as they stand.
         return $"""
@@ -58,6 +60,10 @@ public static class SqliteOutboxDdl
                 CONSTRAINT ck_{table}_priority_range CHECK (priority_code IS NULL OR priority_code BETWEEN 0 AND 255),
                 CONSTRAINT ck_{table}_delay_nonneg CHECK (delay_seconds IS NULL OR delay_seconds BETWEEN 0 AND 2147483647),
                 CONSTRAINT ck_{table}_failure_nonneg CHECK (failure_count BETWEEN 0 AND 2147483647),
+                CONSTRAINT ck_{table}_next_run_instant CHECK (
+                    next_run_at_utc IS NULL
+                    OR (next_run_at_utc >= '0001' AND substr(next_run_at_utc, 12, 2) < '24'
+                        AND strftime('%Y-%m-%d %H:%M:%S', next_run_at_utc) IS replace(substr(next_run_at_utc, 1, 19), 'T', ' '))),
                 CONSTRAINT ck_{table}_schedule_exclusive CHECK (next_run_at_utc IS NULL OR delay_seconds IS NULL),
                 CONSTRAINT ck_{table}_meta_json CHECK (meta IS NULL OR json_valid(meta)),
                 CONSTRAINT ck_{table}_claim_pair CHECK (

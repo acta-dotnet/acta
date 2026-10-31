@@ -3,7 +3,7 @@ namespace Acta.Postgres;
 /// <summary>
 /// Emits the canonical PostgreSQL <c>acta_outbox</c> CREATE script for producer-owned migration systems: a plain,
 /// non-idempotent script (the producer's migration tool owns run-once semantics) with the CREATE TABLE in
-/// provider-correct types and UTC clock defaults, the keys, the three named claim indexes, and the seven named
+/// provider-correct types and UTC clock defaults, the keys, the three named claim indexes, and the named
 /// checks. Acta never executes it; the producer pipes it into DbUp, Flyway, EF <c>migrationBuilder.Sql(...)</c>, or a
 /// hand migration. <c>table</c> and <c>schema</c> take the same lowercase identifier validation as the relay source
 /// and staging extension; with no schema the table reference is left unqualified for the database default to resolve.
@@ -26,7 +26,8 @@ public static class PostgresOutboxDdl
             );
         }
         // Constraint and index names derive from the (bare) table so a non-default table name yields
-        // collision-free objects; the default table yields exactly the canonical names.
+        // collision-free objects; the default table yields exactly the canonical names. timestamptz spans more years
+        // than DateTime, so the run instant the claim reads into one is a check.
         return $"""
             CREATE TABLE {t} (
                 id bigint GENERATED ALWAYS AS IDENTITY,
@@ -59,6 +60,9 @@ public static class PostgresOutboxDdl
                 CONSTRAINT ck_{table}_priority_range CHECK (priority_code IS NULL OR priority_code BETWEEN 0 AND 255),
                 CONSTRAINT ck_{table}_delay_nonneg CHECK (delay_seconds IS NULL OR delay_seconds >= 0),
                 CONSTRAINT ck_{table}_failure_nonneg CHECK (failure_count >= 0),
+                CONSTRAINT ck_{table}_next_run_instant CHECK (
+                    next_run_at_utc IS NULL
+                    OR next_run_at_utc BETWEEN '0001-01-01 00:00:00+00' AND '9999-12-31 23:59:59.999999+00'),
                 CONSTRAINT ck_{table}_schedule_exclusive CHECK (next_run_at_utc IS NULL OR delay_seconds IS NULL),
                 CONSTRAINT ck_{table}_meta_json CHECK (meta IS NULL OR jsonb_typeof(meta) IS NOT NULL),
                 CONSTRAINT ck_{table}_claim_pair CHECK (

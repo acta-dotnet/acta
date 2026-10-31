@@ -33,7 +33,10 @@ WHERE
         ORDER BY c.next_attempt_at_utc ASC, c.id ASC
         LIMIT @p_batch_size
     )
+/* A run instant reads back canonical, so a T or Z spelling of the UTC text reads as the same instant; text SQLite
+   cannot read comes back as written and fails the read rather than reading as no instant. */
 RETURNING
     outbox_id, job_namespace, job_name, input_format_id, input,
     deduplication_key, correlation_key, concurrency_key, lane, priority_code,
-    next_run_at_utc, delay_seconds, tenant_name, meta, failure_count, id;
+    COALESCE(strftime('%Y-%m-%d %H:%M:%f', next_run_at_utc), next_run_at_utc) AS next_run_at_utc,
+    delay_seconds, tenant_name, meta, failure_count, id;

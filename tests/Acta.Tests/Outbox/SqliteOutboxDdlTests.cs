@@ -7,7 +7,8 @@ namespace Acta.Tests.Outbox;
 
 /// <summary>
 /// The SQLite outbox table takes an id with or without its dashes, in either case, holds one row per UUID however it is
-/// spelled, as the relay matches ids, and takes only values the claim projection can read into its byte and int fields.
+/// spelled, as the relay matches ids, and takes only values the claim projection can read into its byte, int, and
+/// DateTime fields.
 /// </summary>
 public sealed class SqliteOutboxDdlTests
 {
@@ -83,6 +84,38 @@ public sealed class SqliteOutboxDdlTests
     }
 
     [Theory]
+    [InlineData("not-a-date")]
+    [InlineData("2026-02-30 12:00:00.000")]
+    [InlineData("2026-10-31 24:00:00.000")]
+    [InlineData("2026-10-15 24:00:00.000")]
+    [InlineData("0000-01-01 00:00:00.000")]
+    [InlineData("2461345.5")]
+    [InlineData("2026-10-31T12:00:00+02:00")]
+    [InlineData("2026-10-31 12:00")]
+    [InlineData("2026-10-31 12:00:00 tomorrow")]
+    public async Task A_run_instant_that_is_not_utc_text_sqlite_reads_as_written_is_refused(string instant)
+    {
+        await using var db = await OpenAsync();
+
+        var refused = await Assert.ThrowsAsync<SqliteException>(() => InsertAsync(db, Id, ("next_run_at_utc", instant)));
+        Assert.Contains("ck_acta_outbox_next_run_instant", refused.Message, StringComparison.Ordinal);
+    }
+
+    [Theory]
+    [InlineData("0001-01-01 00:00:00.000")]
+    [InlineData("2024-02-29 23:59:59.999")]
+    [InlineData("9999-12-31 23:59:59.999")]
+    [InlineData("2026-10-31 12:00:00")]
+    [InlineData("2026-10-31T12:00:00Z")]
+    [InlineData("2026-10-31T12:00:00.1234567Z")]
+    public async Task A_utc_run_instant_is_kept(string instant)
+    {
+        await using var db = await OpenAsync();
+
+        await InsertAsync(db, Id, ("next_run_at_utc", instant));
+    }
+
+    [Theory]
     [InlineData("UTF-16le")]
     [InlineData("UTF-16be")]
     public async Task A_utf16_database_keeps_both_spellings_and_refuses_a_nul(string encoding)
@@ -107,7 +140,7 @@ public sealed class SqliteOutboxDdlTests
     }
 
     /// <summary>A minimal Pending row, with one more column set when <paramref name="extra"/> names one.</summary>
-    private static async Task InsertAsync(SqliteConnection db, string outboxId, (string Column, long Value)? extra = null)
+    private static async Task InsertAsync(SqliteConnection db, string outboxId, (string Column, object Value)? extra = null)
     {
         await using var cmd = db.CreateCommand();
         var column = extra is { } e ? ", " + e.Column : "";
