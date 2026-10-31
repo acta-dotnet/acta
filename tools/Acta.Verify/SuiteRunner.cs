@@ -153,6 +153,14 @@ internal static class SuiteRunner
                     await Task.WhenAll(pending.Select(p => RunUnitAsync("correctness", p, correctness, servers > 1 ? 1.0 / servers : 1)));
                     disk.Save(bundle);
                 }
+                // A chaos fleet saturates its database; two side by side starve the host into login and query timeouts.
+                Scenario[] chaos = [.. plan.Scenarios.Where(s => ScenarioRunner.PhaseOf(s) == "chaos")];
+                foreach (var provider in chaos.Length > 0 ? plan.Providers : [])
+                {
+                    ct.ThrowIfCancellationRequested();
+                    disk.Enter($"chaos {provider}");
+                    await RunUnitAsync("chaos", provider, chaos, 1);
+                }
             }
         }
         catch (OperationCanceledException) when (ct.IsCancellationRequested)
@@ -402,7 +410,7 @@ internal static class SuiteRunner
                     if (ended)
                     {
                         // The parallel phase saves its disk record once every database is done; saving ends a phase.
-                        if (phase == "performance")
+                        if (phase != "correctness")
                         {
                             disk.Save(bundle);
                         }

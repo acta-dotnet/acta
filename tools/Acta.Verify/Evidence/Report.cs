@@ -359,7 +359,7 @@ public static partial class Report
 
     private static void Correctness(StringBuilder text, RunPlan plan, CaseResult[] cases, string[] providers)
     {
-        foreach (var group in plan.Scenarios.Where(s => ScenarioRunner.PhaseOf(s) == "correctness").GroupBy(s => s.Group))
+        foreach (var group in plan.Scenarios.Where(s => ScenarioRunner.PhaseOf(s) != "performance").GroupBy(s => s.Group))
         {
             var heading =
                 group.Key == "faults" ? "Faults"
@@ -480,7 +480,7 @@ public static partial class Report
             );
             text.Append(
                 CultureInfo.InvariantCulture,
-                $"- Wall time: {string.Join(", ", walls)}; correctness runs on every database at once.\n"
+                $"- Wall time: {string.Join(", ", walls)}; correctness runs on every database at once, chaos one database at a time.\n"
             );
         }
         text.Append(

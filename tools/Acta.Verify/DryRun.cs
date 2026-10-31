@@ -49,13 +49,13 @@ internal static class DryRun
                 }
                 text.Append(CultureInfo.InvariantCulture, $"  {phase, -40} {seconds / 60, 38:F1} min\n");
                 phases[phase] =
-                    phase == "performance" ? phases.GetValueOrDefault(phase) + seconds : Math.Max(phases.GetValueOrDefault(phase), seconds);
+                    phase == "correctness" ? Math.Max(phases.GetValueOrDefault(phase), seconds) : phases.GetValueOrDefault(phase) + seconds;
             }
         }
         var total = phases.Values.Sum();
         text.Append(
             CultureInfo.InvariantCulture,
-            $"\nPerformance, one database at a time: {phases.GetValueOrDefault("performance") / 60:F0} min. Correctness, every database at once: {phases.GetValueOrDefault("correctness") / 60:F0} min.\n"
+            $"\nPerformance, one database at a time: {phases.GetValueOrDefault("performance") / 60:F0} min. Correctness, every database at once: {phases.GetValueOrDefault("correctness") / 60:F0} min. Chaos, one database at a time: {phases.GetValueOrDefault("chaos") / 60:F0} min.\n"
                 + $"Estimated {total / 3600:F1} h; the release target is 3 h and the ceiling 10 h. Times marked assumed have no earlier bundle under {output}.\n"
         );
         return text.ToString();

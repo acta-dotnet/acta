@@ -112,16 +112,22 @@ public static class ScenarioRunner
     }
 
     /// <summary>
-    /// A run's phases in order: performance measures one database at a time on a quiet box, then correctness, faults
-    /// and chaos run on every database at once, since they judge outcomes rather than time.
+    /// A run's phases in order: performance measures one database at a time on a quiet box; correctness and faults run
+    /// on every database at once, since they judge outcomes rather than time; chaos, which drives a fleet to
+    /// saturation, runs one database at a time again.
     /// </summary>
-    public static readonly string[] Phases = ["performance", "correctness"];
+    public static readonly string[] Phases = ["performance", "correctness", "chaos"];
 
     /// <summary>The phase <paramref name="scenario"/> runs in.</summary>
     public static string PhaseOf(Scenario scenario)
     {
         ArgumentNullException.ThrowIfNull(scenario);
-        return scenario.Group == "performance" ? "performance" : "correctness";
+        return scenario.Group switch
+        {
+            "performance" => "performance",
+            "chaos" => "chaos",
+            _ => "correctness",
+        };
     }
 
     /// <summary>The passes a measured scenario owes: the suite's headline passes for a headline, its passes otherwise.</summary>

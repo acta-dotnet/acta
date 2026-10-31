@@ -450,6 +450,7 @@ internal static class ChaosCase
         await using var connection = await state.OpenAsync(ct);
         await using var command = connection.CreateCommand();
         var prefix = state.Provider == "sqlite" ? "main" : state.Schema;
+        command.CommandTimeout = 300;
         command.CommandText =
             $"SELECT r.job_id, r.execution_number FROM {prefix}.jobs_state r JOIN {prefix}.workers w ON w.worker_id=r.leased_by_worker_id JOIN {prefix}.jobs j ON j.job_id=r.job_id JOIN {prefix}.definitions d ON d.definition_id=j.definition_id WHERE w.process_id={pid} AND r.job_status_code=50 AND d.definition_name NOT LIKE 'sys.%'";
         List<(long, int)> jobs = [];
@@ -472,6 +473,8 @@ internal static class ChaosCase
         await using var connection = await state.OpenAsync(ct);
         await using var command = connection.CreateCommand();
         var prefix = state.Provider == "sqlite" ? "main" : state.Schema;
+        // A count over a million rows on a saturated server outlasts the driver's 30 s default.
+        command.CommandTimeout = 300;
         command.CommandText =
             $"SELECT COUNT(*), SUM(CASE WHEN r.job_status_code IN (100, 200, 220) THEN 1 ELSE 0 END) FROM {prefix}.jobs_state r JOIN {prefix}.jobs j ON j.job_id=r.job_id JOIN {prefix}.definitions d ON d.definition_id=j.definition_id WHERE d.definition_name NOT LIKE 'sys.%'";
         await using var reader = await command.ExecuteReaderAsync(ct);

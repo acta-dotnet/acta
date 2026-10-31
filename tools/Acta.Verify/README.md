@@ -23,7 +23,7 @@ dotnet run -c Release --project tools/Acta.Verify -- run throughput --db pg
 | `check` | every scenario, briefly | the first written rate | 15 s ladders, 10 s single rates | 1 | information |
 | `release` | the certification record of a candidate commit | every written rate | 30 s, 5 s warmup | 3 for a headline, 1 otherwise, then a 120 s confirmation | gates the verdict |
 
-- `release` on all three databases is the release evidence. Performance runs one database at a time on a quiet box; correctness, faults and chaos then run on every database at once.
+- `release` on all three databases is the release evidence. Performance runs one database at a time on a quiet box; correctness and faults then run on every database at once; chaos, which saturates its database with a fleet, runs one database at a time last.
 - A run that stops, by a crash or a cancel, resumes when the same command runs again with the same `--output`. A run is made of units, one phase on one database: a unit that finished keeps its results, and the others run again from their start. The report records each resume. To start over instead, use another `--output`.
 
 ## Scenario files
