@@ -3,7 +3,7 @@ namespace Acta.Postgres;
 /// <summary>
 /// Emits the canonical PostgreSQL <c>acta_outbox</c> CREATE script for producer-owned migration systems: a plain,
 /// non-idempotent script (the producer's migration tool owns run-once semantics) with the CREATE TABLE in
-/// provider-correct types and UTC clock defaults, the keys, the three named claim indexes, and the six named
+/// provider-correct types and UTC clock defaults, the keys, the three named claim indexes, and the seven named
 /// checks. Acta never executes it; the producer pipes it into DbUp, Flyway, EF <c>migrationBuilder.Sql(...)</c>, or a
 /// hand migration. <c>table</c> and <c>schema</c> take the same lowercase identifier validation as the relay source
 /// and staging extension; with no schema the table reference is left unqualified for the database default to resolve.
@@ -56,6 +56,7 @@ public static class PostgresOutboxDdl
                 CONSTRAINT ck_{table}_payload_pair CHECK (
                     input_format_id BETWEEN 0 AND 255
                     AND ((input_format_id = 0 AND input IS NULL) OR (input_format_id <> 0 AND input IS NOT NULL))),
+                CONSTRAINT ck_{table}_priority_range CHECK (priority_code IS NULL OR priority_code BETWEEN 0 AND 255),
                 CONSTRAINT ck_{table}_delay_nonneg CHECK (delay_seconds IS NULL OR delay_seconds >= 0),
                 CONSTRAINT ck_{table}_failure_nonneg CHECK (failure_count >= 0),
                 CONSTRAINT ck_{table}_schedule_exclusive CHECK (next_run_at_utc IS NULL OR delay_seconds IS NULL),

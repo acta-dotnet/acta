@@ -16,6 +16,6 @@ FROM (
     FROM json_each(@p_rows)
 ) AS r
 WHERE
-    outbox_id = r.r_outbox_id COLLATE NOCASE
+    lower(replace(outbox_id, '-', '')) = lower(replace(r.r_outbox_id, '-', ''))
     AND claim_token = @p_claim_token COLLATE NOCASE
     AND status_code = 20 /* OutboxStatusCode.Claimed */;
