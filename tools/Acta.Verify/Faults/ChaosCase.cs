@@ -11,13 +11,13 @@ namespace Acta.Verify;
 /// outbox rows stage into a producer database, quiesces, and reconciles every job against its model. The ledger checks
 /// follow in <see cref="LedgerValidation"/>.
 /// </summary>
-internal static class ChaosCase
+public static class ChaosCase
 {
     private static readonly string[] Tenants = ["acme", "globex", "initech"];
 
     private sealed record CohortJob(string JobName, WorkInput Work, int? DelaySeconds = null, string? Lane = null, bool High = false);
 
-    public static async Task<CaseResult> RunAsync(
+    internal static async Task<CaseResult> RunAsync(
         RunPlan plan,
         Scenario scenario,
         OwnedProvider environment,
@@ -196,7 +196,7 @@ internal static class ChaosCase
                     );
                 }
             }
-            await staging;
+            var stagingError = (await staging).Error;
             var producerCounts = await ProducerAsync(source, ct);
             var total = acknowledged + producerCounts.Operations;
             // Work held by killed workers stays Executing until its lease lapses and a recovery pass reclaims it.
@@ -254,6 +254,16 @@ internal static class ChaosCase
             var safe = OutcomeCheck.SafetyFailures(checks.Where(c => c.Code != "outbox-drained"), unresolved, _ => true).Length == 0;
             var live = quiesced && producerCounts.Pending == 0;
             var covered = refused == 0 && recoveredHits >= scenario.Setting("busy_kills", environment.Provider);
+            // The cohort is what the producer database holds, the rows delivery is checked against: a batch whose commit
+            // threw after it was durable counts, one that rolled back does not.
+            var staged = producerCounts.Operations;
+            var (status, coverage) = Verdict(safe, live, covered, outboxRows, staged);
+            var shortCohort =
+                staged == outboxRows
+                    ? null
+                    : $"The outbox producer staged {staged} of {outboxRows} planned operations"
+                        + (stagingError is null ? "" : $" ({stagingError})")
+                        + ", so delivery of the planned cohort is not proven.";
             List<string> limits = [];
             if (environment.Provider == "sqlite")
             {
@@ -266,24 +276,27 @@ internal static class ChaosCase
                 environment.Provider,
                 "fault",
                 0,
-                !safe || !live ? "FAIL"
-                    : !covered ? "INCONCLUSIVE"
-                    : "PASS",
-                !safe ? "Identity, outcome, or outbox delivery checks failed; exact identities retained."
+                status,
+                !safe ? Join("Identity, outcome, or outbox delivery checks failed; exact identities retained.", shortCohort)
                     : !live
-                        ? $"The run did not quiesce: {unresolved.Count} jobs unresolved, {producerCounts.Pending} outbox rows undelivered."
+                        ? Join(
+                            $"The run did not quiesce: {unresolved.Count} jobs unresolved, {producerCounts.Pending} outbox rows undelivered.",
+                            shortCohort
+                        )
+                    : shortCohort is not null ? shortCohort
                     : !covered ? "Required busy-worker kills with observed reclaim were not all established."
                     : limits.Count > 0 ? string.Join(" ", limits)
                     : null,
                 safe ? "PASS" : "FAIL",
                 live ? "PASS" : "FAIL",
-                covered ? "COMPLETE" : "INCOMPLETE",
+                coverage,
                 "NOT_MEASURED",
                 new()
                 {
                     ["intended_roots"] = new(size, "roots"),
                     ["acknowledged_roots"] = new(acknowledged, "roots"),
-                    ["staged_outbox_operations"] = new(producerCounts.Operations, "operations"),
+                    ["planned_outbox_operations"] = new(outboxRows, "operations"),
+                    ["staged_outbox_operations"] = new(staged, "operations"),
                     ["delivered_outbox_jobs"] = new(delivered, "jobs"),
                     ["worker_processes"] = new(workers, "processes"),
                     ["executors_per_worker"] = new(settings.Executors, "executors"),
@@ -302,7 +315,7 @@ internal static class ChaosCase
                 [
                     $"histories/{tag}-checks.json",
                     $"histories/{tag}-model.json",
-                    .. bundle.WriteRows(tag, safe && live && covered, expected, observed),
+                    .. bundle.WriteRows(tag, status == "PASS", expected, observed),
                 ]
             );
         }
@@ -380,13 +393,32 @@ internal static class ChaosCase
         return [.. cohort];
     }
 
+    private static string Join(string reason, string? shortCohort) => shortCohort is null ? reason : $"{reason} {shortCohort}";
+
+    /// <summary>
+    /// The case's status and coverage. A safety or liveness failure fails it. It passes only when every required busy
+    /// kill was reclaimed and the producer staged its whole planned cohort, since the delivered check can only compare
+    /// against what committed; otherwise it is inconclusive.
+    /// </summary>
+    public static (string Status, string Coverage) Verdict(bool safe, bool live, bool killsCovered, int plannedOutbox, int stagedOutbox)
+    {
+        var covered = killsCovered && stagedOutbox == plannedOutbox;
+        return (
+            !safe || !live ? "FAIL"
+            : covered ? "PASS"
+            : "INCONCLUSIVE",
+            covered ? "COMPLETE" : "INCOMPLETE"
+        );
+    }
+
     /// <summary>
     /// Stages outbox rows in small committed batches spread over the chaos window, so relay claims race worker kills the
-    /// whole time. Best effort: the delivered check compares against what actually committed.
+    /// whole time, and answers how many rows committed and, when a batch failed, why.
     /// </summary>
-    private static async Task StageAsync(string source, int total, int chunk, int seconds, CancellationToken ct)
+    public static async Task<(int Staged, string? Error)> StageAsync(string source, int total, int chunk, int seconds, CancellationToken ct)
     {
         var pause = TimeSpan.FromSeconds(seconds / (double)(total / chunk + 1));
+        var staged = 0;
         try
         {
             for (var first = 0; first < total; first += chunk)
@@ -413,12 +445,16 @@ internal static class ChaosCase
                     );
                 }
                 await transaction.CommitAsync(ct);
+                staged += Math.Min(total, first + chunk) - first;
                 await Task.Delay(pause, ct);
             }
+
+            return (staged, null);
         }
         catch (Exception ex) when (ex is not OperationCanceledException)
         {
-            Console.WriteLine($"  chaos outbox staging stopped early ({ex.GetType().Name}: {ex.Message}).");
+            Console.WriteLine($"  chaos outbox staging stopped after {staged} of {total} rows ({ex.GetType().Name}: {ex.Message}).");
+            return (staged, $"{ex.GetType().Name}: {ex.Message}");
         }
     }
 

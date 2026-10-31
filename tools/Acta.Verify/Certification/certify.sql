@@ -222,7 +222,7 @@ WHERE  n.bodies > 1;
 -- assert is what happened AFTER the handoff: every job the relay created ran to Succeeded. The staged
 -- rows target a handler with no designed failure, so any other terminal state is a real finding.
 -- Relayed jobs are recognized by the deduplication key the producer mints (`outbox-{n}`); a trial
--- that staged nothing passes vacuously.
+-- that staged nothing passes this check vacuously, and the chaos case reads it inconclusive.
 SELECT 'outbox-relayed-outcome' AS check_name, r.job_id, r.job_status_code
 FROM   {s}jobs_state r
 JOIN   {s}jobs j ON j.job_id = r.job_id
