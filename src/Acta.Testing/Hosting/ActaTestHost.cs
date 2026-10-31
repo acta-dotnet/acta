@@ -17,7 +17,7 @@ public static class ActaTestHost
 {
     /// <summary>
     /// Build and initialize a test host. <paramref name="configureJobs"/> receives the
-    /// <see cref="IActaBuilder"/> and the target schema; the integrator calls e.g.
+    /// <see cref="IActaBuilder"/> and the schema to offer the provider; the integrator calls e.g.
     /// <c>j.UsePostgres(opts =&gt; { opts.ConnectionString = …; opts.Schema = schema; opts.ApplyMigrationsOnStartup = true; }).Run&lt;TManifest&gt;(ns)</c>
     /// (or <c>j.Run(ns, w =&gt; w.AddManifest&lt;TManifest&gt;())</c> for several manifests).
     /// <para>
@@ -52,7 +52,8 @@ public static class ActaTestHost
             runtime.AttachClaimabilityProbe(jobs);
         }
 
-        return new HostImpl(provider, runtimes, schema);
+        // The schema the session resolved, so a provider that fixes its own (SQLite's main) is named as it is.
+        return new HostImpl(provider, runtimes, provider.GetRequiredService<IDbSession>().Schema);
     }
 
     private sealed class HostImpl(ServiceProvider provider, WorkerRuntime[] runtimes, string schema) : IActaTestHost
@@ -356,8 +357,8 @@ public static class ActaTestHost
 public sealed class ActaTestHostOptions
 {
     /// <summary>
-    /// The schema the host targets. Passed to the <c>configureJobs</c> callback so the provider call
-    /// binds to it. Defaults to a unique throwaway name (<c>acta_test_{n}</c>).
+    /// The schema offered to the <c>configureJobs</c> callback for the provider call to bind; SQLite, which has only
+    /// <c>main</c>, ignores it. Defaults to a unique throwaway name (<c>acta_test_{n}</c>).
     /// </summary>
     public string? Schema { get; set; }
 

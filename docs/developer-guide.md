@@ -1217,7 +1217,8 @@ public sealed class SendWelcomeEmailTests : IAsyncLifetime
 ```
 
 - The callback receives the schema name. Pass it to the provider's `opts.Schema` and set
-  `ApplyMigrationsOnStartup = true`; the host owns a fresh schema per test class.
+  `ApplyMigrationsOnStartup = true`; the host owns a fresh schema per test class. SQLite has one schema, `main`, so it
+  takes no name, and `host.Schema` reports the schema the runtime actually uses.
 - `Run<TManifest>(...)` makes it a worker host. Without it the host is enqueue-only (for testing
   enqueue-side code such as HTTP handlers); `RunOnceAsync` then throws.
 - `enqueued` is a `JobHandle`, so its reads address the job directly, and it converts implicitly to `JobLookup` for every

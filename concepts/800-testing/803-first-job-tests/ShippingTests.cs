@@ -10,20 +10,21 @@ using Xunit;
 public sealed class ShippingTests : IAsyncLifetime
 {
     private readonly LabelPrinter _printer = new();
+    private readonly string _database = $"shipping-{Guid.NewGuid():N}.db";
     private IActaTestHost _host = null!;
 
     private static CancellationToken Ct => TestContext.Current.CancellationToken;
 
     public async ValueTask InitializeAsync()
     {
-        // The real runtime on a throwaway SQLite file, named by the schema the host allocates; no claim
-        // loop runs, so nothing executes until a test drives a tick.
+        // The real runtime on a throwaway SQLite file; no claim loop runs, so nothing executes until a test
+        // drives a tick.
         _host = await ActaTestHost.StartAsync(
-            (j, schema) =>
+            (j, _) =>
             {
                 j.UseSqlite(sqlite =>
                 {
-                    sqlite.ConnectionString = $"Data Source={schema}.db";
+                    sqlite.ConnectionString = $"Data Source={_database}";
                     sqlite.ApplyMigrationsOnStartup = true;
                 });
                 j.Run<ShippingJobs>("shipping");
@@ -37,7 +38,7 @@ public sealed class ShippingTests : IAsyncLifetime
     {
         await _host.DisposeAsync();
         SqliteConnection.ClearAllPools(); // the pool keeps the file open; release it before deleting
-        File.Delete($"{_host.Schema}.db");
+        File.Delete(_database);
     }
 
     [Fact]
