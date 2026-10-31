@@ -25,6 +25,8 @@ internal class OutboxSourceDialect(ISqlDialect inner) : ISqlDialect
     /// </summary>
     public DbTransaction? BeginOwnedWriteTransaction(DbConnection connection) => inner.BeginOwnedWriteTransaction(connection);
 
+    public SemaphoreSlim? OwnedWriteQueue(string connectionString) => inner.OwnedWriteQueue(connectionString);
+
     public bool IsTransientConflict(Exception exception) => inner.IsTransientConflict(exception);
 
     public bool IsCancellation(Exception exception) => inner.IsCancellation(exception);

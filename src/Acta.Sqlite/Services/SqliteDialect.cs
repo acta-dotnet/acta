@@ -1,4 +1,5 @@
 using System.Buffers;
+using System.Collections.Concurrent;
 using System.Data;
 using System.Data.Common;
 using System.Globalization;
@@ -46,6 +47,26 @@ internal sealed partial class SqliteDialect : ISqlDialect
     /// </summary>
     public DbTransaction BeginOwnedWriteTransaction(DbConnection connection) =>
         ((SqliteConnection)connection).BeginTransaction(deferred: false);
+
+    private static readonly ConcurrentDictionary<string, SemaphoreSlim> WriteQueues = new(StringComparer.OrdinalIgnoreCase);
+
+    /// <summary>
+    /// SQLite has one writer, and its busy handler lets a fresh caller in ahead of one that has backed off, so without a
+    /// queue a steady flood of enqueues keeps a worker's claim from the lock. One queue per database file in the process
+    /// serves every session on it, the ledger's and an outbox source's on the same file alike; another process on the
+    /// file still meets the busy handler.
+    /// </summary>
+    public SemaphoreSlim OwnedWriteQueue(string connectionString) =>
+        WriteQueues.GetOrAdd(DatabaseIdentity(connectionString), static _ => new SemaphoreSlim(1, 1));
+
+    /// <summary>A file database is its full path however the connection string spells it; any other is its string.</summary>
+    private static string DatabaseIdentity(string connectionString)
+    {
+        var builder = new SqliteConnectionStringBuilder(connectionString);
+        return builder.Mode == SqliteOpenMode.Memory || builder.DataSource is "" or ":memory:"
+            ? connectionString
+            : Path.GetFullPath(builder.DataSource);
+    }
 
     public DbConnection CreateConnection(string connectionString)
     {

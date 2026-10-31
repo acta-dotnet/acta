@@ -18,6 +18,9 @@ internal sealed class DbSession : IDbSession
     private readonly int _retryAttempts;
     private readonly ILogger _log;
 
+    /// <summary>The queue this session's owned writes wait their turn on (<see cref="ISqlDialect.OwnedWriteQueue"/>), or null.</summary>
+    private readonly SemaphoreSlim? _writeQueue;
+
     public DbSession(SqlProviderOptions options, ISqlDialect dialect, SqlResourceCatalog sql, ILogger<DbSession>? log = null)
     {
         ArgumentNullException.ThrowIfNull(options);
@@ -34,6 +37,7 @@ internal sealed class DbSession : IDbSession
         _commandTimeoutSeconds = (int)Math.Ceiling(options.CommandTimeout.TotalSeconds);
         _retryAttempts = Math.Max(1, options.DeadlockRetryAttempts);
         _log = log ?? NullLogger<DbSession>.Instance;
+        _writeQueue = dialect.OwnedWriteQueue(options.ConnectionString);
     }
 
     public DbProvider Provider { get; }
@@ -173,12 +177,36 @@ internal sealed class DbSession : IDbSession
             ct
         );
 
+    /// <summary>Runs one owned write, behind the write queue when the session has one.</summary>
+    private async Task<T> ExecuteThenCommitAsync<T>(
+        StoreCommand command,
+        Action<DbCommand> bind,
+        Func<DbCommand, StoreExecutionKind, CancellationToken, Task<T>> execute,
+        CancellationToken ct
+    )
+    {
+        if (_writeQueue is null)
+        {
+            return await ExecuteThenCommitCoreAsync(command, bind, execute, ct);
+        }
+
+        await _writeQueue.WaitAsync(ct);
+        try
+        {
+            return await ExecuteThenCommitCoreAsync(command, bind, execute, ct);
+        }
+        finally
+        {
+            _writeQueue.Release();
+        }
+    }
+
     /// <summary>
     /// Retries database-aborted attempts after cleanup. SQLite keeps its transaction open until
     /// reading succeeds, then commits outside retry. Server calls commit inside the command.
     /// Binding, mapping, and resource-disposal failures are excluded from conflict classification.
     /// </summary>
-    private async Task<T> ExecuteThenCommitAsync<T>(
+    private async Task<T> ExecuteThenCommitCoreAsync<T>(
         StoreCommand command,
         Action<DbCommand> bind,
         Func<DbCommand, StoreExecutionKind, CancellationToken, Task<T>> execute,
@@ -433,7 +461,23 @@ internal sealed class DbSession : IDbSession
         }
     }
 
-    public Task<T> RunWithRetryAsync<T>(Func<CancellationToken, Task<T>> action, CancellationToken ct) => Run(action, ct);
+    public async Task<T> RunWithRetryAsync<T>(Func<CancellationToken, Task<T>> action, CancellationToken ct)
+    {
+        if (_writeQueue is null)
+        {
+            return await Run(action, ct);
+        }
+
+        await _writeQueue.WaitAsync(ct);
+        try
+        {
+            return await Run(action, ct);
+        }
+        finally
+        {
+            _writeQueue.Release();
+        }
+    }
 
     private Task<T> Run<T>(Func<CancellationToken, Task<T>> action, CancellationToken ct) =>
         UnwrapClientFailureAsync(() =>

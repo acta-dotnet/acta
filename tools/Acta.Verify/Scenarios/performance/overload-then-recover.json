@@ -18,7 +18,7 @@
     "overload_rate": {
       "pg": 13000,
       "mssql": 8000,
-      "sqlite": 800
+      "sqlite": 1000
     },
     "recovery_rate": {
       "pg": 2500,

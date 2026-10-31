@@ -26,6 +26,12 @@ internal interface ISqlDialect
     DbTransaction? BeginOwnedWriteTransaction(DbConnection connection) => null;
 
     /// <summary>
+    /// The queue every session on this database shares for its owned write transactions, which then run one at a time in
+    /// the order they ask; null when the database needs none, as server databases, which lock rows, do not.
+    /// </summary>
+    SemaphoreSlim? OwnedWriteQueue(string connectionString) => null;
+
+    /// <summary>
     /// Whether an exception is a transient lock conflict (the database aborted this command as a
     /// deadlock victim) that re-running the rolled-back command can recover from. The default treats
     /// nothing as transient; providers that surface deadlock codes (SQL Server 1205, PostgreSQL 40P01)

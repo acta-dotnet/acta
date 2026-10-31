@@ -50,9 +50,9 @@ internal interface IDbSession
     Task ExecuteAsync(StoreCommand command, Action<DbCommand> bind, CancellationToken ct);
 
     /// <summary>
-    /// Runs <paramref name="action"/> under the session's bounded transient-conflict retry. For raw
-    /// commands composed outside the named operations (the test support's table writes); named
-    /// operations retry already.
+    /// Runs <paramref name="action"/> under the session's bounded transient-conflict retry, in the owned write queue
+    /// when the database has one. For raw writes composed outside the named operations (the test support's table
+    /// writes); named operations retry and queue already.
     /// </summary>
     Task<T> RunWithRetryAsync<T>(Func<CancellationToken, Task<T>> action, CancellationToken ct);
 }
