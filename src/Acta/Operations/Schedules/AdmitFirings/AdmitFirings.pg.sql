@@ -16,16 +16,16 @@ FROM json_to_recordset(@p_groups::json) AS g (
     envelope TEXT, job_ref UUID, deduplication_key VARCHAR, trigger_message VARCHAR, trigger_details TEXT);
 CREATE TEMP TABLE _adm_rows ON COMMIT DROP AS
 SELECT
-    a.group_ordinal, a.schedule_id, a.schedule_name, a.expected_version,
+    a.group_ordinal, a.schedule_id, a.schedule_name, a.expected_version, a.expected_schedule_version,
     a.next_occurrence_at_utc, a.next_evaluation_at_utc, a.evaluation_status_code,
-    a.pause_ended, a.admitted_details, a.skipped_details, a.expired_details, a.expire_paused
+    a.pause_ended, a.admitted_details, a.skipped_details, a.expired_details, a.expire_paused, a.check_only
 FROM json_to_recordset(@p_rows::json) AS a (
-    group_ordinal INT, schedule_id INT, schedule_name VARCHAR, expected_version INT,
+    group_ordinal INT, schedule_id INT, schedule_name VARCHAR, expected_version INT, expected_schedule_version INT,
     next_occurrence_at_utc TIMESTAMPTZ, next_evaluation_at_utc TIMESTAMPTZ,
     evaluation_status_code SMALLINT, pause_ended BOOLEAN, admitted_details TEXT, skipped_details TEXT,
-    expired_details TEXT, expire_paused BOOLEAN);
+    expired_details TEXT, expire_paused BOOLEAN, check_only BOOLEAN);
 CREATE TEMP TABLE _adm_slots (job_id BIGINT NOT NULL, valid BOOLEAN NOT NULL) ON COMMIT DROP;
-CREATE TEMP TABLE _adm_states (schedule_id INT NOT NULL, version INT NOT NULL) ON COMMIT DROP;
+CREATE TEMP TABLE _adm_states (schedule_id INT NOT NULL, version INT NOT NULL, schedule_version INT NOT NULL) ON COMMIT DROP;
 CREATE TEMP TABLE _adm_valid (ordinal INT NOT NULL) ON COMMIT DROP;
 CREATE TEMP TABLE _adm_lock (granted INT NOT NULL) ON COMMIT DROP;
 
@@ -41,10 +41,12 @@ WHERE g.job_id IS NOT NULL
 ORDER BY r.job_id
 FOR UPDATE OF r;
 
--- Every schedule state the plan touches, a member's or a per-occurrence group's own, in id order.
-INSERT INTO _adm_states (schedule_id, version)
-SELECT st.schedule_id, st.version
+-- Every schedule state the plan touches, a member's or a per-occurrence group's own, in id order, with its
+-- declaration's version; every writer of a declaration holds the schedule lock exclusive, so it reads settled.
+INSERT INTO _adm_states (schedule_id, version, schedule_version)
+SELECT st.schedule_id, st.version, s.version
 FROM {{schema}}.schedules_state st
+INNER JOIN {{schema}}.schedules s ON s.schedule_id = st.schedule_id
 WHERE st.schedule_id IN (
     SELECT a.schedule_id FROM _adm_rows a
     UNION
@@ -54,8 +56,8 @@ ORDER BY st.schedule_id
 FOR UPDATE OF st;
 
 -- A group applies whole or not at all: a slot, a member, or a per-occurrence schedule's own state another writer
--- moved since the plan read it replans; the state version is what every settlement bumps, so the capacity the plan
--- read still holds.
+-- moved since the plan read it replans; the state version is what every settlement bumps, and the declaration's is
+-- what a capacity or policy change bumps, so what the plan applied still holds.
 INSERT INTO _adm_valid (ordinal)
 SELECT g.ordinal
 FROM _adm_groups g
@@ -67,7 +69,9 @@ WHERE
         SELECT 1
         FROM _adm_rows a
         INNER JOIN _adm_states x ON x.schedule_id = a.schedule_id
-        WHERE a.group_ordinal = g.ordinal AND x.version <> a.expected_version
+        WHERE
+            a.group_ordinal = g.ordinal
+            AND (x.version <> a.expected_version OR x.schedule_version <> a.expected_schedule_version)
     );
 
 UPDATE {{schema}}.jobs_state r
@@ -127,7 +131,7 @@ ON CONFLICT (job_id, checkpoint_kind_code, checkpoint_name) DO UPDATE SET
     modified_at_utc = now(),
     version = {{schema}}.checkpoints.version + 1;
 
--- The cursors move, and an admitted root is charged to its schedule.
+-- The cursors move, and an admitted root is charged to its schedule. A check-only row writes nothing.
 UPDATE {{schema}}.schedules_state st
 SET
     next_occurrence_at_utc = a.next_occurrence_at_utc,
@@ -139,7 +143,7 @@ SET
 FROM _adm_rows a
 INNER JOIN _adm_valid v ON v.ordinal = a.group_ordinal
 INNER JOIN _adm_groups g ON g.ordinal = a.group_ordinal
-WHERE st.schedule_id = a.schedule_id;
+WHERE st.schedule_id = a.schedule_id AND NOT a.check_only;
 
 -- A manual root moves no cursor; it is charged on its own.
 UPDATE {{schema}}.schedules_state st
@@ -153,7 +157,7 @@ WHERE
     st.schedule_id = g.schedule_id
     AND g.admit
     AND g.job_id IS NULL
-    AND NOT EXISTS (SELECT 1 FROM _adm_rows a WHERE a.group_ordinal = g.ordinal);
+    AND NOT EXISTS (SELECT 1 FROM _adm_rows a WHERE a.group_ordinal = g.ordinal AND NOT a.check_only);
 
 -- An elapsed timed pause ends here, the one place the admitter touches the schedules row.
 UPDATE {{schema}}.schedules js

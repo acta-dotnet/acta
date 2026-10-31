@@ -412,9 +412,11 @@ Each namespace has one schedule lock, held until its transaction ends: `sp_getap
 - Rows inside it still lock in order: the slot's `jobs_state` row, then its `sys.firing` checkpoint, then its
   `schedules_state` rows, slots and schedules in id order. Admission, settlement, cancel, restart, resume, reclaim,
   retire, and purge take them so. An admission plan is made without locks and applies only while the slot's version
-  and every member's state version still hold; a stale group replans on the next pass. A per-occurrence admission
-  locks the schedule's state row, inserts the root and its envelope after it, and applies only while that state
-  version holds, which every settlement bumps, so the capacity the plan read still holds. On PostgreSQL, registration
+  and, for every schedule it read, the state version and the declaration version still hold, a member it left
+  unchanged included; a stale group replans on the next pass. A declaration change that moves no cursor (capacity,
+  misfire or expiry policy) bumps only the declaration version, so it still fails a plan read before it. A
+  per-occurrence admission locks the schedule's state row, inserts the root and its envelope after it, and applies
+  only while that state version holds, which every settlement bumps. On PostgreSQL, registration
   locks its slots' `jobs_state` rows in key order, because a completion that settles a child locks its slot parent's
   row without the schedule lock.
 - A PostgreSQL statement that updates one `schedules_state` row twice keeps only one of the updates, so the reclaim

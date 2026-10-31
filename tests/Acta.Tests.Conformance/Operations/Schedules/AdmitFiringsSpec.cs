@@ -96,6 +96,68 @@ public sealed class AdmitFiringsSpec : ActaStorageTestBase<ConformanceFixture>
         Assert.Equal(slotBefore.JobState.Version, slotAfter.JobState.Version);
     }
 
+    [Fact(DisplayName = "A slot group applies nothing when a member it left unchanged had its declaration changed after the plan read it")]
+    public async Task A_member_declaration_changed_after_the_plan_fails_its_group()
+    {
+        var ct = TestContext.Current.CancellationToken;
+        var now = FloorSeconds(DateTime.UtcNow);
+        var jobName = Unique("member");
+        var due = Schedule("due", now.AddMinutes(-1));
+        var later = Schedule("later", now.AddHours(6));
+        var slotId = (await RegisterAsync(jobName, ScheduledDeliveryCode.Permanent, [due, later], ct)).SlotId!.Value;
+        var before = await ScheduleTestOps.ReadAsync(Db, slotId, ct);
+
+        var plan = await PlanAsync(now, ct);
+        Assert.True(Assert.Single(plan.Groups).Admit);
+        Assert.Contains(plan.Rows, r => r.ScheduleName == "later" && r.CheckOnly);
+
+        // The misfire policy sits outside the timing fingerprint, so the change moves the declaration and no cursor.
+        await RegisterAsync(
+            jobName,
+            ScheduledDeliveryCode.Permanent,
+            [due, later with { MisfireStrategy = MisfireStrategyCode.CatchUpOnce }],
+            ct
+        );
+        var registered = await ScheduleTestOps.ReadAsync(Db, slotId, ct);
+        Assert.Equal(before.Select(s => s.Cursor.Version), registered.Select(s => s.Cursor.Version));
+
+        Assert.False(Assert.Single((await Admit(plan, ct)).Groups).Applied);
+        Assert.Equal(JobStatusCode.Idle, (await ReadJobAsync(slotId, ct)).Status);
+        Assert.Equal(before.Select(s => s.Cursor.Version), (await ScheduleTestOps.ReadAsync(Db, slotId, ct)).Select(s => s.Cursor.Version));
+    }
+
+    [Fact(DisplayName = "A per-occurrence plan read before its capacity was lowered admits nothing, and the outstanding count stays")]
+    public async Task A_capacity_lowered_after_the_plan_admits_nothing()
+    {
+        var ct = TestContext.Current.CancellationToken;
+        var now = FloorSeconds(DateTime.UtcNow);
+        var jobName = Unique("capacity");
+        var roomy = Schedule("only", now.AddMinutes(-1)) with { MaxOutstanding = 2 };
+        var (defId, _) = await RegisterAsync(jobName, ScheduledDeliveryCode.PerOccurrence, [roomy], ct);
+        var scheduleId = (await Db.From<ScheduleEntity>().Where(s => s.DefinitionId == defId).SingleOrDefaultAsync(ct))!.Id;
+
+        // One root is outstanding, so the plan sees room for one more.
+        Assert.Equal(
+            1,
+            await Db.From<ScheduleStateEntity>()
+                .Where(s => s.Id == scheduleId)
+                .UpdateOnlyAsync(() => new ScheduleStateEntity { OutstandingCount = 1 }, ct)
+        );
+        var plan = await PlanAsync(now, ct);
+        Assert.True(Assert.Single(plan.Groups).Admit);
+        var state = await Db.From<ScheduleStateEntity>().Where(s => s.Id == scheduleId).SingleOrDefaultAsync(ct);
+
+        await RegisterAsync(jobName, ScheduledDeliveryCode.PerOccurrence, [roomy with { MaxOutstanding = 1 }], ct);
+        Assert.Equal(
+            state!.Version,
+            (await Db.From<ScheduleStateEntity>().Where(s => s.Id == scheduleId).SingleOrDefaultAsync(ct))!.Version
+        );
+
+        Assert.False(Assert.Single((await Admit(plan, ct)).Groups).Applied);
+        Assert.Equal(1, (await Db.From<ScheduleStateEntity>().Where(s => s.Id == scheduleId).SingleOrDefaultAsync(ct))!.OutstandingCount);
+        Assert.Equal(0, await Db.From<JobEntity>().Where(j => j.DefinitionId == defId).CountAsync(ct));
+    }
+
     private async Task<AdmitFiringsCommand> PlanAsync(DateTime nowUtc, CancellationToken ct)
     {
         var due = await Services
@@ -108,24 +170,37 @@ public sealed class AdmitFiringsSpec : ActaStorageTestBase<ConformanceFixture>
         Services.GetRequiredService<AdmitFiringsHandler>().HandleAsync(plan, ct);
 
     /// <summary>One definition with one Skip schedule whose cursor sits at <paramref name="cursor"/>; returns its slot.</summary>
-    private async Task<long> RegisterAsync(string jobName, DateTime cursor, CancellationToken ct)
+    private async Task<long> RegisterAsync(string jobName, DateTime cursor, CancellationToken ct) =>
+        (await RegisterAsync(jobName, ScheduledDeliveryCode.Permanent, [Schedule("only", cursor)], ct)).SlotId!.Value;
+
+    /// <summary>Registers the definition and its schedules again with each call; a per-occurrence definition has no slot.</summary>
+    private async Task<(int DefinitionId, long? SlotId)> RegisterAsync(
+        string jobName,
+        ScheduledDeliveryCode delivery,
+        IReadOnlyList<SlotSchedule> schedules,
+        CancellationToken ct
+    )
     {
-        var defId = (await DefinitionTestOps.RegisterAsync(Services, TestNamespaceId, Generation, [Def(jobName)], ct))[jobName];
+        var defId = (await DefinitionTestOps.RegisterAsync(Services, TestNamespaceId, Generation, [Def(jobName, delivery)], ct))[jobName];
         var definition = new DefinitionSchedules(
             NamespaceId: TestNamespaceId,
             DefinitionId: defId,
             InputFormatId: 0,
             Input: ReadOnlyMemory<byte>.Empty,
             EventRecording: EventRecordingCode.Audit,
-            ScheduledDelivery: ScheduledDeliveryCode.Permanent,
-            Schedules: [new SlotSchedule("only", Cron5, null, MisfireStrategyCode.Skip, ScheduleExpressionKindCode.Cron, null, cursor)]
+            ScheduledDelivery: delivery,
+            Schedules: schedules
         );
-        return (await ScheduleTestOps.RegisterAsync(Services, [definition], ct))[defId];
+        var slots = await ScheduleTestOps.RegisterAsync(Services, [definition], ct);
+        return (defId, slots.TryGetValue(defId, out var slotId) ? slotId : null);
     }
+
+    private static SlotSchedule Schedule(string name, DateTime cursor) =>
+        new(name, Cron5, null, MisfireStrategyCode.Skip, ScheduleExpressionKindCode.Cron, null, cursor);
 
     private static DateTime FloorSeconds(DateTime t) => new(t.Ticks - (t.Ticks % TimeSpan.TicksPerSecond), t.Kind);
 
-    private static JobDescriptor Def(string name) =>
+    private static JobDescriptor Def(string name, ScheduledDeliveryCode delivery = ScheduledDeliveryCode.Permanent) =>
         new(
             JobName: name,
             HandlerType: typeof(object),
@@ -139,7 +214,7 @@ public sealed class AdmitFiringsSpec : ActaStorageTestBase<ConformanceFixture>
             EventRecording: default,
             AlertProfile: default,
             FiringFailurePolicy: FiringFailurePolicyCode.Continue,
-            ScheduledDelivery: ScheduledDeliveryCode.Permanent,
+            ScheduledDelivery: delivery,
             Invoker: null!,
             DeserializeInput: null!,
             SerializeOutput: null

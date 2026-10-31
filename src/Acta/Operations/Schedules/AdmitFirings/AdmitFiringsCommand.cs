@@ -2,7 +2,7 @@ namespace Acta;
 
 /// <summary>
 /// One admission pass's plan for one namespace: a group per slot or per per-occurrence schedule (admit a firing, or
-/// only move cursors) and a row per evaluated schedule, linked to its group by ordinal. Each carries the version it was
+/// only move cursors) and a row per schedule the group read, linked to it by ordinal. Each carries the versions it was
 /// planned against; a group applies whole or not at all. Decision event details are built here, so the SQL stores them
 /// without formatting an instant.
 /// </summary>
@@ -32,14 +32,16 @@ internal sealed record AdmitFiringsGroup(
 );
 
 /// <summary>
-/// One evaluated schedule of a plan: its new cursor fields, the audit each decision leaves, and whether an expired
-/// occurrence pauses it for an operator.
+/// One schedule a group read, at its state version and the declaration version its capacity and policies came from: its
+/// new cursor fields, the audit each decision leaves, and whether an expired occurrence pauses it for an operator. A
+/// check-only row writes nothing; it fails its group when either version moved.
 /// </summary>
 internal sealed record AdmitFiringsValues(
     int GroupOrdinal,
     int ScheduleId,
     string ScheduleName,
     int ExpectedVersion,
+    int ExpectedScheduleVersion,
     DateTime? NextOccurrenceAtUtc,
     DateTime? NextEvaluationAtUtc,
     EvaluationStatusCode EvaluationStatus,
@@ -47,5 +49,26 @@ internal sealed record AdmitFiringsValues(
     string? AdmittedDetails,
     string? SkippedDetails,
     string? ExpiredDetails,
-    bool ExpirePaused
-);
+    bool ExpirePaused,
+    bool CheckOnly = false
+)
+{
+    /// <summary>A schedule the group read and leaves as it is, so the group still applies only at what it read.</summary>
+    public static AdmitFiringsValues Check(int groupOrdinal, int scheduleId, string scheduleName, int stateVersion, int scheduleVersion) =>
+        new(
+            groupOrdinal,
+            scheduleId,
+            scheduleName,
+            stateVersion,
+            scheduleVersion,
+            null,
+            null,
+            default,
+            false,
+            null,
+            null,
+            null,
+            false,
+            true
+        );
+}

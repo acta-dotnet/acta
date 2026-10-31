@@ -157,7 +157,8 @@ internal sealed class ScheduleAdmitter(
 
     /// <summary>
     /// The plan: one group per slot, every member whose evaluation selected an occurrence contributing to its one
-    /// firing, and one group per per-occurrence schedule. A schedule nothing changed for writes no row. A group's
+    /// firing, and one group per per-occurrence schedule. A slot member nothing changed for rides as a check-only row,
+    /// and a group that would carry only those, like a per-occurrence schedule nothing changed for, is left out. A group's
     /// ordinal is its index. Calendars resolve through <paramref name="calendars"/>, preloaded for the rows; a schedule
     /// whose source fails is parked as an evaluation error and, given a logger, said so. Given a list, the decisions each
     /// group's rows took are collected for the meter, by ordinal.
@@ -209,12 +210,14 @@ internal sealed class ScheduleAdmitter(
         var capacity = Capacity(slotStatus, first.FiringStatus);
         var contributors = new List<FiringContributor>();
         var slotRows = new List<AdmitFiringsValues>();
+        var checks = new List<AdmitFiringsValues>();
         var firingId = Guid.CreateVersion7();
         foreach (var s in members)
         {
             var e = Evaluate(s, capacity, nowUtc, resolve, log);
             if (!e.Changes(Cursor(s), s.EvaluationStatus, s.NextEvaluationAtUtc))
             {
+                checks.Add(AdmitFiringsValues.Check(ordinal, s.ScheduleId, s.ScheduleName, s.StateVersion, s.ScheduleVersion));
                 continue;
             }
 
@@ -245,6 +248,7 @@ internal sealed class ScheduleAdmitter(
                 ).ToJson();
         groups.Add(new AdmitFiringsGroup(ordinal, jobId, slotVersion, null, null, contributors.Count > 0, envelope));
         rows.AddRange(slotRows);
+        rows.AddRange(checks);
     }
 
     /// <summary>
@@ -397,6 +401,7 @@ internal sealed class ScheduleAdmitter(
             s.ScheduleId,
             s.ScheduleName,
             s.StateVersion,
+            s.ScheduleVersion,
             e.NextOccurrenceAtUtc,
             e.NextEvaluationAtUtc,
             e.Status,

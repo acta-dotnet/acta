@@ -25,6 +25,7 @@ SELECT
     json_extract(a.value, '$.schedule_id') AS schedule_id,
     json_extract(a.value, '$.schedule_name') AS schedule_name,
     json_extract(a.value, '$.expected_version') AS expected_version,
+    json_extract(a.value, '$.expected_schedule_version') AS expected_schedule_version,
     json_extract(a.value, '$.next_occurrence_at_utc') AS next_occurrence_at_utc,
     json_extract(a.value, '$.next_evaluation_at_utc') AS next_evaluation_at_utc,
     json_extract(a.value, '$.evaluation_status_code') AS evaluation_status_code,
@@ -32,12 +33,13 @@ SELECT
     json_extract(a.value, '$.admitted_details') AS admitted_details,
     json_extract(a.value, '$.skipped_details') AS skipped_details,
     json_extract(a.value, '$.expired_details') AS expired_details,
-    json_extract(a.value, '$.expire_paused') AS expire_paused
+    json_extract(a.value, '$.expire_paused') AS expire_paused,
+    json_extract(a.value, '$.check_only') AS check_only
 FROM json_each(@p_rows) a;
 
--- A group applies whole or not at all. A slot group needs the slot at the version it read, Idle when it admits, and
--- every member's state version; a per-occurrence group needs its schedule's state version, which every settlement
--- bumps, so the capacity the plan read still holds.
+-- A group applies whole or not at all. A slot group needs the slot at the version it read, Idle when it admits; a
+-- per-occurrence group needs its schedule's state version, which every settlement bumps. Every schedule a group read
+-- needs its state version and its declaration's, so the capacity and policies the plan applied still hold.
 CREATE TEMP TABLE _adm_valid AS
 SELECT g.ordinal
 FROM temp._adm_groups g
@@ -53,7 +55,8 @@ WHERE
         SELECT 1
         FROM temp._adm_rows a
         JOIN {{schema}}.schedules_state st ON st.schedule_id = a.schedule_id
-        WHERE a.group_ordinal = g.ordinal AND st.version <> a.expected_version
+        JOIN {{schema}}.schedules s ON s.schedule_id = a.schedule_id
+        WHERE a.group_ordinal = g.ordinal AND (st.version <> a.expected_version OR s.version <> a.expected_schedule_version)
     );
 
 UPDATE {{schema}}.jobs_state
@@ -112,7 +115,7 @@ ON CONFLICT (job_id, checkpoint_kind_code, checkpoint_name) DO UPDATE SET
     modified_at_utc = {{now}},
     version = version + 1;
 
--- The cursors move, and an admitted root is charged to its schedule.
+-- The cursors move, and an admitted root is charged to its schedule. A check-only row writes nothing.
 UPDATE {{schema}}.schedules_state AS st
 SET
     next_occurrence_at_utc = a.next_occurrence_at_utc,
@@ -124,7 +127,7 @@ SET
 FROM temp._adm_rows a
 JOIN temp._adm_valid v ON v.ordinal = a.group_ordinal
 JOIN temp._adm_groups g ON g.ordinal = a.group_ordinal
-WHERE st.schedule_id = a.schedule_id;
+WHERE st.schedule_id = a.schedule_id AND a.check_only = 0;
 
 -- A manual root moves no cursor; it is charged on its own.
 UPDATE {{schema}}.schedules_state
@@ -136,7 +139,9 @@ WHERE schedule_id IN (
     SELECT g.schedule_id
     FROM temp._adm_groups g
     JOIN temp._adm_valid v ON v.ordinal = g.ordinal
-    WHERE g.admit = 1 AND g.job_id IS NULL AND NOT EXISTS (SELECT 1 FROM temp._adm_rows a WHERE a.group_ordinal = g.ordinal)
+    WHERE
+        g.admit = 1 AND g.job_id IS NULL
+        AND NOT EXISTS (SELECT 1 FROM temp._adm_rows a WHERE a.group_ordinal = g.ordinal AND a.check_only = 0)
 );
 
 -- An elapsed timed pause ends here, the one place the admitter touches the schedules row.

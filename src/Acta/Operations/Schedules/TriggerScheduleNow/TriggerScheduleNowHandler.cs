@@ -59,7 +59,10 @@ internal sealed class TriggerScheduleNowHandler(
         }
     }
 
-    /// <summary>A manual root: one admitting group with no member rows, keyed by its firing so it is never deduplicated.</summary>
+    /// <summary>
+    /// A manual root: one admitting group, keyed by its firing so it is never deduplicated, and its schedule as a
+    /// check-only row, so a pause or a lowered capacity committed after the read rejects it.
+    /// </summary>
     private async Task<bool> AdmitRootAsync(TriggerScheduleNowCommand command, ResolveScheduleTargetResponse target, CancellationToken ct)
     {
         var firingId = Guid.CreateVersion7();
@@ -76,7 +79,8 @@ internal sealed class TriggerScheduleNowHandler(
             TriggerMessage: command.ReasonMessage.Truncate(ActaTextLimits.EventMessage),
             TriggerDetails: ScheduleControl.DetailsText(target.ScheduleName, command.Actor)
         );
-        var outcome = await admitFirings.HandleAsync(new AdmitFiringsCommand(target.NamespaceId, [group], []), ct);
+        var read = AdmitFiringsValues.Check(0, target.ScheduleId, target.ScheduleName, target.StateVersion, target.Version);
+        var outcome = await admitFirings.HandleAsync(new AdmitFiringsCommand(target.NamespaceId, [group], [read]), ct);
         return outcome.Groups[0].Applied;
     }
 

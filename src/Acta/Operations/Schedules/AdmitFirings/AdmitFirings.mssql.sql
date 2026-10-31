@@ -27,6 +27,7 @@ BEGIN TRY
         group_ordinal INT NOT NULL,
         schedule_name VARCHAR(128) NOT NULL,
         expected_version INT NOT NULL,
+        expected_schedule_version INT NOT NULL,
         next_occurrence_at_utc DATETIME2(3) NULL,
         next_evaluation_at_utc DATETIME2(3) NULL,
         evaluation_status_code TINYINT NOT NULL,
@@ -34,9 +35,10 @@ BEGIN TRY
         admitted_details NVARCHAR(MAX) NULL,
         skipped_details NVARCHAR(MAX) NULL,
         expired_details NVARCHAR(MAX) NULL,
-        expire_paused BIT NOT NULL);
+        expire_paused BIT NOT NULL,
+        check_only BIT NOT NULL);
     DECLARE @slots TABLE (job_id BIGINT NOT NULL PRIMARY KEY, valid BIT NOT NULL);
-    DECLARE @states TABLE (schedule_id INT NOT NULL PRIMARY KEY, version INT NOT NULL);
+    DECLARE @states TABLE (schedule_id INT NOT NULL PRIMARY KEY, version INT NOT NULL, schedule_version INT NOT NULL);
     DECLARE @valid TABLE (ordinal INT NOT NULL PRIMARY KEY);
 
     INSERT INTO @groups (
@@ -52,20 +54,20 @@ BEGIN TRY
         trigger_message NVARCHAR(512) '$.trigger_message', trigger_details NVARCHAR(MAX) '$.trigger_details');
 
     INSERT INTO @rows (
-        schedule_id, group_ordinal, schedule_name, expected_version,
+        schedule_id, group_ordinal, schedule_name, expected_version, expected_schedule_version,
         next_occurrence_at_utc, next_evaluation_at_utc, evaluation_status_code,
-        pause_ended, admitted_details, skipped_details, expired_details, expire_paused)
+        pause_ended, admitted_details, skipped_details, expired_details, expire_paused, check_only)
     SELECT
-        schedule_id, group_ordinal, schedule_name, expected_version,
+        schedule_id, group_ordinal, schedule_name, expected_version, expected_schedule_version,
         next_occurrence_at_utc, next_evaluation_at_utc, evaluation_status_code,
-        pause_ended, admitted_details, skipped_details, expired_details, expire_paused
+        pause_ended, admitted_details, skipped_details, expired_details, expire_paused, check_only
     FROM OPENJSON(@p_rows) WITH (
         schedule_id INT '$.schedule_id', group_ordinal INT '$.group_ordinal', schedule_name VARCHAR(128) '$.schedule_name',
-        expected_version INT '$.expected_version',
+        expected_version INT '$.expected_version', expected_schedule_version INT '$.expected_schedule_version',
         next_occurrence_at_utc DATETIME2(3) '$.next_occurrence_at_utc',
         next_evaluation_at_utc DATETIME2(3) '$.next_evaluation_at_utc', evaluation_status_code TINYINT '$.evaluation_status_code',
         pause_ended BIT '$.pause_ended', admitted_details NVARCHAR(MAX) '$.admitted_details', skipped_details NVARCHAR(MAX) '$.skipped_details',
-        expired_details NVARCHAR(MAX) '$.expired_details', expire_paused BIT '$.expire_paused');
+        expired_details NVARCHAR(MAX) '$.expired_details', expire_paused BIT '$.expire_paused', check_only BIT '$.check_only');
 
     -- The namespace's schedule lock, shared, before any row lock (docs/sql-internals.md, "Schedule lock").
     EXEC @lock_result = sys.sp_getapplock @lock_resource, 'Shared', 'Transaction', -1;
@@ -73,8 +75,9 @@ BEGIN TRY
         THROW 51205, 'ACTA:SCHEDULE_LOCK:The namespace schedule lock was not granted (deadlock victim or cancelled).', 1;
 
     -- Slot rows in id order, then every schedule state the plan touches, a member's or a per-occurrence group's own,
-    -- in id order, each a key seek under an update lock. An admitting slot group needs the slot Idle at the version it
-    -- read; a cursor-only group needs only the version.
+    -- in id order, each a key seek under an update lock, with its declaration's version; every writer of a declaration
+    -- holds the schedule lock exclusive, so it reads settled. An admitting slot group needs the slot Idle at the version
+    -- it read; a cursor-only group needs only the version.
     INSERT INTO @slots (job_id, valid)
     SELECT
         g.job_id,
@@ -83,18 +86,19 @@ BEGIN TRY
     INNER JOIN {{schema}}.jobs_state r WITH (UPDLOCK, ROWLOCK, FORCESEEK) ON r.job_id = g.job_id
     WHERE g.job_id IS NOT NULL;
 
-    INSERT INTO @states (schedule_id, version)
-    SELECT st.schedule_id, st.version
+    INSERT INTO @states (schedule_id, version, schedule_version)
+    SELECT st.schedule_id, st.version, s.version
     FROM (
         SELECT a.schedule_id FROM @rows a
         UNION
         SELECT g.schedule_id FROM @groups g WHERE g.schedule_id IS NOT NULL
     ) k
-    INNER JOIN {{schema}}.schedules_state st WITH (UPDLOCK, ROWLOCK, FORCESEEK) ON st.schedule_id = k.schedule_id;
+    INNER JOIN {{schema}}.schedules_state st WITH (UPDLOCK, ROWLOCK, FORCESEEK) ON st.schedule_id = k.schedule_id
+    INNER JOIN {{schema}}.schedules s WITH (FORCESEEK) ON s.schedule_id = k.schedule_id;
 
     -- A group applies whole or not at all: a slot, a member, or a per-occurrence schedule's own state another writer
-    -- moved since the plan read it replans; the state version is what every settlement bumps, so the capacity the plan
-    -- read still holds.
+    -- moved since the plan read it replans; the state version is what every settlement bumps, and the declaration's is
+    -- what a capacity or policy change bumps, so what the plan applied still holds.
     INSERT INTO @valid (ordinal)
     SELECT g.ordinal
     FROM @groups g
@@ -109,7 +113,9 @@ BEGIN TRY
             SELECT 1
             FROM @rows a
             INNER JOIN @states x ON x.schedule_id = a.schedule_id
-            WHERE a.group_ordinal = g.ordinal AND x.version <> a.expected_version
+            WHERE
+                a.group_ordinal = g.ordinal
+                AND (x.version <> a.expected_version OR x.schedule_version <> a.expected_schedule_version)
         );
 
     UPDATE r
@@ -190,7 +196,7 @@ BEGIN TRY
                 AND cp.checkpoint_name = 'sys.firing'
         );
 
-    -- The cursors move, and an admitted root is charged to its schedule.
+    -- The cursors move, and an admitted root is charged to its schedule. A check-only row writes nothing.
     UPDATE st
     SET
         next_occurrence_at_utc = a.next_occurrence_at_utc,
@@ -202,7 +208,8 @@ BEGIN TRY
     FROM {{schema}}.schedules_state st WITH (FORCESEEK)
     INNER JOIN @rows a ON a.schedule_id = st.schedule_id
     INNER JOIN @valid v ON v.ordinal = a.group_ordinal
-    INNER JOIN @groups g ON g.ordinal = a.group_ordinal;
+    INNER JOIN @groups g ON g.ordinal = a.group_ordinal
+    WHERE a.check_only = 0;
 
     -- A manual root moves no cursor; it is charged on its own.
     UPDATE st
@@ -216,7 +223,7 @@ BEGIN TRY
     WHERE
         g.admit = 1
         AND g.job_id IS NULL
-        AND NOT EXISTS (SELECT 1 FROM @rows a WHERE a.group_ordinal = g.ordinal);
+        AND NOT EXISTS (SELECT 1 FROM @rows a WHERE a.group_ordinal = g.ordinal AND a.check_only = 0);
 
     -- An elapsed timed pause ends here, the one place the admitter touches the schedules row.
     UPDATE js

@@ -37,6 +37,7 @@ internal static class AdmitFiringsJson
                 writer.WriteNumber("schedule_id", r.ScheduleId);
                 writer.WriteString("schedule_name", r.ScheduleName);
                 writer.WriteNumber("expected_version", r.ExpectedVersion);
+                writer.WriteNumber("expected_schedule_version", r.ExpectedScheduleVersion);
                 writeInstant(writer, "next_occurrence_at_utc", r.NextOccurrenceAtUtc);
                 writeInstant(writer, "next_evaluation_at_utc", r.NextEvaluationAtUtc);
                 writer.WriteNumber("evaluation_status_code", (byte)r.EvaluationStatus);
@@ -45,6 +46,7 @@ internal static class AdmitFiringsJson
                 JsonRows.Text(writer, "skipped_details", r.SkippedDetails);
                 JsonRows.Text(writer, "expired_details", r.ExpiredDetails);
                 writer.WriteBoolean("expire_paused", r.ExpirePaused);
+                writer.WriteBoolean("check_only", r.CheckOnly);
             }
         );
 }
