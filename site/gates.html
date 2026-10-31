@@ -3,13 +3,13 @@
 <head>
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1" />
-  <title>Run jobs in order, limit how many run at once, and pace how often they start · the durable work ledger for .NET</title>
+  <title>Run jobs in order, limit how many run at once, and pace how often they start · Acta, durable jobs and workflows for .NET</title>
   <meta name="description" content="Lanes for order, concurrency keys and limits for how many run at once, rate limits for how often they start. Step the same five jobs through each gate and see what the ledger records." />
   <link rel="canonical" href="https://useacta.net/gates" />
   <meta name="theme-color" content="#0B0E15" />
   <meta property="og:type" content="website" />
   <meta property="og:site_name" content="Acta for .NET" />
-  <meta property="og:title" content="Run jobs in order, limit how many run at once, and pace how often they start · the durable work ledger for .NET" />
+  <meta property="og:title" content="Run jobs in order, limit how many run at once, and pace how often they start · Acta, durable jobs and workflows for .NET" />
   <meta property="og:description" content="Lanes for order, concurrency keys and limits for how many run at once, rate limits for how often they start. Step the same five jobs through each gate and see what the ledger records." />
   <meta property="og:url" content="https://useacta.net/gates" />
   <meta property="og:image" content="https://useacta.net/assets/social-card.png" />
@@ -104,7 +104,7 @@
           <tr><th scope="row">One at a time per customer, in the order they came in<small>Item N+1 starts only after item N finished: succeeded, failed for good, or cancelled.</small></th><td class="gate">Lane</td><td class="turn"><code>await jobs.EnqueueAsync(input, o =&gt; o.Lane("customer-42"));</code><span>Or <code>[Job("sync-orders", Lane = "orders")]</code> on the definition. Start here for "one at a time per entity".</span></td></tr>
           <tr><th scope="row">Never two at once, and I do not care who goes first<small>Exclusive, unordered work. A failing job releases the key with it.</small></th><td class="gate">ConcurrencyKey</td><td class="turn"><code>await jobs.EnqueueAsync(input, o =&gt; o.ConcurrencyKey("rebuild:acme"));</code><span>The key is also the scope a ConcurrencyLimit applies to.</span></td></tr>
           <tr><th scope="row">At most N at once<small>Per key when the enqueue names one, otherwise across the whole definition: four index rebuilds, or four per tenant.</small></th><td class="gate">ConcurrencyLimit</td><td class="turn"><code>[Job("rebuild-index", ConcurrencyLimit = 4)]</code><span>An operator can change the number on a running system.</span></td></tr>
-          <tr><th scope="row">No more than so many starts a second, across the namespace<small>Pacing against a partner API or a shared resource. How often, not how many.</small></th><td class="gate">RateLimit</td><td class="turn"><code>[Job("send-invoice", RateLimit = "10/s")]</code><code>[Job("refund", RateLimit = "10/s", RateName = "stripe")]</code><span>Definitions in one namespace that name the same RateName share one meter, at the same declared rate.</span></td></tr>
+          <tr><th scope="row">Let jobs through at a steady pace, across every worker in the namespace<small>Pacing against a partner API or a shared resource. One meter paces admissions with a bounded burst, not the gap between two starts.</small></th><td class="gate">RateLimit</td><td class="turn"><code>[Job("send-invoice", RateLimit = "10/s")]</code><code>[Job("refund", RateLimit = "10/s", RateName = "stripe")]</code><span>Definitions in one namespace that name the same RateName share one meter, at the same declared rate.</span></td></tr>
         </tbody>
       </table>
 
@@ -115,7 +115,7 @@
         </div>
         <div>
           <b>Certified, under chaos</b>
-          <p>The release certification kills a worker every five seconds while laned jobs run, then checks from the database's own ledger that no lane ever ran two members at once or out of order, and that every lane drained. The same run checks three rate meters, at 10, 50 and 100 starts a second, never admitted past their published budget. <a class="golink" href="https://github.com/acta-dotnet/acta/blob/v1.0.0-rc.5/docs/release-notes.md#evidence">Certification records</a></p>
+          <p>The release certification kills a worker every five seconds while laned jobs run, then checks from the database's own ledger that no lane ever ran two members at once or out of order, and that every lane drained. The same run checks three rate meters, at 10, 50 and 100 a second, never admitted past their published budget. <a class="golink" href="https://github.com/acta-dotnet/acta/blob/v1.0.0-rc.5/docs/release-notes.md#evidence">Certification records</a></p>
         </div>
       </div>
       <p class="also">Also: <a href="/engine">how one worker runs a job</a><span class="sep">·</span><a href="/claiming">which job runs next</a><span class="sep">·</span><a href="/fleet">many workers, no coordinator</a></p>

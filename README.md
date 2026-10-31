@@ -1,6 +1,6 @@
 # Acta
 
-**Everything is a job, and every job is a row.** Acta is the durable work ledger for .NET: background jobs with named checkpoints, SQL-visible state, and operator control.
+**Everything is a job, and every job is a row.** Acta runs durable jobs and workflows for .NET in your own database: steps and variables that survive a crash, child jobs and joins, signals and long waits, ordered lanes and limits across every worker, all as rows you can query.
 
 [![CI](https://github.com/acta-dotnet/acta/actions/workflows/ci.yml/badge.svg?branch=main)](https://github.com/acta-dotnet/acta/actions/workflows/ci.yml)
 [![NuGet](https://img.shields.io/nuget/vpre/Acta.svg?label=nuget)](https://www.nuget.org/packages/Acta)

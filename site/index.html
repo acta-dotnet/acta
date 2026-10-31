@@ -3,23 +3,23 @@
 <head>
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1" />
-  <title>Acta · Durable background jobs for .NET: one job model, work that survives the process</title>
-  <meta name="description" content="Acta is a SQL-native durable background jobs library and work ledger for .NET. One job model for background tasks, recurring synchronization, parents and children, and long waits: retries, schedules, signals, recovery, and audit in the database you already run. One permanent job keeps an external system in sync and survives the worker that dies halfway." />
+  <title>Acta · Durable jobs and workflows for .NET, in your own database</title>
+  <meta name="description" content="Acta is a SQL-native durable job and workflow engine for .NET. Steps and variables that survive a crash, child jobs with fan-out and joins, signals and long waits, lanes for strict per-entity order, and concurrency and rate limits across every worker, all as rows in the Postgres, SQL Server, or SQLite you already run." />
   <link rel="canonical" href="https://useacta.net/" />
   <link rel="alternate" type="text/plain" href="/llms.txt" title="Acta for coding agents" />
   <meta name="theme-color" content="#0B0E15" />
   <meta property="og:type" content="website" />
   <meta property="og:site_name" content="Acta for .NET" />
-  <meta property="og:title" content="Acta · Durable background jobs for .NET: one job model, work that survives the process" />
-  <meta property="og:description" content="One job model for .NET: background tasks, recurring synchronization, parents and children, long waits. Every job is a row in your database; kill the worker and the next one continues from the committed state." />
+  <meta property="og:title" content="Acta · Durable jobs and workflows for .NET, in your own database" />
+  <meta property="og:description" content="Durable jobs and workflows for .NET: steps, variables, child jobs, signals, ordered lanes, and limits across every worker. Every job is a row in your database; kill the worker and the next one continues from what finished." />
   <meta property="og:url" content="https://useacta.net/" />
   <meta property="og:image" content="https://useacta.net/assets/social-card.png" />
   <meta property="og:image:width" content="1200" />
   <meta property="og:image:height" content="630" />
   <meta property="og:image:alt" content="Acta: the durable work ledger for .NET. Postgres, SQL Server, SQLite." />
   <meta name="twitter:card" content="summary_large_image" />
-  <meta name="twitter:title" content="Acta · Durable background jobs for .NET: one job model, work that survives the process" />
-  <meta name="twitter:description" content="One job model for .NET: background tasks, recurring synchronization, parents and children, long waits. Every job is a row in your database; kill the worker and the next one continues from the committed state." />
+  <meta name="twitter:title" content="Acta · Durable jobs and workflows for .NET, in your own database" />
+  <meta name="twitter:description" content="Durable jobs and workflows for .NET: steps, variables, child jobs, signals, ordered lanes, and limits across every worker. Every job is a row in your database; kill the worker and the next one continues from what finished." />
   <meta name="twitter:image" content="https://useacta.net/assets/social-card.png" />
   <meta name="twitter:image:alt" content="Acta: the durable work ledger for .NET. Postgres, SQL Server, SQLite." />
   <link rel="icon" href="favicon.svg" type="image/svg+xml" />
@@ -82,8 +82,29 @@
     .toc .t { font-family: var(--serif); font-weight: 500; font-size: clamp(1.05rem, 1.35vw, 1.3rem); line-height: 1.25; display: block; transition: color 0.15s ease; }
     .toc .s { display: block; color: var(--faint); font-size: 0.85rem; margin-top: 0.15rem; }
 
-    /* the flagship: one handler, as wide as the install block */
-    .flagship-code { max-width: 62rem; }
+    /* the flagship: one handler beside the rows its lines leave */
+    .flow { display: grid; grid-template-columns: minmax(0, 1.55fr) minmax(16rem, 1fr); gap: clamp(1.6rem, 3vw, 3rem); align-items: start; margin-top: 1.8rem; }
+    .flow > .panel.solo { margin: 0; min-width: 0; }
+    .flow > .panel pre { overflow-x: auto; }
+    /* two examples behind two words; without the script both show, one after the other */
+    .tabs { display: flex; gap: 1.8rem; margin-top: 1.6rem; border-bottom: 1px solid var(--hair); }
+    .tabs button {
+      font: inherit; font-family: var(--serif); font-weight: 500; font-size: clamp(1.05rem, 1.4vw, 1.3rem);
+      background: none; border: 0; border-bottom: 2px solid transparent; margin-bottom: -1px; padding: 0.4rem 0 0.6rem;
+      color: var(--faint); cursor: pointer; transition: color 0.15s ease;
+    }
+    .tabs button:hover { color: var(--verdi); }
+    .tabs button[aria-selected="true"] { color: var(--text); border-bottom-color: var(--verdi); }
+    .tabs button:focus-visible { outline: 2px solid var(--verdi); outline-offset: 4px; }
+    .example + .example { margin-top: 3rem; }
+    .tabs:not([hidden]) ~ .example { margin-top: 0; }
+    .example > .lede:first-child { margin-top: 1.4rem; }
+    .flow-rows { list-style: none; margin: 0; padding: 0; border-top: 1px solid var(--hair); }
+    .flow-rows li { display: grid; grid-template-columns: auto 1fr; gap: 0.2rem 0.8rem; padding: 0.9rem 0; border-bottom: 1px solid var(--hair-soft); }
+    .flow-rows b { font-family: var(--mono); font-weight: 500; font-size: 0.92rem; color: var(--verdi); }
+    .flow-rows .v { font-family: var(--mono); font-size: 0.82rem; color: var(--faint); justify-self: end; align-self: baseline; }
+    .flow-rows .d { grid-column: 1 / -1; color: var(--muted); font-size: 0.95rem; line-height: 1.5; }
+    @media (max-width: 1100px) { .flow { grid-template-columns: 1fr; } }
 
     /* capabilities at a glance: seven groups of short links into the capabilities page */
     .fgrid { display: grid; grid-template-columns: repeat(4, 1fr); gap: 2.2rem 2.4rem; margin-top: 2.4rem; }
@@ -140,10 +161,10 @@
       .install-row { grid-template-columns: 1fr auto; gap: 0.5rem 1rem; }
       .install-meta { grid-column: 1 / -1; }
     }
-    @media (prefers-reduced-motion: reduce) { .toc .t, .more .t { transition: none; } }
+    @media (prefers-reduced-motion: reduce) { .toc .t, .more .t, .tabs button { transition: none; } }
   </style>
   <script type="application/ld+json">
-    {"@context":"https://schema.org","@type":"SoftwareSourceCode","name":"Acta","description":"SQL-native durable background jobs and work ledger for .NET.","url":"https://useacta.net/","codeRepository":"https://github.com/acta-dotnet/acta","license":"https://www.apache.org/licenses/LICENSE-2.0","programmingLanguage":"C#","runtimePlatform":".NET 10","author":{"@type":"Person","name":"Marko Vončina","url":"https://www.linkedin.com/in/marko-voncina"}}
+    {"@context":"https://schema.org","@type":"SoftwareSourceCode","name":"Acta","description":"SQL-native durable jobs and workflows for .NET: steps, variables, child jobs, signals, lanes, and fleet-wide limits as rows in your own database.","url":"https://useacta.net/","codeRepository":"https://github.com/acta-dotnet/acta","license":"https://www.apache.org/licenses/LICENSE-2.0","programmingLanguage":"C#","runtimePlatform":".NET 10","author":{"@type":"Person","name":"Marko Vončina","url":"https://www.linkedin.com/in/marko-voncina"}}
   </script>
 </head>
 <body>
@@ -165,15 +186,15 @@
     <header class="wrap hero">
       <p class="record">open source · postgres · sql server · sqlite</p>
       <div class="mast-row">
-        <h1 class="masthead"><span aria-hidden="true">Acta<span class="dot">.</span></span><span class="sr-only">Acta: durable background jobs for .NET</span></h1>
+        <h1 class="masthead"><span aria-hidden="true">Acta<span class="dot">.</span></span><span class="sr-only">Acta: durable jobs and workflows for .NET</span></h1>
         <p class="dict"><b>acta</b>, n. pl. · Latin: <i>the things that have been done; the official record of proceedings.</i></p>
       </div>
       <hr class="hero-rule" />
       <div class="hero-grid">
         <div>
-          <p class="tagline">Durable background jobs for <em>.NET</em>.</p>
+          <p class="tagline">Durable jobs and workflows for <em>.NET</em>.</p>
           <p class="subhead">Everything is a job, and every job is a row.</p>
-          <p class="lede">Tasks, recurring syncs, parents with children, and long waits run through one engine, on the Postgres, SQL Server, or SQLite you already run. When a worker dies mid-job, the next one continues from the committed state.</p>
+          <p class="lede">Write a workflow as one C# handler: its steps, variables, child jobs, and waits are rows that survive a crash, and lanes and limits hold across every worker. It all lives in the Postgres, SQL Server, or SQLite database you already have, with no broker and no workflow server to run.</p>
           <div class="actions">
             <a class="button primary" href="/start">Get started</a>
             <a class="button" href="/how-it-works">How Acta works</a>
@@ -181,36 +202,85 @@
         </div>
         <nav class="toc" aria-label="What you get">
           <p class="toc-head">What you get</p>
-          <a href="/how-it-works#crash"><span><span class="t">Retries and crash recovery</span><span class="s">A dead worker's jobs go to another worker, and retries follow a backoff you declare.</span></span></a>
-          <a href="/how-it-works#steps"><span><span class="t">Steps, sleeps, and signals</span><span class="s">Wait hours or days without holding a thread; a finished step returns its recorded result instead of running again.</span></span></a>
+          <a href="/how-it-works#steps"><span><span class="t">Steps and variables that survive a crash</span><span class="s">A finished step returns its recorded result instead of running again, and variables keep the job's own state.</span></span></a>
+          <a href="/how-it-works#children"><span><span class="t">Child jobs, signals, and long waits</span><span class="s">A job starts children on any worker and waits for them, a signal, or a timer without holding a thread.</span></span></a>
+          <a href="/gates"><span><span class="t">Strict order and limits across every worker</span><span class="s">Lanes keep one customer's jobs in order, and concurrency and rate limits are counted in the database, not per process.</span></span></a>
+          <a href="/fleet"><span><span class="t">Many workers, crash recovery, no coordinator</span><span class="s">Add a worker and it starts claiming; a dead worker's jobs go to the others, and retries follow a backoff you declare.</span></span></a>
           <a href="/how-it-works#permanent"><span><span class="t">Recurring jobs on a schedule</span><span class="s">A cron or an interval fires one permanent job again and again; it keeps its state between firings.</span></span></a>
-          <a href="/gates"><span><span class="t">Order, concurrency, and rate limits</span><span class="s">Lanes keep one customer's jobs in order, keys and limits bound how many run, rates pace how often.</span></span></a>
-          <a href="/fleet"><span><span class="t">Many workers, no coordinator</span><span class="s">Add a worker and it starts claiming; stop one and its work goes to the others.</span></span></a>
         </nav>
       </div>
     </header>
 
     <section class="wrap" id="flagship">
       <p class="record">The flagship</p>
-      <h2>A job that runs every five seconds, remembers how far it got, and survives losing its worker.</h2>
-      <p class="lede">One job keeps a local copy of a web shop's orders current: each firing reads where the last one stopped, applies the next batch, and writes the new position back.</p>
-      <div class="panel solo flagship-code">
-        <div class="panel-tab">C# · the handler, simplified from the lab</div>
-        <pre><code><span class="a">[Job(<span class="s">"sync-orders"</span>)]</span>
+      <h2>One handler runs a whole workflow, or keeps a recurring job going, and survives losing its worker.</h2>
+      <div class="tabs" role="tablist" aria-label="Two example handlers" hidden>
+        <button type="button" role="tab" id="tab-workflow" aria-controls="ex-workflow" aria-selected="true">Order workflow</button>
+        <button type="button" role="tab" id="tab-sync" aria-controls="ex-sync" aria-selected="false" tabindex="-1">Recurring sync</button>
+      </div>
+
+      <div class="example" id="ex-workflow" role="tabpanel" aria-labelledby="tab-workflow">
+        <p class="lede">A workflow is a job too, with the same retries, recovery, and dashboard. This one charges the card, prepares the order in three child jobs, and waits for the courier.</p>
+        <div class="flow">
+          <div class="panel solo">
+            <div class="panel-tab">C# · an example order workflow</div>
+            <pre><code><span class="a">[Job(<span class="s">"process-order"</span>)]</span>
+<span class="k">public async</span> Task Process(Order order, JobContext ctx, CancellationToken ct)
+{
+    <span class="k">var</span> charge = <span class="k">await</span> ctx.RunStepAsync(<span class="s">"charge-card"</span>,
+        c =&gt; payments.ChargeAsync(order, c), ct);
+    <span class="k">await</span> ctx.SetVariableAsync(<span class="s">"charge-id"</span>, charge.Id, ct);
+
+    <span class="k">var</span> prepared = <span class="k">await</span> ctx.ParallelAsync(<span class="s">"prepare"</span>, p =&gt; p
+        .Child(<span class="s">"stock"</span>, <span class="k">new</span> ReserveStock(order.Id))
+        .Child(<span class="s">"shipment"</span>, <span class="k">new</span> BookShipment(order.Id))
+        .Child(<span class="s">"invoice"</span>, <span class="k">new</span> IssueInvoice(order.Id, charge.Id)), ct);
+    prepared.ThrowIfAnyFailed();
+
+    <span class="k">await</span> ctx.WaitSignalAsync(<span class="s">"picked-up"</span>, ct);
+    <span class="k">await</span> ctx.RunStepAsync(<span class="s">"send-receipt"</span>, c =&gt; mail.ReceiptAsync(order, c), ct);
+}</code></pre>
+          </div>
+          <ol class="flow-rows" aria-label="The rows these calls record">
+            <li><b>charge-card</b><span class="v">steps_view</span><span class="d">Once the step succeeds, its result is stored, and a replay returns it instead of charging the card again.</span></li>
+            <li><b>charge-id</b><span class="v">checkpoints_view</span><span class="d">A variable keeps the job's own state, for the next execution and for your SQL.</span></li>
+            <li><b>prepare</b><span class="v">jobs_view</span><span class="d">Three child jobs, each with its own retries, on any worker. The order parks until they finish and holds no worker.</span></li>
+            <li><b>picked-up</b><span class="v">checkpoints_view</span><span class="d">The signal wait is a row, and the order shows Suspended until the courier signals, minutes or days later.</span></li>
+          </ol>
+        </div>
+        <p class="hint">Kill the worker at any line. The next one re-enters the handler from the top: a step that succeeded returns its result, and the child starts find the children already there. Plain code between them runs again, and so does a step cut off before it recorded success, so give the payment call an idempotency key.</p>
+        <div class="actions">
+          <a class="button primary" href="https://github.com/acta-dotnet/acta/tree/main/concepts/200-durable-execution/201-durable-checkout">Run the checkout lab</a>
+          <a class="button" href="https://github.com/acta-dotnet/acta/tree/main/concepts/200-durable-execution/215-map-parallel-join">Run the fan-out lab</a>
+        </div>
+      </div>
+
+      <div class="example" id="ex-sync" role="tabpanel" aria-labelledby="tab-sync">
+        <p class="lede">One job keeps a local copy of a web shop's orders current: each firing reads where the last one stopped, applies the next batch, and writes the new position back.</p>
+        <div class="flow">
+          <div class="panel solo">
+            <div class="panel-tab">C# · the handler, simplified from the lab</div>
+            <pre><code><span class="a">[Job(<span class="s">"sync-orders"</span>)]</span>
 <span class="a">[Schedule(<span class="s">"every-5s"</span>, <span class="s">"PT5S"</span>)]</span>
 <span class="k">public async</span> Task Sync(JobContext ctx, CancellationToken ct)
 {
-    <span class="c">// durable job state: it outlives the firing, the retry, and the worker</span>
     <span class="k">var</span> watermark = <span class="k">await</span> ctx.GetVariableOrDefaultAsync(<span class="s">"watermark"</span>, 0L, ct);
     <span class="k">var</span> changes = <span class="k">await</span> shop.ChangesAfterAsync(watermark, 40, ct);
-    <span class="k">if</span> (changes.Count == 0) <span class="k">return</span>;   <span class="c">// up to date: nothing to do until the next firing</span>
+    <span class="k">if</span> (changes.Count == 0) <span class="k">return</span>;   <span class="c">// up to date until the next firing</span>
     <span class="k">await</span> store.ApplyAsync(changes, ct);   <span class="c">// an upsert: a replay lands once</span>
     <span class="k">await</span> ctx.SetVariableAsync(<span class="s">"watermark"</span>, changes[^1].ChangeId, ct);
 }</code></pre>
-      </div>
-      <p class="hint">Stop the worker mid-batch, with a deploy or a kill, and the next one picks the job up at the same watermark; a replayed batch is an upsert, so it lands once.</p>
-      <div class="actions">
-        <a class="button primary" href="https://github.com/acta-dotnet/acta/tree/main/concepts/100-scheduling/109-continuous-synchronization">Run the lab</a>
+          </div>
+          <ol class="flow-rows" aria-label="The rows this job keeps">
+            <li><b>sync-orders</b><span class="v">jobs_view</span><span class="d">One permanent job that the schedule fires again and again, Idle between firings.</span></li>
+            <li><b>every-5s</b><span class="v">schedules_view</span><span class="d">The schedule and its next occurrence, which you can pause, resume, or trigger now.</span></li>
+            <li><b>watermark</b><span class="v">checkpoints_view</span><span class="d">A variable that outlives the firing, the retry, and the worker.</span></li>
+          </ol>
+        </div>
+        <p class="hint">Stop the worker mid-batch, with a deploy or a kill, and the next one picks the job up at the same watermark; a replayed batch is an upsert, so it lands once.</p>
+        <div class="actions">
+          <a class="button primary" href="https://github.com/acta-dotnet/acta/tree/main/concepts/100-scheduling/109-continuous-synchronization">Run the sync lab</a>
+        </div>
       </div>
     </section>
 
@@ -219,22 +289,6 @@
       <h2>What Acta includes, by group.</h2>
       <p class="lede">Every item links to its explanation on <a href="/capabilities">the capabilities page</a>.</p>
       <div class="fgrid">
-        <div class="fcol">
-          <h3><a href="/capabilities#jobs">Jobs and how they start</a></h3>
-          <ul>
-            <li><a href="/capabilities#fire-and-forget">Fire-and-forget jobs</a></li>
-            <li><a href="/capabilities#delayed">Delayed jobs</a></li>
-            <li><a href="/capabilities#recurring">Recurring jobs</a></li>
-            <li><a href="/capabilities#per-occurrence">A fresh job per occurrence</a></li>
-            <li><a href="/capabilities#typed">Typed enqueue and handles</a></li>
-            <li><a href="/capabilities#identities">Three ways to address a job</a></li>
-            <li><a href="/capabilities#deduplication">Deduplication keys</a></li>
-            <li><a href="/capabilities#transactional">Enqueue in your own transaction</a></li>
-            <li><a href="/capabilities#outbox">An outbox across databases</a></li>
-            <li><a href="/capabilities#enqueue-from-sql">Enqueue from SQL</a></li>
-            <li><a href="/capabilities#namespaces">Namespaces and tenants</a></li>
-          </ul>
-        </div>
         <div class="fcol">
           <h3><a href="/capabilities#handler">Inside a handler</a></h3>
           <ul>
@@ -249,6 +303,16 @@
             <li><a href="/capabilities#locks">Handler locks</a></li>
             <li><a href="/capabilities#plain-classes">Plain classes, constructor injection</a></li>
             <li><a href="/capabilities#behaviors">Shared behavior around every handler</a></li>
+          </ul>
+        </div>
+        <div class="fcol">
+          <h3><a href="/capabilities#gates">Order, concurrency, and pacing</a></h3>
+          <ul>
+            <li><a href="/capabilities#lanes">Lanes for strict order</a></li>
+            <li><a href="/capabilities#concurrency-keys">Concurrency keys</a></li>
+            <li><a href="/capabilities#concurrency-limits">Concurrency limits</a></li>
+            <li><a href="/capabilities#rate-limits">Rate limits</a></li>
+            <li><a href="/capabilities#overrides">Policy changes without a deploy</a></li>
           </ul>
         </div>
         <div class="fcol">
@@ -267,13 +331,19 @@
           </ul>
         </div>
         <div class="fcol">
-          <h3><a href="/capabilities#gates">Order, concurrency, and pacing</a></h3>
+          <h3><a href="/capabilities#jobs">Jobs and how they start</a></h3>
           <ul>
-            <li><a href="/capabilities#lanes">Lanes for strict order</a></li>
-            <li><a href="/capabilities#concurrency-keys">Concurrency keys</a></li>
-            <li><a href="/capabilities#concurrency-limits">Concurrency limits</a></li>
-            <li><a href="/capabilities#rate-limits">Rate limits</a></li>
-            <li><a href="/capabilities#overrides">Policy changes without a deploy</a></li>
+            <li><a href="/capabilities#fire-and-forget">Fire-and-forget jobs</a></li>
+            <li><a href="/capabilities#delayed">Delayed jobs</a></li>
+            <li><a href="/capabilities#recurring">Recurring jobs</a></li>
+            <li><a href="/capabilities#per-occurrence">A fresh job per occurrence</a></li>
+            <li><a href="/capabilities#typed">Typed enqueue and handles</a></li>
+            <li><a href="/capabilities#identities">Three ways to address a job</a></li>
+            <li><a href="/capabilities#deduplication">Deduplication keys</a></li>
+            <li><a href="/capabilities#transactional">Enqueue in your own transaction</a></li>
+            <li><a href="/capabilities#outbox">An outbox across databases</a></li>
+            <li><a href="/capabilities#enqueue-from-sql">Enqueue from SQL</a></li>
+            <li><a href="/capabilities#namespaces">Namespaces and tenants</a></li>
           </ul>
         </div>
         <div class="fcol">
@@ -413,6 +483,30 @@
     };
     handOffConcepts();
     addEventListener('hashchange', handOffConcepts);
+
+    // The flagship's two examples: with the script, two tabs show one at a time, arrow keys moving between them.
+    const tablist = document.querySelector('.tabs');
+    const tabs = [...tablist.querySelectorAll('[role="tab"]')];
+    const select = (tab) => {
+      for (const t of tabs) {
+        const on = t === tab;
+        t.setAttribute('aria-selected', String(on));
+        t.tabIndex = on ? 0 : -1;
+        document.getElementById(t.getAttribute('aria-controls')).hidden = !on;
+      }
+    };
+    tablist.hidden = false;
+    select(tabs[0]);
+    for (const tab of tabs) {
+      tab.addEventListener('click', () => select(tab));
+      tab.addEventListener('keydown', (e) => {
+        const step = e.key === 'ArrowRight' ? 1 : e.key === 'ArrowLeft' ? -1 : 0;
+        if (!step) return;
+        const next = tabs[(tabs.indexOf(tab) + step + tabs.length) % tabs.length];
+        select(next);
+        next.focus();
+      });
+    }
 
     // Copy buttons on the prompts and the install commands. Progressive enhancement: without JS the
     // text is still selectable, and the button simply does nothing rather than lying about it.

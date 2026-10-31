@@ -243,7 +243,7 @@
           </div>
         </div>
         <div class="vs-row" id="no-workflow-engine">
-          <div class="who"><b>Why no workflow engine?</b><span>composition, not a runtime</span></div>
+          <div class="who"><b>Why no separate workflow engine?</b><span>composition, not a runtime</span></div>
           <div class="why">
             <p>Because a workflow is a composition of jobs and their durable state, not a second runtime. A parent, its children, a long wait, a permanent controller: the same claim, lease, recovery, retry budget, dashboard, CLI, and SQL views serve all of them. There is nothing new to deploy or operate, and no determinism contract on your code.</p>
             <div class="links"><a class="golink" href="https://github.com/acta-dotnet/acta/blob/main/docs/architecture-decisions.md#the-core-principle">The core principle</a></div>

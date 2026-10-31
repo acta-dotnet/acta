@@ -101,7 +101,7 @@ Reopening an entry means writing a proposal, not editing this file.
 - **One work-unit shape.** All work units (one-shot, recurring, coordinating parents, system maintenance) share one shape (a `jobs` row plus its 1:1 `jobs_state` row) and no per-kind tables; the one stored kind code separates an ordinary job from a scheduled definition's permanent slot. *Reason:* one substrate carries claim, lease, audit, and retention without per-kind branching.
 - **SQL is the operational interface; curated views are the supported query surface.** The runtime and operators query the same database; no proprietary query layer. Storage tables are not a compatibility contract. *Reason:* operators write ad-hoc production queries without coordinating with the framework.
 - **No reflection on the hot path.** Source generators emit all dispatch and persistence code; AOT-clean by construction. *Reason:* trim-friendly, no reflection cost per attempt.
-- **Category: durable work ledger for .NET.** Never positioned as a workflow engine, message bus, or scheduler; "workflow" appears only in non-goals, comparisons, and search metadata. *Reason:* the positive category claim stays singular.
+- **Category: durable jobs and workflows for .NET.** A workflow is a job whose handler records steps and variables, starts child jobs, and waits; it runs on the same rows and claim path as any other job. Never positioned as a workflow server, a visual designer, or a message bus. *Reason:* a newcomer recognizes what one handler can do, and the one-substrate rule above still holds.
 
 ### Substrate
 

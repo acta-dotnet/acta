@@ -1,7 +1,7 @@
 # Start here
 
-Acta is a SQL-native durable work ledger for .NET: durable jobs, retries, schedules, checkpoints,
-signals, recovery, and operator control, recorded as rows in the PostgreSQL, SQL Server, or SQLite
+Acta runs durable jobs and workflows for .NET: steps, variables, child jobs, signals, retries,
+schedules, recovery, and operator control, recorded as rows in the PostgreSQL, SQL Server, or SQLite
 database you already run. Each page below answers one question, in the order you are likely to ask it.
 
 ## Evaluate

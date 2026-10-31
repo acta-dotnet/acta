@@ -1,8 +1,10 @@
 # Acta for coding agents
 
-Acta is a durable job execution engine for .NET backed by the application's own SQL database
-(PostgreSQL, SQL Server, or embedded SQLite). Jobs, schedules, steps, waits, and alerts are
-ordinary rows. This file is the contract an agent needs to add Acta to a project correctly; the
+Acta is a durable job and workflow engine for .NET backed by the application's own SQL database
+(PostgreSQL, SQL Server, or embedded SQLite). One handler can record steps and variables, start
+child jobs and fan out with Map, Parallel, and Join, and wait for signals and timers without
+holding a worker; lanes keep per-entity order, and concurrency and rate limits hold across every
+worker. Jobs, schedules, steps, waits, and alerts are ordinary rows. This file is the contract an agent needs to add Acta to a project correctly; the
 runnable proof lives in the repository's `concepts/` directory (compiled, one project per concept) and the
 complete demo apps under `demos/`. Start at useacta.net or github.com/acta-dotnet/acta.
 
@@ -14,9 +16,8 @@ slots (steps, variables, timers, signal waits) return their recorded results ins
 their work; every bare line between them runs again on every entry. The model is checkpoints, not
 replay: there is no determinism requirement on your code, and there is no magic resume-at-line-N.
 
-Other schedulers also run work more than once; redelivery is not what makes Acta different. What is
-different: the durable slots and the ledger make re-entry something you can reason about and test,
-because everything a handler decided is a row you can read. Write handlers as if the method will be
+The durable slots and the ledger make re-entry something you can reason about and test, because
+everything a handler decided is a row you can read. Write handlers as if the method will be
 called twice with the same input, and put every external side effect behind a step.
 
 ## First run: one file, one job, the dashboard
