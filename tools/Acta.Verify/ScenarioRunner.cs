@@ -69,7 +69,7 @@ public static class ScenarioRunner
     /// <summary>The settings each runner reads.</summary>
     private static readonly Dictionary<string, string[]> SettingNames = new(StringComparer.Ordinal)
     {
-        ["rate-ladder"] = ["background", "background_state", "queries_per_second"],
+        ["rate-ladder"] = ["background", "background_state", "queries_per_second", "wakeup"],
         ["overload"] = ["overload_rate", "recovery_rate"],
         ["verify"] = ["send_signal", "signal_copies"],
         ["chaos"] = ["step_ms", "busy_kills"],
@@ -236,6 +236,10 @@ public static class ScenarioRunner
         {
             var trials = environment.TakeTrials();
             result = await LedgerValidation.ApplyAsync(result, trials, bundle, ct);
+            if (result.Phase == "headroom")
+            {
+                result = Verdicts.Probe(result);
+            }
             // Results are recorded one after another, so the time since the previous one is the time this one took.
             var recorded = System.Diagnostics.Stopwatch.GetTimestamp();
             result.Metrics["wall_seconds"] = new(
@@ -282,13 +286,19 @@ public static class ScenarioRunner
         : scenario.Runner == "drain" && !scenario.Jobs.ContainsKey(provider) ? $"The scenario writes no cohort for {provider}."
         : null;
 
+    /// <summary>How many times its floor a single written rate is probed at once it holds.</summary>
+    public const int FloorProbeFactor = 4;
+
     /// <summary>
     /// Each pass climbs the written rates in order and stops at the first that misses. A rate held in every pass is the
     /// result, and a headline confirms the highest such rate once over the suite's confirmation window, stepping down one
-    /// rate if that misses.
+    /// rate if that misses. A single written rate that held is probed once at <see cref="FloorProbeFactor"/> times
+    /// itself, over at most a ladder rung's window; the probe decides nothing, and the report lists a floor that held it
+    /// too as a rate to raise.
     /// </summary>
     private static async Task RateLadderAsync(ScenarioRun run)
     {
+        await using var redis = await WakeupAsync(run);
         var suite = run.Plan.Suite;
         var rates = LadderRates(run.Plan, run.Scenario, run.Provider);
         var seconds = Window(run.Plan, run.Scenario, rates.Length);
@@ -299,7 +309,13 @@ public static class ScenarioRunner
             foreach (var rate in rates)
             {
                 var result = await run.Record(
-                    await LoadTrial.RunAsync(run.Plan, run.Environment, run.Bundle, Spec(run, "measure", pass, rate, seconds), run.Ct)
+                    await LoadTrial.RunAsync(
+                        run.Plan,
+                        run.Environment,
+                        run.Bundle,
+                        Spec(run, "measure", pass, rate, seconds, redis),
+                        run.Ct
+                    )
                 );
                 if (!Held(result))
                 {
@@ -308,6 +324,31 @@ public static class ScenarioRunner
                 held++;
             }
             heldEverywhere = Math.Min(heldEverywhere, held);
+        }
+        if (rates.Length == 1 && heldEverywhere == 1 && !suite.FirstRateOnly)
+        {
+            CaseResult probe;
+            try
+            {
+                probe = await LoadTrial.RunAsync(
+                    run.Plan,
+                    run.Environment,
+                    run.Bundle,
+                    Spec(run, "headroom", 1, rates[0] * FloorProbeFactor, Math.Min(seconds, suite.LadderSeconds), redis),
+                    run.Ct
+                );
+            }
+            catch (Exception ex) when (ex is not (OperationCanceledException or ResourceBudgetException))
+            {
+                File.WriteAllText(run.Bundle.Resolve($"logs/{run.Provider}-{run.Scenario.Id}-headroom-error.txt"), ex.ToString());
+                probe = CaseResult.Incomplete(
+                    run.Scenario.Id,
+                    run.Provider,
+                    "headroom",
+                    $"The probe did not finish ({ex.GetType().Name}: {ex.Message})."
+                );
+            }
+            await run.Record(probe);
         }
         if (run.Scenario.Headline is null || suite.ConfirmSeconds == 0)
         {
@@ -320,7 +361,7 @@ public static class ScenarioRunner
                     run.Plan,
                     run.Environment,
                     run.Bundle,
-                    Spec(run, "confirm", 1, rates[step], suite.ConfirmSeconds),
+                    Spec(run, "confirm", 1, rates[step], suite.ConfirmSeconds, redis),
                     run.Ct
                 )
             );
@@ -386,8 +427,30 @@ public static class ScenarioRunner
         }
     }
 
+    /// <summary>
+    /// The Redis a scenario's workers are woken through when its file writes the setting <c>wakeup</c> as <c>redis</c>;
+    /// null, and workers learn of new work by claiming, otherwise.
+    /// </summary>
+    private static async Task<OwnedRedis?> WakeupAsync(ScenarioRun run) =>
+        Wakeup(run.Scenario, run.Provider) switch
+        {
+            null => null,
+            "redis" => await OwnedRedis.StartAsync(run.Environment.Ownership, run.Ct),
+            var other => throw new InvalidDataException($"The scenario {run.Scenario.Id} writes wakeup '{other}'; only 'redis' is known."),
+        };
+
+    /// <summary>The wakeup a ladder's file writes for <paramref name="provider"/>, or null where it writes none.</summary>
+    public static string? Wakeup(Scenario scenario, string provider)
+    {
+        ArgumentNullException.ThrowIfNull(scenario);
+        return !scenario.Settings.TryGetValue("wakeup", out var value) ? null
+            : value.ValueKind != System.Text.Json.JsonValueKind.Object ? value.GetString()
+            : value.TryGetProperty(provider, out var one) ? one.GetString()
+            : null;
+    }
+
     /// <summary>The measured trial of <paramref name="run"/>'s scenario at <paramref name="rate"/>, for its database.</summary>
-    private static LoadSpec Spec(ScenarioRun run, string phase, int pass, double rate, int seconds)
+    private static LoadSpec Spec(ScenarioRun run, string phase, int pass, double rate, int seconds, OwnedRedis? redis = null)
     {
         var (plan, scenario, provider) = (run.Plan, run.Scenario, run.Provider);
         var background = (int)(scenario.SettingOrNull("background", provider) ?? 0);
@@ -421,7 +484,8 @@ public static class ScenarioRunner
                 ? (jobs, state, resources, ct) =>
                     StorageCases.PrepareBackgroundAsync(plan, scenario, state, jobs, resources, background, ct)
                 : null,
-            background > 0 ? (state, population, ct) => StorageCases.CheckBackgroundAsync(state, scenario, population, ct) : null
+            background > 0 ? (state, population, ct) => StorageCases.CheckBackgroundAsync(state, scenario, population, ct) : null,
+            redis?.Configuration
         );
     }
 }

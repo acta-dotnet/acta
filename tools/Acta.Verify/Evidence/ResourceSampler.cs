@@ -23,6 +23,10 @@ internal sealed class ResourceSampler : IAsyncDisposable
 {
     private readonly CancellationTokenSource _stop;
     private readonly Task _sampling;
+    private readonly string _controllerRole;
+
+    /// <summary>The role of the controller's own process, which generates the load and observes it.</summary>
+    public const string ControllerRole = "controller_generator_observer";
     private readonly OwnedProvider _provider;
     private readonly EvidenceBundle _bundle;
     private readonly ConcurrentDictionary<int, (string Name, long StartedUtc)> _processes = [];
@@ -47,8 +51,16 @@ internal sealed class ResourceSampler : IAsyncDisposable
     private readonly DriveInfo _drive;
     public bool BudgetExceeded { get; private set; }
 
-    public ResourceSampler(OwnedProvider provider, EvidenceBundle bundle, string tag, IReadOnlyList<int> workers, CancellationToken ct)
+    public ResourceSampler(
+        OwnedProvider provider,
+        EvidenceBundle bundle,
+        string tag,
+        IReadOnlyList<int> workers,
+        CancellationToken ct,
+        string controllerRole = ControllerRole
+    )
     {
+        _controllerRole = controllerRole;
         _provider = provider;
         _bundle = bundle;
         _tag = tag;
@@ -56,7 +68,7 @@ internal sealed class ResourceSampler : IAsyncDisposable
         {
             AddProcess(pid, "worker");
         }
-        AddProcess(Environment.ProcessId, "controller_generator_observer");
+        AddProcess(Environment.ProcessId, controllerRole);
         _stop = CancellationTokenSource.CreateLinkedTokenSource(ct);
         _memoryBudget = GC.GetGCMemoryInfo().TotalAvailableMemoryBytes * 0.65;
         _drive = new DriveInfo(Path.GetPathRoot(bundle.DirectoryPath)!);
@@ -155,8 +167,8 @@ internal sealed class ResourceSampler : IAsyncDisposable
                 Write(role, "working_set", total.Memory, "bytes", "Sum over the role's live owned processes.");
             }
             UpdatePeakMemory(memory);
-            Write("controller_generator_observer", "managed_allocated", GC.GetTotalAllocatedBytes(), "bytes");
-            Write("controller_generator_observer", "gc_pause", GC.GetTotalPauseDuration().TotalSeconds, "seconds");
+            Write(_controllerRole, "managed_allocated", GC.GetTotalAllocatedBytes(), "bytes");
+            Write(_controllerRole, "gc_pause", GC.GetTotalPauseDuration().TotalSeconds, "seconds");
             var free = _drive.AvailableFreeSpace;
             BudgetExceeded |= memory > _memoryBudget || free < 2L * 1024 * 1024 * 1024 || _freeDiskAtStart - free > _freeDiskAtStart * 0.2;
             Write("host", "free_disk", free, "bytes");

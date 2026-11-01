@@ -1,0 +1,38 @@
+{
+  "title": "Sustained throughput, woken through Redis",
+  "question": "With Redis carrying each enqueue's wake to the worker processes, how many jobs per second, one per enqueue call, does Acta enqueue, run and durably complete with a flat backlog and p99 under 2 s?",
+  "runner": "rate-ladder",
+  "workers": {
+    "pg": 4,
+    "mssql": 4
+  },
+  "namespaces": {
+    "pg": 2,
+    "mssql": 2
+  },
+  "rates": {
+    "pg": [
+      10000,
+      12500,
+      15000,
+      17500,
+      20000,
+      25000,
+      30000
+    ],
+    "mssql": [
+      5000,
+      7500,
+      10000,
+      12500,
+      15000
+    ]
+  },
+  "settings": {
+    "wakeup": "redis"
+  },
+  "skip": {
+    "sqlite": "SQLite runs its one worker in the controller's process, where an enqueue wakes it without a transport."
+  },
+  "p99_ms": 2000
+}

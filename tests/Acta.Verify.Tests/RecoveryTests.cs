@@ -301,7 +301,7 @@ public sealed class RecoveryTests : IDisposable
                 phase == "measure"
                     ? new()
                     {
-                        ["offered_rate"] = new(15, "roots/second"),
+                        ["offered_rate"] = new(60, "roots/second"),
                         ["primary_latency_p99"] = new(p99, "milliseconds"),
                         ["backlog_slope"] = new(slope, "roots/second"),
                         ["backlog_slope_tolerance"] = new(1, "roots/second"),
@@ -315,8 +315,8 @@ public sealed class RecoveryTests : IDisposable
             [
                 Row("sqlite", "measure", "PASS", "UNSTABLE", null, pass: 1, p99: 6000),
                 Row("sqlite", "measure", "PASS", "UNSTABLE", null, pass: 2, slope: 5),
-                Row("sqlite", "reconcile", "FAIL", "MISSED", "Pass 1 missed the floor of 15/s."),
-                Row("sqlite", "reconcile", "FAIL", "MISSED", "Pass 2 missed the floor of 15/s."),
+                Row("sqlite", "reconcile", "FAIL", "MISSED", "Pass 1 missed the floor of 60/s."),
+                Row("sqlite", "reconcile", "FAIL", "MISSED", "Pass 2 missed the floor of 60/s."),
                 Row("pg", "verify", "INCONCLUSIVE", "NOT_MEASURED", "Scenario did not finish."),
                 Row("pg", "reconcile", "INCONCLUSIVE", "NOT_MEASURED", "Chaos did not show 10 busy kills."),
                 Row("pg", "reconcile", "FAIL", "MISSED", "Pass 1 missed the floor of 1000/s."),
@@ -325,8 +325,8 @@ public sealed class RecoveryTests : IDisposable
 
         var report = Report.Markdown(bundle.DirectoryPath, BundleVerifier.Load(bundle.DirectoryPath));
 
-        Assert.Contains("Pass 1 missed the floor of 15/s: p99 6.0 s against a 5.0 s target.", report);
-        Assert.Contains("Pass 2 missed the floor of 15/s: backlog grew 5 jobs/s, 1 allowed.", report);
+        Assert.Contains("Pass 1 missed the floor of 60/s: p99 6.0 s against a 5.0 s target.", report);
+        Assert.Contains("Pass 2 missed the floor of 60/s: backlog grew 5 jobs/s, 1 allowed.", report);
         Assert.Contains("Scenario did not finish.", report);
         Assert.Contains("Pass 1 missed the floor of 1000/s.", report);
         Assert.DoesNotContain("busy kills", report);
@@ -369,6 +369,38 @@ public sealed class RecoveryTests : IDisposable
             ]
         );
         return bundle.DirectoryPath;
+    }
+
+    [Fact]
+    public void The_report_lists_a_floor_whose_probe_held_and_says_how_workers_learn_of_new_work()
+    {
+        var plan = Protocol.Plan("release", ["pg"], 1729, ["three-steps", "throughput-redis", "enqueue-one-per-call"]);
+        var bundle = new EvidenceBundle(_root, plan.RunId);
+        bundle.Write("resolved-plan.json", plan, VerifyJson.Default.RunPlan);
+        bundle.Write("histories/trial-checks.json", new[] { new Check("trial", "root", true, "") }, VerifyJson.Default.CheckArray);
+        static CaseResult Held(string phase, double rate) =>
+            new(
+                "three-steps",
+                "pg",
+                phase,
+                1,
+                "PASS",
+                null,
+                "PASS",
+                "PASS",
+                "COMPLETE",
+                "VALID",
+                new() { ["offered_rate"] = new(rate, "roots/second") },
+                ["histories/trial-checks.json"]
+            );
+        Finish(bundle, "FAIL", [Held("measure", 1000), Held("headroom", 4000)]);
+
+        var report = Report.Markdown(bundle.DirectoryPath, BundleVerifier.Load(bundle.DirectoryPath));
+
+        Assert.Contains("- **Three persisted steps** on PostgreSQL: the floor of 1,000/s also held at 4,000/s.", report);
+        Assert.Contains("workers learn of new work: in process", report);
+        Assert.Contains("workers learn of new work: through Redis", report);
+        Assert.Contains("workers learn of new work: by polling", report);
     }
 
     private EvidenceBundle Create()

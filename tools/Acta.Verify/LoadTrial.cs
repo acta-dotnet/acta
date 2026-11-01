@@ -50,7 +50,8 @@ internal sealed record LoadSpec(
     int? PayloadBytes = null,
     double OverloadRate = 0,
     Func<IJobs, OwnedProvider, ResourceSampler, CancellationToken, Task<int>>? PrepareBackground = null,
-    Func<OwnedProvider, int, CancellationToken, Task<Check[]>>? CheckBackground = null
+    Func<OwnedProvider, int, CancellationToken, Task<Check[]>>? CheckBackground = null,
+    string? RedisWakeup = null
 );
 
 /// <summary>
@@ -68,6 +69,17 @@ internal static class LoadTrial
 
     /// <summary>The failing identities a trial keeps in its evidence; the rest are counted.</summary>
     private const int FailureCap = 1000;
+
+    /// <summary>The connections an in-process worker's executors, claimer, finalizer and heartbeat may hold beside the calls.</summary>
+    private const int InProcessWorkerConnections = 64;
+
+    /// <summary>
+    /// Whether a trial's worker runs in the controller's own host, so an enqueue wakes it in process as it does in an
+    /// application: a stream with one worker in one namespace. More workers, and a worker that starts after an admission
+    /// or a cohort, run as processes.
+    /// </summary>
+    internal static bool RunsWorkerInProcess(LoadMode mode, int workers, int namespaces, bool crossNamespace) =>
+        mode == LoadMode.Stream && workers == 1 && namespaces == 1 && !crossNamespace;
 
     /// <summary>The width of the completion buckets that the backlog and the drain percentiles are rebuilt from.</summary>
     private static readonly long BucketTicks = Stopwatch.Frequency / 100;
@@ -95,13 +107,19 @@ internal static class LoadTrial
         {
             await effects.StartAsync(ct);
         }
+        var inProcess = RunsWorkerInProcess(spec.Mode, spec.Workers, spec.Namespaces, spec.CrossNamespace);
+        using var pin = inProcess ? OwnedWorker.PinCurrentProcess() : null;
         using var host = await RuntimeHost.StartAsync(
             state.Provider,
-            state.EnqueueConnectionString(spec.Calls),
+            state.EnqueueConnectionString(spec.Calls + (inProcess ? InProcessWorkerConnections : 0)),
             state.Schema,
-            false,
+            inProcess,
             true,
-            ct
+            ct,
+            effects: inProcess ? effects : null,
+            executors: inProcess ? spec.Executors : null,
+            workerNamespace: inProcess ? "verify" : null,
+            redis: spec.RedisWakeup
         );
         bundle.Write($"histories/{tag}-settings.json", await state.CaptureSettingsAsync(ct), VerifyJson.Default.DictionaryStringString);
         var jobs = host.Services.GetRequiredService<IJobs>();
@@ -123,11 +141,31 @@ internal static class LoadTrial
         var outcome = new byte[count];
         var ids = new long[count];
         using var workers = new OwnedWorkerPool();
-        if (spec.Mode == LoadMode.Stream)
+        if (inProcess)
         {
-            await workers.StartAsync(state, effects, spec.Workers, spec.Executors, ct, spec.Namespaces, spec.CrossNamespace);
+            workers.AdoptInProcess(host);
         }
-        await using var resources = new ResourceSampler(state, bundle, tag, workers.ProcessIds, ct);
+        else if (spec.Mode == LoadMode.Stream)
+        {
+            await workers.StartAsync(
+                state,
+                effects,
+                spec.Workers,
+                spec.Executors,
+                ct,
+                spec.Namespaces,
+                spec.CrossNamespace,
+                spec.RedisWakeup
+            );
+        }
+        await using var resources = new ResourceSampler(
+            state,
+            bundle,
+            tag,
+            workers.ProcessIds,
+            ct,
+            inProcess ? ResourceSampler.ControllerRole + "_worker" : ResourceSampler.ControllerRole
+        );
         if (effects is not null)
         {
             resources.AddProcess(effects.ProcessId, "external_oracle");

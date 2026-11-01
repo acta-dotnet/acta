@@ -96,10 +96,14 @@ internal static class DryRun
                 var window = suite.WarmupSeconds + ScenarioRunner.Window(plan, scenario, rates.Length);
                 var confirmations = scenario.Headline is null || suite.ConfirmSeconds == 0 ? 0 : Math.Min(2, rates.Length);
                 var confirm = suite.WarmupSeconds + suite.ConfirmSeconds;
+                var probes = rates.Length == 1 && !suite.FirstRateOnly ? 1 : 0;
+                var probeWindow = suite.WarmupSeconds + Math.Min(ScenarioRunner.Window(plan, scenario, rates.Length), suite.LadderSeconds);
                 return (
-                    passes * rates.Length + confirmations,
-                    passes * rates.Sum(r => (long)r * window) + (long)rates[^1] * confirm * confirmations,
-                    passes * rates.Length * window + confirmations * confirm
+                    passes * rates.Length + confirmations + probes,
+                    passes * rates.Sum(r => (long)r * window)
+                        + (long)rates[^1] * confirm * confirmations
+                        + (long)rates[0] * ScenarioRunner.FloorProbeFactor * probeWindow * probes,
+                    passes * rates.Length * window + confirmations * confirm + probes * probeWindow
                 );
             case "drain":
                 return (passes, (long)passes * scenario.Jobs[provider], 0);

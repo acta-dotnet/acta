@@ -1,4 +1,5 @@
 using Acta.Postgres;
+using Acta.Redis;
 using Acta.Sqlite;
 using Acta.SqlServer;
 using Microsoft.Extensions.DependencyInjection;
@@ -24,7 +25,8 @@ internal static class RuntimeHost
         EffectService? effects = null,
         int? executors = null,
         int? heartbeatSeconds = null,
-        string? workerNamespace = null
+        string? workerNamespace = null,
+        string? redis = null
     )
     {
         if (!worker && migrate)
@@ -75,6 +77,10 @@ internal static class RuntimeHost
                         sp.GetRequiredService<EffectClient>()
                     ))
                 );
+            }
+            if (redis is not null)
+            {
+                j.UseRedisWakeup(redis);
             }
             if (Environment.GetEnvironmentVariable("ACTA_VERIFY_SUPPRESS_WAKEUP") == "1")
             {

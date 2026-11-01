@@ -40,6 +40,7 @@ public static partial class Report
         {
             return text.ToString();
         }
+        RatesToRaise(text, plan, cases, providers);
         var measured = plan.Scenarios.Where(s => ScenarioRunner.PhaseOf(s) == "performance").ToArray();
         if (measured.Length > 0)
         {
@@ -291,6 +292,46 @@ public static partial class Report
         }
     }
 
+    /// <summary>
+    /// The written rates that ask too little: a ladder that held every rate in every pass found no ceiling, and a floor
+    /// that also held its probe at <see cref="ScenarioRunner.FloorProbeFactor"/> times its rate. Neither decides the verdict.
+    /// </summary>
+    private static void RatesToRaise(StringBuilder text, RunPlan plan, CaseResult[] cases, string[] providers)
+    {
+        var lines = new List<string>();
+        foreach (var scenario in plan.Scenarios.Where(s => s.Runner == "rate-ladder"))
+        {
+            foreach (var provider in providers.Where(p => ScenarioRunner.Unwritten(scenario, p) is null))
+            {
+                var trials = cases.Where(c => c.Provider == provider && c.Id == scenario.Id).ToArray();
+                var rates = ScenarioRunner.LadderRates(plan, scenario, provider);
+                if (rates.Length > 1 && HeldEverywhere(plan, scenario, provider, trials) == rates[^1])
+                {
+                    lines.Add(
+                        $"- **{scenario.Title}** on {Name(provider)}: every written rate held, up to {Number(rates[^1])}/s, so the ladder found no ceiling."
+                    );
+                }
+                if (trials.FirstOrDefault(t => t.Phase == "headroom" && Verdicts.RateOutcome(t) == "held") is { } probe)
+                {
+                    lines.Add(
+                        $"- **{scenario.Title}** on {Name(provider)}: the floor of {Number(rates[0])}/s also held at {Number(Value(probe, "offered_rate"))}/s."
+                    );
+                }
+            }
+        }
+        if (lines.Count == 0)
+        {
+            return;
+        }
+        text.Append("## Rates to raise\n\n");
+        text.Append("These written rates ask less than the database ran; they decide nothing in this run.\n\n");
+        foreach (var line in lines)
+        {
+            text.Append(line).Append('\n');
+        }
+        text.Append('\n');
+    }
+
     private static string HighestText(RunPlan plan, Scenario scenario, CaseResult[] cases, string provider)
     {
         var trials = cases.Where(c => c.Provider == provider && c.Id == scenario.Id).ToArray();
@@ -316,6 +357,23 @@ public static partial class Report
             $"enqueue calls in flight: {PerDatabase(p => ScenarioRunner.Calls(plan, scenario, p))}",
             $"jobs per call: {Number(scenario.JobsPerCall)}",
         ];
+        if (scenario.Runner == "rate-ladder")
+        {
+            string Wake(string p) =>
+                ScenarioRunner.Wakeup(scenario, p) == "redis" ? "through Redis"
+                : LoadTrial.RunsWorkerInProcess(
+                    scenario.AdmissionOnly ? LoadMode.Admission : LoadMode.Stream,
+                    scenario.Workers.GetValueOrDefault(p, 1),
+                    scenario.Namespaces.GetValueOrDefault(p, 1),
+                    scenario.CrossNamespace
+                )
+                    ? "in process"
+                : "by polling";
+            var wakes = providers.Select(Wake).Distinct().ToArray();
+            parts.Add(
+                $"workers learn of new work: {(wakes.Length == 1 ? wakes[0] : string.Join(", ", providers.Select(p => $"{Wake(p)} on {Name(p)}")))}"
+            );
+        }
         if (scenario.Runner != "drain")
         {
             parts.Add($"p99 target: {Milliseconds(P99Target(plan, scenario))}");

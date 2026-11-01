@@ -44,6 +44,33 @@ internal sealed class OwnedWorker : IDisposable
         ? HardwareDescription.PerformanceMask()
         : null;
 
+    /// <summary>
+    /// Pins this process as <see cref="Start"/> pins a worker's, for a trial whose worker runs here; disposing restores
+    /// the affinity it had.
+    /// </summary>
+    public static IDisposable PinCurrentProcess()
+    {
+        if (Affinity is not { } mask || !OperatingSystem.IsWindows())
+        {
+            return new Restore(null);
+        }
+        var current = Process.GetCurrentProcess();
+        var previous = current.ProcessorAffinity;
+        current.ProcessorAffinity = (nint)mask;
+        return new Restore(previous);
+    }
+
+    private sealed class Restore(nint? previous) : IDisposable
+    {
+        public void Dispose()
+        {
+            if (previous is { } affinity && OperatingSystem.IsWindows())
+            {
+                Process.GetCurrentProcess().ProcessorAffinity = affinity;
+            }
+        }
+    }
+
     public int Id => _process.Id;
     public bool IsRunning => !_process.HasExited;
     public int DroppedWakeups => Volatile.Read(ref _droppedWakeups);
@@ -132,7 +159,8 @@ internal sealed class OwnedWorker : IDisposable
         string? fixture = null,
         int? executors = null,
         int? heartbeatSeconds = FaultHeartbeatSeconds,
-        string? jobNamespace = null
+        string? jobNamespace = null,
+        string? redis = null
     )
     {
         var executable = Environment.ProcessPath ?? throw new InvalidOperationException("Cannot locate worker executable.");
@@ -168,6 +196,10 @@ internal sealed class OwnedWorker : IDisposable
         info.Environment["ACTA_VERIFY_CONNECTION"] = connectionOverride ?? provider.ConnectionString;
         info.Environment["ACTA_VERIFY_SCHEMA"] = provider.Schema;
         info.Environment["ACTA_VERIFY_OWNER"] = provider.Ownership;
+        if (redis is not null)
+        {
+            info.Environment["ACTA_VERIFY_REDIS"] = redis;
+        }
         info.Environment["ACTA_VERIFY_SUPPRESS_WAKEUP"] = suppressWakeup ? "1" : "0";
         if (fixture is not null)
         {

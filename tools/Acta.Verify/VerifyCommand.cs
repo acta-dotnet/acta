@@ -1,6 +1,7 @@
 using System.Globalization;
 using System.Text.Json;
 using Microsoft.Extensions.DependencyInjection;
+using Microsoft.Extensions.Hosting;
 using Microsoft.Extensions.Options;
 
 namespace Acta.Verify;
@@ -90,27 +91,39 @@ public static class VerifyCommand
                 heartbeatSeconds: Environment.GetEnvironmentVariable("ACTA_VERIFY_HEARTBEAT_SECONDS") is { } heartbeat
                     ? int.Parse(heartbeat, CultureInfo.InvariantCulture)
                     : null,
-                workerNamespace: Environment.GetEnvironmentVariable("ACTA_VERIFY_NAMESPACE")
+                workerNamespace: Environment.GetEnvironmentVariable("ACTA_VERIFY_NAMESPACE"),
+                redis: Environment.GetEnvironmentVariable("ACTA_VERIFY_REDIS")
             );
-            var options = host.Services.GetRequiredService<IOptions<JobsOptions>>().Value;
+            var settings = WorkerSettings.From(host.Services.GetRequiredService<IOptions<JobsOptions>>().Value);
             Console.WriteLine(
                 string.Create(
                     CultureInfo.InvariantCulture,
-                    $"ACTA_VERIFY_SETTINGS {options.MaxConcurrentExecutors} {options.HeartbeatInterval.TotalSeconds} {options.LeaseTtlSeconds} {options.SafetyPollInterval.TotalMilliseconds} {options.WorkerDeadAfter.TotalSeconds}"
+                    $"ACTA_VERIFY_SETTINGS {settings.Executors} {settings.HeartbeatSeconds} {settings.LeaseSeconds} {settings.SafetyPollMs} {settings.DeadAfterSeconds}"
                 )
             );
             Console.WriteLine("ACTA_VERIFY_READY");
-            while (await Console.In.ReadLineAsync(ct) is { } command)
+            var stopRequested = false;
+            async Task<int> CommandsAsync()
             {
-                if (command == "ACTA_VERIFY_STOP")
+                while (await Console.In.ReadLineAsync(ct) is { } command)
                 {
-                    using var shutdown = CancellationTokenSource.CreateLinkedTokenSource(ct);
-                    shutdown.CancelAfter(TimeSpan.FromSeconds(10));
-                    await host.StopAsync(shutdown.Token);
-                    return 0;
+                    if (command == "ACTA_VERIFY_STOP")
+                    {
+                        stopRequested = true;
+                        using var shutdown = CancellationTokenSource.CreateLinkedTokenSource(ct);
+                        shutdown.CancelAfter(TimeSpan.FromSeconds(10));
+                        await host.StopAsync(shutdown.Token);
+                        return 0;
+                    }
                 }
+                return 0;
             }
-            return 0;
+            var commands = CommandsAsync();
+            // A host that stops without being asked had a worker pipeline fault; the process exits, so the controller
+            // counts the worker gone, as it counts an in-process worker whose host stops.
+            var stopping = host.Services.GetRequiredService<IHostApplicationLifetime>().ApplicationStopping;
+            await Task.WhenAny(commands, Task.Delay(Timeout.Infinite, stopping));
+            return commands.IsCompleted || stopRequested ? await commands : 4;
         }
         if (args is [] or ["--help"] or ["-h"])
         {

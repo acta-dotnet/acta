@@ -16,6 +16,18 @@ public static class Verdicts
         return settingsVerified && cases.Length > 0 && cases.All(c => c.Status is "PASS" or "NOT_APPLICABLE") ? "PASS" : "INCONCLUSIVE";
     }
 
+    /// <summary>
+    /// A floor's headroom probe as it stands in the run: its pass or its failure, and otherwise not applicable, so a
+    /// probe the harness could not finish never leaves a scenario, a database or a bundle unresolved.
+    /// </summary>
+    public static CaseResult Probe(CaseResult probe)
+    {
+        ArgumentNullException.ThrowIfNull(probe);
+        return probe.Status is "PASS" or "FAIL"
+            ? probe
+            : CaseResult.NotApplicable(probe.Id, probe.Provider, $"The floor's probe did not finish: {probe.Reason}", probe.Phase);
+    }
+
     /// <summary><paramref name="reason"/>, marked as reported only because the plan's suite does not gate its verdict on measurement.</summary>
     public static string Informational(RunPlan plan, string reason) =>
         $"{reason} Informational: measurement does not decide the {plan.SuiteName} suite's verdict.";

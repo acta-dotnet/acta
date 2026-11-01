@@ -1,5 +1,5 @@
 {
-  "measurement_version": 2,
+  "measurement_version": 3,
   "provisioning": {
     "owned_server": {
       "memory_cap_fraction_of_docker_vm": 0.6667,

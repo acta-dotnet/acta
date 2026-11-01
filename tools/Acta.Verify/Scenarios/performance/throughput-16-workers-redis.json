@@ -1,0 +1,22 @@
+{
+  "title": "Throughput, sixteen workers, woken through Redis",
+  "question": "With Redis carrying each enqueue's wake, do sixteen worker processes over two namespaces hold a high offered rate with p99 under 2 s?",
+  "runner": "rate-ladder",
+  "workers": 16,
+  "namespaces": 2,
+  "rates": {
+    "pg": [
+      15000
+    ],
+    "mssql": [
+      4000
+    ]
+  },
+  "settings": {
+    "wakeup": "redis"
+  },
+  "skip": {
+    "sqlite": "SQLite is one process's database; sixteen worker processes are not a SQLite topology."
+  },
+  "p99_ms": 2000
+}

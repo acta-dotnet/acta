@@ -4,6 +4,7 @@
   "scenarios": [
     "drain",
     "throughput",
+    "throughput-redis",
     "throughput-one-worker",
     "enqueue-one-per-call",
     "enqueue-batches",
@@ -12,6 +13,7 @@
     "drain-4-workers",
     "drain-16-workers",
     "throughput-16-workers",
+    "throughput-16-workers-redis",
     "throughput-16-workers-one-namespace",
     "throughput-32-executors",
     "three-steps",

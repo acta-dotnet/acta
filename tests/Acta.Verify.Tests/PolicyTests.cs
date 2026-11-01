@@ -83,7 +83,7 @@ public sealed class PolicyTests
     {
         var plan = Protocol.Plan("release", Protocol.AllProviders, 1729);
         Protocol.Validate(plan);
-        Assert.Equal(2, plan.MeasurementVersion);
+        Assert.Equal(3, plan.MeasurementVersion);
         Protocol.Validate(
             JsonSerializer.Deserialize(JsonSerializer.Serialize(plan, VerifyJson.Default.RunPlan), VerifyJson.Default.RunPlan)!
         );

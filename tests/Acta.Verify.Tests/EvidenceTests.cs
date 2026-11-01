@@ -173,6 +173,18 @@ public sealed class EvidenceTests
     }
 
     [Fact]
+    public void A_floor_probe_decides_the_verdict_only_by_failing()
+    {
+        var floor = CaseResult.Incomplete("soak", "pg", "measure", "held") with { Status = "PASS" };
+        var probe = CaseResult.Incomplete("soak", "pg", "headroom", "An enqueue was refused.") with { Measurement = "VALID" };
+        var unfinished = Verdicts.Probe(probe);
+        Assert.Equal(("NOT_APPLICABLE", "headroom"), (unfinished.Status, unfinished.Phase));
+        Assert.NotEqual("held", Verdicts.RateOutcome(unfinished));
+        Assert.Equal("PASS", Verdicts.Overall([floor, unfinished], false, true));
+        Assert.Equal("FAIL", Verdicts.Overall([floor, Verdicts.Probe(probe with { Status = "FAIL" })], false, true));
+    }
+
+    [Fact]
     public void A_recorded_failure_outranks_an_interruption_and_a_harness_error()
     {
         Assert.Equal(1, Verdicts.ExitCode("FAIL", harnessError: true));
