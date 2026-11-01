@@ -154,7 +154,11 @@ public sealed class RecoveryTests : IDisposable
         Assert.StartsWith("# Acta Verify: PASS", report, StringComparison.Ordinal);
         Assert.Contains("| Throughput | 9,990 jobs/s |", report, StringComparison.Ordinal);
         Assert.Contains("| Drain | 70,000 jobs/s |", report, StringComparison.Ordinal);
-        Assert.Contains("> **9,990 fully executed, durably completed jobs per second** on PostgreSQL", report, StringComparison.Ordinal);
+        Assert.Contains(
+            "> **9,990 fully executed, durably completed jobs per second** on PostgreSQL: 4 workers polling for work,",
+            report,
+            StringComparison.Ordinal
+        );
         Assert.Contains("missed: backlog grew 840 jobs/s", report, StringComparison.Ordinal);
         Assert.Contains(
             string.Create(CultureInfo.InvariantCulture, $"Highest rate held in every pass: PostgreSQL {floor:N0}/s"),

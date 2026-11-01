@@ -1,6 +1,6 @@
 {
   "title": "Sustained throughput, one worker",
-  "question": "How many jobs per second does one worker process of default executors run and durably complete, one job per enqueue call, with a flat backlog and p99 under 2 s?",
+  "question": "How many jobs per second does one worker of default executors, in the process that enqueues, run and durably complete, one job per enqueue call, with a flat backlog and p99 under 2 s?",
   "headline": "Throughput, one worker",
   "runner": "rate-ladder",
   "rates": {

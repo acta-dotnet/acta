@@ -208,8 +208,11 @@ public static partial class Report
                 var passes = ScenarioRunner.Passes(plan, scenario);
                 var window = ScenarioRunner.Window(plan, scenario, ScenarioRunner.LadderRates(plan, scenario, provider).Length);
                 var workers = scenario.Workers[provider];
+                var how = Wake(scenario, provider);
+                var wake = how == "by polling" ? " polling for work" : $", woken {how}";
                 yield return $"**{Number(Value(confirmed, "window_completed_rate"))} fully executed, durably completed jobs per second** on {Name(provider)}: "
-                    + $"{workers} worker{(workers == 1 ? "" : "s")}, {(scenario.JobsPerCall == 1 ? "one job" : $"{scenario.JobsPerCall} jobs")} per enqueue call, "
+                    + $"{workers} worker{(workers == 1 ? "" : "s")}{wake}, "
+                    + $"{(scenario.JobsPerCall == 1 ? "one job" : $"{scenario.JobsPerCall} jobs")} per enqueue call, "
                     + $"held {passes} × {window} s and {plan.Suite.ConfirmSeconds} s at {Number(Value(confirmed, "offered_rate"))}/s offered, "
                     + $"p99 {Milliseconds(Value(confirmed, "primary_latency_p99"))}, {environment.GetValueOrDefault("cpu_model", "this machine")}.";
             }
@@ -359,19 +362,9 @@ public static partial class Report
         ];
         if (scenario.Runner == "rate-ladder")
         {
-            string Wake(string p) =>
-                ScenarioRunner.Wakeup(scenario, p) == "redis" ? "through Redis"
-                : LoadTrial.RunsWorkerInProcess(
-                    scenario.AdmissionOnly ? LoadMode.Admission : LoadMode.Stream,
-                    scenario.Workers.GetValueOrDefault(p, 1),
-                    scenario.Namespaces.GetValueOrDefault(p, 1),
-                    scenario.CrossNamespace
-                )
-                    ? "in process"
-                : "by polling";
-            var wakes = providers.Select(Wake).Distinct().ToArray();
+            var wakes = providers.Select(p => Wake(scenario, p)).Distinct().ToArray();
             parts.Add(
-                $"workers learn of new work: {(wakes.Length == 1 ? wakes[0] : string.Join(", ", providers.Select(p => $"{Wake(p)} on {Name(p)}")))}"
+                $"workers learn of new work: {(wakes.Length == 1 ? wakes[0] : string.Join(", ", providers.Select(p => $"{Wake(scenario, p)} on {Name(p)}")))}"
             );
         }
         if (scenario.Runner != "drain")
@@ -380,6 +373,18 @@ public static partial class Report
         }
         return "Setup: " + string.Join("; ", parts) + ".";
     }
+
+    /// <summary>How a rate-ladder scenario's workers learn of new work on <paramref name="provider"/>.</summary>
+    private static string Wake(Scenario scenario, string provider) =>
+        LoadTrial.RunsWorkerInProcess(
+            scenario.AdmissionOnly ? LoadMode.Admission : LoadMode.Stream,
+            scenario.Workers.GetValueOrDefault(provider, 1),
+            scenario.Namespaces.GetValueOrDefault(provider, 1),
+            scenario.CrossNamespace
+        )
+            ? "in process"
+        : ScenarioRunner.Wakeup(scenario, provider) == "redis" ? "through Redis"
+        : "by polling";
 
     private static double P99Target(RunPlan plan, Scenario scenario) => scenario.P99Ms ?? plan.Policy("measurement", "default_p99_ms");
 
@@ -602,6 +607,9 @@ public static partial class Report
         );
         text.Append(
             "- A rate holds when every scheduled arrival reached an outcome and none was refused, the backlog trend stayed within 1% of the rate, p99 stayed within the target, at most 0.1% of arrivals were picked up late by the harness, and every job reconciled. These are the rc.6 criteria.\n"
+        );
+        text.Append(
+            "- p99 runs from an arrival's scheduled instant to its job's durable completion, or to the enqueue call's answer in an enqueue-only scenario. A scenario that streams arrivals to one worker in one namespace runs that worker in the process that enqueues, as a single Acta host does: it shares that process's heap and thread pool and the enqueue calls' connection pool, and each enqueue wakes it at once. A worker process claims again while its claims return jobs; after an empty claim it waits up to its 1 s safety poll, or until Redis wakes it where the setup says so.\n"
         );
         if (Read(directory, "histories/host-disk.json", VerifyJson.Default.DictionaryStringString) is { Count: > 0 } disk)
         {
