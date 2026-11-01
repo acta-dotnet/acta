@@ -477,8 +477,9 @@ Use SQLite when the database is embedded in one process. SQLite is useful for co
 exploration, tests, and small single-process tools. Several processes can share one SQLite file on one
 machine for a try-out, as the demos do, but that is not a supported deployment.
 
-Redis wakeup is optional. SQL polling is the correctness baseline; a wakeup transport only lowers
-pickup latency.
+Redis wakeup is optional. SQL polling is the correctness baseline; a wakeup transport lowers pickup
+latency, and for a large fleet near its peak it can lower throughput
+([known limitations](./known-limitations.md#execution-model)).
 
 ### Migration ownership
 
