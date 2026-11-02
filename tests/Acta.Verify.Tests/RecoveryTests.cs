@@ -305,7 +305,7 @@ public sealed class RecoveryTests : IDisposable
                 phase == "measure"
                     ? new()
                     {
-                        ["offered_rate"] = new(60, "roots/second"),
+                        ["offered_rate"] = new(40, "roots/second"),
                         ["primary_latency_p99"] = new(p99, "milliseconds"),
                         ["backlog_slope"] = new(slope, "roots/second"),
                         ["backlog_slope_tolerance"] = new(1, "roots/second"),
@@ -319,8 +319,8 @@ public sealed class RecoveryTests : IDisposable
             [
                 Row("sqlite", "measure", "PASS", "UNSTABLE", null, pass: 1, p99: 6000),
                 Row("sqlite", "measure", "PASS", "UNSTABLE", null, pass: 2, slope: 5),
-                Row("sqlite", "reconcile", "FAIL", "MISSED", "Pass 1 missed the floor of 60/s."),
-                Row("sqlite", "reconcile", "FAIL", "MISSED", "Pass 2 missed the floor of 60/s."),
+                Row("sqlite", "reconcile", "FAIL", "MISSED", "Pass 1 missed the floor of 40/s."),
+                Row("sqlite", "reconcile", "FAIL", "MISSED", "Pass 2 missed the floor of 40/s."),
                 Row("pg", "verify", "INCONCLUSIVE", "NOT_MEASURED", "Scenario did not finish."),
                 Row("pg", "reconcile", "INCONCLUSIVE", "NOT_MEASURED", "Chaos did not show 10 busy kills."),
                 Row("pg", "reconcile", "FAIL", "MISSED", "Pass 1 missed the floor of 1000/s."),
@@ -329,8 +329,8 @@ public sealed class RecoveryTests : IDisposable
 
         var report = Report.Markdown(bundle.DirectoryPath, BundleVerifier.Load(bundle.DirectoryPath));
 
-        Assert.Contains("Pass 1 missed the floor of 60/s: p99 6.0 s against a 5.0 s target.", report);
-        Assert.Contains("Pass 2 missed the floor of 60/s: backlog grew 5 jobs/s, 1 allowed.", report);
+        Assert.Contains("Pass 1 missed the floor of 40/s: p99 6.0 s against a 5.0 s target.", report);
+        Assert.Contains("Pass 2 missed the floor of 40/s: backlog grew 5 jobs/s, 1 allowed.", report);
         Assert.Contains("Scenario did not finish.", report);
         Assert.Contains("Pass 1 missed the floor of 1000/s.", report);
         Assert.DoesNotContain("busy kills", report);
