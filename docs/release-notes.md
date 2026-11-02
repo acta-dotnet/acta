@@ -2,9 +2,11 @@
 
 ## 1.0.0-rc.8
 
-Not tagged yet.
+Tagged 2026-11-02. rc.8 fixes what the 1.0 readiness reviews found, queues SQLite's writes to one file in arrival order, stops Redis wakes reaching every process, and measures Acta Verify's trials as applications run them. The schema changes: reprovision, as every pre-1.0 release asks.
 
 ### What a consumer must change
+
+**Drop and reprovision every database an rc.7 build provisioned**: the baseline is re-cut (`M20261031153619_init`), and nothing translates it. On PostgreSQL and SQLite, create a producer's outbox table again from `PostgresOutboxDdl.CreateScript()` or `SqliteOutboxDdl.CreateScript()`, which add the checks under Fixes; SQL Server's is unchanged.
 
 **A retire leaves a recurring job's slot inert, and a newer build that registers the definition again resumes its schedules from now.** Before, a retire cancelled the permanent slot and cleared the schedules' cursors, and a reactivated definition kept both that way: its schedules never fired again. Now a retire settles a firing admitted and not yet claimed and returns the slot to `Idle`, keeps a paused or cancelled slot as the operator left it, returns the slot to `Idle` when an attempt already running succeeds or spends its budget, and writes `retired` into each schedule's `timing_fingerprint`, so the comeback registration is a retime: the next occurrence after it fires, and the retired interval is not caught up. Until then the slot refuses a manual firing. The retire gives the slot no retention deadline; purge it to remove it. Any other landing of an attempt running at the retire, a retry among them, is still cancelled ([known limitations](known-limitations.md)).
 
@@ -26,6 +28,20 @@ Not tagged yet.
 - A schedule waiting on its slot or on its outstanding limit is evaluated as soon as the firing settles. Before, the admitter heard of the settlement only at its next safety poll, so a `CatchUpAll` backlog or a per-occurrence schedule at `MaxOutstanding` admitted about one occurrence per `SafetyPollInterval` (1 s by default) however fast its jobs ran.
 - A fleet woken through Redis no longer runs slower than the same fleet polling. Every enqueue published a namespace wake and every finished job a completion wake, and Redis delivered each message to every subscribed process, so sixteen worker processes offered 15,000 jobs a second received hundreds of thousands of messages a second: they completed a fifth fewer jobs than polling, and every write, enqueues included, stalled about a second at a time. rc.7 behaves the same; rc.8's Acta Verify is the first to measure it. A process now publishes a namespace's wake at most once per 10 ms, with one trailing publish for the wakes inside the window, and completion wakes travel on `{prefix}:done:`, which only a process waiting for a job's outcome subscribes to.
 - The schedule admitter no longer runs on every enqueue. Each worker's admitter heard every wake of its namespace, so a stream of enqueues in the worker's own process, or arriving over Redis, ran an admission pass of four statements for every one or two jobs enqueued, with nothing to admit. It now wakes for a settled firing or a wake of every namespace, and when idle reads one row a second (the next evaluation and the database clock) instead of four statements.
+
+### Evidence
+
+The engine was certified on `5043b81fa` with the Acta Verify release suite on PostgreSQL, SQL Server, and SQLite, in one bundle reported in [`docs/benchmark.md`](./benchmark.md) and on [useacta.net/benchmark](https://useacta.net/benchmark). The commits after it change only the docs, the site, and the README.
+- **Measurement version 3.** A rate ladder's one worker runs in the measuring process, woken in process as one worker in an application is; more workers, drains, faults, and chaos keep worker processes. Each claim names how its workers learn of new work, and the four- and sixteen-worker scenarios have twins woken through Redis. A floor that holds is probed once at four times itself, and the report lists floors that held there under rates to raise. Compare refuses rc.7's bundles for the change.
+- **Result.** Every correctness, fault, and chaos scenario passed on every database, every trial's ledger passed the certification checks, and every performance floor held.
+- **Found by the evidence, fixed before the certified commit.** The release runs on `a2b1f66a5` and `63bd6946b` did not pass, and since the engine changed, the whole suite ran again on `5043b81fa` rather than a rerun of what had failed:
+  - Sixteen worker processes woken through Redis completed fewer jobs than the same fleet polling, on PostgreSQL and on SQL Server: the Redis fix under Fixes (`f34dd0fe9`). The scenario's floors are 12,500/s on PostgreSQL and 4,000/s on SQL Server (`5043b81fa`).
+  - SQL Server chaos could not start three replacement workers, because Acta Verify gave the run database its container's 2 s login timeout; it now has the drivers' 15 s (`d80d1c3a2`). The worker login timeout rc.7's notes put down to chaos running side by side was this one.
+  - SQLite's three persisted steps completed 58.8/s against a floor of 60 set at their capacity; the floor is 40/s (`04a2100e9`).
+- **Chaos certification.** On the shipped lease timings, 1,000,000 jobs on PostgreSQL and on SQL Server, 24 workers of 64 executors, a worker killed every 5 s for 7 minutes: 84 kills on PostgreSQL and 83 on SQL Server, every one of a busy worker whose work was reclaimed, with no failed replacement start; 16 ledger checks on each, with no violation. SQLite passed at 10,000 jobs on 3 workers, with 38 busy kills reclaimed.
+- **Throughput.** Four PostgreSQL workers polling held 15,000/s offered in each of three 30 s passes; its 120 s confirmation missed on backlog (14,404 completed, p99 4.9 s), and the step down to 12,500/s held, completing 12,438 fully executed, durably completed jobs per second with p99 1.0 s. Woken through Redis, the same four held 15,000/s with p99 107 ms. One worker, woken in process, completed 7,500 a second with p99 72 ms. Sixteen workers over Redis held 12,500 on PostgreSQL (12,800, p99 787 ms) and 4,000 on SQL Server (4,073, p99 1.2 s). SQL Server held 5,000 a second on four workers and on one; SQLite held 250 on one, with p99 185 ms.
+- **Drain.** Eight workers drained a backlog of 1,000,000 jobs at 73,211 a second on PostgreSQL and 43,243 on SQL Server (the steady rate on the database clock, median of three passes); one SQLite worker drained 100,000 at 7,856.
+- **useacta.net.** The homepage states 12,438 fully executed, durably completed jobs per second on four PostgreSQL workers, and the million-job line points at this evidence. The benchmark report is a page of the site.
 
 ## 1.0.0-rc.7
 

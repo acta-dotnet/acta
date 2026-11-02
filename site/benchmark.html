@@ -48,32 +48,52 @@
 <header class="wrap page-head">
   <p class="record">Benchmark</p>
   <h1>Acta 1.0.0-rc.8: benchmark and certification</h1>
-  <p class="lede">The 1.0.0-rc.8 release evidence on one machine, in two Acta Verify bundles. The release run on <code>be95c5098</code> ran every scenario of the release suite on PostgreSQL, SQL Server, and SQLite: every correctness, fault, and chaos scenario passed, and every trial&#39;s ledger passed the certification checks. The one case it could not judge was overload on SQLite, and finding out why found a defect: SQLite&#39;s busy handler let a steady flood of enqueues keep a worker&#39;s claim off the lock. <code>e8cc81d90</code> queues a process&#39;s writes to one SQLite file in arrival order, and the SQLite release run on it passed every case it judges. Its SQLite figures replace the first report&#39;s. Both reports follow, SQLite&#39;s last.</p>
+  <p class="lede">The 1.0.0-rc.8 release evidence on one machine, in one Acta Verify bundle. The release run on <code>5043b81fa</code> ran every scenario of the release suite on PostgreSQL, SQL Server, and SQLite: every correctness, fault, and chaos scenario passed, every trial&#39;s ledger passed the certification checks, and every performance floor held.</p>
 </header>
 <div class="wrap benchmark">
 <ul>
-<li>The PostgreSQL and SQL Server figures come from <code>be95c5098</code>. The commits after it change operation SQL, the producer&#39;s outbox table, and SQLite&#39;s write path, not Acta&#39;s schema.</li>
-<li>On SQLite the queue raised the drain from 4,931 to 8,418 jobs/s and the sustained throughput from 50.3 to 200 jobs/s, the top of the ladder, and cut enqueue p99 at 200/s from 658 ms to 23 ms.</li>
-<li>Overload, then recovery reads inconclusive on SQLite in both runs. SQLite now absorbs 1,000 jobs/s, and past that the load generator, which shares the one writer, queues the excess in the harness, not the database. <code>c84843c19</code>, which changes only Acta Verify, takes the case off SQLite.</li>
-<li>Against rc.7, the release run&#39;s SQL Server drains with one and four workers read 25% and 15% slower. Rerun back to back on both commits, twice, they matched: one worker 14,011 and 13,667 jobs/s on rc.7, 14,138 and 14,019 on rc.8; four workers 33,914 and 34,922 on rc.7, 33,484 and 34,665 on rc.8.</li>
+<li>This is measurement version 3. A rate ladder&#39;s one worker runs in the measuring process and is woken in process, as one worker in an application is, so its p99 no longer waits out a one-second poll; more workers, drains, faults, and chaos keep worker processes. Each claim names how its workers learn of new work, and the four- and sixteen-worker scenarios have twins woken through Redis. Compare refuses rc.7&#39;s bundles for the change, so their figures are not set side by side here.</li>
+<li>Two release runs before this one did not pass. On <code>a2b1f66a5</code> and <code>63bd6946b</code>, sixteen worker processes woken through Redis completed fewer jobs than the same fleet polling, because each enqueue&#39;s wake and each finished job&#39;s wake reached every process. <code>f34dd0fe9</code> sends a namespace&#39;s wake at most once per 10 ms and a completion wake only to the processes waiting for that job. Here sixteen PostgreSQL workers over Redis held 12,500/s, completing 12,800 with p99 787 ms, where the run on <code>63bd6946b</code> completed 9,822 of 10,000.</li>
+<li>The run on <code>63bd6946b</code> also could not start three SQL Server chaos replacements, because Acta Verify gave the run database its container&#39;s two-second login timeout; <code>d80d1c3a2</code> gives it the drivers&#39; fifteen. SQLite&#39;s three persisted steps completed 58.8/s against a floor of 60 set at their capacity; <code>04a2100e9</code> sets it at 40. Both are changes to Acta Verify.</li>
+<li>Four PostgreSQL workers polling held 15,000/s in every 30 s pass, but the 120 s confirmation at 15,000 missed on backlog, so the published row is the 12,500/s step. Woken through Redis, the same four held 15,000/s with p99 107 ms.</li>
 </ul>
-<h1 class="">Acta Verify: INCOMPLETE</h1>
-<p>The release suite on PostgreSQL, SQL Server, SQLite, commit <code>be95c5098</code>, started 2026-10-31 15:52 UTC, 3 h 26 min, on Intel(R) Core(TM) i9-14900K.</p>
+<h1 class="">Acta Verify: PASS</h1>
+<p>The release suite on PostgreSQL, SQL Server, SQLite, commit <code>5043b81fa</code>, started 2026-11-02 04:53 UTC, 5 h 25 min, on Intel(R) Core(TM) i9-14900K.</p>
 <div class="table"><table>
 <tr><th></th><th>PostgreSQL</th><th>SQL Server</th><th>SQLite</th></tr>
 <tr><td>Correctness</td><td>pass</td><td>pass</td><td>pass</td></tr>
-<tr><td>Crash-recovery chaos</td><td>pass, 1,000,000 jobs, 84 busy kills reclaimed</td><td>pass, 1,000,000 jobs, 83 busy kills reclaimed</td><td>pass, 10,000 jobs, 39 busy kills reclaimed</td></tr>
-<tr><td>Ledger checks</td><td>pass, 131 trials checked</td><td>pass, 121 trials checked</td><td>pass, 106 trials checked</td></tr>
+<tr><td>Crash-recovery chaos</td><td>pass, 1,000,000 jobs, 84 busy kills reclaimed</td><td>pass, 1,000,000 jobs, 83 busy kills reclaimed</td><td>pass, 10,000 jobs, 38 busy kills reclaimed</td></tr>
+<tr><td>Ledger checks</td><td>pass, 162 trials checked</td><td>pass, 148 trials checked</td><td>pass, 126 trials checked</td></tr>
 <tr><td>Performance floors</td><td>held</td><td>held</td><td>held</td></tr>
-<tr><td>Drain</td><td>70,223 jobs/s</td><td>45,636 jobs/s</td><td>4,931 jobs/s</td></tr>
-<tr><td>Throughput</td><td>12,519 jobs/s</td><td>5,001 jobs/s</td><td>50.3 jobs/s</td></tr>
-<tr><td>Throughput, one worker</td><td>9,946 jobs/s</td><td>5,019 jobs/s</td><td>not written</td></tr>
+<tr><td>Drain</td><td>73,211 jobs/s</td><td>43,243 jobs/s</td><td>7,856 jobs/s</td></tr>
+<tr><td>Throughput</td><td>12,438 jobs/s</td><td>4,972 jobs/s</td><td>250 jobs/s</td></tr>
+<tr><td>Throughput, one worker</td><td>7,500 jobs/s</td><td>5,001 jobs/s</td><td>not written</td></tr>
 </table></div>
-<blockquote><strong>12,519 fully executed, durably completed jobs per second</strong> on PostgreSQL: 4 workers, one job per enqueue call, held 3 &#215; 30 s and 120 s at 12,500/s offered, p99 1.0 s, Intel(R) Core(TM) i9-14900K.</blockquote>
-<blockquote><strong>5,001 fully executed, durably completed jobs per second</strong> on SQL Server: 4 workers, one job per enqueue call, held 3 &#215; 30 s and 120 s at 5,000/s offered, p99 951 ms, Intel(R) Core(TM) i9-14900K.</blockquote>
-<blockquote><strong>50.3 fully executed, durably completed jobs per second</strong> on SQLite: 1 worker, one job per enqueue call, held 3 &#215; 30 s and 120 s at 50/s offered, p99 1.1 s, Intel(R) Core(TM) i9-14900K.</blockquote>
-<blockquote><strong>9,946 fully executed, durably completed jobs per second</strong> on PostgreSQL: 1 worker, one job per enqueue call, held 3 &#215; 30 s and 120 s at 10,000/s offered, p99 1.9 s, Intel(R) Core(TM) i9-14900K.</blockquote>
-<blockquote><strong>5,019 fully executed, durably completed jobs per second</strong> on SQL Server: 1 worker, one job per enqueue call, held 3 &#215; 30 s and 120 s at 5,000/s offered, p99 1.2 s, Intel(R) Core(TM) i9-14900K.</blockquote>
+<blockquote><strong>12,438 fully executed, durably completed jobs per second</strong> on PostgreSQL: 4 workers polling for work, one job per enqueue call, held 3 &#215; 30 s and 120 s at 12,500/s offered, p99 1.0 s, Intel(R) Core(TM) i9-14900K.</blockquote>
+<blockquote><strong>4,972 fully executed, durably completed jobs per second</strong> on SQL Server: 4 workers polling for work, one job per enqueue call, held 3 &#215; 30 s and 120 s at 5,000/s offered, p99 999 ms, Intel(R) Core(TM) i9-14900K.</blockquote>
+<blockquote><strong>250 fully executed, durably completed jobs per second</strong> on SQLite: 1 worker, woken in process, one job per enqueue call, held 3 &#215; 30 s and 120 s at 250/s offered, p99 185 ms, Intel(R) Core(TM) i9-14900K.</blockquote>
+<blockquote><strong>7,500 fully executed, durably completed jobs per second</strong> on PostgreSQL: 1 worker, woken in process, one job per enqueue call, held 3 &#215; 30 s and 120 s at 7,500/s offered, p99 72 ms, Intel(R) Core(TM) i9-14900K.</blockquote>
+<blockquote><strong>5,001 fully executed, durably completed jobs per second</strong> on SQL Server: 1 worker, woken in process, one job per enqueue call, held 3 &#215; 30 s and 120 s at 5,000/s offered, p99 1.1 s, Intel(R) Core(TM) i9-14900K.</blockquote>
+<h2>Rates to raise</h2>
+<p>These written rates ask less than the database ran; they decide nothing in this run.</p>
+<ul>
+<li><strong>Enqueue in batches of 100</strong> on PostgreSQL: the floor of 10,000/s also held at 40,000/s.</li>
+<li><strong>Enqueue in batches of 1,000</strong> on PostgreSQL: the floor of 20,000/s also held at 80,000/s.</li>
+<li><strong>Throughput, 32 executors</strong> on SQLite: the floor of 160/s also held at 640/s.</li>
+<li><strong>Payloads of 256 B</strong> on SQLite: the floor of 120/s also held at 480/s.</li>
+<li><strong>Payloads of 4 KB</strong> on SQLite: the floor of 120/s also held at 480/s.</li>
+<li><strong>Payloads of 256 B, 4 KB and 64 KB mixed</strong> on SQLite: the floor of 160/s also held at 640/s.</li>
+<li><strong>Payloads of 64 KB</strong> on SQLite: the floor of 40/s also held at 160/s.</li>
+<li><strong>A thousand lanes</strong> on SQL Server: the floor of 1,000/s also held at 4,000/s.</li>
+<li><strong>Parked work alongside</strong> on SQL Server: the floor of 500/s also held at 2,000/s.</li>
+<li><strong>Parked work alongside</strong> on SQLite: the floor of 160/s also held at 640/s.</li>
+<li><strong>Future high-priority work alongside</strong> on SQL Server: the floor of 320/s also held at 1,280/s.</li>
+<li><strong>Ten children and a join</strong> on SQLite: the floor of 8/s also held at 32/s.</li>
+<li><strong>Throughput, one executor</strong> on SQL Server: the floor of 150/s also held at 600/s.</li>
+<li><strong>One hot concurrency key</strong> on PostgreSQL: the floor of 1/s also held at 4/s.</li>
+<li><strong>One hot concurrency key</strong> on SQL Server: the floor of 1/s also held at 4/s.</li>
+<li><strong>One hot concurrency key</strong> on SQLite: the floor of 4/s also held at 16/s.</li>
+</ul>
 <h2>Performance</h2>
 <p>Each scenario&#39;s first written rate is its floor, which this suite requires to hold.</p>
 <h3>Drain</h3>
@@ -81,123 +101,140 @@
 <p>Setup: workers: 8 on PostgreSQL, 8 on SQL Server, 1 on SQLite; namespaces: 2 on PostgreSQL, 2 on SQL Server, 1 on SQLite; executors per worker: the product default; enqueue calls in flight: 8; jobs per call: 1,000.</p>
 <div class="table"><table>
 <tr><th>Database</th><th>Pass</th><th>Jobs</th><th>Steady rate, database clock</th><th>Whole cohort</th><th>Result</th></tr>
-<tr><td>PostgreSQL</td><td>1</td><td>1,000,000</td><td>61,761 jobs/s</td><td>17.3 s</td><td>held</td></tr>
-<tr><td>PostgreSQL</td><td>2</td><td>1,000,000</td><td>70,223 jobs/s</td><td>14.9 s</td><td>held</td></tr>
-<tr><td>PostgreSQL</td><td>3</td><td>1,000,000</td><td>82,192 jobs/s</td><td>13 s</td><td>held</td></tr>
-<tr><td>SQL Server</td><td>1</td><td>1,000,000</td><td>43,338 jobs/s</td><td>26.3 s</td><td>held</td></tr>
-<tr><td>SQL Server</td><td>2</td><td>1,000,000</td><td>47,233 jobs/s</td><td>21.9 s</td><td>held</td></tr>
-<tr><td>SQL Server</td><td>3</td><td>1,000,000</td><td>45,636 jobs/s</td><td>21.8 s</td><td>held</td></tr>
-<tr><td>SQLite</td><td>1</td><td>100,000</td><td>5,001 jobs/s</td><td>20.7 s</td><td>held</td></tr>
-<tr><td>SQLite</td><td>2</td><td>100,000</td><td>4,809 jobs/s</td><td>21 s</td><td>held</td></tr>
-<tr><td>SQLite</td><td>3</td><td>100,000</td><td>4,931 jobs/s</td><td>20.2 s</td><td>held</td></tr>
+<tr><td>PostgreSQL</td><td>1</td><td>1,000,000</td><td>72,376 jobs/s</td><td>14.1 s</td><td>held</td></tr>
+<tr><td>PostgreSQL</td><td>2</td><td>1,000,000</td><td>74,333 jobs/s</td><td>14.1 s</td><td>held</td></tr>
+<tr><td>PostgreSQL</td><td>3</td><td>1,000,000</td><td>73,211 jobs/s</td><td>14.3 s</td><td>held</td></tr>
+<tr><td>SQL Server</td><td>1</td><td>1,000,000</td><td>41,119 jobs/s</td><td>25.6 s</td><td>held</td></tr>
+<tr><td>SQL Server</td><td>2</td><td>1,000,000</td><td>47,244 jobs/s</td><td>21.4 s</td><td>held</td></tr>
+<tr><td>SQL Server</td><td>3</td><td>1,000,000</td><td>43,243 jobs/s</td><td>22.6 s</td><td>held</td></tr>
+<tr><td>SQLite</td><td>1</td><td>100,000</td><td>7,950 jobs/s</td><td>12.8 s</td><td>held</td></tr>
+<tr><td>SQLite</td><td>2</td><td>100,000</td><td>7,856 jobs/s</td><td>12.8 s</td><td>held</td></tr>
+<tr><td>SQLite</td><td>3</td><td>100,000</td><td>7,754 jobs/s</td><td>12.9 s</td><td>held</td></tr>
 </table></div>
 <h3>Sustained throughput</h3>
 <p>How many jobs per second, one per enqueue call, does Acta enqueue, run and durably complete with a flat backlog and p99 under 2 s?</p>
-<p>Setup: workers: 4 on PostgreSQL, 4 on SQL Server, 1 on SQLite; namespaces: 2 on PostgreSQL, 2 on SQL Server, 1 on SQLite; executors per worker: the product default; enqueue calls in flight: 256 on PostgreSQL, 256 on SQL Server, 8 on SQLite; jobs per call: 1; p99 target: 2.0 s.</p>
+<p>Setup: workers: 4 on PostgreSQL, 4 on SQL Server, 1 on SQLite; namespaces: 2 on PostgreSQL, 2 on SQL Server, 1 on SQLite; executors per worker: the product default; enqueue calls in flight: 256 on PostgreSQL, 256 on SQL Server, 8 on SQLite; jobs per call: 1; workers learn of new work: by polling on PostgreSQL, by polling on SQL Server, in process on SQLite; p99 target: 2.0 s.</p>
 <div class="table"><table>
 <tr><th>Database</th><th>Offered/s</th><th>Pass</th><th>Completed/s</th><th>p99</th><th>Result</th></tr>
-<tr><td>PostgreSQL</td><td>10,000</td><td>1</td><td>10,069</td><td>1.0 s</td><td>held</td></tr>
-<tr><td>PostgreSQL</td><td>10,000</td><td>2</td><td>10,052</td><td>1.0 s</td><td>held</td></tr>
-<tr><td>PostgreSQL</td><td>10,000</td><td>3</td><td>9,987</td><td>1.0 s</td><td>held</td></tr>
-<tr><td>PostgreSQL</td><td>12,500</td><td>1</td><td>12,324</td><td>1.0 s</td><td>held</td></tr>
-<tr><td>PostgreSQL</td><td>12,500</td><td>2</td><td>12,195</td><td>1.0 s</td><td>held</td></tr>
-<tr><td>PostgreSQL</td><td>12,500</td><td>3</td><td>12,666</td><td>1.0 s</td><td>held</td></tr>
-<tr><td>PostgreSQL</td><td>15,000</td><td>1</td><td>14,646</td><td>1.0 s</td><td>held</td></tr>
-<tr><td>PostgreSQL</td><td>15,000</td><td>2</td><td>14,997</td><td>956 ms</td><td>held</td></tr>
-<tr><td>PostgreSQL</td><td>15,000</td><td>3</td><td>14,813</td><td>1.0 s</td><td>held</td></tr>
-<tr><td>PostgreSQL</td><td>17,500</td><td>1</td><td>17,260</td><td>1.7 s</td><td>missed: backlog grew 216 jobs/s, 175 allowed</td></tr>
-<tr><td>PostgreSQL</td><td>17,500</td><td>2</td><td>16,738</td><td>2.3 s</td><td>missed: backlog grew 776 jobs/s, 175 allowed</td></tr>
-<tr><td>PostgreSQL</td><td>17,500</td><td>3</td><td>16,828</td><td>2.5 s</td><td>missed: backlog grew 852 jobs/s, 175 allowed</td></tr>
-<tr><td>PostgreSQL</td><td>20,000</td><td></td><td></td><td></td><td>not run by rule</td></tr>
+<tr><td>PostgreSQL</td><td>10,000</td><td>1</td><td>10,143</td><td>1.0 s</td><td>held</td></tr>
+<tr><td>PostgreSQL</td><td>10,000</td><td>2</td><td>9,802</td><td>1.0 s</td><td>held</td></tr>
+<tr><td>PostgreSQL</td><td>10,000</td><td>3</td><td>10,175</td><td>1.0 s</td><td>held</td></tr>
+<tr><td>PostgreSQL</td><td>12,500</td><td>1</td><td>12,604</td><td>1.0 s</td><td>held</td></tr>
+<tr><td>PostgreSQL</td><td>12,500</td><td>2</td><td>12,649</td><td>1.0 s</td><td>held</td></tr>
+<tr><td>PostgreSQL</td><td>12,500</td><td>3</td><td>12,426</td><td>1.0 s</td><td>held</td></tr>
+<tr><td>PostgreSQL</td><td>15,000</td><td>1</td><td>15,030</td><td>1.0 s</td><td>held</td></tr>
+<tr><td>PostgreSQL</td><td>15,000</td><td>2</td><td>15,149</td><td>983 ms</td><td>held</td></tr>
+<tr><td>PostgreSQL</td><td>15,000</td><td>3</td><td>15,157</td><td>983 ms</td><td>held</td></tr>
+<tr><td>PostgreSQL</td><td>17,500</td><td>1</td><td>17,425</td><td>896 ms</td><td>missed: backlog grew 183 jobs/s, 175 allowed</td></tr>
+<tr><td>PostgreSQL</td><td>17,500</td><td>2</td><td>17,799</td><td>1.0 s</td><td>held</td></tr>
+<tr><td>PostgreSQL</td><td>17,500</td><td>3</td><td>17,516</td><td>1.0 s</td><td>missed: backlog grew 275 jobs/s, 175 allowed</td></tr>
+<tr><td>PostgreSQL</td><td>20,000</td><td>2</td><td>18,266</td><td>4.2 s</td><td>missed: backlog grew 1,795 jobs/s, 200 allowed</td></tr>
 <tr><td>PostgreSQL</td><td>25,000</td><td></td><td></td><td></td><td>not run by rule</td></tr>
 <tr><td>PostgreSQL</td><td>30,000</td><td></td><td></td><td></td><td>not run by rule</td></tr>
-<tr><td>PostgreSQL</td><td>15,000</td><td>confirm, 120 s</td><td>14,658</td><td>3.1 s</td><td>missed: p99 3.1 s against a 2.0 s target</td></tr>
-<tr><td>PostgreSQL</td><td>12,500</td><td>confirm, 120 s</td><td>12,519</td><td>1.0 s</td><td>held</td></tr>
-<tr><td>SQL Server</td><td>5,000</td><td>1</td><td>5,002</td><td>931 ms</td><td>held</td></tr>
-<tr><td>SQL Server</td><td>5,000</td><td>2</td><td>4,925</td><td>967 ms</td><td>held</td></tr>
-<tr><td>SQL Server</td><td>5,000</td><td>3</td><td>5,026</td><td>676 ms</td><td>held</td></tr>
-<tr><td>SQL Server</td><td>7,500</td><td>1</td><td>6,105</td><td>8.3 s</td><td>missed: backlog grew 1,404 jobs/s, 75 allowed</td></tr>
-<tr><td>SQL Server</td><td>7,500</td><td>2</td><td>6,207</td><td>7.7 s</td><td>missed: backlog grew 1,318 jobs/s, 75 allowed</td></tr>
-<tr><td>SQL Server</td><td>7,500</td><td>3</td><td>6,407</td><td>6.9 s</td><td>missed: backlog grew 1,076 jobs/s, 75 allowed</td></tr>
+<tr><td>PostgreSQL</td><td>15,000</td><td>confirm, 120 s</td><td>14,404</td><td>4.9 s</td><td>missed: backlog grew 237 jobs/s, 150 allowed</td></tr>
+<tr><td>PostgreSQL</td><td>12,500</td><td>confirm, 120 s</td><td>12,438</td><td>1.0 s</td><td>held</td></tr>
+<tr><td>SQL Server</td><td>5,000</td><td>1</td><td>4,927</td><td>882 ms</td><td>held</td></tr>
+<tr><td>SQL Server</td><td>5,000</td><td>2</td><td>5,002</td><td>936 ms</td><td>held</td></tr>
+<tr><td>SQL Server</td><td>5,000</td><td>3</td><td>5,102</td><td>972 ms</td><td>held</td></tr>
+<tr><td>SQL Server</td><td>7,500</td><td>1</td><td>6,442</td><td>6.0 s</td><td>missed: backlog grew 1,027 jobs/s, 75 allowed</td></tr>
+<tr><td>SQL Server</td><td>7,500</td><td>2</td><td>6,790</td><td>4.5 s</td><td>missed: backlog grew 731 jobs/s, 75 allowed</td></tr>
+<tr><td>SQL Server</td><td>7,500</td><td>3</td><td>6,602</td><td>5.3 s</td><td>missed: backlog grew 903 jobs/s, 75 allowed</td></tr>
 <tr><td>SQL Server</td><td>10,000</td><td></td><td></td><td></td><td>not run by rule</td></tr>
 <tr><td>SQL Server</td><td>12,500</td><td></td><td></td><td></td><td>not run by rule</td></tr>
 <tr><td>SQL Server</td><td>15,000</td><td></td><td></td><td></td><td>not run by rule</td></tr>
-<tr><td>SQL Server</td><td>5,000</td><td>confirm, 120 s</td><td>5,001</td><td>951 ms</td><td>held</td></tr>
-<tr><td>SQLite</td><td>25</td><td>1</td><td>25.2</td><td>1.1 s</td><td>held</td></tr>
-<tr><td>SQLite</td><td>25</td><td>2</td><td>25</td><td>1.1 s</td><td>held</td></tr>
-<tr><td>SQLite</td><td>25</td><td>3</td><td>25.7</td><td>1.1 s</td><td>held</td></tr>
-<tr><td>SQLite</td><td>50</td><td>1</td><td>50</td><td>1.1 s</td><td>held</td></tr>
-<tr><td>SQLite</td><td>50</td><td>2</td><td>51</td><td>1.1 s</td><td>held</td></tr>
-<tr><td>SQLite</td><td>50</td><td>3</td><td>51.2</td><td>1.1 s</td><td>held</td></tr>
-<tr><td>SQLite</td><td>100</td><td>1</td><td>103</td><td>3.7 s</td><td>missed: p99 3.7 s against a 2.0 s target</td></tr>
-<tr><td>SQLite</td><td>100</td><td>2</td><td>106</td><td>4.4 s</td><td>missed: p99 4.4 s against a 2.0 s target</td></tr>
-<tr><td>SQLite</td><td>100</td><td>3</td><td>102</td><td>2.3 s</td><td>missed: p99 2.3 s against a 2.0 s target</td></tr>
-<tr><td>SQLite</td><td>200</td><td></td><td></td><td></td><td>not run by rule</td></tr>
-<tr><td>SQLite</td><td>400</td><td></td><td></td><td></td><td>not run by rule</td></tr>
-<tr><td>SQLite</td><td>50</td><td>confirm, 120 s</td><td>50.3</td><td>1.1 s</td><td>held</td></tr>
+<tr><td>SQL Server</td><td>5,000</td><td>confirm, 120 s</td><td>4,972</td><td>999 ms</td><td>held</td></tr>
+<tr><td>SQLite</td><td>250</td><td>1</td><td>250</td><td>113 ms</td><td>held</td></tr>
+<tr><td>SQLite</td><td>250</td><td>2</td><td>250</td><td>176 ms</td><td>held</td></tr>
+<tr><td>SQLite</td><td>250</td><td>3</td><td>251</td><td>182 ms</td><td>held</td></tr>
+<tr><td>SQLite</td><td>500</td><td>1</td><td>500</td><td>120 ms</td><td>held</td></tr>
+<tr><td>SQLite</td><td>500</td><td>2</td><td>289</td><td>25.5 s</td><td>missed: backlog grew 212 jobs/s, 5 allowed</td></tr>
+<tr><td>SQLite</td><td>500</td><td>3</td><td>500</td><td>133 ms</td><td>held</td></tr>
+<tr><td>SQLite</td><td>1,000</td><td>1</td><td>284</td><td>75.6 s</td><td>missed: backlog grew 715 jobs/s, 10 allowed</td></tr>
+<tr><td>SQLite</td><td>1,000</td><td>3</td><td>398</td><td>63.6 s</td><td>missed: backlog grew 659 jobs/s, 10 allowed</td></tr>
+<tr><td>SQLite</td><td>2,000</td><td></td><td></td><td></td><td>not run by rule</td></tr>
+<tr><td>SQLite</td><td>250</td><td>confirm, 120 s</td><td>250</td><td>185 ms</td><td>held</td></tr>
 </table></div>
-<p>Highest rate held in every pass: PostgreSQL 15,000/s; SQL Server 5,000/s; SQLite 50/s.</p>
-<h3>Sustained throughput, one worker</h3>
-<p>How many jobs per second does one worker process of default executors run and durably complete, one job per enqueue call, with a flat backlog and p99 under 2 s?</p>
-<p>Setup: workers: 1; namespaces: 1; executors per worker: the product default; enqueue calls in flight: 256 on PostgreSQL, 256 on SQL Server, 8 on SQLite; jobs per call: 1; p99 target: 2.0 s.</p>
+<p>Highest rate held in every pass: PostgreSQL 15,000/s; SQL Server 5,000/s; SQLite 250/s.</p>
+<h3>Sustained throughput, woken through Redis</h3>
+<p>With Redis carrying each enqueue&#39;s wake to the worker processes, how many jobs per second, one per enqueue call, does Acta enqueue, run and durably complete with a flat backlog and p99 under 2 s?</p>
+<p>Setup: workers: 4 on PostgreSQL, 4 on SQL Server, 1 on SQLite; namespaces: 2 on PostgreSQL, 2 on SQL Server, 1 on SQLite; executors per worker: the product default; enqueue calls in flight: 256 on PostgreSQL, 256 on SQL Server, 8 on SQLite; jobs per call: 1; workers learn of new work: through Redis on PostgreSQL, through Redis on SQL Server, in process on SQLite; p99 target: 2.0 s.</p>
 <div class="table"><table>
 <tr><th>Database</th><th>Offered/s</th><th>Pass</th><th>Completed/s</th><th>p99</th><th>Result</th></tr>
-<tr><td>PostgreSQL</td><td>5,000</td><td>1</td><td>4,877</td><td>1.0 s</td><td>held</td></tr>
-<tr><td>PostgreSQL</td><td>5,000</td><td>2</td><td>5,100</td><td>1.0 s</td><td>held</td></tr>
-<tr><td>PostgreSQL</td><td>5,000</td><td>3</td><td>5,084</td><td>1.0 s</td><td>held</td></tr>
-<tr><td>PostgreSQL</td><td>7,500</td><td>1</td><td>7,423</td><td>1.0 s</td><td>held</td></tr>
-<tr><td>PostgreSQL</td><td>7,500</td><td>2</td><td>7,533</td><td>1.0 s</td><td>held</td></tr>
-<tr><td>PostgreSQL</td><td>7,500</td><td>3</td><td>7,440</td><td>1.0 s</td><td>held</td></tr>
-<tr><td>PostgreSQL</td><td>10,000</td><td>1</td><td>10,080</td><td>1.0 s</td><td>held</td></tr>
-<tr><td>PostgreSQL</td><td>10,000</td><td>2</td><td>9,788</td><td>1.0 s</td><td>held</td></tr>
-<tr><td>PostgreSQL</td><td>10,000</td><td>3</td><td>10,207</td><td>1.0 s</td><td>held</td></tr>
-<tr><td>PostgreSQL</td><td>12,500</td><td>1</td><td>11,187</td><td>4.7 s</td><td>missed: backlog grew 1,308 jobs/s, 125 allowed</td></tr>
-<tr><td>PostgreSQL</td><td>12,500</td><td>2</td><td>10,957</td><td>5.4 s</td><td>missed: backlog grew 1,527 jobs/s, 125 allowed</td></tr>
-<tr><td>PostgreSQL</td><td>12,500</td><td>3</td><td>11,136</td><td>4.2 s</td><td>missed: backlog grew 1,383 jobs/s, 125 allowed</td></tr>
-<tr><td>PostgreSQL</td><td>15,000</td><td></td><td></td><td></td><td>not run by rule</td></tr>
-<tr><td>PostgreSQL</td><td>10,000</td><td>confirm, 120 s</td><td>9,946</td><td>1.9 s</td><td>held</td></tr>
-<tr><td>SQL Server</td><td>2,500</td><td>1</td><td>2,505</td><td>1.0 s</td><td>held</td></tr>
-<tr><td>SQL Server</td><td>2,500</td><td>2</td><td>2,427</td><td>1.1 s</td><td>held</td></tr>
-<tr><td>SQL Server</td><td>2,500</td><td>3</td><td>2,543</td><td>1.1 s</td><td>held</td></tr>
-<tr><td>SQL Server</td><td>5,000</td><td>1</td><td>5,004</td><td>906 ms</td><td>held</td></tr>
-<tr><td>SQL Server</td><td>5,000</td><td>2</td><td>5,084</td><td>411 ms</td><td>held</td></tr>
-<tr><td>SQL Server</td><td>5,000</td><td>3</td><td>5,045</td><td>211 ms</td><td>held</td></tr>
-<tr><td>SQL Server</td><td>7,500</td><td>1</td><td>5,988</td><td>9.9 s</td><td>missed: backlog grew 1,389 jobs/s, 75 allowed</td></tr>
-<tr><td>SQL Server</td><td>7,500</td><td>2</td><td>5,764</td><td>10.3 s</td><td>missed: backlog grew 1,621 jobs/s, 75 allowed</td></tr>
-<tr><td>SQL Server</td><td>7,500</td><td>3</td><td>5,724</td><td>10.4 s</td><td>missed: backlog grew 1,666 jobs/s, 75 allowed</td></tr>
+<tr><td>PostgreSQL</td><td>10,000</td><td>1</td><td>9,999</td><td>99 ms</td><td>held</td></tr>
+<tr><td>PostgreSQL</td><td>12,500</td><td>1</td><td>12,503</td><td>96 ms</td><td>held</td></tr>
+<tr><td>PostgreSQL</td><td>15,000</td><td>1</td><td>14,994</td><td>107 ms</td><td>held</td></tr>
+<tr><td>PostgreSQL</td><td>17,500</td><td>1</td><td>17,381</td><td>809 ms</td><td>held</td></tr>
+<tr><td>PostgreSQL</td><td>20,000</td><td>1</td><td>16,924</td><td>6.5 s</td><td>missed: backlog grew 3,143 jobs/s, 200 allowed</td></tr>
+<tr><td>PostgreSQL</td><td>25,000</td><td></td><td></td><td></td><td>not run by rule</td></tr>
+<tr><td>PostgreSQL</td><td>30,000</td><td></td><td></td><td></td><td>not run by rule</td></tr>
+<tr><td>SQL Server</td><td>5,000</td><td>1</td><td>4,997</td><td>144 ms</td><td>held</td></tr>
+<tr><td>SQL Server</td><td>7,500</td><td>1</td><td>6,927</td><td>3.7 s</td><td>missed: backlog grew 585 jobs/s, 75 allowed</td></tr>
 <tr><td>SQL Server</td><td>10,000</td><td></td><td></td><td></td><td>not run by rule</td></tr>
-<tr><td>SQL Server</td><td>5,000</td><td>confirm, 120 s</td><td>5,019</td><td>1.2 s</td><td>held</td></tr>
+<tr><td>SQL Server</td><td>12,500</td><td></td><td></td><td></td><td>not run by rule</td></tr>
+<tr><td>SQL Server</td><td>15,000</td><td></td><td></td><td></td><td>not run by rule</td></tr>
+<tr><td>SQLite</td><td></td><td></td><td></td><td></td><td>SQLite runs its one worker in the controller&#39;s process, where an enqueue wakes it without a transport.</td></tr>
+</table></div>
+<p>Highest rate held in every pass: PostgreSQL 17,500/s; SQL Server 5,000/s.</p>
+<h3>Sustained throughput, one worker</h3>
+<p>How many jobs per second does one worker of default executors, in the process that enqueues, run and durably complete, one job per enqueue call, with a flat backlog and p99 under 2 s?</p>
+<p>Setup: workers: 1; namespaces: 1; executors per worker: the product default; enqueue calls in flight: 256 on PostgreSQL, 256 on SQL Server, 8 on SQLite; jobs per call: 1; workers learn of new work: in process; p99 target: 2.0 s.</p>
+<div class="table"><table>
+<tr><th>Database</th><th>Offered/s</th><th>Pass</th><th>Completed/s</th><th>p99</th><th>Result</th></tr>
+<tr><td>PostgreSQL</td><td>5,000</td><td>1</td><td>5,001</td><td>55 ms</td><td>held</td></tr>
+<tr><td>PostgreSQL</td><td>5,000</td><td>2</td><td>5,003</td><td>291 ms</td><td>held</td></tr>
+<tr><td>PostgreSQL</td><td>5,000</td><td>3</td><td>5,001</td><td>55 ms</td><td>held</td></tr>
+<tr><td>PostgreSQL</td><td>7,500</td><td>1</td><td>7,501</td><td>48 ms</td><td>held</td></tr>
+<tr><td>PostgreSQL</td><td>7,500</td><td>2</td><td>7,502</td><td>47 ms</td><td>held</td></tr>
+<tr><td>PostgreSQL</td><td>7,500</td><td>3</td><td>7,502</td><td>45 ms</td><td>held</td></tr>
+<tr><td>PostgreSQL</td><td>10,000</td><td>1</td><td>9,801</td><td>858 ms</td><td>missed: backlog grew 240 jobs/s, 100 allowed</td></tr>
+<tr><td>PostgreSQL</td><td>10,000</td><td>2</td><td>9,997</td><td>47 ms</td><td>held</td></tr>
+<tr><td>PostgreSQL</td><td>10,000</td><td>3</td><td>10,001</td><td>49 ms</td><td>held</td></tr>
+<tr><td>PostgreSQL</td><td>12,500</td><td>2</td><td>8,414</td><td>10.0 s</td><td>missed: backlog grew 4,524 jobs/s, 125 allowed</td></tr>
+<tr><td>PostgreSQL</td><td>12,500</td><td>3</td><td>7,612</td><td>13.7 s</td><td>missed: backlog grew 4,897 jobs/s, 125 allowed</td></tr>
+<tr><td>PostgreSQL</td><td>15,000</td><td></td><td></td><td></td><td>not run by rule</td></tr>
+<tr><td>PostgreSQL</td><td>7,500</td><td>confirm, 120 s</td><td>7,500</td><td>72 ms</td><td>held</td></tr>
+<tr><td>SQL Server</td><td>2,500</td><td>1</td><td>2,500</td><td>96 ms</td><td>held</td></tr>
+<tr><td>SQL Server</td><td>2,500</td><td>2</td><td>2,501</td><td>101 ms</td><td>held</td></tr>
+<tr><td>SQL Server</td><td>2,500</td><td>3</td><td>2,500</td><td>96 ms</td><td>held</td></tr>
+<tr><td>SQL Server</td><td>5,000</td><td>1</td><td>5,000</td><td>189 ms</td><td>held</td></tr>
+<tr><td>SQL Server</td><td>5,000</td><td>2</td><td>5,001</td><td>113 ms</td><td>held</td></tr>
+<tr><td>SQL Server</td><td>5,000</td><td>3</td><td>5,001</td><td>116 ms</td><td>held</td></tr>
+<tr><td>SQL Server</td><td>7,500</td><td>1</td><td>6,282</td><td>8.1 s</td><td>missed: backlog grew 1,127 jobs/s, 75 allowed</td></tr>
+<tr><td>SQL Server</td><td>7,500</td><td>2</td><td>6,114</td><td>9.0 s</td><td>missed: backlog grew 1,346 jobs/s, 75 allowed</td></tr>
+<tr><td>SQL Server</td><td>7,500</td><td>3</td><td>6,123</td><td>8.2 s</td><td>missed: backlog grew 1,363 jobs/s, 75 allowed</td></tr>
+<tr><td>SQL Server</td><td>10,000</td><td></td><td></td><td></td><td>not run by rule</td></tr>
+<tr><td>SQL Server</td><td>5,000</td><td>confirm, 120 s</td><td>5,001</td><td>1.1 s</td><td>held</td></tr>
 <tr><td>SQLite</td><td></td><td></td><td></td><td></td><td>The scenario writes no rate for sqlite.</td></tr>
 </table></div>
-<p>Highest rate held in every pass: PostgreSQL 10,000/s; SQL Server 5,000/s.</p>
+<p>Highest rate held in every pass: PostgreSQL 7,500/s; SQL Server 5,000/s.</p>
 <h3>Enqueue, one job per call</h3>
 <p>How fast are single-job enqueue calls acknowledged, each in its own transaction, before any worker runs?</p>
-<p>Setup: workers: 1; namespaces: 1; executors per worker: the product default; enqueue calls in flight: 256 on PostgreSQL, 256 on SQL Server, 8 on SQLite; jobs per call: 1; p99 target: 2.0 s.</p>
+<p>Setup: workers: 1; namespaces: 1; executors per worker: the product default; enqueue calls in flight: 256 on PostgreSQL, 256 on SQL Server, 8 on SQLite; jobs per call: 1; workers learn of new work: by polling; p99 target: 2.0 s.</p>
 <div class="table"><table>
 <tr><th>Database</th><th>Offered/s</th><th>Pass</th><th>Completed/s</th><th>p99</th><th>Result</th></tr>
-<tr><td>PostgreSQL</td><td>10,000</td><td>1</td><td>0</td><td>25 ms</td><td>held</td></tr>
-<tr><td>SQL Server</td><td>5,000</td><td>1</td><td>0</td><td>31 ms</td><td>held</td></tr>
-<tr><td>SQLite</td><td>200</td><td>1</td><td>0</td><td>658 ms</td><td>held</td></tr>
+<tr><td>PostgreSQL</td><td>10,000</td><td>1</td><td>0</td><td>27 ms</td><td>held</td></tr>
+<tr><td>SQL Server</td><td>5,000</td><td>1</td><td>0</td><td>99 ms</td><td>held</td></tr>
+<tr><td>SQLite</td><td>200</td><td>1</td><td>0</td><td>55 ms</td><td>held</td></tr>
 </table></div>
 <p>Highest rate held in every pass: PostgreSQL 10,000/s, every written rate, so the ceiling is above the ladder; SQL Server 5,000/s, every written rate, so the ceiling is above the ladder; SQLite 200/s, every written rate, so the ceiling is above the ladder.</p>
 <h3>Enqueue in batches of 100</h3>
 <p>How fast are batches of 100 jobs acknowledged, before any worker runs?</p>
-<p>Setup: workers: 1; namespaces: 1; executors per worker: the product default; enqueue calls in flight: 256 on PostgreSQL, 256 on SQL Server, 8 on SQLite; jobs per call: 100; p99 target: 2.0 s.</p>
+<p>Setup: workers: 1; namespaces: 1; executors per worker: the product default; enqueue calls in flight: 256 on PostgreSQL, 256 on SQL Server, 8 on SQLite; jobs per call: 100; workers learn of new work: by polling; p99 target: 2.0 s.</p>
 <div class="table"><table>
 <tr><th>Database</th><th>Offered/s</th><th>Pass</th><th>Completed/s</th><th>p99</th><th>Result</th></tr>
-<tr><td>PostgreSQL</td><td>10,000</td><td>1</td><td>0</td><td>36 ms</td><td>held</td></tr>
-<tr><td>SQL Server</td><td>5,000</td><td>1</td><td>0</td><td>41 ms</td><td>held</td></tr>
-<tr><td>SQLite</td><td>5,000</td><td>1</td><td>0</td><td>24 ms</td><td>held</td></tr>
+<tr><td>PostgreSQL</td><td>10,000</td><td>1</td><td>0</td><td>39 ms</td><td>held</td></tr>
+<tr><td>SQL Server</td><td>5,000</td><td>1</td><td>0</td><td>50 ms</td><td>held</td></tr>
+<tr><td>SQLite</td><td>5,000</td><td>1</td><td>0</td><td>93 ms</td><td>held</td></tr>
 </table></div>
 <p>Highest rate held in every pass: PostgreSQL 10,000/s, every written rate, so the ceiling is above the ladder; SQL Server 5,000/s, every written rate, so the ceiling is above the ladder; SQLite 5,000/s, every written rate, so the ceiling is above the ladder.</p>
 <h3>Enqueue in batches of 1,000</h3>
 <p>How fast are batches of 1,000 jobs acknowledged, before any worker runs?</p>
-<p>Setup: workers: 1; namespaces: 1; executors per worker: the product default; enqueue calls in flight: 256 on PostgreSQL, 256 on SQL Server, 8 on SQLite; jobs per call: 1,000; p99 target: 2.0 s.</p>
+<p>Setup: workers: 1; namespaces: 1; executors per worker: the product default; enqueue calls in flight: 256 on PostgreSQL, 256 on SQL Server, 8 on SQLite; jobs per call: 1,000; workers learn of new work: by polling; p99 target: 2.0 s.</p>
 <div class="table"><table>
 <tr><th>Database</th><th>Offered/s</th><th>Pass</th><th>Completed/s</th><th>p99</th><th>Result</th></tr>
-<tr><td>PostgreSQL</td><td>20,000</td><td>1</td><td>0</td><td>247 ms</td><td>held</td></tr>
-<tr><td>SQL Server</td><td>10,000</td><td>1</td><td>0</td><td>218 ms</td><td>held</td></tr>
-<tr><td>SQLite</td><td>10,000</td><td>1</td><td>0</td><td>73 ms</td><td>held</td></tr>
+<tr><td>PostgreSQL</td><td>20,000</td><td>1</td><td>0</td><td>207 ms</td><td>held</td></tr>
+<tr><td>SQL Server</td><td>10,000</td><td>1</td><td>0</td><td>216 ms</td><td>held</td></tr>
+<tr><td>SQLite</td><td>10,000</td><td>1</td><td>0</td><td>90 ms</td><td>held</td></tr>
 </table></div>
 <p>Highest rate held in every pass: PostgreSQL 20,000/s, every written rate, so the ceiling is above the ladder; SQL Server 10,000/s, every written rate, so the ceiling is above the ladder; SQLite 10,000/s, every written rate, so the ceiling is above the ladder.</p>
 <h3>Drain, one worker</h3>
@@ -205,17 +242,17 @@
 <p>Setup: workers: 1; namespaces: 1; executors per worker: the product default; enqueue calls in flight: 8; jobs per call: 1,000.</p>
 <div class="table"><table>
 <tr><th>Database</th><th>Pass</th><th>Jobs</th><th>Steady rate, database clock</th><th>Whole cohort</th><th>Result</th></tr>
-<tr><td>PostgreSQL</td><td>1</td><td>200,000</td><td>20,952 jobs/s</td><td>10.2 s</td><td>held</td></tr>
-<tr><td>SQL Server</td><td>1</td><td>200,000</td><td>11,085 jobs/s</td><td>18.6 s</td><td>held</td></tr>
-<tr><td>SQLite</td><td>1</td><td>50,000</td><td>5,625 jobs/s</td><td>9.07 s</td><td>held</td></tr>
+<tr><td>PostgreSQL</td><td>1</td><td>200,000</td><td>17,641 jobs/s</td><td>11.8 s</td><td>held</td></tr>
+<tr><td>SQL Server</td><td>1</td><td>200,000</td><td>15,233 jobs/s</td><td>13.4 s</td><td>held</td></tr>
+<tr><td>SQLite</td><td>1</td><td>50,000</td><td>6,646 jobs/s</td><td>7.61 s</td><td>held</td></tr>
 </table></div>
 <h3>Drain, four workers</h3>
 <p>How fast do four workers over two namespaces drain a backlog enqueued before they start?</p>
 <p>Setup: workers: 4; namespaces: 2; executors per worker: the product default; enqueue calls in flight: 8; jobs per call: 1,000.</p>
 <div class="table"><table>
 <tr><th>Database</th><th>Pass</th><th>Jobs</th><th>Steady rate, database clock</th><th>Whole cohort</th><th>Result</th></tr>
-<tr><td>PostgreSQL</td><td>1</td><td>200,000</td><td>43,224 jobs/s</td><td>4.66 s</td><td>held</td></tr>
-<tr><td>SQL Server</td><td>1</td><td>200,000</td><td>33,380 jobs/s</td><td>6.09 s</td><td>held</td></tr>
+<tr><td>PostgreSQL</td><td>1</td><td>200,000</td><td>43,302 jobs/s</td><td>4.56 s</td><td>held</td></tr>
+<tr><td>SQL Server</td><td>1</td><td>200,000</td><td>39,040 jobs/s</td><td>5.12 s</td><td>held</td></tr>
 <tr><td>SQLite</td><td></td><td></td><td></td><td></td><td>The scenario writes no cohort for sqlite.</td></tr>
 </table></div>
 <h3>Drain, sixteen workers</h3>
@@ -223,228 +260,238 @@
 <p>Setup: workers: 16; namespaces: 2; executors per worker: the product default; enqueue calls in flight: 8; jobs per call: 1,000.</p>
 <div class="table"><table>
 <tr><th>Database</th><th>Pass</th><th>Jobs</th><th>Steady rate, database clock</th><th>Whole cohort</th><th>Result</th></tr>
-<tr><td>PostgreSQL</td><td>1</td><td>1,000,000</td><td>73,732 jobs/s</td><td>14.4 s</td><td>held</td></tr>
-<tr><td>SQL Server</td><td>1</td><td>1,000,000</td><td>48,719 jobs/s</td><td>21.6 s</td><td>held</td></tr>
+<tr><td>PostgreSQL</td><td>1</td><td>1,000,000</td><td>75,867 jobs/s</td><td>13.9 s</td><td>held</td></tr>
+<tr><td>SQL Server</td><td>1</td><td>1,000,000</td><td>49,326 jobs/s</td><td>21.8 s</td><td>held</td></tr>
 <tr><td>SQLite</td><td></td><td></td><td></td><td></td><td>The scenario writes no cohort for sqlite.</td></tr>
 </table></div>
 <h3>Throughput, sixteen workers</h3>
 <p>Do sixteen worker processes over two namespaces hold a high offered rate with p99 under 2 s?</p>
-<p>Setup: workers: 16; namespaces: 2; executors per worker: the product default; enqueue calls in flight: 256 on PostgreSQL, 256 on SQL Server, 8 on SQLite; jobs per call: 1; p99 target: 2.0 s.</p>
+<p>Setup: workers: 16; namespaces: 2; executors per worker: the product default; enqueue calls in flight: 256 on PostgreSQL, 256 on SQL Server, 8 on SQLite; jobs per call: 1; workers learn of new work: by polling; p99 target: 2.0 s.</p>
 <div class="table"><table>
 <tr><th>Database</th><th>Offered/s</th><th>Pass</th><th>Completed/s</th><th>p99</th><th>Result</th></tr>
-<tr><td>PostgreSQL</td><td>15,000</td><td>1</td><td>15,444</td><td>1.6 s</td><td>held</td></tr>
-<tr><td>SQL Server</td><td>4,000</td><td>1</td><td>4,002</td><td>787 ms</td><td>held</td></tr>
+<tr><td>PostgreSQL</td><td>15,000</td><td>1</td><td>15,350</td><td>1.1 s</td><td>held</td></tr>
+<tr><td>SQL Server</td><td>4,000</td><td>1</td><td>3,989</td><td>617 ms</td><td>held</td></tr>
 <tr><td>SQLite</td><td></td><td></td><td></td><td></td><td>The scenario writes no rate for sqlite.</td></tr>
 </table></div>
 <p>Highest rate held in every pass: PostgreSQL 15,000/s, every written rate, so the ceiling is above the ladder; SQL Server 4,000/s, every written rate, so the ceiling is above the ladder.</p>
-<h3>Throughput, sixteen workers on one namespace</h3>
-<p>Do sixteen worker processes sharing one namespace hold a high offered rate with p99 under 2 s?</p>
-<p>Setup: workers: 16; namespaces: 1; executors per worker: the product default; enqueue calls in flight: 256 on PostgreSQL, 256 on SQL Server, 8 on SQLite; jobs per call: 1; p99 target: 2.0 s.</p>
+<h3>Throughput, sixteen workers, woken through Redis</h3>
+<p>With Redis carrying each enqueue&#39;s wake, do sixteen worker processes over two namespaces hold a high offered rate with p99 under 2 s?</p>
+<p>Setup: workers: 16; namespaces: 2; executors per worker: the product default; enqueue calls in flight: 256 on PostgreSQL, 256 on SQL Server, 8 on SQLite; jobs per call: 1; workers learn of new work: through Redis; p99 target: 2.0 s.</p>
 <div class="table"><table>
 <tr><th>Database</th><th>Offered/s</th><th>Pass</th><th>Completed/s</th><th>p99</th><th>Result</th></tr>
-<tr><td>PostgreSQL</td><td>15,000</td><td>1</td><td>15,050</td><td>1.1 s</td><td>held</td></tr>
-<tr><td>SQL Server</td><td>4,000</td><td>1</td><td>4,022</td><td>931 ms</td><td>held</td></tr>
+<tr><td>PostgreSQL</td><td>12,500</td><td>1</td><td>12,800</td><td>787 ms</td><td>held</td></tr>
+<tr><td>SQL Server</td><td>4,000</td><td>1</td><td>4,073</td><td>1.2 s</td><td>held</td></tr>
+<tr><td>SQLite</td><td></td><td></td><td></td><td></td><td>SQLite is one process&#39;s database; sixteen worker processes are not a SQLite topology.</td></tr>
+</table></div>
+<p>Highest rate held in every pass: PostgreSQL 12,500/s, every written rate, so the ceiling is above the ladder; SQL Server 4,000/s, every written rate, so the ceiling is above the ladder.</p>
+<h3>Throughput, sixteen workers on one namespace</h3>
+<p>Do sixteen worker processes sharing one namespace hold a high offered rate with p99 under 2 s?</p>
+<p>Setup: workers: 16; namespaces: 1; executors per worker: the product default; enqueue calls in flight: 256 on PostgreSQL, 256 on SQL Server, 8 on SQLite; jobs per call: 1; workers learn of new work: by polling; p99 target: 2.0 s.</p>
+<div class="table"><table>
+<tr><th>Database</th><th>Offered/s</th><th>Pass</th><th>Completed/s</th><th>p99</th><th>Result</th></tr>
+<tr><td>PostgreSQL</td><td>15,000</td><td>1</td><td>15,241</td><td>497 ms</td><td>held</td></tr>
+<tr><td>SQL Server</td><td>4,000</td><td>1</td><td>3,993</td><td>313 ms</td><td>held</td></tr>
 <tr><td>SQLite</td><td></td><td></td><td></td><td></td><td>The scenario writes no rate for sqlite.</td></tr>
 </table></div>
 <p>Highest rate held in every pass: PostgreSQL 15,000/s, every written rate, so the ceiling is above the ladder; SQL Server 4,000/s, every written rate, so the ceiling is above the ladder.</p>
 <h3>Throughput, 32 executors</h3>
 <p>Does one worker with 32 executors hold the stream its default configuration holds?</p>
-<p>Setup: workers: 1; namespaces: 1; executors per worker: 32; enqueue calls in flight: 256 on PostgreSQL, 256 on SQL Server, 8 on SQLite; jobs per call: 1; p99 target: 2.0 s.</p>
+<p>Setup: workers: 1; namespaces: 1; executors per worker: 32; enqueue calls in flight: 256 on PostgreSQL, 256 on SQL Server, 8 on SQLite; jobs per call: 1; workers learn of new work: in process; p99 target: 2.0 s.</p>
 <div class="table"><table>
 <tr><th>Database</th><th>Offered/s</th><th>Pass</th><th>Completed/s</th><th>p99</th><th>Result</th></tr>
-<tr><td>PostgreSQL</td><td>5,000</td><td>1</td><td>4,974</td><td>1.0 s</td><td>held</td></tr>
-<tr><td>SQL Server</td><td>2,500</td><td>1</td><td>2,495</td><td>1.1 s</td><td>held</td></tr>
-<tr><td>SQLite</td><td>40</td><td>1</td><td>40.7</td><td>1.1 s</td><td>held</td></tr>
+<tr><td>PostgreSQL</td><td>5,000</td><td>1</td><td>5,001</td><td>55 ms</td><td>held</td></tr>
+<tr><td>SQL Server</td><td>2,500</td><td>1</td><td>2,498</td><td>97 ms</td><td>held</td></tr>
+<tr><td>SQLite</td><td>160</td><td>1</td><td>160</td><td>280 ms</td><td>held</td></tr>
 </table></div>
-<p>Highest rate held in every pass: PostgreSQL 5,000/s, every written rate, so the ceiling is above the ladder; SQL Server 2,500/s, every written rate, so the ceiling is above the ladder; SQLite 40/s, every written rate, so the ceiling is above the ladder.</p>
+<p>Highest rate held in every pass: PostgreSQL 5,000/s, every written rate, so the ceiling is above the ladder; SQL Server 2,500/s, every written rate, so the ceiling is above the ladder; SQLite 160/s, every written rate, so the ceiling is above the ladder.</p>
 <h3>Three persisted steps</h3>
 <p>Do jobs that commit three checkpoints each hold their offered rate with p99 under 5 s?</p>
-<p>Setup: workers: 1; namespaces: 1; executors per worker: the product default; enqueue calls in flight: 256 on PostgreSQL, 256 on SQL Server, 8 on SQLite; jobs per call: 1; p99 target: 5.0 s.</p>
+<p>Setup: workers: 1; namespaces: 1; executors per worker: the product default; enqueue calls in flight: 256 on PostgreSQL, 256 on SQL Server, 8 on SQLite; jobs per call: 1; workers learn of new work: in process; p99 target: 5.0 s.</p>
 <div class="table"><table>
 <tr><th>Database</th><th>Offered/s</th><th>Pass</th><th>Completed/s</th><th>p99</th><th>Result</th></tr>
-<tr><td>PostgreSQL</td><td>1,000</td><td>1</td><td>995</td><td>1.1 s</td><td>held</td></tr>
-<tr><td>SQL Server</td><td>1,000</td><td>1</td><td>1,016</td><td>1.1 s</td><td>held</td></tr>
-<tr><td>SQLite</td><td>15</td><td>1</td><td>15.1</td><td>1.6 s</td><td>held</td></tr>
+<tr><td>PostgreSQL</td><td>1,000</td><td>1</td><td>999</td><td>111 ms</td><td>held</td></tr>
+<tr><td>SQL Server</td><td>1,000</td><td>1</td><td>1,001</td><td>124 ms</td><td>held</td></tr>
+<tr><td>SQLite</td><td>40</td><td>1</td><td>40</td><td>46 ms</td><td>held</td></tr>
 </table></div>
-<p>Highest rate held in every pass: PostgreSQL 1,000/s, every written rate, so the ceiling is above the ladder; SQL Server 1,000/s, every written rate, so the ceiling is above the ladder; SQLite 15/s, every written rate, so the ceiling is above the ladder.</p>
+<p>Highest rate held in every pass: PostgreSQL 1,000/s, every written rate, so the ceiling is above the ladder; SQL Server 1,000/s, every written rate, so the ceiling is above the ladder; SQLite 40/s, every written rate, so the ceiling is above the ladder.</p>
 <h3>Transient failure and retry</h3>
 <p>With one job in four failing twice before it succeeds, does the stream hold its rate with p99 under 10 s?</p>
-<p>Setup: workers: 1; namespaces: 1; executors per worker: the product default; enqueue calls in flight: 256 on PostgreSQL, 256 on SQL Server, 8 on SQLite; jobs per call: 1; p99 target: 10.0 s.</p>
+<p>Setup: workers: 1; namespaces: 1; executors per worker: the product default; enqueue calls in flight: 256 on PostgreSQL, 256 on SQL Server, 8 on SQLite; jobs per call: 1; workers learn of new work: in process; p99 target: 10.0 s.</p>
 <div class="table"><table>
 <tr><th>Database</th><th>Offered/s</th><th>Pass</th><th>Completed/s</th><th>p99</th><th>Result</th></tr>
-<tr><td>PostgreSQL</td><td>5,000</td><td>1</td><td>5,002</td><td>2.2 s</td><td>held</td></tr>
-<tr><td>SQL Server</td><td>2,500</td><td>1</td><td>2,499</td><td>2.2 s</td><td>held</td></tr>
-<tr><td>SQLite</td><td>40</td><td>1</td><td>40.4</td><td>2.7 s</td><td>held</td></tr>
+<tr><td>PostgreSQL</td><td>5,000</td><td>1</td><td>5,034</td><td>2.1 s</td><td>held</td></tr>
+<tr><td>SQL Server</td><td>2,500</td><td>1</td><td>2,501</td><td>2.2 s</td><td>held</td></tr>
+<tr><td>SQLite</td><td>160</td><td>1</td><td>160</td><td>2.2 s</td><td>held</td></tr>
 </table></div>
-<p>Highest rate held in every pass: PostgreSQL 5,000/s, every written rate, so the ceiling is above the ladder; SQL Server 2,500/s, every written rate, so the ceiling is above the ladder; SQLite 40/s, every written rate, so the ceiling is above the ladder.</p>
+<p>Highest rate held in every pass: PostgreSQL 5,000/s, every written rate, so the ceiling is above the ladder; SQL Server 2,500/s, every written rate, so the ceiling is above the ladder; SQLite 160/s, every written rate, so the ceiling is above the ladder.</p>
 <h3>Fixed CPU work</h3>
 <p>Do jobs that each hash for a fixed number of rounds hold their offered rate with p99 under 2 s?</p>
-<p>Setup: workers: 1; namespaces: 1; executors per worker: the product default; enqueue calls in flight: 256 on PostgreSQL, 256 on SQL Server, 8 on SQLite; jobs per call: 1; p99 target: 2.0 s.</p>
+<p>Setup: workers: 1; namespaces: 1; executors per worker: the product default; enqueue calls in flight: 256 on PostgreSQL, 256 on SQL Server, 8 on SQLite; jobs per call: 1; workers learn of new work: in process; p99 target: 2.0 s.</p>
 <div class="table"><table>
 <tr><th>Database</th><th>Offered/s</th><th>Pass</th><th>Completed/s</th><th>p99</th><th>Result</th></tr>
-<tr><td>PostgreSQL</td><td>4,000</td><td>1</td><td>3,973</td><td>1.0 s</td><td>held</td></tr>
-<tr><td>SQL Server</td><td>2,500</td><td>1</td><td>2,569</td><td>1.1 s</td><td>held</td></tr>
-<tr><td>SQLite</td><td>40</td><td>1</td><td>40.9</td><td>1.1 s</td><td>held</td></tr>
+<tr><td>PostgreSQL</td><td>4,000</td><td>1</td><td>3,998</td><td>68 ms</td><td>held</td></tr>
+<tr><td>SQL Server</td><td>2,500</td><td>1</td><td>2,499</td><td>420 ms</td><td>held</td></tr>
+<tr><td>SQLite</td><td>160</td><td>1</td><td>160</td><td>110 ms</td><td>held</td></tr>
 </table></div>
-<p>Highest rate held in every pass: PostgreSQL 4,000/s, every written rate, so the ceiling is above the ladder; SQL Server 2,500/s, every written rate, so the ceiling is above the ladder; SQLite 40/s, every written rate, so the ceiling is above the ladder.</p>
+<p>Highest rate held in every pass: PostgreSQL 4,000/s, every written rate, so the ceiling is above the ladder; SQL Server 2,500/s, every written rate, so the ceiling is above the ladder; SQLite 160/s, every written rate, so the ceiling is above the ladder.</p>
 <h3>Payloads of 256 B</h3>
 <p>Do jobs carrying a 256-byte payload hold their offered rate with p99 under 2 s?</p>
-<p>Setup: workers: 1; namespaces: 1; executors per worker: the product default; enqueue calls in flight: 256 on PostgreSQL, 256 on SQL Server, 8 on SQLite; jobs per call: 1; p99 target: 2.0 s.</p>
+<p>Setup: workers: 1; namespaces: 1; executors per worker: the product default; enqueue calls in flight: 256 on PostgreSQL, 256 on SQL Server, 8 on SQLite; jobs per call: 1; workers learn of new work: in process; p99 target: 2.0 s.</p>
 <div class="table"><table>
 <tr><th>Database</th><th>Offered/s</th><th>Pass</th><th>Completed/s</th><th>p99</th><th>Result</th></tr>
-<tr><td>PostgreSQL</td><td>4,000</td><td>1</td><td>4,042</td><td>1.0 s</td><td>held</td></tr>
-<tr><td>SQL Server</td><td>2,500</td><td>1</td><td>2,472</td><td>1.0 s</td><td>held</td></tr>
-<tr><td>SQLite</td><td>30</td><td>1</td><td>30.7</td><td>1.1 s</td><td>held</td></tr>
+<tr><td>PostgreSQL</td><td>4,000</td><td>1</td><td>3,998</td><td>54 ms</td><td>held</td></tr>
+<tr><td>SQL Server</td><td>2,500</td><td>1</td><td>2,502</td><td>89 ms</td><td>held</td></tr>
+<tr><td>SQLite</td><td>120</td><td>1</td><td>120</td><td>105 ms</td><td>held</td></tr>
 </table></div>
-<p>Highest rate held in every pass: PostgreSQL 4,000/s, every written rate, so the ceiling is above the ladder; SQL Server 2,500/s, every written rate, so the ceiling is above the ladder; SQLite 30/s, every written rate, so the ceiling is above the ladder.</p>
+<p>Highest rate held in every pass: PostgreSQL 4,000/s, every written rate, so the ceiling is above the ladder; SQL Server 2,500/s, every written rate, so the ceiling is above the ladder; SQLite 120/s, every written rate, so the ceiling is above the ladder.</p>
 <h3>Payloads of 4 KB</h3>
 <p>Do jobs carrying a 4 KB payload hold their offered rate with p99 under 2 s?</p>
-<p>Setup: workers: 1; namespaces: 1; executors per worker: the product default; enqueue calls in flight: 256 on PostgreSQL, 256 on SQL Server, 8 on SQLite; jobs per call: 1; p99 target: 2.0 s.</p>
+<p>Setup: workers: 1; namespaces: 1; executors per worker: the product default; enqueue calls in flight: 256 on PostgreSQL, 256 on SQL Server, 8 on SQLite; jobs per call: 1; workers learn of new work: in process; p99 target: 2.0 s.</p>
 <div class="table"><table>
 <tr><th>Database</th><th>Offered/s</th><th>Pass</th><th>Completed/s</th><th>p99</th><th>Result</th></tr>
-<tr><td>PostgreSQL</td><td>5,000</td><td>1</td><td>4,913</td><td>1.0 s</td><td>held</td></tr>
-<tr><td>SQL Server</td><td>2,500</td><td>1</td><td>2,455</td><td>1.0 s</td><td>held</td></tr>
-<tr><td>SQLite</td><td>30</td><td>1</td><td>30.4</td><td>1.1 s</td><td>held</td></tr>
+<tr><td>PostgreSQL</td><td>5,000</td><td>1</td><td>5,000</td><td>51 ms</td><td>held</td></tr>
+<tr><td>SQL Server</td><td>2,500</td><td>1</td><td>2,503</td><td>101 ms</td><td>held</td></tr>
+<tr><td>SQLite</td><td>120</td><td>1</td><td>120</td><td>93 ms</td><td>held</td></tr>
 </table></div>
-<p>Highest rate held in every pass: PostgreSQL 5,000/s, every written rate, so the ceiling is above the ladder; SQL Server 2,500/s, every written rate, so the ceiling is above the ladder; SQLite 30/s, every written rate, so the ceiling is above the ladder.</p>
+<p>Highest rate held in every pass: PostgreSQL 5,000/s, every written rate, so the ceiling is above the ladder; SQL Server 2,500/s, every written rate, so the ceiling is above the ladder; SQLite 120/s, every written rate, so the ceiling is above the ladder.</p>
 <h3>Payloads of 256 B, 4 KB and 64 KB mixed</h3>
 <p>Do jobs carrying payloads of three sizes in turn hold their offered rate with p99 under 2 s?</p>
-<p>Setup: workers: 1; namespaces: 1; executors per worker: the product default; enqueue calls in flight: 256 on PostgreSQL, 256 on SQL Server, 8 on SQLite; jobs per call: 1; p99 target: 2.0 s.</p>
+<p>Setup: workers: 1; namespaces: 1; executors per worker: the product default; enqueue calls in flight: 256 on PostgreSQL, 256 on SQL Server, 8 on SQLite; jobs per call: 1; workers learn of new work: in process; p99 target: 2.0 s.</p>
 <div class="table"><table>
 <tr><th>Database</th><th>Offered/s</th><th>Pass</th><th>Completed/s</th><th>p99</th><th>Result</th></tr>
-<tr><td>PostgreSQL</td><td>2,500</td><td>1</td><td>2,527</td><td>1.0 s</td><td>held</td></tr>
-<tr><td>SQL Server</td><td>1,000</td><td>1</td><td>983</td><td>1.1 s</td><td>held</td></tr>
-<tr><td>SQLite</td><td>40</td><td>1</td><td>40.8</td><td>1.1 s</td><td>held</td></tr>
+<tr><td>PostgreSQL</td><td>2,500</td><td>1</td><td>2,500</td><td>610 ms</td><td>held</td></tr>
+<tr><td>SQL Server</td><td>1,000</td><td>1</td><td>1,001</td><td>297 ms</td><td>held</td></tr>
+<tr><td>SQLite</td><td>160</td><td>1</td><td>160</td><td>103 ms</td><td>held</td></tr>
 </table></div>
-<p>Highest rate held in every pass: PostgreSQL 2,500/s, every written rate, so the ceiling is above the ladder; SQL Server 1,000/s, every written rate, so the ceiling is above the ladder; SQLite 40/s, every written rate, so the ceiling is above the ladder.</p>
+<p>Highest rate held in every pass: PostgreSQL 2,500/s, every written rate, so the ceiling is above the ladder; SQL Server 1,000/s, every written rate, so the ceiling is above the ladder; SQLite 160/s, every written rate, so the ceiling is above the ladder.</p>
 <h3>Payloads of 64 KB</h3>
 <p>Do jobs carrying a 64 KB payload hold their offered rate with p99 under 2 s?</p>
-<p>Setup: workers: 1; namespaces: 1; executors per worker: the product default; enqueue calls in flight: 256 on PostgreSQL, 256 on SQL Server, 8 on SQLite; jobs per call: 1; p99 target: 2.0 s.</p>
+<p>Setup: workers: 1; namespaces: 1; executors per worker: the product default; enqueue calls in flight: 256 on PostgreSQL, 256 on SQL Server, 8 on SQLite; jobs per call: 1; workers learn of new work: in process; p99 target: 2.0 s.</p>
 <div class="table"><table>
 <tr><th>Database</th><th>Offered/s</th><th>Pass</th><th>Completed/s</th><th>p99</th><th>Result</th></tr>
-<tr><td>PostgreSQL</td><td>1,000</td><td>1</td><td>980</td><td>1.1 s</td><td>held</td></tr>
-<tr><td>SQL Server</td><td>500</td><td>1</td><td>513</td><td>1.1 s</td><td>held</td></tr>
-<tr><td>SQLite</td><td>10</td><td>1</td><td>10.2</td><td>1.1 s</td><td>held</td></tr>
+<tr><td>PostgreSQL</td><td>1,000</td><td>1</td><td>1,000</td><td>87 ms</td><td>held</td></tr>
+<tr><td>SQL Server</td><td>500</td><td>1</td><td>500</td><td>98 ms</td><td>held</td></tr>
+<tr><td>SQLite</td><td>40</td><td>1</td><td>40</td><td>40 ms</td><td>held</td></tr>
 </table></div>
-<p>Highest rate held in every pass: PostgreSQL 1,000/s, every written rate, so the ceiling is above the ladder; SQL Server 500/s, every written rate, so the ceiling is above the ladder; SQLite 10/s, every written rate, so the ceiling is above the ladder.</p>
+<p>Highest rate held in every pass: PostgreSQL 1,000/s, every written rate, so the ceiling is above the ladder; SQL Server 500/s, every written rate, so the ceiling is above the ladder; SQLite 40/s, every written rate, so the ceiling is above the ladder.</p>
 <h3>A thousand lanes</h3>
 <p>Spread over a thousand ordered lanes, does the stream hold its rate with p99 under 2 s?</p>
-<p>Setup: workers: 1; namespaces: 1; executors per worker: the product default; enqueue calls in flight: 256 on PostgreSQL, 256 on SQL Server, 8 on SQLite; jobs per call: 1; p99 target: 2.0 s.</p>
+<p>Setup: workers: 1; namespaces: 1; executors per worker: the product default; enqueue calls in flight: 256 on PostgreSQL, 256 on SQL Server, 8 on SQLite; jobs per call: 1; workers learn of new work: in process; p99 target: 2.0 s.</p>
 <div class="table"><table>
 <tr><th>Database</th><th>Offered/s</th><th>Pass</th><th>Completed/s</th><th>p99</th><th>Result</th></tr>
-<tr><td>PostgreSQL</td><td>4,000</td><td>1</td><td>4,052</td><td>1.0 s</td><td>held</td></tr>
-<tr><td>SQL Server</td><td>1,000</td><td>1</td><td>976</td><td>1.0 s</td><td>held</td></tr>
-<tr><td>SQLite</td><td>30</td><td>1</td><td>30.2</td><td>1.1 s</td><td>held</td></tr>
+<tr><td>PostgreSQL</td><td>4,000</td><td>1</td><td>3,999</td><td>55 ms</td><td>held</td></tr>
+<tr><td>SQL Server</td><td>1,000</td><td>1</td><td>1,001</td><td>95 ms</td><td>held</td></tr>
+<tr><td>SQLite</td><td>120</td><td>1</td><td>120</td><td>107 ms</td><td>held</td></tr>
 </table></div>
-<p>Highest rate held in every pass: PostgreSQL 4,000/s, every written rate, so the ceiling is above the ladder; SQL Server 1,000/s, every written rate, so the ceiling is above the ladder; SQLite 30/s, every written rate, so the ceiling is above the ladder.</p>
+<p>Highest rate held in every pass: PostgreSQL 4,000/s, every written rate, so the ceiling is above the ladder; SQL Server 1,000/s, every written rate, so the ceiling is above the ladder; SQLite 120/s, every written rate, so the ceiling is above the ladder.</p>
 <h3>Operator queries during processing</h3>
 <p>While the stream runs, do the operator list queries answer quickly, and does the stream keep its rate?</p>
-<p>Setup: workers: 1; namespaces: 1; executors per worker: the product default; enqueue calls in flight: 256 on PostgreSQL, 256 on SQL Server, 8 on SQLite; jobs per call: 1; p99 target: 2.0 s.</p>
+<p>Setup: workers: 1; namespaces: 1; executors per worker: the product default; enqueue calls in flight: 256 on PostgreSQL, 256 on SQL Server, 8 on SQLite; jobs per call: 1; workers learn of new work: in process; p99 target: 2.0 s.</p>
 <div class="table"><table>
 <tr><th>Database</th><th>Offered/s</th><th>Pass</th><th>Completed/s</th><th>p99</th><th>Result</th></tr>
-<tr><td>PostgreSQL</td><td>5,000</td><td>1</td><td>4,930</td><td>1.0 s</td><td>held</td></tr>
-<tr><td>SQL Server</td><td>2,500</td><td>1</td><td>2,540</td><td>1.1 s</td><td>held</td></tr>
-<tr><td>SQLite</td><td>30</td><td>1</td><td>30.1</td><td>1.1 s</td><td>held</td></tr>
+<tr><td>PostgreSQL</td><td>5,000</td><td>1</td><td>4,997</td><td>57 ms</td><td>held</td></tr>
+<tr><td>SQL Server</td><td>2,500</td><td>1</td><td>2,504</td><td>91 ms</td><td>held</td></tr>
+<tr><td>SQLite</td><td>120</td><td>1</td><td>120</td><td>106 ms</td><td>held</td></tr>
 </table></div>
-<p>Highest rate held in every pass: PostgreSQL 5,000/s, every written rate, so the ceiling is above the ladder; SQL Server 2,500/s, every written rate, so the ceiling is above the ladder; SQLite 30/s, every written rate, so the ceiling is above the ladder.</p>
+<p>Highest rate held in every pass: PostgreSQL 5,000/s, every written rate, so the ceiling is above the ladder; SQL Server 2,500/s, every written rate, so the ceiling is above the ladder; SQLite 120/s, every written rate, so the ceiling is above the ladder.</p>
 <h3>Parked work alongside</h3>
 <p>With a large population of jobs parked on signals, does the stream hold its rate with p99 under 2 s?</p>
-<p>Setup: workers: 1; namespaces: 1; executors per worker: the product default; enqueue calls in flight: 256 on PostgreSQL, 256 on SQL Server, 8 on SQLite; jobs per call: 1; p99 target: 2.0 s.</p>
+<p>Setup: workers: 1; namespaces: 1; executors per worker: the product default; enqueue calls in flight: 256 on PostgreSQL, 256 on SQL Server, 8 on SQLite; jobs per call: 1; workers learn of new work: in process; p99 target: 2.0 s.</p>
 <div class="table"><table>
 <tr><th>Database</th><th>Offered/s</th><th>Pass</th><th>Completed/s</th><th>p99</th><th>Result</th></tr>
-<tr><td>PostgreSQL</td><td>5,000</td><td>1</td><td>5,102</td><td>1.0 s</td><td>held</td></tr>
-<tr><td>SQL Server</td><td>500</td><td>1</td><td>486</td><td>1.0 s</td><td>held</td></tr>
-<tr><td>SQLite</td><td>40</td><td>1</td><td>40.6</td><td>1.1 s</td><td>held</td></tr>
+<tr><td>PostgreSQL</td><td>5,000</td><td>1</td><td>5,001</td><td>56 ms</td><td>held</td></tr>
+<tr><td>SQL Server</td><td>500</td><td>1</td><td>500</td><td>95 ms</td><td>held</td></tr>
+<tr><td>SQLite</td><td>160</td><td>1</td><td>160</td><td>105 ms</td><td>held</td></tr>
 </table></div>
-<p>Highest rate held in every pass: PostgreSQL 5,000/s, every written rate, so the ceiling is above the ladder; SQL Server 500/s, every written rate, so the ceiling is above the ladder; SQLite 40/s, every written rate, so the ceiling is above the ladder.</p>
+<p>Highest rate held in every pass: PostgreSQL 5,000/s, every written rate, so the ceiling is above the ladder; SQL Server 500/s, every written rate, so the ceiling is above the ladder; SQLite 160/s, every written rate, so the ceiling is above the ladder.</p>
 <h3>Future high-priority work alongside</h3>
 <p>With a large population of high-priority jobs due tomorrow, does the stream hold its rate with p99 under 2 s?</p>
-<p>Setup: workers: 1; namespaces: 1; executors per worker: the product default; enqueue calls in flight: 256 on PostgreSQL, 256 on SQL Server, 8 on SQLite; jobs per call: 1; p99 target: 2.0 s.</p>
+<p>Setup: workers: 1; namespaces: 1; executors per worker: the product default; enqueue calls in flight: 256 on PostgreSQL, 256 on SQL Server, 8 on SQLite; jobs per call: 1; workers learn of new work: in process; p99 target: 2.0 s.</p>
 <div class="table"><table>
 <tr><th>Database</th><th>Offered/s</th><th>Pass</th><th>Completed/s</th><th>p99</th><th>Result</th></tr>
-<tr><td>PostgreSQL</td><td>5,000</td><td>1</td><td>5,039</td><td>1.0 s</td><td>held</td></tr>
-<tr><td>SQL Server</td><td>320</td><td>1</td><td>317</td><td>1.0 s</td><td>held</td></tr>
-<tr><td>SQLite</td><td>40</td><td>1</td><td>40.6</td><td>1.1 s</td><td>held</td></tr>
+<tr><td>PostgreSQL</td><td>5,000</td><td>1</td><td>5,003</td><td>49 ms</td><td>held</td></tr>
+<tr><td>SQL Server</td><td>320</td><td>1</td><td>320</td><td>102 ms</td><td>held</td></tr>
+<tr><td>SQLite</td><td>160</td><td>1</td><td>160</td><td>95 ms</td><td>held</td></tr>
 </table></div>
-<p>Highest rate held in every pass: PostgreSQL 5,000/s, every written rate, so the ceiling is above the ladder; SQL Server 320/s, every written rate, so the ceiling is above the ladder; SQLite 40/s, every written rate, so the ceiling is above the ladder.</p>
+<p>Highest rate held in every pass: PostgreSQL 5,000/s, every written rate, so the ceiling is above the ladder; SQL Server 320/s, every written rate, so the ceiling is above the ladder; SQLite 160/s, every written rate, so the ceiling is above the ladder.</p>
 <h3>Ten children and a join</h3>
 <p>Do parents that fan out ten children and join them hold their offered rate with p99 under 10 s?</p>
-<p>Setup: workers: 1; namespaces: 1; executors per worker: the product default; enqueue calls in flight: 256 on PostgreSQL, 256 on SQL Server, 8 on SQLite; jobs per call: 1; p99 target: 10.0 s.</p>
+<p>Setup: workers: 1; namespaces: 1; executors per worker: the product default; enqueue calls in flight: 256 on PostgreSQL, 256 on SQL Server, 8 on SQLite; jobs per call: 1; workers learn of new work: in process; p99 target: 10.0 s.</p>
 <div class="table"><table>
 <tr><th>Database</th><th>Offered/s</th><th>Pass</th><th>Completed/s</th><th>p99</th><th>Result</th></tr>
-<tr><td>PostgreSQL</td><td>250</td><td>1</td><td>249</td><td>307 ms</td><td>held</td></tr>
-<tr><td>SQL Server</td><td>200</td><td>1</td><td>202</td><td>400 ms</td><td>held</td></tr>
-<tr><td>SQLite</td><td>2</td><td>1</td><td>1.97</td><td>1.2 s</td><td>held</td></tr>
+<tr><td>PostgreSQL</td><td>250</td><td>1</td><td>251</td><td>303 ms</td><td>held</td></tr>
+<tr><td>SQL Server</td><td>200</td><td>1</td><td>200</td><td>346 ms</td><td>held</td></tr>
+<tr><td>SQLite</td><td>8</td><td>1</td><td>8</td><td>353 ms</td><td>held</td></tr>
 </table></div>
-<p>Highest rate held in every pass: PostgreSQL 250/s, every written rate, so the ceiling is above the ladder; SQL Server 200/s, every written rate, so the ceiling is above the ladder; SQLite 2/s, every written rate, so the ceiling is above the ladder.</p>
+<p>Highest rate held in every pass: PostgreSQL 250/s, every written rate, so the ceiling is above the ladder; SQL Server 200/s, every written rate, so the ceiling is above the ladder; SQLite 8/s, every written rate, so the ceiling is above the ladder.</p>
 <h3>Controlled I/O through an idempotent sink</h3>
 <p>Do jobs that each call an external idempotent sink for 5 ms hold their offered rate with p99 under 5 s?</p>
-<p>Setup: workers: 1; namespaces: 1; executors per worker: the product default; enqueue calls in flight: 256 on PostgreSQL, 256 on SQL Server, 8 on SQLite; jobs per call: 1; p99 target: 5.0 s.</p>
+<p>Setup: workers: 1; namespaces: 1; executors per worker: the product default; enqueue calls in flight: 256 on PostgreSQL, 256 on SQL Server, 8 on SQLite; jobs per call: 1; workers learn of new work: in process; p99 target: 5.0 s.</p>
 <div class="table"><table>
 <tr><th>Database</th><th>Offered/s</th><th>Pass</th><th>Completed/s</th><th>p99</th><th>Result</th></tr>
-<tr><td>PostgreSQL</td><td>250</td><td>1</td><td>248</td><td>1.1 s</td><td>held</td></tr>
-<tr><td>SQL Server</td><td>200</td><td>1</td><td>198</td><td>1.1 s</td><td>held</td></tr>
-<tr><td>SQLite</td><td>20</td><td>1</td><td>20.2</td><td>2.3 s</td><td>held</td></tr>
+<tr><td>PostgreSQL</td><td>250</td><td>1</td><td>246</td><td>706 ms</td><td>held</td></tr>
+<tr><td>SQL Server</td><td>200</td><td>1</td><td>200</td><td>246 ms</td><td>held</td></tr>
+<tr><td>SQLite</td><td>80</td><td>1</td><td>79.4</td><td>331 ms</td><td>held</td></tr>
 </table></div>
-<p>Highest rate held in every pass: PostgreSQL 250/s, every written rate, so the ceiling is above the ladder; SQL Server 200/s, every written rate, so the ceiling is above the ladder; SQLite 20/s, every written rate, so the ceiling is above the ladder.</p>
+<p>Highest rate held in every pass: PostgreSQL 250/s, every written rate, so the ceiling is above the ladder; SQL Server 200/s, every written rate, so the ceiling is above the ladder; SQLite 80/s, every written rate, so the ceiling is above the ladder.</p>
 <h3>Short and long work mixed</h3>
 <p>Do no-op, CPU, sink, timer and fan-out jobs mixed in turn hold their offered rate with p99 under 5 s?</p>
-<p>Setup: workers: 1; namespaces: 1; executors per worker: the product default; enqueue calls in flight: 256 on PostgreSQL, 256 on SQL Server, 8 on SQLite; jobs per call: 1; p99 target: 5.0 s.</p>
+<p>Setup: workers: 1; namespaces: 1; executors per worker: the product default; enqueue calls in flight: 256 on PostgreSQL, 256 on SQL Server, 8 on SQLite; jobs per call: 1; workers learn of new work: in process; p99 target: 5.0 s.</p>
 <div class="table"><table>
 <tr><th>Database</th><th>Offered/s</th><th>Pass</th><th>Completed/s</th><th>p99</th><th>Result</th></tr>
 <tr><td>PostgreSQL</td><td>600</td><td>1</td><td>600</td><td>1.1 s</td><td>held</td></tr>
 <tr><td>SQL Server</td><td>500</td><td>1</td><td>500</td><td>1.1 s</td><td>held</td></tr>
-<tr><td>SQLite</td><td>20</td><td>1</td><td>19.8</td><td>1.6 s</td><td>held</td></tr>
+<tr><td>SQLite</td><td>80</td><td>1</td><td>79.7</td><td>1.2 s</td><td>held</td></tr>
 </table></div>
-<p>Highest rate held in every pass: PostgreSQL 600/s, every written rate, so the ceiling is above the ladder; SQL Server 500/s, every written rate, so the ceiling is above the ladder; SQLite 20/s, every written rate, so the ceiling is above the ladder.</p>
+<p>Highest rate held in every pass: PostgreSQL 600/s, every written rate, so the ceiling is above the ladder; SQL Server 500/s, every written rate, so the ceiling is above the ladder; SQLite 80/s, every written rate, so the ceiling is above the ladder.</p>
 <h3>Throughput, one executor</h3>
 <p>Does a worker with a single executor keep up with a modest stream, so the result shows its serial cost?</p>
-<p>Setup: workers: 1; namespaces: 1; executors per worker: 1; enqueue calls in flight: 256 on PostgreSQL, 256 on SQL Server, 8 on SQLite; jobs per call: 1; p99 target: 2.0 s.</p>
+<p>Setup: workers: 1; namespaces: 1; executors per worker: 1; enqueue calls in flight: 256 on PostgreSQL, 256 on SQL Server, 8 on SQLite; jobs per call: 1; workers learn of new work: in process; p99 target: 2.0 s.</p>
 <div class="table"><table>
 <tr><th>Database</th><th>Offered/s</th><th>Pass</th><th>Completed/s</th><th>p99</th><th>Result</th></tr>
-<tr><td>PostgreSQL</td><td>150</td><td>1</td><td>152</td><td>1.0 s</td><td>held</td></tr>
-<tr><td>SQL Server</td><td>150</td><td>1</td><td>148</td><td>1.1 s</td><td>held</td></tr>
-<tr><td>SQLite</td><td>25</td><td>1</td><td>25.1</td><td>1.1 s</td><td>held</td></tr>
+<tr><td>PostgreSQL</td><td>150</td><td>1</td><td>150</td><td>68 ms</td><td>held</td></tr>
+<tr><td>SQL Server</td><td>150</td><td>1</td><td>150</td><td>158 ms</td><td>held</td></tr>
+<tr><td>SQLite</td><td>100</td><td>1</td><td>100</td><td>46 ms</td><td>held</td></tr>
 </table></div>
-<p>Highest rate held in every pass: PostgreSQL 150/s, every written rate, so the ceiling is above the ladder; SQL Server 150/s, every written rate, so the ceiling is above the ladder; SQLite 25/s, every written rate, so the ceiling is above the ladder.</p>
+<p>Highest rate held in every pass: PostgreSQL 150/s, every written rate, so the ceiling is above the ladder; SQL Server 150/s, every written rate, so the ceiling is above the ladder; SQLite 100/s, every written rate, so the ceiling is above the ladder.</p>
 <h3>One hot lane</h3>
 <p>How fast does one ordered lane hand its jobs over, each waiting for the previous completion to commit?</p>
-<p>Setup: workers: 1; namespaces: 1; executors per worker: the product default; enqueue calls in flight: 256 on PostgreSQL, 256 on SQL Server, 8 on SQLite; jobs per call: 1; p99 target: 2.0 s.</p>
+<p>Setup: workers: 1; namespaces: 1; executors per worker: the product default; enqueue calls in flight: 256 on PostgreSQL, 256 on SQL Server, 8 on SQLite; jobs per call: 1; workers learn of new work: in process; p99 target: 2.0 s.</p>
 <div class="table"><table>
 <tr><th>Database</th><th>Offered/s</th><th>Pass</th><th>Completed/s</th><th>p99</th><th>Result</th></tr>
-<tr><td>PostgreSQL</td><td>60</td><td>1</td><td>58.2</td><td>1.0 s</td><td>held</td></tr>
-<tr><td>SQL Server</td><td>100</td><td>1</td><td>100</td><td>1.1 s</td><td>held</td></tr>
-<tr><td>SQLite</td><td>20</td><td>1</td><td>20.1</td><td>1.1 s</td><td>held</td></tr>
+<tr><td>PostgreSQL</td><td>60</td><td>1</td><td>60</td><td>28 ms</td><td>held</td></tr>
+<tr><td>SQL Server</td><td>100</td><td>1</td><td>100</td><td>70 ms</td><td>held</td></tr>
+<tr><td>SQLite</td><td>80</td><td>1</td><td>80</td><td>36 ms</td><td>held</td></tr>
 </table></div>
-<p>Highest rate held in every pass: PostgreSQL 60/s, every written rate, so the ceiling is above the ladder; SQL Server 100/s, every written rate, so the ceiling is above the ladder; SQLite 20/s, every written rate, so the ceiling is above the ladder.</p>
+<p>Highest rate held in every pass: PostgreSQL 60/s, every written rate, so the ceiling is above the ladder; SQL Server 100/s, every written rate, so the ceiling is above the ladder; SQLite 80/s, every written rate, so the ceiling is above the ladder.</p>
 <h3>One hot concurrency key</h3>
 <p>With every job sharing one concurrency key of limit one, does a stream of one a second keep a flat backlog with p99 under 30 s?</p>
-<p>Setup: workers: 1; namespaces: 1; executors per worker: the product default; enqueue calls in flight: 256 on PostgreSQL, 256 on SQL Server, 8 on SQLite; jobs per call: 1; p99 target: 30.0 s.</p>
+<p>Setup: workers: 1; namespaces: 1; executors per worker: the product default; enqueue calls in flight: 256 on PostgreSQL, 256 on SQL Server, 8 on SQLite; jobs per call: 1; workers learn of new work: in process; p99 target: 30.0 s.</p>
 <div class="table"><table>
 <tr><th>Database</th><th>Offered/s</th><th>Pass</th><th>Completed/s</th><th>p99</th><th>Result</th></tr>
-<tr><td>PostgreSQL</td><td>1</td><td>1</td><td>0.967</td><td>11.3 s</td><td>held</td></tr>
-<tr><td>SQL Server</td><td>1</td><td>1</td><td>0.967</td><td>6.5 s</td><td>held</td></tr>
-<tr><td>SQLite</td><td>1</td><td>1</td><td>1</td><td>1.0 s</td><td>held</td></tr>
+<tr><td>PostgreSQL</td><td>1</td><td>1</td><td>1</td><td>61 ms</td><td>held</td></tr>
+<tr><td>SQL Server</td><td>1</td><td>1</td><td>1</td><td>59 ms</td><td>held</td></tr>
+<tr><td>SQLite</td><td>4</td><td>1</td><td>4</td><td>29 ms</td><td>held</td></tr>
 </table></div>
-<p>Highest rate held in every pass: PostgreSQL 1/s, every written rate, so the ceiling is above the ladder; SQL Server 1/s, every written rate, so the ceiling is above the ladder; SQLite 1/s, every written rate, so the ceiling is above the ladder.</p>
+<p>Highest rate held in every pass: PostgreSQL 1/s, every written rate, so the ceiling is above the ladder; SQL Server 1/s, every written rate, so the ceiling is above the ladder; SQLite 4/s, every written rate, so the ceiling is above the ladder.</p>
 <h3>Five-minute mixed soak</h3>
 <p>Does the mixed workload hold a steady rate for five minutes with p99 under 5 s and a flat backlog?</p>
-<p>Setup: workers: 1; namespaces: 1; executors per worker: the product default; enqueue calls in flight: 256 on PostgreSQL, 256 on SQL Server, 8 on SQLite; jobs per call: 1; p99 target: 5.0 s.</p>
+<p>Setup: workers: 1; namespaces: 1; executors per worker: the product default; enqueue calls in flight: 256 on PostgreSQL, 256 on SQL Server, 8 on SQLite; jobs per call: 1; workers learn of new work: in process; p99 target: 5.0 s.</p>
 <div class="table"><table>
 <tr><th>Database</th><th>Offered/s</th><th>Pass</th><th>Completed/s</th><th>p99</th><th>Result</th></tr>
 <tr><td>PostgreSQL</td><td>700</td><td>1</td><td>700</td><td>1.2 s</td><td>held</td></tr>
 <tr><td>SQL Server</td><td>350</td><td>1</td><td>350</td><td>1.1 s</td><td>held</td></tr>
-<tr><td>SQLite</td><td>14</td><td>1</td><td>14</td><td>1.9 s</td><td>held</td></tr>
+<tr><td>SQLite</td><td>56</td><td>1</td><td>56</td><td>1.1 s</td><td>held</td></tr>
 </table></div>
-<p>Highest rate held in every pass: PostgreSQL 700/s, every written rate, so the ceiling is above the ladder; SQL Server 350/s, every written rate, so the ceiling is above the ladder; SQLite 14/s, every written rate, so the ceiling is above the ladder.</p>
+<p>Highest rate held in every pass: PostgreSQL 700/s, every written rate, so the ceiling is above the ladder; SQL Server 350/s, every written rate, so the ceiling is above the ladder; SQLite 56/s, every written rate, so the ceiling is above the ladder.</p>
 <h3>Overload, then recovery</h3>
 <p>Offered more than it can run, does the backlog grow, and does it fall back once the offered rate drops?</p>
 <p>Setup: workers: 1; namespaces: 1; executors per worker: the product default; enqueue calls in flight: 256 on PostgreSQL, 256 on SQL Server, 8 on SQLite; jobs per call: 1; p99 target: 2.0 s.</p>
 <div class="table"><table>
 <tr><th>Database</th><th>Offered/s</th><th>Pass</th><th>Completed/s</th><th>p99</th><th>Result</th></tr>
-<tr><td>PostgreSQL</td><td>13,000, then 2,500</td><td>1</td><td>7,749</td><td>11.5 s</td><td>pass: the backlog grew, then fell back</td></tr>
-<tr><td>SQL Server</td><td>8,000, then 1,000</td><td>1</td><td>4,499</td><td>14.3 s</td><td>pass: the backlog grew, then fell back</td></tr>
-<tr><td>SQLite</td><td>800, then 50</td><td>1</td><td>425</td><td>4.5 s</td><td>incomplete: The offered overload of 800 jobs/s did not grow the backlog during the overload half.</td></tr>
+<tr><td>PostgreSQL</td><td>13,000, then 2,500</td><td>1</td><td>7,750</td><td>9.0 s</td><td>pass: the backlog grew, then fell back</td></tr>
+<tr><td>SQL Server</td><td>8,000, then 1,000</td><td>1</td><td>4,499</td><td>10.7 s</td><td>pass: the backlog grew, then fell back</td></tr>
+<tr><td>SQLite</td><td></td><td></td><td></td><td></td><td>SQLite&#39;s one writer serves the enqueues and the worker alike, so an offer past what it absorbs queues in the caller, not in the database.</td></tr>
 </table></div>
 <h2>Correctness</h2>
 <div class="table"><table>
@@ -503,403 +550,40 @@
 <tr><th>Scenario</th><th>PostgreSQL</th><th>SQL Server</th><th>SQLite</th></tr>
 <tr><td>Worker kills under mixed load</td><td>pass</td><td>pass</td><td>pass</td></tr>
 </table></div>
-<h2>What did not pass</h2>
-<ul>
-<li><strong>Overload, then recovery</strong> on SQLite, incomplete: The offered overload of 800 jobs/s did not grow the backlog during the overload half. (<code>histories/sqlite-overload-then-recover-measure-1-50-checks.json</code>)</li>
-</ul>
 <h2>How this run was made</h2>
 <ul>
 <li>Command: <code>acta-verify release --db all</code>.</li>
-<li>Commit <code>be95c5098926600cffba6340e5d827d98c75dd00</code>, measurement version 2, written standard <code>56961845f991</code>.</li>
+<li>Commit <code>5043b81fa66c71b27e9d64bd0067803707894342</code>, measurement version 3, written standard <code>28e7dc9b6183</code>.</li>
 <li>Machine: Intel(R) Core(TM) i9-14900K, 24 cores, 32 logical processors, Microsoft Windows 10.0.26300, .NET 10.0.12.</li>
 <li>Docker VM: 32 CPUs, 46.9 GB; measured containers capped at PostgreSQL 32031 MB, SQL Server 32031 MB.</li>
-<li>PostgreSQL: peak 325 database connections; disk before measuring: no, after 62 s: too few samples; writing most: chatgpt 0.0 MB/s, chatgpt 0.0 MB/s, opera 0.0 MB/s.</li>
-<li>SQL Server: peak 335 database connections; disk before measuring: yes, after 12 s.</li>
-<li>SQLite: peak 0 database connections; disk before measuring: no, after 62 s: too few samples; writing most: opera 4.1 MB/s, opera 0.4 MB/s, opera 0.4 MB/s.</li>
-<li>Wall time: performance on PostgreSQL 57 min, correctness on PostgreSQL 5 min, chaos on PostgreSQL 18 min, performance on SQL Server 47 min, correctness on SQL Server 10 min, chaos on SQL Server 27 min, performance on SQLite 30 min, correctness on SQLite 5 min, chaos on SQLite 13 min; correctness runs on every database at once, chaos one database at a time.</li>
-<li>Evidence: 19.3 MB of a 50 MB budget.</li>
+<li>PostgreSQL: peak 522 database connections; disk before measuring: yes, after 12 s.</li>
+<li>SQL Server: peak 548 database connections; disk before measuring: yes, after 26 s.</li>
+<li>SQLite: peak 0 database connections; disk before measuring: no, after 62 s: too few samples; writing most: chatgpt 0.0 MB/s, wsl 0.0 MB/s, com.docker.backend 0.0 MB/s.</li>
+<li>Wall time: performance on PostgreSQL 1 h 49 min, correctness on PostgreSQL 6 min, chaos on PostgreSQL 18 min, performance on SQL Server 1 h 27 min, correctness on SQL Server 10 min, chaos on SQL Server 27 min, performance on SQLite 57 min, correctness on SQLite 5 min, chaos on SQLite 12 min; correctness runs on every database at once, chaos one database at a time.</li>
+<li>Evidence: 30.4 MB of a 50 MB budget.</li>
 <li>A rate holds when every scheduled arrival reached an outcome and none was refused, the backlog trend stayed within 1% of the rate, p99 stayed within the target, at most 0.1% of arrivals were picked up late by the harness, and every job reconciled. These are the rc.6 criteria.</li>
+<li>p99 runs from an arrival&#39;s scheduled instant to its job&#39;s durable completion, or to the enqueue call&#39;s answer in an enqueue-only scenario. A scenario that streams arrivals to one worker in one namespace runs that worker in the process that enqueues, as a single Acta host does: it shares that process&#39;s heap and thread pool and the enqueue calls&#39; connection pool, and each enqueue wakes it at once. A worker process claims again while its claims return jobs; after an empty claim it waits up to its 1 s safety poll, or until Redis wakes it where the setup says so.</li>
 </ul>
 <div class="table"><table>
 <tr><th>Disk, by phase and drive</th><th>Windows counters</th></tr>
-<tr><td>before | 0 c:</td><td>write 2.24 ms mean, 4.97 ms p95, 10 writes/s, 99% idle, 14 samples</td></tr>
-<tr><td>before | 1 d:</td><td>write 4.87 ms mean, 7.44 ms p95, 44 writes/s, 99% idle, 14 samples</td></tr>
-<tr><td>chaos mssql | 0 c:</td><td>write 2.77 ms mean, 7.66 ms p95, 9 writes/s, 99% idle, 829 samples</td></tr>
-<tr><td>chaos mssql | 1 d:</td><td>write 0.22 ms mean, 0.34 ms p95, 807 writes/s, 68% idle, 829 samples</td></tr>
-<tr><td>chaos pg | 0 c:</td><td>write 2.26 ms mean, 7.37 ms p95, 12 writes/s, 99% idle, 538 samples</td></tr>
-<tr><td>chaos pg | 1 d:</td><td>write 0.05 ms mean, 0.05 ms p95, 969 writes/s, 44% idle, 538 samples</td></tr>
-<tr><td>chaos sqlite | 0 c:</td><td>write 2.66 ms mean, 7.55 ms p95, 18 writes/s, 99% idle, 397 samples</td></tr>
-<tr><td>chaos sqlite | 1 d:</td><td>write 1.89 ms mean, 7.51 ms p95, 524 writes/s, 82% idle, 397 samples</td></tr>
-<tr><td>correctness | 0 c:</td><td>write 2.56 ms mean, 6.22 ms p95, 13 writes/s, 99% idle, 307 samples</td></tr>
-<tr><td>correctness | 1 d:</td><td>write 0.40 ms mean, 2.66 ms p95, 588 writes/s, 84% idle, 307 samples</td></tr>
-<tr><td>mssql | 0 c:</td><td>write 2.51 ms mean, 7.34 ms p95, 15 writes/s, 98% idle, 1428 samples</td></tr>
-<tr><td>mssql | 1 d:</td><td>write 0.77 ms mean, 2.46 ms p95, 1907 writes/s, 52% idle, 1428 samples</td></tr>
-<tr><td>pg | 0 c:</td><td>write 2.85 ms mean, 7.60 ms p95, 10 writes/s, 99% idle, 1710 samples</td></tr>
-<tr><td>pg | 1 d:</td><td>write 0.73 ms mean, 3.45 ms p95, 827 writes/s, 66% idle, 1710 samples</td></tr>
-<tr><td>sqlite | 0 c:</td><td>write 2.35 ms mean, 6.72 ms p95, 13 writes/s, 99% idle, 916 samples</td></tr>
-<tr><td>sqlite | 1 d:</td><td>write 0.08 ms mean, 0.18 ms p95, 401 writes/s, 96% idle, 916 samples</td></tr>
-<tr><td>after | 0 c:</td><td>write 2.56 ms mean, 7.48 ms p95, 12 writes/s, 99% idle, 15 samples</td></tr>
-<tr><td>after | 1 d:</td><td>write 4.00 ms mean, 7.59 ms p95, 7 writes/s, 100% idle, 15 samples</td></tr>
-</table></div>
-<h1 class="">Acta Verify: INCOMPLETE</h1>
-<p>The release suite on SQLite, commit <code>e8cc81d90</code>, started 2026-10-31 20:57 UTC, 53 min, on Intel(R) Core(TM) i9-14900K.</p>
-<div class="table"><table>
-<tr><th></th><th>SQLite</th></tr>
-<tr><td>Correctness</td><td>pass</td></tr>
-<tr><td>Crash-recovery chaos</td><td>pass, 10,000 jobs, 33 busy kills reclaimed</td></tr>
-<tr><td>Ledger checks</td><td>pass, 113 trials checked</td></tr>
-<tr><td>Performance floors</td><td>held</td></tr>
-<tr><td>Drain</td><td>8,418 jobs/s</td></tr>
-<tr><td>Throughput</td><td>200 jobs/s</td></tr>
-<tr><td>Throughput, one worker</td><td>not written</td></tr>
-</table></div>
-<blockquote><strong>200 fully executed, durably completed jobs per second</strong> on SQLite: 1 worker, one job per enqueue call, held 3 &#215; 30 s and 120 s at 200/s offered, p99 1.0 s, Intel(R) Core(TM) i9-14900K.</blockquote>
-<h2>Performance</h2>
-<p>Each scenario&#39;s first written rate is its floor, which this suite requires to hold.</p>
-<h3>Drain</h3>
-<p>How fast do eight workers over two namespaces run and durably complete a backlog enqueued before they start?</p>
-<p>Setup: workers: 1; namespaces: 1; executors per worker: the product default; enqueue calls in flight: 8; jobs per call: 1,000.</p>
-<div class="table"><table>
-<tr><th>Database</th><th>Pass</th><th>Jobs</th><th>Steady rate, database clock</th><th>Whole cohort</th><th>Result</th></tr>
-<tr><td>SQLite</td><td>1</td><td>100,000</td><td>8,418 jobs/s</td><td>12 s</td><td>held</td></tr>
-<tr><td>SQLite</td><td>2</td><td>100,000</td><td>8,430 jobs/s</td><td>12.2 s</td><td>held</td></tr>
-<tr><td>SQLite</td><td>3</td><td>100,000</td><td>8,325 jobs/s</td><td>12.1 s</td><td>held</td></tr>
-</table></div>
-<h3>Sustained throughput</h3>
-<p>How many jobs per second, one per enqueue call, does Acta enqueue, run and durably complete with a flat backlog and p99 under 2 s?</p>
-<p>Setup: workers: 1; namespaces: 1; executors per worker: the product default; enqueue calls in flight: 8; jobs per call: 1; p99 target: 2.0 s.</p>
-<div class="table"><table>
-<tr><th>Database</th><th>Offered/s</th><th>Pass</th><th>Completed/s</th><th>p99</th><th>Result</th></tr>
-<tr><td>SQLite</td><td>25</td><td>1</td><td>25.2</td><td>1.1 s</td><td>held</td></tr>
-<tr><td>SQLite</td><td>25</td><td>2</td><td>25.7</td><td>1.1 s</td><td>held</td></tr>
-<tr><td>SQLite</td><td>25</td><td>3</td><td>25.4</td><td>1.1 s</td><td>held</td></tr>
-<tr><td>SQLite</td><td>50</td><td>1</td><td>50.3</td><td>1.1 s</td><td>held</td></tr>
-<tr><td>SQLite</td><td>50</td><td>2</td><td>50.1</td><td>1.1 s</td><td>held</td></tr>
-<tr><td>SQLite</td><td>50</td><td>3</td><td>50</td><td>1.1 s</td><td>held</td></tr>
-<tr><td>SQLite</td><td>100</td><td>1</td><td>102</td><td>1.1 s</td><td>held</td></tr>
-<tr><td>SQLite</td><td>100</td><td>2</td><td>102</td><td>1.1 s</td><td>held</td></tr>
-<tr><td>SQLite</td><td>100</td><td>3</td><td>103</td><td>1.1 s</td><td>held</td></tr>
-<tr><td>SQLite</td><td>200</td><td>1</td><td>202</td><td>1.0 s</td><td>held</td></tr>
-<tr><td>SQLite</td><td>200</td><td>2</td><td>205</td><td>1.0 s</td><td>held</td></tr>
-<tr><td>SQLite</td><td>200</td><td>3</td><td>202</td><td>1.0 s</td><td>held</td></tr>
-<tr><td>SQLite</td><td>400</td><td>1</td><td>409</td><td>1.1 s</td><td>held</td></tr>
-<tr><td>SQLite</td><td>400</td><td>2</td><td>408</td><td>1.1 s</td><td>held</td></tr>
-<tr><td>SQLite</td><td>400</td><td>3</td><td>397</td><td>1.1 s</td><td>held</td></tr>
-<tr><td>SQLite</td><td>400</td><td>confirm, 120 s</td><td>401</td><td>2.1 s</td><td>missed: p99 2.1 s against a 2.0 s target</td></tr>
-<tr><td>SQLite</td><td>200</td><td>confirm, 120 s</td><td>200</td><td>1.0 s</td><td>held</td></tr>
-</table></div>
-<p>Highest rate held in every pass: SQLite 400/s, every written rate, so the ceiling is above the ladder.</p>
-<h3>Sustained throughput, one worker</h3>
-<p>How many jobs per second does one worker process of default executors run and durably complete, one job per enqueue call, with a flat backlog and p99 under 2 s?</p>
-<p>Setup: workers: 1; namespaces: 1; executors per worker: the product default; enqueue calls in flight: 8; jobs per call: 1; p99 target: 2.0 s.</p>
-<div class="table"><table>
-<tr><th>Database</th><th>Offered/s</th><th>Pass</th><th>Completed/s</th><th>p99</th><th>Result</th></tr>
-<tr><td>SQLite</td><td></td><td></td><td></td><td></td><td>The scenario writes no rate for sqlite.</td></tr>
-</table></div>
-<p>Highest rate held in every pass: .</p>
-<h3>Enqueue, one job per call</h3>
-<p>How fast are single-job enqueue calls acknowledged, each in its own transaction, before any worker runs?</p>
-<p>Setup: workers: 1; namespaces: 1; executors per worker: the product default; enqueue calls in flight: 8; jobs per call: 1; p99 target: 2.0 s.</p>
-<div class="table"><table>
-<tr><th>Database</th><th>Offered/s</th><th>Pass</th><th>Completed/s</th><th>p99</th><th>Result</th></tr>
-<tr><td>SQLite</td><td>200</td><td>1</td><td>0</td><td>23 ms</td><td>held</td></tr>
-</table></div>
-<p>Highest rate held in every pass: SQLite 200/s, every written rate, so the ceiling is above the ladder.</p>
-<h3>Enqueue in batches of 100</h3>
-<p>How fast are batches of 100 jobs acknowledged, before any worker runs?</p>
-<p>Setup: workers: 1; namespaces: 1; executors per worker: the product default; enqueue calls in flight: 8; jobs per call: 100; p99 target: 2.0 s.</p>
-<div class="table"><table>
-<tr><th>Database</th><th>Offered/s</th><th>Pass</th><th>Completed/s</th><th>p99</th><th>Result</th></tr>
-<tr><td>SQLite</td><td>5,000</td><td>1</td><td>0</td><td>30 ms</td><td>held</td></tr>
-</table></div>
-<p>Highest rate held in every pass: SQLite 5,000/s, every written rate, so the ceiling is above the ladder.</p>
-<h3>Enqueue in batches of 1,000</h3>
-<p>How fast are batches of 1,000 jobs acknowledged, before any worker runs?</p>
-<p>Setup: workers: 1; namespaces: 1; executors per worker: the product default; enqueue calls in flight: 8; jobs per call: 1,000; p99 target: 2.0 s.</p>
-<div class="table"><table>
-<tr><th>Database</th><th>Offered/s</th><th>Pass</th><th>Completed/s</th><th>p99</th><th>Result</th></tr>
-<tr><td>SQLite</td><td>10,000</td><td>1</td><td>0</td><td>77 ms</td><td>held</td></tr>
-</table></div>
-<p>Highest rate held in every pass: SQLite 10,000/s, every written rate, so the ceiling is above the ladder.</p>
-<h3>Drain, one worker</h3>
-<p>How fast does one worker run and durably complete a backlog enqueued before it starts?</p>
-<p>Setup: workers: 1; namespaces: 1; executors per worker: the product default; enqueue calls in flight: 8; jobs per call: 1,000.</p>
-<div class="table"><table>
-<tr><th>Database</th><th>Pass</th><th>Jobs</th><th>Steady rate, database clock</th><th>Whole cohort</th><th>Result</th></tr>
-<tr><td>SQLite</td><td>1</td><td>50,000</td><td>8,056 jobs/s</td><td>6.29 s</td><td>held</td></tr>
-</table></div>
-<h3>Drain, four workers</h3>
-<p>How fast do four workers over two namespaces drain a backlog enqueued before they start?</p>
-<p>Setup: workers: 4; namespaces: 2; executors per worker: the product default; enqueue calls in flight: 8; jobs per call: 1,000.</p>
-<div class="table"><table>
-<tr><th>Database</th><th>Pass</th><th>Jobs</th><th>Steady rate, database clock</th><th>Whole cohort</th><th>Result</th></tr>
-<tr><td>SQLite</td><td></td><td></td><td></td><td></td><td>The scenario writes no cohort for sqlite.</td></tr>
-</table></div>
-<h3>Drain, sixteen workers</h3>
-<p>How fast do sixteen workers over two namespaces drain a backlog enqueued before they start?</p>
-<p>Setup: workers: 16; namespaces: 2; executors per worker: the product default; enqueue calls in flight: 8; jobs per call: 1,000.</p>
-<div class="table"><table>
-<tr><th>Database</th><th>Pass</th><th>Jobs</th><th>Steady rate, database clock</th><th>Whole cohort</th><th>Result</th></tr>
-<tr><td>SQLite</td><td></td><td></td><td></td><td></td><td>The scenario writes no cohort for sqlite.</td></tr>
-</table></div>
-<h3>Throughput, sixteen workers</h3>
-<p>Do sixteen worker processes over two namespaces hold a high offered rate with p99 under 2 s?</p>
-<p>Setup: workers: 16; namespaces: 2; executors per worker: the product default; enqueue calls in flight: 8; jobs per call: 1; p99 target: 2.0 s.</p>
-<div class="table"><table>
-<tr><th>Database</th><th>Offered/s</th><th>Pass</th><th>Completed/s</th><th>p99</th><th>Result</th></tr>
-<tr><td>SQLite</td><td></td><td></td><td></td><td></td><td>The scenario writes no rate for sqlite.</td></tr>
-</table></div>
-<p>Highest rate held in every pass: .</p>
-<h3>Throughput, sixteen workers on one namespace</h3>
-<p>Do sixteen worker processes sharing one namespace hold a high offered rate with p99 under 2 s?</p>
-<p>Setup: workers: 16; namespaces: 1; executors per worker: the product default; enqueue calls in flight: 8; jobs per call: 1; p99 target: 2.0 s.</p>
-<div class="table"><table>
-<tr><th>Database</th><th>Offered/s</th><th>Pass</th><th>Completed/s</th><th>p99</th><th>Result</th></tr>
-<tr><td>SQLite</td><td></td><td></td><td></td><td></td><td>The scenario writes no rate for sqlite.</td></tr>
-</table></div>
-<p>Highest rate held in every pass: .</p>
-<h3>Throughput, 32 executors</h3>
-<p>Does one worker with 32 executors hold the stream its default configuration holds?</p>
-<p>Setup: workers: 1; namespaces: 1; executors per worker: 32; enqueue calls in flight: 8; jobs per call: 1; p99 target: 2.0 s.</p>
-<div class="table"><table>
-<tr><th>Database</th><th>Offered/s</th><th>Pass</th><th>Completed/s</th><th>p99</th><th>Result</th></tr>
-<tr><td>SQLite</td><td>40</td><td>1</td><td>40.8</td><td>1.1 s</td><td>held</td></tr>
-</table></div>
-<p>Highest rate held in every pass: SQLite 40/s, every written rate, so the ceiling is above the ladder.</p>
-<h3>Three persisted steps</h3>
-<p>Do jobs that commit three checkpoints each hold their offered rate with p99 under 5 s?</p>
-<p>Setup: workers: 1; namespaces: 1; executors per worker: the product default; enqueue calls in flight: 8; jobs per call: 1; p99 target: 5.0 s.</p>
-<div class="table"><table>
-<tr><th>Database</th><th>Offered/s</th><th>Pass</th><th>Completed/s</th><th>p99</th><th>Result</th></tr>
-<tr><td>SQLite</td><td>15</td><td>1</td><td>15.3</td><td>1.1 s</td><td>held</td></tr>
-</table></div>
-<p>Highest rate held in every pass: SQLite 15/s, every written rate, so the ceiling is above the ladder.</p>
-<h3>Transient failure and retry</h3>
-<p>With one job in four failing twice before it succeeds, does the stream hold its rate with p99 under 10 s?</p>
-<p>Setup: workers: 1; namespaces: 1; executors per worker: the product default; enqueue calls in flight: 8; jobs per call: 1; p99 target: 10.0 s.</p>
-<div class="table"><table>
-<tr><th>Database</th><th>Offered/s</th><th>Pass</th><th>Completed/s</th><th>p99</th><th>Result</th></tr>
-<tr><td>SQLite</td><td>40</td><td>1</td><td>40.3</td><td>2.7 s</td><td>held</td></tr>
-</table></div>
-<p>Highest rate held in every pass: SQLite 40/s, every written rate, so the ceiling is above the ladder.</p>
-<h3>Fixed CPU work</h3>
-<p>Do jobs that each hash for a fixed number of rounds hold their offered rate with p99 under 2 s?</p>
-<p>Setup: workers: 1; namespaces: 1; executors per worker: the product default; enqueue calls in flight: 8; jobs per call: 1; p99 target: 2.0 s.</p>
-<div class="table"><table>
-<tr><th>Database</th><th>Offered/s</th><th>Pass</th><th>Completed/s</th><th>p99</th><th>Result</th></tr>
-<tr><td>SQLite</td><td>40</td><td>1</td><td>40.8</td><td>1.1 s</td><td>held</td></tr>
-</table></div>
-<p>Highest rate held in every pass: SQLite 40/s, every written rate, so the ceiling is above the ladder.</p>
-<h3>Payloads of 256 B</h3>
-<p>Do jobs carrying a 256-byte payload hold their offered rate with p99 under 2 s?</p>
-<p>Setup: workers: 1; namespaces: 1; executors per worker: the product default; enqueue calls in flight: 8; jobs per call: 1; p99 target: 2.0 s.</p>
-<div class="table"><table>
-<tr><th>Database</th><th>Offered/s</th><th>Pass</th><th>Completed/s</th><th>p99</th><th>Result</th></tr>
-<tr><td>SQLite</td><td>30</td><td>1</td><td>30.2</td><td>1.1 s</td><td>held</td></tr>
-</table></div>
-<p>Highest rate held in every pass: SQLite 30/s, every written rate, so the ceiling is above the ladder.</p>
-<h3>Payloads of 4 KB</h3>
-<p>Do jobs carrying a 4 KB payload hold their offered rate with p99 under 2 s?</p>
-<p>Setup: workers: 1; namespaces: 1; executors per worker: the product default; enqueue calls in flight: 8; jobs per call: 1; p99 target: 2.0 s.</p>
-<div class="table"><table>
-<tr><th>Database</th><th>Offered/s</th><th>Pass</th><th>Completed/s</th><th>p99</th><th>Result</th></tr>
-<tr><td>SQLite</td><td>30</td><td>1</td><td>30.4</td><td>1.1 s</td><td>held</td></tr>
-</table></div>
-<p>Highest rate held in every pass: SQLite 30/s, every written rate, so the ceiling is above the ladder.</p>
-<h3>Payloads of 256 B, 4 KB and 64 KB mixed</h3>
-<p>Do jobs carrying payloads of three sizes in turn hold their offered rate with p99 under 2 s?</p>
-<p>Setup: workers: 1; namespaces: 1; executors per worker: the product default; enqueue calls in flight: 8; jobs per call: 1; p99 target: 2.0 s.</p>
-<div class="table"><table>
-<tr><th>Database</th><th>Offered/s</th><th>Pass</th><th>Completed/s</th><th>p99</th><th>Result</th></tr>
-<tr><td>SQLite</td><td>40</td><td>1</td><td>40.6</td><td>1.1 s</td><td>held</td></tr>
-</table></div>
-<p>Highest rate held in every pass: SQLite 40/s, every written rate, so the ceiling is above the ladder.</p>
-<h3>Payloads of 64 KB</h3>
-<p>Do jobs carrying a 64 KB payload hold their offered rate with p99 under 2 s?</p>
-<p>Setup: workers: 1; namespaces: 1; executors per worker: the product default; enqueue calls in flight: 8; jobs per call: 1; p99 target: 2.0 s.</p>
-<div class="table"><table>
-<tr><th>Database</th><th>Offered/s</th><th>Pass</th><th>Completed/s</th><th>p99</th><th>Result</th></tr>
-<tr><td>SQLite</td><td>10</td><td>1</td><td>10.3</td><td>1.1 s</td><td>held</td></tr>
-</table></div>
-<p>Highest rate held in every pass: SQLite 10/s, every written rate, so the ceiling is above the ladder.</p>
-<h3>A thousand lanes</h3>
-<p>Spread over a thousand ordered lanes, does the stream hold its rate with p99 under 2 s?</p>
-<p>Setup: workers: 1; namespaces: 1; executors per worker: the product default; enqueue calls in flight: 8; jobs per call: 1; p99 target: 2.0 s.</p>
-<div class="table"><table>
-<tr><th>Database</th><th>Offered/s</th><th>Pass</th><th>Completed/s</th><th>p99</th><th>Result</th></tr>
-<tr><td>SQLite</td><td>30</td><td>1</td><td>30.4</td><td>1.1 s</td><td>held</td></tr>
-</table></div>
-<p>Highest rate held in every pass: SQLite 30/s, every written rate, so the ceiling is above the ladder.</p>
-<h3>Operator queries during processing</h3>
-<p>While the stream runs, do the operator list queries answer quickly, and does the stream keep its rate?</p>
-<p>Setup: workers: 1; namespaces: 1; executors per worker: the product default; enqueue calls in flight: 8; jobs per call: 1; p99 target: 2.0 s.</p>
-<div class="table"><table>
-<tr><th>Database</th><th>Offered/s</th><th>Pass</th><th>Completed/s</th><th>p99</th><th>Result</th></tr>
-<tr><td>SQLite</td><td>30</td><td>1</td><td>30.7</td><td>1.1 s</td><td>held</td></tr>
-</table></div>
-<p>Highest rate held in every pass: SQLite 30/s, every written rate, so the ceiling is above the ladder.</p>
-<h3>Parked work alongside</h3>
-<p>With a large population of jobs parked on signals, does the stream hold its rate with p99 under 2 s?</p>
-<p>Setup: workers: 1; namespaces: 1; executors per worker: the product default; enqueue calls in flight: 8; jobs per call: 1; p99 target: 2.0 s.</p>
-<div class="table"><table>
-<tr><th>Database</th><th>Offered/s</th><th>Pass</th><th>Completed/s</th><th>p99</th><th>Result</th></tr>
-<tr><td>SQLite</td><td>40</td><td>1</td><td>40.6</td><td>1.1 s</td><td>held</td></tr>
-</table></div>
-<p>Highest rate held in every pass: SQLite 40/s, every written rate, so the ceiling is above the ladder.</p>
-<h3>Future high-priority work alongside</h3>
-<p>With a large population of high-priority jobs due tomorrow, does the stream hold its rate with p99 under 2 s?</p>
-<p>Setup: workers: 1; namespaces: 1; executors per worker: the product default; enqueue calls in flight: 8; jobs per call: 1; p99 target: 2.0 s.</p>
-<div class="table"><table>
-<tr><th>Database</th><th>Offered/s</th><th>Pass</th><th>Completed/s</th><th>p99</th><th>Result</th></tr>
-<tr><td>SQLite</td><td>40</td><td>1</td><td>40.6</td><td>1.1 s</td><td>held</td></tr>
-</table></div>
-<p>Highest rate held in every pass: SQLite 40/s, every written rate, so the ceiling is above the ladder.</p>
-<h3>Ten children and a join</h3>
-<p>Do parents that fan out ten children and join them hold their offered rate with p99 under 10 s?</p>
-<p>Setup: workers: 1; namespaces: 1; executors per worker: the product default; enqueue calls in flight: 8; jobs per call: 1; p99 target: 10.0 s.</p>
-<div class="table"><table>
-<tr><th>Database</th><th>Offered/s</th><th>Pass</th><th>Completed/s</th><th>p99</th><th>Result</th></tr>
-<tr><td>SQLite</td><td>2</td><td>1</td><td>2.03</td><td>1.2 s</td><td>held</td></tr>
-</table></div>
-<p>Highest rate held in every pass: SQLite 2/s, every written rate, so the ceiling is above the ladder.</p>
-<h3>Controlled I/O through an idempotent sink</h3>
-<p>Do jobs that each call an external idempotent sink for 5 ms hold their offered rate with p99 under 5 s?</p>
-<p>Setup: workers: 1; namespaces: 1; executors per worker: the product default; enqueue calls in flight: 8; jobs per call: 1; p99 target: 5.0 s.</p>
-<div class="table"><table>
-<tr><th>Database</th><th>Offered/s</th><th>Pass</th><th>Completed/s</th><th>p99</th><th>Result</th></tr>
-<tr><td>SQLite</td><td>20</td><td>1</td><td>20.5</td><td>1.1 s</td><td>held</td></tr>
-</table></div>
-<p>Highest rate held in every pass: SQLite 20/s, every written rate, so the ceiling is above the ladder.</p>
-<h3>Short and long work mixed</h3>
-<p>Do no-op, CPU, sink, timer and fan-out jobs mixed in turn hold their offered rate with p99 under 5 s?</p>
-<p>Setup: workers: 1; namespaces: 1; executors per worker: the product default; enqueue calls in flight: 8; jobs per call: 1; p99 target: 5.0 s.</p>
-<div class="table"><table>
-<tr><th>Database</th><th>Offered/s</th><th>Pass</th><th>Completed/s</th><th>p99</th><th>Result</th></tr>
-<tr><td>SQLite</td><td>20</td><td>1</td><td>20.5</td><td>1.8 s</td><td>held</td></tr>
-</table></div>
-<p>Highest rate held in every pass: SQLite 20/s, every written rate, so the ceiling is above the ladder.</p>
-<h3>Throughput, one executor</h3>
-<p>Does a worker with a single executor keep up with a modest stream, so the result shows its serial cost?</p>
-<p>Setup: workers: 1; namespaces: 1; executors per worker: 1; enqueue calls in flight: 8; jobs per call: 1; p99 target: 2.0 s.</p>
-<div class="table"><table>
-<tr><th>Database</th><th>Offered/s</th><th>Pass</th><th>Completed/s</th><th>p99</th><th>Result</th></tr>
-<tr><td>SQLite</td><td>25</td><td>1</td><td>25.5</td><td>1.1 s</td><td>held</td></tr>
-</table></div>
-<p>Highest rate held in every pass: SQLite 25/s, every written rate, so the ceiling is above the ladder.</p>
-<h3>One hot lane</h3>
-<p>How fast does one ordered lane hand its jobs over, each waiting for the previous completion to commit?</p>
-<p>Setup: workers: 1; namespaces: 1; executors per worker: the product default; enqueue calls in flight: 8; jobs per call: 1; p99 target: 2.0 s.</p>
-<div class="table"><table>
-<tr><th>Database</th><th>Offered/s</th><th>Pass</th><th>Completed/s</th><th>p99</th><th>Result</th></tr>
-<tr><td>SQLite</td><td>20</td><td>1</td><td>20.3</td><td>1.0 s</td><td>held</td></tr>
-</table></div>
-<p>Highest rate held in every pass: SQLite 20/s, every written rate, so the ceiling is above the ladder.</p>
-<h3>One hot concurrency key</h3>
-<p>With every job sharing one concurrency key of limit one, does a stream of one a second keep a flat backlog with p99 under 30 s?</p>
-<p>Setup: workers: 1; namespaces: 1; executors per worker: the product default; enqueue calls in flight: 8; jobs per call: 1; p99 target: 30.0 s.</p>
-<div class="table"><table>
-<tr><th>Database</th><th>Offered/s</th><th>Pass</th><th>Completed/s</th><th>p99</th><th>Result</th></tr>
-<tr><td>SQLite</td><td>1</td><td>1</td><td>0.967</td><td>4.5 s</td><td>held</td></tr>
-</table></div>
-<p>Highest rate held in every pass: SQLite 1/s, every written rate, so the ceiling is above the ladder.</p>
-<h3>Five-minute mixed soak</h3>
-<p>Does the mixed workload hold a steady rate for five minutes with p99 under 5 s and a flat backlog?</p>
-<p>Setup: workers: 1; namespaces: 1; executors per worker: the product default; enqueue calls in flight: 8; jobs per call: 1; p99 target: 5.0 s.</p>
-<div class="table"><table>
-<tr><th>Database</th><th>Offered/s</th><th>Pass</th><th>Completed/s</th><th>p99</th><th>Result</th></tr>
-<tr><td>SQLite</td><td>14</td><td>1</td><td>14</td><td>2.1 s</td><td>held</td></tr>
-</table></div>
-<p>Highest rate held in every pass: SQLite 14/s, every written rate, so the ceiling is above the ladder.</p>
-<h3>Overload, then recovery</h3>
-<p>Offered more than it can run, does the backlog grow, and does it fall back once the offered rate drops?</p>
-<p>Setup: workers: 1; namespaces: 1; executors per worker: the product default; enqueue calls in flight: 8; jobs per call: 1; p99 target: 2.0 s.</p>
-<div class="table"><table>
-<tr><th>Database</th><th>Offered/s</th><th>Pass</th><th>Completed/s</th><th>p99</th><th>Result</th></tr>
-<tr><td>SQLite</td><td>1,000, then 50</td><td>1</td><td>526</td><td>1.6 s</td><td>incomplete: The offered overload of 1,000 jobs/s did not grow the backlog during the overload half.</td></tr>
-</table></div>
-<h2>Correctness</h2>
-<div class="table"><table>
-<tr><th>Scenario</th><th>SQLite</th></tr>
-<tr><td>Checkpoint depths of 1, 10 and 100 steps</td><td>pass</td></tr>
-<tr><td>Wide fan-out of 1000 children</td><td>pass</td></tr>
-<tr><td>Nested tree five levels deep</td><td>pass</td></tr>
-<tr><td>One failing child among ten</td><td>pass</td></tr>
-<tr><td>Children in another namespace</td><td>pass</td></tr>
-<tr><td>Signal sent before the wait</td><td>pass</td></tr>
-<tr><td>Signal sent after the wait</td><td>pass</td></tr>
-<tr><td>Same signal sent twice</td><td>pass</td></tr>
-<tr><td>Poison jobs beside healthy ones</td><td>pass</td></tr>
-<tr><td>Order across 1000 lanes</td><td>pass</td></tr>
-<tr><td>Order in one hot lane</td><td>pass</td></tr>
-<tr><td>One-slot concurrency key</td><td>pass</td></tr>
-<tr><td>Priority across tenants</td><td>pass</td></tr>
-<tr><td>Rate limit shared by two workers</td><td>pass</td></tr>
-<tr><td>New work beside retained history</td><td>pass</td></tr>
-<tr><td>Retention purges during traffic</td><td>pass</td></tr>
-<tr><td>Retention of a waiting parent&#39;s children</td><td>pass</td></tr>
-<tr><td>Enqueue in a committed transaction</td><td>pass</td></tr>
-<tr><td>Enqueue in a rolled-back transaction</td><td>pass</td></tr>
-<tr><td>Compatible step result change</td><td>pass</td></tr>
-<tr><td>Incompatible input type change</td><td>pass</td></tr>
-<tr><td>Schema upgrade from a supported release</td><td>skipped</td></tr>
-</table></div>
-<h2>Faults</h2>
-<div class="table"><table>
-<tr><th>Scenario</th><th>SQLite</th></tr>
-<tr><td>Crash after a checkpoint commits</td><td>pass</td></tr>
-<tr><td>Crash after an effect, before its checkpoint</td><td>pass</td></tr>
-<tr><td>Crash inside an at-most-once step</td><td>pass</td></tr>
-<tr><td>Parent dies during fan-out</td><td>pass</td></tr>
-<tr><td>Last child against the join</td><td>pass</td></tr>
-<tr><td>Cancelling a parent during fan-out</td><td>pass</td></tr>
-<tr><td>Durable timer across a worker restart</td><td>pass</td></tr>
-<tr><td>Signal sent during wait registration</td><td>pass</td></tr>
-<tr><td>Signal against a wait timeout</td><td>pass</td></tr>
-<tr><td>Timed-out attempt that keeps running</td><td>pass</td></tr>
-<tr><td>Kill a busy worker</td><td>pass</td></tr>
-<tr><td>Kill every worker</td><td>pass</td></tr>
-<tr><td>Worker paused past its lease</td><td>pass</td></tr>
-<tr><td>Database connections cut</td><td>skipped</td></tr>
-<tr><td>Database process crash</td><td>skipped</td></tr>
-<tr><td>Lost reply to a completion</td><td>pass</td></tr>
-<tr><td>Lost reply to an enqueue</td><td>pass</td></tr>
-<tr><td>Wake signals dropped</td><td>pass</td></tr>
-<tr><td>Outbox relay crash</td><td>pass</td></tr>
-<tr><td>Non-idempotent effect, crash before completion</td><td>pass</td></tr>
-<tr><td>Idempotent effect, crash before its checkpoint</td><td>pass</td></tr>
-<tr><td>Rolling restart</td><td>pass</td></tr>
-</table></div>
-<h2>Chaos</h2>
-<div class="table"><table>
-<tr><th>Scenario</th><th>SQLite</th></tr>
-<tr><td>Worker kills under mixed load</td><td>pass</td></tr>
-</table></div>
-<h2>What did not pass</h2>
-<ul>
-<li><strong>Overload, then recovery</strong> on SQLite, incomplete: The offered overload of 1,000 jobs/s did not grow the backlog during the overload half. (<code>histories/sqlite-overload-then-recover-measure-1-50-checks.json</code>)</li>
-</ul>
-<h2>How this run was made</h2>
-<ul>
-<li>Command: <code>acta-verify release --db sqlite</code>.</li>
-<li>Commit <code>e8cc81d90da60a8fdc293b7d499f3d903175c15f</code>, measurement version 2, written standard <code>6eb449008971</code>.</li>
-<li>Machine: Intel(R) Core(TM) i9-14900K, 24 cores, 32 logical processors, Microsoft Windows 10.0.26300, .NET 10.0.12.</li>
-<li>SQLite: peak 0 database connections; disk before measuring: yes, after 6 s.</li>
-<li>Wall time: performance on SQLite 34 min, correctness on SQLite 5 min, chaos on SQLite 12 min; correctness runs on every database at once, chaos one database at a time.</li>
-<li>Evidence: 5.5 MB of a 50 MB budget.</li>
-<li>A rate holds when every scheduled arrival reached an outcome and none was refused, the backlog trend stayed within 1% of the rate, p99 stayed within the target, at most 0.1% of arrivals were picked up late by the harness, and every job reconciled. These are the rc.6 criteria.</li>
-</ul>
-<div class="table"><table>
-<tr><th>Disk, by phase and drive</th><th>Windows counters</th></tr>
-<tr><td>before | 0 c:</td><td>write 2.71 ms mean, 8.07 ms p95, 8 writes/s, 99% idle, 14 samples</td></tr>
-<tr><td>before | 1 d:</td><td>write 2.10 ms mean, 7.28 ms p95, 182 writes/s, 99% idle, 14 samples</td></tr>
-<tr><td>chaos sqlite | 0 c:</td><td>write 1.88 ms mean, 4.77 ms p95, 20 writes/s, 99% idle, 372 samples</td></tr>
-<tr><td>chaos sqlite | 1 d:</td><td>write 1.96 ms mean, 7.22 ms p95, 498 writes/s, 78% idle, 372 samples</td></tr>
-<tr><td>correctness | 0 c:</td><td>write 1.42 ms mean, 4.25 ms p95, 30 writes/s, 99% idle, 158 samples</td></tr>
-<tr><td>correctness | 1 d:</td><td>write 0.85 ms mean, 2.76 ms p95, 221 writes/s, 90% idle, 158 samples</td></tr>
-<tr><td>sqlite | 0 c:</td><td>write 2.15 ms mean, 6.68 ms p95, 16 writes/s, 99% idle, 1033 samples</td></tr>
-<tr><td>sqlite | 1 d:</td><td>write 0.08 ms mean, 0.14 ms p95, 448 writes/s, 93% idle, 1033 samples</td></tr>
-<tr><td>after | 0 c:</td><td>write 2.00 ms mean, 4.42 ms p95, 26 writes/s, 99% idle, 15 samples</td></tr>
-<tr><td>after | 1 d:</td><td>write 4.26 ms mean, 6.78 ms p95, 8 writes/s, 100% idle, 15 samples</td></tr>
+<tr><td>before | 0 c:</td><td>write 2.92 ms mean, 7.87 ms p95, 7 writes/s, 99% idle, 14 samples</td></tr>
+<tr><td>before | 1 d:</td><td>write 4.03 ms mean, 7.43 ms p95, 35 writes/s, 99% idle, 14 samples</td></tr>
+<tr><td>chaos mssql | 0 c:</td><td>write 3.37 ms mean, 7.93 ms p95, 9 writes/s, 99% idle, 825 samples</td></tr>
+<tr><td>chaos mssql | 1 d:</td><td>write 0.25 ms mean, 1.07 ms p95, 942 writes/s, 66% idle, 825 samples</td></tr>
+<tr><td>chaos pg | 0 c:</td><td>write 3.22 ms mean, 8.07 ms p95, 9 writes/s, 99% idle, 543 samples</td></tr>
+<tr><td>chaos pg | 1 d:</td><td>write 0.07 ms mean, 0.06 ms p95, 983 writes/s, 42% idle, 543 samples</td></tr>
+<tr><td>chaos sqlite | 0 c:</td><td>write 3.20 ms mean, 7.94 ms p95, 8 writes/s, 99% idle, 371 samples</td></tr>
+<tr><td>chaos sqlite | 1 d:</td><td>write 1.68 ms mean, 7.07 ms p95, 530 writes/s, 82% idle, 371 samples</td></tr>
+<tr><td>correctness | 0 c:</td><td>write 3.17 ms mean, 7.87 ms p95, 10 writes/s, 99% idle, 316 samples</td></tr>
+<tr><td>correctness | 1 d:</td><td>write 0.31 ms mean, 1.77 ms p95, 533 writes/s, 80% idle, 316 samples</td></tr>
+<tr><td>mssql | 0 c:</td><td>write 3.55 ms mean, 7.93 ms p95, 7 writes/s, 99% idle, 2617 samples</td></tr>
+<tr><td>mssql | 1 d:</td><td>write 0.84 ms mean, 2.33 ms p95, 2090 writes/s, 46% idle, 2617 samples</td></tr>
+<tr><td>pg | 0 c:</td><td>write 3.74 ms mean, 8.01 ms p95, 8 writes/s, 99% idle, 3280 samples</td></tr>
+<tr><td>pg | 1 d:</td><td>write 0.81 ms mean, 2.48 ms p95, 883 writes/s, 56% idle, 3280 samples</td></tr>
+<tr><td>sqlite | 0 c:</td><td>write 2.41 ms mean, 7.66 ms p95, 14 writes/s, 99% idle, 1722 samples</td></tr>
+<tr><td>sqlite | 1 d:</td><td>write 0.05 ms mean, 0.06 ms p95, 1041 writes/s, 59% idle, 1722 samples</td></tr>
+<tr><td>after | 0 c:</td><td>write 2.21 ms mean, 4.92 ms p95, 9 writes/s, 99% idle, 15 samples</td></tr>
+<tr><td>after | 1 d:</td><td>write 4.47 ms mean, 7.70 ms p95, 5 writes/s, 100% idle, 15 samples</td></tr>
 </table></div>
 </div>
   <footer>
