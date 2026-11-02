@@ -1,4 +1,5 @@
 using System.Collections.Concurrent;
+using System.Diagnostics;
 using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Logging.Abstractions;
 using Microsoft.Extensions.Options;
@@ -9,26 +10,39 @@ namespace Acta.Redis;
 /// <summary>
 /// Redis-backed <see cref="IWorkerWakeup"/>: composes the in-process transport for local delivery and
 /// relays wakes across processes via Redis pub/sub. A wake publishes locally FIRST (the publishing
-/// process's waiters never wait on a network round trip), then fire-and-forgets one Redis message
-/// on <c>{prefix}:wake:{channel.Name}</c>; every subscribed process delivers it into its own local
-/// transport. Redis being down, slow, or lossy costs latency only: publishes are fire-and-forget,
-/// the multiplexer reconnects on its own, and every waiter keeps its poll floor.
+/// process's waiters never wait on a network round trip), then fire-and-forgets one Redis message,
+/// a job-completion wake on <c>{prefix}:done:{channel.Name}</c> and any other on
+/// <c>{prefix}:wake:{channel.Name}</c>; every process subscribed to that route delivers it into its
+/// own local transport. Redis being down, slow, or lossy costs latency only: publishes are
+/// fire-and-forget, the multiplexer reconnects on its own, and every waiter keeps its poll floor.
 /// </summary>
 /// <remarks>
-/// The pattern subscription also receives this process's own publishes; that loopback re-wake
-/// coalesces onto the local latch and is harmless. Channel semantics are preserved across the
-/// relay: a remote job-completion wake reaches existing waiters only (the local transport never
-/// allocates for it), and a remote worker-namespace wake is jittered per
-/// <see cref="RedisWakeupOptions.RemoteWakeJitter"/> to soften the fleet-wide claim herd. A
-/// jittered channel holds at most one pending wake, so a duplicate burst costs one timer for the
-/// channel rather than one per message.
+/// Redis delivers a message to every process subscribed to its route, whether or not anything there
+/// waits, so the transport sends each process only what its waiters can use: a process subscribes to
+/// a route when it first waits on it, so a worker process never hears another caller's job
+/// completions; a namespace's wakes are published at most once per <see cref="PublishWindow"/>; and
+/// a remote worker-namespace wake is jittered per <see cref="RedisWakeupOptions.RemoteWakeJitter"/>.
+/// A remote job-completion wake reaches existing waiters only (the local transport never allocates
+/// for it). A subscription also receives this process's own publishes; that loopback re-wake
+/// coalesces onto the local latch and is harmless.
 /// </remarks>
 internal sealed class RedisWakeup : IWorkerWakeup, IDisposable, IAsyncDisposable
 {
+    /// <summary>
+    /// How long one published namespace wake stands for the later ones: a wake inside the window
+    /// schedules a single trailing publish at its end, which every other wake in the window shares,
+    /// so a stream of enqueues publishes each namespace's wake about a hundred times a second
+    /// instead of once per job, and a remote claim loop hears of new work at most one window late.
+    /// Every suppressed wake's work commits before the trailing publish, so none is lost.
+    /// </summary>
+    internal static readonly TimeSpan DefaultPublishWindow = TimeSpan.FromMilliseconds(10);
+
     private readonly IConnectionMultiplexer _redis;
     private readonly InProcessWakeup _local = new();
-    private readonly string _channelPrefix;
-    private readonly RedisChannel _wakePattern;
+    private readonly string _wakePrefix;
+    private readonly string _donePrefix;
+    private readonly Subscription _wakes;
+    private readonly Subscription _completions;
     private readonly TimeSpan _remoteJitterMax;
 
     /// <summary>
@@ -36,9 +50,13 @@ internal sealed class RedisWakeup : IWorkerWakeup, IDisposable, IAsyncDisposable
     /// unused, and ConcurrentDictionary is just the set primitive .NET does not otherwise ship.
     /// </summary>
     private readonly ConcurrentDictionary<WorkerWakeupChannel, byte> _pendingJittered = new();
+
+    /// <summary>One publish window per namespace channel this process has woken; the keyspace is the namespaces.</summary>
+    private readonly ConcurrentDictionary<string, PublishThrottle> _throttles = new(StringComparer.Ordinal);
     private readonly ILogger _log;
 
     private long _jitteredWakesScheduled;
+    private long _published;
 
     /// <summary>
     /// How many delayed wakes this instance has actually scheduled, which is the cost coalescing
@@ -47,17 +65,25 @@ internal sealed class RedisWakeup : IWorkerWakeup, IDisposable, IAsyncDisposable
     /// </summary>
     internal long JitteredWakesScheduled => Interlocked.Read(ref _jitteredWakesScheduled);
 
+    /// <summary>How many messages this instance has published to Redis. Test seam, since the publish window has no other outward sign.</summary>
+    internal long Published => Interlocked.Read(ref _published);
+
+    /// <summary>Whether this process has subscribed to job completions. Test seam for the per-route subscription.</summary>
+    internal bool HearsCompletions => _completions.Active;
+
     /// <summary>Draws each remote wake's jitter. Test seam, since a zero draw is otherwise left to chance.</summary>
     internal Random JitterSource { get; init; } = Random.Shared;
 
-    private readonly SemaphoreSlim _subscribeGate = new(1, 1);
-    private volatile bool _subscribed;
+    /// <summary>The namespace publish window, <see cref="DefaultPublishWindow"/>. Test seam, so a burst fits inside one window on a slow machine.</summary>
+    internal TimeSpan PublishWindow { get; init; } = DefaultPublishWindow;
 
     public RedisWakeup(IConnectionMultiplexer redis, IOptions<RedisWakeupOptions> options, ILogger<RedisWakeup>? log = null)
     {
         _redis = redis;
-        _channelPrefix = options.Value.ChannelPrefix + ":wake:";
-        _wakePattern = RedisChannel.Pattern(_channelPrefix + "*");
+        _wakePrefix = options.Value.ChannelPrefix + ":wake:";
+        _donePrefix = options.Value.ChannelPrefix + ":done:";
+        _wakes = new(RedisChannel.Pattern(_wakePrefix + "*"));
+        _completions = new(RedisChannel.Pattern(_donePrefix + "*"));
         _remoteJitterMax = options.Value.RemoteWakeJitter;
         _log = (ILogger?)log ?? NullLogger.Instance;
     }
@@ -74,6 +100,46 @@ internal sealed class RedisWakeup : IWorkerWakeup, IDisposable, IAsyncDisposable
             return;
         }
 
+        if (channel.Kind == WorkerWakeupChannelKind.WorkerNamespace)
+        {
+            var throttle = _throttles.GetOrAdd(channel.Name, static _ => new PublishThrottle());
+            var wait = throttle.Claim(PublishWindow);
+            if (wait is null)
+            {
+                // A trailing publish is already scheduled, and it runs after this wake's work committed.
+                return;
+            }
+
+            if (wait.Value > TimeSpan.Zero)
+            {
+                _ = PublishTrailingAsync(channel, reason, throttle, wait.Value);
+                return;
+            }
+        }
+
+        await PublishAsync(channel, reason);
+    }
+
+    public async ValueTask<WorkerWakeupWaitStatus> WaitAsync(WorkerWakeupChannel channel, TimeSpan timeout, CancellationToken ct)
+    {
+        await EnsureSubscribedAsync(channel.Kind == WorkerWakeupChannelKind.JobCompletion ? _completions : _wakes, ct);
+        return await _local.WaitAsync(channel, timeout, ct);
+    }
+
+    private async Task PublishTrailingAsync(WorkerWakeupChannel channel, WorkerWakeupReason reason, PublishThrottle throttle, TimeSpan wait)
+    {
+        await Task.Delay(wait);
+
+        // Open the next window BEFORE publishing: a wake arriving from here on schedules a trailing
+        // publish of its own. Opened afterwards, a wake landing between this publish and the reopening
+        // would find a trailing publish still marked and be dropped, with nothing left to carry it.
+        throttle.Restart();
+        await PublishAsync(channel, reason);
+    }
+
+    private async Task PublishAsync(WorkerWakeupChannel channel, WorkerWakeupReason reason)
+    {
+        Interlocked.Increment(ref _published);
         try
         {
             // FireAndForget: a wake is best-effort by contract, so delivery is never awaited and a
@@ -82,7 +148,9 @@ internal sealed class RedisWakeup : IWorkerWakeup, IDisposable, IAsyncDisposable
             await _redis
                 .GetSubscriber()
                 .PublishAsync(
-                    RedisChannel.Literal(_channelPrefix + channel.Name),
+                    RedisChannel.Literal(
+                        (channel.Kind == WorkerWakeupChannelKind.JobCompletion ? _donePrefix : _wakePrefix) + channel.Name
+                    ),
                     WorkerWakeupPublisher.ReasonTag(reason),
                     CommandFlags.FireAndForget
                 );
@@ -93,34 +161,28 @@ internal sealed class RedisWakeup : IWorkerWakeup, IDisposable, IAsyncDisposable
         }
     }
 
-    public async ValueTask<WorkerWakeupWaitStatus> WaitAsync(WorkerWakeupChannel channel, TimeSpan timeout, CancellationToken ct)
-    {
-        await EnsureSubscribedAsync(ct);
-        return await _local.WaitAsync(channel, timeout, ct);
-    }
-
     /// <summary>
-    /// One pattern subscription per process, established lazily by the first waiter; publish-only
+    /// Each route's pattern subscription is established lazily by its first waiter; publish-only
     /// processes never subscribe. A subscription raced by Redis downtime resubscribes with the
     /// multiplexer's reconnect; wakes missed meanwhile are covered by the waiters' poll floors.
     /// </summary>
-    private async ValueTask EnsureSubscribedAsync(CancellationToken ct)
+    private async ValueTask EnsureSubscribedAsync(Subscription subscription, CancellationToken ct)
     {
-        if (_subscribed)
+        if (subscription.Active)
         {
             return;
         }
 
-        await _subscribeGate.WaitAsync(ct);
+        await subscription.Gate.WaitAsync(ct);
         try
         {
-            if (_subscribed)
+            if (subscription.Active)
             {
                 return;
             }
 
-            await _redis.GetSubscriber().SubscribeAsync(_wakePattern, OnRemoteWake);
-            _subscribed = true;
+            await _redis.GetSubscriber().SubscribeAsync(subscription.Pattern, OnRemoteWake);
+            subscription.Active = true;
         }
         catch (Exception ex)
         {
@@ -128,19 +190,20 @@ internal sealed class RedisWakeup : IWorkerWakeup, IDisposable, IAsyncDisposable
         }
         finally
         {
-            _subscribeGate.Release();
+            subscription.Gate.Release();
         }
     }
 
-    /// <summary>Relays one message the pattern subscription received. Internal so a test can deliver one without a server.</summary>
+    /// <summary>Relays one message a subscription received. Internal so a test can deliver one without a server.</summary>
     internal void OnRemoteWake(RedisChannel redisChannel, RedisValue message)
     {
         var name = (string?)redisChannel;
-        if (
-            name is null
-            || name.Length <= _channelPrefix.Length
-            || !WorkerWakeupChannel.TryParse(name[_channelPrefix.Length..], out var channel)
-        )
+        var suffix =
+            name is null ? null
+            : name.StartsWith(_wakePrefix, StringComparison.Ordinal) ? name[_wakePrefix.Length..]
+            : name.StartsWith(_donePrefix, StringComparison.Ordinal) ? name[_donePrefix.Length..]
+            : null;
+        if (!WorkerWakeupChannel.TryParse(suffix, out var channel))
         {
             return;
         }
@@ -195,35 +258,105 @@ internal sealed class RedisWakeup : IWorkerWakeup, IDisposable, IAsyncDisposable
     /// </summary>
     public void Dispose()
     {
-        if (_subscribed)
-        {
-            try
-            {
-                _redis.GetSubscriber().Unsubscribe(_wakePattern);
-            }
-            catch (Exception)
-            {
-                // Best effort: the process is going away, and the server drops the subscription with the connection.
-            }
-        }
-
-        _subscribeGate.Dispose();
+        Unsubscribe(_wakes);
+        Unsubscribe(_completions);
+        _wakes.Dispose();
+        _completions.Dispose();
     }
 
     public async ValueTask DisposeAsync()
     {
-        if (_subscribed)
+        await UnsubscribeAsync(_wakes);
+        await UnsubscribeAsync(_completions);
+        _wakes.Dispose();
+        _completions.Dispose();
+    }
+
+    private void Unsubscribe(Subscription subscription)
+    {
+        if (!subscription.Active)
         {
-            try
+            return;
+        }
+
+        try
+        {
+            _redis.GetSubscriber().Unsubscribe(subscription.Pattern);
+        }
+        catch (Exception)
+        {
+            // Best effort: the process is going away, and the server drops the subscription with the connection.
+        }
+    }
+
+    private async ValueTask UnsubscribeAsync(Subscription subscription)
+    {
+        if (!subscription.Active)
+        {
+            return;
+        }
+
+        try
+        {
+            await _redis.GetSubscriber().UnsubscribeAsync(subscription.Pattern);
+        }
+        catch (Exception)
+        {
+            // Best effort, as in Unsubscribe.
+        }
+    }
+
+    /// <summary>One route's pattern subscription and the gate that makes it once.</summary>
+    private sealed class Subscription(RedisChannel pattern) : IDisposable
+    {
+        public readonly RedisChannel Pattern = pattern;
+        public readonly SemaphoreSlim Gate = new(1, 1);
+        public volatile bool Active;
+
+        public void Dispose() => Gate.Dispose();
+    }
+
+    /// <summary>One namespace's publish window: when this process last published its wake, and whether a trailing publish is due.</summary>
+    private sealed class PublishThrottle
+    {
+        private readonly System.Threading.Lock _gate = new();
+        private long _publishedAt;
+        private bool _trailing;
+
+        /// <summary>
+        /// Zero to publish now, the wait until the window ends when this wake schedules the trailing
+        /// publish, or null when one is already scheduled.
+        /// </summary>
+        public TimeSpan? Claim(TimeSpan window)
+        {
+            lock (_gate)
             {
-                await _redis.GetSubscriber().UnsubscribeAsync(_wakePattern);
-            }
-            catch (Exception)
-            {
-                // Best effort, as in Dispose.
+                if (_trailing)
+                {
+                    return null;
+                }
+
+                var now = Stopwatch.GetTimestamp();
+                var since = Stopwatch.GetElapsedTime(_publishedAt, now);
+                if (since >= window)
+                {
+                    _publishedAt = now;
+                    return TimeSpan.Zero;
+                }
+
+                _trailing = true;
+                return window - since;
             }
         }
 
-        _subscribeGate.Dispose();
+        /// <summary>Starts the next window at the trailing publish.</summary>
+        public void Restart()
+        {
+            lock (_gate)
+            {
+                _trailing = false;
+                _publishedAt = Stopwatch.GetTimestamp();
+            }
+        }
     }
 }

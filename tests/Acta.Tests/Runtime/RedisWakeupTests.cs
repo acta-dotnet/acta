@@ -246,24 +246,24 @@ public sealed class RedisWakeupTests
         // the count below is the number of timers the burst actually allocated.
         prefix.RemoteWakeJitter = RedisWakeupOptions.MaxRemoteWakeJitter;
         await using var receiver = new RedisWakeup(redis, Options.Create(prefix));
-        await using var sender = new RedisWakeup(redis, Options.Create(prefix));
 
-        // Prove the receiver's subscription is live before the burst, without going through the
-        // republish loop on the "billing" channel itself: that loop's whole purpose here is to measure
-        // how many jittered wakes the burst allocates, and republishing on "billing" would inflate the
-        // very count under test. RedisWakeup holds exactly one pattern subscription per process
-        // covering every channel by prefix (see its class remarks), so proving it live on ANY channel
-        // proves it live for "billing" too. Job-completion wakes are that channel: they skip
-        // _pendingJittered entirely and deliver immediately (see OnRemoteWake), so republishing this
-        // warm-up until it lands costs nothing towards JitteredWakesScheduled.
-        var warmup = receiver.WaitAsync(WorkerWakeupChannel.JobCompletion(1), WaitGenerously, None).AsTask();
+        // No publish window, so every wake of the burst reaches the receiver as its own message.
+        await using var sender = new RedisWakeup(redis, Options.Create(prefix)) { PublishWindow = TimeSpan.Zero };
+
+        // Prove the receiver's namespace subscription is live before the burst, on a channel of its
+        // own: republishing on "billing" until it lands would inflate the very count under test. One
+        // pattern subscription covers every namespace channel, so a live "warmup" proves "billing"
+        // live too, and the count it adds is taken off as the baseline.
+        var warmup = receiver.WaitAsync(WorkerWakeupChannel.WorkerNamespace("warmup"), WaitGenerously, None).AsTask();
         Assert.Equal(
             WorkerWakeupWaitStatus.Signaled,
             await PublishUntilSignaledAsync(
                 warmup,
-                () => sender.WakeAsync(WorkerWakeupChannel.JobCompletion(1), WorkerWakeupReason.JobFinished, None).AsTask()
+                () => sender.WakeAsync(WorkerWakeupChannel.WorkerNamespace("warmup"), WorkerWakeupReason.WorkAvailable, None).AsTask()
             )
         );
+        await Task.Delay(RedisWakeupOptions.MaxRemoteWakeJitter + TimeSpan.FromMilliseconds(100), None);
+        var baseline = receiver.JitteredWakesScheduled;
 
         var wait = receiver.WaitAsync(WorkerWakeupChannel.WorkerNamespace("billing"), WaitGenerously, None).AsTask();
 
@@ -278,7 +278,7 @@ public sealed class RedisWakeupTests
         // settle stays inside the jitter window, where a scheduled wake has not yet cleared its slot.
         // Bounded, so a burst that never reaches the receiver says so instead of spinning.
         var drained = DateTime.UtcNow + WaitGenerously;
-        while (receiver.JitteredWakesScheduled == 0)
+        while (receiver.JitteredWakesScheduled == baseline)
         {
             Assert.True(DateTime.UtcNow < drained, "no jittered wake was scheduled: the burst never reached the receiver.");
             await Task.Delay(25, None);
@@ -289,11 +289,64 @@ public sealed class RedisWakeupTests
         // The point of the fix: work tracks distinct channels, not messages. 400 messages over 2
         // channels inside one jitter window schedule a couple of delayed wakes; uncoalesced this was
         // 400. The slack covers a window elapsing mid-burst and letting a channel schedule again.
-        var scheduled = receiver.JitteredWakesScheduled;
+        var scheduled = receiver.JitteredWakesScheduled - baseline;
         Assert.True(scheduled is >= 1 and <= 20, $"expected a per-channel count, got {scheduled} scheduled wakes for 400 messages.");
 
         // And the wake still lands: coalescing drops duplicates, never the delivery they stand for.
         Assert.Equal(WorkerWakeupWaitStatus.Signaled, await wait.WaitAsync(WaitGenerously, None));
+    }
+
+    [Fact]
+    public async Task A_burst_of_namespace_wakes_publishes_once_and_once_more_when_its_window_ends()
+    {
+        // Fail fast, so each publish's failure costs nothing; the count is taken before the publish.
+        var config = ConfigurationOptions.Parse(UnreachableConfiguration);
+        config.AbortOnConnectFail = false;
+        config.BacklogPolicy = BacklogPolicy.FailFast;
+        using var redis = await ConnectionMultiplexer.ConnectAsync(config);
+
+        // A window long enough that the whole burst lands inside it on a loaded machine.
+        await using var wakeup = new RedisWakeup(redis, Options.Create(UniquePrefix())) { PublishWindow = TimeSpan.FromMilliseconds(500) };
+
+        // A completion wake is never held back; it also takes the first publish's cost out of the burst.
+        await wakeup.WakeAsync(WorkerWakeupChannel.JobCompletion(7), WorkerWakeupReason.JobFinished, None);
+        Assert.Equal(1, wakeup.Published);
+
+        var billing = WorkerWakeupChannel.WorkerNamespace("billing");
+        for (var i = 0; i < 100; i++)
+        {
+            await wakeup.WakeAsync(billing, WorkerWakeupReason.WorkAvailable, None);
+        }
+
+        // The first wake published, and the other 99 share one trailing publish at the window's end.
+        Assert.Equal(2, wakeup.Published);
+        var deadline = DateTime.UtcNow + WaitGenerously;
+        while (wakeup.Published < 3)
+        {
+            Assert.True(DateTime.UtcNow < deadline, "the trailing publish never ran.");
+            await Task.Delay(10, None);
+        }
+
+        // Another namespace keeps a window of its own.
+        await wakeup.WakeAsync(WorkerWakeupChannel.WorkerNamespace("shipping"), WorkerWakeupReason.WorkAvailable, None);
+        Assert.Equal(4, wakeup.Published);
+    }
+
+    [Fact]
+    public async Task Only_a_wait_on_a_job_subscribes_to_job_completions()
+    {
+        var configuration = Environment.GetEnvironmentVariable("ACTA_TEST_REDIS");
+        Assert.SkipWhen(string.IsNullOrWhiteSpace(configuration), "ACTA_TEST_REDIS not set: no Redis server to test against.");
+
+        using var redis = await ConnectionMultiplexer.ConnectAsync(configuration!);
+        await using var wakeup = new RedisWakeup(redis, Options.Create(UniquePrefix()));
+
+        // A claim loop's wait hears namespace wakes only, so a worker process never receives job completions.
+        await wakeup.WaitAsync(WorkerWakeupChannel.WorkerNamespace("billing"), TimeSpan.FromMilliseconds(1), None);
+        Assert.False(wakeup.HearsCompletions);
+
+        await wakeup.WaitAsync(WorkerWakeupChannel.JobCompletion(1), TimeSpan.FromMilliseconds(1), None);
+        Assert.True(wakeup.HearsCompletions);
     }
 
     private sealed class ZeroDraw : Random

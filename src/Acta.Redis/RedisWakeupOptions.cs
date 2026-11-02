@@ -15,8 +15,8 @@ public sealed class RedisWakeupOptions
 
     /// <summary>
     /// Prefix of every Redis channel this transport publishes and subscribes
-    /// (<c>{prefix}:wake:{channel}</c>). Give each environment sharing a Redis instance its own
-    /// prefix so wakes never bleed across environments.
+    /// (<c>{prefix}:wake:{channel}</c>, and <c>{prefix}:done:{channel}</c> for job completions). Give
+    /// each environment sharing a Redis instance its own prefix so wakes never bleed across environments.
     /// </summary>
     public string ChannelPrefix { get; set; } = "acta";
 
