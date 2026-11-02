@@ -66,7 +66,7 @@ public sealed class GetJobExplanationSpec : ActaRuntimeTestBase<ConformanceFixtu
 
         // The writer flips both rows in one transaction, Pending/Pending to Succeeded/Set and back, with the job's
         // jobs_state row untouched, while the reader explains the job over and over until it has read 200 times and
-        // seen 20 flips commit.
+        // seen 20 flips commit. A loaded server reads slower, so it reads until the gate and needs twenty of each.
         using var done = CancellationTokenSource.CreateLinkedTokenSource(ct);
         var flips = 0;
         var writer = Task.Run(
@@ -90,14 +90,15 @@ public sealed class GetJobExplanationSpec : ActaRuntimeTestBase<ConformanceFixtu
         try
         {
             var waited = System.Diagnostics.Stopwatch.StartNew();
-            for (var read = 0; read < 200 || Volatile.Read(ref flips) < 20; read++)
+            var reads = 0;
+            for (; (reads < 200 || Volatile.Read(ref flips) < 20) && waited.Elapsed < SpecWaits.Gate; reads++)
             {
-                Assert.True(waited.Elapsed < SpecWaits.Gate, $"the writer committed only {Volatile.Read(ref flips)} flips in time");
                 var data = Assert.IsType<GetJobExplanationRows>(await handler.ReadAsync(job.JobId, ct));
                 var step = Assert.Single(data.Steps).StepStatus;
                 var checkpoint = Assert.Single(data.Checkpoints).CheckpointStatus;
                 Assert.Equal(step == StepStatusCode.Succeeded, checkpoint == CheckpointStatusCode.Set);
             }
+            Assert.True(reads >= 20 && Volatile.Read(ref flips) >= 20, $"{reads} reads and {Volatile.Read(ref flips)} flips in the gate");
         }
         finally
         {

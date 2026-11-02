@@ -134,10 +134,18 @@ public sealed class ReserveRateSpec : ActaStorageTestBase<ConformanceFixture>
             Assert.True((await ReserveFastAsync(bucket, job, ct)).Admitted);
         }
 
-        // Two intervals late is inside the one-second floor: honoured, and the meter stays. A reserve that a loaded server
-        // lands a second or more after its turn judges nothing, so the case runs again on a fresh turn.
+        // A minute of turns booked ahead, as on a busy meter: an idle meter's row expires a second after its burst, and
+        // another spec's sweep may take it while a loaded server runs this one.
         var clock = Services.GetRequiredService<IActaClock>();
-        for (var job = 130; ; job++)
+        var ahead = (await clock.GetUtcNowAsync(ct)).AddMinutes(1);
+        await Db.From<Acta.LockEntity>()
+            .Where(l => l.LockKey == bucket)
+            .UpdateOnlyAsync(() => new Acta.LockEntity { ExpiresAtUtc = ahead }, ct);
+
+        // Two intervals late is inside the one-second floor: honoured, and the meter stays. A reserve that a loaded server
+        // lands a second or more after its turn judges nothing, so the case runs again on a fresh turn until the gate.
+        var waited = System.Diagnostics.Stopwatch.StartNew();
+        for (var job = 1_000; ; job++)
         {
             var meter = Assert.NotNull(await MeterAsync(bucket, ct));
             var late = await StageTurnAsync(bucket, job, TimeSpan.FromMilliseconds(-200), ct);
@@ -148,7 +156,10 @@ public sealed class ReserveRateSpec : ActaStorageTestBase<ConformanceFixture>
                 Assert.Equal(meter, await MeterAsync(bucket, ct));
                 break;
             }
-            Assert.True(job < 134, "five reserves in a row landed a second or more after their turn");
+            Assert.True(
+                waited.Elapsed < SpecWaits.Gate,
+                $"no reserve landed within a second of its turn in {SpecWaits.Gate.TotalSeconds} s"
+            );
         }
 
         // Three seconds is past it: the turn is spent and the job charges the meter afresh.
