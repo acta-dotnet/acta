@@ -557,10 +557,13 @@ internal sealed class OwnedProvider : IAsyncDisposable
                 ct
             );
         }
+        // The run's workers and calls log in within the drivers' default 15 s, as an application's do; the short
+        // administration timeout only paces the wait for a starting server, and a worker started under chaos load
+        // needs longer.
         ConnectionString =
             Provider == "pg"
-                ? new NpgsqlConnectionStringBuilder(ConnectionString) { Database = Schema }.ToString()
-                : new SqlConnectionStringBuilder(ConnectionString) { InitialCatalog = Schema }.ToString();
+                ? new NpgsqlConnectionStringBuilder(ConnectionString) { Database = Schema, Timeout = 15 }.ToString()
+                : new SqlConnectionStringBuilder(ConnectionString) { InitialCatalog = Schema, ConnectTimeout = 15 }.ToString();
         await using var database = await OpenAsync(ct);
         await using var marker = database.CreateCommand();
         marker.CommandText =
@@ -764,13 +767,11 @@ internal sealed class OwnedProvider : IAsyncDisposable
             "pg" => new NpgsqlConnectionStringBuilder(ConnectionString)
             {
                 MaxPoolSize = EnqueuePoolSize(calls),
-                Timeout = 15,
                 ApplicationName = "acta-verify-enqueue",
             }.ToString(),
             "mssql" => new SqlConnectionStringBuilder(ConnectionString)
             {
                 MaxPoolSize = EnqueuePoolSize(calls),
-                ConnectTimeout = 15,
                 ApplicationName = "acta-verify-enqueue",
             }.ToString(),
             _ => ConnectionString,
