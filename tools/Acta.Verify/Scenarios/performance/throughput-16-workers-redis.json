@@ -6,10 +6,10 @@
   "namespaces": 2,
   "rates": {
     "pg": [
-      8000
+      12500
     ],
     "mssql": [
-      2000
+      4000
     ]
   },
   "settings": {
