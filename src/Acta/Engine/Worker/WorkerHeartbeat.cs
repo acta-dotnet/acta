@@ -113,26 +113,23 @@ internal sealed class WorkerHeartbeat(
     /// </summary>
     public void BeginDrain() => _draining = true;
 
-    /// <summary>Immediately persists the already-entered draining state.</summary>
-    public async Task StampDrainingAsync(CancellationToken ct)
-    {
-        if (_workerRegistration is null)
-        {
-            return;
-        }
-
-        await TickAsync(takeRecovery: false, ct);
-    }
+    /// <summary>
+    /// Immediately persists the already-entered draining state, answering whether the store answered as
+    /// <see cref="TickAsync(CancellationToken)"/> does; true with nothing to stamp.
+    /// </summary>
+    public async Task<bool> StampDrainingAsync(CancellationToken ct) =>
+        _workerRegistration is null || await TickAsync(takeRecovery: false, ct);
 
     /// <summary>
     /// One worker-heartbeat pass: renew the leases of the executions this process holds, re-arm each still-owned
     /// entry's lease deadline and cancel any the refresh authoritatively dropped, then re-overlay the catalog
     /// when it changed. The deterministic single-shot tests drive via WorkerRuntime.RunHeartbeatOnceAsync; it takes no
-    /// recovery pass, which only the loop does.
+    /// recovery pass, which only the loop does. It answers whether the store answered: a failed renewal moves no deadline
+    /// and re-reads no catalog until the next beat.
     /// </summary>
-    public Task TickAsync(CancellationToken ct) => TickAsync(takeRecovery: false, ct);
+    public Task<bool> TickAsync(CancellationToken ct) => TickAsync(takeRecovery: false, ct);
 
-    private async Task TickAsync(bool takeRecovery, CancellationToken ct)
+    private async Task<bool> TickAsync(bool takeRecovery, CancellationToken ct)
     {
         // Refresh every worker's leases first and union the still-owned ids, THEN feed once: the registry
         // holds every worker's jobs, so feeding per worker would see another worker's jobs as "dropped" and
@@ -206,6 +203,8 @@ internal sealed class WorkerHeartbeat(
                 await OverlayDefinitionsAsync(ct);
                 _definitionsModifiedAtUtc = definitionsModifiedAtUtc;
             }
+
+            return live is not null;
         }
         finally
         {

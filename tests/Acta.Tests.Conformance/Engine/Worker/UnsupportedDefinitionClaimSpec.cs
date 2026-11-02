@@ -55,11 +55,12 @@ public sealed class UnsupportedDefinitionClaimSpec : ActaRuntimeTestBase<Conform
         Assert.Equal(0, job.FailureCount);
         Assert.Equal(1, job.ExecutionNumber);
 
-        // Held back rather than immediately re-claimable, and measured against the routine's own clock
-        // stamp so no host-clock comparison is involved.
+        // Held back by exactly the re-arm delay rather than immediately re-claimable or parked far out, measured
+        // against the routine's own clock stamp (one instant per completion) so no host-clock comparison is involved.
         Assert.NotNull(job.NextRunAtUtc);
+        var rearmed = job.ModifiedAtUtc.AddSeconds(RearmDelaySeconds);
         Assert.True(
-            job.NextRunAtUtc >= job.ModifiedAtUtc.AddSeconds(RearmDelaySeconds),
+            job.NextRunAtUtc >= rearmed && job.NextRunAtUtc <= rearmed.AddSeconds(1),
             $"the re-arm pushed next_run_at_utc by the safety-poll interval: next run {job.NextRunAtUtc:O}, modified "
                 + $"{job.ModifiedAtUtc:O}, delay {RearmDelaySeconds}s, version {job.Version}"
         );
@@ -76,7 +77,7 @@ public sealed class UnsupportedDefinitionClaimSpec : ActaRuntimeTestBase<Conform
         var enqueued = await EnqueueAndForgetDescriptorAsync(AuditedJob, ct);
 
         Assert.Equal(RunOnceStatus.Rearmed, await Runtime.RunOnceAsync(enqueued, ct));
-        await Runtime.RunHeartbeatOnceAsync(ct);
+        await RunAnsweredHeartbeatAsync(ct);
 
         var job = await ReadJobAsync(enqueued.JobId, ct);
         Assert.Equal(JobStatusCode.Ready, job.Status);
@@ -121,10 +122,12 @@ public sealed class UnsupportedDefinitionClaimSpec : ActaRuntimeTestBase<Conform
         Assert.Equal(RunOnceStatus.Rearmed, await Runtime.RunOnceAsync(enqueued, ct));
 
         // What the bounce is for: the row is claimable again, and a process that carries the handler
-        // runs it with no operator intervention and no retry spent. The re-arm delay is short enough
-        // that the by-id drive helper's claim retries outlast it, and a by-id claim never consults the
+        // runs it with no operator intervention and no retry spent. The row is staged due so the drive
+        // does not wait out the re-arm delay the first fact pins, and a by-id claim never consults the
         // exclusion the bounce recorded.
         Runtime.Descriptors[definitionId] = descriptor;
+        Assert.Equal(JobStatusCode.Ready, (await ReadJobAsync(enqueued.JobId, ct)).Status);
+        await ChaosSpecHelpers.SetReadyAsync(Db, enqueued.JobId, ct);
         Assert.Equal(RunOnceStatus.Completed, await Runtime.RunOnceAsync(enqueued, ct));
 
         var job = await ReadJobAsync(enqueued.JobId, ct);
@@ -147,16 +150,19 @@ public sealed class UnsupportedDefinitionClaimSpec : ActaRuntimeTestBase<Conform
 
         // Namespace-level ticks, because the exclusion lives on the scanning claim: the by-id path
         // still hands a named row back.
-        var outcomes = await TickUntilNothingClaimedAsync(ct);
+        var outcomes = await TickUntilAsync(
+            async () =>
+                Runtime.UnsupportedDefinitionIdsSnapshot.Contains(DefinitionId(AuditedJob))
+                && (await ReadJobAsync(supported.JobId, ct)).Status == JobStatusCode.Succeeded,
+            ct
+        );
         Assert.Contains(RunOnceStatus.Rearmed, outcomes);
         Assert.Contains(RunOnceStatus.Completed, outcomes);
 
-        Assert.Contains(DefinitionId(AuditedJob), Runtime.UnsupportedDefinitionIdsSnapshot);
-        Assert.Equal(JobStatusCode.Succeeded, (await ReadJobAsync(supported.JobId, ct)).Status);
-
-        // One bounce for the definition, not one per job: the second row was never claimed, which its
-        // untouched execution_number is the evidence for. Both are Ready and due, so nothing but the
-        // exclusion is holding them back.
+        // One bounce for the definition, not one per job: the second row is not claimed, which the
+        // empty tick and its untouched execution_number are the evidence for. Both are Ready and due,
+        // so nothing but the exclusion is holding them back.
+        Assert.Equal(RunOnceStatus.NothingClaimed, await Runtime.RunOnceAsync(TestNamespace, ct));
         var first = await ReadJobAsync(firstUnsupported.JobId, ct);
         var second = await ReadJobAsync(secondUnsupported.JobId, ct);
         Assert.Equal(JobStatusCode.Ready, first.Status);
@@ -181,10 +187,9 @@ public sealed class UnsupportedDefinitionClaimSpec : ActaRuntimeTestBase<Conform
             jobs.Add((await Jobs.EnqueueAsync(new EnqueueJobRequest(TestNamespace, jobName, payload), ct)).JobId);
         }
 
-        await TickUntilNothingClaimedAsync(ct);
-
-        Assert.Contains(DefinitionId(AuditedJob), Runtime.UnsupportedDefinitionIdsSnapshot);
-        Assert.Contains(DefinitionId(FailuresAuditedJob), Runtime.UnsupportedDefinitionIdsSnapshot);
+        int[] definitions = [DefinitionId(AuditedJob), DefinitionId(FailuresAuditedJob)];
+        await TickUntilAsync(() => Task.FromResult(definitions.All(id => Runtime.UnsupportedDefinitionIdsSnapshot.Contains(id))), ct);
+        Assert.Equal(RunOnceStatus.NothingClaimed, await Runtime.RunOnceAsync(TestNamespace, ct));
 
         var rows = new List<TestJobRow>();
         foreach (var jobId in jobs)
@@ -206,28 +211,6 @@ public sealed class UnsupportedDefinitionClaimSpec : ActaRuntimeTestBase<Conform
         // and no row was claimed again after its bounce.
         Assert.Equal(2, rows.Count(row => row.ExecutionNumber == 1));
         Assert.DoesNotContain(rows, row => row.ExecutionNumber > 1);
-    }
-
-    /// <summary>
-    /// Drives namespace-level ticks (the claim path the exclusion filters) until one claims nothing,
-    /// and returns what each tick answered. Bounded so a claim that never settles fails the test
-    /// instead of hanging it.
-    /// </summary>
-    private async Task<IReadOnlyList<RunOnceStatus>> TickUntilNothingClaimedAsync(CancellationToken ct)
-    {
-        var outcomes = new List<RunOnceStatus>();
-        for (var tick = 0; tick < 32; tick++)
-        {
-            var outcome = await Runtime.RunOnceAsync(TestNamespace, ct);
-            if (outcome == RunOnceStatus.NothingClaimed)
-            {
-                return outcomes;
-            }
-            outcomes.Add(outcome);
-        }
-
-        Assert.Fail($"the namespace still claimed work after 32 ticks: {string.Join(", ", outcomes)}.");
-        return outcomes;
     }
 
     /// <summary>

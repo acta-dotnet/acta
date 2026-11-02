@@ -68,7 +68,7 @@ public sealed class WorkerDrainSpec : ActaRuntimeTestBase<ConformanceFixture, Te
 
         // Begin draining: stamp Draining and stop claiming, but the in-flight handler keeps running.
         Runtime.BeginDrain();
-        await Runtime.StampDrainingAsync(ct);
+        await UntilAnsweredAsync(Runtime.StampDrainingAsync, ct);
 
         Assert.Equal(WorkerStatusCode.Draining, (await ReadWorkerAsync(ns, ct)).Status);
         Assert.Equal(JobStatusCode.Executing, (await ReadJobAsync(enqueued.JobId, ct)).Status);

@@ -58,26 +58,32 @@ public sealed class EnqueueJobTransactionalSpec : ActaRuntimeTestBase<Conformanc
         // burn the value, which is why this only ever failed on the SQLite head. The contract is
         // untouched by any of that: what must not survive a rollback is THIS job, and the ref is the
         // only handle that means this job.
-        Guid typedCommitted;
-        Guid callCommitted;
-        await using (var tx = await conn.BeginTransactionAsync(ct))
-        {
-            typedCommitted = (await Jobs.EnqueueAsync(tx, new AddNumbers(2, 3), ct: ct)).JobRef.Value;
-            callCommitted = (await Jobs.EnqueueAsync(tx, TestJobsManifest.AddNumbers(new AddNumbers(4, 5)), ct: ct)).JobRef.Value;
-            await tx.CommitAsync(ct);
-        }
+        var (typedCommitted, callCommitted) = await InCallerTransactionAsync(
+            conn,
+            async tx =>
+            {
+                var typed = (await Jobs.EnqueueAsync(tx, new AddNumbers(2, 3), ct: ct)).JobRef.Value;
+                var call = (await Jobs.EnqueueAsync(tx, TestJobsManifest.AddNumbers(new AddNumbers(4, 5)), ct: ct)).JobRef.Value;
+                await tx.CommitAsync(ct);
+                return (typed, call);
+            },
+            ct
+        );
 
         Assert.NotNull(await Db.From<JobEntity>().Where(j => j.JobRef == typedCommitted).SingleOrDefaultAsync(ct));
         Assert.NotNull(await Db.From<JobEntity>().Where(j => j.JobRef == callCommitted).SingleOrDefaultAsync(ct));
 
-        Guid typedRolledBack;
-        Guid callRolledBack;
-        await using (var tx = await conn.BeginTransactionAsync(ct))
-        {
-            typedRolledBack = (await Jobs.EnqueueAsync(tx, new AddNumbers(6, 7), ct: ct)).JobRef.Value;
-            callRolledBack = (await Jobs.EnqueueAsync(tx, TestJobsManifest.AddNumbers(new AddNumbers(8, 9)), ct: ct)).JobRef.Value;
-            await tx.RollbackAsync(ct);
-        }
+        var (typedRolledBack, callRolledBack) = await InCallerTransactionAsync(
+            conn,
+            async tx =>
+            {
+                var typed = (await Jobs.EnqueueAsync(tx, new AddNumbers(6, 7), ct: ct)).JobRef.Value;
+                var call = (await Jobs.EnqueueAsync(tx, TestJobsManifest.AddNumbers(new AddNumbers(8, 9)), ct: ct)).JobRef.Value;
+                await tx.RollbackAsync(ct);
+                return (typed, call);
+            },
+            ct
+        );
 
         Assert.Null(await Db.From<JobEntity>().Where(j => j.JobRef == typedRolledBack).SingleOrDefaultAsync(ct));
         Assert.Null(await Db.From<JobEntity>().Where(j => j.JobRef == callRolledBack).SingleOrDefaultAsync(ct));
@@ -91,29 +97,37 @@ public sealed class EnqueueJobTransactionalSpec : ActaRuntimeTestBase<Conformanc
 
         await using var conn = await Db.OpenConnectionAsync(ct);
 
-        await using (var tx = await conn.BeginTransactionAsync(ct))
-        {
-            var inserted = await Jobs.EnqueueAsync(tx, Request(key: key), ct);
-            Assert.Equal(EnqueueJobAction.Inserted, inserted.Action);
+        await InCallerTransactionAsync(
+            conn,
+            async tx =>
+            {
+                var inserted = await Jobs.EnqueueAsync(tx, Request(key: key), ct);
+                Assert.Equal(EnqueueJobAction.Inserted, inserted.Action);
 
-            // The second enqueue sees the first row uncommitted on the same connection, so it dedupes.
-            var deduplicated = await Jobs.EnqueueAsync(tx, Request(key: key), ct);
-            Assert.Equal(EnqueueJobAction.Deduplicated, deduplicated.Action);
-            Assert.Equal(inserted.JobId, deduplicated.JobId);
+                // The second enqueue sees the first row uncommitted on the same connection, so it dedupes.
+                var deduplicated = await Jobs.EnqueueAsync(tx, Request(key: key), ct);
+                Assert.Equal(EnqueueJobAction.Deduplicated, deduplicated.Action);
+                Assert.Equal(inserted.JobId, deduplicated.JobId);
 
-            await tx.RollbackAsync(ct);
-        }
+                await tx.RollbackAsync(ct);
+            },
+            ct
+        );
 
         // The provisional identity never became durable.
         Assert.Null(await Db.From<JobEntity>().Where(j => j.DeduplicationKey == key).SingleOrDefaultAsync(ct));
 
         // A re-enqueue after rollback inserts a fresh row - the earlier dedupe left nothing behind.
-        await using (var tx = await conn.BeginTransactionAsync(ct))
-        {
-            var reinserted = await Jobs.EnqueueAsync(tx, Request(key: key), ct);
-            Assert.Equal(EnqueueJobAction.Inserted, reinserted.Action);
-            await tx.CommitAsync(ct);
-        }
+        await InCallerTransactionAsync(
+            conn,
+            async tx =>
+            {
+                var reinserted = await Jobs.EnqueueAsync(tx, Request(key: key), ct);
+                Assert.Equal(EnqueueJobAction.Inserted, reinserted.Action);
+                await tx.CommitAsync(ct);
+            },
+            ct
+        );
 
         Assert.NotNull(await Db.From<JobEntity>().Where(j => j.DeduplicationKey == key).SingleOrDefaultAsync(ct));
     }
@@ -152,10 +166,10 @@ public sealed class EnqueueJobTransactionalSpec : ActaRuntimeTestBase<Conformanc
         await Jobs.EnqueueAsync(tx, Request(key: prefix + "-1"), ct);
 
         var other = Jobs.EnqueueAsync(Request(key: prefix + "-2"), ct).AsTask();
-        var first = await Task.WhenAny(other, Task.Delay(TimeSpan.FromSeconds(5), ct));
+        // The transaction stays open until the fact ends, so an enqueue that waited on it would never return.
+        var first = await Task.WhenAny(other, Task.Delay(SpecWaits.Gate, ct));
         Assert.True(first == other, "the enqueue of another key waited on the open transaction");
         Assert.Equal(EnqueueJobAction.Inserted, (await other).Action);
-        await tx.RollbackAsync(ct);
     }
 
     [Fact(DisplayName = "A null transaction throws ArgumentNullException before any work")]
@@ -186,9 +200,9 @@ public sealed class EnqueueJobTransactionalSpec : ActaRuntimeTestBase<Conformanc
         }
 
         // A real disposed transaction also fails: some providers surface their own disposed error from the
-        // connection accessor before Acta inspects it, so assert only that it is rejected.
-        var disposed = await conn.BeginTransactionAsync(ct);
-        await disposed.DisposeAsync();
+        // connection accessor before Acta inspects it, so assert only that it is rejected. The helper disposes the
+        // transaction it returns.
+        var disposed = await InCallerTransactionAsync(conn, Task.FromResult, ct);
         await Assert.ThrowsAnyAsync<Exception>(async () => await Jobs.EnqueueAsync(disposed, Request(), ct));
     }
 
@@ -231,17 +245,23 @@ public sealed class EnqueueJobTransactionalSpec : ActaRuntimeTestBase<Conformanc
         var probe = await Fixture.EnsureBusinessProbeTableAsync(conn, Schema.SchemaName, ProbeTable);
 
         var dupKey = Unique("txn-batch-dup");
-        await using (var tx = await conn.BeginTransactionAsync(ct))
-        {
-            await InsertBusinessRowAsync(conn, tx, probe, marker, ct);
+        await InCallerTransactionAsync(
+            conn,
+            async tx =>
+            {
+                await InsertBusinessRowAsync(conn, tx, probe, marker, ct);
 
-            // A same-batch duplicate deduplication key is a deterministic pre-SQL rejection. Acta throws
-            // the translated type once (no retry) and the caller must roll back the whole transaction.
-            IReadOnlyList<EnqueueJobRequest> batch = [Request(key: dupKey), Request(key: dupKey)];
-            await Assert.ThrowsAsync<DuplicateDeduplicationKeyInBatchException>(async () => await Jobs.EnqueueBatchAsync(tx, batch, ct));
+                // A same-batch duplicate deduplication key is a deterministic pre-SQL rejection. Acta throws
+                // the translated type once (no retry) and the caller must roll back the whole transaction.
+                IReadOnlyList<EnqueueJobRequest> batch = [Request(key: dupKey), Request(key: dupKey)];
+                await Assert.ThrowsAsync<DuplicateDeduplicationKeyInBatchException>(async () =>
+                    await Jobs.EnqueueBatchAsync(tx, batch, ct)
+                );
 
-            await tx.RollbackAsync(ct);
-        }
+                await tx.RollbackAsync(ct);
+            },
+            ct
+        );
 
         Assert.Equal(0, await CountBusinessRowsAsync(conn, probe, marker, ct));
         var jobCount = await Db.From<JobEntity>().Where(j => j.DeduplicationKey == dupKey).CountAsync(ct);
@@ -256,11 +276,15 @@ public sealed class EnqueueJobTransactionalSpec : ActaRuntimeTestBase<Conformanc
         await using var conn = await Db.OpenConnectionAsync(ct);
 
         var before = _wakeup.Count;
-        await using (var tx = await conn.BeginTransactionAsync(ct))
-        {
-            await Jobs.EnqueueAsync(tx, Request(), ct);
-            await tx.CommitAsync(ct);
-        }
+        await InCallerTransactionAsync(
+            conn,
+            async tx =>
+            {
+                await Jobs.EnqueueAsync(tx, Request(), ct);
+                await tx.CommitAsync(ct);
+            },
+            ct
+        );
         Assert.Equal(before, _wakeup.Count);
 
         // Control: the Acta-owned enqueue of a due job publishes exactly one wakeup, proving the seam works.

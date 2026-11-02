@@ -49,7 +49,7 @@ public sealed class LoopTickCancellationFilterTests
         // The immediate first tick and at least one PeriodicTimer tick each catch the throw and warn.
         await WaitUntil(
             () => logger.Entries.Count(e => e.Level == LogLevel.Warning && e.Message.Contains("could not extend worker leases")) >= 2,
-            TimeSpan.FromSeconds(5)
+            TimeSpan.FromSeconds(30)
         );
 
         cts.Cancel();

@@ -164,6 +164,22 @@ dotnet test concepts/Concepts.slnx -c Release --settings tests/Acta.runsettings
 See [Testing custom jobs](./docs/developer-guide.md#testing-custom-jobs) for the test taxonomy and
 [Schema migrations](#schema-migrations) for the migration workflow.
 
+### Tests and time
+
+A test passes or fails on what the code did, never on how fast the machine ran it. CI runs the four test assemblies at once on four vCPUs shared with the databases, so any statement, timer, or continuation can be seconds late.
+
+- A wait that guards a hang is bounded by `SpecWaits.Gate` (60 s) or `SpecWaits.Converge` (90 s) in conformance specs, and by at least 30 s in unit tests; a passing run leaves at its first success.
+- An elapsed-time assertion is allowed only where the duration is the fact and the broken behaviour is slower on every trial: take the fastest of several trials, or count what happened (writes, reserves) instead of milliseconds.
+- A timing condition a fact needs, such as a reserve landing inside its window, is checked from the database clock after the act; a trial where it did not hold is repeated up to the guard, never judged.
+- A fact that waits for something polls until the end state holds (`SpecWaits.RepeatUntilAsync`), not for a fixed number of tries, ticks, or sweeps: READPAST and SKIP LOCKED claims skip rows a neighbour holds for a moment.
+- A heartbeat whose effect a spec asserts is one the store answered (`RunAnsweredHeartbeatAsync`).
+- A schedule admission runs on a `FakeClock` (`FakeClock.AtRealMinute()`) or on parked slots, never on the real clock, where a five-minute boundary can fall inside the test.
+- A spec synchronizes on signals (a `TaskCompletionSource`, a probe gate, `LockWaitProbe`), never on a sleep followed by an assumption.
+- A catch names the errors the step expects and repeats transient ones (`IConformanceFixture.IsTransient`); a catch-all reads a deadlock victim as an outcome.
+- A real timer is armed after the setup it would race, not before, and a probe that holds a handler while the fact acts keeps the framework's five-minute timeout (`chaos-holding`).
+
+To check a change against a starved runner, pin the full suite to two cores and run it several times: `taskset -c 0,1 dotnet test Acta.slnx -c Release --settings tests/Acta.runsettings` on Linux, or `start "" /affinity 3 /wait /b dotnet test Acta.slnx -c Release --settings tests\Acta.runsettings` from `cmd` on Windows.
+
 ## Dashboard development
 
 The dashboard is a Svelte app in `src/Acta.AspNetCore/DashboardApp`:

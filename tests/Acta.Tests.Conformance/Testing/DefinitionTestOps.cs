@@ -10,6 +10,14 @@ namespace Acta.Tests.Conformance.Testing;
 /// </summary>
 internal static class DefinitionTestOps
 {
+    /// <summary>The passes <c>WorkerRuntimeInitializer</c> gives a catalog registration.</summary>
+    private const int RegistrationPasses = 5;
+
+    /// <summary>
+    /// Registers <paramref name="descriptors"/> through the handler a starting worker runs, with the initializer's passes:
+    /// a registration that waited out its command timeout behind the other specs' registrations, or lost a race for the
+    /// same new rows, runs again, and registering the same descriptors again changes nothing.
+    /// </summary>
     public static async Task<IReadOnlyDictionary<string, int>> RegisterAsync(
         IServiceProvider services,
         int namespaceId,
@@ -18,14 +26,26 @@ internal static class DefinitionTestOps
         CancellationToken ct
     )
     {
-        var stored = (
-            await services.GetRequiredService<GetDefinitionContractsHandler>().HandleAsync(new GetDefinitionContractsQuery(namespaceId), ct)
-        ).Contracts;
-        return (
-            await services
-                .GetRequiredService<RegisterDefinitionsHandler>()
-                .HandleAsync(new RegisterDefinitionsCommand(namespaceId, manifestGenerationUtc, descriptors, stored), ct)
-        ).DefinitionIds;
+        for (var attempt = 1; ; attempt++)
+        {
+            try
+            {
+                var stored = (
+                    await services
+                        .GetRequiredService<GetDefinitionContractsHandler>()
+                        .HandleAsync(new GetDefinitionContractsQuery(namespaceId), ct)
+                ).Contracts;
+                return (
+                    await services
+                        .GetRequiredService<RegisterDefinitionsHandler>()
+                        .HandleAsync(new RegisterDefinitionsCommand(namespaceId, manifestGenerationUtc, descriptors, stored), ct)
+                ).DefinitionIds;
+            }
+            catch (Exception ex) when (ex is System.Data.Common.DbException or InvalidOperationException && attempt < RegistrationPasses)
+            {
+                await Task.Delay(TimeSpan.FromMilliseconds(100 * attempt), ct);
+            }
+        }
     }
 
     public static async Task<SetDefinitionOverridesResponse> UpdateOverridesAsync(

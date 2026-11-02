@@ -76,14 +76,23 @@ public sealed partial class SqlServerConformanceFixture
 
         public string SchemaName => schema;
 
+        /// <summary>
+        /// Drops whatever the spec installed, through the product's drop: SQL Server drops a schema only once it is empty,
+        /// and a cleanup that threw over a schema with tables left would hide the spec's own failure.
+        /// </summary>
         public async ValueTask DisposeAsync()
         {
-            // SQL Server drops a schema only once it is empty, so the ledger goes first.
-            await using var conn = new SqlConnection(connectionString);
-            await conn.OpenAsync();
-            await using var drop = conn.CreateCommand();
-            drop.CommandText = $"DROP TABLE IF EXISTS {schema}.migrations; DROP SCHEMA IF EXISTS {schema};";
-            await drop.ExecuteNonQueryAsync();
+            await ReadCatalogAsync(DropAsync);
+
+            async ValueTask<bool> DropAsync()
+            {
+                await using var conn = new SqlConnection(connectionString);
+                await conn.OpenAsync();
+                await new DropSchemaHandler(conn, new SqlResourceCatalog("mssql", schema), commandTimeoutSeconds: 30).HandleAsync(
+                    CancellationToken.None
+                );
+                return true;
+            }
         }
     }
 }

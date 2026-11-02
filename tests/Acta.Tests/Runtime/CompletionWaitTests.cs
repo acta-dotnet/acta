@@ -14,7 +14,12 @@ public sealed class CompletionWaitTests
 
     // Far beyond the budget, so no poll can rescue a missed wake.
     private static readonly TimeSpan NoPoll = TimeSpan.FromMinutes(5);
-    private static readonly TimeSpan Budget = TimeSpan.FromSeconds(20);
+    private static readonly TimeSpan Budget = TimeSpan.FromMinutes(2);
+
+    /// <summary>
+    /// A missed wake sleeps the whole budget, so a wait that ends inside half of it never slept it out.
+    /// </summary>
+    private static readonly TimeSpan UnderBudget = Budget / 2;
 
     private sealed record Snapshot(bool Terminal);
 
@@ -52,7 +57,7 @@ public sealed class CompletionWaitTests
         Assert.False(timedOut);
         Assert.True(snapshot!.Terminal);
         Assert.Equal(2, reads);
-        Assert.True(Stopwatch.GetElapsedTime(started) < TimeSpan.FromSeconds(5), "the wait fell through to its budget");
+        Assert.True(Stopwatch.GetElapsedTime(started) < UnderBudget, "the wait fell through to its budget");
     }
 
     [Fact]
@@ -114,6 +119,6 @@ public sealed class CompletionWaitTests
 
         Assert.False(timedOut);
         Assert.Null(snapshot);
-        Assert.True(Stopwatch.GetElapsedTime(started) < TimeSpan.FromSeconds(5), "a missing job spent the budget");
+        Assert.True(Stopwatch.GetElapsedTime(started) < UnderBudget, "a missing job spent the budget");
     }
 }

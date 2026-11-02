@@ -15,17 +15,30 @@ internal enum LockWait
 /// </summary>
 internal static class LockWaitProbe
 {
-    private static readonly TimeSpan Timeout = TimeSpan.FromSeconds(15);
-
     /// <summary>
     /// Returns once a session running the statement that contains <paramref name="sqlFragment"/> is blocked on a lock of
     /// the given kind. Fails when <paramref name="operation"/> completes first, since it then never waited, and when no
-    /// such wait shows within the timeout.
+    /// such wait shows within <see cref="SpecWaits.Gate"/>.
     /// </summary>
-    public static async Task WaitAsync(IDbSession db, string sqlFragment, LockWait kind, Task operation, CancellationToken ct)
+    public static Task WaitAsync(IDbSession db, string sqlFragment, LockWait kind, Task operation, CancellationToken ct) =>
+        WaitAsync(db, sqlFragment, kind, operation, blocker: null, ct);
+
+    /// <summary>
+    /// Counts only a wait on a lock <paramref name="blocker"/>'s session holds, so a statement whose text other specs'
+    /// sessions also run is told apart from theirs.
+    /// </summary>
+    public static async Task WaitAsync(
+        IDbSession db,
+        string sqlFragment,
+        LockWait kind,
+        Task operation,
+        DbTransaction? blocker,
+        CancellationToken ct
+    )
     {
+        int? blockerSession = blocker is null ? null : await SessionIdAsync(db.Provider, blocker, ct);
         await using var connection = await db.OpenConnectionAsync(ct);
-        var deadline = DateTime.UtcNow + Timeout;
+        var deadline = DateTime.UtcNow + SpecWaits.Gate;
         while (DateTime.UtcNow < deadline)
         {
             if (operation.IsCompleted)
@@ -34,7 +47,7 @@ internal static class LockWaitProbe
                 throw new InvalidOperationException($"The operation running '{sqlFragment}' finished without waiting on a {kind} lock.");
             }
 
-            if (await CountWaitersAsync(db.Provider, connection, sqlFragment, kind, ct) > 0)
+            if (await CountWaitersAsync(db.Provider, connection, sqlFragment, kind, blockerSession, ct) > 0)
             {
                 return;
             }
@@ -42,7 +55,15 @@ internal static class LockWaitProbe
             await Task.Delay(TimeSpan.FromMilliseconds(20), ct);
         }
 
-        throw new TimeoutException($"No session running '{sqlFragment}' waited on a {kind} lock within {Timeout.TotalSeconds:0} s.");
+        throw new TimeoutException($"No session running '{sqlFragment}' waited on a {kind} lock within {SpecWaits.Gate.TotalSeconds:0} s.");
+    }
+
+    private static async Task<int> SessionIdAsync(DbProvider provider, DbTransaction transaction, CancellationToken ct)
+    {
+        await using var cmd = transaction.Connection!.CreateCommand();
+        cmd.Transaction = transaction;
+        cmd.CommandText = provider == DbProvider.SqlServer ? "SELECT CAST(@@SPID AS INT)" : "SELECT pg_backend_pid()";
+        return Convert.ToInt32(await cmd.ExecuteScalarAsync(ct), System.Globalization.CultureInfo.InvariantCulture);
     }
 
     private static async Task<long> CountWaitersAsync(
@@ -50,6 +71,7 @@ internal static class LockWaitProbe
         DbConnection connection,
         string sqlFragment,
         LockWait kind,
+        int? blockerSession,
         CancellationToken ct
     )
     {
@@ -60,7 +82,8 @@ internal static class LockWaitProbe
             // the lock procedure, so the batch is read from the session's input buffer.
             cmd.CommandText =
                 "SELECT COUNT_BIG(*) FROM sys.dm_exec_requests r CROSS APPLY sys.dm_exec_input_buffer(r.session_id, r.request_id) b "
-                + "WHERE r.session_id <> @@SPID AND r.wait_type LIKE 'LCK%' AND r.wait_resource LIKE @p_resource AND b.event_info LIKE @p_sql";
+                + "WHERE r.session_id <> @@SPID AND r.wait_type LIKE 'LCK%' AND r.wait_resource LIKE @p_resource AND b.event_info LIKE @p_sql"
+                + (blockerSession is null ? "" : " AND r.blocking_session_id = @p_blocker");
             AddParameter(cmd, "@p_resource", kind == LockWait.ScheduleLock ? "APPLICATION%" : "KEY%");
         }
         else
@@ -69,10 +92,16 @@ internal static class LockWaitProbe
             cmd.CommandText =
                 "SELECT count(*) FROM pg_stat_activity WHERE datname = current_database() AND pid <> pg_backend_pid() "
                 + "AND wait_event_type = 'Lock' AND query LIKE @p_sql AND "
-                + (kind == LockWait.ScheduleLock ? "wait_event = 'advisory'" : "wait_event IN ('transactionid', 'tuple')");
+                + (kind == LockWait.ScheduleLock ? "wait_event = 'advisory'" : "wait_event IN ('transactionid', 'tuple')")
+                + (blockerSession is null ? "" : " AND @p_blocker = ANY(pg_blocking_pids(pid))");
         }
 
         AddParameter(cmd, "@p_sql", $"%{sqlFragment}%");
+        if (blockerSession is { } session)
+        {
+            AddParameter(cmd, "@p_blocker", session);
+        }
+
         return Convert.ToInt64(await cmd.ExecuteScalarAsync(ct), System.Globalization.CultureInfo.InvariantCulture);
     }
 

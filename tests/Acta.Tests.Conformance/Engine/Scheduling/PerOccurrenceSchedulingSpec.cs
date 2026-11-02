@@ -1,5 +1,4 @@
 using Acta.Tests.Conformance.Contracts;
-using Acta.Tests.Conformance.Scenarios;
 using Acta.Tests.Conformance.Testing;
 using Microsoft.Extensions.DependencyInjection;
 using Xunit;
@@ -116,9 +115,7 @@ public sealed class PerOccurrenceSchedulingSpec : ActaRuntimeTestBase<Conformanc
 
     protected override void ConfigureServices(IServiceCollection services, string testNamespace)
     {
-        // The clock starts at the real minute: settlement stamps the DB clock, which this clock must not trail.
-        var now = DateTime.UtcNow;
-        Clock = new FakeClock(new DateTime(now.Ticks - (now.Ticks % TimeSpan.TicksPerMinute), DateTimeKind.Utc));
+        Clock = FakeClock.AtRealMinute();
         services.AddSingleton<IActaClock>(Clock);
         base.ConfigureServices(services, testNamespace);
     }
@@ -290,7 +287,7 @@ public sealed class PerOccurrenceSchedulingSpec : ActaRuntimeTestBase<Conformanc
         var roots = await RootsAsync(schedule.Id, ct);
         Assert.Equal(2, roots.Count);
 
-        // Each root's only attempt is in flight on a lease that lapsed, so one sweep settles both.
+        // Each root's only attempt is in flight on a lease that lapsed, so recovery settles both.
         foreach (var root in roots)
         {
             Assert.Equal(
@@ -310,7 +307,16 @@ public sealed class PerOccurrenceSchedulingSpec : ActaRuntimeTestBase<Conformanc
             );
         }
 
-        await ChaosSpecHelpers.ReclaimAsync(Services, ns, ct);
+        var rootIds = roots.Select(root => root.Id).ToList();
+        await RecoverySweep.ReclaimUntilAsync(
+            Services,
+            ns,
+            async () =>
+                (await Db.From<JobStateEntity>().Where(j => rootIds.Contains(j.Id)).ToListAsync(ct)).All(j =>
+                    j.Status != JobStatusCode.Executing
+                ),
+            ct
+        );
 
         foreach (var root in roots)
         {

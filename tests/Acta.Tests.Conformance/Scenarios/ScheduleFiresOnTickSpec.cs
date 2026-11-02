@@ -7,21 +7,6 @@ using Xunit;
 namespace Acta.Tests.Conformance.Scenarios;
 
 /// <summary>
-/// Deterministic <see cref="IActaClock"/> for the recurring specs. The admitter reads this clock to find what is
-/// due; the SQL claim uses the real DB clock, against which an admitted firing is due at once, so fires are driven
-/// by advancing this clock to a schedule's occurrence and running one admission pass.
-/// </summary>
-internal sealed class FakeClock(DateTime initialUtc) : IActaClock
-{
-    private long _ticks = initialUtc.Ticks;
-
-    public ValueTask<DateTime> GetUtcNowAsync(CancellationToken ct) =>
-        ValueTask.FromResult(new DateTime(Interlocked.Read(ref _ticks), DateTimeKind.Utc));
-
-    public void AdvanceTo(DateTime utc) => Interlocked.Exchange(ref _ticks, utc.Ticks);
-}
-
-/// <summary>
 /// Recurring-schedule conformance: a definition-sourced slot fires repeatedly on one stable Job id. The admitter
 /// admits a due schedule's firing and advances its cursor, the attempt runs it with the triggering schedule in hand,
 /// and the slot returns to Idle keeping its last result, spending one failure budget per firing, and emitting the

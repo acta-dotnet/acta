@@ -38,7 +38,7 @@ public sealed class CancelPropagatesToHandlerSpec : ActaRuntimeTestBase<Conforma
         // channel that propagates an external cancel to the running handler's token.
         var cancel = await Jobs.CancelAsync(JobLookup.ById(enqueued.JobId), ct: ct);
         Assert.Equal(ControlAction.Applied, cancel.Action);
-        await Runtime.RunHeartbeatOnceAsync(ct);
+        await RunAnsweredHeartbeatAsync(ct);
 
         // The handler observed cancellation; the dispatch unwinds; the row is terminal Cancelled.
         Assert.True(await CancellableHandler.Observed(TestNamespace).WaitAsync(timeout, ct));

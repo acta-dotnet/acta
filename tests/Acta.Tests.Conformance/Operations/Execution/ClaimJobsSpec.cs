@@ -1,4 +1,3 @@
-using System.Diagnostics;
 using Acta.Tests.Conformance.Contracts;
 using Acta.Tests.Conformance.Testing;
 using Microsoft.Extensions.DependencyInjection;
@@ -33,6 +32,12 @@ public sealed class ClaimJobsSpec : ActaRuntimeTestBase<ConformanceFixture, Test
 {
     private const int Batch = 5;
 
+    /// <summary>
+    /// A schema of its own, so no other spec's lock hides a row from a claim: the batch cap and the priority order are
+    /// judged on one claim, where a repeat after a short or misordered claim would also absorb a claim that is wrong.
+    /// </summary>
+    protected override bool OwnSchema => true;
+
     protected override void ConfigureServices(IServiceCollection services, string testNamespace)
     {
         base.ConfigureServices(services, testNamespace);
@@ -53,8 +58,6 @@ public sealed class ClaimJobsSpec : ActaRuntimeTestBase<ConformanceFixture, Test
         var workerId = await WorkerIdAsync(Db, ns, ct);
 
         // Enqueue a surplus so the claim is capped by the batch size, not by the number of Ready rows.
-        // (A bare ==N over exactly N rows is flaky on SqlServer: READPAST skips rows on pages another
-        // parallel test momentarily locks in the shared schema; the surplus absorbs those skips.)
         var payload = JobPayload.Json(new AddNumbers(2, 3));
         for (var i = 0; i < Batch * 3; i++)
         {
@@ -81,7 +84,7 @@ public sealed class ClaimJobsSpec : ActaRuntimeTestBase<ConformanceFixture, Test
         // transient (a due row READPAST-skipped under a sibling's lock), so the re-read ticks past it.
         while (true)
         {
-            var drained = await ReadClaimUntilAsync(
+            var drained = await SpecWaits.RepeatUntilAsync(
                 () =>
                     Services
                         .GetRequiredService<ExecutionOperations>()
@@ -116,7 +119,7 @@ public sealed class ClaimJobsSpec : ActaRuntimeTestBase<ConformanceFixture, Test
             ct
         );
 
-        var delayed = await ReadClaimUntilAsync(
+        var delayed = await SpecWaits.RepeatUntilAsync(
             () =>
                 Services
                     .GetRequiredService<ExecutionOperations>()
@@ -156,26 +159,30 @@ public sealed class ClaimJobsSpec : ActaRuntimeTestBase<ConformanceFixture, Test
 
         // The exclusion narrows the candidate set and nothing else: a one-row claim still takes the
         // last-enqueued High row ahead of the Normal one it was enqueued after.
-        var firstFiltered = await Services
-            .GetRequiredService<ExecutionOperations>()
-            .ClaimJobsAsync(new ClaimOptions(ns, workerId, MaxBatch: 1, ExcludedDefinitionIds: [excludedDefinitionId]), leaseTtl, ct);
+        var execution = Services.GetRequiredService<ExecutionOperations>();
+        var filtered = new ClaimOptions(ns, workerId, MaxBatch: 1, ExcludedDefinitionIds: [excludedDefinitionId]);
+        var firstFiltered = await execution.ClaimJobsAsync(filtered, leaseTtl, ct);
 
         Assert.Equal(high.JobId, Assert.Single(firstFiltered.Jobs).JobId);
 
-        var restFiltered = await Services
-            .GetRequiredService<ExecutionOperations>()
-            .ClaimJobsAsync(new ClaimOptions(ns, workerId, MaxBatch: Batch, ExcludedDefinitionIds: [excludedDefinitionId]), leaseTtl, ct);
+        var restFiltered = await SpecWaits.RepeatUntilAsync(
+            () => execution.ClaimJobsAsync(filtered with { MaxBatch = Batch }, leaseTtl, ct),
+            answer => answer.Jobs.Count > 0,
+            ct
+        );
 
         Assert.Equal(normal.JobId, Assert.Single(restFiltered.Jobs).JobId);
         Assert.DoesNotContain(excludedDefinitionId, restFiltered.Jobs.Select(j => j.DefinitionId));
 
         // Same rows, no filter: the excluded definition was never unclaimable, only invisible to a
         // worker that asked not to see it.
-        var unfiltered = await Services
-            .GetRequiredService<ExecutionOperations>()
-            .ClaimJobsAsync(new ClaimOptions(ns, workerId, MaxBatch: Batch), leaseTtl, ct);
+        var unfiltered = await ClaimIdsUntilAsync(
+            () => execution.ClaimJobsAsync(new ClaimOptions(ns, workerId, MaxBatch: Batch), leaseTtl, ct),
+            excludedJobs,
+            ct
+        );
 
-        Assert.Equal(excludedJobs.Order(), unfiltered.Jobs.Select(j => j.JobId).Order());
+        Assert.Equal(excludedJobs.Order(), unfiltered.Order());
     }
 
     [Fact(
@@ -195,7 +202,7 @@ public sealed class ClaimJobsSpec : ActaRuntimeTestBase<ConformanceFixture, Test
         var dueAt = dbNow.AddMinutes(2);
         await Jobs.EnqueueAsync(new EnqueueJobRequest(TestNamespace, SupportedJob, JobPayload.None, NextRunAtUtc: dueAt), ct);
 
-        var bounded = await ReadClaimUntilAsync(
+        var bounded = await SpecWaits.RepeatUntilAsync(
             () =>
                 Services
                     .GetRequiredService<ExecutionOperations>()
@@ -246,7 +253,7 @@ public sealed class ClaimJobsSpec : ActaRuntimeTestBase<ConformanceFixture, Test
 
         var fromBetween = await ClaimIdsUntilAsync(
             () => execution.ClaimJobsAsync(new ClaimOptions(ns, workerId, MaxBatch: 64, ClaimFromUtc: dbNow.AddSeconds(-90)), leaseTtl, ct),
-            later.JobId,
+            [later.JobId],
             ct
         );
         Assert.Contains(later.JobId, fromBetween);
@@ -254,7 +261,7 @@ public sealed class ClaimJobsSpec : ActaRuntimeTestBase<ConformanceFixture, Test
 
         var fromHead = await ClaimIdsUntilAsync(
             () => execution.ClaimJobsAsync(new ClaimOptions(ns, workerId, MaxBatch: 64), leaseTtl, ct),
-            earlier.JobId,
+            [earlier.JobId],
             ct
         );
         Assert.Contains(earlier.JobId, fromHead);
@@ -274,28 +281,32 @@ public sealed class ClaimJobsSpec : ActaRuntimeTestBase<ConformanceFixture, Test
                 Services
                     .GetRequiredService<ExecutionOperations>()
                     .ClaimJobsAsync(new ClaimOptions(ns, workerId, MaxBatch: 64), leaseTtl, ct),
-            early.JobId,
+            [early.JobId],
             ct
         );
         Assert.Contains(early.JobId, fromHead);
     }
 
     /// <summary>
-    /// Claims until one read takes <paramref name="wanted"/>, bounded like <see cref="ReadClaimUntilAsync"/> because a
-    /// sibling's lock can hide a row from one read, and returns every job id the reads claimed.
+    /// Claims until the reads have taken every job in <paramref name="wanted"/>, because a sibling's lock can hide a row
+    /// from one read, and returns every job id the reads claimed.
     /// </summary>
-    private static async Task<HashSet<long>> ClaimIdsUntilAsync(Func<Task<ClaimJobsResponse>> claim, long wanted, CancellationToken ct)
+    private static async Task<HashSet<long>> ClaimIdsUntilAsync(
+        Func<Task<ClaimJobsResponse>> claim,
+        IReadOnlyCollection<long> wanted,
+        CancellationToken ct
+    )
     {
         var ids = new HashSet<long>();
-        var elapsed = Stopwatch.StartNew();
-        while (!ids.Contains(wanted) && elapsed.Elapsed <= TimeSpan.FromSeconds(5))
-        {
-            ids.UnionWith((await claim()).Jobs.Select(j => j.JobId));
-            if (!ids.Contains(wanted))
+        await SpecWaits.RepeatUntilAsync(
+            async () =>
             {
-                await Task.Delay(25, ct);
-            }
-        }
+                ids.UnionWith((await claim()).Jobs.Select(j => j.JobId));
+                return ids.IsSupersetOf(wanted);
+            },
+            done => done,
+            ct
+        );
         return ids;
     }
 
@@ -324,30 +335,6 @@ public sealed class ClaimJobsSpec : ActaRuntimeTestBase<ConformanceFixture, Test
             .ToHashSet();
         var jobs = await Db.From<JobEntity>().Where(j => j.NamespaceId == namespaceId).ToListAsync(ct);
         return [.. jobs.Where(j => waiting.Contains(j.Id)).Select(j => j.DefinitionId).Distinct()];
-    }
-
-    /// <summary>
-    /// Re-reads a claim until <paramref name="settled"/> accepts the result, bounded to a short
-    /// budget. The horizon MIN shares the claim's READPAST, so a sibling's page lock on the shared
-    /// schema can transiently hide a row; production loops tick again, and so does this read. On
-    /// timeout the last result is returned so the caller's asserts fail with the observed values.
-    /// </summary>
-    private static async Task<ClaimJobsResponse> ReadClaimUntilAsync(
-        Func<Task<ClaimJobsResponse>> read,
-        Func<ClaimJobsResponse, bool> settled,
-        CancellationToken ct
-    )
-    {
-        var elapsed = Stopwatch.StartNew();
-        while (true)
-        {
-            var result = await read();
-            if (settled(result) || elapsed.Elapsed > TimeSpan.FromSeconds(5))
-            {
-                return result;
-            }
-            await Task.Delay(25, ct);
-        }
     }
 
     private async Task<(IDbSession Db, ISqlDialect Dialect, int LeaseTtl, int Ns, int WorkerId)> ClaimDepsAsync(CancellationToken ct)

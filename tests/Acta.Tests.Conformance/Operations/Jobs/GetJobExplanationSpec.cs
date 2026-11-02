@@ -111,16 +111,22 @@ public sealed class GetJobExplanationSpec : ActaRuntimeTestBase<ConformanceFixtu
     private async Task WriteAsync(IReadOnlyList<string> statements, CancellationToken ct)
     {
         await using var connection = await Db.OpenConnectionAsync(ct);
-        await using var transaction = await connection.BeginTransactionAsync(ct);
-        foreach (var sql in statements)
-        {
-            await using var command = connection.CreateCommand();
-            command.Transaction = transaction;
-            command.CommandText = sql;
-            await command.ExecuteNonQueryAsync(ct);
-        }
+        await InCallerTransactionAsync(
+            connection,
+            async transaction =>
+            {
+                foreach (var sql in statements)
+                {
+                    await using var command = connection.CreateCommand();
+                    command.Transaction = transaction;
+                    command.CommandText = sql;
+                    await command.ExecuteNonQueryAsync(ct);
+                }
 
-        await transaction.CommitAsync(ct);
+                await transaction.CommitAsync(ct);
+            },
+            ct
+        );
     }
 
     [Fact(DisplayName = "An unknown job id returns null")]

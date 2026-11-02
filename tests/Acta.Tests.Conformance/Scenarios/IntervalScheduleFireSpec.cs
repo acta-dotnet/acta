@@ -169,9 +169,14 @@ public sealed class IntervalScheduleFireSpec : ActaRuntimeTestBase<ConformanceFi
 
         // Worker 1 claims the slot (Ready -> Executing, execution_number bumped to 1).
         var claim1 = (
-            await Services
-                .GetRequiredService<ExecutionOperations>()
-                .ClaimJobAsync(new ClaimOptions(nsId, workerId, MaxBatch: 1), leaseTtlSeconds: 60, slotId, ct)
+            await SpecWaits.RepeatUntilAsync(
+                () =>
+                    Services
+                        .GetRequiredService<ExecutionOperations>()
+                        .ClaimJobAsync(new ClaimOptions(nsId, workerId, MaxBatch: 1), leaseTtlSeconds: 60, slotId, ct),
+                answer => answer.Jobs.Count > 0,
+                ct
+            )
         ).Jobs;
         Assert.Single(claim1);
         Assert.Equal(1, claim1[0].ExecutionNumber);

@@ -1,7 +1,6 @@
 using System.Globalization;
 using Acta.Tests.Conformance.Contracts;
 using Acta.Tests.Conformance.Engine.Scheduling;
-using Acta.Tests.Conformance.Scenarios;
 using Acta.Tests.Conformance.Testing;
 using Microsoft.Extensions.DependencyInjection;
 using Xunit;
@@ -108,10 +107,8 @@ public sealed class PublishCalendarSpec : ActaRuntimeTestBase<ConformanceFixture
 
     protected override void ConfigureServices(IServiceCollection services, string testNamespace)
     {
-        // The clock starts at the real minute: settlement stamps the DB clock, which this clock must not trail.
-        var now = DateTime.UtcNow;
-        Start = new DateTime(now.Ticks - (now.Ticks % TimeSpan.TicksPerMinute), DateTimeKind.Utc);
-        Clock = new FakeClock(Start);
+        Clock = FakeClock.AtRealMinute();
+        Start = Clock.UtcNow;
         services.AddSingleton<IActaClock>(Clock);
         base.ConfigureServices(services, testNamespace);
     }

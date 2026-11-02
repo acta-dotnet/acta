@@ -1,3 +1,4 @@
+using System.Diagnostics;
 using Acta.Tests.Conformance.Contracts;
 using Acta.Tests.Conformance.Testing;
 using Microsoft.Extensions.DependencyInjection;
@@ -113,14 +114,21 @@ public sealed class SignalStepWakeChaosSpec : ActaRuntimeTestBase<ConformanceFix
         var enqueued = await ChaosSpecHelpers.EnqueueNoPayloadAsync(Jobs, TestNamespace, "chaos-counting", ct);
         Assert.True(_wakeup.WakeCount > 0);
         Assert.Equal(JobStatusCode.Ready, (await Jobs.GetStatusAsync(enqueued, ct))?.Status);
-        _wakeup.ReleaseWait(WorkerWakeupWaitStatus.TimedOut);
 
         // --- 2. The safety poll claims and completes the job without a delivered wake. The
         // discriminator is the JobCompletion wake, published only after the terminal completion
-        // write returns: awaiting it proves the poll path ran the job to completion, however slowly
-        // a loaded runner gets there (the old 5s wall-clock budget timed the whole
-        // claim->execute->complete round trip and flaked under full-suite SQLite load).
-        await _wakeup.WaitForWakeAsync(WorkerWakeupChannelKind.JobCompletion, threshold: 1, ct);
+        // write returns: awaiting it proves the poll path ran the job to completion. Each release
+        // stands for one safety-poll expiry, so a poll whose claim skipped the row is followed by
+        // the next, as in production.
+        var completed = _wakeup.WaitForWakeAsync(WorkerWakeupChannelKind.JobCompletion, threshold: 1, ct);
+        var waited = Stopwatch.StartNew();
+        while (!completed.IsCompleted)
+        {
+            Assert.True(waited.Elapsed < SpecWaits.Gate, $"the safety poll did not complete the job in {SpecWaits.Gate.TotalSeconds} s");
+            _wakeup.ReleaseWait(WorkerWakeupWaitStatus.TimedOut);
+            await Task.WhenAny(completed, Task.Delay(250, ct));
+        }
+        await completed;
 
         await loopCts.CancelAsync();
         await loop;

@@ -37,10 +37,15 @@ public sealed class OrphanedClaimChaosSpec : ActaRuntimeTestBase<ConformanceFixt
 
         // A claim starts the execution, so a lost answer leaves the row Executing. Staged straight against
         // the store under the runtime's own worker id, so the runtime holds the lease and knows nothing about it.
-        var claim = await Services
-            .GetRequiredService<ExecutionOperations>()
-            .ClaimJobsAsync(new ClaimOptions(namespaceId, workerId, MaxBatch: 1), 60, ct);
-        Assert.Single(claim.Jobs);
+        var claim = await SpecWaits.RepeatUntilAsync(
+            () =>
+                Services
+                    .GetRequiredService<ExecutionOperations>()
+                    .ClaimJobsAsync(new ClaimOptions(namespaceId, workerId, MaxBatch: 1), 60, ct),
+            answer => answer.Jobs.Count > 0,
+            ct
+        );
+        Assert.Equal(enqueued.JobId, Assert.Single(claim.Jobs).JobId);
         Assert.Equal(JobStatusCode.Executing, (await Jobs.GetStatusAsync(enqueued, ct))?.Status);
 
         await LapsesToRecoveryAsync(enqueued.JobId, expectedFailures: 1, ct);
@@ -55,7 +60,7 @@ public sealed class OrphanedClaimChaosSpec : ActaRuntimeTestBase<ConformanceFixt
     {
         var claimedLease = (await ReadJobAsync(jobId, ct)).LeaseExpiresAtUtc;
         await Task.Delay(5, ct);
-        await Runtime.RunHeartbeatOnceAsync(ct);
+        await RunAnsweredHeartbeatAsync(ct);
         Assert.Equal(claimedLease, (await ReadJobAsync(jobId, ct)).LeaseExpiresAtUtc);
 
         await ChaosSpecHelpers.ExpireLeaseAsync(Db, jobId, ct);

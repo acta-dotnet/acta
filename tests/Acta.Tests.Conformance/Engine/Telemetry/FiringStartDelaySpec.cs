@@ -1,6 +1,5 @@
 using System.Diagnostics.Metrics;
 using Acta.Tests.Conformance.Contracts;
-using Acta.Tests.Conformance.Scenarios;
 using Acta.Tests.Conformance.Testing;
 using Microsoft.Extensions.DependencyInjection;
 using Xunit;
@@ -86,9 +85,7 @@ public sealed class FiringStartDelaySpec : ActaRuntimeTestBase<ConformanceFixtur
 
     protected override void ConfigureServices(IServiceCollection services, string testNamespace)
     {
-        // The clock starts at the real minute: settlement stamps the DB clock, which this clock must not trail.
-        var now = DateTime.UtcNow;
-        Clock = new FakeClock(new DateTime(now.Ticks - (now.Ticks % TimeSpan.TicksPerMinute), DateTimeKind.Utc));
+        Clock = FakeClock.AtRealMinute();
         services.AddSingleton<IActaClock>(Clock);
         base.ConfigureServices(services, testNamespace);
     }

@@ -1,5 +1,4 @@
 using Acta.Tests.Conformance.Contracts;
-using Acta.Tests.Conformance.Scenarios;
 using Acta.Tests.Conformance.Testing;
 using Microsoft.Extensions.DependencyInjection;
 using Xunit;
@@ -24,9 +23,7 @@ public sealed class SlotOperatorRulesSpec : ActaRuntimeTestBase<ConformanceFixtu
 
     protected override void ConfigureServices(IServiceCollection services, string testNamespace)
     {
-        // The clock starts at the real minute: settlement stamps the DB clock, which this clock must not trail.
-        var now = DateTime.UtcNow;
-        services.AddSingleton<IActaClock>(new FakeClock(new DateTime(now.Ticks - (now.Ticks % TimeSpan.TicksPerMinute), DateTimeKind.Utc)));
+        services.AddSingleton<IActaClock>(FakeClock.AtRealMinute());
         base.ConfigureServices(services, testNamespace);
     }
 

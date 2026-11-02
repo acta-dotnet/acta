@@ -61,7 +61,7 @@ public sealed class WorkerHeartbeatRecoveryChainTests
         var running = heartbeat.RunAsync(cts.Token);
 
         // A hang guard, not a measurement: only a chain the first pass's listener fault poisoned stops at one.
-        var deadline = DateTime.UtcNow + TimeSpan.FromSeconds(10);
+        var deadline = DateTime.UtcNow + TimeSpan.FromSeconds(30);
         while (Volatile.Read(ref reclaims) < 2)
         {
             Assert.True(DateTime.UtcNow < deadline, "no recovery pass ran after the first one's metric listener threw.");

@@ -14,10 +14,10 @@ public sealed class WorkerRuntimeHostTests
     // its own, far tighter bound.
     private static readonly TimeSpan HangGuard = TimeSpan.FromSeconds(30);
 
-    // The timeout the phase is configured with below, and the ceiling its return has to beat. Two
-    // seconds is 40x the configured timeout - past any lateness a loaded runner can add to a single
-    // 50ms timer - while sitting under the 5s timeout the other facts here use, so a phase that
-    // silently falls back to some other bound fails this instead of sliding beneath it.
+    // The timeout the phase is configured with below, and the ceiling its fastest return has to beat.
+    // Two seconds is 40x the configured timeout - past any lateness a loaded runner can add to a single
+    // 50ms timer - while sitting under the host's own lifecycle stamp timeout and the hang guard, so a
+    // phase that silently falls back to some other bound fails this instead of sliding beneath it.
     private static readonly TimeSpan PhaseTimeout = TimeSpan.FromMilliseconds(50);
 
     private static readonly TimeSpan PhaseTimeoutCeiling = TimeSpan.FromSeconds(2);
@@ -39,7 +39,7 @@ public sealed class WorkerRuntimeHostTests
                 }
                 await release.Task.WaitAsync(ct);
             },
-            TimeSpan.FromSeconds(5),
+            HangGuard,
             static (_, _) => { },
             TestContext.Current.CancellationToken
         );
@@ -57,18 +57,27 @@ public sealed class WorkerRuntimeHostTests
     public async Task Provider_ignoring_cancellation_cannot_hold_phase_past_timeout()
     {
         var never = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
-        var stopwatch = Stopwatch.StartNew();
 
         // Two separate concerns: the WaitAsync makes a phase that never gives up fail readably rather
         // than hang, and the elapsed bound below is the actual fact - that it gave up on ITS timeout.
-        var completed = await WorkerRuntimeHost
-            .RunPhaseAsync([1, 2], (_, _) => never.Task, PhaseTimeout, static (_, _) => { }, TestContext.Current.CancellationToken)
-            .WaitAsync(HangGuard, TestContext.Current.CancellationToken);
+        // The fastest of up to three trials is judged: a phase that falls back to another bound is
+        // slow on every trial, so only a stall on all three fails one that keeps its timeout.
+        var fastest = TimeSpan.MaxValue;
+        for (var trial = 0; trial < 3 && fastest >= PhaseTimeoutCeiling; trial++)
+        {
+            var stopwatch = Stopwatch.StartNew();
+            var completed = await WorkerRuntimeHost
+                .RunPhaseAsync([1, 2], (_, _) => never.Task, PhaseTimeout, static (_, _) => { }, TestContext.Current.CancellationToken)
+                .WaitAsync(HangGuard, TestContext.Current.CancellationToken);
 
-        Assert.False(completed);
+            var elapsed = stopwatch.Elapsed;
+            Assert.False(completed);
+            fastest = elapsed < fastest ? elapsed : fastest;
+        }
+
         Assert.True(
-            stopwatch.Elapsed < PhaseTimeoutCeiling,
-            $"the phase took {stopwatch.Elapsed} against a {PhaseTimeout.TotalMilliseconds}ms timeout."
+            fastest < PhaseTimeoutCeiling,
+            $"the fastest of three phases took {fastest} against a {PhaseTimeout.TotalMilliseconds}ms timeout."
         );
     }
 

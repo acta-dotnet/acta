@@ -155,6 +155,63 @@ public abstract class ActaRuntimeTestBase<TFixture, TManifest> : ActaTestBase<TF
     }
 
     /// <summary>
+    /// One heartbeat pass the store answered, for a spec that asserts what a beat does: an unanswered pass changes
+    /// nothing (<see cref="WorkerHeartbeat.TickAsync(CancellationToken)"/>).
+    /// </summary>
+    protected Task RunAnsweredHeartbeatAsync(CancellationToken ct) => UntilAnsweredAsync(Runtime.RunHeartbeatOnceAsync, ct);
+
+    /// <summary>Repeats <paramref name="pass"/>, a heartbeat pass that reports whether the store answered, until one is.</summary>
+    protected static async Task UntilAnsweredAsync(Func<CancellationToken, Task<bool>> pass, CancellationToken ct)
+    {
+        var waited = System.Diagnostics.Stopwatch.StartNew();
+        while (!await pass(ct).WaitAsync(SpecWaits.Gate, ct))
+        {
+            Assert.True(waited.Elapsed < SpecWaits.Gate, $"no heartbeat pass was answered in {SpecWaits.Gate.TotalSeconds} s");
+            await Task.Delay(25, ct);
+        }
+    }
+
+    /// <summary>
+    /// Ticks <paramref name="runtime"/>'s claim of <paramref name="jobNamespace"/> (the path its exclusions filter) until
+    /// <paramref name="settled"/> holds, and returns what each tick that claimed answered; <paramref name="state"/>, when
+    /// given, describes what the failure reports. An empty tick is not the end: the claim skips a row another transaction
+    /// holds, so the next tick can still take it.
+    /// </summary>
+    private protected static async Task<IReadOnlyList<RunOnceStatus>> TickUntilAsync(
+        WorkerRuntime runtime,
+        string jobNamespace,
+        Func<Task<bool>> settled,
+        CancellationToken ct,
+        Func<string>? state = null
+    )
+    {
+        var outcomes = new List<RunOnceStatus>();
+        var elapsed = System.Diagnostics.Stopwatch.StartNew();
+        while (!await settled())
+        {
+            Assert.True(
+                elapsed.Elapsed < SpecWaits.Converge,
+                $"the namespace did not settle in {SpecWaits.Converge.TotalSeconds} s: {state?.Invoke() ?? string.Join(", ", outcomes)}."
+            );
+            var outcome = await runtime.RunOnceAsync(jobNamespace, ct);
+            if (outcome == RunOnceStatus.NothingClaimed)
+            {
+                await Task.Delay(25, ct);
+            }
+            else
+            {
+                outcomes.Add(outcome);
+            }
+        }
+
+        return outcomes;
+    }
+
+    /// <inheritdoc cref="TickUntilAsync(WorkerRuntime, string, Func{Task{bool}}, CancellationToken)"/>
+    private protected Task<IReadOnlyList<RunOnceStatus>> TickUntilAsync(Func<Task<bool>> settled, CancellationToken ct) =>
+        TickUntilAsync(Runtime, TestNamespace, settled, ct);
+
+    /// <summary>
     /// Enqueues <paramref name="input"/> as <paramref name="jobName"/> in the test namespace, drives one
     /// runtime tick to completion, and returns the enqueue outcome (internal id and public ref).
     /// </summary>

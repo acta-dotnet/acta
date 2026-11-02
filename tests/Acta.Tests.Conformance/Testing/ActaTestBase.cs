@@ -1,3 +1,5 @@
+using System.Data.Common;
+using System.Diagnostics;
 using System.Globalization;
 using Microsoft.Extensions.DependencyInjection;
 using Xunit;
@@ -37,9 +39,20 @@ public abstract class ActaTestBase<TFixture> : IAsyncLifetime
     /// </summary>
     private protected IDbSession Db => Services.GetRequiredService<IDbSession>();
 
+    /// <summary>
+    /// Whether the spec class runs on a schema of its own (<see cref="ClassSchema"/>) rather than the shared one. A race
+    /// spec with deadlock retry off proves its own operations never deadlock each other, and on the shared schema a
+    /// deadlock with an unrelated spec would fail it too.
+    /// </summary>
+    protected virtual bool OwnSchema => false;
+
     public async ValueTask InitializeAsync()
     {
         Schema = await ActaSharedDatabase.EnsureReadyAsync(Fixture);
+        if (OwnSchema)
+        {
+            Schema = await ClassSchema.EnsureReadyAsync(Fixture, Schema, GetType());
+        }
 
         TestId = Random.Shared.NextInt64(1L << 48).ToString("x12", CultureInfo.InvariantCulture);
         TestNamespace = ActaTestNames.CreateNamespace(GetType(), TestContext.Current.TestMethod?.MethodName, TestId);
@@ -85,6 +98,47 @@ public abstract class ActaTestBase<TFixture> : IAsyncLifetime
 
     /// <summary>Override to run extra teardown before <see cref="Services"/> is disposed.</summary>
     protected virtual ValueTask BeforeDisposeAsync() => ValueTask.CompletedTask;
+
+    /// <summary>
+    /// Runs <paramref name="body"/> in a transaction of the spec's own on <paramref name="connection"/>; the body commits
+    /// or rolls it back. Acta never retries inside a caller's transaction, and on the shared schema the database aborts
+    /// one for reasons the spec does not own: SQLite's BEGIN IMMEDIATE gives up on the write lock after its busy timeout,
+    /// and a server picks a deadlock victim. Either attempt is rolled back whole, so it starts again on a fresh
+    /// transaction until <see cref="SpecWaits.Converge"/>.
+    /// </summary>
+    private protected async Task<T> InCallerTransactionAsync<T>(
+        DbConnection connection,
+        Func<DbTransaction, Task<T>> body,
+        CancellationToken ct
+    )
+    {
+        var dialect = Services.GetRequiredService<ISqlDialect>();
+        var waited = Stopwatch.StartNew();
+        while (true)
+        {
+            try
+            {
+                await using var transaction = await connection.BeginTransactionAsync(ct);
+                return await body(transaction);
+            }
+            catch (Exception ex) when (dialect.IsTransientConflict(ex) && waited.Elapsed < SpecWaits.Converge)
+            {
+                await Task.Delay(TimeSpan.FromMilliseconds(25), ct);
+            }
+        }
+    }
+
+    /// <inheritdoc cref="InCallerTransactionAsync{T}(DbConnection, Func{DbTransaction, Task{T}}, CancellationToken)"/>
+    private protected Task InCallerTransactionAsync(DbConnection connection, Func<DbTransaction, Task> body, CancellationToken ct) =>
+        InCallerTransactionAsync(
+            connection,
+            async transaction =>
+            {
+                await body(transaction);
+                return true;
+            },
+            ct
+        );
 
     // Thin reads over Acta's From<T> table reader shared by every spec so they aren't copy-pasted. The
     // shared acta_test schema is append-only, so isolation is by id / namespace filter.

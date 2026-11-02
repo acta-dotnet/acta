@@ -1,3 +1,7 @@
+using System.Data.Common;
+using System.Diagnostics;
+using Xunit;
+
 namespace Acta.Tests.Conformance.Testing;
 
 /// <summary>
@@ -26,4 +30,61 @@ internal static class SpecWaits
     /// pass costs database round-trips under contention, so it sits above <see cref="Gate"/>.
     /// </summary>
     public static readonly TimeSpan Converge = TimeSpan.FromSeconds(90);
+
+    /// <summary>
+    /// Repeats <paramref name="attempt"/> until <paramref name="settled"/> accepts its answer, as production's next tick
+    /// would after a claim or sweep skipped a row another transaction held. Once <see cref="Converge"/> has passed it
+    /// returns the last answer, for the caller's assert to report.
+    /// </summary>
+    public static async Task<T> RepeatUntilAsync<T>(Func<Task<T>> attempt, Func<T, bool> settled, CancellationToken ct)
+    {
+        var elapsed = Stopwatch.StartNew();
+        while (true)
+        {
+            var answer = await attempt();
+            if (settled(answer) || elapsed.Elapsed >= Converge)
+            {
+                return answer;
+            }
+
+            await Task.Delay(25, ct);
+        }
+    }
+
+    /// <summary>Polls <paramref name="holds"/> until it is true, failing with <paramref name="failure"/> once <see cref="Gate"/> has passed.</summary>
+    public static async Task UntilAsync(Func<Task<bool>> holds, string failure, CancellationToken ct)
+    {
+        var waited = Stopwatch.StartNew();
+        while (!await holds())
+        {
+            Assert.True(waited.Elapsed < Gate, failure);
+            await Task.Delay(10, ct);
+        }
+    }
+
+    /// <inheritdoc cref="UntilAsync(Func{Task{bool}}, string, CancellationToken)"/>
+    public static Task UntilAsync(Func<bool> holds, string failure, CancellationToken ct) =>
+        UntilAsync(() => Task.FromResult(holds()), failure, ct);
+
+    /// <summary>
+    /// Runs <paramref name="operation"/> again while it fails transiently (<see cref="IConformanceFixture.IsTransient"/>), up
+    /// to <see cref="Gate"/>: on a shared server the DDL other specs run in parallel makes a deadlock victim or a command
+    /// timeout of a statement, and the statement rolls back whole.
+    /// </summary>
+    public static async Task RetryTransientAsync(IConformanceFixture fixture, Func<Task> operation, CancellationToken ct)
+    {
+        var waited = Stopwatch.StartNew();
+        while (true)
+        {
+            try
+            {
+                await operation();
+                return;
+            }
+            catch (DbException ex) when (fixture.IsTransient(ex) && waited.Elapsed < Gate)
+            {
+                await Task.Delay(TimeSpan.FromMilliseconds(100), ct);
+            }
+        }
+    }
 }

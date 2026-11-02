@@ -508,7 +508,8 @@ public sealed class PurgeExpiredDataSpec : ActaRuntimeTestBase<ConformanceFixtur
         // Progress and ordering are the contract; call count is not.
         var childGoneAfter = -1;
         var parentGoneAfter = -1;
-        for (var pass = 1; pass <= 20 && (childGoneAfter < 0 || parentGoneAfter < 0); pass++)
+        var deadline = DateTime.UtcNow + SpecWaits.Converge;
+        for (var pass = 1; DateTime.UtcNow < deadline && (childGoneAfter < 0 || parentGoneAfter < 0); pass++)
         {
             await RetentionTestOps.PurgeAsync(Services, ns, NoEventPurgeDays, NoAlertPurgeDays, NoWorkerPurgeSeconds, 1000, 50, ct);
 
@@ -525,6 +526,10 @@ public sealed class PurgeExpiredDataSpec : ActaRuntimeTestBase<ConformanceFixtur
             if (!parentAlive && parentGoneAfter < 0)
             {
                 parentGoneAfter = pass;
+            }
+            if (childGoneAfter < 0 || parentGoneAfter < 0)
+            {
+                await Task.Delay(25, ct);
             }
         }
 
@@ -568,7 +573,7 @@ public sealed class PurgeExpiredDataSpec : ActaRuntimeTestBase<ConformanceFixtur
         // Three immediately-reapable rows (negative TTL) plus one live row. The reap is global, so a
         // concurrent spec's full purge may sweep some dead rows first; the call's OWN count is still
         // deterministically capped by batch x iterations, which is the property under test.
-        string[] deadKeys = [Unique("lock-batch.d1"), Unique("lock-batch.d2"), Unique("lock-batch.d3")];
+        List<string> deadKeys = [Unique("lock-batch.d1"), Unique("lock-batch.d2"), Unique("lock-batch.d3")];
         foreach (var key in deadKeys)
         {
             Assert.NotNull((await locks.AcquireLockAsync(key, TimeSpan.FromSeconds(-1), ownerJobId: -1, ct)).Token);
@@ -591,26 +596,21 @@ public sealed class PurgeExpiredDataSpec : ActaRuntimeTestBase<ConformanceFixtur
             );
             Assert.True(bounded.Locks <= 1, $"lock sweep deleted {bounded.Locks} rows under a 1x1 budget");
 
-            // Full-budget runs clear this test's remaining dead rows; drain with bounded retries
-            // because a concurrent spec's purge can hold rows this call's SKIP LOCKED sweep skipped.
-            for (var attempt = 0; ; attempt++)
-            {
-                await RetentionTestOps.PurgeAsync(Services, ns, NoEventPurgeDays, NoAlertPurgeDays, NoWorkerPurgeSeconds, 1000, 50, ct);
-                var remaining = new List<string>();
-                foreach (var key in deadKeys)
-                {
-                    if (await Db.From<Acta.LockEntity>().Where(l => l.LockKey == key).SingleOrDefaultAsync(ct) is not null)
-                    {
-                        remaining.Add(key);
-                    }
-                }
-                if (remaining.Count == 0)
-                {
-                    break;
-                }
-                Assert.True(attempt < 10, "expired locks never drained: " + string.Join(", ", remaining));
-                await Task.Delay(100, ct);
-            }
+            // Full-budget runs clear this test's remaining dead rows.
+            Task<IReadOnlyList<Acta.LockEntity>> DeadAsync() =>
+                Db.From<Acta.LockEntity>().Where(l => deadKeys.Contains(l.LockKey)).ToListAsync(ct);
+            await RetentionTestOps.PurgeUntilAsync(
+                Services,
+                ns,
+                NoEventPurgeDays,
+                NoAlertPurgeDays,
+                NoWorkerPurgeSeconds,
+                1000,
+                50,
+                async () => (await DeadAsync()).Count == 0,
+                ct
+            );
+            Assert.Empty(await DeadAsync());
             Assert.NotNull(await Db.From<Acta.LockEntity>().Where(l => l.LockKey == liveKey).SingleOrDefaultAsync(ct));
         }
         finally

@@ -46,12 +46,10 @@ public sealed class ExtendWorkerLeasesSpec : ActaRuntimeTestBase<ConformanceFixt
         // strictly-greater assertion below is deterministic under load (claim->extend can be sub-ms).
         await Task.Delay(5, ct);
 
-        var answer = await Services
-            .GetRequiredService<WorkersOperations>()
-            .ExtendWorkerLeasesAsync(
-                new ExtendWorkerLeasesCommand(workerId, leaseTtl, false, [(enqueued.JobId, claimedRow.ExecutionNumber)], []),
-                ct
-            );
+        var answer = await ExtendUntilRenewedAsync(
+            new ExtendWorkerLeasesCommand(workerId, leaseTtl, false, [(enqueued.JobId, claimedRow.ExecutionNumber)], []),
+            ct
+        );
         Assert.Equal(new ExtendWorkerLeasesLease(enqueued.JobId, claimedRow.ExecutionNumber, Renewed: true), Assert.Single(answer.Leases));
         var definitions = await Db.From<DefinitionEntity>().Where(d => d.NamespaceId == ns).ToListAsync(ct);
         Assert.Equal(definitions.Max(d => d.ModifiedAtUtc), answer.DefinitionsModifiedAtUtc);
@@ -93,12 +91,10 @@ public sealed class ExtendWorkerLeasesSpec : ActaRuntimeTestBase<ConformanceFixt
 
         // A lease refresh is not a claim-generation change: an operator verb's expected version must still hold.
         var extended = (
-            await Services
-                .GetRequiredService<WorkersOperations>()
-                .ExtendWorkerLeasesAsync(
-                    new ExtendWorkerLeasesCommand(workerId, leaseTtl, false, [(enqueued.JobId, claimed.ExecutionNumber)], []),
-                    ct
-                )
+            await ExtendUntilRenewedAsync(
+                new ExtendWorkerLeasesCommand(workerId, leaseTtl, false, [(enqueued.JobId, claimed.ExecutionNumber)], []),
+                ct
+            )
         ).Leases;
         Assert.Equal(new ExtendWorkerLeasesLease(enqueued.JobId, claimed.ExecutionNumber, Renewed: true), Assert.Single(extended));
         Assert.Equal(version, (await ReadJobAsync(enqueued.JobId, ct)).Version);
@@ -127,22 +123,20 @@ public sealed class ExtendWorkerLeasesSpec : ActaRuntimeTestBase<ConformanceFixt
         // The process holds the first row at its execution, beside an older execution of the same job, and the
         // second only at an execution the row has moved past: an attempt still unwinding after its job was claimed again.
         var extended = (
-            await Services
-                .GetRequiredService<WorkersOperations>()
-                .ExtendWorkerLeasesAsync(
-                    new ExtendWorkerLeasesCommand(
-                        workerId,
-                        leaseTtl,
-                        false,
-                        [
-                            (held.JobId, heldClaim.ExecutionNumber - 1),
-                            (held.JobId, heldClaim.ExecutionNumber),
-                            (lost.JobId, lostClaim.ExecutionNumber - 1),
-                        ],
-                        []
-                    ),
-                    ct
-                )
+            await ExtendUntilRenewedAsync(
+                new ExtendWorkerLeasesCommand(
+                    workerId,
+                    leaseTtl,
+                    false,
+                    [
+                        (held.JobId, heldClaim.ExecutionNumber - 1),
+                        (held.JobId, heldClaim.ExecutionNumber),
+                        (lost.JobId, lostClaim.ExecutionNumber - 1),
+                    ],
+                    []
+                ),
+                ct
+            )
         ).Leases;
 
         Assert.Equal(new ExtendWorkerLeasesLease(held.JobId, heldClaim.ExecutionNumber, Renewed: true), Assert.Single(extended));
@@ -156,4 +150,15 @@ public sealed class ExtendWorkerLeasesSpec : ActaRuntimeTestBase<ConformanceFixt
         Assert.Equal(1, reclaimed.FailureCount);
         Assert.Equal(JobStatusCode.Executing, (await ReadJobAsync(held.JobId, ct)).Status);
     }
+
+    /// <summary>
+    /// Repeats the heartbeat's lease extension until it renews a lease. The renewal skips a row another transaction
+    /// holds and answers it unrenewed, which the loop's next beat makes up for.
+    /// </summary>
+    private Task<ExtendWorkerLeasesResponse> ExtendUntilRenewedAsync(ExtendWorkerLeasesCommand command, CancellationToken ct) =>
+        SpecWaits.RepeatUntilAsync(
+            () => Services.GetRequiredService<WorkersOperations>().ExtendWorkerLeasesAsync(command, ct),
+            answer => answer.Leases.Any(lease => lease.Renewed),
+            ct
+        );
 }

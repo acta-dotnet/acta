@@ -134,21 +134,21 @@ public sealed class ReserveRateSpec : ActaStorageTestBase<ConformanceFixture>
             Assert.True((await ReserveFastAsync(bucket, job, ct)).Admitted);
         }
 
-        // A minute of turns booked ahead, as on a busy meter: an idle meter's row expires a second after its burst, and
-        // another spec's sweep may take it while a loaded server runs this one.
+        // Five minutes of turns booked ahead, as on a busy meter: an idle meter's row expires a second after its burst, and
+        // another spec's sweep may take it while a loaded server runs this one; five minutes outlast the gate below.
         var clock = Services.GetRequiredService<IActaClock>();
-        var ahead = (await clock.GetUtcNowAsync(ct)).AddMinutes(1);
+        var ahead = (await clock.GetUtcNowAsync(ct)).AddMinutes(5);
         await Db.From<Acta.LockEntity>()
             .Where(l => l.LockKey == bucket)
             .UpdateOnlyAsync(() => new Acta.LockEntity { ExpiresAtUtc = ahead }, ct);
 
-        // Two intervals late is inside the one-second floor: honoured, and the meter stays. A reserve that a loaded server
+        // One interval late is inside the one-second floor: honoured, and the meter stays. A reserve that a loaded server
         // lands a second or more after its turn judges nothing, so the case runs again on a fresh turn until the gate.
         var waited = System.Diagnostics.Stopwatch.StartNew();
         for (var job = 1_000; ; job++)
         {
             var meter = Assert.NotNull(await MeterAsync(bucket, ct));
-            var late = await StageTurnAsync(bucket, job, TimeSpan.FromMilliseconds(-200), ct);
+            var late = await StageTurnAsync(bucket, job, TimeSpan.FromMilliseconds(-100), ct);
             var reserved = await ReserveFastAsync(bucket, job, ct);
             if (await clock.GetUtcNowAsync(ct) - late < TimeSpan.FromSeconds(1))
             {
@@ -190,7 +190,7 @@ public sealed class ReserveRateSpec : ActaStorageTestBase<ConformanceFixture>
 
     /// <summary>
     /// Books <paramref name="jobId"/> a turn <paramref name="age"/> from the database's now, in the stored form
-    /// (the turn plus the grace), and returns the turn as stored.
+    /// (the turn plus the grace), and returns the turn, which the row stores unchanged.
     /// </summary>
     private async Task<DateTime> StageTurnAsync(string bucket, long jobId, TimeSpan age, CancellationToken ct)
     {
@@ -198,14 +198,15 @@ public sealed class ReserveRateSpec : ActaStorageTestBase<ConformanceFixture>
         Assert.NotNull(
             (await Services.GetRequiredService<LocksOperations>().AcquireLockAsync(key, TimeSpan.FromMinutes(10), jobId, ct)).Token
         );
-        var expires = (await Services.GetRequiredService<IActaClock>().GetUtcNowAsync(ct)).Add(age).AddSeconds(GraceSeconds);
+        var turn = (await Services.GetRequiredService<IActaClock>().GetUtcNowToTheMillisecondAsync(ct)).Add(age);
+        var expires = turn.AddSeconds(GraceSeconds);
         Assert.Equal(
             1,
             await Db.From<Acta.LockEntity>()
                 .Where(l => l.LockKey == key)
                 .UpdateOnlyAsync(() => new Acta.LockEntity { ExpiresAtUtc = expires }, ct)
         );
-        return (await ReadOneAsync(key, ct)).ExpiresAtUtc.AddSeconds(-GraceSeconds);
+        return turn;
     }
 
     /// <summary>The bucket's stored arrival time, which every charge moves one interval and nothing else moves.</summary>

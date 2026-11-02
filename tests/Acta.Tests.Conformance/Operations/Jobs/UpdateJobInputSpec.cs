@@ -69,18 +69,20 @@ public sealed class UpdateJobInputSpec : ActaRuntimeTestBase<ConformanceFixture,
         var amend = await Jobs.UpdateJobInputAsync(enqueued, JobPayload.Json(new PurgeProbe("clean")), "scrub", "spec-actor", ct);
         Assert.Equal(ControlAction.Applied, amend.Action);
 
-        // Sweep with the events window wide open: the job row goes, the ledger stays. Bounded retries
-        // because a concurrent spec's purge can hold rows this call's sweep would otherwise reap.
-        for (var attempt = 0; ; attempt++)
-        {
-            await RetentionTestOps.PurgeAsync(Services, ns, NoEventPurgeDays, NoAlertPurgeDays, NoWorkerPurgeSeconds, 1000, 50, ct);
-            if (await Db.From<JobEntity>().Where(j => j.Id == enqueued.JobId).SingleOrDefaultAsync(ct) is null)
-            {
-                break;
-            }
-            Assert.True(attempt < 10, $"terminal job {enqueued.JobId} never drained");
-            await Task.Delay(100, ct);
-        }
+        // Sweep with the events window wide open: the job row goes, the ledger stays.
+        Task<JobEntity?> RowAsync() => Db.From<JobEntity>().Where(j => j.Id == enqueued.JobId).SingleOrDefaultAsync(ct);
+        await RetentionTestOps.PurgeUntilAsync(
+            Services,
+            ns,
+            NoEventPurgeDays,
+            NoAlertPurgeDays,
+            NoWorkerPurgeSeconds,
+            1000,
+            50,
+            async () => await RowAsync() is null,
+            ct
+        );
+        Assert.Null(await RowAsync());
 
         // The amend event outlives the job (events carry no FK to jobs) with metadata only.
         var evt = await ReadSingleEventAsync(enqueued.JobId, EventCode.JobInputAmended, ct);

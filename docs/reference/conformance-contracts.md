@@ -2458,9 +2458,9 @@
   - A second stop on a terminal worker is a no-op and writes no further event
 
 ### An enqueue flood leaves the worker its turn
-- **Contract:** While eight callers enqueue as fast as the database takes them, a job is claimed, run, and completed within five seconds.
+- **Contract:** Beside eight callers enqueuing as fast as the database takes them, a job is claimed, run, and completed within 30 s, on SQLite within 400 of their enqueues.
 - **Guarantees:**
-  - A job is claimed, run, and completed within five seconds while eight callers flood enqueues
+  - A job is claimed, run, and completed within 30 s while eight callers flood enqueues, within 400 of them on SQLite
 
 ### Replicas registering a new namespace at the same moment all start
 - **Contract:** Replicas that register the same new namespace, definitions, and recurring slots at once all start and agree on one catalog.

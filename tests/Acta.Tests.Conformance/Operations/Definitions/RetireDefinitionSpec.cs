@@ -135,13 +135,14 @@ public sealed class RetireDefinitionSpec : ActaRuntimeTestBase<ConformanceFixtur
     public async Task A_failing_attempt_in_flight_at_the_retire_lands_cancelled()
     {
         var ct = TestContext.Current.CancellationToken;
-        var running = await Jobs.EnqueueAsync(new EnqueueJobRequest(TestNamespace, "chaos-blocking", JobPayload.None), ct);
+        // Held past any slow step: a timeout before the heartbeat learns of the retire would plan a retry.
+        var running = await Jobs.EnqueueAsync(new EnqueueJobRequest(TestNamespace, "chaos-holding", JobPayload.None), ct);
         ChaosProbes.Reset(running.JobId);
 
         var run = Runtime.RunOnceAsync(running, ct);
         await ChaosProbes.WaitStartedAsync(running.JobId, ct);
-        Assert.Equal(ControlAction.Applied, (await RetireAsync("chaos-blocking", ct)).Action);
-        await Runtime.RunHeartbeatOnceAsync(ct);
+        Assert.Equal(ControlAction.Applied, (await RetireAsync("chaos-holding", ct)).Action);
+        await RunAnsweredHeartbeatAsync(ct);
         ChaosProbes.Fail(running.JobId);
 
         Assert.Equal(RunOnceStatus.Completed, await run);
@@ -161,7 +162,7 @@ public sealed class RetireDefinitionSpec : ActaRuntimeTestBase<ConformanceFixtur
         Assert.Equal(ControlAction.Applied, (await RetireAsync("chaos-counting", ct)).Action);
         Assert.Equal(1, await ChaosSpecHelpers.ReclaimAsync(Services, ns, ct));
         Assert.Equal(JobStatusCode.Ready, (await ReadJobAsync(stranded.JobId, ct)).Status);
-        await Runtime.RunHeartbeatOnceAsync(ct);
+        await RunAnsweredHeartbeatAsync(ct);
 
         Assert.Equal(RunOnceStatus.Completed, await Runtime.RunOnceAsync(stranded, ct));
         Assert.False(ChaosProbes.CountingInvocations.ContainsKey(stranded.JobId));
@@ -182,14 +183,14 @@ public sealed class RetireDefinitionSpec : ActaRuntimeTestBase<ConformanceFixtur
         Assert.True(Runtime.TryGetDefinitionId(TestNamespace, "chaos-counting", out var definitionId));
         Assert.True(Runtime.Descriptors.TryRemove(definitionId, out _));
         await Jobs.EnqueueAsync(new EnqueueJobRequest(TestNamespace, "chaos-counting", JobPayload.None), ct);
-        Assert.Equal(RunOnceStatus.Rearmed, await Runtime.RunOnceAsync(TestNamespace, ct));
+        Assert.Equal(RunOnceStatus.Rearmed, await TickUntilClaimedAsync(ct));
 
         Assert.Equal(ControlAction.Applied, (await RetireAsync("chaos-counting", ct)).Action);
         Assert.Equal(1, await ChaosSpecHelpers.ReclaimAsync(Services, ns, ct));
-        await Runtime.RunHeartbeatOnceAsync(ct);
+        await RunAnsweredHeartbeatAsync(ct);
 
         // The namespace claim, because a claim by id never consults the exclusion.
-        Assert.Equal(RunOnceStatus.Completed, await Runtime.RunOnceAsync(TestNamespace, ct));
+        Assert.Equal(RunOnceStatus.Completed, await TickUntilClaimedAsync(ct));
         await AssertCancelledByTheWorkerAsync(stranded.JobId, ct);
     }
 
@@ -305,6 +306,10 @@ public sealed class RetireDefinitionSpec : ActaRuntimeTestBase<ConformanceFixtur
         Assert.NotNull(definition);
         return await Operations.Definitions.RetireAsync(TestNamespace, jobName, definition!.Version, Reason, Actor, ct);
     }
+
+    /// <summary>Ticks the namespace claim until one claims a row, and answers that tick's outcome.</summary>
+    private Task<RunOnceStatus> TickUntilClaimedAsync(CancellationToken ct) =>
+        SpecWaits.RepeatUntilAsync(() => Runtime.RunOnceAsync(TestNamespace, ct), outcome => outcome != RunOnceStatus.NothingClaimed, ct);
 
     // The worker's landing for a retired definition: terminal with retention, and one cancel event naming the retirement.
     private async Task AssertCancelledByTheWorkerAsync(long jobId, CancellationToken ct)

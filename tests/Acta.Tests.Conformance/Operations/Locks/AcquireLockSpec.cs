@@ -86,16 +86,16 @@ public sealed class AcquireLockSpec : ActaStorageTestBase<ConformanceFixture>
                 .UpdateOnlyAsync(() => new Acta.LockEntity { ExpiresAtUtc = expired }, ct);
         }
 
-        // A competing acquire on the now-expired lease must succeed (steal). Poll briefly: under SQL Server
-        // contention on the shared leases table AcquireLockAsync can transiently return null even though
-        // the lease is expired and stealable, so one miss should not fail the test.
-        var tokenB = (await locks.AcquireLockAsync(key, TimeSpan.FromSeconds(30), ownerJobId: -2, ct)).Token;
-        var stealDeadline = DateTime.UtcNow.AddSeconds(10);
-        while (tokenB is null && DateTime.UtcNow < stealDeadline)
-        {
-            await Task.Delay(50, ct);
-            tokenB = (await locks.AcquireLockAsync(key, TimeSpan.FromSeconds(30), ownerJobId: -2, ct)).Token;
-        }
+        // A competing acquire on the now-expired lease must succeed (steal). Repeated while it misses: under
+        // SQL Server contention on the shared leases table AcquireLockAsync can transiently return null even
+        // though the lease is expired and stealable, so one miss should not fail the test.
+        var tokenB = (
+            await SpecWaits.RepeatUntilAsync(
+                () => locks.AcquireLockAsync(key, TimeSpan.FromSeconds(30), ownerJobId: -2, ct),
+                answer => answer.Token is not null,
+                ct
+            )
+        ).Token;
         Assert.NotNull(tokenB);
 
         // Post-steal: the new owner is the stealer. We do NOT assert the version strictly

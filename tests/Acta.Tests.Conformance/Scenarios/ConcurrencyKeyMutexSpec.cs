@@ -43,11 +43,16 @@ public sealed class ConcurrencyKeyMutexSpec : ActaRuntimeTestBase<ConformanceFix
         await EnqueueSameKeyAsync(Unique("ck-drain"), jobs, ct);
 
         var completed = 0;
-        for (var tick = 0; tick < jobs * 8 && completed < jobs; tick++)
+        var deadline = DateTime.UtcNow + SpecWaits.Converge;
+        while (completed < jobs && DateTime.UtcNow < deadline)
         {
             if (await Runtime.RunOnceAsync(TestNamespace, ct) == RunOnceStatus.Completed)
             {
                 completed++;
+            }
+            else
+            {
+                await Task.Delay(25, ct);
             }
         }
 
@@ -70,7 +75,8 @@ public sealed class ConcurrencyKeyMutexSpec : ActaRuntimeTestBase<ConformanceFix
         // retry re-runs it), reverting rows to Ready - the start CAS makes that safe in production,
         // and here the reverted rows are simply claimed again on the next attempt.
         var claimedIds = new HashSet<long>();
-        for (var attempt = 0; attempt < 40 && await InFlightCountAsync(key, ct) < 5; attempt++)
+        var deadline = DateTime.UtcNow + SpecWaits.Converge;
+        while (await InFlightCountAsync(key, ct) < 5 && DateTime.UtcNow < deadline)
         {
             var batch = await Services
                 .GetRequiredService<ExecutionOperations>()
@@ -155,7 +161,14 @@ public sealed class ConcurrencyKeyMutexSpec : ActaRuntimeTestBase<ConformanceFix
 
         // The claim admits the row (no claim-time gating); execution admission loses the lock race
         // and settles the attempt as a budget-neutral re-arm with the fixed delay.
-        Assert.Equal(RunOnceStatus.Rearmed, await Runtime.RunOnceAsync(TestNamespace, enqueued.JobId, ct));
+        Assert.Equal(
+            RunOnceStatus.Rearmed,
+            await SpecWaits.RepeatUntilAsync(
+                () => Runtime.RunOnceAsync(enqueued, ct),
+                outcome => outcome != RunOnceStatus.NothingClaimed,
+                ct
+            )
+        );
 
         var row = await ReadJobAsync(enqueued.JobId, ct);
         Assert.Equal(JobStatusCode.Ready, row.Status);

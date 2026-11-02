@@ -30,9 +30,8 @@ public sealed class SqlServerReserveRateLockTests : ActaStorageTestBase<SqlServe
         var neighbour = Services
             .GetRequiredService<LocksOperations>()
             .ReserveRateAsync(prefix + ".b", 3, IntervalMilliseconds, 1, GraceSeconds, ct);
-        var first = await Task.WhenAny(neighbour, Task.Delay(TimeSpan.FromSeconds(5), ct));
-        await hold.RollbackAsync(ct);
-
+        // The reservation stays open until the fact ends, so a neighbour that waited on it would never return.
+        var first = await Task.WhenAny(neighbour, Task.Delay(SpecWaits.Gate, ct));
         Assert.True(first == neighbour, "the neighbouring meter waited on the open reservation");
         Assert.True((await neighbour).Admitted);
     }

@@ -259,7 +259,7 @@ internal sealed class WorkerRuntime
     }
 
     /// <summary>Persists Draining after <see cref="BeginDrain"/> has stopped intake.</summary>
-    public Task StampDrainingAsync(CancellationToken ct) => _heartbeat.StampDrainingAsync(ct);
+    public Task<bool> StampDrainingAsync(CancellationToken ct) => _heartbeat.StampDrainingAsync(ct);
 
     /// <summary>
     /// Completes when the claim/dispatch pipeline has drained - every claimed and in-flight job finished, not
@@ -299,9 +299,10 @@ internal sealed class WorkerRuntime
 
     /// <summary>
     /// Run exactly one heartbeat pass: renew the held job leases and locks, re-arm their attempts' lease deadlines, and
-    /// cancel handlers whose job or lock was lost. Drives deterministic tests and the CLI's jobs debug pump.
+    /// cancel handlers whose job or lock was lost, answering whether the store answered as
+    /// <see cref="WorkerHeartbeat.TickAsync(CancellationToken)"/> does. Drives deterministic tests and the CLI's jobs debug pump.
     /// </summary>
-    public Task RunHeartbeatOnceAsync(CancellationToken ct) => _heartbeat.TickAsync(ct);
+    public Task<bool> RunHeartbeatOnceAsync(CancellationToken ct) => _heartbeat.TickAsync(ct);
 
     /// <summary>
     /// Run exactly one admission pass over <paramref name="namespaceName"/>: evaluate every slot with a due schedule,

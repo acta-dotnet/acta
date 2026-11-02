@@ -113,16 +113,22 @@ public sealed class RollingDeploySpec : ActaRuntimeTestBase<ConformanceFixture, 
         var oldOnly = await Jobs.EnqueueAsync(new EnqueueJobRequest(TestNamespace, OldOnlyJob, JobPayload.None), ct);
 
         // --- 2. The old generation drains what it can. The new generation's job is not its work.
-        await TickUntilNothingClaimedAsync(Runtime, ct);
+        var newDefinitionId = (await ReadJobAsync(newOnly.JobId, ct)).DefinitionId;
+        await TickUntilAsync(
+            Runtime,
+            TestNamespace,
+            async () =>
+                Runtime.UnsupportedDefinitionIdsSnapshot.Contains(newDefinitionId)
+                && (await ReadJobAsync(shared.JobId, ct)).Status == JobStatusCode.Succeeded
+                && (await ReadJobAsync(oldOnly.JobId, ct)).Status == JobStatusCode.Succeeded,
+            ct
+        );
+        await AssertPassedOverAsync(Runtime, newOnly.JobId, ct);
 
         var handedBack = await ReadJobAsync(newOnly.JobId, ct);
         Assert.Equal(JobStatusCode.Ready, handedBack.Status);
         Assert.Equal(0, handedBack.FailureCount);
         Assert.Null(handedBack.LeasedByWorkerId);
-        Assert.Contains(handedBack.DefinitionId, Runtime.UnsupportedDefinitionIdsSnapshot);
-
-        Assert.Equal(JobStatusCode.Succeeded, (await ReadJobAsync(shared.JobId, ct)).Status);
-        Assert.Equal(JobStatusCode.Succeeded, (await ReadJobAsync(oldOnly.JobId, ct)).Status);
 
         // Registering a manifest that omits a definition does not retire it: the old generation is
         // still deployed, and its jobs are still enqueueable and claimable.
@@ -134,13 +140,19 @@ public sealed class RollingDeploySpec : ActaRuntimeTestBase<ConformanceFixture, 
         var oldOnlyAgain = await Jobs.EnqueueAsync(new EnqueueJobRequest(TestNamespace, OldOnlyJob, JobPayload.None), ct);
         await RunUntilSucceededAsync(newRuntime, newOnly.JobId, ct);
         Assert.Equal(0, (await ReadJobAsync(newOnly.JobId, ct)).FailureCount);
-        await TickUntilNothingClaimedAsync(newRuntime, ct);
+        var oldDefinitionId = (await ReadJobAsync(oldOnlyAgain.JobId, ct)).DefinitionId;
+        await TickUntilAsync(
+            newRuntime,
+            TestNamespace,
+            () => Task.FromResult(newRuntime.UnsupportedDefinitionIdsSnapshot.Contains(oldDefinitionId)),
+            ct
+        );
+        await AssertPassedOverAsync(newRuntime, oldOnlyAgain.JobId, ct);
 
         var handedBackToOld = await ReadJobAsync(oldOnlyAgain.JobId, ct);
         Assert.Equal(JobStatusCode.Ready, handedBackToOld.Status);
         Assert.Equal(0, handedBackToOld.FailureCount);
         Assert.Null(handedBackToOld.LeasedByWorkerId);
-        Assert.Contains(handedBackToOld.DefinitionId, newRuntime.UnsupportedDefinitionIdsSnapshot);
 
         await RunUntilSucceededAsync(Runtime, oldOnlyAgain.JobId, ct);
         Assert.Equal(0, (await ReadJobAsync(oldOnlyAgain.JobId, ct)).FailureCount);
@@ -155,11 +167,18 @@ public sealed class RollingDeploySpec : ActaRuntimeTestBase<ConformanceFixture, 
         var rollbackRuntime = rollback.GetServices<WorkerRuntime>().Single();
         await rollbackRuntime.InitializeAsync(ct);
 
-        await TickUntilNothingClaimedAsync(rollbackRuntime, ct);
+        await TickUntilAsync(
+            rollbackRuntime,
+            TestNamespace,
+            async () =>
+                rollbackRuntime.UnsupportedDefinitionIdsSnapshot.Contains(newDefinitionId)
+                && (await ReadJobAsync(rolledBackOld.JobId, ct)).Status == JobStatusCode.Succeeded,
+            ct
+        );
+        await AssertPassedOverAsync(rollbackRuntime, strandedNew.JobId, ct);
 
         // The definition the new generation never registered is untouched by it, so the rolled-back
         // process runs its job under exactly the policy it registered in the first place.
-        Assert.Equal(JobStatusCode.Succeeded, (await ReadJobAsync(rolledBackOld.JobId, ct)).Status);
         var afterRollback = await ReadDefinitionAsync(OldOnlyJob, ct);
         Assert.Equal(DefinitionStatusCode.Active, afterRollback.Status);
         Assert.Equal(oldOnlyDefinition.DefinitionHash, afterRollback.DefinitionHash);
@@ -172,7 +191,6 @@ public sealed class RollingDeploySpec : ActaRuntimeTestBase<ConformanceFixture, 
         var stranded = await ReadJobAsync(strandedNew.JobId, ct);
         Assert.Equal(JobStatusCode.Ready, stranded.Status);
         Assert.Equal(0, stranded.FailureCount);
-        Assert.Contains(stranded.DefinitionId, rollbackRuntime.UnsupportedDefinitionIdsSnapshot);
 
         // --- 5. The stranded row waits until an operator says so. Retiring the definition the fleet
         // no longer carries is what clears it, and it closes the definition to new work too.
@@ -198,44 +216,21 @@ public sealed class RollingDeploySpec : ActaRuntimeTestBase<ConformanceFixture, 
     }
 
     /// <summary>
-    /// Ticks the namespace-level claim (the path the exclusion filters) until one tick claims
-    /// nothing. Bounded, so a namespace that keeps handing out work fails the test rather than
-    /// hanging it.
+    /// Makes <paramref name="jobId"/> due and has <paramref name="runtime"/> tick once: the exclusion it learned passes over
+    /// the row, where a claim that ignored it would take and bounce it.
     /// </summary>
-    private static async Task TickUntilNothingClaimedAsync(WorkerRuntime runtime, CancellationToken ct)
+    private async Task AssertPassedOverAsync(WorkerRuntime runtime, long jobId, CancellationToken ct)
     {
-        var jobNamespace = runtime.RegisteredNamespaceIds.Keys.Single();
-        for (var tick = 0; tick < 32; tick++)
-        {
-            if (await runtime.RunOnceAsync(jobNamespace, ct) == RunOnceStatus.NothingClaimed)
-            {
-                return;
-            }
-        }
-
-        Assert.Fail("the namespace still claimed work after 32 ticks.");
+        await ChaosSpecHelpers.SetReadyAsync(Db, jobId, ct);
+        Assert.Equal(RunOnceStatus.NothingClaimed, await runtime.RunOnceAsync(TestNamespace, ct));
     }
 
     /// <summary>
     /// Ticks until <paramref name="jobId"/> is Succeeded. A job handed back by another generation is
     /// re-armed a safety-poll interval out, so the first ticks legitimately claim nothing.
     /// </summary>
-    private async Task RunUntilSucceededAsync(WorkerRuntime runtime, long jobId, CancellationToken ct)
-    {
-        var jobNamespace = runtime.RegisteredNamespaceIds.Keys.Single();
-        var deadline = DateTime.UtcNow + SpecWaits.Converge;
-        while (DateTime.UtcNow < deadline)
-        {
-            await runtime.RunOnceAsync(jobNamespace, ct);
-            if ((await ReadJobAsync(jobId, ct)).Status == JobStatusCode.Succeeded)
-            {
-                return;
-            }
-            await Task.Delay(50, ct);
-        }
-
-        Assert.Fail($"job {jobId} never reached Succeeded: it is {(await ReadJobAsync(jobId, ct)).Status}.");
-    }
+    private Task RunUntilSucceededAsync(WorkerRuntime runtime, long jobId, CancellationToken ct) =>
+        TickUntilAsync(runtime, TestNamespace, async () => (await ReadJobAsync(jobId, ct)).Status == JobStatusCode.Succeeded, ct);
 
     private async Task<DefinitionEntity> ReadDefinitionAsync(string jobName, CancellationToken ct)
     {

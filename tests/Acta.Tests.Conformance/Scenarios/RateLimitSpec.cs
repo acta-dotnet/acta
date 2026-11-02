@@ -58,7 +58,7 @@ public sealed class RateLimitSpec : ActaRuntimeTestBase<ConformanceFixture, Test
         var deniedAt = DateTime.MinValue;
         while (clock.Elapsed < TimeSpan.FromSeconds(2))
         {
-            var sentAt = DateTime.UtcNow;
+            var sentAt = await Database.GetUtcNowAsync(ct);
             var next = await ReserveAsync(bucket, jobId: 1099 + admittedPastBurst, ct);
             if (!next.Admitted)
             {
@@ -76,13 +76,12 @@ public sealed class RateLimitSpec : ActaRuntimeTestBase<ConformanceFixture, Test
             $"{admittedPastBurst} request(s) past the burst were admitted, but at most {refilled} turn(s) could have refilled in {clock.Elapsed.TotalMilliseconds:0}ms"
         );
         // The denial books a turn ahead of the database clock while the SQL runs, so the turn is measured
-        // against the moment the request was sent: on a busy runner the round trip back can outlast the
-        // turn's lead, and "now" after the call would fail a correct booking. The interval of slack covers
-        // the host and database clocks disagreeing.
+        // against that clock read just before the request was sent: on a busy runner the round trip back
+        // can outlast the turn's lead, and "now" after the call would fail a correct booking.
         if (denied is { } booked)
         {
             Assert.True(
-                booked.ResumeAtUtc > deniedAt.AddMilliseconds(-IntervalMilliseconds),
+                booked.ResumeAtUtc > deniedAt,
                 $"the reserved turn {booked.ResumeAtUtc:O} is not ahead of the request sent at {deniedAt:O}"
             );
         }
@@ -122,40 +121,43 @@ public sealed class RateLimitSpec : ActaRuntimeTestBase<ConformanceFixture, Test
     [Fact(DisplayName = "A turn returned inside the second admits once, is spent, and never moves the meter")]
     public async Task A_turn_returned_on_time_admits_once_and_never_moves_the_meter()
     {
-        const long jobId = 1400;
         var ct = TestContext.Current.CancellationToken;
         var bucket = Bucket(Unique("rl-ontime"));
-        var reservation = $"{bucket}.{jobId}";
 
         // The meter is parked minutes ahead, so an admission below can only come from the turn. Five
         // intervals late at 100ms, which is how late a claim-path pickup can be after a re-arm at the
         // exact instant: inside the one-second window the turn still counts, so a fast meter is not
-        // defeated by the worker's poll floor and jitter. Half a second of the window is left for the
-        // round trips between the stage and the reserve, which a shared CI database can stretch past
-        // the hundred milliseconds a tighter stage would leave.
+        // defeated by the worker's poll floor and jitter.
         Assert.NotNull((await Locks.AcquireLockAsync(bucket, TimeSpan.FromMinutes(5), 1401, ct)).Token);
-        var clock = Stopwatch.StartNew();
-        await StageTurnAsync(reservation, jobId, TimeSpan.FromMilliseconds(-500), ct);
-        var meterBefore = await MeterAsync(bucket, ct);
 
-        var admitted = await ReserveAsync(bucket, jobId, ct);
+        // An admission is always held to its invariants. A denial is a failure when the database clock read after
+        // it is still inside the turn's second; past it, the loaded server judged a stale turn, so the case runs
+        // again on a fresh turn until the gate.
+        var waited = Stopwatch.StartNew();
+        for (long jobId = 1410; ; jobId++)
+        {
+            var reservation = $"{bucket}.{jobId}";
+            var meterBefore = await MeterAsync(bucket, ct);
+            var turn = await StageTurnAsync(reservation, jobId, TimeSpan.FromMilliseconds(-500), ct);
 
-        // The turn's age is judged on the database clock, which the host clock around two round trips
-        // can only overestimate: a host reading past the validity does not prove the database saw a
-        // stale turn, but a host reading inside it proves the turn was live. So an admission is always
-        // held to its invariants, and a denial is accepted only when the host clock allows staleness.
-        if (admitted.Admitted)
-        {
-            // The meter counted this job when it allocated the turn; charging it again would meter it twice.
-            Assert.Equal(0, admitted.WaitMilliseconds);
-            Assert.Equal(meterBefore, await MeterAsync(bucket, ct));
-            Assert.Null(await ReadLockAsync(reservation, ct));
-        }
-        else
-        {
+            var admitted = await ReserveAsync(bucket, jobId, ct);
+
+            if (admitted.Admitted)
+            {
+                // The meter counted this job when it allocated the turn; charging it again would meter it twice.
+                Assert.Equal(0, admitted.WaitMilliseconds);
+                Assert.Equal(meterBefore, await MeterAsync(bucket, ct));
+                Assert.Null(await ReadLockAsync(reservation, ct));
+                break;
+            }
+
             Assert.True(
-                clock.Elapsed >= TimeSpan.FromMilliseconds(500),
-                $"a turn 500ms past its instant was not honoured with {(500 - clock.Elapsed.TotalMilliseconds):0}ms of validity left"
+                await Database.GetUtcNowAsync(ct) - turn >= TimeSpan.FromSeconds(1),
+                "a turn 500ms past its instant was denied inside its second"
+            );
+            Assert.True(
+                waited.Elapsed < SpecWaits.Gate,
+                $"no reserve landed within a second of its turn in {SpecWaits.Gate.TotalSeconds} s"
             );
         }
     }
@@ -223,9 +225,10 @@ public sealed class RateLimitSpec : ActaRuntimeTestBase<ConformanceFixture, Test
         var reservation = $"{bucket}.{jobId}";
 
         // A turn whose instant has already gone by but whose grace has not: the row a job that is
-        // late but still alive is coming back for.
+        // late but still alive is coming back for. Staged with the grace a real job gets, so the sweep
+        // reaches the row only after a stall longer than any guard in the suite.
         Assert.NotNull((await Locks.AcquireLockAsync(bucket, TimeSpan.FromMinutes(5), 1481, ct)).Token);
-        await StageTurnAsync(reservation, jobId, TimeSpan.FromSeconds(-1), ct);
+        await StageTurnAsync(reservation, jobId, TimeSpan.FromSeconds(-1), RuntimeJobContext.RateReservationGraceSeconds, ct);
         var staged = await ReadLockAsync(reservation, ct);
 
         await PurgeAsync(ct);
@@ -281,22 +284,13 @@ public sealed class RateLimitSpec : ActaRuntimeTestBase<ConformanceFixture, Test
         var admitted = RateLimitProbes.AdmittedAt(TestNamespace);
         Assert.Equal(jobs, admitted.Count);
 
-        // The safety property is the documented envelope, stated over the window the drain actually took: a
-        // meter of R per second with burst B admits at most R*(T+W)+B in any T seconds, W being how long a
-        // booked turn stays valid, one second at 10/s. The instants are stamped by the handler, a scheduling
-        // hop after the meter admitted it and on the host clock rather than the database's, so the window is
-        // read with a tolerance for that hop in either direction.
-        const double clockHopSeconds = 0.25;
-        const double freshSeconds = 1;
+        // The meter really throttled: everything past the burst waits its interval, so the last turn the meter
+        // hands out lies that many intervals past its first charge however many workers push on it. The window
+        // runs between the handlers' own stamps, taken in process a hop after each admission and on one clock,
+        // so it excludes the drive's start-up and the completion writes and is read with a tolerance for that hop.
+        const double admissionHopSeconds = 0.25;
         var window = (admitted[^1] - admitted[0]).TotalSeconds;
-        Assert.True(
-            admitted.Count <= (Burst * (window + clockHopSeconds + freshSeconds)) + Burst,
-            $"{admitted.Count} admissions in {window:F3}s exceeds the declared 10/s over the window and a second's grace, plus a burst of {Burst}"
-        );
-
-        // The liveness half: the meter really throttled. Everything past the burst waits its interval,
-        // so the drain cannot be faster than that however many workers push on it.
-        var floorSeconds = ((jobs - Burst) * IntervalMilliseconds / 1000.0) - clockHopSeconds;
+        var floorSeconds = ((jobs - Burst) * IntervalMilliseconds / 1000.0) - admissionHopSeconds;
         Assert.True(window >= floorSeconds, $"the drain took {window:F3}s, faster than the {floorSeconds:F3}s the rate allows");
 
         // Re-arms scale with the size of the backlog, not with how long it waits: each denied job books
@@ -327,7 +321,7 @@ public sealed class RateLimitSpec : ActaRuntimeTestBase<ConformanceFixture, Test
         {
             var enqueued = await Jobs.EnqueueAsync(new EnqueueJobRequest(TestNamespace, name, JobPayload.None), ct);
 
-            Assert.Equal(RunOnceStatus.Rearmed, await Runtime.RunOnceAsync(TestNamespace, enqueued.JobId, ct));
+            Assert.Equal(RunOnceStatus.Rearmed, await Runtime.RunOnceAsync(enqueued, ct));
             Assert.Equal(
                 EventReason.RateLimited,
                 EventDetail(await ReadLatestEventAsync(enqueued.JobId, EventCode.JobRescheduled, ct), "reason")
@@ -509,7 +503,7 @@ public sealed class RateLimitSpec : ActaRuntimeTestBase<ConformanceFixture, Test
         RateLimitProbes.Reset(TestNamespace);
         var enqueued = await Jobs.EnqueueAsync(new EnqueueJobRequest(TestNamespace, "rate-and-slot-probe", JobPayload.None), ct);
 
-        Assert.Equal(RunOnceStatus.Rearmed, await Runtime.RunOnceAsync(TestNamespace, enqueued.JobId, ct));
+        Assert.Equal(RunOnceStatus.Rearmed, await Runtime.RunOnceAsync(enqueued, ct));
         var bounce = await ReadLatestEventAsync(enqueued.JobId, EventCode.JobRescheduled, ct);
         Assert.Equal(EventReason.RateLimited, EventDetail(bounce, "reason"));
         Assert.Equal(0, (await ReadJobAsync(enqueued.JobId, ct)).FailureCount);
@@ -523,39 +517,42 @@ public sealed class RateLimitSpec : ActaRuntimeTestBase<ConformanceFixture, Test
         // ahead, so an admission here can only come from the turn, and the slot has to be taken again.
         // The runner's grace is a fixed constant, so the row is stamped relative to that.
         var reservation = $"{bucket}.{enqueued.JobId}";
-        var clock = Stopwatch.StartNew();
-        var justPast = DateTime.UtcNow.AddSeconds(RuntimeJobContext.RateReservationGraceSeconds).AddMilliseconds(-50);
-        Assert.Equal(
-            1,
-            await Db.From<Acta.LockEntity>()
-                .Where(l => l.LockKey == reservation)
-                .UpdateOnlyAsync(() => new Acta.LockEntity { ExpiresAtUtc = justPast }, ct)
-        );
-        Assert.Equal(ControlAction.Applied, (await Jobs.RestartAsync(enqueued, ct: ct)).Action);
 
         // The turn is honoured for a second past its instant, and the stamp, the restart, the claim, the
-        // start, and the admission all have to fit inside the 950ms of it that are left. The database
-        // judges that on its own clock, which the host clock around those round trips can only
-        // overestimate, so a completion is always held to its invariants and a re-arm is accepted only
-        // when the host clock allows the turn to have gone stale, in which case it was re-metered against
-        // a bucket parked minutes ahead and booked again.
-        var outcome = await Runtime.RunOnceAsync(TestNamespace, enqueued.JobId, ct);
-        if (outcome == RunOnceStatus.Completed)
+        // start, and the admission all have to fit inside the 950ms of it that are left. A completion is
+        // always held to its invariants. A re-arm read past that second on the database clock went stale
+        // and was re-metered against a bucket parked minutes ahead, so the case runs again on that booking.
+        var waited = Stopwatch.StartNew();
+        while (true)
         {
-            Assert.Single(RateLimitProbes.AdmittedAt(TestNamespace));
-        }
-        else
-        {
-            Assert.Equal(RunOnceStatus.Rearmed, outcome);
-            Assert.True(
-                clock.Elapsed >= TimeSpan.FromMilliseconds(950),
-                $"the turn was re-armed with {950 - clock.Elapsed.TotalMilliseconds:0}ms of its validity left"
+            var turn = (await Database.GetUtcNowToTheMillisecondAsync(ct)).AddMilliseconds(-50);
+            var justPast = turn.AddSeconds(RuntimeJobContext.RateReservationGraceSeconds);
+            Assert.Equal(
+                1,
+                await Db.From<Acta.LockEntity>()
+                    .Where(l => l.LockKey == reservation)
+                    .UpdateOnlyAsync(() => new Acta.LockEntity { ExpiresAtUtc = justPast }, ct)
             );
+            Assert.Equal(ControlAction.Applied, (await Jobs.RestartAsync(enqueued, ct: ct)).Action);
+
+            var outcome = await Runtime.RunOnceAsync(enqueued, ct);
+            if (outcome == RunOnceStatus.Completed)
+            {
+                Assert.Single(RateLimitProbes.AdmittedAt(TestNamespace));
+                break;
+            }
+
+            Assert.Equal(RunOnceStatus.Rearmed, outcome);
+            Assert.True(await Database.GetUtcNowAsync(ct) - turn >= TimeSpan.FromSeconds(1), "the turn was re-armed inside its second");
             Assert.Equal(
                 EventReason.RateLimited,
                 EventDetail(await ReadLatestEventAsync(enqueued.JobId, EventCode.JobRescheduled, ct), "reason")
             );
             Assert.Empty(RateLimitProbes.AdmittedAt(TestNamespace));
+            Assert.True(
+                waited.Elapsed < SpecWaits.Gate,
+                $"no attempt was admitted within a second of its turn in {SpecWaits.Gate.TotalSeconds} s"
+            );
         }
         Assert.Null(await ReadLockAsync($"{slotPrefix}.0", ct));
     }
@@ -563,6 +560,9 @@ public sealed class RateLimitSpec : ActaRuntimeTestBase<ConformanceFixture, Test
     private int NamespaceId => Runtime.RegisteredNamespaceIds[TestNamespace];
 
     private LocksOperations Locks => Services.GetRequiredService<LocksOperations>();
+
+    /// <summary>The database's clock, which the meter judges every turn on.</summary>
+    private IActaClock Database => Services.GetRequiredService<IActaClock>();
 
     private IDefinitions Definitions => Operations.Definitions;
 
@@ -575,21 +575,27 @@ public sealed class RateLimitSpec : ActaRuntimeTestBase<ConformanceFixture, Test
     /// <summary>The meter's stored arrival time, which every charged request moves and nothing else does.</summary>
     private async Task<DateTime?> MeterAsync(string bucket, CancellationToken ct) => (await ReadLockAsync(bucket, ct))?.ExpiresAtUtc;
 
+    private Task<DateTime> StageTurnAsync(string reservation, long jobId, TimeSpan age, CancellationToken ct) =>
+        StageTurnAsync(reservation, jobId, age, GraceSeconds, ct);
+
     /// <summary>
-    /// Puts a reservation row whose turn sits <paramref name="age"/> from now, whether or not one is
-    /// already there. The row stores the turn plus the grace, which is what the sweep reads, so the
-    /// stage goes through the stored form rather than through the acquire's lease arithmetic.
+    /// Puts a reservation row whose turn sits <paramref name="age"/> from the database's now, whether or
+    /// not one is already there, and returns the turn. The row stores the turn plus
+    /// <paramref name="graceSeconds"/>, which is what the sweep reads, so the stage goes through the
+    /// stored form rather than through the acquire's lease arithmetic.
     /// </summary>
-    private async Task StageTurnAsync(string reservation, long jobId, TimeSpan age, CancellationToken ct)
+    private async Task<DateTime> StageTurnAsync(string reservation, long jobId, TimeSpan age, int graceSeconds, CancellationToken ct)
     {
         // Created through the store so the row carries the store's shape, then stamped to the exact
         // instant: the acquire's lease is whole seconds and a turn is staged to the millisecond.
         await Locks.AcquireLockAsync(reservation, TimeSpan.FromMinutes(10), jobId, ct);
-        var expires = DateTime.UtcNow.Add(age).AddSeconds(GraceSeconds);
+        var turn = (await Database.GetUtcNowToTheMillisecondAsync(ct)).Add(age);
+        var expires = turn.AddSeconds(graceSeconds);
         var affected = await Db.From<Acta.LockEntity>()
             .Where(l => l.LockKey == reservation)
             .UpdateOnlyAsync(() => new Acta.LockEntity { ExpiresAtUtc = expires }, ct);
         Assert.Equal(1, affected);
+        return turn;
     }
 
     private Task PurgeAsync(CancellationToken ct) =>

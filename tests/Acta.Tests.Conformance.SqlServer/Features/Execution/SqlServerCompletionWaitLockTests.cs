@@ -46,9 +46,8 @@ public sealed class SqlServerCompletionWaitLockTests : ActaRuntimeTestBase<SqlSe
             ("@p_name", "gp"),
             ("@p_status", (byte)CheckpointStatusCode.Pending)
         );
-        var first = await Task.WhenAny(insert, Task.Delay(TimeSpan.FromSeconds(5), ct));
-        await hold.RollbackAsync(ct);
-
+        // The landing stays open until the fact ends, so an insert that waited on it would never return.
+        var first = await Task.WhenAny(insert, Task.Delay(SpecWaits.Gate, ct));
         Assert.True(first == insert, "the slot insert waited on the open landing");
         Assert.Equal(1, await insert);
     }

@@ -1,4 +1,3 @@
-using System.Diagnostics;
 using System.Diagnostics.Metrics;
 using Acta.Tests.Conformance.Contracts;
 using Acta.Tests.Conformance.Testing;
@@ -58,13 +57,21 @@ public sealed class ObserverIsolationSpec : ActaRuntimeTestBase<ConformanceFixtu
         try
         {
             // The idle loops record, and the listener throws, before any work arrives.
-            await UntilAsync(() => thrown.ContainsKey("acta.claims") && thrown.ContainsKey("acta.wakeup.waits"), ct);
+            await SpecWaits.UntilAsync(
+                () => thrown.ContainsKey("acta.claims") && thrown.ContainsKey("acta.wakeup.waits"),
+                "the worker made no progress in time",
+                ct
+            );
 
             var job = await Jobs.EnqueueAsync(
                 new EnqueueJobRequest(TestNamespace, "add-numbers", JobPayload.Json(new AddNumbers(2, 3))),
                 ct
             );
-            await UntilAsync(async () => (await ReadJobAsync(job.JobId, ct)).Status == JobStatusCode.Succeeded, ct);
+            await SpecWaits.UntilAsync(
+                async () => (await ReadJobAsync(job.JobId, ct)).Status == JobStatusCode.Succeeded,
+                "the worker made no progress in time",
+                ct
+            );
 
             var slotId = await AlertTestOps.RecurringSlotIdAsync(Services, TestNamespace, "recurring-ping", ct);
             var due = DateTime.UtcNow.AddSeconds(-1);
@@ -74,7 +81,11 @@ public sealed class ObserverIsolationSpec : ActaRuntimeTestBase<ConformanceFixtu
                     .Where(st => st.Id == s.Config.Id)
                     .UpdateOnlyAsync(() => new ScheduleStateEntity { NextOccurrenceAtUtc = due, NextEvaluationAtUtc = due }, ct);
             }
-            await UntilAsync(() => RecurringPingHandler.TriggersFor(TestNamespace).Count > 0, ct);
+            await SpecWaits.UntilAsync(
+                () => RecurringPingHandler.TriggersFor(TestNamespace).Count > 0,
+                "the worker made no progress in time",
+                ct
+            );
 
             Assert.True(thrown.ContainsKey("acta.schedule.due.age"));
             Assert.False(run.IsCompleted, "the runtime stopped");
@@ -87,18 +98,6 @@ public sealed class ObserverIsolationSpec : ActaRuntimeTestBase<ConformanceFixtu
                 await run.WaitAsync(Timeout, ct);
             }
             catch (OperationCanceledException) { }
-        }
-    }
-
-    private static Task UntilAsync(Func<bool> condition, CancellationToken ct) => UntilAsync(() => Task.FromResult(condition()), ct);
-
-    private static async Task UntilAsync(Func<Task<bool>> condition, CancellationToken ct)
-    {
-        var waited = Stopwatch.StartNew();
-        while (!await condition())
-        {
-            Assert.True(waited.Elapsed < Timeout, "the worker made no progress in time");
-            await Task.Delay(20, ct);
         }
     }
 }

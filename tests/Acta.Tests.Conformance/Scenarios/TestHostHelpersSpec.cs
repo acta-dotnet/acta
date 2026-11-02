@@ -126,7 +126,9 @@ public sealed class TestHostHelpersSpec : ActaTestBase<ConformanceFixture>
     public async Task Schedule_helpers_make_the_slot_due_and_admit_it()
     {
         var ct = TestContext.Current.CancellationToken;
-        await using var host = await StartHostAsync(ct);
+        // The admitter's clock stands still, so only the forced schedule comes due: on the real clock, a five-minute
+        // boundary inside the fact also admits the manifest's other schedules.
+        await using var host = await StartHostAsync(ct, FakeClock.AtRealMinute());
         // The lookup canonicalizes like every schedule verb, so the name's casing does not matter.
         var lookup = new ScheduleLookup(TestNamespace, "recurring-ping", "Every-5-Minutes");
         var schedules = await host.Operations.Schedules.ListAsync(
@@ -206,7 +208,7 @@ public sealed class TestHostHelpersSpec : ActaTestBase<ConformanceFixture>
                 .SingleOrDefaultAsync(ct)
         );
 
-    private Task<IActaTestHost> StartHostAsync(CancellationToken ct) =>
+    private Task<IActaTestHost> StartHostAsync(CancellationToken ct, IActaClock? clock = null) =>
         ActaTestHost.StartAsync(
             (j, schema) =>
             {
@@ -216,7 +218,14 @@ public sealed class TestHostHelpersSpec : ActaTestBase<ConformanceFixture>
             new ActaTestHostOptions
             {
                 Schema = Schema.SchemaName,
-                ConfigureServices = services => services.Configure<JobsOptions>(o => o.RegisterSystemJobs = false),
+                ConfigureServices = services =>
+                {
+                    services.Configure<JobsOptions>(o => o.RegisterSystemJobs = false);
+                    if (clock is not null)
+                    {
+                        services.AddSingleton(clock);
+                    }
+                },
             },
             ct
         );

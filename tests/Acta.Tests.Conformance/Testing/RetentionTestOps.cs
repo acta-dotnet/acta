@@ -1,3 +1,4 @@
+using System.Diagnostics;
 using Microsoft.Extensions.DependencyInjection;
 
 namespace Acta.Tests.Conformance.Testing;
@@ -38,8 +39,8 @@ internal static class RetentionTestOps
             );
 
     /// <summary>
-    /// Repeat the bounded purge sweep until <paramref name="settled"/> reports the target rows gone (or a
-    /// bounded number of attempts elapses, which then surfaces the genuine survivor to the caller's assert),
+    /// Repeat the bounded purge sweep until <paramref name="settled"/> reports the target rows gone (or
+    /// <see cref="SpecWaits.Converge"/> passes, which then surfaces the genuine survivor to the caller's assert),
     /// and return the counts summed over every sweep it ran.
     /// </summary>
     /// <remarks>
@@ -78,9 +79,9 @@ internal static class RetentionTestOps
         bool sweepSystemEvents = false
     )
     {
-        const int maxAttempts = 300;
+        var elapsed = Stopwatch.StartNew();
         var total = default(RetentionSweepCounts);
-        for (var attempt = 0; ; attempt++)
+        while (true)
         {
             var result = await PurgeAsync(
                 services,
@@ -104,12 +105,12 @@ internal static class RetentionTestOps
                 total.Lanes + result.Lanes,
                 result.JobsCursor
             );
-            if (await settled() || attempt >= maxAttempts)
+            if (await settled() || elapsed.Elapsed >= SpecWaits.Converge)
             {
                 return total;
             }
 
-            await Task.Delay(10, ct);
+            await Task.Delay(25, ct);
         }
     }
 }

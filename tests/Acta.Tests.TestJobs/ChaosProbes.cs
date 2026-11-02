@@ -53,15 +53,12 @@ public static class ChaosProbes
         return Task.FromResult("counted");
     }
 
-    // The same gate with the framework's five-minute timeout, for a fact that needs an executor held
-    // for as long as the fact runs rather than freed by the timeout ten seconds in.
+    /// <summary>
+    /// Holds its executor on the gate under the framework's five-minute timeout, so only the fact ends the attempt: a
+    /// shorter timeout lets a loaded runner's slow steps time the attempt out first.
+    /// </summary>
     [Job("chaos-holding", EventRecording = EventRecordingCode.Audit)]
-    public static Task Holding(JobContext ctx, CancellationToken ct) => Blocking(ctx, ct);
-
-    // Short ExecutionTimeout so a stolen-lease attempt that finalizes via the per-attempt timeout
-    // caps at seconds, not the 5-minute framework default.
-    [Job("chaos-blocking", EventRecording = EventRecordingCode.Audit, ExecutionTimeout = "PT10S")]
-    public static async Task Blocking(JobContext ctx, CancellationToken ct)
+    public static async Task Holding(JobContext ctx, CancellationToken ct)
     {
         CountingInvocations.AddOrUpdate(ctx.JobId, 1, static (_, n) => n + 1);
         var gate = Gates.GetOrAdd(ctx.JobId, static _ => new Gate());

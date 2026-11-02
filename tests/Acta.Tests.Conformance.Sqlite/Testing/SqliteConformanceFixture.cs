@@ -12,6 +12,8 @@ namespace Acta.Tests.Conformance.Sqlite.Testing;
 /// </summary>
 public sealed partial class SqliteConformanceFixture : IConformanceFixture
 {
+    public bool IsTransient(System.Data.Common.DbException exception) => new SqliteDialect().IsTransientConflict(exception);
+
     public async ValueTask<IReadOnlyList<(string Name, bool Nullable, int? MaxLength)>> ListColumnsAsync(
         string schemaName,
         string tableName

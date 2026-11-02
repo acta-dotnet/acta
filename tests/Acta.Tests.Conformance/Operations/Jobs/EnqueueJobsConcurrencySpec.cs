@@ -10,8 +10,9 @@ namespace Acta.Tests.Conformance.Operations.Jobs;
 /// Concurrent producers batch-enqueue into one namespace at the same time, at the size the Anvil
 /// enqueue-batch cell uses (1000-row calls, tens of thousands of rows in all), which is the regime where
 /// SQL Server picks page locks and set-based plans. Deadlock retry is off for this spec, so a deadlock
-/// fails the test instead of being absorbed by a retry. SQLite runs one writer at a time, so it runs a
-/// smaller load that proves the same contract.
+/// fails the test instead of being absorbed by a retry, and it runs on a schema of its own, so only its own
+/// producers can form one. SQLite runs one writer at a time, so it runs a smaller load that proves the
+/// same contract.
 /// </summary>
 [ConformanceSpec(
     "enqueue-jobs.concurrent-batches",
@@ -24,6 +25,8 @@ public sealed class EnqueueJobsConcurrencySpec : ActaRuntimeTestBase<Conformance
     private const int Producers = 4;
     private const int BatchSize = 1000;
     private const int Lanes = 4;
+
+    protected override bool OwnSchema => true;
 
     protected override void ConfigureServices(IServiceCollection services, string testNamespace)
     {

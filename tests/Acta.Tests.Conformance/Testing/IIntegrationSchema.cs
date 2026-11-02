@@ -14,7 +14,7 @@ namespace Acta.Tests.Conformance.Testing;
 public interface IIntegrationSchema : IAsyncDisposable
 {
     /// <summary>
-    /// The shared schema name; always <c>acta_test</c>.
+    /// The schema name: <c>acta_test</c>, or a spec class's own <see cref="ClassSchema"/> beside it.
     /// </summary>
     string SchemaName { get; }
 

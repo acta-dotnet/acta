@@ -65,16 +65,17 @@ public sealed class LaneRetireSpec : ActaRuntimeTestBase<ConformanceFixture, Tes
     public async Task A_running_head_of_the_retired_definition_hands_its_lane_on()
     {
         var ct = TestContext.Current.CancellationToken;
-        var head = await Jobs.EnqueueAsync(new EnqueueJobRequest(TestNamespace, "chaos-blocking", JobPayload.None, Lane: "orders"), ct);
+        // Held past any slow step: a timeout before the heartbeat learns of the retire would plan a retry.
+        var head = await Jobs.EnqueueAsync(new EnqueueJobRequest(TestNamespace, "chaos-holding", JobPayload.None, Lane: "orders"), ct);
         var follower = await Jobs.EnqueueAsync(Step("orders", "follower", "orders"), ct);
         Assert.Equal(JobStatusCode.Blocked, (await ReadJobAsync(follower.JobId, ct)).Status);
         ChaosProbes.Reset(head.JobId);
 
         var run = Runtime.RunOnceAsync(head, ct);
         await ChaosProbes.WaitStartedAsync(head.JobId, ct);
-        var definition = await Operations.Definitions.GetAsync(TestNamespace, "chaos-blocking", ct);
-        await Operations.Definitions.RetireAsync(TestNamespace, "chaos-blocking", definition!.Version, "retired mid-run", "tester", ct);
-        await Runtime.RunHeartbeatOnceAsync(ct);
+        var definition = await Operations.Definitions.GetAsync(TestNamespace, "chaos-holding", ct);
+        await Operations.Definitions.RetireAsync(TestNamespace, "chaos-holding", definition!.Version, "retired mid-run", "tester", ct);
+        await RunAnsweredHeartbeatAsync(ct);
         ChaosProbes.Fail(head.JobId);
 
         Assert.Equal(RunOnceStatus.Completed, await run);

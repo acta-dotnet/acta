@@ -1,4 +1,3 @@
-using System.Diagnostics;
 using Acta.Tests.Conformance.Contracts;
 using Acta.Tests.Conformance.Testing;
 using Microsoft.Extensions.DependencyInjection;
@@ -147,23 +146,18 @@ public sealed class ClaimJobSpec : ActaRuntimeTestBase<ConformanceFixture, TestJ
         await Jobs.EnqueueAsync(new EnqueueJobRequest(TestNamespace, "add-numbers", JobPayload.Json(new AddNumbers(2, 3))), ct);
 
     /// <summary>
-    /// Claims until a job comes back, bounded to a short budget. The claim skips a row another connection
-    /// holds locked, which on the shared schema can briefly hide a claimable one; production's next tick
-    /// takes it, and so does the next call here.
+    /// Claims until a job comes back. The claim skips a row another connection holds locked, which on the
+    /// shared schema can briefly hide a claimable one; production's next tick takes it, and so does the
+    /// next call here.
     /// </summary>
-    private async Task<IReadOnlyList<ClaimedJob>> ClaimUntilTakenAsync(ClaimOptions request, long? jobId, CancellationToken ct)
-    {
-        var elapsed = Stopwatch.StartNew();
-        while (true)
-        {
-            var claimed = (await Execution.ClaimJobAsync(request, LeaseTtlSeconds, jobId, ct)).Jobs;
-            if (claimed.Count > 0 || elapsed.Elapsed > TimeSpan.FromSeconds(5))
-            {
-                return claimed;
-            }
-            await Task.Delay(25, ct);
-        }
-    }
+    private async Task<IReadOnlyList<ClaimedJob>> ClaimUntilTakenAsync(ClaimOptions request, long? jobId, CancellationToken ct) =>
+        (
+            await SpecWaits.RepeatUntilAsync(
+                () => Execution.ClaimJobAsync(request, LeaseTtlSeconds, jobId, ct),
+                answer => answer.Jobs.Count > 0,
+                ct
+            )
+        ).Jobs;
 
     private async Task SuspendAsync(long jobId, DateTime? nextRunAtUtc, CancellationToken ct)
     {

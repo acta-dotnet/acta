@@ -154,18 +154,19 @@ public sealed class WorkerFinalizerTests
     {
         var ct = TestContext.Current.CancellationToken;
         var failed = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
+        var landing = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
         var writes = 0;
-        var session = new ScriptedSession(call =>
-            call.Stem switch
-            {
-                "CompleteExecutions" when Interlocked.Increment(ref writes) == 1 => FailOnce(failed),
-                "CompleteExecutions" => new List<CompleteExecutionsRow>
+
+        // The retried write waits for the test to land it, so the heartbeat below finds the entry still in flight.
+        var session = new ScriptedSession(
+            async (call, token) =>
+                call.Stem switch
                 {
-                    new(42, 3, CompleteExecutionsAction.Completed, (byte)JobStatusCode.Ready, null, DateTime.UtcNow, false, false),
-                },
-                "ExtendWorkerLeases" => new ExtendWorkerLeasesRow(42, ExecutionNumber: 3, LockKey: null, Renewed: true, null),
-                _ => throw new NotSupportedException(call.Stem),
-            }
+                    "CompleteExecutions" when Interlocked.Increment(ref writes) == 1 => FailOnce(failed),
+                    "CompleteExecutions" => await LandAsync(landing, token),
+                    "ExtendWorkerLeases" => new ExtendWorkerLeasesRow(42, ExecutionNumber: 3, LockKey: null, Renewed: true, null),
+                    _ => throw new NotSupportedException(call.Stem),
+                }
         );
         var services = session.Services();
         var options = new JobsOptions();
@@ -204,13 +205,20 @@ public sealed class WorkerFinalizerTests
         await failed.Task.WaitAsync(TimeSpan.FromSeconds(30), ct);
         await heartbeat.TickAsync(ct);
 
+        // The session records the finalizer's retried write from another thread, under the list's lock.
+        BoundCall[] calls;
+        lock (session.Calls)
+        {
+            calls = [.. session.Calls];
+        }
         Assert.Equal(
             """[{"job_id":42,"execution_number":3}]""",
-            Assert.Single(session.Calls, call => call.Stem == "ExtendWorkerLeases").Parameters["p_executions"]
+            Assert.Single(calls, call => call.Stem == "ExtendWorkerLeases").Parameters["p_executions"]
         );
         Assert.Equal(InFlightJobState.Finalizing, Assert.Single(registry.Snapshot()).State);
         Assert.False(entry.AttemptToken.IsCancellationRequested);
 
+        landing.SetResult();
         Assert.Equal(RunOnceStatus.Rearmed, await finalizing.WaitAsync(TimeSpan.FromSeconds(30), ct));
         Assert.Equal(2, writes);
         Assert.Equal(0, registry.Count());
@@ -645,6 +653,15 @@ public sealed class WorkerFinalizerTests
     {
         failed.SetResult();
         throw new ProviderDown();
+    }
+
+    private static async Task<object?> LandAsync(TaskCompletionSource gate, CancellationToken ct)
+    {
+        await gate.Task.WaitAsync(ct);
+        return new List<CompleteExecutionsRow>
+        {
+            new(42, 3, CompleteExecutionsAction.Completed, (byte)JobStatusCode.Ready, null, DateTime.UtcNow, false, false),
+        };
     }
 
     private sealed class ProviderDown() : DbException("connection dropped");

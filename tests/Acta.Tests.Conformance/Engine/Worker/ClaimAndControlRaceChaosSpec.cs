@@ -65,7 +65,7 @@ public sealed class ClaimAndControlRaceChaosSpec : ActaRuntimeTestBase<Conforman
     public async Task Restart_while_executing_is_rejected()
     {
         var ct = TestContext.Current.CancellationToken;
-        var enqueued = await ChaosSpecHelpers.EnqueueNoPayloadAsync(Jobs, TestNamespace, "chaos-blocking", ct);
+        var enqueued = await ChaosSpecHelpers.EnqueueNoPayloadAsync(Jobs, TestNamespace, "chaos-holding", ct);
         ChaosProbes.Reset(enqueued.JobId);
 
         // --- 1. Start the handler and let it block in Executing.
@@ -89,7 +89,8 @@ public sealed class ClaimAndControlRaceChaosSpec : ActaRuntimeTestBase<Conforman
     public async Task Cancel_while_executing_finishes_attempt_as_cancelled()
     {
         var ct = TestContext.Current.CancellationToken;
-        var enqueued = await ChaosSpecHelpers.EnqueueNoPayloadAsync(Jobs, TestNamespace, "chaos-blocking", ct);
+        // Only the heartbeat can cancel this handler within the fact.
+        var enqueued = await ChaosSpecHelpers.EnqueueNoPayloadAsync(Jobs, TestNamespace, "chaos-holding", ct);
         ChaosProbes.Reset(enqueued.JobId);
 
         // --- 1. Start the handler and let it block in Executing.
@@ -100,8 +101,8 @@ public sealed class ClaimAndControlRaceChaosSpec : ActaRuntimeTestBase<Conforman
         var cancel = await Jobs.CancelAsync(enqueued, "operator stop", ct: ct);
         Assert.Equal(ControlAction.Applied, cancel.Action);
         Assert.Equal(JobStatusCode.Cancelled, cancel.Status);
-        await Runtime.RunHeartbeatOnceAsync(ct);
-        await ChaosProbes.WaitCancelledAsync(enqueued.JobId, ct);
+        await RunAnsweredHeartbeatAsync(ct);
+        await ChaosProbes.WaitCancelledAsync(enqueued.JobId, ct).WaitAsync(SpecWaits.Gate, ct);
 
         Assert.Equal(RunOnceStatus.NothingClaimed, await run);
         Assert.Equal(JobStatusCode.Cancelled, (await Jobs.GetStatusAsync(enqueued, ct))?.Status);

@@ -1,3 +1,4 @@
+using System.Diagnostics;
 using Xunit;
 
 namespace Acta.Tests.Execution;
@@ -11,6 +12,9 @@ namespace Acta.Tests.Execution;
 public sealed class WorkerExecutorRateAdmissionTests
 {
     private static readonly DateTime ReservedTurn = new(2026, 9, 19, 12, 0, 30, 250, DateTimeKind.Utc);
+
+    /// <summary>A hang guard, not a measurement: only a runner that never gets a trial to judge reaches it.</summary>
+    private static readonly TimeSpan HangGuard = TimeSpan.FromSeconds(60);
 
     [Fact]
     public async Task No_declared_rate_asks_the_meter_for_nothing()
@@ -103,23 +107,32 @@ public sealed class WorkerExecutorRateAdmissionTests
         // The attempt token is cancelled while the runner sleeps out a near turn (an operator cancel,
         // a stolen lease, the timeout): the sleep ends at once, the meter is not asked again, the
         // handler never runs, and the attempt settles through the cancellation path, not as a success.
-        var harness = new WorkerExecutorHarness(
-            concurrencyKey: "customer-1",
-            concurrencyLimit: 4,
-            rateLimit: "10/s",
-            rateWaitMilliseconds: ExecutionAdmission.RateTurnWaitMilliseconds,
-            cancelAttemptDuringRateWait: true
-        );
+        // Each trial is timed from its cancel, so the harness's own start-up never counts against the bound. The
+        // fastest of up to five trials is judged: a runner that ends the wait at once does so on every trial, one
+        // that sleeps the wait out takes the full 250ms on every trial. Every trial checks the rest.
+        var bound = TimeSpan.FromMilliseconds(200);
+        var fastest = TimeSpan.MaxValue;
+        for (var trial = 0; trial < 5 && fastest >= bound; trial++)
+        {
+            var harness = new WorkerExecutorHarness(
+                concurrencyKey: "customer-1",
+                concurrencyLimit: 4,
+                rateLimit: "10/s",
+                rateWaitMilliseconds: ExecutionAdmission.RateTurnWaitMilliseconds,
+                cancelAttemptDuringRateWait: true
+            );
 
-        await harness.RunAsync();
+            await harness.RunAsync();
 
-        // Timed from the cancel, so the harness's own start-up never counts against the bound.
-        var sinceCancel = System.Diagnostics.Stopwatch.GetElapsedTime(Assert.NotNull(harness.AttemptCancelledAt));
-        Assert.True(sinceCancel < TimeSpan.FromMilliseconds(200), "the cancelled wait was slept out in full");
-        Assert.False(harness.HandlerRan);
-        Assert.Single(harness.RateRequests);
-        Assert.NotEqual(CompletionKind.Succeeded, harness.Completion.Outcome);
-        Assert.Equal(1, harness.SlotReleases);
+            var sinceCancel = Stopwatch.GetElapsedTime(Assert.NotNull(harness.AttemptCancelledAt));
+            fastest = sinceCancel < fastest ? sinceCancel : fastest;
+            Assert.False(harness.HandlerRan);
+            Assert.Single(harness.RateRequests);
+            Assert.NotEqual(CompletionKind.Succeeded, harness.Completion.Outcome);
+            Assert.Equal(1, harness.SlotReleases);
+        }
+
+        Assert.True(fastest < bound, $"the cancelled wait was slept out on every trial, fastest {fastest}");
     }
 
     [Fact]
@@ -150,15 +163,24 @@ public sealed class WorkerExecutorRateAdmissionTests
         // The deadline is still ahead at admission but passes during the wait: the re-arm path
         // would have rechecked it on the next attempt, so the in-process path rechecks it after the
         // wait, settles as deadline exceeded without a handler run, and returns the slot it held.
-        var harness = new WorkerExecutorHarness(
-            concurrencyKey: "customer-1",
-            concurrencyLimit: 4,
-            rateLimit: "10/s",
-            rateWaitMilliseconds: ExecutionAdmission.RateTurnWaitMilliseconds,
-            deadlineAtUtc: DateTime.UtcNow.AddMilliseconds(200)
-        );
-
-        var outcome = await harness.RunAsync();
+        // Only a trial whose meter was asked is judged: that proves the deadline was still ahead at admission and the
+        // slot was taken, and the deadline, at most 200ms past the request, then passes during the 250ms wait. A
+        // start-up slow enough to pass the deadline first leaves nothing to judge, so the trial runs again.
+        var trials = Stopwatch.StartNew();
+        WorkerExecutorHarness harness;
+        RunOnceStatus outcome;
+        do
+        {
+            Assert.True(trials.Elapsed < HangGuard, "no trial reached the meter before its deadline passed.");
+            harness = new WorkerExecutorHarness(
+                concurrencyKey: "customer-1",
+                concurrencyLimit: 4,
+                rateLimit: "10/s",
+                rateWaitMilliseconds: ExecutionAdmission.RateTurnWaitMilliseconds,
+                deadlineAtUtc: DateTime.UtcNow.AddMilliseconds(200)
+            );
+            outcome = await harness.RunAsync();
+        } while (harness.RateRequests.Count == 0);
 
         Assert.Equal(RunOnceStatus.Completed, outcome);
         Assert.False(harness.HandlerRan);

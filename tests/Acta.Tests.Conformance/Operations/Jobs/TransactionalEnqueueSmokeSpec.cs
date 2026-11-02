@@ -38,13 +38,17 @@ public sealed class TransactionalEnqueueSmokeSpec : ActaRuntimeTestBase<Conforma
         await using var conn = await Db.OpenConnectionAsync(ct);
         var probe = await Fixture.EnsureBusinessProbeTableAsync(conn, Schema.SchemaName, ProbeTable);
 
-        await using (var tx = await conn.BeginTransactionAsync(ct))
-        {
-            await InsertBusinessRowAsync(conn, tx, probe, marker, ct);
-            var outcome = await Jobs.EnqueueAsync(tx, Request("add-numbers", new AddNumbers(2, 3), marker), ct);
-            Assert.Equal(EnqueueJobAction.Inserted, outcome.Action);
-            await tx.CommitAsync(ct);
-        }
+        await InCallerTransactionAsync(
+            conn,
+            async tx =>
+            {
+                await InsertBusinessRowAsync(conn, tx, probe, marker, ct);
+                var outcome = await Jobs.EnqueueAsync(tx, Request("add-numbers", new AddNumbers(2, 3), marker), ct);
+                Assert.Equal(EnqueueJobAction.Inserted, outcome.Action);
+                await tx.CommitAsync(ct);
+            },
+            ct
+        );
 
         Assert.Equal(1, await CountBusinessRowsAsync(conn, probe, marker, ct));
         Assert.NotNull(await JobByKeyAsync(marker, ct));
@@ -59,12 +63,16 @@ public sealed class TransactionalEnqueueSmokeSpec : ActaRuntimeTestBase<Conforma
         await using var conn = await Db.OpenConnectionAsync(ct);
         var probe = await Fixture.EnsureBusinessProbeTableAsync(conn, Schema.SchemaName, ProbeTable);
 
-        await using (var tx = await conn.BeginTransactionAsync(ct))
-        {
-            await InsertBusinessRowAsync(conn, tx, probe, marker, ct);
-            await Jobs.EnqueueAsync(tx, Request("add-numbers", new AddNumbers(4, 5), marker), ct);
-            await tx.RollbackAsync(ct);
-        }
+        await InCallerTransactionAsync(
+            conn,
+            async tx =>
+            {
+                await InsertBusinessRowAsync(conn, tx, probe, marker, ct);
+                await Jobs.EnqueueAsync(tx, Request("add-numbers", new AddNumbers(4, 5), marker), ct);
+                await tx.RollbackAsync(ct);
+            },
+            ct
+        );
 
         Assert.Equal(0, await CountBusinessRowsAsync(conn, probe, marker, ct));
         Assert.Null(await JobByKeyAsync(marker, ct));
@@ -81,22 +89,26 @@ public sealed class TransactionalEnqueueSmokeSpec : ActaRuntimeTestBase<Conforma
         // Commit: two-row batch plus a business row all persist.
         var committedMarker = Unique("batch-commit");
         string[] committedKeys = [committedMarker + "-a", committedMarker + "-b"];
-        await using (var tx = await conn.BeginTransactionAsync(ct))
-        {
-            await InsertBusinessRowAsync(conn, tx, probe, committedMarker, ct);
-            var outcomes = (
-                await Jobs.EnqueueBatchAsync(
-                    tx,
-                    [
-                        Request("add-numbers", new AddNumbers(1, 1), committedKeys[0]),
-                        Request("add-numbers", new AddNumbers(2, 2), committedKeys[1]),
-                    ],
-                    ct
-                )
-            ).Jobs;
-            Assert.Equal(2, outcomes.Count);
-            await tx.CommitAsync(ct);
-        }
+        await InCallerTransactionAsync(
+            conn,
+            async tx =>
+            {
+                await InsertBusinessRowAsync(conn, tx, probe, committedMarker, ct);
+                var outcomes = (
+                    await Jobs.EnqueueBatchAsync(
+                        tx,
+                        [
+                            Request("add-numbers", new AddNumbers(1, 1), committedKeys[0]),
+                            Request("add-numbers", new AddNumbers(2, 2), committedKeys[1]),
+                        ],
+                        ct
+                    )
+                ).Jobs;
+                Assert.Equal(2, outcomes.Count);
+                await tx.CommitAsync(ct);
+            },
+            ct
+        );
 
         Assert.Equal(1, await CountBusinessRowsAsync(conn, probe, committedMarker, ct));
         foreach (var key in committedKeys)
@@ -107,19 +119,23 @@ public sealed class TransactionalEnqueueSmokeSpec : ActaRuntimeTestBase<Conforma
         // Rollback: two-row batch plus a business row all vanish.
         var rolledBackMarker = Unique("batch-rollback");
         string[] rolledBackKeys = [rolledBackMarker + "-a", rolledBackMarker + "-b"];
-        await using (var tx = await conn.BeginTransactionAsync(ct))
-        {
-            await InsertBusinessRowAsync(conn, tx, probe, rolledBackMarker, ct);
-            await Jobs.EnqueueBatchAsync(
-                tx,
-                [
-                    Request("add-numbers", new AddNumbers(3, 3), rolledBackKeys[0]),
-                    Request("add-numbers", new AddNumbers(4, 4), rolledBackKeys[1]),
-                ],
-                ct
-            );
-            await tx.RollbackAsync(ct);
-        }
+        await InCallerTransactionAsync(
+            conn,
+            async tx =>
+            {
+                await InsertBusinessRowAsync(conn, tx, probe, rolledBackMarker, ct);
+                await Jobs.EnqueueBatchAsync(
+                    tx,
+                    [
+                        Request("add-numbers", new AddNumbers(3, 3), rolledBackKeys[0]),
+                        Request("add-numbers", new AddNumbers(4, 4), rolledBackKeys[1]),
+                    ],
+                    ct
+                );
+                await tx.RollbackAsync(ct);
+            },
+            ct
+        );
 
         Assert.Equal(0, await CountBusinessRowsAsync(conn, probe, rolledBackMarker, ct));
         foreach (var key in rolledBackKeys)

@@ -12,15 +12,14 @@ namespace Acta.Tests.Conformance.SqlServer.Testing;
 public sealed partial class SqlServerConformanceFixture : IConformanceFixture
 {
     /// <summary>
-    /// Runs a catalog read, retrying a deadlock victim (error 1205) or a command timeout (-2).
+    /// Runs a catalog read or a probe's drop, repeating a transient failure (<see cref="IsTransient"/>).
     /// </summary>
     /// <remarks>
     /// These reads race the DDL other specs are provisioning in parallel, and SQL Server will pick a
     /// plain SELECT against <c>sys.*</c> as the victim rather than the writer, or leave it waiting behind
-    /// that DDL past the command timeout on a loaded runner. Nothing here is transactional, so re-reading
-    /// is both safe and sufficient. The product already classifies 1205 as transient
-    /// (<c>SqlServerDialect.IsTransientConflict</c>) and <c>SqlServerIntegrationSchema</c> handles the
-    /// same race on the bootstrap side.
+    /// that DDL past the command timeout on a loaded runner. Nothing here is transactional and the drop is
+    /// idempotent, so repeating is both safe and sufficient. <c>SqlServerIntegrationSchema</c> handles the same
+    /// race on the bootstrap side.
     /// </remarks>
     private static async ValueTask<T> ReadCatalogAsync<T>(Func<ValueTask<T>> read)
     {
@@ -30,12 +29,19 @@ public sealed partial class SqlServerConformanceFixture : IConformanceFixture
             {
                 return await read();
             }
-            catch (SqlException ex) when (ex.Number is 1205 or -2 && attempt < 5)
+            catch (SqlException ex) when (IsTransientError(ex) && attempt < 5)
             {
                 await Task.Delay(TimeSpan.FromMilliseconds(50 * attempt));
             }
         }
     }
+
+    public bool IsTransient(System.Data.Common.DbException exception) => exception is SqlException ex && IsTransientError(ex);
+
+    /// <summary>The product's conflicts, plus a command timeout the product does not repeat.</summary>
+    private static bool IsTransientError(SqlException ex) => Dialect.IsTransientConflict(ex) || ex.Number == -2;
+
+    private static readonly SqlServerDialect Dialect = new();
 
     /// <summary>
     /// The user tables in <paramref name="schemaName"/> via the SQL Server information_schema.

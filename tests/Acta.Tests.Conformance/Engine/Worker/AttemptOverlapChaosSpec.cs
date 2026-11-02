@@ -52,7 +52,7 @@ public sealed class AttemptOverlapChaosSpec : ActaRuntimeTestBase<ConformanceFix
         // --- 4. An external cancel must still reach the replacement attempt through the heartbeat.
         var cancel = await Jobs.CancelAsync(JobLookup.ById(enqueued.JobId), ct: ct);
         Assert.Equal(ControlAction.Applied, cancel.Action);
-        await Runtime.RunHeartbeatOnceAsync(ct);
+        await RunAnsweredHeartbeatAsync(ct);
         await AttemptOverlapProbe.Cancelled(enqueued.JobId, 2).WaitAsync(Timeout, ct);
 
         await replacementRun.WaitAsync(Timeout, ct);

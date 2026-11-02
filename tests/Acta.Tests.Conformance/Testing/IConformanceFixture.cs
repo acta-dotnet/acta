@@ -27,6 +27,12 @@ public interface IConformanceFixture
     string DialectToken { get; }
 
     /// <summary>
+    /// Whether <paramref name="exception"/> is a failure that repeating the statement cures: a deadlock victim, a command
+    /// timeout, or a busy database, which the DDL other specs run in parallel can cause.
+    /// </summary>
+    bool IsTransient(System.Data.Common.DbException exception);
+
+    /// <summary>
     /// Allocate a throwaway location carrying only a migration-history ledger seeded with
     /// <paramref name="history"/> as migration-name rows, or - when <paramref name="history"/>
     /// is <c>null</c> - no ledger at all, standing in for a database that was never provisioned.

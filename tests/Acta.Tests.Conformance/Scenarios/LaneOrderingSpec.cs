@@ -261,24 +261,21 @@ public sealed class LaneOrderingSpec : ActaRuntimeTestBase<ConformanceFixture, T
     }
 
     // One claim per tick, until every listed job is terminal: a lane that promoted nothing would leave a
-    // member Blocked and run the tick budget out.
+    // member Blocked and run the guard out.
     private async Task DrainAsync(IReadOnlyList<EnqueueJobResponse> jobs, CancellationToken ct)
     {
-        for (var tick = 0; tick < 60; tick++)
-        {
-            var statuses = await StatusesAsync(jobs, ct);
-            if (statuses.All(s => s.IsTerminal))
+        var statuses = "";
+        await TickUntilAsync(
+            Runtime,
+            TestNamespace,
+            async () =>
             {
-                return;
-            }
-
-            if (await Runtime.RunOnceAsync(TestNamespace, ct) == RunOnceStatus.NothingClaimed)
-            {
-                await Task.Delay(25, ct);
-            }
-        }
-
-        var final = await StatusesAsync(jobs, ct);
-        Assert.Fail($"Lane did not drain: [{string.Join(", ", final)}]");
+                var current = await StatusesAsync(jobs, ct);
+                statuses = string.Join(", ", current);
+                return current.All(s => s.IsTerminal);
+            },
+            ct,
+            () => $"the lane did not drain: [{statuses}]"
+        );
     }
 }

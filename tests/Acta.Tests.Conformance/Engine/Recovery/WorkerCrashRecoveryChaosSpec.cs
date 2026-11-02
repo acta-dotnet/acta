@@ -84,9 +84,6 @@ public sealed class WorkerCrashRecoveryChaosSpec : ActaRuntimeTestBase<Conforman
     {
         var ct = TestContext.Current.CancellationToken;
         var ns = Runtime.RegisteredNamespaceIds[TestNamespace];
-        // The five-minute framework timeout, not chaos-blocking's ten seconds: a reclaim queued behind a
-        // busy SQLite write lock can outlast ten seconds, and the attempt's own timeout would then settle
-        // the row first and leave the reclaim nothing to find.
         var enqueued = await ChaosSpecHelpers.EnqueueNoPayloadAsync(Jobs, TestNamespace, "chaos-holding", ct);
         ChaosProbes.Reset(enqueued.JobId);
 
@@ -99,7 +96,7 @@ public sealed class WorkerCrashRecoveryChaosSpec : ActaRuntimeTestBase<Conforman
         // --- 2. Heartbeat cancels the handler whose lease was lost. No timeout within the wait can
         // cancel it instead, so only the heartbeat passes this. The gate then opens for whichever run
         // claims the reclaimed row next.
-        await Runtime.RunHeartbeatOnceAsync(ct);
+        await RunAnsweredHeartbeatAsync(ct);
         var cancelled = ChaosProbes.WaitCancelledAsync(enqueued.JobId, ct);
         var cancelledInTime = await Task.WhenAny(cancelled, Task.Delay(SpecWaits.Gate, ct)) == cancelled;
         ChaosProbes.Release(enqueued.JobId);

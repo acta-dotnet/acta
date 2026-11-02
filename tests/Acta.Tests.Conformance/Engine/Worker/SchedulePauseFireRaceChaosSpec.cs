@@ -1,5 +1,4 @@
 using Acta.Tests.Conformance.Contracts;
-using Acta.Tests.Conformance.Scenarios;
 using Acta.Tests.Conformance.Testing;
 using Microsoft.Extensions.DependencyInjection;
 using TestJobs;

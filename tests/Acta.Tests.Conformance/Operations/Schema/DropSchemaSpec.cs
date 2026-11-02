@@ -24,35 +24,50 @@ public sealed class DropSchemaSpec : IntegrationSpec<ConformanceFixture>
     {
         var ct = TestContext.Current.CancellationToken;
         await using var probe = await Fixture.CreateHistoryProbeAsync(history: null);
-        await Fixture.ApplyMigrationsAsync(probe.ConnectionString, probe.SchemaName, ct);
+        await SpecWaits.RetryTransientAsync(Fixture, () => Fixture.ApplyMigrationsAsync(probe.ConnectionString, probe.SchemaName, ct), ct);
         var sql = new SqlResourceCatalog(Fixture.DialectToken, probe.SchemaName);
         string[] objects = ["migrations", .. ActaSchema.Entities.Select(e => e.TableName)];
         await using var connection = await Fixture.OpenConnectionAsync(probe.ConnectionString, ct);
         var drop = new DropSchemaHandler(connection, sql, TimeoutSeconds);
-        Assert.Equal(objects, await ReadableAsync(connection, probe.SchemaName, objects, ct));
+        Assert.Equal(objects, await InstalledAsync(connection, probe.SchemaName, objects, ct));
 
-        await drop.HandleAsync(ct);
+        await SpecWaits.RetryTransientAsync(Fixture, () => drop.HandleAsync(ct), ct);
 
-        var left = await ReadableAsync(connection, probe.SchemaName, objects, ct);
+        var left = await InstalledAsync(connection, probe.SchemaName, objects, ct);
         Assert.True(left.Count == 0, $"DropSchema left {string.Join(", ", left)} behind; on SQLite, name each in DropSchema.sqlite.sql.");
-        await drop.HandleAsync(ct);
+        await SpecWaits.RetryTransientAsync(Fixture, () => drop.HandleAsync(ct), ct);
     }
 
-    // The objects a zero-row select can read; one that is gone fails the select.
-    private static async Task<List<string>> ReadableAsync(DbConnection connection, string schema, string[] objects, CancellationToken ct)
+    /// <summary>The objects the catalog lists in the schema, in the order of <paramref name="objects"/>.</summary>
+    private async Task<List<string>> InstalledAsync(DbConnection connection, string schema, string[] objects, CancellationToken ct)
     {
-        var readable = new List<string>();
-        foreach (var name in objects)
-        {
-            await using var select = connection.CreateCommand();
-            select.CommandText = $"SELECT 1 FROM {schema}.{name} WHERE 1 = 0";
-            try
+        var listed = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+        await SpecWaits.RetryTransientAsync(
+            Fixture,
+            async () =>
             {
-                await select.ExecuteScalarAsync(ct);
-                readable.Add(name);
-            }
-            catch (DbException) { }
-        }
-        return readable;
+                listed.Clear();
+                await using var list = connection.CreateCommand();
+                if (Fixture.DialectToken == "sqlite")
+                {
+                    list.CommandText = "SELECT name FROM sqlite_master WHERE type = 'table'";
+                }
+                else
+                {
+                    list.CommandText = "SELECT table_name FROM information_schema.tables WHERE table_schema = @schema";
+                    var parameter = list.CreateParameter();
+                    parameter.ParameterName = "@schema";
+                    parameter.Value = schema;
+                    list.Parameters.Add(parameter);
+                }
+                await using var reader = await list.ExecuteReaderAsync(ct);
+                while (await reader.ReadAsync(ct))
+                {
+                    listed.Add(reader.GetString(0));
+                }
+            },
+            ct
+        );
+        return [.. objects.Where(listed.Contains)];
     }
 }

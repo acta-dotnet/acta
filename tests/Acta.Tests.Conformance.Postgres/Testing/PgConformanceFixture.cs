@@ -11,6 +11,14 @@ namespace Acta.Tests.Conformance.Postgres.Testing;
 /// </summary>
 public sealed partial class PgConformanceFixture : IConformanceFixture
 {
+    /// <summary>The product's conflicts, plus a lock or command timeout the product does not repeat.</summary>
+    public bool IsTransient(System.Data.Common.DbException exception) =>
+        Dialect.IsTransientConflict(exception)
+        || exception is PostgresException { SqlState: PostgresErrorCodes.LockNotAvailable }
+        || exception is NpgsqlException { InnerException: TimeoutException };
+
+    private static readonly PostgresDialect Dialect = new();
+
     /// <summary>
     /// The user tables in <paramref name="schemaName"/> via the Postgres information_schema.
     /// </summary>

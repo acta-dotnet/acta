@@ -43,7 +43,7 @@ public sealed class RetireRecurringSlotSpec : ActaRuntimeTestBase<ConformanceFix
         RecurringPingHandler.DuringNextFire[TestNamespace] = async () =>
         {
             Assert.Equal(ControlAction.Applied, (await RetireAsync("recurring-ping", ct)).Action);
-            await Runtime.RunHeartbeatOnceAsync(ct);
+            await RunAnsweredHeartbeatAsync(ct);
         };
 
         Assert.Equal(RunOnceStatus.Completed, await Runtime.RunOnceAsync(slotId, ct));
@@ -208,7 +208,7 @@ public sealed class RetireRecurringSlotSpec : ActaRuntimeTestBase<ConformanceFix
         RecurringPingHandler.DuringNextFire[TestNamespace] = async () =>
         {
             Assert.Equal(ControlAction.Applied, (await RetireAsync("recurring-ping", ct)).Action);
-            await Runtime.RunHeartbeatOnceAsync(ct);
+            await RunAnsweredHeartbeatAsync(ct);
         };
 
         Assert.Equal(RunOnceStatus.Completed, await Runtime.RunOnceAsync(slotId, ct));
@@ -232,10 +232,13 @@ public sealed class RetireRecurringSlotSpec : ActaRuntimeTestBase<ConformanceFix
         await build.GetServices<WorkerRuntime>().Single().InitializeAsync(ct);
     }
 
-    /// <summary>Puts every schedule of the slot one second past due, inside the misfire grace.</summary>
+    /// <summary>
+    /// Puts every schedule of the slot one second past due on the database clock, which the admitter reads, inside the
+    /// misfire grace.
+    /// </summary>
     private async Task MakeDueAsync(long slotId, CancellationToken ct)
     {
-        var due = DateTime.UtcNow.AddSeconds(-1);
+        var due = (await Services.GetRequiredService<IActaClock>().GetUtcNowAsync(ct)).AddSeconds(-1);
         foreach (var s in await ScheduleTestOps.ReadAsync(Db, slotId, ct))
         {
             await Db.From<ScheduleStateEntity>()

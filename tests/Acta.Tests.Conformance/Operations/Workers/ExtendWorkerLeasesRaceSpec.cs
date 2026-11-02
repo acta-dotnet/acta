@@ -12,8 +12,9 @@ namespace Acta.Tests.Conformance.Operations.Workers;
 /// A child's completion locks its own jobs_state row and then its parent's, while the lease renewal walks
 /// the rows the worker holds in job-id order, parent first. When one worker runs both, the two meet
 /// in opposite orders. The renewal skips a row another transaction holds and reports it unrenewed, so
-/// it never waits. Deadlock retry is off, so a deadlock fails the test instead of being retried.
-/// SQLite runs one writer at a time, so the two cannot interleave there.
+/// it never waits. Deadlock retry is off, so a deadlock fails the test instead of being retried, and the
+/// spec runs on a schema of its own, so only its own statements can form one. SQLite runs one writer at a
+/// time, so the two cannot interleave there.
 /// </summary>
 [ConformanceSpec(
     "execution.lease-renewal-race",
@@ -23,6 +24,8 @@ namespace Acta.Tests.Conformance.Operations.Workers;
 )]
 public sealed class ExtendWorkerLeasesRaceSpec : ActaRuntimeTestBase<ConformanceFixture, TestJobs.TestJobsManifest>
 {
+    protected override bool OwnSchema => true;
+
     protected override void ConfigureServices(IServiceCollection services, string testNamespace)
     {
         base.ConfigureServices(services, testNamespace);

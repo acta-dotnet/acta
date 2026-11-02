@@ -10,7 +10,8 @@ namespace Acta.Tests.Conformance.Scenarios;
 /// <summary>
 /// Operations that race on one lane serialize on the lane lock, which every one of them takes before any
 /// job row (docs/sql-internals.md, "Lane lock order"). Deadlock retry is off for this
-/// spec, so a deadlock fails the test instead of being absorbed by a retry. Each race claims and starts
+/// spec, so a deadlock fails the test instead of being absorbed by a retry, and it runs on a schema of its
+/// own, so only its own operations can form one. Each race claims and starts
 /// the settling job first and then fires the bare completion alongside the other operation, so the two
 /// statements meet. SQLite runs one writer at a time, so its open-transaction race is skipped.
 /// </summary>
@@ -23,6 +24,8 @@ namespace Acta.Tests.Conformance.Scenarios;
 public sealed class LaneLockOrderSpec : ActaRuntimeTestBase<ConformanceFixture, TestJobs.TestJobsManifest>
 {
     private const int Rounds = 20;
+
+    protected override bool OwnSchema => true;
 
     protected override void ConfigureServices(IServiceCollection services, string testNamespace)
     {
@@ -182,8 +185,7 @@ public sealed class LaneLockOrderSpec : ActaRuntimeTestBase<ConformanceFixture, 
                 ct
             )
             .AsTask();
-        await Task.Delay(TimeSpan.FromMilliseconds(500), ct);
-        Assert.False(batch.IsCompleted, "the batch did not wait for the parent row");
+        await LockWaitProbe.WaitAsync(Db, "enqueue_jobs", LockWait.Row, batch, gate, ct);
 
         await Db.ExecuteRawAsync(
             "UPDATE {schema}.definitions SET lane_name = @p_lane WHERE namespace_id = @p_ns AND definition_name = @p_name",

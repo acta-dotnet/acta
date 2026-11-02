@@ -44,7 +44,7 @@ public sealed class HandlerLockHeartbeatSpec : ActaRuntimeTestBase<ConformanceFi
         // sub-millisecond, which would make an applied extend land on the same stored instant and read as
         // "did not advance". Let the clock tick past the stored granularity before extending.
         await Task.Delay(TimeSpan.FromMilliseconds(10), ct);
-        await Runtime.RunHeartbeatOnceAsync(ct);
+        await RunAnsweredHeartbeatAsync(ct);
         var after = await LeaseExpiryAsync(lockKey, ct);
 
         Assert.True(after > before, $"lock lease expiry did not advance ({before:o} -> {after:o}).");
@@ -74,7 +74,7 @@ public sealed class HandlerLockHeartbeatSpec : ActaRuntimeTestBase<ConformanceFi
             (await Services.GetRequiredService<LocksOperations>().ReleaseLockAsync(new LockToken(lockKey, holdToken), ct)).Released
         );
 
-        await Runtime.RunHeartbeatOnceAsync(ct);
+        await RunAnsweredHeartbeatAsync(ct);
 
         Assert.True(await LockHolder.Observed(TestNamespace).WaitAsync(Timeout, ct));
 
