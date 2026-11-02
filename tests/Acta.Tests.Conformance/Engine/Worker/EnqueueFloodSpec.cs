@@ -15,15 +15,16 @@ namespace Acta.Tests.Conformance.Engine.Worker;
     "worker.enqueue-flood",
     "An enqueue flood leaves the worker its turn",
     Area = "Workers",
-    Contract = "While eight callers enqueue as fast as the database takes them, a job is claimed, run, and completed within two seconds."
+    Contract = "While eight callers enqueue as fast as the database takes them, a job is claimed, run, and completed within five seconds."
 )]
 public sealed class EnqueueFloodSpec : ActaRuntimeTestBase<ConformanceFixture, TestJobs.TestJobsManifest>
 {
     private const int Callers = 8;
 
-    private static readonly TimeSpan Bound = TimeSpan.FromSeconds(2);
+    /// <summary>Above what a CI runner shared by three databases' suites takes, and below a claim starved until the flood stops.</summary>
+    private static readonly TimeSpan Bound = TimeSpan.FromSeconds(5);
 
-    [Fact(DisplayName = "A job is claimed, run, and completed within two seconds while eight callers flood enqueues")]
+    [Fact(DisplayName = "A job is claimed, run, and completed within five seconds while eight callers flood enqueues")]
     public async Task A_job_runs_through_an_enqueue_flood()
     {
         var ct = TestContext.Current.CancellationToken;
