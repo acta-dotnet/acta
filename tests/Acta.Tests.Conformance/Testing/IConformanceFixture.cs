@@ -107,7 +107,7 @@ public interface IConformanceFixture
 
     /// <summary>
     /// Create the external-outbox source table named <paramref name="table"/> in the test schema by
-    /// executing the provider's <c>{Provider}OutboxDdl.CreateScript</c> output against the test database
+    /// executing the provider's <c>{Provider}Migrations.CreateOutboxScript</c> output against the test database
     /// (replacing any prior table of that name), so the DDL API is single-sourced and every relay-store
     /// spec is proof the generated shape works. Per-test table names keep parallel specs from claiming
     /// each other's rows; the DDL derives constraint/index names from the table so they stay unique.

@@ -20,7 +20,7 @@ public sealed partial class PgConformanceFixture
     public async ValueTask ApplyOutboxDdlAsync(string table)
     {
         await ExecOutboxAsync($"DROP TABLE IF EXISTS {Schema}.{table};");
-        await ExecOutboxAsync(Acta.Postgres.PostgresOutboxDdl.CreateScript(table, Schema));
+        await ExecOutboxAsync(Acta.Postgres.PostgresMigrations.CreateOutboxScript(table, Schema));
     }
 
     public async ValueTask StageInOneTransactionAsync(string outboxTable, IReadOnlyList<Acta.EnqueueJobRequest> requests)

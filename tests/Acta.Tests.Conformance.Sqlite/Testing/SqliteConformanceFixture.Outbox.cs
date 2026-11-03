@@ -19,7 +19,7 @@ public sealed partial class SqliteConformanceFixture
     public async ValueTask ApplyOutboxDdlAsync(string table)
     {
         await ExecOutboxAsync($"DROP TABLE IF EXISTS main.{table};");
-        await ExecOutboxAsync(Acta.Sqlite.SqliteOutboxDdl.CreateScript(table));
+        await ExecOutboxAsync(Acta.Sqlite.SqliteMigrations.CreateOutboxScript(table));
     }
 
     public async ValueTask StageInOneTransactionAsync(string outboxTable, IReadOnlyList<Acta.EnqueueJobRequest> requests)

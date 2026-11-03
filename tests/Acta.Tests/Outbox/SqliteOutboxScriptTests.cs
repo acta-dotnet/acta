@@ -10,7 +10,7 @@ namespace Acta.Tests.Outbox;
 /// spelled, as the relay matches ids, and takes only values the claim projection can read into its byte, int, and
 /// DateTime fields.
 /// </summary>
-public sealed class SqliteOutboxDdlTests
+public sealed class SqliteOutboxScriptTests
 {
     private const string Id = "aaaaaaaa-bbbb-cccc-dddd-eeeeeeeeeeee";
 
@@ -134,7 +134,7 @@ public sealed class SqliteOutboxDdlTests
         var db = new SqliteConnection("Data Source=:memory:");
         await db.OpenAsync();
         await using var cmd = db.CreateCommand();
-        cmd.CommandText = (encoding is null ? "" : $"PRAGMA encoding = '{encoding}';") + SqliteOutboxDdl.CreateScript();
+        cmd.CommandText = (encoding is null ? "" : $"PRAGMA encoding = '{encoding}';") + SqliteMigrations.CreateOutboxScript();
         await cmd.ExecuteNonQueryAsync();
         return db;
     }

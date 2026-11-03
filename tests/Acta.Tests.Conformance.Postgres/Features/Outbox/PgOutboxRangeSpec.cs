@@ -66,7 +66,7 @@ public sealed class PgOutboxRangeSpec
         await conn.OpenAsync(ct);
         try
         {
-            await ExecAsync(conn, PostgresOutboxDdl.CreateScript(table, schema), ct);
+            await ExecAsync(conn, PostgresMigrations.CreateOutboxScript(table, schema), ct);
             await body(conn, schema, table, ct);
         }
         finally

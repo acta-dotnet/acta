@@ -787,7 +787,7 @@ With EF Core, pass `transaction.GetDbTransaction()`.
 
 When the business database is not the Acta ledger, stage an Acta-shaped row in the business database inside your own transaction, and let an Acta relay carry it across. Staging needs no DI and no ledger connection: reference your database's provider package (`Acta.Postgres`, `Acta.SqlServer`, or `Acta.Sqlite`) and call the extension on the concrete provider transaction.
 
-1. Add `PostgresOutboxDdl.CreateScript()` (or `SqlServerOutboxDdl` / `SqliteOutboxDdl`) to your migrations. It is a plain script your migration system runs once; keep its three indexes, claims depend on them.
+1. Add `PostgresMigrations.CreateOutboxScript()` (or `SqlServerMigrations` / `SqliteMigrations`) to your migrations. It is a plain script your migration system runs once; keep its three indexes, claims depend on them.
 2. Stage inside the business transaction:
 
 ```csharp

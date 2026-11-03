@@ -26,7 +26,7 @@ internal static class OutboxCase
             {
                 create.CommandText =
                     "PRAGMA journal_mode=WAL; PRAGMA synchronous=FULL; CREATE TABLE domain_obligations(business_key TEXT PRIMARY KEY);"
-                    + SqliteOutboxDdl.CreateScript();
+                    + SqliteMigrations.CreateOutboxScript();
                 await create.ExecuteNonQueryAsync(ct);
             }
             await using var transaction = connection.BeginTransaction(deferred: false);

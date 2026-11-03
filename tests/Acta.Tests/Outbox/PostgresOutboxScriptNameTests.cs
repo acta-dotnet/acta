@@ -9,12 +9,12 @@ namespace Acta.Tests.Outbox;
 /// constraint or index name past it would give two objects one name and fail the script. The DDL API takes
 /// every table name that keeps every derived name whole and refuses the rest up front.
 /// </summary>
-public sealed class PostgresOutboxDdlNameTests
+public sealed class PostgresOutboxScriptNameTests
 {
     [Fact]
     public void The_longest_accepted_table_keeps_every_derived_name_within_63_bytes()
     {
-        var script = PostgresOutboxDdl.CreateScript(new string('t', 41));
+        var script = PostgresMigrations.CreateOutboxScript(new string('t', 41));
 
         var names = Regex.Matches(script, @"(?:CONSTRAINT|INDEX) (\w+)").Select(m => m.Groups[1].Value).ToList();
         Assert.NotEmpty(names);
@@ -25,7 +25,7 @@ public sealed class PostgresOutboxDdlNameTests
     [Fact]
     public void A_longer_table_name_is_refused()
     {
-        var ex = Assert.Throws<ArgumentException>(() => PostgresOutboxDdl.CreateScript(new string('t', 42)));
+        var ex = Assert.Throws<ArgumentException>(() => PostgresMigrations.CreateOutboxScript(new string('t', 42)));
         Assert.Equal("table", ex.ParamName);
     }
 }

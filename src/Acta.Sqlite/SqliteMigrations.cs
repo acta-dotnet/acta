@@ -8,9 +8,9 @@ namespace Acta.Sqlite;
 /// pipes it into its own migration system. SQLite has no schema namespace, so the script takes a table
 /// name only, validated by the same lowercase identifier rule as the relay source and staging extension.
 /// </summary>
-public static class SqliteOutboxDdl
+public static class SqliteMigrations
 {
-    public static string CreateScript(string table = "acta_outbox")
+    public static string CreateOutboxScript(string table = "acta_outbox")
     {
         OutboxIdentifier.Validate(table, "table");
 

@@ -8,9 +8,9 @@ namespace Acta.SqlServer;
 /// hand migration. <c>table</c> and <c>schema</c> take the same lowercase identifier validation as the relay source
 /// and staging extension; with no schema the table reference is left unqualified for the login default to resolve.
 /// </summary>
-public static class SqlServerOutboxDdl
+public static class SqlServerMigrations
 {
-    public static string CreateScript(string table = "acta_outbox", string? schema = null)
+    public static string CreateOutboxScript(string table = "acta_outbox", string? schema = null)
     {
         var t = OutboxIdentifier.Qualify(table, schema);
         // Constraint and index names derive from the (bare) table so a non-default table name yields

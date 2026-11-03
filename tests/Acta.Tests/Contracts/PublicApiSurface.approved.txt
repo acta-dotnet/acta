@@ -41,8 +41,8 @@ interface Acta.AspNetCore.IActaControlAuthorizer
 static class Acta.Postgres.PostgresActaExtensions
     static Acta.IActaBuilder UsePostgres(this Acta.IActaBuilder builder, System.Action<Acta.SqlProviderOptions> configure)
     static Acta.IOutboxSourceBuilder UsePostgres(this Acta.IOutboxSourceBuilder source, System.String connectionString)
-static class Acta.Postgres.PostgresOutboxDdl
-    static System.String CreateScript(System.String table = "acta_outbox", System.String schema = null)
+static class Acta.Postgres.PostgresMigrations
+    static System.String CreateOutboxScript(System.String table = "acta_outbox", System.String schema = null)
 static class Acta.Postgres.PostgresOutboxStagingExtensions
     static System.Threading.Tasks.Task AddToActaOutboxAsync(this Npgsql.NpgsqlTransaction transaction, Acta.EnqueueJobRequest request, System.String table = "acta_outbox", System.String schema = null, System.Threading.CancellationToken cancellationToken = default)
 
@@ -61,8 +61,8 @@ sealed class Acta.Redis.RedisWakeupOptions
 static class Acta.SqlServer.SqlServerActaExtensions
     static Acta.IActaBuilder UseSqlServer(this Acta.IActaBuilder builder, System.Action<Acta.SqlProviderOptions> configure)
     static Acta.IOutboxSourceBuilder UseSqlServer(this Acta.IOutboxSourceBuilder source, System.String connectionString)
-static class Acta.SqlServer.SqlServerOutboxDdl
-    static System.String CreateScript(System.String table = "acta_outbox", System.String schema = null)
+static class Acta.SqlServer.SqlServerMigrations
+    static System.String CreateOutboxScript(System.String table = "acta_outbox", System.String schema = null)
 static class Acta.SqlServer.SqlServerOutboxStagingExtensions
     static System.Threading.Tasks.Task AddToActaOutboxAsync(this Microsoft.Data.SqlClient.SqlTransaction transaction, Acta.EnqueueJobRequest request, System.String table = "acta_outbox", System.String schema = null, System.Threading.CancellationToken cancellationToken = default)
 
@@ -70,8 +70,8 @@ static class Acta.SqlServer.SqlServerOutboxStagingExtensions
 static class Acta.Sqlite.SqliteActaExtensions
     static Acta.IActaBuilder UseSqlite(this Acta.IActaBuilder builder, System.Action<Acta.SqlProviderOptions> configure)
     static Acta.IOutboxSourceBuilder UseSqlite(this Acta.IOutboxSourceBuilder source, System.String connectionString)
-static class Acta.Sqlite.SqliteOutboxDdl
-    static System.String CreateScript(System.String table = "acta_outbox")
+static class Acta.Sqlite.SqliteMigrations
+    static System.String CreateOutboxScript(System.String table = "acta_outbox")
 static class Acta.Sqlite.SqliteOutboxStagingExtensions
     static System.Threading.Tasks.Task AddToActaOutboxAsync(this Microsoft.Data.Sqlite.SqliteTransaction transaction, Acta.EnqueueJobRequest request, System.String table = "acta_outbox", System.String schema = null, System.Threading.CancellationToken cancellationToken = default)
 

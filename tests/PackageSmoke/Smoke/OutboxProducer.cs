@@ -23,11 +23,11 @@ public static class OutboxProducer
 {
     public static string Ddl() =>
 #if SMOKE_POSTGRES
-        PostgresOutboxDdl.CreateScript();
+        PostgresMigrations.CreateOutboxScript();
 #elif SMOKE_SQLITE
-        SqliteOutboxDdl.CreateScript();
+        SqliteMigrations.CreateOutboxScript();
 #elif SMOKE_SQLSERVER
-        SqlServerOutboxDdl.CreateScript();
+        SqlServerMigrations.CreateOutboxScript();
 #else
         string.Empty;
 #endif

@@ -67,7 +67,7 @@ public sealed class PgSqliteMixedRelaySpec : ActaRuntimeTestBase<PgConformanceFi
         await using var c = new SqliteConnection(_sqliteConn);
         await c.OpenAsync();
         await using var cmd = c.CreateCommand();
-        cmd.CommandText = Acta.Sqlite.SqliteOutboxDdl.CreateScript("acta_outbox");
+        cmd.CommandText = Acta.Sqlite.SqliteMigrations.CreateOutboxScript("acta_outbox");
         await cmd.ExecuteNonQueryAsync();
     }
 

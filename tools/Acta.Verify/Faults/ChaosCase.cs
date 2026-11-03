@@ -34,7 +34,7 @@ public static class ChaosCase
             await using var create = producer.CreateCommand();
             create.CommandText =
                 "PRAGMA journal_mode=WAL; PRAGMA synchronous=FULL; CREATE TABLE domain_obligations(business_key TEXT PRIMARY KEY);"
-                + SqliteOutboxDdl.CreateScript();
+                + SqliteMigrations.CreateOutboxScript();
             await create.ExecuteNonQueryAsync(ct);
         }
         using var host = await RuntimeHost.StartAsync(state.Provider, state.ConnectionString, state.Schema, false, true, ct);

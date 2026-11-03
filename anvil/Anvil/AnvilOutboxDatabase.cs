@@ -6,7 +6,7 @@ namespace Anvil;
 
 /// <summary>
 /// The lab's producer-side database: a dedicated SQLite file holding a minimal business table plus
-/// the canonical <c>acta_outbox</c> from <see cref="SqliteOutboxDdl.CreateScript"/>. The dashboard's
+/// the canonical <c>acta_outbox</c> from <see cref="SqliteMigrations.CreateOutboxScript"/>. The dashboard's
 /// outbox-pressure loop stages a business INSERT and an <c>AddToActaOutboxAsync</c> record in one
 /// transaction here; every worker's relay drains the file into the selected ledger. Deliberately a
 /// separate file even on a SQLite ledger, so the handoff crosses a real database boundary.
@@ -32,7 +32,7 @@ public sealed class AnvilOutboxDatabase(string path, AnvilSession session)
         command.CommandText =
             "PRAGMA journal_mode = WAL;"
             + "CREATE TABLE anvil_operations (operation_id TEXT NOT NULL PRIMARY KEY, created_at_utc TEXT NOT NULL DEFAULT (strftime('%Y-%m-%d %H:%M:%f','now')));"
-            + SqliteOutboxDdl.CreateScript();
+            + SqliteMigrations.CreateOutboxScript();
         await command.ExecuteNonQueryAsync(ct);
     }
 

@@ -22,7 +22,7 @@ public sealed partial class SqlServerConformanceFixture
     public async ValueTask ApplyOutboxDdlAsync(string table)
     {
         await ExecOutboxAsync($"DROP TABLE IF EXISTS {Schema}.{table};");
-        await ExecOutboxAsync(Acta.SqlServer.SqlServerOutboxDdl.CreateScript(table, Schema));
+        await ExecOutboxAsync(Acta.SqlServer.SqlServerMigrations.CreateOutboxScript(table, Schema));
     }
 
     public async ValueTask StageInOneTransactionAsync(string outboxTable, IReadOnlyList<Acta.EnqueueJobRequest> requests)

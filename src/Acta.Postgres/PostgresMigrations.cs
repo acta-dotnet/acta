@@ -8,11 +8,11 @@ namespace Acta.Postgres;
 /// hand migration. <c>table</c> and <c>schema</c> take the same lowercase identifier validation as the relay source
 /// and staging extension; with no schema the table reference is left unqualified for the database default to resolve.
 /// </summary>
-public static class PostgresOutboxDdl
+public static class PostgresMigrations
 {
     private const int MaxTableLength = 63 - 22;
 
-    public static string CreateScript(string table = "acta_outbox", string? schema = null)
+    public static string CreateOutboxScript(string table = "acta_outbox", string? schema = null)
     {
         ArgumentNullException.ThrowIfNull(table);
         var t = OutboxIdentifier.Qualify(table, schema);

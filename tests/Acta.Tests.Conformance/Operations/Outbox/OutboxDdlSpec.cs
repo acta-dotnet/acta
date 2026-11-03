@@ -6,7 +6,7 @@ namespace Acta.Tests.Conformance.Operations.Outbox;
 
 /// <summary>
 /// Conformance for the provider DDL API: with the shape validator gone, the proof that
-/// <c>{Provider}OutboxDdl.CreateScript</c> emits a usable table is behavioral. The generated script is
+/// <c>{Provider}Migrations.CreateOutboxScript</c> emits a usable table is behavioral. The generated script is
 /// applied to the real database, then the real relay store claims, reschedules, quarantines, and deletes
 /// against it. This also single-sources the canonical fixture DDL through the same API.
 /// </summary>

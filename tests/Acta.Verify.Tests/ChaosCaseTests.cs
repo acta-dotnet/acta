@@ -87,7 +87,7 @@ public sealed class ChaosCaseTests : IDisposable
         await using var create = connection.CreateCommand();
         create.CommandText =
             "CREATE TABLE domain_obligations(business_key TEXT PRIMARY KEY);"
-            + SqliteOutboxDdl.CreateScript()
+            + SqliteMigrations.CreateOutboxScript()
             + (
                 failAfter is not { } limit ? ""
                 : atCommit
