@@ -7,6 +7,14 @@ BEGIN TRY
         BEGIN TRANSACTION;
 
     DECLARE @now DATETIME2(7) = SYSUTCDATETIME();
+    DECLARE @lock_result INT;
+    DECLARE @lock_resource NVARCHAR(255) = N'{{schema}}.schedules.' + CAST(@p_namespace_id AS NVARCHAR(12));
+
+    -- The namespace's schedule lock, exclusive, before any row lock (docs/sql-internals.md, "Schedule lock"): the update
+    -- and the insert below lock definition rows in different orders, so two registrations of one namespace serialize.
+    EXEC @lock_result = sys.sp_getapplock @lock_resource, 'Exclusive', 'Transaction', -1;
+    IF @lock_result < 0
+        THROW 51205, 'ACTA:SCHEDULE_LOCK:The namespace schedule lock was not granted (deadlock victim or cancelled).', 1;
 
     UPDATE jd SET
         definition_status_code = 10 /* DefinitionStatusCode.Active */,

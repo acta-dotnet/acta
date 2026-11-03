@@ -432,7 +432,8 @@ Each namespace has one schedule lock, held until its transaction ends: `sp_getap
 `{schema}.schedules.{namespace_id}` with a `Transaction` owner on SQL Server, and
 `pg_advisory_xact_lock(hashtext('{schema}.schedules'), namespace_id)` or its `_shared` form on PostgreSQL.
 
-- `register_schedules`, `RetireDefinition`, `SetDefinitionOverrides`, and `SuspendNamespace` take it exclusive. A
+- `register_schedules`, `RetireDefinition`, `SetDefinitionOverrides`, and `SuspendNamespace` take it exclusive, and on
+  SQL Server so does `RegisterDefinitions`, whose update and insert lock definition rows in different orders. A
   suspension takes it in a statement of its own before the namespace row; SQLite's one writer orders a suspension and
   an admission without it. An override takes it because it locks the definition row before the slot's `jobs` row,
   the reverse of registration, whose schedules check the definition row after the slot write.
