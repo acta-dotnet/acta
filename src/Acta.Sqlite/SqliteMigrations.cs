@@ -1,15 +1,48 @@
+using Microsoft.Data.Sqlite;
+
 namespace Acta.Sqlite;
 
-/// <summary>
-/// Emits the canonical SQLite <c>acta_outbox</c> CREATE script for producer-owned migration systems. A
-/// plain, non-idempotent migration script (the producer's migration tool owns run-once semantics): the
-/// canonical CREATE TABLE with SQLite storage affinities and ISO-text UTC clock defaults, the keys,
-/// the three named claim indexes, and the named checks. Acta never executes it; the producer
-/// pipes it into its own migration system. SQLite has no schema namespace, so the script takes a table
-/// name only, validated by the same lowercase identifier rule as the relay source and staging extension.
-/// </summary>
+/// <summary>The DDL a consumer applies on SQLite: Acta's own migrations, and the outbox table a producer stages into.</summary>
 public static class SqliteMigrations
 {
+    /// <summary>
+    /// Applies every Acta migration the database file lacks, in one transaction, and returns their names in order; an empty
+    /// list means it is up to date. Opening the file creates it, as on every SQLite path, and puts it in WAL mode. The code
+    /// form of <c>&lt;app&gt; jobs migrate</c>, for a host that owns its command line or a tool.
+    /// </summary>
+    public static Task<IReadOnlyList<string>> ApplyAsync(string connectionString, CancellationToken cancellationToken = default) =>
+        SqliteSchemaMigrator.ApplyToDatabaseAsync(connectionString, "main", cancellationToken);
+
+    /// <summary>
+    /// Creates the outbox table in the producer's database file when it is missing and returns whether it did; an existing
+    /// table is left as it is, and concurrent callers create it once.
+    /// </summary>
+    public static async Task<bool> ApplyOutboxAsync(
+        string connectionString,
+        string table = "acta_outbox",
+        CancellationToken cancellationToken = default
+    )
+    {
+        var script = CreateOutboxScript(table);
+        SqliteSchemaMigrator.RequireDataSource(connectionString);
+        await using var connection = new SqliteConnection(connectionString);
+        await connection.OpenAsync(cancellationToken);
+        return await SchemaMigrations.ApplyOutboxAsync(
+            connection,
+            SqliteSchemaMigrator.DialectToken,
+            table,
+            schema: null,
+            script,
+            cancellationToken
+        );
+    }
+
+    /// <summary>
+    /// The outbox table's CREATE script, for the producer's own migrations: a plain run-once script whose tool owns run-once
+    /// semantics, with SQLite storage affinities, ISO-text UTC clock defaults, the keys, the three named claim indexes, and
+    /// the named checks. <c>ApplyOutboxAsync</c> runs it for a producer with no migration tool. SQLite has no schema
+    /// namespace, so it takes a table name only, under the relay source's lowercase identifier rule.
+    /// </summary>
     public static string CreateOutboxScript(string table = "acta_outbox")
     {
         OutboxIdentifier.Validate(table, "table");

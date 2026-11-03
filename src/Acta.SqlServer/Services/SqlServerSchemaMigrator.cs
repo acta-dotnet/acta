@@ -38,42 +38,35 @@ internal sealed class SqlServerSchemaMigrator(SqlProviderOptions options, ILogge
             EXEC (N'ALTER DATABASE CURRENT SET READ_COMMITTED_SNAPSHOT ON WITH ROLLBACK IMMEDIATE');
         """;
 
-    private const string DialectToken = "mssql";
+    internal const string DialectToken = "mssql";
 
-    // A proven login waits out a database another installer is still creating; an unproven one waits a few seconds for one
-    // another installer is switching. The step itself restarts a few times at most.
+    // A proven login waits out a database another installer is still creating. An unproven one tries once more after two
+    // seconds: another installer's READ_COMMITTED_SNAPSHOT change refuses logins for a moment with the same 18456 a wrong
+    // password gets, so a wrong password costs two failed logins a run instead of one.
     private const int ProvenOpenAttempts = 60;
-    private const int UnprovenOpenAttempts = 10;
+    private const int UnprovenOpenAttempts = 2;
     private const int InstallAttempts = 5;
 
     private static readonly Assembly ProviderAssembly = typeof(SqlServerSchemaMigrator).Assembly;
     private static readonly TimeSpan RetryDelay = TimeSpan.FromMilliseconds(500);
+    private static readonly TimeSpan UnprovenOpenDelay = TimeSpan.FromSeconds(2);
 
     protected override Assembly DriverAssembly => typeof(SqlConnection).Assembly;
 
     protected override int CertifiedMajor => CertifiedDriverMajor;
 
-    protected override Task ApplyOnStartupAsync(string connectionString, string schemaName, CancellationToken ct) =>
+    protected override Task<IReadOnlyList<string>> ApplyOnStartupAsync(string connectionString, string schemaName, CancellationToken ct) =>
         EnsureDatabaseAndApplyAsync(connectionString, schemaName, ct);
+
+    protected override Task<IReadOnlyList<string>> ApplyOnDeployAsync(string connectionString, string schemaName, CancellationToken ct) =>
+        ApplyToDatabaseAsync(connectionString, schemaName, ct);
 
     protected override Task PreflightOnStartupAsync(string connectionString, string schemaName, CancellationToken ct) =>
         PreflightAsync(connectionString, schemaName, ct);
 
-    public static async Task<IReadOnlyList<string>> ApplyAsync(SqlConnection connection, string schemaName, CancellationToken ct)
-    {
-        ArgumentNullException.ThrowIfNull(connection);
-        SqlIdentifierSyntax.ValidateBareIdentifier(schemaName, nameof(schemaName));
-        if (connection.State != ConnectionState.Open)
-        {
-            await connection.OpenAsync(ct);
-        }
-
-        return await SchemaMigrations.ApplyAsync(connection, schemaName, DialectToken, ProviderAssembly, ct);
-    }
-
     /// <summary>
     /// Dev convenience: connects to master, creates the database if it is missing, then runs <see cref="ApplyToDatabaseAsync"/>.
-    /// Production creates the database in infrastructure and applies to it from a deploy step.
+    /// A deploy step applies to a database infrastructure created.
     /// </summary>
     public static async Task<IReadOnlyList<string>> EnsureDatabaseAndApplyAsync(
         string connectionString,
@@ -81,17 +74,8 @@ internal sealed class SqlServerSchemaMigrator(SqlProviderOptions options, ILogge
         CancellationToken ct
     )
     {
-        ArgumentException.ThrowIfNullOrWhiteSpace(connectionString);
+        var databaseName = RequireDatabase(connectionString);
         SqlIdentifierSyntax.ValidateBareIdentifier(schemaName, nameof(schemaName));
-
-        var targetBuilder = new SqlConnectionStringBuilder(connectionString);
-        var databaseName = targetBuilder.InitialCatalog;
-        if (string.IsNullOrWhiteSpace(databaseName))
-        {
-            throw new InvalidOperationException(
-                "EnsureDatabaseAndApplyAsync requires the connection string to include an Initial Catalog (target database name)."
-            );
-        }
         SqlIdentifierSyntax.ValidateDatabaseName(databaseName, nameof(databaseName));
 
         var masterBuilder = new SqlConnectionStringBuilder(connectionString) { InitialCatalog = "master" };
@@ -121,34 +105,38 @@ internal sealed class SqlServerSchemaMigrator(SqlProviderOptions options, ILogge
 
     /// <summary>
     /// The target-database step every SQL Server apply runs: open the database, run <see cref="InstallGuard"/>, apply. It opens
-    /// nothing but the target, so it never needs master.
+    /// nothing but the target, so it never needs master. Behind <c>SqlServerMigrations.ApplyAsync</c> and <c>jobs migrate</c>.
     /// </summary>
-    internal static Task<IReadOnlyList<string>> ApplyToDatabaseAsync(string connectionString, string schemaName, CancellationToken ct) =>
-        ApplyToDatabaseAsync(connectionString, schemaName, loginProven: false, ct);
+    internal static Task<IReadOnlyList<string>> ApplyToDatabaseAsync(string connectionString, string schema, CancellationToken ct) =>
+        ApplyToDatabaseAsync(connectionString, schema, loginProven: false, ct);
+
+    /// <summary>The database the connection string names, refused before anything opens when it names none.</summary>
+    internal static string RequireDatabase(string connectionString)
+    {
+        ArgumentException.ThrowIfNullOrWhiteSpace(connectionString);
+        var database = new SqlConnectionStringBuilder(connectionString).InitialCatalog;
+        return string.IsNullOrWhiteSpace(database)
+            ? throw new ArgumentException(
+                "The connection string must name the database to install into (Initial Catalog); without one SQL Server opens the login's default database.",
+                nameof(connectionString)
+            )
+            : database;
+    }
 
     private static async Task<IReadOnlyList<string>> ApplyToDatabaseAsync(
         string connectionString,
-        string schemaName,
+        string schema,
         bool loginProven,
         CancellationToken ct
     )
     {
         // Before anything opens: the guard can switch the database's setting and end its other sessions.
-        ArgumentException.ThrowIfNullOrWhiteSpace(connectionString);
-        SqlIdentifierSyntax.ValidateBareIdentifier(schemaName, nameof(schemaName));
-        var builder = new SqlConnectionStringBuilder(connectionString);
-        if (string.IsNullOrWhiteSpace(builder.InitialCatalog))
-        {
-            throw new ArgumentException(
-                "The connection string must name the database to install into (Initial Catalog); without one SQL Server opens the login's default database.",
-                nameof(connectionString)
-            );
-        }
+        RequireDatabase(connectionString);
+        SqlIdentifierSyntax.ValidateBareIdentifier(schema, nameof(schema));
 
         // Unpooled: after a rejected login the pool answers every open with the cached error for its blocking period, which
         // would outlast the retries, and a pooled session another installer's ROLLBACK IMMEDIATE ended must not come back.
-        builder.Pooling = false;
-        var installConnection = builder.ConnectionString;
+        var installConnection = new SqlConnectionStringBuilder(connectionString) { Pooling = false }.ConnectionString;
         for (var attempt = 1; ; attempt++)
         {
             try
@@ -164,7 +152,7 @@ internal sealed class SqlServerSchemaMigrator(SqlProviderOptions options, ILogge
 
                 // The same connection: the session that ran the ALTER keeps the database, and the published script runs
                 // every batch after it the same way.
-                return await ApplyAsync(conn, schemaName, ct);
+                return await SchemaMigrations.ApplyAsync(conn, schema, DialectToken, ProviderAssembly, ct);
             }
             catch (SqlException ex)
                 when (attempt < InstallAttempts && IsConcurrentInstall(ex.Errors.Cast<SqlError>().Select(e => e.Number)))
@@ -177,7 +165,7 @@ internal sealed class SqlServerSchemaMigrator(SqlProviderOptions options, ILogge
 
     private static async Task<SqlConnection> OpenAsync(string connectionString, bool loginProven, CancellationToken ct)
     {
-        var attempts = loginProven ? ProvenOpenAttempts : UnprovenOpenAttempts;
+        var (attempts, delay) = loginProven ? (ProvenOpenAttempts, RetryDelay) : (UnprovenOpenAttempts, UnprovenOpenDelay);
         for (var attempt = 1; ; attempt++)
         {
             var conn = new SqlConnection(connectionString);
@@ -186,10 +174,10 @@ internal sealed class SqlServerSchemaMigrator(SqlProviderOptions options, ILogge
                 await conn.OpenAsync(ct);
                 return conn;
             }
-            catch (SqlException ex) when (attempt < attempts && RetriesOpen(ex.Number, loginProven))
+            catch (SqlException ex) when (attempt < attempts && RetriesOpen(ex.Number))
             {
                 await conn.DisposeAsync();
-                await Task.Delay(RetryDelay, ct);
+                await Task.Delay(delay, ct);
             }
             catch
             {
@@ -243,11 +231,10 @@ internal sealed class SqlServerSchemaMigrator(SqlProviderOptions options, ILogge
     }
 
     /// <summary>
-    /// Whether an open retries: 4060, a database another installer is still creating or switching; 18456 only once the login
-    /// is proven. Before that an 18456 is most likely a wrong password, which must fail at once and must not count a real
-    /// failed login per attempt toward a lockout.
+    /// Whether an open retries: 4060 or 18456, the logins a database another installer is creating or switching refuses for
+    /// a moment. How often depends on whether the login is proven; any other error surfaces at once.
     /// </summary>
-    internal static bool RetriesOpen(int number, bool loginProven) => number == 4060 || (loginProven && number == 18456);
+    internal static bool RetriesOpen(int number) => number is 4060 or 18456;
 
     /// <summary>
     /// Whether a failed step was another installer's guard colliding with it, which starts the step again: 596 session killed,

@@ -4,20 +4,18 @@ using Xunit;
 namespace Acta.Tests.Emit;
 
 /// <summary>
-/// What the SQL Server install retries: an open retries a database that is mid-switch, and a refused login only once the
-/// login is proven; the step starts again only on the errors another installer's guard causes, so a wrong password, a
-/// timeout, or a deadlock fails at once.
+/// What the SQL Server install retries: an open retries a refused login, once before the login is proven; the step starts
+/// again only on the errors another installer's guard causes, so a timeout or a deadlock fails at once.
 /// </summary>
 public sealed class SqlServerBootstrapRetryClassificationTests
 {
     [Theory]
-    [InlineData(4060, false, true)] // the database is mid-switch: wait it out
-    [InlineData(4060, true, true)]
-    [InlineData(18456, false, false)] // most likely a wrong password: fail at once, and count no failed logins toward a lockout
-    [InlineData(18456, true, true)] // the login worked before: the database is settling
-    [InlineData(-2, true, false)] // a connect timeout is not waited out a second time
-    public void An_open_retries_only_a_database_mid_switch(int number, bool loginProven, bool retries) =>
-        Assert.Equal(retries, SqlServerSchemaMigrator.RetriesOpen(number, loginProven));
+    [InlineData(4060, true)] // a database another installer is creating or switching
+    [InlineData(18456, true)] // the same switch refuses a login with this number too
+    [InlineData(-2, false)] // a connect timeout is not waited out a second time
+    [InlineData(10061, false)] // nothing listens there
+    public void An_open_retries_only_a_refused_login(int number, bool retries) =>
+        Assert.Equal(retries, SqlServerSchemaMigrator.RetriesOpen(number));
 
     [Theory]
     [InlineData(new[] { 596 })] // session killed by another installer's ROLLBACK IMMEDIATE

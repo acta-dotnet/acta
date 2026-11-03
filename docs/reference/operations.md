@@ -186,6 +186,7 @@ One row per operation folder, `src/Acta/Operations/<Group>/<Operation>/`, and on
 | `AcquireSchemaLock` | · | · | · | inline | inline | inline | · | `AcquireSchemaLockSpec` |
 | `DropSchema` | · | · | · | inline | inline | inline | · | `DropSchemaSpec` |
 | `EnsureMigrations` | · | · | · | inline | inline | inline | · | `EnsureMigrationsSpec` |
+| `FindOutboxTable` | · | · | · | inline | inline | inline | · | `FindOutboxTableSpec` |
 | `LoadAppliedMigrations` | · | · | · | inline | inline | inline | · | `LoadAppliedMigrationsSpec` |
 
 ## Signals

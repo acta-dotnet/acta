@@ -7,7 +7,7 @@ public sealed class SqlProviderOptions
     public const int MaxDeadlockRetryAttempts = 100;
 
     /// <summary>
-    /// Provider connection string. Master and target DB negotiated at migration time.
+    /// Provider connection string, naming the database that holds the Acta schema.
     /// </summary>
     public string ConnectionString { get; set; } = "";
 
@@ -34,11 +34,9 @@ public sealed class SqlProviderOptions
     public int DeadlockRetryAttempts { get; set; } = 5;
 
     /// <summary>
-    /// Dev and sample convenience: when <c>true</c>, the runtime's <c>InitializeAsync</c> creates
-    /// the application database if it's missing and applies pending migrations and installs the
-    /// routines before any catalog writes happen. Default <c>false</c>; production deployments
-    /// should keep DB lifecycle in infrastructure (operator scripts, IaC) and treat the schema
-    /// as a precondition of the runtime, not a side effect of it.
+    /// Development only: when <c>true</c>, startup creates the database if it is missing and applies the migrations it
+    /// lacks before any catalog write. Default <c>false</c>: production applies them from a deploy step, with
+    /// <c>&lt;app&gt; jobs migrate</c> or the published script, and treats the schema as a precondition of the runtime.
     /// </summary>
     public bool ApplyMigrationsOnStartup { get; set; } = false;
 }

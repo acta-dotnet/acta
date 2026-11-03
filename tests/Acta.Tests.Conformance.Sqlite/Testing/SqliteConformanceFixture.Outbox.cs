@@ -18,9 +18,15 @@ public sealed partial class SqliteConformanceFixture
     // prior run's table is replaced. Constraint/index names derive from the table, so no cross-table collision.
     public async ValueTask ApplyOutboxDdlAsync(string table)
     {
-        await ExecOutboxAsync($"DROP TABLE IF EXISTS main.{table};");
+        await DropOutboxAsync(table);
         await ExecOutboxAsync(Acta.Sqlite.SqliteMigrations.CreateOutboxScript(table));
     }
+
+    // SQLite has one schema, main, so a qualified and an unqualified table are the same table.
+    public Task<bool> ApplyOutboxAsync(string table, bool unqualified = false) =>
+        Acta.Sqlite.SqliteMigrations.ApplyOutboxAsync(SqliteIntegrationSchema.BootstrappedConnectionString, table);
+
+    public Task DropOutboxAsync(string table, bool unqualified = false) => ExecOutboxAsync($"DROP TABLE IF EXISTS main.{table};");
 
     public async ValueTask StageInOneTransactionAsync(string outboxTable, IReadOnlyList<Acta.EnqueueJobRequest> requests)
     {
@@ -83,7 +89,7 @@ public sealed partial class SqliteConformanceFixture
         return Convert.ToInt32(await cmd.ExecuteScalarAsync(), CultureInfo.InvariantCulture);
     }
 
-    public object CreateOutboxConnection(string table) =>
+    public object CreateOutboxConnection(string table, bool unqualified = false) =>
         new OutboxSourceFactory(SqliteIntegrationSchema.BootstrappedConnectionString, new Acta.Sqlite.SqliteOutboxDialect(), "main").Create(
             "main",
             table
@@ -95,7 +101,7 @@ public sealed partial class SqliteConformanceFixture
         source.UseSqlite(SqliteIntegrationSchema.BootstrappedConnectionString);
     }
 
-    private static async ValueTask ExecOutboxAsync(string sql)
+    private static async Task ExecOutboxAsync(string sql)
     {
         await using var c = new SqliteConnection(SqliteIntegrationSchema.BootstrappedConnectionString);
         await c.OpenAsync();

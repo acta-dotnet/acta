@@ -41,7 +41,7 @@ public sealed class SqliteIntegrationSchema : IIntegrationSchema
         var dbPath = Path.Combine(Path.GetTempPath(), $"acta-conformance-{Guid.NewGuid():N}.db");
         var connectionString = new SqliteConnectionStringBuilder { DataSource = dbPath }.ConnectionString;
 
-        await SqliteSchemaMigrator.EnsureDatabaseAndApplyAsync(connectionString, "main", CancellationToken.None);
+        await SqliteMigrations.ApplyAsync(connectionString, CancellationToken.None);
         await UpsertFrameworkNamespaceAsync(connectionString);
 
         return connectionString;

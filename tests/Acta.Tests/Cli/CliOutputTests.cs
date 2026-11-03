@@ -424,6 +424,7 @@ public class CliOutputTests
         Assert.Contains("pause", text);
         Assert.Contains("debug", text);
         Assert.Contains("events", text);
+        Assert.Contains("migrate", text);
         Assert.Contains("shop", text);
         Assert.Contains("billing", text);
     }
@@ -434,6 +435,29 @@ public class CliOutputTests
         var w = new StringWriter();
         CliOutput.WriteUsage(w, []);
         Assert.Contains("Registered namespaces: (none)", w.ToString());
+    }
+
+    [Fact]
+    public void Migrate_plain_names_each_applied_migration_or_says_the_schema_is_up_to_date()
+    {
+        var applied = new StringWriter();
+        CliOutput.WriteMigrate(applied, "acta", ["M20260101000000_init", "M20260102000000_add_flags"], json: false);
+        Assert.Equal(
+            ["applied M20260101000000_init to schema acta", "applied M20260102000000_add_flags to schema acta"],
+            applied.ToString().Split(Environment.NewLine, StringSplitOptions.RemoveEmptyEntries)
+        );
+
+        var current = new StringWriter();
+        CliOutput.WriteMigrate(current, "acta", [], json: false);
+        Assert.Equal("schema acta is up to date", current.ToString().Trim());
+    }
+
+    [Fact]
+    public void Migrate_json_writes_the_schema_and_the_applied_names()
+    {
+        var w = new StringWriter();
+        CliOutput.WriteMigrate(w, "acta", ["M20260101000000_init"], json: true);
+        Assert.Equal("{\"schema\":\"acta\",\"applied\":[\"M20260101000000_init\"]}", w.ToString().Trim());
     }
 
     [Fact]
@@ -485,8 +509,10 @@ public class CliOutputTests
         nameof(CliOutput.WriteExplanation),
         nameof(CliOutput.WriteSnapshot),
         nameof(CliOutput.WriteStatus),
-        // Usage text lists verbs and namespace names and renders no entity, so it carries no identity
-        // to leak. Listed here so the surface comparison stays exact rather than filtered.
+        // Usage text lists verbs and namespace names, and migrate prints a schema and migration names;
+        // neither renders an entity, so neither carries an identity to leak. Listed here so the surface
+        // comparison stays exact rather than filtered.
+        nameof(CliOutput.WriteMigrate),
         nameof(CliOutput.WriteUsage),
     ];
 

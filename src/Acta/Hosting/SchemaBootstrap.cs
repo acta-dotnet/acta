@@ -6,7 +6,7 @@ namespace Acta;
 
 /// <summary>
 /// The startup every provider's schema migrator runs as its <see cref="IProviderBootstrap"/>. Each provider supplies its
-/// driver assembly, the driver major it is certified against, and its two migrator entry points.
+/// driver assembly, the driver major it is certified against, and its three migrator entry points.
 /// </summary>
 internal abstract class SchemaBootstrap(SqlProviderOptions options, ILogger? log) : IProviderBootstrap
 {
@@ -14,7 +14,15 @@ internal abstract class SchemaBootstrap(SqlProviderOptions options, ILogger? log
 
     protected abstract int CertifiedMajor { get; }
 
-    protected abstract Task ApplyOnStartupAsync(string connectionString, string schemaName, CancellationToken ct);
+    /// <summary>The deploy step's apply: a server provider's database must exist, and SQLite's open creates the file.</summary>
+    protected abstract Task<IReadOnlyList<string>> ApplyOnDeployAsync(string connectionString, string schemaName, CancellationToken ct);
+
+    /// <summary>
+    /// The development apply. A server provider creates the database when it is missing first; SQLite's open creates the
+    /// file, so its deploy apply serves both.
+    /// </summary>
+    protected virtual Task<IReadOnlyList<string>> ApplyOnStartupAsync(string connectionString, string schemaName, CancellationToken ct) =>
+        ApplyOnDeployAsync(connectionString, schemaName, ct);
 
     protected abstract Task PreflightOnStartupAsync(string connectionString, string schemaName, CancellationToken ct);
 
@@ -28,12 +36,24 @@ internal abstract class SchemaBootstrap(SqlProviderOptions options, ILogger? log
 
         if (options.ApplyMigrationsOnStartup)
         {
-            await ApplyOnStartupAsync(options.ConnectionString, options.Schema, ct);
+            var applied = await ApplyOnStartupAsync(options.ConnectionString, options.Schema, ct);
+            if (applied.Count > 0 && log?.IsEnabled(LogLevel.Information) == true)
+            {
+                var detail = $"schema {options.Schema}: {string.Join(", ", applied)}";
+                ActaLog.MigrationsApplied(log, detail);
+            }
             return;
         }
 
         await PreflightOnStartupAsync(options.ConnectionString, options.Schema, ct);
     }
+
+    /// <summary>
+    /// What <c>jobs migrate</c> runs: the deploy apply with the configured connection string and schema. Returns the schema
+    /// and the names applied, in order.
+    /// </summary>
+    public async Task<(string Schema, IReadOnlyList<string> Applied)> MigrateAsync(CancellationToken ct) =>
+        (options.Schema, await ApplyOnDeployAsync(options.ConnectionString, options.Schema, ct));
 }
 
 /// <summary>

@@ -54,6 +54,9 @@ internal static partial class ActaLog
     [LoggerMessage(Level = LogLevel.Information, Message = "Acta: enqueue-only process; no workers registered.")]
     public static partial void EnqueueOnlyProcess(ILogger log);
 
+    [LoggerMessage(Level = LogLevel.Information, Message = "Acta applied migrations at startup ({ActaDetail}).")]
+    public static partial void MigrationsApplied(ILogger log, string actaDetail);
+
     [LoggerMessage(Level = LogLevel.Error, Message = "WorkerRuntime: claim iteration failed; backing off {ActaDurationMs}ms before retry.")]
     public static partial void ClaimIterationFailed(ILogger log, Exception exception, long actaDurationMs);
 

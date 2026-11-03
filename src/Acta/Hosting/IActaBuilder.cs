@@ -54,9 +54,9 @@ public interface IActaBuilder
         where TManifest : class, IJobManifest;
 
     /// <summary>
-    /// Opt this host out of the automatic jobs CLI: a process started with the first argument
-    /// "jobs" then boots normally instead of running the CLI verb and exiting. For apps that
-    /// own their command-line surface.
+    /// Opt this host out of the automatic jobs CLI: a process started with "jobs" as its first
+    /// argument after any host switches then boots normally instead of running the CLI verb and
+    /// exiting. For apps that own their command-line surface.
     /// </summary>
     IActaBuilder DisableCli();
 

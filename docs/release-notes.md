@@ -12,6 +12,14 @@ Not tagged yet.
 
 **The outbox table's script moved to each provider's migrations class**: `PostgresOutboxDdl.CreateScript()`, `SqlServerOutboxDdl.CreateScript()`, and `SqliteOutboxDdl.CreateScript()` are `PostgresMigrations.CreateOutboxScript()`, `SqlServerMigrations.CreateOutboxScript()`, and `SqliteMigrations.CreateOutboxScript()`, with the same arguments and the same script.
 
+### Additions
+
+- **`<app> jobs migrate` applies Acta's migrations from a deploy step.** It runs the app with its own provider options, so it migrates the connection string and schema the workers use, prints each migration it applied or that the schema is up to date, and exits 0 or 1. It never creates a PostgreSQL or SQL Server database and never touches an outbox table. See [Migration ownership](operator-guide.md#migration-ownership).
+- `PostgresMigrations.ApplyAsync`, `SqlServerMigrations.ApplyAsync`, and `SqliteMigrations.ApplyAsync` are the same apply from code, for a host that owns its command line or a separate tool, and return the names they applied.
+- `ApplyOutboxAsync` on each provider's migrations class creates the external outbox table in the producer's database when it is missing, once however many callers race, and leaves an existing table as it is.
+- The CLI starts when `jobs` follows host switches such as `--environment Staging`. Before, a switch ahead of `jobs` booted the workers instead.
+- A refusal at startup for a missing or foreign migration names all three ways to apply: `jobs migrate`, `ApplyAsync`, and the published script.
+
 ### Fixes
 
 - On SQL Server, an install turns `READ_COMMITTED_SNAPSHOT` on only in a database that holds no objects yet, and refuses a system database. Before, the startup migration and the published script turned it on in any database, which disconnected every session in it once. Acta runs with it on or off, so a database that already holds objects keeps its setting.

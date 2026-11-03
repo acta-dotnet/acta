@@ -20,7 +20,7 @@ internal static class ActaProviderRegistration
         [DynamicallyAccessedMembers(DynamicallyAccessedMemberTypes.PublicConstructors)] TBootstrap
     >(IActaBuilder builder, DbProvider provider, Action<SqlProviderOptions> configure)
         where TDialect : class, ISqlDialect
-        where TBootstrap : class, IProviderBootstrap
+        where TBootstrap : SchemaBootstrap
     {
         ArgumentNullException.ThrowIfNull(builder);
         ArgumentNullException.ThrowIfNull(configure);
@@ -46,7 +46,9 @@ internal static class ActaProviderRegistration
             sp.GetService<ILogger<DbSession>>()
         ));
         services.AddSingleton<IDbSession>(static sp => sp.GetRequiredService<DbSession>());
-        services.AddSingleton<IProviderBootstrap, TBootstrap>();
+        // One instance behind both: the worker host runs it at startup, and jobs migrate applies through it.
+        services.AddSingleton<SchemaBootstrap, TBootstrap>();
+        services.AddSingleton<IProviderBootstrap>(static sp => sp.GetRequiredService<SchemaBootstrap>());
         return builder;
     }
 

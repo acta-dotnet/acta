@@ -3,8 +3,8 @@ using System.Data.Common;
 namespace Acta;
 
 /// <summary>
-/// The schema bootstrap's statements, each run over the caller's connection: the per-schema installer lock, the
-/// migration-history table and its rows, and the drop.
+/// The schema bootstrap's statements, each run over the caller's connection: the installer lock, the migration-history
+/// table and its rows, the drop, and the probe of a producer's outbox table.
 /// </summary>
 internal sealed class SchemaOperations(DbConnection connection, SqlResourceCatalog sql, int commandTimeoutSeconds)
 {
@@ -12,13 +12,22 @@ internal sealed class SchemaOperations(DbConnection connection, SqlResourceCatal
     private readonly EnsureMigrationsHandler _ensureMigrations = new(connection, sql, commandTimeoutSeconds);
     private readonly LoadAppliedMigrationsHandler _loadAppliedMigrations = new(connection, sql, commandTimeoutSeconds);
     private readonly DropSchemaHandler _dropSchema = new(connection, sql, commandTimeoutSeconds);
+    private readonly FindOutboxTableHandler _findOutboxTable = new(connection, sql, commandTimeoutSeconds);
 
     /// <summary>
     /// Takes the per-schema installer lock inside the migration transaction and holds it until that transaction ends, so two
     /// installers never interleave.
     /// </summary>
     public Task AcquireSchemaLockAsync(DbTransaction transaction, string schemaName, CancellationToken ct) =>
-        _acquireSchemaLock.HandleAsync(new AcquireSchemaLockCommand(transaction, schemaName), ct);
+        _acquireSchemaLock.HandleAsync(new AcquireSchemaLockCommand(transaction, AcquireSchemaLockHandler.LockKey(schemaName)), ct);
+
+    /// <summary>The same lock under the database's outbox key, inside the outbox install transaction.</summary>
+    public Task AcquireOutboxLockAsync(DbTransaction transaction, CancellationToken ct) =>
+        _acquireSchemaLock.HandleAsync(new AcquireSchemaLockCommand(transaction, AcquireSchemaLockHandler.OutboxLockKey), ct);
+
+    /// <summary>Whether the catalog's outbox table exists, read inside the outbox install transaction.</summary>
+    public Task<FindOutboxTableResponse> FindOutboxTableAsync(DbTransaction transaction, CancellationToken ct) =>
+        _findOutboxTable.HandleAsync(new FindOutboxTableQuery(transaction), ct);
 
     /// <summary>
     /// Creates the migration-history table when it is missing, inside the migration transaction. An existing table keeps

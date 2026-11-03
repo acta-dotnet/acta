@@ -19,9 +19,15 @@ public sealed partial class PgConformanceFixture
     // prior run's table is replaced. Constraint/index names derive from the table, so no cross-table collision.
     public async ValueTask ApplyOutboxDdlAsync(string table)
     {
-        await ExecOutboxAsync($"DROP TABLE IF EXISTS {Schema}.{table};");
+        await DropOutboxAsync(table);
         await ExecOutboxAsync(Acta.Postgres.PostgresMigrations.CreateOutboxScript(table, Schema));
     }
+
+    public Task<bool> ApplyOutboxAsync(string table, bool unqualified = false) =>
+        Acta.Postgres.PostgresMigrations.ApplyOutboxAsync(Conn, table, unqualified ? null : Schema);
+
+    public Task DropOutboxAsync(string table, bool unqualified = false) =>
+        ExecOutboxAsync($"DROP TABLE IF EXISTS {(unqualified ? table : $"{Schema}.{table}")};");
 
     public async ValueTask StageInOneTransactionAsync(string outboxTable, IReadOnlyList<Acta.EnqueueJobRequest> requests)
     {
@@ -84,8 +90,11 @@ public sealed partial class PgConformanceFixture
         return Convert.ToInt32(await cmd.ExecuteScalarAsync(), System.Globalization.CultureInfo.InvariantCulture);
     }
 
-    public object CreateOutboxConnection(string table) =>
-        new OutboxSourceFactory(Conn, new OutboxSourceDialect(new Acta.Postgres.PostgresDialect()), "public").Create(Schema, table);
+    public object CreateOutboxConnection(string table, bool unqualified = false) =>
+        new OutboxSourceFactory(Conn, new OutboxSourceDialect(new Acta.Postgres.PostgresDialect()), "public").Create(
+            unqualified ? null : Schema,
+            table
+        );
 
     public void ApplyOutboxSource(Acta.IOutboxSourceBuilder source)
     {
@@ -105,7 +114,7 @@ public sealed partial class PgConformanceFixture
         return Convert.ToInt32(await cmd.ExecuteScalarAsync(), System.Globalization.CultureInfo.InvariantCulture);
     }
 
-    private static async ValueTask ExecOutboxAsync(string sql)
+    private static async Task ExecOutboxAsync(string sql)
     {
         await using var c = new NpgsqlConnection(Conn);
         await c.OpenAsync();

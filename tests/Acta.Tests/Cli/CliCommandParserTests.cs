@@ -130,11 +130,41 @@ public class CliCommandParserTests
     [InlineData("pause", "1", "--bogus", "x")] // unknown flag
     [InlineData("info", "1", "--reason", "x")] // reason on a read verb
     [InlineData("debug", "1", "--reason", "x")] // reason on debug (the runner stamps its own)
+    [InlineData("migrate", "job_1")] // migrate applies the configured schema, never a job's
+    [InlineData("migrate", "--ns", "shop")]
+    [InlineData("migrate", "--reason", "now")]
     public void Malformed_commands_are_errors(params string[] args)
     {
         Assert.False(CliCommandParser.TryParse(args, out _, out var error));
         Assert.NotNull(error);
     }
+
+    [Fact]
+    public void Migrate_parses_with_no_target_and_takes_json()
+    {
+        Assert.True(CliCommandParser.TryParse(["migrate"], out var plain, out _));
+        Assert.Equal(CliVerb.Migrate, plain.Verb);
+        Assert.Null(plain.Target);
+
+        Assert.True(CliCommandParser.TryParse(["migrate", "--json"], out var json, out _));
+        Assert.True(json.Json);
+    }
+
+    [Theory]
+    [InlineData(new[] { "app.dll", "jobs", "migrate" }, new[] { "migrate" })]
+    [InlineData(new[] { "app.dll", "--environment", "Staging", "jobs", "migrate" }, new[] { "migrate" })]
+    [InlineData(new[] { "app.dll", "--environment=Staging", "jobs", "migrate", "--json" }, new[] { "migrate", "--json" })]
+    [InlineData(new[] { "app.dll", "Environment=Staging", "jobs", "migrate" }, new[] { "migrate" })]
+    [InlineData(new[] { "app.dll", "/environment", "Staging", "-v", "jobs", "info", "1" }, new[] { "info", "1" })]
+    public void Jobs_after_host_switches_starts_the_cli(string[] commandLine, string[] expected) =>
+        Assert.Equal(expected, CliCommandParser.DetectInvocation(commandLine));
+
+    [Theory]
+    [InlineData(new object[] { new[] { "app.dll" } })]
+    [InlineData(new object[] { new[] { "app.dll", "--config", "jobs" } })] // the host reads jobs as the switch's value
+    [InlineData(new object[] { new[] { "app.dll", "--verbose", "jobs", "migrate" } })] // likewise: --verbose takes jobs
+    [InlineData(new object[] { new[] { "app.dll", "serve", "jobs" } })] // a positional first is the app's own command
+    public void Other_command_lines_boot_the_host(string[] commandLine) => Assert.Null(CliCommandParser.DetectInvocation(commandLine));
 
     [Fact]
     public void Debug_break_flag_sets_break()

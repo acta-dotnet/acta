@@ -29,14 +29,13 @@ public sealed class MsSqlInstallGuardSpec
         Assert.False(await ScalarAsync<bool>(database.ConnectionString, ReadCommittedSnapshot, ct));
 
         var lists = await Task.WhenAll(
-            Enumerable
-                .Range(0, 4)
-                .Select(_ => Task.Run(() => SqlServerSchemaMigrator.ApplyToDatabaseAsync(database.ConnectionString, Schema, ct), ct))
+            Enumerable.Range(0, 4).Select(_ => Task.Run(() => SqlServerMigrations.ApplyAsync(database.ConnectionString, Schema, ct), ct))
         );
 
         Assert.True(await ScalarAsync<bool>(database.ConnectionString, ReadCommittedSnapshot, ct));
         Assert.Equal(Shipped, lists.SelectMany(list => list).Order(StringComparer.Ordinal));
         Assert.Equal(Shipped.Count, await ScalarAsync<int>(database.ConnectionString, $"SELECT COUNT(*) FROM {Schema}.migrations;", ct));
+        Assert.Empty(await SqlServerMigrations.ApplyAsync(database.ConnectionString, Schema, ct));
     }
 
     [Fact(DisplayName = "An install into a database that already holds an app table leaves read-committed snapshot off")]
@@ -46,7 +45,7 @@ public sealed class MsSqlInstallGuardSpec
         await using var database = await ScratchDatabase.CreateAsync(ct);
         await ExecuteAsync(database.ConnectionString, "CREATE TABLE dbo.app_orders (order_id int NOT NULL PRIMARY KEY);", ct);
 
-        Assert.Equal(Shipped, await SqlServerSchemaMigrator.ApplyToDatabaseAsync(database.ConnectionString, Schema, ct));
+        Assert.Equal(Shipped, await SqlServerMigrations.ApplyAsync(database.ConnectionString, Schema, ct));
         Assert.False(await ScalarAsync<bool>(database.ConnectionString, ReadCommittedSnapshot, ct));
 
         // The development flag's path, through the provider's own bootstrap.
@@ -65,9 +64,7 @@ public sealed class MsSqlInstallGuardSpec
     {
         var ct = TestContext.Current.CancellationToken;
 
-        var refusal = await Assert.ThrowsAsync<SqlException>(() =>
-            SqlServerSchemaMigrator.ApplyToDatabaseAsync(Master, "acta_refused", ct)
-        );
+        var refusal = await Assert.ThrowsAsync<SqlException>(() => SqlServerMigrations.ApplyAsync(Master, "acta_refused", ct));
 
         Assert.Contains("never master, tempdb, model or msdb", refusal.Message, StringComparison.Ordinal);
         Assert.IsType<DBNull>(await ScalarAsync<object>(Master, "SELECT SCHEMA_ID(N'acta_refused');", ct));

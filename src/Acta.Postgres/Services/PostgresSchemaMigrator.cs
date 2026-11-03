@@ -19,46 +19,61 @@ internal sealed class PostgresSchemaMigrator(SqlProviderOptions options, ILogger
     /// </summary>
     internal const int CertifiedDriverMajor = 10;
 
-    private const string DialectToken = "pg";
+    internal const string DialectToken = "pg";
     private static readonly Assembly ProviderAssembly = typeof(PostgresSchemaMigrator).Assembly;
 
     protected override Assembly DriverAssembly => typeof(NpgsqlConnection).Assembly;
 
     protected override int CertifiedMajor => CertifiedDriverMajor;
 
-    protected override Task ApplyOnStartupAsync(string connectionString, string schemaName, CancellationToken ct) =>
+    protected override Task<IReadOnlyList<string>> ApplyOnStartupAsync(string connectionString, string schemaName, CancellationToken ct) =>
         EnsureDatabaseAndApplyAsync(connectionString, schemaName, ct);
+
+    protected override Task<IReadOnlyList<string>> ApplyOnDeployAsync(string connectionString, string schemaName, CancellationToken ct) =>
+        ApplyToDatabaseAsync(connectionString, schemaName, ct);
 
     protected override Task PreflightOnStartupAsync(string connectionString, string schemaName, CancellationToken ct) =>
         PreflightAsync(connectionString, schemaName, ct);
 
-    public static async Task ApplyAsync(NpgsqlConnection connection, string schemaName, CancellationToken ct)
+    /// <summary>
+    /// The deploy step's apply: opens the database the connection string names, never the maintenance database, and applies
+    /// what it lacks. Behind <c>PostgresMigrations.ApplyAsync</c> and <c>jobs migrate</c>.
+    /// </summary>
+    internal static async Task<IReadOnlyList<string>> ApplyToDatabaseAsync(string connectionString, string schema, CancellationToken ct)
     {
-        ArgumentNullException.ThrowIfNull(connection);
-        SqlIdentifierSyntax.ValidateBareIdentifier(schemaName, nameof(schemaName));
-        if (connection.State != ConnectionState.Open)
-        {
-            await connection.OpenAsync(ct);
-        }
+        RequireDatabase(connectionString);
+        SqlIdentifierSyntax.ValidateBareIdentifier(schema, nameof(schema));
 
-        await SchemaMigrations.ApplyAsync(connection, schemaName, DialectToken, ProviderAssembly, ct);
+        await using var conn = new NpgsqlConnection(connectionString);
+        await conn.OpenAsync(ct);
+        return await SchemaMigrations.ApplyAsync(conn, schema, DialectToken, ProviderAssembly, ct);
+    }
+
+    /// <summary>The database the connection string names, refused before anything opens when it names none.</summary>
+    internal static string RequireDatabase(string connectionString)
+    {
+        ArgumentException.ThrowIfNullOrWhiteSpace(connectionString);
+        var database = new NpgsqlConnectionStringBuilder(connectionString).Database;
+        return string.IsNullOrWhiteSpace(database)
+            ? throw new ArgumentException(
+                "The connection string must name the database to install into (Database); without one Npgsql opens a database named after the user.",
+                nameof(connectionString)
+            )
+            : database;
     }
 
     /// <summary>
-    /// Dev convenience: connects to `postgres`, creates the target DB if missing, then ApplyAsync.
-    /// Production deployments should create the DB in infrastructure and call ApplyAsync directly.
+    /// Dev convenience: connects to <c>postgres</c>, creates the target database if it is missing, then runs
+    /// <see cref="ApplyToDatabaseAsync"/>. A deploy step applies to a database infrastructure created.
     /// </summary>
-    public static async Task EnsureDatabaseAndApplyAsync(string connectionString, string schemaName, CancellationToken ct)
+    public static async Task<IReadOnlyList<string>> EnsureDatabaseAndApplyAsync(
+        string connectionString,
+        string schemaName,
+        CancellationToken ct
+    )
     {
-        ArgumentException.ThrowIfNullOrWhiteSpace(connectionString);
+        var databaseName = RequireDatabase(connectionString);
         SqlIdentifierSyntax.ValidateBareIdentifier(schemaName, nameof(schemaName));
-
-        var targetBuilder = new NpgsqlConnectionStringBuilder(connectionString);
-        var databaseName = targetBuilder.Database;
-        if (string.IsNullOrWhiteSpace(databaseName))
-        {
-            throw new InvalidOperationException("EnsureDatabaseAndApplyAsync requires the connection string to include a Database name.");
-        }
         SqlIdentifierSyntax.ValidateDatabaseName(databaseName, nameof(databaseName));
 
         var maintenanceBuilder = new NpgsqlConnectionStringBuilder(connectionString) { Database = "postgres" };
@@ -89,9 +104,7 @@ internal sealed class PostgresSchemaMigrator(SqlProviderOptions options, ILogger
             }
         }
 
-        await using var conn = new NpgsqlConnection(connectionString);
-        await conn.OpenAsync(ct);
-        await ApplyAsync(conn, schemaName, ct);
+        return await ApplyToDatabaseAsync(connectionString, schemaName, ct);
     }
 
     /// <summary>

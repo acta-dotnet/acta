@@ -1293,10 +1293,12 @@
   - A row whose next attempt is in the future is not claimed
 
 ### Generated outbox DDL yields a working relay source table
-- **Contract:** The DDL API emits a canonical outbox table the real relay store can claim, reschedule, quarantine, and delete against, proving the shape by behavior.
+- **Contract:** The DDL API's table serves the real relay store's claim, reschedule, quarantine, and delete, and ApplyOutboxAsync creates it once under racing callers.
 - **Guarantees:**
   - The generated canonical table supports claim, delete, reschedule, and quarantine
   - The DDL API honors a table override and the store round-trips against it
+  - Eight concurrent installs create the outbox table once, and an install leaves an existing table as it is
+  - An install with no schema creates the table where a relay source that names no schema reads it
 
 ### Delete removes a claimed row only under its token, a stale token no-ops
 - **Contract:** DeleteClaimed removes a claimed row only when the command token matches the row's claim token, and a stale token deletes nothing.
@@ -2172,6 +2174,12 @@
   - Over an existing history it keeps every recorded row
   - Rolled back with the migration transaction, the table it created is gone
 
+### The outbox install's probe finds a table and nothing else
+- **Contract:** FindOutboxTable answers true for an existing table of the catalog's name, and false for a missing name or a view that carries it.
+- **Guarantees:**
+  - A missing name is not found, and the table is once it exists
+  - A view with the table's name is not the table
+
 ### The migration history reads back name by name
 - **Contract:** LoadAppliedMigrations returns every recorded migration name, with or without the migration transaction, and fails on a schema without the history table.
 - **Guarantees:**
@@ -2211,9 +2219,10 @@
   - A recurring slot's schedule and cursor rows agree with its job on namespace_id and definition_id
 
 ### Bootstrap verifies migration history even when it applies nothing
-- **Contract:** Provider bootstrap requires every migration this build ships and tolerates newer ones.
+- **Contract:** Provider bootstrap requires every migration this build ships and tolerates newer ones, and jobs migrate applies exactly what a schema lacks.
 - **Guarantees:**
   - A provisioned schema passes bootstrap with ApplyMigrationsOnStartup false
+  - Migrate applies every migration a fresh schema lacks, then nothing
   - An unprovisioned schema is refused as unprovisioned, naming the provisioning script
   - A migration this build ships that the database never applied is refused by name
   - A history carrying migrations this build has never heard of still passes
@@ -2526,6 +2535,7 @@
 | `EnqueueJobs` | yes | yes | yes |
 | `EnsureMigrations` | yes | yes | yes |
 | `ExtendWorkerLeases` | yes | yes | yes |
+| `FindOutboxTable` | yes | yes | yes |
 | `GetAlert` | yes | yes | yes |
 | `GetAlertFloor` | yes | yes | yes |
 | `GetAlertableEvents` | yes | yes | yes |

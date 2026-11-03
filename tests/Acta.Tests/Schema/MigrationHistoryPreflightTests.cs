@@ -56,6 +56,27 @@ public sealed class MigrationHistoryPreflightTests
         Assert.Contains("docs/reference/schema-sqlite.sql", exception.Message, StringComparison.Ordinal);
     }
 
+    [Theory]
+    [InlineData("pg", "PostgresMigrations.ApplyAsync")]
+    [InlineData("mssql", "SqlServerMigrations.ApplyAsync")]
+    [InlineData("sqlite", "SqliteMigrations.ApplyAsync")]
+    public void Every_refusal_names_the_three_ways_to_apply(string dialectToken, string applyCall)
+    {
+        var missing = Assert.Throws<InvalidOperationException>(() =>
+            SchemaMigrations.Verify(Shipped, new HashSet<string>(["M20260101000000_init"], StringComparer.Ordinal), dialectToken)
+        );
+        var foreign = Assert.Throws<InvalidOperationException>(() =>
+            SchemaMigrations.Verify(Shipped, new HashSet<string>(["M20251201000000_init"], StringComparer.Ordinal), dialectToken)
+        );
+
+        foreach (var message in new[] { missing.Message, foreign.Message, SchemaMigrations.NotProvisioned("acta", dialectToken).Message })
+        {
+            Assert.Contains("<app> jobs migrate", message, StringComparison.Ordinal);
+            Assert.Contains(applyCall, message, StringComparison.Ordinal);
+            Assert.Contains($"docs/reference/schema-{dialectToken}.sql", message, StringComparison.Ordinal);
+        }
+    }
+
     [Fact]
     public void The_unprovisioned_message_names_the_schema_and_the_script()
     {

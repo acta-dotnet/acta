@@ -38,7 +38,7 @@ builder.Services.UseActa(j =>
     j.UseSqlite(sqlite =>
     {
         sqlite.ConnectionString = "Data Source=acta-local.db";
-        sqlite.ApplyMigrationsOnStartup = true;   // local development only; apply from a deploy step in production
+        sqlite.ApplyMigrationsOnStartup = true;   // local development only; in production a deploy step runs "jobs migrate"
     });
     j.Run<ShippingJobs>("shipping");
 });
@@ -155,7 +155,7 @@ More shapes (backlogs, stuck jobs, worker liveness, pending alerts) in the opera
 - Lanes that run one job at a time in enqueue order, concurrency keys and limits, and rate limits that hold across the whole fleet.
 - An append-only SQL event ledger, and transactional enqueue that joins a caller-owned `DbTransaction` (plus an external outbox for atomic handoff from a different database, which an EF Core application joins through its provider transaction).
 - A test host that drives the real runtime one deterministic tick at a time: no sleeps, no polling, real-database tests in tens of milliseconds.
-- A control CLI in every host, including `jobs debug` to claim any persisted job and step through its handler under a breakpoint.
+- A control CLI in every host, including `jobs debug` to claim any persisted job and step through its handler under a breakpoint, and `jobs migrate` to apply the schema from a deploy step.
 - An optional operator dashboard/query API whose mutating controls are explicitly enabled.
 
 **You do not get:** deterministic event-history replay, BPMN or a visual workflow designer, a message bus, a sidecar, a hosted control plane, or workflow SaaS orchestration.

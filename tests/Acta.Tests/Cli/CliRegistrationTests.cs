@@ -1,3 +1,5 @@
+using Acta.Sqlite;
+using Microsoft.Data.Sqlite;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Hosting;
 using Xunit;
@@ -37,7 +39,30 @@ public sealed class CliRegistrationTests
         Assert.DoesNotContain(services, d => d.ServiceType == typeof(IHostedService) && d.ImplementationType == typeof(CliCommandHost));
     }
 
-    private static IServiceCollection BuildWith(string[]? cliArgs, bool disableCli)
+    [Fact]
+    public async Task Migrate_runs_through_the_host_on_the_configured_database()
+    {
+        var path = Path.Combine(Path.GetTempPath(), $"acta-cli-migrate-{Guid.NewGuid():N}.db");
+        try
+        {
+            var shipped = SchemaMigrations.Discover(typeof(SqliteMigrations).Assembly).Select(m => $"applied {m.Name} to schema main");
+
+            var (first, firstOutput) = await MigrateAsync(path);
+            Assert.Equal(0, first);
+            Assert.Equal(shipped, Lines(firstOutput));
+
+            var (second, secondOutput) = await MigrateAsync(path);
+            Assert.Equal(0, second);
+            Assert.Equal(["schema main is up to date"], Lines(secondOutput));
+        }
+        finally
+        {
+            SqliteConnection.ClearAllPools();
+            File.Delete(path);
+        }
+    }
+
+    private static IServiceCollection BuildWith(string[]? cliArgs, bool disableCli, Action<IActaBuilder>? useProvider = null)
     {
         var services = new ServiceCollection();
         ActaServiceCollectionExtensions.CliArgsOverride = () => cliArgs;
@@ -45,7 +70,15 @@ public sealed class CliRegistrationTests
         {
             services.UseActa(j =>
             {
-                j.Services.AddSingleton(new SelectedProvider(DbProvider.SqlServer));
+                if (useProvider is null)
+                {
+                    j.Services.AddSingleton(new SelectedProvider(DbProvider.SqlServer));
+                }
+                else
+                {
+                    useProvider(j);
+                }
+
                 j.Run<FakeManifest>("payments");
                 if (disableCli)
                 {
@@ -60,6 +93,21 @@ public sealed class CliRegistrationTests
 
         return services;
     }
+
+    /// <summary>Runs <c>jobs migrate</c> through the CLI host a SQLite container registers, as the process would.</summary>
+    private static async Task<(int ExitCode, string Output)> MigrateAsync(string databasePath)
+    {
+        var services = BuildWith(["migrate"], disableCli: false, j => j.UseSqlite(o => o.ConnectionString = $"Data Source={databasePath}"));
+        await using var provider = services.AddLogging().BuildServiceProvider();
+        var host = provider.GetServices<IHostedService>().OfType<CliCommandHost>().Single();
+        var output = new StringWriter();
+        var error = new StringWriter();
+        var exitCode = await host.RunAsync(output, error, TestContext.Current.CancellationToken);
+        Assert.True(error.ToString().Length == 0, error.ToString());
+        return (exitCode, output.ToString());
+    }
+
+    private static string[] Lines(string text) => text.Split(Environment.NewLine, StringSplitOptions.RemoveEmptyEntries);
 
     private sealed class FakeManifest : IJobManifest
     {

@@ -679,7 +679,7 @@ uses schema `main`; SQL Server and Postgres default to schema `acta`.
 | `Schema` | `acta` (`main` on SQLite) | Schema/container for Acta tables, views, indexes, routines, and migration history. |
 | `CommandTimeout` | 30 seconds | Runtime operation timeout applied by the store. |
 | `DeadlockRetryAttempts` | 5 | Store-level retry count for database deadlock victims. Set `1` to disable retry. |
-| `ApplyMigrationsOnStartup` | `false` | Dev/sample convenience. Production should apply migrations before starting workers. Either way, startup verifies the migration history and refuses an unprovisioned or mismatched database. |
+| `ApplyMigrationsOnStartup` | `false` | Development only: startup creates the database if it is missing and applies. Production runs `<app> jobs migrate` from its deploy step ([Migration ownership](operator-guide.md#migration-ownership)). Either way, startup verifies the migration history and refuses an unprovisioned or mismatched database. |
 
 Local concepts, demos, and Anvil use `UseLocalDatabase(...)`, which selects a provider from explicit
 argument, `Acta:Provider`, `ACTA_LOCAL_PROVIDER`, then SQLite as the zero-setup default.
@@ -787,7 +787,7 @@ With EF Core, pass `transaction.GetDbTransaction()`.
 
 When the business database is not the Acta ledger, stage an Acta-shaped row in the business database inside your own transaction, and let an Acta relay carry it across. Staging needs no DI and no ledger connection: reference your database's provider package (`Acta.Postgres`, `Acta.SqlServer`, or `Acta.Sqlite`) and call the extension on the concrete provider transaction.
 
-1. Add `PostgresMigrations.CreateOutboxScript()` (or `SqlServerMigrations` / `SqliteMigrations`) to your migrations. It is a plain script your migration system runs once; keep its three indexes and, on SQL Server, its lock escalation setting, since claims depend on them.
+1. Create the outbox table in the business database: add `PostgresMigrations.CreateOutboxScript()` (or `SqlServerMigrations` / `SqliteMigrations`) to your own migrations, where it runs once, or call `ApplyOutboxAsync` from your deploy step, which creates it when it is missing ([Migration ownership](operator-guide.md#migration-ownership)). Keep its three indexes and, on SQL Server, its lock escalation setting, since claims depend on them.
 2. Stage inside the business transaction:
 
 ```csharp

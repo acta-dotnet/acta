@@ -13,10 +13,8 @@ public sealed partial class SqlServerConformanceFixture
 {
     public string DialectToken => "mssql";
 
-    public Task RunBootstrapPreflightAsync(string connectionString, string schemaName, CancellationToken ct) =>
-        TestDdl.RunAsync(() =>
-            new SqlServerSchemaMigrator(new SqlProviderOptions { ConnectionString = connectionString, Schema = schemaName }).RunAsync(ct)
-        );
+    public object CreateBootstrap(string connectionString, string schemaName) =>
+        new SqlServerSchemaMigrator(new SqlProviderOptions { ConnectionString = connectionString, Schema = schemaName });
 
     public async Task<DbConnection> OpenConnectionAsync(string connectionString, CancellationToken ct)
     {
@@ -26,11 +24,7 @@ public sealed partial class SqlServerConformanceFixture
     }
 
     public Task ApplyMigrationsAsync(string connectionString, string schemaName, CancellationToken ct) =>
-        TestDdl.RunAsync(async () =>
-        {
-            await using var connection = new SqlConnection(connectionString);
-            await SqlServerSchemaMigrator.ApplyAsync(connection, schemaName, ct);
-        });
+        TestDdl.RunAsync(() => SqlServerMigrations.ApplyAsync(connectionString, schemaName, ct));
 
     public async ValueTask<IMigrationHistoryProbe> CreateHistoryProbeAsync(IReadOnlyList<string>? history) =>
         await TestDdl.RunAsync(() => CreateHistoryProbeCoreAsync(history));

@@ -27,20 +27,20 @@ internal sealed class SqliteSchemaMigrator(SqlProviderOptions options, ILogger<S
     /// </summary>
     internal static readonly Version MinimumEngineVersion = new(3, 51, 0);
 
-    private const string DialectToken = "sqlite";
+    internal const string DialectToken = "sqlite";
     private static readonly Assembly ProviderAssembly = typeof(SqliteSchemaMigrator).Assembly;
 
     protected override Assembly DriverAssembly => typeof(SqliteConnection).Assembly;
 
     protected override int CertifiedMajor => CertifiedDriverMajor;
 
-    protected override Task ApplyOnStartupAsync(string connectionString, string schemaName, CancellationToken ct) =>
-        EnsureDatabaseAndApplyAsync(connectionString, schemaName, ct);
+    protected override Task<IReadOnlyList<string>> ApplyOnDeployAsync(string connectionString, string schemaName, CancellationToken ct) =>
+        ApplyToDatabaseAsync(connectionString, schemaName, ct);
 
     protected override Task PreflightOnStartupAsync(string connectionString, string schemaName, CancellationToken ct) =>
         PreflightAsync(connectionString, schemaName, ct);
 
-    public static async Task ApplyAsync(SqliteConnection connection, string schemaName, CancellationToken ct)
+    public static async Task<IReadOnlyList<string>> ApplyAsync(SqliteConnection connection, string schemaName, CancellationToken ct)
     {
         ArgumentNullException.ThrowIfNull(connection);
         SqlIdentifierSyntax.ValidateBareIdentifier(schemaName, nameof(schemaName));
@@ -50,17 +50,16 @@ internal sealed class SqliteSchemaMigrator(SqlProviderOptions options, ILogger<S
         }
 
         EnsureSupportedEngine(await ReadEngineVersionAsync(connection, ct));
-        await SchemaMigrations.ApplyAsync(connection, schemaName, DialectToken, ProviderAssembly, ct);
+        return await SchemaMigrations.ApplyAsync(connection, schemaName, DialectToken, ProviderAssembly, ct);
     }
 
     /// <summary>
-    /// Dev convenience: opens the connection (SQLite creates the database file on first open), enables
-    /// WAL for concurrent readers, then applies migrations. Production deployments can apply the script
-    /// in infrastructure and call ApplyAsync directly.
+    /// The one apply, for the development flag and the deploy step alike, since SQLite has no server to create a database on:
+    /// opens the connection, which creates the file, puts the database in WAL for concurrent readers, then applies.
     /// </summary>
-    public static async Task EnsureDatabaseAndApplyAsync(string connectionString, string schemaName, CancellationToken ct)
+    internal static async Task<IReadOnlyList<string>> ApplyToDatabaseAsync(string connectionString, string schemaName, CancellationToken ct)
     {
-        ArgumentException.ThrowIfNullOrWhiteSpace(connectionString);
+        RequireDataSource(connectionString);
         SqlIdentifierSyntax.ValidateBareIdentifier(schemaName, nameof(schemaName));
 
         await using var conn = new SqliteConnection(connectionString);
@@ -74,7 +73,20 @@ internal sealed class SqliteSchemaMigrator(SqlProviderOptions options, ILogger<S
             await wal.ExecuteNonQueryAsync(ct);
         }
 
-        await ApplyAsync(conn, schemaName, ct);
+        return await ApplyAsync(conn, schemaName, ct);
+    }
+
+    /// <summary>Refuses a connection string with no database file before anything opens.</summary>
+    internal static void RequireDataSource(string connectionString)
+    {
+        ArgumentException.ThrowIfNullOrWhiteSpace(connectionString);
+        if (string.IsNullOrWhiteSpace(new SqliteConnectionStringBuilder(connectionString).DataSource))
+        {
+            throw new ArgumentException(
+                "The connection string must name the database file (Data Source); without one SQLite opens a temporary database.",
+                nameof(connectionString)
+            );
+        }
     }
 
     /// <summary>

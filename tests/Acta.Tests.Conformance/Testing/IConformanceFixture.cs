@@ -46,18 +46,18 @@ public interface IConformanceFixture
     ValueTask<IMigrationHistoryProbe> CreateHistoryProbeAsync(IReadOnlyList<string>? history);
 
     /// <summary>
-    /// Run this provider's <c>IProviderBootstrap</c> against <paramref name="connectionString"/> and
-    /// <paramref name="schemaName"/> with <c>ApplyMigrationsOnStartup</c> left <c>false</c>: the
-    /// read-only path a production host takes on every start.
+    /// This provider's <c>SchemaBootstrap</c> over <paramref name="connectionString"/> and <paramref name="schemaName"/>, with
+    /// <c>ApplyMigrationsOnStartup</c> left <c>false</c> as a production host runs it, returned as <see cref="object"/> so the
+    /// public fixture surface does not leak the internal type.
     /// </summary>
-    Task RunBootstrapPreflightAsync(string connectionString, string schemaName, CancellationToken ct);
+    object CreateBootstrap(string connectionString, string schemaName);
 
     /// <summary>An open connection of this provider to <paramref name="connectionString"/>, owned by the caller.</summary>
     Task<DbConnection> OpenConnectionAsync(string connectionString, CancellationToken ct);
 
     /// <summary>
-    /// Apply this build's migrations and install its views and routines in <paramref name="schemaName"/> through the
-    /// provider's own migrator, as a bootstrap with <c>ApplyMigrationsOnStartup</c> does.
+    /// Apply this build's migrations in <paramref name="schemaName"/> through the provider's public <c>ApplyAsync</c>, as
+    /// <c>jobs migrate</c> does, into a database that exists.
     /// </summary>
     Task ApplyMigrationsAsync(string connectionString, string schemaName, CancellationToken ct);
 
@@ -121,6 +121,16 @@ public interface IConformanceFixture
     ValueTask ApplyOutboxDdlAsync(string table);
 
     /// <summary>
+    /// Run the provider's public <c>ApplyOutboxAsync</c> for <paramref name="table"/> against the test database: in the test
+    /// schema, or with no schema when <paramref name="unqualified"/>, so the connection's default decides. It takes no
+    /// <c>TestDdl</c> gate of its own, so a spec that races several calls gates the race as a whole.
+    /// </summary>
+    Task<bool> ApplyOutboxAsync(string table, bool unqualified = false);
+
+    /// <summary>Drop <paramref name="table"/> when it exists, in the test schema or unqualified; the caller gates it.</summary>
+    Task DropOutboxAsync(string table, bool unqualified = false);
+
+    /// <summary>
     /// Open a native provider connection and transaction, insert one business probe row and stage
     /// <paramref name="request"/> through the provider's <c>AddToActaOutboxAsync</c> extension on that
     /// transaction, then commit or roll back the single transaction. Returns the business-row and
@@ -149,9 +159,10 @@ public interface IConformanceFixture
     /// <summary>
     /// Build the provider's external-outbox source connection (an internal <c>OutboxSourceConnection</c>, returned
     /// as <see cref="object"/> so the public fixture surface does not leak the internal type) over
-    /// <paramref name="table"/>; the outbox operations open the source over it.
+    /// <paramref name="table"/>, in the test schema or, when <paramref name="unqualified"/>, with no schema, as a relay
+    /// source that names none; the outbox operations open the source over it.
     /// </summary>
-    object CreateOutboxConnection(string table);
+    object CreateOutboxConnection(string table, bool unqualified = false);
 
     /// <summary>Insert one producer row into <paramref name="table"/> with the seeded column values.</summary>
     ValueTask SeedOutboxRowAsync(string table, OutboxSeed seed);

@@ -60,9 +60,9 @@ internal sealed class SqlResourceCatalog
 
         using var stream = _assembly.GetManifestResourceStream(resource)!;
         using var reader = new StreamReader(stream);
-        // {{table}} and {{table_ref}} are substituted only for the external-outbox source catalog, whose
-        // commands target a producer-owned table whose name is configurable; ledger resources never use
-        // them. {{table_ref}} is the DML table reference: schema-qualified when a schema override is
+        // {{table}} and {{table_ref}} are substituted only for an outbox catalog, the relay source's or the
+        // outbox install's, whose commands target a producer-owned table whose name is configurable; ledger
+        // resources never use them. {{table_ref}} is the DML table reference: schema-qualified when a schema override is
         // supplied, otherwise the bare table so the database default schema (the login default on SQL
         // Server, the search_path first match on PostgreSQL) resolves it.
         var table = _table ?? "acta_outbox";

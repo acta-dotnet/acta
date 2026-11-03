@@ -29,7 +29,7 @@ public sealed class AcquireSchemaLockSpec : IntegrationSpec<ConformanceFixture>
 
         await using var held = await first.BeginTransactionAsync(ct);
         await new AcquireSchemaLockHandler(first, sql, TimeoutSeconds).HandleAsync(
-            new AcquireSchemaLockCommand(held, probe.SchemaName),
+            new AcquireSchemaLockCommand(held, AcquireSchemaLockHandler.LockKey(probe.SchemaName)),
             ct
         );
 
@@ -40,7 +40,7 @@ public sealed class AcquireSchemaLockSpec : IntegrationSpec<ConformanceFixture>
             {
                 await using var tx = await second.BeginTransactionAsync(ct);
                 await new AcquireSchemaLockHandler(second, sql, TimeoutSeconds).HandleAsync(
-                    new AcquireSchemaLockCommand(tx, probe.SchemaName),
+                    new AcquireSchemaLockCommand(tx, AcquireSchemaLockHandler.LockKey(probe.SchemaName)),
                     ct
                 );
                 var afterRelease = released.Task.IsCompleted;

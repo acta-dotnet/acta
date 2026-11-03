@@ -1,15 +1,53 @@
+using Microsoft.Data.SqlClient;
+
 namespace Acta.SqlServer;
 
-/// <summary>
-/// Emits the canonical SQL Server <c>acta_outbox</c> CREATE script for producer-owned migration systems: a plain,
-/// non-idempotent script (the producer's migration tool owns run-once semantics) with the CREATE TABLE in
-/// provider-correct types and UTC clock defaults, the keys, the three named claim indexes, the six named checks, and
-/// lock escalation off. Acta never executes it; the producer pipes it into DbUp, Flyway, EF <c>migrationBuilder.Sql(...)</c>, or a
-/// hand migration. <c>table</c> and <c>schema</c> take the same lowercase identifier validation as the relay source
-/// and staging extension; with no schema the table reference is left unqualified for the login default to resolve.
-/// </summary>
+/// <summary>The DDL a consumer applies on SQL Server: Acta's own migrations, and the outbox table a producer stages into.</summary>
 public static class SqlServerMigrations
 {
+    /// <summary>
+    /// Applies every Acta migration the database lacks into <paramref name="schema"/>, in one transaction under the schema
+    /// lock, and returns their names in order; an empty list means the schema is up to date. The database must exist, and
+    /// only it is opened, never master. The code form of <c>&lt;app&gt; jobs migrate</c>, for a host that owns its command line.
+    /// </summary>
+    public static Task<IReadOnlyList<string>> ApplyAsync(
+        string connectionString,
+        string schema = "acta",
+        CancellationToken cancellationToken = default
+    ) => SqlServerSchemaMigrator.ApplyToDatabaseAsync(connectionString, schema, cancellationToken);
+
+    /// <summary>
+    /// Creates the outbox table in the producer's database when it is missing and returns whether it did; an existing table
+    /// is left as it is, and concurrent callers create it once. An unqualified table resolves through this login's default
+    /// schema, so name the schema whenever the relay's login differs. It never changes the database's settings.
+    /// </summary>
+    public static async Task<bool> ApplyOutboxAsync(
+        string connectionString,
+        string table = "acta_outbox",
+        string? schema = null,
+        CancellationToken cancellationToken = default
+    )
+    {
+        var script = CreateOutboxScript(table, schema);
+        SqlServerSchemaMigrator.RequireDatabase(connectionString);
+        await using var connection = new SqlConnection(connectionString);
+        await connection.OpenAsync(cancellationToken);
+        return await SchemaMigrations.ApplyOutboxAsync(
+            connection,
+            SqlServerSchemaMigrator.DialectToken,
+            table,
+            schema,
+            script,
+            cancellationToken
+        );
+    }
+
+    /// <summary>
+    /// The outbox table's CREATE script, for the producer's own migrations (EF Core <c>migrationBuilder.Sql(...)</c>, DbUp,
+    /// Flyway, a DBA): a plain run-once script whose tool owns run-once semantics, with the keys, the three named claim
+    /// indexes, the six named checks, and lock escalation off. <c>ApplyOutboxAsync</c> runs it for a producer with no
+    /// migration tool. The names take the relay source's lowercase identifier rule; with no schema the login default applies.
+    /// </summary>
     public static string CreateOutboxScript(string table = "acta_outbox", string? schema = null)
     {
         var t = OutboxIdentifier.Qualify(table, schema);

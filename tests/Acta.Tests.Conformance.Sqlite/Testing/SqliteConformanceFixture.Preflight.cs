@@ -13,8 +13,8 @@ public sealed partial class SqliteConformanceFixture
 {
     public string DialectToken => "sqlite";
 
-    public Task RunBootstrapPreflightAsync(string connectionString, string schemaName, CancellationToken ct) =>
-        new SqliteSchemaMigrator(new SqlProviderOptions { ConnectionString = connectionString, Schema = schemaName }).RunAsync(ct);
+    public object CreateBootstrap(string connectionString, string schemaName) =>
+        new SqliteSchemaMigrator(new SqlProviderOptions { ConnectionString = connectionString, Schema = schemaName });
 
     public async Task<DbConnection> OpenConnectionAsync(string connectionString, CancellationToken ct)
     {
@@ -23,11 +23,9 @@ public sealed partial class SqliteConformanceFixture
         return connection;
     }
 
-    public async Task ApplyMigrationsAsync(string connectionString, string schemaName, CancellationToken ct)
-    {
-        await using var connection = new SqliteConnection(connectionString);
-        await SqliteSchemaMigrator.ApplyAsync(connection, schemaName, ct);
-    }
+    // SQLite has one schema, main, which every apply targets.
+    public Task ApplyMigrationsAsync(string connectionString, string schemaName, CancellationToken ct) =>
+        SqliteMigrations.ApplyAsync(connectionString, ct);
 
     public async ValueTask<IMigrationHistoryProbe> CreateHistoryProbeAsync(IReadOnlyList<string>? history)
     {

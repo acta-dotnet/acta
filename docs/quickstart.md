@@ -32,7 +32,7 @@ builder.Services.UseActa(j =>
     j.UseSqlite(sqlite =>
     {
         sqlite.ConnectionString = "Data Source=acta-local.db";
-        sqlite.ApplyMigrationsOnStartup = true;   // local development only; apply from a deploy step in production
+        sqlite.ApplyMigrationsOnStartup = true;   // local development only; in production a deploy step runs "jobs migrate"
     });
     j.Run<ShippingJobs>("shipping");
 });
@@ -159,7 +159,7 @@ builder.Services.UseActa(j =>
     j.UseSqlite(opts =>
     {
         opts.ConnectionString = "Data Source=acta-local.db";
-        opts.ApplyMigrationsOnStartup = true;   // dev convenience; apply from a deploy step in production
+        opts.ApplyMigrationsOnStartup = true;   // dev convenience; in production a deploy step runs "jobs migrate"
     });
     j.Run<UsersJobs>(namespaceName: "users", ownerTeam: "growth");
 });

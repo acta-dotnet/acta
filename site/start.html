@@ -119,7 +119,7 @@ builder.Services.UseActa(j =&gt;
     j.UseSqlite(sqlite =&gt;
     {
         sqlite.ConnectionString = "Data Source=acta-local.db";
-        sqlite.ApplyMigrationsOnStartup = true;   // local development only; apply from a deploy step in production
+        sqlite.ApplyMigrationsOnStartup = true;   // local development only; in production a deploy step runs "jobs migrate"
     });
     j.Run&lt;ShippingJobs&gt;("shipping");
 });
@@ -159,7 +159,7 @@ public static class ShippingHandlers
     <section class="wrap">
       <p class="record">Existing app?</p>
       <h2>Add Acta to what you already run.</h2>
-      <p class="lede">Keep your host and your database. Add the provider package that matches your server (<code>Acta.Postgres</code>, <code>Acta.SqlServer</code>, or <code>Acta.Sqlite</code>), register with your existing connection string, and put one real job behind <code>[Job("...")]</code>. Handlers resolve through DI, so your services inject as they always did. Production schema comes from a deploy step, never from startup migration.</p>
+      <p class="lede">Keep your host and your database. Add the provider package that matches your server (<code>Acta.Postgres</code>, <code>Acta.SqlServer</code>, or <code>Acta.Sqlite</code>), register with your existing connection string, and put one real job behind <code>[Job("...")]</code>. Handlers resolve through DI, so your services inject as they always did. Production schema comes from a deploy step that runs <code>jobs migrate</code>, never from startup migration.</p>
       <p class="hint">Separate API and worker processes? The worker calls <code>Run&lt;TManifest&gt;</code>; a process that only enqueues calls <code>Reference&lt;TManifest&gt;</code>. See <a href="https://github.com/acta-dotnet/acta/blob/main/docs/developer-guide.md#wiring-shape">Wiring shape</a>.</p>
     </section>
 

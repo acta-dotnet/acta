@@ -373,6 +373,39 @@ internal static class CliOutput
         writer.WriteLine($"status: {(status is { } p ? p.ToString() : "(none)")}");
     }
 
+    /// <summary>The migrations one schema took, in apply order: none means it was already up to date.</summary>
+    public static void WriteMigrate(TextWriter writer, string schema, IReadOnlyList<string> applied, bool json)
+    {
+        if (json)
+        {
+            WriteJson(
+                writer,
+                w =>
+                {
+                    w.WriteString("schema", schema);
+                    w.WriteStartArray("applied");
+                    foreach (var name in applied)
+                    {
+                        w.WriteStringValue(name);
+                    }
+                    w.WriteEndArray();
+                }
+            );
+            return;
+        }
+
+        if (applied.Count == 0)
+        {
+            writer.WriteLine($"schema {schema} is up to date");
+            return;
+        }
+
+        foreach (var name in applied)
+        {
+            writer.WriteLine($"applied {name} to schema {schema}");
+        }
+    }
+
     public static void WriteStatus(TextWriter writer, JobRef jobRef, JobStatusCode status, bool json)
     {
         if (json)
@@ -395,6 +428,7 @@ internal static class CliOutput
     public static void WriteUsage(TextWriter writer, IReadOnlyList<string> namespaces)
     {
         writer.WriteLine("Usage: <app> jobs <verb> <job-ref|deduplication-key|id> [options]");
+        writer.WriteLine("       <app> jobs migrate [--json]");
         writer.WriteLine();
         writer.WriteLine("Verbs:");
         writer.WriteLine("  info     <job-ref|deduplication-key|id>          print the job row");
@@ -410,6 +444,7 @@ internal static class CliOutput
         );
         writer.WriteLine("  events   <job-ref|deduplication-key|id>          print the job's audit timeline newest first");
         writer.WriteLine("  explain  <job-ref|deduplication-key|id>          explain the job's state in plain English + next action");
+        writer.WriteLine("  migrate                                          apply the Acta migrations this database lacks, then exit");
         writer.WriteLine();
         writer.WriteLine("Options:");
         writer.WriteLine("  --reason <msg>   reason message for cancel/pause/resume/restart");

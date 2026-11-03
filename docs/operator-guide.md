@@ -309,7 +309,7 @@ instead of enqueuing.
 
 ## Built-in control CLI
 
-Every Acta host doubles as a control CLI: `<app> jobs <verb>` runs the verb against the database and exits, starting no worker and running no migrations. `j.DisableCli()` opts out.
+Every Acta host doubles as a control CLI: `<app> jobs <verb>` runs the verb against the database and exits, starting no worker; only `migrate` changes the schema ([Migration ownership](#migration-ownership)). `jobs` comes first, after any host switches such as `--environment Staging`. `j.DisableCli()` opts out.
 
 ```
 <app> jobs help
@@ -324,6 +324,7 @@ Every Acta host doubles as a control CLI: `<app> jobs <verb>` runs the verb agai
 <app> jobs restart <job-ref|deduplication-key|id> [--reason <msg>]
 <app> jobs signal  <job-ref|deduplication-key|id> <name> [--value <json>]
 <app> jobs debug   <job-ref|deduplication-key|id> [--break]
+<app> jobs migrate [--json]
 ```
 
 A `job_...` target is a job ref, another non-numeric one a deduplication key, and an integer the internal id; an omitted target is read from the clipboard. Add `--ns <ns>` to pick the namespace for a deduplication-key lookup and `--json` for JSON output.
@@ -334,8 +335,8 @@ A `job_...` target is a job ref, another non-numeric one a deduplication key, an
 
 | Exit code | Meaning |
 |------|--------------------------------------|
-| 0    | Applied, found, or debug run succeeded |
-| 1    | Rejected or handler failed           |
+| 0    | Applied, found, migrated, or debug run succeeded |
+| 1    | Rejected, handler failed, or migration failed |
 | 2    | Job not found                        |
 | 64   | Usage error                          |
 | 130  | Cancelled (Ctrl-C)                    |
@@ -445,10 +446,10 @@ for production deployments, not for an evaluation.
 
 - Choose SQL Server or PostgreSQL for distributed multi-worker deployments. Use SQLite for embedded
   single-node deployments, local development, demos, and tests.
-- Apply Acta migrations in a deployment step before workers start. Keep
-  `ApplyMigrationsOnStartup = false` outside development.
+- Apply Acta migrations in a deployment step before workers start, with `<app> jobs migrate`
+  ([Migration ownership](#migration-ownership)). Keep `ApplyMigrationsOnStartup = false` outside development.
 - Pin one Acta package version across all workers in a namespace.
-- Deploy with a rolling restart: apply migrations, start the new build, stop the old one. See
+- Deploy with a rolling restart: run `<app> jobs migrate`, start the new build, stop the old one. See
   [Rolling deploys](#rolling-deploys) for what each build does with the other's jobs.
 - Set `DeploymentVersion` to a build id or git SHA. Set `ManifestGenerationUtc` only when you need
   deterministic definition promotion across packaged or single-file deployments.
@@ -484,25 +485,59 @@ pickup latency.
 
 ### Migration ownership
 
-In production, deployment owns migrations, not application startup:
+In production a deploy step applies Acta's migrations, never application startup. Each way applies exactly what the database lacks:
 
-```csharp
-j.UsePostgres(pg =>
-{
-    pg.ConnectionString = builder.Configuration.GetConnectionString("acta")!;
-    pg.ApplyMigrationsOnStartup = false;
-});
+| Where | How |
+| --- | --- |
+| Development | `ApplyMigrationsOnStartup = true`: startup creates the database if it is missing, then applies. |
+| Deploy step | `<app> jobs migrate`, or `{Provider}Migrations.ApplyAsync` from code. A server database must exist; SQLite creates the file. |
+| A DBA | The script for your provider: [`schema-pg.sql`](./reference/schema-pg.sql), [`schema-mssql.sql`](./reference/schema-mssql.sql), [`schema-sqlite.sql`](./reference/schema-sqlite.sql). |
+
+`jobs migrate` runs your app with its own `Use{Provider}` options, so it migrates the connection string and schema the workers use. Hand it the deploy login through configuration and run it before the new build starts:
+
+```
+$ ConnectionStrings__acta="<DDL login>" dotnet MyApp.dll jobs migrate
+applied M20261103163335_init to schema acta
 ```
 
-- Run the provisioning script for your provider ([`schema-pg.sql`](./reference/schema-pg.sql), [`schema-mssql.sql`](./reference/schema-mssql.sql), [`schema-sqlite.sql`](./reference/schema-sqlite.sql)) from the release pipeline under a DDL-capable principal, with a client that stops at the first error (`psql -v ON_ERROR_STOP=1`, `sqlcmd -b`, `sqlite3 -bail`). It applies only the migrations the database lacks, so re-running it is safe. Routines and views ship inside the migrations.
-- The application principal then needs only DML and EXECUTE on the Acta schema.
-- On SQL Server, every install, the script included, turns `READ_COMMITTED_SNAPSHOT` on only in a database that holds no objects yet, and refuses a system database. Acta runs with it on or off, so a database that already holds objects keeps its setting; turning it on yourself disconnects the database's sessions once, so do it in a maintenance window. Run one installer at a time on a new database.
+- A second run prints `schema acta is up to date`. It exits 0, or 1 with the database's error; `--json` prints `{"schema":"acta","applied":[...]}`.
+- It never creates a PostgreSQL or SQL Server database, never opens `master` or `postgres`, and never touches an outbox table.
+- Locally it is `dotnet run -- jobs migrate`; on a container platform, run the same image with the arguments `jobs migrate` as a pre-deploy job.
+- An app that owns its command line (`j.DisableCli()`), or a separate tool, calls `await PostgresMigrations.ApplyAsync(connectionString, schema: "acta")`, or `SqlServerMigrations` or `SqliteMigrations`, which returns the names it applied.
+- A rollback is safe: an older build runs against the newer schema, and its `jobs migrate` changes nothing.
+- The script re-creates every routine and view on each run, so re-running it is safe; run it with a client that stops at the first error (`psql -v ON_ERROR_STOP=1`, `sqlcmd -b`, `sqlite3 -bail`). An older release's script stops before it changes a database a newer release upgraded.
+- On SQL Server, every install, the script included, turns `READ_COMMITTED_SNAPSHOT` on only in a database that holds no objects yet, and refuses a system database. Acta runs with it on or off, so a database that already holds objects keeps its setting; turning it on yourself disconnects the database's sessions once, so do it in a maintenance window. The script's switch disconnects any other session too, so on a new database run one copy of the script at a time; `jobs migrate` and `ApplyAsync` retry that collision.
 - A migration runs in one transaction under an exclusive schema lock: on a live system it briefly blocks the statements it collides with, and jobs wait rather than fail.
-- Every start checks that the database has a history row for each migration the build ships, and fails with instructions if not. Rows the build does not know are fine, so an older worker runs against a newer database. A hand-edited object is not detected.
+- Every start checks that the database has a history row for each migration the build ships, and fails naming the three ways above if not. Rows the build does not know are fine, so an older worker runs against a newer database. A hand-edited object is not detected.
+
+Two logins keep DDL out of the runtime: a deploy login that runs `jobs migrate`, and the workers' login with no DDL right. On PostgreSQL, set default privileges once, before the first `jobs migrate`, so every table and sequence a migration adds is granted as it is created; a batch enqueue draws its job ids from a sequence:
+
+```sql
+GRANT CREATE ON DATABASE "MyApp" TO acta_deploy;
+-- in the database
+ALTER DEFAULT PRIVILEGES FOR ROLE acta_deploy GRANT USAGE ON SCHEMAS TO acta_app;
+ALTER DEFAULT PRIVILEGES FOR ROLE acta_deploy GRANT SELECT, INSERT, UPDATE, DELETE ON TABLES TO acta_app;
+ALTER DEFAULT PRIVILEGES FOR ROLE acta_deploy GRANT USAGE ON SEQUENCES TO acta_app;
+```
+
+On SQL Server, the deploy login needs DDL in the database, and ALTER on it only if Acta should turn `READ_COMMITTED_SNAPSHOT` on in a new database. Grant the workers' login on the schema once the first `jobs migrate` has created it; a schema grant covers what later migrations add:
+
+```sql
+ALTER ROLE db_ddladmin ADD MEMBER acta_deploy;
+GRANT SELECT, INSERT, UPDATE, DELETE, EXECUTE ON SCHEMA::acta TO acta_app;
+```
+
+The external outbox's table lives in the producer's database, so Acta never creates it on its own:
+
+- In the producer's own migrations, add `migrationBuilder.Sql(SqlServerMigrations.CreateOutboxScript(schema: "dbo"))` to one EF Core migration, or run the same script through DbUp, Flyway, or a DBA.
+- Without a migration tool, call `await SqlServerMigrations.ApplyOutboxAsync(ordersDb, schema: "dbo")` from the deploy step, or at startup in development. It creates the table when it is missing and returns `true`; an existing table is left as it is.
+- Name the schema whenever the deploy login differs from the relay's: an unqualified table resolves through the login's default schema on SQL Server and `search_path` on PostgreSQL.
+- A table or schema other than the default must match `source.Table` and `source.Schema`.
+- Give the producer's and the relay's logins SELECT, INSERT, UPDATE, and DELETE on the table; neither needs DDL.
 
 ### Rolling deploys
 
-Deploy: apply migrations, start the new workers, stop the old ones once the new ones are healthy. Rollback: start the old build, stop the new one. While both builds run:
+Deploy: run `<app> jobs migrate`, start the new workers, stop the old ones once the new ones are healthy. Rollback: start the old build, stop the new one. While both builds run:
 
 - Either build may claim a job only the other can run. The worker without the handler hands it back to `Ready` without charging a failure and stops claiming that definition.
 - Registration never retires a definition, so the old fleet finishes its jobs and a rollback finds nothing missing. An older build cannot overwrite a newer build's definition.
@@ -1098,11 +1133,11 @@ and keep authorization on the mapped endpoint group.
 
 ### The CLI Did Not Run A Worker
 
-When an Acta host starts with `jobs` as the first argument, it runs the built-in CLI verb and exits.
-No worker loop starts. This is intentional.
+When an Acta host starts with `jobs` as the first argument after any host switches, it runs the built-in
+CLI verb and exits. No worker loop starts. This is intentional.
 
-Use `j.DisableCli()` only for applications that own their own command-line surface. The CLI expects
-an already-configured provider and schema; the normal worker owns migration and catalog setup.
+Use `j.DisableCli()` only for applications that own their own command-line surface. Every verb but
+`migrate` expects a provisioned schema, and the normal worker owns catalog setup.
 
 ### The Generated Manifest Type Does Not Resolve
 

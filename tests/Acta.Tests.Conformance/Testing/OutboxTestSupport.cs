@@ -56,8 +56,8 @@ public sealed class OutboxProducer(DbConnection connection, DbTransaction transa
 /// <summary>Opens the provider's outbox source over <paramref name="table"/>, the one place the fixture's connection is unboxed.</summary>
 internal static class OutboxFixtureExtensions
 {
-    public static OutboxOperations.Source OpenOutboxSource(this IConformanceFixture fixture, string table) =>
-        OutboxOperations.OpenSource((OutboxSourceConnection)fixture.CreateOutboxConnection(table));
+    public static OutboxOperations.Source OpenOutboxSource(this IConformanceFixture fixture, string table, bool unqualified = false) =>
+        OutboxOperations.OpenSource((OutboxSourceConnection)fixture.CreateOutboxConnection(table, unqualified));
 }
 
 /// <summary>

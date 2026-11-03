@@ -103,6 +103,36 @@ internal static partial class SchemaMigrations
         Operations(conn, schemaName, dialectToken).DropSchemaAsync(ct);
 
     /// <summary>
+    /// Creates a producer's outbox table when it is missing, in one transaction under the database's outbox installer lock,
+    /// and returns whether it did. <paramref name="script"/> is CreateOutboxScript's for the same names.
+    /// </summary>
+    public static async Task<bool> ApplyOutboxAsync(
+        DbConnection conn,
+        string dialectToken,
+        string table,
+        string? schema,
+        string script,
+        CancellationToken ct
+    )
+    {
+        var outbox = new SchemaOperations(conn, new SqlResourceCatalog(dialectToken, schema, table), CommandTimeoutSeconds);
+        await using var tx = await conn.BeginTransactionAsync(ct);
+        await outbox.AcquireOutboxLockAsync(tx, ct);
+        if ((await outbox.FindOutboxTableAsync(tx, ct)).Exists)
+        {
+            return false;
+        }
+
+        await using var create = conn.CreateCommand();
+        create.Transaction = tx;
+        create.CommandText = script;
+        create.CommandTimeout = CommandTimeoutSeconds;
+        await create.ExecuteNonQueryAsync(ct);
+        await tx.CommitAsync(ct);
+        return true;
+    }
+
+    /// <summary>
     /// Fails naming every shipped migration the history has no row for. Rows this build does not ship are tolerated: an
     /// older worker against a newer database is a supported deployment shape.
     /// </summary>
@@ -115,14 +145,13 @@ internal static partial class SchemaMigrations
             return;
         }
 
-        // Named individually rather than as a count: the operator's next action is to run the script that supplies
-        // exactly these, and the names are what make a partially applied provisioning run recognizable.
+        // Named individually rather than as a count: the operator's next action is to apply exactly these, and the names
+        // are what make a partially applied provisioning run recognizable.
         throw new InvalidOperationException(
             $"This database is missing {(missing.Count == 1 ? "migration" : "migrations")} "
-                + $"{string.Join(", ", missing.Select(m => m.Name))}, which this build of Acta ships and requires. Run the "
-                + $"current provisioning script ({ProvisionScript(dialectToken)}) against the database before starting "
-                + "workers; it applies exactly what is missing and skips what is present. Migrations are never applied at "
-                + "startup while ApplyMigrationsOnStartup is false."
+                + $"{string.Join(", ", missing.Select(m => m.Name))}, which this build of Acta ships and requires. Apply "
+                + $"{(missing.Count == 1 ? "it" : "them")} before starting workers, under a principal that may run DDL: "
+                + $"{HowToApply(dialectToken)}. Migrations are never applied at startup while ApplyMigrationsOnStartup is false."
         );
     }
 
@@ -146,7 +175,7 @@ internal static partial class SchemaMigrations
         throw new InvalidOperationException(
             $"This database was provisioned from baseline {string.Join(", ", foreign)}, and this build of Acta ships "
                 + $"{shipped[0].Name}. Release candidates before 1.0 re-cut the baseline, and nothing translates one into "
-                + $"another: drop the database and provision it with the current script ({ProvisionScript(dialectToken)})."
+                + $"another: drop the database and provision it again: {HowToApply(dialectToken)}."
         );
     }
 
@@ -156,11 +185,10 @@ internal static partial class SchemaMigrations
     /// </summary>
     internal static InvalidOperationException NotProvisioned(string schemaName, string dialectToken, DbException? cause = null) =>
         new(
-            $"The Acta schema is not provisioned: schema '{schemaName}' has no migrations table this principal can read. Run "
-                + $"the current provisioning script ({ProvisionScript(dialectToken)}) against this database under a DDL-capable "
-                + "principal, or set ApplyMigrationsOnStartup to let this host provision it (development only). If the schema "
-                + "does exist, the host is pointed at the wrong database or the wrong schema name, or this principal cannot "
-                + "read it."
+            $"The Acta schema is not provisioned: schema '{schemaName}' has no migrations table this principal can read. "
+                + $"Apply the migrations under a principal that may run DDL: {HowToApply(dialectToken)}. In development, "
+                + "ApplyMigrationsOnStartup does it at startup. If the schema does exist, the host is pointed at the wrong "
+                + "database or the wrong schema name, or this principal cannot read it."
                 + (cause is null ? "" : $" The database said: {cause.Message}"),
             cause
         );
@@ -215,8 +243,19 @@ internal static partial class SchemaMigrations
     private static SchemaOperations Operations(DbConnection conn, string schemaName, string dialectToken) =>
         new(conn, new SqlResourceCatalog(dialectToken, schemaName), CommandTimeoutSeconds);
 
-    /// <summary>The published per-dialect script.</summary>
-    private static string ProvisionScript(string dialectToken) => $"docs/reference/schema-{dialectToken}.sql";
+    /// <summary>The three ways to apply, as every refusal names them.</summary>
+    internal static string HowToApply(string dialectToken) =>
+        $"run '<app> jobs migrate', call {MigrationsClass(dialectToken)}.ApplyAsync, or run the published script "
+        + $"docs/reference/schema-{dialectToken}.sql";
+
+    private static string MigrationsClass(string dialectToken) =>
+        dialectToken switch
+        {
+            "pg" => "PostgresMigrations",
+            "mssql" => "SqlServerMigrations",
+            "sqlite" => "SqliteMigrations",
+            _ => throw new ArgumentOutOfRangeException(nameof(dialectToken), dialectToken, "Acta ships no provider for this dialect."),
+        };
 
     /// <summary>
     /// The script's batches: split on lines holding only <c>GO</c>, trimmed, empty ones dropped. Every dialect's migrations

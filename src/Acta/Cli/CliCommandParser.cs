@@ -11,13 +11,37 @@ internal static class CliCommandParser
     public const string ReservedWord = "jobs";
 
     /// <summary>
-    /// Inspects the full command line (index 0 is the executable path). Returns the args after the
-    /// reserved word when the first user argument is exactly "jobs", null otherwise.
+    /// Inspects the full command line (index 0 is the executable path). Returns the args after the reserved word when it
+    /// is the first argument after any host switches, null otherwise. A switch is read as the configuration provider
+    /// reads one with no switch mappings, as a default host does: <c>--key value</c>, <c>/key value</c>, <c>--key=value</c>,
+    /// <c>key=value</c>, or a lone <c>-x</c> it ignores. So <c>--environment Staging jobs migrate</c> runs the verb instead
+    /// of booting workers.
     /// </summary>
-    public static string[]? DetectInvocation(string[] commandLineArgs) =>
-        commandLineArgs.Length >= 2 && string.Equals(commandLineArgs[1], ReservedWord, StringComparison.Ordinal)
-            ? commandLineArgs[2..]
-            : null;
+    public static string[]? DetectInvocation(string[] commandLineArgs)
+    {
+        for (var i = 1; i < commandLineArgs.Length; i++)
+        {
+            var arg = commandLineArgs[i];
+            if (string.Equals(arg, ReservedWord, StringComparison.Ordinal))
+            {
+                return commandLineArgs[(i + 1)..];
+            }
+
+            if (arg.StartsWith("--", StringComparison.Ordinal) || arg.StartsWith('/'))
+            {
+                if (!arg.Contains('=', StringComparison.Ordinal))
+                {
+                    i++;
+                }
+            }
+            else if (!arg.StartsWith('-') && !arg.Contains('=', StringComparison.Ordinal))
+            {
+                return null;
+            }
+        }
+
+        return null;
+    }
 
     /// <summary>
     /// Parses the args after the reserved word into a CliCommand. Returns false with a usage
@@ -47,6 +71,7 @@ internal static class CliCommandParser
             "debug" => CliVerb.Debug,
             "events" => CliVerb.Events,
             "explain" => CliVerb.Explain,
+            "migrate" => CliVerb.Migrate,
             _ => (CliVerb?)null,
         };
         if (verb is null)
@@ -160,6 +185,11 @@ internal static class CliCommandParser
         if (brk && verb != CliVerb.Debug)
         {
             error = $"Flag '--break' is only valid for verb 'debug'.";
+            return false;
+        }
+        if (verb == CliVerb.Migrate && (target is not null || ns is not null))
+        {
+            error = "Verb 'migrate' takes no job and no '--ns': it applies the schema this host is configured with.";
             return false;
         }
 

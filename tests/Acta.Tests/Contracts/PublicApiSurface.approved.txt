@@ -43,6 +43,8 @@ static class Acta.Postgres.PostgresActaExtensions
     static Acta.IOutboxSourceBuilder UsePostgres(this Acta.IOutboxSourceBuilder source, System.String connectionString)
 static class Acta.Postgres.PostgresMigrations
     static System.String CreateOutboxScript(System.String table = "acta_outbox", System.String schema = null)
+    static System.Threading.Tasks.Task<System.Boolean> ApplyOutboxAsync(System.String connectionString, System.String table = "acta_outbox", System.String schema = null, System.Threading.CancellationToken cancellationToken = default)
+    static System.Threading.Tasks.Task<System.Collections.Generic.IReadOnlyList<System.String>> ApplyAsync(System.String connectionString, System.String schema = "acta", System.Threading.CancellationToken cancellationToken = default)
 static class Acta.Postgres.PostgresOutboxStagingExtensions
     static System.Threading.Tasks.Task AddToActaOutboxAsync(this Npgsql.NpgsqlTransaction transaction, Acta.EnqueueJobRequest request, System.String table = "acta_outbox", System.String schema = null, System.Threading.CancellationToken cancellationToken = default)
 
@@ -63,6 +65,8 @@ static class Acta.SqlServer.SqlServerActaExtensions
     static Acta.IOutboxSourceBuilder UseSqlServer(this Acta.IOutboxSourceBuilder source, System.String connectionString)
 static class Acta.SqlServer.SqlServerMigrations
     static System.String CreateOutboxScript(System.String table = "acta_outbox", System.String schema = null)
+    static System.Threading.Tasks.Task<System.Boolean> ApplyOutboxAsync(System.String connectionString, System.String table = "acta_outbox", System.String schema = null, System.Threading.CancellationToken cancellationToken = default)
+    static System.Threading.Tasks.Task<System.Collections.Generic.IReadOnlyList<System.String>> ApplyAsync(System.String connectionString, System.String schema = "acta", System.Threading.CancellationToken cancellationToken = default)
 static class Acta.SqlServer.SqlServerOutboxStagingExtensions
     static System.Threading.Tasks.Task AddToActaOutboxAsync(this Microsoft.Data.SqlClient.SqlTransaction transaction, Acta.EnqueueJobRequest request, System.String table = "acta_outbox", System.String schema = null, System.Threading.CancellationToken cancellationToken = default)
 
@@ -72,6 +76,8 @@ static class Acta.Sqlite.SqliteActaExtensions
     static Acta.IOutboxSourceBuilder UseSqlite(this Acta.IOutboxSourceBuilder source, System.String connectionString)
 static class Acta.Sqlite.SqliteMigrations
     static System.String CreateOutboxScript(System.String table = "acta_outbox")
+    static System.Threading.Tasks.Task<System.Boolean> ApplyOutboxAsync(System.String connectionString, System.String table = "acta_outbox", System.Threading.CancellationToken cancellationToken = default)
+    static System.Threading.Tasks.Task<System.Collections.Generic.IReadOnlyList<System.String>> ApplyAsync(System.String connectionString, System.Threading.CancellationToken cancellationToken = default)
 static class Acta.Sqlite.SqliteOutboxStagingExtensions
     static System.Threading.Tasks.Task AddToActaOutboxAsync(this Microsoft.Data.Sqlite.SqliteTransaction transaction, Acta.EnqueueJobRequest request, System.String table = "acta_outbox", System.String schema = null, System.Threading.CancellationToken cancellationToken = default)
 

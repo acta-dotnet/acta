@@ -13,8 +13,8 @@ public sealed partial class PgConformanceFixture
 {
     public string DialectToken => "pg";
 
-    public Task RunBootstrapPreflightAsync(string connectionString, string schemaName, CancellationToken ct) =>
-        new PostgresSchemaMigrator(new SqlProviderOptions { ConnectionString = connectionString, Schema = schemaName }).RunAsync(ct);
+    public object CreateBootstrap(string connectionString, string schemaName) =>
+        new PostgresSchemaMigrator(new SqlProviderOptions { ConnectionString = connectionString, Schema = schemaName });
 
     public async Task<DbConnection> OpenConnectionAsync(string connectionString, CancellationToken ct)
     {
@@ -23,11 +23,8 @@ public sealed partial class PgConformanceFixture
         return connection;
     }
 
-    public async Task ApplyMigrationsAsync(string connectionString, string schemaName, CancellationToken ct)
-    {
-        await using var connection = new NpgsqlConnection(connectionString);
-        await PostgresSchemaMigrator.ApplyAsync(connection, schemaName, ct);
-    }
+    public Task ApplyMigrationsAsync(string connectionString, string schemaName, CancellationToken ct) =>
+        PostgresMigrations.ApplyAsync(connectionString, schemaName, ct);
 
     public async ValueTask<IMigrationHistoryProbe> CreateHistoryProbeAsync(IReadOnlyList<string>? history)
     {

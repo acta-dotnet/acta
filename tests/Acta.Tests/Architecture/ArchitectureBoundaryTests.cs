@@ -10,9 +10,9 @@ public sealed class ArchitectureBoundaryTests
     private static readonly string[] ProviderProjects = ["Acta.Postgres", "Acta.SqlServer", "Acta.Sqlite"];
 
     /// <summary>
-    /// Concrete schema migrators are implementation mechanics, not a consumer contract: provider
-    /// installation goes through the builder extensions (with ApplyMigrationsOnStartup), so the
-    /// migrator classes stay internal.
+    /// Concrete schema migrators are implementation mechanics, not a consumer contract: a consumer applies
+    /// the migrations through <c>jobs migrate</c>, the public <c>{Provider}Migrations</c> class, or
+    /// ApplyMigrationsOnStartup, so the migrator classes stay internal.
     /// </summary>
     [Fact]
     public void Provider_schema_migrators_are_internal()

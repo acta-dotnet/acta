@@ -8,13 +8,13 @@ namespace Acta.Tests.Conformance.Schema;
 
 /// <summary>
 /// Conformance: provider bootstrap verifies the database's migration history on every start, not only
-/// when it is the thing applying migrations.
+/// when it is the thing applying migrations, and <c>jobs migrate</c> applies exactly what a schema lacks.
 /// </summary>
 [ConformanceSpec(
     "schema.migration-history-preflight",
     "Bootstrap verifies migration history even when it applies nothing",
     Area = "Schema",
-    Contract = "Provider bootstrap requires every migration this build ships and tolerates newer ones."
+    Contract = "Provider bootstrap requires every migration this build ships and tolerates newer ones, and jobs migrate applies exactly what a schema lacks."
 )]
 public sealed class MigrationHistoryPreflightSpec : IntegrationSpec<ConformanceFixture>
 {
@@ -23,7 +23,20 @@ public sealed class MigrationHistoryPreflightSpec : IntegrationSpec<ConformanceF
     {
         // The shared acta_test schema, exactly as a production host would find its own: provisioned
         // out of band, with this host applying nothing.
-        await Fixture.RunBootstrapPreflightAsync(Schema.ConnectionString, Schema.SchemaName, TestContext.Current.CancellationToken);
+        await RunAsync(Schema.ConnectionString, Schema.SchemaName);
+    }
+
+    [Fact(DisplayName = "Migrate applies every migration a fresh schema lacks, then nothing")]
+    public async Task Migrate_applies_a_fresh_schema_once()
+    {
+        var ct = TestContext.Current.CancellationToken;
+        await using var probe = await Fixture.CreateHistoryProbeAsync(history: null);
+        var bootstrap = Bootstrap(probe.ConnectionString, probe.SchemaName);
+
+        var (schema, applied) = await TestDdl.RunAsync(() => bootstrap.MigrateAsync(ct));
+        Assert.Equal(probe.SchemaName, schema);
+        Assert.Equal(ShippedHistory(), applied);
+        Assert.Empty((await TestDdl.RunAsync(() => bootstrap.MigrateAsync(ct))).Applied);
     }
 
     [Fact(DisplayName = "An unprovisioned schema is refused as unprovisioned, naming the provisioning script")]
@@ -61,8 +74,13 @@ public sealed class MigrationHistoryPreflightSpec : IntegrationSpec<ConformanceF
         await RunAsync(probe);
     }
 
-    private Task RunAsync(IMigrationHistoryProbe probe) =>
-        Fixture.RunBootstrapPreflightAsync(probe.ConnectionString, probe.SchemaName, TestContext.Current.CancellationToken);
+    private Task RunAsync(IMigrationHistoryProbe probe) => RunAsync(probe.ConnectionString, probe.SchemaName);
+
+    private Task RunAsync(string connectionString, string schemaName) =>
+        TestDdl.RunAsync(() => Bootstrap(connectionString, schemaName).RunAsync(TestContext.Current.CancellationToken));
+
+    private SchemaBootstrap Bootstrap(string connectionString, string schemaName) =>
+        (SchemaBootstrap)Fixture.CreateBootstrap(connectionString, schemaName);
 
     /// <summary>
     /// The history a correctly provisioned database of this build would hold: one row per embedded

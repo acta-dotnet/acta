@@ -118,7 +118,7 @@ internal static class ProvisionScriptEmitter
                 -- Acta runs with READ_COMMITTED_SNAPSHOT on or off, so on a database that already holds objects the
                 -- setting stays yours. Every condition the server would refuse is checked first, so in a user database
                 -- the ALTER runs or is skipped. When it runs, WITH ROLLBACK IMMEDIATE disconnects any other session in
-                -- the database: run one installer at a time on a new database.
+                -- the database: on a new database, run one copy of this script at a time.
 
                 """ + SqlServerSchemaMigrator.InstallGuard
             );

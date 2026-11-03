@@ -22,9 +22,15 @@ public sealed partial class SqlServerConformanceFixture
     public async ValueTask ApplyOutboxDdlAsync(string table) =>
         await TestDdl.RunAsync(async () =>
         {
-            await ExecOutboxAsync($"DROP TABLE IF EXISTS {Schema}.{table};");
+            await DropOutboxAsync(table);
             await ExecOutboxAsync(Acta.SqlServer.SqlServerMigrations.CreateOutboxScript(table, Schema));
         });
+
+    public Task<bool> ApplyOutboxAsync(string table, bool unqualified = false) =>
+        Acta.SqlServer.SqlServerMigrations.ApplyOutboxAsync(Conn, table, unqualified ? null : Schema);
+
+    public Task DropOutboxAsync(string table, bool unqualified = false) =>
+        ExecOutboxAsync($"DROP TABLE IF EXISTS {(unqualified ? table : $"{Schema}.{table}")};");
 
     public async ValueTask StageInOneTransactionAsync(string outboxTable, IReadOnlyList<Acta.EnqueueJobRequest> requests)
     {
@@ -87,8 +93,11 @@ public sealed partial class SqlServerConformanceFixture
         return Convert.ToInt32(await cmd.ExecuteScalarAsync(), CultureInfo.InvariantCulture);
     }
 
-    public object CreateOutboxConnection(string table) =>
-        new OutboxSourceFactory(Conn, new OutboxSourceDialect(new Acta.SqlServer.SqlServerDialect()), "dbo").Create(Schema, table);
+    public object CreateOutboxConnection(string table, bool unqualified = false) =>
+        new OutboxSourceFactory(Conn, new OutboxSourceDialect(new Acta.SqlServer.SqlServerDialect()), "dbo").Create(
+            unqualified ? null : Schema,
+            table
+        );
 
     public void ApplyOutboxSource(Acta.IOutboxSourceBuilder source)
     {
@@ -96,7 +105,7 @@ public sealed partial class SqlServerConformanceFixture
         source.UseSqlServer(Conn);
     }
 
-    private static async ValueTask ExecOutboxAsync(string sql)
+    private static async Task ExecOutboxAsync(string sql)
     {
         await using var c = new SqlConnection(Conn);
         await c.OpenAsync();
