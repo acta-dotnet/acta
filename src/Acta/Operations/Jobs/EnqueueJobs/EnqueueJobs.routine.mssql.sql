@@ -149,7 +149,7 @@ BEGIN
                     FROM @lanes e
                     WHERE NOT EXISTS (
                         SELECT 1
-                        FROM {{schema}}.lanes l
+                        FROM {{schema}}.lanes l WITH (FORCESEEK)
                         WHERE
                             l.namespace_id = e.ns_id
                             AND l.lane_name = e.lane_name
@@ -165,8 +165,9 @@ BEGIN
 
                 UPDATE e
                 SET lane_id = l.lane_id
+                -- Both lane reads seek their own names, so a caller's transaction never waits on another lane's insert.
                 FROM @lanes e
-                LEFT JOIN {{schema}}.lanes l
+                LEFT JOIN {{schema}}.lanes l WITH (FORCESEEK)
                     ON
                         l.namespace_id = e.ns_id
                         AND l.lane_name = e.lane_name;

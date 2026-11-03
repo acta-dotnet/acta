@@ -118,11 +118,14 @@ in-flight ids first and updates through a primary-key seek.
 
 `ExtendWorkerLeases` takes the (job, execution) pairs and the lock holds the process holds, and
 never waits for a row: it skips one another transaction holds (`READPAST` on SQL Server, `SKIP
-LOCKED` on PostgreSQL) and answers each pair it still finds leased by the worker at that execution
-with a flag saying whether it was renewed. A child's completion locks its own `jobs_state` row and then
-its parent's, the reverse of `job_id` order, so a renewal that waited on either would deadlock with it
-when one worker runs both. The caller cancels an attempt only when its pair is not answered, and
-moves its lease deadline only when the row was renewed. A handler write holds its job's row to commit
+LOCKED` on PostgreSQL), in its read of the held rows and in its renewal. It answers each pair with a
+flag saying whether it was renewed, a pair whose row it skipped among them, and leaves out only a pair
+whose row it read and found no longer leased by the worker at that execution. A row already deleted
+reads like a held one, so an attempt whose job was cancelled and purged within one beat stops at its
+lease deadline rather than the next beat. A child's completion
+locks its own `jobs_state` row and then its parent's, the reverse of `job_id` order, so a renewal that
+waited on either would deadlock with it when one worker runs both. The caller cancels an attempt only
+when its pair is not answered, and moves its lease deadline only when the row was renewed. A handler write holds its job's row to commit
 ("Execution fence"), so the worker asks again for a skipped row a few times within the beat, each ask skipping like
 the first; a row still skipped is renewed on the next beat, well inside the lease window. The lock holds renew first and without skipping, then the `jobs_state` rows with
 skipping, so the routine never waits on a `jobs_state` row while it holds a `locks` row. The answer also carries the namespace's
@@ -222,6 +225,34 @@ until vacuum removes it, so the walk grows between vacuums, and which plan runs 
 autoanalyze last took. No index serves `IS NOT DISTINCT FROM` and it implies no `IS NOT NULL`, so the
 primary key is the only index the planner can use. The worker id is never NULL and
 `ck_jobs_state_inflight_leased` gives every Executing row a worker, so the rows matched are the same.
+
+### Reads with read-committed snapshot off
+
+Acta runs with `READ_COMMITTED_SNAPSHOT` on or off. With it off, a plain read takes shared locks and
+waits on every row another transaction holds, an application's open enqueue or outbox insert included,
+so two rules decide every read on SQL Server:
+
+1. A read inside a writing transaction seeks its own keys, so it never touches another namespace's or
+   another lane's rows: registration's reads, the enqueue routines' lane reads, the alert floor, and
+   retire's slot read.
+2. A read that ranges over rows an application may hold uncommitted skips them with
+   `READCOMMITTEDLOCK, READPAST`, the same locking read with the option on or off, and is either
+   re-checked under the reader's own lock or used only for display. That covers the claim's horizon,
+   the recovery walks and stale-latch read, the retention walks, the heartbeat, retire's two reads, the
+   outbox lane check and backlog count ("Outbox lock"), and the dashboard's job lists, counts, lane
+   probes, and lineage children.
+
+A skipped row is one an application has not committed, which read-committed snapshot hides too, or one
+Acta itself is changing at that instant: a page or count can briefly miss it, in both modes.
+`READPAST` passes row locks only, so a statement that locks a whole page or table still holds these
+reads until it commits. The
+enqueue routines only seek, since they run in the caller's transaction, where `READPAST` raises error
+650 under SERIALIZABLE. Retire can leave a job another transaction holds at that instant unfinished
+under the retired definition. A tree cancel lists each node's children without skipping, since a
+skipped child would keep running, so with the option off it waits for a transaction that is enqueuing a
+child into the tree; it holds no lock while it waits. Without the option a statement is not one
+snapshot either: Explain can read a step and a checkpoint from either side of a transaction that
+changes both.
 
 ### Deduplication lock
 

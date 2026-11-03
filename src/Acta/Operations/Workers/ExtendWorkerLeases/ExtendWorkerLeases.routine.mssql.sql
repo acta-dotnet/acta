@@ -65,16 +65,28 @@ BEGIN
         /* Push the held executions' leases forward. Only a row this worker still leases at the execution the
            process holds is answered, so a row the process lost lapses and recovery takes it. Deliberately no
            version bump: a lease refresh is not a claim-generation change. */
-        -- Read the matched ids first so the update locks base rows only, never an index key;
-        -- complete_executions locks in the other order. See docs/sql-internals.md.
-        DECLARE @matched TABLE (job_id BIGINT NOT NULL PRIMARY KEY, execution_number INT NOT NULL);
-        INSERT INTO @matched (job_id, execution_number)
-        SELECT r.job_id, r.execution_number
-        FROM {{schema}}.jobs_state r
-        INNER JOIN @held h ON h.job_id = r.job_id AND h.execution_number = r.execution_number
-        WHERE
-            r.leased_by_worker_id = @p_leased_by_worker_id
-            AND r.job_status_code = 50 /* JobStatusCode.Executing */;
+        -- Read the held rows first so the update locks base rows only, never an index key; complete_executions locks in
+        -- the other order. A row another transaction holds is skipped and answered unrenewed, so the read never waits;
+        -- only a row read that no longer matches goes unanswered, which stops its attempt (docs/sql-internals.md).
+        DECLARE @seen TABLE (
+            job_id BIGINT NOT NULL,
+            execution_number INT NOT NULL,
+            matched BIT NOT NULL,
+            PRIMARY KEY (job_id, execution_number)
+        );
+        INSERT INTO @seen (job_id, execution_number, matched)
+        SELECT
+            h.job_id,
+            h.execution_number,
+            CASE
+                WHEN r.execution_number = h.execution_number
+                    AND r.leased_by_worker_id = @p_leased_by_worker_id
+                    AND r.job_status_code = 50 /* JobStatusCode.Executing */
+                    THEN 1
+                ELSE 0
+            END
+        FROM @held h
+        INNER JOIN {{schema}}.jobs_state r WITH (INDEX (pk_jobs_state), FORCESEEK, READCOMMITTEDLOCK, READPAST) ON r.job_id = h.job_id;
 
         -- A row another transaction holds is skipped and reported unrenewed, so the renewal never waits
         -- (docs/sql-internals.md, "Explicit exceptions and maintenance").
@@ -83,7 +95,7 @@ BEGIN
         SET lease_expires_at_utc = @new_expiry
         OUTPUT INSERTED.job_id INTO @renewed (job_id)
         FROM {{schema}}.jobs_state r WITH (INDEX(pk_jobs_state), FORCESEEK, ROWLOCK, READPAST)
-        INNER JOIN @matched m ON m.job_id = r.job_id AND m.execution_number = r.execution_number
+        INNER JOIN @seen m ON m.job_id = r.job_id AND m.execution_number = r.execution_number AND m.matched = 1
         WHERE
             r.leased_by_worker_id = @p_leased_by_worker_id
             AND r.job_status_code = 50 /* JobStatusCode.Executing */;
@@ -110,16 +122,19 @@ BEGIN
         FROM @lock_renewed l
         UNION ALL
         SELECT
-            m.job_id,
-            m.execution_number,
+            h.job_id,
+            h.execution_number,
             CAST(NULL AS VARCHAR(256)),
             CAST(CASE WHEN n.job_id IS NULL THEN 0 ELSE 1 END AS BIT),
             CAST(NULL AS DATETIME2(3)),
             CAST(0 AS BIT)
-        FROM @matched m
-        LEFT JOIN @renewed n ON n.job_id = m.job_id
+        FROM @held h
+        LEFT JOIN @seen s ON s.job_id = h.job_id AND s.execution_number = h.execution_number
+        LEFT JOIN @renewed n ON n.job_id = h.job_id
+        WHERE s.job_id IS NULL OR s.matched = 1
         UNION ALL
-        -- The namespace's newest definition change: the worker re-reads its catalog only when it moves.
+        -- The namespace's newest definition change: the worker re-reads its catalog only when it moves. A definition
+        -- another transaction holds is skipped, which at worst delays that re-read by one beat.
         SELECT
             CAST(NULL AS BIGINT) AS job_id,
             CAST(NULL AS INT) AS execution_number,
@@ -127,7 +142,7 @@ BEGIN
             CAST(0 AS BIT) AS renewed,
             MAX(d.modified_at_utc) AS definitions_modified_at_utc,
             @recovery_claimed AS recovery_claimed
-        FROM {{schema}}.definitions d
+        FROM {{schema}}.definitions d WITH (FORCESEEK, READCOMMITTEDLOCK, READPAST)
         WHERE d.namespace_id = @namespace_id;
 
         IF @entry_trancount = 0

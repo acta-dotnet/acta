@@ -40,11 +40,12 @@ BEGIN TRY
         END
 
     -- The lanes of the definition's parked laned jobs, locked one row at a time in id order before any
-    -- job row (docs/sql-internals.md, "Lane lock order").
+    -- job row (docs/sql-internals.md, "Lane lock order"). Both reads of the jobs to park skip a row another
+    -- transaction holds, so a retire never waits on an application's open enqueue; such a job is left as it is.
     INSERT INTO @lanes (lane_id)
     SELECT DISTINCT r.lane_id
-    FROM {{schema}}.jobs_state r
-    INNER JOIN {{schema}}.jobs j ON j.job_id = r.job_id
+    FROM {{schema}}.jobs_state r WITH (READCOMMITTEDLOCK, READPAST)
+    INNER JOIN {{schema}}.jobs j WITH (READCOMMITTEDLOCK, READPAST) ON j.job_id = r.job_id
     WHERE
         j.definition_id = @p_definition_id
         AND r.lane_id IS NOT NULL
@@ -115,8 +116,8 @@ BEGIN TRY
             j.definition_id,
             COALESCE(j.lineage_root_job_id, j.job_id),
             j.event_recording_code
-        FROM {{schema}}.jobs j
-        INNER JOIN {{schema}}.jobs_state r ON r.job_id = j.job_id
+        FROM {{schema}}.jobs j WITH (READCOMMITTEDLOCK, READPAST)
+        INNER JOIN {{schema}}.jobs_state r WITH (READCOMMITTEDLOCK, READPAST) ON r.job_id = j.job_id
         WHERE
             j.definition_id = @p_definition_id
             AND r.job_status_code IN (
@@ -131,7 +132,7 @@ BEGIN TRY
            an attempt still runs lands as it would. */
         INSERT INTO @slots (job_id, job_status_code)
         SELECT r.job_id, r.job_status_code
-        FROM {{schema}}.jobs j
+        FROM {{schema}}.jobs j WITH (INDEX (ux_jobs_slot), FORCESEEK)
         INNER JOIN {{schema}}.jobs_state r WITH (UPDLOCK, ROWLOCK) ON r.job_id = j.job_id
         WHERE
             j.definition_id = @p_definition_id

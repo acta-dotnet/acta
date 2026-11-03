@@ -36,19 +36,21 @@ BEGIN
         DECLARE @stranded TABLE (lane_id BIGINT NOT NULL PRIMARY KEY);
         DECLARE @repaired TABLE (job_id BIGINT NOT NULL PRIMARY KEY);
         DECLARE @min_lane BIGINT, @max_lane BIGINT, @start_lane BIGINT, @window_count INT;
-        SELECT @min_lane = MIN(l.lane_id), @max_lane = MAX(l.lane_id) FROM {{schema}}.lanes l;
+        -- The walk skips a lane or member another transaction holds: the repair re-reads each lane under its lock.
+        SET @min_lane = (SELECT MIN(l.lane_id) FROM {{schema}}.lanes l WITH (READCOMMITTEDLOCK, READPAST));
+        SET @max_lane = (SELECT MAX(l.lane_id) FROM {{schema}}.lanes l WITH (READCOMMITTEDLOCK, READPAST));
         IF @max_lane IS NOT NULL
             BEGIN
                 SET @start_lane = @min_lane + CAST(FLOOR(RAND(CHECKSUM(NEWID())) * (@max_lane - @min_lane + 1)) AS BIGINT);
                 INSERT INTO @window (lane_id)
                 SELECT TOP (1000) l.lane_id
-                FROM {{schema}}.lanes l
+                FROM {{schema}}.lanes l WITH (READCOMMITTEDLOCK, READPAST)
                 WHERE l.namespace_id = @p_namespace_id AND l.lane_id >= @start_lane
                 ORDER BY l.lane_id;
                 SET @window_count = @@ROWCOUNT;
                 INSERT INTO @window (lane_id)
                 SELECT TOP (1000 - @window_count) l.lane_id
-                FROM {{schema}}.lanes l
+                FROM {{schema}}.lanes l WITH (READCOMMITTEDLOCK, READPAST)
                 WHERE l.namespace_id = @p_namespace_id AND l.lane_id < @start_lane
                 ORDER BY l.lane_id;
 
@@ -57,7 +59,7 @@ BEGIN
                 FROM @window w
                 CROSS APPLY (
                     SELECT TOP (1) m.job_status_code
-                    FROM {{schema}}.jobs_state m WITH (INDEX (ix_jobs_state_lane), FORCESEEK)
+                    FROM {{schema}}.jobs_state m WITH (INDEX (ix_jobs_state_lane), FORCESEEK, READCOMMITTEDLOCK, READPAST)
                     WHERE
                         m.lane_id = w.lane_id
                         AND m.lane_id IS NOT NULL
@@ -71,7 +73,7 @@ BEGIN
                     h.job_status_code = 15 /* JobStatusCode.Blocked */
                     AND NOT EXISTS (
                         SELECT 1
-                        FROM {{schema}}.jobs_state o WITH (INDEX (ix_jobs_state_lane), FORCESEEK)
+                        FROM {{schema}}.jobs_state o WITH (INDEX (ix_jobs_state_lane), FORCESEEK, READCOMMITTEDLOCK, READPAST)
                         WHERE
                             o.lane_id = w.lane_id
                             AND o.lane_id IS NOT NULL

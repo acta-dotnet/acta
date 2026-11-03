@@ -709,6 +709,11 @@
 
 ## Enqueue
 
+### Acta never waits on an application's open transaction
+- **Contract:** Every engine pass and dashboard read returns while an application's transaction holds an uncommitted laned enqueue and child.
+- **Guarantees:**
+  - An idle claim, recovery, retention, alerts, a retire, and the dashboard reads return while an enqueue is open
+
 ### Batch enqueue lands one job row per input ordinal with no enqueue event
 - **Contract:** A batch enqueue inserts one Ready job per input row with positionally-aligned outcomes, persists tags, and writes no events on enqueue.
 - **Guarantees:**

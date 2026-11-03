@@ -63,7 +63,7 @@ GO
 -- ===== refuse a database a newer release already upgraded =====
 IF EXISTS (
     SELECT 1 FROM acta.migrations
-    WHERE name NOT IN ('M20261103082821_init')
+    WHERE name NOT IN ('M20261103163335_init')
 )
 BEGIN
     RAISERROR(N'A newer Acta release already upgraded this database. Run the newest provisioning script; this one would move it backwards.', 16, 1);
@@ -71,7 +71,7 @@ BEGIN
     SET NOEXEC ON;
 END
 GO
--- ===== BEGIN M20261103082821_init =====
+-- ===== BEGIN M20261103163335_init =====
 SET QUOTED_IDENTIFIER ON;
 SET ANSI_NULLS ON;
 GO
@@ -1212,13 +1212,15 @@ BEGIN
                     CAST(NULL AS UNIQUEIDENTIFIER) AS job_ref,
                     CAST(NULL AS INT) AS tenant_id,
                     @now AS db_now,
-                    /* The earliest head across the bands: each band's first index row is its earliest instant. */
+                    /* The earliest head across the bands: each band's first index row is its earliest instant. A row
+                       another transaction holds is skipped, as an enqueue not yet committed is under read-committed
+                       snapshot, so an application's open enqueue never holds up an idle claim. */
                     (
                         SELECT MIN(head.next_run_at_utc)
                         FROM @bands b
                         CROSS APPLY (
                             SELECT TOP (1) r.next_run_at_utc
-                            FROM acta.jobs_state r
+                            FROM acta.jobs_state r WITH (READCOMMITTEDLOCK, READPAST)
                             WHERE
                                 r.namespace_id = @p_namespace_id
                                 AND r.job_priority_code = b.job_priority_code
@@ -2634,7 +2636,7 @@ BEGIN
                     FROM @lanes e
                     WHERE NOT EXISTS (
                         SELECT 1
-                        FROM acta.lanes l
+                        FROM acta.lanes l WITH (FORCESEEK)
                         WHERE
                             l.namespace_id = e.ns_id
                             AND l.lane_name = e.lane_name
@@ -2650,8 +2652,9 @@ BEGIN
 
                 UPDATE e
                 SET lane_id = l.lane_id
+                -- Both lane reads seek their own names, so a caller's transaction never waits on another lane's insert.
                 FROM @lanes e
-                LEFT JOIN acta.lanes l
+                LEFT JOIN acta.lanes l WITH (FORCESEEK)
                     ON
                         l.namespace_id = e.ns_id
                         AND l.lane_name = e.lane_name;
@@ -3148,16 +3151,28 @@ BEGIN
         /* Push the held executions' leases forward. Only a row this worker still leases at the execution the
            process holds is answered, so a row the process lost lapses and recovery takes it. Deliberately no
            version bump: a lease refresh is not a claim-generation change. */
-        -- Read the matched ids first so the update locks base rows only, never an index key;
-        -- complete_executions locks in the other order. See docs/sql-internals.md.
-        DECLARE @matched TABLE (job_id BIGINT NOT NULL PRIMARY KEY, execution_number INT NOT NULL);
-        INSERT INTO @matched (job_id, execution_number)
-        SELECT r.job_id, r.execution_number
-        FROM acta.jobs_state r
-        INNER JOIN @held h ON h.job_id = r.job_id AND h.execution_number = r.execution_number
-        WHERE
-            r.leased_by_worker_id = @p_leased_by_worker_id
-            AND r.job_status_code = 50 /* JobStatusCode.Executing */;
+        -- Read the held rows first so the update locks base rows only, never an index key; complete_executions locks in
+        -- the other order. A row another transaction holds is skipped and answered unrenewed, so the read never waits;
+        -- only a row read that no longer matches goes unanswered, which stops its attempt (docs/sql-internals.md).
+        DECLARE @seen TABLE (
+            job_id BIGINT NOT NULL,
+            execution_number INT NOT NULL,
+            matched BIT NOT NULL,
+            PRIMARY KEY (job_id, execution_number)
+        );
+        INSERT INTO @seen (job_id, execution_number, matched)
+        SELECT
+            h.job_id,
+            h.execution_number,
+            CASE
+                WHEN r.execution_number = h.execution_number
+                    AND r.leased_by_worker_id = @p_leased_by_worker_id
+                    AND r.job_status_code = 50 /* JobStatusCode.Executing */
+                    THEN 1
+                ELSE 0
+            END
+        FROM @held h
+        INNER JOIN acta.jobs_state r WITH (INDEX (pk_jobs_state), FORCESEEK, READCOMMITTEDLOCK, READPAST) ON r.job_id = h.job_id;
 
         -- A row another transaction holds is skipped and reported unrenewed, so the renewal never waits
         -- (docs/sql-internals.md, "Explicit exceptions and maintenance").
@@ -3166,7 +3181,7 @@ BEGIN
         SET lease_expires_at_utc = @new_expiry
         OUTPUT INSERTED.job_id INTO @renewed (job_id)
         FROM acta.jobs_state r WITH (INDEX(pk_jobs_state), FORCESEEK, ROWLOCK, READPAST)
-        INNER JOIN @matched m ON m.job_id = r.job_id AND m.execution_number = r.execution_number
+        INNER JOIN @seen m ON m.job_id = r.job_id AND m.execution_number = r.execution_number AND m.matched = 1
         WHERE
             r.leased_by_worker_id = @p_leased_by_worker_id
             AND r.job_status_code = 50 /* JobStatusCode.Executing */;
@@ -3193,16 +3208,19 @@ BEGIN
         FROM @lock_renewed l
         UNION ALL
         SELECT
-            m.job_id,
-            m.execution_number,
+            h.job_id,
+            h.execution_number,
             CAST(NULL AS VARCHAR(256)),
             CAST(CASE WHEN n.job_id IS NULL THEN 0 ELSE 1 END AS BIT),
             CAST(NULL AS DATETIME2(3)),
             CAST(0 AS BIT)
-        FROM @matched m
-        LEFT JOIN @renewed n ON n.job_id = m.job_id
+        FROM @held h
+        LEFT JOIN @seen s ON s.job_id = h.job_id AND s.execution_number = h.execution_number
+        LEFT JOIN @renewed n ON n.job_id = h.job_id
+        WHERE s.job_id IS NULL OR s.matched = 1
         UNION ALL
-        -- The namespace's newest definition change: the worker re-reads its catalog only when it moves.
+        -- The namespace's newest definition change: the worker re-reads its catalog only when it moves. A definition
+        -- another transaction holds is skipped, which at worst delays that re-read by one beat.
         SELECT
             CAST(NULL AS BIGINT) AS job_id,
             CAST(NULL AS INT) AS execution_number,
@@ -3210,7 +3228,7 @@ BEGIN
             CAST(0 AS BIT) AS renewed,
             MAX(d.modified_at_utc) AS definitions_modified_at_utc,
             @recovery_claimed AS recovery_claimed
-        FROM acta.definitions d
+        FROM acta.definitions d WITH (FORCESEEK, READCOMMITTEDLOCK, READPAST)
         WHERE d.namespace_id = @namespace_id;
 
         IF @entry_trancount = 0
@@ -3266,11 +3284,12 @@ BEGIN
                    namespace's expired jobs in it; downward, so a walk has a fixed end however fast enqueues arrive.
                    A full batch ends the slice at its last delete; the oldest row answers zero, and the walk restarts. */
                 DECLARE @below BIGINT = CASE WHEN @p_before_job_id = 0 THEN 9223372036854775807 ELSE @p_before_job_id END;
+                -- The walk skips a row another transaction holds; the delete below locks and re-checks its own.
                 DECLARE @slice_end BIGINT = (
                     SELECT MIN(s.job_id)
                     FROM (
                         SELECT TOP (@p_batch_size * 10) r.job_id
-                        FROM acta.jobs_state r
+                        FROM acta.jobs_state r WITH (READCOMMITTEDLOCK, READPAST)
                         WHERE r.job_id < @below
                         ORDER BY r.job_id DESC
                     ) s
@@ -3541,10 +3560,10 @@ BEGIN
                 FROM acta.lanes l WITH (UPDLOCK, READPAST, ROWLOCK, INDEX (pk_lanes))
                 WHERE l.lane_id IN (
                     SELECT TOP (@p_batch_size) c.lane_id
-                    FROM acta.lanes c
+                    FROM acta.lanes c WITH (READCOMMITTEDLOCK, READPAST)
                     WHERE
                         c.namespace_id = @p_namespace_id
-                        AND NOT EXISTS (SELECT 1 FROM acta.jobs_state r WHERE r.lane_id = c.lane_id)
+                        AND NOT EXISTS (SELECT 1 FROM acta.jobs_state r WITH (READCOMMITTEDLOCK, READPAST) WHERE r.lane_id = c.lane_id)
                     ORDER BY c.lane_id
                 );
                 DELETE l
@@ -3773,19 +3792,21 @@ BEGIN
         DECLARE @stranded TABLE (lane_id BIGINT NOT NULL PRIMARY KEY);
         DECLARE @repaired TABLE (job_id BIGINT NOT NULL PRIMARY KEY);
         DECLARE @min_lane BIGINT, @max_lane BIGINT, @start_lane BIGINT, @window_count INT;
-        SELECT @min_lane = MIN(l.lane_id), @max_lane = MAX(l.lane_id) FROM acta.lanes l;
+        -- The walk skips a lane or member another transaction holds: the repair re-reads each lane under its lock.
+        SET @min_lane = (SELECT MIN(l.lane_id) FROM acta.lanes l WITH (READCOMMITTEDLOCK, READPAST));
+        SET @max_lane = (SELECT MAX(l.lane_id) FROM acta.lanes l WITH (READCOMMITTEDLOCK, READPAST));
         IF @max_lane IS NOT NULL
             BEGIN
                 SET @start_lane = @min_lane + CAST(FLOOR(RAND(CHECKSUM(NEWID())) * (@max_lane - @min_lane + 1)) AS BIGINT);
                 INSERT INTO @window (lane_id)
                 SELECT TOP (1000) l.lane_id
-                FROM acta.lanes l
+                FROM acta.lanes l WITH (READCOMMITTEDLOCK, READPAST)
                 WHERE l.namespace_id = @p_namespace_id AND l.lane_id >= @start_lane
                 ORDER BY l.lane_id;
                 SET @window_count = @@ROWCOUNT;
                 INSERT INTO @window (lane_id)
                 SELECT TOP (1000 - @window_count) l.lane_id
-                FROM acta.lanes l
+                FROM acta.lanes l WITH (READCOMMITTEDLOCK, READPAST)
                 WHERE l.namespace_id = @p_namespace_id AND l.lane_id < @start_lane
                 ORDER BY l.lane_id;
 
@@ -3794,7 +3815,7 @@ BEGIN
                 FROM @window w
                 CROSS APPLY (
                     SELECT TOP (1) m.job_status_code
-                    FROM acta.jobs_state m WITH (INDEX (ix_jobs_state_lane), FORCESEEK)
+                    FROM acta.jobs_state m WITH (INDEX (ix_jobs_state_lane), FORCESEEK, READCOMMITTEDLOCK, READPAST)
                     WHERE
                         m.lane_id = w.lane_id
                         AND m.lane_id IS NOT NULL
@@ -3808,7 +3829,7 @@ BEGIN
                     h.job_status_code = 15 /* JobStatusCode.Blocked */
                     AND NOT EXISTS (
                         SELECT 1
-                        FROM acta.jobs_state o WITH (INDEX (ix_jobs_state_lane), FORCESEEK)
+                        FROM acta.jobs_state o WITH (INDEX (ix_jobs_state_lane), FORCESEEK, READCOMMITTEDLOCK, READPAST)
                         WHERE
                             o.lane_id = w.lane_id
                             AND o.lane_id IS NOT NULL
@@ -5074,11 +5095,11 @@ JOIN acta.namespaces AS ns ON ns.namespace_id = w.namespace_id
 GO
 
 
-IF NOT EXISTS (SELECT 1 FROM acta.migrations WHERE name = 'M20261103082821_init')
+IF NOT EXISTS (SELECT 1 FROM acta.migrations WHERE name = 'M20261103163335_init')
 INSERT INTO acta.migrations (name)
-VALUES ('M20261103082821_init');
+VALUES ('M20261103163335_init');
 GO
--- ===== END M20261103082821_init =====
+-- ===== END M20261103163335_init =====
 GO
 COMMIT TRANSACTION;
 GO

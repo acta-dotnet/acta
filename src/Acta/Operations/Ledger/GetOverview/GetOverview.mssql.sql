@@ -17,10 +17,11 @@ IF @p_namespace_name IS NOT NULL
    a queue of long approval waits would read as backlog that no worker is behind on. */
 /* Not shared text - claim_jobs is an installed routine and this is an inline command - so the two
    are must-stay-in-sync twins; change one, change the other. */
+-- A job row another transaction holds is left out of the counts, so the overview never waits on an open enqueue.
 SELECT
     (
         SELECT COUNT_BIG(*)
-        FROM {{schema}}.jobs_state r
+        FROM {{schema}}.jobs_state r WITH (READCOMMITTEDLOCK, READPAST)
         WHERE
             -- ix_jobs_state_claim_ready's filter restated whole, so both counters read the claim index.
             r.job_status_code IN (10 /* JobStatusCode.Ready */, 20 /* JobStatusCode.Suspended */)
@@ -30,7 +31,7 @@ SELECT
     ) AS ready_count,
     (
         SELECT CAST(DATEDIFF(SECOND, MIN(r.next_run_at_utc), @now) AS BIGINT)
-        FROM {{schema}}.jobs_state r
+        FROM {{schema}}.jobs_state r WITH (READCOMMITTEDLOCK, READPAST)
         WHERE
             r.job_status_code IN (10 /* JobStatusCode.Ready */, 20 /* JobStatusCode.Suspended */)
             AND r.next_run_at_utc IS NOT NULL
@@ -39,7 +40,7 @@ SELECT
     ) AS oldest_ready_age_seconds,
     (
         SELECT COUNT_BIG(*)
-        FROM {{schema}}.jobs_state r
+        FROM {{schema}}.jobs_state r WITH (READCOMMITTEDLOCK, READPAST)
         WHERE
             r.job_status_code = 50 /* JobStatusCode.Executing */
             -- ix_jobs_state_worker_inflight's filter restated (ck_jobs_state_inflight_leased holds it for every Executing
@@ -49,7 +50,7 @@ SELECT
     ) AS executing_count,
     (
         SELECT COUNT_BIG(*)
-        FROM {{schema}}.jobs_state r
+        FROM {{schema}}.jobs_state r WITH (READCOMMITTEDLOCK, READPAST)
         WHERE
             r.job_status_code = 200 /* JobStatusCode.Failed */
             AND (@p_namespace_name IS NULL OR r.namespace_id = @ns_id)

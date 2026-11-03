@@ -15,6 +15,9 @@ BEGIN TRY
     IF @lock_result < 0
         THROW 51205, 'ACTA:SCHEDULE_LOCK:The namespace schedule lock was not granted (deadlock victim or cancelled).', 1;
 
+    -- Every read of a permanent table seeks its own keys, slots through ux_jobs_slot, so a registration never touches
+    -- another namespace's rows (docs/sql-internals.md, "Locking reads seek").
+
     -- The slot's event recording is the definition row's effective recording, read under the lock, so an override
     -- committed after this worker read its catalog stands.
     UPDATE j
@@ -22,9 +25,9 @@ BEGIN TRY
         input_format_id = d.input_format_id,
         input = d.input,
         event_recording_code = jd.event_recording_code_effective
-    FROM {{schema}}.jobs AS j
+    FROM {{schema}}.jobs AS j WITH (INDEX (ux_jobs_slot), FORCESEEK)
     INNER JOIN @p_definitions AS d ON d.definition_id = j.definition_id
-    INNER JOIN {{schema}}.definitions AS jd ON jd.definition_id = d.definition_id
+    INNER JOIN {{schema}}.definitions AS jd WITH (FORCESEEK) ON jd.definition_id = d.definition_id
     WHERE j.job_kind_code = 20 /* JobKindCode.PermanentSlot */;
 
     -- The declaration's priority reaches a slot between firings; one an attempt or an operator holds keeps its own.
@@ -33,10 +36,10 @@ BEGIN TRY
         job_priority_code = jd.job_priority_code_effective,
         modified_at_utc = @now,
         version = r.version + 1
-    FROM {{schema}}.jobs_state AS r
-    INNER JOIN {{schema}}.jobs AS j ON j.job_id = r.job_id
+    FROM {{schema}}.jobs_state AS r WITH (FORCESEEK)
+    INNER JOIN {{schema}}.jobs AS j WITH (INDEX (ux_jobs_slot), FORCESEEK) ON j.job_id = r.job_id
     INNER JOIN @p_definitions AS d ON d.definition_id = j.definition_id
-    INNER JOIN {{schema}}.definitions AS jd ON jd.definition_id = d.definition_id
+    INNER JOIN {{schema}}.definitions AS jd WITH (FORCESEEK) ON jd.definition_id = d.definition_id
     WHERE
         j.job_kind_code = 20 /* JobKindCode.PermanentSlot */
         AND r.job_status_code = 40 /* JobStatusCode.Idle */
@@ -63,13 +66,13 @@ BEGIN TRY
         jd.event_recording_code_effective,
         @now
     FROM @p_definitions AS d
-    INNER JOIN {{schema}}.definitions AS jd ON jd.definition_id = d.definition_id
+    INNER JOIN {{schema}}.definitions AS jd WITH (FORCESEEK) ON jd.definition_id = d.definition_id
     WHERE
         -- A PerOccurrence definition has no slot: each admitted occurrence is a root of its own.
         d.scheduled_delivery_code = 10 /* ScheduledDeliveryCode.Permanent */
         AND NOT EXISTS (
             SELECT 1
-            FROM {{schema}}.jobs AS j
+            FROM {{schema}}.jobs AS j WITH (INDEX (ux_jobs_slot), FORCESEEK)
             WHERE j.definition_id = d.definition_id AND j.job_kind_code = 20 /* JobKindCode.PermanentSlot */
         );
 
@@ -90,13 +93,13 @@ BEGIN TRY
         @now,
         0
     FROM @p_definitions AS d
-    INNER JOIN {{schema}}.jobs AS j
+    INNER JOIN {{schema}}.jobs AS j WITH (INDEX (ux_jobs_slot), FORCESEEK)
         ON
             j.definition_id = d.definition_id
             AND j.job_kind_code = 20 /* JobKindCode.PermanentSlot */
-    INNER JOIN {{schema}}.definitions AS jd ON jd.definition_id = d.definition_id
+    INNER JOIN {{schema}}.definitions AS jd WITH (FORCESEEK) ON jd.definition_id = d.definition_id
     WHERE NOT EXISTS (
-        SELECT 1 FROM {{schema}}.jobs_state AS r
+        SELECT 1 FROM {{schema}}.jobs_state AS r WITH (FORCESEEK)
         WHERE r.job_id = j.job_id
     );
 
@@ -108,7 +111,7 @@ BEGIN TRY
         d.definition_id,
         j.job_id
     FROM @p_definitions AS d
-    INNER JOIN {{schema}}.jobs AS j
+    INNER JOIN {{schema}}.jobs AS j WITH (INDEX (ux_jobs_slot), FORCESEEK)
         ON
             j.definition_id = d.definition_id
             AND j.job_kind_code = 20 /* JobKindCode.PermanentSlot */;
@@ -131,9 +134,9 @@ BEGIN TRY
         r.execution_number,
         1 /* JobPayloadFormat.Json */, CAST('{"schedule":"' + s.schedule_name + '"}' AS VARBINARY(MAX))
     FROM @p_schedules AS src
-    INNER JOIN {{schema}}.schedules AS s ON s.definition_id = src.definition_id AND s.schedule_name = src.schedule_name
-    INNER JOIN {{schema}}.jobs AS j ON j.job_id = s.job_id
-    INNER JOIN {{schema}}.jobs_state AS r ON r.job_id = s.job_id
+    INNER JOIN {{schema}}.schedules AS s WITH (FORCESEEK) ON s.definition_id = src.definition_id AND s.schedule_name = src.schedule_name
+    INNER JOIN {{schema}}.jobs AS j WITH (FORCESEEK) ON j.job_id = s.job_id
+    INNER JOIN {{schema}}.jobs_state AS r WITH (FORCESEEK) ON r.job_id = s.job_id
     WHERE s.timing_fingerprint <> src.timing_fingerprint AND j.event_recording_code = 20 /* EventRecordingCode.Audit */;
 
     -- A schedule with no slot records its retime against its definition.
@@ -149,8 +152,8 @@ BEGIN TRY
         s.definition_id,
         1 /* JobPayloadFormat.Json */, CAST('{"schedule":"' + s.schedule_name + '"}' AS VARBINARY(MAX))
     FROM @p_schedules AS src
-    INNER JOIN {{schema}}.schedules AS s ON s.definition_id = src.definition_id AND s.schedule_name = src.schedule_name
-    INNER JOIN {{schema}}.definitions AS d ON d.definition_id = s.definition_id
+    INNER JOIN {{schema}}.schedules AS s WITH (FORCESEEK) ON s.definition_id = src.definition_id AND s.schedule_name = src.schedule_name
+    INNER JOIN {{schema}}.definitions AS d WITH (FORCESEEK) ON d.definition_id = s.definition_id
     WHERE
         s.job_id IS NULL
         AND s.timing_fingerprint <> src.timing_fingerprint
@@ -167,7 +170,7 @@ BEGIN TRY
         version = st.version + 1,
         modified_at_utc = @now
     FROM {{schema}}.schedules_state AS st WITH (FORCESEEK)
-    INNER JOIN {{schema}}.schedules AS s ON s.schedule_id = st.schedule_id
+    INNER JOIN {{schema}}.schedules AS s WITH (FORCESEEK) ON s.schedule_id = st.schedule_id
     INNER JOIN @p_schedules AS src
         ON
             src.definition_id = s.definition_id
@@ -185,7 +188,7 @@ BEGIN TRY
         version = st.version + 1,
         modified_at_utc = @now
     FROM {{schema}}.schedules_state AS st WITH (FORCESEEK)
-    INNER JOIN {{schema}}.schedules AS s ON s.schedule_id = st.schedule_id
+    INNER JOIN {{schema}}.schedules AS s WITH (FORCESEEK) ON s.schedule_id = st.schedule_id
     INNER JOIN @p_schedules AS src
         ON
             src.definition_id = s.definition_id
@@ -270,7 +273,7 @@ BEGIN TRY
     LEFT JOIN @slots AS sl ON sl.definition_id = src.definition_id
     WHERE NOT EXISTS (
         SELECT 1
-        FROM {{schema}}.schedules AS tgt
+        FROM {{schema}}.schedules AS tgt WITH (FORCESEEK)
         WHERE
             tgt.definition_id = src.definition_id
             AND tgt.schedule_name = src.schedule_name
@@ -291,10 +294,10 @@ BEGIN TRY
         0,
         @now
     FROM @p_schedules AS src
-    INNER JOIN {{schema}}.schedules AS s ON s.definition_id = src.definition_id AND s.schedule_name = src.schedule_name
+    INNER JOIN {{schema}}.schedules AS s WITH (FORCESEEK) ON s.definition_id = src.definition_id AND s.schedule_name = src.schedule_name
     WHERE NOT EXISTS (
         SELECT 1
-        FROM {{schema}}.schedules_state AS st
+        FROM {{schema}}.schedules_state AS st WITH (FORCESEEK)
         WHERE st.schedule_id = s.schedule_id
     );
 
@@ -302,7 +305,7 @@ BEGIN TRY
 
     INSERT INTO @candidates (schedule_id)
     SELECT js.schedule_id
-    FROM {{schema}}.schedules AS js
+    FROM {{schema}}.schedules AS js WITH (FORCESEEK)
     INNER JOIN @p_definitions AS d ON d.definition_id = js.definition_id
     WHERE
         js.schedule_status_code <> 230 /* ScheduleStatusCode.Orphaned */
@@ -351,8 +354,8 @@ BEGIN TRY
         version = st.version + 1,
         modified_at_utc = @now
     FROM {{schema}}.schedules_state AS st WITH (INDEX (ix_schedules_state_namespace_next), FORCESEEK)
-    INNER JOIN {{schema}}.schedules AS s ON s.schedule_id = st.schedule_id
-    INNER JOIN {{schema}}.definitions AS d ON d.definition_id = s.definition_id
+    INNER JOIN {{schema}}.schedules AS s WITH (FORCESEEK) ON s.schedule_id = st.schedule_id
+    INNER JOIN {{schema}}.definitions AS d WITH (FORCESEEK) ON d.definition_id = s.definition_id
     WHERE
         st.namespace_id = @p_namespace_id
         AND st.next_occurrence_at_utc IS NOT NULL
@@ -368,7 +371,7 @@ BEGIN TRY
         timing_fingerprint = 'retired',
         modified_at_utc = @now,
         version = s.version + 1
-    FROM {{schema}}.definitions AS d
+    FROM {{schema}}.definitions AS d WITH (FORCESEEK)
     INNER JOIN {{schema}}.schedules AS s WITH (FORCESEEK) ON s.definition_id = d.definition_id
     WHERE
         d.namespace_id = @p_namespace_id
@@ -378,7 +381,7 @@ BEGIN TRY
     -- The catalog this call registered; a start that computes the same hash and moves no cursor skips the call.
     UPDATE n
     SET catalog_hash = @p_catalog_hash
-    FROM {{schema}}.namespaces AS n
+    FROM {{schema}}.namespaces AS n WITH (FORCESEEK)
     WHERE
         n.namespace_id = @p_namespace_id
         AND EXISTS (SELECT n.catalog_hash EXCEPT SELECT @p_catalog_hash);

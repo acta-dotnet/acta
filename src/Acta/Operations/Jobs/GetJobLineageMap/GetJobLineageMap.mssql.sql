@@ -83,7 +83,8 @@ FROM {{schema}}.checkpoints c
 WHERE c.job_id = @p_job_id
 ORDER BY c.checkpoint_kind_code, c.checkpoint_name;
 
--- 5) Direct children, newest first, capped at the fetch limit (ChildLimit + 1).
+-- 5) Direct children, newest first, capped at the fetch limit (ChildLimit + 1). A child another transaction holds,
+-- such as one an application is still enqueuing, is left out rather than waited for.
 SELECT TOP (@p_child_limit)
     j.job_id,
     j.job_ref,
@@ -91,8 +92,8 @@ SELECT TOP (@p_child_limit)
     r.job_status_code AS status,
     j.created_at_utc,
     r.modified_at_utc
-FROM {{schema}}.jobs j
-INNER JOIN {{schema}}.jobs_state r ON r.job_id = j.job_id
+FROM {{schema}}.jobs j WITH (READCOMMITTEDLOCK, READPAST)
+INNER JOIN {{schema}}.jobs_state r WITH (READCOMMITTEDLOCK, READPAST) ON r.job_id = j.job_id
 INNER JOIN {{schema}}.definitions jd ON jd.definition_id = j.definition_id
 WHERE j.parent_job_id = @p_job_id
 ORDER BY j.created_at_utc DESC, j.job_id DESC;

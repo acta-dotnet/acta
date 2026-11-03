@@ -128,6 +128,12 @@ jobs:
         run: dotnet build Acta.slnx -c Release --no-restore /p:ActaDashboardSkipNpm=true
       - name: Test
         run: dotnet test Acta.slnx -c Release --no-build --settings tests/Acta.runsettings --logger trx
+      # The SQL Server suite again with READ_COMMITTED_SNAPSHOT off, against its own -rcsioff catalog: Acta must run
+      # in a database whose owner left the option off.
+      - name: Test SQL Server without RCSI
+        env:
+          ACTA_TEST_MSSQL_RCSI: 'off'
+        run: dotnet test tests/Acta.Tests.Conformance.SqlServer -c Release --no-build --settings tests/Acta.runsettings --logger trx
       # The concept samples have their own solution so a solution build covers only the product; they still
       # compile and run here, against the src projects built above.
       - name: Build concepts

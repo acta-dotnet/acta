@@ -328,3 +328,23 @@ how the emitted `M..._init` and later scripts reach their database, who applies 
 a DBA, a pipeline), how a rolling deploy stays safe, and how the team tells a pending migration from an
 applied one. Write it so an LLM reading llms.txt or the docs gets it right on the first try: one path,
 exact commands, no choices left implicit.
+
+## Registration that writes declarations only
+
+Marko (2026-11-02), after the read-committed-snapshot work: registration could write only the
+declarations, and the schedule admitter could seed slots and cursors. It was designed in full and parked:
+two independent reviews found that it moves registration's race rules rather than deleting them. A later
+design has to keep every one of them:
+
+- Orphan clear: registration must still clear the cursor when it orphans a schedule, or a comeback before
+  any seed pass keeps its old backlog, or, paused, is never due again.
+- Purge: a skip that compares only the catalog hash must also check that each stored declaration still
+  exists, or a purge plus a restart leaves a definition Active that never fires.
+- Reclaim: the reclaim routine takes no schedule lock and locks `schedules_state` before `schedules`, so a
+  seed pass would need that lock to avoid deadlocking with it.
+- Late links: a Permanent schedule linked to its slot late reads as per-occurrence in the admitter, in
+  trigger-now, and in the admission's root insert.
+- The trigger: the catalog hash misses a retire, a reactivation, an override, a slot that becomes Idle
+  later, and a host that dies between commits, so the seed would need its own probe on every poll.
+- Smaller gaps: the capacity wake must keep the wait-to-drop case, a calendar publish skips unseeded
+  schedules, and `GetScheduleState` must read declarations without its state join.

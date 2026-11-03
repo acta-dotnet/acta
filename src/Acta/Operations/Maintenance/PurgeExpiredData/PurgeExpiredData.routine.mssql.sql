@@ -40,11 +40,12 @@ BEGIN
                    namespace's expired jobs in it; downward, so a walk has a fixed end however fast enqueues arrive.
                    A full batch ends the slice at its last delete; the oldest row answers zero, and the walk restarts. */
                 DECLARE @below BIGINT = CASE WHEN @p_before_job_id = 0 THEN 9223372036854775807 ELSE @p_before_job_id END;
+                -- The walk skips a row another transaction holds; the delete below locks and re-checks its own.
                 DECLARE @slice_end BIGINT = (
                     SELECT MIN(s.job_id)
                     FROM (
                         SELECT TOP (@p_batch_size * 10) r.job_id
-                        FROM {{schema}}.jobs_state r
+                        FROM {{schema}}.jobs_state r WITH (READCOMMITTEDLOCK, READPAST)
                         WHERE r.job_id < @below
                         ORDER BY r.job_id DESC
                     ) s
@@ -315,10 +316,10 @@ BEGIN
                 FROM {{schema}}.lanes l WITH (UPDLOCK, READPAST, ROWLOCK, INDEX (pk_lanes))
                 WHERE l.lane_id IN (
                     SELECT TOP (@p_batch_size) c.lane_id
-                    FROM {{schema}}.lanes c
+                    FROM {{schema}}.lanes c WITH (READCOMMITTEDLOCK, READPAST)
                     WHERE
                         c.namespace_id = @p_namespace_id
-                        AND NOT EXISTS (SELECT 1 FROM {{schema}}.jobs_state r WHERE r.lane_id = c.lane_id)
+                        AND NOT EXISTS (SELECT 1 FROM {{schema}}.jobs_state r WITH (READCOMMITTEDLOCK, READPAST) WHERE r.lane_id = c.lane_id)
                     ORDER BY c.lane_id
                 );
                 DELETE l

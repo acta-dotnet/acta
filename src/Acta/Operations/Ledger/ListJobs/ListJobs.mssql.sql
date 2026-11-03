@@ -1,3 +1,5 @@
+-- A row another transaction holds drops out of the page and the count, as an uncommitted row does under read-committed
+-- snapshot, so the listing never waits on an application's open enqueue.
 DECLARE @ns_id INT = NULL;
 
 IF @p_namespace_name IS NOT NULL
@@ -28,8 +30,8 @@ SELECT TOP (@p_take)
     j.tenant_id,
     t.tenant_name,
     lane.lane_name AS lane
-FROM {{schema}}.jobs j
-JOIN {{schema}}.jobs_state r ON r.job_id = j.job_id
+FROM {{schema}}.jobs j WITH (READCOMMITTEDLOCK, READPAST)
+JOIN {{schema}}.jobs_state r WITH (READCOMMITTEDLOCK, READPAST) ON r.job_id = j.job_id
 JOIN {{schema}}.namespaces ns ON ns.namespace_id = j.namespace_id
 JOIN {{schema}}.definitions jd ON jd.definition_id = j.definition_id
 LEFT JOIN {{schema}}.jobs pjob ON pjob.job_id = j.parent_job_id
@@ -62,7 +64,7 @@ WHERE
         @p_terminal_only IS NULL
         OR r.job_status_code IN (100 /* JobStatusCode.Succeeded */, 200 /* JobStatusCode.Failed */, 220 /* JobStatusCode.Cancelled */)
     )
-    AND (@p_lane_filter IS NULL OR r.lane_id IN (SELECT l.lane_id FROM {{schema}}.lanes l WHERE l.lane_name = @p_lane_filter))
+    AND (@p_lane_filter IS NULL OR r.lane_id IN (SELECT l.lane_id FROM {{schema}}.lanes l WITH (READCOMMITTEDLOCK, READPAST) WHERE l.lane_name = @p_lane_filter))
     AND (@p_recurring_only IS NULL OR EXISTS (
         SELECT 1
         FROM {{schema}}.schedules s
@@ -79,8 +81,8 @@ OPTION (RECOMPILE);
 SELECT
     CASE WHEN @p_include_total IS NOT NULL THEN (
         SELECT COUNT(*)
-        FROM {{schema}}.jobs j
-        JOIN {{schema}}.jobs_state r ON r.job_id = j.job_id
+        FROM {{schema}}.jobs j WITH (READCOMMITTEDLOCK, READPAST)
+        JOIN {{schema}}.jobs_state r WITH (READCOMMITTEDLOCK, READPAST) ON r.job_id = j.job_id
         WHERE
             (@p_namespace_name IS NULL OR j.namespace_id = @ns_id)
             AND (@p_job_status_code IS NULL OR r.job_status_code = @p_job_status_code)
@@ -116,7 +118,7 @@ SELECT
                 @p_terminal_only IS NULL
                 OR r.job_status_code IN (100 /* JobStatusCode.Succeeded */, 200 /* JobStatusCode.Failed */, 220 /* JobStatusCode.Cancelled */)
             )
-            AND (@p_lane_filter IS NULL OR r.lane_id IN (SELECT l.lane_id FROM {{schema}}.lanes l WHERE l.lane_name = @p_lane_filter))
+            AND (@p_lane_filter IS NULL OR r.lane_id IN (SELECT l.lane_id FROM {{schema}}.lanes l WITH (READCOMMITTEDLOCK, READPAST) WHERE l.lane_name = @p_lane_filter))
             AND (@p_recurring_only IS NULL OR EXISTS (
                 SELECT 1
                 FROM {{schema}}.schedules s

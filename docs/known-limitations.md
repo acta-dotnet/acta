@@ -123,12 +123,16 @@ fault sits in the driver's pool, and `Pooling=false` would trade it for a fresh 
 connection, a real cost that would need benchmarking first.
 
 Acta requires no ambient isolation level — every mutation is guarded by explicit lock hints or a
-compare-and-swap predicate, so job correctness does not depend on snapshot isolation — but it
-provisions and is tested under one configuration per engine: READ_COMMITTED_SNAPSHOT on SQL Server,
-plain Read Committed on PostgreSQL, WAL journal mode on SQLite. Change those and correctness holds
-while operability degrades: without RCSI, dashboard and list reads take shared locks and trade
-blocking with the claim path; reverting SQLite to a rollback journal reintroduces a global write
-lock. An application-imposed Serializable level makes the signal-wait arming race surface as a
+compare-and-swap predicate, so job correctness does not depend on snapshot isolation. On SQL Server it
+runs and is tested with READ_COMMITTED_SNAPSHOT on and off: no Acta statement waits on an
+application's open transaction, except the write-write waits RCSI has too (the same lane, parent
+row, or deduplication key), a lookup of the very job that transaction is still enqueuing, and a
+statement of that transaction that locks a whole page or table, which no read can skip. Without RCSI
+two things differ: a tree cancel waits for a transaction that is enqueuing a child into the tree, and
+Explain is not one snapshot. In both modes a dashboard page or count can briefly miss a row another
+transaction is changing, and a retire can leave a job another transaction holds at that instant
+unfinished under the retired definition. PostgreSQL runs plain Read Committed and SQLite WAL journal
+mode; reverting SQLite to a rollback journal reintroduces a global write lock. An application-imposed Serializable level makes the signal-wait arming race surface as a
 serialization retry rather than resolving in place — safe, but untested. Only the preferred
 configuration is exercised by the conformance suites.
 

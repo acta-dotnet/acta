@@ -192,13 +192,15 @@ BEGIN
                     CAST(NULL AS UNIQUEIDENTIFIER) AS job_ref,
                     CAST(NULL AS INT) AS tenant_id,
                     @now AS db_now,
-                    /* The earliest head across the bands: each band's first index row is its earliest instant. */
+                    /* The earliest head across the bands: each band's first index row is its earliest instant. A row
+                       another transaction holds is skipped, as an enqueue not yet committed is under read-committed
+                       snapshot, so an application's open enqueue never holds up an idle claim. */
                     (
                         SELECT MIN(head.next_run_at_utc)
                         FROM @bands b
                         CROSS APPLY (
                             SELECT TOP (1) r.next_run_at_utc
-                            FROM {{schema}}.jobs_state r
+                            FROM {{schema}}.jobs_state r WITH (READCOMMITTEDLOCK, READPAST)
                             WHERE
                                 r.namespace_id = @p_namespace_id
                                 AND r.job_priority_code = b.job_priority_code

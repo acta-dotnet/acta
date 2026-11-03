@@ -263,6 +263,18 @@ public sealed class AdmitFiringsSpec : ActaStorageTestBase<ConformanceFixture>
         await using var connection = await Db.OpenConnectionAsync(ct);
         await using var suspension = await connection.BeginTransactionAsync(ct);
         await ScheduleLockGate.HoldAsync(Db, connection, suspension, TestNamespaceId, exclusive: true, ct);
+
+        // The firing reads its target Active and stops at the lock before the suspension writes the namespace row, which
+        // a locking read would otherwise wait on until the suspension commits.
+        var lookup = new ScheduleLookup(TestNamespace, jobName, "only");
+        var target = await Services
+            .GetRequiredService<ResolveScheduleTargetHandler>()
+            .HandleAsync(new ResolveScheduleTargetQuery(lookup), ct);
+        Assert.Equal(NamespaceStatusCode.Active, target!.NamespaceStatus);
+        var schedules = Services.GetRequiredService<IActaOperations>().Schedules;
+        var pending = schedules.TriggerNowAsync(lookup, ct: ct).AsTask();
+        var firingSql = Db.Provider == DbProvider.SqlServer ? "@p_schedule_id" : "pg_advisory_xact_lock_shared";
+        await LockWaitProbe.WaitAsync(Db, firingSql, LockWait.ApplicationLock, pending, suspension, ct);
         await using (var cmd = connection.CreateCommand())
         {
             cmd.Transaction = suspension;
@@ -271,17 +283,6 @@ public sealed class AdmitFiringsSpec : ActaStorageTestBase<ConformanceFixture>
             Assert.Equal(1, await cmd.ExecuteNonQueryAsync(ct));
         }
 
-        // A warm read first, so the firing's own read of its target lands before the suspension commits and the firing
-        // stops at the lock.
-        var lookup = new ScheduleLookup(TestNamespace, jobName, "only");
-        var target = await Services
-            .GetRequiredService<ResolveScheduleTargetHandler>()
-            .HandleAsync(new ResolveScheduleTargetQuery(lookup), ct);
-        Assert.Equal(NamespaceStatusCode.Active, target!.NamespaceStatus);
-        var schedules = Services.GetRequiredService<IActaOperations>().Schedules;
-        var pending = schedules.TriggerNowAsync(lookup, ct: ct).AsTask();
-        await Task.Delay(TimeSpan.FromMilliseconds(500), ct);
-        Assert.False(pending.IsCompleted, "the manual firing did not wait for the suspension's schedule lock");
         await suspension.CommitAsync(ct);
 
         Assert.Equal(ControlAction.Rejected, (await pending).Action);

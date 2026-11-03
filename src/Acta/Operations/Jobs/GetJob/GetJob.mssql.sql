@@ -46,7 +46,7 @@ OUTER APPLY (
     SELECT COALESCE(
         (
             SELECT TOP (1) m.job_id
-            FROM {{schema}}.jobs_state m WITH (INDEX (ix_jobs_state_lane), FORCESEEK)
+            FROM {{schema}}.jobs_state m WITH (INDEX (ix_jobs_state_lane), FORCESEEK, READCOMMITTEDLOCK, READPAST)
             WHERE
                 m.lane_id = r.lane_id
                 AND m.lane_id IS NOT NULL
@@ -58,7 +58,7 @@ OUTER APPLY (
         ),
         (
             SELECT TOP (1) m.job_id
-            FROM {{schema}}.jobs_state m WITH (INDEX (ix_jobs_state_lane), FORCESEEK)
+            FROM {{schema}}.jobs_state m WITH (INDEX (ix_jobs_state_lane), FORCESEEK, READCOMMITTEDLOCK, READPAST)
             WHERE
                 m.lane_id = r.lane_id
                 AND m.lane_id IS NOT NULL

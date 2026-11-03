@@ -53,6 +53,10 @@ public sealed class GetJobExplanationSpec : ActaRuntimeTestBase<ConformanceFixtu
     [Fact(DisplayName = "A step and a checkpoint changed in one transaction are never read half-changed")]
     public async Task A_step_and_a_checkpoint_written_together_are_read_together()
     {
+        Assert.SkipWhen(
+            Db.Provider == DbProvider.SqlServer && IntegrationConfig.SqlServerRcsiOff,
+            "Without read-committed snapshot a SQL Server statement reads committed rows one at a time, not one snapshot."
+        );
         var ct = TestContext.Current.CancellationToken;
         var job = await Jobs.EnqueueAsync(new EnqueueJobRequest(TestNamespace, "add-numbers", JobPayload.Json(new AddNumbers(1, 2))), ct);
         await WriteAsync(
