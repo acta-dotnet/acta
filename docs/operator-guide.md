@@ -17,7 +17,7 @@ Curated operator views cover the common read paths: `acta.jobs_view`, `acta.even
 `acta.workers_view`, `acta.definitions_view`, `acta.calendars_view`, and `acta.tags_view`. The views
 are the supported read surface. From 1.0 a view column is renamed or removed only in a major release,
 and any release may add one, so name the columns you select. Storage tables are not a compatibility
-contract. Runtime code does not depend on the views, and migrations do not derive from them.
+contract. Runtime code does not depend on the views; they ship inside the migrations like a routine.
 
 Reference docs: [`data-model.md`](./reference/data-model.md) (every table and column),
 [`code-families.md`](./reference/code-families.md) (every status / reason / event code),
@@ -1127,8 +1127,7 @@ For reads, start with the curated operator views: `acta.jobs_view`, `acta.events
 `acta.checkpoints_view`, `acta.steps_view`, `acta.schedules_view`, `acta.alerts_view`,
 `acta.workers_view`, `acta.definitions_view`, `acta.calendars_view`, and `acta.tags_view`. Views expose name-only decodes for common job
 codes (`job_status = 'failed'`) and keep the raw `*_code` columns beside them. They are the stable read
-surface; the storage tables are not. Runtime code does not depend on them, and migrations do not derive
-from them.
+surface; the storage tables are not. Runtime code does not depend on them.
 
 [`data-model.md`](./reference/data-model.md) documents every storage table, and
 [`code-families.md`](./reference/code-families.md) remains the full decoder ring for descriptions and

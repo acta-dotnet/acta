@@ -85,10 +85,11 @@ distributed multi-worker deployments.
 On SQLite, Acta's tables share `main` with the application's: the schema must be `main`, so there is no
 `acta` schema to keep them apart. The provisioning script creates each table only if it is missing, so an
 application table that already holds one of Acta's names (`migrations`, `jobs`, `events`, `tags`,
-`tenants`, ...) stays in place. What follows depends on the table. A `tenants` table stops provisioning at
-the first index on Acta's columns. A `tags` table lets provisioning succeed, and Acta's first tag write
-fails. An ORM's `migrations` table, such as TypeORM's, fails the script, and once it holds rows the refusal
-claims a newer Acta release upgraded the database. Keep Acta's table names free in that file. A separate
+`tenants`, ...) stays in place, and what follows depends on its columns. A `tenants` table without Acta's
+columns stops provisioning at the first index on them. A `tags` table without them lets provisioning
+succeed, and Acta's first tag write fails. An ORM's `migrations` table, such as TypeORM's, fails the
+script, and once it holds rows the refusal claims a newer Acta release upgraded the database. A table whose
+columns happen to match is shared with no error at all. Keep Acta's table names free in that file. A separate
 database file for Acta avoids the clash, but then an enqueue can no longer share a transaction with the
 application's writes.
 

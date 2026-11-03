@@ -80,7 +80,7 @@ budget (`MaxAttempts`) when it fails. Names that drift this are rejected: `MaxFa
 successful execution is also an execution), `MaxRetries` (off-by-one trap, `MaxAttempts = 3` means
 three tries), a `JobAttempt` table (the outcome event is the per-attempt record).
 
-**`Status`** is the uniform column name for the operator-facing lifecycle enum; per-execution
+**`Status`** is the uniform name for the operator-facing lifecycle enum; per-execution
 outcome is the event code itself; steps and checkpoints carry `step_status_code` and
 `checkpoint_status_code`, each status column named for its table, and their views decode it under the same name without `_code` (`step_status`, `checkpoint_status`). The `jobs_state` row stores current state and events explain transitions: the machine
 fact is the event code (with `details.reason` where one code spans causes), the prose is
