@@ -1,6 +1,5 @@
 using System.Text.RegularExpressions;
 using Acta.Tests.Conformance.Sql;
-using Acta.Tests.Conformance.SqlServer.Testing;
 using Acta.Tests.Conformance.Testing;
 using Microsoft.Data.SqlClient;
 using Xunit;
@@ -12,7 +11,8 @@ namespace Acta.Tests.Conformance.SqlServer.Features.Schema;
 /// schema when run verbatim (batch by GO batch, as sqlcmd/SSMS would), because DBA-run provisioning
 /// under an elevated principal is exactly how locked-down deployments consume it. Runs the committed
 /// file against a fresh schema name (using the header's own "replace the schema name throughout"
-/// instruction) and inspects the result.
+/// instruction) in a database of the fact's own: the script's first batch turns read-committed snapshot
+/// on, which disconnects every other session in its database, so it never runs in the shared one.
 /// </summary>
 public sealed partial class MsSqlProvisionScriptSpec
 {
@@ -21,199 +21,165 @@ public sealed partial class MsSqlProvisionScriptSpec
     [Fact(DisplayName = "The published mssql provision script provisions a fresh schema verbatim")]
     public async Task Published_script_provisions_a_fresh_schema()
     {
-        var connString = IntegrationConfig.SqlServerConnectionString;
-        if (connString is null)
-        {
-            Assert.Skip("ACTA_TEST_MSSQL is not set.");
-        }
         var ct = TestContext.Current.CancellationToken;
         var schema = $"acta_provision_{Guid.NewGuid():N}"[..30];
-        var repoRoot = IntegrationConfig.FindRepoRoot();
-        var published = File.ReadAllText(Path.Combine(repoRoot, "docs", "reference", "schema-mssql.sql"));
+        var published = ReadPublishedScript();
         var script = SchemaWord().Replace(published, schema);
+        await using var database = await ScratchDatabase.CreateAsync(ct);
 
-        // On a fresh database the shared bootstrap flips READ_COMMITTED_SNAPSHOT ON WITH ROLLBACK
-        // IMMEDIATE, which kills every other session in the database. Await that bootstrap (the
-        // serialization point every fixture-based spec already passes through) before opening the
-        // raw connection, so this spec never races the bounce.
-        await ActaSharedDatabase.EnsureReadyAsync(new SqlServerConformanceFixture());
+        // Twice on purpose: the header promises that a re-run on a database the script provisioned
+        // applies no migration twice, and the migration-row count below is what proves it.
+        await RunScriptAsync(database.ConnectionString, script, ct);
+        await RunScriptAsync(database.ConnectionString, script, ct);
 
-        await using var conn = new SqlConnection(connString);
+        // One history row per migration section in the file, no more (the double run must not
+        // stamp anything twice), counted from the script's own BEGIN banners.
+        var migrations = ProvisionScriptBanners.MigrationCount(published);
+        Assert.True(migrations > 0, "the published script contains no migration banners");
+
+        await using var conn = new SqlConnection(database.ConnectionString);
         await conn.OpenAsync(ct);
-        try
-        {
-            // Twice on purpose: the header promises that a re-run on a database the script provisioned
-            // applies no migration twice, and the migration-row count below is what proves it.
-            await TestDdl.RunAsync(async () =>
-            {
-                for (var pass = 0; pass < 2; pass++)
-                {
-                    foreach (var batch in SchemaMigrations.SplitOnGo(script))
-                    {
-                        await using var cmd = conn.CreateCommand();
-                        cmd.CommandText = batch;
-                        await cmd.ExecuteNonQueryAsync(ct);
-                    }
-                }
-            });
-
-            // One history row per migration section in the file, no more (the double run must not
-            // stamp anything twice), counted from the script's own BEGIN banners.
-            var migrations = ProvisionScriptBanners.MigrationCount(published);
-            Assert.True(migrations > 0, "the published script contains no migration banners");
-
-            var (history, jobs, procedures) = await TestDdl.RunAsync(async () =>
-            {
-                await using var probe = conn.CreateCommand();
-                probe.CommandText =
-                    $"SELECT (SELECT COUNT(*) FROM {schema}.migrations), "
-                    + $"(SELECT COUNT(*) FROM {schema}.jobs), "
-                    + $"(SELECT COUNT(*) FROM sys.procedures WHERE schema_id = SCHEMA_ID('{schema}'))";
-                await using var reader = await probe.ExecuteReaderAsync(ct);
-                Assert.True(await reader.ReadAsync(ct));
-                return (reader.GetInt32(0), reader.GetInt32(1), reader.GetInt32(2));
-            });
-            Assert.Equal(migrations, history);
-            Assert.Equal(0, jobs);
-            Assert.Equal(14, procedures);
-        }
-        finally
-        {
-            await DropSchemaAsync(connString, schema);
-        }
+        await using var probe = conn.CreateCommand();
+        probe.CommandText =
+            $"SELECT (SELECT COUNT(*) FROM {schema}.migrations), "
+            + $"(SELECT COUNT(*) FROM {schema}.jobs), "
+            + $"(SELECT COUNT(*) FROM sys.procedures WHERE schema_id = SCHEMA_ID('{schema}'))";
+        await using var reader = await probe.ExecuteReaderAsync(ct);
+        Assert.True(await reader.ReadAsync(ct));
+        Assert.Equal(migrations, reader.GetInt32(0));
+        Assert.Equal(0, reader.GetInt32(1));
+        Assert.Equal(14, reader.GetInt32(2));
     }
 
     [Fact(DisplayName = "A mssql schema provisioned by the script runs with migrations disabled and keeps its data across a re-run")]
     public async Task Script_provisioned_schema_runs_and_keeps_its_data_across_a_rerun()
     {
-        var connString = IntegrationConfig.SqlServerConnectionString;
-        if (connString is null)
-        {
-            Assert.Skip("ACTA_TEST_MSSQL is not set.");
-        }
         var ct = TestContext.Current.CancellationToken;
         var schema = $"acta_provision_{Guid.NewGuid():N}"[..30];
-        var repoRoot = IntegrationConfig.FindRepoRoot();
-        var script = SchemaWord().Replace(File.ReadAllText(Path.Combine(repoRoot, "docs", "reference", "schema-mssql.sql")), schema);
-        var fixture = new SqlServerConformanceFixture();
-        await ActaSharedDatabase.EnsureReadyAsync(fixture);
+        var script = SchemaWord().Replace(ReadPublishedScript(), schema);
+        await using var database = await ScratchDatabase.CreateAsync(ct);
+        void ApplyProvider(IActaBuilder builder, string schemaName) =>
+            builder.UseSqlServer(o =>
+            {
+                o.ConnectionString = database.ConnectionString;
+                o.Schema = schemaName;
+                o.DeadlockRetryAttempts = 1;
+            });
 
-        try
-        {
-            await RunScriptAsync(connString, script, ct);
-            var job = await ScriptProvisionedRuntime.RunJobAsync(fixture.ApplyProvider, schema, 2, 3, ct);
-            await RunScriptAsync(connString, script, ct);
-            await ScriptProvisionedRuntime.AssertSucceededAsync(fixture.ApplyProvider, schema, job, 5, ct);
-        }
-        finally
-        {
-            await DropSchemaAsync(connString, schema);
-        }
+        await RunScriptAsync(database.ConnectionString, script, ct);
+        var job = await ScriptProvisionedRuntime.RunJobAsync(ApplyProvider, schema, 2, 3, ct);
+        await RunScriptAsync(database.ConnectionString, script, ct);
+        await ScriptProvisionedRuntime.AssertSucceededAsync(ApplyProvider, schema, job, 5, ct);
     }
 
     [Fact(DisplayName = "An older script over a newer release's migration changes nothing, even in a client that runs on past errors")]
     public async Task An_older_script_over_a_newer_migration_changes_nothing_when_errors_are_ignored()
     {
-        var connString = IntegrationConfig.SqlServerConnectionString;
-        if (connString is null)
-        {
-            Assert.Skip("ACTA_TEST_MSSQL is not set.");
-        }
         var ct = TestContext.Current.CancellationToken;
         var schema = $"acta_noexec_{Guid.NewGuid():N}"[..30];
-        var repoRoot = IntegrationConfig.FindRepoRoot();
-        var script = SchemaWord().Replace(File.ReadAllText(Path.Combine(repoRoot, "docs", "reference", "schema-mssql.sql")), schema);
-        await ActaSharedDatabase.EnsureReadyAsync(new SqlServerConformanceFixture());
-        try
+        var script = SchemaWord().Replace(ReadPublishedScript(), schema);
+        await using var database = await ScratchDatabase.CreateAsync(ct);
+        await RunScriptAsync(database.ConnectionString, script, ct);
+
+        // A newer release recorded a migration this script lacks, and one of its routines reads differently.
+        await using var conn = new SqlConnection(database.ConnectionString);
+        await conn.OpenAsync(ct);
+        await using (var newer = conn.CreateCommand())
         {
-            await RunScriptAsync(connString, script, ct);
-
-            // A newer release recorded a migration this script lacks, and one of its routines reads differently.
-            await using var conn = new SqlConnection(connString);
-            await conn.OpenAsync(ct);
-            await using (var newer = conn.CreateCommand())
-            {
-                newer.CommandText = $"INSERT INTO {schema}.migrations (name) VALUES ('{Newer}')";
-                await newer.ExecuteNonQueryAsync(ct);
-            }
-            var marked = ProviderSqlResources
-                .Read("mssql", "CompleteStep")
-                .ReplaceLineEndings("\n")
-                .Replace("{{schema}}", schema)
-                .Replace("AS\nBEGIN", "AS\nBEGIN\n    -- newer_release_body");
-            // Like sqlcmd without -b: every batch runs, whatever the one before it raised.
-            var refused = await TestDdl.RunAsync(async () =>
-            {
-                foreach (var batch in SchemaMigrations.SplitOnGo(marked))
-                {
-                    await using var alter = conn.CreateCommand();
-                    alter.CommandText = batch;
-                    await alter.ExecuteNonQueryAsync(ct);
-                }
-
-                var refusedNewer = false;
-                foreach (var batch in SchemaMigrations.SplitOnGo(script))
-                {
-                    try
-                    {
-                        await using var cmd = conn.CreateCommand();
-                        cmd.CommandText = batch;
-                        await cmd.ExecuteNonQueryAsync(ct);
-                    }
-                    catch (SqlException ex) when (ex.Message.Contains("A newer Acta release", StringComparison.Ordinal))
-                    {
-                        refusedNewer = true;
-                    }
-                }
-
-                return refusedNewer;
-            });
-
-            Assert.True(refused, "the script did not refuse the newer migration");
-            var (definition, newerRows) = await TestDdl.RunAsync(async () =>
-            {
-                await using var probe = conn.CreateCommand();
-                probe.CommandText =
-                    $"SELECT OBJECT_DEFINITION(OBJECT_ID('{schema}.complete_step')), (SELECT COUNT(*) FROM {schema}.migrations WHERE name = '{Newer}')";
-                await using var reader = await probe.ExecuteReaderAsync(ct);
-                Assert.True(await reader.ReadAsync(ct));
-                return (reader.GetString(0), reader.GetInt32(1));
-            });
-            Assert.Contains("newer_release_body", definition);
-            Assert.Equal(1, newerRows);
+            newer.CommandText = $"INSERT INTO {schema}.migrations (name) VALUES ('{Newer}')";
+            await newer.ExecuteNonQueryAsync(ct);
         }
-        finally
+        var marked = ProviderSqlResources
+            .Read("mssql", "CompleteStep")
+            .ReplaceLineEndings("\n")
+            .Replace("{{schema}}", schema)
+            .Replace("AS\nBEGIN", "AS\nBEGIN\n    -- newer_release_body");
+        foreach (var batch in SchemaMigrations.SplitOnGo(marked))
         {
-            await DropSchemaAsync(connString, schema);
+            await using var alter = conn.CreateCommand();
+            alter.CommandText = batch;
+            await alter.ExecuteNonQueryAsync(ct);
         }
-    }
 
-    private static Task RunScriptAsync(string connString, string script, CancellationToken ct) =>
-        TestDdl.RunAsync(async () =>
+        // Like sqlcmd without -b: every batch runs, whatever the one before it raised.
+        var refused = false;
+        foreach (var batch in SchemaMigrations.SplitOnGo(script))
         {
-            await using var conn = new SqlConnection(connString);
-            await conn.OpenAsync(ct);
-            foreach (var batch in SchemaMigrations.SplitOnGo(script))
+            try
             {
                 await using var cmd = conn.CreateCommand();
                 cmd.CommandText = batch;
                 await cmd.ExecuteNonQueryAsync(ct);
             }
-        });
+            catch (SqlException ex) when (ex.Message.Contains("A newer Acta release", StringComparison.Ordinal))
+            {
+                refused = true;
+            }
+        }
 
-    /// <summary>
-    /// SQL Server has no DROP SCHEMA CASCADE; the provider's own teardown script drops the schema's
-    /// routines, types, views, and tables in dependency order. It runs on its own connection: a
-    /// provisioning failure can kill the test connection, and a teardown throw on the dead connection
-    /// would mask the real error.
-    /// </summary>
-    private static async Task DropSchemaAsync(string connString, string schema)
+        Assert.True(refused, "the script did not refuse the newer migration");
+        await using var probe = conn.CreateCommand();
+        probe.CommandText =
+            $"SELECT OBJECT_DEFINITION(OBJECT_ID('{schema}.complete_step')), (SELECT COUNT(*) FROM {schema}.migrations WHERE name = '{Newer}')";
+        await using var reader = await probe.ExecuteReaderAsync(ct);
+        Assert.True(await reader.ReadAsync(ct));
+        Assert.Contains("newer_release_body", reader.GetString(0));
+        Assert.Equal(1, reader.GetInt32(1));
+    }
+
+    private static string ReadPublishedScript() =>
+        File.ReadAllText(Path.Combine(IntegrationConfig.FindRepoRoot(), "docs", "reference", "schema-mssql.sql"));
+
+    private static async Task RunScriptAsync(string connString, string script, CancellationToken ct)
     {
-        var teardown = ProviderSqlResources.Read("mssql", "DropSchema").Replace("{{schema}}", schema);
-        await RunScriptAsync(connString, teardown, CancellationToken.None);
+        await using var conn = new SqlConnection(connString);
+        await conn.OpenAsync(ct);
+        foreach (var batch in SchemaMigrations.SplitOnGo(script))
+        {
+            await using var cmd = conn.CreateCommand();
+            cmd.CommandText = batch;
+            await cmd.ExecuteNonQueryAsync(ct);
+        }
     }
 
     // The whole-word lowercase schema name, exactly what the script header tells a DBA to replace.
     [GeneratedRegex(@"\bacta\b")]
     private static partial Regex SchemaWord();
+
+    /// <summary>A database the fact creates through <c>master</c> and drops when it ends, its sessions included.</summary>
+    private sealed class ScratchDatabase(string master, string name, string connectionString) : IAsyncDisposable
+    {
+        public string ConnectionString => connectionString;
+
+        public static async Task<ScratchDatabase> CreateAsync(CancellationToken ct)
+        {
+            var shared = IntegrationConfig.SqlServerConnectionString;
+            Assert.SkipWhen(shared is null, "ACTA_TEST_MSSQL is not set.");
+            var builder = new SqlConnectionStringBuilder(shared) { TrustServerCertificate = true };
+            var name = $"acta-test-provision-{Guid.NewGuid():N}"[..36];
+            var master = new SqlConnectionStringBuilder(builder.ConnectionString) { InitialCatalog = "master" }.ConnectionString;
+            await ExecuteAsync(master, $"CREATE DATABASE [{name}];", ct);
+            return new ScratchDatabase(
+                master,
+                name,
+                new SqlConnectionStringBuilder(builder.ConnectionString) { InitialCatalog = name }.ConnectionString
+            );
+        }
+
+        public async ValueTask DisposeAsync() =>
+            await ExecuteAsync(
+                master,
+                $"ALTER DATABASE [{name}] SET SINGLE_USER WITH ROLLBACK IMMEDIATE; DROP DATABASE [{name}];",
+                CancellationToken.None
+            );
+
+        private static async Task ExecuteAsync(string connString, string sql, CancellationToken ct)
+        {
+            await using var conn = new SqlConnection(connString);
+            await conn.OpenAsync(ct);
+            await using var cmd = conn.CreateCommand();
+            cmd.CommandText = sql;
+            await cmd.ExecuteNonQueryAsync(ct);
+        }
+    }
 }
