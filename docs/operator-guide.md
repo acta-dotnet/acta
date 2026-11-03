@@ -14,10 +14,10 @@ dashboard, or a SQL query over the events timeline to find why.
 
 Curated operator views cover the common read paths: `acta.jobs_view`, `acta.events_view`,
 `acta.checkpoints_view`, `acta.steps_view`, `acta.schedules_view`, `acta.alerts_view`,
-`acta.workers_view`, `acta.definitions_view`, and `acta.tags_view`. Views are for ad-hoc inspection
-and learning the schema; they are not a stable integration API. Do not build pipelines, ETL, or
-external tooling on them: their shape may change in any release. Runtime code does not depend on
-them, and migrations do not derive from them.
+`acta.workers_view`, `acta.definitions_view`, `acta.calendars_view`, and `acta.tags_view`. The views
+are the supported read surface. From 1.0 a view column is renamed or removed only in a major release,
+and any release may add one, so name the columns you select. Storage tables are not a compatibility
+contract. Runtime code does not depend on the views, and migrations do not derive from them.
 
 Reference docs: [`data-model.md`](./reference/data-model.md) (every table and column),
 [`code-families.md`](./reference/code-families.md) (every status / reason / event code),
@@ -90,36 +90,36 @@ SELECT * FROM acta.jobs_view WHERE job_id = :job_id;
 
 -- By deduplication key (root jobs; children are keyed per parent instead).
 SELECT * FROM acta.jobs_view
- WHERE namespace = 'billing' AND deduplication_key = :key AND parent_job_id IS NULL;
+ WHERE namespace_name = 'billing' AND deduplication_key = :key AND parent_job_id IS NULL;
 
 -- Failures in the last 24 hours, newest first.
-SELECT job_id, job_ref, namespace, job_name, failure_count, modified_at_utc
+SELECT job_id, job_ref, namespace_name, definition_name, failure_count, modified_at_utc
   FROM acta.jobs_view
- WHERE status = 'failed' AND modified_at_utc > now() - interval '24 hours'
+ WHERE job_status = 'failed' AND modified_at_utc > now() - interval '24 hours'
  ORDER BY modified_at_utc DESC;
 
 -- Queue depth: claimable backlog per namespace.
-SELECT namespace, COUNT(*) AS ready
+SELECT namespace_name, COUNT(*) AS ready
   FROM acta.jobs_view
- WHERE status = 'ready'
- GROUP BY namespace;
+ WHERE job_status = 'ready'
+ GROUP BY namespace_name;
 
 -- One tenant's work, by the tenant name the caller enqueued with (names fold lowercase).
-SELECT job_id, job_ref, namespace, job_name, status
+SELECT job_id, job_ref, namespace_name, definition_name, job_status
   FROM acta.jobs_view
  WHERE tenant_name = :tenant_name;
 
 -- Backlog per tenant, busiest first. Untenanted work groups under NULL.
 SELECT tenant_name, COUNT(*) AS ready
   FROM acta.jobs_view
- WHERE status = 'ready'
+ WHERE job_status = 'ready'
  GROUP BY tenant_name
  ORDER BY ready DESC;
 
 -- In-flight work and who holds it.
-SELECT job_id, status, leased_by_worker_id, leased_by_worker_host_name, lease_expires_at_utc
+SELECT job_id, job_status, leased_by_worker_id, leased_by_worker_host_name, lease_expires_at_utc
   FROM acta.jobs_view
- WHERE status = 'executing';
+ WHERE job_status = 'executing';
 
 -- The whole timeline for a job tree (parents + children share lineage_root_job_id).
 SELECT created_at_utc, entity_id, event, execution_number, duration_ms, event_message, details_text
@@ -128,30 +128,30 @@ SELECT created_at_utc, entity_id, event, execution_number, duration_ms, event_me
  ORDER BY created_at_utc, event_id;
 
 -- Children of a parent.
-SELECT job_id, job_ref, deduplication_key, status
+SELECT job_id, job_ref, deduplication_key, job_status
   FROM acta.jobs_view
  WHERE parent_job_id = :job_id;
 
 -- Suspended jobs and the signals they wait on.
-SELECT c.job_id, c.job_ref, c.checkpoint_name, c.status, c.value_format, c.value_text
+SELECT c.job_id, c.job_ref, c.checkpoint_name, c.checkpoint_status, c.value_format, c.value_text
   FROM acta.checkpoints_view c
   JOIN acta.jobs_view j ON j.job_id = c.job_id
- WHERE j.status = 'suspended' AND c.kind = 'signal';
+ WHERE j.job_status = 'suspended' AND c.checkpoint_kind = 'signal';
 
 -- Durable step slots for a job: which named steps ran, their outcome, and retry state.
-SELECT step_name, status, attempt_number, next_retry_at_utc, failure, failure_message
+SELECT step_name, step_status, attempt_number, next_retry_at_utc, failure, failure_message
   FROM acta.steps_view WHERE job_id = :job_id ORDER BY step_name;
 
 -- Durable sleep timers for a job: when each named wait is due.
-SELECT checkpoint_name, status, due_at_utc
+SELECT checkpoint_name, checkpoint_status, due_at_utc
   FROM acta.checkpoints_view
- WHERE job_id = :job_id AND kind = 'timer'
+ WHERE job_id = :job_id AND checkpoint_kind = 'timer'
  ORDER BY due_at_utc;
 
 -- Jobs carrying an exact tag, optionally narrowed by its preserved value.
-SELECT t.entity_id AS job_id, j.status, t.tag_name, t.tag_value
+SELECT t.entity_id AS job_id, j.job_status, t.tag_name, t.tag_value
   FROM acta.tags_view t JOIN acta.jobs_view j ON j.job_id = t.entity_id
- WHERE t.entity_kind = 'job' AND j.namespace = :ns
+ WHERE t.entity = 'job' AND j.namespace_name = :ns
    AND t.tag_name = :tag_name AND t.tag_value = :tag_value;
 ```
 
@@ -957,17 +957,17 @@ Sample outputs for a suspended, an expired-lease, a failed, and a succeeded job 
 
 Start with `acta.jobs_view` so names and status values are decoded:
 
-- `status`: only `ready` jobs are claimable. A `blocked` job waits behind the earlier unfinished job in
-  its `lane` and goes `ready` when that one settles.
+- `job_status`: only `ready` jobs are claimable. A `blocked` job waits behind the earlier unfinished job in
+  its `lane_name` and goes `ready` when that one settles.
 - `next_run_at_utc`: delayed, slept, rescheduled, and recurring jobs may be ready but not due yet.
-- `namespace`: workers only claim inside their own namespace.
-- `job_name`: the worker must have registered the matching definition in that namespace.
+- `namespace_name`: workers only claim inside their own namespace.
+- `definition_name`: the worker must have registered the matching definition in that namespace.
 
 If you need raw storage state, `jobs_view` is built from the job's `jobs_state` row (1:1 with `jobs` by `job_id`).
 
 Then check workers:
 
-- `acta.workers_view.status`
+- `acta.workers_view.worker_status`
 - `acta.workers_view.last_seen_at_utc`
 - the worker process logs
 - whether the process used `Run<TManifest>(...)` instead of only `Reference<TManifest>(...)`
@@ -1125,10 +1125,10 @@ are operator/debugging reads.
 
 For reads, start with the curated operator views: `acta.jobs_view`, `acta.events_view`,
 `acta.checkpoints_view`, `acta.steps_view`, `acta.schedules_view`, `acta.alerts_view`,
-`acta.workers_view`, `acta.definitions_view`, and `acta.tags_view`. Views expose name-only decodes for common job
-codes (`status = 'failed'`) and keep the raw `*_code` columns beside them. They are stable enough for
-operator use, but they are not the storage contract. Runtime code does not depend on them, and
-migrations do not derive from them.
+`acta.workers_view`, `acta.definitions_view`, `acta.calendars_view`, and `acta.tags_view`. Views expose name-only decodes for common job
+codes (`job_status = 'failed'`) and keep the raw `*_code` columns beside them. They are the stable read
+surface; the storage tables are not. Runtime code does not depend on them, and migrations do not derive
+from them.
 
 [`data-model.md`](./reference/data-model.md) documents every storage table, and
 [`code-families.md`](./reference/code-families.md) remains the full decoder ring for descriptions and
@@ -1202,9 +1202,9 @@ SQLite has no callable enqueue routine; enqueue through the application (`IJobs.
 ### Recent Jobs
 
 ```sql
-SELECT job_id, job_ref, namespace, job_name, status, failure_count, next_run_at_utc, input_format, input_text, result_format, result_text, created_at_utc
+SELECT job_id, job_ref, namespace_name, definition_name, job_status, failure_count, next_run_at_utc, input_format, input_text, result_format, result_text, created_at_utc
   FROM acta.jobs_view
- WHERE namespace = 'billing'
+ WHERE namespace_name = 'billing'
  ORDER BY created_at_utc DESC
  LIMIT 50;
 ```
@@ -1216,10 +1216,10 @@ through application code.
 ### Backlog By Definition
 
 ```sql
-SELECT namespace, job_name, COUNT(*) AS ready_count, MIN(next_run_at_utc) AS oldest_due_at_utc
+SELECT namespace_name, definition_name, COUNT(*) AS ready_count, MIN(next_run_at_utc) AS oldest_due_at_utc
   FROM acta.jobs_view
- WHERE status = 'ready'
- GROUP BY namespace, job_name
+ WHERE job_status = 'ready'
+ GROUP BY namespace_name, definition_name
  ORDER BY ready_count DESC, oldest_due_at_utc;
 ```
 
@@ -1229,9 +1229,9 @@ claim batch, DB capacity, and whether jobs are due yet.
 ### In-Flight Jobs And Owners
 
 ```sql
-SELECT job_id, job_ref, namespace, job_name, status, leased_by_worker_id, leased_by_worker_host_name, lease_expires_at_utc
+SELECT job_id, job_ref, namespace_name, definition_name, job_status, leased_by_worker_id, leased_by_worker_host_name, lease_expires_at_utc
   FROM acta.jobs_view
- WHERE status = 'executing'
+ WHERE job_status = 'executing'
  ORDER BY lease_expires_at_utc, job_id;
 ```
 
@@ -1243,7 +1243,7 @@ within one more lease.
 ```sql
 SELECT event_id, created_at_utc, event, execution_number, duration_ms, event_message, details_format, details_text
   FROM acta.events_view
- WHERE entity_kind = 'job' AND entity_id = :job_id
+ WHERE entity = 'job' AND entity_id = :job_id
  ORDER BY created_at_utc, event_id;
 ```
 
@@ -1254,9 +1254,9 @@ and custom details payloads stay opaque.
 ### Recent Terminal Failures
 
 ```sql
-SELECT job_id, job_ref, namespace, job_name, failure_count, modified_at_utc
+SELECT job_id, job_ref, namespace_name, definition_name, failure_count, modified_at_utc
   FROM acta.jobs_view
- WHERE status = 'failed'
+ WHERE job_status = 'failed'
    AND modified_at_utc > now() - interval '24 hours'
  ORDER BY modified_at_utc DESC;
 ```
@@ -1266,11 +1266,11 @@ Follow with the event timeline for the specific `job_id`.
 ### Suspended Jobs Waiting On Signals
 
 ```sql
-SELECT c.job_id, c.job_ref, c.namespace, c.job_name, c.checkpoint_name AS signal_name, c.status, c.value_format, c.value_text, c.modified_at_utc
+SELECT c.job_id, c.job_ref, c.namespace_name, c.definition_name, c.checkpoint_name AS signal_name, c.checkpoint_status, c.value_format, c.value_text, c.modified_at_utc
   FROM acta.checkpoints_view c
   JOIN acta.jobs_view j ON j.job_id = c.job_id
- WHERE j.status = 'suspended'
-   AND c.kind = 'signal'
+ WHERE j.job_status = 'suspended'
+   AND c.checkpoint_kind = 'signal'
  ORDER BY c.modified_at_utc DESC;
 ```
 
@@ -1281,9 +1281,9 @@ values stay opaque.
 ### Durable Sleeps And Timers
 
 ```sql
-SELECT job_id, job_ref, namespace, job_name, checkpoint_name AS timer_name, status, due_at_utc
+SELECT job_id, job_ref, namespace_name, definition_name, checkpoint_name AS timer_name, checkpoint_status, due_at_utc
   FROM acta.checkpoints_view
- WHERE kind = 'timer'
+ WHERE checkpoint_kind = 'timer'
  ORDER BY due_at_utc, job_id;
 ```
 
@@ -1292,7 +1292,7 @@ Timers are job-internal slots. The owning job becomes claimable when the timer i
 ### Step State
 
 ```sql
-SELECT job_id, job_ref, namespace, job_name, step_name, status, attempt_number, next_retry_at_utc, failure, failure_message, result_format, result_text
+SELECT job_id, job_ref, namespace_name, definition_name, step_name, step_status, attempt_number, next_retry_at_utc, failure, failure_message, result_format, result_text
   FROM acta.steps_view
  WHERE job_id = :job_id
  ORDER BY step_name;
@@ -1304,9 +1304,9 @@ job's attempt budget until its own step budget is exhausted.
 ### Recurring Schedules
 
 ```sql
-SELECT namespace, job_name, schedule_name, status, origin, expression, expression_kind, time_zone_id, misfire_strategy, next_occurrence_at_utc, next_evaluation_at_utc, evaluation_status, max_outstanding, outstanding_count, full_behavior, expire_after_seconds, expire_action, availability_calendar_name, paused_until_utc, description, pause_message
+SELECT namespace_name, definition_name, schedule_name, schedule_status, schedule_origin, expression, expression_kind, time_zone_id, misfire_strategy, next_occurrence_at_utc, next_evaluation_at_utc, evaluation_status, max_outstanding, outstanding_count, full_behavior, expire_after_seconds, expire_action, availability_calendar_name, paused_until_utc, description, pause_message
   FROM acta.schedules_view
- ORDER BY namespace, next_occurrence_at_utc NULLS LAST, schedule_name;
+ ORDER BY namespace_name, next_occurrence_at_utc NULLS LAST, schedule_name;
 ```
 
 A schedule whose `expression_kind` is `calendar` names its calendar in `expression`, and one that fires only inside an availability calendar's windows names it in `availability_calendar_name`. The row keeps the name only: each evaluation resolves it afresh, to a calendar the application declares in code, else the current version of the family in the namespace's catalog, else the shared one in `sys`. An `evaluation_status` of `evaluation-error` on such a schedule usually means the host lacks the code calendar or a calendar broke its contract; the worker log names the reason. The catalog itself is `calendars_view`: one row per version with its role, status, and hash.
@@ -1326,13 +1326,13 @@ its schedule in `jobs_view.schedule_id`.
 ### Per-Occurrence Capacity Drift
 
 ```sql
-SELECT s.namespace, s.job_name, s.schedule_name, s.evaluation_status, s.outstanding_count, COUNT(j.job_id) AS live_roots
+SELECT s.namespace_name, s.definition_name, s.schedule_name, s.evaluation_status, s.outstanding_count, COUNT(j.job_id) AS live_roots
   FROM acta.schedules_view s
-  LEFT JOIN acta.jobs_view j ON j.schedule_id = s.schedule_id AND j.status NOT IN ('succeeded', 'failed', 'cancelled')
+  LEFT JOIN acta.jobs_view j ON j.schedule_id = s.schedule_id AND j.job_status NOT IN ('succeeded', 'failed', 'cancelled')
  WHERE s.scheduled_delivery = 'per-occurrence'
- GROUP BY s.namespace, s.job_name, s.schedule_name, s.evaluation_status, s.outstanding_count
+ GROUP BY s.namespace_name, s.definition_name, s.schedule_name, s.evaluation_status, s.outstanding_count
 HAVING s.outstanding_count <> COUNT(j.job_id)
- ORDER BY s.namespace, s.job_name, s.schedule_name;
+ ORDER BY s.namespace_name, s.definition_name, s.schedule_name;
 ```
 
 Every settlement path writes the count in the transaction that settles the root, so this answers no rows
@@ -1344,21 +1344,22 @@ that corrects the count; report a row as a defect with its evidence.
 ### Job Definitions And Effective Policy
 
 ```sql
-SELECT namespace, job_name, status, input_type_name, input_format_name, output_type_name, output_format_name, priority, max_attempts_effective, execution_timeout_seconds_effective, deadline_seconds_effective, retention_seconds_effective, event_recording, alert_profile, alert_channel_name_effective, runbook_url_effective
+SELECT namespace_name, definition_name, definition_status, input_type_name, input_format_name, output_type_name, output_format_name, job_priority_effective, max_attempts_effective, execution_timeout_seconds_effective, deadline_seconds_effective, retention_seconds_effective, event_recording_effective, alert_profile_effective, alert_channel_name_effective, runbook_url_effective
   FROM acta.definitions_view
- WHERE namespace = 'billing'
- ORDER BY job_name;
+ WHERE namespace_name = 'billing'
+ ORDER BY definition_name;
 ```
 
 Use this when a job behaves differently than expected after a deploy or operator override. Each
 policy appears three times: the bare column is the default the code declares, `_override` is the
 operator's edit (`NULL` when none), and `_effective` is the value that runs. The decoded columns
-(`priority`, `deadline_behavior`, `event_recording`, `alert_profile`) decode the effective value.
+(`job_priority_effective`, `deadline_behavior_effective`, `event_recording_effective`,
+`alert_profile_effective`) decode the effective value.
 
 ### Worker Liveness
 
 ```sql
-SELECT namespace, worker_id, host_name, status, deployment_version, max_concurrent_executors, last_seen_at_utc
+SELECT namespace_name, worker_id, host_name, worker_status, deployment_version, max_concurrent_executors, last_seen_at_utc
   FROM acta.workers_view
  ORDER BY last_seen_at_utc DESC;
 ```
@@ -1370,7 +1371,7 @@ example, turns Active again.
 ### Pending Or Failed Alert Delivery
 
 ```sql
-SELECT alert_id, namespace, job_id, job_ref, severity, kind, delivery_status, title, occurrence_count, retry_count, retry_after_utc
+SELECT alert_id, namespace_name, job_id, job_ref, alert_severity, alert_kind, delivery_status, title, occurrence_count, retry_count, retry_after_utc
   FROM acta.alerts_view
  WHERE delivery_status IN ('pending', 'retry-after', 'failed')
  ORDER BY created_at_utc DESC;
@@ -1382,11 +1383,11 @@ by `sys.alerts`.
 ### Retention Candidates
 
 ```sql
-SELECT namespace, status, COUNT(*) AS jobs_to_purge, MIN(retention_until_utc) AS oldest_retention_until_utc
+SELECT namespace_name, job_status, COUNT(*) AS jobs_to_purge, MIN(retention_until_utc) AS oldest_retention_until_utc
   FROM acta.jobs_view
  WHERE retention_until_utc IS NOT NULL
    AND retention_until_utc <= now()
- GROUP BY namespace, status
+ GROUP BY namespace_name, job_status
  ORDER BY jobs_to_purge DESC;
 ```
 
@@ -1398,15 +1399,15 @@ retention have their own windows in `JobsOptions`.
 
 ### Tags
 
-`tags_view` decodes the tagged entity's kind as `entity_kind` while retaining `entity_code` and `entity_id`. It
+`tags_view` decodes the tagged entity's kind as `entity` while retaining `entity_code` and `entity_id`. It
 carries no namespace: join job tags to `jobs_view` for the job's namespace and runtime context:
 
 ```sql
-SELECT t.entity_id AS job_id, j.job_ref, j.namespace, j.job_name, j.status, t.tag_name, t.tag_value
+SELECT t.entity_id AS job_id, j.job_ref, j.namespace_name, j.definition_name, j.job_status, t.tag_name, t.tag_value
   FROM acta.tags_view t
   JOIN acta.jobs_view j ON j.job_id = t.entity_id
- WHERE t.entity_kind = 'job'
-   AND j.namespace = 'billing'
+ WHERE t.entity = 'job'
+   AND j.namespace_name = 'billing'
    AND t.tag_name = 'tier'
    AND t.tag_value = 'gold';
 ```

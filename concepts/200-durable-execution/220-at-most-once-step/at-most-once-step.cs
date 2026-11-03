@@ -83,7 +83,7 @@ await lab.ShowAllAsync(
 await lab.ShowAsync(
     "After the process loss: execution ownership remains, and the step outcome is pending",
     """
-    SELECT job_ref, status, execution_number, leased_by_worker_id, lease_expires_at_utc
+    SELECT job_ref, job_status, execution_number, leased_by_worker_id, lease_expires_at_utc
     FROM jobs_view
     WHERE job_id = @jobId
     """,
@@ -92,7 +92,7 @@ await lab.ShowAsync(
 await lab.ShowAsync(
     "The durable start exists, but no completion was recorded",
     """
-    SELECT step_name, status, attempt_number, failure
+    SELECT step_name, step_status, attempt_number, failure
     FROM steps_view
     WHERE job_id = @jobId
     """,
@@ -115,7 +115,7 @@ while (true)
 await lab.ShowAsync(
     "On replay Acta refuses a second body invocation",
     """
-    SELECT step_name, status, attempt_number, failure, failure_message
+    SELECT step_name, step_status, attempt_number, failure, failure_message
     FROM steps_view
     WHERE job_id = @jobId
     """,
@@ -126,7 +126,7 @@ await lab.ShowAsync(
     """
     SELECT event, execution_number, event_message, details_text
     FROM events_view
-    WHERE entity_kind = 'job' AND entity_id = @jobId
+    WHERE entity = 'job' AND entity_id = @jobId
     ORDER BY event_id
     """,
     new { jobId = crashed.JobId }

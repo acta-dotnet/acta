@@ -46,7 +46,7 @@ await lab.ShowAllAsync(
 await lab.ShowAsync(
     "Parent and children are independent jobs in one lineage",
     """
-    SELECT job_id, job_name, status, parent_job_id, lineage_root_job_id, leased_by_worker_id
+    SELECT job_id, definition_name, job_status, parent_job_id, lineage_root_job_id, leased_by_worker_id
     FROM jobs_view
     WHERE lineage_root_job_id = @rootJobId
     ORDER BY job_id
@@ -56,7 +56,7 @@ await lab.ShowAsync(
 await lab.ShowAsync(
     "The waiting parent owns child-latch checkpoints and no worker",
     """
-    SELECT checkpoint_name, kind, status
+    SELECT checkpoint_name, checkpoint_kind, checkpoint_status
     FROM checkpoints_view
     WHERE job_id = @parentJobId
     ORDER BY checkpoint_name
@@ -81,7 +81,7 @@ else
 await lab.ShowAsync(
     "Closed latches release the parent for a later execution",
     """
-    SELECT job_id, job_name, status, execution_number, parent_job_id
+    SELECT job_id, definition_name, job_status, execution_number, parent_job_id
     FROM jobs_view
     WHERE lineage_root_job_id = @rootJobId
     ORDER BY job_id
@@ -91,7 +91,7 @@ await lab.ShowAsync(
 await lab.ShowAsync(
     "Every child outcome is now latched on the parent",
     """
-    SELECT checkpoint_name, kind, status
+    SELECT checkpoint_name, checkpoint_kind, checkpoint_status
     FROM checkpoints_view
     WHERE job_id = @parentJobId
     ORDER BY checkpoint_name
@@ -101,7 +101,7 @@ await lab.ShowAsync(
 await lab.ShowAsync(
     "Parent and child events retain the independent failure history",
     """
-    SELECT entity_id AS job_id, job_name, event, execution_number, details_text
+    SELECT entity_id AS job_id, definition_name, event, execution_number, details_text
     FROM events_view
     WHERE lineage_root_job_id = @rootJobId
     ORDER BY event_id

@@ -101,7 +101,7 @@ await lab.ShowAllAsync(
 await lab.ShowAsync(
     "Namespace owns execution; tenant identifies who the parent and child are about",
     """
-    SELECT j.job_id, j.job_name, j.parent_job_id, j.lineage_root_job_id, t.tenant_name, j.status
+    SELECT j.job_id, j.definition_name, j.parent_job_id, j.lineage_root_job_id, t.tenant_name, j.job_status
     FROM jobs_view AS j
     LEFT JOIN {{schema}}.tenants AS t ON t.tenant_id = j.tenant_id
     WHERE j.lineage_root_job_id = @rootJobId
@@ -112,7 +112,7 @@ await lab.ShowAsync(
 await lab.ShowAsync(
     "Tenant scope is stamped into the append-only execution evidence",
     """
-    SELECT e.entity_id AS job_id, e.job_name, e.tenant_name, e.event, e.details_text
+    SELECT e.entity_id AS job_id, e.definition_name, e.tenant_name, e.event, e.details_text
     FROM events_view AS e
     WHERE e.lineage_root_job_id = @rootJobId
     ORDER BY e.event_id

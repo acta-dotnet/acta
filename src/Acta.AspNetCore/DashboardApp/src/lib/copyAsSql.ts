@@ -1,12 +1,11 @@
-// Frontend-only "Copy SQL" builder for the jobs, events, and schedules lists. It renders the filters
-// currently applied on a list route as a SELECT against the curated operator views (jobs_view /
-// events_view / schedules_view, qualified by the configured schema). Those views are for ad-hoc
-// inspection and learning the schema only, never a stable integration API, so the generated statement
-// is a starting point for a human at a SQL prompt, not a contract. Interpolated string values are
-// single-quote escaped; the code filters go through the decoded text columns (event / entity_kind /
-// status), which is what the kebab-case filter values the dashboard carries actually match (the raw
-// *_code columns are the undecoded numeric codes). Names (namespace, job name, tenant name, lane) are
-// stored lowercase and the API folds their filters, so the copy folds them the same way.
+// Frontend-only "Copy SQL" builder for the jobs, events, schedules, and calendars lists. It renders the
+// filters currently applied on a list route as a SELECT against the curated operator views (jobs_view /
+// events_view / schedules_view / calendars_view, qualified by the configured schema), the stable read
+// surface operators keep queries against. Interpolated string values are single-quote escaped; the code
+// filters go through the decoded text columns (event / entity / job_status), which is what the kebab-case
+// filter values the dashboard carries actually match (the raw *_code columns are the undecoded numeric
+// codes). Names (namespace_name, definition_name, tenant_name, lane_name) are stored lowercase and the API
+// folds their filters, so the copy folds them the same way.
 
 const ROW_LIMIT = 100;
 
@@ -20,9 +19,9 @@ export interface SqlDialect {
   schema?: string;
 }
 
-// The button is icon-only, so this hint carries the whole feature: what it copies, and the caveat.
+// The button is icon-only, so this hint carries the whole feature: what it copies.
 export const COPY_SQL_TITLE =
-  'Copy these filters as SQL against the operator views. For ad-hoc inspection; the views are not a stable integration API.';
+  'Copy these filters as SQL against the operator views.';
 
 type Predicate = { column: string; op: string; value: string } | { raw: string };
 
@@ -75,14 +74,14 @@ export interface JobsSqlFilters {
 
 export function jobsListSql(filters: JobsSqlFilters, dialect: SqlDialect = {}): string {
   const predicates: Predicate[] = [];
-  if (text(filters.namespace)) predicates.push({ column: 'namespace', op: '=', value: name(filters.namespace) });
-  // The view's status column is the decoded kebab code (lowercase); a bookmarked filter may carry another casing.
-  if (text(filters.status)) predicates.push({ column: 'status', op: '=', value: text(filters.status).toLowerCase() });
-  if (text(filters.jobName)) predicates.push({ column: 'job_name', op: '=', value: name(filters.jobName) });
+  if (text(filters.namespace)) predicates.push({ column: 'namespace_name', op: '=', value: name(filters.namespace) });
+  // The view's job_status column is the decoded kebab code (lowercase); a bookmarked filter may carry another casing.
+  if (text(filters.status)) predicates.push({ column: 'job_status', op: '=', value: text(filters.status).toLowerCase() });
+  if (text(filters.jobName)) predicates.push({ column: 'definition_name', op: '=', value: name(filters.jobName) });
   if (text(filters.correlationKey))
     predicates.push({ column: 'correlation_key', op: '=', value: text(filters.correlationKey) });
   if (text(filters.tenantName)) predicates.push({ column: 'tenant_name', op: '=', value: name(filters.tenantName) });
-  if (text(filters.lane)) predicates.push({ column: 'lane', op: '=', value: name(filters.lane) });
+  if (text(filters.lane)) predicates.push({ column: 'lane_name', op: '=', value: name(filters.lane) });
   return select(dialect, 'jobs_view', predicates, 'created_at_utc DESC');
 }
 
@@ -99,13 +98,13 @@ export interface EventsSqlFilters {
 export function eventsListSql(filters: EventsSqlFilters, dialect: SqlDialect = {}): string {
   const predicates: Predicate[] = [];
   const schema = dialect.schema ?? 'acta';
-  if (text(filters.namespace)) predicates.push({ column: 'namespace', op: '=', value: name(filters.namespace) });
+  if (text(filters.namespace)) predicates.push({ column: 'namespace_name', op: '=', value: name(filters.namespace) });
   if (text(filters.eventCode)) predicates.push({ column: 'event', op: '=', value: text(filters.eventCode) });
-  if (text(filters.entityKind)) predicates.push({ column: 'entity_kind', op: '=', value: text(filters.entityKind) });
+  if (text(filters.entityKind)) predicates.push({ column: 'entity', op: '=', value: text(filters.entityKind) });
   // events_view stores no job ref: a job's events are the job subject's, its id looked up by ref.
   if (text(filters.jobRef)) {
     predicates.push({
-      raw: `entity_kind = 'job' AND entity_id = (SELECT job_id FROM ${schema}.jobs_view WHERE job_ref = ${sqlLiteral(storedJobRef(text(filters.jobRef)))})`
+      raw: `entity = 'job' AND entity_id = (SELECT job_id FROM ${schema}.jobs_view WHERE job_ref = ${sqlLiteral(storedJobRef(text(filters.jobRef)))})`
     });
   }
   if (text(filters.tenantName)) predicates.push({ column: 'tenant_name', op: '=', value: name(filters.tenantName) });
@@ -134,17 +133,17 @@ export interface CalendarsSqlFilters {
 // family's versions together, newest first. A namespace scope shows the shared `sys` families beside its own.
 export function calendarsListSql(filters: CalendarsSqlFilters, dialect: SqlDialect = {}): string {
   const predicates: Predicate[] = [];
-  if (text(filters.namespace)) predicates.push({ raw: `namespace IN (${sqlLiteral(name(filters.namespace))}, 'sys')` });
-  if (text(filters.role)) predicates.push({ column: 'role', op: '=', value: name(filters.role) });
+  if (text(filters.namespace)) predicates.push({ raw: `namespace_name IN (${sqlLiteral(name(filters.namespace))}, 'sys')` });
+  if (text(filters.role)) predicates.push({ column: 'calendar_role', op: '=', value: name(filters.role) });
   if (text(filters.nameSearch)) predicates.push({ raw: `calendar_name LIKE ${sqlLiteral('%' + name(filters.nameSearch) + '%')}` });
-  return select(dialect, 'calendars_view', predicates, 'namespace, calendar_name, version DESC');
+  return select(dialect, 'calendars_view', predicates, 'namespace_name, calendar_name, version DESC');
 }
 
 export function schedulesListSql(filters: SchedulesSqlFilters, dialect: SqlDialect = {}): string {
   const predicates: Predicate[] = [];
-  if (text(filters.namespace)) predicates.push({ column: 'namespace', op: '=', value: name(filters.namespace) });
-  if (text(filters.jobName)) predicates.push({ column: 'job_name', op: '=', value: name(filters.jobName) });
+  if (text(filters.namespace)) predicates.push({ column: 'namespace_name', op: '=', value: name(filters.namespace) });
+  if (text(filters.jobName)) predicates.push({ column: 'definition_name', op: '=', value: name(filters.jobName) });
   // "Live only" is the list's default: schedules with an upcoming occurrence that are not orphaned.
-  if (filters.liveOnly) predicates.push({ raw: "status <> 'orphaned' AND next_occurrence_at_utc IS NOT NULL" });
+  if (filters.liveOnly) predicates.push({ raw: "schedule_status <> 'orphaned' AND next_occurrence_at_utc IS NOT NULL" });
   return select(dialect, 'schedules_view', predicates, 'next_occurrence_at_utc');
 }

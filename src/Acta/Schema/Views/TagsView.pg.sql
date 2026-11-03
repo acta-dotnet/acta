@@ -1,5 +1,5 @@
 SELECT
-    {{decode:entity:t.entity_code}} AS entity_kind,
+    {{decode:entity:t.entity_code}} AS entity,
     t.entity_code,
     t.entity_id,
     t.tag_name,

@@ -141,7 +141,7 @@ static async Task ShowStateAsync(ConceptLab lab, long jobId, string sessionId)
     await lab.ShowAsync(
         "The database is the shared authority for ownership and recovery",
         """
-        SELECT job_ref, status, execution_number, failure_count, leased_by_worker_id, leased_by_worker_host_name, lease_expires_at_utc
+        SELECT job_ref, job_status, execution_number, failure_count, leased_by_worker_id, leased_by_worker_host_name, lease_expires_at_utc
         FROM jobs_view
         WHERE job_id = @jobId
         """,
@@ -150,9 +150,9 @@ static async Task ShowStateAsync(ConceptLab lab, long jobId, string sessionId)
     await lab.ShowAsync(
         "Worker heartbeats are ordinary inspectable rows",
         """
-        SELECT worker_id, status, deployment_version, host_name, process_id, last_seen_at_utc
+        SELECT worker_id, worker_status, deployment_version, host_name, process_id, last_seen_at_utc
         FROM workers_view
-        WHERE namespace = @jobNamespace AND deployment_version IN (@workerADeployment, @workerBDeployment)
+        WHERE namespace_name = @jobNamespace AND deployment_version IN (@workerADeployment, @workerBDeployment)
         ORDER BY worker_id
         """,
         new
@@ -167,7 +167,7 @@ static async Task ShowStateAsync(ConceptLab lab, long jobId, string sessionId)
         """
         SELECT event, execution_number, details_text, worker_id
         FROM events_view
-        WHERE entity_kind = 'job' AND entity_id = @jobId
+        WHERE entity = 'job' AND entity_id = @jobId
         ORDER BY event_id
         """,
         new { jobId }

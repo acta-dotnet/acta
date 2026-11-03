@@ -16,7 +16,7 @@ because an installed routine is a compatibility obligation and every edit to one
 
 - Each operation has one file per dialect, addressed by its stem: `Operation.pg.sql` for inline SQL shipped with the binary, or `Operation.routine.pg.sql` for an installed atomic ledger operation on PostgreSQL or SQL Server, whose body reaches a database only inside a migration.
 - A command with no embedded file for the dialect runs as the routine of that name; one with a file runs as its text. Ledger reads are inline on every provider; SQLite is inline for mutations too.
-- A file whose stem ends in `View`, under `Schema/Views/`, is an operator read model, installed by a migration like a routine. Views are operator convenience: no code and no test reads one.
+- A file whose stem ends in `View`, under `Schema/Views/`, is an operator read model, installed by a migration like a routine. Views are the operator's read surface: no runtime code reads one.
 
 `SqlResourceCatalog` resolves at most one file for each stem and dialect. Two files with one stem fail when the catalog is built; a stem with no file is a routine, and `SqlCommandCatalogTests` pins which stems those are, so a typo cannot pass as one. `DbSession` uses that kind to configure the command. There is no provider-wide routine switch.
 

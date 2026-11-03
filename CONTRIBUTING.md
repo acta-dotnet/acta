@@ -468,6 +468,10 @@ After 1.0.0 a rename that breaks one is a breaking change, not a cleanup.
   `claim_jobs`), `CompleteExecutions`. A table type is verb first with the plural of the rows it carries
   and no `_batch` (`complete_executions`, `enqueue_tags`); a type and a routine are different object
   classes, so they may share a name. `Batch` is never the noun.
+- **A view column keeps its table column's name; only a decode adds a name.** A decoded label is its code
+  column without `_code` (`job_status`; `job_priority_code_effective` decodes as `job_priority_effective`),
+  a decoded payload is `<column>_format` and `<column>_text`, and a joined column that would mislead or
+  collide takes its join path as a prefix (`leased_by_worker_host_name`, `lineage_root_job_ref`).
 
 ### Type names: one suffix per role
 

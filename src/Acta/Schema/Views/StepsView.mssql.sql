@@ -1,10 +1,10 @@
 SELECT
     s.job_id,
     j.job_ref,
-    ns.namespace_name AS namespace,
-    d.definition_name AS job_name,
+    ns.namespace_name,
+    d.definition_name,
     s.step_name,
-    {{decode:job-step-status:s.step_status_code}} AS status,
+    {{decode:job-step-status:s.step_status_code}} AS step_status,
     s.step_status_code,
     s.attempt_number,
     s.next_retry_at_utc,

@@ -166,7 +166,7 @@ static async Task ShowStateAsync(ConceptLab lab, IJobs jobs, ISchedules schedule
     await lab.ShowAsync(
         "One durable job identity, one row, Idle between firings",
         """
-        SELECT job_ref, status, execution_number, failure_count, leased_by_worker_host_name, lease_expires_at_utc
+        SELECT job_ref, job_status, execution_number, failure_count, leased_by_worker_host_name, lease_expires_at_utc
         FROM jobs_view
         WHERE job_id = @slotId
         """,
@@ -175,27 +175,27 @@ static async Task ShowStateAsync(ConceptLab lab, IJobs jobs, ISchedules schedule
     await lab.ShowAsync(
         "Acta's progress: the schedule cursor and when the engine next looks",
         """
-        SELECT schedule_name, status, next_occurrence_at_utc, next_evaluation_at_utc, evaluation_status
+        SELECT schedule_name, schedule_status, next_occurrence_at_utc, next_evaluation_at_utc, evaluation_status
         FROM schedules_view
-        WHERE namespace = @jobNamespace AND job_name = @jobName
+        WHERE namespace_name = @jobNamespace AND definition_name = @jobName
         """,
         new { jobNamespace, jobName }
     );
     await lab.ShowAsync(
         "The firing envelope: which schedule admitted the running or last firing, and how it settled",
         """
-        SELECT checkpoint_name, status, value_text
+        SELECT checkpoint_name, checkpoint_status, value_text
         FROM checkpoints_view
-        WHERE job_id = @slotId AND kind = 'firing'
+        WHERE job_id = @slotId AND checkpoint_kind = 'firing'
         """,
         new { slotId }
     );
     await lab.ShowAsync(
         "The job's own progress: the watermark, a durable variable on the slot that every execution reads first",
         """
-        SELECT checkpoint_name, kind, value_text, modified_at_utc
+        SELECT checkpoint_name, checkpoint_kind, value_text, modified_at_utc
         FROM checkpoints_view
-        WHERE job_id = @slotId AND kind = 'variable'
+        WHERE job_id = @slotId AND checkpoint_kind = 'variable'
         """,
         new { slotId }
     );
@@ -204,7 +204,7 @@ static async Task ShowStateAsync(ConceptLab lab, IJobs jobs, ISchedules schedule
         """
         SELECT event_id, event, execution_number, event_message, details_text
         FROM events_view
-        WHERE entity_kind = 'job' AND entity_id = @slotId
+        WHERE entity = 'job' AND entity_id = @slotId
         ORDER BY event_id DESC LIMIT 8
         """,
         new { slotId }
@@ -214,10 +214,10 @@ static async Task ShowStateAsync(ConceptLab lab, IJobs jobs, ISchedules schedule
         """
         SELECT event_id, event, execution_number, event_message, details_text
         FROM events_view
-        WHERE entity_kind = 'job' AND entity_id = @slotId AND event_id >= (
+        WHERE entity = 'job' AND entity_id = @slotId AND event_id >= (
             SELECT COALESCE(MIN(event_id), 0)
             FROM events_view
-            WHERE entity_kind = 'job' AND entity_id = @slotId AND event IN ('job.execution-orphaned', 'job.execution-failed')
+            WHERE entity = 'job' AND entity_id = @slotId AND event IN ('job.execution-orphaned', 'job.execution-failed')
         )
         ORDER BY event_id LIMIT 5
         """,

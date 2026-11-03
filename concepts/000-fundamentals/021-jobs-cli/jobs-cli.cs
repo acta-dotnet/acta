@@ -57,7 +57,7 @@ await lab.ShowAllAsync(
 await lab.ShowAsync(
     "Direct SQL is the durable evidence behind info, events, and explain",
     """
-    SELECT job_ref, status, execution_number, leased_by_worker_id
+    SELECT job_ref, job_status, execution_number, leased_by_worker_id
     FROM jobs_view
     WHERE job_id = @jobId
     """,

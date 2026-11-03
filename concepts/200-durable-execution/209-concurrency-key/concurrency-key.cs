@@ -63,7 +63,7 @@ await lab.ShowAllAsync(
 await lab.ShowAsync(
     "One job executes; its competitor returns to Ready without holding a worker",
     """
-    SELECT job_id, job_ref, status, concurrency_key, leased_by_worker_id, next_run_at_utc
+    SELECT job_id, job_ref, job_status, concurrency_key, leased_by_worker_id, next_run_at_utc
     FROM jobs_view
     WHERE job_id IN (@ownerJobId, @competitorJobId)
     ORDER BY CASE WHEN job_id = @ownerJobId THEN 0 ELSE 1 END
@@ -118,7 +118,7 @@ await lab.ShowAsync(
     """
     SELECT entity_id AS job_id, event, details_text, execution_number
     FROM events_view
-    WHERE entity_kind = 'job' AND entity_id IN (@firstJobId, @secondJobId)
+    WHERE entity = 'job' AND entity_id IN (@firstJobId, @secondJobId)
     ORDER BY event_id
     """,
     new { firstJobId = first.JobId, secondJobId = second.JobId }
@@ -135,9 +135,9 @@ foreach (var shard in shards)
 await lab.ShowAsync(
     "All four shards finish, two at a time",
     """
-    SELECT job_id, job_name, status, concurrency_key
+    SELECT job_id, definition_name, job_status, concurrency_key
     FROM jobs_view
-    WHERE job_name = 'reindex-shard'
+    WHERE definition_name = 'reindex-shard'
     ORDER BY job_id
     """
 );
@@ -177,7 +177,7 @@ await lab.ShowAsync(
     """
     SELECT entity_id AS job_id, event, details_text, execution_number
     FROM events_view
-    WHERE job_name = 'ping-endpoint' AND event = 'job.rescheduled' AND details_text LIKE '%"reason":"rate-limited"%'
+    WHERE definition_name = 'ping-endpoint' AND event = 'job.rescheduled' AND details_text LIKE '%"reason":"rate-limited"%'
     ORDER BY event_id
     """
 );

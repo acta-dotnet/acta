@@ -213,9 +213,9 @@ Or with SQL, because the state is rows. Open `acta-local.db` in any SQLite clien
 the views sit in the configured schema, so the same query reads `acta.jobs_view`:
 
 ```sql
-SELECT job_id, job_ref, job_name, status, failure_count, created_at_utc
+SELECT job_id, job_ref, definition_name, job_status, failure_count, created_at_utc
 FROM   jobs_view
-WHERE  namespace = 'users'
+WHERE  namespace_name = 'users'
 ORDER  BY created_at_utc DESC;
 ```
 

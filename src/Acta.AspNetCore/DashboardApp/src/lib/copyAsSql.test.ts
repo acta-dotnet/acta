@@ -6,9 +6,9 @@ import { calendarsListSql, jobsListSql, eventsListSql, schedulesListSql } from '
 test('calendarsListSql scopes a namespace with the shared sys families and orders versions together', () => {
   assert.equal(
     calendarsListSql({ namespace: 'Billing', role: 'availability', nameSearch: "O'Clock" }),
-    "SELECT * FROM acta.calendars_view WHERE namespace IN ('billing', 'sys') AND role = 'availability' AND calendar_name LIKE '%o''clock%' ORDER BY namespace, calendar_name, version DESC LIMIT 100;"
+    "SELECT * FROM acta.calendars_view WHERE namespace_name IN ('billing', 'sys') AND calendar_role = 'availability' AND calendar_name LIKE '%o''clock%' ORDER BY namespace_name, calendar_name, version DESC LIMIT 100;"
   );
-  assert.equal(calendarsListSql({}), 'SELECT * FROM acta.calendars_view ORDER BY namespace, calendar_name, version DESC LIMIT 100;');
+  assert.equal(calendarsListSql({}), 'SELECT * FROM acta.calendars_view ORDER BY namespace_name, calendar_name, version DESC LIMIT 100;');
 });
 
 test('jobsListSql with no filters selects the whole view, no WHERE clause', () => {
@@ -18,7 +18,7 @@ test('jobsListSql with no filters selects the whole view, no WHERE clause', () =
 test('jobsListSql composes filters with AND and lowercases the display status', () => {
   assert.equal(
     jobsListSql({ namespace: 'billing', status: 'Failed', jobName: 'send-invoice' }),
-    "SELECT * FROM acta.jobs_view WHERE namespace = 'billing' AND status = 'failed' AND job_name = 'send-invoice' ORDER BY created_at_utc DESC LIMIT 100;"
+    "SELECT * FROM acta.jobs_view WHERE namespace_name = 'billing' AND job_status = 'failed' AND definition_name = 'send-invoice' ORDER BY created_at_utc DESC LIMIT 100;"
   );
 });
 
@@ -31,18 +31,18 @@ test('jobsListSql emits tenant_name as a quoted literal', () => {
 });
 
 test('jobsListSql filters the view by lane', () => {
-  assert.equal(jobsListSql({ lane: 'customer-42' }), "SELECT * FROM acta.jobs_view WHERE lane = 'customer-42' ORDER BY created_at_utc DESC LIMIT 100;");
+  assert.equal(jobsListSql({ lane: 'customer-42' }), "SELECT * FROM acta.jobs_view WHERE lane_name = 'customer-42' ORDER BY created_at_utc DESC LIMIT 100;");
 });
 
 test('the list builders fold names the way the API stores them, and keep keys exact', () => {
   assert.equal(
     jobsListSql({ namespace: 'Billing', jobName: 'Send-Invoice', tenantName: 'ACME', lane: 'Customer-42', correlationKey: 'Run-7' }),
-    "SELECT * FROM acta.jobs_view WHERE namespace = 'billing' AND job_name = 'send-invoice' AND correlation_key = 'Run-7' "
-      + "AND tenant_name = 'acme' AND lane = 'customer-42' ORDER BY created_at_utc DESC LIMIT 100;"
+    "SELECT * FROM acta.jobs_view WHERE namespace_name = 'billing' AND definition_name = 'send-invoice' AND correlation_key = 'Run-7' "
+      + "AND tenant_name = 'acme' AND lane_name = 'customer-42' ORDER BY created_at_utc DESC LIMIT 100;"
   );
   assert.equal(
     eventsListSql({ namespace: 'Billing' }),
-    "SELECT * FROM acta.events_view WHERE namespace = 'billing' ORDER BY created_at_utc DESC LIMIT 100;"
+    "SELECT * FROM acta.events_view WHERE namespace_name = 'billing' ORDER BY created_at_utc DESC LIMIT 100;"
   );
   assert.equal(
     eventsListSql({ tenantName: 'ACME' }),
@@ -50,7 +50,7 @@ test('the list builders fold names the way the API stores them, and keep keys ex
   );
   assert.equal(
     schedulesListSql({ namespace: 'Billing', jobName: 'Nightly-Close' }),
-    "SELECT * FROM acta.schedules_view WHERE namespace = 'billing' AND job_name = 'nightly-close' ORDER BY next_occurrence_at_utc LIMIT 100;"
+    "SELECT * FROM acta.schedules_view WHERE namespace_name = 'billing' AND definition_name = 'nightly-close' ORDER BY next_occurrence_at_utc LIMIT 100;"
   );
 });
 
@@ -64,7 +64,7 @@ test('jobsListSql escapes single quotes in interpolated values', () => {
 test('jobsListSql ignores blank and whitespace-only filter values', () => {
   assert.equal(
     jobsListSql({ namespace: '   ', status: '', jobName: '  ops  ' }),
-    "SELECT * FROM acta.jobs_view WHERE job_name = 'ops' ORDER BY created_at_utc DESC LIMIT 100;"
+    "SELECT * FROM acta.jobs_view WHERE definition_name = 'ops' ORDER BY created_at_utc DESC LIMIT 100;"
   );
 });
 
@@ -78,35 +78,35 @@ test('eventsListSql filters code families through the decoded columns and a time
       createdFromUtc: '2026-07-01T00:00:00.000Z',
       createdToUtc: '2026-07-22T00:00:00.000Z'
     }),
-    "SELECT * FROM acta.events_view WHERE namespace = 'billing' AND event = 'job.cancelled' AND entity_kind = 'job' AND created_at_utc >= '2026-07-01T00:00:00.000Z' AND created_at_utc < '2026-07-22T00:00:00.000Z' ORDER BY created_at_utc DESC LIMIT 100;"
+    "SELECT * FROM acta.events_view WHERE namespace_name = 'billing' AND event = 'job.cancelled' AND entity = 'job' AND created_at_utc >= '2026-07-01T00:00:00.000Z' AND created_at_utc < '2026-07-22T00:00:00.000Z' ORDER BY created_at_utc DESC LIMIT 100;"
   );
 });
 
 test('eventsListSql finds a job\'s events through jobs_view by the stored uuid, in the configured schema', () => {
   assert.equal(
     eventsListSql({ jobRef: 'job_019f9b3509487d1b911f2020158384a3' }, { provider: 'pg', schema: 'ops' }),
-    "SELECT * FROM ops.events_view WHERE entity_kind = 'job' AND entity_id = (SELECT job_id FROM ops.jobs_view WHERE job_ref = '019f9b35-0948-7d1b-911f-2020158384a3') ORDER BY created_at_utc DESC LIMIT 100;"
+    "SELECT * FROM ops.events_view WHERE entity = 'job' AND entity_id = (SELECT job_id FROM ops.jobs_view WHERE job_ref = '019f9b35-0948-7d1b-911f-2020158384a3') ORDER BY created_at_utc DESC LIMIT 100;"
   );
 });
 
 test('eventsListSql lowercases an uppercase-hex job ref into the dashed uuid', () => {
   assert.equal(
     eventsListSql({ jobRef: 'job_019F9B3509487D1B911F2020158384A3' }, { provider: 'mssql', schema: 'acta' }),
-    "SELECT TOP 100 * FROM acta.events_view WHERE entity_kind = 'job' AND entity_id = (SELECT job_id FROM acta.jobs_view WHERE job_ref = '019f9b35-0948-7d1b-911f-2020158384a3') ORDER BY created_at_utc DESC;"
+    "SELECT TOP 100 * FROM acta.events_view WHERE entity = 'job' AND entity_id = (SELECT job_id FROM acta.jobs_view WHERE job_ref = '019f9b35-0948-7d1b-911f-2020158384a3') ORDER BY created_at_utc DESC;"
   );
 });
 
 test('eventsListSql keeps anything that is not a job ref as an escaped literal', () => {
   assert.equal(
     eventsListSql({ jobRef: "x' OR '1'='1" }),
-    "SELECT * FROM acta.events_view WHERE entity_kind = 'job' AND entity_id = (SELECT job_id FROM acta.jobs_view WHERE job_ref = 'x'' OR ''1''=''1') ORDER BY created_at_utc DESC LIMIT 100;"
+    "SELECT * FROM acta.events_view WHERE entity = 'job' AND entity_id = (SELECT job_id FROM acta.jobs_view WHERE job_ref = 'x'' OR ''1''=''1') ORDER BY created_at_utc DESC LIMIT 100;"
   );
 });
 
 test('jobsListSql emits the SQL Server TOP form with no LIMIT', () => {
   assert.equal(
     jobsListSql({ status: 'Failed' }, { provider: 'mssql', schema: 'acta' }),
-    "SELECT TOP 100 * FROM acta.jobs_view WHERE status = 'failed' ORDER BY created_at_utc DESC;"
+    "SELECT TOP 100 * FROM acta.jobs_view WHERE job_status = 'failed' ORDER BY created_at_utc DESC;"
   );
 });
 
@@ -134,14 +134,14 @@ test('eventsListSql emits the SQL Server TOP form and the exclusive "to" bound',
       { namespace: 'billing', createdToUtc: '2026-07-22T00:00:00.000Z' },
       { provider: 'mssql', schema: 'acta' }
     ),
-    "SELECT TOP 100 * FROM acta.events_view WHERE namespace = 'billing' AND created_at_utc < '2026-07-22T00:00:00.000Z' ORDER BY created_at_utc DESC;"
+    "SELECT TOP 100 * FROM acta.events_view WHERE namespace_name = 'billing' AND created_at_utc < '2026-07-22T00:00:00.000Z' ORDER BY created_at_utc DESC;"
   );
 });
 
 test('schedulesListSql emits the SQL Server TOP form with no LIMIT', () => {
   assert.equal(
     schedulesListSql({ liveOnly: true }, { provider: 'mssql', schema: 'acta' }),
-    "SELECT TOP 100 * FROM acta.schedules_view WHERE status <> 'orphaned' AND next_occurrence_at_utc IS NOT NULL ORDER BY next_occurrence_at_utc;"
+    "SELECT TOP 100 * FROM acta.schedules_view WHERE schedule_status <> 'orphaned' AND next_occurrence_at_utc IS NOT NULL ORDER BY next_occurrence_at_utc;"
   );
 });
 
@@ -152,7 +152,7 @@ test('eventsListSql with no filters selects the whole view', () => {
 test('schedulesListSql maps live-only to the not-orphaned, upcoming predicate (no interpolated value)', () => {
   assert.equal(
     schedulesListSql({ namespace: 'billing', jobName: 'nightly-close', liveOnly: true }),
-    "SELECT * FROM acta.schedules_view WHERE namespace = 'billing' AND job_name = 'nightly-close' AND status <> 'orphaned' AND next_occurrence_at_utc IS NOT NULL ORDER BY next_occurrence_at_utc LIMIT 100;"
+    "SELECT * FROM acta.schedules_view WHERE namespace_name = 'billing' AND definition_name = 'nightly-close' AND schedule_status <> 'orphaned' AND next_occurrence_at_utc IS NOT NULL ORDER BY next_occurrence_at_utc LIMIT 100;"
   );
 });
 

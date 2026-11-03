@@ -139,9 +139,9 @@ There is no proprietary console and no hidden state to decode. Jobs, leases, att
 
 ```sql
 -- In-flight work and who holds it.
-select job_id, job_ref, namespace, job_name, status, leased_by_worker_id, leased_by_worker_host_name, lease_expires_at_utc
+select job_id, job_ref, namespace_name, definition_name, job_status, leased_by_worker_id, leased_by_worker_host_name, lease_expires_at_utc
 from acta.jobs_view
-where status = 'executing';
+where job_status = 'executing';
 ```
 
 More shapes (backlogs, stuck jobs, worker liveness, pending alerts) in the operator guide's [SQL recipes](./docs/operator-guide.md#sql-recipes); the numeric codes decode via [`docs/reference/code-families.md`](./docs/reference/code-families.md). Because state is rows, a job that failed a month ago is still there to inspect, and to restart with its original input.

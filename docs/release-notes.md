@@ -1,5 +1,15 @@
 # Release notes
 
+## 1.0.0-rc.9
+
+Not tagged yet.
+
+### What a consumer must change
+
+**Drop and reprovision every database an rc.8 build provisioned**: the baseline is re-cut, and nothing translates it.
+
+**The operator views name their columns as the tables do, and only a decoded column gets a new name.** A view column is the table column's name (`namespace_name`, `definition_name`, `lane_name`), and a decoded label is the code column without `_code`: `job_status`, `job_priority`, `alert_kind`, `alert_origin`, `alert_severity`, `calendar_role`, `calendar_status`, `checkpoint_kind`, `checkpoint_status`, `definition_status`, `schedule_origin`, `schedule_status`, `step_status`, `worker_status`, and `entity` for the tagged or recorded entity's kind. `definitions_view` decodes its effective policies as `job_priority_effective`, `deadline_behavior_effective`, `event_recording_effective`, and `alert_profile_effective`. From 1.0 a view column is renamed or removed only in a major release.
+
 ## 1.0.0-rc.8
 
 Tagged 2026-11-02. rc.8 fixes what the 1.0 readiness reviews found, queues SQLite's writes to one file in arrival order, stops Redis wakes reaching every process, and measures Acta Verify's trials as applications run them. The schema changes: reprovision, as every pre-1.0 release asks.

@@ -136,17 +136,17 @@ is back to `Idle` with no lease; the cursor already names the next occurrence, t
 how the last firing settled, and the watermark sits on the slot as a variable.
 
 ```text
-job_ref                              | status | execution_number | failure_count | leased_by_worker_host_name | lease_expires_at_utc
-01a18cba-b966-7a5a-aaf2-83061ba0af99 | idle   | 3                | 0             | NULL                       | NULL
+job_ref                              | job_status | execution_number | failure_count | leased_by_worker_host_name | lease_expires_at_utc
+01a18cba-b966-7a5a-aaf2-83061ba0af99 | idle       | 3                | 0             | NULL                       | NULL
 
-schedule_name | status | next_occurrence_at_utc   | next_evaluation_at_utc   | evaluation_status
-every-5s      | active | 2026-10-30 12:13:49.813Z | 2026-10-30 12:13:49.813Z | scheduled
+schedule_name | schedule_status | next_occurrence_at_utc   | next_evaluation_at_utc   | evaluation_status
+every-5s      | active          | 2026-10-30 12:13:49.813Z | 2026-10-30 12:13:49.813Z | scheduled
 
-checkpoint_name | status    | value_text
-sys.firing      | succeeded | {"firingId":"01a18cba-f42b-7cd7-b4d…
+checkpoint_name | checkpoint_status | value_text
+sys.firing      | succeeded         | {"firingId":"01a18cba-f42b-7cd7-b4d…
 
-checkpoint_name | kind     | value_text | modified_at_utc
-watermark       | variable | 120        | 2026-10-30 12:13:44.882Z
+checkpoint_name | checkpoint_kind | value_text | modified_at_utc
+watermark       | variable        | 120        | 2026-10-30 12:13:44.882Z
 
 event_id | event                   | execution_number
 7        | job.execution-succeeded | 3
@@ -183,14 +183,14 @@ the envelope still `pending`, the watermark at the batch the dead worker applied
 twenty changes ahead of it.
 
 ```text
-job_ref                              | status    | execution_number | failure_count | leased_by_worker_host_name | lease_expires_at_utc
-01a18cba-b966-7a5a-aaf2-83061ba0af99 | executing | 7                | 0             | DESKTOP-MVKQH5M            | 2026-10-30 12:14:08.857Z
+job_ref                              | job_status | execution_number | failure_count | leased_by_worker_host_name | lease_expires_at_utc
+01a18cba-b966-7a5a-aaf2-83061ba0af99 | executing  | 7                | 0             | DESKTOP-MVKQH5M            | 2026-10-30 12:14:08.857Z
 
-checkpoint_name | status  | value_text
-sys.firing      | pending | {"firingId":"01a18cbb-422e-7ac2-9e3…
+checkpoint_name | checkpoint_status | value_text
+sys.firing      | pending           | {"firingId":"01a18cbb-422e-7ac2-9e3…
 
-checkpoint_name | kind     | value_text | modified_at_utc
-watermark       | variable | 160        | 2026-10-30 12:14:04.877Z
+checkpoint_name | checkpoint_kind | value_text | modified_at_utc
+watermark       | variable        | 160        | 2026-10-30 12:14:04.877Z
 
 feed head: change 180; local orders: 40 (newest change 160)
 ```
@@ -211,11 +211,11 @@ event_id | event                   | execution_number | event_message           
 22       | schedule.admitted       | 8                | NULL                                 | {"schedule":"every-5s","occurrence"…
 23       | job.execution-succeeded | 9                | NULL                                 | NULL
 
-checkpoint_name | kind     | value_text | modified_at_utc
-watermark       | variable | 180        | 2026-10-30 12:14:17.971Z
+checkpoint_name | checkpoint_kind | value_text | modified_at_utc
+watermark       | variable        | 180        | 2026-10-30 12:14:17.971Z
 
-job_ref                              | status | execution_number | failure_count | leased_by_worker_host_name | lease_expires_at_utc
-01a18cba-b966-7a5a-aaf2-83061ba0af99 | idle   | 12               | 0             | NULL                       | NULL
+job_ref                              | job_status | execution_number | failure_count | leased_by_worker_host_name | lease_expires_at_utc
+01a18cba-b966-7a5a-aaf2-83061ba0af99 | idle       | 12               | 0             | NULL                       | NULL
 
 feed head: change 180; local orders: 40 (newest change 180)
 ```

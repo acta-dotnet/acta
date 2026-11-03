@@ -36,7 +36,7 @@ Deliberate non-goals. Adding any of these is a category-reshaping change. Acta d
 ## The four claims
 
 1. **Acta observes work lifecycle, not message flow.** Every Job has a durable record, every transition is captured in `JobEvent`, every job tree has lineage, all queryable in SQL. The event ledger persists past Job retention.
-2. **SQL is the operational interface; curated views are the supported query surface.** Acta's runtime queries the same database operators query. No proprietary query layer, no opaque storage format. Operators write ad-hoc queries against production data without coordinating with the framework; the curated views are the stable surface, storage tables are not a compatibility contract.
+2. **SQL is the operational interface; curated views are the supported query surface.** Acta's runtime queries the same database operators query. No proprietary query layer, no opaque storage format. Operators write ad-hoc queries against production data without coordinating with the framework; the curated views are the stable surface, storage tables are not a compatibility contract. From 1.0 a view column is renamed or removed only in a major release; any release may add one.
 3. **No control plane, no leader.** Every worker is a peer. System maintenance is recurring `[Job]`s claimed competitively per namespace, and crash recovery is a pass whichever heartbeat finds due takes, not leader-elected work. No `Supervisor`, no `ILeaderTask`, no auxiliary services. The worker process is the unit of operation.
 4. **Distributed correctness without distributed operations.** Maintenance scheduling, lease reclamation, RCSI-correct concurrency, rate limiting, transition event ledger, idempotency horizons, deadline-bound retries are done in code. The target is one operator on commodity SQL Server / Postgres with nothing else to run. Execution is at-least-once over SQL claims and leases; handlers own side-effect idempotency.
 
@@ -82,7 +82,7 @@ three tries), a `JobAttempt` table (the outcome event is the per-attempt record)
 
 **`Status`** is the uniform column name for the operator-facing lifecycle enum; per-execution
 outcome is the event code itself; steps and checkpoints carry `step_status_code` and
-`checkpoint_status_code`, each status column named for its table, and their views decode it as `status`. The `jobs_state` row stores current state and events explain transitions: the machine
+`checkpoint_status_code`, each status column named for its table, and their views decode it under the same name without `_code` (`step_status`, `checkpoint_status`). The `jobs_state` row stores current state and events explain transitions: the machine
 fact is the event code (with `details.reason` where one code spans causes), the prose is
 `event_message`, both on the event, never on the `jobs_state` row.
 
@@ -99,7 +99,7 @@ Reopening an entry means writing a proposal, not editing this file.
 
 - **Leaderless.** Every worker is a peer and every claim is a competitive race; no leader role, election, or lock. *Reason:* removes failover and split-brain as operational concerns.
 - **One work-unit shape.** All work units (one-shot, recurring, coordinating parents, system maintenance) share one shape (a `jobs` row plus its 1:1 `jobs_state` row) and no per-kind tables; the one stored kind code separates an ordinary job from a scheduled definition's permanent slot. *Reason:* one substrate carries claim, lease, audit, and retention without per-kind branching.
-- **SQL is the operational interface; curated views are the supported query surface.** The runtime and operators query the same database; no proprietary query layer. Storage tables are not a compatibility contract. *Reason:* operators write ad-hoc production queries without coordinating with the framework.
+- **SQL is the operational interface; curated views are the supported query surface.** The runtime and operators query the same database; no proprietary query layer. From 1.0 a view column is renamed or removed only in a major release; storage tables are not a compatibility contract. *Reason:* operators write ad-hoc production queries without coordinating with the framework.
 - **No reflection on the hot path.** Source generators emit all dispatch and persistence code; AOT-clean by construction. *Reason:* trim-friendly, no reflection cost per attempt.
 - **Category: durable jobs and workflows for .NET.** A workflow is a job whose handler records steps and variables, starts child jobs, and waits; it runs on the same rows and claim path as any other job. Never positioned as a workflow server, a visual designer, or a message bus. *Reason:* a newcomer recognizes what one handler can do, and the one-substrate rule above still holds.
 

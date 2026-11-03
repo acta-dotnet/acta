@@ -47,19 +47,19 @@ await lab.ShowAllAsync(
     """
     SELECT *
     FROM schedules_view
-    WHERE namespace = @jobNamespace
-    ORDER BY job_name
+    WHERE namespace_name = @jobNamespace
+    ORDER BY definition_name
     """,
     new { jobNamespace }
 );
 await lab.ShowAsync(
     "Paused, with every cursor in the past",
     """
-    SELECT job_name, status, misfire_strategy, next_occurrence_at_utc
+    SELECT definition_name, schedule_status, misfire_strategy, next_occurrence_at_utc
     FROM schedules_view
-    WHERE namespace = @jobNamespace
-      AND job_name IN ('skip-report', 'catch-up-once-report', 'catch-up-all-report')
-    ORDER BY job_name
+    WHERE namespace_name = @jobNamespace
+      AND definition_name IN ('skip-report', 'catch-up-once-report', 'catch-up-all-report')
+    ORDER BY definition_name
     """,
     new { jobNamespace }
 );
@@ -113,17 +113,17 @@ Console.WriteLine($"catch-up-all-report    ran {all.Count} firings, one per miss
 await lab.ShowAsync(
     "Each policy's first decision after the resume: Skip's discarded range, CatchUpOnce's covering firing, CatchUpAll's first",
     """
-    SELECT job_name, event, details_text
+    SELECT definition_name, event, details_text
     FROM events_view
     WHERE event_id IN (
         SELECT MIN(event_id)
         FROM events_view
-        WHERE namespace = @jobNamespace
+        WHERE namespace_name = @jobNamespace
           AND event_id > @since
           AND event IN ('schedule.admitted', 'schedule.skipped')
-        GROUP BY job_name, event
+        GROUP BY definition_name, event
     )
-    ORDER BY job_name, event_id
+    ORDER BY definition_name, event_id
     """,
     new { jobNamespace, since }
 );

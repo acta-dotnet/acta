@@ -78,7 +78,7 @@ await lab.ShowAsync(
     """
     SELECT event, execution_number, event_message, details_text
     FROM events_view
-    WHERE entity_kind = 'job' AND entity_id = @jobId
+    WHERE entity = 'job' AND entity_id = @jobId
     ORDER BY event_id
     """,
     new { jobId = outcome.JobId }
@@ -100,7 +100,7 @@ static async Task ShowRestartStateAsync(ConceptLab lab, string title, long jobId
     await lab.ShowAsync(
         title,
         """
-        SELECT job_id, job_ref, status, execution_number, failure_count, retention_until_utc
+        SELECT job_id, job_ref, job_status, execution_number, failure_count, retention_until_utc
         FROM jobs_view
         WHERE job_id = @jobId
         """,
@@ -109,7 +109,7 @@ static async Task ShowRestartStateAsync(ConceptLab lab, string title, long jobId
     await lab.ShowAsync(
         "Completed step state is retained across operator restart",
         """
-        SELECT step_name, status, attempt_number
+        SELECT step_name, step_status, attempt_number
         FROM steps_view
         WHERE job_id = @jobId
         """,

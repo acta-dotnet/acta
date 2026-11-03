@@ -43,7 +43,7 @@ await lab.ShowAllAsync(
 await lab.ShowAsync(
     "One job replayed; the recorded step outcome was reused",
     """
-    SELECT job_ref, status, execution_number, failure_count
+    SELECT job_ref, job_status, execution_number, failure_count
     FROM jobs_view
     WHERE job_id = @jobId
     """,
@@ -52,7 +52,7 @@ await lab.ShowAsync(
 await lab.ShowAsync(
     "The durable step slot stores the completed outcome",
     """
-    SELECT step_name, status, attempt_number, failure
+    SELECT step_name, step_status, attempt_number, failure
     FROM steps_view
     WHERE job_id = @jobId
     """,
@@ -63,7 +63,7 @@ await lab.ShowAsync(
     """
     SELECT event, execution_number, event_message, details_text
     FROM events_view
-    WHERE entity_kind = 'job' AND entity_id = @jobId
+    WHERE entity = 'job' AND entity_id = @jobId
     ORDER BY event_id
     """,
     new { jobId = enqueued.JobId }

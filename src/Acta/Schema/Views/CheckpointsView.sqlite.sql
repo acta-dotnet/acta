@@ -1,12 +1,12 @@
 SELECT
     c.job_id,
     j.job_ref,
-    ns.namespace_name AS namespace,
-    d.definition_name AS job_name,
+    ns.namespace_name,
+    d.definition_name,
     c.checkpoint_name,
-    {{decode:job-checkpoint-kind:c.checkpoint_kind_code}} AS kind,
+    {{decode:job-checkpoint-kind:c.checkpoint_kind_code}} AS checkpoint_kind,
     c.checkpoint_kind_code,
-    {{decode:job-checkpoint-status:c.checkpoint_status_code}} AS status,
+    {{decode:job-checkpoint-status:c.checkpoint_status_code}} AS checkpoint_status,
     c.checkpoint_status_code,
     c.due_at_utc,
     CASE c.value_format_id

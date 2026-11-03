@@ -61,7 +61,7 @@ internal sealed class Primer(
             WHERE job_id = (
                 SELECT MIN(job_id)
                 FROM jobs_view
-                WHERE namespace = @jobNamespace AND correlation_key = @runId AND job_name = 'echo-json'
+                WHERE namespace_name = @jobNamespace AND correlation_key = @runId AND definition_name = 'echo-json'
             )
             """,
             new { jobNamespace = Namespace, runId },
@@ -70,12 +70,12 @@ internal sealed class Primer(
         await lab.ShowAsync(
             "Operator readability in the curated jobs view",
             """
-            SELECT job_name, input_format, CASE WHEN input_text IS NULL THEN 'no' ELSE 'yes' END AS input_is_readable, COUNT(*) AS rows
+            SELECT definition_name, input_format, CASE WHEN input_text IS NULL THEN 'no' ELSE 'yes' END AS input_is_readable, COUNT(*) AS rows
             FROM jobs_view
-            WHERE namespace = @jobNamespace AND correlation_key = @runId AND job_name LIKE 'echo-%'
-            GROUP BY job_name, input_format,
+            WHERE namespace_name = @jobNamespace AND correlation_key = @runId AND definition_name LIKE 'echo-%'
+            GROUP BY definition_name, input_format,
                      CASE WHEN input_text IS NULL THEN 'no' ELSE 'yes' END
-            ORDER BY job_name
+            ORDER BY definition_name
             """,
             new { jobNamespace = Namespace, runId },
             ct

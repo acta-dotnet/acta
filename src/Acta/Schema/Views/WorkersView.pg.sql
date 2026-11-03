@@ -1,8 +1,8 @@
 SELECT
     w.worker_id,
     w.worker_ref,
-    ns.namespace_name AS namespace,
-    {{decode:worker-status:w.worker_status_code}} AS status,
+    ns.namespace_name,
+    {{decode:worker-status:w.worker_status_code}} AS worker_status,
     w.worker_status_code,
     w.deployment_version,
     w.host_name,

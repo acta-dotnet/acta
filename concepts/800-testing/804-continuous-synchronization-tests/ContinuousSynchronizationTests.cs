@@ -266,7 +266,7 @@ public sealed class ContinuousSynchronizationTests : IAsyncLifetime
         await using var connection = new SqliteConnection(_connectionString);
         await connection.OpenAsync(Ct);
         await using var command = connection.CreateCommand();
-        command.CommandText = "SELECT value_text FROM checkpoints_view WHERE job_id = @job AND kind = 'firing'";
+        command.CommandText = "SELECT value_text FROM checkpoints_view WHERE job_id = @job AND checkpoint_kind = 'firing'";
         command.Parameters.AddWithValue("@job", _slotId);
         var envelope = JsonDocument.Parse((string)(await command.ExecuteScalarAsync(Ct))!);
         return envelope.RootElement.GetProperty("firingId").GetGuid();

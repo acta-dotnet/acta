@@ -160,7 +160,7 @@ static async Task ShowSignalStateAsync(ConceptLab lab, long jobId)
     await lab.ShowAsync(
         "Current job state and worker ownership",
         """
-        SELECT job_ref, status, execution_number, leased_by_worker_id, lease_expires_at_utc
+        SELECT job_ref, job_status, execution_number, leased_by_worker_id, lease_expires_at_utc
         FROM jobs_view
         WHERE job_id = @jobId
         """,
@@ -169,7 +169,7 @@ static async Task ShowSignalStateAsync(ConceptLab lab, long jobId)
     await lab.ShowAsync(
         "Current durable approval checkpoint",
         """
-        SELECT checkpoint_name, kind, status, value_format
+        SELECT checkpoint_name, checkpoint_kind, checkpoint_status, value_format
         FROM checkpoints_view
         WHERE job_id = @jobId
         """,

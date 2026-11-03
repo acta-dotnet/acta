@@ -48,29 +48,29 @@ Console.WriteLine($"sync-prices-continuing  spent {PriceFeedJobs.SpentFirings("s
 await lab.ShowAsync(
     "The schedules: one paused with the policy's reason, one still active",
     """
-    SELECT job_name, status, pause_message, next_occurrence_at_utc
+    SELECT definition_name, schedule_status, pause_message, next_occurrence_at_utc
     FROM schedules_view
-    WHERE namespace = @jobNamespace AND job_name LIKE 'sync-prices-%'
-    ORDER BY job_name
+    WHERE namespace_name = @jobNamespace AND definition_name LIKE 'sync-prices-%'
+    ORDER BY definition_name
     """,
     new { jobNamespace }
 );
 await lab.ShowAsync(
     "The slots: both Idle between firings, whatever the policy did to the schedules",
     """
-    SELECT job_name, status, failure_count
+    SELECT definition_name, job_status, failure_count
     FROM jobs_view
-    WHERE namespace = @jobNamespace AND job_name LIKE 'sync-prices-%'
-    ORDER BY job_name
+    WHERE namespace_name = @jobNamespace AND definition_name LIKE 'sync-prices-%'
+    ORDER BY definition_name
     """,
     new { jobNamespace }
 );
 await lab.ShowAsync(
     "The ledger: two failed attempts, the second returning the slot to Idle, and the pause the policy wrote with it",
     """
-    SELECT job_name, event, event_message, details_text
+    SELECT definition_name, event, event_message, details_text
     FROM events_view
-    WHERE namespace = @jobNamespace AND job_name = 'sync-prices-pausing'
+    WHERE namespace_name = @jobNamespace AND definition_name = 'sync-prices-pausing'
       AND event IN ('job.execution-failed', 'schedule.paused')
     ORDER BY event_id
     """,

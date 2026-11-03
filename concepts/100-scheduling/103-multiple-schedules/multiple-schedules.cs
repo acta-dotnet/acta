@@ -23,25 +23,25 @@ await lab.ShowAllAsync(
     """
     SELECT *
     FROM jobs_view
-    WHERE namespace = @jobNamespace AND job_name = @jobName
+    WHERE namespace_name = @jobNamespace AND definition_name = @jobName
     """,
     new { jobNamespace = "multiple-schedules", jobName = "report" }
 );
 await lab.ShowAsync(
     "One recurring job identity, several executions",
     """
-    SELECT job_id, job_ref, job_name, status, execution_number
+    SELECT job_id, job_ref, definition_name, job_status, execution_number
     FROM jobs_view
-    WHERE namespace = @jobNamespace AND job_name = @jobName
+    WHERE namespace_name = @jobNamespace AND definition_name = @jobName
     """,
     new { jobNamespace = "multiple-schedules", jobName = "report" }
 );
 await lab.ShowAsync(
     "Two independently moving schedule cursors",
     """
-    SELECT schedule_name, status, expression, next_occurrence_at_utc
+    SELECT schedule_name, schedule_status, expression, next_occurrence_at_utc
     FROM schedules_view
-    WHERE namespace = @jobNamespace AND job_name = @jobName
+    WHERE namespace_name = @jobNamespace AND definition_name = @jobName
     ORDER BY schedule_name
     """,
     new { jobNamespace = "multiple-schedules", jobName = "report" }
@@ -51,7 +51,7 @@ await lab.ShowAsync(
     """
     SELECT event, execution_number, created_at_utc
     FROM events_view
-    WHERE namespace = @jobNamespace AND job_name = @jobName
+    WHERE namespace_name = @jobNamespace AND definition_name = @jobName
     ORDER BY event_id
     """,
     new { jobNamespace = "multiple-schedules", jobName = "report" }

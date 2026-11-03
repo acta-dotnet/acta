@@ -1,11 +1,11 @@
 SELECT
     j.job_id,
     j.job_ref,
-    ns.namespace_name AS namespace,
-    d.definition_name AS job_name,
+    ns.namespace_name,
+    d.definition_name,
     {{decode:job-kind:j.job_kind_code}} AS job_kind,
     j.job_kind_code,
-    {{decode:job-status:r.job_status_code}} AS status,
+    {{decode:job-status:r.job_status_code}} AS job_status,
     r.job_status_code,
     j.deduplication_key,
     j.correlation_key,
@@ -16,7 +16,7 @@ SELECT
     root.job_ref AS lineage_root_job_ref,
     j.tenant_id,
     t.tenant_name,
-    {{decode:job-priority:r.job_priority_code}} AS priority,
+    {{decode:job-priority:r.job_priority_code}} AS job_priority,
     r.job_priority_code,
     CASE j.input_format_id
         WHEN 0 /* JobPayloadFormat.None */ THEN 'none'
@@ -42,7 +42,7 @@ SELECT
     j.created_at_utc,
     r.modified_at_utc,
     r.version,
-    lane.lane_name AS lane
+    lane.lane_name
 FROM {{schema}}.jobs AS j
 JOIN {{schema}}.jobs_state AS r ON r.job_id = j.job_id
 JOIN {{schema}}.namespaces AS ns ON ns.namespace_id = j.namespace_id

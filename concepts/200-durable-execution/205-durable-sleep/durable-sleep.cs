@@ -140,7 +140,7 @@ static async Task ShowTimerStateAsync(ConceptLab lab, long jobId)
     await lab.ShowAsync(
         "Current durable timer and worker ownership",
         """
-        SELECT job_ref, status, execution_number, next_run_at_utc, leased_by_worker_id, lease_expires_at_utc
+        SELECT job_ref, job_status, execution_number, next_run_at_utc, leased_by_worker_id, lease_expires_at_utc
         FROM jobs_view
         WHERE job_id = @jobId
         """,
@@ -149,7 +149,7 @@ static async Task ShowTimerStateAsync(ConceptLab lab, long jobId)
     await lab.ShowAsync(
         "Current durable timer checkpoint",
         """
-        SELECT checkpoint_name, kind, status, due_at_utc
+        SELECT checkpoint_name, checkpoint_kind, checkpoint_status, due_at_utc
         FROM checkpoints_view
         WHERE job_id = @jobId
         """,

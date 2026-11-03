@@ -66,9 +66,9 @@ static async Task ShowAsync(ConceptLab lab, string title)
     await lab.ShowAsync(
         $"{title}: one root job per occurrence, each with its own ref",
         """
-        SELECT job_ref, status, created_at_utc
+        SELECT job_ref, job_status, created_at_utc
         FROM jobs_view
-        WHERE namespace = @jobNamespace AND job_name = 'import-files'
+        WHERE namespace_name = @jobNamespace AND definition_name = 'import-files'
         ORDER BY job_id
         """,
         new { jobNamespace = "per-occurrence" }
@@ -78,7 +78,7 @@ static async Task ShowAsync(ConceptLab lab, string title)
         """
         SELECT schedule_name, scheduled_delivery, max_outstanding, outstanding_count, full_behavior, evaluation_status
         FROM schedules_view
-        WHERE namespace = @jobNamespace AND job_name = 'import-files'
+        WHERE namespace_name = @jobNamespace AND definition_name = 'import-files'
         """,
         new { jobNamespace = "per-occurrence" }
     );
@@ -87,7 +87,7 @@ static async Task ShowAsync(ConceptLab lab, string title)
         """
         SELECT event, details_text
         FROM events_view
-        WHERE namespace = @jobNamespace AND job_name = 'import-files' AND event = 'schedule.skipped'
+        WHERE namespace_name = @jobNamespace AND definition_name = 'import-files' AND event = 'schedule.skipped'
         ORDER BY event_id DESC
         LIMIT 3
         """,
