@@ -496,4 +496,22 @@ public class EntitySchemaTests
         Assert.True(c.IsCoded);
         Assert.False(c.IsNullable);
     }
+
+    [Fact]
+    public void Constraint_And_Index_Names_Are_Unique_Across_The_Schema()
+    {
+        var duplicates = ActaSchema
+            .Entities.SelectMany(e =>
+                e.Checks.Select(c => c.Name)
+                    .Concat(e.Indexes.Select(i => i.Name))
+                    .Concat(e.ForeignKeys.Select(f => f.Name))
+                    .Append(e.PrimaryKey.Name)
+            )
+            .GroupBy(name => name, StringComparer.Ordinal)
+            .Where(g => g.Count() > 1)
+            .Select(g => g.Key)
+            .ToArray();
+
+        Assert.Empty(duplicates);
+    }
 }

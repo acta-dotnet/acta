@@ -402,6 +402,10 @@ The naming rules the public surface is held to, across all four contract tiers: 
 the HTTP surface, the SQL schema with its persisted codes, and the telemetry an operator queries.
 After 1.0.0 a rename that breaks one is a breaking change, not a cleanup.
 
+A SQL name fits in 63 bytes, because PostgreSQL truncates a longer one without an error
+(`ProviderMigrationOwnershipTests`). A constraint or index name is used once in the schema, because SQL
+Server scopes constraint names and PostgreSQL index names to the schema, not the table (`EntitySchemaTests`).
+
 ### Words with one meaning
 
 - **`reasonMessage` is the operator-authored justification on control verbs; `note` is the

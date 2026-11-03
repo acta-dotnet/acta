@@ -475,7 +475,9 @@ must keep a deterministic collation, which is the default, so that keys compare 
 
 Use SQLite when the database is embedded in one process. SQLite is useful for concepts, local
 exploration, tests, and small single-process tools. Several processes can share one SQLite file on one
-machine for a try-out, as the demos do, but that is not a supported deployment.
+machine for a try-out, as the demos do, but that is not a supported deployment. On SQLite, Acta's tables
+share `main` with the application's, so keep its table names free in that file; [known
+limitations](./known-limitations.md#storage-and-providers) lists what a clash does.
 
 Redis wakeup is optional. SQL polling is the correctness baseline; a wakeup transport only lowers
 pickup latency.

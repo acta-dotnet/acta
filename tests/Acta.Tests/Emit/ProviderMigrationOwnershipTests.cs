@@ -1,3 +1,4 @@
+using System.Text.RegularExpressions;
 using Acta.Tests.Conformance.Testing;
 using Xunit;
 
@@ -8,7 +9,7 @@ namespace Acta.Tests.Emit;
 /// <c>Migrations/M{yyyyMMddHHmmss}_{name}.sql</c> with bare, suffix-free names (the package is the
 /// dialect), and core carries none. End-to-end proof
 /// that a provider applies its embedded migration is the provider conformance suite; this guards the
-/// source-tree ownership and the no-foreign-dialect-suffix invariant.
+/// source-tree ownership, the no-foreign-dialect-suffix invariant, and the length of every name.
 /// </summary>
 public sealed class ProviderMigrationOwnershipTests
 {
@@ -46,5 +47,26 @@ public sealed class ProviderMigrationOwnershipTests
                 Assert.Matches(@"^M[0-9]{14}_[a-z][a-z0-9_]*\.sql$", Path.GetFileName(file));
             }
         }
+    }
+
+    [Fact]
+    public void Every_name_in_a_migration_fits_the_postgres_limit()
+    {
+        var root = IntegrationConfig.FindRepoRoot();
+        var tooLong = Providers
+            .SelectMany(provider =>
+                Directory
+                    .GetFiles(Path.Combine(root, "src", provider, "Migrations"), "*.sql")
+                    .SelectMany(file => Regex.Matches(File.ReadAllText(file), "[A-Za-z_][A-Za-z0-9_]*"))
+                    .Where(m => m.Length > SqlIdentifierSyntax.BareIdentifierMaxLength)
+                    .Select(m => $"{provider}: {m.Value}")
+            )
+            .Distinct()
+            .ToArray();
+
+        Assert.True(
+            tooLong.Length == 0,
+            $"Names over {SqlIdentifierSyntax.BareIdentifierMaxLength} characters: " + string.Join(", ", tooLong)
+        );
     }
 }
