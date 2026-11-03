@@ -230,7 +230,7 @@ primary key is the only index the planner can use. The worker id is never NULL a
 
 Acta runs with `READ_COMMITTED_SNAPSHOT` on or off. With it off, a plain read takes shared locks and
 waits on every row another transaction holds, an application's open enqueue or outbox insert included,
-so two rules decide every read on SQL Server:
+so three rules decide every read on SQL Server:
 
 1. A read inside a writing transaction seeks its own keys, so it never touches another namespace's or
    another lane's rows: registration's reads, the enqueue routines' lane reads, the alert floor, and
@@ -239,8 +239,10 @@ so two rules decide every read on SQL Server:
    `READCOMMITTEDLOCK, READPAST`, the same locking read with the option on or off, and is either
    re-checked under the reader's own lock or used only for display. That covers the claim's horizon,
    the recovery walks and stale-latch read, the retention walks, the heartbeat, retire's two reads, the
-   outbox lane check and backlog count ("Outbox lock"), and the dashboard's job lists, counts, lane
-   probes, and lineage children.
+   outbox lane check and backlog count ("Outbox lock"), and the dashboard's job lists and their
+   totals, lane probes, and lineage children.
+3. The overview's job counts read dirty with `NOLOCK`: they are for operators, so they take no lock
+   and never wait, and a count can include a row a transaction has not committed yet.
 
 A skipped row is one an application has not committed, which read-committed snapshot hides too, or one
 Acta itself is changing at that instant: a page or count can briefly miss it, in both modes.
