@@ -44,15 +44,7 @@ internal sealed class ClassSchema(string schemaName, string connectionString) : 
             builder["Search Path"] = name;
         }
 
-        var migration = s_migrations.GetOrAdd(
-            name,
-            n =>
-                SpecWaits.RetryTransientAsync(
-                    fixture,
-                    () => fixture.ApplyMigrationsAsync(builder.ConnectionString, n, CancellationToken.None),
-                    CancellationToken.None
-                )
-        );
+        var migration = s_migrations.GetOrAdd(name, n => fixture.ApplyMigrationsAsync(builder.ConnectionString, n, CancellationToken.None));
         try
         {
             await migration;

@@ -2403,6 +2403,11 @@
   - Count returns the matching row count
   - An IN predicate filters to the matching status set
 
+### The suite runs without a deadlock
+- **Contract:** A full conformance run leaves the server's deadlock counter where it found it, since a deadlock is fixed at its lock order and never retried.
+- **Guarantees:**
+  - The server records no deadlock during the run
+
 ### The test host's fast-forward helpers make only the named job's wait due
 - **Contract:** IActaTestHost makes a parked timer, retry, bounded wait, or schedule due at once, admits a due schedule in one pass, and refuses a wait with no deadline.
 - **Guarantees:**

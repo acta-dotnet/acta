@@ -91,47 +91,18 @@ public abstract class ActaRuntimeTestBase<TFixture, TManifest> : ActaTestBase<TF
             // Addressed by job id, so every write seeks: a filter on namespace and status reaches no
             // filtered index through the test query layer's parameters, and scans the whole shared schema.
             var parked = DateTime.UtcNow.AddDays(1);
-            var dialect = Services.GetRequiredService<ISqlDialect>();
             var slotKeys = slots.ConvertAll(id => (long?)id);
             var scheduleIds = (await Db.From<ScheduleEntity>().Where(s => slotKeys.Contains(s.JobId)).ToListAsync(ct))
                 .Select(s => s.Id)
                 .ToList();
-            await RetryTransientConflictAsync(
-                dialect,
-                () =>
-                    Db.From<ScheduleStateEntity>()
-                        .Where(s => scheduleIds.Contains(s.Id) && s.NextOccurrenceAtUtc != null)
-                        .UpdateOnlyAsync(() => new ScheduleStateEntity { NextOccurrenceAtUtc = parked, NextEvaluationAtUtc = parked }, ct),
-                ct
-            );
-            await RetryTransientConflictAsync(
-                dialect,
-                () =>
-                    Db.From<JobStateEntity>()
-                        .Where(r => slots.Contains(r.Id) && r.Status == JobStatusCode.Ready)
-                        .UpdateOnlyAsync(() => new JobStateEntity { NextRunAtUtc = parked }, ct),
-                ct
-            );
+            await Db.From<ScheduleStateEntity>()
+                .Where(s => scheduleIds.Contains(s.Id) && s.NextOccurrenceAtUtc != null)
+                .UpdateOnlyAsync(() => new ScheduleStateEntity { NextOccurrenceAtUtc = parked, NextEvaluationAtUtc = parked }, ct);
+            await Db.From<JobStateEntity>()
+                .Where(r => slots.Contains(r.Id) && r.Status == JobStatusCode.Ready)
+                .UpdateOnlyAsync(() => new JobStateEntity { NextRunAtUtc = parked }, ct);
         }
     }
-
-    /// <summary>
-    /// Repeats a testing-layer write the database aborted as a deadlock victim, through the same bounded,
-    /// jittered retry the stores use. The testing query layer issues each write once, and every class in
-    /// the suite parks its slots at the same instant on one shared schema, which on a small SQL Server
-    /// picks a victim among them; the victim's transaction is rolled back whole, so repeating is safe.
-    /// </summary>
-    private static Task RetryTransientConflictAsync(ISqlDialect dialect, Func<Task> write, CancellationToken ct) =>
-        DeadlockRetry.RunAsync(
-            async _ =>
-            {
-                await write();
-                return true;
-            },
-            dialect.IsTransientConflict,
-            maxAttempts: 8,
-            ct
-        );
 
     /// <summary>
     /// Another deployment generation's process for a rolling-deploy spec: its own DI container, its own

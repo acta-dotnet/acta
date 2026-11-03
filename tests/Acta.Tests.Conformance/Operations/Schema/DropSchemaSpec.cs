@@ -24,50 +24,46 @@ public sealed class DropSchemaSpec : IntegrationSpec<ConformanceFixture>
     {
         var ct = TestContext.Current.CancellationToken;
         await using var probe = await Fixture.CreateHistoryProbeAsync(history: null);
-        await SpecWaits.RetryTransientAsync(Fixture, () => Fixture.ApplyMigrationsAsync(probe.ConnectionString, probe.SchemaName, ct), ct);
+        await Fixture.ApplyMigrationsAsync(probe.ConnectionString, probe.SchemaName, ct);
         var sql = new SqlResourceCatalog(Fixture.DialectToken, probe.SchemaName);
         string[] objects = ["migrations", .. ActaSchema.Entities.Select(e => e.TableName)];
         await using var connection = await Fixture.OpenConnectionAsync(probe.ConnectionString, ct);
         var drop = new DropSchemaHandler(connection, sql, TimeoutSeconds);
         Assert.Equal(objects, await InstalledAsync(connection, probe.SchemaName, objects, ct));
 
-        await SpecWaits.RetryTransientAsync(Fixture, () => drop.HandleAsync(ct), ct);
+        await TestDdl.RunAsync(() => drop.HandleAsync(ct));
 
         var left = await InstalledAsync(connection, probe.SchemaName, objects, ct);
         Assert.True(left.Count == 0, $"DropSchema left {string.Join(", ", left)} behind; on SQLite, name each in DropSchema.sqlite.sql.");
-        await SpecWaits.RetryTransientAsync(Fixture, () => drop.HandleAsync(ct), ct);
+        await TestDdl.RunAsync(() => drop.HandleAsync(ct));
     }
 
     /// <summary>The objects the catalog lists in the schema, in the order of <paramref name="objects"/>.</summary>
     private async Task<List<string>> InstalledAsync(DbConnection connection, string schema, string[] objects, CancellationToken ct)
     {
         var listed = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
-        await SpecWaits.RetryTransientAsync(
-            Fixture,
-            async () =>
+        await TestDdl.RunAsync(async () =>
+        {
+            listed.Clear();
+            await using var list = connection.CreateCommand();
+            if (Fixture.DialectToken == "sqlite")
             {
-                listed.Clear();
-                await using var list = connection.CreateCommand();
-                if (Fixture.DialectToken == "sqlite")
-                {
-                    list.CommandText = "SELECT name FROM sqlite_master WHERE type = 'table'";
-                }
-                else
-                {
-                    list.CommandText = "SELECT table_name FROM information_schema.tables WHERE table_schema = @schema";
-                    var parameter = list.CreateParameter();
-                    parameter.ParameterName = "@schema";
-                    parameter.Value = schema;
-                    list.Parameters.Add(parameter);
-                }
-                await using var reader = await list.ExecuteReaderAsync(ct);
-                while (await reader.ReadAsync(ct))
-                {
-                    listed.Add(reader.GetString(0));
-                }
-            },
-            ct
-        );
+                list.CommandText = "SELECT name FROM sqlite_master WHERE type = 'table'";
+            }
+            else
+            {
+                list.CommandText = "SELECT table_name FROM information_schema.tables WHERE table_schema = @schema";
+                var parameter = list.CreateParameter();
+                parameter.ParameterName = "@schema";
+                parameter.Value = schema;
+                list.Parameters.Add(parameter);
+            }
+            await using var reader = await list.ExecuteReaderAsync(ct);
+            while (await reader.ReadAsync(ct))
+            {
+                listed.Add(reader.GetString(0));
+            }
+        });
         return [.. objects.Where(listed.Contains)];
     }
 }

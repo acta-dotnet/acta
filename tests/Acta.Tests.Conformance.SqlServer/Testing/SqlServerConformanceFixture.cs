@@ -12,36 +12,28 @@ namespace Acta.Tests.Conformance.SqlServer.Testing;
 public sealed partial class SqlServerConformanceFixture : IConformanceFixture
 {
     /// <summary>
-    /// Runs a catalog read or a probe's drop, repeating a transient failure (<see cref="IsTransient"/>).
+    /// Runs a catalog read or a probe's drop behind the test DDL gate: a plain SELECT against <c>sys.*</c> deadlocks with
+    /// the DDL other specs run in parallel (<see cref="TestDdl"/>).
     /// </summary>
-    /// <remarks>
-    /// These reads race the DDL other specs are provisioning in parallel, and SQL Server will pick a
-    /// plain SELECT against <c>sys.*</c> as the victim rather than the writer, or leave it waiting behind
-    /// that DDL past the command timeout on a loaded runner. Nothing here is transactional and the drop is
-    /// idempotent, so repeating is both safe and sufficient. <c>SqlServerIntegrationSchema</c> handles the same
-    /// race on the bootstrap side.
-    /// </remarks>
-    private static async ValueTask<T> ReadCatalogAsync<T>(Func<ValueTask<T>> read)
+    private static async ValueTask<T> ReadCatalogAsync<T>(Func<ValueTask<T>> read) => await TestDdl.RunAsync(async () => await read());
+
+    /// <summary>A routine changed under a concurrent bootstrap, or a timeout; never a deadlock, which the census counts instead.</summary>
+    public bool IsTransient(System.Data.Common.DbException exception) => exception is SqlException { Number: 2801 or -2 };
+
+    /// <summary>
+    /// The instance's deadlocks since it started, from its performance counter: server-wide, so one suite per instance. Read
+    /// through <c>master</c>, since the run starts before the test database exists.
+    /// </summary>
+    public async ValueTask<long?> ReadDeadlockCountAsync()
     {
-        for (var attempt = 1; ; attempt++)
-        {
-            try
-            {
-                return await read();
-            }
-            catch (SqlException ex) when (IsTransientError(ex) && attempt < 5)
-            {
-                await Task.Delay(TimeSpan.FromMilliseconds(50 * attempt));
-            }
-        }
+        await using var conn = new SqlConnection(new SqlConnectionStringBuilder(Conn) { InitialCatalog = "master" }.ConnectionString);
+        await conn.OpenAsync();
+        await using var cmd = conn.CreateCommand();
+        cmd.CommandText =
+            "SELECT cntr_value FROM sys.dm_os_performance_counters "
+            + "WHERE counter_name LIKE N'Number of Deadlocks/sec%' AND instance_name = N'_Total'";
+        return Convert.ToInt64(await cmd.ExecuteScalarAsync(), CultureInfo.InvariantCulture);
     }
-
-    public bool IsTransient(System.Data.Common.DbException exception) => exception is SqlException ex && IsTransientError(ex);
-
-    /// <summary>The product's conflicts, plus a command timeout the product does not repeat.</summary>
-    private static bool IsTransientError(SqlException ex) => Dialect.IsTransientConflict(ex) || ex.Number == -2;
-
-    private static readonly SqlServerDialect Dialect = new();
 
     /// <summary>
     /// The user tables in <paramref name="schemaName"/> via the SQL Server information_schema.
@@ -260,10 +252,12 @@ public sealed partial class SqlServerConformanceFixture : IConformanceFixture
             );
         }
 
+        // A test never retries a deadlock: the census fails the run on any, and the lock order is fixed instead.
         builder.UseSqlServer(opts =>
         {
             opts.ConnectionString = sb.ConnectionString;
             opts.Schema = schemaName;
+            opts.DeadlockRetryAttempts = 1;
         });
     }
 
@@ -275,9 +269,12 @@ public sealed partial class SqlServerConformanceFixture : IConformanceFixture
     )
     {
         var qualified = $"{schemaName}.{tableName}";
-        await using var cmd = connection.CreateCommand();
-        cmd.CommandText = $"IF OBJECT_ID('{qualified}', 'U') IS NULL CREATE TABLE {qualified} (marker varchar(128) NOT NULL);";
-        await cmd.ExecuteNonQueryAsync();
+        await TestDdl.RunAsync(async () =>
+        {
+            await using var cmd = connection.CreateCommand();
+            cmd.CommandText = $"IF OBJECT_ID('{qualified}', 'U') IS NULL CREATE TABLE {qualified} (marker varchar(128) NOT NULL);";
+            await cmd.ExecuteNonQueryAsync();
+        });
         return qualified;
     }
 }

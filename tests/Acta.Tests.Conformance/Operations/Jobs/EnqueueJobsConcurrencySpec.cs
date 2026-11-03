@@ -36,7 +36,6 @@ public sealed class EnqueueJobsConcurrencySpec : ActaRuntimeTestBase<Conformance
         services.AddSingleton(sp =>
         {
             var options = (SqlProviderOptions)provider.ImplementationFactory!(sp);
-            DeadlockRetryOff.Apply(sp, options);
             options.CommandTimeout = TimeSpan.FromMinutes(2);
             return options;
         });

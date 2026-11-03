@@ -33,6 +33,12 @@ public interface IConformanceFixture
     bool IsTransient(System.Data.Common.DbException exception);
 
     /// <summary>
+    /// The server's cumulative deadlock count, read for the deadlock census; null on SQLite, where one writer forms no
+    /// deadlock.
+    /// </summary>
+    ValueTask<long?> ReadDeadlockCountAsync();
+
+    /// <summary>
     /// Allocate a throwaway location carrying only a migration-history ledger seeded with
     /// <paramref name="history"/> as migration-name rows, or - when <paramref name="history"/>
     /// is <c>null</c> - no ledger at all, standing in for a database that was never provisioned.

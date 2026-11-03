@@ -101,10 +101,9 @@ public abstract class ActaTestBase<TFixture> : IAsyncLifetime
 
     /// <summary>
     /// Runs <paramref name="body"/> in a transaction of the spec's own on <paramref name="connection"/>; the body commits
-    /// or rolls it back. Acta never retries inside a caller's transaction, and on the shared schema the database aborts
-    /// one for reasons the spec does not own: SQLite's BEGIN IMMEDIATE gives up on the write lock after its busy timeout,
-    /// and a server picks a deadlock victim. Either attempt is rolled back whole, so it starts again on a fresh
-    /// transaction until <see cref="SpecWaits.Converge"/>.
+    /// or rolls it back. Acta never retries inside a caller's transaction, and on SQLite's shared file BEGIN IMMEDIATE gives
+    /// up on the write lock after its busy timeout; that attempt is rolled back whole, so it starts again on a fresh
+    /// transaction until <see cref="SpecWaits.Converge"/>. A server's deadlock is never repeated: the census counts it.
     /// </summary>
     private protected async Task<T> InCallerTransactionAsync<T>(
         DbConnection connection,
@@ -121,7 +120,8 @@ public abstract class ActaTestBase<TFixture> : IAsyncLifetime
                 await using var transaction = await connection.BeginTransactionAsync(ct);
                 return await body(transaction);
             }
-            catch (Exception ex) when (dialect.IsTransientConflict(ex) && waited.Elapsed < SpecWaits.Converge)
+            catch (Exception ex)
+                when (dialect.Provider == DbProvider.Sqlite && dialect.IsTransientConflict(ex) && waited.Elapsed < SpecWaits.Converge)
             {
                 await Task.Delay(TimeSpan.FromMilliseconds(25), ct);
             }

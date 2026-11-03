@@ -44,31 +44,38 @@ public sealed partial class MsSqlProvisionScriptSpec
         {
             // Twice on purpose: the header promises that a re-run on a database the script provisioned
             // applies no migration twice, and the migration-row count below is what proves it.
-            for (var pass = 0; pass < 2; pass++)
+            await TestDdl.RunAsync(async () =>
             {
-                foreach (var batch in SchemaMigrations.SplitOnGo(script))
+                for (var pass = 0; pass < 2; pass++)
                 {
-                    await using var cmd = conn.CreateCommand();
-                    cmd.CommandText = batch;
-                    await cmd.ExecuteNonQueryAsync(ct);
+                    foreach (var batch in SchemaMigrations.SplitOnGo(script))
+                    {
+                        await using var cmd = conn.CreateCommand();
+                        cmd.CommandText = batch;
+                        await cmd.ExecuteNonQueryAsync(ct);
+                    }
                 }
-            }
+            });
 
             // One history row per migration section in the file, no more (the double run must not
             // stamp anything twice), counted from the script's own BEGIN banners.
             var migrations = ProvisionScriptBanners.MigrationCount(published);
             Assert.True(migrations > 0, "the published script contains no migration banners");
 
-            await using var probe = conn.CreateCommand();
-            probe.CommandText =
-                $"SELECT (SELECT COUNT(*) FROM {schema}.migrations), "
-                + $"(SELECT COUNT(*) FROM {schema}.jobs), "
-                + $"(SELECT COUNT(*) FROM sys.procedures WHERE schema_id = SCHEMA_ID('{schema}'))";
-            await using var reader = await probe.ExecuteReaderAsync(ct);
-            Assert.True(await reader.ReadAsync(ct));
-            Assert.Equal(migrations, reader.GetInt32(0));
-            Assert.Equal(0, reader.GetInt32(1));
-            Assert.Equal(14, reader.GetInt32(2));
+            var (history, jobs, procedures) = await TestDdl.RunAsync(async () =>
+            {
+                await using var probe = conn.CreateCommand();
+                probe.CommandText =
+                    $"SELECT (SELECT COUNT(*) FROM {schema}.migrations), "
+                    + $"(SELECT COUNT(*) FROM {schema}.jobs), "
+                    + $"(SELECT COUNT(*) FROM sys.procedures WHERE schema_id = SCHEMA_ID('{schema}'))";
+                await using var reader = await probe.ExecuteReaderAsync(ct);
+                Assert.True(await reader.ReadAsync(ct));
+                return (reader.GetInt32(0), reader.GetInt32(1), reader.GetInt32(2));
+            });
+            Assert.Equal(migrations, history);
+            Assert.Equal(0, jobs);
+            Assert.Equal(14, procedures);
         }
         finally
         {
@@ -134,37 +141,46 @@ public sealed partial class MsSqlProvisionScriptSpec
                 .ReplaceLineEndings("\n")
                 .Replace("{{schema}}", schema)
                 .Replace("AS\nBEGIN", "AS\nBEGIN\n    -- newer_release_body");
-            foreach (var batch in SchemaMigrations.SplitOnGo(marked))
-            {
-                await using var alter = conn.CreateCommand();
-                alter.CommandText = batch;
-                await alter.ExecuteNonQueryAsync(ct);
-            }
-
             // Like sqlcmd without -b: every batch runs, whatever the one before it raised.
-            var refused = false;
-            foreach (var batch in SchemaMigrations.SplitOnGo(script))
+            var refused = await TestDdl.RunAsync(async () =>
             {
-                try
+                foreach (var batch in SchemaMigrations.SplitOnGo(marked))
                 {
-                    await using var cmd = conn.CreateCommand();
-                    cmd.CommandText = batch;
-                    await cmd.ExecuteNonQueryAsync(ct);
+                    await using var alter = conn.CreateCommand();
+                    alter.CommandText = batch;
+                    await alter.ExecuteNonQueryAsync(ct);
                 }
-                catch (SqlException ex) when (ex.Message.Contains("A newer Acta release", StringComparison.Ordinal))
+
+                var refusedNewer = false;
+                foreach (var batch in SchemaMigrations.SplitOnGo(script))
                 {
-                    refused = true;
+                    try
+                    {
+                        await using var cmd = conn.CreateCommand();
+                        cmd.CommandText = batch;
+                        await cmd.ExecuteNonQueryAsync(ct);
+                    }
+                    catch (SqlException ex) when (ex.Message.Contains("A newer Acta release", StringComparison.Ordinal))
+                    {
+                        refusedNewer = true;
+                    }
                 }
-            }
+
+                return refusedNewer;
+            });
 
             Assert.True(refused, "the script did not refuse the newer migration");
-            await using var probe = conn.CreateCommand();
-            probe.CommandText =
-                $"SELECT OBJECT_DEFINITION(OBJECT_ID('{schema}.complete_step')), (SELECT COUNT(*) FROM {schema}.migrations WHERE name = '{Newer}')";
-            await using var reader = await probe.ExecuteReaderAsync(ct);
-            Assert.True(await reader.ReadAsync(ct));
-            Assert.Contains("newer_release_body", reader.GetString(0));
-            Assert.Equal(1, reader.GetInt32(1));
+            var (definition, newerRows) = await TestDdl.RunAsync(async () =>
+            {
+                await using var probe = conn.CreateCommand();
+                probe.CommandText =
+                    $"SELECT OBJECT_DEFINITION(OBJECT_ID('{schema}.complete_step')), (SELECT COUNT(*) FROM {schema}.migrations WHERE name = '{Newer}')";
+                await using var reader = await probe.ExecuteReaderAsync(ct);
+                Assert.True(await reader.ReadAsync(ct));
+                return (reader.GetString(0), reader.GetInt32(1));
+            });
+            Assert.Contains("newer_release_body", definition);
+            Assert.Equal(1, newerRows);
         }
         finally
         {
@@ -172,17 +188,18 @@ public sealed partial class MsSqlProvisionScriptSpec
         }
     }
 
-    private static async Task RunScriptAsync(string connString, string script, CancellationToken ct)
-    {
-        await using var conn = new SqlConnection(connString);
-        await conn.OpenAsync(ct);
-        foreach (var batch in SchemaMigrations.SplitOnGo(script))
+    private static Task RunScriptAsync(string connString, string script, CancellationToken ct) =>
+        TestDdl.RunAsync(async () =>
         {
-            await using var cmd = conn.CreateCommand();
-            cmd.CommandText = batch;
-            await cmd.ExecuteNonQueryAsync(ct);
-        }
-    }
+            await using var conn = new SqlConnection(connString);
+            await conn.OpenAsync(ct);
+            foreach (var batch in SchemaMigrations.SplitOnGo(script))
+            {
+                await using var cmd = conn.CreateCommand();
+                cmd.CommandText = batch;
+                await cmd.ExecuteNonQueryAsync(ct);
+            }
+        });
 
     /// <summary>
     /// SQL Server has no DROP SCHEMA CASCADE; the provider's own teardown script drops the schema's

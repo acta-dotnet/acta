@@ -21,10 +21,10 @@ public sealed class SqlServerLockContentionTests
         const string readyMessage = "acta-lock-insert-ready";
         await using var admin = new SqlConnection(database.ConnectionString);
         await admin.OpenAsync(ct);
-        await ExecuteAsync(admin, $"CREATE SCHEMA {schema}", ct);
+        await TestDdl.RunAsync(() => ExecuteAsync(admin, $"CREATE SCHEMA {schema}", ct));
         try
         {
-            await ExecuteAsync(
+            await DdlAsync(
                 admin,
                 $"""
                 SELECT TOP (0) lock_key, job_id, expires_at_utc, hold_token
@@ -134,9 +134,12 @@ public sealed class SqlServerLockContentionTests
         }
         finally
         {
-            await ExecuteAsync(admin, $"DROP TABLE IF EXISTS {schema}.locks; DROP SCHEMA {schema};", CancellationToken.None);
+            await DdlAsync(admin, $"DROP TABLE IF EXISTS {schema}.locks; DROP SCHEMA {schema};", CancellationToken.None);
         }
     }
+
+    private static Task DdlAsync(SqlConnection connection, string sql, CancellationToken ct) =>
+        TestDdl.RunAsync(() => ExecuteAsync(connection, sql, ct));
 
     private static async Task ExecuteAsync(SqlConnection connection, string sql, CancellationToken ct)
     {

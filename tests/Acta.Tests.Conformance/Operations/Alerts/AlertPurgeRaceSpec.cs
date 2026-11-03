@@ -26,19 +26,6 @@ public sealed class AlertPurgeRaceSpec : ActaRuntimeTestBase<ConformanceFixture,
     private const int Rounds = 3;
     private const int RaisesPerJob = 4;
 
-    protected override void ConfigureServices(IServiceCollection services, string testNamespace)
-    {
-        base.ConfigureServices(services, testNamespace);
-        var provider = services.Last(d => d.ServiceType == typeof(SqlProviderOptions));
-        services.Remove(provider);
-        services.AddSingleton(sp =>
-        {
-            var options = (SqlProviderOptions)provider.ImplementationFactory!(sp);
-            DeadlockRetryOff.Apply(sp, options);
-            return options;
-        });
-    }
-
     [Fact(DisplayName = "Raising, resolving, and sweeping alerts while their jobs are purged never deadlocks or orphans an alert")]
     public async Task Alert_writers_race_job_purges()
     {

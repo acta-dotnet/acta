@@ -23,19 +23,6 @@ public sealed class ConcurrentLockSweepSpec : ActaRuntimeTestBase<ConformanceFix
     private const int ExpiredRows = 1000;
     private const int Sweeps = 8;
 
-    protected override void ConfigureServices(IServiceCollection services, string testNamespace)
-    {
-        base.ConfigureServices(services, testNamespace);
-        var provider = services.Last(d => d.ServiceType == typeof(SqlProviderOptions));
-        services.Remove(provider);
-        services.AddSingleton(sp =>
-        {
-            var options = (SqlProviderOptions)provider.ImplementationFactory!(sp);
-            DeadlockRetryOff.Apply(sp, options);
-            return options;
-        });
-    }
-
     [Fact(DisplayName = "Eight retention sweeps racing over a thousand expired lock rows reap them all without a deadlock")]
     public async Task Concurrent_sweeps_reap_a_shared_backlog()
     {

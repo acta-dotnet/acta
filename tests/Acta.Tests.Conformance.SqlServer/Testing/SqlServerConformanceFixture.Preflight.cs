@@ -14,7 +14,9 @@ public sealed partial class SqlServerConformanceFixture
     public string DialectToken => "mssql";
 
     public Task RunBootstrapPreflightAsync(string connectionString, string schemaName, CancellationToken ct) =>
-        new SqlServerSchemaMigrator(new SqlProviderOptions { ConnectionString = connectionString, Schema = schemaName }).RunAsync(ct);
+        TestDdl.RunAsync(() =>
+            new SqlServerSchemaMigrator(new SqlProviderOptions { ConnectionString = connectionString, Schema = schemaName }).RunAsync(ct)
+        );
 
     public async Task<DbConnection> OpenConnectionAsync(string connectionString, CancellationToken ct)
     {
@@ -23,13 +25,17 @@ public sealed partial class SqlServerConformanceFixture
         return connection;
     }
 
-    public async Task ApplyMigrationsAsync(string connectionString, string schemaName, CancellationToken ct)
-    {
-        await using var connection = new SqlConnection(connectionString);
-        await SqlServerSchemaMigrator.ApplyAsync(connection, schemaName, ct);
-    }
+    public Task ApplyMigrationsAsync(string connectionString, string schemaName, CancellationToken ct) =>
+        TestDdl.RunAsync(async () =>
+        {
+            await using var connection = new SqlConnection(connectionString);
+            await SqlServerSchemaMigrator.ApplyAsync(connection, schemaName, ct);
+        });
 
-    public async ValueTask<IMigrationHistoryProbe> CreateHistoryProbeAsync(IReadOnlyList<string>? history)
+    public async ValueTask<IMigrationHistoryProbe> CreateHistoryProbeAsync(IReadOnlyList<string>? history) =>
+        await TestDdl.RunAsync(() => CreateHistoryProbeCoreAsync(history));
+
+    private async Task<IMigrationHistoryProbe> CreateHistoryProbeCoreAsync(IReadOnlyList<string>? history)
     {
         var connectionString = new SqlConnectionStringBuilder(IntegrationConfig.SqlServerConnectionString!)
         {

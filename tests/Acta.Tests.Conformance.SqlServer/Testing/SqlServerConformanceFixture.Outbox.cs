@@ -19,11 +19,12 @@ public sealed partial class SqlServerConformanceFixture
 
     // Single-source every fixture table from the tested provider DDL API; drop the target table first so a
     // prior run's table is replaced. Constraint/index names derive from the table, so no cross-table collision.
-    public async ValueTask ApplyOutboxDdlAsync(string table)
-    {
-        await ExecOutboxAsync($"DROP TABLE IF EXISTS {Schema}.{table};");
-        await ExecOutboxAsync(Acta.SqlServer.SqlServerMigrations.CreateOutboxScript(table, Schema));
-    }
+    public async ValueTask ApplyOutboxDdlAsync(string table) =>
+        await TestDdl.RunAsync(async () =>
+        {
+            await ExecOutboxAsync($"DROP TABLE IF EXISTS {Schema}.{table};");
+            await ExecOutboxAsync(Acta.SqlServer.SqlServerMigrations.CreateOutboxScript(table, Schema));
+        });
 
     public async ValueTask StageInOneTransactionAsync(string outboxTable, IReadOnlyList<Acta.EnqueueJobRequest> requests)
     {
@@ -52,7 +53,7 @@ public sealed partial class SqlServerConformanceFixture
     )
     {
         var probe = "acta_txn_stage_" + Guid.NewGuid().ToString("N")[..12];
-        await ExecOutboxAsync($"CREATE TABLE {Schema}.{probe} (marker int NOT NULL);");
+        await TestDdl.RunAsync(async () => await ExecOutboxAsync($"CREATE TABLE {Schema}.{probe} (marker int NOT NULL);"));
         await using (var c = new SqlConnection(Conn))
         {
             await c.OpenAsync();

@@ -177,6 +177,7 @@ A test passes or fails on what the code did, never on how fast the machine ran i
 - A schedule admission runs on a `FakeClock` (`FakeClock.AtRealMinute()`) or on parked slots, never on the real clock, where a five-minute boundary can fall inside the test.
 - A spec synchronizes on signals (a `TaskCompletionSource`, a probe gate, `LockWaitProbe`), never on a sleep followed by an assumption.
 - A catch names the errors the step expects and repeats transient ones (`IConformanceFixture.IsTransient`); a catch-all reads a deadlock victim as an outcome.
+- A test never repeats a deadlock: the server fixtures run with `DeadlockRetryAttempts = 1`, and `DeadlockCensusSpec` fails the run when the server's deadlock counter moved. Fix the lock order; schema work in a test goes through `TestDdl`, one batch at a time. On SQL Server the counter is instance-wide, so run one SQL Server suite per instance at a time.
 - A real timer is armed after the setup it would race, not before, and a probe that holds a handler while the fact acts keeps the framework's five-minute timeout (`chaos-holding`).
 
 To check a change against a starved runner, pin the full suite to two cores and run it several times: `taskset -c 0,1 dotnet test Acta.slnx -c Release --settings tests/Acta.runsettings` on Linux, or `start "" /affinity 3 /wait /b dotnet test Acta.slnx -c Release --settings tests\Acta.runsettings` from `cmd` on Windows.

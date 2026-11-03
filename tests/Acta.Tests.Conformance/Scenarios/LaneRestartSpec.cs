@@ -23,19 +23,6 @@ public sealed class LaneRestartSpec : ActaRuntimeTestBase<ConformanceFixture, Te
 {
     private const int Rounds = 20;
 
-    protected override void ConfigureServices(IServiceCollection services, string testNamespace)
-    {
-        base.ConfigureServices(services, testNamespace);
-        var provider = services.Last(d => d.ServiceType == typeof(SqlProviderOptions));
-        services.Remove(provider);
-        services.AddSingleton(sp =>
-        {
-            var options = (SqlProviderOptions)provider.ImplementationFactory!(sp);
-            DeadlockRetryOff.Apply(sp, options);
-            return options;
-        });
-    }
-
     [Fact(DisplayName = "A restarted failed head waits Blocked behind the running member, then runs before older followers")]
     public async Task Restarted_failed_head_runs_right_after_the_running_member()
     {

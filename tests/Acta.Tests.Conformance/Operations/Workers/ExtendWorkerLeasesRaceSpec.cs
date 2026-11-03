@@ -26,19 +26,6 @@ public sealed class ExtendWorkerLeasesRaceSpec : ActaRuntimeTestBase<Conformance
 {
     protected override bool OwnSchema => true;
 
-    protected override void ConfigureServices(IServiceCollection services, string testNamespace)
-    {
-        base.ConfigureServices(services, testNamespace);
-        var provider = services.Last(d => d.ServiceType == typeof(SqlProviderOptions));
-        services.Remove(provider);
-        services.AddSingleton(sp =>
-        {
-            var options = (SqlProviderOptions)provider.ImplementationFactory!(sp);
-            DeadlockRetryOff.Apply(sp, options);
-            return options;
-        });
-    }
-
     [Fact(DisplayName = "A lease renewal racing a held child completion finishes without a deadlock")]
     public async Task Renewal_and_child_completion_do_not_deadlock()
     {

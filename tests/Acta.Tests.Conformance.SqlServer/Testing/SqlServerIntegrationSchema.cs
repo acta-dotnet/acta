@@ -73,13 +73,9 @@ public sealed class SqlServerIntegrationSchema : IIntegrationSchema
 
         EnsureTestTarget(builder.InitialCatalog, IntegrationConfig.TestSchemaName);
 
-        // Ensure the database exists with READ_COMMITTED_SNAPSHOT ON (Postgres-MVCC parity, so the
-        // parallel catalog bootstrap on the shared schema doesn't deadlock under pessimistic key locks)
-        // and the migrations applied.
-        await SqlServerSchemaMigrator.EnsureDatabaseAndApplyAsync(
-            connectionString,
-            IntegrationConfig.TestSchemaName,
-            CancellationToken.None
+        // Ensure the database exists with the migrations applied, behind the test DDL gate.
+        await TestDdl.RunAsync(() =>
+            SqlServerSchemaMigrator.EnsureDatabaseAndApplyAsync(connectionString, IntegrationConfig.TestSchemaName, CancellationToken.None)
         );
 
         await using (var conn = new SqlConnection(connectionString))

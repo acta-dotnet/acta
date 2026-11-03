@@ -11,13 +11,46 @@ namespace Acta.Tests.Conformance.Postgres.Testing;
 /// </summary>
 public sealed partial class PgConformanceFixture : IConformanceFixture
 {
-    /// <summary>The product's conflicts, plus a lock or command timeout the product does not repeat.</summary>
+    /// <summary>A lock a NOWAIT probe could not take, or a timeout; never a deadlock, which the census counts instead.</summary>
     public bool IsTransient(System.Data.Common.DbException exception) =>
-        Dialect.IsTransientConflict(exception)
-        || exception is PostgresException { SqlState: PostgresErrorCodes.LockNotAvailable }
+        exception is PostgresException { SqlState: PostgresErrorCodes.LockNotAvailable }
         || exception is NpgsqlException { InnerException: TimeoutException };
 
-    private static readonly PostgresDialect Dialect = new();
+    /// <summary>
+    /// The test database's deadlocks, read through <c>postgres</c> since the run starts before the test database exists
+    /// (none yet reads as zero). A backend flushes its counters as it exits, so the pools are cleared and the read waits, up
+    /// to ten seconds, until no client backend is connected to the test database.
+    /// </summary>
+    public async ValueTask<long?> ReadDeadlockCountAsync()
+    {
+        var test = new NpgsqlConnectionStringBuilder(IntegrationConfig.PostgresConnectionString);
+        NpgsqlConnection.ClearAllPools();
+        await using var conn = new NpgsqlConnection(
+            new NpgsqlConnectionStringBuilder(test.ConnectionString) { Database = "postgres" }.ConnectionString
+        );
+        await conn.OpenAsync();
+        var deadline = DateTime.UtcNow.AddSeconds(10);
+        while (
+            DateTime.UtcNow < deadline
+            && await ScalarAsync(
+                conn,
+                "SELECT count(*) FROM pg_stat_activity WHERE datname = @db AND backend_type = 'client backend'",
+                test.Database!
+            ) > 0
+        )
+        {
+            await Task.Delay(100);
+        }
+
+        return await ScalarAsync(conn, "SELECT coalesce((SELECT deadlocks FROM pg_stat_database WHERE datname = @db), 0)", test.Database!);
+    }
+
+    private static async Task<long> ScalarAsync(NpgsqlConnection conn, string sql, string database)
+    {
+        await using var cmd = new NpgsqlCommand(sql, conn);
+        cmd.Parameters.AddWithValue("@db", database);
+        return Convert.ToInt64(await cmd.ExecuteScalarAsync(), CultureInfo.InvariantCulture);
+    }
 
     /// <summary>
     /// The user tables in <paramref name="schemaName"/> via the Postgres information_schema.
@@ -206,10 +239,12 @@ public sealed partial class PgConformanceFixture : IConformanceFixture
         // Don't set SearchPath here - MSSQL has no analogue, and tests always qualify identifiers
         // with the schema. Quiet divergence trap if one provider auto-resolves unqualified names.
 
+        // A test never retries a deadlock: the census fails the run on any, and the lock order is fixed instead.
         builder.UsePostgres(opts =>
         {
             opts.ConnectionString = sb.ConnectionString;
             opts.Schema = schemaName;
+            opts.DeadlockRetryAttempts = 1;
         });
     }
 

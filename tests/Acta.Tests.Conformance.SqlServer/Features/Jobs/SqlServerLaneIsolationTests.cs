@@ -66,14 +66,15 @@ public sealed class SqlServerLaneIsolationTests : ActaRuntimeTestBase<SqlServerC
     }
 
     // Allowing SNAPSHOT only makes it available to a session that asks for it; it changes no default.
-    private static async Task AllowSnapshotAsync(SqlConnection conn, CancellationToken ct)
-    {
-        await using var cmd = conn.CreateCommand();
-        cmd.CommandText =
-            "IF (SELECT snapshot_isolation_state FROM sys.databases WHERE name = DB_NAME()) = 0 "
-            + "ALTER DATABASE CURRENT SET ALLOW_SNAPSHOT_ISOLATION ON;";
-        await cmd.ExecuteNonQueryAsync(ct);
-    }
+    private static Task AllowSnapshotAsync(SqlConnection conn, CancellationToken ct) =>
+        TestDdl.RunAsync(async () =>
+        {
+            await using var cmd = conn.CreateCommand();
+            cmd.CommandText =
+                "IF (SELECT snapshot_isolation_state FROM sys.databases WHERE name = DB_NAME()) = 0 "
+                + "ALTER DATABASE CURRENT SET ALLOW_SNAPSHOT_ISOLATION ON;";
+            await cmd.ExecuteNonQueryAsync(ct);
+        });
 
     private EnqueueJobRequest Step(string lane) =>
         new(TestNamespace, "lane-step", JobPayload.Json(new LaneStep(lane, "isolated")), Lane: lane);

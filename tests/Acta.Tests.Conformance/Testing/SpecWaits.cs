@@ -1,4 +1,3 @@
-using System.Data.Common;
 using System.Diagnostics;
 using Xunit;
 
@@ -65,26 +64,4 @@ internal static class SpecWaits
     /// <inheritdoc cref="UntilAsync(Func{Task{bool}}, string, CancellationToken)"/>
     public static Task UntilAsync(Func<bool> holds, string failure, CancellationToken ct) =>
         UntilAsync(() => Task.FromResult(holds()), failure, ct);
-
-    /// <summary>
-    /// Runs <paramref name="operation"/> again while it fails transiently (<see cref="IConformanceFixture.IsTransient"/>), up
-    /// to <see cref="Gate"/>: on a shared server the DDL other specs run in parallel makes a deadlock victim or a command
-    /// timeout of a statement, and the statement rolls back whole.
-    /// </summary>
-    public static async Task RetryTransientAsync(IConformanceFixture fixture, Func<Task> operation, CancellationToken ct)
-    {
-        var waited = Stopwatch.StartNew();
-        while (true)
-        {
-            try
-            {
-                await operation();
-                return;
-            }
-            catch (DbException ex) when (fixture.IsTransient(ex) && waited.Elapsed < Gate)
-            {
-                await Task.Delay(TimeSpan.FromMilliseconds(100), ct);
-            }
-        }
-    }
 }

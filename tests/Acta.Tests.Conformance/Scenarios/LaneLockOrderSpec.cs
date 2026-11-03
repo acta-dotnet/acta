@@ -27,19 +27,6 @@ public sealed class LaneLockOrderSpec : ActaRuntimeTestBase<ConformanceFixture, 
 
     protected override bool OwnSchema => true;
 
-    protected override void ConfigureServices(IServiceCollection services, string testNamespace)
-    {
-        base.ConfigureServices(services, testNamespace);
-        var provider = services.Last(d => d.ServiceType == typeof(SqlProviderOptions));
-        services.Remove(provider);
-        services.AddSingleton(sp =>
-        {
-            var options = (SqlProviderOptions)provider.ImplementationFactory!(sp);
-            DeadlockRetryOff.Apply(sp, options);
-            return options;
-        });
-    }
-
     [Fact(DisplayName = "A younger enqueue waits for an older open transaction on the same lane and lands behind it")]
     public async Task Younger_enqueue_waits_for_the_older_open_transaction()
     {
