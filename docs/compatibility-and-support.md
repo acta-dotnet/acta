@@ -10,7 +10,7 @@ What is supported, on what, and how fixes ship.
 | Target | Tier | Notes |
 | --- | --- | --- |
 | .NET | `net10.0` | Acta targets the latest .NET LTS only, as a policy choice. Other .NET releases remain in Microsoft support but are not Acta build targets. |
-| PostgreSQL 18 | Production | Server provider; the right default when multiple processes claim work. PostgreSQL 18 is the major Acta is tested and certified on; earlier majors are not supported. |
+| PostgreSQL 18 | Production | Server provider; the right default when multiple processes claim work. PostgreSQL 18 is the major Acta is tested on; earlier majors are not supported. |
 | SQL Server 2019+ | Production | Server provider; the right default when multiple processes claim work. The floor comes from `OPTIMIZE_FOR_SEQUENTIAL_KEY`, which the schema uses. |
 | SQLite 3.51+ | Production | Single node, single process. The floor comes from `jsonb_each`, which batch completion uses; the provider checks the engine version at startup and refuses to start below it, and the engine `Microsoft.Data.Sqlite` bundles clears it. For the concurrency ceiling, see [provider choice](./operator-guide.md#provider-choice) and [known limitations](./known-limitations.md). |
 | Redis | Optional | Wakeup transport only, never required. SQL remains the only durable truth. |
@@ -52,7 +52,7 @@ produced by the project, on the project's machine, and published in this reposit
 
 - The test suites: a fast unit gate and a conformance suite run against PostgreSQL, SQL Server, and
   SQLite on every change ([CONTRIBUTING.md](../CONTRIBUTING.md)).
-- The certification: chaos runs that kill a worker every five seconds and then judge the ledger with
+- The release validation: chaos runs that kill a worker every five seconds and then judge the ledger with
   SQL; each release's notes record the scale that ran and the verdicts
   ([release notes](./release-notes.md)).
 - The benchmark round: an [Acta Verify](../tools/Acta.Verify/README.md) run on one machine, the latest

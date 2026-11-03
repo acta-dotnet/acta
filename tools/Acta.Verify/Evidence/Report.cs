@@ -731,7 +731,7 @@ public static partial class Report
         <head>
           <meta charset="utf-8" />
           <meta name="viewport" content="width=device-width, initial-scale=1" />
-          <title>Benchmark and certification · Acta, durable jobs and workflows for .NET</title>
+          <title>Benchmark and release validation · Acta, durable jobs and workflows for .NET</title>
           <meta name="description" content="The published Acta Verify run: every scenario on PostgreSQL, SQL Server and SQLite, its verdict, and the measured rates." />
           <link rel="canonical" href="https://useacta.net/benchmark" />
           <meta name="theme-color" content="#0B0E15" />

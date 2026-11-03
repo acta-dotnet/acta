@@ -813,7 +813,7 @@ dotnet run -c Release --project tools/Acta.Verify -- release --db all --output a
 
 - Create the GitHub release from the tag (`gh release create v<version> --verify-tag`, adding `--prerelease` only for a pre-release), titled with the bare version and carrying the notes' summary, upgrade paragraph, highlights, evidence, and a link to the notes at the tag.
 - Clear the NuGet HTTP cache (`dotnet nuget locals http-cache --clear`), bump the Acta versions in `demos/Directory.Packages.props`, build both demos, and run one end to end: the demos consume the published packages.
-- Once the packages resolve from nuget.org, read useacta.net by hand before it deploys: the install line names the released version, the benchmark strip cites the round the release notes cite, the concept count is current, and every claim still matches the guide.
+- Once the packages resolve from nuget.org, read useacta.net by hand before it deploys: the release lines on the front page and the start page name the released version, the benchmark strip cites the round the release notes cite, the concept count is current, and every claim still matches the guide.
 
 ## Repository layout
 

@@ -1,0 +1,173 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Choosing Acta · when it fits and when another tool is better · Acta</title>
+  <meta name="description" content="When Acta is the right choice for .NET background jobs and workflows, and when Hangfire, Quartz.NET, TickerQ, Temporal, Elsa, a message broker, or a plain timer fits better." />
+  <link rel="canonical" href="https://useacta.net/choosing" />
+  <meta name="theme-color" content="#0B0E15" />
+  <meta property="og:type" content="website" />
+  <meta property="og:site_name" content="Acta for .NET" />
+  <meta property="og:title" content="Choosing Acta · when it fits and when another tool is better" />
+  <meta property="og:description" content="Keep Hangfire, Quartz.NET, TickerQ, Temporal, or Elsa when they already fit. Acta is for background work that has become application state, kept in your own database." />
+  <meta property="og:url" content="https://useacta.net/choosing" />
+  <meta property="og:image" content="https://useacta.net/assets/social-card.png" />
+  <meta property="og:image:width" content="1200" />
+  <meta property="og:image:height" content="630" />
+  <meta property="og:image:alt" content="Acta: the durable work ledger for .NET. Postgres, SQL Server, SQLite." />
+  <meta name="twitter:card" content="summary_large_image" />
+  <link rel="icon" href="/favicon.svg" type="image/svg+xml" />
+  <link rel="stylesheet" href="assets/site.css" />
+  <script src="assets/theme.js"></script>
+  <link rel="preload" href="assets/fonts/fraunces-latin.woff2" as="font" type="font/woff2" crossorigin />
+  <link rel="preload" href="assets/fonts/ibm-plex-sans-latin.woff2" as="font" type="font/woff2" crossorigin />
+  <link rel="preload" href="assets/fonts/ibm-plex-mono-400-latin.woff2" as="font" type="font/woff2" crossorigin />
+  <style>
+    /* Self-hosted latin subsets of the three families, preloaded and served immutable (see _headers),
+       so a reload paints them from cache with no swap and a first visit swaps them in as they land. Fraunces and Plex Sans are variable files. */
+    @font-face { font-family: "Fraunces"; font-style: normal; font-weight: 400 600; font-display: swap; src: url(assets/fonts/fraunces-latin.woff2) format("woff2"); unicode-range: U+0000-00FF, U+0131, U+0152-0153, U+02BB-02BC, U+02C6, U+02DA, U+02DC, U+0304, U+0308, U+0329, U+2000-206F, U+20AC, U+2122, U+2191, U+2193, U+2212, U+2215, U+FEFF, U+FFFD; }
+    @font-face { font-family: "Fraunces"; font-style: italic; font-weight: 400 500; font-display: swap; src: url(assets/fonts/fraunces-italic-latin.woff2) format("woff2"); unicode-range: U+0000-00FF, U+0131, U+0152-0153, U+02BB-02BC, U+02C6, U+02DA, U+02DC, U+0304, U+0308, U+0329, U+2000-206F, U+20AC, U+2122, U+2191, U+2193, U+2212, U+2215, U+FEFF, U+FFFD; }
+    @font-face { font-family: "IBM Plex Sans"; font-style: normal; font-weight: 400 600; font-display: swap; src: url(assets/fonts/ibm-plex-sans-latin.woff2) format("woff2"); unicode-range: U+0000-00FF, U+0131, U+0152-0153, U+02BB-02BC, U+02C6, U+02DA, U+02DC, U+0304, U+0308, U+0329, U+2000-206F, U+20AC, U+2122, U+2191, U+2193, U+2212, U+2215, U+FEFF, U+FFFD; }
+    @font-face { font-family: "IBM Plex Mono"; font-style: normal; font-weight: 400; font-display: swap; src: url(assets/fonts/ibm-plex-mono-400-latin.woff2) format("woff2"); unicode-range: U+0000-00FF, U+0131, U+0152-0153, U+02BB-02BC, U+02C6, U+02DA, U+02DC, U+0304, U+0308, U+0329, U+2000-206F, U+20AC, U+2122, U+2191, U+2193, U+2212, U+2215, U+FEFF, U+FFFD; }
+    @font-face { font-family: "IBM Plex Mono"; font-style: normal; font-weight: 500; font-display: swap; src: url(assets/fonts/ibm-plex-mono-500-latin.woff2) format("woff2"); unicode-range: U+0000-00FF, U+0131, U+0152-0153, U+02BB-02BC, U+02C6, U+02DA, U+02DC, U+0304, U+0308, U+0329, U+2000-206F, U+20AC, U+2122, U+2191, U+2193, U+2212, U+2215, U+FEFF, U+FFFD; }
+  </style>
+  <style>
+    /* Each tool is a ruled row: its name and kind on the left, when to keep it and when to consider Acta on the right. */
+    .vs-row .who b { max-width: 16ch; }
+    .vs-row .why p { margin: 0 0 0.6rem; }
+    .vs-row .why p:last-child { margin-bottom: 0; }
+    .groups { display: flex; flex-wrap: wrap; gap: 0.6rem 1.8rem; margin-top: 1.8rem; }
+    .groups a { font-family: var(--mono); font-size: 0.75rem; letter-spacing: 0.1em; text-transform: uppercase; color: var(--muted); text-decoration: none; }
+    .groups a:hover { color: var(--verdi); }
+    h2.ref-group { max-width: none; margin-top: 3.4rem; scroll-margin-top: 4.5rem; }
+    .ref-row dd code { color: var(--text); }
+    .facts .changes { margin: 0.4rem 0 0; gap: 0.55rem; }
+    .facts .changes li { font-size: 0.95rem; }
+  </style>
+</head>
+<body>
+  <a class="skip-link" href="#content">Skip to content</a>
+  <div class="chrome">
+    <a class="brand" href="/">Acta<span class="dot">.</span></a>
+    <span class="meta">apache-2.0 · .net 10 · pg / mssql / sqlite</span>
+    <nav aria-label="Primary links">
+      <a href="/start">Start</a>
+      <a href="/capabilities">Capabilities</a>
+      <a href="/benchmark">Benchmark</a>
+      <a href="/learn">Learn</a>
+      <a href="https://github.com/acta-dotnet/acta" class="gh" aria-label="Acta on GitHub" title="Acta on GitHub"><svg viewBox="0 0 16 16" width="16" height="16" aria-hidden="true" focusable="false"><path fill="currentColor" d="M8 0c4.42 0 8 3.58 8 8a8.013 8.013 0 0 1-5.45 7.59c-.4.08-.55-.17-.55-.38 0-.27.01-1.13.01-2.2 0-.75-.25-1.23-.54-1.48 1.78-.2 3.65-.88 3.65-3.95 0-.88-.31-1.59-.82-2.15.08-.2.36-1.02-.08-2.12 0 0-.67-.22-2.2.82-.64-.18-1.32-.27-2-.27-.68 0-1.36.09-2 .27-1.53-1.03-2.2-.82-2.2-.82-.44 1.1-.16 1.92-.08 2.12-.51.56-.82 1.28-.82 2.15 0 3.06 1.86 3.75 3.64 3.95-.23.2-.44.55-.51 1.07-.46.21-1.61.55-2.33-.66-.15-.24-.6-.83-1.23-.82-.67.01-.27.38.01.53.34.19.73.9.82 1.13.16.45.68 1.31 2.69.94 0 .67.01 1.3.01 1.49 0 .21-.15.45-.55.38A7.995 7.995 0 0 1 0 8c0-4.42 3.58-8 8-8Z"></path></svg></a>
+    </nav>
+  </div>
+
+  <main id="content">
+    <header class="wrap page-head">
+      <p class="record">Choosing</p>
+      <h1>When Acta is the right choice, and when another tool is.</h1>
+      <p class="lede">If the tool you run today already makes background work dependable and easy to see into, keep it. Acta is for work that has become application state: its steps, waits, retries, and history must survive a crash and stay in the database the application already uses.</p>
+      <nav class="groups" aria-label="Sections on this page">
+        <a href="#kind">By kind of work</a>
+        <a href="#tools">If you already run one</a>
+        <a href="#fit">Signs it fits</a>
+      </nav>
+    </header>
+
+    <section class="wrap">
+      <h2 class="ref-group" id="kind">Start from the kind of work</h2>
+      <dl class="ref">
+        <div class="ref-row"><dt>A local loop where a missed tick is harmless</dt><dd><code>BackgroundService</code> or <code>PeriodicTimer</code>. Nothing needs to be stored, so nothing more is needed.</dd></div>
+        <div class="ref-row"><dt>A script or container the platform starts on a calendar</dt><dd>cron, systemd timers, Windows Task Scheduler, a Kubernetes CronJob, or a cloud timer. The platform owns the clock and the process.</dd></div>
+        <div class="ref-row"><dt>Messages between services</dt><dd>A message broker or a streaming platform, for pub/sub, fan-out, and streams you replay. Acta can run the work a message starts, with the message id as its deduplication key.</dd></div>
+        <div class="ref-row"><dt>Background work the application owns</dt><dd>Acta, when the work needs retries, durable state, a history, or an operator who can pause, restart, or signal it.</dd></div>
+        <div class="ref-row"><dt>A long-running workflow in .NET</dt><dd>Acta: one C# handler with steps, child jobs, signals, and timers, and its state as rows in your database.</dd></div>
+        <div class="ref-row"><dt>Workflows across several languages, or drawn in a designer</dt><dd>A workflow platform. Acta is .NET only and has no visual designer or BPMN.</dd></div>
+      </dl>
+
+      <h2 class="ref-group" id="tools">If you already run one of these</h2>
+      <div class="vs">
+        <div class="vs-row" id="hangfire">
+          <div class="who"><b>Hangfire</b><span>background job runner</span></div>
+          <div class="why">
+            <p><b>Keep it when</b> it already runs your jobs well: a widely used runner with recurring jobs, automatic retries, and a dashboard, on storage you know.</p>
+            <p><b>Consider Acta when</b> a job's state should be data in your own SQL database that you can query, with typed inputs, durable steps, signals, child jobs, and order and limits held across every worker.</p>
+          </div>
+        </div>
+        <div class="vs-row" id="quartz">
+          <div class="who"><b>Quartz.NET</b><span>scheduler</span></div>
+          <div class="why">
+            <p><b>Keep it when</b> the calendar is the hard part: rich cron and calendar rules, misfire handling, and clustering you have already tuned.</p>
+            <p><b>Consider Acta when</b> what happens after a job starts matters more than when it starts: steps, long waits, crash recovery, lineage, and operator controls.</p>
+          </div>
+        </div>
+        <div class="vs-row" id="tickerq">
+          <div class="who"><b>TickerQ</b><span>scheduler</span></div>
+          <div class="why">
+            <p><b>Keep it when</b> you want a source-generated scheduler with persistence, a dashboard, chaining, priorities, and concurrency controls.</p>
+            <p><b>Consider Acta when</b> the database should be the record of resumable work: checkpoints, signals, recovery evidence, and operator intervention.</p>
+          </div>
+        </div>
+        <div class="vs-row" id="temporal">
+          <div class="who"><b>Temporal</b><span>workflow platform</span></div>
+          <div class="why">
+            <p><b>Keep it when</b> workers in several languages share one workflow, you want deterministic replay of its event history, or you already run its server or use its cloud service.</p>
+            <p><b>Consider Acta when</b> the workflow is .NET, its state belongs in the SQL database the application already uses, and you would rather not run a separate workflow server.</p>
+          </div>
+        </div>
+        <div class="vs-row" id="elsa">
+          <div class="who"><b>Elsa Workflows</b><span>workflow library</span></div>
+          <div class="why">
+            <p><b>Keep it when</b> you want a visual designer, with workflows stored as data that can change without a deploy.</p>
+            <p><b>Consider Acta when</b> your team writes and reviews workflows as code, as plain C# handlers.</p>
+          </div>
+        </div>
+        <div class="vs-row" id="brokers">
+          <div class="who"><b>RabbitMQ, Kafka, Service Bus, SQS</b><span>message broker</span></div>
+          <div class="why">
+            <p><b>Keep it</b> for messaging between services, those in other languages included, with whatever pub/sub, fan-out, or replay your broker or streaming platform offers.</p>
+            <p><b>Add Acta beside it</b> when the work a message starts needs retries, steps, and a history: the broker carries the message, and Acta runs the work. Without a broker, Acta runs background work on the database alone.</p>
+          </div>
+        </div>
+      </div>
+
+      <h2 class="ref-group" id="fit">Signs that Acta fits, and signs that it does not</h2>
+      <div class="facts two">
+        <div>
+          <b>Acta fits when</b>
+          <ul class="changes">
+            <li>The work must survive restarts, deploys, and crashed workers.</li>
+            <li>Someone will ask what ran, what failed, and why a job is stuck.</li>
+            <li>Operators need to pause, resume, cancel, restart, or signal jobs.</li>
+            <li>One customer's or one order's jobs must run in order, one at a time.</li>
+            <li>PostgreSQL or SQL Server already runs beside the app, or the app is one process on SQLite.</li>
+          </ul>
+        </div>
+        <div>
+          <b>Choose something else when</b>
+          <ul class="changes">
+            <li>Losing a tick is harmless and nobody will ask what happened.</li>
+            <li>The work is host maintenance that the OS or the platform owns.</li>
+            <li>Workers in more than one language share the orchestration.</li>
+            <li>You want local variables to survive a crash without naming what to keep. Acta runs the handler again from the top and skips the finished steps.</li>
+            <li>A duplicate external side effect cannot be made idempotent, guarded, or reconciled.</li>
+          </ul>
+        </div>
+      </div>
+      <div class="actions">
+        <a class="button primary" href="/start">Get started</a>
+        <a class="button" href="https://github.com/acta-dotnet/acta/blob/main/docs/choosing-acta.md#moving-from-another-scheduler">Moving from another scheduler</a>
+      </div>
+    </section>
+
+    <footer>
+      Apache-2.0 · built in the open
+      <span class="sep">·</span><a href="https://github.com/acta-dotnet/acta">GitHub</a>
+      <span class="sep">·</span><a href="https://github.com/acta-dotnet/acta/tree/main/docs">Docs</a>
+      <span class="sep">·</span><a href="https://github.com/acta-dotnet/acta/tree/main/concepts">Concepts</a>
+      <span class="sep">·</span><a href="https://github.com/acta-dotnet/acta/blob/main/docs/engineering-labs.md">Labs</a>
+      <span class="sep">·</span><a href="/llms.txt">llms.txt</a>
+      <span class="sep">·</span><a href="https://github.com/acta-dotnet/acta/blob/main/docs/compatibility-and-support.md">Compatibility</a>
+      <span class="sep">·</span>Created by <a href="https://www.linkedin.com/in/marko-voncina">Marko Vončina</a>
+    </footer>
+  </main>
+</body>
+</html>

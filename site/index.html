@@ -71,6 +71,12 @@
     .hero .lede { margin-top: 1.3rem; max-width: 54ch; }
     @media (max-width: 980px) { .hero-grid { grid-template-columns: 1fr; } }
 
+    /* release status beside the first install action: version, platforms, upgrade path */
+    .status { display: grid; grid-template-columns: auto 1fr; gap: 0.45rem 1.2rem; margin: 1.8rem 0 0; padding-top: 1rem; border-top: 1px solid var(--hair-soft); max-width: 60ch; font-size: 0.92rem; line-height: 1.5; }
+    .status dt { font-family: var(--mono); font-size: var(--label); letter-spacing: 0.15em; text-transform: uppercase; color: var(--faint); padding-top: 0.25em; }
+    .status dd { margin: 0; color: var(--muted); }
+    .status a { color: var(--verdi); text-underline-offset: 3px; }
+
     /* what you get: five ruled links into the deep pages */
     .toc { border-top: 1px solid var(--hair); }
     .toc-head {
@@ -193,19 +199,22 @@
         <div>
           <p class="tagline">Durable jobs and workflows for <em>.NET</em>.</p>
           <p class="subhead">Everything is a job, and every job is a row.</p>
-          <p class="lede">Write a workflow as one C# handler: its steps, variables, child jobs, and waits are rows that survive a crash, and lanes and limits hold across every worker. It all lives in the Postgres, SQL Server, or SQLite database you already have, with no broker and no workflow server to run.</p>
+          <p class="lede">Write background jobs and workflows as plain C# handlers, and Acta keeps them as rows in the Postgres, SQL Server, or SQLite database you already run.</p>
           <div class="actions">
             <a class="button primary" href="/start">Get started</a>
             <a class="button" href="/how-it-works">How Acta works</a>
           </div>
+          <dl class="status" aria-label="Release status">
+            <dt>Release</dt><dd>1.0.0-rc.8, a release candidate</dd>
+            <dt>Runs on</dt><dd>.NET&nbsp;10 with PostgreSQL&nbsp;18, SQL&nbsp;Server&nbsp;2019+, or SQLite&nbsp;3.51+</dd>
+            <dt>Upgrades</dt><dd>Until 1.0.0, each release candidate needs a fresh database. From 1.0.0, every upgrade is a migration on the database you have. <a href="https://github.com/acta-dotnet/acta/blob/main/docs/known-limitations.md#stability-status">Stability status</a></dd>
+          </dl>
         </div>
         <nav class="toc" aria-label="What you get">
           <p class="toc-head">What you get</p>
-          <a href="/how-it-works#steps"><span><span class="t">Steps and variables that survive a crash</span><span class="s">A finished step returns its recorded result instead of running again, and variables keep the job's own state.</span></span></a>
-          <a href="/how-it-works#children"><span><span class="t">Child jobs, signals, and long waits</span><span class="s">A job starts children on any worker and waits for them, a signal, or a timer without holding a thread.</span></span></a>
-          <a href="/gates"><span><span class="t">Strict order and limits across every worker</span><span class="s">Lanes keep one customer's jobs in order, and concurrency and rate limits are counted in the database, not per process.</span></span></a>
-          <a href="/fleet"><span><span class="t">Many workers, crash recovery, no coordinator</span><span class="s">Add a worker and it starts claiming; a dead worker's jobs go to the others, and retries follow a backoff you declare.</span></span></a>
-          <a href="/how-it-works#permanent"><span><span class="t">Recurring jobs on a schedule</span><span class="s">A cron or an interval fires one permanent job again and again; it keeps its state between firings.</span></span></a>
+          <a href="/how-it-works#steps"><span><span class="t">Durable workflows in ordinary C#</span><span class="s">Steps, variables, child jobs, signals, and schedules in plain handlers. After a crash, a finished step returns its result instead of running again.</span></span></a>
+          <a href="/gates"><span><span class="t">Order and limits shared by every worker</span><span class="s">Lanes keep one customer's jobs in order, and concurrency and rate limits are counted in the database, not per process.</span></span></a>
+          <a href="/fleet"><span><span class="t">No workflow service to operate</span><span class="s">Your app is the worker and your database holds the state. Add a worker and it starts claiming; a dead worker's jobs go to the others.</span></span></a>
         </nav>
       </div>
     </header>
@@ -384,7 +393,7 @@
             <li><a href="/capabilities#startup-checks">Startup checks that fail fast</a></li>
             <li><a href="/capabilities#testing">Fast, deterministic tests</a></li>
             <li><a href="/capabilities#conformance">One conformance suite, three providers</a></li>
-            <li><a href="/capabilities#measured">Certified under chaos</a></li>
+            <li><a href="/capabilities#measured">Chaos-tested by the project</a></li>
             <li><a href="/capabilities#schema-scripts">Schema scripts for a DBA</a></li>
             <li><a href="/capabilities#license">Apache-2.0, all of it</a></li>
           </ul>
@@ -417,6 +426,7 @@
       <p class="record">The rest of the site</p>
       <h2>Where the details are, one line each.</h2>
       <nav class="more" aria-label="The rest of the site">
+        <a href="/choosing"><span class="t">Choosing Acta</span><span class="s">When Hangfire, Quartz, or a workflow platform is the better choice, and when Acta is.</span></a>
         <a href="/how-it-works"><span class="t">How Acta works</span><span class="s">One job model for everything that outlives the request, in ten questions.</span></a>
         <a href="/learn"><span class="t">Learn Acta</span><span class="s">The full tutorial: build a report service that survives a crash.</span></a>
         <a href="/engine"><span class="t">Inside one worker</span><span class="s">How one worker claims, runs, and finalizes a job, and what happens when the database is slow.</span></a>
@@ -460,7 +470,7 @@
           <button type="button" class="copy" data-copy="dotnet add package Acta.SqlServer --prerelease" aria-label="Copy the SQL Server install command">Copy</button>
         </div>
       </div>
-      <p class="hiw-note">Requires .NET 10. Add <code>Acta.AspNetCore</code> for the dashboard.</p>
+      <p class="hiw-note">1.0.0-rc.8, a release candidate: until 1.0.0, each one needs a fresh database. Requires .NET 10. Add <code>Acta.AspNetCore</code> for the dashboard.</p>
     </section>
 
     <footer>
