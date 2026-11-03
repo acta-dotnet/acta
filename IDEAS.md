@@ -348,3 +348,17 @@ design has to keep every one of them:
   later, and a host that dies between commits, so the seed would need its own probe on every poll.
 - Smaller gaps: the capacity wake must keep the wait-to-drop case, a calendar publish skips unseeded
   schedules, and `GetScheduleState` must read declarations without its state join.
+
+## Job ids without the explicit draw
+
+Marko (2026-11-03), after the job id sequence grant: on PostgreSQL, `enqueue_jobs` draws a batch's job
+ids with `nextval` and hands them out by rank, so job-id order is the batch order a lane runs in. The
+explicit call checks the caller's privilege on the sequence, which is why the baseline grants `USAGE` on
+it to PUBLIC. Two ways to drop that grant, each a hot-path change to prototype and bench first:
+
+- Let the INSERT assign the ids and map them back by `job_ref`, as SQL Server already does with
+  `OUTPUT INSERTED.job_ref, INSERTED.job_id`. PostgreSQL does not document that identity values follow
+  an `INSERT ... SELECT ... ORDER BY`, so lane order would need a proof, or a lane position that does not
+  rest on the id.
+- Draw the ids in a small `SECURITY DEFINER` function that only calls `nextval`. The draw-then-rank
+  stays as it is, but the function's owner must never be a superuser.

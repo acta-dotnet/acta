@@ -41,14 +41,14 @@ DO $$
 BEGIN
     IF EXISTS (
         SELECT 1 FROM acta.migrations
-        WHERE name NOT IN ('M20261103163335_init')
+        WHERE name NOT IN ('M20261103205947_init')
     ) THEN
         RAISE EXCEPTION 'A newer Acta release already upgraded this database. Run the newest provisioning script; this one would move it backwards.';
     END IF;
 END
 $$;
 
--- ===== BEGIN M20261103163335_init =====
+-- ===== BEGIN M20261103205947_init =====
 CREATE SCHEMA IF NOT EXISTS acta;
 
 -- alerts
@@ -2632,6 +2632,10 @@ BEGIN
 END;
 $$;
 
+-- nextval above checks the caller's privilege on the sequence, which the identity default an INSERT takes never does.
+-- PUBLIC may draw ids and read the last one drawn, nothing more, so a runtime login needs table privileges only.
+GRANT USAGE ON SEQUENCE acta.jobs_job_id_seq TO PUBLIC;
+
 CREATE OR REPLACE FUNCTION acta.extend_worker_leases(
     p_leased_by_worker_id INT,
     p_lease_ttl_seconds INT,
@@ -4406,10 +4410,10 @@ JOIN acta.namespaces AS ns ON ns.namespace_id = w.namespace_id;
 
 
 INSERT INTO acta.migrations (name)
-VALUES ('M20261103163335_init')
+VALUES ('M20261103205947_init')
 ON CONFLICT (name) DO NOTHING;
 
--- ===== END M20261103163335_init =====
+-- ===== END M20261103205947_init =====
 
 COMMIT;
 

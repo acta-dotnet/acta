@@ -549,3 +549,7 @@ BEGIN
     ORDER BY e.ordinal;
 END;
 $$;
+
+-- nextval above checks the caller's privilege on the sequence, which the identity default an INSERT takes never does.
+-- PUBLIC may draw ids and read the last one drawn, nothing more, so a runtime login needs table privileges only.
+GRANT USAGE ON SEQUENCE {{schema}}.jobs_job_id_seq TO PUBLIC;

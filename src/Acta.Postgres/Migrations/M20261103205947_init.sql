@@ -2581,6 +2581,10 @@ BEGIN
 END;
 $$;
 
+-- nextval above checks the caller's privilege on the sequence, which the identity default an INSERT takes never does.
+-- PUBLIC may draw ids and read the last one drawn, nothing more, so a runtime login needs table privileges only.
+GRANT USAGE ON SEQUENCE {{schema}}.jobs_job_id_seq TO PUBLIC;
+
 CREATE OR REPLACE FUNCTION {{schema}}.extend_worker_leases(
     p_leased_by_worker_id INT,
     p_lease_ttl_seconds INT,
@@ -4355,5 +4359,5 @@ JOIN {{schema}}.namespaces AS ns ON ns.namespace_id = w.namespace_id;
 
 
 INSERT INTO {{schema}}.migrations (name)
-VALUES ('M20261103163335_init')
+VALUES ('M20261103205947_init')
 ON CONFLICT (name) DO NOTHING;

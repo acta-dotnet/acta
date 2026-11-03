@@ -497,7 +497,7 @@ In production a deploy step applies Acta's migrations, never application startup
 
 ```
 $ ConnectionStrings__acta="<DDL login>" dotnet MyApp.dll jobs migrate
-applied M20261103163335_init to schema acta
+applied M20261103205947_init to schema acta
 ```
 
 - A second run prints `schema acta is up to date`. It exits 0, or 1 with the database's error; `--json` prints `{"schema":"acta","applied":[...]}`.
@@ -510,15 +510,16 @@ applied M20261103163335_init to schema acta
 - A migration runs in one transaction under an exclusive schema lock: on a live system it briefly blocks the statements it collides with, and jobs wait rather than fail.
 - Every start checks that the database has a history row for each migration the build ships, and fails naming the three ways above if not. Rows the build does not know are fine, so an older worker runs against a newer database. A hand-edited object is not detected.
 
-Two logins keep DDL out of the runtime: a deploy login that runs `jobs migrate`, and the workers' login with no DDL right. On PostgreSQL, set default privileges once, before the first `jobs migrate`, so every table and sequence a migration adds is granted as it is created; a batch enqueue draws its job ids from a sequence:
+Two logins keep DDL out of the runtime: a deploy login that runs `jobs migrate`, and the workers' login with no DDL right. On PostgreSQL, set default privileges once, before the first `jobs migrate`, so every table a migration adds is granted as it is created:
 
 ```sql
 GRANT CREATE ON DATABASE "MyApp" TO acta_deploy;
 -- in the database
 ALTER DEFAULT PRIVILEGES FOR ROLE acta_deploy GRANT USAGE ON SCHEMAS TO acta_app;
 ALTER DEFAULT PRIVILEGES FOR ROLE acta_deploy GRANT SELECT, INSERT, UPDATE, DELETE ON TABLES TO acta_app;
-ALTER DEFAULT PRIVILEGES FOR ROLE acta_deploy GRANT USAGE ON SEQUENCES TO acta_app;
 ```
+
+The workers' login also uses what PUBLIC holds: PostgreSQL's defaults, TEMPORARY on the database and EXECUTE on functions, and the schema's own USAGE grant on the job id sequence. A database that revokes PUBLIC's privileges grants those to the workers' login instead.
 
 On SQL Server, the deploy login needs DDL in the database, and ALTER on it only if Acta should turn `READ_COMMITTED_SNAPSHOT` on in a new database. Grant the workers' login on the schema once the first `jobs migrate` has created it; a schema grant covers what later migrations add:
 
