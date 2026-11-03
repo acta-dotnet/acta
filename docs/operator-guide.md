@@ -496,7 +496,7 @@ j.UsePostgres(pg =>
 
 - Run the provisioning script for your provider ([`schema-pg.sql`](./reference/schema-pg.sql), [`schema-mssql.sql`](./reference/schema-mssql.sql), [`schema-sqlite.sql`](./reference/schema-sqlite.sql)) from the release pipeline under a DDL-capable principal, with a client that stops at the first error (`psql -v ON_ERROR_STOP=1`, `sqlcmd -b`, `sqlite3 -bail`). It applies only the migrations the database lacks, so re-running it is safe. Routines and views ship inside the migrations.
 - The application principal then needs only DML and EXECUTE on the Acta schema.
-- The SQL Server script turns on `READ_COMMITTED_SNAPSHOT`, which disconnects other sessions once: run it in a maintenance window.
+- On SQL Server, every install, the script included, turns `READ_COMMITTED_SNAPSHOT` on only in a database that holds no objects yet, and refuses a system database. Acta runs with it on or off, so a database that already holds objects keeps its setting; turning it on yourself disconnects the database's sessions once, so do it in a maintenance window. Run one installer at a time on a new database.
 - A migration runs in one transaction under an exclusive schema lock: on a live system it briefly blocks the statements it collides with, and jobs wait rather than fail.
 - Every start checks that the database has a history row for each migration the build ships, and fails with instructions if not. Rows the build does not know are fine, so an older worker runs against a newer database. A hand-edited object is not detected.
 

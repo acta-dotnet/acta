@@ -17,9 +17,9 @@ internal static partial class SchemaMigrations
 
     /// <summary>
     /// Applies every shipped migration with no history row, in stem order, in one transaction under the per-schema lock,
-    /// so concurrent bootstrappers serialize.
+    /// so concurrent bootstrappers serialize, and returns the names it applied.
     /// </summary>
-    public static async Task ApplyAsync(
+    public static async Task<IReadOnlyList<string>> ApplyAsync(
         DbConnection conn,
         string schemaName,
         string dialectToken,
@@ -30,33 +30,29 @@ internal static partial class SchemaMigrations
         var migrations = Discover(providerAssembly);
         var schema = Operations(conn, schemaName, dialectToken);
 
+        // Disposing the uncommitted transaction rolls it back. SqlClient skips one the server already ended, a deadlock
+        // victim's or a killed session's, where an explicit rollback would throw over the error that ended it.
         await using var tx = await conn.BeginTransactionAsync(ct);
-        try
-        {
-            await schema.AcquireSchemaLockAsync(tx, schemaName, ct);
-            await schema.EnsureMigrationsAsync(tx, ct);
-            var applied = (await schema.LoadAppliedMigrationsAsync(tx, ct)).Names;
-            RefuseForeignBaseline(migrations, applied, dialectToken);
+        await schema.AcquireSchemaLockAsync(tx, schemaName, ct);
+        await schema.EnsureMigrationsAsync(tx, ct);
+        var applied = (await schema.LoadAppliedMigrationsAsync(tx, ct)).Names;
+        RefuseForeignBaseline(migrations, applied, dialectToken);
 
-            foreach (var migration in migrations.Where(m => !applied.Contains(m.Name)))
+        var pending = migrations.Where(m => !applied.Contains(m.Name)).ToList();
+        foreach (var migration in pending)
+        {
+            foreach (var batch in SplitOnGo(migration.Template.Replace("{{schema}}", schemaName, StringComparison.Ordinal)))
             {
-                foreach (var batch in SplitOnGo(migration.Template.Replace("{{schema}}", schemaName, StringComparison.Ordinal)))
-                {
-                    await using var cmd = conn.CreateCommand();
-                    cmd.Transaction = tx;
-                    cmd.CommandText = batch;
-                    cmd.CommandTimeout = CommandTimeoutSeconds;
-                    await cmd.ExecuteNonQueryAsync(ct);
-                }
+                await using var cmd = conn.CreateCommand();
+                cmd.Transaction = tx;
+                cmd.CommandText = batch;
+                cmd.CommandTimeout = CommandTimeoutSeconds;
+                await cmd.ExecuteNonQueryAsync(ct);
             }
+        }
 
-            await tx.CommitAsync(ct);
-        }
-        catch
-        {
-            await tx.RollbackAsync(ct);
-            throw;
-        }
+        await tx.CommitAsync(ct);
+        return pending.ConvertAll(m => m.Name);
     }
 
     /// <summary>

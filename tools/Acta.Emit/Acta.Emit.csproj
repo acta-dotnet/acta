@@ -12,6 +12,7 @@
 
   <ItemGroup>
     <ProjectReference Include="..\..\src\Acta\Acta.csproj" />
+    <ProjectReference Include="..\..\src\Acta.SqlServer\Acta.SqlServer.csproj" />
   </ItemGroup>
 
   <ItemGroup>

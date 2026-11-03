@@ -1,5 +1,6 @@
 using System.Text.RegularExpressions;
 using Acta.Tests.Conformance.Sql;
+using Acta.Tests.Conformance.SqlServer.Testing;
 using Acta.Tests.Conformance.Testing;
 using Microsoft.Data.SqlClient;
 using Xunit;
@@ -30,6 +31,14 @@ public sealed partial class MsSqlProvisionScriptSpec
         // Twice on purpose: the header promises that a re-run on a database the script provisioned
         // applies no migration twice, and the migration-row count below is what proves it.
         await RunScriptAsync(database.ConnectionString, script, ct);
+        // The guard runs first, while the database is still empty; anywhere later it would find Acta's own objects.
+        Assert.True(
+            await ScratchDatabase.ScalarAsync<bool>(
+                database.ConnectionString,
+                "SELECT is_read_committed_snapshot_on FROM sys.databases WHERE database_id = DB_ID();",
+                ct
+            )
+        );
         await RunScriptAsync(database.ConnectionString, script, ct);
 
         // One history row per migration section in the file, no more (the double run must not
@@ -127,6 +136,37 @@ public sealed partial class MsSqlProvisionScriptSpec
         Assert.Equal(1, reader.GetInt32(1));
     }
 
+    [Fact(
+        DisplayName = "The published mssql script refuses a system database and changes nothing, even in a client that runs on past errors"
+    )]
+    public async Task Published_script_refuses_a_system_database_even_when_errors_are_ignored()
+    {
+        // tempdb rather than master: should the refusal ever stop working, what it lets through is gone at the next restart.
+        var ct = TestContext.Current.CancellationToken;
+        var tempdb = new SqlConnectionStringBuilder(ScratchDatabase.Master) { InitialCatalog = "tempdb" }.ConnectionString;
+        await using var conn = new SqlConnection(tempdb);
+        await conn.OpenAsync(ct);
+
+        // Like sqlcmd without -b: every batch runs, whatever the one before it raised.
+        var refused = false;
+        foreach (var batch in SchemaMigrations.SplitOnGo(ReadPublishedScript()))
+        {
+            try
+            {
+                await using var cmd = conn.CreateCommand();
+                cmd.CommandText = batch;
+                await cmd.ExecuteNonQueryAsync(ct);
+            }
+            catch (SqlException ex)
+            {
+                refused |= ex.Message.Contains("never master, tempdb, model or msdb", StringComparison.Ordinal);
+            }
+        }
+
+        Assert.True(refused, "the script did not refuse tempdb");
+        Assert.IsType<DBNull>(await ScratchDatabase.ScalarAsync<object>(tempdb, "SELECT SCHEMA_ID(N'acta');", ct));
+    }
+
     private static string ReadPublishedScript() =>
         File.ReadAllText(Path.Combine(IntegrationConfig.FindRepoRoot(), "docs", "reference", "schema-mssql.sql"));
 
@@ -145,41 +185,4 @@ public sealed partial class MsSqlProvisionScriptSpec
     // The whole-word lowercase schema name, exactly what the script header tells a DBA to replace.
     [GeneratedRegex(@"\bacta\b")]
     private static partial Regex SchemaWord();
-
-    /// <summary>A database the fact creates through <c>master</c> and drops when it ends, its sessions included.</summary>
-    private sealed class ScratchDatabase(string master, string name, string connectionString) : IAsyncDisposable
-    {
-        public string ConnectionString => connectionString;
-
-        public static async Task<ScratchDatabase> CreateAsync(CancellationToken ct)
-        {
-            var shared = IntegrationConfig.SqlServerConnectionString;
-            Assert.SkipWhen(shared is null, "ACTA_TEST_MSSQL is not set.");
-            var builder = new SqlConnectionStringBuilder(shared) { TrustServerCertificate = true };
-            var name = $"acta-test-provision-{Guid.NewGuid():N}"[..36];
-            var master = new SqlConnectionStringBuilder(builder.ConnectionString) { InitialCatalog = "master" }.ConnectionString;
-            await ExecuteAsync(master, $"CREATE DATABASE [{name}];", ct);
-            return new ScratchDatabase(
-                master,
-                name,
-                new SqlConnectionStringBuilder(builder.ConnectionString) { InitialCatalog = name }.ConnectionString
-            );
-        }
-
-        public async ValueTask DisposeAsync() =>
-            await ExecuteAsync(
-                master,
-                $"ALTER DATABASE [{name}] SET SINGLE_USER WITH ROLLBACK IMMEDIATE; DROP DATABASE [{name}];",
-                CancellationToken.None
-            );
-
-        private static async Task ExecuteAsync(string connString, string sql, CancellationToken ct)
-        {
-            await using var conn = new SqlConnection(connString);
-            await conn.OpenAsync(ct);
-            await using var cmd = conn.CreateCommand();
-            cmd.CommandText = sql;
-            await cmd.ExecuteNonQueryAsync(ct);
-        }
-    }
 }

@@ -6,9 +6,9 @@
 -- migration in order (each records its own history row).
 -- It takes the per-schema lock the runtime bootstrap takes before either reads the history, so
 -- two installers, script or bootstrap, never interleave.
--- It also sets READ_COMMITTED_SNAPSHOT on the database, the way the runtime's own bootstrap
--- does: the first batch, outside the transaction, skipped on a fresh install and on a re-run
--- alike once the database has it on.
+-- Its first batch, outside the transaction, refuses a system database and turns
+-- READ_COMMITTED_SNAPSHOT on only in a database that holds no objects yet, as every runtime
+-- install does.
 --
 -- WHERE TO RUN IT. Run it on an empty database to install, or again on a database it already
 -- provisioned: every statement is guarded or idempotent, so a re-run changes nothing that is
@@ -26,17 +26,21 @@
 -- nothing. Site-specific physical tuning (partitioning, tablespaces, compression) is yours to
 -- add; keep the logical shape - tables, columns, constraints, routine signatures - intact.
 
--- READ_COMMITTED_SNAPSHOT is part of a provisioned Acta database rather than an optional
--- tuning knob: it is the configuration Acta certifies, and it is what keeps operator and
--- dashboard reads from taking shared locks and trading blocking with the claim path. Job
--- correctness does not depend on it - mutations are fenced by lock hints and
--- compare-and-swap - but reader-side operability does. ALTER DATABASE cannot run inside a
--- user transaction, hence this separate batch ahead of the one below. A database that
--- already has it on skips the statement entirely, on install and on re-run alike; when it
--- does run, WITH ROLLBACK IMMEDIATE disconnects the other sessions in the database, so run
--- this file in a maintenance window.
+-- Acta runs with READ_COMMITTED_SNAPSHOT on or off, so on a database that already holds objects the
+-- setting stays yours. Every condition the server would refuse is checked first, so in a user database
+-- the ALTER runs or is skipped. When it runs, WITH ROLLBACK IMMEDIATE disconnects any other session in
+-- the database: run one installer at a time on a new database.
+IF DB_NAME() IN (N'master', N'tempdb', N'model', N'msdb')
+BEGIN
+    RAISERROR(N'Acta installs into a database of its own, never master, tempdb, model or msdb.', 16, 1);
+    SET NOEXEC ON;
+END
 IF (SELECT is_read_committed_snapshot_on FROM sys.databases WHERE database_id = DB_ID()) = 0
-    ALTER DATABASE CURRENT SET READ_COMMITTED_SNAPSHOT ON WITH ROLLBACK IMMEDIATE;
+   AND NOT EXISTS (SELECT 1 FROM sys.objects WHERE is_ms_shipped = 0)
+   AND HAS_PERMS_BY_NAME(DB_NAME(), 'DATABASE', 'ALTER') = 1
+   AND SERVERPROPERTY('EngineEdition') <> 5 -- Azure SQL Database allows this change only from master
+    -- Dynamic: a system database refuses ALTER DATABASE CURRENT when the batch compiles, before the refusal above runs.
+    EXEC (N'ALTER DATABASE CURRENT SET READ_COMMITTED_SNAPSHOT ON WITH ROLLBACK IMMEDIATE');
 GO
 SET XACT_ABORT ON;
 BEGIN TRANSACTION;

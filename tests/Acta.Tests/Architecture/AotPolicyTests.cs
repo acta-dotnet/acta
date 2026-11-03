@@ -91,11 +91,8 @@ public sealed partial class AotPolicyTests
             new Regex(@"\bCommitAsync\b", RegexOptions.Compiled),
             Allow("src/Acta/Schema/SchemaMigrations.cs", "src/Acta/Storage/DbSession.cs")
         ),
-        new(
-            "C# transaction rollback",
-            new Regex(@"\bRollbackAsync\b", RegexOptions.Compiled),
-            Allow("src/Acta/Schema/SchemaMigrations.cs")
-        ),
+        // Disposing an uncommitted transaction rolls it back; an explicit rollback can throw over the error that ended it.
+        new("C# transaction rollback", new Regex(@"\bRollbackAsync\b", RegexOptions.Compiled), Allow()),
         new(
             "direct DbParameterSpec scalar factory",
             new Regex(@"\bDbParameterSpec\.(Int16|Int32|Int64|Guid|Byte|CodeByte|CodeShort)\s*\(", RegexOptions.Compiled),

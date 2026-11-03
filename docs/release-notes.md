@@ -12,6 +12,10 @@ Not tagged yet.
 
 **The outbox table's script moved to each provider's migrations class**: `PostgresOutboxDdl.CreateScript()`, `SqlServerOutboxDdl.CreateScript()`, and `SqliteOutboxDdl.CreateScript()` are `PostgresMigrations.CreateOutboxScript()`, `SqlServerMigrations.CreateOutboxScript()`, and `SqliteMigrations.CreateOutboxScript()`, with the same arguments and the same script.
 
+### Fixes
+
+- On SQL Server, an install turns `READ_COMMITTED_SNAPSHOT` on only in a database that holds no objects yet, and refuses a system database. Before, the startup migration and the published script turned it on in any database, which disconnected every session in it once. Acta runs with it on or off, so a database that already holds objects keeps its setting.
+
 ## 1.0.0-rc.8
 
 Tagged 2026-11-02. rc.8 fixes what the 1.0 readiness reviews found, queues SQLite's writes to one file in arrival order, stops Redis wakes reaching every process, and measures Acta Verify's trials as applications run them. The schema changes: reprovision, as every pre-1.0 release asks.

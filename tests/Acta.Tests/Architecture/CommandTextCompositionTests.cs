@@ -60,13 +60,13 @@ public sealed class CommandTextCompositionTests
             1,
             "schema + routine name, both bare-identifier validated"
         ),
-        // The dev-convenience bootstrap DDL. CREATE DATABASE and ALTER DATABASE take no parameters on
-        // either provider, so the database name is interpolated - into a quoted identifier on PG, and
-        // into both a bracket identifier and an N'...' literal on SQL Server. ValidateDatabaseName
-        // rejects the quote, bracket and apostrophe characters that would break out of any of those
-        // contexts, and runs before the connection is opened.
+        // The dev-convenience bootstrap DDL. CREATE DATABASE takes no parameters on either provider, so
+        // the database name is interpolated - into a quoted identifier on PG, and into both a bracket
+        // identifier and an N'...' literal on SQL Server. ValidateDatabaseName rejects the quote,
+        // bracket and apostrophe characters that would break out of any of those contexts, and runs
+        // before the connection is opened.
         ["Acta.Postgres/Services/PostgresSchemaMigrator.cs::EnsureDatabaseAndApplyAsync"] = (1, "database name, ValidateDatabaseName"),
-        ["Acta.SqlServer/Services/SqlServerSchemaMigrator.cs::EnsureDatabaseAndApplyAsync"] = (2, "database name, ValidateDatabaseName"),
+        ["Acta.SqlServer/Services/SqlServerSchemaMigrator.cs::EnsureDatabaseAndApplyAsync"] = (1, "database name, ValidateDatabaseName"),
         // The unparented enqueue. The loaded script loses its marked child-only statement and gains
         // nothing: the result is a substring of embedded SQL, so no runtime value can enter it.
         ["Acta.Sqlite/Services/SqliteDialect.cs::BindEnqueueJob"] = (1, "embedded SQL with a marked section removed"),

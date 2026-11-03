@@ -18,6 +18,7 @@
   <ItemGroup>
     <InternalsVisibleTo Include="Acta.Tests" />
     <InternalsVisibleTo Include="Acta.Tests.Conformance.SqlServer" />
+    <InternalsVisibleTo Include="Acta.Emit" />
   </ItemGroup>
 
   <ItemGroup>

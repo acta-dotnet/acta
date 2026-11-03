@@ -3,6 +3,7 @@ using System.Text;
 using Acta.Emit.Features.Migrations;
 using Acta.Emit.Shared;
 using Acta.Emit.Shared.Sql;
+using Acta.SqlServer;
 
 namespace Acta.Emit.Features.Docs;
 
@@ -41,9 +42,9 @@ internal static class ProvisionScriptEmitter
         script.AppendLine("-- two installers, script or bootstrap, never interleave.");
         if (mssql)
         {
-            script.AppendLine("-- It also sets READ_COMMITTED_SNAPSHOT on the database, the way the runtime's own bootstrap");
-            script.AppendLine("-- does: the first batch, outside the transaction, skipped on a fresh install and on a re-run");
-            script.AppendLine("-- alike once the database has it on.");
+            script.AppendLine("-- Its first batch, outside the transaction, refuses a system database and turns");
+            script.AppendLine("-- READ_COMMITTED_SNAPSHOT on only in a database that holds no objects yet, as every runtime");
+            script.AppendLine("-- install does.");
         }
         if (sqlite)
         {
@@ -110,25 +111,16 @@ internal static class ProvisionScriptEmitter
 
         if (mssql)
         {
-            // READ_COMMITTED_SNAPSHOT the way SqlServerSchemaMigrator sets it (same guard, same
-            // termination clause), because the DBA path provisions databases the runtime bootstrap
-            // never touches. ALTER DATABASE cannot run inside a user transaction, so it is its own
-            // batch; it goes first so the session options below outlive any connection disruption
-            // the flip causes.
+            // The guard every runtime install runs first. ALTER DATABASE cannot run inside a user transaction, so it is its own
+            // batch, ahead of the session options below.
             Append(
                 """
-                -- READ_COMMITTED_SNAPSHOT is part of a provisioned Acta database rather than an optional
-                -- tuning knob: it is the configuration Acta certifies, and it is what keeps operator and
-                -- dashboard reads from taking shared locks and trading blocking with the claim path. Job
-                -- correctness does not depend on it - mutations are fenced by lock hints and
-                -- compare-and-swap - but reader-side operability does. ALTER DATABASE cannot run inside a
-                -- user transaction, hence this separate batch ahead of the one below. A database that
-                -- already has it on skips the statement entirely, on install and on re-run alike; when it
-                -- does run, WITH ROLLBACK IMMEDIATE disconnects the other sessions in the database, so run
-                -- this file in a maintenance window.
-                IF (SELECT is_read_committed_snapshot_on FROM sys.databases WHERE database_id = DB_ID()) = 0
-                    ALTER DATABASE CURRENT SET READ_COMMITTED_SNAPSHOT ON WITH ROLLBACK IMMEDIATE;
-                """
+                -- Acta runs with READ_COMMITTED_SNAPSHOT on or off, so on a database that already holds objects the
+                -- setting stays yours. Every condition the server would refuse is checked first, so in a user database
+                -- the ALTER runs or is skipped. When it runs, WITH ROLLBACK IMMEDIATE disconnects any other session in
+                -- the database: run one installer at a time on a new database.
+
+                """ + SqlServerSchemaMigrator.InstallGuard
             );
         }
         if (sqlite)
