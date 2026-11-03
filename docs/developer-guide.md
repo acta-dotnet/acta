@@ -787,7 +787,7 @@ With EF Core, pass `transaction.GetDbTransaction()`.
 
 When the business database is not the Acta ledger, stage an Acta-shaped row in the business database inside your own transaction, and let an Acta relay carry it across. Staging needs no DI and no ledger connection: reference your database's provider package (`Acta.Postgres`, `Acta.SqlServer`, or `Acta.Sqlite`) and call the extension on the concrete provider transaction.
 
-1. Add `PostgresMigrations.CreateOutboxScript()` (or `SqlServerMigrations` / `SqliteMigrations`) to your migrations. It is a plain script your migration system runs once; keep its three indexes, claims depend on them.
+1. Add `PostgresMigrations.CreateOutboxScript()` (or `SqlServerMigrations` / `SqliteMigrations`) to your migrations. It is a plain script your migration system runs once; keep its three indexes and, on SQL Server, its lock escalation setting, since claims depend on them.
 2. Stage inside the business transaction:
 
 ```csharp
@@ -825,6 +825,7 @@ An ambient `TransactionScope` is rejected: Acta connections never enlist. Use on
 - `sys.outbox` runs every five seconds, which is the pickup floor; change it through the `sys.outbox/default` schedule. A tick drains 1,000-row batches until the source runs dry or 30 seconds pass.
 - Due rows are claimed in staging order. A row staged with a `lane` waits while an older row of its lane is Pending or Claimed, so rows staged into a lane in sequence, in one transaction or in transactions that each commit before the next stages, reach the ledger in that order; a quarantined row leaves the lane.
 - Producer transactions open at the same time have no order between them. The relay sees a row only once its transaction commits, so a row whose transaction commits first can be relayed ahead of an older row of its lane whose transaction is still open. To keep one lane's producers in order, serialize them in the business transaction, for example by locking the row the lane stands for before staging. SQLite runs one writer at a time, so its producers always stage in sequence.
+- An open producer transaction never stops the relay, so a SQL Server business database needs no `READ_COMMITTED_SNAPSHOT`. The exception is a producer statement that locks a page or the whole table, such as a `TABLOCK` or `PAGLOCK` bulk load: it holds the relay until it commits.
 - A delivered row (inserted or deduplicated) is deleted from the outbox.
 - Infrastructure failures retry every tick without spending a row's budget. Routing rejections (unknown job, suspended tenant) back off from one minute to eight hours and quarantine at the threshold. Malformed or oversized rows quarantine at once.
 - A worker that dies mid-relay leaves its claimed rows invisible for up to one lease (`LeaseTtlSeconds`). Redelivery is deduplicated only while the target job exists, so give definitions the outbox targets a `JobRetention` well past that.

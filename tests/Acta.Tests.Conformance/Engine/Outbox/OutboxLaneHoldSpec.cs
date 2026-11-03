@@ -66,6 +66,68 @@ public sealed class OutboxLaneHoldSpec : OutboxRelayIntegrationBase
         Assert.Equal(0, await CountLedgerJobsAsync(Key("b"), ct));
     }
 
+    [Theory(DisplayName = "A lane's later rows wait while another relay moves its head, and stay held when that move rolls back")]
+    [InlineData("RescheduleOutbox")]
+    [InlineData("ReleaseClaimedOutbox")]
+    [InlineData("QuarantineOutbox")]
+    public async Task A_head_being_moved_holds_its_lane(string finalize)
+    {
+        Assert.SkipWhen(
+            Fixture.DialectToken == "sqlite",
+            "SQLite runs one writer at a time, so a finalize cannot stay open beside a tick."
+        );
+        var ct = TestContext.Current.CancellationToken;
+        await Fixture.StageInOneTransactionAsync(SourceTable, [Row("moving", "a"), Row("moving", "b")]);
+        var token = Guid.NewGuid();
+        var head = Assert.Single((await SourceStore.ClaimDueAsync(new ClaimOutboxCommand(token, 10, 180), ct)).Rows);
+
+        // Another relay's finalize of the head, held open and then rolled back, so the head stays Claimed throughout.
+        var session = SourceConnection.Session;
+        var dialect = SourceConnection.Dialect;
+        await using var connection = await session.OpenConnectionAsync(ct);
+        await using var move = await connection.BeginTransactionAsync(ct);
+        await session.ExecuteInTransactionAsync(
+            move,
+            new StoreCommand(finalize),
+            cmd =>
+            {
+                cmd.Parameters.Add(dialect.CreateParameter(OutboxSchema.Sql.ClaimToken, token));
+                cmd.Parameters.Add(
+                    finalize switch
+                    {
+                        "RescheduleOutbox" => dialect.CreateParameter(
+                            OutboxSchema.Sql.RowRecords,
+                            OutboxJson.Reschedules([new OutboxReschedule(head.OutboxId, 1, 3600, "held open")])
+                        ),
+                        "QuarantineOutbox" => dialect.CreateParameter(
+                            OutboxSchema.Sql.RowRecords,
+                            OutboxJson.Quarantines([new OutboxQuarantine(head.OutboxId, 1, "held open")])
+                        ),
+                        _ => dialect.CreateParameter(OutboxSchema.Sql.OutboxIds, OutboxJson.IdArray([head.OutboxId])),
+                    }
+                );
+            },
+            _ => 0,
+            ct
+        );
+
+        // SQL Server's claim waits for the finalize's outbox lock; PostgreSQL's reads the head's committed claim and
+        // finishes without waiting. Either way the row behind the head must not relay.
+        var tick = Relay(SourceStore, OwnedSubmission).RunTickAsync(TickOptions(), ct);
+        if (session.Provider == DbProvider.SqlServer)
+        {
+            await LockWaitProbe.WaitAsync(session, "@p_batch_size", LockWait.ApplicationLock, tick, move, ct);
+        }
+        else
+        {
+            await tick;
+        }
+
+        await move.RollbackAsync(ct);
+        await tick;
+        Assert.Equal(0, await CountLedgerJobsAsync(Key("b"), ct));
+    }
+
     [Fact(DisplayName = "A long lane lands in the ledger in staging order")]
     public async Task A_long_lane_lands_in_staging_order()
     {

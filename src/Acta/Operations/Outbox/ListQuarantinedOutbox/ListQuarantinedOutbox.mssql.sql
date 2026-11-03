@@ -4,7 +4,7 @@
 SELECT TOP (@p_page_size)
     outbox_id, job_namespace, job_name, deduplication_key, correlation_key, tenant_name,
     failure_count, last_error, created_at_utc
-FROM {{table_ref}}
+FROM {{table_ref}} WITH (FORCESEEK)
 WHERE
     status_code = 90 /* OutboxStatusCode.Quarantined */
     AND (@p_after_outbox_id IS NULL OR outbox_id > @p_after_outbox_id)

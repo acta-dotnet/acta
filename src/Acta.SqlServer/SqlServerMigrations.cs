@@ -3,8 +3,8 @@ namespace Acta.SqlServer;
 /// <summary>
 /// Emits the canonical SQL Server <c>acta_outbox</c> CREATE script for producer-owned migration systems: a plain,
 /// non-idempotent script (the producer's migration tool owns run-once semantics) with the CREATE TABLE in
-/// provider-correct types and UTC clock defaults, the keys, the three named claim indexes, and the six named
-/// checks. Acta never executes it; the producer pipes it into DbUp, Flyway, EF <c>migrationBuilder.Sql(...)</c>, or a
+/// provider-correct types and UTC clock defaults, the keys, the three named claim indexes, the six named checks, and
+/// lock escalation off. Acta never executes it; the producer pipes it into DbUp, Flyway, EF <c>migrationBuilder.Sql(...)</c>, or a
 /// hand migration. <c>table</c> and <c>schema</c> take the same lowercase identifier validation as the relay source
 /// and staging extension; with no schema the table reference is left unqualified for the login default to resolve.
 /// </summary>
@@ -15,7 +15,8 @@ public static class SqlServerMigrations
         var t = OutboxIdentifier.Qualify(table, schema);
         // Constraint and index names derive from the (bare) table so a non-default table name yields
         // collision-free objects; the default table yields exactly the canonical names. input_format_id is
-        // tinyint, so its 0-255 range is enforced by the column type (no explicit check needed).
+        // tinyint, so its 0-255 range is enforced by the column type (no explicit check needed). Lock escalation
+        // stays off (docs/sql-internals.md, "Outbox lock").
         return $"""
             CREATE TABLE {t} (
                 id bigint IDENTITY(1,1) NOT NULL,
@@ -56,6 +57,7 @@ public static class SqlServerMigrations
                 (status_code, next_attempt_at_utc, id);
             CREATE INDEX ix_{table}_claims ON {t} (status_code, claim_until_utc);
             CREATE INDEX ix_{table}_lane ON {t} (job_namespace, lane, id);
+            ALTER TABLE {t} SET (LOCK_ESCALATION = DISABLE);
             """;
     }
 }

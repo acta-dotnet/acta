@@ -1404,6 +1404,7 @@
   - A rejected row holds its lane across ticks while another lane relays
   - A quarantined row releases its lane and the row behind it relays
   - A lane's later rows wait while another claim holds its head
+  - A lane's later rows wait while another relay moves its head, and stay held when that move rolls back
   - A long lane lands in the ledger in staging order
 
 ### Rows staged into one lane relay in staging order whatever their priority

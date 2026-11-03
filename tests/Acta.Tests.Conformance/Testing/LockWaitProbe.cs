@@ -2,10 +2,10 @@ using System.Data.Common;
 
 namespace Acta.Tests.Conformance.Testing;
 
-/// <summary>The lock a session is blocked on: a namespace's schedule lock, or a row.</summary>
+/// <summary>The lock a session is blocked on: an application lock (a namespace's schedule lock, a table's outbox lock), or a row.</summary>
 internal enum LockWait
 {
-    ScheduleLock,
+    ApplicationLock,
     Row,
 }
 
@@ -84,7 +84,7 @@ internal static class LockWaitProbe
                 "SELECT COUNT_BIG(*) FROM sys.dm_exec_requests r CROSS APPLY sys.dm_exec_input_buffer(r.session_id, r.request_id) b "
                 + "WHERE r.session_id <> @@SPID AND r.wait_type LIKE 'LCK%' AND r.wait_resource LIKE @p_resource AND b.event_info LIKE @p_sql"
                 + (blockerSession is null ? "" : " AND r.blocking_session_id = @p_blocker");
-            AddParameter(cmd, "@p_resource", kind == LockWait.ScheduleLock ? "APPLICATION%" : "KEY%");
+            AddParameter(cmd, "@p_resource", kind == LockWait.ApplicationLock ? "APPLICATION%" : "KEY%");
         }
         else
         {
@@ -92,7 +92,7 @@ internal static class LockWaitProbe
             cmd.CommandText =
                 "SELECT count(*) FROM pg_stat_activity WHERE datname = current_database() AND pid <> pg_backend_pid() "
                 + "AND wait_event_type = 'Lock' AND query LIKE @p_sql AND "
-                + (kind == LockWait.ScheduleLock ? "wait_event = 'advisory'" : "wait_event IN ('transactionid', 'tuple')")
+                + (kind == LockWait.ApplicationLock ? "wait_event = 'advisory'" : "wait_event IN ('transactionid', 'tuple')")
                 + (blockerSession is null ? "" : " AND @p_blocker = ANY(pg_blocking_pids(pid))");
         }
 

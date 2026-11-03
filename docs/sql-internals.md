@@ -80,9 +80,10 @@ anything.
 
 External-outbox source commands operate on a producer-owned database, so they remain embedded SQL;
 Acta installs no ledger routines there. PostgreSQL executes the claim batch in one implicit transaction;
-SQL Server's multi-statement claim includes an ownership-aware transaction block; SQLite uses an
-immediate transaction. Source reads use the query path. Schema bootstrap and object installation have
-their separate migration transaction and lock.
+on SQL Server the claim and the finalizes that move a row in its lane each run an ownership-aware
+transaction block that takes the outbox lock first ("Outbox lock"); SQLite uses an immediate
+transaction. Source reads use the query path. Schema bootstrap and object installation have their
+separate migration transaction and lock.
 
 `PurgeExpiredData` remains one routine identity, but each invocation purges one selected section's
 bounded batch. The events and jobs sections honor the alert floor: an alert-required event above
@@ -200,9 +201,10 @@ filter so the hint always compiles:
   leading column and test the key as a residual, reading every key under it once per batch row.
 - The retention purge's staging read seeks `jobs_state` from its cursor and `jobs` by key, and its event
   read seeks `ix_events_namespace_created`.
-- The outbox claim, its lease recovery, the relay's finalizes, and the operator requeue and discard seek
-  without naming an index, because the producer owns that table's DDL. A scan of the producer's table would
-  also wait on every row a producer transaction still holds uncommitted.
+- The outbox claim, its lease recovery and lane check, the relay's finalizes, the backlog count, and the
+  operator's quarantine reads, requeue, and discard seek without naming an index, because the producer owns that
+  table's DDL. A scan of the producer's table would also wait on every row a producer transaction still holds
+  uncommitted.
 - A completion's and a registration's updates of `schedules` and `schedules_state` seek by key. Fires in one namespace
   share its schedule lock and registrations in different namespaces run at once, so an update that scanned would wait
   on rows another holds, and two such scans deadlock on each other.
@@ -254,6 +256,30 @@ reads it under `UPDLOCK`; a refusal raises 51205:
 - `reserve_rate` locks `<schema>.rate:<bucket key>`, so the calls on one meter serialize without a range lock on a bucket not yet stored, whose gap holds the meter's reservations and the next meters.
 
 The sleep timer's slot needs none: `arm_or_consume_sleep_timer` locks the job's `jobs_state` row first.
+
+### Outbox lock
+
+The outbox claim never waits on a producer's open transaction. Its lane check reads with
+`READCOMMITTEDLOCK, READPAST` on SQL Server, so a row a producer has not committed counts as absent, as it
+does under read-committed snapshot, whether that option is on or off. The backlog count skips the same way.
+
+A skip must never pass a row Acta itself is moving: a lane head that another relay is claiming, rescheduling,
+releasing, or quarantining would read as gone, and the next row of its lane would be claimed beside it. So on
+SQL Server those four statements, the claim with its lease recovery included, first take `sp_getapplock`,
+exclusive and owned by the transaction, on `acta.outbox:<object id>` of the table; a refusal raises 51205.
+Keying on the object id makes two relays that name the table differently share the lock.
+
+- Deleting an ingested row stays outside the lock: it runs after the ledger enqueue committed, and the
+  ledger's lane orders the row from then on.
+- The operator's requeue and discard stay outside too: a skipped Quarantined row reads as what it still is,
+  a row that holds no lane.
+- The quarantine reads seek and never skip, since the match builds a durable plan a skipped row would miss.
+- The create script turns lock escalation off on the table: `READPAST` passes row locks only, so a producer's
+  insert of thousands of rows would otherwise stop the claim until it commits. A producer statement that
+  locks a page or the table itself, such as a `TABLOCK` or `PAGLOCK` bulk load, still does.
+
+PostgreSQL's lane check reads committed rows without locks, and SQLite runs one writer, so neither takes
+the lock.
 
 ### Execution fence
 

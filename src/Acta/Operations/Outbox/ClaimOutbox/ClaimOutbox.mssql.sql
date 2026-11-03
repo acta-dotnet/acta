@@ -2,23 +2,31 @@ SET NOCOUNT ON;
 SET XACT_ABORT ON;
 
 DECLARE @entry_trancount INT = @@TRANCOUNT;
+DECLARE @lock_resource NVARCHAR(64) = N'acta.outbox:' + CAST(OBJECT_ID(N'{{table_ref}}') AS NVARCHAR(12));
+DECLARE @lock_result INT;
 BEGIN TRY
     IF @entry_trancount = 0
         BEGIN TRANSACTION;
 
+    -- The claim, reschedule, release, and quarantine take the table's outbox lock first, so none of them moves a
+    -- lane's head while the lane check below skips held rows (docs/sql-internals.md, "Outbox lock").
+    EXEC @lock_result = sys.sp_getapplock @lock_resource, 'Exclusive', 'Transaction', -1;
+    IF @lock_result < 0
+        THROW 51205, 'ACTA:OUTBOX_LOCK:The outbox table lock was not granted (deadlock victim or cancelled).', 1;
+
     /* Recover expired Claimed leases to Pending, then claim the next due batch and stamp one token + lease
        from the database clock. Both statements run in one source transaction so the claim sees the recovered
-       rows. UPDLOCK/READPAST/ROWLOCK lets replicas claim disjoint batches without blocking on each other. */
-    -- Both locking reads seek (docs/sql-internals.md, "Locking reads seek"), with no index named:
+       rows. READPAST passes over a row a producer has not committed yet. */
+    -- Every read seeks and locks rows only (docs/sql-internals.md, "Locking reads seek"), with no index named:
     -- the producer owns this table's DDL and may rename its indexes.
     UPDATE o
     SET status_code = 10 /* OutboxStatusCode.Pending */, claim_token = NULL, claim_until_utc = NULL
-    FROM {{table_ref}} AS o WITH (FORCESEEK)
+    FROM {{table_ref}} AS o WITH (FORCESEEK, ROWLOCK)
     WHERE o.status_code = 20 /* OutboxStatusCode.Claimed */ AND o.claim_until_utc <= SYSUTCDATETIME();
 
     /* A laned row waits while an older row of its lane is Pending or Claimed (OutboxSource.ClaimDueAsync).
-       The check carries no READPAST: an older row another relay holds must still count, so it waits out
-       that claim or reads its last committed version instead of skipping it. */
+       The check skips a row a producer has not committed, which counts as absent, as under read-committed
+       snapshot. */
     WITH due AS (
         SELECT TOP (@p_batch_size) c.id
         FROM {{table_ref}} AS c WITH (UPDLOCK, READPAST, ROWLOCK, FORCESEEK)
@@ -29,7 +37,7 @@ BEGIN TRY
                 c.lane IS NULL
                 OR NOT EXISTS (
                     SELECT 1
-                    FROM {{table_ref}} AS e
+                    FROM {{table_ref}} AS e WITH (READCOMMITTEDLOCK, READPAST, FORCESEEK)
                     WHERE
                         e.job_namespace = c.job_namespace
                         AND e.lane = c.lane
@@ -49,7 +57,7 @@ BEGIN TRY
         INSERTED.outbox_id, INSERTED.job_namespace, INSERTED.job_name, INSERTED.input_format_id, INSERTED.input,
         INSERTED.deduplication_key, INSERTED.correlation_key, INSERTED.concurrency_key, INSERTED.lane, INSERTED.priority_code,
         INSERTED.next_run_at_utc, INSERTED.delay_seconds, INSERTED.tenant_name, INSERTED.meta, INSERTED.failure_count, INSERTED.id
-    FROM {{table_ref}} AS o
+    FROM {{table_ref}} AS o WITH (FORCESEEK, ROWLOCK)
     INNER JOIN due ON due.id = o.id;
 
     IF @entry_trancount = 0

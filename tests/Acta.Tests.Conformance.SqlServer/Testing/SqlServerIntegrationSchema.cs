@@ -86,6 +86,17 @@ public sealed class SqlServerIntegrationSchema : IIntegrationSchema
         {
             await conn.OpenAsync();
 
+            if (IntegrationConfig.SqlServerRcsiOff)
+            {
+                await using var rcsi = conn.CreateCommand();
+                rcsi.CommandText =
+                    "IF (SELECT is_read_committed_snapshot_on FROM sys.databases WHERE database_id = DB_ID()) = 1 "
+                    + "ALTER DATABASE CURRENT SET READ_COMMITTED_SNAPSHOT OFF WITH ROLLBACK IMMEDIATE;";
+                await rcsi.ExecuteNonQueryAsync();
+                // ROLLBACK IMMEDIATE ended the provisioning's pooled sessions; drop them so no spec draws a dead one.
+                SqlConnection.ClearAllPools();
+            }
+
             // Read the namespace id headroom before adding this run's own row, so a bootstrap that
             // is about to fail the check doesn't spend one more id on its way out.
             await ThrowIfNamespaceIdSpaceExhaustedAsync(conn);
