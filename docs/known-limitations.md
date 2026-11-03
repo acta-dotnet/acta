@@ -82,6 +82,16 @@ Authentication is the host's: Acta ships none. The surface is local-only by defa
 SQLite has concurrency limits compared with server databases. Use SQL Server or PostgreSQL for
 distributed multi-worker deployments.
 
+On SQLite, Acta's tables share `main` with the application's: the schema must be `main`, so there is no
+`acta` schema to keep them apart. The provisioning script creates each table only if it is missing, so an
+application table that already holds one of Acta's names (`migrations`, `jobs`, `events`, `tags`,
+`tenants`, ...) stays in place. What follows depends on the table. A `tenants` table stops provisioning at
+the first index on Acta's columns. A `tags` table lets provisioning succeed, and Acta's first tag write
+fails. An ORM's `migrations` table, such as TypeORM's, fails the script, and once it holds rows the refusal
+claims a newer Acta release upgraded the database. Keep Acta's table names free in that file. A separate
+database file for Acta avoids the clash, but then an enqueue can no longer share a transaction with the
+application's writes.
+
 On SQLite, a `JobId` returned by a transactional enqueue that then rolls back is handed out again.
 `sqlite_sequence`, which backs `AUTOINCREMENT`, is an ordinary table, so the counter is rolled back with
 the transaction that advanced it and the next insert receives the same id. PostgreSQL and SQL Server

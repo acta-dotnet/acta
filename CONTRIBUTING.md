@@ -434,9 +434,11 @@ After 1.0.0 a rename that breaks one is a breaking change, not a cleanup.
 
 ### Identifier suffixes
 
-- **`_ref`** is a rendered public handle: prefix + the uuid's 32 hex digits, resolvable through the API
-  (`job_ref`). A plain uuid is never a `_ref`, so the staging table's `outbox_id` keeps its name.
-- **`_id`** is a numeric identity or a plain uuid.
+- **`_ref`** is the uuid behind a public handle: the column stores the uuid, and the API renders it as a
+  prefix plus its 32 hex digits (`job_ref` is `job_...`, `worker_ref` is `wrk_...`). A uuid with no rendered
+  handle is never a `_ref`, so the staging table's `outbox_id` keeps its name.
+- **`_id`** is a numeric identity, a uuid with no rendered handle, or a standard string identifier kept as its
+  standard writes it (`time_zone_id`, an IANA tz id).
 - **`_name`** is a name: Acta's vocabulary, ASCII `dotted.kebab-case`, trimmed and lowercased on input, so it compares
   equal under any collation (`tenant_name`, `rate_name`, `lane_name`, `definition_name`).
 - **`_key`** is a key: the caller's identity, printable ASCII without whitespace, kept exactly as given and compared
@@ -567,7 +569,7 @@ The boundary has three sides, and only two of them are inside it:
 ### Wire conventions (HTTP/JSON)
 
 - Identities are resource-qualified: `jobRef`, `alertRef`, `workerRef`, `outboxId` - never a bare `id`.
-  `outboxId` keeps the `Id` suffix because it is a stored uuid column, not a rendered ref.
+  `outboxId` keeps the `Id` suffix because it is a uuid with no rendered handle.
 - `jobNamespace` is the namespace's name everywhere, on every tier.
 - Instants end in `AtUtc` (`createdAtUtc`); every persisted instant is UTC.
 - Narrowing booleans end in `Only` and are nullable (`unresolvedOnly`, `liveOnly`).
