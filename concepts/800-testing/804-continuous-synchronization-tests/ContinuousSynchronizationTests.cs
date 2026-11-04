@@ -96,7 +96,7 @@ public sealed class ContinuousSynchronizationTests : IAsyncLifetime
 
         // Idle, no attempt running, and the watermark is still there: a row of the job's, not of the attempt's.
         Assert.Equal(JobStatusCode.Idle, (await JobAsync()).Status);
-        var checkpoints = (await _host.Jobs.GetCheckpointsAsync(JobLookup.ById(_slotId), Ct))!.Items;
+        var checkpoints = (await _host.Jobs.ListCheckpointsAsync(new ListJobCheckpointsQuery(JobLookup.ById(_slotId)), Ct)).Items;
         var watermark = Assert.Single(checkpoints, c => c.Kind == CheckpointKindCode.Variable);
         Assert.Equal("watermark", watermark.Name);
         Assert.Equal(20, JsonSerializer.Deserialize<long>(watermark.Value!.Value.Data.Span));
@@ -252,7 +252,7 @@ public sealed class ContinuousSynchronizationTests : IAsyncLifetime
     /// <summary>The watermark as the operator sees it, 0 before the first batch: the slot's one variable.</summary>
     private async Task<long> WatermarkAsync()
     {
-        var checkpoints = (await _host.Jobs.GetCheckpointsAsync(JobLookup.ById(_slotId), Ct))!.Items;
+        var checkpoints = (await _host.Jobs.ListCheckpointsAsync(new ListJobCheckpointsQuery(JobLookup.ById(_slotId)), Ct)).Items;
         var watermark = checkpoints.SingleOrDefault(c => c.Kind == CheckpointKindCode.Variable && c.Name == "watermark");
         return watermark is null ? 0 : JsonSerializer.Deserialize<long>(watermark.Value!.Value.Data.Span);
     }

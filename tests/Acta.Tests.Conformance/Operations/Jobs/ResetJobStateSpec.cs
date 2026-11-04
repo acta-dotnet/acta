@@ -54,8 +54,8 @@ public sealed class ResetJobStateSpec : ActaRuntimeTestBase<ConformanceFixture, 
         Assert.Equal("sys.firing", firing.CheckpointName);
         Assert.Equal(CheckpointStatusCode.Pending, firing.Status);
         // The handler-state read never lists it either: the envelope is the scheduler's, shown by the firing view.
-        var slots = await Jobs.GetCheckpointsAsync(JobLookup.ById(job.JobId), ct);
-        Assert.DoesNotContain(slots!.Items, s => s.Kind == CheckpointKindCode.Firing);
+        var slots = await Jobs.ListCheckpointsAsync(new ListJobCheckpointsQuery(JobLookup.ById(job.JobId)), ct);
+        Assert.DoesNotContain(slots.Items, s => s.Kind == CheckpointKindCode.Firing);
     }
 
     [Fact(DisplayName = "One JobStateReset event is emitted with the job as its actor and no reason")]

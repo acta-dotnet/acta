@@ -124,7 +124,7 @@ public static class ActaServiceCollectionExtensions
         services.TryAddSingleton<CancelJobHandler>();
         services.TryAddSingleton<EnqueueJobHandler>();
         services.TryAddSingleton<EnqueueJobsHandler>();
-        services.TryAddSingleton<GetJobCheckpointsHandler>();
+        services.TryAddSingleton<ListJobCheckpointsHandler>();
         services.TryAddSingleton<ExplainJobHandler>();
         services.TryAddSingleton<GetJobHandler>();
         services.TryAddSingleton<GetJobIdHandler>();

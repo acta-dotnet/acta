@@ -1567,11 +1567,12 @@
   - A known worker id returns its durable detail projection
   - An unknown worker id returns null
 
-### GetJobCheckpoints lists a job's slots by kind then name
-- **Contract:** GetJobCheckpoints lists a job's slots by kind then name with state and value round-tripped, an empty set for a job without slots, and null for a missing id.
+### ListJobCheckpoints pages a job's slots by kind then name
+- **Contract:** ListJobCheckpoints pages a job's slots by kind then name, values intact, empty for no slots or no job, its cursor walking past a kind this build does not know.
 - **Guarantees:**
-  - GetJobCheckpoints lists variable and signal slots with kind, state, and value round-tripped
-  - GetJobCheckpoints returns an empty set for a job with no slots and null for a missing id
+  - ListJobCheckpoints lists variable and signal slots with kind, state, and value round-tripped
+  - ListJobCheckpoints answers an empty page for a job with no slots and for a missing id
+  - ListJobCheckpoints pages to the end across a kind this build does not know, each slot once
 
 ### GetJobInput reads the stored input or null
 - **Contract:** GetJobInput returns the payload and format a job was enqueued with, and null when no job row matches.
@@ -2544,7 +2545,6 @@
 | `GetCalendarVersions` | yes | yes | yes |
 | `GetDefinition` | yes | yes | yes |
 | `GetJob` | yes | yes | yes |
-| `GetJobCheckpoints` | yes | yes | yes |
 | `GetJobInput` | yes | yes | yes |
 | `GetJobLineageMap` | yes | yes | yes |
 | `GetJobResult` | yes | yes | yes |
@@ -2570,6 +2570,7 @@
 | `ListDeliverableAlerts` | yes | yes | yes |
 | `ListDueSchedules` | yes | yes | yes |
 | `ListEvents` | yes | yes | yes |
+| `ListJobCheckpoints` | yes | yes | yes |
 | `ListJobs` | yes | yes | yes |
 | `ListNamespaces` | yes | yes | yes |
 | `ListPoisonAlertEvents` | yes | yes | yes |

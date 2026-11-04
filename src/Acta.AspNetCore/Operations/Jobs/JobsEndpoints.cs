@@ -62,6 +62,7 @@ internal static class JobsEndpoints
         );
         GetJobInputEndpoint.Map(reads, options);
         GetJobDetailEndpoint.Map(reads, options);
+        ListJobCheckpointsEndpoint.Map(reads, options);
         if (controls is not null)
         {
             MapVerbs(controls, options);

@@ -86,14 +86,14 @@ One row per operation folder, `src/Acta/Operations/<Group>/<Operation>/`, and on
 | `EnqueueJob` | `IJobs.EnqueueAsync`<br>`IJobs.WaitAsync`<br>`IJobs.RunAndWaitAsync` | `POST /jobs` | · | routine | routine | inline | `jobs`, `jobs_state`, `lanes`, `tags` | `EnqueueJobTransactionalSpec` |
 | `EnqueueJobs` | `IJobs.EnqueueJobsAsync` | · | · | routine | routine | inline | `jobs`, `jobs_state`, `lanes`, `tags` | `EnqueueJobsConcurrencySpec`, `EnqueueJobsRejectionSpec`, `EnqueueJobsSpec` |
 | `ExplainJob` | `IJobs.ExplainAsync` | · | `explain` | inline | inline | inline | · | `ExplainJobSpec` |
-| `GetJob` | `IJobs.WaitAsync`<br>`IJobs.RunAndWaitAsync`<br>`IJobs.GetAsync` | `GET /jobs/{jobRef}`<br>`GET /jobs/by-key` | · | inline | inline | inline | · | `GetJobCheckpointsSpec`, `GetJobIdSpec`, `GetJobInputSpec`, `GetJobLineageMapSpec`, `GetJobResultSpec`, `GetJobSpec`, `GetJobStatusSpec` |
-| `GetJobCheckpoints` | `IJobs.GetCheckpointsAsync` | · | · | inline | inline | inline | · | `GetJobCheckpointsSpec` |
+| `GetJob` | `IJobs.WaitAsync`<br>`IJobs.RunAndWaitAsync`<br>`IJobs.GetAsync` | `GET /jobs/{jobRef}`<br>`GET /jobs/by-key` | · | inline | inline | inline | · | `GetJobIdSpec`, `GetJobInputSpec`, `GetJobLineageMapSpec`, `GetJobResultSpec`, `GetJobSpec`, `GetJobStatusSpec` |
 | `GetJobDetail` | · | `GET /jobs/{jobRef}/detail` | · | · | · | · | · | · |
 | `GetJobId` | `IJobs.WaitAsync`<br>`IJobs.RunAndWaitAsync`<br>`IJobs.GetIdAsync` | · | · | · | · | · | · | `GetJobIdSpec` |
 | `GetJobInput` | `IJobs.GetInputAsync` | `GET /jobs/{jobRef}/input` | · | inline | inline | inline | · | `GetJobInputSpec` |
 | `GetJobLineageMap` | `IJobs.GetLineageMapAsync` | · | · | inline | inline | inline | · | `GetJobLineageMapSpec` |
 | `GetJobResult` | `IJobs.WaitAsync`<br>`IJobs.RunAndWaitAsync`<br>`IJobs.GetResultAsync` | · | `result` | inline | inline | inline | · | `GetJobResultSpec` |
 | `GetJobStatus` | `IJobs.GetStatusAsync` | · | `status` | inline | inline | inline | · | `GetJobStatusSpec` |
+| `ListJobCheckpoints` | `IJobs.ListCheckpointsAsync` | `GET /jobs/{jobRef}/checkpoints` | · | inline | inline | inline | · | `ListJobCheckpointsSpec` |
 | `PauseJob` | `IJobs.PauseAsync` | `POST /jobs/{jobRef}/pause` | `pause` | inline | inline | inline | `events`, `jobs_state` | `PauseJobSpec` |
 | `PurgeJob` | `IJobs.PurgeAsync` | `POST /jobs/{jobRef}/purge` | · | inline | inline | inline | `alerts`, `checkpoints`, `events`, `jobs`, `jobs_state`, `schedules`, `schedules_state`, `steps`, `tags` | `PurgeJobSpec` |
 | `ReprioritizeJob` | `IJobs.ReprioritizeAsync` | `POST /jobs/{jobRef}/reprioritize` | · | inline | inline | inline | `events`, `jobs_state` | `ReprioritizeJobSpec` |

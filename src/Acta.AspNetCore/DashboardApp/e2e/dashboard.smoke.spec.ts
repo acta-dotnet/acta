@@ -193,7 +193,7 @@ async function mockDashboard(
         job,
         input: { formatName: 'json', formatId: 1, json: '{"invoiceId":42}', byteLength: 16, truncated: false },
         result: null,
-        checkpoints: [],
+        checkpoints: { items: [], nextCursor: null, hasMore: false, totalCount: 0 },
         explain: {
           headline: 'The latest attempt failed in the invoice provider.',
           activeWait: null,

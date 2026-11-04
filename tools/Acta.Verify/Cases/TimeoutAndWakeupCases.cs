@@ -49,12 +49,12 @@ internal static class TimeoutAndWakeupCases
         var checks = OutcomeCheck.Reconcile(expected, actual).ToList();
         if (scenario.Id == "timeout-late-attempt")
         {
-            var checkpoints = await jobs.GetCheckpointsAsync(root, ct);
+            var checkpoints = await jobs.ListCheckpointsAsync(new ListJobCheckpointsQuery(root), ct);
             checks.Add(
                 new(
                     "late-authoritative-write",
                     input.Key,
-                    checkpoints?.Items.All(c => c.Name != "late-write") == true,
+                    checkpoints.Items.All(c => c.Name != "late-write"),
                     "Late external operation remained observable but cancelled attempt could not commit a variable."
                 )
             );

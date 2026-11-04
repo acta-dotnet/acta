@@ -975,18 +975,6 @@ sealed record Acta.GetDefinitionResponse
     System.String RunbookUrl { get;init; }
     System.String RunbookUrlEffective { get;init; }
     System.String RunbookUrlOverride { get;init; }
-sealed record Acta.GetJobCheckpointsItem
-    .ctor(Acta.CheckpointKindCode Kind, System.String Name, System.Nullable<Acta.CheckpointStatusCode> Status, System.Nullable<System.DateTime> DueAtUtc, System.Nullable<Acta.JobPayload> Value, System.DateTime CreatedAtUtc, System.DateTime ModifiedAtUtc)
-    Acta.CheckpointKindCode Kind { get;init; }
-    System.DateTime CreatedAtUtc { get;init; }
-    System.DateTime ModifiedAtUtc { get;init; }
-    System.Nullable<Acta.CheckpointStatusCode> Status { get;init; }
-    System.Nullable<Acta.JobPayload> Value { get;init; }
-    System.Nullable<System.DateTime> DueAtUtc { get;init; }
-    System.String Name { get;init; }
-sealed record Acta.GetJobCheckpointsResponse
-    .ctor(System.Collections.Generic.IReadOnlyList<Acta.GetJobCheckpointsItem> Items)
-    System.Collections.Generic.IReadOnlyList<Acta.GetJobCheckpointsItem> Items { get;init; }
 sealed record Acta.GetJobIdResponse
     .ctor(System.Int64 JobId)
     System.Int64 JobId { get;init; }
@@ -1218,7 +1206,6 @@ interface Acta.IJobs
     System.Threading.Tasks.ValueTask<Acta.EnqueueJobsResponse> EnqueueJobsAsync(System.Collections.Generic.IReadOnlyList<Acta.EnqueueJobRequest> requests, System.Threading.CancellationToken ct = default)
     System.Threading.Tasks.ValueTask<Acta.EnqueueJobsResponse> EnqueueJobsAsync(System.Data.Common.DbTransaction transaction, System.Collections.Generic.IReadOnlyList<Acta.EnqueueJobRequest> requests, System.Threading.CancellationToken ct = default)
     System.Threading.Tasks.ValueTask<Acta.ExplainJobResponse> ExplainAsync(Acta.JobLookup job, System.Threading.CancellationToken ct = default)
-    System.Threading.Tasks.ValueTask<Acta.GetJobCheckpointsResponse> GetCheckpointsAsync(Acta.JobLookup job, System.Threading.CancellationToken ct = default)
     System.Threading.Tasks.ValueTask<Acta.GetJobIdResponse> GetIdAsync(Acta.JobLookup job, System.Threading.CancellationToken ct = default)
     System.Threading.Tasks.ValueTask<Acta.GetJobInputResponse> GetInputAsync(Acta.JobLookup job, System.Threading.CancellationToken ct = default)
     System.Threading.Tasks.ValueTask<Acta.GetJobLineageMapResponse> GetLineageMapAsync(Acta.JobLookup job, Acta.GetJobLineageMapOptions options = null, System.Threading.CancellationToken ct = default)
@@ -1236,6 +1223,7 @@ interface Acta.IJobs
     System.Threading.Tasks.ValueTask<Acta.JobOutcome> RunAndWaitAsync<TInput>(Acta.JobCall<TInput> job, Acta.JobExecutionOptions options = null, System.Threading.CancellationToken ct = default)
     System.Threading.Tasks.ValueTask<Acta.JobOutcome> RunAndWaitAsync<TInput>(TInput input, Acta.JobExecutionOptions options = null, System.Threading.CancellationToken ct = default)
     System.Threading.Tasks.ValueTask<Acta.JobOutcome> WaitAsync(Acta.JobLookup job, System.Nullable<System.TimeSpan> timeout = null, System.Threading.CancellationToken ct = default)
+    System.Threading.Tasks.ValueTask<Acta.ListJobCheckpointsResponse> ListCheckpointsAsync(Acta.ListJobCheckpointsQuery query, System.Threading.CancellationToken ct = default)
     System.Threading.Tasks.ValueTask<Acta.PauseJobResponse> PauseAsync(Acta.JobLookup job, System.String reasonMessage = null, System.String actor = null, System.Nullable<System.Int32> expectedVersion = null, System.Threading.CancellationToken ct = default)
     System.Threading.Tasks.ValueTask<Acta.PurgeJobResponse> PurgeAsync(Acta.JobLookup job, System.String actor = null, System.Threading.CancellationToken ct = default)
     System.Threading.Tasks.ValueTask<Acta.RaiseJobSignalResponse> RaiseSignalAsync(Acta.JobLookup job, System.String name, Acta.JobPayload value, System.String actor = null, System.Threading.CancellationToken ct = default)
@@ -1887,6 +1875,28 @@ sealed record Acta.ListEventsResponse : Acta.IPagedResponse<Acta.ListEventsItem>
     .ctor(System.Collections.Generic.IReadOnlyList<Acta.ListEventsItem> Items, System.String NextCursor, System.Boolean HasMore, System.Int32 PageSize, System.Nullable<System.Int64> TotalCount)
     System.Boolean HasMore { get;init; }
     System.Collections.Generic.IReadOnlyList<Acta.ListEventsItem> Items { get;init; }
+    System.Int32 PageSize { get;init; }
+    System.Nullable<System.Int64> TotalCount { get;init; }
+    System.String NextCursor { get;init; }
+sealed record Acta.ListJobCheckpointsItem
+    .ctor(Acta.CheckpointKindCode Kind, System.String Name, System.Nullable<Acta.CheckpointStatusCode> Status, System.Nullable<System.DateTime> DueAtUtc, System.Nullable<Acta.JobPayload> Value, System.DateTime CreatedAtUtc, System.DateTime ModifiedAtUtc)
+    Acta.CheckpointKindCode Kind { get;init; }
+    System.DateTime CreatedAtUtc { get;init; }
+    System.DateTime ModifiedAtUtc { get;init; }
+    System.Nullable<Acta.CheckpointStatusCode> Status { get;init; }
+    System.Nullable<Acta.JobPayload> Value { get;init; }
+    System.Nullable<System.DateTime> DueAtUtc { get;init; }
+    System.String Name { get;init; }
+sealed record Acta.ListJobCheckpointsQuery
+    .ctor(Acta.JobLookup Job, System.Nullable<System.Int32> PageSize = null, System.String Cursor = null, System.Boolean IncludeTotal = false)
+    Acta.JobLookup Job { get;init; }
+    System.Boolean IncludeTotal { get;init; }
+    System.Nullable<System.Int32> PageSize { get;init; }
+    System.String Cursor { get;init; }
+sealed record Acta.ListJobCheckpointsResponse : Acta.IPagedResponse<Acta.ListJobCheckpointsItem>
+    .ctor(System.Collections.Generic.IReadOnlyList<Acta.ListJobCheckpointsItem> Items, System.String NextCursor, System.Boolean HasMore, System.Int32 PageSize, System.Nullable<System.Int64> TotalCount)
+    System.Boolean HasMore { get;init; }
+    System.Collections.Generic.IReadOnlyList<Acta.ListJobCheckpointsItem> Items { get;init; }
     System.Int32 PageSize { get;init; }
     System.Nullable<System.Int64> TotalCount { get;init; }
     System.String NextCursor { get;init; }

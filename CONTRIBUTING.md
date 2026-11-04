@@ -702,7 +702,10 @@ src/Acta.AspNetCore/Operations/Jobs/
   GetJobDetail/
     GetJobDetailEndpoint.cs          a route of its own shape
     GetJobDetailResponse.cs          the job screen it composes
-    GetJobDetailCheckpoint.cs        a part of that response
+  ListJobCheckpoints/
+    ListJobCheckpointsEndpoint.cs    a route of its own shape
+    ListJobCheckpointsResponse.cs    the SDK page with each value rendered for the wire
+    ListJobCheckpointsItem.cs        a part of that response
 ```
 
 - No type under `Operations/` references a type under `Engine/`, except the wakeup publisher in `Engine/Wakeup/`: a write that makes work claimable wakes the claim loop, and that is the one seam through which an operation reaches the engine.

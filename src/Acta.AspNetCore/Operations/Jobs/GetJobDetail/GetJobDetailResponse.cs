@@ -4,15 +4,16 @@ namespace Acta.AspNetCore;
 
 /// <summary>
 /// The whole job screen in one response, composed from the <see cref="IJobs"/> reads after one id lookup: the job row,
-/// the size-capped input, result, and checkpoint payloads, explain and lineage, the schedules on its slot, and the
-/// eligible workers while it is claimable. A missing part is a null or empty field, not an error, and the two capped
-/// collections ship their filter-wide counts. The unbounded event history keeps its own paged route.
+/// the size-capped input and result, the first page of checkpoints (continued by GET /jobs/{jobRef}/checkpoints), explain
+/// and lineage, the schedules on its slot, and the eligible workers while it is claimable. A missing part is a null or
+/// empty field, not an error, and the capped collections ship their filter-wide counts. The unbounded event history
+/// keeps its own paged route.
 /// </summary>
 internal sealed record GetJobDetailResponse(
     GetJobResponse Job,
     JobPayloadBody Input,
     [property: JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)] JobPayloadBody? Result,
-    IReadOnlyList<GetJobDetailCheckpoint> Checkpoints,
+    ListJobCheckpointsResponse Checkpoints,
     [property: JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)] ExplainJobResponse? Explain,
     [property: JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)] GetJobLineageMapResponse? Lineage,
     IReadOnlyList<ListSchedulesItem> Schedules,
@@ -48,7 +49,7 @@ internal sealed record GetJobDetailResponse(
 
         var input = (await jobs.GetInputAsync(byId, ct))?.Input;
         var result = (await jobs.GetResultAsync(byId, ct))?.Result;
-        var checkpoints = await jobs.GetCheckpointsAsync(byId, ct);
+        var checkpoints = await jobs.ListCheckpointsAsync(new ListJobCheckpointsQuery(byId, IncludeTotal: true), ct);
         var explain = await jobs.ExplainAsync(byId, ct);
         var lineage = await jobs.GetLineageMapAsync(byId, new GetJobLineageMapOptions(ChildLimit), ct);
         var schedules = await operations.Schedules.ListAsync(
@@ -76,7 +77,7 @@ internal sealed record GetJobDetailResponse(
             job,
             JobPayloadBody.From(input ?? JobPayload.None, maxInlineBytes),
             result is { } produced ? JobPayloadBody.From(produced, maxInlineBytes) : null,
-            (checkpoints?.Items ?? []).Select(item => GetJobDetailCheckpoint.From(item, maxInlineBytes)).ToList(),
+            ListJobCheckpointsResponse.From(checkpoints, maxInlineBytes),
             explain,
             lineage,
             schedules.Items,

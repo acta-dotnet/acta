@@ -4,10 +4,11 @@
   import PayloadView from '../../components/PayloadView.svelte';
   import RelativeTime from '../../components/RelativeTime.svelte';
   import StateView from '../../components/StateView.svelte';
+  import { displayFormatter } from '../../format.ts';
 
   // Presentational: checkpoints (variables, signals, timers, progress, child-latches) come from the
-  // aggregate detail read; a value payload expands inline.
-  let { checkpoints = [] }: { checkpoints?: JobCheckpoint[] } = $props();
+  // aggregate detail read's first page; a value payload expands inline, and a larger set says so.
+  let { checkpoints = [], total = null }: { checkpoints?: JobCheckpoint[]; total?: number | null } = $props();
 </script>
 
 <section class="detail-panel" aria-label="Job checkpoints">
@@ -39,6 +40,9 @@
         {/each}
       </tbody>
     </DataTable>
+    {#if total !== null && total > checkpoints.length}
+      <p class="detail-help">Showing {displayFormatter.number(checkpoints.length)} of {displayFormatter.number(total)}.</p>
+    {/if}
   {/if}
 </section>
 

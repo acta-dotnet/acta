@@ -288,11 +288,11 @@ public interface IJobs
     ValueTask<GetJobResultResponse?> GetResultAsync(JobLookup job, CancellationToken ct = default);
 
     /// <summary>
-    /// Read the durable checkpoint slots (variables, signals, sleep timers, the progress slot, child
-    /// latches) recorded for the job identified by <paramref name="job"/>. Returns empty <c>Items</c> when the
-    /// job has no slots, and <c>null</c> when no job matches. Non-blocking point-in-time read.
+    /// One page of the durable checkpoint slots (variables, signals, sleep timers, the progress slot, child
+    /// latches) recorded for <see cref="ListJobCheckpointsQuery.Job"/>, by kind, then name. A job with no slots, or no
+    /// job at all, answers an empty page. Non-blocking point-in-time read.
     /// </summary>
-    ValueTask<GetJobCheckpointsResponse?> GetCheckpointsAsync(JobLookup job, CancellationToken ct = default);
+    ValueTask<ListJobCheckpointsResponse> ListCheckpointsAsync(ListJobCheckpointsQuery query, CancellationToken ct = default);
 
     /// <summary>
     /// Typed convenience over <see cref="GetResultAsync(JobLookup, CancellationToken)"/>: deserializes the

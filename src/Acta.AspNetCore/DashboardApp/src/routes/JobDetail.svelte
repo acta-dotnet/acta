@@ -227,7 +227,7 @@
             {focusExecution}
             onViewInTimeline={viewInTimeline} />
         {:else if activeTab === 'checkpoints'}
-          <JobCheckpointsPanel checkpoints={detail.checkpoints} />
+          <JobCheckpointsPanel checkpoints={detail.checkpoints.items} total={detail.checkpoints.totalCount} />
         {:else if activeTab === 'schedules'}
           <JobSchedulesPanel schedules={detail.schedules} total={detail.schedulesTotal} onChanged={reload} />
         {:else if activeTab === 'lineage'}

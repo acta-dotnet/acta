@@ -17,7 +17,7 @@ Not tagged yet.
 - `SetDefinitionOverridesResponse` is `UpdateDefinitionOverridesResponse`, as `IDefinitions.UpdateOverridesAsync` already said.
 - `GetJobExplanationResponse` is `ExplainJobResponse`, as `IJobs.ExplainAsync` already said, and its parts `GetJobExplanationWait`, `GetJobExplanationLease`, `GetJobExplanationStep`, and `GetJobExplanationAction` are `ExplainJobWait`, `ExplainJobLease`, `ExplainJobStep`, and `ExplainJobAction`.
 - `GetResultResponse` is `GetJobResultResponse`; `IJobs.GetResultAsync` keeps its name.
-- `GetCheckpointsResponse` and `GetCheckpointsItem` are `GetJobCheckpointsResponse` and `GetJobCheckpointsItem`; `IJobs.GetCheckpointsAsync` keeps its name.
+- `IJobs.GetCheckpointsAsync(job)` is `IJobs.ListCheckpointsAsync(new ListJobCheckpointsQuery(job))`, and `GetCheckpointsResponse` and `GetCheckpointsItem` are `ListJobCheckpointsResponse` and `ListJobCheckpointsItem`: it answers one page of the job's slots by kind, then name, with `PageSize`, `Cursor`, and `IncludeTotal` as every list takes them, and an empty page rather than `null` for a missing job. `GET /jobs/{jobRef}/checkpoints` pages them over HTTP and answers 404 for an unknown job, and `GET /jobs/{jobRef}/detail` carries `checkpoints` as the first page (`items`, `nextCursor`, `hasMore`, `pageSize`, `totalCount`) instead of every slot; in the OpenAPI document its items are `ListJobCheckpointsItem`, not `GetJobDetailCheckpoint`.
 - `IJobs.GetJobIdAsync` is `IJobs.GetIdAsync`.
 - `IJobs.UpdateJobInputAsync` is `IJobs.UpdateInputAsync`.
 - `IJobs.EnqueueBatchAsync` is `IJobs.EnqueueJobsAsync`, both overloads, as its `EnqueueJobsResponse` already said.

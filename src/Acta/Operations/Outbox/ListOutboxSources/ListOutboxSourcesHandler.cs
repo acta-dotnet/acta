@@ -52,8 +52,9 @@ internal sealed class ListOutboxSourcesHandler(
             return null;
         }
 
-        var checkpoints = await jobs.GetCheckpointsAsync(JobLookup.ById(slot.JobId), ct);
-        var status = checkpoints?.Items.FirstOrDefault(c =>
+        // The tick summary is a variable, and variables sort first: the relay slot's first page always holds it.
+        var checkpoints = await jobs.ListCheckpointsAsync(new ListJobCheckpointsQuery(JobLookup.ById(slot.JobId)), ct);
+        var status = checkpoints.Items.FirstOrDefault(c =>
             c.Kind == CheckpointKindCode.Variable && string.Equals(c.Name, OutboxTickSummary.VariableName, StringComparison.Ordinal)
         )
             is { Value: { } value }

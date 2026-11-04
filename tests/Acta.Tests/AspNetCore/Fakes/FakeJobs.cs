@@ -39,7 +39,11 @@ internal sealed class FakeJobs : IJobs
             ValueTask.FromResult<GetJobResultResponse?>(
                 Resolve(job) == 42 && StoredResult is { } result ? new GetJobResultResponse(result) : null
             );
-        GetCheckpoints = (job, _) => ValueTask.FromResult(Resolve(job) == 42 ? new GetJobCheckpointsResponse(StoredCheckpoints) : null);
+        ListCheckpoints = (query, _) =>
+        {
+            var items = Resolve(query.Job) == 42 ? StoredCheckpoints : [];
+            return ValueTask.FromResult(new ListJobCheckpointsResponse(items, null, false, 50, query.IncludeTotal ? items.Count : null));
+        };
         Explain = static (job, _) => ValueTask.FromResult<ExplainJobResponse?>(IsFound(job) ? Explanation() : null);
         GetLineageMap = static (job, _, _) => ValueTask.FromResult<GetJobLineageMapResponse?>(IsFound(job) ? Lineage() : null);
         Enqueue = (request, _) => ValueTask.FromResult(Insert(request));
@@ -85,7 +89,7 @@ internal sealed class FakeJobs : IJobs
     /// <summary>Result the found job has produced; null means none.</summary>
     public JobPayload? StoredResult { get; set; }
 
-    public IReadOnlyList<GetJobCheckpointsItem> StoredCheckpoints { get; set; } = [];
+    public IReadOnlyList<ListJobCheckpointsItem> StoredCheckpoints { get; set; } = [];
 
     public List<(string Verb, JobRef JobRef, string? Reason, string? Actor, int? ExpectedVersion)> ControlCalls { get; } = [];
 
@@ -112,7 +116,7 @@ internal sealed class FakeJobs : IJobs
 
     public Func<JobLookup, CancellationToken, ValueTask<GetJobResultResponse?>> GetResult { get; set; }
 
-    public Func<JobLookup, CancellationToken, ValueTask<GetJobCheckpointsResponse?>> GetCheckpoints { get; set; }
+    public Func<ListJobCheckpointsQuery, CancellationToken, ValueTask<ListJobCheckpointsResponse>> ListCheckpoints { get; set; }
 
     public Func<JobLookup, CancellationToken, ValueTask<ExplainJobResponse?>> Explain { get; set; }
 
@@ -154,7 +158,8 @@ internal sealed class FakeJobs : IJobs
 
     ValueTask<GetJobResultResponse?> IJobs.GetResultAsync(JobLookup job, CancellationToken ct) => GetResult(job, ct);
 
-    ValueTask<GetJobCheckpointsResponse?> IJobs.GetCheckpointsAsync(JobLookup job, CancellationToken ct) => GetCheckpoints(job, ct);
+    ValueTask<ListJobCheckpointsResponse> IJobs.ListCheckpointsAsync(ListJobCheckpointsQuery query, CancellationToken ct) =>
+        ListCheckpoints(query, ct);
 
     ValueTask<ExplainJobResponse?> IJobs.ExplainAsync(JobLookup job, CancellationToken ct) => Explain(job, ct);
 

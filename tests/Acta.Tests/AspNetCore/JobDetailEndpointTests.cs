@@ -28,7 +28,7 @@ public sealed class JobDetailEndpointTests
                 StoredResult = JobPayload.FromBytes(JobPayloadFormat.Json, Encoding.UTF8.GetBytes("{\"ok\":true}")),
                 StoredCheckpoints =
                 [
-                    new GetJobCheckpointsItem(
+                    new ListJobCheckpointsItem(
                         CheckpointKindCode.Variable,
                         "counter",
                         null,
@@ -65,7 +65,8 @@ public sealed class JobDetailEndpointTests
         // Depth payloads (input/result/checkpoints).
         Assert.Equal("{\"invoiceId\":7}", root.GetProperty("input").GetProperty("json").GetString());
         Assert.Equal("{\"ok\":true}", root.GetProperty("result").GetProperty("json").GetString());
-        Assert.Equal("counter", root.GetProperty("checkpoints")[0].GetProperty("name").GetString());
+        Assert.Equal("counter", root.GetProperty("checkpoints").GetProperty("items")[0].GetProperty("name").GetString());
+        Assert.Equal(1, root.GetProperty("checkpoints").GetProperty("totalCount").GetInt32());
 
         // Explain, lineage.
         Assert.Contains("headline", root.GetProperty("explain").ToString());

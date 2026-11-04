@@ -590,7 +590,8 @@ export interface JobDetailView {
   job: JobDetail;
   input: JobPayloadView;
   result: JobPayloadView | null;
-  checkpoints: JobCheckpoint[];
+  // The first page; GET /jobs/{ref}/checkpoints continues it from nextCursor.
+  checkpoints: Paged<JobCheckpoint>;
   explain: JobExplanation | null;
   lineage: JobLineage | null;
   schedules: JobScheduleView[];

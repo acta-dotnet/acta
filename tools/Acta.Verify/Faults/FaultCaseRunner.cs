@@ -110,11 +110,15 @@ internal static class FaultCaseRunner
             {
                 await WaitAsync(
                     async () =>
-                        (await jobs.GetCheckpointsAsync(root, ct))?.Items.Any(c => c.Name == "sleep" && c.DueAtUtc is not null) == true,
+                        (await jobs.ListCheckpointsAsync(new ListJobCheckpointsQuery(root), ct)).Items.Any(c =>
+                            c.Name == "sleep" && c.DueAtUtc is not null
+                        ),
                     bound,
                     ct
                 );
-                var armed = (await jobs.GetCheckpointsAsync(root, ct))?.Items.FirstOrDefault(c => c.Name == "sleep");
+                var armed = (await jobs.ListCheckpointsAsync(new ListJobCheckpointsQuery(root), ct)).Items.FirstOrDefault(c =>
+                    c.Name == "sleep"
+                );
                 var armedBeforeDue = armed?.DueAtUtc > DateTimeOffset.UtcNow;
                 checks.Add(new("timer-armed", input.Key, armed?.DueAtUtc is not null, "Durable timer existed before restart."));
                 var killed = worker.Kill();
@@ -131,7 +135,9 @@ internal static class FaultCaseRunner
                 await replacement.ReadyAsync(ct);
                 observingRecovery = true;
                 await WaitAsync(async () => (await jobs.GetAsync(root, ct))?.Status.IsTerminal == true, bound, ct);
-                var timer = (await jobs.GetCheckpointsAsync(root, ct))?.Items.FirstOrDefault(c => c.Name == "sleep");
+                var timer = (await jobs.ListCheckpointsAsync(new ListJobCheckpointsQuery(root), ct)).Items.FirstOrDefault(c =>
+                    c.Name == "sleep"
+                );
                 checks.Add(
                     new(
                         "timer-not-early",
