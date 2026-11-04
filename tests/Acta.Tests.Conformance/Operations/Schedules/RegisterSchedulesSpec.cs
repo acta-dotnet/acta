@@ -367,7 +367,7 @@ public sealed class RegisterSchedulesSpec : ActaRuntimeTestBase<ConformanceFixtu
     )
     {
         var stored = (
-            await Services.GetRequiredService<GetScheduleStateHandler>().HandleAsync(new GetScheduleStateQuery(TestNamespaceId), ct)
+            await Services.GetRequiredService<ListScheduleStatesHandler>().HandleAsync(new ListScheduleStatesQuery(TestNamespaceId), ct)
         ).States;
         var storedForDef = stored.Where(s => s.DefinitionId == defId).ToDictionary(s => s.ScheduleName, s => s, StringComparer.Ordinal);
         var declared = new[]

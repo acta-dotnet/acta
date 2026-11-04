@@ -86,12 +86,12 @@ public sealed class AlertsJobPoisonEventTests
                 {
                     // The skip records live in the recording context, not the store, so no replay is due.
                     "GetAlertFloor" => Array.Empty<GetAlertFloorRow>(),
-                    "GetAlertableEvents" => Events
+                    "ListAlertableEvents" => Events
                         .Where(e => e.EventId > call.Get(ActaSchema.Sql.CursorEventId))
                         .Take(call.Get(ActaSchema.Sql.AlertBatchSize))
                         .ToArray(),
                     "RaiseAlert" => Raise(call.Get(ActaSchema.Alert.JobId), call.Get(ActaSchema.Sql.SourceEventId)),
-                    "GetDeliverableAlerts" => Array.Empty<DeliverableAlert>(),
+                    "ListDeliverableAlerts" => Array.Empty<DeliverableAlert>(),
                     _ => throw new NotSupportedException(call.Stem),
                 }
             ).Services().GetRequiredService<AlertsOperations>();

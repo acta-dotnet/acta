@@ -5,7 +5,7 @@ using Microsoft.Extensions.Options;
 namespace Acta;
 
 /// <summary>
-/// <see cref="IJobs.EnqueueBatchAsync(IReadOnlyList{EnqueueJobRequest}, CancellationToken)"/>: prepares every row,
+/// <see cref="IJobs.EnqueueJobsAsync(IReadOnlyList{EnqueueJobRequest}, CancellationToken)"/>: prepares every row,
 /// rejects same-batch duplicate keys, and inserts the batch in one statement. An owned batch wakes each due
 /// namespace once; one in the caller's transaction never wakes.
 /// </summary>

@@ -42,7 +42,7 @@ public sealed class DispatchParitySpec : ActaRuntimeTestBase<ConformanceFixture,
         {
             batch.Add(new EnqueueJobRequest(TestNamespace, "load-echo", JobPayload.Json(new LoadEcho())));
         }
-        await Jobs.EnqueueBatchAsync(batch, ct);
+        await Jobs.EnqueueJobsAsync(batch, ct);
 
         using var loopCts = CancellationTokenSource.CreateLinkedTokenSource(ct);
         var loop = Runtime.RunLoopAsync(loopCts.Token);

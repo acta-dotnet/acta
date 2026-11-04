@@ -7,7 +7,7 @@ namespace Acta;
 public interface IDefinitions
 {
     /// <summary>Apply <paramref name="overrides"/> to the definition named by <paramref name="jobNamespace"/> and <paramref name="jobName"/>, guarded by <paramref name="expectedVersion"/>. Missing is NotFound; a stale version is VersionConflict.</summary>
-    ValueTask<SetDefinitionOverridesResponse> UpdateOverridesAsync(
+    ValueTask<UpdateDefinitionOverridesResponse> UpdateOverridesAsync(
         string jobNamespace,
         string jobName,
         int expectedVersion,
@@ -39,4 +39,11 @@ public interface IDefinitions
 
     /// <summary>List job definitions ordered by namespace then name, optionally filtered by namespace and status.</summary>
     ValueTask<ListDefinitionsResponse> ListAsync(ListDefinitionsQuery query, CancellationToken ct = default);
+
+    /// <summary>
+    /// The input contract of a registered job, read from the in-process generated manifest: no
+    /// database round-trip, no reflection. Returns null when this host has not registered the job's
+    /// manifest (an enqueue-only dashboard pointed at a shared ledger), so callers degrade quietly.
+    /// </summary>
+    GetDefinitionInputTemplateResponse? GetInputTemplate(string jobNamespace, string jobName);
 }

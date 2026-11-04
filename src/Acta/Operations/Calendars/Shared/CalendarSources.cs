@@ -13,7 +13,7 @@ namespace Acta;
 /// </summary>
 internal sealed class CalendarSources(
     CalendarRegistry registry,
-    GetCurrentCalendarsHandler families,
+    ListCurrentCalendarsHandler families,
     ResolveCalendarVersionHandler versions
 )
 {
@@ -63,7 +63,7 @@ internal sealed class CalendarSources(
             return;
         }
 
-        var current = (await families.HandleAsync(new GetCurrentCalendarsQuery(namespaceId), ct)).Calendars.ToDictionary(
+        var current = (await families.HandleAsync(new ListCurrentCalendarsQuery(namespaceId), ct)).Calendars.ToDictionary(
             c => c.CalendarName,
             c => c.Version,
             StringComparer.Ordinal

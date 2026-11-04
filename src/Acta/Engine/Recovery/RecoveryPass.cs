@@ -62,7 +62,7 @@ internal sealed class RecoveryPass(
 
         // Backstop for raises lost to a crash between a child's terminal landing and its follow-up
         // raise (and for latches re-armed after a state reset): re-raise the child's terminal status.
-        foreach (var latch in (await execution.GetStaleChildLatchesAsync(namespaceId, ct)).Latches)
+        foreach (var latch in (await execution.ListStaleJobChildLatchesAsync(namespaceId, ct)).Latches)
         {
             var raised = await RaiseChildLatch.Run(
                 signals,

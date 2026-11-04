@@ -83,11 +83,11 @@ public sealed class AlertsJobReplayTests
                             JobPayload.Json(Skip(e).Record("test-ns", "invalid-event", "ArgumentException", "staged")).Data.ToArray()
                         ))
                         .ToArray();
-                case "GetPoisonAlertEvents":
+                case "ListPoisonAlertEvents":
                     return events;
-                case "GetAlertableEvents":
+                case "ListAlertableEvents":
                     return Array.Empty<AlertableEvent>();
-                case "GetDeliverableAlerts":
+                case "ListDeliverableAlerts":
                     return Array.Empty<DeliverableAlert>();
                 case "RaiseAlert":
                     var id = call.Get(ActaSchema.Sql.SourceEventId);

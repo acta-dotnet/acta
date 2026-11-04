@@ -21,7 +21,7 @@ public sealed class SqlServerCompletionWaitLockTests : ActaRuntimeTestBase<SqlSe
     {
         var ct = TestContext.Current.CancellationToken;
         var (workerId, claimed) = await ClaimAsync(ct);
-        var wait = await Slots.WaitSignalAsync(
+        var wait = await Slots.WaitJobSignalAsync(
             new ExecutionFence(claimed.JobId, claimed.ExecutionNumber, workerId),
             CheckpointKindCode.Signal,
             "go",
@@ -29,7 +29,7 @@ public sealed class SqlServerCompletionWaitLockTests : ActaRuntimeTestBase<SqlSe
             null,
             ct
         );
-        Assert.Equal(WaitSignalOutcomeCode.SuspendPending, wait.Outcome);
+        Assert.Equal(WaitJobSignalOutcomeCode.SuspendPending, wait.Outcome);
 
         await using var holder = await Db.OpenConnectionAsync(ct);
         await using var hold = await holder.BeginTransactionAsync(ct);
@@ -63,7 +63,7 @@ public sealed class SqlServerCompletionWaitLockTests : ActaRuntimeTestBase<SqlSe
         await LandWaitingAsync(hold, workerId, claimed, ct);
 
         var input = new JobControlInput("op", null, null);
-        var raise = Slots.RaiseSignalAsync(new RaiseSignalSlot(claimed.JobId, CheckpointKindCode.Signal, "go", 0, null, input), ct);
+        var raise = Slots.RaiseJobSignalAsync(new RaiseJobSignalSlot(claimed.JobId, CheckpointKindCode.Signal, "go", 0, null, input), ct);
         var first = await Task.WhenAny(raise, Task.Delay(TimeSpan.FromSeconds(1), ct));
         await hold.CommitAsync(ct);
 

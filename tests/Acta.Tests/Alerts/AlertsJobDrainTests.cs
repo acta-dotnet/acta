@@ -192,14 +192,14 @@ public sealed class AlertsJobDrainTests
                 call.Stem switch
                 {
                     "GetAlertFloor" => Array.Empty<GetAlertFloorRow>(),
-                    "GetAlertableEvents" => Read(
+                    "ListAlertableEvents" => Read(
                         call.Get(ActaSchema.Sql.AlertCursorUtc),
                         call.Get(ActaSchema.Sql.CursorEventId),
                         call.Get(ActaSchema.Sql.AlertBatchSize),
                         call.Get(ActaSchema.Sql.AlertHorizonUtc)
                     ),
                     "RaiseAlert" => new RaiseAlertResponse(++Raises, call.Get(ActaSchema.Sql.SourceEventId)),
-                    "GetDeliverableAlerts" => Array.Empty<DeliverableAlert>(),
+                    "ListDeliverableAlerts" => Array.Empty<DeliverableAlert>(),
                     _ => throw new NotSupportedException(call.Stem),
                 }
             ).Services().GetRequiredService<AlertsOperations>();

@@ -14,12 +14,12 @@ test('buildTenantDetailsPayload sends null for a blank field, clearing that colu
   assert.deepEqual(buildTenantDetailsPayload({ displayName: '', description: '   ' }), { displayName: null, description: null });
 });
 
-test('tenantAdminNeedsReload is false for applied and alreadyInState - both are successes', () => {
+test('tenantAdminNeedsReload is false for applied and already-in-state - both are successes', () => {
   assert.equal(tenantAdminNeedsReload('applied'), false);
-  assert.equal(tenantAdminNeedsReload('alreadyInState'), false);
+  assert.equal(tenantAdminNeedsReload('already-in-state'), false);
 });
 
-test('tenantAdminNeedsReload is true for notFound and versionConflict - never silently resend', () => {
-  assert.equal(tenantAdminNeedsReload('notFound'), true);
-  assert.equal(tenantAdminNeedsReload('versionConflict'), true);
+test('tenantAdminNeedsReload is true for not-found and version-conflict - never silently resend', () => {
+  assert.equal(tenantAdminNeedsReload('not-found'), true);
+  assert.equal(tenantAdminNeedsReload('version-conflict'), true);
 });

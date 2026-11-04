@@ -1,8 +1,8 @@
 namespace Acta;
 
 /// <summary>
-/// The durable retry and result state of one step, one row per <c>(JobId, StepName)</c>, written by <c>start_step</c>
-/// and <c>complete_step</c> behind <c>ctx.RunStepAsync</c>: inserted Pending on first run, updated across retries,
+/// The durable retry and result state of one step, one row per <c>(JobId, StepName)</c>, written by <c>start_job_step</c>
+/// and <c>complete_job_step</c> behind <c>ctx.RunStepAsync</c>: inserted Pending on first run, updated across retries,
 /// and ended Succeeded, Exhausted, or Interrupted (a job restart deletes an Exhausted row). <see cref="Status"/> is
 /// the success indicator, since a void step stores no result, and the retry policy is resolved live each attempt.
 /// Keyed by its job, as every job satellite is: concurrent steps of in-flight jobs spread over those jobs' pages.
@@ -81,7 +81,7 @@ internal sealed class StepEntity : IEntity
     public byte[]? Result { get; set; }
 
     /// <summary>
-    /// First-invocation instant; the wall-clock anchor for the <c>complete_step</c>
+    /// First-invocation instant; the wall-clock anchor for the <c>complete_job_step</c>
     /// <c>RetryWindow</c> predicate (<c>nextRetryAtUtc &gt; CreatedAtUtc + RetryWindow</c> exhausts the
     /// step). Rendered server-side via <see cref="DbDefault.UtcNow"/> on the initial INSERT and never
     /// updated thereafter.

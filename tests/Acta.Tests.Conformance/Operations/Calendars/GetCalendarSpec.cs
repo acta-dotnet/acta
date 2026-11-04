@@ -105,7 +105,7 @@ public sealed class GetCalendarSpec : ActaStorageTestBase<ConformanceFixture>
             read!.Dependents
         );
         // The namespace's list also carries the shared families other specs leave in sys; this test's id keeps to its own.
-        var listed = await Calendars.ListAsync(new ListCalendarsQuery(TestNamespace, NameSearch: TestId), ct);
+        var listed = await Calendars.ListAsync(new ListCalendarsQuery(TestNamespace, NameContains: TestId), ct);
         Assert.Equal(1, Assert.Single(listed.Items).DependentCount);
     }
 

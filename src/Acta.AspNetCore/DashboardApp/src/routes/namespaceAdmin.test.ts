@@ -26,12 +26,12 @@ test('isSysNamespace mirrors the backend reservation: the bare name and the sys.
   assert.equal(isSysNamespace(undefined), false);
 });
 
-test('namespaceAdminNeedsReload is false for applied and alreadyInState - both are successes', () => {
+test('namespaceAdminNeedsReload is false for applied and already-in-state - both are successes', () => {
   assert.equal(namespaceAdminNeedsReload('applied'), false);
-  assert.equal(namespaceAdminNeedsReload('alreadyInState'), false);
+  assert.equal(namespaceAdminNeedsReload('already-in-state'), false);
 });
 
-test('namespaceAdminNeedsReload is true for notFound and versionConflict - never silently resend', () => {
-  assert.equal(namespaceAdminNeedsReload('notFound'), true);
-  assert.equal(namespaceAdminNeedsReload('versionConflict'), true);
+test('namespaceAdminNeedsReload is true for not-found and version-conflict - never silently resend', () => {
+  assert.equal(namespaceAdminNeedsReload('not-found'), true);
+  assert.equal(namespaceAdminNeedsReload('version-conflict'), true);
 });

@@ -7,7 +7,7 @@ public class JobExplainerTests
     private static readonly DateTime Now = new(2026, 7, 4, 12, 0, 0, DateTimeKind.Utc);
     private static readonly WorkerRef LeaseWorkerRef = new(new Guid("019826f0-0000-7000-8000-000000000011"));
 
-    private static GetJobExplanationHeaderRow Header(
+    private static ExplainJobHeaderRow Header(
         JobStatusCode status,
         JobKindCode kind = JobKindCode.Ordinary,
         int failureCount = 0,
@@ -54,13 +54,13 @@ public class JobExplainerTests
             DefinitionStatus: definitionStatus
         );
 
-    private static GetJobExplanationRows Data(
-        GetJobExplanationHeaderRow header,
-        IReadOnlyList<GetJobExplanationStepRow>? steps = null,
-        IReadOnlyList<GetJobExplanationCheckpointRow>? checkpoints = null
+    private static ExplainJobRows Data(
+        ExplainJobHeaderRow header,
+        IReadOnlyList<ExplainJobStepRow>? steps = null,
+        IReadOnlyList<ExplainJobCheckpointRow>? checkpoints = null
     ) => new(header, steps ?? [], checkpoints ?? []);
 
-    private static GetJobExplanationCheckpointRow Checkpoint(
+    private static ExplainJobCheckpointRow Checkpoint(
         CheckpointKindCode kind,
         string name,
         CheckpointStatusCode? state,
@@ -75,7 +75,7 @@ public class JobExplainerTests
             checkpoints: [Checkpoint(CheckpointKindCode.Signal, "fraud-review", CheckpointStatusCode.Pending)]
         );
 
-        var x = GetJobExplanationHandler.Explain(data, Now);
+        var x = ExplainJobHandler.Explain(data, Now);
 
         Assert.NotNull(x.ActiveWait);
         Assert.Equal(CheckpointKindCode.Signal, x.ActiveWait!.Kind);
@@ -95,7 +95,7 @@ public class JobExplainerTests
             checkpoints: [Checkpoint(CheckpointKindCode.Signal, "fraud-review", CheckpointStatusCode.Pending, Now.AddMinutes(30))]
         );
 
-        var x = GetJobExplanationHandler.Explain(data, Now);
+        var x = ExplainJobHandler.Explain(data, Now);
 
         // An absolute instant, not "in 30m": an operator diaries against the deadline, and the phrase
         // has to stay true after the explanation is pasted somewhere.
@@ -113,7 +113,7 @@ public class JobExplainerTests
             checkpoints: [Checkpoint(CheckpointKindCode.ChildLatch, "sys.child.4242", CheckpointStatusCode.Pending)]
         );
 
-        var x = GetJobExplanationHandler.Explain(data, Now);
+        var x = ExplainJobHandler.Explain(data, Now);
 
         Assert.Equal(CheckpointKindCode.ChildLatch, x.ActiveWait!.Kind);
         Assert.Equal("sys.child.4242", x.ActiveWait.Name);
@@ -136,7 +136,7 @@ public class JobExplainerTests
             checkpoints: [Checkpoint(CheckpointKindCode.ChildLatch, "sys.child.7", CheckpointStatusCode.Pending, Now.AddMinutes(30))]
         );
 
-        var x = GetJobExplanationHandler.Explain(data, Now);
+        var x = ExplainJobHandler.Explain(data, Now);
 
         Assert.Equal(Now.AddMinutes(30), x.ActiveWait!.DueAtUtc);
         Assert.Contains("waiting for child job 7", x.Headline, StringComparison.Ordinal);
@@ -153,7 +153,7 @@ public class JobExplainerTests
             checkpoints: [Checkpoint(CheckpointKindCode.Timer, "acta.sleep", CheckpointStatusCode.Pending, Now.AddMinutes(30))]
         );
 
-        var x = GetJobExplanationHandler.Explain(data, Now);
+        var x = ExplainJobHandler.Explain(data, Now);
 
         Assert.Equal(CheckpointKindCode.Timer, x.ActiveWait!.Kind);
         Assert.Equal(Now.AddMinutes(30), x.ActiveWait.DueAtUtc);
@@ -165,7 +165,7 @@ public class JobExplainerTests
     [Fact]
     public void Suspended_with_missing_wait_details_points_to_the_timeline()
     {
-        var x = GetJobExplanationHandler.Explain(Data(Header(JobStatusCode.Suspended)), Now);
+        var x = ExplainJobHandler.Explain(Data(Header(JobStatusCode.Suspended)), Now);
 
         Assert.Null(x.ActiveWait);
         Assert.Contains("no pending signal, child, or timer checkpoint", x.Headline);
@@ -187,7 +187,7 @@ public class JobExplainerTests
             )
         );
 
-        var x = GetJobExplanationHandler.Explain(data, Now);
+        var x = ExplainJobHandler.Explain(data, Now);
 
         Assert.NotNull(x.Lease);
         Assert.False(x.Lease!.Expired);
@@ -216,7 +216,7 @@ public class JobExplainerTests
             )
         );
 
-        var x = GetJobExplanationHandler.Explain(data, Now);
+        var x = ExplainJobHandler.Explain(data, Now);
 
         Assert.NotNull(x.Lease);
         Assert.Null(x.Lease!.WorkerRef);
@@ -244,7 +244,7 @@ public class JobExplainerTests
             )
         );
 
-        var x = GetJobExplanationHandler.Explain(data, Now);
+        var x = ExplainJobHandler.Explain(data, Now);
 
         Assert.True(x.Lease!.Expired);
         Assert.Contains("lease expired 2m ago", x.Headline);
@@ -269,7 +269,7 @@ public class JobExplainerTests
             )
         );
 
-        var x = GetJobExplanationHandler.Explain(data, Now);
+        var x = ExplainJobHandler.Explain(data, Now);
 
         Assert.Contains("Failed", x.Lease!.RecoveryExpectation);
         Assert.True(x.Lease.WorkerStale);
@@ -280,7 +280,7 @@ public class JobExplainerTests
     {
         var data = Data(Header(JobStatusCode.Failed, latestFailureMessage: "boom in handler"));
 
-        var x = GetJobExplanationHandler.Explain(data, Now);
+        var x = ExplainJobHandler.Explain(data, Now);
 
         Assert.Equal("boom in handler", x.Reason);
         Assert.Equal("Failed.", x.Headline);
@@ -291,11 +291,11 @@ public class JobExplainerTests
     [Fact]
     public void Ready_in_the_future_is_scheduled_and_ready_now_waits_for_a_worker()
     {
-        var scheduled = GetJobExplanationHandler.Explain(Data(Header(JobStatusCode.Ready, nextRunAtUtc: Now.AddMinutes(5))), Now);
+        var scheduled = ExplainJobHandler.Explain(Data(Header(JobStatusCode.Ready, nextRunAtUtc: Now.AddMinutes(5))), Now);
         Assert.Contains("scheduled to run in 5m", scheduled.Headline);
         Assert.Contains(scheduled.NextActions, a => a.Description.Contains("next run time"));
 
-        var idle = GetJobExplanationHandler.Explain(Data(Header(JobStatusCode.Ready, nextRunAtUtc: Now.AddMinutes(-1))), Now);
+        var idle = ExplainJobHandler.Explain(Data(Header(JobStatusCode.Ready, nextRunAtUtc: Now.AddMinutes(-1))), Now);
         Assert.Equal("Ready and eligible for claim.", idle.Headline);
         Assert.Contains(idle.NextActions, a => a.Description.Contains("namespace \"payments\""));
     }
@@ -308,7 +308,7 @@ public class JobExplainerTests
             checkpoints: [Checkpoint(CheckpointKindCode.Signal, "fraud-review", CheckpointStatusCode.Pending)]
         );
 
-        var x = GetJobExplanationHandler.Explain(data, Now);
+        var x = ExplainJobHandler.Explain(data, Now);
 
         Assert.Equal("payments-v42", x.LastExecutedBy);
     }
@@ -316,7 +316,7 @@ public class JobExplainerTests
     [Fact]
     public void Paused_offers_resume()
     {
-        var x = GetJobExplanationHandler.Explain(Data(Header(JobStatusCode.Paused, nextRunAtUtc: Now)), Now);
+        var x = ExplainJobHandler.Explain(Data(Header(JobStatusCode.Paused, nextRunAtUtc: Now)), Now);
         Assert.Contains("Paused", x.Headline);
         Assert.Contains(x.NextActions, a => a.Kind == "resume");
     }
@@ -326,11 +326,8 @@ public class JobExplainerTests
     {
         var firing = Checkpoint(CheckpointKindCode.Firing, "sys.firing", CheckpointStatusCode.Pending);
 
-        var paused = GetJobExplanationHandler.Explain(
-            Data(Header(JobStatusCode.Paused, JobKindCode.PermanentSlot), checkpoints: [firing]),
-            Now
-        );
-        var settled = GetJobExplanationHandler.Explain(
+        var paused = ExplainJobHandler.Explain(Data(Header(JobStatusCode.Paused, JobKindCode.PermanentSlot), checkpoints: [firing]), Now);
+        var settled = ExplainJobHandler.Explain(
             Data(
                 Header(JobStatusCode.Paused, JobKindCode.PermanentSlot),
                 checkpoints: [firing with { CheckpointStatus = CheckpointStatusCode.Succeeded }]
@@ -338,7 +335,7 @@ public class JobExplainerTests
             Now
         );
         // A per-occurrence root carries an envelope too, but restarts.
-        var root = GetJobExplanationHandler.Explain(Data(Header(JobStatusCode.Ready), checkpoints: [firing]), Now);
+        var root = ExplainJobHandler.Explain(Data(Header(JobStatusCode.Ready), checkpoints: [firing]), Now);
 
         Assert.Contains("A firing is outstanding", paused.Headline);
         Assert.DoesNotContain("firing", settled.Headline);
@@ -348,7 +345,7 @@ public class JobExplainerTests
     [Fact]
     public void Idle_points_at_the_schedules()
     {
-        var x = GetJobExplanationHandler.Explain(Data(Header(JobStatusCode.Idle)), Now);
+        var x = ExplainJobHandler.Explain(Data(Header(JobStatusCode.Idle)), Now);
         Assert.Contains("schedules", x.Headline);
         Assert.DoesNotContain(x.NextActions, a => a.Kind == "resume");
     }
@@ -356,7 +353,7 @@ public class JobExplainerTests
     [Fact]
     public void A_retired_definitions_idle_slot_points_at_the_build_that_carries_it()
     {
-        var x = GetJobExplanationHandler.Explain(
+        var x = ExplainJobHandler.Explain(
             Data(Header(JobStatusCode.Idle, JobKindCode.PermanentSlot, definitionStatus: DefinitionStatusCode.Retired)),
             Now
         );
@@ -371,21 +368,21 @@ public class JobExplainerTests
             Header(JobStatusCode.Suspended),
             steps:
             [
-                new GetJobExplanationStepRow(
+                new ExplainJobStepRow(
                     "reserve-stock",
                     StepStatusCode.Succeeded,
                     AttemptNumber: 1,
                     NextRetryAtUtc: null,
                     FailureMessage: null
                 ),
-                new GetJobExplanationStepRow(
+                new ExplainJobStepRow(
                     "charge-card",
                     StepStatusCode.Pending,
                     AttemptNumber: 2,
                     NextRetryAtUtc: Now.AddMinutes(1),
                     FailureMessage: "declined"
                 ),
-                new GetJobExplanationStepRow(
+                new ExplainJobStepRow(
                     "ship",
                     StepStatusCode.Exhausted,
                     AttemptNumber: 5,
@@ -395,7 +392,7 @@ public class JobExplainerTests
             ]
         );
 
-        var x = GetJobExplanationHandler.Explain(data, Now);
+        var x = ExplainJobHandler.Explain(data, Now);
 
         Assert.Equal(3, x.Steps.Count);
         Assert.Contains("succeeded and will not rerun", x.Steps[0].Explanation);
@@ -408,10 +405,10 @@ public class JobExplainerTests
     {
         var data = Data(
             Header(JobStatusCode.Succeeded),
-            steps: [new GetJobExplanationStepRow("reserve-stock", StepStatusCode.Succeeded, 1, null, null)]
+            steps: [new ExplainJobStepRow("reserve-stock", StepStatusCode.Succeeded, 1, null, null)]
         );
 
-        var x = GetJobExplanationHandler.Explain(data, Now);
+        var x = ExplainJobHandler.Explain(data, Now);
 
         Assert.Equal("Succeeded.", x.Headline);
         var step = Assert.Single(x.Steps);
@@ -422,7 +419,7 @@ public class JobExplainerTests
     [Fact]
     public void Cancelled_surfaces_reason_separately_and_only_restarts_if_reversed()
     {
-        var x = GetJobExplanationHandler.Explain(Data(Header(JobStatusCode.Cancelled, latestFailureMessage: "superseded")), Now);
+        var x = ExplainJobHandler.Explain(Data(Header(JobStatusCode.Cancelled, latestFailureMessage: "superseded")), Now);
 
         Assert.Equal("Cancelled.", x.Headline);
         Assert.Equal("superseded", x.Reason);
@@ -432,7 +429,7 @@ public class JobExplainerTests
     [Fact]
     public void Status_meaning_decodes_the_code_description()
     {
-        var x = GetJobExplanationHandler.Explain(
+        var x = ExplainJobHandler.Explain(
             Data(Header(JobStatusCode.Executing, leasedByWorkerId: 1, leaseExpiresAtUtc: Now.AddMinutes(1))),
             Now
         );

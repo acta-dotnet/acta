@@ -16,7 +16,7 @@ public sealed class WorkerHeartbeatDefinitionReloadTests
     {
         var stamp = new DateTime(2026, 10, 10, 0, 0, 0, DateTimeKind.Utc);
         var session = new ScriptedSession(call =>
-            call.Stem == "GetDefinitionContracts"
+            call.Stem == "ListDefinitionContracts"
                 ? Array.Empty<StoredDefinitionContract>()
                 : new ExtendWorkerLeasesRow(JobId: null, ExecutionNumber: null, LockKey: null, Renewed: false, stamp)
         );
@@ -51,5 +51,5 @@ public sealed class WorkerHeartbeatDefinitionReloadTests
         );
     }
 
-    private static int Reads(ScriptedSession session) => session.Calls.Count(call => call.Stem == "GetDefinitionContracts");
+    private static int Reads(ScriptedSession session) => session.Calls.Count(call => call.Stem == "ListDefinitionContracts");
 }

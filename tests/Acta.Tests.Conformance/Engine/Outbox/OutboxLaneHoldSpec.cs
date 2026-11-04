@@ -57,7 +57,7 @@ public sealed class OutboxLaneHoldSpec : OutboxRelayIntegrationBase
         await Fixture.StageInOneTransactionAsync(SourceTable, [Row("claimed", "a"), Row("claimed", "b")]);
 
         // Another relay's claim, left in flight: the head is Claimed under a token this tick does not own.
-        var held = (await SourceStore.ClaimDueAsync(new ClaimOutboxCommand(Guid.NewGuid(), 10, 180), ct)).Rows;
+        var held = (await SourceStore.ClaimAsync(new ClaimOutboxCommand(Guid.NewGuid(), 10, 180), ct)).Rows;
         Assert.Single(held);
 
         await Relay(SourceStore, OwnedSubmission).RunTickAsync(TickOptions(), ct);
@@ -79,7 +79,7 @@ public sealed class OutboxLaneHoldSpec : OutboxRelayIntegrationBase
         var ct = TestContext.Current.CancellationToken;
         await Fixture.StageInOneTransactionAsync(SourceTable, [Row("moving", "a"), Row("moving", "b")]);
         var token = Guid.NewGuid();
-        var head = Assert.Single((await SourceStore.ClaimDueAsync(new ClaimOutboxCommand(token, 10, 180), ct)).Rows);
+        var head = Assert.Single((await SourceStore.ClaimAsync(new ClaimOutboxCommand(token, 10, 180), ct)).Rows);
 
         // Another relay's finalize of the head, held open and then rolled back, so the head stays Claimed throughout.
         var session = SourceConnection.Session;

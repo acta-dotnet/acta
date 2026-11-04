@@ -34,7 +34,7 @@
   const mutation = useControlMutation<{ jobRef: string; body: { input: RawJson }; reason?: string }, JobControlResponse>({
     path: (vars) => `jobs/${vars.jobRef}/input`,
     body: (vars) => vars.body,
-    notFound: () => ({ action: 'notFound', status: null }),
+    notFound: () => ({ action: 'not-found', status: null }),
     invalidateKeys: () => [['jobs']] as const
   });
 

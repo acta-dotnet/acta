@@ -34,7 +34,7 @@ internal static class OutboxSchema
 
         /// <summary>
         /// Keyset cursor for the quarantined listing: the last outbox_id of the previous page, NULL for
-        /// the first page. The id is the order key - see ListQuarantinedOutbox.sql for why not a timestamp.
+        /// the first page. The id is the order key - see ListQuarantinedOutboxRows.sql for why not a timestamp.
         /// </summary>
         public static readonly DbValueSpec<Guid?> AfterOutboxId = new("p_after_outbox_id", DbKind.Guid);
 

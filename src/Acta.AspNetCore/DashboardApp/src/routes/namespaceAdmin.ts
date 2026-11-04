@@ -31,8 +31,8 @@ export function isSysNamespace(jobNamespace: string | null | undefined): boolean
 }
 
 // Same AdminControlAction semantics as tenantAdmin.ts's tenantAdminNeedsReload:
-// 'applied'/'alreadyInState' are successes, while 'notFound'/'versionConflict' mean the caller's
+// 'applied'/'already-in-state' are successes, while 'not-found'/'version-conflict' mean the caller's
 // local copy is stale - never silently resend the same expectedVersion, only warn and reload.
 export function namespaceAdminNeedsReload(action: AdminControlAction): boolean {
-  return action === 'notFound' || action === 'versionConflict';
+  return action === 'not-found' || action === 'version-conflict';
 }

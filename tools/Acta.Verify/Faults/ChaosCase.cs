@@ -84,7 +84,7 @@ public static class ChaosCase
             var acknowledged = 0;
             foreach (var chunk in cohort.Chunk(1000))
             {
-                var response = await jobs.EnqueueBatchAsync(
+                var response = await jobs.EnqueueJobsAsync(
                     chunk
                         .Select(
                             (s, i) =>

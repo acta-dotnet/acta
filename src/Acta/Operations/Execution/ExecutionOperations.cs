@@ -10,14 +10,14 @@ internal sealed class ExecutionOperations(
     ClaimJobHandler claimJob,
     CompleteExecutionsHandler completeExecutions,
     ReclaimStuckJobsHandler reclaimStuckJobs,
-    StartStepHandler startStep,
-    CompleteStepHandler completeStep,
-    AccessCheckpointHandler accessCheckpoint,
-    RecordNoteHandler recordNote,
-    GetChildJobIdsHandler getChildJobIds,
-    GetStaleChildLatchesHandler getStaleChildLatches,
-    ArmOrConsumeSleepTimerHandler armOrConsumeSleepTimer,
-    GetFiringHandler getFiring
+    StartJobStepHandler startJobStep,
+    CompleteJobStepHandler completeJobStep,
+    AccessJobCheckpointHandler accessJobCheckpoint,
+    RecordJobNoteHandler recordJobNote,
+    ListChildJobIdsHandler listChildJobIds,
+    ListStaleJobChildLatchesHandler listStaleJobChildLatches,
+    ArmOrConsumeJobSleepTimerHandler armOrConsumeJobSleepTimer,
+    GetScheduleFiringHandler getScheduleFiring
 )
 {
     /// <summary>
@@ -55,8 +55,8 @@ internal sealed class ExecutionOperations(
     /// resolves the timeout as the waiting overload defines it.
     /// </summary>
     /// <summary>The envelope of the firing the attempt holds, under its fence, and whether the attempt is its first; null for a lost claim or an ordinary job.</summary>
-    public Task<GetFiringResponse?> GetFiringAsync(ExecutionFence fence, CancellationToken ct) =>
-        getFiring.HandleAsync(new GetFiringQuery(fence), ct);
+    public Task<GetScheduleFiringResponse?> GetScheduleFiringAsync(ExecutionFence fence, CancellationToken ct) =>
+        getScheduleFiring.HandleAsync(new GetScheduleFiringQuery(fence), ct);
 
     public Task<ReclaimStuckJobsResponse> ReclaimStuckJobsAsync(int namespaceId, CancellationToken ct) =>
         reclaimStuckJobs.HandleAsync(new ReclaimStuckJobsCommand(namespaceId), ct);
@@ -66,52 +66,54 @@ internal sealed class ExecutionOperations(
     /// invoke / replay / suspend / exhausted / interrupted, incrementing <c>attempt_number</c> before a
     /// retry invoke. Never mutates job status.
     /// </summary>
-    public Task<StartStepResponse> StartStepAsync(ExecutionFence fence, string name, bool atMostOnce, CancellationToken ct) =>
-        startStep.HandleAsync(new StartStepCommand(fence, name, atMostOnce), ct);
+    public Task<StartJobStepResponse> StartJobStepAsync(ExecutionFence fence, string name, bool atMostOnce, CancellationToken ct) =>
+        startJobStep.HandleAsync(new StartJobStepCommand(fence, name, atMostOnce), ct);
 
     /// <summary>
     /// Records one invoked step attempt's outcome (store result + mark Succeeded, or decide
     /// retry-versus-exhaust against the precomputed policy), guarded by the <c>ExpectedVersion</c> CAS.
     /// </summary>
-    public Task<CompleteStepResponse> CompleteStepAsync(CompleteStepCommand command, CancellationToken ct) =>
-        completeStep.HandleAsync(command, ct);
+    public Task<CompleteJobStepResponse> CompleteJobStepAsync(CompleteJobStepCommand command, CancellationToken ct) =>
+        completeJobStep.HandleAsync(command, ct);
 
     /// <summary>
     /// The one generic CRUD call over a <c>checkpoints</c> slot, dispatched by
-    /// <see cref="AccessCheckpointAction"/> through a single durable statement. Returns exactly one
+    /// <see cref="AccessJobCheckpointAction"/> through a single durable statement. Returns exactly one
     /// outcome row. Checkpoint kinds with their own concurrency choreography (signals, timers,
     /// child latches) keep dedicated operations.
     /// </summary>
-    public Task<AccessCheckpointResponse> AccessCheckpointAsync(AccessCheckpointCommand command, CancellationToken ct) =>
-        accessCheckpoint.HandleAsync(command, ct);
+    public Task<AccessJobCheckpointResponse> AccessJobCheckpointAsync(AccessJobCheckpointCommand command, CancellationToken ct) =>
+        accessJobCheckpoint.HandleAsync(command, ct);
 
     /// <summary>
     /// Appends one application-authored <c>job.note-recorded</c> event under the attempt and worker of
     /// <paramref name="fence"/>, and only while that attempt still holds the job. Every other event rides inside the
     /// transition it describes, so none claims a transition that did not commit; a note claims nothing but itself.
     /// </summary>
-    public Task RecordNoteAsync(ExecutionFence fence, string message, JobPayload? detail, CancellationToken ct) =>
-        recordNote.HandleAsync(new RecordNoteCommand(fence, message, detail), ct);
+    public Task RecordJobNoteAsync(ExecutionFence fence, string message, JobPayload? detail, CancellationToken ct) =>
+        recordJobNote.HandleAsync(new RecordJobNoteCommand(fence, message, detail), ct);
 
     /// <summary>
     /// Reads the ids of a job's direct children, terminal ones included: the per-level feed for the
     /// recursive cancel cascade, which must walk through a terminal child to reach live descendants.
     /// </summary>
-    public Task<GetChildJobIdsResponse> GetChildJobIdsAsync(long parentJobId, CancellationToken ct) =>
-        getChildJobIds.HandleAsync(new GetChildJobIdsQuery(parentJobId), ct);
+    public Task<ListChildJobIdsResponse> ListChildJobIdsAsync(long parentJobId, CancellationToken ct) =>
+        listChildJobIds.HandleAsync(new ListChildJobIdsQuery(parentJobId), ct);
 
     /// <summary>
     /// Maintenance backstop feed: finds Pending child-done latches in one namespace whose child
     /// landed terminal without setting them, so the caller can re-raise each and release the parent.
     /// </summary>
-    public Task<GetStaleChildLatchesResponse> GetStaleChildLatchesAsync(int namespaceId, CancellationToken ct) =>
-        getStaleChildLatches.HandleAsync(new GetStaleChildLatchesQuery(namespaceId), ct);
+    public Task<ListStaleJobChildLatchesResponse> ListStaleJobChildLatchesAsync(int namespaceId, CancellationToken ct) =>
+        listStaleJobChildLatches.HandleAsync(new ListStaleJobChildLatchesQuery(namespaceId), ct);
 
     /// <summary>
     /// Drives the sleep-timer arm/consume transition and returns its one-row decision. Caller owns
     /// user-name validation and delay normalization; exactly one of <c>DelaySeconds</c> /
     /// <c>ResumeAtUtc</c> is set.
     /// </summary>
-    public Task<ArmOrConsumeSleepTimerResponse> ArmOrConsumeSleepTimerAsync(ArmOrConsumeSleepTimerCommand command, CancellationToken ct) =>
-        armOrConsumeSleepTimer.HandleAsync(command, ct);
+    public Task<ArmOrConsumeJobSleepTimerResponse> ArmOrConsumeJobSleepTimerAsync(
+        ArmOrConsumeJobSleepTimerCommand command,
+        CancellationToken ct
+    ) => armOrConsumeJobSleepTimer.HandleAsync(command, ct);
 }

@@ -50,7 +50,7 @@ public sealed class RecurringSlotFromAnotherGenerationSpec : ActaRuntimeTestBase
 
         await using var newGeneration = BuildGenerationProvider<TestJobsManifest>(GenerationB, "generation-b");
         await newGeneration.GetServices<WorkerRuntime>().Single().InitializeAsync(ct);
-        var triggered = await Operations.Schedules.TriggerNowAsync(
+        var triggered = await Operations.Schedules.TriggerAsync(
             new ScheduleLookup(TestNamespace, UnscheduledPingManifest.JobName, ScheduleName),
             ct: ct
         );

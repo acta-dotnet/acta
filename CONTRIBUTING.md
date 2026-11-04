@@ -493,7 +493,7 @@ A type is `{Subject}{Role}`, one suffix per role. An operation is `VerbNoun` (`P
 | The column values one batch write binds, internal | `Values` | `JobEnqueueValues` |
 | Element of an operation's response | `Item` | `ListJobsItem`, `GetTagsItem` |
 | A group's operations class | the group's name plus `Operations` | `JobsOperations : IJobs`, `ExecutionOperations` |
-| HTTP request body of a route | `Request` | `PauseJobRequest`, `UpsertJobTagsRequest` |
+| HTTP request body of a route | `Request` | `PauseJobRequest`, `UpsertJobTagRequest` |
 | Route table of a group / one route | `Endpoints`, `Endpoint` | `JobsEndpoints`, `EnqueueJobEndpoint` |
 | Table model, one class per table, named by the table's singular | `Entity` | `JobEntity`, `JobStateEntity` |
 | Persisted enum, options, fluent builder, error, attribute | `Code`, `Options`, `Builder`, `Exception`, `Attribute` | `JobStatusCode` |
@@ -503,7 +503,7 @@ A type is `{Subject}{Role}`, one suffix per role. An operation is `VerbNoun` (`P
 - `GetX` returns `GetXResponse`, or `null` when nothing is found; `ListX` returns `ListXResponse : IPagedResponse<ListXItem>`. A response's parts are records of their own, named `<Operation><Part>`.
 - Every operation has its own input and response; responses that belong together share an interface, never a class.
 - A command's answer is its `XResponse`, its one member named for what it means; a command that answers nothing returns nothing.
-- A route reads its own `XRequest` and answers with the SDK's `XResponse`; a route that renders or composes is its own operation. `EnqueueJobRequest` is the one `Request` outside `Acta.AspNetCore`.
+- A route reads its own `XRequest` and answers with the SDK's `XResponse`; a route that only renders the payload its operation answers is that operation, under its name, and answers `JobPayloadBody`; a route that composes several operations is its own operation. `EnqueueJobRequest` is the one `Request` outside `Acta.AspNetCore`.
 - Every `*Row` carries `[DbProjection]`, lives in its operation's folder, and is never public.
 - A type takes the subject of the table it describes (`StepStatusCode` maps `steps.step_status_code`); `Job` prefixes only what describes a job.
 - Banned suffixes: `Result`, `Dto`, `Data`, `Info`, `Model`, `Record`, `ListItem`, `Detail`, `Snapshot`, `Set`, `Store`, `Service`, `Api`, `Page`, `PageRequest`, `Decision`, `HttpRequest`, `HttpResponse`, and `Entity` or `Item` outside their roles.
@@ -559,7 +559,7 @@ The boundary has three sides, and only two of them are inside it:
     job, event, alert, definition, namespace, tenant, worker, schedule, lineage, and explanation read
     models alike.
   - **Ambient identity on `JobContext`**: `JobId`, `NamespaceId`, `TenantId`, `WorkerId`.
-  - **Addressing and resolution**: `JobLookup.ById`, and `IJobs.GetJobIdAsync`, which exists precisely
+  - **Addressing and resolution**: `JobLookup.ById`, and `IJobs.GetIdAsync`, which exists precisely
     to turn a lookup into the internal id an advanced caller then uses.
   - **Write outcomes, failures, and their ids**: `EnqueueJobResponse`, `IJobControlResponse.JobId`, the other
     `Job*Outcome` records, `JobFailedException.JobId`,
@@ -686,13 +686,13 @@ src/Acta/Operations/Ledger/ListJobs/
 ```
 
 - A write operation has an `XCommand`, an `XHandler`, and an `XResponse`, public when a facade returns it, or none when it answers nothing. A read operation has an `XQuery` (none when it takes no input) and an `XHandler`; a `GetX` returns its `GetXResponse`, null when nothing is found, and a list `ListX` its `ListXResponse : IPagedResponse<ListXItem>`. The suffixes are in [naming conventions](#naming-conventions).
-- An operation's public and internal types share its folder: its query, response, and response element (`ListXItem`, `GetXItem`) sit beside its command, handler, row, and SQL, and a response's parts beside it as `<Operation><Part>` (`GetJobExplanationWait`). A type several operations share sits in the `Shared/` folder of the nearest folder holding them all, `Operations/<Group>/Shared/` within a group and `Operations/Shared/` across groups, and only that folder's parent and what lies below it may name it, so it is internal. A type that code outside `Operations/` names, or that is public, sits in `Domain/<Group>/`. `Acta` has one namespace, so moving a type never changes its name.
+- An operation's public and internal types share its folder: its query, response, and response element (`ListXItem`, `GetXItem`) sit beside its command, handler, row, and SQL, and a response's parts beside it as `<Operation><Part>` (`ExplainJobWait`). A type several operations share sits in the `Shared/` folder of the nearest folder holding them all, `Operations/<Group>/Shared/` within a group and `Operations/Shared/` across groups, and only that folder's parent and what lies below it may name it, so it is internal. A type that code outside `Operations/` names, or that is public, sits in `Domain/<Group>/`. `Acta` has one namespace, so moving a type never changes its name.
 - A group's root holds its operations class and the interfaces that class implements, nothing else. The class implements the group's public interface when there is one (`JobsOperations : IJobs`), and the engine's extra calls are `internal` methods on it. It is hand-written, one line per operation and never `async`: `PauseAsync(...) => pauseJob.HandleAsync(new PauseJobCommand(...), ct)`. There is no mediator, no partial class, and no internal interface beside it; the clock's interfaces are the one internal seam, because tests replace the clock.
 - A group's handlers and its operations class are registered together in `UseActa`: the class once, with the public interface mapped to that instance.
 - Code outside `Operations/` calls a group's operations class, or its public interface, and never names a handler or a `Shared/` type. Inside, an operation that needs another calls that operation's handler, across groups too, and operations classes never call each other, which keeps the constructor graph free of cycles. A helper that calls a handler is an operation of its own.
 - Every operation has its own input and its own response. Related responses share an interface; operations share no classes.
 - An operation's SQL sits beside its handler under `Operations/`, the schema bootstrap's included, one file per dialect, loaded by the dialect token. Inline SQL is `X.pg.sql` and is embedded in `Acta`; a routine is `X.routine.pg.sql`, is not embedded, and reaches a database inside a migration under the installed name `snake_case(stem)`. The operator views sit under `Schema/Views/`, also not embedded, and the migrations with each provider, in `Migrations/`.
-- Most routes have one of five shapes (paged list, detail, command verb, PATCH update, tags) and are one line in the group's `<Group>Endpoints.cs`, in `src/Acta.AspNetCore/Operations/<Group>/`, under the group whose route table maps them even when the SDK operation belongs to another group. A route's JSON body is its own `XRequest` in `Operations/<Group>/X/` there, and it answers with the SDK's `XResponse`. A route that fits none of the shapes has its own `XEndpoint.cs` in that folder, and a route that renders or composes what the facades answer is an operation of its own, with its own `XResponse` and parts beside it:
+- Most routes have one of five shapes (paged list, detail, command verb, PATCH update, tags) and are one line in the group's `<Group>Endpoints.cs`, in `src/Acta.AspNetCore/Operations/<Group>/`, under the group whose route table maps them even when the SDK operation belongs to another group. A route's JSON body is its own `XRequest` in `Operations/<Group>/X/` there, and it answers with the SDK's `XResponse`. A route that fits none of the shapes has its own `XEndpoint.cs` in that folder, a route that only renders a payload sits in its operation's folder and answers `JobPayloadBody`, and a route that composes what the facades answer is an operation of its own, with its own `XResponse` and parts beside it:
 
 ```text
 src/Acta.AspNetCore/Operations/Jobs/

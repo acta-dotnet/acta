@@ -90,7 +90,7 @@ public sealed partial class MsSqlProvisionScriptSpec
             await newer.ExecuteNonQueryAsync(ct);
         }
         var marked = ProviderSqlResources
-            .Read("mssql", "CompleteStep")
+            .Read("mssql", "CompleteJobStep")
             .ReplaceLineEndings("\n")
             .Replace("{{schema}}", schema)
             .Replace("AS\nBEGIN", "AS\nBEGIN\n    -- newer_release_body");
@@ -120,7 +120,7 @@ public sealed partial class MsSqlProvisionScriptSpec
         Assert.True(refused, "the script did not refuse the newer migration");
         await using var probe = conn.CreateCommand();
         probe.CommandText =
-            $"SELECT OBJECT_DEFINITION(OBJECT_ID('{schema}.complete_step')), (SELECT COUNT(*) FROM {schema}.migrations WHERE name = '{Newer}')";
+            $"SELECT OBJECT_DEFINITION(OBJECT_ID('{schema}.complete_job_step')), (SELECT COUNT(*) FROM {schema}.migrations WHERE name = '{Newer}')";
         await using var reader = await probe.ExecuteReaderAsync(ct);
         Assert.True(await reader.ReadAsync(ct));
         Assert.Contains("newer_release_body", reader.GetString(0));

@@ -135,8 +135,8 @@ public sealed class StepSpec : ActaRuntimeTestBase<ConformanceFixture, TestJobs.
         Assert.Equal(2, JobStepProbes.BodyInvocations[enqueued.JobId]);
     }
 
-    [Fact(DisplayName = "CompleteStep loses the CAS and reports StaleVersion when the slot advanced under another execution")]
-    public async Task CompleteStep_returns_stale_version_when_the_slot_advanced_under_another_execution()
+    [Fact(DisplayName = "CompleteJobStep loses the CAS and reports StaleVersion when the slot advanced under another execution")]
+    public async Task CompleteJobStep_returns_stale_version_when_the_slot_advanced_under_another_execution()
     {
         var ct = TestContext.Current.CancellationToken;
 
@@ -146,17 +146,17 @@ public sealed class StepSpec : ActaRuntimeTestBase<ConformanceFixture, TestJobs.
 
         // First start hands out the version a handler would carry; a second start advances the slot,
         // modelling a re-entry of the step that the version check alone has to catch.
-        var first = await Services.GetRequiredService<ExecutionOperations>().StartStepAsync(job, "compute", atMostOnce: false, ct);
-        Assert.Equal(StartStepOutcomeCode.Invoke, first.Outcome);
-        var second = await Services.GetRequiredService<ExecutionOperations>().StartStepAsync(job, "compute", atMostOnce: false, ct);
-        Assert.Equal(StartStepOutcomeCode.Invoke, second.Outcome);
+        var first = await Services.GetRequiredService<ExecutionOperations>().StartJobStepAsync(job, "compute", atMostOnce: false, ct);
+        Assert.Equal(StartJobStepOutcomeCode.Invoke, first.Outcome);
+        var second = await Services.GetRequiredService<ExecutionOperations>().StartJobStepAsync(job, "compute", atMostOnce: false, ct);
+        Assert.Equal(StartJobStepOutcomeCode.Invoke, second.Outcome);
         Assert.NotEqual(first.Version, second.Version);
 
         // Completing on the stale (first) version must lose the CAS and report it - not a phantom success.
         var stale = await Services
             .GetRequiredService<ExecutionOperations>()
-            .CompleteStepAsync(
-                new CompleteStepCommand(
+            .CompleteJobStepAsync(
+                new CompleteJobStepCommand(
                     job,
                     "compute",
                     Succeeded: true,
@@ -172,7 +172,7 @@ public sealed class StepSpec : ActaRuntimeTestBase<ConformanceFixture, TestJobs.
                 ct
             );
 
-        Assert.Equal(CompleteStepOutcomeCode.StaleVersion, stale.Outcome);
+        Assert.Equal(CompleteJobStepOutcomeCode.StaleVersion, stale.Outcome);
 
         // The losing completion changed nothing: the slot is still Pending at the advanced version.
         var slot = Assert.Single(await ReadStepsAsync(enqueued.JobId, ct));
@@ -181,12 +181,12 @@ public sealed class StepSpec : ActaRuntimeTestBase<ConformanceFixture, TestJobs.
         Assert.Null(slot.Result);
     }
 
-    [Fact(DisplayName = "CompleteStep reports StaleVersion rather than throwing when the slot row is absent")]
-    public async Task CompleteStep_returns_stale_version_when_the_slot_row_is_absent()
+    [Fact(DisplayName = "CompleteJobStep reports StaleVersion rather than throwing when the slot row is absent")]
+    public async Task CompleteJobStep_returns_stale_version_when_the_slot_row_is_absent()
     {
         var ct = TestContext.Current.CancellationToken;
 
-        // A real job row owns no step slot (StartStep never ran, or the slot was reset away).
+        // A real job row owns no step slot (StartJobStep never ran, or the slot was reset away).
         // A completion arriving for an absent slot must report StaleVersion, not throw - the routine
         // always yields one decision row regardless of whether a matching slot exists.
         var enqueued = await Jobs.EnqueueAsync(new EnqueueJobRequest(TestNamespace, "job-step-basic", JobPayload.None), ct);
@@ -194,8 +194,8 @@ public sealed class StepSpec : ActaRuntimeTestBase<ConformanceFixture, TestJobs.
 
         var outcome = await Services
             .GetRequiredService<ExecutionOperations>()
-            .CompleteStepAsync(
-                new CompleteStepCommand(
+            .CompleteJobStepAsync(
+                new CompleteJobStepCommand(
                     job,
                     "compute",
                     Succeeded: true,
@@ -211,7 +211,7 @@ public sealed class StepSpec : ActaRuntimeTestBase<ConformanceFixture, TestJobs.
                 ct
             );
 
-        Assert.Equal(CompleteStepOutcomeCode.StaleVersion, outcome.Outcome);
+        Assert.Equal(CompleteJobStepOutcomeCode.StaleVersion, outcome.Outcome);
         Assert.Null(outcome.NextRetryAtUtc);
         Assert.Empty(await ReadStepsAsync(enqueued.JobId, ct));
     }

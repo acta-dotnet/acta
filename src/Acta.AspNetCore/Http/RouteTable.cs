@@ -69,7 +69,7 @@ internal static class RouteTable
         JsonTypeInfo<TBody> upsert,
         Func<HttpContext, TagTarget> target
     )
-        where TBody : class, IUpsertTagsRequest
+        where TBody : class, IUpsertTagRequest
     {
         reads
             .MapGet(
@@ -94,8 +94,8 @@ internal static class RouteTable
             )
             .AcceptsJson<TBody>(example: """{ "name": "env", "value": "prod" }""")
             .WithSummary($"Add or update one tag on the {entity}.")
-            .Produces<UpsertTagsResponse>(StatusCodes.Status200OK)
-            .Produces<UpsertTagsResponse>(StatusCodes.Status404NotFound)
+            .Produces<UpsertTagResponse>(StatusCodes.Status200OK)
+            .Produces<UpsertTagResponse>(StatusCodes.Status404NotFound)
             .ProducesProblem(StatusCodes.Status415UnsupportedMediaType);
         controls
             .MapDelete(
@@ -104,8 +104,8 @@ internal static class RouteTable
                     TagRoutes.RemoveAsync(http, operations, options, () => target(http), RouteKeys.Value(http, "tagName"), ct)
             )
             .WithSummary($"Remove one tag from the {entity}.")
-            .Produces<RemoveTagsResponse>(StatusCodes.Status200OK)
-            .Produces<RemoveTagsResponse>(StatusCodes.Status404NotFound);
+            .Produces<RemoveTagResponse>(StatusCodes.Status200OK)
+            .Produces<RemoveTagResponse>(StatusCodes.Status404NotFound);
     }
 
     /// <summary>
@@ -302,7 +302,7 @@ internal static class RouteTable
 
     /// <summary>The internal id of the job a filter names, or null with no filter; a filter naming no job is the 404.</summary>
     public static async ValueTask<long?> JobIdAsync(this ReadCall call, JobLookup? job) =>
-        job is { } lookup ? (await call.Jobs.GetJobIdAsync(lookup, call.Ct))?.JobId ?? throw new TargetNotFoundException("Job") : null;
+        job is { } lookup ? (await call.Jobs.GetIdAsync(lookup, call.Ct))?.JobId ?? throw new TargetNotFoundException("Job") : null;
 
     public static IResult BadRequest(string? detail) =>
         Results.Problem(statusCode: StatusCodes.Status400BadRequest, title: "Invalid request.", detail: detail);
@@ -363,7 +363,7 @@ internal static class TagRoutes
         Func<TagTarget> resolve,
         CancellationToken ct
     )
-        where TBody : class, IUpsertTagsRequest
+        where TBody : class, IUpsertTagRequest
     {
         if (ControlEndpointValidation.CheckConfirmation(http, options) is { } confirmationError)
         {
@@ -381,7 +381,7 @@ internal static class TagRoutes
             : await MutateAsync(
                 resolve,
                 target => operations.Tags.UpsertAsync(target, new TagInput(body.Name, body.Value), ct: ct),
-                DashboardJsonContext.Default.UpsertTagsResponse
+                DashboardJsonContext.Default.UpsertTagResponse
             );
     }
 
@@ -398,7 +398,7 @@ internal static class TagRoutes
             : await MutateAsync(
                 resolve,
                 target => operations.Tags.RemoveAsync(target, tagName, ct: ct),
-                DashboardJsonContext.Default.RemoveTagsResponse
+                DashboardJsonContext.Default.RemoveTagResponse
             );
 
     // A tag write is a control verb: it answers with its response on 404 exactly as on 200.

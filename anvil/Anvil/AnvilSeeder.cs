@@ -195,7 +195,7 @@ public sealed class AnvilSeeder(IJobs jobs, AnvilSession session)
         CancellationToken ct
     )
     {
-        var outcomes = (await _jobs.EnqueueBatchAsync(chunk, ct)).Jobs;
+        var outcomes = (await _jobs.EnqueueJobsAsync(chunk, ct)).Jobs;
         var inserted = outcomes.Count(outcome => outcome.Action == EnqueueJobAction.Inserted);
         progress.Advance(inserted, outcomes.Count - inserted);
         if (expectedToFail)

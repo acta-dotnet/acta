@@ -51,7 +51,7 @@ public sealed class OpenCallerTransactionSpec : ActaRuntimeTestBase<ConformanceF
         var execution = Services.GetRequiredService<ExecutionOperations>();
         await PromptlyAsync("an idle claim", () => Runtime.RunOnceAsync(TestNamespace, ct));
         await PromptlyAsync("a recovery pass", () => execution.ReclaimStuckJobsAsync(ns, ct));
-        await PromptlyAsync("the stale child latch read", () => execution.GetStaleChildLatchesAsync(ns, ct));
+        await PromptlyAsync("the stale child latch read", () => execution.ListStaleJobChildLatchesAsync(ns, ct));
         await PromptlyAsync("a retention pass", () => RetentionTestOps.PurgeAsync(Services, ns, 7, 30, 100_000_000, 1000, 50, ct));
         await PromptlyAsync(
             "an alerts tick",

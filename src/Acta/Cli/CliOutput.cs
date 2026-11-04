@@ -19,10 +19,10 @@ internal static class CliOutput
                 {
                     w.WriteString("verb", verb);
                     w.WriteString("jobRef", jobRef.ToString());
-                    w.WriteString("action", result.Action.ToString());
+                    w.WriteString("action", JsonNamingPolicy.KebabCaseLower.ConvertName(result.Action.ToString()));
                     if (result.Status is { } status)
                     {
-                        w.WriteString("status", status.ToString());
+                        w.WriteString("status", status.Code);
                     }
                     else
                     {
@@ -47,8 +47,8 @@ internal static class CliOutput
                 w =>
                 {
                     w.WriteString("jobRef", snapshot.JobRef.ToString());
-                    w.WriteString("namespace", snapshot.JobNamespace);
-                    w.WriteString("name", snapshot.JobName);
+                    w.WriteString("jobNamespace", snapshot.JobNamespace);
+                    w.WriteString("jobName", snapshot.JobName);
                     WriteJsonStringOrNull(w, "tenantName", snapshot.TenantName);
                     if (snapshot.DeduplicationKey is { } key)
                     {
@@ -58,8 +58,8 @@ internal static class CliOutput
                     {
                         w.WriteNull("deduplicationKey");
                     }
-                    w.WriteString("status", snapshot.Status.ToString());
-                    w.WriteString("createdUtc", snapshot.CreatedAtUtc.ToString("O"));
+                    w.WriteString("status", snapshot.Status.Code);
+                    w.WriteString("createdAtUtc", snapshot.CreatedAtUtc.ToString("O"));
                     w.WriteNumber("failureCount", snapshot.FailureCount);
                 }
             );
@@ -87,10 +87,10 @@ internal static class CliOutput
     /// <summary>
     /// Writes a job explanation. Plain output is flowing prose: an identity line, the one-sentence
     /// headline, a line per step, the recovery expectation when a lease has lapsed, and a trailing
-    /// "Next action" line. JSON emits the structured <see cref="GetJobExplanationResponse"/> for tooling and the
+    /// "Next action" line. JSON emits the structured <see cref="ExplainJobResponse"/> for tooling and the
     /// dashboard.
     /// </summary>
-    public static void WriteExplanation(TextWriter writer, GetJobExplanationResponse x, bool json)
+    public static void WriteExplanation(TextWriter writer, ExplainJobResponse x, bool json)
     {
         if (json)
         {
@@ -99,16 +99,16 @@ internal static class CliOutput
                 w =>
                 {
                     w.WriteString("jobRef", x.JobRef.ToString());
-                    w.WriteString("namespace", x.JobNamespace);
-                    w.WriteString("name", x.JobName);
-                    w.WriteString("status", x.Status.ToString());
+                    w.WriteString("jobNamespace", x.JobNamespace);
+                    w.WriteString("jobName", x.JobName);
+                    w.WriteString("status", x.Status.Code);
                     w.WriteString("statusMeaning", x.StatusMeaning);
                     w.WriteString("headline", x.Headline);
 
                     if (x.ActiveWait is { } wait)
                     {
                         w.WriteStartObject("activeWait");
-                        w.WriteString("kind", wait.Kind.ToString());
+                        w.WriteString("kind", wait.Kind.Code);
                         w.WriteString("name", wait.Name);
                         WriteJsonInstantOrNull(w, "dueAtUtc", wait.DueAtUtc);
                         w.WriteEndObject();
@@ -140,7 +140,7 @@ internal static class CliOutput
                     {
                         w.WriteStartObject();
                         w.WriteString("name", s.Name);
-                        w.WriteString("status", s.Status.ToString());
+                        w.WriteString("status", s.Status.Code);
                         w.WriteString("explanation", s.Explanation);
                         w.WriteEndObject();
                     }
@@ -225,7 +225,7 @@ internal static class CliOutput
     /// Same identity rule the explanation prose uses: name (with the ref alongside when known),
     /// else the bare ref, else a non-identity phrase once the holder's row has been purged.
     /// </summary>
-    private static string LeaseWorkerLabel(GetJobExplanationLease lease)
+    private static string LeaseWorkerLabel(ExplainJobLease lease)
     {
         var worker = (lease.WorkerName is { Length: > 0 } ? lease.WorkerName : null, lease.WorkerRef) switch
         {
@@ -278,7 +278,7 @@ internal static class CliOutput
                     foreach (var e in page.Items)
                     {
                         w.WriteStartObject();
-                        w.WriteString("createdUtc", e.CreatedAtUtc.ToString("O"));
+                        w.WriteString("createdAtUtc", e.CreatedAtUtc.ToString("O"));
                         w.WriteString("event", e.EventCode.Code);
                         WriteJsonStringOrNull(w, "message", e.Message);
                         WriteJsonStringOrNull(w, "detailsText", e.DetailsText);
@@ -354,10 +354,10 @@ internal static class CliOutput
                 w =>
                 {
                     w.WriteString("jobRef", jobRef.ToString());
-                    w.WriteString("run", run);
+                    w.WriteString("run", JsonNamingPolicy.KebabCaseLower.ConvertName(run));
                     if (status is { } s)
                     {
-                        w.WriteString("status", s.ToString());
+                        w.WriteString("status", s.Code);
                     }
                     else
                     {
@@ -415,7 +415,7 @@ internal static class CliOutput
                 w =>
                 {
                     w.WriteString("jobRef", jobRef.ToString());
-                    w.WriteString("status", status.ToString());
+                    w.WriteString("status", status.Code);
                 }
             );
             return;

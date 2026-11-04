@@ -119,8 +119,8 @@
     path: (vars) => `tenants/${encodeURIComponent(vars.tenantName)}`,
     method: 'PATCH',
     body: (vars) => ({ expectedVersion: vars.expectedVersion, ...buildTenantDetailsPayload(vars) }),
-    notFound: () => ({ action: 'notFound', version: null }),
-    versionConflict: () => ({ action: 'versionConflict', version: null }),
+    notFound: () => ({ action: 'not-found', version: null }),
+    versionConflict: () => ({ action: 'version-conflict', version: null }),
     invalidateKeys: () => [['tenants']] as const
   });
   let detailsMessage = $state('');
@@ -141,7 +141,7 @@
       });
       if (tenantAdminNeedsReload(result.action)) {
         detailsMessage =
-          result.action === 'notFound'
+          result.action === 'not-found'
             ? 'Tenant not found. Reload the current record before trying again.'
             : 'Changed since you loaded it. Reload the current values before trying again.';
         detailsMessageKind = 'warn';
@@ -169,8 +169,8 @@
     AdminControlResult
   >({
     path: (vars) => `tenants/${encodeURIComponent(vars.tenantName)}/${vars.action}`,
-    notFound: () => ({ action: 'notFound', version: null }),
-    versionConflict: () => ({ action: 'versionConflict', version: null }),
+    notFound: () => ({ action: 'not-found', version: null }),
+    versionConflict: () => ({ action: 'version-conflict', version: null }),
     invalidateKeys: () => [['tenants']] as const
   });
   let confirming = $state<'suspend' | 'resume' | null>(null);
@@ -184,7 +184,7 @@
     try {
       const result = await statusMutation.mutateAsync({ tenantName: tenant.tenantName, action, reason });
       if (tenantAdminNeedsReload(result.action)) {
-        statusMessage = result.action === 'notFound' ? 'Tenant not found.' : 'Tenant changed; reload before trying again.';
+        statusMessage = result.action === 'not-found' ? 'Tenant not found.' : 'Tenant changed; reload before trying again.';
         statusMessageKind = 'warn';
         return;
       }

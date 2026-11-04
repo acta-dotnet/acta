@@ -7,7 +7,7 @@ namespace Acta;
 /// </summary>
 internal sealed class OutboxOperations(
     ListOutboxSourcesHandler listOutboxSources,
-    ListOutboxQuarantinedHandler listOutboxQuarantined,
+    ListQuarantinedOutboxHandler listQuarantinedOutbox,
     RequeueOutboxHandler requeueOutbox,
     DiscardOutboxHandler discardOutbox,
     GetOutboxSignalHandler getOutboxSignal,
@@ -18,10 +18,10 @@ internal sealed class OutboxOperations(
     public ValueTask<ListOutboxSourcesResponse> ListSourcesAsync(ListOutboxSourcesQuery query, CancellationToken ct = default) =>
         listOutboxSources.HandleAsync(query, ct);
 
-    public ValueTask<ListOutboxQuarantinedResponse> ListQuarantinedAsync(
-        ListOutboxQuarantinedQuery query,
+    public ValueTask<ListQuarantinedOutboxResponse> ListQuarantinedAsync(
+        ListQuarantinedOutboxQuery query,
         CancellationToken ct = default
-    ) => listOutboxQuarantined.HandleAsync(query, ct);
+    ) => listQuarantinedOutbox.HandleAsync(query, ct);
 
     public ValueTask<RequeueOutboxResponse> RequeueAsync(
         string jobNamespace,
@@ -80,8 +80,8 @@ internal sealed class OutboxOperations(
         private readonly QuarantineOutboxHandler _quarantine = new(session, dialect);
         private readonly ReleaseClaimedOutboxHandler _releaseClaimed = new(session, dialect);
         private readonly CountOutboxBacklogHandler _countBacklog = new(session);
-        private readonly CountOutboxQuarantinedHandler _countQuarantined = new(session);
-        private readonly ListQuarantinedOutboxHandler _listQuarantined = new(session, dialect);
+        private readonly CountQuarantinedOutboxHandler _countQuarantined = new(session);
+        private readonly ListQuarantinedOutboxRowsHandler _listQuarantinedRows = new(session, dialect);
         private readonly RequeueQuarantinedOutboxHandler _requeueQuarantined = new(session, dialect);
         private readonly DiscardQuarantinedOutboxHandler _discardQuarantined = new(session, dialect);
         private readonly MatchQuarantinedOutboxHandler _matchQuarantined = new(session, dialect);
@@ -93,7 +93,7 @@ internal sealed class OutboxOperations(
         /// sequence reach the ledger in that order. A row a producer has not committed counts as absent, so producers
         /// still open have no order between them; the check never skips a head another relay is moving.
         /// </summary>
-        public Task<ClaimOutboxResponse> ClaimDueAsync(ClaimOutboxCommand command, CancellationToken ct) => _claim.HandleAsync(command, ct);
+        public Task<ClaimOutboxResponse> ClaimAsync(ClaimOutboxCommand command, CancellationToken ct) => _claim.HandleAsync(command, ct);
 
         /// <summary>
         /// Deletes every claimed row the command names whose representative safely ingested; a row whose token
@@ -130,8 +130,10 @@ internal sealed class OutboxOperations(
         public Task<long> CountQuarantinedAsync(CancellationToken ct) => _countQuarantined.HandleAsync(ct);
 
         /// <summary>One keyset page of Quarantined rows ordered by outbox id: identity and failure evidence, never the payload.</summary>
-        public Task<ListQuarantinedOutboxResponse> ListQuarantinedAsync(ListQuarantinedOutboxQuery query, CancellationToken ct) =>
-            _listQuarantined.HandleAsync(query, ct);
+        public Task<ListQuarantinedOutboxRowsResponse> ListQuarantinedRowsAsync(
+            ListQuarantinedOutboxRowsQuery query,
+            CancellationToken ct
+        ) => _listQuarantinedRows.HandleAsync(query, ct);
 
         /// <summary>
         /// Returns Quarantined rows to Pending, immediately due, failure count reset and last error kept as

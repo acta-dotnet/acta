@@ -1,0 +1,4 @@
+namespace Acta;
+
+/// <summary>The schedule to fire now, with the operator's note and key for the audit event.</summary>
+internal sealed record TriggerScheduleCommand(ScheduleLookup Schedule, string? ReasonMessage, string? Actor);

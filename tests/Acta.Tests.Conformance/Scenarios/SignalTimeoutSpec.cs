@@ -9,7 +9,7 @@ namespace Acta.Tests.Conformance.Scenarios;
 /// <summary>
 /// Conformance for durable signal-wait timeouts: the expiration lives on the awaited checkpoint slot,
 /// the Suspended Job carries it in <c>NextRunAtUtc</c> so the claim wakes at the deadline, and
-/// <c>wait_signal</c>'s slot-locked re-entry is the sole arbiter that flips an overdue Pending slot to
+/// <c>wait_job_signal</c>'s slot-locked re-entry is the sole arbiter that flips an overdue Pending slot to
 /// <c>Expired</c>. Completion before the deadline wins; a raise after it revives nothing.
 /// </summary>
 [ConformanceSpec(
@@ -358,11 +358,11 @@ public sealed class SignalTimeoutSpec : ActaRuntimeTestBase<ConformanceFixture, 
         var next = await ExecutionFenceStaging.ExecutingAsync(Db, enqueued.JobId, ct, executionNumber: 2);
         var decision = await Services
             .GetRequiredService<SignalsOperations>()
-            .WaitSignalAsync(next, CheckpointKindCode.Signal, "go", timeoutSeconds: 900, dueAtUtc: null, ct);
+            .WaitJobSignalAsync(next, CheckpointKindCode.Signal, "go", timeoutSeconds: 900, dueAtUtc: null, ct);
 
         // Still pending - the bound arms a deadline, it does not resolve the wait - and now bounded, so
         // the job the next suspend caches it on can be claimed back at that instant.
-        Assert.Equal(WaitSignalOutcomeCode.SuspendPending, decision.Outcome);
+        Assert.Equal(WaitJobSignalOutcomeCode.SuspendPending, decision.Outcome);
         var slot = Assert.Single(await ReadSignalsAsync(enqueued.JobId, ct));
         Assert.Equal(CheckpointStatusCode.Pending, slot.Status);
         Assert.NotNull(slot.DueAtUtc);

@@ -73,6 +73,6 @@ public sealed class EnsureMigrationsSpec : IntegrationSpec<ConformanceFixture>
 
     private static async Task<IReadOnlySet<string>> LoadAsync(DbConnection connection, SqlResourceCatalog sql, CancellationToken ct) =>
         (
-            await new LoadAppliedMigrationsHandler(connection, sql, TimeoutSeconds).HandleAsync(new LoadAppliedMigrationsQuery(null), ct)
+            await new ListAppliedMigrationsHandler(connection, sql, TimeoutSeconds).HandleAsync(new ListAppliedMigrationsQuery(null), ct)
         ).Names;
 }

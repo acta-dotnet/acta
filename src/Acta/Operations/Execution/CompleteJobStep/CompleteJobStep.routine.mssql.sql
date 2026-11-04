@@ -1,0 +1,132 @@
+CREATE OR ALTER PROCEDURE {{schema}}.complete_job_step
+    @p_job_id BIGINT,
+    @p_execution_number INT,
+    @p_leased_by_worker_id INT,
+    @p_step_name VARCHAR(128),
+    @p_succeeded BIT,
+    @p_result_format_id TINYINT,
+    @p_result VARBINARY(MAX),
+    @p_failure_code TINYINT,
+    @p_failure_message NVARCHAR(512),
+    @p_delay_seconds INT,
+    @p_max_attempts INT,
+    @p_retry_window_seconds INT,
+    @p_version INT
+AS
+BEGIN
+    SET NOCOUNT ON;
+    SET XACT_ABORT ON;
+
+    DECLARE @entry_trancount INT = @@TRANCOUNT;
+    BEGIN TRY
+        IF @entry_trancount = 0
+            BEGIN TRANSACTION;
+
+        DECLARE @now DATETIME2(3) = SYSUTCDATETIME();
+        DECLARE @attempt INT;
+        DECLARE @created DATETIME2(3);
+        DECLARE @next DATETIME2(3);
+        DECLARE @outcome SMALLINT;
+
+        -- The step changes only while this attempt holds the job's row, update-locked to commit before the step row
+        -- (docs/sql-internals.md, "Execution fence").
+        IF NOT EXISTS (
+            SELECT 1
+            FROM {{schema}}.jobs_state r WITH (UPDLOCK, ROWLOCK)
+            WHERE
+                r.job_id = @p_job_id
+                AND r.job_status_code = 50 /* JobStatusCode.Executing */
+                AND r.execution_number = @p_execution_number
+                AND r.leased_by_worker_id = @p_leased_by_worker_id
+        )
+            THROW 50012, 'ACTA:EXECUTION_FENCED:complete_job_step: the job is no longer executing this attempt.', 1;
+
+        SELECT
+            @attempt = attempt_number,
+            @created = created_at_utc
+        FROM {{schema}}.steps
+        WHERE job_id = @p_job_id AND step_name = @p_step_name;
+
+        IF @p_succeeded = 1
+            BEGIN
+                UPDATE {{schema}}.steps
+                SET
+                    step_status_code = 100 /* StepStatusCode.Succeeded */,
+                    result_format_id = @p_result_format_id,
+                    result = @p_result,
+                    next_retry_at_utc = NULL,
+                    /* A success supersedes any earlier failed attempt, so the row must not keep that attempt's
+                       failure snapshot: a Succeeded row with a failure_code reads as a failure to every post-mortem query. */
+                    failure_code = NULL,
+                    failure_message = NULL,
+                    modified_at_utc = @now,
+                    version = version + 1
+                WHERE job_id = @p_job_id AND step_name = @p_step_name AND version = @p_version;
+
+                IF @@ROWCOUNT = 0
+                    SET @outcome = 4 /* CompleteJobStepOutcomeCode.StaleVersion */;
+                ELSE
+                    SET @outcome = 1 /* CompleteJobStepOutcomeCode.Succeeded */;
+                SET @next = NULL;
+            END
+        ELSE
+            BEGIN
+                SET @next = DATEADD(SECOND, @p_delay_seconds, @now);
+
+                IF
+                    @attempt >= @p_max_attempts
+                    OR (
+                        @p_retry_window_seconds IS NOT NULL
+                        AND @next > DATEADD(SECOND, @p_retry_window_seconds, @created)
+                    )
+                    BEGIN
+                        UPDATE {{schema}}.steps
+                        SET
+                            step_status_code = 200 /* StepStatusCode.Exhausted */,
+                            next_retry_at_utc = NULL,
+                            failure_code = @p_failure_code,
+                            failure_message = @p_failure_message,
+                            modified_at_utc = @now,
+                            version = version + 1
+                        WHERE job_id = @p_job_id AND step_name = @p_step_name AND version = @p_version;
+
+                        IF @@ROWCOUNT = 0
+                            SET @outcome = 4 /* CompleteJobStepOutcomeCode.StaleVersion */;
+                        ELSE
+                            SET @outcome = 3 /* CompleteJobStepOutcomeCode.Exhausted */;
+                        SET @next = NULL;
+                    END
+                ELSE
+                    BEGIN
+                        UPDATE {{schema}}.steps
+                        SET
+                            next_retry_at_utc = @next,
+                            failure_code = @p_failure_code,
+                            failure_message = @p_failure_message,
+                            modified_at_utc = @now,
+                            version = version + 1
+                        WHERE job_id = @p_job_id AND step_name = @p_step_name AND version = @p_version;
+
+                        IF @@ROWCOUNT = 0
+                            BEGIN
+                                SET @outcome = 4 /* CompleteJobStepOutcomeCode.StaleVersion */;
+                                SET @next = NULL;
+                            END
+                        ELSE
+                            SET @outcome = 2 /* CompleteJobStepOutcomeCode.RetryScheduled */;
+                    END
+            END
+
+        SELECT
+            @outcome AS outcome_code,
+            @next AS next_retry_at_utc;
+
+        IF @entry_trancount = 0
+            COMMIT TRANSACTION;
+    END TRY
+    BEGIN CATCH
+        IF @entry_trancount = 0 AND XACT_STATE() <> 0
+            ROLLBACK TRANSACTION;
+        THROW;
+    END CATCH;
+END;

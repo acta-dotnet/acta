@@ -33,7 +33,7 @@ public sealed class PostgresLaneIsolationTests : ActaRuntimeTestBase<PgConforman
         await using (var tx = await conn.BeginTransactionAsync(level, ct))
         {
             var batched = await Assert.ThrowsAsync<EnqueueRejectedException>(async () =>
-                await Jobs.EnqueueBatchAsync(tx, [Step("orders"), Step("billing")], ct)
+                await Jobs.EnqueueJobsAsync(tx, [Step("orders"), Step("billing")], ct)
             );
             Assert.Equal(EnqueueRejectionReason.LaneIsolation, batched.Reason);
             await tx.RollbackAsync(ct);

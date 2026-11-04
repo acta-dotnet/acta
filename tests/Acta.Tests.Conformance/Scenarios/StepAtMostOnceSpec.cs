@@ -82,8 +82,8 @@ public sealed class AtMostOnceStepManifest : IJobManifest
 /// <summary>
 /// Conformance for at-most-once steps (<c>ctx.RunStepAsync(..., o =&gt; o.AtMostOnce())</c>). The body
 /// runs zero or one times, never twice: a first invocation still runs, but a step re-entered on replay
-/// while still pending (a worker died after <c>start_step</c> recorded the pending row and before
-/// <c>complete_step</c>) is not re-invoked. Instead the slot terminalizes <c>Interrupted</c> and
+/// while still pending (a worker died after <c>start_job_step</c> recorded the pending row and before
+/// <c>complete_job_step</c>) is not re-invoked. Instead the slot terminalizes <c>Interrupted</c> and
 /// <c>RunStepAsync</c> throws <see cref="StepInterruptedException"/>, which is handler-owned policy:
 /// uncaught it fails the parent terminally (no retry burn), caught it lets the parent proceed.
 /// </summary>
@@ -106,12 +106,12 @@ public sealed class StepAtMostOnceSpec : ActaRuntimeTestBase<ConformanceFixture,
             ct
         );
 
-        // No prior row: start_step inserts pending and returns Invoke even under at-most-once. The flag
+        // No prior row: start_job_step inserts pending and returns Invoke even under at-most-once. The flag
         // only governs re-entry of an already-started slot, never the first legitimate run.
         var start = await Services
             .GetRequiredService<ExecutionOperations>()
-            .StartStepAsync(await ExecutingAsync(enqueued, ct), StepName, atMostOnce: true, ct);
-        Assert.Equal(StartStepOutcomeCode.Invoke, start.Outcome);
+            .StartJobStepAsync(await ExecutingAsync(enqueued, ct), StepName, atMostOnce: true, ct);
+        Assert.Equal(StartJobStepOutcomeCode.Invoke, start.Outcome);
     }
 
     [Fact(DisplayName = "A pending step re-entered under at-most-once terminalizes Interrupted, version-idempotent")]
@@ -126,20 +126,20 @@ public sealed class StepAtMostOnceSpec : ActaRuntimeTestBase<ConformanceFixture,
         // Durably start the slot (pending) without completing it: models an attempt that recorded the
         // step start and then crashed.
         var job = await ExecutingAsync(enqueued, ct);
-        var staged = await Services.GetRequiredService<ExecutionOperations>().StartStepAsync(job, StepName, atMostOnce: false, ct);
-        Assert.Equal(StartStepOutcomeCode.Invoke, staged.Outcome);
+        var staged = await Services.GetRequiredService<ExecutionOperations>().StartJobStepAsync(job, StepName, atMostOnce: false, ct);
+        Assert.Equal(StartJobStepOutcomeCode.Invoke, staged.Outcome);
 
         // First re-entry under at-most-once poisons the slot to Interrupted (one transition, one bump).
-        var first = await Services.GetRequiredService<ExecutionOperations>().StartStepAsync(job, StepName, atMostOnce: true, ct);
-        Assert.Equal(StartStepOutcomeCode.Interrupted, first.Outcome);
+        var first = await Services.GetRequiredService<ExecutionOperations>().StartJobStepAsync(job, StepName, atMostOnce: true, ct);
+        Assert.Equal(StartJobStepOutcomeCode.Interrupted, first.Outcome);
 
         var row1 = await ReadStepAsync(enqueued.JobId, ct);
         Assert.Equal(StepStatusCode.Interrupted, row1.Status);
         var versionAfterInterrupt = row1.Version;
 
         // A later replay of an already-Interrupted slot returns Interrupted again with NO further mutation.
-        var second = await Services.GetRequiredService<ExecutionOperations>().StartStepAsync(job, StepName, atMostOnce: true, ct);
-        Assert.Equal(StartStepOutcomeCode.Interrupted, second.Outcome);
+        var second = await Services.GetRequiredService<ExecutionOperations>().StartJobStepAsync(job, StepName, atMostOnce: true, ct);
+        Assert.Equal(StartJobStepOutcomeCode.Interrupted, second.Outcome);
 
         var row2 = await ReadStepAsync(enqueued.JobId, ct);
         Assert.Equal(StepStatusCode.Interrupted, row2.Status);
@@ -159,9 +159,9 @@ public sealed class StepAtMostOnceSpec : ActaRuntimeTestBase<ConformanceFixture,
         // A failure inside budget leaves the slot Pending with a retry instant. Once that instant is
         // due the slot is re-enterable, and this is the only state in which an interrupt meets one.
         var job = await ExecutingAsync(enqueued, ct);
-        var staged = await store.StartStepAsync(job, StepName, atMostOnce: false, ct);
-        var failed = await store.CompleteStepAsync(
-            new CompleteStepCommand(
+        var staged = await store.StartJobStepAsync(job, StepName, atMostOnce: false, ct);
+        var failed = await store.CompleteJobStepAsync(
+            new CompleteJobStepCommand(
                 job,
                 StepName,
                 Succeeded: false,
@@ -176,7 +176,7 @@ public sealed class StepAtMostOnceSpec : ActaRuntimeTestBase<ConformanceFixture,
             ),
             ct
         );
-        Assert.Equal(CompleteStepOutcomeCode.RetryScheduled, failed.Outcome);
+        Assert.Equal(CompleteJobStepOutcomeCode.RetryScheduled, failed.Outcome);
         await Db.ExecuteRawAsync(
             "UPDATE {schema}.steps SET next_retry_at_utc = @p_next WHERE job_id = @p_id AND step_name = @p_name",
             ct,
@@ -185,8 +185,8 @@ public sealed class StepAtMostOnceSpec : ActaRuntimeTestBase<ConformanceFixture,
             ("@p_name", StepName)
         );
 
-        var interrupted = await store.StartStepAsync(job, StepName, atMostOnce: true, ct);
-        Assert.Equal(StartStepOutcomeCode.Interrupted, interrupted.Outcome);
+        var interrupted = await store.StartJobStepAsync(job, StepName, atMostOnce: true, ct);
+        Assert.Equal(StartJobStepOutcomeCode.Interrupted, interrupted.Outcome);
 
         var row = await ReadStepAsync(enqueued.JobId, ct);
         Assert.Equal(StepStatusCode.Interrupted, row.Status);
@@ -210,7 +210,7 @@ public sealed class StepAtMostOnceSpec : ActaRuntimeTestBase<ConformanceFixture,
         // The body was never invoked on the replay.
         Assert.False(AtMostOnceStepHandler.BodyInvocations.ContainsKey(enqueued.JobId));
 
-        // The slot is terminal Interrupted with the step-interrupted reason stamped by start_step.
+        // The slot is terminal Interrupted with the step-interrupted reason stamped by start_job_step.
         var row = await ReadStepAsync(enqueued.JobId, ct);
         Assert.Equal(StepStatusCode.Interrupted, row.Status);
         Assert.Equal(StepFailureCode.Interrupted, row.FailureCode);
@@ -254,7 +254,7 @@ public sealed class StepAtMostOnceSpec : ActaRuntimeTestBase<ConformanceFixture,
     private async Task StartedThenLostAsync(EnqueueJobResponse enqueued, CancellationToken ct)
     {
         var lost = await ExecutingAsync(enqueued, ct);
-        await Services.GetRequiredService<ExecutionOperations>().StartStepAsync(lost, StepName, atMostOnce: false, ct);
+        await Services.GetRequiredService<ExecutionOperations>().StartJobStepAsync(lost, StepName, atMostOnce: false, ct);
         await ChaosSpecHelpers.SetReadyAsync(Db, enqueued.JobId, ct);
     }
 

@@ -42,7 +42,7 @@ var requests = Enumerable
     .ToList();
 
 Console.WriteLine($"Enqueuing {BatchSize} jobs (cap={Cap})...");
-await jobs.EnqueueBatchAsync(requests);
+await jobs.EnqueueJobsAsync(requests);
 Console.WriteLine("Batch enqueued. Worker is draining.");
 
 // Wait until all jobs have run; the handler increments/decrements a counter so we can observe

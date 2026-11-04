@@ -46,10 +46,10 @@ public sealed class PurgeExpiredDataSpec : ActaRuntimeTestBase<ConformanceFixtur
         // handler writes them, under the execution fence of an attempt the job stands executing, then it is finished again.
         var execution = Services.GetRequiredService<ExecutionOperations>();
         var fence = await ExecutionFenceStaging.ExecutingAsync(Db, jobId, ct);
-        await execution.StartStepAsync(fence, "seed-step", atMostOnce: false, ct);
-        await execution.AccessCheckpointAsync(
-            new AccessCheckpointCommand(
-                AccessCheckpointAction.Set,
+        await execution.StartJobStepAsync(fence, "seed-step", atMostOnce: false, ct);
+        await execution.AccessJobCheckpointAsync(
+            new AccessJobCheckpointCommand(
+                AccessJobCheckpointAction.Set,
                 fence,
                 CheckpointKindCode.Variable,
                 "seed-variable",

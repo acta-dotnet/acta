@@ -3,7 +3,11 @@ using System.Text;
 namespace Acta;
 
 /// <summary>Compiles the version and the current one and walks each from the same instant; no cursor is read or written.</summary>
-internal sealed class PreviewCalendarHandler(IActaClock clock, GetCalendarPublicationHandler family, GetCalendarSchedulesHandler dependents)
+internal sealed class PreviewCalendarHandler(
+    IActaClock clock,
+    GetCalendarPublicationHandler family,
+    ListCalendarSchedulesHandler dependents
+)
 {
     public async Task<PreviewCalendarResponse?> HandleAsync(PreviewCalendarQuery query, CancellationToken ct)
     {
@@ -21,7 +25,7 @@ internal sealed class PreviewCalendarHandler(IActaClock clock, GetCalendarPublic
         var count = Math.Clamp(query.Count, 1, 50);
         var compiled = Compile(version);
         var compiledCurrent = current is null ? null : Compile(current);
-        var bound = (await dependents.HandleAsync(new GetCalendarSchedulesQuery(version.NamespaceId, calendarName), ct)).Schedules;
+        var bound = (await dependents.HandleAsync(new ListCalendarSchedulesQuery(version.NamespaceId, calendarName), ct)).Schedules;
         return new PreviewCalendarResponse(
             version.Role,
             version.Version,

@@ -29,7 +29,7 @@ internal static class JobRunAndWait
         IJobs jobs,
         IWorkerWakeup wakeup,
         JobRequestRouting routing,
-        GetResultHandler getResult,
+        GetJobResultHandler getJobResult,
         Func<JobExecutionOptions, EnqueueJobRequest> request,
         JobExecutionOptions? options,
         CancellationToken ct
@@ -47,7 +47,7 @@ internal static class JobRunAndWait
             ct,
             ResultTypeCheck<TResult>(routing)
         );
-        return await OutcomeAsync<TResult>(routing, getResult, wait.Snapshot ?? throw Vanished(enqueued.JobRef), wait.TimedOut, ct);
+        return await OutcomeAsync<TResult>(routing, getJobResult, wait.Snapshot ?? throw Vanished(enqueued.JobRef), wait.TimedOut, ct);
     }
 
     public static async ValueTask<JobOutcome> WaitAsync(
@@ -66,7 +66,7 @@ internal static class JobRunAndWait
         IJobs jobs,
         IWorkerWakeup wakeup,
         JobRequestRouting routing,
-        GetResultHandler getResult,
+        GetJobResultHandler getJobResult,
         JobLookup job,
         TimeSpan? timeout,
         CancellationToken ct
@@ -74,7 +74,7 @@ internal static class JobRunAndWait
         where TResult : notnull
     {
         var (snapshot, timedOut) = await AwaitExistingAsync(jobs, wakeup, job, timeout, ct, ResultTypeCheck<TResult>(routing));
-        return await OutcomeAsync<TResult>(routing, getResult, snapshot, timedOut, ct);
+        return await OutcomeAsync<TResult>(routing, getJobResult, snapshot, timedOut, ct);
     }
 
     private static JobOutcome Outcome(GetJobResponse snapshot, bool timedOut) =>
@@ -93,7 +93,7 @@ internal static class JobRunAndWait
     /// </summary>
     private static async ValueTask<JobOutcome<TResult>> OutcomeAsync<TResult>(
         JobRequestRouting routing,
-        GetResultHandler getResult,
+        GetJobResultHandler getJobResult,
         GetJobResponse snapshot,
         bool timedOut,
         CancellationToken ct
@@ -109,7 +109,7 @@ internal static class JobRunAndWait
         {
             case JobStatusCode.Succeeded:
                 var result =
-                    await getResult.ReadAsync(snapshot.JobId, snapshot.ExecutionNumber, ct)
+                    await getJobResult.ReadAsync(snapshot.JobId, snapshot.ExecutionNumber, ct)
                     ?? throw new InvalidOperationException(
                         $"Job {snapshot.JobRef} ('{snapshot.JobName}') succeeded but stored no result. Either it is "
                             + "result-less, in which case wait without a result type, or its result exceeded "
@@ -157,7 +157,7 @@ internal static class JobRunAndWait
         }
 
         var started = Stopwatch.GetTimestamp();
-        var jobId = job.Kind == JobLookupKind.JobId ? job.JobId : (await jobs.GetJobIdAsync(job, ct))?.JobId;
+        var jobId = job.Kind == JobLookupKind.JobId ? job.JobId : (await jobs.GetIdAsync(job, ct))?.JobId;
         var remaining = budget - Stopwatch.GetElapsedTime(started);
         var (snapshot, timedOut) = jobId is { } id
             ? await AwaitAsync(jobs, wakeup, id, remaining, Defaults.PollInterval, ct, check)

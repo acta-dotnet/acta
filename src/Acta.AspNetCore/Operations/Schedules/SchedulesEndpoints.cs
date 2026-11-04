@@ -86,11 +86,11 @@ internal static class SchedulesEndpoints
             "/schedules/{jobNamespace}/{jobName}/{scheduleName}/trigger",
             "Fire the schedule now, without moving its cadence.",
             options,
-            DashboardJsonContext.Default.TriggerScheduleNowRequest,
+            DashboardJsonContext.Default.TriggerScheduleRequest,
             "Invalid schedule request.",
-            ControlStatus.Schedule<TriggerScheduleNowResponse>(),
+            ControlStatus.Schedule<TriggerScheduleResponse>(),
             Key,
-            static (call, schedule) => call.Operations.Schedules.TriggerNowAsync(schedule, call.ReasonMessage, call.Actor, call.Ct)
+            static (call, schedule) => call.Operations.Schedules.TriggerAsync(schedule, call.ReasonMessage, call.Actor, call.Ct)
         );
     }
 

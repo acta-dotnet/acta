@@ -254,9 +254,7 @@ public sealed class EnqueueJobTransactionalSpec : ActaRuntimeTestBase<Conformanc
                 // A same-batch duplicate deduplication key is a deterministic pre-SQL rejection. Acta throws
                 // the translated type once (no retry) and the caller must roll back the whole transaction.
                 IReadOnlyList<EnqueueJobRequest> batch = [Request(key: dupKey), Request(key: dupKey)];
-                await Assert.ThrowsAsync<DuplicateDeduplicationKeyInBatchException>(async () =>
-                    await Jobs.EnqueueBatchAsync(tx, batch, ct)
-                );
+                await Assert.ThrowsAsync<DuplicateDeduplicationKeyInBatchException>(async () => await Jobs.EnqueueJobsAsync(tx, batch, ct));
 
                 await tx.RollbackAsync(ct);
             },

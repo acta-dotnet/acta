@@ -51,26 +51,26 @@ internal sealed partial class RuntimeJobContext
         var maxAttempts = options.AtMostOnce ? 1 : options.MaxAttempts ?? _stepRetryDefaults.MaxAttempts;
         var retryWindowSeconds = options.AtMostOnce ? (int?)null : options.RetryWindowSeconds;
 
-        var start = await FencedAsync(() => _executionStore.StartStepAsync(Fence, name, options.AtMostOnce, ct));
+        var start = await FencedAsync(() => _executionStore.StartJobStepAsync(Fence, name, options.AtMostOnce, ct));
         switch (start.Outcome)
         {
-            case StartStepOutcomeCode.ReplaySuccess:
+            case StartJobStepOutcomeCode.ReplaySuccess:
                 RecordStep(name, "replayed");
                 return storeResult ? DeserializeStepResult<TResult>(name, start.ResultFormatId, start.Result!) : default!;
-            case StartStepOutcomeCode.Exhausted:
+            case StartJobStepOutcomeCode.Exhausted:
                 throw new StepExhaustedException(name, start.AttemptNumber, start.FailureCode, start.FailureMessage);
-            case StartStepOutcomeCode.Interrupted:
+            case StartJobStepOutcomeCode.Interrupted:
                 // An AtMostOnce step re-entered before its outcome was recorded: the row was terminalized
-                // Interrupted by start_step. Do NOT run the body; the outcome is ambiguous (ran 0 or 1
+                // Interrupted by start_job_step. Do NOT run the body; the outcome is ambiguous (ran 0 or 1
                 // times) and the handler must reconcile externally.
                 RecordStep(name, "interrupted");
                 throw new StepInterruptedException(name);
-            case StartStepOutcomeCode.Suspend:
+            case StartJobStepOutcomeCode.Suspend:
                 throw new StepRetrySignal(start.NextRetryAtUtc!.Value, name, reasonMessage: null);
-            case StartStepOutcomeCode.Invoke:
+            case StartJobStepOutcomeCode.Invoke:
                 break;
             default:
-                throw new InvalidOperationException($"start_step returned an unknown outcome for job {JobId}, step '{name}'.");
+                throw new InvalidOperationException($"start_job_step returned an unknown outcome for job {JobId}, step '{name}'.");
         }
 
         TResult value;
@@ -97,8 +97,8 @@ internal sealed partial class RuntimeJobContext
             );
             var message = ex.Message.Truncate(ActaTextLimits.StepFailureMessage);
 
-            var failure = await CompleteStepAsync(
-                new CompleteStepCommand(
+            var failure = await CompleteJobStepAsync(
+                new CompleteJobStepCommand(
                     Fence,
                     name,
                     Succeeded: false,
@@ -114,12 +114,12 @@ internal sealed partial class RuntimeJobContext
                 ct
             );
 
-            if (failure.Outcome == CompleteStepOutcomeCode.StaleVersion)
+            if (failure.Outcome == CompleteJobStepOutcomeCode.StaleVersion)
             {
                 throw new StepOwnershipLostException(name);
             }
 
-            if (failure.Outcome == CompleteStepOutcomeCode.Exhausted)
+            if (failure.Outcome == CompleteJobStepOutcomeCode.Exhausted)
             {
                 RecordStep(name, "exhausted");
                 if (_log.IsEnabled(LogLevel.Warning))
@@ -149,8 +149,8 @@ internal sealed partial class RuntimeJobContext
         }
 
         var payload = storeResult ? SerializeStepResult(value!) : JobPayload.None;
-        var success = await CompleteStepAsync(
-            new CompleteStepCommand(
+        var success = await CompleteJobStepAsync(
+            new CompleteJobStepCommand(
                 Fence,
                 name,
                 Succeeded: true,
@@ -166,7 +166,7 @@ internal sealed partial class RuntimeJobContext
             ct
         );
 
-        if (success.Outcome == CompleteStepOutcomeCode.StaleVersion)
+        if (success.Outcome == CompleteJobStepOutcomeCode.StaleVersion)
         {
             throw new StepOwnershipLostException(name);
         }
@@ -175,8 +175,8 @@ internal sealed partial class RuntimeJobContext
         return value;
     }
 
-    private Task<CompleteStepResponse> CompleteStepAsync(CompleteStepCommand command, CancellationToken ct) =>
-        FencedAsync(() => _executionStore.CompleteStepAsync(command, ct));
+    private Task<CompleteJobStepResponse> CompleteJobStepAsync(CompleteJobStepCommand command, CancellationToken ct) =>
+        FencedAsync(() => _executionStore.CompleteJobStepAsync(command, ct));
 
     private JobPayload SerializeStepResult<TResult>(TResult value)
     {

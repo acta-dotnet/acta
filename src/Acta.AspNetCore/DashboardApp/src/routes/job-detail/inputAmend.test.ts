@@ -44,6 +44,6 @@ test('a rejection without a status is a job with no input to amend', () => {
 });
 
 test('not-found outcome is a bad-kind message', () => {
-  const message = amendOutcomeMessage('notFound', null);
+  const message = amendOutcomeMessage('not-found', null);
   assert.equal(message.kind, 'bad');
 });

@@ -13,7 +13,7 @@ namespace Acta.Tests.Conformance.Operations.Outbox;
     "outbox-claim.staging-order",
     "Claim takes a bounded batch in staging order under one token, no double claim",
     Area = "Outbox",
-    Contract = "ClaimDue claims a bounded batch of due Pending rows in due-then-staging order, stamps one token and a database-clock lease, and claims no row twice."
+    Contract = "ClaimOutbox claims a bounded batch of due Pending rows in due-then-staging order, stamps one token and a database-clock lease, and claims no row twice."
 )]
 public sealed class ClaimOutboxSpec : OutboxSpecBase
 {
@@ -102,8 +102,8 @@ public sealed class ClaimOutboxSpec : OutboxSpecBase
         // / BEGIN IMMEDIATE. The safety invariant is that no row is handed to both at once; how the batch
         // splits between them is provider timing (mssql page locking on a small table may give one 0).
         var second = Fixture.OpenOutboxSource(TableName);
-        var claimA = Store.ClaimDueAsync(new ClaimOutboxCommand(Guid.NewGuid(), total / 2, LeaseTtlSeconds), ct);
-        var claimB = second.ClaimDueAsync(new ClaimOutboxCommand(Guid.NewGuid(), total / 2, LeaseTtlSeconds), ct);
+        var claimA = Store.ClaimAsync(new ClaimOutboxCommand(Guid.NewGuid(), total / 2, LeaseTtlSeconds), ct);
+        var claimB = second.ClaimAsync(new ClaimOutboxCommand(Guid.NewGuid(), total / 2, LeaseTtlSeconds), ct);
         var results = await Task.WhenAll(claimA, claimB);
 
         var concurrent = results[0].Rows.Concat(results[1].Rows).Select(r => r.OutboxId).ToList();

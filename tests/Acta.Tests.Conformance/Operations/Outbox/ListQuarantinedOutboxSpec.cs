@@ -4,111 +4,69 @@ using Xunit;
 
 namespace Acta.Tests.Conformance.Operations.Outbox;
 
-/// <summary>
-/// Conformance for the relay source's own keyset read of its Quarantined rows (<c>ListQuarantinedOutbox</c>), the read
-/// beneath the operator listing that <c>ListOutboxQuarantinedSpec</c> specifies.
-/// </summary>
+/// <summary>Conformance for the operator quarantine listing through the facade: cursor pages over the source this host relays, and an error on any other host.</summary>
 [ConformanceSpec(
-    "list-quarantined-outbox.keyset-page",
-    "The source pages its Quarantined rows by outbox id with their failure evidence",
+    "outbox-operator.list-quarantined",
+    "The quarantine listing pages the source this host relays",
     Area = "Outbox",
-    Contract = "ListQuarantinedOutbox returns up to a page of Quarantined rows after the cursor id in the source's outbox_id order, with identity and failure evidence."
+    Contract = "ListQuarantined pages a namespace's quarantined rows by cursor with an optional total, and throws on a host that registered no relay for that namespace."
 )]
-public sealed class ListQuarantinedOutboxSpec : OutboxSpecBase
+public sealed class ListQuarantinedOutboxSpec : OutboxRelayHostBase
 {
-    [Fact(DisplayName = "A source with no Quarantined rows reads an empty page")]
-    public async Task No_quarantined_rows_read_empty()
+    [Fact(DisplayName = "Cursor pages cover every quarantined row once with its identity and failure count")]
+    public async Task Pages_cover_every_quarantined_row_once()
     {
         var ct = TestContext.Current.CancellationToken;
-        await SeedAndClaimAsync(Unique("claimed"), ct);
-        await Fixture.SeedOutboxRowAsync(TableName, DueRow(Unique("pending")));
-
-        Assert.Empty(await ListAsync(pageSize: 10, after: null, ct));
-    }
-
-    [Fact(DisplayName = "Each row carries its identity, routing keys, staging instant, and failure evidence, and other statuses stay out")]
-    public async Task Rows_carry_identity_and_failure_evidence()
-    {
-        var ct = TestContext.Current.CancellationToken;
-        var stagedAt = new DateTime(2021, 6, 1, 12, 0, 0, DateTimeKind.Utc);
-        var seeded = DueRow(Unique("seeded"), status: (byte)OutboxStatusCode.Quarantined, failureCount: 4) with { CreatedAtUtc = stagedAt };
-        await Fixture.SeedOutboxRowAsync(TableName, seeded);
-        var relayed = await SeedAndQuarantineAsync(Unique("relayed"), "poison payload", ct);
-        await Fixture.SeedOutboxRowAsync(TableName, DueRow(Unique("pending")));
-
-        var page = await ListAsync(pageSize: 10, after: null, ct);
-
-        Assert.Equal(2, page.Count);
-        var fromSeed = Assert.Single(page, r => r.OutboxId == seeded.OutboxId);
-        Assert.Equal("orders", fromSeed.JobNamespace);
-        Assert.Equal("send", fromSeed.JobName);
-        Assert.Equal(seeded.DeduplicationKey, fromSeed.DeduplicationKey);
-        Assert.Null(fromSeed.CorrelationKey);
-        Assert.Null(fromSeed.TenantName);
-        Assert.Equal(4, fromSeed.FailureCount);
-        Assert.Null(fromSeed.LastError);
-        Assert.Equal(stagedAt, fromSeed.CreatedAtUtc);
-
-        var fromRelay = Assert.Single(page, r => r.OutboxId == relayed);
-        Assert.Equal(5, fromRelay.FailureCount);
-        Assert.Equal("poison payload", fromRelay.LastError);
-    }
-
-    [Fact(DisplayName = "Keyset pages walk every Quarantined row exactly once, in the order one full read returns them")]
-    public async Task Pages_walk_every_row_once_in_source_order()
-    {
-        var ct = TestContext.Current.CancellationToken;
-        var seeded = await SeedQuarantinedAsync(5);
-        var full = await ListAsync(pageSize: 100, after: null, ct);
-        Assert.Equal(seeded, full.Select(r => r.OutboxId).ToHashSet());
-
-        // The order itself is the provider's uuid order (SQL Server sorts by trailing bytes, SQLite by
-        // case-folded text), so the walk is held to the full read rather than to a .NET Guid sort.
-        var walked = new List<ListOutboxQuarantinedItem>();
-        var pageSizes = new List<int>();
-        Guid? after = null;
-        while (await ListAsync(pageSize: 2, after, ct) is { Count: > 0 } page)
+        var seeded = new HashSet<Guid>();
+        foreach (var key in new[] { "lq-a", "lq-b", "lq-c" })
         {
-            pageSizes.Add(page.Count);
-            walked.AddRange(page);
-            after = page[^1].OutboxId;
+            seeded.Add(await SeedQuarantinedAsync(Unique(key)));
         }
 
-        Assert.Equal([2, 2, 1], pageSizes);
-        Assert.Equal(full.Select(r => r.OutboxId), walked.Select(r => r.OutboxId));
+        var first = await Outbox.ListQuarantinedAsync(new ListQuarantinedOutboxQuery(TestNamespace, PageSize: 2), ct);
+        Assert.Equal(2, first.Items.Count);
+        Assert.True(first.HasMore);
+        Assert.Null(first.TotalCount);
+
+        var second = await Outbox.ListQuarantinedAsync(
+            new ListQuarantinedOutboxQuery(TestNamespace, PageSize: 2, Cursor: first.NextCursor),
+            ct
+        );
+        Assert.False(second.HasMore);
+
+        var listed = first.Items.Concat(second.Items).ToList();
+        Assert.Equal(seeded, listed.Select(r => r.OutboxId).ToHashSet());
+        Assert.Equal(3, listed.Count);
+        Assert.All(listed, row => Assert.Equal(TestNamespace, row.JobNamespace));
+        Assert.All(listed, row => Assert.Equal("echo", row.JobName));
+        Assert.All(listed, row => Assert.Equal(5, row.FailureCount));
     }
 
-    [Fact(
-        DisplayName = "A row that leaves quarantine between pages drops out without shifting the rest, and the last row's cursor reads empty"
-    )]
-    public async Task Row_leaving_between_pages_drops_out()
+    [Fact(DisplayName = "IncludeTotal counts every quarantined row whatever the page size")]
+    public async Task Total_counts_every_quarantined_row()
     {
         var ct = TestContext.Current.CancellationToken;
-        await SeedQuarantinedAsync(4);
-        var full = (await ListAsync(pageSize: 100, after: null, ct)).Select(r => r.OutboxId).ToList();
+        await SeedQuarantinedAsync(Unique("lq-total-a"));
+        await SeedQuarantinedAsync(Unique("lq-total-b"));
 
-        var first = await ListAsync(pageSize: 2, after: null, ct);
-        Assert.Equal(full.Take(2), first.Select(r => r.OutboxId));
+        var page = await Outbox.ListQuarantinedAsync(new ListQuarantinedOutboxQuery(TestNamespace, PageSize: 1, IncludeTotal: true), ct);
 
-        Assert.Equal([full[2]], (await Store.RequeueQuarantinedAsync(new RequeueQuarantinedOutboxCommand([full[2]]), ct)).OutboxIds);
-
-        Assert.Equal([full[3]], (await ListAsync(pageSize: 2, after: first[^1].OutboxId, ct)).Select(r => r.OutboxId));
-        Assert.Empty(await ListAsync(pageSize: 2, after: full[3], ct));
+        Assert.Single(page.Items);
+        Assert.Equal(2, page.TotalCount);
     }
 
-    private async Task<IReadOnlyList<ListOutboxQuarantinedItem>> ListAsync(int pageSize, Guid? after, CancellationToken ct) =>
-        (await Store.ListQuarantinedAsync(new ListQuarantinedOutboxQuery(pageSize, after), ct)).Items;
-
-    private async Task<HashSet<Guid>> SeedQuarantinedAsync(int count)
+    [Fact(DisplayName = "A namespace this host relays no source for throws, and so does a malformed cursor")]
+    public async Task Unrelayed_namespace_and_bad_cursor_throw()
     {
-        var ids = new HashSet<Guid>();
-        for (var i = 0; i < count; i++)
-        {
-            var row = DueRow(Unique($"stuck-{i}"), status: (byte)OutboxStatusCode.Quarantined, failureCount: 5);
-            await Fixture.SeedOutboxRowAsync(TableName, row);
-            ids.Add(row.OutboxId);
-        }
+        var ct = TestContext.Current.CancellationToken;
 
-        return ids;
+        var error = await Assert.ThrowsAsync<InvalidOperationException>(async () =>
+            await Outbox.ListQuarantinedAsync(new ListQuarantinedOutboxQuery(Unique("no-relay")), ct)
+        );
+        Assert.Contains("AddOutboxRelay", error.Message);
+
+        await Assert.ThrowsAsync<InvalidPageCursorException>(async () =>
+            await Outbox.ListQuarantinedAsync(new ListQuarantinedOutboxQuery(TestNamespace, Cursor: "not-a-cursor"), ct)
+        );
     }
 }

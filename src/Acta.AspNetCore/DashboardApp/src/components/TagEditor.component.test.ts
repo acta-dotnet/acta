@@ -22,7 +22,7 @@ function stubFetch(options: StubOptions = {}) {
     });
     if (url.includes('/capabilities')) {
       return new Response(
-        JSON.stringify({ controlsEnabled: options.controlsEnabled ?? true, version: 'v', provider: 'sqlite', confirmationHeader: 'X-Acta-Control' }),
+        JSON.stringify({ controlsEnabled: options.controlsEnabled ?? true, engineVersion: 'v', provider: 'sqlite', confirmationHeader: 'X-Acta-Control' }),
         { status: 200 }
       );
     }

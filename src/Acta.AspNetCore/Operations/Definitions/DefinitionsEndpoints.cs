@@ -4,8 +4,8 @@ using Microsoft.AspNetCore.Routing;
 namespace Acta.AspNetCore;
 
 /// <summary>
-/// The Definitions routes: the list, one definition, its tags, the overrides update, and retire. A definition is
-/// addressed by its natural key (namespace and name); an invalid override throws ArgumentException, the 400.
+/// The Definitions routes: the list, one definition, its input template, its tags, the overrides update, and retire. A
+/// definition is addressed by its natural key (namespace and name); an invalid override throws ArgumentException, the 400.
 /// </summary>
 internal static class DefinitionsEndpoints
 {
@@ -46,12 +46,21 @@ internal static class DefinitionsEndpoints
             DashboardJsonContext.Default.GetDefinitionResponse,
             static (http, call) => call.Operations.Definitions.GetAsync(Key(http).Namespace, Key(http).Name, call.Ct)
         );
+        // The enqueue form's shape hint, from this host's manifest. A job this host never registered is the 404, which the
+        // form reads as no template: a dashboard can point at a shared ledger it has no job assembly for.
+        reads.MapDetail(
+            "/definitions/{jobNamespace}/{jobName}/input-template",
+            "Read a job's compile-time input template.",
+            "Input template",
+            DashboardJsonContext.Default.GetDefinitionInputTemplateResponse,
+            static (http, call) => ValueTask.FromResult(call.Operations.Definitions.GetInputTemplate(Key(http).Namespace, Key(http).Name))
+        );
         reads.MapTags(
             controls,
             "/definitions/{jobNamespace}/{jobName}/tags",
             "definition",
             options,
-            DashboardJsonContext.Default.UpsertDefinitionTagsRequest,
+            DashboardJsonContext.Default.UpsertDefinitionTagRequest,
             static http => TagTarget.ForDefinition(Key(http).Namespace, Key(http).Name)
         );
         if (controls is null)
@@ -63,9 +72,9 @@ internal static class DefinitionsEndpoints
             "/definitions/{jobNamespace}/{jobName}",
             "Set or clear the definition's operator policy overrides.",
             options,
-            DashboardJsonContext.Default.SetDefinitionOverridesRequest,
+            DashboardJsonContext.Default.UpdateDefinitionOverridesRequest,
             "Invalid definition overrides.",
-            ControlStatus.Definition<SetDefinitionOverridesResponse>(),
+            ControlStatus.Definition<UpdateDefinitionOverridesResponse>(),
             Key,
             static (call, key) =>
                 call.Operations.Definitions.UpdateOverridesAsync(

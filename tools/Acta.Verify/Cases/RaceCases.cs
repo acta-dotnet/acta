@@ -68,7 +68,7 @@ internal static class RaceCases
             using var worker = OwnedWorker.Start(
                 state,
                 effects,
-                scenario.Id == "signal-during-wait" ? new("WaitSignal", "wait-registered") : null
+                scenario.Id == "signal-during-wait" ? new("WaitJobSignal", "wait-registered") : null
             );
             await worker.ReadyAsync(ct);
             var reader = new DurableReader(state);

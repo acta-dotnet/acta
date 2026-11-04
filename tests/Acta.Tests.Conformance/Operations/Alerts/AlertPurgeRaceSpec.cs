@@ -108,7 +108,7 @@ public sealed class AlertPurgeRaceSpec : ActaRuntimeTestBase<ConformanceFixture,
     private async Task<List<long>> TerminalJobsWithAlertsAsync(int round, CancellationToken ct)
     {
         var outcomes = (
-            await Jobs.EnqueueBatchAsync(
+            await Jobs.EnqueueJobsAsync(
                 [
                     .. Enumerable
                         .Range(0, JobsPerRound)

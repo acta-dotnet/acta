@@ -10,14 +10,14 @@ namespace Acta.Tests.Storage;
 /// Unit tests for the boundary of <c>DbSession</c>'s transient-retry region. The retry covers open,
 /// begin, bind, and execute; commit and teardown sit outside it. A transient raised once the batch has
 /// landed must therefore surface rather than replay the batch against rows it already changed - the
-/// shape that turned a committed <c>complete_step</c> into a spurious lost CAS. Driven through fake
+/// shape that turned a committed <c>complete_job_step</c> into a spurious lost CAS. Driven through fake
 /// ADO.NET objects because no real provider lets a commit be made to fail on demand.
 /// </summary>
 public class DbSessionRetryRegionTests
 {
     private sealed class TransientException : Exception { }
 
-    private static readonly StoreCommand Command = new("CompleteStep");
+    private static readonly StoreCommand Command = new("CompleteJobStep");
     private static readonly StoreCommand InlineCommand = new("ClaimOutbox");
 
     private static DbSession NewSession(FakeDialect dialect, int retryAttempts = 5) =>
@@ -397,7 +397,7 @@ public class DbSessionRetryRegionTests
         public void BindCompleteExecutions(DbCommand command, CompleteExecutionsCommand request, string schema) =>
             throw new NotSupportedException();
 
-        public void BindAdmitFirings(DbCommand command, AdmitFiringsCommand request) => throw new NotSupportedException();
+        public void BindAdmitScheduleFirings(DbCommand command, AdmitScheduleFiringsCommand request) => throw new NotSupportedException();
 
         public void BindPublishCalendar(DbCommand command, IReadOnlyList<PublishCalendarValues> rows) => throw new NotSupportedException();
     }

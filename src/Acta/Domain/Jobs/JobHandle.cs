@@ -35,7 +35,7 @@ public record JobHandle : EnqueueJobResponse
         _jobs.CancelAsync(this, reasonMessage, actor, ct: ct);
 
     /// <inheritdoc cref="IJobs.ExplainAsync"/>
-    public ValueTask<GetJobExplanationResponse?> ExplainAsync(CancellationToken ct = default) => _jobs.ExplainAsync(this, ct);
+    public ValueTask<ExplainJobResponse?> ExplainAsync(CancellationToken ct = default) => _jobs.ExplainAsync(this, ct);
 }
 
 /// <summary>

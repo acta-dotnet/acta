@@ -155,7 +155,7 @@ public sealed class WorkerLoopDispatchSpec : ActaRuntimeTestBase<ConformanceFixt
         // never reaches this process's transport, simulating a writer in another process with no
         // shared transport. The safety poll is the only discovery path.
         var rows = (
-            await EnqueueTestOps.EnqueueBatchAsync(
+            await EnqueueTestOps.EnqueueJobsAsync(
                 Services,
                 [new JobEnqueueValues(TestNamespace, "add-numbers", JobPayload.Json(new AddNumbers(2, 3)))],
                 ct

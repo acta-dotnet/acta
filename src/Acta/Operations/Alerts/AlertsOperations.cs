@@ -7,12 +7,12 @@ internal sealed class AlertsOperations(
     ListAlertsHandler listAlerts,
     GetAlertHandler getAlert,
     RaiseAlertHandler raiseAlert,
-    GetAlertableEventsHandler getAlertableEvents,
-    GetDeliverableAlertsHandler getDeliverableAlerts,
+    ListAlertableEventsHandler listAlertableEvents,
+    ListDeliverableAlertsHandler listDeliverableAlerts,
     UpdateAlertDeliveryHandler updateAlertDelivery,
     ResolveAlertsHandler resolveAlerts,
     GetAlertFloorHandler getAlertFloor,
-    GetPoisonAlertEventsHandler getPoisonAlertEvents
+    ListPoisonAlertEventsHandler listPoisonAlertEvents
 ) : IAlerts
 {
     /// <summary>
@@ -23,8 +23,8 @@ internal sealed class AlertsOperations(
         getAlertFloor.HandleAsync(new GetAlertFloorQuery(NamespaceId: namespaceId), ct);
 
     /// <summary>The skipped events still on the ledger, each marked when a newer success of its job supersedes it.</summary>
-    internal Task<GetPoisonAlertEventsResponse> GetPoisonAlertEventsAsync(int namespaceId, string poisonJson, CancellationToken ct) =>
-        getPoisonAlertEvents.HandleAsync(new GetPoisonAlertEventsQuery(namespaceId, poisonJson), ct);
+    internal Task<ListPoisonAlertEventsResponse> ListPoisonAlertEventsAsync(int namespaceId, string poisonJson, CancellationToken ct) =>
+        listPoisonAlertEvents.HandleAsync(new ListPoisonAlertEventsQuery(namespaceId, poisonJson), ct);
 
     public ValueTask<AcknowledgeAlertResponse> AcknowledgeAsync(
         AlertRef alertRef,
@@ -61,7 +61,7 @@ internal sealed class AlertsOperations(
     /// before that instant has committed; the caller sees it as latency between an event landing and the
     /// pass that projects it, and as the instant a short batch may checkpoint to.
     /// </summary>
-    internal TimeSpan SafeHorizonLag => getAlertableEvents.SafeHorizonLag;
+    internal TimeSpan SafeHorizonLag => listAlertableEvents.SafeHorizonLag;
 
     /// <summary>
     /// Reads the namespace's alert-relevant <c>events</c> rows past the <c>sys.alerts</c> cursor and stamped
@@ -69,14 +69,14 @@ internal sealed class AlertsOperations(
     /// pair. Stamps, not ids, order the walk: the stamp is set inside the writing transaction and the id at
     /// insert, so a slow writer commits a low stamp under a high id that an id-only cursor would skip.
     /// </summary>
-    internal Task<GetAlertableEventsResponse> GetAlertableEventsAsync(
+    internal Task<ListAlertableEventsResponse> ListAlertableEventsAsync(
         int namespaceId,
         DateTime cursorUtc,
         long cursorEventId,
         int batchSize,
         DateTime horizonUtc,
         CancellationToken ct
-    ) => getAlertableEvents.HandleAsync(new GetAlertableEventsQuery(namespaceId, cursorUtc, cursorEventId, batchSize, horizonUtc), ct);
+    ) => listAlertableEvents.HandleAsync(new ListAlertableEventsQuery(namespaceId, cursorUtc, cursorEventId, batchSize, horizonUtc), ct);
 
     /// <summary>
     /// Reads the namespace's unresolved alerts due for delivery, both arms keyed off <c>retry_after_utc</c>:
@@ -85,8 +85,8 @@ internal sealed class AlertsOperations(
     /// re-stamps it, so a job failing faster than the reminder interval would never be reminded. Resolved
     /// rows are never sent; an attempt already in flight may still complete.
     /// </summary>
-    internal Task<GetDeliverableAlertsResponse> GetDeliverableAlertsAsync(int namespaceId, int batchSize, CancellationToken ct) =>
-        getDeliverableAlerts.HandleAsync(new GetDeliverableAlertsQuery(namespaceId, batchSize), ct);
+    internal Task<ListDeliverableAlertsResponse> ListDeliverableAlertsAsync(int namespaceId, int batchSize, CancellationToken ct) =>
+        listDeliverableAlerts.HandleAsync(new ListDeliverableAlertsQuery(namespaceId, batchSize), ct);
 
     /// <summary>
     /// Records one delivery attempt's outcome (status, retry count, and <c>retry_after_utc</c>: the next retry

@@ -110,7 +110,7 @@ BEGIN
                     OPTION (FORCE ORDER, LOOP JOIN);
                 END
 
-            /* Each slot this batch may read or write takes the slot's own lock, as wait_signal and raise_signal name it, all in
+            /* Each slot this batch may read or write takes the slot's own lock, as wait_job_signal and raise_job_signal name it, all in
                name order and before any slot row or jobs_state row (docs/sql-internals.md, "Slot locks"): each awaited slot
                under both kinds a wait can name, and each parent's latch for a child here, whether or not the child lands terminal. */
             IF @waits = 1 OR @children = 1

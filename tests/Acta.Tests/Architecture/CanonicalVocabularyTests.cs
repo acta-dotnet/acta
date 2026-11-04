@@ -83,7 +83,7 @@ public sealed class CanonicalVocabularyTests
         };
 
         // The tag type from before tags spanned every target began a word; a route's request names the upsert of a
-        // job's tags with the same letters inside a word (UpsertJobTagsRequest), which is not it.
+        // job's tags with the same letters inside a word (UpsertJobTagRequest), which is not it.
         var wordStarts = new[] { new Regex("(?<![a-z])" + "Job" + "Tag", RegexOptions.CultureInvariant) };
 
         var root = IntegrationConfig.FindRepoRoot();

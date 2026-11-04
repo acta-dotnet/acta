@@ -145,7 +145,7 @@ public sealed class ControlAuthorizationTests
         Assert.Equal(HttpStatusCode.NotFound, (await client.GetAsync($"/acta/api/v1/jobs/{missing}/detail", ct)).StatusCode);
         Assert.Equal(
             HttpStatusCode.OK,
-            (await client.GetAsync("/acta/api/v1/jobs/input-template?jobNamespace=billing&jobName=send-invoice", ct)).StatusCode
+            (await client.GetAsync("/acta/api/v1/definitions/billing/send-invoice/input-template", ct)).StatusCode
         );
         Assert.Empty(authorizer.Requests);
     }

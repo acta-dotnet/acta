@@ -59,7 +59,7 @@ public sealed class NamespaceEnqueueSpec : ActaRuntimeTestBase<ConformanceFixtur
         await SetNamespaceStatusAsync(NamespaceStatusCode.Suspended, ct);
         var before = await CountJobsAsync(ct);
 
-        await Assert.ThrowsAnyAsync<Exception>(() => EnqueueTestOps.EnqueueBatchAsync(Services, [Row()], ct));
+        await Assert.ThrowsAnyAsync<Exception>(() => EnqueueTestOps.EnqueueJobsAsync(Services, [Row()], ct));
 
         Assert.Equal(before, await CountJobsAsync(ct));
     }
@@ -83,10 +83,10 @@ public sealed class NamespaceEnqueueSpec : ActaRuntimeTestBase<ConformanceFixtur
         var ct = TestContext.Current.CancellationToken;
         var (db, dialect) = Store();
         await SetNamespaceStatusAsync(NamespaceStatusCode.Suspended, ct);
-        await Assert.ThrowsAnyAsync<Exception>(() => EnqueueTestOps.EnqueueBatchAsync(Services, [Row()], ct));
+        await Assert.ThrowsAnyAsync<Exception>(() => EnqueueTestOps.EnqueueJobsAsync(Services, [Row()], ct));
 
         await SetNamespaceStatusAsync(NamespaceStatusCode.Active, ct);
-        var result = (await EnqueueTestOps.EnqueueBatchAsync(Services, [Row()], ct)).Jobs;
+        var result = (await EnqueueTestOps.EnqueueJobsAsync(Services, [Row()], ct)).Jobs;
         var job = await ReadJobAsync(result[0].JobId, ct);
 
         Assert.NotNull(job);

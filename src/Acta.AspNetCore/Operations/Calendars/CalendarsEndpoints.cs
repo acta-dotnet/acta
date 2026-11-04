@@ -19,7 +19,7 @@ internal static class CalendarsEndpoints
             static query => new ListCalendarsQuery(
                 JobNamespace: query.Text("jobNamespace"),
                 Role: query.Enum<CalendarRoleCode>("role"),
-                NameSearch: query.Text("nameSearch"),
+                NameContains: query.Text("nameContains"),
                 PageSize: query.Int("pageSize"),
                 Cursor: query.Text("cursor"),
                 IncludeTotal: query.Bool("includeTotal") ?? false
@@ -33,7 +33,7 @@ internal static class CalendarsEndpoints
                 ),
                 new QueryParameterDoc("role", QueryParameterKind.String, "Exact calendar role as a kebab code.", CodeKind: "calendar-role"),
                 new QueryParameterDoc(
-                    "nameSearch",
+                    "nameContains",
                     QueryParameterKind.String,
                     "A dotted kebab fragment matched anywhere in the calendar name."
                 ),

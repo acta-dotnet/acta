@@ -93,14 +93,14 @@ public sealed class ListCalendarsSpec : ActaStorageTestBase<ConformanceFixture>
         );
 
         var availability = await OwnAsync(new ListCalendarsQuery(TestNamespace, Role: CalendarRoleCode.Availability), ct);
-        var days = await OwnAsync(new ListCalendarsQuery(TestNamespace, NameSearch: "b-DAYS-" + TestId), ct);
+        var days = await OwnAsync(new ListCalendarsQuery(TestNamespace, NameContains: "b-DAYS-" + TestId), ct);
         // The test's id is in every name it saves and in no other test's, so the search pages over this test's rows alone.
         var first = await Calendars.ListAsync(
-            new ListCalendarsQuery(TestNamespace, NameSearch: TestId, PageSize: 2, IncludeTotal: true),
+            new ListCalendarsQuery(TestNamespace, NameContains: TestId, PageSize: 2, IncludeTotal: true),
             ct
         );
         var second = await Calendars.ListAsync(
-            new ListCalendarsQuery(TestNamespace, NameSearch: TestId, PageSize: 2, Cursor: first.NextCursor),
+            new ListCalendarsQuery(TestNamespace, NameContains: TestId, PageSize: 2, Cursor: first.NextCursor),
             ct
         );
 
@@ -136,15 +136,15 @@ public sealed class ListCalendarsSpec : ActaStorageTestBase<ConformanceFixture>
         );
         await Calendars.SaveDraftAsync(new("sys", closures), CalendarRoleCode.Occurrence, CalendarTestOps.OccurrenceDefinition, 0, ct: ct);
 
-        var scoped = await Calendars.ListAsync(new ListCalendarsQuery(TestNamespace, NameSearch: TestId), ct);
-        var shared = await Calendars.ListAsync(new ListCalendarsQuery("sys", NameSearch: TestId), ct);
-        var everywhere = await Calendars.ListAsync(new ListCalendarsQuery(NameSearch: TestId, IncludeTotal: true), ct);
+        var scoped = await Calendars.ListAsync(new ListCalendarsQuery(TestNamespace, NameContains: TestId), ct);
+        var shared = await Calendars.ListAsync(new ListCalendarsQuery("sys", NameContains: TestId), ct);
+        var everywhere = await Calendars.ListAsync(new ListCalendarsQuery(NameContains: TestId, IncludeTotal: true), ct);
         // Two families share a name, so a page of one must break the tie by namespace and lose neither.
         var paged = new List<ListCalendarsItem>();
         string? cursor = null;
         do
         {
-            var page = await Calendars.ListAsync(new ListCalendarsQuery(NameSearch: TestId, PageSize: 1, Cursor: cursor), ct);
+            var page = await Calendars.ListAsync(new ListCalendarsQuery(NameContains: TestId, PageSize: 1, Cursor: cursor), ct);
             paged.AddRange(page.Items);
             cursor = page.NextCursor;
         } while (cursor is not null);
@@ -166,7 +166,7 @@ public sealed class ListCalendarsSpec : ActaStorageTestBase<ConformanceFixture>
     /// </summary>
     private async Task<IReadOnlyList<ListCalendarsItem>> OwnAsync(ListCalendarsQuery query, CancellationToken ct) =>
         [
-            .. (await Calendars.ListAsync(query.NameSearch is null ? query with { NameSearch = TestId } : query, ct)).Items.Where(i =>
+            .. (await Calendars.ListAsync(query.NameContains is null ? query with { NameContains = TestId } : query, ct)).Items.Where(i =>
                 i.CalendarName.EndsWith(TestId, StringComparison.Ordinal)
             ),
         ];

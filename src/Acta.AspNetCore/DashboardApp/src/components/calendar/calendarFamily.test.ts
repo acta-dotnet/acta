@@ -36,10 +36,10 @@ test('catalog verbs word their outcomes with the version and the counts', () => 
   assert.equal(calendarControlMessage('draft', 'applied', { version: 4 }), 'Draft saved as version 4.');
   assert.equal(calendarControlMessage('publish', 'applied', { version: 3, retimed: 1 }), 'Version 3 published; 1 schedule retimed.');
   assert.equal(calendarControlMessage('archive', 'applied', { version: 2 }), 'Version 2 archived; the family has no current version.');
-  assert.match(calendarControlMessage('draft', 'versionConflict'), /version conflict/);
+  assert.match(calendarControlMessage('draft', 'version-conflict'), /version conflict/);
   assert.equal(calendarControlMessage('draft', 'rejected'), 'Draft rejected: the definition has problems.');
   assert.equal(calendarControlMessage('publish', 'rejected', { reason: 'overdue occurrences' }), 'Publish rejected: overdue occurrences');
   assert.equal(calendarControlMessage('archive', 'rejected', { dependents: 2 }), 'Archive rejected: 2 live schedules still bind this calendar.');
-  assert.equal(calendarControlMessage('publish', 'notFound'), "That version is not one of this calendar's.");
-  assert.equal(calendarControlMessage('archive', 'notFound'), 'Calendar not found.');
+  assert.equal(calendarControlMessage('publish', 'not-found'), "That version is not one of this calendar's.");
+  assert.equal(calendarControlMessage('archive', 'not-found'), 'Calendar not found.');
 });

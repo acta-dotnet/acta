@@ -100,7 +100,7 @@ internal sealed class ScheduleAdmitter(
         for (var replan = 0; replan <= MaxReplans; replan++)
         {
             var now = await clock.GetUtcNowAsync(ct);
-            var due = (await schedules.GetDueSchedulesAsync(namespaceId, now, SchedulesPerPass, ct)).Schedules;
+            var due = (await schedules.ListDueSchedulesAsync(namespaceId, now, SchedulesPerPass, ct)).Schedules;
             if (replan == 0 && metrics is not null)
             {
                 foreach (var s in due)
@@ -120,7 +120,7 @@ internal sealed class ScheduleAdmitter(
                 break;
             }
 
-            var outcomes = (await schedules.AdmitFiringsAsync(plan, ct)).Groups;
+            var outcomes = (await schedules.AdmitScheduleFiringsAsync(plan, ct)).Groups;
             var appliedAdmissions = outcomes.Count(o => o.Applied && plan.Groups[o.Ordinal].Admit);
             admitted += appliedAdmissions;
             stale = outcomes.Count(o => !o.Applied);
@@ -163,7 +163,7 @@ internal sealed class ScheduleAdmitter(
     /// whose source fails is parked as an evaluation error and, given a logger, said so. Given a list, the decisions each
     /// group's rows took are collected for the meter, by ordinal.
     /// </summary>
-    internal static AdmitFiringsCommand Plan(
+    internal static AdmitScheduleFiringsCommand Plan(
         int namespaceId,
         IReadOnlyList<DueSchedule> due,
         DateTime nowUtc,
@@ -172,8 +172,8 @@ internal sealed class ScheduleAdmitter(
         List<PlannedMeasurement>? decisions = null
     )
     {
-        var groups = new List<AdmitFiringsGroup>();
-        var rows = new List<AdmitFiringsValues>();
+        var groups = new List<AdmitScheduleFiringsGroup>();
+        var rows = new List<AdmitScheduleFiringsValues>();
         ScheduleSource Resolve(ScheduleTiming timing) => calendars.Source(namespaceId, timing);
         foreach (var slot in due.Where(d => d.JobId is not null).GroupBy(d => d.JobId!.Value))
         {
@@ -185,7 +185,7 @@ internal sealed class ScheduleAdmitter(
             PlanOccurrence(schedule, nowUtc, Resolve, log, groups, rows, decisions);
         }
 
-        return new AdmitFiringsCommand(namespaceId, groups, rows);
+        return new AdmitScheduleFiringsCommand(namespaceId, groups, rows);
     }
 
     /// <summary>A slot admits at most one firing per pass, the contributors frozen in its envelope.</summary>
@@ -195,8 +195,8 @@ internal sealed class ScheduleAdmitter(
         DateTime nowUtc,
         Func<ScheduleTiming, ScheduleSource> resolve,
         ILogger? log,
-        List<AdmitFiringsGroup> groups,
-        List<AdmitFiringsValues> rows,
+        List<AdmitScheduleFiringsGroup> groups,
+        List<AdmitScheduleFiringsValues> rows,
         List<PlannedMeasurement>? decisions
     )
     {
@@ -209,15 +209,15 @@ internal sealed class ScheduleAdmitter(
         var ordinal = groups.Count;
         var capacity = Capacity(slotStatus, first.FiringStatus);
         var contributors = new List<FiringContributor>();
-        var slotRows = new List<AdmitFiringsValues>();
-        var checks = new List<AdmitFiringsValues>();
+        var slotRows = new List<AdmitScheduleFiringsValues>();
+        var checks = new List<AdmitScheduleFiringsValues>();
         var firingId = Guid.CreateVersion7();
         foreach (var s in members)
         {
             var e = Evaluate(s, capacity, nowUtc, resolve, log);
             if (!e.Changes(Cursor(s), s.EvaluationStatus, s.NextEvaluationAtUtc))
             {
-                checks.Add(AdmitFiringsValues.Check(ordinal, s.ScheduleId, s.ScheduleName, s.StateVersion, s.ScheduleVersion));
+                checks.Add(AdmitScheduleFiringsValues.Check(ordinal, s.ScheduleId, s.ScheduleName, s.StateVersion, s.ScheduleVersion));
                 continue;
             }
 
@@ -246,7 +246,7 @@ internal sealed class ScheduleAdmitter(
                     nowUtc,
                     contributors.OrderBy(c => c.ScheduleName, StringComparer.Ordinal).ToList()
                 ).ToJson();
-        groups.Add(new AdmitFiringsGroup(ordinal, jobId, slotVersion, null, null, contributors.Count > 0, envelope));
+        groups.Add(new AdmitScheduleFiringsGroup(ordinal, jobId, slotVersion, null, null, contributors.Count > 0, envelope));
         rows.AddRange(slotRows);
         rows.AddRange(checks);
     }
@@ -261,8 +261,8 @@ internal sealed class ScheduleAdmitter(
         DateTime nowUtc,
         Func<ScheduleTiming, ScheduleSource> resolve,
         ILogger? log,
-        List<AdmitFiringsGroup> groups,
-        List<AdmitFiringsValues> rows,
+        List<AdmitScheduleFiringsGroup> groups,
+        List<AdmitScheduleFiringsValues> rows,
         List<PlannedMeasurement>? decisions
     )
     {
@@ -275,7 +275,7 @@ internal sealed class ScheduleAdmitter(
         }
 
         var ordinal = groups.Count;
-        var group = new AdmitFiringsGroup(ordinal, null, null, s.ScheduleId, s.StateVersion, false, null);
+        var group = new AdmitScheduleFiringsGroup(ordinal, null, null, s.ScheduleId, s.StateVersion, false, null);
         string? admittedDetails = null;
         var skippedDetails = SkippedDetails(s, e);
         if (e.Admit is { } admit)
@@ -389,7 +389,7 @@ internal sealed class ScheduleAdmitter(
     private static FiringContributor Contributor(DueSchedule s, AdmittedOccurrence admit) =>
         new(s.ScheduleId, s.ScheduleName, admit.OccurrenceAtUtc, s.TimeZoneId ?? "UTC", admit.CoveredThroughUtc, s.TimingFingerprint);
 
-    private static AdmitFiringsValues Row(
+    private static AdmitScheduleFiringsValues Row(
         int ordinal,
         DueSchedule s,
         ScheduleEvaluation e,

@@ -183,14 +183,14 @@ public sealed class SchemaCommandsTests : IDisposable
     public void A_routine_edit_fails_check_until_add_drafts_it_alone_into_the_next_migration()
     {
         SchemaAddCommand.Run(name: null, repoRoot: _root, now: First);
-        var source = Path.Combine(_root, "src", "Acta", "Operations", "Execution", "StartStep", "StartStep.routine.pg.sql");
+        var source = Path.Combine(_root, "src", "Acta", "Operations", "Execution", "StartJobStep", "StartJobStep.routine.pg.sql");
         File.WriteAllText(source, File.ReadAllText(source).Replace("AS $$", "AS $$\n-- edited", StringComparison.Ordinal));
 
         Assert.Equal(1, CheckCommand.Run(_root));
         Assert.Equal(0, SchemaAddCommand.Run(name: "edit_start_step", repoRoot: _root, now: Second));
 
         var pg = File.ReadAllText(MigrationFiles.PathFor(_root, "pg", "M20260102000000_edit_start_step"));
-        Assert.Contains("CREATE OR REPLACE FUNCTION {{schema}}.start_step(", pg, StringComparison.Ordinal);
+        Assert.Contains("CREATE OR REPLACE FUNCTION {{schema}}.start_job_step(", pg, StringComparison.Ordinal);
         Assert.Contains("-- edited", pg, StringComparison.Ordinal);
         Assert.Contains("VALUES ('M20260102000000_edit_start_step')", pg, StringComparison.Ordinal);
         Assert.DoesNotContain("claim_jobs", pg, StringComparison.Ordinal);

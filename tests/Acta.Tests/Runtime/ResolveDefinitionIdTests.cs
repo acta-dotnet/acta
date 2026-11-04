@@ -71,10 +71,10 @@ public sealed class ResolveDefinitionIdTests
     {
         // The stub session throws on any write, so an answer at all proves nothing was written.
         var session = new OverMatchingSession(Catalog);
-        var handler = new SetDefinitionOverridesHandler(Resolver(session), session, null!);
+        var handler = new UpdateDefinitionOverridesHandler(Resolver(session), session, null!);
 
         var outcome = await handler.HandleAsync(
-            new SetDefinitionOverridesCommand(
+            new UpdateDefinitionOverridesCommand(
                 Namespace,
                 "invoic",
                 ExpectedVersion: 1,

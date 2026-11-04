@@ -1,0 +1,68 @@
+using Microsoft.Extensions.Options;
+
+namespace Acta;
+
+/// <summary>
+/// The operator raise behind <c>IJobs.RaiseSignalAsync</c>: canonicalizes the name, caps the payload, resolves
+/// the job, raises the slot as the operator, and wakes the workers when the raise released the job to Ready.
+/// </summary>
+internal sealed class RaiseJobSignalHandler(
+    IDbSession session,
+    ISqlDialect dialect,
+    GetJobIdHandler getJobId,
+    WorkerWakeupPublisher wakeup,
+    IOptions<JobsOptions> options
+)
+{
+    private readonly int _maxInlinePayloadBytes = options.Value.MaxInlinePayloadBytes;
+
+    public async ValueTask<RaiseJobSignalResponse> HandleAsync(RaiseJobSignalCommand command, CancellationToken ct)
+    {
+        var name = NameSyntax.Canonicalize(command.Name, "name", NameSyntax.ExtendedMaxLength, reserveSystem: true);
+        var value = command.Value;
+        if (value.Data.Length > _maxInlinePayloadBytes)
+        {
+            throw new PayloadTooLargeException($"signal '{name}' value", value.Data.Length, _maxInlinePayloadBytes);
+        }
+
+        if (await getJobId.HandleAsync(new GetJobIdQuery(command.Job), ct) is not { JobId: var jobId })
+        {
+            return new RaiseJobSignalResponse(0, ControlAction.NotFound, null, null);
+        }
+
+        var input = new JobControlInput(JobControlActor.Operator(command.Actor), EventReason.SignalReleased, null);
+        var response = await RaiseSlotAsync(
+            new RaiseJobSignalSlot(
+                jobId,
+                CheckpointKindCode.Signal,
+                name,
+                value.Format.Id,
+                value.IsNone ? null : value.Data.ToArray(),
+                input
+            ),
+            ct
+        );
+        await JobControl.WakeIfReadyAsync(wakeup, response.Action, response.Status, ct);
+        return response;
+    }
+
+    /// <summary><see cref="SignalsOperations.RaiseJobSignalAsync"/>: one routine call for any slot kind, the operator's raise among them.</summary>
+    internal async Task<RaiseJobSignalResponse> RaiseSlotAsync(RaiseJobSignalSlot raise, CancellationToken ct)
+    {
+        var row = await session.ExecuteOneAsync(
+            new StoreCommand("RaiseJobSignal"),
+            cmd =>
+            {
+                cmd.Parameters.Add(dialect.CreateParameter(ActaSchema.Checkpoint.JobId, raise.JobId));
+                cmd.Parameters.Add(dialect.CreateParameter(ActaSchema.Checkpoint.CheckpointKindCode, raise.Kind));
+                cmd.Parameters.Add(dialect.CreateParameter(ActaSchema.Checkpoint.CheckpointName, raise.Name));
+                cmd.Parameters.Add(dialect.CreateParameter(ActaSchema.Checkpoint.ValueFormatId, raise.ValueFormatId));
+                cmd.Parameters.Add(dialect.CreateParameter(ActaSchema.Checkpoint.Value, raise.Value));
+                JobControl.BindEvent(cmd, dialect, raise.Input);
+            },
+            DbProjectionResolver.Resolve<RaiseJobSignalRow>(),
+            ct
+        );
+        return new RaiseJobSignalResponse(raise.JobId, row.Action, row.Status, null);
+    }
+}

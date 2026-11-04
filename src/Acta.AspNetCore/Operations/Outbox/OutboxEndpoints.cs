@@ -31,8 +31,8 @@ internal static class OutboxEndpoints
             .MapList(
                 "/outbox/{jobNamespace}/quarantined",
                 "List a relay source's quarantined staging rows.",
-                DashboardJsonContext.Default.ListOutboxQuarantinedResponse,
-                static query => new ListOutboxQuarantinedQuery(
+                DashboardJsonContext.Default.ListQuarantinedOutboxResponse,
+                static query => new ListQuarantinedOutboxQuery(
                     query.Route("jobNamespace"),
                     PageSize: query.Int("pageSize"),
                     Cursor: query.Text("cursor"),

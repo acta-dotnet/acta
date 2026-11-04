@@ -770,7 +770,7 @@ internal static class LoadTrial
                         {
                             requests[k] = Request(first + k);
                         }
-                        var response = await jobs.EnqueueBatchAsync(requests, stop.Token);
+                        var response = await jobs.EnqueueJobsAsync(requests, stop.Token);
                         for (var k = 0; k < size; k++)
                         {
                             ids[first + k] = response.Jobs[k].JobId;

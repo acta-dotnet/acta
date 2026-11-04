@@ -116,7 +116,7 @@ internal sealed class CancelJobHandler(
     private async Task<bool> WalkAsync(long parentJobId, JobControlInput input, ExecutionFence? fence, CancellationToken ct)
     {
         var promoted = false;
-        foreach (var childId in (await execution.GetChildJobIdsAsync(parentJobId, ct)).ChildJobIds)
+        foreach (var childId in (await execution.ListChildJobIdsAsync(parentJobId, ct)).ChildJobIds)
         {
             var row = await CancelAsync(childId, input, fence, ct);
             promoted |= row.Action == ControlAction.Applied && row.LanePromoted;

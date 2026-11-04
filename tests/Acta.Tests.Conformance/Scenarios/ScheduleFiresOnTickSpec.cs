@@ -118,7 +118,7 @@ public sealed class ScheduleFiresOnTickSpec : ActaRuntimeTestBase<ConformanceFix
         Assert.Equal(1, (await Jobs.GetResultAsync<RecurringPingResult>(slot, ct))?.Sequence);
 
         var observed = false;
-        GetResultResponse? whileRunning = null;
+        GetJobResultResponse? whileRunning = null;
         RecurringPingHandler.DuringNextFire[TestNamespace] = async () =>
         {
             whileRunning = await Jobs.GetResultAsync(slot, ct);

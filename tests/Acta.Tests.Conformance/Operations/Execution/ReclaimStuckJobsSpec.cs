@@ -191,8 +191,8 @@ public sealed class ReclaimStuckJobsSpec : ActaRuntimeTestBase<ConformanceFixtur
         var claimed = Assert.Single(await execution.ClaimJobAsync(ns, workerId, LiveLeaseTtl, enqueued, ct));
         var fence = new ExecutionFence(enqueued.JobId, claimed.ExecutionNumber, workerId);
 
-        var armed = await execution.ArmOrConsumeSleepTimerAsync(new ArmOrConsumeSleepTimerCommand(fence, TimerName, 600, null), ct);
-        Assert.Equal(ArmOrConsumeSleepTimerOutcomeCode.Suspend, armed.Outcome);
+        var armed = await execution.ArmOrConsumeJobSleepTimerAsync(new ArmOrConsumeJobSleepTimerCommand(fence, TimerName, 600, null), ct);
+        Assert.Equal(ArmOrConsumeJobSleepTimerOutcomeCode.Suspend, armed.Outcome);
 
         // Back-dating the arm's due instant is what puts the next call on the consume arm, which is the
         // one that clears next_run_at_utc; without it the call would simply re-suspend.
@@ -220,7 +220,7 @@ public sealed class ReclaimStuckJobsSpec : ActaRuntimeTestBase<ConformanceFixtur
         // instant would hide it from the claim's index order for good, and consuming the timer would skip the sleep
         // the next attempt still owes.
         await Assert.ThrowsAsync<ExecutionFencedException>(() =>
-            execution.ArmOrConsumeSleepTimerAsync(new ArmOrConsumeSleepTimerCommand(fence, TimerName, 600, null), ct)
+            execution.ArmOrConsumeJobSleepTimerAsync(new ArmOrConsumeJobSleepTimerCommand(fence, TimerName, 600, null), ct)
         );
 
         var after = await ReadJobAsync(enqueued.JobId, ct);

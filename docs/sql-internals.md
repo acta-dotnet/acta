@@ -131,13 +131,13 @@ the first; a row still skipped is renewed on the next beat, well inside the leas
 skipping, so the routine never waits on a `jobs_state` row while it holds a `locks` row. The answer also carries the namespace's
 newest `definitions.modified_at_utc`, on which the worker re-reads its policy.
 
-Statements that lock both `checkpoints` and `jobs_state` take the checkpoint slot first. `raise_signal` does,
+Statements that lock both `checkpoints` and `jobs_state` take the checkpoint slot first. `raise_job_signal` does,
 and `complete_executions` takes the slots its rows await before their `jobs_state` rows; a child that
 lands then takes its parent's latch before the parent's `jobs_state` row, both after its own. A batch
 holding a parent and one of its grandchildren can therefore deadlock with a batch landing the child
 between them; the victim's write repeats. `ResetJobState` takes the `jobs_state` row and then deletes the
 job's checkpoints, and `PurgeJob` deletes them before the job row; both run on a
-job no worker is advancing on another slot at that moment. `arm_or_consume_sleep_timer` is the other
+job no worker is advancing on another slot at that moment. `arm_or_consume_job_sleep_timer` is the other
 exception, taking the
 `jobs_state` row as a job-level mutex before reading its slot, so a timer arming concurrently with a
 signal raise on the same job acquires the two in opposite orders. No deadlock graph has ever shown
@@ -284,13 +284,13 @@ probe under `HOLDLOCK` made every executor's write wait for every other's. Each 
 insert one takes `sp_getapplock`, exclusive and owned by the transaction, on the slot's own name and then
 reads it under `UPDLOCK`; a refusal raises 51205:
 
-- `start_step` locks `<schema>.step:<job id>:<name>`.
-- `access_checkpoint` (Set and GetOrSet), `wait_signal`, `raise_signal`, and `ParkOutboxSignal` lock
+- `start_job_step` locks `<schema>.step:<job id>:<name>`.
+- `access_job_checkpoint` (Set and GetOrSet), `wait_job_signal`, `raise_job_signal`, and `ParkOutboxSignal` lock
   `<schema>.slot:<job id>:<kind>:<name>`.
 - `complete_executions` locks the same name for each awaited slot, under both wait kinds, and for each parent latch a child in the batch may raise. It takes them all in one name-ordered pass, after the lanes and before any slot or `jobs_state` row, so no path holds a slot row while it waits for a slot lock.
 - `reserve_rate` locks `<schema>.rate:<bucket key>`, so the calls on one meter serialize without a range lock on a bucket not yet stored, whose gap holds the meter's reservations and the next meters.
 
-The sleep timer's slot needs none: `arm_or_consume_sleep_timer` locks the job's `jobs_state` row first.
+The sleep timer's slot needs none: `arm_or_consume_job_sleep_timer` locks the job's `jobs_state` row first.
 
 ### Outbox lock
 
@@ -325,12 +325,12 @@ writes. A cancel, restart, reclaim, completion, or claim that moves the row wait
 for one of them reads the row it left and is refused. Execution numbers only grow, so a worker's next execution fences
 out its last one as any other worker's would.
 
-- PostgreSQL locks the row `FOR SHARE`, and `FOR UPDATE` in `arm_or_consume_sleep_timer`, whose job-level mutex it
+- PostgreSQL locks the row `FOR SHARE`, and `FOR UPDATE` in `arm_or_consume_job_sleep_timer`, whose job-level mutex it
   already was. SQL Server locks it `UPDLOCK, ROWLOCK` by primary key, a lock on the existing key and never a range.
   SQLite checks it in the first statement of its one writer transaction.
 - On SQL Server the lock comes after the slot or step lock above and before the slot or step row. On PostgreSQL
-  `wait_signal` locks a stored slot row and then the job row, and the job row before it inserts an absent slot: the
-  orders `raise_signal` and a child's landing take. The variable, progress, and step writes lock the job row first, as
+  `wait_job_signal` locks a stored slot row and then the job row, and the job row before it inserts an absent slot: the
+  orders `raise_job_signal` and a child's landing take. The variable, progress, and step writes lock the job row first, as
   `ResetJobState`, `PurgeJob`, `RestartJob`, and retention's job sweep do before they delete such rows, and no other
   path writes them. A child's enqueue locks its parent's row after the lanes and the parent's `jobs` row.
 - A timed-out child's cancel reads the awaiting job's row without a lock, after it locks the cancelled job's lane and
@@ -338,17 +338,17 @@ out its last one as any other worker's would.
   child's landing locks itself first. The read is enough. Reviving a cancelled node takes its rows after the
   awaiting attempt lost the job, so the read that follows the cancel's own lock sees the loss. What stays open is the
   instant between that read and the commit.
-- Fenced: `access_checkpoint` Set, GetOrSet, and Delete (variables, progress, a group wait's deadline),
-  `arm_or_consume_sleep_timer`, `wait_signal` (signals and child latches), `start_step`, `complete_step`,
-  `RecordNote`, `ResetJobState`, `enqueue_job` for a child its parent's handler starts, and `CancelJob` for every node
+- Fenced: `access_job_checkpoint` Set, GetOrSet, and Delete (variables, progress, a group wait's deadline),
+  `arm_or_consume_job_sleep_timer`, `wait_job_signal` (signals and child latches), `start_job_step`, `complete_job_step`,
+  `RecordJobNote`, `ResetJobState`, `enqueue_job` for a child its parent's handler starts, and `CancelJob` for every node
   of a timed-out child's subtree: the wait that expired was fenced, but the attempt can lose the job before its cancel,
   and a later attempt may have restarted that child and wait on it. Not fenced: reads; a handler's alerts, which tell
   an operator what the handler saw; and lock and concurrency-slot holds and rate turns, which are leases on their own
   keys. Operator verbs are another authority and take no fence.
-- A refused routine raises `ACTA:EXECUTION_FENCED:`, and `RecordNote` and `ResetJobState` answer that they wrote
+- A refused routine raises `ACTA:EXECUTION_FENCED:`, and `RecordJobNote` and `ResetJobState` answer that they wrote
   nothing. The context then marks the attempt fenced, cancels its token, and refuses its later writes without a round
   trip, and the executor ends the attempt as it ends a lost lease: no completion and no retry charged.
-  `complete_step`'s version check stays as a second guard.
+  `complete_job_step`'s version check stays as a second guard.
 
 ### Claim watermark
 
@@ -467,12 +467,12 @@ Each namespace has one schedule lock, held until its transaction ends: `sp_getap
 `{schema}.schedules.{namespace_id}` with a `Transaction` owner on SQL Server, and
 `pg_advisory_xact_lock(hashtext('{schema}.schedules'), namespace_id)` or its `_shared` form on PostgreSQL.
 
-- `register_schedules`, `RetireDefinition`, `SetDefinitionOverrides`, and `SuspendNamespace` take it exclusive, and on
+- `register_schedules`, `RetireDefinition`, `UpdateDefinitionOverrides`, and `SuspendNamespace` take it exclusive, and on
   SQL Server so does `RegisterDefinitions`, whose update and insert lock definition rows in different orders. A
   suspension takes it in a statement of its own before the namespace row; SQLite's one writer orders a suspension and
   an admission without it. An override takes it because it locks the definition row before the slot's `jobs` row,
   the reverse of registration, whose schedules check the definition row after the slot write.
-- Admission (`AdmitFirings`), a completion that settles a permanent slot or a per-occurrence root, the schedule
+- Admission (`AdmitScheduleFirings`), a completion that settles a permanent slot or a per-occurrence root, the schedule
   verbs (pause, resume, trigger), and a reschedule of a permanent slot take it shared, so admissions, settlements, and verbs run together and wait only for
   a registration, a retire, an override, or a suspension. A completion with neither a slot nor a charged root in its batch takes
   none.

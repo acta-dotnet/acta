@@ -452,15 +452,15 @@ internal sealed class PostgresDialect : ISqlDialect
             )
         );
 
-    public void BindAdmitFirings(DbCommand command, AdmitFiringsCommand request)
+    public void BindAdmitScheduleFirings(DbCommand command, AdmitScheduleFiringsCommand request)
     {
         var postgres = (NpgsqlCommand)command;
-        AddScalar(postgres, "@p_groups", NpgsqlDbType.Text, AdmitFiringsJson.Groups(request));
+        AddScalar(postgres, "@p_groups", NpgsqlDbType.Text, AdmitScheduleFiringsJson.Groups(request));
         AddScalar(
             postgres,
             "@p_rows",
             NpgsqlDbType.Text,
-            AdmitFiringsJson.Rows(
+            AdmitScheduleFiringsJson.Rows(
                 request,
                 static (writer, name, value) =>
                 {

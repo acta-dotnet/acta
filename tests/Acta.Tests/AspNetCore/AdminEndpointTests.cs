@@ -167,6 +167,6 @@ public sealed class AdminEndpointTests
         var res = await client.GetAsync("/acta/api/v1/jobs", TestContext.Current.CancellationToken);
         var body = await res.Content.ReadAsStringAsync(TestContext.Current.CancellationToken);
         Assert.Equal(HttpStatusCode.Conflict, res.StatusCode);
-        Assert.Contains("NamespaceSuspended", body);
+        Assert.Contains("namespace-suspended", body);
     }
 }

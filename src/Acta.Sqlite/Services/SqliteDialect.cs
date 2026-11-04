@@ -491,10 +491,14 @@ internal sealed partial class SqliteDialect : ISqlDialect
     public void BindPublishCalendar(DbCommand command, IReadOnlyList<PublishCalendarValues> rows) =>
         AddText(command, "@p_rows", PublishCalendarJson.Rows(rows, static (writer, name, value) => WriteUtcOrNull(writer, name, value)));
 
-    public void BindAdmitFirings(DbCommand command, AdmitFiringsCommand request)
+    public void BindAdmitScheduleFirings(DbCommand command, AdmitScheduleFiringsCommand request)
     {
-        AddText(command, "@p_groups", AdmitFiringsJson.Groups(request));
-        AddText(command, "@p_rows", AdmitFiringsJson.Rows(request, static (writer, name, value) => WriteUtcOrNull(writer, name, value)));
+        AddText(command, "@p_groups", AdmitScheduleFiringsJson.Groups(request));
+        AddText(
+            command,
+            "@p_rows",
+            AdmitScheduleFiringsJson.Rows(request, static (writer, name, value) => WriteUtcOrNull(writer, name, value))
+        );
     }
 
     /// <summary>Typed SQLite parameter primitives the dialect's own binders use.</summary>

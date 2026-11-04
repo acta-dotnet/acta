@@ -264,8 +264,8 @@ public class CliRunnerClipboardTests
                     : null
             );
 
-        public ValueTask<GetJobExplanationResponse?> ExplainAsync(JobLookup job, CancellationToken ct = default) =>
-            ValueTask.FromResult<GetJobExplanationResponse?>(null);
+        public ValueTask<ExplainJobResponse?> ExplainAsync(JobLookup job, CancellationToken ct = default) =>
+            ValueTask.FromResult<ExplainJobResponse?>(null);
 
         public ValueTask<GetJobLineageMapResponse?> GetLineageMapAsync(
             JobLookup job,
@@ -297,8 +297,6 @@ public class CliRunnerClipboardTests
 
         public ValueTask<GetOverviewResponse> GetOverviewAsync(GetOverviewQuery query, CancellationToken ct = default) =>
             throw new NotSupportedException();
-
-        public GetInputTemplateResponse? GetInputTemplate(string jobNamespace, string jobName) => null;
 
         public ValueTask<JobHandle> EnqueueAsync<TInput>(TInput input, JobEnqueueOptions? options = null, CancellationToken ct = default)
             where TInput : notnull => throw new NotSupportedException();
@@ -371,10 +369,8 @@ public class CliRunnerClipboardTests
             where TInput : notnull
             where TResult : notnull => throw new NotSupportedException();
 
-        public ValueTask<EnqueueJobsResponse> EnqueueBatchAsync(
-            IReadOnlyList<EnqueueJobRequest> requests,
-            CancellationToken ct = default
-        ) => throw new NotSupportedException();
+        public ValueTask<EnqueueJobsResponse> EnqueueJobsAsync(IReadOnlyList<EnqueueJobRequest> requests, CancellationToken ct = default) =>
+            throw new NotSupportedException();
 
         public ValueTask<EnqueueJobResponse> EnqueueAsync(
             System.Data.Common.DbTransaction transaction,
@@ -390,14 +386,13 @@ public class CliRunnerClipboardTests
         )
             where TInput : notnull => throw new NotSupportedException();
 
-        public ValueTask<EnqueueJobsResponse> EnqueueBatchAsync(
+        public ValueTask<EnqueueJobsResponse> EnqueueJobsAsync(
             System.Data.Common.DbTransaction transaction,
             IReadOnlyList<EnqueueJobRequest> requests,
             CancellationToken ct = default
         ) => throw new NotSupportedException();
 
-        public ValueTask<GetJobIdResponse?> GetJobIdAsync(JobLookup job, CancellationToken ct = default) =>
-            throw new NotSupportedException();
+        public ValueTask<GetJobIdResponse?> GetIdAsync(JobLookup job, CancellationToken ct = default) => throw new NotSupportedException();
 
         public ValueTask<GetJobStatusResponse?> GetStatusAsync(JobLookup job, CancellationToken ct = default) =>
             ValueTask.FromResult<GetJobStatusResponse?>(
@@ -410,10 +405,10 @@ public class CliRunnerClipboardTests
             throw new NotSupportedException();
 
         /// <summary>The job produced no result; whether it still exists is the status read.</summary>
-        public ValueTask<GetResultResponse?> GetResultAsync(JobLookup job, CancellationToken ct = default) =>
-            ValueTask.FromResult<GetResultResponse?>(null);
+        public ValueTask<GetJobResultResponse?> GetResultAsync(JobLookup job, CancellationToken ct = default) =>
+            ValueTask.FromResult<GetJobResultResponse?>(null);
 
-        public ValueTask<GetCheckpointsResponse?> GetCheckpointsAsync(JobLookup job, CancellationToken ct = default) =>
+        public ValueTask<GetJobCheckpointsResponse?> GetCheckpointsAsync(JobLookup job, CancellationToken ct = default) =>
             throw new NotSupportedException();
 
         public ValueTask<TResult?> GetResultAsync<TResult>(JobLookup job, CancellationToken ct = default) =>
@@ -469,7 +464,7 @@ public class CliRunnerClipboardTests
             CancellationToken ct = default
         ) => throw new NotSupportedException();
 
-        public ValueTask<UpdateJobInputResponse> UpdateJobInputAsync(
+        public ValueTask<UpdateJobInputResponse> UpdateInputAsync(
             JobLookup job,
             JobPayload input,
             string? reasonMessage = null,
@@ -480,7 +475,7 @@ public class CliRunnerClipboardTests
         public ValueTask<PurgeJobResponse> PurgeAsync(JobLookup job, string? actor = null, CancellationToken ct = default) =>
             throw new NotSupportedException();
 
-        public ValueTask<RaiseSignalResponse> RaiseSignalAsync<T>(
+        public ValueTask<RaiseJobSignalResponse> RaiseSignalAsync<T>(
             JobLookup job,
             string name,
             T value,
@@ -491,7 +486,7 @@ public class CliRunnerClipboardTests
         /// <summary>Recorded signal raises with the delivered payload format and bytes (null when presence-only).</summary>
         public List<(string Name, byte FormatId, byte[]? Value)> Signals { get; } = [];
 
-        public ValueTask<RaiseSignalResponse> RaiseSignalAsync(
+        public ValueTask<RaiseJobSignalResponse> RaiseSignalAsync(
             JobLookup job,
             string name,
             JobPayload value,
@@ -500,7 +495,7 @@ public class CliRunnerClipboardTests
         )
         {
             Signals.Add((name, value.Format.Id, value.IsNone ? null : value.Data.ToArray()));
-            return ValueTask.FromResult(new RaiseSignalResponse(1, ControlAction.Applied, JobStatusCode.Ready, 4));
+            return ValueTask.FromResult(new RaiseJobSignalResponse(1, ControlAction.Applied, JobStatusCode.Ready, 4));
         }
     }
 }

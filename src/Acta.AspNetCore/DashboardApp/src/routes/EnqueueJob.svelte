@@ -1,6 +1,6 @@
 <script lang="ts">
   import { createQuery } from '@tanstack/svelte-query';
-  import { api, enqueueJob, inputTemplate, ApiError, type JobPayloadView, type NamespaceListItem, type Paged } from '../api.ts';
+  import { api, enqueueJob, getDefinitionInputTemplate, ApiError, type JobPayloadView, type NamespaceListItem, type Paged } from '../api.ts';
   import { capabilitiesQuery, canControl, keys } from '../query.ts';
   import { hashParams } from '../router.ts';
   import { cloneInputState, enqueueInputFields, inputContractLabel, templateSeed } from './enqueueTemplate.ts';
@@ -134,7 +134,7 @@
     const name = jobName.trim();
     return {
       queryKey: keys.detail('enqueue-input-template', `${jobNamespace}/${name}`),
-      queryFn: ({ signal }: { signal: AbortSignal }) => inputTemplate(jobNamespace, name, { signal }),
+      queryFn: ({ signal }: { signal: AbortSignal }) => getDefinitionInputTemplate(jobNamespace, name, { signal }),
       enabled: canControlNow && jobNamespace.length > 0 && name.length > 0,
       staleTime: Infinity
     };

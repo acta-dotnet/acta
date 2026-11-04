@@ -78,11 +78,11 @@ public sealed class ScheduleRetirementSpec : ActaRuntimeTestBase<ConformanceFixt
         var defId = await CreateDefinitionAsync(jobName, ct);
         await RegisterAsync(defId, jobName, [Slot("only", cursor)], ct);
         var schedules = Services.GetRequiredService<SchedulesOperations>();
-        Assert.Contains((await schedules.GetScheduleStateAsync(TestNamespaceId, ct)).States, s => s.DefinitionId == defId);
+        Assert.Contains((await schedules.ListScheduleStatesAsync(TestNamespaceId, ct)).States, s => s.DefinitionId == defId);
 
         await RetireAsync(jobName, ct);
 
-        Assert.DoesNotContain((await schedules.GetScheduleStateAsync(TestNamespaceId, ct)).States, s => s.DefinitionId == defId);
+        Assert.DoesNotContain((await schedules.ListScheduleStatesAsync(TestNamespaceId, ct)).States, s => s.DefinitionId == defId);
     }
 
     [Fact(DisplayName = "A resume that found the schedule before the retire writes no cursor after it")]
@@ -129,15 +129,15 @@ public sealed class ScheduleRetirementSpec : ActaRuntimeTestBase<ConformanceFixt
 
         // The retire leaves the running attempt alone, and its landing returns the slot to Idle, the one state a
         // trigger would otherwise admit a firing on.
-        var trigger = Verb<TriggerScheduleNowHandler>(
-            "TriggerScheduleNow",
+        var trigger = Verb<TriggerScheduleHandler>(
+            "TriggerSchedule",
             async () =>
             {
                 await RetireAsync(jobName, ct);
                 await CompleteAsync(slotId, workerId, ct);
             }
         );
-        var triggered = await trigger.HandleAsync(new TriggerScheduleNowCommand(Lookup(jobName), "after the retire", null), ct);
+        var triggered = await trigger.HandleAsync(new TriggerScheduleCommand(Lookup(jobName), "after the retire", null), ct);
 
         Assert.Equal(ControlAction.NotFound, triggered.Action);
         var slot = await ReadJobAsync(slotId, ct);

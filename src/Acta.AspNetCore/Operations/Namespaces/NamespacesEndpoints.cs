@@ -39,7 +39,7 @@ internal static class NamespacesEndpoints
             "/namespaces/{jobNamespace}/tags",
             "namespace",
             options,
-            DashboardJsonContext.Default.UpsertNamespaceTagsRequest,
+            DashboardJsonContext.Default.UpsertNamespaceTagRequest,
             static http => TagTarget.ForNamespace(Name(http))
         );
         if (controls is null)

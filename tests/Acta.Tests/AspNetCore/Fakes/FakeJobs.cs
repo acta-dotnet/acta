@@ -33,16 +33,15 @@ internal sealed class FakeJobs : IJobs
     public FakeJobs()
     {
         Get = (job, _) => ValueTask.FromResult(Detail(job));
-        GetJobId = (job, _) => ValueTask.FromResult<GetJobIdResponse?>(Resolve(job) is { } id ? new GetJobIdResponse(id) : null);
+        GetId = (job, _) => ValueTask.FromResult<GetJobIdResponse?>(Resolve(job) is { } id ? new GetJobIdResponse(id) : null);
         GetInput = (job, _) => ValueTask.FromResult<GetJobInputResponse?>(Input(job) is { } input ? new GetJobInputResponse(input) : null);
         GetResult = (job, _) =>
-            ValueTask.FromResult<GetResultResponse?>(
-                Resolve(job) == 42 && StoredResult is { } result ? new GetResultResponse(result) : null
+            ValueTask.FromResult<GetJobResultResponse?>(
+                Resolve(job) == 42 && StoredResult is { } result ? new GetJobResultResponse(result) : null
             );
-        GetCheckpoints = (job, _) => ValueTask.FromResult(Resolve(job) == 42 ? new GetCheckpointsResponse(StoredCheckpoints) : null);
-        Explain = static (job, _) => ValueTask.FromResult<GetJobExplanationResponse?>(IsFound(job) ? Explanation() : null);
+        GetCheckpoints = (job, _) => ValueTask.FromResult(Resolve(job) == 42 ? new GetJobCheckpointsResponse(StoredCheckpoints) : null);
+        Explain = static (job, _) => ValueTask.FromResult<ExplainJobResponse?>(IsFound(job) ? Explanation() : null);
         GetLineageMap = static (job, _, _) => ValueTask.FromResult<GetJobLineageMapResponse?>(IsFound(job) ? Lineage() : null);
-        GetInputTemplate = InputTemplate;
         Enqueue = (request, _) => ValueTask.FromResult(Insert(request));
         Pause = (job, reason, actor, version, _) =>
             Control("pause", job, reason, actor, version, static (i, a, s, v) => new PauseJobResponse(i, a, s, v));
@@ -64,7 +63,7 @@ internal sealed class FakeJobs : IJobs
             var (jobId, action, status, current) = ResultFor(job, version);
             return ValueTask.FromResult(new ReprioritizeJobResponse(jobId, action, status, current));
         };
-        UpdateJobInput = (job, input, _, _, _) => ValueTask.FromResult(Amend(job, input));
+        UpdateInput = (job, input, _, _, _) => ValueTask.FromResult(Amend(job, input));
         Purge = (job, actor, _) =>
         {
             PurgeCalls.Add((job.JobRef, actor));
@@ -75,7 +74,7 @@ internal sealed class FakeJobs : IJobs
         {
             SignalCalls.Add((job.JobRef, name, value.Format.Id, value.IsNone ? null : value.Data.ToArray(), actor));
             var (jobId, action, status, version) = ResultFor(job);
-            return ValueTask.FromResult(new RaiseSignalResponse(jobId, action, status, version));
+            return ValueTask.FromResult(new RaiseJobSignalResponse(jobId, action, status, version));
         };
     }
 
@@ -86,7 +85,7 @@ internal sealed class FakeJobs : IJobs
     /// <summary>Result the found job has produced; null means none.</summary>
     public JobPayload? StoredResult { get; set; }
 
-    public IReadOnlyList<GetCheckpointsItem> StoredCheckpoints { get; set; } = [];
+    public IReadOnlyList<GetJobCheckpointsItem> StoredCheckpoints { get; set; } = [];
 
     public List<(string Verb, JobRef JobRef, string? Reason, string? Actor, int? ExpectedVersion)> ControlCalls { get; } = [];
 
@@ -107,19 +106,17 @@ internal sealed class FakeJobs : IJobs
 
     public Func<JobLookup, CancellationToken, ValueTask<GetJobResponse?>> Get { get; set; }
 
-    public Func<JobLookup, CancellationToken, ValueTask<GetJobIdResponse?>> GetJobId { get; set; }
+    public Func<JobLookup, CancellationToken, ValueTask<GetJobIdResponse?>> GetId { get; set; }
 
     public Func<JobLookup, CancellationToken, ValueTask<GetJobInputResponse?>> GetInput { get; set; }
 
-    public Func<JobLookup, CancellationToken, ValueTask<GetResultResponse?>> GetResult { get; set; }
+    public Func<JobLookup, CancellationToken, ValueTask<GetJobResultResponse?>> GetResult { get; set; }
 
-    public Func<JobLookup, CancellationToken, ValueTask<GetCheckpointsResponse?>> GetCheckpoints { get; set; }
+    public Func<JobLookup, CancellationToken, ValueTask<GetJobCheckpointsResponse?>> GetCheckpoints { get; set; }
 
-    public Func<JobLookup, CancellationToken, ValueTask<GetJobExplanationResponse?>> Explain { get; set; }
+    public Func<JobLookup, CancellationToken, ValueTask<ExplainJobResponse?>> Explain { get; set; }
 
     public Func<JobLookup, GetJobLineageMapOptions?, CancellationToken, ValueTask<GetJobLineageMapResponse?>> GetLineageMap { get; set; }
-
-    public Func<string, string, GetInputTemplateResponse?> GetInputTemplate { get; set; }
 
     public Func<EnqueueJobRequest, CancellationToken, ValueTask<EnqueueJobResponse>> Enqueue { get; set; }
 
@@ -143,28 +140,26 @@ internal sealed class FakeJobs : IJobs
         ValueTask<ReprioritizeJobResponse>
     > Reprioritize { get; set; }
 
-    public Func<JobLookup, JobPayload, string?, string?, CancellationToken, ValueTask<UpdateJobInputResponse>> UpdateJobInput { get; set; }
+    public Func<JobLookup, JobPayload, string?, string?, CancellationToken, ValueTask<UpdateJobInputResponse>> UpdateInput { get; set; }
 
     public Func<JobLookup, string?, CancellationToken, ValueTask<PurgeJobResponse>> Purge { get; set; }
 
-    public Func<JobLookup, string, JobPayload, string?, CancellationToken, ValueTask<RaiseSignalResponse>> RaiseSignal { get; set; }
+    public Func<JobLookup, string, JobPayload, string?, CancellationToken, ValueTask<RaiseJobSignalResponse>> RaiseSignal { get; set; }
 
     ValueTask<GetJobResponse?> IJobs.GetAsync(JobLookup job, CancellationToken ct) => Get(job, ct);
 
-    ValueTask<GetJobIdResponse?> IJobs.GetJobIdAsync(JobLookup job, CancellationToken ct) => GetJobId(job, ct);
+    ValueTask<GetJobIdResponse?> IJobs.GetIdAsync(JobLookup job, CancellationToken ct) => GetId(job, ct);
 
     ValueTask<GetJobInputResponse?> IJobs.GetInputAsync(JobLookup job, CancellationToken ct) => GetInput(job, ct);
 
-    ValueTask<GetResultResponse?> IJobs.GetResultAsync(JobLookup job, CancellationToken ct) => GetResult(job, ct);
+    ValueTask<GetJobResultResponse?> IJobs.GetResultAsync(JobLookup job, CancellationToken ct) => GetResult(job, ct);
 
-    ValueTask<GetCheckpointsResponse?> IJobs.GetCheckpointsAsync(JobLookup job, CancellationToken ct) => GetCheckpoints(job, ct);
+    ValueTask<GetJobCheckpointsResponse?> IJobs.GetCheckpointsAsync(JobLookup job, CancellationToken ct) => GetCheckpoints(job, ct);
 
-    ValueTask<GetJobExplanationResponse?> IJobs.ExplainAsync(JobLookup job, CancellationToken ct) => Explain(job, ct);
+    ValueTask<ExplainJobResponse?> IJobs.ExplainAsync(JobLookup job, CancellationToken ct) => Explain(job, ct);
 
     ValueTask<GetJobLineageMapResponse?> IJobs.GetLineageMapAsync(JobLookup job, GetJobLineageMapOptions? options, CancellationToken ct) =>
         GetLineageMap(job, options, ct);
-
-    GetInputTemplateResponse? IJobs.GetInputTemplate(string jobNamespace, string jobName) => GetInputTemplate(jobNamespace, jobName);
 
     ValueTask<EnqueueJobResponse> IJobs.EnqueueAsync(EnqueueJobRequest request, CancellationToken ct) => Enqueue(request, ct);
 
@@ -218,17 +213,17 @@ internal sealed class FakeJobs : IJobs
         CancellationToken ct
     ) => Reprioritize(job, priority, reasonMessage, actor, expectedVersion, ct);
 
-    ValueTask<UpdateJobInputResponse> IJobs.UpdateJobInputAsync(
+    ValueTask<UpdateJobInputResponse> IJobs.UpdateInputAsync(
         JobLookup job,
         JobPayload input,
         string? reasonMessage,
         string? actor,
         CancellationToken ct
-    ) => UpdateJobInput(job, input, reasonMessage, actor, ct);
+    ) => UpdateInput(job, input, reasonMessage, actor, ct);
 
     ValueTask<PurgeJobResponse> IJobs.PurgeAsync(JobLookup job, string? actor, CancellationToken ct) => Purge(job, actor, ct);
 
-    ValueTask<RaiseSignalResponse> IJobs.RaiseSignalAsync(
+    ValueTask<RaiseJobSignalResponse> IJobs.RaiseSignalAsync(
         JobLookup job,
         string name,
         JobPayload value,
@@ -241,7 +236,7 @@ internal sealed class FakeJobs : IJobs
     ValueTask<TResult?> IJobs.GetResultAsync<TResult>(JobLookup job, CancellationToken ct)
         where TResult : default => throw new NotSupportedException();
 
-    ValueTask<RaiseSignalResponse> IJobs.RaiseSignalAsync<T>(JobLookup job, string name, T value, string? actor, CancellationToken ct) =>
+    ValueTask<RaiseJobSignalResponse> IJobs.RaiseSignalAsync<T>(JobLookup job, string name, T value, string? actor, CancellationToken ct) =>
         throw new NotSupportedException();
 
     ValueTask<JobHandle> IJobs.EnqueueAsync<TInput>(TInput input, JobEnqueueOptions? options, CancellationToken ct) =>
@@ -296,7 +291,7 @@ internal sealed class FakeJobs : IJobs
         CancellationToken ct
     ) => throw new NotSupportedException();
 
-    ValueTask<EnqueueJobsResponse> IJobs.EnqueueBatchAsync(IReadOnlyList<EnqueueJobRequest> requests, CancellationToken ct) =>
+    ValueTask<EnqueueJobsResponse> IJobs.EnqueueJobsAsync(IReadOnlyList<EnqueueJobRequest> requests, CancellationToken ct) =>
         throw new NotSupportedException();
 
     ValueTask<EnqueueJobResponse> IJobs.EnqueueAsync(DbTransaction transaction, EnqueueJobRequest request, CancellationToken ct) =>
@@ -309,7 +304,7 @@ internal sealed class FakeJobs : IJobs
         CancellationToken ct
     ) => throw new NotSupportedException();
 
-    ValueTask<EnqueueJobsResponse> IJobs.EnqueueBatchAsync(
+    ValueTask<EnqueueJobsResponse> IJobs.EnqueueJobsAsync(
         DbTransaction transaction,
         IReadOnlyList<EnqueueJobRequest> requests,
         CancellationToken ct
@@ -408,18 +403,6 @@ internal sealed class FakeJobs : IJobs
         : job.JobRef == RejectedJobRef ? (43, ControlAction.Rejected, JobStatusCode.Succeeded, CurrentJobVersion)
         : (42, ControlAction.Applied, JobStatusCode.Paused, CurrentJobVersion + 1);
 
-    /// <summary>Only ("billing", "send-invoice") is known to this fake host; anything else is unregistered.</summary>
-    private static GetInputTemplateResponse? InputTemplate(string jobNamespace, string jobName) =>
-        jobNamespace == "billing" && jobName == "send-invoice"
-            ? new GetInputTemplateResponse(
-                jobNamespace,
-                jobName,
-                "Billing.SendInvoice",
-                JobPayloadFormat.Json,
-                """{"invoiceId":0,"note":null}"""
-            )
-            : null;
-
     private static GetJobResponse Snapshot(long jobId, string jobNamespace, string jobName) =>
         new(
             JobId: jobId,
@@ -455,7 +438,7 @@ internal sealed class FakeJobs : IJobs
             Version: CurrentJobVersion
         );
 
-    private static GetJobExplanationResponse Explanation() =>
+    private static ExplainJobResponse Explanation() =>
         new(
             JobId: 42,
             JobRef: FoundJobRef,
@@ -469,7 +452,7 @@ internal sealed class FakeJobs : IJobs
             LastExecutedBy: null,
             Steps: [],
             Reason: null,
-            NextActions: [new GetJobExplanationAction("none", "no action needed - a worker will claim it")]
+            NextActions: [new ExplainJobAction("none", "no action needed - a worker will claim it")]
         );
 
     private static GetJobLineageMapResponse Lineage() =>

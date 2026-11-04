@@ -125,13 +125,13 @@ public sealed class LaneLockOrderSpec : ActaRuntimeTestBase<ConformanceFixture, 
             // Every lane exists before the race, so both batches go straight to locking the same lane rows;
             // a lane one batch creates would instead hold the other on its uncommitted insert.
             string[] lanes = [.. Enumerable.Range(0, 8).Select(i => $"{(char)('a' + i)}-{round}")];
-            var seeds = (await Jobs.EnqueueBatchAsync([.. lanes.Select(l => Step(l, $"seed-{l}"))], ct)).Jobs;
+            var seeds = (await Jobs.EnqueueJobsAsync([.. lanes.Select(l => Step(l, $"seed-{l}"))], ct)).Jobs;
             var complete = await StartedAsync(seeds[0], ct);
 
             var batches = Enumerable
                 .Range(0, 4)
                 .Select(b => (b % 2 == 0 ? lanes : lanes.Reverse()).Select(l => Step(l, $"batch{b}-{l}")).ToList())
-                .Select(batch => Jobs.EnqueueBatchAsync(batch, ct).AsTask())
+                .Select(batch => Jobs.EnqueueJobsAsync(batch, ct).AsTask())
                 .ToList();
             var completion = complete();
             await Task.WhenAll([.. batches, completion]);
@@ -167,7 +167,7 @@ public sealed class LaneLockOrderSpec : ActaRuntimeTestBase<ConformanceFixture, 
         await using var gate = await gateConnection.BeginTransactionAsync(ct);
         await Jobs.EnqueueAsync(gate, Step("", "gate") with { ParentJobId = parent.JobId }, ct);
 
-        var batch = Jobs.EnqueueBatchAsync(
+        var batch = Jobs.EnqueueJobsAsync(
                 [.. Enumerable.Range(0, 4).Select(i => Defined($"child-{i}") with { ParentJobId = parent.JobId })],
                 ct
             )

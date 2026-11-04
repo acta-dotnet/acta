@@ -74,7 +74,7 @@ public sealed class PauseScheduleSpec : ActaStorageTestBase<ConformanceFixture>
     )
     {
         var stored = (
-            await Services.GetRequiredService<GetScheduleStateHandler>().HandleAsync(new GetScheduleStateQuery(TestNamespaceId), ct)
+            await Services.GetRequiredService<ListScheduleStatesHandler>().HandleAsync(new ListScheduleStatesQuery(TestNamespaceId), ct)
         ).States;
         var storedForDef = stored.Where(s => s.DefinitionId == defId).ToDictionary(s => s.ScheduleName, s => s, StringComparer.Ordinal);
         var declared = new[]
@@ -273,7 +273,7 @@ public sealed class PauseScheduleSpec : ActaStorageTestBase<ConformanceFixture>
         var until = now.AddMinutes(45);
         await Schedules.PauseAsync(Lookup(jobName, "only"), untilUtc: until, ct: ct);
 
-        // Re-run the startup catalog reconcile for the same definition (GetScheduleState -> ScheduleRegistrationPlan ->
+        // Re-run the startup catalog reconcile for the same definition (ListScheduleStates -> ScheduleRegistrationPlan ->
         // RegisterSchedules), exactly as CatalogRegistrar.ReconcileSchedulesAsync does.
         await ReReconcileAsync(db, dialect, defId, jobName, now, ct);
 

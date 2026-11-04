@@ -24,7 +24,7 @@ public sealed class SqliteOutboxRunInstantTests : ActaTestBase<SqliteConformance
             await StageAsync(table, spelling, ct);
         }
 
-        var claimed = (await Fixture.OpenOutboxSource(table).ClaimDueAsync(new ClaimOutboxCommand(Guid.NewGuid(), 10, 180), ct)).Rows;
+        var claimed = (await Fixture.OpenOutboxSource(table).ClaimAsync(new ClaimOutboxCommand(Guid.NewGuid(), 10, 180), ct)).Rows;
 
         var expected = new DateTime(2026, 11, 1, 12, 0, 0, 500, DateTimeKind.Utc);
         Assert.Equal(spellings.Length, claimed.Count);

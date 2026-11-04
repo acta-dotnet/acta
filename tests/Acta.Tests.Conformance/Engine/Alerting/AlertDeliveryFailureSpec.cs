@@ -174,7 +174,7 @@ public sealed class AlertDeliveryFailureSpec : ActaStorageTestBase<ConformanceFi
 
         var row = Assert.Single(await ReadAlertsAsync(TestNamespaceId, ct));
         Assert.Equal(AlertDeliveryStatusCode.Suppressed, row.DeliveryStatusCode);
-        Assert.Empty((await Services.GetRequiredService<AlertsOperations>().GetDeliverableAlertsAsync(TestNamespaceId, 50, ct)).Alerts);
+        Assert.Empty((await Services.GetRequiredService<AlertsOperations>().ListDeliverableAlertsAsync(TestNamespaceId, 50, ct)).Alerts);
     }
 
     [Fact(DisplayName = "Deprecated channel suppresses the alert and is not reread")]
@@ -189,7 +189,7 @@ public sealed class AlertDeliveryFailureSpec : ActaStorageTestBase<ConformanceFi
 
         var row = Assert.Single(await ReadAlertsAsync(TestNamespaceId, ct));
         Assert.Equal(AlertDeliveryStatusCode.Suppressed, row.DeliveryStatusCode);
-        Assert.Empty((await Services.GetRequiredService<AlertsOperations>().GetDeliverableAlertsAsync(TestNamespaceId, 50, ct)).Alerts);
+        Assert.Empty((await Services.GetRequiredService<AlertsOperations>().ListDeliverableAlertsAsync(TestNamespaceId, 50, ct)).Alerts);
     }
 
     [Fact(DisplayName = "Below min severity suppresses the alert and is not reread")]
@@ -217,10 +217,10 @@ public sealed class AlertDeliveryFailureSpec : ActaStorageTestBase<ConformanceFi
 
         var row = Assert.Single(await ReadAlertsAsync(TestNamespaceId, ct));
         Assert.Equal(AlertDeliveryStatusCode.Suppressed, row.DeliveryStatusCode);
-        Assert.Empty((await Services.GetRequiredService<AlertsOperations>().GetDeliverableAlertsAsync(TestNamespaceId, 50, ct)).Alerts);
+        Assert.Empty((await Services.GetRequiredService<AlertsOperations>().ListDeliverableAlertsAsync(TestNamespaceId, 50, ct)).Alerts);
     }
 
-    [Fact(DisplayName = "Null-job-id alert is returned by GetDeliverableAlerts and delivers successfully")]
+    [Fact(DisplayName = "Null-job-id alert is returned by ListDeliverableAlerts and delivers successfully")]
     public async Task Null_job_id_alert_is_returned_and_delivers()
     {
         var ct = TestContext.Current.CancellationToken;
@@ -231,7 +231,7 @@ public sealed class AlertDeliveryFailureSpec : ActaStorageTestBase<ConformanceFi
 
         // Confirm the alert IS returned (not dropped by the LEFT JOIN on job → definitions).
         var due = Assert.Single(
-            (await Services.GetRequiredService<AlertsOperations>().GetDeliverableAlertsAsync(TestNamespaceId, 50, ct)).Alerts
+            (await Services.GetRequiredService<AlertsOperations>().ListDeliverableAlertsAsync(TestNamespaceId, 50, ct)).Alerts
         );
         Assert.Null(due.JobRef);
         Assert.Null(due.RunbookUrl); // no job → no definition → runbook is null

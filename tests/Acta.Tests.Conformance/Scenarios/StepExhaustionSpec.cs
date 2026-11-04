@@ -135,7 +135,7 @@ public sealed class StepExhaustionSpec : ActaRuntimeTestBase<ConformanceFixture,
         var ct = TestContext.Current.CancellationToken;
         var enqueued = await Jobs.EnqueueAsync(new EnqueueJobRequest(TestNamespace, "step-window-exhaust", JobPayload.None), ct);
 
-        // One tick: step attempt 1 → body fails → CompleteStep checks window:
+        // One tick: step attempt 1 → body fails → CompleteJobStep checks window:
         // now()+30s > created_at+5s (30>5) → Exhausted, NOT retry-scheduled.
         // StepExhaustedException propagates → parent fails (MaxAttempts=1).
         Assert.Equal(RunOnceStatus.Failed, await Runtime.RunOnceAsync(enqueued, ct));
@@ -193,14 +193,14 @@ public sealed class StepExhaustionSpec : ActaRuntimeTestBase<ConformanceFixture,
         // Body ran exactly twice: once per in-budget attempt.
         Assert.Equal(2, StepExhaustionProbes.BodyInvocations.GetValueOrDefault(enqueued.JobId));
 
-        // Tick 3: the replay re-enters the exhausted slot → StartStep sees state=Exhausted → outcome=Exhausted(4) →
+        // Tick 3: the replay re-enters the exhausted slot → StartJobStep sees state=Exhausted → outcome=Exhausted(4) →
         //   StepExhaustedException WITHOUT body → uncaught this time, it fails the parent at once → RunOnceStatus.Failed.
         Assert.Equal(RunOnceStatus.Failed, await Runtime.RunOnceAsync(enqueued, ct));
 
         // Body invocation count must NOT have increased: body was never called on re-entry.
         Assert.Equal(2, StepExhaustionProbes.BodyInvocations.GetValueOrDefault(enqueued.JobId));
 
-        // Step row is still Exhausted, unchanged by the re-entry (StartStep is read-only on Exhausted slots).
+        // Step row is still Exhausted, unchanged by the re-entry (StartJobStep is read-only on Exhausted slots).
         var stepAfterReentry = Assert.Single(await ReadStepsAsync(enqueued.JobId, ct));
         Assert.Equal(StepStatusCode.Exhausted, stepAfterReentry.Status);
         Assert.Equal(2, stepAfterReentry.AttemptNumber);

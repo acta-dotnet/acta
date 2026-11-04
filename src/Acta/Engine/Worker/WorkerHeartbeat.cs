@@ -308,7 +308,7 @@ internal sealed class WorkerHeartbeat(
             return;
         }
 
-        var catalog = (await _definitions.GetDefinitionContractsAsync(namespaceId, ct)).Contracts;
+        var catalog = (await _definitions.ListDefinitionContractsAsync(namespaceId, ct)).Contracts;
         foreach (var c in catalog)
         {
             if (_context.DescriptorByDefinitionId.TryGetValue(c.DefinitionId, out var descriptor))

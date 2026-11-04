@@ -13,12 +13,12 @@ internal sealed class FakeTags : ITags
         Upsert = (_, tag, _) =>
         {
             UpsertCalls.Add(tag);
-            return ValueTask.FromResult(new UpsertTagsResponse(MutationAction));
+            return ValueTask.FromResult(new UpsertTagResponse(MutationAction));
         };
         Remove = (_, name, _) =>
         {
             RemoveCalls.Add(name);
-            return ValueTask.FromResult(new RemoveTagsResponse(MutationAction));
+            return ValueTask.FromResult(new RemoveTagResponse(MutationAction));
         };
     }
 
@@ -30,15 +30,15 @@ internal sealed class FakeTags : ITags
 
     public Func<TagTarget, CancellationToken, ValueTask<GetTagsResponse?>> Get { get; set; }
 
-    public Func<TagTarget, TagInput, CancellationToken, ValueTask<UpsertTagsResponse>> Upsert { get; set; }
+    public Func<TagTarget, TagInput, CancellationToken, ValueTask<UpsertTagResponse>> Upsert { get; set; }
 
-    public Func<TagTarget, string, CancellationToken, ValueTask<RemoveTagsResponse>> Remove { get; set; }
+    public Func<TagTarget, string, CancellationToken, ValueTask<RemoveTagResponse>> Remove { get; set; }
 
     ValueTask<GetTagsResponse?> ITags.GetAsync(TagTarget target, CancellationToken ct) => Get(target, ct);
 
-    ValueTask<UpsertTagsResponse> ITags.UpsertAsync(TagTarget target, TagInput tag, CancellationToken ct) => Upsert(target, tag, ct);
+    ValueTask<UpsertTagResponse> ITags.UpsertAsync(TagTarget target, TagInput tag, CancellationToken ct) => Upsert(target, tag, ct);
 
-    ValueTask<RemoveTagsResponse> ITags.RemoveAsync(TagTarget target, string name, CancellationToken ct) => Remove(target, name, ct);
+    ValueTask<RemoveTagResponse> ITags.RemoveAsync(TagTarget target, string name, CancellationToken ct) => Remove(target, name, ct);
 
     ValueTask<ReplaceTagsResponse> ITags.ReplaceAsync(TagTarget target, IReadOnlyList<TagInput> tags, CancellationToken ct) =>
         throw new NotSupportedException();

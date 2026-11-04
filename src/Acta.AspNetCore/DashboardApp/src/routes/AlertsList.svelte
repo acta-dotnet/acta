@@ -91,7 +91,7 @@
     AlertControlResponse
   >({
     path: (vars) => `alerts/${vars.alertRef}/${vars.action}`,
-    notFound: () => ({ action: 'notFound' }),
+    notFound: () => ({ action: 'not-found' }),
     invalidateKeys: () => [['alerts']] as const
   });
   let busy = $derived(mutation.isPending);
@@ -104,7 +104,7 @@
     message = '';
     try {
       const result = await mutation.mutateAsync({ alertRef, action, reason: note });
-      // Only 'applied' is green; anything else (notFound, or a future non-applied action) is a warning,
+      // Only 'applied' is green; anything else (not-found, or a future non-applied action) is a warning,
       // never a false success - same guard as JobControls' `result.action === 'applied' ? 'ok' : 'warn'`.
       const applied = result.action === 'applied';
       message = applied ? (action === 'acknowledge' ? 'Acknowledged.' : 'Resolved.') : 'Alert not found.';

@@ -161,7 +161,7 @@
                page shows the name and where the catalog would hold it, not a stored resolution. -->
           {#snippet calendarBinding(name: string)}
             <span class="mono">{name}</span>
-            <a class="dim" href={routes.calendars({ namespace: schedule?.jobNamespace, nameSearch: name })} title="A declared calendar of this name wins; otherwise the catalog's current version applies">in the catalog</a>
+            <a class="dim" href={routes.calendars({ namespace: schedule?.jobNamespace, nameContains: name })} title="A declared calendar of this name wins; otherwise the catalog's current version applies">in the catalog</a>
           {/snippet}
           <dl class="detail-readonly detail-readonly-grid">
             {#if schedule.expressionKind === 'calendar'}

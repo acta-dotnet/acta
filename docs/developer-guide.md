@@ -917,7 +917,7 @@ declares no lane and no deadline in this release.
 
 ### Trigger now
 
-`IActaOperations.Schedules.TriggerNowAsync(...)` admits a manual firing, due now: on a `Permanent`
+`IActaOperations.Schedules.TriggerAsync(...)` admits a manual firing, due now: on a `Permanent`
 definition onto the owning slot, on a `PerOccurrence` definition as a fresh root charged to the schedule.
 It leaves the selected schedule's own cursor and cadence untouched.
 
@@ -1061,7 +1061,7 @@ Before a large backfill:
 - Rescheduling a recurring job (`IJobs.RescheduleAsync`, the dashboard's Run now, or `POST /jobs/{jobRef}/reschedule` with no instant) runs it now: an `Idle` slot, or a Paused one with no firing outstanding, takes a manual firing at the instant, the same firing a schedule trigger admits and rejected the same way in a suspended namespace, and returns to `Idle` when it settles; a slot mid-firing keeps its firing and moves its instant.
 - Cancelling a recurring job ends it until a restart. A manual purge deletes it only when nothing pins it (every schedule orphaned, or the definition retired), and the next start registers a new slot.
 - `[Job(FiringFailurePolicy = ...)]` decides what a firing that fails for good does to the definition's schedules: `Continue` (the default) leaves them scheduled, so the next occurrence fires; `PauseScheduling` pauses every active one with the pause message `Paused by the firing failure policy: the last firing failed for good.`, each resumable on its own. A completion that spends the budget and a reclaim that does apply it alike, as does a per-occurrence root that lands `Failed`; a handler's own fail or cancel stops a slot instead.
-- A recurring job's slot has no deduplication key: an ordinary job keyed by the job name is unrelated to it, so `IJobs.GetJobIdAsync` finds a slot by its ref or id, never by a key; `GET /schedules` and `ISchedules.ListAsync` carry the slot's ref. A per-occurrence root's key is `sys.occurrence.{schedule_id}.{ticks}`, and a manually triggered one's `sys.manual.{schedule_id}.{firingId}`.
+- A recurring job's slot has no deduplication key: an ordinary job keyed by the job name is unrelated to it, so `IJobs.GetIdAsync` finds a slot by its ref or id, never by a key; `GET /schedules` and `ISchedules.ListAsync` carry the slot's ref. A per-occurrence root's key is `sys.occurrence.{schedule_id}.{ticks}`, and a manually triggered one's `sys.manual.{schedule_id}.{firingId}`.
 - Preview computes upcoming instants without touching the cursor, and is safe on a paused schedule.
 - A schedule's expression and time zone are code-owned: a deploy changes them, and an operator pauses, resumes, or triggers. The version moves with those operator actions and with deploys, not with each fire.
 
@@ -1295,7 +1295,7 @@ runs the firing like any job, and a success returns the slot to `Idle`.
 ```csharp
 var lookup = new ScheduleLookup("shipping", "sync-orders", "every-5s");
 var listed = await host.Operations.Schedules.ListAsync(new ListSchedulesQuery(JobNamespace: "shipping", JobName: "sync-orders"));
-var slotId = (await host.Jobs.GetJobIdAsync(JobLookup.ByRef(listed.Items[0].JobRef!.Value)))!.JobId;
+var slotId = (await host.Jobs.GetIdAsync(JobLookup.ByRef(listed.Items[0].JobRef!.Value)))!.JobId;
 await host.ForceScheduleDueAsync(lookup);
 Assert.Equal(1, (await host.AdmitOnceAsync("shipping")).Admitted);
 Assert.Equal(ActaRunStatus.Completed, await host.RunOnceAsync(slotId));
@@ -1304,7 +1304,7 @@ Assert.Equal(ActaRunStatus.Completed, await host.RunOnceAsync(slotId));
 A forced occurrence is admitted under the schedule's own misfire policy, a paused schedule stays
 paused, and a per-occurrence schedule admits a fresh root rather than a slot. A schedule bound to a
 calendar cannot be forced, since the admitter admits only the instants the calendar produces: give
-the host a clock and advance it to one of them, or fire the slot with `TriggerNowAsync`.
+the host a clock and advance it to one of them, or fire the slot with `TriggerAsync`.
 
 ### Testing orchestration: signals
 

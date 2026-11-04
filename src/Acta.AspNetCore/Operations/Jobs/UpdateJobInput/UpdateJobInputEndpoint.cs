@@ -59,7 +59,7 @@ internal static class UpdateJobInputEndpoint
                     // round-trips as itself. Neither early answer reads a status: an unresolvable ref is
                     // NotFound, and a job with no stored input (none) is Rejected, since it has nothing to amend.
                     var status = ControlStatus.Job<UpdateJobInputResponse>();
-                    var jobId = (await jobs.GetJobIdAsync(JobLookup.ByRef(parsed), ct))?.JobId;
+                    var jobId = (await jobs.GetIdAsync(JobLookup.ByRef(parsed), ct))?.JobId;
                     if (jobId is null)
                     {
                         return RouteTable.Control(new UpdateJobInputResponse(0, ControlAction.NotFound, null, null), status);
@@ -111,7 +111,7 @@ internal static class UpdateJobInputEndpoint
                     var actor = http.User?.Identity?.Name;
                     try
                     {
-                        var result = await jobs.UpdateJobInputAsync(JobLookup.ByRef(parsed), payload, reason, actor, ct);
+                        var result = await jobs.UpdateInputAsync(JobLookup.ByRef(parsed), payload, reason, actor, ct);
                         return RouteTable.Control(result, status);
                     }
                     catch (PayloadTooLargeException ex)

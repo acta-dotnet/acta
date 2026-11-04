@@ -135,7 +135,7 @@ public sealed class TestHostHelpersSpec : ActaTestBase<ConformanceFixture>
             new ListSchedulesQuery(JobNamespace: TestNamespace, JobName: "recurring-ping"),
             ct
         );
-        var slotId = (await host.Jobs.GetJobIdAsync(JobLookup.ByRef(Assert.Single(schedules.Items).JobRef!.Value), ct))!.JobId;
+        var slotId = (await host.Jobs.GetIdAsync(JobLookup.ByRef(Assert.Single(schedules.Items).JobRef!.Value), ct))!.JobId;
 
         Assert.Equal(JobStatusCode.Idle, (await host.Jobs.GetStatusAsync(JobLookup.ById(slotId), ct))?.Status);
         Assert.Equal(0, (await host.AdmitOnceAsync(TestNamespace, ct)).Admitted);

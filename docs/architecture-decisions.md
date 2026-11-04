@@ -69,7 +69,7 @@ Examples:
 
 A worked example (see [the settled-decisions ledger below](#settled-decisions-ledger) § Substrate): the simple substrate is one merged `checkpoints` table discriminated by `Kind`, spending one table on five slot features; only `steps` earned its own table by carrying a genuinely different shape (attempt counters, retry budget, stored results).
 
-The principle extends to APIs: adding a method requires showing no existing surface can carry the use case via composition (`IJobs.GetJobIdAsync` + standard `JobId` lifecycle, vs proliferating `*ByName` overloads). API count is a budget, same as table count.
+The principle extends to APIs: adding a method requires showing no existing surface can carry the use case via composition (`IJobs.GetIdAsync` + standard `JobId` lifecycle, vs proliferating `*ByName` overloads). API count is a budget, same as table count.
 
 ## Vocabulary discipline
 

@@ -124,7 +124,7 @@ public sealed class LaneOrderingSpec : ActaRuntimeTestBase<ConformanceFixture, T
     {
         var ct = TestContext.Current.CancellationToken;
         var outcomes = (
-            await Jobs.EnqueueBatchAsync(
+            await Jobs.EnqueueJobsAsync(
                 [
                     Request("lane-step", new LaneStep("orders", "p1"), "orders"),
                     Request("lane-step", new LaneStep("billing", "q"), "billing"),
@@ -159,7 +159,7 @@ public sealed class LaneOrderingSpec : ActaRuntimeTestBase<ConformanceFixture, T
         await DrainAsync([finished], ct);
 
         var outcomes = (
-            await Jobs.EnqueueBatchAsync(
+            await Jobs.EnqueueJobsAsync(
                 [
                     Request("lane-step", new LaneStep("orders", "a"), "orders") with
                     {

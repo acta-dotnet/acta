@@ -10,12 +10,12 @@ internal static class OutboxSlot
     /// source line.
     /// </summary>
     public static async ValueTask<GetJobResponse?> FindAsync(
-        ResolveSlotIdHandler slots,
+        ResolveJobIdBySlotHandler slots,
         IJobs jobs,
         string jobNamespace,
         CancellationToken ct
     ) =>
-        await slots.HandleAsync(new ResolveSlotIdQuery(jobNamespace, JobName), ct) is { } id
+        await slots.HandleAsync(new ResolveJobIdBySlotQuery(jobNamespace, JobName), ct) is { } id
             ? await jobs.GetAsync(JobLookup.ById(id), ct)
             : null;
 }

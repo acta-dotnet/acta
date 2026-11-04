@@ -14,8 +14,9 @@ namespace Acta.Tests.Architecture;
 /// <summary>
 /// Holds the HTTP surface to "a route's bodies are named for its operation" in <c>CONTRIBUTING.md</c> (Naming conventions),
 /// read from what the mapped endpoints declare: a route's JSON body is its own <c>XRequest</c>, and no body serves two
-/// routes; what it answers is an <c>XResponse</c>, the SDK's or one declared in <c>src/Acta.AspNetCore/Operations/Group/X/</c>;
-/// and every request and response record in Acta.AspNetCore sits in the folder named for it.
+/// routes; what it answers is an <c>XResponse</c>, the SDK's or one declared in <c>src/Acta.AspNetCore/Operations/Group/X/</c>,
+/// or <see cref="JobPayloadBody"/> when the route only renders the payload its operation answers; and every request
+/// and response record in Acta.AspNetCore sits in the folder named for it.
 /// </summary>
 public sealed class RouteBodyTests
 {
@@ -46,7 +47,7 @@ public sealed class RouteBodyTests
             var (route, response) in routes
                 .SelectMany(route => route.Responses.Select(response => (route.Name, Response: response)))
                 .Where(entry => !typeof(ProblemDetails).IsAssignableFrom(entry.Response))
-                .Where(entry => !IsResponse(entry.Response))
+                .Where(entry => !IsResponse(entry.Response) && entry.Response != typeof(JobPayloadBody))
         )
         {
             violations.Add(($"{route} (answers {ShippedCode.SimpleName(response)})", "a route answers an XResponse"));
@@ -68,7 +69,7 @@ public sealed class RouteBodyTests
         ArchitectureAssert.NoViolations(
             violations,
             "Give the route its own XRequest in src/Acta.AspNetCore/Operations/<Group>/X/, sharing an interface rather than a record, "
-                + "and answer with the SDK's XResponse, or the route's own when it renders or composes."
+                + "and answer with the SDK's XResponse, the route's own when it composes, or JobPayloadBody when it only renders a payload."
         );
     }
 

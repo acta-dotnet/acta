@@ -35,7 +35,7 @@ internal static partial class SchemaMigrations
         await using var tx = await conn.BeginTransactionAsync(ct);
         await schema.AcquireSchemaLockAsync(tx, schemaName, ct);
         await schema.EnsureMigrationsAsync(tx, ct);
-        var applied = (await schema.LoadAppliedMigrationsAsync(tx, ct)).Names;
+        var applied = (await schema.ListAppliedMigrationsAsync(tx, ct)).Names;
         RefuseForeignBaseline(migrations, applied, dialectToken);
 
         var pending = migrations.Where(m => !applied.Contains(m.Name)).ToList();
@@ -70,7 +70,7 @@ internal static partial class SchemaMigrations
         IReadOnlySet<string> applied;
         try
         {
-            applied = (await Operations(conn, schemaName, dialectToken).LoadAppliedMigrationsAsync(transaction: null, ct)).Names;
+            applied = (await Operations(conn, schemaName, dialectToken).ListAppliedMigrationsAsync(transaction: null, ct)).Names;
         }
         catch (DbException ex)
         {

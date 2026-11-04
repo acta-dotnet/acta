@@ -88,7 +88,7 @@ public sealed class RestartJobSpec : ActaRuntimeTestBase<ConformanceFixture, Tes
 
         Assert.Equal(
             ControlAction.Applied,
-            (await Jobs.UpdateJobInputAsync(enqueued, JobPayload.Json(new AddNumbers(10, 20)), ct: ct)).Action
+            (await Jobs.UpdateInputAsync(enqueued, JobPayload.Json(new AddNumbers(10, 20)), ct: ct)).Action
         );
         Assert.Equal(ControlAction.Applied, (await Jobs.RestartAsync(enqueued, ct: ct)).Action);
         Assert.Null(await Jobs.GetResultAsync(enqueued, ct));

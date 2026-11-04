@@ -1,0 +1,4 @@
+namespace Acta;
+
+/// <summary>Which groups of the plan applied; the admitter replans the stale rest.</summary>
+internal sealed record AdmitScheduleFiringsResponse(IReadOnlyList<AdmitScheduleFiringsRow> Groups);

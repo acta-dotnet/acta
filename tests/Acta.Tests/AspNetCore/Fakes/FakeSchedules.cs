@@ -18,7 +18,7 @@ internal sealed class FakeSchedules : ISchedules
                 Staged(schedule, static (action, status) => new ResumeScheduleResponse(action, status, null, null, null))
                     ?? new ResumeScheduleResponse(ControlAction.Applied, null, null, null, null)
             );
-        TriggerNow = (schedule, reason, actor, _) => ValueTask.FromResult(Trigger(schedule, reason, actor));
+        Trigger = (schedule, reason, actor, _) => ValueTask.FromResult(Triggered(schedule, reason, actor));
         List = static (_, _) => ValueTask.FromResult(new ListSchedulesResponse([], null, false, 50, null));
         Preview = static (schedule, _, _) =>
             ValueTask.FromResult<PreviewScheduleResponse?>(
@@ -35,7 +35,7 @@ internal sealed class FakeSchedules : ISchedules
 
     public Func<ScheduleLookup, string?, string?, CancellationToken, ValueTask<ResumeScheduleResponse>> Resume { get; set; }
 
-    public Func<ScheduleLookup, string?, string?, CancellationToken, ValueTask<TriggerScheduleNowResponse>> TriggerNow { get; set; }
+    public Func<ScheduleLookup, string?, string?, CancellationToken, ValueTask<TriggerScheduleResponse>> Trigger { get; set; }
 
     public Func<ListSchedulesQuery, CancellationToken, ValueTask<ListSchedulesResponse>> List { get; set; }
 
@@ -56,12 +56,12 @@ internal sealed class FakeSchedules : ISchedules
         CancellationToken ct
     ) => Resume(schedule, reasonMessage, actor, ct);
 
-    ValueTask<TriggerScheduleNowResponse> ISchedules.TriggerNowAsync(
+    ValueTask<TriggerScheduleResponse> ISchedules.TriggerAsync(
         ScheduleLookup schedule,
         string? reasonMessage,
         string? actor,
         CancellationToken ct
-    ) => TriggerNow(schedule, reasonMessage, actor, ct);
+    ) => Trigger(schedule, reasonMessage, actor, ct);
 
     ValueTask<ListSchedulesResponse> ISchedules.ListAsync(ListSchedulesQuery query, CancellationToken ct) => List(query, ct);
 
@@ -79,14 +79,14 @@ internal sealed class FakeSchedules : ISchedules
             _ => null,
         };
 
-    private TriggerScheduleNowResponse Trigger(ScheduleLookup schedule, string? reasonMessage, string? actor)
+    private TriggerScheduleResponse Triggered(ScheduleLookup schedule, string? reasonMessage, string? actor)
     {
-        if (Staged(schedule, static (action, status) => new TriggerScheduleNowResponse(action, status, null, null, null)) is { } staged)
+        if (Staged(schedule, static (action, status) => new TriggerScheduleResponse(action, status, null, null, null)) is { } staged)
         {
             return staged;
         }
 
         TriggerCalls.Add((schedule.ScheduleName, reasonMessage, actor));
-        return new TriggerScheduleNowResponse(ControlAction.Applied, ScheduleStatusCode.Active, null, DateTime.UnixEpoch, 1);
+        return new TriggerScheduleResponse(ControlAction.Applied, ScheduleStatusCode.Active, null, DateTime.UnixEpoch, 1);
     }
 }

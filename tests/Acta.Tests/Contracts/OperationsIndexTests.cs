@@ -72,7 +72,7 @@ public sealed partial class OperationsIndexTests
         sb.AppendLine("> `ACTA_EMIT_DOCS=1 dotnet test tests/Acta.Tests --filter OperationsIndexTests`.");
         sb.AppendLine();
         sb.AppendLine(
-            "One row per operation folder, `src/Acta/Operations/<Group>/<Operation>/`, and one per HTTP-only operation, `src/Acta.AspNetCore/Operations/<Group>/<Operation>/`, a route that renders or composes what the facades answer. **Facade** is the public method that runs it; an operation with none is engine-only or HTTP-only. **HTTP** routes sit under `{mount}/v1`. The dialect columns say whether the SQL is a routine or inline. **Writes** lists the tables its SQL inserts into, updates, or deletes from. **Specs** are in `tests/Acta.Tests.Conformance/Operations/<Group>/`."
+            "One row per operation folder, `src/Acta/Operations/<Group>/<Operation>/`, and one per HTTP-only operation, `src/Acta.AspNetCore/Operations/<Group>/<Operation>/`, a route that composes what the facades answer. **Facade** is the public method that runs it; an operation with none is engine-only or HTTP-only. **HTTP** routes sit under `{mount}/v1`. The dialect columns say whether the SQL is a routine or inline. **Writes** lists the tables its SQL inserts into, updates, or deletes from. **Specs** are in `tests/Acta.Tests.Conformance/Operations/<Group>/`."
         );
         sb.AppendLine();
 
@@ -259,7 +259,7 @@ public sealed partial class OperationsIndexTests
     private static bool IsGroupLevel(string group, string file) =>
         Path.GetDirectoryName(file) is { } dir && (dir == group || dir == Path.Combine(group, "Shared"));
 
-    // A route folder whose endpoint names no operation of the SDK: the route renders or composes what the facades answer.
+    // A route folder whose endpoint names no operation of the SDK: the route composes what the facades answer.
     private static List<(string Group, string Folder)> HttpOnlyOperations(string operations, string routeOperations)
     {
         var sdk = Directory
@@ -317,8 +317,8 @@ public sealed partial class OperationsIndexTests
                 if (name == "MapTags")
                 {
                     found.Add(("GET", pattern, "GetTags"));
-                    found.Add(("POST", pattern, "UpsertTags"));
-                    found.Add(("DELETE", pattern + "/{tagName}", "RemoveTags"));
+                    found.Add(("POST", pattern, "UpsertTag"));
+                    found.Add(("DELETE", pattern + "/{tagName}", "RemoveTag"));
                 }
                 else if (HttpVerb(name) is { } verb && (own ?? MainOperation(map, facadeMethods)) is { } operation)
                 {

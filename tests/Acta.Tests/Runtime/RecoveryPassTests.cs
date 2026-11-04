@@ -48,7 +48,12 @@ public sealed class RecoveryPassTests
             ],
             staleLatches:
             [
-                new GetStaleChildLatchesItem(ParentJobId: 9, ChildJobId: 10, ChildStatus: JobStatusCode.Cancelled, ChildExecutionNumber: 1),
+                new ListStaleJobChildLatchesItem(
+                    ParentJobId: 9,
+                    ChildJobId: 10,
+                    ChildStatus: JobStatusCode.Cancelled,
+                    ChildExecutionNumber: 1
+                ),
             ]
         );
         var pass = Pass(WorkerSweep(marked: 3), execution, SignalStore(releases: true), wakeup: wakeups);
@@ -121,7 +126,9 @@ public sealed class RecoveryPassTests
     // A raise that releases its parent applies and leaves it Ready; one that does not is rejected unwritten.
     private static SignalsOperations SignalStore(bool releases) =>
         new ScriptedSession(_ =>
-            releases ? new RaiseSignalRow(ControlAction.Applied, JobStatusCode.Ready) : new RaiseSignalRow(ControlAction.Rejected, null)
+            releases
+                ? new RaiseJobSignalRow(ControlAction.Applied, JobStatusCode.Ready)
+                : new RaiseJobSignalRow(ControlAction.Rejected, null)
         )
             .Services()
             .GetRequiredService<SignalsOperations>();
@@ -132,12 +139,12 @@ public sealed class RecoveryPassTests
     // The reclaim answers the rows it touched and the latch read its stale latches; nothing else is reached.
     private static ExecutionOperations ExecutionStore(
         ReclaimStuckJobsRow[]? reclaimed = null,
-        GetStaleChildLatchesItem[]? staleLatches = null
+        ListStaleJobChildLatchesItem[]? staleLatches = null
     ) => new ScriptedSession(call =>
             call.Stem switch
             {
                 "ReclaimStuckJobs" => reclaimed ?? [],
-                "GetStaleChildLatches" => staleLatches ?? [],
+                "ListStaleJobChildLatches" => staleLatches ?? [],
                 _ => throw new NotSupportedException(call.Stem),
             }
         ).Services().GetRequiredService<ExecutionOperations>();

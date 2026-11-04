@@ -40,7 +40,7 @@ public sealed class HandlerControlSpec : ActaRuntimeTestBase<ConformanceFixture,
         // Did not return to user code, and the failed attempt persisted no result payload.
         Assert.Equal(1, await CountVariableAsync(enqueued.JobId, "ran.before", ct));
         Assert.Equal(0, await CountVariableAsync(enqueued.JobId, "ran.after", ct));
-        Assert.Null(await Services.GetRequiredService<GetResultHandler>().ReadAsync(enqueued.JobId, null, ct));
+        Assert.Null(await Services.GetRequiredService<GetJobResultHandler>().ReadAsync(enqueued.JobId, null, ct));
 
         // A handler fail is the job failing for good: one job.failed event and no separate cancel/pause lifecycle event.
         Assert.Equal(1, await CountEventsAsync(enqueued.JobId, EventCode.JobFailed, ct));
@@ -92,7 +92,7 @@ public sealed class HandlerControlSpec : ActaRuntimeTestBase<ConformanceFixture,
         Assert.Equal(EventReason.HandlerCancelled, EventDetail(cancelEvent, "reason"));
 
         Assert.Equal(0, await CountVariableAsync(enqueued.JobId, "ran.after", ct));
-        Assert.Null(await Services.GetRequiredService<GetResultHandler>().ReadAsync(enqueued.JobId, null, ct));
+        Assert.Null(await Services.GetRequiredService<GetJobResultHandler>().ReadAsync(enqueued.JobId, null, ct));
 
         var yielded = await ReadSingleEventAsync(enqueued.JobId, EventCode.JobExecutionYielded, ct);
         Assert.Equal("cancelled", EventDetail(yielded, "outcome"));
@@ -117,7 +117,7 @@ public sealed class HandlerControlSpec : ActaRuntimeTestBase<ConformanceFixture,
         Assert.Equal(EventReason.HandlerPaused, EventDetail(pauseEvent, "reason"));
 
         Assert.Equal(0, await CountVariableAsync(enqueued.JobId, "ran.after", ct));
-        Assert.Null(await Services.GetRequiredService<GetResultHandler>().ReadAsync(enqueued.JobId, null, ct));
+        Assert.Null(await Services.GetRequiredService<GetJobResultHandler>().ReadAsync(enqueued.JobId, null, ct));
 
         var yielded = await ReadSingleEventAsync(enqueued.JobId, EventCode.JobExecutionYielded, ct);
         Assert.Equal("paused", EventDetail(yielded, "outcome"));

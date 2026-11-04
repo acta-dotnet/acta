@@ -1,8 +1,16 @@
 namespace Acta;
 
 /// <summary>
-/// A keyset page request over the Quarantined rows, ordered by <c>outbox_id</c> - the one portable
-/// unique order across the three source encodings. <paramref name="AfterOutboxId"/> is the last id of
-/// the previous page, or null for the first page.
+/// Paging for <see cref="IOutbox.ListQuarantinedAsync"/> over one source's Quarantined rows, ordered
+/// by outbox id (the one portable unique order across source encodings).
 /// </summary>
-internal sealed record ListQuarantinedOutboxQuery(int PageSize, Guid? AfterOutboxId);
+/// <param name="JobNamespace">The namespace whose registered source to read; required.</param>
+/// <param name="PageSize">Rows per page; null defaults to 50, values above 100 clamp to 100.</param>
+/// <param name="Cursor">Opaque continuation cursor from the previous page's <see cref="IPagedResponse{T}.NextCursor"/>.</param>
+/// <param name="IncludeTotal">Whether to also count the source's quarantined rows.</param>
+public sealed record ListQuarantinedOutboxQuery(
+    string JobNamespace,
+    int? PageSize = null,
+    string? Cursor = null,
+    bool IncludeTotal = false
+);

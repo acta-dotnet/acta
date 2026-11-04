@@ -4,15 +4,15 @@ namespace Acta;
 internal sealed class SchedulesOperations(
     PauseScheduleHandler pauseSchedule,
     ResumeScheduleHandler resumeSchedule,
-    TriggerScheduleNowHandler triggerScheduleNow,
+    TriggerScheduleHandler triggerSchedule,
     ListSchedulesHandler listSchedules,
     PreviewScheduleHandler previewSchedule,
     ResolveScheduleTargetHandler resolveScheduleTarget,
     RegisterSchedulesHandler registerSchedules,
-    GetScheduleStateHandler getScheduleState,
-    GetDueSchedulesHandler getDueSchedules,
+    ListScheduleStatesHandler listScheduleStates,
+    ListDueSchedulesHandler listDueSchedules,
     GetScheduleHorizonHandler getScheduleHorizon,
-    AdmitFiringsHandler admitFirings
+    AdmitScheduleFiringsHandler admitScheduleFirings
 ) : ISchedules
 {
     public ValueTask<PauseScheduleResponse> PauseAsync(
@@ -30,12 +30,12 @@ internal sealed class SchedulesOperations(
         CancellationToken ct = default
     ) => resumeSchedule.HandleAsync(new ResumeScheduleCommand(schedule, reasonMessage, actor), ct);
 
-    public ValueTask<TriggerScheduleNowResponse> TriggerNowAsync(
+    public ValueTask<TriggerScheduleResponse> TriggerAsync(
         ScheduleLookup schedule,
         string? reasonMessage = null,
         string? actor = null,
         CancellationToken ct = default
-    ) => triggerScheduleNow.HandleAsync(new TriggerScheduleNowCommand(schedule, reasonMessage, actor), ct);
+    ) => triggerSchedule.HandleAsync(new TriggerScheduleCommand(schedule, reasonMessage, actor), ct);
 
     public ValueTask<ListSchedulesResponse> ListAsync(ListSchedulesQuery query, CancellationToken ct = default) =>
         listSchedules.HandleAsync(query, ct);
@@ -44,7 +44,7 @@ internal sealed class SchedulesOperations(
         previewSchedule.HandleAsync(new PreviewScheduleQuery(schedule, count), ct);
 
     /// <summary>The live schedule a path names, as the verbs resolve it; null when the path names nothing.</summary>
-    internal ValueTask<ResolveScheduleTargetResponse?> ResolveTargetAsync(ScheduleLookup schedule, CancellationToken ct) =>
+    internal ValueTask<ResolveScheduleTargetResponse?> ResolveScheduleTargetAsync(ScheduleLookup schedule, CancellationToken ct) =>
         resolveScheduleTarget.HandleAsync(new ResolveScheduleTargetQuery(schedule), ct);
 
     /// <summary>
@@ -60,18 +60,18 @@ internal sealed class SchedulesOperations(
     /// The namespace's persisted (non-orphaned) per-schedule cursors. Drives startup misfire-aware reconciliation and the
     /// slot-pause decision for definitions that dropped every schedule.
     /// </summary>
-    internal Task<GetScheduleStateResponse> GetScheduleStateAsync(int namespaceId, CancellationToken ct) =>
-        getScheduleState.HandleAsync(new GetScheduleStateQuery(namespaceId), ct);
+    internal Task<ListScheduleStatesResponse> ListScheduleStatesAsync(int namespaceId, CancellationToken ct) =>
+        listScheduleStates.HandleAsync(new ListScheduleStatesQuery(namespaceId), ct);
 
     /// <summary>Every member of each slot with a schedule due for evaluation; the admitter's read.</summary>
-    internal Task<GetDueSchedulesResponse> GetDueSchedulesAsync(int namespaceId, DateTime nowUtc, int take, CancellationToken ct) =>
-        getDueSchedules.HandleAsync(new GetDueSchedulesQuery(namespaceId, nowUtc, take), ct);
+    internal Task<ListDueSchedulesResponse> ListDueSchedulesAsync(int namespaceId, DateTime nowUtc, int take, CancellationToken ct) =>
+        listDueSchedules.HandleAsync(new ListDueSchedulesQuery(namespaceId, nowUtc, take), ct);
 
     /// <summary>The namespace's earliest next evaluation, or null, and the database's clock; how long the admitter may sleep.</summary>
     internal Task<GetScheduleHorizonResponse> GetScheduleHorizonAsync(int namespaceId, CancellationToken ct) =>
         getScheduleHorizon.HandleAsync(new GetScheduleHorizonQuery(namespaceId), ct);
 
     /// <summary>Applies an admission plan atomically; a stale group answers unapplied and the admitter replans it.</summary>
-    internal Task<AdmitFiringsResponse> AdmitFiringsAsync(AdmitFiringsCommand command, CancellationToken ct) =>
-        admitFirings.HandleAsync(command, ct);
+    internal Task<AdmitScheduleFiringsResponse> AdmitScheduleFiringsAsync(AdmitScheduleFiringsCommand command, CancellationToken ct) =>
+        admitScheduleFirings.HandleAsync(command, ct);
 }

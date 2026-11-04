@@ -5,7 +5,7 @@ using Xunit;
 
 namespace Acta.Tests.AspNetCore;
 
-/// <summary>The capabilities read exposes controlsEnabled, provider, schema, version, and the confirmation header name.</summary>
+/// <summary>The capabilities read exposes controlsEnabled, provider, schema, engineVersion, and the confirmation header name.</summary>
 public sealed class CapabilitiesEndpointTests
 {
     [Fact]
@@ -27,7 +27,7 @@ public sealed class CapabilitiesEndpointTests
         // No provider options registered on the fake host, so the schema falls back to the option default.
         Assert.Equal("acta", body.Schema);
         Assert.Equal("X-Test-Confirm", body.ConfirmationHeader);
-        Assert.False(string.IsNullOrWhiteSpace(body.Version));
+        Assert.False(string.IsNullOrWhiteSpace(body.EngineVersion));
     }
 
     [Fact]
@@ -58,8 +58,14 @@ public sealed class CapabilitiesEndpointTests
         Assert.Equal("sqlite", body.Provider);
         Assert.Equal("acta", body.Schema);
         Assert.Equal("X-Acta-Control", body.ConfirmationHeader);
-        Assert.False(string.IsNullOrWhiteSpace(body.Version));
+        Assert.False(string.IsNullOrWhiteSpace(body.EngineVersion));
     }
 
-    private sealed record CapabilitiesDto(bool ControlsEnabled, string Version, string Provider, string Schema, string ConfirmationHeader);
+    private sealed record CapabilitiesDto(
+        bool ControlsEnabled,
+        string EngineVersion,
+        string Provider,
+        string Schema,
+        string ConfirmationHeader
+    );
 }

@@ -39,8 +39,8 @@
     busy = true;
     message = '';
     try {
-      const result = await controlRequest<TagMutationResponse>(path, { name, value }, { action: 'notFound' });
-      if (result.action === 'notFound') {
+      const result = await controlRequest<TagMutationResponse>(path, { name, value }, { action: 'not-found' });
+      if (result.action === 'not-found') {
         message = 'Target not found.';
       } else {
         input = '';
@@ -61,10 +61,10 @@
       const result = await controlRequest<TagMutationResponse>(
         `${path}/${encodeURIComponent(name)}`,
         undefined,
-        { action: 'notFound' },
+        { action: 'not-found' },
         'DELETE'
       );
-      if (result.action === 'notFound') {
+      if (result.action === 'not-found') {
         message = 'Target not found.';
       } else {
         await refresh();

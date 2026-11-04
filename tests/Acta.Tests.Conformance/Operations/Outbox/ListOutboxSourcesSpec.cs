@@ -79,7 +79,7 @@ public sealed class ListOutboxSourcesSpec : OutboxRelayIntegrationBase
         Assert.False(item.IsLocal);
 
         var error = await Assert.ThrowsAsync<InvalidOperationException>(async () =>
-            await Outbox.ListQuarantinedAsync(new ListOutboxQuarantinedQuery(TestNamespace), ct)
+            await Outbox.ListQuarantinedAsync(new ListQuarantinedOutboxQuery(TestNamespace), ct)
         );
         Assert.Contains("AddOutboxRelay", error.Message);
 

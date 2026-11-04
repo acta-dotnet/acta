@@ -72,7 +72,7 @@
          every type CA1064 flags is instead internal to the engine, thrown as an engine
          control signal that one frame catches. AlertProjectionDataException is the projector's own
          poison classification, thrown and caught inside AlertsJob. StepOwnershipLostException is the
-         complete_step CAS miss, thrown by RuntimeJobContext and caught by JobExecution. The meta
+         complete_job_step CAS miss, thrown by RuntimeJobContext and caught by JobExecution. The meta
          reader throws OutboxContractException and the relay catches it in the same tick.
          OutboxQuarantineTickException is the one that does leave the runtime, as the sys.outbox job's
          own failure - but it reaches an operator as alert text, never as a type on a handler's catch

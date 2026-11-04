@@ -45,7 +45,7 @@ test('controlRequest serializes a JSON body and required headers', async () => {
     return new Response('{"action":"applied"}', { status: 200 });
   }) as typeof fetch;
 
-  await controlRequest('jobs/J1/pause', { reasonMessage: 'maintenance' }, { action: 'notFound' });
+  await controlRequest('jobs/J1/pause', { reasonMessage: 'maintenance' }, { action: 'not-found' });
 
   const headers = new Headers(init?.headers);
   assert.equal(init?.method, 'POST');
@@ -140,22 +140,22 @@ test('any HTTP response marks the backend online even when it is an error', asyn
 
 test('controlRequest accepts typed 404 and 409 outcomes', async () => {
   const responses = [
-    new Response('{"action":"notFound"}', { status: 404 }),
+    new Response('{"action":"not-found"}', { status: 404 }),
     new Response('{"action":"rejected"}', { status: 409 })
   ];
   globalThis.fetch = (async () => responses.shift()!) as typeof fetch;
 
-  const notFound = await controlRequest('jobs/J1/pause', {}, { action: 'notFound' });
-  const rejected = await controlRequest('jobs/J1/pause', {}, { action: 'notFound' });
+  const notFound = await controlRequest('jobs/J1/pause', {}, { action: 'not-found' });
+  const rejected = await controlRequest('jobs/J1/pause', {}, { action: 'not-found' });
 
-  assert.equal(notFound.action, 'notFound');
+  assert.equal(notFound.action, 'not-found');
   assert.equal(rejected.action, 'rejected');
 });
 
 test('controlRequest keeps the typed fallback for a malformed accepted error response', async () => {
   globalThis.fetch = (async () => new Response('upstream returned HTML', { status: 404 })) as typeof fetch;
 
-  const result = await controlRequest('jobs/J1/pause', {}, { action: 'notFound' });
+  const result = await controlRequest('jobs/J1/pause', {}, { action: 'not-found' });
 
-  assert.equal(result.action, 'notFound');
+  assert.equal(result.action, 'not-found');
 });

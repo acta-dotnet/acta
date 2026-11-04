@@ -101,7 +101,7 @@ public sealed class ControlContractTests
         .. Enqueue(),
         .. ScheduleVerb("pause", typeof(PauseScheduleResponse)),
         .. ScheduleVerb("resume", typeof(ResumeScheduleResponse)),
-        .. ScheduleVerb("trigger", typeof(TriggerScheduleNowResponse)),
+        .. ScheduleVerb("trigger", typeof(TriggerScheduleResponse)),
         .. CalendarVerb(
             "drafts",
             typeof(SaveCalendarDraftResponse),
@@ -117,7 +117,7 @@ public sealed class ControlContractTests
         .. CalendarVerb(
             "publish",
             typeof(PublishCalendarResponse),
-            "versionConflict",
+            "version-conflict",
             static expected => new
             {
                 expectedCurrentVersion = expected,
@@ -166,25 +166,33 @@ public sealed class ControlContractTests
         ),
     ];
 
-    // The input-template read is control-gated (it exposes the compile-time input contract) but names
-    // no job: a namespace and name this host has no assembly for is a 200 with a null template, so its
-    // only other answer is the 400 for a required parameter that did not arrive.
+    // The input-template read names a definition by its path, so its only other answer is the 404 for
+    // a job this host has no assembly for.
     private static IEnumerable<Case> InputTemplate()
     {
-        const string route = "/jobs/input-template";
+        const string route = "/definitions/{jobNamespace}/{jobName}/input-template";
         return
         [
             new(
-                "jobs",
+                "definitions",
                 route,
                 "GET",
                 "template",
-                $"{route}?jobNamespace=billing&jobName=send-invoice",
+                "/definitions/billing/send-invoice/input-template",
                 StatusCodes.Status200OK,
-                typeof(GetInputTemplateResponse),
+                typeof(GetDefinitionInputTemplateResponse),
                 null
             ),
-            new("jobs", route, "GET", "missingParameter", route, StatusCodes.Status400BadRequest, Problem, null),
+            new(
+                "definitions",
+                route,
+                "GET",
+                "not-found",
+                "/definitions/billing/unknown/input-template",
+                StatusCodes.Status404NotFound,
+                Problem,
+                null
+            ),
         ];
     }
 
@@ -223,7 +231,7 @@ public sealed class ControlContractTests
         [
             Job(declared, route, "applied", $"/jobs/{Found}/{verb}", StatusCodes.Status200OK, "applied", body ?? Reason),
             Job(declared, route, "rejected", $"/jobs/{Blocked}/{verb}", StatusCodes.Status409Conflict, "rejected", body ?? Reason),
-            Job(declared, route, "notFound", $"/jobs/{Missing}/{verb}", StatusCodes.Status404NotFound, "notFound", body ?? Reason),
+            Job(declared, route, "not-found", $"/jobs/{Missing}/{verb}", StatusCodes.Status404NotFound, "not-found", body ?? Reason),
         ];
     }
 
@@ -238,11 +246,11 @@ public sealed class ControlContractTests
                 "jobs",
                 $"/jobs/{{jobRef}}/{verb}",
                 "POST",
-                "versionConflict",
+                "version-conflict",
                 $"/jobs/{Found}/{verb}",
                 StatusCodes.Status409Conflict,
                 declared,
-                "versionConflict",
+                "version-conflict",
                 body,
                 FakeJobs.CurrentJobVersion
             ),
@@ -256,9 +264,9 @@ public sealed class ControlContractTests
         const string route = "/jobs/{jobRef}/signals/{signalName}";
         return
         [
-            Job(typeof(RaiseSignalResponse), route, "applied", $"/jobs/{Found}/signals/approval", StatusCodes.Status200OK, "applied"),
+            Job(typeof(RaiseJobSignalResponse), route, "applied", $"/jobs/{Found}/signals/approval", StatusCodes.Status200OK, "applied"),
             Job(
-                typeof(RaiseSignalResponse),
+                typeof(RaiseJobSignalResponse),
                 route,
                 "rejected",
                 $"/jobs/{Blocked}/signals/approval",
@@ -266,12 +274,12 @@ public sealed class ControlContractTests
                 "rejected"
             ),
             Job(
-                typeof(RaiseSignalResponse),
+                typeof(RaiseJobSignalResponse),
                 route,
-                "notFound",
+                "not-found",
                 $"/jobs/{Missing}/signals/approval",
                 StatusCodes.Status404NotFound,
-                "notFound"
+                "not-found"
             ),
         ];
     }
@@ -308,10 +316,10 @@ public sealed class ControlContractTests
             Job(
                 typeof(UpdateJobInputResponse),
                 route,
-                "notFound",
+                "not-found",
                 $"/jobs/{Missing}/input",
                 StatusCodes.Status404NotFound,
-                "notFound",
+                "not-found",
                 body
             ),
         ];
@@ -372,7 +380,7 @@ public sealed class ControlContractTests
         [
             Schedule(route, "applied", Path("nightly"), StatusCodes.Status200OK, declared, "applied", Reason),
             Schedule(route, "rejected", Path("rejected"), StatusCodes.Status409Conflict, declared, "rejected", Reason),
-            Schedule(route, "notFound", Path("missing"), StatusCodes.Status404NotFound, declared, "notFound", Reason),
+            Schedule(route, "not-found", Path("missing"), StatusCodes.Status404NotFound, declared, "not-found", Reason),
         ];
     }
 
@@ -409,8 +417,8 @@ public sealed class ControlContractTests
             Row("applied", "office-hours", StatusCodes.Status200OK, 1),
             conflict == "rejected"
                 ? Row("rejected", "rejected", StatusCodes.Status409Conflict, 1)
-                : Row("versionConflict", "office-hours", StatusCodes.Status409Conflict, 999),
-            Row("notFound", "missing", StatusCodes.Status404NotFound, 1),
+                : Row("version-conflict", "office-hours", StatusCodes.Status409Conflict, 999),
+            Row("not-found", "missing", StatusCodes.Status404NotFound, 1),
         ];
     }
 
@@ -427,7 +435,7 @@ public sealed class ControlContractTests
                 outcome,
                 path,
                 status,
-                typeof(SetDefinitionOverridesResponse),
+                typeof(UpdateDefinitionOverridesResponse),
                 action,
                 new { expectedVersion, reasonMessage = "because" },
                 version
@@ -435,8 +443,8 @@ public sealed class ControlContractTests
         return
         [
             Row("applied", "/definitions/billing/send-invoice", StatusCodes.Status200OK, "applied", 1, 2),
-            Row("versionConflict", "/definitions/billing/send-invoice", StatusCodes.Status409Conflict, "versionConflict", 999, 2),
-            Row("notFound", "/definitions/billing/missing", StatusCodes.Status404NotFound, "notFound", 1, null),
+            Row("version-conflict", "/definitions/billing/send-invoice", StatusCodes.Status409Conflict, "version-conflict", 999, 2),
+            Row("not-found", "/definitions/billing/missing", StatusCodes.Status404NotFound, "not-found", 1, null),
         ];
     }
 
@@ -459,8 +467,8 @@ public sealed class ControlContractTests
         return
         [
             Row("applied", "/definitions/billing/send-invoice/retire", StatusCodes.Status200OK, "applied", 1, 2),
-            Row("versionConflict", "/definitions/billing/send-invoice/retire", StatusCodes.Status409Conflict, "versionConflict", 999, 2),
-            Row("notFound", "/definitions/billing/missing/retire", StatusCodes.Status404NotFound, "notFound", 1, null),
+            Row("version-conflict", "/definitions/billing/send-invoice/retire", StatusCodes.Status409Conflict, "version-conflict", 999, 2),
+            Row("not-found", "/definitions/billing/missing/retire", StatusCodes.Status404NotFound, "not-found", 1, null),
         ];
     }
 
@@ -473,7 +481,7 @@ public sealed class ControlContractTests
         return
         [
             Row("applied", KnownAlert, StatusCodes.Status200OK, "applied"),
-            Row("notFound", UnknownAlert, StatusCodes.Status404NotFound, "notFound"),
+            Row("not-found", UnknownAlert, StatusCodes.Status404NotFound, "not-found"),
         ];
     }
 
@@ -488,7 +496,7 @@ public sealed class ControlContractTests
         [
             Row("accepted", "billing", StatusCodes.Status202Accepted, "accepted"),
             Row("rejected", "rejected", StatusCodes.Status409Conflict, "rejected"),
-            Row("notFound", "missing", StatusCodes.Status404NotFound, "notFound"),
+            Row("not-found", "missing", StatusCodes.Status404NotFound, "not-found"),
         ];
     }
 
@@ -515,10 +523,10 @@ public sealed class ControlContractTests
                 family,
                 route,
                 "POST",
-                "notFound",
+                "not-found",
                 $"{Path(routePrefix, "missing")}/{verb}",
                 StatusCodes.Status404NotFound,
-                "notFound",
+                "not-found",
                 Reason
             ),
         ];
@@ -537,14 +545,24 @@ public sealed class ControlContractTests
                 family,
                 route,
                 "PATCH",
-                "versionConflict",
+                "version-conflict",
                 Path(route, key),
                 StatusCodes.Status409Conflict,
-                "versionConflict",
+                "version-conflict",
                 Body(999),
                 5
             ),
-            Admin(declared, family, route, "PATCH", "notFound", Path(route, "missing"), StatusCodes.Status404NotFound, "notFound", Body(1)),
+            Admin(
+                declared,
+                family,
+                route,
+                "PATCH",
+                "not-found",
+                Path(route, "missing"),
+                StatusCodes.Status404NotFound,
+                "not-found",
+                Body(1)
+            ),
         ];
     }
 
@@ -590,7 +608,7 @@ public sealed class ControlContractTests
                 action,
                 pathPrefix + pathSuffix,
                 status,
-                method == "POST" ? typeof(UpsertTagsResponse) : typeof(RemoveTagsResponse),
+                method == "POST" ? typeof(UpsertTagResponse) : typeof(RemoveTagResponse),
                 action,
                 body,
                 Stage: status == StatusCodes.Status200OK ? TagApplies : TagTargetMissing
@@ -600,9 +618,9 @@ public sealed class ControlContractTests
         return
         [
             Row("POST", "/tags", "/tags", StatusCodes.Status200OK, "applied", upsert),
-            Row("POST", "/tags", "/tags", StatusCodes.Status404NotFound, "notFound", upsert),
+            Row("POST", "/tags", "/tags", StatusCodes.Status404NotFound, "not-found", upsert),
             Row("DELETE", "/tags/{tagName}", "/tags/env", StatusCodes.Status200OK, "applied", null),
-            Row("DELETE", "/tags/{tagName}", "/tags/env", StatusCodes.Status404NotFound, "notFound", null),
+            Row("DELETE", "/tags/{tagName}", "/tags/env", StatusCodes.Status404NotFound, "not-found", null),
         ];
     }
 

@@ -116,7 +116,7 @@ public sealed class EnqueueJobsRejectionSpec : ActaRuntimeTestBase<ConformanceFi
         // Unknown job: the routine's resolved-count check throws (provider-native, not wrapped).
         JobEnqueueValues[] command = [new JobEnqueueValues(NamespaceName: TestNamespace, JobName: "no-such-job", Input: JobPayload.None)];
 
-        await Assert.ThrowsAnyAsync<Exception>(() => EnqueueTestOps.EnqueueBatchAsync(Services, command, ct));
+        await Assert.ThrowsAnyAsync<Exception>(() => EnqueueTestOps.EnqueueJobsAsync(Services, command, ct));
         Assert.Equal(before, await CountJobsAsync(ct));
     }
 
@@ -155,7 +155,7 @@ public sealed class EnqueueJobsRejectionSpec : ActaRuntimeTestBase<ConformanceFi
     private async Task<IReadOnlyList<EnqueueJobResponse>> RunAsync(IReadOnlyList<JobEnqueueValues> command, CancellationToken ct)
     {
         _ = Services.GetRequiredService<ISqlDialect>();
-        return (await EnqueueTestOps.EnqueueBatchAsync(Services, command, ct)).Jobs;
+        return (await EnqueueTestOps.EnqueueJobsAsync(Services, command, ct)).Jobs;
     }
 
     private async Task<int> CountJobsAsync(CancellationToken ct)

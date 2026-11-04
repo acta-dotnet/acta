@@ -107,7 +107,7 @@ async function mockDashboard(
     const json = (body: unknown, status = 200) => route.fulfill({ status, contentType: 'application/json', body: JSON.stringify(body) });
 
     if (path === 'capabilities') {
-      return json({ controlsEnabled: options.controls, version: 'test', provider: 'mock', confirmationHeader: 'X-Acta-Control' });
+      return json({ controlsEnabled: options.controls, engineVersion: 'test', provider: 'mock', confirmationHeader: 'X-Acta-Control' });
     }
     if (path === 'namespaces') {
       return json(paged([{ jobNamespace: 'billing', status: 'active', ownerTeam: null, description: null, version: 1 }]));

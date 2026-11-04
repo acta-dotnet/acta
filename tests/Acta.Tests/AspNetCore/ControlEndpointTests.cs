@@ -126,7 +126,7 @@ public sealed class ControlEndpointTests
         var response = await client.SendAsync(Post($"/acta/api/v1/jobs/{Missing}/cancel"), TestContext.Current.CancellationToken);
 
         Assert.Equal(HttpStatusCode.NotFound, response.StatusCode);
-        Assert.Contains("\"action\":\"notFound\"", await response.Content.ReadAsStringAsync(TestContext.Current.CancellationToken));
+        Assert.Contains("\"action\":\"not-found\"", await response.Content.ReadAsStringAsync(TestContext.Current.CancellationToken));
     }
 
     [Fact]
@@ -1000,8 +1000,8 @@ public sealed class ControlEndpointTests
 
     [Theory]
     [InlineData("send-invoice", 1, HttpStatusCode.OK, "applied")]
-    [InlineData("send-invoice", 999, HttpStatusCode.Conflict, "versionConflict")]
-    [InlineData("missing", 1, HttpStatusCode.NotFound, "notFound")]
+    [InlineData("send-invoice", 999, HttpStatusCode.Conflict, "version-conflict")]
+    [InlineData("missing", 1, HttpStatusCode.NotFound, "not-found")]
     public async Task Definition_retire_maps_the_verb_outcome(string jobName, int expectedVersion, HttpStatusCode status, string action)
     {
         var (app, client) = await StartWithControlsAsync();
@@ -1090,7 +1090,7 @@ public sealed class ControlEndpointTests
         await using var _ = app;
 
         var response = await client.GetAsync(
-            "/acta/api/v1/jobs/input-template?jobNamespace=billing&jobName=send-invoice",
+            "/acta/api/v1/definitions/billing/send-invoice/input-template",
             TestContext.Current.CancellationToken
         );
 
@@ -1112,30 +1112,11 @@ public sealed class ControlEndpointTests
         await using var _ = app;
 
         var response = await client.GetAsync(
-            "/acta/api/v1/jobs/input-template?jobNamespace=billing&jobName=unknown",
+            "/acta/api/v1/definitions/billing/unknown/input-template",
             TestContext.Current.CancellationToken
         );
 
         Assert.Equal(HttpStatusCode.NotFound, response.StatusCode);
-    }
-
-    [Fact]
-    // A required query parameter that did not arrive is caller input, the same answer /jobs/by-key
-    // gives its own two. This read never reports a miss: a name it has no assembly for is a 200 with
-    // a null template.
-    public async Task Input_template_without_a_job_name_is_400()
-    {
-        var (app, client) = await StartWithControlsAsync();
-        await using var _ = app;
-
-        var response = await client.GetAsync(
-            "/acta/api/v1/jobs/input-template?jobNamespace=billing",
-            TestContext.Current.CancellationToken
-        );
-        var body = await response.Content.ReadAsStringAsync(TestContext.Current.CancellationToken);
-
-        Assert.Equal(HttpStatusCode.BadRequest, response.StatusCode);
-        Assert.Contains("jobNamespace and jobName are required.", body);
     }
 
     [Theory]

@@ -10,10 +10,10 @@ namespace Acta.AspNetCore;
 /// </summary>
 internal sealed record GetJobDetailResponse(
     GetJobResponse Job,
-    GetJobInputBodyResponse Input,
-    [property: JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)] GetJobInputBodyResponse? Result,
+    JobPayloadBody Input,
+    [property: JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)] JobPayloadBody? Result,
     IReadOnlyList<GetJobDetailCheckpoint> Checkpoints,
-    [property: JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)] GetJobExplanationResponse? Explain,
+    [property: JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)] ExplainJobResponse? Explain,
     [property: JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)] GetJobLineageMapResponse? Lineage,
     IReadOnlyList<ListSchedulesItem> Schedules,
     // Filter-wide count, so the frontend can tell a complete set from the first page of a larger one.
@@ -33,7 +33,7 @@ internal sealed record GetJobDetailResponse(
     /// <summary>
     /// Compose the detail from the individual reads. The reads are independent but cheap and awaited in
     /// sequence (v1); every read is addressed by the already-resolved id so the whole screen costs one
-    /// GetJobIdAsync. Eligible workers are fetched only while the job is claimable, matching the
+    /// GetIdAsync. Eligible workers are fetched only while the job is claimable, matching the
     /// dashboard's own <c>status === 'ready'</c> gate.
     /// </summary>
     public static async Task<GetJobDetailResponse> ComposeAsync(
@@ -74,8 +74,8 @@ internal sealed record GetJobDetailResponse(
 
         return new GetJobDetailResponse(
             job,
-            GetJobInputBodyResponse.From(input ?? JobPayload.None, maxInlineBytes),
-            result is { } produced ? GetJobInputBodyResponse.From(produced, maxInlineBytes) : null,
+            JobPayloadBody.From(input ?? JobPayload.None, maxInlineBytes),
+            result is { } produced ? JobPayloadBody.From(produced, maxInlineBytes) : null,
             (checkpoints?.Items ?? []).Select(item => GetJobDetailCheckpoint.From(item, maxInlineBytes)).ToList(),
             explain,
             lineage,

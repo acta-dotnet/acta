@@ -45,8 +45,8 @@ public sealed class ReclaimStuckJobsWaitTimeoutSpec : ActaRuntimeTestBase<Confor
         var lost = await ChaosSpecHelpers.StrandExecutingAsync(Services, ns, worker, enqueued.JobId, ct);
         var resolved = await Services
             .GetRequiredService<SignalsOperations>()
-            .WaitSignalAsync(lost, CheckpointKindCode.Signal, "go", timeoutSeconds: null, dueAtUtc: null, ct);
-        Assert.Equal(WaitSignalOutcomeCode.TimedOut, resolved.Outcome);
+            .WaitJobSignalAsync(lost, CheckpointKindCode.Signal, "go", timeoutSeconds: null, dueAtUtc: null, ct);
+        Assert.Equal(WaitJobSignalOutcomeCode.TimedOut, resolved.Outcome);
 
         Assert.Equal(1, (await RecoverySweep.ReclaimAtLeastOneAsync(Services, ns, ct)).Reclaimed);
 
@@ -199,8 +199,8 @@ public sealed class ReclaimStuckJobsWaitTimeoutSpec : ActaRuntimeTestBase<Confor
         var lost = await ChaosSpecHelpers.StrandExecutingAsync(Services, ns, worker, enqueued.JobId, ct);
         var resolved = await Services
             .GetRequiredService<SignalsOperations>()
-            .WaitSignalAsync(lost, CheckpointKindCode.Signal, "go", timeoutSeconds: null, dueAtUtc: null, ct);
-        Assert.Equal(WaitSignalOutcomeCode.TimedOut, resolved.Outcome);
+            .WaitJobSignalAsync(lost, CheckpointKindCode.Signal, "go", timeoutSeconds: null, dueAtUtc: null, ct);
+        Assert.Equal(WaitJobSignalOutcomeCode.TimedOut, resolved.Outcome);
 
         Assert.Equal(1, (await RecoverySweep.ReclaimAtLeastOneAsync(Services, ns, ct)).Reclaimed);
         Assert.Equal(JobStatusCode.Suspended, (await ReadJobAsync(enqueued.JobId, ct)).Status);

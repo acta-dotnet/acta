@@ -57,7 +57,7 @@ public sealed class EnqueueJobsSpec : ActaRuntimeTestBase<ConformanceFixture, Te
         ];
 
         var dialect = Services.GetRequiredService<ISqlDialect>();
-        var result = (await EnqueueTestOps.EnqueueBatchAsync(Services, command, ct)).Jobs;
+        var result = (await EnqueueTestOps.EnqueueJobsAsync(Services, command, ct)).Jobs;
 
         Assert.Single(result);
         var outcome = result[0];
@@ -102,7 +102,7 @@ public sealed class EnqueueJobsSpec : ActaRuntimeTestBase<ConformanceFixture, Te
         }
 
         var dialect = Services.GetRequiredService<ISqlDialect>();
-        var result = (await EnqueueTestOps.EnqueueBatchAsync(Services, rows, ct)).Jobs;
+        var result = (await EnqueueTestOps.EnqueueJobsAsync(Services, rows, ct)).Jobs;
 
         Assert.Equal(batchSize, result.Count);
         var seenJobIds = new HashSet<long>();
@@ -141,7 +141,7 @@ public sealed class EnqueueJobsSpec : ActaRuntimeTestBase<ConformanceFixture, Te
         ];
 
         var dialect = Services.GetRequiredService<ISqlDialect>();
-        var outcomes = (await EnqueueTestOps.EnqueueBatchAsync(Services, rows, ct)).Jobs;
+        var outcomes = (await EnqueueTestOps.EnqueueJobsAsync(Services, rows, ct)).Jobs;
 
         Assert.Equal(2, outcomes.Count);
         var first = await Db.From<JobEntity>().Where(j => j.Id == outcomes[0].JobId).SingleOrDefaultAsync(ct);
@@ -165,7 +165,7 @@ public sealed class EnqueueJobsSpec : ActaRuntimeTestBase<ConformanceFixture, Te
         {
             outcomes.Add(await EnqueueTestOps.EnqueueJobAsync(Services, row, ct));
         }
-        outcomes.AddRange((await EnqueueTestOps.EnqueueBatchAsync(Services, rows, ct)).Jobs);
+        outcomes.AddRange((await EnqueueTestOps.EnqueueJobsAsync(Services, rows, ct)).Jobs);
 
         for (var i = 0; i < outcomes.Count; i++)
         {

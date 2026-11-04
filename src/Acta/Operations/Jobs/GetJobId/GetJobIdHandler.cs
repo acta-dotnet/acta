@@ -1,7 +1,7 @@
 namespace Acta;
 
 /// <summary>
-/// <see cref="IJobs.GetJobIdAsync"/>: an id passes through without a round trip, and a ref or a deduplication key
+/// <see cref="IJobs.GetIdAsync"/>: an id passes through without a round trip, and a ref or a deduplication key
 /// resolves (canonicalized first); no SQL of its own. Null when no job matches.
 /// </summary>
 internal sealed class GetJobIdHandler(ResolveJobIdByRefHandler byRef, ResolveJobIdByDeduplicationKeyHandler byDeduplicationKey)

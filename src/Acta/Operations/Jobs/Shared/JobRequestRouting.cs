@@ -73,7 +73,7 @@ internal sealed class JobRequestRouting(
     public T? Decode<T>(JobPayload payload) => serializers.Resolve(payload.Format.Id).Deserialize<T>(payload);
 
     /// <summary>A stored result read as <typeparamref name="TResult"/>, refused when its job produces another type.</summary>
-    public TResult? DecodeResult<TResult>(GetResultRow row)
+    public TResult? DecodeResult<TResult>(GetJobResultRow row)
     {
         EnsureResultType<TResult>(row.JobNamespace, row.JobName);
         return Decode<TResult>(row.Payload);

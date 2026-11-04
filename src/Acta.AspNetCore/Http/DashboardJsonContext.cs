@@ -5,14 +5,15 @@ namespace Acta.AspNetCore;
 
 /// <summary>
 /// Source-generated JSON metadata for every dashboard API response type. Code-family enums carry
-/// their own converters writing the kebab wire names; plain enums serialize camelCase. A request body
-/// member the record does not declare fails the read: a misspelled or differently cased scope would
-/// otherwise vanish and widen the verb to its default, as an outbox discard to every quarantined row.
+/// their own converters writing the kebab wire names, and the plain action enums serialize kebab-case
+/// too. A request body member the record does not declare fails the read: a misspelled or differently
+/// cased scope would otherwise vanish and widen the verb to its default, as an outbox discard to every
+/// quarantined row.
 /// </summary>
 [JsonSourceGenerationOptions(
     PropertyNamingPolicy = JsonKnownNamingPolicy.CamelCase,
     UseStringEnumConverter = true,
-    Converters = [typeof(CamelCaseJobControlActionConverter), typeof(CamelCaseJobEnqueueActionConverter)],
+    Converters = [typeof(KebabCaseControlActionConverter), typeof(KebabCaseEnqueueJobActionConverter)],
     DefaultIgnoreCondition = JsonIgnoreCondition.Never,
     UnmappedMemberHandling = JsonUnmappedMemberHandling.Disallow
 )]
@@ -37,7 +38,7 @@ namespace Acta.AspNetCore;
 [JsonSerializable(typeof(AcknowledgeAlertRequest))]
 [JsonSerializable(typeof(ResolveAlertRequest))]
 [JsonSerializable(typeof(ResumeScheduleRequest))]
-[JsonSerializable(typeof(TriggerScheduleNowRequest))]
+[JsonSerializable(typeof(TriggerScheduleRequest))]
 [JsonSerializable(typeof(PauseJobRequest))]
 [JsonSerializable(typeof(ResumeJobRequest))]
 [JsonSerializable(typeof(RestartJobRequest))]
@@ -50,7 +51,7 @@ namespace Acta.AspNetCore;
 [JsonSerializable(typeof(ReprioritizeJobResponse))]
 [JsonSerializable(typeof(UpdateJobInputResponse))]
 [JsonSerializable(typeof(PurgeJobResponse))]
-[JsonSerializable(typeof(RaiseSignalResponse))]
+[JsonSerializable(typeof(RaiseJobSignalResponse))]
 [JsonSerializable(typeof(RescheduleJobRequest))]
 [JsonSerializable(typeof(ReprioritizeJobRequest))]
 [JsonSerializable(typeof(UpdateJobInputRequest))]
@@ -59,7 +60,7 @@ namespace Acta.AspNetCore;
 [JsonSerializable(typeof(PauseScheduleRequest))]
 [JsonSerializable(typeof(PauseScheduleResponse))]
 [JsonSerializable(typeof(ResumeScheduleResponse))]
-[JsonSerializable(typeof(TriggerScheduleNowResponse))]
+[JsonSerializable(typeof(TriggerScheduleResponse))]
 [JsonSerializable(typeof(PreviewScheduleResponse))]
 [JsonSerializable(typeof(ListCalendarsResponse))]
 [JsonSerializable(typeof(GetCalendarResponse))]
@@ -70,16 +71,16 @@ namespace Acta.AspNetCore;
 [JsonSerializable(typeof(PublishCalendarResponse))]
 [JsonSerializable(typeof(ArchiveCalendarRequest))]
 [JsonSerializable(typeof(ArchiveCalendarResponse))]
-[JsonSerializable(typeof(SetDefinitionOverridesRequest))]
+[JsonSerializable(typeof(UpdateDefinitionOverridesRequest))]
 [JsonSerializable(typeof(RetireDefinitionRequest))]
-[JsonSerializable(typeof(SetDefinitionOverridesResponse))]
+[JsonSerializable(typeof(UpdateDefinitionOverridesResponse))]
 [JsonSerializable(typeof(RetireDefinitionResponse))]
 [JsonSerializable(typeof(AcknowledgeAlertResponse))]
 [JsonSerializable(typeof(ResolveAlertResponse))]
 [JsonSerializable(typeof(UpdateTenantRequest))]
 [JsonSerializable(typeof(UpdateNamespaceRequest))]
-[JsonSerializable(typeof(UpsertTagsResponse))]
-[JsonSerializable(typeof(RemoveTagsResponse))]
+[JsonSerializable(typeof(UpsertTagResponse))]
+[JsonSerializable(typeof(RemoveTagResponse))]
 [JsonSerializable(typeof(SuspendTenantResponse))]
 [JsonSerializable(typeof(ResumeTenantResponse))]
 [JsonSerializable(typeof(UpdateTenantResponse))]
@@ -88,35 +89,35 @@ namespace Acta.AspNetCore;
 [JsonSerializable(typeof(UpdateNamespaceResponse))]
 [JsonSerializable(typeof(GetOverviewResponse))]
 [JsonSerializable(typeof(ListOutboxSourcesResponse))]
-[JsonSerializable(typeof(ListOutboxQuarantinedResponse))]
+[JsonSerializable(typeof(ListQuarantinedOutboxResponse))]
 [JsonSerializable(typeof(RequeueOutboxRequest))]
 [JsonSerializable(typeof(DiscardOutboxRequest))]
 [JsonSerializable(typeof(RequeueOutboxResponse))]
 [JsonSerializable(typeof(DiscardOutboxResponse))]
 [JsonSerializable(typeof(GetTagsResponse))]
-[JsonSerializable(typeof(UpsertJobTagsRequest))]
-[JsonSerializable(typeof(UpsertNamespaceTagsRequest))]
-[JsonSerializable(typeof(UpsertTenantTagsRequest))]
-[JsonSerializable(typeof(UpsertDefinitionTagsRequest))]
+[JsonSerializable(typeof(UpsertJobTagRequest))]
+[JsonSerializable(typeof(UpsertNamespaceTagRequest))]
+[JsonSerializable(typeof(UpsertTenantTagRequest))]
+[JsonSerializable(typeof(UpsertDefinitionTagRequest))]
 [JsonSerializable(typeof(GetCapabilitiesResponse))]
 [JsonSerializable(typeof(GetJobDetailResponse))]
-[JsonSerializable(typeof(GetJobInputBodyResponse))]
+[JsonSerializable(typeof(JobPayloadBody))]
 [JsonSerializable(typeof(EnqueueJobRequest))]
 [JsonSerializable(typeof(EnqueueJobResponse))]
-[JsonSerializable(typeof(GetInputTemplateResponse))]
+[JsonSerializable(typeof(GetDefinitionInputTemplateResponse))]
 [JsonSerializable(typeof(ProblemDetails))]
 internal sealed partial class DashboardJsonContext : JsonSerializerContext;
 
 /// <summary>
-/// Serializes <see cref="ControlAction"/> camelCase ("applied", "notFound", "rejected") to
-/// match the response property convention; the type is not a code family so it has no wire name.
+/// Serializes <see cref="ControlAction"/> kebab-case ("applied", "not-found", "version-conflict"), as every
+/// wire code value is written; the type is not a code family so it has no wire name of its own.
 /// </summary>
-internal sealed class CamelCaseJobControlActionConverter()
-    : JsonStringEnumConverter<ControlAction>(System.Text.Json.JsonNamingPolicy.CamelCase);
+internal sealed class KebabCaseControlActionConverter()
+    : JsonStringEnumConverter<ControlAction>(System.Text.Json.JsonNamingPolicy.KebabCaseLower);
 
 /// <summary>
-/// Serializes <see cref="EnqueueJobAction"/> camelCase ("inserted", "deduplicated"), the same
+/// Serializes <see cref="EnqueueJobAction"/> kebab-case ("inserted", "deduplicated"), the same
 /// convention <see cref="ControlAction"/> follows.
 /// </summary>
-internal sealed class CamelCaseJobEnqueueActionConverter()
-    : JsonStringEnumConverter<EnqueueJobAction>(System.Text.Json.JsonNamingPolicy.CamelCase);
+internal sealed class KebabCaseEnqueueJobActionConverter()
+    : JsonStringEnumConverter<EnqueueJobAction>(System.Text.Json.JsonNamingPolicy.KebabCaseLower);

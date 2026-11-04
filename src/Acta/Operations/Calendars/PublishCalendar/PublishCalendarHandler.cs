@@ -15,7 +15,7 @@ internal sealed class PublishCalendarHandler(
     ISqlDialect dialect,
     IActaClock clock,
     GetCalendarPublicationHandler family,
-    GetCalendarSchedulesHandler dependents,
+    ListCalendarSchedulesHandler dependents,
     CalendarSources sources
 )
 {
@@ -68,7 +68,7 @@ internal sealed class PublishCalendarHandler(
                 return Rejected($"Version {candidate.Version} is {candidate.Status.Code}; only a draft is published.");
             }
 
-            var bound = (await dependents.HandleAsync(new GetCalendarSchedulesQuery(candidate.NamespaceId, calendarName), ct)).Schedules;
+            var bound = (await dependents.HandleAsync(new ListCalendarSchedulesQuery(candidate.NamespaceId, calendarName), ct)).Schedules;
             if (bound.Count > MaxDependents)
             {
                 return Rejected($"{bound.Count} schedules bind '{calendarName}'; a publication retimes at most {MaxDependents}.");

@@ -9,7 +9,7 @@ namespace Acta.Tests.Conformance.Engine.Alerting;
 /// Conformance for the failure shape nobody is watching: a permanent slot whose handler throws. A firing
 /// re-arms within its budget and a spent budget returns the slot to Idle rather than terminalizing it, so the
 /// alert has to come off the reason the attempt's event records - a landing with no reason is invisible to
-/// <c>GetAlertableEvents</c>, and a nightly job could fail every night without ever raising one. The
+/// <c>ListAlertableEvents</c>, and a nightly job could fail every night without ever raising one. The
 /// subject is that the whole chain holds end to end: the throw is attributed on the attempt, the
 /// projector sees it, and the repeat lands on the same row instead of going unnoticed.
 /// </summary>

@@ -136,27 +136,27 @@ public sealed class ReflectionFreeJsonTests
             new(call =>
                 call.Stem switch
                 {
-                    "AccessCheckpoint" => Access(call),
+                    "AccessJobCheckpoint" => Access(call),
                     "GetAlertFloor" => _variables.Select(v => new GetAlertFloorRow(v.Key, JobPayloadFormat.Json.Id, v.Value)).ToArray(),
-                    "GetPoisonAlertEvents" => Events.Where(e => _variables.ContainsKey(Skip(e).VariableName)).ToArray(),
-                    "GetAlertableEvents" => Events.Where(e => e.EventId > call.Get(ActaSchema.Sql.CursorEventId)).ToArray(),
+                    "ListPoisonAlertEvents" => Events.Where(e => _variables.ContainsKey(Skip(e).VariableName)).ToArray(),
+                    "ListAlertableEvents" => Events.Where(e => e.EventId > call.Get(ActaSchema.Sql.CursorEventId)).ToArray(),
                     "RaiseAlert" => Raise(call.Get(ActaSchema.Alert.JobId), call.Get(ActaSchema.Sql.SourceEventId)),
-                    "GetDeliverableAlerts" => Array.Empty<DeliverableAlert>(),
+                    "ListDeliverableAlerts" => Array.Empty<DeliverableAlert>(),
                     _ => throw new NotSupportedException(call.Stem),
                 }
             );
 
-        private AccessCheckpointResponse Access(BoundCall call)
+        private AccessJobCheckpointResponse Access(BoundCall call)
         {
             var name = call.Get(ActaSchema.Checkpoint.CheckpointName);
-            switch ((AccessCheckpointAction)call.Get(ActaSchema.Sql.SlotAction))
+            switch ((AccessJobCheckpointAction)call.Get(ActaSchema.Sql.SlotAction))
             {
-                case AccessCheckpointAction.Set:
+                case AccessJobCheckpointAction.Set:
                     _variables[name] = call.Get(ActaSchema.Checkpoint.Value)!;
                     return new(1, null, null, null);
-                case AccessCheckpointAction.Get:
+                case AccessJobCheckpointAction.Get:
                     return _variables.TryGetValue(name, out var value)
-                        ? new AccessCheckpointResponse(1, JobPayloadFormat.Json.Id, value, 1)
+                        ? new AccessJobCheckpointResponse(1, JobPayloadFormat.Json.Id, value, 1)
                         : new(0, null, null, null);
                 default:
                     throw new NotSupportedException(call.Stem);

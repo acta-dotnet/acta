@@ -24,7 +24,7 @@ Console.WriteLine($"status={snapshot!.Status}");
 Console.WriteLine("The job is parked. Resuming it as-is would replay the handler and park it again, so the");
 Console.WriteLine("operator records the approval in the input first, then resumes.");
 
-await jobs.UpdateJobInputAsync(outcome, JobPayload.Json(new ApplyMigration("v042", NeedsApproval: false)), "approved by ops");
+await jobs.UpdateInputAsync(outcome, JobPayload.Json(new ApplyMigration("v042", NeedsApproval: false)), "approved by ops");
 await jobs.ResumeAsync(outcome, "approved");
 await Task.Delay(500);
 Console.WriteLine($"status={(await jobs.GetAsync(outcome))!.Status}");
@@ -41,7 +41,7 @@ namespace Acta.Concepts.PauseJob
         public async Task Handle(ApplyMigration migration, JobContext context, CancellationToken ct)
         {
             // Resume replays the handler from the top with the job's current input, so the approval is
-            // recorded where the replay reads it: the operator amends the input (IJobs.UpdateJobInputAsync
+            // recorded where the replay reads it: the operator amends the input (IJobs.UpdateInputAsync
             // works on a Paused job) and then resumes. A signal (WaitSignalAsync, RaiseSignalAsync) is the
             // other shape of a human-in-the-loop gate.
             if (migration.NeedsApproval)

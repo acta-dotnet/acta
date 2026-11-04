@@ -2,12 +2,12 @@
 // can exercise them without the Svelte runtime (same split the rest of routes/*.ts uses). The editor
 // holds JSON text, never a parsed value, so a clone or a typed number keeps every digit (lib/rawJson.ts).
 
-import type { JobInputTemplate, JobPayloadView } from '../api.ts';
+import type { DefinitionInputTemplate, JobPayloadView } from '../api.ts';
 import { jsonError, prettyJson, RawJson } from '../lib/rawJson.ts';
 
 // The muted contract line under the job-name field. Null when this host does not know the job, so
 // the form shows nothing rather than an empty hint.
-export function inputContractLabel(template: JobInputTemplate | null | undefined): string | null {
+export function inputContractLabel(template: DefinitionInputTemplate | null | undefined): string | null {
   if (!template?.inputTypeName) return null;
   return `Input: ${template.inputTypeName} (${template.inputFormatName})`;
 }
@@ -17,7 +17,7 @@ export function inputContractLabel(template: JobInputTemplate | null | undefined
 // it is" - including when the job has no template (a non-json input, or a host that does not know
 // the job), which leaves the current {} behavior untouched.
 export function templateSeed(
-  template: JobInputTemplate | null | undefined,
+  template: DefinitionInputTemplate | null | undefined,
   state: { edited: boolean; clonePrefilled: boolean }
 ): string | undefined {
   if (state.edited || state.clonePrefilled) return undefined;

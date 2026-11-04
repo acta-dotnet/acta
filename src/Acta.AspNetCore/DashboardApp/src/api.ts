@@ -212,12 +212,12 @@ export async function controlRequest<TResult extends { action: string }>(
   );
 }
 
-export type ControlAction = 'applied' | 'notFound' | 'rejected' | 'versionConflict';
+export type ControlAction = 'applied' | 'not-found' | 'rejected' | 'accepted' | 'version-conflict';
 
 // All seven job-control verbs (pause/resume/restart/cancel/reschedule/reprioritize/purge) return this
 // shape at `jobs/{jobRef}/{action}`; JobControls.svelte drives them all through useControlMutation
 // (api.ts's controlRequest, via useControlMutation.ts) rather than a per-verb fetch function. The
-// dashboard sends no expectedVersion, so 'versionConflict' only reaches other API callers.
+// dashboard sends no expectedVersion, so 'version-conflict' only reaches other API callers.
 export interface JobControlResponse {
   action: ControlAction;
   status: string | null;
@@ -225,7 +225,7 @@ export interface JobControlResponse {
 
 // Alert-control POST response (acknowledge/resolve, at alerts/{alertRef}/{action}). AlertsList and
 // AlertDetail drive both through useControlMutation. Unlike JobControlResponse's action, this action
-// is only ever 'applied' or 'notFound' - acknowledge/resolve are idempotent, so the backend never rejects.
+// is only ever 'applied' or 'not-found' - acknowledge/resolve are idempotent, so the backend never rejects.
 export interface AlertControlResponse {
   action: ControlAction;
 }
@@ -264,21 +264,21 @@ export interface TenantListItem {
 
 // Admin controls use a distinct action set from job controls and can return optimistic conflicts.
 // No message field (the frontend synthesizes its
-// own operator-facing text from `action`); `alreadyInState` is a successful idempotent no-op, not
-// a rejection. All four come back from the server as this body: applied and alreadyInState at 200,
-// notFound at 404, versionConflict at 409 carrying the row's current `version`, so a retry needs no
+// own operator-facing text from `action`); `already-in-state` is a successful idempotent no-op, not
+// a rejection. All four come back from the server as this body: applied and already-in-state at 200,
+// not-found at 404, version-conflict at 409 carrying the row's current `version`, so a retry needs no
 // re-read. useControlMutation's notFound/versionConflict fallbacks only cover a body that arrives
 // without an `action` at all.
-export type AdminControlAction = 'applied' | 'notFound' | 'alreadyInState' | 'versionConflict';
+export type AdminControlAction = 'applied' | 'not-found' | 'already-in-state' | 'version-conflict';
 
 export interface AdminControlResult {
   action: AdminControlAction;
   version: number | null;
 }
 
-// A tag write answers applied at 200 or notFound at 404, with no version: a tag set is not a versioned record.
+// A tag write answers applied at 200 or not-found at 404, with no version: a tag set is not a versioned record.
 export interface TagMutationResponse {
-  action: 'applied' | 'notFound';
+  action: 'applied' | 'not-found';
 }
 
 export interface NamespaceListItem {
@@ -325,9 +325,9 @@ export interface DefinitionControlResponse {
 
 // PATCH a definition's operator overrides, addressed by its natural key. The body carries the
 // expectedVersion CAS token, the full override set (null/absent field = clear), and a note. Applied
-// (200), versionConflict (409), and not-found (404) all return a DefinitionControlResponse;
+// (200), version-conflict (409), and not-found (404) all return a DefinitionControlResponse;
 // anything else throws.
-export async function setDefinitionOverrides(
+export async function updateDefinitionOverrides(
   jobNamespace: string,
   jobName: string,
   expectedVersion: number,
@@ -337,14 +337,14 @@ export async function setDefinitionOverrides(
   return controlRequest<DefinitionControlResponse>(
     `definitions/${encodeURIComponent(jobNamespace)}/${encodeURIComponent(jobName)}`,
     { expectedVersion, overrides, reasonMessage: note?.trim() || null },
-    { action: 'notFound' },
+    { action: 'not-found' },
     'PATCH'
   );
 }
 
 // POST a definition retire, addressed by its natural key. The body carries the expectedVersion CAS
 // token and a note; the verb cancels the definition's parked jobs server-side. Applied (200),
-// versionConflict (409), and not-found (404) all return a DefinitionControlResponse.
+// version-conflict (409), and not-found (404) all return a DefinitionControlResponse.
 export async function retireDefinition(
   jobNamespace: string,
   jobName: string,
@@ -354,7 +354,7 @@ export async function retireDefinition(
   return controlRequest<DefinitionControlResponse>(
     `definitions/${encodeURIComponent(jobNamespace)}/${encodeURIComponent(jobName)}/retire`,
     { expectedVersion, reasonMessage: note?.trim() || null },
-    { action: 'notFound' }
+    { action: 'not-found' }
   );
 }
 
@@ -473,7 +473,7 @@ export async function previewCalendar(
 }
 
 // POST calendars/{ns}/{name}/drafts: applied (200) with the new version and its content hash, rejected (409)
-// with the compiler's problems, versionConflict (409) when the latest version moved. The definition is the
+// with the compiler's problems, version-conflict (409) when the latest version moved. The definition is the
 // operator's JSON text, spliced into the body verbatim as the `definition` object.
 export interface CalendarDraftResponse {
   action: ControlAction;
@@ -493,14 +493,14 @@ export async function saveCalendarDraft(
   return controlRequest<CalendarDraftResponse>(
     `calendars/${encodeURIComponent(jobNamespace)}/${encodeURIComponent(calendarName)}/drafts`,
     { role, definition: new RawJson(definition), expectedLatestVersion, reasonMessage: note?.trim() || null },
-    { action: 'notFound', version: null, contentHash: null, problems: [] },
+    { action: 'not-found', version: null, contentHash: null, problems: [] },
     'POST',
-    { action: 'versionConflict', version: null, contentHash: null, problems: [] }
+    { action: 'version-conflict', version: null, contentHash: null, problems: [] }
   );
 }
 
-// POST calendars/{ns}/{name}/publish: applied with the schedules retimed, notFound when the candidate is
-// no version of the family, versionConflict when the current version moved, rejected with the reason and
+// POST calendars/{ns}/{name}/publish: applied with the schedules retimed, not-found when the candidate is
+// no version of the family, version-conflict when the current version moved, rejected with the reason and
 // the schedules holding overdue occurrences (under the refuse decision).
 export interface CalendarPublishResponse {
   action: ControlAction;
@@ -521,14 +521,14 @@ export async function publishCalendar(
   return controlRequest<CalendarPublishResponse>(
     `calendars/${encodeURIComponent(jobNamespace)}/${encodeURIComponent(calendarName)}/publish`,
     { expectedCurrentVersion, candidateVersion, overdueDecision, reasonMessage: note?.trim() || null },
-    { action: 'notFound', version: null, retimedSchedules: [], overdueSchedules: [], reason: null },
+    { action: 'not-found', version: null, retimedSchedules: [], overdueSchedules: [], reason: null },
     'POST',
-    { action: 'versionConflict', version: null, retimedSchedules: [], overdueSchedules: [], reason: null }
+    { action: 'version-conflict', version: null, retimedSchedules: [], overdueSchedules: [], reason: null }
   );
 }
 
 // POST calendars/{ns}/{name}/archive: applied with the version archived, rejected with how many live
-// schedules still bind the family, notFound when it has no current version.
+// schedules still bind the family, not-found when it has no current version.
 export interface CalendarArchiveResponse {
   action: ControlAction;
   version: number | null;
@@ -544,9 +544,9 @@ export async function archiveCalendar(
   return controlRequest<CalendarArchiveResponse>(
     `calendars/${encodeURIComponent(jobNamespace)}/${encodeURIComponent(calendarName)}/archive`,
     { expectedCurrentVersion, reasonMessage: note?.trim() || null },
-    { action: 'notFound', version: null, dependentCount: 0 },
+    { action: 'not-found', version: null, dependentCount: 0 },
     'POST',
-    { action: 'versionConflict', version: null, dependentCount: 0 }
+    { action: 'version-conflict', version: null, dependentCount: 0 }
   );
 }
 
@@ -612,10 +612,10 @@ export interface JobCheckpoint {
   value?: JobPayloadView;
 }
 
-// GET /jobs/input-template: the compile-time shape of a job's input. `templateJson` is the skeleton as
-// JSON text, null when the input is not json-formatted. A job this host has no descriptor for is a
-// 404, which inputTemplate() below answers as null.
-export interface JobInputTemplate {
+// GET /definitions/{ns}/{name}/input-template: the compile-time shape of a job's input. `templateJson`
+// is the skeleton as JSON text, null when the input is not json-formatted. A job this host has no
+// descriptor for is a 404, which getDefinitionInputTemplate() below answers as null.
+export interface DefinitionInputTemplate {
   inputTypeName: string;
   inputFormatName: string;
   templateJson: string | null;
@@ -623,13 +623,17 @@ export interface JobInputTemplate {
 
 // The input template, or null when this host does not know the job: a dashboard can point at a shared
 // ledger it has no job assembly for, and the form then keeps its empty editor.
-export async function inputTemplate(
+export async function getDefinitionInputTemplate(
   jobNamespace: string,
   jobName: string,
   options: { signal?: AbortSignal } = {}
-): Promise<JobInputTemplate | null> {
+): Promise<DefinitionInputTemplate | null> {
   try {
-    return await api<JobInputTemplate>('jobs/input-template', { jobNamespace, jobName }, options);
+    return await api<DefinitionInputTemplate>(
+      `definitions/${encodeURIComponent(jobNamespace)}/${encodeURIComponent(jobName)}/input-template`,
+      {},
+      options
+    );
   } catch (error) {
     if (error instanceof ApiError && error.status === 404) return null;
     throw error;

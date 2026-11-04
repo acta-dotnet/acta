@@ -118,7 +118,7 @@ public interface IJobs
     /// <see cref="EnqueueJobResponse.Action"/> is <see cref="EnqueueJobAction.Deduplicated"/>, since the job already existed.
     /// </summary>
     async ValueTask<JobHandle?> GetHandleAsync(JobRef jobRef, CancellationToken ct = default) =>
-        await GetJobIdAsync(jobRef, ct) is { } resolved ? new JobHandle(this, resolved.JobId, jobRef, EnqueueJobAction.Deduplicated) : null;
+        await GetIdAsync(jobRef, ct) is { } resolved ? new JobHandle(this, resolved.JobId, jobRef, EnqueueJobAction.Deduplicated) : null;
 
     /// <summary>
     /// Enqueue-and-wait for a generated call; same waiting semantics as the typed
@@ -144,7 +144,7 @@ public interface IJobs
     /// <see cref="EnqueueJobsResponse.Jobs"/>, positionally aligned, so <c>Jobs[i]</c> corresponds to <c>requests[i]</c>.
     /// Each carries the internal <c>JobId</c>, the public <c>JobRef</c>, and the coarse <see cref="EnqueueJobAction"/>.
     /// </summary>
-    ValueTask<EnqueueJobsResponse> EnqueueBatchAsync(IReadOnlyList<EnqueueJobRequest> requests, CancellationToken ct = default);
+    ValueTask<EnqueueJobsResponse> EnqueueJobsAsync(IReadOnlyList<EnqueueJobRequest> requests, CancellationToken ct = default);
 
     /// <summary>
     /// Transactional twin of <see cref="EnqueueAsync(EnqueueJobRequest, CancellationToken)"/>, sharing the caller's open
@@ -214,10 +214,10 @@ public interface IJobs
         where TResult : notnull;
 
     /// <summary>
-    /// Transactional twin of <see cref="EnqueueBatchAsync(IReadOnlyList{EnqueueJobRequest}, CancellationToken)"/>:
+    /// Transactional twin of <see cref="EnqueueJobsAsync(IReadOnlyList{EnqueueJobRequest}, CancellationToken)"/>:
     /// the whole batch inserts through <paramref name="transaction"/> atomically and publishes no wakeup.
     /// </summary>
-    ValueTask<EnqueueJobsResponse> EnqueueBatchAsync(
+    ValueTask<EnqueueJobsResponse> EnqueueJobsAsync(
         DbTransaction transaction,
         IReadOnlyList<EnqueueJobRequest> requests,
         CancellationToken ct = default
@@ -230,7 +230,7 @@ public interface IJobs
     /// <c>job_ref</c> index; a <see cref="JobLookupKind.DeduplicationKey"/> lookup matches root jobs only
     /// (<c>parent_job_id IS NULL</c>). Pin the returned id and reuse it across polls and mutations.
     /// </summary>
-    ValueTask<GetJobIdResponse?> GetJobIdAsync(JobLookup job, CancellationToken ct = default);
+    ValueTask<GetJobIdResponse?> GetIdAsync(JobLookup job, CancellationToken ct = default);
 
     /// <summary>
     /// Read the full <see cref="GetJobResponse"/> for the job identified by <paramref name="job"/>.
@@ -247,7 +247,7 @@ public interface IJobs
     /// operator could read directly - SQL is the operational interface. Resolves <paramref name="job"/> to a
     /// <c>JobId</c> first; pin the resolved id when polling.
     /// </summary>
-    ValueTask<GetJobExplanationResponse?> ExplainAsync(JobLookup job, CancellationToken ct = default);
+    ValueTask<ExplainJobResponse?> ExplainAsync(JobLookup job, CancellationToken ct = default);
 
     /// <summary>
     /// Read a compact lineage map for the job identified by <paramref name="job"/>: its ancestor context up to the lineage
@@ -273,7 +273,7 @@ public interface IJobs
     /// <summary>
     /// Fetch the stored input payload the job identified by <paramref name="job"/> was enqueued with,
     /// or <c>null</c> when no row matches or the job carries no input (a no-input job). Non-blocking
-    /// point-in-time read: it does not wait for completion and reflects any <see cref="UpdateJobInputAsync"/>
+    /// point-in-time read: it does not wait for completion and reflects any <see cref="UpdateInputAsync"/>
     /// amendment already applied.
     /// </summary>
     ValueTask<GetJobInputResponse?> GetInputAsync(JobLookup job, CancellationToken ct = default);
@@ -285,14 +285,14 @@ public interface IJobs
     /// Non-blocking point-in-time read: it does not wait for completion. To await the answer, use
     /// <see cref="WaitAsync{TResult}"/>.
     /// </summary>
-    ValueTask<GetResultResponse?> GetResultAsync(JobLookup job, CancellationToken ct = default);
+    ValueTask<GetJobResultResponse?> GetResultAsync(JobLookup job, CancellationToken ct = default);
 
     /// <summary>
     /// Read the durable checkpoint slots (variables, signals, sleep timers, the progress slot, child
     /// latches) recorded for the job identified by <paramref name="job"/>. Returns empty <c>Items</c> when the
     /// job has no slots, and <c>null</c> when no job matches. Non-blocking point-in-time read.
     /// </summary>
-    ValueTask<GetCheckpointsResponse?> GetCheckpointsAsync(JobLookup job, CancellationToken ct = default);
+    ValueTask<GetJobCheckpointsResponse?> GetCheckpointsAsync(JobLookup job, CancellationToken ct = default);
 
     /// <summary>
     /// Typed convenience over <see cref="GetResultAsync(JobLookup, CancellationToken)"/>: deserializes the
@@ -408,7 +408,7 @@ public interface IJobs
     /// previous payload's format name and byte count, never the payload, so the amended-away value cannot outlive the
     /// job's payload retention. <paramref name="reasonMessage"/> and <paramref name="actor"/> go on the audit event.
     /// </summary>
-    ValueTask<UpdateJobInputResponse> UpdateJobInputAsync(
+    ValueTask<UpdateJobInputResponse> UpdateInputAsync(
         JobLookup job,
         JobPayload input,
         string? reasonMessage = null,
@@ -433,7 +433,7 @@ public interface IJobs
     /// <c>ctx.WaitSignalAsync&lt;T&gt;(name)</c>. <paramref name="actor"/> is recorded on the audit event
     /// as the operator identity (e.g. the authenticated principal name); null when unknown.
     /// </summary>
-    ValueTask<RaiseSignalResponse> RaiseSignalAsync<T>(
+    ValueTask<RaiseJobSignalResponse> RaiseSignalAsync<T>(
         JobLookup job,
         string name,
         T value,
@@ -449,18 +449,11 @@ public interface IJobs
     /// signal endpoint uses it to pass a request body through as JSON without binding the handler's type.
     /// <paramref name="actor"/> is recorded on the audit event as the operator identity; null when unknown.
     /// </summary>
-    ValueTask<RaiseSignalResponse> RaiseSignalAsync(
+    ValueTask<RaiseJobSignalResponse> RaiseSignalAsync(
         JobLookup job,
         string name,
         JobPayload value,
         string? actor = null,
         CancellationToken ct = default
     );
-
-    /// <summary>
-    /// The input contract of a registered job, read from the in-process generated manifest: no
-    /// database round-trip, no reflection. Returns null when this host has not registered the job's
-    /// manifest (an enqueue-only dashboard pointed at a shared ledger), so callers degrade quietly.
-    /// </summary>
-    GetInputTemplateResponse? GetInputTemplate(string jobNamespace, string jobName);
 }

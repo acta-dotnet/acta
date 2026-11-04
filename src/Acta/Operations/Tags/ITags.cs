@@ -13,8 +13,8 @@ public interface ITags
     /// Inserts or replaces one tag on an existing target; repeating the same write is harmless. A new name past
     /// <see cref="TagLimits.MaxTagsPerTarget"/> throws <see cref="ArgumentException"/> and writes nothing.
     /// </summary>
-    ValueTask<UpsertTagsResponse> UpsertAsync(TagTarget target, TagInput tag, CancellationToken ct = default);
+    ValueTask<UpsertTagResponse> UpsertAsync(TagTarget target, TagInput tag, CancellationToken ct = default);
 
     /// <summary>Removes one normalized tag name from an existing target; a missing tag is harmless.</summary>
-    ValueTask<RemoveTagsResponse> RemoveAsync(TagTarget target, string name, CancellationToken ct = default);
+    ValueTask<RemoveTagResponse> RemoveAsync(TagTarget target, string name, CancellationToken ct = default);
 }

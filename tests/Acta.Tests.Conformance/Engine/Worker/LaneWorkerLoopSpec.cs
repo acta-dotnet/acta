@@ -38,7 +38,7 @@ public sealed class LaneWorkerLoopSpec : ActaRuntimeTestBase<ConformanceFixture,
             batch.Add(Step("orders", $"o{i}"));
             batch.Add(Step("billing", $"b{i}"));
         }
-        var outcomes = (await Jobs.EnqueueBatchAsync(batch, ct)).Jobs;
+        var outcomes = (await Jobs.EnqueueJobsAsync(batch, ct)).Jobs;
 
         using var loopCts = CancellationTokenSource.CreateLinkedTokenSource(ct);
         var loop = Runtime.RunLoopAsync(loopCts.Token);

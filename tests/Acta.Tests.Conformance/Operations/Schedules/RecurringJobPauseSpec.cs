@@ -68,7 +68,7 @@ public sealed class RecurringJobPauseSpec : ActaRuntimeTestBase<ConformanceFixtu
         Assert.Equal(ControlAction.Applied, (await Operations.Schedules.ResumeAsync(lookup, ct: ct)).Action);
         Assert.Equal(JobStatusCode.Paused, (await Jobs.GetStatusAsync(await SlotAsync(ct), ct))?.Status);
 
-        Assert.Equal(ControlAction.Rejected, (await Operations.Schedules.TriggerNowAsync(lookup, ct: ct)).Action);
+        Assert.Equal(ControlAction.Rejected, (await Operations.Schedules.TriggerAsync(lookup, ct: ct)).Action);
         Assert.Equal(JobStatusCode.Paused, (await Jobs.GetStatusAsync(await SlotAsync(ct), ct))?.Status);
     }
 

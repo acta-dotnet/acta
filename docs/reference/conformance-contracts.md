@@ -136,7 +136,7 @@
   - Disabled channel suppresses the alert and is not reread
   - Deprecated channel suppresses the alert and is not reread
   - Below min severity suppresses the alert and is not reread
-  - Null-job-id alert is returned by GetDeliverableAlerts and delivers successfully
+  - Null-job-id alert is returned by ListDeliverableAlerts and delivers successfully
   - Delivering an automatic alert schedules the next reminder, which re-sends and reschedules
   - A reminder is stamped from the settlement, not from the instant the pass began
   - A delivered manual alert is never reminded: its caller owns the incident
@@ -222,7 +222,7 @@
   - The floor is the cursor, and each skip record names its event and job, read by namespace or by a job in it
 
 ### The alertable-event read walks a (stamp, id) cursor up to an inclusive horizon
-- **Contract:** GetAlertableEvents reads a namespace's alertable finished attempts after the (stamp, id) cursor and at or before the horizon, ordered by stamp then id.
+- **Contract:** ListAlertableEvents reads a namespace's alertable finished attempts after the (stamp, id) cursor and at or before the horizon, ordered by stamp then id.
 - **Guarantees:**
   - Only the namespace's alert-relevant attempts are read: failed, orphaned, terminally failed, and a retry's success
   - The horizon is inclusive: an event stamped at it is read and one stamped a millisecond later is not
@@ -231,7 +231,7 @@
   - Each row carries its definition's name, effective alert profile and channel, and the event's outcome and stamp
 
 ### The delivery read takes one namespace's due alerts in id order without a lease
-- **Contract:** GetDeliverableAlerts reads one namespace's due alerts in id order up to the batch size, with each job's runbook and refs, and writes nothing.
+- **Contract:** ListDeliverableAlerts reads one namespace's due alerts in id order up to the batch size, with each job's runbook and refs, and writes nothing.
 - **Guarantees:**
   - Due alerts come back in id order and the batch size caps one read
   - The read takes no lease: a repeat hands out the same rows at the same versions and the rows are unchanged
@@ -240,7 +240,7 @@
   - An unset retry instant is due at once for an unsettled row and never for a settled one
 
 ### The replay read returns skipped events, marking those a newer success supersedes
-- **Contract:** GetPoisonAlertEvents reads the named (event, job) pairs of one namespace with their alert context, superseded when a newer success of the same job exists.
+- **Contract:** ListPoisonAlertEvents reads the named (event, job) pairs of one namespace with their alert context, superseded when a newer success of the same job exists.
 - **Guarantees:**
   - A skipped failure reads back with its job's alert context until a newer success of that job supersedes it
   - A skip whose event is gone, names another job, or belongs to another namespace reads nothing
@@ -307,21 +307,21 @@
   - A retired definition's slot refuses a manual firing until a build that carries the definition starts
   - A firing that fails into a retry after the retire lands Cancelled with its firing settled, and a restart returns the slot to Idle
 
-### The catalog read returns every definition of one namespace
-- **Contract:** GetDefinitionContracts returns every definition of one namespace, retired ones included, with its contract, hash, status, and override-aware effective policy.
-- **Guarantees:**
-  - A namespace without definitions reads an empty catalog
-  - Each definition reads back its identity, generation, contract, hash, status, and policy
-  - An operator override reads back as the effective policy
-  - A retired definition stays in the catalog with its Retired status
-  - The catalog holds only the asked namespace's definitions
-
 ### GetTenant reads a tenant by name and GetTenantName reads its name by id
 - **Contract:** GetTenant returns the GetTenantResponse for a known name in any status or null, and GetTenantName returns that tenant's name for its id.
 - **Guarantees:**
   - A known name returns the populated row and its id reads back the name
   - A suspended tenant still resolves with status Suspended
   - An unknown name returns null
+
+### The catalog read returns every definition of one namespace
+- **Contract:** ListDefinitionContracts returns every definition of one namespace, retired ones included, with its contract, hash, status, and override-aware effective policy.
+- **Guarantees:**
+  - A namespace without definitions reads an empty catalog
+  - Each definition reads back its identity, generation, contract, hash, status, and policy
+  - An operator override reads back as the effective policy
+  - A retired definition stays in the catalog with its Retired status
+  - The catalog holds only the asked namespace's definitions
 
 ### Newer-or-equal generation promotes policy; older cannot downgrade
 - **Contract:** Writes a definition only when the incoming manifest generation is at or above the stored one, and never touches a definition the manifest omits.
@@ -352,6 +352,12 @@
   - Seeded namespace row persists and is readable by id with the expected name
   - Db-assigned namespace id is positive and matches the persisted row
 
+### Init auto-registers system definitions, slots and schedules
+- **Contract:** InitializeAsync registers system definitions with an Idle permanent slot and a default schedule.
+- **Guarantees:**
+  - Init makes the sys.alerts definition Active with an Idle permanent slot and a default schedule
+  - Init makes the sys.retention definition Active with an Idle permanent slot and an hourly default schedule
+
 ### Override writes are version-guarded, recompute effective, and audited
 - **Contract:** Applies an override set version-guarded, recomputes effective, leaves defaults and definition_hash untouched, and emits a policy-changed event.
 - **Guarantees:**
@@ -365,12 +371,6 @@
   - Boundary override values (MaxAttempts 1, DeadlineSeconds 0, JobRetentionSeconds 0) are applied
   - An unknown definition name is NotFound
   - A definition-scoped policy-changed event is emitted
-
-### Init auto-registers system definitions, slots and schedules
-- **Contract:** InitializeAsync registers system definitions with an Idle permanent slot and a default schedule.
-- **Guarantees:**
-  - Init makes the sys.alerts definition Active with an Idle permanent slot and a default schedule
-  - Init makes the sys.retention definition Active with an Idle permanent slot and an hourly default schedule
 
 ### An invalid descriptor fails startup before the catalog is written
 - **Contract:** InitializeAsync validates every descriptor's shape before writing the worker row, so an invalid descriptor leaves no workers row and no WorkerStarted event.
@@ -634,7 +634,7 @@
   - Resume applies transition at every event recording level and emits event only at Audit
   - Cancel applies transition at every event recording level and emits event only at Audit
   - Restart applies transition at every event recording level and emits event only at Audit
-  - RaiseSignal upserts the signal unconditionally and emits event only at Audit
+  - RaiseJobSignal upserts the signal unconditionally and emits event only at Audit
 
 ### Handler Fail Cancel Pause finalize the attempt without returning to user code
 - **Contract:** Handler control verbs and non-retryable exceptions finalize the attempt without returning to user code, budget untouched and no result written.
@@ -1001,19 +1001,6 @@
   - The heartbeat leaves a claimed job's runtime version alone, and the job stays Executing
   - A leased row the process does not hold is neither renewed nor answered, and recovery reclaims it once its lease lapses
 
-### A job's child list holds its direct children, finished ones included
-- **Contract:** The child list of a job holds every job enqueued under it, terminal or not, and nothing from further down the lineage.
-- **Guarantees:**
-  - Every direct child is listed, a cancelled one included
-  - A grandchild is listed under its own parent only, and a job with no children lists none
-
-### Stale child latches are found once their child is terminal or gone
-- **Contract:** A parent's Pending child latch is reported once its child is terminal or gone, and never while the child is live or once the latch is set.
-- **Guarantees:**
-  - A Pending latch is not reported while its child is live, and is reported with the child's status once it lands terminal unraised
-  - A Pending latch whose child row is gone is reported with no child status
-  - A latch the child set when it landed is not reported
-
 ### A job registers, enqueues, claims, executes, persists and reads back
 - **Contract:** A registered job enqueued through IJobs is claimed, executed and lands Succeeded with the canonical claim/start/finish timeline and a deserializable result.
 - **Guarantees:**
@@ -1047,6 +1034,19 @@
   - NoteAsync appends job.note-recorded events carrying the message and the optional detail payload
   - A note stores the id of the worker whose attempt wrote it
   - A note from an attempt the row has moved past is refused, and the current attempt's note is filed under it
+
+### A job's child list holds its direct children, finished ones included
+- **Contract:** The child list of a job holds every job enqueued under it, terminal or not, and nothing from further down the lineage.
+- **Guarantees:**
+  - Every direct child is listed, a cancelled one included
+  - A grandchild is listed under its own parent only, and a job with no children lists none
+
+### Stale child latches are found once their child is terminal or gone
+- **Contract:** A parent's Pending child latch is reported once its child is terminal or gone, and never while the child is live or once the latch is set.
+- **Guarantees:**
+  - A Pending latch is not reported while its child is live, and is reported with the child's status once it lands terminal unraised
+  - A Pending latch whose child row is gone is reported with no child status
+  - A latch the child set when it landed is not reported
 
 ### A failed one-shot retries to Ready until MaxAttempts then Fails
 - **Contract:** A failed one-shot re-arms to Ready incrementing failure_count while attempts remain and lands terminal Failed once MaxAttempts is reached.
@@ -1250,7 +1250,7 @@
   - A consume writes one evidence event with the operator and reason, and a repeat writes none
 
 ### The quarantine count totals the source's Quarantined rows as they come and go
-- **Contract:** CountOutboxQuarantined returns the number of Quarantined rows in the source, zero when there are none, excluding Pending and Claimed rows.
+- **Contract:** CountQuarantinedOutbox returns the number of Quarantined rows in the source, zero when there are none, excluding Pending and Claimed rows.
 - **Guarantees:**
   - An empty source counts zero
   - Only Quarantined rows count, not due or backed-off Pending rows or Claimed ones
@@ -1264,7 +1264,7 @@
   - Only a Set signal row of that job and name answers: an expired signal and a same-named variable read as empty
 
 ### The source pages its Quarantined rows by outbox id with their failure evidence
-- **Contract:** ListQuarantinedOutbox returns up to a page of Quarantined rows after the cursor id in the source's outbox_id order, with identity and failure evidence.
+- **Contract:** ListQuarantinedOutboxRows returns up to a page of Quarantined rows after the cursor id in the source's outbox_id order, with identity and failure evidence.
 - **Guarantees:**
   - A source with no Quarantined rows reads an empty page
   - Each row carries its identity, routing keys, staging instant, and failure evidence, and other statuses stay out
@@ -1277,14 +1277,14 @@
   - Pending rows count as backlog while Claimed and Quarantined rows do not
 
 ### A claim recovers an expired lease and reclaims it, leaving a live lease alone
-- **Contract:** ClaimDue recovers a Claimed row whose lease expired back to Pending and reclaims it under a new token, but never steals a live lease.
+- **Contract:** ClaimOutbox recovers a Claimed row whose lease expired back to Pending and reclaims it under a new token, but never steals a live lease.
 - **Guarantees:**
   - A claim that fails after recovering a lease rolls the recovery back
   - An expired lease is recovered and reclaimed under the new token
   - A live lease is not stolen by a competing claim
 
 ### Claim takes a bounded batch in staging order under one token, no double claim
-- **Contract:** ClaimDue claims a bounded batch of due Pending rows in due-then-staging order, stamps one token and a database-clock lease, and claims no row twice.
+- **Contract:** ClaimOutbox claims a bounded batch of due Pending rows in due-then-staging order, stamps one token and a database-clock lease, and claims no row twice.
 - **Guarantees:**
   - Claim takes the earliest staged row whatever its priority and leaves the rest Pending
   - The row due earliest claims first
@@ -1346,7 +1346,7 @@
   - The source line reads the last successful tick's status, and a failed tick leaves it standing
 
 ### Quarantined rows list in keyset pages with their failure evidence
-- **Contract:** ListQuarantined pages every Quarantined row by outbox_id with identity and failure evidence, and CountQuarantined reports the current total.
+- **Contract:** ListQuarantinedOutboxRows pages every Quarantined row by outbox_id with identity and failure evidence, and CountQuarantined reports the current total.
 - **Guarantees:**
   - Two keyset pages cover every quarantined row exactly once, evidence intact
 
@@ -1487,6 +1487,13 @@
 
 ## Reads
 
+### ExplainJob returns explain sets for a known id and null otherwise
+- **Contract:** ExplainJob returns the header, steps, and checkpoints of a matching job id from one snapshot, and null when no row matches.
+- **Guarantees:**
+  - A known job id returns a populated header (Ready) with no steps or checkpoints
+  - A step and a checkpoint changed in one transaction are never read half-changed
+  - An unknown job id returns null
+
 ### Explain reports live Suspended and Succeeded states through the facade
 - **Contract:** ExplainAsync reports a suspended job as awaiting its signal or its child, and a finished job as Succeeded.
 - **Guarantees:**
@@ -1496,7 +1503,7 @@
   - Explain reports a completed durable step as non-rerunning
 
 ### The input template comes from this host's generated manifest
-- **Contract:** GetInputTemplate returns a registered job's input type, format, and JSON skeleton from this host's manifest, and null for a job the host did not register.
+- **Contract:** GetDefinitionInputTemplate returns a registered job's input type, format, and JSON skeleton from this host's manifest, and null for a job it did not register.
 - **Guarantees:**
   - A Json job reports its input type, format, and a skeleton of its members
   - A job that takes no input reports the NoInput type and no skeleton
@@ -1518,13 +1525,6 @@
   - A known name returns the matching definition row
   - An unknown name returns null
   - Display name and description overrides round-trip through the detail projection
-
-### GetJobExplanation returns explain sets for a known id and null otherwise
-- **Contract:** GetJobExplanation returns the header, steps, and checkpoints of a matching job id from one snapshot, and null when no row matches.
-- **Guarantees:**
-  - A known job id returns a populated header (Ready) with no steps or checkpoints
-  - A step and a checkpoint changed in one transaction are never read half-changed
-  - An unknown job id returns null
 
 ### GetJobId resolves a ref or deduplication key to the id, null for no match
 - **Contract:** GetJobId returns the internal id of the job a ref or a root deduplication key names, returns an id lookup's own id, and returns null when no job matches.
@@ -1567,11 +1567,11 @@
   - A known worker id returns its durable detail projection
   - An unknown worker id returns null
 
-### GetCheckpoints lists a job's slots by kind then name
-- **Contract:** GetCheckpoints lists a job's slots by kind then name with state and value round-tripped, an empty set for a job without slots, and null for a missing id.
+### GetJobCheckpoints lists a job's slots by kind then name
+- **Contract:** GetJobCheckpoints lists a job's slots by kind then name with state and value round-tripped, an empty set for a job without slots, and null for a missing id.
 - **Guarantees:**
-  - GetCheckpoints lists variable and signal slots with kind, state, and value round-tripped
-  - GetCheckpoints returns an empty set for a job with no slots and null for a missing id
+  - GetJobCheckpoints lists variable and signal slots with kind, state, and value round-tripped
+  - GetJobCheckpoints returns an empty set for a job with no slots and null for a missing id
 
 ### GetJobInput reads the stored input or null
 - **Contract:** GetJobInput returns the payload and format a job was enqueued with, and null when no job row matches.
@@ -1757,8 +1757,8 @@
 
 ## Results
 
-### GetResult returns null before completion and the typed result after
-- **Contract:** GetResult is a non-blocking read that returns null before the job produces a result and the typed and raw payload after a successful run.
+### GetJobResult returns null before completion and the typed result after
+- **Contract:** GetJobResult is a non-blocking read that returns null before the job produces a result and the typed and raw payload after a successful run.
 - **Guarantees:**
   - Returns null before a result exists without blocking
   - The typed result deserializes and the raw payload is returned after completion
@@ -1901,12 +1901,6 @@
   - An archived version reads back with its role, status, and definition; a version the family lacks is null
   - A version in the shared sys catalog resolves from any namespace
 
-### GetScheduleState returns live cursors for the namespace, empty when none exist
-- **Contract:** GetScheduleState returns the non-orphaned per-schedule cursors for the given namespace id, or an empty list when none exist.
-- **Guarantees:**
-  - A namespace id with no live schedule rows returns an empty list
-  - After InitializeAsync seeds a recurring definition, at least one cursor returns with a non-empty ScheduleName
-
 ### A reschedule of an idle permanent slot is a manual firing at the instant
 - **Contract:** RescheduleAsync fires an Idle slot, or a Paused one with no firing, at the instant unless its namespace is suspended, and a slot mid-firing keeps its firing.
 - **Guarantees:**
@@ -1923,6 +1917,12 @@
 - **Guarantees:**
   - A restart of a slot with a firing outstanding is rejected, and one with none returns the slot to Idle
   - A purge refuses a slot its live schedule pins, even cancelled; after a retire the purge deletes it
+
+### ListScheduleStates returns live cursors for the namespace, empty when none exist
+- **Contract:** ListScheduleStates returns the non-orphaned per-schedule cursors for the given namespace id, or an empty list when none exist.
+- **Guarantees:**
+  - A namespace id with no live schedule rows returns an empty list
+  - After InitializeAsync seeds a recurring definition, at least one cursor returns with a non-empty ScheduleName
 
 ### Schedule registration is gated by the worker's environment
 - **Contract:** Schedule registration honors each schedule's declared environments, registering only those active in the worker's environment and withholding the rest.
@@ -2181,7 +2181,7 @@
   - A view with the table's name is not the table
 
 ### The migration history reads back name by name
-- **Contract:** LoadAppliedMigrations returns every recorded migration name, with or without the migration transaction, and fails on a schema without the history table.
+- **Contract:** ListAppliedMigrations returns every recorded migration name, with or without the migration transaction, and fails on a schema without the history table.
 - **Guarantees:**
   - Every recorded migration reads back by name
   - Inside the migration transaction it reads the history table that transaction just created
@@ -2320,8 +2320,8 @@
   - A succeeded step replays its stored result without re-running the body
   - An in-budget retry inserts Pending attempt 1, increments attempt_number, and is budget-neutral for the parent
   - An exhausted step throws StepExhaustedException and fails the parent when uncaught
-  - CompleteStep loses the CAS and reports StaleVersion when the slot advanced under another execution
-  - CompleteStep reports StaleVersion rather than throwing when the slot row is absent
+  - CompleteJobStep loses the CAS and reports StaleVersion when the slot advanced under another execution
+  - CompleteJobStep reports StaleVersion rather than throwing when the slot row is absent
 
 ## Storage
 
@@ -2511,74 +2511,74 @@
 
 | SQL stem | PostgreSQL | SQL Server | SQLite |
 | --- | --- | --- | --- |
-| `AccessCheckpoint` | yes | yes | yes |
+| `AccessJobCheckpoint` | yes | yes | yes |
 | `AcknowledgeAlert` | yes | yes | yes |
 | `AcquireLock` | yes | yes | yes |
 | `AcquireSchemaLock` | yes | yes | yes |
 | `AcquireSlot` | yes | yes | yes |
-| `AdmitFirings` | yes | yes | yes |
+| `AdmitScheduleFirings` | yes | yes | yes |
 | `ArchiveCalendar` | yes | yes | yes |
-| `ArmOrConsumeSleepTimer` | yes | yes | yes |
+| `ArmOrConsumeJobSleepTimer` | yes | yes | yes |
 | `CancelJob` | yes | yes | yes |
 | `ClaimJob` | yes | yes | yes |
 | `ClaimJobs` | yes | yes | yes |
 | `ClaimOutbox` | yes | yes | yes |
 | `CompleteExecutions` | yes | yes | yes |
-| `CompleteStep` | yes | yes | yes |
+| `CompleteJobStep` | yes | yes | yes |
 | `ConsumeOutboxSignal` | yes | yes | yes |
 | `CountOutboxBacklog` | yes | yes | yes |
-| `CountOutboxQuarantined` | yes | yes | yes |
+| `CountQuarantinedOutbox` | yes | yes | yes |
 | `DeleteClaimedOutbox` | yes | yes | yes |
 | `DiscardQuarantinedOutbox` | yes | yes | yes |
 | `DropSchema` | yes | yes | yes |
 | `EnqueueJob` | yes | yes | yes |
 | `EnqueueJobs` | yes | yes | yes |
 | `EnsureMigrations` | yes | yes | yes |
+| `ExplainJob` | yes | yes | yes |
 | `ExtendWorkerLeases` | yes | yes | yes |
 | `FindOutboxTable` | yes | yes | yes |
 | `GetAlert` | yes | yes | yes |
 | `GetAlertFloor` | yes | yes | yes |
-| `GetAlertableEvents` | yes | yes | yes |
 | `GetCalendarDependents` | yes | yes | yes |
 | `GetCalendarPublication` | yes | yes | yes |
-| `GetCalendarSchedules` | yes | yes | yes |
 | `GetCalendarVersions` | yes | yes | yes |
-| `GetCheckpoints` | yes | yes | yes |
-| `GetChildJobIds` | yes | yes | yes |
-| `GetCurrentCalendars` | yes | yes | yes |
 | `GetDefinition` | yes | yes | yes |
-| `GetDefinitionContracts` | yes | yes | yes |
-| `GetDeliverableAlerts` | yes | yes | yes |
-| `GetDueSchedules` | yes | yes | yes |
-| `GetFiring` | yes | yes | yes |
 | `GetJob` | yes | yes | yes |
-| `GetJobExplanation` | yes | yes | yes |
+| `GetJobCheckpoints` | yes | yes | yes |
 | `GetJobInput` | yes | yes | yes |
 | `GetJobLineageMap` | yes | yes | yes |
+| `GetJobResult` | yes | yes | yes |
 | `GetJobStatus` | yes | yes | yes |
 | `GetOutboxSignal` | yes | yes | yes |
 | `GetOverview` | yes | yes | yes |
-| `GetPoisonAlertEvents` | yes | yes | yes |
-| `GetResult` | yes | yes | yes |
+| `GetScheduleFiring` | yes | yes | yes |
 | `GetScheduleHorizon` | yes | yes | yes |
-| `GetScheduleState` | yes | yes | yes |
-| `GetStaleChildLatches` | yes | yes | yes |
 | `GetTags` | yes | yes | yes |
 | `GetTenant` | yes | yes | yes |
 | `GetTenantName` | yes | yes | yes |
 | `GetUtcNow` | yes | yes | yes |
 | `GetWorker` | yes | yes | yes |
+| `ListAlertableEvents` | yes | yes | yes |
 | `ListAlerts` | yes | yes | yes |
+| `ListAppliedMigrations` | yes | yes | yes |
+| `ListCalendarSchedules` | yes | yes | yes |
 | `ListCalendars` | yes | yes | yes |
+| `ListChildJobIds` | yes | yes | yes |
+| `ListCurrentCalendars` | yes | yes | yes |
+| `ListDefinitionContracts` | yes | yes | yes |
 | `ListDefinitions` | yes | yes | yes |
+| `ListDeliverableAlerts` | yes | yes | yes |
+| `ListDueSchedules` | yes | yes | yes |
 | `ListEvents` | yes | yes | yes |
 | `ListJobs` | yes | yes | yes |
 | `ListNamespaces` | yes | yes | yes |
-| `ListQuarantinedOutbox` | yes | yes | yes |
+| `ListPoisonAlertEvents` | yes | yes | yes |
+| `ListQuarantinedOutboxRows` | yes | yes | yes |
+| `ListScheduleStates` | yes | yes | yes |
 | `ListSchedules` | yes | yes | yes |
+| `ListStaleJobChildLatches` | yes | yes | yes |
 | `ListTenants` | yes | yes | yes |
 | `ListWorkers` | yes | yes | yes |
-| `LoadAppliedMigrations` | yes | yes | yes |
 | `MarkDeadWorkers` | yes | yes | yes |
 | `MatchQuarantinedOutbox` | yes | yes | yes |
 | `ParkOutboxSignal` | yes | yes | yes |
@@ -2590,15 +2590,15 @@
 | `PurgeJob` | yes | yes | yes |
 | `QuarantineOutbox` | yes | yes | yes |
 | `RaiseAlert` | yes | yes | yes |
-| `RaiseSignal` | yes | yes | yes |
+| `RaiseJobSignal` | yes | yes | yes |
 | `ReclaimStuckJobs` | yes | yes | yes |
-| `RecordNote` | yes | yes | yes |
+| `RecordJobNote` | yes | yes | yes |
 | `RegisterDefinitions` | yes | yes | yes |
 | `RegisterSchedules` | yes | yes | yes |
 | `RegisterTenant` | yes | yes | yes |
 | `ReleaseClaimedOutbox` | yes | yes | yes |
 | `ReleaseLock` | yes | yes | yes |
-| `RemoveTags` | yes | yes | yes |
+| `RemoveTag` | yes | yes | yes |
 | `ReplaceTags` | yes | yes | yes |
 | `ReprioritizeJob` | yes | yes | yes |
 | `RequeueQuarantinedOutbox` | yes | yes | yes |
@@ -2611,8 +2611,8 @@
 | `ResolveCalendarVersion` | yes | yes | yes |
 | `ResolveJobIdByDeduplicationKey` | yes | yes | yes |
 | `ResolveJobIdByRef` | yes | yes | yes |
+| `ResolveJobIdBySlot` | yes | yes | yes |
 | `ResolveScheduleTarget` | yes | yes | yes |
-| `ResolveSlotId` | yes | yes | yes |
 | `RestartJob` | yes | yes | yes |
 | `ResumeJob` | yes | yes | yes |
 | `ResumeNamespace` | yes | yes | yes |
@@ -2620,17 +2620,17 @@
 | `ResumeTenant` | yes | yes | yes |
 | `RetireDefinition` | yes | yes | yes |
 | `SaveCalendarDraft` | yes | yes | yes |
-| `SetDefinitionOverrides` | yes | yes | yes |
-| `StartStep` | yes | yes | yes |
+| `StartJobStep` | yes | yes | yes |
 | `StartWorker` | yes | yes | yes |
 | `StopWorker` | yes | yes | yes |
 | `SuspendNamespace` | yes | yes | yes |
 | `SuspendTenant` | yes | yes | yes |
-| `TriggerScheduleNow` | yes | yes | yes |
+| `TriggerSchedule` | yes | yes | yes |
 | `UpdateAlertDelivery` | yes | yes | yes |
+| `UpdateDefinitionOverrides` | yes | yes | yes |
 | `UpdateJobInput` | yes | yes | yes |
 | `UpdateNamespace` | yes | yes | yes |
 | `UpdateTenant` | yes | yes | yes |
-| `UpsertTags` | yes | yes | yes |
-| `WaitSignal` | yes | yes | yes |
+| `UpsertTag` | yes | yes | yes |
+| `WaitJobSignal` | yes | yes | yes |
 

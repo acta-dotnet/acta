@@ -107,7 +107,7 @@ public sealed class MigrationDeltaEmitterTests
         new(
             [
                 new SqlObject("claim_jobs", "CREATE OR ALTER PROCEDURE {{schema}}.claim_jobs AS SELECT 1;"),
-                new SqlObject("start_step", "CREATE OR ALTER PROCEDURE {{schema}}.start_step AS SELECT 2;"),
+                new SqlObject("start_job_step", "CREATE OR ALTER PROCEDURE {{schema}}.start_job_step AS SELECT 2;"),
             ],
             [
                 new SqlObject("jobs_view", dialect.WrapView("{{schema}}.jobs_view", "SELECT j.id FROM {{schema}}.jobs AS j")),
@@ -120,7 +120,7 @@ public sealed class MigrationDeltaEmitterTests
     {
         var dialect = new SqlServerDdlDialect();
         var diff = Diff(
-            objects: new Dictionary<string, ObjectChanges> { ["mssql"] = new(["start_step"], []), ["pg"] = new(["claim_jobs"], []) }
+            objects: new Dictionary<string, ObjectChanges> { ["mssql"] = new(["start_job_step"], []), ["pg"] = new(["claim_jobs"], []) }
         );
 
         var sql = MigrationDeltaEmitter.EmitDelta(
@@ -131,7 +131,7 @@ public sealed class MigrationDeltaEmitterTests
             stem: "M20260102000000_fix_step"
         );
 
-        Assert.Contains("CREATE OR ALTER PROCEDURE {{schema}}.start_step AS SELECT 2;\nGO", sql.ReplaceLineEndings("\n"));
+        Assert.Contains("CREATE OR ALTER PROCEDURE {{schema}}.start_job_step AS SELECT 2;\nGO", sql.ReplaceLineEndings("\n"));
         Assert.DoesNotContain("claim_jobs", sql);
         Assert.DoesNotContain("_view", sql);
     }
@@ -192,7 +192,7 @@ public sealed class MigrationDeltaEmitterTests
     public void A_new_table_followed_by_a_changed_routine_shares_one_batch_separator()
     {
         var dialect = new SqlServerDdlDialect();
-        var diff = Diff(addedTables: ["tags"], objects: new Dictionary<string, ObjectChanges> { ["mssql"] = new(["start_step"], []) });
+        var diff = Diff(addedTables: ["tags"], objects: new Dictionary<string, ObjectChanges> { ["mssql"] = new(["start_job_step"], []) });
 
         var sql = MigrationDeltaEmitter.EmitDelta(diff, SchemaModel.Discover(), Objects(dialect), dialect, stem: "M20260102000000_tags");
 
@@ -231,7 +231,7 @@ public sealed class MigrationDeltaEmitterTests
         [
             sql.LastIndexOf("CREATE TABLE", StringComparison.Ordinal),
             sql.IndexOf("{{schema}}.claim_jobs", StringComparison.Ordinal),
-            sql.IndexOf("{{schema}}.start_step", StringComparison.Ordinal),
+            sql.IndexOf("{{schema}}.start_job_step", StringComparison.Ordinal),
             sql.IndexOf("VIEW {{schema}}.jobs_view", StringComparison.Ordinal),
             sql.IndexOf("VIEW {{schema}}.tags_view", StringComparison.Ordinal),
             sql.IndexOf("INSERT INTO {{schema}}.migrations", StringComparison.Ordinal),

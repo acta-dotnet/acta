@@ -64,7 +64,7 @@ public sealed class ContinuousSynchronizationTests : IAsyncLifetime
             new ListSchedulesQuery(JobNamespace: Namespace, JobName: "sync-orders"),
             Ct
         );
-        _slotId = (await _host.Jobs.GetJobIdAsync(JobLookup.ByRef(Assert.Single(listed.Items).JobRef!.Value), Ct))!.JobId;
+        _slotId = (await _host.Jobs.GetIdAsync(JobLookup.ByRef(Assert.Single(listed.Items).JobRef!.Value), Ct))!.JobId;
     }
 
     public async ValueTask DisposeAsync()
@@ -135,7 +135,7 @@ public sealed class ContinuousSynchronizationTests : IAsyncLifetime
 
         // A manual trigger syncs the backlog and moves the watermark; the cursor stays where the firing left it.
         await _shop.AppendAsync(10, Ct);
-        Assert.Equal(ControlAction.Applied, (await _host.Operations.Schedules.TriggerNowAsync(Schedule, ct: Ct)).Action);
+        Assert.Equal(ControlAction.Applied, (await _host.Operations.Schedules.TriggerAsync(Schedule, ct: Ct)).Action);
         Assert.Equal(ActaRunStatus.Completed, await _host.RunOnceAsync(_slotId, Ct));
         Assert.Equal(10, await WatermarkAsync());
         Assert.Equal(afterFiring, await NextOccurrenceAsync());

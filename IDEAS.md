@@ -347,7 +347,7 @@ design has to keep every one of them:
 - The trigger: the catalog hash misses a retire, a reactivation, an override, a slot that becomes Idle
   later, and a host that dies between commits, so the seed would need its own probe on every poll.
 - Smaller gaps: the capacity wake must keep the wait-to-drop case, a calendar publish skips unseeded
-  schedules, and `GetScheduleState` must read declarations without its state join.
+  schedules, and `ListScheduleStates` must read declarations without its state join.
 
 ## Job ids without the explicit draw
 

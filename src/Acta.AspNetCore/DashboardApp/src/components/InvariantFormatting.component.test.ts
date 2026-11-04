@@ -9,7 +9,7 @@ import Pager from './Pager.svelte';
 
 function capabilitiesResponse(): Response {
   return new Response(
-    JSON.stringify({ controlsEnabled: true, version: 'test', provider: 'mock', confirmationHeader: 'X-Acta-Control' }),
+    JSON.stringify({ controlsEnabled: true, engineVersion: 'test', provider: 'mock', confirmationHeader: 'X-Acta-Control' }),
     { status: 200, headers: { 'Content-Type': 'application/json' } }
   );
 }

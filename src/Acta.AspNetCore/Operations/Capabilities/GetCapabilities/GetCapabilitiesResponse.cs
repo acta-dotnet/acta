@@ -6,7 +6,7 @@ namespace Acta.AspNetCore;
 /// </summary>
 internal sealed record GetCapabilitiesResponse(
     bool ControlsEnabled,
-    string Version,
+    string EngineVersion,
     string Provider,
     string Schema,
     string ConfirmationHeader

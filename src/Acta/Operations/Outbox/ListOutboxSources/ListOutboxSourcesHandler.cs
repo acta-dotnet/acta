@@ -8,7 +8,7 @@ namespace Acta;
 /// follows the namespace catalog. The registry is present only in processes that declared a relay.
 /// </summary>
 internal sealed class ListOutboxSourcesHandler(
-    ResolveSlotIdHandler resolveSlotId,
+    ResolveJobIdBySlotHandler resolveJobIdBySlot,
     IJobs jobs,
     INamespaces namespaces,
     OutboxRelayRegistry? registry = null
@@ -47,7 +47,7 @@ internal sealed class ListOutboxSourcesHandler(
 
     private async ValueTask<ListOutboxSourcesItem?> ComposeAsync(string jobNamespace, CancellationToken ct)
     {
-        if (await OutboxSlot.FindAsync(resolveSlotId, jobs, jobNamespace, ct) is not { } slot)
+        if (await OutboxSlot.FindAsync(resolveJobIdBySlot, jobs, jobNamespace, ct) is not { } slot)
         {
             return null;
         }

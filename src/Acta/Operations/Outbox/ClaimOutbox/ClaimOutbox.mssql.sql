@@ -24,7 +24,7 @@ BEGIN TRY
     FROM {{table_ref}} AS o WITH (FORCESEEK, ROWLOCK)
     WHERE o.status_code = 20 /* OutboxStatusCode.Claimed */ AND o.claim_until_utc <= SYSUTCDATETIME();
 
-    /* A laned row waits while an older row of its lane is Pending or Claimed (OutboxSource.ClaimDueAsync).
+    /* A laned row waits while an older row of its lane is Pending or Claimed (OutboxOperations.Source.ClaimAsync).
        The check skips a row a producer has not committed, which counts as absent, as under read-committed
        snapshot. */
     WITH due AS (

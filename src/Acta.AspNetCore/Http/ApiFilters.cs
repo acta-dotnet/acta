@@ -1,3 +1,4 @@
+using System.Text.Json;
 using Microsoft.AspNetCore.Http;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Logging;
@@ -31,7 +32,10 @@ internal static class ApiFilters
                 statusCode: StatusCodes.Status409Conflict,
                 title: "Enqueue rejected.",
                 detail: ex.Message,
-                extensions: new Dictionary<string, object?> { ["reasonCode"] = ex.Reason.ToString() }
+                extensions: new Dictionary<string, object?>
+                {
+                    ["reasonCode"] = JsonNamingPolicy.KebabCaseLower.ConvertName(ex.Reason.ToString()),
+                }
             );
         }
         catch (JobPurgeBlockedException ex)

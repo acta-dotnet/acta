@@ -7,7 +7,7 @@ using Xunit;
 namespace Acta.Tests.Conformance.Engine.Worker;
 
 /// <summary>
-/// The suspend handoff: the window between <c>wait_signal</c> answering SuspendPending and
+/// The suspend handoff: the window between <c>wait_job_signal</c> answering SuspendPending and
 /// <c>complete_executions</c> writing that suspend. A raise landing inside it answers a wait the ledger
 /// has no record of, so the completion re-reads the awaited slot under its own lock and lands the job
 /// Ready rather than parking it on a signal that already arrived.
@@ -52,7 +52,7 @@ public sealed class SignalSuspendHandoffRaceChaosSpec : ActaRuntimeTestBase<Conf
         // transition is the only publisher left and any increase here is that transition.
         var namespaceWakesBefore = _wakeup.WakeCountFor(WorkerWakeupChannelKind.WorkerNamespace);
 
-        // By the time this runs the handler has thrown its suspend and wait_signal has committed the
+        // By the time this runs the handler has thrown its suspend and wait_job_signal has committed the
         // Pending slot, but the completion carrying that suspend is built and unsent. That is the
         // window, and it is the only place a raise can be neither too early nor too late.
         _faults.RunBeforeCompleteOnce(async () =>

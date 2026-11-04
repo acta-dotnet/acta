@@ -102,8 +102,8 @@ public sealed class IdentifierShapeSpec : ActaRuntimeTestBase<ConformanceFixture
 
         Assert.Equal(EnqueueJobAction.Inserted, second.Action);
         Assert.NotEqual(first.JobId, second.JobId);
-        Assert.Equal(first.JobId, (await Jobs.GetJobIdAsync(JobLookup.ByDeduplicationKey(TestNamespace, key), ct))?.JobId);
-        Assert.Null(await Jobs.GetJobIdAsync(JobLookup.ByDeduplicationKey(TestNamespace, key.ToUpperInvariant()), ct));
+        Assert.Equal(first.JobId, (await Jobs.GetIdAsync(JobLookup.ByDeduplicationKey(TestNamespace, key), ct))?.JobId);
+        Assert.Null(await Jobs.GetIdAsync(JobLookup.ByDeduplicationKey(TestNamespace, key.ToUpperInvariant()), ct));
     }
 
     [Fact(DisplayName = "Correlation keys that differ only by case filter apart, and a filter is trimmed like a key")]
@@ -163,7 +163,7 @@ public sealed class IdentifierShapeSpec : ActaRuntimeTestBase<ConformanceFixture
         var key = Unique("Order");
         var stored = await Jobs.EnqueueAsync(new EnqueueJobRequest(TestNamespace, "add-numbers", Payload(), DeduplicationKey: key), ct);
 
-        var batch = await Jobs.EnqueueBatchAsync(
+        var batch = await Jobs.EnqueueJobsAsync(
             [
                 new EnqueueJobRequest(TestNamespace, "add-numbers", Payload(), DeduplicationKey: key.ToLowerInvariant()),
                 new EnqueueJobRequest(TestNamespace, "add-numbers", Payload(), DeduplicationKey: key.ToUpperInvariant()),

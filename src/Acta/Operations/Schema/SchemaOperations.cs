@@ -10,7 +10,7 @@ internal sealed class SchemaOperations(DbConnection connection, SqlResourceCatal
 {
     private readonly AcquireSchemaLockHandler _acquireSchemaLock = new(connection, sql, commandTimeoutSeconds);
     private readonly EnsureMigrationsHandler _ensureMigrations = new(connection, sql, commandTimeoutSeconds);
-    private readonly LoadAppliedMigrationsHandler _loadAppliedMigrations = new(connection, sql, commandTimeoutSeconds);
+    private readonly ListAppliedMigrationsHandler _listAppliedMigrations = new(connection, sql, commandTimeoutSeconds);
     private readonly DropSchemaHandler _dropSchema = new(connection, sql, commandTimeoutSeconds);
     private readonly FindOutboxTableHandler _findOutboxTable = new(connection, sql, commandTimeoutSeconds);
 
@@ -37,8 +37,8 @@ internal sealed class SchemaOperations(DbConnection connection, SqlResourceCatal
         _ensureMigrations.HandleAsync(new EnsureMigrationsCommand(transaction), ct);
 
     /// <summary>Reads the migration history, inside <paramref name="transaction"/> when one is given.</summary>
-    public Task<LoadAppliedMigrationsResponse> LoadAppliedMigrationsAsync(DbTransaction? transaction, CancellationToken ct) =>
-        _loadAppliedMigrations.HandleAsync(new LoadAppliedMigrationsQuery(transaction), ct);
+    public Task<ListAppliedMigrationsResponse> ListAppliedMigrationsAsync(DbTransaction? transaction, CancellationToken ct) =>
+        _listAppliedMigrations.HandleAsync(new ListAppliedMigrationsQuery(transaction), ct);
 
     /// <summary>
     /// Drops everything Acta installed in the schema, the history table included, outside any transaction. A schema that is

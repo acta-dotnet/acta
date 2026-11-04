@@ -127,7 +127,7 @@ public sealed class AcknowledgeAlertSpec : ActaRuntimeTestBase<ConformanceFixtur
             ).Updated
         );
         Assert.Contains(
-            (await store.GetDeliverableAlertsAsync(Runtime.RegisteredNamespaceIds[TestNamespace], 50, ct)).Alerts,
+            (await store.ListDeliverableAlertsAsync(Runtime.RegisteredNamespaceIds[TestNamespace], 50, ct)).Alerts,
             a => a.AlertId == row.Id
         );
 
@@ -140,7 +140,7 @@ public sealed class AcknowledgeAlertSpec : ActaRuntimeTestBase<ConformanceFixtur
         Assert.NotNull(acknowledged.AcknowledgedAtUtc);
         Assert.Null(acknowledged.ResolvedAtUtc);
         Assert.Contains(
-            (await store.GetDeliverableAlertsAsync(Runtime.RegisteredNamespaceIds[TestNamespace], 50, ct)).Alerts,
+            (await store.ListDeliverableAlertsAsync(Runtime.RegisteredNamespaceIds[TestNamespace], 50, ct)).Alerts,
             a => a.AlertId == row.Id
         );
     }

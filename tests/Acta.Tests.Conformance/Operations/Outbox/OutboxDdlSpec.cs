@@ -64,7 +64,7 @@ public sealed class OutboxDdlSpec : ActaTestBase<ConformanceFixture>
 
             // An empty claim through a source with no schema runs only if the table is where that source resolves it.
             var source = Fixture.OpenOutboxSource(table, unqualified: true);
-            Assert.Empty((await source.ClaimDueAsync(new ClaimOutboxCommand(Guid.NewGuid(), 10, LeaseTtlSeconds), ct)).Rows);
+            Assert.Empty((await source.ClaimAsync(new ClaimOutboxCommand(Guid.NewGuid(), 10, LeaseTtlSeconds), ct)).Rows);
         }
         finally
         {
@@ -82,7 +82,7 @@ public sealed class OutboxDdlSpec : ActaTestBase<ConformanceFixture>
         var toDelete = DueSeed();
         await Fixture.SeedOutboxRowAsync(table, toDelete);
         var deleteToken = Guid.NewGuid();
-        Assert.Single((await store.ClaimDueAsync(new ClaimOutboxCommand(deleteToken, 10, LeaseTtlSeconds), ct)).Rows);
+        Assert.Single((await store.ClaimAsync(new ClaimOutboxCommand(deleteToken, 10, LeaseTtlSeconds), ct)).Rows);
         await store.DeleteClaimedAsync(new DeleteClaimedOutboxCommand(deleteToken, [toDelete.OutboxId]), ct);
         Assert.False((await Fixture.ReadOutboxRowAsync(table, toDelete.OutboxId)).Exists);
 
@@ -90,7 +90,7 @@ public sealed class OutboxDdlSpec : ActaTestBase<ConformanceFixture>
         var toReschedule = DueSeed();
         await Fixture.SeedOutboxRowAsync(table, toReschedule);
         var rescheduleToken = Guid.NewGuid();
-        Assert.Single((await store.ClaimDueAsync(new ClaimOutboxCommand(rescheduleToken, 10, LeaseTtlSeconds), ct)).Rows);
+        Assert.Single((await store.ClaimAsync(new ClaimOutboxCommand(rescheduleToken, 10, LeaseTtlSeconds), ct)).Rows);
         await store.RescheduleAsync(
             new RescheduleOutboxCommand(rescheduleToken, [new OutboxReschedule(toReschedule.OutboxId, 1, 60, "recoverable")]),
             ct
@@ -103,7 +103,7 @@ public sealed class OutboxDdlSpec : ActaTestBase<ConformanceFixture>
         var toQuarantine = DueSeed();
         await Fixture.SeedOutboxRowAsync(table, toQuarantine);
         var quarantineToken = Guid.NewGuid();
-        Assert.Single((await store.ClaimDueAsync(new ClaimOutboxCommand(quarantineToken, 10, LeaseTtlSeconds), ct)).Rows);
+        Assert.Single((await store.ClaimAsync(new ClaimOutboxCommand(quarantineToken, 10, LeaseTtlSeconds), ct)).Rows);
         await store.QuarantineAsync(
             new QuarantineOutboxCommand(quarantineToken, [new OutboxQuarantine(toQuarantine.OutboxId, 5, "poison")]),
             ct

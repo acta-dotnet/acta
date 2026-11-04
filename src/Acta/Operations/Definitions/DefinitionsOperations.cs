@@ -2,15 +2,16 @@ namespace Acta;
 
 /// <summary>The Definitions operations: <see cref="IDefinitions"/> for applications, plus the engine's calls.</summary>
 internal sealed class DefinitionsOperations(
-    SetDefinitionOverridesHandler setDefinitionOverrides,
+    UpdateDefinitionOverridesHandler updateDefinitionOverrides,
     RetireDefinitionHandler retireDefinition,
     GetDefinitionHandler getDefinition,
     ListDefinitionsHandler listDefinitions,
+    GetDefinitionInputTemplateHandler getDefinitionInputTemplate,
     RegisterDefinitionsHandler registerDefinitions,
-    GetDefinitionContractsHandler getDefinitionContracts
+    ListDefinitionContractsHandler listDefinitionContracts
 ) : IDefinitions
 {
-    public ValueTask<SetDefinitionOverridesResponse> UpdateOverridesAsync(
+    public ValueTask<UpdateDefinitionOverridesResponse> UpdateOverridesAsync(
         string jobNamespace,
         string jobName,
         int expectedVersion,
@@ -19,8 +20,8 @@ internal sealed class DefinitionsOperations(
         string? actor = null,
         CancellationToken ct = default
     ) =>
-        setDefinitionOverrides.HandleAsync(
-            new SetDefinitionOverridesCommand(jobNamespace, jobName, expectedVersion, overrides, reasonMessage, actor),
+        updateDefinitionOverrides.HandleAsync(
+            new UpdateDefinitionOverridesCommand(jobNamespace, jobName, expectedVersion, overrides, reasonMessage, actor),
             ct
         );
 
@@ -39,6 +40,9 @@ internal sealed class DefinitionsOperations(
     public ValueTask<ListDefinitionsResponse> ListAsync(ListDefinitionsQuery query, CancellationToken ct = default) =>
         listDefinitions.HandleAsync(query, ct);
 
+    public GetDefinitionInputTemplateResponse? GetInputTemplate(string jobNamespace, string jobName) =>
+        getDefinitionInputTemplate.Handle(new GetDefinitionInputTemplateQuery(jobNamespace, jobName));
+
     /// <summary>
     /// Registers a namespace's whole definitions set and answers each descriptor's definition id; a steady-state restart
     /// issues zero writes and takes no locks. The database keeps the per-row generation/hash gate, so it holds under
@@ -51,6 +55,6 @@ internal sealed class DefinitionsOperations(
     /// The full catalog of every definition in a namespace, for worker startup and the policy reload tick: identity,
     /// generation, hash, status, contract, modification time, and effective policy.
     /// </summary>
-    internal Task<GetDefinitionContractsResponse> GetDefinitionContractsAsync(int namespaceId, CancellationToken ct) =>
-        getDefinitionContracts.HandleAsync(new GetDefinitionContractsQuery(namespaceId), ct);
+    internal Task<ListDefinitionContractsResponse> ListDefinitionContractsAsync(int namespaceId, CancellationToken ct) =>
+        listDefinitionContracts.HandleAsync(new ListDefinitionContractsQuery(namespaceId), ct);
 }

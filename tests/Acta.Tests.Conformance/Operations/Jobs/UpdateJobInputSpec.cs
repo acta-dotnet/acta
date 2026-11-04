@@ -6,7 +6,7 @@ using Xunit;
 namespace Acta.Tests.Conformance.Operations.Jobs;
 
 /// <summary>
-/// Operator UpdateJobInputAsync: amends a job's stored input payload. Allowed in any status except
+/// Operator UpdateInputAsync: amends a job's stored input payload. Allowed in any status except
 /// Executing (a mid-flight handler may already have read the input); the transition is
 /// audited (job.input-amended) with bounded metadata (format name and byte count) about the
 /// previous payload in the event detail, never the payload itself.
@@ -28,7 +28,7 @@ public sealed class UpdateJobInputSpec : ActaRuntimeTestBase<ConformanceFixture,
         var newInput = JobPayload.Json(new AddNumbers(7, 8));
         var enqueued = await Jobs.EnqueueAsync(new EnqueueJobRequest(TestNamespace, "add-numbers", oldInput), ct);
 
-        var result = await Jobs.UpdateJobInputAsync(enqueued, newInput, "corrected operands", "spec-actor", ct);
+        var result = await Jobs.UpdateInputAsync(enqueued, newInput, "corrected operands", "spec-actor", ct);
 
         Assert.Equal(ControlAction.Applied, result.Action);
         Assert.Equal(JobStatusCode.Ready, result.Status);
@@ -66,7 +66,7 @@ public sealed class UpdateJobInputSpec : ActaRuntimeTestBase<ConformanceFixture,
         var enqueued = await Jobs.EnqueueAsync(new EnqueueJobRequest(TestNamespace, "purge-now", oldInput), ct);
         Assert.Equal(RunOnceStatus.Completed, await Runtime.RunOnceAsync(enqueued, ct));
 
-        var amend = await Jobs.UpdateJobInputAsync(enqueued, JobPayload.Json(new PurgeProbe("clean")), "scrub", "spec-actor", ct);
+        var amend = await Jobs.UpdateInputAsync(enqueued, JobPayload.Json(new PurgeProbe("clean")), "scrub", "spec-actor", ct);
         Assert.Equal(ControlAction.Applied, amend.Action);
 
         // Sweep with the events window wide open: the job row goes, the ledger stays.
@@ -121,7 +121,7 @@ public sealed class UpdateJobInputSpec : ActaRuntimeTestBase<ConformanceFixture,
         var enqueued = await Jobs.EnqueueAsync(new EnqueueJobRequest(TestNamespace, "add-numbers", oldInput), ct);
         await SetJobStatusAsync(enqueued.JobId, (byte)JobStatusCode.Executing, ct);
 
-        var result = await Jobs.UpdateJobInputAsync(enqueued, newInput, "should not apply", ct: ct);
+        var result = await Jobs.UpdateInputAsync(enqueued, newInput, "should not apply", ct: ct);
 
         Assert.Equal(ControlAction.Rejected, result.Action);
         Assert.Equal(JobStatusCode.Executing, result.Status);
@@ -142,7 +142,7 @@ public sealed class UpdateJobInputSpec : ActaRuntimeTestBase<ConformanceFixture,
         );
         await SetJobStatusAsync(enqueued.JobId, (byte)JobStatusCode.Failed, ct);
 
-        var amend = await Jobs.UpdateJobInputAsync(enqueued, JobPayload.Json(new AddNumbers(10, 20)), "retry with new operands", ct: ct);
+        var amend = await Jobs.UpdateInputAsync(enqueued, JobPayload.Json(new AddNumbers(10, 20)), "retry with new operands", ct: ct);
         Assert.Equal(ControlAction.Applied, amend.Action);
 
         var restart = await Jobs.RestartAsync(enqueued, ct: ct);
@@ -165,7 +165,7 @@ public sealed class UpdateJobInputSpec : ActaRuntimeTestBase<ConformanceFixture,
         var newInput = JobPayload.Bytes([3, 4, 5]);
         var enqueued = await Jobs.EnqueueAsync(new EnqueueJobRequest(TestNamespace, "add-numbers", oldInput), ct);
 
-        var result = await Jobs.UpdateJobInputAsync(enqueued, newInput, "reformat", "spec-actor", ct);
+        var result = await Jobs.UpdateInputAsync(enqueued, newInput, "reformat", "spec-actor", ct);
         Assert.Equal(ControlAction.Applied, result.Action);
 
         var stored = (await Jobs.GetInputAsync(enqueued, ct))?.Input;
@@ -178,7 +178,7 @@ public sealed class UpdateJobInputSpec : ActaRuntimeTestBase<ConformanceFixture,
     public async Task Amend_unknown_is_notfound()
     {
         var ct = TestContext.Current.CancellationToken;
-        var result = await Jobs.UpdateJobInputAsync(JobLookup.ById(999_999_999_999L), JobPayload.Json(new AddNumbers(0, 0)), ct: ct);
+        var result = await Jobs.UpdateInputAsync(JobLookup.ById(999_999_999_999L), JobPayload.Json(new AddNumbers(0, 0)), ct: ct);
         Assert.Equal(ControlAction.NotFound, result.Action);
     }
 

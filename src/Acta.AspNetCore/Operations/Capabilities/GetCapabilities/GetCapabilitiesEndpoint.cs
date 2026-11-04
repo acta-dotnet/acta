@@ -32,7 +32,7 @@ internal static class GetCapabilitiesEndpoint
                     var schema = http.RequestServices.GetService<SqlProviderOptions>()?.Schema ?? "acta";
                     var body = new GetCapabilitiesResponse(
                         ControlsEnabled: options.EnableControls,
-                        Version: version,
+                        EngineVersion: version,
                         Provider: provider,
                         Schema: schema,
                         ConfirmationHeader: options.ControlConfirmationHeaderName

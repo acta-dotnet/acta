@@ -97,11 +97,11 @@ public static class ActaServiceCollectionExtensions
         services.TryAddSingleton<IActaOperations, ActaOperations>();
 
         services.TryAddSingleton<AcknowledgeAlertHandler>();
-        services.TryAddSingleton<GetAlertableEventsHandler>();
+        services.TryAddSingleton<ListAlertableEventsHandler>();
         services.TryAddSingleton<GetAlertFloorHandler>();
-        services.TryAddSingleton<GetPoisonAlertEventsHandler>();
+        services.TryAddSingleton<ListPoisonAlertEventsHandler>();
         services.TryAddSingleton<GetAlertHandler>();
-        services.TryAddSingleton<GetDeliverableAlertsHandler>();
+        services.TryAddSingleton<ListDeliverableAlertsHandler>();
         services.TryAddSingleton<ListAlertsHandler>();
         services.TryAddSingleton<RaiseAlertHandler>();
         services.TryAddSingleton<ResolveAlertHandler>();
@@ -110,28 +110,28 @@ public static class ActaServiceCollectionExtensions
         services.TryAddSingleton<AlertsOperations>();
         services.TryAddSingleton<IAlerts>(sp => sp.GetRequiredService<AlertsOperations>());
 
-        services.TryAddSingleton<GetDefinitionContractsHandler>();
+        services.TryAddSingleton<ListDefinitionContractsHandler>();
         services.TryAddSingleton<GetDefinitionHandler>();
+        services.TryAddSingleton<GetDefinitionInputTemplateHandler>();
         services.TryAddSingleton<ListDefinitionsHandler>();
         services.TryAddSingleton<RegisterDefinitionsHandler>();
         services.TryAddSingleton<ResolveDefinitionIdHandler>();
         services.TryAddSingleton<RetireDefinitionHandler>();
-        services.TryAddSingleton<SetDefinitionOverridesHandler>();
+        services.TryAddSingleton<UpdateDefinitionOverridesHandler>();
         services.TryAddSingleton<DefinitionsOperations>();
         services.TryAddSingleton<IDefinitions>(sp => sp.GetRequiredService<DefinitionsOperations>());
 
         services.TryAddSingleton<CancelJobHandler>();
         services.TryAddSingleton<EnqueueJobHandler>();
         services.TryAddSingleton<EnqueueJobsHandler>();
-        services.TryAddSingleton<GetCheckpointsHandler>();
-        services.TryAddSingleton<GetInputTemplateHandler>();
-        services.TryAddSingleton<GetJobExplanationHandler>();
+        services.TryAddSingleton<GetJobCheckpointsHandler>();
+        services.TryAddSingleton<ExplainJobHandler>();
         services.TryAddSingleton<GetJobHandler>();
         services.TryAddSingleton<GetJobIdHandler>();
         services.TryAddSingleton<GetJobInputHandler>();
         services.TryAddSingleton<GetJobLineageMapHandler>();
         services.TryAddSingleton<GetJobStatusHandler>();
-        services.TryAddSingleton<GetResultHandler>();
+        services.TryAddSingleton<GetJobResultHandler>();
         services.TryAddSingleton<PauseJobHandler>();
         services.TryAddSingleton<PurgeJobHandler>();
         services.TryAddSingleton<ReprioritizeJobHandler>();
@@ -139,7 +139,7 @@ public static class ActaServiceCollectionExtensions
         services.TryAddSingleton<ResetJobStateHandler>();
         services.TryAddSingleton<ResolveJobIdByDeduplicationKeyHandler>();
         services.TryAddSingleton<ResolveJobIdByRefHandler>();
-        services.TryAddSingleton<ResolveSlotIdHandler>();
+        services.TryAddSingleton<ResolveJobIdBySlotHandler>();
         services.TryAddSingleton<RestartJobHandler>();
         services.TryAddSingleton<ResumeJobHandler>();
         services.TryAddSingleton<UpdateJobInputHandler>();
@@ -163,7 +163,7 @@ public static class ActaServiceCollectionExtensions
         services.TryAddSingleton<ConsumeOutboxSignalHandler>();
         services.TryAddSingleton<DiscardOutboxHandler>();
         services.TryAddSingleton<GetOutboxSignalHandler>();
-        services.TryAddSingleton<ListOutboxQuarantinedHandler>();
+        services.TryAddSingleton<ListQuarantinedOutboxHandler>();
         services.TryAddSingleton<ListOutboxSourcesHandler>();
         services.TryAddSingleton<ParkOutboxSignalHandler>();
         services.TryAddSingleton<PlanOutboxSignalHandler>();
@@ -171,39 +171,39 @@ public static class ActaServiceCollectionExtensions
         services.TryAddSingleton<OutboxOperations>();
         services.TryAddSingleton<IOutbox>(sp => sp.GetRequiredService<OutboxOperations>());
 
-        services.TryAddSingleton<GetScheduleStateHandler>();
-        services.TryAddSingleton<GetDueSchedulesHandler>();
+        services.TryAddSingleton<ListScheduleStatesHandler>();
+        services.TryAddSingleton<ListDueSchedulesHandler>();
         services.TryAddSingleton<GetScheduleHorizonHandler>();
-        services.TryAddSingleton<AdmitFiringsHandler>();
+        services.TryAddSingleton<AdmitScheduleFiringsHandler>();
         services.TryAddSingleton<ListSchedulesHandler>();
         services.TryAddSingleton<PauseScheduleHandler>();
         services.TryAddSingleton<PreviewScheduleHandler>();
         services.TryAddSingleton<RegisterSchedulesHandler>();
         services.TryAddSingleton<ResolveScheduleTargetHandler>();
         services.TryAddSingleton<ResumeScheduleHandler>();
-        services.TryAddSingleton<TriggerScheduleNowHandler>();
+        services.TryAddSingleton<TriggerScheduleHandler>();
         services.TryAddSingleton<SchedulesOperations>();
         services.TryAddSingleton<ISchedules>(sp => sp.GetRequiredService<SchedulesOperations>());
 
         services.TryAddSingleton<ArchiveCalendarHandler>();
         services.TryAddSingleton<GetCalendarPublicationHandler>();
-        services.TryAddSingleton<GetCalendarSchedulesHandler>();
+        services.TryAddSingleton<ListCalendarSchedulesHandler>();
         services.TryAddSingleton<PreviewCalendarHandler>();
         services.TryAddSingleton<PublishCalendarHandler>();
         services.TryAddSingleton<CalendarSources>();
         services.TryAddSingleton<GetCalendarHandler>();
         services.TryAddSingleton<ResolveCalendarVersionHandler>();
-        services.TryAddSingleton<GetCurrentCalendarsHandler>();
+        services.TryAddSingleton<ListCurrentCalendarsHandler>();
         services.TryAddSingleton<ListCalendarsHandler>();
         services.TryAddSingleton<SaveCalendarDraftHandler>();
         services.TryAddSingleton<CalendarsOperations>();
         services.TryAddSingleton<ICalendars>(sp => sp.GetRequiredService<CalendarsOperations>());
 
         services.TryAddSingleton<GetTagsHandler>();
-        services.TryAddSingleton<RemoveTagsHandler>();
+        services.TryAddSingleton<RemoveTagHandler>();
         services.TryAddSingleton<ReplaceTagsHandler>();
         services.TryAddSingleton<ResolveTagTargetHandler>();
-        services.TryAddSingleton<UpsertTagsHandler>();
+        services.TryAddSingleton<UpsertTagHandler>();
         services.TryAddSingleton<TagsOperations>();
         services.TryAddSingleton<ITags>(sp => sp.GetRequiredService<TagsOperations>());
 
@@ -235,18 +235,18 @@ public static class ActaServiceCollectionExtensions
         services.AddSingleton<IClockOperations>(sp => sp.GetRequiredService<ClockOperations>());
         services.TryAddSingleton<IActaClock>(sp => sp.GetRequiredService<IClockOperations>());
 
-        services.TryAddSingleton<AccessCheckpointHandler>();
-        services.TryAddSingleton<ArmOrConsumeSleepTimerHandler>();
+        services.TryAddSingleton<AccessJobCheckpointHandler>();
+        services.TryAddSingleton<ArmOrConsumeJobSleepTimerHandler>();
         services.TryAddSingleton<ClaimJobHandler>();
         services.TryAddSingleton<ClaimJobsHandler>();
         services.TryAddSingleton<CompleteExecutionsHandler>();
-        services.TryAddSingleton<CompleteStepHandler>();
-        services.TryAddSingleton<GetChildJobIdsHandler>();
-        services.TryAddSingleton<GetStaleChildLatchesHandler>();
+        services.TryAddSingleton<CompleteJobStepHandler>();
+        services.TryAddSingleton<ListChildJobIdsHandler>();
+        services.TryAddSingleton<ListStaleJobChildLatchesHandler>();
         services.TryAddSingleton<ReclaimStuckJobsHandler>();
-        services.TryAddSingleton<GetFiringHandler>();
-        services.TryAddSingleton<RecordNoteHandler>();
-        services.TryAddSingleton<StartStepHandler>();
+        services.TryAddSingleton<GetScheduleFiringHandler>();
+        services.TryAddSingleton<RecordJobNoteHandler>();
+        services.TryAddSingleton<StartJobStepHandler>();
         services.TryAddSingleton<ExecutionOperations>();
 
         services.TryAddSingleton<AcquireLockHandler>();
@@ -258,8 +258,8 @@ public static class ActaServiceCollectionExtensions
         services.TryAddSingleton<PurgeExpiredDataHandler>();
         services.TryAddSingleton<MaintenanceOperations>();
 
-        services.TryAddSingleton<RaiseSignalHandler>();
-        services.TryAddSingleton<WaitSignalHandler>();
+        services.TryAddSingleton<RaiseJobSignalHandler>();
+        services.TryAddSingleton<WaitJobSignalHandler>();
         services.TryAddSingleton<SignalsOperations>();
     }
 
@@ -323,7 +323,7 @@ public static class ActaServiceCollectionExtensions
         var contractRegistry = JobContractRegistry.Build(builder.Catalogs);
         services.AddSingleton(contractRegistry);
 
-        // Descriptor index: (namespace, job name) -> generated descriptor, backing IJobs.GetInputTemplate.
+        // Descriptor index: (namespace, job name) -> generated descriptor, backing IDefinitions.GetInputTemplate.
         // Same catalogs again, so an enqueue-only host answers for every job it references.
         services.AddSingleton(JobDescriptorRegistry.Build(builder.Catalogs));
 

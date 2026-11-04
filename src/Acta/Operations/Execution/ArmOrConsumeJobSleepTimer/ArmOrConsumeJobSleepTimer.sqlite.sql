@@ -1,0 +1,82 @@
+-- The timer changes only while this attempt holds the job's row (docs/sql-internals.md, "Execution fence").
+SELECT ACTA_ERROR('ACTA:EXECUTION_FENCED:arm_or_consume_job_sleep_timer: the job is no longer executing this attempt.')
+WHERE NOT EXISTS (
+    SELECT 1
+    FROM {{schema}}.jobs_state r
+    WHERE
+        r.job_id = @p_job_id
+        AND r.job_status_code = 50 /* JobStatusCode.Executing */
+        AND r.execution_number = @p_execution_number
+        AND r.leased_by_worker_id = @p_leased_by_worker_id
+);
+
+DROP TABLE IF EXISTS temp._due_timer;
+
+CREATE TEMP TABLE _due_timer AS
+SELECT 1 AS due
+FROM {{schema}}.checkpoints jt
+WHERE
+    jt.job_id = @p_job_id AND jt.checkpoint_kind_code = 30 /* CheckpointKindCode.Timer */ AND jt.checkpoint_name = @p_checkpoint_name
+    AND jt.checkpoint_status_code = 10 /* CheckpointStatusCode.Pending */
+    AND jt.due_at_utc <= {{now}};
+
+/* Only the worker still executing may clear the instant. A reclaimed row is Ready again on an instant
+   the reclaim owns, and ck_jobs_state_ready_due requires a Ready row to keep one. */
+UPDATE {{schema}}.jobs_state
+SET
+    next_run_at_utc = NULL,
+    modified_at_utc = {{now}},
+    version = version + 1
+WHERE
+    job_id = @p_job_id
+    AND job_status_code = 50 /* JobStatusCode.Executing */
+    AND EXISTS (SELECT 1 FROM temp._due_timer);
+
+UPDATE {{schema}}.checkpoints
+SET
+    checkpoint_status_code = 100 /* CheckpointStatusCode.Consumed */,
+    modified_at_utc = {{now}},
+    version = version + 1
+WHERE
+    job_id = @p_job_id AND checkpoint_kind_code = 30 /* CheckpointKindCode.Timer */ AND checkpoint_name = @p_checkpoint_name
+    AND checkpoint_status_code = 10 /* CheckpointStatusCode.Pending */
+    AND EXISTS (SELECT 1 FROM temp._due_timer);
+
+INSERT INTO {{schema}}.checkpoints (
+    job_id, checkpoint_kind_code, checkpoint_name, checkpoint_status_code, due_at_utc, created_at_utc, modified_at_utc, version
+)
+SELECT
+    @p_job_id,
+    30 /* CheckpointKindCode.Timer */,
+    @p_checkpoint_name,
+    10 /* CheckpointStatusCode.Pending */,
+    COALESCE(@p_resume_at_utc, {{now}} + (@p_delay_seconds) * 1000),
+    {{now}},
+    {{now}},
+    0
+WHERE
+    NOT EXISTS (
+        SELECT 1
+        FROM {{schema}}.checkpoints jt
+        WHERE jt.job_id = @p_job_id AND jt.checkpoint_kind_code = 30 /* CheckpointKindCode.Timer */ AND jt.checkpoint_name = @p_checkpoint_name)
+    AND COALESCE(@p_resume_at_utc, {{now}} + (@p_delay_seconds) * 1000) > {{now}}
+    AND NOT EXISTS (
+        SELECT 1
+        FROM {{schema}}.checkpoints jt2
+        WHERE jt2.job_id = @p_job_id AND jt2.checkpoint_kind_code = 30 /* CheckpointKindCode.Timer */ AND jt2.checkpoint_status_code = 10 /* CheckpointStatusCode.Pending */);
+
+SELECT
+    CASE
+        WHEN EXISTS (SELECT 1 FROM temp._due_timer) THEN 2 /* ArmOrConsumeJobSleepTimerOutcomeCode.Continue */
+        WHEN jt.checkpoint_status_code = 10 /* CheckpointStatusCode.Pending */ THEN 1 /* ArmOrConsumeJobSleepTimerOutcomeCode.Suspend */
+        WHEN jt.checkpoint_status_code IS NOT NULL THEN 2 /* ArmOrConsumeJobSleepTimerOutcomeCode.Continue */
+        WHEN COALESCE(@p_resume_at_utc, {{now}} + (@p_delay_seconds) * 1000) > {{now}}
+            AND EXISTS (SELECT 1 FROM {{schema}}.checkpoints x WHERE x.job_id = @p_job_id AND x.checkpoint_kind_code = 30 /* CheckpointKindCode.Timer */ AND x.checkpoint_status_code = 10 /* CheckpointStatusCode.Pending */) THEN 3 /* ArmOrConsumeJobSleepTimerOutcomeCode.Reject */
+        ELSE 2 /* ArmOrConsumeJobSleepTimerOutcomeCode.Continue */
+    END AS outcome_code,
+    CASE
+        WHEN jt.checkpoint_status_code = 10 /* CheckpointStatusCode.Pending */ THEN jt.due_at_utc
+        ELSE NULL
+    END AS due_at_utc
+FROM (SELECT @p_job_id AS jid) probe
+LEFT JOIN {{schema}}.checkpoints jt ON jt.job_id = @p_job_id AND jt.checkpoint_kind_code = 30 /* CheckpointKindCode.Timer */ AND jt.checkpoint_name = @p_checkpoint_name;

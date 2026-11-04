@@ -44,7 +44,7 @@ internal sealed class FakeOutbox : IOutbox
 
     public Func<ListOutboxSourcesQuery, CancellationToken, ValueTask<ListOutboxSourcesResponse>> ListSources { get; set; }
 
-    public Func<ListOutboxQuarantinedQuery, CancellationToken, ValueTask<ListOutboxQuarantinedResponse>> ListQuarantined { get; set; }
+    public Func<ListQuarantinedOutboxQuery, CancellationToken, ValueTask<ListQuarantinedOutboxResponse>> ListQuarantined { get; set; }
 
     public Func<string, IReadOnlyList<Guid>?, string?, string?, CancellationToken, ValueTask<RequeueOutboxResponse>> Requeue { get; set; }
 
@@ -53,7 +53,7 @@ internal sealed class FakeOutbox : IOutbox
     ValueTask<ListOutboxSourcesResponse> IOutbox.ListSourcesAsync(ListOutboxSourcesQuery query, CancellationToken ct) =>
         ListSources(query, ct);
 
-    ValueTask<ListOutboxQuarantinedResponse> IOutbox.ListQuarantinedAsync(ListOutboxQuarantinedQuery query, CancellationToken ct) =>
+    ValueTask<ListQuarantinedOutboxResponse> IOutbox.ListQuarantinedAsync(ListQuarantinedOutboxQuery query, CancellationToken ct) =>
         ListQuarantined(query, ct);
 
     ValueTask<RequeueOutboxResponse> IOutbox.RequeueAsync(
@@ -81,11 +81,11 @@ internal sealed class FakeOutbox : IOutbox
         IsLocal: true
     );
 
-    private static ListOutboxQuarantinedResponse Quarantined(ListOutboxQuarantinedQuery query) =>
+    private static ListQuarantinedOutboxResponse Quarantined(ListQuarantinedOutboxQuery query) =>
         query.JobNamespace == "billing"
-            ? new ListOutboxQuarantinedResponse(
+            ? new ListQuarantinedOutboxResponse(
                 [
-                    new ListOutboxQuarantinedItem(
+                    new ListQuarantinedOutboxItem(
                         QuarantinedId,
                         "billing",
                         "send-invoice",

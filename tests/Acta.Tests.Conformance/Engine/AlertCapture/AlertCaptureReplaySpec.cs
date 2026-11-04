@@ -124,7 +124,10 @@ public sealed class AlertCaptureReplaySpec : ActaRuntimeTestBase<ConformanceFixt
         var floor = await alerts.GetAlertFloorAsync(NamespaceId, ct);
         Assert.Equal(150, floor.Poison.Count);
         var ordered = skipped.OrderBy(s => s.Stamp).ThenBy(s => s.EventId).Select(s => s.EventId).ToArray();
-        Assert.Equal(ordered, (await alerts.GetPoisonAlertEventsAsync(NamespaceId, floor.PoisonJson()!, ct)).Events.Select(e => e.EventId));
+        Assert.Equal(
+            ordered,
+            (await alerts.ListPoisonAlertEventsAsync(NamespaceId, floor.PoisonJson()!, ct)).Events.Select(e => e.EventId)
+        );
 
         await AlertCaptureOps.SweepAsync(Services, NamespaceId, ct);
         foreach (var skip in skipped)

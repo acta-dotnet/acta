@@ -16,7 +16,7 @@ public sealed partial class JobExplanationSnapshotTests
     [InlineData("mssql")]
     public void The_explain_read_is_one_statement(string dialect)
     {
-        var sql = new SqlResourceCatalog(dialect, "acta").Load("GetJobExplanation");
+        var sql = new SqlResourceCatalog(dialect, "acta").Load("ExplainJob");
 
         var code = LineComment().Replace(BlockComment().Replace(sql, ""), "");
 

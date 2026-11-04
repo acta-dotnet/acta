@@ -1,6 +1,6 @@
 <script>
   import { createQuery } from '@tanstack/svelte-query';
-  import { api, retireDefinition, setDefinitionOverrides } from '../api';
+  import { api, retireDefinition, updateDefinitionOverrides } from '../api';
   import { keys } from '../query';
   import Page from '../components/Page.svelte';
   import Icon from '../components/Icon.svelte';
@@ -126,7 +126,7 @@
       overrides[f.key] = parse(f.kind, inputs[f.key] ?? '');
     }
     try {
-      const res = await setDefinitionOverrides(def.jobNamespace, def.jobName, def.version, overrides, note);
+      const res = await updateDefinitionOverrides(def.jobNamespace, def.jobName, def.version, overrides, note);
       message = definitionControlMessage('overrides', res.action);
       messageKind = res.action === 'applied' ? 'ok' : 'warn';
       if (res.action === 'applied') {

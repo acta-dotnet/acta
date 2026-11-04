@@ -216,8 +216,8 @@ public sealed class RegisterDefinitionsSpec : ActaStorageTestBase<ConformanceFix
 
         var stored = (
             await Services
-                .GetRequiredService<GetDefinitionContractsHandler>()
-                .HandleAsync(new GetDefinitionContractsQuery(TestNamespaceId), ct)
+                .GetRequiredService<ListDefinitionContractsHandler>()
+                .HandleAsync(new ListDefinitionContractsQuery(TestNamespaceId), ct)
         ).Contracts;
         var incoming = ImmutableArray.Create(Def(job, 1, typeof(string)));
         var drifts = ContractDriftDetector.Detect(Gen2, incoming, stored);

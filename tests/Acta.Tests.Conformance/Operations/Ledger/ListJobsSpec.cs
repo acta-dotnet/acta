@@ -31,7 +31,7 @@ public sealed class ListJobsSpec : ActaRuntimeTestBase<ConformanceFixture, TestJ
             rows.Add(new JobEnqueueValues(NamespaceName: TestNamespace, JobName: "add-numbers", Input: payload));
         }
 
-        var results = (await EnqueueTestOps.EnqueueBatchAsync(Services, rows, ct)).Jobs;
+        var results = (await EnqueueTestOps.EnqueueJobsAsync(Services, rows, ct)).Jobs;
         return results.Select(static r => r.JobId).ToList();
     }
 

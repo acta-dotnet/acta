@@ -108,7 +108,7 @@ public sealed class LaneRepairSpec : ActaRuntimeTestBase<ConformanceFixture, Tes
                 .Chunk(1000)
         )
         {
-            enqueued.AddRange((await Jobs.EnqueueBatchAsync(chunk, ct)).Jobs);
+            enqueued.AddRange((await Jobs.EnqueueJobsAsync(chunk, ct)).Jobs);
         }
         // Every head hand-set to Succeeded, so every lane is stranded behind a Blocked follower.
         await JobStateStaging.UpdateAsync(

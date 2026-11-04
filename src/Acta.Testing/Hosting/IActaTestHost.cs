@@ -70,7 +70,7 @@ public interface IActaTestHost : IAsyncDisposable
     /// so the next <see cref="AdmitOnceAsync"/> admits it under its own policy. A paused schedule stays paused;
     /// throws when the schedule does not exist, and for a schedule bound to a calendar, which admits only the
     /// instants the calendar produces: advance the host's clock to one, or fire the slot with
-    /// <see cref="ISchedules.TriggerNowAsync"/>.
+    /// <see cref="ISchedules.TriggerAsync"/>.
     /// </summary>
     Task ForceScheduleDueAsync(ScheduleLookup schedule, CancellationToken ct = default);
 

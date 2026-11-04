@@ -60,7 +60,7 @@ public sealed class EnqueueRejectionTaxonomySpec : ActaRuntimeTestBase<Conforman
     {
         var ct = TestContext.Current.CancellationToken;
         await Operations.Namespaces.SuspendAsync(TestNamespace, null, "op", ct);
-        var ex = await Assert.ThrowsAsync<EnqueueRejectedException>(async () => await Jobs.EnqueueBatchAsync([Request(), Request()], ct));
+        var ex = await Assert.ThrowsAsync<EnqueueRejectedException>(async () => await Jobs.EnqueueJobsAsync([Request(), Request()], ct));
         Assert.Equal(EnqueueRejectionReason.NamespaceSuspended, ex.Reason);
     }
 

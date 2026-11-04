@@ -173,7 +173,7 @@
     path: (vars) => `jobs/${vars.jobRef}/${vars.action}`,
     // Purge records no reason, and the server rejects a body member it does not map, so its body is empty.
     rawBody: (vars) => (vars.action === 'purge' ? {} : buildBody(vars, () => vars.extra ?? {})),
-    notFound: () => ({ action: 'notFound', status: null }),
+    notFound: () => ({ action: 'not-found', status: null }),
     invalidateKeys: () => [['jobs']] as const
   });
   let busy = $derived(mutation.isPending);

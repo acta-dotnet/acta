@@ -5,7 +5,7 @@ import { calendarsListSql, jobsListSql, eventsListSql, schedulesListSql } from '
 
 test('calendarsListSql scopes a namespace with the shared sys families and orders versions together', () => {
   assert.equal(
-    calendarsListSql({ namespace: 'Billing', role: 'availability', nameSearch: "O'Clock" }),
+    calendarsListSql({ namespace: 'Billing', role: 'availability', nameContains: "O'Clock" }),
     "SELECT * FROM acta.calendars_view WHERE namespace_name IN ('billing', 'sys') AND calendar_role = 'availability' AND calendar_name LIKE '%o''clock%' ORDER BY namespace_name, calendar_name, version DESC LIMIT 100;"
   );
   assert.equal(calendarsListSql({}), 'SELECT * FROM acta.calendars_view ORDER BY namespace_name, calendar_name, version DESC LIMIT 100;');

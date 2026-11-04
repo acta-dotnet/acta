@@ -81,7 +81,7 @@ namespace Acta;
 // A Ready row is due at a known instant, which is what lets ix_jobs_state_claim_ready leave out NULL instants
 // without losing a Ready row, and lets the claim seek it in its own order instead of sorting. Every routine that lands Ready writes the instant
 // in the same statement or the one before it: EnqueueJob, EnqueueJobs, RegisterSchedules, RestartJob, ResumeJob,
-// RescheduleJob, TriggerScheduleNow, RaiseSignal, CompleteExecutions (re-arm and signal release),
+// RescheduleJob, TriggerSchedule, RaiseJobSignal, CompleteExecutions (re-arm and signal release),
 // ReclaimStuckJobs. NULL is reserved for a Suspended row's unbounded wait.
 [DbCheck(Name = "ck_jobs_state_ready_due", Sql = "job_status_code <> 10 OR next_run_at_utc IS NOT NULL")]
 // An Idle permanent slot has nothing admitted, so nothing to come due: admission is what gives it a claim time.

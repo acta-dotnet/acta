@@ -217,13 +217,16 @@ internal sealed partial class RuntimeJobContext(
     {
         var delaySeconds = delay is { } d ? (int)d.TotalSeconds : (int?)null;
         var decision = await FencedAsync(() =>
-            _executionStore.ArmOrConsumeSleepTimerAsync(new Acta.ArmOrConsumeSleepTimerCommand(Fence, name, delaySeconds, resumeAtUtc), ct)
+            _executionStore.ArmOrConsumeJobSleepTimerAsync(
+                new Acta.ArmOrConsumeJobSleepTimerCommand(Fence, name, delaySeconds, resumeAtUtc),
+                ct
+            )
         );
         switch (decision.Outcome)
         {
-            case ArmOrConsumeSleepTimerOutcomeCode.Continue:
+            case ArmOrConsumeJobSleepTimerOutcomeCode.Continue:
                 return;
-            case ArmOrConsumeSleepTimerOutcomeCode.Suspend:
+            case ArmOrConsumeJobSleepTimerOutcomeCode.Suspend:
                 // The host writes the stored due to jobs_state.next_run_at_utc and finalizes the attempt Suspended.
                 throw new SuspendSignal(decision.DueAtUtc!.Value, reason);
             default:
@@ -262,14 +265,14 @@ internal sealed partial class RuntimeJobContext(
         var kind = name.StartsWith(RaiseChildLatch.NamePrefix, StringComparison.Ordinal)
             ? CheckpointKindCode.ChildLatch
             : CheckpointKindCode.Signal;
-        var decision = await FencedAsync(() => _signals.WaitSignalAsync(Fence, kind, name, timeoutSeconds, dueAtUtc, ct));
+        var decision = await FencedAsync(() => _signals.WaitJobSignalAsync(Fence, kind, name, timeoutSeconds, dueAtUtc, ct));
         return decision.Outcome switch
         {
-            WaitSignalOutcomeCode.ContinueSet => new SignalSlotState(decision.ValueFormatId, decision.Value),
-            WaitSignalOutcomeCode.SuspendPending => throw new SignalSuspendSignal(name, reasonMessage: null), // The host locks the slot and finalizes the attempt Suspended (or Ready if a raise won the race).
-            WaitSignalOutcomeCode.TimedOut when resumeOnTimeout => new SignalSlotState(0, null, TimedOut: true),
-            WaitSignalOutcomeCode.TimedOut => throw new WaitTimeoutSignal(name), // The host lands the attempt Cancelled, budget-neutral, like the Strict-deadline path.
-            _ => throw new InvalidOperationException($"wait_signal returned an unknown outcome for job {JobId}, signal '{name}'."),
+            WaitJobSignalOutcomeCode.ContinueSet => new SignalSlotState(decision.ValueFormatId, decision.Value),
+            WaitJobSignalOutcomeCode.SuspendPending => throw new SignalSuspendSignal(name, reasonMessage: null), // The host locks the slot and finalizes the attempt Suspended (or Ready if a raise won the race).
+            WaitJobSignalOutcomeCode.TimedOut when resumeOnTimeout => new SignalSlotState(0, null, TimedOut: true),
+            WaitJobSignalOutcomeCode.TimedOut => throw new WaitTimeoutSignal(name), // The host lands the attempt Cancelled, budget-neutral, like the Strict-deadline path.
+            _ => throw new InvalidOperationException($"wait_job_signal returned an unknown outcome for job {JobId}, signal '{name}'."),
         };
     }
 
@@ -347,7 +350,7 @@ internal sealed partial class RuntimeJobContext(
         // Truncated rather than rejected: the message is prose for a human reading the timeline, and
         // failing a handler's note because its sentence ran long would be a poor trade. The detail
         // payload is the part that hard-throws.
-        return FencedAsync(() => _executionStore.RecordNoteAsync(Fence, message.Truncate(ActaTextLimits.EventMessage)!, payload, ct));
+        return FencedAsync(() => _executionStore.RecordJobNoteAsync(Fence, message.Truncate(ActaTextLimits.EventMessage)!, payload, ct));
     }
 
     private protected override async Task RaiseAlertCoreAsync(
@@ -434,7 +437,7 @@ internal sealed partial class RuntimeJobContext(
 /// <summary>
 /// The one generic CRUD operation over a <c>checkpoints</c> slot (user variables and the progress
 /// slot): last-writer-wins set, get, atomic get-or-set, exists, and delete, dispatched by
-/// <see cref="AccessCheckpointAction"/> through <see cref="ExecutionOperations.AccessCheckpointAsync"/>. Checkpoint
+/// <see cref="AccessJobCheckpointAction"/> through <see cref="ExecutionOperations.AccessJobCheckpointAsync"/>. Checkpoint
 /// kinds with their own concurrency choreography (signals, timers, child latches) keep dedicated
 /// operations; plain slot CRUD shares this one shape. Caller owns name validation, kind selection,
 /// and typed serialization; this op owns the durable row shape. Set, get-or-set, and delete land only under the fence.
@@ -451,7 +454,7 @@ internal static class CheckpointSlot
     )
     {
         EnsureWritable(payload);
-        return Run(store, AccessCheckpointAction.Set, fence, kind, name, payload, ct);
+        return Run(store, AccessJobCheckpointAction.Set, fence, kind, name, payload, ct);
     }
 
     public static async Task<CheckpointValue?> GetAsync(
@@ -462,7 +465,7 @@ internal static class CheckpointSlot
         CancellationToken ct
     )
     {
-        var row = await Run(store, AccessCheckpointAction.Get, fence, kind, name, null, ct);
+        var row = await Run(store, AccessJobCheckpointAction.Get, fence, kind, name, null, ct);
         return row.Found == 0 ? null : ToValue(row);
     }
 
@@ -476,9 +479,9 @@ internal static class CheckpointSlot
     )
     {
         EnsureWritable(payload);
-        var row = await Run(store, AccessCheckpointAction.GetOrSet, fence, kind, name, payload, ct);
+        var row = await Run(store, AccessJobCheckpointAction.GetOrSet, fence, kind, name, payload, ct);
         return row.Found == 0
-            ? throw new InvalidOperationException("access_checkpoint get-or-set returned no stored value.")
+            ? throw new InvalidOperationException("access_job_checkpoint get-or-set returned no stored value.")
             : ToValue(row);
     }
 
@@ -488,7 +491,7 @@ internal static class CheckpointSlot
         CheckpointKindCode kind,
         string name,
         CancellationToken ct
-    ) => (await Run(store, AccessCheckpointAction.Exists, fence, kind, name, null, ct)).Found != 0;
+    ) => (await Run(store, AccessJobCheckpointAction.Exists, fence, kind, name, null, ct)).Found != 0;
 
     public static async Task<bool> DeleteAsync(
         ExecutionOperations store,
@@ -496,7 +499,7 @@ internal static class CheckpointSlot
         CheckpointKindCode kind,
         string name,
         CancellationToken ct
-    ) => (await Run(store, AccessCheckpointAction.Delete, fence, kind, name, null, ct)).Found != 0;
+    ) => (await Run(store, AccessJobCheckpointAction.Delete, fence, kind, name, null, ct)).Found != 0;
 
     // A variable value must carry a real payload: a non-None format with a non-zero id.
     private static void EnsureWritable(JobPayload payload)
@@ -507,24 +510,24 @@ internal static class CheckpointSlot
         }
     }
 
-    private static Task<AccessCheckpointResponse> Run(
+    private static Task<AccessJobCheckpointResponse> Run(
         ExecutionOperations store,
-        AccessCheckpointAction action,
+        AccessJobCheckpointAction action,
         ExecutionFence fence,
         CheckpointKindCode kind,
         string name,
         JobPayload? payload,
         CancellationToken ct
     ) =>
-        store.AccessCheckpointAsync(
-            new AccessCheckpointCommand(action, fence, kind, name, payload?.Format.Id ?? 0, payload?.Data.ToArray()),
+        store.AccessJobCheckpointAsync(
+            new AccessJobCheckpointCommand(action, fence, kind, name, payload?.Format.Id ?? 0, payload?.Data.ToArray()),
             ct
         );
 
-    private static CheckpointValue ToValue(AccessCheckpointResponse row)
+    private static CheckpointValue ToValue(AccessJobCheckpointResponse row)
     {
         return row.ValueFormatId is not { } format || row.Value is not { } value || row.Version is not { } version
-            ? throw new InvalidOperationException("access_checkpoint returned a found slot with NULL value columns.")
+            ? throw new InvalidOperationException("access_job_checkpoint returned a found slot with NULL value columns.")
             : new CheckpointValue(format, value, version);
     }
 }

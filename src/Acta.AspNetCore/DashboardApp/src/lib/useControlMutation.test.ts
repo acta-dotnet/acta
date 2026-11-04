@@ -36,7 +36,7 @@ test('controlRequest maps a 409 with a typed body to the rejected result', async
   const result = await controlRequest(
     'jobs/J1/pause',
     { reasonMessage: null },
-    { action: 'notFound', status: null, version: null },
+    { action: 'not-found', status: null, version: null },
     'POST'
   );
 
@@ -46,7 +46,7 @@ test('controlRequest maps a 409 with a typed body to the rejected result', async
 test('controlRequest maps a 404 with no body to the caller-supplied not-found fallback', async () => {
   globalThis.fetch = (async () => new Response(null, { status: 404 })) as typeof fetch;
 
-  const notFound = { action: 'notFound', status: null, version: null };
+  const notFound = { action: 'not-found', status: null, version: null };
   const result = await controlRequest('jobs/J1/pause', { reasonMessage: null }, notFound, 'POST');
 
   assert.deepEqual(result, notFound);
@@ -59,7 +59,7 @@ test('controlRequest returns the parsed body on 200', async () => {
   const result = await controlRequest(
     'jobs/J1/pause',
     { reasonMessage: null },
-    { action: 'notFound', status: null, version: null },
+    { action: 'not-found', status: null, version: null },
     'POST'
   );
 
@@ -76,7 +76,7 @@ test('controlRequest sends a truly empty body (no bytes) when body is undefined 
   const result = await controlRequest(
     'jobs/J1/signals/retry',
     undefined,
-    { action: 'notFound', status: null, version: null },
+    { action: 'not-found', status: null, version: null },
     'POST'
   );
 
@@ -91,8 +91,8 @@ test('controlRequest maps a 409 with no typed body to the caller-supplied versio
   globalThis.fetch = (async () =>
     new Response(JSON.stringify({ title: 'Version conflict.', detail: 'stale version' }), { status: 409 })) as typeof fetch;
 
-  const versionConflict = { action: 'versionConflict', version: null };
-  const result = await controlRequest('tenants/t1', { expectedVersion: 1 }, { action: 'notFound', version: null }, 'PATCH', versionConflict);
+  const versionConflict = { action: 'version-conflict', version: null };
+  const result = await controlRequest('tenants/t1', { expectedVersion: 1 }, { action: 'not-found', version: null }, 'PATCH', versionConflict);
 
   assert.deepEqual(result, versionConflict);
 });
@@ -102,7 +102,7 @@ test('controlRequest still throws on a 409 with no typed body when no versionCon
     new Response(JSON.stringify({ title: 'Version conflict.', detail: 'stale version' }), { status: 409 })) as typeof fetch;
 
   await assert.rejects(
-    () => controlRequest('tenants/t1', { expectedVersion: 1 }, { action: 'notFound', version: null }, 'PATCH'),
+    () => controlRequest('tenants/t1', { expectedVersion: 1 }, { action: 'not-found', version: null }, 'PATCH'),
     /stale version/
   );
 });
@@ -116,7 +116,7 @@ test('controlRequest throws with the problem detail on an unmapped status', asyn
       controlRequest(
         'jobs/J1/pause',
         { reasonMessage: null },
-        { action: 'notFound', status: null, version: null },
+        { action: 'not-found', status: null, version: null },
         'POST'
       ),
     /Controls are disabled on this host\./

@@ -60,7 +60,7 @@ public sealed class CalendarEndpointTests
         var ct = TestContext.Current.CancellationToken;
 
         var response = await client.GetAsync(
-            $"{Prefix}?jobNamespace=billing&role=availability&nameSearch=hours&pageSize=5&includeTotal=true",
+            $"{Prefix}?jobNamespace=billing&role=availability&nameContains=hours&pageSize=5&includeTotal=true",
             ct
         );
 
@@ -317,14 +317,14 @@ public sealed class CalendarEndpointTests
         var body = await response.Content.ReadAsStringAsync(ct);
 
         Assert.Equal(HttpStatusCode.Conflict, response.StatusCode);
-        Assert.Contains("\"action\":\"versionConflict\"", body);
+        Assert.Contains("\"action\":\"version-conflict\"", body);
         Assert.Contains("\"version\":1", body);
     }
 
     [Theory]
     [InlineData("office-hours", HttpStatusCode.OK, "applied")]
     [InlineData("rejected", HttpStatusCode.Conflict, "rejected")]
-    [InlineData("missing", HttpStatusCode.NotFound, "notFound")]
+    [InlineData("missing", HttpStatusCode.NotFound, "not-found")]
     public async Task An_archive_maps_its_outcome(string calendarName, HttpStatusCode status, string action)
     {
         var fakes = new FakeOperations();

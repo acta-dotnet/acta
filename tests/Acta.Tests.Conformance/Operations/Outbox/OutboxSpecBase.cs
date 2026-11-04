@@ -58,7 +58,7 @@ public abstract class OutboxSpecBase : ActaTestBase<ConformanceFixture>
         };
 
     private protected async Task<IReadOnlyList<ClaimOutboxRow>> ClaimAsync(Guid token, int batchSize, CancellationToken ct) =>
-        (await Store.ClaimDueAsync(new ClaimOutboxCommand(token, batchSize, LeaseTtlSeconds), ct)).Rows;
+        (await Store.ClaimAsync(new ClaimOutboxCommand(token, batchSize, LeaseTtlSeconds), ct)).Rows;
 
     // Seed one due row and claim it, returning its id and the owning token for a finalize proof.
     private protected async Task<(Guid Id, Guid Token)> SeedAndClaimAsync(string dedup, CancellationToken ct)

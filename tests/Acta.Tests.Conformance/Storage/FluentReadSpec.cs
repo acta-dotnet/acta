@@ -84,7 +84,7 @@ public sealed class FluentReadSpec : ActaRuntimeTestBase<ConformanceFixture, Tes
 
         var deduplicationKey = Unique("fluent-read");
         _ = Services.GetRequiredService<ISqlDialect>();
-        await EnqueueTestOps.EnqueueBatchAsync(
+        await EnqueueTestOps.EnqueueJobsAsync(
             Services,
             [
                 new JobEnqueueValues(

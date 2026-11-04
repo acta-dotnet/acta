@@ -12,6 +12,30 @@ Not tagged yet.
 
 **The outbox table's script moved to each provider's migrations class**: `PostgresOutboxDdl.CreateScript()`, `SqlServerOutboxDdl.CreateScript()`, and `SqliteOutboxDdl.CreateScript()` are `PostgresMigrations.CreateOutboxScript()`, `SqlServerMigrations.CreateOutboxScript()`, and `SqliteMigrations.CreateOutboxScript()`, with the same arguments and the same script.
 
+**Operations follow one naming convention, and their public types follow them.** An operation is a verb and its subject, a facade method is that name without the facade's noun, and a part of an aggregate names the aggregate. The renames:
+
+- `SetDefinitionOverridesResponse` is `UpdateDefinitionOverridesResponse`, as `IDefinitions.UpdateOverridesAsync` already said.
+- `GetJobExplanationResponse` is `ExplainJobResponse`, as `IJobs.ExplainAsync` already said, and its parts `GetJobExplanationWait`, `GetJobExplanationLease`, `GetJobExplanationStep`, and `GetJobExplanationAction` are `ExplainJobWait`, `ExplainJobLease`, `ExplainJobStep`, and `ExplainJobAction`.
+- `GetResultResponse` is `GetJobResultResponse`; `IJobs.GetResultAsync` keeps its name.
+- `GetCheckpointsResponse` and `GetCheckpointsItem` are `GetJobCheckpointsResponse` and `GetJobCheckpointsItem`; `IJobs.GetCheckpointsAsync` keeps its name.
+- `IJobs.GetJobIdAsync` is `IJobs.GetIdAsync`.
+- `IJobs.UpdateJobInputAsync` is `IJobs.UpdateInputAsync`.
+- `IJobs.EnqueueBatchAsync` is `IJobs.EnqueueJobsAsync`, both overloads, as its `EnqueueJobsResponse` already said.
+- `RaiseSignalResponse` is `RaiseJobSignalResponse`; `IJobs.RaiseSignalAsync` keeps its name.
+- `UpsertTagsResponse` is `UpsertTagResponse`, since `ITags.UpsertAsync` writes one tag.
+- `RemoveTagsResponse` is `RemoveTagResponse`, since `ITags.RemoveAsync` removes one tag.
+- In the OpenAPI document the schema `GetJobInputBodyResponse` is `JobPayloadBody`: it is the shape of every payload on the wire, a job's input, its result, and a checkpoint's value alike.
+- In the OpenAPI document the request schema `SetDefinitionOverridesRequest` is `UpdateDefinitionOverridesRequest` and `TriggerScheduleNowRequest` is `TriggerScheduleRequest`, and `UpsertJobTagsRequest`, `UpsertNamespaceTagsRequest`, `UpsertTenantTagsRequest`, and `UpsertDefinitionTagsRequest` are `UpsertJobTagRequest`, `UpsertNamespaceTagRequest`, `UpsertTenantTagRequest`, and `UpsertDefinitionTagRequest`, since each carries one tag.
+- `ISchedules.TriggerNowAsync` is `ISchedules.TriggerAsync`, and `TriggerScheduleNowResponse` is `TriggerScheduleResponse`; the `/trigger` route and the `schedule.triggered` event keep their names.
+- `ListOutboxQuarantinedQuery`, `ListOutboxQuarantinedResponse`, and `ListOutboxQuarantinedItem` are `ListQuarantinedOutboxQuery`, `ListQuarantinedOutboxResponse`, and `ListQuarantinedOutboxItem`, as `IOutbox.ListQuarantinedAsync` already said.
+- `IJobs.GetInputTemplate` is `IDefinitions.GetInputTemplate` and `GetInputTemplateResponse` is `GetDefinitionInputTemplateResponse`, since it reads a definition's input contract; its route `GET /jobs/input-template?jobNamespace=&jobName=` is `GET /definitions/{jobNamespace}/{jobName}/input-template`.
+- `GET /capabilities` answers the Acta package version as `engineVersion`, not `version`, as a worker already reports it.
+- The calendars list filter `nameSearch` is `nameContains`, and `ListCalendarsQuery.NameSearch` is `NameContains`, as the namespaces, tenants, and definitions lists already call theirs.
+- A control response's `action` is kebab-case, as every other wire code is: `not-found`, `version-conflict`, and `already-in-state` replace `notFound`, `versionConflict`, and `alreadyInState`; `applied`, `rejected`, `accepted`, and the enqueue actions `inserted` and `deduplicated` are unchanged.
+- The `reasonCode` on an enqueue's 409 problem is kebab-case, such as `route-unknown` for `EnqueueRejectionReason.RouteUnknown`, not the C# member name.
+- The jobs CLI's `--json` output writes a job status, a checkpoint kind, and a step status as their codes (`paused`, `signal`), and an action and the `debug` run verdict kebab-case (`not-found`, `rearmed`), as the HTTP API does; the plain-text output is unchanged.
+- The jobs CLI's `--json` output names a job's namespace and name `jobNamespace` and `jobName` (`info`, `explain`) and a creation instant `createdAtUtc` (`info`, `events`), not `namespace`, `name`, and `createdUtc`, as every other surface does; the plain-text output is unchanged.
+
 ### Additions
 
 - **`<app> jobs migrate` applies Acta's migrations from a deploy step.** It runs the app with its own provider options, so it migrates the connection string and schema the workers use, prints each migration it applied or that the schema is up to date, and exits 0 or 1. It never creates a PostgreSQL or SQL Server database and never touches an outbox table. See [Migration ownership](operator-guide.md#migration-ownership).

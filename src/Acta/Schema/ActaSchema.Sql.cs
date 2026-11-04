@@ -5,7 +5,7 @@ internal static partial class ActaSchema
     internal static partial class Sql
     {
         /// <summary>
-        /// access_checkpoint dispatch discriminator (AccessCheckpointAction); never persisted.
+        /// access_job_checkpoint dispatch discriminator (AccessJobCheckpointAction); never persisted.
         /// </summary>
         public static readonly DbValueSpec<short> SlotAction = new("p_action", DbKind.Int16);
 
@@ -18,7 +18,7 @@ internal static partial class ActaSchema
         public static readonly DbValueSpec<string?> TenantNameFilter = new("p_tenant_name", DbKind.AsciiString, 128);
 
         /// <summary>
-        /// start_step at-most-once switch: when true, a re-entered pending step is terminalized
+        /// start_job_step at-most-once switch: when true, a re-entered pending step is terminalized
         /// Interrupted rather than re-invoked. Passed in each call; never persisted on the row.
         /// </summary>
         public static readonly DbValueSpec<bool> AtMostOnce = new("p_at_most_once", DbKind.Boolean);
@@ -82,7 +82,7 @@ internal static partial class ActaSchema
         public static readonly DbValueSpec<bool> Draining = new("p_draining", DbKind.Boolean);
 
         /// <summary>
-        /// arm_or_consume_sleep_timer: the wait length / absolute resume instant the routine resolves to
+        /// arm_or_consume_job_sleep_timer: the wait length / absolute resume instant the routine resolves to
         /// a stored due_at_utc under a job-level lock.
         /// </summary>
         public static readonly DbValueSpec<int?> SleepDelaySeconds = new("p_delay_seconds", DbKind.Int32);
@@ -90,14 +90,14 @@ internal static partial class ActaSchema
         public static readonly DbValueSpec<DateTime?> SleepResumeAtUtc = new("p_resume_at_utc", DbKind.UtcInstant);
 
         /// <summary>
-        /// wait_signal: the bounded wait's length in DB-clock seconds, resolved to the slot's absolute
+        /// wait_job_signal: the bounded wait's length in DB-clock seconds, resolved to the slot's absolute
         /// due_at_utc only when the Pending row is first inserted. Null arms an unbounded wait, and a
         /// re-entry never re-reads it, which is what makes replay unable to extend the expiration.
         /// </summary>
         public static readonly DbValueSpec<int?> WaitTimeoutSeconds = new("p_timeout_seconds", DbKind.Int32);
 
         /// <summary>
-        /// wait_signal: the bound as an instant, a group's stored deadline, armed exactly instead of a length. A slot
+        /// wait_job_signal: the bound as an instant, a group's stored deadline, armed exactly instead of a length. A slot
         /// first armed at or past it is stored Expired and the wait times out at once.
         /// </summary>
         public static readonly DbValueSpec<DateTime?> WaitDueAtUtc = new("p_due_at_utc", DbKind.UtcInstant);

@@ -344,7 +344,7 @@ public sealed class ExecutionFenceSpec : ActaRuntimeTestBase<ConformanceFixture,
             ct: ct
         );
         Assert.Equal(EnqueueJobAction.Inserted, child.Action);
-        Assert.Equal(child.JobId, Assert.Single((await Execution.GetChildJobIdsAsync(current.Claim.JobId, ct)).ChildJobIds));
+        Assert.Equal(child.JobId, Assert.Single((await Execution.ListChildJobIdsAsync(current.Claim.JobId, ct)).ChildJobIds));
         await AssertCompletionAcceptedAsync(current, ct);
     }
 
@@ -564,7 +564,7 @@ public sealed class ExecutionFenceSpec : ActaRuntimeTestBase<ConformanceFixture,
     {
         var checkpoints = await Db.From<CheckpointEntity>().Where(c => c.JobId == jobId).ToListAsync(ct);
         var steps = await Db.From<StepEntity>().Where(s => s.JobId == jobId).ToListAsync(ct);
-        var children = (await Execution.GetChildJobIdsAsync(jobId, ct)).ChildJobIds;
+        var children = (await Execution.ListChildJobIdsAsync(jobId, ct)).ChildJobIds;
         var notes = await NotesAsync(jobId, ct);
         var state = await ReadStateAsync(jobId, ct);
         List<string> lines =

@@ -145,7 +145,7 @@ internal sealed class AlertsJob(
         for (var batch = 0; batch < Drain.MaxBatches; batch++)
         {
             var events = (
-                await _alerts.GetAlertableEventsAsync(ctx.NamespaceId, cursorUtc, cursorId, Drain.BatchSize, horizonUtc, ct)
+                await _alerts.ListAlertableEventsAsync(ctx.NamespaceId, cursorUtc, cursorId, Drain.BatchSize, horizonUtc, ct)
             ).Events;
 
             foreach (var e in events)
@@ -232,7 +232,7 @@ internal sealed class AlertsJob(
             return;
         }
 
-        var events = (await _alerts.GetPoisonAlertEventsAsync(ctx.NamespaceId, poisonJson, ct)).Events;
+        var events = (await _alerts.ListPoisonAlertEventsAsync(ctx.NamespaceId, poisonJson, ct)).Events;
         var held = events.Select(e => e.EventId).ToHashSet();
         foreach (var gone in floor.Poison.Where(skip => !held.Contains(skip.EventId)))
         {

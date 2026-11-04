@@ -19,7 +19,7 @@ public sealed class JobDepthReadTests
         await using var host = app;
 
         var response = await client.GetAsync(
-            "/acta/api/v1/jobs/input-template?jobNamespace=billing&jobName=send-invoice",
+            "/acta/api/v1/definitions/billing/send-invoice/input-template",
             TestContext.Current.CancellationToken
         );
 

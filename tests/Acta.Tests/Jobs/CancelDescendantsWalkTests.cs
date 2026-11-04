@@ -33,11 +33,11 @@ public sealed class CancelDescendantsWalkTests
                             1,
                             false
                         );
-                    case "RaiseSignal":
+                    case "RaiseJobSignal":
                         latching.TrySetResult();
                         await resume.Task.WaitAsync(token);
-                        return new RaiseSignalRow(ControlAction.Applied, JobStatusCode.Ready);
-                    case "GetChildJobIds":
+                        return new RaiseJobSignalRow(ControlAction.Applied, JobStatusCode.Ready);
+                    case "ListChildJobIds":
                         var parent = call.Get(ActaSchema.Job.ParentJobId);
                         if (parent == 3)
                         {

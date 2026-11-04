@@ -95,7 +95,7 @@ public sealed class TransactionalEnqueueSmokeSpec : ActaRuntimeTestBase<Conforma
             {
                 await InsertBusinessRowAsync(conn, tx, probe, committedMarker, ct);
                 var outcomes = (
-                    await Jobs.EnqueueBatchAsync(
+                    await Jobs.EnqueueJobsAsync(
                         tx,
                         [
                             Request("add-numbers", new AddNumbers(1, 1), committedKeys[0]),
@@ -124,7 +124,7 @@ public sealed class TransactionalEnqueueSmokeSpec : ActaRuntimeTestBase<Conforma
             async tx =>
             {
                 await InsertBusinessRowAsync(conn, tx, probe, rolledBackMarker, ct);
-                await Jobs.EnqueueBatchAsync(
+                await Jobs.EnqueueJobsAsync(
                     tx,
                     [
                         Request("add-numbers", new AddNumbers(3, 3), rolledBackKeys[0]),

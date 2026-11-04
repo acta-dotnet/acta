@@ -39,8 +39,8 @@ public class CliOutputTests
         var text = w.ToString();
         Assert.Contains($"\"jobRef\":\"{SampleJobRef}\"", text);
         Assert.DoesNotContain("\"jobId\"", text);
-        Assert.Contains("\"action\":\"Applied\"", text);
-        Assert.Contains("\"status\":\"Paused\"", text);
+        Assert.Contains("\"action\":\"applied\"", text);
+        Assert.Contains("\"status\":\"paused\"", text);
     }
 
     [Fact]
@@ -87,6 +87,17 @@ public class CliOutputTests
         Assert.Contains("namespace: shop", text);
         Assert.Contains("name: send-email", text);
         Assert.Contains("status: Ready", text);
+    }
+
+    [Fact]
+    public void Snapshot_json_names_the_job_and_its_instant_as_every_surface_does()
+    {
+        var w = new StringWriter();
+        CliOutput.WriteSnapshot(w, Snapshot(JobStatusCode.Ready, tenantId: null), json: true);
+        var text = w.ToString();
+        Assert.Contains("\"jobNamespace\":\"shop\"", text);
+        Assert.Contains("\"jobName\":\"send-email\"", text);
+        Assert.Contains("\"createdAtUtc\":\"2026-06-11T08:00:00.0000000Z\"", text);
     }
 
     [Fact]
@@ -229,6 +240,7 @@ public class CliOutputTests
         var text = w.ToString();
 
         Assert.Contains($"\"jobRef\":\"{SampleJobRef}\"", text);
+        Assert.Contains("\"createdAtUtc\":\"2026-06-21T12:30:01.0000000Z\"", text);
         Assert.Contains("\"event\":\"job.failed\"", text);
         Assert.Contains("\"message\":\"boom\"", text);
         Assert.Contains("\"detailsText\":", text);
@@ -277,7 +289,7 @@ public class CliOutputTests
         Assert.Contains("events: run 'jobs events", w.ToString());
     }
 
-    private static GetJobExplanationResponse Explanation() =>
+    private static ExplainJobResponse Explanation() =>
         new(
             JobId: 4821,
             JobRef: SampleJobRef,
@@ -286,15 +298,15 @@ public class CliOutputTests
             Status: JobStatusCode.Suspended,
             StatusMeaning: JobStatusCode.Suspended.Description,
             Headline: "Suspended, waiting for signal \"fraud-review\".",
-            ActiveWait: new GetJobExplanationWait(CheckpointKindCode.Signal, "fraud-review", null),
+            ActiveWait: new ExplainJobWait(CheckpointKindCode.Signal, "fraud-review", null),
             Lease: null,
             LastExecutedBy: "payments-v42",
-            Steps: [new GetJobExplanationStep("reserve-stock", StepStatusCode.Succeeded, "succeeded and will not rerun")],
+            Steps: [new ExplainJobStep("reserve-stock", StepStatusCode.Succeeded, "succeeded and will not rerun")],
             Reason: null,
             NextActions:
             [
-                new GetJobExplanationAction("raise-signal", "raise signal \"fraud-review\""),
-                new GetJobExplanationAction("cancel", "cancel the job"),
+                new ExplainJobAction("raise-signal", "raise signal \"fraud-review\""),
+                new ExplainJobAction("cancel", "cancel the job"),
             ]
         );
 
@@ -320,7 +332,7 @@ public class CliOutputTests
     public void Explanation_plain_writes_reason_worker_recovery_and_next_actions()
     {
         var w = new StringWriter();
-        var explanation = new GetJobExplanationResponse(
+        var explanation = new ExplainJobResponse(
             JobId: 4821,
             JobRef: JobRef.New(),
             JobNamespace: "payments",
@@ -329,7 +341,7 @@ public class CliOutputTests
             StatusMeaning: JobStatusCode.Executing.Description,
             Headline: "Executing, but its lease expired 2m ago.",
             ActiveWait: null,
-            Lease: new GetJobExplanationLease(
+            Lease: new ExplainJobLease(
                 WorkerId: 17,
                 WorkerName: "payments-v42",
                 ExpiresAtUtc: new DateTime(2026, 7, 4, 11, 58, 0, DateTimeKind.Utc),
@@ -344,8 +356,8 @@ public class CliOutputTests
             Reason: "worker shutdown",
             NextActions:
             [
-                new GetJobExplanationAction("wait-recovery", "wait for crash recovery to reclaim the job on its next pass"),
-                new GetJobExplanationAction("cancel", "cancel the job if it should not continue"),
+                new ExplainJobAction("wait-recovery", "wait for crash recovery to reclaim the job on its next pass"),
+                new ExplainJobAction("cancel", "cancel the job if it should not continue"),
             ]
         );
 
@@ -367,7 +379,7 @@ public class CliOutputTests
     public void Explanation_plain_writes_timer_wait_as_executor_free_durable_work()
     {
         var w = new StringWriter();
-        var explanation = new GetJobExplanationResponse(
+        var explanation = new ExplainJobResponse(
             JobId: 4821,
             JobRef: JobRef.New(),
             JobNamespace: "emails",
@@ -375,16 +387,12 @@ public class CliOutputTests
             Status: JobStatusCode.Suspended,
             StatusMeaning: JobStatusCode.Suspended.Description,
             Headline: "Suspended on durable sleep \"cool-down\", due in 12m.",
-            ActiveWait: new GetJobExplanationWait(
-                CheckpointKindCode.Timer,
-                "cool-down",
-                new DateTime(2026, 7, 4, 12, 12, 0, DateTimeKind.Utc)
-            ),
+            ActiveWait: new ExplainJobWait(CheckpointKindCode.Timer, "cool-down", new DateTime(2026, 7, 4, 12, 12, 0, DateTimeKind.Utc)),
             Lease: null,
             LastExecutedBy: null,
             Steps: [],
             Reason: null,
-            NextActions: [new GetJobExplanationAction("none", "no action needed - it resumes when the timer is due")]
+            NextActions: [new ExplainJobAction("none", "no action needed - it resumes when the timer is due")]
         );
 
         CliOutput.WriteExplanation(w, explanation, json: false);
@@ -407,10 +415,12 @@ public class CliOutputTests
 
         Assert.Contains($"\"jobRef\":\"{SampleJobRef}\"", text);
         Assert.DoesNotContain("\"jobId\"", text);
-        Assert.Contains("\"status\":\"Suspended\"", text);
+        Assert.Contains("\"jobNamespace\":\"payments\"", text);
+        Assert.Contains("\"jobName\":\"checkout\"", text);
+        Assert.Contains("\"status\":\"suspended\"", text);
         Assert.Contains("\"headline\":", text);
         Assert.Contains("\"activeWait\":", text);
-        Assert.Contains("\"kind\":\"Signal\"", text);
+        Assert.Contains("\"kind\":\"signal\"", text);
         Assert.Contains("\"nextActions\":", text);
         Assert.Contains("\"kind\":\"raise-signal\"", text);
     }
@@ -470,7 +480,7 @@ public class CliOutputTests
 
         var json = new StringWriter();
         CliOutput.WriteDebugRun(json, SampleJobRef, "Rearmed", null, json: true);
-        Assert.Contains("\"run\":\"Rearmed\"", json.ToString());
+        Assert.Contains("\"run\":\"rearmed\"", json.ToString());
         Assert.Contains("\"status\":null", json.ToString());
     }
 
@@ -685,7 +695,7 @@ public class CliOutputTests
             TotalCount: null
         );
 
-    private static GetJobExplanationResponse SentinelExplanation() =>
+    private static ExplainJobResponse SentinelExplanation() =>
         new(
             JobId: SentinelJobId,
             JobRef: SampleJobRef,
@@ -695,7 +705,7 @@ public class CliOutputTests
             StatusMeaning: JobStatusCode.Executing.Description,
             Headline: "Executing, but its lease expired 2m ago.",
             ActiveWait: null,
-            Lease: new GetJobExplanationLease(
+            Lease: new ExplainJobLease(
                 WorkerId: SentinelWorkerId,
                 WorkerName: null,
                 ExpiresAtUtc: new DateTime(2026, 7, 4, 11, 58, 0, DateTimeKind.Utc),
@@ -706,8 +716,8 @@ public class CliOutputTests
                 WorkerRef: SentinelWorkerRef
             ),
             LastExecutedBy: null,
-            Steps: [new GetJobExplanationStep("reserve-stock", StepStatusCode.Succeeded, "succeeded and will not rerun")],
+            Steps: [new ExplainJobStep("reserve-stock", StepStatusCode.Succeeded, "succeeded and will not rerun")],
             Reason: "worker shutdown",
-            NextActions: [new GetJobExplanationAction("cancel", "cancel the job")]
+            NextActions: [new ExplainJobAction("cancel", "cancel the job")]
         );
 }

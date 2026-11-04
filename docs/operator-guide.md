@@ -202,7 +202,7 @@ rejected while the schedule is at `MaxOutstanding`.
 ```csharp
 var nightly = new ScheduleLookup("billing", "reconcile-ledger", "nightly");
 
-await operations.Schedules.TriggerNowAsync(nightly, reasonMessage: "validate repaired upstream");
+await operations.Schedules.TriggerAsync(nightly, reasonMessage: "validate repaired upstream");
 await operations.Schedules.PauseAsync(nightly, untilUtc: maintenanceEndsUtc, reasonMessage: "maintenance");
 await operations.Schedules.ResumeAsync(nightly, reasonMessage: "maintenance complete");
 ```
@@ -279,7 +279,7 @@ await operations.Namespaces.ResumeAsync("billing");
 await operations.Namespaces.UpdateAsync("billing", ownerTeam: "payments", description: null, expectedVersion: version);
 ```
 
-Suspend/resume are idempotent (already-in-state succeeds as a no-op, reported as alreadyInState, with no event); metadata updates are
+Suspend/resume are idempotent (already-in-state succeeds as a no-op, reported as already-in-state, with no event); metadata updates are
 version-CAS guarded, a stale `version` returns a conflict with the current row state instead of writing.
 Tenant metadata is `displayName` + `description`; namespace metadata is `ownerTeam` + `description`
 (namespaces have no display name). Null clears a field. The seeded `sys` namespace cannot be suspended or
@@ -302,7 +302,7 @@ An enqueue that trips a tenant or namespace guard throws a typed `EnqueueRejecte
 `RouteUnknown` (no definition by that namespace and name), `DefinitionRetired`, `AncestorLane` (a child
 in the lane of an unfinished ancestor), and `LaneIsolation` (a laned enqueue inside a caller
 transaction whose isolation reads a snapshot older than the lane lock). Guard-wrapped HTTP handlers
-map it to 409 with the reason in the ProblemDetails. A missing or terminal parent still surfaces as a
+map it to 409 with the reason in the ProblemDetails `reasonCode`, kebab-case (`route-unknown`). A missing or terminal parent still surfaces as a
 raw provider error. The same guards apply when the external outbox relays a record: a record that trips one
 (for example a Required definition staged without a tenant) lands in the outbox failure path
 instead of enqueuing.
@@ -497,7 +497,7 @@ In production a deploy step applies Acta's migrations, never application startup
 
 ```
 $ ConnectionStrings__acta="<DDL login>" dotnet MyApp.dll jobs migrate
-applied M20261104070741_init to schema acta
+applied M20261105115841_init to schema acta
 ```
 
 - A second run prints `schema acta is up to date`. It exits 0, or 1 with the database's error; `--json` prints `{"schema":"acta","applied":[...]}`.
@@ -1102,7 +1102,7 @@ If a producer staged an `acta_outbox` row and no Acta job appeared, check the re
   `/discard`, or the dashboard's outbox panel; the
   [quarantine SQL recipes](#quarantined-outbox-rows) are the unaudited fallback. Recoverable rejections (for example
   an unknown route) quarantine after the failure threshold; malformed or oversize rows quarantine at once.
-- Resolve the resulting job by `(namespace, deduplication key)` with `IJobs.GetJobIdAsync`; a null
+- Resolve the resulting job by `(namespace, deduplication key)` with `IJobs.GetIdAsync`; a null
   result means the request has not been relayed yet, not that it was lost.
 
 Background: [Transactional enqueue and the external outbox](./developer-guide.md#transactional-enqueue-and-the-external-outbox).

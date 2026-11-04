@@ -109,7 +109,7 @@ internal sealed class JobEntity : IEntity<long>
     // ---------- Caller keys ----------
 
     /// <summary>
-    /// Deduplication key on enqueue and a stable address for <c>IJobs.GetJobIdAsync</c>, compared exactly; user keys
+    /// Deduplication key on enqueue and a stable address for <c>IJobs.GetIdAsync</c>, compared exactly; user keys
     /// cannot start with <c>"sys."</c> in any case. Root jobs are unique per namespace (<c>ux_jobs_deduplication_key_root</c>) and children per direct
     /// parent (<c>ux_jobs_deduplication_key_child</c>). A recurring job's permanent slot carries no key, so an
     /// ordinary job keyed by the job's name is unrelated to it; a per-occurrence root carries

@@ -76,4 +76,4 @@ artifacts. Prefer the dashboard for broad visual triage and automation APIs for 
 - [The persisted-debugging Engineering Lab](../../../docs/engineering-labs.md)
 - [`jobs-cli.cs`](./jobs-cli.cs)
 - [`CliCommandRunner.cs`](../../../src/Acta/Cli/CliCommandRunner.cs)
-- [`GetJobExplanationHandler.cs`](../../../src/Acta/Operations/Jobs/GetJobExplanation/GetJobExplanationHandler.cs)
+- [`ExplainJobHandler.cs`](../../../src/Acta/Operations/Jobs/ExplainJob/ExplainJobHandler.cs)

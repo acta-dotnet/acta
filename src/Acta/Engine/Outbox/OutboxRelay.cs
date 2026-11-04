@@ -10,7 +10,7 @@ namespace Acta;
 /// batches, coalesce duplicate handoffs, enqueue representatives through the owned batch path, then
 /// finalize under the claim token. Retry, per-group rejection isolation, quarantine, and the single
 /// bounded tick summary all live here; the source is the injected <see cref="OutboxOperations.Source"/> and the target is
-/// the owned batch enqueue, <see cref="IJobs.EnqueueBatchAsync(IReadOnlyList{EnqueueJobRequest}, CancellationToken)"/>.
+/// the owned batch enqueue, <see cref="IJobs.EnqueueJobsAsync(IReadOnlyList{EnqueueJobRequest}, CancellationToken)"/>.
 /// </summary>
 internal sealed class OutboxRelay(OutboxOperations.Source source, JobsOperations jobs, ILogger<OutboxRelay>? log = null)
 {
@@ -223,7 +223,7 @@ internal sealed class OutboxRelay(OutboxOperations.Source source, JobsOperations
 
         while (budget.Remaining > 0)
         {
-            var claimed = (await source.ClaimDueAsync(new ClaimOutboxCommand(token, BatchSize, options.LeaseTtlSeconds), ct)).Rows;
+            var claimed = (await source.ClaimAsync(new ClaimOutboxCommand(token, BatchSize, options.LeaseTtlSeconds), ct)).Rows;
             if (claimed.Count == 0)
             {
                 break;
@@ -488,7 +488,7 @@ internal sealed class OutboxRelay(OutboxOperations.Source source, JobsOperations
 
         try
         {
-            var outcomes = (await jobs.EnqueueBatchAsync(groups.Select(g => g.Request).ToList(), ct)).Jobs;
+            var outcomes = (await jobs.EnqueueJobsAsync(groups.Select(g => g.Request).ToList(), ct)).Jobs;
             // Outcomes align with request order. A representative that Inserted relayed one new job and its
             // coalesced members were absorbed; a Deduplicated representative absorbs the whole group.
             for (var index = 0; index < groups.Count; index++)

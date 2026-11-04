@@ -4,13 +4,14 @@ namespace Acta;
 /// Durable signal slots, as the engine raises and waits on them. The kind is <c>Signal</c> for user signals
 /// and <c>ChildLatch</c> for system child latches; both flow through the same slot machinery.
 /// </summary>
-internal sealed class SignalsOperations(RaiseSignalHandler raiseSignal, WaitSignalHandler waitSignal)
+internal sealed class SignalsOperations(RaiseJobSignalHandler raiseJobSignal, WaitJobSignalHandler waitJobSignal)
 {
     /// <summary>
     /// Upserts the <c>(job_id, kind_code, name)</c> slot to Set, last writer wins, and flips a suspended job to
     /// Ready under the shared checkpoint-then-runtime lock order; a terminal target is rejected unwritten.
     /// </summary>
-    public Task<RaiseSignalResponse> RaiseSignalAsync(RaiseSignalSlot raise, CancellationToken ct) => raiseSignal.RaiseSlotAsync(raise, ct);
+    public Task<RaiseJobSignalResponse> RaiseJobSignalAsync(RaiseJobSignalSlot raise, CancellationToken ct) =>
+        raiseJobSignal.RaiseSlotAsync(raise, ct);
 
     /// <summary>
     /// Reads or arms the slot under a row lock: Set continues with the stored payload, an overdue or Expired
@@ -19,12 +20,12 @@ internal sealed class SignalsOperations(RaiseSignalHandler raiseSignal, WaitSign
     /// absolute expiry only when the slot is first armed; neither arms an unbounded wait. Never changes the job's status,
     /// and changes the slot only while <paramref name="fence"/> holds the job.
     /// </summary>
-    public Task<WaitSignalResponse> WaitSignalAsync(
+    public Task<WaitJobSignalResponse> WaitJobSignalAsync(
         ExecutionFence fence,
         CheckpointKindCode kind,
         string name,
         int? timeoutSeconds,
         DateTime? dueAtUtc,
         CancellationToken ct
-    ) => waitSignal.HandleAsync(new WaitSignalCommand(fence, kind, name, timeoutSeconds, dueAtUtc), ct);
+    ) => waitJobSignal.HandleAsync(new WaitJobSignalCommand(fence, kind, name, timeoutSeconds, dueAtUtc), ct);
 }

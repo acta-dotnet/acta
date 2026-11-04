@@ -44,7 +44,7 @@
   const mutation = useControlMutation<{ verb: 'requeue' | 'discard'; jobNamespace: string; reason?: string }, OutboxControlResponse>({
     path: (vars) => `outbox/${vars.jobNamespace}/${vars.verb}`,
     rawBody: (vars) => ({ reasonMessage: vars.reason?.trim() || null }),
-    notFound: () => ({ action: 'notFound', pendingSinceUtc: null }),
+    notFound: () => ({ action: 'not-found', pendingSinceUtc: null }),
     invalidateKeys: () => [['overview']] as const
   });
   let busy = $derived(mutation.isPending);

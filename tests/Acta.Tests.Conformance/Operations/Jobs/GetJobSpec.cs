@@ -30,7 +30,7 @@ public sealed class GetJobSpec : ActaRuntimeTestBase<ConformanceFixture, TestJob
         var deduplicationKey = Unique("get-job");
         var payload = serializers.Resolve(JobPayloadFormat.Json.Id).Serialize(new AddNumbers(1, 2));
         var results = (
-            await EnqueueTestOps.EnqueueBatchAsync(
+            await EnqueueTestOps.EnqueueJobsAsync(
                 Services,
                 [
                     new JobEnqueueValues(
@@ -78,7 +78,7 @@ public sealed class GetJobSpec : ActaRuntimeTestBase<ConformanceFixture, TestJob
 
         var payload = serializers.Resolve(JobPayloadFormat.Json.Id).Serialize(new AddNumbers(1, 2));
         var results = (
-            await EnqueueTestOps.EnqueueBatchAsync(
+            await EnqueueTestOps.EnqueueJobsAsync(
                 Services,
                 [new JobEnqueueValues(NamespaceName: TestNamespace, JobName: "add-numbers", Input: payload, TenantName: tenantName)],
                 ct

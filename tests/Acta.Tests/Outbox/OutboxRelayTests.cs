@@ -387,7 +387,7 @@ public sealed class OutboxRelayTests
                     "QuarantineOutbox" => Record(Quarantined, Records(call, static r => r.GetProperty("outbox_id").GetGuid())),
                     // The unclaimed remainder plus everything released back stands in for the Pending backlog.
                     "CountOutboxBacklog" => (long)(_due.Count + Released.Count),
-                    "CountOutboxQuarantined" => (long)Quarantined.Count,
+                    "CountQuarantinedOutbox" => (long)Quarantined.Count,
                     _ => throw new NotSupportedException(call.Stem),
                 }
             );

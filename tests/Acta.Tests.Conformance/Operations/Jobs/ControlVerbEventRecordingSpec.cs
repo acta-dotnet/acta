@@ -7,7 +7,7 @@ using Xunit;
 namespace Acta.Tests.Conformance.Operations.Jobs;
 
 /// <summary>
-/// Conformance for control-verb event recording gating: Pause / Resume / Cancel / Restart / RaiseSignal each
+/// Conformance for control-verb event recording gating: Pause / Resume / Cancel / Restart / RaiseJobSignal each
 /// apply their status transition unconditionally but only insert a <c>events</c> row when the
 /// job's <c>event_recording_code</c> is 20 (Audit). Proves POLICY-03 closure across all five verbs.
 /// </summary>
@@ -115,7 +115,7 @@ public sealed class ControlVerbEventRecordingSpec : ActaRuntimeTestBase<Conforma
         Assert.Equal(1, await CountEventsAsync(jobF, EventCode.JobRestarted, ct));
     }
 
-    [Fact(DisplayName = "RaiseSignal upserts the signal unconditionally and emits event only at Audit")]
+    [Fact(DisplayName = "RaiseJobSignal upserts the signal unconditionally and emits event only at Audit")]
     public async Task RaiseSignal_upserts_signal_unconditionally_and_emits_event_only_at_audit()
     {
         var ct = TestContext.Current.CancellationToken;
@@ -128,10 +128,10 @@ public sealed class ControlVerbEventRecordingSpec : ActaRuntimeTestBase<Conforma
 
         var outcomeL = await Services
             .GetRequiredService<SignalsOperations>()
-            .RaiseSignalAsync(new RaiseSignalSlot(jobL, CheckpointKindCode.Signal, "gate", 0, null, input), ct);
+            .RaiseJobSignalAsync(new RaiseJobSignalSlot(jobL, CheckpointKindCode.Signal, "gate", 0, null, input), ct);
         var outcomeF = await Services
             .GetRequiredService<SignalsOperations>()
-            .RaiseSignalAsync(new RaiseSignalSlot(jobF, CheckpointKindCode.Signal, "gate", 0, null, input), ct);
+            .RaiseJobSignalAsync(new RaiseJobSignalSlot(jobF, CheckpointKindCode.Signal, "gate", 0, null, input), ct);
 
         Assert.Equal(ControlAction.Applied, outcomeL.Action);
         Assert.Equal(JobStatusCode.Ready, outcomeL.Status);

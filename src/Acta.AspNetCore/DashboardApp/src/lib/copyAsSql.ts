@@ -126,7 +126,7 @@ export interface SchedulesSqlFilters {
 export interface CalendarsSqlFilters {
   namespace?: string | null;
   role?: string | null;
-  nameSearch?: string | null;
+  nameContains?: string | null;
 }
 
 // calendars_view is one row per version; the dashboard's family list folds them, so the copy orders a
@@ -135,7 +135,7 @@ export function calendarsListSql(filters: CalendarsSqlFilters, dialect: SqlDiale
   const predicates: Predicate[] = [];
   if (text(filters.namespace)) predicates.push({ raw: `namespace_name IN (${sqlLiteral(name(filters.namespace))}, 'sys')` });
   if (text(filters.role)) predicates.push({ column: 'calendar_role', op: '=', value: name(filters.role) });
-  if (text(filters.nameSearch)) predicates.push({ raw: `calendar_name LIKE ${sqlLiteral('%' + name(filters.nameSearch) + '%')}` });
+  if (text(filters.nameContains)) predicates.push({ raw: `calendar_name LIKE ${sqlLiteral('%' + name(filters.nameContains) + '%')}` });
   return select(dialect, 'calendars_view', predicates, 'namespace_name, calendar_name, version DESC');
 }
 

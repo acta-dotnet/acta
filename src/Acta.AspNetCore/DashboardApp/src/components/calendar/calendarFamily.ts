@@ -63,7 +63,7 @@ export function calendarControlMessage(
     if (verb === 'publish') return `Version ${detail.version} published; ${plural(detail.retimed ?? 0, 'schedule')} retimed.`;
     return `Version ${detail.version} archived; the family has no current version.`;
   }
-  if (action === 'versionConflict') return 'The calendar changed since you loaded it (version conflict). Reload and retry.';
+  if (action === 'version-conflict') return 'The calendar changed since you loaded it (version conflict). Reload and retry.';
   if (action === 'rejected') {
     if (verb === 'draft') return 'Draft rejected: the definition has problems.';
     if (verb === 'publish') return `Publish rejected: ${detail.reason ?? 'the version is not a draft.'}`;

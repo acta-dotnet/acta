@@ -10,13 +10,13 @@ namespace Acta.Tests.Execution;
 /// Drives one real attempt end to end through <see cref="WorkerExecutor.ExecuteAsync"/> and
 /// <see cref="WorkerFinalizer.FinalizeAsync"/> over the real execution and lock groups on scripted sessions: the
 /// start CAS, a handler that runs one durable step, and the completion CAS. The script says what
-/// <c>complete_step</c> and <c>complete_executions</c> answer, and the harness
+/// <c>complete_job_step</c> and <c>complete_executions</c> answer, and the harness
 /// keeps every <see cref="BoundCompletion"/> the runner bound plus the subset the scripted CAS applied, so
 /// a test can assert on the completion shape rather than on a database. Reusable for executor unit tests;
 /// add scripted knobs here, not per test.
 /// </summary>
 internal sealed class WorkerExecutorHarness(
-    CompleteStepOutcomeCode stepOutcome = CompleteStepOutcomeCode.Succeeded,
+    CompleteJobStepOutcomeCode stepOutcome = CompleteJobStepOutcomeCode.Succeeded,
     CompleteExecutionsAction completionAction = CompleteExecutionsAction.Completed,
     bool cancelAttemptOnStepCompletion = false,
     int maxAttempts = 3,
@@ -74,7 +74,7 @@ internal sealed class WorkerExecutorHarness(
     /// <summary>The <see cref="System.Diagnostics.Stopwatch"/> timestamp of the scripted mid-wait attempt cancel, once it fired.</summary>
     public long? AttemptCancelledAt { get; private set; }
 
-    /// <summary>Whether the attempt ever reached <c>start_step</c>, i.e. whether the handler ran at all.</summary>
+    /// <summary>Whether the attempt ever reached <c>start_job_step</c>, i.e. whether the handler ran at all.</summary>
     public bool HandlerRan => _store.StartedSteps.Count > 0;
 
     /// <summary>The subset whose completion CAS matched a row; a NotOwner answer writes nothing.</summary>
@@ -98,7 +98,7 @@ internal sealed class WorkerExecutorHarness(
 
     /// <summary>
     /// Runs one attempt. The default handler invokes <c>ctx.RunStepAsync</c> once with a body that
-    /// succeeds, so the scripted <c>complete_step</c> answer is what decides the outcome.
+    /// succeeds, so the scripted <c>complete_job_step</c> answer is what decides the outcome.
     /// </summary>
     public async Task<RunOnceStatus> RunAsync(Func<JobContext, CancellationToken, Task>? handler = null)
     {
@@ -233,7 +233,7 @@ internal sealed class WorkerExecutorHarness(
     // The real execution group over a scripted session. Only the calls one attempt makes are
     // answered; everything else throws so a future change that starts leaning on another call is
     // visible rather than silent.
-    private sealed class ScriptedExecutionStore(CompleteStepOutcomeCode stepOutcome, CompleteExecutionsAction completionAction)
+    private sealed class ScriptedExecutionStore(CompleteJobStepOutcomeCode stepOutcome, CompleteExecutionsAction completionAction)
     {
         private readonly List<BoundCompletion> _submitted = [];
         private readonly List<BoundCompletion> _applied = [];
@@ -249,7 +249,7 @@ internal sealed class WorkerExecutorHarness(
         public IReadOnlyList<BoundCompletion> Applied => _applied;
         public IReadOnlyList<string> StartedSteps => _startedSteps;
 
-        // Fires as complete_step answers, so a test can model the heartbeat cancelling the attempt
+        // Fires as complete_job_step answers, so a test can model the heartbeat cancelling the attempt
         // token the instant the slot is proven stolen.
         public Action? OnStepCompletion { get; set; }
 
@@ -258,19 +258,19 @@ internal sealed class WorkerExecutorHarness(
         private object? Answer(BoundCall call) =>
             call.Stem switch
             {
-                "StartStep" => StartStep(call.Get(ActaSchema.Step.StepName)),
-                "CompleteStep" => CompleteStep(),
+                "StartJobStep" => StartJobStep(call.Get(ActaSchema.Step.StepName)),
+                "CompleteJobStep" => CompleteJobStep(),
                 "CompleteExecutions" => BoundCompletion.Read(call).Select(Complete).ToList(),
                 // The deadline path cancels descendants, and a harness job has none.
-                "GetChildJobIds" => Array.Empty<long>(),
+                "ListChildJobIds" => Array.Empty<long>(),
                 _ => throw new NotSupportedException(call.Stem),
             };
 
-        private StartStepResponse StartStep(string name)
+        private StartJobStepResponse StartJobStep(string name)
         {
             _startedSteps.Add(name);
-            return new StartStepResponse(
-                StartStepOutcomeCode.Invoke,
+            return new StartJobStepResponse(
+                StartJobStepOutcomeCode.Invoke,
                 AttemptNumber: 1,
                 Version: 1,
                 NextRetryAtUtc: null,
@@ -281,10 +281,10 @@ internal sealed class WorkerExecutorHarness(
             );
         }
 
-        private CompleteStepResponse CompleteStep()
+        private CompleteJobStepResponse CompleteJobStep()
         {
             OnStepCompletion?.Invoke();
-            return new CompleteStepResponse(stepOutcome, NextRetryAtUtc: DateTime.UtcNow.AddSeconds(30));
+            return new CompleteJobStepResponse(stepOutcome, NextRetryAtUtc: DateTime.UtcNow.AddSeconds(30));
         }
 
         private CompleteExecutionsRow Complete(BoundCompletion completion)

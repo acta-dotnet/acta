@@ -47,7 +47,7 @@ public sealed class RuntimeJobContextCancellationTests
             ctx.RunStepAsync("cancelled-step", token => Task.FromCanceled(token), ct: callerCts.Token)
         );
 
-        Assert.DoesNotContain(db.Calls, call => call.Stem == "CompleteStep");
+        Assert.DoesNotContain(db.Calls, call => call.Stem == "CompleteJobStep");
     }
 
     // Same as above, but through the positional-ct convenience overload: proves the forwarder
@@ -95,17 +95,17 @@ public sealed class RuntimeJobContextCancellationTests
             ctx.RunStepAsync("cancelled-step", token => Task.FromCanceled(token), callerCts.Token)
         );
 
-        Assert.DoesNotContain(db.Calls, call => call.Stem == "CompleteStep");
+        Assert.DoesNotContain(db.Calls, call => call.Stem == "CompleteJobStep");
     }
 
-    // Only StartStep and CompleteStep are exercised: StartStep yields an Invoke decision so the body
-    // runs, and CompleteStep must never be reached once the caller token is already cancelled.
+    // Only StartJobStep and CompleteJobStep are exercised: StartJobStep yields an Invoke decision so the body
+    // runs, and CompleteJobStep must never be reached once the caller token is already cancelled.
     private static ScriptedSession StepCancellationSession() =>
         new(call =>
             call.Stem switch
             {
-                "StartStep" => new StartStepResponse(
-                    StartStepOutcomeCode.Invoke,
+                "StartJobStep" => new StartJobStepResponse(
+                    StartJobStepOutcomeCode.Invoke,
                     AttemptNumber: 1,
                     Version: 1,
                     NextRetryAtUtc: null,
@@ -114,7 +114,7 @@ public sealed class RuntimeJobContextCancellationTests
                     FailureCode: null,
                     FailureMessage: null
                 ),
-                "CompleteStep" => throw new InvalidOperationException("CompleteStep must not run for caller cancellation."),
+                "CompleteJobStep" => throw new InvalidOperationException("CompleteJobStep must not run for caller cancellation."),
                 _ => throw new NotSupportedException(call.Stem),
             }
         );

@@ -80,7 +80,7 @@ internal class OutboxSourceDialect(ISqlDialect inner) : ISqlDialect
 
     public void BindCompleteExecutions(DbCommand command, CompleteExecutionsCommand request, string schema) => throw NotOutbox();
 
-    public void BindAdmitFirings(DbCommand command, AdmitFiringsCommand request) => throw NotOutbox();
+    public void BindAdmitScheduleFirings(DbCommand command, AdmitScheduleFiringsCommand request) => throw NotOutbox();
 
     public void BindPublishCalendar(DbCommand command, IReadOnlyList<PublishCalendarValues> rows) => throw NotOutbox();
 }

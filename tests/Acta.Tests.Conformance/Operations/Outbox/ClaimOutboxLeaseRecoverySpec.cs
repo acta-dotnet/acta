@@ -13,7 +13,7 @@ namespace Acta.Tests.Conformance.Operations.Outbox;
     "outbox-claim.expired-lease-recovery",
     "A claim recovers an expired lease and reclaims it, leaving a live lease alone",
     Area = "Outbox",
-    Contract = "ClaimDue recovers a Claimed row whose lease expired back to Pending and reclaims it under a new token, but never steals a live lease."
+    Contract = "ClaimOutbox recovers a Claimed row whose lease expired back to Pending and reclaims it under a new token, but never steals a live lease."
 )]
 public sealed class ClaimOutboxLeaseRecoverySpec : OutboxSpecBase
 {

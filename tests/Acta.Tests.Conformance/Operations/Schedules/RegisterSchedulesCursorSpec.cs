@@ -7,7 +7,7 @@ namespace Acta.Tests.Conformance.Operations.Schedules;
 
 /// <summary>
 /// Conformance for the startup schedule-insert path: reading stored cursors, planning them against the declared
-/// schedule, and upserting the result. Mirrors <c>CatalogRegistrar.ReconcileSchedulesAsync</c> (GetScheduleState then
+/// schedule, and upserting the result. Mirrors <c>CatalogRegistrar.ReconcileSchedulesAsync</c> (ListScheduleStates then
 /// ScheduleRegistrationPlan.Plan then RegisterSchedules) and asserts the persisted cursor for every (kind x stored-state)
 /// cell: a missed occurrence is kept for the admitter to decide under the misfire policy, never decided at a start.
 /// </summary>
@@ -115,7 +115,7 @@ public sealed class RegisterSchedulesCursorSpec : ActaStorageTestBase<Conformanc
     )
     {
         var stored = (
-            await Services.GetRequiredService<GetScheduleStateHandler>().HandleAsync(new GetScheduleStateQuery(TestNamespaceId), ct)
+            await Services.GetRequiredService<ListScheduleStatesHandler>().HandleAsync(new ListScheduleStatesQuery(TestNamespaceId), ct)
         ).States;
         var storedForDef = stored.Where(s => s.DefinitionId == defId).ToDictionary(s => s.ScheduleName, s => s, StringComparer.Ordinal);
 

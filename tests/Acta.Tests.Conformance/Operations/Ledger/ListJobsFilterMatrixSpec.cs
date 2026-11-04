@@ -41,7 +41,7 @@ public sealed class ListJobsFilterMatrixSpec : ActaRuntimeTestBase<ConformanceFi
     private async Task<IReadOnlyList<EnqueueJobResponse>> EnqueueAsync(IReadOnlyList<JobEnqueueValues> rows, CancellationToken ct)
     {
         _ = Services.GetRequiredService<ISqlDialect>();
-        return (await EnqueueTestOps.EnqueueBatchAsync(Services, rows, ct)).Jobs;
+        return (await EnqueueTestOps.EnqueueJobsAsync(Services, rows, ct)).Jobs;
     }
 
     [Fact(DisplayName = "Status filter returns only jobs at the specified status and the total matches the filtered count")]
@@ -186,9 +186,9 @@ public sealed class ListJobsFilterMatrixSpec : ActaRuntimeTestBase<ConformanceFi
 
         // Two jobs under T1, one under T2
         var t1Outcomes = (
-            await EnqueueTestOps.EnqueueBatchAsync(Services, [AddNumbersRow(tenantName: t1Key), AddNumbersRow(tenantName: t1Key)], ct)
+            await EnqueueTestOps.EnqueueJobsAsync(Services, [AddNumbersRow(tenantName: t1Key), AddNumbersRow(tenantName: t1Key)], ct)
         ).Jobs;
-        var t2Outcomes = (await EnqueueTestOps.EnqueueBatchAsync(Services, [AddNumbersRow(tenantName: t2Key)], ct)).Jobs;
+        var t2Outcomes = (await EnqueueTestOps.EnqueueJobsAsync(Services, [AddNumbersRow(tenantName: t2Key)], ct)).Jobs;
         var ta = t1Outcomes[0].JobId;
         var tb = t1Outcomes[1].JobId;
         var tc = t2Outcomes[0].JobId;
@@ -235,7 +235,7 @@ public sealed class ListJobsFilterMatrixSpec : ActaRuntimeTestBase<ConformanceFi
 
         var payload = serializers.Resolve(JobPayloadFormat.Json.Id).Serialize(new AddNumbers(1, 2));
         var ns2Outcomes = (
-            await EnqueueTestOps.EnqueueBatchAsync(
+            await EnqueueTestOps.EnqueueJobsAsync(
                 Services,
                 [new JobEnqueueValues(NamespaceName: ns2Name, JobName: "add-numbers", Input: payload)],
                 ct
@@ -312,7 +312,7 @@ public sealed class ListJobsFilterMatrixSpec : ActaRuntimeTestBase<ConformanceFi
         // Two echo jobs
         var echoPayload = serializers.Resolve(JobPayloadFormat.Json.Id).Serialize(new Echo("hi"));
         var echoOutcomes = (
-            await EnqueueTestOps.EnqueueBatchAsync(
+            await EnqueueTestOps.EnqueueJobsAsync(
                 Services,
                 [
                     new JobEnqueueValues(NamespaceName: TestNamespace, JobName: "echo", Input: echoPayload),

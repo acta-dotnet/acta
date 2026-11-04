@@ -4,7 +4,7 @@ namespace Acta;
 
 /// <summary>
 /// Raises a child's terminal-outcome latch (<c>sys.child.{childId}</c>) on its parent: a composite
-/// over the existing <c>raise_signal</c> routine with no SQL of its own. The slot is upserted Set
+/// over the existing <c>raise_job_signal</c> routine with no SQL of its own. The slot is upserted Set
 /// with the JSON envelope, a Suspended parent is released to Ready, and a terminal or missing parent
 /// is a clean no-op. Serves the C#-side raise sites (operator cancel, reclaim, maintenance
 /// backstop); <c>complete_executions</c> raises in-transaction itself on the hot path. Returns true
@@ -30,8 +30,8 @@ internal static class RaiseChildLatch
         var slotName = NamePrefix + childJobId.ToString(CultureInfo.InvariantCulture);
         var envelope = ChildOutcomeEnvelope.Write(childJobId, childStatus, childExecutionNumber);
         var input = new JobControlInput(null, EventReason.SignalReleased, null);
-        var outcome = await signals.RaiseSignalAsync(
-            new RaiseSignalSlot(parentJobId, CheckpointKindCode.ChildLatch, slotName, JobPayloadFormat.Json.Id, envelope, input),
+        var outcome = await signals.RaiseJobSignalAsync(
+            new RaiseJobSignalSlot(parentJobId, CheckpointKindCode.ChildLatch, slotName, JobPayloadFormat.Json.Id, envelope, input),
             ct
         );
         return outcome.Action == ControlAction.Applied && outcome.Status == JobStatusCode.Ready;

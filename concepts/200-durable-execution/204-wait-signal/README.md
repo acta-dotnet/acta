@@ -72,4 +72,4 @@ human-centric processes.
 - [The related Engineering Lab](../../../docs/engineering-labs.md)
 - [`wait-signal.cs`](./wait-signal.cs)
 - [`RuntimeJobContext.cs`](../../../src/Acta/Engine/Worker/Context/RuntimeJobContext.cs)
-- [`WaitSignal.sqlite.sql`](../../../src/Acta/Operations/Signals/WaitSignal/WaitSignal.sqlite.sql)
+- [`WaitJobSignal.sqlite.sql`](../../../src/Acta/Operations/Signals/WaitJobSignal/WaitJobSignal.sqlite.sql)

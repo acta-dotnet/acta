@@ -271,7 +271,7 @@ public sealed class RegisterSchedulesPerOccurrenceSpec : ActaStorageTestBase<Con
         Assert.Equal(ScheduleStatusCode.Paused, (await ScheduleAsync(defId, "only", ct)).Config.Status);
         Assert.Equal(ControlAction.Applied, (await Schedules.ResumeAsync(lookup, ct: ct)).Action);
         Assert.Equal(ScheduleStatusCode.Active, (await ScheduleAsync(defId, "only", ct)).Config.Status);
-        Assert.Equal(ControlAction.Applied, (await Schedules.TriggerNowAsync(lookup, ct: ct)).Action);
+        Assert.Equal(ControlAction.Applied, (await Schedules.TriggerAsync(lookup, ct: ct)).Action);
         var root = Assert.Single(await Db.From<JobEntity>().Where(j => j.ScheduleId == config.Id).ToListAsync(ct));
         Assert.StartsWith("sys.manual.", root.DeduplicationKey, StringComparison.Ordinal);
         Assert.Equal(1, (await ScheduleAsync(defId, "only", ct)).State.OutstandingCount);
@@ -310,7 +310,7 @@ public sealed class RegisterSchedulesPerOccurrenceSpec : ActaStorageTestBase<Con
         );
 
     private async Task<Dictionary<string, StoredScheduleState>> StoredAsync(int defId, CancellationToken ct) =>
-        (await Services.GetRequiredService<GetScheduleStateHandler>().HandleAsync(new GetScheduleStateQuery(TestNamespaceId), ct))
+        (await Services.GetRequiredService<ListScheduleStatesHandler>().HandleAsync(new ListScheduleStatesQuery(TestNamespaceId), ct))
             .States.Where(s => s.DefinitionId == defId)
             .ToDictionary(s => s.ScheduleName, StringComparer.Ordinal);
 

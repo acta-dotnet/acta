@@ -1,5 +1,5 @@
 -- The earliest wake in the namespace, in ix_schedules_state_due's order; NULL when none has one or it is suspended.
--- Orphaned schedules and a retired definition's are left out, as GetDueSchedules leaves them, so their wakes never keep
+-- Orphaned schedules and a retired definition's are left out, as ListDueSchedules leaves them, so their wakes never keep
 -- the admitter polling. The database clock comes back with it, so an idle admitter makes one read.
 SELECT MIN(st.next_evaluation_at_utc) AS next_evaluation_at_utc, SYSUTCDATETIME() AS db_now_utc
 FROM {{schema}}.schedules_state st

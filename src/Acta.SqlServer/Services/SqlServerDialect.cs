@@ -257,15 +257,15 @@ internal sealed class SqlServerDialect : ISqlDialect
             size: -1
         );
 
-    public void BindAdmitFirings(DbCommand command, AdmitFiringsCommand request)
+    public void BindAdmitScheduleFirings(DbCommand command, AdmitScheduleFiringsCommand request)
     {
         var sql = (SqlCommand)command;
-        AddParameter(sql, "@p_groups", SqlDbType.NVarChar, AdmitFiringsJson.Groups(request), size: -1);
+        AddParameter(sql, "@p_groups", SqlDbType.NVarChar, AdmitScheduleFiringsJson.Groups(request), size: -1);
         AddParameter(
             sql,
             "@p_rows",
             SqlDbType.NVarChar,
-            AdmitFiringsJson.Rows(
+            AdmitScheduleFiringsJson.Rows(
                 request,
                 static (writer, name, value) =>
                 {

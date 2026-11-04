@@ -6,7 +6,7 @@ using Xunit;
 namespace Acta.Tests.Conformance.Operations.Alerts;
 
 /// <summary>
-/// Conformance for the delivery read + settle ops (<c>GetDeliverableAlerts</c> / <c>UpdateAlertDelivery</c>)
+/// Conformance for the delivery read + settle ops (<c>ListDeliverableAlerts</c> / <c>UpdateAlertDelivery</c>)
 /// against the incident model. Both arms of the read key off <c>retry_after_utc</c>: Pending and
 /// RetryAfter are due when their instant elapses or is unset, and an unresolved Delivered or Failed row
 /// is due when the reminder its settlement scheduled arrives, while Suppressed never is. A repeat
@@ -286,7 +286,7 @@ public sealed class AlertDeliverySpec : ActaStorageTestBase<ConformanceFixture>
     // --- Helpers ---
 
     private async Task<IReadOnlyList<DeliverableAlert>> DueAsync(CancellationToken ct) =>
-        (await Services.GetRequiredService<AlertsOperations>().GetDeliverableAlertsAsync(TestNamespaceId, 50, ct)).Alerts;
+        (await Services.GetRequiredService<AlertsOperations>().ListDeliverableAlertsAsync(TestNamespaceId, 50, ct)).Alerts;
 
     private async Task<bool> SettleAsync(
         long alertId,

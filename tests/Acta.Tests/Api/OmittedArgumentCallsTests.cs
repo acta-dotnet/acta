@@ -28,6 +28,6 @@ public sealed class OmittedArgumentCallsTests
         await jobs.RunAndWaitAsync<AddNumbers, AddNumbersResult>(new AddNumbers(1, 2));
         await jobs.WaitAsync(JobLookup.ById(1));
         await jobs.WaitAsync<AddNumbersResult>(JobLookup.ById(1));
-        await jobs.EnqueueBatchAsync([new EnqueueJobRequest("probe", "noop")]);
+        await jobs.EnqueueJobsAsync([new EnqueueJobRequest("probe", "noop")]);
     }
 }

@@ -51,7 +51,7 @@
       reasonMessage: vars.reason?.trim() || null,
       ...(vars.extra ?? {})
     }),
-    notFound: () => ({ action: 'notFound' }),
+    notFound: () => ({ action: 'not-found' }),
     invalidateKeys: () => [['schedules']] as const
   });
   let busy = $derived(mutation.isPending);

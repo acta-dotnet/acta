@@ -5,7 +5,7 @@ namespace Acta.Tests.Execution;
 
 /// <summary>
 /// Unit pins for the step-ownership path through <see cref="WorkerExecutor.ExecuteAsync"/>, driven by
-/// <see cref="WorkerExecutorHarness"/>: a <c>complete_step</c> StaleVersion on a job this attempt still
+/// <see cref="WorkerExecutorHarness"/>: a <c>complete_job_step</c> StaleVersion on a job this attempt still
 /// owns re-arms as a retryable abort instead of landing terminal Failed with no reason, no completion
 /// shape ever submits Failed without a reason, and a completion CAS that answers NotOwner writes
 /// nothing at all and is a logged skip.
@@ -15,7 +15,7 @@ public sealed class WorkerExecutorOwnershipTests
     [Fact]
     public async Task Stale_step_version_on_an_owned_job_re_arms_as_a_retryable_abort()
     {
-        var harness = new WorkerExecutorHarness(stepOutcome: CompleteStepOutcomeCode.StaleVersion);
+        var harness = new WorkerExecutorHarness(stepOutcome: CompleteJobStepOutcomeCode.StaleVersion);
 
         var outcome = await harness.RunAsync();
 
@@ -44,7 +44,7 @@ public sealed class WorkerExecutorOwnershipTests
         // so the business failure is not this attempt's to report - reporting JobUnhandledException here
         // would attribute a failure the ledger never accepted, and burn a retry against a budget the
         // routine never decremented. The abort must win over both the retry signal and exhaustion.
-        var harness = new WorkerExecutorHarness(stepOutcome: CompleteStepOutcomeCode.StaleVersion);
+        var harness = new WorkerExecutorHarness(stepOutcome: CompleteJobStepOutcomeCode.StaleVersion);
 
         var outcome = await harness.RunAsync(
             static (ctx, token) =>
@@ -70,7 +70,7 @@ public sealed class WorkerExecutorOwnershipTests
     {
         // Budget of one: the same abort that re-armed above is out of retries, so it lands terminal.
         // The reason must survive that transition, which is the fact the old bug lost.
-        var harness = new WorkerExecutorHarness(stepOutcome: CompleteStepOutcomeCode.StaleVersion, maxAttempts: 1);
+        var harness = new WorkerExecutorHarness(stepOutcome: CompleteJobStepOutcomeCode.StaleVersion, maxAttempts: 1);
 
         var outcome = await harness.RunAsync();
 
@@ -91,8 +91,10 @@ public sealed class WorkerExecutorOwnershipTests
         // timeline entry.
         var submitted = new List<BoundCompletion>();
 
-        submitted.AddRange(await Submissions(new WorkerExecutorHarness(stepOutcome: CompleteStepOutcomeCode.StaleVersion)));
-        submitted.AddRange(await Submissions(new WorkerExecutorHarness(stepOutcome: CompleteStepOutcomeCode.StaleVersion, maxAttempts: 1)));
+        submitted.AddRange(await Submissions(new WorkerExecutorHarness(stepOutcome: CompleteJobStepOutcomeCode.StaleVersion)));
+        submitted.AddRange(
+            await Submissions(new WorkerExecutorHarness(stepOutcome: CompleteJobStepOutcomeCode.StaleVersion, maxAttempts: 1))
+        );
         submitted.AddRange(
             await Submissions(new WorkerExecutorHarness(maxAttempts: 1), static (_, _) => throw new InvalidOperationException("boom"))
         );
@@ -115,7 +117,7 @@ public sealed class WorkerExecutorOwnershipTests
         // owned row must be re-armed rather than skipped), the store applies none of it, and the
         // attempt reports NothingClaimed.
         var harness = new WorkerExecutorHarness(
-            stepOutcome: CompleteStepOutcomeCode.StaleVersion,
+            stepOutcome: CompleteJobStepOutcomeCode.StaleVersion,
             completionAction: CompleteExecutionsAction.NotOwner,
             cancelAttemptOnStepCompletion: true
         );
@@ -133,7 +135,7 @@ public sealed class WorkerExecutorOwnershipTests
         // The same NotOwner answer with the attempt token still live: a Finalizing entry can outlive its
         // lease while its write waits, so losing the row is a skip the log records, not a fault.
         var harness = new WorkerExecutorHarness(
-            stepOutcome: CompleteStepOutcomeCode.StaleVersion,
+            stepOutcome: CompleteJobStepOutcomeCode.StaleVersion,
             completionAction: CompleteExecutionsAction.NotOwner
         );
 

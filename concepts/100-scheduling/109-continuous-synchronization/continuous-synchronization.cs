@@ -148,7 +148,7 @@ static async Task<long> SlotIdAsync(IJobs jobs, ISchedules schedules)
     var schedule = (await schedules.ListAsync(new ListSchedulesQuery(JobNamespace: jobNamespace, JobName: jobName))).Items.Single(s =>
         s.ScheduleName == scheduleName
     );
-    return (await jobs.GetJobIdAsync(JobLookup.ByRef(schedule.JobRef!.Value)))!.JobId;
+    return (await jobs.GetIdAsync(JobLookup.ByRef(schedule.JobRef!.Value)))!.JobId;
 }
 
 static async Task ShowStateAsync(ConceptLab lab, IJobs jobs, ISchedules schedules, OrderStore store, ShopFeed shop)

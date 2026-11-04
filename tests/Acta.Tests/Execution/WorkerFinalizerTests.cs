@@ -512,7 +512,7 @@ public sealed class WorkerFinalizerTests
                                 ),
                             }
                             : throw new ProviderDown();
-                    case "GetChildJobIds":
+                    case "ListChildJobIds":
                         // The walk's first read fails, so the walk the row starts apart runs again before it gets here.
                         if (Interlocked.Increment(ref childReads) == 1)
                         {
@@ -592,7 +592,7 @@ public sealed class WorkerFinalizerTests
                 {
                     new(1, 0, CompleteExecutionsAction.Completed, (byte)JobStatusCode.Cancelled, null, DateTime.UtcNow, false, false),
                 },
-                "GetChildJobIds" => call.Get(ActaSchema.Job.ParentJobId) == 1 ? new long[] { 2, 3 } : Array.Empty<long>(),
+                "ListChildJobIds" => call.Get(ActaSchema.Job.ParentJobId) == 1 ? new long[] { 2, 3 } : Array.Empty<long>(),
                 "CancelJob" when call.Get(ActaSchema.Job.JobId) == 3 && Interlocked.Increment(ref refused) == 1 => throw new ProviderDown(),
                 "CancelJob" => new CancelJobRow(ControlAction.Applied, JobStatusCode.Cancelled, null, 1, false),
                 _ => throw new NotSupportedException(call.Stem),

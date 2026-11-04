@@ -45,10 +45,10 @@ public sealed class TenantSuspensionAdmissionSpec : ActaRuntimeTestBase<Conforma
         var key = Unique("adm-inherit");
         var tenantId = (await Tenants().RegisterAsync(key, null, null, ct)).TenantId;
 
-        var parent = (await EnqueueTestOps.EnqueueBatchAsync(Services, [Row(tenantName: key)], ct)).Jobs;
+        var parent = (await EnqueueTestOps.EnqueueJobsAsync(Services, [Row(tenantName: key)], ct)).Jobs;
         await Tenants().SuspendAsync(key, "hold", null, ct);
 
-        var child = (await EnqueueTestOps.EnqueueBatchAsync(Services, [Row(tenantName: null, parentId: parent[0].JobId)], ct)).Jobs;
+        var child = (await EnqueueTestOps.EnqueueJobsAsync(Services, [Row(tenantName: null, parentId: parent[0].JobId)], ct)).Jobs;
         var childJob = await ReadJobAsync(child[0].JobId, ct);
 
         Assert.NotNull(childJob);
@@ -62,11 +62,11 @@ public sealed class TenantSuspensionAdmissionSpec : ActaRuntimeTestBase<Conforma
         var key = Unique("adm-explicit");
         await Tenants().RegisterAsync(key, null, null, ct);
 
-        var parent = (await EnqueueTestOps.EnqueueBatchAsync(Services, [Row(tenantName: key)], ct)).Jobs;
+        var parent = (await EnqueueTestOps.EnqueueJobsAsync(Services, [Row(tenantName: key)], ct)).Jobs;
         await Tenants().SuspendAsync(key, "hold", null, ct);
 
         await Assert.ThrowsAnyAsync<Exception>(() =>
-            EnqueueTestOps.EnqueueBatchAsync(Services, [Row(tenantName: key, parentId: parent[0].JobId)], ct)
+            EnqueueTestOps.EnqueueJobsAsync(Services, [Row(tenantName: key, parentId: parent[0].JobId)], ct)
         );
     }
 
@@ -85,7 +85,7 @@ public sealed class TenantSuspensionAdmissionSpec : ActaRuntimeTestBase<Conforma
             {
                 try
                 {
-                    await EnqueueTestOps.EnqueueBatchAsync(Services, [Row(tenantName: key)], ct);
+                    await EnqueueTestOps.EnqueueJobsAsync(Services, [Row(tenantName: key)], ct);
                     return true;
                 }
                 catch (Exception) when (!ct.IsCancellationRequested)
@@ -101,7 +101,7 @@ public sealed class TenantSuspensionAdmissionSpec : ActaRuntimeTestBase<Conforma
         Assert.Equal(landed, stored);
 
         // The commit boundary: any enqueue transaction beginning after the suspend returned rejects.
-        await Assert.ThrowsAnyAsync<Exception>(() => EnqueueTestOps.EnqueueBatchAsync(Services, [Row(tenantName: key)], ct));
+        await Assert.ThrowsAnyAsync<Exception>(() => EnqueueTestOps.EnqueueJobsAsync(Services, [Row(tenantName: key)], ct));
         Assert.Equal(landed, await Db.From<JobEntity>().Where(j => j.TenantId == tenantId).CountAsync(ct));
     }
 }

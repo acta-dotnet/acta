@@ -59,7 +59,7 @@ public sealed class EnqueueJobsConcurrencySpec : ActaRuntimeTestBase<Conformance
         );
 
         // The batch meets the uncommitted key and waits on it; the producer then commits.
-        var batch = Jobs.EnqueueBatchAsync(
+        var batch = Jobs.EnqueueJobsAsync(
             [
                 new EnqueueJobRequest(TestNamespace, "add-numbers", JobPayload.Json(new AddNumbers(2, 2)), DeduplicationKey: key),
                 new EnqueueJobRequest(TestNamespace, "add-numbers", JobPayload.Json(new AddNumbers(3, 3))),
@@ -141,7 +141,7 @@ public sealed class EnqueueJobsConcurrencySpec : ActaRuntimeTestBase<Conformance
                         var ids = new List<long[]>(batchesPerProducer);
                         for (var b = 0; b < batchesPerProducer; b++)
                         {
-                            var outcomes = (await Jobs.EnqueueBatchAsync(Batch(p, b, lane), ct)).Jobs;
+                            var outcomes = (await Jobs.EnqueueJobsAsync(Batch(p, b, lane), ct)).Jobs;
                             Assert.All(outcomes, o => Assert.Equal(EnqueueJobAction.Inserted, o.Action));
                             ids.Add([.. outcomes.Select(o => o.JobId)]);
                         }

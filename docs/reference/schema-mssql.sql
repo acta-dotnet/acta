@@ -57,7 +57,7 @@ GO
 -- ===== refuse a database a newer release already upgraded =====
 IF EXISTS (
     SELECT 1 FROM acta.migrations
-    WHERE name NOT IN ('M20261104070741_init')
+    WHERE name NOT IN ('M20261105115841_init')
 )
 BEGIN
     RAISERROR(N'A newer Acta release already upgraded this database. Run the newest provisioning script; this one would move it backwards.', 16, 1);
@@ -65,7 +65,7 @@ BEGIN
     SET NOEXEC ON;
 END
 GO
--- ===== BEGIN M20261104070741_init =====
+-- ===== BEGIN M20261105115841_init =====
 SET QUOTED_IDENTIFIER ON;
 SET ANSI_NULLS ON;
 GO
@@ -695,7 +695,7 @@ EXEC(N'CREATE TYPE acta.register_schedules AS TABLE (
 );');
 GO
 
-CREATE OR ALTER PROCEDURE acta.access_checkpoint
+CREATE OR ALTER PROCEDURE acta.access_job_checkpoint
     @p_action SMALLINT,
     @p_job_id BIGINT,
     @p_execution_number INT,
@@ -715,13 +715,13 @@ BEGIN
             BEGIN TRANSACTION;
 
         IF
-            @p_action IN (10 /* AccessCheckpointAction.Set */, 30 /* AccessCheckpointAction.GetOrSet */)
+            @p_action IN (10 /* AccessJobCheckpointAction.Set */, 30 /* AccessJobCheckpointAction.GetOrSet */)
             AND (@p_value_format_id = 0 /* JobPayloadFormat.None */ OR @p_value IS NULL)
             THROW 50002, 'Variable payload must use a non-zero format id and non-NULL value.', 1;
 
         -- The slot's own lock serializes the writers of one slot to commit (docs/sql-internals.md,
         -- "Slot locks"); every statement that may insert a checkpoint takes it under the same name.
-        IF @p_action IN (10 /* AccessCheckpointAction.Set */, 30 /* AccessCheckpointAction.GetOrSet */)
+        IF @p_action IN (10 /* AccessJobCheckpointAction.Set */, 30 /* AccessJobCheckpointAction.GetOrSet */)
             BEGIN
                 DECLARE @slot_lock NVARCHAR(255) = CONCAT(N'acta.slot:', @p_job_id, N':', @p_checkpoint_kind_code, N':', @p_checkpoint_name);
                 DECLARE @slot_lock_result INT;
@@ -733,7 +733,7 @@ BEGIN
 
         -- A write lands only while this attempt holds the job's row, update-locked to commit after the slot lock
         -- (docs/sql-internals.md, "Execution fence"). Reads take no lock.
-        IF @p_action IN (10 /* AccessCheckpointAction.Set */, 30 /* AccessCheckpointAction.GetOrSet */, 50 /* AccessCheckpointAction.Delete */)
+        IF @p_action IN (10 /* AccessJobCheckpointAction.Set */, 30 /* AccessJobCheckpointAction.GetOrSet */, 50 /* AccessJobCheckpointAction.Delete */)
             BEGIN
                 IF NOT EXISTS (
                     SELECT 1
@@ -744,7 +744,7 @@ BEGIN
                         AND r.execution_number = @p_execution_number
                         AND r.leased_by_worker_id = @p_leased_by_worker_id
                 )
-                    THROW 50012, 'ACTA:EXECUTION_FENCED:access_checkpoint: the job is no longer executing this attempt.', 1;
+                    THROW 50012, 'ACTA:EXECUTION_FENCED:access_job_checkpoint: the job is no longer executing this attempt.', 1;
             END
 
         DECLARE @now DATETIME2(7) = SYSUTCDATETIME();
@@ -755,7 +755,7 @@ BEGIN
             version INT NULL
         );
 
-        IF @p_action = 10 /* AccessCheckpointAction.Set */
+        IF @p_action = 10 /* AccessJobCheckpointAction.Set */
             BEGIN
 
                 UPDATE jv
@@ -786,7 +786,7 @@ BEGIN
 
                 INSERT INTO @row (found, value_format_id, value, version) VALUES (1, NULL, NULL, NULL);
             END
-        ELSE IF @p_action = 20 /* AccessCheckpointAction.Get */
+        ELSE IF @p_action = 20 /* AccessJobCheckpointAction.Get */
             BEGIN
                 INSERT INTO @row (found, value_format_id, value, version)
                 SELECT
@@ -805,7 +805,7 @@ BEGIN
                         INSERT INTO @row (found, value_format_id, value, version) VALUES (0, NULL, NULL, NULL);
                     END
             END
-        ELSE IF @p_action = 30 /* AccessCheckpointAction.GetOrSet */
+        ELSE IF @p_action = 30 /* AccessJobCheckpointAction.GetOrSet */
             BEGIN
 
                 INSERT INTO @row (found, value_format_id, value, version)
@@ -838,7 +838,7 @@ BEGIN
                     END
 
             END
-        ELSE IF @p_action = 40 /* AccessCheckpointAction.Exists */
+        ELSE IF @p_action = 40 /* AccessJobCheckpointAction.Exists */
             BEGIN
                 INSERT INTO @row (found, value_format_id, value, version)
                 SELECT
@@ -854,7 +854,7 @@ BEGIN
                     NULL,
                     NULL;
             END
-        ELSE IF @p_action = 50 /* AccessCheckpointAction.Delete */
+        ELSE IF @p_action = 50 /* AccessJobCheckpointAction.Delete */
             BEGIN
                 DELETE FROM acta.checkpoints
                 WHERE
@@ -867,7 +867,7 @@ BEGIN
             END
         ELSE
             BEGIN
-                THROW 50002, 'access_checkpoint received an unknown action.', 1;
+                THROW 50002, 'access_job_checkpoint received an unknown action.', 1;
             END
 
         SELECT
@@ -888,7 +888,7 @@ BEGIN
 END;
 GO
 
-CREATE OR ALTER PROCEDURE acta.arm_or_consume_sleep_timer
+CREATE OR ALTER PROCEDURE acta.arm_or_consume_job_sleep_timer
     @p_job_id BIGINT,
     @p_execution_number INT,
     @p_leased_by_worker_id INT,
@@ -924,7 +924,7 @@ BEGIN
             AND leased_by_worker_id = @p_leased_by_worker_id;
 
         IF @lock_id IS NULL
-            THROW 50012, 'ACTA:EXECUTION_FENCED:arm_or_consume_sleep_timer: the job is no longer executing this attempt.', 1;
+            THROW 50012, 'ACTA:EXECUTION_FENCED:arm_or_consume_job_sleep_timer: the job is no longer executing this attempt.', 1;
 
         SELECT
             @existing_state = checkpoint_status_code,
@@ -938,7 +938,7 @@ BEGIN
         IF @existing_state = 10 /* CheckpointStatusCode.Pending */ AND @existing_due > @now
             BEGIN
 
-                SET @outcome = 1 /* ArmOrConsumeSleepTimerOutcomeCode.Suspend */;
+                SET @outcome = 1 /* ArmOrConsumeJobSleepTimerOutcomeCode.Suspend */;
                 SET @result_due = @existing_due;
             END
         ELSE IF @existing_state = 10 /* CheckpointStatusCode.Pending */
@@ -960,17 +960,17 @@ BEGIN
                     version = version + 1
                 WHERE job_id = @p_job_id AND job_status_code = 50 /* JobStatusCode.Executing */;
 
-                SET @outcome = 2 /* ArmOrConsumeSleepTimerOutcomeCode.Continue */;
+                SET @outcome = 2 /* ArmOrConsumeJobSleepTimerOutcomeCode.Continue */;
             END
         ELSE IF @existing_state IS NOT NULL
             BEGIN
 
-                SET @outcome = 2 /* ArmOrConsumeSleepTimerOutcomeCode.Continue */;
+                SET @outcome = 2 /* ArmOrConsumeJobSleepTimerOutcomeCode.Continue */;
             END
         ELSE IF @due <= @now
             BEGIN
 
-                SET @outcome = 2 /* ArmOrConsumeSleepTimerOutcomeCode.Continue */;
+                SET @outcome = 2 /* ArmOrConsumeJobSleepTimerOutcomeCode.Continue */;
             END
         ELSE IF
             EXISTS (
@@ -980,7 +980,7 @@ BEGIN
             /* CheckpointStatusCode.Pending */
             )
             BEGIN
-                SET @outcome = 3 /* ArmOrConsumeSleepTimerOutcomeCode.Reject */;
+                SET @outcome = 3 /* ArmOrConsumeJobSleepTimerOutcomeCode.Reject */;
             END
         ELSE
             BEGIN
@@ -993,7 +993,7 @@ BEGIN
                     @now, @now, 0
                 );
 
-                SET @outcome = 1 /* ArmOrConsumeSleepTimerOutcomeCode.Suspend */;
+                SET @outcome = 1 /* ArmOrConsumeJobSleepTimerOutcomeCode.Suspend */;
                 SET @result_due = @due;
             END
 
@@ -1362,7 +1362,7 @@ BEGIN
                     OPTION (FORCE ORDER, LOOP JOIN);
                 END
 
-            /* Each slot this batch may read or write takes the slot's own lock, as wait_signal and raise_signal name it, all in
+            /* Each slot this batch may read or write takes the slot's own lock, as wait_job_signal and raise_job_signal name it, all in
                name order and before any slot row or jobs_state row (docs/sql-internals.md, "Slot locks"): each awaited slot
                under both kinds a wait can name, and each parent's latch for a child here, whether or not the child lands terminal. */
             IF @waits = 1 OR @children = 1
@@ -1989,7 +1989,7 @@ BEGIN
 END;
 GO
 
-CREATE OR ALTER PROCEDURE acta.complete_step
+CREATE OR ALTER PROCEDURE acta.complete_job_step
     @p_job_id BIGINT,
     @p_execution_number INT,
     @p_leased_by_worker_id INT,
@@ -2030,7 +2030,7 @@ BEGIN
                 AND r.execution_number = @p_execution_number
                 AND r.leased_by_worker_id = @p_leased_by_worker_id
         )
-            THROW 50012, 'ACTA:EXECUTION_FENCED:complete_step: the job is no longer executing this attempt.', 1;
+            THROW 50012, 'ACTA:EXECUTION_FENCED:complete_job_step: the job is no longer executing this attempt.', 1;
 
         SELECT
             @attempt = attempt_number,
@@ -2055,9 +2055,9 @@ BEGIN
                 WHERE job_id = @p_job_id AND step_name = @p_step_name AND version = @p_version;
 
                 IF @@ROWCOUNT = 0
-                    SET @outcome = 4 /* CompleteStepOutcomeCode.StaleVersion */;
+                    SET @outcome = 4 /* CompleteJobStepOutcomeCode.StaleVersion */;
                 ELSE
-                    SET @outcome = 1 /* CompleteStepOutcomeCode.Succeeded */;
+                    SET @outcome = 1 /* CompleteJobStepOutcomeCode.Succeeded */;
                 SET @next = NULL;
             END
         ELSE
@@ -2082,9 +2082,9 @@ BEGIN
                         WHERE job_id = @p_job_id AND step_name = @p_step_name AND version = @p_version;
 
                         IF @@ROWCOUNT = 0
-                            SET @outcome = 4 /* CompleteStepOutcomeCode.StaleVersion */;
+                            SET @outcome = 4 /* CompleteJobStepOutcomeCode.StaleVersion */;
                         ELSE
-                            SET @outcome = 3 /* CompleteStepOutcomeCode.Exhausted */;
+                            SET @outcome = 3 /* CompleteJobStepOutcomeCode.Exhausted */;
                         SET @next = NULL;
                     END
                 ELSE
@@ -2100,11 +2100,11 @@ BEGIN
 
                         IF @@ROWCOUNT = 0
                             BEGIN
-                                SET @outcome = 4 /* CompleteStepOutcomeCode.StaleVersion */;
+                                SET @outcome = 4 /* CompleteJobStepOutcomeCode.StaleVersion */;
                                 SET @next = NULL;
                             END
                         ELSE
-                            SET @outcome = 2 /* CompleteStepOutcomeCode.RetryScheduled */;
+                            SET @outcome = 2 /* CompleteJobStepOutcomeCode.RetryScheduled */;
                     END
             END
 
@@ -3581,7 +3581,7 @@ BEGIN
 END;
 GO
 
-CREATE OR ALTER PROCEDURE acta.raise_signal
+CREATE OR ALTER PROCEDURE acta.raise_job_signal
     @p_job_id BIGINT,
     @p_checkpoint_kind_code TINYINT,
     @p_checkpoint_name VARCHAR(128),
@@ -3608,7 +3608,7 @@ BEGIN
             @from_status TINYINT, @namespace_id INT, @lineage_root_job_id BIGINT,
             @definition_id INT, @tenant_id INT, @execution_number INT, @event_recording TINYINT;
 
-        -- The slot's own lock, as wait_signal names it (docs/sql-internals.md, "Slot locks").
+        -- The slot's own lock, as wait_job_signal names it (docs/sql-internals.md, "Slot locks").
         DECLARE @slot_lock NVARCHAR(255) = CONCAT(N'acta.slot:', @p_job_id, N':', @p_checkpoint_kind_code, N':', @p_checkpoint_name);
         DECLARE @slot_lock_result INT;
         -- Positional: resource, mode, owner, timeout (-1 waits like any lock).
@@ -4394,7 +4394,7 @@ BEGIN
 END;
 GO
 
-CREATE OR ALTER PROCEDURE acta.start_step
+CREATE OR ALTER PROCEDURE acta.start_job_step
     @p_job_id BIGINT,
     @p_execution_number INT,
     @p_leased_by_worker_id INT,
@@ -4443,7 +4443,7 @@ BEGIN
                 AND r.execution_number = @p_execution_number
                 AND r.leased_by_worker_id = @p_leased_by_worker_id
         )
-            THROW 50012, 'ACTA:EXECUTION_FENCED:start_step: the job is no longer executing this attempt.', 1;
+            THROW 50012, 'ACTA:EXECUTION_FENCED:start_job_step: the job is no longer executing this attempt.', 1;
 
         SELECT
             @state = step_status_code,
@@ -4468,7 +4468,7 @@ BEGIN
                     0 /* JobPayloadFormat.None */, @now, @now, 0
                 );
 
-                SET @outcome = 1 /* StartStepOutcomeCode.Invoke */;
+                SET @outcome = 1 /* StartJobStepOutcomeCode.Invoke */;
                 SET @attempt = 1;
                 SET @version = 0;
                 SET @rfid = 0 /* JobPayloadFormat.None */;
@@ -4479,14 +4479,14 @@ BEGIN
             END
         ELSE IF @state = 100 /* StepStatusCode.Succeeded */
             BEGIN
-                SET @outcome = 3 /* StartStepOutcomeCode.ReplaySuccess */;
+                SET @outcome = 3 /* StartJobStepOutcomeCode.ReplaySuccess */;
                 SET @next = NULL;
                 SET @rcode = NULL;
                 SET @rmsg = NULL;
             END
         ELSE IF @state = 200 /* StepStatusCode.Exhausted */
             BEGIN
-                SET @outcome = 4 /* StartStepOutcomeCode.Exhausted */;
+                SET @outcome = 4 /* StartJobStepOutcomeCode.Exhausted */;
                 SET @next = NULL;
                 SET @rfid = 0 /* JobPayloadFormat.None */;
                 SET @result = NULL;
@@ -4494,7 +4494,7 @@ BEGIN
         ELSE IF @state = 230 /* StepStatusCode.Interrupted */
             BEGIN
             -- Terminal at-most-once ambiguity from an earlier replay; re-throw consistently, no mutation.
-                SET @outcome = 5 /* StartStepOutcomeCode.Interrupted */;
+                SET @outcome = 5 /* StartJobStepOutcomeCode.Interrupted */;
                 SET @next = NULL;
                 SET @rfid = 0 /* JobPayloadFormat.None */;
                 SET @result = NULL;
@@ -4503,7 +4503,7 @@ BEGIN
             END
         ELSE IF @existing_next IS NOT NULL AND @existing_next > @now
             BEGIN
-                SET @outcome = 2 /* StartStepOutcomeCode.Suspend */;
+                SET @outcome = 2 /* StartJobStepOutcomeCode.Suspend */;
                 SET @next = @existing_next;
                 SET @rfid = 0 /* JobPayloadFormat.None */;
                 SET @result = NULL;
@@ -4512,8 +4512,8 @@ BEGIN
             END
         ELSE IF @p_at_most_once = 1
             BEGIN
-            -- Pending slot re-entered on replay under AtMostOnce: the worker died after start_step recorded
-            -- the pending row but before complete_step. Do not re-invoke; terminalize the row Interrupted
+            -- Pending slot re-entered on replay under AtMostOnce: the worker died after start_job_step recorded
+            -- the pending row but before complete_job_step. Do not re-invoke; terminalize the row Interrupted
             -- (one transition, one version bump) and let the orchestration throw StepInterruptedException.
                 UPDATE acta.steps
                 SET
@@ -4526,7 +4526,7 @@ BEGIN
                 WHERE job_id = @p_job_id AND step_name = @p_step_name;
 
                 SET @version = @version + 1;
-                SET @outcome = 5 /* StartStepOutcomeCode.Interrupted */;
+                SET @outcome = 5 /* StartJobStepOutcomeCode.Interrupted */;
                 SET @next = NULL;
                 SET @rfid = 0 /* JobPayloadFormat.None */;
                 SET @result = NULL;
@@ -4535,7 +4535,7 @@ BEGIN
             END
         ELSE
             BEGIN
-                -- The next attempt spends the retry instant, as SQLite's start_step does.
+                -- The next attempt spends the retry instant, as SQLite's start_job_step does.
                 UPDATE acta.steps
                 SET
                     attempt_number = attempt_number + 1,
@@ -4546,7 +4546,7 @@ BEGIN
 
                 SET @attempt = @attempt + 1;
                 SET @version = @version + 1;
-                SET @outcome = 1 /* StartStepOutcomeCode.Invoke */;
+                SET @outcome = 1 /* StartJobStepOutcomeCode.Invoke */;
                 SET @next = NULL;
                 SET @rfid = 0 /* JobPayloadFormat.None */;
                 SET @result = NULL;
@@ -4586,7 +4586,7 @@ GO
 /* A wait this call armed with a length suspends once: the length is positive and the arm is the last
    act of its branch. A slot this call arms at or past an instant is armed Expired, so a child landing
    after it cannot revive the wait, and the wait times out now. Pg states the same rules. */
-CREATE OR ALTER PROCEDURE acta.wait_signal
+CREATE OR ALTER PROCEDURE acta.wait_job_signal
     @p_job_id BIGINT,
     @p_execution_number INT,
     @p_leased_by_worker_id INT,
@@ -4633,7 +4633,7 @@ BEGIN
                 AND r.execution_number = @p_execution_number
                 AND r.leased_by_worker_id = @p_leased_by_worker_id
         )
-            THROW 50012, 'ACTA:EXECUTION_FENCED:wait_signal: the job is no longer executing this attempt.', 1;
+            THROW 50012, 'ACTA:EXECUTION_FENCED:wait_job_signal: the job is no longer executing this attempt.', 1;
 
         SELECT
             @state = checkpoint_status_code,
@@ -4645,11 +4645,11 @@ BEGIN
 
         IF @state = 20 /* CheckpointStatusCode.Set */
             BEGIN
-                SET @outcome = 2 /* WaitSignalOutcomeCode.ContinueSet */;
+                SET @outcome = 2 /* WaitJobSignalOutcomeCode.ContinueSet */;
             END
         ELSE IF @state = 30 /* CheckpointStatusCode.Expired */
             BEGIN
-                SET @outcome = 3 /* WaitSignalOutcomeCode.TimedOut */;
+                SET @outcome = 3 /* WaitJobSignalOutcomeCode.TimedOut */;
                 SET @fmt = 0 /* JobPayloadFormat.None */;
                 SET @val = NULL;
             END
@@ -4662,13 +4662,13 @@ BEGIN
                     version = version + 1
                 WHERE job_id = @p_job_id AND checkpoint_kind_code = @p_checkpoint_kind_code AND checkpoint_name = @p_checkpoint_name;
 
-                SET @outcome = 3 /* WaitSignalOutcomeCode.TimedOut */;
+                SET @outcome = 3 /* WaitJobSignalOutcomeCode.TimedOut */;
                 SET @fmt = 0 /* JobPayloadFormat.None */;
                 SET @val = NULL;
             END
         ELSE
             BEGIN
-                SET @outcome = 1 /* WaitSignalOutcomeCode.SuspendPending */;
+                SET @outcome = 1 /* WaitJobSignalOutcomeCode.SuspendPending */;
                 IF @state IS NULL
                     BEGIN
                         INSERT INTO acta.checkpoints (
@@ -4680,7 +4680,7 @@ BEGIN
                             0 /* JobPayloadFormat.None */, NULL, @now, @now, 0
                         );
                         IF @arm_state = 30 /* CheckpointStatusCode.Expired */
-                            SET @outcome = 3 /* WaitSignalOutcomeCode.TimedOut */;
+                            SET @outcome = 3 /* WaitJobSignalOutcomeCode.TimedOut */;
                     END
                 ELSE IF @state = 10 /* CheckpointStatusCode.Pending */ AND @due IS NULL AND @arm_due IS NOT NULL
                     BEGIN
@@ -4695,7 +4695,7 @@ BEGIN
                             AND checkpoint_status_code = 10 /* CheckpointStatusCode.Pending */
                             AND due_at_utc IS NULL;
                         IF @arm_state = 30 /* CheckpointStatusCode.Expired */
-                            SET @outcome = 3 /* WaitSignalOutcomeCode.TimedOut */;
+                            SET @outcome = 3 /* WaitJobSignalOutcomeCode.TimedOut */;
                     END
                 SET @fmt = 0 /* JobPayloadFormat.None */;
                 SET @val = NULL;
@@ -5089,11 +5089,11 @@ JOIN acta.namespaces AS ns ON ns.namespace_id = w.namespace_id
 GO
 
 
-IF NOT EXISTS (SELECT 1 FROM acta.migrations WHERE name = 'M20261104070741_init')
+IF NOT EXISTS (SELECT 1 FROM acta.migrations WHERE name = 'M20261105115841_init')
 INSERT INTO acta.migrations (name)
-VALUES ('M20261104070741_init');
+VALUES ('M20261105115841_init');
 GO
--- ===== END M20261104070741_init =====
+-- ===== END M20261105115841_init =====
 GO
 COMMIT TRANSACTION;
 GO

@@ -90,8 +90,8 @@
     path: (vars) => `namespaces/${encodeURIComponent(vars.name)}`,
     method: 'PATCH',
     body: (vars) => ({ expectedVersion: vars.expectedVersion, ...buildNamespaceDetailsPayload(vars) }),
-    notFound: () => ({ action: 'notFound', version: null }),
-    versionConflict: () => ({ action: 'versionConflict', version: null }),
+    notFound: () => ({ action: 'not-found', version: null }),
+    versionConflict: () => ({ action: 'version-conflict', version: null }),
     invalidateKeys: () => [['namespaces']] as const
   });
   let detailsMessage = $state('');
@@ -112,7 +112,7 @@
       });
       if (namespaceAdminNeedsReload(result.action)) {
         detailsMessage =
-          result.action === 'notFound'
+          result.action === 'not-found'
             ? 'Namespace not found. Reload the current record before trying again.'
             : 'Changed since you loaded it. Reload the current values before trying again.';
         detailsMessageKind = 'warn';
@@ -140,8 +140,8 @@
     AdminControlResult
   >({
     path: (vars) => `namespaces/${encodeURIComponent(vars.name)}/${vars.action}`,
-    notFound: () => ({ action: 'notFound', version: null }),
-    versionConflict: () => ({ action: 'versionConflict', version: null }),
+    notFound: () => ({ action: 'not-found', version: null }),
+    versionConflict: () => ({ action: 'version-conflict', version: null }),
     invalidateKeys: () => [['namespaces']] as const
   });
   let confirming = $state<'suspend' | 'resume' | null>(null);
@@ -155,7 +155,7 @@
     try {
       const result = await statusMutation.mutateAsync({ name: namespace.jobNamespace, action, reason });
       if (namespaceAdminNeedsReload(result.action)) {
-        statusMessage = result.action === 'notFound' ? 'Namespace not found.' : 'Namespace changed; reload before trying again.';
+        statusMessage = result.action === 'not-found' ? 'Namespace not found.' : 'Namespace changed; reload before trying again.';
         statusMessageKind = 'warn';
         return;
       }

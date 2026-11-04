@@ -152,7 +152,7 @@ internal static class StorageCases
                         );
                     })
                     .ToArray();
-                await jobs.EnqueueBatchAsync(batch, token);
+                await jobs.EnqueueJobsAsync(batch, token);
                 if (first % 10000 == 0)
                 {
                     Console.WriteLine($"  {state.Provider} {scenario.Id}: background batch {index + 1}/{(size + 999) / 1000}");

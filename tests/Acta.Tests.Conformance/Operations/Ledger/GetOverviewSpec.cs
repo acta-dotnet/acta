@@ -29,7 +29,7 @@ public sealed class GetOverviewSpec : ActaRuntimeTestBase<ConformanceFixture, Te
         var serializers = Services.GetRequiredService<IJobPayloadSerializerRegistry>();
 
         var payload = serializers.Resolve(JobPayloadFormat.Json.Id).Serialize(new AddNumbers(1, 2));
-        await EnqueueTestOps.EnqueueBatchAsync(
+        await EnqueueTestOps.EnqueueJobsAsync(
             Services,
             [
                 new JobEnqueueValues(

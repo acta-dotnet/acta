@@ -4,7 +4,7 @@
 const title = (verb: string) => verb.charAt(0).toUpperCase() + verb.slice(1);
 
 // Job verbs at jobs/{jobRef}/{verb}: pause, resume, restart, cancel, reschedule, reprioritize, purge,
-// signal. The dashboard sends no expectedVersion, so a job verb never answers versionConflict.
+// signal. The dashboard sends no expectedVersion, so a job verb never answers version-conflict.
 export function jobControlMessage(verb: string, action: string): string {
   switch (action) {
     case 'applied':
@@ -18,14 +18,14 @@ export function jobControlMessage(verb: string, action: string): string {
 }
 
 // Schedule verbs at schedules/{ns}/{job}/{schedule}/{verb}: pause, resume, trigger. None is version-guarded,
-// so versionConflict is wording kept for a verb that gains a token.
+// so version-conflict is wording kept for a verb that gains a token.
 export function scheduleControlMessage(verb: string, action: string): string {
   switch (action) {
     case 'applied':
       return `Schedule ${verb} applied.`;
     case 'rejected':
       return `Schedule ${verb} rejected: the schedule's current state does not allow it.`;
-    case 'versionConflict':
+    case 'version-conflict':
       return `Schedule ${verb} rejected: the schedule changed since you loaded it (version conflict).`;
     default:
       return 'Schedule not found.';
@@ -51,7 +51,7 @@ export function definitionControlMessage(verb: 'overrides' | 'retire', action: s
   switch (action) {
     case 'applied':
       return verb === 'retire' ? 'Definition retired.' : 'Definition overrides applied.';
-    case 'versionConflict':
+    case 'version-conflict':
       return verb === 'retire'
         ? 'Retire rejected: the definition changed since you loaded it (version conflict). Reload and retry.'
         : 'Definition override rejected: the definition changed since you loaded it (version conflict). Reload and retry.';

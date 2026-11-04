@@ -20,7 +20,7 @@ internal sealed class FakeDefinitions : IDefinitions
             }
 
             var (action, version) = Outcome(jobName, expectedVersion);
-            return ValueTask.FromResult(new SetDefinitionOverridesResponse(action, version));
+            return ValueTask.FromResult(new UpdateDefinitionOverridesResponse(action, version));
         };
         Retire = static (_, jobName, expectedVersion, _, _, _) =>
         {
@@ -30,6 +30,7 @@ internal sealed class FakeDefinitions : IDefinitions
         Get = static (jobNamespace, jobName, _) => ValueTask.FromResult(Detail(jobNamespace, jobName));
         List = static (query, _) =>
             ValueTask.FromResult(new ListDefinitionsResponse(query.JobNamespace == "billing" ? [Item] : [], null, false, 50, null));
+        GetInputTemplate = InputTemplate;
     }
 
     public Func<
@@ -40,7 +41,7 @@ internal sealed class FakeDefinitions : IDefinitions
         string?,
         string?,
         CancellationToken,
-        ValueTask<SetDefinitionOverridesResponse>
+        ValueTask<UpdateDefinitionOverridesResponse>
     > UpdateOverrides { get; set; }
 
     public Func<string, string, int, string?, string?, CancellationToken, ValueTask<RetireDefinitionResponse>> Retire { get; set; }
@@ -49,7 +50,9 @@ internal sealed class FakeDefinitions : IDefinitions
 
     public Func<ListDefinitionsQuery, CancellationToken, ValueTask<ListDefinitionsResponse>> List { get; set; }
 
-    ValueTask<SetDefinitionOverridesResponse> IDefinitions.UpdateOverridesAsync(
+    public Func<string, string, GetDefinitionInputTemplateResponse?> GetInputTemplate { get; set; }
+
+    ValueTask<UpdateDefinitionOverridesResponse> IDefinitions.UpdateOverridesAsync(
         string jobNamespace,
         string jobName,
         int expectedVersion,
@@ -72,6 +75,9 @@ internal sealed class FakeDefinitions : IDefinitions
         Get(jobNamespace, jobName, ct);
 
     ValueTask<ListDefinitionsResponse> IDefinitions.ListAsync(ListDefinitionsQuery query, CancellationToken ct) => List(query, ct);
+
+    GetDefinitionInputTemplateResponse? IDefinitions.GetInputTemplate(string jobNamespace, string jobName) =>
+        GetInputTemplate(jobNamespace, jobName);
 
     /// <summary>The outcome and the version after it: the definition's current version on a conflict, one past the expected on an apply.</summary>
     private static (ControlAction Action, int? Version) Outcome(string jobName, int expectedVersion) =>
@@ -97,6 +103,18 @@ internal sealed class FakeDefinitions : IDefinitions
 
         return jobNamespace == "billing" && jobName == "send-invoice" ? SendInvoice : null;
     }
+
+    /// <summary>Only ("billing", "send-invoice") is known to this fake host; anything else is unregistered.</summary>
+    private static GetDefinitionInputTemplateResponse? InputTemplate(string jobNamespace, string jobName) =>
+        jobNamespace == "billing" && jobName == "send-invoice"
+            ? new GetDefinitionInputTemplateResponse(
+                jobNamespace,
+                jobName,
+                "Billing.SendInvoice",
+                JobPayloadFormat.Json,
+                """{"invoiceId":0,"note":null}"""
+            )
+            : null;
 
     private static readonly ListDefinitionsItem Item = new(
         5,

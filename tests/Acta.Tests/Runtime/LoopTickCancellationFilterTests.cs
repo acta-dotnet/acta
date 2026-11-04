@@ -71,7 +71,7 @@ public sealed class LoopTickCancellationFilterTests
         var registration = new WorkerRegistration("orders", null, null, [], []);
         var options = Options.Create(new JobsOptions { HeartbeatInterval = TimeSpan.FromMilliseconds(20) });
         var services = new ScriptedSession(call =>
-            call.Stem == "GetDefinitionContracts"
+            call.Stem == "ListDefinitionContracts"
                 ? throw failure
                 : new ExtendWorkerLeasesRow(JobId: null, ExecutionNumber: null, LockKey: null, Renewed: false, DateTime.UtcNow)
         ).Services();

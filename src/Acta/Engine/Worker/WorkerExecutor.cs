@@ -352,10 +352,10 @@ internal sealed class WorkerExecutor(
     /// admission froze, the same on every retry and reclaim, and whether this attempt is the firing's first. Null for
     /// an enqueued job, and for a firing whose claim the attempt lost, which the completion write then refuses.
     /// </summary>
-    private async Task<GetFiringResponse?> ReadFiringAsync(ClaimedJob job, int workerId, CancellationToken ct) =>
+    private async Task<GetScheduleFiringResponse?> ReadFiringAsync(ClaimedJob job, int workerId, CancellationToken ct) =>
         job.Kind == JobKindCode.PermanentSlot || job.ScheduleId is not null
             ? await WorkerFinalizer.RepeatAsync(
-                async token => await _execution.GetFiringAsync(new ExecutionFence(job.JobId, job.ExecutionNumber, workerId), token),
+                async token => await _execution.GetScheduleFiringAsync(new ExecutionFence(job.JobId, job.ExecutionNumber, workerId), token),
                 _log,
                 job.JobId,
                 ct,

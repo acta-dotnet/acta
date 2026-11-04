@@ -242,13 +242,13 @@ public static class ActaTestHost
             ArgumentNullException.ThrowIfNull(schedule);
             var path = $"{schedule.JobNamespace}/{schedule.JobName}/{schedule.ScheduleName}";
             var target =
-                await provider.GetRequiredService<SchedulesOperations>().ResolveTargetAsync(schedule, ct)
+                await provider.GetRequiredService<SchedulesOperations>().ResolveScheduleTargetAsync(schedule, ct)
                 ?? throw new InvalidOperationException($"Schedule '{path}' does not exist; register it before forcing it due.");
             if (target.Timing.ExpressionKind == ScheduleExpressionKindCode.Calendar || target.Timing.AvailabilityCalendarName is not null)
             {
                 // The admitter skips a cursor the calendar does not produce, so an arbitrary instant can never be due.
                 throw new InvalidOperationException(
-                    $"Schedule '{path}' is bound to a calendar, which admits only the instants the calendar produces; advance the host's clock to one of them, or fire the slot with TriggerNowAsync."
+                    $"Schedule '{path}' is bound to a calendar, which admits only the instants the calendar produces; advance the host's clock to one of them, or fire the slot with TriggerAsync."
                 );
             }
 

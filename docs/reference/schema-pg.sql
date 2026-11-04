@@ -41,14 +41,14 @@ DO $$
 BEGIN
     IF EXISTS (
         SELECT 1 FROM acta.migrations
-        WHERE name NOT IN ('M20261104070741_init')
+        WHERE name NOT IN ('M20261105115841_init')
     ) THEN
         RAISE EXCEPTION 'A newer Acta release already upgraded this database. Run the newest provisioning script; this one would move it backwards.';
     END IF;
 END
 $$;
 
--- ===== BEGIN M20261104070741_init =====
+-- ===== BEGIN M20261105115841_init =====
 CREATE SCHEMA IF NOT EXISTS acta;
 
 -- alerts
@@ -474,7 +474,7 @@ CREATE INDEX IF NOT EXISTS ix_workers_status_last_seen ON acta.workers (worker_s
 CREATE INDEX IF NOT EXISTS ix_workers_namespace_last_seen ON acta.workers (namespace_id, last_seen_at_utc DESC, worker_id DESC);
 CREATE UNIQUE INDEX IF NOT EXISTS ux_workers_ref ON acta.workers (worker_ref);
 
-CREATE OR REPLACE FUNCTION acta.access_checkpoint(
+CREATE OR REPLACE FUNCTION acta.access_job_checkpoint(
     p_action SMALLINT,
     p_job_id BIGINT,
     p_execution_number INT,
@@ -490,14 +490,14 @@ AS $$
 DECLARE
     v_deleted INTEGER;
 BEGIN
-    IF p_action IN (10 /* AccessCheckpointAction.Set */, 30 /* AccessCheckpointAction.GetOrSet */)
+    IF p_action IN (10 /* AccessJobCheckpointAction.Set */, 30 /* AccessJobCheckpointAction.GetOrSet */)
        AND (p_value_format_id = 0 /* JobPayloadFormat.None */ OR p_value IS NULL) THEN
         RAISE EXCEPTION 'Variable payload must use a non-zero format id and non-NULL value.';
     END IF;
 
     -- A write lands only while this attempt holds the job's row, which stays share-locked to commit
     -- (docs/sql-internals.md, "Execution fence"). Reads take no lock.
-    IF p_action IN (10 /* AccessCheckpointAction.Set */, 30 /* AccessCheckpointAction.GetOrSet */, 50 /* AccessCheckpointAction.Delete */) THEN
+    IF p_action IN (10 /* AccessJobCheckpointAction.Set */, 30 /* AccessJobCheckpointAction.GetOrSet */, 50 /* AccessJobCheckpointAction.Delete */) THEN
         PERFORM 1
         FROM acta.jobs_state r
         WHERE
@@ -508,12 +508,12 @@ BEGIN
         FOR SHARE;
 
         IF NOT FOUND THEN
-            RAISE EXCEPTION 'ACTA:EXECUTION_FENCED:access_checkpoint: job % is no longer executing attempt %.', p_job_id, p_execution_number
+            RAISE EXCEPTION 'ACTA:EXECUTION_FENCED:access_job_checkpoint: job % is no longer executing attempt %.', p_job_id, p_execution_number
                 USING ERRCODE = 'P0001';
         END IF;
     END IF;
 
-    IF p_action = 10 /* AccessCheckpointAction.Set */ THEN
+    IF p_action = 10 /* AccessJobCheckpointAction.Set */ THEN
         INSERT INTO acta.checkpoints (
             job_id,
             checkpoint_kind_code,
@@ -539,7 +539,7 @@ BEGIN
             version = acta.checkpoints.version + 1;
 
         RETURN QUERY SELECT 1, NULL::SMALLINT, NULL::BYTEA, NULL::INTEGER;
-    ELSIF p_action = 20 /* AccessCheckpointAction.Get */ THEN
+    ELSIF p_action = 20 /* AccessJobCheckpointAction.Get */ THEN
         RETURN QUERY
         SELECT 1, jv.value_format_id, jv.value, jv.version
         FROM acta.checkpoints AS jv
@@ -551,7 +551,7 @@ BEGIN
         IF NOT FOUND THEN
             RETURN QUERY SELECT 0, NULL::SMALLINT, NULL::BYTEA, NULL::INTEGER;
         END IF;
-    ELSIF p_action = 30 /* AccessCheckpointAction.GetOrSet */ THEN
+    ELSIF p_action = 30 /* AccessJobCheckpointAction.GetOrSet */ THEN
         LOOP
             RETURN QUERY
             SELECT 1, jv.value_format_id, jv.value, jv.version
@@ -591,7 +591,7 @@ BEGIN
                 RETURN;
             END IF;
         END LOOP;
-    ELSIF p_action = 40 /* AccessCheckpointAction.Exists */ THEN
+    ELSIF p_action = 40 /* AccessJobCheckpointAction.Exists */ THEN
         RETURN QUERY
         SELECT CASE WHEN EXISTS (
             SELECT 1
@@ -601,7 +601,7 @@ BEGIN
                 AND jv.checkpoint_kind_code = p_checkpoint_kind_code
                 AND jv.checkpoint_name = p_checkpoint_name
         ) THEN 1 ELSE 0 END, NULL::SMALLINT, NULL::BYTEA, NULL::INTEGER;
-    ELSIF p_action = 50 /* AccessCheckpointAction.Delete */ THEN
+    ELSIF p_action = 50 /* AccessJobCheckpointAction.Delete */ THEN
         DELETE FROM acta.checkpoints AS jv
         WHERE
             jv.job_id = p_job_id
@@ -611,12 +611,12 @@ BEGIN
         GET DIAGNOSTICS v_deleted = ROW_COUNT;
         RETURN QUERY SELECT CASE WHEN v_deleted > 0 THEN 1 ELSE 0 END, NULL::SMALLINT, NULL::BYTEA, NULL::INTEGER;
     ELSE
-        RAISE EXCEPTION 'access_checkpoint received an unknown action.';
+        RAISE EXCEPTION 'access_job_checkpoint received an unknown action.';
     END IF;
 END;
 $$;
 
-CREATE OR REPLACE FUNCTION acta.arm_or_consume_sleep_timer(
+CREATE OR REPLACE FUNCTION acta.arm_or_consume_job_sleep_timer(
     p_job_id BIGINT,
     p_execution_number INT,
     p_leased_by_worker_id INT,
@@ -648,7 +648,7 @@ BEGIN
     FOR UPDATE;
 
     IF NOT FOUND THEN
-        RAISE EXCEPTION 'ACTA:EXECUTION_FENCED:arm_or_consume_sleep_timer: job % is no longer executing attempt %.', p_job_id, p_execution_number
+        RAISE EXCEPTION 'ACTA:EXECUTION_FENCED:arm_or_consume_job_sleep_timer: job % is no longer executing attempt %.', p_job_id, p_execution_number
             USING ERRCODE = 'P0001';
     END IF;
 
@@ -661,7 +661,7 @@ BEGIN
 
     IF v_state = 10 /* CheckpointStatusCode.Pending */ AND v_existing_due > v_now THEN
 
-        RETURN QUERY SELECT 1 /* ArmOrConsumeSleepTimerOutcomeCode.Suspend */::SMALLINT, v_existing_due;
+        RETURN QUERY SELECT 1 /* ArmOrConsumeJobSleepTimerOutcomeCode.Suspend */::SMALLINT, v_existing_due;
     ELSIF v_state = 10 /* CheckpointStatusCode.Pending */ THEN
 
         UPDATE acta.checkpoints jt
@@ -683,15 +683,15 @@ BEGIN
         WHERE
             r2.job_id = p_job_id
             AND r2.job_status_code = 50 /* JobStatusCode.Executing */;
-        RETURN QUERY SELECT 2 /* ArmOrConsumeSleepTimerOutcomeCode.Continue */::SMALLINT, NULL::TIMESTAMPTZ;
+        RETURN QUERY SELECT 2 /* ArmOrConsumeJobSleepTimerOutcomeCode.Continue */::SMALLINT, NULL::TIMESTAMPTZ;
     ELSIF v_state IS NOT NULL THEN
 
-        RETURN QUERY SELECT 2 /* ArmOrConsumeSleepTimerOutcomeCode.Continue */::SMALLINT, NULL::TIMESTAMPTZ;
+        RETURN QUERY SELECT 2 /* ArmOrConsumeJobSleepTimerOutcomeCode.Continue */::SMALLINT, NULL::TIMESTAMPTZ;
     ELSIF v_due <= v_now THEN
 
-        RETURN QUERY SELECT 2 /* ArmOrConsumeSleepTimerOutcomeCode.Continue */::SMALLINT, NULL::TIMESTAMPTZ;
+        RETURN QUERY SELECT 2 /* ArmOrConsumeJobSleepTimerOutcomeCode.Continue */::SMALLINT, NULL::TIMESTAMPTZ;
     ELSIF EXISTS (SELECT 1 FROM acta.checkpoints jt WHERE jt.job_id = p_job_id AND jt.checkpoint_kind_code = 30 /* CheckpointKindCode.Timer */ AND jt.checkpoint_status_code = 10 /* CheckpointStatusCode.Pending */) THEN
-        RETURN QUERY SELECT 3 /* ArmOrConsumeSleepTimerOutcomeCode.Reject */::SMALLINT, NULL::TIMESTAMPTZ;
+        RETURN QUERY SELECT 3 /* ArmOrConsumeJobSleepTimerOutcomeCode.Reject */::SMALLINT, NULL::TIMESTAMPTZ;
     ELSE
         INSERT INTO acta.checkpoints (
             job_id,
@@ -711,7 +711,7 @@ BEGIN
             now(),
             now(),
             0);
-        RETURN QUERY SELECT 1 /* ArmOrConsumeSleepTimerOutcomeCode.Suspend */::SMALLINT, v_due;
+        RETURN QUERY SELECT 1 /* ArmOrConsumeJobSleepTimerOutcomeCode.Suspend */::SMALLINT, v_due;
     END IF;
 END;
 $$;
@@ -1644,7 +1644,7 @@ BEGIN
 END;
 $$;
 
-CREATE OR REPLACE FUNCTION acta.complete_step(
+CREATE OR REPLACE FUNCTION acta.complete_job_step(
     p_job_id BIGINT,
     p_execution_number INT,
     p_leased_by_worker_id INT,
@@ -1685,7 +1685,7 @@ BEGIN
     FOR SHARE;
 
     IF NOT FOUND THEN
-        RAISE EXCEPTION 'ACTA:EXECUTION_FENCED:complete_step: job % is no longer executing attempt %.', p_job_id, p_execution_number
+        RAISE EXCEPTION 'ACTA:EXECUTION_FENCED:complete_job_step: job % is no longer executing attempt %.', p_job_id, p_execution_number
             USING ERRCODE = 'P0001';
     END IF;
 
@@ -1710,8 +1710,8 @@ BEGIN
         GET DIAGNOSTICS v_rows = ROW_COUNT;
 
         RETURN QUERY SELECT CASE WHEN v_rows = 0
-            THEN 4 /* CompleteStepOutcomeCode.StaleVersion */
-            ELSE 1 /* CompleteStepOutcomeCode.Succeeded */ END::SMALLINT, NULL::TIMESTAMPTZ;
+            THEN 4 /* CompleteJobStepOutcomeCode.StaleVersion */
+            ELSE 1 /* CompleteJobStepOutcomeCode.Succeeded */ END::SMALLINT, NULL::TIMESTAMPTZ;
         RETURN;
     END IF;
 
@@ -1733,8 +1733,8 @@ BEGIN
         GET DIAGNOSTICS v_rows = ROW_COUNT;
 
         RETURN QUERY SELECT CASE WHEN v_rows = 0
-            THEN 4 /* CompleteStepOutcomeCode.StaleVersion */
-            ELSE 3 /* CompleteStepOutcomeCode.Exhausted */ END::SMALLINT, NULL::TIMESTAMPTZ;
+            THEN 4 /* CompleteJobStepOutcomeCode.StaleVersion */
+            ELSE 3 /* CompleteJobStepOutcomeCode.Exhausted */ END::SMALLINT, NULL::TIMESTAMPTZ;
     ELSE
         UPDATE acta.steps a
         SET
@@ -1747,8 +1747,8 @@ BEGIN
         GET DIAGNOSTICS v_rows = ROW_COUNT;
 
         RETURN QUERY SELECT CASE WHEN v_rows = 0
-            THEN 4 /* CompleteStepOutcomeCode.StaleVersion */
-            ELSE 2 /* CompleteStepOutcomeCode.RetryScheduled */ END::SMALLINT,
+            THEN 4 /* CompleteJobStepOutcomeCode.StaleVersion */
+            ELSE 2 /* CompleteJobStepOutcomeCode.RetryScheduled */ END::SMALLINT,
             CASE WHEN v_rows = 0 THEN NULL ELSE v_next END;
     END IF;
 END;
@@ -2977,7 +2977,7 @@ BEGIN
 END;
 $$;
 
-CREATE OR REPLACE FUNCTION acta.raise_signal(
+CREATE OR REPLACE FUNCTION acta.raise_job_signal(
     p_job_id BIGINT,
     p_checkpoint_kind_code SMALLINT,
     p_checkpoint_name VARCHAR,
@@ -3738,7 +3738,7 @@ BEGIN
 END;
 $$;
 
-CREATE OR REPLACE FUNCTION acta.start_step(
+CREATE OR REPLACE FUNCTION acta.start_job_step(
     p_job_id BIGINT,
     p_execution_number INT,
     p_leased_by_worker_id INT,
@@ -3780,7 +3780,7 @@ BEGIN
     FOR SHARE;
 
     IF NOT FOUND THEN
-        RAISE EXCEPTION 'ACTA:EXECUTION_FENCED:start_step: job % is no longer executing attempt %.', p_job_id, p_execution_number
+        RAISE EXCEPTION 'ACTA:EXECUTION_FENCED:start_job_step: job % is no longer executing attempt %.', p_job_id, p_execution_number
             USING ERRCODE = 'P0001';
     END IF;
 
@@ -3824,7 +3824,7 @@ BEGIN
         INTO v_attempt, v_version;
 
         IF FOUND THEN
-            RETURN QUERY SELECT 1 /* StartStepOutcomeCode.Invoke */::SMALLINT, v_attempt, v_version,
+            RETURN QUERY SELECT 1 /* StartJobStepOutcomeCode.Invoke */::SMALLINT, v_attempt, v_version,
                 NULL::TIMESTAMPTZ, 0 /* JobPayloadFormat.None */::SMALLINT, NULL::BYTEA, NULL::SMALLINT, NULL::VARCHAR;
             RETURN;
         END IF;
@@ -3850,23 +3850,23 @@ BEGIN
 
     IF v_state = 100 /* StepStatusCode.Succeeded */ THEN
 
-        RETURN QUERY SELECT 3 /* StartStepOutcomeCode.ReplaySuccess */::SMALLINT, v_attempt, v_version,
+        RETURN QUERY SELECT 3 /* StartJobStepOutcomeCode.ReplaySuccess */::SMALLINT, v_attempt, v_version,
             NULL::TIMESTAMPTZ, v_rfid, v_result, NULL::SMALLINT, NULL::VARCHAR;
     ELSIF v_state = 200 /* StepStatusCode.Exhausted */ THEN
 
-        RETURN QUERY SELECT 4 /* StartStepOutcomeCode.Exhausted */::SMALLINT, v_attempt, v_version,
+        RETURN QUERY SELECT 4 /* StartJobStepOutcomeCode.Exhausted */::SMALLINT, v_attempt, v_version,
             NULL::TIMESTAMPTZ, 0 /* JobPayloadFormat.None */::SMALLINT, NULL::BYTEA, v_rcode, v_rmsg;
     ELSIF v_state = 230 /* StepStatusCode.Interrupted */ THEN
         -- Terminal at-most-once ambiguity from an earlier replay; re-throw consistently, no mutation.
-        RETURN QUERY SELECT 5 /* StartStepOutcomeCode.Interrupted */::SMALLINT, v_attempt, v_version,
+        RETURN QUERY SELECT 5 /* StartJobStepOutcomeCode.Interrupted */::SMALLINT, v_attempt, v_version,
             NULL::TIMESTAMPTZ, 0 /* JobPayloadFormat.None */::SMALLINT, NULL::BYTEA, NULL::SMALLINT, NULL::VARCHAR;
     ELSIF v_next IS NOT NULL AND v_next > v_now THEN
 
-        RETURN QUERY SELECT 2 /* StartStepOutcomeCode.Suspend */::SMALLINT, v_attempt, v_version,
+        RETURN QUERY SELECT 2 /* StartJobStepOutcomeCode.Suspend */::SMALLINT, v_attempt, v_version,
             v_next, 0 /* JobPayloadFormat.None */::SMALLINT, NULL::BYTEA, NULL::SMALLINT, NULL::VARCHAR;
     ELSIF p_at_most_once THEN
-        -- Pending slot re-entered on replay under AtMostOnce: the worker died after start_step recorded
-        -- the pending row but before complete_step. Do not re-invoke; terminalize the row Interrupted
+        -- Pending slot re-entered on replay under AtMostOnce: the worker died after start_job_step recorded
+        -- the pending row but before complete_job_step. Do not re-invoke; terminalize the row Interrupted
         -- (one transition, one version bump) and let the orchestration throw StepInterruptedException.
         UPDATE acta.steps a
         SET
@@ -3881,10 +3881,10 @@ BEGIN
             AND a.step_name = p_step_name
         RETURNING a.version INTO v_version;
 
-        RETURN QUERY SELECT 5 /* StartStepOutcomeCode.Interrupted */::SMALLINT, v_attempt, v_version,
+        RETURN QUERY SELECT 5 /* StartJobStepOutcomeCode.Interrupted */::SMALLINT, v_attempt, v_version,
             NULL::TIMESTAMPTZ, 0 /* JobPayloadFormat.None */::SMALLINT, NULL::BYTEA, NULL::SMALLINT, NULL::VARCHAR;
     ELSE
-        -- The next attempt spends the retry instant, as SQLite's start_step does.
+        -- The next attempt spends the retry instant, as SQLite's start_job_step does.
         UPDATE acta.steps a
         SET
             attempt_number = a.attempt_number + 1,
@@ -3896,7 +3896,7 @@ BEGIN
             AND a.step_name = p_step_name
         RETURNING a.attempt_number, a.version INTO v_attempt, v_version;
 
-        RETURN QUERY SELECT 1 /* StartStepOutcomeCode.Invoke */::SMALLINT, v_attempt, v_version,
+        RETURN QUERY SELECT 1 /* StartJobStepOutcomeCode.Invoke */::SMALLINT, v_attempt, v_version,
             NULL::TIMESTAMPTZ, 0 /* JobPayloadFormat.None */::SMALLINT, NULL::BYTEA, NULL::SMALLINT, NULL::VARCHAR;
     END IF;
 END;
@@ -3910,7 +3910,7 @@ $$;
 /* One resolution block, reached holding the row lock. An absent slot is armed first, because FOR
    UPDATE locks no key that does not exist yet and the arming insert can lose to a concurrent first
    arrival; the loser re-reads the winner's row and resolves against that. */
-CREATE OR REPLACE FUNCTION acta.wait_signal(
+CREATE OR REPLACE FUNCTION acta.wait_job_signal(
     p_job_id BIGINT,
     p_execution_number INT,
     p_leased_by_worker_id INT,
@@ -3948,7 +3948,7 @@ BEGIN
     FOR UPDATE;
 
     /* The wait changes the slot only while this attempt holds the job's row, share-locked to commit after a stored
-       slot's row lock and before an absent slot's insert, the order raise_signal and a child's landing take them in
+       slot's row lock and before an absent slot's insert, the order raise_job_signal and a child's landing take them in
        (docs/sql-internals.md, "Execution fence"). */
     PERFORM 1
     FROM acta.jobs_state r
@@ -3960,7 +3960,7 @@ BEGIN
     FOR SHARE;
 
     IF NOT FOUND THEN
-        RAISE EXCEPTION 'ACTA:EXECUTION_FENCED:wait_signal: job % is no longer executing attempt %.', p_job_id, p_execution_number
+        RAISE EXCEPTION 'ACTA:EXECUTION_FENCED:wait_job_signal: job % is no longer executing attempt %.', p_job_id, p_execution_number
             USING ERRCODE = 'P0001';
     END IF;
 
@@ -3995,8 +3995,8 @@ BEGIN
         IF v_armed = 1 THEN
             RETURN QUERY SELECT
                 CASE
-                    WHEN v_arm_state = 30 /* CheckpointStatusCode.Expired */ THEN 3 /* WaitSignalOutcomeCode.TimedOut */
-                    ELSE 1 /* WaitSignalOutcomeCode.SuspendPending */
+                    WHEN v_arm_state = 30 /* CheckpointStatusCode.Expired */ THEN 3 /* WaitJobSignalOutcomeCode.TimedOut */
+                    ELSE 1 /* WaitJobSignalOutcomeCode.SuspendPending */
                 END::SMALLINT,
                 0 /* JobPayloadFormat.None */::SMALLINT,
                 NULL::BYTEA;
@@ -4015,12 +4015,12 @@ BEGIN
 
     IF v_state = 20 /* CheckpointStatusCode.Set */ THEN
         RETURN QUERY SELECT
-            2 /* WaitSignalOutcomeCode.ContinueSet */::SMALLINT,
+            2 /* WaitJobSignalOutcomeCode.ContinueSet */::SMALLINT,
             v_fmt,
             v_val;
     ELSIF v_state = 30 /* CheckpointStatusCode.Expired */ THEN
         RETURN QUERY SELECT
-            3 /* WaitSignalOutcomeCode.TimedOut */::SMALLINT,
+            3 /* WaitJobSignalOutcomeCode.TimedOut */::SMALLINT,
             0 /* JobPayloadFormat.None */::SMALLINT,
             NULL::BYTEA;
     ELSIF v_state = 10 /* CheckpointStatusCode.Pending */ AND v_due IS NOT NULL AND v_due <= v_now THEN
@@ -4033,7 +4033,7 @@ BEGIN
         WHERE js.job_id = p_job_id AND js.checkpoint_kind_code = p_checkpoint_kind_code AND js.checkpoint_name = p_checkpoint_name;
 
         RETURN QUERY SELECT
-            3 /* WaitSignalOutcomeCode.TimedOut */::SMALLINT,
+            3 /* WaitJobSignalOutcomeCode.TimedOut */::SMALLINT,
             0 /* JobPayloadFormat.None */::SMALLINT,
             NULL::BYTEA;
     ELSIF v_state = 10 /* CheckpointStatusCode.Pending */ AND v_due IS NULL AND v_arm_due IS NOT NULL THEN
@@ -4053,14 +4053,14 @@ BEGIN
 
         RETURN QUERY SELECT
             CASE
-                WHEN v_arm_state = 30 /* CheckpointStatusCode.Expired */ THEN 3 /* WaitSignalOutcomeCode.TimedOut */
-                ELSE 1 /* WaitSignalOutcomeCode.SuspendPending */
+                WHEN v_arm_state = 30 /* CheckpointStatusCode.Expired */ THEN 3 /* WaitJobSignalOutcomeCode.TimedOut */
+                ELSE 1 /* WaitJobSignalOutcomeCode.SuspendPending */
             END::SMALLINT,
             0 /* JobPayloadFormat.None */::SMALLINT,
             NULL::BYTEA;
     ELSE
         RETURN QUERY SELECT
-            1 /* WaitSignalOutcomeCode.SuspendPending */::SMALLINT,
+            1 /* WaitJobSignalOutcomeCode.SuspendPending */::SMALLINT,
             0 /* JobPayloadFormat.None */::SMALLINT,
             NULL::BYTEA;
     END IF;
@@ -4410,10 +4410,10 @@ JOIN acta.namespaces AS ns ON ns.namespace_id = w.namespace_id;
 
 
 INSERT INTO acta.migrations (name)
-VALUES ('M20261104070741_init')
+VALUES ('M20261105115841_init')
 ON CONFLICT (name) DO NOTHING;
 
--- ===== END M20261104070741_init =====
+-- ===== END M20261105115841_init =====
 
 COMMIT;
 

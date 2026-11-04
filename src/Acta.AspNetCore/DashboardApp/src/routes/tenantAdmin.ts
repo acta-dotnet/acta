@@ -20,10 +20,10 @@ export function buildTenantDetailsPayload(input: TenantDetailsInput): { displayN
 }
 
 // AdminControlAction has no message field and a different action set to
-// ControlAction: 'applied' and 'alreadyInState' both mean the row now matches the caller's
-// request (alreadyInState is an idempotent no-op, still a success); 'notFound' and
-// 'versionConflict' both mean the caller's local copy is stale - never silently resend the same
+// ControlAction: 'applied' and 'already-in-state' both mean the row now matches the caller's
+// request (already-in-state is an idempotent no-op, still a success); 'not-found' and
+// 'version-conflict' both mean the caller's local copy is stale - never silently resend the same
 // expectedVersion, only warn and reload. Shared by suspend/resume and the details editor.
 export function tenantAdminNeedsReload(action: AdminControlAction): boolean {
-  return action === 'notFound' || action === 'versionConflict';
+  return action === 'not-found' || action === 'version-conflict';
 }

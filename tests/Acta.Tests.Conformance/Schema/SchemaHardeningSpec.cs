@@ -466,7 +466,7 @@ public sealed class SchemaHardeningSpec : ActaRuntimeTestBase<ConformanceFixture
         }
 
         // The live path into a terminal status is an UPDATE of the pending row, which is where
-        // start_step and complete_step have to drop the instant as part of the transition.
+        // start_job_step and complete_job_step have to drop the instant as part of the transition.
         await Assert.ThrowsAnyAsync<DbException>(() => SetStepStatusAsync(enq.JobId, "retry-pending", StepStatusCode.Interrupted, ct));
     }
 
@@ -486,7 +486,7 @@ public sealed class SchemaHardeningSpec : ActaRuntimeTestBase<ConformanceFixture
             );
         }
 
-        // complete_step writes the status and the result together, so a Succeeded row can never be moved
+        // complete_job_step writes the status and the result together, so a Succeeded row can never be moved
         // off that status while the result stays behind.
         await Assert.ThrowsAnyAsync<DbException>(() => SetStepStatusAsync(enq.JobId, "result-succeeded", StepStatusCode.Exhausted, ct));
     }
@@ -497,7 +497,7 @@ public sealed class SchemaHardeningSpec : ActaRuntimeTestBase<ConformanceFixture
         var ct = TestContext.Current.CancellationToken;
         var enq = await Jobs.EnqueueAsync(new EnqueueJobRequest(TestNamespace, "add-numbers", JobPayload.Json(new AddNumbers(1, 1))), ct);
 
-        // Both legal shapes: no failure at all, and the full pair complete_step writes on a failure.
+        // Both legal shapes: no failure at all, and the full pair complete_job_step writes on a failure.
         Assert.Equal(1, await InsertStepAsync(enq.JobId, "failure-none", StepStatusCode.Pending, ct));
         Assert.Equal(
             1,
@@ -630,7 +630,7 @@ public sealed class SchemaHardeningSpec : ActaRuntimeTestBase<ConformanceFixture
         await AssertNamespaceAgreementAsync(one.JobId, ct);
 
         var batch = (
-            await Jobs.EnqueueBatchAsync([new EnqueueJobRequest(TestNamespace, "add-numbers", JobPayload.Json(new AddNumbers(3, 4)))], ct)
+            await Jobs.EnqueueJobsAsync([new EnqueueJobRequest(TestNamespace, "add-numbers", JobPayload.Json(new AddNumbers(3, 4)))], ct)
         ).Jobs;
         await AssertNamespaceAgreementAsync(batch[0].JobId, ct);
 

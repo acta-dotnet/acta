@@ -28,7 +28,7 @@ public sealed class JobDetailEndpointTests
                 StoredResult = JobPayload.FromBytes(JobPayloadFormat.Json, Encoding.UTF8.GetBytes("{\"ok\":true}")),
                 StoredCheckpoints =
                 [
-                    new GetCheckpointsItem(
+                    new GetJobCheckpointsItem(
                         CheckpointKindCode.Variable,
                         "counter",
                         null,

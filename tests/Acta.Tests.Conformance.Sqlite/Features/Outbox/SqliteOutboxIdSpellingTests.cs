@@ -29,12 +29,12 @@ public sealed class SqliteOutboxIdSpellingTests : ActaTestBase<SqliteConformance
 
         // A released claim returns every spelling to Pending, so the claim below takes all three again.
         var released = Guid.NewGuid();
-        Assert.Equal(3, (await store.ClaimDueAsync(new ClaimOutboxCommand(released, 10, LeaseTtlSeconds), ct)).Rows.Count);
+        Assert.Equal(3, (await store.ClaimAsync(new ClaimOutboxCommand(released, 10, LeaseTtlSeconds), ct)).Rows.Count);
         await store.ReleaseClaimedAsync(new ReleaseClaimedOutboxCommand(released, [delivered, retried, poisoned]), ct);
         Assert.Equal(["10:0", "10:0", "10:0"], await StatesAsync(table, ct));
 
         var token = Guid.NewGuid();
-        var claimed = (await store.ClaimDueAsync(new ClaimOutboxCommand(token, 10, LeaseTtlSeconds), ct)).Rows;
+        var claimed = (await store.ClaimAsync(new ClaimOutboxCommand(token, 10, LeaseTtlSeconds), ct)).Rows;
         Assert.Equal([delivered, retried, poisoned], claimed.Select(r => r.OutboxId));
         await store.DeleteClaimedAsync(new DeleteClaimedOutboxCommand(token, [delivered]), ct);
         await store.RescheduleAsync(new RescheduleOutboxCommand(token, [new OutboxReschedule(retried, 1, 60, "recoverable")]), ct);
@@ -43,9 +43,9 @@ public sealed class SqliteOutboxIdSpellingTests : ActaTestBase<SqliteConformance
 
         Assert.Equal(
             poisoned,
-            Assert.Single((await store.ListQuarantinedAsync(new ListQuarantinedOutboxQuery(10, null), ct)).Items).OutboxId
+            Assert.Single((await store.ListQuarantinedRowsAsync(new ListQuarantinedOutboxRowsQuery(10, null), ct)).Items).OutboxId
         );
-        Assert.Empty((await store.ListQuarantinedAsync(new ListQuarantinedOutboxQuery(10, poisoned), ct)).Items);
+        Assert.Empty((await store.ListQuarantinedRowsAsync(new ListQuarantinedOutboxRowsQuery(10, poisoned), ct)).Items);
         Assert.Equal([poisoned], (await store.MatchQuarantinedAsync(new MatchQuarantinedOutboxQuery([poisoned]), ct)).OutboxIds);
         Assert.Equal([poisoned], (await store.RequeueQuarantinedAsync(new RequeueQuarantinedOutboxCommand([poisoned]), ct)).OutboxIds);
         Assert.Equal(["10:1", "10:0"], await StatesAsync(table, ct));
@@ -53,7 +53,7 @@ public sealed class SqliteOutboxIdSpellingTests : ActaTestBase<SqliteConformance
         var again = Guid.NewGuid();
         Assert.Equal(
             poisoned,
-            Assert.Single((await store.ClaimDueAsync(new ClaimOutboxCommand(again, 10, LeaseTtlSeconds), ct)).Rows).OutboxId
+            Assert.Single((await store.ClaimAsync(new ClaimOutboxCommand(again, 10, LeaseTtlSeconds), ct)).Rows).OutboxId
         );
         await store.QuarantineAsync(new QuarantineOutboxCommand(again, [new OutboxQuarantine(poisoned, 5, "poison")]), ct);
         Assert.Equal([poisoned], (await store.DiscardQuarantinedAsync(new DiscardQuarantinedOutboxCommand([poisoned]), ct)).OutboxIds);

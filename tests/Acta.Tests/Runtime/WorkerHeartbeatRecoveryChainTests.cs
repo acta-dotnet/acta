@@ -23,7 +23,7 @@ public sealed class WorkerHeartbeatRecoveryChainTests
                 "ExtendWorkerLeases" => new ExtendWorkerLeasesRow(null, null, null, Renewed: false, null, RecoveryClaimed: true),
                 "MarkDeadWorkers" => 0,
                 "ReclaimStuckJobs" => Reclaim(),
-                "GetStaleChildLatches" => Array.Empty<GetStaleChildLatchesItem>(),
+                "ListStaleJobChildLatches" => Array.Empty<ListStaleJobChildLatchesItem>(),
                 _ => throw new NotSupportedException(call.Stem),
             }
         ).Services();

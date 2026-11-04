@@ -234,7 +234,7 @@ public sealed class PerOccurrenceSchedulingSpec : ActaRuntimeTestBase<Conformanc
         var (schedule, _) = await ScheduleAsync(PerOccurrenceManifest.TriggeredJobName, ct);
         var lookup = new ScheduleLookup(TestNamespace, PerOccurrenceManifest.TriggeredJobName, PerOccurrenceManifest.ScheduleName);
 
-        Assert.Equal(ControlAction.Applied, (await Schedules.TriggerNowAsync(lookup, reasonMessage: "now", actor: "ops", ct: ct)).Action);
+        Assert.Equal(ControlAction.Applied, (await Schedules.TriggerAsync(lookup, reasonMessage: "now", actor: "ops", ct: ct)).Action);
 
         var root = Assert.Single(await RootsAsync(schedule.Id, ct));
         Assert.StartsWith("sys.manual.", root.DeduplicationKey, StringComparison.Ordinal);
@@ -246,7 +246,7 @@ public sealed class PerOccurrenceSchedulingSpec : ActaRuntimeTestBase<Conformanc
         Assert.Equal("now", triggered.EventMessage);
         Assert.Equal(PerOccurrenceManifest.ScheduleName, EventDetail(triggered, "schedule"));
 
-        Assert.Equal(ControlAction.Rejected, (await Schedules.TriggerNowAsync(lookup, ct: ct)).Action);
+        Assert.Equal(ControlAction.Rejected, (await Schedules.TriggerAsync(lookup, ct: ct)).Action);
         Assert.Single(await RootsAsync(schedule.Id, ct));
     }
 
@@ -349,7 +349,7 @@ public sealed class PerOccurrenceSchedulingSpec : ActaRuntimeTestBase<Conformanc
             Assert.Equal(0, pass.Admitted);
             Assert.Null(pass.NextWakeUtc);
             Assert.Empty(await RootsAsync(schedule.Id, ct));
-            Assert.Equal(ControlAction.Rejected, (await Schedules.TriggerNowAsync(lookup, ct: ct)).Action);
+            Assert.Equal(ControlAction.Rejected, (await Schedules.TriggerAsync(lookup, ct: ct)).Action);
         }
         finally
         {

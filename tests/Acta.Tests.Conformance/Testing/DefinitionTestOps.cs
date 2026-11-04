@@ -32,8 +32,8 @@ internal static class DefinitionTestOps
             {
                 var stored = (
                     await services
-                        .GetRequiredService<GetDefinitionContractsHandler>()
-                        .HandleAsync(new GetDefinitionContractsQuery(namespaceId), ct)
+                        .GetRequiredService<ListDefinitionContractsHandler>()
+                        .HandleAsync(new ListDefinitionContractsQuery(namespaceId), ct)
                 ).Contracts;
                 return (
                     await services
@@ -48,7 +48,7 @@ internal static class DefinitionTestOps
         }
     }
 
-    public static async Task<SetDefinitionOverridesResponse> UpdateOverridesAsync(
+    public static async Task<UpdateDefinitionOverridesResponse> UpdateOverridesAsync(
         IServiceProvider services,
         string jobNamespace,
         string jobName,

@@ -72,7 +72,7 @@ public sealed class JobRefAfterPurgeSpec : ActaRuntimeTestBase<ConformanceFixtur
         // which is why the sweep above loops until they hold rather than firing once: a READPAST skip would
         // otherwise leave the row alive here and fail an assertion about retention with a lock-timing flake.
         Assert.Null(await Db.From<JobEntity>().Where(j => j.Id == jobId).SingleOrDefaultAsync(ct));
-        Assert.Null(await Jobs.GetJobIdAsync(JobLookup.ByRef(jobRef), ct));
+        Assert.Null(await Jobs.GetIdAsync(JobLookup.ByRef(jobRef), ct));
         Assert.Null(await Jobs.GetAsync(JobLookup.ByRef(jobRef), ct));
 
         // The timeline still reads back by job id, and with the job row gone it has no ref to show.

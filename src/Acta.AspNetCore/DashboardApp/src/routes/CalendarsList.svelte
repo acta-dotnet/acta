@@ -19,13 +19,13 @@
   import type { ColumnDef } from '../components/grid/types.ts';
 
   const initial = hashParams();
-  const filters = createUrlFilters({ role: 'role', nameSearch: 'q' }, { role: '', nameSearch: '' });
+  const filters = createUrlFilters({ role: 'role', nameContains: 'q' }, { role: '', nameContains: '' });
 
   let activeChips = $derived(
     [
       $scope ? { label: 'Namespace', value: $scope, onRemove: () => setScope('') } : null,
       $filters.role ? { label: 'Role', value: $filters.role, onRemove: () => filters.patch({ role: '' }) } : null,
-      $filters.nameSearch ? { label: 'Name', value: $filters.nameSearch, onRemove: () => filters.patch({ nameSearch: '' }) } : null
+      $filters.nameContains ? { label: 'Name', value: $filters.nameContains, onRemove: () => filters.patch({ nameContains: '' }) } : null
     ].filter((chip): chip is { label: string; value: string; onRemove: () => void } => chip !== null)
   );
   function clearAllFilters() {
@@ -38,7 +38,7 @@
 
   let copySql = $derived(
     calendarsListSql(
-      { namespace: $scope, role: $filters.role, nameSearch: $filters.nameSearch },
+      { namespace: $scope, role: $filters.role, nameContains: $filters.nameContains },
       { provider: capabilities.data?.provider, schema: capabilities.data?.schema }
     )
   );
@@ -124,7 +124,7 @@
       </label>
       <label>
         Name
-        <input placeholder="contains" value={$filters.nameSearch} onchange={(event) => filters.patch({ nameSearch: event.currentTarget.value.trim() })} />
+        <input placeholder="contains" value={$filters.nameContains} onchange={(event) => filters.patch({ nameContains: event.currentTarget.value.trim() })} />
       </label>
       <span class="dim calendar-help">
         Calendars kept here are data: saved as drafts, published, and followed by the schedules that bind them by name.
@@ -156,7 +156,7 @@
       endpoint="calendars"
       mobileCards={true}
       {columns}
-      filters={() => ({ jobNamespace: $scope, role: $filters.role, nameSearch: $filters.nameSearch })}
+      filters={() => ({ jobNamespace: $scope, role: $filters.role, nameContains: $filters.nameContains })}
       includeTotal={true}
       initialPageSize={Number(initial.get('pageSize') ?? '50') || 50}
       onPageSizeChange={(size) => updateHashParams({ pageSize: String(size) })}

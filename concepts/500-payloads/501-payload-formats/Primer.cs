@@ -5,7 +5,7 @@ namespace Acta.Concepts.PayloadFormats;
 
 /// <summary>
 /// Bulk-enqueues 250 echo jobs per format (750 total) in three round-trips via
-/// <see cref="IJobs.EnqueueBatchAsync"/>. Every job round-trips a single Guid; only the wire
+/// <see cref="IJobs.EnqueueJobsAsync"/>. Every job round-trips a single Guid; only the wire
 /// format differs.
 /// </summary>
 internal sealed class Primer(
@@ -28,9 +28,9 @@ internal sealed class Primer(
 
         Console.WriteLine($"Primer: bulk-enqueueing 3 x {RowsPerFormat} echo jobs (1 round-trip per format)...");
 
-        await EnqueueBatchAsync("echo-json", runId, _ => json.Serialize(new EchoJson(Guid.NewGuid())), ct);
-        await EnqueueBatchAsync("echo-scalar", runId, _ => scalar.Serialize(Guid.NewGuid()), ct);
-        await EnqueueBatchAsync("echo-gzip", runId, _ => gzip.Serialize(new EchoGzip(Guid.NewGuid())), ct);
+        await EnqueueJobsAsync("echo-json", runId, _ => json.Serialize(new EchoJson(Guid.NewGuid())), ct);
+        await EnqueueJobsAsync("echo-scalar", runId, _ => scalar.Serialize(Guid.NewGuid()), ct);
+        await EnqueueJobsAsync("echo-gzip", runId, _ => gzip.Serialize(new EchoGzip(Guid.NewGuid())), ct);
 
         using var completionTimeout = CancellationTokenSource.CreateLinkedTokenSource(ct);
         completionTimeout.CancelAfter(TimeSpan.FromMinutes(2));
@@ -98,7 +98,7 @@ internal sealed class Primer(
         lifetime.StopApplication();
     }
 
-    private async Task EnqueueBatchAsync(string jobName, string runId, Func<int, JobPayload> buildPayload, CancellationToken ct)
+    private async Task EnqueueJobsAsync(string jobName, string runId, Func<int, JobPayload> buildPayload, CancellationToken ct)
     {
         var serializeTimer = Stopwatch.StartNew();
         var requests = new EnqueueJobRequest[RowsPerFormat];
@@ -109,7 +109,7 @@ internal sealed class Primer(
         serializeTimer.Stop();
 
         var enqueueTimer = Stopwatch.StartNew();
-        var outcomes = (await jobs.EnqueueBatchAsync(requests, ct)).Jobs;
+        var outcomes = (await jobs.EnqueueJobsAsync(requests, ct)).Jobs;
         enqueueTimer.Stop();
 
         Console.WriteLine(

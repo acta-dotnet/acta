@@ -2,7 +2,7 @@ using Microsoft.Extensions.Options;
 
 namespace Acta;
 
-/// <summary><see cref="IJobs.UpdateJobInputAsync"/>: caps the payload, then replaces the input of a job that is not in flight.</summary>
+/// <summary><see cref="IJobs.UpdateInputAsync"/>: caps the payload, then replaces the input of a job that is not in flight.</summary>
 internal sealed class UpdateJobInputHandler(
     GetJobIdHandler getJobId,
     IDbSession session,
