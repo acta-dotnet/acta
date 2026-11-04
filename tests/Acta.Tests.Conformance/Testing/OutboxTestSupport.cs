@@ -75,8 +75,8 @@ internal sealed class HookedOutboxStore
                     stem =>
                         stem switch
                         {
-                            "DeleteClaimedOutbox" when BeforeDelete is { } hook => hook(),
-                            "MatchQuarantinedOutbox" when BeforeMatch is { } hook => hook(),
+                            "RemoveClaimedOutbox" when BeforeDelete is { } hook => hook(),
+                            "ListQuarantinedOutboxIds" when BeforeMatch is { } hook => hook(),
                             "RequeueQuarantinedOutbox" when BeforeRequeue is { } hook => hook(),
                             _ => Task.CompletedTask,
                         }

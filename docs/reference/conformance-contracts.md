@@ -1311,7 +1311,7 @@
   - An install with no schema creates the table where a relay source that names no schema reads it
 
 ### Delete removes a claimed row only under its token, a stale token no-ops
-- **Contract:** DeleteClaimed removes a claimed row only when the command token matches the row's claim token, and a stale token deletes nothing.
+- **Contract:** RemoveClaimed removes a claimed row only when the command token matches the row's claim token, and a stale token deletes nothing.
 - **Guarantees:**
   - A stale token deletes nothing and the owning token deletes the row
 
@@ -1321,7 +1321,7 @@
   - Discard deletes only quarantined rows, returns their ids, and cannot touch a claimed row
 
 ### Match reads the Quarantined rows a command targets without changing them
-- **Contract:** MatchQuarantined returns the Quarantined rows among the given ids, or every Quarantined row when ids are null, and changes no row.
+- **Contract:** ListQuarantinedIds returns the Quarantined rows among the given ids, or every Quarantined row when ids are null, and changes no row.
 - **Guarantees:**
   - An id-scoped match returns only its quarantined ids, the null form returns every one, and no row moves
 
@@ -2559,7 +2559,6 @@
 | `ConsumeOutboxSignal` | yes | yes | yes |
 | `CountOutboxBacklog` | yes | yes | yes |
 | `CountQuarantinedOutbox` | yes | yes | yes |
-| `DeleteClaimedOutbox` | yes | yes | yes |
 | `DiscardQuarantinedOutbox` | yes | yes | yes |
 | `DropSchema` | yes | yes | yes |
 | `EnqueueJob` | yes | yes | yes |
@@ -2611,6 +2610,7 @@
 | `ListJobs` | yes | yes | yes |
 | `ListNamespaces` | yes | yes | yes |
 | `ListPoisonAlertEvents` | yes | yes | yes |
+| `ListQuarantinedOutboxIds` | yes | yes | yes |
 | `ListQuarantinedOutboxRows` | yes | yes | yes |
 | `ListScheduleStates` | yes | yes | yes |
 | `ListSchedules` | yes | yes | yes |
@@ -2619,7 +2619,6 @@
 | `ListTenants` | yes | yes | yes |
 | `ListWorkers` | yes | yes | yes |
 | `MarkDeadWorkers` | yes | yes | yes |
-| `MatchQuarantinedOutbox` | yes | yes | yes |
 | `ParkOutboxSignal` | yes | yes | yes |
 | `PauseJob` | yes | yes | yes |
 | `PauseSchedule` | yes | yes | yes |
@@ -2637,6 +2636,7 @@
 | `RegisterTenant` | yes | yes | yes |
 | `ReleaseClaimedOutbox` | yes | yes | yes |
 | `ReleaseLock` | yes | yes | yes |
+| `RemoveClaimedOutbox` | yes | yes | yes |
 | `RemoveTag` | yes | yes | yes |
 | `ReplaceTags` | yes | yes | yes |
 | `ReprioritizeJob` | yes | yes | yes |

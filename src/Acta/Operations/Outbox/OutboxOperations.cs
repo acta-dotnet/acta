@@ -75,7 +75,7 @@ internal sealed class OutboxOperations(
     internal sealed class Source(IDbSession session, ISqlDialect dialect)
     {
         private readonly ClaimOutboxHandler _claim = new(session, dialect);
-        private readonly DeleteClaimedOutboxHandler _deleteClaimed = new(session, dialect);
+        private readonly RemoveClaimedOutboxHandler _removeClaimed = new(session, dialect);
         private readonly RescheduleOutboxHandler _reschedule = new(session, dialect);
         private readonly QuarantineOutboxHandler _quarantine = new(session, dialect);
         private readonly ReleaseClaimedOutboxHandler _releaseClaimed = new(session, dialect);
@@ -84,7 +84,7 @@ internal sealed class OutboxOperations(
         private readonly ListQuarantinedOutboxRowsHandler _listQuarantinedRows = new(session, dialect);
         private readonly RequeueQuarantinedOutboxHandler _requeueQuarantined = new(session, dialect);
         private readonly DiscardQuarantinedOutboxHandler _discardQuarantined = new(session, dialect);
-        private readonly MatchQuarantinedOutboxHandler _matchQuarantined = new(session, dialect);
+        private readonly ListQuarantinedOutboxIdsHandler _listQuarantinedIds = new(session, dialect);
 
         /// <summary>
         /// One short source transaction: expired Claimed leases back to Pending, then a bounded batch of due
@@ -99,7 +99,7 @@ internal sealed class OutboxOperations(
         /// Deletes every claimed row the command names whose representative safely ingested; a row whose token
         /// moved is skipped.
         /// </summary>
-        public Task DeleteClaimedAsync(DeleteClaimedOutboxCommand command, CancellationToken ct) => _deleteClaimed.HandleAsync(command, ct);
+        public Task RemoveClaimedAsync(RemoveClaimedOutboxCommand command, CancellationToken ct) => _removeClaimed.HandleAsync(command, ct);
 
         /// <summary>
         /// Returns recoverable failures to Pending: each row's own failure count, <c>next_attempt_at_utc</c> at the
@@ -157,7 +157,7 @@ internal sealed class OutboxOperations(
         /// The ids of the Quarantined rows an operator command targets, read without changing any, so the applying
         /// tick can record them as the command's plan before it requeues or discards.
         /// </summary>
-        public Task<MatchQuarantinedOutboxResponse> MatchQuarantinedAsync(MatchQuarantinedOutboxQuery query, CancellationToken ct) =>
-            _matchQuarantined.HandleAsync(query, ct);
+        public Task<ListQuarantinedOutboxIdsResponse> ListQuarantinedIdsAsync(ListQuarantinedOutboxIdsQuery query, CancellationToken ct) =>
+            _listQuarantinedIds.HandleAsync(query, ct);
     }
 }

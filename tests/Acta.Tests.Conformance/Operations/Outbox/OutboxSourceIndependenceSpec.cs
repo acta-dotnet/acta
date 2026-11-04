@@ -26,7 +26,7 @@ public sealed class OutboxSourceIndependenceSpec : OutboxSpecBase
         Assert.Null(Services.GetService<IJobs>());
 
         var (id, token) = await SeedAndClaimAsync(Unique("indep"), ct);
-        await Store.DeleteClaimedAsync(new DeleteClaimedOutboxCommand(token, [id]), ct);
+        await Store.RemoveClaimedAsync(new RemoveClaimedOutboxCommand(token, [id]), ct);
 
         Assert.Equal(0, await Fixture.CountOutboxAsync(TableName));
     }

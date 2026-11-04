@@ -12,9 +12,9 @@ namespace Acta.Tests.Conformance.Operations.Outbox;
     "outbox-match.command-targets",
     "Match reads the Quarantined rows a command targets without changing them",
     Area = "Outbox",
-    Contract = "MatchQuarantined returns the Quarantined rows among the given ids, or every Quarantined row when ids are null, and changes no row."
+    Contract = "ListQuarantinedIds returns the Quarantined rows among the given ids, or every Quarantined row when ids are null, and changes no row."
 )]
-public sealed class MatchQuarantinedOutboxSpec : OutboxSpecBase
+public sealed class ListQuarantinedOutboxIdsSpec : OutboxSpecBase
 {
     [Fact(DisplayName = "An id-scoped match returns only its quarantined ids, the null form returns every one, and no row moves")]
     public async Task Match_returns_targeted_quarantined_rows_and_changes_none()
@@ -25,11 +25,11 @@ public sealed class MatchQuarantinedOutboxSpec : OutboxSpecBase
         var pending = OutboxSpecBase.DueRow(Unique("mq-c"));
         await Fixture.SeedOutboxRowAsync(TableName, pending);
 
-        var scoped = await Store.MatchQuarantinedAsync(new MatchQuarantinedOutboxQuery([first, pending.OutboxId]), ct);
+        var scoped = await Store.ListQuarantinedIdsAsync(new ListQuarantinedOutboxIdsQuery([first, pending.OutboxId]), ct);
         Assert.Equal([first], scoped.OutboxIds);
         Assert.Equal(
             new HashSet<Guid> { first, second },
-            (await Store.MatchQuarantinedAsync(new MatchQuarantinedOutboxQuery(null), ct)).OutboxIds.ToHashSet()
+            (await Store.ListQuarantinedIdsAsync(new ListQuarantinedOutboxIdsQuery(null), ct)).OutboxIds.ToHashSet()
         );
 
         Assert.Equal((byte)OutboxStatusCode.Quarantined, (await Fixture.ReadOutboxRowAsync(TableName, first)).StatusCode);

@@ -151,18 +151,18 @@ One row per operation folder, `src/Acta/Operations/<Group>/<Operation>/`, and on
 | `ConsumeOutboxSignal` | · | · | · | inline | inline | inline | `checkpoints`, `events` | `ConsumeOutboxSignalSpec` |
 | `CountOutboxBacklog` | · | · | · | inline | inline | inline | · | `CountOutboxBacklogSpec` |
 | `CountQuarantinedOutbox` | · | · | · | inline | inline | inline | · | `CountQuarantinedOutboxSpec` |
-| `DeleteClaimedOutbox` | · | · | · | inline | inline | inline | · | `DeleteClaimedOutboxSpec` |
 | `DiscardOutbox` | `IOutbox.DiscardAsync` | `POST /outbox/{jobNamespace}/discard` | · | · | · | · | · | `DiscardOutboxSpec` |
 | `DiscardQuarantinedOutbox` | · | · | · | inline | inline | inline | · | `DiscardQuarantinedOutboxSpec` |
 | `GetOutboxSignal` | · | · | · | inline | inline | inline | · | `GetOutboxSignalSpec` |
 | `ListOutboxSources` | `IOutbox.ListSourcesAsync` | `GET /outbox/sources` | · | · | · | · | · | `ListOutboxSourcesSpec`, `ListOutboxSourcesStatusSpec` |
 | `ListQuarantinedOutbox` | `IOutbox.ListQuarantinedAsync` | `GET /outbox/{jobNamespace}/quarantined` | · | · | · | · | · | `ListQuarantinedOutboxSpec` |
+| `ListQuarantinedOutboxIds` | · | · | · | inline | inline | inline | · | `ListQuarantinedOutboxIdsSpec` |
 | `ListQuarantinedOutboxRows` | · | · | · | inline | inline | inline | · | `ListQuarantinedOutboxRowsPagingSpec`, `ListQuarantinedOutboxRowsSpec` |
-| `MatchQuarantinedOutbox` | · | · | · | inline | inline | inline | · | `MatchQuarantinedOutboxSpec` |
 | `ParkOutboxSignal` | · | · | · | inline | inline | inline | `checkpoints` | `ParkOutboxSignalSpec` |
 | `PlanOutboxSignal` | · | · | · | inline | inline | inline | `checkpoints` | `PlanOutboxSignalSpec` |
 | `QuarantineOutbox` | · | · | · | inline | inline | inline | · | `QuarantineOutboxSpec` |
 | `ReleaseClaimedOutbox` | · | · | · | inline | inline | inline | · | `ReleaseClaimedOutboxSpec` |
+| `RemoveClaimedOutbox` | · | · | · | inline | inline | inline | · | `RemoveClaimedOutboxSpec` |
 | `RequeueOutbox` | `IOutbox.RequeueAsync` | `POST /outbox/{jobNamespace}/requeue` | · | · | · | · | · | `RequeueOutboxSpec` |
 | `RequeueQuarantinedOutbox` | · | · | · | inline | inline | inline | · | `RequeueQuarantinedOutboxSpec` |
 | `RescheduleOutbox` | · | · | · | inline | inline | inline | · | `RescheduleOutboxSpec` |

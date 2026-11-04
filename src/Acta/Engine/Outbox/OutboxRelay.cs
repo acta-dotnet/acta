@@ -92,7 +92,7 @@ internal sealed class OutboxRelay(OutboxOperations.Source source, JobsOperations
         var planned = payload.PlannedIds;
         if (planned is null)
         {
-            planned = (await source.MatchQuarantinedAsync(new MatchQuarantinedOutboxQuery(payload.OutboxIds), ct)).OutboxIds;
+            planned = (await source.ListQuarantinedIdsAsync(new ListQuarantinedOutboxIdsQuery(payload.OutboxIds), ct)).OutboxIds;
             var plannedValue = JsonSerializer.SerializeToUtf8Bytes(
                 payload with
                 {
@@ -382,7 +382,7 @@ internal sealed class OutboxRelay(OutboxOperations.Source source, JobsOperations
         // Finalization is one store round trip per outcome kind for the whole batch, not one per group.
         if (safeIds.Count > 0)
         {
-            await source.DeleteClaimedAsync(new DeleteClaimedOutboxCommand(token, safeIds), ct);
+            await source.RemoveClaimedAsync(new RemoveClaimedOutboxCommand(token, safeIds), ct);
         }
 
         if (quarantines.Count > 0)

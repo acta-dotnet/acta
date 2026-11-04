@@ -381,7 +381,7 @@ public sealed class OutboxRelayTests
                 call.Stem switch
                 {
                     "ClaimOutbox" => Claim(call.Get(OutboxSchema.Sql.ClaimBatchSize)),
-                    "DeleteClaimedOutbox" => Record(Deleted, Ids(call)),
+                    "RemoveClaimedOutbox" => Record(Deleted, Ids(call)),
                     "ReleaseClaimedOutbox" => Record(Released, Ids(call)),
                     "RescheduleOutbox" => Record(Rescheduled, Records(call, Reschedule)),
                     "QuarantineOutbox" => Record(Quarantined, Records(call, static r => r.GetProperty("outbox_id").GetGuid())),
