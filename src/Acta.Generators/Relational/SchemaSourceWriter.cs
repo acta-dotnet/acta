@@ -136,6 +136,10 @@ internal static class SchemaSourceWriter
         {
             sb.AppendLine("                DisableLockEscalation = true,");
         }
+        if (e.DisablePageLocks)
+        {
+            sb.AppendLine("                DisablePageLocks = true,");
+        }
         sb.AppendLine("                Columns = new DbColumnSpec[]");
         sb.AppendLine("                {");
         foreach (var c in e.Columns)

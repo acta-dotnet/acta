@@ -95,6 +95,12 @@ internal abstract class SqlDdlDialect
     public virtual string? TableLockEscalation(string tableName, bool disabled) => null;
 
     /// <summary>
+    /// The statement setting every index of a table to match <see cref="DbTableAttribute.DisablePageLocks"/> when the flag
+    /// changes; a new table takes it from its index options. Null on providers without page locks.
+    /// </summary>
+    public virtual string? TablePageLocks(string tableName, bool disabled) => null;
+
+    /// <summary>
     /// A delta's <c>CREATE INDEX</c> with its own existence guard, so the published script re-runs over an upgraded
     /// schema. Unchanged where <see cref="CreateIndexClause"/> already says <c>IF NOT EXISTS</c>.
     /// </summary>
@@ -102,10 +108,13 @@ internal abstract class SqlDdlDialect
 
     /// <summary>
     /// Trailing <c>WITH (...)</c> clause for the inline primary-key constraint, driven by the PK's
-    /// storage flags (e.g. <see cref="DbPrimaryKeyAttribute.OptimizeForSequentialKey"/>). Empty when
-    /// none apply.
+    /// storage flags (e.g. <see cref="DbPrimaryKeyAttribute.OptimizeForSequentialKey"/>) and the table's
+    /// <see cref="DbTableAttribute.DisablePageLocks"/>. Empty when none apply.
     /// </summary>
-    public abstract string PrimaryKeyTrailingOptions(DbPrimaryKeySpec pk);
+    public abstract string PrimaryKeyTrailingOptions(DbPrimaryKeySpec pk, bool disablePageLocks);
+
+    /// <summary>Trailing <c>WITH (...)</c> clause for a <c>CREATE INDEX</c>, driven by the table's flags. Empty when none apply.</summary>
+    public virtual string IndexTrailingOptions(bool disablePageLocks) => "";
 
     /// <summary>
     /// Per-table CHECK constraints the dialect requires beyond the shared set (e.g. the Postgres byte

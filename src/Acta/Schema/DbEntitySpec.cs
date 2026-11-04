@@ -25,6 +25,12 @@ internal sealed class DbEntitySpec
     /// </summary>
     public bool DisableLockEscalation { get; init; }
 
+    /// <summary>
+    /// <c>true</c> when <see cref="DbTableAttribute.DisablePageLocks"/> opts this table's indexes out of SQL Server page
+    /// locks; no-op on providers without page locks.
+    /// </summary>
+    public bool DisablePageLocks { get; init; }
+
     /// <summary>All columns in declaration order.</summary>
     public required IReadOnlyList<DbColumnSpec> Columns { get; init; }
 

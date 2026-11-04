@@ -7,7 +7,7 @@ namespace Acta;
 /// A recurring job's permanent slot is one reusable row that sits Idle between firings; its schedules' cursors live
 /// on <c>schedules_state</c>, so a firing adds no job row (a per-occurrence definition's root is the exception).
 /// </summary>
-[DbTable("jobs", DisableLockEscalation = true)]
+[DbTable("jobs", DisableLockEscalation = true, DisablePageLocks = true)]
 [DbPrimaryKey(Name = "pk_jobs", Columns = ["job_id"], OptimizeForSequentialKey = true)]
 [DbUniqueIndex(Name = "ux_jobs_ref", Columns = ["job_ref"], Usage = "uniqueness")]
 [DbUniqueIndex(

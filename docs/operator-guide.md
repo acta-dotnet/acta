@@ -497,7 +497,7 @@ In production a deploy step applies Acta's migrations, never application startup
 
 ```
 $ ConnectionStrings__acta="<DDL login>" dotnet MyApp.dll jobs migrate
-applied M20261103205947_init to schema acta
+applied M20261104070741_init to schema acta
 ```
 
 - A second run prints `schema acta is up to date`. It exits 0, or 1 with the database's error; `--json` prints `{"schema":"acta","applied":[...]}`.
@@ -611,6 +611,8 @@ SQL Server:
 - Consider `ALTER DATABASE ... SET AUTO_UPDATE_STATISTICS_ASYNC ON`. Acta's tables grow quickly, and
   a synchronous statistics refresh makes the query that triggered it wait
   (`WAIT_ON_SYNC_STATISTICS_REFRESH`); the asynchronous refresh lets it run on the old statistics.
+- `jobs` and `jobs_state` take row locks only (`ALLOW_PAGE_LOCKS = OFF`), so index maintenance
+  rebuilds their indexes: `ALTER INDEX ... REORGANIZE` refuses them, and `REBUILD` works.
 
 ### Database clock and lease safety
 

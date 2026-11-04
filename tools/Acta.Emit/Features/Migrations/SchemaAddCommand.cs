@@ -183,7 +183,9 @@ internal static class MigrationDeltaEmitter
         foreach (var (table, index) in diff.AddedIndexes)
         {
             var idx = byTable[table].Indexes.First(i => i.Name == index);
-            sb.AppendLine(dialect.GuardIndexCreate(table, index, SqlSchemaEmitter.RenderIndex(table, idx, dialect)));
+            sb.AppendLine(
+                dialect.GuardIndexCreate(table, index, SqlSchemaEmitter.RenderIndex(table, idx, dialect, byTable[table].DisablePageLocks))
+            );
         }
 
         foreach (var (table, check) in diff.AddedChecks)
@@ -210,6 +212,10 @@ internal static class MigrationDeltaEmitter
             if (dialect.TableLockEscalation(table, byTable[table].DisableLockEscalation) is { } escalation)
             {
                 sb.AppendLine(escalation);
+            }
+            if (dialect.TablePageLocks(table, byTable[table].DisablePageLocks) is { } pageLocks)
+            {
+                sb.AppendLine(pageLocks);
             }
         }
 

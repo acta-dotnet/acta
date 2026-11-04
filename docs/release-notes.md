@@ -24,6 +24,7 @@ Not tagged yet.
 
 - On SQL Server, an install turns `READ_COMMITTED_SNAPSHOT` on only in a database that holds no objects yet, and refuses a system database. Before, the startup migration and the published script turned it on in any database, which disconnected every session in it once. Acta runs with it on or off, so a database that already holds objects keeps its setting.
 - On PostgreSQL, a batch enqueue, the outbox relay's included, failed with `permission denied for sequence jobs_job_id_seq` under a login with table privileges only. The schema now grants USAGE on that sequence to PUBLIC.
+- On SQL Server with `READ_COMMITTED_SNAPSHOT` off, a read that scanned the newest jobs took page locks that enqueues, claims and completions queued behind, which showed as 30-second timeouts and deadlocks under load. `jobs` and `jobs_state` now take row locks only; `ALTER INDEX ... REORGANIZE` refuses their indexes, and `REBUILD` works.
 
 ## 1.0.0-rc.8
 

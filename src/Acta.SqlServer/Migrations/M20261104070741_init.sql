@@ -202,16 +202,16 @@ CREATE TABLE {{schema}}.jobs (
     input varbinary(max) NULL,
     event_recording_code tinyint NOT NULL,
     created_at_utc datetime2(3) DEFAULT SYSUTCDATETIME() NOT NULL
-    , CONSTRAINT pk_jobs PRIMARY KEY (job_id) WITH (OPTIMIZE_FOR_SEQUENTIAL_KEY = ON)
+    , CONSTRAINT pk_jobs PRIMARY KEY (job_id) WITH (OPTIMIZE_FOR_SEQUENTIAL_KEY = ON, ALLOW_PAGE_LOCKS = OFF)
     , CONSTRAINT ck_jobs_input_pair CHECK ((input_format_id = 0 AND input IS NULL) OR (input_format_id <> 0 AND input IS NOT NULL))
 );
 ALTER TABLE {{schema}}.jobs SET (LOCK_ESCALATION = DISABLE);
-CREATE INDEX ix_jobs_parent ON {{schema}}.jobs (parent_job_id) WHERE parent_job_id IS NOT NULL;
-CREATE INDEX ix_jobs_namespace_created ON {{schema}}.jobs (namespace_id, created_at_utc DESC, job_id DESC);
-CREATE UNIQUE INDEX ux_jobs_ref ON {{schema}}.jobs (job_ref);
-CREATE UNIQUE INDEX ux_jobs_deduplication_key_root ON {{schema}}.jobs (namespace_id, deduplication_key) WHERE deduplication_key IS NOT NULL AND parent_job_id IS NULL;
-CREATE UNIQUE INDEX ux_jobs_deduplication_key_child ON {{schema}}.jobs (parent_job_id, deduplication_key) WHERE deduplication_key IS NOT NULL AND parent_job_id IS NOT NULL;
-CREATE UNIQUE INDEX ux_jobs_slot ON {{schema}}.jobs (definition_id) WHERE job_kind_code = 20;
+CREATE INDEX ix_jobs_parent ON {{schema}}.jobs (parent_job_id) WHERE parent_job_id IS NOT NULL WITH (ALLOW_PAGE_LOCKS = OFF);
+CREATE INDEX ix_jobs_namespace_created ON {{schema}}.jobs (namespace_id, created_at_utc DESC, job_id DESC) WITH (ALLOW_PAGE_LOCKS = OFF);
+CREATE UNIQUE INDEX ux_jobs_ref ON {{schema}}.jobs (job_ref) WITH (ALLOW_PAGE_LOCKS = OFF);
+CREATE UNIQUE INDEX ux_jobs_deduplication_key_root ON {{schema}}.jobs (namespace_id, deduplication_key) WHERE deduplication_key IS NOT NULL AND parent_job_id IS NULL WITH (ALLOW_PAGE_LOCKS = OFF);
+CREATE UNIQUE INDEX ux_jobs_deduplication_key_child ON {{schema}}.jobs (parent_job_id, deduplication_key) WHERE deduplication_key IS NOT NULL AND parent_job_id IS NOT NULL WITH (ALLOW_PAGE_LOCKS = OFF);
+CREATE UNIQUE INDEX ux_jobs_slot ON {{schema}}.jobs (definition_id) WHERE job_kind_code = 20 WITH (ALLOW_PAGE_LOCKS = OFF);
 END
 GO
 
@@ -248,7 +248,7 @@ CREATE TABLE {{schema}}.jobs_state (
     result_format_id tinyint DEFAULT 0 NOT NULL,
     result varbinary(max) NULL,
     version int DEFAULT 0 NOT NULL
-    , CONSTRAINT pk_jobs_state PRIMARY KEY (job_id) WITH (OPTIMIZE_FOR_SEQUENTIAL_KEY = ON)
+    , CONSTRAINT pk_jobs_state PRIMARY KEY (job_id) WITH (OPTIMIZE_FOR_SEQUENTIAL_KEY = ON, ALLOW_PAGE_LOCKS = OFF)
     , CONSTRAINT ck_jobs_state_blocked_lane CHECK (job_status_code <> 15 OR lane_id IS NOT NULL)
     , CONSTRAINT ck_jobs_state_lease_consistency CHECK ((leased_by_worker_id IS NULL AND lease_expires_at_utc IS NULL) OR (leased_by_worker_id IS NOT NULL AND lease_expires_at_utc IS NOT NULL))
     , CONSTRAINT ck_jobs_state_counters CHECK (execution_number >= 0 AND failure_count >= 0)
@@ -260,11 +260,11 @@ CREATE TABLE {{schema}}.jobs_state (
     , CONSTRAINT ck_jobs_state_result_idle CHECK (result_format_id = 0 OR job_status_code <> 50)
     , CONSTRAINT fk_jobs_state_lanes FOREIGN KEY (lane_id) REFERENCES {{schema}}.lanes (lane_id)
 );
-CREATE INDEX ix_jobs_state_claim_ready ON {{schema}}.jobs_state (namespace_id, job_priority_code DESC, next_run_at_utc, job_id, job_status_code) WHERE job_status_code IN (10, 20) AND next_run_at_utc IS NOT NULL;
-CREATE INDEX ix_jobs_state_worker_inflight ON {{schema}}.jobs_state (leased_by_worker_id, job_id) WHERE leased_by_worker_id IS NOT NULL AND job_status_code = 50;
-CREATE INDEX ix_jobs_state_lane ON {{schema}}.jobs_state (lane_id, job_id) WHERE lane_id IS NOT NULL AND job_status_code IN (10, 15, 20, 30, 50);
-CREATE INDEX ix_jobs_state_failed ON {{schema}}.jobs_state (namespace_id, job_id DESC) WHERE job_status_code = 200;
-CREATE INDEX ix_jobs_state_lane_member ON {{schema}}.jobs_state (lane_id) WHERE lane_id IS NOT NULL;
+CREATE INDEX ix_jobs_state_claim_ready ON {{schema}}.jobs_state (namespace_id, job_priority_code DESC, next_run_at_utc, job_id, job_status_code) WHERE job_status_code IN (10, 20) AND next_run_at_utc IS NOT NULL WITH (ALLOW_PAGE_LOCKS = OFF);
+CREATE INDEX ix_jobs_state_worker_inflight ON {{schema}}.jobs_state (leased_by_worker_id, job_id) WHERE leased_by_worker_id IS NOT NULL AND job_status_code = 50 WITH (ALLOW_PAGE_LOCKS = OFF);
+CREATE INDEX ix_jobs_state_lane ON {{schema}}.jobs_state (lane_id, job_id) WHERE lane_id IS NOT NULL AND job_status_code IN (10, 15, 20, 30, 50) WITH (ALLOW_PAGE_LOCKS = OFF);
+CREATE INDEX ix_jobs_state_failed ON {{schema}}.jobs_state (namespace_id, job_id DESC) WHERE job_status_code = 200 WITH (ALLOW_PAGE_LOCKS = OFF);
+CREATE INDEX ix_jobs_state_lane_member ON {{schema}}.jobs_state (lane_id) WHERE lane_id IS NOT NULL WITH (ALLOW_PAGE_LOCKS = OFF);
 END
 GO
 
@@ -5021,7 +5021,7 @@ JOIN {{schema}}.namespaces AS ns ON ns.namespace_id = w.namespace_id
 GO
 
 
-IF NOT EXISTS (SELECT 1 FROM {{schema}}.migrations WHERE name = 'M20261103205947_init')
+IF NOT EXISTS (SELECT 1 FROM {{schema}}.migrations WHERE name = 'M20261104070741_init')
 INSERT INTO {{schema}}.migrations (name)
-VALUES ('M20261103205947_init');
+VALUES ('M20261104070741_init');
 GO

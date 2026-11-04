@@ -26,4 +26,10 @@ internal sealed class DbTableAttribute(string name) : Attribute
     /// other sessions read it under locks; no-op on providers that do not escalate.
     /// </summary>
     public bool DisableLockEscalation { get; init; }
+
+    /// <summary>
+    /// Opts this table's indexes out of SQL Server page locks, for a table whose newest pages every writer changes while
+    /// locking reads scan them; no-op on providers without page locks.
+    /// </summary>
+    public bool DisablePageLocks { get; init; }
 }

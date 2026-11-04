@@ -31,6 +31,7 @@ internal static class EntityReader
         }
         var pageCompression = ReadNamedArg(tableAttr, "PageCompression") is bool pc && pc;
         var disableLockEscalation = ReadNamedArg(tableAttr, "DisableLockEscalation") is bool dle && dle;
+        var disablePageLocks = ReadNamedArg(tableAttr, "DisablePageLocks") is bool dpl && dpl;
 
         // A PK-less entity still transforms so ACTA0401 can report it; Emit skips it for codegen.
         var pk = ReadPrimaryKey(cls);
@@ -59,6 +60,7 @@ internal static class EntityReader
             TableName: tableName,
             PageCompression: pageCompression,
             DisableLockEscalation: disableLockEscalation,
+            DisablePageLocks: disablePageLocks,
             PrimaryKeyName: pk.Name,
             PrimaryKeyColumns: pk.Columns,
             PrimaryKeyManual: pk.Manual,

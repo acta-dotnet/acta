@@ -786,7 +786,7 @@
         }
       ],
       "ForeignKeys": [],
-      "Options": "lock_escalation=disable"
+      "Options": "lock_escalation=disable|page_locks=disable"
     },
     {
       "Table": "jobs_state",
@@ -918,7 +918,8 @@
           "Name": "fk_jobs_state_lanes",
           "Signature": "lane_id-\u003Elanes.lane_id|NoAction"
         }
-      ]
+      ],
+      "Options": "page_locks=disable"
     },
     {
       "Table": "lanes",

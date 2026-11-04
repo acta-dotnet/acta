@@ -247,7 +247,9 @@ so three rules decide every read on SQL Server:
 A skipped row is one an application has not committed, which read-committed snapshot hides too, or one
 Acta itself is changing at that instant: a page or count can briefly miss it, in both modes.
 `READPAST` passes row locks only, so a statement that locks a whole page or table still holds these
-reads until it commits. The
+reads until it commits. That is why `jobs` and `jobs_state` take row locks only (`ALLOW_PAGE_LOCKS = OFF`):
+every new job lands on their last pages, which every writer changes, and a locking read that scanned
+them with page locks queued behind those writers and they behind it, in convoys and deadlocks. The
 enqueue routines only seek, since they run in the caller's transaction, where `READPAST` raises error
 650 under SERIALIZABLE. Retire can leave a job another transaction holds at that instant unfinished
 under the retired definition. A tree cancel lists each node's children without skipping, since a

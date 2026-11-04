@@ -67,7 +67,7 @@ GO
 -- ===== refuse a database a newer release already upgraded =====
 IF EXISTS (
     SELECT 1 FROM acta.migrations
-    WHERE name NOT IN ('M20261103205947_init')
+    WHERE name NOT IN ('M20261104070741_init')
 )
 BEGIN
     RAISERROR(N'A newer Acta release already upgraded this database. Run the newest provisioning script; this one would move it backwards.', 16, 1);
@@ -75,7 +75,7 @@ BEGIN
     SET NOEXEC ON;
 END
 GO
--- ===== BEGIN M20261103205947_init =====
+-- ===== BEGIN M20261104070741_init =====
 SET QUOTED_IDENTIFIER ON;
 SET ANSI_NULLS ON;
 GO
@@ -280,16 +280,16 @@ CREATE TABLE acta.jobs (
     input varbinary(max) NULL,
     event_recording_code tinyint NOT NULL,
     created_at_utc datetime2(3) DEFAULT SYSUTCDATETIME() NOT NULL
-    , CONSTRAINT pk_jobs PRIMARY KEY (job_id) WITH (OPTIMIZE_FOR_SEQUENTIAL_KEY = ON)
+    , CONSTRAINT pk_jobs PRIMARY KEY (job_id) WITH (OPTIMIZE_FOR_SEQUENTIAL_KEY = ON, ALLOW_PAGE_LOCKS = OFF)
     , CONSTRAINT ck_jobs_input_pair CHECK ((input_format_id = 0 AND input IS NULL) OR (input_format_id <> 0 AND input IS NOT NULL))
 );
 ALTER TABLE acta.jobs SET (LOCK_ESCALATION = DISABLE);
-CREATE INDEX ix_jobs_parent ON acta.jobs (parent_job_id) WHERE parent_job_id IS NOT NULL;
-CREATE INDEX ix_jobs_namespace_created ON acta.jobs (namespace_id, created_at_utc DESC, job_id DESC);
-CREATE UNIQUE INDEX ux_jobs_ref ON acta.jobs (job_ref);
-CREATE UNIQUE INDEX ux_jobs_deduplication_key_root ON acta.jobs (namespace_id, deduplication_key) WHERE deduplication_key IS NOT NULL AND parent_job_id IS NULL;
-CREATE UNIQUE INDEX ux_jobs_deduplication_key_child ON acta.jobs (parent_job_id, deduplication_key) WHERE deduplication_key IS NOT NULL AND parent_job_id IS NOT NULL;
-CREATE UNIQUE INDEX ux_jobs_slot ON acta.jobs (definition_id) WHERE job_kind_code = 20;
+CREATE INDEX ix_jobs_parent ON acta.jobs (parent_job_id) WHERE parent_job_id IS NOT NULL WITH (ALLOW_PAGE_LOCKS = OFF);
+CREATE INDEX ix_jobs_namespace_created ON acta.jobs (namespace_id, created_at_utc DESC, job_id DESC) WITH (ALLOW_PAGE_LOCKS = OFF);
+CREATE UNIQUE INDEX ux_jobs_ref ON acta.jobs (job_ref) WITH (ALLOW_PAGE_LOCKS = OFF);
+CREATE UNIQUE INDEX ux_jobs_deduplication_key_root ON acta.jobs (namespace_id, deduplication_key) WHERE deduplication_key IS NOT NULL AND parent_job_id IS NULL WITH (ALLOW_PAGE_LOCKS = OFF);
+CREATE UNIQUE INDEX ux_jobs_deduplication_key_child ON acta.jobs (parent_job_id, deduplication_key) WHERE deduplication_key IS NOT NULL AND parent_job_id IS NOT NULL WITH (ALLOW_PAGE_LOCKS = OFF);
+CREATE UNIQUE INDEX ux_jobs_slot ON acta.jobs (definition_id) WHERE job_kind_code = 20 WITH (ALLOW_PAGE_LOCKS = OFF);
 END
 GO
 
@@ -326,7 +326,7 @@ CREATE TABLE acta.jobs_state (
     result_format_id tinyint DEFAULT 0 NOT NULL,
     result varbinary(max) NULL,
     version int DEFAULT 0 NOT NULL
-    , CONSTRAINT pk_jobs_state PRIMARY KEY (job_id) WITH (OPTIMIZE_FOR_SEQUENTIAL_KEY = ON)
+    , CONSTRAINT pk_jobs_state PRIMARY KEY (job_id) WITH (OPTIMIZE_FOR_SEQUENTIAL_KEY = ON, ALLOW_PAGE_LOCKS = OFF)
     , CONSTRAINT ck_jobs_state_blocked_lane CHECK (job_status_code <> 15 OR lane_id IS NOT NULL)
     , CONSTRAINT ck_jobs_state_lease_consistency CHECK ((leased_by_worker_id IS NULL AND lease_expires_at_utc IS NULL) OR (leased_by_worker_id IS NOT NULL AND lease_expires_at_utc IS NOT NULL))
     , CONSTRAINT ck_jobs_state_counters CHECK (execution_number >= 0 AND failure_count >= 0)
@@ -338,11 +338,11 @@ CREATE TABLE acta.jobs_state (
     , CONSTRAINT ck_jobs_state_result_idle CHECK (result_format_id = 0 OR job_status_code <> 50)
     , CONSTRAINT fk_jobs_state_lanes FOREIGN KEY (lane_id) REFERENCES acta.lanes (lane_id)
 );
-CREATE INDEX ix_jobs_state_claim_ready ON acta.jobs_state (namespace_id, job_priority_code DESC, next_run_at_utc, job_id, job_status_code) WHERE job_status_code IN (10, 20) AND next_run_at_utc IS NOT NULL;
-CREATE INDEX ix_jobs_state_worker_inflight ON acta.jobs_state (leased_by_worker_id, job_id) WHERE leased_by_worker_id IS NOT NULL AND job_status_code = 50;
-CREATE INDEX ix_jobs_state_lane ON acta.jobs_state (lane_id, job_id) WHERE lane_id IS NOT NULL AND job_status_code IN (10, 15, 20, 30, 50);
-CREATE INDEX ix_jobs_state_failed ON acta.jobs_state (namespace_id, job_id DESC) WHERE job_status_code = 200;
-CREATE INDEX ix_jobs_state_lane_member ON acta.jobs_state (lane_id) WHERE lane_id IS NOT NULL;
+CREATE INDEX ix_jobs_state_claim_ready ON acta.jobs_state (namespace_id, job_priority_code DESC, next_run_at_utc, job_id, job_status_code) WHERE job_status_code IN (10, 20) AND next_run_at_utc IS NOT NULL WITH (ALLOW_PAGE_LOCKS = OFF);
+CREATE INDEX ix_jobs_state_worker_inflight ON acta.jobs_state (leased_by_worker_id, job_id) WHERE leased_by_worker_id IS NOT NULL AND job_status_code = 50 WITH (ALLOW_PAGE_LOCKS = OFF);
+CREATE INDEX ix_jobs_state_lane ON acta.jobs_state (lane_id, job_id) WHERE lane_id IS NOT NULL AND job_status_code IN (10, 15, 20, 30, 50) WITH (ALLOW_PAGE_LOCKS = OFF);
+CREATE INDEX ix_jobs_state_failed ON acta.jobs_state (namespace_id, job_id DESC) WHERE job_status_code = 200 WITH (ALLOW_PAGE_LOCKS = OFF);
+CREATE INDEX ix_jobs_state_lane_member ON acta.jobs_state (lane_id) WHERE lane_id IS NOT NULL WITH (ALLOW_PAGE_LOCKS = OFF);
 END
 GO
 
@@ -5099,11 +5099,11 @@ JOIN acta.namespaces AS ns ON ns.namespace_id = w.namespace_id
 GO
 
 
-IF NOT EXISTS (SELECT 1 FROM acta.migrations WHERE name = 'M20261103205947_init')
+IF NOT EXISTS (SELECT 1 FROM acta.migrations WHERE name = 'M20261104070741_init')
 INSERT INTO acta.migrations (name)
-VALUES ('M20261103205947_init');
+VALUES ('M20261104070741_init');
 GO
--- ===== END M20261103205947_init =====
+-- ===== END M20261104070741_init =====
 GO
 COMMIT TRANSACTION;
 GO

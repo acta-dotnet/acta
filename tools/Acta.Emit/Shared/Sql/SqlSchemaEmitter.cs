@@ -95,7 +95,7 @@ internal static class SqlSchemaEmitter
         {
             sb.AppendLine(
                 CultureInfo.InvariantCulture,
-                $"    , CONSTRAINT {e.PrimaryKey.Name} PRIMARY KEY ({string.Join(", ", e.PrimaryKey.Columns)}){dialect.PrimaryKeyTrailingOptions(e.PrimaryKey)}"
+                $"    , CONSTRAINT {e.PrimaryKey.Name} PRIMARY KEY ({string.Join(", ", e.PrimaryKey.Columns)}){dialect.PrimaryKeyTrailingOptions(e.PrimaryKey, e.DisablePageLocks)}"
             );
         }
 
@@ -130,7 +130,7 @@ internal static class SqlSchemaEmitter
 
         foreach (var idx in e.Indexes)
         {
-            EmitIndex(sb, e.TableName, idx, dialect);
+            sb.AppendLine(RenderIndex(e.TableName, idx, dialect, e.DisablePageLocks));
         }
 
         if (dialect.TableGuardEnd is { } guardEnd)
@@ -153,18 +153,16 @@ internal static class SqlSchemaEmitter
         }
     }
 
-    private static void EmitIndex(StringBuilder sb, string tableName, DbIndexSpec idx, SqlDdlDialect dialect) =>
-        sb.AppendLine(RenderIndex(tableName, idx, dialect));
-
     // Renders one standalone CREATE [UNIQUE] INDEX statement. Shared by baseline emission and
     // draft so an added index drafts exactly as the baseline would render it.
-    internal static string RenderIndex(string tableName, DbIndexSpec idx, SqlDdlDialect dialect)
+    internal static string RenderIndex(string tableName, DbIndexSpec idx, SqlDdlDialect dialect, bool disablePageLocks)
     {
         var cols = string.Join(", ", idx.Columns.Select(c => idx.Descending?.Contains(c) == true ? $"{c} DESC" : c));
         var include =
             idx.Include is { Count: > 0 } && dialect.SupportsIncludedColumns ? $" INCLUDE ({string.Join(", ", idx.Include)})" : "";
         var filter = idx.Filter is null ? "" : $" WHERE {idx.Filter}";
-        return $"{dialect.CreateIndexClause(idx.IsUnique)} {dialect.IndexNameAndTable(idx.Name, tableName)} ({cols}){include}{filter};";
+        return $"{dialect.CreateIndexClause(idx.IsUnique)} {dialect.IndexNameAndTable(idx.Name, tableName)} ({cols}){include}{filter}"
+            + $"{dialect.IndexTrailingOptions(disablePageLocks)};";
     }
 
     // True when the dialect folds this entity's identity column inline as its key (SQLite rowid alias).

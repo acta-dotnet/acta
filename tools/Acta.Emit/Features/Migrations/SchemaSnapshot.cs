@@ -28,7 +28,7 @@ internal sealed record SchemaSnapshot(
                 e.ForeignKeys.Select(f => new ForeignKeySnapshot(f.Name, ForeignKeySignature(f)))
                     .OrderBy(f => f.Name, StringComparer.Ordinal)
                     .ToList(),
-                e.DisableLockEscalation ? "lock_escalation=disable" : null
+                TableOptions(e)
             ))
             .OrderBy(e => e.Table, StringComparer.Ordinal)
             .ToList();
@@ -72,6 +72,20 @@ internal sealed record SchemaSnapshot(
     // Signed by the target table, as the DDL references it, so renaming a table model is not a schema change.
     private static string ForeignKeySignature(DbForeignKeySpec f) =>
         $"{f.Column}->{ActaSchema.For(f.Target).TableName}.{f.TargetColumn}|{f.OnDelete}";
+
+    // One string per table, so flipping either flag is a changed table option the next migration drafts.
+    private static string? TableOptions(EntityModel e) =>
+        string.Join(
+            "|",
+            new[]
+            {
+                e.DisableLockEscalation ? "lock_escalation=disable" : null,
+                e.DisablePageLocks ? "page_locks=disable" : null,
+            }.OfType<string>()
+        )
+            is { Length: > 0 } options
+            ? options
+            : null;
 }
 
 internal sealed record EntitySnapshot(

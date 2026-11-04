@@ -8,7 +8,7 @@ namespace Acta;
 /// No foreign key ties it to its job: enqueue writes both rows in one transaction and every purge deletes both, and a
 /// key's check on each enqueue read the new job row on the last page every concurrent enqueue was writing.
 /// </summary>
-[DbTable("jobs_state")]
+[DbTable("jobs_state", DisablePageLocks = true)]
 [DbPrimaryKey(Name = "pk_jobs_state", Columns = ["job_id"], Manual = true, OptimizeForSequentialKey = true)]
 [DbForeignKey(
     Name = "fk_jobs_state_lanes",

@@ -85,7 +85,7 @@ internal sealed class SqliteDdlDialect : SqlDdlDialect
     // only INT/INTEGER/REAL/TEXT/BLOB/ANY.
     public override string TableTrailingOptions(EntityModel e) => " STRICT";
 
-    public override string PrimaryKeyTrailingOptions(DbPrimaryKeySpec pk) => "";
+    public override string PrimaryKeyTrailingOptions(DbPrimaryKeySpec pk, bool disablePageLocks) => "";
 
     public override void EmitProviderColumnChecks(StringBuilder sb, EntityModel e)
     {
