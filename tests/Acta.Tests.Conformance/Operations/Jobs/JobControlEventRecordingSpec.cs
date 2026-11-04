@@ -17,7 +17,7 @@ namespace Acta.Tests.Conformance.Operations.Jobs;
     Area = "Control",
     Contract = "Control verbs apply their status transition unconditionally and only write a job event when the job's event recording is Audit (code 20)."
 )]
-public sealed class ControlVerbEventRecordingSpec : ActaRuntimeTestBase<ConformanceFixture, TestJobs.TestJobsManifest>
+public sealed class JobControlEventRecordingSpec : ActaRuntimeTestBase<ConformanceFixture, TestJobs.TestJobsManifest>
 {
     [Fact(DisplayName = "Pause applies transition at every event recording level and emits event only at Audit")]
     public async Task Pause_applies_transition_at_every_event_recording_level_and_emits_event_only_at_audit()

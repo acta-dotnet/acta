@@ -61,7 +61,7 @@ One row per operation folder, `src/Acta/Operations/<Group>/<Operation>/`, and on
 | `ListDefinitionContracts` | · | · | · | inline | inline | inline | · | `ListDefinitionContractsSpec` |
 | `ListDefinitions` | `IDefinitions.ListAsync` | `GET /definitions` | · | inline | inline | inline | · | `ListDefinitionsFilterMatrixSpec`, `ListDefinitionsSpec` |
 | `RegisterDefinitions` | · | · | · | inline | inline | inline | `definitions` | `RegisterDefinitionsSpec` |
-| `RetireDefinition` | `IDefinitions.RetireAsync` | `POST /definitions/{jobNamespace}/{jobName}/retire` | · | inline | inline | inline | `checkpoints`, `definitions`, `events`, `jobs_state`, `schedules`, `schedules_state` | `RetireDefinitionSpec` |
+| `RetireDefinition` | `IDefinitions.RetireAsync` | `POST /definitions/{jobNamespace}/{jobName}/retire` | · | inline | inline | inline | `checkpoints`, `definitions`, `events`, `jobs_state`, `schedules`, `schedules_state` | `RetireDefinitionSlotSpec`, `RetireDefinitionSpec` |
 | `UpdateDefinitionOverrides` | `IDefinitions.UpdateOverridesAsync` | `PATCH /definitions/{jobNamespace}/{jobName}` | · | inline | inline | inline | `definitions`, `events`, `jobs` | `UpdateDefinitionOverridesBindMatrixSpec`, `UpdateDefinitionOverridesSpec` |
 
 ## Execution
@@ -72,7 +72,7 @@ One row per operation folder, `src/Acta/Operations/<Group>/<Operation>/`, and on
 | `ArmOrConsumeJobSleepTimer` | · | · | · | routine | routine | inline | `checkpoints`, `jobs_state` | `ArmOrConsumeJobSleepTimerSpec` |
 | `ClaimJob` | · | · | · | inline | inline | inline | `jobs_state` | `ClaimJobSpec` |
 | `ClaimJobs` | · | · | · | routine | routine | inline | `jobs_state` | `ClaimJobsSkewSpec`, `ClaimJobsSpec` |
-| `CompleteExecutions` | · | · | · | routine | routine | inline | `checkpoints`, `events`, `jobs_state`, `schedules`, `schedules_state` | `CompleteExecutionsSpec` |
+| `CompleteExecutions` | · | · | · | routine | routine | inline | `checkpoints`, `events`, `jobs_state`, `schedules`, `schedules_state` | `CompleteExecutionsKindMatrixSpec`, `CompleteExecutionsSpec` |
 | `CompleteJobStep` | · | · | · | routine | routine | inline | `steps` | `CompleteJobStepSpec` |
 | `GetScheduleFiring` | · | · | · | inline | inline | inline | · | `GetScheduleFiringSpec` |
 | `ListChildJobIds` | · | · | · | inline | inline | inline | · | `ListChildJobIdsSpec` |
@@ -86,7 +86,7 @@ One row per operation folder, `src/Acta/Operations/<Group>/<Operation>/`, and on
 | Operation | Facade | HTTP | CLI | pg | mssql | sqlite | Writes | Specs |
 | --- | --- | --- | --- | --- | --- | --- | --- | --- |
 | `CancelJob` | `IJobs.CancelAsync` | `POST /jobs/{jobRef}/cancel` | `cancel` | inline | inline | inline | `checkpoints`, `events`, `jobs_state`, `schedules_state` | `CancelJobSpec` |
-| `EnqueueJob` | `IJobs.EnqueueAsync`<br>`IJobs.WaitAsync`<br>`IJobs.RunAndWaitAsync` | `POST /jobs` | · | routine | routine | inline | `jobs`, `jobs_state`, `lanes`, `tags` | `EnqueueJobTransactionalSpec` |
+| `EnqueueJob` | `IJobs.EnqueueAsync`<br>`IJobs.WaitAsync`<br>`IJobs.RunAndWaitAsync` | `POST /jobs` | · | routine | routine | inline | `jobs`, `jobs_state`, `lanes`, `tags` | `EnqueueJobNamespaceSpec`, `EnqueueJobRejectionTaxonomySpec`, `EnqueueJobTenantRequirementSpec`, `EnqueueJobTenantSpec`, `EnqueueJobTenantSuspensionSpec`, `EnqueueJobTransactionalSmokeSpec`, `EnqueueJobTransactionalSpec` |
 | `EnqueueJobs` | `IJobs.EnqueueJobsAsync` | · | · | routine | routine | inline | `jobs`, `jobs_state`, `lanes`, `tags` | `EnqueueJobsConcurrencySpec`, `EnqueueJobsRejectionSpec`, `EnqueueJobsSpec` |
 | `ExplainJob` | `IJobs.ExplainAsync` | · | `explain` | inline | inline | inline | · | `ExplainJobSpec` |
 | `GetJob` | `IJobs.WaitAsync`<br>`IJobs.RunAndWaitAsync`<br>`IJobs.GetAsync` | `GET /jobs/{jobRef}`<br>`GET /jobs/by-key` | · | inline | inline | inline | · | `GetJobSpec` |
@@ -131,7 +131,7 @@ One row per operation folder, `src/Acta/Operations/<Group>/<Operation>/`, and on
 
 | Operation | Facade | HTTP | CLI | pg | mssql | sqlite | Writes | Specs |
 | --- | --- | --- | --- | --- | --- | --- | --- | --- |
-| `PurgeExpiredData` | · | · | · | routine | routine | inline | `alerts`, `checkpoints`, `events`, `jobs`, `jobs_state`, `lanes`, `locks`, `schedules`, `schedules_state`, `steps`, `tags`, `workers` | `PurgeExpiredDataSpec` |
+| `PurgeExpiredData` | · | · | · | routine | routine | inline | `alerts`, `checkpoints`, `events`, `jobs`, `jobs_state`, `lanes`, `locks`, `schedules`, `schedules_state`, `steps`, `tags`, `workers` | `PurgeExpiredDataJobsWalkSpec`, `PurgeExpiredDataSpec` |
 
 ## Namespaces
 

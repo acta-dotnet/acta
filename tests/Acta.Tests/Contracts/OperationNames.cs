@@ -1,8 +1,8 @@
 namespace Acta.Tests.Contracts;
 
 /// <summary>
-/// How names relate across an operation's homes: the facade method named for an operation, and the operation a spec
-/// belongs to. The operations index and the architecture tests read both the same way.
+/// How names relate across an operation's homes: the facade method named for an operation, and the operation or group
+/// noun a spec starts with. The operations index and the architecture tests read them the same way.
 /// </summary>
 internal static class OperationNames
 {
@@ -48,13 +48,18 @@ internal static class OperationNames
     /// boundary, so <c>GetJobIdSpec</c> is <c>GetJobId</c>'s and not <c>GetJob</c>'s; null when none does.
     /// </summary>
     public static string? SpecOwner(string spec, IEnumerable<string> operations) =>
-        operations
-            .Where(operation =>
-                spec.StartsWith(operation, StringComparison.Ordinal)
-                && spec.Length > operation.Length
-                && char.IsUpper(spec[operation.Length])
-            )
-            .MaxBy(operation => operation.Length);
+        operations.Where(operation => StartsWithWord(spec, operation)).MaxBy(operation => operation.Length);
+
+    /// <summary>
+    /// The noun of <paramref name="group"/> a spec's name starts with at a word boundary: the group's name, or its
+    /// singular when a facade drops it, so <c>JobIdentifierShapeSpec</c> is a <c>Jobs</c> spec; null when neither.
+    /// </summary>
+    public static string? SpecNoun(string spec, string group) =>
+        new[] { group, Nouns.GetValueOrDefault(group) }.OfType<string>().FirstOrDefault(noun => StartsWithWord(spec, noun));
+
+    // Whether the text starts with the word and another PascalCase word follows it.
+    private static bool StartsWithWord(string text, string word) =>
+        text.StartsWith(word, StringComparison.Ordinal) && text.Length > word.Length && char.IsUpper(text[word.Length]);
 
     // The text without the first occurrence of the word as a whole PascalCase word, or null when it has none.
     private static string? WithoutWord(string text, string word)

@@ -16,7 +16,7 @@ namespace Acta.Tests.Conformance.Operations.Definitions;
     Area = "Catalog",
     Contract = "Retiring a recurring definition settles its queued firing, leaves the slot Idle or as the operator held it, and a newer build resumes its schedules from now."
 )]
-public sealed class RetireRecurringSlotSpec : ActaRuntimeTestBase<ConformanceFixture, TestJobsManifest>
+public sealed class RetireDefinitionSlotSpec : ActaRuntimeTestBase<ConformanceFixture, TestJobsManifest>
 {
     private const string Actor = "spec-operator";
 

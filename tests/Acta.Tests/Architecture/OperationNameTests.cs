@@ -13,8 +13,8 @@ namespace Acta.Tests.Architecture;
 /// Holds an operation to one name from the route down to the SQL, as <c>CONTRIBUTING.md</c> (Naming conventions) states
 /// it. The folder gives the name. <see cref="OperationLayoutTests"/> and <see cref="HandlerResponseTests"/> hold the
 /// files and types in the folder to it; here the layers around the folder are held to it: the method that runs the
-/// handler, the facade method, its SQL files and the strings that load them and scope its cursor, the route folder, and
-/// the verb.
+/// handler, the facade method, its SQL files and the strings that load them and scope its cursor, the route folder, the
+/// spec, and the verb.
 /// </summary>
 public sealed class OperationNameTests
 {
@@ -238,6 +238,39 @@ public sealed class OperationNameTests
         ArchitectureAssert.NoViolations(
             violations,
             "Name the route folder after the operation it serves, or give a route that composes several its own <Name>Endpoint."
+        );
+    }
+
+    /// <summary>
+    /// A spec in a group's conformance folder starts with the operation of the group it proves
+    /// (<c>GetJobIdByRefSpec</c>), or with the group's noun when it proves a rule across the group's operations
+    /// (<c>JobIdentifierShapeSpec</c>), so its name says where to read the code it holds to its contract.
+    /// </summary>
+    [Fact]
+    public void A_spec_starts_with_an_operation_of_its_group_or_the_groups_noun()
+    {
+        var root = Path.Combine(IntegrationConfig.FindRepoRoot(), "tests", "Acta.Tests.Conformance", "Operations");
+        var specs = Directory
+            .EnumerateDirectories(root)
+            .SelectMany(group =>
+                Directory
+                    .EnumerateFiles(group, "*Spec.cs")
+                    .Select(file => (Group: Path.GetFileName(group)!, Spec: Path.GetFileNameWithoutExtension(file)!))
+            )
+            .ToList();
+        Assert.True(specs.Count > 100, $"only {specs.Count} specs; the walk is broken.");
+
+        var violations = specs
+            .Where(spec =>
+                OperationNames.SpecOwner(spec.Spec, Folders(Path.Combine(Operations, spec.Group)).Select(Path.GetFileName).OfType<string>())
+                    is null
+                && OperationNames.SpecNoun(spec.Spec, spec.Group) is null
+            )
+            .Select(spec => ($"{spec.Group}/{spec.Spec}", (string?)null));
+
+        ArchitectureAssert.NoViolations(
+            violations,
+            "Start the spec's name with the operation it proves, or with its group's noun when it proves a rule across the group."
         );
     }
 

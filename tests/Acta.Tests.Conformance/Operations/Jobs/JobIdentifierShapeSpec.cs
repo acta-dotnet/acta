@@ -18,7 +18,7 @@ namespace Acta.Tests.Conformance.Operations.Jobs;
     Area = "Enqueue",
     Contract = "A name is folded to lowercase on input, so any case addresses one stored name, while a key keeps its case and compares exactly."
 )]
-public sealed class IdentifierShapeSpec : ActaRuntimeTestBase<ConformanceFixture, TestJobs.TestJobsManifest>
+public sealed class JobIdentifierShapeSpec : ActaRuntimeTestBase<ConformanceFixture, TestJobs.TestJobsManifest>
 {
     // InitializeAsync registers the namespace and the test job definitions; each test drives its own jobs.
     protected override bool RunAsWorker => true;

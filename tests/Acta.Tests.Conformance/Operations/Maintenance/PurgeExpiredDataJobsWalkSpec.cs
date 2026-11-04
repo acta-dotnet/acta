@@ -19,7 +19,7 @@ namespace Acta.Tests.Conformance.Operations.Maintenance;
     Area = "Retention",
     Contract = "The jobs walk deletes only its namespace's expired jobs below the cursor, answers a full batch's last delete as the next cursor, and zero at the oldest row."
 )]
-public sealed class PurgeJobsWalkSpec : ActaRuntimeTestBase<ConformanceFixture, TestJobs.TestJobsManifest>
+public sealed class PurgeExpiredDataJobsWalkSpec : ActaRuntimeTestBase<ConformanceFixture, TestJobs.TestJobsManifest>
 {
     [Fact(DisplayName = "A full batch answers its last delete as the next cursor")]
     public async Task A_full_batch_answers_its_last_delete()

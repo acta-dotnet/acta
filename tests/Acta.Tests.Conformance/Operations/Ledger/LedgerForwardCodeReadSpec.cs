@@ -19,7 +19,7 @@ namespace Acta.Tests.Conformance.Operations.Ledger;
     Area = "Reads",
     Contract = "An unassigned event code or alert kind id reads back as Unspecified on every API read path and serializes as \"unspecified\"."
 )]
-public sealed class ForwardCodeReadSpec : ActaRuntimeTestBase<ConformanceFixture, TestJobs.TestJobsManifest>
+public sealed class LedgerForwardCodeReadSpec : ActaRuntimeTestBase<ConformanceFixture, TestJobs.TestJobsManifest>
 {
     // No member of EventCode or AlertKindCode holds this id, and neither column carries an IN-list
     // CHECK, so a newer Acta may write it.

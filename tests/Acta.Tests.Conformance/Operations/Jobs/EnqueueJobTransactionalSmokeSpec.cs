@@ -22,7 +22,7 @@ namespace Acta.Tests.Conformance.Operations.Jobs;
     Area = "Enqueue",
     Contract = "A caller-transaction enqueue joins the supplied DbTransaction, so a business write and the enqueue persist together on commit and vanish together on rollback."
 )]
-public sealed class TransactionalEnqueueSmokeSpec : ActaRuntimeTestBase<ConformanceFixture, TestJobsManifest>
+public sealed class EnqueueJobTransactionalSmokeSpec : ActaRuntimeTestBase<ConformanceFixture, TestJobsManifest>
 {
     private const string ProbeTable = "acta_txn_probe";
 

@@ -18,7 +18,7 @@ namespace Acta.Tests.Conformance.Operations.Jobs;
     Area = "Enqueue",
     Contract = "Enqueue resolves TenantName to tenant_id, inherits it to children, rejects bad keys atomically, and gates cross-tenant children on an explicit override."
 )]
-public sealed class TenantEnqueueSpec : ActaRuntimeTestBase<ConformanceFixture, TestJobs.TestJobsManifest>
+public sealed class EnqueueJobTenantSpec : ActaRuntimeTestBase<ConformanceFixture, TestJobs.TestJobsManifest>
 {
     protected override bool RunAsWorker => true;
 

@@ -17,7 +17,7 @@ namespace Acta.Tests.Conformance.Operations.Schedules;
     Area = "Scheduling",
     Contract = "A recurring job an operator paused or cancelled keeps that status through worker restarts, schedule edits, and trigger-now."
 )]
-public sealed class RecurringJobPauseSpec : ActaRuntimeTestBase<ConformanceFixture, TestJobs.TestJobsManifest>
+public sealed class ScheduleRecurringJobPauseSpec : ActaRuntimeTestBase<ConformanceFixture, TestJobs.TestJobsManifest>
 {
     private const string JobName = "recurring-ping";
     private const string ScheduleName = "every-5-minutes";

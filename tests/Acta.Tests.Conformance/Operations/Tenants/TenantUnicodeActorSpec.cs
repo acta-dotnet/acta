@@ -17,7 +17,7 @@ namespace Acta.Tests.Conformance.Operations.Tenants;
     Area = "Admin",
     Contract = "The actor stamped on a control event round-trips byte-identical through every provider, including non-ASCII and astral characters."
 )]
-public sealed class UnicodeActorSpec : ActaStorageTestBase<ConformanceFixture>
+public sealed class TenantUnicodeActorSpec : ActaStorageTestBase<ConformanceFixture>
 {
     // A diacritic (two bytes in UTF-8, one UTF-16 unit) and an emoji (four bytes, a surrogate pair):
     // the two shapes a varchar column or an ASCII parameter would each mangle differently.

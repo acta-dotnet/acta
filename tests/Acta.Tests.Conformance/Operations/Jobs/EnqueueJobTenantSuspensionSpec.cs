@@ -19,7 +19,7 @@ namespace Acta.Tests.Conformance.Operations.Jobs;
     Area = "Enqueue",
     Contract = "Suspension rejects new enqueues naming the tenant name while admitted workflows may expand through inherited children after the suspend commits."
 )]
-public sealed class TenantSuspensionAdmissionSpec : ActaRuntimeTestBase<ConformanceFixture, TestJobs.TestJobsManifest>
+public sealed class EnqueueJobTenantSuspensionSpec : ActaRuntimeTestBase<ConformanceFixture, TestJobs.TestJobsManifest>
 {
     protected override bool RunAsWorker => true;
 
