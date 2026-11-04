@@ -30,7 +30,7 @@ public sealed class ArchiveCalendarSpec : ActaStorageTestBase<ConformanceFixture
 
         Assert.Equal((ControlAction.NotFound, null, 0), (draftOnly.Action, draftOnly.Version, draftOnly.DependentCount));
         Assert.Equal(ControlAction.NotFound, unknown.Action);
-        Assert.Equal(CalendarStatusCode.Draft, (await Calendars.GetAsync(calendar, ct: ct))!.Versions.Single().Status);
+        Assert.Equal(CalendarStatusCode.Draft, (await Calendars.GetAsync(calendar, ct: ct))!.ShownStatus);
     }
 
     [Fact(DisplayName = "Archiving the current version applies, leaves the family without one, and records calendar.archived")]
@@ -46,7 +46,7 @@ public sealed class ArchiveCalendarSpec : ActaStorageTestBase<ConformanceFixture
         Assert.Equal((ControlAction.Applied, 1, 0), (archived.Action, archived.Version, archived.DependentCount));
         var read = await Calendars.GetAsync(calendar, ct: ct);
         Assert.Null(read!.CurrentVersion);
-        Assert.Equal(CalendarStatusCode.Archived, read.Versions.Single().Status);
+        Assert.Equal(CalendarStatusCode.Archived, read.ShownStatus);
         var row = await Db.From<CalendarEntity>()
             .Where(c => c.NamespaceId == TestNamespaceId && c.CalendarName == calendar.CalendarName)
             .SingleOrDefaultAsync(ct);

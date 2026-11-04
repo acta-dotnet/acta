@@ -3,33 +3,37 @@ using System.Text;
 namespace Acta;
 
 /// <summary>
-/// <see cref="ICalendars.GetAsync"/>: three reads, the family's versions, the shown version's definition, and the schedules
+/// <see cref="ICalendars.GetAsync"/>: three reads, the family's head, the shown version's definition, and the schedules
 /// bound to the family. No row is ever deleted and a version's content never changes, so a write between the reads can
-/// only add a version the response does not list or move a status it lists.
+/// only add a version or move a status.
 /// </summary>
 internal sealed class GetCalendarHandler(ResolveCalendarVersionHandler resolveCalendarVersion, IDbSession session, ISqlDialect dialect)
 {
     public async ValueTask<GetCalendarResponse?> HandleAsync(GetCalendarQuery query, CancellationToken ct)
     {
         var (jobNamespace, calendarName) = CalendarControl.Names(query.Calendar);
-        var versions = await session.QueryListAsync(
-            "GetCalendarVersions",
+        var head = await session.QuerySingleAsync(
+            "GetCalendar",
             cmd =>
             {
                 cmd.Parameters.Add(dialect.CreateParameter(ActaSchema.Sql.NamespaceName, jobNamespace));
                 cmd.Parameters.Add(dialect.CreateParameter(ActaSchema.Calendar.CalendarName, calendarName));
             },
-            DbProjectionResolver.Resolve<GetCalendarVersionsRow>(),
+            DbProjectionResolver.Resolve<GetCalendarRow>(),
             ct
         );
-        var current = versions.FirstOrDefault(static v => v.Status == CalendarStatusCode.Published);
-        var shown = query.Version is { } requested
-            ? versions.FirstOrDefault(v => v.Version == requested)
-            : current ?? (versions.Count > 0 ? versions[0] : null);
+        if (head is null)
+        {
+            return null;
+        }
+
+        // Versions number from 1 with no gaps and none is deleted, so one past the latest is not this family's.
+        var shown = query.Version ?? head.CurrentVersion ?? head.LatestVersion;
         if (
-            shown is null
-            || await resolveCalendarVersion.HandleAsync(new ResolveCalendarVersionQuery(shown.NamespaceId, calendarName, shown.Version), ct)
-                is not { } definition
+            shown < 1
+            || shown > head.LatestVersion
+            || await resolveCalendarVersion.HandleAsync(new ResolveCalendarVersionQuery(head.NamespaceId, calendarName, shown), ct)
+                is not { } version
         )
         {
             return null;
@@ -39,7 +43,7 @@ internal sealed class GetCalendarHandler(ResolveCalendarVersionHandler resolveCa
             "GetCalendarDependents",
             cmd =>
             {
-                cmd.Parameters.Add(dialect.CreateParameter(ActaSchema.Calendar.NamespaceId, shown.NamespaceId));
+                cmd.Parameters.Add(dialect.CreateParameter(ActaSchema.Calendar.NamespaceId, head.NamespaceId));
                 cmd.Parameters.Add(dialect.CreateParameter(ActaSchema.Calendar.CalendarName, calendarName));
             },
             DbProjectionResolver.Resolve<GetCalendarDependent>(),
@@ -48,20 +52,12 @@ internal sealed class GetCalendarHandler(ResolveCalendarVersionHandler resolveCa
         return new GetCalendarResponse(
             jobNamespace,
             calendarName,
-            shown.Role,
-            current?.Version,
-            [
-                .. versions.Select(static v => new GetCalendarVersion(
-                    v.Version,
-                    v.Status,
-                    v.ContentHash,
-                    v.CreatedAtUtc,
-                    v.PublishedAtUtc,
-                    v.ModifiedAtUtc
-                )),
-            ],
-            shown.Version,
-            Encoding.UTF8.GetString(definition.Definition.Span),
+            version.Role,
+            head.CurrentVersion,
+            head.LatestVersion,
+            shown,
+            version.Status,
+            Encoding.UTF8.GetString(version.Definition.Span),
             dependents
         );
     }

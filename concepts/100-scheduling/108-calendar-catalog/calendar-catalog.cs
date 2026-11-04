@@ -20,7 +20,7 @@ var officeHours = new CalendarLookup("sys", "office-hours");
     var calendars = seedHost.Services.GetRequiredService<IActaOperations>().Calendars;
     var family = await calendars.GetAsync(officeHours);
     // A save names the latest version it saw, 0 for a new family; a publication names the current one.
-    var latest = family?.Versions[0].Version ?? 0;
+    var latest = family?.LatestVersion ?? 0;
     var draft = await calendars.SaveDraftAsync(officeHours, CalendarRoleCode.Availability, Definitions.OpenAllDay, latest, "Open all day");
     Console.WriteLine($"Draft saved: {draft.Action}, version {draft.Version}");
     var published = await calendars.PublishAsync(officeHours, family?.CurrentVersion ?? 0, draft.Version!.Value, reasonMessage: "Go live");
@@ -53,7 +53,7 @@ var closed = await operations.Calendars.SaveDraftAsync(
     officeHours,
     CalendarRoleCode.Availability,
     Definitions.ClosedOn(today),
-    current.Versions[0].Version,
+    current.LatestVersion,
     $"Closed on {today}"
 );
 var preview = (await operations.Calendars.PreviewAsync(officeHours, closed.Version!.Value, count: 3))!;

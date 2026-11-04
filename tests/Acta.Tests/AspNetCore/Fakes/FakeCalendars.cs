@@ -22,6 +22,12 @@ internal sealed class FakeCalendars : ICalendars
             Reads.Add((calendar, version));
             return ValueTask.FromResult(Known(calendar, version ?? 1) ? Family(calendar, version ?? 1) : null);
         };
+        ListVersions = (query, _) =>
+        {
+            VersionQueries.Add(query);
+            IReadOnlyList<ListCalendarVersionsItem> items = Known(query.Calendar, 1) ? Versions : [];
+            return ValueTask.FromResult(new ListCalendarVersionsResponse(items, null, false, 50, query.IncludeTotal ? items.Count : null));
+        };
         Preview = (calendar, version, fromUtc, count, timeZoneId, _) =>
         {
             Previews.Add((calendar, version, fromUtc, count, timeZoneId));
@@ -92,6 +98,8 @@ internal sealed class FakeCalendars : ICalendars
 
     public List<(CalendarLookup Calendar, int? Version)> Reads { get; } = [];
 
+    public List<ListCalendarVersionsQuery> VersionQueries { get; } = [];
+
     public List<(CalendarLookup Calendar, int Version, DateTime? FromUtc, int Count, string? TimeZoneId)> Previews { get; } = [];
 
     public List<(
@@ -117,6 +125,8 @@ internal sealed class FakeCalendars : ICalendars
     public Func<ListCalendarsQuery, CancellationToken, ValueTask<ListCalendarsResponse>> List { get; set; }
 
     public Func<CalendarLookup, int?, CancellationToken, ValueTask<GetCalendarResponse?>> Get { get; set; }
+
+    public Func<ListCalendarVersionsQuery, CancellationToken, ValueTask<ListCalendarVersionsResponse>> ListVersions { get; set; }
 
     public Func<CalendarLookup, int, DateTime?, int, string?, CancellationToken, ValueTask<PreviewCalendarResponse?>> Preview { get; set; }
 
@@ -148,6 +158,9 @@ internal sealed class FakeCalendars : ICalendars
 
     ValueTask<GetCalendarResponse?> ICalendars.GetAsync(CalendarLookup calendar, int? version, CancellationToken ct) =>
         Get(calendar, version, ct);
+
+    ValueTask<ListCalendarVersionsResponse> ICalendars.ListVersionsAsync(ListCalendarVersionsQuery query, CancellationToken ct) =>
+        ListVersions(query, ct);
 
     ValueTask<SaveCalendarDraftResponse> ICalendars.SaveDraftAsync(
         CalendarLookup calendar,
@@ -194,8 +207,9 @@ internal sealed class FakeCalendars : ICalendars
             calendar.CalendarName,
             CalendarRoleCode.Availability,
             1,
-            [new(2, CalendarStatusCode.Draft, "hash-2", At, null, At), new(1, CalendarStatusCode.Published, "hash-1", At, At, At)],
+            2,
             shownVersion,
+            shownVersion == 1 ? CalendarStatusCode.Published : CalendarStatusCode.Draft,
             """{"kind":"weekly-availability"}""",
             [
                 new(
@@ -208,6 +222,12 @@ internal sealed class FakeCalendars : ICalendars
                 ),
             ]
         );
+
+    private static readonly IReadOnlyList<ListCalendarVersionsItem> Versions =
+    [
+        new(2, CalendarStatusCode.Draft, "hash-2", At, null, At),
+        new(1, CalendarStatusCode.Published, "hash-1", At, At, At),
+    ];
 
     private static readonly ListCalendarsItem OfficeHours = new(
         "billing",

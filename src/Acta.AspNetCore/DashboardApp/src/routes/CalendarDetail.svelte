@@ -48,7 +48,7 @@
     queryKey: keys.detail('calendars', `${path}?v=${requestedVersion ?? ''}`),
     queryFn: async ({ signal }: { signal: AbortSignal }): Promise<CalendarDetailView | null> => {
       try {
-        return await api<CalendarDetailView>(path, { version: requestedVersion }, { signal });
+        return await api<CalendarDetailView>(`${path}/detail`, { version: requestedVersion }, { signal });
       } catch (error) {
         if (error instanceof ApiError && error.status === 404) return null;
         throw error;
@@ -58,7 +58,12 @@
     refetchOnReconnect: false,
     refetchInterval: false
   }));
-  let family = $derived(detail.data ?? null);
+  // The head flattened beside its first page of versions, so the template reads one family.
+  let family = $derived(
+    detail.data
+      ? { ...detail.data.calendar, versions: detail.data.versions.items, versionsTotal: detail.data.versions.totalCount }
+      : null
+  );
   let missing = $derived(detail.isSuccess && detail.data === null);
 
   const capabilities = createQuery(() => capabilitiesQuery());
@@ -301,6 +306,9 @@
                 </li>
               {/each}
             </ol>
+            {#if family.versionsTotal !== null && family.versionsTotal > family.versions.length}
+              <p class="detail-help">Showing the newest {displayFormatter.number(family.versions.length)} of {displayFormatter.number(family.versionsTotal)} versions.</p>
+            {/if}
           </section>
         {/if}
 

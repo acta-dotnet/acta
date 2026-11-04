@@ -1860,10 +1860,10 @@
 - **Guarantees:**
   - Only a family's Published version is current; drafts and an archived version are not
 
-### A calendar family reads with its versions, a definition, and its dependents
-- **Contract:** Get answers every version newest first, the requested, current, or latest definition, and every schedule naming the family, or null.
+### A calendar family reads its head, one definition, and its dependents
+- **Contract:** Get answers the role, current and latest versions, the requested, current, or latest version's status and definition, and every schedule naming it, or null.
 - **Guarantees:**
-  - Get lists the versions newest first and shows the latest definition while none is current
+  - Get shows the latest definition while none is current
   - Get shows the current version by default and a requested one on demand; a version or family it lacks is null
   - Get lists every schedule that names the family, an orphan with its status
 
@@ -1911,6 +1911,12 @@
 - **Guarantees:**
   - An archived version reads back with its role, status, and definition; a version the family lacks is null
   - A version in the shared sys catalog resolves from any namespace
+
+### ListCalendarVersions pages a family's versions newest first
+- **Contract:** ListCalendarVersions pages a family's versions newest first with status, content hash, and publication instant, and answers an empty page for an unknown family.
+- **Guarantees:**
+  - ListCalendarVersions pages two versions newest first, the published one with its instant
+  - ListCalendarVersions answers an empty page for an unknown family, and refuses another family's cursor
 
 ### A reschedule of an idle permanent slot is a manual firing at the instant
 - **Contract:** RescheduleAsync fires an Idle slot, or a Paused one with no firing, at the instant unless its namespace is suspended, and a slot mid-firing keeps its firing.
@@ -2552,9 +2558,9 @@
 | `FindOutboxTable` | yes | yes | yes |
 | `GetAlert` | yes | yes | yes |
 | `GetAlertFloor` | yes | yes | yes |
+| `GetCalendar` | yes | yes | yes |
 | `GetCalendarDependents` | yes | yes | yes |
 | `GetCalendarPublication` | yes | yes | yes |
-| `GetCalendarVersions` | yes | yes | yes |
 | `GetDefinition` | yes | yes | yes |
 | `GetJob` | yes | yes | yes |
 | `GetJobInput` | yes | yes | yes |
@@ -2574,6 +2580,7 @@
 | `ListAlerts` | yes | yes | yes |
 | `ListAppliedMigrations` | yes | yes | yes |
 | `ListCalendarSchedules` | yes | yes | yes |
+| `ListCalendarVersions` | yes | yes | yes |
 | `ListCalendars` | yes | yes | yes |
 | `ListChildJobIds` | yes | yes | yes |
 | `ListCurrentCalendars` | yes | yes | yes |

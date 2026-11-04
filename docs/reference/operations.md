@@ -26,9 +26,11 @@ One row per operation folder, `src/Acta/Operations/<Group>/<Operation>/`, and on
 | Operation | Facade | HTTP | CLI | pg | mssql | sqlite | Writes | Specs |
 | --- | --- | --- | --- | --- | --- | --- | --- | --- |
 | `ArchiveCalendar` | `ICalendars.ArchiveAsync` | `POST /calendars/{jobNamespace}/{calendarName}/archive` | · | inline | inline | inline | `calendars`, `events` | `ArchiveCalendarSpec` |
-| `GetCalendar` | `ICalendars.GetAsync` | `GET /calendars/{jobNamespace}/{calendarName}` | · | · | · | · | · | `GetCalendarSpec` |
+| `GetCalendar` | `ICalendars.GetAsync` | `GET /calendars/{jobNamespace}/{calendarName}` | · | inline | inline | inline | · | `GetCalendarSpec` |
+| `GetCalendarDetail` | · | `GET /calendars/{jobNamespace}/{calendarName}/detail` | · | · | · | · | · | · |
 | `GetCalendarPublication` | · | · | · | inline | inline | inline | · | `GetCalendarPublicationSpec` |
 | `ListCalendarSchedules` | · | · | · | inline | inline | inline | · | `ListCalendarSchedulesSpec` |
+| `ListCalendarVersions` | `ICalendars.ListVersionsAsync` | `GET /calendars/{jobNamespace}/{calendarName}/versions` | · | inline | inline | inline | · | `ListCalendarVersionsSpec` |
 | `ListCalendars` | `ICalendars.ListAsync` | `GET /calendars` | · | inline | inline | inline | · | `ListCalendarsSpec` |
 | `ListCurrentCalendars` | · | · | · | inline | inline | inline | · | `ListCurrentCalendarsSpec` |
 | `PreviewCalendar` | `ICalendars.PreviewAsync` | `GET /calendars/{jobNamespace}/{calendarName}/preview` | · | · | · | · | · | `PreviewCalendarSpec` |

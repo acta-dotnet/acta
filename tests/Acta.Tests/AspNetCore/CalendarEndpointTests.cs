@@ -101,6 +101,9 @@ public sealed class CalendarEndpointTests
         Assert.Equal(HttpStatusCode.OK, current.StatusCode);
         using var family = JsonDocument.Parse(await current.Content.ReadAsStringAsync(ct));
         Assert.Equal(1, family.RootElement.GetProperty("shownVersion").GetInt32());
+        Assert.Equal("published", family.RootElement.GetProperty("shownStatus").GetString());
+        Assert.Equal(2, family.RootElement.GetProperty("latestVersion").GetInt32());
+        Assert.DoesNotContain(family.RootElement.EnumerateObject(), member => member.Name == "versions");
         Assert.Equal("""{"kind":"weekly-availability"}""", family.RootElement.GetProperty("definition").GetString());
         Assert.Equal("nightly", family.RootElement.GetProperty("dependents")[0].GetProperty("scheduleName").GetString());
         Assert.Contains("\"shownVersion\":2", await versioned.Content.ReadAsStringAsync(ct));
@@ -134,6 +137,97 @@ public sealed class CalendarEndpointTests
 
         Assert.Equal(HttpStatusCode.BadRequest, response.StatusCode);
         Assert.Empty(fakes.Calendars.Reads);
+    }
+
+    [Fact]
+    public async Task The_screen_composes_the_head_with_the_first_page_of_versions_or_answers_404()
+    {
+        var fakes = new FakeOperations();
+        var (app, client) = await TestDashboardHost.StartAsync(fakes: fakes);
+        await using var _ = app;
+        var ct = TestContext.Current.CancellationToken;
+
+        var shown = await client.GetAsync($"{Prefix}/billing/office-hours/detail?version=2", ct);
+        var missing = await client.GetAsync($"{Prefix}/billing/missing/detail", ct);
+        var malformed = await client.GetAsync($"{Prefix}/bad!/office-hours/detail", ct);
+
+        Assert.Equal(HttpStatusCode.OK, shown.StatusCode);
+        using var detail = JsonDocument.Parse(await shown.Content.ReadAsStringAsync(ct));
+        Assert.Equal(2, detail.RootElement.GetProperty("calendar").GetProperty("shownVersion").GetInt32());
+        var versions = detail.RootElement.GetProperty("versions");
+        Assert.Equal([2, 1], versions.GetProperty("items").EnumerateArray().Select(v => v.GetProperty("version").GetInt32()));
+        Assert.Equal(2, versions.GetProperty("totalCount").GetInt32());
+        Assert.Equal(HttpStatusCode.NotFound, missing.StatusCode);
+        Assert.Contains("Calendar not found.", await missing.Content.ReadAsStringAsync(ct));
+        Assert.Equal(HttpStatusCode.BadRequest, malformed.StatusCode);
+        Assert.Equal(
+            [(new CalendarLookup("billing", "office-hours"), (int?)2), (new CalendarLookup("billing", "missing"), null)],
+            fakes.Calendars.Reads
+        );
+        Assert.Equal(
+            new ListCalendarVersionsQuery(new CalendarLookup("billing", "office-hours"), IncludeTotal: true),
+            Assert.Single(fakes.Calendars.VersionQueries)
+        );
+    }
+
+    [Fact]
+    public async Task The_versions_route_answers_404_for_an_unknown_family()
+    {
+        var fakes = new FakeOperations();
+        var (app, client) = await TestDashboardHost.StartAsync(fakes: fakes);
+        await using var _ = app;
+        var ct = TestContext.Current.CancellationToken;
+
+        var response = await client.GetAsync($"{Prefix}/billing/missing/versions?pageSize=7", ct);
+
+        Assert.Equal(HttpStatusCode.NotFound, response.StatusCode);
+        Assert.Equal("application/problem+json", response.Content.Headers.ContentType?.MediaType);
+        Assert.Contains("Calendar not found.", await response.Content.ReadAsStringAsync(ct));
+        // Only the existence probe reads; the page itself is never listed.
+        Assert.Equal(1, Assert.Single(fakes.Calendars.VersionQueries).PageSize);
+    }
+
+    [Fact]
+    public async Task The_versions_route_answers_the_page_and_hands_its_paging_to_the_facade()
+    {
+        var fakes = new FakeOperations();
+        var (app, client) = await TestDashboardHost.StartAsync(fakes: fakes);
+        await using var _ = app;
+        var ct = TestContext.Current.CancellationToken;
+
+        var paged = await client.GetAsync($"{Prefix}/billing/office-hours/versions?pageSize=7&cursor=opaque-cursor_42", ct);
+        var counted = await client.GetAsync($"{Prefix}/sys/holidays/versions?includeTotal=true", ct);
+
+        Assert.Equal(HttpStatusCode.OK, paged.StatusCode);
+        Assert.Equal(
+            new ListCalendarVersionsQuery(new CalendarLookup("billing", "office-hours"), 7, "opaque-cursor_42", false),
+            fakes.Calendars.VersionQueries[1]
+        );
+        Assert.Equal(HttpStatusCode.OK, counted.StatusCode);
+        using var page = JsonDocument.Parse(await counted.Content.ReadAsStringAsync(ct));
+        var root = page.RootElement;
+        Assert.Equal(JsonValueKind.Null, root.GetProperty("nextCursor").ValueKind);
+        Assert.False(root.GetProperty("hasMore").GetBoolean());
+        Assert.Equal(50, root.GetProperty("pageSize").GetInt32());
+        Assert.Equal(2, root.GetProperty("totalCount").GetInt64());
+        var newest = root.GetProperty("items")[0];
+        Assert.Equal(2, newest.GetProperty("version").GetInt32());
+        Assert.Equal("draft", newest.GetProperty("status").GetString());
+        Assert.Equal("hash-2", newest.GetProperty("contentHash").GetString());
+        Assert.Equal(JsonValueKind.Null, newest.GetProperty("publishedAtUtc").ValueKind);
+    }
+
+    [Fact]
+    public async Task The_versions_route_answers_a_malformed_page_size_with_400()
+    {
+        var fakes = new FakeOperations();
+        var (app, client) = await TestDashboardHost.StartAsync(fakes: fakes);
+        await using var _ = app;
+
+        var response = await client.GetAsync($"{Prefix}/billing/office-hours/versions?pageSize=abc", TestContext.Current.CancellationToken);
+
+        Assert.Equal(HttpStatusCode.BadRequest, response.StatusCode);
+        Assert.Empty(fakes.Calendars.VersionQueries);
     }
 
     [Fact]

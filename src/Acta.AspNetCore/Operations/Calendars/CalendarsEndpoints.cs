@@ -5,8 +5,9 @@ using Microsoft.AspNetCore.Routing;
 namespace Acta.AspNetCore;
 
 /// <summary>
-/// The Calendars routes: the catalog list, one family, a version's preview, and save draft, publish, and archive. A family
-/// is addressed by its namespace and calendar name; the namespace <c>sys</c> holds the shared families.
+/// The Calendars routes: the catalog list, one family, its versions, the calendar screen, a version's preview, and save
+/// draft, publish, and archive. A family is addressed by its namespace and calendar name; the namespace <c>sys</c> holds
+/// the shared families.
 /// </summary>
 internal static class CalendarsEndpoints
 {
@@ -44,7 +45,7 @@ internal static class CalendarsEndpoints
         reads
             .MapDetail(
                 "/calendars/{jobNamespace}/{calendarName}",
-                "Read a calendar family: its versions, one definition, and the schedules bound to it.",
+                "Read a calendar family: its current and latest versions, one definition, and the schedules bound to it.",
                 "Calendar",
                 DashboardJsonContext.Default.GetCalendarResponse,
                 static (http, call) =>
@@ -61,6 +62,25 @@ internal static class CalendarsEndpoints
                     "The version whose definition to show; omit for the current version, else the latest."
                 ),
             ]);
+        GetCalendarDetailEndpoint.Map(reads, Key);
+        reads
+            .MapList(
+                "/calendars/{jobNamespace}/{calendarName}/versions",
+                "List a calendar family's versions, newest first.",
+                DashboardJsonContext.Default.ListCalendarVersionsResponse,
+                static query => new ListCalendarVersionsQuery(
+                    Key(query.Http),
+                    query.Int("pageSize"),
+                    query.Text("cursor"),
+                    query.Bool("includeTotal") ?? false
+                ),
+                static async (call, query) =>
+                    await FamilyExistsAsync(call, query.Calendar)
+                        ? await call.Operations.Calendars.ListVersionsAsync(query, call.Ct)
+                        : throw new TargetNotFoundException("Calendar"),
+                [.. QueryParameterDocExtensions.PagingCore, .. QueryParameterDocExtensions.IncludeTotal]
+            )
+            .ProducesProblem(StatusCodes.Status404NotFound);
         reads
             .MapDetail(
                 "/calendars/{jobNamespace}/{calendarName}/preview",
@@ -165,6 +185,13 @@ internal static class CalendarsEndpoints
             bodyRequired: true
         );
     }
+
+    /// <summary>
+    /// Whether the family exists, which it does exactly when it has a version: a list answers an empty page for an unknown
+    /// family, and the route answers 404.
+    /// </summary>
+    private static async ValueTask<bool> FamilyExistsAsync(ReadCall call, CalendarLookup calendar) =>
+        (await call.Operations.Calendars.ListVersionsAsync(new ListCalendarVersionsQuery(calendar, PageSize: 1), call.Ct)).Items.Count > 0;
 
     /// <summary>The route's family; its namespace may be <c>sys</c>, which holds the shared families, and its calendar name may not.</summary>
     private static CalendarLookup Key(HttpContext http)

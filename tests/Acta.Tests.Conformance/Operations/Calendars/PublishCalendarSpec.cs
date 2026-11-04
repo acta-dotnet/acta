@@ -164,7 +164,7 @@ public sealed class PublishCalendarSpec : ActaRuntimeTestBase<ConformanceFixture
         Assert.Equal(Start.AddMinutes(10), after.NextEvaluationAtUtc);
         var retimed = Assert.Single(await EventsAsync(slotId, EventCode.ScheduleRetimed, ct));
         Assert.Equal(("1", "2"), (EventDetail(retimed, "fromVersion"), EventDetail(retimed, "toVersion")));
-        var versions = (await Calendars.GetAsync(Days, ct: ct))!.Versions;
+        var versions = (await Calendars.ListVersionsAsync(new ListCalendarVersionsQuery(Days), ct)).Items;
         Assert.Equal([2, 1], versions.Select(v => v.Version));
         Assert.Equal([CalendarStatusCode.Published, CalendarStatusCode.Superseded], versions.Select(v => v.Status));
     }
@@ -188,7 +188,7 @@ public sealed class PublishCalendarSpec : ActaRuntimeTestBase<ConformanceFixture
             refused.OverdueSchedules
         );
         Assert.Equal(Start.AddMinutes(1), Assert.Single(await ScheduleTestOps.ReadAsync(Db, slotId, ct)).NextOccurrenceAtUtc);
-        Assert.Equal(CalendarStatusCode.Draft, (await Calendars.GetAsync(Days, 2, ct))!.Versions.Single(v => v.Version == 2).Status);
+        Assert.Equal(CalendarStatusCode.Draft, (await Calendars.GetAsync(Days, 2, ct))!.ShownStatus);
 
         var discarded = await Calendars.PublishAsync(Days, 1, 2, OverdueDecisionCode.Discard, ct: ct);
 

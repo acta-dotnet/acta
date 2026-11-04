@@ -432,17 +432,25 @@ export interface CalendarDependent {
   scheduledDelivery: string;
 }
 
-// GET /calendars/{ns}/{name}?version=: every version newest first, one version's definition as JSON text
-// (the requested one, else the current, else the latest), and the dependents.
-export interface CalendarDetailView {
+// GET /calendars/{ns}/{name}?version=: the family's current and latest versions, one version's status and
+// definition as JSON text (the requested one, else the current, else the latest), and the dependents.
+export interface CalendarHeadView {
   jobNamespace: string;
   calendarName: string;
   role: string;
   currentVersion: number | null;
-  versions: CalendarVersionView[];
+  latestVersion: number;
   shownVersion: number;
+  shownStatus: string;
   definition: string;
   dependents: CalendarDependent[];
+}
+
+// GET /calendars/{ns}/{name}/detail?version=: the head with the first page of its versions, newest first;
+// the page's totalCount says whether it is the whole set.
+export interface CalendarDetailView {
+  calendar: CalendarHeadView;
+  versions: Paged<CalendarVersionView>;
 }
 
 export interface CalendarWindowView {

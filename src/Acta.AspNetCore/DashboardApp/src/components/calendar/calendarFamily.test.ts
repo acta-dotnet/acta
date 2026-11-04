@@ -2,28 +2,21 @@ import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { calendarControlMessage, familyState, publishImpact } from './calendarFamily.ts';
 
-const family = {
-  currentVersion: 2,
-  versions: [
-    { version: 3, status: 'draft' },
-    { version: 2, status: 'published' },
-    { version: 1, status: 'superseded' }
-  ]
-};
+const family = { currentVersion: 2, latestVersion: 3 };
 
 test('a shown draft offers publish; any family with a current version offers archive', () => {
-  const draft = familyState({ ...family, shownVersion: 3 }, true);
+  const draft = familyState({ ...family, shownVersion: 3, shownStatus: 'draft' }, true);
   assert.equal(draft.latestVersion, 3);
   assert.deepEqual([draft.shownIsDraft, draft.shownIsCurrent, draft.canPublish, draft.canArchive], [true, false, true, true]);
 
-  const current = familyState({ ...family, shownVersion: 2 }, true);
+  const current = familyState({ ...family, shownVersion: 2, shownStatus: 'published' }, true);
   assert.deepEqual([current.shownStatus, current.shownIsCurrent, current.canPublish, current.canArchive], ['published', true, false, true]);
 });
 
 test('a read-only host offers nothing, and a family without a current version cannot archive', () => {
-  const readOnly = familyState({ ...family, shownVersion: 3 }, false);
+  const readOnly = familyState({ ...family, shownVersion: 3, shownStatus: 'draft' }, false);
   assert.deepEqual([readOnly.canPublish, readOnly.canArchive], [false, false]);
-  const unpublished = familyState({ currentVersion: null, versions: [{ version: 1, status: 'draft' }], shownVersion: 1 }, true);
+  const unpublished = familyState({ currentVersion: null, latestVersion: 1, shownVersion: 1, shownStatus: 'draft' }, true);
   assert.deepEqual([unpublished.canPublish, unpublished.canArchive], [true, false]);
 });
 

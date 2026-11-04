@@ -55,22 +55,26 @@ const calendarVersions = [
 ];
 const weekdays = ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday'];
 const officeHours = (shown: number) => ({
-  jobNamespace: 'sys',
-  calendarName: 'office-hours',
-  role: 'availability',
-  currentVersion: 2,
-  versions: calendarVersions,
-  shownVersion: shown,
-  definition: JSON.stringify({
-    kind: 'weekly-availability',
-    timeZone: 'schedule',
-    weekly: shown === 3
-      ? [{ days: weekdays, windows: [['09:00', '17:00']] }, { days: ['Saturday'], windows: [['09:00', '12:00']] }]
-      : [{ days: weekdays, windows: [['09:00', '17:00']] }]
-  }),
-  dependents: [
-    { jobNamespace: 'billing', jobName: 'send-invoice', scheduleName: 'nightly', binding: 'availability', status: 'active', scheduledDelivery: 'permanent' }
-  ]
+  calendar: {
+    jobNamespace: 'sys',
+    calendarName: 'office-hours',
+    role: 'availability',
+    currentVersion: 2,
+    latestVersion: 3,
+    shownVersion: shown,
+    shownStatus: calendarVersions.find((v) => v.version === shown)?.status ?? 'draft',
+    definition: JSON.stringify({
+      kind: 'weekly-availability',
+      timeZone: 'schedule',
+      weekly: shown === 3
+        ? [{ days: weekdays, windows: [['09:00', '17:00']] }, { days: ['Saturday'], windows: [['09:00', '12:00']] }]
+        : [{ days: weekdays, windows: [['09:00', '17:00']] }]
+    }),
+    dependents: [
+      { jobNamespace: 'billing', jobName: 'send-invoice', scheduleName: 'nightly', binding: 'availability', status: 'active', scheduledDelivery: 'permanent' }
+    ]
+  },
+  versions: { items: calendarVersions, nextCursor: null, hasMore: false, totalCount: calendarVersions.length }
 });
 const officeHoursPreview = (version: number) => ({
   role: 'availability',
@@ -176,7 +180,7 @@ async function mockDashboard(
         dependentCount: 1
       }]));
     }
-    if (path === 'calendars/sys/office-hours') return json(officeHours(Number(url.searchParams.get('version') ?? '2')));
+    if (path === 'calendars/sys/office-hours/detail') return json(officeHours(Number(url.searchParams.get('version') ?? '2')));
     if (path === 'calendars/sys/office-hours/preview') return json(officeHoursPreview(Number(url.searchParams.get('version') ?? '2')));
     if (path === 'calendars/sys/office-hours/publish' && request.method() === 'POST') {
       if (!options.controls) return json({ title: 'Controls disabled.' }, 404);

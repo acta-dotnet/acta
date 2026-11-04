@@ -4,6 +4,7 @@ namespace Acta;
 internal sealed class CalendarsOperations(
     ListCalendarsHandler listCalendars,
     GetCalendarHandler getCalendar,
+    ListCalendarVersionsHandler listCalendarVersions,
     SaveCalendarDraftHandler saveCalendarDraft,
     ArchiveCalendarHandler archiveCalendar,
     PreviewCalendarHandler previewCalendar,
@@ -18,6 +19,9 @@ internal sealed class CalendarsOperations(
 
     public ValueTask<GetCalendarResponse?> GetAsync(CalendarLookup calendar, int? version = null, CancellationToken ct = default) =>
         getCalendar.HandleAsync(new GetCalendarQuery(calendar, version), ct);
+
+    public ValueTask<ListCalendarVersionsResponse> ListVersionsAsync(ListCalendarVersionsQuery query, CancellationToken ct = default) =>
+        listCalendarVersions.HandleAsync(query, ct);
 
     public ValueTask<SaveCalendarDraftResponse> SaveDraftAsync(
         CalendarLookup calendar,

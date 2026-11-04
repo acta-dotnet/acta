@@ -16,11 +16,15 @@ public interface ICalendars
     ValueTask<ListCalendarsResponse> ListAsync(ListCalendarsQuery query, CancellationToken ct = default);
 
     /// <summary>
-    /// Reads one family: every version newest first, the schedules that name it in its scope (orphaned ones included,
-    /// their status says so), and one version's definition JSON: <paramref name="version"/> when given, else the current
-    /// version, else the latest. Null when the family has no version, or has no <paramref name="version"/>.
+    /// Reads one family: its role, current and latest versions, the schedules that name it in its scope (orphaned ones
+    /// included, their status says so), and one version's status and definition JSON: <paramref name="version"/> when
+    /// given, else the current version, else the latest. Null when the family has no version, or has no
+    /// <paramref name="version"/>.
     /// </summary>
     ValueTask<GetCalendarResponse?> GetAsync(CalendarLookup calendar, int? version = null, CancellationToken ct = default);
+
+    /// <summary>One page of the family's versions, newest first; an unknown family answers an empty page.</summary>
+    ValueTask<ListCalendarVersionsResponse> ListVersionsAsync(ListCalendarVersionsQuery query, CancellationToken ct = default);
 
     /// <summary>
     /// Saves <paramref name="definition"/> as the family's next version, a Draft that no schedule follows until it is published.

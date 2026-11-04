@@ -2,15 +2,11 @@
 // publication would meet, and the wording of the three catalog verbs' outcomes. The server stays
 // authoritative on legality; this only decides what to show.
 
-export interface FamilyVersionLike {
-  version: number;
-  status: string;
-}
-
 export interface FamilyLike {
   currentVersion: number | null;
-  versions: readonly FamilyVersionLike[];
+  latestVersion: number;
   shownVersion: number;
+  shownStatus: string;
 }
 
 export interface FamilyState {
@@ -23,9 +19,7 @@ export interface FamilyState {
 }
 
 export function familyState(family: FamilyLike, controls: boolean): FamilyState {
-  const latestVersion = family.versions.reduce((max, candidate) => Math.max(max, candidate.version), 0);
-  const shown = family.versions.find((candidate) => candidate.version === family.shownVersion);
-  const shownStatus = shown?.status ?? 'unknown';
+  const { latestVersion, shownStatus } = family;
   const shownIsDraft = shownStatus === 'draft';
   const shownIsCurrent = family.currentVersion !== null && family.shownVersion === family.currentVersion;
   return {

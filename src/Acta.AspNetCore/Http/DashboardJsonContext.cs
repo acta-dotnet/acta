@@ -65,6 +65,8 @@ namespace Acta.AspNetCore;
 [JsonSerializable(typeof(PreviewScheduleResponse))]
 [JsonSerializable(typeof(ListCalendarsResponse))]
 [JsonSerializable(typeof(GetCalendarResponse))]
+[JsonSerializable(typeof(ListCalendarVersionsResponse))]
+[JsonSerializable(typeof(GetCalendarDetailResponse))]
 [JsonSerializable(typeof(PreviewCalendarResponse))]
 [JsonSerializable(typeof(SaveCalendarDraftRequest))]
 [JsonSerializable(typeof(SaveCalendarDraftResponse))]
