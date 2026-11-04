@@ -544,7 +544,13 @@ internal sealed class OwnedProvider : IAsyncDisposable
         _administrationConnection = ConnectionString;
         await using var c = await OpenAsync(ct);
         await using var command = c.CreateCommand();
-        command.CommandText = Provider == "pg" ? $"CREATE DATABASE \"{Schema}\";" : $"CREATE DATABASE [{Schema}];";
+        // Read-committed snapshot is switched on as EF Core's database creator does, in the creating batch, while no other
+        // session is in the database: the readers here take one statement as one snapshot, which on SQL Server only that
+        // option gives, and an install never switches a database it did not create.
+        command.CommandText =
+            Provider == "pg"
+                ? $"CREATE DATABASE \"{Schema}\";"
+                : $"CREATE DATABASE [{Schema}]; EXEC (N'ALTER DATABASE [{Schema}] SET READ_COMMITTED_SNAPSHOT ON');";
         await command.ExecuteNonQueryAsync(ct);
         if (Provider == "mssql")
         {
@@ -660,6 +666,10 @@ internal sealed class OwnedProvider : IAsyncDisposable
                 _ =>
                 [
                     ("delayed_durability", "SELECT delayed_durability_desc FROM sys.databases WHERE name=DB_NAME();"),
+                    (
+                        "read_committed_snapshot",
+                        "SELECT CASE is_read_committed_snapshot_on WHEN 1 THEN 'ON' ELSE 'OFF' END FROM sys.databases WHERE name=DB_NAME();"
+                    ),
                     ("version", "SELECT @@VERSION;"),
                 ],
             }
@@ -673,7 +683,7 @@ internal sealed class OwnedProvider : IAsyncDisposable
         {
             "sqlite" => settings["journal_mode"] == "wal" && settings["synchronous"] == "2",
             "pg" => settings["fsync"] == "on" && settings["full_page_writes"] == "on" && settings["synchronous_commit"] == "on",
-            _ => settings["delayed_durability"] == "DISABLED",
+            _ => settings["delayed_durability"] == "DISABLED" && settings["read_committed_snapshot"] == "ON",
         };
         return settings;
     }
