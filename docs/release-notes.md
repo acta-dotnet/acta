@@ -286,7 +286,7 @@ Tagged 2026-10-26. Upgrading from rc.5 takes the changes below.
 - Typed `ExecuteChildAsync` reads the result of the child execution that released the parent, and throws when that execution stored none. It returned an older execution's result after a restart, and a value-type default such as 0 for a child that stored no result.
 - On SQLite, the recovery pass's lane repair seeks the lanes primary key instead of scanning and sorting every lane inside the write transaction.
 - The checkpoint and tag shape checks accept code values this build does not name, so a future checkpoint kind or status, or tag scope, needs no table change.
-- A malformed name or key in a query string or route segment answers 400 instead of a sanitized 500.
+- A malformed name or key in a query string or route segment answers 400 instead of a sanitized 500. `GET /tenants/{tenantName}` answers 400 for a name that is not a tenant name, where it answered 404.
 - A payload type whose state is get-only properties set through a constructor travels as JSON. It was classified as carrying no payload, so the handler received default values and a result of that shape was dropped.
 - Two job names that differ only in `.` and `-`, such as `send.mail` and `send-mail`, compile and warn ACTA0106, as do names matching a member the manifest class declares or a type it uses; they failed the build with duplicate members.
 - The dashboard's schedule editor saves with the version its draft was opened at, so another operator's change made while the editor was open is refused instead of silently reverted.

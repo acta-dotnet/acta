@@ -725,6 +725,23 @@ public sealed class DashboardApiEndpointTests
         );
     }
 
+    /// <summary>A tenant name the facade rejects is caller input, the 400, as on every other route.</summary>
+    [Fact]
+    public async Task An_unaddressable_tenant_name_is_a_400()
+    {
+        var (app, client) = await TestDashboardHost.StartAsync();
+        await using var _ = app;
+
+        var response = await client.GetAsync("/acta/api/v1/tenants/bad key", TestContext.Current.CancellationToken);
+
+        Assert.Equal(HttpStatusCode.BadRequest, response.StatusCode);
+        Assert.Contains(
+            "must not contain whitespace",
+            await response.Content.ReadAsStringAsync(TestContext.Current.CancellationToken),
+            StringComparison.Ordinal
+        );
+    }
+
     /// <summary>
     /// A 404 names the thing that was not found. The two routes below share one problem-details
     /// helper, which used to hardcode "Job not found." and answered a missing tenant with it.

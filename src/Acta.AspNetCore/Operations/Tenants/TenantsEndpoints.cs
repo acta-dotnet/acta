@@ -38,7 +38,7 @@ internal static class TenantsEndpoints
                 .. QueryParameterDocExtensions.TagFilter,
             ]
         );
-        // A tenant name the facade cannot canonicalize names no tenant, so it reads as not found.
+        // A tenant name the facade cannot canonicalize is malformed caller input, so it is the 400 and never a miss.
         reads.MapDetail(
             "/tenants/{tenantName}",
             "Read one tenant.",
@@ -50,9 +50,9 @@ internal static class TenantsEndpoints
                 {
                     return await call.Operations.Tenants.GetAsync(Name(http), call.Ct);
                 }
-                catch (ArgumentException)
+                catch (ArgumentException ex)
                 {
-                    return null;
+                    throw new MalformedRouteKeyException(ex.Message);
                 }
             }
         );

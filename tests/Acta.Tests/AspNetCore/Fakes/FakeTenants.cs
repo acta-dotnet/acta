@@ -21,11 +21,13 @@ internal sealed class FakeTenants : ITenants
             return ValueTask.FromResult(new RegisterTenantResponse(7, tenantName));
         };
         Get = static (tenantName, _) =>
-            ValueTask.FromResult<GetTenantResponse?>(
-                tenantName == "cust-001"
-                    ? new GetTenantResponse(1, "cust-001", "Acme", "Acme Corp", TenantStatusCode.Active, default, default, 0)
-                    : null
-            );
+            tenantName == "bad key"
+                ? throw new ArgumentException("Tenant name must not contain whitespace.", nameof(tenantName))
+                : ValueTask.FromResult<GetTenantResponse?>(
+                    tenantName == "cust-001"
+                        ? new GetTenantResponse(1, "cust-001", "Acme", "Acme Corp", TenantStatusCode.Active, default, default, 0)
+                        : null
+                );
         List = static (_, _) =>
             ValueTask.FromResult(
                 new ListTenantsResponse(
