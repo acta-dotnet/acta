@@ -572,7 +572,17 @@ public static partial class Report
                 .OfType<double>()
                 .DefaultIfEmpty()
                 .Max();
-            var quiet = environment.GetValueOrDefault($"disk_quiet_before_{provider}");
+            // One record per performance cell; a bundle from before the per-cell hold kept one for the whole database.
+            string[] cells =
+            [
+                .. environment
+                    .Where(e => e.Key.StartsWith($"disk_quiet_before_{provider}_", StringComparison.Ordinal))
+                    .Select(e => e.Value),
+            ];
+            var quiet =
+                cells.Length > 0
+                    ? $"quiet before {cells.Count(c => c.StartsWith("yes", StringComparison.Ordinal))} of {cells.Length} cells"
+                    : environment.GetValueOrDefault($"disk_quiet_before_{provider}");
             text.Append(
                 CultureInfo.InvariantCulture,
                 $"- {Name(provider)}: peak {Number(peak)} database connections{(quiet is null ? "" : $"; disk before measuring: {quiet}")}.\n"

@@ -78,7 +78,14 @@ internal static class DryRun
         }
         var (trials, _, windows) = Size(plan, scenario, provider);
         var past = history.Where(r => r.Id == scenario.Id && r.Provider == provider && r.Phase != "reconcile").ToArray();
-        return (trials * (past.Length == 0 ? AssumedTrialOverhead : past.Average(r => Wall(r) - Window(r))) + windows, past.Length > 0);
+        var hold =
+            ScenarioRunner.PhaseOf(scenario) == "performance" && plan.MeasurementGatesVerdict
+                ? plan.Policy("measurement", "disk_quiet", "seconds")
+                : 0;
+        return (
+            hold + trials * (past.Length == 0 ? AssumedTrialOverhead : past.Average(r => Wall(r) - Window(r))) + windows,
+            past.Length > 0
+        );
     }
 
     /// <summary>

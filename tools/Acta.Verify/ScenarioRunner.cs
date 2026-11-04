@@ -211,6 +211,20 @@ public static class ScenarioRunner
                 await RecordAsync(CaseResult.NotApplicable(scenario.Id, environment.Provider, skipped));
                 continue;
             }
+            if (PhaseOf(scenario) == "performance" && plan.MeasurementGatesVerdict && environment.Disk is { } disk)
+            {
+                // Provisioning and the cell before write, and a QLC drive keeps folding its write cache after the counters
+                // fall quiet, so every performance cell starts after a quiet minute, or says it did not get one.
+                var quiet = await disk.WaitForQuietAsync(
+                    TimeSpan.FromSeconds(plan.Policy("measurement", "disk_quiet", "seconds")),
+                    TimeSpan.FromSeconds(plan.Policy("measurement", "disk_quiet", "limit_seconds")),
+                    plan.Policy("measurement", "disk_quiet", "min_idle_percent"),
+                    plan.Policy("measurement", "disk_quiet", "max_writes_per_second"),
+                    ct
+                );
+                Console.WriteLine($"  quiet disk before {scenario.Id}: {quiet}");
+                bundle.RecordEnvironment(new() { [$"disk_quiet_before_{environment.Provider}_{scenario.Id}"] = quiet });
+            }
             try
             {
                 await Runners[scenario.Runner](run);

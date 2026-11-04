@@ -163,7 +163,7 @@ public sealed class DiskCounters : IDisposable
     /// <summary>
     /// Waits until every drive has been quiet for <paramref name="quiet"/>: idle at least <paramref name="minIdlePercent"/>
     /// and writing at most <paramref name="maxWritesPerSecond"/> in every sample. It waits at most
-    /// <paramref name="limit"/> and never refuses: a run that starts without its quiet minute says so, with the
+    /// <paramref name="limit"/> and never refuses: a cell that starts without its quiet minute says so, with the
     /// processes writing most, since a writer the run cannot see, such as a probe inside a container, still shows here.
     /// </summary>
     public async Task<string> WaitForQuietAsync(

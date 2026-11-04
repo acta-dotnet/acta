@@ -48,7 +48,7 @@
     "verification_jobs": 12,
     "worker_ready_seconds": 120,
     "pin_workers_to_performance_cores": true,
-    "disk_quiet": { "seconds": 10, "limit_seconds": 60, "min_idle_percent": 97, "max_writes_per_second": 100 }
+    "disk_quiet": { "seconds": 60, "limit_seconds": 120, "min_idle_percent": 97, "max_writes_per_second": 100 }
   },
   "capacity": {
     "backlog_slope_tolerance_fraction_of_offered_rate": 0.01,

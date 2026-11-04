@@ -290,8 +290,8 @@ internal static class SuiteRunner
             }
         }
 
-        // One phase on one database: provision, measure on a quiet disk where the suite gates on it, run the phase's
-        // scenarios, owe their coverage, and mark the unit finished so a resume keeps it.
+        // One phase on one database: provision, run the phase's scenarios, owe their coverage, and mark the unit finished so
+        // a resume keeps it.
         async Task RunUnitAsync(string phase, string provider, Scenario[] scenarios, double capShare)
         {
             var unit = RunResume.Unit(phase, provider);
@@ -322,20 +322,6 @@ internal static class SuiteRunner
                 var settings = await environment.CaptureSettingsAsync(ct);
                 verified = environment.SettingsVerified;
                 bundle.Write($"histories/{unit}-settings.json", settings, VerifyJson.Default.DictionaryStringString);
-                if (phase == "performance" && plan.MeasurementGatesVerdict)
-                {
-                    // Provisioning writes, and so can anything else on the box: the measurements start once the
-                    // drives have been quiet a few seconds, or within a minute saying they were not.
-                    var quiet = await disk.WaitForQuietAsync(
-                        TimeSpan.FromSeconds(plan.Policy("measurement", "disk_quiet", "seconds")),
-                        TimeSpan.FromSeconds(plan.Policy("measurement", "disk_quiet", "limit_seconds")),
-                        plan.Policy("measurement", "disk_quiet", "min_idle_percent"),
-                        plan.Policy("measurement", "disk_quiet", "max_writes_per_second"),
-                        ct
-                    );
-                    Console.WriteLine($"{provider}: quiet disk before measuring: {quiet}");
-                    bundle.RecordEnvironment(new() { [$"disk_quiet_before_{provider}"] = quiet });
-                }
                 await ScenarioRunner.RunAsync(
                     plan,
                     scenarios,
