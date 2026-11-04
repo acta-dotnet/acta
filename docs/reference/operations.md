@@ -10,7 +10,7 @@ One row per operation folder, `src/Acta/Operations/<Group>/<Operation>/`, and on
 | Operation | Facade | HTTP | CLI | pg | mssql | sqlite | Writes | Specs |
 | --- | --- | --- | --- | --- | --- | --- | --- | --- |
 | `AcknowledgeAlert` | `IAlerts.AcknowledgeAsync` | `POST /alerts/{alertRef}/acknowledge` | · | inline | inline | inline | `alerts`, `events` | `AcknowledgeAlertSpec` |
-| `GetAlert` | `IAlerts.GetAsync` | `GET /alerts/{alertRef}` | · | inline | inline | inline | · | `GetAlertFloorSpec`, `GetAlertSpec` |
+| `GetAlert` | `IAlerts.GetAsync` | `GET /alerts/{alertRef}` | · | inline | inline | inline | · | `GetAlertSpec` |
 | `GetAlertFloor` | · | · | · | inline | inline | inline | · | `GetAlertFloorSpec` |
 | `ListAlertableEvents` | · | · | · | inline | inline | inline | · | `ListAlertableEventsSpec` |
 | `ListAlerts` | `IAlerts.ListAsync` | `GET /alerts` | · | inline | inline | inline | · | `ListAlertsFilterMatrixSpec`, `ListAlertsSpec` |
@@ -26,7 +26,7 @@ One row per operation folder, `src/Acta/Operations/<Group>/<Operation>/`, and on
 | Operation | Facade | HTTP | CLI | pg | mssql | sqlite | Writes | Specs |
 | --- | --- | --- | --- | --- | --- | --- | --- | --- |
 | `ArchiveCalendar` | `ICalendars.ArchiveAsync` | `POST /calendars/{jobNamespace}/{calendarName}/archive` | · | inline | inline | inline | `calendars`, `events` | `ArchiveCalendarSpec` |
-| `GetCalendar` | `ICalendars.GetAsync` | `GET /calendars/{jobNamespace}/{calendarName}` | · | · | · | · | · | `GetCalendarPublicationSpec`, `GetCalendarSpec` |
+| `GetCalendar` | `ICalendars.GetAsync` | `GET /calendars/{jobNamespace}/{calendarName}` | · | · | · | · | · | `GetCalendarSpec` |
 | `GetCalendarPublication` | · | · | · | inline | inline | inline | · | `GetCalendarPublicationSpec` |
 | `ListCalendarSchedules` | · | · | · | inline | inline | inline | · | `ListCalendarSchedulesSpec` |
 | `ListCalendars` | `ICalendars.ListAsync` | `GET /calendars` | · | inline | inline | inline | · | `ListCalendarsSpec` |
@@ -52,7 +52,7 @@ One row per operation folder, `src/Acta/Operations/<Group>/<Operation>/`, and on
 
 | Operation | Facade | HTTP | CLI | pg | mssql | sqlite | Writes | Specs |
 | --- | --- | --- | --- | --- | --- | --- | --- | --- |
-| `GetDefinition` | `IDefinitions.GetAsync` | `GET /definitions/{jobNamespace}/{jobName}` | · | inline | inline | inline | · | `GetDefinitionInputTemplateSpec`, `GetDefinitionSpec` |
+| `GetDefinition` | `IDefinitions.GetAsync` | `GET /definitions/{jobNamespace}/{jobName}` | · | inline | inline | inline | · | `GetDefinitionSpec` |
 | `GetDefinitionInputTemplate` | `IDefinitions.GetInputTemplate` | `GET /definitions/{jobNamespace}/{jobName}/input-template` | · | · | · | · | · | `GetDefinitionInputTemplateSpec` |
 | `ListDefinitionContracts` | · | · | · | inline | inline | inline | · | `ListDefinitionContractsSpec` |
 | `ListDefinitions` | `IDefinitions.ListAsync` | `GET /definitions` | · | inline | inline | inline | · | `ListDefinitionsFilterMatrixSpec`, `ListDefinitionsSpec` |
@@ -86,7 +86,7 @@ One row per operation folder, `src/Acta/Operations/<Group>/<Operation>/`, and on
 | `EnqueueJob` | `IJobs.EnqueueAsync`<br>`IJobs.WaitAsync`<br>`IJobs.RunAndWaitAsync` | `POST /jobs` | · | routine | routine | inline | `jobs`, `jobs_state`, `lanes`, `tags` | `EnqueueJobTransactionalSpec` |
 | `EnqueueJobs` | `IJobs.EnqueueJobsAsync` | · | · | routine | routine | inline | `jobs`, `jobs_state`, `lanes`, `tags` | `EnqueueJobsConcurrencySpec`, `EnqueueJobsRejectionSpec`, `EnqueueJobsSpec` |
 | `ExplainJob` | `IJobs.ExplainAsync` | · | `explain` | inline | inline | inline | · | `ExplainJobSpec` |
-| `GetJob` | `IJobs.WaitAsync`<br>`IJobs.RunAndWaitAsync`<br>`IJobs.GetAsync` | `GET /jobs/{jobRef}`<br>`GET /jobs/by-key` | · | inline | inline | inline | · | `GetJobIdSpec`, `GetJobInputSpec`, `GetJobLineageMapSpec`, `GetJobResultSpec`, `GetJobSpec`, `GetJobStatusSpec` |
+| `GetJob` | `IJobs.WaitAsync`<br>`IJobs.RunAndWaitAsync`<br>`IJobs.GetAsync` | `GET /jobs/{jobRef}`<br>`GET /jobs/by-key` | · | inline | inline | inline | · | `GetJobSpec` |
 | `GetJobDetail` | · | `GET /jobs/{jobRef}/detail` | · | · | · | · | · | · |
 | `GetJobId` | `IJobs.WaitAsync`<br>`IJobs.RunAndWaitAsync`<br>`IJobs.GetIdAsync` | · | · | · | · | · | · | `GetJobIdSpec` |
 | `GetJobInput` | `IJobs.GetInputAsync` | `GET /jobs/{jobRef}/input` | · | inline | inline | inline | · | `GetJobInputSpec` |
@@ -152,7 +152,7 @@ One row per operation folder, `src/Acta/Operations/<Group>/<Operation>/`, and on
 | `DiscardQuarantinedOutbox` | · | · | · | inline | inline | inline | · | `DiscardQuarantinedOutboxSpec` |
 | `GetOutboxSignal` | · | · | · | inline | inline | inline | · | `GetOutboxSignalSpec` |
 | `ListOutboxSources` | `IOutbox.ListSourcesAsync` | `GET /outbox/sources` | · | · | · | · | · | `ListOutboxSourcesSpec`, `ListOutboxSourcesStatusSpec` |
-| `ListQuarantinedOutbox` | `IOutbox.ListQuarantinedAsync` | `GET /outbox/{jobNamespace}/quarantined` | · | · | · | · | · | `ListQuarantinedOutboxRowsPagingSpec`, `ListQuarantinedOutboxRowsSpec`, `ListQuarantinedOutboxSpec` |
+| `ListQuarantinedOutbox` | `IOutbox.ListQuarantinedAsync` | `GET /outbox/{jobNamespace}/quarantined` | · | · | · | · | · | `ListQuarantinedOutboxSpec` |
 | `ListQuarantinedOutboxRows` | · | · | · | inline | inline | inline | · | `ListQuarantinedOutboxRowsPagingSpec`, `ListQuarantinedOutboxRowsSpec` |
 | `MatchQuarantinedOutbox` | · | · | · | inline | inline | inline | · | `MatchQuarantinedOutboxSpec` |
 | `ParkOutboxSignal` | · | · | · | inline | inline | inline | `checkpoints` | `ParkOutboxSignalSpec` |
@@ -210,7 +210,7 @@ One row per operation folder, `src/Acta/Operations/<Group>/<Operation>/`, and on
 
 | Operation | Facade | HTTP | CLI | pg | mssql | sqlite | Writes | Specs |
 | --- | --- | --- | --- | --- | --- | --- | --- | --- |
-| `GetTenant` | `ITenants.GetAsync` | `GET /tenants/{tenantName}` | · | inline | inline | inline | · | `GetTenantNameSpec`, `GetTenantSpec` |
+| `GetTenant` | `ITenants.GetAsync` | `GET /tenants/{tenantName}` | · | inline | inline | inline | · | `GetTenantSpec` |
 | `GetTenantName` | · | · | · | inline | inline | inline | · | `GetTenantNameSpec` |
 | `ListTenants` | `ITenants.ListAsync` | `GET /tenants` | · | inline | inline | inline | · | `ListTenantsSpec` |
 | `RegisterTenant` | `ITenants.RegisterAsync` | `POST /tenants` | · | inline | inline | inline | `tenants` | `RegisterTenantSpec` |

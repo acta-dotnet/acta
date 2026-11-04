@@ -479,9 +479,22 @@ Server scopes constraint names and PostgreSQL index names to the schema, not the
   a decoded payload is `<column>_format` and `<column>_text`, and a joined column that would mislead or
   collide takes its join path as a prefix (`leased_by_worker_host_name`, `lineage_root_job_ref`).
 
+### Operation names: one name from the route to the SQL
+
+An operation has one name, `Verb` + `Subject` (`PauseJob`, `ListJobs`), and every layer spells it: its folder under `Operations/<Group>/`, its handler, input, response, and rows, its SQL file stem and its installed routine in snake case, the string that scopes its cursor, its method on the group's operations class, its route folder, and its spec.
+
+- **Subject.** An aggregate is its own noun (`Job`, `Schedule`, `Calendar`, `Definition`, `Tenant`, `Namespace`, `Worker`, `Alert`, `Tag`, `Outbox`). A part or an attribute of an aggregate carries the aggregate first (`JobStep`, `JobCheckpoint`, `JobSignal`, `ScheduleFiring`, `DefinitionOverrides`), and one subject has one spelling in every operation that names it, the engine's included.
+- **`Get` answers one thing, `List` answers items.** A `Get` returns its `GetXResponse`, null when nothing is found, and never a collection or a wrapper around one. A `List` returns its `ListXResponse`: a page, `IPagedResponse<ListXItem>`, when a facade or a route exposes it, and its rows when only the engine calls it.
+- **No word repeats the verb, and the public verb wins.** `TriggerSchedule`, not `TriggerScheduleNow`; when the stored verb and the public verb differ, the operation takes the public one (`ExplainJob`, `UpdateDefinitionOverrides`).
+- **Operations class.** The method that runs an operation is `<Operation>Async` when the engine calls it, and the handler it holds is the operation in camelCase. A second form of one operation, such as the child enqueue under its parent's fence, takes its own name and is listed in `OperationNameTests` with what differs.
+- **Facade.** A public method is the operation's name without the facade's noun, plus `Async` on a task: `PauseJob` is `IJobs.PauseAsync`, `ListJobCheckpoints` is `IJobs.ListCheckpointsAsync`. `EnqueueJobs` keeps its noun as `IJobs.EnqueueJobsAsync`, because dropping it gives `EnqueueJob`'s method. A method that runs several operations, such as `IJobs.WaitAsync`, is named for what it does.
+- **Route.** A route folder takes its operation's name, with the owner before the subject when one operation serves several owners (`UpsertTenantTag` for `UpsertTag`).
+- **SQL.** An operation loads its own statement under its own name. One that reads through another operation's statement is listed in `OperationNameTests` with its reason.
+- `OperationNameTests` enforces these; `OperationLayoutTests` and `HandlerResponseTests` hold the files and types inside the folder to the name.
+
 ### Type names: one suffix per role
 
-A type is `{Subject}{Role}`, one suffix per role. An operation is `VerbNoun` (`PauseJob`, `ListJobs`), which is also its folder, its SQL file stem, and its method name without `Async`.
+A type is `{Subject}{Role}`, one suffix per role.
 
 | Role | Suffix | Example |
 |---|---|---|
@@ -500,7 +513,7 @@ A type is `{Subject}{Role}`, one suffix per role. An operation is `VerbNoun` (`P
 | How a job, an attempt, or a wait ended, for handler code only | `Outcome` | `JobOutcome`, `ChildJobOutcome`, `SignalWaitOutcome` |
 | An in-memory registry, built at startup or kept by a running worker | `Registry` | `JobDescriptorRegistry`, `IJobPayloadSerializerRegistry` |
 
-- `GetX` returns `GetXResponse`, or `null` when nothing is found; `ListX` returns `ListXResponse : IPagedResponse<ListXItem>`. A response's parts are records of their own, named `<Operation><Part>`.
+- A response's parts are records of their own, named `<Operation><Part>`.
 - Every operation has its own input and response; responses that belong together share an interface, never a class.
 - A command's answer is its `XResponse`, its one member named for what it means; a command that answers nothing returns nothing.
 - A route reads its own `XRequest` and answers with the SDK's `XResponse`; a route that only renders the payload its operation answers is that operation, under its name, and answers `JobPayloadBody`; a route that composes several operations is its own operation. `EnqueueJobRequest` is the one `Request` outside `Acta.AspNetCore`.
@@ -646,7 +659,7 @@ Where code lives in `src/`, and the tests that hold it there.
 
 ### Operations
 
-An operation is one thing a caller or the engine can do: pause a job, list alerts, claim jobs. Each one has a folder, `Operations/<Group>/<Operation>/`, with at most one grouping level above it. Its name is `VerbNoun`, and the same name is its folder, its SQL file stem, and its method on the group's operations class without `Async`. A group is the aggregate the operations act on (`Jobs`, `Workers`, `Execution`), and its one class, `<Group>Operations`, is how everything outside the group reaches them. Together this is a vertical-slice tree: a group is a feature, an operation is a slice that holds what it needs, and `Shared/` holds what neighbouring slices share.
+An operation is one thing a caller or the engine can do: pause a job, list alerts, claim jobs. Each one has a folder, `Operations/<Group>/<Operation>/`, with at most one grouping level above it. Its one name, `Verb` + `Subject`, is spelled the same in every layer ([operation names](#operation-names-one-name-from-the-route-to-the-sql)). A group is the aggregate the operations act on (`Jobs`, `Workers`, `Execution`), and its one class, `<Group>Operations`, is how everything outside the group reaches them. Together this is a vertical-slice tree: a group is a feature, an operation is a slice that holds what it needs, and `Shared/` holds what neighbouring slices share.
 
 One operation:
 
@@ -685,7 +698,7 @@ src/Acta/Operations/Ledger/ListJobs/
   ListJobs.pg.sql  ListJobs.mssql.sql  ListJobs.sqlite.sql
 ```
 
-- A write operation has an `XCommand`, an `XHandler`, and an `XResponse`, public when a facade returns it, or none when it answers nothing. A read operation has an `XQuery` (none when it takes no input) and an `XHandler`; a `GetX` returns its `GetXResponse`, null when nothing is found, and a list `ListX` its `ListXResponse : IPagedResponse<ListXItem>`. The suffixes are in [naming conventions](#naming-conventions).
+- A write operation has an `XCommand`, an `XHandler`, and an `XResponse`, public when a facade returns it, or none when it answers nothing. A read operation has an `XQuery` (none when it takes no input) and an `XHandler`; a `GetX` returns its `GetXResponse` and a `ListX` its `ListXResponse`. The verbs and the suffixes are in [naming conventions](#naming-conventions).
 - An operation's public and internal types share its folder: its query, response, and response element (`ListXItem`, `GetXItem`) sit beside its command, handler, row, and SQL, and a response's parts beside it as `<Operation><Part>` (`ExplainJobWait`). A type several operations share sits in the `Shared/` folder of the nearest folder holding them all, `Operations/<Group>/Shared/` within a group and `Operations/Shared/` across groups, and only that folder's parent and what lies below it may name it, so it is internal. A type that code outside `Operations/` names, or that is public, sits in `Domain/<Group>/`. `Acta` has one namespace, so moving a type never changes its name.
 - A group's root holds its operations class and the interfaces that class implements, nothing else. The class implements the group's public interface when there is one (`JobsOperations : IJobs`), and the engine's extra calls are `internal` methods on it. It is hand-written, one line per operation and never `async`: `PauseAsync(...) => pauseJob.HandleAsync(new PauseJobCommand(...), ct)`. There is no mediator, no partial class, and no internal interface beside it; the clock's interfaces are the one internal seam, because tests replace the clock.
 - A group's handlers and its operations class are registered together in `UseActa`: the class once, with the public interface mapped to that instance.
@@ -744,6 +757,7 @@ Definitions the boxes rest on: a worker is one process runtime registered for on
 | `OperationLayoutTests` | a group's root holds its operations class and the interfaces it implements, the `Operations/` root `ActaOperations` and its interface, and below `Domain/` only `Codes/`, `Entities/`, and a folder per group; a `Shared/` type, anywhere in `src/`, is internal and named only below the folder's parent; operation folders (`Shared/` is not one) and depth, file names, all three dialects or none, no SQL outside `Operations/`, `Schema/Views/`, and a provider's `Migrations/`, every view in all three dialects, a handler per operation; no `Operations/` file names a type declared under `Engine/` other than `Engine/Wakeup/`; only `Operations/` and registration name a handler, and `Domain/` names no row; route folders in `Acta.AspNetCore` to the same depth and file names |
 | `TypeNamingTests` | the banned suffixes, `Request` only in `Acta.AspNetCore` and the SDK's `EnqueueJobRequest`, the `Row` rule, and `Entity` on every table model |
 | `HandlerResponseTests` | `XHandler.HandleAsync` takes `XCommand` or `XQuery`, `HandleAsync(XCommand)` returns `XResponse` or nothing, `HandleAsync(ListXQuery)` returns `ListXResponse`, a public one an `IPagedResponse<ListXItem>`, and a `GetX` handler returns `GetXResponse`; rows, commands, queries, responses, and response elements declared in their slice under its name, a row named by no other slice, and every other type in a slice, enums included, starting with the operation's name |
+| `OperationNameTests` | a method of an operations class that runs one handler is named for that operation, without the group's noun when public, and holds the handler under the operation's name; every operation a facade runs has a method named for it without the facade's noun; no operation's code spells another operation's name as a string; a route folder is named for its operation, owner-qualified when shared, or holds its own endpoint; a `Get` answers one thing and a `List` items; the second forms and the borrowed statement it lists are part of the rule |
 | `DuplicateShapeTests` | no two types declaring the same property names, except types of different operations or routes, each owned by the folder that declares it |
 | `RouteBodyTests` | a route's body is its own `XRequest`, on no other route, and it answers an `XResponse`, the SDK's or its own; every request and response in `Acta.AspNetCore` sits in the folder named for it |
 | `DialectParityTests` | an operation's three SQL files return the same columns |

@@ -143,28 +143,31 @@ public sealed partial class OperationsIndexTests
     private static IEnumerable<string> Written(string? path) =>
         path is null ? [] : WrittenTables().Matches(File.ReadAllText(path)).Select(m => m.Groups["table"].Value.ToLowerInvariant());
 
+    // A spec belongs to the longest operation of its group its name starts with: GetJobIdSpec is GetJobId's, not GetJob's.
     private static IEnumerable<string> Specs(string root, string group, string operation)
     {
         var folder = Path.Combine(root, "tests", "Acta.Tests.Conformance", "Operations", group);
+        var operations = Path.Combine(root, "src", "Acta", "Operations", group);
+        var names = Directory.Exists(operations)
+            ? Directory.EnumerateDirectories(operations).Select(Path.GetFileName).OfType<string>().ToList()
+            : [operation];
         return Directory.Exists(folder)
             ? Directory
                 .EnumerateFiles(folder, operation + "*Spec.cs")
                 .Select(Path.GetFileNameWithoutExtension)
-                .Where(name => name is not null && IsOwnSpec(name, operation))
+                .OfType<string>()
+                .Where(name => OperationNames.SpecOwner(name, names.Append(operation)) == operation)
                 .Order(StringComparer.Ordinal)
                 .Select(name => $"`{name}`")
             : [];
     }
-
-    // PauseJobSpec and PauseJobFilterMatrixSpec belong to PauseJob; PauseJobsSpec does not.
-    private static bool IsOwnSpec(string name, string operation) => name.Length > operation.Length && char.IsUpper(name[operation.Length]);
 
     // A public facade method runs an operation when its body names the operation's handler field, command, or query,
     // directly, through a helper class of the group it holds or calls, or through another method of the facade that it
     // or such a helper calls (RunAndWaitAsync runs EnqueueJob through JobRunAndWait, which calls IJobs.EnqueueAsync).
     // The facade is the group's <Group>Operations class implementing I<Group>, and only the methods I<Group> declares
     // count: the class's engine calls are not on the public surface.
-    private static List<(string Facade, string Method, string Operation)> FacadeMethods(string operations)
+    internal static List<(string Facade, string Method, string Operation)> FacadeMethods(string operations)
     {
         var names = Directory
             .EnumerateDirectories(operations)

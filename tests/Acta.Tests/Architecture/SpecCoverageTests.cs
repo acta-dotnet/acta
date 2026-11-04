@@ -1,4 +1,5 @@
 using Acta.Tests.Conformance.Testing;
+using Acta.Tests.Contracts;
 using Xunit;
 
 namespace Acta.Tests.Architecture;
@@ -21,15 +22,15 @@ public sealed class SpecCoverageTests
         foreach (var group in Directory.EnumerateDirectories(Path.Combine(runtime, "Operations")).Select(Path.GetFileName).OfType<string>())
         {
             var names = SpecNames(Path.Combine(specs, "Operations", group));
-            foreach (
-                var operation in Directory
-                    .EnumerateDirectories(Path.Combine(runtime, "Operations", group))
-                    .Select(Path.GetFileName)
-                    .OfType<string>()
-                    .Where(name => name != "Shared")
-            )
+            var operations = Directory
+                .EnumerateDirectories(Path.Combine(runtime, "Operations", group))
+                .Select(Path.GetFileName)
+                .OfType<string>()
+                .Where(name => name != "Shared")
+                .ToList();
+            foreach (var operation in operations)
             {
-                if (!names.Any(name => IsSpecOf(name, operation)))
+                if (!names.Any(name => OperationNames.SpecOwner(name, operations) == operation))
                 {
                     missing.Add($"operation: {group}/{operation}");
                 }
@@ -54,8 +55,4 @@ public sealed class SpecCoverageTests
         Directory.Exists(folder)
             ? [.. Directory.EnumerateFiles(folder, "*Spec.cs").Select(Path.GetFileNameWithoutExtension).OfType<string>()]
             : [];
-
-    // PauseJobSpec and PauseJobFilterMatrixSpec specify PauseJob; PauseJobsSpec does not.
-    private static bool IsSpecOf(string name, string operation) =>
-        name.StartsWith(operation, StringComparison.Ordinal) && name.Length > operation.Length && char.IsUpper(name[operation.Length]);
 }
