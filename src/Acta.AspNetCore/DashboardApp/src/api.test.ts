@@ -1,7 +1,7 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { get } from 'svelte/store';
-import { api, ApiError, controlRequest, online } from './api.ts';
+import { api, ApiError, controlRequest, getNamespace, online } from './api.ts';
 
 (globalThis as unknown as { document: { baseURI: string } }).document = {
   baseURI: 'http://localhost/acta/'
@@ -158,4 +158,28 @@ test('controlRequest keeps the typed fallback for a malformed accepted error res
   const result = await controlRequest('jobs/J1/pause', {}, { action: 'not-found' });
 
   assert.equal(result.action, 'not-found');
+});
+
+test('getNamespace reads the namespace route and answers null for its 404', async () => {
+  const requested: string[] = [];
+  const responses = [
+    new Response('{"jobNamespace":"billing","status":"active","ownerTeam":null,"description":null,"version":3}', { status: 200 }),
+    new Response('{"title":"Namespace not found."}', { status: 404 }),
+    new Response('{"title":"Invalid request."}', { status: 400 })
+  ];
+  globalThis.fetch = (async (input: URL | RequestInfo) => {
+    requested.push(new URL(String(input)).pathname);
+    return responses.shift()!;
+  }) as typeof fetch;
+
+  const found = await getNamespace('billing');
+  const missing = await getNamespace('nobody');
+
+  assert.equal(requested[0], '/acta/api/v1/namespaces/billing');
+  assert.equal(found?.version, 3);
+  assert.equal(missing, null);
+  await assert.rejects(
+    () => getNamespace('bad name'),
+    (error: unknown) => error instanceof ApiError && error.status === 400
+  );
 });

@@ -289,6 +289,20 @@ export interface NamespaceListItem {
   version: number;
 }
 
+// GET /namespaces/{jobNamespace}: one namespace, the fields its list row carries, or null when the
+// namespace does not exist (the route's 404).
+export async function getNamespace(
+  jobNamespace: string,
+  options: { signal?: AbortSignal } = {}
+): Promise<NamespaceListItem | null> {
+  try {
+    return await api<NamespaceListItem>(`namespaces/${encodeURIComponent(jobNamespace)}`, {}, options);
+  } catch (error) {
+    if (error instanceof ApiError && error.status === 404) return null;
+    throw error;
+  }
+}
+
 export interface RegisterTenantResponse {
   tenantName: string;
 }

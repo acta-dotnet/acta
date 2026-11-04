@@ -1,7 +1,7 @@
 <script lang="ts">
   import { createQuery } from '@tanstack/svelte-query';
   import type { AdminControlResult, NamespaceListItem, Paged } from '../api.ts';
-  import { api } from '../api.ts';
+  import { api, getNamespace } from '../api.ts';
   import { capabilitiesQuery, canControl, keys } from '../query.ts';
   import { useControlMutation } from '../lib/useControlMutation.ts';
   import Page from '../components/Page.svelte';
@@ -19,27 +19,11 @@
 
   let { namespaceName }: { namespaceName: string } = $props();
 
-  async function loadNamespace(signal: AbortSignal): Promise<NamespaceListItem | null> {
-    let cursor: string | undefined;
-    for (let guard = 0; guard < 100; guard++) {
-      const page = await api<Paged<NamespaceListItem>>(
-        'namespaces',
-        { nameContains: namespaceName, pageSize: 100, cursor },
-        { signal }
-      );
-      const match = page.items.find((item) => item.jobNamespace === namespaceName);
-      if (match) return match;
-      if (!page.hasMore || !page.nextCursor) break;
-      cursor = page.nextCursor;
-    }
-    return null;
-  }
-
   // Editors never poll or refetch on focus/reconnect. Fresh server values are pulled only after a
   // successful details save, or when the operator explicitly accepts a conflict reload.
   const detail = createQuery(() => ({
     queryKey: keys.detail('namespace-detail', namespaceName),
-    queryFn: ({ signal }) => loadNamespace(signal),
+    queryFn: ({ signal }) => getNamespace(namespaceName, { signal }),
     refetchOnWindowFocus: false,
     refetchOnReconnect: false,
     refetchInterval: false

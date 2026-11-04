@@ -1,11 +1,14 @@
 namespace Acta;
 
 /// <summary>
-/// Namespaces domain: list registered namespaces plus operator admin (suspend/resume/update). Reached
+/// Namespaces domain: read one registered namespace or list them, plus operator admin (suspend/resume/update). Reached
 /// through <see cref="IActaOperations.Namespaces"/>. The seeded sys namespace (id 1) cannot be suspended or edited.
 /// </summary>
 public interface INamespaces
 {
+    /// <summary>Point-read one registered namespace by name; null when it does not exist.</summary>
+    ValueTask<GetNamespaceResponse?> GetAsync(string namespaceName, CancellationToken ct = default);
+
     /// <summary>List registered namespaces alphabetically with their status, owner team, description, and version for the admin page.</summary>
     ValueTask<ListNamespacesResponse> ListAsync(ListNamespacesQuery query, CancellationToken ct = default);
 

@@ -2645,6 +2645,85 @@
             }
           }
         }
+      },
+      "get": {
+        "tags": [
+          "Namespaces"
+        ],
+        "summary": "Read one namespace.",
+        "operationId": "GetNamespacesByJobNamespace",
+        "parameters": [
+          {
+            "name": "jobNamespace",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "400": {
+            "description": "Bad Request",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          },
+          "413": {
+            "description": "Payload Too Large",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "Internal Server Error",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          },
+          "503": {
+            "description": "Service Unavailable",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          },
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/GetNamespaceResponse"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Not Found",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          }
+        }
       }
     },
     "/acta/api/v1/tenants/{tenantName}/tags": {
@@ -10172,6 +10251,45 @@
           }
         },
         "description": "Read projection of a Job row exposed by `IJobs.GetAsync`: identity, linkage, status, scheduling, leasing,\nretention, and input format; the input payload itself is never returned. Property order mirrors the `jobs`\nentity (identity, scope and routing, caller keys, input) and then its 1:1 `jobs_state` row, so the shape reads\nin schema order; a column resolved to a public value follows the id it came from, and the created/modified pair\ncloses the record. JSON carries the public refs and hides the numeric ids. `DefinitionId` is the surrogate\nfor the namespace+name pair, non-null because the row's definition_id is NOT NULL."
+      },
+      "GetNamespaceResponse": {
+        "required": [
+          "jobNamespace",
+          "status",
+          "ownerTeam",
+          "description",
+          "version"
+        ],
+        "type": "object",
+        "properties": {
+          "jobNamespace": {
+            "type": "string"
+          },
+          "status": {
+            "$ref": "#/components/schemas/NamespaceStatusCode"
+          },
+          "ownerTeam": {
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "description": {
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "version": {
+            "pattern": "^-?(?:0|[1-9]\\d*)$",
+            "type": [
+              "integer",
+              "string"
+            ],
+            "format": "int32"
+          }
+        },
+        "description": "The single-namespace read model returned by ValueTask&lt;GetNamespaceResponse?&gt; INamespaces.GetAsync(string namespaceName, CancellationToken ct = default(CancellationToken)). It carries the same fields as\nListNamespacesItem today and is a distinct type because a detail read can grow additively without the\nlist row paying for it. `NamespaceId` is the DB-assigned id `jobs.namespace_id` references, internal and\nnever serialized, since a namespace is addressed by its unique kebab-case name; `Status` Active resolves at\nenqueue and Suspended rejects it; `Version` is the row version a CAS control verb takes as expected."
       },
       "GetOverviewResponse": {
         "required": [

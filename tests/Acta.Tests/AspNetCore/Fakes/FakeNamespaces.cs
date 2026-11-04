@@ -1,13 +1,22 @@
 namespace Acta.Tests.AspNetCore.Fakes;
 
 /// <summary>
-/// <see cref="INamespaces"/> listing two rows, sys and billing. On the admin verbs a name of "sys" or "bad key" throws
-/// like production, "missing" reports not found, and a patch with expectedVersion 999 conflicts.
+/// <see cref="INamespaces"/> listing two rows, sys and billing, and reading billing alone by name; a read of "bad key"
+/// throws the name validation error like production. On the admin verbs a name of "sys" or "bad key" throws like
+/// production, "missing" reports not found, and a patch with expectedVersion 999 conflicts.
 /// </summary>
 internal sealed class FakeNamespaces : INamespaces
 {
     public FakeNamespaces()
     {
+        Get = static (namespaceName, _) =>
+            namespaceName == "bad key"
+                ? throw new ArgumentException("Identifier 'bad key' is not kebab-case or dotted-kebab.", nameof(namespaceName))
+                : ValueTask.FromResult<GetNamespaceResponse?>(
+                    namespaceName == "billing"
+                        ? new GetNamespaceResponse(2, "billing", NamespaceStatusCode.Active, "payments", "billing jobs", 3)
+                        : null
+                );
         List = static (_, _) =>
             ValueTask.FromResult(
                 new ListNamespacesResponse(
@@ -39,6 +48,8 @@ internal sealed class FakeNamespaces : INamespaces
     /// <summary>Applied admin verbs, named suspend, resume, or patch.</summary>
     public List<(string Verb, string NamespaceName, string? ReasonMessage, string? Actor)> AdminCalls { get; } = [];
 
+    public Func<string, CancellationToken, ValueTask<GetNamespaceResponse?>> Get { get; set; }
+
     public Func<ListNamespacesQuery, CancellationToken, ValueTask<ListNamespacesResponse>> List { get; set; }
 
     public Func<string, string?, string?, CancellationToken, ValueTask<SuspendNamespaceResponse>> Suspend { get; set; }
@@ -46,6 +57,8 @@ internal sealed class FakeNamespaces : INamespaces
     public Func<string, string?, string?, CancellationToken, ValueTask<ResumeNamespaceResponse>> Resume { get; set; }
 
     public Func<string, int, string?, string?, string?, string?, CancellationToken, ValueTask<UpdateNamespaceResponse>> Update { get; set; }
+
+    ValueTask<GetNamespaceResponse?> INamespaces.GetAsync(string namespaceName, CancellationToken ct) => Get(namespaceName, ct);
 
     ValueTask<ListNamespacesResponse> INamespaces.ListAsync(ListNamespacesQuery query, CancellationToken ct) => List(query, ct);
 

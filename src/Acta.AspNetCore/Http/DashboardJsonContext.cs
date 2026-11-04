@@ -29,6 +29,7 @@ namespace Acta.AspNetCore;
 [JsonSerializable(typeof(ListTenantsResponse))]
 [JsonSerializable(typeof(GetTenantResponse))]
 [JsonSerializable(typeof(ListNamespacesResponse))]
+[JsonSerializable(typeof(GetNamespaceResponse))]
 [JsonSerializable(typeof(GetJobResponse))]
 [JsonSerializable(typeof(PurgeJobRequest))]
 [JsonSerializable(typeof(SuspendNamespaceRequest))]

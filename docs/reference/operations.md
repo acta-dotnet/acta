@@ -133,6 +133,7 @@ One row per operation folder, `src/Acta/Operations/<Group>/<Operation>/`, and on
 
 | Operation | Facade | HTTP | CLI | pg | mssql | sqlite | Writes | Specs |
 | --- | --- | --- | --- | --- | --- | --- | --- | --- |
+| `GetNamespace` | `INamespaces.GetAsync` | `GET /namespaces/{jobNamespace}` | · | inline | inline | inline | · | `GetNamespaceSpec` |
 | `ListNamespaces` | `INamespaces.ListAsync` | `GET /namespaces` | · | inline | inline | inline | · | `ListNamespacesSpec` |
 | `ResumeNamespace` | `INamespaces.ResumeAsync` | `POST /namespaces/{jobNamespace}/resume` | · | inline | inline | inline | `events`, `namespaces` | `ResumeNamespaceSpec` |
 | `SuspendNamespace` | `INamespaces.SuspendAsync` | `POST /namespaces/{jobNamespace}/suspend` | · | inline | inline | inline | `events`, `namespaces` | `SuspendNamespaceSpec` |

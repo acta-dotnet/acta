@@ -43,6 +43,7 @@ Not tagged yet.
 - `ApplyOutboxAsync` on each provider's migrations class creates the external outbox table in the producer's database when it is missing, once however many callers race, and leaves an existing table as it is.
 - The CLI starts when `jobs` follows host switches such as `--environment Staging`. Before, a switch ahead of `jobs` booted the workers instead.
 - A refusal at startup for a missing or foreign migration names all three ways to apply: `jobs migrate`, `ApplyAsync`, and the published script.
+- `INamespaces.GetAsync(namespaceName)` reads one namespace by name, as `ITenants.GetAsync` reads a tenant: a `GetNamespaceResponse` with the members `ListNamespacesItem` carries, or `null` when there is no such namespace. `GET /namespaces/{jobNamespace}` serves it, answering 404 for an unknown namespace and 400 for a name that is not a namespace name, and the dashboard's namespace page reads it instead of searching the list.
 
 ### Fixes
 

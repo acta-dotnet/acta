@@ -307,6 +307,16 @@
   - A retired definition's slot refuses a manual firing until a build that carries the definition starts
   - A firing that fails into a retry after the retire lands Cancelled with its firing settled, and a restart returns the slot to Idle
 
+### GetNamespace reads a namespace by name
+- **Contract:** GetNamespace returns the GetNamespaceResponse for a known name in any casing and any status, the seeded sys row included, or null.
+- **Guarantees:**
+  - A known name returns the populated row, field for field the list row
+  - The name is folded: a padded, upper-cased name reads the same row
+  - A suspended namespace still resolves with status Suspended
+  - The seeded sys namespace resolves as id 1
+  - An unknown name returns null
+  - A name that is not dotted kebab is rejected before any read
+
 ### GetTenant reads a tenant by name and GetTenantName reads its name by id
 - **Contract:** GetTenant returns the GetTenantResponse for a known name in any status or null, and GetTenantName returns that tenant's name for its id.
 - **Guarantees:**
@@ -2549,6 +2559,7 @@
 | `GetJobLineageMap` | yes | yes | yes |
 | `GetJobResult` | yes | yes | yes |
 | `GetJobStatus` | yes | yes | yes |
+| `GetNamespace` | yes | yes | yes |
 | `GetOutboxSignal` | yes | yes | yes |
 | `GetOverview` | yes | yes | yes |
 | `GetScheduleFiring` | yes | yes | yes |

@@ -293,7 +293,8 @@ A tenant is registered with `ITenants.RegisterAsync(tenantName, displayName, des
 Over HTTP the same verbs are control-gated (`EnableControls` + confirmation header):
 `POST /tenants`, `POST /tenants/{tenantName}/suspend|resume`, `PATCH /tenants/{tenantName}`, `POST /namespaces/{name}/suspend|resume`,
 `PATCH /namespaces/{name}`. Reads are ungated: `GET /tenants` pages the catalog and
-`GET /tenants/{tenantName}` is the point read (`ITenants.GetAsync` in code).
+`GET /tenants/{tenantName}` is the point read (`ITenants.GetAsync` in code); `GET /namespaces` and
+`GET /namespaces/{name}` do the same for namespaces (`INamespaces.GetAsync` in code).
 
 An enqueue that trips a tenant or namespace guard throws a typed `EnqueueRejectedException` whose
 `Reason` is machine-readable: `NamespaceSuspended`, `TenantSuspended`, `TenantUnknown`,

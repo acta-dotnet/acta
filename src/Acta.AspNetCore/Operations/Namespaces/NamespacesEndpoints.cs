@@ -3,7 +3,7 @@ using Microsoft.AspNetCore.Routing;
 
 namespace Acta.AspNetCore;
 
-/// <summary>The Namespaces routes: the list, the namespace's tags, suspend, resume, and the update.</summary>
+/// <summary>The Namespaces routes: the list, one namespace, its tags, suspend, resume, and the update.</summary>
 internal static class NamespacesEndpoints
 {
     public static void Map(RouteGroupBuilder reads, RouteGroupBuilder? controls, ActaEndpointOptions options)
@@ -33,6 +33,24 @@ internal static class NamespacesEndpoints
                 .. QueryParameterDocExtensions.IncludeTotal,
                 .. QueryParameterDocExtensions.TagFilter,
             ]
+        );
+        // A namespace name the facade cannot canonicalize is malformed caller input, so it is the 400 and never a miss.
+        reads.MapDetail(
+            "/namespaces/{jobNamespace}",
+            "Read one namespace.",
+            "Namespace",
+            DashboardJsonContext.Default.GetNamespaceResponse,
+            static async (http, call) =>
+            {
+                try
+                {
+                    return await call.Operations.Namespaces.GetAsync(Name(http), call.Ct);
+                }
+                catch (ArgumentException ex)
+                {
+                    throw new MalformedRouteKeyException(ex.Message);
+                }
+            }
         );
         reads.MapTags(
             controls,

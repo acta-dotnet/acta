@@ -673,6 +673,58 @@ public sealed class DashboardApiEndpointTests
         Assert.Contains("\"displayName\":\"Acme\"", body);
     }
 
+    [Fact]
+    public async Task Namespace_point_read_serializes_the_detail_without_its_id()
+    {
+        var (app, client) = await TestDashboardHost.StartAsync();
+        await using var _ = app;
+
+        var response = await client.GetAsync("/acta/api/v1/namespaces/billing", TestContext.Current.CancellationToken);
+        var body = await response.Content.ReadAsStringAsync(TestContext.Current.CancellationToken);
+
+        Assert.Equal(HttpStatusCode.OK, response.StatusCode);
+        Assert.Equal("no-store", response.Headers.CacheControl?.ToString());
+        Assert.Contains("\"jobNamespace\":\"billing\"", body);
+        Assert.Contains("\"status\":\"active\"", body);
+        Assert.Contains("\"ownerTeam\":\"payments\"", body);
+        Assert.Contains("\"description\":\"billing jobs\"", body);
+        Assert.Contains("\"version\":3", body);
+        Assert.DoesNotContain("namespaceId", body, StringComparison.OrdinalIgnoreCase);
+    }
+
+    [Fact]
+    public async Task An_unknown_namespace_is_a_404_naming_the_namespace()
+    {
+        var (app, client) = await TestDashboardHost.StartAsync();
+        await using var _ = app;
+
+        var response = await client.GetAsync("/acta/api/v1/namespaces/nobody", TestContext.Current.CancellationToken);
+
+        Assert.Equal(HttpStatusCode.NotFound, response.StatusCode);
+        Assert.Contains(
+            "Namespace not found.",
+            await response.Content.ReadAsStringAsync(TestContext.Current.CancellationToken),
+            StringComparison.Ordinal
+        );
+    }
+
+    /// <summary>A name the facade rejects is caller input, the 400, and never reads as a missing namespace.</summary>
+    [Fact]
+    public async Task An_unaddressable_namespace_name_is_a_400()
+    {
+        var (app, client) = await TestDashboardHost.StartAsync();
+        await using var _ = app;
+
+        var response = await client.GetAsync("/acta/api/v1/namespaces/bad key", TestContext.Current.CancellationToken);
+
+        Assert.Equal(HttpStatusCode.BadRequest, response.StatusCode);
+        Assert.Contains(
+            "not kebab-case",
+            await response.Content.ReadAsStringAsync(TestContext.Current.CancellationToken),
+            StringComparison.Ordinal
+        );
+    }
+
     /// <summary>
     /// A 404 names the thing that was not found. The two routes below share one problem-details
     /// helper, which used to hardcode "Job not found." and answered a missing tenant with it.

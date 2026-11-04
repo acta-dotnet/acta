@@ -1062,6 +1062,14 @@ sealed record Acta.GetJobResultResponse
 sealed record Acta.GetJobStatusResponse
     .ctor(Acta.JobStatusCode Status)
     Acta.JobStatusCode Status { get;init; }
+sealed record Acta.GetNamespaceResponse
+    .ctor(System.Int32 NamespaceId, System.String JobNamespace, Acta.NamespaceStatusCode Status, System.String OwnerTeam, System.String Description, System.Int32 Version)
+    Acta.NamespaceStatusCode Status { get;init; }
+    System.Int32 NamespaceId { get;init; }
+    System.Int32 Version { get;init; }
+    System.String Description { get;init; }
+    System.String JobNamespace { get;init; }
+    System.String OwnerTeam { get;init; }
 sealed record Acta.GetOverviewQuery
     .ctor(System.String JobNamespace = null, System.Int32 StaleWorkerAfterSeconds = 180, System.Int32 DueSoonWindowSeconds = 3600)
     System.Int32 DueSoonWindowSeconds { get;init; }
@@ -1239,6 +1247,7 @@ interface Acta.ILedger
     System.Threading.Tasks.ValueTask<Acta.ListEventsResponse> ListEventsAsync(Acta.ListEventsQuery query, System.Threading.CancellationToken ct = default)
     System.Threading.Tasks.ValueTask<Acta.ListJobsResponse> ListJobsAsync(Acta.ListJobsQuery query, System.Threading.CancellationToken ct = default)
 interface Acta.INamespaces
+    System.Threading.Tasks.ValueTask<Acta.GetNamespaceResponse> GetAsync(System.String namespaceName, System.Threading.CancellationToken ct = default)
     System.Threading.Tasks.ValueTask<Acta.ListNamespacesResponse> ListAsync(Acta.ListNamespacesQuery query, System.Threading.CancellationToken ct = default)
     System.Threading.Tasks.ValueTask<Acta.ResumeNamespaceResponse> ResumeAsync(System.String namespaceName, System.String reasonMessage = null, System.String actor = null, System.Threading.CancellationToken ct = default)
     System.Threading.Tasks.ValueTask<Acta.SuspendNamespaceResponse> SuspendAsync(System.String namespaceName, System.String reasonMessage = null, System.String actor = null, System.Threading.CancellationToken ct = default)
