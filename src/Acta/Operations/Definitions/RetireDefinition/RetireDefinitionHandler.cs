@@ -8,7 +8,7 @@ namespace Acta;
 /// definition the operator did not retire.
 /// </summary>
 internal sealed class RetireDefinitionHandler(
-    ResolveDefinitionIdHandler resolveDefinitionId,
+    GetDefinitionIdHandler getDefinitionId,
     IDbSession session,
     ISqlDialect dialect,
     WorkerWakeupPublisher wakeupPublisher,
@@ -18,7 +18,7 @@ internal sealed class RetireDefinitionHandler(
     public async ValueTask<RetireDefinitionResponse> HandleAsync(RetireDefinitionCommand command, CancellationToken ct)
     {
         if (
-            await resolveDefinitionId.HandleAsync(new ResolveDefinitionIdQuery(command.JobNamespace, command.JobName), ct)
+            await getDefinitionId.HandleAsync(new GetDefinitionIdQuery(command.JobNamespace, command.JobName), ct)
             is not { DefinitionId: var definitionId }
         )
         {

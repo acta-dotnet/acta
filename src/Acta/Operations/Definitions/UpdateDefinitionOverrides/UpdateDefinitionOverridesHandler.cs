@@ -5,17 +5,13 @@ namespace Acta;
 /// then writes only the override columns, version-guarded, with the policy-changed event. When the
 /// definition is on a rate meter, the routine carries the same rate override to every definition sharing it.
 /// </summary>
-internal sealed class UpdateDefinitionOverridesHandler(
-    ResolveDefinitionIdHandler resolveDefinitionId,
-    IDbSession session,
-    ISqlDialect dialect
-)
+internal sealed class UpdateDefinitionOverridesHandler(GetDefinitionIdHandler getDefinitionId, IDbSession session, ISqlDialect dialect)
 {
     public async ValueTask<UpdateDefinitionOverridesResponse> HandleAsync(UpdateDefinitionOverridesCommand command, CancellationToken ct)
     {
         var overrides = Normalize(command.Overrides);
         if (
-            await resolveDefinitionId.HandleAsync(new ResolveDefinitionIdQuery(command.JobNamespace, command.JobName), ct)
+            await getDefinitionId.HandleAsync(new GetDefinitionIdQuery(command.JobNamespace, command.JobName), ct)
             is not { DefinitionId: var definitionId }
         )
         {

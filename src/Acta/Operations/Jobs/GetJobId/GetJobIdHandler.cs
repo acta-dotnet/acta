@@ -4,23 +4,25 @@ namespace Acta;
 /// <see cref="IJobs.GetIdAsync"/>: an id passes through without a round trip, and a ref or a deduplication key
 /// resolves (canonicalized first); no SQL of its own. Null when no job matches.
 /// </summary>
-internal sealed class GetJobIdHandler(ResolveJobIdByRefHandler byRef, ResolveJobIdByDeduplicationKeyHandler byDeduplicationKey)
+internal sealed class GetJobIdHandler(GetJobIdByRefHandler byRef, GetJobIdByDeduplicationKeyHandler byDeduplicationKey)
 {
     public async ValueTask<GetJobIdResponse?> HandleAsync(GetJobIdQuery query, CancellationToken ct) =>
         await ResolveAsync(query.Job, ct) is { } jobId ? new GetJobIdResponse(jobId) : null;
 
-    private ValueTask<long?> ResolveAsync(JobLookup job, CancellationToken ct) =>
+    private async ValueTask<long?> ResolveAsync(JobLookup job, CancellationToken ct) =>
         job.Kind switch
         {
-            JobLookupKind.JobId => ValueTask.FromResult<long?>(job.JobId),
-            JobLookupKind.JobRef => byRef.HandleAsync(new ResolveJobIdByRefQuery(job.JobRef!.Value), ct),
-            JobLookupKind.DeduplicationKey => byDeduplicationKey.HandleAsync(
-                new ResolveJobIdByDeduplicationKeyQuery(
-                    NameSyntax.Canonicalize(job.JobNamespace!, nameof(job.JobNamespace)),
-                    KeySyntax.Canonicalize(job.DeduplicationKey!, nameof(job.DeduplicationKey))
-                ),
-                ct
-            ),
+            JobLookupKind.JobId => job.JobId,
+            JobLookupKind.JobRef => (await byRef.HandleAsync(new GetJobIdByRefQuery(job.JobRef!.Value), ct))?.JobId,
+            JobLookupKind.DeduplicationKey => (
+                await byDeduplicationKey.HandleAsync(
+                    new GetJobIdByDeduplicationKeyQuery(
+                        NameSyntax.Canonicalize(job.JobNamespace!, nameof(job.JobNamespace)),
+                        KeySyntax.Canonicalize(job.DeduplicationKey!, nameof(job.DeduplicationKey))
+                    ),
+                    ct
+                )
+            )?.JobId,
             _ => throw new ArgumentOutOfRangeException(nameof(job), job.Kind, "Unsupported job lookup kind."),
         };
 }

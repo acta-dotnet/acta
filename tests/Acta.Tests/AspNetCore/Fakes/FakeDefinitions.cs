@@ -86,7 +86,7 @@ internal sealed class FakeDefinitions : IDefinitions
         : (ControlAction.Applied, expectedVersion + 1);
 
     /// <summary>
-    /// Folds and validates the key before it resolves, as ResolveDefinitionId does, so a malformed key (a wildcard)
+    /// Folds and validates the key before it resolves, as GetDefinitionId does, so a malformed key (a wildcard)
     /// is an InvalidQueryException the edge maps to 400, never a miss.
     /// </summary>
     private static GetDefinitionResponse? Detail(string jobNamespace, string jobName)

@@ -242,7 +242,7 @@ public static class ActaTestHost
             ArgumentNullException.ThrowIfNull(schedule);
             var path = $"{schedule.JobNamespace}/{schedule.JobName}/{schedule.ScheduleName}";
             var target =
-                await provider.GetRequiredService<SchedulesOperations>().ResolveScheduleTargetAsync(schedule, ct)
+                await provider.GetRequiredService<SchedulesOperations>().GetScheduleTargetAsync(schedule, ct)
                 ?? throw new InvalidOperationException($"Schedule '{path}' does not exist; register it before forcing it due.");
             if (target.Timing.ExpressionKind == ScheduleExpressionKindCode.Calendar || target.Timing.AvailabilityCalendarName is not null)
             {

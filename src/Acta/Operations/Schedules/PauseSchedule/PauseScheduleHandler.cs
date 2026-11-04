@@ -6,14 +6,14 @@ namespace Acta;
 /// schedules of the slot keep their own cursors. One routine call writes the schedule and its state and records
 /// <c>schedule.paused</c> against the slot job, or against the definition when the schedule has no slot.
 /// </summary>
-internal sealed class PauseScheduleHandler(ResolveScheduleTargetHandler resolveScheduleTarget, IDbSession session, ISqlDialect dialect)
+internal sealed class PauseScheduleHandler(GetScheduleTargetHandler getScheduleTarget, IDbSession session, ISqlDialect dialect)
 {
     private static readonly PauseScheduleResponse NotFound = new(ControlAction.NotFound, null, null, null, null);
     private static readonly PauseScheduleResponse Rejected = new(ControlAction.Rejected, null, null, null, null);
 
     public async ValueTask<PauseScheduleResponse> HandleAsync(PauseScheduleCommand command, CancellationToken ct)
     {
-        if (await resolveScheduleTarget.HandleAsync(new ResolveScheduleTargetQuery(command.Schedule), ct) is not { } target)
+        if (await getScheduleTarget.HandleAsync(new GetScheduleTargetQuery(command.Schedule), ct) is not { } target)
         {
             return NotFound;
         }

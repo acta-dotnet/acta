@@ -4,11 +4,11 @@ namespace Acta;
 /// <see cref="ISchedules.PreviewAsync"/>: walks the schedule's source from the database clock; no SQL of its own. A
 /// code calendar is resolved in this process, so the host that answers needs it registered; a catalog one is read.
 /// </summary>
-internal sealed class PreviewScheduleHandler(ResolveScheduleTargetHandler resolveScheduleTarget, CalendarsOperations calendars)
+internal sealed class PreviewScheduleHandler(GetScheduleTargetHandler getScheduleTarget, CalendarsOperations calendars)
 {
     public async ValueTask<PreviewScheduleResponse?> HandleAsync(PreviewScheduleQuery query, CancellationToken ct)
     {
-        if (await resolveScheduleTarget.HandleAsync(new ResolveScheduleTargetQuery(query.Schedule), ct) is not { } target)
+        if (await getScheduleTarget.HandleAsync(new GetScheduleTargetQuery(query.Schedule), ct) is not { } target)
         {
             return null;
         }

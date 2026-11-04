@@ -1,0 +1,56 @@
+namespace Acta;
+
+/// <summary>
+/// Finds the live schedule a path names, through the definition to the schedule's own key, with the database clock a
+/// verb decides against. Null when the namespace, the definition, or the live schedule is absent; each surfaces as
+/// NotFound.
+/// </summary>
+internal sealed class GetScheduleTargetHandler(IDbSession session, ISqlDialect dialect, IActaClock clock)
+{
+    public async ValueTask<GetScheduleTargetResponse?> HandleAsync(GetScheduleTargetQuery query, CancellationToken ct)
+    {
+        var schedule = query.Schedule;
+        ArgumentNullException.ThrowIfNull(schedule);
+        var jobNamespace = NameSyntax.Canonicalize(schedule.JobNamespace, nameof(schedule.JobNamespace));
+        var jobName = NameSyntax.Canonicalize(schedule.JobName, nameof(schedule.JobName));
+        var scheduleName = NameSyntax.Canonicalize(
+            schedule.ScheduleName,
+            nameof(schedule.ScheduleName),
+            maxLength: NameSyntax.ExtendedMaxLength
+        );
+
+        var row = await session.QuerySingleAsync(
+            "GetScheduleTarget",
+            cmd =>
+            {
+                cmd.Parameters.Add(dialect.CreateParameter(ActaSchema.Sql.NamespaceName, jobNamespace));
+                cmd.Parameters.Add(dialect.CreateParameter(ActaSchema.Sql.JobNameFilter, jobName));
+                cmd.Parameters.Add(dialect.CreateParameter(ActaSchema.Schedule.ScheduleName, scheduleName));
+            },
+            DbProjectionResolver.Resolve<GetScheduleTargetRow>(),
+            ct
+        );
+        if (row is null)
+        {
+            return null;
+        }
+
+        var nowUtc = await clock.GetUtcNowAsync(ct);
+        return new GetScheduleTargetResponse(
+            row.ScheduleId,
+            row.JobId,
+            row.NamespaceId,
+            row.NamespaceStatus,
+            nowUtc,
+            row.ScheduleName,
+            row.Status,
+            row.PausedUntilUtc,
+            row.NextOccurrenceAtUtc,
+            row.Version,
+            row.MaxOutstanding,
+            row.OutstandingCount,
+            row.StateVersion,
+            new ScheduleTiming(row.Expression, row.ExpressionKind, row.TimeZoneId, row.IntervalAnchorAtUtc, row.AvailabilityCalendarName)
+        );
+    }
+}

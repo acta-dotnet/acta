@@ -260,9 +260,7 @@ public sealed class RegisterSchedulesPerOccurrenceSpec : ActaStorageTestBase<Con
         var (config, _) = await ScheduleAsync(defId, "only", ct);
         var lookup = new ScheduleLookup(TestNamespace, jobName, "only");
 
-        var target = await Services
-            .GetRequiredService<ResolveScheduleTargetHandler>()
-            .HandleAsync(new ResolveScheduleTargetQuery(lookup), ct);
+        var target = await Services.GetRequiredService<GetScheduleTargetHandler>().HandleAsync(new GetScheduleTargetQuery(lookup), ct);
         Assert.NotNull(target);
         Assert.Equal(config.Id, target.ScheduleId);
         Assert.Null(target.JobId);

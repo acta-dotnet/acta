@@ -12,7 +12,7 @@ internal sealed class SchemaOperations(DbConnection connection, SqlResourceCatal
     private readonly EnsureMigrationsHandler _ensureMigrations = new(connection, sql, commandTimeoutSeconds);
     private readonly ListAppliedMigrationsHandler _listAppliedMigrations = new(connection, sql, commandTimeoutSeconds);
     private readonly DropSchemaHandler _dropSchema = new(connection, sql, commandTimeoutSeconds);
-    private readonly FindOutboxTableHandler _findOutboxTable = new(connection, sql, commandTimeoutSeconds);
+    private readonly GetOutboxTableHandler _getOutboxTable = new(connection, sql, commandTimeoutSeconds);
 
     /// <summary>
     /// Takes the per-schema installer lock inside the migration transaction and holds it until that transaction ends, so two
@@ -26,8 +26,8 @@ internal sealed class SchemaOperations(DbConnection connection, SqlResourceCatal
         _acquireSchemaLock.HandleAsync(new AcquireSchemaLockCommand(transaction, AcquireSchemaLockHandler.OutboxLockKey), ct);
 
     /// <summary>Whether the catalog's outbox table exists, read inside the outbox install transaction.</summary>
-    public Task<FindOutboxTableResponse> FindOutboxTableAsync(DbTransaction transaction, CancellationToken ct) =>
-        _findOutboxTable.HandleAsync(new FindOutboxTableQuery(transaction), ct);
+    public Task<GetOutboxTableResponse> GetOutboxTableAsync(DbTransaction transaction, CancellationToken ct) =>
+        _getOutboxTable.HandleAsync(new GetOutboxTableQuery(transaction), ct);
 
     /// <summary>
     /// Creates the migration-history table when it is missing, inside the migration transaction. An existing table keeps

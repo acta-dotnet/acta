@@ -36,7 +36,7 @@ public sealed class OperationNameTests
     private static readonly HashSet<(string Operation, string Names)> BorrowedStatements =
     [
         // The id of one definition is the list's statement taken for the one row its two keys name.
-        ("ResolveDefinitionId", "ListDefinitions"),
+        ("GetDefinitionId", "ListDefinitions"),
     ];
 
     private static readonly string Operations = Path.Combine(IntegrationConfig.FindRepoRoot(), "src", "Acta", "Operations");

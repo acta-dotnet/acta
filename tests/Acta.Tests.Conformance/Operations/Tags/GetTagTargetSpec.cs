@@ -1,0 +1,57 @@
+using Acta.Tests.Conformance.Contracts;
+using Acta.Tests.Conformance.Testing;
+using Microsoft.Extensions.DependencyInjection;
+using TestJobs;
+using Xunit;
+
+namespace Acta.Tests.Conformance.Operations.Tags;
+
+/// <summary>
+/// Conformance for <c>GetTagTarget</c>, the lookup every tag operation starts from: a target named by a ref or a
+/// natural key resolves to the row id the tags table joins on, a tenant or namespace target passes through, and a
+/// target whose entity does not exist resolves to <c>null</c>.
+/// </summary>
+[ConformanceSpec(
+    "get-tag-target.lookup",
+    "GetTagTarget finds the row a tag target names, null for a missing entity",
+    Area = "Tags",
+    Contract = "GetTagTarget resolves a ref or natural-key target to the row the tags table joins on, passes the rest through, and returns null when the entity is missing."
+)]
+public sealed class GetTagTargetSpec : ActaRuntimeTestBase<ConformanceFixture, TestJobsManifest>
+{
+    [Fact(DisplayName = "Each existing target resolves to its entity kind and the id or name the tags table joins on")]
+    public async Task Existing_targets_resolve_to_their_rows()
+    {
+        var ct = TestContext.Current.CancellationToken;
+        var namespaceId = Runtime.RegisteredNamespaceIds[TestNamespace];
+        var definition = Assert.Single(
+            await Db.From<DefinitionEntity>().Where(x => x.NamespaceId == namespaceId && x.DefinitionName == "add-numbers").ToListAsync(ct)
+        );
+        var job = await Jobs.EnqueueAsync(new AddNumbers(2, 3), ct: ct);
+
+        Assert.Equal(
+            new GetTagTargetResponse(EntityCode.Definition, definition.Id, null),
+            await ResolveAsync(TagTarget.ForDefinition(TestNamespace, "add-numbers"), ct)
+        );
+        Assert.Equal(new GetTagTargetResponse(EntityCode.Job, job.JobId, null), await ResolveAsync(TagTarget.ForJob(job.JobRef), ct));
+        Assert.Equal(
+            new GetTagTargetResponse(EntityCode.Namespace, null, TestNamespace),
+            await ResolveAsync(TagTarget.ForNamespace(TestNamespace), ct)
+        );
+    }
+
+    [Fact(DisplayName = "A target whose entity does not exist resolves to null")]
+    public async Task Missing_entities_resolve_to_null()
+    {
+        var ct = TestContext.Current.CancellationToken;
+        TagTarget[] missing = [TagTarget.ForDefinition(TestNamespace, "missing-definition"), TagTarget.ForJob(JobRef.New())];
+
+        foreach (var target in missing)
+        {
+            Assert.Null(await ResolveAsync(target, ct));
+        }
+    }
+
+    private ValueTask<GetTagTargetResponse?> ResolveAsync(TagTarget target, CancellationToken ct) =>
+        Services.GetRequiredService<GetTagTargetHandler>().HandleAsync(new GetTagTargetQuery(target), ct);
+}

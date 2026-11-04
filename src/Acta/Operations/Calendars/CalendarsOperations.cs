@@ -11,7 +11,7 @@ internal sealed class CalendarsOperations(
     PreviewCalendarHandler previewCalendar,
     PublishCalendarHandler publishCalendar,
     ListCurrentCalendarsHandler listCurrentCalendars,
-    ResolveCalendarVersionHandler resolveCalendarVersion,
+    GetCalendarVersionHandler getCalendarVersion,
     CalendarSources sources
 ) : ICalendars
 {
@@ -90,10 +90,10 @@ internal sealed class CalendarsOperations(
         listCurrentCalendars.HandleAsync(new ListCurrentCalendarsQuery(namespaceId), ct);
 
     /// <summary>One version of a family whatever its status, with its definition; null when the family has no such version.</summary>
-    internal Task<ResolveCalendarVersionResponse?> ResolveCalendarVersionAsync(
+    internal Task<GetCalendarVersionResponse?> GetCalendarVersionAsync(
         int namespaceId,
         string calendarName,
         int version,
         CancellationToken ct
-    ) => resolveCalendarVersion.HandleAsync(new ResolveCalendarVersionQuery(namespaceId, calendarName, version), ct);
+    ) => getCalendarVersion.HandleAsync(new GetCalendarVersionQuery(namespaceId, calendarName, version), ct);
 }

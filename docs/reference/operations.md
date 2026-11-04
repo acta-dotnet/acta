@@ -29,6 +29,7 @@ One row per operation folder, `src/Acta/Operations/<Group>/<Operation>/`, and on
 | `GetCalendar` | `ICalendars.GetAsync` | `GET /calendars/{jobNamespace}/{calendarName}` | · | inline | inline | inline | · | `GetCalendarSpec` |
 | `GetCalendarDetail` | · | `GET /calendars/{jobNamespace}/{calendarName}/detail` | · | · | · | · | · | · |
 | `GetCalendarPublication` | · | · | · | inline | inline | inline | · | `GetCalendarPublicationSpec` |
+| `GetCalendarVersion` | · | · | · | inline | inline | inline | · | `GetCalendarVersionSpec` |
 | `ListCalendarDependents` | `ICalendars.ListDependentsAsync` | `GET /calendars/{jobNamespace}/{calendarName}/dependents` | · | inline | inline | inline | · | `ListCalendarDependentsSpec` |
 | `ListCalendarSchedules` | · | · | · | inline | inline | inline | · | `ListCalendarSchedulesSpec` |
 | `ListCalendarVersions` | `ICalendars.ListVersionsAsync` | `GET /calendars/{jobNamespace}/{calendarName}/versions` | · | inline | inline | inline | · | `ListCalendarVersionsSpec` |
@@ -36,7 +37,6 @@ One row per operation folder, `src/Acta/Operations/<Group>/<Operation>/`, and on
 | `ListCurrentCalendars` | · | · | · | inline | inline | inline | · | `ListCurrentCalendarsSpec` |
 | `PreviewCalendar` | `ICalendars.PreviewAsync` | `GET /calendars/{jobNamespace}/{calendarName}/preview` | · | · | · | · | · | `PreviewCalendarSpec` |
 | `PublishCalendar` | `ICalendars.PublishAsync` | `POST /calendars/{jobNamespace}/{calendarName}/publish` | · | inline | inline | inline | `calendars`, `events`, `schedules`, `schedules_state` | `PublishCalendarSpec` |
-| `ResolveCalendarVersion` | · | · | · | inline | inline | inline | · | `ResolveCalendarVersionSpec` |
 | `SaveCalendarDraft` | `ICalendars.SaveDraftAsync` | `POST /calendars/{jobNamespace}/{calendarName}/drafts` | · | inline | inline | inline | `calendars`, `events`, `namespaces` | `SaveCalendarDraftSpec` |
 
 ## Capabilities
@@ -56,11 +56,11 @@ One row per operation folder, `src/Acta/Operations/<Group>/<Operation>/`, and on
 | Operation | Facade | HTTP | CLI | pg | mssql | sqlite | Writes | Specs |
 | --- | --- | --- | --- | --- | --- | --- | --- | --- |
 | `GetDefinition` | `IDefinitions.GetAsync` | `GET /definitions/{jobNamespace}/{jobName}` | · | inline | inline | inline | · | `GetDefinitionSpec` |
+| `GetDefinitionId` | · | · | · | · | · | · | · | `GetDefinitionIdSpec` |
 | `GetDefinitionInputTemplate` | `IDefinitions.GetInputTemplate` | `GET /definitions/{jobNamespace}/{jobName}/input-template` | · | · | · | · | · | `GetDefinitionInputTemplateSpec` |
 | `ListDefinitionContracts` | · | · | · | inline | inline | inline | · | `ListDefinitionContractsSpec` |
 | `ListDefinitions` | `IDefinitions.ListAsync` | `GET /definitions` | · | inline | inline | inline | · | `ListDefinitionsFilterMatrixSpec`, `ListDefinitionsSpec` |
 | `RegisterDefinitions` | · | · | · | inline | inline | inline | `definitions` | `RegisterDefinitionsSpec` |
-| `ResolveDefinitionId` | · | · | · | · | · | · | · | `ResolveDefinitionIdSpec` |
 | `RetireDefinition` | `IDefinitions.RetireAsync` | `POST /definitions/{jobNamespace}/{jobName}/retire` | · | inline | inline | inline | `checkpoints`, `definitions`, `events`, `jobs_state`, `schedules`, `schedules_state` | `RetireDefinitionSpec` |
 | `UpdateDefinitionOverrides` | `IDefinitions.UpdateOverridesAsync` | `PATCH /definitions/{jobNamespace}/{jobName}` | · | inline | inline | inline | `definitions`, `events`, `jobs` | `UpdateDefinitionOverridesBindMatrixSpec`, `UpdateDefinitionOverridesSpec` |
 
@@ -92,6 +92,9 @@ One row per operation folder, `src/Acta/Operations/<Group>/<Operation>/`, and on
 | `GetJob` | `IJobs.WaitAsync`<br>`IJobs.RunAndWaitAsync`<br>`IJobs.GetAsync` | `GET /jobs/{jobRef}`<br>`GET /jobs/by-key` | · | inline | inline | inline | · | `GetJobSpec` |
 | `GetJobDetail` | · | `GET /jobs/{jobRef}/detail` | · | · | · | · | · | · |
 | `GetJobId` | `IJobs.WaitAsync`<br>`IJobs.RunAndWaitAsync`<br>`IJobs.GetIdAsync` | · | · | · | · | · | · | `GetJobIdSpec` |
+| `GetJobIdByDeduplicationKey` | · | · | · | inline | inline | inline | · | `GetJobIdByDeduplicationKeySpec` |
+| `GetJobIdByRef` | · | · | · | inline | inline | inline | · | `GetJobIdByRefSpec` |
+| `GetJobIdBySlot` | · | · | · | inline | inline | inline | · | `GetJobIdBySlotSpec` |
 | `GetJobInput` | `IJobs.GetInputAsync` | `GET /jobs/{jobRef}/input` | · | inline | inline | inline | · | `GetJobInputSpec` |
 | `GetJobLineageMap` | `IJobs.GetLineageMapAsync` | · | · | inline | inline | inline | · | `GetJobLineageMapSpec` |
 | `GetJobResult` | `IJobs.WaitAsync`<br>`IJobs.RunAndWaitAsync`<br>`IJobs.GetResultAsync` | · | `result` | inline | inline | inline | · | `GetJobResultSpec` |
@@ -103,9 +106,6 @@ One row per operation folder, `src/Acta/Operations/<Group>/<Operation>/`, and on
 | `ReprioritizeJob` | `IJobs.ReprioritizeAsync` | `POST /jobs/{jobRef}/reprioritize` | · | inline | inline | inline | `events`, `jobs_state` | `ReprioritizeJobSpec` |
 | `RescheduleJob` | `IJobs.RescheduleAsync` | `POST /jobs/{jobRef}/reschedule` | · | inline | inline | inline | `checkpoints`, `events`, `jobs_state` | `RescheduleJobSpec` |
 | `ResetJobState` | · | · | · | inline | inline | inline | `checkpoints`, `events`, `steps` | `ResetJobStateSpec` |
-| `ResolveJobIdByDeduplicationKey` | · | · | · | inline | inline | inline | · | `ResolveJobIdByDeduplicationKeySpec` |
-| `ResolveJobIdByRef` | · | · | · | inline | inline | inline | · | `ResolveJobIdByRefSpec` |
-| `ResolveJobIdBySlot` | · | · | · | inline | inline | inline | · | `ResolveJobIdBySlotSpec` |
 | `RestartJob` | `IJobs.RestartAsync` | `POST /jobs/{jobRef}/restart` | `restart` | inline | inline | inline | `checkpoints`, `events`, `jobs_state`, `schedules_state`, `steps` | `RestartJobSpec` |
 | `ResumeJob` | `IJobs.ResumeAsync` | `POST /jobs/{jobRef}/resume` | `resume` | inline | inline | inline | `events`, `jobs_state`, `schedules_state` | `ResumeJobSpec` |
 | `UpdateJobInput` | `IJobs.UpdateInputAsync` | `POST /jobs/{jobRef}/input` | · | inline | inline | inline | `events`, `jobs` | `UpdateJobInputSpec` |
@@ -173,13 +173,13 @@ One row per operation folder, `src/Acta/Operations/<Group>/<Operation>/`, and on
 | --- | --- | --- | --- | --- | --- | --- | --- | --- |
 | `AdmitScheduleFirings` | · | · | · | inline | inline | inline | `checkpoints`, `events`, `jobs`, `jobs_state`, `schedules`, `schedules_state` | `AdmitScheduleFiringsSpec` |
 | `GetScheduleHorizon` | · | · | · | inline | inline | inline | · | `GetScheduleHorizonSpec` |
+| `GetScheduleTarget` | · | · | · | inline | inline | inline | · | `GetScheduleTargetSpec` |
 | `ListDueSchedules` | · | · | · | inline | inline | inline | · | `ListDueSchedulesSpec` |
 | `ListScheduleStates` | · | · | · | inline | inline | inline | · | `ListScheduleStatesSpec` |
 | `ListSchedules` | `ISchedules.ListAsync` | `GET /schedules` | · | inline | inline | inline | · | `ListSchedulesFilterMatrixSpec`, `ListSchedulesSpec` |
 | `PauseSchedule` | `ISchedules.PauseAsync` | `POST /schedules/{jobNamespace}/{jobName}/{scheduleName}/pause` | · | inline | inline | inline | `events`, `schedules`, `schedules_state` | `PauseScheduleSpec` |
 | `PreviewSchedule` | `ISchedules.PreviewAsync` | `GET /schedules/{jobNamespace}/{jobName}/{scheduleName}/preview` | · | · | · | · | · | `PreviewScheduleSysNameSpec` |
 | `RegisterSchedules` | · | · | · | inline | inline | inline | `events`, `jobs`, `jobs_state`, `namespaces`, `schedules`, `schedules_state` | `RegisterSchedulesCursorSpec`, `RegisterSchedulesNoteSpec`, `RegisterSchedulesPerOccurrenceSpec`, `RegisterSchedulesSpec` |
-| `ResolveScheduleTarget` | · | · | · | inline | inline | inline | · | `ResolveScheduleTargetSpec` |
 | `ResumeSchedule` | `ISchedules.ResumeAsync` | `POST /schedules/{jobNamespace}/{jobName}/{scheduleName}/resume` | · | inline | inline | inline | `events`, `schedules`, `schedules_state` | `ResumeScheduleSpec` |
 | `TriggerSchedule` | `ISchedules.TriggerAsync` | `POST /schedules/{jobNamespace}/{jobName}/{scheduleName}/trigger` | · | inline | inline | inline | `checkpoints`, `events`, `jobs_state` | `TriggerScheduleSpec` |
 
@@ -190,7 +190,7 @@ One row per operation folder, `src/Acta/Operations/<Group>/<Operation>/`, and on
 | `AcquireSchemaLock` | · | · | · | inline | inline | inline | · | `AcquireSchemaLockSpec` |
 | `DropSchema` | · | · | · | inline | inline | inline | · | `DropSchemaSpec` |
 | `EnsureMigrations` | · | · | · | inline | inline | inline | · | `EnsureMigrationsSpec` |
-| `FindOutboxTable` | · | · | · | inline | inline | inline | · | `FindOutboxTableSpec` |
+| `GetOutboxTable` | · | · | · | inline | inline | inline | · | `GetOutboxTableSpec` |
 | `ListAppliedMigrations` | · | · | · | inline | inline | inline | · | `ListAppliedMigrationsSpec` |
 
 ## Signals
@@ -204,10 +204,10 @@ One row per operation folder, `src/Acta/Operations/<Group>/<Operation>/`, and on
 
 | Operation | Facade | HTTP | CLI | pg | mssql | sqlite | Writes | Specs |
 | --- | --- | --- | --- | --- | --- | --- | --- | --- |
+| `GetTagTarget` | · | · | · | · | · | · | · | `GetTagTargetSpec` |
 | `ListTags` | `ITags.ListAsync` | `GET /definitions/{jobNamespace}/{jobName}/tags`<br>`GET /jobs/{jobRef}/tags`<br>`GET /namespaces/{jobNamespace}/tags`<br>`GET /tenants/{tenantName}/tags` | · | inline | inline | inline | · | `ListTagsSpec` |
 | `RemoveTag` | `ITags.RemoveAsync` | `DELETE /definitions/{jobNamespace}/{jobName}/tags/{tagName}`<br>`DELETE /jobs/{jobRef}/tags/{tagName}`<br>`DELETE /namespaces/{jobNamespace}/tags/{tagName}`<br>`DELETE /tenants/{tenantName}/tags/{tagName}` | · | inline | inline | inline | `tags` | `RemoveTagSpec` |
 | `ReplaceTags` | `ITags.ReplaceAsync` | · | · | inline | inline | inline | `tags` | `ReplaceTagsSpec` |
-| `ResolveTagTarget` | · | · | · | · | · | · | · | `ResolveTagTargetSpec` |
 | `UpsertTag` | `ITags.UpsertAsync` | `POST /definitions/{jobNamespace}/{jobName}/tags`<br>`POST /jobs/{jobRef}/tags`<br>`POST /namespaces/{jobNamespace}/tags`<br>`POST /tenants/{tenantName}/tags` | · | inline | inline | inline | `tags` | `UpsertTagSpec` |
 
 ## Tenants

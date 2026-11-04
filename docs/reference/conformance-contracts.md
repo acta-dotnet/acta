@@ -819,6 +819,16 @@
   - An unknown job rejection throws RouteUnknown
   - Enqueue against a retired definition throws DefinitionRetired
 
+### GetJobIdByDeduplicationKey returns the id for a known key, null otherwise
+- **Contract:** GetJobIdByDeduplicationKey resolves a root job's id from its namespace and deduplication key, and returns null when no row matches.
+- **Guarantees:**
+  - Known deduplication key resolves to the enqueued job id and an unknown key returns null
+
+### Enqueue assigns a job ref that resolves to the job; unknown refs return null
+- **Contract:** Every enqueued job carries a server-generated job_ref that resolves to its internal id, and an unknown ref resolves to null.
+- **Guarantees:**
+  - Enqueue returns a non-empty ref that resolves and reads back the same job, dedup echoes the existing ref, and an unknown ref returns null
+
 ### Names fold to lowercase while keys keep their case
 - **Contract:** A name is folded to lowercase on input, so any case addresses one stored name, while a key keeps its case and compares exactly.
 - **Guarantees:**
@@ -874,16 +884,6 @@
   - Local-kind run-at is converted to UTC, not relabeled
   - Setting both delay channels is rejected before any SQL
   - Builders map relative delay to an integer, round sub-second up, and clear the other channel last-write-wins
-
-### ResolveJobIdByDeduplicationKey returns the id for a known key, null otherwise
-- **Contract:** ResolveJobIdByDeduplicationKey resolves a root job's id from its namespace and deduplication key, and returns null when no row matches.
-- **Guarantees:**
-  - Known deduplication key resolves to the enqueued job id and an unknown key returns null
-
-### Enqueue assigns a job ref that resolves to the job; unknown refs return null
-- **Contract:** Every enqueued job carries a server-generated job_ref that resolves to its internal id, and an unknown ref resolves to null.
-- **Guarantees:**
-  - Enqueue returns a non-empty ref that resolves and reads back the same job, dedup echoes the existing ref, and an unknown ref returns null
 
 ### Typed enqueue resolves the route and delayed jobs gate on next_run
 - **Contract:** The typed IJobs façade resolves the route from the input type, applies deduplication-key dedupe and delayed-run options, and RunAndWaitAsync waits.
@@ -1512,6 +1512,12 @@
   - Explain reports a child-suspended parent as awaiting that child, with its deadline
   - Explain reports a completed durable step as non-rerunning
 
+### GetDefinitionId finds a definition's catalog id by key, null for no match
+- **Contract:** GetDefinitionId returns the catalog id of the definition a namespace and name identify exactly, and null when no definition carries that key.
+- **Guarantees:**
+  - A registered name resolves to its definition's catalog id
+  - An unknown name, a prefix of a registered name, and a name from another namespace resolve to null
+
 ### The input template comes from this host's generated manifest
 - **Contract:** GetDefinitionInputTemplate returns a registered job's input type, format, and JSON skeleton from this host's manifest, and null for a job it did not register.
 - **Guarantees:**
@@ -1717,12 +1723,6 @@
 - **Guarantees:**
   - An unassigned event code reads back as Unspecified and serializes as unspecified
   - An unassigned alert kind reads back as Unspecified from list and get and serializes as unspecified
-
-### ResolveDefinitionId finds a definition's catalog id by key, null for no match
-- **Contract:** ResolveDefinitionId returns the catalog id of the definition a namespace and name identify exactly, and null when no definition carries that key.
-- **Guarantees:**
-  - A registered name resolves to its definition's catalog id
-  - An unknown name, a prefix of a registered name, and a name from another namespace resolve to null
 
 ## Recovery
 
@@ -1930,6 +1930,12 @@
   - ListCalendarVersions pages two versions newest first, the published one with its instant
   - ListCalendarVersions answers an empty page for an unknown family, and refuses another family's cursor
 
+### GetScheduleTarget finds a live schedule by its path, null when absent
+- **Contract:** GetScheduleTarget returns a named live schedule with its id, slot job, definition, and the database clock, or null when the job or schedule is absent.
+- **Guarantees:**
+  - A live schedule resolves with its id, its slot job, its definition, and the database clock
+  - A schedule the slot does not carry, or a job that does not exist, resolves to null
+
 ### A reschedule of an idle permanent slot is a manual firing at the instant
 - **Contract:** RescheduleAsync fires an Idle slot, or a Paused one with no firing, at the instant unless its namespace is suspended, and a slot mid-firing keeps its firing.
 - **Guarantees:**
@@ -1973,12 +1979,6 @@
   - Sleep validation rejects invalid names, reserved names and negative delay
   - A second distinct pending sleep is rejected and re-arms without touching the existing timer
   - Unknown control exception fails the attempt like a handler exception, not a reschedule or suspend
-
-### ResolveScheduleTarget finds a live schedule by its path, null when absent
-- **Contract:** ResolveScheduleTarget returns a named live schedule with its id, slot job, definition, and the database clock, or null when the job or schedule is absent.
-- **Guarantees:**
-  - A live schedule resolves with its id, its slot job, its definition, and the database clock
-  - A schedule the slot does not carry, or a job that does not exist, resolves to null
 
 ### An admission plan applies whole per slot, or not at all when stale
 - **Contract:** A planned group applies whole at the versions it read, making the slot Ready with its envelope, and a moved group or a suspended namespace's applies nothing.
@@ -2204,7 +2204,7 @@
   - Rolled back with the migration transaction, the table it created is gone
 
 ### The outbox install's probe finds a table and nothing else
-- **Contract:** FindOutboxTable answers true for an existing table of the catalog's name, and false for a missing name or a view that carries it.
+- **Contract:** GetOutboxTable answers true for an existing table of the catalog's name, and false for a missing name or a view that carries it.
 - **Guarantees:**
   - A missing name is not found, and the table is once it exists
   - A view with the table's name is not the table
@@ -2363,6 +2363,12 @@
 
 ## Tags
 
+### GetTagTarget finds the row a tag target names, null for a missing entity
+- **Contract:** GetTagTarget resolves a ref or natural-key target to the row the tags table joins on, passes the rest through, and returns null when the entity is missing.
+- **Guarantees:**
+  - Each existing target resolves to its entity kind and the id or name the tags table joins on
+  - A target whose entity does not exist resolves to null
+
 ### ListTags pages one target's tags by name in ordinal order
 - **Contract:** ListTags pages a target's tags with exact values by name in ordinal order, empty when it has none or is missing, and refuses a foreign cursor.
 - **Guarantees:**
@@ -2387,12 +2393,6 @@
   - Replace drops unlisted tags, keeps listed ones with their new values, and a repeat changes nothing
   - An empty list clears every tag and a full list of 32 is accepted
   - Tag limits and duplicate normalized names reject before replacing existing state
-
-### ResolveTagTarget finds the row a tag target names, null for a missing entity
-- **Contract:** ResolveTagTarget resolves a ref or natural-key target to the row the tags table joins on, passes the rest through, and returns null when the entity is missing.
-- **Guarantees:**
-  - Each existing target resolves to its entity kind and the id or name the tags table joins on
-  - A target whose entity does not exist resolves to null
 
 ### Tags read and mutate all first-class targets and filter typed queries
 - **Contract:** ITags lists an empty page for a missing target, atomically replaces, idempotently upserts/removes, and typed queries require every exact tag filter.
@@ -2567,22 +2567,27 @@
 | `EnsureMigrations` | yes | yes | yes |
 | `ExplainJob` | yes | yes | yes |
 | `ExtendWorkerLeases` | yes | yes | yes |
-| `FindOutboxTable` | yes | yes | yes |
 | `GetAlert` | yes | yes | yes |
 | `GetAlertFloor` | yes | yes | yes |
 | `GetCalendar` | yes | yes | yes |
 | `GetCalendarPublication` | yes | yes | yes |
+| `GetCalendarVersion` | yes | yes | yes |
 | `GetDefinition` | yes | yes | yes |
 | `GetJob` | yes | yes | yes |
+| `GetJobIdByDeduplicationKey` | yes | yes | yes |
+| `GetJobIdByRef` | yes | yes | yes |
+| `GetJobIdBySlot` | yes | yes | yes |
 | `GetJobInput` | yes | yes | yes |
 | `GetJobLineageMap` | yes | yes | yes |
 | `GetJobResult` | yes | yes | yes |
 | `GetJobStatus` | yes | yes | yes |
 | `GetNamespace` | yes | yes | yes |
 | `GetOutboxSignal` | yes | yes | yes |
+| `GetOutboxTable` | yes | yes | yes |
 | `GetOverview` | yes | yes | yes |
 | `GetScheduleFiring` | yes | yes | yes |
 | `GetScheduleHorizon` | yes | yes | yes |
+| `GetScheduleTarget` | yes | yes | yes |
 | `GetTenant` | yes | yes | yes |
 | `GetTenantName` | yes | yes | yes |
 | `GetUtcNow` | yes | yes | yes |
@@ -2642,11 +2647,6 @@
 | `ResetJobState` | yes | yes | yes |
 | `ResolveAlert` | yes | yes | yes |
 | `ResolveAlerts` | yes | yes | yes |
-| `ResolveCalendarVersion` | yes | yes | yes |
-| `ResolveJobIdByDeduplicationKey` | yes | yes | yes |
-| `ResolveJobIdByRef` | yes | yes | yes |
-| `ResolveJobIdBySlot` | yes | yes | yes |
-| `ResolveScheduleTarget` | yes | yes | yes |
 | `RestartJob` | yes | yes | yes |
 | `ResumeJob` | yes | yes | yes |
 | `ResumeNamespace` | yes | yes | yes |

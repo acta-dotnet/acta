@@ -11,11 +11,7 @@ namespace Acta;
 /// a pass before it plans, so planning stays synchronous; registration, preview, and publication preload as they go.
 /// The engine reaches it through <see cref="CalendarsOperations"/>.
 /// </summary>
-internal sealed class CalendarSources(
-    CalendarRegistry registry,
-    ListCurrentCalendarsHandler families,
-    ResolveCalendarVersionHandler versions
-)
+internal sealed class CalendarSources(CalendarRegistry registry, ListCurrentCalendarsHandler families, GetCalendarVersionHandler versions)
 {
     private readonly ConcurrentDictionary<(int NamespaceId, string Name, int Version), CompiledCalendar> _compiled = new();
     private readonly ConcurrentDictionary<int, ConcurrentDictionary<string, int>> _current = new();
@@ -93,7 +89,7 @@ internal sealed class CalendarSources(
 
     private async Task CompileAsync(int namespaceId, string name, int version, CancellationToken ct)
     {
-        if (await versions.HandleAsync(new ResolveCalendarVersionQuery(namespaceId, name, version), ct) is not { } row)
+        if (await versions.HandleAsync(new GetCalendarVersionQuery(namespaceId, name, version), ct) is not { } row)
         {
             return;
         }

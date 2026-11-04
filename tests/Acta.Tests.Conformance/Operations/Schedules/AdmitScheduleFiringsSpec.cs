@@ -267,9 +267,7 @@ public sealed class AdmitScheduleFiringsSpec : ActaStorageTestBase<ConformanceFi
         // The firing reads its target Active and stops at the lock before the suspension writes the namespace row, which
         // a locking read would otherwise wait on until the suspension commits.
         var lookup = new ScheduleLookup(TestNamespace, jobName, "only");
-        var target = await Services
-            .GetRequiredService<ResolveScheduleTargetHandler>()
-            .HandleAsync(new ResolveScheduleTargetQuery(lookup), ct);
+        var target = await Services.GetRequiredService<GetScheduleTargetHandler>().HandleAsync(new GetScheduleTargetQuery(lookup), ct);
         Assert.Equal(NamespaceStatusCode.Active, target!.NamespaceStatus);
         var schedules = Services.GetRequiredService<IActaOperations>().Schedules;
         var pending = schedules.TriggerAsync(lookup, ct: ct).AsTask();

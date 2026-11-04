@@ -10,7 +10,7 @@ namespace Acta;
 internal sealed class ParkOutboxSignalHandler(
     IDbSession session,
     ISqlDialect dialect,
-    ResolveJobIdBySlotHandler resolveJobIdBySlot,
+    GetJobIdBySlotHandler getJobIdBySlot,
     IJobs jobs,
     IActaClock clock,
     IOptions<JobsOptions> options,
@@ -54,7 +54,7 @@ internal sealed class ParkOutboxSignalHandler(
             throw new ArgumentException("OutboxIds must be null (every quarantined row) or non-empty.", nameof(outboxIds));
         }
 
-        if (await OutboxSlot.FindAsync(resolveJobIdBySlot, jobs, jobNamespace, ct) is not { } slot)
+        if (await OutboxSlot.FindAsync(getJobIdBySlot, jobs, jobNamespace, ct) is not { } slot)
         {
             return (ControlAction.NotFound, null);
         }

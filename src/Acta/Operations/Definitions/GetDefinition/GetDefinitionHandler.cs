@@ -1,10 +1,10 @@
 namespace Acta;
 
 /// <summary><see cref="IDefinitions.GetAsync"/>: resolves the natural key, then reads the row by id.</summary>
-internal sealed class GetDefinitionHandler(ResolveDefinitionIdHandler resolveDefinitionId, IDbSession session, ISqlDialect dialect)
+internal sealed class GetDefinitionHandler(GetDefinitionIdHandler getDefinitionId, IDbSession session, ISqlDialect dialect)
 {
     public async ValueTask<GetDefinitionResponse?> HandleAsync(GetDefinitionQuery query, CancellationToken ct) =>
-        await resolveDefinitionId.HandleAsync(new ResolveDefinitionIdQuery(query.JobNamespace, query.JobName), ct)
+        await getDefinitionId.HandleAsync(new GetDefinitionIdQuery(query.JobNamespace, query.JobName), ct)
             is { DefinitionId: var definitionId }
             ? await session.QuerySingleAsync(
                 "GetDefinition",

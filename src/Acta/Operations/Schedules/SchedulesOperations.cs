@@ -7,7 +7,7 @@ internal sealed class SchedulesOperations(
     TriggerScheduleHandler triggerSchedule,
     ListSchedulesHandler listSchedules,
     PreviewScheduleHandler previewSchedule,
-    ResolveScheduleTargetHandler resolveScheduleTarget,
+    GetScheduleTargetHandler getScheduleTarget,
     RegisterSchedulesHandler registerSchedules,
     ListScheduleStatesHandler listScheduleStates,
     ListDueSchedulesHandler listDueSchedules,
@@ -44,8 +44,8 @@ internal sealed class SchedulesOperations(
         previewSchedule.HandleAsync(new PreviewScheduleQuery(schedule, count), ct);
 
     /// <summary>The live schedule a path names, as the verbs resolve it; null when the path names nothing.</summary>
-    internal ValueTask<ResolveScheduleTargetResponse?> ResolveScheduleTargetAsync(ScheduleLookup schedule, CancellationToken ct) =>
-        resolveScheduleTarget.HandleAsync(new ResolveScheduleTargetQuery(schedule), ct);
+    internal ValueTask<GetScheduleTargetResponse?> GetScheduleTargetAsync(ScheduleLookup schedule, CancellationToken ct) =>
+        getScheduleTarget.HandleAsync(new GetScheduleTargetQuery(schedule), ct);
 
     /// <summary>
     /// Registers every definition's recurring slot job and its schedules in one set-based call, answering each slot.

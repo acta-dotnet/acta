@@ -115,7 +115,7 @@ public static class ActaServiceCollectionExtensions
         services.TryAddSingleton<GetDefinitionInputTemplateHandler>();
         services.TryAddSingleton<ListDefinitionsHandler>();
         services.TryAddSingleton<RegisterDefinitionsHandler>();
-        services.TryAddSingleton<ResolveDefinitionIdHandler>();
+        services.TryAddSingleton<GetDefinitionIdHandler>();
         services.TryAddSingleton<RetireDefinitionHandler>();
         services.TryAddSingleton<UpdateDefinitionOverridesHandler>();
         services.TryAddSingleton<DefinitionsOperations>();
@@ -138,9 +138,9 @@ public static class ActaServiceCollectionExtensions
         services.TryAddSingleton<ReprioritizeJobHandler>();
         services.TryAddSingleton<RescheduleJobHandler>();
         services.TryAddSingleton<ResetJobStateHandler>();
-        services.TryAddSingleton<ResolveJobIdByDeduplicationKeyHandler>();
-        services.TryAddSingleton<ResolveJobIdByRefHandler>();
-        services.TryAddSingleton<ResolveJobIdBySlotHandler>();
+        services.TryAddSingleton<GetJobIdByDeduplicationKeyHandler>();
+        services.TryAddSingleton<GetJobIdByRefHandler>();
+        services.TryAddSingleton<GetJobIdBySlotHandler>();
         services.TryAddSingleton<RestartJobHandler>();
         services.TryAddSingleton<ResumeJobHandler>();
         services.TryAddSingleton<UpdateJobInputHandler>();
@@ -181,7 +181,7 @@ public static class ActaServiceCollectionExtensions
         services.TryAddSingleton<PauseScheduleHandler>();
         services.TryAddSingleton<PreviewScheduleHandler>();
         services.TryAddSingleton<RegisterSchedulesHandler>();
-        services.TryAddSingleton<ResolveScheduleTargetHandler>();
+        services.TryAddSingleton<GetScheduleTargetHandler>();
         services.TryAddSingleton<ResumeScheduleHandler>();
         services.TryAddSingleton<TriggerScheduleHandler>();
         services.TryAddSingleton<SchedulesOperations>();
@@ -196,7 +196,7 @@ public static class ActaServiceCollectionExtensions
         services.TryAddSingleton<GetCalendarHandler>();
         services.TryAddSingleton<ListCalendarVersionsHandler>();
         services.TryAddSingleton<ListCalendarDependentsHandler>();
-        services.TryAddSingleton<ResolveCalendarVersionHandler>();
+        services.TryAddSingleton<GetCalendarVersionHandler>();
         services.TryAddSingleton<ListCurrentCalendarsHandler>();
         services.TryAddSingleton<ListCalendarsHandler>();
         services.TryAddSingleton<SaveCalendarDraftHandler>();
@@ -206,7 +206,7 @@ public static class ActaServiceCollectionExtensions
         services.TryAddSingleton<ListTagsHandler>();
         services.TryAddSingleton<RemoveTagHandler>();
         services.TryAddSingleton<ReplaceTagsHandler>();
-        services.TryAddSingleton<ResolveTagTargetHandler>();
+        services.TryAddSingleton<GetTagTargetHandler>();
         services.TryAddSingleton<UpsertTagHandler>();
         services.TryAddSingleton<TagsOperations>();
         services.TryAddSingleton<ITags>(sp => sp.GetRequiredService<TagsOperations>());

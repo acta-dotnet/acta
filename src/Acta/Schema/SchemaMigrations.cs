@@ -118,7 +118,7 @@ internal static partial class SchemaMigrations
         var outbox = new SchemaOperations(conn, new SqlResourceCatalog(dialectToken, schema, table), CommandTimeoutSeconds);
         await using var tx = await conn.BeginTransactionAsync(ct);
         await outbox.AcquireOutboxLockAsync(tx, ct);
-        if ((await outbox.FindOutboxTableAsync(tx, ct)).Exists)
+        if ((await outbox.GetOutboxTableAsync(tx, ct)).Exists)
         {
             return false;
         }

@@ -1,14 +1,14 @@
 namespace Acta;
 
 /// <summary><see cref="ITags.ReplaceAsync"/>: normalizes the set, resolves the target, then one replace.</summary>
-internal sealed class ReplaceTagsHandler(ResolveTagTargetHandler resolveTagTarget, IDbSession session, ISqlDialect dialect)
+internal sealed class ReplaceTagsHandler(GetTagTargetHandler getTagTarget, IDbSession session, ISqlDialect dialect)
 {
     public async ValueTask<ReplaceTagsResponse> HandleAsync(ReplaceTagsCommand command, CancellationToken ct)
     {
         ArgumentNullException.ThrowIfNull(command.Target, "target");
         ArgumentNullException.ThrowIfNull(command.Tags, "tags");
         var json = TagJson.Write(TagInput.NormalizeSet(command.Tags, "tags", "target"));
-        var target = await resolveTagTarget.HandleAsync(new ResolveTagTargetQuery(command.Target), ct);
+        var target = await getTagTarget.HandleAsync(new GetTagTargetQuery(command.Target), ct);
         return target is null
             ? new ReplaceTagsResponse(ControlAction.NotFound)
             : await session.ExecuteOneAsync(

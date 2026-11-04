@@ -7,7 +7,7 @@ namespace Acta;
 /// schedule has no slot.
 /// </summary>
 internal sealed class ResumeScheduleHandler(
-    ResolveScheduleTargetHandler resolveScheduleTarget,
+    GetScheduleTargetHandler getScheduleTarget,
     IDbSession session,
     ISqlDialect dialect,
     WorkerWakeupPublisher wakeup
@@ -17,7 +17,7 @@ internal sealed class ResumeScheduleHandler(
 
     public async ValueTask<ResumeScheduleResponse> HandleAsync(ResumeScheduleCommand command, CancellationToken ct)
     {
-        if (await resolveScheduleTarget.HandleAsync(new ResolveScheduleTargetQuery(command.Schedule), ct) is not { } target)
+        if (await getScheduleTarget.HandleAsync(new GetScheduleTargetQuery(command.Schedule), ct) is not { } target)
         {
             return NotFound;
         }

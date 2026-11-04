@@ -3,7 +3,7 @@ using System.Globalization;
 namespace Acta;
 
 /// <summary><see cref="ITags.ListAsync"/>: resolves the target, then one keyset page of its tags by name.</summary>
-internal sealed class ListTagsHandler(ResolveTagTargetHandler resolveTagTarget, IDbSession session, ISqlDialect dialect)
+internal sealed class ListTagsHandler(GetTagTargetHandler getTagTarget, IDbSession session, ISqlDialect dialect)
 {
     public async ValueTask<ListTagsResponse> HandleAsync(ListTagsQuery query, CancellationToken ct)
     {
@@ -12,7 +12,7 @@ internal sealed class ListTagsHandler(ResolveTagTargetHandler resolveTagTarget, 
 
         // A definition or job that is not there has no tags: answered before the cursor is read. A tenant or namespace
         // is found by the SQL, which answers no rows for one that is not there.
-        if (await resolveTagTarget.HandleAsync(new ResolveTagTargetQuery(query.Target), ct) is not { } target)
+        if (await getTagTarget.HandleAsync(new GetTagTargetQuery(query.Target), ct) is not { } target)
         {
             return new ListTagsResponse([], null, false, JobsQueryLimits.NormalizePageSize(query.PageSize), query.IncludeTotal ? 0 : null);
         }

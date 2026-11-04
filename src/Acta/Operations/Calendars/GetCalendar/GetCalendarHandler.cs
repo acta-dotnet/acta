@@ -6,7 +6,7 @@ namespace Acta;
 /// <see cref="ICalendars.GetAsync"/>: the family's head, then the shown version's definition. No row is ever deleted and a
 /// version's content never changes, so a write between the reads can only add a version or move a status.
 /// </summary>
-internal sealed class GetCalendarHandler(ResolveCalendarVersionHandler resolveCalendarVersion, IDbSession session, ISqlDialect dialect)
+internal sealed class GetCalendarHandler(GetCalendarVersionHandler getCalendarVersion, IDbSession session, ISqlDialect dialect)
 {
     public async ValueTask<GetCalendarResponse?> HandleAsync(GetCalendarQuery query, CancellationToken ct)
     {
@@ -31,7 +31,7 @@ internal sealed class GetCalendarHandler(ResolveCalendarVersionHandler resolveCa
         if (
             shown < 1
             || shown > head.LatestVersion
-            || await resolveCalendarVersion.HandleAsync(new ResolveCalendarVersionQuery(head.NamespaceId, calendarName, shown), ct)
+            || await getCalendarVersion.HandleAsync(new GetCalendarVersionQuery(head.NamespaceId, calendarName, shown), ct)
                 is not { } version
         )
         {

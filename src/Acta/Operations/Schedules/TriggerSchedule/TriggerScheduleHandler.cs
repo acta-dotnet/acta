@@ -10,7 +10,7 @@ namespace Acta;
 /// cursor moves.
 /// </summary>
 internal sealed class TriggerScheduleHandler(
-    ResolveScheduleTargetHandler resolveScheduleTarget,
+    GetScheduleTargetHandler getScheduleTarget,
     AdmitScheduleFiringsHandler admitScheduleFirings,
     IDbSession session,
     ISqlDialect dialect,
@@ -26,7 +26,7 @@ internal sealed class TriggerScheduleHandler(
     {
         for (var replan = 0; ; replan++)
         {
-            if (await resolveScheduleTarget.HandleAsync(new ResolveScheduleTargetQuery(command.Schedule), ct) is not { } target)
+            if (await getScheduleTarget.HandleAsync(new GetScheduleTargetQuery(command.Schedule), ct) is not { } target)
             {
                 return NotFound;
             }
@@ -63,7 +63,7 @@ internal sealed class TriggerScheduleHandler(
     /// A manual root: one admitting group, keyed by its firing so it is never deduplicated, and its schedule as a
     /// check-only row, so a pause or a lowered capacity committed after the read rejects it.
     /// </summary>
-    private async Task<bool> AdmitRootAsync(TriggerScheduleCommand command, ResolveScheduleTargetResponse target, CancellationToken ct)
+    private async Task<bool> AdmitRootAsync(TriggerScheduleCommand command, GetScheduleTargetResponse target, CancellationToken ct)
     {
         var firingId = Guid.CreateVersion7();
         var group = new AdmitScheduleFiringsGroup(
@@ -86,7 +86,7 @@ internal sealed class TriggerScheduleHandler(
 
     private async Task<TriggerScheduleResponse> FireSlotAsync(
         TriggerScheduleCommand command,
-        ResolveScheduleTargetResponse target,
+        GetScheduleTargetResponse target,
         long slotId,
         CancellationToken ct
     )
@@ -113,6 +113,6 @@ internal sealed class TriggerScheduleHandler(
         return new TriggerScheduleResponse(row.Action, row.Status, row.PausedUntilUtc, row.NextOccurrenceAtUtc, row.Version);
     }
 
-    private static TriggerScheduleResponse Answer(ControlAction action, ResolveScheduleTargetResponse target) =>
+    private static TriggerScheduleResponse Answer(ControlAction action, GetScheduleTargetResponse target) =>
         new(action, target.Status, target.PausedUntilUtc, target.NextOccurrenceAtUtc, target.Version);
 }
