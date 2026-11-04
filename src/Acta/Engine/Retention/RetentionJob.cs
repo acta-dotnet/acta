@@ -20,10 +20,11 @@ internal sealed class RetentionJob(
 {
     /// <summary>
     /// Per-tick bound: at most BatchSize * MaxIterations rows deleted per section; the next hourly
-    /// fire continues any backlog rather than letting one tick run unbounded.
+    /// fire continues any backlog rather than letting one tick run unbounded. A batch stays small because a purged
+    /// job takes its steps and checkpoints with it, one delete per table, and SQL Server escalates at 5,000 row locks.
     /// </summary>
-    private const int BatchSize = 1000;
-    private const int MaxIterations = 50;
+    private const int BatchSize = 100;
+    private const int MaxIterations = 500;
 
     /// <summary>The job variable that keeps the jobs walk's position from one tick to the next.</summary>
     private const string JobsCursorVariable = "purge-cursor";
@@ -200,7 +201,7 @@ internal sealed record RetentionSweep(
     int BatchSize,
     int MaxIterations,
     long JobsCursor = 0,
-    int MaxJobSlices = 200,
+    int MaxJobSlices = 2000,
     bool SweepSystemEvents = false
 );
 
