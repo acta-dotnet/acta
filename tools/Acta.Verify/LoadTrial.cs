@@ -87,6 +87,12 @@ internal static class LoadTrial
     /// <summary>The deduplication key of arrival <paramref name="index"/>, which is also its root's key.</summary>
     internal static string Key(int index) => $"root-{index}";
 
+    /// <summary>A trial's disk latency from the host's disk counters, unavailable when no sample of its drive wrote.</summary>
+    private static Metric DiskWrite(double? ms, string reason) =>
+        ms is { } value
+            ? new(value, "milliseconds", Reason: reason)
+            : new(null, "milliseconds", "UNAVAILABLE", "No disk counter sample of the trial's drive wrote while it ran.");
+
     public static async Task<CaseResult> RunAsync(
         RunPlan plan,
         OwnedProvider environment,
@@ -176,7 +182,6 @@ internal static class LoadTrial
         var backgroundTicks = Stopwatch.GetTimestamp() - seeding;
         // A cohort checkpoints after its enqueue instead.
         var checkpointed = !cohort && await state.CheckpointAsync(ct);
-        var flushBefore = DiskProbe.FlushMilliseconds(stateDirectory);
         var clock = await reader.ClockAsync(ct);
         var floor = await reader.LastJobIdAsync(ct);
         var streamStart = Stopwatch.GetTimestamp() + Stopwatch.Frequency / 10;
@@ -280,7 +285,7 @@ internal static class LoadTrial
         {
             throw new ResourceBudgetException("Declared memory/disk resource budget exceeded; evidence retained.");
         }
-        var flushAfter = DiskProbe.FlushMilliseconds(stateDirectory);
+        var diskWrite = environment.Disk?.WriteLatency(stateDirectory, streamStart, Stopwatch.GetTimestamp());
         var endClock = await reader.ClockAsync(ct);
         var drift = Math.Abs(Ms(clock.ToStopwatch(endClock.DatabaseTicks) - endClock.Ticks));
         var driftTolerance = 50 + Ms(clock.RoundTripTicks + endClock.RoundTripTicks) / 2;
@@ -875,16 +880,8 @@ internal static class LoadTrial
                 ["worker_safety_poll"] = Worker(s => s.SafetyPollMs, "milliseconds"),
                 ["worker_startup"] = new(workerStartupMs, "milliseconds"),
                 ["batch_size"] = new(spec.JobsPerCall, "roots/call"),
-                ["disk_flush_before"] = new(
-                    flushBefore,
-                    "milliseconds",
-                    Reason: "Median 8 KB flush in the trial's directory, just before it."
-                ),
-                ["disk_flush_after"] = new(
-                    flushAfter,
-                    "milliseconds",
-                    Reason: "Median 8 KB flush in the trial's directory, just after its drain."
-                ),
+                ["disk_write_ms"] = DiskWrite(diskWrite?.Mean, "Write latency of the trial's drive while it ran, per write."),
+                ["disk_write_p95_ms"] = DiskWrite(diskWrite?.P95, "95th percentile of the drive's two-second samples while it ran."),
                 ["enqueue_calls"] = new(spec.Calls, "calls", Reason: "Enqueue calls the controller keeps in flight at most."),
                 ["worker_processes"] = new(spec.Workers, "processes"),
                 ["live_worker_processes_at_reconciliation"] = new(workers.LiveCount, "processes"),

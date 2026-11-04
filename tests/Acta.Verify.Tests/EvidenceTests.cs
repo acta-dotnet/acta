@@ -94,18 +94,15 @@ public sealed class EvidenceTests
     }
 
     [Fact]
-    public void A_disk_probe_reads_a_flush_time_and_leaves_its_directory_as_it_found_it()
+    public void A_trials_disk_latency_weights_each_sample_by_its_writes()
     {
-        var directory = Directory.CreateTempSubdirectory("acta-verify-probe").FullName;
-        try
-        {
-            Assert.True(DiskProbe.FlushMilliseconds(directory) > 0);
-            Assert.Empty(Directory.EnumerateFileSystemEntries(directory));
-        }
-        finally
-        {
-            Directory.Delete(directory, recursive: true);
-        }
+        DiskCounters.Sample[] samples = [new("1 D:", 1, 100, 50), new("1 D:", 10, 10, 90), new("1 D:", 50, 0, 100)];
+
+        var (mean, p95) = DiskCounters.WriteLatency(samples)!.Value;
+
+        Assert.Equal((1 * 100 + 10 * 10) / 110.0, mean, 9);
+        Assert.Equal(10, p95);
+        Assert.Null(DiskCounters.WriteLatency([new DiskCounters.Sample("1 D:", 5, 0, 100)]));
     }
 
     [Fact]

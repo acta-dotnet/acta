@@ -20,6 +20,9 @@ internal sealed class OwnedProvider : IAsyncDisposable
     public bool SettingsVerified { get; private set; }
     public bool RetainState { get; set; } = true;
 
+    /// <summary>The run's host disk counters, which a load trial reads over its own span; null outside a suite run.</summary>
+    public DiskCounters? Disk { get; init; }
+
     /// <summary>The share of the memory cap this provider's container took; a container it starts besides takes the same.</summary>
     public double CapShare { get; private set; } = 1;
     private readonly string _stateDirectory;

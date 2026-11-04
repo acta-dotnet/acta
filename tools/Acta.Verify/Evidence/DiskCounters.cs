@@ -119,11 +119,7 @@ public sealed class DiskCounters : IDisposable
                 {
                     var latency = g.Where(s => s.Sample.WritesPerSecond > 0).Select(s => s.Sample.WriteMs).Order().ToArray();
                     var mean = latency.Length == 0 ? "-" : latency.Average().ToString("F2", CultureInfo.InvariantCulture);
-                    var p95 =
-                        latency.Length == 0
-                            ? "-"
-                            : latency[Math.Min(latency.Length - 1, (int)Math.Ceiling(0.95 * latency.Length) - 1)]
-                                .ToString("F2", CultureInfo.InvariantCulture);
+                    var p95 = latency.Length == 0 ? "-" : P95(latency).ToString("F2", CultureInfo.InvariantCulture);
                     return string.Create(
                         CultureInfo.InvariantCulture,
                         $"write {mean} ms mean, {p95} ms p95, {g.Average(s => s.Sample.WritesPerSecond):F0} writes/s, {g.Average(s => s.Sample.IdlePercent):F0}% idle, {g.Count()} samples"
@@ -251,14 +247,48 @@ public sealed class DiskCounters : IDisposable
                     _samples.Add((phase, sample));
                 }
                 _recent.Enqueue((Stopwatch.GetTimestamp(), sample));
-                // Five minutes of samples for every drive is more than any quiet window asks for.
-                while (_recent.Count > 600)
+                // Fifteen minutes of samples for every drive outlasts any quiet window and any load trial.
+                while (_recent.Count > 1800)
                 {
                     _recent.Dequeue();
                 }
             }
         }
     }
+
+    /// <summary>
+    /// The write latency of the drive holding <paramref name="directory"/> over the samples taken between two Stopwatch
+    /// instants, as <see cref="WriteLatency(IReadOnlyCollection{Sample})"/> reads them: what a load trial ran on.
+    /// </summary>
+    public (double Mean, double P95)? WriteLatency(string directory, long from, long to)
+    {
+        if (Path.GetPathRoot(Path.GetFullPath(directory))?.TrimEnd('\\', '/') is not { Length: > 0 } drive)
+        {
+            return null;
+        }
+        lock (_samples)
+        {
+            return WriteLatency([
+                .. _recent
+                    .Where(r => r.Ticks >= from && r.Ticks <= to && r.Sample.Drive.Contains(drive, StringComparison.OrdinalIgnoreCase))
+                    .Select(r => r.Sample),
+            ]);
+        }
+    }
+
+    /// <summary>The mean write latency per write, weighting each sample by its writes, and the p95 over the samples that wrote; null when none did.</summary>
+    public static (double Mean, double P95)? WriteLatency(IReadOnlyCollection<Sample> samples)
+    {
+        Sample[] wrote = [.. samples.Where(s => s.WritesPerSecond > 0)];
+        return wrote.Length == 0
+            ? null
+            : (
+                wrote.Sum(s => s.WriteMs * s.WritesPerSecond) / wrote.Sum(s => s.WritesPerSecond),
+                P95([.. wrote.Select(s => s.WriteMs).Order()])
+            );
+    }
+
+    private static double P95(double[] sorted) => sorted[Math.Min(sorted.Length - 1, (int)Math.Ceiling(0.95 * sorted.Length) - 1)];
 
     /// <summary>One drive's counters at one sample.</summary>
     public sealed record Sample(string Drive, double WriteMs, double WritesPerSecond, double IdlePercent);

@@ -303,7 +303,7 @@ internal static class SuiteRunner
             var verified = true;
             var ended = false;
 #pragma warning disable CA2000 // Disposed in the finally below, where a failed disposal is logged.
-            var environment = new OwnedProvider(provider, bundle.Resolve($"repro/state/{unit}"));
+            var environment = new OwnedProvider(provider, bundle.Resolve($"repro/state/{unit}")) { Disk = disk };
 #pragma warning restore CA2000
             try
             {

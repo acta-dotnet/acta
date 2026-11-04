@@ -225,7 +225,7 @@ public static partial class Report
         if (scenario.Runner == "drain")
         {
             text.Append(
-                "| Database | Pass | Jobs | Steady rate, database clock | Whole cohort | Disk flush, before / after | Result |\n|---|---:|---:|---:|---:|---:|---|\n"
+                "| Database | Pass | Jobs | Steady rate, database clock | Whole cohort | Disk write, mean / p95 | Result |\n|---|---:|---:|---:|---:|---:|---|\n"
             );
             foreach (var provider in providers)
             {
@@ -246,13 +246,13 @@ public static partial class Report
             return;
         }
         text.Append(
-            "| Database | Offered/s | Pass | Completed/s | p99 | Disk flush, before / after | Result |\n|---|---:|---:|---:|---:|---:|---|\n"
+            "| Database | Offered/s | Pass | Completed/s | p99 | Disk write, mean / p95 | Result |\n|---|---:|---:|---:|---:|---:|---|\n"
         );
         foreach (var provider in providers)
         {
             if (ScenarioRunner.Unwritten(scenario, provider) is { } reason)
             {
-                text.Append(CultureInfo.InvariantCulture, $"| {Name(provider)} | | | | | {Cell(reason)} |\n");
+                text.Append(CultureInfo.InvariantCulture, $"| {Name(provider)} | | | | | | {Cell(reason)} |\n");
                 continue;
             }
             var trials = cases.Where(c => c.Provider == provider && c.Id == scenario.Id && c.Phase is "measure" or "confirm").ToArray();
@@ -659,10 +659,10 @@ public static partial class Report
         : seconds >= 60 ? $"{(int)(seconds / 60)} min"
         : $"{seconds:F0} s";
 
-    /// <summary>A trial's <see cref="DiskProbe"/> readings, just before and just after it.</summary>
+    /// <summary>The write latency of a trial's drive while it ran, from the host's disk counters.</summary>
     private static string Disk(CaseResult trial) =>
-        Value(trial, "disk_flush_before") is { } before && Value(trial, "disk_flush_after") is { } after
-            ? $"{Number(before)} / {Number(after)} ms"
+        Value(trial, "disk_write_ms") is { } mean && Value(trial, "disk_write_p95_ms") is { } p95
+            ? $"{Number(mean)} / {Number(p95)} ms"
             : "-";
 
     internal static string Milliseconds(double? ms) =>
