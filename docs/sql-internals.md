@@ -240,9 +240,9 @@ so three rules decide every read on SQL Server:
    re-checked under the reader's own lock or used only for display. That covers the claim's horizon,
    the recovery walks and stale-latch read, the retention walks, the heartbeat, retire's two reads, the
    outbox lane check and backlog count ("Outbox lock"), and the dashboard's job lists and their
-   totals, lane probes, and lineage children.
-3. The overview's job counts read dirty with `NOLOCK`: they are for operators, so they take no lock
-   and never wait, and a count can include a row a transaction has not committed yet.
+   totals and lane probes.
+3. The overview's job counts and the lineage map read dirty with `NOLOCK`: they are for display, so
+   they take no lock and never wait, and they can include a row a transaction has not committed yet.
 
 A skipped row is one an application has not committed, which read-committed snapshot hides too, or one
 Acta itself is changing at that instant: a page or count can briefly miss it, in both modes.
