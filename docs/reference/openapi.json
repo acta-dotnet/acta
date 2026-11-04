@@ -6266,6 +6266,112 @@
         }
       }
     },
+    "/acta/api/v1/jobs/{jobRef}/steps": {
+      "get": {
+        "tags": [
+          "Jobs"
+        ],
+        "summary": "List one job's step slots, newest first.",
+        "operationId": "GetJobsByJobRefSteps",
+        "parameters": [
+          {
+            "name": "jobRef",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "pageSize",
+            "in": "query",
+            "description": "Rows per page; the server clamps to its bounds.",
+            "schema": {
+              "type": "integer",
+              "format": "int32"
+            }
+          },
+          {
+            "name": "cursor",
+            "in": "query",
+            "description": "Opaque keyset cursor from the previous page's nextCursor; omit for the first page.",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "includeTotal",
+            "in": "query",
+            "description": "Also compute the filter-wide row count (an extra aggregate read).",
+            "schema": {
+              "type": "boolean"
+            }
+          }
+        ],
+        "responses": {
+          "400": {
+            "description": "Bad Request",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          },
+          "413": {
+            "description": "Payload Too Large",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "Internal Server Error",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          },
+          "503": {
+            "description": "Service Unavailable",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          },
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ListJobStepsResponse"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Not Found",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/acta/api/v1/workers": {
       "get": {
         "tags": [
@@ -12008,6 +12114,101 @@
           }
         },
         "description": "One page of ValueTask&lt;ListJobsResponse&gt; ILedger.ListJobsAsync(ListJobsQuery query, CancellationToken ct = default(CancellationToken))."
+      },
+      "ListJobStepsItem": {
+        "required": [
+          "name",
+          "status",
+          "attemptNumber",
+          "nextRetryAtUtc",
+          "failureMessage",
+          "createdAtUtc",
+          "modifiedAtUtc"
+        ],
+        "type": "object",
+        "properties": {
+          "name": {
+            "type": "string"
+          },
+          "status": {
+            "$ref": "#/components/schemas/StepStatusCode"
+          },
+          "attemptNumber": {
+            "pattern": "^-?(?:0|[1-9]\\d*)$",
+            "type": [
+              "integer",
+              "string"
+            ],
+            "format": "int32"
+          },
+          "nextRetryAtUtc": {
+            "type": [
+              "null",
+              "string"
+            ],
+            "format": "date-time"
+          },
+          "failureMessage": {
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "createdAtUtc": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "modifiedAtUtc": {
+            "type": "string",
+            "format": "date-time"
+          }
+        },
+        "description": "One step slot of a job: its name, its status, the attempt it is on, when a pending retry is due, the last failure's\nmessage, and when the slot was first started and last written. The step's memoized result stays the engine's."
+      },
+      "ListJobStepsResponse": {
+        "required": [
+          "items",
+          "nextCursor",
+          "hasMore",
+          "pageSize",
+          "totalCount"
+        ],
+        "type": "object",
+        "properties": {
+          "items": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/ListJobStepsItem"
+            }
+          },
+          "nextCursor": {
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "hasMore": {
+            "type": "boolean"
+          },
+          "pageSize": {
+            "pattern": "^-?(?:0|[1-9]\\d*)$",
+            "type": [
+              "integer",
+              "string"
+            ],
+            "format": "int32"
+          },
+          "totalCount": {
+            "pattern": "^-?(?:0|[1-9]\\d*)$",
+            "type": [
+              "null",
+              "integer",
+              "string"
+            ],
+            "format": "int64"
+          }
+        },
+        "description": "One page of ValueTask&lt;ListJobStepsResponse&gt; IJobs.ListStepsAsync(ListJobStepsQuery query, CancellationToken ct = default(CancellationToken)): a job's step slots, newest first."
       },
       "ListNamespacesItem": {
         "required": [

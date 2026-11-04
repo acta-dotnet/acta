@@ -19,6 +19,7 @@ internal sealed class JobsOperations(
     GetJobInputHandler getJobInput,
     GetJobResultHandler getJobResult,
     ListJobCheckpointsHandler listJobCheckpoints,
+    ListJobStepsHandler listJobSteps,
     CancelJobHandler cancelJob,
     PauseJobHandler pauseJob,
     ResumeJobHandler resumeJob,
@@ -159,6 +160,9 @@ internal sealed class JobsOperations(
 
     public ValueTask<ListJobCheckpointsResponse> ListCheckpointsAsync(ListJobCheckpointsQuery query, CancellationToken ct = default) =>
         listJobCheckpoints.HandleAsync(query, ct);
+
+    public ValueTask<ListJobStepsResponse> ListStepsAsync(ListJobStepsQuery query, CancellationToken ct = default) =>
+        listJobSteps.HandleAsync(query, ct);
 
     public ValueTask<CancelJobResponse> CancelAsync(
         JobLookup job,

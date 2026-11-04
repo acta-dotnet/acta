@@ -47,6 +47,7 @@ Not tagged yet.
 - The CLI starts when `jobs` follows host switches such as `--environment Staging`. Before, a switch ahead of `jobs` booted the workers instead.
 - A refusal at startup for a missing or foreign migration names all three ways to apply: `jobs migrate`, `ApplyAsync`, and the published script.
 - `INamespaces.GetAsync(namespaceName)` reads one namespace by name, as `ITenants.GetAsync` reads a tenant: a `GetNamespaceResponse` with the members `ListNamespacesItem` carries, or `null` when there is no such namespace. `GET /namespaces/{jobNamespace}` serves it, answering 404 for an unknown namespace and 400 for a name that is not a namespace name, and the dashboard's namespace page reads it instead of searching the list.
+- `IJobs.ListStepsAsync(new ListJobStepsQuery(job))` reads a job's step slots, one page newest first: each step's name, status, attempt, next retry, last failure message, and when it was started and last written, as `ListJobStepsItem`, with `PageSize`, `Cursor`, and `IncludeTotal` as every list takes them, and an empty page for a job that does not exist. `GET /jobs/{jobRef}/steps` serves the same page and answers 404 for an unknown job.
 
 ### Fixes
 

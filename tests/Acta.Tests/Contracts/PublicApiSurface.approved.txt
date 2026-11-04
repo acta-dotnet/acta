@@ -1211,6 +1211,7 @@ interface Acta.IJobs
     System.Threading.Tasks.ValueTask<Acta.JobOutcome> RunAndWaitAsync<TInput>(TInput input, Acta.JobExecutionOptions options = null, System.Threading.CancellationToken ct = default)
     System.Threading.Tasks.ValueTask<Acta.JobOutcome> WaitAsync(Acta.JobLookup job, System.Nullable<System.TimeSpan> timeout = null, System.Threading.CancellationToken ct = default)
     System.Threading.Tasks.ValueTask<Acta.ListJobCheckpointsResponse> ListCheckpointsAsync(Acta.ListJobCheckpointsQuery query, System.Threading.CancellationToken ct = default)
+    System.Threading.Tasks.ValueTask<Acta.ListJobStepsResponse> ListStepsAsync(Acta.ListJobStepsQuery query, System.Threading.CancellationToken ct = default)
     System.Threading.Tasks.ValueTask<Acta.PauseJobResponse> PauseAsync(Acta.JobLookup job, System.String reasonMessage = null, System.String actor = null, System.Nullable<System.Int32> expectedVersion = null, System.Threading.CancellationToken ct = default)
     System.Threading.Tasks.ValueTask<Acta.PurgeJobResponse> PurgeAsync(Acta.JobLookup job, System.String actor = null, System.Threading.CancellationToken ct = default)
     System.Threading.Tasks.ValueTask<Acta.RaiseJobSignalResponse> RaiseSignalAsync(Acta.JobLookup job, System.String name, Acta.JobPayload value, System.String actor = null, System.Threading.CancellationToken ct = default)
@@ -1927,6 +1928,28 @@ sealed record Acta.ListJobCheckpointsResponse : Acta.IPagedResponse<Acta.ListJob
     .ctor(System.Collections.Generic.IReadOnlyList<Acta.ListJobCheckpointsItem> Items, System.String NextCursor, System.Boolean HasMore, System.Int32 PageSize, System.Nullable<System.Int64> TotalCount)
     System.Boolean HasMore { get;init; }
     System.Collections.Generic.IReadOnlyList<Acta.ListJobCheckpointsItem> Items { get;init; }
+    System.Int32 PageSize { get;init; }
+    System.Nullable<System.Int64> TotalCount { get;init; }
+    System.String NextCursor { get;init; }
+sealed record Acta.ListJobStepsItem
+    .ctor(System.String Name, Acta.StepStatusCode Status, System.Int32 AttemptNumber, System.Nullable<System.DateTime> NextRetryAtUtc, System.String FailureMessage, System.DateTime CreatedAtUtc, System.DateTime ModifiedAtUtc)
+    Acta.StepStatusCode Status { get;init; }
+    System.DateTime CreatedAtUtc { get;init; }
+    System.DateTime ModifiedAtUtc { get;init; }
+    System.Int32 AttemptNumber { get;init; }
+    System.Nullable<System.DateTime> NextRetryAtUtc { get;init; }
+    System.String FailureMessage { get;init; }
+    System.String Name { get;init; }
+sealed record Acta.ListJobStepsQuery
+    .ctor(Acta.JobLookup Job, System.Nullable<System.Int32> PageSize = null, System.String Cursor = null, System.Boolean IncludeTotal = false)
+    Acta.JobLookup Job { get;init; }
+    System.Boolean IncludeTotal { get;init; }
+    System.Nullable<System.Int32> PageSize { get;init; }
+    System.String Cursor { get;init; }
+sealed record Acta.ListJobStepsResponse : Acta.IPagedResponse<Acta.ListJobStepsItem>
+    .ctor(System.Collections.Generic.IReadOnlyList<Acta.ListJobStepsItem> Items, System.String NextCursor, System.Boolean HasMore, System.Int32 PageSize, System.Nullable<System.Int64> TotalCount)
+    System.Boolean HasMore { get;init; }
+    System.Collections.Generic.IReadOnlyList<Acta.ListJobStepsItem> Items { get;init; }
     System.Int32 PageSize { get;init; }
     System.Nullable<System.Int64> TotalCount { get;init; }
     System.String NextCursor { get;init; }

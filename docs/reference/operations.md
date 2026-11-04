@@ -97,6 +97,7 @@ One row per operation folder, `src/Acta/Operations/<Group>/<Operation>/`, and on
 | `GetJobResult` | `IJobs.WaitAsync`<br>`IJobs.RunAndWaitAsync`<br>`IJobs.GetResultAsync` | · | `result` | inline | inline | inline | · | `GetJobResultSpec` |
 | `GetJobStatus` | `IJobs.GetStatusAsync` | · | `status` | inline | inline | inline | · | `GetJobStatusSpec` |
 | `ListJobCheckpoints` | `IJobs.ListCheckpointsAsync` | `GET /jobs/{jobRef}/checkpoints` | · | inline | inline | inline | · | `ListJobCheckpointsSpec` |
+| `ListJobSteps` | `IJobs.ListStepsAsync` | `GET /jobs/{jobRef}/steps` | · | inline | inline | inline | · | `ListJobStepsSpec` |
 | `PauseJob` | `IJobs.PauseAsync` | `POST /jobs/{jobRef}/pause` | `pause` | inline | inline | inline | `events`, `jobs_state` | `PauseJobSpec` |
 | `PurgeJob` | `IJobs.PurgeAsync` | `POST /jobs/{jobRef}/purge` | · | inline | inline | inline | `alerts`, `checkpoints`, `events`, `jobs`, `jobs_state`, `schedules`, `schedules_state`, `steps`, `tags` | `PurgeJobSpec` |
 | `ReprioritizeJob` | `IJobs.ReprioritizeAsync` | `POST /jobs/{jobRef}/reprioritize` | · | inline | inline | inline | `events`, `jobs_state` | `ReprioritizeJobSpec` |

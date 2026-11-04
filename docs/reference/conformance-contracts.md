@@ -1590,6 +1590,13 @@
   - GetJobInput returns the payload the job was enqueued with
   - GetJobInput returns null when no job row matches the id
 
+### ListJobSteps pages a job's step slots newest first
+- **Contract:** ListJobSteps pages a job's step slots newest first with status and attempt, each slot once across pages, and an empty page for a job without a row.
+- **Guarantees:**
+  - ListJobSteps pages three steps newest first to a null cursor
+  - ListJobSteps orders steps started together by name, newest name first, across pages
+  - ListJobSteps answers an empty page for a missing id
+
 ### ListAlerts filter-matrix selects exactly matching rows per dimension
 - **Contract:** ListAlerts filters partition the alert rows to exactly the matching ids and exclude all non-matching ids for each filter dimension.
 - **Guarantees:**
@@ -2595,6 +2602,7 @@
 | `ListDueSchedules` | yes | yes | yes |
 | `ListEvents` | yes | yes | yes |
 | `ListJobCheckpoints` | yes | yes | yes |
+| `ListJobSteps` | yes | yes | yes |
 | `ListJobs` | yes | yes | yes |
 | `ListNamespaces` | yes | yes | yes |
 | `ListPoisonAlertEvents` | yes | yes | yes |

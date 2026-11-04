@@ -4,9 +4,9 @@ using Microsoft.AspNetCore.Routing;
 namespace Acta.AspNetCore;
 
 /// <summary>
-/// The Jobs routes: one job by its ref or its deduplication key, its tags, and the control verbs. A verb answers with
-/// its response at 200 when applied, 409 when the job's state or a stale expectedVersion refuses it, and 404 for an
-/// unknown ref, so a client reads <c>action</c>, <c>status</c>, and <c>version</c> without special-casing the code.
+/// The Jobs routes: one job by its ref or its deduplication key, its tags, its steps, and the control verbs. A verb
+/// answers with its response at 200 when applied, 409 when the job's state or a stale expectedVersion refuses it, and 404
+/// for an unknown ref, so a client reads <c>action</c>, <c>status</c>, and <c>version</c> without special-casing the code.
 /// </summary>
 internal static class JobsEndpoints
 {
@@ -64,6 +64,31 @@ internal static class JobsEndpoints
         GetJobInputEndpoint.Map(reads, options);
         GetJobDetailEndpoint.Map(reads, options);
         ListJobCheckpointsEndpoint.Map(reads, options);
+        reads
+            .MapList(
+                "/jobs/{jobRef}/steps",
+                "List one job's step slots, newest first.",
+                DashboardJsonContext.Default.ListJobStepsResponse,
+                query =>
+                    (
+                        Job: RouteKeys.Job(query.Http, options),
+                        PageSize: query.Int("pageSize"),
+                        Cursor: query.Text("cursor"),
+                        IncludeTotal: query.Bool("includeTotal") ?? false
+                    ),
+                static async (call, bound) =>
+                    await call.Jobs.ListStepsAsync(
+                        new ListJobStepsQuery(
+                            JobLookup.ById((await call.JobIdAsync(bound.Job))!.Value),
+                            bound.PageSize,
+                            bound.Cursor,
+                            bound.IncludeTotal
+                        ),
+                        call.Ct
+                    ),
+                [.. QueryParameterDocExtensions.PagingCore, .. QueryParameterDocExtensions.IncludeTotal]
+            )
+            .ProducesProblem(StatusCodes.Status404NotFound);
         if (controls is not null)
         {
             MapVerbs(controls, options);

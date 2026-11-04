@@ -295,6 +295,13 @@ public interface IJobs
     ValueTask<ListJobCheckpointsResponse> ListCheckpointsAsync(ListJobCheckpointsQuery query, CancellationToken ct = default);
 
     /// <summary>
+    /// One page of the step slots recorded for <see cref="ListJobStepsQuery.Job"/>, newest first: name, status, attempt,
+    /// next retry, and last failure. A job with no steps, or no job at all, answers an empty page. Non-blocking
+    /// point-in-time read.
+    /// </summary>
+    ValueTask<ListJobStepsResponse> ListStepsAsync(ListJobStepsQuery query, CancellationToken ct = default);
+
+    /// <summary>
     /// Typed convenience over <see cref="GetResultAsync(JobLookup, CancellationToken)"/>: deserializes the
     /// stored result payload to <typeparamref name="TResult"/> via the registered serializer, or returns
     /// <c>default</c> when the job has produced no result. Non-blocking (does not wait for completion). Throws, rather

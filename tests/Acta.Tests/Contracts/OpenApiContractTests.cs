@@ -89,6 +89,8 @@ public sealed partial class OpenApiContractTests
         // Ledger positions, counters, and the concurrency token.
         "eventId",
         "executionNumber",
+        // A step's attempt counter.
+        "attemptNumber",
         // An event's subject id beside its entityKind: the subject outlives its row (a purged job's tombstone still
         // names it), so no ref can stand in for it.
         "entityId",

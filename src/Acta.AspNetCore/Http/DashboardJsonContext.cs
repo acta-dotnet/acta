@@ -106,6 +106,7 @@ namespace Acta.AspNetCore;
 [JsonSerializable(typeof(GetCapabilitiesResponse))]
 [JsonSerializable(typeof(GetJobDetailResponse))]
 [JsonSerializable(typeof(ListJobCheckpointsResponse))]
+[JsonSerializable(typeof(ListJobStepsResponse))]
 [JsonSerializable(typeof(JobPayloadBody))]
 [JsonSerializable(typeof(EnqueueJobRequest))]
 [JsonSerializable(typeof(EnqueueJobResponse))]
