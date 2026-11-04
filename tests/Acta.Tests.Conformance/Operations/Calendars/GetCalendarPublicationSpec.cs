@@ -28,13 +28,17 @@ public sealed class GetCalendarPublicationSpec : ActaStorageTestBase<Conformance
         await Calendars.SaveDraftAsync(calendar, CalendarRoleCode.Occurrence, CalendarTestOps.OccurrenceDefinition, 2, ct: ct);
         var handler = Services.GetRequiredService<GetCalendarPublicationHandler>();
 
-        var rows = (await handler.HandleAsync(new GetCalendarPublicationQuery(TestNamespace, calendar.CalendarName, 3), ct)).Rows;
+        var (current, candidate) = await handler.HandleAsync(new GetCalendarPublicationQuery(TestNamespace, calendar.CalendarName, 3), ct);
 
-        Assert.Equal([1, 3], rows.Select(r => r.Version));
-        Assert.Equal([CalendarStatusCode.Published, CalendarStatusCode.Draft], rows.Select(r => r.Status));
-        Assert.All(rows, r => Assert.Equal((TestNamespaceId, CalendarRoleCode.Occurrence), (r.NamespaceId, r.Role)));
-        Assert.Equal((await Calendars.GetAsync(calendar, 3, ct))!.Definition, Encoding.UTF8.GetString(rows[1].Definition.Span));
-        Assert.Empty((await handler.HandleAsync(new GetCalendarPublicationQuery(TestNamespace, Unique("no-such"), 1), ct)).Rows);
+        Assert.NotNull(current);
+        Assert.NotNull(candidate);
+        Assert.Equal((1, CalendarStatusCode.Published), (current.Version, current.Status));
+        Assert.Equal((3, CalendarStatusCode.Draft), (candidate.Version, candidate.Status));
+        Assert.All([current, candidate], r => Assert.Equal((TestNamespaceId, CalendarRoleCode.Occurrence), (r.NamespaceId, r.Role)));
+        Assert.Equal((await Calendars.GetAsync(calendar, 3, ct))!.Definition, Encoding.UTF8.GetString(candidate.Definition.Span));
+        var unknown = await handler.HandleAsync(new GetCalendarPublicationQuery(TestNamespace, Unique("no-such"), 1), ct);
+        Assert.Null(unknown.Current);
+        Assert.Null(unknown.Candidate);
     }
 
     [Fact(DisplayName = "A shared family reads back from sys with its namespace id")]
@@ -44,13 +48,15 @@ public sealed class GetCalendarPublicationSpec : ActaStorageTestBase<Conformance
         var shared = new CalendarLookup("sys", Unique("holidays"));
         await Calendars.SaveDraftAsync(shared, CalendarRoleCode.Availability, CalendarTestOps.AvailabilityDefinition, 0, ct: ct);
 
-        var rows = (
-            await Services
-                .GetRequiredService<GetCalendarPublicationHandler>()
-                .HandleAsync(new GetCalendarPublicationQuery("sys", shared.CalendarName, 1), ct)
-        ).Rows;
+        var (current, candidate) = await Services
+            .GetRequiredService<GetCalendarPublicationHandler>()
+            .HandleAsync(new GetCalendarPublicationQuery("sys", shared.CalendarName, 1), ct);
 
-        var row = Assert.Single(rows);
-        Assert.Equal((NameSyntax.SystemNamespaceId, 1, CalendarStatusCode.Draft), (row.NamespaceId, row.Version, row.Status));
+        Assert.Null(current);
+        Assert.NotNull(candidate);
+        Assert.Equal(
+            (NameSyntax.SystemNamespaceId, 1, CalendarStatusCode.Draft),
+            (candidate.NamespaceId, candidate.Version, candidate.Status)
+        );
     }
 }

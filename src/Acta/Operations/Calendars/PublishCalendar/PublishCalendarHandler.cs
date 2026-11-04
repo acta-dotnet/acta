@@ -40,11 +40,10 @@ internal sealed class PublishCalendarHandler(
         PublishCalendarResponse? last = null;
         for (var attempt = 0; attempt <= MaxReplans; attempt++)
         {
-            var rows = (
-                await family.HandleAsync(new GetCalendarPublicationQuery(jobNamespace, calendarName, command.CandidateVersion), ct)
-            ).Rows;
-            var candidate = rows.FirstOrDefault(r => r.Version == command.CandidateVersion);
-            var current = rows.FirstOrDefault(r => r.Status == CalendarStatusCode.Published);
+            var (current, candidate) = await family.HandleAsync(
+                new GetCalendarPublicationQuery(jobNamespace, calendarName, command.CandidateVersion),
+                ct
+            );
             if (candidate is null)
             {
                 return new PublishCalendarResponse(ControlAction.NotFound, null, [], [], null);

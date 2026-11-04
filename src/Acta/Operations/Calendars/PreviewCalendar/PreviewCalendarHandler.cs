@@ -13,13 +13,12 @@ internal sealed class PreviewCalendarHandler(
     {
         var (jobNamespace, calendarName) = CalendarControl.Names(query.Calendar);
         var zone = NextOccurrenceCalculator.ResolveTimeZone(query.TimeZoneId);
-        var rows = (await family.HandleAsync(new GetCalendarPublicationQuery(jobNamespace, calendarName, query.Version), ct)).Rows;
-        if (rows.FirstOrDefault(r => r.Version == query.Version) is not { } version)
+        var (current, candidate) = await family.HandleAsync(new GetCalendarPublicationQuery(jobNamespace, calendarName, query.Version), ct);
+        if (candidate is not { } version)
         {
             return null;
         }
 
-        var current = rows.FirstOrDefault(r => r.Status == CalendarStatusCode.Published);
         var now = await clock.GetUtcNowAsync(ct);
         var from = DateTime.SpecifyKind(query.FromUtc ?? now, DateTimeKind.Utc);
         var count = Math.Clamp(query.Count, 1, 50);
