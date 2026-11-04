@@ -7,7 +7,7 @@ namespace Acta.Tests.Conformance.SqlServer.Testing;
 /// <summary>
 /// A database a fact creates through <c>master</c> and drops when it ends, its sessions included: for SQL that changes a
 /// database-wide setting or must start from an empty database, which the shared test database never is. The helpers open
-/// unpooled connections, so a session a ROLLBACK IMMEDIATE ended is never handed back to the fact.
+/// unpooled connections, so a session the drop's ROLLBACK IMMEDIATE ended is never handed back to the fact.
 /// </summary>
 public sealed class ScratchDatabase(string name) : IAsyncDisposable
 {

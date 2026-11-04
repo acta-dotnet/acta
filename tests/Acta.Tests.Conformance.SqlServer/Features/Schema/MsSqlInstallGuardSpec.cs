@@ -8,8 +8,8 @@ namespace Acta.Tests.Conformance.SqlServer.Features.Schema;
 
 /// <summary>
 /// Where an install turns READ_COMMITTED_SNAPSHOT on: only in a database that holds no objects yet, however many installers
-/// race there, and never in a system database. Each fact runs in a database of its own, because the guard's ALTER
-/// disconnects every other session in its database.
+/// race there, and never in a system database. Each fact runs in a database of its own, because the guard changes a
+/// setting of its whole database.
 /// </summary>
 public sealed class MsSqlInstallGuardSpec
 {

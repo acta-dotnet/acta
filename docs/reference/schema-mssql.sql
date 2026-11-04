@@ -27,9 +27,8 @@
 -- add; keep the logical shape - tables, columns, constraints, routine signatures - intact.
 
 -- Acta runs with READ_COMMITTED_SNAPSHOT on or off, so on a database that already holds objects the
--- setting stays yours. Every condition the server would refuse is checked first, so in a user database
--- the ALTER runs or is skipped. When it runs, WITH ROLLBACK IMMEDIATE disconnects any other session in
--- the database: on a new database, run one copy of this script at a time.
+-- setting stays yours. Every condition the server would refuse is checked first, and the switch never
+-- ends another session: one the server refuses leaves the setting as it is.
 IF DB_NAME() IN (N'master', N'tempdb', N'model', N'msdb')
 BEGIN
     RAISERROR(N'Acta installs into a database of its own, never master, tempdb, model or msdb.', 16, 1);
@@ -39,8 +38,25 @@ IF (SELECT is_read_committed_snapshot_on FROM sys.databases WHERE database_id = 
    AND NOT EXISTS (SELECT 1 FROM sys.objects WHERE is_ms_shipped = 0)
    AND HAS_PERMS_BY_NAME(DB_NAME(), 'DATABASE', 'ALTER') = 1
    AND SERVERPROPERTY('EngineEdition') <> 5 -- Azure SQL Database allows this change only from master
-    -- Dynamic: a system database refuses ALTER DATABASE CURRENT when the batch compiles, before the refusal above runs.
-    EXEC (N'ALTER DATABASE CURRENT SET READ_COMMITTED_SNAPSHOT ON WITH ROLLBACK IMMEDIATE');
+BEGIN
+    -- One installer switches and the others go on without waiting: the switch waits for their transactions, so a
+    -- session waiting for it here would deadlock with it.
+    DECLARE @switch_lock INT;
+    EXEC @switch_lock = sp_getapplock N'acta-rcsi-switch', 'Exclusive', 'Session', 0;
+    IF @switch_lock >= 0
+    BEGIN
+        IF (SELECT is_read_committed_snapshot_on FROM sys.databases WHERE database_id = DB_ID()) = 0
+        BEGIN
+            BEGIN TRY
+                -- Dynamic: a system database refuses ALTER DATABASE CURRENT at compile time, before the refusal above runs.
+                EXEC (N'ALTER DATABASE CURRENT SET READ_COMMITTED_SNAPSHOT ON WITH NO_WAIT');
+            END TRY
+            BEGIN CATCH
+            END CATCH
+        END
+        EXEC sp_releaseapplock N'acta-rcsi-switch', 'Session';
+    END
+END
 GO
 SET XACT_ABORT ON;
 BEGIN TRANSACTION;

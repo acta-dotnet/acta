@@ -13,7 +13,7 @@ namespace Acta.Tests.Conformance.SqlServer.Features.Schema;
 /// under an elevated principal is exactly how locked-down deployments consume it. Runs the committed
 /// file against a fresh schema name (using the header's own "replace the schema name throughout"
 /// instruction) in a database of the fact's own: the script's first batch turns read-committed snapshot
-/// on, which disconnects every other session in its database, so it never runs in the shared one.
+/// on in an empty database, a setting of the whole database, so it never runs in the shared one.
 /// </summary>
 public sealed partial class MsSqlProvisionScriptSpec
 {

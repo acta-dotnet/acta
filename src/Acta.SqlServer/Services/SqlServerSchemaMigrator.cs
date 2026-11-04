@@ -21,8 +21,8 @@ internal sealed class SqlServerSchemaMigrator(SqlProviderOptions options, ILogge
 
     /// <summary>
     /// The first batch of every SQL Server install, the published script's included: it refuses a system database and turns
-    /// READ_COMMITTED_SNAPSHOT on only in a database that holds no objects yet. Acta runs with it on or off, so on any other
-    /// database the setting stays its owner's.
+    /// READ_COMMITTED_SNAPSHOT on only in a database that holds no objects yet. The switch never ends another session, and a
+    /// switch the server refuses leaves the setting as it is: Acta runs with it on or off.
     /// </summary>
     internal const string InstallGuard = """
         IF DB_NAME() IN (N'master', N'tempdb', N'model', N'msdb')
@@ -34,18 +34,34 @@ internal sealed class SqlServerSchemaMigrator(SqlProviderOptions options, ILogge
            AND NOT EXISTS (SELECT 1 FROM sys.objects WHERE is_ms_shipped = 0)
            AND HAS_PERMS_BY_NAME(DB_NAME(), 'DATABASE', 'ALTER') = 1
            AND SERVERPROPERTY('EngineEdition') <> 5 -- Azure SQL Database allows this change only from master
-            -- Dynamic: a system database refuses ALTER DATABASE CURRENT when the batch compiles, before the refusal above runs.
-            EXEC (N'ALTER DATABASE CURRENT SET READ_COMMITTED_SNAPSHOT ON WITH ROLLBACK IMMEDIATE');
+        BEGIN
+            -- One installer switches and the others go on without waiting: the switch waits for their transactions, so a
+            -- session waiting for it here would deadlock with it.
+            DECLARE @switch_lock INT;
+            EXEC @switch_lock = sp_getapplock N'acta-rcsi-switch', 'Exclusive', 'Session', 0;
+            IF @switch_lock >= 0
+            BEGIN
+                IF (SELECT is_read_committed_snapshot_on FROM sys.databases WHERE database_id = DB_ID()) = 0
+                BEGIN
+                    BEGIN TRY
+                        -- Dynamic: a system database refuses ALTER DATABASE CURRENT at compile time, before the refusal above runs.
+                        EXEC (N'ALTER DATABASE CURRENT SET READ_COMMITTED_SNAPSHOT ON WITH NO_WAIT');
+                    END TRY
+                    BEGIN CATCH
+                    END CATCH
+                END
+                EXEC sp_releaseapplock N'acta-rcsi-switch', 'Session';
+            END
+        END
         """;
 
     internal const string DialectToken = "mssql";
 
     // A proven login waits out a database another installer is still creating. An unproven one tries once more after two
-    // seconds: another installer's READ_COMMITTED_SNAPSHOT change refuses logins for a moment with the same 18456 a wrong
-    // password gets, so a wrong password costs two failed logins a run instead of one.
+    // seconds, since a login can be refused for a moment while another installer's switch completes with the same 18456 a
+    // wrong password gets, so a wrong password costs two failed logins a run instead of one.
     private const int ProvenOpenAttempts = 60;
     private const int UnprovenOpenAttempts = 2;
-    private const int InstallAttempts = 5;
 
     private static readonly Assembly ProviderAssembly = typeof(SqlServerSchemaMigrator).Assembly;
     private static readonly TimeSpan RetryDelay = TimeSpan.FromMilliseconds(500);
@@ -130,37 +146,24 @@ internal sealed class SqlServerSchemaMigrator(SqlProviderOptions options, ILogge
         CancellationToken ct
     )
     {
-        // Before anything opens: the guard can switch the database's setting and end its other sessions.
+        // Before anything opens, so a refused argument changes nothing.
         RequireDatabase(connectionString);
         SqlIdentifierSyntax.ValidateBareIdentifier(schema, nameof(schema));
 
         // Unpooled: after a rejected login the pool answers every open with the cached error for its blocking period, which
-        // would outlast the retries, and a pooled session another installer's ROLLBACK IMMEDIATE ended must not come back.
+        // would outlast the open's retry.
         var installConnection = new SqlConnectionStringBuilder(connectionString) { Pooling = false }.ConnectionString;
-        for (var attempt = 1; ; attempt++)
+        await using var conn = await OpenAsync(installConnection, loginProven, ct);
+        await using (var guard = conn.CreateCommand())
         {
-            try
-            {
-                await using var conn = await OpenAsync(installConnection, loginProven, ct);
-                loginProven = true;
-                await using (var guard = conn.CreateCommand())
-                {
-                    guard.CommandTimeout = SchemaMigrations.CommandTimeoutSeconds;
-                    guard.CommandText = InstallGuard;
-                    await guard.ExecuteNonQueryAsync(ct);
-                }
-
-                // The same connection: the session that ran the ALTER keeps the database, and the published script runs
-                // every batch after it the same way.
-                return await SchemaMigrations.ApplyAsync(conn, schema, DialectToken, ProviderAssembly, ct);
-            }
-            catch (SqlException ex)
-                when (attempt < InstallAttempts && IsConcurrentInstall(ex.Errors.Cast<SqlError>().Select(e => e.Number)))
-            {
-                // The apply rolled back, and the guard finds the setting already on when the step runs again.
-                await Task.Delay(RetryDelay, ct);
-            }
+            guard.CommandTimeout = SchemaMigrations.CommandTimeoutSeconds;
+            guard.CommandText = InstallGuard;
+            await guard.ExecuteNonQueryAsync(ct);
         }
+
+        // The same connection: the session that ran the ALTER keeps the database, and the published script runs every batch
+        // after it the same way.
+        return await SchemaMigrations.ApplyAsync(conn, schema, DialectToken, ProviderAssembly, ct);
     }
 
     private static async Task<SqlConnection> OpenAsync(string connectionString, bool loginProven, CancellationToken ct)
@@ -235,13 +238,4 @@ internal sealed class SqlServerSchemaMigrator(SqlProviderOptions options, ILogge
     /// a moment. How often depends on whether the login is proven; any other error surfaces at once.
     /// </summary>
     internal static bool RetriesOpen(int number) => number is 4060 or 18456;
-
-    /// <summary>
-    /// Whether a failed step was another installer's guard colliding with it, which starts the step again: 596 session killed,
-    /// and 0, 64, 233, 10053, 10054, and 10060 connection reset, by its ROLLBACK IMMEDIATE; 5061 its ALTER holding the
-    /// database. Every error counts, since a killed ALTER reports 5069 ahead of the 596. A timeout or a deadlock fails the
-    /// step, so a migration batch is never repeated behind a blocking workload.
-    /// </summary>
-    internal static bool IsConcurrentInstall(IEnumerable<int> errorNumbers) =>
-        errorNumbers.Any(number => number is 596 or 5061 or 0 or 64 or 233 or 10053 or 10054 or 10060);
 }
