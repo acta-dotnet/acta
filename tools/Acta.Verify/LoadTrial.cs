@@ -101,7 +101,8 @@ internal static class LoadTrial
         var trialStarted = Stopwatch.GetTimestamp();
         var writeSecondsAtStart = bundle.WriteSeconds;
         Console.WriteLine($"  START {tag}");
-        var state = environment.Trial(bundle.Resolve($"repro/state/{tag}"));
+        var stateDirectory = bundle.Resolve($"repro/state/{tag}");
+        var state = environment.Trial(stateDirectory);
         using var effects = spec.NeedsEffectService ? new EffectService(bundle.Resolve($"repro/state/{tag}/effects.db")) : null;
         if (effects is not null)
         {
@@ -175,6 +176,7 @@ internal static class LoadTrial
         var backgroundTicks = Stopwatch.GetTimestamp() - seeding;
         // A cohort checkpoints after its enqueue instead.
         var checkpointed = !cohort && await state.CheckpointAsync(ct);
+        var flushBefore = DiskProbe.FlushMilliseconds(stateDirectory);
         var clock = await reader.ClockAsync(ct);
         var floor = await reader.LastJobIdAsync(ct);
         var streamStart = Stopwatch.GetTimestamp() + Stopwatch.Frequency / 10;
@@ -278,6 +280,7 @@ internal static class LoadTrial
         {
             throw new ResourceBudgetException("Declared memory/disk resource budget exceeded; evidence retained.");
         }
+        var flushAfter = DiskProbe.FlushMilliseconds(stateDirectory);
         var endClock = await reader.ClockAsync(ct);
         var drift = Math.Abs(Ms(clock.ToStopwatch(endClock.DatabaseTicks) - endClock.Ticks));
         var driftTolerance = 50 + Ms(clock.RoundTripTicks + endClock.RoundTripTicks) / 2;
@@ -872,6 +875,16 @@ internal static class LoadTrial
                 ["worker_safety_poll"] = Worker(s => s.SafetyPollMs, "milliseconds"),
                 ["worker_startup"] = new(workerStartupMs, "milliseconds"),
                 ["batch_size"] = new(spec.JobsPerCall, "roots/call"),
+                ["disk_flush_before"] = new(
+                    flushBefore,
+                    "milliseconds",
+                    Reason: "Median 8 KB flush in the trial's directory, just before it."
+                ),
+                ["disk_flush_after"] = new(
+                    flushAfter,
+                    "milliseconds",
+                    Reason: "Median 8 KB flush in the trial's directory, just after its drain."
+                ),
                 ["enqueue_calls"] = new(spec.Calls, "calls", Reason: "Enqueue calls the controller keeps in flight at most."),
                 ["worker_processes"] = new(spec.Workers, "processes"),
                 ["live_worker_processes_at_reconciliation"] = new(workers.LiveCount, "processes"),

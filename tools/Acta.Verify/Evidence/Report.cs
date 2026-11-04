@@ -225,27 +225,29 @@ public static partial class Report
         if (scenario.Runner == "drain")
         {
             text.Append(
-                "| Database | Pass | Jobs | Steady rate, database clock | Whole cohort | Result |\n|---|---:|---:|---:|---:|---|\n"
+                "| Database | Pass | Jobs | Steady rate, database clock | Whole cohort | Disk flush, before / after | Result |\n|---|---:|---:|---:|---:|---:|---|\n"
             );
             foreach (var provider in providers)
             {
                 if (ScenarioRunner.Unwritten(scenario, provider) is { } reason)
                 {
-                    text.Append(CultureInfo.InvariantCulture, $"| {Name(provider)} | | | | | {Cell(reason)} |\n");
+                    text.Append(CultureInfo.InvariantCulture, $"| {Name(provider)} | | | | | | {Cell(reason)} |\n");
                     continue;
                 }
                 foreach (var trial in cases.Where(c => c.Provider == provider && c.Id == scenario.Id && c.Phase == "measure"))
                 {
                     text.Append(
                         CultureInfo.InvariantCulture,
-                        $"| {Name(provider)} | {trial.Repetition} | {Number(Value(trial, "intended_roots"))} | {Number(Value(trial, "db_steady_drain_rate"))} jobs/s | {Number(Value(trial, "db_drain_seconds"))} s | {Cell(Outcome(plan, scenario, trial))} |\n"
+                        $"| {Name(provider)} | {trial.Repetition} | {Number(Value(trial, "intended_roots"))} | {Number(Value(trial, "db_steady_drain_rate"))} jobs/s | {Number(Value(trial, "db_drain_seconds"))} s | {Disk(trial)} | {Cell(Outcome(plan, scenario, trial))} |\n"
                     );
                 }
             }
             text.Append('\n');
             return;
         }
-        text.Append("| Database | Offered/s | Pass | Completed/s | p99 | Result |\n|---|---:|---:|---:|---:|---|\n");
+        text.Append(
+            "| Database | Offered/s | Pass | Completed/s | p99 | Disk flush, before / after | Result |\n|---|---:|---:|---:|---:|---:|---|\n"
+        );
         foreach (var provider in providers)
         {
             if (ScenarioRunner.Unwritten(scenario, provider) is { } reason)
@@ -264,7 +266,7 @@ public static partial class Report
                     .ToArray();
                 if (atRate.Length == 0)
                 {
-                    text.Append(CultureInfo.InvariantCulture, $"| {Name(provider)} | {Number(rate)} | | | | not run by rule |\n");
+                    text.Append(CultureInfo.InvariantCulture, $"| {Name(provider)} | {Number(rate)} | | | | | not run by rule |\n");
                     continue;
                 }
                 foreach (var trial in atRate)
@@ -273,7 +275,7 @@ public static partial class Report
                     var offered = Value(trial, "overload_rate") is { } overload ? $"{Number(overload)}, then {Number(rate)}" : Number(rate);
                     text.Append(
                         CultureInfo.InvariantCulture,
-                        $"| {Name(provider)} | {offered} | {trial.Repetition} | {Number(Value(trial, "window_completed_rate"))} | {Milliseconds(Value(trial, "primary_latency_p99"))} | {Cell(Outcome(plan, scenario, trial))} |\n"
+                        $"| {Name(provider)} | {offered} | {trial.Repetition} | {Number(Value(trial, "window_completed_rate"))} | {Milliseconds(Value(trial, "primary_latency_p99"))} | {Disk(trial)} | {Cell(Outcome(plan, scenario, trial))} |\n"
                     );
                 }
             }
@@ -281,7 +283,7 @@ public static partial class Report
             {
                 text.Append(
                     CultureInfo.InvariantCulture,
-                    $"| {Name(provider)} | {Number(Value(trial, "offered_rate"))} | confirm, {Number(Value(trial, "scheduled_window_seconds"))} s | {Number(Value(trial, "window_completed_rate"))} | {Milliseconds(Value(trial, "primary_latency_p99"))} | {Cell(Outcome(plan, scenario, trial))} |\n"
+                    $"| {Name(provider)} | {Number(Value(trial, "offered_rate"))} | confirm, {Number(Value(trial, "scheduled_window_seconds"))} s | {Number(Value(trial, "window_completed_rate"))} | {Milliseconds(Value(trial, "primary_latency_p99"))} | {Disk(trial)} | {Cell(Outcome(plan, scenario, trial))} |\n"
                 );
             }
         }
@@ -656,6 +658,12 @@ public static partial class Report
         seconds >= 3600 ? $"{(int)(seconds / 3600)} h {(int)(seconds % 3600 / 60)} min"
         : seconds >= 60 ? $"{(int)(seconds / 60)} min"
         : $"{seconds:F0} s";
+
+    /// <summary>A trial's <see cref="DiskProbe"/> readings, just before and just after it.</summary>
+    private static string Disk(CaseResult trial) =>
+        Value(trial, "disk_flush_before") is { } before && Value(trial, "disk_flush_after") is { } after
+            ? $"{Number(before)} / {Number(after)} ms"
+            : "-";
 
     internal static string Milliseconds(double? ms) =>
         ms switch

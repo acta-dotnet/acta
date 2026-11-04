@@ -94,6 +94,21 @@ public sealed class EvidenceTests
     }
 
     [Fact]
+    public void A_disk_probe_reads_a_flush_time_and_leaves_its_directory_as_it_found_it()
+    {
+        var directory = Directory.CreateTempSubdirectory("acta-verify-probe").FullName;
+        try
+        {
+            Assert.True(DiskProbe.FlushMilliseconds(directory) > 0);
+            Assert.Empty(Directory.EnumerateFileSystemEntries(directory));
+        }
+        finally
+        {
+            Directory.Delete(directory, recursive: true);
+        }
+    }
+
+    [Fact]
     public void Disk_counters_summarize_write_latency_over_the_samples_that_wrote()
     {
         Assert.Null(DiskCounters.Parse("Get-Counter : no data"));
