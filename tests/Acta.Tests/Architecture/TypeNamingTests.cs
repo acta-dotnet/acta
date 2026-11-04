@@ -91,8 +91,8 @@ public sealed class TypeNamingTests
         }
     }
 
-    // Item names the element of an operation's response: ListJobsResponse is a page of ListJobsItem, GetTagsResponse
-    // a list of GetTagsItem.
+    // Item names the element of an operation's response: ListJobsResponse is a page of ListJobsItem, ListTagsResponse
+    // a page of ListTagsItem.
     private static bool ResponseElement(Type type, string name) =>
         type.Assembly.GetType($"{type.Namespace}.{name[..^"Item".Length]}Response") is not null;
 

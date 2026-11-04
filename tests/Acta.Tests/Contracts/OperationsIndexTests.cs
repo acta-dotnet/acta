@@ -316,7 +316,7 @@ public sealed partial class OperationsIndexTests
 
                 if (name == "MapTags")
                 {
-                    found.Add(("GET", pattern, "GetTags"));
+                    found.Add(("GET", pattern, "ListTags"));
                     found.Add(("POST", pattern, "UpsertTag"));
                     found.Add(("DELETE", pattern + "/{tagName}", "RemoveTag"));
                 }

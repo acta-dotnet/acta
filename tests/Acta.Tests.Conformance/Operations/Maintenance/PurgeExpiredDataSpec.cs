@@ -81,7 +81,7 @@ public sealed class PurgeExpiredDataSpec : ActaRuntimeTestBase<ConformanceFixtur
         Assert.Empty(await Db.From<JobStateEntity>().Where(r => r.Id == jobId).ToListAsync(ct));
         Assert.Empty(await Db.From<StepEntity>().Where(s => s.JobId == jobId).ToListAsync(ct));
         Assert.Empty(await Db.From<CheckpointEntity>().Where(c => c.JobId == jobId).ToListAsync(ct));
-        Assert.Null(await Operations.Tags.GetAsync(TagTarget.ForJob(JobLookup.ById(jobId)), ct));
+        Assert.Empty((await Operations.Tags.ListAsync(new ListTagsQuery(TagTarget.ForJob(JobLookup.ById(jobId))), ct)).Items);
         Assert.Empty(await Db.From<TagEntity>().Where(t => t.EntityCode == EntityCode.Job && t.EntityId == jobId).ToListAsync(ct));
     }
 

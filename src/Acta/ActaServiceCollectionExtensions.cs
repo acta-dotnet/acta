@@ -200,7 +200,7 @@ public static class ActaServiceCollectionExtensions
         services.TryAddSingleton<CalendarsOperations>();
         services.TryAddSingleton<ICalendars>(sp => sp.GetRequiredService<CalendarsOperations>());
 
-        services.TryAddSingleton<GetTagsHandler>();
+        services.TryAddSingleton<ListTagsHandler>();
         services.TryAddSingleton<RemoveTagHandler>();
         services.TryAddSingleton<ReplaceTagsHandler>();
         services.TryAddSingleton<ResolveTagTargetHandler>();

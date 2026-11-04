@@ -1,6 +1,6 @@
 <script lang="ts">
   import { createQuery, useQueryClient } from '@tanstack/svelte-query';
-  import { api, controlRequest, type TagMutationResponse } from '../api.ts';
+  import { api, controlRequest, type Paged, type TagMutationResponse } from '../api.ts';
   import { capabilitiesQuery, canControl } from '../query.ts';
   import Icon from './Icon.svelte';
 
@@ -9,14 +9,19 @@
     value: string | null;
   }
 
-  // `path` is the entity's tag subresource, e.g. `jobs/${jobRef}/tags`. The editor GETs it, and
+  // `path` is the entity's tag subresource, e.g. `jobs/${jobRef}/tags`. The editor GETs its page, and
   // POST/DELETE against the same path add and remove individual tags.
   let { path }: { path: string } = $props();
+
+  // The largest page a list serves. A target carries at most 32 tags (TagLimits.MaxTagsPerTarget), so one
+  // page holds them all.
+  const TAG_PAGE_SIZE = 100;
 
   const client = useQueryClient();
   const tags = createQuery(() => ({
     queryKey: ['tags', path],
-    queryFn: async ({ signal }: { signal: AbortSignal }) => (await api<{ items: Tag[] }>(path, {}, { signal })).items
+    queryFn: async ({ signal }: { signal: AbortSignal }) =>
+      (await api<Paged<Tag>>(path, { pageSize: TAG_PAGE_SIZE }, { signal })).items
   }));
   const capabilities = createQuery(() => capabilitiesQuery());
   let canEdit = $derived(canControl(capabilities.data));

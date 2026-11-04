@@ -1,4 +1,4 @@
 namespace Acta;
 
 /// <summary>One normalized tag attached to a target.</summary>
-public sealed record GetTagsItem(string Name, string? Value = null);
+public sealed record ListTagsItem(string Name, string? Value = null);

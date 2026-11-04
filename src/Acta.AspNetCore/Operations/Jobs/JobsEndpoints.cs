@@ -58,7 +58,8 @@ internal static class JobsEndpoints
             "job",
             options,
             DashboardJsonContext.Default.UpsertJobTagRequest,
-            http => TagTarget.ForJob(RouteKeys.Job(http, options))
+            http => TagTarget.ForJob(RouteKeys.Job(http, options)),
+            async (http, call) => await call.Jobs.GetIdAsync(RouteKeys.Job(http, options), call.Ct) is not null
         );
         GetJobInputEndpoint.Map(reads, options);
         GetJobDetailEndpoint.Map(reads, options);

@@ -56,9 +56,10 @@ internal static class RouteTable
             .ProducesProblem(StatusCodes.Status404NotFound);
 
     /// <summary>
-    /// A target's tags: the read, and when controls are mapped the upsert, whose body is <typeparamref name="TBody"/>, and
-    /// the remove. A target the resolver cannot build is caller input and answers 400; an addressable one with no tag set
-    /// answers 404, on a mutation with the control envelope.
+    /// A target's tags: the paged list, and when controls are mapped the upsert, whose body is <typeparamref name="TBody"/>,
+    /// and the remove. A target the resolver cannot build is caller input and answers 400; an addressable one that is not
+    /// there answers 404, on the list when <paramref name="exists"/> finds no target through its facade, and on a mutation
+    /// with the control envelope.
     /// </summary>
     public static void MapTags<TBody>(
         this RouteGroupBuilder reads,
@@ -67,19 +68,21 @@ internal static class RouteTable
         string entity,
         ActaEndpointOptions options,
         JsonTypeInfo<TBody> upsert,
-        Func<HttpContext, TagTarget> target
+        Func<HttpContext, TagTarget> target,
+        Func<HttpContext, ReadCall, ValueTask<bool>> exists
     )
         where TBody : class, IUpsertTagRequest
     {
         reads
             .MapGet(
                 pattern,
-                (HttpContext http, IActaOperations operations, CancellationToken ct) =>
-                    TagRoutes.ReadAsync(operations, () => target(http), ct)
+                (HttpContext http, IActaOperations operations, IJobs jobs, CancellationToken ct) =>
+                    TagRoutes.ListAsync(http, new ReadCall(operations, jobs, ct), () => target(http), exists)
             )
-            .WithSummary($"Read the {entity}'s tags.")
-            .Produces<GetTagsResponse>(StatusCodes.Status200OK)
-            .ProducesProblem(StatusCodes.Status404NotFound);
+            .WithSummary($"List the {entity}'s tags.")
+            .Produces<ListTagsResponse>(StatusCodes.Status200OK)
+            .ProducesProblem(StatusCodes.Status404NotFound)
+            .WithQueryParameters([.. QueryParameterDocExtensions.PagingCore, .. QueryParameterDocExtensions.IncludeTotal]);
 
         if (controls is null)
         {
@@ -333,27 +336,52 @@ internal sealed record ReadCall(IActaOperations Operations, IJobs Jobs, Cancella
 /// <summary>
 /// The tag subresource over <see cref="ITags"/>, behind every group's tag routes. One rule decides the target's
 /// answer: a target this API cannot address, a catalog identifier or an entity ref alike, is malformed input and
-/// answers 400, read or mutation; so 404 says only that an addressable target carries no tag set or a mutation
-/// matched no row. Every resolver therefore reports a target it cannot build as <see cref="ArgumentException"/>.
+/// answers 400, read or mutation; so 404 says only that an addressable target is not there or a mutation matched
+/// no row. Every resolver therefore reports a target it cannot build as <see cref="ArgumentException"/>.
 /// </summary>
 internal static class TagRoutes
 {
-    public static async Task<IResult> ReadAsync(IActaOperations operations, Func<TagTarget> resolve, CancellationToken ct)
-    {
-        GetTagsResponse? response;
-        try
+    /// <summary>
+    /// One page of the target's tags. <see cref="ITags.ListAsync"/> answers an empty page for a target that is not there,
+    /// so the target is found through its own facade first, and only a target found is listed.
+    /// </summary>
+    public static Task<IResult> ListAsync(
+        HttpContext http,
+        ReadCall call,
+        Func<TagTarget> resolve,
+        Func<HttpContext, ReadCall, ValueTask<bool>> exists
+    ) =>
+        RouteTable.Run(async () =>
         {
-            // Both the resolver and ITags canonicalize identifiers, and either can report one
-            // this API cannot address; that is caller input, so it is the 400 and never a miss.
-            response = await operations.Tags.GetAsync(resolve(), ct);
-        }
-        catch (ArgumentException ex)
-        {
-            return InvalidTarget(ex);
-        }
+            var paging = QueryReader.Bind(
+                http.Request,
+                static query => (PageSize: query.Int("pageSize"), Cursor: query.Text("cursor"), IncludeTotal: query.Bool("includeTotal"))
+            );
+            TagTarget target;
+            bool found;
+            try
+            {
+                // The resolver and the facade that finds the target both canonicalize identifiers, and either can
+                // report one this API cannot address; that is caller input, so it is the 400 and never a miss.
+                target = resolve();
+                found = await exists(http, call);
+            }
+            catch (ArgumentException ex)
+            {
+                return InvalidTarget(ex);
+            }
 
-        return response is null ? NotFound() : Results.Json(response, DashboardJsonContext.Default.GetTagsResponse);
-    }
+            if (!found)
+            {
+                return NotFound();
+            }
+
+            var page = await call.Operations.Tags.ListAsync(
+                new ListTagsQuery(target, paging.PageSize, paging.Cursor, paging.IncludeTotal ?? false),
+                call.Ct
+            );
+            return Results.Json(page, DashboardJsonContext.Default.ListTagsResponse);
+        });
 
     public static async Task<IResult> UpsertAsync<TBody>(
         HttpContext http,
@@ -421,7 +449,7 @@ internal static class TagRoutes
         ControlEndpointValidation.Problem(StatusCodes.Status400BadRequest, "Invalid tag or tag target.", ex.Message);
 
     /// <summary>
-    /// A read has no control envelope to answer with - its 200 is the tags themselves - so an unknown target
+    /// A list has no control envelope to answer with - its 200 is the page of tags - so an unknown target
     /// there is the plain problem document every other read returns.
     /// </summary>
     private static IResult NotFound() => Results.Problem(statusCode: StatusCodes.Status404NotFound, title: "Not found.");

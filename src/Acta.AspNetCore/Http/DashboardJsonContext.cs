@@ -95,7 +95,7 @@ namespace Acta.AspNetCore;
 [JsonSerializable(typeof(DiscardOutboxRequest))]
 [JsonSerializable(typeof(RequeueOutboxResponse))]
 [JsonSerializable(typeof(DiscardOutboxResponse))]
-[JsonSerializable(typeof(GetTagsResponse))]
+[JsonSerializable(typeof(ListTagsResponse))]
 [JsonSerializable(typeof(UpsertJobTagRequest))]
 [JsonSerializable(typeof(UpsertNamespaceTagRequest))]
 [JsonSerializable(typeof(UpsertTenantTagRequest))]

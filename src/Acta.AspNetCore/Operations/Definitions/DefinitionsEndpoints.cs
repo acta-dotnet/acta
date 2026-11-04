@@ -61,7 +61,9 @@ internal static class DefinitionsEndpoints
             "definition",
             options,
             DashboardJsonContext.Default.UpsertDefinitionTagRequest,
-            static http => TagTarget.ForDefinition(Key(http).Namespace, Key(http).Name)
+            static http => TagTarget.ForDefinition(Key(http).Namespace, Key(http).Name),
+            static async (http, call) =>
+                await call.Operations.Definitions.GetAsync(Key(http).Namespace, Key(http).Name, call.Ct) is not null
         );
         if (controls is null)
         {

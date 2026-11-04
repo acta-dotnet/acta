@@ -3,8 +3,11 @@ namespace Acta;
 /// <summary>Reads and mutates exact searchable metadata attachments.</summary>
 public interface ITags
 {
-    /// <summary>Returns null for a missing target, otherwise its normalized name-ordered tag set.</summary>
-    ValueTask<GetTagsResponse?> GetAsync(TagTarget target, CancellationToken ct = default);
+    /// <summary>
+    /// One page of a target's normalized tags by name, in ordinal order. A target that does not exist answers an
+    /// empty page, as one without tags does.
+    /// </summary>
+    ValueTask<ListTagsResponse> ListAsync(ListTagsQuery query, CancellationToken ct = default);
 
     /// <summary>Atomically replaces all tags on an existing target. An empty list clears the target.</summary>
     ValueTask<ReplaceTagsResponse> ReplaceAsync(TagTarget target, IReadOnlyList<TagInput> tags, CancellationToken ct = default);

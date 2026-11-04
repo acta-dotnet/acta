@@ -141,7 +141,7 @@
         "tags": [
           "Jobs"
         ],
-        "summary": "Read the job's tags.",
+        "summary": "List the job's tags.",
         "operationId": "GetJobsByJobRefTags",
         "parameters": [
           {
@@ -150,6 +150,31 @@
             "required": true,
             "schema": {
               "type": "string"
+            }
+          },
+          {
+            "name": "pageSize",
+            "in": "query",
+            "description": "Rows per page; the server clamps to its bounds.",
+            "schema": {
+              "type": "integer",
+              "format": "int32"
+            }
+          },
+          {
+            "name": "cursor",
+            "in": "query",
+            "description": "Opaque keyset cursor from the previous page's nextCursor; omit for the first page.",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "includeTotal",
+            "in": "query",
+            "description": "Also compute the filter-wide row count (an extra aggregate read).",
+            "schema": {
+              "type": "boolean"
             }
           }
         ],
@@ -199,7 +224,7 @@
             "content": {
               "application/json": {
                 "schema": {
-                  "$ref": "#/components/schemas/GetTagsResponse"
+                  "$ref": "#/components/schemas/ListTagsResponse"
                 }
               }
             }
@@ -2083,7 +2108,7 @@
         "tags": [
           "Namespaces"
         ],
-        "summary": "Read the namespace's tags.",
+        "summary": "List the namespace's tags.",
         "operationId": "GetNamespacesByJobNamespaceTags",
         "parameters": [
           {
@@ -2092,6 +2117,31 @@
             "required": true,
             "schema": {
               "type": "string"
+            }
+          },
+          {
+            "name": "pageSize",
+            "in": "query",
+            "description": "Rows per page; the server clamps to its bounds.",
+            "schema": {
+              "type": "integer",
+              "format": "int32"
+            }
+          },
+          {
+            "name": "cursor",
+            "in": "query",
+            "description": "Opaque keyset cursor from the previous page's nextCursor; omit for the first page.",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "includeTotal",
+            "in": "query",
+            "description": "Also compute the filter-wide row count (an extra aggregate read).",
+            "schema": {
+              "type": "boolean"
             }
           }
         ],
@@ -2141,7 +2191,7 @@
             "content": {
               "application/json": {
                 "schema": {
-                  "$ref": "#/components/schemas/GetTagsResponse"
+                  "$ref": "#/components/schemas/ListTagsResponse"
                 }
               }
             }
@@ -2856,7 +2906,7 @@
         "tags": [
           "Tenants"
         ],
-        "summary": "Read the tenant's tags.",
+        "summary": "List the tenant's tags.",
         "operationId": "GetTenantsByTenantNameTags",
         "parameters": [
           {
@@ -2865,6 +2915,31 @@
             "required": true,
             "schema": {
               "type": "string"
+            }
+          },
+          {
+            "name": "pageSize",
+            "in": "query",
+            "description": "Rows per page; the server clamps to its bounds.",
+            "schema": {
+              "type": "integer",
+              "format": "int32"
+            }
+          },
+          {
+            "name": "cursor",
+            "in": "query",
+            "description": "Opaque keyset cursor from the previous page's nextCursor; omit for the first page.",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "includeTotal",
+            "in": "query",
+            "description": "Also compute the filter-wide row count (an extra aggregate read).",
+            "schema": {
+              "type": "boolean"
             }
           }
         ],
@@ -2914,7 +2989,7 @@
             "content": {
               "application/json": {
                 "schema": {
-                  "$ref": "#/components/schemas/GetTagsResponse"
+                  "$ref": "#/components/schemas/ListTagsResponse"
                 }
               }
             }
@@ -4368,7 +4443,7 @@
         "tags": [
           "Definitions"
         ],
-        "summary": "Read the definition's tags.",
+        "summary": "List the definition's tags.",
         "operationId": "GetDefinitionsByJobNamespaceByJobNameTags",
         "parameters": [
           {
@@ -4385,6 +4460,31 @@
             "required": true,
             "schema": {
               "type": "string"
+            }
+          },
+          {
+            "name": "pageSize",
+            "in": "query",
+            "description": "Rows per page; the server clamps to its bounds.",
+            "schema": {
+              "type": "integer",
+              "format": "int32"
+            }
+          },
+          {
+            "name": "cursor",
+            "in": "query",
+            "description": "Opaque keyset cursor from the previous page's nextCursor; omit for the first page.",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "includeTotal",
+            "in": "query",
+            "description": "Also compute the filter-wide row count (an extra aggregate read).",
+            "schema": {
+              "type": "boolean"
             }
           }
         ],
@@ -4434,7 +4534,7 @@
             "content": {
               "application/json": {
                 "schema": {
-                  "$ref": "#/components/schemas/GetTagsResponse"
+                  "$ref": "#/components/schemas/ListTagsResponse"
                 }
               }
             }
@@ -10400,39 +10500,6 @@
         },
         "description": "One-shot health counters for the dashboard overview, computed on the database clock: ready jobs (all Ready plus\nSuspended jobs whose durable wait has expired) and the oldest one's claimable age, executing and failed jobs,\nunresolved alerts and the Critical ones among them, dead workers and stale ones (Active or Draining, not seen\nwithin the stale threshold), schedules due inside the due-soon window and the most overdue one's lag, and the\nexecutor capacity across live workers, which `ExecutingCount` can exceed: a finished job stays Executing\nuntil its batched completion write commits."
       },
-      "GetTagsItem": {
-        "required": [
-          "name"
-        ],
-        "type": "object",
-        "properties": {
-          "name": {
-            "type": "string"
-          },
-          "value": {
-            "type": [
-              "null",
-              "string"
-            ]
-          }
-        },
-        "description": "One normalized tag attached to a target."
-      },
-      "GetTagsResponse": {
-        "required": [
-          "items"
-        ],
-        "type": "object",
-        "properties": {
-          "items": {
-            "type": "array",
-            "items": {
-              "$ref": "#/components/schemas/GetTagsItem"
-            }
-          }
-        },
-        "description": "The tags attached to one existing target, returned by ValueTask&lt;GetTagsResponse?&gt; ITags.GetAsync(TagTarget target, CancellationToken ct = default(CancellationToken)): an immutable snapshot ordered by\nnormalized name using ordinal comparison, and empty when the target carries no tags."
-      },
       "GetTenantResponse": {
         "required": [
           "tenantName",
@@ -12009,6 +12076,69 @@
           }
         },
         "description": "One page of ValueTask&lt;ListSchedulesResponse&gt; ISchedules.ListAsync(ListSchedulesQuery query, CancellationToken ct = default(CancellationToken))."
+      },
+      "ListTagsItem": {
+        "required": [
+          "name"
+        ],
+        "type": "object",
+        "properties": {
+          "name": {
+            "type": "string"
+          },
+          "value": {
+            "type": [
+              "null",
+              "string"
+            ]
+          }
+        },
+        "description": "One normalized tag attached to a target."
+      },
+      "ListTagsResponse": {
+        "required": [
+          "items",
+          "nextCursor",
+          "hasMore",
+          "pageSize",
+          "totalCount"
+        ],
+        "type": "object",
+        "properties": {
+          "items": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/ListTagsItem"
+            }
+          },
+          "nextCursor": {
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "hasMore": {
+            "type": "boolean"
+          },
+          "pageSize": {
+            "pattern": "^-?(?:0|[1-9]\\d*)$",
+            "type": [
+              "integer",
+              "string"
+            ],
+            "format": "int32"
+          },
+          "totalCount": {
+            "pattern": "^-?(?:0|[1-9]\\d*)$",
+            "type": [
+              "null",
+              "integer",
+              "string"
+            ],
+            "format": "int64"
+          }
+        },
+        "description": "One page of ValueTask&lt;ListTagsResponse&gt; ITags.ListAsync(ListTagsQuery query, CancellationToken ct = default(CancellationToken)): a target's tags by normalized name, in ordinal order."
       },
       "ListTenantsItem": {
         "required": [

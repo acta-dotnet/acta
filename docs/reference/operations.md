@@ -200,7 +200,7 @@ One row per operation folder, `src/Acta/Operations/<Group>/<Operation>/`, and on
 
 | Operation | Facade | HTTP | CLI | pg | mssql | sqlite | Writes | Specs |
 | --- | --- | --- | --- | --- | --- | --- | --- | --- |
-| `GetTags` | `ITags.GetAsync` | `GET /definitions/{jobNamespace}/{jobName}/tags`<br>`GET /jobs/{jobRef}/tags`<br>`GET /namespaces/{jobNamespace}/tags`<br>`GET /tenants/{tenantName}/tags` | · | inline | inline | inline | · | `GetTagsSpec` |
+| `ListTags` | `ITags.ListAsync` | `GET /definitions/{jobNamespace}/{jobName}/tags`<br>`GET /jobs/{jobRef}/tags`<br>`GET /namespaces/{jobNamespace}/tags`<br>`GET /tenants/{tenantName}/tags` | · | inline | inline | inline | · | `ListTagsSpec` |
 | `RemoveTag` | `ITags.RemoveAsync` | `DELETE /definitions/{jobNamespace}/{jobName}/tags/{tagName}`<br>`DELETE /jobs/{jobRef}/tags/{tagName}`<br>`DELETE /namespaces/{jobNamespace}/tags/{tagName}`<br>`DELETE /tenants/{tenantName}/tags/{tagName}` | · | inline | inline | inline | `tags` | `RemoveTagSpec` |
 | `ReplaceTags` | `ITags.ReplaceAsync` | · | · | inline | inline | inline | `tags` | `ReplaceTagsSpec` |
 | `ResolveTagTarget` | · | · | · | · | · | · | · | `ResolveTagTargetSpec` |

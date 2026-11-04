@@ -2345,13 +2345,15 @@
 
 ## Tags
 
-### Get reads one target's tags and null for a missing target
-- **Contract:** Get returns an existing target's tags with their exact values in name order, an empty set when it has none, and null when the target is missing.
+### ListTags pages one target's tags by name in ordinal order
+- **Contract:** ListTags pages a target's tags with exact values by name in ordinal order, empty when it has none or is missing, and refuses a foreign cursor.
 - **Guarantees:**
-  - A target without tags reads an empty set and a missing target reads null
+  - A target without tags and a target that does not exist both list an empty page
   - Each tag reads back its exact value, and a presence-only tag reads a null value
   - A tenant name or job name addressed in another case reads the same target
   - A read returns only the addressed target's tags
+  - Pages walk to the end in ordinal order across hyphen, dot, and digit boundaries, each tag once
+  - A cursor another target or another list handed out is refused, and so is a malformed one
 
 ### Remove deletes one tag by name and treats a missing tag as done
 - **Contract:** Remove deletes one tag by name from an existing target, leaves its other tags and every other target alone, and applies harmlessly when the tag is absent.
@@ -2375,9 +2377,9 @@
   - A target whose entity does not exist resolves to null
 
 ### Tags read and mutate all first-class targets and filter typed queries
-- **Contract:** ITags distinguishes missing from empty targets, atomically replaces, idempotently upserts/removes, and typed queries require every exact tag filter.
+- **Contract:** ITags lists an empty page for a missing target, atomically replaces, idempotently upserts/removes, and typed queries require every exact tag filter.
 - **Guarantees:**
-  - All four existing targets read empty while missing targets read null and mutate NotFound
+  - All four targets list an empty page whether they exist or not, and missing targets mutate NotFound
   - The seeded sys namespace supports tag reads and mutations
   - Replace is atomic and clearable; upsert and remove are idempotent and reads are name ordered
   - Tenant, namespace, definition, and job lists use AND tag semantics
@@ -2564,7 +2566,6 @@
 | `GetOverview` | yes | yes | yes |
 | `GetScheduleFiring` | yes | yes | yes |
 | `GetScheduleHorizon` | yes | yes | yes |
-| `GetTags` | yes | yes | yes |
 | `GetTenant` | yes | yes | yes |
 | `GetTenantName` | yes | yes | yes |
 | `GetUtcNow` | yes | yes | yes |
@@ -2589,6 +2590,7 @@
 | `ListScheduleStates` | yes | yes | yes |
 | `ListSchedules` | yes | yes | yes |
 | `ListStaleJobChildLatches` | yes | yes | yes |
+| `ListTags` | yes | yes | yes |
 | `ListTenants` | yes | yes | yes |
 | `ListWorkers` | yes | yes | yes |
 | `MarkDeadWorkers` | yes | yes | yes |

@@ -1,71 +1,183 @@
 using System.Net;
 using System.Net.Http.Json;
+using System.Text.Json;
 using Acta.Tests.AspNetCore.Fakes;
 using Xunit;
 
 namespace Acta.Tests.AspNetCore;
 
 /// <summary>
-/// Tag endpoints over the in-process host: per-entity tag reads, control-gated upsert/remove with
+/// Tag endpoints over the in-process host: per-entity tag pages, control-gated upsert/remove with
 /// the confirmation header, outcome-to-status mapping, and tag-filter binding on list endpoints.
 /// </summary>
 public sealed class TagEndpointTests
 {
     private const string Confirm = "X-Acta-Control";
     private static readonly string Found = FakeJobs.FoundJobRef.ToString();
+    private static readonly string Missing = FakeJobs.MissingJobRef.ToString();
+
+    /// <summary>The four tag reads, each on a target its group's fake knows.</summary>
+    private static readonly string[] KnownTargets =
+    [
+        $"jobs/{Found}/tags",
+        "definitions/billing/send-invoice/tags",
+        "namespaces/billing/tags",
+        "tenants/cust-001/tags",
+    ];
 
     private static Task<(Microsoft.AspNetCore.Builder.WebApplication App, HttpClient Client)> StartControlsAsync(
         FakeOperations? fakes = null
     ) => TestDashboardHost.StartAsync(options => options.EnableControls = true, fakes: fakes);
 
     [Fact]
-    public async Task Get_tags_returns_the_target_tag_set_for_every_entity_route()
+    public async Task List_tags_answers_the_page_object_for_every_entity_route()
     {
         var (app, client) = await TestDashboardHost.StartAsync();
         await using var _ = app;
+        var ct = TestContext.Current.CancellationToken;
 
-        foreach (
-            var path in new[]
-            {
-                $"jobs/{Found}/tags",
-                "definitions/billing/send-invoice/tags",
-                "namespaces/billing/tags",
-                "tenants/acme/tags",
-            }
-        )
+        foreach (var path in KnownTargets)
         {
-            var response = await client.GetAsync($"/acta/api/v1/{path}", TestContext.Current.CancellationToken);
-            var body = await response.Content.ReadAsStringAsync(TestContext.Current.CancellationToken);
+            var response = await client.GetAsync($"/acta/api/v1/{path}", ct);
 
             Assert.Equal(HttpStatusCode.OK, response.StatusCode);
-            Assert.StartsWith("{\"items\":[", body);
-            Assert.Contains("\"name\":\"env\"", body);
-            Assert.Contains("\"value\":\"prod\"", body);
-            Assert.Contains("\"name\":\"team\"", body);
+            Assert.Equal("no-store", response.Headers.CacheControl?.ToString());
+            using var doc = JsonDocument.Parse(await response.Content.ReadAsStringAsync(ct));
+            var root = doc.RootElement;
+            var items = root.GetProperty("items");
+            Assert.Equal(2, items.GetArrayLength());
+            Assert.Equal("env", items[0].GetProperty("name").GetString());
+            Assert.Equal("prod", items[0].GetProperty("value").GetString());
+            Assert.Equal("team", items[1].GetProperty("name").GetString());
+            Assert.Equal(JsonValueKind.Null, root.GetProperty("nextCursor").ValueKind);
+            Assert.False(root.GetProperty("hasMore").GetBoolean());
+            Assert.Equal(50, root.GetProperty("pageSize").GetInt32());
+            Assert.Equal(JsonValueKind.Null, root.GetProperty("totalCount").ValueKind);
         }
     }
 
     /// <summary>
-    /// The read side of the one rule: only a target this API can address reaches the store, so only
-    /// it can be a miss. A malformed ref and a malformed catalog identifier are both caller input and
-    /// answer 400 - the same answer the mutations already gave the identifier, now given on reads and
-    /// to refs too.
+    /// The list answers an empty page for a target that is not there, so each route finds its target through
+    /// the target's own facade first: a known target is listed, an unknown one is the 404 and is never listed.
     /// </summary>
     [Fact]
-    public async Task Get_tags_maps_an_addressable_unknown_target_to_404_and_a_malformed_one_to_400()
+    public async Task List_tags_answers_404_for_an_unknown_target_and_lists_nothing()
     {
         var fakes = new FakeOperations();
-        fakes.Tags.Get = (_, _) => ValueTask.FromResult<GetTagsResponse?>(null);
         var (app, client) = await TestDashboardHost.StartAsync(fakes: fakes);
         await using var _ = app;
+        var ct = TestContext.Current.CancellationToken;
 
-        var unknown = await client.GetAsync($"/acta/api/v1/jobs/{Found}/tags", TestContext.Current.CancellationToken);
-        var malformedRef = await client.GetAsync("/acta/api/v1/jobs/42/tags", TestContext.Current.CancellationToken);
-        var invalidName = await client.GetAsync("/acta/api/v1/namespaces/Bad_NS!/tags", TestContext.Current.CancellationToken);
+        foreach (
+            var path in new[]
+            {
+                $"jobs/{Missing}/tags",
+                "definitions/billing/missing/tags",
+                "namespaces/nobody/tags",
+                "tenants/nobody/tags",
+            }
+        )
+        {
+            var response = await client.GetAsync($"/acta/api/v1/{path}", ct);
 
-        Assert.Equal(HttpStatusCode.NotFound, unknown.StatusCode);
-        Assert.Equal(HttpStatusCode.BadRequest, malformedRef.StatusCode);
-        Assert.Equal(HttpStatusCode.BadRequest, invalidName.StatusCode);
+            Assert.Equal(HttpStatusCode.NotFound, response.StatusCode);
+            Assert.Equal("application/problem+json", response.Content.Headers.ContentType?.MediaType);
+        }
+
+        Assert.Empty(fakes.Tags.ListCalls);
+    }
+
+    [Fact]
+    public async Task List_tags_answers_an_empty_page_for_a_known_target_without_tags()
+    {
+        var fakes = new FakeOperations();
+        fakes.Tags.List = static (query, _) =>
+            ValueTask.FromResult(new ListTagsResponse([], null, false, 50, query.IncludeTotal ? 0 : null));
+        var (app, client) = await TestDashboardHost.StartAsync(fakes: fakes);
+        await using var _ = app;
+        var ct = TestContext.Current.CancellationToken;
+
+        foreach (var path in KnownTargets)
+        {
+            var response = await client.GetAsync($"/acta/api/v1/{path}?includeTotal=true", ct);
+
+            Assert.Equal(HttpStatusCode.OK, response.StatusCode);
+            using var doc = JsonDocument.Parse(await response.Content.ReadAsStringAsync(ct));
+            Assert.Equal(0, doc.RootElement.GetProperty("items").GetArrayLength());
+            Assert.False(doc.RootElement.GetProperty("hasMore").GetBoolean());
+            Assert.Equal(0, doc.RootElement.GetProperty("totalCount").GetInt64());
+        }
+    }
+
+    [Fact]
+    public async Task Page_size_cursor_and_total_from_the_query_string_reach_the_facade_unchanged()
+    {
+        var fakes = new FakeOperations();
+        var (app, client) = await TestDashboardHost.StartAsync(fakes: fakes);
+        await using var _ = app;
+        var ct = TestContext.Current.CancellationToken;
+
+        var response = await client.GetAsync(
+            "/acta/api/v1/namespaces/billing/tags?pageSize=7&cursor=opaque-cursor_42&includeTotal=true",
+            ct
+        );
+
+        Assert.Equal(HttpStatusCode.OK, response.StatusCode);
+        var query = Assert.Single(fakes.Tags.ListCalls);
+        Assert.Equal(EntityCode.Namespace, query.Target.EntityCode);
+        Assert.Equal("billing", query.Target.Lookup);
+        Assert.Equal(7, query.PageSize);
+        Assert.Equal("opaque-cursor_42", query.Cursor);
+        Assert.True(query.IncludeTotal);
+    }
+
+    [Fact]
+    public async Task A_malformed_page_size_answers_400_and_lists_nothing()
+    {
+        var fakes = new FakeOperations();
+        var (app, client) = await TestDashboardHost.StartAsync(fakes: fakes);
+        await using var _ = app;
+        var ct = TestContext.Current.CancellationToken;
+
+        foreach (var path in KnownTargets)
+        {
+            var response = await client.GetAsync($"/acta/api/v1/{path}?pageSize=abc", ct);
+
+            Assert.Equal(HttpStatusCode.BadRequest, response.StatusCode);
+        }
+
+        Assert.Empty(fakes.Tags.ListCalls);
+    }
+
+    /// <summary>
+    /// The read side of the one rule: only a target this API can address reaches a facade, so only
+    /// it can be a miss. A malformed ref and a malformed catalog identifier are both caller input and
+    /// answer 400 - the same answer the mutations give the identifier.
+    /// </summary>
+    [Fact]
+    public async Task List_tags_answers_400_for_a_target_that_cannot_be_addressed()
+    {
+        var fakes = new FakeOperations();
+        var (app, client) = await TestDashboardHost.StartAsync(fakes: fakes);
+        await using var _ = app;
+        var ct = TestContext.Current.CancellationToken;
+
+        foreach (
+            var path in new[]
+            {
+                "jobs/42/tags",
+                "namespaces/Bad_NS!/tags",
+                "tenants/bad key/tags",
+                "definitions/Bill_ing/send-invoice/tags",
+            }
+        )
+        {
+            var response = await client.GetAsync($"/acta/api/v1/{path}", ct);
+
+            Assert.Equal(HttpStatusCode.BadRequest, response.StatusCode);
+        }
+
+        Assert.Empty(fakes.Tags.ListCalls);
     }
 
     /// <summary>

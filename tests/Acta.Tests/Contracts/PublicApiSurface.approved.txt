@@ -1088,13 +1088,6 @@ sealed record Acta.GetOverviewResponse
     System.Int64 UnresolvedCriticalAlertCount { get;init; }
     System.Nullable<System.Int64> OldestReadyAgeSeconds { get;init; }
     System.Nullable<System.Int64> ScheduleLagSeconds { get;init; }
-sealed record Acta.GetTagsItem
-    .ctor(System.String Name, System.String Value = null)
-    System.String Name { get;init; }
-    System.String Value { get;init; }
-sealed record Acta.GetTagsResponse
-    .ctor(System.Collections.Generic.IReadOnlyList<Acta.GetTagsItem> Items)
-    System.Collections.Generic.IReadOnlyList<Acta.GetTagsItem> Items { get;init; }
 sealed record Acta.GetTenantResponse
     .ctor(System.Int32 TenantId, System.String TenantName, System.String DisplayName, System.String Description, Acta.TenantStatusCode Status, System.DateTime CreatedAtUtc, System.DateTime ModifiedAtUtc, System.Int32 Version)
     Acta.TenantStatusCode Status { get;init; }
@@ -1282,7 +1275,7 @@ interface Acta.ISchedules
     System.Threading.Tasks.ValueTask<Acta.TriggerScheduleResponse> TriggerAsync(Acta.ScheduleLookup schedule, System.String reasonMessage = null, System.String actor = null, System.Threading.CancellationToken ct = default)
 interface Acta.ITagMutationResponse : Acta.IControlResponse
 interface Acta.ITags
-    System.Threading.Tasks.ValueTask<Acta.GetTagsResponse> GetAsync(Acta.TagTarget target, System.Threading.CancellationToken ct = default)
+    System.Threading.Tasks.ValueTask<Acta.ListTagsResponse> ListAsync(Acta.ListTagsQuery query, System.Threading.CancellationToken ct = default)
     System.Threading.Tasks.ValueTask<Acta.RemoveTagResponse> RemoveAsync(Acta.TagTarget target, System.String name, System.Threading.CancellationToken ct = default)
     System.Threading.Tasks.ValueTask<Acta.ReplaceTagsResponse> ReplaceAsync(Acta.TagTarget target, System.Collections.Generic.IReadOnlyList<Acta.TagInput> tags, System.Threading.CancellationToken ct = default)
     System.Threading.Tasks.ValueTask<Acta.UpsertTagResponse> UpsertAsync(Acta.TagTarget target, Acta.TagInput tag, System.Threading.CancellationToken ct = default)
@@ -2063,6 +2056,23 @@ sealed record Acta.ListSchedulesResponse : Acta.IPagedResponse<Acta.ListSchedule
     .ctor(System.Collections.Generic.IReadOnlyList<Acta.ListSchedulesItem> Items, System.String NextCursor, System.Boolean HasMore, System.Int32 PageSize, System.Nullable<System.Int64> TotalCount)
     System.Boolean HasMore { get;init; }
     System.Collections.Generic.IReadOnlyList<Acta.ListSchedulesItem> Items { get;init; }
+    System.Int32 PageSize { get;init; }
+    System.Nullable<System.Int64> TotalCount { get;init; }
+    System.String NextCursor { get;init; }
+sealed record Acta.ListTagsItem
+    .ctor(System.String Name, System.String Value = null)
+    System.String Name { get;init; }
+    System.String Value { get;init; }
+sealed record Acta.ListTagsQuery
+    .ctor(Acta.TagTarget Target, System.Nullable<System.Int32> PageSize = null, System.String Cursor = null, System.Boolean IncludeTotal = false)
+    Acta.TagTarget Target { get;init; }
+    System.Boolean IncludeTotal { get;init; }
+    System.Nullable<System.Int32> PageSize { get;init; }
+    System.String Cursor { get;init; }
+sealed record Acta.ListTagsResponse : Acta.IPagedResponse<Acta.ListTagsItem>
+    .ctor(System.Collections.Generic.IReadOnlyList<Acta.ListTagsItem> Items, System.String NextCursor, System.Boolean HasMore, System.Int32 PageSize, System.Nullable<System.Int64> TotalCount)
+    System.Boolean HasMore { get;init; }
+    System.Collections.Generic.IReadOnlyList<Acta.ListTagsItem> Items { get;init; }
     System.Int32 PageSize { get;init; }
     System.Nullable<System.Int64> TotalCount { get;init; }
     System.String NextCursor { get;init; }

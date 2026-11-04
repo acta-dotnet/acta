@@ -491,7 +491,7 @@ A type is `{Subject}{Role}`, one suffix per role. An operation is `VerbNoun` (`P
 | What an operation returns | `Response` | `PauseJobResponse : IJobControlResponse`, `GetJobResponse` |
 | Bound straight from a reader, internal, no public twin | `Row` | `ClaimJobsRow` |
 | The column values one batch write binds, internal | `Values` | `JobEnqueueValues` |
-| Element of an operation's response | `Item` | `ListJobsItem`, `GetTagsItem` |
+| Element of an operation's response | `Item` | `ListJobsItem`, `ListTagsItem` |
 | A group's operations class | the group's name plus `Operations` | `JobsOperations : IJobs`, `ExecutionOperations` |
 | HTTP request body of a route | `Request` | `PauseJobRequest`, `UpsertJobTagRequest` |
 | Route table of a group / one route | `Endpoints`, `Endpoint` | `JobsEndpoints`, `EnqueueJobEndpoint` |

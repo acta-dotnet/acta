@@ -9,26 +9,31 @@ namespace Acta.Tests.Conformance.Operations.Tags;
     "tags.exact-target-metadata",
     "Tags read and mutate all first-class targets and filter typed queries",
     Area = "Tags",
-    Contract = "ITags distinguishes missing from empty targets, atomically replaces, idempotently upserts/removes, and typed queries require every exact tag filter."
+    Contract = "ITags lists an empty page for a missing target, atomically replaces, idempotently upserts/removes, and typed queries require every exact tag filter."
 )]
 public sealed class TagsSpec : ActaRuntimeTestBase<ConformanceFixture, TestJobsManifest>
 {
-    [Fact(DisplayName = "All four existing targets read empty while missing targets read null and mutate NotFound")]
-    public async Task Missing_and_empty_are_distinct_for_every_target()
+    [Fact(DisplayName = "All four targets list an empty page whether they exist or not, and missing targets mutate NotFound")]
+    public async Task Untagged_and_missing_targets_list_empty_and_missing_ones_mutate_not_found()
     {
         var ct = TestContext.Current.CancellationToken;
         var targets = await CreateTargetsAsync(ct);
 
         foreach (var target in targets.All)
         {
-            var tags = await Operations.Tags.GetAsync(target, ct);
-            Assert.NotNull(tags);
+            var tags = await Operations.Tags.ListAsync(new ListTagsQuery(target, IncludeTotal: true), ct);
             Assert.Empty(tags.Items);
+            Assert.False(tags.HasMore);
+            Assert.Equal(0, tags.TotalCount);
         }
 
         foreach (var target in MissingTargets())
         {
-            Assert.Null(await Operations.Tags.GetAsync(target, ct));
+            var tags = await Operations.Tags.ListAsync(new ListTagsQuery(target, IncludeTotal: true), ct);
+            Assert.Empty(tags.Items);
+            Assert.False(tags.HasMore);
+            Assert.Null(tags.NextCursor);
+            Assert.Equal(0, tags.TotalCount);
             Assert.Equal(ControlAction.NotFound, (await Operations.Tags.UpsertAsync(target, new TagInput("missing"), ct: ct)).Action);
             Assert.Equal(ControlAction.NotFound, (await Operations.Tags.RemoveAsync(target, "missing", ct: ct)).Action);
             Assert.Equal(ControlAction.NotFound, (await Operations.Tags.ReplaceAsync(target, [], ct: ct)).Action);
@@ -42,12 +47,11 @@ public sealed class TagsSpec : ActaRuntimeTestBase<ConformanceFixture, TestJobsM
         var target = TagTarget.ForNamespace(NameSyntax.ReservedSystemName);
         var name = Unique("sys-tag");
 
-        Assert.NotNull(await Operations.Tags.GetAsync(target, ct));
         try
         {
             Assert.Equal(ControlAction.Applied, (await Operations.Tags.UpsertAsync(target, new TagInput(name, "value"), ct: ct)).Action);
-            var tags = Assert.IsType<GetTagsResponse>(await Operations.Tags.GetAsync(target, ct));
-            Assert.Contains(new GetTagsItem(name, "value"), tags.Items);
+            var tags = await Operations.Tags.ListAsync(new ListTagsQuery(target), ct);
+            Assert.Contains(new ListTagsItem(name, "value"), tags.Items);
         }
         finally
         {
@@ -74,9 +78,9 @@ public sealed class TagsSpec : ActaRuntimeTestBase<ConformanceFixture, TestJobsM
                 ).Action
             );
 
-            var ordered = Assert.IsType<GetTagsResponse>(await Operations.Tags.GetAsync(target, ct));
+            var ordered = await Operations.Tags.ListAsync(new ListTagsQuery(target), ct);
             Assert.Equal(
-                [new GetTagsItem("a-a"), new GetTagsItem("a-first", "One"), new GetTagsItem("a0"), new GetTagsItem("z-last")],
+                [new ListTagsItem("a-a"), new ListTagsItem("a-first", "One"), new ListTagsItem("a0"), new ListTagsItem("z-last")],
                 ordered.Items
             );
 
@@ -90,11 +94,11 @@ public sealed class TagsSpec : ActaRuntimeTestBase<ConformanceFixture, TestJobsM
             Assert.Equal(ControlAction.Applied, (await Operations.Tags.RemoveAsync(target, "does-not-exist", ct: ct)).Action);
             Assert.Equal(ControlAction.Applied, (await Operations.Tags.RemoveAsync(target, "z-last", ct: ct)).Action);
 
-            var converged = Assert.IsType<GetTagsResponse>(await Operations.Tags.GetAsync(target, ct));
-            Assert.Equal([new GetTagsItem("a-first", "Two"), new GetTagsItem("middle", "Value")], converged.Items);
+            var converged = await Operations.Tags.ListAsync(new ListTagsQuery(target), ct);
+            Assert.Equal([new ListTagsItem("a-first", "Two"), new ListTagsItem("middle", "Value")], converged.Items);
 
             Assert.Equal(ControlAction.Applied, (await Operations.Tags.ReplaceAsync(target, [], ct: ct)).Action);
-            Assert.Empty(Assert.IsType<GetTagsResponse>(await Operations.Tags.GetAsync(target, ct)).Items);
+            Assert.Empty((await Operations.Tags.ListAsync(new ListTagsQuery(target), ct)).Items);
         }
     }
 
@@ -213,8 +217,8 @@ public sealed class TagsSpec : ActaRuntimeTestBase<ConformanceFixture, TestJobsM
         Assert.Equal(EnqueueJobAction.Inserted, first.Action);
         Assert.Equal(EnqueueJobAction.Deduplicated, second.Action);
         Assert.Equal(first.JobId, second.JobId);
-        var tags = Assert.IsType<GetTagsResponse>(await Operations.Tags.GetAsync(TagTarget.ForJob(first), ct));
-        Assert.Equal([new GetTagsItem("version", "first")], tags.Items);
+        var tags = await Operations.Tags.ListAsync(new ListTagsQuery(TagTarget.ForJob(first)), ct);
+        Assert.Equal([new ListTagsItem("version", "first")], tags.Items);
     }
 
     [Fact(DisplayName = "Manual purge removes the job's tags before deleting the job")]

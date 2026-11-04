@@ -44,13 +44,11 @@ public sealed class IdentifierShapeSpec : ActaRuntimeTestBase<ConformanceFixture
 
         await Operations.Tags.UpsertAsync(target, new TagInput("Billing.Send", "on"), ct: ct);
 
-        var tags = Assert.IsType<GetTagsResponse>(
-            await Operations.Tags.GetAsync(TagTarget.ForNamespace(TestNamespace.ToUpperInvariant()), ct)
-        );
-        Assert.Equal([new GetTagsItem("billing.send", "on")], tags.Items);
+        var tags = await Operations.Tags.ListAsync(new ListTagsQuery(TagTarget.ForNamespace(TestNamespace.ToUpperInvariant())), ct);
+        Assert.Equal([new ListTagsItem("billing.send", "on")], tags.Items);
 
         await Operations.Tags.RemoveAsync(target, "BILLING.SEND", ct: ct);
-        Assert.Empty(Assert.IsType<GetTagsResponse>(await Operations.Tags.GetAsync(target, ct)).Items);
+        Assert.Empty((await Operations.Tags.ListAsync(new ListTagsQuery(target), ct)).Items);
     }
 
     [Fact(DisplayName = "A lane ORDER-1 is the lane order-1")]
@@ -223,7 +221,8 @@ public sealed class IdentifierShapeSpec : ActaRuntimeTestBase<ConformanceFixture
     {
         var ct = TestContext.Current.CancellationToken;
 
-        Assert.NotNull(await Operations.Tags.GetAsync(TagTarget.ForNamespace("SYS"), ct));
+        Assert.Equal(NameSyntax.SystemNamespaceId, (await Operations.Namespaces.GetAsync("SYS", ct))?.NamespaceId);
+        await Operations.Tags.ListAsync(new ListTagsQuery(TagTarget.ForNamespace("SYS")), ct);
         await Operations.Ledger.ListJobsAsync(new ListJobsQuery(JobNamespace: "Sys", JobName: "Sys.Retention"), ct);
     }
 

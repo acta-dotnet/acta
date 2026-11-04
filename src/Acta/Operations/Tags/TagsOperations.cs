@@ -2,14 +2,13 @@ namespace Acta;
 
 /// <summary><see cref="ITags"/>, one line per operation.</summary>
 internal sealed class TagsOperations(
-    GetTagsHandler getTags,
+    ListTagsHandler listTags,
     ReplaceTagsHandler replaceTags,
     UpsertTagHandler upsertTag,
     RemoveTagHandler removeTag
 ) : ITags
 {
-    public ValueTask<GetTagsResponse?> GetAsync(TagTarget target, CancellationToken ct = default) =>
-        getTags.HandleAsync(new GetTagsQuery(target), ct);
+    public ValueTask<ListTagsResponse> ListAsync(ListTagsQuery query, CancellationToken ct = default) => listTags.HandleAsync(query, ct);
 
     public ValueTask<ReplaceTagsResponse> ReplaceAsync(TagTarget target, IReadOnlyList<TagInput> tags, CancellationToken ct = default) =>
         replaceTags.HandleAsync(new ReplaceTagsCommand(target, tags), ct);

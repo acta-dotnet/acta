@@ -26,8 +26,9 @@ function stubFetch(options: StubOptions = {}) {
         { status: 200 }
       );
     }
-    if (url.endsWith('/tags') && method === 'GET') {
-      return new Response(JSON.stringify({ items: options.tags ?? [{ name: 'env', value: 'prod' }, { name: 'team', value: null }] }), { status: 200 });
+    if (new URL(url).pathname.endsWith('/tags') && method === 'GET') {
+      const items = options.tags ?? [{ name: 'env', value: 'prod' }, { name: 'team', value: null }];
+      return new Response(JSON.stringify({ items, nextCursor: null, hasMore: false, pageSize: 100, totalCount: null }), { status: 200 });
     }
     return new Response(JSON.stringify({ action: 'applied', version: null }), { status: 200 });
   });
@@ -44,6 +45,16 @@ describe('TagEditor', () => {
 
     expect(await screen.findByText('env: prod')).toBeTruthy();
     expect(screen.getByText('team')).toBeTruthy();
+  });
+
+  it('reads the tag page in one request large enough for every tag a target may carry', async () => {
+    const calls = stubFetch();
+    render(TagEditorHarness, { path: 'jobs/job_1/tags' });
+
+    await screen.findByText('env: prod');
+    const reads = calls.filter((c) => c.method === 'GET' && new URL(c.url).pathname.endsWith('/tags'));
+    expect(reads).toHaveLength(1);
+    expect(new URL(reads[0].url).searchParams.get('pageSize')).toBe('100');
   });
 
   it('posts a parsed name:value tag with the confirmation header', async () => {

@@ -253,6 +253,8 @@ internal static partial class ActaSchema
 
         public static readonly DbValueSpec<string?> CursorCheckpointName = new("p_cursor_checkpoint_name", DbKind.AsciiString, 128);
 
+        public static readonly DbValueSpec<string?> CursorTagName = new("p_cursor_tag_name", DbKind.AsciiString, 128);
+
         /// <summary>
         /// List-read tri-state flags: true applies the restriction, NULL skips it.
         /// </summary>
