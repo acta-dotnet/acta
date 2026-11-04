@@ -13,10 +13,16 @@ namespace Acta.Tests.Architecture;
 /// Holds an operation to one name from the route down to the SQL, as <c>CONTRIBUTING.md</c> (Naming conventions) states
 /// it. The folder gives the name. <see cref="OperationLayoutTests"/> and <see cref="HandlerResponseTests"/> hold the
 /// files and types in the folder to it; here the layers around the folder are held to it: the method that runs the
-/// handler, the facade method, the strings that load its SQL and scope its cursor, the route folder, and the verb.
+/// handler, the facade method, its SQL files and the strings that load them and scope its cursor, the route folder, and
+/// the verb.
 /// </summary>
 public sealed class OperationNameTests
 {
+    private static readonly string[] Dialects = ["pg", "mssql", "sqlite"];
+
+    // The calls that load SQL by its stem: the session's reads, the catalog's load, and a write's StoreCommand.
+    private static readonly HashSet<string> Loads = ["QueryAsync", "QuerySingleAsync", "QueryListAsync", "QueryPageAsync", "Load"];
+
     // A method that runs an operation in a second form, beside the one named for it; each entry says what differs.
     private static readonly HashSet<(string Method, string Operation)> SecondForms =
     [
@@ -150,6 +156,68 @@ public sealed class OperationNameTests
     }
 
     /// <summary>
+    /// Every SQL file in an operation's folder is the operation's own statement, <c>&lt;Operation&gt;.&lt;dialect&gt;.sql</c>
+    /// or <c>&lt;Operation&gt;.routine.&lt;dialect&gt;.sql</c>, so the folder holds one statement and a second statement is a
+    /// second operation.
+    /// </summary>
+    [Fact]
+    public void An_operation_folder_holds_only_its_own_sql()
+    {
+        var files = Directory
+            .EnumerateDirectories(Operations)
+            .SelectMany(Folders)
+            .SelectMany(folder =>
+                Directory
+                    .EnumerateFiles(folder, "*.sql")
+                    .Select(file => (Operation: Path.GetFileName(folder)!, File: Path.GetFileName(file)))
+            )
+            .ToList();
+        Assert.True(files.Count > 300, $"only {files.Count} SQL files; the walk is broken.");
+
+        var violations = files
+            .Where(sql =>
+                !Dialects.Any(dialect =>
+                    sql.File == $"{sql.Operation}.{dialect}.sql" || sql.File == $"{sql.Operation}.routine.{dialect}.sql"
+                )
+            )
+            .Select(sql => ($"{sql.Operation}: {sql.File}", (string?)null));
+
+        ArchitectureAssert.NoViolations(
+            violations,
+            "Name the file <Operation>.<dialect>.sql or <Operation>.routine.<dialect>.sql; a second statement is a second operation."
+        );
+    }
+
+    /// <summary>
+    /// The stem an operation's code loads, through the session's reads, the catalog's load, or a write's
+    /// <c>StoreCommand</c>, is the operation's own name, spelled as a literal so it can be read here. A read that borrows
+    /// another operation's statement is listed with its reason.
+    /// </summary>
+    [Fact]
+    public void An_operation_loads_its_own_statement()
+    {
+        var loads = Directory
+            .EnumerateDirectories(Operations)
+            .SelectMany(Folders)
+            .SelectMany(folder =>
+                Directory
+                    .EnumerateFiles(folder, "*.cs")
+                    .SelectMany(file => Stems(Parse(file)))
+                    .Select(stem => (Operation: Path.GetFileName(folder)!, Stem: stem))
+            )
+            .ToList();
+        Assert.True(loads.Count > 100, $"only {loads.Count} SQL loads; the walk is broken.");
+
+        var violations = loads
+            .Where(load => load.Stem != load.Operation && !BorrowedStatements.Contains((load.Operation, load.Stem ?? "")))
+            .Select(load =>
+                ($"{load.Operation}: {(load.Stem is { } stem ? $"\"{stem}\"" : "a stem that is not a string literal")}", (string?)null)
+            );
+
+        ArchitectureAssert.NoViolations(violations, "Load the operation's own statement under its own name, or list why it borrows one.");
+    }
+
+    /// <summary>
     /// A route folder in <c>Acta.AspNetCore</c> is named for the operation it serves, with the owner before the subject
     /// when one operation serves several owners (<c>UpsertTenantTag</c>). A folder that names none composes several
     /// operations and holds its own endpoint.
@@ -260,6 +328,27 @@ public sealed class OperationNameTests
                 .OfType<string>()
                 .Distinct(StringComparer.Ordinal),
         ];
+
+    // The stem each SQL load in the nodes names: its first argument's literal, or null when that argument is no literal.
+    private static IEnumerable<string?> Stems(IEnumerable<SyntaxNode> nodes) =>
+        nodes
+            .Select(node =>
+                node switch
+                {
+                    InvocationExpressionSyntax { Expression: MemberAccessExpressionSyntax access } call
+                        when Loads.Contains(access.Name.Identifier.Text) => call.ArgumentList.Arguments.FirstOrDefault()?.Expression,
+                    ObjectCreationExpressionSyntax { Type: IdentifierNameSyntax { Identifier.Text: "StoreCommand" } } create => create
+                        .ArgumentList?.Arguments.FirstOrDefault()
+                        ?.Expression,
+                    _ => null,
+                }
+            )
+            .OfType<ExpressionSyntax>()
+            .Select(stem =>
+                stem is LiteralExpressionSyntax literal && literal.IsKind(SyntaxKind.StringLiteralExpression)
+                    ? literal.Token.ValueText
+                    : null
+            );
 
     private static IEnumerable<string> Folders(string group) =>
         Path.GetFileName(group) == "Shared"
