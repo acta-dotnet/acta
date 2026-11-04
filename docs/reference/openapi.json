@@ -7577,7 +7577,7 @@
         "tags": [
           "Calendars"
         ],
-        "summary": "Read a calendar family: its current and latest versions, one definition, and the schedules bound to it.",
+        "summary": "Read a calendar family's head: its current and latest versions and one definition.",
         "operationId": "GetCalendarsByJobNamespaceByCalendarName",
         "parameters": [
           {
@@ -7675,7 +7675,7 @@
         "tags": [
           "Calendars"
         ],
-        "summary": "Read the calendar screen: the head and the first page of its versions.",
+        "summary": "Read the calendar screen: the head, and the first page of its versions and of the schedules naming it.",
         "operationId": "GetCalendarsByJobNamespaceByCalendarNameDetail",
         "parameters": [
           {
@@ -7865,6 +7865,120 @@
               "application/json": {
                 "schema": {
                   "$ref": "#/components/schemas/ListCalendarVersionsResponse"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Not Found",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/acta/api/v1/calendars/{jobNamespace}/{calendarName}/dependents": {
+      "get": {
+        "tags": [
+          "Calendars"
+        ],
+        "summary": "List the schedules naming a calendar family, by path.",
+        "operationId": "GetCalendarsByJobNamespaceByCalendarNameDependents",
+        "parameters": [
+          {
+            "name": "jobNamespace",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "calendarName",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "pageSize",
+            "in": "query",
+            "description": "Rows per page; the server clamps to its bounds.",
+            "schema": {
+              "type": "integer",
+              "format": "int32"
+            }
+          },
+          {
+            "name": "cursor",
+            "in": "query",
+            "description": "Opaque keyset cursor from the previous page's nextCursor; omit for the first page.",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "includeTotal",
+            "in": "query",
+            "description": "Also compute the filter-wide row count (an extra aggregate read).",
+            "schema": {
+              "type": "boolean"
+            }
+          }
+        ],
+        "responses": {
+          "400": {
+            "description": "Bad Request",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          },
+          "413": {
+            "description": "Payload Too Large",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "Internal Server Error",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          },
+          "503": {
+            "description": "Service Unavailable",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          },
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ListCalendarDependentsResponse"
                 }
               }
             }
@@ -9468,42 +9582,11 @@
         },
         "description": "The single-alert read model returned by ValueTask&lt;GetAlertResponse?&gt; IAlerts.GetAsync(AlertRef alertRef, CancellationToken ct = default(CancellationToken)). It carries the list row's fields today and\nis a distinct type because a detail read can grow additively (delivery history, the alerting event's detail)\nwithout the list row paying for it. Two delivery fields read differently than their names suggest:\n`RetryCount` is the attempts spent in the current send series, not over the row's life (a delivered send\nends the series and resets it), and `RetryAfterUtc` is the earliest instant the alert may be sent again, the\nnext retry while delivery is unsettled or the next reminder once it has settled, null when nothing is scheduled."
       },
-      "GetCalendarDependent": {
-        "required": [
-          "jobNamespace",
-          "jobName",
-          "scheduleName",
-          "binding",
-          "status",
-          "scheduledDelivery"
-        ],
-        "type": "object",
-        "properties": {
-          "jobNamespace": {
-            "type": "string"
-          },
-          "jobName": {
-            "type": "string"
-          },
-          "scheduleName": {
-            "type": "string"
-          },
-          "binding": {
-            "$ref": "#/components/schemas/CalendarRoleCode"
-          },
-          "status": {
-            "$ref": "#/components/schemas/ScheduleStatusCode"
-          },
-          "scheduledDelivery": {
-            "$ref": "#/components/schemas/ScheduledDeliveryCode"
-          }
-        },
-        "description": "A schedule that names the family: its path, how it names the family (as its occurrence source or its availability\nfilter), its status (orphaned ones are listed), and its definition's delivery. A shared family's dependents span\nnamespaces, so the path carries the namespace. The name resolves at every evaluation, a calendar declared in the\nprocess before the catalog's, so a dependent follows the family's current version unless its process declares one."
-      },
       "GetCalendarDetailResponse": {
         "required": [
           "calendar",
-          "versions"
+          "versions",
+          "dependents"
         ],
         "type": "object",
         "properties": {
@@ -9512,6 +9595,9 @@
           },
           "versions": {
             "$ref": "#/components/schemas/ListCalendarVersionsResponse"
+          },
+          "dependents": {
+            "$ref": "#/components/schemas/ListCalendarDependentsResponse"
           }
         }
       },
@@ -9524,8 +9610,7 @@
           "latestVersion",
           "shownVersion",
           "shownStatus",
-          "definition",
-          "dependents"
+          "definition"
         ],
         "type": "object",
         "properties": {
@@ -9568,15 +9653,9 @@
           },
           "definition": {
             "type": "string"
-          },
-          "dependents": {
-            "type": "array",
-            "items": {
-              "$ref": "#/components/schemas/GetCalendarDependent"
-            }
           }
         },
-        "description": "One catalog calendar family as ValueTask&lt;GetCalendarResponse?&gt; ICalendars.GetAsync(CalendarLookup calendar, int? version = null, CancellationToken ct = default(CancellationToken)) reads it: its role, `CurrentVersion` the Published\nversion (null while the family has none), `LatestVersion` the newest, and `ShownVersion` with its status and\nits `Definition` JSON. `Dependents` lists every schedule that names the family in its scope, by job name and\nthen schedule name; ValueTask&lt;ListCalendarVersionsResponse&gt; ICalendars.ListVersionsAsync(ListCalendarVersionsQuery query, CancellationToken ct = default(CancellationToken)) pages the versions."
+        "description": "One catalog calendar family as ValueTask&lt;GetCalendarResponse?&gt; ICalendars.GetAsync(CalendarLookup calendar, int? version = null, CancellationToken ct = default(CancellationToken)) reads it: its role, `CurrentVersion` the Published\nversion (null while the family has none), `LatestVersion` the newest, and `ShownVersion` with its status and\nits `Definition` JSON. ValueTask&lt;ListCalendarVersionsResponse&gt; ICalendars.ListVersionsAsync(ListCalendarVersionsQuery query, CancellationToken ct = default(CancellationToken)) pages the versions and\nValueTask&lt;ListCalendarDependentsResponse&gt; ICalendars.ListDependentsAsync(ListCalendarDependentsQuery query, CancellationToken ct = default(CancellationToken)) the schedules naming the family."
       },
       "GetCapabilitiesResponse": {
         "required": [
@@ -11035,6 +11114,83 @@
           }
         },
         "description": "One page of ValueTask&lt;ListAlertsResponse&gt; IAlerts.ListAsync(ListAlertsQuery query, CancellationToken ct = default(CancellationToken))."
+      },
+      "ListCalendarDependentsItem": {
+        "required": [
+          "jobNamespace",
+          "jobName",
+          "scheduleName",
+          "binding",
+          "status",
+          "scheduledDelivery"
+        ],
+        "type": "object",
+        "properties": {
+          "jobNamespace": {
+            "type": "string"
+          },
+          "jobName": {
+            "type": "string"
+          },
+          "scheduleName": {
+            "type": "string"
+          },
+          "binding": {
+            "$ref": "#/components/schemas/CalendarRoleCode"
+          },
+          "status": {
+            "$ref": "#/components/schemas/ScheduleStatusCode"
+          },
+          "scheduledDelivery": {
+            "$ref": "#/components/schemas/ScheduledDeliveryCode"
+          }
+        },
+        "description": "A schedule that names the family: its path, how it names the family (as its occurrence source or its availability\nfilter), its status (orphaned ones are listed), and its definition's delivery. A shared family's dependents span\nnamespaces, so the path carries the namespace. The name resolves at every evaluation, a calendar declared in the\nprocess before the catalog's, so a dependent follows the family's current version unless its process declares one."
+      },
+      "ListCalendarDependentsResponse": {
+        "required": [
+          "items",
+          "nextCursor",
+          "hasMore",
+          "pageSize",
+          "totalCount"
+        ],
+        "type": "object",
+        "properties": {
+          "items": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/ListCalendarDependentsItem"
+            }
+          },
+          "nextCursor": {
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "hasMore": {
+            "type": "boolean"
+          },
+          "pageSize": {
+            "pattern": "^-?(?:0|[1-9]\\d*)$",
+            "type": [
+              "integer",
+              "string"
+            ],
+            "format": "int32"
+          },
+          "totalCount": {
+            "pattern": "^-?(?:0|[1-9]\\d*)$",
+            "type": [
+              "null",
+              "integer",
+              "string"
+            ],
+            "format": "int64"
+          }
+        },
+        "description": "One page of ValueTask&lt;ListCalendarDependentsResponse&gt; ICalendars.ListDependentsAsync(ListCalendarDependentsQuery query, CancellationToken ct = default(CancellationToken)): the schedules naming a family, by path then binding."
       },
       "ListCalendarsItem": {
         "required": [

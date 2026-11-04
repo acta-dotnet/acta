@@ -1860,12 +1860,17 @@
 - **Guarantees:**
   - Only a family's Published version is current; drafts and an archived version are not
 
-### A calendar family reads its head, one definition, and its dependents
-- **Contract:** Get answers the role, current and latest versions, the requested, current, or latest version's status and definition, and every schedule naming it, or null.
+### ListCalendarDependents pages the schedules naming a family by path
+- **Contract:** ListCalendarDependents pages the schedules naming a family by namespace, job, schedule, and binding, orphans included, and nothing for an unknown family.
+- **Guarantees:**
+  - ListCalendarDependents pages every schedule that names the family, an orphan with its status
+  - ListCalendarDependents answers an empty page for a name the catalog never saved, though a schedule names it
+
+### A calendar family reads its current and latest versions and one definition
+- **Contract:** Get answers the role, the current and latest versions, and the requested, current, or latest version's status and definition, or null.
 - **Guarantees:**
   - Get shows the latest definition while none is current
   - Get shows the current version by default and a requested one on demand; a version or family it lacks is null
-  - Get lists every schedule that names the family, an orphan with its status
 
 ### Calendar families list by name with their current and latest versions
 - **Contract:** The list answers one item per family by name with its versions and live bound schedules, in one namespace with sys or in all, filtered and paged.
@@ -2559,7 +2564,6 @@
 | `GetAlert` | yes | yes | yes |
 | `GetAlertFloor` | yes | yes | yes |
 | `GetCalendar` | yes | yes | yes |
-| `GetCalendarDependents` | yes | yes | yes |
 | `GetCalendarPublication` | yes | yes | yes |
 | `GetDefinition` | yes | yes | yes |
 | `GetJob` | yes | yes | yes |
@@ -2579,6 +2583,7 @@
 | `ListAlertableEvents` | yes | yes | yes |
 | `ListAlerts` | yes | yes | yes |
 | `ListAppliedMigrations` | yes | yes | yes |
+| `ListCalendarDependents` | yes | yes | yes |
 | `ListCalendarSchedules` | yes | yes | yes |
 | `ListCalendarVersions` | yes | yes | yes |
 | `ListCalendars` | yes | yes | yes |

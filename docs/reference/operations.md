@@ -29,6 +29,7 @@ One row per operation folder, `src/Acta/Operations/<Group>/<Operation>/`, and on
 | `GetCalendar` | `ICalendars.GetAsync` | `GET /calendars/{jobNamespace}/{calendarName}` | · | inline | inline | inline | · | `GetCalendarSpec` |
 | `GetCalendarDetail` | · | `GET /calendars/{jobNamespace}/{calendarName}/detail` | · | · | · | · | · | · |
 | `GetCalendarPublication` | · | · | · | inline | inline | inline | · | `GetCalendarPublicationSpec` |
+| `ListCalendarDependents` | `ICalendars.ListDependentsAsync` | `GET /calendars/{jobNamespace}/{calendarName}/dependents` | · | inline | inline | inline | · | `ListCalendarDependentsSpec` |
 | `ListCalendarSchedules` | · | · | · | inline | inline | inline | · | `ListCalendarSchedulesSpec` |
 | `ListCalendarVersions` | `ICalendars.ListVersionsAsync` | `GET /calendars/{jobNamespace}/{calendarName}/versions` | · | inline | inline | inline | · | `ListCalendarVersionsSpec` |
 | `ListCalendars` | `ICalendars.ListAsync` | `GET /calendars` | · | inline | inline | inline | · | `ListCalendarsSpec` |

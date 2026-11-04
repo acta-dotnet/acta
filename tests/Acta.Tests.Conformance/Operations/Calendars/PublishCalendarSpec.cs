@@ -136,7 +136,7 @@ public sealed class PublishCalendarSpec : ActaRuntimeTestBase<ConformanceFixture
         Assert.Equal(JobStatusCode.Ready, (await ReadJobAsync(slotId, ct)).Status);
         Assert.Equal(Start.AddMinutes(2), Assert.Single(await ScheduleTestOps.ReadAsync(Db, slotId, ct)).NextOccurrenceAtUtc);
         var dependent = Assert.Single(
-            (await Calendars.GetAsync(Days, ct: ct))!.Dependents,
+            (await Calendars.ListDependentsAsync(new ListCalendarDependentsQuery(Days), ct)).Items,
             d => d.JobName == PublishCalendarManifest.DaysJobName
         );
         Assert.Equal(CalendarRoleCode.Occurrence, dependent.Binding);

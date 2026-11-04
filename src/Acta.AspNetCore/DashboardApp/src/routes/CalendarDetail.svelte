@@ -58,10 +58,16 @@
     refetchOnReconnect: false,
     refetchInterval: false
   }));
-  // The head flattened beside its first page of versions, so the template reads one family.
+  // The head flattened beside its two first pages, so the template reads one family.
   let family = $derived(
     detail.data
-      ? { ...detail.data.calendar, versions: detail.data.versions.items, versionsTotal: detail.data.versions.totalCount }
+      ? {
+          ...detail.data.calendar,
+          versions: detail.data.versions.items,
+          versionsTotal: detail.data.versions.totalCount,
+          dependents: detail.data.dependents.items,
+          dependentsTotal: detail.data.dependents.totalCount
+        }
       : null
   );
   let missing = $derived(detail.isSuccess && detail.data === null);
@@ -411,6 +417,9 @@
                   {/each}
                 </tbody>
               </DataTable>
+              {#if family.dependentsTotal !== null && family.dependentsTotal > family.dependents.length}
+                <p class="detail-help">Showing {displayFormatter.number(family.dependents.length)} of {displayFormatter.number(family.dependentsTotal)} schedules.</p>
+              {/if}
             {/if}
           </section>
 

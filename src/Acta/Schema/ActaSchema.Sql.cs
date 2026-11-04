@@ -257,6 +257,10 @@ internal static partial class ActaSchema
 
         public static readonly DbValueSpec<int?> CursorVersion = new("p_cursor_version", DbKind.Int32);
 
+        public static readonly DbValueSpec<string?> CursorScheduleName = new("p_cursor_schedule_name", DbKind.AsciiString, 128);
+
+        public static readonly DbValueSpec<int?> CursorBinding = new("p_cursor_binding", DbKind.Int32);
+
         /// <summary>
         /// List-read tri-state flags: true applies the restriction, NULL skips it.
         /// </summary>

@@ -5,8 +5,8 @@ using Microsoft.AspNetCore.Routing;
 namespace Acta.AspNetCore;
 
 /// <summary>
-/// The Calendars routes: the catalog list, one family, its versions, the calendar screen, a version's preview, and save
-/// draft, publish, and archive. A family is addressed by its namespace and calendar name; the namespace <c>sys</c> holds
+/// The Calendars routes: the catalog list, one family, its versions and the schedules naming it, the calendar screen, a
+/// version's preview, and save draft, publish, and archive. A family is addressed by its namespace and calendar name; the namespace <c>sys</c> holds
 /// the shared families.
 /// </summary>
 internal static class CalendarsEndpoints
@@ -45,7 +45,7 @@ internal static class CalendarsEndpoints
         reads
             .MapDetail(
                 "/calendars/{jobNamespace}/{calendarName}",
-                "Read a calendar family: its current and latest versions, one definition, and the schedules bound to it.",
+                "Read a calendar family's head: its current and latest versions and one definition.",
                 "Calendar",
                 DashboardJsonContext.Default.GetCalendarResponse,
                 static (http, call) =>
@@ -77,6 +77,24 @@ internal static class CalendarsEndpoints
                 static async (call, query) =>
                     await FamilyExistsAsync(call, query.Calendar)
                         ? await call.Operations.Calendars.ListVersionsAsync(query, call.Ct)
+                        : throw new TargetNotFoundException("Calendar"),
+                [.. QueryParameterDocExtensions.PagingCore, .. QueryParameterDocExtensions.IncludeTotal]
+            )
+            .ProducesProblem(StatusCodes.Status404NotFound);
+        reads
+            .MapList(
+                "/calendars/{jobNamespace}/{calendarName}/dependents",
+                "List the schedules naming a calendar family, by path.",
+                DashboardJsonContext.Default.ListCalendarDependentsResponse,
+                static query => new ListCalendarDependentsQuery(
+                    Key(query.Http),
+                    query.Int("pageSize"),
+                    query.Text("cursor"),
+                    query.Bool("includeTotal") ?? false
+                ),
+                static async (call, query) =>
+                    await FamilyExistsAsync(call, query.Calendar)
+                        ? await call.Operations.Calendars.ListDependentsAsync(query, call.Ct)
                         : throw new TargetNotFoundException("Calendar"),
                 [.. QueryParameterDocExtensions.PagingCore, .. QueryParameterDocExtensions.IncludeTotal]
             )

@@ -194,6 +194,7 @@ public static class ActaServiceCollectionExtensions
         services.TryAddSingleton<CalendarSources>();
         services.TryAddSingleton<GetCalendarHandler>();
         services.TryAddSingleton<ListCalendarVersionsHandler>();
+        services.TryAddSingleton<ListCalendarDependentsHandler>();
         services.TryAddSingleton<ResolveCalendarVersionHandler>();
         services.TryAddSingleton<ListCurrentCalendarsHandler>();
         services.TryAddSingleton<ListCalendarsHandler>();

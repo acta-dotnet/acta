@@ -69,12 +69,17 @@ const officeHours = (shown: number) => ({
       weekly: shown === 3
         ? [{ days: weekdays, windows: [['09:00', '17:00']] }, { days: ['Saturday'], windows: [['09:00', '12:00']] }]
         : [{ days: weekdays, windows: [['09:00', '17:00']] }]
-    }),
-    dependents: [
-      { jobNamespace: 'billing', jobName: 'send-invoice', scheduleName: 'nightly', binding: 'availability', status: 'active', scheduledDelivery: 'permanent' }
-    ]
+    })
   },
-  versions: { items: calendarVersions, nextCursor: null, hasMore: false, totalCount: calendarVersions.length }
+  versions: { items: calendarVersions, nextCursor: null, hasMore: false, totalCount: calendarVersions.length },
+  dependents: {
+    items: [
+      { jobNamespace: 'billing', jobName: 'send-invoice', scheduleName: 'nightly', binding: 'availability', status: 'active', scheduledDelivery: 'permanent' }
+    ],
+    nextCursor: null,
+    hasMore: false,
+    totalCount: 1
+  }
 });
 const officeHoursPreview = (version: number) => ({
   role: 'availability',

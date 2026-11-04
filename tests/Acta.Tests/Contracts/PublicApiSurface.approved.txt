@@ -875,19 +875,10 @@ sealed record Acta.GetAlertResponse
     System.String JobNamespace { get;init; }
     System.String Message { get;init; }
     System.String Title { get;init; }
-sealed record Acta.GetCalendarDependent
-    .ctor(System.String JobNamespace, System.String JobName, System.String ScheduleName, Acta.CalendarRoleCode Binding, Acta.ScheduleStatusCode Status, Acta.ScheduledDeliveryCode ScheduledDelivery)
-    Acta.CalendarRoleCode Binding { get;init; }
-    Acta.ScheduleStatusCode Status { get;init; }
-    Acta.ScheduledDeliveryCode ScheduledDelivery { get;init; }
-    System.String JobName { get;init; }
-    System.String JobNamespace { get;init; }
-    System.String ScheduleName { get;init; }
 sealed record Acta.GetCalendarResponse
-    .ctor(System.String JobNamespace, System.String CalendarName, Acta.CalendarRoleCode Role, System.Nullable<System.Int32> CurrentVersion, System.Int32 LatestVersion, System.Int32 ShownVersion, Acta.CalendarStatusCode ShownStatus, System.String Definition, System.Collections.Generic.IReadOnlyList<Acta.GetCalendarDependent> Dependents)
+    .ctor(System.String JobNamespace, System.String CalendarName, Acta.CalendarRoleCode Role, System.Nullable<System.Int32> CurrentVersion, System.Int32 LatestVersion, System.Int32 ShownVersion, Acta.CalendarStatusCode ShownStatus, System.String Definition)
     Acta.CalendarRoleCode Role { get;init; }
     Acta.CalendarStatusCode ShownStatus { get;init; }
-    System.Collections.Generic.IReadOnlyList<Acta.GetCalendarDependent> Dependents { get;init; }
     System.Int32 LatestVersion { get;init; }
     System.Int32 ShownVersion { get;init; }
     System.Nullable<System.Int32> CurrentVersion { get;init; }
@@ -1159,6 +1150,7 @@ interface Acta.ICalendarControlResponse : Acta.IControlResponse
 interface Acta.ICalendars
     System.Threading.Tasks.ValueTask<Acta.ArchiveCalendarResponse> ArchiveAsync(Acta.CalendarLookup calendar, System.Int32 expectedCurrentVersion, System.String reasonMessage = null, System.String actor = null, System.Threading.CancellationToken ct = default)
     System.Threading.Tasks.ValueTask<Acta.GetCalendarResponse> GetAsync(Acta.CalendarLookup calendar, System.Nullable<System.Int32> version = null, System.Threading.CancellationToken ct = default)
+    System.Threading.Tasks.ValueTask<Acta.ListCalendarDependentsResponse> ListDependentsAsync(Acta.ListCalendarDependentsQuery query, System.Threading.CancellationToken ct = default)
     System.Threading.Tasks.ValueTask<Acta.ListCalendarVersionsResponse> ListVersionsAsync(Acta.ListCalendarVersionsQuery query, System.Threading.CancellationToken ct = default)
     System.Threading.Tasks.ValueTask<Acta.ListCalendarsResponse> ListAsync(Acta.ListCalendarsQuery query, System.Threading.CancellationToken ct = default)
     System.Threading.Tasks.ValueTask<Acta.PreviewCalendarResponse> PreviewAsync(Acta.CalendarLookup calendar, System.Int32 version, System.Nullable<System.DateTime> fromUtc = null, System.Int32 count = 10, System.String timeZoneId = null, System.Threading.CancellationToken ct = default)
@@ -1764,6 +1756,27 @@ sealed record Acta.ListAlertsResponse : Acta.IPagedResponse<Acta.ListAlertsItem>
     .ctor(System.Collections.Generic.IReadOnlyList<Acta.ListAlertsItem> Items, System.String NextCursor, System.Boolean HasMore, System.Int32 PageSize, System.Nullable<System.Int64> TotalCount)
     System.Boolean HasMore { get;init; }
     System.Collections.Generic.IReadOnlyList<Acta.ListAlertsItem> Items { get;init; }
+    System.Int32 PageSize { get;init; }
+    System.Nullable<System.Int64> TotalCount { get;init; }
+    System.String NextCursor { get;init; }
+sealed record Acta.ListCalendarDependentsItem
+    .ctor(System.String JobNamespace, System.String JobName, System.String ScheduleName, Acta.CalendarRoleCode Binding, Acta.ScheduleStatusCode Status, Acta.ScheduledDeliveryCode ScheduledDelivery)
+    Acta.CalendarRoleCode Binding { get;init; }
+    Acta.ScheduleStatusCode Status { get;init; }
+    Acta.ScheduledDeliveryCode ScheduledDelivery { get;init; }
+    System.String JobName { get;init; }
+    System.String JobNamespace { get;init; }
+    System.String ScheduleName { get;init; }
+sealed record Acta.ListCalendarDependentsQuery
+    .ctor(Acta.CalendarLookup Calendar, System.Nullable<System.Int32> PageSize = null, System.String Cursor = null, System.Boolean IncludeTotal = false)
+    Acta.CalendarLookup Calendar { get;init; }
+    System.Boolean IncludeTotal { get;init; }
+    System.Nullable<System.Int32> PageSize { get;init; }
+    System.String Cursor { get;init; }
+sealed record Acta.ListCalendarDependentsResponse : Acta.IPagedResponse<Acta.ListCalendarDependentsItem>
+    .ctor(System.Collections.Generic.IReadOnlyList<Acta.ListCalendarDependentsItem> Items, System.String NextCursor, System.Boolean HasMore, System.Int32 PageSize, System.Nullable<System.Int64> TotalCount)
+    System.Boolean HasMore { get;init; }
+    System.Collections.Generic.IReadOnlyList<Acta.ListCalendarDependentsItem> Items { get;init; }
     System.Int32 PageSize { get;init; }
     System.Nullable<System.Int64> TotalCount { get;init; }
     System.String NextCursor { get;init; }

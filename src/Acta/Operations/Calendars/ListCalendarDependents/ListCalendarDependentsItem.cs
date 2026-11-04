@@ -6,7 +6,7 @@ namespace Acta;
 /// namespaces, so the path carries the namespace. The name resolves at every evaluation, a calendar declared in the
 /// process before the catalog's, so a dependent follows the family's current version unless its process declares one.
 /// </summary>
-public sealed record GetCalendarDependent(
+public sealed record ListCalendarDependentsItem(
     string JobNamespace,
     string JobName,
     string ScheduleName,

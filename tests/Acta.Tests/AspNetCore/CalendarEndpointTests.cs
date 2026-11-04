@@ -11,7 +11,8 @@ namespace Acta.Tests.AspNetCore;
 
 /// <summary>
 /// The calendar catalog routes over the in-process host: the list with and without a namespace, a family and one of its
-/// versions, a version's preview, and the draft, publish, and archive verbs with their status mapping (200, 409, 404).
+/// versions, the pages of its versions and dependents, the calendar screen, a version's preview, and the draft, publish,
+/// and archive verbs with their status mapping (200, 409, 404).
 /// </summary>
 public sealed class CalendarEndpointTests
 {
@@ -103,9 +104,8 @@ public sealed class CalendarEndpointTests
         Assert.Equal(1, family.RootElement.GetProperty("shownVersion").GetInt32());
         Assert.Equal("published", family.RootElement.GetProperty("shownStatus").GetString());
         Assert.Equal(2, family.RootElement.GetProperty("latestVersion").GetInt32());
-        Assert.DoesNotContain(family.RootElement.EnumerateObject(), member => member.Name == "versions");
+        Assert.DoesNotContain(family.RootElement.EnumerateObject(), member => member.Name is "versions" or "dependents");
         Assert.Equal("""{"kind":"weekly-availability"}""", family.RootElement.GetProperty("definition").GetString());
-        Assert.Equal("nightly", family.RootElement.GetProperty("dependents")[0].GetProperty("scheduleName").GetString());
         Assert.Contains("\"shownVersion\":2", await versioned.Content.ReadAsStringAsync(ct));
         Assert.Equal(HttpStatusCode.OK, shared.StatusCode);
         Assert.Equal(HttpStatusCode.NotFound, missing.StatusCode);
@@ -140,7 +140,7 @@ public sealed class CalendarEndpointTests
     }
 
     [Fact]
-    public async Task The_screen_composes_the_head_with_the_first_page_of_versions_or_answers_404()
+    public async Task The_screen_composes_the_head_with_the_first_pages_of_versions_and_dependents_or_answers_404()
     {
         var fakes = new FakeOperations();
         var (app, client) = await TestDashboardHost.StartAsync(fakes: fakes);
@@ -157,6 +157,9 @@ public sealed class CalendarEndpointTests
         var versions = detail.RootElement.GetProperty("versions");
         Assert.Equal([2, 1], versions.GetProperty("items").EnumerateArray().Select(v => v.GetProperty("version").GetInt32()));
         Assert.Equal(2, versions.GetProperty("totalCount").GetInt32());
+        var dependents = detail.RootElement.GetProperty("dependents");
+        Assert.Equal("nightly", dependents.GetProperty("items")[0].GetProperty("scheduleName").GetString());
+        Assert.Equal(1, dependents.GetProperty("totalCount").GetInt32());
         Assert.Equal(HttpStatusCode.NotFound, missing.StatusCode);
         Assert.Contains("Calendar not found.", await missing.Content.ReadAsStringAsync(ct));
         Assert.Equal(HttpStatusCode.BadRequest, malformed.StatusCode);
@@ -167,6 +170,10 @@ public sealed class CalendarEndpointTests
         Assert.Equal(
             new ListCalendarVersionsQuery(new CalendarLookup("billing", "office-hours"), IncludeTotal: true),
             Assert.Single(fakes.Calendars.VersionQueries)
+        );
+        Assert.Equal(
+            new ListCalendarDependentsQuery(new CalendarLookup("billing", "office-hours"), IncludeTotal: true),
+            Assert.Single(fakes.Calendars.DependentQueries)
         );
     }
 
@@ -228,6 +235,77 @@ public sealed class CalendarEndpointTests
 
         Assert.Equal(HttpStatusCode.BadRequest, response.StatusCode);
         Assert.Empty(fakes.Calendars.VersionQueries);
+    }
+
+    [Fact]
+    public async Task The_dependents_route_answers_404_for_an_unknown_family_and_lists_nothing()
+    {
+        var fakes = new FakeOperations();
+        var (app, client) = await TestDashboardHost.StartAsync(fakes: fakes);
+        await using var _ = app;
+        var ct = TestContext.Current.CancellationToken;
+
+        var response = await client.GetAsync($"{Prefix}/billing/missing/dependents", ct);
+
+        Assert.Equal(HttpStatusCode.NotFound, response.StatusCode);
+        Assert.Equal("application/problem+json", response.Content.Headers.ContentType?.MediaType);
+        Assert.Contains("Calendar not found.", await response.Content.ReadAsStringAsync(ct));
+        Assert.Empty(fakes.Calendars.DependentQueries);
+    }
+
+    [Fact]
+    public async Task The_dependents_route_answers_the_page_and_hands_its_paging_to_the_facade()
+    {
+        var fakes = new FakeOperations();
+        var (app, client) = await TestDashboardHost.StartAsync(fakes: fakes);
+        await using var _ = app;
+        var ct = TestContext.Current.CancellationToken;
+
+        var paged = await client.GetAsync($"{Prefix}/billing/office-hours/dependents?pageSize=7&cursor=opaque-cursor_42", ct);
+        var counted = await client.GetAsync($"{Prefix}/sys/holidays/dependents?includeTotal=true", ct);
+
+        Assert.Equal(HttpStatusCode.OK, paged.StatusCode);
+        Assert.Equal(HttpStatusCode.OK, counted.StatusCode);
+        Assert.Equal(
+            [
+                new ListCalendarDependentsQuery(new CalendarLookup("billing", "office-hours"), 7, "opaque-cursor_42", false),
+                new ListCalendarDependentsQuery(new CalendarLookup("sys", "holidays"), null, null, true),
+            ],
+            fakes.Calendars.DependentQueries
+        );
+        using var page = JsonDocument.Parse(await counted.Content.ReadAsStringAsync(ct));
+        var root = page.RootElement;
+        Assert.Equal(JsonValueKind.Null, root.GetProperty("nextCursor").ValueKind);
+        Assert.False(root.GetProperty("hasMore").GetBoolean());
+        Assert.Equal(1, root.GetProperty("totalCount").GetInt64());
+        var dependent = Assert.Single(root.GetProperty("items").EnumerateArray());
+        Assert.Equal(
+            ("billing", "send-invoice", "nightly", "availability", "active", "permanent"),
+            (
+                dependent.GetProperty("jobNamespace").GetString(),
+                dependent.GetProperty("jobName").GetString(),
+                dependent.GetProperty("scheduleName").GetString(),
+                dependent.GetProperty("binding").GetString(),
+                dependent.GetProperty("status").GetString(),
+                dependent.GetProperty("scheduledDelivery").GetString()
+            )
+        );
+    }
+
+    [Fact]
+    public async Task The_dependents_route_answers_a_malformed_page_size_with_400()
+    {
+        var fakes = new FakeOperations();
+        var (app, client) = await TestDashboardHost.StartAsync(fakes: fakes);
+        await using var _ = app;
+
+        var response = await client.GetAsync(
+            $"{Prefix}/billing/office-hours/dependents?pageSize=abc",
+            TestContext.Current.CancellationToken
+        );
+
+        Assert.Equal(HttpStatusCode.BadRequest, response.StatusCode);
+        Assert.Empty(fakes.Calendars.DependentQueries);
     }
 
     [Fact]

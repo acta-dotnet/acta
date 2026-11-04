@@ -5,6 +5,7 @@ internal sealed class CalendarsOperations(
     ListCalendarsHandler listCalendars,
     GetCalendarHandler getCalendar,
     ListCalendarVersionsHandler listCalendarVersions,
+    ListCalendarDependentsHandler listCalendarDependents,
     SaveCalendarDraftHandler saveCalendarDraft,
     ArchiveCalendarHandler archiveCalendar,
     PreviewCalendarHandler previewCalendar,
@@ -22,6 +23,11 @@ internal sealed class CalendarsOperations(
 
     public ValueTask<ListCalendarVersionsResponse> ListVersionsAsync(ListCalendarVersionsQuery query, CancellationToken ct = default) =>
         listCalendarVersions.HandleAsync(query, ct);
+
+    public ValueTask<ListCalendarDependentsResponse> ListDependentsAsync(
+        ListCalendarDependentsQuery query,
+        CancellationToken ct = default
+    ) => listCalendarDependents.HandleAsync(query, ct);
 
     public ValueTask<SaveCalendarDraftResponse> SaveDraftAsync(
         CalendarLookup calendar,

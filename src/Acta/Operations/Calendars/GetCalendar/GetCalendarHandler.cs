@@ -3,9 +3,8 @@ using System.Text;
 namespace Acta;
 
 /// <summary>
-/// <see cref="ICalendars.GetAsync"/>: three reads, the family's head, the shown version's definition, and the schedules
-/// bound to the family. No row is ever deleted and a version's content never changes, so a write between the reads can
-/// only add a version or move a status.
+/// <see cref="ICalendars.GetAsync"/>: the family's head, then the shown version's definition. No row is ever deleted and a
+/// version's content never changes, so a write between the reads can only add a version or move a status.
 /// </summary>
 internal sealed class GetCalendarHandler(ResolveCalendarVersionHandler resolveCalendarVersion, IDbSession session, ISqlDialect dialect)
 {
@@ -39,16 +38,6 @@ internal sealed class GetCalendarHandler(ResolveCalendarVersionHandler resolveCa
             return null;
         }
 
-        var dependents = await session.QueryListAsync(
-            "GetCalendarDependents",
-            cmd =>
-            {
-                cmd.Parameters.Add(dialect.CreateParameter(ActaSchema.Calendar.NamespaceId, head.NamespaceId));
-                cmd.Parameters.Add(dialect.CreateParameter(ActaSchema.Calendar.CalendarName, calendarName));
-            },
-            DbProjectionResolver.Resolve<GetCalendarDependent>(),
-            ct
-        );
         return new GetCalendarResponse(
             jobNamespace,
             calendarName,
@@ -57,8 +46,7 @@ internal sealed class GetCalendarHandler(ResolveCalendarVersionHandler resolveCa
             head.LatestVersion,
             shown,
             version.Status,
-            Encoding.UTF8.GetString(version.Definition.Span),
-            dependents
+            Encoding.UTF8.GetString(version.Definition.Span)
         );
     }
 }

@@ -420,7 +420,7 @@ export interface CalendarVersionView {
   modifiedAtUtc: string;
 }
 
-// A schedule bound to the family by name, as GET /calendars/{ns}/{name} lists it: how it binds the
+// A schedule bound to the family by name, as GET /calendars/{ns}/{name}/dependents lists it: how it binds the
 // family (occurrence source or availability filter), its status, and its delivery. A binding resolves
 // afresh at every evaluation, so there is no pinned version to show.
 export interface CalendarDependent {
@@ -432,8 +432,8 @@ export interface CalendarDependent {
   scheduledDelivery: string;
 }
 
-// GET /calendars/{ns}/{name}?version=: the family's current and latest versions, one version's status and
-// definition as JSON text (the requested one, else the current, else the latest), and the dependents.
+// GET /calendars/{ns}/{name}?version=: the family's head: its current and latest versions, and one version's
+// status and definition as JSON text (the requested one, else the current, else the latest).
 export interface CalendarHeadView {
   jobNamespace: string;
   calendarName: string;
@@ -443,14 +443,14 @@ export interface CalendarHeadView {
   shownVersion: number;
   shownStatus: string;
   definition: string;
-  dependents: CalendarDependent[];
 }
 
-// GET /calendars/{ns}/{name}/detail?version=: the head with the first page of its versions, newest first;
-// the page's totalCount says whether it is the whole set.
+// GET /calendars/{ns}/{name}/detail?version=: the head with the first page of its versions (newest first) and
+// of the schedules naming the family; each page's totalCount says whether it is the whole set.
 export interface CalendarDetailView {
   calendar: CalendarHeadView;
   versions: Paged<CalendarVersionView>;
+  dependents: Paged<CalendarDependent>;
 }
 
 export interface CalendarWindowView {

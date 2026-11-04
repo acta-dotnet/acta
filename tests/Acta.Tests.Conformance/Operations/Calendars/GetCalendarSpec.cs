@@ -5,15 +5,12 @@ using Xunit;
 
 namespace Acta.Tests.Conformance.Operations.Calendars;
 
-/// <summary>
-/// Conformance for reading one calendar family: its current and latest versions, the shown version's status and
-/// definition, and every schedule that names the family, orphans included.
-/// </summary>
+/// <summary>Conformance for reading one calendar family's head: its current and latest versions and one version's definition.</summary>
 [ConformanceSpec(
     "calendar.get",
-    "A calendar family reads its head, one definition, and its dependents",
+    "A calendar family reads its current and latest versions and one definition",
     Area = "Scheduling",
-    Contract = "Get answers the role, current and latest versions, the requested, current, or latest version's status and definition, and every schedule naming it, or null."
+    Contract = "Get answers the role, the current and latest versions, and the requested, current, or latest version's status and definition, or null."
 )]
 public sealed class GetCalendarSpec : ActaStorageTestBase<ConformanceFixture>
 {
@@ -37,7 +34,6 @@ public sealed class GetCalendarSpec : ActaStorageTestBase<ConformanceFixture>
         Assert.Null(read.CurrentVersion);
         Assert.Equal((2, 2, CalendarStatusCode.Draft), (read.LatestVersion, read.ShownVersion, read.ShownStatus));
         Assert.Equal("explicit-instants", Kind(read.Definition));
-        Assert.Empty(read.Dependents);
     }
 
     [Fact(DisplayName = "Get shows the current version by default and a requested one on demand; a version or family it lacks is null")]
@@ -59,51 +55,6 @@ public sealed class GetCalendarSpec : ActaStorageTestBase<ConformanceFixture>
         Assert.Null(await Calendars.GetAsync(calendar, 0, ct));
         Assert.Null(await Calendars.GetAsync(calendar, 3, ct));
         Assert.Null(await Calendars.GetAsync(new CalendarLookup(TestNamespace, Unique("no-such-calendar")), ct: ct));
-    }
-
-    [Fact(DisplayName = "Get lists every schedule that names the family, an orphan with its status")]
-    public async Task Get_lists_the_schedules_naming_the_family()
-    {
-        var ct = TestContext.Current.CancellationToken;
-        var calendar = new CalendarLookup(TestNamespace, Unique("office-hours"));
-        var jobName = Unique("support-sweep");
-        await Calendars.SaveDraftAsync(calendar, CalendarRoleCode.Availability, CalendarTestOps.AvailabilityDefinition, 0, ct: ct);
-        var defId = await CalendarTestOps.BindAvailabilityAsync(
-            Services,
-            TestNamespaceId,
-            jobName,
-            calendar.CalendarName,
-            ["evening", "morning"],
-            ct
-        );
-        await CalendarTestOps.RegisterAsync(Services, TestNamespaceId, defId, calendar.CalendarName, ["morning"], ct);
-
-        var read = await Calendars.GetAsync(calendar, ct: ct);
-
-        Assert.Equal(
-            [
-                new GetCalendarDependent(
-                    TestNamespace,
-                    jobName,
-                    "evening",
-                    CalendarRoleCode.Availability,
-                    ScheduleStatusCode.Orphaned,
-                    ScheduledDeliveryCode.PerOccurrence
-                ),
-                new GetCalendarDependent(
-                    TestNamespace,
-                    jobName,
-                    "morning",
-                    CalendarRoleCode.Availability,
-                    ScheduleStatusCode.Active,
-                    ScheduledDeliveryCode.PerOccurrence
-                ),
-            ],
-            read!.Dependents
-        );
-        // The namespace's list also carries the shared families other specs leave in sys; this test's id keeps to its own.
-        var listed = await Calendars.ListAsync(new ListCalendarsQuery(TestNamespace, NameContains: TestId), ct);
-        Assert.Equal(1, Assert.Single(listed.Items).DependentCount);
     }
 
     private static string? Kind(string definition)
