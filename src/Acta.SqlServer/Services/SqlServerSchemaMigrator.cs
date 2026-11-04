@@ -20,9 +20,8 @@ internal sealed class SqlServerSchemaMigrator(SqlProviderOptions options, ILogge
     internal const int CertifiedDriverMajor = 7;
 
     /// <summary>
-    /// The first batch of every SQL Server install, the published script's included: it refuses a system database and turns
-    /// READ_COMMITTED_SNAPSHOT on only in a database that holds no objects yet. The switch never ends another session, and a
-    /// switch the server refuses leaves the setting as it is: Acta runs with it on or off.
+    /// The first batch of every SQL Server install, the published script's included: it refuses a system database and
+    /// changes no database setting.
     /// </summary>
     internal const string InstallGuard = """
         IF DB_NAME() IN (N'master', N'tempdb', N'model', N'msdb')
@@ -30,42 +29,14 @@ internal sealed class SqlServerSchemaMigrator(SqlProviderOptions options, ILogge
             RAISERROR(N'Acta installs into a database of its own, never master, tempdb, model or msdb.', 16, 1);
             SET NOEXEC ON;
         END
-        IF (SELECT is_read_committed_snapshot_on FROM sys.databases WHERE database_id = DB_ID()) = 0
-           AND NOT EXISTS (SELECT 1 FROM sys.objects WHERE is_ms_shipped = 0)
-           AND HAS_PERMS_BY_NAME(DB_NAME(), 'DATABASE', 'ALTER') = 1
-           AND SERVERPROPERTY('EngineEdition') <> 5 -- Azure SQL Database allows this change only from master
-        BEGIN
-            -- One installer switches and the others go on without waiting: the switch waits for their transactions, so a
-            -- session waiting for it here would deadlock with it.
-            DECLARE @switch_lock INT;
-            EXEC @switch_lock = sp_getapplock N'acta-rcsi-switch', 'Exclusive', 'Session', 0;
-            IF @switch_lock >= 0
-            BEGIN
-                IF (SELECT is_read_committed_snapshot_on FROM sys.databases WHERE database_id = DB_ID()) = 0
-                BEGIN
-                    BEGIN TRY
-                        -- Dynamic: a system database refuses ALTER DATABASE CURRENT at compile time, before the refusal above runs.
-                        EXEC (N'ALTER DATABASE CURRENT SET READ_COMMITTED_SNAPSHOT ON WITH NO_WAIT');
-                    END TRY
-                    BEGIN CATCH
-                    END CATCH
-                END
-                EXEC sp_releaseapplock N'acta-rcsi-switch', 'Session';
-            END
-        END
         """;
 
     internal const string DialectToken = "mssql";
 
-    // A proven login waits out a database another installer is still creating. An unproven one tries once more after two
-    // seconds, since a login can be refused for a moment while another installer's switch completes with the same 18456 a
-    // wrong password gets, so a wrong password costs two failed logins a run instead of one.
-    private const int ProvenOpenAttempts = 60;
-    private const int UnprovenOpenAttempts = 2;
+    private const int OpenAttempts = 60;
 
     private static readonly Assembly ProviderAssembly = typeof(SqlServerSchemaMigrator).Assembly;
     private static readonly TimeSpan RetryDelay = TimeSpan.FromMilliseconds(500);
-    private static readonly TimeSpan UnprovenOpenDelay = TimeSpan.FromSeconds(2);
 
     protected override Assembly DriverAssembly => typeof(SqlConnection).Assembly;
 
@@ -82,7 +53,8 @@ internal sealed class SqlServerSchemaMigrator(SqlProviderOptions options, ILogge
 
     /// <summary>
     /// Dev convenience: connects to master, creates the database if it is missing, then runs <see cref="ApplyToDatabaseAsync"/>.
-    /// A deploy step applies to a database infrastructure created.
+    /// A database it creates gets READ_COMMITTED_SNAPSHOT at once, as EF Core's database creator does; an existing one keeps
+    /// its setting. A deploy step applies to a database infrastructure created.
     /// </summary>
     public static async Task<IReadOnlyList<string>> EnsureDatabaseAndApplyAsync(
         string connectionString,
@@ -99,9 +71,19 @@ internal sealed class SqlServerSchemaMigrator(SqlProviderOptions options, ILogge
         {
             await master.OpenAsync(ct);
             await using var cmd = master.CreateCommand();
-            // databaseName is interpolated into both a string-literal (N'...') and an identifier
-            // ([...]) context; ValidateDatabaseName rejects ' and ], so neither can break out.
-            cmd.CommandText = $"IF DB_ID(N'{databaseName}') IS NULL CREATE DATABASE [{databaseName}];";
+            // databaseName is interpolated into string literals (N'...') and identifiers ([...]); ValidateDatabaseName
+            // rejects ' and ], so none can break out. The switch follows CREATE DATABASE in the same batch, sooner than
+            // another installer that sees the new database can log in to it, and XACT_ABORT ends the batch at a lost race's
+            // 1801 before it switches another installer's database.
+            cmd.CommandText = $"""
+                SET XACT_ABORT ON;
+                IF DB_ID(N'{databaseName}') IS NULL
+                BEGIN
+                    CREATE DATABASE [{databaseName}];
+                    IF SERVERPROPERTY('EngineEdition') <> 5 -- Azure SQL Database creates it with the option on
+                        EXEC (N'ALTER DATABASE [{databaseName}] SET READ_COMMITTED_SNAPSHOT ON');
+                END
+                """;
             cmd.CommandTimeout = SchemaMigrations.CommandTimeoutSeconds;
             try
             {
@@ -114,17 +96,20 @@ internal sealed class SqlServerSchemaMigrator(SqlProviderOptions options, ILogge
             }
         }
 
-        // master proved the login, so the first open of the target may wait out a database another bootstrapper is still
-        // creating or switching.
-        return await ApplyToDatabaseAsync(connectionString, schemaName, loginProven: true, ct);
+        // master proved the login, so a refused one here is another installer still creating or switching the database: wait it
+        // out. Both numbers are login errors, so nothing has run when they fire.
+        for (var attempt = 1; ; attempt++)
+        {
+            try
+            {
+                return await ApplyToDatabaseAsync(connectionString, schemaName, ct);
+            }
+            catch (SqlException ex) when (attempt < OpenAttempts && ex.Number is 4060 or 18456)
+            {
+                await Task.Delay(RetryDelay, ct);
+            }
+        }
     }
-
-    /// <summary>
-    /// The target-database step every SQL Server apply runs: open the database, run <see cref="InstallGuard"/>, apply. It opens
-    /// nothing but the target, so it never needs master. Behind <c>SqlServerMigrations.ApplyAsync</c> and <c>jobs migrate</c>.
-    /// </summary>
-    internal static Task<IReadOnlyList<string>> ApplyToDatabaseAsync(string connectionString, string schema, CancellationToken ct) =>
-        ApplyToDatabaseAsync(connectionString, schema, loginProven: false, ct);
 
     /// <summary>The database the connection string names, refused before anything opens when it names none.</summary>
     internal static string RequireDatabase(string connectionString)
@@ -139,21 +124,20 @@ internal sealed class SqlServerSchemaMigrator(SqlProviderOptions options, ILogge
             : database;
     }
 
-    private static async Task<IReadOnlyList<string>> ApplyToDatabaseAsync(
-        string connectionString,
-        string schema,
-        bool loginProven,
-        CancellationToken ct
-    )
+    /// <summary>
+    /// The target-database step every SQL Server apply runs: open the database, run <see cref="InstallGuard"/>, apply. It opens
+    /// nothing but the target, so it never needs master. Behind <c>SqlServerMigrations.ApplyAsync</c> and <c>jobs migrate</c>.
+    /// </summary>
+    internal static async Task<IReadOnlyList<string>> ApplyToDatabaseAsync(string connectionString, string schema, CancellationToken ct)
     {
         // Before anything opens, so a refused argument changes nothing.
         RequireDatabase(connectionString);
         SqlIdentifierSyntax.ValidateBareIdentifier(schema, nameof(schema));
 
         // Unpooled: after a rejected login the pool answers every open with the cached error for its blocking period, which
-        // would outlast the open's retry.
-        var installConnection = new SqlConnectionStringBuilder(connectionString) { Pooling = false }.ConnectionString;
-        await using var conn = await OpenAsync(installConnection, loginProven, ct);
+        // would outlast the development path's retry.
+        await using var conn = new SqlConnection(new SqlConnectionStringBuilder(connectionString) { Pooling = false }.ConnectionString);
+        await conn.OpenAsync(ct);
         await using (var guard = conn.CreateCommand())
         {
             guard.CommandTimeout = SchemaMigrations.CommandTimeoutSeconds;
@@ -161,39 +145,13 @@ internal sealed class SqlServerSchemaMigrator(SqlProviderOptions options, ILogge
             await guard.ExecuteNonQueryAsync(ct);
         }
 
-        // The same connection: the session that ran the ALTER keeps the database, and the published script runs every batch
-        // after it the same way.
         return await SchemaMigrations.ApplyAsync(conn, schema, DialectToken, ProviderAssembly, ct);
-    }
-
-    private static async Task<SqlConnection> OpenAsync(string connectionString, bool loginProven, CancellationToken ct)
-    {
-        var (attempts, delay) = loginProven ? (ProvenOpenAttempts, RetryDelay) : (UnprovenOpenAttempts, UnprovenOpenDelay);
-        for (var attempt = 1; ; attempt++)
-        {
-            var conn = new SqlConnection(connectionString);
-            try
-            {
-                await conn.OpenAsync(ct);
-                return conn;
-            }
-            catch (SqlException ex) when (attempt < attempts && RetriesOpen(ex.Number))
-            {
-                await conn.DisposeAsync();
-                await Task.Delay(delay, ct);
-            }
-            catch
-            {
-                await conn.DisposeAsync();
-                throw;
-            }
-        }
     }
 
     /// <summary>
     /// Read-only migration-history preflight against the configured database. Connects to the target
-    /// catalog directly - no master connection, no CREATE DATABASE, no RCSI flip - because a host
-    /// that does not apply migrations has no business doing any of those.
+    /// catalog directly - no master connection, no CREATE DATABASE - because a host that does not
+    /// apply migrations has no business doing either.
     /// </summary>
     public static async Task PreflightAsync(string connectionString, string schemaName, CancellationToken ct)
     {
@@ -232,10 +190,4 @@ internal sealed class SqlServerSchemaMigrator(SqlProviderOptions options, ILogge
 
         await SchemaMigrations.DropSchemaAsync(connection, schemaName, DialectToken, ct);
     }
-
-    /// <summary>
-    /// Whether an open retries: 4060 or 18456, the logins a database another installer is creating or switching refuses for
-    /// a moment. How often depends on whether the login is proven; any other error surfaces at once.
-    /// </summary>
-    internal static bool RetriesOpen(int number) => number is 4060 or 18456;
 }

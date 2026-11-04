@@ -12,8 +12,7 @@ namespace Acta.Tests.Conformance.SqlServer.Features.Schema;
 /// schema when run verbatim (batch by GO batch, as sqlcmd/SSMS would), because DBA-run provisioning
 /// under an elevated principal is exactly how locked-down deployments consume it. Runs the committed
 /// file against a fresh schema name (using the header's own "replace the schema name throughout"
-/// instruction) in a database of the fact's own: the script's first batch turns read-committed snapshot
-/// on in an empty database, a setting of the whole database, so it never runs in the shared one.
+/// instruction) in a database of the fact's own, which the fact drops when it ends.
 /// </summary>
 public sealed partial class MsSqlProvisionScriptSpec
 {
@@ -31,14 +30,6 @@ public sealed partial class MsSqlProvisionScriptSpec
         // Twice on purpose: the header promises that a re-run on a database the script provisioned
         // applies no migration twice, and the migration-row count below is what proves it.
         await RunScriptAsync(database.ConnectionString, script, ct);
-        // The guard runs first, while the database is still empty; anywhere later it would find Acta's own objects.
-        Assert.True(
-            await ScratchDatabase.ScalarAsync<bool>(
-                database.ConnectionString,
-                "SELECT is_read_committed_snapshot_on FROM sys.databases WHERE database_id = DB_ID();",
-                ct
-            )
-        );
         await RunScriptAsync(database.ConnectionString, script, ct);
 
         // One history row per migration section in the file, no more (the double run must not

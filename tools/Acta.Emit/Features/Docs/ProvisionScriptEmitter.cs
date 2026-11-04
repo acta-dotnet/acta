@@ -42,9 +42,8 @@ internal static class ProvisionScriptEmitter
         script.AppendLine("-- two installers, script or bootstrap, never interleave.");
         if (mssql)
         {
-            script.AppendLine("-- Its first batch, outside the transaction, refuses a system database and turns");
-            script.AppendLine("-- READ_COMMITTED_SNAPSHOT on only in a database that holds no objects yet, as every runtime");
-            script.AppendLine("-- install does.");
+            script.AppendLine("-- Its first batch, outside the transaction, refuses a system database, as every runtime install");
+            script.AppendLine("-- does. It never changes a database setting, READ_COMMITTED_SNAPSHOT included.");
         }
         if (sqlite)
         {
@@ -111,13 +110,10 @@ internal static class ProvisionScriptEmitter
 
         if (mssql)
         {
-            // The guard every runtime install runs first. ALTER DATABASE cannot run inside a user transaction, so it is its own
-            // batch, ahead of the session options below.
+            // The guard every runtime install runs first, its own batch ahead of the session options below.
             Append(
                 """
-                -- Acta runs with READ_COMMITTED_SNAPSHOT on or off, so on a database that already holds objects the
-                -- setting stays yours. Every condition the server would refuse is checked first, and the switch never
-                -- ends another session: one the server refuses leaves the setting as it is.
+                -- SET NOEXEC keeps a client that runs on past this error from changing anything below.
 
                 """ + SqlServerSchemaMigrator.InstallGuard
             );

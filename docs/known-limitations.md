@@ -131,8 +131,8 @@ statement of that transaction that locks a whole page or table, which no read ca
 two things differ: a tree cancel waits for a transaction that is enqueuing a child into the tree, and
 Explain is not one snapshot. In both modes a dashboard page or count can briefly miss a row another
 transaction is changing, and a retire can leave a job another transaction holds at that instant
-unfinished under the retired definition. Acta turns READ_COMMITTED_SNAPSHOT on only when it installs
-into a database that holds no objects yet, and leaves the setting as it is everywhere else.
+unfinished under the retired definition. Acta turns READ_COMMITTED_SNAPSHOT on only in a database its
+development flag has just created, and leaves the setting as it is everywhere else.
 PostgreSQL runs plain Read Committed and SQLite WAL journal
 mode; reverting SQLite to a rollback journal reintroduces a global write lock. An application-imposed Serializable level makes the signal-wait arming race surface as a
 serialization retry rather than resolving in place — safe, but untested. Only the preferred

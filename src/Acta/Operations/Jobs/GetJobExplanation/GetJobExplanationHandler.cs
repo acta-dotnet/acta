@@ -4,8 +4,8 @@ namespace Acta;
 
 /// <summary>
 /// <see cref="IJobs.ExplainAsync"/>: resolves the lookup, reads the header, steps, and checkpoints in one statement,
-/// so from one snapshot, and narrates them against the database clock, so "lease expired 2m ago" measures against the
-/// clock that stamped the rows rather than this process's.
+/// and narrates them against the database clock, so "lease expired 2m ago" measures against the clock that stamped the
+/// rows rather than this process's.
 /// </summary>
 internal sealed class GetJobExplanationHandler(GetJobIdHandler getJobId, IDbSession session, ISqlDialect dialect, IActaClock clock)
 {
@@ -409,7 +409,7 @@ internal sealed class GetJobExplanationHandler(GetJobIdHandler getJobId, IDbSess
     private static string? Blank(string? value) => string.IsNullOrEmpty(value) ? null : value;
 }
 
-/// <summary>The header, steps, and checkpoints of one Job, read in one statement and so from one snapshot.</summary>
+/// <summary>The header, steps, and checkpoints of one Job, read in one statement.</summary>
 internal sealed record GetJobExplanationRows(
     GetJobExplanationHeaderRow Header,
     IReadOnlyList<GetJobExplanationStepRow> Steps,

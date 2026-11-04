@@ -329,7 +329,7 @@ Every Acta host doubles as a control CLI: `<app> jobs <verb>` runs the verb agai
 
 A `job_...` target is a job ref, another non-numeric one a deduplication key, and an integer the internal id; an omitted target is read from the clipboard. Add `--ns <ns>` to pick the namespace for a deduplication-key lookup and `--json` for JSON output.
 
-`explain` is where to start for any stuck, waiting, or failed job: it reads the job's status, lease, worker, slots, and latest reason in one snapshot and says what happened and what to do next. It cannot know what your code or an external system did.
+`explain` is where to start for any stuck, waiting, or failed job: it reads the job's status, lease, worker, slots, and latest reason in one statement and says what happened and what to do next. It cannot know what your code or an external system did.
 
 `debug` resets the job to Ready with restart semantics, claims exactly it, and runs the handler in this process, so a breakpoint in the handler stops it; leases keep renewing while it is stopped. A live worker can take the job first, and an Executing job is refused. `--break` raises the debugger at the handler.
 
@@ -506,7 +506,7 @@ applied M20261104070741_init to schema acta
 - An app that owns its command line (`j.DisableCli()`), or a separate tool, calls `await PostgresMigrations.ApplyAsync(connectionString, schema: "acta")`, or `SqlServerMigrations` or `SqliteMigrations`, which returns the names it applied.
 - A rollback is safe: an older build runs against the newer schema, and its `jobs migrate` changes nothing.
 - The script re-creates every routine and view on each run, so re-running it is safe; run it with a client that stops at the first error (`psql -v ON_ERROR_STOP=1`, `sqlcmd -b`, `sqlite3 -bail`). An older release's script stops before it changes a database a newer release upgraded.
-- On SQL Server, every install, the script included, turns `READ_COMMITTED_SNAPSHOT` on only in a database that holds no objects yet, and refuses a system database. Acta runs with it on or off, so a database that already holds objects keeps its setting; turning it on yourself disconnects the database's sessions once, so do it in a maintenance window. Acta's own switch never ends another session: a switch the server refuses leaves the setting off.
+- On SQL Server, every install, the script included, refuses a system database and never changes the settings of a database that already exists. Only `ApplyMigrationsOnStartup`, when it creates the database, turns `READ_COMMITTED_SNAPSHOT` on in it, as EF Core does. Acta runs with it on or off; turning it on yourself waits for every other session to leave the database, so do it in a maintenance window.
 - A migration runs in one transaction under an exclusive schema lock: on a live system it briefly blocks the statements it collides with, and jobs wait rather than fail.
 - Every start checks that the database has a history row for each migration the build ships, and fails naming the three ways above if not. Rows the build does not know are fine, so an older worker runs against a newer database. A hand-edited object is not detected.
 
@@ -521,7 +521,7 @@ ALTER DEFAULT PRIVILEGES FOR ROLE acta_deploy GRANT SELECT, INSERT, UPDATE, DELE
 
 The workers' login also uses what PUBLIC holds: PostgreSQL's defaults, TEMPORARY on the database and EXECUTE on functions, and the schema's own USAGE grant on the job id sequence. A database that revokes PUBLIC's privileges grants those to the workers' login instead.
 
-On SQL Server, the deploy login needs DDL in the database, and ALTER on it only if Acta should turn `READ_COMMITTED_SNAPSHOT` on in a new database. Grant the workers' login on the schema once the first `jobs migrate` has created it; a schema grant covers what later migrations add:
+On SQL Server, the deploy login needs DDL in the database. Grant the workers' login on the schema once the first `jobs migrate` has created it; a schema grant covers what later migrations add:
 
 ```sql
 ALTER ROLE db_ddladmin ADD MEMBER acta_deploy;

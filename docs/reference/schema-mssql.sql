@@ -6,9 +6,8 @@
 -- migration in order (each records its own history row).
 -- It takes the per-schema lock the runtime bootstrap takes before either reads the history, so
 -- two installers, script or bootstrap, never interleave.
--- Its first batch, outside the transaction, refuses a system database and turns
--- READ_COMMITTED_SNAPSHOT on only in a database that holds no objects yet, as every runtime
--- install does.
+-- Its first batch, outside the transaction, refuses a system database, as every runtime install
+-- does. It never changes a database setting, READ_COMMITTED_SNAPSHOT included.
 --
 -- WHERE TO RUN IT. Run it on an empty database to install, or again on a database it already
 -- provisioned: every statement is guarded or idempotent, so a re-run changes nothing that is
@@ -26,36 +25,11 @@
 -- nothing. Site-specific physical tuning (partitioning, tablespaces, compression) is yours to
 -- add; keep the logical shape - tables, columns, constraints, routine signatures - intact.
 
--- Acta runs with READ_COMMITTED_SNAPSHOT on or off, so on a database that already holds objects the
--- setting stays yours. Every condition the server would refuse is checked first, and the switch never
--- ends another session: one the server refuses leaves the setting as it is.
+-- SET NOEXEC keeps a client that runs on past this error from changing anything below.
 IF DB_NAME() IN (N'master', N'tempdb', N'model', N'msdb')
 BEGIN
     RAISERROR(N'Acta installs into a database of its own, never master, tempdb, model or msdb.', 16, 1);
     SET NOEXEC ON;
-END
-IF (SELECT is_read_committed_snapshot_on FROM sys.databases WHERE database_id = DB_ID()) = 0
-   AND NOT EXISTS (SELECT 1 FROM sys.objects WHERE is_ms_shipped = 0)
-   AND HAS_PERMS_BY_NAME(DB_NAME(), 'DATABASE', 'ALTER') = 1
-   AND SERVERPROPERTY('EngineEdition') <> 5 -- Azure SQL Database allows this change only from master
-BEGIN
-    -- One installer switches and the others go on without waiting: the switch waits for their transactions, so a
-    -- session waiting for it here would deadlock with it.
-    DECLARE @switch_lock INT;
-    EXEC @switch_lock = sp_getapplock N'acta-rcsi-switch', 'Exclusive', 'Session', 0;
-    IF @switch_lock >= 0
-    BEGIN
-        IF (SELECT is_read_committed_snapshot_on FROM sys.databases WHERE database_id = DB_ID()) = 0
-        BEGIN
-            BEGIN TRY
-                -- Dynamic: a system database refuses ALTER DATABASE CURRENT at compile time, before the refusal above runs.
-                EXEC (N'ALTER DATABASE CURRENT SET READ_COMMITTED_SNAPSHOT ON WITH NO_WAIT');
-            END TRY
-            BEGIN CATCH
-            END CATCH
-        END
-        EXEC sp_releaseapplock N'acta-rcsi-switch', 'Session';
-    END
 END
 GO
 SET XACT_ABORT ON;
