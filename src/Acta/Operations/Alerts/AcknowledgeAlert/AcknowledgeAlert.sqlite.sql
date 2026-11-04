@@ -1,6 +1,6 @@
-DROP TABLE IF EXISTS temp._ack_job_alert;
+DROP TABLE IF EXISTS temp._acknowledge_alert;
 
-CREATE TEMP TABLE _ack_job_alert AS
+CREATE TEMP TABLE _acknowledge_alert AS
 SELECT
     a.alert_id,
     a.alert_ref,
@@ -37,18 +37,18 @@ SELECT
     @p_event_message,
     @p_details_format_id,
     @p_details
-FROM temp._ack_job_alert t
+FROM temp._acknowledge_alert t
 LEFT JOIN {{schema}}.jobs j ON j.job_id = t.job_id
 WHERE t.already_ack = 0;
 
 UPDATE {{schema}}.alerts
 SET
-    acknowledged_at_utc = (SELECT now_utc FROM temp._ack_job_alert),
-    modified_at_utc = (SELECT now_utc FROM temp._ack_job_alert),
+    acknowledged_at_utc = (SELECT now_utc FROM temp._acknowledge_alert),
+    modified_at_utc = (SELECT now_utc FROM temp._acknowledge_alert),
     version = version + 1
 WHERE
     alert_ref = @p_alert_ref
-    AND EXISTS (SELECT 1 FROM temp._ack_job_alert t WHERE t.already_ack = 0);
+    AND EXISTS (SELECT 1 FROM temp._acknowledge_alert t WHERE t.already_ack = 0);
 
 SELECT
     CASE
@@ -62,4 +62,4 @@ SELECT
     END AS acknowledged_at_utc,
     t.resolved_at_utc AS resolved_at_utc
 FROM (SELECT @p_alert_ref AS qref) q
-LEFT JOIN temp._ack_job_alert t ON t.alert_ref = q.qref;
+LEFT JOIN temp._acknowledge_alert t ON t.alert_ref = q.qref;

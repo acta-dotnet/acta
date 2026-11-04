@@ -1,6 +1,6 @@
-DROP TABLE IF EXISTS temp._resolve_job_alert;
+DROP TABLE IF EXISTS temp._resolve_alert;
 
-CREATE TEMP TABLE _resolve_job_alert AS
+CREATE TEMP TABLE _resolve_alert AS
 SELECT
     a.alert_id,
     a.alert_ref,
@@ -37,13 +37,13 @@ SELECT
     @p_event_message,
     @p_details_format_id,
     @p_details
-FROM temp._resolve_job_alert t
+FROM temp._resolve_alert t
 LEFT JOIN {{schema}}.jobs j ON j.job_id = t.job_id
 WHERE t.already_resolved = 0;
 
 UPDATE {{schema}}.alerts
 SET
-    resolved_at_utc = (SELECT now_utc FROM temp._resolve_job_alert),
+    resolved_at_utc = (SELECT now_utc FROM temp._resolve_alert),
     /* Same settlement as the automatic resolve: a queued notification for a condition an operator has
        declared cleared is cancelled, and an already-settled status stands as the record of what the
        send actually did. */
@@ -53,11 +53,11 @@ SET
         ELSE delivery_status_code
     END,
     retry_after_utc = NULL,
-    modified_at_utc = (SELECT now_utc FROM temp._resolve_job_alert),
+    modified_at_utc = (SELECT now_utc FROM temp._resolve_alert),
     version = version + 1
 WHERE
     alert_ref = @p_alert_ref
-    AND EXISTS (SELECT 1 FROM temp._resolve_job_alert t WHERE t.already_resolved = 0);
+    AND EXISTS (SELECT 1 FROM temp._resolve_alert t WHERE t.already_resolved = 0);
 
 SELECT
     CASE
@@ -71,4 +71,4 @@ SELECT
         ELSE t.now_utc
     END AS resolved_at_utc
 FROM (SELECT @p_alert_ref AS qref) q
-LEFT JOIN temp._resolve_job_alert t ON t.alert_ref = q.qref;
+LEFT JOIN temp._resolve_alert t ON t.alert_ref = q.qref;

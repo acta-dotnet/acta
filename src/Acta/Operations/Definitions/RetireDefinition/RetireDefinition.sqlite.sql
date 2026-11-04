@@ -1,6 +1,6 @@
-DROP TABLE IF EXISTS temp._retire_job_definition;
+DROP TABLE IF EXISTS temp._retire_definition;
 
-CREATE TEMP TABLE _retire_job_definition AS
+CREATE TEMP TABLE _retire_definition AS
 SELECT jd.definition_id, jd.namespace_id, jd.definition_status_code, jd.version, jd.retention_seconds_effective
 FROM {{schema}}.definitions jd
 WHERE jd.definition_id = @p_definition_id;
@@ -26,7 +26,7 @@ JOIN {{schema}}.jobs_state r ON r.job_id = j.job_id
 WHERE
     j.definition_id IN (
         SELECT s.definition_id
-        FROM temp._retire_job_definition s
+        FROM temp._retire_definition s
         WHERE s.version = @p_version AND s.definition_status_code <> 240 /* DefinitionStatusCode.Retired */
     )
     AND r.job_status_code IN (
@@ -46,7 +46,7 @@ JOIN {{schema}}.jobs_state r ON r.job_id = j.job_id
 WHERE
     j.definition_id IN (
         SELECT s.definition_id
-        FROM temp._retire_job_definition s
+        FROM temp._retire_definition s
         WHERE s.version = @p_version AND s.definition_status_code <> 240 /* DefinitionStatusCode.Retired */
     )
     AND j.job_kind_code = 20 /* JobKindCode.PermanentSlot */
@@ -69,7 +69,7 @@ SET
     job_status_code = 220 /* JobStatusCode.Cancelled */,
     leased_by_worker_id = NULL,
     lease_expires_at_utc = NULL,
-    retention_until_utc = {{now}} + (SELECT s.retention_seconds_effective FROM temp._retire_job_definition s) * 1000,
+    retention_until_utc = {{now}} + (SELECT s.retention_seconds_effective FROM temp._retire_definition s) * 1000,
     modified_at_utc = {{now}},
     version = version + 1
 WHERE job_id IN (SELECT p.job_id FROM temp._retire_parked_jobs p);
@@ -105,7 +105,7 @@ SET
     version = version + 1
 WHERE definition_id IN (
     SELECT s.definition_id
-    FROM temp._retire_job_definition s
+    FROM temp._retire_definition s
     WHERE s.version = @p_version AND s.definition_status_code <> 240 /* DefinitionStatusCode.Retired */
 );
 
@@ -139,7 +139,7 @@ WHERE
     st.schedule_id = s.schedule_id
     AND s.definition_id IN (
         SELECT d.definition_id
-        FROM temp._retire_job_definition d
+        FROM temp._retire_definition d
         WHERE d.version = @p_version AND d.definition_status_code <> 240 /* DefinitionStatusCode.Retired */
     );
 
@@ -192,7 +192,7 @@ SELECT
     @p_event_message,
     @p_details_format_id,
     @p_details
-FROM temp._retire_job_definition s
+FROM temp._retire_definition s
 WHERE s.version = @p_version AND s.definition_status_code <> 240 /* DefinitionStatusCode.Retired */;
 
 -- Once every parked member is cancelled, each of their lanes hands on to its lowest-id unfinished
@@ -248,5 +248,5 @@ SELECT
     p.parent_job_id,
     CASE WHEN changes() > 0 THEN 1 ELSE 0 END AS lane_promoted
 FROM (SELECT @p_definition_id AS qid) q
-LEFT JOIN temp._retire_job_definition s ON s.definition_id = q.qid
+LEFT JOIN temp._retire_definition s ON s.definition_id = q.qid
 LEFT JOIN temp._retire_parked_jobs p ON 1 = 1;
