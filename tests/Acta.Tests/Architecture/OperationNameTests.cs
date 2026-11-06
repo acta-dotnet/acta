@@ -23,6 +23,21 @@ public sealed class OperationNameTests
     // The calls that load SQL by its stem: the session's reads, the catalog's load, and a write's StoreCommand.
     private static readonly HashSet<string> Loads = ["QueryAsync", "QuerySingleAsync", "QueryListAsync", "QueryPageAsync", "Load"];
 
+    // The verbs an operation may start with. A new verb is a new word in the vocabulary, so it is added only on purpose.
+    private static readonly HashSet<string> Verbs =
+    [
+        // Reads: one thing, items, a number, and the two that compute an answer and store nothing.
+        .. "Get List Count Explain Preview".Split(' '),
+        // Everything else changes state.
+        .. "Access Acknowledge Acquire Admit Archive Arm Cancel Claim Complete Consume Discard Drop Enqueue Ensure".Split(' '),
+        .. "Extend Mark Park Pause Plan Publish Purge Quarantine Raise Reclaim Record Register Release Remove".Split(' '),
+        .. "Replace Reprioritize Requeue Reschedule Reserve Reset Resolve Restart Resume Retire Save Start Stop".Split(' '),
+        .. "Suspend Trigger Update Upsert Wait".Split(' '),
+    ];
+
+    // A verb that names one group's act and nothing else: resolving closes an alert, and a lookup is a Get.
+    private static readonly Dictionary<string, string> VerbGroup = new(StringComparer.Ordinal) { ["Resolve"] = "Alerts" };
+
     // A method that runs an operation in a second form, beside the one named for it; each entry says what differs.
     private static readonly HashSet<(string Method, string Operation)> SecondForms =
     [
@@ -45,6 +60,42 @@ public sealed class OperationNameTests
     [
         .. Directory.EnumerateDirectories(Operations).SelectMany(Folders).Select(folder => Path.GetFileName(folder)!),
     ];
+
+    /// <summary>
+    /// An operation, and a route folder in <c>Acta.AspNetCore</c>, starts with a verb from the closed list, so no second
+    /// word for one act comes in unnoticed, and a verb bound to one group stays in it. Every listed verb is in use.
+    /// </summary>
+    [Fact]
+    public void An_operation_starts_with_a_listed_verb()
+    {
+        var routes = Path.Combine(IntegrationConfig.FindRepoRoot(), "src", "Acta.AspNetCore", "Operations");
+        var named = Directory
+            .EnumerateDirectories(Operations)
+            .SelectMany(Folders)
+            .Concat(Directory.EnumerateDirectories(routes).SelectMany(Directory.EnumerateDirectories))
+            .Select(folder => (Group: Path.GetFileName(Path.GetDirectoryName(folder))!, Name: Path.GetFileName(folder)!))
+            .Select(operation => (operation.Group, operation.Name, Verb: Verb(operation.Name)))
+            .ToList();
+        Assert.True(named.Count > 150, $"only {named.Count} operations and route folders; the walk is broken.");
+
+        var unlisted = named
+            .Where(operation => !Verbs.Contains(operation.Verb))
+            .Select(operation => ($"{operation.Group}/{operation.Name}", (string?)$"{operation.Verb} is not a listed verb"));
+        var misplaced = named
+            .Where(operation => VerbGroup.TryGetValue(operation.Verb, out var group) && group != operation.Group)
+            .Select(operation =>
+                ($"{operation.Group}/{operation.Name}", (string?)$"{operation.Verb} names an act of {VerbGroup[operation.Verb]} only")
+            );
+        var unused = Verbs.Except(named.Select(operation => operation.Verb)).Select(verb => (verb, (string?)"starts no operation"));
+
+        ArchitectureAssert.NoViolations(
+            unlisted.Concat(misplaced).Concat(unused),
+            "Name the operation with a listed verb (a read is a Get or a List, a lookup a Get, taking rows away a Remove), or add the verb on purpose."
+        );
+    }
+
+    // The leading word of a PascalCase name.
+    private static string Verb(string name) => name[..(1 + name.Skip(1).TakeWhile(char.IsLower).Count())];
 
     /// <summary>
     /// A method of <c>&lt;Group&gt;Operations</c> that runs one handler is that operation: <c>&lt;Operation&gt;Async</c> when

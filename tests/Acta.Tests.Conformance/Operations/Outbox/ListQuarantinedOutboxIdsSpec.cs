@@ -10,14 +10,14 @@ namespace Acta.Tests.Conformance.Operations.Outbox;
 /// </summary>
 [ConformanceSpec(
     "outbox-match.command-targets",
-    "Match reads the Quarantined rows a command targets without changing them",
+    "The source lists the Quarantined ids a command targets and changes none",
     Area = "Outbox",
     Contract = "ListQuarantinedIds returns the Quarantined rows among the given ids, or every Quarantined row when ids are null, and changes no row."
 )]
 public sealed class ListQuarantinedOutboxIdsSpec : OutboxSpecBase
 {
-    [Fact(DisplayName = "An id-scoped match returns only its quarantined ids, the null form returns every one, and no row moves")]
-    public async Task Match_returns_targeted_quarantined_rows_and_changes_none()
+    [Fact(DisplayName = "An id-scoped list returns only its quarantined ids, the null form returns every one, and no row moves")]
+    public async Task Lists_targeted_quarantined_ids_and_changes_none()
     {
         var ct = TestContext.Current.CancellationToken;
         var first = await SeedAndQuarantineAsync(Unique("mq-a"), "poison a", ct);

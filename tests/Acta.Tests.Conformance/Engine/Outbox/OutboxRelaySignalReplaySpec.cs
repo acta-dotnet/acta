@@ -123,7 +123,7 @@ public sealed class OutboxRelaySignalReplaySpec : OutboxRelayIntegrationBase
         var release = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
         var staleStore = new HookedOutboxStore(SourceConnection)
         {
-            BeforeMatch = async () =>
+            BeforeListIds = async () =>
             {
                 reached.TrySetResult();
                 await release.Task;

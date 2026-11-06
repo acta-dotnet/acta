@@ -54,7 +54,7 @@ public sealed class OutboxRelayHandoffSpec : OutboxRelayIntegrationBase
         var failFinalize = true;
         var store = new HookedOutboxStore(SourceConnection)
         {
-            BeforeDelete = () => failFinalize ? throw new InvalidOperationException("source finalize crash") : Task.CompletedTask,
+            BeforeRemove = () => failFinalize ? throw new InvalidOperationException("source finalize crash") : Task.CompletedTask,
         };
         // A short claim lease so the abandoned claim becomes reclaimable on the retry tick without waiting long.
         var opts = TickOptions(leaseTtlSeconds: 1);

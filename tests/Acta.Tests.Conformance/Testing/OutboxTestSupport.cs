@@ -75,8 +75,8 @@ internal sealed class HookedOutboxStore
                     stem =>
                         stem switch
                         {
-                            "RemoveClaimedOutbox" when BeforeDelete is { } hook => hook(),
-                            "ListQuarantinedOutboxIds" when BeforeMatch is { } hook => hook(),
+                            "RemoveClaimedOutbox" when BeforeRemove is { } hook => hook(),
+                            "ListQuarantinedOutboxIds" when BeforeListIds is { } hook => hook(),
                             "RequeueQuarantinedOutbox" when BeforeRequeue is { } hook => hook(),
                             _ => Task.CompletedTask,
                         }
@@ -84,11 +84,11 @@ internal sealed class HookedOutboxStore
             }
         );
 
-    /// <summary>When set, awaited just before the real delete runs (models a crash after the target commit).</summary>
-    public Func<Task>? BeforeDelete { get; set; }
+    /// <summary>When set, awaited just before the claimed rows are removed (models a crash after the target commit).</summary>
+    public Func<Task>? BeforeRemove { get; set; }
 
     /// <summary>When set, awaited just before a command's target rows are read (holds a relay pass before it plans).</summary>
-    public Func<Task>? BeforeMatch { get; set; }
+    public Func<Task>? BeforeListIds { get; set; }
 
     /// <summary>When set, awaited just before an operator requeue runs (holds a relay pass after it planned its command).</summary>
     public Func<Task>? BeforeRequeue { get; set; }

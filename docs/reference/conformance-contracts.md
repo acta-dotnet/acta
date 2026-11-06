@@ -1310,7 +1310,7 @@
   - Eight concurrent installs create the outbox table once, and an install leaves an existing table as it is
   - An install with no schema creates the table where a relay source that names no schema reads it
 
-### Delete removes a claimed row only under its token, a stale token no-ops
+### The source removes a claimed row only under its token, a stale token no-ops
 - **Contract:** RemoveClaimed removes a claimed row only when the command token matches the row's claim token, and a stale token deletes nothing.
 - **Guarantees:**
   - A stale token deletes nothing and the owning token deletes the row
@@ -1320,10 +1320,10 @@
 - **Guarantees:**
   - Discard deletes only quarantined rows, returns their ids, and cannot touch a claimed row
 
-### Match reads the Quarantined rows a command targets without changing them
+### The source lists the Quarantined ids a command targets and changes none
 - **Contract:** ListQuarantinedIds returns the Quarantined rows among the given ids, or every Quarantined row when ids are null, and changes no row.
 - **Guarantees:**
-  - An id-scoped match returns only its quarantined ids, the null form returns every one, and no row moves
+  - An id-scoped list returns only its quarantined ids, the null form returns every one, and no row moves
 
 ### Discard parks on the relay slot and the next pass deletes the rows
 - **Contract:** Discard parks once per pending command on the slot's own discard inbox, and the next relay pass deletes the targeted quarantined rows and records their ids.

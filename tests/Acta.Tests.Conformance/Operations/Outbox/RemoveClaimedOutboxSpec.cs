@@ -10,14 +10,14 @@ namespace Acta.Tests.Conformance.Operations.Outbox;
 /// </summary>
 [ConformanceSpec(
     "outbox-delete.token-cas",
-    "Delete removes a claimed row only under its token, a stale token no-ops",
+    "The source removes a claimed row only under its token, a stale token no-ops",
     Area = "Outbox",
     Contract = "RemoveClaimed removes a claimed row only when the command token matches the row's claim token, and a stale token deletes nothing."
 )]
 public sealed class RemoveClaimedOutboxSpec : OutboxSpecBase
 {
     [Fact(DisplayName = "A stale token deletes nothing and the owning token deletes the row")]
-    public async Task Delete_is_token_cas()
+    public async Task Remove_is_token_cas()
     {
         var ct = TestContext.Current.CancellationToken;
         var (id, token) = await SeedAndClaimAsync(Unique("del"), ct);
