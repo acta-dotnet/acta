@@ -3,14 +3,14 @@ namespace Acta;
 /// <summary>Routine outcome for one <c>wait_job_signal</c> call; mirrors the SQL <c>outcome_code</c>.</summary>
 internal enum WaitJobSignalOutcomeCode : byte
 {
-    /// <summary>No Set slot; a Pending row exists (created or already present). The job must suspend.</summary>
+    /// <summary>No Set checkpoint; a Pending row exists (created or already present). The job must suspend.</summary>
     SuspendPending = 1,
 
-    /// <summary>The slot is Set; the handler proceeds with the stored payload.</summary>
+    /// <summary>The checkpoint is Set; the handler proceeds with the stored payload.</summary>
     ContinueSet = 2,
 
     /// <summary>
-    /// The slot's stored expiration passed before a raise arrived, so this call flipped it to Expired
+    /// The checkpoint's stored expiration passed before a raise arrived, so this call flipped it to Expired
     /// (or found it already there). Deterministic on every replay; the wait never resolves any other way.
     /// </summary>
     TimedOut = 3,

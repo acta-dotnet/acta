@@ -226,7 +226,7 @@ public sealed class JobContextWaitTimeoutTests
     /// </summary>
     private sealed class TimingOutChildContext : RecordingJobContext
     {
-        private protected override Task<SignalSlotState> WaitSignalCoreAsync(
+        private protected override Task<SignalCheckpointState> WaitSignalCoreAsync(
             string name,
             int? timeoutSeconds,
             bool resumeOnTimeout,
@@ -234,7 +234,7 @@ public sealed class JobContextWaitTimeoutTests
         )
         {
             Events.Add($"wait:{name}");
-            return Task.FromResult(new SignalSlotState(0, null, TimedOut: true));
+            return Task.FromResult(new SignalCheckpointState(0, null, TimedOut: true));
         }
 
         private protected override Task CancelTimedOutChildCoreAsync(long childJobId, CancellationToken ct)
@@ -258,10 +258,14 @@ public sealed class JobContextWaitTimeoutTests
         private protected override Task<DateTime> GetOrSetWaitDeadlineCoreAsync(string name, TimeSpan timeout, CancellationToken ct) =>
             Task.FromResult(GroupDeadlineUtc);
 
-        private protected override Task<SignalSlotState> WaitSignalUntilCoreAsync(string name, DateTime dueAtUtc, CancellationToken ct)
+        private protected override Task<SignalCheckpointState> WaitSignalUntilCoreAsync(
+            string name,
+            DateTime dueAtUtc,
+            CancellationToken ct
+        )
         {
             Events.Add($"until:{name}@{dueAtUtc.ToString("O", CultureInfo.InvariantCulture)}");
-            return Task.FromResult(new SignalSlotState(0, null, TimedOut: true));
+            return Task.FromResult(new SignalCheckpointState(0, null, TimedOut: true));
         }
     }
 }

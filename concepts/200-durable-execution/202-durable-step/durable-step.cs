@@ -50,7 +50,7 @@ await lab.ShowAsync(
     new { jobId = enqueued.JobId }
 );
 await lab.ShowAsync(
-    "The durable step slot stores the completed outcome",
+    "The durable step stores the completed outcome",
     """
     SELECT step_name, step_status, attempt_number, failure
     FROM steps_view

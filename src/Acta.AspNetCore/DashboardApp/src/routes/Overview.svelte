@@ -69,7 +69,7 @@
     }
     const plural = (n, word) => displayFormatter.number(n) + ' ' + word + (n === 1 ? '' : 's');
     // executorCapacity separates the two diagnoses the old proxy had to guess between: no capacity at
-    // all is a deployment problem, while slots sitting idle beside a due backlog is the worse one -
+    // all is a deployment problem, while executors sitting idle beside a due backlog is the worse one -
     // workers are up and not claiming.
     const stalled = o.readyCount > 0 && o.executingCount === 0 && o.oldestReadyAgeSeconds > 60;
 
@@ -86,7 +86,7 @@
       const waiting = 'oldest ready job waiting ' + displayFormatter.duration(o.oldestReadyAgeSeconds);
       urgent.push({
         text: ns
-          ? waiting + ' while ' + plural(o.executorCapacity, 'executor slot') + ' sit idle'
+          ? waiting + ' while ' + plural(o.executorCapacity, 'executor') + ' sit idle'
           : waiting + ' with nothing executing',
         href: routes.jobs({ namespace: ns, status: 'ready' })
       });
@@ -170,9 +170,9 @@
       <MetricCard
         label="Executing" icon="lightning-bolt"
         value={overview.executingCount}
-        note={overview.executorCapacity > 0 ? ' · ' + displayFormatter.number(overview.executorCapacity) + ' slots' : ''}
+        note={overview.executorCapacity > 0 ? ' · ' + displayFormatter.number(overview.executorCapacity) + ' executors' : ''}
         hint={overview.executorCapacity > 0
-          ? 'Claimed jobs, including finished ones whose completion is queued for its write, so the count can pass the ' + displayFormatter.number(overview.executorCapacity) + ' executor slots across live workers'
+          ? 'Claimed jobs, including finished ones whose completion is queued for its write, so the count can pass the ' + displayFormatter.number(overview.executorCapacity) + ' executors across live workers'
           : 'No live workers, so nothing can be claimed'}
         href={routes.jobs({ namespace: $scope, status: 'executing' })} />
       <MetricCard

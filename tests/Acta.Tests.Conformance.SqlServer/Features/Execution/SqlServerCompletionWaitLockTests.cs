@@ -63,7 +63,10 @@ public sealed class SqlServerCompletionWaitLockTests : ActaRuntimeTestBase<SqlSe
         await LandWaitingAsync(hold, workerId, claimed, ct);
 
         var input = new JobControlInput("op", null, null);
-        var raise = Slots.RaiseJobSignalAsync(new RaiseJobSignalSlot(claimed.JobId, CheckpointKindCode.Signal, "go", 0, null, input), ct);
+        var raise = Slots.RaiseJobSignalAsync(
+            new RaiseJobSignalCheckpoint(claimed.JobId, CheckpointKindCode.Signal, "go", 0, null, input),
+            ct
+        );
         var first = await Task.WhenAny(raise, Task.Delay(TimeSpan.FromSeconds(1), ct));
         await hold.CommitAsync(ct);
 

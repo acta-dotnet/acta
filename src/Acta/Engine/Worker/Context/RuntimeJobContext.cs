@@ -118,7 +118,7 @@ internal sealed partial class RuntimeJobContext(
         RejectTopLevelJsonNull(payload);
         EnsureInlineSize("progress", payload);
         return FencedAsync(() =>
-            CheckpointSlot.SetAsync(_executionStore, Fence, CheckpointKindCode.Progress, ProgressVariableName, payload, ct)
+            CheckpointAccess.SetAsync(_executionStore, Fence, CheckpointKindCode.Progress, ProgressVariableName, payload, ct)
         );
     }
 
@@ -127,7 +127,7 @@ internal sealed partial class RuntimeJobContext(
         var payload = JsonSerializer().Serialize(value);
         RejectTopLevelJsonNull(payload);
         EnsureInlineSize($"variable '{name}'", payload);
-        return FencedAsync(() => CheckpointSlot.SetAsync(_executionStore, Fence, CheckpointKindCode.Variable, name, payload, ct));
+        return FencedAsync(() => CheckpointAccess.SetAsync(_executionStore, Fence, CheckpointKindCode.Variable, name, payload, ct));
     }
 
     private protected override Task SetVariableCoreAsync(string name, JobPayload payload, CancellationToken ct)
@@ -135,13 +135,13 @@ internal sealed partial class RuntimeJobContext(
         ValidatePayloadFormat(payload);
         RejectTopLevelJsonNull(payload);
         EnsureInlineSize($"variable '{name}'", payload);
-        return FencedAsync(() => CheckpointSlot.SetAsync(_executionStore, Fence, CheckpointKindCode.Variable, name, payload, ct));
+        return FencedAsync(() => CheckpointAccess.SetAsync(_executionStore, Fence, CheckpointKindCode.Variable, name, payload, ct));
     }
 
     private protected override async Task<(bool Found, T? Value)> TryGetVariableCoreAsync<T>(string name, CancellationToken ct)
         where T : default
     {
-        var value = await CheckpointSlot.GetAsync(_executionStore, Fence, CheckpointKindCode.Variable, name, ct);
+        var value = await CheckpointAccess.GetAsync(_executionStore, Fence, CheckpointKindCode.Variable, name, ct);
         return value is null ? (false, default) : (true, Deserialize<T>(value));
     }
 
@@ -151,7 +151,7 @@ internal sealed partial class RuntimeJobContext(
         CancellationToken ct
     )
     {
-        var existing = await CheckpointSlot.GetAsync(_executionStore, Fence, CheckpointKindCode.Variable, name, ct);
+        var existing = await CheckpointAccess.GetAsync(_executionStore, Fence, CheckpointKindCode.Variable, name, ct);
         if (existing is not null)
         {
             return Deserialize<T>(existing);
@@ -164,13 +164,13 @@ internal sealed partial class RuntimeJobContext(
         RejectTopLevelJsonNull(payload);
         EnsureInlineSize($"variable '{name}'", payload);
         var stored = await FencedAsync(() =>
-            CheckpointSlot.GetOrSetAsync(_executionStore, Fence, CheckpointKindCode.Variable, name, payload, ct)
+            CheckpointAccess.GetOrSetAsync(_executionStore, Fence, CheckpointKindCode.Variable, name, payload, ct)
         );
         return Deserialize<T>(stored);
     }
 
     /// <summary>
-    /// One deadline for a whole group wait, stored under a reserved sys. slot name so it can never
+    /// One deadline for a whole group wait, stored under a reserved sys. checkpoint name so it can never
     /// collide with a user variable. Written once and read forever after: the get-or-set upsert
     /// returns whatever landed first, so a replay, a crash, or a second call with a different
     /// timeout all resolve to the same instant and the group's budget can never restart. Ticks
@@ -179,11 +179,11 @@ internal sealed partial class RuntimeJobContext(
     /// </summary>
     private protected override async Task<DateTime> GetOrSetWaitDeadlineCoreAsync(string name, TimeSpan timeout, CancellationToken ct)
     {
-        // The DB clock, not the host's: the slot dues this deadline is compared with are stamped by the
+        // The DB clock, not the host's: the checkpoint dues this deadline is compared with are stamped by the
         // database, so measuring the group against anything else would import the worker's skew.
         var nowUtc = await Clock().GetUtcNowAsync(ct);
         var stored = await FencedAsync(() =>
-            CheckpointSlot.GetOrSetAsync(
+            CheckpointAccess.GetOrSetAsync(
                 _executionStore,
                 Fence,
                 CheckpointKindCode.Variable,
@@ -199,10 +199,10 @@ internal sealed partial class RuntimeJobContext(
         _clock ?? throw new InvalidOperationException("Bounded group waits need the Acta clock; this context was built without one.");
 
     private protected override Task<bool> ExistsVariableCoreAsync(string name, CancellationToken ct) =>
-        CheckpointSlot.ExistsAsync(_executionStore, Fence, CheckpointKindCode.Variable, name, ct);
+        CheckpointAccess.ExistsAsync(_executionStore, Fence, CheckpointKindCode.Variable, name, ct);
 
     private protected override Task<bool> DeleteVariableCoreAsync(string name, CancellationToken ct) =>
-        FencedAsync(() => CheckpointSlot.DeleteAsync(_executionStore, Fence, CheckpointKindCode.Variable, name, ct));
+        FencedAsync(() => CheckpointAccess.DeleteAsync(_executionStore, Fence, CheckpointKindCode.Variable, name, ct));
 
     private protected override Task ResetStateCoreAsync(CancellationToken ct) =>
         FencedAsync(() => _jobOperations.ResetJobStateAsync(Fence, ct));
@@ -236,25 +236,25 @@ internal sealed partial class RuntimeJobContext(
         }
     }
 
-    private protected override Task<SignalSlotState> WaitSignalCoreAsync(string name, CancellationToken ct) =>
+    private protected override Task<SignalCheckpointState> WaitSignalCoreAsync(string name, CancellationToken ct) =>
         WaitSignalCoreAsync(name, timeoutSeconds: null, resumeOnTimeout: false, ct);
 
     /// <summary>
-    /// Which overload the handler called decides what an expired wait does: the slot records only
+    /// Which overload the handler called decides what an expired wait does: the checkpoint records only
     /// the absolute expiration, so timeout policy lives in code, and a replay of the other
-    /// overload against the same slot is free to decide differently.
+    /// overload against the same checkpoint is free to decide differently.
     /// </summary>
-    private protected override Task<SignalSlotState> WaitSignalCoreAsync(
+    private protected override Task<SignalCheckpointState> WaitSignalCoreAsync(
         string name,
         int? timeoutSeconds,
         bool resumeOnTimeout,
         CancellationToken ct
-    ) => WaitSlotAsync(name, timeoutSeconds, dueAtUtc: null, resumeOnTimeout, ct);
+    ) => WaitCheckpointAsync(name, timeoutSeconds, dueAtUtc: null, resumeOnTimeout, ct);
 
-    private protected override Task<SignalSlotState> WaitSignalUntilCoreAsync(string name, DateTime dueAtUtc, CancellationToken ct) =>
-        WaitSlotAsync(name, timeoutSeconds: null, dueAtUtc, resumeOnTimeout: true, ct);
+    private protected override Task<SignalCheckpointState> WaitSignalUntilCoreAsync(string name, DateTime dueAtUtc, CancellationToken ct) =>
+        WaitCheckpointAsync(name, timeoutSeconds: null, dueAtUtc, resumeOnTimeout: true, ct);
 
-    private async Task<SignalSlotState> WaitSlotAsync(
+    private async Task<SignalCheckpointState> WaitCheckpointAsync(
         string name,
         int? timeoutSeconds,
         DateTime? dueAtUtc,
@@ -268,9 +268,9 @@ internal sealed partial class RuntimeJobContext(
         var decision = await FencedAsync(() => _signals.WaitJobSignalAsync(Fence, kind, name, timeoutSeconds, dueAtUtc, ct));
         return decision.Outcome switch
         {
-            WaitJobSignalOutcomeCode.ContinueSet => new SignalSlotState(decision.ValueFormatId, decision.Value),
-            WaitJobSignalOutcomeCode.SuspendPending => throw new SignalSuspendSignal(name, reasonMessage: null), // The host locks the slot and finalizes the attempt Suspended (or Ready if a raise won the race).
-            WaitJobSignalOutcomeCode.TimedOut when resumeOnTimeout => new SignalSlotState(0, null, TimedOut: true),
+            WaitJobSignalOutcomeCode.ContinueSet => new SignalCheckpointState(decision.ValueFormatId, decision.Value),
+            WaitJobSignalOutcomeCode.SuspendPending => throw new SignalSuspendSignal(name, reasonMessage: null), // The host locks the checkpoint and finalizes the attempt Suspended (or Ready if a raise won the race).
+            WaitJobSignalOutcomeCode.TimedOut when resumeOnTimeout => new SignalCheckpointState(0, null, TimedOut: true),
             WaitJobSignalOutcomeCode.TimedOut => throw new WaitTimeoutSignal(name), // The host lands the attempt Cancelled, budget-neutral, like the Strict-deadline path.
             _ => throw new InvalidOperationException($"wait_job_signal returned an unknown outcome for job {JobId}, signal '{name}'."),
         };
@@ -435,14 +435,14 @@ internal sealed partial class RuntimeJobContext(
 }
 
 /// <summary>
-/// The one generic CRUD operation over a <c>checkpoints</c> slot (user variables and the progress
-/// slot): last-writer-wins set, get, atomic get-or-set, exists, and delete, dispatched by
+/// The one generic CRUD operation over a <c>checkpoints</c> row (user variables and the progress
+/// checkpoint): last-writer-wins set, get, atomic get-or-set, exists, and delete, dispatched by
 /// <see cref="AccessJobCheckpointAction"/> through <see cref="ExecutionOperations.AccessJobCheckpointAsync"/>. Checkpoint
 /// kinds with their own concurrency choreography (signals, timers, child latches) keep dedicated
-/// operations; plain slot CRUD shares this one shape. Caller owns name validation, kind selection,
+/// operations; plain CRUD shares this one shape. Caller owns name validation, kind selection,
 /// and typed serialization; this op owns the durable row shape. Set, get-or-set, and delete land only under the fence.
 /// </summary>
-internal static class CheckpointSlot
+internal static class CheckpointAccess
 {
     public static Task SetAsync(
         ExecutionOperations store,
@@ -527,7 +527,7 @@ internal static class CheckpointSlot
     private static CheckpointValue ToValue(AccessJobCheckpointResponse row)
     {
         return row.ValueFormatId is not { } format || row.Value is not { } value || row.Version is not { } version
-            ? throw new InvalidOperationException("access_job_checkpoint returned a found slot with NULL value columns.")
+            ? throw new InvalidOperationException("access_job_checkpoint returned a found checkpoint with NULL value columns.")
             : new CheckpointValue(format, value, version);
     }
 }

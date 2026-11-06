@@ -3,7 +3,7 @@
 The non-negotiable identity of Acta and the rationale behind it: the "why" manifesto. Every other
 document defers to this one. Reopening anything here is a category-reshaping change, not a refinement.
 
-The vocabulary itself (Job, Execution, Attempt, Status, namespace, durable slot, provider, the three
+The vocabulary itself (Job, Execution, Attempt, Status, namespace, provider, the three
 identities, the substrate tables) is defined once in [concepts](./developer-guide.md#concepts-and-glossary). This
 document explains why the model is shaped that way; it does not re-teach the mechanics. Where the code
 lives is in [source layout](../CONTRIBUTING.md#source-layout). Whether Acta fits a problem is
@@ -21,7 +21,7 @@ One work-unit shape for every kind of work, source-generated dispatch with zero 
 
 Deliberate non-goals. Adding any of these is a category-reshaping change. Acta does not provide:
 
-- deterministic workflow replay or an event-history replay engine. Acta uses checkpointed re-entry over named durable slots, not history reconstruction.
+- deterministic workflow replay or an event-history replay engine. Acta uses checkpointed re-entry over named steps and checkpoints, not history reconstruction.
 - BPMN or a visual workflow designer.
 - a message bus, broker, or transport abstraction.
 - a sidecar or auxiliary service to deploy.
@@ -44,7 +44,7 @@ Deliberate non-goals. Adding any of these is a category-reshaping change. Acta d
 
 **Everything externally scheduled, claimed, retried, paused, cancelled, and audited as work is a
 Job; Job-internal state lives in the `checkpoints` and `steps` substrate tables, not as Jobs.** The mechanics
-(which slot writes which checkpoint kind, the `(JobId, Kind, Name)` keying, how a purge removes them) are in
+(which handler API writes which checkpoint kind, the `(JobId, Kind, Name)` keying, how a purge removes them) are in
 [concepts](./developer-guide.md#concepts-and-glossary).
 
 The reason is the two-tier model: it keeps heavy machinery (claim queue, lease, audit, alerting) at
@@ -67,7 +67,7 @@ Examples:
 - Per-attempt history is one outcome event per `(JobId, ExecutionNumber)` — succeeded, failed, orphaned, yielded, or terminally failed — carrying the worker and the handler's duration: no separate execution table. An attempt in flight is its `jobs_state` row.
 - Lanes earned the `lanes` table. A laned enqueue needs a row to lock until it commits, so two producers cannot interleave out of order, and the lane name is stored once. A hash on `jobs_state` has no row to lock and can merge two lanes; `locks` rows are expiring leases, a different lifecycle.
 
-A worked example (see [the settled-decisions ledger below](#settled-decisions-ledger) § Substrate): the simple substrate is one merged `checkpoints` table discriminated by `Kind`, spending one table on five slot features; only `steps` earned its own table by carrying a genuinely different shape (attempt counters, retry budget, stored results).
+A worked example (see [the settled-decisions ledger below](#settled-decisions-ledger) § Substrate): the simple substrate is one merged `checkpoints` table discriminated by `Kind`, spending one table on five features; only `steps` earned its own table by carrying a genuinely different shape (attempt counters, retry budget, stored results).
 
 The principle extends to APIs: adding a method requires showing no existing surface can carry the use case via composition (`IJobs.GetIdAsync` + standard `JobId` lifecycle, vs proliferating `*ByName` overloads). API count is a budget, same as table count.
 
@@ -105,7 +105,7 @@ Reopening an entry means writing a proposal, not editing this file.
 
 ### Substrate
 
-- **Fourteen installed routines carry the hot ledger mutations on PostgreSQL and SQL Server; every other operation is inline SQL.** Enqueue, claim, complete, the step writes, checkpoints, leases, meters, job signals and sleep timers, recovery, and retention are routines; registration, alerts, locks and slots, the outbox inbox, reads, control verbs, and the rest run as embedded SQL, and SQLite runs every mutation inline inside an owned transaction. `SqlCommandCatalogTests` pins the list, so adding a routine is a decision. See [SQL execution policy](./sql-internals.md). *Reason:* a routine buys one round trip and a server-side plan, and costs a DBA-run package revision on every edit; only the hot paths earn that. Retention and recovery stay routines although they are periodic: a retention sweep calls its purge once per slice and batch, and both re-check rows under the locks they take, which inline SQL could only do with temp tables built on every call, measured two to three times slower.
+- **Fourteen installed routines carry the hot ledger mutations on PostgreSQL and SQL Server; every other operation is inline SQL.** Enqueue, claim, complete, the step writes, checkpoints, leases, meters, job signals and sleep timers, recovery, and retention are routines; registration, alerts, locks and lock slots, the outbox inbox, reads, control verbs, and the rest run as embedded SQL, and SQLite runs every mutation inline inside an owned transaction. `SqlCommandCatalogTests` pins the list, so adding a routine is a decision. See [SQL execution policy](./sql-internals.md). *Reason:* a routine buys one round trip and a server-side plan, and costs a DBA-run package revision on every edit; only the hot paths earn that. Retention and recovery stay routines although they are periodic: a retention sweep calls its purge once per slice and batch, and both re-check rows under the locks they take, which inline SQL could only do with temp tables built on every call, measured two to three times slower.
 - **Source code is the source of truth.** Entity classes + XML docs are canonical; `data-model.md`, `code-families.md`, `operations.md`, `conformance-contracts.md`, the provisioning scripts, and each provider's baseline migration are emit-generated and CI drift-gated. *Reason:* one declaration site, no doc drift.
 - **Every operation is one handler over `IDbSession` and `ISqlDialect`, written once, with its SQL beside it per dialect.** Providers own executable SQL and dialect binds, not handlers. No production generic `InsertAsync`/`UpdateAsync`/`DeleteAsync`. *Reason:* SQL enforces atomicity while one shared C# implementation holds provider-independent policy.
 - **`JobEvent` is the execution ledger AND the audit timeline.** One outcome event per `(JobId, ExecutionNumber)` carries per-attempt history; no per-attempt table. Every event names its subject by the generic `(entity_code, entity_id)` pair, shared with tags. *Reason:* one append-only substrate, one retention sweep.

@@ -64,7 +64,7 @@ HAVING COUNT(DISTINCT worker_id) > 1;
 -- An attempt with no finish is legal and deliberately not asserted against. Two live workers can
 -- claim the same recurring slot moments apart and take different execution numbers: the later one
 -- completes, the earlier one's completion is refused on a stale version, and a refused completion
--- writes no event, so its attempt has no finish forever. Nothing was lost or repeated - the slot ran
+-- writes no event, so its attempt has no finish forever. Nothing was lost or repeated - the job ran
 -- once - and the refusal is deliberate engine behaviour with a spec of its own. Unclosed attempts are
 -- covered where they actually matter by check 4, which asks whether any job was left mid-flight.
 SELECT 'attempt-pairing' AS check_name, entity_id AS job_id, execution_number, COUNT(*) AS finished
@@ -199,7 +199,7 @@ HAVING COUNT(*) >= 0;
 -- ---------------------------------------------------------------------------------------------
 -- 10. an AtMostOnce body never ran twice                 [any time]
 -- ---------------------------------------------------------------------------------------------
--- The double-spend claim. `AtMostOnce` promises a body runs zero or one times: on replay the slot is
+-- The double-spend claim. `AtMostOnce` promises a body runs zero or one times: on replay the step is
 -- poisoned rather than re-entered, and the caller gets StepInterruptedException instead of a second
 -- charge. `steps` cannot show this - one row per (job, name), updated in place - so the witness is
 -- the note the body writes before doing its work, which commits in its own operation and therefore

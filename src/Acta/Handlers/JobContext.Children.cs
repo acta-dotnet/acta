@@ -29,7 +29,7 @@ public abstract partial class JobContext
 
     /// <summary>
     /// <see cref="StartChildAsync{TInput}(string, TInput, Action{JobEnqueueOptionsBuilder}, CancellationToken)"/> with
-    /// <paramref name="ct"/> in the third slot: no <c>configure</c>, no named <c>ct: ct</c>.
+    /// <paramref name="ct"/> in the third position: no <c>configure</c>, no named <c>ct: ct</c>.
     /// </summary>
     /// <param name="name">Stable kebab-case child name, unique among this Job's children.</param>
     /// <param name="input">Typed input resolved to a job route via the generated manifest.</param>
@@ -112,7 +112,7 @@ public abstract partial class JobContext
     /// <summary>
     /// Convenience overload of
     /// <see cref="ExecuteChildAsync{TInput}(string, TInput, Action{JobEnqueueOptionsBuilder}, CancellationToken)"/>:
-    /// <paramref name="ct"/> takes the third positional slot when no <c>configure</c> override is
+    /// <paramref name="ct"/> takes the third position when no <c>configure</c> override is
     /// needed, instead of requiring the named <c>ct: ct</c> form. Equivalent to <c>configure: null</c>.
     /// </summary>
     public Task<JobOutcome> ExecuteChildAsync<TInput>(string name, TInput input, CancellationToken ct)
@@ -138,7 +138,7 @@ public abstract partial class JobContext
         // leave an enqueued child behind that nothing is going to wait for.
         ToWaitTimeoutSeconds(timeout);
         var child = await StartChildAsync(name, input, configure, ct);
-        // One child needs no group deadline slot: the latch's own stored expiration already is the one
+        // One child needs no group deadline checkpoint: the latch's own stored expiration already is the one
         // persisted absolute instant, and a second copy of it could only drift.
         var result = await TryWaitChildAsync(child.JobId, timeout, ct);
         return result.Outcome is { } outcome
@@ -149,7 +149,7 @@ public abstract partial class JobContext
     /// <summary>
     /// Convenience overload of
     /// <see cref="ExecuteChildAsync{TInput}(string, TInput, TimeSpan, Action{JobEnqueueOptionsBuilder}, CancellationToken)"/>:
-    /// <paramref name="ct"/> takes the fourth positional slot when no <c>configure</c> override is
+    /// <paramref name="ct"/> takes the fourth position when no <c>configure</c> override is
     /// needed, instead of requiring the named <c>ct: ct</c> form. Equivalent to <c>configure: null</c>.
     /// </summary>
     public Task<JobOutcome> ExecuteChildAsync<TInput>(string name, TInput input, TimeSpan timeout, CancellationToken ct)
@@ -202,7 +202,7 @@ public abstract partial class JobContext
     /// <summary>
     /// Convenience overload of
     /// <see cref="ExecuteChildAsync{TInput, TResult}(string, TInput, Action{JobEnqueueOptionsBuilder}, CancellationToken)"/>:
-    /// <paramref name="ct"/> takes the third positional slot when no <c>configure</c> override is
+    /// <paramref name="ct"/> takes the third position when no <c>configure</c> override is
     /// needed, instead of requiring the named <c>ct: ct</c> form. Equivalent to <c>configure: null</c>.
     /// </summary>
     public Task<JobOutcome<TResult>> ExecuteChildAsync<TInput, TResult>(string name, TInput input, CancellationToken ct)
@@ -246,7 +246,7 @@ public abstract partial class JobContext
     /// <summary>
     /// Convenience overload of
     /// <see cref="ExecuteChildAsync{TInput, TResult}(string, TInput, TimeSpan, Action{JobEnqueueOptionsBuilder}, CancellationToken)"/>:
-    /// <paramref name="ct"/> takes the fourth positional slot when no <c>configure</c> override is
+    /// <paramref name="ct"/> takes the fourth position when no <c>configure</c> override is
     /// needed, instead of requiring the named <c>ct: ct</c> form. Equivalent to <c>configure: null</c>.
     /// </summary>
     public Task<JobOutcome<TResult>> ExecuteChildAsync<TInput, TResult>(string name, TInput input, TimeSpan timeout, CancellationToken ct)

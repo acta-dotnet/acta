@@ -34,7 +34,7 @@ export interface JobWait {
   dueAtUtc: string | null;
 }
 
-// One step slot; status is the kebab StepStatusCode.
+// One step; status is the kebab StepStatusCode.
 export interface JobStep {
   name: string;
   status: string;

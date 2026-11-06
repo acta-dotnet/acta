@@ -47,7 +47,7 @@
     },
     limit: {
       tab: 'ConcurrencyLimit',
-      axis: ['<b>How many at once: N.</b> The same gate with N slots, per key or per definition.', '[Job("rebuild-index", ConcurrencyLimit = 2)]'],
+      axis: ['<b>How many at once: N.</b> The same gate with N concurrency slots, per key or per definition.', '[Job("rebuild-index", ConcurrencyLimit = 2)]'],
       ledger: 'Acta SQL ledger · one definition, two slots',
       rule: 'No enqueue supplied a key, so the definition name is the key and both slots are shared by every job of it, cluster-wide.',
       rows: [['rebuild-index', 'ConcurrencyLimit = 2', all]],

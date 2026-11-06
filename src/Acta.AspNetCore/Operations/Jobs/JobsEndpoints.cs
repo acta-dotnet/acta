@@ -67,7 +67,7 @@ internal static class JobsEndpoints
         reads
             .MapList(
                 "/jobs/{jobRef}/steps",
-                "List one job's step slots, newest first.",
+                "List one job's steps, newest first.",
                 DashboardJsonContext.Default.ListJobStepsResponse,
                 query =>
                     (

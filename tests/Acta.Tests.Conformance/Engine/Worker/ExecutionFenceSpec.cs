@@ -94,7 +94,7 @@ public sealed class ExecutionFenceSpec : ActaRuntimeTestBase<ConformanceFixture,
         await AssertFencedOutAsync(old, () => old.Ctx.SetProgressAsync(99, ct), ct);
 
         await current.Ctx.SetProgressAsync(6, ct);
-        var progress = await CheckpointSlot.GetAsync(Execution, current.Fence, CheckpointKindCode.Progress, "sys.progress", ct);
+        var progress = await CheckpointAccess.GetAsync(Execution, current.Fence, CheckpointKindCode.Progress, "sys.progress", ct);
         Assert.NotNull(progress);
         Assert.Equal("6", Encoding.UTF8.GetString(progress.Value));
         await AssertCompletionAcceptedAsync(current, ct);
@@ -430,7 +430,7 @@ public sealed class ExecutionFenceSpec : ActaRuntimeTestBase<ConformanceFixture,
             await Execution.ClaimJobAsync(Runtime.RegisteredNamespaceIds[TestNamespace], otherWorker, LeaseTtlSeconds, enqueued, ct)
         );
         var current = new ExecutionFence(jobId, claimed.ExecutionNumber, otherWorker);
-        await CheckpointSlot.SetAsync(Execution, current, CheckpointKindCode.Variable, Receipt, JobPayload.Json("current"), ct);
+        await CheckpointAccess.SetAsync(Execution, current, CheckpointKindCode.Variable, Receipt, JobPayload.Json("current"), ct);
 
         ExecutionFenceProbe.Release(jobId, 1);
         Assert.IsType<ExecutionFencedException>(await ExecutionFenceProbe.Wrote(jobId, 1).WaitAsync(SpecWaits.Gate, ct));
@@ -598,7 +598,7 @@ public sealed class ExecutionFenceSpec : ActaRuntimeTestBase<ConformanceFixture,
 
     private async Task<string?> ReceiptAsync(long jobId, CancellationToken ct)
     {
-        var row = await CheckpointSlot.GetAsync(Execution, new ExecutionFence(jobId, 0, 0), CheckpointKindCode.Variable, Receipt, ct);
+        var row = await CheckpointAccess.GetAsync(Execution, new ExecutionFence(jobId, 0, 0), CheckpointKindCode.Variable, Receipt, ct);
         return row is null ? null : Encoding.UTF8.GetString(row.Value);
     }
 }

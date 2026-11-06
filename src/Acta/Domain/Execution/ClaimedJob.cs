@@ -1,7 +1,7 @@
 namespace Acta;
 
 /// <summary>
-/// One claimed row: the full job row needed to dispatch, and for the runner to take the <c>concurrency_key</c> slot
+/// One claimed row: the full job row needed to dispatch, and for the runner to take the <c>concurrency_key</c> lock slot
 /// before the handler, without re-reading <c>jobs</c>; tags and schedules load separately on demand, never joined into
 /// the hot claim. <c>FailureCount</c> feeds the failure-budget decision computed in C# at completion; a completion
 /// matches on worker and <c>ExecutionNumber</c>, which only a claim moves. <c>LaneId</c>, <c>ParentJobId</c>, and

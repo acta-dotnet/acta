@@ -44,7 +44,7 @@ public abstract partial class JobContext
     /// sees TimedOut while the subtree is still burning workers, and a replay re-runs a cancel that is a no-op on
     /// terminal rows.
     /// </summary>
-    private async Task<ChildWaitOutcome> ResolveChildWaitAsync(long childJobId, SignalSlotState outcome, CancellationToken ct)
+    private async Task<ChildWaitOutcome> ResolveChildWaitAsync(long childJobId, SignalCheckpointState outcome, CancellationToken ct)
     {
         if (!outcome.TimedOut)
         {
@@ -63,9 +63,9 @@ public abstract partial class JobContext
     /// </summary>
     private static string ChildLatchName(long childJobId) => ChildSignalPrefix + childJobId.ToString(CultureInfo.InvariantCulture);
 
-    private static ChildJobOutcome ParseChildOutcome(long childJobId, SignalSlotState outcome) =>
+    private static ChildJobOutcome ParseChildOutcome(long childJobId, SignalCheckpointState outcome) =>
         outcome.Value is null
-            ? throw new InvalidOperationException($"Child outcome slot for job {childJobId} carries no envelope.")
+            ? throw new InvalidOperationException($"Child latch for job {childJobId} carries no envelope.")
             : ChildOutcomeEnvelope.Parse(outcome.Value);
 
     /// <summary>
@@ -120,7 +120,7 @@ public abstract partial class JobContext
     {
         ArgumentNullException.ThrowIfNull(childJobIds);
         // Every argument is checked before the first store call, and a bad id anywhere in the list stops
-        // the whole call, so a rejected group never leaves a deadline slot or a half-armed latch behind.
+        // the whole call, so a rejected group never leaves a deadline checkpoint or a half-armed latch behind.
         ToWaitTimeoutSeconds(timeout);
         for (var i = 0; i < childJobIds.Count; i++)
         {
@@ -170,11 +170,11 @@ public abstract partial class JobContext
     }
 
     /// <summary>
-    /// Reserved deadline-slot name: the child ids hashed to a stable tail, under the <c>sys.</c> prefix user variables
+    /// Reserved deadline checkpoint name: the child ids hashed to a stable tail, under the <c>sys.</c> prefix user variables
     /// cannot take. The ids come back identical on every replay (a child start dedupes onto the same row), so the
     /// name is stable, and two waits on the same children in one Job share the deadline on purpose. The ids are
     /// sorted and de-duplicated first, so the name is a property of the set: reordering them, or listing one twice on
-    /// one replay, would otherwise mint a second slot and a fresh budget, making never-restart a matter of caller
+    /// one replay, would otherwise mint a second deadline and a fresh budget, making never-restart a matter of caller
     /// discipline. Caller order survives in the outcome array.
     /// </summary>
     internal static string GroupDeadlineName(IReadOnlyList<long> childJobIds)
@@ -200,7 +200,7 @@ public abstract partial class JobContext
     }
 
     /// <summary>
-    /// Internal rather than private so the test host can find the slot it has to rewind to stage a
+    /// Internal rather than private so the test host can find the checkpoint it has to rewind to stage a
     /// group expiry, off the one name that writes it.
     /// </summary>
     internal const string GroupDeadlinePrefix = "sys.wait-group.";

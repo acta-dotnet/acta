@@ -55,7 +55,7 @@ public interface IActaTestHost : IAsyncDisposable
     /// The group twin of <see cref="ForceWaitTimeoutDueAsync"/>: move the job's stored group wait
     /// deadline, every child latch it has armed, and the job's next-run instant into the past, so the
     /// next tick claims the Suspended job and the group resolves timed out. A group spends one stored
-    /// deadline rather than a per-slot one, so rewinding the latches alone would leave a member armed
+    /// deadline rather than one per latch, so rewinding the latches alone would leave a member armed
     /// after the rewind counting down from a fresh budget. Takes no wait name because the deadline is
     /// the group's, not any one child's. Throws when the job stores no group deadline, because an
     /// unbounded group wait can never time out and a silent no-op would look like a passing test.

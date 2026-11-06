@@ -188,7 +188,7 @@ internal static class SqlSchemaEmitter
         var typeSql = dialect.RenderType(c);
         var nullable = c.IsNullable ? "NULL" : "NOT NULL";
         var allocation = RenderAllocation(c, dialect);
-        // DbDefault renders only when no allocation-default already occupies the slot.
+        // DbDefault renders only when no allocation-default already takes its place.
         // The generator's ACTA0403 catches the conflicting combinations at compile time.
         var defaultClause = allocation.Length == 0 ? dialect.RenderDefault(c.Default, c) : "";
         return $"{c.Name} {typeSql}{allocation}{defaultClause} {nullable}";

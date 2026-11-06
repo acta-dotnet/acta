@@ -6,16 +6,16 @@ using Xunit;
 namespace Acta.Tests.Conformance.Operations.Locks;
 
 /// <summary>
-/// Conformance for <c>acquire_slot</c>, the counted-key admission behind a concurrency limit. How the
+/// Conformance for <c>acquire_lock_slot</c>, the counted-key admission behind a concurrency limit. How the
 /// runner composes slot keys and shares them across definitions is specified in <c>ConcurrencyLimitSpec</c>.
 /// </summary>
 [ConformanceSpec(
-    "acquire-slot.lowest-free",
+    "acquire-lock-slot.lowest-free",
     "A slot acquire takes the lowest free slot of a counted key, or none",
     Area = "Locks",
-    Contract = "AcquireSlot takes the lowest slot under the limit that is unheld or expired, under the caller's owner and a fresh token, or returns null when none is."
+    Contract = "AcquireLockSlot takes the lowest slot under the limit that is unheld or expired, under the caller's owner and a fresh token, or returns null when none is."
 )]
-public sealed class AcquireSlotSpec : ActaStorageTestBase<ConformanceFixture>
+public sealed class AcquireLockSlotSpec : ActaStorageTestBase<ConformanceFixture>
 {
     private static readonly TimeSpan HeldTtl = TimeSpan.FromMinutes(5);
 
@@ -30,8 +30,12 @@ public sealed class AcquireSlotSpec : ActaStorageTestBase<ConformanceFixture>
         var prefix = Unique("slots");
         var dbNow = await Services.GetRequiredService<IActaClock>().GetUtcNowAsync(ct);
 
-        var first = Assert.NotNull((await locks.AcquireSlotAsync(prefix, limit: 3, TimeSpan.FromSeconds(60), ownerJobId: -1, ct)).Token);
-        var second = Assert.NotNull((await locks.AcquireSlotAsync(prefix, limit: 3, TimeSpan.FromSeconds(60), ownerJobId: -2, ct)).Token);
+        var first = Assert.NotNull(
+            (await locks.AcquireLockSlotAsync(prefix, limit: 3, TimeSpan.FromSeconds(60), ownerJobId: -1, ct)).Token
+        );
+        var second = Assert.NotNull(
+            (await locks.AcquireLockSlotAsync(prefix, limit: 3, TimeSpan.FromSeconds(60), ownerJobId: -2, ct)).Token
+        );
 
         Assert.Equal($"{prefix}.0", first.Key);
         Assert.Equal($"{prefix}.1", second.Key);
@@ -51,10 +55,10 @@ public sealed class AcquireSlotSpec : ActaStorageTestBase<ConformanceFixture>
         var held = new List<LockToken>();
         for (var i = 0; i < 2; i++)
         {
-            held.Add(Assert.NotNull((await locks.AcquireSlotAsync(prefix, limit: 2, HeldTtl, ownerJobId: -1 - i, ct)).Token));
+            held.Add(Assert.NotNull((await locks.AcquireLockSlotAsync(prefix, limit: 2, HeldTtl, ownerJobId: -1 - i, ct)).Token));
         }
 
-        Assert.Null((await locks.AcquireSlotAsync(prefix, limit: 2, HeldTtl, ownerJobId: -9, ct)).Token);
+        Assert.Null((await locks.AcquireLockSlotAsync(prefix, limit: 2, HeldTtl, ownerJobId: -9, ct)).Token);
 
         foreach (var token in held)
         {
@@ -69,11 +73,11 @@ public sealed class AcquireSlotSpec : ActaStorageTestBase<ConformanceFixture>
         var ct = TestContext.Current.CancellationToken;
         var locks = Services.GetRequiredService<LocksOperations>();
         var prefix = Unique("steal");
-        Assert.Equal($"{prefix}.0", (await locks.AcquireSlotAsync(prefix, limit: 3, HeldTtl, ownerJobId: -1, ct)).Token?.Key);
-        var lapsed = Assert.NotNull((await locks.AcquireSlotAsync(prefix, limit: 3, ExpiredTtl, ownerJobId: -2, ct)).Token);
+        Assert.Equal($"{prefix}.0", (await locks.AcquireLockSlotAsync(prefix, limit: 3, HeldTtl, ownerJobId: -1, ct)).Token?.Key);
+        var lapsed = Assert.NotNull((await locks.AcquireLockSlotAsync(prefix, limit: 3, ExpiredTtl, ownerJobId: -2, ct)).Token);
         Assert.Equal($"{prefix}.1", lapsed.Key);
 
-        var stolen = Assert.NotNull((await locks.AcquireSlotAsync(prefix, limit: 3, HeldTtl, ownerJobId: -3, ct)).Token);
+        var stolen = Assert.NotNull((await locks.AcquireLockSlotAsync(prefix, limit: 3, HeldTtl, ownerJobId: -3, ct)).Token);
 
         Assert.Equal($"{prefix}.1", stolen.Key);
         var row = await ReadOneAsync(stolen.Key, ct);
@@ -95,7 +99,7 @@ public sealed class AcquireSlotSpec : ActaStorageTestBase<ConformanceFixture>
             .Select(async i =>
             {
                 await start.Task;
-                return (await locks.AcquireSlotAsync(prefix, limit: 1, HeldTtl, ownerJobId: -i, ct)).Token;
+                return (await locks.AcquireLockSlotAsync(prefix, limit: 1, HeldTtl, ownerJobId: -i, ct)).Token;
             })
             .ToArray();
         start.SetResult();
@@ -117,7 +121,7 @@ public sealed class AcquireSlotSpec : ActaStorageTestBase<ConformanceFixture>
         await Assert.ThrowsAsync<ArgumentOutOfRangeException>(async () =>
             await Services
                 .GetRequiredService<LocksOperations>()
-                .AcquireSlotAsync(prefix, limit, TimeSpan.FromSeconds(60), ownerJobId: -1, ct)
+                .AcquireLockSlotAsync(prefix, limit, TimeSpan.FromSeconds(60), ownerJobId: -1, ct)
         );
         Assert.Null(await ReadAsync($"{prefix}.0", ct));
     }

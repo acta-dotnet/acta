@@ -439,7 +439,7 @@ internal sealed class WorkerExecutorHarness(
         private object? Answer(BoundCall call) =>
             call.Stem switch
             {
-                "AcquireSlot" => AcquireSlot(call.Get(ActaSchema.Sql.LockKeyPrefix), call.Get(ActaSchema.Sql.SlotCount)),
+                "AcquireLockSlot" => AcquireLockSlot(call.Get(ActaSchema.Sql.LockKeyPrefix), call.Get(ActaSchema.Sql.LockSlotCount)),
                 "ReserveRate" => ReserveRate(
                     new RateRequest(
                         call.Get(ActaSchema.Lock.LockKey),
@@ -453,7 +453,7 @@ internal sealed class WorkerExecutorHarness(
             };
 
         // The slot key the SQL took, which the handler pairs with the hold token it minted.
-        private string? AcquireSlot(string keyPrefix, int limit)
+        private string? AcquireLockSlot(string keyPrefix, int limit)
         {
             _slotRequests.Add(new SlotRequest(keyPrefix, limit));
             if (slotThrows)

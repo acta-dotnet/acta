@@ -263,13 +263,13 @@ internal sealed class ExplainJobHandler(GetJobIdHandler getJobId, IDbSession ses
 
     /// <summary>
     /// The latch name is the framework-owned sys.child.{id} key, so the readable half is the id: an
-    /// operator wants the child's number, not the slot's spelling. A name that does not parse is
+    /// operator wants the child's number, not the latch's spelling. A name that does not parse is
     /// shown verbatim rather than guessed at.
     /// </summary>
-    private static string ChildLabel(string slotName) =>
-        slotName.StartsWith(RaiseChildLatch.NamePrefix, StringComparison.Ordinal)
-            ? $"child job {slotName[RaiseChildLatch.NamePrefix.Length..]}"
-            : $"child latch \"{slotName}\"";
+    private static string ChildLabel(string latchName) =>
+        latchName.StartsWith(RaiseChildLatch.NamePrefix, StringComparison.Ordinal)
+            ? $"child job {latchName[RaiseChildLatch.NamePrefix.Length..]}"
+            : $"child latch \"{latchName}\"";
 
     private static ExplainJobLease? BuildLease(ExplainJobHeaderRow h, DateTime nowUtc)
     {

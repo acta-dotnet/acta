@@ -1,4 +1,4 @@
-/* Slot arbiter for one durable wait, ordered so the final SELECT reads a settled row: flip an overdue
+/* Arbiter for one durable wait, ordered so the final SELECT reads a settled row: flip an overdue
    Pending to Expired first, then arm. */
 /* Arming is one-directional. A NULL due_at_utc is armed when the caller carries a bound (a length, or an instant: a
    group's stored deadline), so code redeployed with a bound can un-strand a wait suspended without one; a stored due
@@ -7,9 +7,9 @@
    the way pg's routine does: the arming update below applies to whatever row now stands, and the
    final SELECT reports it settled. */
 /* A wait this call armed with a length suspends once: the length is positive and the flip runs before
-   the arm. A slot this call arms at or past an instant is armed Expired, so a child landing after it
+   the arm. A checkpoint this call arms at or past an instant is armed Expired, so a child landing after it
    cannot revive the wait, and the wait times out now. Pg and mssql state the same rules. */
--- The wait changes the slot only while this attempt holds the job's row (docs/sql-internals.md, "Execution fence").
+-- The wait changes the checkpoint only while this attempt holds the job's row (docs/sql-internals.md, "Execution fence").
 SELECT ACTA_ERROR('ACTA:EXECUTION_FENCED:wait_job_signal: the job is no longer executing this attempt.')
 WHERE NOT EXISTS (
     SELECT 1

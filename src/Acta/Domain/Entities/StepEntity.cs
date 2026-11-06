@@ -26,7 +26,7 @@ internal sealed class StepEntity : IEntity
     public long JobId { get; init; }
 
     /// <summary>
-    /// Step slot name. Kebab-case ASCII. The key's second column.
+    /// Step name. Kebab-case ASCII. The key's second column.
     /// </summary>
     [DbColumn("step_name", DbKind.AsciiString, Size = 128)]
     public string StepName { get; init; } = default!;

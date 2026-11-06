@@ -69,7 +69,7 @@
     <section class="wrap" id="lifecycle">
       <p class="record">The model in one figure</p>
       <h2>A permanent job, through one firing.</h2>
-      <p class="lede">A scheduled definition owns one durable slot by default, and the figure follows it. Admission makes the slot claimable when a schedule is due, a worker runs the handler for a bounded amount of work, and the slot returns to <code>Idle</code> holding no thread. Acta's progress and the job's are two different rows, and they never touch.</p>
+      <p class="lede">A scheduled definition owns one permanent slot by default, and the figure follows it. Admission makes the slot claimable when a schedule is due, a worker runs the handler for a bounded amount of work, and the slot returns to <code>Idle</code> holding no thread. Acta's progress and the job's are two different rows, and they never touch.</p>
       <figure class="pipe">
         <div class="pipe-scroll">
           <svg class="pipe-wide" viewBox="0 0 1000 356" role="img" aria-label="A permanent job's slot moves from Idle through Admission, where a due schedule moves the cursor and writes the firing envelope, to Ready, to Executing under a lease for one batch, and back to Idle; beneath it the job's watermark, a durable variable, advances from 120 to 160 only while the handler executes, written after the batch; an empty firing moves the cursor and not the watermark, a manual trigger moves the watermark and not the cursor.">
@@ -196,7 +196,7 @@
           <div class="who"><b>What are steps and checkpoints?</b><span>state on the row</span></div>
           <div class="why">
             <p>Durable state that belongs to a job. A step records its outcome, so a re-run returns the stored result instead of repeating the work; variables, timers, signals, and progress are checkpoints on the same job. They share the job's claim, lease, retry budget, and events, and are never claimed on their own.</p>
-            <div class="links"><a class="golink" href="https://github.com/acta-dotnet/acta/blob/main/docs/developer-guide.md#durable-slots-inside-a-job">Durable slots inside a job</a></div>
+            <div class="links"><a class="golink" href="https://github.com/acta-dotnet/acta/blob/main/docs/developer-guide.md#steps-variables-signals-and-timers">Steps, variables, signals and timers</a></div>
           </div>
         </div>
         <div class="vs-row" id="children">
@@ -209,7 +209,7 @@
         <div class="vs-row" id="permanent">
           <div class="who"><b>What is a permanent job?</b><span>one slot, fired again and again</span></div>
           <div class="why">
-            <p>The default for a definition with a <code>[Schedule]</code>: one durable slot the schedule fires again and again. The slot is <code>Idle</code> between firings and holds no thread; admission makes it <code>Ready</code> when a schedule is due, a worker claims it, and the handler does a bounded amount of work and returns. Its steps and progress persist across firings, and the handler may reset them as its final action. This is how a synchronization controller runs without a loop that must never die.</p>
+            <p>The default for a definition with a <code>[Schedule]</code>: one permanent slot the schedule fires again and again. The slot is <code>Idle</code> between firings and holds no thread; admission makes it <code>Ready</code> when a schedule is due, a worker claims it, and the handler does a bounded amount of work and returns. Its steps and progress persist across firings, and the handler may reset them as its final action. This is how a synchronization controller runs without a loop that must never die.</p>
             <div class="links"><a class="golink" href="https://github.com/acta-dotnet/acta/blob/main/docs/developer-guide.md#delivery-and-capacity">Delivery and capacity</a><a class="golink" href="https://github.com/acta-dotnet/acta/tree/main/concepts/100-scheduling/109-continuous-synchronization">The synchronization lab</a></div>
           </div>
         </div>

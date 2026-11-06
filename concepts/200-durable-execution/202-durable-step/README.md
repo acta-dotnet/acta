@@ -23,7 +23,7 @@ twice, or corrupt an external state machine.
 
 ## Why this design
 
-`RunStepAsync` gives a named operation a durable slot. Once the outcome is recorded, later executions
+`RunStepAsync` gives a named operation a durable record. Once the outcome is recorded, later executions
 return it instead of calling the body again. The built-in failure after the step proves that distinction.
 
 ## Trade-offs

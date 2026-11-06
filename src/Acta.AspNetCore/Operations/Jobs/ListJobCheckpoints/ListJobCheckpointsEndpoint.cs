@@ -6,7 +6,7 @@ using Microsoft.Extensions.Options;
 namespace Acta.AspNetCore;
 
 /// <summary>
-/// GET /jobs/{jobRef}/checkpoints: one page of the job's checkpoint slots, values rendered by
+/// GET /jobs/{jobRef}/checkpoints: one page of the job's checkpoints, values rendered by
 /// <see cref="ListJobCheckpointsResponse"/>; job detail embeds the first page and this route continues it.
 /// </summary>
 internal static class ListJobCheckpointsEndpoint
@@ -44,7 +44,7 @@ internal static class ListJobCheckpointsEndpoint
                         );
                     })
             )
-            .WithSummary("List one job's checkpoint slots.")
+            .WithSummary("List one job's checkpoints.")
             .Produces<ListJobCheckpointsResponse>(StatusCodes.Status200OK)
             .ProducesProblem(StatusCodes.Status404NotFound)
             .WithQueryParameters([.. QueryParameterDocExtensions.PagingCore, .. QueryParameterDocExtensions.IncludeTotal]);

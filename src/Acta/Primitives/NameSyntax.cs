@@ -20,7 +20,7 @@ public static class NameSyntax
     /// <summary>Default length cap (64 chars): namespaces, payload format names, and worker names.</summary>
     public const int DefaultMaxLength = 64;
 
-    /// <summary>Extended length cap (128 chars): job names, slot names (variable, signal, timer, step), lanes, tenants,
+    /// <summary>Extended length cap (128 chars): job names, checkpoint names (variable, signal, timer), step names, lanes, tenants,
     /// channel and tag names, and caller-supplied keys.</summary>
     public const int ExtendedMaxLength = 128;
 

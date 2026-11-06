@@ -134,7 +134,7 @@ internal sealed class JobStateEntity : IEntity<long>
     /// <summary>
     /// Next claim instant; the hot-path claim filter compares against this. A <c>Ready</c> row always
     /// carries it, enforced by <c>ck_jobs_state_ready_due</c>. On a <c>Suspended</c> row it carries the
-    /// awaited slot's expiration, or NULL for an unbounded wait, which is what keeps an unbounded wait
+    /// awaited checkpoint's expiration, or NULL for an unbounded wait, which is what keeps an unbounded wait
     /// unclaimable while a bounded one wakes at its deadline.
     /// </summary>
     [DbColumn("next_run_at_utc", DbKind.UtcInstant)]
@@ -144,7 +144,7 @@ internal sealed class JobStateEntity : IEntity<long>
     /// Monotonic-lifetime claim counter; incremented atomically on each claim. It follows claims, not
     /// scheduled occurrences, so retries and reclaims advance it too. Int32 is a deliberate width: a
     /// recurring slot claimed once a second for its whole life would take about sixty-eight years to
-    /// exhaust it, and exhaustion lies outside the supported lifetime of one durable slot. The
+    /// exhaust it, and exhaustion lies outside the supported lifetime of one job row. The
     /// providers raise on overflow rather than wrap (SQLite stores a wider integer, and the Int32
     /// mapper rejects it on read), so the failure mode is an error, never a negative attempt number.
     /// </summary>

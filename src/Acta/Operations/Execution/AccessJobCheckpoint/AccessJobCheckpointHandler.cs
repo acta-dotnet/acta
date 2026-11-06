@@ -1,6 +1,6 @@
 namespace Acta;
 
-/// <summary><see cref="ExecutionOperations.AccessJobCheckpointAsync"/>: one routine call per slot action, answering exactly one row.</summary>
+/// <summary><see cref="ExecutionOperations.AccessJobCheckpointAsync"/>: one routine call per checkpoint action, answering exactly one row.</summary>
 internal sealed class AccessJobCheckpointHandler(IDbSession session, ISqlDialect dialect)
 {
     public Task<AccessJobCheckpointResponse> HandleAsync(AccessJobCheckpointCommand command, CancellationToken ct) =>
@@ -9,7 +9,7 @@ internal sealed class AccessJobCheckpointHandler(IDbSession session, ISqlDialect
                 new StoreCommand("AccessJobCheckpoint"),
                 cmd =>
                 {
-                    cmd.Parameters.Add(dialect.CreateParameter(ActaSchema.Sql.SlotAction, (short)command.Action));
+                    cmd.Parameters.Add(dialect.CreateParameter(ActaSchema.Sql.CheckpointAction, (short)command.Action));
                     cmd.Parameters.Add(dialect.CreateParameter(ActaSchema.Checkpoint.JobId, command.Fence.JobId));
                     cmd.Parameters.Add(dialect.CreateParameter(ActaSchema.JobState.ExecutionNumber, command.Fence.ExecutionNumber));
                     cmd.Parameters.Add(dialect.CreateParameter(ActaSchema.Sql.LeasedByWorkerId, command.Fence.WorkerId));

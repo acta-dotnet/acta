@@ -234,7 +234,7 @@ internal sealed class WorkerExecutor(
                 }
                 finally
                 {
-                    // Mutual exclusion covers the handler, not the completion write: the slot admission took goes back on
+                    // Mutual exclusion covers the handler, not the completion write: the concurrency slot admission took goes back on
                     // every exit, a refusal, the handler's end, or worker shutdown. Release is best-effort, non-throwing, and
                     // a no-op when no slot was taken; a failed release self-heals via the lock's TTL.
                     await jobContext.ReleaseConcurrencySlotAsync(CancellationToken.None);

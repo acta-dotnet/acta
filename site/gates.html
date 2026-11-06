@@ -60,7 +60,7 @@
       <div class="admission-axes">
         <div><i>Order</i><b>Lane</b><p>One job of the lane at a time, in enqueue order, like an SQS FIFO message group. The lane holds through retries.</p><code>o => o.Lane("customer-42")</code></div>
         <div><i>How many at once · 1</i><b>ConcurrencyKey</b><p>Never two at once per key. Order is not promised: a younger job may take a freed key first.</p><code>o => o.ConcurrencyKey("rebuild:acme")</code></div>
-        <div><i>How many at once · N</i><b>ConcurrencyLimit</b><p>The same gate with N slots, per key when the enqueue names one, otherwise for the whole definition.</p><code>[Job("rebuild-index", ConcurrencyLimit = 4)]</code></div>
+        <div><i>How many at once · N</i><b>ConcurrencyLimit</b><p>The same gate with N concurrency slots, per key when the enqueue names one, otherwise for the whole definition.</p><code>[Job("rebuild-index", ConcurrencyLimit = 4)]</code></div>
         <div><i>How often</i><b>RateLimit</b><p>Starts metered on one clock across the namespace’s workers. Early arrivals are booked a turn and come back for it.</p><code>[Job("send-invoice", RateLimit = "10/s")]</code></div>
       </div>
 

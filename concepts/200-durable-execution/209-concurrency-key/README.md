@@ -29,10 +29,10 @@ Acta acquires the concurrency-key lease after claim but before handler invocatio
 `ready` with a short delay and releases its worker. The event reason makes this budget-neutral bounce
 visible instead of looking like an application failure.
 
-`[Job(ConcurrencyLimit = N)]` sizes that gate. The key then owns N slot leases instead of one, so N
+`[Job(ConcurrencyLimit = N)]` sizes that gate. The key then owns N lock slot leases instead of one, so N
 attempts run together and the N+1th bounces the same way. The lab's second handler, `reindex-shard`,
 declares a limit of 2 and supplies no enqueue key, so the definition name is the key: a limit alone
-throttles the whole definition. The limit is an operator-overridable policy slot on the definition row.
+throttles the whole definition. The limit is an operator-overridable policy value on the definition row.
 
 `[Job(RateLimit = "N/s")]` is the third gate and meters how often attempts start, which a limit cannot
 express: five a second is not the same shape as five at once. The lab's third handler,
@@ -42,7 +42,7 @@ quarter second away is waited out in process instead, with no re-arm. `RateName`
 definitions of the namespace on one meter; definitions that share one must declare the same rate.
 
 `ConcurrencyKey` provides admission, not ordering. While workers hold valid leases on all of the key's
-slots (one, unless a limit sizes it), no other job with that namespace and key is admitted; the exclusion is as strong as the lease, which a
+lock slots (one, unless a limit sizes it), no other job with that namespace and key is admitted; the exclusion is as strong as the lease, which a
 heartbeat renews while the handler runs. Admission order is unspecified: under sustained arrivals that
 keep a key held, an older job can be repeatedly overtaken, and Acta does not bound its wait. Use it for
 exclusive *unordered* work.
@@ -73,7 +73,7 @@ Run with `--all-columns` to execute the visible `SELECT *` Explore query first. 
 queries select the fields that prove the lesson, and the text below explains their meaning.
 
 `jobs_view` shows the owner executing and the competitor ready without a worker. The lab also descends
-one level into the internal `locks` table to reveal the named holder (the key's slot rows are
+one level into the internal `locks` table to reveal the named holder (the key's lock slot rows are
 `<namespace id>.sem.<key>.<slot>`, and the meter's are its `.rate.ping-endpoint` bucket and
 reservations), then uses `events_view` to show the `concurrency-key-held` and `rate-limited` reasons. Base tables are implementation detail; use the curated views or `IJobs` for
 normal operations.

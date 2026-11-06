@@ -4,7 +4,7 @@ namespace Acta;
 
 /// <summary>
 /// The operator raise behind <c>IJobs.RaiseSignalAsync</c>: canonicalizes the name, caps the payload, resolves
-/// the job, raises the slot as the operator, and wakes the workers when the raise released the job to Ready.
+/// the job, raises the signal as the operator, and wakes the workers when the raise released the job to Ready.
 /// </summary>
 internal sealed class RaiseJobSignalHandler(
     IDbSession session,
@@ -31,8 +31,8 @@ internal sealed class RaiseJobSignalHandler(
         }
 
         var input = new JobControlInput(JobControlActor.Operator(command.Actor), EventReason.SignalReleased, null);
-        var response = await RaiseSlotAsync(
-            new RaiseJobSignalSlot(
+        var response = await RaiseCheckpointAsync(
+            new RaiseJobSignalCheckpoint(
                 jobId,
                 CheckpointKindCode.Signal,
                 name,
@@ -46,8 +46,8 @@ internal sealed class RaiseJobSignalHandler(
         return response;
     }
 
-    /// <summary><see cref="SignalsOperations.RaiseJobSignalAsync"/>: one routine call for any slot kind, the operator's raise among them.</summary>
-    internal async Task<RaiseJobSignalResponse> RaiseSlotAsync(RaiseJobSignalSlot raise, CancellationToken ct)
+    /// <summary><see cref="SignalsOperations.RaiseJobSignalAsync"/>: one routine call for any checkpoint kind, the operator's raise among them.</summary>
+    internal async Task<RaiseJobSignalResponse> RaiseCheckpointAsync(RaiseJobSignalCheckpoint raise, CancellationToken ct)
     {
         var row = await session.ExecuteOneAsync(
             new StoreCommand("RaiseJobSignal"),

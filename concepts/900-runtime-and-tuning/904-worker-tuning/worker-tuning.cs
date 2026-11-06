@@ -16,7 +16,7 @@ builder.Services.UseActa(j =>
     j.ConfigureOptions(o =>
     {
         // Cap simultaneous in-flight executions at Cap. Each claim takes only as many rows as there are
-        // free executors, so excess work stays Ready in the database until a slot opens. Fixed at startup;
+        // free executors, so excess work stays Ready in the database until an executor frees. Fixed at startup;
         // not autoscaled.
         o.MaxConcurrentExecutors = Cap;
 
@@ -72,7 +72,7 @@ namespace Acta.Concepts.WorkerTuning
         public static int Completed => Volatile.Read(ref _completed);
         public static int PeakConcurrency => Volatile.Read(ref _peak);
 
-        // Each handler holds the slot for 50 ms - long enough that Cap parallel handlers
+        // Each handler holds its executor for 50 ms - long enough that Cap parallel handlers
         // overlap and the peak counter exceeds 1.
         [Job("slow-task")]
         public static async Task Handle(SlowTask input, CancellationToken ct)

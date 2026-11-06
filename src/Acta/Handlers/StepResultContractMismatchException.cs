@@ -13,7 +13,7 @@ public sealed class StepResultContractMismatchException(string stepName, Type ex
         innerException
     )
 {
-    /// <summary>The step slot name whose stored result failed to deserialize.</summary>
+    /// <summary>The name of the step whose stored result failed to deserialize.</summary>
     public string StepName { get; } = stepName;
 
     /// <summary>The current result type the stored bytes could not be read as.</summary>

@@ -130,7 +130,7 @@ internal static class JobDefinitionRegistration
         }
 
         // A hand-authored IJobManifest descriptor bypasses the generator's compile-time range check,
-        // so this is the last gate before an unsatisfiable slot count reaches the definitions row.
+        // so this is the last gate before an unsatisfiable concurrency limit reaches the definitions row.
         if (descriptor.ConcurrencyLimit is < MinConcurrencyLimit or > MaxConcurrencyLimit)
         {
             throw new ArgumentException(

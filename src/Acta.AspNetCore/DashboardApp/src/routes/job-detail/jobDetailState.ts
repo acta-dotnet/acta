@@ -37,13 +37,13 @@ export function childRollup(children: readonly JobLineageNode[]): [string, numbe
   return [...counts.entries()].sort(([aStatus, aCount], [bStatus, bCount]) => bCount - aCount || aStatus.localeCompare(bStatus));
 }
 
-/** The child-latch slot key the framework writes on the parent: `sys.child.{childJobId}`. */
+/** The child-latch name the framework writes on the parent: `sys.child.{childJobId}`. */
 const childLatchPrefix = 'sys.child.';
 
 /**
  * How an active durable wait reads on a job panel: the word for its kind, plus the part worth setting
  * in monospace. Mirrors the server explainer's phrasing so `jobs explain` and the dashboard describe
- * the same wait the same way. A child latch's slot name is a framework key rather than anything a
+ * the same wait the same way. A child latch's name is a framework key rather than anything a
  * handler chose, so `sys.child.42` reads as `child job 42`.
  */
 export function activeWaitLabel(kind: string, name: string): { kind: string; name: string } {

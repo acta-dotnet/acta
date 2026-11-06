@@ -134,7 +134,7 @@ FROM (
         CASE WHEN r.failure_count >= 32767 THEN 32767 ELSE r.failure_count + 1 END AS new_failure_count,
         jd.max_attempts_effective AS max_attempts,
         jd.alert_profile_code_effective AS alert_profile_code,
-        /* The job was parked on THIS slot: the suspend copied the slot's due into next_run_at_utc, so
+        /* The job was parked on THIS checkpoint: the suspend copied its due into next_run_at_utc, so
            the equality names the wait this attempt woke for, and an unbounded wait (NULL due) matches
            nothing. Expired means the timeout had already resolved durably. */
         CASE WHEN EXISTS (

@@ -5,7 +5,7 @@ namespace Acta;
 
 /// <summary>
 /// Reads and writes the system JSON envelope stored on the parent's <c>sys.child.{id}</c> signal
-/// slot. Hand-rolled rather than the registered serializer: the contract is pinned and must not
+/// checkpoint. Hand-rolled rather than the registered serializer: the contract is pinned and must not
 /// change when a consumer swaps the JSON format. The envelope carries terminal state only
 /// (<c>childJobId</c>, <c>status</c>, and the landing <c>executionNumber</c> when known); the failure reason lives
 /// on the child's event timeline. <c>complete_executions</c> builds the same shape in SQL for its in-transaction

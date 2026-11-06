@@ -2,7 +2,7 @@ namespace Acta;
 
 /// <summary>
 /// The execution runtime's writes and reads: the claim scan and by-id claim, the batched completion, the stuck-job
-/// reclaim, the durable step transitions, and the durable-context subfeatures (checkpoint slot CRUD, child-latch reads,
+/// reclaim, the durable step transitions, and the durable-context subfeatures (checkpoint CRUD, child-latch reads,
 /// sleep-timer arm/consume).
 /// </summary>
 internal sealed class ExecutionOperations(
@@ -50,7 +50,7 @@ internal sealed class ExecutionOperations(
     /// <summary>
     /// Recovery pass for one namespace: in-flight jobs whose lease expired return to Ready, or go Failed at MaxAttempts;
     /// returns the count and the Failed children with their parents, for the caller's child-done raises. An attempt that
-    /// woke on a wait deadline and died after its slot flipped to Expired is reclaimed without a charge, since the
+    /// woke on a wait deadline and died after its checkpoint flipped to Expired is reclaimed without a charge, since the
     /// surviving path never spends that retry: it returns to Suspended on the same past deadline, and the replay
     /// resolves the timeout as the waiting overload defines it.
     /// </summary>
@@ -62,7 +62,7 @@ internal sealed class ExecutionOperations(
         reclaimStuckJobs.HandleAsync(new ReclaimStuckJobsCommand(namespaceId), ct);
 
     /// <summary>
-    /// Reads or inserts the <c>(job_id, name)</c> step slot under the attempt's fence and decides
+    /// Reads or inserts the <c>(job_id, name)</c> step under the attempt's fence and decides
     /// invoke / replay / suspend / exhausted / interrupted, incrementing <c>attempt_number</c> before a
     /// retry invoke. Never mutates job status.
     /// </summary>
@@ -77,7 +77,7 @@ internal sealed class ExecutionOperations(
         completeJobStep.HandleAsync(command, ct);
 
     /// <summary>
-    /// The one generic CRUD call over a <c>checkpoints</c> slot, dispatched by
+    /// The one generic CRUD call over a <c>checkpoints</c> row, dispatched by
     /// <see cref="AccessJobCheckpointAction"/> through a single durable statement. Returns exactly one
     /// outcome row. Checkpoint kinds with their own concurrency choreography (signals, timers,
     /// child latches) keep dedicated operations.

@@ -254,7 +254,7 @@ public static class ActaServiceCollectionExtensions
         services.TryAddSingleton<ExecutionOperations>();
 
         services.TryAddSingleton<AcquireLockHandler>();
-        services.TryAddSingleton<AcquireSlotHandler>();
+        services.TryAddSingleton<AcquireLockSlotHandler>();
         services.TryAddSingleton<ReleaseLockHandler>();
         services.TryAddSingleton<ReserveRateHandler>();
         services.TryAddSingleton<LocksOperations>();

@@ -110,7 +110,7 @@ internal static partial class ActaLog
 
     [LoggerMessage(
         Level = LogLevel.Warning,
-        Message = "WorkerRuntime: concurrency admission bounced job {ActaJobId}; the slot acquire for concurrency key ({ActaDetail}) failed, so the job re-armed Ready in {ActaDurationMs}ms."
+        Message = "WorkerRuntime: concurrency admission bounced job {ActaJobId}; the lock slot acquire for concurrency key ({ActaDetail}) failed, so the job re-armed Ready in {ActaDurationMs}ms."
     )]
     public static partial void ConcurrencyAdmissionFailed(
         ILogger log,

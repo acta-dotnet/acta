@@ -4,20 +4,20 @@ namespace Acta;
 /// Takes the first free slot of a counted key in one round trip whatever the limit: the SQL enumerates
 /// the slots and inserts the first free one.
 /// </summary>
-internal sealed class AcquireSlotHandler(IDbSession session, ISqlDialect dialect)
+internal sealed class AcquireLockSlotHandler(IDbSession session, ISqlDialect dialect)
 {
-    public async Task<AcquireSlotResponse> HandleAsync(AcquireSlotCommand command, CancellationToken ct)
+    public async Task<AcquireLockSlotResponse> HandleAsync(AcquireLockSlotCommand command, CancellationToken ct)
     {
         // A limit counts the holders that may run at once, so it is at least one; below that it names no slot,
         // and the dialects' slot enumerations would answer it differently.
         ArgumentOutOfRangeException.ThrowIfLessThan(command.Limit, 1, "limit");
         var holdToken = Guid.NewGuid();
         var key = await session.ExecuteSingleAsync(
-            new StoreCommand("AcquireSlot"),
+            new StoreCommand("AcquireLockSlot"),
             cmd =>
             {
                 cmd.Parameters.Add(dialect.CreateParameter(ActaSchema.Sql.LockKeyPrefix, command.KeyPrefix));
-                cmd.Parameters.Add(dialect.CreateParameter(ActaSchema.Sql.SlotCount, command.Limit));
+                cmd.Parameters.Add(dialect.CreateParameter(ActaSchema.Sql.LockSlotCount, command.Limit));
                 cmd.Parameters.Add(dialect.CreateParameter(ActaSchema.Lock.JobId, command.OwnerJobId));
                 cmd.Parameters.Add(dialect.CreateParameter(ActaSchema.Sql.LeaseTtlSeconds, (int)command.Ttl.TotalSeconds));
                 cmd.Parameters.Add(dialect.CreateParameter(ActaSchema.Lock.HoldToken, holdToken));
@@ -28,6 +28,6 @@ internal sealed class AcquireSlotHandler(IDbSession session, ISqlDialect dialect
                 reader.GetString(0),
             ct
         );
-        return new AcquireSlotResponse(key is null ? null : new LockToken(key, holdToken));
+        return new AcquireLockSlotResponse(key is null ? null : new LockToken(key, holdToken));
     }
 }

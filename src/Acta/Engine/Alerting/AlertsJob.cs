@@ -285,7 +285,7 @@ internal sealed class AlertsJob(
         var durableRecord = skip.Record(ctx.JobNamespace, reason, exception.GetType().Name, detail);
 
         // Persist before moving the shared cursor. If this write fails, the whole pass fails and the event
-        // is retried. A crash after this write but before the cursor update safely overwrites the same slot.
+        // is retried. A crash after this write but before the cursor update safely overwrites the same variable.
         await ctx.SetVariableAsync(variableName, durableRecord, ct);
 
         if (_log.IsEnabled(LogLevel.Warning))

@@ -19,7 +19,7 @@ public enum EntityCode : byte
     [Code("calendar", "One version of a catalog calendar.")]
     Calendar = 15,
 
-    [Code("checkpoint", "One checkpoint slot of a job.")]
+    [Code("checkpoint", "One checkpoint of a job.")]
     Checkpoint = 20,
 
     [Code("definition", "One job definition.")]
@@ -43,7 +43,7 @@ public enum EntityCode : byte
     [Code("schedule", "One schedule of a recurring job.")]
     Schedule = 90,
 
-    [Code("step", "One step slot of a job.")]
+    [Code("step", "One step of a job.")]
     Step = 100,
 
     [Code("tag", "One tag on its entity.")]

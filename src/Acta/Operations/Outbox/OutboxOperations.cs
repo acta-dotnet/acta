@@ -39,7 +39,7 @@ internal sealed class OutboxOperations(
         CancellationToken ct = default
     ) => discardOutbox.HandleAsync(new DiscardOutboxCommand(jobNamespace, outboxIds, reasonMessage, actor), ct);
 
-    /// <summary>Reads the slot's pending command under <paramref name="name"/>, or null when that inbox slot is empty.</summary>
+    /// <summary>Reads the slot's pending command under <paramref name="name"/>, or null when the inbox holds none under that name.</summary>
     internal Task<GetOutboxSignalResponse?> GetOutboxSignalAsync(long slotJobId, string name, CancellationToken ct) =>
         getOutboxSignal.HandleAsync(new GetOutboxSignalQuery(slotJobId, name), ct);
 

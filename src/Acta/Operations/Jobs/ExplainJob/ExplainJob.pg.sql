@@ -74,7 +74,7 @@ FROM (
 
     UNION ALL
 
-    -- Every step slot for the Job, in creation order.
+    -- Every step of the Job, in creation order.
     SELECT
         2, s.created_at_utc, NULL, s.step_name,
         NULL, NULL, NULL, NULL, NULL, NULL, NULL,

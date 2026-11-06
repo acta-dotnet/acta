@@ -133,12 +133,19 @@ public sealed class ResetJobStateSpec : ActaRuntimeTestBase<ConformanceFixture, 
             ("@p_value", "{}"u8.ToArray())
         );
         var execution = Services.GetRequiredService<ExecutionOperations>();
-        await CheckpointSlot.SetAsync(execution, job, CheckpointKindCode.Variable, "v.test", JobPayload.Json("x"), ct);
+        await CheckpointAccess.SetAsync(execution, job, CheckpointKindCode.Variable, "v.test", JobPayload.Json("x"), ct);
         await execution.ArmOrConsumeJobSleepTimerAsync(new ArmOrConsumeJobSleepTimerCommand(job, "t.test", 60, null), ct);
         await Services
             .GetRequiredService<SignalsOperations>()
             .RaiseJobSignalAsync(
-                new RaiseJobSignalSlot(job.JobId, CheckpointKindCode.Signal, "s.test", 0, null, new JobControlInput("op", null, "seed")),
+                new RaiseJobSignalCheckpoint(
+                    job.JobId,
+                    CheckpointKindCode.Signal,
+                    "s.test",
+                    0,
+                    null,
+                    new JobControlInput("op", null, "seed")
+                ),
                 ct
             );
 

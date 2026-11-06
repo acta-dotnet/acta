@@ -25,8 +25,8 @@ public sealed class JobAttribute(string name) : Attribute
     /// <summary>
     /// How many attempts may execute at once per concurrency key, 1..1024; unset means no limit unless an enqueue
     /// supplied a <c>ConcurrencyKey</c>, which alone means 1. The gate is the key, the enqueue's when there is one
-    /// and otherwise the definition name, so two definitions sharing a key share its slots: capacity is the largest
-    /// limit among them, and a smaller-limit definition competes for the first N slots only, so lowering one never
+    /// and otherwise the definition name, so two definitions sharing a key share its concurrency slots: capacity is the largest
+    /// limit among them, and a smaller-limit definition competes for the first N only, so lowering one never
     /// reduces another's. A changed limit reaches a worker on its next policy reload, so admissions may use the old
     /// limit until every worker has seen it. <see cref="RateLimit"/> is the other gate: how often, not how many.
     /// </summary>

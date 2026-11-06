@@ -6165,7 +6165,7 @@
         "tags": [
           "Jobs"
         ],
-        "summary": "List one job's checkpoint slots.",
+        "summary": "List one job's checkpoints.",
         "operationId": "GetJobsByJobRefCheckpoints",
         "parameters": [
           {
@@ -6271,7 +6271,7 @@
         "tags": [
           "Jobs"
         ],
-        "summary": "List one job's step slots, newest first.",
+        "summary": "List one job's steps, newest first.",
         "operationId": "GetJobsByJobRefSteps",
         "parameters": [
           {
@@ -9108,7 +9108,7 @@
         "description": "What cancelling a job did, and the job's status and version after the attempt."
       },
       "CheckpointKindCode": {
-        "description": "Discriminator for `checkpoints` rows: which durable substrate feature owns the\n`(job_id, checkpoint_kind_code, checkpoint_name)` slot. One physical table carries every simple job-internal\ndurable slot; the kind keeps the name spaces structurally separate (a user variable can never\ncollide with a signal or a child latch of the same name)."
+        "description": "Discriminator for `checkpoints` rows: which durable substrate feature owns the\n`(job_id, checkpoint_kind_code, checkpoint_name)` row. One physical table carries every simple job-internal\ndurable value; the kind keeps the name spaces structurally separate (a user variable can never\ncollide with a signal or a child latch of the same name)."
       },
       "CheckpointStatusCode": { },
       "ControlAction": {
@@ -9552,7 +9552,7 @@
             "type": "string"
           }
         },
-        "description": "One step slot's state, with string ExplainJobStep.Explanation rendering it as a plain-English clause."
+        "description": "One step's state, with string ExplainJobStep.Explanation rendering it as a plain-English clause."
       },
       "ExplainJobWait": {
         "required": [
@@ -9576,7 +9576,7 @@
             "format": "date-time"
           }
         },
-        "description": "The durable wait a Suspended Job is blocked on: a signal name, or a timer slot and its due instant."
+        "description": "The durable wait a Suspended Job is blocked on: a signal name, or a timer and its due instant."
       },
       "FiringFailurePolicyCode": {
         "description": "What happens to a scheduled definition's schedules when a firing fails for good: its attempts are\nspent, or an exception is not retryable."
@@ -10520,7 +10520,7 @@
             "type": "string"
           }
         },
-        "description": "One step slot of the focused Job, with string GetJobLineageMapStep.Explanation its status in plain English."
+        "description": "One step of the focused Job, with string GetJobLineageMapStep.Explanation its status in plain English."
       },
       "GetJobLineageMapWait": {
         "required": [
@@ -10544,7 +10544,7 @@
             "format": "date-time"
           }
         },
-        "description": "The durable wait the focused Job is blocked on: a signal, child latch, or timer slot, and its due instant."
+        "description": "The durable wait the focused Job is blocked on: a signal, child latch, or timer, and its due instant."
       },
       "GetJobResponse": {
         "required": [
@@ -12163,7 +12163,7 @@
             "format": "date-time"
           }
         },
-        "description": "One step slot of a job: its name, its status, the attempt it is on, when a pending retry is due, the last failure's\nmessage, and when the slot was first started and last written. The step's memoized result stays the engine's."
+        "description": "One step of a job: its name, its status, the attempt it is on, when a pending retry is due, the last failure's\nmessage, and when the step was first started and last written. The step's memoized result stays the engine's."
       },
       "ListJobStepsResponse": {
         "required": [
@@ -12208,7 +12208,7 @@
             "format": "int64"
           }
         },
-        "description": "One page of ValueTask&lt;ListJobStepsResponse&gt; IJobs.ListStepsAsync(ListJobStepsQuery query, CancellationToken ct = default(CancellationToken)): a job's step slots, newest first."
+        "description": "One page of ValueTask&lt;ListJobStepsResponse&gt; IJobs.ListStepsAsync(ListJobStepsQuery query, CancellationToken ct = default(CancellationToken)): a job's steps, newest first."
       },
       "ListNamespacesItem": {
         "required": [
@@ -14032,7 +14032,7 @@
       "ScheduleOriginCode": { },
       "ScheduleStatusCode": { },
       "StepStatusCode": {
-        "description": "State machine for `steps` rows. INSERT-once on first invocation (`Pending`);\nUPDATE-in-place across retries; terminal transition to `Succeeded` (with `Result` populated),\n`Exhausted` (parent receives `StepExhaustedException`), or `Interrupted` (an\n`AtMostOnce` step re-entered before completion; parent receives `StepInterruptedException`). One row per\n`(JobId, StepName)`; the framework never INSERTs a second step row for the same slot."
+        "description": "State machine for `steps` rows. INSERT-once on first invocation (`Pending`);\nUPDATE-in-place across retries; terminal transition to `Succeeded` (with `Result` populated),\n`Exhausted` (parent receives `StepExhaustedException`), or `Interrupted` (an\n`AtMostOnce` step re-entered before completion; parent receives `StepInterruptedException`). One row per\n`(JobId, StepName)`; the framework never INSERTs a second step row for the same name."
       },
       "SuspendNamespaceRequest": {
         "type": "object",

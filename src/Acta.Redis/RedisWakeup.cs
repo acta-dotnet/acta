@@ -238,7 +238,7 @@ internal sealed class RedisWakeup : IWorkerWakeup, IDisposable, IAsyncDisposable
                 await Task.Delay(jitter);
             }
 
-            // Clear the slot BEFORE waking, never after: a message landing in the gap starts a
+            // Clear the pending message BEFORE waking, never after: a message landing in the gap starts a
             // fresh pending wake, which is one redundant wake onto a latch. Clearing afterwards
             // would instead drop a message that this wake had already passed, losing it outright.
             // A zero draw clears it too, or every later wake on the channel would be dropped.

@@ -72,8 +72,8 @@ internal sealed class InProcessWakeup : IWorkerWakeup
 
 /// <summary>
 /// Auto-reset, coalescing async wake event. <see cref="Set"/> completes one pending waiter; with none pending it
-/// latches a single slot so the next <see cref="WaitAsync"/> returns immediately once, so a wake raced against an
-/// in-flight re-read pass is never lost, and many sets between waits collapse onto that slot. A waiter that times
+/// latches one pending wake so the next <see cref="WaitAsync"/> returns immediately once, so a wake raced against an
+/// in-flight re-read pass is never lost, and many sets between waits collapse onto that one. A waiter that times
 /// out or is cancelled retires its own completion source under the gate, and <see cref="Set"/> skips retired waiters,
 /// retrying until it wakes a live one or latches; completed heads are swept on enqueue so an idle loop's repeated
 /// timeouts never grow the queue, and the delay task is cancelled on a wake, so no timer outlives its wait.

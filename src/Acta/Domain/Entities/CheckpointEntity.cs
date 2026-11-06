@@ -1,7 +1,7 @@
 namespace Acta;
 
 /// <summary>
-/// One durable slot per <c>(JobId, Kind, CheckpointName)</c>: variables, signals, sleep timers, the progress slot,
+/// One durable row per <c>(JobId, Kind, CheckpointName)</c>: variables, signals, sleep timers, the progress checkpoint,
 /// child latches, and the scheduler's firing envelope share this shape, told apart by <see cref="Kind"/> (steps keep
 /// their own <c>steps</c> table). Variables and progress are last-writer-wins upserts with a null
 /// <see cref="Status"/>; signals and latches move Pending to Set, or to Expired past <see cref="DueAtUtc"/>; timers
@@ -37,15 +37,15 @@ internal sealed class CheckpointEntity : IEntity
     public long JobId { get; init; }
 
     /// <summary>
-    /// Which feature owns this slot, one of <see cref="CheckpointKindCode"/>. Part of the composite PK, so identical
+    /// Which feature owns this checkpoint, one of <see cref="CheckpointKindCode"/>. Part of the composite PK, so identical
     /// names under different kinds never collide.
     /// </summary>
     [DbColumn("checkpoint_kind_code")]
     public CheckpointKindCode Kind { get; init; }
 
     /// <summary>
-    /// Slot name. Dotted-kebab ASCII for user variables and signals; <c>sys.progress</c> for the
-    /// progress slot; <c>sys.child.{childId}</c> for child latches; <c>sys.wait-group.{hash}</c>
+    /// Checkpoint name. Dotted-kebab ASCII for user variables and signals; <c>sys.progress</c> for the
+    /// progress checkpoint; <c>sys.child.{childId}</c> for child latches; <c>sys.wait-group.{hash}</c>
     /// for a bounded group wait's shared deadline; <c>sys.firing</c> for the scheduler's envelope. The <c>sys.</c>
     /// prefix stays system-reserved for user-writable kinds. Part of the composite PK.
     /// </summary>
@@ -63,7 +63,7 @@ internal sealed class CheckpointEntity : IEntity
 
     /// <summary>
     /// The named wait's absolute expiration: a timer's due instant, or a bounded signal / child wait's
-    /// deadline (NULL on an unbounded wait and on every stateless kind). Written once when the slot is
+    /// deadline (NULL on an unbounded wait and on every stateless kind). Written once when the checkpoint is
     /// armed and never extended, so a replay reuses it. Distinct from the Job's <c>next_run_at_utc</c>,
     /// which is the job-level claimability cache derived from it on suspend.
     /// </summary>
@@ -78,7 +78,7 @@ internal sealed class CheckpointEntity : IEntity
     [DbColumn("value_format_id", DbKind.Byte, Default = DbDefault.Zero)]
     public byte ValueFormatId { get; set; }
 
-    /// <summary>Encoded slot payload; opaque bytes governed by <see cref="ValueFormatId"/>.</summary>
+    /// <summary>Encoded payload; opaque bytes governed by <see cref="ValueFormatId"/>.</summary>
     [DbColumn("value", DbKind.BinaryPayload)]
     public byte[]? Value { get; set; }
 

@@ -1,7 +1,7 @@
 namespace Acta;
 
 /// <summary>
-/// The start decision plus the slot fields the orchestration needs: the attempt about to run, the
+/// The start decision plus the step fields the orchestration needs: the attempt about to run, the
 /// version for the completion CAS, the retry instant (Suspend), the stored result (ReplaySuccess), and
 /// the final failure (Exhausted).
 /// </summary>

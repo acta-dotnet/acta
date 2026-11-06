@@ -11,7 +11,7 @@ public sealed class RuntimeJobContextLockReleaseTests
     {
         // The slot acquire takes slot 0; the release fails in the database.
         var session = new ScriptedSession(call =>
-            call.Stem == "AcquireSlot" ? $"{call.Get(ActaSchema.Sql.LockKeyPrefix)}.0" : throw new TimeoutException("release failed")
+            call.Stem == "AcquireLockSlot" ? $"{call.Get(ActaSchema.Sql.LockKeyPrefix)}.0" : throw new TimeoutException("release failed")
         );
         var logger = new RecordingLogger();
         var ctx = CreateContext(session.Services().GetRequiredService<LocksOperations>(), logger);

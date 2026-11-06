@@ -154,10 +154,10 @@ This pattern makes raw values easier to scan in database rows, logs, and diagnos
 | Member | Id | Code | Description | Lifecycle |
 |---|---:|---|---|---|
 | `Unspecified` | 0 | `unspecified` | Checkpoint kind not recognized by this build; the row was written by a newer Acta. | Active |
-| `Variable` | 10 | `variable` | User variable slot; UPSERT, last-writer-wins, no state machine. | Active |
-| `Signal` | 20 | `signal` | Signal slot; Pending while awaited, Set once raised. | Active |
+| `Variable` | 10 | `variable` | User variable; UPSERT, last-writer-wins, no state machine. | Active |
+| `Signal` | 20 | `signal` | Signal; Pending while awaited, Set once raised. | Active |
 | `Timer` | 30 | `timer` | Durable sleep timer; Pending until due, Consumed on replay past the due instant. | Active |
-| `Progress` | 40 | `progress` | Progress slot; UPSERT, last-writer-wins, one per job. | Active |
+| `Progress` | 40 | `progress` | Progress; UPSERT, last-writer-wins, one per job. | Active |
 | `ChildLatch` | 50 | `child-latch` | Child terminal-outcome latch on the parent; Pending while awaited, Set when the child lands terminal. | Active |
 | `Firing` | 60 | `firing` | The scheduler's firing envelope for a slot or scheduled root; Pending while outstanding, settled with the outcome; survives a handler reset. | Active |
 
@@ -166,9 +166,9 @@ This pattern makes raw values easier to scan in database rows, logs, and diagnos
 | Member | Id | Code | Description | Lifecycle |
 |---|---:|---|---|---|
 | `Unspecified` | 0 | `unspecified` | Checkpoint status not recognized by this build; the row was written by a newer Acta. | Active |
-| `Pending` | 10 | `pending` | Awaited or armed; the slot has not been satisfied yet. | Active |
+| `Pending` | 10 | `pending` | Awaited or armed; the checkpoint has not been satisfied yet. | Active |
 | `Set` | 20 | `set` | Raised; the payload is stored and a waiting job proceeds. | Active |
-| `Expired` | 30 | `expired` | The re-entering wait found the slot overdue and settled it TimedOut; a raise then skips the slot. | Active |
+| `Expired` | 30 | `expired` | The re-entering wait found the checkpoint overdue and settled it TimedOut; a raise then skips it. | Active |
 | `Consumed` | 100 | `consumed` | Due instant reached; the replayed handler consumed the timer and proceeded. | Active |
 | `Succeeded` | 110 | `succeeded` | The firing settled successfully; the envelope is the slot's last outcome until the next admission replaces it. | Active |
 | `Failed` | 120 | `failed` | The firing settled as a final failure; the envelope is the slot's last outcome until the next admission replaces it. | Active |
@@ -205,7 +205,7 @@ This pattern makes raw values easier to scan in database rows, logs, and diagnos
 | `Unspecified` | 0 | `unspecified` | Entity kind not recognized by this build; the row was written by a newer Acta. | Active |
 | `Alert` | 10 | `alert` | One alert. | Active |
 | `Calendar` | 15 | `calendar` | One version of a catalog calendar. | Active |
-| `Checkpoint` | 20 | `checkpoint` | One checkpoint slot of a job. | Active |
+| `Checkpoint` | 20 | `checkpoint` | One checkpoint of a job. | Active |
 | `Definition` | 30 | `definition` | One job definition. | Active |
 | `Event` | 40 | `event` | One event. | Active |
 | `Job` | 50 | `job` | One job. | Active |
@@ -213,7 +213,7 @@ This pattern makes raw values easier to scan in database rows, logs, and diagnos
 | `Lock` | 70 | `lock` | One lock. | Active |
 | `Namespace` | 80 | `namespace` | One namespace. | Active |
 | `Schedule` | 90 | `schedule` | One schedule of a recurring job. | Active |
-| `Step` | 100 | `step` | One step slot of a job. | Active |
+| `Step` | 100 | `step` | One step of a job. | Active |
 | `Tag` | 110 | `tag` | One tag on its entity. | Active |
 | `Tenant` | 120 | `tenant` | One tenant. | Active |
 | `Worker` | 130 | `worker` | One worker process lifetime. | Active |

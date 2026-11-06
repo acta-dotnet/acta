@@ -6,7 +6,7 @@ namespace Acta;
 /// the parent re-arms to, the <paramref name="stepName"/>, and an operator <paramref name="reasonMessage"/>; the host
 /// routes it through the budget-neutral Rescheduled completion branch (Job to <c>Ready</c> at that instant,
 /// <c>failure_count</c> untouched), distinguished only by the <c>step-retry-scheduled</c> reason. Internal by design,
-/// like the sleep and signal signals: only <c>ctx.RunStepAsync</c>, which records the slot first, may raise it.
+/// like the sleep and signal signals: only <c>ctx.RunStepAsync</c>, which records the step first, may raise it.
 /// </summary>
 internal sealed class StepRetrySignal(DateTime resumeAtUtc, string stepName, string? reasonMessage) : JobControlException(reasonMessage)
 {

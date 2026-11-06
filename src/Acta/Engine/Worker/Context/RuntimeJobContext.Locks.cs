@@ -43,7 +43,7 @@ internal sealed partial class RuntimeJobContext
     internal async Task<bool> TryAcquireConcurrencySlotAsync(string concurrencyKey, int limit, CancellationToken ct)
     {
         var prefix = $"{_namespaceId}.sem.{KeySyntax.Canonicalize(concurrencyKey, nameof(concurrencyKey))}";
-        var token = (await _locks.AcquireSlotAsync(prefix, limit, TimeSpan.FromSeconds(_leaseTtlSeconds), JobId, ct)).Token;
+        var token = (await _locks.AcquireLockSlotAsync(prefix, limit, TimeSpan.FromSeconds(_leaseTtlSeconds), JobId, ct)).Token;
         if (token is { } held)
         {
             _inFlightJob?.TrackLock(held);
@@ -54,7 +54,7 @@ internal sealed partial class RuntimeJobContext
 
     /// <summary>
     /// Rate admission, taken by the runner after the concurrency slot and before the handler. The meter is the bucket
-    /// row {ns_id}.rate.{key}, disjoint from the lock and slot key spaces, and holds nothing: it is moved, never
+    /// row {ns_id}.rate.{key}, disjoint from the lock and concurrency-slot key spaces, and holds nothing: it is moved, never
     /// acquired, so there is no release. The meter is a name, folded to lowercase; a definition's own name may be a
     /// system job's. The grace a booked turn gets before the sweep may take it is a constant, not the lease TTL: the
     /// turn is decoded as expiry minus grace, so a value moving with worker settings would shift every booked turn.

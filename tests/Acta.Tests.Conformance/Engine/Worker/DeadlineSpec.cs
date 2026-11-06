@@ -38,7 +38,7 @@ public sealed class DeadlineSpec : ActaRuntimeTestBase<ConformanceFixture, TestJ
         Assert.Equal(EventReason.DeadlineExceeded, yielded.Reason);
 
         // A read checks no fence, so any execution of the job reads its slot.
-        var ran = await CheckpointSlot.GetAsync(
+        var ran = await CheckpointAccess.GetAsync(
             Services.GetRequiredService<ExecutionOperations>(),
             new ExecutionFence(enqueued.JobId, 0, 0),
             CheckpointKindCode.Variable,
@@ -80,7 +80,7 @@ public sealed class DeadlineSpec : ActaRuntimeTestBase<ConformanceFixture, TestJ
         Assert.Equal(0, snapshot.FailureCount);
 
         // A read checks no fence, so any execution of the job reads its slot.
-        var overdue = await CheckpointSlot.GetAsync(
+        var overdue = await CheckpointAccess.GetAsync(
             Services.GetRequiredService<ExecutionOperations>(),
             new ExecutionFence(enqueued.JobId, 0, 0),
             CheckpointKindCode.Variable,

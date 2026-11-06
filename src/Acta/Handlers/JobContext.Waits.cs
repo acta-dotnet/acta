@@ -50,11 +50,11 @@ public abstract partial class JobContext
 
     /// <summary>
     /// Durable, replay-safe named wait. Returns immediately when the signal <paramref name="name"/> is
-    /// already <c>Set</c>; otherwise arms a <c>Pending</c> slot and suspends the Job until an external
+    /// already <c>Set</c>; otherwise arms a <c>Pending</c> checkpoint and suspends the Job until an external
     /// <c>IJobs.RaiseSignalAsync</c> raises it. Replay re-runs the handler from the start; on the replay
-    /// the wait returns because the slot is now <c>Set</c>. Suspending is budget-neutral.
+    /// the wait returns because the signal is now <c>Set</c>. Suspending is budget-neutral.
     /// </summary>
-    /// <param name="name">Kebab-case signal name, unique per Job; identifies the slot across replays.</param>
+    /// <param name="name">Kebab-case signal name, unique per Job; identifies the signal across replays.</param>
     /// <param name="ct">Cancellation; linked with the per-attempt <see cref="CancellationToken"/>.</param>
     public async Task WaitSignalAsync(string name, CancellationToken ct = default)
     {
@@ -78,9 +78,9 @@ public abstract partial class JobContext
 
     /// <summary>
     /// Bounded twin of <see cref="WaitSignalAsync(string, CancellationToken)"/>. The first pass stores
-    /// <c>db_now + timeout</c> (whole seconds, rounded up, positive) as the slot's expiration; a replay reuses that
+    /// <c>db_now + timeout</c> (whole seconds, rounded up, positive) as the wait's expiration; a replay reuses that
     /// instant and never extends it, so restarts cannot lengthen the wait. A raise landing before the replayed wait
-    /// settles the slot is still taken; once it settles <c>Expired</c>, Acta ends the Job <c>Cancelled</c> with reason
+    /// settles the wait is still taken; once it settles <c>Expired</c>, Acta ends the Job <c>Cancelled</c> with reason
     /// <c>job.wait-timed-out</c> and this call does not return. Use
     /// <see cref="TryWaitSignalAsync(string, TimeSpan, CancellationToken)"/> to resume the handler instead.
     /// </summary>
@@ -107,10 +107,10 @@ public abstract partial class JobContext
 
     /// <summary>
     /// Resuming twin of <see cref="WaitSignalAsync(string, TimeSpan, CancellationToken)"/>: a wait whose
-    /// re-entry settles the slot <c>Expired</c> returns a result carrying
+    /// re-entry settles the wait <c>Expired</c> returns a result carrying
     /// <see cref="SignalWaitOutcome.TimedOut"/>, and the handler continues rather than the Job being
     /// cancelled. The expiration, its never-extend replay rule, and a raise winning right up to that
-    /// settlement are identical; only what an expired slot does to the handler differs.
+    /// settlement are identical; only what an expired wait does to the handler differs.
     /// </summary>
     public async Task<SignalWaitOutcome> TryWaitSignalAsync(string name, TimeSpan timeout, CancellationToken ct = default)
     {
@@ -143,7 +143,7 @@ public abstract partial class JobContext
 
     /// <summary>
     /// Rejects a non-positive timeout before any store call: a zero or negative expiration would
-    /// arm a slot that is due the instant it is written. Both non-positive cases are rejected here
+    /// arm a wait that is due the instant it is written. Both non-positive cases are rejected here
     /// rather than delegating the negative one, because DurationSyntax phrases it as a delay
     /// ("Delay must not be negative"), which is the wrong noun for a wait. What survives the check
     /// rounds like SleepAsync.
@@ -154,27 +154,27 @@ public abstract partial class JobContext
             : DurationSyntax.ToWholeSeconds(timeout, nameof(timeout));
 
     /// <summary>
-    /// The raised slot's stored payload: format id + bytes. <c>ValueFormatId == 0</c> means a
+    /// The raised signal's stored payload: format id + bytes. <c>ValueFormatId == 0</c> means a
     /// presence-only signal with no payload (<see cref="Value"/> is <c>null</c>). <c>TimedOut</c> is
     /// set only on the resuming path of a bounded wait whose expiration passed.
     /// </summary>
-    private protected readonly record struct SignalSlotState(byte ValueFormatId, byte[]? Value, bool TimedOut = false);
+    private protected readonly record struct SignalCheckpointState(byte ValueFormatId, byte[]? Value, bool TimedOut = false);
 
     /// <summary>
-    /// Subclass sink: reads or arms the named signal slot. Returns normally with the slot payload when
+    /// Subclass sink: reads or arms the named signal. Returns normally with its payload when
     /// it is <c>Set</c>; throws the framework signal-suspend signal to re-arm the Job for a subsequent claim.
     /// </summary>
-    private protected abstract Task<SignalSlotState> WaitSignalCoreAsync(string name, CancellationToken ct);
+    private protected abstract Task<SignalCheckpointState> WaitSignalCoreAsync(string name, CancellationToken ct);
 
     /// <summary>
     /// Subclass sink for the bounded overloads: <paramref name="timeoutSeconds"/> is the wait length the
-    /// store resolves against the DB clock into the slot's absolute expiration, written only when the
-    /// slot is first armed (never on re-entry, and null for an unbounded wait). On an expired slot the
+    /// store resolves against the DB clock into the wait's absolute expiration, written only when the
+    /// checkpoint is first armed (never on re-entry, and null for an unbounded wait). On an expired wait the
     /// implementation returns a timed-out outcome when <paramref name="resumeOnTimeout"/> is set, and
     /// otherwise ends the attempt. The default forwards to the unbounded sink, so a subclass that
     /// overrides only that one keeps working and simply never expires a wait.
     /// </summary>
-    private protected virtual Task<SignalSlotState> WaitSignalCoreAsync(
+    private protected virtual Task<SignalCheckpointState> WaitSignalCoreAsync(
         string name,
         int? timeoutSeconds,
         bool resumeOnTimeout,
@@ -183,11 +183,11 @@ public abstract partial class JobContext
 
     /// <summary>
     /// Subclass sink for a wait bounded by an instant, a group's stored deadline, rather than a length: the store arms
-    /// that instant as the slot's expiration, a slot first armed at or past it times out at once, and a timeout
+    /// that instant as the wait's expiration, a wait first armed at or past it times out at once, and a timeout
     /// resumes the handler. The default passes the whole seconds left on the host clock, at least one, to the
     /// length-bounded sink, so a subclass without durable storage keeps working.
     /// </summary>
-    private protected virtual Task<SignalSlotState> WaitSignalUntilCoreAsync(string name, DateTime dueAtUtc, CancellationToken ct) =>
+    private protected virtual Task<SignalCheckpointState> WaitSignalUntilCoreAsync(string name, DateTime dueAtUtc, CancellationToken ct) =>
         WaitSignalCoreAsync(name, (int)Math.Max(1, Math.Ceiling((dueAtUtc - DateTime.UtcNow).TotalSeconds)), resumeOnTimeout: true, ct);
 
     /// <summary>

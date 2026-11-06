@@ -163,7 +163,7 @@ internal static class ManifestSourceWriter
                 );
                 EmitScheduleDescriptors(sb, j);
                 sb.AppendLine("                    ),");
-                // A none-format slot seeds an empty payload; the registrar never asks it for a default input.
+                // A none-format job seeds an empty payload; the registrar never asks it for a default input.
                 if (j.InputPayloadFormatName != "none")
                 {
                     sb.AppendLine($"                    CreateDefaultInput = static () => new {InputTypeExpr(j)}(),");
@@ -334,7 +334,7 @@ internal static class ManifestSourceWriter
             var suffix = j.DispatchSuffix(i);
             var inputTypeName = InputTypeExpr(j);
             // "none" format means a parameterless data-less contract (or a zero-input handler whose
-            // input slot is the NoInput sentinel). Fabricate `new TIn()` instead
+            // input type is the NoInput sentinel). Fabricate `new TIn()` instead
             // of deserializing: the descriptor declared no payload, so the runtime never asks a
             // serializer to materialize this type.
             var fabricateInput = j.InputPayloadFormatName == "none";
@@ -510,7 +510,7 @@ internal static class ManifestSourceWriter
         );
 
     /// <summary>
-    /// A zero-input handler has no TIn; its descriptor InputType slot is the framework NoInput
+    /// A zero-input handler has no TIn; its descriptor InputType is the framework NoInput
     /// sentinel so the runtime keeps a non-null input type for hashing, registration, and dispatch.
     /// A handler taking several parameters takes its argument record.
     /// </summary>

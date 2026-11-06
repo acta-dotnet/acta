@@ -61,7 +61,7 @@ WHERE
     AND r.leased_by_worker_id = @p_leased_by_worker_id;
 
 -- begin waits
--- The awaited slot is the only place a wait's deadline lives, and a raise that won the race lands the job Ready.
+-- The awaited checkpoint is the only place a wait's deadline lives, and a raise that won the race lands the job Ready.
 UPDATE temp._ces_done
 SET
     sig_state = (

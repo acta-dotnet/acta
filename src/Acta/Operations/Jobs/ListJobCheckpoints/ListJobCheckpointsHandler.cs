@@ -2,14 +2,14 @@ using System.Globalization;
 
 namespace Acta;
 
-/// <summary><see cref="IJobs.ListCheckpointsAsync"/>: resolves the lookup, then one keyset page of the job's slots.</summary>
+/// <summary><see cref="IJobs.ListCheckpointsAsync"/>: resolves the lookup, then one keyset page of the job's checkpoints.</summary>
 internal sealed class ListJobCheckpointsHandler(GetJobIdHandler getJobId, IDbSession session, ISqlDialect dialect)
 {
     public async ValueTask<ListJobCheckpointsResponse> HandleAsync(ListJobCheckpointsQuery query, CancellationToken ct)
     {
         ArgumentNullException.ThrowIfNull(query);
 
-        // A job that is not there, or was purged between pages, has no slots: answered before the cursor is read.
+        // A job that is not there, or was purged between pages, has no checkpoints: answered before the cursor is read.
         if ((await getJobId.HandleAsync(new GetJobIdQuery(query.Job), ct))?.JobId is not { } id)
         {
             return new ListJobCheckpointsResponse(

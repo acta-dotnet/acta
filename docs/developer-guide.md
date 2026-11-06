@@ -31,7 +31,6 @@ see [architecture decisions](./architecture-decisions.md).
 | **Namespace** | The service-owned execution boundary. A worker claims only jobs in its own namespace. One `Run(...)` owns one namespace; a process can host several. |
 | **Lane** | An ordered sequence of jobs within a namespace, named at enqueue or on the definition. A lane runs one job at a time, in enqueue order, and the jobs behind its head wait as `Blocked`. See [Lanes](#lanes). |
 | **Tenant** | Optional, validated scope naming the customer / business entity a job is *about*. Registered in the Acta-owned `tenants` catalog by a `TenantName`, a kebab-case name such as `acme-corp` (fold or prefix an external id that is not one) and resolved to `jobs.tenant_id` at enqueue. Audit / query / runtime scope only, not an ownership, claim, or scheduling boundary. |
-| **Durable slot** | A named, run-once-or-resume primitive owned by a job (step, variable, signal, timer, lock, alert). Shares the job's claim, lease, retry, cancellation, and event lifecycle; never independently claimable. |
 | **Provider** | The durable SQL backend. SQL Server and Postgres are the distributed providers; SQLite is the embedded single-node provider used by concepts, demos, tests, and local exploration. |
 
 ### One durable work unit
@@ -75,7 +74,7 @@ A tenant is not a security boundary. Acta does not authorize callers or isolate 
 
 An **Execution** is one recorded run of the handler; at the default recording level the event ledger
 records one outcome event for every run. An **Attempt** is one try that counts against retry policy when it fails.
-A handler can be re-entered after a crash, retry, signal, or sleep; completed durable slots are not
+A handler can be re-entered after a crash, retry, signal, or sleep; completed steps are not
 repeated.
 
 Acta is at-least-once. It makes durable state transitions and committed checkpoints repeat-safe; it
@@ -109,17 +108,17 @@ Only the head is claimable; the jobs behind it wait as `Blocked` and cost the cl
 - A child cannot join an unfinished ancestor's lane, children do not inherit a lane, and a schedule cannot target a laned definition. Waits across lanes can form a cycle Acta cannot see; give them a timeout.
 - Execution stays at-least-once: cancelling or recovering a running head can let the next job start while the old handler still finishes.
 
-### Durable slots inside a job
+### Steps, variables, signals and timers
 
-`JobContext` exposes durable primitives that belong to the parent job and share its claim, lease,
+`JobContext` exposes named durable state that belongs to the parent job and shares its claim, lease,
 retry, cancellation, and event lifecycle.
 
-| Primitive | Table | Model |
+| What | Table | Model |
 | --- | --- | --- |
-| Step | `steps` | Named run-once slot. A succeeded step returns its stored result on replay instead of running the body again. |
+| Step | `steps` | Named run-once work. A succeeded step returns its stored result on replay instead of running the body again. |
 | Variable | `checkpoints` (kind `variable`) | Durable per-job value and compute-once cache. |
-| Signal | `checkpoints` (kind `signal`) | External release point. `WaitSignalAsync` parks until `IJobs.RaiseSignalAsync` sets the named slot. |
-| Timer/Sleep | `checkpoints` (kind `timer`) | Durable wait slot. `SleepAsync` / `SleepUntilAsync` free the executor and resume when due. |
+| Signal | `checkpoints` (kind `signal`) | External release point. `WaitSignalAsync` parks until `IJobs.RaiseSignalAsync` sets the named signal. |
+| Timer/Sleep | `checkpoints` (kind `timer`) | Durable wait. `SleepAsync` / `SleepUntilAsync` free the executor and resume when due. |
 | Lock | `locks` | Handler-facing mutual exclusion through `RunWithLockAsync`. |
 | Alert | `alerts` | Operator-facing incident row raised manually or projected from failures. |
 
@@ -128,7 +127,7 @@ visibility. Use a step when work is part of one parent job's internal state mach
 
 ### Wait deadlines
 
-A signal or child wait can take a timeout (`WaitSignalAsync(name, timeout)`, `TryWaitSignalAsync`, `TryWaitChildAsync`). The deadline is database time, armed once at the first wait and never extended by replays. On expiry the slot is expired for good: a `Try` overload resumes with `TimedOut`, a plain overload cancels the job budget-neutrally with `job.wait-timed-out`, and a late signal or child outcome never revives the wait. A child group waited with a timeout shares one deadline, and expiry cancels only the members still running.
+A signal or child wait can take a timeout (`WaitSignalAsync(name, timeout)`, `TryWaitSignalAsync`, `TryWaitChildAsync`). The deadline is database time, armed once at the first wait and never extended by replays. On expiry the wait is expired for good: a `Try` overload resumes with `TimedOut`, a plain overload cancels the job budget-neutrally with `job.wait-timed-out`, and a late signal or child outcome never revives the wait. A child group waited with a timeout shares one deadline, and expiry cancels only the members still running.
 
 ### Schedules, workers, and providers
 
@@ -173,7 +172,7 @@ The generator emits descriptors from the declared signature. The runtime uses th
 
 Execution is at-least-once: a crash or lease expiry re-runs the attempt, so a handler must tolerate the same input more than once. Acta makes state transitions durable, not external effects single; use deduplication keys, durable steps, `AtMostOnce()`, and reconciliation. A step is replay-safe only once its result is recorded, so a crash between an external effect and the recording re-runs the effect.
 
-Names given to steps, signals, timers, variables, children, and child groups are persisted keys: renaming one makes a new slot (see [durable slot evolution](#durable-slot-evolution)). Durable state belongs to the job, not to one fire, so a recurring job's succeeded step replays its stored result on the next fire; a handler that must start clean calls `ctx.ResetStateAsync`.
+Names given to steps, signals, timers, variables, children, and child groups are persisted keys: renaming one makes a new one (see [renaming a step, variable, signal or timer](#renaming-a-step-variable-signal-or-timer)). Durable state belongs to the job, not to one fire, so a recurring job's succeeded step replays its stored result on the next fire; a handler that must start clean calls `ctx.ResetStateAsync`.
 
 Retention follows the same rule. A permanent slot keeps its slots and the children it started for as long as it exists, and it exists for as long as its schedule, so a child or a slot it names per period is never purged. Give per-occurrence work a job of its own by declaring the definition `PerOccurrence`: each admitted occurrence is then a fresh root job with the definition's default input, its own steps, children, retries, and retention, and `MaxOutstanding` bounds how many of one schedule's roots may be unsettled at once ([delivery and capacity](#delivery-and-capacity)).
 
@@ -426,7 +425,7 @@ The input parameter is optional. A job with no logical input omits it:
 
 Dropping the input adds three more parameter forms (`()`, `(CancellationToken)`, `(JobContext, CancellationToken)`) with the same return forms. A recurring or scheduled job with no meaningful input is the common case.
 
-The descriptor's input slot is filled with the framework `NoInput` sentinel (`Acta.NoInput`), never written by handler authors, so the one-input invariant holds. The format is `JobPayloadFormat.None`: nothing is serialized.
+The descriptor's input type is the framework `NoInput` sentinel (`Acta.NoInput`), never written by handler authors, so the one-input invariant holds. The format is `JobPayloadFormat.None`: nothing is serialized.
 
 A named, parameterless, data-less record stays valid as a self-documenting carrier (e.g. to share one input type across handlers):
 
@@ -727,7 +726,7 @@ The default retry policy (`MaxAttempts = 15`, backoff `"1m..1d x2 ~10%"`) keeps 
 
 #### Concurrency limit
 
-`ConcurrencyLimit = N` (1 to 1024) caps the attempts running at once per concurrency key, cluster-wide. The key is the enqueue's `ConcurrencyKey`, else the definition name, and a key with no limit admits one at a time. A job that finds every slot held re-arms Ready after a short bounce without spending a retry. Definitions sharing a key share its slots, and its capacity is the largest limit among them. After a decrease, admissions may use the old limit until every worker's next heartbeat, and a job already holding a slot above the new limit runs on until it finishes or its lease lapses, beside new admissions below it. To lower the cap at once, let that work drain first.
+`ConcurrencyLimit = N` (1 to 1024) caps the attempts running at once per concurrency key, cluster-wide. The key is the enqueue's `ConcurrencyKey`, else the definition name, and a key with no limit admits one at a time. A job that finds every concurrency slot held re-arms Ready after a short bounce without spending a retry. Definitions sharing a key share its slots, and its capacity is the largest limit among them. After a decrease, admissions may use the old limit until every worker's next heartbeat, and a job already holding a slot above the new limit runs on until it finishes or its lease lapses, beside new admissions below it. To lower the cap at once, let that work drain first.
 
 #### Rate limit
 
@@ -1076,9 +1075,9 @@ A job enqueued before a deploy can run after it, so a new handler must process t
 
 `PayloadContractDriftMode` compares only the stored input and output type names and payload formats at startup; it is not a JSON schema check. Set it to `Fail` where startup should stop on such a change.
 
-### Durable slot evolution
+### Renaming a step, variable, signal or timer
 
-Names passed to durable handler APIs are keys into persisted state. Once a slot can exist in a deployed database, keep its name and meaning stable for every retained job that may run, retry, resume, or restart.
+Names passed to durable handler APIs are keys into persisted state. Once a name can exist in a deployed database, keep it and its meaning stable for every retained job that may run, retry, resume, or restart.
 
 | Handler API | On re-entry |
 | --- | --- |
@@ -1089,7 +1088,7 @@ Names passed to durable handler APIs are keys into persisted state. Once a slot 
 | `StartChildAsync("capture-payment", ...)` | The existing child is resolved, not created again. |
 | `ParallelAsync("notify", ...)` / `MapAsync("invoice", ...)` | The same branches are found again. |
 
-Renaming a slot migrates nothing: a renamed step runs again, a renamed signal or timer is a different one, a renamed variable reads as absent, and a renamed child is new work. A step's stored result type must stay readable, or replay throws `StepResultContractMismatchException`.
+Renaming migrates nothing: a renamed step runs again, a renamed signal or timer is a different one, a renamed variable reads as absent, and a renamed child is new work. A step's stored result type must stay readable, or replay throws `StepResultContractMismatchException`.
 
 - Keep the name and make the new code compatible with old stored values.
 - Introduce a new name only for new work, gated (for example on a `ContractVersion` field) so old jobs do not perform it.

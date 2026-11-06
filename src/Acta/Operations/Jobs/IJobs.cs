@@ -288,14 +288,14 @@ public interface IJobs
     ValueTask<GetJobResultResponse?> GetResultAsync(JobLookup job, CancellationToken ct = default);
 
     /// <summary>
-    /// One page of the durable checkpoint slots (variables, signals, sleep timers, the progress slot, child
-    /// latches) recorded for <see cref="ListJobCheckpointsQuery.Job"/>, by kind, then name. A job with no slots, or no
+    /// One page of the durable checkpoints (variables, signals, sleep timers, progress, child
+    /// latches) recorded for <see cref="ListJobCheckpointsQuery.Job"/>, by kind, then name. A job with no checkpoints, or no
     /// job at all, answers an empty page. Non-blocking point-in-time read.
     /// </summary>
     ValueTask<ListJobCheckpointsResponse> ListCheckpointsAsync(ListJobCheckpointsQuery query, CancellationToken ct = default);
 
     /// <summary>
-    /// One page of the step slots recorded for <see cref="ListJobStepsQuery.Job"/>, newest first: name, status, attempt,
+    /// One page of the steps recorded for <see cref="ListJobStepsQuery.Job"/>, newest first: name, status, attempt,
     /// next retry, and last failure. A job with no steps, or no job at all, answers an empty page. Non-blocking
     /// point-in-time read.
     /// </summary>
@@ -436,7 +436,7 @@ public interface IJobs
     /// <summary>
     /// Typed-payload variant of
     /// <see cref="RaiseSignalAsync(JobLookup, string, JobPayload, string?, CancellationToken)"/>. <paramref name="value"/> is
-    /// JSON-serialized and stored on the slot; a handler reads it via
+    /// JSON-serialized and stored on the signal; a handler reads it via
     /// <c>ctx.WaitSignalAsync&lt;T&gt;(name)</c>. <paramref name="actor"/> is recorded on the audit event
     /// as the operator identity (e.g. the authenticated principal name); null when unknown.
     /// </summary>
@@ -451,7 +451,7 @@ public interface IJobs
     /// <summary>
     /// Pre-formed-payload variant of
     /// <see cref="RaiseSignalAsync(JobLookup, string, JobPayload, string?, CancellationToken)"/>: stores
-    /// <paramref name="value"/> on the slot verbatim under its <c>Format</c>, read by
+    /// <paramref name="value"/> on the signal verbatim under its <c>Format</c>, read by
     /// <c>ctx.WaitSignalAsync&lt;T&gt;(name)</c>; <see cref="JobPayload.None"/> raises a presence-only signal. The HTTP
     /// signal endpoint uses it to pass a request body through as JSON without binding the handler's type.
     /// <paramref name="actor"/> is recorded on the audit event as the operator identity; null when unknown.

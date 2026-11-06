@@ -138,7 +138,7 @@ SELECT c.job_id, c.job_ref, c.checkpoint_name, c.checkpoint_status, c.value_form
   JOIN acta.jobs_view j ON j.job_id = c.job_id
  WHERE j.job_status = 'suspended' AND c.checkpoint_kind = 'signal';
 
--- Durable step slots for a job: which named steps ran, their outcome, and retry state.
+-- The steps of a job: which named steps ran, their outcome, and retry state.
 SELECT step_name, step_status, attempt_number, next_retry_at_utc, failure, failure_message
   FROM acta.steps_view WHERE job_id = :job_id ORDER BY step_name;
 
@@ -231,7 +231,7 @@ client reads `action`, the resulting `status`, and the row's `version` without s
 | `reschedule` | A | A | A | A | A | 409 | 409 | 409 | 409 | Ready at the new instant, or Blocked behind its lane; an Idle slot takes a manual firing |
 | `reprioritize` | A | A | A | A | A | A | 409 | 409 | 409 | Priority changed, status untouched |
 | `input` (amend) | A | A | A | A | A | 409 | A | A | A | Input replaced, format round-tripped |
-| `signal` | A | A | A | A | A | A | 409 | 409 | 409 | Slot set; a Suspended job goes Ready, and its replay re-suspends any wait the raise did not satisfy |
+| `signal` | A | A | A | A | A | A | 409 | 409 | 409 | Signal set; a Suspended job goes Ready, and its replay re-suspends any wait the raise did not satisfy |
 
 Repeating a verb is a no-op only where the table says so. **`pause` is idempotent** (Paused stays
 Paused, applied). **`resume` is not**: it accepts only Paused, so resuming an already-running job is
@@ -248,7 +248,7 @@ Five rules the table cannot show:
   Failed, or Cancelled, with no firing outstanding and no live schedule pinning it.
 - **`cancel` on an Executing job** marks the row Cancelled and cancels the running attempt's token;
   the handler still has to return. The row is terminal before the process notices.
-- **`signal` on a Paused job** records the slot and leaves the job Paused. The signal is not lost;
+- **`signal` on a Paused job** records the signal and leaves the job Paused. The signal is not lost;
   it is waiting for a `resume`.
 - **`input` on a terminal job is allowed**, which looks odd until you want it: amend the input of a
   failed job, then `restart` it. Only Executing rejects, because that is the state where a worker
@@ -330,7 +330,7 @@ Every Acta host doubles as a control CLI: `<app> jobs <verb>` runs the verb agai
 
 A `job_...` target is a job ref, another non-numeric one a deduplication key, and an integer the internal id; an omitted target is read from the clipboard. Add `--ns <ns>` to pick the namespace for a deduplication-key lookup and `--json` for JSON output.
 
-`explain` is where to start for any stuck, waiting, or failed job: it reads the job's status, lease, worker, slots, and latest reason in one statement and says what happened and what to do next. It cannot know what your code or an external system did.
+`explain` is where to start for any stuck, waiting, or failed job: it reads the job's status, lease, worker, steps and checkpoints, and latest reason in one statement and says what happened and what to do next. It cannot know what your code or an external system did.
 
 `debug` resets the job to Ready with restart semantics, claims exactly it, and runs the handler in this process, so a breakpoint in the handler stops it; leases keep renewing while it is stopped. A live worker can take the job first, and an Executing job is refused. `--break` raises the debugger at the handler.
 
@@ -861,7 +861,7 @@ suspended job — only terminal ones. When "never" is a real possibility, bound 
 `WaitSignalAsync(name, timeout)` cancels the job on expiry, budget-neutral, with reason
 `job.wait-timed-out`, so the row lands terminal and ages out normally; `TryWaitSignalAsync`
 resumes the handler with a `TimedOut` result instead, for workflows that expire or compensate
-explicitly. The deadline is stamped on the slot when the wait first arms and is never extended —
+explicitly. The deadline is stamped on the checkpoint when the wait first arms and is never extended —
 worker downtime, restarts, and replays all count against it.
 
 ### …a child never finishes and the parent is waiting on it?
@@ -874,7 +874,7 @@ completed children keep their outcomes, only the unfinished ones are cancelled, 
 at-least-once shape below covers each of those cancellations the same way. Two limits remain. The subtree cancellation is initiated by the parent's resumed attempt, so
 it is at-least-once like everything else: a crash between the durable expiry and the cancellation
 re-runs it on replay, and a parent that goes terminal without ever replaying leaves its children
-running — which is what parent death has always meant in Acta. And an expired wait slot is
+running — which is what parent death has always meant in Acta. And an expired wait is
 terminal for its name: a replay that reaches an unbounded `WaitChildAsync` over an already-expired
 latch cancels the job rather than parking it forever on a wait that can no longer complete.
 
@@ -920,9 +920,9 @@ caught up.
 
 ### …a checkpoint name changes during a deployment?
 
-The new name is a different durable slot. A step can repeat, a variable can appear absent, or a
+The new name is a different step, variable, signal, or timer. A step can repeat, a variable can appear absent, or a
 signal can wait on a name that old producers never raise. Follow
-[Durable slot evolution](./developer-guide.md#durable-slot-evolution) and treat the change as a data
+[Renaming a step, variable, signal or timer](./developer-guide.md#renaming-a-step-variable-signal-or-timer) and treat the change as a data
 migration, not a refactor.
 
 ### …the service is down across scheduled occurrences?
@@ -986,7 +986,7 @@ next action (raise a signal, wait for crash recovery, resume, restart, or inspec
 manual checks below are for triaging many jobs at once, confirming what `explain` reports, or when
 you only have SQL access. The dashboard's per-job Explain panel renders the same account.
 
-`jobs explain` diagnoses Acta's durable state. It can tell you which durable slots completed, which
+`jobs explain` diagnoses Acta's durable state. It can tell you which steps completed, which
 wait is active, what the latest recorded reason was, and what operator actions are available. It
 cannot predict arbitrary user code, external system state, or whether a non-idempotent side effect
 already happened outside Acta.
@@ -1029,17 +1029,17 @@ For the live crash/reclaim path, run [`../anvil/Anvil/`](../anvil/Anvil/).
 ### A Job Is Suspended
 
 `Suspended` usually means the handler is waiting on `ctx.WaitSignalAsync(...)`. Check
-pending signal `checkpoints` slots (kind `signal`) and raise the expected signal through `IJobs.RaiseSignalAsync`, the
+pending signal `checkpoints` (kind `signal`) and raise the expected signal through `IJobs.RaiseSignalAsync`, the
 CLI, or the HTTP signal endpoint if controls are enabled.
 
 Sleep and reschedule waits are timer-based. Check timer `checkpoints` (kind `timer`) and `next_run_at_utc` for the due
 instant.
 
 A bounded wait tells you when it gives up: `Explain` prints "times out at" with the deadline, the
-slot's `due_at_utc` carries it, and the suspended row's `next_run_at_utc` is non-null — the job
+checkpoint's `due_at_utc` carries it, and the suspended row's `next_run_at_utc` is non-null — the job
 will wake itself. A suspended row with `next_run_at_utc` NULL is an unbounded wait and wakes only
 on a raise. To put a bound on a job stranded under code that has since gained one, reschedule it
-once: the re-entered wait arms the new deadline on a slot that never had one.
+once: the re-entered wait arms the new deadline on a checkpoint that never had one.
 
 ### A Job Is Paused
 
@@ -1327,7 +1327,7 @@ SELECT job_id, job_ref, namespace_name, definition_name, checkpoint_name AS time
  ORDER BY due_at_utc, job_id;
 ```
 
-Timers are job-internal slots. The owning job becomes claimable when the timer is due and consumed.
+Timers are job-internal checkpoints. The owning job becomes claimable when the timer is due and consumed.
 
 ### Step State
 

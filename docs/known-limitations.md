@@ -24,7 +24,7 @@ provisioned before 1.0.
 ## Execution model
 
 - **At-least-once.** A handler can run again after a crash, a lease expiry, a failed completion write, or a shutdown, and a restart or a database restore can re-run work whose external effects already happened. No durable executor makes external effects exactly-once; the application owns that, with deduplication keys, durable steps, `AtMostOnce()`, or reconciliation.
-- **Checkpoints, not replay.** A handler re-enters from the top; completed durable slots return their stored results.
+- **Checkpoints, not replay.** A handler re-enters from the top; completed steps return their stored results.
 - **A failing completion write repeats until it lands or the worker stops**, logging Warning, then Error. A database outage longer than the lease lets recovery reclaim the job and run it again, finished or not. A failing database stops intake instead of growing memory.
 - **SQLite pickup can wait a Windows timer tick.** A write that meets another commit holding SQLite's lock waits in SQLite's busy handler, which sleeps in whole milliseconds that Windows rounds up to a 15.6 ms tick, so one job at a time picks up in about 20 ms where the server providers take 3.
 - **A dead worker's jobs come back within two leases**, six minutes at the default heartbeat.

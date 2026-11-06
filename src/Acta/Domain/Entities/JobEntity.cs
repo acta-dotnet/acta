@@ -126,10 +126,10 @@ internal sealed class JobEntity : IEntity<long>
     public string? CorrelationKey { get; init; }
 
     /// <summary>
-    /// Named concurrency key, a case-sensitive key like the deduplication key. Enforced by execution-time slot leases
+    /// Named concurrency key, a case-sensitive key like the deduplication key. Enforced by execution-time lock slot leases
     /// (<c>{ns_id}.sem.{key}.{slot}</c> rows) the runner takes after claim; a claimed loser re-arms
     /// Ready after the fixed bounce delay. The key alone admits one at a time; the definition's
-    /// <c>concurrency_limit</c> widens it to that many slots.
+    /// <c>concurrency_limit</c> widens it to that many lock slots.
     /// </summary>
     [DbColumn("concurrency_key", DbKind.AsciiString, Size = 128, CaseExact = true)]
     public string? ConcurrencyKey { get; init; }

@@ -21,7 +21,7 @@
   // The definition subresource root; every read and the tag editor hang off it.
   let definitionPath = $derived(`definitions/${encodeURIComponent(jobNamespace)}/${encodeURIComponent(jobName)}`);
 
-  // The override slots, in the entity's policy order. `key` matches both the list item field prefix
+  // The override fields, in the entity's policy order. `key` matches both the list item field prefix
   // (key / keyOverride / keyEffective) and the PATCH payload field. `kind` drives parsing on save.
   const FIELDS = [
     { key: 'priority', label: 'Priority', kind: 'enum' },

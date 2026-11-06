@@ -2,7 +2,7 @@ namespace Acta;
 
 /// <summary>
 /// Outcome of a bounded <c>ctx.TryWaitSignalAsync(name, timeout)</c>: either the signal arrived (<see cref="Received"/>)
-/// or the wait re-entered its slot past the stored expiration with nothing raised and settled it <c>Expired</c>
+/// or the wait re-entered past the stored expiration with nothing raised and settled it <c>Expired</c>
 /// (<see cref="TimedOut"/>). Returned, never thrown; the non-Try overloads cancel the Job instead. Construction is
 /// gated to the framework (private constructor, internal factories), so no caller can synthesise both received and timed out.
 /// </summary>
@@ -10,10 +10,10 @@ public sealed record SignalWaitOutcome
 {
     private SignalWaitOutcome(bool timedOut) => TimedOut = timedOut;
 
-    /// <summary>True when the wait settled the slot <c>Expired</c> with nothing raised on it.</summary>
+    /// <summary>True when the wait settled the signal <c>Expired</c> with nothing raised on it.</summary>
     public bool TimedOut { get; }
 
-    /// <summary>True when the raise reached the slot first; the complement of <see cref="TimedOut"/>.</summary>
+    /// <summary>True when the raise arrived first; the complement of <see cref="TimedOut"/>.</summary>
     public bool Received => !TimedOut;
 
     internal static SignalWaitOutcome Signalled { get; } = new(timedOut: false);
@@ -34,10 +34,10 @@ public sealed record SignalWaitOutcome<T>
         Value = value;
     }
 
-    /// <summary>True when the wait settled the slot <c>Expired</c> with nothing raised on it.</summary>
+    /// <summary>True when the wait settled the signal <c>Expired</c> with nothing raised on it.</summary>
     public bool TimedOut { get; }
 
-    /// <summary>True when the raise reached the slot first; the complement of <see cref="TimedOut"/>.</summary>
+    /// <summary>True when the raise arrived first; the complement of <see cref="TimedOut"/>.</summary>
     public bool Received => !TimedOut;
 
     /// <summary>The raised payload, or <c>default</c> on a timeout or a presence-only raise.</summary>

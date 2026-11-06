@@ -149,7 +149,7 @@ public sealed class ReflectionFreeJsonTests
         private AccessJobCheckpointResponse Access(BoundCall call)
         {
             var name = call.Get(ActaSchema.Checkpoint.CheckpointName);
-            switch ((AccessJobCheckpointAction)call.Get(ActaSchema.Sql.SlotAction))
+            switch ((AccessJobCheckpointAction)call.Get(ActaSchema.Sql.CheckpointAction))
             {
                 case AccessJobCheckpointAction.Set:
                     _variables[name] = call.Get(ActaSchema.Checkpoint.Value)!;

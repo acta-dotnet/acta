@@ -1,4 +1,4 @@
--- One keyset page of the job's step slots, newest first; the memoized result stays the engine's.
+-- One keyset page of the job's steps, newest first; the memoized result stays the engine's.
 SELECT TOP (@p_take)
     s.step_name AS name,
     s.step_status_code AS status,

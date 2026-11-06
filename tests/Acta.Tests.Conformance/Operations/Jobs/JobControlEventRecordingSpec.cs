@@ -128,10 +128,10 @@ public sealed class JobControlEventRecordingSpec : ActaRuntimeTestBase<Conforman
 
         var outcomeL = await Services
             .GetRequiredService<SignalsOperations>()
-            .RaiseJobSignalAsync(new RaiseJobSignalSlot(jobL, CheckpointKindCode.Signal, "gate", 0, null, input), ct);
+            .RaiseJobSignalAsync(new RaiseJobSignalCheckpoint(jobL, CheckpointKindCode.Signal, "gate", 0, null, input), ct);
         var outcomeF = await Services
             .GetRequiredService<SignalsOperations>()
-            .RaiseJobSignalAsync(new RaiseJobSignalSlot(jobF, CheckpointKindCode.Signal, "gate", 0, null, input), ct);
+            .RaiseJobSignalAsync(new RaiseJobSignalCheckpoint(jobF, CheckpointKindCode.Signal, "gate", 0, null, input), ct);
 
         Assert.Equal(ControlAction.Applied, outcomeL.Action);
         Assert.Equal(JobStatusCode.Ready, outcomeL.Status);

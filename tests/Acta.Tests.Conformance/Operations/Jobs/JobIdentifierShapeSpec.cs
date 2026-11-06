@@ -138,7 +138,7 @@ public sealed class JobIdentifierShapeSpec : ActaRuntimeTestBase<ConformanceFixt
         // A foreign owner holds the only slot of the uppercase key, composed as the runner does ({ns_id}.sem.{key}).
         var locks = Services.GetRequiredService<LocksOperations>();
         var held = (
-            await locks.AcquireSlotAsync(
+            await locks.AcquireLockSlotAsync(
                 $"{ns}.sem.{key.ToUpperInvariant()}",
                 limit: 1,
                 TimeSpan.FromMinutes(5),

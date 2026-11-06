@@ -231,8 +231,8 @@ internal sealed class HandlerInvocation(
                     RescheduleResumeAtUtc = stepRetry.ResumeAtUtc,
                 };
             case SignalSuspendSignal signalSuspend:
-                // Signal wait with no Set slot: re-arm as Suspended (no due time). complete_executions
-                // locks the named slot and lands Ready instead if a raise won the race.
+                // Signal wait with no Set checkpoint: re-arm as Suspended (no due time). complete_executions
+                // locks the named checkpoint and lands Ready instead if a raise won the race.
                 return new ExecutionCompletion(CompletionKind.Suspended)
                 {
                     Reason = EventReason.HandlerSuspended,
@@ -242,7 +242,7 @@ internal sealed class HandlerInvocation(
                     WaitSignalName = signalSuspend.SignalName,
                 };
             case WaitTimeoutSignal waitTimeout:
-                // A bounded wait outlived the expiration stored on its slot and the handler used a
+                // A bounded wait outlived the expiration stored on its checkpoint and the handler used a
                 // non-Try overload. Terminate Cancelled like the Strict-deadline path: no
                 // FailureCount is submitted, so complete_executions' COALESCE leaves the budget
                 // untouched, and the terminal landing stamps retention so the job stops being

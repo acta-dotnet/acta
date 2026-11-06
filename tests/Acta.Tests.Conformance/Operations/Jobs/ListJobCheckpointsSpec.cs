@@ -29,7 +29,7 @@ public sealed class ListJobCheckpointsSpec : ActaRuntimeTestBase<ConformanceFixt
         // The variable is written as a handler writes it, under the fence of an attempt the job stands executing.
         var variableValue = JobPayload.Json("stage-two");
         var fence = await ExecutionFenceStaging.ExecutingAsync(Db, enqueued.JobId, ct);
-        await CheckpointSlot.SetAsync(execution, fence, CheckpointKindCode.Variable, "fetch.status", variableValue, ct);
+        await CheckpointAccess.SetAsync(execution, fence, CheckpointKindCode.Variable, "fetch.status", variableValue, ct);
 
         var signalValue = JobPayload.Json(new AddNumbers(2, 3));
         await RaiseAsync(enqueued.JobId, "s.ready", signalValue, ct);
@@ -128,7 +128,7 @@ public sealed class ListJobCheckpointsSpec : ActaRuntimeTestBase<ConformanceFixt
         await Services
             .GetRequiredService<SignalsOperations>()
             .RaiseJobSignalAsync(
-                new RaiseJobSignalSlot(
+                new RaiseJobSignalCheckpoint(
                     jobId,
                     CheckpointKindCode.Signal,
                     name,

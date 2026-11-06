@@ -195,7 +195,7 @@ public static class ActaTestHost
                 );
             }
 
-            // The deadline lives on the slot, but claimability lives on the jobs_state row: both must move
+            // The deadline lives on the checkpoint, but claimability lives on the jobs_state row: both must move
             // or the job stays parked past its own expiration.
             await ForceJobDueAsync(jobId, ct);
         }
@@ -500,19 +500,19 @@ internal static class WaitTimeoutStaging
     /// and moves every armed child latch to the same instant, which is what real elapsed time would do
     /// to both. Rewinding the latches alone would leave the deadline in the future and let a member
     /// armed after it start a fresh countdown. Returns how many group deadlines were moved, so the
-    /// caller can decide whether finding none is an error. <paramref name="slotName"/> narrows the
+    /// caller can decide whether finding none is an error. <paramref name="deadlineName"/> narrows the
     /// write to one group on a job holding several, which the public helper deliberately does not
-    /// expose: an author has no way to know a slot's derived name.
+    /// expose: an author has no way to know a deadline's derived name.
     /// </summary>
     public static async Task<int> ForceGroupWaitDueAsync(
         IDbSession db,
         long jobId,
         DateTime dueAtUtc,
         CancellationToken ct,
-        string? slotName = null
+        string? deadlineName = null
     )
     {
-        var deadlines = await FindGroupDeadlinesAsync(db, jobId, slotName, ct);
+        var deadlines = await FindGroupDeadlinesAsync(db, jobId, deadlineName, ct);
         if (deadlines.Count == 0)
         {
             return 0;
@@ -544,13 +544,13 @@ internal static class WaitTimeoutStaging
     }
 
     /// <summary>
-    /// Filtered in memory rather than in the query: the slot name is a prefix match on a framework-owned
+    /// Filtered in memory rather than in the query: the deadline's name is a prefix match on a framework-owned
     /// key, and a job carries a handful of variables at most.
     /// </summary>
     private static async Task<IReadOnlyList<string>> FindGroupDeadlinesAsync(
         IDbSession db,
         long jobId,
-        string? slotName,
+        string? deadlineName,
         CancellationToken ct
     )
     {
@@ -559,15 +559,15 @@ internal static class WaitTimeoutStaging
             .ToListAsync(ct);
         var deadlines = variables
             .Where(c => c.CheckpointName.StartsWith(JobContext.GroupDeadlinePrefix, StringComparison.Ordinal))
-            .Where(c => slotName is null || c.CheckpointName == slotName)
+            .Where(c => deadlineName is null || c.CheckpointName == deadlineName)
             .ToList();
 
-        foreach (var slot in deadlines)
+        foreach (var deadline in deadlines)
         {
-            if (slot.ValueFormatId != JobPayloadFormat.Json.Id)
+            if (deadline.ValueFormatId != JobPayloadFormat.Json.Id)
             {
                 throw new InvalidOperationException(
-                    $"Group deadline slot '{slot.CheckpointName}' on job {jobId} carries payload format {slot.ValueFormatId}, not JSON. "
+                    $"Group deadline '{deadline.CheckpointName}' on job {jobId} carries payload format {deadline.ValueFormatId}, not JSON. "
                         + "The staging helper writes the deadline as JSON ticks and has to move with the sink that stores it."
                 );
             }

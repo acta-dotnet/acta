@@ -1210,21 +1210,21 @@
 
 ## Locks
 
-### Acquire lands a lease row and blocks a competing acquire on a live key
-- **Contract:** AcquireLock inserts a leases row on a free key and returns null when the key is already held by a live lease.
-- **Guarantees:**
-  - Simultaneous acquisitions of a new key return exactly one live token
-  - First acquire returns a token and lands a lease row, and a competing acquire on a live key returns null
-  - A competing acquire steals an expired lease and bumps the version
-
 ### A slot acquire takes the lowest free slot of a counted key, or none
-- **Contract:** AcquireSlot takes the lowest slot under the limit that is unheld or expired, under the caller's owner and a fresh token, or returns null when none is.
+- **Contract:** AcquireLockSlot takes the lowest slot under the limit that is unheld or expired, under the caller's owner and a fresh token, or returns null when none is.
 - **Guarantees:**
   - The lowest free slot is taken first, and its row records the owner, the minted token, and a lease the TTL long
   - With every slot under the limit held the acquire returns null and writes no slot past the limit
   - An expired slot is stolen in place before any higher free slot, and its old token no longer releases
   - Simultaneous acquires of a key's one free slot leave exactly one holder
   - A limit below one throws before any slot is written
+
+### Acquire lands a lease row and blocks a competing acquire on a live key
+- **Contract:** AcquireLock inserts a leases row on a free key and returns null when the key is already held by a live lease.
+- **Guarantees:**
+  - Simultaneous acquisitions of a new key return exactly one live token
+  - First acquire returns a token and lands a lease row, and a competing acquire on a live key returns null
+  - A competing acquire steals an expired lease and bumps the version
 
 ### One heartbeat renews a handler-held lock and a lost lock cancels the attempt
 - **Contract:** The heartbeat renews every lock an attempt holds with its job lease, and a lost held lock aborts the attempt into a retryable failure within one heartbeat.
@@ -2545,8 +2545,8 @@
 | `AccessJobCheckpoint` | yes | yes | yes |
 | `AcknowledgeAlert` | yes | yes | yes |
 | `AcquireLock` | yes | yes | yes |
+| `AcquireLockSlot` | yes | yes | yes |
 | `AcquireSchemaLock` | yes | yes | yes |
-| `AcquireSlot` | yes | yes | yes |
 | `AdmitScheduleFirings` | yes | yes | yes |
 | `ArchiveCalendar` | yes | yes | yes |
 | `ArmOrConsumeJobSleepTimer` | yes | yes | yes |

@@ -442,7 +442,7 @@ dotnet_diagnostic.CA1062.severity = none
 [src/Acta/Handlers/JobContext.Locks.cs]
 dotnet_diagnostic.CA1031.severity = none
 
-# CA1819: SignalSlotState.Value, on the protected record struct WaitSignalCoreAsync returns. It is
+# CA1819: SignalCheckpointState.Value, on the protected record struct WaitSignalCoreAsync returns. It is
 # not a property guarding state a caller could reach past - it is the raised slot's stored bytes in
 # transit, returned by the subclass sink and handed straight to DeserializeSignalPayload(byte,
 # byte[]), which takes byte[] because the serializer registry does. Widening it to ReadOnlyMemory

@@ -80,7 +80,7 @@ await lab.ShowAsync(
     new { ownerJobId }
 );
 
-// The same gate with a size: [Job(ConcurrencyLimit = 2)] gives the key two slots, so two of these
+// The same gate with a size: [Job(ConcurrencyLimit = 2)] gives the key two concurrency slots, so two of these
 // four run together and the rest bounce. No enqueue key here, so the definition name is the key.
 var shards = new List<EnqueueJobResponse>();
 for (var i = 0; i < 4; i++)
@@ -208,7 +208,7 @@ namespace Acta.Concepts.ConcurrencyKey
     {
         // RateLimit is the other admission gate: five starts a second across the namespace's workers, metered
         // on the definition name because no RateName was given. Like ConcurrencyLimit it is an
-        // operator-overridable policy slot on the definitions row.
+        // operator-overridable policy value on the definitions row.
         [Job("ping-endpoint", RateLimit = "5/s")]
         public Task Handle(PingEndpoint input, CancellationToken ct)
         {
@@ -219,7 +219,7 @@ namespace Acta.Concepts.ConcurrencyKey
 
     public sealed class ReindexShardJob
     {
-        // ConcurrencyLimit is a per-definition policy slot, so an operator can raise or lower it on the
+        // ConcurrencyLimit is a per-definition policy value, so an operator can raise or lower it on the
         // definitions row without a deploy. Two at a time, whatever the fleet size.
         [Job("reindex-shard", ConcurrencyLimit = 2)]
         public async Task Handle(ReindexShard input, CancellationToken ct)

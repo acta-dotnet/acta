@@ -43,7 +43,7 @@ internal sealed class ExecutionAdmission(ILogger log, int concurrencyKeyBounceDe
             return DeadlineExceeded(job);
         }
 
-        // Concurrency admission: the slot is a lock-store row taken here, after the start CAS proved
+        // Concurrency admission: the concurrency slot is a lock-store row taken here, after the start CAS proved
         // ownership, and held only while the handler runs. The gate is the key - the enqueue's key
         // when the row carries one, else the definition name once the definition declares a limit -
         // and the limit is how many of its slots exist, 1 when only a key was given. A loser skips
@@ -54,7 +54,7 @@ internal sealed class ExecutionAdmission(ILogger log, int concurrencyKeyBounceDe
         var concurrencyKey = job.ConcurrencyKey ?? (descriptor.ConcurrencyLimit is not null ? descriptor.JobName : null);
         if (
             concurrencyKey is not null
-            && await TakeSlotAsync(job, jobContext, concurrencyKey, descriptor.ConcurrencyLimit ?? 1, ct) is { } bounced
+            && await TakeConcurrencySlotAsync(job, jobContext, concurrencyKey, descriptor.ConcurrencyLimit ?? 1, ct) is { } bounced
         )
         {
             return bounced;
@@ -103,8 +103,8 @@ internal sealed class ExecutionAdmission(ILogger log, int concurrencyKeyBounceDe
             RescheduleDelaySeconds = concurrencyKeyBounceDelaySeconds,
         };
 
-    /// <summary>Takes one of the key's slots; the bounce completion when every slot is held or the acquire failed.</summary>
-    private async Task<ExecutionCompletion?> TakeSlotAsync(
+    /// <summary>Takes one of the key's concurrency slots; the bounce completion when every one is held or the acquire failed.</summary>
+    private async Task<ExecutionCompletion?> TakeConcurrencySlotAsync(
         ClaimedJob job,
         RuntimeJobContext jobContext,
         string concurrencyKey,
@@ -123,7 +123,7 @@ internal sealed class ExecutionAdmission(ILogger log, int concurrencyKeyBounceDe
         {
             // An admission error must not escape: the row is Executing under this worker, so an
             // escaped exception would leave it to lapse and recovery would charge an attempt that
-            // never ran. The attempt bounces instead. A slot the acquire may have committed without
+            // never ran. The attempt bounces instead. A lock slot the acquire may have committed without
             // answering is untracked and expires with its lease TTL.
             ActaLog.ConcurrencyAdmissionFailed(log, ex, job.JobId, concurrencyKey, concurrencyKeyBounceDelaySeconds * 1000);
             return Bounced(admissionFailed: true);
@@ -153,7 +153,7 @@ internal sealed class ExecutionAdmission(ILogger log, int concurrencyKeyBounceDe
         }
         catch (Exception ex) when (ex is not OperationCanceledException)
         {
-            // Same rule as the slot: the error becomes a bounce with the fixed delay. A reservation the
+            // Same rule as the concurrency slot: the error becomes a bounce with the fixed delay. A reservation the
             // meter may have booked without answering is honoured when the job returns, so nothing is
             // double-counted.
             ActaLog.RateAdmissionFailed(log, ex, job.JobId, rateName, concurrencyKeyBounceDelaySeconds * 1000);
@@ -196,7 +196,7 @@ internal sealed class ExecutionAdmission(ILogger log, int concurrencyKeyBounceDe
             return await jobContext.ReserveRateAsync(rateName, rate, turnWait.Token);
         }
         // Worker shutdown mid-wait propagates: the row stays Executing for recovery like any attempt
-        // shutdown interrupts, and the slot goes back as the attempt unwinds.
+        // shutdown interrupts, and the concurrency slot goes back as the attempt unwinds.
         catch (OperationCanceledException) when (!ct.IsCancellationRequested)
         {
             // The attempt was cancelled while it waited: an operator cancel, a stolen lease, or

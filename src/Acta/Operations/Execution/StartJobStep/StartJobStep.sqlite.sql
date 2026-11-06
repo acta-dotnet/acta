@@ -10,7 +10,7 @@ WHERE NOT EXISTS (
         AND r.leased_by_worker_id = @p_leased_by_worker_id
 );
 
--- One UPDATE for a due pending slot re-entered on replay, keyed on @p_at_most_once:
+-- One UPDATE for a due pending step re-entered on replay, keyed on @p_at_most_once:
 --   at-least-once -> bump the attempt and re-run the body (state stays pending);
 --   at-most-once  -> terminalize Interrupted (one transition/version bump) rather than re-invoke (an already-interrupted row, state 230, is not matched).
 UPDATE {{schema}}.steps

@@ -11,12 +11,12 @@ complete demo apps under `demos/`. Start at useacta.net or github.com/acta-dotne
 ## The one rule everything follows from
 
 Execution is at-least-once, and a handler re-enters from the top. After a crash, a lease expiry, a
-retry, or a resumed wait, Acta runs the handler method again from its first line. Completed durable
-slots (steps, variables, timers, signal waits) return their recorded results instead of repeating
+retry, or a resumed wait, Acta runs the handler method again from its first line. Completed steps,
+variables, timers, and signal waits return their recorded results instead of repeating
 their work; every bare line between them runs again on every entry. The model is checkpoints, not
 replay: there is no determinism requirement on your code, and there is no magic resume-at-line-N.
 
-The durable slots and the ledger make re-entry something you can reason about and test, because
+Those recorded results and the ledger make re-entry something you can reason about and test, because
 everything a handler decided is a row you can read. Write handlers as if the method will be
 called twice with the same input, and put every external side effect behind a step.
 
@@ -125,7 +125,7 @@ public static class ShippingHandlers
 
 ## Steps
 
-`await ctx.RunStepAsync("name", ct => ...)` is a named run-once slot. On re-entry a completed step
+`await ctx.RunStepAsync("name", ct => ...)` is a named run-once step. On re-entry a completed step
 returns its recorded result instead of running the body. That promise has two conditions:
 
 - The outcome is durable only after it is recorded. A crash after the side effect ran but before
@@ -241,7 +241,7 @@ does not. Use `ConcurrencyLimit` for N at once and `RateLimit` for pacing; they 
 `options.ConcurrencyKey("rebuild:acme")` on an enqueue admits one job of that key at a time,
 cluster-wide: the runner takes the key's lease after the claim and before the handler, and a loser
 re-arms Ready a couple of seconds out without spending retry budget. `[Job("rebuild-index",
-ConcurrencyLimit = 4)]` sizes that gate: the key gets four slots instead of one. When an enqueue
+ConcurrencyLimit = 4)]` sizes that gate: the key gets four concurrency slots instead of one. When an enqueue
 supplies no key, the definition name is the key, so a limit alone throttles the whole definition. Two
 definitions on the same key share its slots and the key's capacity is the largest limit among them.
 It is mutual exclusion, never ordering: an older job can be overtaken while the key stays busy.

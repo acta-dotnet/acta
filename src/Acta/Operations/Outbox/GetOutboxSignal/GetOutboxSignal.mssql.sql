@@ -1,4 +1,4 @@
--- The applying tick's read of one pending operator command; empty when the inbox slot is free.
+-- The applying tick's read of one pending operator command; empty when the inbox holds none.
 SELECT c.value_format_id, c.value, c.version
 FROM {{schema}}.checkpoints c
 WHERE

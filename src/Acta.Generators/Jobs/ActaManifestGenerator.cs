@@ -233,7 +233,7 @@ public sealed class ActaManifestGenerator : IIncrementalGenerator
         }
 
         // No input parameter (zero-input handler) ⇒ none format, same as a parameterless data-less
-        // input record. The descriptor's InputType slot is filled with the NoInput sentinel at emit.
+        // input record. The descriptor's InputType is filled with the NoInput sentinel at emit.
         // Several input parameters travel as the generated argument record, a JSON object by default.
         var inputFormatName =
             takesArguments ? inputExplicit ?? "json"

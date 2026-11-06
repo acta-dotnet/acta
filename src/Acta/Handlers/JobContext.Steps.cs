@@ -27,9 +27,9 @@ public abstract partial class JobContext
 
     /// <summary>
     /// <see cref="RunStepAsync(string, Func{CancellationToken, Task}, Action{StepOptionsBuilder}, CancellationToken)"/>
-    /// with <paramref name="ct"/> in the third slot: no <c>configure</c>, no named <c>ct: ct</c>.
+    /// with <paramref name="ct"/> in the third position: no <c>configure</c>, no named <c>ct: ct</c>.
     /// </summary>
-    /// <param name="name">Stable kebab-case slot name, unique per Job; durable identity across replays.</param>
+    /// <param name="name">Stable kebab-case step name, unique per Job; durable identity across replays.</param>
     /// <param name="body">The side-effecting work; receives a cancellation token linked to the attempt.</param>
     /// <param name="ct">Cancellation; linked with the per-attempt <see cref="CancellationToken"/>.</param>
     public Task RunStepAsync(string name, Func<CancellationToken, Task> body, CancellationToken ct) =>
@@ -61,7 +61,7 @@ public abstract partial class JobContext
     /// <summary>
     /// Convenience overload of
     /// <see cref="RunStepAsync{TResult}(string, Func{CancellationToken, Task{TResult}}, Action{StepOptionsBuilder}, CancellationToken)"/>:
-    /// <paramref name="ct"/> takes the third positional slot when no <c>configure</c> override is
+    /// <paramref name="ct"/> takes the third position when no <c>configure</c> override is
     /// needed, instead of requiring the named <c>ct: ct</c> form. Equivalent to <c>configure: null</c>.
     /// </summary>
     public Task<TResult> RunStepAsync<TResult>(string name, Func<CancellationToken, Task<TResult>> body, CancellationToken ct) =>

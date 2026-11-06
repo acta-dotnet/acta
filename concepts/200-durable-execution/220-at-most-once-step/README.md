@@ -15,12 +15,12 @@ dies in that gap, retrying may duplicate the charge; refusing retry leaves an un
 
 - Accept at-least-once execution and make the side effect idempotent.
 - Send an external deduplication key and query the external result.
-- Refuse a second invocation with an at-most-once slot.
+- Refuse a second invocation with an at-most-once step.
 - Reconcile an ambiguous outcome and compensate or continue.
 
 ## Why this design
 
-`AtMostOnce()` durably marks the step start before invoking the body. Re-entering a still-pending slot
+`AtMostOnce()` durably marks the step start before invoking the body. Re-entering a still-pending step
 terminalizes it as `interrupted` and throws `StepInterruptedException`; Acta never calls that body a
 second time. The handler then owns reconciliation policy.
 

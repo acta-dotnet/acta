@@ -148,7 +148,7 @@ public sealed class ConcurrencyKeyMutexSpec : ActaRuntimeTestBase<ConformanceFix
         // execution would. Same composition the runner uses ({ns_id}.sem.{key}, the key exact).
         var locks = Services.GetRequiredService<LocksOperations>();
         var held = (
-            await locks.AcquireSlotAsync($"{ns}.sem.{key}", limit: 1, TimeSpan.FromMinutes(5), ownerJobId: long.MaxValue, ct)
+            await locks.AcquireLockSlotAsync($"{ns}.sem.{key}", limit: 1, TimeSpan.FromMinutes(5), ownerJobId: long.MaxValue, ct)
         ).Token;
         Assert.NotNull(held);
 

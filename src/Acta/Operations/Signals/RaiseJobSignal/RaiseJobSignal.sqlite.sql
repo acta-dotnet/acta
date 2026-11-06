@@ -1,4 +1,4 @@
-/* No revival: an Expired slot already resolved the wait TimedOut, so a late raise writes no slot and
+/* No revival: an Expired checkpoint already resolved the wait TimedOut, so a late raise writes nothing and
    releases no job, but the raise still happened and the audit event still records it with a message
    saying why it changed nothing. The pre-state is captured first because the upsert overwrites it. */
 DROP TABLE IF EXISTS temp._raise_expired;

@@ -7,7 +7,7 @@ namespace Acta;
 /// UPDATE-in-place across retries; terminal transition to <c>Succeeded</c> (with <c>Result</c> populated),
 /// <c>Exhausted</c> (parent receives <c>StepExhaustedException</c>), or <c>Interrupted</c> (an
 /// <c>AtMostOnce</c> step re-entered before completion; parent receives <c>StepInterruptedException</c>). One row per
-/// <c>(JobId, StepName)</c>; the framework never INSERTs a second step row for the same slot.
+/// <c>(JobId, StepName)</c>; the framework never INSERTs a second step row for the same name.
 /// </summary>
 [JsonConverter(typeof(StepStatusCodeJsonConverter))]
 [CodeKind("job-step-status")]
