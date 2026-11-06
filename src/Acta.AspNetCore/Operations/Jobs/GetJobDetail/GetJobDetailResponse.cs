@@ -31,6 +31,12 @@ internal sealed record GetJobDetailResponse(
     /// </summary>
     private const int ChildLimit = 100;
 
+    /// <summary>The definition's schedules the detail carries; the schedules list pages the rest.</summary>
+    internal const int SchedulePageSize = 100;
+
+    /// <summary>The namespace's workers the detail carries while the job is claimable; the workers list pages the rest.</summary>
+    internal const int WorkerPageSize = 50;
+
     /// <summary>
     /// Compose the detail from the individual reads. The reads are independent but cheap and awaited in
     /// sequence (v1); every read is addressed by the already-resolved id so the whole screen costs one
@@ -57,7 +63,7 @@ internal sealed record GetJobDetailResponse(
                 JobNamespace: job.JobNamespace,
                 JobName: job.JobName,
                 LiveOnly: false,
-                PageSize: 100,
+                PageSize: SchedulePageSize,
                 IncludeTotal: true
             ),
             ct
@@ -68,7 +74,7 @@ internal sealed record GetJobDetailResponse(
         var workers =
             job.Status == JobStatusCode.Ready
                 ? await operations.Workers.ListAsync(
-                    new ListWorkersQuery(JobNamespace: job.JobNamespace, PageSize: 50, IncludeTotal: true),
+                    new ListWorkersQuery(JobNamespace: job.JobNamespace, PageSize: WorkerPageSize, IncludeTotal: true),
                     ct
                 )
                 : null;
