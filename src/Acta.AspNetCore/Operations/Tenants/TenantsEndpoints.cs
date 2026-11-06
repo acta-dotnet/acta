@@ -25,7 +25,7 @@ internal static class TenantsEndpoints
                 new QueryParameterDoc(
                     "status",
                     QueryParameterKind.String,
-                    "Exact tenant status as a kebab code.",
+                    "Exact tenant status as a kebab code or its number.",
                     CodeKind: "tenant-status"
                 ),
                 new QueryParameterDoc(

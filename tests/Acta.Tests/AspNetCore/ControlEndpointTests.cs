@@ -311,6 +311,21 @@ public sealed class ControlEndpointTests
         Assert.Empty(fakes.Jobs.ControlCalls);
     }
 
+    [Fact]
+    public async Task A_declared_json_body_with_no_bytes_is_400_and_never_reaches_jobs()
+    {
+        var fakes = new FakeOperations();
+        var (app, client) = await StartWithControlsAsync(fakes);
+        await using var _ = app;
+
+        // A declared content type says a body follows, so an empty one is malformed JSON, not an absent body; the
+        // OpenAPI document tells a client to send {} or no content type.
+        var response = await client.SendAsync(Post($"/acta/api/v1/jobs/{Found}/pause", rawBody: ""), TestContext.Current.CancellationToken);
+
+        Assert.Equal(HttpStatusCode.BadRequest, response.StatusCode);
+        Assert.Empty(fakes.Jobs.ControlCalls);
+    }
+
     private static HttpRequestMessage PostReschedule(
         DateTime? nextRunAtUtc,
         string? reason = "because",
@@ -574,6 +589,24 @@ public sealed class ControlEndpointTests
         Assert.Contains("\"action\":\"applied\"", body);
         var call = Assert.Single(fakes.Jobs.PurgeCalls);
         Assert.Equal((FakeJobs.FoundJobRef, (string?)null), call);
+    }
+
+    [Fact]
+    public async Task A_blocked_purge_answers_a_409_problem()
+    {
+        var fakes = new FakeOperations();
+        fakes.Jobs.Purge = (_, _, _) => throw new JobPurgeBlockedException("The alert projection still owes an event of this job.");
+        var (app, client) = await StartWithControlsAsync(fakes);
+        await using var _ = app;
+
+        var response = await client.SendAsync(
+            Post($"/acta/api/v1/jobs/{Found}/purge", rawBody: "{}"),
+            TestContext.Current.CancellationToken
+        );
+
+        // Beside the rejected response, so the document declares both shapes (ActaOpenApiDocument.ConflictAlsoProblem).
+        Assert.Equal(HttpStatusCode.Conflict, response.StatusCode);
+        Assert.Equal("application/problem+json", response.Content.Headers.ContentType?.MediaType);
     }
 
     [Fact]

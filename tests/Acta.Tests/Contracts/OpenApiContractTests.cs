@@ -1,43 +1,36 @@
-using System.Text.Json;
+using System.Globalization;
+using System.Net;
+using System.Text;
 using System.Text.Json.Nodes;
 using System.Text.RegularExpressions;
 using Acta.AspNetCore;
+using Acta.Sqlite;
+using Acta.Tests.AspNetCore;
 using Acta.Tests.AspNetCore.Fakes;
 using Microsoft.AspNetCore.Builder;
-using Microsoft.AspNetCore.Http.Metadata;
-using Microsoft.AspNetCore.OpenApi;
 using Microsoft.AspNetCore.TestHost;
+using Microsoft.Data.Sqlite;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Logging;
-using Microsoft.OpenApi;
 using Xunit;
+using Mount = Acta.Tests.Contracts.ActaOpenApiDocument.Mount;
 
 namespace Acta.Tests.Contracts;
 
 /// <summary>
-/// Freezes the HTTP contract the way <c>PersistedCodeContractTests</c> freezes the code vocabulary:
-/// generate the document from the real endpoint graph, compare it to the committed file, fail on any
-/// drift. Regenerate deliberately with
-/// <c>ACTA_EMIT_OPENAPI=1 dotnet test tests/Acta.Tests --filter OpenApiContractTests</c>, then read the
-/// diff - an unintended route, status code, or payload change shows up there before it ships.
+/// Freezes the HTTP contract the way <c>PersistedCodeContractTests</c> freezes the code vocabulary: generate the document
+/// from the real endpoint graph (<see cref="ActaOpenApiDocument"/>), compare it to the committed file, fail on any drift.
+/// Regenerate deliberately with <c>ACTA_EMIT_OPENAPI=1 dotnet test tests/Acta.Tests --filter OpenApiContractTests</c>, then
+/// read the diff. The other facts hold the document to what the server reads and writes.
 /// </summary>
-/// <remarks>
-/// The document is produced by a test rather than at build time so the shipped
-/// <c>Acta.AspNetCore</c> package carries no OpenAPI dependency. Controls are mapped on
-/// (<c>EnableControls</c>) because the frozen surface is the whole surface, not the read-only subset a
-/// default host happens to expose.
-/// </remarks>
 public sealed partial class OpenApiContractTests
 {
-    [GeneratedRegex(@"\{(?<name>[A-Za-z]+)[^}]*\}")]
-    private static partial Regex RouteSegments();
-
     private const string DocumentFile = "docs/reference/openapi.json";
 
     [Fact]
     public async Task Http_contract_matches_the_committed_document()
     {
-        var generated = await GenerateAsync();
+        var generated = await ActaOpenApiDocument.GenerateAsync();
         var path = Path.Combine(RepoRoot(), DocumentFile.Replace('/', Path.DirectorySeparatorChar));
 
         if (Environment.GetEnvironmentVariable("ACTA_EMIT_OPENAPI") == "1")
@@ -56,33 +49,21 @@ public sealed partial class OpenApiContractTests
         );
     }
 
-    // Every operation carries a one-line summary, so a reader scanning the document (or Scalar's
-    // operation list) never meets an unexplained action. New endpoints fail here until they say
-    // what they are about via WithSummary.
+    // Every operation carries a one-line summary, so a reader scanning the document never meets an unexplained action.
     [Fact]
     public async Task Every_operation_carries_a_summary()
     {
-        var document = JsonNode.Parse(await GenerateAsync())!;
-        var missing = new List<string>();
-        foreach (var (path, operations) in document["paths"]!.AsObject())
-        {
-            foreach (var (method, operation) in operations!.AsObject())
-            {
-                if (string.IsNullOrWhiteSpace(operation?["summary"]?.GetValue<string>()))
-                {
-                    missing.Add($"{method.ToUpperInvariant()} {path}");
-                }
-            }
-        }
+        var missing = Operations(await ActaOpenApiDocument.GenerateAsync())
+            .Where(operation => string.IsNullOrWhiteSpace(operation.Value["summary"]?.GetValue<string>()))
+            .Select(operation => operation.Key);
 
         Assert.Empty(missing);
     }
 
     /// <summary>
-    /// Integer-typed names the wire may carry. Every one is a value - a ledger position, a counter, a
-    /// duration, a byte size, a policy number, a page size, an HTTP status - never an entity identity.
-    /// The set is a literal, not a rule, so putting a new integer on the wire is a deliberate edit here
-    /// that a reviewer sees; a new integer identity fails the gate on the day it is introduced.
+    /// Integer-typed names the wire may carry. Every one is a value - a ledger position, a counter, a duration, a byte
+    /// size, a policy number, a page size, an HTTP status - never an entity identity. The set is a literal, so putting a
+    /// new integer on the wire is a deliberate edit here that a reviewer sees.
     /// </summary>
     private static readonly HashSet<string> AllowedWireIntegers = new(StringComparer.Ordinal)
     {
@@ -165,8 +146,8 @@ public sealed partial class OpenApiContractTests
     };
 
     /// <summary>
-    /// Identity nouns 0.9.0 took off the wire. Banned by name whatever their type, because renaming one
-    /// to a string would keep the database integer addressable and defeat the point of the refs cut.
+    /// Identity nouns 0.9.0 took off the wire. Banned by name whatever their type, because renaming one to a string would
+    /// keep the database integer addressable and defeat the point of the refs cut.
     /// </summary>
     private static readonly string[] RetiredIdentityNames =
     [
@@ -182,13 +163,12 @@ public sealed partial class OpenApiContractTests
         "leasedByWorkerId",
     ];
 
-    // Structural gate, deliberately not a description grep: it walks the generated document itself, so
-    // it sees what a client sees. Two independent checks - an integer outside the value allowlist, and a
-    // retired identity noun anywhere - because either alone can be evaded by the other's shape.
+    // Structural, not a description grep: an integer outside the value allowlist, and a retired identity noun anywhere,
+    // because either check alone can be evaded by the other's shape.
     [Fact]
     public async Task No_integer_identities_in_openapi()
     {
-        var document = JsonNode.Parse(await GenerateAsync())!;
+        var document = JsonNode.Parse(await ActaOpenApiDocument.GenerateAsync())!;
         var members = new List<WireMember>();
 
         foreach (var (schemaName, schema) in Members(document["components"]?["schemas"]))
@@ -231,8 +211,7 @@ public sealed partial class OpenApiContractTests
             }
         }
 
-        // A walker that found nothing would pass both checks vacuously; the document has hundreds of
-        // members, so this pins that the traversal actually reached them.
+        // A walker that found nothing would pass both checks vacuously.
         Assert.True(members.Count > 100, $"the document walk found only {members.Count} members; the traversal is broken.");
 
         var unexpectedIntegers = members
@@ -259,68 +238,577 @@ public sealed partial class OpenApiContractTests
     }
 
     /// <summary>
-    /// How <c>DashboardJsonContext</c> writes one enum member - the only authority on it, since that
-    /// is the serializer every response body goes through. A member name the context cannot write is
-    /// a fault in the caller, not a value to paper over, so it throws rather than passing the name
-    /// along.
-    /// </summary>
-    private static string WireName(Type enumType, string memberName) =>
-        JsonSerializer.Serialize(Enum.Parse(enumType, memberName), enumType, DashboardJsonContext.Default.Options).Trim('"');
-
-    /// <summary>
-    /// Every enum value the document declares is a value the server can actually write. The casing
-    /// split this caught was invisible from either side alone: the response tests pin the wire and the
-    /// drift gate pins the file, and both passed while a generated client would have rejected every
-    /// enveloped response. This is the one fact that reads them against each other.
+    /// The serializer reads and writes numbers as numbers (<c>{"expectedVersion":"3"}</c> is a 400), so no integer offers
+    /// a string form or a digit pattern: a generator would otherwise wrap every integer in a union type.
     /// </summary>
     [Fact]
-    public async Task Declared_enum_values_are_the_ones_the_server_writes()
+    public async Task No_integer_offers_a_string_form()
     {
-        var document = JsonNode.Parse(await GenerateAsync())!;
-        var declared = new List<(string Schema, string Value)>();
+        var unions = AllSchemas(JsonNode.Parse(await ActaOpenApiDocument.GenerateAsync())!)
+            .Where(entry => IsInteger(entry.Schema) && (HasType(entry.Schema, "string") || entry.Schema["pattern"] is not null))
+            .Select(entry => entry.Where)
+            .ToList();
+
+        Assert.True(unions.Count == 0, "Integers documented with a string form:\n" + string.Join("\n", unions));
+    }
+
+    [Fact]
+    public async Task A_number_in_a_request_body_sent_as_a_string_is_refused()
+    {
+        var (app, client) = await TestDashboardHost.StartAsync(options => options.EnableControls = true);
+        await using var _ = app;
+        using var request = new HttpRequestMessage(HttpMethod.Post, $"/acta/api/v1/jobs/{FakeJobs.FoundJobRef}/pause")
+        {
+            Content = new StringContent("""{"expectedVersion":"7"}""", Encoding.UTF8, "application/json"),
+        };
+        request.Headers.Add("X-Acta-Control", "true");
+
+        var response = await client.SendAsync(request, TestContext.Current.CancellationToken);
+
+        Assert.Equal(HttpStatusCode.BadRequest, response.StatusCode);
+    }
+
+    /// <summary>
+    /// Every enum is an open string whose known values are exactly what the server writes, member by member, so an older
+    /// client keeps a value it has not seen and compares against named constants for the ones it has. The confirmation
+    /// header's one value is the only closed set: a protocol fact, not a vocabulary.
+    /// </summary>
+    [Fact]
+    public async Task Every_enum_is_an_open_string_with_the_values_the_server_writes()
+    {
+        var document = JsonNode.Parse(await ActaOpenApiDocument.GenerateAsync())!;
+        var open = new List<string>();
+        var wrong = new List<string>();
         foreach (var (name, schema) in Members(document["components"]?["schemas"]))
         {
-            foreach (var value in Elements(schema?["enum"]))
+            if (schema?[ActaOpenApiDocument.KnownValuesExtension] is not JsonArray known)
             {
-                declared.Add((name, value!.GetValue<string>()));
+                if (EnumType(name) is not null)
+                {
+                    wrong.Add($"{name}: a code family without {ActaOpenApiDocument.KnownValuesExtension}");
+                }
+                continue;
+            }
+
+            open.Add(name);
+            if (!HasType(schema, "string"))
+            {
+                wrong.Add($"{name}: an open code must be a string");
+            }
+            var declared = known.Select(v => $"{v!["name"]}={v["value"]}").ToList();
+            if (EnumType(name) is not { } type)
+            {
+                wrong.Add($"{name}: known values with no enum to check them against");
+            }
+            else if (!declared.SequenceEqual(Enum.GetNames(type).Select(n => $"{n}={Written(type, n)}")))
+            {
+                wrong.Add($"{name}: declares [{string.Join(", ", declared)}], not what the server writes");
             }
         }
 
-        // Enum lists are emitted only for the enums whose converter the generator cannot read, so a
-        // walk that found none would pass by finding nothing to compare.
-        Assert.True(declared.Count > 0, "the document declares no enum values; the walk is broken.");
+        var closed = AllSchemas(document).Where(entry => entry.Schema["enum"] is not null).Select(entry => entry.Where).ToList();
 
-        var wrong = declared
-            .Where(d => !WritableValues(d.Schema).Contains(d.Value, StringComparer.Ordinal))
-            .Select(d => $"{d.Schema}: declares '{d.Value}', which the server never writes")
-            .OrderBy(text => text, StringComparer.Ordinal)
+        Assert.Contains("JobStatusCode", open);
+        Assert.Contains("ControlAction", open);
+        Assert.Contains("EnqueueRejectionReason", open);
+        Assert.True(wrong.Count == 0, string.Join("\n", wrong));
+        Assert.Equal(["components.schemas.ActaControlConfirmation"], closed);
+    }
+
+    /// <summary>
+    /// A code filter takes its kebab code, and its number exactly where its description says so: most filters bind the
+    /// member leniently, while an event code and an entity kind take only the code.
+    /// </summary>
+    [Fact]
+    public async Task A_code_filter_takes_its_number_exactly_where_its_description_says()
+    {
+        var generated = await ActaOpenApiDocument.GenerateAsync();
+        var (app, client) = await TestDashboardHost.StartAsync();
+        await using var _ = app;
+        var ct = TestContext.Current.CancellationToken;
+        var filters = 0;
+        var wrong = new List<string>();
+        foreach (
+            var (key, operation) in Operations(generated).Where(operation => operation.Key.StartsWith("GET ", StringComparison.Ordinal))
+        )
+        {
+            foreach (var parameter in Elements(operation["parameters"]))
+            {
+                if (
+                    parameter?["schema"]?["$ref"]?.GetValue<string>() is not { } reference
+                    || EnumType(reference.Split('/')[^1]) is not { } family
+                )
+                {
+                    continue;
+                }
+
+                filters++;
+                var number = Enum.GetValues(family)
+                    .Cast<object>()
+                    .Select(v => Convert.ToInt64(v, CultureInfo.InvariantCulture))
+                    .First(v => v != 0);
+                var path = key[4..]
+                    .Replace("{jobRef}", FakeJobs.FoundJobRef.ToString(), StringComparison.Ordinal)
+                    .Replace("{jobNamespace}", "billing", StringComparison.Ordinal)
+                    .Replace("{jobName}", "send-invoice", StringComparison.Ordinal);
+                var response = await client.GetAsync($"/acta/api{path}?{parameter["name"]}={number}", ct);
+                var expected = parameter["description"]!.GetValue<string>().Contains(" or its number", StringComparison.Ordinal)
+                    ? HttpStatusCode.OK
+                    : HttpStatusCode.BadRequest;
+                if (response.StatusCode != expected)
+                {
+                    wrong.Add($"{key} {parameter["name"]}={number}: answered {response.StatusCode}, the description says {expected}.");
+                }
+            }
+        }
+
+        Assert.True(filters > 10, $"only {filters} code filters; the walk is broken.");
+        Assert.True(wrong.Count == 0, string.Join("\n", wrong));
+    }
+
+    // The refused enqueue's problem spells its reason itself; DashboardJsonContext writes every other enum.
+    private static string Written(Type type, string member) =>
+        type == typeof(EnqueueRejectionReason)
+            ? ActaOpenApiDocument.ReasonCode(Enum.Parse<EnqueueRejectionReason>(member))
+            : ActaOpenApiDocument.WireName(type, member);
+
+    [Fact]
+    public async Task A_refused_enqueue_writes_its_reason_as_the_document_spells_it()
+    {
+        var fakes = new FakeOperations();
+        var (app, client) = await TestDashboardHost.StartAsync(options => options.EnableControls = true, fakes: fakes);
+        await using var _ = app;
+        var ct = TestContext.Current.CancellationToken;
+
+        foreach (var reason in Enum.GetValues<EnqueueRejectionReason>())
+        {
+            fakes.Jobs.Enqueue = (_, _) => throw new EnqueueRejectedException(reason, "refused");
+            using var request = new HttpRequestMessage(HttpMethod.Post, "/acta/api/v1/jobs")
+            {
+                Content = new StringContent("""{"jobNamespace":"billing","jobName":"send-invoice"}""", Encoding.UTF8, "application/json"),
+            };
+            request.Headers.Add("X-Acta-Control", "true");
+
+            var response = await client.SendAsync(request, ct);
+            var problem = JsonNode.Parse(await response.Content.ReadAsStringAsync(ct))!;
+
+            Assert.Equal(HttpStatusCode.Conflict, response.StatusCode);
+            Assert.Equal(ActaOpenApiDocument.ReasonCode(reason), problem["reasonCode"]!.GetValue<string>());
+        }
+    }
+
+    /// <summary>
+    /// A component is never null itself; a nullable member says so where it uses one. Otherwise a non-null use reads as
+    /// nullable in every generated client, and a null in a nullable use matches both branches of its oneOf.
+    /// </summary>
+    [Fact]
+    public async Task No_component_allows_null()
+    {
+        var nullable = Members(JsonNode.Parse(await ActaOpenApiDocument.GenerateAsync())!["components"]?["schemas"])
+            .Where(component => HasType(component.Value, "null"))
+            .Select(component => component.Key)
             .ToList();
 
-        Assert.True(
-            wrong.Count == 0,
-            "A declared enum value the server does not write. The document is generated from the "
-                + "endpoint graph but serialized through DashboardJsonContext, so a converter "
-                + "registered on the context alone can spell a member one way on the wire and another "
-                + "in the contract.\n\n"
-                + string.Join("\n", wrong)
+        Assert.True(nullable.Count == 0, "Components that allow null: " + string.Join(", ", nullable));
+    }
+
+    /// <summary>
+    /// A control whose 409 is also a problem documents both shapes there; ControlEndpointTests proves the purge's problem.
+    /// </summary>
+    [Fact]
+    public async Task A_conflict_that_is_also_a_problem_documents_both()
+    {
+        var operations = Operations(await ActaOpenApiDocument.GenerateAsync());
+
+        Assert.All(
+            ActaOpenApiDocument.ConflictAlsoProblem,
+            key =>
+            {
+                var content = operations[key.Replace(" /", " /v1/", StringComparison.Ordinal)]["responses"]!["409"]!["content"]!;
+                Assert.NotNull(content["application/json"]);
+                Assert.NotNull(content["application/problem+json"]);
+            }
         );
     }
 
-    /// <summary>The wire spellings of one named schema's enum, or an empty set when it is not an enum type.</summary>
-    private static IReadOnlyList<string> WritableValues(string schemaName) =>
+    /// <summary>Every reference names a component the document carries; a dangling one fails only in a generator.</summary>
+    [Fact]
+    public async Task Every_reference_resolves()
+    {
+        var document = JsonNode.Parse(await ActaOpenApiDocument.GenerateAsync())!;
+        var dangling = References(document)
+            .Distinct(StringComparer.Ordinal)
+            .Where(reference =>
+                reference.Split('/') is not ["#", "components", var kind, var name] || document["components"]?[kind]?[name] is null
+            )
+            .ToList();
+
+        Assert.True(dangling.Count == 0, "Dangling references: " + string.Join(", ", dangling));
+
+        static IEnumerable<string> References(JsonNode? node) =>
+            node switch
+            {
+                JsonObject members => members.SelectMany(member =>
+                    member.Key == "$ref" && member.Value is JsonValue reference ? [reference.GetValue<string>()] : References(member.Value)
+                ),
+                JsonArray items => items.SelectMany(References),
+                _ => [],
+            };
+    }
+
+    /// <summary>
+    /// A schema with no type says "any value"; only the members that really take any JSON value may say it: a job's
+    /// input, the signal body, and the generator's component for them. A code or a ref rendered empty would type as
+    /// <c>any</c> in every generated client.
+    /// </summary>
+    [Fact]
+    public async Task No_empty_schema_outside_the_any_json_members()
+    {
+        string[] anyJson =
+        [
+            "components.schemas.JsonElement",
+            "components.schemas.EnqueueJobRequest.input",
+            "components.schemas.UpdateJobInputRequest.input",
+        ];
+        var empty = AllSchemas(JsonNode.Parse(await ActaOpenApiDocument.GenerateAsync())!)
+            .Where(entry => entry.Schema.AsObject().All(p => p.Key is "description"))
+            .Select(entry => entry.Where)
+            .Where(where => !anyJson.Contains(where))
+            .ToList();
+
+        Assert.True(empty.Count == 0, "Empty schemas:\n" + string.Join("\n", empty));
+    }
+
+    /// <summary>
+    /// A response says what the serializer does: a member it omits when null is optional and never null, and every other
+    /// member is always present. A client that required an omitted member would throw on every response without it.
+    /// </summary>
+    [Fact]
+    public async Task Response_members_are_required_unless_the_serializer_omits_them()
+    {
+        var schemas = JsonNode.Parse(await ActaOpenApiDocument.GenerateAsync())!["components"]!["schemas"]!;
+
+        var detail = schemas["GetJobDetailResponse"]!;
+        Assert.DoesNotContain("result", Required(detail));
+        Assert.Contains("job", Required(detail));
+        Assert.Equal("#/components/schemas/JobPayloadBody", detail["properties"]!["result"]!["$ref"]!.GetValue<string>());
+
+        var body = schemas["JobPayloadBody"]!;
+        Assert.Equal(["formatName", "formatId"], Required(body));
+        Assert.Equal("string", body["properties"]!["json"]!["type"]!.GetValue<string>());
+
+        Assert.Contains("value", Required(schemas["ListTagsItem"]!));
+    }
+
+    /// <summary>
+    /// A request member is required where the runtime refuses its absence and only there, and a request refuses unknown
+    /// members. Each row of <see cref="ActaOpenApiDocument.HandlerRequiredMembers"/> is proven here: the route answers 400
+    /// without it, on the fake host where the route refuses it and on a SQLite host where only the operation does.
+    /// </summary>
+    [Fact]
+    public async Task Each_handler_required_member_is_refused_when_absent()
+    {
+        var found = FakeJobs.FoundJobRef;
+        RequiredCase[] byRoute =
+        [
+            new("EnqueueJobRequest", "jobNamespace", HttpMethod.Post, "jobs", """{"jobName":"send-invoice"}"""),
+            new("EnqueueJobRequest", "jobName", HttpMethod.Post, "jobs", """{"jobNamespace":"billing"}"""),
+            new(
+                "SaveCalendarDraftRequest",
+                "definition",
+                HttpMethod.Post,
+                "calendars/billing/holidays/drafts",
+                """{"role":"occurrence"}"""
+            ),
+            new("RegisterTenantRequest", "tenantName", HttpMethod.Post, "tenants", """{"displayName":"Acme"}"""),
+            new("UpsertJobTagRequest", "name", HttpMethod.Post, $"jobs/{found}/tags", """{"value":"prod"}"""),
+            new("UpsertNamespaceTagRequest", "name", HttpMethod.Post, "namespaces/billing/tags", """{"value":"prod"}"""),
+            new("UpsertTenantTagRequest", "name", HttpMethod.Post, "tenants/acme/tags", """{"value":"prod"}"""),
+            new("UpsertDefinitionTagRequest", "name", HttpMethod.Post, "definitions/billing/send-invoice/tags", """{"value":"prod"}"""),
+            new("UpdateNamespaceRequest", "expectedVersion", HttpMethod.Patch, "namespaces/billing", """{"description":"d"}"""),
+            new("UpdateTenantRequest", "expectedVersion", HttpMethod.Patch, "tenants/acme", """{"description":"d"}"""),
+        ];
+        RequiredCase[] byOperation =
+        [
+            new(
+                "TagInput",
+                "name",
+                HttpMethod.Post,
+                "jobs",
+                $$"""{"jobNamespace":"{{SqliteNamespace}}","jobName":"echo","tags":[{"value":"prod"}]}"""
+            ),
+            new(
+                "SaveCalendarDraftRequest",
+                "role",
+                HttpMethod.Post,
+                $"calendars/{SqliteNamespace}/holidays/drafts",
+                """{"definition":{"kind":"dates"}}"""
+            ),
+            new("PublishCalendarRequest", "candidateVersion", HttpMethod.Post, $"calendars/{SqliteNamespace}/holidays/publish", "{}"),
+        ];
+
+        var refusals = new List<string>();
+        var (app, client) = await TestDashboardHost.StartAsync(options => options.EnableControls = true);
+        await using (app)
+        {
+            await AssertRefusedAsync(client, byRoute, refusals);
+        }
+        await AssertRefusedOnSqliteAsync(byOperation, refusals);
+
+        Assert.True(refusals.Count == 0, string.Join("\n", refusals));
+        Assert.Equal(
+            ActaOpenApiDocument
+                .HandlerRequiredMembers.SelectMany(row => row.Value.Select(member => $"{row.Key}.{member}"))
+                .Order(StringComparer.Ordinal),
+            byRoute.Concat(byOperation).Select(c => $"{c.Schema}.{c.Member}").Order(StringComparer.Ordinal)
+        );
+        var schemas = JsonNode.Parse(await ActaOpenApiDocument.GenerateAsync())!["components"]!["schemas"]!;
+        Assert.Equal(["jobNamespace", "jobName"], Required(schemas["EnqueueJobRequest"]!));
+        Assert.False(schemas["EnqueueJobRequest"]!["additionalProperties"]!.GetValue<bool>());
+        Assert.False(schemas["PurgeJobRequest"]!["additionalProperties"]!.GetValue<bool>());
+        Assert.Equal(["status"], Required(schemas["ProblemDetails"]!));
+        Assert.DoesNotContain("value", Required(schemas["UpsertJobTagRequest"]!));
+        Assert.Equal(["priority"], Required(schemas["ReprioritizeJobRequest"]!));
+    }
+
+    private const string SqliteNamespace = "openapi-probe";
+
+    private sealed record RequiredCase(string Schema, string Member, HttpMethod Method, string Path, string Body);
+
+    // Sends each body, which leaves its case's member out, as a confirmed control, and records any answer but 400.
+    private static async Task AssertRefusedAsync(HttpClient client, RequiredCase[] cases, List<string> refusals)
+    {
+        foreach (var (schema, member, method, path, body) in cases)
+        {
+            using var request = new HttpRequestMessage(method, "/acta/api/v1/" + path)
+            {
+                Content = new StringContent(body, Encoding.UTF8, "application/json"),
+            };
+            request.Headers.Add("X-Acta-Control", "true");
+            var response = await client.SendAsync(request, TestContext.Current.CancellationToken);
+            if (response.StatusCode != HttpStatusCode.BadRequest)
+            {
+                refusals.Add($"{schema}.{member}: {method} {path} without it answered {response.StatusCode}.");
+            }
+        }
+    }
+
+    // A real Acta over a throwaway SQLite file, for the members only an operation refuses: the fakes accept anything.
+    private static async Task AssertRefusedOnSqliteAsync(RequiredCase[] cases, List<string> refusals)
+    {
+        var path = Path.Combine(Path.GetTempPath(), $"acta-openapi-{Guid.NewGuid():N}.db");
+        var builder = WebApplication.CreateBuilder();
+        builder.Logging.ClearProviders();
+        builder.WebHost.UseTestServer();
+        builder.Services.UseActa(j =>
+        {
+            j.UseSqlite(o =>
+            {
+                o.ConnectionString = new SqliteConnectionStringBuilder { DataSource = path }.ConnectionString;
+                o.ApplyMigrationsOnStartup = true;
+            });
+            j.Run<TestJobs.TestJobsManifest>(SqliteNamespace, ownerTeam: "test");
+            j.DisableCli();
+        });
+        builder.Services.Configure<JobsOptions>(o => o.RegisterSystemJobs = false);
+        var app = builder.Build();
+        app.MapActa("/acta", o => o.EnableControls = true);
+        try
+        {
+            await app.StartAsync(TestContext.Current.CancellationToken);
+            await AssertRefusedAsync(app.GetTestClient(), cases, refusals);
+        }
+        finally
+        {
+            await app.StopAsync(CancellationToken.None);
+            await app.DisposeAsync();
+            SqliteConnection.ClearAllPools();
+            foreach (var file in new[] { path, path + "-wal", path + "-shm" })
+            {
+                File.Delete(file);
+            }
+        }
+    }
+
+    [GeneratedRegex("^(Get|Post|Patch|Delete)[A-Z][A-Za-z0-9]*$")]
+    private static partial Regex OperationIdShape();
+
+    [Fact]
+    public void Operation_ids_derive_from_the_method_and_the_route_below_the_version_segment()
+    {
+        Assert.Equal("GetJobsByJobRef", OpenApiOperationIds.For("GET", "acta/api/v1/jobs/{jobRef}"));
+        Assert.Equal("PostJobsByJobRefPause", OpenApiOperationIds.For("POST", "/ops/api/v1/jobs/{jobRef}/pause"));
+        Assert.Equal("GetJobsByKey", OpenApiOperationIds.For("GET", "acta/api/v1/jobs/by-key"));
+        Assert.Equal(
+            "DeleteDefinitionsByJobNamespaceByJobNameTagsByTagName",
+            OpenApiOperationIds.For("DELETE", "api/v1/definitions/{jobNamespace}/{jobName}/tags/{tagName}")
+        );
+        Assert.Equal("PatchTenantsByTenantName", OpenApiOperationIds.For("PATCH", "/v1/tenants/{tenantName}"));
+        Assert.Equal("POST /jobs/{jobRef}/purge", OpenApiOperationIds.Key("post", "acta/api/v1/jobs/{jobRef}/purge"));
+        Assert.Throws<InvalidOperationException>(() => OpenApiOperationIds.For("GET", "acta/jobs"));
+    }
+
+    [Fact]
+    public async Task Every_operation_has_a_unique_route_derived_id()
+    {
+        var operations = Operations(await ActaOpenApiDocument.GenerateAsync());
+        var ids = new List<string>();
+        foreach (var (key, operation) in operations)
+        {
+            var id = operation["operationId"]?.GetValue<string>();
+            Assert.True(id is not null && OperationIdShape().IsMatch(id), $"{key}: operation id '{id}' is not a PascalCase id.");
+            Assert.Equal(OpenApiOperationIds.For(key.Split(' ')[0], key.Split(' ')[1]), id);
+            ids.Add(id);
+        }
+
+        Assert.True(ids.Count > 60, $"only {ids.Count} operations carry an id; the walk is broken.");
+        Assert.Equal(ids.Count, ids.Distinct(StringComparer.Ordinal).Count());
+        Assert.Equal("GetJobsByJobRef", operations["GET /v1/jobs/{jobRef}"]["operationId"]!.GetValue<string>());
+    }
+
+    /// <summary>
+    /// Paths read below the mount's API root, which the one server names: a client's base URL picks the mount, and the
+    /// same generated client serves any mount.
+    /// </summary>
+    [Fact]
+    public async Task Paths_sit_below_the_mount_api_root_the_server_names()
+    {
+        var document = JsonNode.Parse(await ActaOpenApiDocument.GenerateAsync())!;
+
+        Assert.Equal("/acta/api", Assert.Single(document["servers"]!.AsArray())!["url"]!.GetValue<string>());
+        Assert.All(Members(document["paths"]), path => Assert.StartsWith("/v1/", path.Key, StringComparison.Ordinal));
+    }
+
+    /// <summary>
+    /// A host that mounts the API twice gets a document per mount: the read-only one lists its reads alone, with the ids
+    /// the control mount's document gives the same operations, and only a mount that requires the confirmation header
+    /// lists it on its controls.
+    /// </summary>
+    [Fact]
+    public async Task Each_mount_documents_its_own_operations_with_shared_ids_and_its_own_confirmation()
+    {
+        var documents = await ActaOpenApiDocument.GenerateAsync(
+            new Mount("/acta", Controls: true),
+            new Mount("/ops", Controls: false),
+            new Mount("/plain", Controls: true, RequireConfirmation: false)
+        );
+        var control = Operations(documents["/acta"]);
+        var readOnly = Operations(documents["/ops"]);
+        var unconfirmed = Operations(documents["/plain"]);
+
+        Assert.Equal("/ops/api", JsonNode.Parse(documents["/ops"])!["servers"]![0]!["url"]!.GetValue<string>());
+        Assert.All(readOnly.Keys, key => Assert.StartsWith("GET /v1/", key, StringComparison.Ordinal));
+        Assert.True(readOnly.Count > 30 && readOnly.Count < control.Count, $"{readOnly.Count} reads against {control.Count} operations.");
+        foreach (var (key, operation) in readOnly)
+        {
+            Assert.Equal(control[key]["operationId"]!.GetValue<string>(), operation["operationId"]!.GetValue<string>());
+            Assert.Null(ConfirmationHeader(operation));
+        }
+
+        var header = JsonNode.Parse(documents["/acta"])!["components"]!["parameters"]!["ActaControl"]!;
+        Assert.Equal(
+            ("X-Acta-Control", "header", true),
+            (header["name"]!.GetValue<string>(), header["in"]!.GetValue<string>(), header["required"]!.GetValue<bool>())
+        );
+        foreach (var (key, operation) in control)
+        {
+            if (key.StartsWith("GET ", StringComparison.Ordinal))
+            {
+                Assert.Null(ConfirmationHeader(operation));
+                continue;
+            }
+
+            Assert.True(ConfirmationHeader(operation) is not null, $"{key}: a control lists no confirmation header.");
+            Assert.Null(ConfirmationHeader(unconfirmed[key]));
+        }
+        Assert.Null(JsonNode.Parse(documents["/plain"])!["components"]!["parameters"]);
+    }
+
+    [Fact]
+    public async Task The_enqueue_documents_its_location_header_on_both_successes_and_a_request_example()
+    {
+        var enqueue = Operations(await ActaOpenApiDocument.GenerateAsync())["POST /v1/jobs"];
+
+        foreach (var code in new[] { "201", "200" })
+        {
+            Assert.NotNull(enqueue["responses"]![code]!["headers"]!["Location"]);
+        }
+        var example = enqueue["requestBody"]!["content"]!["application/json"]!["example"]!;
+        Assert.Equal("send-invoice", example["jobName"]!.GetValue<string>());
+    }
+
+    /// <summary>The operations of one document keyed as <c>METHOD /path</c>.</summary>
+    private static Dictionary<string, JsonNode> Operations(string json)
+    {
+        var operations = new Dictionary<string, JsonNode>(StringComparer.Ordinal);
+        foreach (var (path, item) in Members(JsonNode.Parse(json)!["paths"]))
+        {
+            foreach (var (method, operation) in Members(item))
+            {
+                operations[$"{method.ToUpperInvariant()} {path}"] = operation!;
+            }
+        }
+        return operations;
+    }
+
+    private static JsonNode? ConfirmationHeader(JsonNode operation) =>
+        Elements(operation["parameters"]).FirstOrDefault(p => p?["$ref"]?.GetValue<string>() == "#/components/parameters/ActaControl");
+
+    private static List<string> Required(JsonNode schema) => [.. Elements(schema["required"]).Select(n => n!.GetValue<string>())];
+
+    private static Type? EnumType(string schemaName) =>
         typeof(IJobs)
             .Assembly.GetTypes()
             .Concat(typeof(DashboardJsonContext).Assembly.GetTypes())
-            .FirstOrDefault(t => t.IsEnum && string.Equals(t.Name, schemaName, StringComparison.Ordinal))
-            is { } type
-            ? [.. Enum.GetNames(type).Select(name => WireName(type, name))]
-            : [];
+            .FirstOrDefault(t => t.IsEnum && string.Equals(t.Name, schemaName, StringComparison.Ordinal));
+
+    /// <summary>Every inline schema in the document, with where it sits: components, their members, and operation parameters.</summary>
+    private static List<(string Where, JsonNode Schema)> AllSchemas(JsonNode document)
+    {
+        var found = new List<(string, JsonNode)>();
+        foreach (var (name, schema) in Members(document["components"]?["schemas"]))
+        {
+            Walk(schema, $"components.schemas.{name}", found);
+        }
+        foreach (var (path, item) in Members(document["paths"]))
+        {
+            foreach (var (method, operation) in Members(item))
+            {
+                foreach (var parameter in Elements(operation?["parameters"]))
+                {
+                    Walk(parameter?["schema"], $"{method.ToUpperInvariant()} {path} {parameter?["name"]}", found);
+                }
+            }
+        }
+        return found;
+
+        static void Walk(JsonNode? schema, string where, List<(string, JsonNode)> found)
+        {
+            if (schema is not JsonObject node || node.ContainsKey("$ref"))
+            {
+                return;
+            }
+
+            found.Add((where, node));
+            foreach (var (name, property) in Members(node["properties"]))
+            {
+                Walk(property, $"{where}.{name}", found);
+            }
+            Walk(node["items"], $"{where}[]", found);
+            foreach (var keyword in CompositionKeywords)
+            {
+                foreach (var branch in Elements(node[keyword]))
+                {
+                    Walk(branch, where, found);
+                }
+            }
+        }
+    }
 
     /// <summary>One schema property, path placeholder, or operation parameter found in the document.</summary>
     private sealed record WireMember(string Name, string Where, bool IsInteger);
 
-    // Walks one schema, naming every property it reaches. Composition keywords are followed so a member
-    // cannot hide inside an allOf branch or an array's item schema; $ref is not followed because every
+    // Walks one schema, naming every property it reaches; composition keywords are followed, $ref is not, because every
     // referenced component is walked in its own right.
     private static void CollectSchemaMembers(JsonNode? schema, string where, List<WireMember> members)
     {
@@ -353,17 +841,16 @@ public sealed partial class OpenApiContractTests
 
     private static IEnumerable<JsonNode?> Elements(JsonNode? node) => node as JsonArray ?? Enumerable.Empty<JsonNode?>();
 
-    // OpenAPI 3.1 renders a nullable integer as a type array, so both spellings have to be recognized.
-    private static bool IsInteger(JsonNode? schema) =>
+    // OpenAPI 3.1 renders a nullable type as a type array, so both spellings are recognized.
+    private static bool IsInteger(JsonNode? schema) => HasType(schema, "integer");
+
+    private static bool HasType(JsonNode? schema, string type) =>
         schema?["type"] switch
         {
-            JsonArray types => types.Any(IsIntegerLiteral),
-            { } single => IsIntegerLiteral(single),
+            JsonArray types => types.Any(t => t is JsonValue v && v.TryGetValue<string>(out var text) && text == type),
+            JsonValue single => single.TryGetValue<string>(out var text) && text == type,
             _ => false,
         };
-
-    private static bool IsIntegerLiteral(JsonNode? node) =>
-        node is JsonValue value && value.TryGetValue<string>(out var text) && string.Equals(text, "integer", StringComparison.Ordinal);
 
     private static IEnumerable<string> PathPlaceholders(string path)
     {
@@ -380,429 +867,8 @@ public sealed partial class OpenApiContractTests
         }
     }
 
-    [GeneratedRegex("^(Get|Post|Patch|Delete)[A-Z][A-Za-z0-9]*$")]
-    private static partial Regex OperationIdShape();
-
-    [Fact]
-    public void Operation_ids_derive_from_the_method_and_the_route_below_the_version_segment()
-    {
-        Assert.Equal("GetJobsByJobRef", OpenApiOperationIds.For("GET", "acta/api/v1/jobs/{jobRef}"));
-        Assert.Equal("PostJobsByJobRefPause", OpenApiOperationIds.For("POST", "/ops/api/v1/jobs/{jobRef}/pause"));
-        Assert.Equal("GetJobsByKey", OpenApiOperationIds.For("GET", "acta/api/v1/jobs/by-key"));
-        Assert.Equal(
-            "DeleteDefinitionsByJobNamespaceByJobNameTagsByTagName",
-            OpenApiOperationIds.For("DELETE", "api/v1/definitions/{jobNamespace}/{jobName}/tags/{tagName}")
-        );
-        Assert.Equal("PatchTenantsByTenantName", OpenApiOperationIds.For("PATCH", "v1/tenants/{tenantName}"));
-        Assert.Throws<InvalidOperationException>(() => OpenApiOperationIds.For("GET", "acta/jobs"));
-    }
-
-    [Fact]
-    public async Task Every_operation_has_a_unique_route_derived_id()
-    {
-        var document = JsonNode.Parse(await GenerateAsync())!;
-        var ids = new List<string>();
-        foreach (var (path, operations) in Members(document["paths"]))
-        {
-            foreach (var (method, operation) in Members(operations))
-            {
-                var id = operation?["operationId"]?.GetValue<string>();
-                Assert.True(
-                    id is not null && OperationIdShape().IsMatch(id),
-                    $"{method.ToUpperInvariant()} {path}: operation id '{id}' is not a PascalCase id."
-                );
-                Assert.Equal(OpenApiOperationIds.For(method, path), id);
-                ids.Add(id);
-            }
-        }
-
-        Assert.True(ids.Count > 60, $"only {ids.Count} operations carry an id; the walk is broken.");
-        Assert.Equal(ids.Count, ids.Distinct(StringComparer.Ordinal).Count());
-        Assert.Equal("GetJobsByJobRef", document["paths"]!["/acta/api/v1/jobs/{jobRef}"]!["get"]!["operationId"]!.GetValue<string>());
-    }
-
-    /// <summary>
-    /// A host that mounts the API twice gets a document per mount: the read-only one lists its reads alone, with
-    /// the ids the control mount's document gives the same operations, and only a mount that requires the
-    /// confirmation header lists it on its controls.
-    /// </summary>
-    [Fact]
-    public async Task Each_mount_documents_its_own_operations_with_shared_ids_and_its_own_confirmation()
-    {
-        var documents = await GenerateAsync(
-            new Mount("/acta", Controls: true),
-            new Mount("/ops", Controls: false),
-            new Mount("/plain", Controls: true, RequireConfirmation: false)
-        );
-        var control = Operations(documents["/acta"]);
-        var readOnly = Operations(documents["/ops"]);
-        var unconfirmed = Operations(documents["/plain"]);
-
-        Assert.All(readOnly.Keys, key => Assert.StartsWith("GET /ops/", key, StringComparison.Ordinal));
-        Assert.All(control.Keys, key => Assert.Contains(" /acta/", key, StringComparison.Ordinal));
-        Assert.True(readOnly.Count > 30 && readOnly.Count < control.Count, $"{readOnly.Count} reads against {control.Count} operations.");
-        foreach (var (key, operation) in readOnly)
-        {
-            var shared = control[key.Replace("/ops/", "/acta/", StringComparison.Ordinal)];
-            Assert.Equal(shared["operationId"]!.GetValue<string>(), operation["operationId"]!.GetValue<string>());
-            Assert.Null(ConfirmationHeader(operation));
-        }
-
-        foreach (var (key, operation) in control)
-        {
-            var header = ConfirmationHeader(operation);
-            if (key.StartsWith("GET ", StringComparison.Ordinal))
-            {
-                Assert.Null(header);
-                continue;
-            }
-
-            Assert.True(header is not null, $"{key}: a control lists no confirmation header.");
-            Assert.True(header!["required"]!.GetValue<bool>());
-            Assert.Equal("true", header["schema"]!["enum"]![0]!.GetValue<string>());
-            Assert.Null(ConfirmationHeader(unconfirmed[key.Replace("/acta/", "/plain/", StringComparison.Ordinal)]));
-        }
-    }
-
-    [Fact]
-    public async Task The_enqueue_documents_its_location_header_on_both_successes_and_a_request_example()
-    {
-        var enqueue = Operations(await GenerateAsync())["POST /acta/api/v1/jobs"];
-
-        foreach (var code in new[] { "201", "200" })
-        {
-            Assert.NotNull(enqueue["responses"]![code]!["headers"]!["Location"]);
-        }
-        var example = enqueue["requestBody"]!["content"]!["application/json"]!["example"]!;
-        Assert.Equal("send-invoice", example["jobName"]!.GetValue<string>());
-    }
-
-    /// <summary>The operations of one document keyed as <c>METHOD /path</c>.</summary>
-    private static Dictionary<string, JsonNode> Operations(string json)
-    {
-        var operations = new Dictionary<string, JsonNode>(StringComparer.Ordinal);
-        foreach (var (path, item) in Members(JsonNode.Parse(json)!["paths"]))
-        {
-            foreach (var (method, operation) in Members(item))
-            {
-                operations[$"{method.ToUpperInvariant()} {path}"] = operation!;
-            }
-        }
-        return operations;
-    }
-
-    private static JsonNode? ConfirmationHeader(JsonNode operation) =>
-        Elements(operation["parameters"])
-            .FirstOrDefault(p => p?["in"]?.GetValue<string>() == "header" && p["name"]?.GetValue<string>() == "X-Acta-Control");
-
-    /// <summary>One Acta mount of the generating host: its pattern, whether it maps the controls, and whether those require the confirmation header.</summary>
-    private sealed record Mount(string Pattern, bool Controls, bool RequireConfirmation = true)
-    {
-        public string DocumentName => Pattern.Trim('/');
-    }
-
-    private static async Task<string> GenerateAsync() => (await GenerateAsync(new Mount("/acta", Controls: true)))["/acta"];
-
-    /// <summary>
-    /// One host with every mount mapped and one document per mount: each document includes the operations under
-    /// its own pattern and nothing else, so a read-only mount beside a control mount documents its reads alone, and
-    /// a shared operation carries the same id in both, derived below the version segment.
-    /// </summary>
-    private static async Task<IReadOnlyDictionary<string, string>> GenerateAsync(params Mount[] mounts)
-    {
-        var builder = WebApplication.CreateBuilder();
-        builder.Logging.ClearProviders();
-        builder.WebHost.UseTestServer();
-        var fakes = new FakeOperations();
-        builder.Services.AddSingleton<IJobs>(fakes.Jobs);
-        builder.Services.AddSingleton<IActaOperations>(fakes);
-        foreach (var mount in mounts)
-        {
-            builder.Services.AddOpenApi(mount.DocumentName, o => Configure(o, mount));
-        }
-
-        var app = builder.Build();
-        foreach (var mount in mounts)
-        {
-            // The dashboard UI is off: its index, asset, and SPA-fallback routes are not part of the API
-            // contract, and the SPA catch-all would otherwise appear as a documented path.
-            var acta = app.MapActa(
-                mount.Pattern,
-                o =>
-                {
-                    o.Enabled = false;
-                    o.EnableControls = mount.Controls;
-                    o.RequireControlConfirmationHeader = mount.RequireConfirmation;
-                }
-            );
-            // The handlers read their JSON body through ControlEndpointValidation rather than a bound
-            // parameter, so they declare it as RequestBodyDoc metadata (product-side, OpenAPI-free) and it
-            // is translated into the framework's IAcceptsMetadata here - only here. In a serving host that
-            // metadata is read by the routing matcher, which would start answering the missing-body and
-            // wrong-content-type cases these handlers answer themselves; this host routes nothing but the
-            // document read, so the translation is free. Finally() rather than Add() so it runs after the
-            // per-endpoint conventions that write the declarations.
-            ((IEndpointConventionBuilder)acta).Finally(endpoint =>
-            {
-                if (endpoint.Metadata.OfType<RequestBodyDoc>().LastOrDefault() is { } doc)
-                {
-                    endpoint.Metadata.Add(new DeclaredRequestBody(doc));
-                }
-            });
-        }
-        app.MapOpenApi();
-        await app.StartAsync(TestContext.Current.CancellationToken);
-        await using var _ = app;
-
-        var documents = new Dictionary<string, string>(StringComparer.Ordinal);
-        foreach (var mount in mounts)
-        {
-            documents[mount.Pattern] = await app.GetTestClient()
-                .GetStringAsync($"/openapi/{mount.DocumentName}.json", TestContext.Current.CancellationToken);
-        }
-        return documents;
-    }
-
-    private static void Configure(OpenApiOptions o, Mount mount)
-    {
-        // A document describes one mount: the operations under its pattern, so a second mount's routes,
-        // which the same host also serves, never appear in it.
-        var prefix = mount.DocumentName + "/";
-        o.ShouldInclude = description => (description.RelativePath ?? "").TrimStart('/').StartsWith(prefix, StringComparison.Ordinal);
-
-        // Without this the generator defaults info.title to "{entry assembly} | {document}",
-        // which stamped this test host's name into the committed contract ("Acta.Tests | v1")
-        // and onto every Scalar page serving it. The contract names the product, not whichever
-        // host generated or serves it. The description states the protocol facts no single
-        // operation can: cursor paging, the control confirmation, and the enqueue's two successes.
-        o.AddDocumentTransformer(
-            (document, _, _) =>
-            {
-                document.Info.Title = "Acta API";
-                document.Info.Description = DocumentDescription;
-                return Task.CompletedTask;
-            }
-        );
-        // Every optional member of a request record carries a C# default, and the generator copies
-        // each one into the schema. They document nothing a reader needs - the absent case is already
-        // "this field is optional" - and they make the committed document churn on a default nobody
-        // reads, so the schema transformer below drops them all. (The two free-form payload fields
-        // declare `JsonElement?` rather than a bare `JsonElement` for the same generator: an
-        // uninitialized JsonElement has no value it can write as a default, and it throws there
-        // before any transformer runs.)
-        o.AddSchemaTransformer(
-            (schema, _, _) =>
-            {
-                schema.Default = null;
-                return Task.CompletedTask;
-            }
-        );
-        // An enum's declared value list came from the generator's own view of the type, and that
-        // is not the view the server serializes with: responses are written through
-        // DashboardJsonContext, whose converters spell the action enums camelCase while the
-        // generator spelled them PascalCase. A value list in the wrong case is a contract a
-        // generated client cannot match - it would reject every enveloped response this API
-        // sends - so each value is re-read from the serializer that actually writes it. Applied
-        // to every enum rather than the three that were wrong, so a new one cannot reintroduce
-        // the split; the members are recased in place, so their declared order is untouched.
-        o.AddSchemaTransformer(
-            (schema, context, _) =>
-            {
-                var type = Nullable.GetUnderlyingType(context.JsonTypeInfo.Type) ?? context.JsonTypeInfo.Type;
-                if (schema.Enum is { Count: > 0 } && type.IsEnum)
-                {
-                    schema.Enum = [.. schema.Enum.Select(value => (JsonNode)WireName(type, value!.GetValue<string>()))];
-                }
-                return Task.CompletedTask;
-            }
-        );
-        // A route table's handler reads its keys from the route values rather than binding them, so
-        // the generator does not see them; each segment the template names and no handler parameter
-        // binds is a required string path parameter, in template order.
-        o.AddOperationTransformer(
-            (operation, context, _) =>
-            {
-                var names = RouteSegments().Matches(context.Description.RelativePath ?? "").Select(m => m.Groups["name"].Value).ToList();
-                for (var i = 0; i < names.Count; i++)
-                {
-                    operation.Parameters ??= [];
-                    if (!operation.Parameters.Any(p => p.In == ParameterLocation.Path && p.Name == names[i]))
-                    {
-                        operation.Parameters.Insert(
-                            Math.Min(i, operation.Parameters.Count),
-                            new OpenApiParameter
-                            {
-                                Name = names[i],
-                                In = ParameterLocation.Path,
-                                Required = true,
-                                Schema = new OpenApiSchema { Type = JsonSchemaType.String },
-                            }
-                        );
-                    }
-                }
-                return Task.CompletedTask;
-            }
-        );
-        // The handlers bind query strings through QueryBinding rather than typed parameters,
-        // so the generator cannot see the filter surface; each endpoint declares it as
-        // QueryParameterDoc metadata (product-side, OpenAPI-free) and this transformer
-        // renders it, which is what makes the committed document protect the filters.
-        o.AddOperationTransformer(
-            (operation, context, _) =>
-            {
-                foreach (var doc in context.Description.ActionDescriptor.EndpointMetadata.OfType<QueryParameterDoc>())
-                {
-                    var schema = doc.Kind switch
-                    {
-                        QueryParameterKind.Int => new OpenApiSchema { Type = JsonSchemaType.Integer, Format = "int32" },
-                        QueryParameterKind.Long => new OpenApiSchema { Type = JsonSchemaType.Integer, Format = "int64" },
-                        QueryParameterKind.Bool => new OpenApiSchema { Type = JsonSchemaType.Boolean },
-                        QueryParameterKind.Instant => new OpenApiSchema { Type = JsonSchemaType.String, Format = "date-time" },
-                        _ => new OpenApiSchema { Type = JsonSchemaType.String },
-                    };
-                    if (doc.CodeKind is { } kind)
-                    {
-                        // The accepted values are the family's kebab codes, resolved from the
-                        // model itself so the documented vocabulary cannot drift from it - a
-                        // renamed member shows up as an openapi.json diff the gate makes a
-                        // human read.
-                        schema.Enum =
-                        [
-                            .. CodeManifests
-                                .All.Where(e => string.Equals(e.CodeKind, kind, StringComparison.Ordinal))
-                                .OrderBy(e => e.Id)
-                                .Select(e => (JsonNode)e.Code),
-                        ];
-                    }
-                    operation.Parameters ??= [];
-                    operation.Parameters.Add(
-                        new OpenApiParameter
-                        {
-                            Name = doc.Name,
-                            In = ParameterLocation.Query,
-                            Required = doc.Required,
-                            Description = doc.Description,
-                            Schema = doc.Repeatable ? new OpenApiSchema { Type = JsonSchemaType.Array, Items = schema } : schema,
-                        }
-                    );
-                }
-                return Task.CompletedTask;
-            }
-        );
-        // An operation's id is derived from its method and its route below the version segment, so it is
-        // the same under every mount and in a read-only document; ASP.NET endpoint names stay unset, since
-        // a host may mount the API twice and names are global. A collision fails generation rather than
-        // being hashed away, so a second route deriving one id is a change a human reads.
-        o.AddOperationTransformer(
-            (operation, context, _) =>
-            {
-                operation.OperationId = OpenApiOperationIds.For(
-                    context.Description.HttpMethod ?? "",
-                    context.Description.RelativePath ?? ""
-                );
-                return Task.CompletedTask;
-            }
-        );
-        o.AddDocumentTransformer(
-            (document, _, _) =>
-            {
-                var ids = new HashSet<string>(StringComparer.Ordinal);
-                foreach (var (path, item) in document.Paths)
-                {
-                    foreach (var (method, operation) in item.Operations ?? [])
-                    {
-                        if (string.IsNullOrEmpty(operation.OperationId) || !ids.Add(operation.OperationId))
-                        {
-                            throw new InvalidOperationException(
-                                $"{method} {path}: operation id '{operation.OperationId}' is empty or already taken."
-                            );
-                        }
-                    }
-                }
-                return Task.CompletedTask;
-            }
-        );
-        // A control call carries the mount's confirmation header: the controls group declares its name as
-        // ControlEndpointDoc metadata, null when the mount requires none, rendered as a required header
-        // parameter whose one value is true. The host's authentication is its own and not assumed here.
-        o.AddOperationTransformer(
-            (operation, context, _) =>
-            {
-                if (Metadata<ControlEndpointDoc>(context) is { ConfirmationHeaderName: { } header })
-                {
-                    operation.Parameters ??= [];
-                    operation.Parameters.Add(
-                        new OpenApiParameter
-                        {
-                            Name = header,
-                            In = ParameterLocation.Header,
-                            Required = true,
-                            Description = "Confirms a control call. The value is true; a missing header or any other value answers 400.",
-                            Schema = new OpenApiSchema { Type = JsonSchemaType.String, Enum = [(JsonNode)"true"] },
-                        }
-                    );
-                }
-                return Task.CompletedTask;
-            }
-        );
-        // A response header an endpoint sets on its successful answers (ResponseHeaderDoc) and the example a
-        // body declaration carries (RequestBodyDoc.Example): both product-side and OpenAPI-free.
-        o.AddOperationTransformer(
-            (operation, context, _) =>
-            {
-                if (Metadata<ResponseHeaderDoc>(context) is { } headerDoc)
-                {
-                    foreach (var (code, response) in operation.Responses ?? [])
-                    {
-                        if (code.StartsWith('2') && response is OpenApiResponse success)
-                        {
-                            success.Headers ??= new Dictionary<string, IOpenApiHeader>(StringComparer.Ordinal);
-                            success.Headers[headerDoc.Name] = new OpenApiHeader
-                            {
-                                Description = headerDoc.Description,
-                                Schema = new OpenApiSchema { Type = JsonSchemaType.String },
-                            };
-                        }
-                    }
-                }
-                if (
-                    Metadata<RequestBodyDoc>(context) is { Example: { } example }
-                    && operation.RequestBody?.Content?.TryGetValue("application/json", out var media) == true
-                )
-                {
-                    media.Example = JsonNode.Parse(example);
-                }
-                return Task.CompletedTask;
-            }
-        );
-    }
-
-    private static T? Metadata<T>(OpenApiOperationTransformerContext context)
-        where T : class => context.Description.ActionDescriptor.EndpointMetadata.OfType<T>().LastOrDefault();
-
-    private const string DocumentDescription =
-        "Acta's operator API, the one the dashboard uses. Lists page by cursor: pass a page's nextCursor back as cursor "
-        + "until hasMore is false; a cursor is tied to its query. Every POST, PATCH, and DELETE is a control, mapped only "
-        + "where the host enables controls, and where the host requires it the call carries the confirmation header the "
-        + "operation lists, with the value true. POST /jobs answers 201 when it inserted the job and 200 when a "
-        + "deduplication key matched an existing one, with the job's URL in Location either way.";
-
-    /// <summary>The framework-shaped body declaration the generator reads, built from a RequestBodyDoc.</summary>
-    private sealed class DeclaredRequestBody(RequestBodyDoc doc) : IAcceptsMetadata
-    {
-        public IReadOnlyList<string> ContentTypes { get; } = ["application/json"];
-
-        public Type? RequestType { get; } = doc.BodyType;
-
-        public bool IsOptional { get; } = doc.Optional;
-    }
-
-    // Two kinds of line ending here, and both are platform-dependent. The file's own, and the ones
-    // inside description strings: those come from XML doc comments, so they carry whatever the source
-    // file had at checkout, escaped as a literal backslash-r backslash-n on Windows and backslash-n
-    // on Linux. Normalizing only the first kind made the committed document unmatchable on the other
-    // platform, which is how this gate passed locally and failed CI. Emission normalizes too, so the
-    // file is deterministic rather than a record of which machine last regenerated it.
+    // Line endings, the file's and the escaped ones inside descriptions from XML doc comments, normalize on both sides so
+    // the committed document matches on every platform.
     private static string Normalize(string json) =>
         json.Replace("\r\n", "\n", StringComparison.Ordinal).Replace("\\r\\n", "\\n", StringComparison.Ordinal).TrimEnd();
 

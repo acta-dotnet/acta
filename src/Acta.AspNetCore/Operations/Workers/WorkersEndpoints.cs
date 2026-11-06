@@ -24,7 +24,7 @@ internal static class WorkersEndpoints
                 new QueryParameterDoc(
                     "status",
                     QueryParameterKind.String,
-                    "Exact worker status as a kebab code.",
+                    "Exact worker status as a kebab code or its number.",
                     CodeKind: "worker-status"
                 ),
                 .. QueryParameterDocExtensions.PagingCore,

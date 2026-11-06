@@ -32,7 +32,12 @@ internal static class CalendarsEndpoints
                     QueryParameterKind.String,
                     "Only this namespace's families and the shared ones in sys; omit for every namespace."
                 ),
-                new QueryParameterDoc("role", QueryParameterKind.String, "Exact calendar role as a kebab code.", CodeKind: "calendar-role"),
+                new QueryParameterDoc(
+                    "role",
+                    QueryParameterKind.String,
+                    "Exact calendar role as a kebab code or its number.",
+                    CodeKind: "calendar-role"
+                ),
                 new QueryParameterDoc(
                     "nameContains",
                     QueryParameterKind.String,

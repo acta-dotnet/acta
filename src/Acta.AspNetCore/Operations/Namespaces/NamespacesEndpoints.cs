@@ -25,7 +25,7 @@ internal static class NamespacesEndpoints
                 new QueryParameterDoc(
                     "status",
                     QueryParameterKind.String,
-                    "Exact namespace status as a kebab code.",
+                    "Exact namespace status as a kebab code or its number.",
                     CodeKind: "namespace-status"
                 ),
                 new QueryParameterDoc("nameContains", QueryParameterKind.String, "Case-insensitive substring match on the namespace name."),

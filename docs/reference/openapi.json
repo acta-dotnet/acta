@@ -2,16 +2,17 @@
   "openapi": "3.1.1",
   "info": {
     "title": "Acta API",
-    "description": "Acta's operator API, the one the dashboard uses. Lists page by cursor: pass a page's nextCursor back as cursor until hasMore is false; a cursor is tied to its query. Every POST, PATCH, and DELETE is a control, mapped only where the host enables controls, and where the host requires it the call carries the confirmation header the operation lists, with the value true. POST /jobs answers 201 when it inserted the job and 200 when a deduplication key matched an existing one, with the job's URL in Location either way.",
+    "description": "Acta's operator API, the one the dashboard uses. Lists page by cursor: pass a page's nextCursor back as cursor until hasMore is false; a cursor is tied to its query. Every POST, PATCH, and DELETE is a control, mapped only where the host enables controls, and where the host requires it the call carries the confirmation header the operation lists, with the value true. A control whose request object is optional acts with its defaults when the request has no body; one that declares application/json and sends no bytes answers 400, so send {} or leave the content type off. POST /jobs answers 201 when it inserted the job and 200 when a deduplication key matched an existing one, with the job's URL in Location either way. A string carrying x-acta-known-values is an open set: compare against the known values and keep any other value as it is. The document declares no security scheme: the host adds its own authentication, which a client sends as the host asks.",
     "version": "1.0.0"
   },
   "servers": [
     {
-      "url": "http://localhost/"
+      "url": "/acta/api",
+      "description": "The mount's API root; a host that maps Acta elsewhere serves it there."
     }
   ],
   "paths": {
-    "/acta/api/v1/jobs/{jobRef}/tags": {
+    "/v1/jobs/{jobRef}/tags": {
       "post": {
         "tags": [
           "Jobs"
@@ -28,16 +29,7 @@
             }
           },
           {
-            "name": "X-Acta-Control",
-            "in": "header",
-            "description": "Confirms a control call. The value is true; a missing header or any other value answers 400.",
-            "required": true,
-            "schema": {
-              "enum": [
-                "true"
-              ],
-              "type": "string"
-            }
+            "$ref": "#/components/parameters/ActaControl"
           }
         ],
         "requestBody": {
@@ -242,7 +234,7 @@
         }
       }
     },
-    "/acta/api/v1/jobs/{jobRef}/tags/{tagName}": {
+    "/v1/jobs/{jobRef}/tags/{tagName}": {
       "delete": {
         "tags": [
           "Jobs"
@@ -267,16 +259,7 @@
             }
           },
           {
-            "name": "X-Acta-Control",
-            "in": "header",
-            "description": "Confirms a control call. The value is true; a missing header or any other value answers 400.",
-            "required": true,
-            "schema": {
-              "enum": [
-                "true"
-              ],
-              "type": "string"
-            }
+            "$ref": "#/components/parameters/ActaControl"
           }
         ],
         "responses": {
@@ -353,7 +336,7 @@
         }
       }
     },
-    "/acta/api/v1/jobs/{jobRef}/pause": {
+    "/v1/jobs/{jobRef}/pause": {
       "post": {
         "tags": [
           "Jobs"
@@ -370,16 +353,7 @@
             }
           },
           {
-            "name": "X-Acta-Control",
-            "in": "header",
-            "description": "Confirms a control call. The value is true; a missing header or any other value answers 400.",
-            "required": true,
-            "schema": {
-              "enum": [
-                "true"
-              ],
-              "type": "string"
-            }
+            "$ref": "#/components/parameters/ActaControl"
           }
         ],
         "requestBody": {
@@ -485,7 +459,7 @@
         }
       }
     },
-    "/acta/api/v1/jobs/{jobRef}/resume": {
+    "/v1/jobs/{jobRef}/resume": {
       "post": {
         "tags": [
           "Jobs"
@@ -502,16 +476,7 @@
             }
           },
           {
-            "name": "X-Acta-Control",
-            "in": "header",
-            "description": "Confirms a control call. The value is true; a missing header or any other value answers 400.",
-            "required": true,
-            "schema": {
-              "enum": [
-                "true"
-              ],
-              "type": "string"
-            }
+            "$ref": "#/components/parameters/ActaControl"
           }
         ],
         "requestBody": {
@@ -617,7 +582,7 @@
         }
       }
     },
-    "/acta/api/v1/jobs/{jobRef}/restart": {
+    "/v1/jobs/{jobRef}/restart": {
       "post": {
         "tags": [
           "Jobs"
@@ -634,16 +599,7 @@
             }
           },
           {
-            "name": "X-Acta-Control",
-            "in": "header",
-            "description": "Confirms a control call. The value is true; a missing header or any other value answers 400.",
-            "required": true,
-            "schema": {
-              "enum": [
-                "true"
-              ],
-              "type": "string"
-            }
+            "$ref": "#/components/parameters/ActaControl"
           }
         ],
         "requestBody": {
@@ -749,7 +705,7 @@
         }
       }
     },
-    "/acta/api/v1/jobs/{jobRef}/cancel": {
+    "/v1/jobs/{jobRef}/cancel": {
       "post": {
         "tags": [
           "Jobs"
@@ -766,16 +722,7 @@
             }
           },
           {
-            "name": "X-Acta-Control",
-            "in": "header",
-            "description": "Confirms a control call. The value is true; a missing header or any other value answers 400.",
-            "required": true,
-            "schema": {
-              "enum": [
-                "true"
-              ],
-              "type": "string"
-            }
+            "$ref": "#/components/parameters/ActaControl"
           }
         ],
         "requestBody": {
@@ -881,7 +828,7 @@
         }
       }
     },
-    "/acta/api/v1/jobs/{jobRef}/purge": {
+    "/v1/jobs/{jobRef}/purge": {
       "post": {
         "tags": [
           "Jobs"
@@ -898,16 +845,7 @@
             }
           },
           {
-            "name": "X-Acta-Control",
-            "in": "header",
-            "description": "Confirms a control call. The value is true; a missing header or any other value answers 400.",
-            "required": true,
-            "schema": {
-              "enum": [
-                "true"
-              ],
-              "type": "string"
-            }
+            "$ref": "#/components/parameters/ActaControl"
           }
         ],
         "requestBody": {
@@ -997,6 +935,11 @@
                 "schema": {
                   "$ref": "#/components/schemas/PurgeJobResponse"
                 }
+              },
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
               }
             }
           },
@@ -1013,7 +956,7 @@
         }
       }
     },
-    "/acta/api/v1/jobs/{jobRef}/reschedule": {
+    "/v1/jobs/{jobRef}/reschedule": {
       "post": {
         "tags": [
           "Jobs"
@@ -1030,16 +973,7 @@
             }
           },
           {
-            "name": "X-Acta-Control",
-            "in": "header",
-            "description": "Confirms a control call. The value is true; a missing header or any other value answers 400.",
-            "required": true,
-            "schema": {
-              "enum": [
-                "true"
-              ],
-              "type": "string"
-            }
+            "$ref": "#/components/parameters/ActaControl"
           }
         ],
         "requestBody": {
@@ -1145,7 +1079,7 @@
         }
       }
     },
-    "/acta/api/v1/jobs/{jobRef}/reprioritize": {
+    "/v1/jobs/{jobRef}/reprioritize": {
       "post": {
         "tags": [
           "Jobs"
@@ -1162,16 +1096,7 @@
             }
           },
           {
-            "name": "X-Acta-Control",
-            "in": "header",
-            "description": "Confirms a control call. The value is true; a missing header or any other value answers 400.",
-            "required": true,
-            "schema": {
-              "enum": [
-                "true"
-              ],
-              "type": "string"
-            }
+            "$ref": "#/components/parameters/ActaControl"
           }
         ],
         "requestBody": {
@@ -1278,7 +1203,7 @@
         }
       }
     },
-    "/acta/api/v1/jobs/{jobRef}/input": {
+    "/v1/jobs/{jobRef}/input": {
       "post": {
         "tags": [
           "Jobs"
@@ -1295,16 +1220,7 @@
             }
           },
           {
-            "name": "X-Acta-Control",
-            "in": "header",
-            "description": "Confirms a control call. The value is true; a missing header or any other value answers 400.",
-            "required": true,
-            "schema": {
-              "enum": [
-                "true"
-              ],
-              "type": "string"
-            }
+            "$ref": "#/components/parameters/ActaControl"
           }
         ],
         "requestBody": {
@@ -1490,7 +1406,7 @@
         }
       }
     },
-    "/acta/api/v1/jobs": {
+    "/v1/jobs": {
       "post": {
         "tags": [
           "Jobs"
@@ -1499,16 +1415,7 @@
         "operationId": "PostJobs",
         "parameters": [
           {
-            "name": "X-Acta-Control",
-            "in": "header",
-            "description": "Confirms a control call. The value is true; a missing header or any other value answers 400.",
-            "required": true,
-            "schema": {
-              "enum": [
-                "true"
-              ],
-              "type": "string"
-            }
+            "$ref": "#/components/parameters/ActaControl"
           }
         ],
         "requestBody": {
@@ -1672,21 +1579,9 @@
           {
             "name": "status",
             "in": "query",
-            "description": "Exact job status as a kebab code.",
+            "description": "Exact job status as a kebab code or its number.",
             "schema": {
-              "enum": [
-                "unspecified",
-                "ready",
-                "blocked",
-                "suspended",
-                "paused",
-                "idle",
-                "executing",
-                "succeeded",
-                "failed",
-                "cancelled"
-              ],
-              "type": "string"
+              "$ref": "#/components/schemas/JobStatusCode"
             }
           },
           {
@@ -1838,7 +1733,7 @@
         }
       }
     },
-    "/acta/api/v1/jobs/{jobRef}/signals/{signalName}": {
+    "/v1/jobs/{jobRef}/signals/{signalName}": {
       "post": {
         "tags": [
           "Jobs"
@@ -1863,16 +1758,7 @@
             }
           },
           {
-            "name": "X-Acta-Control",
-            "in": "header",
-            "description": "Confirms a control call. The value is true; a missing header or any other value answers 400.",
-            "required": true,
-            "schema": {
-              "enum": [
-                "true"
-              ],
-              "type": "string"
-            }
+            "$ref": "#/components/parameters/ActaControl"
           }
         ],
         "requestBody": {
@@ -1978,7 +1864,7 @@
         }
       }
     },
-    "/acta/api/v1/namespaces/{jobNamespace}/tags": {
+    "/v1/namespaces/{jobNamespace}/tags": {
       "post": {
         "tags": [
           "Namespaces"
@@ -1995,16 +1881,7 @@
             }
           },
           {
-            "name": "X-Acta-Control",
-            "in": "header",
-            "description": "Confirms a control call. The value is true; a missing header or any other value answers 400.",
-            "required": true,
-            "schema": {
-              "enum": [
-                "true"
-              ],
-              "type": "string"
-            }
+            "$ref": "#/components/parameters/ActaControl"
           }
         ],
         "requestBody": {
@@ -2209,7 +2086,7 @@
         }
       }
     },
-    "/acta/api/v1/namespaces/{jobNamespace}/tags/{tagName}": {
+    "/v1/namespaces/{jobNamespace}/tags/{tagName}": {
       "delete": {
         "tags": [
           "Namespaces"
@@ -2234,16 +2111,7 @@
             }
           },
           {
-            "name": "X-Acta-Control",
-            "in": "header",
-            "description": "Confirms a control call. The value is true; a missing header or any other value answers 400.",
-            "required": true,
-            "schema": {
-              "enum": [
-                "true"
-              ],
-              "type": "string"
-            }
+            "$ref": "#/components/parameters/ActaControl"
           }
         ],
         "responses": {
@@ -2320,7 +2188,7 @@
         }
       }
     },
-    "/acta/api/v1/namespaces/{jobNamespace}/suspend": {
+    "/v1/namespaces/{jobNamespace}/suspend": {
       "post": {
         "tags": [
           "Namespaces"
@@ -2337,16 +2205,7 @@
             }
           },
           {
-            "name": "X-Acta-Control",
-            "in": "header",
-            "description": "Confirms a control call. The value is true; a missing header or any other value answers 400.",
-            "required": true,
-            "schema": {
-              "enum": [
-                "true"
-              ],
-              "type": "string"
-            }
+            "$ref": "#/components/parameters/ActaControl"
           }
         ],
         "requestBody": {
@@ -2442,7 +2301,7 @@
         }
       }
     },
-    "/acta/api/v1/namespaces/{jobNamespace}/resume": {
+    "/v1/namespaces/{jobNamespace}/resume": {
       "post": {
         "tags": [
           "Namespaces"
@@ -2459,16 +2318,7 @@
             }
           },
           {
-            "name": "X-Acta-Control",
-            "in": "header",
-            "description": "Confirms a control call. The value is true; a missing header or any other value answers 400.",
-            "required": true,
-            "schema": {
-              "enum": [
-                "true"
-              ],
-              "type": "string"
-            }
+            "$ref": "#/components/parameters/ActaControl"
           }
         ],
         "requestBody": {
@@ -2564,7 +2414,7 @@
         }
       }
     },
-    "/acta/api/v1/namespaces/{jobNamespace}": {
+    "/v1/namespaces/{jobNamespace}": {
       "patch": {
         "tags": [
           "Namespaces"
@@ -2581,16 +2431,7 @@
             }
           },
           {
-            "name": "X-Acta-Control",
-            "in": "header",
-            "description": "Confirms a control call. The value is true; a missing header or any other value answers 400.",
-            "required": true,
-            "schema": {
-              "enum": [
-                "true"
-              ],
-              "type": "string"
-            }
+            "$ref": "#/components/parameters/ActaControl"
           }
         ],
         "requestBody": {
@@ -2776,7 +2617,7 @@
         }
       }
     },
-    "/acta/api/v1/tenants/{tenantName}/tags": {
+    "/v1/tenants/{tenantName}/tags": {
       "post": {
         "tags": [
           "Tenants"
@@ -2793,16 +2634,7 @@
             }
           },
           {
-            "name": "X-Acta-Control",
-            "in": "header",
-            "description": "Confirms a control call. The value is true; a missing header or any other value answers 400.",
-            "required": true,
-            "schema": {
-              "enum": [
-                "true"
-              ],
-              "type": "string"
-            }
+            "$ref": "#/components/parameters/ActaControl"
           }
         ],
         "requestBody": {
@@ -3007,7 +2839,7 @@
         }
       }
     },
-    "/acta/api/v1/tenants/{tenantName}/tags/{tagName}": {
+    "/v1/tenants/{tenantName}/tags/{tagName}": {
       "delete": {
         "tags": [
           "Tenants"
@@ -3032,16 +2864,7 @@
             }
           },
           {
-            "name": "X-Acta-Control",
-            "in": "header",
-            "description": "Confirms a control call. The value is true; a missing header or any other value answers 400.",
-            "required": true,
-            "schema": {
-              "enum": [
-                "true"
-              ],
-              "type": "string"
-            }
+            "$ref": "#/components/parameters/ActaControl"
           }
         ],
         "responses": {
@@ -3118,7 +2941,7 @@
         }
       }
     },
-    "/acta/api/v1/tenants": {
+    "/v1/tenants": {
       "post": {
         "tags": [
           "Tenants"
@@ -3127,16 +2950,7 @@
         "operationId": "PostTenants",
         "parameters": [
           {
-            "name": "X-Acta-Control",
-            "in": "header",
-            "description": "Confirms a control call. The value is true; a missing header or any other value answers 400.",
-            "required": true,
-            "schema": {
-              "enum": [
-                "true"
-              ],
-              "type": "string"
-            }
+            "$ref": "#/components/parameters/ActaControl"
           }
         ],
         "requestBody": {
@@ -3232,14 +3046,9 @@
           {
             "name": "status",
             "in": "query",
-            "description": "Exact tenant status as a kebab code.",
+            "description": "Exact tenant status as a kebab code or its number.",
             "schema": {
-              "enum": [
-                "unspecified",
-                "active",
-                "suspended"
-              ],
-              "type": "string"
+              "$ref": "#/components/schemas/TenantStatusCode"
             }
           },
           {
@@ -3341,7 +3150,7 @@
         }
       }
     },
-    "/acta/api/v1/tenants/{tenantName}/suspend": {
+    "/v1/tenants/{tenantName}/suspend": {
       "post": {
         "tags": [
           "Tenants"
@@ -3358,16 +3167,7 @@
             }
           },
           {
-            "name": "X-Acta-Control",
-            "in": "header",
-            "description": "Confirms a control call. The value is true; a missing header or any other value answers 400.",
-            "required": true,
-            "schema": {
-              "enum": [
-                "true"
-              ],
-              "type": "string"
-            }
+            "$ref": "#/components/parameters/ActaControl"
           }
         ],
         "requestBody": {
@@ -3463,7 +3263,7 @@
         }
       }
     },
-    "/acta/api/v1/tenants/{tenantName}/resume": {
+    "/v1/tenants/{tenantName}/resume": {
       "post": {
         "tags": [
           "Tenants"
@@ -3480,16 +3280,7 @@
             }
           },
           {
-            "name": "X-Acta-Control",
-            "in": "header",
-            "description": "Confirms a control call. The value is true; a missing header or any other value answers 400.",
-            "required": true,
-            "schema": {
-              "enum": [
-                "true"
-              ],
-              "type": "string"
-            }
+            "$ref": "#/components/parameters/ActaControl"
           }
         ],
         "requestBody": {
@@ -3585,7 +3376,7 @@
         }
       }
     },
-    "/acta/api/v1/tenants/{tenantName}": {
+    "/v1/tenants/{tenantName}": {
       "patch": {
         "tags": [
           "Tenants"
@@ -3602,16 +3393,7 @@
             }
           },
           {
-            "name": "X-Acta-Control",
-            "in": "header",
-            "description": "Confirms a control call. The value is true; a missing header or any other value answers 400.",
-            "required": true,
-            "schema": {
-              "enum": [
-                "true"
-              ],
-              "type": "string"
-            }
+            "$ref": "#/components/parameters/ActaControl"
           }
         ],
         "requestBody": {
@@ -3797,7 +3579,7 @@
         }
       }
     },
-    "/acta/api/v1/alerts/{alertRef}/acknowledge": {
+    "/v1/alerts/{alertRef}/acknowledge": {
       "post": {
         "tags": [
           "Alerts"
@@ -3814,16 +3596,7 @@
             }
           },
           {
-            "name": "X-Acta-Control",
-            "in": "header",
-            "description": "Confirms a control call. The value is true; a missing header or any other value answers 400.",
-            "required": true,
-            "schema": {
-              "enum": [
-                "true"
-              ],
-              "type": "string"
-            }
+            "$ref": "#/components/parameters/ActaControl"
           }
         ],
         "requestBody": {
@@ -3919,7 +3692,7 @@
         }
       }
     },
-    "/acta/api/v1/alerts/{alertRef}/resolve": {
+    "/v1/alerts/{alertRef}/resolve": {
       "post": {
         "tags": [
           "Alerts"
@@ -3936,16 +3709,7 @@
             }
           },
           {
-            "name": "X-Acta-Control",
-            "in": "header",
-            "description": "Confirms a control call. The value is true; a missing header or any other value answers 400.",
-            "required": true,
-            "schema": {
-              "enum": [
-                "true"
-              ],
-              "type": "string"
-            }
+            "$ref": "#/components/parameters/ActaControl"
           }
         ],
         "requestBody": {
@@ -4041,7 +3805,7 @@
         }
       }
     },
-    "/acta/api/v1/outbox/{jobNamespace}/requeue": {
+    "/v1/outbox/{jobNamespace}/requeue": {
       "post": {
         "tags": [
           "Outbox"
@@ -4058,16 +3822,7 @@
             }
           },
           {
-            "name": "X-Acta-Control",
-            "in": "header",
-            "description": "Confirms a control call. The value is true; a missing header or any other value answers 400.",
-            "required": true,
-            "schema": {
-              "enum": [
-                "true"
-              ],
-              "type": "string"
-            }
+            "$ref": "#/components/parameters/ActaControl"
           }
         ],
         "requestBody": {
@@ -4173,7 +3928,7 @@
         }
       }
     },
-    "/acta/api/v1/outbox/{jobNamespace}/discard": {
+    "/v1/outbox/{jobNamespace}/discard": {
       "post": {
         "tags": [
           "Outbox"
@@ -4190,16 +3945,7 @@
             }
           },
           {
-            "name": "X-Acta-Control",
-            "in": "header",
-            "description": "Confirms a control call. The value is true; a missing header or any other value answers 400.",
-            "required": true,
-            "schema": {
-              "enum": [
-                "true"
-              ],
-              "type": "string"
-            }
+            "$ref": "#/components/parameters/ActaControl"
           }
         ],
         "requestBody": {
@@ -4305,7 +4051,7 @@
         }
       }
     },
-    "/acta/api/v1/definitions/{jobNamespace}/{jobName}/tags": {
+    "/v1/definitions/{jobNamespace}/{jobName}/tags": {
       "post": {
         "tags": [
           "Definitions"
@@ -4330,16 +4076,7 @@
             }
           },
           {
-            "name": "X-Acta-Control",
-            "in": "header",
-            "description": "Confirms a control call. The value is true; a missing header or any other value answers 400.",
-            "required": true,
-            "schema": {
-              "enum": [
-                "true"
-              ],
-              "type": "string"
-            }
+            "$ref": "#/components/parameters/ActaControl"
           }
         ],
         "requestBody": {
@@ -4552,7 +4289,7 @@
         }
       }
     },
-    "/acta/api/v1/definitions/{jobNamespace}/{jobName}/tags/{tagName}": {
+    "/v1/definitions/{jobNamespace}/{jobName}/tags/{tagName}": {
       "delete": {
         "tags": [
           "Definitions"
@@ -4585,16 +4322,7 @@
             }
           },
           {
-            "name": "X-Acta-Control",
-            "in": "header",
-            "description": "Confirms a control call. The value is true; a missing header or any other value answers 400.",
-            "required": true,
-            "schema": {
-              "enum": [
-                "true"
-              ],
-              "type": "string"
-            }
+            "$ref": "#/components/parameters/ActaControl"
           }
         ],
         "responses": {
@@ -4671,7 +4399,7 @@
         }
       }
     },
-    "/acta/api/v1/definitions/{jobNamespace}/{jobName}": {
+    "/v1/definitions/{jobNamespace}/{jobName}": {
       "patch": {
         "tags": [
           "Definitions"
@@ -4696,16 +4424,7 @@
             }
           },
           {
-            "name": "X-Acta-Control",
-            "in": "header",
-            "description": "Confirms a control call. The value is true; a missing header or any other value answers 400.",
-            "required": true,
-            "schema": {
-              "enum": [
-                "true"
-              ],
-              "type": "string"
-            }
+            "$ref": "#/components/parameters/ActaControl"
           }
         ],
         "requestBody": {
@@ -4899,7 +4618,7 @@
         }
       }
     },
-    "/acta/api/v1/definitions/{jobNamespace}/{jobName}/retire": {
+    "/v1/definitions/{jobNamespace}/{jobName}/retire": {
       "post": {
         "tags": [
           "Definitions"
@@ -4924,16 +4643,7 @@
             }
           },
           {
-            "name": "X-Acta-Control",
-            "in": "header",
-            "description": "Confirms a control call. The value is true; a missing header or any other value answers 400.",
-            "required": true,
-            "schema": {
-              "enum": [
-                "true"
-              ],
-              "type": "string"
-            }
+            "$ref": "#/components/parameters/ActaControl"
           }
         ],
         "requestBody": {
@@ -5040,7 +4750,7 @@
         }
       }
     },
-    "/acta/api/v1/schedules/{jobNamespace}/{jobName}/{scheduleName}/pause": {
+    "/v1/schedules/{jobNamespace}/{jobName}/{scheduleName}/pause": {
       "post": {
         "tags": [
           "Schedules"
@@ -5073,16 +4783,7 @@
             }
           },
           {
-            "name": "X-Acta-Control",
-            "in": "header",
-            "description": "Confirms a control call. The value is true; a missing header or any other value answers 400.",
-            "required": true,
-            "schema": {
-              "enum": [
-                "true"
-              ],
-              "type": "string"
-            }
+            "$ref": "#/components/parameters/ActaControl"
           }
         ],
         "requestBody": {
@@ -5188,7 +4889,7 @@
         }
       }
     },
-    "/acta/api/v1/schedules/{jobNamespace}/{jobName}/{scheduleName}/resume": {
+    "/v1/schedules/{jobNamespace}/{jobName}/{scheduleName}/resume": {
       "post": {
         "tags": [
           "Schedules"
@@ -5221,16 +4922,7 @@
             }
           },
           {
-            "name": "X-Acta-Control",
-            "in": "header",
-            "description": "Confirms a control call. The value is true; a missing header or any other value answers 400.",
-            "required": true,
-            "schema": {
-              "enum": [
-                "true"
-              ],
-              "type": "string"
-            }
+            "$ref": "#/components/parameters/ActaControl"
           }
         ],
         "requestBody": {
@@ -5336,7 +5028,7 @@
         }
       }
     },
-    "/acta/api/v1/schedules/{jobNamespace}/{jobName}/{scheduleName}/trigger": {
+    "/v1/schedules/{jobNamespace}/{jobName}/{scheduleName}/trigger": {
       "post": {
         "tags": [
           "Schedules"
@@ -5369,16 +5061,7 @@
             }
           },
           {
-            "name": "X-Acta-Control",
-            "in": "header",
-            "description": "Confirms a control call. The value is true; a missing header or any other value answers 400.",
-            "required": true,
-            "schema": {
-              "enum": [
-                "true"
-              ],
-              "type": "string"
-            }
+            "$ref": "#/components/parameters/ActaControl"
           }
         ],
         "requestBody": {
@@ -5484,7 +5167,7 @@
         }
       }
     },
-    "/acta/api/v1/calendars/{jobNamespace}/{calendarName}/drafts": {
+    "/v1/calendars/{jobNamespace}/{calendarName}/drafts": {
       "post": {
         "tags": [
           "Calendars"
@@ -5509,16 +5192,7 @@
             }
           },
           {
-            "name": "X-Acta-Control",
-            "in": "header",
-            "description": "Confirms a control call. The value is true; a missing header or any other value answers 400.",
-            "required": true,
-            "schema": {
-              "enum": [
-                "true"
-              ],
-              "type": "string"
-            }
+            "$ref": "#/components/parameters/ActaControl"
           }
         ],
         "requestBody": {
@@ -5625,7 +5299,7 @@
         }
       }
     },
-    "/acta/api/v1/calendars/{jobNamespace}/{calendarName}/publish": {
+    "/v1/calendars/{jobNamespace}/{calendarName}/publish": {
       "post": {
         "tags": [
           "Calendars"
@@ -5650,16 +5324,7 @@
             }
           },
           {
-            "name": "X-Acta-Control",
-            "in": "header",
-            "description": "Confirms a control call. The value is true; a missing header or any other value answers 400.",
-            "required": true,
-            "schema": {
-              "enum": [
-                "true"
-              ],
-              "type": "string"
-            }
+            "$ref": "#/components/parameters/ActaControl"
           }
         ],
         "requestBody": {
@@ -5766,7 +5431,7 @@
         }
       }
     },
-    "/acta/api/v1/calendars/{jobNamespace}/{calendarName}/archive": {
+    "/v1/calendars/{jobNamespace}/{calendarName}/archive": {
       "post": {
         "tags": [
           "Calendars"
@@ -5791,16 +5456,7 @@
             }
           },
           {
-            "name": "X-Acta-Control",
-            "in": "header",
-            "description": "Confirms a control call. The value is true; a missing header or any other value answers 400.",
-            "required": true,
-            "schema": {
-              "enum": [
-                "true"
-              ],
-              "type": "string"
-            }
+            "$ref": "#/components/parameters/ActaControl"
           }
         ],
         "requestBody": {
@@ -5907,7 +5563,7 @@
         }
       }
     },
-    "/acta/api/v1/jobs/{jobRef}": {
+    "/v1/jobs/{jobRef}": {
       "get": {
         "tags": [
           "Jobs"
@@ -5988,7 +5644,7 @@
         }
       }
     },
-    "/acta/api/v1/jobs/by-key": {
+    "/v1/jobs/by-key": {
       "get": {
         "tags": [
           "Jobs"
@@ -6079,7 +5735,7 @@
         }
       }
     },
-    "/acta/api/v1/jobs/{jobRef}/detail": {
+    "/v1/jobs/{jobRef}/detail": {
       "get": {
         "tags": [
           "Jobs"
@@ -6160,7 +5816,7 @@
         }
       }
     },
-    "/acta/api/v1/jobs/{jobRef}/checkpoints": {
+    "/v1/jobs/{jobRef}/checkpoints": {
       "get": {
         "tags": [
           "Jobs"
@@ -6266,7 +5922,7 @@
         }
       }
     },
-    "/acta/api/v1/jobs/{jobRef}/steps": {
+    "/v1/jobs/{jobRef}/steps": {
       "get": {
         "tags": [
           "Jobs"
@@ -6372,7 +6028,7 @@
         }
       }
     },
-    "/acta/api/v1/workers": {
+    "/v1/workers": {
       "get": {
         "tags": [
           "Workers"
@@ -6391,16 +6047,9 @@
           {
             "name": "status",
             "in": "query",
-            "description": "Exact worker status as a kebab code.",
+            "description": "Exact worker status as a kebab code or its number.",
             "schema": {
-              "enum": [
-                "unspecified",
-                "active",
-                "draining",
-                "stopped",
-                "dead"
-              ],
-              "type": "string"
+              "$ref": "#/components/schemas/WorkerStatusCode"
             }
           },
           {
@@ -6483,7 +6132,7 @@
         }
       }
     },
-    "/acta/api/v1/workers/{workerRef}": {
+    "/v1/workers/{workerRef}": {
       "get": {
         "tags": [
           "Workers"
@@ -6564,7 +6213,7 @@
         }
       }
     },
-    "/acta/api/v1/namespaces": {
+    "/v1/namespaces": {
       "get": {
         "tags": [
           "Namespaces"
@@ -6575,14 +6224,9 @@
           {
             "name": "status",
             "in": "query",
-            "description": "Exact namespace status as a kebab code.",
+            "description": "Exact namespace status as a kebab code or its number.",
             "schema": {
-              "enum": [
-                "unspecified",
-                "active",
-                "suspended"
-              ],
-              "type": "string"
+              "$ref": "#/components/schemas/NamespaceStatusCode"
             }
           },
           {
@@ -6684,7 +6328,7 @@
         }
       }
     },
-    "/acta/api/v1/alerts": {
+    "/v1/alerts": {
       "get": {
         "tags": [
           "Alerts"
@@ -6711,9 +6355,9 @@
           {
             "name": "severityAtLeast",
             "in": "query",
-            "description": "Severity floor as a kebab code; lower severities are excluded.",
+            "description": "Severity floor as a kebab code or its number; lower severities are excluded.",
             "schema": {
-              "type": "string"
+              "$ref": "#/components/schemas/AlertSeverityCode"
             }
           },
           {
@@ -6735,17 +6379,9 @@
           {
             "name": "deliveryStatus",
             "in": "query",
-            "description": "Exact delivery status as a kebab code.",
+            "description": "Exact delivery status as a kebab code or its number.",
             "schema": {
-              "enum": [
-                "unspecified",
-                "pending",
-                "retry-after",
-                "suppressed",
-                "delivered",
-                "failed"
-              ],
-              "type": "string"
+              "$ref": "#/components/schemas/AlertDeliveryStatusCode"
             }
           },
           {
@@ -6838,7 +6474,7 @@
         }
       }
     },
-    "/acta/api/v1/alerts/{alertRef}": {
+    "/v1/alerts/{alertRef}": {
       "get": {
         "tags": [
           "Alerts"
@@ -6919,7 +6555,7 @@
         }
       }
     },
-    "/acta/api/v1/outbox/sources": {
+    "/v1/outbox/sources": {
       "get": {
         "tags": [
           "Outbox"
@@ -7007,7 +6643,7 @@
         }
       }
     },
-    "/acta/api/v1/outbox/{jobNamespace}/quarantined": {
+    "/v1/outbox/{jobNamespace}/quarantined": {
       "get": {
         "tags": [
           "Outbox"
@@ -7113,7 +6749,7 @@
         }
       }
     },
-    "/acta/api/v1/definitions": {
+    "/v1/definitions": {
       "get": {
         "tags": [
           "Definitions"
@@ -7140,14 +6776,9 @@
           {
             "name": "status",
             "in": "query",
-            "description": "Exact definition status as a kebab code.",
+            "description": "Exact definition status as a kebab code or its number.",
             "schema": {
-              "enum": [
-                "unspecified",
-                "active",
-                "retired"
-              ],
-              "type": "string"
+              "$ref": "#/components/schemas/DefinitionStatusCode"
             }
           },
           {
@@ -7241,7 +6872,7 @@
         }
       }
     },
-    "/acta/api/v1/definitions/{jobNamespace}/{jobName}/input-template": {
+    "/v1/definitions/{jobNamespace}/{jobName}/input-template": {
       "get": {
         "tags": [
           "Definitions"
@@ -7330,7 +6961,7 @@
         }
       }
     },
-    "/acta/api/v1/schedules": {
+    "/v1/schedules": {
       "get": {
         "tags": [
           "Schedules"
@@ -7357,14 +6988,9 @@
           {
             "name": "origin",
             "in": "query",
-            "description": "Exact schedule origin as a kebab code.",
+            "description": "Exact schedule origin as a kebab code or its number.",
             "schema": {
-              "enum": [
-                "unspecified",
-                "operator",
-                "definition"
-              ],
-              "type": "string"
+              "$ref": "#/components/schemas/ScheduleOriginCode"
             }
           },
           {
@@ -7455,7 +7081,7 @@
         }
       }
     },
-    "/acta/api/v1/schedules/{jobNamespace}/{jobName}/{scheduleName}/preview": {
+    "/v1/schedules/{jobNamespace}/{jobName}/{scheduleName}/preview": {
       "get": {
         "tags": [
           "Schedules"
@@ -7557,11 +7183,21 @@
                 }
               }
             }
+          },
+          "409": {
+            "description": "Conflict",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
           }
         }
       }
     },
-    "/acta/api/v1/calendars": {
+    "/v1/calendars": {
       "get": {
         "tags": [
           "Calendars"
@@ -7580,14 +7216,9 @@
           {
             "name": "role",
             "in": "query",
-            "description": "Exact calendar role as a kebab code.",
+            "description": "Exact calendar role as a kebab code or its number.",
             "schema": {
-              "enum": [
-                "unspecified",
-                "occurrence",
-                "availability"
-              ],
-              "type": "string"
+              "$ref": "#/components/schemas/CalendarRoleCode"
             }
           },
           {
@@ -7678,7 +7309,7 @@
         }
       }
     },
-    "/acta/api/v1/calendars/{jobNamespace}/{calendarName}": {
+    "/v1/calendars/{jobNamespace}/{calendarName}": {
       "get": {
         "tags": [
           "Calendars"
@@ -7776,7 +7407,7 @@
         }
       }
     },
-    "/acta/api/v1/calendars/{jobNamespace}/{calendarName}/detail": {
+    "/v1/calendars/{jobNamespace}/{calendarName}/detail": {
       "get": {
         "tags": [
           "Calendars"
@@ -7874,7 +7505,7 @@
         }
       }
     },
-    "/acta/api/v1/calendars/{jobNamespace}/{calendarName}/versions": {
+    "/v1/calendars/{jobNamespace}/{calendarName}/versions": {
       "get": {
         "tags": [
           "Calendars"
@@ -7988,7 +7619,7 @@
         }
       }
     },
-    "/acta/api/v1/calendars/{jobNamespace}/{calendarName}/dependents": {
+    "/v1/calendars/{jobNamespace}/{calendarName}/dependents": {
       "get": {
         "tags": [
           "Calendars"
@@ -8102,7 +7733,7 @@
         }
       }
     },
-    "/acta/api/v1/calendars/{jobNamespace}/{calendarName}/preview": {
+    "/v1/calendars/{jobNamespace}/{calendarName}/preview": {
       "get": {
         "tags": [
           "Calendars"
@@ -8227,7 +7858,7 @@
         }
       }
     },
-    "/acta/api/v1/events": {
+    "/v1/events": {
       "get": {
         "tags": [
           "Events"
@@ -8264,52 +7895,7 @@
             "in": "query",
             "description": "Exact event code as its kebab string.",
             "schema": {
-              "enum": [
-                "unspecified",
-                "tenant.suspended",
-                "tenant.resumed",
-                "tenant.updated",
-                "namespace.suspended",
-                "namespace.resumed",
-                "namespace.updated",
-                "definition.overrides-updated",
-                "definition.retired",
-                "job.execution-succeeded",
-                "job.execution-failed",
-                "job.execution-orphaned",
-                "job.execution-yielded",
-                "job.failed",
-                "job.suspended",
-                "job.rescheduled",
-                "job.cancelled",
-                "job.paused",
-                "job.resumed",
-                "job.restarted",
-                "job.reprioritized",
-                "job.purged",
-                "job.input-amended",
-                "job.signal-raised",
-                "job.state-reset",
-                "job.note-recorded",
-                "schedule.paused",
-                "schedule.resumed",
-                "schedule.pause-expired",
-                "schedule.triggered",
-                "schedule.admitted",
-                "schedule.skipped",
-                "schedule.retimed",
-                "calendar.draft-saved",
-                "calendar.published",
-                "calendar.archived",
-                "worker.started",
-                "worker.stopped",
-                "worker.died",
-                "alert.acknowledged",
-                "alert.resolved",
-                "outbox.requeued",
-                "outbox.discarded"
-              ],
-              "type": "string"
+              "$ref": "#/components/schemas/EventCode"
             }
           },
           {
@@ -8317,24 +7903,7 @@
             "in": "query",
             "description": "Only events about this kind of subject.",
             "schema": {
-              "enum": [
-                "unspecified",
-                "alert",
-                "calendar",
-                "checkpoint",
-                "definition",
-                "event",
-                "job",
-                "lane",
-                "lock",
-                "namespace",
-                "schedule",
-                "step",
-                "tag",
-                "tenant",
-                "worker"
-              ],
-              "type": "string"
+              "$ref": "#/components/schemas/EntityCode"
             }
           },
           {
@@ -8470,7 +8039,7 @@
         }
       }
     },
-    "/acta/api/v1/jobs/{jobRef}/events": {
+    "/v1/jobs/{jobRef}/events": {
       "get": {
         "tags": [
           "Jobs"
@@ -8491,52 +8060,7 @@
             "in": "query",
             "description": "Exact event code as its kebab string.",
             "schema": {
-              "enum": [
-                "unspecified",
-                "tenant.suspended",
-                "tenant.resumed",
-                "tenant.updated",
-                "namespace.suspended",
-                "namespace.resumed",
-                "namespace.updated",
-                "definition.overrides-updated",
-                "definition.retired",
-                "job.execution-succeeded",
-                "job.execution-failed",
-                "job.execution-orphaned",
-                "job.execution-yielded",
-                "job.failed",
-                "job.suspended",
-                "job.rescheduled",
-                "job.cancelled",
-                "job.paused",
-                "job.resumed",
-                "job.restarted",
-                "job.reprioritized",
-                "job.purged",
-                "job.input-amended",
-                "job.signal-raised",
-                "job.state-reset",
-                "job.note-recorded",
-                "schedule.paused",
-                "schedule.resumed",
-                "schedule.pause-expired",
-                "schedule.triggered",
-                "schedule.admitted",
-                "schedule.skipped",
-                "schedule.retimed",
-                "calendar.draft-saved",
-                "calendar.published",
-                "calendar.archived",
-                "worker.started",
-                "worker.stopped",
-                "worker.died",
-                "alert.acknowledged",
-                "alert.resolved",
-                "outbox.requeued",
-                "outbox.discarded"
-              ],
-              "type": "string"
+              "$ref": "#/components/schemas/EventCode"
             }
           },
           {
@@ -8629,7 +8153,7 @@
         }
       }
     },
-    "/acta/api/v1/definitions/{jobNamespace}/{jobName}/events": {
+    "/v1/definitions/{jobNamespace}/{jobName}/events": {
       "get": {
         "tags": [
           "Definitions"
@@ -8658,52 +8182,7 @@
             "in": "query",
             "description": "Exact event code as its kebab string.",
             "schema": {
-              "enum": [
-                "unspecified",
-                "tenant.suspended",
-                "tenant.resumed",
-                "tenant.updated",
-                "namespace.suspended",
-                "namespace.resumed",
-                "namespace.updated",
-                "definition.overrides-updated",
-                "definition.retired",
-                "job.execution-succeeded",
-                "job.execution-failed",
-                "job.execution-orphaned",
-                "job.execution-yielded",
-                "job.failed",
-                "job.suspended",
-                "job.rescheduled",
-                "job.cancelled",
-                "job.paused",
-                "job.resumed",
-                "job.restarted",
-                "job.reprioritized",
-                "job.purged",
-                "job.input-amended",
-                "job.signal-raised",
-                "job.state-reset",
-                "job.note-recorded",
-                "schedule.paused",
-                "schedule.resumed",
-                "schedule.pause-expired",
-                "schedule.triggered",
-                "schedule.admitted",
-                "schedule.skipped",
-                "schedule.retimed",
-                "calendar.draft-saved",
-                "calendar.published",
-                "calendar.archived",
-                "worker.started",
-                "worker.stopped",
-                "worker.died",
-                "alert.acknowledged",
-                "alert.resolved",
-                "outbox.requeued",
-                "outbox.discarded"
-              ],
-              "type": "string"
+              "$ref": "#/components/schemas/EventCode"
             }
           },
           {
@@ -8788,7 +8267,7 @@
         }
       }
     },
-    "/acta/api/v1/overview": {
+    "/v1/overview": {
       "get": {
         "tags": [
           "Overview"
@@ -8859,7 +8338,7 @@
         }
       }
     },
-    "/acta/api/v1/capabilities": {
+    "/v1/capabilities": {
       "get": {
         "tags": [
           "Capabilities"
@@ -8932,7 +8411,8 @@
               "string"
             ]
           }
-        }
+        },
+        "additionalProperties": false
       },
       "AcknowledgeAlertResponse": {
         "required": [
@@ -8966,30 +8446,145 @@
         },
         "description": "What acknowledging an alert did, and its timestamps after the attempt."
       },
+      "ActaControlConfirmation": {
+        "enum": [
+          "true"
+        ],
+        "type": "string",
+        "description": "The one value a control's confirmation header carries."
+      },
       "AlertDeliveryStatusCode": {
-        "description": "Delivery state of one alert row. Numeric bands are a readability convention only; behavior\nfollows the explicit members."
+        "type": "string",
+        "description": "Delivery state of one alert row. Numeric bands are a readability convention only; behavior\nfollows the explicit members.",
+        "x-acta-known-values": [
+          {
+            "name": "Unspecified",
+            "value": "unspecified"
+          },
+          {
+            "name": "Pending",
+            "value": "pending"
+          },
+          {
+            "name": "RetryAfter",
+            "value": "retry-after"
+          },
+          {
+            "name": "Suppressed",
+            "value": "suppressed"
+          },
+          {
+            "name": "Delivered",
+            "value": "delivered"
+          },
+          {
+            "name": "Failed",
+            "value": "failed"
+          }
+        ]
       },
       "AlertKindCode": {
-        "description": "What condition an alert reports. Sparse catalog ids leave insertion room; numeric ordering is\nnot behavioral."
+        "type": "string",
+        "description": "What condition an alert reports. Sparse catalog ids leave insertion room; numeric ordering is\nnot behavioral.",
+        "x-acta-known-values": [
+          {
+            "name": "Unspecified",
+            "value": "unspecified"
+          },
+          {
+            "name": "FirstFailure",
+            "value": "first-failure"
+          },
+          {
+            "name": "ThresholdReached",
+            "value": "threshold-reached"
+          },
+          {
+            "name": "FinalFailure",
+            "value": "final-failure"
+          },
+          {
+            "name": "Manual",
+            "value": "manual"
+          }
+        ]
       },
-      "AlertOriginCode": { },
-      "AlertProfileCode": { },
+      "AlertOriginCode": {
+        "type": "string",
+        "x-acta-known-values": [
+          {
+            "name": "Unspecified",
+            "value": "unspecified"
+          },
+          {
+            "name": "Automatic",
+            "value": "automatic"
+          },
+          {
+            "name": "Manual",
+            "value": "manual"
+          }
+        ]
+      },
+      "AlertProfileCode": {
+        "type": "string",
+        "x-acta-known-values": [
+          {
+            "name": "None",
+            "value": "none"
+          },
+          {
+            "name": "OnFailure",
+            "value": "on-failure"
+          },
+          {
+            "name": "Info",
+            "value": "info"
+          },
+          {
+            "name": "OnTerminal",
+            "value": "on-terminal"
+          },
+          {
+            "name": "SysCritical",
+            "value": "sys-critical"
+          }
+        ]
+      },
       "AlertRef": {
+        "type": "string",
         "description": "Public stable reference for one alert row: \"alr_\" plus the Guid's 32 lowercase hex digits, such as\n`alr_01a14f5038c17d0e9b2f6a4c81d3e5f7`. Dashboards, HTTP APIs, and alert transports address\nalerts by this value; the numeric alert id stays the internal engine identity. Deduplication never\nre-mints it: a condition that re-fires while its incident is open keeps that incident's ref."
       },
-      "AlertSeverityCode": { },
+      "AlertSeverityCode": {
+        "type": "string",
+        "x-acta-known-values": [
+          {
+            "name": "Unspecified",
+            "value": "unspecified"
+          },
+          {
+            "name": "Info",
+            "value": "info"
+          },
+          {
+            "name": "Warning",
+            "value": "warning"
+          },
+          {
+            "name": "Error",
+            "value": "error"
+          },
+          {
+            "name": "Critical",
+            "value": "critical"
+          }
+        ]
+      },
       "ArchiveCalendarRequest": {
-        "required": [
-          "expectedCurrentVersion"
-        ],
         "type": "object",
         "properties": {
           "expectedCurrentVersion": {
-            "pattern": "^-?(?:0|[1-9]\\d*)$",
-            "type": [
-              "integer",
-              "string"
-            ],
+            "type": "integer",
             "format": "int32"
           },
           "reasonMessage": {
@@ -8998,7 +8593,8 @@
               "string"
             ]
           }
-        }
+        },
+        "additionalProperties": false
       },
       "ArchiveCalendarResponse": {
         "required": [
@@ -9012,32 +8608,68 @@
             "$ref": "#/components/schemas/ControlAction"
           },
           "version": {
-            "pattern": "^-?(?:0|[1-9]\\d*)$",
             "type": [
               "null",
-              "integer",
-              "string"
+              "integer"
             ],
             "format": "int32"
           },
           "dependentCount": {
-            "pattern": "^-?(?:0|[1-9]\\d*)$",
-            "type": [
-              "integer",
-              "string"
-            ],
+            "type": "integer",
             "format": "int32"
           }
         },
         "description": "What archiving a family's current version did. `Version` is the family's current version, archived when Applied;\n`DependentCount` counts the live schedules of active definitions that name the family in its scope, which reject\nthe archive while any remain."
       },
       "CalendarRoleCode": {
-        "description": "What a catalog calendar family gives a schedule: its occurrences, or the windows they may fire in. The family's first\nversion fixes its role, and every newer version keeps it."
+        "type": "string",
+        "description": "What a catalog calendar family gives a schedule: its occurrences, or the windows they may fire in. The family's first\nversion fixes its role, and every newer version keeps it.",
+        "x-acta-known-values": [
+          {
+            "name": "Unspecified",
+            "value": "unspecified"
+          },
+          {
+            "name": "Occurrence",
+            "value": "occurrence"
+          },
+          {
+            "name": "Availability",
+            "value": "availability"
+          }
+        ]
       },
       "CalendarStatusCode": {
-        "description": "Where one version of a catalog calendar family stands. At most one version of a family is Published at a time, and\nthat version is the family's current one; a version's content never changes, only its status."
+        "type": "string",
+        "description": "Where one version of a catalog calendar family stands. At most one version of a family is Published at a time, and\nthat version is the family's current one; a version's content never changes, only its status.",
+        "x-acta-known-values": [
+          {
+            "name": "Unspecified",
+            "value": "unspecified"
+          },
+          {
+            "name": "Draft",
+            "value": "draft"
+          },
+          {
+            "name": "Published",
+            "value": "published"
+          },
+          {
+            "name": "Superseded",
+            "value": "superseded"
+          },
+          {
+            "name": "Archived",
+            "value": "archived"
+          }
+        ]
       },
       "CalendarWindow": {
+        "required": [
+          "startUtc",
+          "endUtc"
+        ],
         "type": "object",
         "properties": {
           "startUtc": {
@@ -9064,15 +8696,14 @@
             ]
           },
           "expectedVersion": {
-            "pattern": "^-?(?:0|[1-9]\\d*)$",
             "type": [
               "null",
-              "integer",
-              "string"
+              "integer"
             ],
             "format": "int32"
           }
-        }
+        },
+        "additionalProperties": false
       },
       "CancelJobResponse": {
         "required": [
@@ -9096,11 +8727,9 @@
             ]
           },
           "version": {
-            "pattern": "^-?(?:0|[1-9]\\d*)$",
             "type": [
               "null",
-              "integer",
-              "string"
+              "integer"
             ],
             "format": "int32"
           }
@@ -9108,42 +8737,148 @@
         "description": "What cancelling a job did, and the job's status and version after the attempt."
       },
       "CheckpointKindCode": {
-        "description": "Discriminator for `checkpoints` rows: which durable substrate feature owns the\n`(job_id, checkpoint_kind_code, checkpoint_name)` row. One physical table carries every simple job-internal\ndurable value; the kind keeps the name spaces structurally separate (a user variable can never\ncollide with a signal or a child latch of the same name)."
+        "type": "string",
+        "description": "Discriminator for `checkpoints` rows: which durable substrate feature owns the\n`(job_id, checkpoint_kind_code, checkpoint_name)` row. One physical table carries every simple job-internal\ndurable value; the kind keeps the name spaces structurally separate (a user variable can never\ncollide with a signal or a child latch of the same name).",
+        "x-acta-known-values": [
+          {
+            "name": "Unspecified",
+            "value": "unspecified"
+          },
+          {
+            "name": "Variable",
+            "value": "variable"
+          },
+          {
+            "name": "Signal",
+            "value": "signal"
+          },
+          {
+            "name": "Timer",
+            "value": "timer"
+          },
+          {
+            "name": "Progress",
+            "value": "progress"
+          },
+          {
+            "name": "ChildLatch",
+            "value": "child-latch"
+          },
+          {
+            "name": "Firing",
+            "value": "firing"
+          }
+        ]
       },
-      "CheckpointStatusCode": { },
+      "CheckpointStatusCode": {
+        "type": "string",
+        "x-acta-known-values": [
+          {
+            "name": "Unspecified",
+            "value": "unspecified"
+          },
+          {
+            "name": "Pending",
+            "value": "pending"
+          },
+          {
+            "name": "Set",
+            "value": "set"
+          },
+          {
+            "name": "Expired",
+            "value": "expired"
+          },
+          {
+            "name": "Consumed",
+            "value": "consumed"
+          },
+          {
+            "name": "Succeeded",
+            "value": "succeeded"
+          },
+          {
+            "name": "Failed",
+            "value": "failed"
+          },
+          {
+            "name": "Cancelled",
+            "value": "cancelled"
+          }
+        ]
+      },
       "ControlAction": {
-        "enum": [
-          "applied",
-          "not-found",
-          "rejected",
-          "accepted",
-          "version-conflict",
-          "already-in-state"
-        ],
-        "description": "Coarse outcome of a control verb: on jobs, schedules, definitions, alerts, the outbox, tags, tenants, and namespaces."
+        "type": "string",
+        "description": "Coarse outcome of a control verb: on jobs, schedules, definitions, alerts, the outbox, tags, tenants, and namespaces.",
+        "x-acta-known-values": [
+          {
+            "name": "Applied",
+            "value": "applied"
+          },
+          {
+            "name": "NotFound",
+            "value": "not-found"
+          },
+          {
+            "name": "Rejected",
+            "value": "rejected"
+          },
+          {
+            "name": "Accepted",
+            "value": "accepted"
+          },
+          {
+            "name": "VersionConflict",
+            "value": "version-conflict"
+          },
+          {
+            "name": "AlreadyInState",
+            "value": "already-in-state"
+          }
+        ]
       },
       "DeadlineBehaviorCode": {
-        "description": "How the engine treats a job that has passed its deadline."
+        "type": "string",
+        "description": "How the engine treats a job that has passed its deadline.",
+        "x-acta-known-values": [
+          {
+            "name": "Unspecified",
+            "value": "unspecified"
+          },
+          {
+            "name": "Strict",
+            "value": "strict"
+          },
+          {
+            "name": "Advisory",
+            "value": "advisory"
+          }
+        ]
       },
       "DefinitionPolicyOverrides": {
         "type": "object",
         "properties": {
-          "priority": { },
+          "priority": {
+            "oneOf": [
+              {
+                "type": "null"
+              },
+              {
+                "$ref": "#/components/schemas/JobPriorityCode"
+              }
+            ]
+          },
           "maxAttempts": {
-            "pattern": "^-?(?:0|[1-9]\\d*)$",
             "type": [
               "null",
-              "integer",
-              "string"
+              "integer"
             ],
             "format": "int32"
           },
           "concurrencyLimit": {
-            "pattern": "^-?(?:0|[1-9]\\d*)$",
             "type": [
               "null",
-              "integer",
-              "string"
+              "integer"
             ],
             "format": "int32"
           },
@@ -9160,35 +8895,56 @@
             ]
           },
           "executionTimeoutSeconds": {
-            "pattern": "^-?(?:0|[1-9]\\d*)$",
             "type": [
               "null",
-              "integer",
-              "string"
+              "integer"
             ],
             "format": "int32"
           },
           "deadlineSeconds": {
-            "pattern": "^-?(?:0|[1-9]\\d*)$",
             "type": [
               "null",
-              "integer",
-              "string"
+              "integer"
             ],
             "format": "int32"
           },
-          "deadlineBehavior": { },
+          "deadlineBehavior": {
+            "oneOf": [
+              {
+                "type": "null"
+              },
+              {
+                "$ref": "#/components/schemas/DeadlineBehaviorCode"
+              }
+            ]
+          },
           "jobRetentionSeconds": {
-            "pattern": "^-?(?:0|[1-9]\\d*)$",
             "type": [
               "null",
-              "integer",
-              "string"
+              "integer"
             ],
             "format": "int32"
           },
-          "eventRecording": { },
-          "alertProfile": { },
+          "eventRecording": {
+            "oneOf": [
+              {
+                "type": "null"
+              },
+              {
+                "$ref": "#/components/schemas/EventRecordingCode"
+              }
+            ]
+          },
+          "alertProfile": {
+            "oneOf": [
+              {
+                "type": "null"
+              },
+              {
+                "$ref": "#/components/schemas/AlertProfileCode"
+              }
+            ]
+          },
           "alertChannelName": {
             "type": [
               "null",
@@ -9214,10 +8970,26 @@
             ]
           }
         },
+        "additionalProperties": false,
         "description": "The whole operator-override set for a definition's policy, applied as a unit: a non-null field sets its override\nand null clears it back to the code default, so the dashboard reads, edits, and writes the full set. Code defaults,\ncontract, formats, and `definition_hash` are never touched. A `DeadlineSeconds` override on a scheduled\ndefinition lands but is ignored: a deadline anchors to job creation, and a recurring slot lives forever.\n`RateLimit` applies to every definition sharing the meter (declared `RateName`, or the name) in one\nwrite, clearing included, so the meter never carries two rates."
       },
       "DefinitionStatusCode": {
-        "description": "Lifecycle status of a job definition. Numeric bands are a readability convention only;\nbehavior follows the explicit members. There is no per-definition Deprecated state by design:\noperators pause individual Jobs via `IJobs.PauseAsync`."
+        "type": "string",
+        "description": "Lifecycle status of a job definition. Numeric bands are a readability convention only;\nbehavior follows the explicit members. There is no per-definition Deprecated state by design:\noperators pause individual Jobs via `IJobs.PauseAsync`.",
+        "x-acta-known-values": [
+          {
+            "name": "Unspecified",
+            "value": "unspecified"
+          },
+          {
+            "name": "Active",
+            "value": "active"
+          },
+          {
+            "name": "Retired",
+            "value": "retired"
+          }
+        ]
       },
       "DiscardOutboxRequest": {
         "type": "object",
@@ -9238,7 +9010,8 @@
               "string"
             ]
           }
-        }
+        },
+        "additionalProperties": false
       },
       "DiscardOutboxResponse": {
         "required": [
@@ -9261,26 +9034,31 @@
         "description": "What parking a discard of a source's quarantined rows did."
       },
       "EnqueueJobAction": {
-        "enum": [
-          "inserted",
-          "deduplicated"
-        ],
-        "description": "Coarse outcome classifier for one enqueued row."
+        "type": "string",
+        "description": "Coarse outcome classifier for one enqueued row.",
+        "x-acta-known-values": [
+          {
+            "name": "Inserted",
+            "value": "inserted"
+          },
+          {
+            "name": "Deduplicated",
+            "value": "deduplicated"
+          }
+        ]
       },
       "EnqueueJobRequest": {
+        "required": [
+          "jobNamespace",
+          "jobName"
+        ],
         "type": "object",
         "properties": {
           "jobNamespace": {
-            "type": [
-              "null",
-              "string"
-            ]
+            "type": "string"
           },
           "jobName": {
-            "type": [
-              "null",
-              "string"
-            ]
+            "type": "string"
           },
           "input": { },
           "base64": {
@@ -9290,11 +9068,9 @@
             ]
           },
           "formatId": {
-            "pattern": "^-?(?:0|[1-9]\\d*)$",
             "type": [
               "null",
-              "integer",
-              "string"
+              "integer"
             ],
             "format": "uint8"
           },
@@ -9316,13 +9092,20 @@
               "string"
             ]
           },
-          "priority": { },
+          "priority": {
+            "oneOf": [
+              {
+                "type": "null"
+              },
+              {
+                "$ref": "#/components/schemas/JobPriorityCode"
+              }
+            ]
+          },
           "delaySeconds": {
-            "pattern": "^-?(?:0|[1-9]\\d*)$",
             "type": [
               "null",
-              "integer",
-              "string"
+              "integer"
             ],
             "format": "int32"
           },
@@ -9354,7 +9137,8 @@
               "$ref": "#/components/schemas/TagInput"
             }
           }
-        }
+        },
+        "additionalProperties": false
       },
       "EnqueueJobResponse": {
         "required": [
@@ -9372,16 +9156,347 @@
         },
         "description": "What one enqueue answers: the internal long EnqueueJobResponse.JobId, the public JobRef EnqueueJobResponse.JobRef, and the\nEnqueueJobAction EnqueueJobResponse.Action that tells a fresh insert from a match on string? EnqueueJobRequest.DeduplicationKey. A\nbatch answers one per request, in request order, in IReadOnlyList&lt;EnqueueJobResponse&gt; EnqueueJobsResponse.Jobs. A typed enqueue answers\nthe derived JobHandle."
       },
+      "EnqueueRejectionReason": {
+        "type": "string",
+        "description": "Why an enqueue was refused, as a kebab code. An open set: keep a value this client does not know.",
+        "x-acta-known-values": [
+          {
+            "name": "NamespaceSuspended",
+            "value": "namespace-suspended"
+          },
+          {
+            "name": "TenantSuspended",
+            "value": "tenant-suspended"
+          },
+          {
+            "name": "TenantUnknown",
+            "value": "tenant-unknown"
+          },
+          {
+            "name": "RouteUnknown",
+            "value": "route-unknown"
+          },
+          {
+            "name": "DefinitionRetired",
+            "value": "definition-retired"
+          },
+          {
+            "name": "TenantRequired",
+            "value": "tenant-required"
+          },
+          {
+            "name": "TenantForbidden",
+            "value": "tenant-forbidden"
+          },
+          {
+            "name": "TenantMismatch",
+            "value": "tenant-mismatch"
+          },
+          {
+            "name": "AncestorLane",
+            "value": "ancestor-lane"
+          },
+          {
+            "name": "LaneIsolation",
+            "value": "lane-isolation"
+          }
+        ]
+      },
       "EntityCode": {
-        "description": "Names a kind of Acta entity, so one `(entity_code, entity_id)` pair can point at a row of any table. Tags\nattach only to tenants, namespaces, definitions, and jobs, the targets TagTarget can build."
+        "type": "string",
+        "description": "Names a kind of Acta entity, so one `(entity_code, entity_id)` pair can point at a row of any table. Tags\nattach only to tenants, namespaces, definitions, and jobs, the targets TagTarget can build.",
+        "x-acta-known-values": [
+          {
+            "name": "Unspecified",
+            "value": "unspecified"
+          },
+          {
+            "name": "Alert",
+            "value": "alert"
+          },
+          {
+            "name": "Calendar",
+            "value": "calendar"
+          },
+          {
+            "name": "Checkpoint",
+            "value": "checkpoint"
+          },
+          {
+            "name": "Definition",
+            "value": "definition"
+          },
+          {
+            "name": "Event",
+            "value": "event"
+          },
+          {
+            "name": "Job",
+            "value": "job"
+          },
+          {
+            "name": "Lane",
+            "value": "lane"
+          },
+          {
+            "name": "Lock",
+            "value": "lock"
+          },
+          {
+            "name": "Namespace",
+            "value": "namespace"
+          },
+          {
+            "name": "Schedule",
+            "value": "schedule"
+          },
+          {
+            "name": "Step",
+            "value": "step"
+          },
+          {
+            "name": "Tag",
+            "value": "tag"
+          },
+          {
+            "name": "Tenant",
+            "value": "tenant"
+          },
+          {
+            "name": "Worker",
+            "value": "worker"
+          }
+        ]
       },
       "EvaluationStatusCode": {
-        "description": "Why a schedule's next evaluation is when it is: the scheduling engine's state for one schedule, distinct from the\noperator lifecycle (ScheduleStatusCode) and from the slot job's status."
+        "type": "string",
+        "description": "Why a schedule's next evaluation is when it is: the scheduling engine's state for one schedule, distinct from the\noperator lifecycle (ScheduleStatusCode) and from the slot job's status.",
+        "x-acta-known-values": [
+          {
+            "name": "Unspecified",
+            "value": "unspecified"
+          },
+          {
+            "name": "Scheduled",
+            "value": "scheduled"
+          },
+          {
+            "name": "WaitingForCapacity",
+            "value": "waiting-for-capacity"
+          },
+          {
+            "name": "Exhausted",
+            "value": "exhausted"
+          },
+          {
+            "name": "EvaluationError",
+            "value": "evaluation-error"
+          },
+          {
+            "name": "SlotUnavailable",
+            "value": "slot-unavailable"
+          },
+          {
+            "name": "Resumed",
+            "value": "resumed"
+          }
+        ]
       },
       "EventCode": {
-        "description": "Stable family-local event identifiers. Nearby values improve catalog readability but carry no runtime subject,\nsubgroup, or outcome semantics; match events by enum member or textual code. There is no `job.enqueued`\nevent on purpose: the Job row's own `(created_at_utc, namespace_id, definition_id)` records the enqueue fact,\nand a separate event row would be write amplification on the narrow append-heavy events table; dedup outcomes\nreach the caller via `EnqueueJobResponse.Action`, and cross-job rate analytics query `acta.jobs` directly."
+        "type": "string",
+        "description": "Stable family-local event identifiers. Nearby values improve catalog readability but carry no runtime subject,\nsubgroup, or outcome semantics; match events by enum member or textual code. There is no `job.enqueued`\nevent on purpose: the Job row's own `(created_at_utc, namespace_id, definition_id)` records the enqueue fact,\nand a separate event row would be write amplification on the narrow append-heavy events table; dedup outcomes\nreach the caller via `EnqueueJobResponse.Action`, and cross-job rate analytics query `acta.jobs` directly.",
+        "x-acta-known-values": [
+          {
+            "name": "Unspecified",
+            "value": "unspecified"
+          },
+          {
+            "name": "TenantSuspended",
+            "value": "tenant.suspended"
+          },
+          {
+            "name": "TenantResumed",
+            "value": "tenant.resumed"
+          },
+          {
+            "name": "TenantUpdated",
+            "value": "tenant.updated"
+          },
+          {
+            "name": "NamespaceSuspended",
+            "value": "namespace.suspended"
+          },
+          {
+            "name": "NamespaceResumed",
+            "value": "namespace.resumed"
+          },
+          {
+            "name": "NamespaceUpdated",
+            "value": "namespace.updated"
+          },
+          {
+            "name": "JobDefinitionOverridesUpdated",
+            "value": "definition.overrides-updated"
+          },
+          {
+            "name": "JobDefinitionRetired",
+            "value": "definition.retired"
+          },
+          {
+            "name": "JobExecutionSucceeded",
+            "value": "job.execution-succeeded"
+          },
+          {
+            "name": "JobExecutionFailed",
+            "value": "job.execution-failed"
+          },
+          {
+            "name": "JobExecutionOrphaned",
+            "value": "job.execution-orphaned"
+          },
+          {
+            "name": "JobExecutionYielded",
+            "value": "job.execution-yielded"
+          },
+          {
+            "name": "JobFailed",
+            "value": "job.failed"
+          },
+          {
+            "name": "JobSuspended",
+            "value": "job.suspended"
+          },
+          {
+            "name": "JobRescheduled",
+            "value": "job.rescheduled"
+          },
+          {
+            "name": "JobCancelled",
+            "value": "job.cancelled"
+          },
+          {
+            "name": "JobPaused",
+            "value": "job.paused"
+          },
+          {
+            "name": "JobResumed",
+            "value": "job.resumed"
+          },
+          {
+            "name": "JobRestarted",
+            "value": "job.restarted"
+          },
+          {
+            "name": "JobReprioritized",
+            "value": "job.reprioritized"
+          },
+          {
+            "name": "JobPurged",
+            "value": "job.purged"
+          },
+          {
+            "name": "JobInputAmended",
+            "value": "job.input-amended"
+          },
+          {
+            "name": "JobSignalRaised",
+            "value": "job.signal-raised"
+          },
+          {
+            "name": "JobStateReset",
+            "value": "job.state-reset"
+          },
+          {
+            "name": "JobNoteRecorded",
+            "value": "job.note-recorded"
+          },
+          {
+            "name": "SchedulePaused",
+            "value": "schedule.paused"
+          },
+          {
+            "name": "ScheduleResumed",
+            "value": "schedule.resumed"
+          },
+          {
+            "name": "SchedulePauseExpired",
+            "value": "schedule.pause-expired"
+          },
+          {
+            "name": "ScheduleTriggered",
+            "value": "schedule.triggered"
+          },
+          {
+            "name": "ScheduleAdmitted",
+            "value": "schedule.admitted"
+          },
+          {
+            "name": "ScheduleSkipped",
+            "value": "schedule.skipped"
+          },
+          {
+            "name": "ScheduleRetimed",
+            "value": "schedule.retimed"
+          },
+          {
+            "name": "CalendarDraftSaved",
+            "value": "calendar.draft-saved"
+          },
+          {
+            "name": "CalendarPublished",
+            "value": "calendar.published"
+          },
+          {
+            "name": "CalendarArchived",
+            "value": "calendar.archived"
+          },
+          {
+            "name": "WorkerStarted",
+            "value": "worker.started"
+          },
+          {
+            "name": "WorkerStopped",
+            "value": "worker.stopped"
+          },
+          {
+            "name": "WorkerDied",
+            "value": "worker.died"
+          },
+          {
+            "name": "AlertAcknowledged",
+            "value": "alert.acknowledged"
+          },
+          {
+            "name": "AlertResolved",
+            "value": "alert.resolved"
+          },
+          {
+            "name": "OutboxRequeued",
+            "value": "outbox.requeued"
+          },
+          {
+            "name": "OutboxDiscarded",
+            "value": "outbox.discarded"
+          }
+        ]
       },
-      "EventRecordingCode": { },
+      "EventRecordingCode": {
+        "type": "string",
+        "x-acta-known-values": [
+          {
+            "name": "Off",
+            "value": "off"
+          },
+          {
+            "name": "Failures",
+            "value": "failures"
+          },
+          {
+            "name": "Audit",
+            "value": "audit"
+          }
+        ]
+      },
       "ExplainJobAction": {
         "required": [
           "kind",
@@ -9583,7 +9698,22 @@
         "description": "The durable wait a Suspended Job is blocked on: a signal name, or a timer and its due instant."
       },
       "FiringFailurePolicyCode": {
-        "description": "What happens to a scheduled definition's schedules when a firing fails for good: its attempts are\nspent, or an exception is not retryable."
+        "type": "string",
+        "description": "What happens to a scheduled definition's schedules when a firing fails for good: its attempts are\nspent, or an exception is not retryable.",
+        "x-acta-known-values": [
+          {
+            "name": "Unspecified",
+            "value": "unspecified"
+          },
+          {
+            "name": "Continue",
+            "value": "continue"
+          },
+          {
+            "name": "PauseScheduling",
+            "value": "pause-scheduling"
+          }
+        ]
       },
       "GetAlertResponse": {
         "required": [
@@ -9642,11 +9772,7 @@
             "type": "string"
           },
           "occurrenceCount": {
-            "pattern": "^-?(?:0|[1-9]\\d*)$",
-            "type": [
-              "integer",
-              "string"
-            ],
+            "type": "integer",
             "format": "int32"
           },
           "resolvedAtUtc": {
@@ -9660,11 +9786,7 @@
             "$ref": "#/components/schemas/AlertDeliveryStatusCode"
           },
           "retryCount": {
-            "pattern": "^-?(?:0|[1-9]\\d*)$",
-            "type": [
-              "integer",
-              "string"
-            ],
+            "type": "integer",
             "format": "int32"
           },
           "retryAfterUtc": {
@@ -9734,28 +9856,18 @@
             "$ref": "#/components/schemas/CalendarRoleCode"
           },
           "currentVersion": {
-            "pattern": "^-?(?:0|[1-9]\\d*)$",
             "type": [
               "null",
-              "integer",
-              "string"
+              "integer"
             ],
             "format": "int32"
           },
           "latestVersion": {
-            "pattern": "^-?(?:0|[1-9]\\d*)$",
-            "type": [
-              "integer",
-              "string"
-            ],
+            "type": "integer",
             "format": "int32"
           },
           "shownVersion": {
-            "pattern": "^-?(?:0|[1-9]\\d*)$",
-            "type": [
-              "integer",
-              "string"
-            ],
+            "type": "integer",
             "format": "int32"
           },
           "shownStatus": {
@@ -9799,7 +9911,8 @@
           "jobNamespace",
           "jobName",
           "inputTypeName",
-          "templateJson"
+          "templateJson",
+          "inputFormatName"
         ],
         "type": "object",
         "properties": {
@@ -9916,11 +10029,7 @@
             "type": "string"
           },
           "inputFormatId": {
-            "pattern": "^-?(?:0|[1-9]\\d*)$",
-            "type": [
-              "integer",
-              "string"
-            ],
+            "type": "integer",
             "format": "uint8"
           },
           "inputFormatName": {
@@ -9933,11 +10042,7 @@
             ]
           },
           "outputFormatId": {
-            "pattern": "^-?(?:0|[1-9]\\d*)$",
-            "type": [
-              "integer",
-              "string"
-            ],
+            "type": "integer",
             "format": "uint8"
           },
           "outputFormatName": {
@@ -9960,54 +10065,38 @@
             "$ref": "#/components/schemas/JobPriorityCode"
           },
           "maxAttempts": {
-            "pattern": "^-?(?:0|[1-9]\\d*)$",
-            "type": [
-              "integer",
-              "string"
-            ],
+            "type": "integer",
             "format": "int32"
           },
           "maxAttemptsOverride": {
-            "pattern": "^-?(?:0|[1-9]\\d*)$",
             "type": [
               "null",
-              "integer",
-              "string"
+              "integer"
             ],
             "format": "int32"
           },
           "maxAttemptsEffective": {
-            "pattern": "^-?(?:0|[1-9]\\d*)$",
-            "type": [
-              "integer",
-              "string"
-            ],
+            "type": "integer",
             "format": "int32"
           },
           "concurrencyLimit": {
-            "pattern": "^-?(?:0|[1-9]\\d*)$",
             "type": [
               "null",
-              "integer",
-              "string"
+              "integer"
             ],
             "format": "int32"
           },
           "concurrencyLimitOverride": {
-            "pattern": "^-?(?:0|[1-9]\\d*)$",
             "type": [
               "null",
-              "integer",
-              "string"
+              "integer"
             ],
             "format": "int32"
           },
           "concurrencyLimitEffective": {
-            "pattern": "^-?(?:0|[1-9]\\d*)$",
             "type": [
               "null",
-              "integer",
-              "string"
+              "integer"
             ],
             "format": "int32"
           },
@@ -10054,53 +10143,33 @@
             "type": "string"
           },
           "executionTimeoutSeconds": {
-            "pattern": "^-?(?:0|[1-9]\\d*)$",
-            "type": [
-              "integer",
-              "string"
-            ],
+            "type": "integer",
             "format": "int32"
           },
           "executionTimeoutSecondsOverride": {
-            "pattern": "^-?(?:0|[1-9]\\d*)$",
             "type": [
               "null",
-              "integer",
-              "string"
+              "integer"
             ],
             "format": "int32"
           },
           "executionTimeoutSecondsEffective": {
-            "pattern": "^-?(?:0|[1-9]\\d*)$",
-            "type": [
-              "integer",
-              "string"
-            ],
+            "type": "integer",
             "format": "int32"
           },
           "deadlineSeconds": {
-            "pattern": "^-?(?:0|[1-9]\\d*)$",
-            "type": [
-              "integer",
-              "string"
-            ],
+            "type": "integer",
             "format": "int32"
           },
           "deadlineSecondsOverride": {
-            "pattern": "^-?(?:0|[1-9]\\d*)$",
             "type": [
               "null",
-              "integer",
-              "string"
+              "integer"
             ],
             "format": "int32"
           },
           "deadlineSecondsEffective": {
-            "pattern": "^-?(?:0|[1-9]\\d*)$",
-            "type": [
-              "integer",
-              "string"
-            ],
+            "type": "integer",
             "format": "int32"
           },
           "deadlineBehavior": {
@@ -10120,28 +10189,18 @@
             "$ref": "#/components/schemas/DeadlineBehaviorCode"
           },
           "jobRetentionSeconds": {
-            "pattern": "^-?(?:0|[1-9]\\d*)$",
-            "type": [
-              "integer",
-              "string"
-            ],
+            "type": "integer",
             "format": "int32"
           },
           "jobRetentionSecondsOverride": {
-            "pattern": "^-?(?:0|[1-9]\\d*)$",
             "type": [
               "null",
-              "integer",
-              "string"
+              "integer"
             ],
             "format": "int32"
           },
           "jobRetentionSecondsEffective": {
-            "pattern": "^-?(?:0|[1-9]\\d*)$",
-            "type": [
-              "integer",
-              "string"
-            ],
+            "type": "integer",
             "format": "int32"
           },
           "eventRecording": {
@@ -10263,11 +10322,7 @@
             "format": "date-time"
           },
           "version": {
-            "pattern": "^-?(?:0|[1-9]\\d*)$",
-            "type": [
-              "integer",
-              "string"
-            ],
+            "type": "integer",
             "format": "int32"
           }
         },
@@ -10277,15 +10332,9 @@
         "required": [
           "job",
           "input",
-          "result",
           "checkpoints",
-          "explain",
-          "lineage",
           "schedules",
-          "schedulesTotal",
-          "maxAttemptsEffective",
-          "workers",
-          "workersTotal"
+          "schedulesTotal"
         ],
         "type": "object",
         "properties": {
@@ -10296,37 +10345,16 @@
             "$ref": "#/components/schemas/JobPayloadBody"
           },
           "result": {
-            "oneOf": [
-              {
-                "type": "null"
-              },
-              {
-                "$ref": "#/components/schemas/JobPayloadBody"
-              }
-            ]
+            "$ref": "#/components/schemas/JobPayloadBody"
           },
           "checkpoints": {
             "$ref": "#/components/schemas/ListJobCheckpointsResponse"
           },
           "explain": {
-            "oneOf": [
-              {
-                "type": "null"
-              },
-              {
-                "$ref": "#/components/schemas/ExplainJobResponse"
-              }
-            ]
+            "$ref": "#/components/schemas/ExplainJobResponse"
           },
           "lineage": {
-            "oneOf": [
-              {
-                "type": "null"
-              },
-              {
-                "$ref": "#/components/schemas/GetJobLineageMapResponse"
-              }
-            ]
+            "$ref": "#/components/schemas/GetJobLineageMapResponse"
           },
           "schedules": {
             "type": "array",
@@ -10335,39 +10363,24 @@
             }
           },
           "schedulesTotal": {
-            "pattern": "^-?(?:0|[1-9]\\d*)$",
             "type": [
               "null",
-              "integer",
-              "string"
+              "integer"
             ],
             "format": "int64"
           },
           "maxAttemptsEffective": {
-            "pattern": "^-?(?:0|[1-9]\\d*)$",
-            "type": [
-              "null",
-              "integer",
-              "string"
-            ],
+            "type": "integer",
             "format": "int32"
           },
           "workers": {
-            "type": [
-              "null",
-              "array"
-            ],
+            "type": "array",
             "items": {
               "$ref": "#/components/schemas/ListWorkersItem"
             }
           },
           "workersTotal": {
-            "pattern": "^-?(?:0|[1-9]\\d*)$",
-            "type": [
-              "null",
-              "integer",
-              "string"
-            ],
+            "type": "integer",
             "format": "int64"
           }
         }
@@ -10644,11 +10657,7 @@
             ]
           },
           "inputFormatId": {
-            "pattern": "^-?(?:0|[1-9]\\d*)$",
-            "type": [
-              "integer",
-              "string"
-            ],
+            "type": "integer",
             "format": "uint8"
           },
           "status": {
@@ -10681,19 +10690,11 @@
             "format": "date-time"
           },
           "executionNumber": {
-            "pattern": "^-?(?:0|[1-9]\\d*)$",
-            "type": [
-              "integer",
-              "string"
-            ],
+            "type": "integer",
             "format": "int32"
           },
           "failureCount": {
-            "pattern": "^-?(?:0|[1-9]\\d*)$",
-            "type": [
-              "integer",
-              "string"
-            ],
+            "type": "integer",
             "format": "int32"
           },
           "leaseExpiresAtUtc": {
@@ -10729,11 +10730,7 @@
             ]
           },
           "version": {
-            "pattern": "^-?(?:0|[1-9]\\d*)$",
-            "type": [
-              "integer",
-              "string"
-            ],
+            "type": "integer",
             "format": "int32"
           }
         },
@@ -10768,11 +10765,7 @@
             ]
           },
           "version": {
-            "pattern": "^-?(?:0|[1-9]\\d*)$",
-            "type": [
-              "integer",
-              "string"
-            ],
+            "type": "integer",
             "format": "int32"
           }
         },
@@ -10795,92 +10788,52 @@
         "type": "object",
         "properties": {
           "readyCount": {
-            "pattern": "^-?(?:0|[1-9]\\d*)$",
-            "type": [
-              "integer",
-              "string"
-            ],
+            "type": "integer",
             "format": "int64"
           },
           "oldestReadyAgeSeconds": {
-            "pattern": "^-?(?:0|[1-9]\\d*)$",
             "type": [
               "null",
-              "integer",
-              "string"
+              "integer"
             ],
             "format": "int64"
           },
           "executingCount": {
-            "pattern": "^-?(?:0|[1-9]\\d*)$",
-            "type": [
-              "integer",
-              "string"
-            ],
+            "type": "integer",
             "format": "int64"
           },
           "failedCount": {
-            "pattern": "^-?(?:0|[1-9]\\d*)$",
-            "type": [
-              "integer",
-              "string"
-            ],
+            "type": "integer",
             "format": "int64"
           },
           "unresolvedAlertCount": {
-            "pattern": "^-?(?:0|[1-9]\\d*)$",
-            "type": [
-              "integer",
-              "string"
-            ],
+            "type": "integer",
             "format": "int64"
           },
           "unresolvedCriticalAlertCount": {
-            "pattern": "^-?(?:0|[1-9]\\d*)$",
-            "type": [
-              "integer",
-              "string"
-            ],
+            "type": "integer",
             "format": "int64"
           },
           "deadWorkerCount": {
-            "pattern": "^-?(?:0|[1-9]\\d*)$",
-            "type": [
-              "integer",
-              "string"
-            ],
+            "type": "integer",
             "format": "int64"
           },
           "staleWorkerCount": {
-            "pattern": "^-?(?:0|[1-9]\\d*)$",
-            "type": [
-              "integer",
-              "string"
-            ],
+            "type": "integer",
             "format": "int64"
           },
           "dueSoonScheduleCount": {
-            "pattern": "^-?(?:0|[1-9]\\d*)$",
-            "type": [
-              "integer",
-              "string"
-            ],
+            "type": "integer",
             "format": "int64"
           },
           "executorCapacity": {
-            "pattern": "^-?(?:0|[1-9]\\d*)$",
-            "type": [
-              "integer",
-              "string"
-            ],
+            "type": "integer",
             "format": "int64"
           },
           "scheduleLagSeconds": {
-            "pattern": "^-?(?:0|[1-9]\\d*)$",
             "type": [
               "null",
-              "integer",
-              "string"
+              "integer"
             ],
             "format": "int64"
           }
@@ -10926,11 +10879,7 @@
             "format": "date-time"
           },
           "version": {
-            "pattern": "^-?(?:0|[1-9]\\d*)$",
-            "type": [
-              "integer",
-              "string"
-            ],
+            "type": "integer",
             "format": "int32"
           }
         },
@@ -10981,20 +10930,14 @@
             ]
           },
           "processId": {
-            "pattern": "^-?(?:0|[1-9]\\d*)$",
             "type": [
               "null",
-              "integer",
-              "string"
+              "integer"
             ],
             "format": "int32"
           },
           "maxConcurrentExecutors": {
-            "pattern": "^-?(?:0|[1-9]\\d*)$",
-            "type": [
-              "integer",
-              "string"
-            ],
+            "type": "integer",
             "format": "int32"
           },
           "lastSeenAtUtc": {
@@ -11013,7 +10956,22 @@
         "description": "Durable operator detail for one worker process registration."
       },
       "JobKindCode": {
-        "description": "What a `jobs` row is: an ordinary job, or the one permanent slot a scheduled definition fires through. The\nkind is written at insert and never changes; the executor and the operator verbs read it instead of guessing from\na deduplication key or from the schedules a row happens to own."
+        "type": "string",
+        "description": "What a `jobs` row is: an ordinary job, or the one permanent slot a scheduled definition fires through. The\nkind is written at insert and never changes; the executor and the operator verbs read it instead of guessing from\na deduplication key or from the schedules a row happens to own.",
+        "x-acta-known-values": [
+          {
+            "name": "Unspecified",
+            "value": "unspecified"
+          },
+          {
+            "name": "Ordinary",
+            "value": "ordinary"
+          },
+          {
+            "name": "PermanentSlot",
+            "value": "permanent-slot"
+          }
+        ]
       },
       "JobPayloadBody": {
         "required": [
@@ -11026,55 +10984,102 @@
             "type": "string"
           },
           "formatId": {
-            "pattern": "^-?(?:0|[1-9]\\d*)$",
-            "type": [
-              "integer",
-              "string"
-            ],
+            "type": "integer",
             "format": "uint8"
           },
           "json": {
-            "type": [
-              "null",
-              "string"
-            ]
+            "type": "string"
           },
           "base64": {
-            "type": [
-              "null",
-              "string"
-            ]
+            "type": "string"
           },
           "byteLength": {
-            "pattern": "^-?(?:0|[1-9]\\d*)$",
-            "type": [
-              "null",
-              "integer",
-              "string"
-            ],
+            "type": "integer",
             "format": "int64"
           },
           "truncated": {
-            "type": [
-              "null",
-              "boolean"
-            ]
+            "type": "boolean"
           },
           "malformed": {
-            "type": [
-              "null",
-              "boolean"
-            ]
+            "type": "boolean"
           }
         }
       },
       "JobPriorityCode": {
-        "description": "Claim-priority value for `jobs_state.job_priority_code`. Discrete five-tier code-system enum\n(`Bulk` / `Normal` / `High` / `Critical` / `Realtime`); no intermediate\nvalues. Strict priority ordering on claim (no aging, no anti-starvation budget), so operators\nisolate bulk workloads in their own `JobNamespace`. Set by the definition policy, definition\noverride, or per-enqueue priority override."
+        "type": "string",
+        "description": "Claim-priority value for `jobs_state.job_priority_code`. Discrete five-tier code-system enum\n(`Bulk` / `Normal` / `High` / `Critical` / `Realtime`); no intermediate\nvalues. Strict priority ordering on claim (no aging, no anti-starvation budget), so operators\nisolate bulk workloads in their own `JobNamespace`. Set by the definition policy, definition\noverride, or per-enqueue priority override.",
+        "x-acta-known-values": [
+          {
+            "name": "Bulk",
+            "value": "bulk"
+          },
+          {
+            "name": "Normal",
+            "value": "normal"
+          },
+          {
+            "name": "High",
+            "value": "high"
+          },
+          {
+            "name": "Critical",
+            "value": "critical"
+          },
+          {
+            "name": "Realtime",
+            "value": "realtime"
+          }
+        ]
       },
       "JobRef": {
+        "type": "string",
         "description": "Public stable reference for one Job row: \"job_\" plus the Guid's 32 lowercase hex digits, such as\n`job_01a14f4e954e7bf68ac609f3fcad8e3d`. Dashboards, HTTP APIs, and clients address jobs by this\nvalue; the numeric JobId stays the internal engine identity. It copies and searches as one word,\nand a UUIDv7 reads in creation order."
       },
-      "JobStatusCode": { },
+      "JobStatusCode": {
+        "type": "string",
+        "x-acta-known-values": [
+          {
+            "name": "Unspecified",
+            "value": "unspecified"
+          },
+          {
+            "name": "Ready",
+            "value": "ready"
+          },
+          {
+            "name": "Blocked",
+            "value": "blocked"
+          },
+          {
+            "name": "Suspended",
+            "value": "suspended"
+          },
+          {
+            "name": "Paused",
+            "value": "paused"
+          },
+          {
+            "name": "Idle",
+            "value": "idle"
+          },
+          {
+            "name": "Executing",
+            "value": "executing"
+          },
+          {
+            "name": "Succeeded",
+            "value": "succeeded"
+          },
+          {
+            "name": "Failed",
+            "value": "failed"
+          },
+          {
+            "name": "Cancelled",
+            "value": "cancelled"
+          }
+        ]
+      },
       "JsonElement": { },
       "ListAlertsItem": {
         "required": [
@@ -11133,11 +11138,7 @@
             "type": "string"
           },
           "occurrenceCount": {
-            "pattern": "^-?(?:0|[1-9]\\d*)$",
-            "type": [
-              "integer",
-              "string"
-            ],
+            "type": "integer",
             "format": "int32"
           },
           "resolvedAtUtc": {
@@ -11151,11 +11152,7 @@
             "$ref": "#/components/schemas/AlertDeliveryStatusCode"
           },
           "retryCount": {
-            "pattern": "^-?(?:0|[1-9]\\d*)$",
-            "type": [
-              "integer",
-              "string"
-            ],
+            "type": "integer",
             "format": "int32"
           },
           "retryAfterUtc": {
@@ -11212,20 +11209,14 @@
             "description": "Whether more alerts exist beyond this page."
           },
           "pageSize": {
-            "pattern": "^-?(?:0|[1-9]\\d*)$",
-            "type": [
-              "integer",
-              "string"
-            ],
+            "type": "integer",
             "description": "The effective page size after defaulting and clamping.",
             "format": "int32"
           },
           "totalCount": {
-            "pattern": "^-?(?:0|[1-9]\\d*)$",
             "type": [
               "null",
-              "integer",
-              "string"
+              "integer"
             ],
             "description": "The filter-wide count, populated only when the query set `IncludeTotal`.",
             "format": "int64"
@@ -11291,19 +11282,13 @@
             "type": "boolean"
           },
           "pageSize": {
-            "pattern": "^-?(?:0|[1-9]\\d*)$",
-            "type": [
-              "integer",
-              "string"
-            ],
+            "type": "integer",
             "format": "int32"
           },
           "totalCount": {
-            "pattern": "^-?(?:0|[1-9]\\d*)$",
             "type": [
               "null",
-              "integer",
-              "string"
+              "integer"
             ],
             "format": "int64"
           }
@@ -11334,20 +11319,14 @@
             "$ref": "#/components/schemas/CalendarRoleCode"
           },
           "currentVersion": {
-            "pattern": "^-?(?:0|[1-9]\\d*)$",
             "type": [
               "null",
-              "integer",
-              "string"
+              "integer"
             ],
             "format": "int32"
           },
           "latestVersion": {
-            "pattern": "^-?(?:0|[1-9]\\d*)$",
-            "type": [
-              "integer",
-              "string"
-            ],
+            "type": "integer",
             "format": "int32"
           },
           "latestStatus": {
@@ -11365,11 +11344,7 @@
             "format": "date-time"
           },
           "dependentCount": {
-            "pattern": "^-?(?:0|[1-9]\\d*)$",
-            "type": [
-              "integer",
-              "string"
-            ],
+            "type": "integer",
             "format": "int32"
           }
         },
@@ -11404,20 +11379,14 @@
             "description": "Whether more families exist beyond this page."
           },
           "pageSize": {
-            "pattern": "^-?(?:0|[1-9]\\d*)$",
-            "type": [
-              "integer",
-              "string"
-            ],
+            "type": "integer",
             "description": "The effective page size after defaulting and clamping.",
             "format": "int32"
           },
           "totalCount": {
-            "pattern": "^-?(?:0|[1-9]\\d*)$",
             "type": [
               "null",
-              "integer",
-              "string"
+              "integer"
             ],
             "description": "The filter-wide count, populated only when the query set `IncludeTotal`.",
             "format": "int64"
@@ -11437,11 +11406,7 @@
         "type": "object",
         "properties": {
           "version": {
-            "pattern": "^-?(?:0|[1-9]\\d*)$",
-            "type": [
-              "integer",
-              "string"
-            ],
+            "type": "integer",
             "format": "int32"
           },
           "status": {
@@ -11494,19 +11459,13 @@
             "type": "boolean"
           },
           "pageSize": {
-            "pattern": "^-?(?:0|[1-9]\\d*)$",
-            "type": [
-              "integer",
-              "string"
-            ],
+            "type": "integer",
             "format": "int32"
           },
           "totalCount": {
-            "pattern": "^-?(?:0|[1-9]\\d*)$",
             "type": [
               "null",
-              "integer",
-              "string"
+              "integer"
             ],
             "format": "int64"
           }
@@ -11567,37 +11526,27 @@
             "$ref": "#/components/schemas/JobPriorityCode"
           },
           "maxAttemptsOverride": {
-            "pattern": "^-?(?:0|[1-9]\\d*)$",
             "type": [
               "null",
-              "integer",
-              "string"
+              "integer"
             ],
             "format": "int32"
           },
           "maxAttemptsEffective": {
-            "pattern": "^-?(?:0|[1-9]\\d*)$",
-            "type": [
-              "integer",
-              "string"
-            ],
+            "type": "integer",
             "format": "int32"
           },
           "concurrencyLimitOverride": {
-            "pattern": "^-?(?:0|[1-9]\\d*)$",
             "type": [
               "null",
-              "integer",
-              "string"
+              "integer"
             ],
             "format": "int32"
           },
           "concurrencyLimitEffective": {
-            "pattern": "^-?(?:0|[1-9]\\d*)$",
             "type": [
               "null",
-              "integer",
-              "string"
+              "integer"
             ],
             "format": "int32"
           },
@@ -11630,11 +11579,7 @@
             "format": "date-time"
           },
           "version": {
-            "pattern": "^-?(?:0|[1-9]\\d*)$",
-            "type": [
-              "integer",
-              "string"
-            ],
+            "type": "integer",
             "format": "int32"
           }
         },
@@ -11669,20 +11614,14 @@
             "description": "Whether more definitions exist beyond this page."
           },
           "pageSize": {
-            "pattern": "^-?(?:0|[1-9]\\d*)$",
-            "type": [
-              "integer",
-              "string"
-            ],
+            "type": "integer",
             "description": "The effective page size after defaulting and clamping.",
             "format": "int32"
           },
           "totalCount": {
-            "pattern": "^-?(?:0|[1-9]\\d*)$",
             "type": [
               "null",
-              "integer",
-              "string"
+              "integer"
             ],
             "description": "The filter-wide count, populated only when the query set `IncludeTotal`.",
             "format": "int64"
@@ -11711,11 +11650,7 @@
         "type": "object",
         "properties": {
           "eventId": {
-            "pattern": "^-?(?:0|[1-9]\\d*)$",
-            "type": [
-              "integer",
-              "string"
-            ],
+            "type": "integer",
             "format": "int64"
           },
           "eventCode": {
@@ -11732,11 +11667,7 @@
             "$ref": "#/components/schemas/EntityCode"
           },
           "entityId": {
-            "pattern": "^-?(?:0|[1-9]\\d*)$",
-            "type": [
-              "integer",
-              "string"
-            ],
+            "type": "integer",
             "format": "int64"
           },
           "jobName": {
@@ -11782,20 +11713,16 @@
             ]
           },
           "executionNumber": {
-            "pattern": "^-?(?:0|[1-9]\\d*)$",
             "type": [
               "null",
-              "integer",
-              "string"
+              "integer"
             ],
             "format": "int32"
           },
           "durationMs": {
-            "pattern": "^-?(?:0|[1-9]\\d*)$",
             "type": [
               "null",
-              "integer",
-              "string"
+              "integer"
             ],
             "format": "int32"
           },
@@ -11843,20 +11770,14 @@
             "description": "Whether more events exist beyond this page."
           },
           "pageSize": {
-            "pattern": "^-?(?:0|[1-9]\\d*)$",
-            "type": [
-              "integer",
-              "string"
-            ],
+            "type": "integer",
             "description": "The effective page size after defaulting and clamping.",
             "format": "int32"
           },
           "totalCount": {
-            "pattern": "^-?(?:0|[1-9]\\d*)$",
             "type": [
               "null",
-              "integer",
-              "string"
+              "integer"
             ],
             "description": "The filter-wide count, populated only when the query set `IncludeTotal`.",
             "format": "int64"
@@ -11868,9 +11789,6 @@
         "required": [
           "kind",
           "name",
-          "status",
-          "dueAtUtc",
-          "value",
           "createdAtUtc",
           "modifiedAtUtc"
         ],
@@ -11883,31 +11801,14 @@
             "type": "string"
           },
           "status": {
-            "oneOf": [
-              {
-                "type": "null"
-              },
-              {
-                "$ref": "#/components/schemas/CheckpointStatusCode"
-              }
-            ]
+            "$ref": "#/components/schemas/CheckpointStatusCode"
           },
           "dueAtUtc": {
-            "type": [
-              "null",
-              "string"
-            ],
+            "type": "string",
             "format": "date-time"
           },
           "value": {
-            "oneOf": [
-              {
-                "type": "null"
-              },
-              {
-                "$ref": "#/components/schemas/JobPayloadBody"
-              }
-            ]
+            "$ref": "#/components/schemas/JobPayloadBody"
           },
           "createdAtUtc": {
             "type": "string",
@@ -11945,19 +11846,13 @@
             "type": "boolean"
           },
           "pageSize": {
-            "pattern": "^-?(?:0|[1-9]\\d*)$",
-            "type": [
-              "integer",
-              "string"
-            ],
+            "type": "integer",
             "format": "int32"
           },
           "totalCount": {
-            "pattern": "^-?(?:0|[1-9]\\d*)$",
             "type": [
               "null",
-              "integer",
-              "string"
+              "integer"
             ],
             "format": "int64"
           }
@@ -12059,19 +11954,11 @@
             "format": "date-time"
           },
           "executionNumber": {
-            "pattern": "^-?(?:0|[1-9]\\d*)$",
-            "type": [
-              "integer",
-              "string"
-            ],
+            "type": "integer",
             "format": "int32"
           },
           "failureCount": {
-            "pattern": "^-?(?:0|[1-9]\\d*)$",
-            "type": [
-              "integer",
-              "string"
-            ],
+            "type": "integer",
             "format": "int32"
           }
         },
@@ -12106,20 +11993,14 @@
             "description": "Whether more jobs exist beyond this page."
           },
           "pageSize": {
-            "pattern": "^-?(?:0|[1-9]\\d*)$",
-            "type": [
-              "integer",
-              "string"
-            ],
+            "type": "integer",
             "description": "The effective page size after defaulting and clamping.",
             "format": "int32"
           },
           "totalCount": {
-            "pattern": "^-?(?:0|[1-9]\\d*)$",
             "type": [
               "null",
-              "integer",
-              "string"
+              "integer"
             ],
             "description": "The filter-wide count, populated only when the query set `IncludeTotal`.",
             "format": "int64"
@@ -12146,11 +12027,7 @@
             "$ref": "#/components/schemas/StepStatusCode"
           },
           "attemptNumber": {
-            "pattern": "^-?(?:0|[1-9]\\d*)$",
-            "type": [
-              "integer",
-              "string"
-            ],
+            "type": "integer",
             "format": "int32"
           },
           "nextRetryAtUtc": {
@@ -12203,19 +12080,13 @@
             "type": "boolean"
           },
           "pageSize": {
-            "pattern": "^-?(?:0|[1-9]\\d*)$",
-            "type": [
-              "integer",
-              "string"
-            ],
+            "type": "integer",
             "format": "int32"
           },
           "totalCount": {
-            "pattern": "^-?(?:0|[1-9]\\d*)$",
             "type": [
               "null",
-              "integer",
-              "string"
+              "integer"
             ],
             "format": "int64"
           }
@@ -12251,11 +12122,7 @@
             ]
           },
           "version": {
-            "pattern": "^-?(?:0|[1-9]\\d*)$",
-            "type": [
-              "integer",
-              "string"
-            ],
+            "type": "integer",
             "format": "int32"
           }
         },
@@ -12290,20 +12157,14 @@
             "description": "Whether more namespaces exist beyond this page."
           },
           "pageSize": {
-            "pattern": "^-?(?:0|[1-9]\\d*)$",
-            "type": [
-              "integer",
-              "string"
-            ],
+            "type": "integer",
             "description": "The effective page size after defaulting and clamping.",
             "format": "int32"
           },
           "totalCount": {
-            "pattern": "^-?(?:0|[1-9]\\d*)$",
             "type": [
               "null",
-              "integer",
-              "string"
+              "integer"
             ],
             "description": "The filter-wide count, populated only when the query set `IncludeTotal`.",
             "format": "int64"
@@ -12335,20 +12196,16 @@
             ]
           },
           "backlog": {
-            "pattern": "^-?(?:0|[1-9]\\d*)$",
             "type": [
               "null",
-              "integer",
-              "string"
+              "integer"
             ],
             "format": "int64"
           },
           "quarantineTotal": {
-            "pattern": "^-?(?:0|[1-9]\\d*)$",
             "type": [
               "null",
-              "integer",
-              "string"
+              "integer"
             ],
             "format": "int64"
           },
@@ -12387,20 +12244,14 @@
             "description": "Whether more relay sources exist beyond this page."
           },
           "pageSize": {
-            "pattern": "^-?(?:0|[1-9]\\d*)$",
-            "type": [
-              "integer",
-              "string"
-            ],
+            "type": "integer",
             "description": "The effective page size after defaulting and clamping.",
             "format": "int32"
           },
           "totalCount": {
-            "pattern": "^-?(?:0|[1-9]\\d*)$",
             "type": [
               "null",
-              "integer",
-              "string"
+              "integer"
             ],
             "description": "The filter-wide count, populated only when the query set `IncludeTotal`.",
             "format": "int64"
@@ -12448,11 +12299,7 @@
             ]
           },
           "failureCount": {
-            "pattern": "^-?(?:0|[1-9]\\d*)$",
-            "type": [
-              "integer",
-              "string"
-            ],
+            "type": "integer",
             "format": "int32"
           },
           "lastError": {
@@ -12497,20 +12344,14 @@
             "description": "Whether more quarantined staging rows exist beyond this page."
           },
           "pageSize": {
-            "pattern": "^-?(?:0|[1-9]\\d*)$",
-            "type": [
-              "integer",
-              "string"
-            ],
+            "type": "integer",
             "description": "The effective page size after defaulting and clamping.",
             "format": "int32"
           },
           "totalCount": {
-            "pattern": "^-?(?:0|[1-9]\\d*)$",
             "type": [
               "null",
-              "integer",
-              "string"
+              "integer"
             ],
             "description": "The filter-wide count, populated only when the query set `IncludeTotal`.",
             "format": "int64"
@@ -12607,11 +12448,7 @@
             "format": "date-time"
           },
           "version": {
-            "pattern": "^-?(?:0|[1-9]\\d*)$",
-            "type": [
-              "integer",
-              "string"
-            ],
+            "type": "integer",
             "format": "int32"
           },
           "jobRef": {
@@ -12625,19 +12462,11 @@
             ]
           },
           "maxOutstanding": {
-            "pattern": "^-?(?:0|[1-9]\\d*)$",
-            "type": [
-              "integer",
-              "string"
-            ],
+            "type": "integer",
             "format": "int32"
           },
           "outstandingCount": {
-            "pattern": "^-?(?:0|[1-9]\\d*)$",
-            "type": [
-              "integer",
-              "string"
-            ],
+            "type": "integer",
             "format": "int32"
           },
           "fullBehavior": {
@@ -12647,11 +12476,9 @@
             "$ref": "#/components/schemas/ScheduledDeliveryCode"
           },
           "expireAfterSeconds": {
-            "pattern": "^-?(?:0|[1-9]\\d*)$",
             "type": [
               "null",
-              "integer",
-              "string"
+              "integer"
             ],
             "format": "int32"
           },
@@ -12703,20 +12530,14 @@
             "description": "Whether more schedules exist beyond this page."
           },
           "pageSize": {
-            "pattern": "^-?(?:0|[1-9]\\d*)$",
-            "type": [
-              "integer",
-              "string"
-            ],
+            "type": "integer",
             "description": "The effective page size after defaulting and clamping.",
             "format": "int32"
           },
           "totalCount": {
-            "pattern": "^-?(?:0|[1-9]\\d*)$",
             "type": [
               "null",
-              "integer",
-              "string"
+              "integer"
             ],
             "description": "The filter-wide count, populated only when the query set `IncludeTotal`.",
             "format": "int64"
@@ -12726,7 +12547,8 @@
       },
       "ListTagsItem": {
         "required": [
-          "name"
+          "name",
+          "value"
         ],
         "type": "object",
         "properties": {
@@ -12768,19 +12590,13 @@
             "type": "boolean"
           },
           "pageSize": {
-            "pattern": "^-?(?:0|[1-9]\\d*)$",
-            "type": [
-              "integer",
-              "string"
-            ],
+            "type": "integer",
             "format": "int32"
           },
           "totalCount": {
-            "pattern": "^-?(?:0|[1-9]\\d*)$",
             "type": [
               "null",
-              "integer",
-              "string"
+              "integer"
             ],
             "format": "int64"
           }
@@ -12826,11 +12642,7 @@
             "format": "date-time"
           },
           "version": {
-            "pattern": "^-?(?:0|[1-9]\\d*)$",
-            "type": [
-              "integer",
-              "string"
-            ],
+            "type": "integer",
             "format": "int32"
           }
         },
@@ -12865,20 +12677,14 @@
             "description": "Whether more tenants exist beyond this page."
           },
           "pageSize": {
-            "pattern": "^-?(?:0|[1-9]\\d*)$",
-            "type": [
-              "integer",
-              "string"
-            ],
+            "type": "integer",
             "description": "The effective page size after defaulting and clamping.",
             "format": "int32"
           },
           "totalCount": {
-            "pattern": "^-?(?:0|[1-9]\\d*)$",
             "type": [
               "null",
-              "integer",
-              "string"
+              "integer"
             ],
             "description": "The filter-wide count, populated only when the query set `IncludeTotal`.",
             "format": "int64"
@@ -12931,20 +12737,14 @@
             ]
           },
           "processId": {
-            "pattern": "^-?(?:0|[1-9]\\d*)$",
             "type": [
               "null",
-              "integer",
-              "string"
+              "integer"
             ],
             "format": "int32"
           },
           "maxConcurrentExecutors": {
-            "pattern": "^-?(?:0|[1-9]\\d*)$",
-            "type": [
-              "integer",
-              "string"
-            ],
+            "type": "integer",
             "format": "int32"
           },
           "lastSeenAtUtc": {
@@ -12991,20 +12791,14 @@
             "description": "Whether more workers exist beyond this page."
           },
           "pageSize": {
-            "pattern": "^-?(?:0|[1-9]\\d*)$",
-            "type": [
-              "integer",
-              "string"
-            ],
+            "type": "integer",
             "description": "The effective page size after defaulting and clamping.",
             "format": "int32"
           },
           "totalCount": {
-            "pattern": "^-?(?:0|[1-9]\\d*)$",
             "type": [
               "null",
-              "integer",
-              "string"
+              "integer"
             ],
             "description": "The filter-wide count, populated only when the query set `IncludeTotal`.",
             "format": "int64"
@@ -13012,9 +12806,65 @@
         },
         "description": "One page of ValueTask&lt;ListWorkersResponse&gt; IWorkers.ListAsync(ListWorkersQuery query, CancellationToken ct = default(CancellationToken))."
       },
-      "MisfireStrategyCode": { },
+      "MisfireStrategyCode": {
+        "type": "string",
+        "x-acta-known-values": [
+          {
+            "name": "Unspecified",
+            "value": "unspecified"
+          },
+          {
+            "name": "CatchUpOnce",
+            "value": "catch-up-once"
+          },
+          {
+            "name": "Skip",
+            "value": "skip"
+          },
+          {
+            "name": "CatchUpLatest",
+            "value": "catch-up-latest"
+          },
+          {
+            "name": "CatchUpAll",
+            "value": "catch-up-all"
+          }
+        ]
+      },
       "NamespaceStatusCode": {
-        "description": "Namespace state machine. 10-spaced ids; live states 10..80, mirroring\nTenantStatusCode."
+        "type": "string",
+        "description": "Namespace state machine. 10-spaced ids; live states 10..80, mirroring\nTenantStatusCode.",
+        "x-acta-known-values": [
+          {
+            "name": "Unspecified",
+            "value": "unspecified"
+          },
+          {
+            "name": "Active",
+            "value": "active"
+          },
+          {
+            "name": "Suspended",
+            "value": "suspended"
+          }
+        ]
+      },
+      "OverdueDecisionCode": {
+        "type": "string",
+        "x-acta-known-values": [
+          {
+            "name": "Unspecified",
+            "value": "unspecified"
+          },
+          {
+            "name": "Refuse",
+            "value": "refuse"
+          },
+          {
+            "name": "Discard",
+            "value": "discard"
+          }
+        ]
       },
       "PauseJobRequest": {
         "type": "object",
@@ -13026,15 +12876,14 @@
             ]
           },
           "expectedVersion": {
-            "pattern": "^-?(?:0|[1-9]\\d*)$",
             "type": [
               "null",
-              "integer",
-              "string"
+              "integer"
             ],
             "format": "int32"
           }
-        }
+        },
+        "additionalProperties": false
       },
       "PauseJobResponse": {
         "required": [
@@ -13058,11 +12907,9 @@
             ]
           },
           "version": {
-            "pattern": "^-?(?:0|[1-9]\\d*)$",
             "type": [
               "null",
-              "integer",
-              "string"
+              "integer"
             ],
             "format": "int32"
           }
@@ -13085,7 +12932,8 @@
               "string"
             ]
           }
-        }
+        },
+        "additionalProperties": false
       },
       "PauseScheduleResponse": {
         "required": [
@@ -13125,11 +12973,9 @@
             "format": "date-time"
           },
           "version": {
-            "pattern": "^-?(?:0|[1-9]\\d*)$",
             "type": [
               "null",
-              "integer",
-              "string"
+              "integer"
             ],
             "format": "int32"
           }
@@ -13187,19 +13033,13 @@
             "$ref": "#/components/schemas/CalendarRoleCode"
           },
           "version": {
-            "pattern": "^-?(?:0|[1-9]\\d*)$",
-            "type": [
-              "integer",
-              "string"
-            ],
+            "type": "integer",
             "format": "int32"
           },
           "currentVersion": {
-            "pattern": "^-?(?:0|[1-9]\\d*)$",
             "type": [
               "null",
-              "integer",
-              "string"
+              "integer"
             ],
             "format": "int32"
           },
@@ -13236,19 +13076,11 @@
             }
           },
           "schedulesTotal": {
-            "pattern": "^-?(?:0|[1-9]\\d*)$",
-            "type": [
-              "integer",
-              "string"
-            ],
+            "type": "integer",
             "format": "int64"
           },
           "overdueTotal": {
-            "pattern": "^-?(?:0|[1-9]\\d*)$",
-            "type": [
-              "integer",
-              "string"
-            ],
+            "type": "integer",
             "format": "int64"
           }
         },
@@ -13279,68 +13111,48 @@
         "description": "A read-only forecast of a schedule's upcoming fire instants, computed live (no persisted state is\nread or written). string PreviewScheduleResponse.Expression and string PreviewScheduleResponse.TimeZoneId are the effective values\n(operator override when present, else the original); IReadOnlyList&lt;DateTime&gt; PreviewScheduleResponse.NextOccurrencesUtc is strictly\nincreasing and may be shorter than requested when the expression is exhausted."
       },
       "ProblemDetails": {
+        "required": [
+          "status"
+        ],
         "type": "object",
         "properties": {
           "type": {
-            "type": [
-              "null",
-              "string"
-            ]
+            "type": "string"
           },
           "title": {
-            "type": [
-              "null",
-              "string"
-            ]
+            "type": "string"
           },
           "status": {
-            "pattern": "^-?(?:0|[1-9]\\d*)$",
-            "type": [
-              "null",
-              "integer",
-              "string"
-            ],
+            "type": "integer",
             "format": "int32"
           },
           "detail": {
-            "type": [
-              "null",
-              "string"
-            ]
+            "type": "string"
           },
           "instance": {
-            "type": [
-              "null",
-              "string"
-            ]
+            "type": "string"
+          },
+          "reasonCode": {
+            "$ref": "#/components/schemas/EnqueueRejectionReason"
           }
         }
       },
       "PublishCalendarRequest": {
         "required": [
-          "expectedCurrentVersion",
           "candidateVersion"
         ],
         "type": "object",
         "properties": {
           "expectedCurrentVersion": {
-            "pattern": "^-?(?:0|[1-9]\\d*)$",
-            "type": [
-              "integer",
-              "string"
-            ],
+            "type": "integer",
             "format": "int32"
           },
           "candidateVersion": {
-            "pattern": "^-?(?:0|[1-9]\\d*)$",
-            "type": [
-              "integer",
-              "string"
-            ],
+            "type": "integer",
             "format": "int32"
           },
           "overdueDecision": {
-            "description": "What a calendar publication does with the occurrences a dependent schedule has not decided yet that are already due\nunder the version it replaces."
+            "$ref": "#/components/schemas/OverdueDecisionCode"
           },
           "reasonMessage": {
             "type": [
@@ -13348,7 +13160,8 @@
               "string"
             ]
           }
-        }
+        },
+        "additionalProperties": false
       },
       "PublishCalendarResponse": {
         "required": [
@@ -13364,11 +13177,9 @@
             "$ref": "#/components/schemas/ControlAction"
           },
           "version": {
-            "pattern": "^-?(?:0|[1-9]\\d*)$",
             "type": [
               "null",
-              "integer",
-              "string"
+              "integer"
             ],
             "format": "int32"
           },
@@ -13394,7 +13205,8 @@
         "description": "The outcome of a publication: Applied with the version now current and the schedules retimed (as\n`job/schedule` paths), NotFound when the candidate is no version of the family, VersionConflict when the\ncurrent version is not the one the caller saw, or Rejected with the reason and, when the old version left overdue\noccurrences undecided, the schedules holding them."
       },
       "PurgeJobRequest": {
-        "type": "object"
+        "type": "object",
+        "additionalProperties": false
       },
       "PurgeJobResponse": {
         "required": [
@@ -13418,11 +13230,9 @@
             ]
           },
           "version": {
-            "pattern": "^-?(?:0|[1-9]\\d*)$",
             "type": [
               "null",
-              "integer",
-              "string"
+              "integer"
             ],
             "format": "int32"
           }
@@ -13451,11 +13261,9 @@
             ]
           },
           "version": {
-            "pattern": "^-?(?:0|[1-9]\\d*)$",
             "type": [
               "null",
-              "integer",
-              "string"
+              "integer"
             ],
             "format": "int32"
           }
@@ -13463,13 +13271,13 @@
         "description": "What raising a signal on a job did, and the job's status after the attempt; a raise carries no version."
       },
       "RegisterTenantRequest": {
+        "required": [
+          "tenantName"
+        ],
         "type": "object",
         "properties": {
           "tenantName": {
-            "type": [
-              "null",
-              "string"
-            ]
+            "type": "string"
           },
           "displayName": {
             "type": [
@@ -13483,7 +13291,8 @@
               "string"
             ]
           }
-        }
+        },
+        "additionalProperties": false
       },
       "RegisterTenantResponse": {
         "required": [
@@ -13525,15 +13334,14 @@
             ]
           },
           "expectedVersion": {
-            "pattern": "^-?(?:0|[1-9]\\d*)$",
             "type": [
               "null",
-              "integer",
-              "string"
+              "integer"
             ],
             "format": "int32"
           }
-        }
+        },
+        "additionalProperties": false
       },
       "ReprioritizeJobResponse": {
         "required": [
@@ -13557,11 +13365,9 @@
             ]
           },
           "version": {
-            "pattern": "^-?(?:0|[1-9]\\d*)$",
             "type": [
               "null",
-              "integer",
-              "string"
+              "integer"
             ],
             "format": "int32"
           }
@@ -13587,7 +13393,8 @@
               "string"
             ]
           }
-        }
+        },
+        "additionalProperties": false
       },
       "RequeueOutboxResponse": {
         "required": [
@@ -13626,15 +13433,14 @@
             ]
           },
           "expectedVersion": {
-            "pattern": "^-?(?:0|[1-9]\\d*)$",
             "type": [
               "null",
-              "integer",
-              "string"
+              "integer"
             ],
             "format": "int32"
           }
-        }
+        },
+        "additionalProperties": false
       },
       "RescheduleJobResponse": {
         "required": [
@@ -13658,11 +13464,9 @@
             ]
           },
           "version": {
-            "pattern": "^-?(?:0|[1-9]\\d*)$",
             "type": [
               "null",
-              "integer",
-              "string"
+              "integer"
             ],
             "format": "int32"
           }
@@ -13678,7 +13482,8 @@
               "string"
             ]
           }
-        }
+        },
+        "additionalProperties": false
       },
       "ResolveAlertResponse": {
         "required": [
@@ -13722,15 +13527,14 @@
             ]
           },
           "expectedVersion": {
-            "pattern": "^-?(?:0|[1-9]\\d*)$",
             "type": [
               "null",
-              "integer",
-              "string"
+              "integer"
             ],
             "format": "int32"
           }
-        }
+        },
+        "additionalProperties": false
       },
       "RestartJobResponse": {
         "required": [
@@ -13754,11 +13558,9 @@
             ]
           },
           "version": {
-            "pattern": "^-?(?:0|[1-9]\\d*)$",
             "type": [
               "null",
-              "integer",
-              "string"
+              "integer"
             ],
             "format": "int32"
           }
@@ -13775,15 +13577,14 @@
             ]
           },
           "expectedVersion": {
-            "pattern": "^-?(?:0|[1-9]\\d*)$",
             "type": [
               "null",
-              "integer",
-              "string"
+              "integer"
             ],
             "format": "int32"
           }
-        }
+        },
+        "additionalProperties": false
       },
       "ResumeJobResponse": {
         "required": [
@@ -13807,11 +13608,9 @@
             ]
           },
           "version": {
-            "pattern": "^-?(?:0|[1-9]\\d*)$",
             "type": [
               "null",
-              "integer",
-              "string"
+              "integer"
             ],
             "format": "int32"
           }
@@ -13827,7 +13626,8 @@
               "string"
             ]
           }
-        }
+        },
+        "additionalProperties": false
       },
       "ResumeNamespaceResponse": {
         "required": [
@@ -13840,11 +13640,9 @@
             "$ref": "#/components/schemas/ControlAction"
           },
           "version": {
-            "pattern": "^-?(?:0|[1-9]\\d*)$",
             "type": [
               "null",
-              "integer",
-              "string"
+              "integer"
             ],
             "format": "int32"
           }
@@ -13860,7 +13658,8 @@
               "string"
             ]
           }
-        }
+        },
+        "additionalProperties": false
       },
       "ResumeScheduleResponse": {
         "required": [
@@ -13900,11 +13699,9 @@
             "format": "date-time"
           },
           "version": {
-            "pattern": "^-?(?:0|[1-9]\\d*)$",
             "type": [
               "null",
-              "integer",
-              "string"
+              "integer"
             ],
             "format": "int32"
           }
@@ -13920,7 +13717,8 @@
               "string"
             ]
           }
-        }
+        },
+        "additionalProperties": false
       },
       "ResumeTenantResponse": {
         "required": [
@@ -13933,11 +13731,9 @@
             "$ref": "#/components/schemas/ControlAction"
           },
           "version": {
-            "pattern": "^-?(?:0|[1-9]\\d*)$",
             "type": [
               "null",
-              "integer",
-              "string"
+              "integer"
             ],
             "format": "int32"
           }
@@ -13948,11 +13744,7 @@
         "type": "object",
         "properties": {
           "expectedVersion": {
-            "pattern": "^-?(?:0|[1-9]\\d*)$",
-            "type": [
-              "integer",
-              "string"
-            ],
+            "type": "integer",
             "format": "int32"
           },
           "reasonMessage": {
@@ -13961,7 +13753,8 @@
               "string"
             ]
           }
-        }
+        },
+        "additionalProperties": false
       },
       "RetireDefinitionResponse": {
         "required": [
@@ -13974,11 +13767,9 @@
             "$ref": "#/components/schemas/ControlAction"
           },
           "version": {
-            "pattern": "^-?(?:0|[1-9]\\d*)$",
             "type": [
               "null",
-              "integer",
-              "string"
+              "integer"
             ],
             "format": "int32"
           }
@@ -13988,8 +13779,7 @@
       "SaveCalendarDraftRequest": {
         "required": [
           "role",
-          "definition",
-          "expectedLatestVersion"
+          "definition"
         ],
         "type": "object",
         "properties": {
@@ -13997,14 +13787,11 @@
             "$ref": "#/components/schemas/CalendarRoleCode"
           },
           "definition": {
-            "$ref": "#/components/schemas/JsonElement"
+            "type": "object",
+            "description": "The calendar definition: a JSON object whose \"kind\" names its shape."
           },
           "expectedLatestVersion": {
-            "pattern": "^-?(?:0|[1-9]\\d*)$",
-            "type": [
-              "integer",
-              "string"
-            ],
+            "type": "integer",
             "format": "int32"
           },
           "reasonMessage": {
@@ -14013,7 +13800,8 @@
               "string"
             ]
           }
-        }
+        },
+        "additionalProperties": false
       },
       "SaveCalendarDraftResponse": {
         "required": [
@@ -14028,11 +13816,9 @@
             "$ref": "#/components/schemas/ControlAction"
           },
           "version": {
-            "pattern": "^-?(?:0|[1-9]\\d*)$",
             "type": [
               "null",
-              "integer",
-              "string"
+              "integer"
             ],
             "format": "int32"
           },
@@ -14052,17 +13838,142 @@
         "description": "What saving a draft did. Applied carries the new version and its content hash; Rejected carries each reason in\n`Problems`, a compiler problem starting with its JSON path, and, when the store refused it, the family's latest\nversion, 0 for a family with none. A namespace no worker has run in yet is created, so the save never answers NotFound."
       },
       "ScheduledDeliveryCode": {
-        "description": "How a schedule delivers a definition's work: one permanent slot job fired again and again, or a fresh root job per\nadmitted occurrence. Immutable once the definition is registered."
+        "type": "string",
+        "description": "How a schedule delivers a definition's work: one permanent slot job fired again and again, or a fresh root job per\nadmitted occurrence. Immutable once the definition is registered.",
+        "x-acta-known-values": [
+          {
+            "name": "Unspecified",
+            "value": "unspecified"
+          },
+          {
+            "name": "Permanent",
+            "value": "permanent"
+          },
+          {
+            "name": "PerOccurrence",
+            "value": "per-occurrence"
+          }
+        ]
       },
-      "ScheduleExpireActionCode": { },
-      "ScheduleExpressionKindCode": { },
+      "ScheduleExpireActionCode": {
+        "type": "string",
+        "x-acta-known-values": [
+          {
+            "name": "Unspecified",
+            "value": "unspecified"
+          },
+          {
+            "name": "Discard",
+            "value": "discard"
+          },
+          {
+            "name": "Pause",
+            "value": "pause"
+          }
+        ]
+      },
+      "ScheduleExpressionKindCode": {
+        "type": "string",
+        "x-acta-known-values": [
+          {
+            "name": "Unspecified",
+            "value": "unspecified"
+          },
+          {
+            "name": "Cron",
+            "value": "cron"
+          },
+          {
+            "name": "Interval",
+            "value": "interval"
+          },
+          {
+            "name": "Calendar",
+            "value": "calendar"
+          }
+        ]
+      },
       "ScheduleFullBehaviorCode": {
-        "description": "What a due occurrence does when its schedule already has its maximum of unsettled occurrences."
+        "type": "string",
+        "description": "What a due occurrence does when its schedule already has its maximum of unsettled occurrences.",
+        "x-acta-known-values": [
+          {
+            "name": "Unspecified",
+            "value": "unspecified"
+          },
+          {
+            "name": "Wait",
+            "value": "wait"
+          },
+          {
+            "name": "Drop",
+            "value": "drop"
+          }
+        ]
       },
-      "ScheduleOriginCode": { },
-      "ScheduleStatusCode": { },
+      "ScheduleOriginCode": {
+        "type": "string",
+        "x-acta-known-values": [
+          {
+            "name": "Unspecified",
+            "value": "unspecified"
+          },
+          {
+            "name": "Operator",
+            "value": "operator"
+          },
+          {
+            "name": "Definition",
+            "value": "definition"
+          }
+        ]
+      },
+      "ScheduleStatusCode": {
+        "type": "string",
+        "x-acta-known-values": [
+          {
+            "name": "Unspecified",
+            "value": "unspecified"
+          },
+          {
+            "name": "Active",
+            "value": "active"
+          },
+          {
+            "name": "Paused",
+            "value": "paused"
+          },
+          {
+            "name": "Orphaned",
+            "value": "orphaned"
+          }
+        ]
+      },
       "StepStatusCode": {
-        "description": "State machine for `steps` rows. INSERT-once on first invocation (`Pending`);\nUPDATE-in-place across retries; terminal transition to `Succeeded` (with `Result` populated),\n`Exhausted` (parent receives `StepExhaustedException`), or `Interrupted` (an\n`AtMostOnce` step re-entered before completion; parent receives `StepInterruptedException`). One row per\n`(JobId, StepName)`; the framework never INSERTs a second step row for the same name."
+        "type": "string",
+        "description": "State machine for `steps` rows. INSERT-once on first invocation (`Pending`);\nUPDATE-in-place across retries; terminal transition to `Succeeded` (with `Result` populated),\n`Exhausted` (parent receives `StepExhaustedException`), or `Interrupted` (an\n`AtMostOnce` step re-entered before completion; parent receives `StepInterruptedException`). One row per\n`(JobId, StepName)`; the framework never INSERTs a second step row for the same name.",
+        "x-acta-known-values": [
+          {
+            "name": "Unspecified",
+            "value": "unspecified"
+          },
+          {
+            "name": "Pending",
+            "value": "pending"
+          },
+          {
+            "name": "Succeeded",
+            "value": "succeeded"
+          },
+          {
+            "name": "Exhausted",
+            "value": "exhausted"
+          },
+          {
+            "name": "Interrupted",
+            "value": "interrupted"
+          }
+        ]
       },
       "SuspendNamespaceRequest": {
         "type": "object",
@@ -14073,7 +13984,8 @@
               "string"
             ]
           }
-        }
+        },
+        "additionalProperties": false
       },
       "SuspendNamespaceResponse": {
         "required": [
@@ -14086,11 +13998,9 @@
             "$ref": "#/components/schemas/ControlAction"
           },
           "version": {
-            "pattern": "^-?(?:0|[1-9]\\d*)$",
             "type": [
               "null",
-              "integer",
-              "string"
+              "integer"
             ],
             "format": "int32"
           }
@@ -14106,7 +14016,8 @@
               "string"
             ]
           }
-        }
+        },
+        "additionalProperties": false
       },
       "SuspendTenantResponse": {
         "required": [
@@ -14119,11 +14030,9 @@
             "$ref": "#/components/schemas/ControlAction"
           },
           "version": {
-            "pattern": "^-?(?:0|[1-9]\\d*)$",
             "type": [
               "null",
-              "integer",
-              "string"
+              "integer"
             ],
             "format": "int32"
           }
@@ -14146,10 +14055,26 @@
             ]
           }
         },
+        "additionalProperties": false,
         "description": "Caller-supplied per-tag wire row attached to an enqueued Job. Names are unique within a\nrequest; string? TagInput.Value is null for presence-only tags."
       },
       "TenantStatusCode": {
-        "description": "Tenant state machine. 10-spaced ids; live states 10..80."
+        "type": "string",
+        "description": "Tenant state machine. 10-spaced ids; live states 10..80.",
+        "x-acta-known-values": [
+          {
+            "name": "Unspecified",
+            "value": "unspecified"
+          },
+          {
+            "name": "Active",
+            "value": "active"
+          },
+          {
+            "name": "Suspended",
+            "value": "suspended"
+          }
+        ]
       },
       "TriggerScheduleRequest": {
         "type": "object",
@@ -14160,7 +14085,8 @@
               "string"
             ]
           }
-        }
+        },
+        "additionalProperties": false
       },
       "TriggerScheduleResponse": {
         "required": [
@@ -14200,11 +14126,9 @@
             "format": "date-time"
           },
           "version": {
-            "pattern": "^-?(?:0|[1-9]\\d*)$",
             "type": [
               "null",
-              "integer",
-              "string"
+              "integer"
             ],
             "format": "int32"
           }
@@ -14215,11 +14139,7 @@
         "type": "object",
         "properties": {
           "expectedVersion": {
-            "pattern": "^-?(?:0|[1-9]\\d*)$",
-            "type": [
-              "integer",
-              "string"
-            ],
+            "type": "integer",
             "format": "int32"
           },
           "overrides": {
@@ -14238,7 +14158,8 @@
               "string"
             ]
           }
-        }
+        },
+        "additionalProperties": false
       },
       "UpdateDefinitionOverridesResponse": {
         "required": [
@@ -14251,11 +14172,9 @@
             "$ref": "#/components/schemas/ControlAction"
           },
           "version": {
-            "pattern": "^-?(?:0|[1-9]\\d*)$",
             "type": [
               "null",
-              "integer",
-              "string"
+              "integer"
             ],
             "format": "int32"
           }
@@ -14278,7 +14197,8 @@
               "string"
             ]
           }
-        }
+        },
+        "additionalProperties": false
       },
       "UpdateJobInputResponse": {
         "required": [
@@ -14302,11 +14222,9 @@
             ]
           },
           "version": {
-            "pattern": "^-?(?:0|[1-9]\\d*)$",
             "type": [
               "null",
-              "integer",
-              "string"
+              "integer"
             ],
             "format": "int32"
           }
@@ -14314,6 +14232,9 @@
         "description": "What amending a job's input did, and the job's status after the attempt; an amend carries no version."
       },
       "UpdateNamespaceRequest": {
+        "required": [
+          "expectedVersion"
+        ],
         "type": "object",
         "properties": {
           "ownerTeam": {
@@ -14329,12 +14250,7 @@
             ]
           },
           "expectedVersion": {
-            "pattern": "^-?(?:0|[1-9]\\d*)$",
-            "type": [
-              "null",
-              "integer",
-              "string"
-            ],
+            "type": "integer",
             "format": "int32"
           },
           "reasonMessage": {
@@ -14343,7 +14259,8 @@
               "string"
             ]
           }
-        }
+        },
+        "additionalProperties": false
       },
       "UpdateNamespaceResponse": {
         "required": [
@@ -14356,11 +14273,9 @@
             "$ref": "#/components/schemas/ControlAction"
           },
           "version": {
-            "pattern": "^-?(?:0|[1-9]\\d*)$",
             "type": [
               "null",
-              "integer",
-              "string"
+              "integer"
             ],
             "format": "int32"
           }
@@ -14368,6 +14283,9 @@
         "description": "What updating a namespace did, and the namespace's version after the attempt."
       },
       "UpdateTenantRequest": {
+        "required": [
+          "expectedVersion"
+        ],
         "type": "object",
         "properties": {
           "displayName": {
@@ -14383,12 +14301,7 @@
             ]
           },
           "expectedVersion": {
-            "pattern": "^-?(?:0|[1-9]\\d*)$",
-            "type": [
-              "null",
-              "integer",
-              "string"
-            ],
+            "type": "integer",
             "format": "int32"
           },
           "reasonMessage": {
@@ -14397,7 +14310,8 @@
               "string"
             ]
           }
-        }
+        },
+        "additionalProperties": false
       },
       "UpdateTenantResponse": {
         "required": [
@@ -14410,11 +14324,9 @@
             "$ref": "#/components/schemas/ControlAction"
           },
           "version": {
-            "pattern": "^-?(?:0|[1-9]\\d*)$",
             "type": [
               "null",
-              "integer",
-              "string"
+              "integer"
             ],
             "format": "int32"
           }
@@ -14423,16 +14335,12 @@
       },
       "UpsertDefinitionTagRequest": {
         "required": [
-          "name",
-          "value"
+          "name"
         ],
         "type": "object",
         "properties": {
           "name": {
-            "type": [
-              "null",
-              "string"
-            ]
+            "type": "string"
           },
           "value": {
             "type": [
@@ -14440,20 +14348,17 @@
               "string"
             ]
           }
-        }
+        },
+        "additionalProperties": false
       },
       "UpsertJobTagRequest": {
         "required": [
-          "name",
-          "value"
+          "name"
         ],
         "type": "object",
         "properties": {
           "name": {
-            "type": [
-              "null",
-              "string"
-            ]
+            "type": "string"
           },
           "value": {
             "type": [
@@ -14461,20 +14366,17 @@
               "string"
             ]
           }
-        }
+        },
+        "additionalProperties": false
       },
       "UpsertNamespaceTagRequest": {
         "required": [
-          "name",
-          "value"
+          "name"
         ],
         "type": "object",
         "properties": {
           "name": {
-            "type": [
-              "null",
-              "string"
-            ]
+            "type": "string"
           },
           "value": {
             "type": [
@@ -14482,7 +14384,8 @@
               "string"
             ]
           }
-        }
+        },
+        "additionalProperties": false
       },
       "UpsertTagResponse": {
         "required": [
@@ -14498,16 +14401,12 @@
       },
       "UpsertTenantTagRequest": {
         "required": [
-          "name",
-          "value"
+          "name"
         ],
         "type": "object",
         "properties": {
           "name": {
-            "type": [
-              "null",
-              "string"
-            ]
+            "type": "string"
           },
           "value": {
             "type": [
@@ -14515,11 +14414,48 @@
               "string"
             ]
           }
-        }
+        },
+        "additionalProperties": false
       },
-      "WorkerRef": { },
+      "WorkerRef": {
+        "type": "string"
+      },
       "WorkerStatusCode": {
-        "description": "Lifecycle status of a worker row. Mirrors the JobStatusCode band scheme: live states 10..90,\nterminal success at 100, terminal error at 200+."
+        "type": "string",
+        "description": "Lifecycle status of a worker row. Mirrors the JobStatusCode band scheme: live states 10..90,\nterminal success at 100, terminal error at 200+.",
+        "x-acta-known-values": [
+          {
+            "name": "Unspecified",
+            "value": "unspecified"
+          },
+          {
+            "name": "Active",
+            "value": "active"
+          },
+          {
+            "name": "Draining",
+            "value": "draining"
+          },
+          {
+            "name": "Stopped",
+            "value": "stopped"
+          },
+          {
+            "name": "Dead",
+            "value": "dead"
+          }
+        ]
+      }
+    },
+    "parameters": {
+      "ActaControl": {
+        "name": "X-Acta-Control",
+        "in": "header",
+        "description": "Confirms a control call. The value is true; a missing header or any other value answers 400.",
+        "required": true,
+        "schema": {
+          "$ref": "#/components/schemas/ActaControlConfirmation"
+        }
       }
     }
   },

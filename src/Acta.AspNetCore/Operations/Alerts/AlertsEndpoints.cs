@@ -38,7 +38,8 @@ internal static class AlertsEndpoints
                     new QueryParameterDoc(
                         "severityAtLeast",
                         QueryParameterKind.String,
-                        "Severity floor as a kebab code; lower severities are excluded."
+                        "Severity floor as a kebab code or its number; lower severities are excluded.",
+                        CodeKind: "alert-severity"
                     ),
                     new QueryParameterDoc("unresolvedOnly", QueryParameterKind.Bool, "True restricts to alerts with no resolved instant."),
                     new QueryParameterDoc(
@@ -49,7 +50,7 @@ internal static class AlertsEndpoints
                     new QueryParameterDoc(
                         "deliveryStatus",
                         QueryParameterKind.String,
-                        "Exact delivery status as a kebab code.",
+                        "Exact delivery status as a kebab code or its number.",
                         CodeKind: "alert-delivery-status"
                     ),
                     .. QueryParameterDocExtensions.PagingCore,

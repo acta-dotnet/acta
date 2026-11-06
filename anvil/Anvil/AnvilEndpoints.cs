@@ -19,16 +19,9 @@ public static class AnvilEndpoints
 
         group.MapGet("/state", async (AnvilStateReader reader, CancellationToken ct) => Results.Ok(await reader.ReadAsync(ct)));
 
-        // The committed OpenAPI contract (docs/reference/openapi.json), embedded at build time and
-        // re-based onto this host so the Scalar page's try-it requests land on the mounted /acta API.
-        group.MapGet(
-            "/openapi",
-            (HttpRequest request) =>
-            {
-                var document = openApiDocument ??= ReadEmbeddedOpenApi();
-                return Results.Text(document.Replace("http://localhost/", $"{request.Scheme}://{request.Host}/"), "application/json");
-            }
-        );
+        // The committed OpenAPI contract (docs/reference/openapi.json), embedded at build time. Its server is the
+        // default mount's relative API root, which is where Anvil mounts Acta, so try-it requests need no rewrite.
+        group.MapGet("/openapi", () => Results.Text(openApiDocument ??= ReadEmbeddedOpenApi(), "application/json"));
 
         group.MapPost(
             "/workers",

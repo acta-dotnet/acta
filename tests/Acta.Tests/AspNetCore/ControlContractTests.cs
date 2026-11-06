@@ -646,12 +646,12 @@ public sealed class ControlContractTests
         Assert.True(declared.Count > 50, $"the endpoint graph declared only {declared.Count} JSON responses; the read is broken.");
 
         // The required-member check below reads the committed document by type name, so a renamed
-        // envelope would quietly leave it with nothing to require. Every envelope has required
-        // members; ProblemDetails is the one declared type that has none, by RFC 9457.
+        // envelope would quietly leave it with nothing to require. Every declared type has required
+        // members; a problem requires only its status.
         var unrequired = Table
             .Select(row => row.Declared)
             .Distinct()
-            .Where(type => type != Problem && RequiredMembers(type).Count == 0)
+            .Where(type => RequiredMembers(type).Count == 0)
             .Select(type => type.Name)
             .OrderBy(name => name, StringComparer.Ordinal)
             .ToList();

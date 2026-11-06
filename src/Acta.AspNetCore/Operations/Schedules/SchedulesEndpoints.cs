@@ -30,7 +30,7 @@ internal static class SchedulesEndpoints
                 new QueryParameterDoc(
                     "origin",
                     QueryParameterKind.String,
-                    "Exact schedule origin as a kebab code.",
+                    "Exact schedule origin as a kebab code or its number.",
                     CodeKind: "schedule-origin"
                 ),
                 new QueryParameterDoc(
@@ -55,7 +55,9 @@ internal static class SchedulesEndpoints
                         call.Ct
                     )
             )
-            .WithQueryParameters([new QueryParameterDoc("limit", QueryParameterKind.Int, "How many upcoming occurrences to forecast.")]);
+            .WithQueryParameters([new QueryParameterDoc("limit", QueryParameterKind.Int, "How many upcoming occurrences to forecast.")])
+            // A calendar this host cannot resolve answers a problem (RouteTable.Run).
+            .ProducesProblem(StatusCodes.Status409Conflict);
         if (controls is null)
         {
             return;
