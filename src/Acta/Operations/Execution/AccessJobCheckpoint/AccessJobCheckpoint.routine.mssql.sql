@@ -22,19 +22,19 @@ BEGIN
             AND (@p_value_format_id = 0 /* JobPayloadFormat.None */ OR @p_value IS NULL)
             THROW 50002, 'Variable payload must use a non-zero format id and non-NULL value.', 1;
 
-        -- The slot's own lock serializes the writers of one slot to commit (docs/sql-internals.md,
-        -- "Slot locks"); every statement that may insert a checkpoint takes it under the same name.
+        -- The checkpoint's own lock serializes the writers of one checkpoint to commit (docs/sql-internals.md,
+        -- "Step, checkpoint and rate locks"); every statement that may insert a checkpoint takes it under the same name.
         IF @p_action IN (10 /* AccessJobCheckpointAction.Set */, 30 /* AccessJobCheckpointAction.GetOrSet */)
             BEGIN
-                DECLARE @slot_lock NVARCHAR(255) = CONCAT(N'{{schema}}.slot:', @p_job_id, N':', @p_checkpoint_kind_code, N':', @p_checkpoint_name);
-                DECLARE @slot_lock_result INT;
+                DECLARE @checkpoint_lock NVARCHAR(255) = CONCAT(N'{{schema}}.checkpoint:', @p_job_id, N':', @p_checkpoint_kind_code, N':', @p_checkpoint_name);
+                DECLARE @checkpoint_lock_result INT;
                 -- Positional: resource, mode, owner, timeout (-1 waits like any lock).
-                EXEC @slot_lock_result = sp_getapplock @slot_lock, 'Exclusive', 'Transaction', -1;
-                IF @slot_lock_result < 0
-                    THROW 51205, 'ACTA:SLOT_LOCK:The checkpoint slot lock was not granted (deadlock victim or cancelled).', 1;
+                EXEC @checkpoint_lock_result = sp_getapplock @checkpoint_lock, 'Exclusive', 'Transaction', -1;
+                IF @checkpoint_lock_result < 0
+                    THROW 51205, 'ACTA:CHECKPOINT_LOCK:The checkpoint lock was not granted (deadlock victim or cancelled).', 1;
             END
 
-        -- A write lands only while this attempt holds the job's row, update-locked to commit after the slot lock
+        -- A write lands only while this attempt holds the job's row, update-locked to commit after the checkpoint lock
         -- (docs/sql-internals.md, "Execution fence"). Reads take no lock.
         IF @p_action IN (10 /* AccessJobCheckpointAction.Set */, 30 /* AccessJobCheckpointAction.GetOrSet */, 50 /* AccessJobCheckpointAction.Delete */)
             BEGIN

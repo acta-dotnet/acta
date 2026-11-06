@@ -57,10 +57,10 @@ BEGIN
         RETURN;
     END IF;
 
-    /* No revival: an Expired slot already resolved the wait TimedOut, so a late raise writes no slot
+    /* No revival: an Expired checkpoint already resolved the wait TimedOut, so a late raise writes no value
        and releases no job. The raise still happened, so it is still recorded: the event below carries
        a message saying why it changed nothing, and the verb reports the job's unchanged status. */
-    -- COALESCE, not a bare comparison: a first raise has no slot at all, and NULL = 30 is unknown, which
+    -- COALESCE, not a bare comparison: a first raise has no checkpoint at all, and NULL = 30 is unknown, which
     -- would skip the upsert below rather than take it.
     v_expired := COALESCE(v_existing = 30 /* CheckpointStatusCode.Expired */, FALSE);
     v_message := CASE

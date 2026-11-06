@@ -1,13 +1,13 @@
-/* Slot-locked arbiter for one durable wait: Set wins even past the due, an overdue Pending flips to
+/* Lock-first arbiter for one durable wait: Set wins even past the due, an overdue Pending flips to
    Expired, Expired replays TimedOut forever. */
 /* Arming is one-directional. A NULL due_at_utc is armed when the caller carries a bound (a length, or an instant: a
    group's stored deadline), so code redeployed with a bound can un-strand a wait suspended without one; a stored due
    is never overwritten, never extended, and never cleared by a subsequent unbounded call. */
-/* The read below needs no re-read after a lost insert the way pg's does: the slot's own lock, taken
-   first (docs/sql-internals.md, "Slot locks"), makes a concurrent first arrival wait
+/* The read below needs no re-read after a lost insert the way pg's does: the checkpoint's own lock, taken
+   first (docs/sql-internals.md, "Step, checkpoint and rate locks"), makes a concurrent first arrival wait
    here and then read the winner's row, arriving at the same resolution instead of racing the insert. */
 /* A wait this call armed with a length suspends once: the length is positive and the arm is the last
-   act of its branch. A slot this call arms at or past an instant is armed Expired, so a child landing
+   act of its branch. A checkpoint this call arms at or past an instant is armed Expired, so a child landing
    after it cannot revive the wait, and the wait times out now. Pg states the same rules. */
 CREATE OR ALTER PROCEDURE {{schema}}.wait_job_signal
     @p_job_id BIGINT,
@@ -38,15 +38,15 @@ BEGIN
             ELSE 10 /* CheckpointStatusCode.Pending */
         END;
 
-        DECLARE @slot_lock NVARCHAR(255) = CONCAT(N'{{schema}}.slot:', @p_job_id, N':', @p_checkpoint_kind_code, N':', @p_checkpoint_name);
-        DECLARE @slot_lock_result INT;
+        DECLARE @checkpoint_lock NVARCHAR(255) = CONCAT(N'{{schema}}.checkpoint:', @p_job_id, N':', @p_checkpoint_kind_code, N':', @p_checkpoint_name);
+        DECLARE @checkpoint_lock_result INT;
         -- Positional: resource, mode, owner, timeout (-1 waits like any lock).
-        EXEC @slot_lock_result = sp_getapplock @slot_lock, 'Exclusive', 'Transaction', -1;
-        IF @slot_lock_result < 0
-            THROW 51205, 'ACTA:SLOT_LOCK:The checkpoint slot lock was not granted (deadlock victim or cancelled).', 1;
+        EXEC @checkpoint_lock_result = sp_getapplock @checkpoint_lock, 'Exclusive', 'Transaction', -1;
+        IF @checkpoint_lock_result < 0
+            THROW 51205, 'ACTA:CHECKPOINT_LOCK:The checkpoint lock was not granted (deadlock victim or cancelled).', 1;
 
-        -- The wait changes the slot only while this attempt holds the job's row, update-locked to commit after the
-        -- slot lock (docs/sql-internals.md, "Execution fence").
+        -- The wait changes the checkpoint only while this attempt holds the job's row, update-locked to commit after the
+        -- checkpoint lock (docs/sql-internals.md, "Execution fence").
         IF NOT EXISTS (
             SELECT 1
             FROM {{schema}}.jobs_state r WITH (UPDLOCK, ROWLOCK)

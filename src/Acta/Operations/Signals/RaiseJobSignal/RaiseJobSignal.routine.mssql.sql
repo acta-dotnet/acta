@@ -25,13 +25,13 @@ BEGIN
             @from_status TINYINT, @namespace_id INT, @lineage_root_job_id BIGINT,
             @definition_id INT, @tenant_id INT, @execution_number INT, @event_recording TINYINT;
 
-        -- The slot's own lock, as wait_job_signal names it (docs/sql-internals.md, "Slot locks").
-        DECLARE @slot_lock NVARCHAR(255) = CONCAT(N'{{schema}}.slot:', @p_job_id, N':', @p_checkpoint_kind_code, N':', @p_checkpoint_name);
-        DECLARE @slot_lock_result INT;
+        -- The checkpoint's own lock, as wait_job_signal names it (docs/sql-internals.md, "Step, checkpoint and rate locks").
+        DECLARE @checkpoint_lock NVARCHAR(255) = CONCAT(N'{{schema}}.checkpoint:', @p_job_id, N':', @p_checkpoint_kind_code, N':', @p_checkpoint_name);
+        DECLARE @checkpoint_lock_result INT;
         -- Positional: resource, mode, owner, timeout (-1 waits like any lock).
-        EXEC @slot_lock_result = sp_getapplock @slot_lock, 'Exclusive', 'Transaction', -1;
-        IF @slot_lock_result < 0
-            THROW 51205, 'ACTA:SLOT_LOCK:The checkpoint slot lock was not granted (deadlock victim or cancelled).', 1;
+        EXEC @checkpoint_lock_result = sp_getapplock @checkpoint_lock, 'Exclusive', 'Transaction', -1;
+        IF @checkpoint_lock_result < 0
+            THROW 51205, 'ACTA:CHECKPOINT_LOCK:The checkpoint lock was not granted (deadlock victim or cancelled).', 1;
 
         SELECT @existing = checkpoint_status_code
         FROM {{schema}}.checkpoints WITH (UPDLOCK)
@@ -67,8 +67,8 @@ BEGIN
                 GOTO Finish;
             END;
 
-        /* No revival: an Expired slot already resolved the wait TimedOut, so a late raise writes no
-           slot and releases no job. The raise still happened, so it is still recorded: the event below
+        /* No revival: an Expired checkpoint already resolved the wait TimedOut, so a late raise writes no
+           value and releases no job. The raise still happened, so it is still recorded: the event below
            carries a message saying why it changed nothing, and the verb reports the unchanged status. */
         SET @expired = CASE WHEN @existing = 30 /* CheckpointStatusCode.Expired */ THEN 1 ELSE 0 END;
         SET @message = CASE

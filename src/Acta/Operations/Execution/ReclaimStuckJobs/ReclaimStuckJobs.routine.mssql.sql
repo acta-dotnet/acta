@@ -227,7 +227,7 @@ BEGIN
                 jd.max_attempts_effective AS max_attempts,
                 jd.retention_seconds_effective AS retention_seconds,
                 jd.alert_profile_code_effective AS alert_profile_code,
-                /* The job was parked on THIS slot: the suspend copied the slot's due into
+                /* The job was parked on THIS checkpoint: the suspend copied its due into
                    next_run_at_utc, so the equality names the wait this attempt woke for, and an
                    unbounded wait (NULL due) matches nothing. Expired means the timeout had resolved. */
                 CASE WHEN EXISTS (

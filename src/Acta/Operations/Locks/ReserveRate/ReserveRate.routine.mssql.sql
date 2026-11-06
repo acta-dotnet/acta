@@ -3,7 +3,7 @@
 -- back through the meter, so a queue of overdue jobs cannot all start at once after a long stall.
 
 -- The meter's own lock serializes the calls on one meter to commit (docs/sql-internals.md,
--- "Slot locks"); a range lock on a bucket not yet stored would hold the gap its reservations and the
+-- "Step, checkpoint and rate locks"); a range lock on a bucket not yet stored would hold the gap its reservations and the
 -- next meters fall in.
 
 -- The bucket row stays locked to commit once read or inserted, so the sweep's READPAST delete skips it
@@ -52,7 +52,7 @@ BEGIN
         -- Positional: resource, mode, owner, timeout (-1 waits like any lock).
         EXEC @meter_lock_result = sp_getapplock @meter_lock, 'Exclusive', 'Transaction', -1;
         IF @meter_lock_result < 0
-            THROW 51205, 'ACTA:SLOT_LOCK:The rate meter lock was not granted (deadlock victim or cancelled).', 1;
+            THROW 51205, 'ACTA:RATE_LOCK:The rate meter lock was not granted (deadlock victim or cancelled).', 1;
 
         SELECT @stored = b.expires_at_utc
         FROM {{schema}}.locks AS b WITH (UPDLOCK)

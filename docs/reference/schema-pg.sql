@@ -41,14 +41,14 @@ DO $$
 BEGIN
     IF EXISTS (
         SELECT 1 FROM acta.migrations
-        WHERE name NOT IN ('M20261105115841_init')
+        WHERE name NOT IN ('M20261105150556_init')
     ) THEN
         RAISE EXCEPTION 'A newer Acta release already upgraded this database. Run the newest provisioning script; this one would move it backwards.';
     END IF;
 END
 $$;
 
--- ===== BEGIN M20261105115841_init =====
+-- ===== BEGIN M20261105150556_init =====
 CREATE SCHEMA IF NOT EXISTS acta;
 
 -- alerts
@@ -1061,7 +1061,7 @@ BEGIN
     END IF;
 
     /* Every completion takes the same steps, each skipped when no row needs it. Locks are then taken lanes first, then
-       awaited signal slots, own jobs_state rows, schedules, parent latches, and parent jobs_state rows, each in key order
+       awaited signal checkpoints, own jobs_state rows, schedules, parent latches, and parent jobs_state rows, each in key order
        (same policy, "Lane lock order"). lane_id and parent_job_id never change. */
     PERFORM 1
     FROM acta.lanes l
@@ -1069,7 +1069,7 @@ BEGIN
     ORDER BY l.lane_id
     FOR UPDATE OF l;
 
-    -- The awaited slot is the only place a wait's deadline lives; the lock lets a raise that won the race land the job Ready.
+    -- The awaited checkpoint is the only place a wait's deadline lives; the lock lets a raise that won the race land the job Ready.
     IF cardinality(array_remove(p_wait_signal_names, NULL)) > 0 THEN
         PERFORM 1
         FROM acta.checkpoints s
@@ -1455,7 +1455,7 @@ BEGIN
         ORDER BY pr.job_id
         FOR UPDATE OF pr;
 
-        /* No revival: an Expired latch already resolved the parent's wait TimedOut under this same slot lock, so a
+        /* No revival: an Expired latch already resolved the parent's wait TimedOut under this same checkpoint lock, so a
            child landing afterwards writes no latch and releases no parent. The audit event still records that it
            happened. A parent already finished takes nothing. */
         WITH settled AS (
@@ -3036,10 +3036,10 @@ BEGIN
         RETURN;
     END IF;
 
-    /* No revival: an Expired slot already resolved the wait TimedOut, so a late raise writes no slot
+    /* No revival: an Expired checkpoint already resolved the wait TimedOut, so a late raise writes no value
        and releases no job. The raise still happened, so it is still recorded: the event below carries
        a message saying why it changed nothing, and the verb reports the job's unchanged status. */
-    -- COALESCE, not a bare comparison: a first raise has no slot at all, and NULL = 30 is unknown, which
+    -- COALESCE, not a bare comparison: a first raise has no checkpoint at all, and NULL = 30 is unknown, which
     -- would skip the upsert below rather than take it.
     v_expired := COALESCE(v_existing = 30 /* CheckpointStatusCode.Expired */, FALSE);
     v_message := CASE
@@ -3370,7 +3370,7 @@ BEGIN
             jd.max_attempts_effective AS max_attempts,
             jd.retention_seconds_effective AS retention_seconds,
             jd.alert_profile_code_effective AS alert_profile_code,
-            /* The job was parked on THIS slot: the suspend copied the slot's due into next_run_at_utc,
+            /* The job was parked on THIS checkpoint: the suspend copied its due into next_run_at_utc,
                so the equality names the wait this attempt woke for, and an unbounded wait (NULL due)
                matches nothing. Expired means the timeout had already resolved durably. */
             EXISTS (
@@ -3829,7 +3829,7 @@ BEGIN
             RETURN;
         END IF;
 
-        -- A concurrent first start inserted the slot first: read it as a replay would, as SQL Server's step lock
+        -- A concurrent first start inserted the step first: read it as a replay would, as SQL Server's step lock
         -- queues this caller behind that insert.
         SELECT
             a.step_status_code,
@@ -3865,7 +3865,7 @@ BEGIN
         RETURN QUERY SELECT 2 /* StartJobStepOutcomeCode.Suspend */::SMALLINT, v_attempt, v_version,
             v_next, 0 /* JobPayloadFormat.None */::SMALLINT, NULL::BYTEA, NULL::SMALLINT, NULL::VARCHAR;
     ELSIF p_at_most_once THEN
-        -- Pending slot re-entered on replay under AtMostOnce: the worker died after start_job_step recorded
+        -- Pending step re-entered on replay under AtMostOnce: the worker died after start_job_step recorded
         -- the pending row but before complete_job_step. Do not re-invoke; terminalize the row Interrupted
         -- (one transition, one version bump) and let the orchestration throw StepInterruptedException.
         UPDATE acta.steps a
@@ -3902,12 +3902,12 @@ BEGIN
 END;
 $$;
 
-/* Slot-locked arbiter for one durable wait: Set wins even past the due, an overdue Pending flips to
+/* Row-locked arbiter for one durable wait: Set wins even past the due, an overdue Pending flips to
    Expired, Expired replays TimedOut forever. */
 /* Arming is one-directional. A NULL due_at_utc is armed when the caller carries a bound (a length, or an instant: a
    group's stored deadline), so code redeployed with a bound can un-strand a wait suspended without one; a stored due
    is never overwritten, never extended, and never cleared by a subsequent unbounded call. */
-/* One resolution block, reached holding the row lock. An absent slot is armed first, because FOR
+/* One resolution block, reached holding the row lock. An absent checkpoint is armed first, because FOR
    UPDATE locks no key that does not exist yet and the arming insert can lose to a concurrent first
    arrival; the loser re-reads the winner's row and resolves against that. */
 CREATE OR REPLACE FUNCTION acta.wait_job_signal(
@@ -3936,7 +3936,7 @@ DECLARE
     v_due TIMESTAMPTZ;
     v_armed INT;
 BEGIN
-    /* A slot this call arms at or past its due is armed Expired, so a child landing after it cannot
+    /* A checkpoint this call arms at or past its due is armed Expired, so a child landing after it cannot
        revive the wait, and the wait times out now. Only an instant can be due already: a length is
        positive, so a wait armed with one suspends once before it can expire. */
     v_arm_state := CASE WHEN v_arm_due <= v_now THEN 30 /* CheckpointStatusCode.Expired */ ELSE 10 /* CheckpointStatusCode.Pending */ END;
@@ -3947,8 +3947,8 @@ BEGIN
     WHERE js.job_id = p_job_id AND js.checkpoint_kind_code = p_checkpoint_kind_code AND js.checkpoint_name = p_checkpoint_name
     FOR UPDATE;
 
-    /* The wait changes the slot only while this attempt holds the job's row, share-locked to commit after a stored
-       slot's row lock and before an absent slot's insert, the order raise_job_signal and a child's landing take them in
+    /* The wait changes the checkpoint only while this attempt holds the job's row, share-locked to commit after a stored
+       checkpoint's row lock and before an absent one's insert, the order raise_job_signal and a child's landing take them in
        (docs/sql-internals.md, "Execution fence"). */
     PERFORM 1
     FROM acta.jobs_state r
@@ -4410,10 +4410,10 @@ JOIN acta.namespaces AS ns ON ns.namespace_id = w.namespace_id;
 
 
 INSERT INTO acta.migrations (name)
-VALUES ('M20261105115841_init')
+VALUES ('M20261105150556_init')
 ON CONFLICT (name) DO NOTHING;
 
--- ===== END M20261105115841_init =====
+-- ===== END M20261105150556_init =====
 
 COMMIT;
 

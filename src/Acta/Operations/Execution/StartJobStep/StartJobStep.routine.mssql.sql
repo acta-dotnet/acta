@@ -27,14 +27,14 @@ BEGIN
         DECLARE @existing_next DATETIME2(3);
 
         -- The step's own lock serializes starts of one step to commit (docs/sql-internals.md,
-        -- "Slot locks"); a range lock on a step not yet stored would hold the gap every running job's next step
+        -- "Step, checkpoint and rate locks"); a range lock on a step not yet stored would hold the gap every running job's next step
         -- falls in.
         DECLARE @step_lock NVARCHAR(255) = CONCAT(N'{{schema}}.step:', @p_job_id, N':', @p_step_name);
         DECLARE @step_lock_result INT;
         -- Positional: resource, mode, owner, timeout (-1 waits like any lock).
         EXEC @step_lock_result = sp_getapplock @step_lock, 'Exclusive', 'Transaction', -1;
         IF @step_lock_result < 0
-            THROW 51205, 'ACTA:SLOT_LOCK:The step lock was not granted (deadlock victim or cancelled).', 1;
+            THROW 51205, 'ACTA:STEP_LOCK:The step lock was not granted (deadlock victim or cancelled).', 1;
 
         -- The step changes only while this attempt holds the job's row, update-locked to commit after the step lock
         -- (docs/sql-internals.md, "Execution fence").
@@ -116,7 +116,7 @@ BEGIN
             END
         ELSE IF @p_at_most_once = 1
             BEGIN
-            -- Pending slot re-entered on replay under AtMostOnce: the worker died after start_job_step recorded
+            -- Pending step re-entered on replay under AtMostOnce: the worker died after start_job_step recorded
             -- the pending row but before complete_job_step. Do not re-invoke; terminalize the row Interrupted
             -- (one transition, one version bump) and let the orchestration throw StepInterruptedException.
                 UPDATE {{schema}}.steps

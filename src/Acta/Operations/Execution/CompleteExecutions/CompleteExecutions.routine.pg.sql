@@ -158,7 +158,7 @@ BEGIN
     END IF;
 
     /* Every completion takes the same steps, each skipped when no row needs it. Locks are then taken lanes first, then
-       awaited signal slots, own jobs_state rows, schedules, parent latches, and parent jobs_state rows, each in key order
+       awaited signal checkpoints, own jobs_state rows, schedules, parent latches, and parent jobs_state rows, each in key order
        (same policy, "Lane lock order"). lane_id and parent_job_id never change. */
     PERFORM 1
     FROM {{schema}}.lanes l
@@ -166,7 +166,7 @@ BEGIN
     ORDER BY l.lane_id
     FOR UPDATE OF l;
 
-    -- The awaited slot is the only place a wait's deadline lives; the lock lets a raise that won the race land the job Ready.
+    -- The awaited checkpoint is the only place a wait's deadline lives; the lock lets a raise that won the race land the job Ready.
     IF cardinality(array_remove(p_wait_signal_names, NULL)) > 0 THEN
         PERFORM 1
         FROM {{schema}}.checkpoints s
@@ -552,7 +552,7 @@ BEGIN
         ORDER BY pr.job_id
         FOR UPDATE OF pr;
 
-        /* No revival: an Expired latch already resolved the parent's wait TimedOut under this same slot lock, so a
+        /* No revival: an Expired latch already resolved the parent's wait TimedOut under this same checkpoint lock, so a
            child landing afterwards writes no latch and releases no parent. The audit event still records that it
            happened. A parent already finished takes nothing. */
         WITH settled AS (

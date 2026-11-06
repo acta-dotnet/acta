@@ -89,7 +89,7 @@ BEGIN
             RETURN;
         END IF;
 
-        -- A concurrent first start inserted the slot first: read it as a replay would, as SQL Server's step lock
+        -- A concurrent first start inserted the step first: read it as a replay would, as SQL Server's step lock
         -- queues this caller behind that insert.
         SELECT
             a.step_status_code,
@@ -125,7 +125,7 @@ BEGIN
         RETURN QUERY SELECT 2 /* StartJobStepOutcomeCode.Suspend */::SMALLINT, v_attempt, v_version,
             v_next, 0 /* JobPayloadFormat.None */::SMALLINT, NULL::BYTEA, NULL::SMALLINT, NULL::VARCHAR;
     ELSIF p_at_most_once THEN
-        -- Pending slot re-entered on replay under AtMostOnce: the worker died after start_job_step recorded
+        -- Pending step re-entered on replay under AtMostOnce: the worker died after start_job_step recorded
         -- the pending row but before complete_job_step. Do not re-invoke; terminalize the row Interrupted
         -- (one transition, one version bump) and let the orchestration throw StepInterruptedException.
         UPDATE {{schema}}.steps a

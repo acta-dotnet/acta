@@ -7,7 +7,7 @@ inside a transaction the session owns.
 This is the execution policy referenced by [the architecture decisions](./architecture-decisions.md). The server providers
 each install fourteen routines: enqueue, claim, complete (one batch call for every completion shape), the step
 writes, checkpoints, leases, meters, job signals and sleep timers, recovery, and retention. Every other
-operation, registration, alerts, locks and slots, the outbox inbox, and control verbs included, is embedded SQL
+operation, registration, alerts, locks and lock slots, the outbox inbox, and control verbs included, is embedded SQL
 on every provider.
 `SqlCommandCatalogTests` pins the routine list; moving an operation across that line is a decision,
 because an installed routine is a compatibility obligation and every edit to one is a migration.
@@ -131,20 +131,20 @@ the first; a row still skipped is renewed on the next beat, well inside the leas
 skipping, so the routine never waits on a `jobs_state` row while it holds a `locks` row. The answer also carries the namespace's
 newest `definitions.modified_at_utc`, on which the worker re-reads its policy.
 
-Statements that lock both `checkpoints` and `jobs_state` take the checkpoint slot first. `raise_job_signal` does,
-and `complete_executions` takes the slots its rows await before their `jobs_state` rows; a child that
+Statements that lock both `checkpoints` and `jobs_state` take the checkpoint first. `raise_job_signal` does,
+and `complete_executions` takes the checkpoints its rows await before their `jobs_state` rows; a child that
 lands then takes its parent's latch before the parent's `jobs_state` row, both after its own. A batch
 holding a parent and one of its grandchildren can therefore deadlock with a batch landing the child
 between them; the victim's write repeats. `ResetJobState` takes the `jobs_state` row and then deletes the
 job's checkpoints, and `PurgeJob` deletes them before the job row; both run on a
-job no worker is advancing on another slot at that moment. `arm_or_consume_job_sleep_timer` is the other
+job no worker is advancing on another checkpoint at that moment. `arm_or_consume_job_sleep_timer` is the other
 exception, taking the
-`jobs_state` row as a job-level mutex before reading its slot, so a timer arming concurrently with a
+`jobs_state` row as a job-level mutex before reading its timer, so a timer arming concurrently with a
 signal raise on the same job acquires the two in opposite orders. No deadlock graph has ever shown
-that pair, and it is not reachable while both hold row locks on different slots, so the mutex stays
+that pair, and it is not reachable while both hold row locks on different checkpoints, so the mutex stays
 until a run demonstrates otherwise; removing it would drop the serialization that two different timer
 names on one job rely on. A handler's own writes lock the job's row in the orders "Execution fence" gives, which keep
-to these on every slot another writer touches.
+to these on every checkpoint another writer touches.
 
 ### Foreign keys in set-based writes
 
@@ -276,21 +276,21 @@ routines. A permanent slot has no key, so `RegisterSchedules` takes none.
 - `sp_getapplock` reports a deadlock by return code rather than error 1205, so each of them raises
   51205 on any refusal, and the dialect retries it as it retries 1205.
 
-### Slot locks
+### Step, checkpoint and rate locks
 
 A job's steps and checkpoints are the same case on SQL Server: running jobs are the newest, so each
 job's first step or checkpoint falls in the last gap of `pk_steps` or `pk_checkpoints`, and a
 probe under `HOLDLOCK` made every executor's write wait for every other's. Each statement that may
-insert one takes `sp_getapplock`, exclusive and owned by the transaction, on the slot's own name and then
+insert one takes `sp_getapplock`, exclusive and owned by the transaction, on the row's own name and then
 reads it under `UPDLOCK`; a refusal raises 51205:
 
 - `start_job_step` locks `<schema>.step:<job id>:<name>`.
 - `access_job_checkpoint` (Set and GetOrSet), `wait_job_signal`, `raise_job_signal`, and `ParkOutboxSignal` lock
-  `<schema>.slot:<job id>:<kind>:<name>`.
-- `complete_executions` locks the same name for each awaited slot, under both wait kinds, and for each parent latch a child in the batch may raise. It takes them all in one name-ordered pass, after the lanes and before any slot or `jobs_state` row, so no path holds a slot row while it waits for a slot lock.
+  `<schema>.checkpoint:<job id>:<kind>:<name>`.
+- `complete_executions` locks the same name for each awaited checkpoint, under both wait kinds, and for each parent latch a child in the batch may raise. It takes them all in one name-ordered pass, after the lanes and before any checkpoint or `jobs_state` row, so no path holds a checkpoint row while it waits for a checkpoint lock.
 - `reserve_rate` locks `<schema>.rate:<bucket key>`, so the calls on one meter serialize without a range lock on a bucket not yet stored, whose gap holds the meter's reservations and the next meters.
 
-The sleep timer's slot needs none: `arm_or_consume_job_sleep_timer` locks the job's `jobs_state` row first.
+The sleep timer needs none: `arm_or_consume_job_sleep_timer` locks the job's `jobs_state` row first.
 
 ### Outbox lock
 
@@ -328,8 +328,8 @@ out its last one as any other worker's would.
 - PostgreSQL locks the row `FOR SHARE`, and `FOR UPDATE` in `arm_or_consume_job_sleep_timer`, whose job-level mutex it
   already was. SQL Server locks it `UPDLOCK, ROWLOCK` by primary key, a lock on the existing key and never a range.
   SQLite checks it in the first statement of its one writer transaction.
-- On SQL Server the lock comes after the slot or step lock above and before the slot or step row. On PostgreSQL
-  `wait_job_signal` locks a stored slot row and then the job row, and the job row before it inserts an absent slot: the
+- On SQL Server the lock comes after the checkpoint or step lock above and before the checkpoint or step row. On PostgreSQL
+  `wait_job_signal` locks a stored checkpoint row and then the job row, and the job row before it inserts an absent checkpoint: the
   orders `raise_job_signal` and a child's landing take. The variable, progress, and step writes lock the job row first, as
   `ResetJobState`, `PurgeJob`, `RestartJob`, and retention's job sweep do before they delete such rows, and no other
   path writes them. A child's enqueue locks its parent's row after the lanes and the parent's `jobs` row.

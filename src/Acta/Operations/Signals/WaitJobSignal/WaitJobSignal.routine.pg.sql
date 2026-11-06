@@ -1,9 +1,9 @@
-/* Slot-locked arbiter for one durable wait: Set wins even past the due, an overdue Pending flips to
+/* Row-locked arbiter for one durable wait: Set wins even past the due, an overdue Pending flips to
    Expired, Expired replays TimedOut forever. */
 /* Arming is one-directional. A NULL due_at_utc is armed when the caller carries a bound (a length, or an instant: a
    group's stored deadline), so code redeployed with a bound can un-strand a wait suspended without one; a stored due
    is never overwritten, never extended, and never cleared by a subsequent unbounded call. */
-/* One resolution block, reached holding the row lock. An absent slot is armed first, because FOR
+/* One resolution block, reached holding the row lock. An absent checkpoint is armed first, because FOR
    UPDATE locks no key that does not exist yet and the arming insert can lose to a concurrent first
    arrival; the loser re-reads the winner's row and resolves against that. */
 CREATE OR REPLACE FUNCTION {{schema}}.wait_job_signal(
@@ -32,7 +32,7 @@ DECLARE
     v_due TIMESTAMPTZ;
     v_armed INT;
 BEGIN
-    /* A slot this call arms at or past its due is armed Expired, so a child landing after it cannot
+    /* A checkpoint this call arms at or past its due is armed Expired, so a child landing after it cannot
        revive the wait, and the wait times out now. Only an instant can be due already: a length is
        positive, so a wait armed with one suspends once before it can expire. */
     v_arm_state := CASE WHEN v_arm_due <= v_now THEN 30 /* CheckpointStatusCode.Expired */ ELSE 10 /* CheckpointStatusCode.Pending */ END;
@@ -43,8 +43,8 @@ BEGIN
     WHERE js.job_id = p_job_id AND js.checkpoint_kind_code = p_checkpoint_kind_code AND js.checkpoint_name = p_checkpoint_name
     FOR UPDATE;
 
-    /* The wait changes the slot only while this attempt holds the job's row, share-locked to commit after a stored
-       slot's row lock and before an absent slot's insert, the order raise_job_signal and a child's landing take them in
+    /* The wait changes the checkpoint only while this attempt holds the job's row, share-locked to commit after a stored
+       checkpoint's row lock and before an absent one's insert, the order raise_job_signal and a child's landing take them in
        (docs/sql-internals.md, "Execution fence"). */
     PERFORM 1
     FROM {{schema}}.jobs_state r
