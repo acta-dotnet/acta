@@ -6,9 +6,9 @@ namespace Acta;
 /// Plain-English explanation of a Job's current durable state: where the work is, why it moved there, and what an
 /// operator can do next, assembled from the same <c>jobs_state</c>, <c>workers</c>, <c>steps</c>, <c>checkpoints</c>, and
 /// <c>events</c> rows a <c>SELECT</c> would read. Returned by <see cref="IJobs.ExplainAsync"/>; the CLI renders it as
-/// prose, the dashboard as a panel. <c>Headline</c> is a one-sentence summary and <c>StatusMeaning</c> the
-/// <c>[Code]</c> description of <c>Status</c>; <c>ActiveWait</c> and <c>Lease</c> are set only in the relevant states,
-/// <c>LastExecutedBy</c> names the last worker when no lease is live, and <c>NextActions</c> are the operator's moves.
+/// prose, the dashboard as a panel. <c>StatusMeaning</c> is the <c>[Code]</c> description of <c>Status</c>; <c>ActiveWait</c>
+/// and <c>Lease</c> are set only in their states, <c>LastExecutedBy</c> names the last worker when no lease is live, and
+/// <c>Steps</c> are the newest <see cref="ExplainJobHandler.StepLimit"/>, <c>StepsHasMore</c> saying older ones exist.
 /// </summary>
 public sealed record ExplainJobResponse(
     [property: JsonIgnore] long JobId,
@@ -22,6 +22,7 @@ public sealed record ExplainJobResponse(
     ExplainJobLease? Lease,
     string? LastExecutedBy,
     IReadOnlyList<ExplainJobStep> Steps,
+    bool StepsHasMore,
     string? Reason,
     IReadOnlyList<ExplainJobAction> NextActions
 );

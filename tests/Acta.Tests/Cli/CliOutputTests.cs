@@ -302,6 +302,7 @@ public class CliOutputTests
             Lease: null,
             LastExecutedBy: "payments-v42",
             Steps: [new ExplainJobStep("reserve-stock", StepStatusCode.Succeeded, "succeeded and will not rerun")],
+            StepsHasMore: true,
             Reason: null,
             NextActions:
             [
@@ -323,6 +324,7 @@ public class CliOutputTests
         Assert.Contains("- Last executed on worker payments-v42.", text);
         Assert.Contains("Durable work:", text);
         Assert.Contains("- Step \"reserve-stock\" succeeded and will not rerun.", text);
+        Assert.Contains("- Older steps are not shown.", text);
         Assert.Contains("Next actions:", text);
         Assert.Contains("- Raise signal \"fraud-review\".", text);
         Assert.Contains("- Cancel the job.", text);
@@ -353,6 +355,7 @@ public class CliOutputTests
             ),
             LastExecutedBy: null,
             Steps: [],
+            StepsHasMore: false,
             Reason: "worker shutdown",
             NextActions:
             [
@@ -391,6 +394,7 @@ public class CliOutputTests
             Lease: null,
             LastExecutedBy: null,
             Steps: [],
+            StepsHasMore: false,
             Reason: null,
             NextActions: [new ExplainJobAction("none", "no action needed - it resumes when the timer is due")]
         );
@@ -421,6 +425,7 @@ public class CliOutputTests
         Assert.Contains("\"headline\":", text);
         Assert.Contains("\"activeWait\":", text);
         Assert.Contains("\"kind\":\"signal\"", text);
+        Assert.Contains("\"stepsHasMore\":true", text);
         Assert.Contains("\"nextActions\":", text);
         Assert.Contains("\"kind\":\"raise-signal\"", text);
     }
@@ -717,6 +722,7 @@ public class CliOutputTests
             ),
             LastExecutedBy: null,
             Steps: [new ExplainJobStep("reserve-stock", StepStatusCode.Succeeded, "succeeded and will not rerun")],
+            StepsHasMore: false,
             Reason: "worker shutdown",
             NextActions: [new ExplainJobAction("cancel", "cancel the job")]
         );

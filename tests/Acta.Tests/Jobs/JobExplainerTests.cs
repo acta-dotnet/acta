@@ -68,6 +68,25 @@ public class JobExplainerTests
     ) => new(kind, name, state, dueAtUtc);
 
     [Fact]
+    public void An_explanation_keeps_the_newest_steps_and_flags_the_rest()
+    {
+        // As the read hands them over: the newest StepLimit + 1, in creation order.
+        var steps = Enumerable
+            .Range(0, ExplainJobHandler.StepLimit + 1)
+            .Select(i => new ExplainJobStepRow($"step-{i:D3}", StepStatusCode.Succeeded, 1, null, null))
+            .ToList();
+
+        var cut = ExplainJobHandler.Explain(Data(Header(JobStatusCode.Executing), steps), Now);
+        var whole = ExplainJobHandler.Explain(Data(Header(JobStatusCode.Executing), steps[1..]), Now);
+
+        Assert.True(cut.StepsHasMore);
+        Assert.Equal(ExplainJobHandler.StepLimit, cut.Steps.Count);
+        Assert.Equal("step-001", cut.Steps[0].Name);
+        Assert.False(whole.StepsHasMore);
+        Assert.Equal(ExplainJobHandler.StepLimit, whole.Steps.Count);
+    }
+
+    [Fact]
     public void Suspended_on_signal_names_the_signal_and_offers_raise_or_cancel()
     {
         var data = Data(

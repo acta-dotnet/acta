@@ -209,6 +209,7 @@ async function mockDashboard(
           lease: null,
           lastExecutedBy: 'worker-42',
           steps: [],
+          stepsHasMore: false,
           reason: 'Invoice provider timed out.',
           nextActions: [{ kind: 'restart', description: 'Run the job again after checking the provider.' }]
         },

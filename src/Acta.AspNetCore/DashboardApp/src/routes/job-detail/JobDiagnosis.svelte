@@ -32,7 +32,7 @@
       {/if}
       {#if explanation.steps.length > 0}
         <dt>Steps</dt>
-        <dd id="job-step-evidence">{#each explanation.steps as step}<div><span class="mono">{step.name}</span>: {step.explanation}</div>{/each}</dd>
+        <dd id="job-step-evidence">{#each explanation.steps as step}<div><span class="mono">{step.name}</span>: {step.explanation}</div>{/each}{#if explanation.stepsHasMore}<div class="dim">Older steps not shown.</div>{/if}</dd>
       {/if}
       {#if explanation.reason}
         <dt>Reason</dt><dd id="job-reason-evidence" class="dim">{explanation.reason}</dd>

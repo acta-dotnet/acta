@@ -467,6 +467,7 @@ internal sealed class FakeJobs : IJobs
             Lease: null,
             LastExecutedBy: null,
             Steps: [],
+            StepsHasMore: false,
             Reason: null,
             NextActions: [new ExplainJobAction("none", "no action needed - a worker will claim it")]
         );

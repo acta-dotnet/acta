@@ -330,7 +330,7 @@ Every Acta host doubles as a control CLI: `<app> jobs <verb>` runs the verb agai
 
 A `job_...` target is a job ref, another non-numeric one a deduplication key, and an integer the internal id; an omitted target is read from the clipboard. Add `--ns <ns>` to pick the namespace for a deduplication-key lookup and `--json` for JSON output.
 
-`explain` is where to start for any stuck, waiting, or failed job: it reads the job's status, lease, worker, steps and checkpoints, and latest reason in one statement and says what happened and what to do next. It cannot know what your code or an external system did.
+`explain` is where to start for any stuck, waiting, or failed job: it reads the job's status, lease, worker, newest 50 steps, checkpoints, and latest reason in one statement and says what happened and what to do next. It cannot know what your code or an external system did.
 
 `debug` resets the job to Ready with restart semantics, claims exactly it, and runs the handler in this process, so a breakpoint in the handler stops it; leases keep renewing while it is stopped. A live worker can take the job first, and an Executing job is refused. `--break` raises the debugger at the handler.
 

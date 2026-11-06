@@ -1,4 +1,4 @@
--- Explain read: the header, every step, and every checkpoint of one Job in one statement, so the diagnostic reads one
+-- Explain read: the header, the newest steps, and every checkpoint of one Job in one statement, so the diagnostic reads one
 -- snapshot. row_kind tells them apart (1 the header, 2 a step, 3 a checkpoint); the columns of the other kinds are
 -- null, typed in the header branch. No now(); the caller supplies the DB clock.
 SELECT
@@ -72,7 +72,7 @@ FROM (
 
     UNION ALL
 
-    -- Every step of the Job, in creation order.
+    -- The Job's newest steps, at most the fetch limit (StepLimit + 1), in creation order.
     SELECT
         2, s.created_at_utc, NULL, s.step_name,
         NULL, NULL, NULL, NULL, NULL, NULL, NULL,
@@ -80,8 +80,12 @@ FROM (
         NULL, NULL, NULL, NULL, NULL, NULL, NULL,
         s.step_name, s.step_status_code, s.attempt_number, s.next_retry_at_utc, s.failure_message,
         NULL, NULL, NULL, NULL
-    FROM {{schema}}.steps s
-    WHERE s.job_id = @p_job_id
+    FROM (
+        SELECT TOP (@p_step_limit) step_name, step_status_code, attempt_number, next_retry_at_utc, failure_message, created_at_utc
+        FROM {{schema}}.steps
+        WHERE job_id = @p_job_id
+        ORDER BY created_at_utc DESC, step_name DESC
+    ) s
 
     UNION ALL
 

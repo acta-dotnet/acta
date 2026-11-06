@@ -1498,9 +1498,10 @@
 ## Reads
 
 ### ExplainJob returns explain sets for a known id and null otherwise
-- **Contract:** ExplainJob returns the header, steps, and checkpoints of a matching job id from one snapshot, and null when no row matches.
+- **Contract:** ExplainJob returns the header, the newest steps up to its fetch limit, and the checkpoints of a matching job id from one snapshot, or null when none matches.
 - **Guarantees:**
   - A known job id returns a populated header (Ready) with no steps or checkpoints
+  - Past the step limit the read keeps the newest steps and the explanation says older ones exist
   - A step and a checkpoint changed in one transaction are never read half-changed
   - An unknown job id returns null
 

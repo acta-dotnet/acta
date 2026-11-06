@@ -9,6 +9,9 @@ namespace Acta;
 /// </summary>
 internal sealed class ExplainJobHandler(GetJobIdHandler getJobId, IDbSession session, ISqlDialect dialect, IActaClock clock)
 {
+    /// <summary>The newest steps an explanation narrates; <see cref="IJobs.ListStepsAsync"/> pages every step.</summary>
+    internal const int StepLimit = 50;
+
     public async ValueTask<ExplainJobResponse?> HandleAsync(ExplainJobQuery query, CancellationToken ct)
     {
         if (
@@ -26,7 +29,11 @@ internal sealed class ExplainJobHandler(GetJobIdHandler getJobId, IDbSession ses
     internal async ValueTask<ExplainJobRows?> ReadAsync(long jobId, CancellationToken ct) =>
         await session.QueryAsync<ExplainJobRows?>(
             "ExplainJob",
-            cmd => cmd.Parameters.Add(dialect.CreateParameter(ActaSchema.Job.JobId, jobId)),
+            cmd =>
+            {
+                cmd.Parameters.Add(dialect.CreateParameter(ActaSchema.Job.JobId, jobId));
+                cmd.Parameters.Add(dialect.CreateParameter(ActaSchema.Sql.StepFetchLimit, StepLimit + 1));
+            },
             static async (reader, token) =>
             {
                 var readHeader = DbProjectionResolver.Resolve<ExplainJobHeaderRow>();
@@ -68,7 +75,9 @@ internal sealed class ExplainJobHandler(GetJobIdHandler getJobId, IDbSession ses
     {
         var h = data.Header;
         var status = h.Status;
-        var steps = BuildSteps(data.Steps);
+        // Steps arrive in creation order, the newest StepLimit + 1 of them; the oldest drops when there is one too many.
+        var stepsHasMore = data.Steps.Count > StepLimit;
+        var steps = BuildSteps(stepsHasMore ? [.. data.Steps.Skip(data.Steps.Count - StepLimit)] : data.Steps);
         var reason = h.LatestFailureMessage ?? EventDetails.Read(h.LatestFailureDetailsFormatId ?? 0, h.LatestFailureDetails, "reason");
 
         ExplainJobWait? wait = null;
@@ -212,6 +221,7 @@ internal sealed class ExplainJobHandler(GetJobIdHandler getJobId, IDbSession ses
             lease,
             LastExecutedByLabel(h),
             steps,
+            stepsHasMore,
             reason,
             actions
         );

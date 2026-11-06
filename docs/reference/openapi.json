@@ -9464,6 +9464,7 @@
           "lease",
           "lastExecutedBy",
           "steps",
+          "stepsHasMore",
           "reason",
           "nextActions"
         ],
@@ -9519,6 +9520,9 @@
               "$ref": "#/components/schemas/ExplainJobStep"
             }
           },
+          "stepsHasMore": {
+            "type": "boolean"
+          },
           "reason": {
             "type": [
               "null",
@@ -9532,7 +9536,7 @@
             }
           }
         },
-        "description": "Plain-English explanation of a Job's current durable state: where the work is, why it moved there, and what an\noperator can do next, assembled from the same `jobs_state`, `workers`, `steps`, `checkpoints`, and\n`events` rows a `SELECT` would read. Returned by ValueTask&lt;ExplainJobResponse?&gt; IJobs.ExplainAsync(JobLookup job, CancellationToken ct = default(CancellationToken)); the CLI renders it as\nprose, the dashboard as a panel. `Headline` is a one-sentence summary and `StatusMeaning` the\n`[Code]` description of `Status`; `ActiveWait` and `Lease` are set only in the relevant states,\n`LastExecutedBy` names the last worker when no lease is live, and `NextActions` are the operator's moves."
+        "description": "Plain-English explanation of a Job's current durable state: where the work is, why it moved there, and what an\noperator can do next, assembled from the same `jobs_state`, `workers`, `steps`, `checkpoints`, and\n`events` rows a `SELECT` would read. Returned by ValueTask&lt;ExplainJobResponse?&gt; IJobs.ExplainAsync(JobLookup job, CancellationToken ct = default(CancellationToken)); the CLI renders it as\nprose, the dashboard as a panel. `StatusMeaning` is the `[Code]` description of `Status`; `ActiveWait`\nand `Lease` are set only in their states, `LastExecutedBy` names the last worker when no lease is live, and\n`Steps` are the newest int ExplainJobHandler.StepLimit, `StepsHasMore` saying older ones exist."
       },
       "ExplainJobStep": {
         "required": [

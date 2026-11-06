@@ -145,6 +145,7 @@ internal static class CliOutput
                         w.WriteEndObject();
                     }
                     w.WriteEndArray();
+                    w.WriteBoolean("stepsHasMore", x.StepsHasMore);
 
                     WriteJsonStringOrNull(w, "lastExecutedBy", x.LastExecutedBy);
                     WriteJsonStringOrNull(w, "reason", x.Reason);
@@ -203,6 +204,10 @@ internal static class CliOutput
             foreach (var s in x.Steps)
             {
                 writer.WriteLine($"- Step \"{s.Name}\" {s.Explanation}.");
+            }
+            if (x.StepsHasMore)
+            {
+                writer.WriteLine("- Older steps are not shown.");
             }
             if (x.ActiveWait?.Kind == CheckpointKindCode.Timer && x.Lease is null)
             {

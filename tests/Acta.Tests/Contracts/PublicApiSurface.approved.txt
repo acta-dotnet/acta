@@ -812,11 +812,12 @@ sealed record Acta.ExplainJobLease
     System.String RecoveryExpectation { get;init; }
     System.String WorkerName { get;init; }
 sealed record Acta.ExplainJobResponse
-    .ctor(System.Int64 JobId, Acta.JobRef JobRef, System.String JobNamespace, System.String JobName, Acta.JobStatusCode Status, System.String StatusMeaning, System.String Headline, Acta.ExplainJobWait ActiveWait, Acta.ExplainJobLease Lease, System.String LastExecutedBy, System.Collections.Generic.IReadOnlyList<Acta.ExplainJobStep> Steps, System.String Reason, System.Collections.Generic.IReadOnlyList<Acta.ExplainJobAction> NextActions)
+    .ctor(System.Int64 JobId, Acta.JobRef JobRef, System.String JobNamespace, System.String JobName, Acta.JobStatusCode Status, System.String StatusMeaning, System.String Headline, Acta.ExplainJobWait ActiveWait, Acta.ExplainJobLease Lease, System.String LastExecutedBy, System.Collections.Generic.IReadOnlyList<Acta.ExplainJobStep> Steps, System.Boolean StepsHasMore, System.String Reason, System.Collections.Generic.IReadOnlyList<Acta.ExplainJobAction> NextActions)
     Acta.ExplainJobLease Lease { get;init; }
     Acta.ExplainJobWait ActiveWait { get;init; }
     Acta.JobRef JobRef { get;init; }
     Acta.JobStatusCode Status { get;init; }
+    System.Boolean StepsHasMore { get;init; }
     System.Collections.Generic.IReadOnlyList<Acta.ExplainJobAction> NextActions { get;init; }
     System.Collections.Generic.IReadOnlyList<Acta.ExplainJobStep> Steps { get;init; }
     System.Int64 JobId { get;init; }

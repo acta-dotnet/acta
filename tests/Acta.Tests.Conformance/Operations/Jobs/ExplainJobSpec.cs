@@ -8,14 +8,14 @@ namespace Acta.Tests.Conformance.Operations.Jobs;
 
 /// <summary>
 /// Conformance for <c>ExplainJob</c>: the composite explain read of a job's header (snapshot, leasing worker,
-/// latest reason), steps, and checkpoints in one statement, so from one snapshot, for a known job id, and <c>null</c>
-/// for an unknown id.
+/// latest reason), newest steps, and checkpoints in one statement, so from one snapshot, for a known job id, and
+/// <c>null</c> for an unknown id.
 /// </summary>
 [ConformanceSpec(
     "explain-job.point-read",
     "ExplainJob returns explain sets for a known id and null otherwise",
     Area = "Reads",
-    Contract = "ExplainJob returns the header, steps, and checkpoints of a matching job id from one snapshot, and null when no row matches."
+    Contract = "ExplainJob returns the header, the newest steps up to its fetch limit, and the checkpoints of a matching job id from one snapshot, or null when none matches."
 )]
 public sealed class ExplainJobSpec : ActaRuntimeTestBase<ConformanceFixture, TestJobs.TestJobsManifest>
 {
@@ -48,6 +48,31 @@ public sealed class ExplainJobSpec : ActaRuntimeTestBase<ConformanceFixture, Tes
         Assert.Null(data.Header.LatestFailureDetails);
         Assert.Empty(data.Steps);
         Assert.Empty(data.Checkpoints);
+    }
+
+    [Fact(DisplayName = "Past the step limit the read keeps the newest steps and the explanation says older ones exist")]
+    public async Task Steps_past_the_limit_keep_the_newest()
+    {
+        var ct = TestContext.Current.CancellationToken;
+        var job = await Jobs.EnqueueAsync(new EnqueueJobRequest(TestNamespace, "add-numbers", JobPayload.Json(new AddNumbers(1, 2))), ct);
+        // One statement stamps every row with the same created_at_utc, so the name orders them, the highest the newest.
+        var rows = Enumerable.Range(0, ExplainJobHandler.StepLimit + 2).Select(i => $"({job.JobId}, 's{i:D3}', 10, 1, 0)");
+        await WriteAsync(
+            [
+                $"INSERT INTO {Db.Schema}.steps (job_id, step_name, step_status_code, attempt_number, result_format_id) VALUES {string.Join(", ", rows)}",
+            ],
+            ct
+        );
+
+        var data = Assert.IsType<ExplainJobRows>(await Services.GetRequiredService<ExplainJobHandler>().ReadAsync(job.JobId, ct));
+        var explanation = Assert.IsType<ExplainJobResponse>(await Jobs.ExplainAsync(JobLookup.ById(job.JobId), ct));
+
+        Assert.Equal(ExplainJobHandler.StepLimit + 1, data.Steps.Count);
+        Assert.Equal("s001", data.Steps[0].StepName);
+        Assert.Equal($"s{ExplainJobHandler.StepLimit + 1:D3}", data.Steps[^1].StepName);
+        Assert.True(explanation.StepsHasMore);
+        Assert.Equal(ExplainJobHandler.StepLimit, explanation.Steps.Count);
+        Assert.Equal("s002", explanation.Steps[0].Name);
     }
 
     [Fact(DisplayName = "A step and a checkpoint changed in one transaction are never read half-changed")]

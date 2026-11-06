@@ -55,7 +55,9 @@ export interface JobExplanation {
     recoveryExpectation: string;
   } | null;
   lastExecutedBy: string | null;
+  // The newest steps; stepsHasMore says older ones exist.
   steps: JobStep[];
+  stepsHasMore: boolean;
   reason: string | null;
   nextActions: { kind: string; description: string }[];
 }
