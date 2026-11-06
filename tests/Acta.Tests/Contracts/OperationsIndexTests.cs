@@ -10,9 +10,10 @@ using Xunit;
 namespace Acta.Tests.Contracts;
 
 /// <summary>
-/// Generates and verifies <c>docs/reference/operations.md</c>: one row per operation folder with its facade method, its
-/// HTTP routes, its CLI verb, the SQL kind per dialect, the tables its SQL writes, and its specs, plus one row per
-/// HTTP-only operation. Everything is read from source, so the index moves with the code and needs no hand upkeep.
+/// Generates and verifies <c>docs/reference/operations.md</c>: one table per group, one row per operation folder with the
+/// facade method named for it, its HTTP routes, its CLI verb, its SQL kind, the tables its SQL writes, and its specs, plus
+/// one row per HTTP-only operation, and a line under the group for each facade method that composes several operations.
+/// Everything is read from source, so the index moves with the code and needs no hand upkeep.
 /// </summary>
 public sealed partial class OperationsIndexTests
 {
@@ -72,7 +73,7 @@ public sealed partial class OperationsIndexTests
         sb.AppendLine("> `ACTA_EMIT_DOCS=1 dotnet test tests/Acta.Tests --filter OperationsIndexTests`.");
         sb.AppendLine();
         sb.AppendLine(
-            "One row per operation folder, `src/Acta/Operations/<Group>/<Operation>/`, and one per HTTP-only operation, `src/Acta.AspNetCore/Operations/<Group>/<Operation>/`, a route that composes what the facades answer. **Facade** is the public method that runs it; an operation with none is engine-only or HTTP-only. **HTTP** routes sit under `{mount}/v1`. The dialect columns say whether the SQL is a routine or inline. **Writes** lists the tables its SQL inserts into, updates, or deletes from. **Specs** are in `tests/Acta.Tests.Conformance/Operations/<Group>/`."
+            "One row per operation folder, `src/Acta/Operations/<Group>/<Operation>/`, and one per HTTP-only operation, `src/Acta.AspNetCore/Operations/<Group>/<Operation>/`, a route that composes what the facades answer. **Facade** is the public method named for it; an operation with none is engine-only or HTTP-only, and a method that runs several operations is listed under its group. **HTTP** routes sit under `{mount}/v1`. **SQL** is `inline` when every dialect runs a statement, `routine` when PostgreSQL and SQL Server call an installed routine and SQLite runs the statement inline, and spelled per dialect otherwise. **Writes** lists the tables its SQL inserts into, updates, or deletes from. **Specs** are in `tests/Acta.Tests.Conformance/Operations/<Group>/`."
         );
         sb.AppendLine();
 
@@ -88,8 +89,8 @@ public sealed partial class OperationsIndexTests
         {
             sb.AppendLine(CultureInfo.InvariantCulture, $"## {group}");
             sb.AppendLine();
-            sb.AppendLine("| Operation | Facade | HTTP | CLI | pg | mssql | sqlite | Writes | Specs |");
-            sb.AppendLine("| --- | --- | --- | --- | --- | --- | --- | --- | --- |");
+            sb.AppendLine("| Operation | Facade | HTTP | CLI | SQL | Writes | Specs |");
+            sb.AppendLine("| --- | --- | --- | --- | --- | --- | --- |");
             var folders = Directory.Exists(Path.Combine(operations, group))
                 ? Directory.EnumerateDirectories(Path.Combine(operations, group)).Where(IsOperation).ToList()
                 : [];
@@ -104,10 +105,14 @@ public sealed partial class OperationsIndexTests
                 string[] cells =
                 [
                     $"`{operation}`",
-                    Cell(facadeMethods.Where(m => m.Operation == operation).Select(m => $"`I{m.Facade}.{m.Method}`")),
+                    Cell(
+                        facadeMethods
+                            .Where(m => m.Operation == operation && OperationNames.IsNamedFor(m.Facade, m.Method, m.Operation))
+                            .Select(m => $"`I{m.Facade}.{m.Method}`")
+                    ),
                     Cell(routes.Where(r => r.Operation == operation).Select(r => $"`{r.Verb} {r.Pattern}`")),
                     Cell(verbs.Where(v => v.Operation == operation).Select(v => $"`{v.Verb}`")),
-                    .. Dialects.Select(d => sql[d].Kind),
+                    SqlKind(sql),
                     Cell(
                         Dialects
                             .SelectMany(d => Written(sql[d].Path))
@@ -122,10 +127,36 @@ public sealed partial class OperationsIndexTests
             }
 
             sb.AppendLine();
+            foreach (var composite in Composites(facadeMethods, group))
+            {
+                sb.AppendLine(composite);
+                sb.AppendLine();
+            }
         }
 
         return sb.ToString().ReplaceLineEndings("\n");
     }
+
+    // A facade method named for none of the operations it runs composes them; one line per method, under its facade's group.
+    private static IEnumerable<string> Composites(List<(string Facade, string Method, string Operation)> facadeMethods, string group) =>
+        facadeMethods
+            .Where(m => m.Facade == group)
+            .GroupBy(m => m.Method)
+            .Where(method => !method.Any(m => OperationNames.IsNamedFor(m.Facade, m.Method, m.Operation)))
+            .OrderBy(method => method.Key, StringComparer.Ordinal)
+            .Select(method =>
+                $"`I{group}.{method.Key}` runs {string.Join(", ", method.Select(m => m.Operation).Distinct(StringComparer.Ordinal).Order(StringComparer.Ordinal).Select(op => $"`{op}`"))}."
+            );
+
+    // One word when the dialects agree on the usual split; spelled out per dialect otherwise.
+    private static string SqlKind(Dictionary<string, (string Kind, string? Path)> sql) =>
+        (sql["pg"].Kind, sql["mssql"].Kind, sql["sqlite"].Kind) switch
+        {
+            ("inline", "inline", "inline") => "inline",
+            ("routine", "routine", "inline") => "routine",
+            ("·", "·", "·") => "·",
+            var (pg, mssql, sqlite) => $"pg {pg}, mssql {mssql}, sqlite {sqlite}",
+        };
 
     private static string Cell(IEnumerable<string> values, string separator = "<br>") =>
         string.Join(separator, values.Distinct(StringComparer.Ordinal)) is { Length: > 0 } joined ? joined : "·";
