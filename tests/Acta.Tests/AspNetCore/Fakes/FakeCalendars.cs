@@ -41,7 +41,18 @@ internal sealed class FakeCalendars : ICalendars
             Previews.Add((calendar, version, fromUtc, count, timeZoneId));
             return ValueTask.FromResult(
                 Known(calendar, version)
-                    ? new PreviewCalendarResponse(CalendarRoleCode.Availability, version, 1, [], [], [new(At, At.AddHours(3))], [], [])
+                    ? new PreviewCalendarResponse(
+                        CalendarRoleCode.Availability,
+                        version,
+                        1,
+                        [],
+                        [],
+                        [new(At, At.AddHours(3))],
+                        [],
+                        [],
+                        0,
+                        0
+                    )
                     : null
             );
         };

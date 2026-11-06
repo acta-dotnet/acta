@@ -33,14 +33,14 @@ export function familyState(family: FamilyLike, controls: boolean): FamilyState 
   };
 }
 
-export interface PreviewScheduleLike {
-  overdue: boolean;
+export interface PreviewTotalsLike {
+  schedulesTotal: number;
+  overdueTotal: number;
 }
 
-/** What publishing would meet: the schedules it retimes and the ones holding an overdue occurrence. */
-export function publishImpact(schedules: readonly PreviewScheduleLike[] | null | undefined): { retimed: number; overdue: number } {
-  const list = schedules ?? [];
-  return { retimed: list.length, overdue: list.filter((schedule) => schedule.overdue).length };
+/** What publishing would meet, from the preview's totals since its list is capped: the schedules it retimes and the ones holding an overdue occurrence. */
+export function publishImpact(preview: PreviewTotalsLike | null | undefined): { retimed: number; overdue: number } {
+  return { retimed: preview?.schedulesTotal ?? 0, overdue: preview?.overdueTotal ?? 0 };
 }
 
 export type CalendarVerb = 'draft' | 'publish' | 'archive';

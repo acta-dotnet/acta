@@ -87,7 +87,7 @@
     refetchOnReconnect: false,
     refetchInterval: false
   }));
-  let impact = $derived(publishImpact(preview.data?.schedules));
+  let impact = $derived(publishImpact(preview.data));
   let overdueKeys = $derived(
     new Set((preview.data?.schedules ?? []).filter((s) => s.overdue).map((s) => `${s.jobNamespace}/${s.jobName}/${s.scheduleName}`))
   );

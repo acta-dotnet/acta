@@ -2326,7 +2326,7 @@ sealed record Acta.PreviewCalendarItem
     System.String JobNamespace { get;init; }
     System.String ScheduleName { get;init; }
 sealed record Acta.PreviewCalendarResponse
-    .ctor(Acta.CalendarRoleCode Role, System.Int32 Version, System.Nullable<System.Int32> CurrentVersion, System.Collections.Generic.IReadOnlyList<System.DateTime> OccurrencesUtc, System.Collections.Generic.IReadOnlyList<System.DateTime> CurrentOccurrencesUtc, System.Collections.Generic.IReadOnlyList<Acta.CalendarWindow> Windows, System.Collections.Generic.IReadOnlyList<Acta.CalendarWindow> CurrentWindows, System.Collections.Generic.IReadOnlyList<Acta.PreviewCalendarItem> Schedules)
+    .ctor(Acta.CalendarRoleCode Role, System.Int32 Version, System.Nullable<System.Int32> CurrentVersion, System.Collections.Generic.IReadOnlyList<System.DateTime> OccurrencesUtc, System.Collections.Generic.IReadOnlyList<System.DateTime> CurrentOccurrencesUtc, System.Collections.Generic.IReadOnlyList<Acta.CalendarWindow> Windows, System.Collections.Generic.IReadOnlyList<Acta.CalendarWindow> CurrentWindows, System.Collections.Generic.IReadOnlyList<Acta.PreviewCalendarItem> Schedules, System.Int64 SchedulesTotal, System.Int64 OverdueTotal)
     Acta.CalendarRoleCode Role { get;init; }
     System.Collections.Generic.IReadOnlyList<Acta.CalendarWindow> CurrentWindows { get;init; }
     System.Collections.Generic.IReadOnlyList<Acta.CalendarWindow> Windows { get;init; }
@@ -2334,6 +2334,8 @@ sealed record Acta.PreviewCalendarResponse
     System.Collections.Generic.IReadOnlyList<System.DateTime> CurrentOccurrencesUtc { get;init; }
     System.Collections.Generic.IReadOnlyList<System.DateTime> OccurrencesUtc { get;init; }
     System.Int32 Version { get;init; }
+    System.Int64 OverdueTotal { get;init; }
+    System.Int64 SchedulesTotal { get;init; }
     System.Nullable<System.Int32> CurrentVersion { get;init; }
 sealed record Acta.PreviewScheduleResponse
     .ctor(System.String Expression, System.String TimeZoneId, System.Collections.Generic.IReadOnlyList<System.DateTime> NextOccurrencesUtc)

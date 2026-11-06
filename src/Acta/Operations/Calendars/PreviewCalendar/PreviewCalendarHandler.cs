@@ -9,6 +9,9 @@ internal sealed class PreviewCalendarHandler(
     ListCalendarSchedulesHandler dependents
 )
 {
+    /// <summary>The bound schedules a preview lists, overdue ones first; <see cref="ICalendars.ListDependentsAsync"/> pages them all.</summary>
+    internal const int ScheduleLimit = 100;
+
     public async Task<PreviewCalendarResponse?> HandleAsync(PreviewCalendarQuery query, CancellationToken ct)
     {
         var (jobNamespace, calendarName) = CalendarControl.Names(query.Calendar);
@@ -21,10 +24,21 @@ internal sealed class PreviewCalendarHandler(
 
         var now = await clock.GetUtcNowAsync(ct);
         var from = DateTime.SpecifyKind(query.FromUtc ?? now, DateTimeKind.Utc);
-        var count = Math.Clamp(query.Count, 1, 50);
+        var count = Math.Clamp(query.Count, 1, NextOccurrenceCalculator.MaxWalk);
         var compiled = Compile(version);
         var compiledCurrent = current is null ? null : Compile(current);
         var bound = (await dependents.HandleAsync(new ListCalendarSchedulesQuery(version.NamespaceId, calendarName), ct)).Schedules;
+        var schedules = bound
+            .Select(s => new PreviewCalendarItem(
+                s.NamespaceName,
+                s.DefinitionName,
+                s.ScheduleName,
+                version.Role,
+                s.Status,
+                s.Status != ScheduleStatusCode.Orphaned && s.NextOccurrenceAtUtc is { } due && due <= now
+            ))
+            .OrderByDescending(static item => item.Overdue)
+            .ToList();
         return new PreviewCalendarResponse(
             version.Role,
             version.Version,
@@ -33,16 +47,9 @@ internal sealed class PreviewCalendarHandler(
             Occurrences(compiledCurrent?.Calendar, calendarName, query.TimeZoneId, from, count),
             Windows(compiled.Availability, from, zone, count),
             Windows(compiledCurrent?.Availability, from, zone, count),
-            [
-                .. bound.Select(s => new PreviewCalendarItem(
-                    s.NamespaceName,
-                    s.DefinitionName,
-                    s.ScheduleName,
-                    version.Role,
-                    s.Status,
-                    s.Status != ScheduleStatusCode.Orphaned && s.NextOccurrenceAtUtc is { } due && due <= now
-                )),
-            ]
+            [.. schedules.Take(ScheduleLimit)],
+            schedules.Count,
+            schedules.Count(static item => item.Overdue)
         );
     }
 

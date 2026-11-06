@@ -96,7 +96,9 @@ const officeHoursPreview = (version: number) => ({
     { startUtc: '2026-07-17T07:00:00Z', endUtc: '2026-07-17T15:00:00Z' },
     { startUtc: '2026-07-20T07:00:00Z', endUtc: '2026-07-20T15:00:00Z' }
   ],
-  schedules: [{ jobNamespace: 'billing', jobName: 'send-invoice', scheduleName: 'nightly', binding: 'availability', status: 'active', overdue: false }]
+  schedules: [{ jobNamespace: 'billing', jobName: 'send-invoice', scheduleName: 'nightly', binding: 'availability', status: 'active', overdue: false }],
+  schedulesTotal: 1,
+  overdueTotal: 0
 });
 
 async function mockDashboard(

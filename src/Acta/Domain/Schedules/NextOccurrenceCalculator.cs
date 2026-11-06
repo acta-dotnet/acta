@@ -13,6 +13,9 @@ namespace Acta;
 /// </summary>
 internal static class NextOccurrenceCalculator
 {
+    /// <summary>The most occurrences one walk answers, whatever the caller asks.</summary>
+    internal const int MaxWalk = 50;
+
     /// <summary>Closed windows one seek crosses before the availability calendar is judged broken rather than sparse.</summary>
     private const int MaxWindowHops = 10_000;
 
@@ -73,14 +76,14 @@ internal static class NextOccurrenceCalculator
     ) => FirstAfter(ScheduleSource.Native(expression, timeZone, kind), anchorUtc, nowUtc);
 
     /// <summary>
-    /// Up to <paramref name="count"/> (clamped to [1, 50]) occurrences strictly after <paramref name="fromUtc"/>, each
+    /// Up to <paramref name="count"/> (clamped to [1, <see cref="MaxWalk"/>]) occurrences strictly after <paramref name="fromUtc"/>, each
     /// computed from the previous, an interval on the grid of its anchor or of <paramref name="fromUtc"/>: since the
     /// seek is exclusive of its input, feeding occurrence N back in as the seed for N+1 cannot repeat it. Stops early
     /// (a shorter, possibly empty, list) once the source is exhausted.
     /// </summary>
     public static IReadOnlyList<DateTime> Walk(ScheduleSource source, DateTime fromUtc, int count)
     {
-        var clamped = Math.Clamp(count, 1, 50);
+        var clamped = Math.Clamp(count, 1, MaxWalk);
         var results = new List<DateTime>(clamped);
         var current = DateTime.SpecifyKind(fromUtc, DateTimeKind.Utc);
         var anchor = source.Timing.IntervalAnchorAtUtc ?? current;

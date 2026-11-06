@@ -52,8 +52,9 @@ public interface ICalendars
     /// <summary>
     /// Forecasts one version beside the current one over the same horizon: the next <paramref name="count"/> instants
     /// (occurrence) or windows (availability) from <paramref name="fromUtc"/>, the database clock when null, in
-    /// <paramref name="timeZoneId"/> (UTC when null), and the bound schedules with whether each holds an overdue occurrence.
-    /// Null when the family has no such version. No cursor is read or written.
+    /// <paramref name="timeZoneId"/> (UTC when null), and the bound schedules, overdue ones first and capped, with whether
+    /// each holds an overdue occurrence and how many there are of each. Null when the family has no such version. No cursor
+    /// is read or written.
     /// </summary>
     ValueTask<PreviewCalendarResponse?> PreviewAsync(
         CalendarLookup calendar,

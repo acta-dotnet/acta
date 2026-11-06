@@ -59,7 +59,7 @@ var closed = await operations.Calendars.SaveDraftAsync(
 var preview = (await operations.Calendars.PreviewAsync(officeHours, closed.Version!.Value, count: 3))!;
 Console.WriteLine(
     $"Preview of version {closed.Version}: the next window opens {preview.Windows[0].StartUtc:O}; "
-        + $"{preview.Schedules.Count} bound schedule(s), {preview.Schedules.Count(s => s.Overdue)} overdue"
+        + $"{preview.SchedulesTotal} bound schedule(s), {preview.OverdueTotal} overdue"
 );
 
 var result = await operations.Calendars.PublishAsync(

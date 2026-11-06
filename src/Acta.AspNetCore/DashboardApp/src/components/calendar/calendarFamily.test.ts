@@ -21,7 +21,7 @@ test('a read-only host offers nothing, and a family without a current version ca
 });
 
 test('publish impact counts the bound schedules and the overdue ones', () => {
-  assert.deepEqual(publishImpact([{ overdue: false }, { overdue: true }, { overdue: true }]), { retimed: 3, overdue: 2 });
+  assert.deepEqual(publishImpact({ schedulesTotal: 150, overdueTotal: 120 }), { retimed: 150, overdue: 120 });
   assert.deepEqual(publishImpact(null), { retimed: 0, overdue: 0 });
 });
 

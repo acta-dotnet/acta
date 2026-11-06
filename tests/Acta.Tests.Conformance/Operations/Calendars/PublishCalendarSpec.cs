@@ -220,7 +220,7 @@ public sealed class PublishCalendarSpec : ActaRuntimeTestBase<ConformanceFixture
         Assert.Equal(ControlAction.NotFound, missing.Action);
     }
 
-    [Fact(DisplayName = "A preview shows the candidate beside the current version and the bound schedules")]
+    [Fact(DisplayName = "A preview shows the candidate beside the current version and the bound schedules with their totals")]
     public async Task A_preview_shows_the_candidate_beside_the_current_version()
     {
         var ct = TestContext.Current.CancellationToken;
@@ -238,6 +238,8 @@ public sealed class PublishCalendarSpec : ActaRuntimeTestBase<ConformanceFixture
         Assert.Equal([Start.AddMinutes(1), Start.AddMinutes(2), Start.AddMinutes(3)], preview.CurrentOccurrencesUtc);
         var impact = Assert.Single(preview.Schedules, s => s.JobNamespace == TestNamespace);
         Assert.Equal((PublishCalendarManifest.DaysJobName, false), (impact.JobName, impact.Overdue));
+        Assert.Equal(preview.Schedules.Count, preview.SchedulesTotal);
+        Assert.Equal(preview.Schedules.Count(s => s.Overdue), preview.OverdueTotal);
     }
 
     [Fact(DisplayName = "An availability publication moves a cron schedule's next tick into the new window")]

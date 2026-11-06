@@ -3,7 +3,8 @@ namespace Acta;
 /// <summary>
 /// A version's forecast beside the current version's over the same horizon, so an operator sees what a publication
 /// adds and removes: instants for an occurrence calendar, windows for an availability calendar, and the bound
-/// schedules with their overdue flag, which a Refuse publication would reject on.
+/// schedules with their overdue flag, which a Refuse publication would reject on: overdue ones first, at most
+/// <see cref="PreviewCalendarHandler.ScheduleLimit"/>, with <c>SchedulesTotal</c> and <c>OverdueTotal</c> counting them all.
 /// </summary>
 public sealed record PreviewCalendarResponse(
     CalendarRoleCode Role,
@@ -13,7 +14,9 @@ public sealed record PreviewCalendarResponse(
     IReadOnlyList<DateTime> CurrentOccurrencesUtc,
     IReadOnlyList<CalendarWindow> Windows,
     IReadOnlyList<CalendarWindow> CurrentWindows,
-    IReadOnlyList<PreviewCalendarItem> Schedules
+    IReadOnlyList<PreviewCalendarItem> Schedules,
+    long SchedulesTotal,
+    long OverdueTotal
 );
 
 /// <summary>A schedule that names the family, as a publication would meet it: its path, binding, status, and overdue flag.</summary>

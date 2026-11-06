@@ -147,6 +147,7 @@ public sealed partial class OpenApiContractTests
         "totalCount",
         "quarantineTotal",
         "schedulesTotal",
+        "overdueTotal",
         "workersTotal",
         // Overview and outbox aggregate counts.
         "backlog",

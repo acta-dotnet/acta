@@ -1907,7 +1907,7 @@
   - A publication retimes every bound schedule from the new version and audits the retime
   - An overdue occurrence refuses a publication until the caller discards it as a skipped range
   - A publication is a conflict on a stale expected version and rejected for a version that is no draft
-  - A preview shows the candidate beside the current version and the bound schedules
+  - A preview shows the candidate beside the current version and the bound schedules with their totals
   - An availability publication moves a cron schedule's next tick into the new window
 
 ### A calendar draft saves as the family's next version under its expected latest

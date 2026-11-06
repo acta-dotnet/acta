@@ -13177,7 +13177,9 @@
           "currentOccurrencesUtc",
           "windows",
           "currentWindows",
-          "schedules"
+          "schedules",
+          "schedulesTotal",
+          "overdueTotal"
         ],
         "type": "object",
         "properties": {
@@ -13232,9 +13234,25 @@
             "items": {
               "$ref": "#/components/schemas/PreviewCalendarItem"
             }
+          },
+          "schedulesTotal": {
+            "pattern": "^-?(?:0|[1-9]\\d*)$",
+            "type": [
+              "integer",
+              "string"
+            ],
+            "format": "int64"
+          },
+          "overdueTotal": {
+            "pattern": "^-?(?:0|[1-9]\\d*)$",
+            "type": [
+              "integer",
+              "string"
+            ],
+            "format": "int64"
           }
         },
-        "description": "A version's forecast beside the current version's over the same horizon, so an operator sees what a publication\nadds and removes: instants for an occurrence calendar, windows for an availability calendar, and the bound\nschedules with their overdue flag, which a Refuse publication would reject on."
+        "description": "A version's forecast beside the current version's over the same horizon, so an operator sees what a publication\nadds and removes: instants for an occurrence calendar, windows for an availability calendar, and the bound\nschedules with their overdue flag, which a Refuse publication would reject on: overdue ones first, at most\nint PreviewCalendarHandler.ScheduleLimit, with `SchedulesTotal` and `OverdueTotal` counting them all."
       },
       "PreviewScheduleResponse": {
         "required": [

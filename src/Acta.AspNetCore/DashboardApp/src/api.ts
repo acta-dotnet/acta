@@ -478,7 +478,10 @@ export interface CalendarPreview {
   currentOccurrencesUtc: string[];
   windows: CalendarWindowView[];
   currentWindows: CalendarWindowView[];
+  // Overdue ones first, capped; the totals count them all.
   schedules: CalendarPreviewSchedule[];
+  schedulesTotal: number;
+  overdueTotal: number;
 }
 
 export async function previewCalendar(
