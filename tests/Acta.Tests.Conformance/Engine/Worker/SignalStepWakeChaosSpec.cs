@@ -85,7 +85,7 @@ public sealed class SignalStepWakeChaosSpec : ActaRuntimeTestBase<ConformanceFix
         Assert.Equal(RunOnceStatus.Rearmed, await Runtime.RunOnceAsync(enqueued, ct));
         Assert.Equal(RunOnceStatus.Failed, await Runtime.RunOnceAsync(enqueued, ct));
 
-        // --- 2. The step slot is Exhausted after two attempts (no read operation, read the row).
+        // --- 2. The step is Exhausted after two attempts (no read operation, read the row).
         var step = Assert.Single(await Db.From<StepEntity>().Where(a => a.JobId == enqueued.JobId).ToListAsync(ct));
         Assert.Equal(StepStatusCode.Exhausted, step.Status);
         Assert.Equal(2, step.AttemptNumber);

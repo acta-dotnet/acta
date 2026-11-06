@@ -47,7 +47,7 @@ public static class JobStepProbes
 
     // Replay: the step runs, then the handler waits on a signal. After the signal is raised the
     // handler replays from the top; the step must return its stored result WITHOUT re-invoking the
-    // body. A signal (vs a sleep) makes the replay deterministic - the raise sets the slot.
+    // body. A signal (vs a sleep) makes the replay deterministic - the raise sets the step.
     [Job("job-step-replay")]
     public static async Task StepReplay(JobContext ctx, CancellationToken ct)
     {

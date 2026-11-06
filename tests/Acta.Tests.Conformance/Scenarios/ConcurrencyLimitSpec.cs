@@ -17,9 +17,9 @@ namespace Acta.Tests.Conformance.Scenarios;
 /// </summary>
 [ConformanceSpec(
     "concurrency-limit.slots",
-    "A definition's concurrency limit is how many of its key's slots exist",
+    "A definition's concurrency limit is how many of its key's lock slots exist",
     Area = "Concurrency",
-    Contract = "A concurrency key admits at most its definition's limit at once, one lock row per slot, taken lowest free slot first."
+    Contract = "A concurrency key admits at most its definition's limit at once, one lock slot each, taken lowest free first."
 )]
 public sealed class ConcurrencyLimitSpec : ActaRuntimeTestBase<ConformanceFixture, TestJobs.TestJobsManifest>
 {
@@ -29,7 +29,7 @@ public sealed class ConcurrencyLimitSpec : ActaRuntimeTestBase<ConformanceFixtur
     // precision than it reads the clock can round a zero-length lease a fraction into the future.
     private static readonly TimeSpan ExpiredTtl = TimeSpan.FromSeconds(-1);
 
-    [Fact(DisplayName = "Limit 1 is the single-slot mutex the exclusive key always was")]
+    [Fact(DisplayName = "Limit 1 is the single lock slot the exclusive key always was")]
     public async Task Limit_one_is_the_single_slot_mutex()
     {
         var ct = TestContext.Current.CancellationToken;
@@ -46,7 +46,7 @@ public sealed class ConcurrencyLimitSpec : ActaRuntimeTestBase<ConformanceFixtur
         await locks.ReleaseLockAsync(first.Value, ct);
     }
 
-    [Fact(DisplayName = "Admission fills the lowest free slot and stops at the limit")]
+    [Fact(DisplayName = "Admission fills the lowest free lock slot and stops at the limit")]
     public async Task Admission_fills_the_lowest_free_slot_and_stops_at_the_limit()
     {
         var ct = TestContext.Current.CancellationToken;
@@ -107,7 +107,7 @@ public sealed class ConcurrencyLimitSpec : ActaRuntimeTestBase<ConformanceFixtur
         }
     }
 
-    [Fact(DisplayName = "A lowered limit admits into the low slots while the high holders run on")]
+    [Fact(DisplayName = "A lowered limit admits into the low lock slots while the high holders run on")]
     public async Task A_lowered_limit_admits_into_the_low_slots_while_high_holders_run_on()
     {
         var ct = TestContext.Current.CancellationToken;
@@ -131,7 +131,7 @@ public sealed class ConcurrencyLimitSpec : ActaRuntimeTestBase<ConformanceFixtur
         Assert.Null((await locks.AcquireLockSlotAsync(prefix, limit: 2, HeldTtl, ownerJobId: 502, ct)).Token);
     }
 
-    [Fact(DisplayName = "A slot whose lease expired is stolen by the next admission")]
+    [Fact(DisplayName = "A lock slot whose lease expired is stolen by the next admission")]
     public async Task A_slot_whose_lease_expired_is_stolen_by_the_next_admission()
     {
         var ct = TestContext.Current.CancellationToken;
@@ -152,7 +152,7 @@ public sealed class ConcurrencyLimitSpec : ActaRuntimeTestBase<ConformanceFixtur
         await locks.ReleaseLockAsync(stolen!.Value, ct);
     }
 
-    [Fact(DisplayName = "Real same-key handlers run at the limit minus the slots held elsewhere")]
+    [Fact(DisplayName = "Real same-key handlers run at the limit minus the lock slots held elsewhere")]
     public async Task Real_same_key_handlers_run_at_the_limit_minus_the_slots_held_elsewhere()
     {
         const int jobs = 4;

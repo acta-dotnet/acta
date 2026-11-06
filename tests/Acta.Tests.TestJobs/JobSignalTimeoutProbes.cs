@@ -51,7 +51,7 @@ public static class JobSignalTimeoutProbes
 
     /// <summary>
     /// Times out on one signal and then parks on a second, unbounded one, which is the only shape that
-    /// leaves a live job holding an already-expired slot: exactly what a late raise must not revive.
+    /// leaves a live job holding an already-expired checkpoint: exactly what a late raise must not revive.
     /// </summary>
     [Job("job-try-wait-signal-timeout-then-hold")]
     public static async Task TryWaitWithTimeoutThenHold(JobContext ctx, CancellationToken ct)
@@ -65,7 +65,7 @@ public static class JobSignalTimeoutProbes
     /// <summary>
     /// Times out on a bounded wait, parks, and on the replay after that waits on the SAME name with
     /// the unbounded overload. Policy is code, so the unbounded overload resolves TimedOut over the
-    /// Expired slot too and takes the cancelling path rather than parking forever.
+    /// Expired checkpoint too and takes the cancelling path rather than parking forever.
     /// </summary>
     [Job("job-try-wait-signal-timeout-then-unbounded")]
     public static async Task TryWaitWithTimeoutThenUnbounded(JobContext ctx, CancellationToken ct)
@@ -83,7 +83,7 @@ public static class JobSignalTimeoutProbes
     }
 
     /// <summary>
-    /// Asks for a longer wait on every replay. The slot already exists by then, so the stored
+    /// Asks for a longer wait on every replay. The checkpoint already exists by then, so the stored
     /// expiration must stay where the first attempt put it: state wins over code.
     /// </summary>
     [Job("job-wait-signal-timeout-replay")]
@@ -95,7 +95,7 @@ public static class JobSignalTimeoutProbes
 
     /// <summary>
     /// Waits unbounded first and bounded on every replay, standing in for code redeployed with a bound
-    /// over a job already suspended without one. The replay must arm the deadline the slot lacks.
+    /// over a job already suspended without one. The replay must arm the deadline the checkpoint lacks.
     /// </summary>
     [Job("job-wait-signal-timeout-upgrade")]
     public static async Task WaitUnboundedThenBounded(JobContext ctx, CancellationToken ct)
@@ -113,7 +113,7 @@ public static class JobSignalTimeoutProbes
 
     /// <summary>
     /// The mirror of the upgrade probe: bounded first, unbounded on every replay. An unbounded re-entry
-    /// must not clear a deadline the slot already carries.
+    /// must not clear a deadline the checkpoint already carries.
     /// </summary>
     [Job("job-wait-signal-timeout-downgrade")]
     public static async Task WaitBoundedThenUnbounded(JobContext ctx, CancellationToken ct)

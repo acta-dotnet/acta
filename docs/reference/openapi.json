@@ -14022,7 +14022,7 @@
         "description": "What saving a draft did. Applied carries the new version and its content hash; Rejected carries each reason in\n`Problems`, a compiler problem starting with its JSON path, and, when the store refused it, the family's latest\nversion, 0 for a family with none. A namespace no worker has run in yet is created, so the save never answers NotFound."
       },
       "ScheduledDeliveryCode": {
-        "description": "How a schedule delivers a definition's work: one durable slot job fired again and again, or a fresh root job per\nadmitted occurrence. Immutable once the definition is registered."
+        "description": "How a schedule delivers a definition's work: one permanent slot job fired again and again, or a fresh root job per\nadmitted occurrence. Immutable once the definition is registered."
       },
       "ScheduleExpireActionCode": { },
       "ScheduleExpressionKindCode": { },

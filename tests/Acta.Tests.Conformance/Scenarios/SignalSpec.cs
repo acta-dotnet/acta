@@ -7,8 +7,8 @@ using Xunit;
 namespace Acta.Tests.Conformance.Scenarios;
 
 /// <summary>
-/// Conformance for durable signals: <c>ctx.WaitSignalAsync</c> suspends the Job on a Pending slot and
-/// <c>IJobs.RaiseSignalAsync</c> sets the slot (last-writer-wins) and releases a Suspended Job to Ready.
+/// Conformance for durable signals: <c>ctx.WaitSignalAsync</c> suspends the Job on a Pending checkpoint and
+/// <c>IJobs.RaiseSignalAsync</c> sets the checkpoint (last-writer-wins) and releases a Suspended Job to Ready.
 /// Unlike sleep, a signal wait lands real <c>Suspended</c> with no <c>NextRunAtUtc</c> - only a raise
 /// re-arms it.
 /// </summary>
@@ -16,7 +16,7 @@ namespace Acta.Tests.Conformance.Scenarios;
     "signals.wait-and-raise",
     "Wait suspends a job and a raise releases it last-writer-wins",
     Area = "Signals",
-    Contract = "WaitSignalAsync suspends a job on a Pending slot and RaiseSignalAsync sets the slot last-writer-wins releasing only a Suspended job to Ready."
+    Contract = "WaitSignalAsync suspends a job on a Pending checkpoint and RaiseSignalAsync sets the checkpoint last-writer-wins releasing only a Suspended job to Ready."
 )]
 public sealed class SignalSpec : ActaRuntimeTestBase<ConformanceFixture, TestJobs.TestJobsManifest>
 {
@@ -80,7 +80,7 @@ public sealed class SignalSpec : ActaRuntimeTestBase<ConformanceFixture, TestJob
         );
     }
 
-    [Fact(DisplayName = "Wait lands Suspended with a Pending slot and no NextRunAtUtc")]
+    [Fact(DisplayName = "Wait lands Suspended with a Pending checkpoint and no NextRunAtUtc")]
     public async Task Wait_before_signal_suspends_job()
     {
         var ct = TestContext.Current.CancellationToken;
@@ -103,14 +103,14 @@ public sealed class SignalSpec : ActaRuntimeTestBase<ConformanceFixture, TestJob
         Assert.Equal(1, await CountEventsAsync(enqueued.JobId, EventCode.JobSuspended, ct));
     }
 
-    [Fact(DisplayName = "Wait is idempotent while pending, not duplicating the slot or consuming an attempt")]
+    [Fact(DisplayName = "Wait is idempotent while pending, not duplicating the checkpoint or consuming an attempt")]
     public async Task Wait_signal_is_idempotent_while_pending()
     {
         var ct = TestContext.Current.CancellationToken;
         var enqueued = await Jobs.EnqueueAsync(new EnqueueJobRequest(TestNamespace, "job-wait-signal", JobPayload.None), ct);
 
         Assert.Equal(RunOnceStatus.Rearmed, await Runtime.RunOnceAsync(enqueued, ct));
-        // Force a re-claim while still pending: the replayed wait must not duplicate the slot or consume an attempt.
+        // Force a re-claim while still pending: the replayed wait must not duplicate the checkpoint or consume an attempt.
         await SetJobStatusReadyAsync(Db, enqueued.JobId, ct);
         Assert.Equal(RunOnceStatus.Rearmed, await Runtime.RunOnceAsync(enqueued, ct));
 
@@ -119,7 +119,7 @@ public sealed class SignalSpec : ActaRuntimeTestBase<ConformanceFixture, TestJob
         Assert.Equal(0, await CountVariableAsync(enqueued.JobId, "ran.after", ct));
     }
 
-    [Fact(DisplayName = "Raise sets the slot and releases a Suspended job to Ready, then it completes")]
+    [Fact(DisplayName = "Raise sets the checkpoint and releases a Suspended job to Ready, then it completes")]
     public async Task Raise_signal_releases_suspended_job()
     {
         var ct = TestContext.Current.CancellationToken;
@@ -148,7 +148,7 @@ public sealed class SignalSpec : ActaRuntimeTestBase<ConformanceFixture, TestJob
         var ct = TestContext.Current.CancellationToken;
         var enqueued = await Jobs.EnqueueAsync(new EnqueueJobRequest(TestNamespace, "job-wait-signal", JobPayload.None), ct);
 
-        // Raise before the handler ever runs: the job is Ready, so the slot is created Set and the status is unchanged.
+        // Raise before the handler ever runs: the job is Ready, so the checkpoint is created Set and the status is unchanged.
         var raise = await Jobs.RaiseSignalAsync(enqueued, "go", JobPayload.None, ct: ct);
         Assert.Equal(ControlAction.Applied, raise.Action);
         Assert.Equal(JobStatusCode.Ready, raise.Status);
@@ -174,7 +174,7 @@ public sealed class SignalSpec : ActaRuntimeTestBase<ConformanceFixture, TestJob
         Assert.Equal(decision, await Jobs.GetResultAsync<ReviewDecision>(enqueued, ct));
     }
 
-    [Fact(DisplayName = "A presence signal sets the slot with a null payload")]
+    [Fact(DisplayName = "A presence signal sets the checkpoint with a null payload")]
     public async Task Presence_signal_has_null_payload()
     {
         var ct = TestContext.Current.CancellationToken;
@@ -204,7 +204,7 @@ public sealed class SignalSpec : ActaRuntimeTestBase<ConformanceFixture, TestJob
         Assert.Equal(new ReviewDecision(true, "second"), await Jobs.GetResultAsync<ReviewDecision>(enqueued, ct));
     }
 
-    [Fact(DisplayName = "Raise sets the slot but does not reactivate a paused job")]
+    [Fact(DisplayName = "Raise sets the checkpoint but does not reactivate a paused job")]
     public async Task Raise_signal_does_not_unpause_paused_job()
     {
         var ct = TestContext.Current.CancellationToken;
@@ -223,7 +223,7 @@ public sealed class SignalSpec : ActaRuntimeTestBase<ConformanceFixture, TestJob
         Assert.Equal(CheckpointStatusCode.Set, (await ReadSignalsAsync(enqueued.JobId, ct)).Single().Status);
     }
 
-    [Fact(DisplayName = "Raise is rejected against a terminal job and writes no slot")]
+    [Fact(DisplayName = "Raise is rejected against a terminal job and writes no checkpoint")]
     public async Task Raise_signal_does_not_reactivate_terminal_job()
     {
         var ct = TestContext.Current.CancellationToken;

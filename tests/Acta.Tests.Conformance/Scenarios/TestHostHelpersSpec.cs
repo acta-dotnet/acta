@@ -75,7 +75,7 @@ public sealed class TestHostHelpersSpec : ActaTestBase<ConformanceFixture>
         var parent = await host.Jobs.EnqueueAsync(TestJobsManifest.JobParentTryWaitChild(new TryWaitChildStart("job-wait-signal")), ct: ct);
         Assert.Equal(ActaRunStatus.Rearmed, await host.RunOnceAsync(parent, ct));
 
-        // The helper reads the awaited slot by kind, so a child latch stages exactly like a signal does;
+        // The helper reads the awaited checkpoint by kind, so a child latch stages exactly like a signal does;
         // its name is the framework-owned sys.child key rather than anything the handler chose.
         var latch = Assert.Single(await CheckpointsAsync(host, parent.JobId, CheckpointKindCode.ChildLatch, ct));
         Assert.NotNull(latch.DueAtUtc);

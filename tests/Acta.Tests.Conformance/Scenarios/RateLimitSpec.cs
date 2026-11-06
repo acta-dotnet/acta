@@ -509,7 +509,7 @@ public sealed class RateLimitSpec : ActaRuntimeTestBase<ConformanceFixture, Test
         Assert.Equal(0, (await ReadJobAsync(enqueued.JobId, ct)).FailureCount);
         Assert.NotNull(await ReadLockAsync($"{bucket}.{enqueued.JobId}", ct));
 
-        // The slot was taken before the meter was asked, so a denial must leave no slot row behind.
+        // The concurrency slot was taken before the meter was asked, so a denial must leave no lock row behind.
         Assert.Null(await ReadLockAsync($"{slotPrefix}.0", ct));
         Assert.Null(await ReadLockAsync($"{slotPrefix}.1", ct));
 

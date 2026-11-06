@@ -36,7 +36,7 @@ apply: older ones are skipped with the reason `expired`, and `Pause` also pauses
 ## Trade-offs
 
 `Skip` loses missed work. `CatchUpOnce` keeps the stretch but not one execution per occurrence.
-`CatchUpAll` keeps every occurrence but runs them one after another on one durable slot, so a long outage
+`CatchUpAll` keeps every occurrence but runs them one after another on one permanent slot, so a long outage
 becomes a long backlog; with `ScheduledDelivery = PerOccurrence` each one is a root job of its own.
 
 ## Run the experiment

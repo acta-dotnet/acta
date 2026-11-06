@@ -152,7 +152,7 @@ public sealed class JobAttribute(string name) : Attribute
     public FiringFailurePolicyCode FiringFailurePolicy { get; init; } = FiringFailurePolicyCode.Continue;
 
     /// <summary>
-    /// How a schedule delivers this definition's work: <c>Permanent</c>, one durable slot job the schedules fire
+    /// How a schedule delivers this definition's work: <c>Permanent</c>, one permanent slot job the schedules fire
     /// again and again; <c>PerOccurrence</c>, a fresh ordinary root per admitted occurrence, with its own state,
     /// retries, and retention. Immutable once registered: change it under a new job name.
     /// </summary>

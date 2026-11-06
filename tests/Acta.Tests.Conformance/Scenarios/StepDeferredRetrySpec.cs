@@ -148,7 +148,7 @@ public sealed class StepDeferredRetrySpec : ActaRuntimeTestBase<ConformanceFixtu
         Assert.NotNull(step1.NextRetryAtUtc);
         var retryInstant = step1.NextRetryAtUtc!.Value;
 
-        // The failed attempt stamps its reason on the slot; the success below has to take it back off.
+        // The failed attempt stamps its reason on the step; the success below has to take it back off.
         Assert.Equal(StepFailureCode.UnhandledException, step1.FailureCode);
         Assert.NotNull(step1.FailureMessage);
 

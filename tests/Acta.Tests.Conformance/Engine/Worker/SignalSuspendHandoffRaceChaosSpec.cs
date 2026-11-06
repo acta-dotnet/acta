@@ -9,7 +9,7 @@ namespace Acta.Tests.Conformance.Engine.Worker;
 /// <summary>
 /// The suspend handoff: the window between <c>wait_job_signal</c> answering SuspendPending and
 /// <c>complete_executions</c> writing that suspend. A raise landing inside it answers a wait the ledger
-/// has no record of, so the completion re-reads the awaited slot under its own lock and lands the job
+/// has no record of, so the completion re-reads the awaited checkpoint under its own lock and lands the job
 /// Ready rather than parking it on a signal that already arrived.
 /// </summary>
 /// <remarks>
@@ -20,7 +20,7 @@ namespace Acta.Tests.Conformance.Engine.Worker;
     "signals.suspend-handoff-race",
     "A raise inside the suspend handoff lands the job Ready, not Suspended",
     Area = "Signals",
-    Contract = "complete_executions re-reads the awaited slot under lock, so a raise that beat the suspend write lands the job Ready and claimable, payload intact."
+    Contract = "complete_executions re-reads the awaited checkpoint under lock, so a raise that beat the suspend write lands the job Ready and claimable, payload intact."
 )]
 public sealed class SignalSuspendHandoffRaceChaosSpec : ActaRuntimeTestBase<ConformanceFixture, TestJobs.TestJobsManifest>
 {
@@ -53,20 +53,20 @@ public sealed class SignalSuspendHandoffRaceChaosSpec : ActaRuntimeTestBase<Conf
         var namespaceWakesBefore = _wakeup.WakeCountFor(WorkerWakeupChannelKind.WorkerNamespace);
 
         // By the time this runs the handler has thrown its suspend and wait_job_signal has committed the
-        // Pending slot, but the completion carrying that suspend is built and unsent. That is the
+        // Pending checkpoint, but the completion carrying that suspend is built and unsent. That is the
         // window, and it is the only place a raise can be neither too early nor too late.
         _faults.RunBeforeCompleteOnce(async () =>
         {
             var raise = await Jobs.RaiseSignalAsync(enqueued, SignalName, decision, ct: ct);
             Assert.Equal(ControlAction.Applied, raise.Action);
 
-            // Still Executing, so the raise has no Suspended row to release: it can set the slot and
+            // Still Executing, so the raise has no Suspended row to release: it can set the checkpoint and
             // nothing more. Whether the job runs again is the completion's re-read to decide.
             Assert.Equal(JobStatusCode.Executing, raise.Status);
         });
 
         // The attempt asked to suspend - Rearmed is what a suspend reports - and the routine overruled
-        // it off the slot.
+        // it off the checkpoint.
         Assert.Equal(RunOnceStatus.Rearmed, await Runtime.RunOnceAsync(enqueued, ct));
 
         var job = await ReadJobAsync(enqueued.JobId, ct);
@@ -85,7 +85,7 @@ public sealed class SignalSuspendHandoffRaceChaosSpec : ActaRuntimeTestBase<Conf
         // transition, so a Ready row it reports without a publish is a job nobody is told about.
         Assert.True(_wakeup.WakeCountFor(WorkerWakeupChannelKind.WorkerNamespace) > namespaceWakesBefore);
 
-        // And the wake is not the claim: the next tick replays the handler over the Set slot and
+        // And the wake is not the claim: the next tick replays the handler over the Set checkpoint and
         // finishes with the payload the raise carried, so nothing was consumed by the race.
         Assert.Equal(RunOnceStatus.Completed, await Runtime.RunOnceAsync(enqueued, ct));
         Assert.Equal(JobStatusCode.Succeeded, (await ReadJobAsync(enqueued.JobId, ct)).Status);
@@ -99,7 +99,7 @@ public sealed class SignalSuspendHandoffRaceChaosSpec : ActaRuntimeTestBase<Conf
         var ct = TestContext.Current.CancellationToken;
         var enqueued = await Jobs.EnqueueAsync(new EnqueueJobRequest(TestNamespace, JobName, JobPayload.None), ct);
 
-        // The slot re-read is a decision, not a path that always lands Ready. Without it asserted here,
+        // The checkpoint re-read is a decision, not a path that always lands Ready. Without it asserted here,
         // the fact above would pass just as well against a completion that ignored the suspend.
         Assert.Equal(RunOnceStatus.Rearmed, await Runtime.RunOnceAsync(enqueued, ct));
 

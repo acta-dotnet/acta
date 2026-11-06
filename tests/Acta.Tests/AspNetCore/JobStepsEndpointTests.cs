@@ -6,7 +6,7 @@ using Xunit;
 namespace Acta.Tests.AspNetCore;
 
 /// <summary>
-/// GET /jobs/{jobRef}/steps pages one job's step slots: the SDK page as it stands, the paging query handed to the facade
+/// GET /jobs/{jobRef}/steps pages one job's steps: the SDK page as it stands, the paging query handed to the facade
 /// as sent, 404 for an unknown job, and 400 for a malformed page size.
 /// </summary>
 public sealed class JobStepsEndpointTests

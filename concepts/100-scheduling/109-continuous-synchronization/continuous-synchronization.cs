@@ -1,5 +1,5 @@
 // Concept: one permanent job keeps an external system synchronized. The schedule admits a firing every
-// five seconds onto one durable slot; each firing syncs one bounded batch and returns; the watermark is
+// five seconds onto one permanent slot; each firing syncs one bounded batch and returns; the watermark is
 // the job's own durable variable, read at the top of every execution, so a recovered firing continues
 // where the lost one stopped.
 using Acta;

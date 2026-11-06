@@ -837,7 +837,7 @@ different operations. Keeping them separate prevents duplicate work and makes th
 understandable in SQL and the dashboard.
 
 Acta represents a recurring job as one row per named schedule, whose cursor sits in a narrow companion
-row, plus the work a schedule delivers: one durable slot job per definition by default, or a fresh root
+row, plus the work a schedule delivers: one permanent slot job per definition by default, or a fresh root
 per admitted occurrence under `PerOccurrence` delivery. It does not create future job rows for every
 calendar occurrence. The schedule cursors move; the admission engine admits a firing onto the `Idle`
 slot, or inserts the occurrence's root, when a cursor is due, and the claim runs it.
@@ -868,7 +868,7 @@ Acta does not pre-materialize a queue of future occurrences.
 `[Job(ScheduledDelivery = ...)]` says how a definition's schedules deliver its work, and it is immutable
 once registered: a changed mode fails the worker's start, so a new mode takes a new job name.
 
-- `Permanent` (the default): one durable slot job per definition. Due schedules coalesce into one firing of
+- `Permanent` (the default): one permanent slot job per definition. Due schedules coalesce into one firing of
   the slot, the handler keeps its durable state across firings, and the slot's capacity is one outstanding
   firing.
 - `PerOccurrence`: each admitted occurrence is a fresh ordinary root job with the definition's default
@@ -879,7 +879,7 @@ once registered: a changed mode fails the worker's start, so a new mode takes a 
 
 | Mode | What a firing runs | Best for |
 | --- | --- | --- |
-| `Permanent` (the default) | The one durable slot, `Idle` between firings; its steps, variables, and progress persist across firings, and the handler may reset them as its final action | Synchronization, reconciliation, incremental controllers, repeated maintenance |
+| `Permanent` (the default) | The one permanent slot, `Idle` between firings; its steps, variables, and progress persist across firings, and the handler may reset them as its final action | Synchronization, reconciliation, incremental controllers, repeated maintenance |
 | `PerOccurrence` | A fresh ordinary root per occurrence, with its own state, retries, result, and retention | Work where each period or event is distinct: a billing run, an import, a notification |
 
 ```csharp

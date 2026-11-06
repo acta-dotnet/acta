@@ -26,7 +26,7 @@ public sealed class ChildTimeoutSpec : ActaRuntimeTestBase<ConformanceFixture, T
         var parent = await StartParentAsync("job-child-quick", ct);
         Assert.Equal(RunOnceStatus.Rearmed, await Runtime.RunOnceAsync(parent, ct));
 
-        // The child latch carries the deadline exactly as a signal slot does, and the Suspended parent
+        // The child latch carries the deadline exactly as a signal checkpoint does, and the Suspended parent
         // caches it so the claim can wake at that instant.
         var latch = Assert.Single(await ReadSignalsAsync(parent.JobId, ct));
         Assert.Equal(CheckpointKindCode.ChildLatch, latch.Kind);
@@ -158,7 +158,7 @@ public sealed class ChildTimeoutSpec : ActaRuntimeTestBase<ConformanceFixture, T
         var (parent, first) = await DriveToChildTimeoutAsync(ct);
         Assert.Equal(1, await CountEventsAsync(first, EventCode.JobCancelled, ct));
 
-        // Crash-replay the parent from the top: the slot is Expired, so the wait re-derives TimedOut and
+        // Crash-replay the parent from the top: the checkpoint is Expired, so the wait re-derives TimedOut and
         // the cancel runs again against a terminal child, which must add nothing to the ledger.
         await SetJobStatusReadyAsync(Db, parent.JobId, ct);
         Assert.Equal(RunOnceStatus.Rearmed, await Runtime.RunOnceAsync(parent, ct));
@@ -174,7 +174,7 @@ public sealed class ChildTimeoutSpec : ActaRuntimeTestBase<ConformanceFixture, T
         Assert.Equal(1, await CountEventsAsync(first, EventCode.JobCancelled, ct));
     }
 
-    [Fact(DisplayName = "A child landing terminal on an expired latch writes no slot, releases no parent, and says so")]
+    [Fact(DisplayName = "A child landing terminal on an expired latch writes no checkpoint, releases no parent, and says so")]
     public async Task Late_child_completion_cannot_revive_an_expired_latch()
     {
         var ct = TestContext.Current.CancellationToken;
@@ -182,7 +182,7 @@ public sealed class ChildTimeoutSpec : ActaRuntimeTestBase<ConformanceFixture, T
         Assert.Equal(RunOnceStatus.Rearmed, await Runtime.RunOnceAsync(parent, ct));
         var child = await OnlyChildAsync(parent.JobId, ct);
 
-        // Stage the interleaving the slot lock arbitrates: the parent's wait already flipped the latch
+        // Stage the interleaving the checkpoint lock arbitrates: the parent's wait already flipped the latch
         // Expired, and the child's completion transaction only starts afterwards.
         await ForceLatchExpiredAsync(Db, parent.JobId, child, ct);
         var before = await ReadJobAsync(parent.JobId, ct);
@@ -253,7 +253,7 @@ public sealed class ChildTimeoutSpec : ActaRuntimeTestBase<ConformanceFixture, T
         Assert.Equal(JobStatusCode.Suspended, (await ReadJobAsync(parent.JobId, ct)).Status);
 
         // Releasing the park replays the handler over the same latch with the unbounded overload. The
-        // slot cannot say which overload armed it, so the code that re-enters decides what an expiry
+        // checkpoint cannot say which overload armed it, so the code that re-enters decides what an expiry
         // means, and the unbounded one ends the job rather than returning.
         Assert.Equal(ControlAction.Applied, (await Jobs.RaiseSignalAsync(parent, "hold", JobPayload.None, ct: ct)).Action);
         Assert.Equal(RunOnceStatus.Completed, await Runtime.RunOnceAsync(parent, ct));

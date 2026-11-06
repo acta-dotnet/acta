@@ -6,16 +6,16 @@ using Xunit;
 
 namespace Acta.Tests.Conformance.Operations.Jobs;
 
-/// <summary>Conformance for ListJobCheckpoints: a job's slots page by kind then name with state and value intact.</summary>
+/// <summary>Conformance for ListJobCheckpoints: a job's checkpoints page by kind then name with state and value intact.</summary>
 [ConformanceSpec(
     "job-payload-reads.checkpoints",
-    "ListJobCheckpoints pages a job's slots by kind then name",
+    "ListJobCheckpoints pages a job's checkpoints by kind then name",
     Area = "Reads",
-    Contract = "ListJobCheckpoints pages a job's slots by kind then name, values intact, empty for no slots or no job, its cursor walking past a kind this build does not know."
+    Contract = "ListJobCheckpoints pages a job's checkpoints by kind then name, values intact, empty for none or no job, its cursor passing a kind this build does not know."
 )]
 public sealed class ListJobCheckpointsSpec : ActaRuntimeTestBase<ConformanceFixture, TestJobs.TestJobsManifest>
 {
-    [Fact(DisplayName = "ListJobCheckpoints lists variable and signal slots with kind, state, and value round-tripped")]
+    [Fact(DisplayName = "ListJobCheckpoints lists variable and signal checkpoints with kind, state, and value round-tripped")]
     public async Task Checkpoints_round_trip_kind_state_and_value()
     {
         var ct = TestContext.Current.CancellationToken;
@@ -57,8 +57,8 @@ public sealed class ListJobCheckpointsSpec : ActaRuntimeTestBase<ConformanceFixt
         Assert.Equal(signalValue.Data.ToArray(), signal.Value!.Value.Data.ToArray());
     }
 
-    [Fact(DisplayName = "ListJobCheckpoints answers an empty page for a job with no slots and for a missing id")]
-    public async Task Checkpoints_empty_for_no_slots_and_for_a_missing_job()
+    [Fact(DisplayName = "ListJobCheckpoints answers an empty page for a job with no checkpoints and for a missing id")]
+    public async Task Checkpoints_empty_for_no_checkpoints_and_for_a_missing_job()
     {
         var ct = TestContext.Current.CancellationToken;
 
@@ -77,7 +77,7 @@ public sealed class ListJobCheckpointsSpec : ActaRuntimeTestBase<ConformanceFixt
         Assert.Equal(0, missing.TotalCount);
     }
 
-    [Fact(DisplayName = "ListJobCheckpoints pages to the end across a kind this build does not know, each slot once")]
+    [Fact(DisplayName = "ListJobCheckpoints pages to the end across a kind this build does not know, each checkpoint once")]
     public async Task Checkpoints_page_past_an_unknown_kind_without_repeating_rows()
     {
         var ct = TestContext.Current.CancellationToken;
@@ -91,7 +91,7 @@ public sealed class ListJobCheckpointsSpec : ActaRuntimeTestBase<ConformanceFixt
             await RaiseAsync(enqueued.JobId, name, JobPayload.Json(name), ct);
         }
 
-        // Two slots a newer build wrote under kind 70: they decode to id 0 here, and the cursor must still step past them.
+        // Two checkpoints a newer build wrote under kind 70: they decode to id 0 here, and the cursor must still step past them.
         await using (var connection = await Db.OpenConnectionAsync(ct))
         {
             foreach (var name in new[] { "future.a", "future.b" })

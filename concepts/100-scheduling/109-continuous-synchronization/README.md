@@ -48,7 +48,7 @@ The web shop is a simulator: an append-only table of order changes in the lab's 
 beside the local orders and Acta's tables, seeded the same way on every machine. The handler reads
 it through `ShopFeed` as it would read a remote API, never through Acta.
 
-The schedule admits a firing onto the job's durable slot every five seconds; the firing applies one
+The schedule admits a firing onto the job's permanent slot every five seconds; the firing applies one
 batch of forty changes and returns; the slot then sits `Idle` until the next admission, holding no
 thread. The watermark, the id of the last shop change applied, is a variable on the job. Acta keeps
 it the way it keeps the job itself: a row in `checkpoints_view`, carried across firings, retries,

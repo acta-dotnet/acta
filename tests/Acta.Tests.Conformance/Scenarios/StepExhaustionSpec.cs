@@ -18,8 +18,8 @@ internal static class StepExhaustionProbes
     public static int RecordInvocation(long jobId) => BodyInvocations.AddOrUpdate(jobId, 1, static (_, n) => n + 1);
 
     // Job 1: step MaxAttempts=2, zero-backoff, always fails. The handler catches the first exhaustion and reschedules,
-    // so the replay re-enters the exhausted slot; the second exhaustion goes uncaught.
-    // Proves: exhausted slot re-entry throws WITHOUT re-running the body.
+    // so the replay re-enters the exhausted step; the second exhaustion goes uncaught.
+    // Proves: exhausted step re-entry throws WITHOUT re-running the body.
     public static async Task ExhaustReplay(JobContext ctx, CancellationToken ct)
     {
         try
@@ -118,14 +118,14 @@ public sealed class StepExhaustionManifest : IJobManifest
 
 /// <summary>
 /// Conformance for step exhaustion guarantees beyond attempt-count: window exhaustion fires
-/// before MaxAttempts is reached, re-entering an exhausted slot throws without running the body, and an
-/// operator restart gives the slot a fresh budget, so the body runs again.
+/// before MaxAttempts is reached, re-entering an exhausted step throws without running the body, and an
+/// operator restart gives the step a fresh budget, so the body runs again.
 /// </summary>
 [ConformanceSpec(
     "step.exhaustion",
     "Step exhausts by retry-window and re-entry replays without body invocation",
     Area = "Steps",
-    Contract = "A step exhausts when a retry would exceed its window, re-entering the exhausted slot throws without running the body, and a restart runs it afresh."
+    Contract = "A step exhausts when a retry would exceed its window, re-entering the exhausted step throws without running the body, and a restart runs it afresh."
 )]
 public sealed class StepExhaustionSpec : ActaRuntimeTestBase<ConformanceFixture, StepExhaustionManifest>
 {
@@ -163,7 +163,7 @@ public sealed class StepExhaustionSpec : ActaRuntimeTestBase<ConformanceFixture,
 
         Assert.Equal(ControlAction.Applied, (await Jobs.RestartAsync(enqueued, "provider is back", ct: ct)).Action);
 
-        // Without the restart clearing the slot, this replay would throw on re-entry and the count stay at 1.
+        // Without the restart clearing the step, this replay would throw on re-entry and the count stay at 1.
         Assert.Equal(RunOnceStatus.Failed, await Runtime.RunOnceAsync(enqueued, ct));
         Assert.Equal(2, StepExhaustionProbes.BodyInvocations.GetValueOrDefault(enqueued.JobId));
         var step = Assert.Single(await ReadStepsAsync(enqueued.JobId, ct));
@@ -171,8 +171,8 @@ public sealed class StepExhaustionSpec : ActaRuntimeTestBase<ConformanceFixture,
         Assert.Equal(1, step.AttemptNumber);
     }
 
-    [Fact(DisplayName = "Re-entering an exhausted step slot throws StepExhaustedException without invoking the body")]
-    public async Task Exhausted_slot_reentry_throws_without_invoking_the_body()
+    [Fact(DisplayName = "Re-entering an exhausted step throws StepExhaustedException without invoking the body")]
+    public async Task Exhausted_step_reentry_throws_without_invoking_the_body()
     {
         var ct = TestContext.Current.CancellationToken;
         var enqueued = await Jobs.EnqueueAsync(new EnqueueJobRequest(TestNamespace, "step-exhaust-replay", JobPayload.None), ct);
@@ -193,14 +193,14 @@ public sealed class StepExhaustionSpec : ActaRuntimeTestBase<ConformanceFixture,
         // Body ran exactly twice: once per in-budget attempt.
         Assert.Equal(2, StepExhaustionProbes.BodyInvocations.GetValueOrDefault(enqueued.JobId));
 
-        // Tick 3: the replay re-enters the exhausted slot → StartJobStep sees state=Exhausted → outcome=Exhausted(4) →
+        // Tick 3: the replay re-enters the exhausted step → StartJobStep sees state=Exhausted → outcome=Exhausted(4) →
         //   StepExhaustedException WITHOUT body → uncaught this time, it fails the parent at once → RunOnceStatus.Failed.
         Assert.Equal(RunOnceStatus.Failed, await Runtime.RunOnceAsync(enqueued, ct));
 
         // Body invocation count must NOT have increased: body was never called on re-entry.
         Assert.Equal(2, StepExhaustionProbes.BodyInvocations.GetValueOrDefault(enqueued.JobId));
 
-        // Step row is still Exhausted, unchanged by the re-entry (StartJobStep is read-only on Exhausted slots).
+        // Step row is still Exhausted, unchanged by the re-entry (StartJobStep is read-only on Exhausted steps).
         var stepAfterReentry = Assert.Single(await ReadStepsAsync(enqueued.JobId, ct));
         Assert.Equal(StepStatusCode.Exhausted, stepAfterReentry.Status);
         Assert.Equal(2, stepAfterReentry.AttemptNumber);

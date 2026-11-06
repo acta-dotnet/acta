@@ -8,7 +8,7 @@ namespace Acta.Tests.Conformance.Scenarios;
 
 /// <summary>
 /// Conformance for durable steps: <c>ctx.RunStepAsync</c> runs a body once, persists the
-/// outcome to <c>steps</c>, replay-skips a succeeded slot, retries an in-budget failure
+/// outcome to <c>steps</c>, replay-skips a succeeded step, retries an in-budget failure
 /// budget-neutrally for the parent, and throws <c>StepExhaustedException</c> when the budget is
 /// spent (failing the parent as a normal handler exception when uncaught).
 /// </summary>
@@ -16,7 +16,7 @@ namespace Acta.Tests.Conformance.Scenarios;
     "steps.run-and-retry",
     "RunStepAsync runs once, replays results, and retries until exhausted",
     Area = "Steps",
-    Contract = "A step runs its body once, replay-skips a succeeded slot, retries an in-budget failure budget-neutrally, and exhausts to StepExhaustedException."
+    Contract = "A step runs its body once, replay-skips a succeeded step, retries an in-budget failure budget-neutrally, and exhausts to StepExhaustedException."
 )]
 public sealed class StepSpec : ActaRuntimeTestBase<ConformanceFixture, TestJobs.TestJobsManifest>
 {
@@ -135,16 +135,16 @@ public sealed class StepSpec : ActaRuntimeTestBase<ConformanceFixture, TestJobs.
         Assert.Equal(2, JobStepProbes.BodyInvocations[enqueued.JobId]);
     }
 
-    [Fact(DisplayName = "CompleteJobStep loses the CAS and reports StaleVersion when the slot advanced under another execution")]
-    public async Task CompleteJobStep_returns_stale_version_when_the_slot_advanced_under_another_execution()
+    [Fact(DisplayName = "CompleteJobStep loses the CAS and reports StaleVersion when the step advanced under another execution")]
+    public async Task CompleteJobStep_returns_stale_version_when_the_step_advanced_under_another_execution()
     {
         var ct = TestContext.Current.CancellationToken;
 
-        // A real job row to own the step slot (enqueue only, staged Executing as a claim leaves it; never run).
+        // A real job row to own the step (enqueue only, staged Executing as a claim leaves it; never run).
         var enqueued = await Jobs.EnqueueAsync(new EnqueueJobRequest(TestNamespace, "job-step-basic", JobPayload.None), ct);
         var job = await ExecutionFenceStaging.ExecutingAsync(Db, enqueued.JobId, ct);
 
-        // First start hands out the version a handler would carry; a second start advances the slot,
+        // First start hands out the version a handler would carry; a second start advances the step,
         // modelling a re-entry of the step that the version check alone has to catch.
         var first = await Services.GetRequiredService<ExecutionOperations>().StartJobStepAsync(job, "compute", atMostOnce: false, ct);
         Assert.Equal(StartJobStepOutcomeCode.Invoke, first.Outcome);
@@ -174,21 +174,21 @@ public sealed class StepSpec : ActaRuntimeTestBase<ConformanceFixture, TestJobs.
 
         Assert.Equal(CompleteJobStepOutcomeCode.StaleVersion, stale.Outcome);
 
-        // The losing completion changed nothing: the slot is still Pending at the advanced version.
-        var slot = Assert.Single(await ReadStepsAsync(enqueued.JobId, ct));
-        Assert.Equal(StepStatusCode.Pending, slot.Status);
-        Assert.Equal(second.Version, slot.Version);
-        Assert.Null(slot.Result);
+        // The losing completion changed nothing: the step is still Pending at the advanced version.
+        var step = Assert.Single(await ReadStepsAsync(enqueued.JobId, ct));
+        Assert.Equal(StepStatusCode.Pending, step.Status);
+        Assert.Equal(second.Version, step.Version);
+        Assert.Null(step.Result);
     }
 
-    [Fact(DisplayName = "CompleteJobStep reports StaleVersion rather than throwing when the slot row is absent")]
-    public async Task CompleteJobStep_returns_stale_version_when_the_slot_row_is_absent()
+    [Fact(DisplayName = "CompleteJobStep reports StaleVersion rather than throwing when the step row is absent")]
+    public async Task CompleteJobStep_returns_stale_version_when_the_step_row_is_absent()
     {
         var ct = TestContext.Current.CancellationToken;
 
-        // A real job row owns no step slot (StartJobStep never ran, or the slot was reset away).
-        // A completion arriving for an absent slot must report StaleVersion, not throw - the routine
-        // always yields one decision row regardless of whether a matching slot exists.
+        // A real job row owns no step (StartJobStep never ran, or the step was reset away).
+        // A completion arriving for an absent step must report StaleVersion, not throw - the routine
+        // always yields one decision row regardless of whether a matching step exists.
         var enqueued = await Jobs.EnqueueAsync(new EnqueueJobRequest(TestNamespace, "job-step-basic", JobPayload.None), ct);
         var job = await ExecutionFenceStaging.ExecutingAsync(Db, enqueued.JobId, ct);
 

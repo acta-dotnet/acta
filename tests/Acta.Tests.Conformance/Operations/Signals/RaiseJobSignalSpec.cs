@@ -5,24 +5,24 @@ using Xunit;
 
 namespace Acta.Tests.Conformance.Operations.Signals;
 
-/// <summary>Conformance for the operator raise: one Set slot per name holding the latest payload, an audited raise, and no write on a missing or finished job.</summary>
+/// <summary>Conformance for the operator raise: one Set checkpoint per name holding the latest payload, an audited raise, and no write on a missing or finished job.</summary>
 [ConformanceSpec(
     "raise-job-signal.operator",
-    "An operator raise sets the named slot and records who raised it",
+    "An operator raise sets the named checkpoint and records who raised it",
     Area = "Signals",
-    Contract = "Raise upserts the job's named slot to Set with the latest payload and records the operator, while a missing job is NotFound and a finished one Rejected."
+    Contract = "Raise upserts the job's named checkpoint to Set with the latest payload and records the operator, while a missing job is NotFound and a finished one Rejected."
 )]
 public sealed class RaiseJobSignalSpec : ActaRuntimeTestBase<ConformanceFixture, TestJobsManifest>
 {
-    private async Task<CheckpointEntity> ReadSlotAsync(long jobId, string name, CancellationToken ct) =>
+    private async Task<CheckpointEntity> ReadCheckpointAsync(long jobId, string name, CancellationToken ct) =>
         Assert.Single(
             await Db.From<CheckpointEntity>()
                 .Where(c => c.JobId == jobId && c.Kind == CheckpointKindCode.Signal && c.CheckpointName == name)
                 .ToListAsync(ct)
         );
 
-    [Fact(DisplayName = "A raise stores the payload on a Set slot and records the operator on the event")]
-    public async Task Raise_sets_the_slot_and_audits_the_operator()
+    [Fact(DisplayName = "A raise stores the payload on a Set checkpoint and records the operator on the event")]
+    public async Task Raise_sets_the_checkpoint_and_audits_the_operator()
     {
         var ct = TestContext.Current.CancellationToken;
         var enqueued = await Jobs.EnqueueAsync(new EnqueueJobRequest(TestNamespace, "job-wait-signal-typed", JobPayload.None), ct);
@@ -35,33 +35,33 @@ public sealed class RaiseJobSignalSpec : ActaRuntimeTestBase<ConformanceFixture,
         Assert.Equal(enqueued.JobId, raise.JobId);
         Assert.Null(raise.Version);
 
-        var slot = await ReadSlotAsync(enqueued.JobId, "review", ct);
-        Assert.Equal(CheckpointStatusCode.Set, slot.Status);
-        Assert.Equal(payload.Format.Id, slot.ValueFormatId);
-        Assert.Equal(payload.Data.ToArray(), slot.Value);
+        var checkpoint = await ReadCheckpointAsync(enqueued.JobId, "review", ct);
+        Assert.Equal(CheckpointStatusCode.Set, checkpoint.Status);
+        Assert.Equal(payload.Format.Id, checkpoint.ValueFormatId);
+        Assert.Equal(payload.Data.ToArray(), checkpoint.Value);
 
         var evt = await ReadSingleEventAsync(enqueued.JobId, EventCode.JobSignalRaised, ct);
         Assert.Equal("op-1", EventDetail(evt, "actor"));
         Assert.Equal(EventReason.SignalReleased, EventDetail(evt, "reason"));
     }
 
-    [Fact(DisplayName = "A repeat raise keeps one slot, overwrites its payload, and bumps its version")]
-    public async Task Repeat_raise_overwrites_one_slot()
+    [Fact(DisplayName = "A repeat raise keeps one checkpoint, overwrites its payload, and bumps its version")]
+    public async Task Repeat_raise_overwrites_one_checkpoint()
     {
         var ct = TestContext.Current.CancellationToken;
         var enqueued = await Jobs.EnqueueAsync(new EnqueueJobRequest(TestNamespace, "job-wait-signal-typed", JobPayload.None), ct);
         await Jobs.RaiseSignalAsync(enqueued, "review", new ReviewDecision(false, "first"), ct: ct);
-        var first = await ReadSlotAsync(enqueued.JobId, "review", ct);
+        var first = await ReadCheckpointAsync(enqueued.JobId, "review", ct);
 
         var second = JobPayload.Json(new ReviewDecision(true, "second"));
         Assert.Equal(ControlAction.Applied, (await Jobs.RaiseSignalAsync(enqueued, "review", second, ct: ct)).Action);
 
-        var slot = await ReadSlotAsync(enqueued.JobId, "review", ct);
-        Assert.Equal(first.Version + 1, slot.Version);
-        Assert.Equal(second.Data.ToArray(), slot.Value);
+        var checkpoint = await ReadCheckpointAsync(enqueued.JobId, "review", ct);
+        Assert.Equal(first.Version + 1, checkpoint.Version);
+        Assert.Equal(second.Data.ToArray(), checkpoint.Value);
     }
 
-    [Fact(DisplayName = "An unknown job is NotFound and a finished job is Rejected, and neither gains a slot or an event")]
+    [Fact(DisplayName = "An unknown job is NotFound and a finished job is Rejected, and neither gains a checkpoint or an event")]
     public async Task Missing_or_finished_job_writes_nothing()
     {
         var ct = TestContext.Current.CancellationToken;

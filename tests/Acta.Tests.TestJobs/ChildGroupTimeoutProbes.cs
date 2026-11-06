@@ -102,7 +102,7 @@ public static class ChildGroupTimeoutProbes
 
     /// <summary>
     /// Waits two bounded groups over disjoint children, one after the other, under deliberately
-    /// different bounds. Each group derives its own deadline slot, so the two budgets are independent
+    /// different bounds. Each group derives its own deadline checkpoint, so the two budgets are independent
     /// and the second is computed only once the first group has resolved.
     /// </summary>
     [Job("job-parent-two-groups")]
@@ -119,7 +119,7 @@ public static class ChildGroupTimeoutProbes
     }
 
     /// <summary>
-    /// Waits the same children twice. The second wait derives the same slot name and so reuses the
+    /// Waits the same children twice. The second wait derives the same checkpoint name and so reuses the
     /// deadline the first one stored, however stale it is by then; every member resolves off its own
     /// latch, which is what makes that harmless.
     /// </summary>

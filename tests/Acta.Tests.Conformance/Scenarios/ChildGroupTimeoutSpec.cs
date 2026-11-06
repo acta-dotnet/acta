@@ -28,8 +28,8 @@ public sealed class ChildGroupTimeoutSpec : ActaRuntimeTestBase<ConformanceFixtu
         var bounded = await StartGroupParentAsync("job-parent-try-wait-children", ["job-child-quick", "job-child-quick"], ct);
         Assert.Equal(RunOnceStatus.Rearmed, await Runtime.RunOnceAsync(bounded, ct));
 
-        // Exactly one deadline slot for the whole group, whatever the group holds.
-        var deadline = Assert.Single(await ReadDeadlineSlotsAsync(bounded.JobId, ct));
+        // Exactly one deadline checkpoint for the whole group, whatever the group holds.
+        var deadline = Assert.Single(await ReadDeadlineCheckpointsAsync(bounded.JobId, ct));
         Assert.Equal(JobPayloadFormat.Json.Id, deadline.ValueFormatId);
 
         await RunChildrenAsync(bounded.JobId, RunOnceStatus.Completed, ct);
@@ -58,7 +58,7 @@ public sealed class ChildGroupTimeoutSpec : ActaRuntimeTestBase<ConformanceFixtu
         );
         Assert.Equal(JobStatusCode.Succeeded, (await ReadJobAsync(bounded.JobId, ct)).Status);
         Assert.Equal(0, await CountReasonAsync(bounded.JobId, EventReason.WaitTimedOut, ct));
-        Assert.Empty(await ReadDeadlineSlotsAsync(unbounded.JobId, ct));
+        Assert.Empty(await ReadDeadlineCheckpointsAsync(unbounded.JobId, ct));
     }
 
     [Fact(DisplayName = "An expired group cancels its unfinished member's subtree and spares the child it never awaited")]
@@ -115,7 +115,7 @@ public sealed class ChildGroupTimeoutSpec : ActaRuntimeTestBase<ConformanceFixtu
         Assert.Equal(0, await CountEventsAsync(sibling, EventCode.JobCancelled, ct));
     }
 
-    [Fact(DisplayName = "A crash replay reuses the stored group deadline byte for byte and extends no slot")]
+    [Fact(DisplayName = "A crash replay reuses the stored group deadline byte for byte and extends no checkpoint")]
     public async Task Replay_reuses_the_stored_group_deadline()
     {
         var ct = TestContext.Current.CancellationToken;
@@ -128,10 +128,10 @@ public sealed class ChildGroupTimeoutSpec : ActaRuntimeTestBase<ConformanceFixtu
         // would arm the next member 30 minutes out rather than inside this minute.
         var deadlineAtUtc = DateTime.UtcNow.AddSeconds(60);
         await SetGroupDeadlineAsync(parent.JobId, deadlineAtUtc, ct);
-        var stored = Assert.Single(await ReadDeadlineSlotsAsync(parent.JobId, ct));
+        var stored = Assert.Single(await ReadDeadlineCheckpointsAsync(parent.JobId, ct));
 
         // Crash-replay the parent from the top, twice, with a member landing in between so the second
-        // replay has to arm a slot no earlier pass touched.
+        // replay has to arm a checkpoint no earlier pass touched.
         await SetJobStatusReadyAsync(parent.JobId, ct);
         Assert.Equal(RunOnceStatus.Rearmed, await Runtime.RunOnceAsync(parent, ct));
         await CompleteHeldChildAsync(firstLatch.CheckpointName, ct);
@@ -139,11 +139,11 @@ public sealed class ChildGroupTimeoutSpec : ActaRuntimeTestBase<ConformanceFixtu
         Assert.Equal(RunOnceStatus.Rearmed, await Runtime.RunOnceAsync(parent, ct));
 
         // Byte-identical and unversioned: the replays read the deadline back, they never rewrote it.
-        var replayed = Assert.Single(await ReadDeadlineSlotsAsync(parent.JobId, ct));
+        var replayed = Assert.Single(await ReadDeadlineCheckpointsAsync(parent.JobId, ct));
         Assert.Equal(stored.Value, replayed.Value);
         Assert.Equal(stored.Version, replayed.Version);
 
-        // The slot armed before the budget was spent keeps its own due, and the one armed after the
+        // The checkpoint armed before the budget was spent keeps its own due, and the one armed after the
         // replays is due at the deadline as it now stands.
         var latches = await ReadLatchesAsync(parent.JobId, ct);
         Assert.Equal(2, latches.Count);
@@ -203,7 +203,7 @@ public sealed class ChildGroupTimeoutSpec : ActaRuntimeTestBase<ConformanceFixtu
         Assert.Equal(2, parentJob.ExecutionNumber);
 
         // Every member, the one armed before the expiry and those armed after it, carries the group's instant as its due.
-        var deadlineAtUtc = DeadlineOf(Assert.Single(await ReadDeadlineSlotsAsync(parent.JobId, ct)));
+        var deadlineAtUtc = DeadlineOf(Assert.Single(await ReadDeadlineCheckpointsAsync(parent.JobId, ct)));
         var latches = await ReadLatchesAsync(parent.JobId, ct);
         Assert.Equal(size, latches.Count);
         Assert.Contains(latches, l => l.CheckpointName == first.CheckpointName);
@@ -243,7 +243,7 @@ public sealed class ChildGroupTimeoutSpec : ActaRuntimeTestBase<ConformanceFixtu
             Assert.Equal(1, await CountEventsAsync(member, EventCode.JobCancelled, ct));
         }
 
-        // Crash-replay the whole handler over slots that are already Expired: it re-derives the same
+        // Crash-replay the whole handler over checkpoints that are already Expired: it re-derives the same
         // timeouts and re-runs the cancels, which must add nothing to the ledger.
         await SetJobStatusReadyAsync(parent.JobId, ct);
         Assert.Equal(RunOnceStatus.Completed, await Runtime.RunOnceAsync(parent, ct));
@@ -263,37 +263,39 @@ public sealed class ChildGroupTimeoutSpec : ActaRuntimeTestBase<ConformanceFixtu
         Assert.Equal(RunOnceStatus.Rearmed, await Runtime.RunOnceAsync(parent, ct));
 
         // Let the first group land, member by member, so the second group's deadline is derived only
-        // once the first has resolved and both slots are on the job at the same time.
+        // once the first has resolved and both checkpoints are on the job at the same time.
         var members = await ChildIdsAsync(parent.JobId, ct);
         await CompleteHeldChildAsync($"sys.child.{members["a0"]}", ct);
         Assert.Equal(RunOnceStatus.Rearmed, await Runtime.RunOnceAsync(parent, ct));
         await CompleteHeldChildAsync($"sys.child.{members["a1"]}", ct);
         Assert.Equal(RunOnceStatus.Rearmed, await Runtime.RunOnceAsync(parent, ct));
 
-        var slots = await ReadDeadlineSlotsAsync(parent.JobId, ct);
-        Assert.Equal(2, slots.Count);
-        Assert.Equal(2, slots.Select(s => s.CheckpointName).Distinct(StringComparer.Ordinal).Count());
+        var checkpoints = await ReadDeadlineCheckpointsAsync(parent.JobId, ct);
+        Assert.Equal(2, checkpoints.Count);
+        Assert.Equal(2, checkpoints.Select(s => s.CheckpointName).Distinct(StringComparer.Ordinal).Count());
 
         // The second group did not inherit the first group's instant: it computed its own from its own
         // bound. The probe gives the two groups deliberately different durations (30 and 45 minutes), so
         // the instants are 15 minutes apart by construction and the assertion never depends on two DB
         // clock readings happening to differ. The gap can only exceed 15 minutes, never fall short: the
         // second deadline is derived from a clock reading no earlier than the first's.
-        var deadlines = slots.Select(DeadlineOf).ToArray();
-        var secondSlot = slots.Single(s => DeadlineOf(s) == deadlines.Max());
+        var deadlines = checkpoints.Select(DeadlineOf).ToArray();
+        var secondCheckpoint = checkpoints.Single(s => DeadlineOf(s) == deadlines.Max());
         Assert.True(
             deadlines.Max() - deadlines.Min() >= TimeSpan.FromMinutes(15),
             $"the two groups are {deadlines.Max() - deadlines.Min()} apart, so the second reused the first group's deadline."
         );
 
-        // Expiring the second group's slot alone leaves the first group's stored instant untouched, and
+        // Expiring the second group's checkpoint alone leaves the first group's stored instant untouched, and
         // the members that already landed keep their outcomes.
-        var firstSlot = slots.Single(s => s.CheckpointName != secondSlot.CheckpointName);
-        await ExpireGroupWaitAsync(parent.JobId, secondSlot.CheckpointName, ct);
+        var firstCheckpoint = checkpoints.Single(s => s.CheckpointName != secondCheckpoint.CheckpointName);
+        await ExpireGroupWaitAsync(parent.JobId, secondCheckpoint.CheckpointName, ct);
         Assert.Equal(RunOnceStatus.Completed, await Runtime.RunOnceAsync(parent, ct));
 
-        var untouched = (await ReadDeadlineSlotsAsync(parent.JobId, ct)).Single(s => s.CheckpointName == firstSlot.CheckpointName);
-        Assert.Equal(firstSlot.Value, untouched.Value);
+        var untouched = (await ReadDeadlineCheckpointsAsync(parent.JobId, ct)).Single(s =>
+            s.CheckpointName == firstCheckpoint.CheckpointName
+        );
+        Assert.Equal(firstCheckpoint.Value, untouched.Value);
 
         var report = await Jobs.GetResultAsync<TwoGroupReport>(parent, ct);
         Assert.False(report!.First.TimedOut);
@@ -317,10 +319,10 @@ public sealed class ChildGroupTimeoutSpec : ActaRuntimeTestBase<ConformanceFixtu
         await CompleteHeldChildAsync(Assert.Single(await ReadLatchesAsync(landed.JobId, ct)).CheckpointName, ct);
         Assert.Equal(RunOnceStatus.Completed, await Runtime.RunOnceAsync(landed, ct));
 
-        // The same ids derive the same slot, so the second wait spends a deadline stored for the first.
+        // The same ids derive the same checkpoint, so the second wait spends a deadline stored for the first.
         // That is inert: a member resolves off its own latch, and a Set latch wins however stale the
         // group's instant has become.
-        var reused = Assert.Single(await ReadDeadlineSlotsAsync(landed.JobId, ct));
+        var reused = Assert.Single(await ReadDeadlineCheckpointsAsync(landed.JobId, ct));
         Assert.Equal(0, await CountReasonAsync(landed.JobId, EventReason.WaitTimedOut, ct));
         var landedReport = await Jobs.GetResultAsync<TwoGroupReport>(landed, ct);
         Assert.True(landedReport!.First.Succeeded);
@@ -341,7 +343,7 @@ public sealed class ChildGroupTimeoutSpec : ActaRuntimeTestBase<ConformanceFixtu
         var expiredReport = await Jobs.GetResultAsync<TwoGroupReport>(expired, ct);
         Assert.True(expiredReport!.First.TimedOut);
         Assert.True(expiredReport.Second.TimedOut);
-        Assert.Single(await ReadDeadlineSlotsAsync(expired.JobId, ct));
+        Assert.Single(await ReadDeadlineCheckpointsAsync(expired.JobId, ct));
         Assert.Equal(1, await CountEventsAsync(member, EventCode.JobCancelled, ct));
         Assert.Equal(CheckpointStatusCode.Expired, Assert.Single(await ReadLatchesAsync(expired.JobId, ct)).Status);
     }
@@ -355,8 +357,8 @@ public sealed class ChildGroupTimeoutSpec : ActaRuntimeTestBase<ConformanceFixtu
         var child = await OnlyChildAsync(parent.JobId, ct);
         Assert.Equal(RunOnceStatus.Rearmed, await Runtime.RunOnceAsync(child, ct));
 
-        // One child needs no group deadline slot: the latch's own expiration already is the one instant.
-        Assert.Empty(await ReadDeadlineSlotsAsync(parent.JobId, ct));
+        // One child needs no group deadline checkpoint: the latch's own expiration already is the one instant.
+        Assert.Empty(await ReadDeadlineCheckpointsAsync(parent.JobId, ct));
 
         await RewindLatchAsync(parent.JobId, $"sys.child.{child}", ct);
         Assert.Equal(RunOnceStatus.Completed, await Runtime.RunOnceAsync(parent, ct));
@@ -452,12 +454,12 @@ public sealed class ChildGroupTimeoutSpec : ActaRuntimeTestBase<ConformanceFixtu
         return children.ToDictionary(j => j.DeduplicationKey!, j => j.Id, StringComparer.Ordinal);
     }
 
-    private async Task<IReadOnlyList<CheckpointEntity>> ReadDeadlineSlotsAsync(long jobId, CancellationToken ct)
+    private async Task<IReadOnlyList<CheckpointEntity>> ReadDeadlineCheckpointsAsync(long jobId, CancellationToken ct)
     {
         var variables = await Db.From<CheckpointEntity>()
             .Where(c => c.JobId == jobId && c.Kind == CheckpointKindCode.Variable)
             .ToListAsync(ct);
-        // The framework's own constant, not a copy: a spec that recognised the slot by a stale literal
+        // The framework's own constant, not a copy: a spec that recognised the checkpoint by a stale literal
         // would stop finding it and quietly assert nothing.
         return [.. variables.Where(c => c.CheckpointName.StartsWith(JobContext.GroupDeadlinePrefix, StringComparison.Ordinal))];
     }
@@ -477,21 +479,21 @@ public sealed class ChildGroupTimeoutSpec : ActaRuntimeTestBase<ConformanceFixtu
     }
 
     // The stored deadline is UTC ticks, so the assertion reads exactly the bytes the handler wrote.
-    private static DateTime DeadlineOf(CheckpointEntity slot) =>
-        new(long.Parse(Encoding.UTF8.GetString(slot.Value!), CultureInfo.InvariantCulture), DateTimeKind.Utc);
+    private static DateTime DeadlineOf(CheckpointEntity checkpoint) =>
+        new(long.Parse(Encoding.UTF8.GetString(checkpoint.Value!), CultureInfo.InvariantCulture), DateTimeKind.Utc);
 
     // The same staging the public ForceGroupWaitTimeoutDueAsync helper performs, called through the one
     // implementation both share: this spec drives a WorkerRuntime rather than an IActaTestHost, so it
     // reaches the code rather than the facade. TestHostHelpersSpec covers the public helper itself.
-    private Task ExpireGroupWaitAsync(long parentId, CancellationToken ct) => ExpireGroupWaitAsync(parentId, slotName: null, ct);
+    private Task ExpireGroupWaitAsync(long parentId, CancellationToken ct) => ExpireGroupWaitAsync(parentId, checkpointName: null, ct);
 
-    // A named slot expires one group on a job holding several. The public helper takes no name on
-    // purpose (an author cannot know a derived slot name), so this is the seam a spec uses to prove the
+    // A named checkpoint expires one group on a job holding several. The public helper takes no name on
+    // purpose (an author cannot know a derived checkpoint name), so this is the seam a spec uses to prove the
     // groups are independent rather than the helper's whole-job reach.
-    private async Task ExpireGroupWaitAsync(long parentId, string? slotName, CancellationToken ct)
+    private async Task ExpireGroupWaitAsync(long parentId, string? checkpointName, CancellationToken ct)
     {
         var past = DateTime.UtcNow.AddMinutes(-1);
-        Assert.NotEqual(0, await WaitTimeoutStaging.ForceGroupWaitDueAsync(Db, parentId, past, ct, slotName));
+        Assert.NotEqual(0, await WaitTimeoutStaging.ForceGroupWaitDueAsync(Db, parentId, past, ct, checkpointName));
         await RewindRuntimeAsync(parentId, past, ct);
     }
 
@@ -500,7 +502,7 @@ public sealed class ChildGroupTimeoutSpec : ActaRuntimeTestBase<ConformanceFixtu
     // remaining time shrinks under it, and that is the property two of these facts assert.
     private async Task SetGroupDeadlineAsync(long parentId, DateTime deadlineAtUtc, CancellationToken ct)
     {
-        foreach (var slot in await ReadDeadlineSlotsAsync(parentId, ct))
+        foreach (var checkpoint in await ReadDeadlineCheckpointsAsync(parentId, ct))
         {
             await Db.ExecuteRawAsync(
                 "UPDATE {schema}.checkpoints SET value = @p_value"
@@ -508,7 +510,7 @@ public sealed class ChildGroupTimeoutSpec : ActaRuntimeTestBase<ConformanceFixtu
                 ct,
                 ("@p_value", Encoding.UTF8.GetBytes(deadlineAtUtc.Ticks.ToString(CultureInfo.InvariantCulture))),
                 ("@p_id", parentId),
-                ("@p_name", slot.CheckpointName)
+                ("@p_name", checkpoint.CheckpointName)
             );
         }
     }

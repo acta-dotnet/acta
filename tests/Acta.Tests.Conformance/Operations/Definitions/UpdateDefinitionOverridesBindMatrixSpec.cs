@@ -12,9 +12,9 @@ namespace Acta.Tests.Conformance.Operations.Definitions;
 /// </summary>
 [ConformanceSpec(
     "catalog.override-bind-matrix",
-    "Definition override bind matrix: all 13 slots",
+    "Definition override bind matrix: all 13 fields",
     Area = "Catalog",
-    Contract = "All 13 override slots bind to their own column, COALESCE recomputes each effective, and null clears the override to fall back to base."
+    Contract = "All 13 override fields bind to their own column, COALESCE recomputes each effective, and null clears the override to fall back to base."
 )]
 public sealed class UpdateDefinitionOverridesBindMatrixSpec : ActaStorageTestBase<ConformanceFixture>
 {

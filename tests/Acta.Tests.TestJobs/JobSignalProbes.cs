@@ -7,7 +7,7 @@ public sealed record ReviewDecision(bool Approved, string? Comment);
 
 /// <summary>
 /// Durable-signal probe handlers. Handlers restart from the top on every attempt, so each writes its
-/// observable variables on the path it actually reaches; the wait returns once the slot is Set.
+/// observable variables on the path it actually reaches; the wait returns once the checkpoint is Set.
 /// </summary>
 public static class JobSignalProbes
 {

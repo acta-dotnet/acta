@@ -7,12 +7,12 @@ using Xunit;
 
 namespace Acta.Tests.Conformance.Operations.Execution;
 
-/// <summary>Conformance for <c>start_job_step</c>, which opens or reads a durable step slot and decides what the step does on this entry.</summary>
+/// <summary>Conformance for <c>start_job_step</c>, which opens or reads a durable step and decides what the step does on this entry.</summary>
 [ConformanceSpec(
     "start-job-step.decision",
-    "Starting a step invokes, replays, suspends, or refuses from the slot's state",
+    "Starting a step invokes, replays, suspends, or refuses from the step's state",
     Area = "Execution",
-    Contract = "A step start invokes a new or due slot as its next attempt, replays a success, suspends on a pending retry, and refuses an exhausted or interrupted slot."
+    Contract = "A step start invokes a new or due step as its next attempt, replays a success, suspends on a pending retry, and refuses an exhausted or interrupted step."
 )]
 public sealed class StartJobStepSpec : ActaRuntimeTestBase<ConformanceFixture, TestJobs.TestJobsManifest>
 {
@@ -20,8 +20,8 @@ public sealed class StartJobStepSpec : ActaRuntimeTestBase<ConformanceFixture, T
 
     private ExecutionOperations Execution => Services.GetRequiredService<ExecutionOperations>();
 
-    [Fact(DisplayName = "A first start opens a Pending slot at attempt 1 and invokes it")]
-    public async Task First_start_opens_a_pending_slot()
+    [Fact(DisplayName = "A first start opens a Pending step at attempt 1 and invokes it")]
+    public async Task First_start_opens_a_pending_step()
     {
         var ct = TestContext.Current.CancellationToken;
         var job = await EnqueueAsync(ct);
@@ -37,8 +37,8 @@ public sealed class StartJobStepSpec : ActaRuntimeTestBase<ConformanceFixture, T
         Assert.Null(step.NextRetryAtUtc);
     }
 
-    [Fact(DisplayName = "A Pending slot re-entered with no retry instant is invoked again as the next attempt")]
-    public async Task Re_entered_pending_slot_is_invoked_as_the_next_attempt()
+    [Fact(DisplayName = "A Pending step re-entered with no retry instant is invoked again as the next attempt")]
+    public async Task Re_entered_pending_step_is_invoked_as_the_next_attempt()
     {
         var ct = TestContext.Current.CancellationToken;
         var job = await EnqueueAsync(ct);
@@ -54,7 +54,7 @@ public sealed class StartJobStepSpec : ActaRuntimeTestBase<ConformanceFixture, T
         Assert.Equal(again.Version, step.Version);
     }
 
-    [Fact(DisplayName = "An at-most-once slot re-entered before completion is terminalized Interrupted and never invoked again")]
+    [Fact(DisplayName = "An at-most-once step re-entered before completion is terminalized Interrupted and never invoked again")]
     public async Task At_most_once_re_entry_is_interrupted()
     {
         var ct = TestContext.Current.CancellationToken;
@@ -103,8 +103,8 @@ public sealed class StartJobStepSpec : ActaRuntimeTestBase<ConformanceFixture, T
         Assert.Equal(2, retried.AttemptNumber);
     }
 
-    [Fact(DisplayName = "A succeeded slot replays its stored result without a new attempt or a write")]
-    public async Task Succeeded_slot_replays_its_result()
+    [Fact(DisplayName = "A succeeded step replays its stored result without a new attempt or a write")]
+    public async Task Succeeded_step_replays_its_result()
     {
         var ct = TestContext.Current.CancellationToken;
         var job = await EnqueueAsync(ct);
@@ -124,8 +124,8 @@ public sealed class StartJobStepSpec : ActaRuntimeTestBase<ConformanceFixture, T
         Assert.Equal(stored.Version, (await ReadStepAsync(job, ct)).Version);
     }
 
-    [Fact(DisplayName = "An exhausted slot is refused with its final reason, on every later entry")]
-    public async Task Exhausted_slot_is_refused_with_its_reason()
+    [Fact(DisplayName = "An exhausted step is refused with its final reason, on every later entry")]
+    public async Task Exhausted_step_is_refused_with_its_reason()
     {
         var ct = TestContext.Current.CancellationToken;
         var job = await EnqueueAsync(ct);

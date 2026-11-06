@@ -7,7 +7,7 @@ using Xunit;
 namespace Acta.Tests.AspNetCore;
 
 /// <summary>
-/// GET /jobs/{jobRef}/checkpoints pages one job's checkpoint slots: the SDK page with each value rendered as a payload
+/// GET /jobs/{jobRef}/checkpoints pages one job's checkpoints: the SDK page with each value rendered as a payload
 /// body, the paging query handed to the facade as sent, 404 for an unknown job, and 400 for a malformed page size.
 /// </summary>
 public sealed class JobCheckpointsEndpointTests

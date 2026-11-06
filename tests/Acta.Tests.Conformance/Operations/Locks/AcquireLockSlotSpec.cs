@@ -67,7 +67,7 @@ public sealed class AcquireLockSlotSpec : ActaStorageTestBase<ConformanceFixture
         Assert.Null(await ReadAsync($"{prefix}.2", ct));
     }
 
-    [Fact(DisplayName = "An expired slot is stolen in place before any higher free slot, and its old token no longer releases")]
+    [Fact(DisplayName = "An expired lock slot is stolen in place before any higher free one, and its old token no longer releases")]
     public async Task Expired_slot_is_stolen_before_a_higher_free_one()
     {
         var ct = TestContext.Current.CancellationToken;

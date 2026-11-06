@@ -19,7 +19,7 @@ namespace Acta.Tests.Conformance.Operations.Outbox;
 )]
 public sealed class OutboxSignalInboxSpec : ActaStorageTestBase<ConformanceFixture>
 {
-    [Fact(DisplayName = "Free and stale slots admit, a pending slot rejects with its age, and consume takes only the command read")]
+    [Fact(DisplayName = "A free or stale inbox admits, a pending command rejects with its age, and consume takes only the command read")]
     public async Task Park_admission_and_consume_follow_the_inbox_contract()
     {
         var ct = TestContext.Current.CancellationToken;

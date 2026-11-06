@@ -7,36 +7,36 @@ using Xunit;
 namespace Acta.Tests.Conformance.Scenarios;
 
 /// <summary>
-/// Conformance for durable signal-wait timeouts: the expiration lives on the awaited checkpoint slot,
+/// Conformance for durable signal-wait timeouts: the expiration lives on the awaited checkpoint,
 /// the Suspended Job carries it in <c>NextRunAtUtc</c> so the claim wakes at the deadline, and
-/// <c>wait_job_signal</c>'s slot-locked re-entry is the sole arbiter that flips an overdue Pending slot to
+/// <c>wait_job_signal</c>'s checkpoint-locked re-entry is the sole arbiter that flips an overdue Pending checkpoint to
 /// <c>Expired</c>. Completion before the deadline wins; a raise after it revives nothing.
 /// </summary>
 [ConformanceSpec(
     "signals.wait-timeout",
-    "A bounded wait expires on its slot's stored instant, once and for good",
+    "A bounded wait expires on its checkpoint's stored instant, once and for good",
     Area = "Signals",
-    Contract = "A bounded wait stores an absolute expiration on its slot, wakes the Suspended job at that instant, resolves TimedOut once, and revives on no later raise."
+    Contract = "A bounded wait stores an absolute expiration on its checkpoint, wakes the Suspended job at that instant, resolves TimedOut once, and revives on no later raise."
 )]
 public sealed class SignalTimeoutSpec : ActaRuntimeTestBase<ConformanceFixture, TestJobs.TestJobsManifest>
 {
-    [Fact(DisplayName = "Arming stores an expiration on the slot and carries it into the Suspended job's next run")]
-    public async Task Arming_stores_the_expiration_on_the_slot_and_the_job()
+    [Fact(DisplayName = "Arming stores an expiration on the checkpoint and carries it into the Suspended job's next run")]
+    public async Task Arming_stores_the_expiration_on_the_checkpoint_and_the_job()
     {
         var ct = TestContext.Current.CancellationToken;
         var enqueued = await Jobs.EnqueueAsync(new EnqueueJobRequest(TestNamespace, "job-wait-signal-timeout", JobPayload.None), ct);
 
         Assert.Equal(RunOnceStatus.Rearmed, await Runtime.RunOnceAsync(enqueued, ct));
 
-        var slot = Assert.Single(await ReadSignalsAsync(enqueued.JobId, ct));
-        Assert.Equal("go", slot.CheckpointName);
-        Assert.Equal(CheckpointStatusCode.Pending, slot.Status);
-        Assert.NotNull(slot.DueAtUtc);
+        var checkpoint = Assert.Single(await ReadSignalsAsync(enqueued.JobId, ct));
+        Assert.Equal("go", checkpoint.CheckpointName);
+        Assert.Equal(CheckpointStatusCode.Pending, checkpoint.Status);
+        Assert.NotNull(checkpoint.DueAtUtc);
 
-        // The deadline is written once, on the slot; the jobs_state row only caches it for the claim.
+        // The deadline is written once, on the checkpoint; the jobs_state row only caches it for the claim.
         var job = await ReadJobAsync(enqueued.JobId, ct);
         Assert.Equal(JobStatusCode.Suspended, job.Status);
-        Assert.Equal(slot.DueAtUtc, job.NextRunAtUtc);
+        Assert.Equal(checkpoint.DueAtUtc, job.NextRunAtUtc);
         Assert.Null(job.LeasedByWorkerId);
     }
 
@@ -56,8 +56,8 @@ public sealed class SignalTimeoutSpec : ActaRuntimeTestBase<ConformanceFixture, 
         var report = await Jobs.GetResultAsync<WaitTimeoutReport>(enqueued, ct);
         Assert.Equal(new WaitTimeoutReport(TimedOut: false, Received: true, "in time"), report);
 
-        var slot = Assert.Single(await ReadSignalsAsync(enqueued.JobId, ct));
-        Assert.Equal(CheckpointStatusCode.Set, slot.Status);
+        var checkpoint = Assert.Single(await ReadSignalsAsync(enqueued.JobId, ct));
+        Assert.Equal(CheckpointStatusCode.Set, checkpoint.Status);
         Assert.Equal(JobStatusCode.Succeeded, (await ReadJobAsync(enqueued.JobId, ct)).Status);
         Assert.Equal(0, await CountReasonAsync(enqueued.JobId, EventReason.WaitTimedOut, ct));
     }
@@ -167,18 +167,18 @@ public sealed class SignalTimeoutSpec : ActaRuntimeTestBase<ConformanceFixture, 
         Assert.NotNull(armed);
 
         // Force a re-claim while the wait is still pending. The replayed handler asks for twice the
-        // original timeout; the existing slot must win over the code that re-entered it.
+        // original timeout; the existing checkpoint must win over the code that re-entered it.
         await ForceClaimableAsync(Db, enqueued.JobId, ct);
         Assert.Equal(RunOnceStatus.Rearmed, await Runtime.RunOnceAsync(enqueued, ct));
 
-        var slot = Assert.Single(await ReadSignalsAsync(enqueued.JobId, ct));
-        Assert.Equal(CheckpointStatusCode.Pending, slot.Status);
-        Assert.Equal(armed, slot.DueAtUtc);
+        var checkpoint = Assert.Single(await ReadSignalsAsync(enqueued.JobId, ct));
+        Assert.Equal(CheckpointStatusCode.Pending, checkpoint.Status);
+        Assert.Equal(armed, checkpoint.DueAtUtc);
         Assert.Equal(armed, (await ReadJobAsync(enqueued.JobId, ct)).NextRunAtUtc);
     }
 
     [Fact(DisplayName = "A raise after the deadline but before the wait re-enters still wins")]
-    public async Task Completion_wins_the_race_against_an_overdue_slot()
+    public async Task Completion_wins_the_race_against_an_overdue_checkpoint()
     {
         var ct = TestContext.Current.CancellationToken;
         var enqueued = await Jobs.EnqueueAsync(
@@ -187,7 +187,7 @@ public sealed class SignalTimeoutSpec : ActaRuntimeTestBase<ConformanceFixture, 
         );
         Assert.Equal(RunOnceStatus.Rearmed, await Runtime.RunOnceAsync(enqueued, ct));
 
-        // Deterministic staging of the race the slot lock arbitrates: the slot is already overdue when
+        // Deterministic staging of the race the checkpoint lock arbitrates: the checkpoint is already overdue when
         // the raise lands, and the wait has not re-entered yet. The wait had not resolved, so the raise
         // is not late and completion must win.
         await ExpireWaitAsync(Db, enqueued.JobId, "review", ct);
@@ -206,7 +206,7 @@ public sealed class SignalTimeoutSpec : ActaRuntimeTestBase<ConformanceFixture, 
         Assert.Equal(0, await CountReasonAsync(enqueued.JobId, EventReason.WaitTimedOut, ct));
     }
 
-    [Fact(DisplayName = "A raise on an expired slot revives nothing and the replayed wait stays TimedOut")]
+    [Fact(DisplayName = "A raise on an expired checkpoint revives nothing and the replayed wait stays TimedOut")]
     public async Task Late_raise_cannot_revive_an_expired_wait()
     {
         var ct = TestContext.Current.CancellationToken;
@@ -242,7 +242,7 @@ public sealed class SignalTimeoutSpec : ActaRuntimeTestBase<ConformanceFixture, 
         Assert.Contains("already expired", raised.EventMessage ?? "", StringComparison.Ordinal);
         Assert.Equal(0, await CountEventsAsync(enqueued.JobId, EventCode.JobResumed, ct));
 
-        // Releasing the second signal replays the handler over the expired slot: it still resolves
+        // Releasing the second signal replays the handler over the expired checkpoint: it still resolves
         // TimedOut, deterministically, and the job runs to completion.
         Assert.Equal(ControlAction.Applied, (await Jobs.RaiseSignalAsync(enqueued, "hold", JobPayload.None, ct: ct)).Action);
         Assert.Equal(RunOnceStatus.Completed, await Runtime.RunOnceAsync(enqueued, ct));
@@ -253,8 +253,8 @@ public sealed class SignalTimeoutSpec : ActaRuntimeTestBase<ConformanceFixture, 
         );
     }
 
-    [Fact(DisplayName = "An unbounded wait replayed over an expired slot cancels the job instead of parking")]
-    public async Task Unbounded_replay_over_an_expired_slot_cancels_the_job()
+    [Fact(DisplayName = "An unbounded wait replayed over an expired checkpoint cancels the job instead of parking")]
+    public async Task Unbounded_replay_over_an_expired_checkpoint_cancels_the_job()
     {
         var ct = TestContext.Current.CancellationToken;
         var enqueued = await Jobs.EnqueueAsync(
@@ -269,7 +269,7 @@ public sealed class SignalTimeoutSpec : ActaRuntimeTestBase<ConformanceFixture, 
         Assert.Equal(RunOnceStatus.Rearmed, await Runtime.RunOnceAsync(enqueued, ct));
         Assert.Equal(JobStatusCode.Suspended, (await ReadJobAsync(enqueued.JobId, ct)).Status);
 
-        // Releasing the park replays the handler over the same slot with the unbounded overload. State
+        // Releasing the park replays the handler over the same checkpoint with the unbounded overload. State
         // records only the expiration; the code that re-enters decides what reaching it means, and the
         // unbounded overload ends the job rather than returning a result.
         Assert.Equal(ControlAction.Applied, (await Jobs.RaiseSignalAsync(enqueued, "hold", JobPayload.None, ct: ct)).Action);
@@ -309,7 +309,7 @@ public sealed class SignalTimeoutSpec : ActaRuntimeTestBase<ConformanceFixture, 
 
         var armed = (await ReadSignalsAsync(enqueued.JobId, ct)).Single().DueAtUtc;
         Assert.NotNull(armed);
-        // The same attempt that armed the slot completes through the suspend branch, so the wake time
+        // The same attempt that armed the checkpoint completes through the suspend branch, so the wake time
         // is cached on the jobs_state row without needing a second tick.
         var suspended = await ReadJobAsync(enqueued.JobId, ct);
         Assert.Equal(JobStatusCode.Suspended, suspended.Status);
@@ -321,7 +321,7 @@ public sealed class SignalTimeoutSpec : ActaRuntimeTestBase<ConformanceFixture, 
         Assert.Equal(CheckpointStatusCode.Expired, (await ReadSignalsAsync(enqueued.JobId, ct)).Single().Status);
     }
 
-    [Fact(DisplayName = "A replay dropping the bound does not clear the deadline the slot carries")]
+    [Fact(DisplayName = "A replay dropping the bound does not clear the deadline the checkpoint carries")]
     public async Task Replay_without_a_bound_does_not_clear_the_deadline()
     {
         var ct = TestContext.Current.CancellationToken;
@@ -336,20 +336,20 @@ public sealed class SignalTimeoutSpec : ActaRuntimeTestBase<ConformanceFixture, 
         await ForceClaimableAsync(Db, enqueued.JobId, ct);
         Assert.Equal(RunOnceStatus.Rearmed, await Runtime.RunOnceAsync(enqueued, ct));
 
-        var slot = Assert.Single(await ReadSignalsAsync(enqueued.JobId, ct));
-        Assert.Equal(CheckpointStatusCode.Pending, slot.Status);
-        Assert.Equal(armed, slot.DueAtUtc);
+        var checkpoint = Assert.Single(await ReadSignalsAsync(enqueued.JobId, ct));
+        Assert.Equal(CheckpointStatusCode.Pending, checkpoint.Status);
+        Assert.Equal(armed, checkpoint.DueAtUtc);
         Assert.Equal(armed, (await ReadJobAsync(enqueued.JobId, ct)).NextRunAtUtc);
     }
 
-    [Fact(DisplayName = "A bounded wait arriving at a slot an unbounded one already armed still arms the deadline")]
-    public async Task Bounded_wait_arms_a_slot_an_unbounded_arrival_already_created()
+    [Fact(DisplayName = "A bounded wait arriving at a checkpoint an unbounded one already armed still arms the deadline")]
+    public async Task Bounded_wait_arms_a_checkpoint_an_unbounded_arrival_already_created()
     {
         var ct = TestContext.Current.CancellationToken;
         var enqueued = await Jobs.EnqueueAsync(new EnqueueJobRequest(TestNamespace, "job-wait-signal", JobPayload.None), ct);
 
-        // The unbounded arrival's slot, armed by the handler itself. Two first arrivals racing the same
-        // absent slot leave exactly this state for the loser, which is the interleaving this pins: the
+        // The unbounded arrival's checkpoint, armed by the handler itself. Two first arrivals racing the same
+        // absent checkpoint leave exactly this state for the loser, which is the interleaving this pins: the
         // caller that carries a bound must arm the deadline whether it created the row or found it.
         Assert.Equal(RunOnceStatus.Rearmed, await Runtime.RunOnceAsync(enqueued, ct));
         Assert.Null((await ReadSignalsAsync(enqueued.JobId, ct)).Single().DueAtUtc);
@@ -363,9 +363,9 @@ public sealed class SignalTimeoutSpec : ActaRuntimeTestBase<ConformanceFixture, 
         // Still pending - the bound arms a deadline, it does not resolve the wait - and now bounded, so
         // the job the next suspend caches it on can be claimed back at that instant.
         Assert.Equal(WaitJobSignalOutcomeCode.SuspendPending, decision.Outcome);
-        var slot = Assert.Single(await ReadSignalsAsync(enqueued.JobId, ct));
-        Assert.Equal(CheckpointStatusCode.Pending, slot.Status);
-        Assert.NotNull(slot.DueAtUtc);
+        var checkpoint = Assert.Single(await ReadSignalsAsync(enqueued.JobId, ct));
+        Assert.Equal(CheckpointStatusCode.Pending, checkpoint.Status);
+        Assert.NotNull(checkpoint.DueAtUtc);
     }
 
     [Fact(DisplayName = "An unbounded wait still suspends with no due instant and stays unclaimable")]
@@ -375,9 +375,9 @@ public sealed class SignalTimeoutSpec : ActaRuntimeTestBase<ConformanceFixture, 
         var enqueued = await Jobs.EnqueueAsync(new EnqueueJobRequest(TestNamespace, "job-wait-signal", JobPayload.None), ct);
         Assert.Equal(RunOnceStatus.Rearmed, await Runtime.RunOnceAsync(enqueued, ct));
 
-        var slot = Assert.Single(await ReadSignalsAsync(enqueued.JobId, ct));
-        Assert.Equal(CheckpointStatusCode.Pending, slot.Status);
-        Assert.Null(slot.DueAtUtc);
+        var checkpoint = Assert.Single(await ReadSignalsAsync(enqueued.JobId, ct));
+        Assert.Equal(CheckpointStatusCode.Pending, checkpoint.Status);
+        Assert.Null(checkpoint.DueAtUtc);
 
         var job = await ReadJobAsync(enqueued.JobId, ct);
         Assert.Equal(JobStatusCode.Suspended, job.Status);
@@ -389,7 +389,7 @@ public sealed class SignalTimeoutSpec : ActaRuntimeTestBase<ConformanceFixture, 
         Assert.Equal(JobStatusCode.Suspended, (await ReadJobAsync(enqueued.JobId, ct)).Status);
     }
 
-    // Moves the wait past its deadline the way real time would: the slot's stored expiration and the
+    // Moves the wait past its deadline the way real time would: the checkpoint's stored expiration and the
     // job's cached claim instant both go into the past, and nothing else is touched.
     private static async Task ExpireWaitAsync(IDbSession db, long jobId, string name, CancellationToken ct)
     {

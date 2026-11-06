@@ -10,7 +10,7 @@ namespace Acta.Tests.Conformance.Operations.Execution;
 /// <summary>Conformance for <c>complete_job_step</c>, which records one invoked step attempt under the version its start returned.</summary>
 [ConformanceSpec(
     "complete-job-step.decision",
-    "Completing a step stores a success, schedules a retry, or exhausts the slot",
+    "Completing a step stores a success, schedules a retry, or exhausts it",
     Area = "Execution",
     Contract = "A step completion stores a success, schedules an in-budget retry, exhausts past the attempt or window budget, and writes nothing on a stale version."
 )]
@@ -22,7 +22,7 @@ public sealed class CompleteJobStepSpec : ActaRuntimeTestBase<ConformanceFixture
 
     private ExecutionOperations Execution => Services.GetRequiredService<ExecutionOperations>();
 
-    [Fact(DisplayName = "A success stores the result, marks the slot Succeeded, and clears an earlier failure's reason and retry instant")]
+    [Fact(DisplayName = "A success stores the result, marks the step Succeeded, and clears an earlier failure's reason and retry instant")]
     public async Task Success_stores_the_result_and_clears_the_failure()
     {
         var ct = TestContext.Current.CancellationToken;
@@ -53,7 +53,7 @@ public sealed class CompleteJobStepSpec : ActaRuntimeTestBase<ConformanceFixture
         Assert.Equal(second.Version + 1, step.Version);
     }
 
-    [Fact(DisplayName = "An in-budget failure keeps the slot Pending with a retry instant one delay out and the reason recorded")]
+    [Fact(DisplayName = "An in-budget failure keeps the step Pending with a retry instant one delay out and the reason recorded")]
     public async Task In_budget_failure_schedules_a_retry()
     {
         var ct = TestContext.Current.CancellationToken;
@@ -75,8 +75,8 @@ public sealed class CompleteJobStepSpec : ActaRuntimeTestBase<ConformanceFixture
         Assert.Equal(start.Version + 1, step.Version);
     }
 
-    [Fact(DisplayName = "A failure on the last allowed attempt exhausts the slot with its reason and no retry instant")]
-    public async Task Failure_on_the_last_attempt_exhausts_the_slot()
+    [Fact(DisplayName = "A failure on the last allowed attempt exhausts the step with its reason and no retry instant")]
+    public async Task Failure_on_the_last_attempt_exhausts_the_step()
     {
         var ct = TestContext.Current.CancellationToken;
         var job = await EnqueueAsync(ct);
@@ -92,8 +92,8 @@ public sealed class CompleteJobStepSpec : ActaRuntimeTestBase<ConformanceFixture
         Assert.Equal(Reason, step.FailureMessage);
     }
 
-    [Fact(DisplayName = "A retry that would land past the retry window exhausts the slot with attempts still left")]
-    public async Task Retry_past_the_window_exhausts_the_slot()
+    [Fact(DisplayName = "A retry that would land past the retry window exhausts the step with attempts still left")]
+    public async Task Retry_past_the_window_exhausts_the_step()
     {
         var ct = TestContext.Current.CancellationToken;
         var outside = await EnqueueAsync(ct);
@@ -117,7 +117,7 @@ public sealed class CompleteJobStepSpec : ActaRuntimeTestBase<ConformanceFixture
         var ct = TestContext.Current.CancellationToken;
         var job = await EnqueueAsync(ct);
         var stale = await Execution.StartJobStepAsync(job, StepName, atMostOnce: false, ct);
-        // A second start of the same slot, as a concurrent execution of the job would make, moves the version on.
+        // A second start of the same step, as a concurrent execution of the job would make, moves the version on.
         await Execution.StartJobStepAsync(job, StepName, atMostOnce: false, ct);
         var before = await ReadStepAsync(job, ct);
 

@@ -8,20 +8,20 @@ using Xunit;
 namespace Acta.Tests.Conformance.SqlServer.Features.Execution;
 
 /// <summary>
-/// SQL Server <c>complete_executions</c> takes a waiting job's awaited slot lock, with every other slot lock it needs,
-/// before it reads any slot, as every writer of a slot does: it holds no gap of <c>pk_checkpoints</c>, and a raise that
-/// creates the awaited slot still waits for the landing and then wakes the job.
+/// SQL Server <c>complete_executions</c> takes a waiting job's awaited checkpoint lock, with every other checkpoint lock it needs,
+/// before it reads any checkpoint, as every writer of a checkpoint does: it holds no gap of <c>pk_checkpoints</c>, and a raise that
+/// creates the awaited checkpoint still waits for the landing and then wakes the job.
 /// </summary>
 public sealed class SqlServerCompletionWaitLockTests : ActaRuntimeTestBase<SqlServerConformanceFixture, TestJobsManifest>
 {
-    private SignalsOperations Slots => Services.GetRequiredService<SignalsOperations>();
+    private SignalsOperations Signals => Services.GetRequiredService<SignalsOperations>();
 
-    [Fact(DisplayName = "A wait landing held open leaves the key gap after its awaited slot free for another slot's insert")]
-    public async Task Held_wait_landing_does_not_lock_the_gap_after_the_awaited_slot()
+    [Fact(DisplayName = "A wait landing held open leaves the key gap after its awaited checkpoint free for another checkpoint's insert")]
+    public async Task Held_wait_landing_does_not_lock_the_gap_after_the_awaited_checkpoint()
     {
         var ct = TestContext.Current.CancellationToken;
         var (workerId, claimed) = await ClaimAsync(ct);
-        var wait = await Slots.WaitJobSignalAsync(
+        var wait = await Signals.WaitJobSignalAsync(
             new ExecutionFence(claimed.JobId, claimed.ExecutionNumber, workerId),
             CheckpointKindCode.Signal,
             "go",
@@ -48,12 +48,12 @@ public sealed class SqlServerCompletionWaitLockTests : ActaRuntimeTestBase<SqlSe
         );
         // The landing stays open until the fact ends, so an insert that waited on it would never return.
         var first = await Task.WhenAny(insert, Task.Delay(SpecWaits.Gate, ct));
-        Assert.True(first == insert, "the slot insert waited on the open landing");
+        Assert.True(first == insert, "the checkpoint insert waited on the open landing");
         Assert.Equal(1, await insert);
     }
 
-    [Fact(DisplayName = "A raise that creates a missing awaited slot waits for the wait landing, then wakes the job")]
-    public async Task Raise_creating_the_awaited_slot_waits_for_the_landing_and_wakes_the_job()
+    [Fact(DisplayName = "A raise that creates a missing awaited checkpoint waits for the wait landing, then wakes the job")]
+    public async Task Raise_creating_the_awaited_checkpoint_waits_for_the_landing_and_wakes_the_job()
     {
         var ct = TestContext.Current.CancellationToken;
         var (workerId, claimed) = await ClaimAsync(ct);
@@ -63,7 +63,7 @@ public sealed class SqlServerCompletionWaitLockTests : ActaRuntimeTestBase<SqlSe
         await LandWaitingAsync(hold, workerId, claimed, ct);
 
         var input = new JobControlInput("op", null, null);
-        var raise = Slots.RaiseJobSignalAsync(
+        var raise = Signals.RaiseJobSignalAsync(
             new RaiseJobSignalCheckpoint(claimed.JobId, CheckpointKindCode.Signal, "go", 0, null, input),
             ct
         );

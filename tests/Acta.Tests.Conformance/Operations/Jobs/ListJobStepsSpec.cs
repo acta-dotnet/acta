@@ -6,12 +6,12 @@ using Xunit;
 
 namespace Acta.Tests.Conformance.Operations.Jobs;
 
-/// <summary>Conformance for ListJobSteps: a job's step slots page newest first with their state, each slot once.</summary>
+/// <summary>Conformance for ListJobSteps: a job's steps page newest first with their state, each step once.</summary>
 [ConformanceSpec(
     "job-payload-reads.steps",
-    "ListJobSteps pages a job's step slots newest first",
+    "ListJobSteps pages a job's steps newest first",
     Area = "Reads",
-    Contract = "ListJobSteps pages a job's step slots newest first with status and attempt, each slot once across pages, and an empty page for a job without a row."
+    Contract = "ListJobSteps pages a job's steps newest first with status and attempt, each step once across pages, and an empty page for a job without a row."
 )]
 public sealed class ListJobStepsSpec : ActaRuntimeTestBase<ConformanceFixture, TestJobs.TestJobsManifest>
 {
@@ -50,7 +50,7 @@ public sealed class ListJobStepsSpec : ActaRuntimeTestBase<ConformanceFixture, T
         Assert.Equal(3, seen.Select(step => step.Name).Distinct().Count());
         Assert.All(seen, step => Assert.Equal(StepStatusCode.Pending, step.Status));
         Assert.All(seen, step => Assert.Equal(1, step.AttemptNumber));
-        // Newest first: each slot was created no later than the one listed before it.
+        // Newest first: each step was created no later than the one listed before it.
         Assert.True(seen.Zip(seen.Skip(1)).All(pair => pair.First.CreatedAtUtc >= pair.Second.CreatedAtUtc));
     }
 

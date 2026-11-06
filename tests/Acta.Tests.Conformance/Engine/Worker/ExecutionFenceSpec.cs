@@ -215,7 +215,7 @@ public sealed class ExecutionFenceSpec : ActaRuntimeTestBase<ConformanceFixture,
         await AssertCompletionAcceptedAsync(current, ct);
     }
 
-    [Theory(DisplayName = "A superseded signal wait arms no slot, so the current attempt arms its own")]
+    [Theory(DisplayName = "A superseded signal wait arms no checkpoint, so the current attempt arms its own")]
     [InlineData(false)]
     [InlineData(true)]
     public async Task Signal_wait(bool sameWorker)

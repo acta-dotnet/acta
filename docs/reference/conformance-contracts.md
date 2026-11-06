@@ -275,8 +275,8 @@
 
 ## Catalog
 
-### Definition override bind matrix: all 13 slots
-- **Contract:** All 13 override slots bind to their own column, COALESCE recomputes each effective, and null clears the override to fall back to base.
+### Definition override bind matrix: all 13 fields
+- **Contract:** All 13 override fields bind to their own column, COALESCE recomputes each effective, and null clears the override to fall back to base.
 - **Guarantees:**
   - All 13 overrides bind to their own column, detectable by distinct values
   - Clearing all overrides reverts each effective to its base value
@@ -457,7 +457,7 @@
 - **Guarantees:**
   - A group that finishes before its deadline returns what the unbounded form returns
   - An expired group cancels its unfinished member's subtree and spares the child it never awaited
-  - A crash replay reuses the stored group deadline byte for byte and extends no slot
+  - A crash replay reuses the stored group deadline byte for byte and extends no checkpoint
   - A member armed on a subsequent pass is due at the group deadline, not a full bound from its own arm
   - An expired group times out every member in one pass, however many were never armed
   - A replay over an expired group re-runs every member cancel as a no-op
@@ -501,7 +501,7 @@
   - An expired child wait cancels the awaited subtree, spares the sibling, and leaves the parent running
   - A parent that timed out on one child stays active and joins a replacement child
   - A replay over an expired child latch re-runs the cancel as a no-op and still resolves TimedOut
-  - A child landing terminal on an expired latch writes no slot, releases no parent, and says so
+  - A child landing terminal on an expired latch writes no checkpoint, releases no parent, and says so
   - A timed-out child lands Cancelled budget-neutrally with its retention stamped
   - An unbounded wait replayed over an expired child latch cancels the parent instead
   - A bounded wait on a job that is not this job's child times out without cancelling it
@@ -551,15 +551,15 @@
   - Parallel executors never run two same-key handlers concurrently
   - A claimed job whose key lock is held bounces to Ready with the configured delay
 
-### A definition's concurrency limit is how many of its key's slots exist
-- **Contract:** A concurrency key admits at most its definition's limit at once, one lock row per slot, taken lowest free slot first.
+### A definition's concurrency limit is how many of its key's lock slots exist
+- **Contract:** A concurrency key admits at most its definition's limit at once, one lock slot each, taken lowest free first.
 - **Guarantees:**
-  - Limit 1 is the single-slot mutex the exclusive key always was
-  - Admission fills the lowest free slot and stops at the limit
+  - Limit 1 is the single lock slot the exclusive key always was
+  - Admission fills the lowest free lock slot and stops at the limit
   - A shared key's capacity is the largest limit among its participants
-  - A lowered limit admits into the low slots while the high holders run on
-  - A slot whose lease expired is stolen by the next admission
-  - Real same-key handlers run at the limit minus the slots held elsewhere
+  - A lowered limit admits into the low lock slots while the high holders run on
+  - A lock slot whose lease expired is stolen by the next admission
+  - Real same-key handlers run at the limit minus the lock slots held elsewhere
 
 ### A meter freed after a lock convoy admits its burst, not every queued call
 - **Contract:** Reservations delayed behind a held bucket row are judged at the clock when the row frees, so the release admits the burst and books the rest.
@@ -906,14 +906,14 @@
 
 ## Execution
 
-### A checkpoint slot is set, read, kept on first write, and deleted by one call
-- **Contract:** A slot keyed by job, kind, and name is overwritten by Set, kept by GetOrSet, removed by Delete, and never written without a payload.
+### A checkpoint is set, read, kept on first write, and deleted by one call
+- **Contract:** A checkpoint keyed by job, kind, and name is overwritten by Set, kept by GetOrSet, removed by Delete, and never written without a payload.
 - **Guarantees:**
-  - Set inserts a slot and a later Set overwrites its value in place, one version on
-  - Get, Exists, and Delete answer not found for a slot that was never written
-  - Delete removes the slot and reports it once, and a second Delete finds nothing
+  - Set inserts a checkpoint and a later Set overwrites its value in place, one version on
+  - Get, Exists, and Delete answer not found for a checkpoint that was never written
+  - Delete removes the checkpoint and reports it once, and a second Delete finds nothing
   - GetOrSet stores the first value and hands it back unchanged to every later caller
-  - The same name under another kind or another job is a different slot
+  - The same name under another kind or another job is a different checkpoint
   - A write without a payload is rejected and stores nothing
 
 ### A sleep arms one durable timer, suspends until it is due, then consumes it
@@ -926,13 +926,13 @@
   - A zero-length sleep or one whose resume instant has passed continues at once and arms nothing
   - A second sleep under another name while one is pending is rejected and arms nothing
 
-### Completing a step stores a success, schedules a retry, or exhausts the slot
+### Completing a step stores a success, schedules a retry, or exhausts it
 - **Contract:** A step completion stores a success, schedules an in-budget retry, exhausts past the attempt or window budget, and writes nothing on a stale version.
 - **Guarantees:**
-  - A success stores the result, marks the slot Succeeded, and clears an earlier failure's reason and retry instant
-  - An in-budget failure keeps the slot Pending with a retry instant one delay out and the reason recorded
-  - A failure on the last allowed attempt exhausts the slot with its reason and no retry instant
-  - A retry that would land past the retry window exhausts the slot with attempts still left
+  - A success stores the result, marks the step Succeeded, and clears an earlier failure's reason and retry instant
+  - An in-budget failure keeps the step Pending with a retry instant one delay out and the reason recorded
+  - A failure on the last allowed attempt exhausts the step with its reason and no retry instant
+  - A retry that would land past the retry window exhausts the step with attempts still left
   - A success or a failure carrying a stale version reports StaleVersion and writes nothing
 
 ### A Strict deadline terminates an overdue job and blocks a retry past the deadline
@@ -966,7 +966,7 @@
   - A superseded at-most-once step start leaves the current attempt's step running, never Interrupted
   - A superseded step completion at the step's current version still changes nothing
   - A superseded sleep arms no timer, so the current attempt arms its own
-  - A superseded signal wait arms no slot, so the current attempt arms its own
+  - A superseded signal wait arms no checkpoint, so the current attempt arms its own
   - A superseded child wait arms no latch, so the current attempt arms its own
   - A superseded timed-out child cancel leaves the child the current attempt restarted and waits on
   - A timed-out child cancel under the holding attempt's fence cancels the child and its descendants
@@ -1078,15 +1078,15 @@
 - **Guarantees:**
   - Every enqueued job executes exactly once and the whole backlog drains to completion
 
-### Starting a step invokes, replays, suspends, or refuses from the slot's state
-- **Contract:** A step start invokes a new or due slot as its next attempt, replays a success, suspends on a pending retry, and refuses an exhausted or interrupted slot.
+### Starting a step invokes, replays, suspends, or refuses from the step's state
+- **Contract:** A step start invokes a new or due step as its next attempt, replays a success, suspends on a pending retry, and refuses an exhausted or interrupted step.
 - **Guarantees:**
-  - A first start opens a Pending slot at attempt 1 and invokes it
-  - A Pending slot re-entered with no retry instant is invoked again as the next attempt
-  - An at-most-once slot re-entered before completion is terminalized Interrupted and never invoked again
+  - A first start opens a Pending step at attempt 1 and invokes it
+  - A Pending step re-entered with no retry instant is invoked again as the next attempt
+  - An at-most-once step re-entered before completion is terminalized Interrupted and never invoked again
   - A pending retry suspends until its instant, and once the instant passes the next attempt is invoked
-  - A succeeded slot replays its stored result without a new attempt or a write
-  - An exhausted slot is refused with its final reason, on every later entry
+  - A succeeded step replays its stored result without a new attempt or a write
+  - An exhausted step is refused with its final reason, on every later entry
 
 ### A timeout within budget re-arms to Ready; exhausted budget lands Failed
 - **Contract:** A per-attempt timeout re-arms the job to Ready incrementing failure_count while budget remains and lands terminal Failed once MaxAttempts is exhausted.
@@ -1215,7 +1215,7 @@
 - **Guarantees:**
   - The lowest free slot is taken first, and its row records the owner, the minted token, and a lease the TTL long
   - With every slot under the limit held the acquire returns null and writes no slot past the limit
-  - An expired slot is stolen in place before any higher free slot, and its old token no longer releases
+  - An expired lock slot is stolen in place before any higher free one, and its old token no longer releases
   - Simultaneous acquires of a key's one free slot leave exactly one holder
   - A limit below one throws before any slot is written
 
@@ -1389,7 +1389,7 @@
 ### Park admission and consume of the command read bound the operator inbox
 - **Contract:** Park inserts when free, rejects with the pending instant while a younger command pends, supersedes a stale one, and consume deletes only the command read.
 - **Guarantees:**
-  - Free and stale slots admit, a pending slot rejects with its age, and consume takes only the command read
+  - A free or stale inbox admits, a pending command rejects with its age, and consume takes only the command read
 
 ### A replayed operator command records one event and changes only its planned rows
 - **Contract:** A command replayed after a crash before its evidence records one event naming its planned rows, and a pass that loses the plan never touches the source.
@@ -1583,12 +1583,12 @@
   - A known worker id returns its durable detail projection
   - An unknown worker id returns null
 
-### ListJobCheckpoints pages a job's slots by kind then name
-- **Contract:** ListJobCheckpoints pages a job's slots by kind then name, values intact, empty for no slots or no job, its cursor walking past a kind this build does not know.
+### ListJobCheckpoints pages a job's checkpoints by kind then name
+- **Contract:** ListJobCheckpoints pages a job's checkpoints by kind then name, values intact, empty for none or no job, its cursor passing a kind this build does not know.
 - **Guarantees:**
-  - ListJobCheckpoints lists variable and signal slots with kind, state, and value round-tripped
-  - ListJobCheckpoints answers an empty page for a job with no slots and for a missing id
-  - ListJobCheckpoints pages to the end across a kind this build does not know, each slot once
+  - ListJobCheckpoints lists variable and signal checkpoints with kind, state, and value round-tripped
+  - ListJobCheckpoints answers an empty page for a job with no checkpoints and for a missing id
+  - ListJobCheckpoints pages to the end across a kind this build does not know, each checkpoint once
 
 ### GetJobInput reads the stored input or null
 - **Contract:** GetJobInput returns the payload and format a job was enqueued with, and null when no job row matches.
@@ -1596,8 +1596,8 @@
   - GetJobInput returns the payload the job was enqueued with
   - GetJobInput returns null when no job row matches the id
 
-### ListJobSteps pages a job's step slots newest first
-- **Contract:** ListJobSteps pages a job's step slots newest first with status and attempt, each slot once across pages, and an empty page for a job without a row.
+### ListJobSteps pages a job's steps newest first
+- **Contract:** ListJobSteps pages a job's steps newest first with status and attempt, each step once across pages, and an empty page for a job without a row.
 - **Guarantees:**
   - ListJobSteps pages three steps newest first to a null cursor
   - ListJobSteps orders steps started together by name, newest name first, across pages
@@ -1748,7 +1748,7 @@
 - **Guarantees:**
   - A crash after the wait expired re-arms the job Suspended on the same deadline with no attempt charged
   - A crash before the wait expired is charged and re-armed the ordinary way
-  - An expired slot the handler already passed does not make a later crash free
+  - An expired checkpoint the handler already passed does not make a later crash free
   - The uncharged reclaim still opens an incident under the job's own alert profile
   - A success after an uncharged reclaim resolves the incident it opened
 
@@ -2258,39 +2258,39 @@
 
 ## Signals
 
-### An operator raise sets the named slot and records who raised it
-- **Contract:** Raise upserts the job's named slot to Set with the latest payload and records the operator, while a missing job is NotFound and a finished one Rejected.
+### An operator raise sets the named checkpoint and records who raised it
+- **Contract:** Raise upserts the job's named checkpoint to Set with the latest payload and records the operator, while a missing job is NotFound and a finished one Rejected.
 - **Guarantees:**
-  - A raise stores the payload on a Set slot and records the operator on the event
-  - A repeat raise keeps one slot, overwrites its payload, and bumps its version
-  - An unknown job is NotFound and a finished job is Rejected, and neither gains a slot or an event
+  - A raise stores the payload on a Set checkpoint and records the operator on the event
+  - A repeat raise keeps one checkpoint, overwrites its payload, and bumps its version
+  - An unknown job is NotFound and a finished job is Rejected, and neither gains a checkpoint or an event
   - A malformed or reserved signal name throws before the job is looked up
 
 ### A raise inside the suspend handoff lands the job Ready, not Suspended
-- **Contract:** complete_executions re-reads the awaited slot under lock, so a raise that beat the suspend write lands the job Ready and claimable, payload intact.
+- **Contract:** complete_executions re-reads the awaited checkpoint under lock, so a raise that beat the suspend write lands the job Ready and claimable, payload intact.
 - **Guarantees:**
   - A raise landing between the wait and its completion lands the job Ready with the payload intact
   - The same completion with nothing raised in the window still parks the job Suspended
 
 ### Wait suspends a job and a raise releases it last-writer-wins
-- **Contract:** WaitSignalAsync suspends a job on a Pending slot and RaiseSignalAsync sets the slot last-writer-wins releasing only a Suspended job to Ready.
+- **Contract:** WaitSignalAsync suspends a job on a Pending checkpoint and RaiseSignalAsync sets the checkpoint last-writer-wins releasing only a Suspended job to Ready.
 - **Guarantees:**
   - Raise wakes an idle loop to run the released job
-  - Wait lands Suspended with a Pending slot and no NextRunAtUtc
-  - Wait is idempotent while pending, not duplicating the slot or consuming an attempt
-  - Raise sets the slot and releases a Suspended job to Ready, then it completes
+  - Wait lands Suspended with a Pending checkpoint and no NextRunAtUtc
+  - Wait is idempotent while pending, not duplicating the checkpoint or consuming an attempt
+  - Raise sets the checkpoint and releases a Suspended job to Ready, then it completes
   - A signal raised before the wait is observed without suspending the job
   - A typed signal round-trips its payload to the handler
-  - A presence signal sets the slot with a null payload
+  - A presence signal sets the checkpoint with a null payload
   - A duplicate raise is last-writer-wins
-  - Raise sets the slot but does not reactivate a paused job
-  - Raise is rejected against a terminal job and writes no slot
+  - Raise sets the checkpoint but does not reactivate a paused job
+  - Raise is rejected against a terminal job and writes no checkpoint
   - Raise returns NotFound for an unknown job
 
-### A bounded wait expires on its slot's stored instant, once and for good
-- **Contract:** A bounded wait stores an absolute expiration on its slot, wakes the Suspended job at that instant, resolves TimedOut once, and revives on no later raise.
+### A bounded wait expires on its checkpoint's stored instant, once and for good
+- **Contract:** A bounded wait stores an absolute expiration on its checkpoint, wakes the Suspended job at that instant, resolves TimedOut once, and revives on no later raise.
 - **Guarantees:**
-  - Arming stores an expiration on the slot and carries it into the Suspended job's next run
+  - Arming stores an expiration on the checkpoint and carries it into the Suspended job's next run
   - A signal before the deadline delivers its typed payload and leaves no timeout artifacts
   - A presence-only signal before the deadline resumes the non-Try overload
   - An expired non-Try wait cancels the job with reason wait-timed-out and no budget charge
@@ -2298,33 +2298,33 @@
   - The typed Try overload carries the payload before the deadline and a null value after it
   - A replay asking for a longer wait does not move the stored expiration
   - A raise after the deadline but before the wait re-enters still wins
-  - A raise on an expired slot revives nothing and the replayed wait stays TimedOut
-  - An unbounded wait replayed over an expired slot cancels the job instead of parking
+  - A raise on an expired checkpoint revives nothing and the replayed wait stays TimedOut
+  - An unbounded wait replayed over an expired checkpoint cancels the job instead of parking
   - A replay carrying a bound arms the deadline an unbounded wait never had
-  - A replay dropping the bound does not clear the deadline the slot carries
-  - A bounded wait arriving at a slot an unbounded one already armed still arms the deadline
+  - A replay dropping the bound does not clear the deadline the checkpoint carries
+  - A bounded wait arriving at a checkpoint an unbounded one already armed still arms the deadline
   - An unbounded wait still suspends with no due instant and stays unclaimable
 
-### A wait arms its slot once and answers suspend, continue, or timed out
-- **Contract:** Wait arms a Pending slot once, continues with a Set slot's payload, and answers TimedOut past a stored expiry or at once for a slot first armed past an instant.
+### A wait arms its checkpoint once and answers suspend, continue, or timed out
+- **Contract:** Wait arms a Pending checkpoint once, continues with a Set one's payload, and answers TimedOut past a stored expiry or at once when first armed past an instant.
 - **Guarantees:**
-  - A first wait arms a Pending slot and answers SuspendPending without touching the job
-  - A repeat wait while Pending answers SuspendPending and leaves the slot untouched
-  - A wait on a Set slot continues with the stored payload
+  - A first wait arms a Pending checkpoint and answers SuspendPending without touching the job
+  - A repeat wait while Pending answers SuspendPending and leaves the checkpoint untouched
+  - A wait on a Set checkpoint continues with the stored payload
   - A bounded wait stores its expiry once, and a later wait neither moves nor clears it
-  - Once the stored expiry passes the slot turns Expired and every later wait answers TimedOut
+  - Once the stored expiry passes the checkpoint turns Expired and every later wait answers TimedOut
   - A wait bounded by an instant stores that instant, and a later instant neither moves nor clears it
-  - A slot first armed at or past its instant is armed Expired and answers TimedOut at once
-  - A Set slot of another kind does not satisfy a wait of the same name
+  - A checkpoint first armed at or past its instant is armed Expired and answers TimedOut at once
+  - A Set checkpoint of another kind does not satisfy a wait of the same name
 
 ## Steps
 
 ### At-most-once step re-entered before completion is interrupted
-- **Contract:** AtMostOnce runs the body 0 or 1 times: a pending slot re-entered on replay terminalizes Interrupted and throws instead of re-invoking, version-idempotently.
+- **Contract:** AtMostOnce runs the body 0 or 1 times: a pending step re-entered on replay terminalizes Interrupted and throws instead of re-invoking, version-idempotently.
 - **Guarantees:**
   - A first invocation of an at-most-once step still runs the body (Invoke)
   - A pending step re-entered under at-most-once terminalizes Interrupted, version-idempotent
-  - An interrupted slot drops the due retry instant its failed attempt left behind
+  - An interrupted step drops the due retry instant its failed attempt left behind
   - Uncaught StepInterruptedException fails the parent terminally without re-invoking the body
   - Caught StepInterruptedException lets the parent proceed to Succeeded
 
@@ -2335,22 +2335,22 @@
   - At the retry instant the step body is re-invoked on attempt 2 and the parent completes Succeeded
 
 ### Step exhausts by retry-window and re-entry replays without body invocation
-- **Contract:** A step exhausts when a retry would exceed its window, re-entering the exhausted slot throws without running the body, and a restart runs it afresh.
+- **Contract:** A step exhausts when a retry would exceed its window, re-entering the exhausted step throws without running the body, and a restart runs it afresh.
 - **Guarantees:**
   - Step with large MaxAttempts exhausts after first failure when retry would exceed RetryWindow
   - Restarting a job whose step exhausted runs the step body again with a fresh budget
-  - Re-entering an exhausted step slot throws StepExhaustedException without invoking the body
+  - Re-entering an exhausted step throws StepExhaustedException without invoking the body
 
 ### RunStepAsync runs once, replays results, and retries until exhausted
-- **Contract:** A step runs its body once, replay-skips a succeeded slot, retries an in-budget failure budget-neutrally, and exhausts to StepExhaustedException.
+- **Contract:** A step runs its body once, replay-skips a succeeded step, retries an in-budget failure budget-neutrally, and exhausts to StepExhaustedException.
 - **Guarantees:**
   - A typed step runs its body once and returns the stored result
   - A void step succeeds with no result payload
   - A succeeded step replays its stored result without re-running the body
   - An in-budget retry inserts Pending attempt 1, increments attempt_number, and is budget-neutral for the parent
   - An exhausted step throws StepExhaustedException and fails the parent when uncaught
-  - CompleteJobStep loses the CAS and reports StaleVersion when the slot advanced under another execution
-  - CompleteJobStep reports StaleVersion rather than throwing when the slot row is absent
+  - CompleteJobStep loses the CAS and reports StaleVersion when the step advanced under another execution
+  - CompleteJobStep reports StaleVersion rather than throwing when the step row is absent
 
 ## Storage
 

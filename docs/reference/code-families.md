@@ -423,7 +423,7 @@ This pattern makes raw values easier to scan in database rows, logs, and diagnos
 | Member | Id | Code | Description | Lifecycle |
 |---|---:|---|---|---|
 | `Unspecified` | 0 | `unspecified` | Scheduled delivery not recognized by this build; the row was written by a newer Acta. | Active |
-| `Permanent` | 10 | `permanent` | Default. The definition's schedules fire one durable slot job again and again. | Active |
+| `Permanent` | 10 | `permanent` | Default. The definition's schedules fire one permanent slot job again and again. | Active |
 | `PerOccurrence` | 20 | `per-occurrence` | Each admitted occurrence enqueues a fresh ordinary root job with its own state, retries, and retention. | Active |
 
 ### `StepFailureCode` · `step-failure` <a id="code-family-stepfailurecode"></a>

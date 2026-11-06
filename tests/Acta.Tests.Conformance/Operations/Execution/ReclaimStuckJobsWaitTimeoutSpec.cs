@@ -8,10 +8,10 @@ namespace Acta.Tests.Conformance.Operations.Execution;
 
 /// <summary>
 /// Conformance for the one started attempt <c>reclaim_stuck_jobs</c> must not charge: the attempt that woke on a
-/// wait deadline, flipped the awaited slot to Expired, and then lost its worker. The surviving path ends
+/// wait deadline, flipped the awaited checkpoint to Expired, and then lost its worker. The surviving path ends
 /// that attempt Cancelled with reason <c>wait-timed-out</c> and no budget spent, so a reclaim that charged
 /// it would let a crash fail a job the deadline had already resolved for free. Reclaim recognizes the
-/// case from state alone - a slot of the job's own wait kinds, Expired, whose stored expiration is the
+/// case from state alone - a checkpoint of the job's own wait kinds, Expired, whose stored expiration is the
 /// instant the suspend cached on the jobs_state row - and hands the job back Suspended on that same past
 /// deadline, uncharged, for the replay to resolve as the waiting overload defines it.
 ///
@@ -40,7 +40,7 @@ public sealed class ReclaimStuckJobsWaitTimeoutSpec : ActaRuntimeTestBase<Confor
         var deadline = (await ReadJobAsync(enqueued.JobId, ct)).NextRunAtUtc;
 
         // The claim the deadline earned, and then the last thing the lost worker durably did: the same
-        // routine its replayed handler calls, flipping the overdue slot to Expired. Everything after
+        // routine its replayed handler calls, flipping the overdue checkpoint to Expired. Everything after
         // that - the throw, the completion - died with the process.
         var lost = await ChaosSpecHelpers.StrandExecutingAsync(Services, ns, worker, enqueued.JobId, ct);
         var resolved = await Services
@@ -87,7 +87,7 @@ public sealed class ReclaimStuckJobsWaitTimeoutSpec : ActaRuntimeTestBase<Confor
         Assert.Equal(RunOnceStatus.Rearmed, await Runtime.RunOnceAsync(enqueued, ct));
         await ExpireWaitAsync(Db, enqueued.JobId, "go", ct);
 
-        // The worker died before its replay reached the wait, so the slot never flipped. Nothing has
+        // The worker died before its replay reached the wait, so the checkpoint never flipped. Nothing has
         // resolved, the replay still has its whole timeout to resolve, and the lost lease is charged.
         await ChaosSpecHelpers.StrandExecutingAsync(Services, ns, worker, enqueued.JobId, ct);
         Assert.Equal(1, (await RecoverySweep.ReclaimAtLeastOneAsync(Services, ns, ct)).Reclaimed);
@@ -98,8 +98,8 @@ public sealed class ReclaimStuckJobsWaitTimeoutSpec : ActaRuntimeTestBase<Confor
         Assert.Equal(CheckpointStatusCode.Pending, (await ReadSignalsAsync(enqueued.JobId, ct)).Single().Status);
     }
 
-    [Fact(DisplayName = "An expired slot the handler already passed does not make a later crash free")]
-    public async Task An_expired_slot_the_handler_passed_does_not_excuse_a_later_crash()
+    [Fact(DisplayName = "An expired checkpoint the handler already passed does not make a later crash free")]
+    public async Task An_expired_checkpoint_the_handler_passed_does_not_excuse_a_later_crash()
     {
         var ct = TestContext.Current.CancellationToken;
         var ns = Runtime.RegisteredNamespaceIds[TestNamespace];
@@ -113,7 +113,7 @@ public sealed class ReclaimStuckJobsWaitTimeoutSpec : ActaRuntimeTestBase<Confor
         await ExpireWaitAsync(Db, enqueued.JobId, "go", ct);
 
         // The Try wait resolves TimedOut and the handler parks on a second, unbounded wait: the job now
-        // carries an Expired slot it walked past, which must not read as a deadline still resolving.
+        // carries an Expired checkpoint it walked past, which must not read as a deadline still resolving.
         Assert.Equal(RunOnceStatus.Rearmed, await Runtime.RunOnceAsync(enqueued, ct));
         Assert.Equal(
             CheckpointStatusCode.Expired,
@@ -209,7 +209,7 @@ public sealed class ReclaimStuckJobsWaitTimeoutSpec : ActaRuntimeTestBase<Confor
     private Task RunAlertsAsync(long jobId, int ns, CancellationToken ct) =>
         AlertTestOps.RunAlertsJobAsync(Services, TestNamespace, ns, jobId, options: null, drain: null, ct);
 
-    // Moves the wait past its deadline the way real time would: the slot's stored expiration and the
+    // Moves the wait past its deadline the way real time would: the checkpoint's stored expiration and the
     // job's cached claim instant both go into the past, and nothing else is touched.
     private static async Task ExpireWaitAsync(IDbSession db, long jobId, string name, CancellationToken ct)
     {

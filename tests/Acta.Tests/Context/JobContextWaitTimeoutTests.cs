@@ -114,7 +114,7 @@ public sealed class JobContextWaitTimeoutTests
         );
         await Assert.ThrowsAsync<ArgumentNullException>(() => ctx.TryWaitChildrenAsync(null!, TimeSpan.FromMinutes(5), ct));
 
-        // A bad id anywhere in the list stops the call before the deadline slot is written, so a
+        // A bad id anywhere in the list stops the call before the deadline checkpoint is written, so a
         // rejected group never leaves a half-armed one behind.
         Assert.Equal("timeout", badTimeout.ParamName);
         Assert.Equal("childJobIds", badId.ParamName);
@@ -194,7 +194,7 @@ public sealed class JobContextWaitTimeoutTests
     {
         var canonical = JobContext.GroupDeadlineName([7, 9]);
 
-        // Reordering and duplicate listings are the same group and must share one budget slot; a
+        // Reordering and duplicate listings are the same group and must share one budget checkpoint; a
         // genuinely different set is a different group.
         Assert.Equal(canonical, JobContext.GroupDeadlineName([9, 7]));
         Assert.Equal(canonical, JobContext.GroupDeadlineName([7, 7, 9]));
@@ -202,7 +202,7 @@ public sealed class JobContextWaitTimeoutTests
     }
 
     [Fact]
-    public async Task The_group_deadline_slot_is_named_by_the_children_not_by_their_order()
+    public async Task The_group_deadline_checkpoint_is_named_by_the_children_not_by_their_order()
     {
         var ct = TestContext.Current.CancellationToken;
         var ascending = new TimingOutChildContext();
@@ -211,12 +211,12 @@ public sealed class JobContextWaitTimeoutTests
         await ascending.TryWaitChildrenAsync([7, 9], TimeSpan.FromMinutes(5), ct);
         var result = await descending.TryWaitChildrenAsync([9, 7], TimeSpan.FromMinutes(5), ct);
 
-        // The slot names the SET of children, so a handler that lists the same ids in a different order
+        // The checkpoint names the SET of children, so a handler that lists the same ids in a different order
         // between replays cannot mint a second deadline and restart the group's budget.
         Assert.Equal("deadline:sys.wait-group.09f9b3b89bd0ea13", ascending.Events[0]);
         Assert.Equal(ascending.Events[0], descending.Events[0]);
 
-        // Caller order still decides the outcome order; only the slot name is canonical.
+        // Caller order still decides the outcome order; only the checkpoint name is canonical.
         Assert.Equal([9, 7], result.Children.Select(c => c.ChildJobId));
     }
 
