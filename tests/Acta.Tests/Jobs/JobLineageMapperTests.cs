@@ -5,11 +5,34 @@ namespace Acta.Tests.Jobs;
 /// <summary>
 /// The lineage map's active-wait projection. It shares the explainer's precedence (signal, then child
 /// latch, then timer) and carries each wait's stored expiration, so a map shows what a parent is
-/// parked on and when it gives up.
+/// parked on and when it gives up. A capped set keeps the rows nearest the focus.
 /// </summary>
 public class JobLineageMapperTests
 {
     private static readonly DateTime Now = new(2026, 7, 4, 12, 0, 0, DateTimeKind.Utc);
+
+    [Fact]
+    public void A_map_keeps_the_newest_steps_and_nearest_ancestors_and_flags_the_rest()
+    {
+        // As the read hands them over: steps newest first, ancestors farthest first, one past each limit.
+        var steps = Enumerable
+            .Range(0, GetJobLineageMapHandler.StepLimit + 1)
+            .Select(i => new GetJobLineageMapStepRow($"step-{GetJobLineageMapHandler.StepLimit - i:D3}", StepStatusCode.Succeeded))
+            .ToList();
+        var ancestors = Enumerable.Range(0, GetJobLineageMapHandler.AncestorLimit + 1).Select(_ => Focus()).ToList();
+
+        var map = GetJobLineageMapHandler.Map(new GetJobLineageMapRows(Focus(), ancestors, steps, [], []), childLimit: 10);
+
+        Assert.True(map.StepsHasMore);
+        Assert.Equal(GetJobLineageMapHandler.StepLimit, map.Steps.Count);
+        Assert.Equal("step-001", map.Steps[0].Name);
+        Assert.Equal($"step-{GetJobLineageMapHandler.StepLimit:D3}", map.Steps[^1].Name);
+        Assert.True(map.AncestorsHasMore);
+        Assert.Equal(GetJobLineageMapHandler.AncestorLimit, map.Ancestors.Count);
+        Assert.Same(ancestors[1], map.Ancestors[0]);
+        Assert.Same(ancestors[^1], map.Ancestors[^1]);
+        Assert.False(GetJobLineageMapHandler.Map(new GetJobLineageMapRows(Focus(), [], steps[1..], [], []), 10).StepsHasMore);
+    }
 
     [Fact]
     public void A_bounded_child_wait_is_the_active_wait_and_carries_its_deadline()

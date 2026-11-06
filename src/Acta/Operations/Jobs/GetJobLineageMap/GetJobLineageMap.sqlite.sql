@@ -23,7 +23,7 @@ LEFT JOIN {{schema}}.jobs pj ON pj.job_id = j.parent_job_id
 LEFT JOIN {{schema}}.jobs lr ON lr.job_id = j.lineage_root_job_id
 WHERE j.job_id = @p_job_id;
 
--- 2) Ancestors: walk parent_job_id from the focus job's parent up to the root, root row first.
+-- 2) Ancestors: walk parent_job_id from the focus job's parent, at most the fetch limit (AncestorLimit + 1) deep, farthest first.
 WITH RECURSIVE anc (job_id, parent_job_id, depth) AS (
     SELECT
         a.job_id,
@@ -42,6 +42,7 @@ WITH RECURSIVE anc (job_id, parent_job_id, depth) AS (
         anc.depth + 1
     FROM {{schema}}.jobs p
     INNER JOIN anc ON p.job_id = anc.parent_job_id
+    WHERE anc.depth < @p_ancestor_limit
 )
 
 SELECT
@@ -65,13 +66,14 @@ LEFT JOIN {{schema}}.jobs pj ON pj.job_id = j.parent_job_id
 LEFT JOIN {{schema}}.jobs lr ON lr.job_id = j.lineage_root_job_id
 ORDER BY anc.depth DESC;
 
--- 3) Focus job steps, creation order.
+-- 3) Focus job steps, newest first, capped at the fetch limit (StepLimit + 1).
 SELECT
     s.step_name,
     s.step_status_code AS status
 FROM {{schema}}.steps s
 WHERE s.job_id = @p_job_id
-ORDER BY s.created_at_utc, s.step_name;
+ORDER BY s.created_at_utc DESC, s.step_name DESC
+LIMIT @p_step_limit;
 
 -- 4) Focus job checkpoints (signal / timer / variable / progress / child-latch), for the active wait.
 SELECT

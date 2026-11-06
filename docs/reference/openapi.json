@@ -10461,8 +10461,10 @@
       "GetJobLineageMapResponse": {
         "required": [
           "ancestors",
+          "ancestorsHasMore",
           "job",
           "steps",
+          "stepsHasMore",
           "activeWait",
           "children",
           "childrenHasMore"
@@ -10475,6 +10477,9 @@
               "$ref": "#/components/schemas/GetJobLineageMapNode"
             }
           },
+          "ancestorsHasMore": {
+            "type": "boolean"
+          },
           "job": {
             "$ref": "#/components/schemas/GetJobLineageMapNode"
           },
@@ -10483,6 +10488,9 @@
             "items": {
               "$ref": "#/components/schemas/GetJobLineageMapStep"
             }
+          },
+          "stepsHasMore": {
+            "type": "boolean"
           },
           "activeWait": {
             "oneOf": [
@@ -10504,7 +10512,7 @@
             "type": "boolean"
           }
         },
-        "description": "A compact runtime truth map for one focused Job: the ancestor context up to the lineage root, the focused Job with\nits steps and the durable wait it is blocked on, and its direct children. Returned by\nValueTask&lt;GetJobLineageMapResponse?&gt; IJobs.GetLineageMapAsync(JobLookup job, GetJobLineageMapOptions? options = null, CancellationToken ct = default(CancellationToken)); the dashboard renders it as a lineage panel. V1 is shallow: `Ancestors`\nis context only (root first, immediate parent last, no steps of their own), `Job` is the focused subtree root,\nand `Children` are the direct children capped at int GetJobLineageMapOptions.ChildLimit with\n`ChildrenHasMore` flagging a truncated set."
+        "description": "A compact runtime truth map for one focused Job, returned by ValueTask&lt;GetJobLineageMapResponse?&gt; IJobs.GetLineageMapAsync(JobLookup job, GetJobLineageMapOptions? options = null, CancellationToken ct = default(CancellationToken)) for the\ndashboard's lineage panel. `Ancestors` are context only (farthest first, immediate parent last, no steps of\ntheir own), the nearest int GetJobLineageMapHandler.AncestorLimit; `Job` is the focused Job with its newest\nint GetJobLineageMapHandler.StepLimit steps and the durable wait it is blocked on; `Children` are its\ndirect children up to int GetJobLineageMapOptions.ChildLimit. Each `HasMore` flags a truncated set."
       },
       "GetJobLineageMapStep": {
         "required": [

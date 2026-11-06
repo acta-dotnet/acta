@@ -29,6 +29,7 @@
   <section class="panel lineage-map" id="job-lineage-evidence" aria-labelledby="job-lineage-heading">
     <h2 id="job-lineage-heading">Lineage map</h2>
     <ul class="tree">
+      {#if lineage.ancestorsHasMore}<li class="node more" style="--depth:0"><span class="dim">+ older ancestors (showing the nearest {lineage.ancestors.length})</span></li>{/if}
       {#each lineage.ancestors as ancestor, index (ancestor.jobRef)}
         <li class="node ancestor {toneOf(ancestor.status)}" style={'--depth:' + index}>
           <span class="tree-dot" title={ancestor.status}><Icon name={glyphOf(ancestor.status)} /></span>
@@ -38,6 +39,7 @@
       <li class="node focus {toneOf(job.status)}" style={'--depth:' + lineage.ancestors.length}>
         <span class="tree-dot" title={job.status}><Icon name={glyphOf(job.status)} /></span><span class="mono">{job.jobName}</span><span class="dim">this job</span>
       </li>
+      {#if lineage.stepsHasMore}<li class="node more" style={'--depth:' + (lineage.ancestors.length + 1)}><span class="dim">+ older steps (showing the newest {lineage.steps.length})</span></li>{/if}
       {#each lineage.steps as step (step.name)}
         <li class="node step" style={'--depth:' + (lineage.ancestors.length + 1)}><span class="mono">{step.name}</span><span class="dim">: {step.explanation}</span></li>
       {/each}

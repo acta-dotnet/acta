@@ -213,7 +213,7 @@ async function mockDashboard(
           reason: 'Invoice provider timed out.',
           nextActions: [{ kind: 'restart', description: 'Run the job again after checking the provider.' }]
         },
-        lineage: { ancestors: [], job, steps: [], activeWait: null, children: [], childrenHasMore: false },
+        lineage: { ancestors: [], ancestorsHasMore: false, job, steps: [], stepsHasMore: false, activeWait: null, children: [], childrenHasMore: false },
         schedules: [],
         schedulesTotal: 0,
         workers: [],

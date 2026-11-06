@@ -991,10 +991,12 @@ sealed record Acta.GetJobLineageMapOptions
     .ctor(System.Int32 ChildLimit = 100)
     System.Int32 ChildLimit { get;init; }
 sealed record Acta.GetJobLineageMapResponse
-    .ctor(System.Collections.Generic.IReadOnlyList<Acta.GetJobLineageMapNode> Ancestors, Acta.GetJobLineageMapNode Job, System.Collections.Generic.IReadOnlyList<Acta.GetJobLineageMapStep> Steps, Acta.GetJobLineageMapWait ActiveWait, System.Collections.Generic.IReadOnlyList<Acta.GetJobLineageMapChild> Children, System.Boolean ChildrenHasMore)
+    .ctor(System.Collections.Generic.IReadOnlyList<Acta.GetJobLineageMapNode> Ancestors, System.Boolean AncestorsHasMore, Acta.GetJobLineageMapNode Job, System.Collections.Generic.IReadOnlyList<Acta.GetJobLineageMapStep> Steps, System.Boolean StepsHasMore, Acta.GetJobLineageMapWait ActiveWait, System.Collections.Generic.IReadOnlyList<Acta.GetJobLineageMapChild> Children, System.Boolean ChildrenHasMore)
     Acta.GetJobLineageMapNode Job { get;init; }
     Acta.GetJobLineageMapWait ActiveWait { get;init; }
+    System.Boolean AncestorsHasMore { get;init; }
     System.Boolean ChildrenHasMore { get;init; }
+    System.Boolean StepsHasMore { get;init; }
     System.Collections.Generic.IReadOnlyList<Acta.GetJobLineageMapChild> Children { get;init; }
     System.Collections.Generic.IReadOnlyList<Acta.GetJobLineageMapNode> Ancestors { get;init; }
     System.Collections.Generic.IReadOnlyList<Acta.GetJobLineageMapStep> Steps { get;init; }

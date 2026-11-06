@@ -71,9 +71,12 @@ export interface JobLineageNode {
 }
 
 export interface JobLineage {
+  // The nearest ancestors and the newest steps; each HasMore says the set goes further.
   ancestors: JobLineageNode[];
+  ancestorsHasMore: boolean;
   job: JobLineageNode;
   steps: JobStep[];
+  stepsHasMore: boolean;
   activeWait: JobWait | null;
   children: JobLineageNode[];
   childrenHasMore: boolean;

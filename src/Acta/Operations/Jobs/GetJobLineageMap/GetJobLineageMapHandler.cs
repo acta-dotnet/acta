@@ -6,6 +6,15 @@ namespace Acta;
 /// </summary>
 internal sealed class GetJobLineageMapHandler(GetJobIdHandler getJobId, IDbSession session, ISqlDialect dialect)
 {
+    /// <summary>The nearest ancestors a map carries.</summary>
+    internal const int AncestorLimit = 50;
+
+    /// <summary>The newest steps a map carries.</summary>
+    internal const int StepLimit = 50;
+
+    /// <summary>The most direct children a map carries, whatever the options ask.</summary>
+    internal const int MaxChildLimit = 1000;
+
     public async ValueTask<GetJobLineageMapResponse?> HandleAsync(GetJobLineageMapQuery query, CancellationToken ct)
     {
         if (await getJobId.HandleAsync(new GetJobIdQuery(query.Job), ct) is not { JobId: var jobId })
@@ -14,7 +23,7 @@ internal sealed class GetJobLineageMapHandler(GetJobIdHandler getJobId, IDbSessi
         }
 
         // Clamp the child limit and fetch one extra so the map can flag a truncated set from the tail.
-        var childLimit = Math.Clamp(query.Options?.ChildLimit ?? 100, 1, 1000);
+        var childLimit = Math.Clamp(query.Options?.ChildLimit ?? 100, 1, MaxChildLimit);
         var data = await ReadAsync(jobId, childLimit + 1, ct);
         return data is null ? null : Map(data, childLimit);
     }
@@ -27,6 +36,8 @@ internal sealed class GetJobLineageMapHandler(GetJobIdHandler getJobId, IDbSessi
             {
                 cmd.Parameters.Add(dialect.CreateParameter(ActaSchema.Job.JobId, jobId));
                 cmd.Parameters.Add(dialect.CreateParameter(ActaSchema.Sql.ChildFetchLimit, childFetchLimit));
+                cmd.Parameters.Add(dialect.CreateParameter(ActaSchema.Sql.StepFetchLimit, StepLimit + 1));
+                cmd.Parameters.Add(dialect.CreateParameter(ActaSchema.Sql.AncestorFetchLimit, AncestorLimit + 1));
             },
             static async (reader, token) =>
             {
@@ -85,20 +96,35 @@ internal sealed class GetJobLineageMapHandler(GetJobIdHandler getJobId, IDbSessi
     /// <summary>
     /// Maps the rows to a <see cref="GetJobLineageMapResponse"/>: the focus job, its ancestor context, its steps, the durable wait
     /// it is blocked on, and its direct children. A pure function over the rows plus the child limit; the read fetches
-    /// one child past the limit so the tail row here sets <see cref="GetJobLineageMapResponse.ChildrenHasMore"/> without a second query.
+    /// one row past each limit so the tail row here sets each set's <c>HasMore</c> without a second query.
     /// </summary>
     internal static GetJobLineageMapResponse Map(GetJobLineageMapRows data, int childLimit)
     {
         var hasMore = data.Children.Count > childLimit;
         IReadOnlyList<GetJobLineageMapChild> children = hasMore ? [.. data.Children.Take(childLimit)] : data.Children;
 
-        var steps = new List<GetJobLineageMapStep>(data.Steps.Count);
-        foreach (var s in data.Steps)
-        {
-            steps.Add(new GetJobLineageMapStep(s.StepName, s.Status, s.Status.Description));
-        }
+        // Steps arrive newest first, ancestors farthest first; each set keeps its limit nearest the focus, in reading order.
+        var stepsHasMore = data.Steps.Count > StepLimit;
+        var steps = data
+            .Steps.Take(StepLimit)
+            .Reverse()
+            .Select(static s => new GetJobLineageMapStep(s.StepName, s.Status, s.Status.Description))
+            .ToList();
+        var ancestorsHasMore = data.Ancestors.Count > AncestorLimit;
+        IReadOnlyList<GetJobLineageMapNode> ancestors = ancestorsHasMore
+            ? [.. data.Ancestors.Skip(data.Ancestors.Count - AncestorLimit)]
+            : data.Ancestors;
 
-        return new GetJobLineageMapResponse(data.Ancestors, data.Focus, steps, FindWait(data.Checkpoints), children, hasMore);
+        return new GetJobLineageMapResponse(
+            ancestors,
+            ancestorsHasMore,
+            data.Focus,
+            steps,
+            stepsHasMore,
+            FindWait(data.Checkpoints),
+            children,
+            hasMore
+        );
     }
 
     /// <summary>

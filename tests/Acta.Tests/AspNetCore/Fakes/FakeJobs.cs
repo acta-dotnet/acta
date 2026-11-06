@@ -475,6 +475,7 @@ internal sealed class FakeJobs : IJobs
     private static GetJobLineageMapResponse Lineage() =>
         new(
             Ancestors: [],
+            AncestorsHasMore: false,
             Job: new GetJobLineageMapNode(
                 JobId: 42,
                 JobRef: FoundJobRef,
@@ -489,6 +490,7 @@ internal sealed class FakeJobs : IJobs
                 ModifiedAtUtc: CreatedAtUtc
             ),
             Steps: [],
+            StepsHasMore: false,
             ActiveWait: null,
             Children:
             [

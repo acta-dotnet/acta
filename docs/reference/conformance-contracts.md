@@ -1550,11 +1550,12 @@
   - An id lookup answers its own id, and a ref or key that matches no job answers null
 
 ### GetJobLineageMap returns the focus job with ancestors and children or null
-- **Contract:** GetJobLineageMap returns the focus job, its ancestors root-first, its steps and checkpoints, and its capped direct children, or null when no row matches.
+- **Contract:** GetJobLineageMap returns the focus job, its nearest ancestors root-first, newest steps, checkpoints, and capped direct children, or null when no row matches.
 - **Guarantees:**
   - A known job returns its focus row, its root parent as an ancestor, and its two direct children
   - Ancestors are ordered from the lineage root down to the immediate parent
   - The direct-children set is capped at the fetch limit
+  - Past the ancestor and step limits the read keeps the nearest ancestors and the newest steps
   - An unknown job id returns null
 
 ### GetJobStatus returns the status for a known id and null for an unknown id

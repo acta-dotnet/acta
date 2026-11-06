@@ -160,6 +160,9 @@ internal static partial class ActaSchema
         /// <summary>Steps a capped read fetches: its limit plus one, so the tail row says more exist.</summary>
         public static readonly DbValueSpec<int> StepFetchLimit = new("p_step_limit", DbKind.Int32);
 
+        /// <summary>Ancestors the lineage read walks: its limit plus one, so the tail row says more exist.</summary>
+        public static readonly DbValueSpec<int> AncestorFetchLimit = new("p_ancestor_limit", DbKind.Int32);
+
         /// <summary>
         /// purge_expired_data batch parameters.
         /// </summary>

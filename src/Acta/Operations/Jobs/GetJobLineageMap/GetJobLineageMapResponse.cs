@@ -1,17 +1,18 @@
 namespace Acta;
 
 /// <summary>
-/// A compact runtime truth map for one focused Job: the ancestor context up to the lineage root, the focused Job with
-/// its steps and the durable wait it is blocked on, and its direct children. Returned by
-/// <see cref="IJobs.GetLineageMapAsync"/>; the dashboard renders it as a lineage panel. V1 is shallow: <c>Ancestors</c>
-/// is context only (root first, immediate parent last, no steps of their own), <c>Job</c> is the focused subtree root,
-/// and <c>Children</c> are the direct children capped at <see cref="GetJobLineageMapOptions.ChildLimit"/> with
-/// <c>ChildrenHasMore</c> flagging a truncated set.
+/// A compact runtime truth map for one focused Job, returned by <see cref="IJobs.GetLineageMapAsync"/> for the
+/// dashboard's lineage panel. <c>Ancestors</c> are context only (farthest first, immediate parent last, no steps of
+/// their own), the nearest <see cref="GetJobLineageMapHandler.AncestorLimit"/>; <c>Job</c> is the focused Job with its newest
+/// <see cref="GetJobLineageMapHandler.StepLimit"/> steps and the durable wait it is blocked on; <c>Children</c> are its
+/// direct children up to <see cref="GetJobLineageMapOptions.ChildLimit"/>. Each <c>HasMore</c> flags a truncated set.
 /// </summary>
 public sealed record GetJobLineageMapResponse(
     IReadOnlyList<GetJobLineageMapNode> Ancestors,
+    bool AncestorsHasMore,
     GetJobLineageMapNode Job,
     IReadOnlyList<GetJobLineageMapStep> Steps,
+    bool StepsHasMore,
     GetJobLineageMapWait? ActiveWait,
     IReadOnlyList<GetJobLineageMapChild> Children,
     bool ChildrenHasMore

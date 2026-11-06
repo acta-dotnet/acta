@@ -250,11 +250,11 @@ public interface IJobs
     ValueTask<ExplainJobResponse?> ExplainAsync(JobLookup job, CancellationToken ct = default);
 
     /// <summary>
-    /// Read a compact lineage map for the job identified by <paramref name="job"/>: its ancestor context up to the lineage
-    /// root, the job itself with its steps and the durable wait it is blocked on, and its direct children (capped at
-    /// <see cref="GetJobLineageMapOptions.ChildLimit"/>, with <see cref="GetJobLineageMapResponse.ChildrenHasMore"/> flagging
-    /// a truncated set). Returns <c>null</c> when no row matches. V1 is shallow: ancestors are context only and children are
-    /// not expanded recursively. On SQL Server it reads without locks, so it never waits and can show an uncommitted child.
+    /// Read a compact lineage map for the job identified by <paramref name="job"/>: its nearest ancestors toward the lineage
+    /// root, the job itself with its newest steps and the durable wait it is blocked on, and its direct children (capped at
+    /// <see cref="GetJobLineageMapOptions.ChildLimit"/>), each set saying when it was cut. Returns <c>null</c> when no row
+    /// matches. V1 is shallow: ancestors are context only and children are not expanded recursively. On SQL Server it
+    /// reads without locks, so it never waits and can show an uncommitted child.
     /// Resolves <paramref name="job"/> to a <c>JobId</c> first; pin the resolved id when polling.
     /// </summary>
     ValueTask<GetJobLineageMapResponse?> GetLineageMapAsync(

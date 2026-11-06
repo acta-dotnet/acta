@@ -1,6 +1,6 @@
 -- Lineage map: five result sets for one focused Job, each its own statement (docs/sql-internals.md, Transaction and
 -- retry ownership). A display read, so every table reads dirty: it never waits, and can show an uncommitted child.
--- SQL Server variant: recursive CTE without the RECURSIVE keyword, and TOP for the child cap.
+-- SQL Server variant: recursive CTE without the RECURSIVE keyword, and TOP for the step and child caps.
 
 -- 1) Focus job.
 SELECT
@@ -23,7 +23,7 @@ LEFT JOIN {{schema}}.jobs pj WITH (NOLOCK) ON pj.job_id = j.parent_job_id
 LEFT JOIN {{schema}}.jobs lr WITH (NOLOCK) ON lr.job_id = j.lineage_root_job_id
 WHERE j.job_id = @p_job_id;
 
--- 2) Ancestors: walk parent_job_id from the focus job's parent up to the root, root row first.
+-- 2) Ancestors: walk parent_job_id from the focus job's parent, at most the fetch limit (AncestorLimit + 1) deep, farthest first.
 WITH anc (job_id, parent_job_id, depth) AS (
     SELECT
         a.job_id,
@@ -42,6 +42,7 @@ WITH anc (job_id, parent_job_id, depth) AS (
         anc.depth + 1
     FROM {{schema}}.jobs p WITH (NOLOCK)
     INNER JOIN anc ON p.job_id = anc.parent_job_id
+    WHERE anc.depth < @p_ancestor_limit
 )
 
 SELECT
@@ -65,13 +66,13 @@ LEFT JOIN {{schema}}.jobs pj WITH (NOLOCK) ON pj.job_id = j.parent_job_id
 LEFT JOIN {{schema}}.jobs lr WITH (NOLOCK) ON lr.job_id = j.lineage_root_job_id
 ORDER BY anc.depth DESC;
 
--- 3) Focus job steps, creation order.
-SELECT
+-- 3) Focus job steps, newest first, capped at the fetch limit (StepLimit + 1).
+SELECT TOP (@p_step_limit)
     s.step_name,
     s.step_status_code AS status
 FROM {{schema}}.steps s WITH (NOLOCK)
 WHERE s.job_id = @p_job_id
-ORDER BY s.created_at_utc, s.step_name;
+ORDER BY s.created_at_utc DESC, s.step_name DESC;
 
 -- 4) Focus job checkpoints (signal / timer / variable / progress / child-latch), for the active wait.
 SELECT
