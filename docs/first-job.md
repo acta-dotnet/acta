@@ -373,6 +373,6 @@ The same jobs run on the generic host, without the dashboard and the endpoints:
 - Production: a deploy step runs `<app> jobs migrate` in place of `MigrateOnStartup`. See [Deploying jobs](./operator-guide.md#deploying-jobs).
 - Durable steps, signals, sleeps, and child jobs, so a handler survives a crash mid-work:
   [Concepts](./developer-guide.md#concepts-and-glossary) and the [Engineering Labs](./engineering-labs.md).
-- Recurring work: [Schedules](./developer-guide.md#schedule-operations).
+- Recurring work: [Scheduling and calendars](./scheduling.md).
 - What a crash, an outage, or a lost signal does to a job, case by case: [What happens if…](./operator-guide.md#what-happens-if).
 - Running, watching, and controlling jobs in production: the [Operator guide](./operator-guide.md).

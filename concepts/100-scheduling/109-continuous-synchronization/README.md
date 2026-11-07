@@ -258,4 +258,4 @@ batch: an older change overwrites a newer order, which is what the clause is for
 - The tests that prove each claim without sleeping: [`804-continuous-synchronization-tests`](../../800-testing/804-continuous-synchronization-tests/)
 - [`ScheduleAdmitter.cs`](../../../src/Acta/Engine/Scheduling/ScheduleAdmitter.cs), the admission pass that moves the slot from `Idle` to `Ready`
 - [`ReclaimStuckJobs.routine.pg.sql`](../../../src/Acta/Operations/Execution/ReclaimStuckJobs/ReclaimStuckJobs.routine.pg.sql), the recovery that reclaims a lost firing
-- [Schedule operations](../../../docs/developer-guide.md#schedule-operations) in the developer guide
+- [Scheduling and calendars](../../../docs/scheduling.md), the page on schedules

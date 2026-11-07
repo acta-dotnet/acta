@@ -194,30 +194,7 @@ current version instead of overwriting someone else's decision.
 
 ### Schedule controls
 
-Address a schedule by its path: the namespace, the scheduled job's name, and the schedule's name. The
-slot job carries no deduplication key; `GET /schedules` and the dashboard carry its ref. A schedule of a
-`PerOccurrence` definition has no slot: trigger-now admits a fresh root charged to the schedule, and is
-rejected while the schedule is at `MaxOutstanding`. An applied trigger answers the job it made ready as `jobRef`,
-the slot or the fresh root. `GET /schedules/{jobNamespace}/{jobName}/{scheduleName}`
-reads the schedule a path names, in any status, with the members its `GET /schedules` row carries, and
-answers 404 when the path names none (`ISchedules.GetAsync` in code).
-
-A schedule has no events route of its own. A permanent schedule's events are its slot job's: read them at
-`GET /jobs/{jobRef}/events` with the schedule's `jobRef`. A per-occurrence schedule records its admissions
-and manual firings on the root each one enqueued, and its other events on its definition.
-`GET /definitions/{jobNamespace}/{jobName}/events` lists every schedule event of the definition, of either
-kind, and each event names its schedule in the `schedule` member of its details.
-
-```csharp
-var nightly = new ScheduleLookup("billing", "reconcile-ledger", "nightly");
-
-await operations.Schedules.TriggerAsync(nightly, reasonMessage: "validate repaired upstream");
-await operations.Schedules.PauseAsync(nightly, untilUtc: maintenanceEndsUtc, reasonMessage: "maintenance");
-await operations.Schedules.ResumeAsync(nightly, reasonMessage: "maintenance complete");
-```
-
-Trigger now, misfire catch-up, normal cursor movement, and historical backfill are deliberately
-different operations. Use [Schedule operations](./developer-guide.md#schedule-operations) before choosing a control.
+A schedule has verbs of its own, addressed by path through `operations.Schedules` and `/schedules/{jobNamespace}/{jobName}/{scheduleName}`: trigger, pause, resume, and preview. Trigger now, misfire catch-up, normal cursor movement, and historical backfill are deliberately different operations; [trigger, pause, resume, and preview](./scheduling.md#trigger-pause-resume-and-preview) says what each verb does, which job an applied trigger answers, and where a schedule's events are read.
 
 ### What each verb does from each status
 
@@ -560,7 +537,7 @@ namespace billing: 1.6.2+5c0ffee (Production)
 - The name after the version is `JobsOptions.EnvironmentName`, which decides the schedules a `[Schedule(Environments = ...)]` declares. Run the verb with the workers' configuration.
 - `not declared by this build` lists the active definitions the build does not carry. The deploy leaves them as they are.
 - `--json` prints `{"namespaces":[...]}`, one object per namespace: `namespace`, `deploymentVersion`, `environment`, `currentDeploymentVersion`, `older`, `added`, `changed`, `unchanged`, `undeclared`.
-- A schedule that names a calendar needs that calendar published first: the deploy fails on a family with no published version ([Calendars](./developer-guide.md#calendars)).
+- A schedule that names a calendar needs that calendar published first: the deploy fails on a family with no published version ([Calendars](./scheduling.md#calendars)).
 - A host that runs no worker has nothing to deploy.
 
 A worker start writes none of this. It reads its namespace and refuses to start, naming `jobs deploy`, when:
@@ -948,7 +925,7 @@ A recurring job follows the same rule. A deploy that drops every schedule of one
 with nothing due, and a deploy that brings a schedule back puts the schedule in front of the admitter
 again. A deploy that adds a `[Schedule]` registers the slot beside any ordinary job of that name: the
 slot carries no deduplication key, so an ordinary job keyed by the job name is unrelated to it. See
-[Schedule operations](./developer-guide.md#schedule-operations).
+[Scheduling and calendars](./scheduling.md).
 
 Retiring a recurring job's definition leaves its slot inert instead of cancelling it: a firing admitted and
 not yet claimed settles cancelled and the slot returns to `Idle`, a paused slot stays paused, and a cancelled one
@@ -972,7 +949,7 @@ The schedule's misfire policy decides the missed occurrences when the admitter n
 latest, and `CatchUpAll` admits every one in order: one per settlement on a permanent slot, and under
 `PerOccurrence` delivery as many root jobs at once as `MaxOutstanding` allows. An occurrence less than a minute overdue counts as due
 rather than missed, and neither a deploy nor a worker start decides anything: a deploy writes the declaration and leaves every
-occurrence to the running fleet's admitter. See [Schedule operations](./developer-guide.md#schedule-operations).
+occurrence to the running fleet's admitter. See [catch-up, misfire, and expiration](./scheduling.md#catch-up-misfire-and-expiration).
 
 ### …an operator restarts a failed or cancelled job?
 
@@ -1094,7 +1071,7 @@ A permanent slot whose schedules are all paused, exhausted, or removed by a depl
 nothing due, and fires again by itself once a schedule offers a run. A per-occurrence schedule has no
 slot: its roots are ordinary jobs with the schedule as provenance, and `schedules_view` shows how many
 are outstanding against `max_outstanding`. See
-[Schedule operations](./developer-guide.md#schedule-operations).
+[Scheduling and calendars](./scheduling.md).
 
 ### A Job Keeps Retrying Or Failed
 
@@ -1395,9 +1372,9 @@ SELECT namespace_name, definition_name, schedule_name, schedule_status, schedule
  ORDER BY namespace_name, next_occurrence_at_utc NULLS LAST, schedule_name;
 ```
 
-A schedule whose `expression_kind` is `calendar` names its calendar in `expression`, and one that fires only inside an availability calendar's windows names it in `availability_calendar_name`. The row keeps the name only: each evaluation resolves it afresh, to the published version of the family in the namespace's catalog, else the shared one in `sys`. An `evaluation_status` of `evaluation-error` on such a schedule usually means the name has no published version, its published version is one this worker's build cannot read, or the calendar threw while it was evaluated; the worker log names the reason, and the other schedules of the namespace go on. The catalog itself is `calendars_view`: one row per version with its role, status, and hash.
+A schedule whose `expression_kind` is `calendar` names its calendar in `expression`, and one that fires only inside an availability calendar's windows names it in `availability_calendar_name`. The row keeps the name only; an `evaluation_status` of `evaluation-error` on such a schedule is a calendar the worker log explains, and the other schedules of the namespace go on ([calendars](./scheduling.md#calendars)). The catalog itself is `calendars_view`: one row per version with its role, status, and hash.
 
-`start_at_utc` and `end_before_utc` are the schedule's bounds, [start, end) on the occurrences' own instants; null is no bound. A schedule past its end has no `next_occurrence_at_utc` and reads `exhausted`, as a calendar with no instant left does; a build that extends the end retimes it.
+`start_at_utc` and `end_before_utc` are the schedule's bounds, [start, end) on the occurrences' own instants; null is no bound, and a schedule past its end reads `exhausted` with no `next_occurrence_at_utc` ([finite schedules](./scheduling.md#finite-schedules)).
 
 `expire_after_seconds` and `expire_action` are null together when occurrences never expire; a schedule paused
 by its expiry carries the pause message `Paused by the expiration policy: an occurrence expired unadmitted.`

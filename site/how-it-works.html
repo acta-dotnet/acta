@@ -210,21 +210,21 @@
           <div class="who"><b>What is a permanent job?</b><span>one slot, fired again and again</span></div>
           <div class="why">
             <p>The default for a definition with a <code>[Schedule]</code>: one permanent slot the schedule fires again and again. The slot is <code>Idle</code> between firings and holds no thread; admission makes it <code>Ready</code> when a schedule is due, a worker claims it, and the handler does a bounded amount of work and returns. Its steps and progress persist across firings, and the handler may reset them as its final action. This is how a synchronization controller runs without a loop that must never die.</p>
-            <div class="links"><a class="golink" href="https://github.com/acta-dotnet/acta/blob/main/docs/developer-guide.md#delivery-and-capacity">Delivery and capacity</a><a class="golink" href="https://github.com/acta-dotnet/acta/tree/main/concepts/100-scheduling/109-continuous-synchronization">The synchronization lab</a></div>
+            <div class="links"><a class="golink" href="https://github.com/acta-dotnet/acta/blob/main/docs/scheduling.md#delivery-and-capacity">Delivery and capacity</a><a class="golink" href="https://github.com/acta-dotnet/acta/tree/main/concepts/100-scheduling/109-continuous-synchronization">The synchronization lab</a></div>
           </div>
         </div>
         <div class="vs-row" id="per-occurrence">
           <div class="who"><b>What is per-occurrence delivery?</b><span>a job per occurrence</span></div>
           <div class="why">
             <p>The other mode for a schedule. Each occurrence becomes a fresh ordinary root job with its own state, retries, result, and retention, and <code>MaxOutstanding</code> bounds how many of one schedule's roots may be unsettled at once. Use it when each period is its own business event: a statement run, an import whose files must each be tracked. Backfilling past periods is application work under either mode.</p>
-            <div class="links"><a class="golink" href="https://github.com/acta-dotnet/acta/blob/main/docs/developer-guide.md#delivery-and-capacity">Delivery and capacity</a><a class="golink" href="https://github.com/acta-dotnet/acta/blob/main/docs/developer-guide.md#backfill">Backfill</a></div>
+            <div class="links"><a class="golink" href="https://github.com/acta-dotnet/acta/blob/main/docs/scheduling.md#delivery-and-capacity">Delivery and capacity</a><a class="golink" href="https://github.com/acta-dotnet/acta/blob/main/docs/scheduling.md#backfill">Backfill</a></div>
           </div>
         </div>
         <div class="vs-row" id="scheduler">
           <div class="who"><b>Scheduler, or executor?</b><span>two passes, no coordinator</span></div>
           <div class="why">
             <p>Two passes over the same rows, on every worker. Admission turns a due schedule into a firing: it moves the cursor and writes the firing envelope in one apply, so an occurrence is admitted once however many workers run. Claiming takes <code>Ready</code> rows under a lease and runs them. A schedule never runs code; it only makes a row claimable.</p>
-            <div class="links"><a class="golink" href="https://github.com/acta-dotnet/acta/blob/main/docs/developer-guide.md#schedule-operations">Schedule operations</a><a class="golink" href="/engine">Inside one worker</a></div>
+            <div class="links"><a class="golink" href="https://github.com/acta-dotnet/acta/blob/main/docs/scheduling.md">Scheduling and calendars</a><a class="golink" href="/engine">Inside one worker</a></div>
           </div>
         </div>
         <div class="vs-row" id="crash">

@@ -41,6 +41,7 @@
     <File Path="docs/known-limitations.md" />
     <File Path="docs/operator-guide.md" />
     <File Path="docs/release-notes.md" />
+    <File Path="docs/scheduling.md" />
     <File Path="docs/sql-internals.md" />
   </Folder>
   <Folder Name="/docs/reference/">
