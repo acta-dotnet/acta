@@ -76,20 +76,24 @@ internal sealed class CalendarsOperations(
         CancellationToken ct = default
     ) => archiveCalendar.HandleAsync(new ArchiveCalendarCommand(calendar, expectedCurrentVersion, reasonMessage, actor), ct);
 
-    /// <summary>The source of <paramref name="timing"/> from the current catalog versions the namespace's preloads read.</summary>
-    internal ScheduleSource Source(int namespaceId, ScheduleTiming timing) => sources.Source(namespaceId, timing);
-
     /// <summary>The source of <paramref name="timing"/>, its calendar names resolved now.</summary>
     internal Task<ScheduleSource> SourceAsync(int namespaceId, ScheduleTiming timing, CancellationToken ct) =>
         sources.SourceAsync(namespaceId, timing, ct);
 
-    /// <summary>Resolves <paramref name="names"/> against the current catalog in one read, so a pass plans without more.</summary>
-    internal Task PreloadAsync(int namespaceId, IEnumerable<string> names, CancellationToken ct) =>
+    /// <summary>
+    /// Resolves <paramref name="names"/> against the current catalog in one read and answers a resolver over that read, so
+    /// a pass plans without more.
+    /// </summary>
+    internal Task<Func<ScheduleTiming, ScheduleSource>> PreloadAsync(int namespaceId, IEnumerable<string> names, CancellationToken ct) =>
         sources.PreloadAsync(namespaceId, names, ct);
 
     /// <summary>The same preload inside <paramref name="transaction"/>, on its connection: what a deploy runs.</summary>
-    internal Task PreloadAsync(int namespaceId, IEnumerable<string> names, DbTransaction transaction, CancellationToken ct) =>
-        sources.PreloadAsync(namespaceId, names, transaction, ct);
+    internal Task<Func<ScheduleTiming, ScheduleSource>> PreloadAsync(
+        int namespaceId,
+        IEnumerable<string> names,
+        DbTransaction transaction,
+        CancellationToken ct
+    ) => sources.PreloadAsync(namespaceId, names, transaction, ct);
 
     /// <summary>The namespace's current calendars, one per family that has a Published version.</summary>
     internal Task<ListCurrentCalendarsResponse> ListCurrentCalendarsAsync(int namespaceId, CancellationToken ct) =>

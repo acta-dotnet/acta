@@ -112,9 +112,9 @@ internal sealed class ScheduleAdmitter(
                 }
             }
 
-            await calendars.PreloadAsync(namespaceId, due.SelectMany(s => s.Timing().CalendarNames()), ct);
+            var resolve = await calendars.PreloadAsync(namespaceId, due.SelectMany(s => s.Timing().CalendarNames()), ct);
             var decisions = metrics is null ? null : new List<PlannedMeasurement>();
-            var plan = Plan(namespaceId, due, now, calendars, log, decisions);
+            var plan = Plan(namespaceId, due, now, resolve, log, decisions);
             if (plan.Groups.Count == 0)
             {
                 break;
@@ -159,7 +159,7 @@ internal sealed class ScheduleAdmitter(
     /// The plan: one group per slot, every member whose evaluation selected an occurrence contributing to its one
     /// firing, and one group per per-occurrence schedule. A slot member nothing changed for rides as a check-only row,
     /// and a group that would carry only those, like a per-occurrence schedule nothing changed for, is left out. A group's
-    /// ordinal is its index. Calendars resolve through <paramref name="calendars"/>, preloaded for the rows; a schedule
+    /// ordinal is its index. Calendars resolve through <paramref name="resolve"/>, preloaded for the rows; a schedule
     /// whose source fails is parked as an evaluation error and, given a logger, said so. Given a list, the decisions each
     /// group's rows took are collected for the meter, by ordinal.
     /// </summary>
@@ -167,22 +167,21 @@ internal sealed class ScheduleAdmitter(
         int namespaceId,
         IReadOnlyList<DueSchedule> due,
         DateTime nowUtc,
-        CalendarsOperations calendars,
+        Func<ScheduleTiming, ScheduleSource> resolve,
         ILogger? log = null,
         List<PlannedMeasurement>? decisions = null
     )
     {
         var groups = new List<AdmitScheduleFiringsGroup>();
         var rows = new List<AdmitScheduleFiringsValues>();
-        ScheduleSource Resolve(ScheduleTiming timing) => calendars.Source(namespaceId, timing);
         foreach (var slot in due.Where(d => d.JobId is not null).GroupBy(d => d.JobId!.Value))
         {
-            PlanSlot(slot.Key, [.. slot], nowUtc, Resolve, log, groups, rows, decisions);
+            PlanSlot(slot.Key, [.. slot], nowUtc, resolve, log, groups, rows, decisions);
         }
 
         foreach (var schedule in due.Where(d => d.JobId is null))
         {
-            PlanOccurrence(schedule, nowUtc, Resolve, log, groups, rows, decisions);
+            PlanOccurrence(schedule, nowUtc, resolve, log, groups, rows, decisions);
         }
 
         return new AdmitScheduleFiringsCommand(namespaceId, groups, rows);

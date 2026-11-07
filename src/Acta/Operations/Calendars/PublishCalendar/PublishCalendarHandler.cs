@@ -75,9 +75,10 @@ internal sealed class PublishCalendarHandler(
 
             var nowUtc = await clock.GetUtcNowAsync(ct);
             var compiled = CalendarDefinition.Compile(candidate.Role, candidate.Definition);
+            var resolvers = new Dictionary<int, Func<ScheduleTiming, ScheduleSource>>();
             foreach (var ns in bound.GroupBy(s => s.NamespaceId))
             {
-                await sources.PreloadAsync(ns.Key, ns.SelectMany(s => s.Timing().CalendarNames()), ct);
+                resolvers[ns.Key] = await sources.PreloadAsync(ns.Key, ns.SelectMany(s => s.Timing().CalendarNames()), ct);
             }
 
             var plan = new List<PublishCalendarValues>(bound.Count);
@@ -91,7 +92,7 @@ internal sealed class PublishCalendarHandler(
                     continue;
                 }
 
-                var oldSource = sources.Source(s.NamespaceId, s.Timing());
+                var oldSource = resolvers[s.NamespaceId](s.Timing());
                 var newSource = Rebind(oldSource, calendarName, compiled);
                 DateTime? next;
                 string? skipped = null;

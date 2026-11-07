@@ -49,7 +49,7 @@ internal sealed class CatalogRegistrar(
         ValidateScheduledDelivery(ns, allDescriptors, storedContracts);
         var contractDrifts = ContractDriftDetector.Detect(allDescriptors, storedContracts);
         ContractDriftPolicy.Apply(_options.Value.PayloadContractDriftMode, contractDrifts, ns, _log);
-        await ValidateCalendarsAsync(ns, namespaceId, allDescriptors, storedContracts, transaction, ct);
+        var resolve = await ValidateCalendarsAsync(ns, namespaceId, allDescriptors, storedContracts, transaction, ct);
 
         var registered = await _definitions.RegisterDefinitionsAsync(
             new(namespaceId, allDescriptors, storedContracts, deploymentVersion, transaction),
@@ -77,7 +77,7 @@ internal sealed class CatalogRegistrar(
         }
 
         var retired = catalog.Where(c => c.Status == DefinitionStatusCode.Retired).Select(c => c.DefinitionId).ToHashSet();
-        await ReconcileSchedulesAsync(ns, namespaceId, descriptorById, retired, nowUtc, transaction, ct);
+        await ReconcileSchedulesAsync(ns, namespaceId, descriptorById, retired, nowUtc, resolve, transaction, ct);
 
         var undeclared = storedContracts
             .Where(s => s.Status == DefinitionStatusCode.Active && !defIds.ContainsKey(s.DefinitionName))
@@ -311,9 +311,9 @@ internal sealed class CatalogRegistrar(
     /// Refuses the deploy before any catalog write when a schedule it registers names a calendar that is not
     /// ready, listing every such schedule with what its calendar lacks: no published version, a version of the other
     /// role, or a version this build cannot read. A calendar is published by a deploy step before the workers that name
-    /// it start; a worker never publishes one. The read also loads the versions the schedule plan resolves.
+    /// it start; a worker never publishes one. Answers the resolver over that read, which the schedule plan uses.
     /// </summary>
-    private async Task ValidateCalendarsAsync(
+    private async Task<Func<ScheduleTiming, ScheduleSource>> ValidateCalendarsAsync(
         string ns,
         int namespaceId,
         ImmutableArray<JobDescriptor> descriptors,
@@ -341,11 +341,11 @@ internal sealed class CatalogRegistrar(
                 )
             )
             .ToList();
-        await calendars.PreloadAsync(namespaceId, schedules.SelectMany(s => s.Timing.CalendarNames()), transaction, ct);
+        var resolve = await calendars.PreloadAsync(namespaceId, schedules.SelectMany(s => s.Timing.CalendarNames()), transaction, ct);
 
         var problems = schedules
             .Where(s => !s.Retired)
-            .SelectMany(s => calendars.Source(namespaceId, s.Timing).Problems().Select(problem => $"Schedule '{s.Path}': {problem}"))
+            .SelectMany(s => resolve(s.Timing).Problems().Select(problem => $"Schedule '{s.Path}': {problem}"))
             .ToList();
         if (problems.Count > 0)
         {
@@ -356,6 +356,8 @@ internal sealed class CatalogRegistrar(
                     + string.Join(Environment.NewLine, problems)
             );
         }
+
+        return resolve;
     }
 
     /// <summary>
@@ -388,6 +390,7 @@ internal sealed class CatalogRegistrar(
         Dictionary<int, JobDescriptor> descriptorById,
         HashSet<int> retired,
         DateTime nowUtc,
+        Func<ScheduleTiming, ScheduleSource> resolve,
         DbTransaction transaction,
         CancellationToken ct
     )
@@ -440,7 +443,7 @@ internal sealed class CatalogRegistrar(
                 ? byName
                 : (IReadOnlyDictionary<string, StoredScheduleState>)new Dictionary<string, StoredScheduleState>();
 
-            var slotSchedules = ScheduleRegistrationPlan.Plan(declared, storedForDef, nowUtc, t => calendars.Source(namespaceId, t));
+            var slotSchedules = ScheduleRegistrationPlan.Plan(declared, storedForDef, nowUtc, resolve);
 
             // Registration leaves a held slot as it stands; say so at every deploy.
             var slot = storedForDef.Values.FirstOrDefault();

@@ -1920,6 +1920,11 @@
   - The list filters by role and name fragment, counts the filter on request, and pages by name
   - A namespace's list adds the shared families, and a list without a namespace spans every namespace
 
+### A calendar resolver keeps the versions its own preload read
+- **Contract:** A resolver answers the calendar version its own preload read, whatever version a later preload of the same family reads.
+- **Guarantees:**
+  - A resolver from before a publication still answers the version it read
+
 ### A calendar version previews beside the current one
 - **Contract:** A preview forecasts a version's next instants or windows beside the current version's over the same horizon, and a version the family lacks previews as null.
 - **Guarantees:**

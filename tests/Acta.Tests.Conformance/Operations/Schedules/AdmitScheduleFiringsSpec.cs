@@ -296,7 +296,10 @@ public sealed class AdmitScheduleFiringsSpec : ActaStorageTestBase<ConformanceFi
         var due = await Services
             .GetRequiredService<ListDueSchedulesHandler>()
             .HandleAsync(new ListDueSchedulesQuery(TestNamespaceId, nowUtc, 100), ct);
-        return ScheduleAdmitter.Plan(TestNamespaceId, due.Schedules, nowUtc, Services.GetRequiredService<CalendarsOperations>());
+        var resolve = await Services
+            .GetRequiredService<CalendarsOperations>()
+            .PreloadAsync(TestNamespaceId, due.Schedules.SelectMany(s => s.Timing().CalendarNames()), ct);
+        return ScheduleAdmitter.Plan(TestNamespaceId, due.Schedules, nowUtc, resolve);
     }
 
     private Task<AdmitScheduleFiringsResponse> Admit(AdmitScheduleFiringsCommand plan, CancellationToken ct) =>
