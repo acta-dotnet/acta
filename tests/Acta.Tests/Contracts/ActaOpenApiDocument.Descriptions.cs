@@ -11,6 +11,77 @@ namespace Acta.Tests.Contracts;
 
 internal static partial class ActaOpenApiDocument
 {
+    /// <summary>One sentence per tag: what its operations act on.</summary>
+    private static readonly Dictionary<string, string> TagDescriptions = new(StringComparer.Ordinal)
+    {
+        ["Jobs"] =
+            "List and enqueue jobs, read one job with its steps, checkpoints, events, input, and result, and control, signal, or tag it.",
+        ["Namespaces"] = "List and read namespaces, and suspend, resume, update, or tag one.",
+        ["Tenants"] = "Register, list, and read tenants, and suspend, resume, update, or tag one.",
+        ["Alerts"] = "List and read alerts, and acknowledge or resolve one.",
+        ["Outbox"] = "List the outbox relay's sources and a source's quarantined staging rows, and requeue or discard those rows.",
+        ["Definitions"] =
+            "List and read job definitions, their input templates and events, and update one's policy overrides, retire it, or tag it.",
+        ["Schedules"] = "List schedules, preview one's upcoming fire instants, and pause, resume, or trigger it.",
+        ["Calendars"] =
+            "List and read calendar families, their versions and the schedules naming them, preview a version, and save, publish, or archive one.",
+        ["Workers"] = "List and read the workers that run jobs.",
+        ["Events"] = "List the ledger's events, filtered and paged by cursor.",
+        ["Overview"] = "Read the ledger's health counters in one call.",
+        ["Capabilities"] = "Read what this host's API allows, such as whether controls are mapped.",
+    };
+
+    // What a status means on a read (a GET) and on a control (any other method), written once per status and route
+    // shape: a read's 200 tells a page, a payload, and one resource apart, and a control's 404 and 409 tell its response
+    // from a problem. A status none of these covers keeps the framework's default, which the description rule refuses.
+    private static string? ResponseDescription(
+        string status,
+        bool read,
+        OpenApiResponse response,
+        IDictionary<string, IOpenApiSchema> schemas
+    )
+    {
+        var content = response.Content ?? new Dictionary<string, OpenApiMediaType>();
+        var problem = content.ContainsKey("application/problem+json");
+        return (status, read, problem) switch
+        {
+            ("200", true, _) when IsPage(content, schemas) =>
+                "One page of the list; while hasMore is true, pass its nextCursor back as cursor for the next page.",
+            ("200", true, _) when content.ContainsKey(RawPayload.BinaryContentType) =>
+                "The stored payload itself: a JSON payload as application/json, any other format as application/octet-stream.",
+            ("200", true, _) => "The resource the route reads.",
+            ("200", false, _) => "The control ran; the body's action says what it did.",
+            ("201", _, _) => "The resource was created, and Location holds its URL.",
+            ("202", _, _) => "The command is stored for the next relay pass to apply, so nothing has changed yet.",
+            ("204", _, _) => "Nothing is stored to return.",
+            ("400", true, _) => "A path or query parameter is malformed or missing; the problem's detail names it.",
+            ("400", false, _) =>
+                "The call is malformed: the confirmation header is missing or not true, a path parameter cannot name a target, or the "
+                    + "body breaks a rule; the problem's detail says which.",
+            ("401", _, _) => "The host's authentication did not accept the call.",
+            ("403", _, _) =>
+                "The call was refused before it ran, by the local-only guard, the host's authorization, or a control authorizer.",
+            ("404", false, false) => "The target does not exist; the body's action is not-found and nothing was written.",
+            ("404", _, _) => "The target the path names, or one a filter names, does not exist.",
+            ("409", true, _) => "This host cannot serve the read as asked; the problem's detail says why.",
+            ("409", false, true) => "The call was refused as a whole; the problem's reasonCode says why.",
+            ("409", false, false) =>
+                "The target's state or a stale expected version refused the control; the body's action says which, and nothing was written.",
+            ("413", _, _) => "The body is larger than the server accepts.",
+            ("415", _, _) => "The body is not application/json.",
+            ("500", _, _) => "The server failed unexpectedly; the problem document leaves the cause to the host's log.",
+            ("503", _, _) => "The database could not be reached or refused the call; retry later.",
+            _ => null,
+        };
+    }
+
+    // A page is a response whose schema carries a next cursor.
+    private static bool IsPage(IDictionary<string, OpenApiMediaType> content, IDictionary<string, IOpenApiSchema> schemas) =>
+        content.TryGetValue("application/json", out var media)
+        && media.Schema is OpenApiSchemaReference { Reference.Id: { } id }
+        && schemas.TryGetValue(id, out var target)
+        && target.Properties?.ContainsKey("nextCursor") == true;
+
     /// <summary>
     /// The XML documentation of the Acta types behind the document's schemas, in wire terms: a type's summary describes
     /// its schema and a member's (a record's param line) its property. A cref to a member on the wire reads as its wire

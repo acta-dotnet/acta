@@ -187,7 +187,8 @@ internal static partial class ActaOpenApiDocument
         );
 
         // A route table's handler reads its keys from the route values, unseen by the generator: each segment the
-        // template names and no handler parameter binds is a required string path parameter, in template order.
+        // template names and no handler parameter binds is a required string path parameter, in template order. Every
+        // path parameter, bound or not, says what its key names.
         o.AddOperationTransformer(
             (operation, context, _) =>
             {
@@ -208,6 +209,12 @@ internal static partial class ActaOpenApiDocument
                             }
                         );
                     }
+                }
+                foreach (
+                    var parameter in (operation.Parameters ?? []).OfType<OpenApiParameter>().Where(p => p.In == ParameterLocation.Path)
+                )
+                {
+                    parameter.Description ??= RouteKeys.Descriptions.GetValueOrDefault(parameter.Name!);
                 }
                 return Task.CompletedTask;
             }
@@ -552,10 +559,18 @@ internal static partial class ActaOpenApiDocument
         {
             foreach (var (method, operation) in item.Operations ?? [])
             {
-                // In status order, whichever of the group's or the route's declarations made each one.
+                // In status order, whichever of the group's or the route's declarations made each one, each saying what its
+                // status means for the route.
                 var byStatus = new OpenApiResponses();
                 foreach (var (code, response) in (operation.Responses ?? []).OrderBy(r => r.Key, StringComparer.Ordinal))
                 {
+                    if (
+                        response is OpenApiResponse declared
+                        && ResponseDescription(code, method == HttpMethod.Get, declared, schemas) is { } text
+                    )
+                    {
+                        declared.Description = text;
+                    }
                     byStatus[code] = response;
                 }
                 operation.Responses = byStatus;
@@ -567,6 +582,11 @@ internal static partial class ActaOpenApiDocument
                     );
                 }
             }
+        }
+
+        foreach (var tag in document.Tags ?? new HashSet<OpenApiTag>())
+        {
+            tag.Description ??= TagDescriptions.GetValueOrDefault(tag.Name!);
         }
     }
 
