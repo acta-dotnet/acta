@@ -40,6 +40,8 @@ public sealed class PerOccurrenceManifest : IJobManifest
     public const string SettledRetireJobName = "roots-settled-retire";
     public const string SettledCancelJobName = "roots-settled-cancel";
     public const string PendingRestartJobName = "roots-pending-restart";
+    public const string ReadmittedJobName = "roots-readmit";
+    public const string BesideJobName = "roots-beside";
     public const string ScheduleName = "every-5-minutes";
 
     public static JobDescriptorManifest Descriptors { get; } =
@@ -58,6 +60,8 @@ public sealed class PerOccurrenceManifest : IJobManifest
             Descriptor(SettledRetireJobName, 2, ScheduleFullBehaviorCode.Wait, fails: false),
             Descriptor(SettledCancelJobName, 2, ScheduleFullBehaviorCode.Wait, fails: false),
             Descriptor(PendingRestartJobName, 2, ScheduleFullBehaviorCode.Wait, fails: false),
+            Descriptor(ReadmittedJobName, 3, ScheduleFullBehaviorCode.Wait, fails: false),
+            Descriptor(BesideJobName, 1, ScheduleFullBehaviorCode.Wait, fails: false),
         ]);
 
     private static JobDescriptor Descriptor(
@@ -615,6 +619,50 @@ public sealed class PerOccurrenceSchedulingSpec : ActaRuntimeTestBase<Conformanc
         Assert.Equal(JobStatusCode.Ready, (await ReadJobAsync(root.Id, ct)).Status);
         Assert.Equal(1, (await ScheduleAsync(PerOccurrenceManifest.PendingRestartJobName, ct)).State.OutstandingCount);
         await AssertChargeIsPendingEnvelopesAsync(PerOccurrenceManifest.PendingRestartJobName, ct);
+    }
+
+    [Fact(DisplayName = "An occurrence whose root already exists is passed over without a root or a charge, and the pass admits the rest")]
+    public async Task An_occurrence_admitted_before_is_passed_over()
+    {
+        var ct = TestContext.Current.CancellationToken;
+        var (readmitted, state) = await ScheduleAsync(PerOccurrenceManifest.ReadmittedJobName, ct);
+        var (beside, _) = await ScheduleAsync(PerOccurrenceManifest.BesideJobName, ct);
+        var first = state.NextOccurrenceAtUtc!.Value;
+        var second = first.AddMinutes(5);
+        await AdmitAtAsync(first, ct);
+
+        // The second occurrence becomes a root of the readmitted schedule, while the other schedule, full, waits for it.
+        await AdmitAtAsync(second, ct);
+        var admitted = Assert.Single(
+            await RootsAsync(readmitted.Id, ct),
+            r => r.DeduplicationKey == ScheduleAdmitter.OccurrenceKey(readmitted.Id, second)
+        );
+        Assert.Equal(
+            ScheduleEvaluationStatusCode.WaitingForCapacity,
+            (await ScheduleAsync(PerOccurrenceManifest.BesideJobName, ct)).State.EvaluationStatus
+        );
+        Assert.Equal(RunOnceStatus.Completed, await Runtime.RunOnceAsync(Assert.Single(await RootsAsync(beside.Id, ct)).Id, ct));
+
+        // The cursor goes back onto the occurrence it already admitted, as a cursor reseeded behind an admission would.
+        Assert.Equal(
+            1,
+            await Db.From<ScheduleStateEntity>()
+                .Where(s => s.Id == readmitted.Id)
+                .UpdateOnlyAsync(() => new ScheduleStateEntity { NextOccurrenceAtUtc = second, NextEvaluationAtUtc = second }, ct)
+        );
+
+        await Runtime.AdmitOnceAsync(TestNamespace, ct);
+
+        (_, state) = await ScheduleAsync(PerOccurrenceManifest.ReadmittedJobName, ct);
+        Assert.Equal(2, (await RootsAsync(readmitted.Id, ct)).Count);
+        Assert.Equal(2, state.OutstandingCount);
+        Assert.Equal(second.AddMinutes(5), state.NextOccurrenceAtUtc);
+        await ReadSingleEventAsync(admitted.Id, EventCode.ScheduleAdmitted, ct);
+        Assert.Empty(await DefinitionEventsAsync(readmitted.DefinitionId, EventCode.ScheduleAdmitted, ct));
+        Assert.Single(await RootsAsync(beside.Id, ct), r => r.DeduplicationKey == ScheduleAdmitter.OccurrenceKey(beside.Id, second));
+        Assert.Equal(1, (await ScheduleAsync(PerOccurrenceManifest.BesideJobName, ct)).State.OutstandingCount);
+        await AssertChargeIsPendingEnvelopesAsync(PerOccurrenceManifest.ReadmittedJobName, ct);
+        await AssertChargeIsPendingEnvelopesAsync(PerOccurrenceManifest.BesideJobName, ct);
     }
 
     private async Task<ClaimedJob> ClaimAsync(long jobId, int workerId, CancellationToken ct) =>

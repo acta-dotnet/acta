@@ -1089,9 +1089,11 @@
   - A grandchild is listed under its own parent only, and a job with no children lists none
 
 ### Stale child latches are found once their child is terminal or gone
-- **Contract:** A parent's Pending child latch is reported once its child is terminal or gone, and never while the child is live or once the latch is set.
+- **Contract:** A live parent's Pending latch on its own child is reported once that child is terminal or gone, and never otherwise.
 - **Guarantees:**
   - A Pending latch is not reported while its child is live, and is reported with the child's status once it lands terminal unraised
+  - A cancelled parent's Pending latch is not reported, and a recovery pass leaves it as the cancel did
+  - A Pending latch naming a job that is not the parent's child is not reported, and a recovery pass leaves the parent waiting
   - A Pending latch whose child row is gone is reported with no child status
   - A latch the child set when it landed is not reported
 
@@ -2183,6 +2185,7 @@
   - A retire releases nothing for a root whose firing another settlement already settled and released
   - A cancel releases nothing for a root whose firing was already settled and released
   - A restart charges nothing for a finished root whose firing is already outstanding
+  - An occurrence whose root already exists is passed over without a root or a charge, and the pass admits the rest
 
 ### PerOccurrence schedules register without a slot and are addressed by path
 - **Contract:** PerOccurrence schedules register with no slot and their capacity, expiry, and availability, and the verbs address them by path and audit the definition.

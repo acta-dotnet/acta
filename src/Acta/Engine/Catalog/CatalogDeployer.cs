@@ -49,11 +49,8 @@ internal sealed class CatalogDeployer(
             .Select(r => (Registration: r, Descriptors: CatalogRegistrar.CollectDescriptors(r, options.Value)))
             .ToList();
 
-        // The clock is read before the transaction opens, so the deploy holds one connection, its transaction's, from
-        // its first statement to its last.
-        var nowUtc = await clock.GetUtcNowAsync(ct);
         return await session.RunInTransactionAsync(
-            (transaction, token) => DeployOnceAsync(transaction, planned, version, nowUtc, recorded, force, token),
+            (transaction, token) => DeployOnceAsync(transaction, planned, version, recorded, force, token),
             ct
         );
     }
@@ -66,7 +63,6 @@ internal sealed class CatalogDeployer(
         DbTransaction transaction,
         List<(WorkerRegistration Registration, ImmutableArray<JobDescriptor> Descriptors)> planned,
         string version,
-        DateTime nowUtc,
         bool recorded,
         bool force,
         CancellationToken ct
@@ -76,6 +72,12 @@ internal sealed class CatalogDeployer(
         var started = (
             await deployments.StartDeploymentAsync(transaction, [.. planned.Select(p => p.Registration.NamespaceName)], version, ct)
         ).Namespaces.ToDictionary(n => n.NamespaceName, StringComparer.Ordinal);
+
+        // The plan's clock is read once the schedule locks are held, so every admission that could move a cursor has
+        // committed before it, and a retime seeds no cursor on an occurrence one already admitted. The read rides the
+        // transaction's connection: a deploy waiting on a pooled second one while it holds the locks starves a pool
+        // that many deploys share.
+        var nowUtc = await clock.GetUtcNowAsync(transaction, ct);
 
         var results = new List<NamespaceDeployment>(planned.Count);
         foreach (var (registration, descriptors) in planned)

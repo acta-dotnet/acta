@@ -20,8 +20,8 @@ namespace Acta;
         + " AND (checkpoint_kind_code NOT IN (20, 30, 50, 60) OR checkpoint_status_code IS NOT NULL)"
         + " AND (checkpoint_kind_code <> 30 OR due_at_utc IS NOT NULL)"
 )]
-// The recovery pass's stale-latch read: a latch is Pending only while its parent waits on that child, so the pass
-// reads the parents waiting right now, never every checkpoint the namespace retains. The read restates the filter.
+// The recovery pass's stale-latch read: it reads only Pending latches, the ones parents wait on plus any a parent left
+// when it landed terminal, never every checkpoint the namespace retains. The read restates the filter.
 [DbIndex(
     Name = "ix_checkpoints_pending_latches",
     Columns = ["job_id", "checkpoint_name"],

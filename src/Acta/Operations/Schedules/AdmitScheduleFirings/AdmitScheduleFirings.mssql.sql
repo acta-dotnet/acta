@@ -19,7 +19,7 @@ BEGIN TRY
         admit BIT NOT NULL,
         envelope NVARCHAR(MAX) NULL,
         job_ref UNIQUEIDENTIFIER NULL,
-        deduplication_key VARCHAR(128) NULL,
+        deduplication_key VARCHAR(128) COLLATE Latin1_General_100_BIN2_UTF8 NULL,
         trigger_message NVARCHAR(512) NULL,
         trigger_details NVARCHAR(MAX) NULL);
     DECLARE @rows TABLE (
@@ -122,6 +122,31 @@ BEGIN TRY
             SELECT 1 FROM {{schema}}.namespaces n
             WHERE n.namespace_id = @p_namespace_id AND n.namespace_status_code = 10 /* NamespaceStatusCode.Active */
         );
+
+    -- An occurrence whose root already exists is not admitted again: its group still moves the cursor past it, and
+    -- writes no root, state row, envelope, charge, or admission event. Every admission of the schedule holds its state
+    -- row, so no other root under that key can land before this transaction ends.
+    UPDATE g
+    SET admit = 0
+    FROM @groups g
+    WHERE
+        g.admit = 1
+        AND g.job_id IS NULL
+        AND EXISTS (
+            SELECT 1
+            FROM {{schema}}.jobs d WITH (FORCESEEK, INDEX (ux_jobs_deduplication_key_root))
+            WHERE
+                d.namespace_id = @p_namespace_id
+                AND d.deduplication_key = g.deduplication_key
+                AND d.parent_job_id IS NULL
+                AND d.deduplication_key IS NOT NULL
+        );
+
+    UPDATE a
+    SET admitted_details = NULL
+    FROM @rows a
+    INNER JOIN @groups g ON g.ordinal = a.group_ordinal
+    WHERE g.job_id IS NULL AND g.admit = 0;
 
     UPDATE r
     SET

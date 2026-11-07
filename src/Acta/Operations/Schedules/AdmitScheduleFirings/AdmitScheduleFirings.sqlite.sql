@@ -64,6 +64,26 @@ WHERE
         WHERE n.namespace_id = @p_namespace_id AND n.namespace_status_code = 10 /* NamespaceStatusCode.Active */
     );
 
+-- An occurrence whose root already exists is not admitted again: its group still moves the cursor past it, and writes
+-- no root, state row, envelope, charge, or admission event.
+UPDATE temp._adm_groups
+SET admit = 0
+WHERE
+    admit = 1
+    AND job_id IS NULL
+    AND EXISTS (
+        SELECT 1
+        FROM {{schema}}.jobs d
+        WHERE
+            d.namespace_id = @p_namespace_id
+            AND d.deduplication_key = temp._adm_groups.deduplication_key
+            AND d.parent_job_id IS NULL
+    );
+
+UPDATE temp._adm_rows
+SET admitted_details = NULL
+WHERE group_ordinal IN (SELECT g.ordinal FROM temp._adm_groups g WHERE g.job_id IS NULL AND g.admit = 0);
+
 UPDATE {{schema}}.jobs_state
 SET
     job_status_code = 10 /* JobStatusCode.Ready */,

@@ -223,6 +223,12 @@ internal sealed class FaultInjectingClock(IClockOperations inner, StoreFaultPlan
         plan.TakeGetUtcNowFault() ? throw new InjectedProviderError("on the clock read")
         : plan.TryReadSkewedGetUtcNow(out var skewed) ? new ValueTask<DateTime>(skewed)
         : inner.GetUtcNowAsync(ct);
+
+    // Forwarded, so a read on a caller's transaction stays on its connection rather than taking a second one.
+    public ValueTask<DateTime> GetUtcNowAsync(DbTransaction transaction, CancellationToken ct) =>
+        plan.TakeGetUtcNowFault() ? throw new InjectedProviderError("on the clock read")
+        : plan.TryReadSkewedGetUtcNow(out var skewed) ? new ValueTask<DateTime>(skewed)
+        : inner.GetUtcNowAsync(transaction, ct);
 }
 
 internal static class ChaosServiceCollectionExtensions

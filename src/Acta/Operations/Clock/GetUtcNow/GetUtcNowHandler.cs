@@ -6,16 +6,26 @@ namespace Acta;
 /// </summary>
 internal sealed class GetUtcNowHandler(IDbSession session)
 {
-    public async ValueTask<GetUtcNowResponse> HandleAsync(CancellationToken ct) =>
+    public async ValueTask<GetUtcNowResponse> HandleAsync(GetUtcNowQuery query, CancellationToken ct) =>
         new(
-            await session.QueryAsync(
-                "GetUtcNow",
-                static _ => { },
-                static async (reader, token) =>
-                    await reader.ReadAsync(token) && !reader.IsDBNull(0)
-                        ? DbCellCoercion.ToUtc(reader.GetValue(0))
-                        : throw new InvalidOperationException("GetUtcNow returned no value."),
-                ct
-            )
+            query.Transaction is { } transaction
+                ? (
+                    await session.ExecuteInTransactionAsync(
+                        transaction,
+                        new StoreCommand("GetUtcNow"),
+                        static _ => { },
+                        static reader => DbCellCoercion.ToUtc(reader.GetValue(0)),
+                        ct
+                    )
+                ).Single()
+                : await session.QueryAsync(
+                    "GetUtcNow",
+                    static _ => { },
+                    static async (reader, token) =>
+                        await reader.ReadAsync(token) && !reader.IsDBNull(0)
+                            ? DbCellCoercion.ToUtc(reader.GetValue(0))
+                            : throw new InvalidOperationException("GetUtcNow returned no value."),
+                    ct
+                )
         );
 }

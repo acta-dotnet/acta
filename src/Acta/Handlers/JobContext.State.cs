@@ -185,8 +185,8 @@ public abstract partial class JobContext
     /// envelope) so the next execution starts as new; the status, lease, failure budget, and schedule stay, the current attempt
     /// completes normally, and <c>job.state-reset</c> is emitted. Meant as the final action of a handler that runs
     /// again, never its first: mid-handler it discards the variables, timers, step checkpoints, and signals the rest of
-    /// the attempt would read, a finished child still dedupes by name and never re-raises (so waiting on it again
-    /// hangs; use per-fire child names), and an already-run <c>AtMostOnce</c> step can run twice if the attempt aborts.
+    /// the attempt would read, a finished child still dedupes by name and is raised again only by the next recovery pass
+    /// (use per-fire child names), and an already-run <c>AtMostOnce</c> step can run twice if the attempt aborts.
     /// </summary>
     public async Task ResetStateAsync(CancellationToken ct = default)
     {

@@ -1,7 +1,7 @@
 namespace Acta;
 
 /// <summary>
-/// One stale child-done latch: a parent's Pending <c>sys.child.{id}</c> checkpoint whose child is already
+/// One stale child-done latch: a live parent's Pending <c>sys.child.{id}</c> checkpoint whose child is already
 /// terminal (its raise was lost to a crash, or the latch was re-armed after a state reset) or whose
 /// child row no longer exists. <see cref="ChildStatus"/> is null when the row is gone.
 /// </summary>

@@ -1,3 +1,5 @@
+using System.Data.Common;
+
 namespace Acta;
 
 /// <summary>
@@ -9,4 +11,10 @@ namespace Acta;
 internal interface IActaClock
 {
     ValueTask<DateTime> GetUtcNowAsync(CancellationToken ct);
+
+    /// <summary>
+    /// The same clock read on <paramref name="transaction"/>'s connection, so a caller holding one never waits on the
+    /// pool for a second; a replacement clock answers as it always does.
+    /// </summary>
+    ValueTask<DateTime> GetUtcNowAsync(DbTransaction transaction, CancellationToken ct) => GetUtcNowAsync(ct);
 }
