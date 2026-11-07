@@ -9,6 +9,17 @@ namespace Acta.AspNetCore;
 /// empty field, not an error, and the capped collections ship their filter-wide counts. The unbounded event history
 /// keeps its own paged route.
 /// </summary>
+/// <param name="Job">The job.</param>
+/// <param name="Input">The job's input as a payload envelope; absent when it has none.</param>
+/// <param name="Result">The job's result as a payload envelope; absent until the job has one.</param>
+/// <param name="Checkpoints">The first page of the job's checkpoints, with their total.</param>
+/// <param name="Explain">The explanation of the job's current state.</param>
+/// <param name="Lineage">The job's lineage map.</param>
+/// <param name="Schedules">The first page of the schedules that fire the job, when it is a scheduled definition's permanent slot.</param>
+/// <param name="SchedulesTotal">How many such schedules there are, so a caller can tell a complete list from a first page.</param>
+/// <param name="MaxAttemptsEffective">The retry budget in force for the job's definition; absent when the definition is gone.</param>
+/// <param name="Workers">The first page of the namespace's workers while the job is claimable; absent otherwise.</param>
+/// <param name="WorkersTotal">How many such workers there are; absent with workers.</param>
 internal sealed record GetJobDetailResponse(
     GetJobResponse Job,
     [property: JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)] JobPayloadBody? Input,
@@ -17,10 +28,7 @@ internal sealed record GetJobDetailResponse(
     [property: JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)] ExplainJobResponse? Explain,
     [property: JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)] GetJobLineageMapResponse? Lineage,
     IReadOnlyList<ListSchedulesItem> Schedules,
-    // Filter-wide count, so the frontend can tell a complete set from the first page of a larger one.
     long? SchedulesTotal,
-    // Effective retry budget from the definition so the summary can render "n of m consecutive
-    // failures" without a second read. Absent when the definition row is gone.
     [property: JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)] int? MaxAttemptsEffective,
     [property: JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)] IReadOnlyList<ListWorkersItem>? Workers,
     [property: JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)] long? WorkersTotal

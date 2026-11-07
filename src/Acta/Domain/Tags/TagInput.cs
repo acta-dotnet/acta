@@ -4,6 +4,8 @@ namespace Acta;
 /// Caller-supplied per-tag wire row attached to an enqueued Job. Names are unique within a
 /// request; <see cref="Value"/> is null for presence-only tags.
 /// </summary>
+/// <param name="Name">The tag's name, trimmed and lowercased.</param>
+/// <param name="Value">The tag's value; null for a tag that is only a name.</param>
 public sealed record TagInput(string Name, string? Value = null)
 {
     /// <summary>

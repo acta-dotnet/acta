@@ -10438,7 +10438,8 @@
             "type": [
               "null",
               "string"
-            ]
+            ],
+            "description": "Why the operator made this call, recorded on the event the call writes."
           }
         },
         "additionalProperties": false,
@@ -10454,9 +10455,11 @@
         "type": "object",
         "properties": {
           "alertRef": {
+            "description": "The alert's ref, alr_ followed by 32 hex digits.",
             "$ref": "#/components/schemas/AlertRef"
           },
           "action": {
+            "description": "What the call did, such as applied, already-in-state, rejected, not-found, or version-conflict.",
             "$ref": "#/components/schemas/ControlAction"
           },
           "acknowledgedAtUtc": {
@@ -10464,6 +10467,7 @@
               "null",
               "string"
             ],
+            "description": "When the alert was acknowledged, in UTC; null while it has not been.",
             "format": "date-time"
           },
           "resolvedAtUtc": {
@@ -10471,6 +10475,7 @@
               "null",
               "string"
             ],
+            "description": "When the alert was resolved, in UTC; null while it is open.",
             "format": "date-time"
           }
         },
@@ -10564,13 +10569,15 @@
         "properties": {
           "expectedCurrentVersion": {
             "type": "integer",
+            "description": "The number of the published version as the caller last read it; when another is in force the call answers version-conflict and changes nothing.",
             "format": "int32"
           },
           "reasonMessage": {
             "type": [
               "null",
               "string"
-            ]
+            ],
+            "description": "Why the operator made this call, recorded on the event the call writes."
           }
         },
         "additionalProperties": false,
@@ -10585,6 +10592,7 @@
         "type": "object",
         "properties": {
           "action": {
+            "description": "What the call did, such as applied, already-in-state, rejected, not-found, or version-conflict.",
             "$ref": "#/components/schemas/ControlAction"
           },
           "version": {
@@ -10592,10 +10600,12 @@
               "null",
               "integer"
             ],
+            "description": "The number of the version that was archived; null when nothing was.",
             "format": "int32"
           },
           "dependentCount": {
             "type": "integer",
+            "description": "How many schedules name the family.",
             "format": "int32"
           }
         },
@@ -10636,6 +10646,7 @@
         "properties": {
           "startUtc": {
             "type": "string",
+            "description": "When the window opens, in UTC.",
             "format": "date-time"
           },
           "endUtc": {
@@ -10643,6 +10654,7 @@
               "null",
               "string"
             ],
+            "description": "When the window closes, in UTC.",
             "format": "date-time"
           }
         },
@@ -10655,13 +10667,15 @@
             "type": [
               "null",
               "string"
-            ]
+            ],
+            "description": "Why the operator made this call, recorded on the event the call writes."
           },
           "expectedVersion": {
             "type": [
               "null",
               "integer"
             ],
+            "description": "The job's version as the caller last read it; when the job has another version the call answers version-conflict and changes nothing. Omit it to act on the job whatever its version.",
             "format": "int32"
           }
         },
@@ -10677,6 +10691,7 @@
         "type": "object",
         "properties": {
           "action": {
+            "description": "What the call did, such as applied, already-in-state, rejected, not-found, or version-conflict.",
             "$ref": "#/components/schemas/ControlAction"
           },
           "status": {
@@ -10687,13 +10702,15 @@
               {
                 "$ref": "#/components/schemas/JobStatusCode"
               }
-            ]
+            ],
+            "description": "The job's status after the call; null when the job was not found."
           },
           "version": {
             "type": [
               "null",
               "integer"
             ],
+            "description": "The job's version after the call; on a version conflict, the version it has now; null when the job was not found.",
             "format": "int32"
           }
         },
@@ -10782,13 +10799,15 @@
               {
                 "$ref": "#/components/schemas/JobPriorityCode"
               }
-            ]
+            ],
+            "description": "The priority to use in place of the declared one; null uses the declared one."
           },
           "maxAttempts": {
             "type": [
               "null",
               "integer"
             ],
+            "description": "The retry budget to use in place of the declared one; null uses the declared one.",
             "format": "int32"
           },
           "concurrencyLimit": {
@@ -10796,25 +10815,29 @@
               "null",
               "integer"
             ],
+            "description": "The concurrency limit to use in place of the declared one, 1 to 1024; null uses the declared one.",
             "format": "int32"
           },
           "rateLimit": {
             "type": [
               "null",
               "string"
-            ]
+            ],
+            "description": "The rate limit to use in place of the declared one, written N/s, N/m, or N/h; null uses the declared one."
           },
           "backoff": {
             "type": [
               "null",
               "string"
-            ]
+            ],
+            "description": "The backoff expression to use in place of the declared one; null uses the declared one."
           },
           "executionTimeoutSeconds": {
             "type": [
               "null",
               "integer"
             ],
+            "description": "The execution timeout in seconds to use in place of the declared one; null uses the declared one.",
             "format": "int32"
           },
           "deadlineSeconds": {
@@ -10822,6 +10845,7 @@
               "null",
               "integer"
             ],
+            "description": "The deadline in seconds to use in place of the declared one; null uses the declared one.",
             "format": "int32"
           },
           "deadlineBehavior": {
@@ -10832,13 +10856,15 @@
               {
                 "$ref": "#/components/schemas/DeadlineBehaviorCode"
               }
-            ]
+            ],
+            "description": "The deadline behavior to use in place of the declared one; null uses the declared one."
           },
           "jobRetentionSeconds": {
             "type": [
               "null",
               "integer"
             ],
+            "description": "The retention time in seconds to use in place of the declared one; null uses the declared one.",
             "format": "int32"
           },
           "eventRecording": {
@@ -10849,7 +10875,8 @@
               {
                 "$ref": "#/components/schemas/EventRecordingCode"
               }
-            ]
+            ],
+            "description": "The event recording to use in place of the declared one; null uses the declared one."
           },
           "alertProfile": {
             "oneOf": [
@@ -10859,31 +10886,36 @@
               {
                 "$ref": "#/components/schemas/AlertProfileCode"
               }
-            ]
+            ],
+            "description": "The alert profile to use in place of the declared one; null uses the declared one."
           },
           "alertChannelName": {
             "type": [
               "null",
               "string"
-            ]
+            ],
+            "description": "The alert channel to use in place of the declared one; null uses the declared one."
           },
           "runbookUrl": {
             "type": [
               "null",
               "string"
-            ]
+            ],
+            "description": "The runbook link to use in place of the declared one; null uses the declared one."
           },
           "displayName": {
             "type": [
               "null",
               "string"
-            ]
+            ],
+            "description": "The display name to use in place of the declared one; null uses the declared one."
           },
           "description": {
             "type": [
               "null",
               "string"
-            ]
+            ],
+            "description": "The description to use in place of the declared one; null uses the declared one."
           }
         },
         "additionalProperties": false,
@@ -10913,13 +10945,15 @@
             "items": {
               "type": "string",
               "format": "uuid"
-            }
+            },
+            "description": "The ids of the quarantined rows to act on, at least one; omitted or null acts on every quarantined row of the namespace."
           },
           "reasonMessage": {
             "type": [
               "null",
               "string"
-            ]
+            ],
+            "description": "Why the operator made this call, recorded on the event the call writes."
           }
         },
         "additionalProperties": false,
@@ -10933,6 +10967,7 @@
         "type": "object",
         "properties": {
           "action": {
+            "description": "What the call did; accepted means the command is stored and the next relay pass applies it.",
             "$ref": "#/components/schemas/ControlAction"
           },
           "pendingSinceUtc": {
@@ -10940,6 +10975,7 @@
               "null",
               "string"
             ],
+            "description": "When the command still waiting to be applied was stored, in UTC; null when none is waiting.",
             "format": "date-time"
           }
         },
@@ -10964,10 +11000,12 @@
         "type": "object",
         "properties": {
           "jobNamespace": {
-            "type": "string"
+            "type": "string",
+            "description": "The namespace of the definition to enqueue."
           },
           "jobName": {
-            "type": "string"
+            "type": "string",
+            "description": "The name of the definition to enqueue, within jobNamespace."
           },
           "input": {
             "oneOf": [
@@ -10977,25 +11015,29 @@
               {
                 "$ref": "#/components/schemas/JobPayloadBody"
               }
-            ]
+            ],
+            "description": "The job's input as a payload envelope; omitted or null enqueues a job without input."
           },
           "deduplicationKey": {
             "type": [
               "null",
               "string"
-            ]
+            ],
+            "description": "A key that makes the enqueue repeat-safe within the namespace: a second enqueue with the same key matches the first job and enqueues nothing."
           },
           "correlationKey": {
             "type": [
               "null",
               "string"
-            ]
+            ],
+            "description": "A key of the caller's that ties this job to related work; kept exactly as given and copied onto the job's events."
           },
           "tenantName": {
             "type": [
               "null",
               "string"
-            ]
+            ],
+            "description": "The tenant the job is about; it must be registered and not suspended."
           },
           "priority": {
             "oneOf": [
@@ -11005,13 +11047,15 @@
               {
                 "$ref": "#/components/schemas/JobPriorityCode"
               }
-            ]
+            ],
+            "description": "The job's priority; omitted, the job takes its definition's."
           },
           "delaySeconds": {
             "type": [
               "null",
               "integer"
             ],
+            "description": "How many seconds to wait before the job first runs; send this or nextRunAtUtc, not both.",
             "format": "int32"
           },
           "nextRunAtUtc": {
@@ -11019,19 +11063,22 @@
               "null",
               "string"
             ],
+            "description": "When the job should first run, in UTC; omitted, it runs as soon as a worker claims it.",
             "format": "date-time"
           },
           "lane": {
             "type": [
               "null",
               "string"
-            ]
+            ],
+            "description": "The lane to run the job in; omitted, the job takes its definition's lane when it declares one."
           },
           "concurrencyKey": {
             "type": [
               "null",
               "string"
-            ]
+            ],
+            "description": "A key that limits how many jobs sharing it run at once; omitted, the definition's name is the key."
           },
           "tags": {
             "type": [
@@ -11040,7 +11087,8 @@
             ],
             "items": {
               "$ref": "#/components/schemas/TagInput"
-            }
+            },
+            "description": "Tags to set on the job as it is enqueued."
           }
         },
         "additionalProperties": false,
@@ -11054,9 +11102,11 @@
         "type": "object",
         "properties": {
           "jobRef": {
+            "description": "The ref of the job the call enqueued or matched.",
             "$ref": "#/components/schemas/JobRef"
           },
           "action": {
+            "description": "What the call did: enqueued a new job, or matched an existing one by its deduplication key.",
             "$ref": "#/components/schemas/EnqueueJobAction"
           }
         },
@@ -11193,10 +11243,12 @@
         "type": "object",
         "properties": {
           "kind": {
-            "type": "string"
+            "type": "string",
+            "description": "Which move it is, as a stable code: raise-signal, cancel, resume, restart, inspect-timeline, wait-recovery, or none."
           },
           "description": {
-            "type": "string"
+            "type": "string",
+            "description": "The move, described for the operator."
           }
         },
         "description": "A suggested operator move. kind is a stable slug (raise-signal | cancel | resume | restart | inspect-timeline | wait-recovery | none); description is the prose shown to the operator."
@@ -11217,30 +11269,36 @@
             "type": [
               "null",
               "string"
-            ]
+            ],
+            "description": "The name of the worker that holds the lease, when it is known."
           },
           "expiresAtUtc": {
             "type": [
               "null",
               "string"
             ],
+            "description": "When the lease expires, in UTC.",
             "format": "date-time"
           },
           "expired": {
-            "type": "boolean"
+            "type": "boolean",
+            "description": "Whether the lease has expired."
           },
           "workerLastSeenAtUtc": {
             "type": [
               "null",
               "string"
             ],
+            "description": "When the worker last sent a heartbeat, in UTC.",
             "format": "date-time"
           },
           "workerStale": {
-            "type": "boolean"
+            "type": "boolean",
+            "description": "Whether the worker has stopped sending heartbeats."
           },
           "recoveryExpectation": {
-            "type": "string"
+            "type": "string",
+            "description": "What recovery will do with the job, in a sentence."
           },
           "workerRef": {
             "oneOf": [
@@ -11250,7 +11308,8 @@
               {
                 "$ref": "#/components/schemas/WorkerRef"
               }
-            ]
+            ],
+            "description": "The ref of the worker that holds the lease."
           }
         },
         "description": "The execution lease on an Executing Job and the liveness of the worker holding it. When expired is true the lease has lapsed and crash recovery reclaims the Job on its next pass; recoveryExpectation says so in prose. workerName is the worker's deployment version, and workerStale is true once it has missed heartbeats past JobsOptions.WorkerDeadAfter. Both workerRef and workerName go null when retention purged the owner's row: the timings still describe the Job, but the holder is unidentifiable."
@@ -11274,22 +11333,28 @@
         "type": "object",
         "properties": {
           "jobRef": {
+            "description": "The job's ref, job_ followed by 32 hex digits.",
             "$ref": "#/components/schemas/JobRef"
           },
           "jobNamespace": {
-            "type": "string"
+            "type": "string",
+            "description": "The namespace of the job's definition."
           },
           "jobName": {
-            "type": "string"
+            "type": "string",
+            "description": "The name of the job's definition."
           },
           "status": {
+            "description": "The job's status.",
             "$ref": "#/components/schemas/JobStatusCode"
           },
           "statusMeaning": {
-            "type": "string"
+            "type": "string",
+            "description": "What the job's status means, in a sentence."
           },
           "headline": {
-            "type": "string"
+            "type": "string",
+            "description": "A one-sentence summary of where the job is and why."
           },
           "activeWait": {
             "oneOf": [
@@ -11299,7 +11364,8 @@
               {
                 "$ref": "#/components/schemas/ExplainJobWait"
               }
-            ]
+            ],
+            "description": "The wait the job is suspended on; null when it is not waiting."
           },
           "lease": {
             "oneOf": [
@@ -11309,34 +11375,40 @@
               {
                 "$ref": "#/components/schemas/ExplainJobLease"
               }
-            ]
+            ],
+            "description": "The lease on the job; null when no worker holds one."
           },
           "lastExecutedBy": {
             "type": [
               "null",
               "string"
-            ]
+            ],
+            "description": "The name of the worker that last ran the job, when no lease is live."
           },
           "steps": {
             "type": "array",
             "items": {
               "$ref": "#/components/schemas/ExplainJobStep"
-            }
+            },
+            "description": "The job's newest steps, oldest first; stepsHasMore says when older ones were left out."
           },
           "stepsHasMore": {
-            "type": "boolean"
+            "type": "boolean",
+            "description": "Whether the job has older steps than the ones listed."
           },
           "reason": {
             "type": [
               "null",
               "string"
-            ]
+            ],
+            "description": "The latest reason recorded for the job's state, when there is one."
           },
           "nextActions": {
             "type": "array",
             "items": {
               "$ref": "#/components/schemas/ExplainJobAction"
-            }
+            },
+            "description": "The moves an operator can make from here."
           }
         },
         "description": "Plain-English explanation of a Job's current durable state: where the work is, why it moved there, and what an operator can do next, assembled from the same jobs_state, workers, steps, checkpoints, and events rows a SELECT would read. Returned by explain; the CLI renders it as prose, the dashboard as a panel. StatusMeaning is the [Code] description of Status; ActiveWait and Lease are set only in their states, LastExecutedBy names the last worker when no lease is live, and Steps are the newest 50, StepsHasMore saying older ones exist."
@@ -11350,13 +11422,16 @@
         "type": "object",
         "properties": {
           "name": {
-            "type": "string"
+            "type": "string",
+            "description": "The step's name, unique within its job."
           },
           "status": {
+            "description": "The step's status.",
             "$ref": "#/components/schemas/StepStatusCode"
           },
           "explanation": {
-            "type": "string"
+            "type": "string",
+            "description": "The step's state in a plain-English clause."
           }
         },
         "description": "One step's state, with explanation rendering it as a plain-English clause."
@@ -11370,16 +11445,19 @@
         "type": "object",
         "properties": {
           "kind": {
+            "description": "What the job waits on: a signal, a child latch, or a timer.",
             "$ref": "#/components/schemas/CheckpointKindCode"
           },
           "name": {
-            "type": "string"
+            "type": "string",
+            "description": "The name of the signal, child latch, or timer the job waits on."
           },
           "dueAtUtc": {
             "type": [
               "null",
               "string"
             ],
+            "description": "When the wait times out or the timer is due, in UTC; null for a wait without a bound.",
             "format": "date-time"
           }
         },
@@ -11420,10 +11498,12 @@
         "type": "object",
         "properties": {
           "alertRef": {
+            "description": "The alert's ref, alr_ followed by 32 hex digits.",
             "$ref": "#/components/schemas/AlertRef"
           },
           "jobNamespace": {
-            "type": "string"
+            "type": "string",
+            "description": "The namespace the alert belongs to."
           },
           "jobRef": {
             "oneOf": [
@@ -11433,28 +11513,36 @@
               {
                 "$ref": "#/components/schemas/JobRef"
               }
-            ]
+            ],
+            "description": "The ref of the job the alert is about, when it is about a job."
           },
           "origin": {
+            "description": "How the alert came to be raised.",
             "$ref": "#/components/schemas/AlertOriginCode"
           },
           "severity": {
+            "description": "The alert's severity.",
             "$ref": "#/components/schemas/AlertSeverityCode"
           },
           "kind": {
+            "description": "What raised the alert.",
             "$ref": "#/components/schemas/AlertKindCode"
           },
           "title": {
-            "type": "string"
+            "type": "string",
+            "description": "The alert's short title."
           },
           "message": {
-            "type": "string"
+            "type": "string",
+            "description": "The alert's message."
           },
           "channelName": {
-            "type": "string"
+            "type": "string",
+            "description": "The name of the alert channel the alert is delivered through."
           },
           "occurrenceCount": {
             "type": "integer",
+            "description": "How many times the incident has been raised while this alert was open.",
             "format": "int32"
           },
           "resolvedAtUtc": {
@@ -11462,13 +11550,16 @@
               "null",
               "string"
             ],
+            "description": "When the alert was resolved, in UTC; null while it is open.",
             "format": "date-time"
           },
           "deliveryStatus": {
+            "description": "Where delivery of the alert to its channel stands.",
             "$ref": "#/components/schemas/AlertDeliveryStatusCode"
           },
           "retryCount": {
             "type": "integer",
+            "description": "How many delivery attempts have failed so far.",
             "format": "int32"
           },
           "retryAfterUtc": {
@@ -11476,14 +11567,17 @@
               "null",
               "string"
             ],
+            "description": "When delivery is tried again, in UTC; null when no retry is pending.",
             "format": "date-time"
           },
           "createdAtUtc": {
             "type": "string",
+            "description": "When the row was created, in UTC.",
             "format": "date-time"
           },
           "modifiedAtUtc": {
             "type": "string",
+            "description": "When the row last changed, in UTC.",
             "format": "date-time"
           },
           "acknowledgedAtUtc": {
@@ -11491,6 +11585,7 @@
               "null",
               "string"
             ],
+            "description": "When the alert was acknowledged, in UTC; null while it has not been.",
             "format": "date-time"
           }
         },
@@ -11505,12 +11600,15 @@
         "type": "object",
         "properties": {
           "calendar": {
+            "description": "The calendar family's head.",
             "$ref": "#/components/schemas/GetCalendarResponse"
           },
           "versions": {
+            "description": "The first page of the family's versions.",
             "$ref": "#/components/schemas/ListCalendarVersionsResponse"
           },
           "dependents": {
+            "description": "The first page of the schedules that name the family.",
             "$ref": "#/components/schemas/ListCalendarDependentsResponse"
           }
         },
@@ -11530,12 +11628,15 @@
         "type": "object",
         "properties": {
           "jobNamespace": {
-            "type": "string"
+            "type": "string",
+            "description": "The namespace that holds the calendar family."
           },
           "calendarName": {
-            "type": "string"
+            "type": "string",
+            "description": "The calendar family's name within its namespace."
           },
           "role": {
+            "description": "The calendar family's role, which says how schedules use it.",
             "$ref": "#/components/schemas/CalendarRoleCode"
           },
           "currentVersion": {
@@ -11543,21 +11644,26 @@
               "null",
               "integer"
             ],
+            "description": "The number of the published version in force; null when none is published.",
             "format": "int32"
           },
           "latestVersion": {
             "type": "integer",
+            "description": "The number of the family's newest version.",
             "format": "int32"
           },
           "shownVersion": {
             "type": "integer",
+            "description": "The number of the version this answer shows.",
             "format": "int32"
           },
           "shownStatus": {
+            "description": "The status of the version this answer shows.",
             "$ref": "#/components/schemas/CalendarStatusCode"
           },
           "definition": {
-            "type": "string"
+            "type": "string",
+            "description": "The shown version's definition, as JSON text."
           }
         },
         "description": "One catalog calendar family as get reads it: its role, CurrentVersion the Published version (null while the family has none), LatestVersion the newest, and ShownVersion with its status and its Definition JSON. list versions pages the versions and list dependents the schedules naming the family."
@@ -11573,19 +11679,24 @@
         "type": "object",
         "properties": {
           "controlsEnabled": {
-            "type": "boolean"
+            "type": "boolean",
+            "description": "Whether this host maps the control routes."
           },
           "engineVersion": {
-            "type": "string"
+            "type": "string",
+            "description": "The version of Acta this host runs."
           },
           "provider": {
+            "description": "The database provider this host runs on.",
             "$ref": "#/components/schemas/DbProvider"
           },
           "schema": {
-            "type": "string"
+            "type": "string",
+            "description": "The database schema that holds Acta's tables."
           },
           "confirmationHeader": {
-            "type": "string"
+            "type": "string",
+            "description": "The name of the header a control must carry with the value true."
           }
         },
         "description": "What this host's API allows, so the dashboard offers only the controls it can use: whether controls are mapped, the Acta version, the provider and schema behind it, and the confirmation header a control request carries."
@@ -11601,19 +11712,23 @@
         "type": "object",
         "properties": {
           "jobNamespace": {
-            "type": "string"
+            "type": "string",
+            "description": "The definition's namespace."
           },
           "jobName": {
-            "type": "string"
+            "type": "string",
+            "description": "The definition's name within its namespace."
           },
           "inputTypeName": {
-            "type": "string"
+            "type": "string",
+            "description": "The full name of the .NET type the definition's handler takes as input."
           },
           "templateJson": {
             "type": [
               "null",
               "string"
-            ]
+            ],
+            "description": "A JSON template of the input to start from; null when the input has no JSON form."
           },
           "inputFormatName": {
             "type": [
@@ -11694,45 +11809,57 @@
         "type": "object",
         "properties": {
           "jobNamespace": {
-            "type": "string"
+            "type": "string",
+            "description": "The definition's namespace."
           },
           "jobName": {
-            "type": "string"
+            "type": "string",
+            "description": "The definition's name within its namespace."
           },
           "status": {
+            "description": "The definition's status.",
             "$ref": "#/components/schemas/DefinitionStatusCode"
           },
           "definitionHash": {
-            "type": "string"
+            "type": "string",
+            "description": "A hash of everything the code declares for the definition; operator overrides are not part of it."
           },
           "manifestGenerationAtUtc": {
             "type": "string",
+            "description": "The build time of the deployment that last wrote the definition, in UTC; an older deployment cannot overwrite it.",
             "format": "date-time"
           },
           "inputTypeName": {
-            "type": "string"
+            "type": "string",
+            "description": "The full name of the .NET type the handler takes as input."
           },
           "inputFormatId": {
             "type": "integer",
+            "description": "The id of the payload format the input is stored in.",
             "format": "uint8"
           },
           "inputFormatName": {
-            "type": "string"
+            "type": "string",
+            "description": "The name of the payload format the input is stored in."
           },
           "resultTypeName": {
             "type": [
               "null",
               "string"
-            ]
+            ],
+            "description": "The full name of the .NET type the handler returns; null when it returns nothing."
           },
           "resultFormatId": {
             "type": "integer",
+            "description": "The id of the payload format the result is stored in.",
             "format": "uint8"
           },
           "resultFormatName": {
-            "type": "string"
+            "type": "string",
+            "description": "The name of the payload format the result is stored in."
           },
           "priority": {
+            "description": "The priority the code declares for the definition's jobs.",
             "$ref": "#/components/schemas/JobPriorityCode"
           },
           "priorityOverride": {
@@ -11743,13 +11870,16 @@
               {
                 "$ref": "#/components/schemas/JobPriorityCode"
               }
-            ]
+            ],
+            "description": "The operator's override of the priority; null when there is none."
           },
           "priorityEffective": {
+            "description": "The priority in force: the override when there is one, else the declared one.",
             "$ref": "#/components/schemas/JobPriorityCode"
           },
           "maxAttempts": {
             "type": "integer",
+            "description": "The declared retry budget: how many attempts in a row may fail before a job ends failed.",
             "format": "int32"
           },
           "maxAttemptsOverride": {
@@ -11757,10 +11887,12 @@
               "null",
               "integer"
             ],
+            "description": "The operator's override of the retry budget; null when there is none.",
             "format": "int32"
           },
           "maxAttemptsEffective": {
             "type": "integer",
+            "description": "The retry budget in force: the override when there is one, else the declared one.",
             "format": "int32"
           },
           "concurrencyLimit": {
@@ -11768,6 +11900,7 @@
               "null",
               "integer"
             ],
+            "description": "The declared concurrency limit: how many attempts of the definition may run at once, 1 to 1024; null declares none.",
             "format": "int32"
           },
           "concurrencyLimitOverride": {
@@ -11775,6 +11908,7 @@
               "null",
               "integer"
             ],
+            "description": "The operator's override of the concurrency limit; null when there is none.",
             "format": "int32"
           },
           "concurrencyLimitEffective": {
@@ -11782,52 +11916,62 @@
               "null",
               "integer"
             ],
+            "description": "The concurrency limit in force: the override when there is one, else the declared one; null when neither sets one.",
             "format": "int32"
           },
           "rateLimit": {
             "type": [
               "null",
               "string"
-            ]
+            ],
+            "description": "The declared rate limit: how often attempts may start, written N/s, N/m, or N/h; null declares none."
           },
           "rateLimitOverride": {
             "type": [
               "null",
               "string"
-            ]
+            ],
+            "description": "The operator's override of the rate limit; null when there is none."
           },
           "rateLimitEffective": {
             "type": [
               "null",
               "string"
-            ]
+            ],
+            "description": "The rate limit in force: the override when there is one, else the declared one; null when neither sets one."
           },
           "rateName": {
             "type": [
               "null",
               "string"
-            ]
+            ],
+            "description": "The meter the rate limit spends from, shared by every definition that names it; null means the definition's own name."
           },
           "lane": {
             "type": [
               "null",
               "string"
-            ]
+            ],
+            "description": "The lane the definition's jobs run in, when the code declares one."
           },
           "backoff": {
-            "type": "string"
+            "type": "string",
+            "description": "The declared retry backoff, as an expression such as 1m..8h x2 ~10%."
           },
           "backoffOverride": {
             "type": [
               "null",
               "string"
-            ]
+            ],
+            "description": "The operator's override of the backoff; null when there is none."
           },
           "backoffEffective": {
-            "type": "string"
+            "type": "string",
+            "description": "The backoff in force: the override when there is one, else the declared one."
           },
           "executionTimeoutSeconds": {
             "type": "integer",
+            "description": "The declared limit on one attempt's run time, in seconds; past it the handler's cancellation token fires.",
             "format": "int32"
           },
           "executionTimeoutSecondsOverride": {
@@ -11835,14 +11979,17 @@
               "null",
               "integer"
             ],
+            "description": "The operator's override of the execution timeout; null when there is none.",
             "format": "int32"
           },
           "executionTimeoutSecondsEffective": {
             "type": "integer",
+            "description": "The execution timeout in force: the override when there is one, else the declared one.",
             "format": "int32"
           },
           "deadlineSeconds": {
             "type": "integer",
+            "description": "The declared deadline for a whole job, in seconds from its creation; 0 declares none.",
             "format": "int32"
           },
           "deadlineSecondsOverride": {
@@ -11850,13 +11997,16 @@
               "null",
               "integer"
             ],
+            "description": "The operator's override of the deadline; null when there is none.",
             "format": "int32"
           },
           "deadlineSecondsEffective": {
             "type": "integer",
+            "description": "The deadline in force: the override when there is one, else the declared one.",
             "format": "int32"
           },
           "deadlineBehavior": {
+            "description": "What the code declares happens to a job past its deadline.",
             "$ref": "#/components/schemas/DeadlineBehaviorCode"
           },
           "deadlineBehaviorOverride": {
@@ -11867,13 +12017,16 @@
               {
                 "$ref": "#/components/schemas/DeadlineBehaviorCode"
               }
-            ]
+            ],
+            "description": "The operator's override of the deadline behavior; null when there is none."
           },
           "deadlineBehaviorEffective": {
+            "description": "The deadline behavior in force: the override when there is one, else the declared one.",
             "$ref": "#/components/schemas/DeadlineBehaviorCode"
           },
           "jobRetentionSeconds": {
             "type": "integer",
+            "description": "The declared time a finished job is kept before retention deletes it, in seconds.",
             "format": "int32"
           },
           "jobRetentionSecondsOverride": {
@@ -11881,13 +12034,16 @@
               "null",
               "integer"
             ],
+            "description": "The operator's override of the retention time; null when there is none.",
             "format": "int32"
           },
           "jobRetentionSecondsEffective": {
             "type": "integer",
+            "description": "The retention time in force: the override when there is one, else the declared one.",
             "format": "int32"
           },
           "eventRecording": {
+            "description": "How much of a job's history the code declares is recorded as events.",
             "$ref": "#/components/schemas/EventRecordingCode"
           },
           "eventRecordingOverride": {
@@ -11898,12 +12054,15 @@
               {
                 "$ref": "#/components/schemas/EventRecordingCode"
               }
-            ]
+            ],
+            "description": "The operator's override of event recording; null when there is none."
           },
           "eventRecordingEffective": {
+            "description": "The event recording in force: the override when there is one, else the declared one.",
             "$ref": "#/components/schemas/EventRecordingCode"
           },
           "alertProfile": {
+            "description": "When, as the code declares it, the engine raises alerts for the definition's jobs on its own.",
             "$ref": "#/components/schemas/AlertProfileCode"
           },
           "alertProfileOverride": {
@@ -11914,99 +12073,118 @@
               {
                 "$ref": "#/components/schemas/AlertProfileCode"
               }
-            ]
+            ],
+            "description": "The operator's override of the alert profile; null when there is none."
           },
           "alertProfileEffective": {
+            "description": "The alert profile in force: the override when there is one, else the declared one.",
             "$ref": "#/components/schemas/AlertProfileCode"
           },
           "firingFailurePolicy": {
+            "description": "What a firing that fails for good does to the definition's schedules: they continue, or scheduling pauses.",
             "$ref": "#/components/schemas/FiringFailurePolicyCode"
           },
           "scheduledDelivery": {
+            "description": "How schedules deliver the definition's work: by firing its one permanent slot job again and again, or by enqueueing a new job for each occurrence.",
             "$ref": "#/components/schemas/ScheduledDeliveryCode"
           },
           "alertChannelName": {
             "type": [
               "null",
               "string"
-            ]
+            ],
+            "description": "The alert channel the code declares for the definition's automatic alerts."
           },
           "alertChannelNameOverride": {
             "type": [
               "null",
               "string"
-            ]
+            ],
+            "description": "The operator's override of the alert channel; null when there is none."
           },
           "alertChannelNameEffective": {
             "type": [
               "null",
               "string"
-            ]
+            ],
+            "description": "The alert channel in force: the override when there is one, else the declared one."
           },
           "runbookUrl": {
             "type": [
               "null",
               "string"
-            ]
+            ],
+            "description": "The runbook link the code declares, shown on the definition's alerts and in the dashboard."
           },
           "runbookUrlOverride": {
             "type": [
               "null",
               "string"
-            ]
+            ],
+            "description": "The operator's override of the runbook link; null when there is none."
           },
           "runbookUrlEffective": {
             "type": [
               "null",
               "string"
-            ]
+            ],
+            "description": "The runbook link in force: the override when there is one, else the declared one."
           },
           "displayName": {
             "type": [
               "null",
               "string"
-            ]
+            ],
+            "description": "The display name the code declares for the definition."
           },
           "displayNameOverride": {
             "type": [
               "null",
               "string"
-            ]
+            ],
+            "description": "The operator's override of the display name; null when there is none."
           },
           "displayNameEffective": {
             "type": [
               "null",
               "string"
-            ]
+            ],
+            "description": "The display name in force: the override when there is one, else the declared one."
           },
           "description": {
             "type": [
               "null",
               "string"
-            ]
+            ],
+            "description": "The description the code declares for the definition."
           },
           "descriptionOverride": {
             "type": [
               "null",
               "string"
-            ]
+            ],
+            "description": "The operator's override of the description; null when there is none."
           },
           "descriptionEffective": {
             "type": [
               "null",
               "string"
-            ]
+            ],
+            "description": "The description in force: the override when there is one, else the declared one."
           },
           "createdAtUtc": {
             "type": "string",
+            "description": "When the row was created, in UTC.",
             "format": "date-time"
           },
           "modifiedAtUtc": {
             "type": "string",
+            "description": "When the row last changed, in UTC.",
             "format": "date-time"
           },
           "version": {
             "type": "integer",
+            "description": "The definition's version, which every change to it increments; send it as the expected version of a control.",
             "format": "int32"
           }
         },
@@ -12022,48 +12200,59 @@
         "type": "object",
         "properties": {
           "job": {
+            "description": "The job.",
             "$ref": "#/components/schemas/GetJobResponse"
           },
           "input": {
+            "description": "The job's input as a payload envelope; absent when it has none.",
             "$ref": "#/components/schemas/JobPayloadBody"
           },
           "result": {
+            "description": "The job's result as a payload envelope; absent until the job has one.",
             "$ref": "#/components/schemas/JobPayloadBody"
           },
           "checkpoints": {
+            "description": "The first page of the job's checkpoints, with their total.",
             "$ref": "#/components/schemas/ListJobCheckpointsResponse"
           },
           "explain": {
+            "description": "The explanation of the job's current state.",
             "$ref": "#/components/schemas/ExplainJobResponse"
           },
           "lineage": {
+            "description": "The job's lineage map.",
             "$ref": "#/components/schemas/GetJobLineageMapResponse"
           },
           "schedules": {
             "type": "array",
             "items": {
               "$ref": "#/components/schemas/ListSchedulesItem"
-            }
+            },
+            "description": "The first page of the schedules that fire the job, when it is a scheduled definition's permanent slot."
           },
           "schedulesTotal": {
             "type": [
               "null",
               "integer"
             ],
+            "description": "How many such schedules there are, so a caller can tell a complete list from a first page.",
             "format": "int64"
           },
           "maxAttemptsEffective": {
             "type": "integer",
+            "description": "The retry budget in force for the job's definition; absent when the definition is gone.",
             "format": "int32"
           },
           "workers": {
             "type": "array",
             "items": {
               "$ref": "#/components/schemas/ListWorkersItem"
-            }
+            },
+            "description": "The first page of the namespace's workers while the job is claimable; absent otherwise."
           },
           "workersTotal": {
             "type": "integer",
+            "description": "How many such workers there are; absent with workers.",
             "format": "int64"
           }
         },
@@ -12080,20 +12269,25 @@
         "type": "object",
         "properties": {
           "jobRef": {
+            "description": "The job's ref, job_ followed by 32 hex digits.",
             "$ref": "#/components/schemas/JobRef"
           },
           "jobName": {
-            "type": "string"
+            "type": "string",
+            "description": "The name of the job's definition."
           },
           "status": {
+            "description": "The job's status.",
             "$ref": "#/components/schemas/JobStatusCode"
           },
           "createdAtUtc": {
             "type": "string",
+            "description": "When the row was created, in UTC.",
             "format": "date-time"
           },
           "modifiedAtUtc": {
             "type": "string",
+            "description": "When the row last changed, in UTC.",
             "format": "date-time"
           }
         },
@@ -12113,15 +12307,19 @@
         "type": "object",
         "properties": {
           "jobRef": {
+            "description": "The job's ref, job_ followed by 32 hex digits.",
             "$ref": "#/components/schemas/JobRef"
           },
           "jobNamespace": {
-            "type": "string"
+            "type": "string",
+            "description": "The namespace of the job's definition."
           },
           "jobName": {
-            "type": "string"
+            "type": "string",
+            "description": "The name of the job's definition."
           },
           "status": {
+            "description": "The job's status.",
             "$ref": "#/components/schemas/JobStatusCode"
           },
           "parentJobRef": {
@@ -12132,7 +12330,8 @@
               {
                 "$ref": "#/components/schemas/JobRef"
               }
-            ]
+            ],
+            "description": "The ref of the job that started this one as a child; null for a job without a parent."
           },
           "lineageRootJobRef": {
             "oneOf": [
@@ -12142,14 +12341,17 @@
               {
                 "$ref": "#/components/schemas/JobRef"
               }
-            ]
+            ],
+            "description": "The ref of the job at the root of the lineage this job belongs to."
           },
           "createdAtUtc": {
             "type": "string",
+            "description": "When the row was created, in UTC.",
             "format": "date-time"
           },
           "modifiedAtUtc": {
             "type": "string",
+            "description": "When the row last changed, in UTC.",
             "format": "date-time"
           }
         },
@@ -12172,22 +12374,27 @@
             "type": "array",
             "items": {
               "$ref": "#/components/schemas/GetJobLineageMapNode"
-            }
+            },
+            "description": "The job's nearest ancestors, the farthest first and its parent last."
           },
           "ancestorsHasMore": {
-            "type": "boolean"
+            "type": "boolean",
+            "description": "Whether the lineage has more ancestors than the ones listed."
           },
           "job": {
+            "description": "The focused job.",
             "$ref": "#/components/schemas/GetJobLineageMapNode"
           },
           "steps": {
             "type": "array",
             "items": {
               "$ref": "#/components/schemas/GetJobLineageMapStep"
-            }
+            },
+            "description": "The focused job's newest steps, oldest first; stepsHasMore says when older ones were left out."
           },
           "stepsHasMore": {
-            "type": "boolean"
+            "type": "boolean",
+            "description": "Whether the job has older steps than the ones listed."
           },
           "activeWait": {
             "oneOf": [
@@ -12197,16 +12404,19 @@
               {
                 "$ref": "#/components/schemas/GetJobLineageMapWait"
               }
-            ]
+            ],
+            "description": "The wait the job is suspended on; null when it is not waiting."
           },
           "children": {
             "type": "array",
             "items": {
               "$ref": "#/components/schemas/GetJobLineageMapChild"
-            }
+            },
+            "description": "The job's direct children, up to the requested limit."
           },
           "childrenHasMore": {
-            "type": "boolean"
+            "type": "boolean",
+            "description": "Whether the job has more children than the ones listed."
           }
         },
         "description": "A compact runtime truth map for one focused Job, returned by get lineage map for the dashboard's lineage panel. Ancestors are context only (farthest first, immediate parent last, no steps of their own), the nearest 50; Job is the focused Job with its newest 50 steps and the durable wait it is blocked on; Children are its direct children up to child limit. Each HasMore flags a truncated set."
@@ -12220,13 +12430,16 @@
         "type": "object",
         "properties": {
           "name": {
-            "type": "string"
+            "type": "string",
+            "description": "The step's name, unique within its job."
           },
           "status": {
+            "description": "The step's status.",
             "$ref": "#/components/schemas/StepStatusCode"
           },
           "explanation": {
-            "type": "string"
+            "type": "string",
+            "description": "The step's state in a plain-English clause."
           }
         },
         "description": "One step of the focused Job, with explanation its status in plain English."
@@ -12240,16 +12453,19 @@
         "type": "object",
         "properties": {
           "kind": {
+            "description": "What the job waits on: a signal, a child latch, or a timer.",
             "$ref": "#/components/schemas/CheckpointKindCode"
           },
           "name": {
-            "type": "string"
+            "type": "string",
+            "description": "The name of the signal, child latch, or timer the job waits on."
           },
           "dueAtUtc": {
             "type": [
               "null",
               "string"
             ],
+            "description": "When the wait times out or the timer is due, in UTC; null for a wait without a bound.",
             "format": "date-time"
           }
         },
@@ -12285,16 +12501,20 @@
         "type": "object",
         "properties": {
           "jobRef": {
+            "description": "The job's ref, job_ followed by 32 hex digits.",
             "$ref": "#/components/schemas/JobRef"
           },
           "kind": {
+            "description": "Whether the job is an ordinary job or a scheduled definition's permanent slot.",
             "$ref": "#/components/schemas/JobKindCode"
           },
           "jobNamespace": {
-            "type": "string"
+            "type": "string",
+            "description": "The namespace of the job's definition."
           },
           "jobName": {
-            "type": "string"
+            "type": "string",
+            "description": "The name of the job's definition."
           },
           "lineageRootJobRef": {
             "oneOf": [
@@ -12304,7 +12524,8 @@
               {
                 "$ref": "#/components/schemas/JobRef"
               }
-            ]
+            ],
+            "description": "The ref of the job at the root of the lineage this job belongs to."
           },
           "parentJobRef": {
             "oneOf": [
@@ -12314,47 +12535,56 @@
               {
                 "$ref": "#/components/schemas/JobRef"
               }
-            ]
+            ],
+            "description": "The ref of the job that started this one as a child; null for a job without a parent."
           },
           "tenantName": {
             "type": [
               "null",
               "string"
-            ]
+            ],
+            "description": "The tenant the job is about, when it names one."
           },
           "deduplicationKey": {
             "type": [
               "null",
               "string"
-            ]
+            ],
+            "description": "The job's deduplication key, when it was enqueued with one."
           },
           "correlationKey": {
             "type": [
               "null",
               "string"
-            ]
+            ],
+            "description": "The caller's correlation key, when the job was enqueued with one."
           },
           "concurrencyKey": {
             "type": [
               "null",
               "string"
-            ]
+            ],
+            "description": "The job's concurrency key, when it was enqueued with one; jobs that share a key run at most as many at once as the definition's concurrency limit allows."
           },
           "inputFormatId": {
             "type": "integer",
+            "description": "The id of the format the job's input is stored in; 0 when the job has no input.",
             "format": "uint8"
           },
           "status": {
+            "description": "The job's status.",
             "$ref": "#/components/schemas/JobStatusCode"
           },
           "priority": {
+            "description": "The job's priority.",
             "$ref": "#/components/schemas/JobPriorityCode"
           },
           "lane": {
             "type": [
               "null",
               "string"
-            ]
+            ],
+            "description": "The lane the job runs in, or null; a lane runs one job at a time, in enqueue order."
           },
           "blockedBehindJobRef": {
             "oneOf": [
@@ -12364,21 +12594,25 @@
               {
                 "$ref": "#/components/schemas/JobRef"
               }
-            ]
+            ],
+            "description": "While the job is blocked behind its lane, the ref of the job that moves the lane on: the lane's running job, or else its oldest unfinished one. Null otherwise."
           },
           "nextRunAtUtc": {
             "type": [
               "null",
               "string"
             ],
+            "description": "When the job next becomes claimable, in UTC; null when it is not waiting on a time.",
             "format": "date-time"
           },
           "executionNumber": {
             "type": "integer",
+            "description": "How many times the job has been claimed; retries and reclaims count.",
             "format": "int32"
           },
           "failureCount": {
             "type": "integer",
+            "description": "How many attempts in a row have failed; a success resets it.",
             "format": "int32"
           },
           "leaseExpiresAtUtc": {
@@ -12386,6 +12620,7 @@
               "null",
               "string"
             ],
+            "description": "When the lease of the worker running the job expires, in UTC; null when no worker holds one.",
             "format": "date-time"
           },
           "retentionUntilUtc": {
@@ -12393,14 +12628,17 @@
               "null",
               "string"
             ],
+            "description": "When retention may delete the job, in UTC; null when no such time is set.",
             "format": "date-time"
           },
           "createdAtUtc": {
             "type": "string",
+            "description": "When the row was created, in UTC.",
             "format": "date-time"
           },
           "modifiedAtUtc": {
             "type": "string",
+            "description": "When the row last changed, in UTC.",
             "format": "date-time"
           },
           "leasedByWorkerRef": {
@@ -12411,10 +12649,12 @@
               {
                 "$ref": "#/components/schemas/WorkerRef"
               }
-            ]
+            ],
+            "description": "The ref of the worker that holds the job's lease; null when none does."
           },
           "version": {
             "type": "integer",
+            "description": "The job's version, which every write to it increments; send it as expectedVersion on a control to make that call a compare-and-set.",
             "format": "int32"
           }
         },
@@ -12431,25 +12671,30 @@
         "type": "object",
         "properties": {
           "jobNamespace": {
-            "type": "string"
+            "type": "string",
+            "description": "The namespace's name."
           },
           "status": {
+            "description": "The namespace's status.",
             "$ref": "#/components/schemas/NamespaceStatusCode"
           },
           "ownerTeam": {
             "type": [
               "null",
               "string"
-            ]
+            ],
+            "description": "The team that owns the namespace, when one is recorded."
           },
           "description": {
             "type": [
               "null",
               "string"
-            ]
+            ],
+            "description": "The namespace's description, when one is recorded."
           },
           "version": {
             "type": "integer",
+            "description": "The namespace's version, which every change to it increments; send it as the expected version of a control.",
             "format": "int32"
           }
         },
@@ -12473,6 +12718,7 @@
         "properties": {
           "readyCount": {
             "type": "integer",
+            "description": "How many jobs are ready to be claimed.",
             "format": "int64"
           },
           "oldestReadyAgeSeconds": {
@@ -12480,38 +12726,47 @@
               "null",
               "integer"
             ],
+            "description": "How long the oldest ready job has waited, in seconds; null when none is ready.",
             "format": "int64"
           },
           "executingCount": {
             "type": "integer",
+            "description": "How many jobs a worker has claimed, including finished ones whose completion is still being written.",
             "format": "int64"
           },
           "failedCount": {
             "type": "integer",
+            "description": "How many jobs are in the failed status.",
             "format": "int64"
           },
           "unresolvedAlertCount": {
             "type": "integer",
+            "description": "How many alerts are unresolved.",
             "format": "int64"
           },
           "unresolvedCriticalAlertCount": {
             "type": "integer",
+            "description": "How many unresolved alerts are critical.",
             "format": "int64"
           },
           "deadWorkerCount": {
             "type": "integer",
+            "description": "How many workers are marked dead.",
             "format": "int64"
           },
           "staleWorkerCount": {
             "type": "integer",
+            "description": "How many workers have stopped sending heartbeats without being marked dead.",
             "format": "int64"
           },
           "dueSoonScheduleCount": {
             "type": "integer",
+            "description": "How many schedules have an occurrence due soon.",
             "format": "int64"
           },
           "executorCapacity": {
             "type": "integer",
+            "description": "How many jobs the live workers can run at once, in total.",
             "format": "int64"
           },
           "scheduleLagSeconds": {
@@ -12519,6 +12774,7 @@
               "null",
               "integer"
             ],
+            "description": "How far the most overdue schedule is behind, in seconds; null when none is overdue.",
             "format": "int64"
           }
         },
@@ -12537,33 +12793,40 @@
         "type": "object",
         "properties": {
           "tenantName": {
-            "type": "string"
+            "type": "string",
+            "description": "The tenant's name."
           },
           "displayName": {
             "type": [
               "null",
               "string"
-            ]
+            ],
+            "description": "The tenant's display name."
           },
           "description": {
             "type": [
               "null",
               "string"
-            ]
+            ],
+            "description": "The tenant's description, when one is recorded."
           },
           "status": {
+            "description": "The tenant's status.",
             "$ref": "#/components/schemas/TenantStatusCode"
           },
           "createdAtUtc": {
             "type": "string",
+            "description": "When the row was created, in UTC.",
             "format": "date-time"
           },
           "modifiedAtUtc": {
             "type": "string",
+            "description": "When the row last changed, in UTC.",
             "format": "date-time"
           },
           "version": {
             "type": "integer",
+            "description": "The tenant's version, which every change to it increments; send it as the expected version of a control.",
             "format": "int32"
           }
         },
@@ -12587,53 +12850,65 @@
         "type": "object",
         "properties": {
           "workerRef": {
+            "description": "The worker's ref, wrk_ followed by 32 hex digits.",
             "$ref": "#/components/schemas/WorkerRef"
           },
           "jobNamespace": {
-            "type": "string"
+            "type": "string",
+            "description": "The namespace the worker runs jobs for."
           },
           "status": {
+            "description": "The worker's status.",
             "$ref": "#/components/schemas/WorkerStatusCode"
           },
           "hostName": {
-            "type": "string"
+            "type": "string",
+            "description": "The name of the machine the worker runs on."
           },
           "deploymentVersion": {
-            "type": "string"
+            "type": "string",
+            "description": "The version of the application the worker runs, as the host named it."
           },
           "engineVersion": {
             "type": [
               "null",
               "string"
-            ]
+            ],
+            "description": "The version of Acta the worker runs, when it reported one."
           },
           "dotnetVersion": {
             "type": [
               "null",
               "string"
-            ]
+            ],
+            "description": "The .NET runtime version the worker runs on, when it reported one."
           },
           "processId": {
             "type": [
               "null",
               "integer"
             ],
+            "description": "The worker's operating-system process id, when it reported one.",
             "format": "int32"
           },
           "maxConcurrentExecutors": {
             "type": "integer",
+            "description": "How many jobs the worker runs at once.",
             "format": "int32"
           },
           "lastSeenAtUtc": {
             "type": "string",
+            "description": "When the worker last sent a heartbeat, in UTC.",
             "format": "date-time"
           },
           "startedAtUtc": {
             "type": "string",
+            "description": "When the worker started, in UTC.",
             "format": "date-time"
           },
           "modifiedAtUtc": {
             "type": "string",
+            "description": "When the row last changed, in UTC.",
             "format": "date-time"
           }
         },
@@ -12658,27 +12933,33 @@
             "description": "A JSON payload: the value itself, any JSON value."
           },
           "base64": {
-            "type": "string"
+            "type": "string",
+            "description": "A payload in any other format, base64-encoded."
           },
           "formatId": {
             "type": "integer",
+            "description": "The payload format's id; required beside base64 in a request, and always present in a response.",
             "format": "uint8"
           },
           "formatName": {
             "type": "string",
+            "description": "The payload format's name; responses only.",
             "readOnly": true
           },
           "byteLength": {
             "type": "integer",
+            "description": "The stored payload's size in bytes, sent when its body is withheld; responses only.",
             "format": "int64",
             "readOnly": true
           },
           "truncated": {
             "type": "boolean",
+            "description": "True when the payload is larger than the inline limit and its body is withheld; read it whole from the job's input or result route. Responses only.",
             "readOnly": true
           },
           "malformed": {
             "type": "boolean",
+            "description": "True when a stored JSON payload is not valid JSON and is sent as base64 instead; responses only.",
             "readOnly": true
           }
         },
@@ -12745,10 +13026,12 @@
         "type": "object",
         "properties": {
           "alertRef": {
+            "description": "The alert's ref, alr_ followed by 32 hex digits.",
             "$ref": "#/components/schemas/AlertRef"
           },
           "jobNamespace": {
-            "type": "string"
+            "type": "string",
+            "description": "The namespace the alert belongs to."
           },
           "jobRef": {
             "oneOf": [
@@ -12758,28 +13041,36 @@
               {
                 "$ref": "#/components/schemas/JobRef"
               }
-            ]
+            ],
+            "description": "The ref of the job the alert is about, when it is about a job."
           },
           "origin": {
+            "description": "How the alert came to be raised.",
             "$ref": "#/components/schemas/AlertOriginCode"
           },
           "severity": {
+            "description": "The alert's severity.",
             "$ref": "#/components/schemas/AlertSeverityCode"
           },
           "kind": {
+            "description": "What raised the alert.",
             "$ref": "#/components/schemas/AlertKindCode"
           },
           "title": {
-            "type": "string"
+            "type": "string",
+            "description": "The alert's short title."
           },
           "message": {
-            "type": "string"
+            "type": "string",
+            "description": "The alert's message."
           },
           "channelName": {
-            "type": "string"
+            "type": "string",
+            "description": "The name of the alert channel the alert is delivered through."
           },
           "occurrenceCount": {
             "type": "integer",
+            "description": "How many times the incident has been raised while this alert was open.",
             "format": "int32"
           },
           "resolvedAtUtc": {
@@ -12787,13 +13078,16 @@
               "null",
               "string"
             ],
+            "description": "When the alert was resolved, in UTC; null while it is open.",
             "format": "date-time"
           },
           "deliveryStatus": {
+            "description": "Where delivery of the alert to its channel stands.",
             "$ref": "#/components/schemas/AlertDeliveryStatusCode"
           },
           "retryCount": {
             "type": "integer",
+            "description": "How many delivery attempts have failed so far.",
             "format": "int32"
           },
           "retryAfterUtc": {
@@ -12801,14 +13095,17 @@
               "null",
               "string"
             ],
+            "description": "When delivery is tried again, in UTC; null when no retry is pending.",
             "format": "date-time"
           },
           "createdAtUtc": {
             "type": "string",
+            "description": "When the row was created, in UTC.",
             "format": "date-time"
           },
           "modifiedAtUtc": {
             "type": "string",
+            "description": "When the row last changed, in UTC.",
             "format": "date-time"
           },
           "acknowledgedAtUtc": {
@@ -12816,6 +13113,7 @@
               "null",
               "string"
             ],
+            "description": "When the alert was acknowledged, in UTC; null while it has not been.",
             "format": "date-time"
           }
         },
@@ -12836,7 +13134,7 @@
             "items": {
               "$ref": "#/components/schemas/ListAlertsItem"
             },
-            "description": "The page's alerts, at most PageSize of them."
+            "description": "The page's items, at most pageSize of them."
           },
           "nextCursor": {
             "type": [
@@ -12859,7 +13157,7 @@
               "null",
               "integer"
             ],
-            "description": "The filter-wide count, populated only when the query set IncludeTotal.",
+            "description": "The number of rows the filter matches; null unless the request set includeTotal.",
             "format": "int64"
           }
         },
@@ -12877,21 +13175,27 @@
         "type": "object",
         "properties": {
           "jobNamespace": {
-            "type": "string"
+            "type": "string",
+            "description": "The namespace of the schedule's definition."
           },
           "jobName": {
-            "type": "string"
+            "type": "string",
+            "description": "The name of the schedule's definition."
           },
           "scheduleName": {
-            "type": "string"
+            "type": "string",
+            "description": "The schedule's name within its definition."
           },
           "binding": {
+            "description": "The role in which the schedule names the family.",
             "$ref": "#/components/schemas/CalendarRoleCode"
           },
           "status": {
+            "description": "The schedule's status.",
             "$ref": "#/components/schemas/ScheduleStatusCode"
           },
           "scheduledDelivery": {
+            "description": "How the schedule delivers work: by firing the definition's permanent slot job, or by enqueueing a new job for each occurrence.",
             "$ref": "#/components/schemas/ScheduledDeliveryCode"
           }
         },
@@ -12911,19 +13215,23 @@
             "type": "array",
             "items": {
               "$ref": "#/components/schemas/ListCalendarDependentsItem"
-            }
+            },
+            "description": "The page's items, at most pageSize of them."
           },
           "nextCursor": {
             "type": [
               "null",
               "string"
-            ]
+            ],
+            "description": "The cursor to pass back for the next page; null on the last page."
           },
           "hasMore": {
-            "type": "boolean"
+            "type": "boolean",
+            "description": "Whether more items exist beyond this page."
           },
           "pageSize": {
             "type": "integer",
+            "description": "The page size the server used, after defaulting and clamping.",
             "format": "int32"
           },
           "totalCount": {
@@ -12931,6 +13239,7 @@
               "null",
               "integer"
             ],
+            "description": "The number of rows the filter matches; null unless the request set includeTotal.",
             "format": "int64"
           }
         },
@@ -12951,12 +13260,15 @@
         "type": "object",
         "properties": {
           "jobNamespace": {
-            "type": "string"
+            "type": "string",
+            "description": "The namespace that holds the calendar family."
           },
           "calendarName": {
-            "type": "string"
+            "type": "string",
+            "description": "The calendar family's name within its namespace."
           },
           "role": {
+            "description": "The calendar family's role, which says how schedules use it.",
             "$ref": "#/components/schemas/CalendarRoleCode"
           },
           "currentVersion": {
@@ -12964,13 +13276,16 @@
               "null",
               "integer"
             ],
+            "description": "The number of the published version in force; null when none is published.",
             "format": "int32"
           },
           "latestVersion": {
             "type": "integer",
+            "description": "The number of the family's newest version.",
             "format": "int32"
           },
           "latestStatus": {
+            "description": "The status of the family's newest version.",
             "$ref": "#/components/schemas/CalendarStatusCode"
           },
           "publishedAtUtc": {
@@ -12978,14 +13293,17 @@
               "null",
               "string"
             ],
+            "description": "When the version in force was published, in UTC; null when none is published.",
             "format": "date-time"
           },
           "modifiedAtUtc": {
             "type": "string",
+            "description": "When the row last changed, in UTC.",
             "format": "date-time"
           },
           "dependentCount": {
             "type": "integer",
+            "description": "How many schedules name the family.",
             "format": "int32"
           }
         },
@@ -13006,7 +13324,7 @@
             "items": {
               "$ref": "#/components/schemas/ListCalendarsItem"
             },
-            "description": "The page's calendar families, at most PageSize of them."
+            "description": "The page's items, at most pageSize of them."
           },
           "nextCursor": {
             "type": [
@@ -13029,7 +13347,7 @@
               "null",
               "integer"
             ],
-            "description": "The filter-wide count, populated only when the query set IncludeTotal.",
+            "description": "The number of rows the filter matches; null unless the request set includeTotal.",
             "format": "int64"
           }
         },
@@ -13048,16 +13366,20 @@
         "properties": {
           "version": {
             "type": "integer",
+            "description": "The version's number within its family, starting at 1.",
             "format": "int32"
           },
           "status": {
+            "description": "The version's status.",
             "$ref": "#/components/schemas/CalendarStatusCode"
           },
           "contentHash": {
-            "type": "string"
+            "type": "string",
+            "description": "A hash of the version's definition."
           },
           "createdAtUtc": {
             "type": "string",
+            "description": "When the row was created, in UTC.",
             "format": "date-time"
           },
           "publishedAtUtc": {
@@ -13065,10 +13387,12 @@
               "null",
               "string"
             ],
+            "description": "When the version was published, in UTC; null when it has not been.",
             "format": "date-time"
           },
           "modifiedAtUtc": {
             "type": "string",
+            "description": "When the row last changed, in UTC.",
             "format": "date-time"
           }
         },
@@ -13088,19 +13412,23 @@
             "type": "array",
             "items": {
               "$ref": "#/components/schemas/ListCalendarVersionsItem"
-            }
+            },
+            "description": "The page's items, at most pageSize of them."
           },
           "nextCursor": {
             "type": [
               "null",
               "string"
-            ]
+            ],
+            "description": "The cursor to pass back for the next page; null on the last page."
           },
           "hasMore": {
-            "type": "boolean"
+            "type": "boolean",
+            "description": "Whether more items exist beyond this page."
           },
           "pageSize": {
             "type": "integer",
+            "description": "The page size the server used, after defaulting and clamping.",
             "format": "int32"
           },
           "totalCount": {
@@ -13108,6 +13436,7 @@
               "null",
               "integer"
             ],
+            "description": "The number of rows the filter matches; null unless the request set includeTotal.",
             "format": "int64"
           }
         },
@@ -13136,22 +13465,27 @@
         "type": "object",
         "properties": {
           "jobNamespace": {
-            "type": "string"
+            "type": "string",
+            "description": "The definition's namespace."
           },
           "jobName": {
-            "type": "string"
+            "type": "string",
+            "description": "The definition's name within its namespace."
           },
           "status": {
+            "description": "The definition's status.",
             "$ref": "#/components/schemas/DefinitionStatusCode"
           },
           "inputTypeName": {
-            "type": "string"
+            "type": "string",
+            "description": "The full name of the .NET type the handler takes as input."
           },
           "resultTypeName": {
             "type": [
               "null",
               "string"
-            ]
+            ],
+            "description": "The full name of the .NET type the handler returns; null when it returns nothing."
           },
           "priorityOverride": {
             "oneOf": [
@@ -13161,9 +13495,11 @@
               {
                 "$ref": "#/components/schemas/JobPriorityCode"
               }
-            ]
+            ],
+            "description": "The operator's override of the priority; null when there is none."
           },
           "priorityEffective": {
+            "description": "The priority in force: the override when there is one, else the declared one.",
             "$ref": "#/components/schemas/JobPriorityCode"
           },
           "maxAttemptsOverride": {
@@ -13171,10 +13507,12 @@
               "null",
               "integer"
             ],
+            "description": "The operator's override of the retry budget; null when there is none.",
             "format": "int32"
           },
           "maxAttemptsEffective": {
             "type": "integer",
+            "description": "The retry budget in force: the override when there is one, else the declared one.",
             "format": "int32"
           },
           "concurrencyLimitOverride": {
@@ -13182,6 +13520,7 @@
               "null",
               "integer"
             ],
+            "description": "The operator's override of the concurrency limit; null when there is none.",
             "format": "int32"
           },
           "concurrencyLimitEffective": {
@@ -13189,38 +13528,45 @@
               "null",
               "integer"
             ],
+            "description": "The concurrency limit in force: the override when there is one, else the declared one; null when neither sets one.",
             "format": "int32"
           },
           "rateLimitOverride": {
             "type": [
               "null",
               "string"
-            ]
+            ],
+            "description": "The operator's override of the rate limit; null when there is none."
           },
           "rateLimitEffective": {
             "type": [
               "null",
               "string"
-            ]
+            ],
+            "description": "The rate limit in force: the override when there is one, else the declared one; null when neither sets one."
           },
           "rateName": {
             "type": [
               "null",
               "string"
-            ]
+            ],
+            "description": "The meter the rate limit spends from, shared by every definition that names it; null means the definition's own name."
           },
           "lane": {
             "type": [
               "null",
               "string"
-            ]
+            ],
+            "description": "The lane the definition's jobs run in, when the code declares one."
           },
           "modifiedAtUtc": {
             "type": "string",
+            "description": "When the row last changed, in UTC.",
             "format": "date-time"
           },
           "version": {
             "type": "integer",
+            "description": "The definition's version, which every change to it increments; send it as the expected version of a control.",
             "format": "int32"
           }
         },
@@ -13241,7 +13587,7 @@
             "items": {
               "$ref": "#/components/schemas/ListDefinitionsItem"
             },
-            "description": "The page's definitions, at most PageSize of them."
+            "description": "The page's items, at most pageSize of them."
           },
           "nextCursor": {
             "type": [
@@ -13264,7 +13610,7 @@
               "null",
               "integer"
             ],
-            "description": "The filter-wide count, populated only when the query set IncludeTotal.",
+            "description": "The number of rows the filter matches; null unless the request set includeTotal.",
             "format": "int64"
           }
         },
@@ -13292,30 +13638,37 @@
         "properties": {
           "eventId": {
             "type": "integer",
+            "description": "The event's id, which grows in the order events were written.",
             "format": "int64"
           },
           "eventCode": {
+            "description": "What happened, as a dotted code such as job.purged.",
             "$ref": "#/components/schemas/EventCode"
           },
           "createdAtUtc": {
             "type": "string",
+            "description": "When the row was created, in UTC.",
             "format": "date-time"
           },
           "jobNamespace": {
-            "type": "string"
+            "type": "string",
+            "description": "The namespace the event was recorded in."
           },
           "entityKind": {
+            "description": "The kind of thing the event is about.",
             "$ref": "#/components/schemas/EntityCode"
           },
           "entityId": {
             "type": "integer",
+            "description": "The internal numeric id of the thing the event is about; it is the one internal id the API carries, because a purged job's events still name it.",
             "format": "int64"
           },
           "jobName": {
             "type": [
               "null",
               "string"
-            ]
+            ],
+            "description": "The name of the definition of the job the event is about, when it is about a job."
           },
           "jobRef": {
             "oneOf": [
@@ -13325,7 +13678,8 @@
               {
                 "$ref": "#/components/schemas/JobRef"
               }
-            ]
+            ],
+            "description": "The ref of the job the event is about, when it is about a job."
           },
           "lineageRootJobRef": {
             "oneOf": [
@@ -13335,13 +13689,15 @@
               {
                 "$ref": "#/components/schemas/JobRef"
               }
-            ]
+            ],
+            "description": "The ref of the job at the root of the lineage this job belongs to."
           },
           "tenantName": {
             "type": [
               "null",
               "string"
-            ]
+            ],
+            "description": "The tenant the job is about, when it names one."
           },
           "workerRef": {
             "oneOf": [
@@ -13351,13 +13707,15 @@
               {
                 "$ref": "#/components/schemas/WorkerRef"
               }
-            ]
+            ],
+            "description": "The ref of the worker that recorded the event, when a worker did."
           },
           "executionNumber": {
             "type": [
               "null",
               "integer"
             ],
+            "description": "The attempt the event belongs to, when it belongs to one.",
             "format": "int32"
           },
           "durationMs": {
@@ -13365,19 +13723,22 @@
               "null",
               "integer"
             ],
+            "description": "How long the recorded work took, in milliseconds, when the event measures it.",
             "format": "int32"
           },
           "message": {
             "type": [
               "null",
               "string"
-            ]
+            ],
+            "description": "The event's message, when it has one."
           },
           "detailsText": {
             "type": [
               "null",
               "string"
-            ]
+            ],
+            "description": "The event's details as text, when it has any."
           }
         },
         "description": "One event in a list events page. The subject is EntityKind and EntityId, the one numeric id on the wire, because the subject outlives its row: a purged job's events, and its job.purged tombstone, still name it. The joined refs and names (JobRef of a job subject, LineageRootJobRef, WorkerRef, TenantName, JobName) are null when absent or once their row is gone. Message is the human text; DetailsText is the details payload decoded to text, null when the event carries none or a non-json format."
@@ -13397,7 +13758,7 @@
             "items": {
               "$ref": "#/components/schemas/ListEventsItem"
             },
-            "description": "The page's events, at most PageSize of them."
+            "description": "The page's items, at most pageSize of them."
           },
           "nextCursor": {
             "type": [
@@ -13420,7 +13781,7 @@
               "null",
               "integer"
             ],
-            "description": "The filter-wide count, populated only when the query set IncludeTotal.",
+            "description": "The number of rows the filter matches; null unless the request set includeTotal.",
             "format": "int64"
           }
         },
@@ -13436,27 +13797,34 @@
         "type": "object",
         "properties": {
           "kind": {
+            "description": "The checkpoint's kind, such as variable, signal, or timer.",
             "$ref": "#/components/schemas/CheckpointKindCode"
           },
           "name": {
-            "type": "string"
+            "type": "string",
+            "description": "The checkpoint's name, unique within its job and kind."
           },
           "status": {
+            "description": "The checkpoint's status; null for a kind that has none, such as a variable.",
             "$ref": "#/components/schemas/CheckpointStatusCode"
           },
           "dueAtUtc": {
             "type": "string",
+            "description": "When a bounded wait expires or a timer is due, in UTC; null otherwise.",
             "format": "date-time"
           },
           "value": {
+            "description": "The checkpoint's stored value as a payload envelope; absent when it holds none.",
             "$ref": "#/components/schemas/JobPayloadBody"
           },
           "createdAtUtc": {
             "type": "string",
+            "description": "When the row was created, in UTC.",
             "format": "date-time"
           },
           "modifiedAtUtc": {
             "type": "string",
+            "description": "When the row last changed, in UTC.",
             "format": "date-time"
           }
         },
@@ -13476,19 +13844,23 @@
             "type": "array",
             "items": {
               "$ref": "#/components/schemas/ListJobCheckpointsItem"
-            }
+            },
+            "description": "The page's items, at most pageSize of them."
           },
           "nextCursor": {
             "type": [
               "null",
               "string"
-            ]
+            ],
+            "description": "The cursor to pass back for the next page; null on the last page."
           },
           "hasMore": {
-            "type": "boolean"
+            "type": "boolean",
+            "description": "Whether more items exist beyond this page."
           },
           "pageSize": {
             "type": "integer",
+            "description": "The page size the server used, after defaulting and clamping.",
             "format": "int32"
           },
           "totalCount": {
@@ -13496,6 +13868,7 @@
               "null",
               "integer"
             ],
+            "description": "The number of rows the filter matches; null unless the request set includeTotal.",
             "format": "int64"
           }
         },
@@ -13523,19 +13896,23 @@
         "type": "object",
         "properties": {
           "jobRef": {
+            "description": "The job's ref, job_ followed by 32 hex digits.",
             "$ref": "#/components/schemas/JobRef"
           },
           "jobNamespace": {
-            "type": "string"
+            "type": "string",
+            "description": "The namespace of the job's definition."
           },
           "jobName": {
-            "type": "string"
+            "type": "string",
+            "description": "The name of the job's definition."
           },
           "tenantName": {
             "type": [
               "null",
               "string"
-            ]
+            ],
+            "description": "The tenant the job is about, when it names one."
           },
           "parentJobRef": {
             "oneOf": [
@@ -13545,7 +13922,8 @@
               {
                 "$ref": "#/components/schemas/JobRef"
               }
-            ]
+            ],
+            "description": "The ref of the job that started this one as a child; null for a job without a parent."
           },
           "lineageRootJobRef": {
             "oneOf": [
@@ -13555,38 +13933,46 @@
               {
                 "$ref": "#/components/schemas/JobRef"
               }
-            ]
+            ],
+            "description": "The ref of the job at the root of the lineage this job belongs to."
           },
           "deduplicationKey": {
             "type": [
               "null",
               "string"
-            ]
+            ],
+            "description": "The job's deduplication key, when it was enqueued with one."
           },
           "correlationKey": {
             "type": [
               "null",
               "string"
-            ]
+            ],
+            "description": "The caller's correlation key, when the job was enqueued with one."
           },
           "status": {
+            "description": "The job's status.",
             "$ref": "#/components/schemas/JobStatusCode"
           },
           "priority": {
+            "description": "The job's priority.",
             "$ref": "#/components/schemas/JobPriorityCode"
           },
           "lane": {
             "type": [
               "null",
               "string"
-            ]
+            ],
+            "description": "The lane the job runs in, or null; a lane runs one job at a time, in enqueue order."
           },
           "createdAtUtc": {
             "type": "string",
+            "description": "When the row was created, in UTC.",
             "format": "date-time"
           },
           "modifiedAtUtc": {
             "type": "string",
+            "description": "When the row last changed, in UTC.",
             "format": "date-time"
           },
           "nextRunAtUtc": {
@@ -13594,14 +13980,17 @@
               "null",
               "string"
             ],
+            "description": "When the job next becomes claimable, in UTC; null when it is not waiting on a time.",
             "format": "date-time"
           },
           "executionNumber": {
             "type": "integer",
+            "description": "How many times the job has been claimed; retries and reclaims count.",
             "format": "int32"
           },
           "failureCount": {
             "type": "integer",
+            "description": "How many attempts in a row have failed; a success resets it.",
             "format": "int32"
           }
         },
@@ -13622,7 +14011,7 @@
             "items": {
               "$ref": "#/components/schemas/ListJobsItem"
             },
-            "description": "The page's jobs, at most PageSize of them."
+            "description": "The page's items, at most pageSize of them."
           },
           "nextCursor": {
             "type": [
@@ -13645,7 +14034,7 @@
               "null",
               "integer"
             ],
-            "description": "The filter-wide count, populated only when the query set IncludeTotal.",
+            "description": "The number of rows the filter matches; null unless the request set includeTotal.",
             "format": "int64"
           }
         },
@@ -13664,13 +14053,16 @@
         "type": "object",
         "properties": {
           "name": {
-            "type": "string"
+            "type": "string",
+            "description": "The step's name, unique within its job."
           },
           "status": {
+            "description": "The step's status.",
             "$ref": "#/components/schemas/StepStatusCode"
           },
           "attemptNumber": {
             "type": "integer",
+            "description": "The attempt the step is on, starting at 1.",
             "format": "int32"
           },
           "nextRetryAtUtc": {
@@ -13678,20 +14070,24 @@
               "null",
               "string"
             ],
+            "description": "When a pending retry of the step is due, in UTC; null when none is pending.",
             "format": "date-time"
           },
           "failureMessage": {
             "type": [
               "null",
               "string"
-            ]
+            ],
+            "description": "The last failure's message; null when the step has not failed."
           },
           "createdAtUtc": {
             "type": "string",
+            "description": "When the row was created, in UTC.",
             "format": "date-time"
           },
           "modifiedAtUtc": {
             "type": "string",
+            "description": "When the row last changed, in UTC.",
             "format": "date-time"
           }
         },
@@ -13711,19 +14107,23 @@
             "type": "array",
             "items": {
               "$ref": "#/components/schemas/ListJobStepsItem"
-            }
+            },
+            "description": "The page's items, at most pageSize of them."
           },
           "nextCursor": {
             "type": [
               "null",
               "string"
-            ]
+            ],
+            "description": "The cursor to pass back for the next page; null on the last page."
           },
           "hasMore": {
-            "type": "boolean"
+            "type": "boolean",
+            "description": "Whether more items exist beyond this page."
           },
           "pageSize": {
             "type": "integer",
+            "description": "The page size the server used, after defaulting and clamping.",
             "format": "int32"
           },
           "totalCount": {
@@ -13731,6 +14131,7 @@
               "null",
               "integer"
             ],
+            "description": "The number of rows the filter matches; null unless the request set includeTotal.",
             "format": "int64"
           }
         },
@@ -13747,25 +14148,30 @@
         "type": "object",
         "properties": {
           "jobNamespace": {
-            "type": "string"
+            "type": "string",
+            "description": "The namespace's name."
           },
           "status": {
+            "description": "The namespace's status.",
             "$ref": "#/components/schemas/NamespaceStatusCode"
           },
           "ownerTeam": {
             "type": [
               "null",
               "string"
-            ]
+            ],
+            "description": "The team that owns the namespace, when one is recorded."
           },
           "description": {
             "type": [
               "null",
               "string"
-            ]
+            ],
+            "description": "The namespace's description, when one is recorded."
           },
           "version": {
             "type": "integer",
+            "description": "The namespace's version, which every change to it increments; send it as the expected version of a control.",
             "format": "int32"
           }
         },
@@ -13786,7 +14192,7 @@
             "items": {
               "$ref": "#/components/schemas/ListNamespacesItem"
             },
-            "description": "The page's namespaces, at most PageSize of them."
+            "description": "The page's items, at most pageSize of them."
           },
           "nextCursor": {
             "type": [
@@ -13809,7 +14215,7 @@
               "null",
               "integer"
             ],
-            "description": "The filter-wide count, populated only when the query set IncludeTotal.",
+            "description": "The number of rows the filter matches; null unless the request set includeTotal.",
             "format": "int64"
           }
         },
@@ -13827,22 +14233,26 @@
         "type": "object",
         "properties": {
           "jobNamespace": {
-            "type": "string"
+            "type": "string",
+            "description": "The namespace whose outbox relay this is."
           },
           "slotJobRef": {
+            "description": "The ref of the permanent slot job that runs the namespace's outbox relay.",
             "$ref": "#/components/schemas/JobRef"
           },
           "lastTickSummary": {
             "type": [
               "null",
               "string"
-            ]
+            ],
+            "description": "A summary of the relay's last pass; null until its first successful pass."
           },
           "backlog": {
             "type": [
               "null",
               "integer"
             ],
+            "description": "How many rows are still waiting to be relayed; null until the first successful pass.",
             "format": "int64"
           },
           "quarantineTotal": {
@@ -13850,10 +14260,12 @@
               "null",
               "integer"
             ],
+            "description": "How many rows the relay has quarantined; null until the first successful pass.",
             "format": "int64"
           },
           "isLocal": {
-            "type": "boolean"
+            "type": "boolean",
+            "description": "Whether this process relays the source."
           }
         },
         "description": "One relay source as list sources reports it: the namespace's sys.outbox slot (SlotJobRef, whose audit trail holds the operator evidence) plus the accounting of its last successful tick, read from the slot's outbox-status variable: LastTickSummary, Backlog (pending rows still awaiting relay), and QuarantineTotal, all null until the slot's first successful tick. IsLocal says this process registered the source, so list quarantined works here."
@@ -13873,7 +14285,7 @@
             "items": {
               "$ref": "#/components/schemas/ListOutboxSourcesItem"
             },
-            "description": "The page's relay sources, at most PageSize of them."
+            "description": "The page's items, at most pageSize of them."
           },
           "nextCursor": {
             "type": [
@@ -13896,7 +14308,7 @@
               "null",
               "integer"
             ],
-            "description": "The filter-wide count, populated only when the query set IncludeTotal.",
+            "description": "The number of rows the filter matches; null unless the request set includeTotal.",
             "format": "int64"
           }
         },
@@ -13918,41 +14330,50 @@
         "properties": {
           "outboxId": {
             "type": "string",
+            "description": "The quarantined row's id.",
             "format": "uuid"
           },
           "jobNamespace": {
-            "type": "string"
+            "type": "string",
+            "description": "The namespace of the job the row would enqueue."
           },
           "jobName": {
-            "type": "string"
+            "type": "string",
+            "description": "The name of the definition the row would enqueue."
           },
           "deduplicationKey": {
-            "type": "string"
+            "type": "string",
+            "description": "The deduplication key the row would enqueue with."
           },
           "correlationKey": {
             "type": [
               "null",
               "string"
-            ]
+            ],
+            "description": "The correlation key the row would enqueue with, when it has one."
           },
           "tenantName": {
             "type": [
               "null",
               "string"
-            ]
+            ],
+            "description": "The tenant the job is about, when it names one."
           },
           "failureCount": {
             "type": "integer",
+            "description": "How many times relaying the row failed.",
             "format": "int32"
           },
           "lastError": {
             "type": [
               "null",
               "string"
-            ]
+            ],
+            "description": "The last relay error; null when none was recorded."
           },
           "createdAtUtc": {
             "type": "string",
+            "description": "When the row was created, in UTC.",
             "format": "date-time"
           }
         },
@@ -13973,7 +14394,7 @@
             "items": {
               "$ref": "#/components/schemas/ListQuarantinedOutboxItem"
             },
-            "description": "The page's quarantined staging rows, at most PageSize of them."
+            "description": "The page's items, at most pageSize of them."
           },
           "nextCursor": {
             "type": [
@@ -13996,7 +14417,7 @@
               "null",
               "integer"
             ],
-            "description": "The filter-wide count, populated only when the query set IncludeTotal.",
+            "description": "The number of rows the filter matches; null unless the request set includeTotal.",
             "format": "int64"
           }
         },
@@ -14032,27 +14453,35 @@
         "type": "object",
         "properties": {
           "jobNamespace": {
-            "type": "string"
+            "type": "string",
+            "description": "The namespace of the schedule's definition."
           },
           "jobName": {
-            "type": "string"
+            "type": "string",
+            "description": "The name of the schedule's definition."
           },
           "scheduleName": {
-            "type": "string"
+            "type": "string",
+            "description": "The schedule's name within its definition."
           },
           "origin": {
+            "description": "Whether the schedule is declared by the definition's code or was added by an operator.",
             "$ref": "#/components/schemas/ScheduleOriginCode"
           },
           "expressionKind": {
+            "description": "Whether expression is a cron expression, an interval, or a calendar's name.",
             "$ref": "#/components/schemas/ScheduleExpressionKindCode"
           },
           "expression": {
-            "type": "string"
+            "type": "string",
+            "description": "The cron expression, the interval such as 5m or PT5M, or the calendar's name."
           },
           "timeZoneId": {
-            "type": "string"
+            "type": "string",
+            "description": "The IANA time zone the schedule's expression is evaluated in."
           },
           "misfireStrategy": {
+            "description": "What the schedule does about occurrences it missed during downtime.",
             "$ref": "#/components/schemas/MisfireStrategyCode"
           },
           "nextOccurrenceAtUtc": {
@@ -14060,6 +14489,7 @@
               "null",
               "string"
             ],
+            "description": "The schedule's next occurrence, in UTC; null when it has none.",
             "format": "date-time"
           },
           "nextEvaluationAtUtc": {
@@ -14067,12 +14497,15 @@
               "null",
               "string"
             ],
+            "description": "When the engine next looks at the schedule, in UTC; null while nothing timed ends its wait.",
             "format": "date-time"
           },
           "evaluationStatus": {
+            "description": "Why the next evaluation is when it is.",
             "$ref": "#/components/schemas/EvaluationStatusCode"
           },
           "status": {
+            "description": "The schedule's status.",
             "$ref": "#/components/schemas/ScheduleStatusCode"
           },
           "pausedUntilUtc": {
@@ -14080,18 +14513,22 @@
               "null",
               "string"
             ],
+            "description": "When the schedule's pause ends, in UTC; null when it is not paused or is paused until resumed.",
             "format": "date-time"
           },
           "createdAtUtc": {
             "type": "string",
+            "description": "When the row was created, in UTC.",
             "format": "date-time"
           },
           "modifiedAtUtc": {
             "type": "string",
+            "description": "When the row last changed, in UTC.",
             "format": "date-time"
           },
           "version": {
             "type": "integer",
+            "description": "The schedule's version, which every change to it increments; send it as the expected version of a control.",
             "format": "int32"
           },
           "jobRef": {
@@ -14102,20 +14539,25 @@
               {
                 "$ref": "#/components/schemas/JobRef"
               }
-            ]
+            ],
+            "description": "The ref of the permanent slot job the schedule fires; null for a schedule that enqueues a new job for each occurrence."
           },
           "maxOutstanding": {
             "type": "integer",
+            "description": "How many admitted occurrences may be unsettled at once.",
             "format": "int32"
           },
           "outstandingCount": {
             "type": "integer",
+            "description": "How many admitted occurrences are unsettled now.",
             "format": "int32"
           },
           "fullBehavior": {
+            "description": "What a due occurrence does while the schedule is at maxOutstanding: wait or drop.",
             "$ref": "#/components/schemas/ScheduleFullBehaviorCode"
           },
           "scheduledDelivery": {
+            "description": "How the schedule delivers work: by firing the definition's permanent slot job, or by enqueueing a new job for each occurrence.",
             "$ref": "#/components/schemas/ScheduledDeliveryCode"
           },
           "expireAfterSeconds": {
@@ -14123,6 +14565,7 @@
               "null",
               "integer"
             ],
+            "description": "How old an occurrence may get before it expires unadmitted, in seconds; null means it never expires.",
             "format": "int32"
           },
           "expireAction": {
@@ -14133,13 +14576,15 @@
               {
                 "$ref": "#/components/schemas/ScheduleExpireActionCode"
               }
-            ]
+            ],
+            "description": "What an expired occurrence does: it is discarded, or the schedule pauses. Null when occurrences never expire."
           },
           "availabilityCalendarName": {
             "type": [
               "null",
               "string"
-            ]
+            ],
+            "description": "The availability calendar the schedule observes; null when it observes none."
           }
         },
         "description": "One schedule row in a list page. NextOccurrenceAtUtc is the next undecided occurrence; NextEvaluationAtUtc and EvaluationStatus say when and why the engine next looks; Status is Active, Paused, or Orphaned, with PausedUntilUtc for a timed pause; Version is the row version a CAS control verb takes as expected; JobRef is the permanent slot's public ref, null for a PerOccurrence definition; OutstandingCount counts its unsettled roots; the expiry pair is null together when unused, and AvailabilityCalendarName when the schedule observes no availability calendar. The ids stay off the wire: the list pages by ScheduleId in its cursor."
@@ -14159,7 +14604,7 @@
             "items": {
               "$ref": "#/components/schemas/ListSchedulesItem"
             },
-            "description": "The page's schedules, at most PageSize of them."
+            "description": "The page's items, at most pageSize of them."
           },
           "nextCursor": {
             "type": [
@@ -14182,7 +14627,7 @@
               "null",
               "integer"
             ],
-            "description": "The filter-wide count, populated only when the query set IncludeTotal.",
+            "description": "The number of rows the filter matches; null unless the request set includeTotal.",
             "format": "int64"
           }
         },
@@ -14196,13 +14641,15 @@
         "type": "object",
         "properties": {
           "name": {
-            "type": "string"
+            "type": "string",
+            "description": "The tag's name, trimmed and lowercased."
           },
           "value": {
             "type": [
               "null",
               "string"
-            ]
+            ],
+            "description": "The tag's value; null for a tag that is only a name."
           }
         },
         "description": "One normalized tag attached to a target."
@@ -14221,19 +14668,23 @@
             "type": "array",
             "items": {
               "$ref": "#/components/schemas/ListTagsItem"
-            }
+            },
+            "description": "The page's items, at most pageSize of them."
           },
           "nextCursor": {
             "type": [
               "null",
               "string"
-            ]
+            ],
+            "description": "The cursor to pass back for the next page; null on the last page."
           },
           "hasMore": {
-            "type": "boolean"
+            "type": "boolean",
+            "description": "Whether more items exist beyond this page."
           },
           "pageSize": {
             "type": "integer",
+            "description": "The page size the server used, after defaulting and clamping.",
             "format": "int32"
           },
           "totalCount": {
@@ -14241,6 +14692,7 @@
               "null",
               "integer"
             ],
+            "description": "The number of rows the filter matches; null unless the request set includeTotal.",
             "format": "int64"
           }
         },
@@ -14259,33 +14711,40 @@
         "type": "object",
         "properties": {
           "tenantName": {
-            "type": "string"
+            "type": "string",
+            "description": "The tenant's name."
           },
           "displayName": {
             "type": [
               "null",
               "string"
-            ]
+            ],
+            "description": "The tenant's display name."
           },
           "description": {
             "type": [
               "null",
               "string"
-            ]
+            ],
+            "description": "The tenant's description, when one is recorded."
           },
           "status": {
+            "description": "The tenant's status.",
             "$ref": "#/components/schemas/TenantStatusCode"
           },
           "createdAtUtc": {
             "type": "string",
+            "description": "When the row was created, in UTC.",
             "format": "date-time"
           },
           "modifiedAtUtc": {
             "type": "string",
+            "description": "When the row last changed, in UTC.",
             "format": "date-time"
           },
           "version": {
             "type": "integer",
+            "description": "The tenant's version, which every change to it increments; send it as the expected version of a control.",
             "format": "int32"
           }
         },
@@ -14306,7 +14765,7 @@
             "items": {
               "$ref": "#/components/schemas/ListTenantsItem"
             },
-            "description": "The page's tenants, at most PageSize of them."
+            "description": "The page's items, at most pageSize of them."
           },
           "nextCursor": {
             "type": [
@@ -14329,7 +14788,7 @@
               "null",
               "integer"
             ],
-            "description": "The filter-wide count, populated only when the query set IncludeTotal.",
+            "description": "The number of rows the filter matches; null unless the request set includeTotal.",
             "format": "int64"
           }
         },
@@ -14353,53 +14812,65 @@
         "type": "object",
         "properties": {
           "workerRef": {
+            "description": "The worker's ref, wrk_ followed by 32 hex digits.",
             "$ref": "#/components/schemas/WorkerRef"
           },
           "jobNamespace": {
-            "type": "string"
+            "type": "string",
+            "description": "The namespace the worker runs jobs for."
           },
           "status": {
+            "description": "The worker's status.",
             "$ref": "#/components/schemas/WorkerStatusCode"
           },
           "hostName": {
-            "type": "string"
+            "type": "string",
+            "description": "The name of the machine the worker runs on."
           },
           "deploymentVersion": {
-            "type": "string"
+            "type": "string",
+            "description": "The version of the application the worker runs, as the host named it."
           },
           "engineVersion": {
             "type": [
               "null",
               "string"
-            ]
+            ],
+            "description": "The version of Acta the worker runs, when it reported one."
           },
           "dotnetVersion": {
             "type": [
               "null",
               "string"
-            ]
+            ],
+            "description": "The .NET runtime version the worker runs on, when it reported one."
           },
           "processId": {
             "type": [
               "null",
               "integer"
             ],
+            "description": "The worker's operating-system process id, when it reported one.",
             "format": "int32"
           },
           "maxConcurrentExecutors": {
             "type": "integer",
+            "description": "How many jobs the worker runs at once.",
             "format": "int32"
           },
           "lastSeenAtUtc": {
             "type": "string",
+            "description": "When the worker last sent a heartbeat, in UTC.",
             "format": "date-time"
           },
           "startedAtUtc": {
             "type": "string",
+            "description": "When the worker started, in UTC.",
             "format": "date-time"
           },
           "modifiedAtUtc": {
             "type": "string",
+            "description": "When the row last changed, in UTC.",
             "format": "date-time"
           }
         },
@@ -14420,7 +14891,7 @@
             "items": {
               "$ref": "#/components/schemas/ListWorkersItem"
             },
-            "description": "The page's workers, at most PageSize of them."
+            "description": "The page's items, at most pageSize of them."
           },
           "nextCursor": {
             "type": [
@@ -14443,7 +14914,7 @@
               "null",
               "integer"
             ],
-            "description": "The filter-wide count, populated only when the query set IncludeTotal.",
+            "description": "The number of rows the filter matches; null unless the request set includeTotal.",
             "format": "int64"
           }
         },
@@ -14494,13 +14965,15 @@
             "type": [
               "null",
               "string"
-            ]
+            ],
+            "description": "Why the operator made this call, recorded on the event the call writes."
           },
           "expectedVersion": {
             "type": [
               "null",
               "integer"
             ],
+            "description": "The job's version as the caller last read it; when the job has another version the call answers version-conflict and changes nothing. Omit it to act on the job whatever its version.",
             "format": "int32"
           }
         },
@@ -14516,6 +14989,7 @@
         "type": "object",
         "properties": {
           "action": {
+            "description": "What the call did, such as applied, already-in-state, rejected, not-found, or version-conflict.",
             "$ref": "#/components/schemas/ControlAction"
           },
           "status": {
@@ -14526,13 +15000,15 @@
               {
                 "$ref": "#/components/schemas/JobStatusCode"
               }
-            ]
+            ],
+            "description": "The job's status after the call; null when the job was not found."
           },
           "version": {
             "type": [
               "null",
               "integer"
             ],
+            "description": "The job's version after the call; on a version conflict, the version it has now; null when the job was not found.",
             "format": "int32"
           }
         },
@@ -14546,13 +15022,15 @@
               "null",
               "string"
             ],
+            "description": "When the pause should end, in UTC; omit it to pause until the schedule is resumed.",
             "format": "date-time"
           },
           "reasonMessage": {
             "type": [
               "null",
               "string"
-            ]
+            ],
+            "description": "Why the operator made this call, recorded on the event the call writes."
           }
         },
         "additionalProperties": false,
@@ -14569,6 +15047,7 @@
         "type": "object",
         "properties": {
           "action": {
+            "description": "What the call did, such as applied, already-in-state, rejected, not-found, or version-conflict.",
             "$ref": "#/components/schemas/ControlAction"
           },
           "status": {
@@ -14579,13 +15058,15 @@
               {
                 "$ref": "#/components/schemas/ScheduleStatusCode"
               }
-            ]
+            ],
+            "description": "The schedule's status after the call; null when the schedule was not found."
           },
           "pausedUntilUtc": {
             "type": [
               "null",
               "string"
             ],
+            "description": "When the schedule's pause ends, in UTC; null when it is not paused or is paused until resumed.",
             "format": "date-time"
           },
           "nextOccurrenceAtUtc": {
@@ -14593,6 +15074,7 @@
               "null",
               "string"
             ],
+            "description": "The schedule's next occurrence, in UTC; null when it has none.",
             "format": "date-time"
           },
           "version": {
@@ -14600,6 +15082,7 @@
               "null",
               "integer"
             ],
+            "description": "The schedule's version after the call; on a version conflict, the version it has now; null when the schedule was not found.",
             "format": "int32"
           }
         },
@@ -14617,22 +15100,28 @@
         "type": "object",
         "properties": {
           "jobNamespace": {
-            "type": "string"
+            "type": "string",
+            "description": "The namespace of the schedule's definition."
           },
           "jobName": {
-            "type": "string"
+            "type": "string",
+            "description": "The name of the schedule's definition."
           },
           "scheduleName": {
-            "type": "string"
+            "type": "string",
+            "description": "The schedule's name within its definition."
           },
           "binding": {
+            "description": "The role in which the schedule names the family.",
             "$ref": "#/components/schemas/CalendarRoleCode"
           },
           "status": {
+            "description": "The schedule's status.",
             "$ref": "#/components/schemas/ScheduleStatusCode"
           },
           "overdue": {
-            "type": "boolean"
+            "type": "boolean",
+            "description": "Whether the schedule holds an occurrence that is overdue under the previewed version."
           }
         },
         "description": "A schedule that names the family, as a publication would meet it: its path, binding, status, and overdue flag."
@@ -14653,10 +15142,12 @@
         "type": "object",
         "properties": {
           "role": {
+            "description": "The calendar family's role, which says how schedules use it.",
             "$ref": "#/components/schemas/CalendarRoleCode"
           },
           "version": {
             "type": "integer",
+            "description": "The number of the version previewed.",
             "format": "int32"
           },
           "currentVersion": {
@@ -14664,6 +15155,7 @@
               "null",
               "integer"
             ],
+            "description": "The number of the published version in force; null when none is published.",
             "format": "int32"
           },
           "occurrencesUtc": {
@@ -14671,39 +15163,46 @@
             "items": {
               "type": "string",
               "format": "date-time"
-            }
+            },
+            "description": "The previewed version's next occurrences, in UTC."
           },
           "currentOccurrencesUtc": {
             "type": "array",
             "items": {
               "type": "string",
               "format": "date-time"
-            }
+            },
+            "description": "The next occurrences of the version in force, in UTC, to compare with."
           },
           "windows": {
             "type": "array",
             "items": {
               "$ref": "#/components/schemas/CalendarWindow"
-            }
+            },
+            "description": "The previewed version's next windows."
           },
           "currentWindows": {
             "type": "array",
             "items": {
               "$ref": "#/components/schemas/CalendarWindow"
-            }
+            },
+            "description": "The next windows of the version in force, to compare with."
           },
           "schedules": {
             "type": "array",
             "items": {
               "$ref": "#/components/schemas/PreviewCalendarItem"
-            }
+            },
+            "description": "The schedules that name the family, overdue ones first; the list is capped and schedulesTotal counts them all."
           },
           "schedulesTotal": {
             "type": "integer",
+            "description": "How many schedules name the family.",
             "format": "int64"
           },
           "overdueTotal": {
             "type": "integer",
+            "description": "How many of those schedules hold an overdue occurrence.",
             "format": "int64"
           }
         },
@@ -14718,17 +15217,20 @@
         "type": "object",
         "properties": {
           "expression": {
-            "type": "string"
+            "type": "string",
+            "description": "The cron expression, the interval such as 5m or PT5M, or the calendar's name."
           },
           "timeZoneId": {
-            "type": "string"
+            "type": "string",
+            "description": "The IANA time zone the schedule's expression is evaluated in."
           },
           "nextOccurrencesUtc": {
             "type": "array",
             "items": {
               "type": "string",
               "format": "date-time"
-            }
+            },
+            "description": "The schedule's next occurrences, in UTC, soonest first."
           }
         },
         "description": "A read-only forecast of a schedule's upcoming fire instants, computed live (no persisted state is read or written). expression and timeZoneId are the effective values (operator override when present, else the original); nextOccurrencesUtc is strictly increasing and may be shorter than requested when the expression is exhausted."
@@ -14769,20 +15271,24 @@
         "properties": {
           "expectedCurrentVersion": {
             "type": "integer",
+            "description": "The number of the published version as the caller last read it; when another is in force the call answers version-conflict and changes nothing.",
             "format": "int32"
           },
           "candidateVersion": {
             "type": "integer",
+            "description": "The number of the draft version to publish.",
             "format": "int32"
           },
           "overdueDecision": {
+            "description": "What to do when a schedule that names the family holds an overdue occurrence; refuse, the default, rejects the publication.",
             "$ref": "#/components/schemas/OverdueDecisionCode"
           },
           "reasonMessage": {
             "type": [
               "null",
               "string"
-            ]
+            ],
+            "description": "Why the operator made this call, recorded on the event the call writes."
           }
         },
         "additionalProperties": false,
@@ -14799,6 +15305,7 @@
         "type": "object",
         "properties": {
           "action": {
+            "description": "What the call did, such as applied, already-in-state, rejected, not-found, or version-conflict.",
             "$ref": "#/components/schemas/ControlAction"
           },
           "version": {
@@ -14806,25 +15313,29 @@
               "null",
               "integer"
             ],
+            "description": "The number of the version now in force; null when nothing was published.",
             "format": "int32"
           },
           "retimedSchedules": {
             "type": "array",
             "items": {
               "type": "string"
-            }
+            },
+            "description": "The schedules the publication retimed."
           },
           "overdueSchedules": {
             "type": "array",
             "items": {
               "type": "string"
-            }
+            },
+            "description": "The schedules that hold an overdue occurrence."
           },
           "reason": {
             "type": [
               "null",
               "string"
-            ]
+            ],
+            "description": "Why the publication was refused, when it was."
           }
         },
         "description": "The outcome of a publication: Applied with the version now current and the schedules retimed (as job/schedule paths), NotFound when the candidate is no version of the family, VersionConflict when the current version is not the one the caller saw, or Rejected with the reason and, when the old version left overdue occurrences undecided, the schedules holding them."
@@ -14836,7 +15347,8 @@
             "type": [
               "null",
               "string"
-            ]
+            ],
+            "description": "Why the operator made this call, recorded on the event the call writes."
           }
         },
         "additionalProperties": false,
@@ -14851,6 +15363,7 @@
         "type": "object",
         "properties": {
           "action": {
+            "description": "What the call did, such as applied, already-in-state, rejected, not-found, or version-conflict.",
             "$ref": "#/components/schemas/ControlAction"
           },
           "status": {
@@ -14861,13 +15374,15 @@
               {
                 "$ref": "#/components/schemas/JobStatusCode"
               }
-            ]
+            ],
+            "description": "The job's status after the call; null when the job was not found or the purge removed it."
           },
           "version": {
             "type": [
               "null",
               "integer"
             ],
+            "description": "Always null: this control carries no version.",
             "format": "int32"
           }
         },
@@ -14882,6 +15397,7 @@
         "type": "object",
         "properties": {
           "action": {
+            "description": "What the call did, such as applied, already-in-state, rejected, not-found, or version-conflict.",
             "$ref": "#/components/schemas/ControlAction"
           },
           "status": {
@@ -14892,13 +15408,15 @@
               {
                 "$ref": "#/components/schemas/JobStatusCode"
               }
-            ]
+            ],
+            "description": "The job's status after the call; null when the job was not found."
           },
           "version": {
             "type": [
               "null",
               "integer"
             ],
+            "description": "Always null: this control carries no version.",
             "format": "int32"
           }
         },
@@ -14911,19 +15429,22 @@
         "type": "object",
         "properties": {
           "tenantName": {
-            "type": "string"
+            "type": "string",
+            "description": "The tenant's name."
           },
           "displayName": {
             "type": [
               "null",
               "string"
-            ]
+            ],
+            "description": "The tenant's display name."
           },
           "description": {
             "type": [
               "null",
               "string"
-            ]
+            ],
+            "description": "The tenant's description; omitted or null stores none."
           }
         },
         "additionalProperties": false,
@@ -14936,7 +15457,8 @@
         "type": "object",
         "properties": {
           "tenantName": {
-            "type": "string"
+            "type": "string",
+            "description": "The tenant's name."
           }
         },
         "description": "The tenant a registration created or found: its stable numeric id, and its canonical key, which is how every other call and route addresses it."
@@ -14948,6 +15470,7 @@
         "type": "object",
         "properties": {
           "action": {
+            "description": "What the call did, such as applied, already-in-state, rejected, not-found, or version-conflict.",
             "$ref": "#/components/schemas/ControlAction"
           }
         },
@@ -14960,19 +15483,22 @@
         "type": "object",
         "properties": {
           "priority": {
+            "description": "The priority to give the job.",
             "$ref": "#/components/schemas/JobPriorityCode"
           },
           "reasonMessage": {
             "type": [
               "null",
               "string"
-            ]
+            ],
+            "description": "Why the operator made this call, recorded on the event the call writes."
           },
           "expectedVersion": {
             "type": [
               "null",
               "integer"
             ],
+            "description": "The job's version as the caller last read it; when the job has another version the call answers version-conflict and changes nothing. Omit it to act on the job whatever its version.",
             "format": "int32"
           }
         },
@@ -14988,6 +15514,7 @@
         "type": "object",
         "properties": {
           "action": {
+            "description": "What the call did, such as applied, already-in-state, rejected, not-found, or version-conflict.",
             "$ref": "#/components/schemas/ControlAction"
           },
           "status": {
@@ -14998,13 +15525,15 @@
               {
                 "$ref": "#/components/schemas/JobStatusCode"
               }
-            ]
+            ],
+            "description": "The job's status after the call; null when the job was not found."
           },
           "version": {
             "type": [
               "null",
               "integer"
             ],
+            "description": "The job's version after the call; on a version conflict, the version it has now; null when the job was not found.",
             "format": "int32"
           }
         },
@@ -15022,13 +15551,15 @@
             "items": {
               "type": "string",
               "format": "uuid"
-            }
+            },
+            "description": "The ids of the quarantined rows to act on, at least one; omitted or null acts on every quarantined row of the namespace."
           },
           "reasonMessage": {
             "type": [
               "null",
               "string"
-            ]
+            ],
+            "description": "Why the operator made this call, recorded on the event the call writes."
           }
         },
         "additionalProperties": false,
@@ -15042,6 +15573,7 @@
         "type": "object",
         "properties": {
           "action": {
+            "description": "What the call did; accepted means the command is stored and the next relay pass applies it.",
             "$ref": "#/components/schemas/ControlAction"
           },
           "pendingSinceUtc": {
@@ -15049,6 +15581,7 @@
               "null",
               "string"
             ],
+            "description": "When the command still waiting to be applied was stored, in UTC; null when none is waiting.",
             "format": "date-time"
           }
         },
@@ -15062,19 +15595,22 @@
               "null",
               "string"
             ],
+            "description": "When the job should run, in UTC; omitted means now.",
             "format": "date-time"
           },
           "reasonMessage": {
             "type": [
               "null",
               "string"
-            ]
+            ],
+            "description": "Why the operator made this call, recorded on the event the call writes."
           },
           "expectedVersion": {
             "type": [
               "null",
               "integer"
             ],
+            "description": "The job's version as the caller last read it; when the job has another version the call answers version-conflict and changes nothing. Omit it to act on the job whatever its version.",
             "format": "int32"
           }
         },
@@ -15090,6 +15626,7 @@
         "type": "object",
         "properties": {
           "action": {
+            "description": "What the call did, such as applied, already-in-state, rejected, not-found, or version-conflict.",
             "$ref": "#/components/schemas/ControlAction"
           },
           "status": {
@@ -15100,13 +15637,15 @@
               {
                 "$ref": "#/components/schemas/JobStatusCode"
               }
-            ]
+            ],
+            "description": "The job's status after the call; null when the job was not found."
           },
           "version": {
             "type": [
               "null",
               "integer"
             ],
+            "description": "The job's version after the call; on a version conflict, the version it has now; null when the job was not found.",
             "format": "int32"
           }
         },
@@ -15119,7 +15658,8 @@
             "type": [
               "null",
               "string"
-            ]
+            ],
+            "description": "Why the operator made this call, recorded on the event the call writes."
           }
         },
         "additionalProperties": false,
@@ -15135,9 +15675,11 @@
         "type": "object",
         "properties": {
           "alertRef": {
+            "description": "The alert's ref, alr_ followed by 32 hex digits.",
             "$ref": "#/components/schemas/AlertRef"
           },
           "action": {
+            "description": "What the call did, such as applied, already-in-state, rejected, not-found, or version-conflict.",
             "$ref": "#/components/schemas/ControlAction"
           },
           "acknowledgedAtUtc": {
@@ -15145,6 +15687,7 @@
               "null",
               "string"
             ],
+            "description": "When the alert was acknowledged, in UTC; null while it has not been.",
             "format": "date-time"
           },
           "resolvedAtUtc": {
@@ -15152,6 +15695,7 @@
               "null",
               "string"
             ],
+            "description": "When the alert was resolved, in UTC; null while it is open.",
             "format": "date-time"
           }
         },
@@ -15164,13 +15708,15 @@
             "type": [
               "null",
               "string"
-            ]
+            ],
+            "description": "Why the operator made this call, recorded on the event the call writes."
           },
           "expectedVersion": {
             "type": [
               "null",
               "integer"
             ],
+            "description": "The job's version as the caller last read it; when the job has another version the call answers version-conflict and changes nothing. Omit it to act on the job whatever its version.",
             "format": "int32"
           }
         },
@@ -15186,6 +15732,7 @@
         "type": "object",
         "properties": {
           "action": {
+            "description": "What the call did, such as applied, already-in-state, rejected, not-found, or version-conflict.",
             "$ref": "#/components/schemas/ControlAction"
           },
           "status": {
@@ -15196,13 +15743,15 @@
               {
                 "$ref": "#/components/schemas/JobStatusCode"
               }
-            ]
+            ],
+            "description": "The job's status after the call; null when the job was not found."
           },
           "version": {
             "type": [
               "null",
               "integer"
             ],
+            "description": "The job's version after the call; on a version conflict, the version it has now; null when the job was not found.",
             "format": "int32"
           }
         },
@@ -15215,13 +15764,15 @@
             "type": [
               "null",
               "string"
-            ]
+            ],
+            "description": "Why the operator made this call, recorded on the event the call writes."
           },
           "expectedVersion": {
             "type": [
               "null",
               "integer"
             ],
+            "description": "The job's version as the caller last read it; when the job has another version the call answers version-conflict and changes nothing. Omit it to act on the job whatever its version.",
             "format": "int32"
           }
         },
@@ -15237,6 +15788,7 @@
         "type": "object",
         "properties": {
           "action": {
+            "description": "What the call did, such as applied, already-in-state, rejected, not-found, or version-conflict.",
             "$ref": "#/components/schemas/ControlAction"
           },
           "status": {
@@ -15247,13 +15799,15 @@
               {
                 "$ref": "#/components/schemas/JobStatusCode"
               }
-            ]
+            ],
+            "description": "The job's status after the call; null when the job was not found."
           },
           "version": {
             "type": [
               "null",
               "integer"
             ],
+            "description": "The job's version after the call; on a version conflict, the version it has now; null when the job was not found.",
             "format": "int32"
           }
         },
@@ -15266,7 +15820,8 @@
             "type": [
               "null",
               "string"
-            ]
+            ],
+            "description": "Why the operator made this call, recorded on the event the call writes."
           }
         },
         "additionalProperties": false,
@@ -15280,6 +15835,7 @@
         "type": "object",
         "properties": {
           "action": {
+            "description": "What the call did, such as applied, already-in-state, rejected, not-found, or version-conflict.",
             "$ref": "#/components/schemas/ControlAction"
           },
           "version": {
@@ -15287,6 +15843,7 @@
               "null",
               "integer"
             ],
+            "description": "The namespace's version after the call; on a version conflict, the version it has now; null when the namespace was not found.",
             "format": "int32"
           }
         },
@@ -15299,7 +15856,8 @@
             "type": [
               "null",
               "string"
-            ]
+            ],
+            "description": "Why the operator made this call, recorded on the event the call writes."
           }
         },
         "additionalProperties": false,
@@ -15316,6 +15874,7 @@
         "type": "object",
         "properties": {
           "action": {
+            "description": "What the call did, such as applied, already-in-state, rejected, not-found, or version-conflict.",
             "$ref": "#/components/schemas/ControlAction"
           },
           "status": {
@@ -15326,13 +15885,15 @@
               {
                 "$ref": "#/components/schemas/ScheduleStatusCode"
               }
-            ]
+            ],
+            "description": "The schedule's status after the call; null when the schedule was not found."
           },
           "pausedUntilUtc": {
             "type": [
               "null",
               "string"
             ],
+            "description": "When the schedule's pause ends, in UTC; null when it is not paused or is paused until resumed.",
             "format": "date-time"
           },
           "nextOccurrenceAtUtc": {
@@ -15340,6 +15901,7 @@
               "null",
               "string"
             ],
+            "description": "The schedule's next occurrence, in UTC; null when it has none.",
             "format": "date-time"
           },
           "version": {
@@ -15347,6 +15909,7 @@
               "null",
               "integer"
             ],
+            "description": "The schedule's version after the call; on a version conflict, the version it has now; null when the schedule was not found.",
             "format": "int32"
           }
         },
@@ -15359,7 +15922,8 @@
             "type": [
               "null",
               "string"
-            ]
+            ],
+            "description": "Why the operator made this call, recorded on the event the call writes."
           }
         },
         "additionalProperties": false,
@@ -15373,6 +15937,7 @@
         "type": "object",
         "properties": {
           "action": {
+            "description": "What the call did, such as applied, already-in-state, rejected, not-found, or version-conflict.",
             "$ref": "#/components/schemas/ControlAction"
           },
           "version": {
@@ -15380,6 +15945,7 @@
               "null",
               "integer"
             ],
+            "description": "The tenant's version after the call; on a version conflict, the version it has now; null when the tenant was not found.",
             "format": "int32"
           }
         },
@@ -15393,13 +15959,15 @@
         "properties": {
           "expectedVersion": {
             "type": "integer",
+            "description": "The version as the caller last read it; when the row has another version the call answers version-conflict and changes nothing.",
             "format": "int32"
           },
           "reasonMessage": {
             "type": [
               "null",
               "string"
-            ]
+            ],
+            "description": "Why the operator made this call, recorded on the event the call writes."
           }
         },
         "additionalProperties": false,
@@ -15413,6 +15981,7 @@
         "type": "object",
         "properties": {
           "action": {
+            "description": "What the call did, such as applied, already-in-state, rejected, not-found, or version-conflict.",
             "$ref": "#/components/schemas/ControlAction"
           },
           "version": {
@@ -15420,6 +15989,7 @@
               "null",
               "integer"
             ],
+            "description": "The definition's version after the call; on a version conflict, the version it has now; null when the definition was not found.",
             "format": "int32"
           }
         },
@@ -15434,6 +16004,7 @@
         "type": "object",
         "properties": {
           "role": {
+            "description": "The role of the family the draft belongs to.",
             "$ref": "#/components/schemas/CalendarRoleCode"
           },
           "definition": {
@@ -15442,13 +16013,15 @@
           },
           "expectedLatestVersion": {
             "type": "integer",
+            "description": "The number of the family's newest version as the caller last read it; when another is newest the call answers version-conflict and changes nothing.",
             "format": "int32"
           },
           "reasonMessage": {
             "type": [
               "null",
               "string"
-            ]
+            ],
+            "description": "Why the operator made this call, recorded on the event the call writes."
           }
         },
         "additionalProperties": false,
@@ -15464,6 +16037,7 @@
         "type": "object",
         "properties": {
           "action": {
+            "description": "What the call did, such as applied, already-in-state, rejected, not-found, or version-conflict.",
             "$ref": "#/components/schemas/ControlAction"
           },
           "version": {
@@ -15471,19 +16045,22 @@
               "null",
               "integer"
             ],
+            "description": "The number of the draft version that was saved; null when nothing was saved.",
             "format": "int32"
           },
           "contentHash": {
             "type": [
               "null",
               "string"
-            ]
+            ],
+            "description": "A hash of the saved definition; null when nothing was saved."
           },
           "problems": {
             "type": "array",
             "items": {
               "type": "string"
-            }
+            },
+            "description": "What is wrong with the definition, when it could not be saved."
           }
         },
         "description": "What saving a draft did. Applied carries the new version and its content hash; Rejected carries each reason in Problems, a compiler problem starting with its JSON path, and, when the store refused it, the family's latest version, 0 for a family with none. A namespace no worker has run in yet is created, so the save never answers NotFound."
@@ -15583,7 +16160,8 @@
             "type": [
               "null",
               "string"
-            ]
+            ],
+            "description": "Why the operator made this call, recorded on the event the call writes."
           }
         },
         "additionalProperties": false,
@@ -15597,6 +16175,7 @@
         "type": "object",
         "properties": {
           "action": {
+            "description": "What the call did, such as applied, already-in-state, rejected, not-found, or version-conflict.",
             "$ref": "#/components/schemas/ControlAction"
           },
           "version": {
@@ -15604,6 +16183,7 @@
               "null",
               "integer"
             ],
+            "description": "The namespace's version after the call; on a version conflict, the version it has now; null when the namespace was not found.",
             "format": "int32"
           }
         },
@@ -15616,7 +16196,8 @@
             "type": [
               "null",
               "string"
-            ]
+            ],
+            "description": "Why the operator made this call, recorded on the event the call writes."
           }
         },
         "additionalProperties": false,
@@ -15630,6 +16211,7 @@
         "type": "object",
         "properties": {
           "action": {
+            "description": "What the call did, such as applied, already-in-state, rejected, not-found, or version-conflict.",
             "$ref": "#/components/schemas/ControlAction"
           },
           "version": {
@@ -15637,6 +16219,7 @@
               "null",
               "integer"
             ],
+            "description": "The tenant's version after the call; on a version conflict, the version it has now; null when the tenant was not found.",
             "format": "int32"
           }
         },
@@ -15649,13 +16232,15 @@
         "type": "object",
         "properties": {
           "name": {
-            "type": "string"
+            "type": "string",
+            "description": "The tag's name, trimmed and lowercased."
           },
           "value": {
             "type": [
               "null",
               "string"
-            ]
+            ],
+            "description": "The tag's value; null for a tag that is only a name."
           }
         },
         "additionalProperties": false,
@@ -15680,7 +16265,8 @@
             "type": [
               "null",
               "string"
-            ]
+            ],
+            "description": "Why the operator made this call, recorded on the event the call writes."
           }
         },
         "additionalProperties": false,
@@ -15697,6 +16283,7 @@
         "type": "object",
         "properties": {
           "action": {
+            "description": "What the call did, such as applied, already-in-state, rejected, not-found, or version-conflict.",
             "$ref": "#/components/schemas/ControlAction"
           },
           "status": {
@@ -15707,13 +16294,15 @@
               {
                 "$ref": "#/components/schemas/ScheduleStatusCode"
               }
-            ]
+            ],
+            "description": "The schedule's status after the call; null when the schedule was not found."
           },
           "pausedUntilUtc": {
             "type": [
               "null",
               "string"
             ],
+            "description": "When the schedule's pause ends, in UTC; null when it is not paused or is paused until resumed.",
             "format": "date-time"
           },
           "nextOccurrenceAtUtc": {
@@ -15721,6 +16310,7 @@
               "null",
               "string"
             ],
+            "description": "The schedule's next occurrence, in UTC; null when it has none.",
             "format": "date-time"
           },
           "version": {
@@ -15728,6 +16318,7 @@
               "null",
               "integer"
             ],
+            "description": "The schedule's version after the call; on a version conflict, the version it has now; null when the schedule was not found.",
             "format": "int32"
           }
         },
@@ -15742,16 +16333,19 @@
         "properties": {
           "expectedVersion": {
             "type": "integer",
+            "description": "The version as the caller last read it; when the row has another version the call answers version-conflict and changes nothing.",
             "format": "int32"
           },
           "overrides": {
+            "description": "The whole set of overrides to store; a member left out or null clears that override.",
             "$ref": "#/components/schemas/DefinitionPolicyOverrides"
           },
           "reasonMessage": {
             "type": [
               "null",
               "string"
-            ]
+            ],
+            "description": "Why the operator made this call, recorded on the event the call writes."
           }
         },
         "additionalProperties": false,
@@ -15765,6 +16359,7 @@
         "type": "object",
         "properties": {
           "action": {
+            "description": "What the call did, such as applied, already-in-state, rejected, not-found, or version-conflict.",
             "$ref": "#/components/schemas/ControlAction"
           },
           "version": {
@@ -15772,6 +16367,7 @@
               "null",
               "integer"
             ],
+            "description": "The definition's version after the call; on a version conflict, the version it has now; null when the definition was not found.",
             "format": "int32"
           }
         },
@@ -15784,13 +16380,15 @@
         "type": "object",
         "properties": {
           "input": {
+            "description": "The input to give the job, as a payload envelope.",
             "$ref": "#/components/schemas/JobPayloadBody"
           },
           "reasonMessage": {
             "type": [
               "null",
               "string"
-            ]
+            ],
+            "description": "Why the operator made this call, recorded on the event the call writes."
           }
         },
         "additionalProperties": false,
@@ -15805,6 +16403,7 @@
         "type": "object",
         "properties": {
           "action": {
+            "description": "What the call did, such as applied, already-in-state, rejected, not-found, or version-conflict.",
             "$ref": "#/components/schemas/ControlAction"
           },
           "status": {
@@ -15815,13 +16414,15 @@
               {
                 "$ref": "#/components/schemas/JobStatusCode"
               }
-            ]
+            ],
+            "description": "The job's status after the call; null when the job was not found."
           },
           "version": {
             "type": [
               "null",
               "integer"
             ],
+            "description": "Always null: this control carries no version.",
             "format": "int32"
           }
         },
@@ -15837,23 +16438,27 @@
             "type": [
               "null",
               "string"
-            ]
+            ],
+            "description": "The team that owns the namespace; omitted or null stores none."
           },
           "description": {
             "type": [
               "null",
               "string"
-            ]
+            ],
+            "description": "The namespace's description; omitted or null stores none."
           },
           "expectedVersion": {
             "type": "integer",
+            "description": "The version as the caller last read it; when the row has another version the call answers version-conflict and changes nothing.",
             "format": "int32"
           },
           "reasonMessage": {
             "type": [
               "null",
               "string"
-            ]
+            ],
+            "description": "Why the operator made this call, recorded on the event the call writes."
           }
         },
         "additionalProperties": false,
@@ -15867,6 +16472,7 @@
         "type": "object",
         "properties": {
           "action": {
+            "description": "What the call did, such as applied, already-in-state, rejected, not-found, or version-conflict.",
             "$ref": "#/components/schemas/ControlAction"
           },
           "version": {
@@ -15874,6 +16480,7 @@
               "null",
               "integer"
             ],
+            "description": "The namespace's version after the call; on a version conflict, the version it has now; null when the namespace was not found.",
             "format": "int32"
           }
         },
@@ -15889,23 +16496,27 @@
             "type": [
               "null",
               "string"
-            ]
+            ],
+            "description": "The tenant's display name."
           },
           "description": {
             "type": [
               "null",
               "string"
-            ]
+            ],
+            "description": "The tenant's description; omitted or null stores none."
           },
           "expectedVersion": {
             "type": "integer",
+            "description": "The version as the caller last read it; when the row has another version the call answers version-conflict and changes nothing.",
             "format": "int32"
           },
           "reasonMessage": {
             "type": [
               "null",
               "string"
-            ]
+            ],
+            "description": "Why the operator made this call, recorded on the event the call writes."
           }
         },
         "additionalProperties": false,
@@ -15919,6 +16530,7 @@
         "type": "object",
         "properties": {
           "action": {
+            "description": "What the call did, such as applied, already-in-state, rejected, not-found, or version-conflict.",
             "$ref": "#/components/schemas/ControlAction"
           },
           "version": {
@@ -15926,6 +16538,7 @@
               "null",
               "integer"
             ],
+            "description": "The tenant's version after the call; on a version conflict, the version it has now; null when the tenant was not found.",
             "format": "int32"
           }
         },
@@ -15938,7 +16551,8 @@
             "type": [
               "null",
               "string"
-            ]
+            ],
+            "description": "The tag's value; null for a tag that is only a name."
           }
         },
         "additionalProperties": false,
@@ -15951,6 +16565,7 @@
         "type": "object",
         "properties": {
           "action": {
+            "description": "What the call did, such as applied, already-in-state, rejected, not-found, or version-conflict.",
             "$ref": "#/components/schemas/ControlAction"
           }
         },
