@@ -309,29 +309,29 @@ internal static partial class ActaLog
 
     [LoggerMessage(
         Level = LogLevel.Warning,
-        Message = "ACTA sys.alerts: transport kind ({ActaDetail}) threw delivering alert ({ActaAlertRef}); will retry."
+        Message = "Acta sys.alerts: transport kind ({ActaDetail}) threw delivering alert ({ActaAlertRef}); will retry."
     )]
     public static partial void AlertTransportThrew(ILogger log, Exception exception, string actaDetail, string actaAlertRef);
 
     [LoggerMessage(
         Level = LogLevel.Warning,
-        Message = "ACTA sys.alerts: channel ({ActaDetail}) is not configured for namespace ({ActaNamespace}); marking alert ({ActaAlertRef}) failed."
+        Message = "Acta sys.alerts: channel ({ActaDetail}) is not configured for namespace ({ActaNamespace}); marking alert ({ActaAlertRef}) failed."
     )]
     public static partial void AlertChannelNotConfigured(ILogger log, string actaDetail, string actaNamespace, string actaAlertRef);
 
     [LoggerMessage(
         Level = LogLevel.Warning,
-        Message = "ACTA sys.alerts: no transport is registered for ({ActaDetail}); marking alert ({ActaAlertRef}) delivery failed."
+        Message = "Acta sys.alerts: no transport is registered for ({ActaDetail}); marking alert ({ActaAlertRef}) delivery failed."
     )]
     public static partial void AlertTransportMissing(ILogger log, string actaDetail, string actaAlertRef);
 
     [LoggerMessage(
         Level = LogLevel.Information,
-        Message = "ACTA sys.alerts: alert ({ActaAlertRef}) in namespace ({ActaNamespace}) is suppressed: channel ({ActaDetail})."
+        Message = "Acta sys.alerts: alert ({ActaAlertRef}) in namespace ({ActaNamespace}) is suppressed: channel ({ActaDetail})."
     )]
     public static partial void AlertSuppressedByChannel(ILogger log, string actaAlertRef, string actaNamespace, string actaDetail);
 
-    [LoggerMessage(Level = LogLevel.Information, Message = "ACTA sys.alerts: alert ({ActaAlertRef}) is suppressed: ({ActaDetail}).")]
+    [LoggerMessage(Level = LogLevel.Information, Message = "Acta sys.alerts: alert ({ActaAlertRef}) is suppressed: ({ActaDetail}).")]
     public static partial void AlertSuppressedBySeverity(ILogger log, string actaAlertRef, string actaDetail);
 
     [LoggerMessage(
@@ -342,19 +342,19 @@ internal static partial class ActaLog
 
     [LoggerMessage(
         Level = LogLevel.Information,
-        Message = "ACTA sys.alerts: the generate drain stopped at its bound in namespace ({ActaNamespace}) after {ActaDurationMs} ms ({ActaDetail}); the next pass resumes from the cursor."
+        Message = "Acta sys.alerts: the generate drain stopped at its bound in namespace ({ActaNamespace}) after {ActaDurationMs} ms ({ActaDetail}); the next pass resumes from the cursor."
     )]
     public static partial void AlertDrainStoppedAtBound(ILogger log, string actaNamespace, long actaDurationMs, string actaDetail);
 
     [LoggerMessage(
         Level = LogLevel.Information,
-        Message = "ACTA sys.alerts: replayed skipped alert event ({ActaDetail}) in namespace ({ActaNamespace})."
+        Message = "Acta sys.alerts: replayed skipped alert event ({ActaDetail}) in namespace ({ActaNamespace})."
     )]
     public static partial void AlertEventReplayed(ILogger log, string actaDetail, string actaNamespace);
 
     [LoggerMessage(
         Level = LogLevel.Warning,
-        Message = "ACTA sys.alerts: skipped poison alert event ({ActaDetail}) in namespace ({ActaNamespace})."
+        Message = "Acta sys.alerts: skipped poison alert event ({ActaDetail}) in namespace ({ActaNamespace})."
     )]
     public static partial void PoisonAlertEventSkipped(ILogger log, Exception exception, string actaDetail, string actaNamespace);
 
@@ -370,7 +370,7 @@ internal static partial class ActaLog
     )]
     public static partial void SlackDeliveryFailed(ILogger log, Exception exception, string actaDetail, string actaAlertRef);
 
-    [LoggerMessage(Message = "ACTA ALERT ns={ActaNamespace} alert={ActaAlertRef} job={ActaJobRef} kind={ActaAlertKind}: ({ActaDetail})")]
+    [LoggerMessage(Message = "Acta alert ns={ActaNamespace} alert={ActaAlertRef} job={ActaJobRef} kind={ActaAlertKind}: ({ActaDetail})")]
     public static partial void AlertNotified(
         ILogger log,
         LogLevel level,
@@ -426,24 +426,24 @@ internal static partial class ActaLog
     )]
     public static partial void MeterRatesDisagree(ILogger log, string actaDetail, string actaNamespace);
 
-    [LoggerMessage(Level = LogLevel.Error, Message = "ACTA sys.outbox: the relay quarantined rows this tick ({ActaDetail}).")]
+    [LoggerMessage(Level = LogLevel.Error, Message = "Acta sys.outbox: the relay quarantined rows this tick ({ActaDetail}).")]
     public static partial void OutboxRowsQuarantined(ILogger log, string actaDetail);
 
     [LoggerMessage(
         Level = LogLevel.Warning,
-        Message = "ACTA sys.outbox: target enqueue failed for source ({ActaDetail}); releasing claim and failing tick."
+        Message = "Acta sys.outbox: target enqueue failed for source ({ActaDetail}); releasing claim and failing tick."
     )]
     public static partial void OutboxTargetEnqueueFailed(ILogger log, Exception exception, string actaDetail);
 
     [LoggerMessage(
         Level = LogLevel.Information,
-        Message = "ACTA sys.outbox: rejected a row group in namespace ({ActaNamespace}) ({ActaDetail})."
+        Message = "Acta sys.outbox: rejected a row group in namespace ({ActaNamespace}) ({ActaDetail})."
     )]
     public static partial void OutboxRowGroupRejected(ILogger log, string actaNamespace, string actaDetail);
 
     [LoggerMessage(
         Level = LogLevel.Warning,
-        Message = "ACTA sys.retention: purged ({ActaDetail}) in namespace ({ActaNamespace}) that aged out before delivery settled (alert-retention-cap)."
+        Message = "Acta sys.retention: purged ({ActaDetail}) in namespace ({ActaNamespace}) that aged out before delivery settled (alert-retention-cap)."
     )]
     public static partial void UndeliveredAlertsPurged(ILogger log, string actaDetail, string actaNamespace);
 

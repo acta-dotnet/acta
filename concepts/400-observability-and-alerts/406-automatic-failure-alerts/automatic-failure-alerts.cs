@@ -74,7 +74,7 @@ else
         Console.WriteLine($"  title: {alert.Title}");
         // RunbookUrl is not on ListAlertsItem (the query projection); it is resolved at delivery
         // time onto AlertNotification.RunbookUrl. To see it, look at the delivered
-        // "ACTA ALERT ... runbook=https://..." log line above, emitted by LogAlertTransport.
+        // "Acta alert ... runbook=https://..." log line above, emitted by LogAlertTransport.
     }
 }
 

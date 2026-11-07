@@ -38,7 +38,8 @@ internal sealed class LogAlertTransport(ILogger<LogAlertTransport>? log = null) 
             var alertRef = n.AlertRef.ToString();
             var jobRef = n.JobRef?.ToString();
             var kind = n.Kind.ToString();
-            var body = $"x{n.OccurrenceCount} [{n.Severity}] ch={target.ChannelName} runbook={n.RunbookUrl} {n.Title} - {n.Message}";
+            var runbook = string.IsNullOrEmpty(n.RunbookUrl) ? "" : $" runbook={n.RunbookUrl}";
+            var body = $"x{n.OccurrenceCount} [{n.Severity}] ch={target.ChannelName}{runbook} {n.Title} - {n.Message}";
             ActaLog.AlertNotified(_log, level, n.JobNamespace, alertRef, jobRef, kind, body);
         }
         return Task.FromResult(AlertSendStatus.Delivered);

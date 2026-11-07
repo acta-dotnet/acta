@@ -480,7 +480,7 @@ Total:  5,426.50
 1103,South,310.00
 1104,North,2045.60</code></pre>
         </figure>
-        <p>Within ten seconds the next attempt finds the file, the log shows <code>wrote ...</code>, and the status endpoint reports the job as Succeeded, in our run with <code>"executions": 6</code> and <code>"failures": 5</code>. Nobody resubmitted anything. The request made earlier was kept as a row, the row remembered it was unfinished, and the retry policy kept offering it to the handler until the world outside had caught up. You may also notice a log line starting <code>ACTA ALERT</code>: by default a failing job raises an alert, and without a configured channel the alert is written to the log.</p>
+        <p>Within ten seconds the next attempt finds the file, the log shows <code>wrote ...</code>, and the status endpoint reports the job as Succeeded, in our run with <code>"executions": 6</code> and <code>"failures": 5</code>. Nobody resubmitted anything. The request made earlier was kept as a row, the row remembered it was unfinished, and the retry policy kept offering it to the handler until the world outside had caught up. You may also notice a log line starting <code>Acta alert</code>: by default a failing job raises an alert, and without a configured channel the alert is written to the log.</p>
         <p>Had the file never arrived, the tenth failure would have left the job in the Failed state, still in the database with its whole history, for an operator to inspect and, with controls enabled, restart.</p>
       </section>
 

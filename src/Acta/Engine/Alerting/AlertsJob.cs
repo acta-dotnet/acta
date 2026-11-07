@@ -441,16 +441,18 @@ internal sealed class AlertsJob(
     /// </summary>
     internal static string RenderRef(Guid alertRef) => new AlertRef(alertRef).ToString();
 
-    private static (string Title, string Message) Render(AlertableEvent e, AlertKindCode reason)
+    internal static (string Title, string Message) Render(AlertableEvent e, AlertKindCode reason)
     {
-        var reasonText = e.EventMessage ?? e.Reason() ?? "no reason recorded";
+        var reasonText = (e.EventMessage ?? e.Reason() ?? "no reason recorded").TrimEnd();
+        // A failure message that already ends its sentence, as an exception message often does, keeps its own stop.
+        var reasonSentence = reasonText is [.., '.' or '!' or '?'] ? reasonText : reasonText + ".";
         return reason switch
         {
-            AlertKindCode.FinalFailure => ($"Job '{e.JobName}' failed", $"Terminal failure: {reasonText}."),
-            AlertKindCode.FirstFailure => ($"Job '{e.JobName}' attempt failed", $"Attempt failed: {reasonText}. Retrying."),
+            AlertKindCode.FinalFailure => ($"Job '{e.JobName}' failed", $"Terminal failure: {reasonSentence}"),
+            AlertKindCode.FirstFailure => ($"Job '{e.JobName}' attempt failed", $"Attempt failed: {reasonSentence} Retrying."),
             AlertKindCode.ThresholdReached => (
                 $"Job '{e.JobName}' failing repeatedly",
-                $"Repeated failures since this incident opened: {reasonText}."
+                $"Repeated failures since this incident opened: {reasonSentence}"
             ),
             _ => ($"Job '{e.JobName}'", reasonText),
         };
