@@ -114,7 +114,11 @@ public sealed class SqlServerIntegrationSchema : IIntegrationSchema
     /// </summary>
     private static async Task DropRcsiOffCatalogAsync(SqlConnectionStringBuilder target)
     {
-        if (!target.InitialCatalog.EndsWith("-rcsioff", StringComparison.Ordinal))
+        // The catalog itself must name a test: the schema check before it passes for any catalog holding acta_test.
+        if (
+            !target.InitialCatalog.EndsWith("-rcsioff", StringComparison.Ordinal)
+            || !target.InitialCatalog.Contains("test", StringComparison.OrdinalIgnoreCase)
+        )
         {
             throw new InvalidOperationException($"Refusing to drop '{target.InitialCatalog}': only an -rcsioff test catalog is dropped.");
         }

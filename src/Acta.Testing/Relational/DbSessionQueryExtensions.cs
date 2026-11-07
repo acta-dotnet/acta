@@ -505,11 +505,12 @@ internal sealed class WhereVisitor(
         p.Value = DbValueCoercion.Coerce(value, clrType, _provider);
         DbValueCoercion.ApplyType(p, clrType, _provider);
         // SQL Server binds a string as nvarchar, and comparing a varchar column to it converts the column, so the
-        // read scans the table; with read-committed snapshot off that scan share-locks every page it passes.
-        if (_provider == DbProvider.SqlServer && value is string && _comparedColumn is { Kind: DbKind.AsciiString } column)
+        // read scans the table; with read-committed snapshot off that scan share-locks every page it passes. The size
+        // never falls below the value's, so a longer value is compared whole, never cut to the column's width.
+        if (_provider == DbProvider.SqlServer && value is string text && _comparedColumn is { Kind: DbKind.AsciiString } column)
         {
             p.DbType = System.Data.DbType.AnsiString;
-            p.Size = column.Size ?? -1;
+            p.Size = column.Size is { } width && text.Length <= 8000 ? Math.Max(width, text.Length) : -1;
         }
         _command.Parameters.Add(p);
         return name;
