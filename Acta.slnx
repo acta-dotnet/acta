@@ -7,7 +7,6 @@
   </Folder>
   <Folder Name="/tools/">
     <Project Path="tools/Acta.Verify/Acta.Verify.csproj" />
-    <Project Path="tools/Acta.Doctor/Acta.Doctor.csproj" />
     <Project Path="tools/Acta.Emit/Acta.Emit.csproj" />
   </Folder>
   <Folder Name="/src/">

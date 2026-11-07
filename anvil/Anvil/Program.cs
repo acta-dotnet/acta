@@ -50,7 +50,6 @@ static int FailDashboardBoot(Exception ex, string provider)
         Console.Error.WriteLine("Check the database is up and reachable: docker compose ps (start with: docker compose up -d)");
         Console.Error.WriteLine("Or run the zero-setup default: dotnet run --project anvil/Anvil -- --provider sqlite");
     }
-    Console.Error.WriteLine("Environment checks: dotnet run --project tools/Acta.Doctor");
     return 1;
 }
 

@@ -113,12 +113,6 @@ public static class LocalDatabase
             new($"No {label} connection configured. Set the {envVar} environment variable.");
     }
 
-    /// <summary>True for the Postgres provider aliases (the default when no alias matches).</summary>
-    public static bool IsPostgres(string provider) =>
-        string.Equals(provider, "pg", StringComparison.OrdinalIgnoreCase)
-        || string.Equals(provider, "postgres", StringComparison.OrdinalIgnoreCase)
-        || string.Equals(provider, "postgresql", StringComparison.OrdinalIgnoreCase);
-
     /// <summary>True for the SQLite provider aliases.</summary>
     public static bool IsSqlite(string provider) =>
         string.Equals(provider, "sqlite", StringComparison.OrdinalIgnoreCase)

@@ -99,12 +99,11 @@ A ladder of runnable concept projects and the load-and-failure lab, if you would
 
 ```bash
 git clone https://github.com/acta-dotnet/acta && cd acta
-dotnet run --project tools/Acta.Doctor        # optional preflight: SDK, SQLite, Docker, ports, env vars
 dotnet run --project concepts/000-fundamentals/001-hello-acta   # first concept: enqueue a job, watch a worker run it
 dotnet run --project anvil/Anvil    # lab UI + Acta dashboard at http://127.0.0.1:5059/acta
 ```
 
-The Anvil step builds the dashboard UI, which needs Node.js 20.19+ or 22.12+ on PATH once; without Node the first two commands still run.
+The Anvil step builds the dashboard UI, which needs Node.js 20.19+ or 22.12+ on PATH once; without Node the first concept still runs.
 
 The `[Job]` name is the durable, operator-facing contract: it is what the row carries, what the dashboard shows, and what you must not rename casually. Enqueue is typed; dispatch is generated.
 
@@ -170,7 +169,7 @@ Start at [`docs/README.md`](./docs/README.md), which orders every page by the qu
 
 **NuGet packages** (published on [nuget.org](https://www.nuget.org/packages?q=Acta) since `0.3.0-alpha.1`): `Acta.SqlServer`, `Acta.Postgres`, `Acta.Sqlite` (providers, one reference is enough), `Acta` (public API, SDK, and engine; a transitive dependency of the providers), `Acta.AspNetCore` (dashboard + JSON API), `Acta.Redis` (optional worker wakeup), `Acta.Testing` (test host). Transactional cross-database outbox staging (the `AddToActaOutboxAsync` producer primitive) ships inside each provider package, not as a separate reference. Source-generated dispatch (`Acta.Generators`) ships bundled inside these: there is no separate reference.
 
-**Repository tooling** (not published to NuGet): `Acta.Verify` (benchmark and release evidence suite), `Acta.Emit` (doc/migration emitter), and `Acta.Doctor` (environment preflight and SQLite sample smoke), run with `dotnet run --project tools/…`.
+**Repository tooling** (not published to NuGet): `Acta.Verify` (benchmark and release evidence suite) and `Acta.Emit` (doc/migration emitter), run with `dotnet run --project tools/…`.
 
 ## Status
 

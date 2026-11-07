@@ -33,7 +33,7 @@ Published on [nuget.org](https://www.nuget.org/packages?q=Acta):
 - `Acta.Testing`: test host.
 
 Source-generated dispatch (`Acta.Generators`) ships bundled inside these packages; there is no
-separate reference. Repository tooling (`Acta.Verify`, `Acta.Emit`, `Acta.Doctor`) is not published to NuGet.
+separate reference. Repository tooling (`Acta.Verify`, `Acta.Emit`) is not published to NuGet.
 
 ## Patch policy
 

@@ -11,17 +11,14 @@ Two tiers, depending on what you are doing:
 | Run concepts, demos, and Anvil on SQLite | The .NET 10 SDK pinned in `global.json`. Nothing else. (The embedded dashboard UI additionally needs Node.js 20.19+ or 22.12+ at build time; everything else runs without it.) |
 | Full contributor checks (providers, dashboard, PR-ready) | Also Docker (Postgres, SQL Server, Redis containers) and Node.js with npm: 20.19+ or 22.12+ builds the dashboard, and its tests need 22.13+ (CI uses 22). |
 
-Environment sanity check at any point: `dotnet run --project tools/Acta.Doctor`. Setup failures are
-tabled in [Local setup problems](#local-setup-problems).
+Setup failures are tabled in [Local setup problems](#local-setup-problems).
 
 ## Five-minute SQLite path
 
 Concepts and demos default to embedded **SQLite**: no server, no connection string, no Docker.
 
 ```bash
-dotnet run --project tools/Acta.Doctor        # optional preflight: SDK, SQLite, Docker, ports, env vars
 dotnet run --project concepts/000-fundamentals/002-job-input
-dotnet run --project tools/Acta.Doctor -- smoke   # runs every run-to-completion concept on SQLite; a concept with a worker mode whose default mode exits declares <ActaSmoke>run</ActaSmoke>
 ```
 
 SQLite creates the database file on first connection (`acta-local.db` under `%TEMP%` / `$TMPDIR` /
@@ -75,8 +72,7 @@ Maintainer / CI variables: `ACTA_EMIT_DOCS` (regenerate conformance contract doc
 
 ## Local setup problems
 
-Run `dotnet run --project tools/Acta.Doctor` first: it checks the SDK, the SQLite path, env vars,
-Docker, and ports, and prints the fix for most of the rows below.
+What goes wrong on a fresh machine, and the fix for each.
 
 | Symptom | Cause | Fix |
 |---|---|---|
@@ -861,7 +857,7 @@ demos/      larger multi-project apps (production shapes); consume the published
             so they are not in Acta.slnx and build independently of src/
 anvil/      Acta Anvil (interactive proof/dashboard harness)
 support/    local-hosting helpers shared by concepts, demos, and Anvil (not shipped)
-tools/      Acta.Verify (headless evidence suite), Acta.Emit (generated references), Acta.Doctor (preflight)
+tools/      Acta.Verify (headless evidence suite), Acta.Emit (generated references)
 ```
 
 ## Reading the source
