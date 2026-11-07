@@ -1995,8 +1995,8 @@ sealed record Acta.ListNamespacesResponse : Acta.IPagedResponse<Acta.ListNamespa
     System.Nullable<System.Int64> TotalCount { get;init; }
     System.String NextCursor { get;init; }
 sealed record Acta.ListOutboxSourcesItem
-    .ctor(System.String JobNamespace, Acta.JobRef SlotJobRef, System.String LastTickSummary, System.Nullable<System.Int64> Backlog, System.Nullable<System.Int64> QuarantineTotal, System.Boolean IsLocal)
-    Acta.JobRef SlotJobRef { get;init; }
+    .ctor(System.String JobNamespace, Acta.JobRef JobRef, System.String LastTickSummary, System.Nullable<System.Int64> Backlog, System.Nullable<System.Int64> QuarantineTotal, System.Boolean IsLocal)
+    Acta.JobRef JobRef { get;init; }
     System.Boolean IsLocal { get;init; }
     System.Nullable<System.Int64> Backlog { get;init; }
     System.Nullable<System.Int64> QuarantineTotal { get;init; }

@@ -7876,7 +7876,7 @@
                       "items": [
                         {
                           "jobNamespace": "billing",
-                          "slotJobRef": "job_00000000000000000000000000000044",
+                          "jobRef": "job_00000000000000000000000000000044",
                           "lastTickSummary": "claimed=2 relayed=2 dedup=0 quarantined=0 backlog=5 quarantine=1",
                           "backlog": 5,
                           "quarantineTotal": 1,
@@ -14812,7 +14812,7 @@
       "ListOutboxSourcesItem": {
         "required": [
           "jobNamespace",
-          "slotJobRef",
+          "jobRef",
           "lastTickSummary",
           "backlog",
           "quarantineTotal",
@@ -14824,8 +14824,8 @@
             "type": "string",
             "description": "The namespace whose outbox relay this is."
           },
-          "slotJobRef": {
-            "description": "The ref of the permanent slot job that runs the namespace's outbox relay.",
+          "jobRef": {
+            "description": "The ref of the permanent job that runs the namespace's outbox relay.",
             "$ref": "#/components/schemas/JobRef"
           },
           "lastTickSummary": {

@@ -11,7 +11,7 @@
   // backlog/quarantineTotal are null before the slot's first successful tick, never zero-faked.
   interface OutboxSourceView {
     jobNamespace: string;
-    slotJobRef: string;
+    jobRef: string;
     lastTickSummary: string | null;
     backlog: number | null;
     quarantineTotal: number | null;

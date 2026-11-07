@@ -65,11 +65,11 @@ public sealed class ListOutboxSourcesSpec : OutboxRelayIntegrationBase
         var before = await Outbox.ListSourcesAsync(new ListOutboxSourcesQuery(JobNamespace: TestNamespace), ct);
         Assert.Empty(before.Items);
 
-        var (_, slotJobRef) = await SeedSlotJobAsync("sys.outbox", ct);
+        var (_, jobRef) = await SeedSlotJobAsync("sys.outbox", ct);
         var sources = await Outbox.ListSourcesAsync(new ListOutboxSourcesQuery(JobNamespace: TestNamespace), ct);
         var item = Assert.Single(sources.Items);
         Assert.Equal(TestNamespace, item.JobNamespace);
-        Assert.Equal(slotJobRef, item.SlotJobRef.Value);
+        Assert.Equal(jobRef, item.JobRef.Value);
 
         // No successful tick has persisted a summary, so the counters read unknown rather than zero,
         // and this host registered no relay, so the source is not locally readable.

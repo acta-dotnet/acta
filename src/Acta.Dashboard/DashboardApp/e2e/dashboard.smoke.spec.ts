@@ -152,7 +152,7 @@ async function mockDashboard(
     if (path === 'outbox/sources') {
       const source = {
         jobNamespace: 'billing',
-        slotJobRef: jobRef,
+        jobRef,
         lastTickSummary: 'claimed=0 relayed=0 dedup=0 quarantined=3 backlog=0 quarantine=3 lag=0s since the last successful relay pass',
         backlog: 0,
         quarantineTotal: 3,

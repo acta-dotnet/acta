@@ -431,7 +431,7 @@ Server scopes constraint names and PostgreSQL index names to the schema, not the
   why a job or schedule pauses while a namespace or tenant suspends, and why the outbox relay would
   pause rather than suspend.
 - **`slot` is a scheduled definition's permanent slot.** The one reusable job row its schedules fire
-  (`JobKindCode.Permanent`, `slotJobRef`). A counted lock's holds are lock slots, or concurrency slots where a
+  (`JobKindCode.Permanent`). A counted lock's holds are lock slots, or concurrency slots where a
   `ConcurrencyLimit` sizes them, never a bare "slot"; a `checkpoints` row is a checkpoint, a `steps` row is a step,
   and executor capacity is counted in executors.
 - **`resolve` closes an alert.** `ResolveAlert` ends an incident, and no operation outside Alerts starts with
