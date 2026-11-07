@@ -15,7 +15,7 @@ internal static class DefinitionsEndpoints
             "/definitions",
             new("listDefinitions", ActaPermissions.Read),
             "List job definitions.",
-            DashboardJsonContext.Default.ListDefinitionsResponse,
+            ActaApiJsonContext.Default.ListDefinitionsResponse,
             static query => new ListDefinitionsQuery(
                 JobNamespace: query.Text("jobNamespace"),
                 NameContains: query.Text("nameContains"),
@@ -45,7 +45,7 @@ internal static class DefinitionsEndpoints
             new("getDefinition", ActaPermissions.Read),
             "Read one job definition and its effective policy.",
             "Definition",
-            DashboardJsonContext.Default.GetDefinitionResponse,
+            ActaApiJsonContext.Default.GetDefinitionResponse,
             static (http, call) => call.Operations.Definitions.GetAsync(Key(http).Namespace, Key(http).Name, call.Ct)
         );
         GetDefinitionInputTemplateEndpoint.Map(reads);
@@ -68,7 +68,7 @@ internal static class DefinitionsEndpoints
             new("updateDefinitionOverrides", ActaPermissions.Admin),
             "Replace the definition's operator policy overrides.",
             options,
-            DashboardJsonContext.Default.UpdateDefinitionOverridesRequest,
+            ActaApiJsonContext.Default.UpdateDefinitionOverridesRequest,
             "Invalid definition overrides.",
             ControlStatus.Definition<UpdateDefinitionOverridesResponse>(),
             Key,
@@ -89,7 +89,7 @@ internal static class DefinitionsEndpoints
             new("retireDefinition", ActaPermissions.Admin),
             "Retire the definition and cancel its waiting jobs.",
             options,
-            DashboardJsonContext.Default.RetireDefinitionRequest,
+            ActaApiJsonContext.Default.RetireDefinitionRequest,
             "Invalid definition key.",
             ControlStatus.Definition<RetireDefinitionResponse>(),
             Key,

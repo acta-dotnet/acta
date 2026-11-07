@@ -12,7 +12,7 @@ internal static class NamespacesEndpoints
             "/namespaces",
             new("listNamespaces", ActaPermissions.Read),
             "List namespaces.",
-            DashboardJsonContext.Default.ListNamespacesResponse,
+            ActaApiJsonContext.Default.ListNamespacesResponse,
             static query => new ListNamespacesQuery(
                 NameContains: query.Text("nameContains"),
                 Status: query.Code("status", NamespaceStatusCodeExtensions.FromCode),
@@ -41,7 +41,7 @@ internal static class NamespacesEndpoints
             new("getNamespace", ActaPermissions.Read),
             "Read one namespace.",
             "Namespace",
-            DashboardJsonContext.Default.GetNamespaceResponse,
+            ActaApiJsonContext.Default.GetNamespaceResponse,
             static async (http, call) =>
             {
                 try
@@ -72,7 +72,7 @@ internal static class NamespacesEndpoints
             new("suspendNamespace", ActaPermissions.Admin),
             "Suspend the namespace: new work is rejected at enqueue.",
             options,
-            DashboardJsonContext.Default.SuspendNamespaceRequest,
+            ActaApiJsonContext.Default.SuspendNamespaceRequest,
             "Invalid namespace jobNamespace.",
             ControlStatus.Admin<SuspendNamespaceResponse>(StatusCodes.Status200OK, StatusCodes.Status404NotFound),
             Name,
@@ -83,7 +83,7 @@ internal static class NamespacesEndpoints
             new("resumeNamespace", ActaPermissions.Admin),
             "Resume a suspended namespace.",
             options,
-            DashboardJsonContext.Default.ResumeNamespaceRequest,
+            ActaApiJsonContext.Default.ResumeNamespaceRequest,
             "Invalid namespace jobNamespace.",
             ControlStatus.Admin<ResumeNamespaceResponse>(StatusCodes.Status200OK, StatusCodes.Status404NotFound),
             Name,
@@ -95,7 +95,7 @@ internal static class NamespacesEndpoints
             new("updateNamespace", ActaPermissions.Admin),
             "Update the namespace's owner team and description.",
             options,
-            DashboardJsonContext.Default.UpdateNamespaceRequest,
+            ActaApiJsonContext.Default.UpdateNamespaceRequest,
             "Invalid namespace update.",
             ControlStatus.Admin<UpdateNamespaceResponse>(
                 StatusCodes.Status200OK,

@@ -862,10 +862,10 @@ public sealed class ControlContractTests
     /// </summary>
     private static string? Mismatch(string body, Case row)
     {
-        var typeInfo = DashboardJsonContext.Default.GetTypeInfo(row.Declared);
+        var typeInfo = ActaApiJsonContext.Default.GetTypeInfo(row.Declared);
         if (typeInfo is null)
         {
-            return $"{row.Declared.Name} is not serializable by DashboardJsonContext.";
+            return $"{row.Declared.Name} is not serializable by ActaApiJsonContext.";
         }
 
         object? value;

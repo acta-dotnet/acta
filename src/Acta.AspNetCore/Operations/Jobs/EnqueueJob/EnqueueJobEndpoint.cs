@@ -18,7 +18,7 @@ internal static class EnqueueJobEndpoint
                 {
                     var (body, error) = await ControlEndpointValidation.ReadJsonBodyAsync(
                         http,
-                        DashboardJsonContext.Default.EnqueueJobRequest,
+                        ActaApiJsonContext.Default.EnqueueJobRequest,
                         ct
                     );
                     if (error is not null)
@@ -76,7 +76,7 @@ internal static class EnqueueJobEndpoint
                         // 201 for and which this endpoint previously omitted.
                         return Results.Json(
                             outcome,
-                            DashboardJsonContext.Default.EnqueueJobResponse,
+                            ActaApiJsonContext.Default.EnqueueJobResponse,
                             statusCode: created ? StatusCodes.Status201Created : StatusCodes.Status200OK
                         );
                     }

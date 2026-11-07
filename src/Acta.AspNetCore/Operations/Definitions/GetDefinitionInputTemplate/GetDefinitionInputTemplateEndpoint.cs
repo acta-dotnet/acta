@@ -18,7 +18,7 @@ internal static class GetDefinitionInputTemplateEndpoint
                 "/definitions/{jobNamespace}/{jobName}/input-template",
                 (string jobNamespace, string jobName, IActaOperations operations) =>
                     operations.Definitions.GetInputTemplate(jobNamespace, jobName) is { } template
-                        ? Results.Json(template, DashboardJsonContext.Default.GetDefinitionInputTemplateResponse)
+                        ? Results.Json(template, ActaApiJsonContext.Default.GetDefinitionInputTemplateResponse)
                         : RouteTable.NotFound("Input template")
             )
             .WithMetadata(new ActaOperationAttribute("getDefinitionInputTemplate", ActaPermissions.Read))

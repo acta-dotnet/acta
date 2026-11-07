@@ -88,10 +88,10 @@ internal static partial class ActaOpenApiDocument
         var builder = WebApplication.CreateBuilder();
         builder.Logging.ClearProviders();
         builder.WebHost.UseTestServer();
-        // The generator reads the host's options; requests and responses go through DashboardJsonContext, whose numbers
+        // The generator reads the host's options; requests and responses go through ActaApiJsonContext, whose numbers
         // are strict. The web default would document every integer as integer-or-string, which the server refuses.
         builder.Services.ConfigureHttpJsonOptions(o =>
-            o.SerializerOptions.NumberHandling = DashboardJsonContext.Default.Options.NumberHandling
+            o.SerializerOptions.NumberHandling = ActaApiJsonContext.Default.Options.NumberHandling
         );
         var fakes = StagedFakes.Create();
         builder.Services.AddSingleton<IJobs>(fakes.Jobs);
@@ -150,9 +150,9 @@ internal static partial class ActaOpenApiDocument
         return documents;
     }
 
-    /// <summary>How <c>DashboardJsonContext</c> writes one enum member, the only authority on it; a name it cannot write throws.</summary>
+    /// <summary>How <c>ActaApiJsonContext</c> writes one enum member, the only authority on it; a name it cannot write throws.</summary>
     public static string WireName(Type enumType, string memberName) =>
-        JsonSerializer.Serialize(Enum.Parse(enumType, memberName), enumType, DashboardJsonContext.Default.Options).Trim('"');
+        JsonSerializer.Serialize(Enum.Parse(enumType, memberName), enumType, ActaApiJsonContext.Default.Options).Trim('"');
 
     /// <summary>How the refused enqueue's problem writes its <c>reasonCode</c>, as ApiFilters spells it.</summary>
     public static string ReasonCode(EnqueueRejectionReason reason) => JsonNamingPolicy.KebabCaseLower.ConvertName(reason.ToString());
@@ -746,7 +746,7 @@ internal static partial class ActaOpenApiDocument
             var values = known.Select(value => value!.GetValue<string>()).ToList();
             var family = typeof(IJobs)
                 .Assembly.GetTypes()
-                .Concat(typeof(DashboardJsonContext).Assembly.GetTypes())
+                .Concat(typeof(ActaApiJsonContext).Assembly.GetTypes())
                 .FirstOrDefault(type => type.IsEnum && type.Name == name);
             var meanings = family is null
                 ? []

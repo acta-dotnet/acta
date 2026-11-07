@@ -403,7 +403,7 @@ public sealed partial class OpenApiContractTests
         Assert.True(wrong.Count == 0, string.Join("\n", wrong));
     }
 
-    // The refused enqueue's problem spells its reason itself and the capabilities read its provider; DashboardJsonContext
+    // The refused enqueue's problem spells its reason itself and the capabilities read its provider; ActaApiJsonContext
     // writes every other enum.
     private static string Written(Type type, string member) =>
         type == typeof(EnqueueRejectionReason) ? ActaOpenApiDocument.ReasonCode(Enum.Parse<EnqueueRejectionReason>(member))
@@ -917,7 +917,7 @@ public sealed partial class OpenApiContractTests
     /// <summary>Every override null: the overrides an update sends to clear them all.</summary>
     private static readonly string NoOverrides = JsonSerializer.Serialize(
         new DefinitionPolicyOverrides(),
-        DashboardJsonContext.Default.DefinitionPolicyOverrides
+        ActaApiJsonContext.Default.DefinitionPolicyOverrides
     );
 
     /// <summary>
@@ -990,7 +990,7 @@ public sealed partial class OpenApiContractTests
         var (app, client) = await TestDashboardHost.StartAsync(options => options.EnableControls = true, fakes: fakes);
         await using var _ = app;
         var sent = new DefinitionPolicyOverrides(MaxAttempts: 5, RateLimit: "10/s", DeadlineBehavior: DeadlineBehaviorCode.Advisory);
-        var overrides = JsonSerializer.Serialize(sent, DashboardJsonContext.Default.DefinitionPolicyOverrides);
+        var overrides = JsonSerializer.Serialize(sent, ActaApiJsonContext.Default.DefinitionPolicyOverrides);
 
         var status = await SendControlAsync(
             client,
@@ -1521,15 +1521,15 @@ public sealed partial class OpenApiContractTests
     public void Each_request_example_passes_its_operation_own_checks()
     {
         static T Body<T>(string key, JsonTypeInfo<T> info) => JsonSerializer.Deserialize(OpenApiExamples.Requests[key].Trim(), info)!;
-        var draft = Body("POST /calendars/{jobNamespace}/{calendarName}/drafts", DashboardJsonContext.Default.SaveCalendarDraftRequest);
-        var enqueue = Body("POST /jobs", DashboardJsonContext.Default.EnqueueJobRequest);
+        var draft = Body("POST /calendars/{jobNamespace}/{calendarName}/drafts", ActaApiJsonContext.Default.SaveCalendarDraftRequest);
+        var enqueue = Body("POST /jobs", ActaApiJsonContext.Default.EnqueueJobRequest);
         var overrides = Body(
             "PUT /definitions/{jobNamespace}/{jobName}/overrides",
-            DashboardJsonContext.Default.UpdateDefinitionOverridesRequest
+            ActaApiJsonContext.Default.UpdateDefinitionOverridesRequest
         );
-        var register = Body("POST /tenants", DashboardJsonContext.Default.RegisterTenantRequest);
-        var tenant = Body("PUT /tenants/{tenantName}", DashboardJsonContext.Default.UpdateTenantRequest);
-        var ns = Body("PUT /namespaces/{jobNamespace}", DashboardJsonContext.Default.UpdateNamespaceRequest);
+        var register = Body("POST /tenants", ActaApiJsonContext.Default.RegisterTenantRequest);
+        var tenant = Body("PUT /tenants/{tenantName}", ActaApiJsonContext.Default.UpdateTenantRequest);
+        var ns = Body("PUT /namespaces/{jobNamespace}", ActaApiJsonContext.Default.UpdateNamespaceRequest);
 
         IReadOnlyList<string> problems = Record.Exception(() =>
             CalendarDefinition.Compile(draft.Role, draft.Definition.GetRawText())
@@ -1590,7 +1590,7 @@ public sealed partial class OpenApiContractTests
     private static Type? EnumType(string schemaName) =>
         typeof(IJobs)
             .Assembly.GetTypes()
-            .Concat(typeof(DashboardJsonContext).Assembly.GetTypes())
+            .Concat(typeof(ActaApiJsonContext).Assembly.GetTypes())
             .FirstOrDefault(t => t.IsEnum && string.Equals(t.Name, schemaName, StringComparison.Ordinal));
 
     /// <summary>Every inline schema in the document, with where it sits: components, their members, and operation parameters.</summary>

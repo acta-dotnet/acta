@@ -11,7 +11,7 @@ internal static class WorkersEndpoints
             "/workers",
             new("listWorkers", ActaPermissions.Read),
             "List workers.",
-            DashboardJsonContext.Default.ListWorkersResponse,
+            ActaApiJsonContext.Default.ListWorkersResponse,
             static query => new ListWorkersQuery(
                 JobNamespace: query.Text("jobNamespace"),
                 Status: query.Code("status", WorkerStatusCodeExtensions.FromCode),
@@ -37,7 +37,7 @@ internal static class WorkersEndpoints
             new("getWorker", ActaPermissions.Read),
             "Read one worker.",
             "Worker",
-            DashboardJsonContext.Default.GetWorkerResponse,
+            ActaApiJsonContext.Default.GetWorkerResponse,
             static (http, call) => call.Operations.Workers.GetAsync(RouteKeys.Worker(http), call.Ct)
         );
     }

@@ -72,7 +72,7 @@ public sealed class ControlBodyStrictnessTests
         var ct = TestContext.Current.CancellationToken;
         var overrides = JsonSerializer.Serialize(
             new DefinitionPolicyOverrides(MaxAttempts: 3),
-            DashboardJsonContext.Default.DefinitionPolicyOverrides
+            ActaApiJsonContext.Default.DefinitionPolicyOverrides
         );
 
         var typo = await client.SendAsync(

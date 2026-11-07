@@ -33,7 +33,7 @@ internal static class GetCapabilitiesEndpoint
                         Schema: schema,
                         ConfirmationHeader: options.ControlConfirmationHeaderName
                     );
-                    return Results.Json(body, DashboardJsonContext.Default.GetCapabilitiesResponse);
+                    return Results.Json(body, ActaApiJsonContext.Default.GetCapabilitiesResponse);
                 }
             )
             .WithMetadata(new ActaOperationAttribute("getCapabilities", ActaPermissions.Read))

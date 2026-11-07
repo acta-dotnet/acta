@@ -105,7 +105,7 @@ internal static partial class ActaOpenApiDocument
     /// </summary>
     private sealed partial class SchemaDocs
     {
-        private static readonly Assembly[] DocumentedAssemblies = [typeof(IJobs).Assembly, typeof(DashboardJsonContext).Assembly];
+        private static readonly Assembly[] DocumentedAssemblies = [typeof(IJobs).Assembly, typeof(ActaApiJsonContext).Assembly];
 
         private static readonly Lazy<Dictionary<string, XElement>> Members = new(() =>
             DocumentedAssemblies

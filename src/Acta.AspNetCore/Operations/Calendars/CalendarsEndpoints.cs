@@ -17,7 +17,7 @@ internal static class CalendarsEndpoints
             "/calendars",
             new("listCalendars", ActaPermissions.Read),
             "List calendar families, the shared ones in sys included.",
-            DashboardJsonContext.Default.ListCalendarsResponse,
+            ActaApiJsonContext.Default.ListCalendarsResponse,
             static query => new ListCalendarsQuery(
                 JobNamespace: query.Text("jobNamespace"),
                 Role: query.Code("role", CalendarRoleCodeExtensions.FromCode),
@@ -49,7 +49,7 @@ internal static class CalendarsEndpoints
                 new("getCalendar", ActaPermissions.Read),
                 "Read a calendar family's head: its current and latest versions and one definition.",
                 "Calendar",
-                DashboardJsonContext.Default.GetCalendarResponse,
+                ActaApiJsonContext.Default.GetCalendarResponse,
                 static async (http, call) =>
                     await call.Operations.Calendars.GetAsync(
                         Key(http),
@@ -73,7 +73,7 @@ internal static class CalendarsEndpoints
                 "/calendars/{jobNamespace}/{calendarName}/versions",
                 new("listCalendarVersions", ActaPermissions.Read),
                 "List a calendar family's versions, newest first.",
-                DashboardJsonContext.Default.ListCalendarVersionsResponse,
+                ActaApiJsonContext.Default.ListCalendarVersionsResponse,
                 static query => new ListCalendarVersionsQuery(
                     Key(query.Http),
                     query.Int("pageSize"),
@@ -92,7 +92,7 @@ internal static class CalendarsEndpoints
                 "/calendars/{jobNamespace}/{calendarName}/dependents",
                 new("listCalendarDependents", ActaPermissions.Read),
                 "List the schedules naming a calendar family, by path.",
-                DashboardJsonContext.Default.ListCalendarDependentsResponse,
+                ActaApiJsonContext.Default.ListCalendarDependentsResponse,
                 static query => new ListCalendarDependentsQuery(
                     Key(query.Http),
                     query.Int("pageSize"),
@@ -112,7 +112,7 @@ internal static class CalendarsEndpoints
                 new("previewCalendar", ActaPermissions.Read),
                 "Preview a calendar version beside the current one.",
                 "Calendar",
-                DashboardJsonContext.Default.PreviewCalendarResponse,
+                ActaApiJsonContext.Default.PreviewCalendarResponse,
                 static (http, call) =>
                     QueryReader.Bind(
                         http.Request,
@@ -161,7 +161,7 @@ internal static class CalendarsEndpoints
             new("saveCalendarDraft", ActaPermissions.Admin),
             "Save a calendar definition as the family's next draft version.",
             options,
-            DashboardJsonContext.Default.SaveCalendarDraftRequest,
+            ActaApiJsonContext.Default.SaveCalendarDraftRequest,
             "Invalid calendar request.",
             ControlStatus.Calendar<SaveCalendarDraftResponse>(StatusCodes.Status200OK, StatusCodes.Status409Conflict),
             Key,
@@ -185,7 +185,7 @@ internal static class CalendarsEndpoints
             new("publishCalendar", ActaPermissions.Admin),
             "Publish a draft as the family's current version and retime the schedules bound to it.",
             options,
-            DashboardJsonContext.Default.PublishCalendarRequest,
+            ActaApiJsonContext.Default.PublishCalendarRequest,
             "Invalid calendar request.",
             ControlStatus.Calendar<PublishCalendarResponse>(
                 StatusCodes.Status200OK,
@@ -212,7 +212,7 @@ internal static class CalendarsEndpoints
             new("archiveCalendar", ActaPermissions.Admin),
             "Archive the family's current version.",
             options,
-            DashboardJsonContext.Default.ArchiveCalendarRequest,
+            ActaApiJsonContext.Default.ArchiveCalendarRequest,
             "Invalid calendar request.",
             ControlStatus.Calendar<ArchiveCalendarResponse>(
                 StatusCodes.Status200OK,

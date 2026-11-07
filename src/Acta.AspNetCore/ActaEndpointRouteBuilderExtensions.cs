@@ -46,7 +46,7 @@ public static class ActaEndpointRouteBuilderExtensions
     )
     {
         ArgumentNullException.ThrowIfNull(endpoints);
-        EnsureDashboardJsonContext(endpoints);
+        EnsureActaApiJsonContext(endpoints);
         var options = new ActaEndpointOptions();
         configure?.Invoke(options);
         ValidateOptions(options);
@@ -75,10 +75,10 @@ public static class ActaEndpointRouteBuilderExtensions
     {
         ArgumentNullException.ThrowIfNull(endpoints);
         // Guarded here rather than left to MapGroup below: that throw names the framework's own 'prefix'
-        // parameter, and it lands only after EnsureDashboardJsonContext has already mutated the app's
+        // parameter, and it lands only after EnsureActaApiJsonContext has already mutated the app's
         // serializer resolver chain. Rejecting first keeps a failed call free of side effects.
         ArgumentNullException.ThrowIfNull(pattern);
-        EnsureDashboardJsonContext(endpoints);
+        EnsureActaApiJsonContext(endpoints);
         var options = new ActaDashboardOptions();
         configure?.Invoke(options);
         ValidateOptions(options);
@@ -167,13 +167,13 @@ public static class ActaEndpointRouteBuilderExtensions
         GetCapabilitiesEndpoint.Map(api, options);
     }
 
-    private static void EnsureDashboardJsonContext(IEndpointRouteBuilder endpoints)
+    private static void EnsureActaApiJsonContext(IEndpointRouteBuilder endpoints)
     {
         var serializerOptions = endpoints.ServiceProvider.GetRequiredService<IOptions<JsonOptions>>().Value.SerializerOptions;
 
-        if (!serializerOptions.TypeInfoResolverChain.Contains(DashboardJsonContext.Default))
+        if (!serializerOptions.TypeInfoResolverChain.Contains(ActaApiJsonContext.Default))
         {
-            serializerOptions.TypeInfoResolverChain.Insert(0, DashboardJsonContext.Default);
+            serializerOptions.TypeInfoResolverChain.Insert(0, ActaApiJsonContext.Default);
         }
     }
 

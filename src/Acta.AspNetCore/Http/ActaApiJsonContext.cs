@@ -4,7 +4,7 @@ using Microsoft.AspNetCore.Mvc;
 namespace Acta.AspNetCore;
 
 /// <summary>
-/// Source-generated JSON metadata for every dashboard API response type. Code-family enums carry
+/// Source-generated JSON metadata for every request and response type of the API. Code-family enums carry
 /// their own converters writing the kebab wire names, and the plain action enums serialize kebab-case
 /// too. A request body member the record does not declare fails the read: a misspelled or differently
 /// cased scope would otherwise vanish and widen the verb to its default, as an outbox discard to every
@@ -108,7 +108,7 @@ namespace Acta.AspNetCore;
 [JsonSerializable(typeof(EnqueueJobResponse))]
 [JsonSerializable(typeof(GetDefinitionInputTemplateResponse))]
 [JsonSerializable(typeof(ProblemDetails))]
-internal sealed partial class DashboardJsonContext : JsonSerializerContext;
+internal sealed partial class ActaApiJsonContext : JsonSerializerContext;
 
 /// <summary>
 /// Serializes <see cref="ControlAction"/> kebab-case ("applied", "not-found", "version-conflict"), as every
