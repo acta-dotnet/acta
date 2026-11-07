@@ -2,13 +2,14 @@
   import Icon from '../components/Icon.svelte';
   import JobRef from '../components/JobRef.svelte';
   import { get } from 'svelte/store';
-  import { createQuery } from '@tanstack/svelte-query';
+  import { createQuery, useQueryClient } from '@tanstack/svelte-query';
   import { api } from '../api';
-  import { capabilitiesQuery, can, Permission } from '../query.ts';
+  import { capabilitiesQuery, can, namespaceNamesQuery, Permission } from '../query.ts';
   import { hashParams, updateHashParams } from '../router';
   import { scope, setScope } from '../scope';
   import Page from '../components/Page.svelte';
   import ActaGrid from '../components/grid/ActaGrid.svelte';
+  import StateView from '../components/StateView.svelte';
   import StatusBadge from '../components/StatusBadge.svelte';
   import RelativeTime from '../components/RelativeTime.svelte';
   import FilterBar from '../components/FilterBar.svelte';
@@ -50,6 +51,14 @@
   }
   const capabilities = createQuery(() => capabilitiesQuery());
   let canControlNow = $derived(can(capabilities.data, Permission.enqueue));
+  // A job name or a deduplication key is looked up within one namespace: the scope, or the only one there is.
+  const queryClient = useQueryClient();
+  const namespaceNames = createQuery(() => namespaceNamesQuery());
+  const onlyNamespace = (names: string[] | undefined) => (names?.length === 1 ? names[0] : '');
+  let lookupNamespace = $derived($scope || onlyNamespace(namespaceNames.data));
+  let jobName = $derived($filters.jobName.trim());
+  // Until the namespace is known, a job name filter lists nothing rather than every job.
+  let jobNameWaits = $derived(jobName !== '' && !lookupNamespace);
   let jump = $state('');
   let jumpError = $state('');
   let showMore = $state(!!(initial.get('correlationKey') || initial.get('tags')));
@@ -70,13 +79,13 @@
   }
 
   // Active-filter chips: the namespace scope reads as a filter here (it narrows the list) and each
-  // chip removes exactly its own filter. jobName only applies within a namespace scope.
+  // chip removes exactly its own filter.
   let activeChips = $derived(
     [
       view ? { label: 'View', value: view === 'permanent' ? 'Permanent' : 'History', onRemove: clearView } : null,
       $scope ? { label: 'Namespace', value: $scope, onRemove: () => setScope('') } : null,
       $filters.status ? { label: 'Status', value: $filters.status, onRemove: () => filters.patch({ status: '' }) } : null,
-      $scope && $filters.jobName.trim() ? { label: 'Job name', value: $filters.jobName.trim(), onRemove: () => filters.patch({ jobName: '' }) } : null,
+      jobName ? { label: 'Job name', value: jobName, onRemove: () => filters.patch({ jobName: '' }) } : null,
       $filters.correlationKey.trim() ? { label: 'Correlation', value: $filters.correlationKey.trim(), onRemove: () => filters.patch({ correlationKey: '' }) } : null,
       $filters.tenantName ? { label: 'Tenant', value: $filters.tenantName, onRemove: clearTenant } : null,
       $filters.lane ? { label: 'Lane', value: $filters.lane, onRemove: () => filters.patch({ lane: '' }) } : null,
@@ -90,13 +99,13 @@
   }
 
   // The applied filters as ad-hoc SQL against the jobs operator view (mirrors the grid filters below;
-  // tags are omitted, they are not a jobs_view column).
+  // tags are omitted, they are not a jobs_view column, and a job name with no namespace yet matches in every one).
   let copySql = $derived(
     jobsListSql(
       {
-        namespace: $scope,
+        namespace: jobName ? lookupNamespace : $scope,
         status: $filters.status,
-        jobName: $scope ? $filters.jobName.trim() : '',
+        jobName,
         correlationKey: $filters.correlationKey.trim(),
         tenantName: $filters.tenantName,
         lane: $filters.lane
@@ -123,13 +132,14 @@
       location.hash = routes.job(value, { namespace: get(scope) });
       return;
     }
-    // Anything else is an deduplication key, resolved within the selected namespace scope.
-    if (!get(scope)) {
-      jumpError = 'Select a namespace scope to look up an deduplication key.';
-      return;
-    }
+    // Anything else is a deduplication key, resolved within the lookup namespace once the namespaces are read.
     try {
-      const job = await api<{ jobRef: string }>('jobs/by-deduplication-key', { jobNamespace: get(scope), deduplicationKey: value });
+      const jobNamespace = get(scope) || onlyNamespace(await queryClient.fetchQuery(namespaceNamesQuery()));
+      if (!jobNamespace) {
+        jumpError = 'Select a namespace scope to look up a deduplication key.';
+        return;
+      }
+      const job = await api<{ jobRef: string }>('jobs/by-deduplication-key', { jobNamespace, deduplicationKey: value });
       location.hash = routes.job(job.jobRef, { namespace: get(scope) });
     } catch (e) {
       jumpError = e instanceof Error ? e.message : String(e);
@@ -156,8 +166,8 @@
       <label>
         Job name
         <input
-          placeholder={$scope ? 'job name' : 'needs a namespace scope'}
-          disabled={!$scope}
+          placeholder={lookupNamespace ? 'job name' : 'needs a namespace scope'}
+          disabled={!lookupNamespace}
           value={$filters.jobName}
           onchange={(event) => filters.patch({ jobName: event.currentTarget.value.trim() })} />
       </label>
@@ -212,31 +222,40 @@
     {#snippet nextRunCell(job: JobRow)}<RelativeTime value={TERMINAL_STATUSES.includes(job.status) ? null : job.nextRunAtUtc} />{/snippet}
     {#snippet attemptsCell(job: JobRow)}{displayFormatter.number(job.executionNumber)}{job.failureCount > 0 ? ' (' + failureCountText(job.failureCount) + ' failed)' : ''}{/snippet}
 
-    <ActaGrid
-      rowKey={(job: JobRow) => job.jobRef}
-      endpoint="jobs"
-      mobileCards={true}
-      {columns}
-      filters={() => ({
-        status: $filters.status,
-        jobName: $scope ? $filters.jobName.trim() : '',
-        correlationKey: $filters.correlationKey.trim(),
-        jobNamespace: $scope,
-        tenantName: $filters.tenantName,
-        lane: $filters.lane,
-        tag: parseTagTokens($filters.tags),
-        terminalOnly: view === 'history' ? 'true' : '',
-        kind: view === 'permanent' ? 'permanent' : ''
-      })}
-      countMode="on-demand"
-      initialPageSize={Number(initial.get('pageSize') ?? '50') || 50}
-      onPageSizeChange={(size) => updateHashParams({ pageSize: String(size) })}
-      loadingText="Loading jobs..."
-      emptyText={activeChips.length > 0
-        ? 'No jobs match these ' + displayFormatter.number(activeChips.length) + ' filters. Remove a chip above to widen the search.'
-        : 'No jobs yet. Mark a handler method with [Job("name")] and call jobs.EnqueueAsync(input); the row appears here the moment the enqueue commits.'}
-      cells={{ jobRef: refCell, job: jobCell, status: statusCell, tenant: tenantCell, createdAtUtc: ageCell, nextRunAtUtc: nextRunCell, attempts: attemptsCell }}
-      rowClass={(job: JobRow) => (job.status === 'failed' ? 'trouble' : job.status === 'paused' ? 'held' : '')} />
+    {#if jobNameWaits}
+      <StateView
+        loading={namespaceNames.isPending}
+        error={namespaceNames.error?.message ?? null}
+        loadingText="Loading jobs..."
+        emptyText="Select a namespace scope to filter by job name, or remove the job name filter."
+        onRetry={() => namespaceNames.refetch()} />
+    {:else}
+      <ActaGrid
+        rowKey={(job: JobRow) => job.jobRef}
+        endpoint="jobs"
+        mobileCards={true}
+        {columns}
+        filters={() => ({
+          status: $filters.status,
+          jobName,
+          correlationKey: $filters.correlationKey.trim(),
+          jobNamespace: jobName ? lookupNamespace : $scope,
+          tenantName: $filters.tenantName,
+          lane: $filters.lane,
+          tag: parseTagTokens($filters.tags),
+          terminalOnly: view === 'history' ? 'true' : '',
+          kind: view === 'permanent' ? 'permanent' : ''
+        })}
+        countMode="on-demand"
+        initialPageSize={Number(initial.get('pageSize') ?? '50') || 50}
+        onPageSizeChange={(size) => updateHashParams({ pageSize: String(size) })}
+        loadingText="Loading jobs..."
+        emptyText={activeChips.length > 0
+          ? 'No jobs match these ' + displayFormatter.number(activeChips.length) + ' filters. Remove a chip above to widen the search.'
+          : 'No jobs yet. Mark a handler method with [Job("name")] and call jobs.EnqueueAsync(input); the row appears here the moment the enqueue commits.'}
+        cells={{ jobRef: refCell, job: jobCell, status: statusCell, tenant: tenantCell, createdAtUtc: ageCell, nextRunAtUtc: nextRunCell, attempts: attemptsCell }}
+        rowClass={(job: JobRow) => (job.status === 'failed' ? 'trouble' : job.status === 'paused' ? 'held' : '')} />
+    {/if}
   </div>
 </Page>
 

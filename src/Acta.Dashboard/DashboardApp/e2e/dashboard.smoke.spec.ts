@@ -115,6 +115,8 @@ async function mockDashboard(
     workers?: unknown[];
     // The rows the Jobs list reads; the one failed job unless a test names them.
     jobs?: unknown[];
+    // The namespaces the host has; billing alone unless a test names them.
+    namespaces?: string[];
     // The permissions capabilities say the caller holds; all four unless a test names them.
     permissions?: string[];
     // Set, a restart answers 403 as a revoked grant would.
@@ -145,7 +147,8 @@ async function mockDashboard(
       });
     }
     if (path === 'namespaces') {
-      return json(paged([{ jobNamespace: 'billing', status: 'active', ownerTeam: null, description: null, deploymentVersion: '1.6.2+5c0ffee', version: 1 }]));
+      const names = options.namespaces ?? ['billing'];
+      return json(paged(names.map((jobNamespace) => ({ jobNamespace, status: 'active', ownerTeam: null, description: null, deploymentVersion: '1.6.2+5c0ffee', version: 1 }))));
     }
     if (path === 'overview') {
       return json({
@@ -355,6 +358,66 @@ test('the Permanent jobs view lists jobs by the permanent kind code', async ({ p
   expect(new URL((await listRequest).url()).searchParams.get('kind')).toBe('permanent');
   await expect(page.getByRole('heading', { name: 'Permanent jobs' })).toBeVisible();
   await expect(nav).toHaveClass(/active/);
+});
+
+test('on a host with one namespace, the job name filter needs no scope', async ({ page }) => {
+  await mockDashboard(page, { controls: false });
+  await page.goto('/#/jobs');
+
+  const nameFilter = page.getByLabel('Job name');
+  await expect(nameFilter).toBeEnabled();
+  const filtered = page.waitForRequest((request) => {
+    const url = new URL(request.url());
+    return url.pathname.endsWith('/api/v1/jobs') && url.searchParams.get('jobName') === 'send-invoice';
+  });
+  await nameFilter.fill('send-invoice');
+  await nameFilter.press('Enter');
+
+  expect(new URL((await filtered).url()).searchParams.get('jobNamespace')).toBe('billing');
+  await expect(page.getByText('1 filter active')).toBeVisible();
+});
+
+// The job name of every jobs list read the page sends; null for a read that filters on none.
+function jobNameReads(page: Page): (string | null)[] {
+  const names: (string | null)[] = [];
+  page.on('request', (request) => {
+    const url = new URL(request.url());
+    if (url.pathname.endsWith('/api/v1/jobs') && request.method() === 'GET') names.push(url.searchParams.get('jobName'));
+  });
+  return names;
+}
+
+test('a reloaded job name filter on a one-namespace host never lists every job', async ({ page }) => {
+  await mockDashboard(page, { controls: false });
+  const reads = jobNameReads(page);
+  const filtered = page.waitForRequest((request) => {
+    const url = new URL(request.url());
+    return url.pathname.endsWith('/api/v1/jobs') && url.searchParams.get('jobName') === 'send-invoice';
+  });
+  await page.goto('/#/jobs?jobName=send-invoice');
+
+  expect(new URL((await filtered).url()).searchParams.get('jobNamespace')).toBe('billing');
+  await expect(page.getByText('1 filter active')).toBeVisible();
+  expect(reads).not.toContain(null);
+
+  const lookup = page.waitForRequest((request) => new URL(request.url()).pathname.endsWith('/api/v1/jobs/by-deduplication-key'));
+  await page.getByLabel('Jump to').fill('invoice-42');
+  await page.getByLabel('Jump to').press('Enter');
+  expect(new URL((await lookup).url()).searchParams.get('jobNamespace')).toBe('billing');
+});
+
+test('a reloaded job name filter with several namespaces and no scope asks for one', async ({ page }) => {
+  await mockDashboard(page, { controls: false, namespaces: ['billing', 'shipping'] });
+  const reads = jobNameReads(page);
+  await page.goto('/#/jobs?jobName=send-invoice');
+
+  await expect(page.getByText('Select a namespace scope to filter by job name')).toBeVisible();
+  await expect(page.getByText('1 filter active')).toBeVisible();
+  expect(reads).toEqual([]);
+
+  await page.getByLabel('Jump to').fill('invoice-42');
+  await page.getByLabel('Jump to').press('Enter');
+  await expect(page.getByText('Select a namespace scope to look up a deduplication key.')).toBeVisible();
 });
 
 test('quick search finds definitions by fragment and jumps to a pasted job ref', async ({ page }) => {

@@ -1,13 +1,12 @@
 <script lang="ts">
   import { createQuery } from '@tanstack/svelte-query';
-  import { api, enqueueJob, getDefinitionInputTemplate, getJobInputJson, type JobPayloadView, type NamespaceListItem, type Paged } from '../api.ts';
-  import { capabilitiesQuery, can, Permission, keys } from '../query.ts';
+  import { api, enqueueJob, getDefinitionInputTemplate, getJobInputJson, type JobPayloadView, type Paged } from '../api.ts';
+  import { capabilitiesQuery, can, Permission, keys, namespaceNamesQuery } from '../query.ts';
   import { hashParams } from '../router.ts';
   import { cloneInputState, enqueueInputFields, inputContractLabel, templateSeed } from './enqueueTemplate.ts';
   import { checkKey, keyHint } from './enqueueKeys.ts';
   import { checkName, checkTags, TAG_LIMITS, type TagDraft } from './enqueueNames.ts';
   import { readAllPages } from '../lib/pagedWalk.ts';
-  import { isSysNamespace } from './namespaceAdmin.ts';
   import { scope } from '../scope.ts';
   import { routes } from '../routes.ts';
   import Page from '../components/Page.svelte';
@@ -44,15 +43,7 @@
 
   // Both identifiers are picked, never typed: enqueue resolves namespace and job name against the
   // registered catalog and rejects anything else, so free text could only produce a failed request.
-  const namespacesQuery = createQuery(() => ({
-    queryKey: keys.list('enqueue-namespaces', {}),
-    queryFn: async ({ signal }: { signal: AbortSignal }) => {
-      const all = await readAllPages((cursor) => api<Paged<NamespaceListItem>>('namespaces', { pageSize: 100, cursor }, { signal }));
-      return all.filter((item) => !isSysNamespace(item.jobNamespace)).map((item) => item.jobNamespace);
-    },
-    enabled: canControlNow,
-    staleTime: 60_000
-  }));
+  const namespacesQuery = createQuery(() => ({ ...namespaceNamesQuery(), enabled: canControlNow }));
   let namespaceNames = $derived(namespacesQuery.data ?? []);
 
   // Retired definitions reject enqueue, so the picker offers active ones only. The server pages at 100, so the

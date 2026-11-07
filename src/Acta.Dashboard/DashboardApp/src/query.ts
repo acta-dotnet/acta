@@ -2,7 +2,9 @@
 // list pages. Imports only @tanstack/query-core so node --test can load it without the Svelte
 // compiler; components get createQuery/createInfiniteQuery from @tanstack/svelte-query.
 import { QueryClient, keepPreviousData } from '@tanstack/query-core';
-import { api, ApiError, fetchCapabilities, type Capabilities, type Paged } from './api.ts';
+import { api, ApiError, fetchCapabilities, type Capabilities, type NamespaceListItem, type Paged } from './api.ts';
+import { readAllPages } from './lib/pagedWalk.ts';
+import { isSysNamespace } from './routes/namespaceAdmin.ts';
 
 // One refresh cadence for every polled list. TanStack's default refetchIntervalInBackground=false
 // skips ticks while the tab is unfocused.
@@ -40,6 +42,18 @@ export function capabilitiesQuery() {
     queryFn: ({ signal }: { signal: AbortSignal }) => fetchCapabilities({ signal }),
     staleTime: 60_000,
     refetchOnWindowFocus: 'always' as const
+  };
+}
+
+// The namespaces a scope can name, read whole: every one but the reserved sys namespace, which holds no jobs.
+export function namespaceNamesQuery() {
+  return {
+    queryKey: keys.list('namespace-names', {}),
+    queryFn: async ({ signal }: { signal: AbortSignal }) => {
+      const all = await readAllPages((cursor) => api<Paged<NamespaceListItem>>('namespaces', { pageSize: 100, cursor }, { signal }));
+      return all.filter((item) => !isSysNamespace(item.jobNamespace)).map((item) => item.jobNamespace);
+    },
+    staleTime: 60_000
   };
 }
 
