@@ -1,6 +1,6 @@
 import { afterEach, beforeAll, vi } from 'vitest';
 import { cleanup } from '@testing-library/svelte';
-import { online } from './api.ts';
+import { online, resetSessionForTests } from './api.ts';
 import { livePaused } from './polling.ts';
 
 beforeAll(() => {
@@ -15,6 +15,7 @@ beforeAll(() => {
 afterEach(() => {
   cleanup();
   online.set(true);
+  resetSessionForTests();
   livePaused.set(false);
   vi.restoreAllMocks();
   vi.unstubAllGlobals();

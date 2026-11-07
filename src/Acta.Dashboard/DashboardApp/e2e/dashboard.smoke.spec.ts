@@ -113,6 +113,10 @@ async function mockDashboard(
     onDiscard?: (body: unknown) => void;
     // The rows the Workers list reads; none unless a test names them.
     workers?: unknown[];
+    // While it answers true, every call answers 401 with no body, as an API route does for a lapsed sign-in.
+    sessionEnded?: () => boolean;
+    // Sees the path of every call, so a test can count what the page sent.
+    onRequest?: (path: string) => void;
   }
 ): Promise<void> {
   await page.route('**/api/v1/**', async (route: Route) => {
@@ -120,6 +124,10 @@ async function mockDashboard(
     const url = new URL(request.url());
     const path = url.pathname.split('/api/v1/')[1] ?? '';
     const json = (body: unknown, status = 200) => route.fulfill({ status, contentType: 'application/json', body: JSON.stringify(body) });
+    options.onRequest?.(path);
+    if (options.sessionEnded?.()) {
+      return route.fulfill({ status: 401, body: '' });
+    }
 
     if (path === 'capabilities') {
       return json({ controlsEnabled: options.controls, engineVersion: 'test', provider: 'mock', confirmationHeader: 'X-Acta-Control' });
@@ -478,6 +486,37 @@ test('the enqueue form sends lane, concurrency key, and tags as the server would
       { name: 'review-needed', value: null }
     ]
   });
+});
+
+test('an ended session shows one banner and sends nothing more until reload', async ({ page }) => {
+  let ended = false;
+  let sentAfter = 0;
+  await mockDashboard(page, {
+    controls: true,
+    sessionEnded: () => ended,
+    onRequest: () => {
+      if (ended) sentAfter++;
+    }
+  });
+  await page.goto('/#/jobs');
+  await expect(page.getByRole('link', { name: jobRef }).first()).toBeVisible();
+
+  ended = true;
+  await page.getByRole('button', { name: 'Refresh now' }).first().click();
+  const banner = page.locator('.session-banner');
+  await expect(banner).toContainText('Your session has ended. Reload to sign in again.');
+  await expect(banner.getByRole('button', { name: 'Reload' })).toBeVisible();
+  await expect(page.getByText('Session ended').first()).toBeVisible();
+  // Calls already in flight when the first 401 landed may still arrive; none starts after it.
+  await page.waitForTimeout(300);
+  const first = sentAfter;
+  expect(first).toBeGreaterThan(0);
+
+  // Past the query retry delay and after a focus nothing is sent, and the freshness buttons are disabled.
+  await page.evaluate(() => window.dispatchEvent(new Event('focus')));
+  await page.waitForTimeout(2_500);
+  await expect(page.getByRole('button', { name: 'Refresh now' }).first()).toBeDisabled();
+  expect(sentAfter).toBe(first);
 });
 
 test('read-only deployment hides controls and rejects a direct request', async ({ page }) => {

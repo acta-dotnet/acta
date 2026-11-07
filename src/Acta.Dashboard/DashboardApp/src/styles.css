@@ -256,6 +256,26 @@ nav.side a:focus-visible,
   font-weight: 600;
 }
 
+.session-banner {
+  position: sticky;
+  top: 0;
+  z-index: 30;
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px 16px;
+  background: var(--warn);
+  color: var(--on-warn);
+  padding: 10px 28px;
+  font-weight: 600;
+}
+
+.session-banner button {
+  color: inherit;
+  background: transparent;
+  border: 1px solid currentColor;
+}
+
 .mode-chip {
   display: inline-flex;
   align-self: flex-start;   /* a flex item of the brand column would otherwise stretch full-width */

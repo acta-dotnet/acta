@@ -104,6 +104,7 @@ Not tagged yet.
 
 ### Fixes
 
+- Under `RequirePermissions`, a dashboard whose sign-in lapsed showed "HTTP 401" in every grid and control and kept polling. The first 401 now shows one banner with a Reload button, and the page sends nothing more until it reloads.
 - A cancel, a retire, or crash recovery raises the parent's child latch in a call after its own commit. A child restarted and succeeded in between had its Succeeded latch overwritten by that late raise, so the parent took the cancelled or failed branch while the child stood Succeeded. The raise now writes nothing when the child holds another status, and names no execution, so a parent whose child succeeded again reads the newer result.
 - On PostgreSQL, a signal raised while a bounded wait on it expired could overwrite the Expired checkpoint with Set, so a wait that had answered TimedOut replayed as signalled. The raise reads the checkpoint again once it holds the job.
 - A schedule a deploy bound to a calendar while that calendar was being published kept the old version's cursor, with no next occurrence when the old version was exhausted. The publication now plans again when a schedule naming the family appears, and a deploy that binds a shared calendar waits for its publication.

@@ -2,7 +2,7 @@
   // A compact "is what I'm looking at current?" strip for a query. Visual timestamps use the shared
   // opt-in second clock; the live region below only reports meaningful state transitions.
   import { secondNow } from '../time';
-  import { online } from '../api';
+  import { online, sessionExpired } from '../api';
   import { livePaused } from '../polling';
   import { displayFormatter } from '../format';
   import Icon from './Icon.svelte';
@@ -31,6 +31,7 @@
   let previousPaused = false;
 
   let label = $derived.by(() => {
+    if ($sessionExpired) return 'Session ended';
     if (!$online) return stampIso ? 'Offline, showing data from ' + displayFormatter.timestamp(stampIso) : 'Offline';
     if (polling && $livePaused) return 'Live updates paused';
     if (isFetching) return 'Updating…';
@@ -40,7 +41,7 @@
   });
 
   // Dot color tracks the worst active condition so the status reads at a glance.
-  let dotKind = $derived(!$online || isError ? 'bad' : polling && $livePaused ? 'paused' : isFetching ? 'live' : 'ok');
+  let dotKind = $derived(!$online || isError || $sessionExpired ? 'bad' : polling && $livePaused ? 'paused' : isFetching ? 'live' : 'ok');
 
   $effect(() => {
     const currentOnline = $online;
@@ -69,12 +70,13 @@
 <div class="freshness">
   <span class="freshness-dot {dotKind}" aria-hidden="true"></span>
   <span class="freshness-label">{label}</span>
-  <button class="iconly" title="Refresh now" aria-label="Refresh now" onclick={() => onRefresh()}>
+  <button class="iconly" title="Refresh now" aria-label="Refresh now" disabled={$sessionExpired} onclick={() => onRefresh()}>
     <Icon name="reload" />
   </button>
   {#if polling}
     <button
       class="iconly"
+      disabled={$sessionExpired}
       title={$livePaused ? 'Resume live updates' : 'Pause live updates'}
       aria-label={$livePaused ? 'Resume live updates' : 'Pause live updates'}
       aria-pressed={$livePaused}

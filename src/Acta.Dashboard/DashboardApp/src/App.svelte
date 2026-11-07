@@ -2,7 +2,7 @@
   import { onMount } from 'svelte';
   import { hashParams, route } from './router';
   import { scope } from './scope';
-  import { api, online } from './api';
+  import { api, online, sessionExpired } from './api';
   import ScopeSelector from './components/ScopeSelector.svelte';
   import AppearanceMenu from './components/AppearanceMenu.svelte';
   import QuickSearch from './components/QuickSearch.svelte';
@@ -88,7 +88,12 @@
 </script>
 
 <QueryClientProvider client={queryClient}>
-{#if !$online}
+{#if $sessionExpired}
+  <div class="session-banner" role="alert">
+    <span>Your session has ended. Reload to sign in again.</span>
+    <button onclick={() => location.reload()}>Reload</button>
+  </div>
+{:else if !$online}
   <div class="offline-banner" role="status">
     Acta dashboard backend offline: the dashboard process is not responding. Reconnecting automatically.
   </div>

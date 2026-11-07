@@ -1,4 +1,6 @@
 <script>
+  import { sessionExpired } from '../api';
+
   let {
     loading = false,
     error = null,
@@ -26,6 +28,8 @@
 
 {#if loading}
   {#if showLoading}<div class="state">{loadingText}</div>{/if}
+{:else if error && $sessionExpired}
+  <!-- The session banner says what happened; a grid repeating it would only add noise. -->
 {:else if error}
   <div class="state error" role="alert">
     <span>{error}</span>

@@ -2,17 +2,22 @@
 // list pages. Imports only @tanstack/query-core so node --test can load it without the Svelte
 // compiler; components get createQuery/createInfiniteQuery from @tanstack/svelte-query.
 import { QueryClient, keepPreviousData } from '@tanstack/query-core';
-import { api, fetchCapabilities, type Capabilities, type Paged } from './api.ts';
+import { api, ApiError, fetchCapabilities, type Capabilities, type Paged } from './api.ts';
 
 // One refresh cadence for every polled list. TanStack's default refetchIntervalInBackground=false
 // skips ticks while the tab is unfocused.
 export const LIST_REFETCH_MS = 10_000;
 
 // retry 1: the API maps backend faults to 503 ProblemDetails, so a single retry rides out a
-// transient hiccup without hammering a database that is actually down.
+// transient hiccup without hammering a database that is actually down. A 401 is never retried: the
+// session has ended, and only a reload signs in again.
+export function retryOnce(failureCount: number, error: unknown): boolean {
+  return failureCount < 1 && !(error instanceof ApiError && error.status === 401);
+}
+
 export function createAppQueryClient(): QueryClient {
   return new QueryClient({
-    defaultOptions: { queries: { staleTime: 5_000, retry: 1 } }
+    defaultOptions: { queries: { staleTime: 5_000, retry: retryOnce } }
   });
 }
 

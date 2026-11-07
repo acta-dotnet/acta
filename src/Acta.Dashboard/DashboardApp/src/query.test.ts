@@ -1,7 +1,8 @@
 // Run with Node's built-in test runner + native type-stripping (see "npm test").
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { canControl, capabilitiesQuery, keys, listPage } from './query.ts';
+import { canControl, capabilitiesQuery, keys, listPage, retryOnce } from './query.ts';
+import { ApiError } from './api.ts';
 import { DETAIL_REFETCH_MS, detailRefetchInterval } from './polling.ts';
 
 test('list keys drop blank filter values so blank and missing agree', () => {
@@ -47,4 +48,11 @@ test('detail polling stops when live updates are paused or the entity is inactiv
   assert.equal(detailRefetchInterval(true, false), DETAIL_REFETCH_MS);
   assert.equal(detailRefetchInterval(true, true), false);
   assert.equal(detailRefetchInterval(false, false), false);
+});
+
+test('a query retries once, but never a 401', () => {
+  assert.equal(retryOnce(0, new ApiError(503, 'Unavailable', null, null)), true);
+  assert.equal(retryOnce(1, new ApiError(503, 'Unavailable', null, null)), false);
+  assert.equal(retryOnce(0, new ApiError(401, null, null, null)), false);
+  assert.equal(retryOnce(0, new Error('network')), true);
 });

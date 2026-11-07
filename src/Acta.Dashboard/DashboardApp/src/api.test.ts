@@ -1,7 +1,7 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { get } from 'svelte/store';
-import { api, ApiError, controlRequest, getJobInputJson, getNamespace, online } from './api.ts';
+import { api, ApiError, controlRequest, getJobInputJson, getNamespace, online, resetSessionForTests, sessionExpired } from './api.ts';
 
 (globalThis as unknown as { document: { baseURI: string } }).document = {
   baseURI: 'http://localhost/acta/'
@@ -207,4 +207,26 @@ test('getJobInputJson reads the stored json input as text and answers null for e
     (error: unknown) => error instanceof ApiError && error.status === 400 && error.detail === 'jobRef is not a valid job ref.'
   );
   assert.equal(requested[0], '/acta/api/v1/jobs/job_1/input');
+});
+
+// Last in the file: the session gate is module state, so this test resets it on the way out.
+test('a 401 ends the session: later calls fail without a request until the page reloads', async () => {
+  let calls = 0;
+  globalThis.fetch = (async () => {
+    calls++;
+    return new Response('', { status: 401 });
+  }) as typeof fetch;
+  const ended = (error: unknown) =>
+    error instanceof ApiError && error.status === 401 && error.message === 'Reload to sign in again.';
+
+  try {
+    await assert.rejects(() => api('jobs'), ended);
+    assert.equal(get(sessionExpired), true);
+    await assert.rejects(() => api('overview'), ended);
+    await assert.rejects(() => controlRequest('jobs/J1/pause', {}, { action: 'not-found' }), ended);
+    await assert.rejects(() => getJobInputJson('job_1'), ended);
+    assert.equal(calls, 1);
+  } finally {
+    resetSessionForTests();
+  }
 });

@@ -5,6 +5,16 @@ import type { JobDetail, JobExplanation, JobLineage, JobWorker } from './routes/
 
 export const online = writable(true);
 
+// Set by the first 401: the host's sign-in no longer covers this page. From then every call fails here, without a
+// request, until the page reloads and the host's scheme challenges it.
+export const sessionExpired = writable(false);
+let expired = false;
+
+export function resetSessionForTests(): void {
+  expired = false;
+  sessionExpired.set(false);
+}
+
 export class ApiError extends Error {
   readonly status: number;
   readonly title: string | null;
@@ -84,8 +94,13 @@ function apiUrl(path: string, query: Record<string, unknown> = {}): URL {
   return url;
 }
 
-// A network failure marks the dashboard offline; any answer marks it online again.
+function sessionError(): ApiError {
+  return new ApiError(401, 'Your session has ended.', 'Reload to sign in again.', null);
+}
+
+// A network failure marks the dashboard offline; any answer marks it online again. A 401 ends the session.
 async function send(url: URL, init: RequestInit): Promise<Response> {
+  if (expired) throw sessionError();
   let response: Response;
   try {
     response = await fetch(url, init);
@@ -96,6 +111,10 @@ async function send(url: URL, init: RequestInit): Promise<Response> {
 
   online.set(true);
   advanceNow();
+  if (response.status === 401) {
+    expired = true;
+    sessionExpired.set(true);
+  }
   return response;
 }
 
@@ -112,6 +131,7 @@ async function request<T>(options: RequestOptions): Promise<{ response: Response
   });
   const parsed = await parseJson(response);
   const accepted = response.ok || options.acceptedStatuses?.includes(response.status) === true;
+  if (response.status === 401) throw sessionError();
   if (!accepted) {
     throw new ApiError(
       response.status,
@@ -702,6 +722,7 @@ export async function getDefinitionInputTemplate(
 export async function getJobInputJson(jobRef: string, options: { signal?: AbortSignal } = {}): Promise<string | null> {
   const response = await send(apiUrl(`jobs/${encodeURIComponent(jobRef)}/input`), { signal: options.signal });
   if (response.status === 204 || response.status === 404) return null;
+  if (response.status === 401) throw sessionError();
   if (!response.ok) {
     const problem = (await parseJson(response)).body;
     throw new ApiError(
