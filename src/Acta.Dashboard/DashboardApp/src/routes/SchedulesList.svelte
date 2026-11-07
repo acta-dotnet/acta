@@ -82,7 +82,7 @@
 
   // Every evaluation status but the normal ones is worth a badge; the two the engine cannot get past warn.
   const QUIET_EVALUATIONS = ['scheduled', 'resumed', 'unspecified'];
-  const WARN_EVALUATIONS = ['evaluation-error', 'slot-unavailable'];
+  const WARN_EVALUATIONS = ['evaluation-error', 'job-unavailable'];
 
   function jobsHref(schedule: ScheduleRow): string {
     return routes.jobs({ jobName: schedule.jobName, namespace: schedule.jobNamespace });

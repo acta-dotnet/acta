@@ -100,7 +100,7 @@ SET
     version = version + 1
 WHERE
     schedule_id IN (SELECT js.schedule_id FROM {{schema}}.schedules js WHERE js.job_id = @p_job_id)
-    AND evaluation_status_code IN (20 /* ScheduleEvaluationStatusCode.WaitingForCapacity */, 50 /* ScheduleEvaluationStatusCode.SlotUnavailable */)
+    AND evaluation_status_code IN (20 /* ScheduleEvaluationStatusCode.WaitingForCapacity */, 50 /* ScheduleEvaluationStatusCode.JobUnavailable */)
     AND EXISTS (
         SELECT 1
         FROM temp._resume_job s

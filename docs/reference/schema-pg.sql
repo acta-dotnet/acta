@@ -41,14 +41,14 @@ DO $$
 BEGIN
     IF EXISTS (
         SELECT 1 FROM acta.migrations
-        WHERE name NOT IN ('M20261107113646_init')
+        WHERE name NOT IN ('M20261107115643_init')
     ) THEN
         RAISE EXCEPTION 'A newer Acta release already upgraded this database. Run the newest provisioning script; this one would move it backwards.';
     END IF;
 END
 $$;
 
--- ===== BEGIN M20261107113646_init =====
+-- ===== BEGIN M20261107115643_init =====
 CREATE SCHEMA IF NOT EXISTS acta;
 
 -- alerts
@@ -1203,7 +1203,7 @@ BEGIN
             st.schedule_id = js.schedule_id
             AND c.job_id = ANY (v_done)
             AND c.final_job_status_code IN (40 /* JobStatusCode.Idle */, 200 /* JobStatusCode.Failed */, 220 /* JobStatusCode.Cancelled */)
-            AND st.evaluation_status_code IN (20 /* ScheduleEvaluationStatusCode.WaitingForCapacity */, 50 /* ScheduleEvaluationStatusCode.SlotUnavailable */);
+            AND st.evaluation_status_code IN (20 /* ScheduleEvaluationStatusCode.WaitingForCapacity */, 50 /* ScheduleEvaluationStatusCode.JobUnavailable */);
 
         /* The envelope settles once: a slot's when the slot lands Idle, Failed, or Cancelled, a charged root's when the
            root lands terminal, the status its own row now holds. */
@@ -3554,11 +3554,11 @@ BEGIN
             outstanding_count = st.outstanding_count - k.released,
             next_evaluation_at_utc = CASE
                 WHEN k.paused THEN NULL
-                WHEN k.wake AND st.evaluation_status_code IN (20 /* ScheduleEvaluationStatusCode.WaitingForCapacity */, 50 /* ScheduleEvaluationStatusCode.SlotUnavailable */) THEN now()
+                WHEN k.wake AND st.evaluation_status_code IN (20 /* ScheduleEvaluationStatusCode.WaitingForCapacity */, 50 /* ScheduleEvaluationStatusCode.JobUnavailable */) THEN now()
                 ELSE st.next_evaluation_at_utc
             END,
             evaluation_status_code = CASE
-                WHEN NOT k.paused AND k.wake AND st.evaluation_status_code IN (20 /* ScheduleEvaluationStatusCode.WaitingForCapacity */, 50 /* ScheduleEvaluationStatusCode.SlotUnavailable */)
+                WHEN NOT k.paused AND k.wake AND st.evaluation_status_code IN (20 /* ScheduleEvaluationStatusCode.WaitingForCapacity */, 50 /* ScheduleEvaluationStatusCode.JobUnavailable */)
                     THEN 10 /* ScheduleEvaluationStatusCode.Scheduled */
                 ELSE st.evaluation_status_code
             END,
@@ -3586,7 +3586,7 @@ BEGIN
             AND (
                 k.released > 0
                 OR k.paused
-                OR st.evaluation_status_code IN (20 /* ScheduleEvaluationStatusCode.WaitingForCapacity */, 50 /* ScheduleEvaluationStatusCode.SlotUnavailable */)
+                OR st.evaluation_status_code IN (20 /* ScheduleEvaluationStatusCode.WaitingForCapacity */, 50 /* ScheduleEvaluationStatusCode.JobUnavailable */)
             )
     ),
     policy_events AS (
@@ -4363,7 +4363,7 @@ SELECT
     s.misfire_strategy_code,
     st.next_occurrence_at_utc,
     st.next_evaluation_at_utc,
-    CASE st.evaluation_status_code WHEN 0 THEN 'unspecified' WHEN 10 THEN 'scheduled' WHEN 20 THEN 'waiting-for-capacity' WHEN 30 THEN 'exhausted' WHEN 40 THEN 'evaluation-error' WHEN 50 THEN 'slot-unavailable' WHEN 60 THEN 'resumed' END AS evaluation_status,
+    CASE st.evaluation_status_code WHEN 0 THEN 'unspecified' WHEN 10 THEN 'scheduled' WHEN 20 THEN 'waiting-for-capacity' WHEN 30 THEN 'exhausted' WHEN 40 THEN 'evaluation-error' WHEN 50 THEN 'job-unavailable' WHEN 60 THEN 'resumed' END AS evaluation_status,
     st.evaluation_status_code,
     CASE d.scheduled_delivery_code WHEN 0 THEN 'unspecified' WHEN 10 THEN 'permanent' WHEN 20 THEN 'per-occurrence' END AS scheduled_delivery,
     d.scheduled_delivery_code,
@@ -4450,10 +4450,10 @@ JOIN acta.namespaces AS ns ON ns.namespace_id = w.namespace_id;
 
 
 INSERT INTO acta.migrations (name)
-VALUES ('M20261107113646_init')
+VALUES ('M20261107115643_init')
 ON CONFLICT (name) DO NOTHING;
 
--- ===== END M20261107113646_init =====
+-- ===== END M20261107115643_init =====
 
 COMMIT;
 

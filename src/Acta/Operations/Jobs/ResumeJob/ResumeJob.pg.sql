@@ -97,7 +97,7 @@ WHERE
     AND s.to_status = 40 /* JobStatusCode.Idle */
     AND s.from_status = 30 /* JobStatusCode.Paused */
     AND (@p_expected_version IS NULL OR s.from_version = @p_expected_version)
-    AND st.evaluation_status_code IN (20 /* ScheduleEvaluationStatusCode.WaitingForCapacity */, 50 /* ScheduleEvaluationStatusCode.SlotUnavailable */);
+    AND st.evaluation_status_code IN (20 /* ScheduleEvaluationStatusCode.WaitingForCapacity */, 50 /* ScheduleEvaluationStatusCode.JobUnavailable */);
 
 INSERT INTO {{schema}}.events (
     event_code, created_at_utc, namespace_id,

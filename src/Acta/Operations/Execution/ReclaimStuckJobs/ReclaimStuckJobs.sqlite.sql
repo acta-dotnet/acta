@@ -281,7 +281,7 @@ SET
     modified_at_utc = {{now}},
     version = version + 1
 WHERE
-    evaluation_status_code IN (20 /* ScheduleEvaluationStatusCode.WaitingForCapacity */, 50 /* ScheduleEvaluationStatusCode.SlotUnavailable */)
+    evaluation_status_code IN (20 /* ScheduleEvaluationStatusCode.WaitingForCapacity */, 50 /* ScheduleEvaluationStatusCode.JobUnavailable */)
     AND schedule_id IN (
         SELECT js.schedule_id
         FROM {{schema}}.schedules js

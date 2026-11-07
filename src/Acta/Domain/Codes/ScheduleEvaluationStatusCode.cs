@@ -32,10 +32,10 @@ public enum ScheduleEvaluationStatusCode : byte
     EvaluationError = 40,
 
     [Code(
-        "slot-unavailable",
-        "An occurrence is due but the permanent slot is held, cancelled, or failed terminally; a job resume or restart wakes it."
+        "job-unavailable",
+        "An occurrence is due but the permanent job is held, cancelled, or failed terminally; a job resume or restart wakes it."
     )]
-    SlotUnavailable = 50,
+    JobUnavailable = 50,
 
     [Code(
         "resumed",

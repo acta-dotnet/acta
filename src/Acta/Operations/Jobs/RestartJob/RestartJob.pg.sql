@@ -195,7 +195,7 @@ WHERE
     AND js.job_id = @p_job_id
     AND s.action = 1 /* ControlAction.Applied */
     AND s.to_status = 40 /* JobStatusCode.Idle */
-    AND st.evaluation_status_code IN (20 /* ScheduleEvaluationStatusCode.WaitingForCapacity */, 50 /* ScheduleEvaluationStatusCode.SlotUnavailable */);
+    AND st.evaluation_status_code IN (20 /* ScheduleEvaluationStatusCode.WaitingForCapacity */, 50 /* ScheduleEvaluationStatusCode.JobUnavailable */);
 
 -- An exhausted step runs again from a fresh budget and retry window; an interrupted at-most-once step stays,
 -- since only someone who reconciled its outcome can say it may run again.

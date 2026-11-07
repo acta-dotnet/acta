@@ -115,7 +115,7 @@ public class ScheduleEvaluatorTests
         var d = Evaluate(EveryMinute, Active(Utc(10, 5)), Utc(10, 7), capacity: AdmissionCapacity.Unavailable);
 
         Assert.Null(d.Admit);
-        Assert.Equal(ScheduleEvaluationStatusCode.SlotUnavailable, d.Status);
+        Assert.Equal(ScheduleEvaluationStatusCode.JobUnavailable, d.Status);
         Assert.Null(d.NextEvaluationAtUtc);
     }
 

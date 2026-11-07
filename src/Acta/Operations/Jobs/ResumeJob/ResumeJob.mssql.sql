@@ -123,7 +123,7 @@ BEGIN TRY
         INNER JOIN {{schema}}.schedules js ON js.schedule_id = st.schedule_id
         WHERE
             js.job_id = @p_job_id
-            AND st.evaluation_status_code IN (20 /* ScheduleEvaluationStatusCode.WaitingForCapacity */, 50 /* ScheduleEvaluationStatusCode.SlotUnavailable */);
+            AND st.evaluation_status_code IN (20 /* ScheduleEvaluationStatusCode.WaitingForCapacity */, 50 /* ScheduleEvaluationStatusCode.JobUnavailable */);
 
     IF @event_recording = 20 /* EventRecordingCode.Audit */
         BEGIN

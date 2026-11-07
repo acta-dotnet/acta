@@ -116,7 +116,7 @@ internal static class ScheduleEvaluator
                 var parked =
                     capacity == AdmissionCapacity.Full
                         ? ScheduleEvaluationStatusCode.WaitingForCapacity
-                        : ScheduleEvaluationStatusCode.SlotUnavailable;
+                        : ScheduleEvaluationStatusCode.JobUnavailable;
                 return new ScheduleEvaluation(
                     null,
                     null,

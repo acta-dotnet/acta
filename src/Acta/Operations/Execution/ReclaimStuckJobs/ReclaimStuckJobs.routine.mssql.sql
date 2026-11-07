@@ -378,7 +378,7 @@ BEGIN
         INNER JOIN @reclaimed r ON r.job_id = js.job_id
         WHERE
             r.to_status_code = 40 /* JobStatusCode.Idle */
-            AND st.evaluation_status_code IN (20 /* ScheduleEvaluationStatusCode.WaitingForCapacity */, 50 /* ScheduleEvaluationStatusCode.SlotUnavailable */);
+            AND st.evaluation_status_code IN (20 /* ScheduleEvaluationStatusCode.WaitingForCapacity */, 50 /* ScheduleEvaluationStatusCode.JobUnavailable */);
 
         UPDATE st
         SET

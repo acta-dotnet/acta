@@ -374,7 +374,7 @@ This pattern makes raw values easier to scan in database rows, logs, and diagnos
 | `WaitingForCapacity` | 20 | `waiting-for-capacity` | An occurrence is due but the permanent slot is busy or the schedule is at its limit of outstanding occurrences; it fires when one of them ends. | Active |
 | `Exhausted` | 30 | `exhausted` | The schedule has no further occurrence; a change to its declaration or to its calendar reactivates it. | Active |
 | `EvaluationError` | 40 | `evaluation-error` | The schedule's expression or calendar could not be evaluated; the schedule keeps its place and the evaluation retries after a bounded delay. | Active |
-| `SlotUnavailable` | 50 | `slot-unavailable` | An occurrence is due but the permanent slot is held, cancelled, or failed terminally; a job resume or restart wakes it. | Active |
+| `JobUnavailable` | 50 | `job-unavailable` | An occurrence is due but the permanent job is held, cancelled, or failed terminally; a job resume or restart wakes it. | Active |
 | `Resumed` | 60 | `resumed` | An operator resumed the schedule; its first evaluation decides the backlog under the misfire policy and expires the stale part without pausing again. | Active |
 
 ### `ScheduleExpireActionCode` · `schedule-expire-action` <a id="code-family-scheduleexpireactioncode"></a>

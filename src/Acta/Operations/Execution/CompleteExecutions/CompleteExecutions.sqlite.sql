@@ -139,7 +139,7 @@ WHERE
     st.schedule_id = js.schedule_id
     AND d.to_status IN (40 /* JobStatusCode.Idle */, 200 /* JobStatusCode.Failed */, 220 /* JobStatusCode.Cancelled */)
     AND j.job_kind_code = 20 /* JobKindCode.Permanent */
-    AND st.evaluation_status_code IN (20 /* ScheduleEvaluationStatusCode.WaitingForCapacity */, 50 /* ScheduleEvaluationStatusCode.SlotUnavailable */);
+    AND st.evaluation_status_code IN (20 /* ScheduleEvaluationStatusCode.WaitingForCapacity */, 50 /* ScheduleEvaluationStatusCode.JobUnavailable */);
 
 /* The envelope settles once: a slot's when the slot lands Idle, Failed, or Cancelled, a charged root's when the root
    lands terminal. */

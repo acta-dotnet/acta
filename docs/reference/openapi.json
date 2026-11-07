@@ -16677,14 +16677,14 @@
           "scheduled"
         ],
         "type": "string",
-        "description": "Why a schedule's next evaluation is when it is: where the scheduling engine stands with one schedule, apart from the schedule's own status and from the status of the job it fires.\n\nKnown values:\n- unspecified: Evaluation status not recognized by this build; the row was written by a newer Acta.\n- scheduled: The next evaluation is the next nominal occurrence, or the end of a timed pause.\n- waiting-for-capacity: An occurrence is due but the permanent slot is busy or the schedule is at its limit of outstanding occurrences; it fires when one of them ends.\n- exhausted: The schedule has no further occurrence; a change to its declaration or to its calendar reactivates it.\n- evaluation-error: The schedule's expression or calendar could not be evaluated; the schedule keeps its place and the evaluation retries after a bounded delay.\n- slot-unavailable: An occurrence is due but the permanent slot is held, cancelled, or failed terminally; a job resume or restart wakes it.\n- resumed: An operator resumed the schedule; its first evaluation decides the backlog under the misfire policy and expires the stale part without pausing again.\n\nOther values may appear: keep a value this client does not know as it is.",
+        "description": "Why a schedule's next evaluation is when it is: where the scheduling engine stands with one schedule, apart from the schedule's own status and from the status of the job it fires.\n\nKnown values:\n- unspecified: Evaluation status not recognized by this build; the row was written by a newer Acta.\n- scheduled: The next evaluation is the next nominal occurrence, or the end of a timed pause.\n- waiting-for-capacity: An occurrence is due but the permanent slot is busy or the schedule is at its limit of outstanding occurrences; it fires when one of them ends.\n- exhausted: The schedule has no further occurrence; a change to its declaration or to its calendar reactivates it.\n- evaluation-error: The schedule's expression or calendar could not be evaluated; the schedule keeps its place and the evaluation retries after a bounded delay.\n- job-unavailable: An occurrence is due but the permanent job is held, cancelled, or failed terminally; a job resume or restart wakes it.\n- resumed: An operator resumed the schedule; its first evaluation decides the backlog under the misfire policy and expires the stale part without pausing again.\n\nOther values may appear: keep a value this client does not know as it is.",
         "x-acta-known-values": [
           "unspecified",
           "scheduled",
           "waiting-for-capacity",
           "exhausted",
           "evaluation-error",
-          "slot-unavailable",
+          "job-unavailable",
           "resumed"
         ]
       },

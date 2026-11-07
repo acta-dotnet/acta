@@ -2452,9 +2452,9 @@ sealed record Acta.ScheduleDescriptor
 enum Acta.ScheduleEvaluationStatusCode : System.Byte
     EvaluationError = 40
     Exhausted = 30
+    JobUnavailable = 50
     Resumed = 60
     Scheduled = 10
-    SlotUnavailable = 50
     Unspecified = 0
     WaitingForCapacity = 20
 static class Acta.ScheduleEvaluationStatusCodeExtensions
