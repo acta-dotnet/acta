@@ -249,9 +249,10 @@ dotnet remove package xunit
 dotnet add package xunit.v3 --version 3.2.2
 dotnet add reference ../Shipping/Shipping.csproj
 dotnet add package Acta.Testing --prerelease
+dotnet add package Acta.Sqlite --prerelease
 ```
 
-The test project sits beside the app's folder. The stock template installs xUnit 2 and the test uses xUnit v3 (`TestContext.Current`), so the package is swapped; version 3.2.2 runs under plain `dotnet test`, where the 4.x line first needs the Microsoft Testing Platform switched on.
+The test project sits beside the app's folder. The stock template installs xUnit 2 and the test uses xUnit v3 (`TestContext.Current`), so the package is swapped; version 3.2.2 runs under plain `dotnet test`, where the 4.x line first needs the Microsoft Testing Platform switched on. The test registers SQLite and calls `SqliteConnection` itself, so it references `Acta.Sqlite` directly, not through the app, and keeps building when the app moves to another provider.
 
 ```csharp
 // File: ShippingTests.cs
@@ -357,8 +358,9 @@ dotnet test
 deploys the manifest's jobs, but starts no claim loop. `RunOnceAsync(job)` claims and runs exactly that job
 and answers what the tick did: `Completed`, `Failed`, `Rearmed` (re-armed for a later attempt), or
 `NothingClaimed`. The printer is the app's own class, swapped in through `ConfigureServices` as the
-singleton the handler resolves. The same test runs unchanged on PostgreSQL or SQL Server by swapping
-the provider registration; see [Testing custom jobs](./developer-guide.md#testing-custom-jobs) for
+singleton the handler resolves. The same facts run on PostgreSQL or SQL Server: reference that
+provider in place of `Acta.Sqlite`, register it on the host's throwaway schema, and drop the file
+cleanup; [Testing custom jobs](./developer-guide.md#testing-custom-jobs) shows that setup, with
 retries, signals, timers, and crash recovery.
 
 ## Without a web host

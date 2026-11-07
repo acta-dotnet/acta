@@ -69,7 +69,7 @@ curl -X POST http://localhost:5090/orders/1042
 # the app prints: Shipping order 1042
 ```
 
-The endpoint answers `202 Accepted` with the job's ref once the row is stored, and a worker in the same process runs it. Swap the package and `UseSqlite` for `UsePostgres` or `UseSqlServer`, point the connection string at your server, and nothing else changes.
+The endpoint answers `202 Accepted` with the job's ref once the row is stored, and a worker in the same process runs it. Swap the package and the `using` for `Acta.Postgres` or `Acta.SqlServer` and `UseSqlite` for `UsePostgres` or `UseSqlServer`, point the connection string at your server, and nothing else changes.
 
 ## The row it leaves
 
