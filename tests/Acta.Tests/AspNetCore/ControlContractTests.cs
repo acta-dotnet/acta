@@ -450,7 +450,7 @@ public sealed class ControlContractTests
                 new
                 {
                     expectedVersion,
-                    overrides = new { },
+                    overrides = new DefinitionPolicyOverrides(),
                     reasonMessage = "because",
                 },
                 version

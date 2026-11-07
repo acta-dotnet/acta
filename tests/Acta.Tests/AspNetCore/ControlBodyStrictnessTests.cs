@@ -1,5 +1,6 @@
 using System.Net;
 using System.Text;
+using System.Text.Json;
 using Acta.Tests.AspNetCore.Fakes;
 using Xunit;
 
@@ -69,13 +70,17 @@ public sealed class ControlBodyStrictnessTests
         var (app, client) = await TestDashboardHost.StartAsync(options => options.EnableControls = true);
         await using var _ = app;
         var ct = TestContext.Current.CancellationToken;
+        var overrides = JsonSerializer.Serialize(
+            new DefinitionPolicyOverrides(MaxAttempts: 3),
+            DashboardJsonContext.Default.DefinitionPolicyOverrides
+        );
 
         var typo = await client.SendAsync(
-            Send(HttpMethod.Put, "definitions/billing/send-invoice/overrides", "{\"expectedVersion\":1,\"overides\":{\"maxAttempts\":3}}"),
+            Send(HttpMethod.Put, "definitions/billing/send-invoice/overrides", $$"""{"expectedVersion":1,"overides":{{overrides}}}"""),
             ct
         );
         var exact = await client.SendAsync(
-            Send(HttpMethod.Put, "definitions/billing/send-invoice/overrides", "{\"expectedVersion\":1,\"overrides\":{\"maxAttempts\":3}}"),
+            Send(HttpMethod.Put, "definitions/billing/send-invoice/overrides", $$"""{"expectedVersion":1,"overrides":{{overrides}}}"""),
             ct
         );
 

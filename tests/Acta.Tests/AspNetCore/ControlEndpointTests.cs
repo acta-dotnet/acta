@@ -1229,7 +1229,7 @@ public sealed class ControlEndpointTests
 
         var request = new HttpRequestMessage(HttpMethod.Put, "/acta/api/v1/definitions/billing/send-invoice/overrides")
         {
-            Content = JsonContent.Create(new { expectedVersion = 1, overrides = new { maxAttempts = 0 } }),
+            Content = JsonContent.Create(new { expectedVersion = 1, overrides = new DefinitionPolicyOverrides(MaxAttempts: 0) }),
         };
         request.Headers.Add(Confirm, "true");
         var response = await client.SendAsync(request, TestContext.Current.CancellationToken);

@@ -1,9 +1,11 @@
+using System.Text.Json.Serialization;
+
 namespace Acta;
 
 /// <summary>
 /// The whole set of operator overrides of a definition's policy, read and written as a unit: a member with a value overrides what the
-/// code declares, and null leaves the declared value in force. A deadline override on a scheduled definition is ignored, and a rate limit
-/// applies to every definition that shares the meter.
+/// code declares, and null leaves the declared value in force. A request carries every member, null where there is no override. A
+/// deadline override on a scheduled definition is ignored, and a rate limit applies to every definition that shares the meter.
 /// </summary>
 /// <param name="Priority">The priority to use in place of the declared one; null uses the declared one.</param>
 /// <param name="MaxAttempts">The retry budget to use in place of the declared one; null uses the declared one.</param>
@@ -25,19 +27,19 @@ namespace Acta;
 /// <param name="DisplayName">The display name to use in place of the declared one; null uses the declared one.</param>
 /// <param name="Description">The description to use in place of the declared one; null uses the declared one.</param>
 public sealed record DefinitionPolicyOverrides(
-    JobPriorityCode? Priority = null,
-    int? MaxAttempts = null,
-    int? ConcurrencyLimit = null,
-    string? RateLimit = null,
-    string? Backoff = null,
-    int? ExecutionTimeoutSeconds = null,
-    int? DeadlineSeconds = null,
-    DeadlineBehaviorCode? DeadlineBehavior = null,
-    int? JobRetentionSeconds = null,
-    EventRecordingCode? EventRecording = null,
-    AlertProfileCode? AlertProfile = null,
-    string? AlertChannelName = null,
-    string? RunbookUrl = null,
-    string? DisplayName = null,
-    string? Description = null
+    [property: JsonRequired] JobPriorityCode? Priority = null,
+    [property: JsonRequired] int? MaxAttempts = null,
+    [property: JsonRequired] int? ConcurrencyLimit = null,
+    [property: JsonRequired] string? RateLimit = null,
+    [property: JsonRequired] string? Backoff = null,
+    [property: JsonRequired] int? ExecutionTimeoutSeconds = null,
+    [property: JsonRequired] int? DeadlineSeconds = null,
+    [property: JsonRequired] DeadlineBehaviorCode? DeadlineBehavior = null,
+    [property: JsonRequired] int? JobRetentionSeconds = null,
+    [property: JsonRequired] EventRecordingCode? EventRecording = null,
+    [property: JsonRequired] AlertProfileCode? AlertProfile = null,
+    [property: JsonRequired] string? AlertChannelName = null,
+    [property: JsonRequired] string? RunbookUrl = null,
+    [property: JsonRequired] string? DisplayName = null,
+    [property: JsonRequired] string? Description = null
 );

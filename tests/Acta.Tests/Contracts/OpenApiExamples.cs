@@ -71,8 +71,12 @@ internal static class OpenApiExamples
             """{"outboxIds":["00000000-0000-0000-0000-00000000000a"],"reasonMessage":"Fixed the payload."}""",
         ["POST /outbox/{jobNamespace}/discard"] =
             """{"outboxIds":["00000000-0000-0000-0000-00000000000a"],"reasonMessage":"Sent by hand."}""",
-        ["PUT /definitions/{jobNamespace}/{jobName}/overrides"] =
-            """{"overrides":{"maxAttempts":5,"priority":"high"},"expectedVersion":0}""",
+        ["PUT /definitions/{jobNamespace}/{jobName}/overrides"] = """
+            {"overrides":{"priority":"high","maxAttempts":5,"concurrencyLimit":null,"rateLimit":null,"backoff":null,
+            "executionTimeoutSeconds":null,"deadlineSeconds":null,"deadlineBehavior":null,"jobRetentionSeconds":null,
+            "eventRecording":null,"alertProfile":null,"alertChannelName":null,"runbookUrl":null,"displayName":null,
+            "description":null},"expectedVersion":0}
+            """,
         ["POST /definitions/{jobNamespace}/{jobName}/retire"] = """{"expectedVersion":0,"reasonMessage":"Replaced by send-receipt."}""",
         ["POST /schedules/{jobNamespace}/{jobName}/{scheduleName}/pause"] =
             """{"pausedUntilUtc":"2026-06-13T06:00:00Z","reasonMessage":"Maintenance."}""",

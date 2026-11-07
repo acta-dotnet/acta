@@ -79,32 +79,36 @@ public sealed class UpdateDefinitionOverridesBindMatrixSpec : ActaStorageTestBas
         var displayName = "Renamed By Operator";
         var description = "Operator description.";
 
+        var written = new DefinitionPolicyOverrides(
+            Priority: JobPriorityCode.High, // ≠ Bulk base
+            MaxAttempts: 7, // ≠ 3 base
+            Backoff: "5s..9m x4 +-20%", // distinct expression
+            ExecutionTimeoutSeconds: 33, // distinct int 3
+            DeadlineSeconds: 444, // distinct int 4
+            DeadlineBehavior: DeadlineBehaviorCode.Advisory, // ≠ Strict base
+            JobRetentionSeconds: 555, // distinct int 5
+            EventRecording: EventRecordingCode.Audit, // ≠ Off base
+            AlertProfile: AlertProfileCode.OnTerminal, // ≠ None base
+            AlertChannelName: channelName,
+            RunbookUrl: runbookUrl,
+            DisplayName: displayName,
+            Description: description
+        );
         var outcome = await DefinitionTestOps.UpdateOverridesAsync(
             Services,
             TestNamespace,
             name,
             before.Version,
-            new DefinitionPolicyOverrides(
-                Priority: JobPriorityCode.High, // ≠ Bulk base
-                MaxAttempts: 7, // ≠ 3 base
-                Backoff: "5s..9m x4 +-20%", // distinct expression
-                ExecutionTimeoutSeconds: 33, // distinct int 3
-                DeadlineSeconds: 444, // distinct int 4
-                DeadlineBehavior: DeadlineBehaviorCode.Advisory, // ≠ Strict base
-                JobRetentionSeconds: 555, // distinct int 5
-                EventRecording: EventRecordingCode.Audit, // ≠ Off base
-                AlertProfile: AlertProfileCode.OnTerminal, // ≠ None base
-                AlertChannelName: channelName,
-                RunbookUrl: runbookUrl,
-                DisplayName: displayName,
-                Description: description
-            ),
+            written,
             Actor,
             "set all 13",
             ct
         );
 
         Assert.Equal(ControlAction.Applied, outcome.Action);
+
+        // The definition read gathers each override column into its own member of the overrides it answers.
+        Assert.Equal(written, (await Services.GetRequiredService<IDefinitions>().GetAsync(TestNamespace, name, ct))?.Overrides);
 
         var after = await ReadAsync(name, ct);
 

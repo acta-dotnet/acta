@@ -12,14 +12,52 @@ namespace Acta.AspNetCore;
 internal static class ControlEndpointValidation
 {
     // The path names the member at fault, an unknown one included, so a caller can fix its body.
-    private static IResult InvalidBody(JsonException ex) =>
+    private static IResult InvalidBody(JsonException ex, JsonTypeInfo body) =>
         Problem(
             StatusCodes.Status400BadRequest,
             "Invalid request body.",
-            ex.Path is { Length: > 1 } path
-                ? $"The control request body is not valid at '{path}': malformed JSON, a wrong type, or a member this endpoint does not take."
+            MissingMembers(ex, body) is [_, ..] missing
+                    ? $"The control request body leaves out {string.Join(", ", missing)}, which this endpoint requires."
+                : ex.Path is { Length: > 1 } path
+                    ? $"The control request body is not valid at '{path}': malformed JSON, a wrong type, or a member this endpoint does not take."
                 : "The control request body is not valid JSON."
         );
+
+    // A member its record requires and the body leaves out fails the read at the object that lacks it, and the serializer's
+    // message quotes the member's name. The path, such as $.overrides or $.tags[0], is walked through the body's metadata
+    // to that object, so only a member it requires is named; a reader or converter failure carries an inner exception, and
+    // a path in brackets and quotes names no member of a record, so neither names one.
+    private static string[] MissingMembers(JsonException ex, JsonTypeInfo body)
+    {
+        if (ex.InnerException is not null || ex.Path is not ['$', ..] path || path.Contains('\'', StringComparison.Ordinal))
+        {
+            return [];
+        }
+
+        JsonTypeInfo? at = body;
+        foreach (var step in path.Split('.')[1..])
+        {
+            // A member's name, then an [index] for each list it steps into.
+            var parts = step.Split('[');
+            at = Resolve(at, at?.Properties.FirstOrDefault(p => p.Name == parts[0])?.PropertyType);
+            foreach (var _ in parts[1..])
+            {
+                at = Resolve(at, at?.ElementType);
+            }
+        }
+
+        return at is null
+            ? []
+            :
+            [
+                .. at
+                    .Properties.Where(p => p.IsRequired && ex.Message.Contains($"'{p.Name}'", StringComparison.Ordinal))
+                    .Select(p => $"'{path}.{p.Name}'"),
+            ];
+
+        static JsonTypeInfo? Resolve(JsonTypeInfo? from, Type? type) =>
+            from is not null && type is not null && from.Options.TryGetTypeInfo(type, out var info) ? info : null;
+    }
 
     /// <summary>
     /// The reason-message length cap shared by every control endpoint. Returns a 400 problem result
@@ -90,7 +128,7 @@ internal static class ControlEndpointValidation
         }
         catch (JsonException ex)
         {
-            return (null, InvalidBody(ex));
+            return (null, InvalidBody(ex, typeInfo));
         }
     }
 
@@ -126,7 +164,7 @@ internal static class ControlEndpointValidation
         }
         catch (JsonException ex)
         {
-            return (null, InvalidBody(ex));
+            return (null, InvalidBody(ex, typeInfo));
         }
 
         return body is null

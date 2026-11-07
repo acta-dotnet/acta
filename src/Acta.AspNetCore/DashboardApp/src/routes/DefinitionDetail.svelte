@@ -21,8 +21,8 @@
   // The definition subresource root; every read and the tag editor hang off it.
   let definitionPath = $derived(`definitions/${encodeURIComponent(jobNamespace)}/${encodeURIComponent(jobName)}`);
 
-  // The override fields, in the entity's policy order. `key` matches both the list item field prefix
-  // (key / keyOverride / keyEffective) and the PUT payload field. `kind` drives parsing on save.
+  // The override fields, in the entity's policy order. `key` names the declared and effective members of the
+  // read (key / keyEffective), the member of its `overrides`, and the PUT payload field. `kind` drives parsing on save.
   const FIELDS = [
     { key: 'priority', label: 'Priority', kind: 'enum' },
     { key: 'maxAttempts', label: 'Max attempts', kind: 'int' },
@@ -96,7 +96,7 @@
   function seedInputs(d) {
     const next = {};
     for (const f of FIELDS) {
-      const v = d[f.key + 'Override'];
+      const v = d.overrides[f.key];
       next[f.key] = v === null || v === undefined ? '' : String(v);
     }
     inputs = next;
@@ -121,6 +121,7 @@
     if (!def) return;
     saving = true;
     message = '';
+    // The PUT requires every member of `overrides`: a blank field is sent as null, which clears that override.
     const overrides = {};
     for (const f of FIELDS) {
       overrides[f.key] = parse(f.kind, inputs[f.key] ?? '');

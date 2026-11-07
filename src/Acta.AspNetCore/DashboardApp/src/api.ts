@@ -347,15 +347,35 @@ export interface DefinitionControlResponse {
   action: ControlAction;
 }
 
+// A definition's operator overrides, as GET /definitions/{ns}/{name} answers them in `overrides` and the
+// PUT below takes them: every member present, null where there is no override.
+export interface DefinitionPolicyOverrides {
+  priority: string | null;
+  maxAttempts: number | null;
+  concurrencyLimit: number | null;
+  rateLimit: string | null;
+  backoff: string | null;
+  executionTimeoutSeconds: number | null;
+  deadlineSeconds: number | null;
+  deadlineBehavior: string | null;
+  jobRetentionSeconds: number | null;
+  eventRecording: string | null;
+  alertProfile: string | null;
+  alertChannelName: string | null;
+  runbookUrl: string | null;
+  displayName: string | null;
+  description: string | null;
+}
+
 // PUT a definition's operator overrides, addressed by its natural key. The body carries the
-// expectedVersion CAS token, the full override set that replaces the current one (null/absent field =
-// clear), and a note. Applied (200), version-conflict (409), and not-found (404) all return a
-// DefinitionControlResponse; anything else throws.
+// expectedVersion CAS token, the full override set that replaces the current one (null = clear; the
+// server refuses a member left out with a 400), and a note. Applied (200), version-conflict (409), and
+// not-found (404) all return a DefinitionControlResponse; anything else throws.
 export async function updateDefinitionOverrides(
   jobNamespace: string,
   jobName: string,
   expectedVersion: number,
-  overrides: Record<string, unknown>,
+  overrides: DefinitionPolicyOverrides,
   note?: string
 ): Promise<DefinitionControlResponse> {
   return controlRequest<DefinitionControlResponse>(

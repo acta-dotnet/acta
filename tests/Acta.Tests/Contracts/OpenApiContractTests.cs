@@ -106,14 +106,11 @@ public sealed partial class OpenApiContractTests
         "deadlineSeconds",
         "delaySeconds",
         "deadlineSecondsEffective",
-        "deadlineSecondsOverride",
         "executionTimeoutSeconds",
         "executionTimeoutSecondsEffective",
-        "executionTimeoutSecondsOverride",
         "expireAfterSeconds",
         "jobRetentionSeconds",
         "jobRetentionSecondsEffective",
-        "jobRetentionSecondsOverride",
         "maxAttempts",
         "maxAttemptsEffective",
         "maxAttemptsOverride",
@@ -769,8 +766,8 @@ public sealed partial class OpenApiContractTests
                 "expectedVersion",
                 HttpMethod.Put,
                 "definitions/billing/send-invoice/overrides",
-                """{"overrides":{}}""",
-                """{"overrides":{},"expectedVersion":0}"""
+                $$"""{"overrides":{{NoOverrides}}}""",
+                $$"""{"overrides":{{NoOverrides}},"expectedVersion":0}"""
             ),
             new(
                 "UpdateDefinitionOverridesRequest",
@@ -778,7 +775,7 @@ public sealed partial class OpenApiContractTests
                 HttpMethod.Put,
                 "definitions/billing/send-invoice/overrides",
                 """{"expectedVersion":0}""",
-                """{"overrides":{},"expectedVersion":0}"""
+                $$"""{"overrides":{{NoOverrides}},"expectedVersion":0}"""
             ),
             new(
                 "RetireDefinitionRequest",
@@ -876,9 +873,14 @@ public sealed partial class OpenApiContractTests
         await WithSqliteHostAsync(async client =>
         {
             var definition = $"definitions/{SqliteNamespace}/add-numbers";
-            answers.Add(await SendControlAsync(client, HttpMethod.Put, definition + "/overrides", """{"overrides":{}}"""));
+            answers.Add(await SendControlAsync(client, HttpMethod.Put, definition + "/overrides", $$"""{"overrides":{{NoOverrides}}}"""));
             answers.Add(
-                await SendControlAsync(client, HttpMethod.Put, definition + "/overrides", """{"overrides":{},"expectedVersion":0}""")
+                await SendControlAsync(
+                    client,
+                    HttpMethod.Put,
+                    definition + "/overrides",
+                    $$"""{"overrides":{{NoOverrides}},"expectedVersion":0}"""
+                )
             );
             answers.Add(await SendControlAsync(client, HttpMethod.Post, definition + "/retire", "{}"));
             answers.Add(await SendControlAsync(client, HttpMethod.Post, definition + "/retire", """{"expectedVersion":1}"""));
@@ -887,9 +889,171 @@ public sealed partial class OpenApiContractTests
         Assert.Equal([HttpStatusCode.BadRequest, HttpStatusCode.OK, HttpStatusCode.BadRequest, HttpStatusCode.OK], answers);
     }
 
+    /// <summary>The members of a definition's overrides, as the wire names them.</summary>
+    private static readonly string[] OverrideMembers =
+    [
+        "priority",
+        "maxAttempts",
+        "concurrencyLimit",
+        "rateLimit",
+        "backoff",
+        "executionTimeoutSeconds",
+        "deadlineSeconds",
+        "deadlineBehavior",
+        "jobRetentionSeconds",
+        "eventRecording",
+        "alertProfile",
+        "alertChannelName",
+        "runbookUrl",
+        "displayName",
+        "description",
+    ];
+
+    public static TheoryData<string> OverrideMemberCases => [.. OverrideMembers];
+
+    /// <summary>Every override null: the overrides an update sends to clear them all.</summary>
+    private static readonly string NoOverrides = JsonSerializer.Serialize(
+        new DefinitionPolicyOverrides(),
+        DashboardJsonContext.Default.DefinitionPolicyOverrides
+    );
+
     /// <summary>
-    /// A full replace is a PUT: the tenant, namespace, and definition overrides updates clear what their body leaves out,
-    /// so the document lists them under PUT and no PATCH, and the PATCH each had reaches no route.
+    /// The definition read and the overrides update share one overrides schema: it requires every member, each still
+    /// nullable, refuses unknown ones, and the read carries no override beside it.
+    /// </summary>
+    [Fact]
+    public async Task The_definition_read_and_the_overrides_update_share_one_overrides_schema()
+    {
+        var schemas = JsonNode.Parse(await ActaOpenApiDocument.GenerateAsync())!["components"]!["schemas"]!;
+        var overrides = schemas["DefinitionPolicyOverrides"]!;
+        var read = schemas["GetDefinitionResponse"]!["properties"]!;
+        static bool Nullable(JsonNode member) =>
+            Elements(member["type"])
+                .Concat(Elements(member["oneOf"]).Select(branch => branch?["type"]))
+                .Any(type => type?.GetValue<string>() == "null");
+
+        Assert.Equal(OverrideMembers.Order(StringComparer.Ordinal), Required(overrides).Order(StringComparer.Ordinal));
+        Assert.All(OverrideMembers, member => Assert.True(Nullable(overrides["properties"]![member]!), $"{member} is not nullable."));
+        Assert.False(overrides["additionalProperties"]!.GetValue<bool>());
+        Assert.Equal("#/components/schemas/DefinitionPolicyOverrides", read["overrides"]!["$ref"]!.GetValue<string>());
+        Assert.Equal(
+            "#/components/schemas/DefinitionPolicyOverrides",
+            schemas["UpdateDefinitionOverridesRequest"]!["properties"]!["overrides"]!["$ref"]!.GetValue<string>()
+        );
+        Assert.Contains("overrides", Required(schemas["GetDefinitionResponse"]!));
+        Assert.DoesNotContain(read.AsObject(), member => member.Key.EndsWith("Override", StringComparison.Ordinal));
+    }
+
+    /// <summary>
+    /// The overrides update takes every override, so a body that leaves one out answers 400 naming it, where it would
+    /// otherwise clear that override.
+    /// </summary>
+    [Theory]
+    [MemberData(nameof(OverrideMemberCases))]
+    public async Task An_overrides_update_that_leaves_an_override_out_is_refused_naming_it(string member)
+    {
+        var overrides = JsonNode.Parse(NoOverrides)!.AsObject();
+        Assert.True(overrides.Remove(member));
+        var (app, client) = await TestDashboardHost.StartAsync(options => options.EnableControls = true);
+        await using var _ = app;
+
+        using var response = await SendControlRequestAsync(
+            client,
+            HttpMethod.Put,
+            "definitions/billing/send-invoice/overrides",
+            $$"""{"overrides":{{overrides.ToJsonString()}},"expectedVersion":1}"""
+        );
+        var detail = JsonNode.Parse(await response.Content.ReadAsStringAsync(TestContext.Current.CancellationToken))?["detail"];
+
+        Assert.Equal(HttpStatusCode.BadRequest, response.StatusCode);
+        Assert.Equal(
+            $"The control request body leaves out '$.overrides.{member}', which this endpoint requires.",
+            detail?.GetValue<string>()
+        );
+    }
+
+    /// <summary>A body that carries every override, nulls included, is applied with exactly the overrides it carries.</summary>
+    [Fact]
+    public async Task An_overrides_update_that_carries_every_override_is_applied()
+    {
+        var fakes = new FakeOperations();
+        var received = new List<DefinitionPolicyOverrides>();
+        var update = fakes.Definitions.UpdateOverrides;
+        fakes.Definitions.UpdateOverrides = (jobNamespace, jobName, expectedVersion, overrides, reason, actor, ct) =>
+        {
+            received.Add(overrides);
+            return update(jobNamespace, jobName, expectedVersion, overrides, reason, actor, ct);
+        };
+        var (app, client) = await TestDashboardHost.StartAsync(options => options.EnableControls = true, fakes: fakes);
+        await using var _ = app;
+        var sent = new DefinitionPolicyOverrides(MaxAttempts: 5, RateLimit: "10/s", DeadlineBehavior: DeadlineBehaviorCode.Advisory);
+        var overrides = JsonSerializer.Serialize(sent, DashboardJsonContext.Default.DefinitionPolicyOverrides);
+
+        var status = await SendControlAsync(
+            client,
+            HttpMethod.Put,
+            "definitions/billing/send-invoice/overrides",
+            $$"""{"overrides":{{overrides}},"expectedVersion":1}"""
+        );
+
+        Assert.Equal(HttpStatusCode.OK, status);
+        Assert.Equal(sent, Assert.Single(received));
+    }
+
+    /// <summary>
+    /// The definition read answers its overrides in the shape the update takes, each in its own member: the overrides an
+    /// update stored read back as sent, and that read, sent back as it is, is applied and changes no override and no value
+    /// in force.
+    /// </summary>
+    [Fact]
+    public async Task A_definitions_overrides_read_back_and_sent_back_change_nothing()
+    {
+        const string stored = """
+            {"priority":"high","maxAttempts":7,"concurrencyLimit":4,"rateLimit":"10/s","backoff":"5s..9m x4 +-20%",
+            "executionTimeoutSeconds":33,"deadlineSeconds":444,"deadlineBehavior":"advisory","jobRetentionSeconds":555,
+            "eventRecording":"audit","alertProfile":"on-terminal","alertChannelName":"ops-pager",
+            "runbookUrl":"https://runbooks.example.com/add-numbers","displayName":"Add numbers","description":"Adds two numbers."}
+            """;
+        var reads = new List<JsonNode>();
+        var answers = new List<HttpStatusCode>();
+        await WithSqliteHostAsync(async client =>
+        {
+            var definition = $"definitions/{SqliteNamespace}/add-numbers";
+            async Task<JsonNode> ReadAsync() =>
+                JsonNode.Parse(await client.GetStringAsync("/acta/api/v1/" + definition, TestContext.Current.CancellationToken))!;
+            async Task UpdateAsync(string overrides, JsonNode version) =>
+                answers.Add(
+                    await SendControlAsync(
+                        client,
+                        HttpMethod.Put,
+                        definition + "/overrides",
+                        $$"""{"overrides":{{overrides}},"expectedVersion":{{version.ToJsonString()}}}"""
+                    )
+                );
+
+            await UpdateAsync(stored, (await ReadAsync())["version"]!);
+            reads.Add(await ReadAsync());
+            await UpdateAsync(reads[0]["overrides"]!.ToJsonString(), reads[0]["version"]!);
+            reads.Add(await ReadAsync());
+        });
+        static JsonObject InForce(JsonNode read) =>
+            new(
+                read.AsObject()
+                    .Where(member => member.Key.EndsWith("Effective", StringComparison.Ordinal))
+                    .Select(member => KeyValuePair.Create(member.Key, member.Value?.DeepClone()))
+            );
+
+        Assert.Equal([HttpStatusCode.OK, HttpStatusCode.OK], answers);
+        Assert.True(JsonNode.DeepEquals(JsonNode.Parse(stored), reads[0]["overrides"]), reads[0]["overrides"]!.ToJsonString());
+        Assert.True(JsonNode.DeepEquals(reads[0]["overrides"], reads[1]["overrides"]), reads[1]["overrides"]!.ToJsonString());
+        Assert.True(JsonNode.DeepEquals(InForce(reads[0]), InForce(reads[1])), InForce(reads[1]).ToJsonString());
+        Assert.Equal(15, InForce(reads[0]).Count);
+    }
+
+    /// <summary>
+    /// A full replace is a PUT: the tenant and namespace updates clear what their body leaves out, and the definition
+    /// overrides update takes every override, so the document lists them under PUT and no PATCH, and the PATCH each had
+    /// reaches no route.
     /// </summary>
     [Fact]
     public async Task A_full_replace_is_a_put()

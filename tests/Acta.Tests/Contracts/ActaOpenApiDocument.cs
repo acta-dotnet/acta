@@ -440,30 +440,41 @@ internal static partial class ActaOpenApiDocument
                 properties[member] = WithoutNull(properties[member]);
             }
 
-            // One record per direction: what a response requires and a request refuses differ, and one schema says one.
-            if (requests.Contains(name) && responses.Contains(name))
+            // A response requires every member the serializer always writes; a request requires only the members the runtime
+            // refuses without. One schema says one required set and one nullability, so a schema serves both directions only
+            // where the two required sets are the same and no handler requires a member: the request would drop that member's
+            // null, which a response may write.
+            var responseRequired = properties.Keys.Where(key => !omitted.Contains(key)).ToHashSet(StringComparer.Ordinal);
+            var handlerRequired = HandlerRequiredMembers.GetValueOrDefault(name, []);
+            var requestRequired = jsonRequired.Concat(handlerRequired).ToHashSet(StringComparer.Ordinal);
+            if (
+                requests.Contains(name)
+                && responses.Contains(name)
+                && (!requestRequired.SetEquals(responseRequired) || handlerRequired.Length > 0)
+            )
             {
-                throw new InvalidOperationException($"{name} is both a request and a response; give each direction its own record.");
+                throw new InvalidOperationException(
+                    $"{name} is both a request and a response, and the two directions disagree on its members; give each its own record."
+                );
             }
 
             if (responses.Contains(name))
             {
-                // Every member the serializer always writes is present; one it omits when null is optional and never null.
+                // A member the serializer omits when null is optional and never null.
                 foreach (var member in omitted)
                 {
                     properties[member] = WithoutNull(properties[member]);
                 }
-                schema.Required = new HashSet<string>(properties.Keys.Where(key => !omitted.Contains(key)), StringComparer.Ordinal);
+                schema.Required = responseRequired;
             }
-            else if (requests.Contains(name))
+            if (requests.Contains(name))
             {
-                // A request member is required only where the runtime refuses its absence; unknown members are refused.
-                var handlerRequired = HandlerRequiredMembers.GetValueOrDefault(name, []);
+                // Unknown members are refused.
                 foreach (var member in handlerRequired)
                 {
                     properties[member] = WithoutNull(properties[member]);
                 }
-                schema.Required = new HashSet<string>(jsonRequired.Concat(handlerRequired), StringComparer.Ordinal);
+                schema.Required = requestRequired;
                 schema.AdditionalPropertiesAllowed = false;
             }
         }

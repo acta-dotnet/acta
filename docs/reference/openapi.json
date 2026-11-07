@@ -4629,8 +4629,21 @@
                 "updateDefinitionOverrides": {
                   "value": {
                     "overrides": {
+                      "priority": "high",
                       "maxAttempts": 5,
-                      "priority": "high"
+                      "concurrencyLimit": null,
+                      "rateLimit": null,
+                      "backoff": null,
+                      "executionTimeoutSeconds": null,
+                      "deadlineSeconds": null,
+                      "deadlineBehavior": null,
+                      "jobRetentionSeconds": null,
+                      "eventRecording": null,
+                      "alertProfile": null,
+                      "alertChannelName": null,
+                      "runbookUrl": null,
+                      "displayName": null,
+                      "description": null
                     },
                     "expectedVersion": 0
                   }
@@ -8291,54 +8304,56 @@
                       "resultFormatId": 0,
                       "resultFormatName": "none",
                       "priority": "normal",
-                      "priorityOverride": null,
                       "priorityEffective": "normal",
                       "maxAttempts": 3,
-                      "maxAttemptsOverride": null,
                       "maxAttemptsEffective": 3,
                       "concurrencyLimit": null,
-                      "concurrencyLimitOverride": null,
                       "concurrencyLimitEffective": null,
                       "rateLimit": null,
-                      "rateLimitOverride": null,
                       "rateLimitEffective": null,
                       "rateName": null,
                       "lane": null,
                       "backoff": "1s..1m x2",
-                      "backoffOverride": null,
                       "backoffEffective": "1s..1m x2",
                       "executionTimeoutSeconds": 60,
-                      "executionTimeoutSecondsOverride": null,
                       "executionTimeoutSecondsEffective": 60,
                       "deadlineSeconds": 0,
-                      "deadlineSecondsOverride": null,
                       "deadlineSecondsEffective": 0,
                       "deadlineBehavior": "strict",
-                      "deadlineBehaviorOverride": null,
                       "deadlineBehaviorEffective": "strict",
                       "jobRetentionSeconds": 0,
-                      "jobRetentionSecondsOverride": null,
                       "jobRetentionSecondsEffective": 0,
                       "eventRecording": "audit",
-                      "eventRecordingOverride": null,
                       "eventRecordingEffective": "audit",
                       "alertProfile": "none",
-                      "alertProfileOverride": null,
                       "alertProfileEffective": "none",
                       "firingFailurePolicy": "continue",
                       "scheduledDelivery": "permanent",
                       "alertChannelName": null,
-                      "alertChannelNameOverride": null,
                       "alertChannelNameEffective": null,
                       "runbookUrl": null,
-                      "runbookUrlOverride": null,
                       "runbookUrlEffective": null,
                       "displayName": null,
-                      "displayNameOverride": null,
                       "displayNameEffective": null,
                       "description": null,
-                      "descriptionOverride": null,
                       "descriptionEffective": null,
+                      "overrides": {
+                        "priority": null,
+                        "maxAttempts": null,
+                        "concurrencyLimit": null,
+                        "rateLimit": null,
+                        "backoff": null,
+                        "executionTimeoutSeconds": null,
+                        "deadlineSeconds": null,
+                        "deadlineBehavior": null,
+                        "jobRetentionSeconds": null,
+                        "eventRecording": null,
+                        "alertProfile": null,
+                        "alertChannelName": null,
+                        "runbookUrl": null,
+                        "displayName": null,
+                        "description": null
+                      },
                       "createdAtUtc": "2026-06-12T06:00:00Z",
                       "modifiedAtUtc": "2026-06-12T06:00:00Z",
                       "version": 2
@@ -10813,6 +10828,23 @@
         ]
       },
       "DefinitionPolicyOverrides": {
+        "required": [
+          "priority",
+          "maxAttempts",
+          "concurrencyLimit",
+          "rateLimit",
+          "backoff",
+          "executionTimeoutSeconds",
+          "deadlineSeconds",
+          "deadlineBehavior",
+          "jobRetentionSeconds",
+          "eventRecording",
+          "alertProfile",
+          "alertChannelName",
+          "runbookUrl",
+          "displayName",
+          "description"
+        ],
         "type": "object",
         "properties": {
           "priority": {
@@ -10943,7 +10975,7 @@
           }
         },
         "additionalProperties": false,
-        "description": "The whole set of operator overrides of a definition's policy, read and written as a unit: a member with a value overrides what the code declares, and null leaves the declared value in force. A deadline override on a scheduled definition is ignored, and a rate limit applies to every definition that shares the meter."
+        "description": "The whole set of operator overrides of a definition's policy, read and written as a unit: a member with a value overrides what the code declares, and null leaves the declared value in force. A request carries every member, null where there is no override. A deadline override on a scheduled definition is ignored, and a rate limit applies to every definition that shares the meter."
       },
       "DefinitionStatusCode": {
         "examples": [
@@ -11775,54 +11807,40 @@
           "resultFormatId",
           "resultFormatName",
           "priority",
-          "priorityOverride",
           "priorityEffective",
           "maxAttempts",
-          "maxAttemptsOverride",
           "maxAttemptsEffective",
           "concurrencyLimit",
-          "concurrencyLimitOverride",
           "concurrencyLimitEffective",
           "rateLimit",
-          "rateLimitOverride",
           "rateLimitEffective",
           "rateName",
           "lane",
           "backoff",
-          "backoffOverride",
           "backoffEffective",
           "executionTimeoutSeconds",
-          "executionTimeoutSecondsOverride",
           "executionTimeoutSecondsEffective",
           "deadlineSeconds",
-          "deadlineSecondsOverride",
           "deadlineSecondsEffective",
           "deadlineBehavior",
-          "deadlineBehaviorOverride",
           "deadlineBehaviorEffective",
           "jobRetentionSeconds",
-          "jobRetentionSecondsOverride",
           "jobRetentionSecondsEffective",
           "eventRecording",
-          "eventRecordingOverride",
           "eventRecordingEffective",
           "alertProfile",
-          "alertProfileOverride",
           "alertProfileEffective",
           "firingFailurePolicy",
           "scheduledDelivery",
           "alertChannelName",
-          "alertChannelNameOverride",
           "alertChannelNameEffective",
           "runbookUrl",
-          "runbookUrlOverride",
           "runbookUrlEffective",
           "displayName",
-          "displayNameOverride",
           "displayNameEffective",
           "description",
-          "descriptionOverride",
           "descriptionEffective",
+          "overrides",
           "createdAtUtc",
           "modifiedAtUtc",
           "version"
@@ -11883,17 +11901,6 @@
             "description": "The priority the code declares for the definition's jobs.",
             "$ref": "#/components/schemas/JobPriorityCode"
           },
-          "priorityOverride": {
-            "oneOf": [
-              {
-                "type": "null"
-              },
-              {
-                "$ref": "#/components/schemas/JobPriorityCode"
-              }
-            ],
-            "description": "The operator's override of the priority; null when there is none."
-          },
           "priorityEffective": {
             "description": "The priority in force: the override when there is one, else the declared one.",
             "$ref": "#/components/schemas/JobPriorityCode"
@@ -11901,14 +11908,6 @@
           "maxAttempts": {
             "type": "integer",
             "description": "The declared retry budget: how many attempts in a row may fail before a job ends failed.",
-            "format": "int32"
-          },
-          "maxAttemptsOverride": {
-            "type": [
-              "null",
-              "integer"
-            ],
-            "description": "The operator's override of the retry budget; null when there is none.",
             "format": "int32"
           },
           "maxAttemptsEffective": {
@@ -11922,14 +11921,6 @@
               "integer"
             ],
             "description": "The declared concurrency limit: how many attempts of the definition may run at once, 1 to 1024; null declares none.",
-            "format": "int32"
-          },
-          "concurrencyLimitOverride": {
-            "type": [
-              "null",
-              "integer"
-            ],
-            "description": "The operator's override of the concurrency limit; null when there is none.",
             "format": "int32"
           },
           "concurrencyLimitEffective": {
@@ -11946,13 +11937,6 @@
               "string"
             ],
             "description": "The declared rate limit: how often attempts may start, written N/s, N/m, or N/h; null declares none."
-          },
-          "rateLimitOverride": {
-            "type": [
-              "null",
-              "string"
-            ],
-            "description": "The operator's override of the rate limit; null when there is none."
           },
           "rateLimitEffective": {
             "type": [
@@ -11979,13 +11963,6 @@
             "type": "string",
             "description": "The declared retry backoff, as an expression such as 1m..8h x2 ~10%."
           },
-          "backoffOverride": {
-            "type": [
-              "null",
-              "string"
-            ],
-            "description": "The operator's override of the backoff; null when there is none."
-          },
           "backoffEffective": {
             "type": "string",
             "description": "The backoff in force: the override when there is one, else the declared one."
@@ -11993,14 +11970,6 @@
           "executionTimeoutSeconds": {
             "type": "integer",
             "description": "The declared limit on one attempt's run time, in seconds; past it the handler's cancellation token fires.",
-            "format": "int32"
-          },
-          "executionTimeoutSecondsOverride": {
-            "type": [
-              "null",
-              "integer"
-            ],
-            "description": "The operator's override of the execution timeout; null when there is none.",
             "format": "int32"
           },
           "executionTimeoutSecondsEffective": {
@@ -12013,14 +11982,6 @@
             "description": "The declared deadline for a whole job, in seconds from its creation; 0 declares none.",
             "format": "int32"
           },
-          "deadlineSecondsOverride": {
-            "type": [
-              "null",
-              "integer"
-            ],
-            "description": "The operator's override of the deadline; null when there is none.",
-            "format": "int32"
-          },
           "deadlineSecondsEffective": {
             "type": "integer",
             "description": "The deadline in force: the override when there is one, else the declared one.",
@@ -12030,17 +11991,6 @@
             "description": "What the code declares happens to a job past its deadline.",
             "$ref": "#/components/schemas/DeadlineBehaviorCode"
           },
-          "deadlineBehaviorOverride": {
-            "oneOf": [
-              {
-                "type": "null"
-              },
-              {
-                "$ref": "#/components/schemas/DeadlineBehaviorCode"
-              }
-            ],
-            "description": "The operator's override of the deadline behavior; null when there is none."
-          },
           "deadlineBehaviorEffective": {
             "description": "The deadline behavior in force: the override when there is one, else the declared one.",
             "$ref": "#/components/schemas/DeadlineBehaviorCode"
@@ -12048,14 +11998,6 @@
           "jobRetentionSeconds": {
             "type": "integer",
             "description": "The declared time a finished job is kept before retention deletes it, in seconds.",
-            "format": "int32"
-          },
-          "jobRetentionSecondsOverride": {
-            "type": [
-              "null",
-              "integer"
-            ],
-            "description": "The operator's override of the retention time; null when there is none.",
             "format": "int32"
           },
           "jobRetentionSecondsEffective": {
@@ -12067,17 +12009,6 @@
             "description": "How much of a job's history the code declares is recorded as events.",
             "$ref": "#/components/schemas/EventRecordingCode"
           },
-          "eventRecordingOverride": {
-            "oneOf": [
-              {
-                "type": "null"
-              },
-              {
-                "$ref": "#/components/schemas/EventRecordingCode"
-              }
-            ],
-            "description": "The operator's override of event recording; null when there is none."
-          },
           "eventRecordingEffective": {
             "description": "The event recording in force: the override when there is one, else the declared one.",
             "$ref": "#/components/schemas/EventRecordingCode"
@@ -12085,17 +12016,6 @@
           "alertProfile": {
             "description": "When, as the code declares it, the engine raises alerts for the definition's jobs on its own.",
             "$ref": "#/components/schemas/AlertProfileCode"
-          },
-          "alertProfileOverride": {
-            "oneOf": [
-              {
-                "type": "null"
-              },
-              {
-                "$ref": "#/components/schemas/AlertProfileCode"
-              }
-            ],
-            "description": "The operator's override of the alert profile; null when there is none."
           },
           "alertProfileEffective": {
             "description": "The alert profile in force: the override when there is one, else the declared one.",
@@ -12116,13 +12036,6 @@
             ],
             "description": "The alert channel the code declares for the definition's automatic alerts."
           },
-          "alertChannelNameOverride": {
-            "type": [
-              "null",
-              "string"
-            ],
-            "description": "The operator's override of the alert channel; null when there is none."
-          },
           "alertChannelNameEffective": {
             "type": [
               "null",
@@ -12136,13 +12049,6 @@
               "string"
             ],
             "description": "The runbook link the code declares, shown on the definition's alerts and in the dashboard."
-          },
-          "runbookUrlOverride": {
-            "type": [
-              "null",
-              "string"
-            ],
-            "description": "The operator's override of the runbook link; null when there is none."
           },
           "runbookUrlEffective": {
             "type": [
@@ -12158,13 +12064,6 @@
             ],
             "description": "The display name the code declares for the definition."
           },
-          "displayNameOverride": {
-            "type": [
-              "null",
-              "string"
-            ],
-            "description": "The operator's override of the display name; null when there is none."
-          },
           "displayNameEffective": {
             "type": [
               "null",
@@ -12179,19 +12078,16 @@
             ],
             "description": "The description the code declares for the definition."
           },
-          "descriptionOverride": {
-            "type": [
-              "null",
-              "string"
-            ],
-            "description": "The operator's override of the description; null when there is none."
-          },
           "descriptionEffective": {
             "type": [
               "null",
               "string"
             ],
             "description": "The description in force: the override when there is one, else the declared one."
+          },
+          "overrides": {
+            "description": "The operator's overrides, in the shape the overrides update takes: change members of it and send it back whole.",
+            "$ref": "#/components/schemas/DefinitionPolicyOverrides"
           },
           "createdAtUtc": {
             "type": "string",
@@ -12209,7 +12105,7 @@
             "format": "int32"
           }
         },
-        "description": "One definition: its identity and status, the types and formats of its input and result, and each policy as the value the code declares, the operator's override, null when there is none, and the value in force. A definition is addressed by its namespace and name."
+        "description": "One definition: its identity and status, the types and formats of its input and result, each policy as the value the code declares and the value in force, and the operator's overrides of them. A definition is addressed by its namespace and name."
       },
       "GetJobDetailResponse": {
         "required": [
@@ -16389,7 +16285,7 @@
             "format": "int32"
           },
           "overrides": {
-            "description": "The whole set of overrides to store; a member left out or null clears that override.",
+            "description": "The whole set of overrides to store, every member present: null clears that override, and a body that leaves a member out answers 400.",
             "$ref": "#/components/schemas/DefinitionPolicyOverrides"
           },
           "reasonMessage": {

@@ -178,7 +178,7 @@ internal static class RouteTable
 
     /// <summary>
     /// A PUT of the target's fields: <see cref="MapCommand"/> with a required body, which replaces them whole, so a member
-    /// the body leaves out is cleared.
+    /// the body leaves out is cleared, or refused where the body's record requires it.
     /// </summary>
     public static RouteHandlerBuilder MapUpdate<TKey, TBody, TResponse>(
         this RouteGroupBuilder controls,

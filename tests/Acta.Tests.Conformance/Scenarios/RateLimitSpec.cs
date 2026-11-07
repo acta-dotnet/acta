@@ -374,11 +374,11 @@ public sealed class RateLimitSpec : ActaRuntimeTestBase<ConformanceFixture, Test
         // Nobody asked "rate-shared-right" for anything, yet it carries the same override: it shares
         // the meter "rate-shared-left" just retuned.
         var right = await Definitions.GetAsync(TestNamespace, "rate-shared-right", ct);
-        Assert.Equal("1/s", right?.RateLimitOverride);
+        Assert.Equal("1/s", right?.Overrides.RateLimit);
         Assert.Equal("1/s", right?.RateLimitEffective);
 
         var leftAfter = await Definitions.GetAsync(TestNamespace, "rate-shared-left", ct);
-        Assert.Equal("1/s", leftAfter?.RateLimitOverride);
+        Assert.Equal("1/s", leftAfter?.Overrides.RateLimit);
     }
 
     [Fact(DisplayName = "Clearing the override on one participant clears it on every other participant")]
@@ -409,7 +409,7 @@ public sealed class RateLimitSpec : ActaRuntimeTestBase<ConformanceFixture, Test
 
         // The clear reached "rate-shared-right" too: the meter falls back to what both of them declare.
         var right = await Definitions.GetAsync(TestNamespace, "rate-shared-right", ct);
-        Assert.Null(right?.RateLimitOverride);
+        Assert.Null(right?.Overrides.RateLimit);
         Assert.Equal(RateLimitProbes.SharedRate, right?.RateLimitEffective);
     }
 
@@ -432,7 +432,7 @@ public sealed class RateLimitSpec : ActaRuntimeTestBase<ConformanceFixture, Test
         // "stripe" declares no rate of its own, yet it names the meter "charge" spends from: the
         // override still reaches "charge", the meter's only declared participant.
         var charge = await Definitions.GetAsync(TestNamespace, "charge", ct);
-        Assert.Equal("1/s", charge?.RateLimitOverride);
+        Assert.Equal("1/s", charge?.Overrides.RateLimit);
         Assert.Equal("1/s", charge?.RateLimitEffective);
     }
 
@@ -463,7 +463,7 @@ public sealed class RateLimitSpec : ActaRuntimeTestBase<ConformanceFixture, Test
         Assert.Equal(ControlAction.Applied, cleared.Action);
 
         var charge = await Definitions.GetAsync(TestNamespace, "charge", ct);
-        Assert.Null(charge?.RateLimitOverride);
+        Assert.Null(charge?.Overrides.RateLimit);
         Assert.Equal(RateLimitProbes.ChargeRate, charge?.RateLimitEffective);
     }
 
@@ -485,7 +485,7 @@ public sealed class RateLimitSpec : ActaRuntimeTestBase<ConformanceFixture, Test
 
         // "rate-limited-probe" meters on its own name, nothing like "shared-meter", so it never sees it.
         var solo = await Definitions.GetAsync(TestNamespace, "rate-limited-probe", ct);
-        Assert.Null(solo?.RateLimitOverride);
+        Assert.Null(solo?.Overrides.RateLimit);
         Assert.Equal(RateLimitProbes.Rate, solo?.RateLimitEffective);
     }
 

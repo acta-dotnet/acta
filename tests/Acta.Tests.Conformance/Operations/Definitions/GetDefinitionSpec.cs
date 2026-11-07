@@ -74,9 +74,9 @@ public sealed class GetDefinitionSpec : ActaRuntimeTestBase<ConformanceFixture, 
         var after = await Operations.Definitions.GetAsync(definition.JobNamespace, definition.JobName, ct);
 
         Assert.NotNull(after);
-        Assert.Equal(displayName, after!.DisplayNameOverride);
+        Assert.Equal(displayName, after!.Overrides.DisplayName);
         Assert.Equal(displayName, after.DisplayNameEffective);
-        Assert.Equal(description, after.DescriptionOverride);
+        Assert.Equal(description, after.Overrides.Description);
         Assert.Equal(description, after.DescriptionEffective);
     }
 }

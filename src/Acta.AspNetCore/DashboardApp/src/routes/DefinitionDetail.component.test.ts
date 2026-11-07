@@ -15,51 +15,53 @@ const definition = {
   scheduledDelivery: 'per-occurrence',
   firingFailurePolicy: 'pause-scheduling',
   priority: 'normal',
-  priorityOverride: null,
   priorityEffective: 'normal',
   maxAttempts: 5,
-  maxAttemptsOverride: null,
   maxAttemptsEffective: 5,
   concurrencyLimit: null,
-  concurrencyLimitOverride: null,
   concurrencyLimitEffective: null,
   rateLimit: null,
-  rateLimitOverride: null,
   rateLimitEffective: null,
   rateName: null,
   backoff: 'exponential',
-  backoffOverride: null,
   backoffEffective: 'exponential',
   executionTimeoutSeconds: 300,
-  executionTimeoutSecondsOverride: null,
   executionTimeoutSecondsEffective: 300,
   deadlineSeconds: null,
-  deadlineSecondsOverride: null,
   deadlineSecondsEffective: null,
   deadlineBehavior: 'fail',
-  deadlineBehaviorOverride: null,
   deadlineBehaviorEffective: 'fail',
   jobRetentionSeconds: 86400,
-  jobRetentionSecondsOverride: null,
   jobRetentionSecondsEffective: 86400,
   eventRecording: 'audit',
-  eventRecordingOverride: null,
   eventRecordingEffective: 'audit',
   alertProfile: 'default',
-  alertProfileOverride: null,
   alertProfileEffective: 'default',
   alertChannelName: null,
-  alertChannelNameOverride: null,
   alertChannelNameEffective: null,
   runbookUrl: null,
-  runbookUrlOverride: null,
   runbookUrlEffective: null,
   displayName: null,
-  displayNameOverride: null,
   displayNameEffective: null,
   description: null,
-  descriptionOverride: null,
-  descriptionEffective: null
+  descriptionEffective: null,
+  overrides: {
+    priority: null,
+    maxAttempts: null,
+    concurrencyLimit: null,
+    rateLimit: null,
+    backoff: null,
+    executionTimeoutSeconds: null,
+    deadlineSeconds: null,
+    deadlineBehavior: null,
+    jobRetentionSeconds: null,
+    eventRecording: null,
+    alertProfile: null,
+    alertChannelName: null,
+    runbookUrl: null,
+    displayName: null,
+    description: null
+  }
 };
 
 function pagedResponse(items: unknown[]) {
@@ -226,5 +228,33 @@ describe('DefinitionDetail retire', () => {
     expect(retire).toBeTruthy();
     expect(retire!.init?.method).toBe('POST');
     expect(JSON.parse(String(retire!.init?.body))).toEqual({ expectedVersion: 3, reasonMessage: 'handler dropped' });
+  });
+});
+
+describe('DefinitionDetail overrides', () => {
+  it('seeds each override input from the read\'s overrides and saves every member, a blank one as null', async () => {
+    const calls: { url: URL; init?: RequestInit }[] = [];
+    const overrides = { ...definition.overrides, maxAttempts: 7 };
+    vi.stubGlobal(
+      'fetch',
+      vi.fn(async (input: RequestInfo | URL, init?: RequestInit) => {
+        const url = new URL(input as string | URL);
+        calls.push({ url, init });
+        if (url.pathname.endsWith('/overrides')) return new Response(JSON.stringify({ action: 'applied', version: 4 }), { status: 200 });
+        if (url.pathname.endsWith('/events')) return pagedResponse([]);
+        return new Response(JSON.stringify({ ...definition, maxAttemptsEffective: 7, overrides }), { status: 200 });
+      })
+    );
+    render(DefinitionDetailHarness, { jobNamespace, jobName });
+
+    await screen.findByDisplayValue('7');
+    const inputs = screen.getAllByPlaceholderText('inherit') as HTMLInputElement[];
+    expect(inputs.map((field) => field.value)).toEqual(['', '7', ...Array(13).fill('')]);
+    await fireEvent.click(screen.getByText('Save overrides'));
+    await screen.findByText('Definition overrides applied.');
+
+    const put = calls.find((call) => call.url.pathname.endsWith('/overrides'));
+    expect(put!.init?.method).toBe('PUT');
+    expect(JSON.parse(String(put!.init?.body)).overrides).toStrictEqual(overrides);
   });
 });
