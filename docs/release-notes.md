@@ -143,7 +143,7 @@ Tagged 2026-11-02. rc.8 fixes what the 1.0 readiness reviews found, queues SQLit
 
 ### Evidence
 
-The engine was certified on `5043b81fa` with the Acta Verify release suite on PostgreSQL, SQL Server, and SQLite, in one bundle reported in [`docs/benchmark.md`](./benchmark.md) and on [useacta.net/benchmark](https://useacta.net/benchmark). The commits after it change only the docs, the site, the README, and three conformance specs that timed out on a loaded CI runner: the fast rate meter's late turn and Explain's one-snapshot read now retry until the specs' 60 s gate, and a job beside an enqueue flood has five seconds instead of two.
+The engine was certified on `5043b81fa` with the Acta Verify release suite on PostgreSQL, SQL Server, and SQLite, in one bundle reported in [`docs/benchmark.md`](./reference/benchmark.md) and on [useacta.net/benchmark](https://useacta.net/benchmark). The commits after it change only the docs, the site, the README, and three conformance specs that timed out on a loaded CI runner: the fast rate meter's late turn and Explain's one-snapshot read now retry until the specs' 60 s gate, and a job beside an enqueue flood has five seconds instead of two.
 - **Measurement version 3.** A rate ladder's one worker runs in the measuring process, woken in process as one worker in an application is; more workers, drains, faults, and chaos keep worker processes. Each claim names how its workers learn of new work, and the four- and sixteen-worker scenarios have twins woken through Redis. A floor that holds is probed once at four times itself, and the report lists floors that held there under rates to raise. Compare refuses rc.7's bundles for the change.
 - **Result.** Every correctness, fault, and chaos scenario passed on every database, every trial's ledger passed the certification checks, and every performance floor held.
 - **Found by the evidence, fixed before the certified commit.** The release runs on `a2b1f66a5` and `63bd6946b` did not pass, and since the engine changed, the whole suite ran again on `5043b81fa` rather than a rerun of what had failed:
@@ -232,7 +232,7 @@ Tagged 2026-10-31. rc.7 redesigns scheduling around an admission engine, fixes w
 
 ### Evidence
 
-The engine was certified on `e294a8b91` with the Acta Verify release suite on PostgreSQL, SQL Server, and SQLite, in two bundles reported in [`docs/benchmark.md`](./benchmark.md) and on [useacta.net/benchmark](https://useacta.net/benchmark). The commits after it change only Acta Verify and the docs.
+The engine was certified on `e294a8b91` with the Acta Verify release suite on PostgreSQL, SQL Server, and SQLite, in two bundles reported in [`docs/benchmark.md`](./reference/benchmark.md) and on [useacta.net/benchmark](https://useacta.net/benchmark). The commits after it change only Acta Verify and the docs.
 - **Acta Verify 2.** Each scenario is a written file stating its question, workload, topology, written rates, and target, and the release suite runs every one: 76 scenarios. Performance runs one database at a time on a quiet box, then correctness and faults on all three at once, then chaos one database at a time. A rate holds by rc.6's criteria; each scenario's first written rate is a floor the release suite requires to hold. The floors come from a calibration run of every performance scenario on this machine the same night.
 - **Result.** No scenario failed safety or liveness on any database, and every trial's ledger passed the certification checks.
 - **Found by the evidence, fixed before the certified commit.** Calibration found one hot lane running about one job a second, where rc.6 ran 80: rc.7's schedule admitter waited on the claim loop's auto-reset wake and took the wakes a lane promotion sent. The admitter now has a wake of its own (`329b5fa7e`), and the lane runs at rc.6's rate again.
@@ -372,7 +372,7 @@ Tagged 2026-10-26. Upgrading from rc.5 takes the changes below.
 
 ### Evidence
 
-The engine was certified on `599e28e8` with the Acta Bench full profile on SQLite, PostgreSQL, and SQL Server, in seven bundles reported in [`docs/benchmark.md`](./benchmark.md). The bench changes between the bundles touch only `tools/Acta.Bench` and its tests; `src/` is the same in all seven.
+The engine was certified on `599e28e8` with the Acta Bench full profile on SQLite, PostgreSQL, and SQL Server, in seven bundles reported in [`docs/benchmark.md`](./reference/benchmark.md). The bench changes between the bundles touch only `tools/Acta.Bench` and its tests; `src/` is the same in all seven.
 - **Result.** No case failed safety or liveness in any bundle, and every trial's ledger passed the certification checks.
 - **Chaos certification.** F09 passed at 1,000,000 jobs on PostgreSQL and on SQL Server: 24 workers of 64 executors, a worker killed every 5 s for 7 minutes, 84 and 83 kills, every one of a busy worker whose work was reclaimed, and 16 ledger checks with no violation. SQLite passed at 10,000 jobs on 3 workers.
 - **Bench defects found during the run**, each fixed in the bench alone:
@@ -494,7 +494,7 @@ A worker is one claimer, its executors, and one finalizer, and the database rene
 ### Documentation
 
 - The guides are [`docs/developer-guide.md`](./developer-guide.md) for writing jobs and [`docs/operator-guide.md`](./operator-guide.md) for running them; contributor pages moved into `CONTRIBUTING.md`.
-- The latest benchmark round is [`docs/benchmark.md`](./benchmark.md); the release notes record each certification verdict.
+- The latest benchmark round is [`docs/benchmark.md`](./reference/benchmark.md); the release notes record each certification verdict.
 
 ### Evidence
 
