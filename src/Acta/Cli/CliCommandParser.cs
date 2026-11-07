@@ -3,7 +3,7 @@ namespace Acta;
 /// <summary>
 /// Hand-rolled parser for the jobs CLI: verb, positional target (and signal name), then flags.
 /// Grammar: jobs verb [target] [name] [--reason msg] [--value json] [--ns ns] [--json]. A missing
-/// target parses as null; the runner fills it from the clipboard.
+/// target parses as null; the runner fills a read verb's from the clipboard and refuses a control's.
 /// </summary>
 internal static class CliCommandParser
 {
@@ -164,13 +164,8 @@ internal static class CliCommandParser
 
         if (verb == CliVerb.Signal && signalName is null)
         {
-            // A lone positional on signal is the name; the target then comes from the clipboard.
-            (target, signalName) = (null, target);
-            if (signalName is null)
-            {
-                error = "Verb 'signal' requires a signal name.";
-                return false;
-            }
+            error = "Verb 'signal' requires a job and a signal name.";
+            return false;
         }
         if (reason is not null && verb is not (CliVerb.Cancel or CliVerb.Pause or CliVerb.Resume or CliVerb.Restart))
         {

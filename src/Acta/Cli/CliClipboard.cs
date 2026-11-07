@@ -3,15 +3,15 @@ using System.Diagnostics;
 namespace Acta;
 
 /// <summary>
-/// Clipboard fallback for the CLI target: when a verb is invoked without a job id or deduplication-key,
-/// the runner reads the OS clipboard and accepts a single-line value up to the DeduplicationKey size.
+/// Clipboard fallback for a read verb's target: when info, status, result, events, or explain is invoked
+/// without one, the runner reads the OS clipboard and accepts one token up to the DeduplicationKey size.
 /// </summary>
 internal static class CliClipboard
 {
     /// <summary>
-    /// Validates clipboard text as a CLI target: trimmed, single line, non-empty, and at most
-    /// <see cref="DeduplicationKey.MaxLength"/> characters. Numeric-vs-deduplication-key resolution stays in
-    /// the runner, same as for an explicit argument.
+    /// Validates clipboard text as a CLI target: trimmed, non-empty, at most <see cref="DeduplicationKey.MaxLength"/>
+    /// characters, and printable ASCII without whitespace, as a job ref, an <c>id:&lt;n&gt;</c>, and a deduplication key
+    /// all are. Which of the three it is stays in the runner, same as for an explicit argument.
     /// </summary>
     public static bool TryResolveTarget(string? text, out string target)
     {
@@ -22,17 +22,9 @@ internal static class CliClipboard
         }
 
         var candidate = text.Trim();
-        if (candidate.Length == 0 || candidate.Length > DeduplicationKey.MaxLength)
+        if (candidate.Length == 0 || candidate.Length > DeduplicationKey.MaxLength || candidate.AsSpan().ContainsAnyExceptInRange('!', '~'))
         {
             return false;
-        }
-
-        foreach (var ch in candidate)
-        {
-            if (ch < 0x20 || ch == 0x7F)
-            {
-                return false;
-            }
         }
 
         target = candidate;

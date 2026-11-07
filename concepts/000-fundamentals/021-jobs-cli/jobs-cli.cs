@@ -44,7 +44,7 @@ Console.WriteLine($"  {cli} pause {enqueued.JobRef} --reason \"hold for review\"
 Console.WriteLine($"  {cli} resume {enqueued.JobRef}");
 Console.WriteLine($"  {cli} restart {enqueued.JobRef}");
 Console.WriteLine($"  {cli} debug {enqueued.JobRef}");
-Console.WriteLine($"  {cli} info    (no id: the CLI reads it from the clipboard)");
+Console.WriteLine($"  {cli} info    (no target: a read takes the copied ref from the clipboard)");
 await lab.ShowAllAsync(
     "Explore the complete signal-waiting job record",
     """

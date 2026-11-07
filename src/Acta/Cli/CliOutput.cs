@@ -520,24 +520,24 @@ internal static class CliOutput
 
     public static void WriteUsage(TextWriter writer, IReadOnlyList<string> namespaces)
     {
-        writer.WriteLine("Usage: <app> jobs <verb> <job-ref|deduplication-key|id> [options]");
+        writer.WriteLine("Usage: <app> jobs <verb> <job> [options]");
         writer.WriteLine("       <app> jobs migrate [--force] [--json]");
         writer.WriteLine("       <app> jobs deploy [--force] [--json]");
         writer.WriteLine();
         writer.WriteLine("Verbs:");
-        writer.WriteLine("  info     <job-ref|deduplication-key|id>          print the job row");
-        writer.WriteLine("  status   <job-ref|deduplication-key|id>          print the current status");
-        writer.WriteLine("  result   <job-ref|deduplication-key|id>          print the latest result payload");
-        writer.WriteLine("  cancel   <job-ref|deduplication-key|id>          cancel the job (cascades to children)");
-        writer.WriteLine("  pause    <job-ref|deduplication-key|id>          pause a job before it runs");
-        writer.WriteLine("  resume   <job-ref|deduplication-key|id>          resume a paused job");
-        writer.WriteLine("  restart  <job-ref|deduplication-key|id>          reset any non-executing job to Ready");
-        writer.WriteLine("  signal   <job-ref|deduplication-key|id> <name>   raise a signal (add --value for a payload)");
+        writer.WriteLine("  info     <job-ref|deduplication-key|id:n>        print the job row");
+        writer.WriteLine("  status   <job-ref|deduplication-key|id:n>        print the current status");
+        writer.WriteLine("  result   <job-ref|deduplication-key|id:n>        print the latest result payload");
+        writer.WriteLine("  cancel   <job-ref|deduplication-key>             cancel the job (cascades to children)");
+        writer.WriteLine("  pause    <job-ref|deduplication-key>             pause a job before it runs");
+        writer.WriteLine("  resume   <job-ref|deduplication-key>             resume a paused job");
+        writer.WriteLine("  restart  <job-ref|deduplication-key>             reset any non-executing job to Ready");
+        writer.WriteLine("  signal   <job-ref|deduplication-key> <name>      raise a signal (add --value for a payload)");
         writer.WriteLine(
-            "  debug    <job-ref|deduplication-key|id>          run only this one job in-process (this worker runs nothing else)"
+            "  debug    <job-ref|deduplication-key>             run only this one job in-process (this worker runs nothing else)"
         );
-        writer.WriteLine("  events   <job-ref|deduplication-key|id>          print the job's audit timeline newest first");
-        writer.WriteLine("  explain  <job-ref|deduplication-key|id>          explain the job's state in plain English + next action");
+        writer.WriteLine("  events   <job-ref|deduplication-key|id:n>        print the job's audit timeline newest first");
+        writer.WriteLine("  explain  <job-ref|deduplication-key|id:n>        explain the job's state in plain English + next action");
         writer.WriteLine("  migrate                                          apply the Acta migrations this database lacks, then deploy");
         writer.WriteLine("  deploy                                           write this build's job definitions and schedules, then exit");
         writer.WriteLine();
@@ -551,9 +551,9 @@ internal static class CliOutput
         writer.WriteLine("  --force          deploy/migrate: deploy a build that deployed earlier and is no longer current");
         writer.WriteLine("  --json           print the result as JSON");
         writer.WriteLine();
-        writer.WriteLine("A job_... target is a job ref; any other non-numeric target is a deduplication key;");
-        writer.WriteLine("a bare integer is the internal job id (the advanced/debug path).");
-        writer.WriteLine("Omit the target to take it from the clipboard.");
+        writer.WriteLine("A job_... target is a job ref, id:<n> the internal job id from a log line (reads only),");
+        writer.WriteLine("and any other target, a bare integer included, a deduplication key (see --ns).");
+        writer.WriteLine("Omit a read's target to take it from the clipboard; a control always names its job.");
         writer.WriteLine();
         writer.WriteLine($"Registered namespaces: {(namespaces.Count == 0 ? "(none)" : string.Join(", ", namespaces))}");
         writer.WriteLine("Exit codes: 0 applied/found, 1 rejected/failed, 2 not found, 64 usage error.");

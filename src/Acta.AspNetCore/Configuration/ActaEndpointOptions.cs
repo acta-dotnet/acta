@@ -10,13 +10,13 @@ namespace Acta.AspNetCore;
 public class ActaEndpointOptions
 {
     /// <summary>
-    /// Whether every endpoint rejects with 403 a request from a non-loopback remote address, and a local one that names
-    /// the host by anything but <c>localhost</c> or an IP address (a DNS-rebinding page). On by default. Set to false,
-    /// the guard is lifted everywhere under <see cref="RequirePermissions"/> or
-    /// <see cref="UnsafeAllowAnonymousRemoteAccess"/>; otherwise only from an endpoint that requires the host's
-    /// authorization (<c>RequireAuthorization</c>) with no <c>AllowAnonymous</c> over it. A fallback policy does not
-    /// lift it: the framework refuses to serve an endpoint that requires authorization without the authorization
-    /// middleware, and makes no such check for a fallback policy.
+    /// Whether every endpoint rejects with 403 a request from another machine, and a local one, a Unix socket's with no
+    /// remote address included, that names the host by anything but <c>localhost</c> or an IP address (a DNS-rebinding
+    /// page, or a proxy forwarding a public name). On by default. Set to false, the guard is lifted everywhere under
+    /// <see cref="RequirePermissions"/> or <see cref="UnsafeAllowAnonymousRemoteAccess"/>; otherwise only from an
+    /// endpoint that requires the host's authorization (<c>RequireAuthorization</c>) with no <c>AllowAnonymous</c> over
+    /// it. A fallback policy does not lift it: the framework refuses to serve an endpoint that requires authorization
+    /// without the authorization middleware, and makes no such check for a fallback policy.
     /// </summary>
     public bool LocalOnly { get; set; } = true;
 

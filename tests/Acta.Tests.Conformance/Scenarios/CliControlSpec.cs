@@ -8,8 +8,8 @@ namespace Acta.Tests.Conformance.Scenarios;
 
 /// <summary>
 /// Conformance for the jobs CLI runner: each verb maps to the matching IJobs call, exit codes
-/// follow the applied/rejected/not-found bands, and debug claims exactly the targeted job and
-/// runs it in-process through the normal pipeline.
+/// follow the applied/rejected/not-found bands, a bare integer target is a deduplication key, and
+/// debug claims exactly the targeted job and runs it in-process through the normal pipeline.
 /// </summary>
 [ConformanceSpec(
     "cli.control-surface",
@@ -28,12 +28,12 @@ public sealed class CliControlSpec : ActaRuntimeTestBase<ConformanceFixture, Tes
         var enqueued = await EnqueueJobAsync(Unique("cli-pause"), ct);
         var runner = CreateRunner(out var output);
 
-        var pauseExit = await runner.RunAsync(Parse($"pause {enqueued.JobId} --reason hold"), ct);
+        var pauseExit = await runner.RunAsync(Parse($"pause {enqueued.JobRef} --reason hold"), ct);
         Assert.Equal(0, pauseExit);
         Assert.Equal(JobStatusCode.Paused, (await Jobs.GetStatusAsync(enqueued, ct))?.Status);
         Assert.Contains("status: Paused", output.ToString());
 
-        var resumeExit = await runner.RunAsync(Parse($"resume {enqueued.JobId}"), ct);
+        var resumeExit = await runner.RunAsync(Parse($"resume {enqueued.JobRef}"), ct);
         Assert.Equal(0, resumeExit);
         Assert.Equal(JobStatusCode.Ready, (await Jobs.GetStatusAsync(enqueued, ct))?.Status);
     }
@@ -45,10 +45,10 @@ public sealed class CliControlSpec : ActaRuntimeTestBase<ConformanceFixture, Tes
         var enqueued = await EnqueueJobAsync(Unique("cli-cancel"), ct);
         var runner = CreateRunner(out _);
 
-        Assert.Equal(0, await runner.RunAsync(Parse($"cancel {enqueued.JobId} --reason done"), ct));
+        Assert.Equal(0, await runner.RunAsync(Parse($"cancel {enqueued.JobRef} --reason done"), ct));
         Assert.Equal(JobStatusCode.Cancelled, (await Jobs.GetStatusAsync(enqueued, ct))?.Status);
 
-        Assert.Equal(0, await runner.RunAsync(Parse($"restart {enqueued.JobId}"), ct));
+        Assert.Equal(0, await runner.RunAsync(Parse($"restart {enqueued.JobRef}"), ct));
         Assert.Equal(JobStatusCode.Ready, (await Jobs.GetStatusAsync(enqueued, ct))?.Status);
     }
 
@@ -60,9 +60,25 @@ public sealed class CliControlSpec : ActaRuntimeTestBase<ConformanceFixture, Tes
         var runner = CreateRunner(out _);
 
         // Ready job: resume is Rejected.
-        Assert.Equal(1, await runner.RunAsync(Parse($"resume {enqueued.JobId}"), ct));
-        Assert.Equal(2, await runner.RunAsync(Parse($"cancel {long.MaxValue}"), ct));
-        Assert.Equal(2, await runner.RunAsync(Parse($"info {long.MaxValue}"), ct));
+        Assert.Equal(1, await runner.RunAsync(Parse($"resume {enqueued.JobRef}"), ct));
+        Assert.Equal(2, await runner.RunAsync(Parse($"cancel {JobRef.New()}"), ct));
+        Assert.Equal(2, await runner.RunAsync(Parse($"info id:{long.MaxValue}"), ct));
+    }
+
+    [Fact(DisplayName = "A bare integer target is a deduplication key and a control refuses an internal id")]
+    public async Task A_bare_integer_is_a_deduplication_key_and_a_control_refuses_an_id()
+    {
+        var ct = TestContext.Current.CancellationToken;
+        var byId = await EnqueueJobAsync(Unique("cli-integer"), ct);
+        var byKey = await EnqueueJobAsync($"{byId.JobId}", ct);
+        var runner = CreateRunner(out _);
+
+        Assert.Equal(0, await runner.RunAsync(Parse($"pause {byId.JobId} --ns {TestNamespace}"), ct));
+        Assert.Equal(JobStatusCode.Paused, (await Jobs.GetStatusAsync(byKey, ct))?.Status);
+        Assert.Equal(JobStatusCode.Ready, (await Jobs.GetStatusAsync(byId, ct))?.Status);
+
+        Assert.Equal(64, await runner.RunAsync(Parse($"cancel id:{byId.JobId}"), ct));
+        Assert.Equal(JobStatusCode.Ready, (await Jobs.GetStatusAsync(byId, ct))?.Status);
     }
 
     [Fact(DisplayName = "Signal verb maps to IJobs and applies on a live job")]
@@ -72,7 +88,7 @@ public sealed class CliControlSpec : ActaRuntimeTestBase<ConformanceFixture, Tes
         var enqueued = await EnqueueJobAsync(Unique("cli-signal"), ct);
         var runner = CreateRunner(out _);
 
-        Assert.Equal(0, await runner.RunAsync(Parse($"signal {enqueued.JobId} approval"), ct));
+        Assert.Equal(0, await runner.RunAsync(Parse($"signal {enqueued.JobRef} approval"), ct));
     }
 
     [Fact(DisplayName = "Info and status read verbs print the job row")]
@@ -110,15 +126,15 @@ public sealed class CliControlSpec : ActaRuntimeTestBase<ConformanceFixture, Tes
         var enqueued = await EnqueueJobAsync(Unique("cli-debug"), ct);
         var runner = CreateRunner(out var output);
 
-        var exit = await runner.RunAsync(Parse($"debug {enqueued.JobId}"), ct);
+        var exit = await runner.RunAsync(Parse($"debug {enqueued.JobRef}"), ct);
 
         Assert.Equal(0, exit);
         Assert.Equal(JobStatusCode.Succeeded, (await Jobs.GetStatusAsync(enqueued, ct))?.Status);
         Assert.Contains("run: Completed", output.ToString());
 
-        // The result verb surfaces the handler's payload: AddNumbers(2, 3) produced Sum = 5.
+        // The result verb surfaces the handler's payload: AddNumbers(2, 3) produced Sum = 5. A read takes the id.
         var resultRunner = CreateRunner(out var resultOutput);
-        Assert.Equal(0, await resultRunner.RunAsync(Parse($"result {enqueued.JobId}"), ct));
+        Assert.Equal(0, await resultRunner.RunAsync(Parse($"result id:{enqueued.JobId}"), ct));
         Assert.Contains("5", resultOutput.ToString());
     }
 
@@ -130,7 +146,7 @@ public sealed class CliControlSpec : ActaRuntimeTestBase<ConformanceFixture, Tes
         Assert.Equal(RunOnceStatus.Completed, await Runtime.RunOnceAsync(TestNamespace, finished.JobId, ct));
         var runner = CreateRunner(out var output);
 
-        var exit = await runner.RunAsync(Parse($"debug {finished.JobId}"), ct);
+        var exit = await runner.RunAsync(Parse($"debug {finished.JobRef}"), ct);
 
         Assert.Equal(0, exit);
         var text = output.ToString();
@@ -148,7 +164,7 @@ public sealed class CliControlSpec : ActaRuntimeTestBase<ConformanceFixture, Tes
         var follower = await EnqueueLaneStepAsync("queued", ct);
         var runner = CreateRunner(out var output);
 
-        var exit = await runner.RunAsync(Parse($"debug {finished.JobId}"), ct);
+        var exit = await runner.RunAsync(Parse($"debug {finished.JobRef}"), ct);
 
         Assert.Equal(0, exit);
         var text = output.ToString();
@@ -165,10 +181,10 @@ public sealed class CliControlSpec : ActaRuntimeTestBase<ConformanceFixture, Tes
         var enqueued = await EnqueueJobAsync(Unique("cli-events"), ct);
         var runner = CreateRunner(out _);
 
-        Assert.Equal(0, await runner.RunAsync(Parse($"debug {enqueued.JobId}"), ct));
+        Assert.Equal(0, await runner.RunAsync(Parse($"debug {enqueued.JobRef}"), ct));
 
         var eventsRunner = CreateRunner(out var eventsOutput);
-        Assert.Equal(0, await eventsRunner.RunAsync(Parse($"events {enqueued.JobId}"), ct));
+        Assert.Equal(0, await eventsRunner.RunAsync(Parse($"events {enqueued.JobRef}"), ct));
         var text = eventsOutput.ToString();
         Assert.Contains($"Events for job {enqueued.JobRef}", text);
         Assert.Contains("job.execution-succeeded", text);

@@ -301,22 +301,22 @@ Every Acta host doubles as a control CLI: `<app> jobs <verb>` runs the verb agai
 
 ```
 <app> jobs help
-<app> jobs info    <job-ref|deduplication-key|id>
-<app> jobs status  <job-ref|deduplication-key|id>
-<app> jobs result  <job-ref|deduplication-key|id>
-<app> jobs explain <job-ref|deduplication-key|id>
-<app> jobs events  <job-ref|deduplication-key|id> [--take <n>] [--after <cursor>]
-<app> jobs cancel  <job-ref|deduplication-key|id> [--reason <msg>]
-<app> jobs pause   <job-ref|deduplication-key|id> [--reason <msg>]
-<app> jobs resume  <job-ref|deduplication-key|id> [--reason <msg>]
-<app> jobs restart <job-ref|deduplication-key|id> [--reason <msg>]
-<app> jobs signal  <job-ref|deduplication-key|id> <name> [--value <json>]
-<app> jobs debug   <job-ref|deduplication-key|id> [--break]
+<app> jobs info    <job-ref|deduplication-key|id:n>
+<app> jobs status  <job-ref|deduplication-key|id:n>
+<app> jobs result  <job-ref|deduplication-key|id:n>
+<app> jobs explain <job-ref|deduplication-key|id:n>
+<app> jobs events  <job-ref|deduplication-key|id:n> [--take <n>] [--after <cursor>]
+<app> jobs cancel  <job-ref|deduplication-key> [--reason <msg>]
+<app> jobs pause   <job-ref|deduplication-key> [--reason <msg>]
+<app> jobs resume  <job-ref|deduplication-key> [--reason <msg>]
+<app> jobs restart <job-ref|deduplication-key> [--reason <msg>]
+<app> jobs signal  <job-ref|deduplication-key> <name> [--value <json>]
+<app> jobs debug   <job-ref|deduplication-key> [--break]
 <app> jobs deploy  [--force] [--json]
 <app> jobs migrate [--force] [--json]
 ```
 
-A `job_...` target is a job ref, another non-numeric one a deduplication key, and an integer the internal id; an omitted target is read from the clipboard. Add `--ns <ns>` to pick the namespace for a deduplication-key lookup and `--json` for JSON output.
+A `job_...` target is a job ref, `id:<n>` the internal id, and any other target, a bare integer included, a deduplication key. As on the HTTP API, `id:<n>` is for reads (`info`, `status`, `result`, `explain`, `events`), and a control (`cancel`, `pause`, `resume`, `restart`, `signal`, `debug`) given one exits 64, since an internal id names a job in any namespace. A read with no target takes it from the clipboard and prints what it took to stderr; a control with no target exits 64. Add `--ns <ns>` to pick the namespace for a deduplication-key lookup and `--json` for JSON output.
 
 `explain` is where to start for any stuck, waiting, or failed job: it reads the job's status, lease, worker, newest 50 steps, checkpoints, and latest reason in one statement and says what happened and what to do next. It cannot know what your code or an external system did.
 
@@ -342,7 +342,7 @@ app.MapActa("/acta", options =>
 });
 ```
 
-- **Local only by default.** Remote requests answer 403, and a local one must address `localhost` or an IP. To expose it, set `LocalOnly = false` and either turn on [permissions](#permissions) or require your own authorization through `ConfigureEndpoints`, either of which covers the page, its assets, and the API; without one startup throws unless `UnsafeAllowAnonymousRemoteAccess = true`. Short of permissions or that acknowledgment, the guard stays on every endpoint that carries no authorization, so an empty `ConfigureEndpoints` hook, or one that adds `AllowAnonymous`, still answers a remote request 403; `RequireAuthorization` from a parent group counts. A fallback policy does not count, because the framework refuses to serve an endpoint that requires authorization when the authorization middleware is missing and makes no such check for a fallback policy. Neither package ships authentication, and CORS is not authorization.
+- **Local only by default.** Remote requests answer 403. A local request, one from loopback, from the machine's own address, or with no remote address at all, as on a Unix socket, must also address `localhost` or an IP. To expose it, set `LocalOnly = false` and either turn on [permissions](#permissions) or require your own authorization through `ConfigureEndpoints`, either of which covers the page, its assets, and the API; without one startup throws unless `UnsafeAllowAnonymousRemoteAccess = true`. Short of permissions or that acknowledgment, the guard stays on every endpoint that carries no authorization, so an empty `ConfigureEndpoints` hook, or one that adds `AllowAnonymous`, still answers a remote request 403; `RequireAuthorization` from a parent group counts. A fallback policy does not count, because the framework refuses to serve an endpoint that requires authorization when the authorization middleware is missing and makes no such check for a fallback policy. Neither package ships authentication, and CORS is not authorization.
 - **Reads expose payloads.** Anyone who can read can see every job's input, result, and checkpoint values: `GET /jobs/{jobRef}/input` and `/result` serve the payload whole as the body, and the job detail and checkpoint reads carry each one up to `MaxInlinePayloadBytes`. Treat read access as access to every payload in the ledger.
 - **Controls are opt-in.** `EnableControls = true` maps every route that writes: the job controls, enqueue, the input update, signals, the schedule controls, definition overrides and retire, tenant and namespace changes, the alert and outbox controls, calendar changes, and tag writes. Each control request must be confirmed by the header `X-Acta-Control: true`, a JSON content type, or a `Bearer` authorization header, none of which a page on another origin can send without a CORS preflight; a call with none of them answers 400. It is a guard against cross-site requests, not authentication. `ControlConfirmationHeaderName` renames the header, and mapping throws for an empty name or one of the five CORS-safelisted request headers (`Accept`, `Accept-Language`, `Content-Language`, `Content-Type`, `Range`), which any page may send without a preflight. A control's outcome is the `action` of its response body under a status that matches it: 200 for `applied`, and for `already-in-state` where the target already was as asked; 404 for `not-found`; and 409 for `rejected` or `version-conflict`. Two kinds of control answer otherwise: `POST /jobs` answers 201 when it inserts the job and 200 when a deduplication key matches an existing one, and a refused enqueue is a 409 problem document whose `reasonCode` says why; the outbox requeue and discard answer 202 `accepted`, since the next relay pass applies them. Problem details are kept for malformed input, authorization, and faults.
 - **Jobs are addressed by ref** (`/acta/api/v1/jobs/{jobRef}`) or by deduplication key (`/jobs/by-deduplication-key?jobNamespace=&deduplicationKey=`). `EnableNumericIdLookup = true` also allows `/jobs/id:{n}` on reads, for debugging from a log line.
@@ -679,7 +679,7 @@ app.MapActa("/acta", options =>
 });
 ```
 
-Behind a reverse proxy on the same host, `LocalOnly` protects nothing: it checks the TCP peer, which is the proxy. Gate remote access with host authorization, and configure `ForwardedHeaders` if the host needs the client's IP. Keep secrets and personal data out of payloads, since every reader sees them.
+Behind a reverse proxy on the same host, `LocalOnly` protects nothing: the peer it checks is the proxy, over TCP or a Unix socket, and the host name it checks is whatever the proxy sends. Gate remote access with host authorization, and configure `ForwardedHeaders` if the host needs the client's IP. Keep secrets and personal data out of payloads, since every reader sees them.
 
 With `LocalOnly = false` the control confirmation is no defense against DNS rebinding, since a page that rebinds its own name to the server is same-origin and may send any header; host filtering is, so set `AllowedHosts` to the names the server answers to.
 
@@ -997,7 +997,7 @@ schedule downtime, purge, or restore: see [What happens if…](#what-happens-if)
 
 ### Start With `jobs explain`
 
-For any single stuck, waiting, or failed job, run `<app> jobs explain <job-ref|id>` first. It reads
+For any single stuck, waiting, or failed job, run `<app> jobs explain <job-ref|id:n>` first. It reads
 the same `jobs_state` / lease / worker / checkpoint / step / event rows the checks below describe, in
 one consistent snapshot, and states in plain English where the work is, why it moved there, and the
 next action (raise a signal, wait for crash recovery, resume, restart, or inspect the timeline). The

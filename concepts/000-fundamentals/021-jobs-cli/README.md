@@ -1,6 +1,6 @@
 <!-- engineering-lab
 lab: can-your-worker-binary-be-the-admin-cli
-also-labs: can-jobs-explain-themselves, can-you-step-into-a-job-by-id
+also-labs: can-jobs-explain-themselves, can-you-step-into-a-job-by-ref
 views: jobs_view, events_view, checkpoints_view
 alternatives: separate-admin-tool, dashboard, direct-sql, embedded-cli
 -->

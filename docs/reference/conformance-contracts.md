@@ -653,6 +653,7 @@
   - Pause and resume verbs map to IJobs, exit zero, and apply the transitions
   - Cancel and restart verbs map to IJobs and apply the transitions
   - Exit codes follow action bands: illegal move exits one, missing job exits two
+  - A bare integer target is a deduplication key and a control refuses an internal id
   - Signal verb maps to IJobs and applies on a live job
   - Info and status read verbs print the job row
   - A verb resolves a job by deduplication key with an explicit namespace

@@ -215,12 +215,13 @@ public static class ActaEndpointRouteBuilderExtensions
 
                 var connection = http.Connection;
                 var remote = connection.RemoteIpAddress;
-                // Null remote means an in-process transport (test server, named pipes). A local peer must also
-                // name the host locally: a page that rebinds its own DNS name to 127.0.0.1 reaches this socket
-                // from the operator's browser under that name, never as localhost or an IP literal.
+                // A local peer is loopback, this machine's own address, or no address at all, which a test server,
+                // a named pipe, and a Unix socket report alike. Every local peer must also name the host locally, so
+                // a reverse proxy on a Unix socket that forwards a public host name is refused, and so is a page that
+                // rebinds its own DNS name to 127.0.0.1 and reaches this socket from the operator's browser.
                 return
-                    remote is null
-                    || (IPAddress.IsLoopback(remote) || remote.Equals(connection.LocalIpAddress)) && IsLocalHostName(http.Request.Host.Host)
+                    (remote is null || IPAddress.IsLoopback(remote) || remote.Equals(connection.LocalIpAddress))
+                    && IsLocalHostName(http.Request.Host.Host)
                     ? await next(context)
                     : Results.Problem(
                         statusCode: StatusCodes.Status403Forbidden,

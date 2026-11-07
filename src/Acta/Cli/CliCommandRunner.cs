@@ -22,6 +22,8 @@ internal sealed class CliCommandRunner(
     private const int ExitNotFound = 2;
     private const int ExitUsage = 64;
 
+    private const string IdPrefix = "id:";
+
     private static readonly TimeSpan HeartbeatPumpInterval = TimeSpan.FromSeconds(45);
 
     public async Task<int> RunAsync(CliCommand command, CancellationToken ct)
@@ -32,17 +34,31 @@ internal sealed class CliCommandRunner(
             return ExitOk;
         }
 
+        // The clipboard serves the reads only: a control acts on the job the operator typed.
+        var read = command.Verb is CliVerb.Info or CliVerb.Status or CliVerb.Result or CliVerb.Events or CliVerb.Explain;
         if (command.Target is null)
         {
-            if (!CliClipboard.TryResolveTarget((clipboard ?? CliClipboard.ReadText)(), out var fromClipboard))
+            if (!read)
             {
-                await error.WriteLineAsync("Job target is missing: pass a job ref or deduplication-key, or copy one to the clipboard.");
+                await error.WriteLineAsync(
+                    "Job target is missing: a control takes the job ref or deduplication key of its job; only a read takes it from the clipboard."
+                );
                 return ExitUsage;
             }
+
+            if (!CliClipboard.TryResolveTarget((clipboard ?? CliClipboard.ReadText)(), out var fromClipboard))
+            {
+                await error.WriteLineAsync(
+                    "Job target is missing: pass a job ref, a deduplication key, or id:<n>, or copy one to the clipboard."
+                );
+                return ExitUsage;
+            }
+
+            await error.WriteLineAsync($"Target from the clipboard: {fromClipboard}");
             command = command with { Target = fromClipboard };
         }
 
-        if (!TryBuildLookup(command, out var lookup, out var usageError))
+        if (!TryBuildLookup(command, read, out var lookup, out var usageError))
         {
             await error.WriteLineAsync(usageError);
             return ExitUsage;
@@ -76,17 +92,36 @@ internal sealed class CliCommandRunner(
         };
     }
 
-    private bool TryBuildLookup(CliCommand command, out JobLookup job, out string? usageError)
+    /// <summary>
+    /// Resolves the target as the HTTP API does: a <c>job_...</c> target is a job ref, <c>id:&lt;n&gt;</c> the internal
+    /// id, and anything else, a bare integer included, a deduplication key in the namespace. A control refuses an id,
+    /// which names a job in any namespace and which a restored backup reissues, so a stale one acts on another job.
+    /// </summary>
+    private bool TryBuildLookup(CliCommand command, bool read, out JobLookup job, out string? usageError)
     {
         usageError = null;
-        if (JobRef.TryParse(command.Target, out var jobRef))
+        var target = command.Target!;
+        if (JobRef.TryParse(target, out var jobRef))
         {
             job = JobLookup.ByRef(jobRef);
             return true;
         }
 
-        if (long.TryParse(command.Target, out var id) && id > 0)
+        if (target.StartsWith(IdPrefix, StringComparison.OrdinalIgnoreCase))
         {
+            job = default;
+            if (!read)
+            {
+                usageError = "A control takes a job ref or a deduplication key; id:<n> addresses a job on the read verbs only.";
+                return false;
+            }
+
+            if (!long.TryParse(target.AsSpan(IdPrefix.Length), out var id) || id <= 0)
+            {
+                usageError = $"'{target}' is not an internal job id: id: takes a positive integer.";
+                return false;
+            }
+
             job = JobLookup.ById(id);
             return true;
         }
@@ -102,7 +137,7 @@ internal sealed class CliCommandRunner(
             return false;
         }
 
-        job = JobLookup.ByDeduplicationKey(ns, command.Target!);
+        job = JobLookup.ByDeduplicationKey(ns, target);
         return true;
     }
 

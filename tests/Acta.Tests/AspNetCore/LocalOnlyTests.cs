@@ -16,8 +16,9 @@ namespace Acta.Tests.AspNetCore;
 
 /// <summary>
 /// The local-only default rejects non-loopback remote requests with 403 across HTML, assets,
-/// queries, and controls; loopback, in-process, and same-machine requests pass; the host opts
-/// out with <c>LocalOnly = false</c>, which lifts the guard only where authorization stands in for it.
+/// queries, and controls; loopback, in-process, and same-machine requests pass when they name the host
+/// locally; the host opts out with <c>LocalOnly = false</c>, which lifts the guard only where authorization
+/// stands in for it.
 /// </summary>
 public sealed class LocalOnlyTests
 {
@@ -121,6 +122,68 @@ public sealed class LocalOnlyTests
         var response = await client.GetAsync("/acta/api/v1/jobs", TestContext.Current.CancellationToken);
 
         Assert.Equal(HttpStatusCode.OK, response.StatusCode);
+    }
+
+    // No remote address is what Kestrel reports on a Unix socket, so a reverse proxy there arrives as this request.
+    private static void NoRemoteAddress(WebApplication app) =>
+        app.Use(
+            (context, next) =>
+            {
+                context.Connection.RemoteIpAddress = null;
+                context.Connection.LocalIpAddress = null;
+                return next(context);
+            }
+        );
+
+    /// <summary>
+    /// A request with no remote address must name the host locally too: under a public host name a page, an asset, a
+    /// read, and a confirmed control each answer the local-only 403, and the control never reaches the jobs.
+    /// </summary>
+    [Fact]
+    public async Task A_request_with_no_remote_address_under_a_public_host_name_is_refused()
+    {
+        var fakes = new FakeOperations();
+        var (app, client) = await TestDashboardHost.StartAsync(
+            configureDashboard: options => options.EnableControls = true,
+            fakes: fakes,
+            configureApp: NoRemoteAddress
+        );
+        await using var _ = app;
+        var ct = TestContext.Current.CancellationToken;
+        var control = new HttpRequestMessage(HttpMethod.Post, $"/acta/api/v1/jobs/{FakeJobs.FoundJobRef}/pause");
+        control.Headers.Add("X-Acta-Control", "true");
+
+        HttpRequestMessage[] requests =
+        [
+            new(HttpMethod.Get, "/acta"),
+            new(HttpMethod.Get, "/acta/assets/anything.js"),
+            new(HttpMethod.Get, "/acta/api/v1/jobs"),
+            control,
+        ];
+        foreach (var request in requests)
+        {
+            request.Headers.Host = "jobs.example.com";
+            var response = await client.SendAsync(request, ct);
+            Assert.Equal(HttpStatusCode.Forbidden, response.StatusCode);
+            Assert.Equal(LocalOnlyByDefault, await TitleAsync(response));
+        }
+        Assert.Empty(fakes.Jobs.ControlCalls);
+    }
+
+    [Theory]
+    [InlineData("localhost")]
+    [InlineData("localhost:5000")]
+    [InlineData("127.0.0.1:5000")]
+    [InlineData("[::1]:5000")]
+    public async Task A_request_with_no_remote_address_under_a_local_host_name_passes(string host)
+    {
+        var (app, client) = await TestDashboardHost.StartAsync(configureApp: NoRemoteAddress);
+        await using var _ = app;
+
+        using var request = new HttpRequestMessage(HttpMethod.Get, "/acta/api/v1/jobs");
+        request.Headers.Host = host;
+
+        Assert.Equal(HttpStatusCode.OK, (await client.SendAsync(request, TestContext.Current.CancellationToken)).StatusCode);
     }
 
     [Fact]

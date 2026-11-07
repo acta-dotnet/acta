@@ -112,13 +112,24 @@ public class CliCommandParserTests
         Assert.Null(cmd.Target);
     }
 
+    // A signal is a control, so its job never comes from the clipboard: one positional is a job without a name.
     [Fact]
-    public void Signal_single_positional_is_the_name_with_null_target()
+    public void Signal_with_one_positional_is_an_error()
     {
-        Assert.True(CliCommandParser.TryParse(["signal", "approval"], out var cmd, out _));
-        Assert.Equal(CliVerb.Signal, cmd.Verb);
-        Assert.Null(cmd.Target);
-        Assert.Equal("approval", cmd.SignalName);
+        Assert.False(CliCommandParser.TryParse(["signal", "approval"], out _, out var error));
+        Assert.Contains("requires a job and a signal name", error);
+    }
+
+    // The parser keeps the target as typed; the runner decides what a ref, an id:<n>, or a key addresses.
+    [Theory]
+    [InlineData("4711")]
+    [InlineData("id:42")]
+    [InlineData("job_019826f000007000800000000000002a")]
+    public void A_target_parses_as_typed(string target)
+    {
+        Assert.True(CliCommandParser.TryParse(["cancel", target, "--ns", "billing"], out var cmd, out _));
+        Assert.Equal(target, cmd.Target);
+        Assert.Equal("billing", cmd.Namespace);
     }
 
     [Theory]
