@@ -370,13 +370,17 @@ restates code loses nothing - the code still says it. The homes, in order of pre
    property is written as a `///` doc comment. Public members get generous docs - contract,
    behavior, gotchas - written for the IntelliSense reader; that is the product surface. Internal
    members get a tight `<summary>` only (no `<param>`/`<returns>`/`<remarks>` scaffolding unless a
-   tag carries a contract that fits nowhere else), stating only claims the code cannot make.
+   tag carries a contract that fits nowhere else), stating only claims the code cannot make. A wire
+   record, a record whose name `docs/reference/openapi.json` lists as a schema, is the HTTP contract's
+   surface whether public or internal: a member's meaning is its `<param>` line, which the contract
+   generator writes as the property's description.
 3. **A plain `//` comment inside a method body** stating a claim the code cannot make: an
    invariant, a concurrency or lease contract, an external constraint, a
    why-not-the-obvious-alternative. A few lines at most. `//` never sits on a declaration and `///`
    never appears inside a body, with one structural exception: a comment on one attribute inside an
    attribute list, or on one parameter inside a positional-record parameter list, stays `//`,
-   because `///` has no valid target there (CS1587).
+   because `///` has no valid target there (CS1587). On a wire record such a note on one member
+   belongs in that member's `<param>`.
 4. **A doc file.** Anything needing paragraphs goes to this file or `docs/architecture-decisions.md` (contributors) or
    `llms.txt` (consumers).
 
@@ -393,8 +397,9 @@ compressed aphorisms are not.
 comments that restate the test name or the arrange block.
 
 `Acta.Tests.Architecture.CommentStyleTests` mechanically enforces the floor over `src/Acta*`: plain-ASCII
-comment text (no em dashes, arrows, emoji), XML doc blocks of 8 lines or less, no comment that names a
-date, a release candidate, a review, or a CI run, `<remarks>` on internal types only via its allowlist
+comment text (no em dashes, arrows, emoji), XML doc blocks of 8 lines or less with a wire record's
+`<param>` lines not counted, no comment that names a date, a release candidate, a review, or a CI run,
+`<remarks>` on internal types only via its allowlist
 (reserved for concurrency/CAS/provider-difference contracts; clear an entry after a scrub), and no stale
 markers (TODO, "later", "placeholder"). Run that test class after any comment pass.
 

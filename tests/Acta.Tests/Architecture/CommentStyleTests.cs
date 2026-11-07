@@ -1,3 +1,4 @@
+using System.Text.Json;
 using System.Text.RegularExpressions;
 using Acta.Tests.Architecture;
 using Xunit;
@@ -7,8 +8,9 @@ namespace Acta.Tests.Architecture;
 /// <summary>
 /// Mechanical enforcement of the production comment-style policy over the runtime core and the three
 /// durable SQL providers. Five checks: no stale-marker tokens, ASCII-only comment text (bans emoji,
-/// arrows, em dashes and other decorative symbols), XML doc blocks within eight lines, no comment that
-/// narrates history, and no <c>&lt;remarks&gt;</c> on internal types. Every check holds with no exception.
+/// arrows, em dashes and other decorative symbols), XML doc blocks within eight lines (a wire record's
+/// param lines aside), no comment that narrates history, and no <c>&lt;remarks&gt;</c> on internal types.
+/// Every check holds with no exception.
 /// </summary>
 public sealed partial class CommentStyleTests
 {
@@ -89,27 +91,31 @@ public sealed partial class CommentStyleTests
         );
     }
 
+    // A wire record's param lines are its members' descriptions in the HTTP contract, so they do not count; the rest of
+    // its block does.
     [Fact]
     public void Production_xml_doc_blocks_stay_short()
     {
         var repoRoot = ResolveRepoRoot();
+        var wireRecords = WireRecordNames(repoRoot);
         var oversized = new List<(string, string?)>();
 
         foreach (var path in EnumerateProductionFiles(repoRoot))
         {
-            var blockLength = 0;
-            foreach (var line in File.ReadLines(path).Append(""))
+            var lines = File.ReadAllLines(path);
+            var start = -1;
+            for (var i = 0; i <= lines.Length; i++)
             {
-                if (line.TrimStart().StartsWith("///", StringComparison.Ordinal))
+                if (i < lines.Length && lines[i].TrimStart().StartsWith("///", StringComparison.Ordinal))
                 {
-                    blockLength++;
+                    start = start < 0 ? i : start;
                     continue;
                 }
-                if (blockLength > MaxXmlDocBlockLines)
+                if (start >= 0 && CountedDocLines(lines[start..i], IsWireRecord(lines, i - 1, wireRecords)) > MaxXmlDocBlockLines)
                 {
                     oversized.Add((Path.GetFileName(path), RelativeTo(repoRoot, path)));
                 }
-                blockLength = 0;
+                start = -1;
             }
         }
 
@@ -117,6 +123,37 @@ public sealed partial class CommentStyleTests
             oversized,
             $"Keep each XML doc block within {MaxXmlDocBlockLines} lines: compress it to the invariants; a public summary is one plain sentence by default."
         );
+    }
+
+    /// <summary>A wire record is a record whose name the committed HTTP contract lists as a schema.</summary>
+    private static HashSet<string> WireRecordNames(string repoRoot)
+    {
+        using var contract = JsonDocument.Parse(File.ReadAllText(Path.Combine(repoRoot, "docs", "reference", "openapi.json")));
+        return [.. contract.RootElement.GetProperty("components").GetProperty("schemas").EnumerateObject().Select(schema => schema.Name)];
+    }
+
+    private static bool IsWireRecord(string[] lines, int lastDocLine, HashSet<string> wireRecords) =>
+        FirstDeclarationAfterDocBlock(lines, lastDocLine) is { } declaration
+        && RecordName().Match(declaration) is { Success: true } record
+        && wireRecords.Contains(record.Groups["name"].Value);
+
+    // A param element runs from its opening line to the line that closes it.
+    private static int CountedDocLines(string[] block, bool wireRecord)
+    {
+        if (!wireRecord)
+        {
+            return block.Length;
+        }
+
+        var counted = 0;
+        var inParam = false;
+        foreach (var line in block)
+        {
+            inParam |= line.Contains("<param ", StringComparison.Ordinal);
+            counted += inParam ? 0 : 1;
+            inParam &= !line.Contains("</param>", StringComparison.Ordinal);
+        }
+        return counted;
     }
 
     // History belongs in commit messages: a comment states what the code cannot show, never which review, run, or
@@ -262,6 +299,9 @@ public sealed partial class CommentStyleTests
 
     [GeneratedRegex(@"\bstub\b", RegexOptions.IgnoreCase | RegexOptions.Compiled, "sl-SI")]
     private static partial Regex MyRegex();
+
+    [GeneratedRegex(@"\brecord\s+(?:struct\s+|class\s+)?(?<name>\w+)")]
+    private static partial Regex RecordName();
 
     // A date, a release candidate, Codex, a reviewer or review finding, or a CI run.
     [GeneratedRegex(
