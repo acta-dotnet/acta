@@ -86,19 +86,20 @@ builder.Services.UseActa(j =>
 var app = builder.Build();
 app.MapActa("/acta"); // dashboard + JSON API; local-only by default, controls disabled
 
-// Enqueue through the generated call: it names the job and carries the result type, so the handle is a
-// JobHandle<ShipmentLabel>. The ref in the response is the job's public identity: logs, support, and the
-// URLs below all carry it, never the numeric id.
+// Enqueue by the input's type: nothing here reads the result, so the record alone names the job. The ref in the
+// response is the job's public identity: logs, support, and the URLs below all carry it, never the numeric id.
 app.MapPost(
     "/orders/{orderId:int}",
     async (int orderId, IJobs jobs) =>
     {
-        var job = await jobs.EnqueueAsync(ShippingJobs.ShipOrder(new ShipOrder(orderId)));
+        var job = await jobs.EnqueueAsync(new ShipOrder(orderId));
         return Results.Accepted($"/jobs/{job.JobRef}", new { job.JobRef });
     }
 );
 
-// Enqueue and follow: the wait ends at the outcome or at the timeout, and a timeout stops only the wait.
+// Enqueue through the generated call and follow: it names the job and carries the result type, so the handle is a
+// JobHandle<ShipmentLabel> and the label reads typed. The wait ends at the outcome or at the timeout, and a timeout
+// stops only the wait.
 app.MapPost(
     "/orders/{orderId:int}/ship-now",
     async (int orderId, IJobs jobs) =>
@@ -175,8 +176,10 @@ curl -X POST http://localhost:5090/orders/1043/ship-now  # 200 with the label: e
 `jobs.EnqueueAsync(ShippingJobs.ShipOrder(new ShipOrder(1042)))` goes through the generated call on
 the manifest: it names the job outright and carries the handler's result type, so it answers a
 `JobHandle<ShipmentLabel>` whose `WaitAsync` and `GetResultAsync` are typed. Use the generated call
-when you read the result, and whenever two handlers could take the same input type. `ScheduleAsync`
-takes the same calls with a delay or an instant and answers the same handles.
+when you read the result, and whenever two handlers could take the same input type: the sample's
+`/orders/{orderId}` enqueues by the input, and `/orders/{orderId}/ship-now`, which reads the label,
+through the call. `ScheduleAsync` takes the same forms with a delay or an instant and answers the
+same handles.
 
 ### The ref is the job's identity
 
@@ -324,7 +327,7 @@ public sealed class ShippingTests : IAsyncLifetime
     [Fact]
     public async Task A_wait_timeout_ends_the_wait_and_not_the_job()
     {
-        var job = await _host.Jobs.EnqueueAsync(ShippingJobs.ShipOrder(new ShipOrder(7)), ct: Ct);
+        var job = await _host.Jobs.EnqueueAsync(new ShipOrder(7), ct: Ct);
 
         var outcome = await job.WaitAsync(TimeSpan.FromMilliseconds(50), Ct);
 
@@ -336,7 +339,7 @@ public sealed class ShippingTests : IAsyncLifetime
     [Fact]
     public async Task A_queued_job_cancels_and_never_runs()
     {
-        var job = await _host.Jobs.ScheduleAsync(ShippingJobs.ShipOrder(new ShipOrder(8)), TimeSpan.FromHours(1), ct: Ct);
+        var job = await _host.Jobs.ScheduleAsync(new ShipOrder(8), TimeSpan.FromHours(1), ct: Ct);
 
         var cancelled = await job.CancelAsync(reasonMessage: "customer withdrew the order", ct: Ct);
 

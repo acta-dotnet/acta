@@ -20,19 +20,20 @@ builder.Services.UseActa(j =>
 var app = builder.Build();
 app.MapActa("/acta"); // dashboard + JSON API; local-only by default, controls disabled
 
-// Enqueue through the generated call: it names the job and carries the result type, so the handle is a
-// JobHandle<ShipmentLabel>. The ref in the response is the job's public identity: logs, support, and the
-// URLs below all carry it, never the numeric id.
+// Enqueue by the input's type: nothing here reads the result, so the record alone names the job. The ref in the
+// response is the job's public identity: logs, support, and the URLs below all carry it, never the numeric id.
 app.MapPost(
     "/orders/{orderId:int}",
     async (int orderId, IJobs jobs) =>
     {
-        var job = await jobs.EnqueueAsync(ShippingJobs.ShipOrder(new ShipOrder(orderId)));
+        var job = await jobs.EnqueueAsync(new ShipOrder(orderId));
         return Results.Accepted($"/jobs/{job.JobRef}", new { job.JobRef });
     }
 );
 
-// Enqueue and follow: the wait ends at the outcome or at the timeout, and a timeout stops only the wait.
+// Enqueue through the generated call and follow: it names the job and carries the result type, so the handle is a
+// JobHandle<ShipmentLabel> and the label reads typed. The wait ends at the outcome or at the timeout, and a timeout
+// stops only the wait.
 app.MapPost(
     "/orders/{orderId:int}/ship-now",
     async (int orderId, IJobs jobs) =>

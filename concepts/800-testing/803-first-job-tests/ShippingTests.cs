@@ -70,7 +70,7 @@ public sealed class ShippingTests : IAsyncLifetime
     [Fact]
     public async Task A_wait_timeout_ends_the_wait_and_not_the_job()
     {
-        var job = await _host.Jobs.EnqueueAsync(ShippingJobs.ShipOrder(new ShipOrder(7)), ct: Ct);
+        var job = await _host.Jobs.EnqueueAsync(new ShipOrder(7), ct: Ct);
 
         var outcome = await job.WaitAsync(TimeSpan.FromMilliseconds(50), Ct);
 
@@ -82,7 +82,7 @@ public sealed class ShippingTests : IAsyncLifetime
     [Fact]
     public async Task A_queued_job_cancels_and_never_runs()
     {
-        var job = await _host.Jobs.ScheduleAsync(ShippingJobs.ShipOrder(new ShipOrder(8)), TimeSpan.FromHours(1), ct: Ct);
+        var job = await _host.Jobs.ScheduleAsync(new ShipOrder(8), TimeSpan.FromHours(1), ct: Ct);
 
         var cancelled = await job.CancelAsync(reasonMessage: "customer withdrew the order", ct: Ct);
 
