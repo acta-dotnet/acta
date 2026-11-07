@@ -1265,7 +1265,7 @@ public sealed partial class OpenApiContractTests
             });
             j.Run<TestJobs.TestJobsManifest>(SqliteNamespace, ownerTeam: "test");
         });
-        builder.Services.Configure<JobsOptions>(o => o.RegisterSystemJobs = false);
+        builder.Services.Configure<JobsOptions>(o => o.RunSystemJobs = false);
         var app = builder.Build();
         app.MapActa("/acta", o => o.EnableControls = true);
         try

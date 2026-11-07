@@ -64,7 +64,7 @@ public sealed class ReplicaStartupSpec : ActaTestBase<ConformanceFixture>
             Fixture.ApplyProvider(j, Schema.SchemaName);
             j.Run<TestJobs.TestJobsManifest>(ns, ownerTeam: "test", description: $"replica-{index}");
         });
-        services.Configure<JobsOptions>(o => o.RegisterSystemJobs = true);
+        services.Configure<JobsOptions>(o => o.RunSystemJobs = true);
         return services.BuildServiceProvider(validateScopes: true);
     }
 }

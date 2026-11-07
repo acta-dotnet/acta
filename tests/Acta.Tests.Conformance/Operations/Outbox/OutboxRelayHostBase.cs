@@ -38,7 +38,7 @@ public abstract class OutboxRelayHostBase : ActaRuntimeTestBase<ConformanceFixtu
                 }
             );
         });
-        services.Configure<JobsOptions>(o => o.RegisterSystemJobs = false);
+        services.Configure<JobsOptions>(o => o.RunSystemJobs = false);
     }
 
     protected override async ValueTask AfterInitializeAsync()

@@ -35,7 +35,7 @@ public sealed class CalendarScheduleStartSpec : ActaTestBase<ConformanceFixture>
             Fixture.ApplyProvider(j, Schema.SchemaName);
             j.Run<CalendarScheduleManifest>(testNamespace, ownerTeam: "test", description: GetType().FullName);
         });
-        services.Configure<JobsOptions>(o => o.RegisterSystemJobs = false);
+        services.Configure<JobsOptions>(o => o.RunSystemJobs = false);
     }
 
     // Each fact starts the worker itself, after it has put the catalog in the state it tests.

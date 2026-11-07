@@ -48,7 +48,7 @@ public sealed class WorkerLoopDispatchSpec : ActaRuntimeTestBase<ConformanceFixt
         _wakeup = services.AddWakeupParkProbe();
         services.Configure<JobsOptions>(o =>
         {
-            o.RegisterSystemJobs = false;
+            o.RunSystemJobs = false;
             o.SafetyPollInterval =
                 TestContext.Current.TestMethod?.MethodName == nameof(An_unpublished_ready_row_is_discovered_by_the_safety_poll)
                     ? SafetyPoll

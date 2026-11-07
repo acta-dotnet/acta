@@ -94,7 +94,7 @@ public sealed class ScheduleRegistrationSkipSpec : ActaTestBase<ConformanceFixtu
         });
         services.Configure<JobsOptions>(o =>
         {
-            o.RegisterSystemJobs = false;
+            o.RunSystemJobs = false;
             o.ManifestGenerationUtc = Generation;
         });
         return services.BuildServiceProvider(validateScopes: true);

@@ -144,17 +144,14 @@ public sealed class OutboxRelayBuilderTests
     [Fact]
     public void The_relay_framework_set_adds_sys_outbox_and_its_dependencies_without_forcing_retention()
     {
-        Assert.Equal(
-            ["sys.alerts", "sys.outbox"],
-            Acta.SystemJobs.For(registerSystemJobs: false, hasRelay: true).Order(StringComparer.Ordinal)
-        );
+        Assert.Equal(["sys.alerts", "sys.outbox"], Acta.SystemJobs.For(runSystemJobs: false, hasRelay: true).Order(StringComparer.Ordinal));
         Assert.Equal(
             ["sys.alerts", "sys.retention"],
-            Acta.SystemJobs.For(registerSystemJobs: true, hasRelay: false).Order(StringComparer.Ordinal)
+            Acta.SystemJobs.For(runSystemJobs: true, hasRelay: false).Order(StringComparer.Ordinal)
         );
-        Assert.Empty(Acta.SystemJobs.For(registerSystemJobs: false, hasRelay: false));
-        Assert.True(Acta.SystemJobs.RunsRecovery(registerSystemJobs: false, hasRelay: true));
-        Assert.True(Acta.SystemJobs.RunsRecovery(registerSystemJobs: true, hasRelay: false));
-        Assert.False(Acta.SystemJobs.RunsRecovery(registerSystemJobs: false, hasRelay: false));
+        Assert.Empty(Acta.SystemJobs.For(runSystemJobs: false, hasRelay: false));
+        Assert.True(Acta.SystemJobs.RunsRecovery(runSystemJobs: false, hasRelay: true));
+        Assert.True(Acta.SystemJobs.RunsRecovery(runSystemJobs: true, hasRelay: false));
+        Assert.False(Acta.SystemJobs.RunsRecovery(runSystemJobs: false, hasRelay: false));
     }
 }

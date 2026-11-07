@@ -18,7 +18,7 @@ namespace Acta.Tests.Conformance.Engine.AlertCapture;
 public sealed class AlertCapturePurgeSpec : ActaRuntimeTestBase<ConformanceFixture, TestJobs.TestJobsManifest>
 {
     // The floor is the namespace's own sys.alerts cursor, so the slot has to exist.
-    protected override bool RegisterSystemJobs => true;
+    protected override bool RunSystemJobs => true;
 
     private int NamespaceId => Runtime.RegisteredNamespaceIds[TestNamespace];
 

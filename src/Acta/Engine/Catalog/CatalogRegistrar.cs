@@ -112,18 +112,18 @@ internal sealed class CatalogRegistrar(
     {
         // System jobs (e.g. sys.retention) auto-register into every worker namespace ahead
         // of the user manifests (the Acta assembly's own generated ActaJobs), so each namespace carries
-        // its maintenance catalog (unless JobsOptions.RegisterSystemJobs is off, e.g. external
+        // its maintenance catalog (unless JobsOptions.RunSystemJobs is off, e.g. external
         // maintenance). System jobs are identified by their reserved sys. names; every manifest's
         // descriptors land under this one worker's namespace.
         var manifests = new List<JobDescriptorManifest>();
 
-        var frameworkNames = SystemJobs.For(_options.Value.RegisterSystemJobs, registration.Relay is not null);
+        var frameworkNames = SystemJobs.For(_options.Value.RunSystemJobs, registration.Relay is not null);
         // Crash recovery is the only thing that marks dead workers and reclaims their in-flight jobs.
         // Without it a worker that dies takes its jobs with it - they stay Executing behind a lapsed
         // lease and are never re-run - and nothing surfaces that until a worker actually dies. Say it
         // at startup instead, because someone switching these off to trim overhead is not expecting
         // to have switched off crash recovery.
-        _context.RunsRecovery = SystemJobs.RunsRecovery(_options.Value.RegisterSystemJobs, registration.Relay is not null);
+        _context.RunsRecovery = SystemJobs.RunsRecovery(_options.Value.RunSystemJobs, registration.Relay is not null);
         if (!_context.RunsRecovery)
         {
             ActaLog.CrashRecoveryOff(_log, ns);
@@ -171,7 +171,7 @@ internal sealed class CatalogRegistrar(
             throw new InvalidOperationException(
                 $"Worker namespace '{namespaceName}' registers no job descriptors, so it would claim jobs it can never "
                     + "dispatch. Register at least one manifest on the worker builder, enable "
-                    + "JobsOptions.RegisterSystemJobs, or use the enqueue-only registration instead of Run()."
+                    + "JobsOptions.RunSystemJobs, or use the enqueue-only registration instead of Run()."
             );
         }
     }
@@ -637,22 +637,22 @@ internal static class ManifestGenerationResolver
 
 /// <summary>
 /// Which jobs of the generated <c>ActaJobs</c> framework manifest a worker namespace registers, and whether its worker
-/// runs crash recovery. <see cref="JobsOptions.RegisterSystemJobs"/> brings the maintenance set; an outbox relay brings
+/// runs crash recovery. <see cref="JobsOptions.RunSystemJobs"/> brings the maintenance set; an outbox relay brings
 /// <c>sys.outbox</c>, which is opt-in and registers only through <c>AddOutboxRelay</c>. Either one needs crash recovery
 /// and <c>sys.alerts</c>, so a relay brings them even when automatic registration is off, and never forces the
 /// unrelated <c>sys.retention</c>.
 /// </summary>
 internal static class SystemJobs
 {
-    public static IReadOnlySet<string> For(bool registerSystemJobs, bool hasRelay)
+    public static IReadOnlySet<string> For(bool runSystemJobs, bool hasRelay)
     {
         var names = new HashSet<string>(StringComparer.Ordinal);
-        if (registerSystemJobs || hasRelay)
+        if (runSystemJobs || hasRelay)
         {
             names.Add("sys.alerts");
         }
 
-        if (registerSystemJobs)
+        if (runSystemJobs)
         {
             names.Add("sys.retention");
         }
@@ -666,7 +666,7 @@ internal static class SystemJobs
     }
 
     /// <summary>Whether the worker's heartbeat takes crash recovery passes, under the same rule as <c>sys.alerts</c>.</summary>
-    public static bool RunsRecovery(bool registerSystemJobs, bool hasRelay) => registerSystemJobs || hasRelay;
+    public static bool RunsRecovery(bool runSystemJobs, bool hasRelay) => runSystemJobs || hasRelay;
 }
 
 /// <summary>

@@ -20,7 +20,7 @@ public sealed class ListSchedulesSpec : ActaRuntimeTestBase<ConformanceFixture, 
     // Live slot cursors are this spec's subject; the harness default would park them.
     protected override bool ParkScheduleSlots => false;
 
-    protected override bool RegisterSystemJobs => true;
+    protected override bool RunSystemJobs => true;
 
     [Fact(
         DisplayName = "Walking NextCursor visits every live schedule once in ascending next-run order, excluding rows without a next run, with a matching total"

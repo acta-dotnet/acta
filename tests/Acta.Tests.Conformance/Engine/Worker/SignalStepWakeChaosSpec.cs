@@ -23,7 +23,7 @@ public sealed class SignalStepWakeChaosSpec : ActaRuntimeTestBase<ConformanceFix
         _wakeup = services.AddControlledWakeup();
         services.Configure<JobsOptions>(o =>
         {
-            o.RegisterSystemJobs = false;
+            o.RunSystemJobs = false;
             o.SafetyPollInterval = TimeSpan.FromMinutes(5);
         });
     }

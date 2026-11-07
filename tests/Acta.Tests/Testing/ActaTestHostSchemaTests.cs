@@ -30,7 +30,7 @@ public sealed class ActaTestHostSchemaTests
                     });
                     j.Run<TestJobs.TestJobsManifest>("host-schema", ownerTeam: "test");
                 },
-                new ActaTestHostOptions { ConfigureServices = s => s.Configure<JobsOptions>(o => o.RegisterSystemJobs = false) },
+                new ActaTestHostOptions { ConfigureServices = s => s.Configure<JobsOptions>(o => o.RunSystemJobs = false) },
                 ct
             );
             try

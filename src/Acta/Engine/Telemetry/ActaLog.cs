@@ -376,7 +376,7 @@ internal static partial class ActaLog
 
     [LoggerMessage(
         Level = LogLevel.Warning,
-        Message = "Namespace ({ActaNamespace}): crash recovery is off, so crashed workers are never marked dead and their in-flight jobs are never reclaimed. Those jobs stay Executing behind a lapsed lease permanently. Set JobsOptions.RegisterSystemJobs = true, or run an equivalent reclaim sweep yourself."
+        Message = "Namespace ({ActaNamespace}): crash recovery is off, so crashed workers are never marked dead and their in-flight jobs are never reclaimed. Those jobs stay Executing behind a lapsed lease permanently. Set JobsOptions.RunSystemJobs = true, or run an equivalent reclaim sweep yourself."
     )]
     public static partial void CrashRecoveryOff(ILogger log, string actaNamespace);
 

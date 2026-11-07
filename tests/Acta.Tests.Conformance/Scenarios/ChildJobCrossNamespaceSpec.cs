@@ -38,7 +38,7 @@ public sealed class ChildJobCrossNamespaceSpec : ActaTestBase<ConformanceFixture
             j.Run<TestJobs.TestJobsManifest>(testNamespace, ownerTeam: "test", description: GetType().FullName);
             j.Run<TestJobs.TestJobsManifest>(DeriveChildNamespace(testNamespace), ownerTeam: "test", description: GetType().FullName);
         });
-        services.Configure<JobsOptions>(o => o.RegisterSystemJobs = false);
+        services.Configure<JobsOptions>(o => o.RunSystemJobs = false);
     }
 
     protected override async ValueTask AfterInitializeAsync()

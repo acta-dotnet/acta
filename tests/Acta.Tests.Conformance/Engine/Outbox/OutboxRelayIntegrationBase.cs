@@ -146,7 +146,7 @@ public abstract class OutboxRelayIntegrationBase : ActaRuntimeTestBase<Conforman
             Fixture.ApplyProvider(j, Schema.SchemaName);
             j.Run<TestJobs.TestJobsManifest>(namespaceName, ownerTeam: "test", description: GetType().FullName + ":" + namespaceName);
         });
-        services.Configure<JobsOptions>(o => o.RegisterSystemJobs = false);
+        services.Configure<JobsOptions>(o => o.RunSystemJobs = false);
         return services.BuildServiceProvider(validateScopes: true);
     }
 }

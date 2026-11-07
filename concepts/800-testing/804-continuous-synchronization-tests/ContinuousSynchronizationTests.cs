@@ -53,7 +53,7 @@ public sealed class ContinuousSynchronizationTests : IAsyncLifetime
                     services.AddSingleton(_store);
                     services.AddSingleton<CrashSignal>(_crash);
                     // Only the lab's schedule is in the namespace, so an admission pass admits that one or nothing.
-                    services.Configure<JobsOptions>(o => o.RegisterSystemJobs = false);
+                    services.Configure<JobsOptions>(o => o.RunSystemJobs = false);
                 },
             },
             Ct

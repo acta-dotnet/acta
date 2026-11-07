@@ -42,7 +42,7 @@ public sealed class OutboxRelayDispatchSpec : ActaRuntimeTestBase<ConformanceFix
                 }
             );
         });
-        services.Configure<JobsOptions>(o => o.RegisterSystemJobs = false);
+        services.Configure<JobsOptions>(o => o.RunSystemJobs = false);
     }
 
     [Fact(DisplayName = "The relay registers sys.outbox (and sys.alerts) but not the automatic-only sys.retention")]

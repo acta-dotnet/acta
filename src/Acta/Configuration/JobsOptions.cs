@@ -148,7 +148,7 @@ public sealed class JobsOptions
     /// startup, and "driven externally" means you wrote the reclaim sweep yourself. <c>sys.outbox</c> registers only
     /// with <c>AddOutboxRelay</c>, which brings crash recovery and <c>sys.alerts</c> even when this is false.
     /// </summary>
-    public bool RegisterSystemJobs { get; set; } = true;
+    public bool RunSystemJobs { get; set; } = true;
 
     /// <summary>
     /// The one payload ceiling, 1 MiB by default: the largest inline value (<c>jobs.input</c>, <c>jobs_state.result</c>,

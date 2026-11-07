@@ -220,7 +220,7 @@ public sealed class TestHostHelpersSpec : ActaTestBase<ConformanceFixture>
                 Schema = Schema.SchemaName,
                 ConfigureServices = services =>
                 {
-                    services.Configure<JobsOptions>(o => o.RegisterSystemJobs = false);
+                    services.Configure<JobsOptions>(o => o.RunSystemJobs = false);
                     if (clock is not null)
                     {
                         services.AddSingleton(clock);

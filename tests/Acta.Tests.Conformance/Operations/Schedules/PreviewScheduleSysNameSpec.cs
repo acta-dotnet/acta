@@ -19,7 +19,7 @@ public sealed class PreviewScheduleSysNameSpec : ActaRuntimeTestBase<Conformance
 
     protected override bool RunAsWorker => true;
 
-    protected override bool RegisterSystemJobs => true;
+    protected override bool RunSystemJobs => true;
 
     [Fact(DisplayName = "Preview on a sys. system schedule returns occurrences instead of a reserved-name error")]
     public async Task Preview_on_sys_schedule_resolves()

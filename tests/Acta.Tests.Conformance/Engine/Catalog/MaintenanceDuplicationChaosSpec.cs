@@ -16,7 +16,7 @@ public sealed class MaintenanceDuplicationChaosSpec : ActaRuntimeTestBase<Confor
     // A normal positive lease; the race here is decided by claim ownership.
     private const int LeaseTtlSeconds = 60;
 
-    protected override bool RegisterSystemJobs => true;
+    protected override bool RunSystemJobs => true;
 
     [Fact(DisplayName = "Maintenance registration is idempotent (no duplicate slot) and a due tick has exactly one claimant")]
     public async Task Maintenance_job_is_not_duplicated_and_claims_once()
@@ -74,7 +74,7 @@ public sealed class MaintenanceDuplicationChaosSpec : ActaRuntimeTestBase<Confor
             Fixture.ApplyProvider(j, Schema.SchemaName);
             j.Run<TestJobs.TestJobsManifest>(TestNamespace, ownerTeam: "test", description: GetType().FullName + ":second");
         });
-        services.Configure<JobsOptions>(o => o.RegisterSystemJobs = true);
+        services.Configure<JobsOptions>(o => o.RunSystemJobs = true);
         return services.BuildServiceProvider(validateScopes: true);
     }
 }

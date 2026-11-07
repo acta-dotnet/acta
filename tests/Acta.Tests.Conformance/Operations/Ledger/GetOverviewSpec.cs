@@ -85,7 +85,7 @@ public sealed class GetOverviewSpec : ActaRuntimeTestBase<ConformanceFixture, Te
     }
 
     /// <summary>
-    /// Drives deterministic, isolated state in this test's fresh namespace (RegisterSystemJobs = false,
+    /// Drives deterministic, isolated state in this test's fresh namespace (RunSystemJobs = false,
     /// so no system jobs and no schedules) and pins all overview counters to exact values.
     /// <para>
     /// <list type="bullet">

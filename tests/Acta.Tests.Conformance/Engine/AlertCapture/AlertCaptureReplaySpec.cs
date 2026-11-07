@@ -23,7 +23,7 @@ public sealed class AlertCaptureReplaySpec : ActaRuntimeTestBase<ConformanceFixt
     private const string BrokenChannel = "Broken Channel!";
 
     // The floor and the skip records live on the namespace's own sys.alerts slot.
-    protected override bool RegisterSystemJobs => true;
+    protected override bool RunSystemJobs => true;
 
     private int NamespaceId => Runtime.RegisteredNamespaceIds[TestNamespace];
 

@@ -57,7 +57,7 @@ public static class ScriptProvisionedRuntime
             new ActaTestHostOptions
             {
                 Schema = schema,
-                ConfigureServices = services => services.Configure<JobsOptions>(o => o.RegisterSystemJobs = false),
+                ConfigureServices = services => services.Configure<JobsOptions>(o => o.RunSystemJobs = false),
             },
             ct
         );

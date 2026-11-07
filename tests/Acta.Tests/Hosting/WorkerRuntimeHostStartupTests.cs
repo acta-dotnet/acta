@@ -42,7 +42,7 @@ public sealed class WorkerRuntimeHostStartupTests
             });
             // The framework's recurring slots would be claimable while the loop runs; this test is about
             // the host's edges, not about what it executes.
-            services.Configure<JobsOptions>(o => o.RegisterSystemJobs = false);
+            services.Configure<JobsOptions>(o => o.RunSystemJobs = false);
 
             await using var provider = services.BuildServiceProvider(validateScopes: true);
             var host = Assert.IsType<WorkerRuntimeHost>(Assert.Single(provider.GetServices<IHostedService>()));

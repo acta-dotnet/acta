@@ -20,7 +20,7 @@ public sealed class AlertSkipVariableRetentionSpec : ActaRuntimeTestBase<Conform
     private const int NoWorkerPurgeSeconds = 100_000_000;
 
     // The projector's slot owns the skip records.
-    protected override bool RegisterSystemJobs => true;
+    protected override bool RunSystemJobs => true;
 
     [Fact(DisplayName = "Skip variables and the projector cursor survive past the alert window")]
     public async Task Aged_skip_variables_and_the_cursor_are_kept()

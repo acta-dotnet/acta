@@ -698,7 +698,7 @@ alert settings, or lease/heartbeat relationships fail fast.
 | `WorkerRetention` | 90 days | cluster data | Terminal worker row retention, `Stopped` and `Dead` alike. A row also stays until `JobEventsRetention` has passed, so events keep their worker. Must be at least one day. |
 | `JobEventsRetention` | 365 | cluster data | Retention for every event row, both audit timeline and execution ledger. |
 | `AlertRetention` | 90 | cluster data | Hard cap on alert rows, settled or not. |
-| `RegisterSystemJobs` | `true` | per process | Registers `sys.alerts` and `sys.retention` and runs crash recovery. **Off disables crash recovery**, so a dead worker's jobs stay `Executing`; the runtime warns. |
+| `RunSystemJobs` | `true` | per process | Registers `sys.alerts` and `sys.retention` and runs crash recovery. **Off disables crash recovery**, so a dead worker's jobs stay `Executing`; the runtime warns. |
 | `MaxInlinePayloadBytes` | 1 MiB | cluster data | The one payload ceiling, for inline writes and the HTTP request body; an oversize handler result is dropped. |
 | `AlertFailureThreshold` | 3 | cluster data | Automatic failure count threshold for escalation. |
 | `AlertChannelValidationMode` | `Warn` | startup policy | `Off`, `Warn`, or `Fail` when definitions route to missing alert channels. |
@@ -814,7 +814,7 @@ j.Run("orders", worker =>
 ```
 
 - `source.Table` and `source.Schema` name a table other than `acta_outbox`, and `source.QuarantineThreshold` (default 5) sets how many rejections a row takes before quarantine.
-- The relay brings `sys.outbox`, crash recovery, and `sys.alerts` to the namespace even when `RegisterSystemJobs` is false. A namespace has at most one source.
+- The relay brings `sys.outbox`, crash recovery, and `sys.alerts` to the namespace even when `RunSystemJobs` is false. A namespace has at most one source.
 - An unreachable source fails that relay tick, alerts, and retries; other jobs are unaffected.
 
 An ambient `TransactionScope` is rejected: Acta connections never enlist. Use one of the two paths above, or wrap the call in `TransactionScope(TransactionScopeOption.Suppress)` for a deliberate independent commit.

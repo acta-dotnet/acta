@@ -72,7 +72,7 @@ public sealed class AlertChannelValidationSpec : ActaTestBase<ConformanceFixture
         });
         services.Configure<JobsOptions>(o =>
         {
-            o.RegisterSystemJobs = false;
+            o.RunSystemJobs = false;
             o.AlertChannelValidationMode = mode;
         });
 

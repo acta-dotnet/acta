@@ -44,7 +44,7 @@ public sealed class ClaimJobsSpec : ActaRuntimeTestBase<ConformanceFixture, Test
         services.Configure<JobsOptions>(o =>
         {
             o.MaxConcurrentExecutors = Batch;
-            o.RegisterSystemJobs = false;
+            o.RunSystemJobs = false;
         });
     }
 

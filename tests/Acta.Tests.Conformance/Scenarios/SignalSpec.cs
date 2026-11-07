@@ -35,7 +35,7 @@ public sealed class SignalSpec : ActaRuntimeTestBase<ConformanceFixture, TestJob
         _wakeup = services.AddWakeupParkProbe();
         services.Configure<JobsOptions>(o =>
         {
-            o.RegisterSystemJobs = false;
+            o.RunSystemJobs = false;
             o.SafetyPollInterval = SafetyPoll;
         });
     }

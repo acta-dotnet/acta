@@ -29,7 +29,7 @@ public sealed class ConcurrencyKeyMutexSpec : ActaRuntimeTestBase<ConformanceFix
         base.ConfigureServices(services, testNamespace);
         services.Configure<JobsOptions>(o =>
         {
-            o.RegisterSystemJobs = false;
+            o.RunSystemJobs = false;
             o.ConcurrencyKeyBounceDelaySeconds = 1;
         });
     }

@@ -19,7 +19,7 @@ namespace Acta.Tests.Conformance.Operations.Alerts;
 public sealed class GetAlertFloorSpec : ActaRuntimeTestBase<ConformanceFixture, TestJobs.TestJobsManifest>
 {
     // The projector's slot is what the floor reads, so the namespace has to carry it.
-    protected override bool RegisterSystemJobs => true;
+    protected override bool RunSystemJobs => true;
 
     [Fact(DisplayName = "A namespace without a sys.alerts slot owes nothing, so its floor is the purge cutoff")]
     public async Task Namespace_without_a_projector_owes_nothing()

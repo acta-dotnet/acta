@@ -8,7 +8,7 @@ namespace Acta.Tests.Conformance.Engine.Catalog;
 /// Conformance for system-job auto-registration: <c>InitializeAsync</c> registers the
 /// <c>sys.alerts</c> system definition, its recurring slot (deduplication_key = the job name), and its
 /// schedule into the worker's namespace. The one spec that opts back into
-/// <see cref="ActaRuntimeTestBase{ConformanceFixture,TManifest}.RegisterSystemJobs"/>; every other execution
+/// <see cref="ActaRuntimeTestBase{ConformanceFixture,TManifest}.RunSystemJobs"/>; every other execution
 /// spec keeps the slots out so a single drive deterministically claims its own probe.
 /// </summary>
 [ConformanceSpec(
@@ -22,7 +22,7 @@ public sealed class FrameworkJobRegistrationSpec : ActaRuntimeTestBase<Conforman
     // Live slot cursors are this spec's subject; the harness default would park them.
     protected override bool ParkScheduleSlots => false;
 
-    protected override bool RegisterSystemJobs => true;
+    protected override bool RunSystemJobs => true;
 
     [Fact(DisplayName = "Init makes the sys.alerts definition Active with an Idle permanent slot and a default schedule")]
     public async Task Initialize_auto_registers_the_maintenance_system_job()

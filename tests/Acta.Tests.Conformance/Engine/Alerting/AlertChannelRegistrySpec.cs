@@ -47,7 +47,7 @@ public sealed class AlertChannelRegistrySpec : ActaTestBase<ConformanceFixture>
             );
             j.Run(OtherNamespace, w => w.AddManifest<TestJobs.TestJobsManifest>());
         });
-        services.Configure<JobsOptions>(o => o.RegisterSystemJobs = false);
+        services.Configure<JobsOptions>(o => o.RunSystemJobs = false);
     }
 
     [Fact(DisplayName = "Default exists per namespace and declarations override in memory")]

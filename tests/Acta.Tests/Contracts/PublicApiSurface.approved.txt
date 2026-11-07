@@ -1647,7 +1647,7 @@ sealed class Acta.JobsOptions
     Acta.AlertChannelValidationMode AlertChannelValidationMode { get;set; }
     Acta.PayloadContractDriftMode PayloadContractDriftMode { get;set; }
     System.Boolean AllowClockSkew { get;set; }
-    System.Boolean RegisterSystemJobs { get;set; }
+    System.Boolean RunSystemJobs { get;set; }
     System.Int32 AlertFailureThreshold { get;set; }
     System.Int32 LeaseTtlSeconds { get; }
     System.Int32 MaxConcurrentExecutors { get;set; }
