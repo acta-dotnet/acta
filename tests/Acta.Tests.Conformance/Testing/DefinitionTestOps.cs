@@ -21,7 +21,6 @@ internal static class DefinitionTestOps
     public static async Task<IReadOnlyDictionary<string, int>> RegisterAsync(
         IServiceProvider services,
         int namespaceId,
-        DateTime manifestGenerationUtc,
         ImmutableArray<JobDescriptor> descriptors,
         CancellationToken ct
     )
@@ -38,7 +37,7 @@ internal static class DefinitionTestOps
                 return (
                     await services
                         .GetRequiredService<RegisterDefinitionsHandler>()
-                        .HandleAsync(new RegisterDefinitionsCommand(namespaceId, manifestGenerationUtc, descriptors, stored), ct)
+                        .HandleAsync(new RegisterDefinitionsCommand(namespaceId, descriptors, stored), ct)
                 ).DefinitionIds;
             }
             catch (Exception ex) when (ex is System.Data.Common.DbException or InvalidOperationException && attempt < RegistrationPasses)

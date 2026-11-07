@@ -1,7 +1,5 @@
 using System.Collections.Immutable;
-using System.Diagnostics.CodeAnalysis;
 using System.Globalization;
-using System.Reflection;
 using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Options;
 
@@ -44,19 +42,14 @@ internal sealed class CatalogRegistrar(
     {
         var ns = registration.NamespaceName;
 
-        // Resolve the monotonic generation, then gate contract drift before any catalog write: Fail
-        // throws here (before register), Warn logs and continues. The SQL routine remains the
-        // authoritative generation gate for the policy write itself.
-        var manifestGenerationUtc = ManifestGenerationResolver.Resolve(_options.Value, Assembly.GetEntryAssembly(), _log);
+        // Contract drift is gated before any catalog write: Fail throws here, Warn logs and continues.
         var storedContracts = (await _definitions.ListDefinitionContractsAsync(namespaceId, ct)).Contracts;
         ValidateScheduledDelivery(ns, allDescriptors, storedContracts);
-        var contractDrifts = ContractDriftDetector.Detect(manifestGenerationUtc, allDescriptors, storedContracts);
+        var contractDrifts = ContractDriftDetector.Detect(allDescriptors, storedContracts);
         ContractDriftPolicy.Apply(_options.Value.PayloadContractDriftMode, contractDrifts, ns, _log);
         await ValidateCalendarsAsync(ns, namespaceId, allDescriptors, storedContracts, ct);
 
-        var defIds = (
-            await _definitions.RegisterDefinitionsAsync(new(namespaceId, manifestGenerationUtc, allDescriptors, storedContracts), ct)
-        ).DefinitionIds;
+        var defIds = (await _definitions.RegisterDefinitionsAsync(new(namespaceId, allDescriptors, storedContracts), ct)).DefinitionIds;
 
         // A slot is planned from its definition's effective (override-or-default) policy, read after the upsert from the
         // DB *_effective columns, so an operator override reaches the slot's priority.
@@ -77,12 +70,7 @@ internal sealed class CatalogRegistrar(
             }
         }
 
-        List<string?> catalogParts =
-        [
-            registration.OwnerTeam,
-            registration.Description,
-            manifestGenerationUtc.ToString("O", CultureInfo.InvariantCulture),
-        ];
+        List<string?> catalogParts = [registration.OwnerTeam, registration.Description];
         foreach (var c in catalog.Where(c => defIds.ContainsKey(c.DefinitionName)).OrderBy(c => c.DefinitionId))
         {
             catalogParts.Add(c.DefinitionName);
@@ -313,7 +301,7 @@ internal sealed class CatalogRegistrar(
     {
         var env = _options.Value.EnvironmentName;
         // A retired definition keeps its schedules as the retire left them, so this start does not judge its calendars.
-        // They are loaded all the same: registration reactivates a retired definition a newer build declares again, and
+        // They are loaded all the same: registration reactivates a retired definition a build declares again, and
         // the plan then resolves its schedules.
         var retired = stored
             .Where(s => s.Status == DefinitionStatusCode.Retired)
@@ -556,54 +544,6 @@ internal sealed class CatalogRegistrar(
         var slot = stored.Values.First();
         return slot.SlotStatus != JobStatusCode.Idle || slot.SlotPriority == priority;
     }
-}
-
-/// <summary>
-/// Resolves the worker's manifest generation, the monotonic governor for definition promotion:
-/// the explicit <see cref="JobsOptions.ManifestGenerationUtc"/> if set, otherwise the entry
-/// assembly's file last-write-time, falling back to the running executable's last-write-time under
-/// single-file or AOT publish (where the entry assembly reports no file location). Never process
-/// start time. The result is normalized to UTC and truncated to millisecond precision so it survives
-/// a DB write/read round trip on both providers.
-/// </summary>
-internal static class ManifestGenerationResolver
-{
-    [UnconditionalSuppressMessage(
-        "SingleFile",
-        "IL3000",
-        Justification = "Assembly.Location is empty under single-file/AOT; that case falls back to the running executable below."
-    )]
-    public static DateTime Resolve(JobsOptions options, Assembly? entryAssembly, ILogger? log = null)
-    {
-        if (options.ManifestGenerationUtc is { } explicitGeneration)
-        {
-            return Normalize(DateTime.SpecifyKind(explicitGeneration, DateTimeKind.Utc));
-        }
-
-        // The entry assembly's file last-write-time, falling back to the running executable's publish
-        // stamp when Assembly.Location is empty (single-file / AOT publish). Both are file timestamps
-        // with the same monotonic-governor semantics, so a worker boots without an explicit generation.
-        var resolved = Normalize(
-            FileTimestamp(entryAssembly?.Location)
-                ?? FileTimestamp(Environment.ProcessPath)
-                ?? throw new InvalidOperationException(
-                    "Acta could not resolve a manifest generation from the entry assembly or the running "
-                        + "executable. Set JobsOptions.ManifestGenerationUtc explicitly."
-                )
-        );
-
-        if (log?.IsEnabled(LogLevel.Warning) == true)
-        {
-            ActaLog.ManifestGenerationFromFileTime(log, resolved.ToString("O", CultureInfo.InvariantCulture));
-        }
-
-        return resolved;
-
-        static DateTime? FileTimestamp(string? path) =>
-            !string.IsNullOrEmpty(path) && File.Exists(path) ? File.GetLastWriteTimeUtc(path) : null;
-    }
-
-    private static DateTime Normalize(DateTime utc) => new(utc.Ticks - (utc.Ticks % TimeSpan.TicksPerMillisecond), DateTimeKind.Utc);
 }
 
 /// <summary>

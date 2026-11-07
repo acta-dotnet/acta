@@ -236,13 +236,7 @@ internal sealed class PostgresDialect : ISqlDialect
         AddScalar(postgres, "@p_lane_name", NpgsqlDbType.Varchar, (object?)row.Lane ?? DBNull.Value);
     }
 
-    public void BindRegisterDefinitions(
-        DbCommand command,
-        int namespaceId,
-        DateTime manifestGenerationUtc,
-        IReadOnlyList<DefinitionValues> rows,
-        string schema
-    )
+    public void BindRegisterDefinitions(DbCommand command, int namespaceId, IReadOnlyList<DefinitionValues> rows, string schema)
     {
         var postgres = (NpgsqlCommand)command;
         var count = rows.Count;
@@ -311,7 +305,6 @@ internal sealed class PostgresDialect : ISqlDialect
         }
 
         AddScalar(postgres, "@p_namespace_id", NpgsqlDbType.Integer, namespaceId);
-        AddScalar(postgres, "@p_manifest_generation", NpgsqlDbType.TimestampTz, manifestGenerationUtc);
         AddArray(postgres, "@p_d_definition_name", NpgsqlDbType.Varchar, names);
         AddArray(postgres, "@p_d_job_priority_code", NpgsqlDbType.Smallint, priorityCodes);
         AddArray(postgres, "@p_d_max_attempts", NpgsqlDbType.Integer, maxAttempts);

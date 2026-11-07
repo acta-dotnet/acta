@@ -21,7 +21,6 @@ public sealed class ListSchedulesFilterMatrixSpec : ActaRuntimeTestBase<Conforma
     protected override bool ParkScheduleSlots => false;
 
     private const string Cron5 = "*/5 * * * *";
-    private static readonly DateTime Generation = new(2026, 1, 1, 0, 0, 0, DateTimeKind.Utc);
 
     private int NsId => Runtime.RegisteredNamespaceIds[TestNamespace];
     private IDbSession DbSession => Db;
@@ -31,7 +30,7 @@ public sealed class ListSchedulesFilterMatrixSpec : ActaRuntimeTestBase<Conforma
     /// <summary>Creates a minimal synthetic job definition in the given namespace and returns its id.</summary>
     private async Task<int> CreateDefinitionAsync(int nsId, string jobName, CancellationToken ct)
     {
-        var map = await DefinitionTestOps.RegisterAsync(Services, nsId, Generation, [Def(jobName)], ct);
+        var map = await DefinitionTestOps.RegisterAsync(Services, nsId, [Def(jobName)], ct);
         return map[jobName];
     }
 

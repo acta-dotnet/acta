@@ -19,7 +19,6 @@ namespace Acta.Tests.Conformance.Operations.Schedules;
 )]
 public sealed class TriggerScheduleSpec : ActaStorageTestBase<ConformanceFixture>
 {
-    private static readonly DateTime Generation = new(2026, 1, 1, 0, 0, 0, DateTimeKind.Utc);
     private const string Cron5 = "*/5 * * * *";
 
     private ISchedules Schedules => Services.GetRequiredService<IActaOperations>().Schedules;
@@ -230,7 +229,7 @@ public sealed class TriggerScheduleSpec : ActaStorageTestBase<ConformanceFixture
         ScheduledDeliveryCode delivery = ScheduledDeliveryCode.Permanent
     )
     {
-        var map = await DefinitionTestOps.RegisterAsync(Services, TestNamespaceId, Generation, [Def(jobName, delivery)], ct);
+        var map = await DefinitionTestOps.RegisterAsync(Services, TestNamespaceId, [Def(jobName, delivery)], ct);
         return map[jobName];
     }
 

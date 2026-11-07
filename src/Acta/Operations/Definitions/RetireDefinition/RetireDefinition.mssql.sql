@@ -127,7 +127,7 @@ BEGIN TRY
             AND (r.lane_id IS NULL OR r.lane_id IN (SELECT l.lane_id FROM @lanes l))
             AND j.job_kind_code <> 20 /* JobKindCode.PermanentSlot */;
 
-        /* A permanent slot is left inert, not cancelled, so a newer build that registers the definition again finds it
+        /* A permanent slot is left inert, not cancelled, so a build that registers the definition again finds it
            ready to fire: a queued firing settles below and the slot returns to Idle, a paused one keeps its hold, and one
            an attempt still runs lands as it would. */
         INSERT INTO @slots (job_id, job_status_code)
@@ -210,7 +210,7 @@ BEGIN TRY
         INNER JOIN {{schema}}.schedules_state st WITH (FORCESEEK) ON st.schedule_id = s.schedule_id
         WHERE s.definition_id = @p_definition_id;
 
-        -- The schedules lose their timing fingerprint, so a newer build that registers the definition again retimes them
+        -- The schedules lose their timing fingerprint, so a build that registers the definition again retimes them
         -- from now, as it would a changed declaration.
         UPDATE {{schema}}.schedules
         SET

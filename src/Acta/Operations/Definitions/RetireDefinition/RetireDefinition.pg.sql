@@ -77,7 +77,7 @@ parked AS (
     -- Locked here so the execution_number each event records is the one the sweep below cancels.
     FOR UPDATE OF r
 ),
--- A permanent slot is left inert, not cancelled, so a newer build that registers the definition again finds it ready
+-- A permanent slot is left inert, not cancelled, so a build that registers the definition again finds it ready
 -- to fire: a queued firing settles below and the slot returns to Idle, a paused one keeps its hold, and one an attempt
 -- still runs lands as it would.
 slots AS (
@@ -161,7 +161,7 @@ cleared AS (
     WHERE
         st.schedule_id = s.schedule_id
 ),
--- The schedules lose their timing fingerprint, so a newer build that registers the definition again retimes them from
+-- The schedules lose their timing fingerprint, so a build that registers the definition again retimes them from
 -- now, as it would a changed declaration.
 unfingerprinted AS (
     UPDATE {{schema}}.schedules s

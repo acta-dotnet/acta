@@ -7,7 +7,7 @@ using Xunit;
 namespace Acta.Tests.Conformance.Engine.Worker;
 
 /// <summary>
-/// The older generation's manifest: the test manifest with <c>recurring-ping</c> declaring no schedule,
+/// The earlier build's manifest: the test manifest with <c>recurring-ping</c> declaring no schedule,
 /// the way a build looks before a deploy adds <c>[Schedule]</c> to a job it already runs.
 /// </summary>
 public sealed class UnscheduledPingManifest : IJobManifest
@@ -19,37 +19,27 @@ public sealed class UnscheduledPingManifest : IJobManifest
 }
 
 /// <summary>
-/// A worker learns its recurring slots when it starts, so a slot a newer generation registered later is
-/// not among them. The claim carries the row's kind, so the older worker still lands it Idle as a
+/// A worker learns its recurring slots when it starts, so a slot another build registered later is
+/// not among them. The claim carries the row's kind, so the earlier worker still lands it Idle as a
 /// permanent slot instead of running it once and ending it.
 /// </summary>
 [ConformanceSpec(
     "schedule.slot-from-another-generation",
-    "An older generation fires a slot a newer one registered as recurring",
+    "A worker fires a slot another build registered after it started as recurring",
     Area = "Scheduling",
-    Contract = "An older worker lands a slot a newer generation registered Idle, as a permanent slot, never finished like a one-shot."
+    Contract = "A worker lands a slot another build registered after it started Idle, as a permanent slot, never finished like a one-shot."
 )]
 public sealed class RecurringSlotFromAnotherGenerationSpec : ActaRuntimeTestBase<ConformanceFixture, UnscheduledPingManifest>
 {
     private const string ScheduleName = "every-5-minutes";
 
-    private static readonly DateTime GenerationA = new(2026, 1, 1, 0, 0, 0, DateTimeKind.Utc);
-
-    private static readonly DateTime GenerationB = new(2026, 6, 1, 0, 0, 0, DateTimeKind.Utc);
-
-    protected override void ConfigureServices(IServiceCollection services, string testNamespace)
-    {
-        base.ConfigureServices(services, testNamespace);
-        services.Configure<JobsOptions>(o => o.ManifestGenerationUtc = GenerationA);
-    }
-
-    [Fact(DisplayName = "An older generation fires a slot a newer one registered after it started as a recurring job")]
-    public async Task An_older_generation_fires_a_later_registered_slot_as_recurring()
+    [Fact(DisplayName = "A worker fires a slot another build registered after it started as a recurring job")]
+    public async Task A_worker_fires_a_later_registered_slot_as_recurring()
     {
         var ct = TestContext.Current.CancellationToken;
 
-        await using var newGeneration = BuildGenerationProvider<TestJobsManifest>(GenerationB, "generation-b");
-        await newGeneration.GetServices<WorkerRuntime>().Single().InitializeAsync(ct);
+        await using var laterBuild = BuildGenerationProvider<TestJobsManifest>("later-build");
+        await laterBuild.GetServices<WorkerRuntime>().Single().InitializeAsync(ct);
         var triggered = await Operations.Schedules.TriggerAsync(
             new ScheduleLookup(TestNamespace, UnscheduledPingManifest.JobName, ScheduleName),
             ct: ct

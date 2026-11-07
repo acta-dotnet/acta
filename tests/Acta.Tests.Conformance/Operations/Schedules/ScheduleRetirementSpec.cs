@@ -21,7 +21,6 @@ public sealed class ScheduleRetirementSpec : ActaRuntimeTestBase<ConformanceFixt
 {
     private const int Attempt = 1;
     private const string Cron5 = "*/5 * * * *";
-    private static readonly DateTime Generation = new(2026, 1, 1, 0, 0, 0, DateTimeKind.Utc);
 
     protected override bool ParkScheduleSlots => false;
 
@@ -222,7 +221,7 @@ public sealed class ScheduleRetirementSpec : ActaRuntimeTestBase<ConformanceFixt
 
     private async Task<int> CreateDefinitionAsync(string jobName, CancellationToken ct)
     {
-        var map = await DefinitionTestOps.RegisterAsync(Services, TestNamespaceId, Generation, [Def(jobName)], ct);
+        var map = await DefinitionTestOps.RegisterAsync(Services, TestNamespaceId, [Def(jobName)], ct);
         return map[jobName];
     }
 

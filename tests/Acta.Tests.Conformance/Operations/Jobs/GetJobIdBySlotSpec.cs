@@ -17,7 +17,6 @@ namespace Acta.Tests.Conformance.Operations.Jobs;
 )]
 public sealed class GetJobIdBySlotSpec : ActaStorageTestBase<ConformanceFixture>
 {
-    private static readonly DateTime Generation = new(2026, 1, 1, 0, 0, 0, DateTimeKind.Utc);
     private const string Cron5 = "*/5 * * * *";
 
     [Fact(DisplayName = "The slot resolves by path beside an ordinary job keyed by the job name, and an unknown path resolves to null")]
@@ -25,7 +24,7 @@ public sealed class GetJobIdBySlotSpec : ActaStorageTestBase<ConformanceFixture>
     {
         var ct = TestContext.Current.CancellationToken;
         var jobName = Unique("slot");
-        var defId = (await DefinitionTestOps.RegisterAsync(Services, TestNamespaceId, Generation, [Def(jobName)], ct))[jobName];
+        var defId = (await DefinitionTestOps.RegisterAsync(Services, TestNamespaceId, [Def(jobName)], ct))[jobName];
         var ordinary = await Services
             .GetRequiredService<IJobs>()
             .EnqueueAsync(new EnqueueJobRequest(TestNamespace, jobName, JobPayload.Json(1), DeduplicationKey: jobName), ct);

@@ -52,7 +52,6 @@ internal sealed class ActaTestSeeder(IDbSession db)
                     DefinitionName = name,
                     Status = DefinitionStatusCode.Active,
                     DefinitionHash = "test-hash",
-                    ManifestGenerationAtUtc = now,
                     InputTypeName = "TestInput",
                     InputFormatId = 0,
                     InputFormatName = "json",

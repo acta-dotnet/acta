@@ -8279,7 +8279,6 @@
                       "jobName": "send-invoice",
                       "status": "active",
                       "definitionHash": "hash-5",
-                      "manifestGenerationAtUtc": "2026-06-12T06:00:00Z",
                       "inputTypeName": "Billing.SendInvoice",
                       "inputFormatId": 1,
                       "inputFormatName": "json",
@@ -12252,7 +12251,6 @@
           "jobName",
           "status",
           "definitionHash",
-          "manifestGenerationAtUtc",
           "inputTypeName",
           "inputFormatId",
           "inputFormatName",
@@ -12315,11 +12313,6 @@
           "definitionHash": {
             "type": "string",
             "description": "A hash of everything the code declares for the definition; operator overrides are not part of it."
-          },
-          "manifestGenerationAtUtc": {
-            "type": "string",
-            "description": "The build time of the deployment that last wrote the definition, in UTC; an older deployment cannot overwrite it.",
-            "format": "date-time"
           },
           "inputTypeName": {
             "type": "string",

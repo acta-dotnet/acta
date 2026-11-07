@@ -14,7 +14,6 @@ namespace Acta.Tests.Conformance.Operations.Schedules;
 )]
 public sealed class RegisterSchedulesNoteSpec : ActaStorageTestBase<ConformanceFixture>
 {
-    private static readonly DateTime Generation = new(2026, 1, 1, 0, 0, 0, DateTimeKind.Utc);
     private const string Cron5 = "*/5 * * * *";
 
     private ISchedules Schedules => Services.GetRequiredService<IActaOperations>().Schedules;
@@ -38,7 +37,7 @@ public sealed class RegisterSchedulesNoteSpec : ActaStorageTestBase<ConformanceF
 
     private async Task<int> CreateDefinitionAsync(IDbSession db, ISqlDialect dialect, string jobName, CancellationToken ct)
     {
-        var map = await DefinitionTestOps.RegisterAsync(Services, TestNamespaceId, Generation, [Def(jobName)], ct);
+        var map = await DefinitionTestOps.RegisterAsync(Services, TestNamespaceId, [Def(jobName)], ct);
         return map[jobName];
     }
 

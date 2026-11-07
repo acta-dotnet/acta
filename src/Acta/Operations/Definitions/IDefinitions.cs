@@ -22,8 +22,8 @@ public interface IDefinitions
     /// <paramref name="expectedVersion"/>: it moves to <see cref="DefinitionStatusCode.Retired"/>, enqueue is rejected with
     /// <see cref="EnqueueRejectionReason.DefinitionRetired"/>, its parked jobs (Ready, Blocked, Suspended, Paused) are cancelled in
     /// the same transaction without their descendants, and a running attempt finishes but its job lands Cancelled rather than run
-    /// again. A build carrying the definition at an equal or newer manifest generation makes it Active again on registration; an
-    /// older one cannot. Missing is NotFound, a stale version VersionConflict, an already retired definition Applied.
+    /// again. A registration that declares the definition makes it Active again. Missing is NotFound, a stale version
+    /// VersionConflict, an already retired definition Applied.
     /// </summary>
     ValueTask<RetireDefinitionResponse> RetireAsync(
         string jobNamespace,

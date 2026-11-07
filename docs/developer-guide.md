@@ -702,8 +702,7 @@ alert settings, or lease/heartbeat relationships fail fast.
 | `MaxInlinePayloadBytes` | 1 MiB | cluster data | The one payload ceiling, for inline writes and the HTTP request body; an oversize handler result is dropped. |
 | `AlertFailureThreshold` | 3 | cluster data | Automatic failure count threshold for escalation. |
 | `AlertChannelValidationMode` | `Warn` | startup policy | `Off`, `Warn`, or `Fail` when definitions route to missing alert channels. |
-| `PayloadContractDriftMode` | `Warn` | startup policy | `Warn` or `Fail` when eligible registrations change input or result contract columns. |
-| `ManifestGenerationUtc` | entry assembly file time | deployment metadata | Optional. Set explicitly only when you need deterministic definition promotion, especially single-file or AOT publishes. |
+| `PayloadContractDriftMode` | `Warn` | startup policy | `Warn` or `Fail` when a registration changes input or result contract columns. |
 | `DeploymentVersion` | assembly informational version | per process | Written to `workers`; should identify the deployed build and differ across rolling deploys. |
 | `EnvironmentName` | `DOTNET_ENVIRONMENT`, then `ASPNETCORE_ENVIRONMENT`, then `Production` | per process | Matched against a `[Schedule]`'s `Environments`; a schedule without environments registers everywhere. |
 | `AllowClockSkew` | `false` | startup policy | Downgrades excessive host/database clock skew from failure to warning. |

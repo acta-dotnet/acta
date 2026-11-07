@@ -379,13 +379,8 @@ public class DbSessionRetryRegionTests
         public void BindEnqueueJobs(DbCommand command, IReadOnlyList<JobEnqueueValues> rows, IReadOnlyList<Guid> jobRefs, string schema) =>
             throw new NotSupportedException();
 
-        public void BindRegisterDefinitions(
-            DbCommand command,
-            int namespaceId,
-            DateTime manifestGenerationUtc,
-            IReadOnlyList<DefinitionValues> rows,
-            string schema
-        ) => throw new NotSupportedException();
+        public void BindRegisterDefinitions(DbCommand command, int namespaceId, IReadOnlyList<DefinitionValues> rows, string schema) =>
+            throw new NotSupportedException();
 
         public void BindRegisterSchedules(
             DbCommand command,

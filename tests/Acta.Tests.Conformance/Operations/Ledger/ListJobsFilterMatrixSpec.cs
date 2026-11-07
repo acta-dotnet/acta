@@ -238,7 +238,7 @@ public sealed class ListJobsFilterMatrixSpec : ActaRuntimeTestBase<ConformanceFi
         var ns2Name = Unique("ns2");
         var seeder = new ActaTestSeeder(Db);
         var ns2Id = await seeder.SeedJobNamespaceAsync(ns2Name, "test", ct);
-        await DefinitionTestOps.RegisterAsync(Services, ns2Id, DateTime.UtcNow, TestJobsManifest.Descriptors.Descriptors, ct);
+        await DefinitionTestOps.RegisterAsync(Services, ns2Id, TestJobsManifest.Descriptors.Descriptors, ct);
 
         // Enqueue two jobs in the primary namespace, one in the second
         var ns1Outcomes = await EnqueueAsync([AddNumbersRow(), AddNumbersRow()], ct);

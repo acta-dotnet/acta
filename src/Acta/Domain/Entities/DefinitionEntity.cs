@@ -65,14 +65,6 @@ internal sealed class DefinitionEntity : IEntity<int>
     [DbColumn("definition_hash", DbKind.AsciiString, Size = 128)]
     public string DefinitionHash { get; internal set; } = default!;
 
-    /// <summary>
-    /// Manifest generation (build timestamp) of the worker that last wrote this row. The monotonic
-    /// governor: a registration may update the row only when its incoming generation is greater than
-    /// or equal to this value, so an older deployment cannot roll policy back.
-    /// </summary>
-    [DbColumn("manifest_generation_at_utc", DbKind.UtcInstant)]
-    public DateTime ManifestGenerationAtUtc { get; internal set; }
-
     // ---------- Code-fixed type contract + formats (synced from [Job]; NO override) ----------
 
     /// <summary>
@@ -333,7 +325,7 @@ internal sealed class DefinitionEntity : IEntity<int>
     public ScheduledDeliveryCode ScheduledDelivery { get; internal set; }
 
     /// <summary>
-    /// The descriptor's default input, serialized at registration under the generation fence: the bytes a per-occurrence
+    /// The descriptor's default input, serialized at registration: the bytes a per-occurrence
     /// root is created with, copied at admission on any host, whether or not it holds the handler. Format 0 with no
     /// bytes for a definition that takes no input.
     /// </summary>

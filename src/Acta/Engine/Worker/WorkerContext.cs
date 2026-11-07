@@ -28,7 +28,7 @@ internal sealed class WorkerContext(WorkerRegistration? workerRegistration)
     /// <summary>
     /// definitions.definition_id to effective retention in seconds for each definition the heartbeat's last catalog read found
     /// Retired, whether or not this deployment carries its handler. Their jobs never start another attempt or re-arm.
-    /// Replaced whole on each read, so a definition a newer build made Active again leaves it.
+    /// Replaced whole on each read, so a definition a build made Active again leaves it.
     /// </summary>
     public IReadOnlyDictionary<int, int> RetentionSecondsByRetiredDefinitionId { get; private set; } = new Dictionary<int, int>();
 

@@ -18,7 +18,6 @@ namespace Acta.Tests.Conformance.Operations.Schedules;
 )]
 public sealed class ListDueSchedulesSpec : ActaStorageTestBase<ConformanceFixture>
 {
-    private static readonly DateTime Generation = new(2026, 1, 1, 0, 0, 0, DateTimeKind.Utc);
     private const string Cron5 = "*/5 * * * *";
 
     [Fact(DisplayName = "A slot with one due schedule is read whole, every member carrying the slot's state, in name order")]
@@ -92,7 +91,7 @@ public sealed class ListDueSchedulesSpec : ActaStorageTestBase<ConformanceFixtur
     /// <summary>Registers (or re-registers) one definition's schedules at the given cursors; returns its slot.</summary>
     private async Task<long> RegisterAsync(string jobName, IReadOnlyList<(string Name, DateTime Cursor)> schedules, CancellationToken ct)
     {
-        var defId = (await DefinitionTestOps.RegisterAsync(Services, TestNamespaceId, Generation, [Def(jobName)], ct))[jobName];
+        var defId = (await DefinitionTestOps.RegisterAsync(Services, TestNamespaceId, [Def(jobName)], ct))[jobName];
         var definition = new DefinitionSchedules(
             NamespaceId: TestNamespaceId,
             DefinitionId: defId,

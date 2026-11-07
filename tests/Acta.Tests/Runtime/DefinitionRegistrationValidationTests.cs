@@ -15,8 +15,6 @@ namespace Acta.Tests.Runtime;
 /// </summary>
 public sealed class DefinitionRegistrationValidationTests
 {
-    private static readonly DateTime Gen = new(2026, 1, 1, 0, 0, 0, DateTimeKind.Utc);
-
     private static JobDescriptor Descriptor(string name) =>
         new(
             JobName: name,
@@ -45,7 +43,7 @@ public sealed class DefinitionRegistrationValidationTests
 
     private static Task RegisterAsync(JobDescriptor[] descriptors, StoredDefinitionContract[] stored) =>
         new RegisterDefinitionsHandler(new DbSessionStub(), null!, null!).HandleAsync(
-            new RegisterDefinitionsCommand(1, Gen, [.. descriptors], stored),
+            new RegisterDefinitionsCommand(1, [.. descriptors], stored),
             TestContext.Current.CancellationToken
         );
 
@@ -54,7 +52,6 @@ public sealed class DefinitionRegistrationValidationTests
     private static StoredDefinitionContract Stored(string name, string? effectiveRate, string? rateName = null) =>
         new(
             DefinitionName: name,
-            ManifestGenerationAtUtc: Gen,
             Contract: new DefinitionContract(
                 "Input",
                 null,

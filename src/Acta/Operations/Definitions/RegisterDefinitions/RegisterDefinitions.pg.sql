@@ -57,7 +57,6 @@ upserted AS (
         display_name,
         description,
         definition_hash,
-        manifest_generation_at_utc,
         created_at_utc,
         modified_at_utc,
         version)
@@ -94,7 +93,6 @@ upserted AS (
         b.display_name,
         b.description,
         b.definition_hash,
-        @p_manifest_generation,
         now(),
         now(),
         0
@@ -130,23 +128,13 @@ upserted AS (
         display_name = EXCLUDED.display_name,
         description = EXCLUDED.description,
         definition_hash = EXCLUDED.definition_hash,
-        manifest_generation_at_utc = EXCLUDED.manifest_generation_at_utc,
-        -- An unchanged Active row from a newer manifest takes only the generation, because an equal hash means the columns
-        -- above already hold these values; version and modified_at_utc stay, so no operator CAS fails and no worker reloads.
-        modified_at_utc = CASE WHEN {{schema}}.definitions.definition_status_code <> 10 /* DefinitionStatusCode.Active */
-            OR {{schema}}.definitions.definition_hash IS DISTINCT FROM EXCLUDED.definition_hash
-            THEN now() ELSE {{schema}}.definitions.modified_at_utc END,
-        version = CASE WHEN {{schema}}.definitions.definition_status_code <> 10 /* DefinitionStatusCode.Active */
-            OR {{schema}}.definitions.definition_hash IS DISTINCT FROM EXCLUDED.definition_hash
-            THEN {{schema}}.definitions.version + 1 ELSE {{schema}}.definitions.version END
+        modified_at_utc = now(),
+        version = {{schema}}.definitions.version + 1
+    -- An unchanged Active row is left as it is: version and modified_at_utc stay, so no operator CAS fails and no
+    -- worker reloads.
     WHERE
-        EXCLUDED.manifest_generation_at_utc >= {{schema}}.definitions.manifest_generation_at_utc
-        AND (
-            {{schema}}.definitions.definition_status_code <> 10 /* DefinitionStatusCode.Active */
-            OR {{schema}}.definitions.definition_hash IS DISTINCT FROM EXCLUDED.definition_hash
-            -- An unchanged row still takes a newer generation, so an older build that registers after it is refused.
-            OR EXCLUDED.manifest_generation_at_utc > {{schema}}.definitions.manifest_generation_at_utc
-        )
+        {{schema}}.definitions.definition_status_code <> 10 /* DefinitionStatusCode.Active */
+        OR {{schema}}.definitions.definition_hash IS DISTINCT FROM EXCLUDED.definition_hash
     RETURNING definitions.definition_name, definitions.definition_id
 )
 SELECT u.definition_name AS def_name, u.definition_id AS def_id FROM upserted u

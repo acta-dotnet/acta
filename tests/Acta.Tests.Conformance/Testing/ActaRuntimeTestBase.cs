@@ -101,10 +101,10 @@ public abstract class ActaRuntimeTestBase<TFixture, TManifest> : ActaTestBase<TF
     }
 
     /// <summary>
-    /// Another deployment generation's process for a rolling-deploy spec: its own DI container, its own
-    /// worker row, its own manifest and generation stamp, against the shared schema and namespace.
+    /// Another deployment's process for a rolling-deploy spec: its own DI container, its own worker row, and its own
+    /// manifest, against the shared schema and namespace.
     /// </summary>
-    protected ServiceProvider BuildGenerationProvider<TGenerationManifest>(DateTime generationUtc, string tag)
+    protected ServiceProvider BuildGenerationProvider<TGenerationManifest>(string tag)
         where TGenerationManifest : class, IJobManifest
     {
         var services = new ServiceCollection();
@@ -113,11 +113,7 @@ public abstract class ActaRuntimeTestBase<TFixture, TManifest> : ActaTestBase<TF
             Fixture.ApplyProvider(j, Schema.SchemaName);
             j.Run<TGenerationManifest>(TestNamespace, ownerTeam: "test", description: GetType().FullName + ":" + tag);
         });
-        services.Configure<JobsOptions>(o =>
-        {
-            o.RunSystemJobs = false;
-            o.ManifestGenerationUtc = generationUtc;
-        });
+        services.Configure<JobsOptions>(o => o.RunSystemJobs = false);
         return services.BuildServiceProvider(validateScopes: true);
     }
 

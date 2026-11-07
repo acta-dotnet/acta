@@ -19,7 +19,6 @@ namespace Acta.Tests.Conformance.Operations.Definitions;
 )]
 public sealed class UpdateDefinitionOverridesSpec : ActaStorageTestBase<ConformanceFixture>
 {
-    private static readonly DateTime Gen = new(2026, 1, 1, 0, 0, 0, DateTimeKind.Utc);
     private const string Actor = "tester";
 
     [Fact(DisplayName = "Competing definition overrides with one version have one winner and one audit event")]
@@ -93,7 +92,7 @@ public sealed class UpdateDefinitionOverridesSpec : ActaStorageTestBase<Conforma
     private async Task<int> RegisterAsync(string name, int maxAttempts, CancellationToken ct)
     {
         var (_, _) = Store();
-        await DefinitionTestOps.RegisterAsync(Services, TestNamespaceId, Gen, [Def(name, maxAttempts)], ct);
+        await DefinitionTestOps.RegisterAsync(Services, TestNamespaceId, [Def(name, maxAttempts)], ct);
         return (await ReadAsync(name, ct)).Id;
     }
 

@@ -8,7 +8,6 @@ internal sealed record GetDefinitionRow(
     string JobName,
     DefinitionStatusCode Status,
     string DefinitionHash,
-    DateTime ManifestGenerationAtUtc,
     string InputTypeName,
     byte InputFormatId,
     string InputFormatName,

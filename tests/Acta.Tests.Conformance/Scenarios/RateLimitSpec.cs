@@ -343,7 +343,6 @@ public sealed class RateLimitSpec : ActaRuntimeTestBase<ConformanceFixture, Test
             handler.HandleAsync(
                 new RegisterDefinitionsCommand(
                     NamespaceId,
-                    DateTime.UtcNow,
                     [Descriptor("rl-mismatch-left", "10/s"), Descriptor("rl-mismatch-right", "5/s")],
                     []
                 ),

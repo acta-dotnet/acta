@@ -15,7 +15,6 @@ public sealed class MeterConsistencyCheckTests
     private static StoredDefinitionContract Definition(string name, string? rateName, string? effectiveRate) =>
         new(
             DefinitionName: name,
-            ManifestGenerationAtUtc: new DateTime(2026, 9, 19, 0, 0, 0, DateTimeKind.Utc),
             Contract: new DefinitionContract("Input", null, 0, "none", 0, "none"),
             DefinitionId: name.GetHashCode(StringComparison.Ordinal),
             DefinitionHash: "hash",

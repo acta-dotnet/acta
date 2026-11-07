@@ -294,16 +294,15 @@
   - Enqueue against a retired definition is rejected with DefinitionRetired
   - An unknown name is NotFound and a stale version is VersionConflict with the current version, and neither writes
   - Retiring an already retired definition is applied and writes no further events
-  - An equal manifest generation reactivates a retired definition and an older one cannot
+  - A registration that declares a retired definition makes it Active again
 
-### Retire leaves a recurring slot inert until a newer build resumes it
-- **Contract:** Retiring a recurring definition settles its queued firing, leaves the slot Idle or as the operator held it, and a newer build resumes its schedules from now.
+### Retire leaves a recurring slot inert until a build registers it again
+- **Contract:** Retiring a recurring definition settles its queued firing, leaves the slot Idle or as the operator held it, and a later build resumes its schedules from now.
 - **Guarantees:**
   - A recurring slot retired mid-occurrence returns to Idle, where its retired definition leaves it inert
   - A retired definition's schedules keep no cursor, which takes them out of the upcoming-occurrence index
-  - A newer build that registers a retired definition again resumes its schedules from now on the same Idle slot
+  - A build that registers a retired definition again resumes its schedules from now on the same Idle slot
   - A retire settles a queued firing and leaves an operator's pause or cancel on the slot through the comeback
-  - An older build that starts while the definition is retired leaves its schedules as the retire left them
   - A retired definition's slot refuses a manual firing until a build that carries the definition starts
   - A firing that fails into a retry after the retire lands Cancelled with its firing settled, and a restart returns the slot to Idle
 
@@ -328,21 +327,18 @@
 - **Contract:** ListDefinitionContracts returns every definition of one namespace, retired ones included, with its contract, hash, status, and override-aware effective policy.
 - **Guarantees:**
   - A namespace without definitions reads an empty catalog
-  - Each definition reads back its identity, generation, contract, hash, status, and policy
+  - Each definition reads back its identity, contract, hash, status, and policy
   - An operator override reads back as the effective policy
   - A retired definition stays in the catalog with its Retired status
   - The catalog holds only the asked namespace's definitions
 
-### Newer-or-equal generation promotes policy; older cannot downgrade
-- **Contract:** Writes a definition only when the incoming manifest generation is at or above the stored one, and never touches a definition the manifest omits.
+### Registration writes what changed and leaves what the manifest omits
+- **Contract:** Writes a definition only when it is new, not Active, or changed, and never touches a definition the manifest omits.
 - **Guarantees:**
-  - Newer generation updates policy and bumps version
-  - Older generation does not change policy or version
-  - Equal generation with a real difference is applied
+  - A registration with a changed policy updates it and bumps the version
+  - A batch that changes one definition leaves an unchanged one at its version
   - Unchanged restart writes nothing
-  - A newer unchanged build stores only its generation, so an older build registering after it changes nothing
   - A definition absent from the manifest stays Active with its jobs
-  - Older generation cannot reactivate or rewrite a newer retired definition
   - Fail-mode contract drift blocks before any registration write
 
 ### Tenant registration inserts a new Active tenant or returns the existing row
@@ -1841,10 +1837,10 @@
 - **Guarantees:**
   - An Executing row whose claim answer was lost is not renewed and is reclaimed charged, like a crash after start
 
-### Two generations share a namespace and the rollback still runs
+### Two builds share a namespace and the rollback still runs
 - **Contract:** A worker hands back a claim it has no handler for, stops claiming that definition, and leaves the catalog entry Active.
 - **Guarantees:**
-  - Two generations in one namespace hand back each other's work, learn it, and the rollback still runs the definition the new generation omitted
+  - Two builds in one namespace hand back each other's work, learn it, and the rollback still runs the definition the new build omitted
 
 ### A failing setup read after the claim is repeated
 - **Contract:** A read that fails between the claim and the handler is repeated, and the attempt completes.
@@ -2172,10 +2168,10 @@
   - A pause that found the schedule before the retire leaves the retired schedule as the retire left it
   - A trigger that found the schedule before the retire admits nothing on the retired definition's Idle slot
 
-### An older generation fires a slot a newer one registered as recurring
-- **Contract:** An older worker lands a slot a newer generation registered Idle, as a permanent slot, never finished like a one-shot.
+### A worker fires a slot another build registered after it started as recurring
+- **Contract:** A worker lands a slot another build registered after it started Idle, as a permanent slot, never finished like a one-shot.
 - **Guarantees:**
-  - An older generation fires a slot a newer one registered after it started as a recurring job
+  - A worker fires a slot another build registered after it started as a recurring job
 
 ### Recurring slot claims at its definition's priority
 - **Contract:** A recurring slot's runtime priority is stamped from the owning definition's effective priority, and re-registration propagates a changed priority.

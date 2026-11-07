@@ -4,7 +4,6 @@ SELECT
     jd.definition_name AS job_name,
     jd.definition_status_code AS status,
     jd.definition_hash,
-    jd.manifest_generation_at_utc,
     jd.input_type_name,
     jd.input_format_id,
     jd.input_format_name,

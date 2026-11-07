@@ -119,7 +119,7 @@ internal sealed class ScheduleEntity : IEntity<int>
     /// <summary>
     /// <see cref="TimingFingerprint"/> of the declaration as registered: the expression, its kind, the zone and its
     /// rules, the anchor, the availability calendar's name, and the bounds. A registration whose fingerprint matches leaves the cursor alone; one that differs is a
-    /// timing change. A retire writes <c>retired</c>, so a newer build that registers the definition again retimes the schedule from now.
+    /// timing change. A retire writes <c>retired</c>, so a build that registers the definition again retimes the schedule from now.
     /// </summary>
     [DbColumn("timing_fingerprint", DbKind.AsciiString, Size = 64)]
     public string TimingFingerprint { get; init; } = default!;

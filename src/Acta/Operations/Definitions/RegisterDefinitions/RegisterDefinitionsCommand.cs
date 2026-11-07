@@ -5,7 +5,6 @@ namespace Acta;
 /// <summary>A namespace's whole definitions set, with the catalog as startup read it.</summary>
 internal sealed record RegisterDefinitionsCommand(
     int NamespaceId,
-    DateTime ManifestGenerationUtc,
     ImmutableArray<JobDescriptor> Descriptors,
     IReadOnlyList<StoredDefinitionContract> Stored
 );

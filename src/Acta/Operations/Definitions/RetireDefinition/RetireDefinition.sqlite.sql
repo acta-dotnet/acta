@@ -34,7 +34,7 @@ WHERE
     )
     AND j.job_kind_code <> 20 /* JobKindCode.PermanentSlot */;
 
--- A permanent slot is left inert, not cancelled, so a newer build that registers the definition again finds it ready
+-- A permanent slot is left inert, not cancelled, so a build that registers the definition again finds it ready
 -- to fire: a queued firing settles below and the slot returns to Idle, a paused one keeps its hold, and one an attempt
 -- still runs lands as it would.
 DROP TABLE IF EXISTS temp._retire_slots;
@@ -96,7 +96,7 @@ WHERE
     AND checkpoint_status_code = 10 /* CheckpointStatusCode.Pending */
     AND job_id IN (SELECT p.job_id FROM temp._retire_parked_jobs p UNION ALL SELECT rs.job_id FROM temp._retire_slots rs);
 
--- The schedules lose their timing fingerprint, so a newer build that registers the definition again retimes them from
+-- The schedules lose their timing fingerprint, so a build that registers the definition again retimes them from
 -- now, as it would a changed declaration.
 UPDATE {{schema}}.schedules
 SET

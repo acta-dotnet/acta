@@ -20,7 +20,6 @@ namespace Acta.Tests.Conformance.Engine.Worker;
 )]
 public sealed class ScheduleRegistrationSkipSpec : ActaTestBase<ConformanceFixture>
 {
-    private static readonly DateTime Generation = new(2026, 3, 1, 0, 0, 0, DateTimeKind.Utc);
     private static readonly TimeSpan Blocked = TimeSpan.FromMilliseconds(500);
 
     protected override void ConfigureServices(IServiceCollection services, string testNamespace) =>
@@ -92,11 +91,7 @@ public sealed class ScheduleRegistrationSkipSpec : ActaTestBase<ConformanceFixtu
             Fixture.ApplyProvider(j, Schema.SchemaName);
             j.Run<TManifest>(ns, ownerTeam: "test", description: "replica");
         });
-        services.Configure<JobsOptions>(o =>
-        {
-            o.RunSystemJobs = false;
-            o.ManifestGenerationUtc = Generation;
-        });
+        services.Configure<JobsOptions>(o => o.RunSystemJobs = false);
         return services.BuildServiceProvider(validateScopes: true);
     }
 

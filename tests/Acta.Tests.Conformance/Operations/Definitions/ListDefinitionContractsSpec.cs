@@ -14,8 +14,6 @@ namespace Acta.Tests.Conformance.Operations.Definitions;
 )]
 public sealed class ListDefinitionContractsSpec : ActaStorageTestBase<ConformanceFixture>
 {
-    private static readonly DateTime Generation = new(2026, 2, 1, 0, 0, 0, DateTimeKind.Utc);
-
     private async Task<IReadOnlyList<StoredDefinitionContract>> ReadAsync(int namespaceId, CancellationToken ct) =>
         (
             await Services
@@ -24,7 +22,7 @@ public sealed class ListDefinitionContractsSpec : ActaStorageTestBase<Conformanc
         ).Contracts;
 
     private async Task<int> RegisterAsync(int namespaceId, string name, int maxAttempts, CancellationToken ct) =>
-        (await DefinitionTestOps.RegisterAsync(Services, namespaceId, Generation, [Def(name, maxAttempts)], ct))[name];
+        (await DefinitionTestOps.RegisterAsync(Services, namespaceId, [Def(name, maxAttempts)], ct))[name];
 
     private async Task<int> VersionAsync(int definitionId, CancellationToken ct) =>
         (await Db.From<DefinitionEntity>().Where(d => d.Id == definitionId).SingleOrDefaultAsync(ct))!.Version;
@@ -37,7 +35,7 @@ public sealed class ListDefinitionContractsSpec : ActaStorageTestBase<Conformanc
         Assert.Empty(await ReadAsync(TestNamespaceId, ct));
     }
 
-    [Fact(DisplayName = "Each definition reads back its identity, generation, contract, hash, status, and policy")]
+    [Fact(DisplayName = "Each definition reads back its identity, contract, hash, status, and policy")]
     public async Task Definition_reads_back_whole()
     {
         var ct = TestContext.Current.CancellationToken;
@@ -51,7 +49,6 @@ public sealed class ListDefinitionContractsSpec : ActaStorageTestBase<Conformanc
         Assert.Equal([first, second], catalog.Keys.Order(StringComparer.Ordinal));
         var stored = catalog[first];
         Assert.Equal(firstId, stored.DefinitionId);
-        Assert.Equal(Generation, stored.ManifestGenerationAtUtc);
         Assert.Equal(typeof(int).FullName, stored.Contract.InputTypeName);
         Assert.Equal(JobPayloadFormat.Json.Id, stored.Contract.InputFormatId);
         Assert.False(string.IsNullOrEmpty(stored.DefinitionHash));

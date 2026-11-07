@@ -197,21 +197,12 @@ public sealed class JobsOptions
     public AlertChannelValidationMode AlertChannelValidationMode { get; set; } = AlertChannelValidationMode.Warn;
 
     /// <summary>
-    /// Worker behavior when an eligible registration changes a definition's contract columns (input
+    /// Worker behavior when a registration changes a definition's contract columns (input
     /// or result type, payload format). The drift never corrupts already-enqueued rows, which decode
     /// by their own stored format id; it affects enqueues made from then on and the CLR type old rows
     /// dispatch into. Default <c>Warn</c>.
     /// </summary>
     public PayloadContractDriftMode PayloadContractDriftMode { get; set; } = PayloadContractDriftMode.Warn;
-
-    /// <summary>
-    /// Explicit manifest generation (a UTC build timestamp) for this worker, the monotonic governor
-    /// for definition promotion. When null, the runtime falls back to the entry assembly's file
-    /// last-write-time, a convenience default that can vary across copy, publish, or container-image
-    /// restore. Set this explicitly for single-file or AOT publishes, or whenever you need
-    /// deterministic or CI-stamped ordering. Never derived from process start time.
-    /// </summary>
-    public DateTime? ManifestGenerationUtc { get; set; }
 
     /// <summary>
     /// Per-process; must differ across a rolling deploy (it identifies the build). Opaque deployment

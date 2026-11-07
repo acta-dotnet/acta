@@ -18,7 +18,6 @@ namespace Acta.Tests.Conformance.Operations.Schedules;
 )]
 public sealed class AdmitScheduleFiringsSpec : ActaStorageTestBase<ConformanceFixture>
 {
-    private static readonly DateTime Generation = new(2026, 1, 1, 0, 0, 0, DateTimeKind.Utc);
     private const string Cron5 = "*/5 * * * *";
 
     private IJobs Jobs => Services.GetRequiredService<IJobs>();
@@ -315,7 +314,7 @@ public sealed class AdmitScheduleFiringsSpec : ActaStorageTestBase<ConformanceFi
         CancellationToken ct
     )
     {
-        var defId = (await DefinitionTestOps.RegisterAsync(Services, TestNamespaceId, Generation, [Def(jobName, delivery)], ct))[jobName];
+        var defId = (await DefinitionTestOps.RegisterAsync(Services, TestNamespaceId, [Def(jobName, delivery)], ct))[jobName];
         var definition = new DefinitionSchedules(
             NamespaceId: TestNamespaceId,
             DefinitionId: defId,

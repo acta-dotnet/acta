@@ -374,7 +374,7 @@ app.Run();</code></pre>
           <figcaption><span class="note">Terminal 1</span><button class="copy" type="button" aria-label="Copy the run command">Copy</button></figcaption>
           <pre><code>dotnet run --urls http://localhost:5080</code></pre>
         </figure>
-        <p>Among the startup lines you should see <code>Now listening on: http://localhost:5080</code>, and a few lines from <code>WorkerRuntime</code> saying the claim loop and heartbeat have started: that is the worker. You will also see a warning about "manifest generation" being derived from a file's last-write time. It matters when you deploy containers, and it is harmless here. A new <code>reports.db</code> file has appeared in the project folder.</p>
+        <p>Among the startup lines you should see <code>Now listening on: http://localhost:5080</code>, and a few lines from <code>WorkerRuntime</code> saying the claim loop and heartbeat have started: that is the worker. A new <code>reports.db</code> file has appeared in the project folder.</p>
         <p>In a second terminal, ask for August. On Windows PowerShell, type <code>curl.exe</code> rather than <code>curl</code>, because <code>curl</code> there is an alias for a different command.</p>
         <figure class="listing">
           <figcaption><span class="note">Terminal 2</span><button class="copy" type="button" aria-label="Copy the report request">Copy</button></figcaption>

@@ -18,7 +18,6 @@ namespace Acta.Tests.Conformance.Operations.Definitions;
 )]
 public sealed class UpdateDefinitionOverridesBindMatrixSpec : ActaStorageTestBase<ConformanceFixture>
 {
-    private static readonly DateTime Gen = new(2026, 1, 1, 0, 0, 0, DateTimeKind.Utc);
     private const string Actor = "tester";
 
     // Def() registers with well-known base values so the clear fact can assert exact effective fallbacks.
@@ -59,7 +58,7 @@ public sealed class UpdateDefinitionOverridesBindMatrixSpec : ActaStorageTestBas
     private async Task<int> RegisterAsync(string name, CancellationToken ct)
     {
         var (_, _) = Store();
-        await DefinitionTestOps.RegisterAsync(Services, TestNamespaceId, Gen, [Def(name)], ct);
+        await DefinitionTestOps.RegisterAsync(Services, TestNamespaceId, [Def(name)], ct);
         return (await ReadAsync(name, ct)).Id;
     }
 

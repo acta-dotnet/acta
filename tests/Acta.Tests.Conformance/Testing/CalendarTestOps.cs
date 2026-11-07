@@ -16,8 +16,6 @@ internal static class CalendarTestOps
         {"kind":"explicit-instants","timeZone":"UTC","instants":["2027-01-15T16:00:00Z","2027-02-15T16:00:00Z"]}
         """;
 
-    private static readonly DateTime Generation = new(2026, 1, 1, 0, 0, 0, DateTimeKind.Utc);
-
     public static ICalendars Calendars(IServiceProvider services) => services.GetRequiredService<IActaOperations>().Calendars;
 
     /// <summary>Marks one version Published on its row, as a publication leaves the family's current version.</summary>
@@ -42,7 +40,7 @@ internal static class CalendarTestOps
         CancellationToken ct
     )
     {
-        var defId = (await DefinitionTestOps.RegisterAsync(services, namespaceId, Generation, [Def(jobName)], ct))[jobName];
+        var defId = (await DefinitionTestOps.RegisterAsync(services, namespaceId, [Def(jobName)], ct))[jobName];
         await RegisterAsync(services, namespaceId, defId, calendarName, scheduleNames, ct);
         return defId;
     }

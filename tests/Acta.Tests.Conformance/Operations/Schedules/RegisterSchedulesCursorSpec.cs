@@ -19,7 +19,6 @@ namespace Acta.Tests.Conformance.Operations.Schedules;
 )]
 public sealed class RegisterSchedulesCursorSpec : ActaStorageTestBase<ConformanceFixture>
 {
-    private static readonly DateTime Generation = new(2026, 1, 1, 0, 0, 0, DateTimeKind.Utc);
     private static readonly DateTime Base = new(2024, 1, 1, 12, 0, 0, DateTimeKind.Utc);
     private const string Cron5 = "*/5 * * * *";
     private const string ScheduleName = "tick";
@@ -98,7 +97,7 @@ public sealed class RegisterSchedulesCursorSpec : ActaStorageTestBase<Conformanc
 
     private async Task<int> CreateDefinitionAsync(string jobName, CancellationToken ct)
     {
-        var map = await DefinitionTestOps.RegisterAsync(Services, TestNamespaceId, Generation, [Def(jobName)], ct);
+        var map = await DefinitionTestOps.RegisterAsync(Services, TestNamespaceId, [Def(jobName)], ct);
         return map[jobName];
     }
 

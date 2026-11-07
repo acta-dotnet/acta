@@ -18,8 +18,6 @@ namespace Acta.Tests.Conformance.Operations.Definitions;
 )]
 public sealed class ListDefinitionsFilterMatrixSpec : ActaRuntimeTestBase<ConformanceFixture, TestJobs.TestJobsManifest>
 {
-    private static readonly DateTime Gen = new(2026, 1, 1, 0, 0, 0, DateTimeKind.Utc);
-
     /// <summary>Creates a minimal synthetic job descriptor for a given job name.</summary>
     private static JobDescriptor Def(string name) =>
         new(
@@ -57,7 +55,7 @@ public sealed class ListDefinitionsFilterMatrixSpec : ActaRuntimeTestBase<Confor
         // Register def-a and def-b → both Active
         var defAName = Unique("def-a");
         var defBName = Unique("def-b");
-        var firstMap = await DefinitionTestOps.RegisterAsync(Services, nsId, Gen, [Def(defAName), Def(defBName)], ct);
+        var firstMap = await DefinitionTestOps.RegisterAsync(Services, nsId, [Def(defAName), Def(defBName)], ct);
         var defAId = firstMap[defAName];
         var defBId = firstMap[defBName];
 
@@ -100,7 +98,7 @@ public sealed class ListDefinitionsFilterMatrixSpec : ActaRuntimeTestBase<Confor
         var invoiceSend = Unique("invoice-send");
         var invoiceVoid = Unique("invoice-void");
         var receiptSend = Unique("receipt-send");
-        var map = await DefinitionTestOps.RegisterAsync(Services, nsId, Gen, [Def(invoiceSend), Def(invoiceVoid), Def(receiptSend)], ct);
+        var map = await DefinitionTestOps.RegisterAsync(Services, nsId, [Def(invoiceSend), Def(invoiceVoid), Def(receiptSend)], ct);
 
         // Unique prefixes every name with a run token, so the bare term is deliberately NOT a
         // prefix of any name: a starts-with implementation returns nothing here.
@@ -135,13 +133,13 @@ public sealed class ListDefinitionsFilterMatrixSpec : ActaRuntimeTestBase<Confor
         // ns1: 2 definitions
         var defA1Name = Unique("def-ns1-a");
         var defB1Name = Unique("def-ns1-b");
-        var ns1Map = await DefinitionTestOps.RegisterAsync(Services, ns1Id, Gen, [Def(defA1Name), Def(defB1Name)], ct);
+        var ns1Map = await DefinitionTestOps.RegisterAsync(Services, ns1Id, [Def(defA1Name), Def(defB1Name)], ct);
         var defA1Id = ns1Map[defA1Name];
         var defB1Id = ns1Map[defB1Name];
 
         // ns2: 1 definition
         var defNs2Name = Unique("def-ns2");
-        var ns2Map = await DefinitionTestOps.RegisterAsync(Services, ns2Id, Gen, [Def(defNs2Name)], ct);
+        var ns2Map = await DefinitionTestOps.RegisterAsync(Services, ns2Id, [Def(defNs2Name)], ct);
         var defNs2Id = ns2Map[defNs2Name];
 
         // Read each namespace independently

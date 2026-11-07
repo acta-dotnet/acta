@@ -388,12 +388,6 @@ internal static partial class ActaLog
 
     [LoggerMessage(
         Level = LogLevel.Warning,
-        Message = "Acta manifest generation ({ActaDetail}) was derived from the deployed file's last-write time; container image copies and artifact restores can skew it and misorder definition promotion. Set JobsOptions.ManifestGenerationUtc to a CI build stamp for deterministic ordering."
-    )]
-    public static partial void ManifestGenerationFromFileTime(ILogger log, string actaDetail);
-
-    [LoggerMessage(
-        Level = LogLevel.Warning,
         Message = "Payload contract drift for job ({ActaJobName}) in namespace ({ActaNamespace}): ({ActaDetail}). Enqueues made from now on use the new contract."
     )]
     public static partial void PayloadContractDrift(ILogger log, string actaJobName, string actaNamespace, string actaDetail);

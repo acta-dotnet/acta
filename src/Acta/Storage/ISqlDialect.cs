@@ -96,13 +96,7 @@ internal interface ISqlDialect
     void BindEnqueueJobs(DbCommand command, IReadOnlyList<JobEnqueueValues> rows, IReadOnlyList<Guid> jobRefs, string schema);
 
     /// <summary>Binds the whole-namespace definition registration batch in the provider-native shape.</summary>
-    void BindRegisterDefinitions(
-        DbCommand command,
-        int namespaceId,
-        DateTime manifestGenerationUtc,
-        IReadOnlyList<DefinitionValues> rows,
-        string schema
-    );
+    void BindRegisterDefinitions(DbCommand command, int namespaceId, IReadOnlyList<DefinitionValues> rows, string schema);
 
     /// <summary>Binds the scheduled-job slot + schedule registration batches in the provider-native shape.</summary>
     void BindRegisterSchedules(

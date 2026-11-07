@@ -17,7 +17,7 @@ namespace Acta.Tests.Conformance.Operations.Schedules;
 )]
 public sealed class RegisterSchedulesBoundsSpec : ActaStorageTestBase<ConformanceFixture>
 {
-    private static readonly DateTime Generation = new(2026, 1, 1, 0, 0, 0, DateTimeKind.Utc);
+    private static readonly DateTime RegisteredAt = new(2026, 1, 1, 0, 0, 0, DateTimeKind.Utc);
     private static readonly DateTime Start = new(2027, 1, 1, 0, 0, 0, DateTimeKind.Utc);
     private static readonly DateTime EndBefore = new(2028, 1, 1, 0, 0, 0, DateTimeKind.Utc);
     private const string Cron5 = "*/5 * * * *";
@@ -30,7 +30,7 @@ public sealed class RegisterSchedulesBoundsSpec : ActaStorageTestBase<Conformanc
     {
         var ct = TestContext.Current.CancellationToken;
         var jobName = Unique("bounds");
-        var map = await DefinitionTestOps.RegisterAsync(Services, TestNamespaceId, Generation, [Def(jobName)], ct);
+        var map = await DefinitionTestOps.RegisterAsync(Services, TestNamespaceId, [Def(jobName)], ct);
         var defId = map[jobName];
         var lookup = new ScheduleLookup(TestNamespace, jobName, ScheduleName);
 
@@ -60,20 +60,20 @@ public sealed class RegisterSchedulesBoundsSpec : ActaStorageTestBase<Conformanc
     {
         var ct = TestContext.Current.CancellationToken;
         var jobName = Unique("ended");
-        var map = await DefinitionTestOps.RegisterAsync(Services, TestNamespaceId, Generation, [Def(jobName)], ct);
+        var map = await DefinitionTestOps.RegisterAsync(Services, TestNamespaceId, [Def(jobName)], ct);
         var defId = map[jobName];
 
         // The end is the registration instant itself, so no occurrence is left.
-        var slotId = await PlanAndRegisterAsync(defId, jobName, null, Generation, ct);
+        var slotId = await PlanAndRegisterAsync(defId, jobName, null, RegisteredAt, ct);
         var ended = Assert.Single(await ScheduleTestOps.ReadAsync(Db, slotId, ct));
         Assert.Null(ended.NextOccurrenceAtUtc);
         Assert.Null(ended.NextEvaluationAtUtc);
         Assert.Equal(ScheduleEvaluationStatusCode.Exhausted, ended.EvaluationStatus);
         Assert.Equal(0, await CountEventsAsync(slotId, EventCode.ScheduleRetimed, ct));
 
-        await PlanAndRegisterAsync(defId, jobName, null, Generation.AddHours(1), ct);
+        await PlanAndRegisterAsync(defId, jobName, null, RegisteredAt.AddHours(1), ct);
         var extended = Assert.Single(await ScheduleTestOps.ReadAsync(Db, slotId, ct));
-        Assert.Equal(Generation.AddMinutes(5), extended.NextOccurrenceAtUtc);
+        Assert.Equal(RegisteredAt.AddMinutes(5), extended.NextOccurrenceAtUtc);
         Assert.Equal(ScheduleEvaluationStatusCode.Scheduled, extended.EvaluationStatus);
         Assert.Equal(1, await CountEventsAsync(slotId, EventCode.ScheduleRetimed, ct));
     }
@@ -83,13 +83,13 @@ public sealed class RegisterSchedulesBoundsSpec : ActaStorageTestBase<Conformanc
     {
         var ct = TestContext.Current.CancellationToken;
         var jobName = Unique("ahead");
-        var map = await DefinitionTestOps.RegisterAsync(Services, TestNamespaceId, Generation, [Def(jobName)], ct);
+        var map = await DefinitionTestOps.RegisterAsync(Services, TestNamespaceId, [Def(jobName)], ct);
 
         // Every five minutes from an hour after the registration instant: the start is on the grid, so it is the first.
-        var slotId = await PlanAndRegisterAsync(map[jobName], jobName, Generation.AddHours(1), null, ct);
+        var slotId = await PlanAndRegisterAsync(map[jobName], jobName, RegisteredAt.AddHours(1), null, ct);
 
         var row = Assert.Single(await ScheduleTestOps.ReadAsync(Db, slotId, ct));
-        Assert.Equal(Generation.AddHours(1), row.NextOccurrenceAtUtc);
+        Assert.Equal(RegisteredAt.AddHours(1), row.NextOccurrenceAtUtc);
         Assert.Equal(ScheduleEvaluationStatusCode.Scheduled, row.EvaluationStatus);
     }
 
@@ -100,8 +100,8 @@ public sealed class RegisterSchedulesBoundsSpec : ActaStorageTestBase<Conformanc
     {
         var ct = TestContext.Current.CancellationToken;
         var jobName = Unique("trigger-ended");
-        var map = await DefinitionTestOps.RegisterAsync(Services, TestNamespaceId, Generation, [Def(jobName)], ct);
-        var slotId = await PlanAndRegisterAsync(map[jobName], jobName, null, Generation, ct);
+        var map = await DefinitionTestOps.RegisterAsync(Services, TestNamespaceId, [Def(jobName)], ct);
+        var slotId = await PlanAndRegisterAsync(map[jobName], jobName, null, RegisteredAt, ct);
 
         var result = await Schedules.TriggerAsync(
             new ScheduleLookup(TestNamespace, jobName, ScheduleName),
@@ -150,7 +150,7 @@ public sealed class RegisterSchedulesBoundsSpec : ActaStorageTestBase<Conformanc
             Input: ReadOnlyMemory<byte>.Empty,
             EventRecording: EventRecordingCode.Audit,
             ScheduledDelivery: ScheduledDeliveryCode.Permanent,
-            Schedules: ScheduleRegistrationPlan.Plan(declared, storedForDef, Generation, t => new ScheduleSource(t, null, null))
+            Schedules: ScheduleRegistrationPlan.Plan(declared, storedForDef, RegisteredAt, t => new ScheduleSource(t, null, null))
         );
         var ids = await ScheduleTestOps.RegisterAsync(Services, [definition], ct);
         return ids[defId];

@@ -5,7 +5,6 @@ SELECT
     {{decode:job-definition-status:d.definition_status_code}} AS definition_status,
     d.definition_status_code,
     d.definition_hash,
-    d.manifest_generation_at_utc,
     d.input_type_name,
     d.input_format_name,
     d.result_type_name,

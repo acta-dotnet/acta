@@ -16,9 +16,9 @@ internal static class RollingOnlyHandler
 }
 
 /// <summary>
-/// The rolled-out generation's manifest, hand-written because it is a second version of a manifest
+/// The rolled-out build's manifest, hand-written because it is a second version of a manifest
 /// the generator emits once per assembly. It keeps <c>add-numbers</c> (the same descriptor the old
-/// generation carries, so the two deployments agree about it), adds <c>rolling-only</c>, and omits
+/// build carries, so the two deployments agree about it), adds <c>rolling-only</c>, and omits
 /// <c>failures-audit-probe</c> - the three relationships a rolling deploy can have to a definition.
 /// </summary>
 public sealed class RollingGenerationBManifest : IJobManifest
@@ -60,20 +60,20 @@ public sealed class RollingGenerationBManifest : IJobManifest
 }
 
 /// <summary>
-/// A rolling deploy run end to end against one namespace: the old generation (the test base's own
+/// A rolling deploy run end to end against one namespace: the old build (the test base's own
 /// runtime, on <c>TestJobsManifest</c>) and the new one (<see cref="RollingGenerationBManifest"/>)
-/// are live together, and then the deploy is rolled back to a fresh old-generation process. Claims
-/// are by namespace, so each generation is free to claim the other's work; what the deploy relies on
+/// are live together, and then the deploy is rolled back to a fresh old-build process. Claims
+/// are by namespace, so each build is free to claim the other's work; what the deploy relies on
 /// is that a claim it cannot run is handed back budget-neutral and that the definition behind it is
 /// excluded from that worker's later claims, so the window costs one bounce per definition per
 /// worker rather than one per job per safety-poll interval.
 /// <para>The catalog side of the same window: registering a manifest that omits a definition leaves
 /// that definition Active, so a rolled-back deployment still runs its jobs with the policy it
-/// registered. Clearing what the withdrawn generation left behind is the operator's retire verb.</para>
+/// registered. Clearing what the withdrawn build left behind is the operator's retire verb.</para>
 /// </summary>
 [ConformanceSpec(
     "runtime.rolling-deploy",
-    "Two generations share a namespace and the rollback still runs",
+    "Two builds share a namespace and the rollback still runs",
     Area = "Runtime",
     Contract = "A worker hands back a claim it has no handler for, stops claiming that definition, and leaves the catalog entry Active."
 )]
@@ -83,36 +83,26 @@ public sealed class RollingDeploySpec : ActaRuntimeTestBase<ConformanceFixture, 
 
     private const string NewJob = RollingGenerationBManifest.NewJob;
 
-    // Declared only by the old generation: what the rollback has to keep working.
+    // Declared only by the old build: what the rollback has to keep working.
     private const string OldOnlyJob = "failures-audit-probe";
 
-    private static readonly DateTime GenerationA = new(2026, 1, 1, 0, 0, 0, DateTimeKind.Utc);
-
-    private static readonly DateTime GenerationB = new(2026, 6, 1, 0, 0, 0, DateTimeKind.Utc);
-
-    protected override void ConfigureServices(IServiceCollection services, string testNamespace)
-    {
-        base.ConfigureServices(services, testNamespace);
-        services.Configure<JobsOptions>(o => o.ManifestGenerationUtc = GenerationA);
-    }
-
     [Fact(
-        DisplayName = "Two generations in one namespace hand back each other's work, learn it, and the rollback still runs the definition the new generation omitted"
+        DisplayName = "Two builds in one namespace hand back each other's work, learn it, and the rollback still runs the definition the new build omitted"
     )]
     public async Task A_rolling_deploy_hands_work_back_and_survives_a_rollback()
     {
         var ct = TestContext.Current.CancellationToken;
 
-        // --- 1. The new generation joins the namespace and registers its manifest.
-        var newGeneration = BuildGenerationProvider<RollingGenerationBManifest>(GenerationB, "generation-b");
-        var newRuntime = newGeneration.GetServices<WorkerRuntime>().Single();
+        // --- 1. The new build joins the namespace and registers its manifest.
+        var newBuild = BuildGenerationProvider<RollingGenerationBManifest>("new-build");
+        var newRuntime = newBuild.GetServices<WorkerRuntime>().Single();
         await newRuntime.InitializeAsync(ct);
 
         var shared = await Jobs.EnqueueAsync(new EnqueueJobRequest(TestNamespace, SharedJob, JobPayload.Json(new AddNumbers(2, 3))), ct);
         var newOnly = await Jobs.EnqueueAsync(new EnqueueJobRequest(TestNamespace, NewJob, JobPayload.None), ct);
         var oldOnly = await Jobs.EnqueueAsync(new EnqueueJobRequest(TestNamespace, OldOnlyJob, JobPayload.None), ct);
 
-        // --- 2. The old generation drains what it can. The new generation's job is not its work.
+        // --- 2. The old build drains what it can. The new build's job is not its work.
         var newDefinitionId = (await ReadJobAsync(newOnly.JobId, ct)).DefinitionId;
         await TickUntilAsync(
             Runtime,
@@ -130,12 +120,12 @@ public sealed class RollingDeploySpec : ActaRuntimeTestBase<ConformanceFixture, 
         Assert.Equal(0, handedBack.FailureCount);
         Assert.Null(handedBack.LeasedByWorkerId);
 
-        // Registering a manifest that omits a definition does not retire it: the old generation is
+        // Registering a manifest that omits a definition does not retire it: the old build is
         // still deployed, and its jobs are still enqueueable and claimable.
         var oldOnlyDefinition = await ReadDefinitionAsync(OldOnlyJob, ct);
         Assert.Equal(DefinitionStatusCode.Active, oldOnlyDefinition.Status);
 
-        // --- 3. The generation that carries the handler runs the handed-back job, no retry spent, and
+        // --- 3. The build that carries the handler runs the handed-back job, no retry spent, and
         // hands back the other way: a job of the definition it omitted is not its work either.
         var oldOnlyAgain = await Jobs.EnqueueAsync(new EnqueueJobRequest(TestNamespace, OldOnlyJob, JobPayload.None), ct);
         await RunUntilSucceededAsync(newRuntime, newOnly.JobId, ct);
@@ -157,13 +147,13 @@ public sealed class RollingDeploySpec : ActaRuntimeTestBase<ConformanceFixture, 
         await RunUntilSucceededAsync(Runtime, oldOnlyAgain.JobId, ct);
         Assert.Equal(0, (await ReadJobAsync(oldOnlyAgain.JobId, ct)).FailureCount);
 
-        // --- 4. Rollback: the new generation is gone and a fresh old-generation process takes over,
+        // --- 4. Rollback: the new build is gone and a fresh old-build process takes over,
         // with one job of each definition waiting for it.
-        await newGeneration.DisposeAsync();
+        await newBuild.DisposeAsync();
         var strandedNew = await Jobs.EnqueueAsync(new EnqueueJobRequest(TestNamespace, NewJob, JobPayload.None), ct);
         var rolledBackOld = await Jobs.EnqueueAsync(new EnqueueJobRequest(TestNamespace, OldOnlyJob, JobPayload.None), ct);
 
-        await using var rollback = BuildGenerationProvider<TestJobsManifest>(GenerationA, "generation-a-rollback");
+        await using var rollback = BuildGenerationProvider<TestJobsManifest>("old-build-rollback");
         var rollbackRuntime = rollback.GetServices<WorkerRuntime>().Single();
         await rollbackRuntime.InitializeAsync(ct);
 
@@ -177,16 +167,15 @@ public sealed class RollingDeploySpec : ActaRuntimeTestBase<ConformanceFixture, 
         );
         await AssertPassedOverAsync(rollbackRuntime, strandedNew.JobId, ct);
 
-        // The definition the new generation never registered is untouched by it, so the rolled-back
+        // The definition the new build never registered is untouched by it, so the rolled-back
         // process runs its job under exactly the policy it registered in the first place.
         var afterRollback = await ReadDefinitionAsync(OldOnlyJob, ct);
         Assert.Equal(DefinitionStatusCode.Active, afterRollback.Status);
         Assert.Equal(oldOnlyDefinition.DefinitionHash, afterRollback.DefinitionHash);
-        Assert.Equal(oldOnlyDefinition.ManifestGenerationAtUtc, afterRollback.ManifestGenerationAtUtc);
         Assert.Equal(oldOnlyDefinition.MaxAttemptsEffective, afterRollback.MaxAttemptsEffective);
         Assert.Equal(oldOnlyDefinition.BackoffEffective, afterRollback.BackoffEffective);
 
-        // The job only the withdrawn generation could run waits where it is: Ready, budget-neutral,
+        // The job only the withdrawn build could run waits where it is: Ready, budget-neutral,
         // and excluded from the process that cannot run it, rather than bouncing once a second.
         var stranded = await ReadJobAsync(strandedNew.JobId, ct);
         Assert.Equal(JobStatusCode.Ready, stranded.Status);
@@ -226,7 +215,7 @@ public sealed class RollingDeploySpec : ActaRuntimeTestBase<ConformanceFixture, 
     }
 
     /// <summary>
-    /// Ticks until <paramref name="jobId"/> is Succeeded. A job handed back by another generation is
+    /// Ticks until <paramref name="jobId"/> is Succeeded. A job handed back by another build is
     /// re-armed a safety-poll interval out, so the first ticks legitimately claim nothing.
     /// </summary>
     private Task RunUntilSucceededAsync(WorkerRuntime runtime, long jobId, CancellationToken ct) =>

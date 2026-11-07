@@ -33,7 +33,6 @@ internal sealed class GetDefinitionHandler(GetDefinitionIdHandler getDefinitionI
             row.JobName,
             row.Status,
             row.DefinitionHash,
-            row.ManifestGenerationAtUtc,
             row.InputTypeName,
             row.InputFormatId,
             row.InputFormatName,

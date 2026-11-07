@@ -4,7 +4,7 @@ namespace Acta;
 
 /// <summary>
 /// <see cref="DefinitionsOperations.RegisterDefinitionsAsync"/>: resolves descriptors to rows, then skips the upsert
-/// entirely when every definition is stored unchanged, Active, and at this manifest generation or a newer one.
+/// entirely when every definition is stored unchanged and Active.
 /// </summary>
 internal sealed class RegisterDefinitionsHandler(IDbSession session, ISqlDialect dialect, IJobPayloadSerializerRegistry serializers)
 {
@@ -39,14 +39,8 @@ internal sealed class RegisterDefinitionsHandler(IDbSession session, ISqlDialect
             {
                 anyChange = true; // new
             }
-            else if (
-                s.DefinitionHash != row.DefinitionHash
-                || s.Status != DefinitionStatusCode.Active
-                || s.ManifestGenerationAtUtc < command.ManifestGenerationUtc
-            )
+            else if (s.DefinitionHash != row.DefinitionHash || s.Status != DefinitionStatusCode.Active)
             {
-                // A newer generation is written even for an unchanged definition, so an older build that registers
-                // after this one is refused.
                 anyChange = true;
             }
         }
@@ -65,7 +59,7 @@ internal sealed class RegisterDefinitionsHandler(IDbSession session, ISqlDialect
 
         var registered = await session.ExecuteAsync(
             new StoreCommand("RegisterDefinitions"),
-            cmd => dialect.BindRegisterDefinitions(cmd, command.NamespaceId, command.ManifestGenerationUtc, rows, session.Schema),
+            cmd => dialect.BindRegisterDefinitions(cmd, command.NamespaceId, rows, session.Schema),
             DbProjectionResolver.Resolve<RegisterDefinitionsRow>(),
             ct
         );

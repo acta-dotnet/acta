@@ -196,7 +196,6 @@ public sealed class WorkerCatalogValidationTests
     private static StoredDefinitionContract Stored(string name, ScheduledDeliveryCode delivery) =>
         new(
             DefinitionName: name,
-            ManifestGenerationAtUtc: new DateTime(2026, 1, 1, 0, 0, 0, DateTimeKind.Utc),
             Contract: new DefinitionContract(
                 "Input",
                 null,

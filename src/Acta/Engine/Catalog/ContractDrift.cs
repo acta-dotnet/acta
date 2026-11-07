@@ -4,19 +4,18 @@ using Microsoft.Extensions.Logging;
 namespace Acta;
 
 /// <summary>
-/// One eligible contract change found at registration: a definition whose stored generation is at
-/// or below the incoming generation and whose contract columns differ from the incoming descriptor.
+/// One contract change found at registration: a stored definition whose contract columns differ from the incoming
+/// descriptor.
 /// </summary>
 internal sealed record ContractDrift(string JobName, DefinitionContract Stored, DefinitionContract Incoming);
 
 /// <summary>
-/// Compares incoming descriptor contracts against the stored rows and reports eligible changes.
+/// Compares incoming descriptor contracts against the stored rows and reports the changes.
 /// Pure: callers decide whether to warn or fail based on <see cref="PayloadContractDriftMode"/>.
 /// </summary>
 internal static class ContractDriftDetector
 {
     public static IReadOnlyList<ContractDrift> Detect(
-        DateTime incomingGenerationUtc,
         ImmutableArray<JobDescriptor> descriptors,
         IReadOnlyCollection<StoredDefinitionContract> stored
     )
@@ -36,11 +35,6 @@ internal static class ContractDriftDetector
         foreach (var descriptor in descriptors)
         {
             if (!storedByName.TryGetValue(descriptor.JobName, out var existing))
-            {
-                continue;
-            }
-
-            if (incomingGenerationUtc < existing.ManifestGenerationAtUtc)
             {
                 continue;
             }

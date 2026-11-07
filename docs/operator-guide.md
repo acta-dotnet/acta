@@ -448,8 +448,7 @@ for production deployments, not for an evaluation.
 - Pin one Acta package version across all workers in a namespace.
 - Deploy with a rolling restart: run `<app> jobs migrate`, start the new build, stop the old one. See
   [Rolling deploys](#rolling-deploys) for what each build does with the other's jobs.
-- Set `DeploymentVersion` to a build id or git SHA. Set `ManifestGenerationUtc` only when you need
-  deterministic definition promotion across packaged or single-file deployments.
+- Set `DeploymentVersion` to a build id or git SHA.
 - Keep `HeartbeatInterval` identical across replicas of a namespace; the lease and dead-worker windows
   derive from it.
 - Size total handler concurrency as `processes * workers per process * MaxConcurrentExecutors` (one
@@ -494,7 +493,7 @@ In production a deploy step applies Acta's migrations, never application startup
 
 ```
 $ ConnectionStrings__acta="<DDL login>" dotnet MyApp.dll jobs migrate
-applied M20261106144133_init to schema acta
+applied M20261106163228_init to schema acta
 ```
 
 - A second run prints `schema acta is up to date`. It exits 0, or 1 with the database's error; `--json` prints `{"schema":"acta","applied":[...]}`.
@@ -538,8 +537,9 @@ The external outbox's table lives in the producer's database, so Acta never crea
 Deploy: run `<app> jobs migrate`, start the new workers, stop the old ones once the new ones are healthy. Rollback: start the old build, stop the new one. While both builds run:
 
 - Either build may claim a job only the other can run. The worker without the handler hands it back to `Ready` without charging a failure and stops claiming that definition.
-- Registration never retires a definition, so the old fleet finishes its jobs and a rollback finds nothing missing. An older build cannot overwrite a newer build's definition.
-- Schedules follow the last build that registered: one the new build dropped is orphaned, and comes back, without its pause, when a build that declares it registers again. Pause the job, not the schedule, to hold it across a rollback.
+- Registration never retires a definition, so the old fleet finishes its jobs and a rollback finds nothing missing.
+- Definitions and schedules follow the last build that registered: a schedule the new build dropped is orphaned, and comes back, without its pause, when a build that declares it registers again. Pause the job, not the schedule, to hold it across a rollback.
+- Under `PayloadContractDriftMode.Fail` a build does not start while a stored contract differs from its own, so an old build cannot restart or take a rollback after a new build changed a contract.
 - Migrations are forward-only and additive, and an older build never rewrites what a newer one migrated.
 
 Jobs of a definition only the withdrawn build carried stay `Ready` until a build with the handler returns or an operator retires the definition (`IActaOperations.Definitions.RetireAsync`, `POST /definitions/{namespace}/{name}/retire`, or the dashboard). Retiring cancels the definition's parked jobs with `job.definition-retired`, lets running attempts finish, and rejects new enqueues. Retire only after the old fleet is gone: an old worker that restarts reactivates the definition. Until then, a long run of such jobs slows every old worker's claim.
@@ -912,7 +912,7 @@ Retiring a recurring job's definition leaves its slot inert instead of cancellin
 not yet claimed settles cancelled and the slot returns to `Idle`, a paused slot stays paused, and a cancelled one
 stays cancelled. An attempt already running returns the slot to `Idle` when it succeeds or spends its failure
 budget; any other landing (a retry, a wait, a handler's pause or failure) lands cancelled. The slot refuses a
-manual firing while the definition is retired. A newer build that registers the definition again retimes its
+manual firing while the definition is retired. A build that registers the definition again retimes its
 schedules from now, so the slot fires at the first occurrence after the comeback and the retired interval is not
 caught up.
 

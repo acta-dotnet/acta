@@ -25,17 +25,6 @@ public sealed class RetireDefinitionSpec : ActaRuntimeTestBase<ConformanceFixtur
 
     private const string Reason = "the handler left the build";
 
-    private static readonly DateTime Generation = new(2026, 3, 1, 0, 0, 0, DateTimeKind.Utc);
-
-    private static readonly DateTime OlderGeneration = new(2025, 3, 1, 0, 0, 0, DateTimeKind.Utc);
-
-    protected override void ConfigureServices(IServiceCollection services, string testNamespace)
-    {
-        base.ConfigureServices(services, testNamespace);
-        // Pinned so the re-registration facts can name a generation on either side of the stored one.
-        services.Configure<JobsOptions>(o => o.ManifestGenerationUtc = Generation);
-    }
-
     [Fact(DisplayName = "Every parked job of the retired definition is cancelled with retention, no lease, and one audited event")]
     public async Task Parked_jobs_are_cancelled_with_an_audited_reason()
     {
@@ -275,8 +264,8 @@ public sealed class RetireDefinitionSpec : ActaRuntimeTestBase<ConformanceFixtur
         Assert.Equal(definition.Version, (await Operations.Definitions.GetAsync(TestNamespace, "job-wait-signal", ct))!.Version);
     }
 
-    [Fact(DisplayName = "An equal manifest generation reactivates a retired definition and an older one cannot")]
-    public async Task Re_registration_reactivates_only_from_an_equal_or_newer_generation()
+    [Fact(DisplayName = "A registration that declares a retired definition makes it Active again")]
+    public async Task Re_registration_reactivates_a_retired_definition()
     {
         var ct = TestContext.Current.CancellationToken;
         var ns = Runtime.RegisteredNamespaceIds[TestNamespace];
@@ -284,13 +273,7 @@ public sealed class RetireDefinitionSpec : ActaRuntimeTestBase<ConformanceFixtur
 
         Assert.Equal(ControlAction.Applied, (await RetireAsync("add-numbers", ct)).Action);
 
-        await DefinitionTestOps.RegisterAsync(Services, ns, OlderGeneration, descriptors, ct);
-        Assert.Equal(DefinitionStatusCode.Retired, (await Operations.Definitions.GetAsync(TestNamespace, "add-numbers", ct))!.Status);
-        await Assert.ThrowsAsync<EnqueueRejectedException>(async () =>
-            await Jobs.EnqueueAsync(new EnqueueJobRequest(TestNamespace, "add-numbers", JobPayload.Json(new AddNumbers(1, 1))), ct)
-        );
-
-        await DefinitionTestOps.RegisterAsync(Services, ns, Generation, descriptors, ct);
+        await DefinitionTestOps.RegisterAsync(Services, ns, descriptors, ct);
         Assert.Equal(DefinitionStatusCode.Active, (await Operations.Definitions.GetAsync(TestNamespace, "add-numbers", ct))!.Status);
 
         var accepted = await Jobs.EnqueueAsync(

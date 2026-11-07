@@ -143,7 +143,6 @@ internal sealed class FakeDefinitions : IDefinitions
         JobName: "send-invoice",
         Status: DefinitionStatusCode.Active,
         DefinitionHash: "hash-5",
-        ManifestGenerationAtUtc: CreatedAtUtc,
         InputTypeName: "Billing.SendInvoice",
         InputFormatId: 1,
         InputFormatName: "json",

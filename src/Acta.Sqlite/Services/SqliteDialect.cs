@@ -379,16 +379,9 @@ internal sealed partial class SqliteDialect : ISqlDialect
     [GeneratedRegex(@"\(\s*(@p_\w+)\s+IS\s+NULL\s+OR\s+")]
     private static partial Regex NullCatchAllHead();
 
-    public void BindRegisterDefinitions(
-        DbCommand command,
-        int namespaceId,
-        DateTime manifestGenerationUtc,
-        IReadOnlyList<DefinitionValues> rows,
-        string schema
-    )
+    public void BindRegisterDefinitions(DbCommand command, int namespaceId, IReadOnlyList<DefinitionValues> rows, string schema)
     {
         AddInt(command, "@p_namespace_id", namespaceId);
-        AddInt(command, "@p_manifest_generation", ToUnixMs(manifestGenerationUtc));
 
         var definitions = JsonArray(
             rows,

@@ -18,7 +18,6 @@ namespace Acta.Tests.Conformance.Operations.Execution;
 )]
 public sealed class GetScheduleFiringSpec : ActaStorageTestBase<ConformanceFixture>
 {
-    private static readonly DateTime Generation = new(2026, 1, 1, 0, 0, 0, DateTimeKind.Utc);
     private const string Cron5 = "*/5 * * * *";
 
     private IJobs Jobs => Services.GetRequiredService<IJobs>();
@@ -53,7 +52,7 @@ public sealed class GetScheduleFiringSpec : ActaStorageTestBase<ConformanceFixtu
     {
         var ct = TestContext.Current.CancellationToken;
         var jobName = Unique("plain");
-        await DefinitionTestOps.RegisterAsync(Services, TestNamespaceId, Generation, [Def(jobName)], ct);
+        await DefinitionTestOps.RegisterAsync(Services, TestNamespaceId, [Def(jobName)], ct);
         var enqueued = await Jobs.EnqueueAsync(new EnqueueJobRequest(TestNamespace, jobName, JobPayload.Json(1)), ct);
         var fence = await ExecutionFenceStaging.ExecutingAsync(Db, enqueued.JobId, ct);
 
@@ -65,7 +64,7 @@ public sealed class GetScheduleFiringSpec : ActaStorageTestBase<ConformanceFixtu
 
     private async Task<long> RegisterAsync(string jobName, DateTime cursor, CancellationToken ct)
     {
-        var defId = (await DefinitionTestOps.RegisterAsync(Services, TestNamespaceId, Generation, [Def(jobName)], ct))[jobName];
+        var defId = (await DefinitionTestOps.RegisterAsync(Services, TestNamespaceId, [Def(jobName)], ct))[jobName];
         var definition = new DefinitionSchedules(
             NamespaceId: TestNamespaceId,
             DefinitionId: defId,

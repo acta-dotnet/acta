@@ -61,7 +61,6 @@ CREATE TABLE IF NOT EXISTS {{schema}}.definitions (
     definition_name text NOT NULL,
     definition_status_code integer NOT NULL,
     definition_hash text NOT NULL,
-    manifest_generation_at_utc integer NOT NULL,
     input_type_name text NOT NULL,
     input_format_id integer NOT NULL,
     input_format_name text NOT NULL,
@@ -504,7 +503,6 @@ SELECT
     CASE d.definition_status_code WHEN 0 THEN 'unspecified' WHEN 10 THEN 'active' WHEN 240 THEN 'retired' END AS definition_status,
     d.definition_status_code,
     d.definition_hash,
-    d.manifest_generation_at_utc,
     d.input_type_name,
     d.input_format_name,
     d.result_type_name,
@@ -769,5 +767,5 @@ JOIN {{schema}}.namespaces AS ns ON ns.namespace_id = w.namespace_id;
 
 
 INSERT INTO {{schema}}.migrations (name)
-VALUES ('M20261106144133_init')
+VALUES ('M20261106163228_init')
 ON CONFLICT (name) DO NOTHING;

@@ -6,7 +6,6 @@ namespace Acta;
 [DbProjection(ByName = true)]
 internal sealed record ListDefinitionContractsRow(
     string DefinitionName,
-    DateTime ManifestGenerationAtUtc,
     string InputTypeName,
     string? ResultTypeName,
     byte InputFormatId,
@@ -37,7 +36,6 @@ internal sealed record ListDefinitionContractsRow(
     public StoredDefinitionContract ToContract() =>
         new(
             DefinitionName,
-            ManifestGenerationAtUtc,
             new DefinitionContract(InputTypeName, ResultTypeName, InputFormatId, InputFormatName, ResultFormatId, ResultFormatName),
             DefinitionId,
             DefinitionHash,

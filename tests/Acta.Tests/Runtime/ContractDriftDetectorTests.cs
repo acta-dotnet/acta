@@ -5,9 +5,6 @@ namespace Acta.Tests.Runtime;
 
 public class ContractDriftDetectorTests
 {
-    private static readonly DateTime Older = new(2026, 1, 1, 0, 0, 0, DateTimeKind.Utc);
-    private static readonly DateTime Newer = new(2026, 6, 1, 0, 0, 0, DateTimeKind.Utc);
-
     private static JobDescriptor Desc(string name, Type inputType) =>
         new(
             JobName: name,
@@ -28,10 +25,9 @@ public class ContractDriftDetectorTests
             SerializeResult: null
         );
 
-    private static StoredDefinitionContract Stored(string name, DateTime gen, Type inputType) =>
+    private static StoredDefinitionContract Stored(string name, Type inputType) =>
         new(
             name,
-            gen,
             JobDefinitionRegistration.ContractOf(Desc(name, inputType)),
             DefinitionId: 0,
             DefinitionHash: "",
@@ -40,12 +36,12 @@ public class ContractDriftDetectorTests
         );
 
     [Fact]
-    public void Eligible_contract_change_is_reported()
+    public void Contract_change_is_reported()
     {
-        var stored = new[] { Stored("job", Older, typeof(int)) };
+        var stored = new[] { Stored("job", typeof(int)) };
         var incoming = ImmutableArray.Create(Desc("job", typeof(string)));
 
-        var drifts = ContractDriftDetector.Detect(Newer, incoming, stored);
+        var drifts = ContractDriftDetector.Detect(incoming, stored);
 
         var drift = Assert.Single(drifts);
         Assert.Equal("job", drift.JobName);
@@ -54,21 +50,10 @@ public class ContractDriftDetectorTests
     [Fact]
     public void Unchanged_contract_is_not_reported()
     {
-        var stored = new[] { Stored("job", Older, typeof(int)) };
+        var stored = new[] { Stored("job", typeof(int)) };
         var incoming = ImmutableArray.Create(Desc("job", typeof(int)));
 
-        var drifts = ContractDriftDetector.Detect(Newer, incoming, stored);
-
-        Assert.Empty(drifts);
-    }
-
-    [Fact]
-    public void Older_incoming_is_not_reported_even_when_contract_differs()
-    {
-        var stored = new[] { Stored("job", Newer, typeof(int)) };
-        var incoming = ImmutableArray.Create(Desc("job", typeof(string)));
-
-        var drifts = ContractDriftDetector.Detect(Older, incoming, stored);
+        var drifts = ContractDriftDetector.Detect(incoming, stored);
 
         Assert.Empty(drifts);
     }
@@ -78,7 +63,7 @@ public class ContractDriftDetectorTests
     {
         var incoming = ImmutableArray.Create(Desc("brand-new", typeof(string)));
 
-        var drifts = ContractDriftDetector.Detect(Newer, incoming, Array.Empty<StoredDefinitionContract>());
+        var drifts = ContractDriftDetector.Detect(incoming, Array.Empty<StoredDefinitionContract>());
 
         Assert.Empty(drifts);
     }

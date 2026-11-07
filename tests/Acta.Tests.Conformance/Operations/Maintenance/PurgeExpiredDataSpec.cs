@@ -667,9 +667,7 @@ public sealed class PurgeExpiredDataSpec : ActaRuntimeTestBase<ConformanceFixtur
         var ct = TestContext.Current.CancellationToken;
         var ns = Runtime.RegisteredNamespaceIds[TestNamespace];
         var jobName = $"purge-recurring-{Guid.NewGuid():N}";
-        var defId = (
-            await DefinitionTestOps.RegisterAsync(Services, ns, new DateTime(2026, 1, 1, 0, 0, 0, DateTimeKind.Utc), [Def(jobName)], ct)
-        )[jobName];
+        var defId = (await DefinitionTestOps.RegisterAsync(Services, ns, [Def(jobName)], ct))[jobName];
         var cursor = DateTime.UtcNow.AddHours(6);
         var slots = await ScheduleTestOps.RegisterAsync(
             Services,

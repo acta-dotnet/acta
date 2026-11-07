@@ -1,6 +1,5 @@
 SELECT
     jd.definition_name,
-    jd.manifest_generation_at_utc,
     jd.input_type_name,
     jd.result_type_name,
     jd.input_format_id,
