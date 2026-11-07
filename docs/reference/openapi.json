@@ -1745,11 +1745,11 @@
             }
           },
           {
-            "name": "recurringOnly",
+            "name": "kind",
             "in": "query",
-            "description": "True restricts to recurring slots.",
+            "description": "Exact job kind as a kebab code.",
             "schema": {
-              "type": "boolean"
+              "$ref": "#/components/schemas/JobKindCode"
             }
           },
           {

@@ -833,6 +833,29 @@ public sealed class DashboardApiEndpointTests
     }
 
     [Fact]
+    public async Task Jobs_binds_the_kind_filter_from_its_exact_code_only()
+    {
+        var fakes = new FakeOperations();
+        var (app, client) = await TestDashboardHost.StartAsync(fakes: fakes);
+        await using var _ = app;
+        var ct = TestContext.Current.CancellationToken;
+
+        var slot = await client.GetAsync("/acta/api/v1/jobs?kind=permanent-slot", ct);
+        Assert.Equal(HttpStatusCode.OK, slot.StatusCode);
+        Assert.Equal(JobKindCode.PermanentSlot, fakes.Ledger.LastJobsQuery!.Kind);
+
+        var ordinary = await client.GetAsync("/acta/api/v1/jobs?kind=ordinary", ct);
+        Assert.Equal(HttpStatusCode.OK, ordinary.StatusCode);
+        Assert.Equal(JobKindCode.Ordinary, fakes.Ledger.LastJobsQuery!.Kind);
+
+        foreach (var refused in new[] { "PermanentSlot", "Permanent-Slot", "20", "permanent" })
+        {
+            var response = await client.GetAsync("/acta/api/v1/jobs?kind=" + refused, ct);
+            Assert.Equal(HttpStatusCode.BadRequest, response.StatusCode);
+        }
+    }
+
+    [Fact]
     public async Task JobByKey_resolves_to_snapshot()
     {
         var (app, client) = await TestDashboardHost.StartAsync();

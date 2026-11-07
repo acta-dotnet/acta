@@ -91,8 +91,8 @@ public sealed class ListJobsFilterMatrixSpec : ActaRuntimeTestBase<ConformanceFi
         Assert.Equal([j3], failedPage.Items.Select(static i => i.JobId).ToHashSet());
     }
 
-    [Fact(DisplayName = "TerminalOnly restricts to terminal rows and RecurringOnly to jobs with a live schedule attached")]
-    public async Task TerminalOnly_and_RecurringOnly_flags_restrict_exactly()
+    [Fact(DisplayName = "TerminalOnly restricts to terminal rows and Kind to jobs of that kind")]
+    public async Task TerminalOnly_and_Kind_restrict_exactly()
     {
         var ct = TestContext.Current.CancellationToken;
         var ns = Runtime.RegisteredNamespaceIds[TestNamespace];
@@ -128,17 +128,29 @@ public sealed class ListJobsFilterMatrixSpec : ActaRuntimeTestBase<ConformanceFi
         Assert.Equal([failed], terminalPage.Items.Select(static i => i.JobId).ToHashSet());
         Assert.Equal(1L, terminalPage.TotalCount);
 
-        // RecurringOnly: only the namespace's recurring slot jobs carry a live schedule; the plain
-        // enqueued add-numbers rows are excluded.
-        var recurringPage = await queries.Ledger.ListJobsAsync(new ListJobsQuery(JobNamespace: TestNamespace, RecurringOnly: true), ct);
-        var recurringNames = recurringPage.Items.Select(static i => i.JobName).ToHashSet();
-        Assert.Contains("recurring-ping", recurringNames);
-        Assert.DoesNotContain("add-numbers", recurringNames);
-        Assert.DoesNotContain(recurringPage.Items, i => i.JobId == ready || i.JobId == failed);
+        // Kind: the recurring-ping permanent slot and the enqueued ordinary rows share the namespace, and each
+        // is listed only under its own kind.
+        var slotPage = await queries.Ledger.ListJobsAsync(
+            new ListJobsQuery(JobNamespace: TestNamespace, Kind: JobKindCode.PermanentSlot, IncludeTotal: true),
+            ct
+        );
+        var slot = Assert.Single(slotPage.Items, static i => i.JobName == "recurring-ping");
+        Assert.DoesNotContain(slotPage.Items, i => i.JobId == ready || i.JobId == failed);
+        Assert.Equal((long)slotPage.Items.Count, slotPage.TotalCount);
 
-        // False is a no-op, identical to the unfiltered read.
+        var ordinaryPage = await queries.Ledger.ListJobsAsync(
+            new ListJobsQuery(JobNamespace: TestNamespace, Kind: JobKindCode.Ordinary, IncludeTotal: true),
+            ct
+        );
+        var ordinaryIds = ordinaryPage.Items.Select(static i => i.JobId).ToHashSet();
+        Assert.Contains(ready, ordinaryIds);
+        Assert.Contains(failed, ordinaryIds);
+        Assert.DoesNotContain(slot.JobId, ordinaryIds);
+        Assert.Equal((long)ordinaryPage.Items.Count, ordinaryPage.TotalCount);
+
+        // TerminalOnly false is a no-op, identical to the unfiltered read.
         var falsePage = await queries.Ledger.ListJobsAsync(
-            new ListJobsQuery(JobNamespace: TestNamespace, JobName: "add-numbers", TerminalOnly: false, RecurringOnly: false),
+            new ListJobsQuery(JobNamespace: TestNamespace, JobName: "add-numbers", TerminalOnly: false),
             ct
         );
         Assert.Equal([ready, failed], falsePage.Items.Select(static i => i.JobId).ToHashSet());

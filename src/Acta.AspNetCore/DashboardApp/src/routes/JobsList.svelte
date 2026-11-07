@@ -39,10 +39,10 @@
     { status: 'status', jobName: 'jobName', correlationKey: 'correlationKey', tenantName: 'tenantName', lane: 'lane', tags: 'tags', view: 'view' },
     { status: '', jobName: '', correlationKey: '', tenantName: '', lane: '', tags: '', view: '' }
   );
-  // Nav-alias views: the sidebar's Recurring jobs / Job history entries are this screen with a
-  // baked-in view filter (schedule-attached rows / terminal rows).
-  let view = $derived($filters.view === 'recurring' || $filters.view === 'history' ? $filters.view : '');
-  let pageTitle = $derived(view === 'recurring' ? 'Recurring jobs' : view === 'history' ? 'Job history' : 'Jobs');
+  // Nav-alias views: the sidebar's Permanent jobs / Job history entries are this screen with a
+  // baked-in view filter (permanent slot rows / terminal rows).
+  let view = $derived($filters.view === 'permanent' || $filters.view === 'history' ? $filters.view : '');
+  let pageTitle = $derived(view === 'permanent' ? 'Permanent jobs' : view === 'history' ? 'Job history' : 'Jobs');
   function clearView() {
     // patch pushes a new hash, so hashchange fires and the sidebar's alias highlight follows;
     // the other filters survive, keeping the chip contract of removing exactly its own filter.
@@ -73,7 +73,7 @@
   // chip removes exactly its own filter. jobName only applies within a namespace scope.
   let activeChips = $derived(
     [
-      view ? { label: 'View', value: view === 'recurring' ? 'Recurring' : 'History', onRemove: clearView } : null,
+      view ? { label: 'View', value: view === 'permanent' ? 'Permanent' : 'History', onRemove: clearView } : null,
       $scope ? { label: 'Namespace', value: $scope, onRemove: () => setScope('') } : null,
       $filters.status ? { label: 'Status', value: $filters.status, onRemove: () => filters.patch({ status: '' }) } : null,
       $scope && $filters.jobName.trim() ? { label: 'Job name', value: $filters.jobName.trim(), onRemove: () => filters.patch({ jobName: '' }) } : null,
@@ -226,7 +226,7 @@
         lane: $filters.lane,
         tag: parseTagTokens($filters.tags),
         terminalOnly: view === 'history' ? 'true' : '',
-        recurringOnly: view === 'recurring' ? 'true' : ''
+        kind: view === 'permanent' ? 'permanent-slot' : ''
       })}
       countMode="on-demand"
       initialPageSize={Number(initial.get('pageSize') ?? '50') || 50}

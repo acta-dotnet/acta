@@ -306,7 +306,7 @@
 {#if showActions && confirming === 'trigger'}
   <ConfirmAction
     title={'Trigger schedule ' + scheduleName + ' now?'}
-    body="Runs the job once now, outside the schedule's cadence, and leaves the cursor where it is. A recurring job must be idle with no firing outstanding, and a per-occurrence schedule must be under its limit, or the trigger is rejected."
+    body="Runs the job once now, outside the schedule's cadence, and leaves the cursor where it is. A permanent job must be idle with no firing outstanding, and a per-occurrence schedule must be under its limit, or the trigger is rejected."
     confirmLabel="Trigger now"
     requireReason={true}
     onConfirm={(note) => run('trigger', note)}

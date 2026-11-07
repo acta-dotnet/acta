@@ -111,15 +111,15 @@
   // schedule finds it, and a purge decommissions it, which the server allows only once nothing pins the slot.
   const slotText: Record<string, Partial<(typeof text)[string]>> = {
     restart: {
-      body: "Resets this recurring job's failure budget and returns it to Idle; its next due schedule runs it. Run now runs it at once.",
-      label: 'Reset recurring job',
+      body: "Resets this permanent job's failure budget and returns it to Idle; its next due schedule runs it. Run now runs it at once.",
+      label: 'Reset permanent job',
       warning: ''
     },
     resume: {
-      body: 'Returns this recurring job to Idle for its next due schedule, or, if it was paused mid-firing, lets that firing run.'
+      body: 'Returns this permanent job to Idle for its next due schedule, or, if it was paused mid-firing, lets that firing run.'
     },
     purge: {
-      body: "Permanently deletes this recurring job's slot with its steps, variables, and history. The server allows it only once nothing pins the slot: every schedule orphaned, or the definition retired."
+      body: "Permanently deletes this permanent job's slot with its steps, variables, and history. The server allows it only once nothing pins the slot: every schedule orphaned, or the definition retired."
     }
   };
   let copy = $derived(confirming ? { ...text[confirming], ...(slot ? slotText[confirming] : undefined) } : null);

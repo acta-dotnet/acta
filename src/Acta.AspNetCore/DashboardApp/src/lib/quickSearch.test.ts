@@ -71,10 +71,10 @@ test('free text folds for name domains and keeps the raw form', () => {
 });
 
 test('page matching covers the alias views and carries the scope', () => {
-  const labels = matchPages('recur', 'billing').map((hit) => hit.label);
-  assert.deepEqual(labels, ['Recurring jobs']);
-  const [hit] = matchPages('recur', 'billing');
-  assert.match(hit.href, /view=recurring/);
+  const labels = matchPages('perm', 'billing').map((hit) => hit.label);
+  assert.deepEqual(labels, ['Permanent jobs']);
+  const [hit] = matchPages('perm', 'billing');
+  assert.match(hit.href, /view=permanent/);
   assert.match(hit.href, /ns=billing/);
 });
 

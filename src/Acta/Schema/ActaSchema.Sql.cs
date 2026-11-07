@@ -277,12 +277,9 @@ internal static partial class ActaSchema
         public static readonly DbValueSpec<bool?> UnresolvedOnlyFlag = new("p_unresolved_only", DbKind.Boolean);
 
         /// <summary>
-        /// ListJobs tri-state flags: true restricts to terminal rows / rows with a live schedule
-        /// attached; NULL skips each (false is folded to NULL before binding).
+        /// ListJobs tri-state flag: true restricts to terminal rows; NULL skips it (false is folded to NULL before binding).
         /// </summary>
         public static readonly DbValueSpec<bool?> TerminalOnlyFlag = new("p_terminal_only", DbKind.Boolean);
-
-        public static readonly DbValueSpec<bool?> RecurringOnlyFlag = new("p_recurring_only", DbKind.Boolean);
 
         /// <summary>
         /// List-read tri-state flag: null skips the filter, true/false restrict to acknowledged/unacknowledged

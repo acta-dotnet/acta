@@ -52,11 +52,7 @@ WHERE
     ))
     AND (@p_terminal_only IS NULL OR r.job_status_code IN (100 /* JobStatusCode.Succeeded */, 200 /* JobStatusCode.Failed */, 220 /* JobStatusCode.Cancelled */))
     AND (@p_lane_filter IS NULL OR r.lane_id IN (SELECT l.lane_id FROM {{schema}}.lanes l WHERE l.lane_name = @p_lane_filter))
-    AND (@p_recurring_only IS NULL OR EXISTS (
-        SELECT 1
-        FROM {{schema}}.schedules s
-        WHERE s.job_id = j.job_id AND s.schedule_status_code <> 230 /* ScheduleStatusCode.Orphaned */
-    ))
+    AND (@p_job_kind_code IS NULL OR j.job_kind_code = @p_job_kind_code)
     AND (@p_cursor_created_at_utc IS NULL
         OR j.created_at_utc < @p_cursor_created_at_utc
         OR (j.created_at_utc = @p_cursor_created_at_utc AND j.job_id < @p_cursor_id))
@@ -96,9 +92,5 @@ SELECT CASE WHEN @p_include_total IS NOT NULL THEN (
         ))
         AND (@p_terminal_only IS NULL OR r.job_status_code IN (100 /* JobStatusCode.Succeeded */, 200 /* JobStatusCode.Failed */, 220 /* JobStatusCode.Cancelled */))
         AND (@p_lane_filter IS NULL OR r.lane_id IN (SELECT l.lane_id FROM {{schema}}.lanes l WHERE l.lane_name = @p_lane_filter))
-        AND (@p_recurring_only IS NULL OR EXISTS (
-            SELECT 1
-            FROM {{schema}}.schedules s
-            WHERE s.job_id = j.job_id AND s.schedule_status_code <> 230 /* ScheduleStatusCode.Orphaned */
-        ))
+        AND (@p_job_kind_code IS NULL OR j.job_kind_code = @p_job_kind_code)
 ) END;

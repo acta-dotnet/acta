@@ -40,13 +40,13 @@
   const capabilities = createQuery(() => capabilitiesQuery(), () => queryClient);
 
   let currentMetadata = $derived(routeMetadata[$route.name]);
-  // The jobs list serves three nav entries (Jobs / Recurring jobs / Job history); the baked-in
+  // The jobs list serves three nav entries (Jobs / Permanent jobs / Job history); the baked-in
   // view param decides which one lights up. hashchange re-runs this via $route.
   let activeNavName = $derived.by(() => {
     const base = currentMetadata.activeNav;
     if (base !== 'jobs' || $route.name !== 'jobs') return base;
     const view = hashParams().get('view');
-    return view === 'recurring' ? 'jobs-recurring' : view === 'history' ? 'jobs-history' : 'jobs';
+    return view === 'permanent' ? 'jobs-permanent' : view === 'history' ? 'jobs-history' : 'jobs';
   });
 
   // Read-only gate every control surface reads (directly, via canControl(capabilities.data) on its

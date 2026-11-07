@@ -283,6 +283,22 @@ test('events feed reads a linked job\'s events and shows their subject, message,
   await expect(page.getByRole('link', { name: jobRef })).toBeVisible();
 });
 
+test('the Permanent jobs view lists jobs by the permanent-slot kind code', async ({ page }) => {
+  await mockDashboard(page, { controls: false });
+  await page.goto('/#/jobs?ns=billing');
+  const listRequest = page.waitForRequest((request) => {
+    const url = new URL(request.url());
+    return url.pathname.endsWith('/api/v1/jobs') && url.searchParams.has('kind');
+  });
+
+  const nav = page.getByRole('link', { name: 'Permanent jobs' });
+  await nav.click();
+
+  expect(new URL((await listRequest).url()).searchParams.get('kind')).toBe('permanent-slot');
+  await expect(page.getByRole('heading', { name: 'Permanent jobs' })).toBeVisible();
+  await expect(nav).toHaveClass(/active/);
+});
+
 test('quick search finds definitions by fragment and jumps to a pasted job ref', async ({ page }) => {
   await mockDashboard(page, { controls: true });
   await page.goto('/');

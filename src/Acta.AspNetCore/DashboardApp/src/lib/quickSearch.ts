@@ -52,7 +52,7 @@ export interface PageHit {
   href: string;
 }
 
-// Sidebar pages (including the recurring/history aliases) as palette commands.
+// Sidebar pages (including the permanent/history aliases) as palette commands.
 export function matchPages(folded: string, scope: string | null): PageHit[] {
   const hits: PageHit[] = [];
   for (const group of navigationGroups) {

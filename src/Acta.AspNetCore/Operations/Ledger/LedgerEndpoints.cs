@@ -38,7 +38,7 @@ internal static class LedgerEndpoints
                             IncludeTotal: query.Bool("includeTotal") ?? false,
                             Tags: query.Tags(),
                             TerminalOnly: query.Bool("terminalOnly"),
-                            RecurringOnly: query.Bool("recurringOnly"),
+                            Kind: query.Code("kind", JobKindCodeExtensions.FromCode),
                             Lane: query.Text("lane")
                         ),
                         Parent: query.Job("parentJobRef", options)
@@ -56,7 +56,7 @@ internal static class LedgerEndpoints
                     new QueryParameterDoc("jobName", QueryParameterKind.String, "Exact job name."),
                     new QueryParameterDoc("status", QueryParameterKind.String, "Exact job status as a kebab code.", CodeKind: "job-status"),
                     new QueryParameterDoc("terminalOnly", QueryParameterKind.Bool, "True restricts to terminal statuses."),
-                    new QueryParameterDoc("recurringOnly", QueryParameterKind.Bool, "True restricts to recurring slots."),
+                    new QueryParameterDoc("kind", QueryParameterKind.String, "Exact job kind as a kebab code.", CodeKind: "job-kind"),
                     new QueryParameterDoc("parentJobRef", QueryParameterKind.String, "Only direct children of this parent job ref."),
                     new QueryParameterDoc("correlationKey", QueryParameterKind.String, "Only jobs stamped with this correlation key."),
                     new QueryParameterDoc("tenantName", QueryParameterKind.String, "Only jobs admitted under this tenant name."),

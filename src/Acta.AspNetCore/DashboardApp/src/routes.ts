@@ -1,7 +1,7 @@
 export type RouteName =
   | 'overview'
   | 'jobs'
-  | 'jobs-recurring'
+  | 'jobs-permanent'
   | 'jobs-history'
   | 'job-detail'
   | 'enqueue'
@@ -43,7 +43,7 @@ const routeRegistry: RouteMetadata[] = [
   { name: 'jobs', label: 'Jobs', section: 'Operate', fullHeight: true, activeNav: 'jobs', navPath: 'jobs', navOrder: 1, icon: 'cube' },
   // Filtered aliases of the jobs screen: same route, a baked-in view filter.
   { name: 'jobs-history', label: 'Job history', section: 'Operate', fullHeight: true, activeNav: 'jobs-history', navPath: 'jobs', navOrder: 2, icon: 'counter-clockwise-clock', navQuery: { view: 'history' } },
-  { name: 'jobs-recurring', label: 'Recurring jobs', section: 'Operate', fullHeight: true, activeNav: 'jobs-recurring', navPath: 'jobs', navOrder: 3, icon: 'reload', navQuery: { view: 'recurring' } },
+  { name: 'jobs-permanent', label: 'Permanent jobs', section: 'Operate', fullHeight: true, activeNav: 'jobs-permanent', navPath: 'jobs', navOrder: 3, icon: 'reload', navQuery: { view: 'permanent' } },
   { name: 'job-detail', label: 'Job', section: 'Operate', fullHeight: false, activeNav: 'jobs' },
   { name: 'enqueue', label: 'Enqueue job', section: 'Operate', fullHeight: false, activeNav: 'jobs' },
   { name: 'alerts', label: 'Alerts', section: 'Operate', fullHeight: true, activeNav: 'alerts', navPath: 'alerts', navOrder: 4, icon: 'bell' },

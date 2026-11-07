@@ -11,13 +11,13 @@ internal sealed class ListJobsHandler(IDbSession session, ISqlDialect dialect)
         var jobNamespace = QueryValidation.ValidateNamespace(query.JobNamespace, nameof(query.JobNamespace));
         var jobName = QueryValidation.ValidateJobName(query.JobName, jobNamespace, nameof(query.JobName));
         QueryValidation.ValidateEnum(query.Status, nameof(query.Status));
+        QueryValidation.ValidateEnum(query.Kind, nameof(query.Kind));
         QueryValidation.ValidatePositiveId(query.ParentJobId, nameof(query.ParentJobId));
         QueryValidation.ValidatePositiveId((long?)query.TenantId, nameof(query.TenantId));
         var tenantName = QueryValidation.ValidateExtendedName(query.TenantName, nameof(query.TenantName));
         var tags = TagFilterJson.Normalize(query.Tags, nameof(ListJobsQuery));
-        // Tri-state flags: only true restricts, so false folds to null before hashing and binding.
+        // A tri-state flag: only true restricts, so false folds to null before hashing and binding.
         var terminalOnly = query.TerminalOnly == true ? (bool?)true : null;
-        var recurringOnly = query.RecurringOnly == true ? (bool?)true : null;
         var lane = QueryValidation.ValidateExtendedName(query.Lane, nameof(query.Lane));
         var correlationKey = QueryValidation.ValidateKey(query.CorrelationKey, nameof(query.CorrelationKey), NameSyntax.DefaultMaxLength);
 
@@ -37,7 +37,7 @@ internal sealed class ListJobsHandler(IDbSession session, ISqlDialect dialect)
                 ("correlation", correlationKey),
                 ("tags", tags),
                 ("terminal", terminalOnly is null ? null : "1"),
-                ("recurring", recurringOnly is null ? null : "1"),
+                ("kind", ((byte?)query.Kind)?.ToString(CultureInfo.InvariantCulture)),
                 ("lane", lane),
             ]
         );
@@ -56,7 +56,7 @@ internal sealed class ListJobsHandler(IDbSession session, ISqlDialect dialect)
                 cmd.Parameters.Add(dialect.CreateParameter(ActaSchema.Sql.CorrelationKeyFilter, correlationKey));
                 cmd.Parameters.Add(dialect.CreateParameter(ActaSchema.Sql.TagFiltersJson, tags));
                 cmd.Parameters.Add(dialect.CreateParameter(ActaSchema.Sql.TerminalOnlyFlag, terminalOnly));
-                cmd.Parameters.Add(dialect.CreateParameter(ActaSchema.Sql.RecurringOnlyFlag, recurringOnly));
+                cmd.Parameters.Add(dialect.CreateParameter(ActaSchema.Job.JobKindCode, query.Kind));
                 cmd.Parameters.Add(dialect.CreateParameter(ActaSchema.Sql.LaneFilter, lane));
                 cmd.Parameters.Add(dialect.CreateParameter(ActaSchema.Sql.CursorCreatedAtUtc, (DateTime?)paging.After?[0]));
                 cmd.Parameters.Add(dialect.CreateParameter(ActaSchema.Sql.CursorId, (long?)paging.After?[1]));

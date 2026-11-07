@@ -1986,11 +1986,11 @@ sealed record Acta.ListJobsItem
     System.String Lane { get;init; }
     System.String TenantName { get;init; }
 sealed record Acta.ListJobsQuery
-    .ctor(System.String JobNamespace = null, System.Nullable<Acta.JobStatusCode> Status = null, System.String JobName = null, System.Nullable<System.Int64> ParentJobId = null, System.Nullable<System.Int32> TenantId = null, System.String TenantName = null, System.String CorrelationKey = null, System.Nullable<System.Int32> PageSize = null, System.String Cursor = null, System.Boolean IncludeTotal = false, System.Collections.Generic.IReadOnlyList<Acta.TagFilter> Tags = null, System.Nullable<System.Boolean> TerminalOnly = null, System.Nullable<System.Boolean> RecurringOnly = null, System.String Lane = null)
+    .ctor(System.String JobNamespace = null, System.Nullable<Acta.JobStatusCode> Status = null, System.String JobName = null, System.Nullable<System.Int64> ParentJobId = null, System.Nullable<System.Int32> TenantId = null, System.String TenantName = null, System.String CorrelationKey = null, System.Nullable<System.Int32> PageSize = null, System.String Cursor = null, System.Boolean IncludeTotal = false, System.Collections.Generic.IReadOnlyList<Acta.TagFilter> Tags = null, System.Nullable<System.Boolean> TerminalOnly = null, System.Nullable<Acta.JobKindCode> Kind = null, System.String Lane = null)
     System.Boolean IncludeTotal { get;init; }
     System.Collections.Generic.IReadOnlyList<Acta.TagFilter> Tags { get;init; }
+    System.Nullable<Acta.JobKindCode> Kind { get;init; }
     System.Nullable<Acta.JobStatusCode> Status { get;init; }
-    System.Nullable<System.Boolean> RecurringOnly { get;init; }
     System.Nullable<System.Boolean> TerminalOnly { get;init; }
     System.Nullable<System.Int32> PageSize { get;init; }
     System.Nullable<System.Int32> TenantId { get;init; }
