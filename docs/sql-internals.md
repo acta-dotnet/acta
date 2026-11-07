@@ -211,9 +211,10 @@ filter so the hint always compiles:
 - A completion's and a registration's updates of `schedules` and `schedules_state` seek by key. Fires in one namespace
   share its schedule lock and registrations in different namespaces run at once, so an update that scanned would wait
   on rows another holds, and two such scans deadlock on each other.
-- `register_definitions` reads and updates `definitions` through `ux_definitions_namespace_name`. A deploy holds the
-  rows it writes until it commits and serializes only with deploys of its own namespace, so an update that scanned
-  would take update locks on every namespace's rows; concurrent deploys of different namespaces deadlocked that way.
+- A deploy reads and writes `definitions` through `ux_definitions_namespace_name`: `register_definitions` in its update
+  and its reads, and the contracts read after it. A deploy holds the rows it writes until it commits and serializes only
+  with deploys of its own namespace, so a statement that scanned would lock, or with `READ_COMMITTED_SNAPSHOT` off wait
+  on, every namespace's rows; concurrent deploys of different namespaces deadlocked that way.
 
 The claim and the completion read `jobs` and `jobs_state` without locks, through joins from a table
 variable, and pin those joins with `FORCESEEK` too: the same stale estimate turns them into a scan whose

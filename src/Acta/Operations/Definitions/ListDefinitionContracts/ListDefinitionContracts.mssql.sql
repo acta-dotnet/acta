@@ -25,5 +25,6 @@ SELECT
     jd.scheduled_delivery_code AS scheduled_delivery,
     jd.alert_channel_name_effective AS alert_channel_name,
     jd.runbook_url_effective AS runbook_url
-FROM {{schema}}.definitions jd
+-- A deploy reads this inside its transaction, so it seeks its namespace's rows (docs/sql-internals.md, "Locking reads seek").
+FROM {{schema}}.definitions jd WITH (FORCESEEK (ux_definitions_namespace_name (namespace_id)))
 WHERE jd.namespace_id = @p_namespace_id;
