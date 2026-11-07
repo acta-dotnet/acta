@@ -72,7 +72,7 @@
     AdminControlResult
   >({
     path: (vars) => `namespaces/${encodeURIComponent(vars.name)}`,
-    method: 'PATCH',
+    method: 'PUT',
     body: (vars) => ({ expectedVersion: vars.expectedVersion, ...buildNamespaceDetailsPayload(vars) }),
     notFound: () => ({ action: 'not-found', version: null }),
     versionConflict: () => ({ action: 'version-conflict', version: null }),

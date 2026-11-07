@@ -292,8 +292,8 @@ A tenant is registered with `ITenants.RegisterAsync(tenantName, displayName, des
 `POST /tenants`; an enqueue that names an unregistered tenant is refused.
 
 Over HTTP the same verbs are control-gated (`EnableControls` + confirmation header):
-`POST /tenants`, `POST /tenants/{tenantName}/suspend|resume`, `PATCH /tenants/{tenantName}`, `POST /namespaces/{name}/suspend|resume`,
-`PATCH /namespaces/{name}`. Reads are ungated: `GET /tenants` pages the catalog and
+`POST /tenants`, `POST /tenants/{tenantName}/suspend|resume`, `PUT /tenants/{tenantName}`, `POST /namespaces/{name}/suspend|resume`,
+`PUT /namespaces/{name}`. A `PUT` replaces the metadata whole, so a field it leaves out is cleared. Reads are ungated: `GET /tenants` pages the catalog and
 `GET /tenants/{tenantName}` is the point read (`ITenants.GetAsync` in code); `GET /namespaces` and
 `GET /namespaces/{name}` do the same for namespaces (`INamespaces.GetAsync` in code).
 

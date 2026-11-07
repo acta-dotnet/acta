@@ -51,7 +51,7 @@ internal static partial class ActaOpenApiDocument
         ["SaveCalendarDraftRequest"] = ["role", "definition", "expectedLatestVersion"],
         ["PublishCalendarRequest"] = ["candidateVersion", "expectedCurrentVersion"],
         ["ArchiveCalendarRequest"] = ["expectedCurrentVersion"],
-        ["UpdateDefinitionOverridesRequest"] = ["expectedVersion"],
+        ["UpdateDefinitionOverridesRequest"] = ["expectedVersion", "overrides"],
         ["RetireDefinitionRequest"] = ["expectedVersion"],
         ["RegisterTenantRequest"] = ["tenantName"],
         ["UpsertJobTagRequest"] = ["name"],
@@ -608,7 +608,7 @@ internal static partial class ActaOpenApiDocument
 
     private const string DocumentDescription =
         "Acta's operator API, the one the dashboard uses. Lists page by cursor: pass a page's nextCursor back as cursor "
-        + "until hasMore is false; a cursor is tied to its query. Every POST, PATCH, and DELETE is a control, mapped only "
+        + "until hasMore is false; a cursor is tied to its query. Every POST, PUT, and DELETE is a control, mapped only "
         + "where the host enables controls, and where the host requires it the call carries the confirmation header the "
         + "operation lists, with the value true. A control whose request object is optional acts with its defaults when the "
         + "request has no body; one that declares application/json and sends no bytes answers 400, so send {} or leave the "

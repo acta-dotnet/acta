@@ -117,7 +117,7 @@
     AdminControlResult
   >({
     path: (vars) => `tenants/${encodeURIComponent(vars.tenantName)}`,
-    method: 'PATCH',
+    method: 'PUT',
     body: (vars) => ({ expectedVersion: vars.expectedVersion, ...buildTenantDetailsPayload(vars) }),
     notFound: () => ({ action: 'not-found', version: null }),
     versionConflict: () => ({ action: 'version-conflict', version: null }),

@@ -383,7 +383,7 @@ public sealed partial class OperationsIndexTests
         {
             "MapGet" or "MapList" or "MapDetail" => "GET",
             "MapPost" or "MapCommand" => "POST",
-            "MapPatch" or "MapUpdate" => "PATCH",
+            "MapPut" or "MapUpdate" => "PUT",
             "MapDelete" => "DELETE",
             _ => null,
         };

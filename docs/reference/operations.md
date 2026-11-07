@@ -62,7 +62,7 @@ One row per operation folder, `src/Acta/Operations/<Group>/<Operation>/`, and on
 | `ListDefinitions` | `IDefinitions.ListAsync` | `GET /definitions` (`listDefinitions`) | · | inline | · | `ListDefinitionsFilterMatrixSpec`, `ListDefinitionsSpec` |
 | `RegisterDefinitions` | · | · | · | inline | `definitions` | `RegisterDefinitionsSpec` |
 | `RetireDefinition` | `IDefinitions.RetireAsync` | `POST /definitions/{jobNamespace}/{jobName}/retire` (`retireDefinition`) | · | inline | `checkpoints`, `definitions`, `events`, `jobs_state`, `schedules`, `schedules_state` | `RetireDefinitionSlotSpec`, `RetireDefinitionSpec` |
-| `UpdateDefinitionOverrides` | `IDefinitions.UpdateOverridesAsync` | `PATCH /definitions/{jobNamespace}/{jobName}` (`updateDefinitionOverrides`) | · | inline | `definitions`, `events`, `jobs` | `UpdateDefinitionOverridesBindMatrixSpec`, `UpdateDefinitionOverridesSpec` |
+| `UpdateDefinitionOverrides` | `IDefinitions.UpdateOverridesAsync` | `PUT /definitions/{jobNamespace}/{jobName}/overrides` (`updateDefinitionOverrides`) | · | inline | `definitions`, `events`, `jobs` | `UpdateDefinitionOverridesBindMatrixSpec`, `UpdateDefinitionOverridesSpec` |
 
 ## Execution
 
@@ -145,7 +145,7 @@ One row per operation folder, `src/Acta/Operations/<Group>/<Operation>/`, and on
 | `ListNamespaces` | `INamespaces.ListAsync` | `GET /namespaces` (`listNamespaces`) | · | inline | · | `ListNamespacesSpec` |
 | `ResumeNamespace` | `INamespaces.ResumeAsync` | `POST /namespaces/{jobNamespace}/resume` (`resumeNamespace`) | · | inline | `events`, `namespaces` | `ResumeNamespaceSpec` |
 | `SuspendNamespace` | `INamespaces.SuspendAsync` | `POST /namespaces/{jobNamespace}/suspend` (`suspendNamespace`) | · | inline | `events`, `namespaces` | `SuspendNamespaceSpec` |
-| `UpdateNamespace` | `INamespaces.UpdateAsync` | `PATCH /namespaces/{jobNamespace}` (`updateNamespace`) | · | inline | `events`, `namespaces` | `UpdateNamespaceSpec` |
+| `UpdateNamespace` | `INamespaces.UpdateAsync` | `PUT /namespaces/{jobNamespace}` (`updateNamespace`) | · | inline | `events`, `namespaces` | `UpdateNamespaceSpec` |
 
 ## Outbox
 
@@ -224,7 +224,7 @@ One row per operation folder, `src/Acta/Operations/<Group>/<Operation>/`, and on
 | `RegisterTenant` | `ITenants.RegisterAsync` | `POST /tenants` (`registerTenant`) | · | inline | `tenants` | `RegisterTenantSpec` |
 | `ResumeTenant` | `ITenants.ResumeAsync` | `POST /tenants/{tenantName}/resume` (`resumeTenant`) | · | inline | `events`, `tenants` | `ResumeTenantSpec` |
 | `SuspendTenant` | `ITenants.SuspendAsync` | `POST /tenants/{tenantName}/suspend` (`suspendTenant`) | · | inline | `events`, `tenants` | `SuspendTenantSpec` |
-| `UpdateTenant` | `ITenants.UpdateAsync` | `PATCH /tenants/{tenantName}` (`updateTenant`) | · | inline | `events`, `tenants` | `UpdateTenantSpec` |
+| `UpdateTenant` | `ITenants.UpdateAsync` | `PUT /tenants/{tenantName}` (`updateTenant`) | · | inline | `events`, `tenants` | `UpdateTenantSpec` |
 
 ## Workers
 

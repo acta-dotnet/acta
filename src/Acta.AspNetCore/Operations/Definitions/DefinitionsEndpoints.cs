@@ -63,8 +63,8 @@ internal static class DefinitionsEndpoints
         }
 
         controls.MapUpdate(
-            "/definitions/{jobNamespace}/{jobName}",
-            "Set or clear the definition's operator policy overrides.",
+            "/definitions/{jobNamespace}/{jobName}/overrides",
+            "Replace the definition's operator policy overrides.",
             options,
             DashboardJsonContext.Default.UpdateDefinitionOverridesRequest,
             "Invalid definition overrides.",
@@ -76,7 +76,7 @@ internal static class DefinitionsEndpoints
                     key.Name,
                     call.Body!.ExpectedVersion
                         ?? throw new InvalidControlException("Invalid definition overrides.", "expectedVersion is required."),
-                    call.Body.Overrides ?? new DefinitionPolicyOverrides(),
+                    call.Body.Overrides ?? throw new InvalidControlException("Invalid definition overrides.", "overrides is required."),
                     call.ReasonMessage,
                     call.Actor,
                     call.Ct

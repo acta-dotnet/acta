@@ -1,4 +1,4 @@
-// Shared control-POST/PATCH mutation hook. Wraps createMutation with the confirmation header (via
+// Shared control-POST/PUT mutation hook. Wraps createMutation with the confirmation header (via
 // api.ts's controlRequest, which reads the live header name), reason plumbing (buildBody), and
 // success-invalidation of caller-named query keys (invalidateAll). The job, signal, alert, schedule,
 // outbox, and namespace/tenant admin controls route their verbs through this instead of a bespoke

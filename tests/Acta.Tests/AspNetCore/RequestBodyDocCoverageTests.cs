@@ -10,13 +10,13 @@ namespace Acta.Tests.AspNetCore;
 /// The body-side twin of <see cref="QueryDocCoverageTests"/>. A handler reads its JSON body through
 /// ControlEndpointValidation rather than a bound parameter, so the OpenAPI document learns the body
 /// only from the endpoint's <c>RequestBodyDoc</c> declaration: a write endpoint that forgets it is
-/// simply absent from the contract, with nothing failing. This holds every mapped POST and PATCH to
+/// simply absent from the contract, with nothing failing. This holds every mapped POST and PUT to
 /// carrying a declaration, with the genuinely bodyless writes pinned as a literal allowlist.
 /// </summary>
 public sealed class RequestBodyDocCoverageTests
 {
     /// <summary>
-    /// Mapped POST/PATCH operations that read no request body at all: a route whose whole input sits
+    /// Mapped POST/PUT operations that read no request body at all: a route whose whole input sits
     /// in the path, leaving nothing for a body schema to describe. Empty today - all 33 write
     /// operations read a body, even the ones whose body is optional. An entry here is a deliberate
     /// claim that the handler never reads the body, and it is checked in both directions.
@@ -44,7 +44,7 @@ public sealed class RequestBodyDocCoverageTests
             var methods = endpoint.Metadata.GetMetadata<IHttpMethodMetadata>()?.HttpMethods ?? [];
             foreach (
                 var operation in methods
-                    .Where(m => m is "POST" or "PATCH")
+                    .Where(m => m is "POST" or "PUT")
                     .Select(m => $"{m} /{endpoint.RoutePattern.RawText?.TrimStart('/')}")
             )
             {

@@ -9,7 +9,7 @@ export interface NamespaceDetailsInput {
   description: string; // '' clears description
 }
 
-// Full-set PATCH semantics: a blank field clears that column, matching the backend's
+// Full-set PUT semantics: a blank field clears that column, matching the backend's
 // UpdateNamespaceRequest contract (null OwnerTeam/Description clears).
 export function buildNamespaceDetailsPayload(input: NamespaceDetailsInput): { ownerTeam: string | null; description: string | null } {
   return {

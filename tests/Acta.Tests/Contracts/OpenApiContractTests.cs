@@ -563,7 +563,7 @@ public sealed partial class OpenApiContractTests
             new(
                 "UpdateNamespaceRequest",
                 "expectedVersion",
-                HttpMethod.Patch,
+                HttpMethod.Put,
                 "namespaces/billing",
                 """{"description":"d"}""",
                 """{"description":"d","expectedVersion":3}"""
@@ -571,7 +571,7 @@ public sealed partial class OpenApiContractTests
             new(
                 "UpdateTenantRequest",
                 "expectedVersion",
-                HttpMethod.Patch,
+                HttpMethod.Put,
                 "tenants/acme",
                 """{"description":"d"}""",
                 """{"description":"d","expectedVersion":0}"""
@@ -579,9 +579,17 @@ public sealed partial class OpenApiContractTests
             new(
                 "UpdateDefinitionOverridesRequest",
                 "expectedVersion",
-                HttpMethod.Patch,
-                "definitions/billing/send-invoice",
+                HttpMethod.Put,
+                "definitions/billing/send-invoice/overrides",
                 """{"overrides":{}}""",
+                """{"overrides":{},"expectedVersion":0}"""
+            ),
+            new(
+                "UpdateDefinitionOverridesRequest",
+                "overrides",
+                HttpMethod.Put,
+                "definitions/billing/send-invoice/overrides",
+                """{"expectedVersion":0}""",
                 """{"overrides":{},"expectedVersion":0}"""
             ),
             new(
@@ -680,13 +688,41 @@ public sealed partial class OpenApiContractTests
         await WithSqliteHostAsync(async client =>
         {
             var definition = $"definitions/{SqliteNamespace}/add-numbers";
-            answers.Add(await SendControlAsync(client, HttpMethod.Patch, definition, """{"overrides":{}}"""));
-            answers.Add(await SendControlAsync(client, HttpMethod.Patch, definition, """{"overrides":{},"expectedVersion":0}"""));
+            answers.Add(await SendControlAsync(client, HttpMethod.Put, definition + "/overrides", """{"overrides":{}}"""));
+            answers.Add(
+                await SendControlAsync(client, HttpMethod.Put, definition + "/overrides", """{"overrides":{},"expectedVersion":0}""")
+            );
             answers.Add(await SendControlAsync(client, HttpMethod.Post, definition + "/retire", "{}"));
             answers.Add(await SendControlAsync(client, HttpMethod.Post, definition + "/retire", """{"expectedVersion":1}"""));
         });
 
         Assert.Equal([HttpStatusCode.BadRequest, HttpStatusCode.OK, HttpStatusCode.BadRequest, HttpStatusCode.OK], answers);
+    }
+
+    /// <summary>
+    /// A full replace is a PUT: the tenant, namespace, and definition overrides updates clear what their body leaves out,
+    /// so the document lists them under PUT and no PATCH, and the PATCH each had reaches no route.
+    /// </summary>
+    [Fact]
+    public async Task A_full_replace_is_a_put()
+    {
+        var operations = Operations(await ActaOpenApiDocument.GenerateAsync());
+        var (app, client) = await TestDashboardHost.StartAsync(options => options.EnableControls = true);
+        await using var _ = app;
+        var patches = new List<HttpStatusCode>();
+        foreach (var path in new[] { "tenants/cust-001", "namespaces/billing", "definitions/billing/send-invoice" })
+        {
+            patches.Add(await SendControlAsync(client, HttpMethod.Patch, path, """{"expectedVersion":1,"overrides":{}}"""));
+        }
+
+        Assert.DoesNotContain(operations.Keys, key => key.StartsWith("PATCH ", StringComparison.Ordinal));
+        Assert.Equal("updateTenant", operations["PUT /v1/tenants/{tenantName}"]["operationId"]!.GetValue<string>());
+        Assert.Equal("updateNamespace", operations["PUT /v1/namespaces/{jobNamespace}"]["operationId"]!.GetValue<string>());
+        Assert.Equal(
+            "updateDefinitionOverrides",
+            operations["PUT /v1/definitions/{jobNamespace}/{jobName}/overrides"]["operationId"]!.GetValue<string>()
+        );
+        Assert.All(patches, status => Assert.True(status is HttpStatusCode.NotFound or HttpStatusCode.MethodNotAllowed, $"{status}"));
     }
 
     private const string SqliteNamespace = "openapi-probe";

@@ -22,7 +22,7 @@
   let definitionPath = $derived(`definitions/${encodeURIComponent(jobNamespace)}/${encodeURIComponent(jobName)}`);
 
   // The override fields, in the entity's policy order. `key` matches both the list item field prefix
-  // (key / keyOverride / keyEffective) and the PATCH payload field. `kind` drives parsing on save.
+  // (key / keyOverride / keyEffective) and the PUT payload field. `kind` drives parsing on save.
   const FIELDS = [
     { key: 'priority', label: 'Priority', kind: 'enum' },
     { key: 'maxAttempts', label: 'Max attempts', kind: 'int' },

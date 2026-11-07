@@ -47,7 +47,7 @@ export function outboxControlMessage(verb: string, action: string): string {
   }
 }
 
-// Definition verbs: the overrides PATCH and retire. Both are version-guarded, so a version conflict means
+// Definition verbs: the overrides PUT and retire. Both are version-guarded, so a version conflict means
 // the definition changed since it was loaded.
 export function definitionControlMessage(verb: 'overrides' | 'retire', action: string): string {
   switch (action) {

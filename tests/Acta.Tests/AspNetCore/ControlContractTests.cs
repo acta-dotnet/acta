@@ -139,10 +139,10 @@ public sealed class ControlContractTests
         .. OutboxVerb("discard", typeof(DiscardOutboxResponse)),
         .. AdminVerb("namespaces", "/namespaces/{jobNamespace}", "billing", "suspend", typeof(SuspendNamespaceResponse)),
         .. AdminVerb("namespaces", "/namespaces/{jobNamespace}", "billing", "resume", typeof(ResumeNamespaceResponse)),
-        .. AdminPatch("namespaces", "/namespaces/{jobNamespace}", "billing", "ownerTeam", "payments", typeof(UpdateNamespaceResponse)),
+        .. AdminUpdate("namespaces", "/namespaces/{jobNamespace}", "billing", "ownerTeam", "payments", typeof(UpdateNamespaceResponse)),
         .. AdminVerb("tenants", "/tenants/{tenantName}", "cust-001", "suspend", typeof(SuspendTenantResponse)),
         .. AdminVerb("tenants", "/tenants/{tenantName}", "cust-001", "resume", typeof(ResumeTenantResponse)),
-        .. AdminPatch("tenants", "/tenants/{tenantName}", "cust-001", "displayName", "Acme", typeof(UpdateTenantResponse)),
+        .. AdminUpdate("tenants", "/tenants/{tenantName}", "cust-001", "displayName", "Acme", typeof(UpdateTenantResponse)),
         .. TenantRegistration(),
         .. Tags("/jobs/{jobRef}", $"/jobs/{Found}"),
         .. Tags("/definitions/{jobNamespace}/{jobName}", "/definitions/billing/send-invoice"),
@@ -426,25 +426,37 @@ public sealed class ControlContractTests
     // an apply, the current one on a conflict.
     private static IEnumerable<Case> DefinitionOverrides()
     {
-        const string route = "/definitions/{jobNamespace}/{jobName}";
+        const string route = "/definitions/{jobNamespace}/{jobName}/overrides";
         static Case Row(string outcome, string path, int status, string action, int expectedVersion, int? version) =>
             new(
                 "definitions",
                 route,
-                "PATCH",
+                "PUT",
                 outcome,
                 path,
                 status,
                 typeof(UpdateDefinitionOverridesResponse),
                 action,
-                new { expectedVersion, reasonMessage = "because" },
+                new
+                {
+                    expectedVersion,
+                    overrides = new { },
+                    reasonMessage = "because",
+                },
                 version
             );
         return
         [
-            Row("applied", "/definitions/billing/send-invoice", StatusCodes.Status200OK, "applied", 1, 2),
-            Row("version-conflict", "/definitions/billing/send-invoice", StatusCodes.Status409Conflict, "version-conflict", 999, 2),
-            Row("not-found", "/definitions/billing/missing", StatusCodes.Status404NotFound, "not-found", 1, null),
+            Row("applied", "/definitions/billing/send-invoice/overrides", StatusCodes.Status200OK, "applied", 1, 2),
+            Row(
+                "version-conflict",
+                "/definitions/billing/send-invoice/overrides",
+                StatusCodes.Status409Conflict,
+                "version-conflict",
+                999,
+                2
+            ),
+            Row("not-found", "/definitions/billing/missing/overrides", StatusCodes.Status404NotFound, "not-found", 1, null),
         ];
     }
 
@@ -532,19 +544,19 @@ public sealed class ControlContractTests
         ];
     }
 
-    // The patch is the one admin verb with a CAS token, so it is the one that can version-conflict; a
+    // The update is the one admin verb with a CAS token, so it is the one that can version-conflict; a
     // stale expectedVersion of 999 is how both admin fakes stage that outcome.
-    private static IEnumerable<Case> AdminPatch(string family, string route, string key, string field, string value, Type declared)
+    private static IEnumerable<Case> AdminUpdate(string family, string route, string key, string field, string value, Type declared)
     {
         JsonObject Body(int expectedVersion) => new() { [field] = value, ["expectedVersion"] = expectedVersion };
         return
         [
-            Admin(declared, family, route, "PATCH", "applied", Path(route, key), StatusCodes.Status200OK, "applied", Body(1), 2),
+            Admin(declared, family, route, "PUT", "applied", Path(route, key), StatusCodes.Status200OK, "applied", Body(1), 2),
             Admin(
                 declared,
                 family,
                 route,
-                "PATCH",
+                "PUT",
                 "version-conflict",
                 Path(route, key),
                 StatusCodes.Status409Conflict,
@@ -552,17 +564,7 @@ public sealed class ControlContractTests
                 Body(999),
                 5
             ),
-            Admin(
-                declared,
-                family,
-                route,
-                "PATCH",
-                "not-found",
-                Path(route, "missing"),
-                StatusCodes.Status404NotFound,
-                "not-found",
-                Body(1)
-            ),
+            Admin(declared, family, route, "PUT", "not-found", Path(route, "missing"), StatusCodes.Status404NotFound, "not-found", Body(1)),
         ];
     }
 

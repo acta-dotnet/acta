@@ -34,7 +34,7 @@ interface ProblemDetails {
 
 interface RequestOptions {
   path: string;
-  method?: 'GET' | 'POST' | 'PATCH' | 'DELETE';
+  method?: 'GET' | 'POST' | 'PUT' | 'DELETE';
   query?: Record<string, unknown>;
   body?: unknown;
   headers?: Record<string, string>;
@@ -158,7 +158,7 @@ export async function api<T>(
   return body as T;
 }
 
-// Confirmation header the backend requires on every control POST/PATCH (value is always the literal
+// Confirmation header the backend requires on every control POST/PUT (value is always the literal
 // string 'true'; see GetCapabilitiesResponse.ConfirmationHeader). Defaults to the backend's own default
 // so a control request fired before capabilities loads still matches an unconfigured server;
 // fetchCapabilities() below keeps this in sync with the live value, the same "module state kept in
@@ -186,7 +186,7 @@ export async function controlRequest<TResult extends { action: string }>(
   path: string,
   body: unknown,
   notFound: TResult,
-  method: 'POST' | 'PATCH' | 'DELETE' = 'POST',
+  method: 'POST' | 'PUT' | 'DELETE' = 'POST',
   versionConflict?: TResult
 ): Promise<TResult> {
   const { response, body: parsed } = await request<unknown>({
@@ -337,10 +337,10 @@ export interface DefinitionControlResponse {
   action: ControlAction;
 }
 
-// PATCH a definition's operator overrides, addressed by its natural key. The body carries the
-// expectedVersion CAS token, the full override set (null/absent field = clear), and a note. Applied
-// (200), version-conflict (409), and not-found (404) all return a DefinitionControlResponse;
-// anything else throws.
+// PUT a definition's operator overrides, addressed by its natural key. The body carries the
+// expectedVersion CAS token, the full override set that replaces the current one (null/absent field =
+// clear), and a note. Applied (200), version-conflict (409), and not-found (404) all return a
+// DefinitionControlResponse; anything else throws.
 export async function updateDefinitionOverrides(
   jobNamespace: string,
   jobName: string,
@@ -349,10 +349,10 @@ export async function updateDefinitionOverrides(
   note?: string
 ): Promise<DefinitionControlResponse> {
   return controlRequest<DefinitionControlResponse>(
-    `definitions/${encodeURIComponent(jobNamespace)}/${encodeURIComponent(jobName)}`,
+    `definitions/${encodeURIComponent(jobNamespace)}/${encodeURIComponent(jobName)}/overrides`,
     { expectedVersion, overrides, reasonMessage: note?.trim() || null },
     { action: 'not-found' },
-    'PATCH'
+    'PUT'
   );
 }
 

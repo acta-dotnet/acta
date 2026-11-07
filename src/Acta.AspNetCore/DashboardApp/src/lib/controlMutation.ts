@@ -7,7 +7,7 @@ import type { QueryClient } from '@tanstack/query-core';
 export interface ControlMutationOptions<TVars extends object, TResult extends { action: string }> {
   /** Builds the request path (relative to `api/`), e.g. `(vars) => 'jobs/' + vars.jobRef + '/pause'`. */
   path: (vars: TVars) => string;
-  method?: 'POST' | 'PATCH';
+  method?: 'POST' | 'PUT';
   /** Builds the request body; `reasonMessage` is merged in automatically from `vars.reason`. */
   body?: (vars: TVars) => Record<string, unknown>;
   /** Escape hatch for endpoints whose request body is not always a reason-merged object: the
@@ -19,7 +19,7 @@ export interface ControlMutationOptions<TVars extends object, TResult extends { 
    *  its 404, so this is the guard for a proxy or a gateway answering in the server's place. */
   notFound: (vars: TVars) => TResult;
   /** Result to return when the server responds 409 with no typed body. Same guard as `notFound`,
-   *  for the one outcome only the version-guarded admin patches can reach. */
+   *  for the one outcome only the version-guarded admin updates can reach. */
   versionConflict?: (vars: TVars) => TResult;
   /** Query keys to invalidate once the request resolves without throwing (applied, rejected, and
    *  not-found all count - only a genuine fetch/parse failure skips invalidation). */

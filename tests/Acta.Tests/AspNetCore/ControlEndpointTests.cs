@@ -1026,7 +1026,7 @@ public sealed class ControlEndpointTests
         var (app, client) = await StartWithControlsAsync();
         await using var _ = app;
 
-        var request = new HttpRequestMessage(HttpMethod.Patch, "/acta/api/v1/definitions/billing/send-invoice")
+        var request = new HttpRequestMessage(HttpMethod.Put, "/acta/api/v1/definitions/billing/send-invoice/overrides")
         {
             Content = JsonContent.Create(new { expectedVersion = 1, overrides = new { maxAttempts = 0 } }),
         };

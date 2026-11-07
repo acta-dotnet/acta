@@ -71,11 +71,11 @@ public sealed class ControlBodyStrictnessTests
         var ct = TestContext.Current.CancellationToken;
 
         var typo = await client.SendAsync(
-            Send(HttpMethod.Patch, "definitions/billing/send-invoice", "{\"expectedVersion\":1,\"overides\":{\"maxAttempts\":3}}"),
+            Send(HttpMethod.Put, "definitions/billing/send-invoice/overrides", "{\"expectedVersion\":1,\"overides\":{\"maxAttempts\":3}}"),
             ct
         );
         var exact = await client.SendAsync(
-            Send(HttpMethod.Patch, "definitions/billing/send-invoice", "{\"expectedVersion\":1,\"overrides\":{\"maxAttempts\":3}}"),
+            Send(HttpMethod.Put, "definitions/billing/send-invoice/overrides", "{\"expectedVersion\":1,\"overrides\":{\"maxAttempts\":3}}"),
             ct
         );
 

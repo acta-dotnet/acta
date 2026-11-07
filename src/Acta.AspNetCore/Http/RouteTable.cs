@@ -167,7 +167,10 @@ internal static class RouteTable
             status
         );
 
-    /// <summary>A PATCH of the target's fields: <see cref="MapCommand"/> with a required body.</summary>
+    /// <summary>
+    /// A PUT of the target's fields: <see cref="MapCommand"/> with a required body, which replaces them whole, so a member
+    /// the body leaves out is cleared.
+    /// </summary>
     public static RouteHandlerBuilder MapUpdate<TKey, TBody, TResponse>(
         this RouteGroupBuilder controls,
         string pattern,
@@ -182,7 +185,7 @@ internal static class RouteTable
         where TBody : class, IControlRequest
         where TResponse : notnull =>
         DeclareControl<TBody, TResponse>(
-            controls.MapPatch(
+            controls.MapPut(
                 pattern,
                 (HttpContext http, IActaOperations operations, IJobs jobs, CancellationToken ct) =>
                     ControlAsync(

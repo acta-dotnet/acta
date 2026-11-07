@@ -92,7 +92,7 @@ test('controlRequest maps a 409 with no typed body to the caller-supplied versio
     new Response(JSON.stringify({ title: 'Version conflict.', detail: 'stale version' }), { status: 409 })) as typeof fetch;
 
   const versionConflict = { action: 'version-conflict', version: null };
-  const result = await controlRequest('tenants/t1', { expectedVersion: 1 }, { action: 'not-found', version: null }, 'PATCH', versionConflict);
+  const result = await controlRequest('tenants/t1', { expectedVersion: 1 }, { action: 'not-found', version: null }, 'PUT', versionConflict);
 
   assert.deepEqual(result, versionConflict);
 });
@@ -102,7 +102,7 @@ test('controlRequest still throws on a 409 with no typed body when no versionCon
     new Response(JSON.stringify({ title: 'Version conflict.', detail: 'stale version' }), { status: 409 })) as typeof fetch;
 
   await assert.rejects(
-    () => controlRequest('tenants/t1', { expectedVersion: 1 }, { action: 'not-found', version: null }, 'PATCH'),
+    () => controlRequest('tenants/t1', { expectedVersion: 1 }, { action: 'not-found', version: null }, 'PUT'),
     /stale version/
   );
 });
