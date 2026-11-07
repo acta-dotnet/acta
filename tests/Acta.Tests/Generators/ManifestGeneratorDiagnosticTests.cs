@@ -1331,6 +1331,90 @@ public class ManifestGeneratorDiagnosticTests
         Assert.Empty(Of(result, "ACTA0122"));
     }
 
+    // ACTA0129: a schedule's bounds are UTC instants, the start before the end
+
+    [Fact]
+    public void Schedule_bounds_are_emitted_as_utc_instants_after_the_availability_calendar()
+    {
+        var result = RunGenerator(
+            """
+            using Acta;
+            namespace GenTests;
+
+            public static class Handler
+            {
+                [Job("year-end")]
+                [Schedule("push", Cron.Hourly, StartAtUtc = "2027-12-01T00:00:00Z", EndBeforeUtc = "2028-01-01T00:00:00Z")]
+                public static void Run() { }
+            }
+            """,
+            "GenTests",
+            out var compilation
+        );
+
+        Assert.Empty(result.Diagnostics);
+        AssertCompilesCleanly(compilation);
+        var source = Assert.Single(result.GeneratedTrees).ToString();
+        var start = new DateTime(2027, 12, 1, 0, 0, 0, DateTimeKind.Utc).Ticks;
+        var end = new DateTime(2028, 1, 1, 0, 0, 0, DateTimeKind.Utc).Ticks;
+        Assert.Contains("AvailabilityCalendarName: null,", source);
+        Assert.Contains($"StartAtUtc: new global::System.DateTime({start}L, global::System.DateTimeKind.Utc),", source);
+        Assert.Contains($"EndBeforeUtc: new global::System.DateTime({end}L, global::System.DateTimeKind.Utc))", source);
+    }
+
+    [Fact]
+    public void A_schedule_with_only_a_start_emits_no_end()
+    {
+        var result = RunGenerator(
+            """
+            using Acta;
+            namespace GenTests;
+
+            public static class Handler
+            {
+                [Job("from-launch")]
+                [Schedule("tick", Cron.Hourly, StartAtUtc = "2027-12-01T00:00:00Z")]
+                public static void Run() { }
+            }
+            """,
+            "GenTests",
+            out var compilation
+        );
+
+        Assert.Empty(result.Diagnostics);
+        AssertCompilesCleanly(compilation);
+        var source = Assert.Single(result.GeneratedTrees).ToString();
+        Assert.Contains("StartAtUtc: new global::System.DateTime(", source);
+        Assert.DoesNotContain("EndBeforeUtc:", source);
+    }
+
+    [Theory]
+    [InlineData("StartAtUtc = \"2027-12-01\"")]
+    [InlineData("StartAtUtc = \"2027-12-01T00:00:00\"")]
+    [InlineData("EndBeforeUtc = \"2027-12-01T00:00:00+01:00\"")]
+    [InlineData("StartAtUtc = \"2028-01-01T00:00:00Z\", EndBeforeUtc = \"2027-12-01T00:00:00Z\"")]
+    [InlineData("StartAtUtc = \"2027-12-01T00:00:00Z\", EndBeforeUtc = \"2027-12-01T00:00:00Z\"")]
+    public void An_incomplete_schedule_bound_errors_ACTA0129(string bounds)
+    {
+        var result = RunGenerator(
+            $$"""
+            using Acta;
+            namespace GenTests;
+
+            public static class Handler
+            {
+                [Job("half-bounded")]
+                [Schedule("tick", Cron.Hourly, {{bounds}})]
+                public static void Run() { }
+            }
+            """
+        );
+
+        Assert.Single(Of(result, "ACTA0129"));
+        Assert.Empty(Of(result, "ACTA0121"));
+        Assert.Empty(Of(result, "ACTA0122"));
+    }
+
     // ACTA0122: invalid schedule expression
 
     [Theory]

@@ -7,6 +7,7 @@ namespace Acta;
 /// next-occurrence instants are computed by the runtime, never here. For a calendar source <c>Expression</c> is the
 /// calendar's name and <c>ExpressionKind</c> is <c>Calendar</c>; <c>AvailabilityCalendarName</c> names the availability
 /// calendar, if any. A calendar is bound by name alone, which resolves afresh at every evaluation.
+/// <c>StartAtUtc</c> and <c>EndBeforeUtc</c> bound the occurrences to [start, end) as UTC instants; null is unbounded.
 /// </summary>
 public sealed record ScheduleDescriptor(
     string JobName,
@@ -21,5 +22,7 @@ public sealed record ScheduleDescriptor(
     ScheduleFullBehaviorCode FullBehavior = ScheduleFullBehaviorCode.Wait,
     int? ExpireAfterSeconds = null,
     ScheduleExpireActionCode ExpireAction = ScheduleExpireActionCode.Unspecified,
-    string? AvailabilityCalendarName = null
+    string? AvailabilityCalendarName = null,
+    DateTime? StartAtUtc = null,
+    DateTime? EndBeforeUtc = null
 );

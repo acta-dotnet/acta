@@ -163,6 +163,16 @@ internal static class ManifestDiagnostics
         helpLinkUri: HelpBase + "acta0127"
     );
 
+    internal static readonly DiagnosticDescriptor InvalidScheduleBounds = new(
+        id: "ACTA0129",
+        title: "Job schedule bounds must be whole",
+        messageFormat: "{0}",
+        category: "Acta",
+        defaultSeverity: DiagnosticSeverity.Error,
+        isEnabledByDefault: true,
+        helpLinkUri: HelpBase + "acta0129"
+    );
+
     internal static readonly DiagnosticDescriptor InvalidPayloadFormat = new(
         id: "ACTA0131",
         title: "Payload format declarations must be valid",
@@ -209,6 +219,7 @@ internal static class ManifestDiagnostics
             "ACTA0125" => PermanentCapacity,
             "ACTA0126" => InvalidScheduleExpiration,
             "ACTA0127" => InvalidScheduleSource,
+            "ACTA0129" => InvalidScheduleBounds,
             "ACTA0131" => InvalidPayloadFormat,
             "ACTA0132" => InvalidPayloadFormatUsage,
             "ACTA0142" => InvalidDurationUnitDescriptor,
@@ -533,6 +544,24 @@ internal static class ManifestDiagnostics
         new(
             "ACTA0127",
             $"`[Schedule(\"{scheduleName}\")]` on `[Job(\"{job.JobName}\")]` sets `{property} = \"{calendarName}\"`, which is not a valid calendar name. Names are dotted kebab-case (`[a-z][a-z0-9-]*` segments joined by `.`), at most 128 chars; the `sys.` prefix is reserved for system calendars.",
+            job.Location
+        );
+
+    /// <summary>
+    /// ACTA0129: a [Schedule] bound that is not a UTC instant, or a start not earlier than the end; one ID, per-variant
+    /// messages.
+    /// </summary>
+    public static DiagnosticRecord ScheduleBoundNotInstant(DiscoveredJob job, string scheduleName, string property, string text) =>
+        new(
+            "ACTA0129",
+            $"`[Schedule(\"{scheduleName}\")]` on `[Job(\"{job.JobName}\")]` sets `{property} = \"{text}\"`, which is not a UTC instant. Write it as yyyy-MM-ddTHH:mm:ssZ, e.g. `{property} = \"2027-01-01T00:00:00Z\"`.",
+            job.Location
+        );
+
+    public static DiagnosticRecord ScheduleBoundsInverted(DiscoveredJob job, string scheduleName, string startText, string endText) =>
+        new(
+            "ACTA0129",
+            $"`[Schedule(\"{scheduleName}\")]` on `[Job(\"{job.JobName}\")]` sets `StartAtUtc = \"{startText}\"` and `EndBeforeUtc = \"{endText}\"`, but the start is not earlier than the end. The schedule's occurrences fall in [start, end), so the start comes first.",
             job.Location
         );
 

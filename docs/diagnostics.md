@@ -161,6 +161,16 @@ the name; a worker start does.
 [Schedule("quarter-hourly", "*/15 * * * *", Availability = "office-hours")]    // expression, filtered by availability
 ```
 
+## ACTA0129 <a id="acta0129"></a>
+
+**Incomplete `[Schedule]` bounds.** `StartAtUtc` and `EndBeforeUtc` are UTC instants written with a
+`Z`, `yyyy-MM-ddTHH:mm:ssZ`. The schedule's occurrences fall in [start, end), so when both are given
+the start is earlier than the end.
+
+```csharp
+[Schedule("year-end-push", Cron.Hourly, StartAtUtc = "2027-12-01T00:00:00Z", EndBeforeUtc = "2028-01-01T00:00:00Z")]
+```
+
 ## ACTA0131 <a id="acta0131"></a>
 
 **Invalid `[JobPayloadFormatDeclaration]`.** A custom format uses an id in 128..255 (0..127 are

@@ -18,6 +18,7 @@ ACTA0124 | Acta | Error | Invalid [Schedule] policy value (MaxOutstanding below 
 ACTA0125 | Acta | Error | MaxOutstanding other than 1 on a Permanent definition's schedule
 ACTA0126 | Acta | Error | Incomplete [Schedule] expiration (ExpireAfter without ExpireAction or the reverse, zero, undefined action)
 ACTA0127 | Acta | Error | Incomplete [Schedule] source (expression and Calendar, neither, blank or invalid calendar name)
+ACTA0129 | Acta | Error | Incomplete [Schedule] bounds (a bound that is not a UTC instant, or a start not earlier than the end)
 ACTA0131 | Acta | Error | Invalid [JobPayloadFormatDeclaration]
 ACTA0132 | Acta | Error | Invalid [Job] payload-format usage (Format vs InputFormat/ResultFormat, ResultFormat on void, unknown name)
 ACTA0142 | Acta | Error | Invalid Acta duration unit (uppercase or calendar unit)

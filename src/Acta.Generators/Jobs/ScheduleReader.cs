@@ -1,6 +1,7 @@
 using System;
 using System.Collections.Generic;
 using System.Collections.Immutable;
+using System.Globalization;
 using System.Linq;
 using Microsoft.CodeAnalysis;
 using static Acta.Generators.ActaManifestGenerator;
@@ -53,6 +54,8 @@ internal static class ScheduleReader
             byte expireActionId = 0;
             string? calendar = null;
             string? availability = null;
+            string? startAtUtc = null;
+            string? endBeforeUtc = null;
 
             foreach (var named in attr.NamedArguments)
             {
@@ -90,6 +93,12 @@ internal static class ScheduleReader
                     case "Availability" when !named.Value.IsNull:
                         availability = named.Value.Value as string ?? "";
                         break;
+                    case "StartAtUtc" when !named.Value.IsNull:
+                        startAtUtc = named.Value.Value as string ?? "";
+                        break;
+                    case "EndBeforeUtc" when !named.Value.IsNull:
+                        endBeforeUtc = named.Value.Value as string ?? "";
+                        break;
                 }
             }
 
@@ -110,12 +119,29 @@ internal static class ScheduleReader
                     expireAfterSeconds,
                     expireActionId,
                     calendar,
-                    availability
+                    availability,
+                    startAtUtc,
+                    endBeforeUtc,
+                    startAtUtc is not null && TryParseBound(startAtUtc, out var start) ? start : null,
+                    endBeforeUtc is not null && TryParseBound(endBeforeUtc, out var end) ? end : null
                 )
             );
         }
         return builder.ToImmutable();
     }
+
+    /// <summary>
+    /// Parses a <c>[Schedule]</c> bound: a UTC instant written <c>yyyy-MM-ddTHH:mm:ssZ</c>, read as a
+    /// <see cref="DateTimeKind.Utc"/> value.
+    /// </summary>
+    internal static bool TryParseBound(string text, out DateTime utc) =>
+        DateTime.TryParseExact(
+            text,
+            "yyyy-MM-dd'T'HH:mm:ss'Z'",
+            CultureInfo.InvariantCulture,
+            DateTimeStyles.AdjustToUniversal | DateTimeStyles.AssumeUniversal,
+            out utc
+        );
 
     /// <summary>
     /// A single-token expression starting with a digit (human form, e.g. `5m`) or `P`/`p` (ISO 8601, e.g.
@@ -128,8 +154,8 @@ internal static class ScheduleReader
     }
 
     /// <summary>
-    /// ACTA0121 / ACTA0122 / ACTA0124 / ACTA0125 / ACTA0126 / ACTA0127: declaration, expression, policy, capacity,
-    /// expiration, and source validity for every [Schedule].
+    /// ACTA0121 / ACTA0122 / ACTA0124 / ACTA0125 / ACTA0126 / ACTA0127 / ACTA0129: declaration, expression, policy,
+    /// capacity, expiration, source, and bounds validity for every [Schedule].
     /// </summary>
     internal static bool ValidateSchedules(SourceProductionContext spc, DiscoveredJob job, bool isFrameworkAssembly)
     {
@@ -216,6 +242,32 @@ internal static class ScheduleReader
             }
 
             ok &= ValidateExpiration(spc, job, schedule);
+            ok &= ValidateBounds(spc, job, schedule);
+        }
+        return ok;
+    }
+
+    /// <summary>ACTA0129: each bound is a UTC instant, and a start comes before an end.</summary>
+    private static bool ValidateBounds(SourceProductionContext spc, DiscoveredJob job, DiscoveredSchedule schedule)
+    {
+        var ok = true;
+        if (schedule.StartAtUtcText is { } startText && schedule.StartAtUtc is null)
+        {
+            ReportDiagnostic(spc, ManifestDiagnostics.ScheduleBoundNotInstant(job, schedule.ScheduleName, "StartAtUtc", startText));
+            ok = false;
+        }
+        if (schedule.EndBeforeUtcText is { } endText && schedule.EndBeforeUtc is null)
+        {
+            ReportDiagnostic(spc, ManifestDiagnostics.ScheduleBoundNotInstant(job, schedule.ScheduleName, "EndBeforeUtc", endText));
+            ok = false;
+        }
+        if (schedule.StartAtUtc >= schedule.EndBeforeUtc)
+        {
+            ReportDiagnostic(
+                spc,
+                ManifestDiagnostics.ScheduleBoundsInverted(job, schedule.ScheduleName, schedule.StartAtUtcText!, schedule.EndBeforeUtcText!)
+            );
+            ok = false;
         }
         return ok;
     }

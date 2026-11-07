@@ -149,6 +149,7 @@ internal sealed class CatalogRegistrar(
         ValidateHasDescriptors(ns, allDescriptors);
         ValidateUniqueJobNames(allDescriptors);
         ValidateScheduleTimeZones(allDescriptors);
+        ValidateScheduleBounds(allDescriptors);
         ValidateTenantRequirements(allDescriptors);
         ValidateDeadlineRequirements(allDescriptors);
         foreach (var descriptor in allDescriptors)
@@ -233,6 +234,46 @@ internal sealed class CatalogRegistrar(
                         ex
                     );
                 }
+            }
+        }
+    }
+
+    /// <summary>
+    /// Fail fast on a schedule bound that is not a UTC instant, or a start not earlier than the end. The generator
+    /// reports the same rule as ACTA0129 for a generated manifest; this check is for a descriptor built by hand.
+    /// </summary>
+    internal static void ValidateScheduleBounds(ImmutableArray<JobDescriptor> descriptors)
+    {
+        foreach (var descriptor in descriptors)
+        {
+            if (descriptor.Schedules.IsDefaultOrEmpty)
+            {
+                continue;
+            }
+
+            foreach (var schedule in descriptor.Schedules)
+            {
+                RequireUtc(descriptor, schedule, nameof(ScheduleDescriptor.StartAtUtc), schedule.StartAtUtc);
+                RequireUtc(descriptor, schedule, nameof(ScheduleDescriptor.EndBeforeUtc), schedule.EndBeforeUtc);
+                if (schedule.StartAtUtc >= schedule.EndBeforeUtc)
+                {
+                    throw new InvalidOperationException(
+                        $"Job '{descriptor.JobName}' schedule '{schedule.ScheduleName}' declares StartAtUtc "
+                            + $"{schedule.StartAtUtc:O} and EndBeforeUtc {schedule.EndBeforeUtc:O}; occurrences fall in "
+                            + "[start, end), so the start is earlier than the end."
+                    );
+                }
+            }
+        }
+
+        static void RequireUtc(JobDescriptor descriptor, ScheduleDescriptor schedule, string member, DateTime? bound)
+        {
+            if (bound is { Kind: not DateTimeKind.Utc } value)
+            {
+                throw new InvalidOperationException(
+                    $"Job '{descriptor.JobName}' schedule '{schedule.ScheduleName}' declares {member} of kind "
+                        + $"{value.Kind}; a bound is a UTC instant."
+                );
             }
         }
     }

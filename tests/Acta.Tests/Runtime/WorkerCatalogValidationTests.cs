@@ -106,6 +106,66 @@ public sealed class WorkerCatalogValidationTests
     }
 
     [Fact]
+    public void A_hand_built_schedule_bound_that_is_not_utc_fails_startup()
+    {
+        var local = new DateTime(2027, 12, 1, 0, 0, 0, DateTimeKind.Local);
+        var bounded = Descriptor("year-end", typeof(HandlerA)) with
+        {
+            Schedules = [Hourly("year-end", "push") with { StartAtUtc = local }],
+        };
+
+        var ex = Assert.Throws<InvalidOperationException>(() => CatalogRegistrar.ValidateScheduleBounds([bounded]));
+
+        Assert.Contains("'push'", ex.Message);
+        Assert.Contains("StartAtUtc of kind Local", ex.Message);
+    }
+
+    [Fact]
+    public void A_hand_built_schedule_whose_start_is_not_before_its_end_fails_startup()
+    {
+        var bounded = Descriptor("year-end", typeof(HandlerA)) with
+        {
+            Schedules =
+            [
+                Hourly("year-end", "push") with
+                {
+                    StartAtUtc = new DateTime(2028, 1, 1, 0, 0, 0, DateTimeKind.Utc),
+                    EndBeforeUtc = new DateTime(2027, 12, 1, 0, 0, 0, DateTimeKind.Utc),
+                },
+            ],
+        };
+
+        var ex = Assert.Throws<InvalidOperationException>(() => CatalogRegistrar.ValidateScheduleBounds([bounded]));
+
+        Assert.Contains("'push'", ex.Message);
+        Assert.Contains("2028-01-01T00:00:00.0000000Z", ex.Message);
+        Assert.Contains("2027-12-01T00:00:00.0000000Z", ex.Message);
+    }
+
+    [Fact]
+    public void Utc_bounds_with_the_start_first_and_a_single_bound_pass()
+    {
+        var start = new DateTime(2027, 12, 1, 0, 0, 0, DateTimeKind.Utc);
+        var bounded = Descriptor("year-end", typeof(HandlerA)) with
+        {
+            Schedules =
+            [
+                Hourly("year-end", "push") with
+                {
+                    StartAtUtc = start,
+                    EndBeforeUtc = start.AddMonths(1),
+                },
+                Hourly("year-end", "open-ended") with
+                {
+                    StartAtUtc = start,
+                },
+            ],
+        };
+
+        CatalogRegistrar.ValidateScheduleBounds([bounded]);
+    }
+
+    [Fact]
     public void A_definition_declaring_another_delivery_than_it_registered_fails_startup_naming_a_new_job_name()
     {
         var changed = Descriptor("nightly", typeof(HandlerA)) with { ScheduledDelivery = ScheduledDeliveryCode.PerOccurrence };
@@ -166,6 +226,18 @@ public sealed class WorkerCatalogValidationTests
                 AlertChannelName: null,
                 RunbookUrl: null
             )
+        );
+
+    private static ScheduleDescriptor Hourly(string jobName, string scheduleName) =>
+        new(
+            jobName,
+            scheduleName,
+            "0 * * * *",
+            TimeZoneId: null,
+            MisfireStrategyCode.Skip,
+            ScheduleExpressionKindCode.Cron,
+            Description: null,
+            Environments: []
         );
 
     private sealed class HandlerA;

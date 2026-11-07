@@ -604,6 +604,7 @@ The generator reports these at build time. All are errors unless noted, and an e
 | `ACTA0125` | `MaxOutstanding` other than 1 on a schedule of a `Permanent` definition, whose one slot holds one occurrence at a time. |
 | `ACTA0126` | Incomplete `[Schedule]` expiration: `ExpireAfter` without `ExpireAction` or the reverse, an `ExpireAfter` of zero, or an undefined `ExpireAction`. |
 | `ACTA0127` | Incomplete `[Schedule]` source: an expression and `Calendar` together or neither, or a blank or invalid `Calendar` or `Availability` name. Whether the catalog publishes the name is checked at worker start. |
+| `ACTA0129` | Incomplete `[Schedule]` bounds: a `StartAtUtc` or `EndBeforeUtc` that is not a UTC instant written `yyyy-MM-ddTHH:mm:ssZ`, or a start not earlier than the end. |
 | `ACTA0131` | Invalid `[JobPayloadFormatDeclaration]` (reserved id, bad or duplicate name/id, not an `IJobPayloadSerializer`).                                                                                                  |
 | `ACTA0132` | Invalid `[Job]` payload-format usage (`Format` paired with `InputFormat`/`ResultFormat`, `ResultFormat` on a no-result handler, `none` or `bytes` on a handler taking several input parameters, or a name matching no built-in or declared format). |
 | `ACTA0142` | A duration written with an uppercase or calendar unit; durations use lowercase `ms`, `s`, `m`, `h`, or `d`. |

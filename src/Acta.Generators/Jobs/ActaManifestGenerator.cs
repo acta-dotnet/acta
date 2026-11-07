@@ -628,6 +628,10 @@ public sealed class ActaManifestGenerator : IIncrementalGenerator
         int? ExpireAfterSeconds,
         byte ExpireActionId,
         string? CalendarName,
-        string? AvailabilityName
+        string? AvailabilityName,
+        string? StartAtUtcText,
+        string? EndBeforeUtcText,
+        DateTime? StartAtUtc,
+        DateTime? EndBeforeUtc
     );
 }

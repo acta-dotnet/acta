@@ -2420,19 +2420,23 @@ sealed class Acta.ScheduleAttribute : System.Attribute
     System.String Availability { get;init; }
     System.String Calendar { get;init; }
     System.String Description { get;init; }
+    System.String EndBeforeUtc { get;init; }
     System.String ExpireAfter { get;init; }
     System.String Expression { get; }
     System.String Name { get; }
+    System.String StartAtUtc { get;init; }
     System.String TimeZoneId { get;init; }
     System.String[] Environments { get;init; }
 sealed record Acta.ScheduleDescriptor
-    .ctor(System.String JobName, System.String ScheduleName, System.String Expression, System.String TimeZoneId, Acta.MisfireStrategyCode MisfireStrategy, Acta.ScheduleExpressionKindCode ExpressionKind, System.String Description, System.Collections.Immutable.ImmutableArray<System.String> Environments, System.Int32 MaxOutstanding = 1, Acta.ScheduleFullBehaviorCode FullBehavior = Acta.ScheduleFullBehaviorCode.Wait, System.Nullable<System.Int32> ExpireAfterSeconds = null, Acta.ScheduleExpireActionCode ExpireAction = Acta.ScheduleExpireActionCode.Unspecified, System.String AvailabilityCalendarName = null)
+    .ctor(System.String JobName, System.String ScheduleName, System.String Expression, System.String TimeZoneId, Acta.MisfireStrategyCode MisfireStrategy, Acta.ScheduleExpressionKindCode ExpressionKind, System.String Description, System.Collections.Immutable.ImmutableArray<System.String> Environments, System.Int32 MaxOutstanding = 1, Acta.ScheduleFullBehaviorCode FullBehavior = Acta.ScheduleFullBehaviorCode.Wait, System.Nullable<System.Int32> ExpireAfterSeconds = null, Acta.ScheduleExpireActionCode ExpireAction = Acta.ScheduleExpireActionCode.Unspecified, System.String AvailabilityCalendarName = null, System.Nullable<System.DateTime> StartAtUtc = null, System.Nullable<System.DateTime> EndBeforeUtc = null)
     Acta.MisfireStrategyCode MisfireStrategy { get;init; }
     Acta.ScheduleExpireActionCode ExpireAction { get;init; }
     Acta.ScheduleExpressionKindCode ExpressionKind { get;init; }
     Acta.ScheduleFullBehaviorCode FullBehavior { get;init; }
     System.Collections.Immutable.ImmutableArray<System.String> Environments { get;init; }
     System.Int32 MaxOutstanding { get;init; }
+    System.Nullable<System.DateTime> EndBeforeUtc { get;init; }
+    System.Nullable<System.DateTime> StartAtUtc { get;init; }
     System.Nullable<System.Int32> ExpireAfterSeconds { get;init; }
     System.String AvailabilityCalendarName { get;init; }
     System.String Description { get;init; }

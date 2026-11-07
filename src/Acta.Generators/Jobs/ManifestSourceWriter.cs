@@ -301,7 +301,22 @@ internal static class ManifestSourceWriter
             sb.AppendLine(
                 $"                            ExpireAction: global::Acta.ScheduleExpireActionCode.{JobPolicyValues.ScheduleExpireActionIdToName(s.ExpireActionId) ?? "Unspecified"},"
             );
-            sb.AppendLine($"                            AvailabilityCalendarName: {LitOrNull(s.AvailabilityName)}){trailing}");
+            sb.Append($"                            AvailabilityCalendarName: {LitOrNull(s.AvailabilityName)}");
+            AppendBound(sb, "StartAtUtc", s.StartAtUtc);
+            AppendBound(sb, "EndBeforeUtc", s.EndBeforeUtc);
+            sb.AppendLine($"){trailing}");
+        }
+    }
+
+    /// <summary>Appends a set bound as a further descriptor argument; an unset one is left to its default.</summary>
+    private static void AppendBound(StringBuilder sb, string member, DateTime? utc)
+    {
+        if (utc is { } value)
+        {
+            sb.AppendLine(",");
+            sb.Append(
+                $"                            {member}: new global::System.DateTime({value.Ticks.ToString(System.Globalization.CultureInfo.InvariantCulture)}L, global::System.DateTimeKind.Utc)"
+            );
         }
     }
 

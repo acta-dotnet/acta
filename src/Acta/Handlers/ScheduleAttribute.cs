@@ -54,6 +54,20 @@ public sealed class ScheduleAttribute : Attribute
     public string? Availability { get; init; }
 
     /// <summary>
+    /// The first instant an occurrence may fall on, in UTC written with a <c>Z</c>, <c>yyyy-MM-ddTHH:mm:ssZ</c>, e.g.
+    /// <c>"2027-01-01T00:00:00Z"</c>. Null = no lower bound. An interval schedule with a start steps on the start's grid.
+    /// </summary>
+    public string? StartAtUtc { get; init; }
+
+    /// <summary>
+    /// The instant from which no occurrence falls, written like <see cref="StartAtUtc"/>; exclusive. Null = no upper
+    /// bound. The bound is on the occurrence's own time, not on when it runs: an occurrence before the end stays eligible
+    /// for catch-up under the misfire and expiry policies even when it is processed after the end. When both are given
+    /// the start is earlier than the end; anything else is a build error (ACTA0129).
+    /// </summary>
+    public string? EndBeforeUtc { get; init; }
+
+    /// <summary>
     /// Dev-authored explanation persisted on the schedule row's <c>description</c> column. Null = none.
     /// Distinct from the operator-written note (<c>ISchedules.PauseAsync</c>/<c>ResumeAsync</c>), which
     /// catalog re-sync never touches.
