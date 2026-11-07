@@ -260,7 +260,6 @@ CREATE TABLE IF NOT EXISTS {{schema}}.namespaces (
     owner_team text NULL,
     description text NULL,
     namespace_status_code integer NOT NULL,
-    catalog_hash text NULL,
     deployment_version text NULL,
     created_at_utc integer DEFAULT (CAST(unixepoch('now', 'subsec') * 1000 AS INTEGER)) NOT NULL,
     modified_at_utc integer DEFAULT (CAST(unixepoch('now', 'subsec') * 1000 AS INTEGER)) NOT NULL,
@@ -785,5 +784,5 @@ JOIN {{schema}}.namespaces AS ns ON ns.namespace_id = w.namespace_id;
 
 
 INSERT INTO {{schema}}.migrations (name)
-VALUES ('M20261106200939_init')
+VALUES ('M20261106202352_init')
 ON CONFLICT (name) DO NOTHING;

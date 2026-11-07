@@ -4,8 +4,7 @@ namespace Acta;
 
 /// <summary>
 /// <see cref="SchedulesOperations.RegisterSchedulesAsync"/>: one call that ensures each permanent definition's slot job
-/// and refreshes its input, upserts the schedules, retimes one whose timing changed, sweeps orphans, and stores the
-/// namespace's catalog hash.
+/// and refreshes its input, upserts the schedules, retimes one whose timing changed, and sweeps orphans.
 /// </summary>
 internal sealed class RegisterSchedulesHandler(IDbSession session, ISqlDialect dialect)
 {
@@ -23,7 +22,6 @@ internal sealed class RegisterSchedulesHandler(IDbSession session, ISqlDialect d
         void Bind(DbCommand cmd)
         {
             cmd.Parameters.Add(dialect.CreateParameter(ActaSchema.Namespace.NamespaceId, command.NamespaceId));
-            cmd.Parameters.Add(dialect.CreateParameter(ActaSchema.Namespace.CatalogHash, command.CatalogHash));
             dialect.BindRegisterSchedules(cmd, command.Definitions, command.SlotRefs, session.Schema);
         }
     }

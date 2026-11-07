@@ -126,8 +126,8 @@ public sealed class SqlServerIntegrationSchema : IIntegrationSchema
         await using var cmd = conn.CreateCommand();
         cmd.CommandText = $"""
             INSERT INTO {IntegrationConfig.TestSchemaName}.namespaces
-                (namespace_name, owner_team, description, catalog_hash, namespace_status_code, created_at_utc, modified_at_utc, version)
-            SELECT @name, NULL, NULL, NULL, 10, @now, @now, 0
+                (namespace_name, owner_team, description, namespace_status_code, created_at_utc, modified_at_utc, version)
+            SELECT @name, NULL, NULL, 10, @now, @now, 0
             WHERE NOT EXISTS (
                 SELECT 1 FROM {IntegrationConfig.TestSchemaName}.namespaces WITH (UPDLOCK, HOLDLOCK)
                  WHERE namespace_name = @name);

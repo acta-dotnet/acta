@@ -302,7 +302,6 @@ CREATE TABLE {{schema}}.namespaces (
     owner_team nvarchar(512) NULL,
     description nvarchar(512) NULL,
     namespace_status_code tinyint NOT NULL,
-    catalog_hash varchar(128) NULL,
     deployment_version varchar(128) COLLATE Latin1_General_100_BIN2_UTF8 NULL,
     created_at_utc datetime2(3) DEFAULT SYSUTCDATETIME() NOT NULL,
     modified_at_utc datetime2(3) DEFAULT SYSUTCDATETIME() NOT NULL,
@@ -5048,7 +5047,7 @@ JOIN {{schema}}.namespaces AS ns ON ns.namespace_id = w.namespace_id
 GO
 
 
-IF NOT EXISTS (SELECT 1 FROM {{schema}}.migrations WHERE name = 'M20261106200939_init')
+IF NOT EXISTS (SELECT 1 FROM {{schema}}.migrations WHERE name = 'M20261106202352_init')
 INSERT INTO {{schema}}.migrations (name)
-VALUES ('M20261106200939_init');
+VALUES ('M20261106202352_init');
 GO

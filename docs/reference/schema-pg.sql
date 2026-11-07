@@ -41,14 +41,14 @@ DO $$
 BEGIN
     IF EXISTS (
         SELECT 1 FROM acta.migrations
-        WHERE name NOT IN ('M20261106200939_init')
+        WHERE name NOT IN ('M20261106202352_init')
     ) THEN
         RAISE EXCEPTION 'A newer Acta release already upgraded this database. Run the newest provisioning script; this one would move it backwards.';
     END IF;
 END
 $$;
 
--- ===== BEGIN M20261106200939_init =====
+-- ===== BEGIN M20261106202352_init =====
 CREATE SCHEMA IF NOT EXISTS acta;
 
 -- alerts
@@ -316,7 +316,6 @@ CREATE TABLE IF NOT EXISTS acta.namespaces (
     owner_team varchar(512) NULL,
     description varchar(512) NULL,
     namespace_status_code smallint NOT NULL,
-    catalog_hash varchar(128) NULL,
     deployment_version varchar(128) NULL,
     created_at_utc timestamptz DEFAULT now() NOT NULL,
     modified_at_utc timestamptz DEFAULT now() NOT NULL,
@@ -4430,10 +4429,10 @@ JOIN acta.namespaces AS ns ON ns.namespace_id = w.namespace_id;
 
 
 INSERT INTO acta.migrations (name)
-VALUES ('M20261106200939_init')
+VALUES ('M20261106202352_init')
 ON CONFLICT (name) DO NOTHING;
 
--- ===== END M20261106200939_init =====
+-- ===== END M20261106202352_init =====
 
 COMMIT;
 

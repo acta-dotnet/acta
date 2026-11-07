@@ -384,14 +384,6 @@ BEGIN TRY
         AND d.definition_status_code = 240 /* DefinitionStatusCode.Retired */
         AND s.timing_fingerprint <> 'retired';
 
-    -- The catalog this call registered; a start that computes the same hash and moves no cursor skips the call.
-    UPDATE n
-    SET catalog_hash = @p_catalog_hash
-    FROM {{schema}}.namespaces AS n WITH (FORCESEEK)
-    WHERE
-        n.namespace_id = @p_namespace_id
-        AND EXISTS (SELECT n.catalog_hash EXCEPT SELECT @p_catalog_hash);
-
     SELECT
         definition_id,
         slot_id

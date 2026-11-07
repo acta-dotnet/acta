@@ -63,14 +63,13 @@ public sealed class WorkerStartWritesNoCatalogSpec : ActaTestBase<ConformanceFix
         var ns = Unique("deploy-changed");
         await using var deployed = Replica<TestJobsManifest>(ns);
         var nsId = await DeployAsync(deployed, ns, ct);
-        var hash = await StoredHashAsync(nsId, ct);
+        var before = await SnapshotAsync(nsId, ct);
 
         await using var changed = Replica<UnscheduledPingManifest>(ns);
         Task deploying;
         await using (await ScheduleLockGate.OpenAsync(Db, nsId, exclusive: true, ct))
         {
-            // Past the harness's cap on parallel deploys, so the lock is the one thing this deploy can wait for.
-            deploying = changed.GetRequiredService<CatalogDeployer>().DeployUnrecordedAsync(ct);
+            deploying = CatalogTestOps.DeployAsync(changed, ct);
             if (Db.Provider != DbProvider.Sqlite)
             {
                 await Task.Delay(Blocked, ct);
@@ -79,7 +78,7 @@ public sealed class WorkerStartWritesNoCatalogSpec : ActaTestBase<ConformanceFix
         }
         await deploying.WaitAsync(SpecWaits.Gate, ct);
 
-        Assert.NotEqual(hash, await StoredHashAsync(nsId, ct));
+        Assert.NotEqual(before, await SnapshotAsync(nsId, ct));
         var slotId = await ScheduleTestOps.SlotIdAsync(Db, nsId, UnscheduledPingManifest.JobName, ct);
         Assert.Equal(ScheduleStatusCode.Orphaned, Assert.Single(await ScheduleTestOps.ReadAsync(Db, slotId, ct)).Status);
     }
@@ -112,9 +111,6 @@ public sealed class WorkerStartWritesNoCatalogSpec : ActaTestBase<ConformanceFix
         return services.BuildServiceProvider(validateScopes: true);
     }
 
-    private async Task<string?> StoredHashAsync(int nsId, CancellationToken ct) =>
-        (await Db.From<NamespaceEntity>().Where(n => n.Id == nsId).SingleOrDefaultAsync(ct))!.CatalogHash;
-
     /// <summary>Every version and write stamp a deploy bumps in the namespace: the namespace, definitions, schedules, cursors, and slots.</summary>
     private async Task<string> SnapshotAsync(int nsId, CancellationToken ct)
     {
@@ -127,7 +123,7 @@ public sealed class WorkerStartWritesNoCatalogSpec : ActaTestBase<ConformanceFix
         return string.Join(
             "|",
             [
-                $"n{ns.Id}:{ns.Version}:{ns.ModifiedAtUtc:O}:{ns.CatalogHash}:{ns.DeploymentVersion}:{ns.OwnerTeam}:{ns.Description}",
+                $"n{ns.Id}:{ns.Version}:{ns.ModifiedAtUtc:O}:{ns.DeploymentVersion}:{ns.OwnerTeam}:{ns.Description}",
                 .. definitions.OrderBy(d => d.Id).Select(d => $"d{d.Id}:{d.Version}:{d.ModifiedAtUtc:O}"),
                 .. schedules
                     .OrderBy(s => s.JobId)

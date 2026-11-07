@@ -2,7 +2,7 @@
 
 # Data model reference
 
-Structural reference for the Acta persistence model: **17 entities**, **252 columns**, **39 indexes**, **39 check constraints**, **4 foreign keys**. Names render with the default `acta` schema prefix; substitute the configured schema if different. Code families resolve into [`code-families.md`](./code-families.md). The foreign-key enforcement policy (which references are CASCADE, RESTRICT, or deliberately unenforced) is in [SQL recipes](../operator-guide.md#foreign-key-policy).
+Structural reference for the Acta persistence model: **17 entities**, **251 columns**, **39 indexes**, **39 check constraints**, **4 foreign keys**. Names render with the default `acta` schema prefix; substitute the configured schema if different. Code families resolve into [`code-families.md`](./code-families.md). The foreign-key enforcement policy (which references are CASCADE, RESTRICT, or deliberately unenforced) is in [SQL recipes](../operator-guide.md#foreign-key-policy).
 
 ## Schema inventory
 
@@ -485,7 +485,6 @@ Service-owned execution boundary. One deployable service owns one `NamespaceEnti
 | `owner_team`<a id="column-acta-namespaces--owner-team"></a> | `UnicodeString` | 512 | yes | · | · | Owning team identifier surfaced on operator dashboards. Unicode-capable. |
 | `description`<a id="column-acta-namespaces--description"></a> | `UnicodeString` | 512 | yes | · | · | Operator-readable description of what this namespace owns. Unicode-capable. |
 | `namespace_status_code`<a id="column-acta-namespaces--namespace-status-code"></a> | `Byte` | · | no | · | [`NamespaceStatusCode`](./code-families.md#code-family-namespacestatuscode) (`namespace-status`) | Namespace lifecycle status. Supplied at INSERT by the StartWorker registration (no server-side default), mirroring the tenant convention. Enforced at enqueue: EnqueueJob/EnqueueJobs reject with a distinguishable error when the resolved namespace is not Active. |
-| `catalog_hash`<a id="column-acta-namespaces--catalog-hash"></a> | `AsciiString` | 128 | yes | · | · | SHA-256 hex of the canonicalized assembly catalog. NULL means the namespace row was created before any catalog hash was computed (pre-registration; the hash is unwritten). |
 | `deployment_version`<a id="column-acta-namespaces--deployment-version"></a> | `AsciiString` | 128 | yes | · | case-exact | The version of the app whose deploy last landed in the namespace, a row of `deployments`. NULL while no deploy has, which leaves a namespace that only a worker start has written. |
 | `created_at_utc`<a id="column-acta-namespaces--created-at-utc"></a> | `UtcInstant` | · | no | `UtcNow` | · | When the namespace row was first created. Set server-side. |
 | `modified_at_utc`<a id="column-acta-namespaces--modified-at-utc"></a> | `UtcInstant` | · | no | `UtcNow` | · | When the namespace row was last updated. Set server-side on every mutation. |

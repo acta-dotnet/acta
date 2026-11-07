@@ -399,11 +399,4 @@ WHERE
     AND d.definition_status_code = 240 /* DefinitionStatusCode.Retired */
     AND s.timing_fingerprint <> 'retired';
 
--- The catalog this call registered; a start that computes the same hash and moves no cursor skips the call.
-UPDATE {{schema}}.namespaces
-SET catalog_hash = @p_catalog_hash
-WHERE
-    namespace_id = @p_namespace_id
-    AND catalog_hash IS DISTINCT FROM @p_catalog_hash;
-
 SELECT r.definition_id, r.slot_id FROM _reg_slots AS r;

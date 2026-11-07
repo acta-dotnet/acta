@@ -498,8 +498,7 @@ Each namespace has one schedule lock, held until its transaction ends: `sp_getap
   row.
 - The registration heal clears every orphaned or retired schedule's cursor in the namespace: a retire that commits after
   a worker read its stored schedules leaves that worker's registration writing cursors for the retired definition.
-- A worker start skips `register_schedules`, and so the lock, when the namespace stores the start's catalog hash and the
-  start's plan changes no stored declaration or cursor.
+- A worker start runs no `register_schedules` and takes none of these locks; a deploy does both, once per run.
 - SQLite runs one writer at a time and takes none of these locks.
 
 ## Provisioning, compatibility, and SQL access

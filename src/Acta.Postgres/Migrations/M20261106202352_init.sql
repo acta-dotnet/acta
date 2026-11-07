@@ -265,7 +265,6 @@ CREATE TABLE IF NOT EXISTS {{schema}}.namespaces (
     owner_team varchar(512) NULL,
     description varchar(512) NULL,
     namespace_status_code smallint NOT NULL,
-    catalog_hash varchar(128) NULL,
     deployment_version varchar(128) NULL,
     created_at_utc timestamptz DEFAULT now() NOT NULL,
     modified_at_utc timestamptz DEFAULT now() NOT NULL,
@@ -4379,5 +4378,5 @@ JOIN {{schema}}.namespaces AS ns ON ns.namespace_id = w.namespace_id;
 
 
 INSERT INTO {{schema}}.migrations (name)
-VALUES ('M20261106200939_init')
+VALUES ('M20261106202352_init')
 ON CONFLICT (name) DO NOTHING;

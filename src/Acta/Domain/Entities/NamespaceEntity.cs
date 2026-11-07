@@ -2,7 +2,7 @@ namespace Acta;
 
 /// <summary>
 /// Service-owned execution boundary. One deployable service owns one <see cref="NamespaceEntity"/>; replicas
-/// of that service share it (on a catalog-hash match the upsert is a no-op).
+/// of that service share it. A deploy writes the row, and a worker start reads it.
 /// </summary>
 [DbTable("namespaces")]
 [DbPrimaryKey(Name = "pk_namespaces", Columns = ["namespace_id"])]
@@ -43,13 +43,6 @@ internal sealed class NamespaceEntity : IEntity<int>
     /// </summary>
     [DbColumn("namespace_status_code")]
     public NamespaceStatusCode Status { get; internal set; }
-
-    /// <summary>
-    /// SHA-256 hex of the canonicalized assembly catalog. NULL means the namespace row was created
-    /// before any catalog hash was computed (pre-registration; the hash is unwritten).
-    /// </summary>
-    [DbColumn("catalog_hash", DbKind.AsciiString, Size = 128)]
-    public string? CatalogHash { get; internal set; }
 
     /// <summary>
     /// The version of the app whose deploy last landed in the namespace, a row of <c>deployments</c>. NULL while no

@@ -310,11 +310,11 @@ public sealed class DeployVerbSpec : ActaStorageTestBase<ConformanceFixture>
         Assert.Contains(CalendarScheduleManifest.CalendarName, error, StringComparison.Ordinal);
         Assert.Null(await ReadNamespaceAsync(failing, ct));
 
-        // The namespace row carries what the schedule registration and the record wrote, and the event is the record's.
+        // The namespace row carries what the record wrote, and the event is the record's.
         var namespaceAfter = await ReadNamespaceAsync(written, ct);
         Assert.Equal(
-            (namespaceBefore!.DeploymentVersion, namespaceBefore.CatalogHash, namespaceBefore.Version, namespaceBefore.ModifiedAtUtc),
-            (namespaceAfter!.DeploymentVersion, namespaceAfter.CatalogHash, namespaceAfter.Version, namespaceAfter.ModifiedAtUtc)
+            (namespaceBefore!.DeploymentVersion, namespaceBefore.Version, namespaceBefore.ModifiedAtUtc),
+            (namespaceAfter!.DeploymentVersion, namespaceAfter.Version, namespaceAfter.ModifiedAtUtc)
         );
         Assert.Equal([First], await ReadDeployedVersionsAsync(written, ct));
         Assert.Equal([$"{First} deployed"], await ReadDeployedEventMessagesAsync(written, ct));

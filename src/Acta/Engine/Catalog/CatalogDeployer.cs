@@ -101,7 +101,6 @@ internal sealed class CatalogDeployer(
             var (definitions, undeclared) = await registrar.RegisterAsync(
                 registration,
                 start.NamespaceId,
-                registeredCatalogHash: null,
                 descriptors,
                 nowUtc,
                 transaction,

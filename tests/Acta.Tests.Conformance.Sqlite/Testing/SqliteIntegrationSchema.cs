@@ -53,8 +53,8 @@ public sealed class SqliteIntegrationSchema : IIntegrationSchema
         await conn.OpenAsync();
         await using var cmd = conn.CreateCommand();
         cmd.CommandText = """
-            INSERT INTO main.namespaces (namespace_name, owner_team, description, catalog_hash, namespace_status_code, version)
-            VALUES (@name, NULL, NULL, NULL, 10, 0)
+            INSERT INTO main.namespaces (namespace_name, owner_team, description, namespace_status_code, version)
+            VALUES (@name, NULL, NULL, 10, 0)
             ON CONFLICT (namespace_name) DO NOTHING;
             """;
         cmd.Parameters.AddWithValue("@name", FrameworkNamespaceName);

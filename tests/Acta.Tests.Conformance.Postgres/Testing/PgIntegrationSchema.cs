@@ -119,8 +119,8 @@ public sealed class PgIntegrationSchema : IIntegrationSchema
         await using var cmd = conn.CreateCommand();
         cmd.CommandText = $"""
             INSERT INTO {IntegrationConfig.TestSchemaName}.namespaces
-                (namespace_name, owner_team, description, catalog_hash, namespace_status_code, created_at_utc, modified_at_utc, version)
-            VALUES (@name, NULL, NULL, NULL, 10, @now, @now, 0)
+                (namespace_name, owner_team, description, namespace_status_code, created_at_utc, modified_at_utc, version)
+            VALUES (@name, NULL, NULL, 10, @now, @now, 0)
             ON CONFLICT (namespace_name) DO NOTHING;
             """;
         cmd.Parameters.Add(new NpgsqlParameter("@name", NpgsqlDbType.Varchar) { Value = FrameworkNamespaceName });

@@ -75,13 +75,11 @@ public sealed class RegisterSchedulesPerOccurrenceSpec : ActaStorageTestBase<Con
         Assert.Equal(3600, config.ExpireAfterSeconds);
         Assert.Equal(ScheduleExpireActionCode.Discard, config.ExpireAction);
 
-        // The stored state reads back as the plan, so registering it again writes nothing.
-        Assert.True(CatalogRegistrar.IsRegistered(Plan(defId, [expiring]), await StoredAsync(defId, ct), JobPriorityCode.Normal));
+        // Registering the same plan again writes nothing.
         await RegisterAsync(defId, [expiring], ct);
         Assert.Equal(config.Version, (await ScheduleAsync(defId, "only", ct)).Config.Version);
 
         var paused = expiring with { ExpireAfterSeconds = 60, ExpireAction = ScheduleExpireActionCode.Pause };
-        Assert.False(CatalogRegistrar.IsRegistered(Plan(defId, [paused]), await StoredAsync(defId, ct), JobPriorityCode.Normal));
         await RegisterAsync(defId, [paused], ct);
         var (changed, _) = await ScheduleAsync(defId, "only", ct);
         Assert.Equal(config.Id, changed.Id);
@@ -233,13 +231,11 @@ public sealed class RegisterSchedulesPerOccurrenceSpec : ActaStorageTestBase<Con
         );
         Assert.Equal("office-hours", listed.AvailabilityCalendarName);
 
-        // The stored state reads back as the plan, so registering it again writes nothing.
-        Assert.True(CatalogRegistrar.IsRegistered(Plan(defId, [available]), await StoredAsync(defId, ct), JobPriorityCode.Normal));
+        // Registering the same plan again writes nothing.
         await RegisterAsync(defId, [available], ct);
         Assert.Equal(config.Version, (await ScheduleAsync(defId, "only", ct)).Config.Version);
 
         var renamed = available with { AvailabilityCalendarName = "support-hours" };
-        Assert.False(CatalogRegistrar.IsRegistered(Plan(defId, [renamed]), await StoredAsync(defId, ct), JobPriorityCode.Normal));
         await RegisterAsync(defId, [renamed], ct);
         var (changed, _) = await ScheduleAsync(defId, "only", ct);
         Assert.Equal(config.Id, changed.Id);

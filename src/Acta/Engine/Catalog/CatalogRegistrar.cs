@@ -30,14 +30,11 @@ internal sealed class CatalogRegistrar(
     /// Registers <paramref name="allDescriptors"/> into the namespace through the deploy's <paramref name="transaction"/>,
     /// every statement on its connection, and answers what the definitions write added and changed with the stored
     /// Active definitions this build does not declare. <paramref name="nowUtc"/> is the instant new schedule cursors
-    /// are planned from. <paramref name="registeredCatalogHash"/> is the hash the namespace's last schedule
-    /// registration stored; a registration that computes the same hash and plans no cursor or slot change skips the
-    /// schedule write.
+    /// are planned from.
     /// </summary>
     public async Task<(RegisterDefinitionsResponse Definitions, IReadOnlyList<string> Undeclared)> RegisterAsync(
         WorkerRegistration registration,
         int namespaceId,
-        string? registeredCatalogHash,
         ImmutableArray<JobDescriptor> allDescriptors,
         DateTime nowUtc,
         DbTransaction transaction,
@@ -75,25 +72,8 @@ internal sealed class CatalogRegistrar(
             }
         }
 
-        List<string?> catalogParts = [registration.OwnerTeam, registration.Description];
-        foreach (var c in catalog.Where(c => defIds.ContainsKey(c.DefinitionName)).OrderBy(c => c.DefinitionId))
-        {
-            catalogParts.Add(c.DefinitionName);
-            catalogParts.Add(c.DefinitionHash);
-        }
-
         var retired = catalog.Where(c => c.Status == DefinitionStatusCode.Retired).Select(c => c.DefinitionId).ToHashSet();
-        await ReconcileSchedulesAsync(
-            ns,
-            namespaceId,
-            descriptorById,
-            catalogParts,
-            registeredCatalogHash,
-            retired,
-            nowUtc,
-            transaction,
-            ct
-        );
+        await ReconcileSchedulesAsync(ns, namespaceId, descriptorById, retired, nowUtc, transaction, ct);
 
         var undeclared = storedContracts
             .Where(s => s.Status == DefinitionStatusCode.Active && !defIds.ContainsKey(s.DefinitionName))
@@ -396,15 +376,12 @@ internal sealed class CatalogRegistrar(
     /// Definition-sourced recurring slots: reconcile each scheduled definition's slot + schedules against persisted
     /// cursors at a deploy. The upsert set is the union of {descriptors that declare >= 1 [Schedule]} and {definitions
     /// with persisted schedule state}, so removed schedules can pause an existing slot, while ordinary non-scheduled jobs
-    /// are never touched; a <paramref name="retired"/> definition keeps its schedules as the retire left them. The
-    /// registration stores the hash of <paramref name="catalogParts"/> and the plan's declarations on the namespace.
+    /// are never touched; a <paramref name="retired"/> definition keeps its schedules as the retire left them.
     /// </summary>
     private async Task ReconcileSchedulesAsync(
         string ns,
         int namespaceId,
         Dictionary<int, JobDescriptor> descriptorById,
-        List<string?> catalogParts,
-        string? registeredCatalogHash,
         HashSet<int> retired,
         DateTime nowUtc,
         DbTransaction transaction,
@@ -483,17 +460,6 @@ internal sealed class CatalogRegistrar(
             );
         }
 
-        var catalogHash = CatalogHashOf(catalogParts, definitions);
-        if (
-            catalogHash == registeredCatalogHash
-            && definitions.All(d =>
-                IsRegistered(d, storedByDefinition.GetValueOrDefault(d.DefinitionId), descriptorById[d.DefinitionId].Priority)
-            )
-        )
-        {
-            return;
-        }
-
         // A C#-allocated public ref per slot, consumed only when the slot job row is freshly
         // inserted; an existing slot keeps its stored ref (the upsert never overwrites job_ref).
         var slotRefs = new Guid[definitions.Count];
@@ -502,81 +468,7 @@ internal sealed class CatalogRegistrar(
             slotRefs[i] = JobRef.New().Value;
         }
 
-        await _schedules.RegisterSchedulesAsync(
-            new RegisterSchedulesCommand(namespaceId, definitions, slotRefs, catalogHash, transaction),
-            ct
-        );
-    }
-
-    /// <summary>
-    /// The hash of <paramref name="catalogParts"/> and every declaration the plan writes: each slot's input and audit level
-    /// and each schedule's declared fields, but no cursor or slot state, which <see cref="IsRegistered"/> compares instead.
-    /// </summary>
-    private static string CatalogHashOf(List<string?> catalogParts, List<DefinitionSchedules> plan)
-    {
-        var c = CultureInfo.InvariantCulture;
-        catalogParts.Add(plan.Count.ToString(c));
-        foreach (var d in plan)
-        {
-            catalogParts.AddRange([
-                d.DefinitionId.ToString(c),
-                d.InputFormatId.ToString(c),
-                Convert.ToBase64String(d.Input.Span),
-                ((byte)d.EventRecording).ToString(c),
-                d.Schedules.Count.ToString(c),
-            ]);
-            foreach (var s in d.Schedules)
-            {
-                catalogParts.AddRange([
-                    s.ScheduleName,
-                    s.Expression,
-                    s.TimeZoneId,
-                    ((byte)s.ExpressionKind).ToString(c),
-                    ((byte)s.MisfireStrategy).ToString(c),
-                    s.Description,
-                    s.MaxOutstanding.ToString(c),
-                    ((byte)s.FullBehavior).ToString(c),
-                    s.ExpireAfterSeconds?.ToString(c),
-                    s.ExpireAction is { } expireAction ? ((byte)expireAction).ToString(c) : null,
-                    s.AvailabilityCalendarName,
-                    s.StartAtUtc?.Ticks.ToString(c),
-                    s.EndBeforeUtc?.Ticks.ToString(c),
-                ]);
-            }
-        }
-
-        return CatalogHash.Of([.. catalogParts]);
-    }
-
-    /// <summary>
-    /// Whether <c>register_schedules</c> would write nothing for <paramref name="plan"/>: each planned schedule is stored
-    /// with its planned cursor, capacity, expiry, and availability calendar, no stored schedule is left to orphan, and the
-    /// slot, when there is one, either rests where registration leaves it (in flight, waiting, finished, or held) or
-    /// already stands at the planned status, next run, and priority.
-    /// </summary>
-    internal static bool IsRegistered(DefinitionSchedules plan, Dictionary<string, StoredScheduleState>? stored, JobPriorityCode priority)
-    {
-        if (
-            stored is null
-            || stored.Count != plan.Schedules.Count
-            || !plan.Schedules.All(s =>
-                stored.TryGetValue(s.ScheduleName, out var st)
-                && st.NextOccurrenceAtUtc == s.NextOccurrenceAtUtc
-                && st.TimingFingerprint == s.TimingFingerprint
-                && st.MaxOutstanding == s.MaxOutstanding
-                && st.FullBehavior == s.FullBehavior
-                && st.ExpireAfterSeconds == s.ExpireAfterSeconds
-                && st.ExpireAction == s.ExpireAction
-                && st.AvailabilityCalendarName == s.AvailabilityCalendarName
-            )
-        )
-        {
-            return false;
-        }
-
-        // The declaration's priority reaches only an Idle slot; any other keeps its own until it is Idle again.
-        var slot = stored.Values.First();
-        return slot.SlotStatus != JobStatusCode.Idle || slot.SlotPriority == priority;
+        await _schedules.RegisterSchedulesAsync(new RegisterSchedulesCommand(namespaceId, definitions, slotRefs, transaction), ct);
     }
 }
 

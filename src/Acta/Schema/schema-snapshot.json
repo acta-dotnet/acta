@@ -1023,10 +1023,6 @@
           "Signature": "Byte|0|0|0|False|None||coded=True|codeKind=namespace-status|caseExact=False"
         },
         {
-          "Name": "catalog_hash",
-          "Signature": "AsciiString|128|0|0|True|None||coded=False|codeKind=|caseExact=False"
-        },
-        {
           "Name": "deployment_version",
           "Signature": "AsciiString|128|0|0|True|None||coded=False|codeKind=|caseExact=True"
         },

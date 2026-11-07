@@ -57,7 +57,7 @@ GO
 -- ===== refuse a database a newer release already upgraded =====
 IF EXISTS (
     SELECT 1 FROM acta.migrations
-    WHERE name NOT IN ('M20261106200939_init')
+    WHERE name NOT IN ('M20261106202352_init')
 )
 BEGIN
     RAISERROR(N'A newer Acta release already upgraded this database. Run the newest provisioning script; this one would move it backwards.', 16, 1);
@@ -65,7 +65,7 @@ BEGIN
     SET NOEXEC ON;
 END
 GO
--- ===== BEGIN M20261106200939_init =====
+-- ===== BEGIN M20261106202352_init =====
 SET QUOTED_IDENTIFIER ON;
 SET ANSI_NULLS ON;
 GO
@@ -370,7 +370,6 @@ CREATE TABLE acta.namespaces (
     owner_team nvarchar(512) NULL,
     description nvarchar(512) NULL,
     namespace_status_code tinyint NOT NULL,
-    catalog_hash varchar(128) NULL,
     deployment_version varchar(128) COLLATE Latin1_General_100_BIN2_UTF8 NULL,
     created_at_utc datetime2(3) DEFAULT SYSUTCDATETIME() NOT NULL,
     modified_at_utc datetime2(3) DEFAULT SYSUTCDATETIME() NOT NULL,
@@ -5116,11 +5115,11 @@ JOIN acta.namespaces AS ns ON ns.namespace_id = w.namespace_id
 GO
 
 
-IF NOT EXISTS (SELECT 1 FROM acta.migrations WHERE name = 'M20261106200939_init')
+IF NOT EXISTS (SELECT 1 FROM acta.migrations WHERE name = 'M20261106202352_init')
 INSERT INTO acta.migrations (name)
-VALUES ('M20261106200939_init');
+VALUES ('M20261106202352_init');
 GO
--- ===== END M20261106200939_init =====
+-- ===== END M20261106202352_init =====
 GO
 COMMIT TRANSACTION;
 GO
