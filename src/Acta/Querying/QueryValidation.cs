@@ -37,9 +37,9 @@ internal static class QueryValidation
 
         value = value.ToLowerInvariant();
 
-        if (value.Length > 128)
+        if (value.Length > NameSyntax.DefaultMaxLength)
         {
-            throw new InvalidQueryException($"{paramName} must be at most 128 characters.");
+            throw new InvalidQueryException($"{paramName} must be at most {NameSyntax.DefaultMaxLength} characters.");
         }
 
         foreach (var ch in value)

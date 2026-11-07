@@ -43,7 +43,8 @@ public interface IDefinitions
     /// <summary>
     /// The input contract of a registered job, read from the in-process generated manifest: no
     /// database round-trip, no reflection. Returns null when this host has not registered the job's
-    /// manifest (an enqueue-only dashboard pointed at a shared ledger), so callers degrade quietly.
+    /// manifest (an enqueue-only dashboard pointed at a shared ledger), so callers degrade quietly. The key is trimmed and
+    /// folded to lowercase as every name is, and one that is no name throws <see cref="InvalidQueryException"/>.
     /// </summary>
     GetDefinitionInputTemplateResponse? GetInputTemplate(string jobNamespace, string jobName);
 }

@@ -60,7 +60,8 @@ internal static class JobsEndpoints
             "job",
             ActaPermissions.Control,
             http => TagTarget.ForJob(RouteKeys.Job(http, options)),
-            async (http, call) => await call.Jobs.StoredJobIdAsync(RouteKeys.Job(http, options), call.Ct) is not null
+            async (http, call) => await call.Jobs.StoredJobIdAsync(RouteKeys.Job(http, options), call.Ct) is not null,
+            static http => TagTarget.ForJob(RouteKeys.JobByRef(http))
         );
         GetJobInputEndpoint.Map(reads, options);
         GetJobResultEndpoint.Map(reads, options);

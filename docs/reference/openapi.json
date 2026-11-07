@@ -28,10 +28,10 @@
           {
             "name": "jobRef",
             "in": "path",
-            "description": "The job's ref, job_ followed by 32 hex digits; where the host enables numeric lookup, id: and the job's number read the job as well.",
+            "description": "The job's ref, job_ followed by 32 hex digits.",
             "required": true,
             "schema": {
-              "pattern": "^(?:job_[0-9A-Fa-f]{32}|[Ii][Dd]:[\\t-\\r ]*\\+?0*[1-9][0-9]*[\\t-\\r ]*\\u0000*)$",
+              "pattern": "^job_[0-9A-Fa-f]{32}$",
               "type": "string"
             },
             "example": "job_00000000000000000000000000000042"
@@ -237,10 +237,10 @@
           {
             "name": "jobRef",
             "in": "path",
-            "description": "The job's ref, job_ followed by 32 hex digits; where the host enables numeric lookup, id: and the job's number read the job as well.",
+            "description": "The job's ref, job_ followed by 32 hex digits.",
             "required": true,
             "schema": {
-              "pattern": "^(?:job_[0-9A-Fa-f]{32}|[Ii][Dd]:[\\t-\\r ]*\\+?0*[1-9][0-9]*[\\t-\\r ]*\\u0000*)$",
+              "pattern": "^job_[0-9A-Fa-f]{32}$",
               "type": "string"
             },
             "example": "job_00000000000000000000000000000042"
@@ -12304,6 +12304,26 @@
                       "inputTypeName": "Billing.SendInvoice",
                       "templateJson": "{\"invoiceId\":0,\"note\":null}",
                       "inputFormatName": "json"
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "A path or query parameter is malformed or missing; the problem's detail names it.",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                },
+                "examples": {
+                  "getDefinitionInputTemplate": {
+                    "value": {
+                      "type": "https://tools.ietf.org/html/rfc9110#section-15.5.1",
+                      "title": "Invalid request.",
+                      "status": 400,
+                      "detail": "Identifier 'bad key' is not kebab-case or dotted-kebab (each segment must match `[a-z][a-z0-9-]*`). (Parameter 'jobNamespace')"
                     }
                   }
                 }

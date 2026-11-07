@@ -325,6 +325,48 @@ public sealed class TagEndpointTests
         Assert.Equal(HttpStatusCode.BadRequest, badTarget.StatusCode);
     }
 
+    /// <summary>
+    /// A tag write is a control, so it addresses its job by ref alone, as every job verb does: on a host with numeric
+    /// lookup, id: reads the job's tags and is the 400 on the upsert and the remove, as it is on a pause.
+    /// </summary>
+    [Fact]
+    public async Task A_job_tag_write_refuses_the_numeric_lookup_as_every_job_control_does()
+    {
+        var fakes = new FakeOperations();
+        var (app, client) = await TestDashboardHost.StartAsync(
+            options =>
+            {
+                options.EnableControls = true;
+                options.EnableNumericIdLookup = true;
+            },
+            fakes: fakes
+        );
+        await using var _ = app;
+        var ct = TestContext.Current.CancellationToken;
+
+        using var pause = new HttpRequestMessage(HttpMethod.Post, "/acta/api/v1/jobs/id:42/pause");
+        pause.Headers.Add(Confirm, "true");
+        using var upsert = new HttpRequestMessage(HttpMethod.Put, "/acta/api/v1/jobs/id:42/tags/env")
+        {
+            Content = JsonContent.Create(new { value = "prod" }),
+        };
+        upsert.Headers.Add(Confirm, "true");
+        using var remove = new HttpRequestMessage(HttpMethod.Delete, "/acta/api/v1/jobs/id:42/tags/env");
+        remove.Headers.Add(Confirm, "true");
+
+        var read = await client.GetAsync("/acta/api/v1/jobs/id:42/tags", ct);
+        var paused = await client.SendAsync(pause, ct);
+        var upserted = await client.SendAsync(upsert, ct);
+        var removed = await client.SendAsync(remove, ct);
+
+        Assert.Equal(HttpStatusCode.OK, read.StatusCode);
+        Assert.Equal(HttpStatusCode.BadRequest, paused.StatusCode);
+        Assert.Equal(paused.StatusCode, upserted.StatusCode);
+        Assert.Equal(paused.StatusCode, removed.StatusCode);
+        Assert.Empty(fakes.Tags.UpsertCalls);
+        Assert.Empty(fakes.Tags.RemoveCalls);
+    }
+
     [Fact]
     public async Task Tag_mutation_routes_are_absent_when_controls_are_disabled()
     {

@@ -11,7 +11,7 @@ internal sealed class GetDefinitionIdHandler(IDbSession session, ISqlDialect dia
     public async ValueTask<GetDefinitionIdResponse?> HandleAsync(GetDefinitionIdQuery query, CancellationToken ct)
     {
         var ns = QueryValidation.ValidateNamespace(query.JobNamespace, "jobNamespace");
-        var name = QueryValidation.ValidateJobNameFragment(query.JobName, "jobName");
+        var name = QueryValidation.ValidateJobName(query.JobName, ns, "jobName");
         if (ns is null || name is null)
         {
             throw new InvalidQueryException("jobNamespace and jobName are both required.");

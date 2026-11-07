@@ -12,7 +12,7 @@ internal sealed class GetScheduleTargetHandler(IDbSession session, ISqlDialect d
         var schedule = query.Schedule;
         ArgumentNullException.ThrowIfNull(schedule);
         var jobNamespace = NameSyntax.Canonicalize(schedule.JobNamespace, nameof(schedule.JobNamespace));
-        var jobName = NameSyntax.Canonicalize(schedule.JobName, nameof(schedule.JobName));
+        var jobName = NameSyntax.Canonicalize(schedule.JobName, nameof(schedule.JobName), NameSyntax.ExtendedMaxLength);
         var scheduleName = NameSyntax.Canonicalize(
             schedule.ScheduleName,
             nameof(schedule.ScheduleName),

@@ -85,11 +85,26 @@ internal sealed class FakeDefinitions : IDefinitions
         : expectedVersion == 999 ? (ControlAction.VersionConflict, SendInvoice.Version)
         : (ControlAction.Applied, expectedVersion + 1);
 
+    private static GetDefinitionResponse? Detail(string jobNamespace, string jobName) =>
+        IsSendInvoice(jobNamespace, jobName) ? SendInvoice : null;
+
+    /// <summary>Only ("billing", "send-invoice") is known to this fake host; anything else is unregistered.</summary>
+    private static GetDefinitionInputTemplateResponse? InputTemplate(string jobNamespace, string jobName) =>
+        IsSendInvoice(jobNamespace, jobName)
+            ? new GetDefinitionInputTemplateResponse(
+                "billing",
+                "send-invoice",
+                "Billing.SendInvoice",
+                JobPayloadFormat.Json,
+                """{"invoiceId":0,"note":null}"""
+            )
+            : null;
+
     /// <summary>
-    /// Folds and validates the key before it resolves, as GetDefinitionId does, so a malformed key (a wildcard)
-    /// is an InvalidQueryException the edge maps to 400, never a miss.
+    /// Folds and validates the key before it resolves, as GetDefinitionId and the input template read do, so a malformed
+    /// key (a wildcard) is an InvalidQueryException the edge maps to 400, never a miss.
     /// </summary>
-    private static GetDefinitionResponse? Detail(string jobNamespace, string jobName)
+    private static bool IsSendInvoice(string jobNamespace, string jobName)
     {
         try
         {
@@ -101,20 +116,8 @@ internal sealed class FakeDefinitions : IDefinitions
             throw new InvalidQueryException(ex.Message);
         }
 
-        return jobNamespace == "billing" && jobName == "send-invoice" ? SendInvoice : null;
+        return jobNamespace == "billing" && jobName == "send-invoice";
     }
-
-    /// <summary>Only ("billing", "send-invoice") is known to this fake host; anything else is unregistered.</summary>
-    private static GetDefinitionInputTemplateResponse? InputTemplate(string jobNamespace, string jobName) =>
-        jobNamespace == "billing" && jobName == "send-invoice"
-            ? new GetDefinitionInputTemplateResponse(
-                jobNamespace,
-                jobName,
-                "Billing.SendInvoice",
-                JobPayloadFormat.Json,
-                """{"invoiceId":0,"note":null}"""
-            )
-            : null;
 
     private static readonly ListDefinitionsItem Item = new(
         5,

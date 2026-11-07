@@ -131,7 +131,7 @@ internal static class SchedulesEndpoints
         {
             return new(
                 NameSyntax.Canonicalize(RouteKeys.Value(http, "jobNamespace"), "jobNamespace"),
-                NameSyntax.Canonicalize(RouteKeys.Value(http, "jobName"), "jobName"),
+                NameSyntax.Canonicalize(RouteKeys.Value(http, "jobName"), "jobName", NameSyntax.ExtendedMaxLength),
                 NameSyntax.Canonicalize(RouteKeys.Value(http, "scheduleName"), "scheduleName", NameSyntax.ExtendedMaxLength)
             );
         }

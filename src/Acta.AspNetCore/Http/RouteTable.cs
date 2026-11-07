@@ -75,7 +75,8 @@ internal static class RouteTable
     /// A target's tags: the paged list, and when controls are mapped the upsert and the remove of one tag by its name. A
     /// target the resolver cannot build is caller input and answers 400; an addressable one that is not there answers 404,
     /// on the list when <paramref name="exists"/> finds no target through its facade, and on a mutation with the control
-    /// envelope. Each reads the database, so an unreachable one is the 503.
+    /// envelope. A mutation resolves through <paramref name="writeTarget"/> where one is given, as a control verb reads
+    /// its target. Each reads the database, so an unreachable one is the 503.
     /// </summary>
     public static void MapTags(
         this RouteGroupBuilder reads,
@@ -84,9 +85,11 @@ internal static class RouteTable
         string entity,
         string writePermission,
         Func<HttpContext, TagTarget> target,
-        Func<HttpContext, ReadCall, ValueTask<bool>> exists
+        Func<HttpContext, ReadCall, ValueTask<bool>> exists,
+        Func<HttpContext, TagTarget>? writeTarget = null
     )
     {
+        var write = writeTarget ?? target;
         // One operation serves the tags of several owners, so each id puts the owner before the subject.
         var owner = char.ToUpperInvariant(entity[0]) + entity[1..];
         reads
@@ -112,7 +115,7 @@ internal static class RouteTable
             .MapPut(
                 pattern + "/{tagName}",
                 (HttpContext http, IActaOperations operations, CancellationToken ct) =>
-                    TagRoutes.UpsertAsync(http, operations, () => target(http), RouteKeys.Value(http, "tagName"), ct)
+                    TagRoutes.UpsertAsync(http, operations, () => write(http), RouteKeys.Value(http, "tagName"), ct)
             )
             .WithMetadata(new ActaOperationAttribute($"upsert{owner}Tag", writePermission))
             .AcceptsJson<UpsertTagRequest>()
@@ -124,7 +127,7 @@ internal static class RouteTable
             .MapDelete(
                 pattern + "/{tagName}",
                 (HttpContext http, IActaOperations operations, CancellationToken ct) =>
-                    TagRoutes.RemoveAsync(operations, () => target(http), RouteKeys.Value(http, "tagName"), ct)
+                    TagRoutes.RemoveAsync(operations, () => write(http), RouteKeys.Value(http, "tagName"), ct)
             )
             .WithMetadata(new ActaOperationAttribute($"remove{owner}Tag", writePermission))
             .WithSummary($"Remove one tag from the {entity}.")

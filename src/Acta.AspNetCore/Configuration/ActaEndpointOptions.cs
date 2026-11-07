@@ -65,10 +65,10 @@ public class ActaEndpointOptions
     public int MaxReasonMessageLength { get; set; } = 512;
 
     /// <summary>
-    /// Whether the ref-addressed endpoints also accept an internal numeric id written as
-    /// <c>id:&lt;n&gt;</c> (for example <c>GET /jobs/id:12345</c>). Off by default: the public handle
-    /// is the JobRef, and numeric ids stay an opt-in debug/admin escape hatch rather than a second
-    /// default identity. When off, an <c>id:</c> target resolves to 404 like any unparseable ref.
+    /// Whether the job reads also accept an internal numeric id written as <c>id:&lt;n&gt;</c> (for example
+    /// <c>GET /jobs/id:12345</c>). Off by default: the public handle is the JobRef, and numeric ids stay an opt-in
+    /// debug/admin escape hatch rather than a second default identity. A control, a tag write included, takes the ref
+    /// alone. When off, or on a control, an <c>id:</c> target is the 400 any malformed ref answers.
     /// </summary>
     public bool EnableNumericIdLookup { get; set; }
 
