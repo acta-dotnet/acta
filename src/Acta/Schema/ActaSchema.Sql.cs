@@ -80,6 +80,14 @@ internal static partial class ActaSchema
         /// </summary>
         public static readonly DbValueSpec<long?> FenceJobId = new("p_fence_job_id", DbKind.Int64);
 
+        /// <summary>
+        /// raise_job_signal's child-latch guard: the child whose latch is raised and the terminal status the raise reports,
+        /// both NULL for any other raise. The raise writes nothing when the child holds another status now.
+        /// </summary>
+        public static readonly DbValueSpec<long?> ChildJobId = new("p_child_job_id", DbKind.Int64);
+
+        public static readonly DbValueSpec<byte?> ChildStatus = new("p_child_status", DbKind.Byte);
+
         public static readonly DbValueSpec<int?> FenceExecutionNumber = new("p_fence_execution_number", DbKind.Int32);
 
         public static readonly DbValueSpec<int?> FenceWorkerId = new("p_fence_worker_id", DbKind.Int32);

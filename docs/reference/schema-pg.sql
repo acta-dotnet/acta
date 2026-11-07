@@ -41,14 +41,14 @@ DO $$
 BEGIN
     IF EXISTS (
         SELECT 1 FROM acta.migrations
-        WHERE name NOT IN ('M20261106203504_init')
+        WHERE name NOT IN ('M20261107112422_init')
     ) THEN
         RAISE EXCEPTION 'A newer Acta release already upgraded this database. Run the newest provisioning script; this one would move it backwards.';
     END IF;
 END
 $$;
 
--- ===== BEGIN M20261106203504_init =====
+-- ===== BEGIN M20261107112422_init =====
 CREATE SCHEMA IF NOT EXISTS acta;
 
 -- alerts
@@ -2996,7 +2996,9 @@ CREATE OR REPLACE FUNCTION acta.raise_job_signal(
     p_value BYTEA,
     p_event_message VARCHAR,
     p_details_format_id SMALLINT,
-    p_details BYTEA
+    p_details BYTEA,
+    p_child_job_id BIGINT,
+    p_child_status SMALLINT
 )
 RETURNS TABLE (action SMALLINT, status SMALLINT)
 LANGUAGE plpgsql
@@ -3043,6 +3045,23 @@ BEGIN
     END IF;
 
     IF v_from_status IN (100 /* JobStatusCode.Succeeded */, 200 /* JobStatusCode.Failed */, 220 /* JobStatusCode.Cancelled */) THEN
+        RETURN QUERY SELECT 3 /* ControlAction.Rejected */::SMALLINT, v_from_status;
+        RETURN;
+    END IF;
+
+    -- Read again under the job's lock: a wait that expired while this call waited for it inserted its Expired row then.
+    SELECT js.checkpoint_status_code INTO v_existing
+    FROM acta.checkpoints js
+    WHERE
+        js.job_id = p_job_id
+        AND js.checkpoint_kind_code = p_checkpoint_kind_code
+        AND js.checkpoint_name = p_checkpoint_name
+    FOR UPDATE;
+
+    -- A child latch for an outcome the child no longer holds writes nothing: the child was restarted since, and its
+    -- next landing raises the latch itself. A purged child has no row, and its latch is raised.
+    IF p_child_job_id IS NOT NULL AND EXISTS (
+        SELECT 1 FROM acta.jobs_state c WHERE c.job_id = p_child_job_id AND c.job_status_code <> p_child_status) THEN
         RETURN QUERY SELECT 3 /* ControlAction.Rejected */::SMALLINT, v_from_status;
         RETURN;
     END IF;
@@ -4431,10 +4450,10 @@ JOIN acta.namespaces AS ns ON ns.namespace_id = w.namespace_id;
 
 
 INSERT INTO acta.migrations (name)
-VALUES ('M20261106203504_init')
+VALUES ('M20261107112422_init')
 ON CONFLICT (name) DO NOTHING;
 
--- ===== END M20261106203504_init =====
+-- ===== END M20261107112422_init =====
 
 COMMIT;
 

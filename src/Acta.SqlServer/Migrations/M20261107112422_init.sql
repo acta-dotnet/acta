@@ -3538,7 +3538,9 @@ CREATE OR ALTER PROCEDURE {{schema}}.raise_job_signal
     @p_value VARBINARY(MAX),
     @p_event_message NVARCHAR(512),
     @p_details_format_id TINYINT,
-    @p_details VARBINARY(MAX)
+    @p_details VARBINARY(MAX),
+    @p_child_job_id BIGINT,
+    @p_child_status TINYINT
 AS
 BEGIN
     SET NOCOUNT ON;
@@ -3593,6 +3595,17 @@ BEGIN
         IF @from_status IN (100 /* JobStatusCode.Succeeded */, 200 /* JobStatusCode.Failed */, 220 /* JobStatusCode.Cancelled */)
             BEGIN
 
+                SELECT
+                    CAST(3 /* ControlAction.Rejected */ AS TINYINT) AS action,
+                    @from_status AS status;
+                GOTO Finish;
+            END;
+
+        -- A child latch for an outcome the child no longer holds writes nothing: the child was restarted since, and its
+        -- next landing raises the latch itself. A purged child has no row, and its latch is raised.
+        IF @p_child_job_id IS NOT NULL AND EXISTS (
+            SELECT 1 FROM {{schema}}.jobs_state c WHERE c.job_id = @p_child_job_id AND c.job_status_code <> @p_child_status)
+            BEGIN
                 SELECT
                     CAST(3 /* ControlAction.Rejected */ AS TINYINT) AS action,
                     @from_status AS status;
@@ -5049,7 +5062,7 @@ JOIN {{schema}}.namespaces AS ns ON ns.namespace_id = w.namespace_id
 GO
 
 
-IF NOT EXISTS (SELECT 1 FROM {{schema}}.migrations WHERE name = 'M20261106203504_init')
+IF NOT EXISTS (SELECT 1 FROM {{schema}}.migrations WHERE name = 'M20261107112422_init')
 INSERT INTO {{schema}}.migrations (name)
-VALUES ('M20261106203504_init');
+VALUES ('M20261107112422_init');
 GO

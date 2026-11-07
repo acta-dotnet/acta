@@ -49,6 +49,26 @@ public sealed class ChildJobSpec : ActaRuntimeTestBase<ConformanceFixture, TestJ
         Assert.Equal(42, (await Jobs.GetResultAsync<ChildEchoResult>(parent, ct))!.Doubled);
     }
 
+    [Fact(DisplayName = "A late latch raise for an outcome the child no longer holds leaves the newer outcome on the parent")]
+    public async Task A_stale_latch_raise_does_not_overwrite_a_newer_outcome()
+    {
+        var ct = TestContext.Current.CancellationToken;
+        var parent = await Jobs.EnqueueAsync(new EnqueueJobRequest(TestNamespace, "job-parent-one", JobPayload.None), ct);
+        Assert.Equal(RunOnceStatus.Rearmed, await Runtime.RunOnceAsync(parent, ct));
+        var child = Assert.Single(await ReadChildrenAsync(parent.JobId, ct));
+
+        // A cancel committed, the child was restarted and succeeded, and only then does the cancel's follow-up raise.
+        Assert.Equal(RunOnceStatus.Completed, await Runtime.RunOnceAsync(child.Id, ct));
+        var landed = Assert.Single(await ReadSignalsAsync(parent.JobId, ct));
+        var signals = Services.GetRequiredService<SignalsOperations>();
+        Assert.False(await RaiseChildLatch.Run(signals, child.Id, parent.JobId, JobStatusCode.Cancelled, childExecutionNumber: null, ct));
+
+        var latch = Assert.Single(await ReadSignalsAsync(parent.JobId, ct));
+        Assert.Equal(CheckpointStatusCode.Set, latch.Status);
+        Assert.Equal(landed.Version, latch.Version);
+        Assert.Equal(JobStatusCode.Succeeded, ChildOutcomeEnvelope.Parse(latch.Value!).Status);
+    }
+
     [Fact(DisplayName = "Child start is replay-deduped by name per parent")]
     public async Task Child_start_is_replay_deduped_by_name()
     {

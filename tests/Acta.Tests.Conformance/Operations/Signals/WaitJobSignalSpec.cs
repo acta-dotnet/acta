@@ -164,6 +164,48 @@ public sealed class WaitJobSignalSpec : ActaRuntimeTestBase<ConformanceFixture, 
         Assert.Equal(CheckpointStatusCode.Expired, (await ReadCheckpointAsync(jobId, CheckpointKindCode.Signal, "later", ct)).Status);
     }
 
+    [Fact(DisplayName = "A raise that waited for the job while a wait expired leaves the Expired checkpoint as it is")]
+    public async Task A_raise_queued_behind_an_expiring_wait_does_not_revive_it()
+    {
+        // SQL Server's raise takes the checkpoint's own lock before it reads, and SQLite runs one writer at a time; on
+        // PostgreSQL the raise reads an absent checkpoint, then waits for the job row the expiring wait holds.
+        Assert.SkipUnless(Db.Provider == DbProvider.Postgres, "Only PostgreSQL reads the checkpoint before the job lock.");
+        var ct = TestContext.Current.CancellationToken;
+        var jobId = await EnqueueAsync(ct);
+
+        await using var connection = await Db.OpenConnectionAsync(ct);
+        await using var waiter = await connection.BeginTransactionAsync(ct);
+        await using (var cmd = connection.CreateCommand())
+        {
+            // The wait, armed at an instant already past, inserts its checkpoint Expired and holds the job row to commit.
+            cmd.Transaction = waiter;
+            cmd.CommandText =
+                $"SELECT outcome_code FROM {Db.Schema}.wait_job_signal({jobId}::bigint, 1, {JobStateStaging.StagedWorkerId}, "
+                + $"{(int)CheckpointKindCode.Signal}::smallint, 'go'::varchar, NULL::int, now() - interval '1 minute')";
+            Assert.Equal((short)WaitJobSignalOutcomeCode.TimedOut, Convert.ToInt16(await cmd.ExecuteScalarAsync(ct)));
+        }
+
+        var raise = Services
+            .GetRequiredService<SignalsOperations>()
+            .RaiseJobSignalAsync(
+                new RaiseJobSignalCheckpoint(
+                    jobId,
+                    CheckpointKindCode.Signal,
+                    "go",
+                    JobPayloadFormat.None.Id,
+                    null,
+                    new JobControlInput(null, EventReason.SignalReleased, null)
+                ),
+                ct
+            );
+        await LockWaitProbe.WaitAsync(Db, "raise_job_signal", LockWait.Row, raise, waiter, ct);
+        await waiter.CommitAsync(ct);
+        await raise;
+
+        Assert.Equal(CheckpointStatusCode.Expired, (await ReadCheckpointAsync(jobId, CheckpointKindCode.Signal, "go", ct)).Status);
+        Assert.Equal(WaitJobSignalOutcomeCode.TimedOut, (await WaitAsync(jobId, "go", null, ct)).Outcome);
+    }
+
     [Fact(DisplayName = "A Set checkpoint of another kind does not satisfy a wait of the same name")]
     public async Task Checkpoints_are_keyed_by_kind()
     {

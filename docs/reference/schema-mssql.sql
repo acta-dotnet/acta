@@ -57,7 +57,7 @@ GO
 -- ===== refuse a database a newer release already upgraded =====
 IF EXISTS (
     SELECT 1 FROM acta.migrations
-    WHERE name NOT IN ('M20261106203504_init')
+    WHERE name NOT IN ('M20261107112422_init')
 )
 BEGIN
     RAISERROR(N'A newer Acta release already upgraded this database. Run the newest provisioning script; this one would move it backwards.', 16, 1);
@@ -65,7 +65,7 @@ BEGIN
     SET NOEXEC ON;
 END
 GO
--- ===== BEGIN M20261106203504_init =====
+-- ===== BEGIN M20261107112422_init =====
 SET QUOTED_IDENTIFIER ON;
 SET ANSI_NULLS ON;
 GO
@@ -3606,7 +3606,9 @@ CREATE OR ALTER PROCEDURE acta.raise_job_signal
     @p_value VARBINARY(MAX),
     @p_event_message NVARCHAR(512),
     @p_details_format_id TINYINT,
-    @p_details VARBINARY(MAX)
+    @p_details VARBINARY(MAX),
+    @p_child_job_id BIGINT,
+    @p_child_status TINYINT
 AS
 BEGIN
     SET NOCOUNT ON;
@@ -3661,6 +3663,17 @@ BEGIN
         IF @from_status IN (100 /* JobStatusCode.Succeeded */, 200 /* JobStatusCode.Failed */, 220 /* JobStatusCode.Cancelled */)
             BEGIN
 
+                SELECT
+                    CAST(3 /* ControlAction.Rejected */ AS TINYINT) AS action,
+                    @from_status AS status;
+                GOTO Finish;
+            END;
+
+        -- A child latch for an outcome the child no longer holds writes nothing: the child was restarted since, and its
+        -- next landing raises the latch itself. A purged child has no row, and its latch is raised.
+        IF @p_child_job_id IS NOT NULL AND EXISTS (
+            SELECT 1 FROM acta.jobs_state c WHERE c.job_id = @p_child_job_id AND c.job_status_code <> @p_child_status)
+            BEGIN
                 SELECT
                     CAST(3 /* ControlAction.Rejected */ AS TINYINT) AS action,
                     @from_status AS status;
@@ -5117,11 +5130,11 @@ JOIN acta.namespaces AS ns ON ns.namespace_id = w.namespace_id
 GO
 
 
-IF NOT EXISTS (SELECT 1 FROM acta.migrations WHERE name = 'M20261106203504_init')
+IF NOT EXISTS (SELECT 1 FROM acta.migrations WHERE name = 'M20261107112422_init')
 INSERT INTO acta.migrations (name)
-VALUES ('M20261106203504_init');
+VALUES ('M20261107112422_init');
 GO
--- ===== END M20261106203504_init =====
+-- ===== END M20261107112422_init =====
 GO
 COMMIT TRANSACTION;
 GO

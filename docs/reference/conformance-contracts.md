@@ -508,6 +508,7 @@
 - **Contract:** StartChildAsync dedupes by name per parent and a terminal child raises a durable latch that releases a waiting parent while cancel cascades to the live subtree.
 - **Guarantees:**
   - A terminal child sets a durable sys.child latch that releases the Suspended parent, which reads the child result
+  - A late latch raise for an outcome the child no longer holds leaves the newer outcome on the parent
   - Child start is replay-deduped by name per parent
   - WaitChildAsync returns an outcome record and never throws on child failure
   - WaitChildrenAsync joins all children regardless of completion order
@@ -2384,6 +2385,7 @@
   - Once the stored expiry passes the checkpoint turns Expired and every later wait answers TimedOut
   - A wait bounded by an instant stores that instant, and a later instant neither moves nor clears it
   - A checkpoint first armed at or past its instant is armed Expired and answers TimedOut at once
+  - A raise that waited for the job while a wait expired leaves the Expired checkpoint as it is
   - A Set checkpoint of another kind does not satisfy a wait of the same name
 
 ## Steps

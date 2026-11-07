@@ -59,6 +59,8 @@ internal sealed class RaiseJobSignalHandler(
                 cmd.Parameters.Add(dialect.CreateParameter(ActaSchema.Checkpoint.ValueFormatId, raise.ValueFormatId));
                 cmd.Parameters.Add(dialect.CreateParameter(ActaSchema.Checkpoint.Value, raise.Value));
                 JobControl.BindEvent(cmd, dialect, raise.Input);
+                cmd.Parameters.Add(dialect.CreateParameter(ActaSchema.Sql.ChildJobId, raise.ChildJobId));
+                cmd.Parameters.Add(dialect.CreateParameter(ActaSchema.Sql.ChildStatus, (byte?)raise.ChildStatus));
             },
             DbProjectionResolver.Resolve<RaiseJobSignalRow>(),
             ct

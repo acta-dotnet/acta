@@ -3,12 +3,12 @@ using System.Globalization;
 namespace Acta;
 
 /// <summary>
-/// Raises a child's terminal-outcome latch (<c>sys.child.{childId}</c>) on its parent: a composite
-/// over the existing <c>raise_job_signal</c> routine with no SQL of its own. The latch is upserted Set
-/// with the JSON envelope, a Suspended parent is released to Ready, and a terminal or missing parent
-/// is a clean no-op. Serves the C#-side raise sites (operator cancel, reclaim, maintenance
-/// backstop); <c>complete_executions</c> raises in-transaction itself on the hot path. Returns true
-/// when the raise released the parent.
+/// Raises a child's terminal-outcome latch (<c>sys.child.{childId}</c>) on its parent through
+/// <c>raise_job_signal</c>: upserted Set with the JSON envelope, releasing a Suspended parent. A terminal or
+/// missing parent is a no-op, and so is a child that no longer holds <c>childStatus</c>, whose next landing
+/// raises the latch itself. Serves the C#-side raise sites (operator cancel, retire, reclaim, the maintenance
+/// backstop); <c>complete_executions</c> raises in its own transaction. Returns true when the raise released
+/// the parent.
 /// </summary>
 internal static class RaiseChildLatch
 {
@@ -31,7 +31,16 @@ internal static class RaiseChildLatch
         var envelope = ChildOutcomeEnvelope.Write(childJobId, childStatus, childExecutionNumber);
         var input = new JobControlInput(null, EventReason.SignalReleased, null);
         var outcome = await signals.RaiseJobSignalAsync(
-            new RaiseJobSignalCheckpoint(parentJobId, CheckpointKindCode.ChildLatch, latchName, JobPayloadFormat.Json.Id, envelope, input),
+            new RaiseJobSignalCheckpoint(
+                parentJobId,
+                CheckpointKindCode.ChildLatch,
+                latchName,
+                JobPayloadFormat.Json.Id,
+                envelope,
+                input,
+                childJobId,
+                childStatus
+            ),
             ct
         );
         return outcome.Action == ControlAction.Applied && outcome.Status == JobStatusCode.Ready;
