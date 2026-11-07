@@ -289,7 +289,7 @@ public sealed class TypedEnqueueSpec : ActaRuntimeTestBase<ConformanceFixture, T
         var seen = await Jobs.GetAsync(job, ct);
         Assert.Equal(JobStatusCode.Succeeded, seen!.Status);
         Assert.Equal(ControlAction.Applied, (await Jobs.RestartAsync(job, ct: ct)).Action);
-        var jobs = StaleFirstRead.Wrap(Jobs, seen);
+        var jobs = StaleReads.Wrap(Jobs, seen, alternate: false);
 
         var outcome = await JobRunAndWait.WaitAsync<AddNumbersResult>(
             jobs,
@@ -305,17 +305,48 @@ public sealed class TypedEnqueueSpec : ActaRuntimeTestBase<ConformanceFixture, T
         Assert.Equal(JobStatusCode.Ready, outcome.Status);
     }
 
-    /// <summary>An <see cref="IJobs"/> whose first job read answers a snapshot taken earlier; every other call is the real one.</summary>
-    public class StaleFirstRead : DispatchProxy
+    [Fact(DisplayName = "A typed wait that sees a restarted success on every read answers TimedOut at its budget")]
+    public async Task A_typed_wait_that_sees_a_restarted_success_on_every_read_stops_at_its_budget()
+    {
+        var ct = TestContext.Current.CancellationToken;
+        var job = await Jobs.EnqueueAsync(new AddNumbers(2, 3), ct: ct);
+        Assert.Equal(RunOnceStatus.Completed, await Runtime.RunOnceAsync(job, ct));
+        var seen = await Jobs.GetAsync(job, ct);
+        Assert.Equal(ControlAction.Applied, (await Jobs.RestartAsync(job, ct: ct)).Action);
+
+        // Each status read sees a success, and each result read finds it restarted, as if restarts kept landing between them.
+        using var stuck = CancellationTokenSource.CreateLinkedTokenSource(ct);
+        stuck.CancelAfter(TimeSpan.FromSeconds(10));
+        var outcome = await JobRunAndWait.WaitAsync<AddNumbersResult>(
+            StaleReads.Wrap(Jobs, seen!, alternate: true),
+            Services.GetRequiredService<IWorkerWakeup>(),
+            Services.GetRequiredService<JobRequestRouting>(),
+            Services.GetRequiredService<GetJobResultHandler>(),
+            job,
+            TimeSpan.FromMilliseconds(300),
+            stuck.Token
+        );
+
+        Assert.True(outcome.IsTimedOut);
+        Assert.Equal(JobStatusCode.Ready, outcome.Status);
+    }
+
+    /// <summary>
+    /// An <see cref="IJobs"/> whose first job read, or with <c>alternate</c> every other one from the first, answers a
+    /// snapshot taken earlier; every other call is the real one.
+    /// </summary>
+    public class StaleReads : DispatchProxy
     {
         private IJobs _inner = null!;
         private GetJobResponse? _stale;
+        private bool _alternate;
+        private int _reads;
 
-        public static IJobs Wrap(IJobs inner, GetJobResponse stale)
+        public static IJobs Wrap(IJobs inner, GetJobResponse stale, bool alternate)
         {
-            var proxy = Create<IJobs, StaleFirstRead>();
-            var self = (StaleFirstRead)(object)proxy;
-            (self._inner, self._stale) = (inner, stale);
+            var proxy = Create<IJobs, StaleReads>();
+            var self = (StaleReads)(object)proxy;
+            (self._inner, self._stale, self._alternate) = (inner, stale, alternate);
             return proxy;
         }
 
@@ -325,9 +356,10 @@ public sealed class TypedEnqueueSpec : ActaRuntimeTestBase<ConformanceFixture, T
                 targetMethod!.Name == nameof(IJobs.GetAsync)
                 && targetMethod.ReturnType == typeof(ValueTask<GetJobResponse?>)
                 && _stale is { } stale
+                && _reads++ % 2 == 0
             )
             {
-                _stale = null;
+                _stale = _alternate ? stale : null;
                 return new ValueTask<GetJobResponse?>(stale);
             }
 

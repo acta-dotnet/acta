@@ -51,7 +51,8 @@ internal static class JobRunAndWait
                 ResultTypeCheck<TResult>(routing)
             );
             var snapshot = wait.Snapshot ?? throw Vanished(enqueued.JobRef);
-            if (await OutcomeAsync<TResult>(jobs, routing, getJobResult, snapshot, wait.TimedOut, ct) is { } outcome)
+            var spent = Remaining(options.WaitTimeout, started) == TimeSpan.Zero;
+            if (await OutcomeAsync<TResult>(jobs, routing, getJobResult, snapshot, wait.TimedOut, spent, ct) is { } outcome)
             {
                 return outcome;
             }
@@ -86,7 +87,8 @@ internal static class JobRunAndWait
         var (snapshot, timedOut) = await AwaitExistingAsync(jobs, wakeup, job, budget, ct, ResultTypeCheck<TResult>(routing));
         while (true)
         {
-            if (await OutcomeAsync<TResult>(jobs, routing, getJobResult, snapshot, timedOut, ct) is { } outcome)
+            var spent = Remaining(budget, started) == TimeSpan.Zero;
+            if (await OutcomeAsync<TResult>(jobs, routing, getJobResult, snapshot, timedOut, spent, ct) is { } outcome)
             {
                 return outcome;
             }
@@ -124,7 +126,8 @@ internal static class JobRunAndWait
     /// <summary>
     /// The outcome, with the result stored by the execution the wait saw succeed, or null when that success is no longer
     /// the job's: an operator restart clears the stored result, so a read that finds none checks the job again, and a job
-    /// that has moved on is waited for again. A success that is still the job's and stored none throws.
+    /// that has moved on is waited for again, or answers TimedOut with its status now once the budget is
+    /// <paramref name="spent"/>. A success that is still the job's and stored none throws.
     /// </summary>
     private static async ValueTask<JobOutcome<TResult>?> OutcomeAsync<TResult>(
         IJobs jobs,
@@ -132,6 +135,7 @@ internal static class JobRunAndWait
         GetJobResultHandler getJobResult,
         GetJobResponse snapshot,
         bool timedOut,
+        bool spent,
         CancellationToken ct
     )
         where TResult : notnull
@@ -152,7 +156,7 @@ internal static class JobRunAndWait
                 var now = await jobs.GetAsync(JobLookup.ById(snapshot.JobId), ct) ?? throw Vanished(snapshot.JobRef);
                 if (now.Status != JobStatusCode.Succeeded || now.ExecutionNumber != snapshot.ExecutionNumber)
                 {
-                    return null;
+                    return spent ? JobOutcome<TResult>.TimedOut(now.JobId, now.JobRef, now.Status) : null;
                 }
 
                 throw new InvalidOperationException(
