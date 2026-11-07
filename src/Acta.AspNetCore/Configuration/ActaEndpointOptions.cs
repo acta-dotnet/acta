@@ -66,9 +66,9 @@ public class ActaEndpointOptions
 
     /// <summary>
     /// Hook over the mapped route group; the place to call <c>RequireAuthorization</c>. On
-    /// <c>MapActa</c> the group covers HTML, assets, queries, and controls together. For a per-request
-    /// allow/deny decision scoped to just the mutating control endpoints, register
-    /// <see cref="IActaControlAuthorizer"/> instead.
+    /// <c>MapActa</c> the group covers HTML, assets, queries, and controls together. For a decision per
+    /// operation, set <see cref="RequirePermissions"/>, which checks each route's permission against the
+    /// host's policy of that name.
     /// </summary>
     public Action<RouteGroupBuilder>? ConfigureEndpoints { get; set; }
 }

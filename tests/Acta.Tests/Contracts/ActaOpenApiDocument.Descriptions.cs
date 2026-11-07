@@ -60,7 +60,7 @@ internal static partial class ActaOpenApiDocument
                     + "says which.",
             ("401", _, _) => "The call carries no credential the host accepts.",
             ("403", _, _) =>
-                "The call was refused before it ran, by the local-only guard, the host's authorization, or a control authorizer.",
+                "The call was refused before it ran: by the local-only guard, or because the caller lacks the operation's permission.",
             ("404", false, false) => "The target does not exist; the body's action is not-found and nothing was written.",
             ("404", _, _) => "The target the path names, or one a filter names, does not exist.",
             ("409", true, _) => "This host cannot serve the read as asked; the problem's detail says why.",

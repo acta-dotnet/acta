@@ -98,10 +98,10 @@ public sealed class JobDetailEndpointTests
     }
 
     [Fact]
-    public async Task Detail_answers_with_controls_disabled_and_a_denying_authorizer_never_sees_it()
+    public async Task Detail_answers_with_controls_disabled()
     {
-        // The detail read is on the always-on read surface: no EnableControls, and outside the
-        // authorizer scope. A job with no result/checkpoints reports null/empty, not an error.
+        // The detail read is on the always-on read surface: no EnableControls. A job with no
+        // result/checkpoints reports null/empty, not an error.
         var (app, client) = await TestDashboardHost.StartAsync(fakes: new FakeOperations());
         await using var host = app;
         var ct = TestContext.Current.CancellationToken;

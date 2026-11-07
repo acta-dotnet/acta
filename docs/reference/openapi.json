@@ -89,7 +89,7 @@
             "description": "The call carries no credential the host accepts."
           },
           "403": {
-            "description": "The call was refused before it ran, by the local-only guard, the host's authorization, or a control authorizer.",
+            "description": "The call was refused before it ran: by the local-only guard, or because the caller lacks the operation's permission.",
             "content": {
               "application/problem+json": {
                 "schema": {
@@ -210,7 +210,7 @@
             "description": "The call carries no credential the host accepts."
           },
           "403": {
-            "description": "The call was refused before it ran, by the local-only guard, the host's authorization, or a control authorizer.",
+            "description": "The call was refused before it ran: by the local-only guard, or because the caller lacks the operation's permission.",
             "content": {
               "application/problem+json": {
                 "schema": {
@@ -323,7 +323,7 @@
             "description": "The call carries no credential the host accepts."
           },
           "403": {
-            "description": "The call was refused before it ran, by the local-only guard, the host's authorization, or a control authorizer.",
+            "description": "The call was refused before it ran: by the local-only guard, or because the caller lacks the operation's permission.",
             "content": {
               "application/problem+json": {
                 "schema": {
@@ -466,7 +466,7 @@
             "description": "The call carries no credential the host accepts."
           },
           "403": {
-            "description": "The call was refused before it ran, by the local-only guard, the host's authorization, or a control authorizer.",
+            "description": "The call was refused before it ran: by the local-only guard, or because the caller lacks the operation's permission.",
             "content": {
               "application/problem+json": {
                 "schema": {
@@ -609,7 +609,7 @@
             "description": "The call carries no credential the host accepts."
           },
           "403": {
-            "description": "The call was refused before it ran, by the local-only guard, the host's authorization, or a control authorizer.",
+            "description": "The call was refused before it ran: by the local-only guard, or because the caller lacks the operation's permission.",
             "content": {
               "application/problem+json": {
                 "schema": {
@@ -752,7 +752,7 @@
             "description": "The call carries no credential the host accepts."
           },
           "403": {
-            "description": "The call was refused before it ran, by the local-only guard, the host's authorization, or a control authorizer.",
+            "description": "The call was refused before it ran: by the local-only guard, or because the caller lacks the operation's permission.",
             "content": {
               "application/problem+json": {
                 "schema": {
@@ -894,7 +894,7 @@
             "description": "The call carries no credential the host accepts."
           },
           "403": {
-            "description": "The call was refused before it ran, by the local-only guard, the host's authorization, or a control authorizer.",
+            "description": "The call was refused before it ran: by the local-only guard, or because the caller lacks the operation's permission.",
             "content": {
               "application/problem+json": {
                 "schema": {
@@ -1038,7 +1038,7 @@
             "description": "The call carries no credential the host accepts."
           },
           "403": {
-            "description": "The call was refused before it ran, by the local-only guard, the host's authorization, or a control authorizer.",
+            "description": "The call was refused before it ran: by the local-only guard, or because the caller lacks the operation's permission.",
             "content": {
               "application/problem+json": {
                 "schema": {
@@ -1183,7 +1183,7 @@
             "description": "The call carries no credential the host accepts."
           },
           "403": {
-            "description": "The call was refused before it ran, by the local-only guard, the host's authorization, or a control authorizer.",
+            "description": "The call was refused before it ran: by the local-only guard, or because the caller lacks the operation's permission.",
             "content": {
               "application/problem+json": {
                 "schema": {
@@ -1331,7 +1331,7 @@
             "description": "The call carries no credential the host accepts."
           },
           "403": {
-            "description": "The call was refused before it ran, by the local-only guard, the host's authorization, or a control authorizer.",
+            "description": "The call was refused before it ran: by the local-only guard, or because the caller lacks the operation's permission.",
             "content": {
               "application/problem+json": {
                 "schema": {
@@ -1465,7 +1465,7 @@
             "description": "The call carries no credential the host accepts."
           },
           "403": {
-            "description": "The call was refused before it ran, by the local-only guard, the host's authorization, or a control authorizer.",
+            "description": "The call was refused before it ran: by the local-only guard, or because the caller lacks the operation's permission.",
             "content": {
               "application/problem+json": {
                 "schema": {
@@ -1607,7 +1607,7 @@
             "description": "The call carries no credential the host accepts."
           },
           "403": {
-            "description": "The call was refused before it ran, by the local-only guard, the host's authorization, or a control authorizer.",
+            "description": "The call was refused before it ran: by the local-only guard, or because the caller lacks the operation's permission.",
             "content": {
               "application/problem+json": {
                 "schema": {
@@ -1843,7 +1843,7 @@
             "description": "The call carries no credential the host accepts."
           },
           "403": {
-            "description": "The call was refused before it ran, by the local-only guard, the host's authorization, or a control authorizer.",
+            "description": "The call was refused before it ran: by the local-only guard, or because the caller lacks the operation's permission.",
             "content": {
               "application/problem+json": {
                 "schema": {
@@ -1964,7 +1964,7 @@
             "description": "The call carries no credential the host accepts."
           },
           "403": {
-            "description": "The call was refused before it ran, by the local-only guard, the host's authorization, or a control authorizer.",
+            "description": "The call was refused before it ran: by the local-only guard, or because the caller lacks the operation's permission.",
             "content": {
               "application/problem+json": {
                 "schema": {
@@ -2114,7 +2114,7 @@
             "description": "The call carries no credential the host accepts."
           },
           "403": {
-            "description": "The call was refused before it ran, by the local-only guard, the host's authorization, or a control authorizer.",
+            "description": "The call was refused before it ran: by the local-only guard, or because the caller lacks the operation's permission.",
             "content": {
               "application/problem+json": {
                 "schema": {
@@ -2235,7 +2235,7 @@
             "description": "The call carries no credential the host accepts."
           },
           "403": {
-            "description": "The call was refused before it ran, by the local-only guard, the host's authorization, or a control authorizer.",
+            "description": "The call was refused before it ran: by the local-only guard, or because the caller lacks the operation's permission.",
             "content": {
               "application/problem+json": {
                 "schema": {
@@ -2346,7 +2346,7 @@
             "description": "The call carries no credential the host accepts."
           },
           "403": {
-            "description": "The call was refused before it ran, by the local-only guard, the host's authorization, or a control authorizer.",
+            "description": "The call was refused before it ran: by the local-only guard, or because the caller lacks the operation's permission.",
             "content": {
               "application/problem+json": {
                 "schema": {
@@ -2477,7 +2477,7 @@
             "description": "The call carries no credential the host accepts."
           },
           "403": {
-            "description": "The call was refused before it ran, by the local-only guard, the host's authorization, or a control authorizer.",
+            "description": "The call was refused before it ran: by the local-only guard, or because the caller lacks the operation's permission.",
             "content": {
               "application/problem+json": {
                 "schema": {
@@ -2611,7 +2611,7 @@
             "description": "The call carries no credential the host accepts."
           },
           "403": {
-            "description": "The call was refused before it ran, by the local-only guard, the host's authorization, or a control authorizer.",
+            "description": "The call was refused before it ran: by the local-only guard, or because the caller lacks the operation's permission.",
             "content": {
               "application/problem+json": {
                 "schema": {
@@ -2737,7 +2737,7 @@
             "description": "The call carries no credential the host accepts."
           },
           "403": {
-            "description": "The call was refused before it ran, by the local-only guard, the host's authorization, or a control authorizer.",
+            "description": "The call was refused before it ran: by the local-only guard, or because the caller lacks the operation's permission.",
             "content": {
               "application/problem+json": {
                 "schema": {
@@ -2857,7 +2857,7 @@
             "description": "The call carries no credential the host accepts."
           },
           "403": {
-            "description": "The call was refused before it ran, by the local-only guard, the host's authorization, or a control authorizer.",
+            "description": "The call was refused before it ran: by the local-only guard, or because the caller lacks the operation's permission.",
             "content": {
               "application/problem+json": {
                 "schema": {
@@ -2978,7 +2978,7 @@
             "description": "The call carries no credential the host accepts."
           },
           "403": {
-            "description": "The call was refused before it ran, by the local-only guard, the host's authorization, or a control authorizer.",
+            "description": "The call was refused before it ran: by the local-only guard, or because the caller lacks the operation's permission.",
             "content": {
               "application/problem+json": {
                 "schema": {
@@ -3080,7 +3080,7 @@
             "description": "The call carries no credential the host accepts."
           },
           "403": {
-            "description": "The call was refused before it ran, by the local-only guard, the host's authorization, or a control authorizer.",
+            "description": "The call was refused before it ran: by the local-only guard, or because the caller lacks the operation's permission.",
             "content": {
               "application/problem+json": {
                 "schema": {
@@ -3241,7 +3241,7 @@
             "description": "The call carries no credential the host accepts."
           },
           "403": {
-            "description": "The call was refused before it ran, by the local-only guard, the host's authorization, or a control authorizer.",
+            "description": "The call was refused before it ran: by the local-only guard, or because the caller lacks the operation's permission.",
             "content": {
               "application/problem+json": {
                 "schema": {
@@ -3342,7 +3342,7 @@
             "description": "The call carries no credential the host accepts."
           },
           "403": {
-            "description": "The call was refused before it ran, by the local-only guard, the host's authorization, or a control authorizer.",
+            "description": "The call was refused before it ran: by the local-only guard, or because the caller lacks the operation's permission.",
             "content": {
               "application/problem+json": {
                 "schema": {
@@ -3473,7 +3473,7 @@
             "description": "The call carries no credential the host accepts."
           },
           "403": {
-            "description": "The call was refused before it ran, by the local-only guard, the host's authorization, or a control authorizer.",
+            "description": "The call was refused before it ran: by the local-only guard, or because the caller lacks the operation's permission.",
             "content": {
               "application/problem+json": {
                 "schema": {
@@ -3607,7 +3607,7 @@
             "description": "The call carries no credential the host accepts."
           },
           "403": {
-            "description": "The call was refused before it ran, by the local-only guard, the host's authorization, or a control authorizer.",
+            "description": "The call was refused before it ran: by the local-only guard, or because the caller lacks the operation's permission.",
             "content": {
               "application/problem+json": {
                 "schema": {
@@ -3735,7 +3735,7 @@
             "description": "The call carries no credential the host accepts."
           },
           "403": {
-            "description": "The call was refused before it ran, by the local-only guard, the host's authorization, or a control authorizer.",
+            "description": "The call was refused before it ran: by the local-only guard, or because the caller lacks the operation's permission.",
             "content": {
               "application/problem+json": {
                 "schema": {
@@ -3848,7 +3848,7 @@
             "description": "The call carries no credential the host accepts."
           },
           "403": {
-            "description": "The call was refused before it ran, by the local-only guard, the host's authorization, or a control authorizer.",
+            "description": "The call was refused before it ran: by the local-only guard, or because the caller lacks the operation's permission.",
             "content": {
               "application/problem+json": {
                 "schema": {
@@ -3981,7 +3981,7 @@
             "description": "The call carries no credential the host accepts."
           },
           "403": {
-            "description": "The call was refused before it ran, by the local-only guard, the host's authorization, or a control authorizer.",
+            "description": "The call was refused before it ran: by the local-only guard, or because the caller lacks the operation's permission.",
             "content": {
               "application/problem+json": {
                 "schema": {
@@ -4115,7 +4115,7 @@
             "description": "The call carries no credential the host accepts."
           },
           "403": {
-            "description": "The call was refused before it ran, by the local-only guard, the host's authorization, or a control authorizer.",
+            "description": "The call was refused before it ran: by the local-only guard, or because the caller lacks the operation's permission.",
             "content": {
               "application/problem+json": {
                 "schema": {
@@ -4259,7 +4259,7 @@
             "description": "The call carries no credential the host accepts."
           },
           "403": {
-            "description": "The call was refused before it ran, by the local-only guard, the host's authorization, or a control authorizer.",
+            "description": "The call was refused before it ran: by the local-only guard, or because the caller lacks the operation's permission.",
             "content": {
               "application/problem+json": {
                 "schema": {
@@ -4418,7 +4418,7 @@
             "description": "The call carries no credential the host accepts."
           },
           "403": {
-            "description": "The call was refused before it ran, by the local-only guard, the host's authorization, or a control authorizer.",
+            "description": "The call was refused before it ran: by the local-only guard, or because the caller lacks the operation's permission.",
             "content": {
               "application/problem+json": {
                 "schema": {
@@ -4548,7 +4548,7 @@
             "description": "The call carries no credential the host accepts."
           },
           "403": {
-            "description": "The call was refused before it ran, by the local-only guard, the host's authorization, or a control authorizer.",
+            "description": "The call was refused before it ran: by the local-only guard, or because the caller lacks the operation's permission.",
             "content": {
               "application/problem+json": {
                 "schema": {
@@ -4673,7 +4673,7 @@
             "description": "The call carries no credential the host accepts."
           },
           "403": {
-            "description": "The call was refused before it ran, by the local-only guard, the host's authorization, or a control authorizer.",
+            "description": "The call was refused before it ran: by the local-only guard, or because the caller lacks the operation's permission.",
             "content": {
               "application/problem+json": {
                 "schema": {
@@ -4825,7 +4825,7 @@
             "description": "The call carries no credential the host accepts."
           },
           "403": {
-            "description": "The call was refused before it ran, by the local-only guard, the host's authorization, or a control authorizer.",
+            "description": "The call was refused before it ran: by the local-only guard, or because the caller lacks the operation's permission.",
             "content": {
               "application/problem+json": {
                 "schema": {
@@ -4988,7 +4988,7 @@
             "description": "The call carries no credential the host accepts."
           },
           "403": {
-            "description": "The call was refused before it ran, by the local-only guard, the host's authorization, or a control authorizer.",
+            "description": "The call was refused before it ran: by the local-only guard, or because the caller lacks the operation's permission.",
             "content": {
               "application/problem+json": {
                 "schema": {
@@ -5150,7 +5150,7 @@
             "description": "The call carries no credential the host accepts."
           },
           "403": {
-            "description": "The call was refused before it ran, by the local-only guard, the host's authorization, or a control authorizer.",
+            "description": "The call was refused before it ran: by the local-only guard, or because the caller lacks the operation's permission.",
             "content": {
               "application/problem+json": {
                 "schema": {
@@ -5302,7 +5302,7 @@
             "description": "The call carries no credential the host accepts."
           },
           "403": {
-            "description": "The call was refused before it ran, by the local-only guard, the host's authorization, or a control authorizer.",
+            "description": "The call was refused before it ran: by the local-only guard, or because the caller lacks the operation's permission.",
             "content": {
               "application/problem+json": {
                 "schema": {
@@ -5477,7 +5477,7 @@
             "description": "The call carries no credential the host accepts."
           },
           "403": {
-            "description": "The call was refused before it ran, by the local-only guard, the host's authorization, or a control authorizer.",
+            "description": "The call was refused before it ran: by the local-only guard, or because the caller lacks the operation's permission.",
             "content": {
               "application/problem+json": {
                 "schema": {
@@ -5624,7 +5624,7 @@
             "description": "The call carries no credential the host accepts."
           },
           "403": {
-            "description": "The call was refused before it ran, by the local-only guard, the host's authorization, or a control authorizer.",
+            "description": "The call was refused before it ran: by the local-only guard, or because the caller lacks the operation's permission.",
             "content": {
               "application/problem+json": {
                 "schema": {
@@ -5777,7 +5777,7 @@
             "description": "The call carries no credential the host accepts."
           },
           "403": {
-            "description": "The call was refused before it ran, by the local-only guard, the host's authorization, or a control authorizer.",
+            "description": "The call was refused before it ran: by the local-only guard, or because the caller lacks the operation's permission.",
             "content": {
               "application/problem+json": {
                 "schema": {
@@ -5924,7 +5924,7 @@
             "description": "The call carries no credential the host accepts."
           },
           "403": {
-            "description": "The call was refused before it ran, by the local-only guard, the host's authorization, or a control authorizer.",
+            "description": "The call was refused before it ran: by the local-only guard, or because the caller lacks the operation's permission.",
             "content": {
               "application/problem+json": {
                 "schema": {
@@ -6050,7 +6050,7 @@
             "description": "The call carries no credential the host accepts."
           },
           "403": {
-            "description": "The call was refused before it ran, by the local-only guard, the host's authorization, or a control authorizer.",
+            "description": "The call was refused before it ran: by the local-only guard, or because the caller lacks the operation's permission.",
             "content": {
               "application/problem+json": {
                 "schema": {
@@ -6180,7 +6180,7 @@
             "description": "The call carries no credential the host accepts."
           },
           "403": {
-            "description": "The call was refused before it ran, by the local-only guard, the host's authorization, or a control authorizer.",
+            "description": "The call was refused before it ran: by the local-only guard, or because the caller lacks the operation's permission.",
             "content": {
               "application/problem+json": {
                 "schema": {
@@ -6286,7 +6286,7 @@
             "description": "The call carries no credential the host accepts."
           },
           "403": {
-            "description": "The call was refused before it ran, by the local-only guard, the host's authorization, or a control authorizer.",
+            "description": "The call was refused before it ran: by the local-only guard, or because the caller lacks the operation's permission.",
             "content": {
               "application/problem+json": {
                 "schema": {
@@ -6573,7 +6573,7 @@
             "description": "The call carries no credential the host accepts."
           },
           "403": {
-            "description": "The call was refused before it ran, by the local-only guard, the host's authorization, or a control authorizer.",
+            "description": "The call was refused before it ran: by the local-only guard, or because the caller lacks the operation's permission.",
             "content": {
               "application/problem+json": {
                 "schema": {
@@ -6712,7 +6712,7 @@
             "description": "The call carries no credential the host accepts."
           },
           "403": {
-            "description": "The call was refused before it ran, by the local-only guard, the host's authorization, or a control authorizer.",
+            "description": "The call was refused before it ran: by the local-only guard, or because the caller lacks the operation's permission.",
             "content": {
               "application/problem+json": {
                 "schema": {
@@ -6847,7 +6847,7 @@
             "description": "The call carries no credential the host accepts."
           },
           "403": {
-            "description": "The call was refused before it ran, by the local-only guard, the host's authorization, or a control authorizer.",
+            "description": "The call was refused before it ran: by the local-only guard, or because the caller lacks the operation's permission.",
             "content": {
               "application/problem+json": {
                 "schema": {
@@ -6994,7 +6994,7 @@
             "description": "The call carries no credential the host accepts."
           },
           "403": {
-            "description": "The call was refused before it ran, by the local-only guard, the host's authorization, or a control authorizer.",
+            "description": "The call was refused before it ran: by the local-only guard, or because the caller lacks the operation's permission.",
             "content": {
               "application/problem+json": {
                 "schema": {
@@ -7089,7 +7089,7 @@
             "description": "The call carries no credential the host accepts."
           },
           "403": {
-            "description": "The call was refused before it ran, by the local-only guard, the host's authorization, or a control authorizer.",
+            "description": "The call was refused before it ran: by the local-only guard, or because the caller lacks the operation's permission.",
             "content": {
               "application/problem+json": {
                 "schema": {
@@ -7240,7 +7240,7 @@
             "description": "The call carries no credential the host accepts."
           },
           "403": {
-            "description": "The call was refused before it ran, by the local-only guard, the host's authorization, or a control authorizer.",
+            "description": "The call was refused before it ran: by the local-only guard, or because the caller lacks the operation's permission.",
             "content": {
               "application/problem+json": {
                 "schema": {
@@ -7360,7 +7360,7 @@
             "description": "The call carries no credential the host accepts."
           },
           "403": {
-            "description": "The call was refused before it ran, by the local-only guard, the host's authorization, or a control authorizer.",
+            "description": "The call was refused before it ran: by the local-only guard, or because the caller lacks the operation's permission.",
             "content": {
               "application/problem+json": {
                 "schema": {
@@ -7490,7 +7490,7 @@
             "description": "The call carries no credential the host accepts."
           },
           "403": {
-            "description": "The call was refused before it ran, by the local-only guard, the host's authorization, or a control authorizer.",
+            "description": "The call was refused before it ran: by the local-only guard, or because the caller lacks the operation's permission.",
             "content": {
               "application/problem+json": {
                 "schema": {
@@ -7674,7 +7674,7 @@
             "description": "The call carries no credential the host accepts."
           },
           "403": {
-            "description": "The call was refused before it ran, by the local-only guard, the host's authorization, or a control authorizer.",
+            "description": "The call was refused before it ran: by the local-only guard, or because the caller lacks the operation's permission.",
             "content": {
               "application/problem+json": {
                 "schema": {
@@ -7784,7 +7784,7 @@
             "description": "The call carries no credential the host accepts."
           },
           "403": {
-            "description": "The call was refused before it ran, by the local-only guard, the host's authorization, or a control authorizer.",
+            "description": "The call was refused before it ran: by the local-only guard, or because the caller lacks the operation's permission.",
             "content": {
               "application/problem+json": {
                 "schema": {
@@ -7909,7 +7909,7 @@
             "description": "The call carries no credential the host accepts."
           },
           "403": {
-            "description": "The call was refused before it ran, by the local-only guard, the host's authorization, or a control authorizer.",
+            "description": "The call was refused before it ran: by the local-only guard, or because the caller lacks the operation's permission.",
             "content": {
               "application/problem+json": {
                 "schema": {
@@ -8036,7 +8036,7 @@
             "description": "The call carries no credential the host accepts."
           },
           "403": {
-            "description": "The call was refused before it ran, by the local-only guard, the host's authorization, or a control authorizer.",
+            "description": "The call was refused before it ran: by the local-only guard, or because the caller lacks the operation's permission.",
             "content": {
               "application/problem+json": {
                 "schema": {
@@ -8207,7 +8207,7 @@
             "description": "The call carries no credential the host accepts."
           },
           "403": {
-            "description": "The call was refused before it ran, by the local-only guard, the host's authorization, or a control authorizer.",
+            "description": "The call was refused before it ran: by the local-only guard, or because the caller lacks the operation's permission.",
             "content": {
               "application/problem+json": {
                 "schema": {
@@ -8362,7 +8362,7 @@
             "description": "The call carries no credential the host accepts."
           },
           "403": {
-            "description": "The call was refused before it ran, by the local-only guard, the host's authorization, or a control authorizer.",
+            "description": "The call was refused before it ran: by the local-only guard, or because the caller lacks the operation's permission.",
             "content": {
               "application/problem+json": {
                 "schema": {
@@ -8459,7 +8459,7 @@
             "description": "The call carries no credential the host accepts."
           },
           "403": {
-            "description": "The call was refused before it ran, by the local-only guard, the host's authorization, or a control authorizer.",
+            "description": "The call was refused before it ran: by the local-only guard, or because the caller lacks the operation's permission.",
             "content": {
               "application/problem+json": {
                 "schema": {
@@ -8588,7 +8588,7 @@
             "description": "The call carries no credential the host accepts."
           },
           "403": {
-            "description": "The call was refused before it ran, by the local-only guard, the host's authorization, or a control authorizer.",
+            "description": "The call was refused before it ran: by the local-only guard, or because the caller lacks the operation's permission.",
             "content": {
               "application/problem+json": {
                 "schema": {
@@ -8763,7 +8763,7 @@
             "description": "The call carries no credential the host accepts."
           },
           "403": {
-            "description": "The call was refused before it ran, by the local-only guard, the host's authorization, or a control authorizer.",
+            "description": "The call was refused before it ran: by the local-only guard, or because the caller lacks the operation's permission.",
             "content": {
               "application/problem+json": {
                 "schema": {
@@ -8880,7 +8880,7 @@
             "description": "The call carries no credential the host accepts."
           },
           "403": {
-            "description": "The call was refused before it ran, by the local-only guard, the host's authorization, or a control authorizer.",
+            "description": "The call was refused before it ran: by the local-only guard, or because the caller lacks the operation's permission.",
             "content": {
               "application/problem+json": {
                 "schema": {
@@ -9042,7 +9042,7 @@
             "description": "The call carries no credential the host accepts."
           },
           "403": {
-            "description": "The call was refused before it ran, by the local-only guard, the host's authorization, or a control authorizer.",
+            "description": "The call was refused before it ran: by the local-only guard, or because the caller lacks the operation's permission.",
             "content": {
               "application/problem+json": {
                 "schema": {
@@ -9151,7 +9151,7 @@
             "description": "The call carries no credential the host accepts."
           },
           "403": {
-            "description": "The call was refused before it ran, by the local-only guard, the host's authorization, or a control authorizer.",
+            "description": "The call was refused before it ran: by the local-only guard, or because the caller lacks the operation's permission.",
             "content": {
               "application/problem+json": {
                 "schema": {
@@ -9304,7 +9304,7 @@
             "description": "The call carries no credential the host accepts."
           },
           "403": {
-            "description": "The call was refused before it ran, by the local-only guard, the host's authorization, or a control authorizer.",
+            "description": "The call was refused before it ran: by the local-only guard, or because the caller lacks the operation's permission.",
             "content": {
               "application/problem+json": {
                 "schema": {
@@ -9447,7 +9447,7 @@
             "description": "The call carries no credential the host accepts."
           },
           "403": {
-            "description": "The call was refused before it ran, by the local-only guard, the host's authorization, or a control authorizer.",
+            "description": "The call was refused before it ran: by the local-only guard, or because the caller lacks the operation's permission.",
             "content": {
               "application/problem+json": {
                 "schema": {
@@ -9590,7 +9590,7 @@
             "description": "The call carries no credential the host accepts."
           },
           "403": {
-            "description": "The call was refused before it ran, by the local-only guard, the host's authorization, or a control authorizer.",
+            "description": "The call was refused before it ran: by the local-only guard, or because the caller lacks the operation's permission.",
             "content": {
               "application/problem+json": {
                 "schema": {
@@ -9745,7 +9745,7 @@
             "description": "The call carries no credential the host accepts."
           },
           "403": {
-            "description": "The call was refused before it ran, by the local-only guard, the host's authorization, or a control authorizer.",
+            "description": "The call was refused before it ran: by the local-only guard, or because the caller lacks the operation's permission.",
             "content": {
               "application/problem+json": {
                 "schema": {
@@ -9963,7 +9963,7 @@
             "description": "The call carries no credential the host accepts."
           },
           "403": {
-            "description": "The call was refused before it ran, by the local-only guard, the host's authorization, or a control authorizer.",
+            "description": "The call was refused before it ran: by the local-only guard, or because the caller lacks the operation's permission.",
             "content": {
               "application/problem+json": {
                 "schema": {
@@ -10114,7 +10114,7 @@
             "description": "The call carries no credential the host accepts."
           },
           "403": {
-            "description": "The call was refused before it ran, by the local-only guard, the host's authorization, or a control authorizer.",
+            "description": "The call was refused before it ran: by the local-only guard, or because the caller lacks the operation's permission.",
             "content": {
               "application/problem+json": {
                 "schema": {
@@ -10266,7 +10266,7 @@
             "description": "The call carries no credential the host accepts."
           },
           "403": {
-            "description": "The call was refused before it ran, by the local-only guard, the host's authorization, or a control authorizer.",
+            "description": "The call was refused before it ran: by the local-only guard, or because the caller lacks the operation's permission.",
             "content": {
               "application/problem+json": {
                 "schema": {
@@ -10369,7 +10369,7 @@
             "description": "The call carries no credential the host accepts."
           },
           "403": {
-            "description": "The call was refused before it ran, by the local-only guard, the host's authorization, or a control authorizer.",
+            "description": "The call was refused before it ran: by the local-only guard, or because the caller lacks the operation's permission.",
             "content": {
               "application/problem+json": {
                 "schema": {
@@ -10436,7 +10436,7 @@
             "description": "The call carries no credential the host accepts."
           },
           "403": {
-            "description": "The call was refused before it ran, by the local-only guard, the host's authorization, or a control authorizer.",
+            "description": "The call was refused before it ran: by the local-only guard, or because the caller lacks the operation's permission.",
             "content": {
               "application/problem+json": {
                 "schema": {

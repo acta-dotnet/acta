@@ -552,14 +552,4 @@ public sealed class CalendarEndpointTests
         Assert.Empty(fakes.Calendars.Publications);
         Assert.Empty(fakes.Calendars.Archives);
     }
-
-    [Theory]
-    [InlineData("drafts", "calendars.drafts")]
-    [InlineData("publish", "calendars.publish")]
-    [InlineData("archive", "calendars.archive")]
-    public void A_calendar_verb_reaches_the_authorizer_under_its_family(string verb, string expected) =>
-        Assert.Equal(
-            expected,
-            ControlAuthorizationFilter.DeriveVerb($"/acta/api/v1/calendars/{{jobNamespace}}/{{calendarName}}/{verb}", "POST")
-        );
 }

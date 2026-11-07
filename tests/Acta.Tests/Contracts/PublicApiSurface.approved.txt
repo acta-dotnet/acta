@@ -3,17 +3,6 @@
 # Every line here is a 1.0 commitment: additive in 1.x, breaking only in 2.0.
 
 ## Acta.AspNetCore
-record struct Acta.AspNetCore.ActaControlContext
-    .ctor(System.String Verb, Microsoft.AspNetCore.Http.HttpContext HttpContext, System.String Actor)
-    Microsoft.AspNetCore.Http.HttpContext HttpContext { get;init; }
-    System.String Actor { get;init; }
-    System.String Verb { get;init; }
-record struct Acta.AspNetCore.ActaControlVerdict
-    .ctor(System.Boolean IsAllowed, System.String Reason)
-    System.Boolean IsAllowed { get;init; }
-    System.String Reason { get;init; }
-    static Acta.AspNetCore.ActaControlVerdict Allowed { get; }
-    static Acta.AspNetCore.ActaControlVerdict Denied(System.String reason)
 sealed class Acta.AspNetCore.ActaDashboardOptions : Acta.AspNetCore.ActaEndpointOptions
     .ctor()
     System.Boolean AddSecurityHeaders { get;set; }
@@ -44,8 +33,6 @@ static class Acta.AspNetCore.ActaPermissions
     const System.String Control = "acta.control"
     const System.String Enqueue = "acta.enqueue"
     const System.String Read = "acta.read"
-interface Acta.AspNetCore.IActaControlAuthorizer
-    System.Threading.Tasks.ValueTask<Acta.AspNetCore.ActaControlVerdict> AuthorizeAsync(Acta.AspNetCore.ActaControlContext context, System.Threading.CancellationToken ct)
 
 ## Acta.Postgres
 static class Acta.Postgres.PostgresActaExtensions

@@ -90,7 +90,7 @@ signals, delays, and data connections.
 At the moment, access to the read surface effectively means access to every inline job input, result,
 and checkpoint payload. That is simple, but it will be too broad for some production environments.
 
-Acta could provide a host-supplied read policy alongside the existing control authorizer. The host
+Acta could provide a host-supplied read policy beside the per-operation permissions. The host
 would still own authentication and user identities. The policy would only tell Acta whether a caller
 may see a resource in full, see metadata without payloads, see a redacted payload, or not see the
 resource at all. It could make that decision using the namespace, tenant, job, and kind of payload.

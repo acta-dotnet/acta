@@ -119,8 +119,9 @@ public static class ActaEndpointRouteBuilderExtensions
         // reach the nested controls group too.
         ActaEndpointIdentity.Apply(api);
 
-        // What any route can answer, declared once: 401 from the host's authentication, which writes its own body, 403
-        // from the local-only guard, a control authorizer, or the host's authorization, and 500 from the error backstop.
+        // What any route can answer, declared once: 401 from the permission check or the host's authentication, with no
+        // body of Acta's, 403 from the local-only guard, the permission check, or the host's authorization, and 500 from
+        // the error backstop.
         // The rest a route declares where it is answered: RouteTable's shapes, the body a route reads (AcceptsJson), and
         // the routes of their own shape.
         api.WithMetadata(new ProducesResponseTypeMetadata(StatusCodes.Status401Unauthorized, typeof(void)));
@@ -130,12 +131,11 @@ public static class ActaEndpointRouteBuilderExtensions
         api.AddEndpointFilter(ApiFilters.NoStore);
 
         // Null when controls are off; a group's route table maps its writes only when it is there. The empty-prefix
-        // group gives the authorization filter every control route and no read.
+        // group gives the confirmation every control route and no read.
         RouteGroupBuilder? controls = null;
         if (options.EnableControls)
         {
             controls = api.MapGroup("");
-            ControlAuthorizationFilter.Attach(controls);
             // Every control, whatever its method, is confirmed before its route reads anything.
             controls.AddEndpointFilter(
                 async (context, next) => ControlEndpointValidation.CheckConfirmation(context.HttpContext, options) ?? await next(context)
