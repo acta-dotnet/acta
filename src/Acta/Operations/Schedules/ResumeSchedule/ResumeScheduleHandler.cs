@@ -33,7 +33,7 @@ internal sealed class ResumeScheduleHandler(
             DbProjectionResolver.Resolve<ResumeScheduleRow>(),
             ct
         );
-        // The admitter listens on the same channel as the claim loop; it evaluates the schedule at once.
+        // The wake to every worker namespace also sets the admitter's own channel, so it evaluates the schedule at once.
         await JobControl.WakeWorkersIfAsync(wakeup, row.Action == ControlAction.Applied, ct);
 
         return new ResumeScheduleResponse(row.Action, row.Status, row.PausedUntilUtc, row.NextOccurrenceAtUtc, row.Version);

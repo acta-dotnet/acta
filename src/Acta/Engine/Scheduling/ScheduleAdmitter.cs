@@ -25,7 +25,7 @@ internal sealed class ScheduleAdmitter(
     /// <summary>Due schedules one pass reads; a dense namespace is served in rotation, never monopolized.</summary>
     internal const int SchedulesPerPass = 100;
 
-    /// <summary>Replans of one pass before it yields to the next; a lost race is cheap, a loop of them is a sign to back off.</summary>
+    /// <summary>Replans of one pass before it gives up; a lost race is cheap, a loop of them is a sign to back off.</summary>
     private const int MaxReplans = 3;
 
     public async Task RunAsync(string namespaceName, CancellationToken ct)
@@ -45,14 +45,16 @@ internal sealed class ScheduleAdmitter(
                 // The horizon read is the idle loop's one statement; a pass runs only when something is due.
                 var horizon = await schedules.GetScheduleHorizonAsync(context.NamespaceIds[namespaceName], ct);
                 var (now, next) = (horizon.DbNowUtc, horizon.NextEvaluationAtUtc);
-                if (next <= now)
+                // A pass that admitted and left more due is followed at once, on the horizon that pass read. One that
+                // admitted nothing, its groups stale or unchanged, sleeps by the rule below, so lost races back off at the floor.
+                while (next <= now && !ct.IsCancellationRequested)
                 {
                     var pass = await AdmitOnceAsync(namespaceName, ct);
-                    if (pass.Admitted > 0 || pass.Stale > 0)
-                    {
-                        continue;
-                    }
                     (now, next) = (pass.DbNowUtc, pass.NextWakeUtc);
+                    if (pass.Admitted == 0)
+                    {
+                        break;
+                    }
                 }
 
                 // The claim loop's sleep rule: until the horizon, floored and jittered, never past the safety poll.
