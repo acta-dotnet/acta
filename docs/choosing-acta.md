@@ -278,7 +278,7 @@ During local demos, use a short interval such as `10s` so the run is visible. In
 business cadence as a cron expression, or as a plain interval such as `5m` or `1h`. For common cron
 expressions, the `Cron` constants read better: `Cron.Every5Minutes`, `Cron.DailyAt5`, `Cron.Weekdays`.
 
-For a runnable first pass, start with [Quickstart](./quickstart.md). For the unusual implementation
+For a runnable first pass, start with [your first job](./first-job.md). For the unusual implementation
 ideas Acta can demonstrate live, read [Acta Engineering Labs](./engineering-labs.md). What evidence
 stands behind the reliability claims, and what does not exist yet, is in
 [Compatibility and support, evidence behind the claims](./compatibility-and-support.md#evidence-behind-the-claims).

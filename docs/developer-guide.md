@@ -1148,7 +1148,7 @@ server). Each host targets its own schema, so one database serves many parallel 
 
 ### First test
 
-The handler under test is the quickstart's `send-welcome-email` ([`quickstart.md`](./quickstart.md)).
+The handler under test is a `send-welcome-email` job in a `Users` app: its input is `SendWelcomeEmail(Guid UserId, string Email, string DisplayName)`, and its handler calls `EmailService.SendWelcomeAsync` with those values.
 Its `EmailService` dependency is replaced with a fake through `ActaTestHostOptions.ConfigureServices`.
 
 ```csharp

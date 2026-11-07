@@ -100,6 +100,6 @@ public sealed class DocSampleDriftTests
             .OrderBy(name => name, StringComparer.Ordinal)
             .ToList();
 
-        Assert.Equal(["deliver-webhook", "send-welcome-email", "ship-order"], names);
+        Assert.Equal(["deliver-webhook", "ship-order"], names);
     }
 }

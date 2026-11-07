@@ -412,7 +412,7 @@ dotnet_diagnostic.CA1822.severity = none
 #
 # CA1515 wants an application's types internal, on the grounds that nothing references an application
 # assembly. That is true of the demos and beside the point: they exist to be copied into a reader's own
-# app, where the same types are public, and README and quickstart show them that way. Demoting them
+# app, where the same types are public, and README and the first-job guide show them that way. Demoting them
 # would teach a shape that serves nothing and would put the three out of step with each other.
 #
 # CA1062 fires on job-handler parameters, which Acta's own executor supplies and never passes null -

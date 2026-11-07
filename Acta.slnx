@@ -37,9 +37,9 @@
     <File Path="docs/compatibility-and-support.md" />
     <File Path="docs/developer-guide.md" />
     <File Path="docs/engineering-labs.md" />
+    <File Path="docs/first-job.md" />
     <File Path="docs/known-limitations.md" />
     <File Path="docs/operator-guide.md" />
-    <File Path="docs/quickstart.md" />
     <File Path="docs/release-notes.md" />
     <File Path="docs/sql-internals.md" />
   </Folder>

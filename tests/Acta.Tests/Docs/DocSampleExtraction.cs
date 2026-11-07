@@ -11,7 +11,7 @@ namespace Acta.Tests.Docs;
 public static partial class DocSampleExtraction
 {
     /// <summary>The documents that must all carry the identical first-run program.</summary>
-    public static readonly string[] FirstRunDocuments = ["llms.txt", "README.md", "docs/quickstart.md", "site/start.html"];
+    public static readonly string[] FirstRunDocuments = ["llms.txt", "README.md", "site/start.html"];
 
     /// <summary>Opening line of the first-run program; the marker that identifies it in any document.</summary>
     public const string FirstRunMarker = "using Shipping;";

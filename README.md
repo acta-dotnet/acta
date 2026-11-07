@@ -89,9 +89,9 @@ namespace and registered once. One worker runtime owns one namespace, and the ho
 also executes, so there is no separate worker process to deploy unless you want one. Swap
 `UseSqlite` for `UsePostgres` or `UseSqlServer` and nothing else changes. No web host? The same
 program runs on `Host.CreateApplicationBuilder` without the dashboard;
-[`docs/quickstart.md`](./docs/quickstart.md) says what to change.
+[`docs/first-job.md`](./docs/first-job.md#without-a-web-host) says what to change.
 
-Full walkthrough: [`docs/quickstart.md`](./docs/quickstart.md). Deeper docs start at [`docs/README.md`](./docs/README.md).
+Full walkthrough: [`docs/first-job.md`](./docs/first-job.md). Deeper docs start at [`docs/README.md`](./docs/README.md).
 
 ### Or explore the repository
 
@@ -163,7 +163,7 @@ The execution model is **checkpoints, not replay**: a handler may re-enter from 
 
 ## Documentation
 
-Start at [`docs/README.md`](./docs/README.md), which orders every page by the question it answers. The main pages: [Choosing Acta](./docs/choosing-acta.md) and its section on [moving from another scheduler](./docs/choosing-acta.md#moving-from-another-scheduler); the [Quickstart](./docs/quickstart.md); the [Engineering Labs](./docs/engineering-labs.md) field guide; the [developer guide](./docs/developer-guide.md), with its sections on [concepts and vocabulary](./docs/developer-guide.md#concepts-and-glossary), the [handler contract](./docs/developer-guide.md#handler-contract), and [contract evolution](./docs/developer-guide.md#contract-evolution); and the [operator guide](./docs/operator-guide.md), with its [production guide](./docs/operator-guide.md#production-guide) section. The generated references in [`docs/reference/`](./docs/reference/) (data model, code families, conformance contracts) sit behind them for lookup, drift-checked against source in CI.
+Start at [`docs/README.md`](./docs/README.md), which orders every page by the question it answers. The main pages: [Choosing Acta](./docs/choosing-acta.md) and its section on [moving from another scheduler](./docs/choosing-acta.md#moving-from-another-scheduler); the [first job, end to end](./docs/first-job.md); the [Engineering Labs](./docs/engineering-labs.md) field guide; the [developer guide](./docs/developer-guide.md), with its sections on [concepts and vocabulary](./docs/developer-guide.md#concepts-and-glossary), the [handler contract](./docs/developer-guide.md#handler-contract), and [contract evolution](./docs/developer-guide.md#contract-evolution); and the [operator guide](./docs/operator-guide.md), with its [production guide](./docs/operator-guide.md#production-guide) section. The generated references in [`docs/reference/`](./docs/reference/) (data model, code families, conformance contracts) sit behind them for lookup, drift-checked against source in CI.
 
 ## Packages
 

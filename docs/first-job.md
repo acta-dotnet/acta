@@ -1,19 +1,26 @@
 # Your first job, end to end
 
-The [quickstart](./quickstart.md) left you with a `Shipping` web app, one `ship-order` job, and a
-row you can `SELECT`. This guide grows that app through the whole lifecycle of a job: a typed
-result, the ref you keep, status and result reads, a failure that is final and one that is not,
-the explanation, cancellation, a wait that times out, and the first test. Everything runs on the
-consumer packages with the .NET 10 SDK and embedded SQLite: no clone, no Node, no database server.
+One web app, two jobs, and a job's whole life: install, run, a typed result, the ref you keep, status and result reads, a failure that is final and one that is not, the explanation, cancellation, a wait that times out, the row in SQL, and the first test. Everything runs on the consumer packages with the .NET 10 SDK and embedded SQLite: no clone, no Node, no database server. The [README](../README.md) has the shortest program that runs one job; this page is the full first job.
 
 The three files below are the app. They are also concept
 [`026-first-job`](../concepts/000-fundamentals/026-first-job/) in the repository, verbatim, so what
 you read here is what compiles.
 
+## Install
+
+Three commands from an empty folder:
+
+```bash
+dotnet new web -n Shipping && cd Shipping
+dotnet add package Acta.Sqlite --prerelease
+dotnet add package Acta.Dashboard --prerelease
+```
+
+The provider package brings the runtime, the `[Job]` source generator, and the analyzers. `Acta.Dashboard` adds the embedded dashboard and brings `Acta.AspNetCore`, the JSON API; the built UI ships inside the package.
+
 ## The app
 
-Same project as the quickstart, same packages (`Acta.Sqlite`, `Acta.Dashboard`). Replace
-`Program.cs` and add the two files beside it.
+Replace `Program.cs` and add the two files beside it.
 
 ```csharp
 // File: Jobs.cs
@@ -156,6 +163,10 @@ curl http://localhost:5090/jobs/job_.../label            # {"orderId":1042,"carr
 curl -X POST http://localhost:5090/orders/1043/ship-now  # 200 with the label: enqueued, ran, and waited for
 ```
 
+`acta-local.db` holds the rows. Open `/acta` on the same port: the Jobs screen lists both orders as succeeded.
+
+`using Shipping;` is needed: the manifest `ShippingJobs` is generated into the project's root namespace, and top-level statements live in the global one. The naming rule is in [Troubleshooting](./operator-guide.md#the-generated-manifest-type-does-not-resolve).
+
 ## What each piece does
 
 ### Two ways to enqueue
@@ -208,6 +219,19 @@ delayed job never runs, a running handler sees its `CancellationToken` cancelled
 arrive in time, the returned `JobOutcome` has `IsTimedOut` set and nothing else happened: the job is
 still queued or running, and a later read, wait, or `GetResultAsync` sees it finish. A timeout is the
 caller giving up on waiting, never the job giving up on the work.
+
+## Inspect the row
+
+The state is rows, so SQL reads it. Open `acta-local.db` in any SQLite client; on PostgreSQL or SQL Server the views sit in the configured schema, so the same query reads `acta.jobs_view`:
+
+```sql
+SELECT job_ref, definition_name, job_status, failure_count, created_at_utc
+FROM   jobs_view
+WHERE  namespace_name = 'shipping'
+ORDER  BY created_at_utc DESC;
+```
+
+`events_view` holds each job's append-only timeline: every transition, with actor and reason.
 
 ## The first test
 
@@ -323,15 +347,25 @@ dotnet test
 ```
 
 `ActaTestHost.StartAsync` builds the same container production uses, migrates a fresh database, and
-registers the manifest, but starts no claim loop. `RunOnceAsync(job)` claims and runs exactly that job
+deploys the manifest's jobs, but starts no claim loop. `RunOnceAsync(job)` claims and runs exactly that job
 and answers what the tick did: `Completed`, `Failed`, `Rearmed` (re-armed for a later attempt), or
 `NothingClaimed`. The printer is the app's own class, swapped in through `ConfigureServices` as the
 singleton the handler resolves. The same test runs unchanged on PostgreSQL or SQL Server by swapping
 the provider registration; see [Testing custom jobs](./developer-guide.md#testing-custom-jobs) for
 retries, signals, timers, and crash recovery.
 
+## Without a web host
+
+The same jobs run on the generic host, without the dashboard and the endpoints:
+
+- Create the project with `dotnet new console` and reference `Microsoft.Extensions.Hosting` in place of `Acta.Dashboard`. Acta itself depends only on `Hosting.Abstractions`.
+- In `Program.cs`, build with `Host.CreateApplicationBuilder(args)`, drop `MapActa` and the endpoints, and enqueue at startup: `await host.StartAsync();`, then `await host.Services.GetRequiredService<IJobs>().EnqueueAsync(new ShipOrder(1042));`, then `await host.WaitForShutdownAsync();`.
+- Add `using Microsoft.Extensions.DependencyInjection;` and `using Microsoft.Extensions.Hosting;`: a console project's implicit usings cover neither.
+- Everything durable is the same: the rows, the retries, the CLI. Only the dashboard needs a web host.
+
 ## Where to go next
 
+- Production: a deploy step runs `<app> jobs migrate` in place of `MigrateOnStartup`. See [Deploying jobs](./operator-guide.md#deploying-jobs).
 - Durable steps, signals, sleeps, and child jobs, so a handler survives a crash mid-work:
   [Concepts](./developer-guide.md#concepts-and-glossary) and the [Engineering Labs](./engineering-labs.md).
 - Recurring work: [Schedules](./developer-guide.md#schedule-operations).

@@ -13,8 +13,7 @@ database you already run. Each page below answers one question, in the order you
 
 ## Get started
 
-- [Quickstart](./quickstart.md): how do I run a durable job in my own app on embedded SQLite, and what row does it leave?
-- [Your first job, end to end](./first-job.md): how do I read a typed result, tell a final failure from a retry, ask why, cancel, wait with a timeout, and test it all on SQLite?
+- [Your first job, end to end](./first-job.md): how do I install Acta and run a durable job in my own app on embedded SQLite, read its typed result, tell a final failure from a retry, ask why, cancel, wait with a timeout, read the row it leaves, and test it all?
 - [Continuous synchronization](../concepts/100-scheduling/109-continuous-synchronization/): how does one permanent job keep an external system current without a loop that runs forever, and what happens when its worker is killed after a committed batch? The lab prints the rows.
 - [Engineering Labs](./engineering-labs.md): how do crash recovery, durable steps, signals, the dashboard, and deterministic tests behave, shown one runnable concept at a time?
 
@@ -22,7 +21,7 @@ database you already run. Each page below answers one question, in the order you
 
 Each line is one thing you are trying to do, with the shortest complete path through the pages above.
 
-- **Install Acta and run a job**: the [quickstart](./quickstart.md), then [your first job](./first-job.md) for the rest of the lifecycle.
+- **Install Acta and run a job**: [your first job](./first-job.md), from the three install commands to the first test.
 - **Choose how to enqueue**: by input type or through the generated call ([two ways to enqueue](./first-job.md#two-ways-to-enqueue)), later or on a schedule ([enqueue, schedule, and follow a job](./developer-guide.md#enqueue-schedule-and-follow-a-job)), or inside your own database transaction ([transactional enqueue and the outbox](./developer-guide.md#transactional-enqueue-and-the-external-outbox)).
 - **Read a typed result**: [status and result](./first-job.md#status-and-result) in the guide, [result persistence](./developer-guide.md#result-persistence) for what a job stores and for how long.
 - **Make an external side effect safe to repeat**: [steps, variables, signals and timers](./developer-guide.md#steps-variables-signals-and-timers), and the webhook sample in the [agent guide](../llms.txt) for the idempotency key that survives retries.
