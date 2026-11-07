@@ -111,7 +111,8 @@
       </label>
       <span class="dim schedule-help">
         Schedules aren't created here - they're declared in code with a <span class="mono">[Schedule]</span> attribute on a
-        <span class="mono">[Job]</span> handler and synced at host startup.
+        <span class="mono">[Job]</span> handler and written by <span class="mono">jobs deploy</span> or
+        <span class="mono">jobs migrate</span>; a MigrateOnStartup start writes them only in a namespace neither has deployed.
       </span>
       <CopyButton value={copySql} label="Copy SQL" title={COPY_SQL_TITLE} />
     </FilterBar>
@@ -156,7 +157,7 @@
       initialPageSize={Number(initial.get('pageSize') ?? '50') || 50}
       onPageSizeChange={(size) => updateHashParams({ pageSize: String(size) })}
       loadingText="Loading schedules..."
-      emptyText="No schedules yet. Declare one with a [Schedule] attribute on a [Job] handler; it appears here after the host syncs at startup."
+      emptyText="No schedules yet. Declare one with a [Schedule] attribute on a [Job] handler; it appears here after the next deploy: jobs deploy, jobs migrate, or a MigrateOnStartup start in a namespace neither has deployed."
       cells={{ scheduleName: scheduleCell, status: statusCell, job: jobCell, expression: sourceCell, nextOccurrenceAtUtc: nextOccurrenceCell, actions: actionsCell }}
       rowClass={(schedule: ScheduleRow) =>
         schedule.status === 'paused'
