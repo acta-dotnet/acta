@@ -946,7 +946,7 @@ per-occurrence schedule is at `MaxOutstanding`; a missing or orphaned schedule i
 
 Under `CatchUpAll` the schedule is due again the moment a firing is admitted: a permanent slot parks until that firing settles and takes the next occurrence then, and a per-occurrence schedule admits one root per pass up to `MaxOutstanding`, then waits or drops by its `FullBehavior`. Ten missed hourly occurrences are one run under `CatchUpOnce` or `CatchUpLatest`, one run under `Skip` only if the tenth is still within the grace, and ten runs under `CatchUpAll`.
 
-The admission engine applies the strategy whenever it evaluates a stored occurrence that is already past: after downtime, when a paused schedule resumes, and when a timed pause ends. An occurrence less than `misfire_grace_seconds` (60) overdue still counts as due. A worker start never decides an occurrence: it registers the declaration and leaves the decision to the running fleet, so a redeploy with an unchanged schedule changes nothing. A changed expression, time zone, or interval anchor retimes the schedule at the start: the old timing's undecided occurrences are discarded (`schedule.retimed`) and the cursor seeds from the new timing's first occurrence after now. A timed pause decides as of its end: an occurrence inside the window is skipped under `Skip`, runs once under `CatchUpOnce`, runs as the latest under `CatchUpLatest`, and runs in order under `CatchUpAll`.
+The admission engine applies the strategy whenever it evaluates a stored occurrence that is already past: after downtime, when a paused schedule resumes, and when a timed pause ends. An occurrence less than `misfire_grace_seconds` (60) overdue still counts as due. A worker start never decides an occurrence: it registers the declaration and leaves the decision to the running fleet, so a redeploy with an unchanged schedule changes nothing. A changed expression, time zone, interval anchor, or bound retimes the schedule at the start: the old timing's undecided occurrences are discarded (`schedule.retimed`) and the cursor seeds from the new timing's first occurrence after now. A timed pause decides as of its end: an occurrence inside the window is skipped under `Skip`, runs once under `CatchUpOnce`, runs as the latest under `CatchUpLatest`, and runs in order under `CatchUpAll`.
 
 `[Schedule(ExpireAfter = "1h", ExpireAction = ScheduleExpireActionCode.Discard)]` bounds how old an occurrence may be when it is evaluated. Occurrences older than the age are decided first and without work, audited as `schedule.skipped` with the reason `expired`, and the strategy then decides the rest. `Discard` moves on. `Pause` also pauses the schedule, with the pause message `Paused by the expiration policy: an occurrence expired unadmitted.` and a `schedule.paused` event with the reason `expired`, so an operator learns that the schedule fell behind. The first evaluation after an operator's resume (`evaluation_status` is `resumed` until then) and the end of a timed pause expire the stale part of the backlog without pausing again, so a resumed schedule moves on. Expiration does not wait for capacity: an evaluation expires every occurrence past the age before it asks whether the slot or the schedule can take one, so a schedule parked behind a busy slot or a full schedule discards its stale backlog at once. Without an expiry, `CatchUpAll` runs the whole backlog.
 
@@ -960,6 +960,18 @@ What the admitter does, by what it finds:
 | A timed pause ended | The window's occurrences are skipped; one at its end fires | One firing for the window | The latest fires | In order |
 | A busy slot or a full schedule | Parks as `waiting-for-capacity`; decides as above when the settlement wakes it | same | same | Parks between firings |
 | Occurrences older than `ExpireAfter` | Expired first, with the reason; `Pause` then pauses the schedule | same | same | same |
+
+### Finite schedules
+
+`StartAtUtc` and `EndBeforeUtc` bound a schedule to the occurrences in [start, end), each a UTC instant written with a `Z`; either may be left out, and a start must be earlier than an end (`ACTA0129`).
+
+```csharp
+[Job("year-end-push")]
+[Schedule("hourly", Cron.Hourly, StartAtUtc = "2027-12-01T00:00:00Z", EndBeforeUtc = "2028-01-01T00:00:00Z")]
+public Task Push(JobContext ctx, CancellationToken ct) => ...;
+```
+
+The bounds are on the occurrences' own instants, not on when they run: the first occurrence is the first the expression produces at or after the start, an interval with a start steps on the start's grid (`start + k * interval`), and the last is the last before the end. An occurrence before the end that is evaluated after it is decided by the misfire and expiry policies exactly as any late occurrence, so a `CatchUpAll` schedule finishes its backlog after the end and a `Skip` schedule skips it. Past the end the schedule reads `exhausted` with no next occurrence, as a calendar with no instant left does; no event marks it. Extending the end in a later build is a timing change: the schedule retimes and goes on. So is declaring a bound on a running schedule, which discards its undecided occurrences as any retime does. A trigger fires the schedule whatever its bounds. `schedules_view` shows the bounds as `start_at_utc` and `end_before_utc`, and the schedule read as `startAtUtc` and `endBeforeUtc`.
 
 ### Calendars
 

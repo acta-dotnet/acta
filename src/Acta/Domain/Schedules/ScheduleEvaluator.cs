@@ -71,9 +71,15 @@ internal static class ScheduleEvaluator
         DateTime? skippedThrough = null;
         try
         {
-            // A calendar is code or catalog content that can change under a stored cursor: an occurrence the source no
-            // longer produces is skipped as such, and the cursor moves to the first it does, decided on the next pass.
-            if (source.Calendar is not null || source.Availability is not null)
+            // A calendar is code or catalog content that can change under a stored cursor, and a cursor can sit outside
+            // the bounds, as one a test host plants: an occurrence the source no longer produces is skipped as such, and
+            // the cursor moves to the first it does, decided on the next pass.
+            if (
+                source.Calendar is not null
+                || source.Availability is not null
+                || source.Timing.StartAtUtc is not null
+                || source.Timing.EndBeforeUtc is not null
+            )
             {
                 var still = NextOccurrenceCalculator.Next(source, next.AddTicks(-1));
                 if (still != next)
@@ -219,7 +225,8 @@ internal static class ScheduleEvaluator
 
     /// <summary>
     /// The last occurrence at or before <paramref name="nowUtc"/>, starting from the due <paramref name="fromUtc"/>: an
-    /// interval's grid arithmetic, or a bounded walk when the source is a cron, a calendar, or filtered by availability.
+    /// interval's grid arithmetic, cut at the schedule's end so no coalescing policy admits or covers an instant past it,
+    /// or a bounded walk when the source is a cron, a calendar, or filtered by availability, which the calculator bounds.
     /// </summary>
     internal static DateTime LatestDue(ScheduleSource source, DateTime fromUtc, DateTime nowUtc)
     {
@@ -228,7 +235,10 @@ internal static class ScheduleEvaluator
         {
             var interval = NextOccurrenceCalculator.ParseInterval(timing.Expression);
             var anchor = DateTime.SpecifyKind(timing.IntervalAnchorAtUtc ?? fromUtc, DateTimeKind.Utc);
-            var steps = (long)Math.Floor((nowUtc - anchor) / interval);
+            var limit = timing.EndBeforeUtc is { } end && end <= nowUtc ? end.AddTicks(-1) : nowUtc;
+            // Whole ticks: a double would round a span of decades onto the next grid instant, the end itself included.
+            var elapsed = (limit - anchor).Ticks;
+            var steps = elapsed >= 0 ? elapsed / interval.Ticks : -((-elapsed + interval.Ticks - 1) / interval.Ticks);
             var latest = anchor.AddTicks(interval.Ticks * steps);
             return latest < fromUtc ? fromUtc : latest;
         }

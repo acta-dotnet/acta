@@ -4,12 +4,11 @@ using Cronos;
 namespace Acta;
 
 /// <summary>
-/// Pure next-occurrence math for recurring schedules. No ambient clock; every entry point takes an explicit UTC instant
-/// and returns exact UTC instants. Cron is parsed with Cronos (6 fields enables seconds); interval durations are parsed
-/// by <see cref="ParseInterval"/> - human (e.g. <c>5m</c>) or ISO 8601 (e.g. <c>PT5M</c>, <c>P1D</c>); a calendar
-/// source asks its <see cref="IActaCalendar"/>. Time zones resolve via <see cref="TimeZoneInfo.FindSystemTimeZoneById"/>
-/// (cron and calendars; intervals are absolute). A bound <see cref="IActaAvailabilityCalendar"/> filters every result:
-/// an occurrence outside its windows is omitted, never shifted, and the next one inside a window is the answer.
+/// Pure next-occurrence math for recurring schedules: every entry point takes an explicit UTC instant and answers exact
+/// UTC instants. Cron is parsed with Cronos (6 fields enables seconds), an interval by <see cref="ParseInterval"/>, and a
+/// calendar source asks its <see cref="IActaCalendar"/>; zones resolve through <see cref="ResolveTimeZone"/> for cron and
+/// calendars, an interval is absolute. An availability calendar omits an occurrence outside its windows, never shifts it.
+/// The timing's bounds hold every answer to [start, end) on the nominal instant; past the end the source is exhausted.
 /// </summary>
 internal static class NextOccurrenceCalculator
 {
@@ -123,8 +122,32 @@ internal static class NextOccurrenceCalculator
             }
         );
 
-    /// <summary>The bare source's first instant strictly after <paramref name="afterUtc"/>, an interval on the grid of <paramref name="anchorUtc"/>.</summary>
+    /// <summary>
+    /// The bare source's first instant strictly after <paramref name="afterUtc"/> inside the timing's bounds, an interval
+    /// on the grid of <paramref name="anchorUtc"/>: a seek from before the start seeks from the start, and a seek from or
+    /// an answer at or after the end is null without asking the source. The bounds sit here rather than on the public
+    /// answers because <see cref="Open"/> comes back here for the instant at each window's start, and a null ends that
+    /// seek where an outer check would let it hop windows past the end up to its limit.
+    /// </summary>
     private static DateTime? RawNext(ScheduleSource source, DateTime afterUtc, DateTime anchorUtc)
+    {
+        var timing = source.Timing;
+        if (timing.EndBeforeUtc is { } end && afterUtc >= end)
+        {
+            return null;
+        }
+
+        if (timing.StartAtUtc is { } start && afterUtc < start)
+        {
+            afterUtc = start.AddTicks(-1);
+        }
+
+        var next = Bare(source, afterUtc, anchorUtc);
+        return next >= timing.EndBeforeUtc ? null : next;
+    }
+
+    /// <summary>The source's first instant strictly after <paramref name="afterUtc"/> with no bound applied.</summary>
+    private static DateTime? Bare(ScheduleSource source, DateTime afterUtc, DateTime anchorUtc)
     {
         var timing = source.Timing;
         switch (timing.ExpressionKind)

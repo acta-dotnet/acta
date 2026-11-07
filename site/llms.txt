@@ -226,7 +226,9 @@ workers, so a recovered firing continues where the lost one stopped. Write the w
 variable after it, and make the work an upsert: an attempt that dies between the two replays one
 batch. A definition whose occurrences are each their own job, with
 their own retries, result, and retention, declares `ScheduledDelivery = ScheduledDeliveryCode.PerOccurrence`.
-The runnable proof, with a killed worker, is `concepts/100-scheduling/109-continuous-synchronization`.
+A finite schedule declares `StartAtUtc` and `EndBeforeUtc` (UTC with a `Z`): its occurrences fall in
+[start, end) and it reads `exhausted` past the end. The runnable proof, with a killed worker, is
+`concepts/100-scheduling/109-continuous-synchronization`.
 
 ## Choosing between a lane, a key, a limit, and a rate
 

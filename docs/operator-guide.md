@@ -1356,7 +1356,7 @@ SELECT namespace_name, definition_name, schedule_name, schedule_status, schedule
 
 A schedule whose `expression_kind` is `calendar` names its calendar in `expression`, and one that fires only inside an availability calendar's windows names it in `availability_calendar_name`. The row keeps the name only: each evaluation resolves it afresh, to the published version of the family in the namespace's catalog, else the shared one in `sys`. An `evaluation_status` of `evaluation-error` on such a schedule usually means the name has no published version, its published version is one this worker's build cannot read, or the calendar threw while it was evaluated; the worker log names the reason, and the other schedules of the namespace go on. The catalog itself is `calendars_view`: one row per version with its role, status, and hash.
 
-`start_at_utc` and `end_before_utc` are the schedule's bounds, [start, end) on the occurrences' own instants; null is no bound.
+`start_at_utc` and `end_before_utc` are the schedule's bounds, [start, end) on the occurrences' own instants; null is no bound. A schedule past its end has no `next_occurrence_at_utc` and reads `exhausted`, as a calendar with no instant left does; a build that extends the end retimes it.
 
 `expire_after_seconds` and `expire_action` are null together when occurrences never expire; a schedule paused
 by its expiry carries the pause message `Paused by the expiration policy: an occurrence expired unadmitted.`

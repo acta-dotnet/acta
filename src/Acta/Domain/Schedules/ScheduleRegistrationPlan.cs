@@ -22,12 +22,14 @@ internal static class ScheduleRegistrationPlan
         {
             var timeZone = string.IsNullOrWhiteSpace(d.TimeZoneId) ? "UTC" : d.TimeZoneId;
             var stored = storedByName.GetValueOrDefault(d.ScheduleName);
-            // An interval keeps the anchor its first registration set, so a redeploy never shifts its phase; a schedule
-            // that becomes an interval steps from this start.
+            // An interval with a start steps on the start's grid on every deploy. Without one it keeps the anchor its first
+            // registration set, so a redeploy never shifts its phase; a schedule that becomes an interval steps from this
+            // start.
             DateTime? anchor =
-                d.ExpressionKind != ScheduleExpressionKindCode.Interval ? null
-                : stored?.ExpressionKind == ScheduleExpressionKindCode.Interval ? stored.IntervalAnchorAtUtc ?? nowUtc
-                : nowUtc;
+                d.ExpressionKind != ScheduleExpressionKindCode.Interval
+                    ? null
+                    : d.StartAtUtc
+                        ?? (stored?.ExpressionKind == ScheduleExpressionKindCode.Interval ? stored.IntervalAnchorAtUtc ?? nowUtc : nowUtc);
             var timing = new ScheduleTiming(
                 d.Expression,
                 d.ExpressionKind,

@@ -44,6 +44,8 @@
     expireAfterSeconds: number | null;
     expireAction: string | null;
     availabilityCalendarName: string | null;
+    startAtUtc: string | null;
+    endBeforeUtc: string | null;
   }
 
   let {
@@ -199,6 +201,17 @@
                   {displayFormatter.duration(schedule.expireAfterSeconds)} unadmitted, then {schedule.expireAction}
                 {:else}
                   <span class="dim">never</span>
+                {/if}
+              </dd>
+            </div>
+            <div>
+              <dt>Bounds</dt>
+              <dd>
+                {#if schedule.startAtUtc === null && schedule.endBeforeUtc === null}
+                  <span class="dim">none</span>
+                {:else}
+                  {#if schedule.startAtUtc !== null}<div>from {displayFormatter.timestamp(schedule.startAtUtc)}</div>{/if}
+                  {#if schedule.endBeforeUtc !== null}<div>until {displayFormatter.timestamp(schedule.endBeforeUtc)}</div>{/if}
                 {/if}
               </dd>
             </div>
