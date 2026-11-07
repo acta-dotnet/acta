@@ -31,7 +31,7 @@ public sealed class ListCurrentCalendarsSpec : ActaStorageTestBase<ConformanceFi
         await Calendars.SaveDraftAsync(
             new(TestNamespace, names[0]),
             CalendarRoleCode.Availability,
-            CalendarTestOps.AvailabilityDefinition,
+            CalendarTestOps.Revised(CalendarTestOps.AvailabilityDefinition, 2),
             1,
             ct: ct
         );

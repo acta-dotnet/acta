@@ -177,22 +177,31 @@ public Task Settle(JobContext ctx, CancellationToken ct) => ...;
 public Task Sync(JobContext ctx, CancellationToken ct) => ...;
 ```
 
-A deploy step saves, previews, and publishes the families those schedules name:
+A deploy step saves, previews, and publishes the families those schedules name, each from its file:
 
 ```csharp
 var officeHours = new CalendarLookup("sys", "office-hours");
-var draft = await calendars.SaveDraftAsync(officeHours, CalendarRoleCode.Availability, """
-    {"kind":"weekly-availability","timeZone":"schedule",
-     "weekly":[{"days":["Monday","Tuesday","Wednesday","Thursday","Friday"],"windows":[["09:00","12:00"],["13:00","17:00"]]}],
-     "dateOverrides":{"2027-12-24":[["09:00","12:00"]],"2027-12-25":[]},
-     "excludedRanges":[{"from":"2027-08-01","to":"2027-08-14"}]}
-    """, expectedLatestVersion: 2, reasonMessage: "Summer closure");
+var draft = await calendars.SaveDraftAsync(officeHours, CalendarRoleCode.Availability, await File.ReadAllTextAsync("calendars/office-hours.json"));
 var preview = await calendars.PreviewAsync(officeHours, draft.Version!.Value, timeZoneId: "Europe/Ljubljana");
-var published = await calendars.PublishAsync(officeHours, expectedCurrentVersion: 2, candidateVersion: draft.Version.Value);
+await calendars.PublishAsync(officeHours, draft.Version.Value);
 ```
 
+`calendars/office-hours.json`:
+
+```json
+{
+  "kind": "weekly-availability",
+  "timeZone": "schedule",
+  "weekly": [{ "days": ["Monday", "Tuesday", "Wednesday", "Thursday", "Friday"], "windows": [["09:00", "12:00"], ["13:00", "17:00"]] }],
+  "dateOverrides": { "2027-12-24": [["09:00", "12:00"]], "2027-12-25": [] },
+  "excludedRanges": [{ "from": "2027-08-01", "to": "2027-08-14" }]
+}
+```
+
+The step runs again as it is: a file nobody changed saves nothing, and its version, already current, publishes nothing.
+
 - A family is a name in a namespace, or in `sys`, the shared scope every namespace binds; a name belongs to one scope. A schedule's calendar name resolves to the namespace's family of that name, else to the shared one in `sys`.
-- Each save is a new immutable version, and the one Published version is what the name resolves to, read afresh at every evaluation and every preview. The schedule row stores the name and nothing about the version it resolved to, and the timing fingerprint covers the name only, so a deploy never retimes a schedule over its calendar; a publication does, as below.
+- Each save of a changed definition is a new immutable version, and the one Published version is what the name resolves to, read afresh at every evaluation and every preview. The schedule row stores the name and nothing about the version it resolved to, and the timing fingerprint covers the name only, so a deploy never retimes a schedule over its calendar; a publication does, as below.
 - A definition is JSON with a `kind`, and every problem in one is reported with its JSON path. The kinds:
 
 | Kind | Role | Members |
@@ -224,11 +233,17 @@ The workflow keeps a calendar's definition beside the code that names it:
 
 - Workers never publish. A deploy checks every calendar its schedules name before it writes anything, and one that finds a calendar not ready fails, writing nothing, and lists each schedule as `namespace/job/schedule` with its calendar and the reason: no published version, a version published under the other role, or a version this build cannot read, with the compiler's problem.
 - `GetAsync` answers a family's head with one version's `Definition`, the stored JSON text, which a draft takes back as it is.
-- `SaveDraftAsync` takes the latest version the caller saw (`VersionConflict` otherwise) and creates a namespace no worker has run in yet.
+- Every verb's expected version is optional, and leaving it out skips the check. A caller that edits what it read passes the version it read (`expectedLatestVersion`, `expectedCurrentVersion`), so a change made in between is a `VersionConflict` rather than an overwrite.
+- `SaveDraftAsync` saves the definition as the family's latest version plus one and creates a namespace no worker has run in yet.
+- A save of the definition the latest version already holds writes nothing and answers `AlreadyInState` with that version, whatever the expected version; the comparison is of the JSON's content, so layout and whitespace do not count.
+- A save of the definition an Archived latest version holds saves a new draft, which revives the family.
+- A definition that does not compile throws `CalendarDefinitionException`, whose message and `Problems` list every problem with its JSON path, and writes nothing; over HTTP the draft answers 409 `rejected` with the same `problems`.
+- A role other than the family's, or a name the other scope holds, answers `Rejected` with the reason.
 - `PreviewAsync` forecasts a version beside the current one and lists up to 100 bound schedules with an overdue flag, overdue ones first, with `SchedulesTotal` and `OverdueTotal` counting them all; `ListDependentsAsync` pages every one.
 - `PublishAsync` makes a draft current and retimes every schedule that names the family in its scope, in one transaction: each cursor seeds from the new version's first occurrence after now, and `schedule.retimed` is recorded. Paused and orphaned schedules keep their state. A family that more than 200 schedules bind is refused.
+- Publishing the version already current answers `AlreadyInState` and changes nothing: no schedule is retimed, no event is recorded, and an overdue occurrence does not refuse it. Two publications of one draft at once publish it once, and the second answers `AlreadyInState`.
 - A schedule holding an undecided overdue occurrence refuses the publication (`OverdueDecisionCode.Refuse`, the default) until it is drained; under `OverdueDecisionCode.Discard` the occurrence is audited as `schedule.skipped` with the reason `retimed`.
-- `ArchiveAsync` retires a family no live schedule names.
+- `ArchiveAsync` retires the current version of a family no live schedule names.
 
 ## Backfill
 

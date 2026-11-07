@@ -223,4 +223,20 @@ public sealed class CalendarDefinitionTests
 
         Assert.Contains(ex.Problems, p => p.StartsWith(problem, StringComparison.Ordinal));
     }
+
+    // A deploy step prints the message: every problem with its path, one per line, under one line that says what failed.
+    [Fact]
+    public void A_refused_definition_message_lists_every_problem_on_its_own_line()
+    {
+        var ex = Assert.Throws<CalendarDefinitionException>(() =>
+            Availability(
+                """{"kind":"weekly-availability","timeZone":"UTC","weekly":[{"days":["Someday"],"windows":[["09:00","25:00"]]}]}"""
+            )
+        );
+
+        Assert.True(ex.Problems.Count >= 2, ex.Message);
+        Assert.All(ex.Problems, p => Assert.StartsWith("$", p, StringComparison.Ordinal));
+        Assert.Contains(ex.Problems, p => p.StartsWith("$.weekly[0].days[0]", StringComparison.Ordinal));
+        Assert.Equal(["The calendar definition does not compile:", .. ex.Problems], ex.Message.Split(Environment.NewLine));
+    }
 }

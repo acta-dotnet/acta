@@ -5,14 +5,15 @@ using Xunit;
 namespace Acta.Tests.Conformance.Operations.Calendars;
 
 /// <summary>
-/// Conformance for archiving a calendar family's current version: only the expected current version archives, only
-/// while no live schedule of an active definition names the family, and the archive is audited.
+/// Conformance for archiving a calendar family's current version: the expected current version when the caller names one,
+/// else whatever is current, only while no live schedule of an active definition names the family, and the archive is
+/// audited.
 /// </summary>
 [ConformanceSpec(
     "calendar.archive",
     "A calendar family's current version archives when nothing live depends on it",
     Area = "Scheduling",
-    Contract = "Archive retires the expected current version and records calendar.archived, and is Rejected while a live schedule binds the family."
+    Contract = "Archive retires the current version, the expected one if given, records calendar.archived, and is Rejected while a live schedule binds the family."
 )]
 public sealed class ArchiveCalendarSpec : ActaStorageTestBase<ConformanceFixture>
 {
@@ -63,6 +64,31 @@ public sealed class ArchiveCalendarSpec : ActaStorageTestBase<ConformanceFixture
         );
     }
 
+    [Fact(DisplayName = "An archive with no expected version archives whatever version is current, and audits that version")]
+    public async Task An_archive_with_no_expected_version_archives_the_current_one()
+    {
+        var ct = TestContext.Current.CancellationToken;
+        var calendar = new CalendarLookup(TestNamespace, Unique("office-hours"));
+        await Calendars.SaveDraftAsync(calendar, CalendarRoleCode.Availability, CalendarTestOps.AvailabilityDefinition, ct: ct);
+        Assert.Equal(ControlAction.Applied, (await Calendars.PublishAsync(calendar, 1, ct: ct)).Action);
+        var revised = CalendarTestOps.Revised(CalendarTestOps.AvailabilityDefinition, 2);
+        await Calendars.SaveDraftAsync(calendar, CalendarRoleCode.Availability, revised, ct: ct);
+        Assert.Equal(ControlAction.Applied, (await Calendars.PublishAsync(calendar, 2, ct: ct)).Action);
+
+        var archived = await Calendars.ArchiveAsync(calendar, reasonMessage: "retired", actor: "op-1", ct: ct);
+        var again = await Calendars.ArchiveAsync(calendar, ct: ct);
+
+        Assert.Equal((ControlAction.Applied, 2, 0), (archived.Action, archived.Version, archived.DependentCount));
+        Assert.Equal((ControlAction.NotFound, null), (again.Action, again.Version));
+        var ev = Assert.Single(
+            await Db.From<EventEntity>()
+                .Where(e => e.NamespaceId == TestNamespaceId && e.EventCode == EventCode.CalendarArchived)
+                .ToListAsync(ct)
+        );
+        Assert.Equal(("2", "op-1"), (EventDetail(ev, "version"), EventDetail(ev, "actor")));
+        Assert.Equal(CalendarStatusCode.Archived, (await Calendars.GetAsync(calendar, 2, ct))!.ShownStatus);
+    }
+
     [Fact(
         DisplayName = "A stale expected version, or a live schedule naming the family, rejects the archive until the schedule is orphaned"
     )]
@@ -83,11 +109,13 @@ public sealed class ArchiveCalendarSpec : ActaStorageTestBase<ConformanceFixture
 
         var stale = await Calendars.ArchiveAsync(calendar, 2, ct: ct);
         var bound = await Calendars.ArchiveAsync(calendar, 1, ct: ct);
+        var anyVersion = await Calendars.ArchiveAsync(calendar, ct: ct);
         await CalendarTestOps.RegisterAsync(Services, TestNamespaceId, defId, Unique("other-hours"), ["other"], ct);
         var orphaned = await Calendars.ArchiveAsync(calendar, 1, ct: ct);
 
         Assert.Equal((ControlAction.Rejected, 1), (stale.Action, stale.Version));
         Assert.Equal((ControlAction.Rejected, 1, 1), (bound.Action, bound.Version, bound.DependentCount));
+        Assert.Equal((ControlAction.Rejected, 1, 1), (anyVersion.Action, anyVersion.Version, anyVersion.DependentCount));
         Assert.Equal((ControlAction.Applied, 0), (orphaned.Action, orphaned.DependentCount));
         Assert.Equal(
             1,

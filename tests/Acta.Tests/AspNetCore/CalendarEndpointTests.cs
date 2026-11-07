@@ -397,7 +397,7 @@ public sealed class CalendarEndpointTests
                 new CalendarLookup("billing", "office-hours"),
                 CalendarRoleCode.Availability,
                 """{"kind":"weekly-availability","timeZone":"schedule"}""",
-                2,
+                (int?)2,
                 "new hours",
                 "ops-lead"
             ),
@@ -406,7 +406,7 @@ public sealed class CalendarEndpointTests
     }
 
     [Fact]
-    public async Task A_rejected_draft_answers_409_with_its_problems()
+    public async Task A_draft_without_an_expected_version_saves_with_no_check()
     {
         var fakes = new FakeOperations();
         var (app, client) = await StartWithControlsAsync(fakes);
@@ -414,22 +414,75 @@ public sealed class CalendarEndpointTests
         var ct = TestContext.Current.CancellationToken;
 
         var response = await client.SendAsync(
-            Post(
-                "/billing/rejected/drafts",
-                new
-                {
-                    role = "availability",
-                    definition = new { kind = "weekly-availability" },
-                    expectedLatestVersion = 0,
-                }
-            ),
+            Post("/billing/office-hours/drafts", new { role = "availability", definition = new { kind = "weekly-availability" } }),
+            ct
+        );
+
+        Assert.Equal(HttpStatusCode.OK, response.StatusCode);
+        Assert.Contains("\"action\":\"applied\"", await response.Content.ReadAsStringAsync(ct));
+        Assert.Null(Assert.Single(fakes.Calendars.Drafts).ExpectedLatestVersion);
+    }
+
+    [Fact]
+    public async Task A_draft_the_latest_version_already_holds_answers_200_with_that_version()
+    {
+        var fakes = new FakeOperations();
+        var (app, client) = await StartWithControlsAsync(fakes);
+        await using var _ = app;
+        var ct = TestContext.Current.CancellationToken;
+
+        var response = await client.SendAsync(
+            Post("/billing/unchanged/drafts", new { role = "availability", definition = new { kind = "weekly-availability" } }),
+            ct
+        );
+        var body = await response.Content.ReadAsStringAsync(ct);
+
+        Assert.Equal(HttpStatusCode.OK, response.StatusCode);
+        Assert.Contains("\"action\":\"already-in-state\"", body);
+        Assert.Contains("\"version\":2", body);
+    }
+
+    // The facade throws for a definition that does not compile; the route keeps answering it as a rejected draft.
+    [Fact]
+    public async Task A_draft_whose_definition_does_not_compile_answers_409_with_every_problem()
+    {
+        var fakes = new FakeOperations();
+        var (app, client) = await StartWithControlsAsync(fakes);
+        await using var _ = app;
+        var ct = TestContext.Current.CancellationToken;
+
+        var response = await client.SendAsync(
+            Post("/billing/rejected/drafts", new { role = "availability", definition = new { kind = "weekly-availability" } }),
             ct
         );
         var body = await response.Content.ReadAsStringAsync(ct);
 
         Assert.Equal(HttpStatusCode.Conflict, response.StatusCode);
+        Assert.Equal("application/json", response.Content.Headers.ContentType?.MediaType);
         Assert.Contains("\"action\":\"rejected\"", body);
-        Assert.Contains("\"problems\":[\"$.weekly[0].days[0]: unknown day.\"]", body);
+        Assert.Contains("\"problems\":[\"$.weekly[0].days[0]: unknown day.\",\"$.timeZone: required.\"]", body);
+    }
+
+    [Fact]
+    public async Task A_draft_in_the_other_role_answers_409_with_the_family_role()
+    {
+        var fakes = new FakeOperations();
+        var (app, client) = await StartWithControlsAsync(fakes);
+        await using var _ = app;
+        var ct = TestContext.Current.CancellationToken;
+
+        var response = await client.SendAsync(
+            Post("/billing/taken/drafts", new { role = "availability", definition = new { kind = "weekly-availability" } }),
+            ct
+        );
+        using var body = JsonDocument.Parse(await response.Content.ReadAsStringAsync(ct));
+
+        Assert.Equal(HttpStatusCode.Conflict, response.StatusCode);
+        Assert.Equal("rejected", body.RootElement.GetProperty("action").GetString());
+        Assert.Equal(
+            ["The family's role is occurrence."],
+            body.RootElement.GetProperty("problems").EnumerateArray().Select(p => p.GetString())
+        );
     }
 
     [Theory]
@@ -485,8 +538,54 @@ public sealed class CalendarEndpointTests
         Assert.Equal([OverdueDecisionCode.Discard, OverdueDecisionCode.Refuse], fakes.Calendars.Publications.Select(p => p.Overdue));
         Assert.All(
             fakes.Calendars.Publications,
-            p => Assert.Equal((1, 2, "ops-lead"), (p.ExpectedCurrentVersion, p.CandidateVersion, p.Actor))
+            p => Assert.Equal(((int?)1, 2, "ops-lead"), (p.ExpectedCurrentVersion, p.CandidateVersion, p.Actor))
         );
+    }
+
+    [Fact]
+    public async Task A_publish_without_an_expected_version_publishes_with_no_check()
+    {
+        var fakes = new FakeOperations();
+        var (app, client) = await StartWithControlsAsync(fakes);
+        await using var _ = app;
+        var ct = TestContext.Current.CancellationToken;
+
+        var response = await client.SendAsync(Post("/billing/office-hours/publish", new { candidateVersion = 2 }), ct);
+
+        Assert.Equal(HttpStatusCode.OK, response.StatusCode);
+        var publication = Assert.Single(fakes.Calendars.Publications);
+        Assert.Equal((2, (int?)null), (publication.CandidateVersion, publication.ExpectedCurrentVersion));
+    }
+
+    [Fact]
+    public async Task A_publish_of_the_current_version_answers_200_already_in_state()
+    {
+        var fakes = new FakeOperations();
+        var (app, client) = await StartWithControlsAsync(fakes);
+        await using var _ = app;
+        var ct = TestContext.Current.CancellationToken;
+
+        var response = await client.SendAsync(Post("/billing/unchanged/publish", new { candidateVersion = 1 }), ct);
+        var body = await response.Content.ReadAsStringAsync(ct);
+
+        Assert.Equal(HttpStatusCode.OK, response.StatusCode);
+        Assert.Contains("\"action\":\"already-in-state\"", body);
+        Assert.Contains("\"retimedSchedules\":[]", body);
+    }
+
+    [Fact]
+    public async Task A_publish_without_a_candidate_version_is_400()
+    {
+        var fakes = new FakeOperations();
+        var (app, client) = await StartWithControlsAsync(fakes);
+        await using var _ = app;
+        var ct = TestContext.Current.CancellationToken;
+
+        var response = await client.SendAsync(Post("/billing/office-hours/publish", new { expectedCurrentVersion = 1 }), ct);
+
+        Assert.Equal(HttpStatusCode.BadRequest, response.StatusCode);
+        Assert.Contains("candidateVersion is required.", await response.Content.ReadAsStringAsync(ct));
+        Assert.Empty(fakes.Calendars.Publications);
     }
 
     [Fact]
@@ -526,7 +625,21 @@ public sealed class CalendarEndpointTests
 
         Assert.Equal(status, response.StatusCode);
         Assert.Contains($"\"action\":\"{action}\"", await response.Content.ReadAsStringAsync(ct));
-        Assert.Equal((new CalendarLookup("sys", calendarName), 1, "retired", "ops-lead"), Assert.Single(fakes.Calendars.Archives));
+        Assert.Equal((new CalendarLookup("sys", calendarName), (int?)1, "retired", "ops-lead"), Assert.Single(fakes.Calendars.Archives));
+    }
+
+    [Fact]
+    public async Task An_archive_without_an_expected_version_archives_with_no_check()
+    {
+        var fakes = new FakeOperations();
+        var (app, client) = await StartWithControlsAsync(fakes);
+        await using var _ = app;
+        var ct = TestContext.Current.CancellationToken;
+
+        var response = await client.SendAsync(Post("/sys/holidays/archive", new { reasonMessage = "retired" }), ct);
+
+        Assert.Equal(HttpStatusCode.OK, response.StatusCode);
+        Assert.Null(Assert.Single(fakes.Calendars.Archives).ExpectedCurrentVersion);
     }
 
     [Theory]

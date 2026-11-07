@@ -45,6 +45,11 @@ export function publishImpact(preview: PreviewTotalsLike | null | undefined): { 
 
 export type CalendarVerb = 'draft' | 'publish' | 'archive';
 
+/** Whether a catalog verb left the family as asked: applied, or already so (a draft the latest version holds, a publication of the current version). */
+export function calendarVerbSucceeded(action: string): boolean {
+  return action === 'applied' || action === 'already-in-state';
+}
+
 // Catalog verbs at calendars/{ns}/{name}/{drafts|publish|archive}. Every one is version-guarded, so a
 // version conflict means the family changed since the page loaded it.
 export function calendarControlMessage(
@@ -56,6 +61,10 @@ export function calendarControlMessage(
     if (verb === 'draft') return `Draft saved as version ${detail.version}.`;
     if (verb === 'publish') return `Version ${detail.version} published; ${plural(detail.retimed ?? 0, 'schedule')} retimed.`;
     return `Version ${detail.version} archived; the family has no current version.`;
+  }
+  if (action === 'already-in-state') {
+    if (verb === 'draft') return `Version ${detail.version} already holds this definition; nothing was saved.`;
+    return `Version ${detail.version} is already current; nothing was retimed.`;
   }
   if (action === 'version-conflict') return 'The calendar changed since you loaded it (version conflict). Reload and retry.';
   if (action === 'rejected') {

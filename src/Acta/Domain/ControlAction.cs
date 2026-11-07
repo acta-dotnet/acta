@@ -30,7 +30,7 @@ public enum ControlAction : byte
     [JsonStringEnumMemberName("version-conflict")]
     VersionConflict = 5,
 
-    /// <summary>The target was already in the requested state, so nothing was written; <c>Version</c> is the current version. Answered by the tenant and namespace suspend and resume verbs.</summary>
+    /// <summary>The target was already in the requested state, so nothing was written; <c>Version</c> is the current version. Answered by the tenant and namespace suspend and resume verbs, a calendar draft equal to its family's latest version, and a publication of the current calendar version.</summary>
     [JsonStringEnumMemberName("already-in-state")]
     AlreadyInState = 6,
 }

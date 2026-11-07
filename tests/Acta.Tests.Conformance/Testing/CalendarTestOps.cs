@@ -3,8 +3,9 @@ using Microsoft.Extensions.DependencyInjection;
 namespace Acta.Tests.Conformance.Testing;
 
 /// <summary>
-/// Test support for the calendar catalog specs: one definition per role, a publication written straight to a version's
-/// row, and a per-occurrence definition whose schedules name an availability calendar.
+/// Test support for the calendar catalog specs: one definition per role and revisions of it, a publication written
+/// straight to a version's row, calls raced from one barrier, and a per-occurrence definition whose schedules name an
+/// availability calendar.
 /// </summary>
 internal static class CalendarTestOps
 {
@@ -17,6 +18,27 @@ internal static class CalendarTestOps
         """;
 
     public static ICalendars Calendars(IServiceProvider services) => services.GetRequiredService<IActaOperations>().Calendars;
+
+    /// <summary>
+    /// <paramref name="definition"/> with a description naming <paramref name="revision"/>: other content, so it saves as a new
+    /// version where the definition itself would be the version the family already holds.
+    /// </summary>
+    public static string Revised(string definition, int revision) => definition.Insert(1, $"\"description\":\"revision {revision}\",");
+
+    /// <summary>Runs every call on its own thread, all released together by one barrier, and answers them in call order.</summary>
+    public static async Task<T[]> RaceAsync<T>(params Func<Task<T>>[] calls)
+    {
+        using var barrier = new Barrier(calls.Length);
+        return await Task.WhenAll(
+            calls.Select(call =>
+                Task.Run(() =>
+                {
+                    barrier.SignalAndWait();
+                    return call();
+                })
+            )
+        );
+    }
 
     /// <summary>Marks one version Published on its row, as a publication leaves the family's current version.</summary>
     public static async Task PublishAsync(IDbSession db, int namespaceId, string calendarName, int version, CancellationToken ct)

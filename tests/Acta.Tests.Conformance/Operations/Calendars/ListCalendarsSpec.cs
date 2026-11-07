@@ -26,7 +26,7 @@ public sealed class ListCalendarsSpec : ActaStorageTestBase<ConformanceFixture>
         var ct = TestContext.Current.CancellationToken;
         var calendar = new CalendarLookup(TestNamespace, Unique("office-hours"));
         await Calendars.SaveDraftAsync(calendar, CalendarRoleCode.Availability, CalendarTestOps.AvailabilityDefinition, 0, ct: ct);
-        await Calendars.SaveDraftAsync(calendar, CalendarRoleCode.Availability, CalendarTestOps.AvailabilityDefinition, 1, ct: ct);
+        await Calendars.SaveDraftAsync(calendar, CalendarRoleCode.Availability, Revision(2), 1, ct: ct);
 
         var item = Assert.Single(await OwnAsync(new ListCalendarsQuery(TestNamespace), ct));
 
@@ -46,7 +46,7 @@ public sealed class ListCalendarsSpec : ActaStorageTestBase<ConformanceFixture>
         var calendar = new CalendarLookup(TestNamespace, Unique("office-hours"));
         await Calendars.SaveDraftAsync(calendar, CalendarRoleCode.Availability, CalendarTestOps.AvailabilityDefinition, 0, ct: ct);
         await CalendarTestOps.PublishAsync(Db, TestNamespaceId, calendar.CalendarName, 1, ct);
-        await Calendars.SaveDraftAsync(calendar, CalendarRoleCode.Availability, CalendarTestOps.AvailabilityDefinition, 1, ct: ct);
+        await Calendars.SaveDraftAsync(calendar, CalendarRoleCode.Availability, Revision(2), 1, ct: ct);
         var defId = await CalendarTestOps.BindAvailabilityAsync(
             Services,
             TestNamespaceId,
@@ -170,4 +170,6 @@ public sealed class ListCalendarsSpec : ActaStorageTestBase<ConformanceFixture>
                 i.CalendarName.EndsWith(TestId, StringComparison.Ordinal)
             ),
         ];
+
+    private static string Revision(int revision) => CalendarTestOps.Revised(CalendarTestOps.AvailabilityDefinition, revision);
 }

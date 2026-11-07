@@ -32,18 +32,18 @@ public interface ICalendars
     ValueTask<ListCalendarDependentsResponse> ListDependentsAsync(ListCalendarDependentsQuery query, CancellationToken ct = default);
 
     /// <summary>
-    /// Saves <paramref name="definition"/> as the family's next version, a Draft that no schedule follows until it is published.
-    /// <paramref name="expectedLatestVersion"/> is the latest version the caller saw, 0 for a new family; another is
-    /// VersionConflict. A <paramref name="role"/> other than the family's, a name the other scope already holds (a shared
-    /// calendar in <c>sys</c> against a namespace's, or the reverse), or a definition that does not compile is Rejected
-    /// with the problems. A namespace no worker has run in yet is created. Applied answers the new version and its content
-    /// hash and records <c>calendar.draft-saved</c>. A role other than Occurrence or Availability throws.
+    /// Saves <paramref name="definition"/> as the family's next version, a Draft no schedule follows until it is published, and
+    /// records <c>calendar.draft-saved</c>, creating a namespace no worker has run in yet. A definition equal to the latest
+    /// version's saves nothing and answers AlreadyInState with that version, whatever the expected version; equal to an Archived
+    /// one, it saves a new draft. <paramref name="expectedLatestVersion"/>, when given, is the latest version the caller saw, 0
+    /// for a new family; another is VersionConflict. Another <paramref name="role"/>, or a name the other scope holds, is Rejected.
+    /// A definition that does not compile throws <see cref="CalendarDefinitionException"/>; a role not Occurrence or Availability throws.
     /// </summary>
     ValueTask<SaveCalendarDraftResponse> SaveDraftAsync(
         CalendarLookup calendar,
         CalendarRoleCode role,
         string definition,
-        int expectedLatestVersion,
+        int? expectedLatestVersion = null,
         string? reasonMessage = null,
         string? actor = null,
         CancellationToken ct = default
@@ -66,17 +66,17 @@ public interface ICalendars
     );
 
     /// <summary>
-    /// Makes <paramref name="candidateVersion"/>, a Draft, the family's current version and retimes every schedule that
-    /// names the family in its scope in one transaction: its cursor seeds from the candidate's first occurrence after now,
-    /// and <c>schedule.retimed</c> is recorded. <paramref name="expectedCurrentVersion"/> is the current version the
-    /// caller saw, 0 for none; another is VersionConflict. A bound schedule holding an undecided
-    /// overdue occurrence is Rejected under <see cref="OverdueDecisionCode.Refuse"/> and skipped as an audited range under
-    /// <see cref="OverdueDecisionCode.Discard"/>. NotFound when the version is not the family's; Applied records <c>calendar.published</c>.
+    /// Makes <paramref name="candidateVersion"/>, a Draft, the family's current version and retimes every schedule that names the
+    /// family in its scope in one transaction, each cursor from the candidate's first occurrence after now (<c>schedule.retimed</c>);
+    /// Applied records <c>calendar.published</c>. The version already current answers AlreadyInState, whatever the expected version,
+    /// and retimes nothing. NotFound when the version is not the family's. <paramref name="expectedCurrentVersion"/>, when given, is
+    /// the current version the caller saw, 0 for none; another is VersionConflict. A bound schedule holding an undecided overdue
+    /// occurrence is Rejected under <see cref="OverdueDecisionCode.Refuse"/> and skipped as an audited range under <see cref="OverdueDecisionCode.Discard"/>.
     /// </summary>
     ValueTask<PublishCalendarResponse> PublishAsync(
         CalendarLookup calendar,
-        int expectedCurrentVersion,
         int candidateVersion,
+        int? expectedCurrentVersion = null,
         OverdueDecisionCode overdue = OverdueDecisionCode.Refuse,
         string? reasonMessage = null,
         string? actor = null,
@@ -85,14 +85,13 @@ public interface ICalendars
 
     /// <summary>
     /// Archives the family's current version, after which the family has no current version until another is published.
-    /// NotFound when the family has no current version; Rejected when the current version is not
-    /// <paramref name="expectedCurrentVersion"/>, or while a live schedule of an active definition names the family in its
-    /// scope, answering how many do. Applied records <c>calendar.archived</c> with <paramref name="reasonMessage"/> and
-    /// <paramref name="actor"/>.
+    /// NotFound when the family has no current version; Rejected when <paramref name="expectedCurrentVersion"/> is given and the
+    /// current version is another, or while a live schedule of an active definition names the family in its scope, answering how
+    /// many do. Applied records <c>calendar.archived</c> with <paramref name="reasonMessage"/> and <paramref name="actor"/>.
     /// </summary>
     ValueTask<ArchiveCalendarResponse> ArchiveAsync(
         CalendarLookup calendar,
-        int expectedCurrentVersion,
+        int? expectedCurrentVersion = null,
         string? reasonMessage = null,
         string? actor = null,
         CancellationToken ct = default

@@ -127,7 +127,7 @@ internal sealed class CalendarSources(ListCurrentCalendarsHandler families, GetC
         }
         catch (CalendarDefinitionException ex)
         {
-            _unreadable[(namespaceId, name, version)] = ex.Message;
+            _unreadable[(namespaceId, name, version)] = string.Join(" ", ex.Problems);
         }
     }
 }

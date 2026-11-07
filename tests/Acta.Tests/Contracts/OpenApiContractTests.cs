@@ -791,36 +791,12 @@ public sealed partial class OpenApiContractTests
                 """{"expectedVersion":0}"""
             ),
             new(
-                "SaveCalendarDraftRequest",
-                "expectedLatestVersion",
-                HttpMethod.Post,
-                "calendars/billing/holidays/drafts",
-                """{"role":"occurrence","definition":{"kind":"dates"}}""",
-                """{"role":"occurrence","definition":{"kind":"dates"},"expectedLatestVersion":0}"""
-            ),
-            new(
-                "PublishCalendarRequest",
-                "expectedCurrentVersion",
-                HttpMethod.Post,
-                "calendars/billing/holidays/publish",
-                """{"candidateVersion":1}""",
-                """{"candidateVersion":1,"expectedCurrentVersion":0}"""
-            ),
-            new(
                 "PublishCalendarRequest",
                 "candidateVersion",
                 HttpMethod.Post,
                 "calendars/billing/holidays/publish",
                 """{"expectedCurrentVersion":0}""",
-                """{"candidateVersion":1,"expectedCurrentVersion":0}"""
-            ),
-            new(
-                "ArchiveCalendarRequest",
-                "expectedCurrentVersion",
-                HttpMethod.Post,
-                "calendars/billing/holidays/archive",
-                "{}",
-                """{"expectedCurrentVersion":1}"""
+                """{"candidateVersion":1}"""
             ),
         ];
         RequiredCase[] byOperation =
@@ -1058,7 +1034,7 @@ public sealed partial class OpenApiContractTests
     /// <summary>
     /// A calendar read embeds its definition as the JSON object the draft took, its text the stored bytes: compact, the keys
     /// in the order sent, each escape as the store wrote it. Both reads carry it, the document types it as a calendar definition, and
-    /// the read's definition, sent back as it is, saves the next version with the same content.
+    /// the read's definition, sent back as it is, is the same content: the draft answers already-in-state with that version.
     /// </summary>
     [Fact]
     public async Task A_calendar_read_embeds_its_stored_definition_which_a_draft_takes_back()
@@ -1104,7 +1080,7 @@ public sealed partial class OpenApiContractTests
         Assert.Equal(
             [
                 $$"""200 {"action":"applied","version":1,"contentHash":"{{compiled.ContentHash}}","problems":[]}""",
-                $$"""200 {"action":"applied","version":2,"contentHash":"{{compiled.ContentHash}}","problems":[]}""",
+                $$"""200 {"action":"already-in-state","version":1,"contentHash":"{{compiled.ContentHash}}","problems":[]}""",
             ],
             drafts
         );

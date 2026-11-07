@@ -3,7 +3,9 @@ namespace Acta.Tests.AspNetCore.Fakes;
 /// <summary>
 /// <see cref="ICalendars"/> over two families, billing/office-hours (availability, versions 1 and 2) and the shared
 /// sys/holidays, staged by calendar name: "missing" reads as absent and its verbs as not found, "rejected" refuses every
-/// verb, and an expected version of 999 is the stale one. Every other name applies, and every call is recorded.
+/// verb (a draft by throwing for its definition), "taken" refuses a draft's role, "unchanged" already holds what a draft
+/// or a publication asks for, and an expected version of 999 is the stale one. Every other name applies, and every call is
+/// recorded.
 /// </summary>
 internal sealed class FakeCalendars : ICalendars
 {
@@ -64,20 +66,22 @@ internal sealed class FakeCalendars : ICalendars
                 calendar.CalendarName switch
                 {
                     "missing" => new SaveCalendarDraftResponse(ControlAction.NotFound, null, null, []),
-                    "rejected" => new SaveCalendarDraftResponse(ControlAction.Rejected, null, null, ["$.weekly[0].days[0]: unknown day."]),
+                    "rejected" => throw new CalendarDefinitionException(["$.weekly[0].days[0]: unknown day.", "$.timeZone: required."]),
+                    "taken" => new SaveCalendarDraftResponse(ControlAction.Rejected, 1, null, ["The family's role is occurrence."]),
+                    "unchanged" => new SaveCalendarDraftResponse(ControlAction.AlreadyInState, 2, "hash-2", []),
                     _ when expectedLatestVersion == 999 => new SaveCalendarDraftResponse(
                         ControlAction.VersionConflict,
                         2,
                         null,
                         ["The family's latest version is 2, not 999."]
                     ),
-                    _ => new SaveCalendarDraftResponse(ControlAction.Applied, expectedLatestVersion + 1, "hash-3", []),
+                    _ => new SaveCalendarDraftResponse(ControlAction.Applied, (expectedLatestVersion ?? 2) + 1, "hash-3", []),
                 }
             );
         };
-        Publish = (calendar, expectedCurrentVersion, candidateVersion, overdue, reason, actor, _) =>
+        Publish = (calendar, candidateVersion, expectedCurrentVersion, overdue, reason, actor, _) =>
         {
-            Publications.Add((calendar, expectedCurrentVersion, candidateVersion, overdue, reason, actor));
+            Publications.Add((calendar, candidateVersion, expectedCurrentVersion, overdue, reason, actor));
             return ValueTask.FromResult(
                 calendar.CalendarName switch
                 {
@@ -89,6 +93,7 @@ internal sealed class FakeCalendars : ICalendars
                         ["billing/send-invoice/morning-run"],
                         "A bound schedule holds an overdue occurrence."
                     ),
+                    "unchanged" => new PublishCalendarResponse(ControlAction.AlreadyInState, candidateVersion, [], [], null),
                     _ when expectedCurrentVersion == 999 => new PublishCalendarResponse(
                         ControlAction.VersionConflict,
                         1,
@@ -114,7 +119,7 @@ internal sealed class FakeCalendars : ICalendars
                 {
                     "missing" => new ArchiveCalendarResponse(ControlAction.NotFound, null, 0),
                     "rejected" => new ArchiveCalendarResponse(ControlAction.Rejected, 1, 2),
-                    _ => new ArchiveCalendarResponse(ControlAction.Applied, expectedCurrentVersion, 0),
+                    _ => new ArchiveCalendarResponse(ControlAction.Applied, 1, 0),
                 }
             );
         };
@@ -134,21 +139,21 @@ internal sealed class FakeCalendars : ICalendars
         CalendarLookup Calendar,
         CalendarRoleCode Role,
         string Definition,
-        int ExpectedLatestVersion,
+        int? ExpectedLatestVersion,
         string? Reason,
         string? Actor
     )> Drafts { get; } = [];
 
     public List<(
         CalendarLookup Calendar,
-        int ExpectedCurrentVersion,
         int CandidateVersion,
+        int? ExpectedCurrentVersion,
         OverdueDecisionCode Overdue,
         string? Reason,
         string? Actor
     )> Publications { get; } = [];
 
-    public List<(CalendarLookup Calendar, int ExpectedCurrentVersion, string? Reason, string? Actor)> Archives { get; } = [];
+    public List<(CalendarLookup Calendar, int? ExpectedCurrentVersion, string? Reason, string? Actor)> Archives { get; } = [];
 
     public Func<ListCalendarsQuery, CancellationToken, ValueTask<ListCalendarsResponse>> List { get; set; }
 
@@ -164,7 +169,7 @@ internal sealed class FakeCalendars : ICalendars
         CalendarLookup,
         CalendarRoleCode,
         string,
-        int,
+        int?,
         string?,
         string?,
         CancellationToken,
@@ -174,7 +179,7 @@ internal sealed class FakeCalendars : ICalendars
     public Func<
         CalendarLookup,
         int,
-        int,
+        int?,
         OverdueDecisionCode,
         string?,
         string?,
@@ -182,7 +187,7 @@ internal sealed class FakeCalendars : ICalendars
         ValueTask<PublishCalendarResponse>
     > Publish { get; set; }
 
-    public Func<CalendarLookup, int, string?, string?, CancellationToken, ValueTask<ArchiveCalendarResponse>> Archive { get; set; }
+    public Func<CalendarLookup, int?, string?, string?, CancellationToken, ValueTask<ArchiveCalendarResponse>> Archive { get; set; }
 
     ValueTask<ListCalendarsResponse> ICalendars.ListAsync(ListCalendarsQuery query, CancellationToken ct) => List(query, ct);
 
@@ -199,7 +204,7 @@ internal sealed class FakeCalendars : ICalendars
         CalendarLookup calendar,
         CalendarRoleCode role,
         string definition,
-        int expectedLatestVersion,
+        int? expectedLatestVersion,
         string? reasonMessage,
         string? actor,
         CancellationToken ct
@@ -216,17 +221,17 @@ internal sealed class FakeCalendars : ICalendars
 
     ValueTask<PublishCalendarResponse> ICalendars.PublishAsync(
         CalendarLookup calendar,
-        int expectedCurrentVersion,
         int candidateVersion,
+        int? expectedCurrentVersion,
         OverdueDecisionCode overdue,
         string? reasonMessage,
         string? actor,
         CancellationToken ct
-    ) => Publish(calendar, expectedCurrentVersion, candidateVersion, overdue, reasonMessage, actor, ct);
+    ) => Publish(calendar, candidateVersion, expectedCurrentVersion, overdue, reasonMessage, actor, ct);
 
     ValueTask<ArchiveCalendarResponse> ICalendars.ArchiveAsync(
         CalendarLookup calendar,
-        int expectedCurrentVersion,
+        int? expectedCurrentVersion,
         string? reasonMessage,
         string? actor,
         CancellationToken ct

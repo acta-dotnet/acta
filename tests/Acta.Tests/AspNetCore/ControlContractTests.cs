@@ -130,7 +130,8 @@ public sealed class ControlContractTests
             "archive",
             typeof(ArchiveCalendarResponse),
             "rejected",
-            static expected => new { expectedCurrentVersion = expected, reasonMessage = "because" }
+            static expected => new { expectedCurrentVersion = expected, reasonMessage = "because" },
+            answersAlreadyInState: false
         ),
         .. DefinitionOverrides(),
         .. DefinitionRetire(),
@@ -405,7 +406,8 @@ public sealed class ControlContractTests
         Type declared,
         string conflict,
         Func<int, object> body,
-        bool answersNotFound = true
+        bool answersNotFound = true,
+        bool answersAlreadyInState = true
     )
     {
         var route = $"/calendars/{{jobNamespace}}/{{calendarName}}/{verb}";
@@ -428,8 +430,11 @@ public sealed class ControlContractTests
                 ? Row("rejected", "rejected", StatusCodes.Status409Conflict, 1)
                 : Row("version-conflict", "office-hours", StatusCodes.Status409Conflict, 999),
             Row("not-found", "missing", StatusCodes.Status404NotFound, 1),
+            Row("already-in-state", "unchanged", StatusCodes.Status200OK, 1),
         ];
-        return rows.Where(row => answersNotFound || row.Status != StatusCodes.Status404NotFound);
+        return rows.Where(row =>
+            (answersNotFound || row.Status != StatusCodes.Status404NotFound) && (answersAlreadyInState || row.Outcome != "already-in-state")
+        );
     }
 
     // Both definition verbs answer the definition's version after the attempt: one past the expected on

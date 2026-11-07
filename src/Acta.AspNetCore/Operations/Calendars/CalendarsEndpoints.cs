@@ -165,19 +165,28 @@ internal static class CalendarsEndpoints
             "Invalid calendar request.",
             ControlStatus.Calendar<SaveCalendarDraftResponse>(StatusCodes.Status200OK, StatusCodes.Status409Conflict),
             Key,
-            static (call, calendar) =>
-                call.Operations.Calendars.SaveDraftAsync(
-                    calendar,
-                    call.Body!.Role,
-                    call.Body.Definition.ValueKind == JsonValueKind.Object
-                        ? call.Body.Definition.GetRawText()
-                        : throw new InvalidControlException("Invalid calendar request.", "definition must be a JSON object."),
-                    call.Body.ExpectedLatestVersion
-                        ?? throw new InvalidControlException("Invalid calendar request.", "expectedLatestVersion is required."),
-                    call.ReasonMessage,
-                    call.Actor,
-                    call.Ct
-                ),
+            static async (call, calendar) =>
+            {
+                try
+                {
+                    return await call.Operations.Calendars.SaveDraftAsync(
+                        calendar,
+                        call.Body!.Role,
+                        call.Body.Definition.ValueKind == JsonValueKind.Object
+                            ? call.Body.Definition.GetRawText()
+                            : throw new InvalidControlException("Invalid calendar request.", "definition must be a JSON object."),
+                        call.Body.ExpectedLatestVersion,
+                        call.ReasonMessage,
+                        call.Actor,
+                        call.Ct
+                    );
+                }
+                catch (CalendarDefinitionException ex)
+                {
+                    // The facade throws for a definition that does not compile; the wire answers it as a rejected draft.
+                    return new SaveCalendarDraftResponse(ControlAction.Rejected, null, null, ex.Problems);
+                }
+            },
             bodyRequired: true
         );
         controls.MapCommand(
@@ -196,10 +205,9 @@ internal static class CalendarsEndpoints
             static (call, calendar) =>
                 call.Operations.Calendars.PublishAsync(
                     calendar,
-                    call.Body!.ExpectedCurrentVersion
-                        ?? throw new InvalidControlException("Invalid calendar request.", "expectedCurrentVersion is required."),
-                    call.Body.CandidateVersion
+                    call.Body!.CandidateVersion
                         ?? throw new InvalidControlException("Invalid calendar request.", "candidateVersion is required."),
+                    call.Body.ExpectedCurrentVersion,
                     call.Body.OverdueDecision,
                     call.ReasonMessage,
                     call.Actor,
@@ -223,8 +231,7 @@ internal static class CalendarsEndpoints
             static (call, calendar) =>
                 call.Operations.Calendars.ArchiveAsync(
                     calendar,
-                    call.Body!.ExpectedCurrentVersion
-                        ?? throw new InvalidControlException("Invalid calendar request.", "expectedCurrentVersion is required."),
+                    call.Body!.ExpectedCurrentVersion,
                     call.ReasonMessage,
                     call.Actor,
                     call.Ct

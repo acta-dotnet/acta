@@ -24,8 +24,20 @@ public sealed class GetCalendarPublicationSpec : ActaStorageTestBase<Conformance
         var calendar = new CalendarLookup(TestNamespace, Unique("pay-days"));
         await Calendars.SaveDraftAsync(calendar, CalendarRoleCode.Occurrence, CalendarTestOps.OccurrenceDefinition, 0, ct: ct);
         await CalendarTestOps.PublishAsync(Db, TestNamespaceId, calendar.CalendarName, 1, ct);
-        await Calendars.SaveDraftAsync(calendar, CalendarRoleCode.Occurrence, CalendarTestOps.OccurrenceDefinition, 1, ct: ct);
-        await Calendars.SaveDraftAsync(calendar, CalendarRoleCode.Occurrence, CalendarTestOps.OccurrenceDefinition, 2, ct: ct);
+        await Calendars.SaveDraftAsync(
+            calendar,
+            CalendarRoleCode.Occurrence,
+            CalendarTestOps.Revised(CalendarTestOps.OccurrenceDefinition, 2),
+            1,
+            ct: ct
+        );
+        await Calendars.SaveDraftAsync(
+            calendar,
+            CalendarRoleCode.Occurrence,
+            CalendarTestOps.Revised(CalendarTestOps.OccurrenceDefinition, 3),
+            2,
+            ct: ct
+        );
         var handler = Services.GetRequiredService<GetCalendarPublicationHandler>();
 
         var (current, candidate) = await handler.HandleAsync(new GetCalendarPublicationQuery(TestNamespace, calendar.CalendarName, 3), ct);

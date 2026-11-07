@@ -194,7 +194,7 @@ public sealed class CalendarScheduleSpec : ActaRuntimeTestBase<ConformanceFixtur
             ControlAction.Applied,
             (await Calendars.SaveDraftAsync(family, CalendarRoleCode.Occurrence, Instants(1, 2, 4), 1, ct: ct)).Action
         );
-        Assert.Equal(ControlAction.Applied, (await Calendars.PublishAsync(family, 1, 2, ct: ct)).Action);
+        Assert.Equal(ControlAction.Applied, (await Calendars.PublishAsync(family, 2, expectedCurrentVersion: 1, ct: ct)).Action);
         var namespaceId = Runtime.RegisteredNamespaceIds[TestNamespace];
         var foreign = Encoding.UTF8.GetBytes("{\"kind\":\"from-a-newer-build\"}");
         await Db.From<CalendarEntity>()
@@ -225,7 +225,7 @@ public sealed class CalendarScheduleSpec : ActaRuntimeTestBase<ConformanceFixtur
         var calendar = new CalendarLookup(TestNamespace, calendarName);
         var draft = await Calendars.SaveDraftAsync(calendar, role, definition, 0, ct: ct);
         Assert.Equal(ControlAction.Applied, draft.Action);
-        Assert.Equal(ControlAction.Applied, (await Calendars.PublishAsync(calendar, 0, draft.Version!.Value, ct: ct)).Action);
+        Assert.Equal(ControlAction.Applied, (await Calendars.PublishAsync(calendar, draft.Version!.Value, 0, ct: ct)).Action);
     }
 
     private string Instants(params int[] minutes) =>

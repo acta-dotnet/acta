@@ -321,6 +321,8 @@ sealed class Acta.BytesJobPayloadSerializer : Acta.IJobPayloadSerializer
     Acta.JobPayloadFormat Format { get; }
     T Deserialize<T>(Acta.JobPayload payload)
     static Acta.BytesJobPayloadSerializer Default { get; }
+sealed class Acta.CalendarDefinitionException : System.Exception
+    System.Collections.Generic.IReadOnlyList<System.String> Problems { get; }
 sealed record Acta.CalendarLookup
     .ctor(System.String JobNamespace, System.String CalendarName)
     System.String CalendarName { get;init; }
@@ -1123,14 +1125,14 @@ interface Acta.IAlerts
     System.Threading.Tasks.ValueTask<Acta.ResolveAlertResponse> ResolveAsync(Acta.AlertRef alertRef, System.String reasonMessage = null, System.String actor = null, System.Threading.CancellationToken ct = default)
 interface Acta.ICalendarControlResponse : Acta.IControlResponse
 interface Acta.ICalendars
-    System.Threading.Tasks.ValueTask<Acta.ArchiveCalendarResponse> ArchiveAsync(Acta.CalendarLookup calendar, System.Int32 expectedCurrentVersion, System.String reasonMessage = null, System.String actor = null, System.Threading.CancellationToken ct = default)
+    System.Threading.Tasks.ValueTask<Acta.ArchiveCalendarResponse> ArchiveAsync(Acta.CalendarLookup calendar, System.Nullable<System.Int32> expectedCurrentVersion = null, System.String reasonMessage = null, System.String actor = null, System.Threading.CancellationToken ct = default)
     System.Threading.Tasks.ValueTask<Acta.GetCalendarResponse> GetAsync(Acta.CalendarLookup calendar, System.Nullable<System.Int32> version = null, System.Threading.CancellationToken ct = default)
     System.Threading.Tasks.ValueTask<Acta.ListCalendarDependentsResponse> ListDependentsAsync(Acta.ListCalendarDependentsQuery query, System.Threading.CancellationToken ct = default)
     System.Threading.Tasks.ValueTask<Acta.ListCalendarVersionsResponse> ListVersionsAsync(Acta.ListCalendarVersionsQuery query, System.Threading.CancellationToken ct = default)
     System.Threading.Tasks.ValueTask<Acta.ListCalendarsResponse> ListAsync(Acta.ListCalendarsQuery query, System.Threading.CancellationToken ct = default)
     System.Threading.Tasks.ValueTask<Acta.PreviewCalendarResponse> PreviewAsync(Acta.CalendarLookup calendar, System.Int32 version, System.Nullable<System.DateTime> fromUtc = null, System.Int32 count = 10, System.String timeZoneId = null, System.Threading.CancellationToken ct = default)
-    System.Threading.Tasks.ValueTask<Acta.PublishCalendarResponse> PublishAsync(Acta.CalendarLookup calendar, System.Int32 expectedCurrentVersion, System.Int32 candidateVersion, Acta.OverdueDecisionCode overdue = Acta.OverdueDecisionCode.Refuse, System.String reasonMessage = null, System.String actor = null, System.Threading.CancellationToken ct = default)
-    System.Threading.Tasks.ValueTask<Acta.SaveCalendarDraftResponse> SaveDraftAsync(Acta.CalendarLookup calendar, Acta.CalendarRoleCode role, System.String definition, System.Int32 expectedLatestVersion, System.String reasonMessage = null, System.String actor = null, System.Threading.CancellationToken ct = default)
+    System.Threading.Tasks.ValueTask<Acta.PublishCalendarResponse> PublishAsync(Acta.CalendarLookup calendar, System.Int32 candidateVersion, System.Nullable<System.Int32> expectedCurrentVersion = null, Acta.OverdueDecisionCode overdue = Acta.OverdueDecisionCode.Refuse, System.String reasonMessage = null, System.String actor = null, System.Threading.CancellationToken ct = default)
+    System.Threading.Tasks.ValueTask<Acta.SaveCalendarDraftResponse> SaveDraftAsync(Acta.CalendarLookup calendar, Acta.CalendarRoleCode role, System.String definition, System.Nullable<System.Int32> expectedLatestVersion = null, System.String reasonMessage = null, System.String actor = null, System.Threading.CancellationToken ct = default)
 interface Acta.IControlResponse
     Acta.ControlAction Action { get; }
     System.Nullable<System.Int32> Version { get; }

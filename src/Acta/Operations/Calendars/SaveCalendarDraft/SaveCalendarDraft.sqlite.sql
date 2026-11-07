@@ -13,15 +13,27 @@ SELECT
     f.namespace_id,
     f.latest_version,
     f.family_role,
+    f.latest_content_hash,
     f.clash_namespace,
-    f.latest_version = @p_expected_latest_version
+    f.unchanged,
+    NOT f.unchanged
+        AND f.latest_version = @p_expected_latest_version
         AND (f.family_role IS NULL OR f.family_role = @p_calendar_role_code)
         AND f.clash_namespace IS NULL AS applies
 FROM (
     SELECT
         n.namespace_id,
-        COALESCE(MAX(c.version), 0) AS latest_version,
-        MIN(c.calendar_role_code) AS family_role,
+        COALESCE(l.version, 0) AS latest_version,
+        -- A family keeps its first role, so its latest version's role is the family's.
+        l.calendar_role_code AS family_role,
+        l.content_hash AS latest_content_hash,
+        -- A definition the latest version holds, unless that version is Archived, saves nothing and answers that version.
+        COALESCE(
+            l.content_hash = @p_content_hash
+            AND l.calendar_role_code = @p_calendar_role_code
+            AND l.calendar_status_code <> 240 /* CalendarStatusCode.Archived */,
+            0
+        ) AS unchanged,
         (
             SELECT MIN(o.namespace_name)
             FROM {{schema}}.calendars x
@@ -32,9 +44,18 @@ FROM (
                 AND (n.namespace_id = 1 /* NameSyntax.SystemNamespaceId */ OR x.namespace_id = 1 /* NameSyntax.SystemNamespaceId */)
         ) AS clash_namespace
     FROM {{schema}}.namespaces n
-    LEFT JOIN {{schema}}.calendars c ON c.namespace_id = n.namespace_id AND c.calendar_name = @p_calendar_name
+    LEFT JOIN {{schema}}.calendars l
+        ON
+            l.namespace_id = n.namespace_id
+            AND l.calendar_name = @p_calendar_name
+            AND l.version = (
+                SELECT MAX(c.version)
+                FROM {{schema}}.calendars c
+                WHERE
+                    c.namespace_id = n.namespace_id
+                    AND c.calendar_name = @p_calendar_name
+            )
     WHERE n.namespace_name = @p_namespace_name
-    GROUP BY n.namespace_id
 ) f;
 
 INSERT INTO {{schema}}.calendars (
@@ -91,11 +112,15 @@ WHERE f.applies = 1;
 SELECT
     CASE
         WHEN f.applies = 1 THEN 1 /* ControlAction.Applied */
+        WHEN f.unchanged = 1 THEN 6 /* ControlAction.AlreadyInState */
         WHEN f.latest_version <> @p_expected_latest_version THEN 5 /* ControlAction.VersionConflict */
         ELSE 3 /* ControlAction.Rejected */
     END AS action,
     CASE WHEN f.applies = 1 THEN @p_expected_latest_version + 1 ELSE f.latest_version END AS version,
-    CASE WHEN f.applies = 1 THEN @p_content_hash END AS content_hash,
+    CASE
+        WHEN f.applies = 1 THEN @p_content_hash
+        WHEN f.unchanged = 1 THEN f.latest_content_hash
+    END AS content_hash,
     f.family_role,
     f.clash_namespace
 FROM temp._save_calendar_draft f;

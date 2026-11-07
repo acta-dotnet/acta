@@ -33,11 +33,11 @@ public sealed class CalendarPreloadSpec : ActaStorageTestBase<ConformanceFixture
         var after = new DateTime(2026, 12, 1, 0, 0, 0, DateTimeKind.Utc);
 
         await Calendars.SaveDraftAsync(calendar, CalendarRoleCode.Occurrence, CalendarTestOps.OccurrenceDefinition, 0, ct: ct);
-        Assert.Equal(ControlAction.Applied, (await Calendars.PublishAsync(calendar, 0, 1, ct: ct)).Action);
+        Assert.Equal(ControlAction.Applied, (await Calendars.PublishAsync(calendar, 1, ct: ct)).Action);
         var before = await operations.PreloadAsync(TestNamespaceId, [calendar.CalendarName], ct);
 
         await Calendars.SaveDraftAsync(calendar, CalendarRoleCode.Occurrence, SecondVersion, 1, ct: ct);
-        Assert.Equal(ControlAction.Applied, (await Calendars.PublishAsync(calendar, 1, 2, ct: ct)).Action);
+        Assert.Equal(ControlAction.Applied, (await Calendars.PublishAsync(calendar, 2, ct: ct)).Action);
         var later = await operations.PreloadAsync(TestNamespaceId, [calendar.CalendarName], ct);
 
         Assert.Equal(new DateTime(2027, 3, 15, 16, 0, 0, DateTimeKind.Utc), NextOccurrenceCalculator.Next(later(timing), after));

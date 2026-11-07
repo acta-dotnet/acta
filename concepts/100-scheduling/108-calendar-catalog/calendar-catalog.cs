@@ -18,12 +18,11 @@ var officeHours = new CalendarLookup("sys", "office-hours");
     await seedHost.StartAsync();
 
     var calendars = seedHost.Services.GetRequiredService<IActaOperations>().Calendars;
-    var family = await calendars.GetAsync(officeHours);
-    // A save names the latest version it saw, 0 for a new family; a publication names the current one.
-    var latest = family?.LatestVersion ?? 0;
-    var draft = await calendars.SaveDraftAsync(officeHours, CalendarRoleCode.Availability, Definitions.OpenAllDay, latest, "Open all day");
+    // A deploy step names no versions, so it runs again as it is: a definition the latest version already holds saves
+    // nothing and answers AlreadyInState with that version, and publishing the current version again changes nothing.
+    var draft = await calendars.SaveDraftAsync(officeHours, CalendarRoleCode.Availability, Definitions.OpenAllDay);
     Console.WriteLine($"Draft saved: {draft.Action}, version {draft.Version}");
-    var published = await calendars.PublishAsync(officeHours, family?.CurrentVersion ?? 0, draft.Version!.Value, reasonMessage: "Go live");
+    var published = await calendars.PublishAsync(officeHours, draft.Version!.Value, reasonMessage: "Go live");
     Console.WriteLine($"Published: {published.Action}, version {published.Version} is current");
 
     await seedHost.StopAsync();
@@ -45,16 +44,17 @@ var operations = host.Services.GetRequiredService<IActaOperations>();
 Console.WriteLine("Ticking every 10s inside the open window...");
 await Task.Delay(TimeSpan.FromSeconds(25));
 
-// The operator closes today. The draft is previewed beside the current version, then published: the bound
-// schedule's cursor moves to the first instant inside the next window.
+// The operator closes today, editing the version they read: naming it as the expected latest version turns another
+// operator's save in between into a VersionConflict rather than a draft built on a stale read. The draft is previewed
+// beside the current version, then published: the bound schedule's cursor moves to the first instant inside the next window.
 var today = DateTime.UtcNow.ToString("yyyy-MM-dd", CultureInfo.InvariantCulture);
-var current = (await operations.Calendars.GetAsync(officeHours))!;
+var read = (await operations.Calendars.GetAsync(officeHours))!;
 var closed = await operations.Calendars.SaveDraftAsync(
     officeHours,
     CalendarRoleCode.Availability,
     Definitions.ClosedOn(today),
-    current.LatestVersion,
-    $"Closed on {today}"
+    expectedLatestVersion: read.LatestVersion,
+    reasonMessage: $"Closed on {today}"
 );
 var preview = (await operations.Calendars.PreviewAsync(officeHours, closed.Version!.Value, count: 3))!;
 Console.WriteLine(
@@ -62,12 +62,7 @@ Console.WriteLine(
         + $"{preview.SchedulesTotal} bound schedule(s), {preview.OverdueTotal} overdue"
 );
 
-var result = await operations.Calendars.PublishAsync(
-    officeHours,
-    current.CurrentVersion!.Value,
-    closed.Version.Value,
-    reasonMessage: $"Closed on {today}"
-);
+var result = await operations.Calendars.PublishAsync(officeHours, closed.Version.Value, reasonMessage: $"Closed on {today}");
 Console.WriteLine($"Published: {result.Action}; retimed [{string.Join(", ", result.RetimedSchedules)}]");
 
 // The namespace also lists the system jobs' schedules (alerts, retention), so the read names the job.

@@ -33,8 +33,17 @@ FROM (SELECT pg_advisory_xact_lock(hashtext('{{schema}}.calendars'), hashtext(@p
 CREATE TEMP TABLE _save_calendar_draft_family ON COMMIT DROP AS
 SELECT
     t.namespace_id,
-    COALESCE(MAX(c.version), 0) AS latest_version,
-    MIN(c.calendar_role_code) AS family_role,
+    COALESCE(l.version, 0) AS latest_version,
+    -- A family keeps its first role, so its latest version's role is the family's.
+    l.calendar_role_code AS family_role,
+    l.content_hash AS latest_content_hash,
+    -- A definition the latest version holds, unless that version is Archived, saves nothing and answers that version.
+    COALESCE(
+        l.content_hash = @p_content_hash
+        AND l.calendar_role_code = @p_calendar_role_code
+        AND l.calendar_status_code <> 240 /* CalendarStatusCode.Archived */,
+        false
+    ) AS unchanged,
     (
         SELECT MIN(o.namespace_name)
         FROM {{schema}}.calendars x
@@ -45,8 +54,15 @@ SELECT
             AND (t.namespace_id = 1 /* NameSyntax.SystemNamespaceId */ OR x.namespace_id = 1 /* NameSyntax.SystemNamespaceId */)
     ) AS clash_namespace
 FROM _save_calendar_draft_namespace t
-LEFT JOIN {{schema}}.calendars c ON c.namespace_id = t.namespace_id AND c.calendar_name = @p_calendar_name
-GROUP BY t.namespace_id;
+LEFT JOIN LATERAL (
+    SELECT c.version, c.calendar_role_code, c.content_hash, c.calendar_status_code
+    FROM {{schema}}.calendars c
+    WHERE
+        c.namespace_id = t.namespace_id
+        AND c.calendar_name = @p_calendar_name
+    ORDER BY c.version DESC
+    LIMIT 1
+) l ON true;
 
 WITH saved AS (
     INSERT INTO {{schema}}.calendars (
@@ -74,7 +90,8 @@ WITH saved AS (
         now()
     FROM _save_calendar_draft_family f
     WHERE
-        f.latest_version = @p_expected_latest_version
+        NOT f.unchanged
+        AND f.latest_version = @p_expected_latest_version
         AND (f.family_role IS NULL OR f.family_role = @p_calendar_role_code)
         AND f.clash_namespace IS NULL
     RETURNING calendar_id, namespace_id, version, content_hash
@@ -94,11 +111,12 @@ audit AS (
 SELECT
     CASE
         WHEN s.calendar_id IS NOT NULL THEN 1 /* ControlAction.Applied */
+        WHEN f.unchanged THEN 6 /* ControlAction.AlreadyInState */
         WHEN f.latest_version <> @p_expected_latest_version THEN 5 /* ControlAction.VersionConflict */
         ELSE 3 /* ControlAction.Rejected */
     END::SMALLINT AS action,
     COALESCE(s.version, f.latest_version) AS version,
-    s.content_hash,
+    COALESCE(s.content_hash, CASE WHEN f.unchanged THEN f.latest_content_hash END) AS content_hash,
     f.family_role,
     f.clash_namespace
 FROM _save_calendar_draft_family f

@@ -30,7 +30,7 @@ public sealed class ListCalendarVersionsSpec : ActaStorageTestBase<ConformanceFi
         var second = await Calendars.SaveDraftAsync(
             calendar,
             CalendarRoleCode.Availability,
-            CalendarTestOps.AvailabilityDefinition,
+            CalendarTestOps.Revised(CalendarTestOps.AvailabilityDefinition, 2),
             1,
             ct: ct
         );
@@ -56,7 +56,13 @@ public sealed class ListCalendarVersionsSpec : ActaStorageTestBase<ConformanceFi
         var ct = TestContext.Current.CancellationToken;
         var calendar = new CalendarLookup(TestNamespace, Unique("pay-days"));
         await Calendars.SaveDraftAsync(calendar, CalendarRoleCode.Occurrence, CalendarTestOps.OccurrenceDefinition, 0, ct: ct);
-        await Calendars.SaveDraftAsync(calendar, CalendarRoleCode.Occurrence, CalendarTestOps.OccurrenceDefinition, 1, ct: ct);
+        await Calendars.SaveDraftAsync(
+            calendar,
+            CalendarRoleCode.Occurrence,
+            CalendarTestOps.Revised(CalendarTestOps.OccurrenceDefinition, 2),
+            1,
+            ct: ct
+        );
         var unknown = new CalendarLookup(TestNamespace, Unique("no-such-calendar"));
 
         var empty = await Calendars.ListVersionsAsync(new ListCalendarVersionsQuery(unknown, IncludeTotal: true), ct);

@@ -556,11 +556,12 @@ export async function previewCalendar(
   );
 }
 
-// POST calendars/{ns}/{name}/drafts: applied (200) with the new version and its content hash, rejected (409)
-// with the compiler's problems, version-conflict (409) when the latest version moved. The definition is the
-// operator's JSON text, spliced into the body verbatim as the `definition` object.
+// POST calendars/{ns}/{name}/drafts: applied (200) with the new version and its content hash, already-in-state
+// (200) with the latest version when it holds the same definition, rejected (409) with the compiler's problems,
+// version-conflict (409) when the latest version moved. The definition is the operator's JSON text, spliced
+// into the body verbatim as the `definition` object.
 export interface CalendarDraftResponse {
-  action: ControlAction;
+  action: ControlAction | 'already-in-state';
   version: number | null;
   contentHash: string | null;
   problems: string[];
@@ -583,11 +584,12 @@ export async function saveCalendarDraft(
   );
 }
 
-// POST calendars/{ns}/{name}/publish: applied with the schedules retimed, not-found when the candidate is
-// no version of the family, version-conflict when the current version moved, rejected with the reason and
-// the schedules holding overdue occurrences (under the refuse decision).
+// POST calendars/{ns}/{name}/publish: applied with the schedules retimed, already-in-state when the candidate
+// is the current version, not-found when the candidate is no version of the family, version-conflict when the
+// current version moved, rejected with the reason and the schedules holding overdue occurrences (under the
+// refuse decision).
 export interface CalendarPublishResponse {
-  action: ControlAction;
+  action: ControlAction | 'already-in-state';
   version: number | null;
   retimedSchedules: string[];
   overdueSchedules: string[];

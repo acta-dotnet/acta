@@ -35,7 +35,7 @@ internal sealed class CalendarsOperations(
         CalendarLookup calendar,
         CalendarRoleCode role,
         string definition,
-        int expectedLatestVersion,
+        int? expectedLatestVersion = null,
         string? reasonMessage = null,
         string? actor = null,
         CancellationToken ct = default
@@ -56,21 +56,21 @@ internal sealed class CalendarsOperations(
 
     public async ValueTask<PublishCalendarResponse> PublishAsync(
         CalendarLookup calendar,
-        int expectedCurrentVersion,
         int candidateVersion,
+        int? expectedCurrentVersion = null,
         OverdueDecisionCode overdue = OverdueDecisionCode.Refuse,
         string? reasonMessage = null,
         string? actor = null,
         CancellationToken ct = default
     ) =>
         await publishCalendar.HandleAsync(
-            new PublishCalendarCommand(calendar, expectedCurrentVersion, candidateVersion, overdue, reasonMessage, actor),
+            new PublishCalendarCommand(calendar, candidateVersion, expectedCurrentVersion, overdue, reasonMessage, actor),
             ct
         );
 
     public ValueTask<ArchiveCalendarResponse> ArchiveAsync(
         CalendarLookup calendar,
-        int expectedCurrentVersion,
+        int? expectedCurrentVersion = null,
         string? reasonMessage = null,
         string? actor = null,
         CancellationToken ct = default

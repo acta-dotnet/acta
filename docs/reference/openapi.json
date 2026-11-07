@@ -5446,8 +5446,7 @@
                           ]
                         }
                       ]
-                    },
-                    "expectedLatestVersion": 2
+                    }
                   }
                 }
               }
@@ -5590,7 +5589,6 @@
               "examples": {
                 "publishCalendar": {
                   "value": {
-                    "expectedCurrentVersion": 1,
                     "candidateVersion": 2
                   }
                 }
@@ -5747,7 +5745,6 @@
               "examples": {
                 "archiveCalendar": {
                   "value": {
-                    "expectedCurrentVersion": 1,
                     "reasonMessage": "No schedule uses it."
                   }
                 }
@@ -10802,14 +10799,14 @@
         ]
       },
       "ArchiveCalendarRequest": {
-        "required": [
-          "expectedCurrentVersion"
-        ],
         "type": "object",
         "properties": {
           "expectedCurrentVersion": {
-            "type": "integer",
-            "description": "The number of the published version as the caller last read it; when another is in force the call answers rejected and changes nothing.",
+            "type": [
+              "null",
+              "integer"
+            ],
+            "description": "The number of the published version as the caller last read it; when another is in force the call answers rejected and changes nothing. Leave it out to archive whatever is in force.",
             "format": "int32"
           },
           "reasonMessage": {
@@ -10821,7 +10818,7 @@
           }
         },
         "additionalProperties": false,
-        "description": "Body of the calendar archive: the published version the operator last read, and an optional reason."
+        "description": "Body of the calendar archive: optionally the published version the operator last read, and an optional reason."
       },
       "ArchiveCalendarResponse": {
         "required": [
@@ -10832,7 +10829,7 @@
         "type": "object",
         "properties": {
           "action": {
-            "description": "What the call did: applied; rejected, when a schedule still names the family or its current version is not the expected one; or not-found.",
+            "description": "What the call did: applied; rejected, when a schedule still names the family or its current version is not the one the caller named; or not-found.",
             "$ref": "#/components/schemas/ControlAction"
           },
           "version": {
@@ -10849,7 +10846,7 @@
             "format": "int32"
           }
         },
-        "description": "What archiving a calendar family's current version did. The archive is rejected while a schedule still names the family, or when its current version is not the expected one."
+        "description": "What archiving a calendar family's current version did. The archive is rejected while a schedule still names the family, or when its current version is not the one the caller named."
       },
       "AtOpeningCalendar": {
         "required": [
@@ -15891,19 +15888,21 @@
       },
       "PublishCalendarRequest": {
         "required": [
-          "candidateVersion",
-          "expectedCurrentVersion"
+          "candidateVersion"
         ],
         "type": "object",
         "properties": {
           "expectedCurrentVersion": {
-            "type": "integer",
-            "description": "The number of the published version as the caller last read it; 0 when none is published. When another is in force, the call answers version-conflict and changes nothing.",
+            "type": [
+              "null",
+              "integer"
+            ],
+            "description": "The number of the published version as the caller last read it; 0 when none is published. When another is in force, the call answers version-conflict and changes nothing; leave it out to publish whatever is in force.",
             "format": "int32"
           },
           "candidateVersion": {
             "type": "integer",
-            "description": "The number of the draft version to publish.",
+            "description": "The number of the draft version to publish; the version already in force answers already-in-state and retimes nothing.",
             "format": "int32"
           },
           "overdueDecision": {
@@ -15919,7 +15918,7 @@
           }
         },
         "additionalProperties": false,
-        "description": "Body of the calendar publication: the published version the operator last read, the draft to publish, what to do about overdue occurrences, and an optional reason."
+        "description": "Body of the calendar publication: the draft to publish, optionally the published version the operator last read, what to do about overdue occurrences, and an optional reason."
       },
       "PublishCalendarResponse": {
         "required": [
@@ -15932,7 +15931,7 @@
         "type": "object",
         "properties": {
           "action": {
-            "description": "What the call did: applied, rejected, version-conflict, or not-found.",
+            "description": "What the call did: applied, already-in-state, rejected, version-conflict, or not-found.",
             "$ref": "#/components/schemas/ControlAction"
           },
           "version": {
@@ -15940,7 +15939,7 @@
               "null",
               "integer"
             ],
-            "description": "The number of the version in force after the call: the candidate when applied. Otherwise the family's current version, or null: when none is published, and when the call ended before reading it, as for a candidate that does not exist, is not a draft, or is bound to more schedules than one publication retimes.",
+            "description": "The number of the version in force after the call: the candidate when applied or already-in-state. Otherwise the family's current version, or null: when none is published, and when the call ended before reading it, as for a candidate that does not exist, is not a draft, or is bound to more schedules than one publication retimes.",
             "format": "int32"
           },
           "retimedSchedules": {
@@ -15965,7 +15964,7 @@
             "description": "Why the publication was refused, when it was."
           }
         },
-        "description": "The outcome of a publication: applied, with the version made current and the schedules retimed, each as namespace/job/schedule; not-found, when the candidate is no version of the family; version-conflict, when the current version is not the one the caller saw; or rejected, with the reason and, when the old version left overdue occurrences undecided, the schedules holding them."
+        "description": "The outcome of a publication: applied, with the version made current and the schedules retimed; already-in-state, when the candidate is already current; not-found, when the candidate is no version of the family; version-conflict, when the current version is not the one the caller saw; or rejected, with the reason and the schedules holding undecided overdue occurrences."
       },
       "PurgeJobRequest": {
         "type": "object",
@@ -16607,8 +16606,7 @@
       "SaveCalendarDraftRequest": {
         "required": [
           "role",
-          "definition",
-          "expectedLatestVersion"
+          "definition"
         ],
         "type": "object",
         "properties": {
@@ -16621,8 +16619,11 @@
             "$ref": "#/components/schemas/CalendarDefinition"
           },
           "expectedLatestVersion": {
-            "type": "integer",
-            "description": "The number of the family's newest version as the caller last read it; 0 for a family that has no version. When another is newest, the call answers version-conflict and changes nothing.",
+            "type": [
+              "null",
+              "integer"
+            ],
+            "description": "The number of the family's newest version as the caller last read it; 0 for a family that has no version. When another is newest, the call answers version-conflict and changes nothing; leave it out to save whatever is newest. A definition equal to the newest version's answers already-in-state either way.",
             "format": "int32"
           },
           "reasonMessage": {
@@ -16634,7 +16635,7 @@
           }
         },
         "additionalProperties": false,
-        "description": "Body of the calendar draft: the family's role, the definition, the newest version the operator last read, and an optional reason."
+        "description": "Body of the calendar draft: the family's role, the definition, optionally the newest version the operator last read, and an optional reason."
       },
       "SaveCalendarDraftResponse": {
         "required": [
@@ -16646,7 +16647,7 @@
         "type": "object",
         "properties": {
           "action": {
-            "description": "What the call did: applied; rejected, when the definition does not compile, the role is not the family's, or the other scope holds the name; or version-conflict, when another version is the family's latest.",
+            "description": "What the call did: applied; already-in-state, when the family's latest version holds the same definition and is not archived, so nothing was saved; rejected, when the role is not the family's, the other scope holds the name, or, over HTTP, the definition does not compile; or version-conflict, when another version is the family's latest.",
             "$ref": "#/components/schemas/ControlAction"
           },
           "version": {
@@ -16654,7 +16655,7 @@
               "null",
               "integer"
             ],
-            "description": "The number of the draft version that was saved; when the store refused the draft, as version-conflict or rejected, the family's latest version, 0 for a family with none; null when the definition does not compile.",
+            "description": "The number of the draft version that was saved; for already-in-state, the latest version, which holds the definition; when the store refused the draft, as version-conflict or rejected, the family's latest version, 0 for a family with none; null when the definition does not compile.",
             "format": "int32"
           },
           "contentHash": {
@@ -16662,17 +16663,17 @@
               "null",
               "string"
             ],
-            "description": "A hash of the saved definition; null when nothing was saved."
+            "description": "A hash of the definition: the saved one, or the latest version's for already-in-state; null when the draft was refused."
           },
           "problems": {
             "type": "array",
             "items": {
               "type": "string"
             },
-            "description": "Why the draft was not saved, one sentence each; empty when it was saved."
+            "description": "Why the draft was not saved, one sentence each; empty when it was saved or already held."
           }
         },
-        "description": "What saving a draft did: applied carries the new version and its content hash; rejected and version-conflict carry each reason in problems, a compiler problem starting with its JSON path, and, when the store refused the draft, the family's latest version, 0 for a family with none. A namespace no worker has run in yet is created, so the save never answers not-found."
+        "description": "What saving a draft did: applied carries the new version and its content hash, and already-in-state the latest version, which holds the same definition, and its hash; rejected and version-conflict carry each reason in problems, a compiler problem starting with its JSON path. A namespace no worker has run in yet is created, so the save never answers not-found."
       },
       "ScheduledDeliveryCode": {
         "examples": [

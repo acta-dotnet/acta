@@ -26,7 +26,7 @@
   import CalendarPreview from '../components/calendar/CalendarPreview.svelte';
   import { mergeHistory, type HistoryEvent } from '../components/changeHistory.ts';
   import { definitionTemplate, weeklyFromJson, weeklyProblems, weeklyToJson } from '../components/calendar/calendarDefinition.ts';
-  import { calendarControlMessage, familyState, publishImpact } from '../components/calendar/calendarFamily.ts';
+  import { calendarControlMessage, calendarVerbSucceeded, familyState, publishImpact } from '../components/calendar/calendarFamily.ts';
   import { eventFacts } from '../lib/eventFacts.ts';
   import { jsonError, prettyJson } from '../lib/rawJson.ts';
   import { displayFormatter } from '../format.ts';
@@ -177,7 +177,7 @@
   }
 
   // One shape for the three control verbs: busy while the call runs, the answer worded as the family's message, the
-  // page refreshed when the server applied it, and a failed call shown where the answer would be.
+  // page refreshed when the family is as asked, applied or already so, and a failed call shown where the answer would be.
   async function run(call: () => Promise<{ message: string; kind: string; applied: boolean; after?: () => void }>) {
     busy = true;
     message = '';
@@ -201,7 +201,7 @@
     return run(async () => {
       const result = await saveCalendarDraft(jobNamespace, calendarName, draftRole, draftText, expectedLatest, draftNote);
       serverProblems = result.problems ?? [];
-      const applied = result.action === 'applied';
+      const applied = calendarVerbSucceeded(result.action);
       if (applied) editing = false;
       return {
         message: calendarControlMessage('draft', result.action, { version: result.version }),
@@ -219,10 +219,11 @@
     return run(async () => {
       const result = await publishCalendar(jobNamespace, calendarName, shown.currentVersion ?? 0, shown.shownVersion, overdueDecision, note);
       const reason = result.reason ?? (result.overdueSchedules.length > 0 ? `${result.overdueSchedules.length} schedules hold an overdue occurrence.` : null);
+      const applied = calendarVerbSucceeded(result.action);
       return {
         message: calendarControlMessage('publish', result.action, { version: result.version, retimed: result.retimedSchedules.length, reason }),
-        kind: result.action === 'applied' ? 'ok' : 'warn',
-        applied: result.action === 'applied'
+        kind: applied ? 'ok' : 'warn',
+        applied
       };
     });
   }

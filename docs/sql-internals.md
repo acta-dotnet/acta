@@ -487,8 +487,15 @@ Each namespace has one schedule lock, held until its transaction ends: `sp_getap
   none.
 - Admission and a manual firing, from a trigger or a slot's reschedule, read the namespace's status after the grant and admit nothing into a suspended
   namespace, so a plan read before a suspension either lands before it or applies nothing.
-- It is a transaction's first lock: a shared holder that took a row first could wait on a registration that waits on
-  that row.
+- On SQL Server and PostgreSQL, locks are taken in one order: the namespace name, then the schedule locks, then the
+  calendar name, then rows. A path that holds a later one never waits on an earlier one. SQLite's one writer needs none.
+  - The namespace name is held before a namespace with no row yet is inserted, by a deploy and by a calendar draft: on
+    SQL Server the application lock `{schema}.namespaces.<name>`, on PostgreSQL the unique index entry the insert
+    holds, which a second insert of the name waits on.
+  - The calendar name is a draft's, held while it checks the other scope for the name: `{schema}.calendars.<name>` on
+    SQL Server, `pg_advisory_xact_lock(hashtext('{schema}.calendars'), hashtext(<name>))` on PostgreSQL.
+  - The schedule lock comes before any other row lock: a shared holder that took a row first could wait on a
+    registration that waits on that row.
 - A statement that starts after the grant reads committed schedule config, because a read-committed-snapshot statement
   and a PostgreSQL read-committed statement take their snapshot when they start. The config joins therefore take no row
   locks, and the retirement and orphan filters stay in every reader and writer.

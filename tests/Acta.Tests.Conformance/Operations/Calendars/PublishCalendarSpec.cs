@@ -81,8 +81,8 @@ public sealed class PublishCalendarManifest : IJobManifest
 /// The catalog as a schedule's source, by name: the admitter resolves the name to the family's current published
 /// version and fires its instants; a publication retimes every schedule that names the family from the new version
 /// atomically and audits the move; an undecided overdue occurrence refuses the publication unless the
-/// caller discards it, audited as a skipped range; a stale expected version is a conflict; a preview shows the
-/// candidate beside the current version.
+/// caller discards it, audited as a skipped range; a stale expected version is a conflict, and none is no check;
+/// publishing the current version again changes nothing; a preview shows the candidate beside the current version.
 /// </summary>
 [ConformanceSpec(
     "calendar.publish",
@@ -117,8 +117,8 @@ public sealed class PublishCalendarSpec : ActaRuntimeTestBase<ConformanceFixture
     // second and third minute; the first draft creates the namespace, which no worker has run in yet.
     protected override async ValueTask BeforeWorkerStartAsync(CancellationToken ct)
     {
-        await PublishAsync(Days, CalendarRoleCode.Occurrence, Instants(1, 2, 3), expectedLatest: 0, ct);
-        await PublishAsync(Hours, CalendarRoleCode.Availability, Window(2, 4), expectedLatest: 0, ct);
+        await PublishAsync(Days, CalendarRoleCode.Occurrence, Instants(1, 2, 3), ct);
+        await PublishAsync(Hours, CalendarRoleCode.Availability, Window(2, 4), ct);
     }
 
     [Fact(DisplayName = "A schedule resolves the catalog's current version by name and fires its instants")]
@@ -142,7 +142,7 @@ public sealed class PublishCalendarSpec : ActaRuntimeTestBase<ConformanceFixture
         Assert.Equal(CalendarRoleCode.Occurrence, dependent.Binding);
     }
 
-    [Fact(DisplayName = "A publication retimes every bound schedule from the new version and audits the retime")]
+    [Fact(DisplayName = "A publication with no expected version retimes every bound schedule from the new version and audits the retime")]
     public async Task A_publication_retimes_the_bound_schedules()
     {
         var ct = TestContext.Current.CancellationToken;
@@ -150,7 +150,7 @@ public sealed class PublishCalendarSpec : ActaRuntimeTestBase<ConformanceFixture
         var before = Assert.Single(await ScheduleTestOps.ReadAsync(Db, slotId, ct));
         Clock.AdvanceTo(Start.AddSeconds(30));
 
-        var published = await PublishAsync(Days, CalendarRoleCode.Occurrence, Instants(10, 11), expectedLatest: 1, ct);
+        var published = await PublishAsync(Days, CalendarRoleCode.Occurrence, Instants(10, 11), ct);
 
         Assert.Equal(2, published.Version);
         Assert.Contains(
@@ -180,7 +180,7 @@ public sealed class PublishCalendarSpec : ActaRuntimeTestBase<ConformanceFixture
         var draft = await Calendars.SaveDraftAsync(Days, CalendarRoleCode.Occurrence, Instants(20), 1, ct: ct);
         Assert.Equal(ControlAction.Applied, draft.Action);
 
-        var refused = await Calendars.PublishAsync(Days, 1, 2, OverdueDecisionCode.Refuse, ct: ct);
+        var refused = await Calendars.PublishAsync(Days, 2, expectedCurrentVersion: 1, OverdueDecisionCode.Refuse, ct: ct);
 
         Assert.Equal(ControlAction.Rejected, refused.Action);
         Assert.Contains(
@@ -190,7 +190,7 @@ public sealed class PublishCalendarSpec : ActaRuntimeTestBase<ConformanceFixture
         Assert.Equal(Start.AddMinutes(1), Assert.Single(await ScheduleTestOps.ReadAsync(Db, slotId, ct)).NextOccurrenceAtUtc);
         Assert.Equal(CalendarStatusCode.Draft, (await Calendars.GetAsync(Days, 2, ct))!.ShownStatus);
 
-        var discarded = await Calendars.PublishAsync(Days, 1, 2, OverdueDecisionCode.Discard, ct: ct);
+        var discarded = await Calendars.PublishAsync(Days, 2, expectedCurrentVersion: 1, OverdueDecisionCode.Discard, ct: ct);
 
         Assert.Equal(ControlAction.Applied, discarded.Action);
         var schedule = Assert.Single(await ScheduleTestOps.ReadAsync(Db, slotId, ct));
@@ -230,7 +230,7 @@ public sealed class PublishCalendarSpec : ActaRuntimeTestBase<ConformanceFixture
         Assert.Equal(ControlAction.Rejected, stale.Action);
         Assert.Equal(Start.AddMinutes(1), Assert.Single(await ScheduleTestOps.ReadAsync(Db, slotId, ct)).NextOccurrenceAtUtc);
 
-        var published = await Calendars.PublishAsync(Days, 1, candidate, ct: ct);
+        var published = await Calendars.PublishAsync(Days, candidate, expectedCurrentVersion: 1, ct: ct);
         Assert.Equal(ControlAction.Applied, published.Action);
         Assert.Equal(Start.AddMinutes(10), Assert.Single(await ScheduleTestOps.ReadAsync(Db, slotId, ct)).NextOccurrenceAtUtc);
     }
@@ -244,14 +244,83 @@ public sealed class PublishCalendarSpec : ActaRuntimeTestBase<ConformanceFixture
             (await Calendars.SaveDraftAsync(Days, CalendarRoleCode.Occurrence, Instants(30), 1, ct: ct)).Action
         );
 
-        var stale = await Calendars.PublishAsync(Days, 0, 2, ct: ct);
-        var superseded = await Calendars.PublishAsync(Days, 1, 1, ct: ct);
-        var missing = await Calendars.PublishAsync(Days, 1, 9, ct: ct);
+        var stale = await Calendars.PublishAsync(Days, 2, expectedCurrentVersion: 0, ct: ct);
+        var missing = await Calendars.PublishAsync(Days, 9, expectedCurrentVersion: 1, ct: ct);
+        var published = await Calendars.PublishAsync(Days, 2, ct: ct);
+        var superseded = await Calendars.PublishAsync(Days, 1, ct: ct);
 
         Assert.Equal(ControlAction.VersionConflict, stale.Action);
         Assert.Contains("not 0", stale.Reason);
-        Assert.Equal(ControlAction.Rejected, superseded.Action);
         Assert.Equal(ControlAction.NotFound, missing.Action);
+        Assert.Equal(ControlAction.Applied, published.Action);
+        Assert.Equal(ControlAction.Rejected, superseded.Action);
+        Assert.Contains("is superseded", superseded.Reason, StringComparison.Ordinal);
+    }
+
+    [Fact(
+        DisplayName = "Publishing the current version again is AlreadyInState and leaves every bound schedule as it was, an overdue one under Refuse included"
+    )]
+    public async Task Publishing_the_current_version_again_changes_nothing()
+    {
+        var ct = TestContext.Current.CancellationToken;
+        var nsId = Runtime.RegisteredNamespaceIds[TestNamespace];
+        var slotIds = new[]
+        {
+            await ScheduleTestOps.SlotIdAsync(Db, TestNamespace, PublishCalendarManifest.DaysJobName, ct),
+            await ScheduleTestOps.SlotIdAsync(Db, TestNamespace, PublishCalendarManifest.OfficeJobName, ct),
+        };
+        var before = await SnapshotAsync(slotIds, nsId, ct);
+        Clock.AdvanceTo(Start.AddSeconds(30));
+
+        var days = await Calendars.PublishAsync(Days, 1, ct: ct);
+        var hours = await Calendars.PublishAsync(Hours, 1, expectedCurrentVersion: 1, ct: ct);
+
+        Assert.Equal((ControlAction.AlreadyInState, 1), (days.Action, days.Version));
+        Assert.Equal((ControlAction.AlreadyInState, 1), (hours.Action, hours.Version));
+        Assert.Empty(days.RetimedSchedules);
+        Assert.Null(days.Reason);
+        Assert.Equal(before, await SnapshotAsync(slotIds, nsId, ct));
+
+        // The first two instants pass with no admission pass, so the schedule holds an undecided overdue occurrence; the
+        // expected version is stale too.
+        Clock.AdvanceTo(Start.AddMinutes(2).AddSeconds(30));
+        Assert.Contains(
+            (await Calendars.PreviewAsync(Days, 1, ct: ct))!.Schedules,
+            s => s.JobName == PublishCalendarManifest.DaysJobName && s.Overdue
+        );
+        var overdue = await Calendars.PublishAsync(Days, 1, expectedCurrentVersion: 0, OverdueDecisionCode.Refuse, ct: ct);
+
+        Assert.Equal((ControlAction.AlreadyInState, 1), (overdue.Action, overdue.Version));
+        Assert.Empty(overdue.OverdueSchedules);
+        Assert.Equal(before, await SnapshotAsync(slotIds, nsId, ct));
+    }
+
+    [Fact(
+        DisplayName = "Two publications of one draft at the same moment publish it once: the other answers AlreadyInState, and the bound schedule is retimed once"
+    )]
+    public async Task Two_publications_of_one_draft_at_once_publish_it_once()
+    {
+        var ct = TestContext.Current.CancellationToken;
+        var slotId = await ScheduleTestOps.SlotIdAsync(Db, TestNamespace, PublishCalendarManifest.DaysJobName, ct);
+        Clock.AdvanceTo(Start.AddSeconds(30));
+        for (var round = 0; round < 10; round++)
+        {
+            var candidate = (await Calendars.SaveDraftAsync(Days, CalendarRoleCode.Occurrence, Instants(10 + round), ct: ct))
+                .Version!
+                .Value;
+
+            // Both plans can read the candidate as a draft; the one applied second then finds it published.
+            var publications = await CalendarTestOps.RaceAsync(
+                () => Calendars.PublishAsync(Days, candidate, ct: ct).AsTask(),
+                () => Calendars.PublishAsync(Days, candidate, ct: ct).AsTask()
+            );
+
+            Assert.Equal([ControlAction.Applied, ControlAction.AlreadyInState], publications.Select(p => p.Action).Order());
+            Assert.All(publications, p => Assert.Equal(candidate, p.Version));
+            Assert.Equal(round + 1, await CountEventsAsync(slotId, EventCode.ScheduleRetimed, ct));
+            Assert.Equal(round + 2, await CountPublishedAsync(Days.CalendarName, ct));
+            Assert.Equal(Start.AddMinutes(10 + round), Assert.Single(await ScheduleTestOps.ReadAsync(Db, slotId, ct)).NextOccurrenceAtUtc);
+        }
     }
 
     [Fact(DisplayName = "A preview shows the candidate beside the current version and the bound schedules with their totals")]
@@ -284,7 +353,7 @@ public sealed class PublishCalendarSpec : ActaRuntimeTestBase<ConformanceFixture
         Assert.Equal(Start.AddMinutes(2), Assert.Single(await ScheduleTestOps.ReadAsync(Db, slotId, ct)).NextOccurrenceAtUtc);
         Clock.AdvanceTo(Start.AddSeconds(30));
 
-        var published = await PublishAsync(Hours, CalendarRoleCode.Availability, Window(6, 8), expectedLatest: 1, ct);
+        var published = await PublishAsync(Hours, CalendarRoleCode.Availability, Window(6, 8), ct);
 
         Assert.Equal(2, published.Version);
         var schedule = Assert.Single(await ScheduleTestOps.ReadAsync(Db, slotId, ct));
@@ -292,19 +361,56 @@ public sealed class PublishCalendarSpec : ActaRuntimeTestBase<ConformanceFixture
         Assert.Equal(1, await CountEventsAsync(slotId, EventCode.ScheduleRetimed, ct));
     }
 
+    // A deploy step's form: no expected version on either call.
     private async Task<PublishCalendarResponse> PublishAsync(
         CalendarLookup calendar,
         CalendarRoleCode role,
         string definition,
-        int expectedLatest,
         CancellationToken ct
     )
     {
-        var draft = await Calendars.SaveDraftAsync(calendar, role, definition, expectedLatest, ct: ct);
+        var draft = await Calendars.SaveDraftAsync(calendar, role, definition, ct: ct);
         Assert.Equal(ControlAction.Applied, draft.Action);
-        var published = await Calendars.PublishAsync(calendar, expectedLatest, draft.Version!.Value, ct: ct);
+        var published = await Calendars.PublishAsync(calendar, draft.Version!.Value, ct: ct);
         Assert.Equal(ControlAction.Applied, published.Action);
         return published;
+    }
+
+    // How many calendar.published events the family's versions hold.
+    private async Task<int> CountPublishedAsync(string calendarName, CancellationToken ct)
+    {
+        var nsId = Runtime.RegisteredNamespaceIds[TestNamespace];
+        var ids = (await Db.From<CalendarEntity>().Where(c => c.NamespaceId == nsId && c.CalendarName == calendarName).ToListAsync(ct))
+            .Select(c => (long)c.Id)
+            .ToList();
+        return await Db.From<EventEntity>()
+            .Where(e => e.EntityCode == EntityCode.Calendar && e.EventCode == EventCode.CalendarPublished && ids.Contains(e.EntityId))
+            .CountAsync(ct);
+    }
+
+    // The bound schedules' versions and cursors, and how many events their jobs and the namespace's calendars hold.
+    private async Task<string> SnapshotAsync(IReadOnlyList<long> slotIds, int namespaceId, CancellationToken ct)
+    {
+        var lines = new List<string>();
+        foreach (var slotId in slotIds)
+        {
+            lines.AddRange(
+                (await ScheduleTestOps.ReadAsync(Db, slotId, ct)).Select(s =>
+                    string.Create(
+                        CultureInfo.InvariantCulture,
+                        $"{slotId}/{s.ScheduleName} v{s.Version}/{s.Cursor.Version} {s.NextOccurrenceAtUtc:O} {s.NextEvaluationAtUtc:O} {s.EvaluationStatus}"
+                    )
+                )
+            );
+        }
+
+        var ids = slotIds.ToList();
+        var jobEvents = await Db.From<EventEntity>().Where(e => e.EntityCode == EntityCode.Job && ids.Contains(e.EntityId)).CountAsync(ct);
+        var calendarEvents = await Db.From<EventEntity>()
+            .Where(e => e.NamespaceId == namespaceId && e.EntityCode == EntityCode.Calendar)
+            .CountAsync(ct);
+        lines.Add($"{jobEvents} job events, {calendarEvents} calendar events");
+        return string.Join("\n", lines);
     }
 
     private string Instants(params int[] minutes) =>

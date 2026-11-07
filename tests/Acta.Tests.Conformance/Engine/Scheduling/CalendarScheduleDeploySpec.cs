@@ -133,7 +133,7 @@ public sealed class CalendarScheduleDeploySpec : ActaTestBase<ConformanceFixture
         var calendar = new CalendarLookup(TestNamespace, calendarName);
         var draft = await Calendars.SaveDraftAsync(calendar, role, definition, 0, ct: ct);
         Assert.Equal(ControlAction.Applied, draft.Action);
-        Assert.Equal(ControlAction.Applied, (await Calendars.PublishAsync(calendar, 0, draft.Version!.Value, ct: ct)).Action);
+        Assert.Equal(ControlAction.Applied, (await Calendars.PublishAsync(calendar, draft.Version!.Value, 0, ct: ct)).Action);
     }
 
     /// <summary>

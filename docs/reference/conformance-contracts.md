@@ -1894,10 +1894,11 @@
 ## Scheduling
 
 ### A calendar family's current version archives when nothing live depends on it
-- **Contract:** Archive retires the expected current version and records calendar.archived, and is Rejected while a live schedule binds the family.
+- **Contract:** Archive retires the current version, the expected one if given, records calendar.archived, and is Rejected while a live schedule binds the family.
 - **Guarantees:**
   - Archiving a family with no current version, or an unknown family, is NotFound
   - Archiving the current version applies, leaves the family without one, and records calendar.archived
+  - An archive with no expected version archives whatever version is current, and audits that version
   - A stale expected version, or a live schedule naming the family, rejects the archive until the schedule is orphaned
 
 ### A family's bound schedules read back, across namespaces when shared
@@ -1951,22 +1952,31 @@
 - **Contract:** A schedule follows the catalog's current version by name, and a publication retimes every bound schedule atomically, refusing or discarding an overdue backlog.
 - **Guarantees:**
   - A schedule resolves the catalog's current version by name and fires its instants
-  - A publication retimes every bound schedule from the new version and audits the retime
+  - A publication with no expected version retimes every bound schedule from the new version and audits the retime
   - An overdue occurrence refuses a publication until the caller discards it as a skipped range
   - An apply whose plan misses a schedule naming the family rejects, and the publication plans it again
   - A publication is a conflict on a stale expected version and rejected for a version that is no draft
+  - Publishing the current version again is AlreadyInState and leaves every bound schedule as it was, an overdue one under Refuse included
+  - Two publications of one draft at the same moment publish it once: the other answers AlreadyInState, and the bound schedule is retimed once
   - A preview shows the candidate beside the current version and the bound schedules with their totals
   - An availability publication moves a cron schedule's next tick into the new window
 
 ### A calendar draft saves as the family's next version under its expected latest
-- **Contract:** A draft saves as the next version only against the family's latest version and role, writes nothing otherwise, and records calendar.draft-saved.
+- **Contract:** A draft saves as the next version only against the family's latest and role and with new content, writes nothing otherwise, and records calendar.draft-saved.
 - **Guarantees:**
   - A first draft saves as version 1, a Draft, and records calendar.draft-saved against the calendar
   - A draft against the latest version saves the next one; a stale expected version is a conflict naming the latest
+  - A draft with no expected version saves a new family's version 1, then the latest + 1, each audited with its version
+  - A draft the latest version already holds is AlreadyInState with that version and writes no row and no event, whatever the expected version
+  - A draft equal to an older version than the latest is a change: a stale expected version is a conflict, and none saves the next version
+  - A draft equal to an Archived latest version saves it again as a new draft
   - A draft in the other role is Rejected naming the family's role and writes nothing
-  - A definition that does not compile is Rejected with its problems and writes nothing
+  - A definition that does not compile throws with every problem by its path, and writes no row and no event
   - A shared calendar and a namespace's cannot share a name, in either order
   - Two first drafts of one name at the same moment, one shared and one in a namespace, save one and reject the other
+  - Two first drafts at the same moment in a namespace that does not exist yet both save, and create it once
+  - Two different drafts of one family at the same moment, with no expected version, save as the next two versions, each row and event its own
+  - Two identical drafts of one family at the same moment save one version, and the other answers AlreadyInState with it
   - A first draft creates a namespace no worker has run in, and a role other than Occurrence or Availability throws
 
 ### Any calendar version reads back with its definition, whatever its status

@@ -1,6 +1,6 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { calendarControlMessage, familyState, publishImpact } from './calendarFamily.ts';
+import { calendarControlMessage, calendarVerbSucceeded, familyState, publishImpact } from './calendarFamily.ts';
 
 const family = { currentVersion: 2, latestVersion: 3 };
 
@@ -35,4 +35,13 @@ test('catalog verbs word their outcomes with the version and the counts', () => 
   assert.equal(calendarControlMessage('archive', 'rejected', { dependents: 2 }), 'Archive rejected: 2 live schedules still bind this calendar.');
   assert.equal(calendarControlMessage('publish', 'not-found'), "That version is not one of this calendar's.");
   assert.equal(calendarControlMessage('archive', 'not-found'), 'Calendar not found.');
+  assert.equal(calendarControlMessage('draft', 'already-in-state', { version: 2 }), 'Version 2 already holds this definition; nothing was saved.');
+  assert.equal(calendarControlMessage('publish', 'already-in-state', { version: 2 }), 'Version 2 is already current; nothing was retimed.');
+});
+
+test('a verb that finds the family already as asked succeeds, as an applied one does', () => {
+  assert.deepEqual(
+    ['applied', 'already-in-state', 'rejected', 'version-conflict', 'not-found'].map(calendarVerbSucceeded),
+    [true, true, false, false, false]
+  );
 });

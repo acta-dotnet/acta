@@ -22,7 +22,13 @@ public sealed class GetCalendarSpec : ActaStorageTestBase<ConformanceFixture>
         var ct = TestContext.Current.CancellationToken;
         var calendar = new CalendarLookup(TestNamespace, Unique("pay-days"));
         await Calendars.SaveDraftAsync(calendar, CalendarRoleCode.Occurrence, CalendarTestOps.OccurrenceDefinition, 0, ct: ct);
-        await Calendars.SaveDraftAsync(calendar, CalendarRoleCode.Occurrence, CalendarTestOps.OccurrenceDefinition, 1, ct: ct);
+        await Calendars.SaveDraftAsync(
+            calendar,
+            CalendarRoleCode.Occurrence,
+            CalendarTestOps.Revised(CalendarTestOps.OccurrenceDefinition, 2),
+            1,
+            ct: ct
+        );
 
         var read = await Calendars.GetAsync(calendar, ct: ct);
 
@@ -42,7 +48,13 @@ public sealed class GetCalendarSpec : ActaStorageTestBase<ConformanceFixture>
         var ct = TestContext.Current.CancellationToken;
         var calendar = new CalendarLookup(TestNamespace, Unique("office-hours"));
         await Calendars.SaveDraftAsync(calendar, CalendarRoleCode.Availability, CalendarTestOps.AvailabilityDefinition, 0, ct: ct);
-        await Calendars.SaveDraftAsync(calendar, CalendarRoleCode.Availability, CalendarTestOps.AvailabilityDefinition, 1, ct: ct);
+        await Calendars.SaveDraftAsync(
+            calendar,
+            CalendarRoleCode.Availability,
+            CalendarTestOps.Revised(CalendarTestOps.AvailabilityDefinition, 2),
+            1,
+            ct: ct
+        );
         await CalendarTestOps.PublishAsync(Db, TestNamespaceId, calendar.CalendarName, 1, ct);
 
         var current = await Calendars.GetAsync(calendar, ct: ct);

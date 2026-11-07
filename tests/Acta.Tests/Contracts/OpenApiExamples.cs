@@ -85,12 +85,10 @@ internal static class OpenApiExamples
         ["POST /schedules/{jobNamespace}/{jobName}/{scheduleName}/trigger"] = """{"reasonMessage":"Catch up after the outage."}""",
         ["POST /calendars/{jobNamespace}/{calendarName}/drafts"] = """
             {"role":"availability","definition":{"kind":"weekly-availability","timeZone":"UTC",
-            "weekly":[{"days":["Monday","Tuesday","Wednesday","Thursday","Friday"],"windows":[["09:00","17:00"]]}]},
-            "expectedLatestVersion":2}
+            "weekly":[{"days":["Monday","Tuesday","Wednesday","Thursday","Friday"],"windows":[["09:00","17:00"]]}]}}
             """,
-        ["POST /calendars/{jobNamespace}/{calendarName}/publish"] = """{"expectedCurrentVersion":1,"candidateVersion":2}""",
-        ["POST /calendars/{jobNamespace}/{calendarName}/archive"] =
-            """{"expectedCurrentVersion":1,"reasonMessage":"No schedule uses it."}""",
+        ["POST /calendars/{jobNamespace}/{calendarName}/publish"] = """{"candidateVersion":2}""",
+        ["POST /calendars/{jobNamespace}/{calendarName}/archive"] = """{"reasonMessage":"No schedule uses it."}""",
     };
 
     /// <summary>

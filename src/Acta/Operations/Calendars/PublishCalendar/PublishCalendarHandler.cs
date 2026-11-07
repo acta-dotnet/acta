@@ -8,7 +8,7 @@ namespace Acta;
 /// plan compiles the candidate and resolves each bound schedule's calendars as they stand, retimes every schedule that
 /// names the family (its first occurrence after the database clock, from the candidate), and decides the overdue
 /// occurrences the old source left undecided: refused, or discarded as an audited skipped range. A fence another
-/// writer moved replans.
+/// writer moved replans. Publishing the current version plans and writes nothing.
 /// </summary>
 internal sealed class PublishCalendarHandler(
     IDbSession session,
@@ -49,7 +49,13 @@ internal sealed class PublishCalendarHandler(
                 return new PublishCalendarResponse(ControlAction.NotFound, null, [], [], null);
             }
 
-            if ((current?.Version ?? 0) != command.ExpectedCurrentVersion)
+            // The one Published version is the current one, so the call asks for what already holds, whatever it expected.
+            if (candidate.Status == CalendarStatusCode.Published)
+            {
+                return new PublishCalendarResponse(ControlAction.AlreadyInState, candidate.Version, [], [], null);
+            }
+
+            if (command.ExpectedCurrentVersion is { } expected && (current?.Version ?? 0) != expected)
             {
                 return new PublishCalendarResponse(
                     ControlAction.VersionConflict,
@@ -58,7 +64,7 @@ internal sealed class PublishCalendarHandler(
                     [],
                     current is null
                         ? "The family has no published version; expect 0."
-                        : $"The current published version is {current.Version}, not {command.ExpectedCurrentVersion}."
+                        : $"The current published version is {current.Version}, not {expected}."
                 );
             }
 
@@ -163,7 +169,8 @@ internal sealed class PublishCalendarHandler(
                 {
                     cmd.Parameters.Add(dialect.CreateParameter(ActaSchema.Namespace.NamespaceId, candidate.NamespaceId));
                     cmd.Parameters.Add(dialect.CreateParameter(ActaSchema.Calendar.CalendarName, calendarName));
-                    cmd.Parameters.Add(dialect.CreateParameter(ActaSchema.Sql.ExpectedCurrentVersion, command.ExpectedCurrentVersion));
+                    // The apply fences the current version the plan read, which is the caller's when it named one.
+                    cmd.Parameters.Add(dialect.CreateParameter(ActaSchema.Sql.ExpectedCurrentVersion, current?.Version ?? 0));
                     cmd.Parameters.Add(dialect.CreateParameter(ActaSchema.Sql.CandidateVersion, candidate.Version));
                     cmd.AddEventFields(
                         dialect,
@@ -191,7 +198,9 @@ internal sealed class PublishCalendarHandler(
                     ? null
                     : "Another writer moved the calendar or a bound schedule since the plan was made."
             );
-            if (outcome.Action != ControlAction.Rejected)
+            // The apply answers NotFound when the candidate is no longer the draft the plan read, as when a concurrent call
+            // published it, so the plan is made again and answers what the candidate is now.
+            if (outcome.Action is not (ControlAction.Rejected or ControlAction.NotFound))
             {
                 return last;
             }
