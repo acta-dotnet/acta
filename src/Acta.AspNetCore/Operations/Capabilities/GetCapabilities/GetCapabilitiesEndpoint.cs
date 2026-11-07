@@ -18,13 +18,6 @@ internal static class GetCapabilitiesEndpoint
                 "/capabilities",
                 (HttpContext http, IActaOperations operations) =>
                 {
-                    var provider = operations.Provider switch
-                    {
-                        DbProvider.SqlServer => "mssql",
-                        DbProvider.Postgres => "pg",
-                        DbProvider.Sqlite => "sqlite",
-                        _ => "unknown",
-                    };
                     var version =
                         typeof(IJobs).Assembly.GetCustomAttribute<AssemblyInformationalVersionAttribute>()?.InformationalVersion
                         ?? typeof(IJobs).Assembly.GetName().Version?.ToString()
@@ -36,7 +29,7 @@ internal static class GetCapabilitiesEndpoint
                     var body = new GetCapabilitiesResponse(
                         ControlsEnabled: options.EnableControls,
                         EngineVersion: version,
-                        Provider: provider,
+                        Provider: ProviderCode(operations.Provider),
                         Schema: schema,
                         ConfirmationHeader: options.ControlConfirmationHeaderName
                     );
@@ -45,4 +38,14 @@ internal static class GetCapabilitiesEndpoint
             )
             .WithSummary("Read this host's API capabilities.")
             .Produces<GetCapabilitiesResponse>(StatusCodes.Status200OK);
+
+    /// <summary>The provider's code on the wire: the dialect token its SQL files carry.</summary>
+    internal static string ProviderCode(DbProvider provider) =>
+        provider switch
+        {
+            DbProvider.SqlServer => "mssql",
+            DbProvider.Postgres => "pg",
+            DbProvider.Sqlite => "sqlite",
+            _ => "unknown",
+        };
 }

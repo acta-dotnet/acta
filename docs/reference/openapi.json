@@ -9026,6 +9026,23 @@
           }
         ]
       },
+      "DbProvider": {
+        "type": "string",
+        "x-acta-known-values": [
+          {
+            "name": "SqlServer",
+            "value": "mssql"
+          },
+          {
+            "name": "Postgres",
+            "value": "pg"
+          },
+          {
+            "name": "Sqlite",
+            "value": "sqlite"
+          }
+        ]
+      },
       "DeadlineBehaviorCode": {
         "type": "string",
         "description": "How the engine treats a job that has passed its deadline.",
@@ -10088,7 +10105,7 @@
             "type": "string"
           },
           "provider": {
-            "type": "string"
+            "$ref": "#/components/schemas/DbProvider"
           },
           "schema": {
             "type": "string"

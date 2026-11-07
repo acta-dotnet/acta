@@ -317,6 +317,7 @@ public sealed partial class OpenApiContractTests
         Assert.Contains("JobStatusCode", open);
         Assert.Contains("ControlAction", open);
         Assert.Contains("EnqueueRejectionReason", open);
+        Assert.Contains("DbProvider", open);
         Assert.True(wrong.Count == 0, string.Join("\n", wrong));
         Assert.Equal(["components.schemas.ActaControlConfirmation"], closed);
     }
@@ -391,11 +392,39 @@ public sealed partial class OpenApiContractTests
         Assert.True(wrong.Count == 0, string.Join("\n", wrong));
     }
 
-    // The refused enqueue's problem spells its reason itself; DashboardJsonContext writes every other enum.
+    // The refused enqueue's problem spells its reason itself and the capabilities read its provider; DashboardJsonContext
+    // writes every other enum.
     private static string Written(Type type, string member) =>
-        type == typeof(EnqueueRejectionReason)
-            ? ActaOpenApiDocument.ReasonCode(Enum.Parse<EnqueueRejectionReason>(member))
-            : ActaOpenApiDocument.WireName(type, member);
+        type == typeof(EnqueueRejectionReason) ? ActaOpenApiDocument.ReasonCode(Enum.Parse<EnqueueRejectionReason>(member))
+        : type == typeof(DbProvider) ? GetCapabilitiesEndpoint.ProviderCode(Enum.Parse<DbProvider>(member))
+        : ActaOpenApiDocument.WireName(type, member);
+
+    /// <summary>The capabilities' provider is an open code: a host on each provider answers one of its known values.</summary>
+    [Fact]
+    public async Task The_capabilities_provider_is_one_of_its_known_values()
+    {
+        var schemas = JsonNode.Parse(await ActaOpenApiDocument.GenerateAsync())!["components"]!["schemas"]!;
+        var provider = schemas["GetCapabilitiesResponse"]!["properties"]!["provider"]!;
+        var known = schemas["DbProvider"]![ActaOpenApiDocument.KnownValuesExtension]!
+            .AsArray()
+            .Select(value => value!["value"]!.GetValue<string>())
+            .ToList();
+        var answered = new List<string>();
+        foreach (var each in Enum.GetValues<DbProvider>())
+        {
+            var fakes = new FakeOperations { Provider = each };
+            var (app, client) = await TestDashboardHost.StartAsync(fakes: fakes);
+            await using (app)
+            {
+                var body = JsonNode.Parse(await client.GetStringAsync("/acta/api/v1/capabilities", TestContext.Current.CancellationToken))!;
+                answered.Add(body["provider"]!.GetValue<string>());
+            }
+        }
+
+        Assert.Equal("#/components/schemas/DbProvider", provider["$ref"]!.GetValue<string>());
+        Assert.Equal(Enum.GetValues<DbProvider>().Length, answered.Distinct().Count());
+        Assert.All(answered, value => Assert.Contains(value, known));
+    }
 
     [Fact]
     public async Task A_refused_enqueue_writes_its_reason_as_the_document_spells_it()

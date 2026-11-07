@@ -30,7 +30,7 @@ internal sealed class FakeOperations : IActaOperations
 
     public FakeOutbox Outbox { get; } = new();
 
-    public DbProvider Provider => DbProvider.Sqlite;
+    public DbProvider Provider { get; set; } = DbProvider.Sqlite;
 
     ILedger IActaOperations.Ledger => Ledger;
 

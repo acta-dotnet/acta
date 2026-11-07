@@ -444,6 +444,31 @@ internal static partial class ActaOpenApiDocument
             problemSchema.Required = new HashSet<string>(["status"], StringComparer.Ordinal);
         }
 
+        // The capabilities' provider is a string the endpoint spells from DbProvider, a code like any other.
+        if (
+            schemas.TryGetValue("GetCapabilitiesResponse", out var capabilities)
+            && capabilities is OpenApiSchema { Properties: { } capabilityProperties }
+        )
+        {
+            schemas[nameof(DbProvider)] = new OpenApiSchema
+            {
+                Type = JsonSchemaType.String,
+                Extensions = new Dictionary<string, IOpenApiExtension>(StringComparer.Ordinal)
+                {
+                    [KnownValuesExtension] = new JsonNodeExtension(
+                        new JsonArray([
+                            .. Enum.GetValues<DbProvider>()
+                                .Select(p =>
+                                    (JsonNode)
+                                        new JsonObject { ["name"] = p.ToString(), ["value"] = GetCapabilitiesEndpoint.ProviderCode(p) }
+                                ),
+                        ])
+                    ),
+                },
+            };
+            capabilityProperties["provider"] = new OpenApiSchemaReference(nameof(DbProvider));
+        }
+
         if (confirmationHeader is not null)
         {
             document.Components!.Parameters ??= new Dictionary<string, IOpenApiParameter>(StringComparer.Ordinal);
