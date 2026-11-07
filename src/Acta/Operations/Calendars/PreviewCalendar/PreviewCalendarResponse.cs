@@ -35,7 +35,7 @@ public sealed record PreviewCalendarResponse(
 /// <param name="Binding">The role in which the schedule names the family.</param>
 /// <param name="Status">The schedule's status.</param>
 /// <param name="Overdue">Whether the schedule's next occurrence, as the version in force placed it, is already due. A publication
-/// refuses while one is, or discards it, as its overdueDecision says.</param>
+/// that retimes the schedule refuses while it is, or discards it, as its overdueDecision says.</param>
 public sealed record PreviewCalendarItem(
     string JobNamespace,
     string JobName,

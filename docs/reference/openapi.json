@@ -8898,7 +8898,7 @@
             }
           },
           "409": {
-            "description": "A calendar the schedule names resolves to nothing on this host: no calendar of that name is declared here and neither the namespace's catalog nor the shared one has a current version of it. The problem's detail names the calendar.",
+            "description": "A calendar the schedule names resolves to nothing on this host: no calendar of that name and role is declared here, and neither the namespace's catalog nor the shared one has a current version of one. The problem's detail names the calendar.",
             "content": {
               "application/problem+json": {
                 "schema": {
@@ -15076,7 +15076,7 @@
           },
           "overdue": {
             "type": "boolean",
-            "description": "Whether the schedule's next occurrence, as the version in force placed it, is already due. A publication refuses while one is, or discards it, as its overdueDecision says."
+            "description": "Whether the schedule's next occurrence, as the version in force placed it, is already due. A publication that retimes the schedule refuses while it is, or discards it, as its overdueDecision says."
           }
         },
         "description": "A schedule that names the family, as a publication would meet it: its path, binding, status, and overdue flag."
@@ -15275,7 +15275,7 @@
               "null",
               "integer"
             ],
-            "description": "The number of the version in force after the call: the candidate when applied, else the family's current version, null when none is published. Not-found answers null, and so does a candidate rejected for what it is: not a draft, or bound to more schedules than one publication retimes.",
+            "description": "The number of the version in force after the call: the candidate when applied. Otherwise the family's current version, or null: when none is published, and when the call ended before reading it, as for a candidate that does not exist, is not a draft, or is bound to more schedules than one publication retimes.",
             "format": "int32"
           },
           "retimedSchedules": {

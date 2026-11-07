@@ -80,8 +80,8 @@ internal static partial class ActaOpenApiDocument
     private static readonly Dictionary<(string Operation, string Status), string> RouteResponses = new()
     {
         [("previewSchedule", "409")] =
-            "A calendar the schedule names resolves to nothing on this host: no calendar of that name is declared here and neither "
-            + "the namespace's catalog nor the shared one has a current version of it. The problem's detail names the calendar.",
+            "A calendar the schedule names resolves to nothing on this host: no calendar of that name and role is declared here, and "
+            + "neither the namespace's catalog nor the shared one has a current version of one. The problem's detail names the calendar.",
         [("listQuarantinedOutbox", "409")] =
             "This host registers no outbox relay for the namespace, and only one that does can read its source database; list the "
             + "quarantine on a host whose source reports isLocal.",
