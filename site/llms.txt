@@ -258,8 +258,9 @@ lowercased on input. Rules that bite: never enqueue a child into the lane of an 
 at enqueue), never put a lane on a scheduled definition (refused), give waits across lanes a timeout,
 and restart of a finished laned job runs that job again, right after the lane's current head.
 
-`[Job("send-invoice", RateLimit = "10/s")]` caps how OFTEN attempts start, which is a different
-gate from how many run at once, and a job passes both. `RateName` names the meter when several
+`[Job("send-invoice", RateLimit = "10/s")]` paces how OFTEN attempts are admitted, which is a
+different gate from how many run at once, and a job passes both. It paces admissions, not starts,
+and is no hard burst cap: a turn admitted late can land beside an on-time one. `RateName` names the meter when several
 definitions should share one; omitted, the meter is the definition name. A meter belongs to one
 namespace: definitions in different namespaces never share it, so a partner quota shared by two
 services needs its rate split between them. Definitions on one meter must

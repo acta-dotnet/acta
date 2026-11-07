@@ -3,7 +3,8 @@ namespace Acta.Tests.AspNetCore.Fakes;
 /// <summary>
 /// <see cref="INamespaces"/> listing two rows, sys and billing, and reading billing alone by name; a read of "bad key"
 /// throws the name validation error like production. On the admin verbs a name of "sys" or "bad key" throws like
-/// production, "missing" reports not found, and a patch with expectedVersion 999 conflicts.
+/// production, "missing" reports not found, and a patch with expectedVersion 999 conflicts. Every other verb applies and
+/// answers the version after one change: billing's 3, or the expected version, plus one.
 /// </summary>
 internal sealed class FakeNamespaces : INamespaces
 {
@@ -111,6 +112,6 @@ internal sealed class FakeNamespaces : INamespaces
         }
 
         AdminCalls.Add((verb, namespaceName, reasonMessage, actor));
-        return ValueTask.FromResult(response(ControlAction.Applied, 2));
+        return ValueTask.FromResult(response(ControlAction.Applied, (expectedVersion ?? 3) + 1));
     }
 }

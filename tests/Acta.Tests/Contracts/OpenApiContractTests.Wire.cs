@@ -313,6 +313,7 @@ public sealed partial class OpenApiContractTests
                 ["jobName"] = "recurring-ping",
                 ["scheduleName"] = "every-5-minutes",
                 ["calendarName"] = "daily",
+                ["version"] = "1",
             };
             foreach (var (key, operation, name, declaredDefault) in bounded)
             {

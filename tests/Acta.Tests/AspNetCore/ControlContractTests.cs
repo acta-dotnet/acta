@@ -138,11 +138,11 @@ public sealed class ControlContractTests
         .. AlertVerb("resolve", typeof(ResolveAlertResponse)),
         .. OutboxVerb("requeue", typeof(RequeueOutboxResponse)),
         .. OutboxVerb("discard", typeof(DiscardOutboxResponse)),
-        .. AdminVerb("namespaces", "/namespaces/{jobNamespace}", "billing", "suspend", typeof(SuspendNamespaceResponse)),
-        .. AdminVerb("namespaces", "/namespaces/{jobNamespace}", "billing", "resume", typeof(ResumeNamespaceResponse)),
+        .. AdminVerb("namespaces", "/namespaces/{jobNamespace}", "billing", "suspend", typeof(SuspendNamespaceResponse), 4),
+        .. AdminVerb("namespaces", "/namespaces/{jobNamespace}", "billing", "resume", typeof(ResumeNamespaceResponse), 4),
         .. AdminUpdate("namespaces", "/namespaces/{jobNamespace}", "billing", "ownerTeam", "payments", typeof(UpdateNamespaceResponse)),
-        .. AdminVerb("tenants", "/tenants/{tenantName}", "cust-001", "suspend", typeof(SuspendTenantResponse)),
-        .. AdminVerb("tenants", "/tenants/{tenantName}", "cust-001", "resume", typeof(ResumeTenantResponse)),
+        .. AdminVerb("tenants", "/tenants/{tenantName}", "cust-001", "suspend", typeof(SuspendTenantResponse), 1),
+        .. AdminVerb("tenants", "/tenants/{tenantName}", "cust-001", "resume", typeof(ResumeTenantResponse), 1),
         .. AdminUpdate("tenants", "/tenants/{tenantName}", "cust-001", "displayName", "Acme", typeof(UpdateTenantResponse)),
         .. TenantRegistration(),
         .. Tags("/jobs/{jobRef}", $"/jobs/{Found}"),
@@ -522,8 +522,9 @@ public sealed class ControlContractTests
         ];
     }
 
-    // Suspend and resume take no expected version, so a version conflict is not among their outcomes.
-    private static IEnumerable<Case> AdminVerb(string family, string routePrefix, string key, string verb, Type declared)
+    // Suspend and resume take no expected version, so a version conflict is not among their outcomes; an applied one answers
+    // the target's version after one change.
+    private static IEnumerable<Case> AdminVerb(string family, string routePrefix, string key, string verb, Type declared, int version)
     {
         var route = $"{routePrefix}/{verb}";
         return
@@ -538,7 +539,7 @@ public sealed class ControlContractTests
                 StatusCodes.Status200OK,
                 "applied",
                 Reason,
-                2
+                version
             ),
             Admin(
                 declared,

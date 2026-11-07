@@ -33,7 +33,7 @@ internal sealed class FakeAlerts : IAlerts
             }
 
             ResolveCalls.Add((alertRef, reason, actor));
-            return ValueTask.FromResult(new ResolveAlertResponse(alertRef, ControlAction.Applied, null, ResolvedAt));
+            return ValueTask.FromResult(new ResolveAlertResponse(alertRef, ControlAction.Applied, AcknowledgedAt, ResolvedAt));
         };
         List = static (_, _) => ValueTask.FromResult(new ListAlertsResponse([], null, false, 50, null));
         Get = static (alertRef, _) => ValueTask.FromResult<GetAlertResponse?>(alertRef == KnownAlertRef ? Known : null);

@@ -29,10 +29,11 @@ internal static class OpenApiExamples
         ["tenantName"] = "cust-001",
         ["workerRef"] = FakeWorkers.KnownWorkerRef.ToString(),
         ["alertRef"] = FakeAlerts.KnownAlertRef.ToString(),
-        ["scheduleName"] = "nightly",
+        ["scheduleName"] = "morning-run",
         ["calendarName"] = "office-hours",
         ["deduplicationKey"] = "ck-1",
-        ["version"] = "1",
+        // The draft beside the published version 1, so the calendar preview compares two versions.
+        ["version"] = "2",
         ["signalName"] = "approval",
         ["tagName"] = "env",
     };
@@ -75,9 +76,9 @@ internal static class OpenApiExamples
             {"overrides":{"priority":"high","maxAttempts":5,"concurrencyLimit":null,"rateLimit":null,"backoff":null,
             "executionTimeoutSeconds":null,"deadlineSeconds":null,"deadlineBehavior":null,"jobRetentionSeconds":null,
             "eventRecording":null,"alertProfile":null,"alertChannelName":null,"runbookUrl":null,"displayName":null,
-            "description":null},"expectedVersion":0}
+            "description":null},"expectedVersion":2}
             """,
-        ["POST /definitions/{jobNamespace}/{jobName}/retire"] = """{"expectedVersion":0,"reasonMessage":"Replaced by send-receipt."}""",
+        ["POST /definitions/{jobNamespace}/{jobName}/retire"] = """{"expectedVersion":2,"reasonMessage":"Replaced by send-receipt."}""",
         ["POST /schedules/{jobNamespace}/{jobName}/{scheduleName}/pause"] =
             """{"pausedUntilUtc":"2026-06-13T06:00:00Z","reasonMessage":"Maintenance."}""",
         ["POST /schedules/{jobNamespace}/{jobName}/{scheduleName}/resume"] = """{"reasonMessage":"Maintenance is over."}""",

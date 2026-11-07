@@ -12,7 +12,7 @@ namespace Acta;
 /// <param name="JobName">The name of the job's definition.</param>
 /// <param name="TenantName">The tenant the job is about, when it names one.</param>
 /// <param name="ParentJobRef">The ref of the job that started this one as a child; null for a job without a parent.</param>
-/// <param name="LineageRootJobRef">The ref of the job at the root of the lineage this job belongs to.</param>
+/// <param name="LineageRootJobRef">The ref of the job at the root of the lineage this job belongs to; null for a root job.</param>
 /// <param name="DeduplicationKey">The job's deduplication key, when it was enqueued with one.</param>
 /// <param name="CorrelationKey">The caller's correlation key, when the job was enqueued with one.</param>
 /// <param name="Status">The job's status.</param>

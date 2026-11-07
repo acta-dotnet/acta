@@ -5,7 +5,7 @@ namespace Acta;
 /// <param name="HasMore">Whether more relay sources exist beyond this page.</param>
 /// <param name="PageSize">The effective page size after defaulting and clamping.</param>
 /// <param name="Items">The page's items, at most pageSize of them.</param>
-/// <param name="TotalCount">The number of rows the filter matches; null unless the request set includeTotal.</param>
+/// <param name="TotalCount">Always null: the sources list does not count its matches.</param>
 public sealed record ListOutboxSourcesResponse(
     IReadOnlyList<ListOutboxSourcesItem> Items,
     string? NextCursor,

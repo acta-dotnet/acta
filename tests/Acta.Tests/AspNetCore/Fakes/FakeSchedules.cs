@@ -2,21 +2,24 @@ namespace Acta.Tests.AspNetCore.Fakes;
 
 /// <summary>
 /// <see cref="ISchedules"/> staged by schedule name: "missing" reads as absent and "rejected" as a transition the
-/// schedule's state forbids; every other name applies.
+/// schedule's state forbids; every other name applies to an active schedule at version 2 whose next occurrence is
+/// <see cref="NextOccurrence"/>, leaving it at version 3.
 /// </summary>
 internal sealed class FakeSchedules : ISchedules
 {
+    private static readonly DateTime NextOccurrence = new(2026, 6, 12, 10, 0, 0, DateTimeKind.Utc);
+
     public FakeSchedules()
     {
         Pause = static (schedule, untilUtc, _, _, _) =>
             ValueTask.FromResult(
                 Staged(schedule, static (action, status) => new PauseScheduleResponse(action, status, null, null, null))
-                    ?? new PauseScheduleResponse(ControlAction.Applied, null, untilUtc, null, null)
+                    ?? new PauseScheduleResponse(ControlAction.Applied, ScheduleStatusCode.Paused, untilUtc, NextOccurrence, 3)
             );
         Resume = static (schedule, _, _, _) =>
             ValueTask.FromResult(
                 Staged(schedule, static (action, status) => new ResumeScheduleResponse(action, status, null, null, null))
-                    ?? new ResumeScheduleResponse(ControlAction.Applied, null, null, null, null)
+                    ?? new ResumeScheduleResponse(ControlAction.Applied, ScheduleStatusCode.Active, null, NextOccurrence, 3)
             );
         Trigger = (schedule, reason, actor, _) => ValueTask.FromResult(Triggered(schedule, reason, actor));
         List = static (_, _) => ValueTask.FromResult(new ListSchedulesResponse([], null, false, 50, null));
@@ -87,12 +90,6 @@ internal sealed class FakeSchedules : ISchedules
         }
 
         TriggerCalls.Add((schedule.ScheduleName, reasonMessage, actor));
-        return new TriggerScheduleResponse(
-            ControlAction.Applied,
-            ScheduleStatusCode.Active,
-            null,
-            new DateTime(2026, 6, 12, 9, 0, 0, DateTimeKind.Utc),
-            1
-        );
+        return new TriggerScheduleResponse(ControlAction.Applied, ScheduleStatusCode.Active, null, NextOccurrence, 3);
     }
 }

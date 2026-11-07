@@ -96,6 +96,8 @@ internal static partial class ActaOpenApiDocument
         var fakes = StagedFakes.Create();
         builder.Services.AddSingleton<IJobs>(fakes.Jobs);
         builder.Services.AddSingleton<IActaOperations>(fakes);
+        // The staged provider is SQLite, whose tables live in main.
+        builder.Services.AddSingleton(new SqlProviderOptions { Schema = "main" });
         // Filled once the host runs and before any document is read; the operations are the same under every mount.
         var examples = new Dictionary<string, OpenApiExamples.Example>(StringComparer.Ordinal);
         foreach (var mount in mounts)
@@ -609,7 +611,11 @@ internal static partial class ActaOpenApiDocument
                 {
                     if (
                         response is OpenApiResponse declared
-                        && ResponseDescription(code, method == HttpMethod.Get, declared, schemas) is { } text
+                        && (
+                            RouteResponses.GetValueOrDefault((operation.OperationId ?? "", code))
+                            ?? ResponseDescription(code, method == HttpMethod.Get, declared, schemas)
+                        )
+                            is { } text
                     )
                     {
                         declared.Description = text;

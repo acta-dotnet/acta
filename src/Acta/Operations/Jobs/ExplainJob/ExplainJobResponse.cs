@@ -16,7 +16,7 @@ namespace Acta;
 /// <param name="ActiveWait">The wait the job is suspended on; null when it is not waiting.</param>
 /// <param name="Lease">The lease on the job; null when no worker holds one.</param>
 /// <param name="LastExecutedBy">The name of the worker that last ran the job, when no lease is live.</param>
-/// <param name="Steps">The job's newest steps, oldest first; stepsHasMore says when older ones were left out.</param>
+/// <param name="Steps">The job's newest steps, at most 50, oldest first; stepsHasMore says when older ones were left out.</param>
 /// <param name="StepsHasMore">Whether the job has older steps than the ones listed.</param>
 /// <param name="Reason">The latest reason recorded for the job's state, when there is one.</param>
 /// <param name="NextActions">The moves an operator can make from here.</param>

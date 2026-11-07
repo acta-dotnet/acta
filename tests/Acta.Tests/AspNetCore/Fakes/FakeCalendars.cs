@@ -41,6 +41,7 @@ internal sealed class FakeCalendars : ICalendars
         Preview = (calendar, version, fromUtc, count, timeZoneId, _) =>
         {
             Previews.Add((calendar, version, fromUtc, count, timeZoneId));
+            // Version 1 opens 09:00 to 17:00 and version 2 09:00 to 12:00 on weekdays; At is a Friday at 09:00.
             return ValueTask.FromResult(
                 Known(calendar, version)
                     ? new PreviewCalendarResponse(
@@ -49,10 +50,10 @@ internal sealed class FakeCalendars : ICalendars
                         1,
                         [],
                         [],
-                        [new(At, At.AddHours(3))],
-                        [],
-                        [],
-                        0,
+                        [new(At, At.AddHours(version == 1 ? 8 : 3))],
+                        [new(At, At.AddHours(8))],
+                        [new("billing", "send-invoice", "morning-run", CalendarRoleCode.Availability, ScheduleStatusCode.Active, false)],
+                        1,
                         0
                     )
                     : null
@@ -87,7 +88,7 @@ internal sealed class FakeCalendars : ICalendars
                         ControlAction.Rejected,
                         null,
                         [],
-                        ["send-invoice/nightly"],
+                        ["billing/send-invoice/morning-run"],
                         "A bound schedule holds an overdue occurrence."
                     ),
                     _ when expectedCurrentVersion == 999 => new PublishCalendarResponse(
@@ -97,7 +98,13 @@ internal sealed class FakeCalendars : ICalendars
                         [],
                         "The current published version is 1, not 999."
                     ),
-                    _ => new PublishCalendarResponse(ControlAction.Applied, candidateVersion, ["send-invoice/nightly"], [], null),
+                    _ => new PublishCalendarResponse(
+                        ControlAction.Applied,
+                        candidateVersion,
+                        ["billing/send-invoice/morning-run"],
+                        [],
+                        null
+                    ),
                 }
             );
         };
@@ -238,15 +245,23 @@ internal sealed class FakeCalendars : ICalendars
             2,
             shownVersion,
             shownVersion == 1 ? CalendarStatusCode.Published : CalendarStatusCode.Draft,
-            JsonElement.Parse("""{"kind":"weekly-availability"}""")
+            JsonElement.Parse(shownVersion == 1 ? OfficeHoursDefinition : MorningsDefinition)
         );
+
+    private const string OfficeHoursDefinition = """
+        {"kind":"weekly-availability","timeZone":"UTC","weekly":[{"days":["Monday","Tuesday","Wednesday","Thursday","Friday"],"windows":[["09:00","17:00"]]}]}
+        """;
+
+    private const string MorningsDefinition = """
+        {"kind":"weekly-availability","timeZone":"UTC","weekly":[{"days":["Monday","Tuesday","Wednesday","Thursday","Friday"],"windows":[["09:00","12:00"]]}]}
+        """;
 
     private static readonly IReadOnlyList<ListCalendarDependentsItem> Dependents =
     [
         new(
             "billing",
             "send-invoice",
-            "nightly",
+            "morning-run",
             CalendarRoleCode.Availability,
             ScheduleStatusCode.Active,
             ScheduledDeliveryCode.Permanent

@@ -14,7 +14,7 @@ namespace Acta;
 /// <param name="Schedules">The schedules that name the family, overdue ones first; the list is capped and schedulesTotal counts them
 /// all.</param>
 /// <param name="SchedulesTotal">How many schedules name the family.</param>
-/// <param name="OverdueTotal">How many of those schedules hold an overdue occurrence.</param>
+/// <param name="OverdueTotal">How many of those schedules have their next occurrence already due under the version in force.</param>
 public sealed record PreviewCalendarResponse(
     CalendarRoleCode Role,
     int Version,
@@ -34,7 +34,8 @@ public sealed record PreviewCalendarResponse(
 /// <param name="ScheduleName">The schedule's name within its definition.</param>
 /// <param name="Binding">The role in which the schedule names the family.</param>
 /// <param name="Status">The schedule's status.</param>
-/// <param name="Overdue">Whether the schedule holds an occurrence that is overdue under the previewed version.</param>
+/// <param name="Overdue">Whether the schedule's next occurrence, as the version in force placed it, is already due, which publishing
+/// the previewed version must decide as its overdue decision says.</param>
 public sealed record PreviewCalendarItem(
     string JobNamespace,
     string JobName,

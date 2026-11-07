@@ -1812,7 +1812,7 @@
                           "status": "ready",
                           "priority": "high",
                           "lane": "invoices",
-                          "createdAtUtc": "2026-06-12T06:00:00Z",
+                          "createdAtUtc": "2026-06-12T05:00:00Z",
                           "modifiedAtUtc": "2026-06-12T06:00:00Z",
                           "nextRunAtUtc": "2026-06-12T06:05:00Z",
                           "executionNumber": 2,
@@ -2325,7 +2325,7 @@
                   "suspendNamespace": {
                     "value": {
                       "action": "applied",
-                      "version": 2
+                      "version": 4
                     }
                   }
                 }
@@ -2456,7 +2456,7 @@
                   "resumeNamespace": {
                     "value": {
                       "action": "applied",
-                      "version": 2
+                      "version": 4
                     }
                   }
                 }
@@ -2590,7 +2590,7 @@
                   "updateNamespace": {
                     "value": {
                       "action": "applied",
-                      "version": 2
+                      "version": 4
                     }
                   }
                 }
@@ -3321,7 +3321,7 @@
                   "suspendTenant": {
                     "value": {
                       "action": "applied",
-                      "version": 2
+                      "version": 1
                     }
                   }
                 }
@@ -3452,7 +3452,7 @@
                   "resumeTenant": {
                     "value": {
                       "action": "applied",
-                      "version": 2
+                      "version": 1
                     }
                   }
                 }
@@ -3586,7 +3586,7 @@
                   "updateTenant": {
                     "value": {
                       "action": "applied",
-                      "version": 2
+                      "version": 1
                     }
                   }
                 }
@@ -3959,7 +3959,7 @@
                     "value": {
                       "alertRef": "alr_019826f00000700080000000000002a1",
                       "action": "applied",
-                      "acknowledgedAtUtc": null,
+                      "acknowledgedAtUtc": "2026-06-12T07:00:00Z",
                       "resolvedAtUtc": "2026-06-12T08:00:00Z"
                     }
                   }
@@ -4645,7 +4645,7 @@
                       "displayName": null,
                       "description": null
                     },
-                    "expectedVersion": 0
+                    "expectedVersion": 2
                   }
                 }
               }
@@ -4665,7 +4665,7 @@
                   "updateDefinitionOverrides": {
                     "value": {
                       "action": "applied",
-                      "version": 1
+                      "version": 3
                     }
                   }
                 }
@@ -4796,7 +4796,7 @@
               "examples": {
                 "retireDefinition": {
                   "value": {
-                    "expectedVersion": 0,
+                    "expectedVersion": 2,
                     "reasonMessage": "Replaced by send-receipt."
                   }
                 }
@@ -4817,7 +4817,7 @@
                   "retireDefinition": {
                     "value": {
                       "action": "applied",
-                      "version": 1
+                      "version": 3
                     }
                   }
                 }
@@ -4977,10 +4977,10 @@
                   "pauseSchedule": {
                     "value": {
                       "action": "applied",
-                      "status": null,
+                      "status": "paused",
                       "pausedUntilUtc": "2026-06-13T06:00:00Z",
-                      "nextOccurrenceAtUtc": null,
-                      "version": null
+                      "nextOccurrenceAtUtc": "2026-06-12T10:00:00Z",
+                      "version": 3
                     }
                   }
                 }
@@ -5139,10 +5139,10 @@
                   "resumeSchedule": {
                     "value": {
                       "action": "applied",
-                      "status": null,
+                      "status": "active",
                       "pausedUntilUtc": null,
-                      "nextOccurrenceAtUtc": null,
-                      "version": null
+                      "nextOccurrenceAtUtc": "2026-06-12T10:00:00Z",
+                      "version": 3
                     }
                   }
                 }
@@ -5293,8 +5293,8 @@
                       "action": "applied",
                       "status": "active",
                       "pausedUntilUtc": null,
-                      "nextOccurrenceAtUtc": "2026-06-12T09:00:00Z",
-                      "version": 1
+                      "nextOccurrenceAtUtc": "2026-06-12T10:00:00Z",
+                      "version": 3
                     }
                   }
                 }
@@ -5613,7 +5613,7 @@
                       "action": "applied",
                       "version": 2,
                       "retimedSchedules": [
-                        "send-invoice/nightly"
+                        "billing/send-invoice/morning-run"
                       ],
                       "overdueSchedules": [ ],
                       "reason": null
@@ -5810,7 +5810,7 @@
             }
           },
           "409": {
-            "description": "The control was refused and nothing was written; the body's action says why: rejected by the target's state, or version-conflict where the call carries an expected version.",
+            "description": "The archive was refused and nothing was written: the body's action is rejected, while a schedule still names the family or when its current version is not the expected one.",
             "content": {
               "application/json": {
                 "schema": {
@@ -5907,15 +5907,15 @@
                       "status": "ready",
                       "priority": "high",
                       "lane": "invoices",
-                      "blockedBehindJobRef": "job_00000000000000000000000000000007",
+                      "blockedBehindJobRef": null,
                       "nextRunAtUtc": "2026-06-12T06:05:00Z",
                       "executionNumber": 2,
                       "failureCount": 1,
-                      "leaseExpiresAtUtc": "2026-06-12T06:01:00Z",
-                      "retentionUntilUtc": "2026-09-10T06:00:00Z",
-                      "createdAtUtc": "2026-06-12T06:00:00Z",
+                      "leaseExpiresAtUtc": null,
+                      "retentionUntilUtc": null,
+                      "createdAtUtc": "2026-06-12T05:00:00Z",
                       "modifiedAtUtc": "2026-06-12T06:00:00Z",
-                      "leasedByWorkerRef": "wrk_019826f00000700080000000000002a0",
+                      "leasedByWorkerRef": null,
                       "version": 7
                     }
                   }
@@ -6033,15 +6033,15 @@
                       "status": "ready",
                       "priority": "high",
                       "lane": "invoices",
-                      "blockedBehindJobRef": "job_00000000000000000000000000000007",
+                      "blockedBehindJobRef": null,
                       "nextRunAtUtc": "2026-06-12T06:05:00Z",
                       "executionNumber": 2,
                       "failureCount": 1,
-                      "leaseExpiresAtUtc": "2026-06-12T06:01:00Z",
-                      "retentionUntilUtc": "2026-09-10T06:00:00Z",
-                      "createdAtUtc": "2026-06-12T06:00:00Z",
+                      "leaseExpiresAtUtc": null,
+                      "retentionUntilUtc": null,
+                      "createdAtUtc": "2026-06-12T05:00:00Z",
                       "modifiedAtUtc": "2026-06-12T06:00:00Z",
-                      "leasedByWorkerRef": "wrk_019826f00000700080000000000002a0",
+                      "leasedByWorkerRef": null,
                       "version": 7
                     }
                   }
@@ -6387,15 +6387,15 @@
                         "status": "ready",
                         "priority": "high",
                         "lane": "invoices",
-                        "blockedBehindJobRef": "job_00000000000000000000000000000007",
+                        "blockedBehindJobRef": null,
                         "nextRunAtUtc": "2026-06-12T06:05:00Z",
                         "executionNumber": 2,
                         "failureCount": 1,
-                        "leaseExpiresAtUtc": "2026-06-12T06:01:00Z",
-                        "retentionUntilUtc": "2026-09-10T06:00:00Z",
-                        "createdAtUtc": "2026-06-12T06:00:00Z",
+                        "leaseExpiresAtUtc": null,
+                        "retentionUntilUtc": null,
+                        "createdAtUtc": "2026-06-12T05:00:00Z",
                         "modifiedAtUtc": "2026-06-12T06:00:00Z",
-                        "leasedByWorkerRef": "wrk_019826f00000700080000000000002a0",
+                        "leasedByWorkerRef": null,
                         "version": 7
                       },
                       "input": {
@@ -6417,15 +6417,14 @@
                           {
                             "kind": "signal",
                             "name": "approval",
-                            "status": "pending",
-                            "dueAtUtc": "2026-06-12T07:00:00Z",
+                            "status": "set",
                             "value": {
                               "formatId": 2,
                               "formatName": "bytes",
                               "base64": "AQID"
                             },
-                            "createdAtUtc": "2026-06-12T06:00:00Z",
-                            "modifiedAtUtc": "2026-06-12T06:00:00Z"
+                            "createdAtUtc": "2026-06-12T05:30:00Z",
+                            "modifiedAtUtc": "2026-06-12T05:40:00Z"
                           }
                         ],
                         "nextCursor": null,
@@ -6439,35 +6438,23 @@
                         "jobName": "send-invoice",
                         "status": "ready",
                         "statusMeaning": "Waiting for a worker to claim it.",
-                        "headline": "Ready and eligible for claim, waiting for a worker to pick it up.",
-                        "activeWait": {
-                          "kind": "signal",
-                          "name": "approval",
-                          "dueAtUtc": "2026-06-12T07:00:00Z"
-                        },
-                        "lease": {
-                          "workerName": "worker-host",
-                          "expiresAtUtc": "2026-06-12T06:01:00Z",
-                          "expired": false,
-                          "workerLastSeenAtUtc": "2026-06-12T06:00:00Z",
-                          "workerStale": false,
-                          "recoveryExpectation": "Reclaimed if the lease lapses.",
-                          "workerRef": "wrk_019826f00000700080000000000002a0"
-                        },
-                        "lastExecutedBy": "worker-host",
+                        "headline": "Ready, scheduled to run in 5m.",
+                        "activeWait": null,
+                        "lease": null,
+                        "lastExecutedBy": "deploy-42",
                         "steps": [
                           {
-                            "name": "charge-card",
+                            "name": "post-invoice",
                             "status": "pending",
-                            "explanation": "Retries after its backoff."
+                            "explanation": "is waiting for retry attempt 2: Invoice provider timed out."
                           }
                         ],
                         "stepsHasMore": false,
-                        "reason": "The card was declined.",
+                        "reason": "Invoice provider timed out.",
                         "nextActions": [
                           {
                             "kind": "none",
-                            "description": "no action needed - a worker will claim it"
+                            "description": "no action needed - the job becomes claimable when its next run time arrives"
                           }
                         ]
                       },
@@ -6480,8 +6467,8 @@
                             "status": "suspended",
                             "parentJobRef": null,
                             "lineageRootJobRef": null,
-                            "createdAtUtc": "2026-06-12T06:00:00Z",
-                            "modifiedAtUtc": "2026-06-12T06:00:00Z"
+                            "createdAtUtc": "2026-06-12T04:00:00Z",
+                            "modifiedAtUtc": "2026-06-12T05:00:00Z"
                           }
                         ],
                         "ancestorsHasMore": false,
@@ -6492,28 +6479,24 @@
                           "status": "ready",
                           "parentJobRef": "job_00000000000000000000000000000040",
                           "lineageRootJobRef": "job_00000000000000000000000000000040",
-                          "createdAtUtc": "2026-06-12T06:00:00Z",
+                          "createdAtUtc": "2026-06-12T05:00:00Z",
                           "modifiedAtUtc": "2026-06-12T06:00:00Z"
                         },
                         "steps": [
                           {
-                            "name": "charge-card",
+                            "name": "post-invoice",
                             "status": "pending",
-                            "explanation": "Retries after its backoff."
+                            "explanation": "Running, or waiting to retry within its retry budget."
                           }
                         ],
                         "stepsHasMore": false,
-                        "activeWait": {
-                          "kind": "signal",
-                          "name": "approval",
-                          "dueAtUtc": "2026-06-12T07:00:00Z"
-                        },
+                        "activeWait": null,
                         "children": [
                           {
                             "jobRef": "job_00000000000000000000000000000007",
                             "jobName": "render-pdf",
                             "status": "executing",
-                            "createdAtUtc": "2026-06-12T06:00:00Z",
+                            "createdAtUtc": "2026-06-12T05:30:00Z",
                             "modifiedAtUtc": "2026-06-12T06:00:00Z"
                           }
                         ],
@@ -6523,21 +6506,21 @@
                         {
                           "jobNamespace": "billing",
                           "jobName": "send-invoice",
-                          "scheduleName": "nightly",
+                          "scheduleName": "morning-run",
                           "origin": "definition",
                           "expressionKind": "cron",
-                          "expression": "0 2 * * *",
-                          "timeZoneId": "Europe/Ljubljana",
+                          "expression": "0 10 * * 1-5",
+                          "timeZoneId": "UTC",
                           "misfireStrategy": "catch-up-once",
-                          "nextOccurrenceAtUtc": "2026-06-13T02:00:00Z",
-                          "nextEvaluationAtUtc": "2026-06-13T02:00:00Z",
+                          "nextOccurrenceAtUtc": "2026-06-12T10:00:00Z",
+                          "nextEvaluationAtUtc": "2026-06-12T10:00:00Z",
                           "evaluationStatus": "scheduled",
                           "status": "active",
-                          "pausedUntilUtc": "2026-06-12T07:00:00Z",
+                          "pausedUntilUtc": null,
                           "createdAtUtc": "2026-06-12T06:00:00Z",
                           "modifiedAtUtc": "2026-06-12T06:00:00Z",
                           "version": 2,
-                          "jobRef": "job_00000000000000000000000000000042",
+                          "jobRef": "job_00000000000000000000000000000045",
                           "maxOutstanding": 1,
                           "outstandingCount": 0,
                           "fullBehavior": "wait",
@@ -6561,7 +6544,7 @@
                           "processId": 4242,
                           "maxConcurrentExecutors": 8,
                           "lastSeenAtUtc": "2026-06-12T06:00:00Z",
-                          "startedAtUtc": "2026-06-12T06:00:00Z",
+                          "startedAtUtc": "2026-06-12T04:00:00Z",
                           "modifiedAtUtc": "2026-06-12T06:00:00Z"
                         }
                       ],
@@ -6690,15 +6673,14 @@
                         {
                           "kind": "signal",
                           "name": "approval",
-                          "status": "pending",
-                          "dueAtUtc": "2026-06-12T07:00:00Z",
+                          "status": "set",
                           "value": {
                             "formatId": 2,
                             "formatName": "bytes",
                             "base64": "AQID"
                           },
-                          "createdAtUtc": "2026-06-12T06:00:00Z",
-                          "modifiedAtUtc": "2026-06-12T06:00:00Z"
+                          "createdAtUtc": "2026-06-12T05:30:00Z",
+                          "modifiedAtUtc": "2026-06-12T05:40:00Z"
                         }
                       ],
                       "nextCursor": null,
@@ -6827,11 +6809,11 @@
                     "value": {
                       "items": [
                         {
-                          "name": "charge-card",
+                          "name": "post-invoice",
                           "status": "pending",
                           "attemptNumber": 2,
                           "nextRetryAtUtc": "2026-06-12T06:05:00Z",
-                          "failureMessage": "Card declined.",
+                          "failureMessage": "Invoice provider timed out.",
                           "createdAtUtc": "2026-06-12T06:00:00Z",
                           "modifiedAtUtc": "2026-06-12T06:00:00Z"
                         }
@@ -6979,7 +6961,7 @@
                           "processId": 4242,
                           "maxConcurrentExecutors": 8,
                           "lastSeenAtUtc": "2026-06-12T06:00:00Z",
-                          "startedAtUtc": "2026-06-12T06:00:00Z",
+                          "startedAtUtc": "2026-06-12T04:00:00Z",
                           "modifiedAtUtc": "2026-06-12T06:00:00Z"
                         }
                       ],
@@ -7649,17 +7631,17 @@
                           "jobRef": "job_00000000000000000000000000000042",
                           "origin": "automatic",
                           "severity": "critical",
-                          "kind": "final-failure",
+                          "kind": "first-failure",
                           "title": "Invoice provider timed out",
                           "message": "The provider returned 504 three times.",
                           "channelName": "default",
                           "occurrenceCount": 3,
                           "resolvedAtUtc": "2026-06-12T08:00:00Z",
-                          "deliveryStatus": "retry-after",
+                          "deliveryStatus": "delivered",
                           "retryCount": 1,
-                          "retryAfterUtc": "2026-06-12T06:10:00Z",
+                          "retryAfterUtc": null,
                           "createdAtUtc": "2026-06-12T06:00:00Z",
-                          "modifiedAtUtc": "2026-06-12T06:00:00Z",
+                          "modifiedAtUtc": "2026-06-12T08:00:00Z",
                           "acknowledgedAtUtc": "2026-06-12T07:00:00Z"
                         }
                       ],
@@ -7765,17 +7747,17 @@
                       "jobRef": "job_00000000000000000000000000000042",
                       "origin": "automatic",
                       "severity": "critical",
-                      "kind": "final-failure",
+                      "kind": "first-failure",
                       "title": "Invoice provider timed out",
                       "message": "The provider returned 504 three times.",
                       "channelName": "default",
                       "occurrenceCount": 3,
                       "resolvedAtUtc": "2026-06-12T08:00:00Z",
-                      "deliveryStatus": "retry-after",
+                      "deliveryStatus": "delivered",
                       "retryCount": 1,
-                      "retryAfterUtc": "2026-06-12T06:10:00Z",
+                      "retryAfterUtc": null,
                       "createdAtUtc": "2026-06-12T06:00:00Z",
-                      "modifiedAtUtc": "2026-06-12T06:00:00Z",
+                      "modifiedAtUtc": "2026-06-12T08:00:00Z",
                       "acknowledgedAtUtc": "2026-06-12T07:00:00Z"
                     }
                   }
@@ -7891,7 +7873,7 @@
                       "items": [
                         {
                           "jobNamespace": "billing",
-                          "slotJobRef": "job_00000000000000000000000000000042",
+                          "slotJobRef": "job_00000000000000000000000000000044",
                           "lastTickSummary": "claimed=2 relayed=2 dedup=0 quarantined=0 backlog=5 quarantine=1",
                           "backlog": 5,
                           "quarantineTotal": 1,
@@ -8059,7 +8041,7 @@
             }
           },
           "409": {
-            "description": "This host cannot serve the read as asked; the problem's detail says why.",
+            "description": "This host registers no outbox relay for the namespace, and only one that does can read its source database; list the quarantine on a host whose source reports isLocal.",
             "content": {
               "application/problem+json": {
                 "schema": {
@@ -8730,21 +8712,21 @@
                         {
                           "jobNamespace": "billing",
                           "jobName": "send-invoice",
-                          "scheduleName": "nightly",
+                          "scheduleName": "morning-run",
                           "origin": "definition",
                           "expressionKind": "cron",
-                          "expression": "0 2 * * *",
-                          "timeZoneId": "Europe/Ljubljana",
+                          "expression": "0 10 * * 1-5",
+                          "timeZoneId": "UTC",
                           "misfireStrategy": "catch-up-once",
-                          "nextOccurrenceAtUtc": "2026-06-13T02:00:00Z",
-                          "nextEvaluationAtUtc": "2026-06-13T02:00:00Z",
+                          "nextOccurrenceAtUtc": "2026-06-12T10:00:00Z",
+                          "nextEvaluationAtUtc": "2026-06-12T10:00:00Z",
                           "evaluationStatus": "scheduled",
                           "status": "active",
-                          "pausedUntilUtc": "2026-06-12T07:00:00Z",
+                          "pausedUntilUtc": null,
                           "createdAtUtc": "2026-06-12T06:00:00Z",
                           "modifiedAtUtc": "2026-06-12T06:00:00Z",
                           "version": 2,
-                          "jobRef": "job_00000000000000000000000000000042",
+                          "jobRef": "job_00000000000000000000000000000045",
                           "maxOutstanding": 1,
                           "outstandingCount": 0,
                           "fullBehavior": "wait",
@@ -8870,10 +8852,11 @@
                 "examples": {
                   "previewSchedule": {
                     "value": {
-                      "expression": "0 9 * * *",
+                      "expression": "0 10 * * 1-5",
                       "timeZoneId": "UTC",
                       "nextOccurrencesUtc": [
-                        "2026-06-12T09:00:00Z"
+                        "2026-06-12T10:00:00Z",
+                        "2026-06-15T10:00:00Z"
                       ]
                     }
                   }
@@ -8915,7 +8898,7 @@
             }
           },
           "409": {
-            "description": "This host cannot serve the read as asked; the problem's detail says why.",
+            "description": "A calendar the schedule names resolves to nothing on this host: no calendar of that name is declared here and neither the namespace's catalog nor the shared one has a current version of it. The problem's detail names the calendar.",
             "content": {
               "application/problem+json": {
                 "schema": {
@@ -9146,7 +9129,25 @@
                       "shownVersion": 1,
                       "shownStatus": "published",
                       "definition": {
-                        "kind": "weekly-availability"
+                        "kind": "weekly-availability",
+                        "timeZone": "UTC",
+                        "weekly": [
+                          {
+                            "days": [
+                              "Monday",
+                              "Tuesday",
+                              "Wednesday",
+                              "Thursday",
+                              "Friday"
+                            ],
+                            "windows": [
+                              [
+                                "09:00",
+                                "17:00"
+                              ]
+                            ]
+                          }
+                        ]
                       }
                     }
                   }
@@ -9268,11 +9269,37 @@
                         "shownVersion": 1,
                         "shownStatus": "published",
                         "definition": {
-                          "kind": "weekly-availability"
+                          "kind": "weekly-availability",
+                          "timeZone": "UTC",
+                          "weekly": [
+                            {
+                              "days": [
+                                "Monday",
+                                "Tuesday",
+                                "Wednesday",
+                                "Thursday",
+                                "Friday"
+                              ],
+                              "windows": [
+                                [
+                                  "09:00",
+                                  "17:00"
+                                ]
+                              ]
+                            }
+                          ]
                         }
                       },
                       "versions": {
                         "items": [
+                          {
+                            "version": 2,
+                            "status": "draft",
+                            "contentHash": "hash-2",
+                            "createdAtUtc": "2026-06-12T09:00:00Z",
+                            "publishedAtUtc": null,
+                            "modifiedAtUtc": "2026-06-12T09:00:00Z"
+                          },
                           {
                             "version": 1,
                             "status": "published",
@@ -9292,7 +9319,7 @@
                           {
                             "jobNamespace": "billing",
                             "jobName": "send-invoice",
-                            "scheduleName": "nightly",
+                            "scheduleName": "morning-run",
                             "binding": "availability",
                             "status": "active",
                             "scheduledDelivery": "permanent"
@@ -9433,6 +9460,14 @@
                   "listCalendarVersions": {
                     "value": {
                       "items": [
+                        {
+                          "version": 2,
+                          "status": "draft",
+                          "contentHash": "hash-2",
+                          "createdAtUtc": "2026-06-12T09:00:00Z",
+                          "publishedAtUtc": null,
+                          "modifiedAtUtc": "2026-06-12T09:00:00Z"
+                        },
                         {
                           "version": 1,
                           "status": "published",
@@ -9579,7 +9614,7 @@
                         {
                           "jobNamespace": "billing",
                           "jobName": "send-invoice",
-                          "scheduleName": "nightly",
+                          "scheduleName": "morning-run",
                           "binding": "availability",
                           "status": "active",
                           "scheduledDelivery": "permanent"
@@ -9730,7 +9765,7 @@
                   "previewCalendar": {
                     "value": {
                       "role": "availability",
-                      "version": 1,
+                      "version": 2,
                       "currentVersion": 1,
                       "occurrencesUtc": [ ],
                       "currentOccurrencesUtc": [ ],
@@ -9740,9 +9775,23 @@
                           "endUtc": "2026-06-12T12:00:00Z"
                         }
                       ],
-                      "currentWindows": [ ],
-                      "schedules": [ ],
-                      "schedulesTotal": 0,
+                      "currentWindows": [
+                        {
+                          "startUtc": "2026-06-12T09:00:00Z",
+                          "endUtc": "2026-06-12T17:00:00Z"
+                        }
+                      ],
+                      "schedules": [
+                        {
+                          "jobNamespace": "billing",
+                          "jobName": "send-invoice",
+                          "scheduleName": "morning-run",
+                          "binding": "availability",
+                          "status": "active",
+                          "overdue": false
+                        }
+                      ],
+                      "schedulesTotal": 1,
                       "overdueTotal": 0
                     }
                   }
@@ -9955,7 +10004,7 @@
                           "executionNumber": 2,
                           "durationMs": 1520,
                           "message": "Invoice provider timed out.",
-                          "detailsText": "{\"reason\":\"timeout\"}"
+                          "detailsText": "{\"to\":\"ready\",\"reason\":\"unhandled-exception\"}"
                         }
                       ],
                       "nextCursor": null,
@@ -10106,7 +10155,7 @@
                           "executionNumber": 2,
                           "durationMs": 1520,
                           "message": "Invoice provider timed out.",
-                          "detailsText": "{\"reason\":\"timeout\"}"
+                          "detailsText": "{\"to\":\"ready\",\"reason\":\"unhandled-exception\"}"
                         }
                       ],
                       "nextCursor": null,
@@ -10258,7 +10307,7 @@
                           "executionNumber": 2,
                           "durationMs": 1520,
                           "message": "Invoice provider timed out.",
-                          "detailsText": "{\"reason\":\"timeout\"}"
+                          "detailsText": "{\"to\":\"ready\",\"reason\":\"unhandled-exception\"}"
                         }
                       ],
                       "nextCursor": null,
@@ -10443,7 +10492,7 @@
                       "controlsEnabled": true,
                       "engineVersion": "1.0.0",
                       "provider": "sqlite",
-                      "schema": "acta",
+                      "schema": "main",
                       "confirmationHeader": "X-Acta-Control"
                     }
                   }
@@ -10612,7 +10661,7 @@
         "properties": {
           "expectedCurrentVersion": {
             "type": "integer",
-            "description": "The number of the published version as the caller last read it; when another is in force the call answers version-conflict and changes nothing.",
+            "description": "The number of the published version as the caller last read it; when another is in force the call answers rejected and changes nothing.",
             "format": "int32"
           },
           "reasonMessage": {
@@ -10635,7 +10684,7 @@
         "type": "object",
         "properties": {
           "action": {
-            "description": "What the call did: applied; rejected, while a schedule still names the family; or not-found.",
+            "description": "What the call did: applied; rejected, when a schedule still names the family or its current version is not the expected one; or not-found.",
             "$ref": "#/components/schemas/ControlAction"
           },
           "version": {
@@ -10643,16 +10692,16 @@
               "null",
               "integer"
             ],
-            "description": "The number of the version that was archived; null when nothing was.",
+            "description": "The number of the family's current version: the one archived when applied, the one still in force when rejected; null when the family has no current version.",
             "format": "int32"
           },
           "dependentCount": {
             "type": "integer",
-            "description": "How many schedules name the family.",
+            "description": "How many schedules name the family, leaving out orphaned ones and those of a retired definition.",
             "format": "int32"
           }
         },
-        "description": "What archiving a calendar family's current version did. The archive is rejected while any schedule still names the family."
+        "description": "What archiving a calendar family's current version did. The archive is rejected while a schedule still names the family, or when its current version is not the expected one."
       },
       "CalendarRoleCode": {
         "examples": [
@@ -10890,7 +10939,7 @@
               "null",
               "string"
             ],
-            "description": "The backoff expression to use in place of the declared one; null uses the declared one."
+            "description": "The backoff to use in place of the declared one, as an expression such as 1m..8h x2 ~10%: the first retry waits 1m, each next one twice as long up to 8h, and each delay moves at random by up to 10% either way. Null uses the declared one."
           },
           "executionTimeoutSeconds": {
             "type": [
@@ -10986,7 +11035,7 @@
           "active"
         ],
         "type": "string",
-        "description": "Where a job definition is in its life.\n\nKnown values:\n- unspecified: Definition status not recognized by this build; the row was written by a newer Acta.\n- active: Enqueues are accepted and workers claim the definition's jobs.\n- retired: Enqueues are rejected. Only an operator retires a definition; one that a deploy stops declaring stays active. Retiring cancels the definition's ready, blocked, paused, and suspended jobs with the event reason definition-retired and leaves a permanent slot idle; an executing job finishes its attempt, and one that would run again is cancelled with the same reason.\n\nOther values may appear: keep a value this client does not know as it is.",
+        "description": "Where a job definition is in its life.\n\nKnown values:\n- unspecified: Definition status not recognized by this build; the row was written by a newer Acta.\n- active: Enqueues are accepted and workers claim the definition's jobs.\n- retired: Enqueues are rejected. Only an operator retires a definition; one that a deploy stops declaring stays active. Retiring cancels the definition's ready, blocked, paused, and suspended jobs with the event reason definition-retired, and a permanent slot goes idle unless it is paused; an executing job finishes its attempt, and one that would run again is cancelled with the same reason.\n\nOther values may appear: keep a value this client does not know as it is.",
         "x-acta-known-values": [
           "unspecified",
           "active",
@@ -11035,7 +11084,7 @@
               "null",
               "string"
             ],
-            "description": "When the command still waiting to be applied was stored, in UTC; null when none is waiting.",
+            "description": "On a rejection, when the earlier command still waiting to be applied was stored, in UTC; null otherwise.",
             "format": "date-time"
           }
         },
@@ -11304,14 +11353,14 @@
         "properties": {
           "kind": {
             "type": "string",
-            "description": "Which move it is, as a stable code: raise-signal, cancel, resume, restart, inspect-timeline, wait-recovery, or none."
+            "description": "Which move it is: raise-signal, cancel, resume, restart, inspect-timeline, wait-recovery, or none. Other values may appear: keep one this client does not know."
           },
           "description": {
             "type": "string",
             "description": "The move, described for the operator."
           }
         },
-        "description": "A suggested operator move. kind is a stable slug (raise-signal | cancel | resume | restart | inspect-timeline | wait-recovery | none); description is the prose shown to the operator."
+        "description": "A suggested operator move."
       },
       "ExplainJobLease": {
         "required": [
@@ -11450,7 +11499,7 @@
             "items": {
               "$ref": "#/components/schemas/ExplainJobStep"
             },
-            "description": "The job's newest steps, oldest first; stepsHasMore says when older ones were left out."
+            "description": "The job's newest steps, at most 50, oldest first; stepsHasMore says when older ones were left out."
           },
           "stepsHasMore": {
             "type": "boolean",
@@ -11704,12 +11753,12 @@
               "null",
               "integer"
             ],
-            "description": "The number of the published version in force; null when none is published.",
+            "description": "The number of the published version in force; null when none is published. The publish and the archive take it as expectedCurrentVersion, and a publish sends 0 when none is published.",
             "format": "int32"
           },
           "latestVersion": {
             "type": "integer",
-            "description": "The number of the family's newest version.",
+            "description": "The number of the family's newest version; the draft save takes it as expectedLatestVersion.",
             "format": "int32"
           },
           "shownVersion": {
@@ -11781,7 +11830,7 @@
           },
           "inputTypeName": {
             "type": "string",
-            "description": "The full name of the .NET type the definition's handler takes as input."
+            "description": "The full name of the type the definition's handler takes as input, as its code spells it."
           },
           "templateJson": {
             "type": [
@@ -11795,7 +11844,7 @@
             "description": "The name of input format, such as json, which is how the wire names a format."
           }
         },
-        "description": "The input contract of a registered job as operator tooling sees it: the job it was asked for, the CLR input type name, the wire format its input serializes to, and (Json inputs only) a compile-time JSON skeleton the enqueue form can seed its editor with. Compile-time facts from the generated manifest; the template is a shape hint, never a contract and never a default value."
+        "description": "A definition's input contract: the name of the type its handler takes, the format its input is stored in, and, for a JSON input, a template the enqueue form can start its editor from. The template comes from the deployed code and shows the input's shape; it is no contract and no default value."
       },
       "GetDefinitionResponse": {
         "required": [
@@ -11874,7 +11923,7 @@
           },
           "inputTypeName": {
             "type": "string",
-            "description": "The full name of the .NET type the handler takes as input."
+            "description": "The full name of the type the handler takes as input, as its code spells it."
           },
           "inputFormatId": {
             "type": "integer",
@@ -11890,7 +11939,7 @@
               "null",
               "string"
             ],
-            "description": "The full name of the .NET type the handler returns; null when it returns nothing."
+            "description": "The full name of the type the handler returns, as its code spells it; null when it returns nothing."
           },
           "resultFormatId": {
             "type": "integer",
@@ -11940,7 +11989,7 @@
               "null",
               "string"
             ],
-            "description": "The declared rate limit: how often attempts may start, written N/s, N/m, or N/h; null declares none."
+            "description": "The declared rate limit, written N/s, N/m, or N/h: it paces how often attempts are admitted, not when they start, and is no hard cap on a burst, since a turn admitted late can land beside an on-time one. Null declares none."
           },
           "rateLimitEffective": {
             "type": [
@@ -11965,7 +12014,7 @@
           },
           "backoff": {
             "type": "string",
-            "description": "The declared retry backoff, as an expression such as 1m..8h x2 ~10%."
+            "description": "The declared retry backoff, as an expression such as 1m..8h x2 ~10%: the first retry waits 1m, each next one twice as long up to 8h, and each delay moves at random by up to 10% either way."
           },
           "backoffEffective": {
             "type": "string",
@@ -12105,7 +12154,7 @@
           },
           "version": {
             "type": "integer",
-            "description": "The definition's version, which every change to it increments; send it as the expected version of a control.",
+            "description": "The definition's version, which every change to it increments; the overrides update and the retire take it as expectedVersion.",
             "format": "int32"
           }
         },
@@ -12263,7 +12312,7 @@
                 "$ref": "#/components/schemas/JobRef"
               }
             ],
-            "description": "The ref of the job at the root of the lineage this job belongs to."
+            "description": "The ref of the job at the root of the lineage this job belongs to; null for a root job."
           },
           "createdAtUtc": {
             "type": "string",
@@ -12296,7 +12345,7 @@
             "items": {
               "$ref": "#/components/schemas/GetJobLineageMapNode"
             },
-            "description": "The job's nearest ancestors, the farthest first and its parent last."
+            "description": "The job's nearest ancestors, at most 50, the farthest first and its parent last."
           },
           "ancestorsHasMore": {
             "type": "boolean",
@@ -12311,7 +12360,7 @@
             "items": {
               "$ref": "#/components/schemas/GetJobLineageMapStep"
             },
-            "description": "The focused job's newest steps, oldest first; stepsHasMore says when older ones were left out."
+            "description": "The focused job's newest steps, at most 50, oldest first; stepsHasMore says when older ones were left out."
           },
           "stepsHasMore": {
             "type": "boolean",
@@ -12333,7 +12382,7 @@
             "items": {
               "$ref": "#/components/schemas/GetJobLineageMapChild"
             },
-            "description": "The job's direct children, up to the requested limit."
+            "description": "The job's direct children, at most the limit asked for, which is 100 on the job detail read."
           },
           "childrenHasMore": {
             "type": "boolean",
@@ -12363,7 +12412,7 @@
             "description": "The step's state in a plain-English clause."
           }
         },
-        "description": "One step of the focused Job, with explanation its status in plain English."
+        "description": "One step of the focused job, with its status explained in plain English."
       },
       "GetJobLineageMapWait": {
         "required": [
@@ -12446,7 +12495,7 @@
                 "$ref": "#/components/schemas/JobRef"
               }
             ],
-            "description": "The ref of the job at the root of the lineage this job belongs to."
+            "description": "The ref of the job at the root of the lineage this job belongs to; null for a root job."
           },
           "parentJobRef": {
             "oneOf": [
@@ -12575,7 +12624,7 @@
           },
           "version": {
             "type": "integer",
-            "description": "The job's version, which every change to its state increments; send it as expectedVersion on a control to make that call a compare-and-set.",
+            "description": "The job's version, which every change to its state increments; the pause, resume, restart, cancel, reschedule, and reprioritize controls take it as expectedVersion, which makes the call a compare-and-set.",
             "format": "int32"
           }
         },
@@ -12615,7 +12664,7 @@
           },
           "version": {
             "type": "integer",
-            "description": "The namespace's version, which every change to it increments; send it as the expected version of a control.",
+            "description": "The namespace's version, which every change to it increments; the namespace update takes it as expectedVersion.",
             "format": "int32"
           }
         },
@@ -12682,7 +12731,7 @@
           },
           "dueSoonScheduleCount": {
             "type": "integer",
-            "description": "How many schedules have an occurrence due soon.",
+            "description": "How many active schedules of definitions that are not retired have their next occurrence due within the window, overdue ones included; the window is one hour on the HTTP read.",
             "format": "int64"
           },
           "executorCapacity": {
@@ -12699,7 +12748,7 @@
             "format": "int64"
           }
         },
-        "description": "Health counters for the whole ledger, computed on the database clock in one call. executingCount can exceed executorCapacity, because a finished job stays counted until its completion is written."
+        "description": "Health counters for the ledger, or for one namespace when the request names one, computed on the database clock in one call. executingCount can exceed executorCapacity, because a finished job stays counted until its completion is written."
       },
       "GetTenantResponse": {
         "required": [
@@ -12747,7 +12796,7 @@
           },
           "version": {
             "type": "integer",
-            "description": "The tenant's version, which every change to it increments; send it as the expected version of a control.",
+            "description": "The tenant's version, which every change to it increments; the tenant update takes it as expectedVersion.",
             "format": "int32"
           }
         },
@@ -13182,12 +13231,12 @@
               "null",
               "integer"
             ],
-            "description": "The number of the published version in force; null when none is published.",
+            "description": "The number of the published version in force; null when none is published. The publish and the archive take it as expectedCurrentVersion, and a publish sends 0 when none is published.",
             "format": "int32"
           },
           "latestVersion": {
             "type": "integer",
-            "description": "The number of the family's newest version.",
+            "description": "The number of the family's newest version; the draft save takes it as expectedLatestVersion.",
             "format": "int32"
           },
           "latestStatus": {
@@ -13384,14 +13433,14 @@
           },
           "inputTypeName": {
             "type": "string",
-            "description": "The full name of the .NET type the handler takes as input."
+            "description": "The full name of the type the handler takes as input, as its code spells it."
           },
           "resultTypeName": {
             "type": [
               "null",
               "string"
             ],
-            "description": "The full name of the .NET type the handler returns; null when it returns nothing."
+            "description": "The full name of the type the handler returns, as its code spells it; null when it returns nothing."
           },
           "priorityOverride": {
             "oneOf": [
@@ -13472,7 +13521,7 @@
           },
           "version": {
             "type": "integer",
-            "description": "The definition's version, which every change to it increments; send it as the expected version of a control.",
+            "description": "The definition's version, which every change to it increments; the overrides update and the retire take it as expectedVersion.",
             "format": "int32"
           }
         },
@@ -13596,7 +13645,7 @@
                 "$ref": "#/components/schemas/JobRef"
               }
             ],
-            "description": "The ref of the job at the root of the lineage this job belongs to."
+            "description": "The ref of the job at the root of the event's job's lineage, the job itself for a root job, when the event is about a job."
           },
           "tenantName": {
             "type": [
@@ -13840,7 +13889,7 @@
                 "$ref": "#/components/schemas/JobRef"
               }
             ],
-            "description": "The ref of the job at the root of the lineage this job belongs to."
+            "description": "The ref of the job at the root of the lineage this job belongs to; null for a root job."
           },
           "deduplicationKey": {
             "type": [
@@ -14077,7 +14126,7 @@
           },
           "version": {
             "type": "integer",
-            "description": "The namespace's version, which every change to it increments; send it as the expected version of a control.",
+            "description": "The namespace's version, which every change to it increments; the namespace update takes it as expectedVersion.",
             "format": "int32"
           }
         },
@@ -14214,7 +14263,7 @@
               "null",
               "integer"
             ],
-            "description": "The number of rows the filter matches; null unless the request set includeTotal.",
+            "description": "Always null: the sources list does not count its matches.",
             "format": "int64"
           }
         },
@@ -14434,7 +14483,7 @@
           },
           "version": {
             "type": "integer",
-            "description": "The schedule's version, which every change to it increments; send it as the expected version of a control.",
+            "description": "The schedule's version, which every change to it increments.",
             "format": "int32"
           },
           "jobRef": {
@@ -14650,7 +14699,7 @@
           },
           "version": {
             "type": "integer",
-            "description": "The tenant's version, which every change to it increments; send it as the expected version of a control.",
+            "description": "The tenant's version, which every change to it increments; the tenant update takes it as expectedVersion.",
             "format": "int32"
           }
         },
@@ -15027,7 +15076,7 @@
           },
           "overdue": {
             "type": "boolean",
-            "description": "Whether the schedule holds an occurrence that is overdue under the previewed version."
+            "description": "Whether the schedule's next occurrence, as the version in force placed it, is already due, which publishing the previewed version must decide as its overdue decision says."
           }
         },
         "description": "A schedule that names the family, as a publication would meet it: its path, binding, status, and overdue flag."
@@ -15108,7 +15157,7 @@
           },
           "overdueTotal": {
             "type": "integer",
-            "description": "How many of those schedules hold an overdue occurrence.",
+            "description": "How many of those schedules have their next occurrence already due under the version in force.",
             "format": "int64"
           }
         },
@@ -15139,7 +15188,7 @@
             "description": "The schedule's next occurrences, in UTC, soonest first."
           }
         },
-        "description": "A read-only forecast of a schedule's upcoming fire instants, computed live (no persisted state is read or written). expression and timeZoneId are the effective values (operator override when present, else the original); nextOccurrencesUtc is strictly increasing and may be shorter than requested when the expression is exhausted."
+        "description": "A forecast of a schedule's next fire instants, walked from the database clock over the stored schedule's expression, time zone, and calendars; no cursor is read or moved, and a paused schedule previews as if it were active. nextOccurrencesUtc is strictly increasing and is shorter than asked when the expression runs out."
       },
       "ProblemDetails": {
         "required": [
@@ -15184,7 +15233,7 @@
         "properties": {
           "expectedCurrentVersion": {
             "type": "integer",
-            "description": "The number of the published version as the caller last read it; when another is in force the call answers version-conflict and changes nothing.",
+            "description": "The number of the published version as the caller last read it; 0 when none is published. When another is in force, the call answers version-conflict and changes nothing.",
             "format": "int32"
           },
           "candidateVersion": {
@@ -15226,7 +15275,7 @@
               "null",
               "integer"
             ],
-            "description": "The number of the version now in force; null when nothing was published.",
+            "description": "The number of the version in force after the call: the candidate when applied, else the family's current version, null when none is published. Not-found answers null, and so does a candidate rejected for what it is: not a draft, or bound to more schedules than one publication retimes.",
             "format": "int32"
           },
           "retimedSchedules": {
@@ -15234,14 +15283,14 @@
             "items": {
               "type": "string"
             },
-            "description": "The schedules the publication retimed."
+            "description": "The schedules the publication retimed, each as namespace/job/schedule."
           },
           "overdueSchedules": {
             "type": "array",
             "items": {
               "type": "string"
             },
-            "description": "The schedules that hold an overdue occurrence."
+            "description": "The schedules that hold an overdue occurrence, each as namespace/job/schedule."
           },
           "reason": {
             "type": [
@@ -15251,7 +15300,7 @@
             "description": "Why the publication was refused, when it was."
           }
         },
-        "description": "The outcome of a publication: applied, with the version now current and the schedules retimed as job and schedule paths; not-found, when the candidate is no version of the family; version-conflict, when the current version is not the one the caller saw; or rejected, with the reason and, when the old version left overdue occurrences undecided, the schedules holding them."
+        "description": "The outcome of a publication: applied, with the version made current and the schedules retimed, each as namespace/job/schedule; not-found, when the candidate is no version of the family; version-conflict, when the current version is not the one the caller saw; or rejected, with the reason and, when the old version left overdue occurrences undecided, the schedules holding them."
       },
       "PurgeJobRequest": {
         "type": "object",
@@ -15494,7 +15543,7 @@
               "null",
               "string"
             ],
-            "description": "When the command still waiting to be applied was stored, in UTC; null when none is waiting.",
+            "description": "On a rejection, when the earlier command still waiting to be applied was stored, in UTC; null otherwise.",
             "format": "date-time"
           }
         },
@@ -15756,7 +15805,7 @@
               "null",
               "integer"
             ],
-            "description": "The namespace's version after the call; on a version conflict, the version it has now; null when the namespace was not found.",
+            "description": "The namespace's version after the call; null when the namespace was not found.",
             "format": "int32"
           }
         },
@@ -15858,7 +15907,7 @@
               "null",
               "integer"
             ],
-            "description": "The tenant's version after the call; on a version conflict, the version it has now; null when the tenant was not found.",
+            "description": "The tenant's version after the call; null when the tenant was not found.",
             "format": "int32"
           }
         },
@@ -15950,7 +15999,7 @@
         "type": "object",
         "properties": {
           "action": {
-            "description": "What the call did: applied, rejected, or version-conflict.",
+            "description": "What the call did: applied; rejected, when the definition does not compile, the role is not the family's, or the other scope holds the name; or version-conflict, when another version is the family's latest.",
             "$ref": "#/components/schemas/ControlAction"
           },
           "version": {
@@ -15958,7 +16007,7 @@
               "null",
               "integer"
             ],
-            "description": "The number of the draft version that was saved; null when nothing was saved.",
+            "description": "The number of the draft version that was saved; when the store refused the draft, as version-conflict or rejected, the family's latest version, 0 for a family with none; null when the definition does not compile.",
             "format": "int32"
           },
           "contentHash": {
@@ -15973,10 +16022,10 @@
             "items": {
               "type": "string"
             },
-            "description": "What is wrong with the definition, when it could not be saved."
+            "description": "Why the draft was not saved, one sentence each; empty when it was saved."
           }
         },
-        "description": "What saving a draft did: applied carries the new version and its content hash; rejected carries each reason in problems, a compiler problem starting with its JSON path, and, when the store refused the draft, the family's latest version, 0 for a family with none. A namespace no worker has run in yet is created, so the save never answers not-found."
+        "description": "What saving a draft did: applied carries the new version and its content hash; rejected and version-conflict carry each reason in problems, a compiler problem starting with its JSON path, and, when the store refused the draft, the family's latest version, 0 for a family with none. A namespace no worker has run in yet is created, so the save never answers not-found."
       },
       "ScheduledDeliveryCode": {
         "examples": [
@@ -16135,7 +16184,7 @@
               "null",
               "integer"
             ],
-            "description": "The namespace's version after the call; on a version conflict, the version it has now; null when the namespace was not found.",
+            "description": "The namespace's version after the call; null when the namespace was not found.",
             "format": "int32"
           }
         },
@@ -16171,7 +16220,7 @@
               "null",
               "integer"
             ],
-            "description": "The tenant's version after the call; on a version conflict, the version it has now; null when the tenant was not found.",
+            "description": "The tenant's version after the call; null when the tenant was not found.",
             "format": "int32"
           }
         },
@@ -16196,7 +16245,7 @@
           }
         },
         "additionalProperties": false,
-        "description": "Caller-supplied per-tag wire row attached to an enqueued Job. Names are unique within a request; value is null for presence-only tags."
+        "description": "One tag a caller attaches to a job it enqueues: a name unique within the request, and a value, null for a tag that is only a name."
       },
       "TenantStatusCode": {
         "examples": [
@@ -16378,7 +16427,7 @@
             "format": "int32"
           }
         },
-        "description": "What amending a job's input did, and the job's status after the attempt; an amend carries no version."
+        "description": "What updating a job's input did, and the job's status after the attempt; the update carries no version."
       },
       "UpdateNamespaceRequest": {
         "required": [

@@ -19,7 +19,8 @@ namespace Acta;
 /// purged job's events still name it.</param>
 /// <param name="JobName">The name of the definition of the job the event is about, when it is about a job.</param>
 /// <param name="JobRef">The ref of the job the event is about, when it is about a job.</param>
-/// <param name="LineageRootJobRef">The ref of the job at the root of the lineage this job belongs to.</param>
+/// <param name="LineageRootJobRef">The ref of the job at the root of the event's job's lineage, the job itself for a root job, when the
+/// event is about a job.</param>
 /// <param name="TenantName">The tenant the job is about, when it names one.</param>
 /// <param name="WorkerRef">The ref of the worker that recorded the event, when a worker did.</param>
 /// <param name="ExecutionNumber">The attempt the event belongs to, when it belongs to one.</param>

@@ -11,7 +11,7 @@ namespace Acta;
 /// <param name="JobName">The name of the job's definition.</param>
 /// <param name="Status">The job's status.</param>
 /// <param name="ParentJobRef">The ref of the job that started this one as a child; null for a job without a parent.</param>
-/// <param name="LineageRootJobRef">The ref of the job at the root of the lineage this job belongs to.</param>
+/// <param name="LineageRootJobRef">The ref of the job at the root of the lineage this job belongs to; null for a root job.</param>
 /// <param name="CreatedAtUtc">When the row was created, in UTC.</param>
 /// <param name="ModifiedAtUtc">When the row last changed, in UTC.</param>
 public sealed record GetJobLineageMapNode(

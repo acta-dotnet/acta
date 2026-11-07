@@ -13,7 +13,9 @@ namespace Acta;
 /// one.</param>
 /// <param name="RateLimit">The rate limit to use in place of the declared one, written N/s, N/m, or N/h; null uses the declared
 /// one.</param>
-/// <param name="Backoff">The backoff expression to use in place of the declared one; null uses the declared one.</param>
+/// <param name="Backoff">The backoff to use in place of the declared one, as an expression such as 1m..8h x2 ~10%: the first retry
+/// waits 1m, each next one twice as long up to 8h, and each delay moves at random by up to 10% either way. Null uses the declared
+/// one.</param>
 /// <param name="ExecutionTimeoutSeconds">The execution timeout in seconds to use in place of the declared one; null uses the declared
 /// one.</param>
 /// <param name="DeadlineSeconds">The deadline in seconds to use in place of the declared one; null uses the declared one.</param>

@@ -76,6 +76,20 @@ internal static partial class ActaOpenApiDocument
         };
     }
 
+    // A status whose cause on one route is narrower than its shape's text says that cause instead, keyed by operation id.
+    private static readonly Dictionary<(string Operation, string Status), string> RouteResponses = new()
+    {
+        [("previewSchedule", "409")] =
+            "A calendar the schedule names resolves to nothing on this host: no calendar of that name is declared here and neither "
+            + "the namespace's catalog nor the shared one has a current version of it. The problem's detail names the calendar.",
+        [("listQuarantinedOutbox", "409")] =
+            "This host registers no outbox relay for the namespace, and only one that does can read its source database; list the "
+            + "quarantine on a host whose source reports isLocal.",
+        [("archiveCalendar", "409")] =
+            "The archive was refused and nothing was written: the body's action is rejected, while a schedule still names the "
+            + "family or when its current version is not the expected one.",
+    };
+
     // A page is a response whose schema carries a next cursor.
     private static bool IsPage(IDictionary<string, OpenApiMediaType> content, IDictionary<string, IOpenApiSchema> schemas) =>
         content.TryGetValue("application/json", out var media)

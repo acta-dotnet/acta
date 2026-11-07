@@ -10,7 +10,7 @@ namespace Acta;
 /// <param name="Status">The tenant's status.</param>
 /// <param name="CreatedAtUtc">When the row was created, in UTC.</param>
 /// <param name="ModifiedAtUtc">When the row last changed, in UTC.</param>
-/// <param name="Version">The tenant's version, which every change to it increments; send it as the expected version of a control.</param>
+/// <param name="Version">The tenant's version, which every change to it increments; the tenant update takes it as expectedVersion.</param>
 public sealed record GetTenantResponse(
     [property: JsonIgnore] int TenantId,
     string TenantName,

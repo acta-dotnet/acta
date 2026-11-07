@@ -8,8 +8,8 @@ namespace Acta;
 /// <param name="Status">The namespace's status.</param>
 /// <param name="OwnerTeam">The team that owns the namespace, when one is recorded.</param>
 /// <param name="Description">The namespace's description, when one is recorded.</param>
-/// <param name="Version">The namespace's version, which every change to it increments; send it as the expected version of a
-/// control.</param>
+/// <param name="Version">The namespace's version, which every change to it increments; the namespace update takes it as
+/// expectedVersion.</param>
 public sealed record ListNamespacesItem(
     [property: JsonIgnore] int NamespaceId,
     string JobNamespace,

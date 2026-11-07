@@ -13,10 +13,11 @@ namespace Acta;
 /// <param name="DefinitionHash">A hash of everything the code declares for the definition; operator overrides are not part of it.</param>
 /// <param name="ManifestGenerationAtUtc">The build time of the deployment that last wrote the definition, in UTC; an older deployment
 /// cannot overwrite it.</param>
-/// <param name="InputTypeName">The full name of the .NET type the handler takes as input.</param>
+/// <param name="InputTypeName">The full name of the type the handler takes as input, as its code spells it.</param>
 /// <param name="InputFormatId">The id of the payload format the input is stored in.</param>
 /// <param name="InputFormatName">The name of the payload format the input is stored in.</param>
-/// <param name="ResultTypeName">The full name of the .NET type the handler returns; null when it returns nothing.</param>
+/// <param name="ResultTypeName">The full name of the type the handler returns, as its code spells it; null when it returns
+/// nothing.</param>
 /// <param name="ResultFormatId">The id of the payload format the result is stored in.</param>
 /// <param name="ResultFormatName">The name of the payload format the result is stored in.</param>
 /// <param name="Priority">The priority the code declares for the definition's jobs.</param>
@@ -27,13 +28,15 @@ namespace Acta;
 /// declares none.</param>
 /// <param name="ConcurrencyLimitEffective">The concurrency limit in force: the override when there is one, else the declared one; null
 /// when neither sets one.</param>
-/// <param name="RateLimit">The declared rate limit: how often attempts may start, written N/s, N/m, or N/h; null declares none.</param>
+/// <param name="RateLimit">The declared rate limit, written N/s, N/m, or N/h: it paces how often attempts are admitted, not when they
+/// start, and is no hard cap on a burst, since a turn admitted late can land beside an on-time one. Null declares none.</param>
 /// <param name="RateLimitEffective">The rate limit in force: the override when there is one, else the declared one; null when neither
 /// sets one.</param>
 /// <param name="RateName">The meter the rate limit spends from, shared by every definition that names it; null means the definition's own
 /// name.</param>
 /// <param name="Lane">The lane the definition's jobs run in, when the code declares one.</param>
-/// <param name="Backoff">The declared retry backoff, as an expression such as 1m..8h x2 ~10%.</param>
+/// <param name="Backoff">The declared retry backoff, as an expression such as 1m..8h x2 ~10%: the first retry waits 1m, each next one
+/// twice as long up to 8h, and each delay moves at random by up to 10% either way.</param>
 /// <param name="BackoffEffective">The backoff in force: the override when there is one, else the declared one.</param>
 /// <param name="ExecutionTimeoutSeconds">The declared limit on one attempt's run time, in seconds; past it the handler's cancellation
 /// token fires.</param>
@@ -65,8 +68,8 @@ namespace Acta;
 /// whole.</param>
 /// <param name="CreatedAtUtc">When the row was created, in UTC.</param>
 /// <param name="ModifiedAtUtc">When the row last changed, in UTC.</param>
-/// <param name="Version">The definition's version, which every change to it increments; send it as the expected version of a
-/// control.</param>
+/// <param name="Version">The definition's version, which every change to it increments; the overrides update and the retire take it
+/// as expectedVersion.</param>
 public sealed record GetDefinitionResponse(
     [property: JsonIgnore] int DefinitionId,
     string JobNamespace,

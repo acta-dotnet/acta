@@ -19,7 +19,7 @@ namespace Acta;
 /// <param name="Kind">Whether the job is an ordinary job or a scheduled definition's permanent slot.</param>
 /// <param name="JobNamespace">The namespace of the job's definition.</param>
 /// <param name="JobName">The name of the job's definition.</param>
-/// <param name="LineageRootJobRef">The ref of the job at the root of the lineage this job belongs to.</param>
+/// <param name="LineageRootJobRef">The ref of the job at the root of the lineage this job belongs to; null for a root job.</param>
 /// <param name="ParentJobRef">The ref of the job that started this one as a child; null for a job without a parent.</param>
 /// <param name="TenantName">The tenant the job is about, when it names one.</param>
 /// <param name="DeduplicationKey">The job's deduplication key, when it was enqueued with one.</param>
@@ -40,8 +40,8 @@ namespace Acta;
 /// <param name="CreatedAtUtc">When the row was created, in UTC.</param>
 /// <param name="ModifiedAtUtc">When the row last changed, in UTC.</param>
 /// <param name="LeasedByWorkerRef">The ref of the worker that holds the job's lease; null when none does.</param>
-/// <param name="Version">The job's version, which every change to its state increments; send it as expectedVersion on a control to make that call
-/// a compare-and-set.</param>
+/// <param name="Version">The job's version, which every change to its state increments; the pause, resume, restart, cancel,
+/// reschedule, and reprioritize controls take it as expectedVersion, which makes the call a compare-and-set.</param>
 public sealed record GetJobResponse(
     [property: JsonIgnore] long JobId,
     JobRef JobRef,

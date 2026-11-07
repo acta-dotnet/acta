@@ -188,7 +188,7 @@ This pattern makes raw values easier to scan in database rows, logs, and diagnos
 |---|---:|---|---|---|
 | `Unspecified` | 0 | `unspecified` | Definition status not recognized by this build; the row was written by a newer Acta. | Active |
 | `Active` | 10 | `active` | Enqueues are accepted and workers claim the definition's jobs. | Active |
-| `Retired` | 240 | `retired` | Enqueues are rejected. Only an operator retires a definition; one that a deploy stops declaring stays active. Retiring cancels the definition's ready, blocked, paused, and suspended jobs with the event reason definition-retired and leaves a permanent slot idle; an executing job finishes its attempt, and one that would run again is cancelled with the same reason. | Active |
+| `Retired` | 240 | `retired` | Enqueues are rejected. Only an operator retires a definition; one that a deploy stops declaring stays active. Retiring cancels the definition's ready, blocked, paused, and suspended jobs with the event reason definition-retired, and a permanent slot goes idle unless it is paused; an executing job finishes its attempt, and one that would run again is cancelled with the same reason. | Active |
 
 ### `DefinitionTenantRequirementCode` · `job-tenant-requirement` <a id="code-family-definitiontenantrequirementcode"></a>
 

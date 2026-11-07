@@ -4,13 +4,22 @@ using Acta.Tests.AspNetCore.Fakes;
 namespace Acta.Tests.Contracts;
 
 /// <summary>
-/// The fake world the contract's reads are served from: every list holds one item, and the optional members of the job,
-/// its steps, checkpoints, explanation, lineage, and the listed events, alerts, schedules, and workers carry values. The
-/// served-body fact checks each schema against it, and the document's examples are its answers.
+/// The fake world the contract's reads are served from, one situation throughout: job 42 is ready again at 06:05, when its
+/// step's retry is due after its second attempt failed at 06:00. Every list holds one item but the calendar's two
+/// versions, and each optional member carries a value wherever that situation has one. The served-body fact checks each
+/// schema against it, and the document's examples are its answers.
 /// </summary>
 internal static class StagedFakes
 {
     private static readonly DateTime At = new(2026, 6, 12, 6, 0, 0, DateTimeKind.Utc);
+
+    /// <summary>The permanent slot the definition's schedule fires; job 42 is an ordinary job of the same definition.</summary>
+    private static readonly JobRef SlotJobRef = new(Guid.Parse("00000000-0000-0000-0000-000000000045"));
+
+    /// <summary>
+    /// The schedule's next occurrence: 10:00 UTC today, a Friday, inside the office-hours calendar it names for availability.
+    /// </summary>
+    private static readonly DateTime NextRun = At.AddHours(4);
 
     public static FakeOperations Create()
     {
@@ -18,17 +27,21 @@ internal static class StagedFakes
         var jobs = fakes.Jobs;
         jobs.StoredInput = Json("""{"invoiceId":42}""");
         jobs.StoredResult = Json("""{"sent":true}""");
-        jobs.StoredSteps = [new ListJobStepsItem("charge-card", StepStatusCode.Pending, 2, At.AddMinutes(5), "Card declined.", At, At)];
+        jobs.StoredSteps =
+        [
+            new ListJobStepsItem("post-invoice", StepStatusCode.Pending, 2, At.AddMinutes(5), "Invoice provider timed out.", At, At),
+        ];
+        // A signal the job awaited before and an operator raised, so its payload is stored and no wait is pending.
         jobs.StoredCheckpoints =
         [
             new ListJobCheckpointsItem(
                 CheckpointKindCode.Signal,
                 "approval",
-                CheckpointStatusCode.Pending,
-                At.AddHours(1),
+                CheckpointStatusCode.Set,
+                null,
                 JobPayload.Bytes([1, 2, 3]),
-                At,
-                At
+                At.AddMinutes(-30),
+                At.AddMinutes(-20)
             ),
         ];
         var get = jobs.Get;
@@ -49,24 +62,24 @@ internal static class StagedFakes
             ValueTask.FromResult(new ListWorkersResponse([Worker], null, false, 50, query.IncludeTotal ? 1L : null));
         fakes.Schedules.List = (query, _) =>
             ValueTask.FromResult(new ListSchedulesResponse([Schedule], null, false, 50, query.IncludeTotal ? 1L : null));
+        fakes.Schedules.Preview = (schedule, _, _) =>
+            ValueTask.FromResult<PreviewScheduleResponse?>(
+                schedule.ScheduleName == Schedule.ScheduleName
+                    ? new PreviewScheduleResponse(Schedule.Expression, Schedule.TimeZoneId!, [NextRun, NextRun.AddDays(3)])
+                    : null
+            );
 
         var listJobs = fakes.Ledger.ListJobs;
         fakes.Ledger.ListJobs = async (query, ct) => await listJobs(query, ct) with { Items = [JobItem] };
         var definitions = fakes.Definitions.List;
         fakes.Definitions.List = (query, ct) => definitions(query with { JobNamespace = "billing" }, ct);
 
-        // A fake's own list of several items keeps one: the billing namespace, the published calendar version, and the
-        // first of each other list.
+        // A fake's own list of several items keeps one: the billing namespace, and the first of each other list. The
+        // calendar's versions page keeps both versions, so it agrees with the family's latest version and its total.
         var namespaces = fakes.Namespaces.List;
         fakes.Namespaces.List = async (query, ct) =>
         {
             var page = await namespaces(query, ct);
-            return page with { Items = Last(page.Items) };
-        };
-        var versions = fakes.Calendars.ListVersions;
-        fakes.Calendars.ListVersions = async (query, ct) =>
-        {
-            var page = await versions(query, ct);
             return page with { Items = Last(page.Items) };
         };
         var calendars = fakes.Calendars.List;
@@ -115,17 +128,17 @@ internal static class StagedFakes
         Status: JobStatusCode.Ready,
         Priority: JobPriorityCode.High,
         Lane: "invoices",
-        BlockedBehindJobId: 7,
-        BlockedBehindJobRef: FakeJobs.ChildJobRef,
+        BlockedBehindJobId: null,
+        BlockedBehindJobRef: null,
         NextRunAtUtc: At.AddMinutes(5),
         ExecutionNumber: 2,
         FailureCount: 1,
-        LeasedByWorkerId: 42,
-        LeaseExpiresAtUtc: At.AddMinutes(1),
-        RetentionUntilUtc: At.AddDays(90),
-        CreatedAtUtc: At,
+        LeasedByWorkerId: null,
+        LeaseExpiresAtUtc: null,
+        RetentionUntilUtc: null,
+        CreatedAtUtc: At.AddHours(-1),
         ModifiedAtUtc: At,
-        LeasedByWorkerRef: FakeWorkers.KnownWorkerRef,
+        LeasedByWorkerRef: null,
         Version: FakeJobs.CurrentJobVersion
     );
 
@@ -145,13 +158,15 @@ internal static class StagedFakes
         Status: JobStatusCode.Ready,
         Priority: JobPriorityCode.High,
         Lane: "invoices",
-        CreatedAtUtc: At,
+        CreatedAtUtc: At.AddHours(-1),
         ModifiedAtUtc: At,
         NextRunAtUtc: At.AddMinutes(5),
         ExecutionNumber: 2,
         FailureCount: 1
     );
 
+    // As ExplainJobHandler words a ready job whose next run is five minutes away, with no wait and no lease; the last
+    // worker is named by its deployment version.
     private static readonly ExplainJobResponse Explanation = new(
         JobId: 42,
         JobRef: FakeJobs.FoundJobRef,
@@ -159,29 +174,33 @@ internal static class StagedFakes
         JobName: "send-invoice",
         Status: JobStatusCode.Ready,
         StatusMeaning: JobStatusCode.Ready.Description,
-        Headline: "Ready and eligible for claim, waiting for a worker to pick it up.",
-        ActiveWait: new ExplainJobWait(CheckpointKindCode.Signal, "approval", At.AddHours(1)),
-        Lease: new ExplainJobLease(
-            42,
-            "worker-host",
-            At.AddMinutes(1),
-            false,
-            At,
-            false,
-            "Reclaimed if the lease lapses.",
-            FakeWorkers.KnownWorkerRef
-        ),
-        LastExecutedBy: "worker-host",
-        Steps: [new ExplainJobStep("charge-card", StepStatusCode.Pending, "Retries after its backoff.")],
+        Headline: "Ready, scheduled to run in 5m.",
+        ActiveWait: null,
+        Lease: null,
+        LastExecutedBy: "deploy-42",
+        Steps: [new ExplainJobStep("post-invoice", StepStatusCode.Pending, "is waiting for retry attempt 2: Invoice provider timed out.")],
         StepsHasMore: false,
-        Reason: "The card was declined.",
-        NextActions: [new ExplainJobAction("none", "no action needed - a worker will claim it")]
+        Reason: "Invoice provider timed out.",
+        NextActions: [new ExplainJobAction("none", "no action needed - the job becomes claimable when its next run time arrives")]
     );
 
+    // The parent waits on its children, so it is suspended; the job awaits nothing, so the map shows no wait.
     private static readonly GetJobLineageMapResponse Lineage = new(
         Ancestors:
         [
-            new GetJobLineageMapNode(40, ParentJobRef, "billing", "close-month", JobStatusCode.Suspended, null, null, null, null, At, At),
+            new GetJobLineageMapNode(
+                40,
+                ParentJobRef,
+                "billing",
+                "close-month",
+                JobStatusCode.Suspended,
+                null,
+                null,
+                null,
+                null,
+                At.AddHours(-2),
+                At.AddHours(-1)
+            ),
         ],
         AncestorsHasMore: false,
         Job: new GetJobLineageMapNode(
@@ -194,13 +213,13 @@ internal static class StagedFakes
             ParentJobRef,
             40,
             ParentJobRef,
-            At,
+            At.AddHours(-1),
             At
         ),
-        Steps: [new GetJobLineageMapStep("charge-card", StepStatusCode.Pending, "Retries after its backoff.")],
+        Steps: [new GetJobLineageMapStep("post-invoice", StepStatusCode.Pending, StepStatusCode.Pending.Description)],
         StepsHasMore: false,
-        ActiveWait: new GetJobLineageMapWait(CheckpointKindCode.Signal, "approval", At.AddHours(1)),
-        Children: [new GetJobLineageMapChild(7, FakeJobs.ChildJobRef, "render-pdf", JobStatusCode.Executing, At, At)],
+        ActiveWait: null,
+        Children: [new GetJobLineageMapChild(7, FakeJobs.ChildJobRef, "render-pdf", JobStatusCode.Executing, At.AddMinutes(-30), At)],
         ChildrenHasMore: false
     );
 
@@ -223,7 +242,7 @@ internal static class StagedFakes
         ExecutionNumber: 2,
         DurationMs: 1520,
         Message: "Invoice provider timed out.",
-        DetailsText: """{"reason":"timeout"}"""
+        DetailsText: """{"to":"ready","reason":"unhandled-exception"}"""
     );
 
     private static readonly ListAlertsItem Alert = new(
@@ -234,18 +253,18 @@ internal static class StagedFakes
         JobRef: FakeJobs.FoundJobRef,
         Origin: AlertOriginCode.Automatic,
         Severity: AlertSeverityCode.Critical,
-        Kind: AlertKindCode.FinalFailure,
+        Kind: AlertKindCode.FirstFailure,
         Title: "Invoice provider timed out",
         Message: "The provider returned 504 three times.",
         ChannelName: "default",
         OccurrenceCount: 3,
-        ResolvedAtUtc: At.AddHours(2),
-        DeliveryStatus: AlertDeliveryStatusCode.RetryAfter,
+        ResolvedAtUtc: FakeAlerts.ResolvedAt,
+        DeliveryStatus: AlertDeliveryStatusCode.Delivered,
         RetryCount: 1,
-        RetryAfterUtc: At.AddMinutes(10),
+        RetryAfterUtc: null,
         CreatedAtUtc: At,
-        ModifiedAtUtc: At,
-        AcknowledgedAtUtc: At.AddHours(1)
+        ModifiedAtUtc: FakeAlerts.ResolvedAt,
+        AcknowledgedAtUtc: FakeAlerts.AcknowledgedAt
     );
 
     private static readonly GetAlertResponse? AlertDetail = new(
@@ -282,31 +301,31 @@ internal static class StagedFakes
         4242,
         8,
         At,
-        At,
+        At.AddHours(-2),
         At
     );
 
     private static readonly ListSchedulesItem Schedule = new(
         ScheduleId: 3,
-        JobId: 42,
+        JobId: 45,
         DefinitionId: 5,
         JobNamespace: "billing",
         JobName: "send-invoice",
-        ScheduleName: "nightly",
+        ScheduleName: "morning-run",
         Origin: ScheduleOriginCode.Definition,
         ExpressionKind: ScheduleExpressionKindCode.Cron,
-        Expression: "0 2 * * *",
-        TimeZoneId: "Europe/Ljubljana",
+        Expression: "0 10 * * 1-5",
+        TimeZoneId: "UTC",
         MisfireStrategy: MisfireStrategyCode.CatchUpOnce,
-        NextOccurrenceAtUtc: At.AddHours(20),
-        NextEvaluationAtUtc: At.AddHours(20),
+        NextOccurrenceAtUtc: NextRun,
+        NextEvaluationAtUtc: NextRun,
         EvaluationStatus: EvaluationStatusCode.Scheduled,
         Status: ScheduleStatusCode.Active,
-        PausedUntilUtc: At.AddHours(1),
+        PausedUntilUtc: null,
         CreatedAtUtc: At,
         ModifiedAtUtc: At,
         Version: 2,
-        JobRef: FakeJobs.FoundJobRef,
+        JobRef: SlotJobRef,
         MaxOutstanding: 1,
         OutstandingCount: 0,
         FullBehavior: ScheduleFullBehaviorCode.Wait,

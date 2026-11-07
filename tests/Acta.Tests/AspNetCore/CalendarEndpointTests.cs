@@ -110,7 +110,9 @@ public sealed class CalendarEndpointTests
         Assert.Equal("published", family.RootElement.GetProperty("shownStatus").GetString());
         Assert.Equal(2, family.RootElement.GetProperty("latestVersion").GetInt32());
         Assert.DoesNotContain(family.RootElement.EnumerateObject(), member => member.Name is "versions" or "dependents");
-        Assert.Equal("""{"kind":"weekly-availability"}""", family.RootElement.GetProperty("definition").GetRawText());
+        var definition = family.RootElement.GetProperty("definition");
+        Assert.Equal(JsonValueKind.Object, definition.ValueKind);
+        Assert.Equal("weekly-availability", definition.GetProperty("kind").GetString());
         Assert.Contains("\"shownVersion\":2", await versioned.Content.ReadAsStringAsync(ct));
         Assert.Equal(HttpStatusCode.OK, shared.StatusCode);
         Assert.Equal(HttpStatusCode.NotFound, missing.StatusCode);
@@ -163,7 +165,7 @@ public sealed class CalendarEndpointTests
         Assert.Equal([2, 1], versions.GetProperty("items").EnumerateArray().Select(v => v.GetProperty("version").GetInt32()));
         Assert.Equal(2, versions.GetProperty("totalCount").GetInt32());
         var dependents = detail.RootElement.GetProperty("dependents");
-        Assert.Equal("nightly", dependents.GetProperty("items")[0].GetProperty("scheduleName").GetString());
+        Assert.Equal("morning-run", dependents.GetProperty("items")[0].GetProperty("scheduleName").GetString());
         Assert.Equal(1, dependents.GetProperty("totalCount").GetInt32());
         Assert.Equal(HttpStatusCode.NotFound, missing.StatusCode);
         Assert.Contains("Calendar not found.", await missing.Content.ReadAsStringAsync(ct));
@@ -285,7 +287,7 @@ public sealed class CalendarEndpointTests
         Assert.Equal(1, root.GetProperty("totalCount").GetInt64());
         var dependent = Assert.Single(root.GetProperty("items").EnumerateArray());
         Assert.Equal(
-            ("billing", "send-invoice", "nightly", "availability", "active", "permanent"),
+            ("billing", "send-invoice", "morning-run", "availability", "active", "permanent"),
             (
                 dependent.GetProperty("jobNamespace").GetString(),
                 dependent.GetProperty("jobName").GetString(),
@@ -478,7 +480,7 @@ public sealed class CalendarEndpointTests
         );
 
         Assert.Equal(HttpStatusCode.OK, applied.StatusCode);
-        Assert.Contains("\"retimedSchedules\":[\"send-invoice/nightly\"]", await applied.Content.ReadAsStringAsync(ct));
+        Assert.Contains("\"retimedSchedules\":[\"billing/send-invoice/morning-run\"]", await applied.Content.ReadAsStringAsync(ct));
         Assert.Equal(HttpStatusCode.OK, defaulted.StatusCode);
         Assert.Equal([OverdueDecisionCode.Discard, OverdueDecisionCode.Refuse], fakes.Calendars.Publications.Select(p => p.Overdue));
         Assert.All(

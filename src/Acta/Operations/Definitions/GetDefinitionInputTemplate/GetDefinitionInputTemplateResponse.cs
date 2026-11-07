@@ -3,15 +3,14 @@ using System.Text.Json.Serialization;
 namespace Acta;
 
 /// <summary>
-/// The input contract of a registered job as operator tooling sees it: the job it was asked for, the CLR input type
-/// name, the wire format its input serializes to, and (Json inputs only) a compile-time JSON skeleton the enqueue form
-/// can seed its editor with. Compile-time facts from the generated manifest; the template is a shape hint, never a
-/// contract and never a default value.
+/// A definition's input contract: the name of the type its handler takes, the format its input is stored in, and, for a JSON input,
+/// a template the enqueue form can start its editor from. The template comes from the deployed code and shows the input's shape; it
+/// is no contract and no default value.
 /// </summary>
 /// <param name="InputFormat">The input's payload format; the JSON omits it.</param>
 /// <param name="JobNamespace">The definition's namespace.</param>
 /// <param name="JobName">The definition's name within its namespace.</param>
-/// <param name="InputTypeName">The full name of the .NET type the definition's handler takes as input.</param>
+/// <param name="InputTypeName">The full name of the type the definition's handler takes as input, as its code spells it.</param>
 /// <param name="TemplateJson">A JSON template of the input to start from; null when the input has no JSON form.</param>
 public sealed record GetDefinitionInputTemplateResponse(
     string JobNamespace,

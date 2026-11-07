@@ -1,8 +1,8 @@
 namespace Acta;
 
 /// <summary>
-/// Health counters for the whole ledger, computed on the database clock in one call. executingCount can exceed executorCapacity, because
-/// a finished job stays counted until its completion is written.
+/// Health counters for the ledger, or for one namespace when the request names one, computed on the database clock in one call.
+/// executingCount can exceed executorCapacity, because a finished job stays counted until its completion is written.
 /// </summary>
 /// <param name="ReadyCount">How many jobs are ready to be claimed.</param>
 /// <param name="OldestReadyAgeSeconds">How long the oldest ready job has waited, in seconds; null when none is ready.</param>
@@ -13,7 +13,8 @@ namespace Acta;
 /// <param name="UnresolvedCriticalAlertCount">How many unresolved alerts are critical.</param>
 /// <param name="DeadWorkerCount">How many workers are marked dead.</param>
 /// <param name="StaleWorkerCount">How many workers have stopped sending heartbeats without being marked dead.</param>
-/// <param name="DueSoonScheduleCount">How many schedules have an occurrence due soon.</param>
+/// <param name="DueSoonScheduleCount">How many active schedules of definitions that are not retired have their next occurrence due
+/// within the window, overdue ones included; the window is one hour on the HTTP read.</param>
 /// <param name="ExecutorCapacity">How many jobs the live workers can run at once, in total.</param>
 /// <param name="ScheduleLagSeconds">How far the most overdue schedule is behind, in seconds; null when none is overdue.</param>
 public sealed record GetOverviewResponse(

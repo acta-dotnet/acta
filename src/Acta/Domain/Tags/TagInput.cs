@@ -1,8 +1,8 @@
 namespace Acta;
 
 /// <summary>
-/// Caller-supplied per-tag wire row attached to an enqueued Job. Names are unique within a
-/// request; <see cref="Value"/> is null for presence-only tags.
+/// One tag a caller attaches to a job it enqueues: a name unique within the request, and a value, null for a tag that is only a
+/// name.
 /// </summary>
 /// <param name="Name">The tag's name, trimmed and lowercased.</param>
 /// <param name="Value">The tag's value; null for a tag that is only a name.</param>

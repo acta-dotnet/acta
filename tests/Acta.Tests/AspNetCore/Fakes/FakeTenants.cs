@@ -3,7 +3,8 @@ namespace Acta.Tests.AspNetCore.Fakes;
 /// <summary>
 /// <see cref="ITenants"/> over one tenant, "cust-001" (id 1). A key of "bad key" throws the opaque-key validation error
 /// like production, and so does "sys" on the admin verbs; "missing" reports not found, and a patch with expectedVersion
-/// 999 conflicts.
+/// 999 conflicts. Every other verb applies and answers the version after one change: cust-001's 0, or the expected
+/// version, plus one.
 /// </summary>
 internal sealed class FakeTenants : ITenants
 {
@@ -116,6 +117,6 @@ internal sealed class FakeTenants : ITenants
         }
 
         SuspendResumeCalls.Add((tenantName, reasonMessage, actor));
-        return ValueTask.FromResult(response(ControlAction.Applied, 2));
+        return ValueTask.FromResult(response(ControlAction.Applied, (expectedVersion ?? 0) + 1));
     }
 }

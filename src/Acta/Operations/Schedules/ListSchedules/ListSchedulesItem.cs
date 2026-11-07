@@ -24,8 +24,7 @@ namespace Acta;
 /// <param name="PausedUntilUtc">When the schedule's pause ends, in UTC; null when it is not paused or is paused until resumed.</param>
 /// <param name="CreatedAtUtc">When the row was created, in UTC.</param>
 /// <param name="ModifiedAtUtc">When the row last changed, in UTC.</param>
-/// <param name="Version">The schedule's version, which every change to it increments; send it as the expected version of a
-/// control.</param>
+/// <param name="Version">The schedule's version, which every change to it increments.</param>
 /// <param name="JobRef">The ref of the permanent slot job the schedule fires; null for a schedule that enqueues a new job for each
 /// occurrence.</param>
 /// <param name="MaxOutstanding">How many admitted occurrences may be unsettled at once.</param>
