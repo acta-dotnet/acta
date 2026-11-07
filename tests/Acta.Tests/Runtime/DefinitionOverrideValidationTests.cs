@@ -24,9 +24,7 @@ public sealed class DefinitionOverrideValidationTests
 
     [Fact]
     public void An_event_recording_with_no_member_is_rejected() =>
-        Assert.Throws<ArgumentOutOfRangeException>(() =>
-            Normalize(new DefinitionPolicyOverrides(EventRecording: (EventRecordingCode)42))
-        );
+        Assert.Throws<ArgumentOutOfRangeException>(() => Normalize(new DefinitionPolicyOverrides(EventRecording: (EventRecordingCode)42)));
 
     [Fact]
     public void An_execution_timeout_past_the_CancelAfter_ceiling_is_rejected()
