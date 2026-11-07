@@ -4,16 +4,14 @@ using Microsoft.AspNetCore.Mvc;
 namespace Acta.AspNetCore;
 
 /// <summary>
-/// Source-generated JSON metadata for every request and response type of the API. Code-family enums carry
-/// their own converters writing the kebab wire names, and the plain action enums serialize kebab-case
-/// too. A request body member the record does not declare fails the read: a misspelled or differently
-/// cased scope would otherwise vanish and widen the verb to its default, as an outbox discard to every
-/// quarantined row.
+/// Source-generated JSON metadata for every request and response type of the API. Every enum on the wire, a
+/// code family or a plain action, carries its own converter writing its kebab names. A request body member
+/// the record does not declare fails the read: a misspelled or differently cased scope would otherwise
+/// vanish and widen the verb to its default, as an outbox discard to every quarantined row.
 /// </summary>
 [JsonSourceGenerationOptions(
     PropertyNamingPolicy = JsonKnownNamingPolicy.CamelCase,
     UseStringEnumConverter = true,
-    Converters = [typeof(KebabCaseControlActionConverter), typeof(KebabCaseEnqueueJobActionConverter)],
     DefaultIgnoreCondition = JsonIgnoreCondition.Never,
     UnmappedMemberHandling = JsonUnmappedMemberHandling.Disallow
 )]
@@ -110,17 +108,3 @@ namespace Acta.AspNetCore;
 [JsonSerializable(typeof(GetDefinitionInputTemplateResponse))]
 [JsonSerializable(typeof(ProblemDetails))]
 internal sealed partial class ActaApiJsonContext : JsonSerializerContext;
-
-/// <summary>
-/// Serializes <see cref="ControlAction"/> kebab-case ("applied", "not-found", "version-conflict"), as every
-/// wire code value is written; the type is not a code family so it has no wire name of its own.
-/// </summary>
-internal sealed class KebabCaseControlActionConverter()
-    : JsonStringEnumConverter<ControlAction>(System.Text.Json.JsonNamingPolicy.KebabCaseLower);
-
-/// <summary>
-/// Serializes <see cref="EnqueueJobAction"/> kebab-case ("inserted", "deduplicated"), the same
-/// convention <see cref="ControlAction"/> follows.
-/// </summary>
-internal sealed class KebabCaseEnqueueJobActionConverter()
-    : JsonStringEnumConverter<EnqueueJobAction>(System.Text.Json.JsonNamingPolicy.KebabCaseLower);
