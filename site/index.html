@@ -156,6 +156,7 @@
     .install { margin: 2.2rem 0 0; border: 1px solid var(--hair); border-radius: var(--r-panel); background: var(--panel); overflow: hidden; max-width: 62rem; }
     .prompt-row { display: grid; grid-template-columns: 1fr auto; align-items: center; gap: 1.2rem; padding: 1.1rem 1.2rem; border-bottom: 1px solid var(--hair-soft); }
     .prompt-row:last-child { border-bottom: 0; }
+    .prompt-row.primary { background: var(--verdi-tint); }
     .prompt-row p { margin: 0; color: var(--text); font-size: 1rem; line-height: 1.55; max-width: 70ch; }
     .install-row { display: grid; grid-template-columns: minmax(11rem, 0.5fr) 1fr auto; align-items: center; gap: 1.2rem; padding: 1rem 1.2rem; border-bottom: 1px solid var(--hair-soft); }
     .install-row:last-child { border-bottom: 0; }
@@ -439,17 +440,17 @@
       <h2>Build it with your coding agent.</h2>
       <p class="lede">Paste one of these into Claude Code or Codex. The agent reads <a href="/llms.txt">useacta.net/llms.txt</a> and builds the app.</p>
       <div class="install">
-        <div class="prompt-row">
-          <p>Read https://useacta.net/llms.txt, then build an Acta app on SQLite that shows a new joke every 10 seconds, fails every fifth time and retries after a second so I can watch the retries, and opens the dashboard.</p>
-          <button type="button" class="copy" data-copy="Read https://useacta.net/llms.txt, then build an Acta app on SQLite that shows a new joke every 10 seconds, fails every fifth time and retries after a second so I can watch the retries, and opens the dashboard." aria-label="Copy the joke app prompt">Copy</button>
+        <div class="prompt-row primary">
+          <p>Read https://useacta.net/llms.txt, then build an Acta pizza shop on SQLite: POST /orders bakes each pizza in a 30-second durable sleep that survives restarting the app mid-bake. Enqueue one order and keep its job ref, restart the app during the bake, and show me that same ref finishing: its jobs explain output, its events, and the dashboard URL.</p>
+          <button type="button" class="copy" data-copy="Read https://useacta.net/llms.txt, then build an Acta pizza shop on SQLite: POST /orders bakes each pizza in a 30-second durable sleep that survives restarting the app mid-bake. Enqueue one order and keep its job ref, restart the app during the bake, and show me that same ref finishing: its jobs explain output, its events, and the dashboard URL." aria-label="Copy the pizza shop prompt">Copy</button>
         </div>
         <div class="prompt-row">
-          <p>Read https://useacta.net/llms.txt, then build an Acta pizza shop on SQLite: POST /orders bakes each pizza in a 30-second durable sleep that survives restarting the app mid-bake. Show me how to try the restart, then open the dashboard.</p>
-          <button type="button" class="copy" data-copy="Read https://useacta.net/llms.txt, then build an Acta pizza shop on SQLite: POST /orders bakes each pizza in a 30-second durable sleep that survives restarting the app mid-bake. Show me how to try the restart, then open the dashboard." aria-label="Copy the pizza shop prompt">Copy</button>
+          <p>Read https://useacta.net/llms.txt, then build an Acta app on SQLite that shows a new joke every 10 seconds, fails every fifth time and retries after a second so I can watch the retries. Show me one job's ref and its jobs explain output after a retry, and the dashboard URL.</p>
+          <button type="button" class="copy" data-copy="Read https://useacta.net/llms.txt, then build an Acta app on SQLite that shows a new joke every 10 seconds, fails every fifth time and retries after a second so I can watch the retries. Show me one job's ref and its jobs explain output after a retry, and the dashboard URL." aria-label="Copy the joke app prompt">Copy</button>
         </div>
         <div class="prompt-row">
-          <p>Read https://useacta.net/llms.txt, then add Acta to this app on the database it already uses, move one slow endpoint into a durable job with retries, tell me which one you picked, and show me the job's rows when it has run.</p>
-          <button type="button" class="copy" data-copy="Read https://useacta.net/llms.txt, then add Acta to this app on the database it already uses, move one slow endpoint into a durable job with retries, tell me which one you picked, and show me the job's rows when it has run." aria-label="Copy the existing app prompt">Copy</button>
+          <p>Read https://useacta.net/llms.txt, then add Acta to this app on the database it already uses, move one slow endpoint into a durable job with retries, and tell me which one you picked. Run it once and show me its job ref, its jobs explain output, and its rows.</p>
+          <button type="button" class="copy" data-copy="Read https://useacta.net/llms.txt, then add Acta to this app on the database it already uses, move one slow endpoint into a durable job with retries, and tell me which one you picked. Run it once and show me its job ref, its jobs explain output, and its rows." aria-label="Copy the existing app prompt">Copy</button>
         </div>
       </div>
       <div class="install">

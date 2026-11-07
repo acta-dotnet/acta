@@ -844,12 +844,14 @@ dotnet run -c Release --project tools/Acta.Verify -- release --db all --output a
 - `docs/release-notes.md` has a section for the version, leading with what a consumer must change.
 - Flip its header from "(unreleased)" to "Tagged <date>" in B, before tagging: the tag captures the header forever.
 - Review the README, the guides, and known limitations against the release, including the stability statement.
+- Set the header of `llms.txt` to the release and the date it was verified, and copy it to `site/llms.txt`.
 
 ### After publishing
 
 - Create the GitHub release from the tag (`gh release create v<version> --verify-tag`, adding `--prerelease` only for a pre-release), titled with the bare version and carrying the notes' summary, upgrade paragraph, highlights, evidence, and a link to the notes at the tag.
 - Clear the NuGet HTTP cache (`dotnet nuget locals http-cache --clear`), bump the Acta versions in `demos/Directory.Packages.props`, build both demos, and run one end to end: the demos consume the published packages.
 - When the demos move to 1.0.0-rc.9, a demo that calls `MapActa` adds the package `Acta.Dashboard` and `using Acta.Dashboard;`.
+- Run the front page's primary prompt once, in an empty directory with a coding agent that sees only the prompt and the published site and packages, and keep the record in the release's evidence folder: client and model, date, the job ref before and after the restart, every hint given, and pass or fail. A hint makes it a fail; fix the cause, then run again.
 - Once the packages resolve from nuget.org, read useacta.net by hand before it deploys: the release lines on the front page and the start page name the released version, the benchmark strip cites the round the release notes cite, the concept count is current, and every claim still matches the guide.
 
 ## Repository layout

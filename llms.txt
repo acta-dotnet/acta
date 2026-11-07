@@ -1,5 +1,11 @@
 # Acta for coding agents
 
+Describes Acta 1.0.0-rc.9: the packages Acta.Sqlite, Acta.Postgres, Acta.SqlServer, Acta.Dashboard, and
+Acta.AspNetCore at that version. Verified 2026-11-07. When this file and an installed package disagree, the
+package wins: the compiler and `<app> jobs help` outrank this file. In an existing app, read its resolved Acta
+version first and follow the docs at that tag, github.com/acta-dotnet/acta/tree/v<version>; do not upgrade
+the app to match an example.
+
 Acta is a durable job and workflow engine for .NET backed by the application's own SQL database
 (PostgreSQL, SQL Server, or embedded SQLite). One handler can record steps and variables, start
 child jobs and fan out with Map, Parallel, and Join, and wait for signals and timers without
@@ -297,6 +303,28 @@ HTTP enqueue in the json format sends strict JSON (one value, no comments or tra
   child as long as its parent is unfinished. For per-occurrence fan-out, declare the definition
   `ScheduledDelivery = ScheduledDeliveryCode.PerOccurrence`: each occurrence is then a root job of its
   own, and the children it starts drain with it.
+
+## Watch a job
+
+Every Acta host is also a control CLI: `<app> jobs <verb>` runs against the app's own configured database
+and exits, starting no worker, so it must run with the same configuration and environment as the app.
+Keep the job ref an enqueue returns (`job_...`); it is the job's public identity everywhere.
+
+```bash
+dotnet run --no-build -- jobs status  <job-ref> --json   # {"jobRef":"job_...","status":"succeeded"}
+dotnet run --no-build -- jobs explain <job-ref> --json   # what happened and what to do next
+dotnet run --no-build -- jobs events  <job-ref> --json   # the timeline, newest first, --take <n> to bound it
+```
+
+- `explain` first for anything stuck, waiting, or failed: one read of the status, lease, worker, newest
+  steps, checkpoints, and latest reason, with a headline and the next actions.
+- Exit codes: 0 found or applied, 1 rejected or failed, 2 job not found, 64 usage error, 130 cancelled.
+- `status`, `info`, `result`, `explain`, and `events` read. `cancel`, `pause`, `resume`, `restart`,
+  `signal`, `debug` (runs the handler in this process), `deploy`, and `migrate` change things.
+- A `ready` job with a future due instant, or a `suspended` one, is healthy: it is waiting for its
+  time or its signal, and `explain` names what it waits for. A caller's wait timeout stops only the
+  wait; the job keeps running.
+- The dashboard at `/acta` shows the same job, and `GET /acta/api/v1/jobs/{jobRef}` answers it as JSON.
 
 ## The HTTP API
 
