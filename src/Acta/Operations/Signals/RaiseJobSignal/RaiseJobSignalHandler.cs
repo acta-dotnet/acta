@@ -27,7 +27,7 @@ internal sealed class RaiseJobSignalHandler(
 
         if (await getJobId.HandleAsync(new GetJobIdQuery(command.Job), ct) is not { JobId: var jobId })
         {
-            return new RaiseJobSignalResponse(0, ControlAction.NotFound, null, null);
+            return new RaiseJobSignalResponse(0, ControlAction.NotFound, null);
         }
 
         var input = new JobControlInput(JobControlActor.Operator(command.Actor), EventReason.SignalReleased, null);
@@ -63,6 +63,6 @@ internal sealed class RaiseJobSignalHandler(
             DbProjectionResolver.Resolve<RaiseJobSignalRow>(),
             ct
         );
-        return new RaiseJobSignalResponse(raise.JobId, row.Action, row.Status, null);
+        return new RaiseJobSignalResponse(raise.JobId, row.Action, row.Status);
     }
 }

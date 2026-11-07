@@ -22,7 +22,7 @@ internal sealed class UpdateJobInputHandler(
 
         if (await getJobId.HandleAsync(new GetJobIdQuery(command.Job), ct) is not { JobId: var jobId })
         {
-            return new UpdateJobInputResponse(0, ControlAction.NotFound, null, null);
+            return new UpdateJobInputResponse(0, ControlAction.NotFound, null);
         }
 
         var control = JobControl.Operator(command.ReasonMessage, command.Actor);
@@ -38,6 +38,6 @@ internal sealed class UpdateJobInputHandler(
             DbProjectionResolver.Resolve<UpdateJobInputRow>(),
             ct
         );
-        return new UpdateJobInputResponse(jobId, row.Action, row.Status, null);
+        return new UpdateJobInputResponse(jobId, row.Action, row.Status);
     }
 }

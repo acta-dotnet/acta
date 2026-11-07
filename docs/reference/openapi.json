@@ -872,8 +872,7 @@
                   "purgeJob": {
                     "value": {
                       "action": "applied",
-                      "status": null,
-                      "version": null
+                      "status": null
                     }
                   }
                 }
@@ -1309,8 +1308,7 @@
                   "updateJobInput": {
                     "value": {
                       "action": "applied",
-                      "status": "ready",
-                      "version": null
+                      "status": "ready"
                     }
                   }
                 }
@@ -1942,8 +1940,7 @@
                   "raiseJobSignal": {
                     "value": {
                       "action": "applied",
-                      "status": "ready",
-                      "version": null
+                      "status": "ready"
                     }
                   }
                 }
@@ -15319,8 +15316,7 @@
       "PurgeJobResponse": {
         "required": [
           "action",
-          "status",
-          "version"
+          "status"
         ],
         "type": "object",
         "properties": {
@@ -15338,14 +15334,6 @@
               }
             ],
             "description": "The job's status after the call; null when the job was not found or the purge removed it."
-          },
-          "version": {
-            "type": [
-              "null",
-              "integer"
-            ],
-            "description": "Always null: this control carries no version.",
-            "format": "int32"
           }
         },
         "description": "What purging a job did, and the job's status after the attempt; a purge carries no version."
@@ -15353,8 +15341,7 @@
       "RaiseJobSignalResponse": {
         "required": [
           "action",
-          "status",
-          "version"
+          "status"
         ],
         "type": "object",
         "properties": {
@@ -15372,14 +15359,6 @@
               }
             ],
             "description": "The job's status after the call; null when the job was not found."
-          },
-          "version": {
-            "type": [
-              "null",
-              "integer"
-            ],
-            "description": "Always null: this control carries no version.",
-            "format": "int32"
           }
         },
         "description": "What raising a signal on a job did, and the job's status after the attempt; a raise carries no version."
@@ -16398,8 +16377,7 @@
       "UpdateJobInputResponse": {
         "required": [
           "action",
-          "status",
-          "version"
+          "status"
         ],
         "type": "object",
         "properties": {
@@ -16417,14 +16395,6 @@
               }
             ],
             "description": "The job's status after the call; null when the job was not found or has no input to replace."
-          },
-          "version": {
-            "type": [
-              "null",
-              "integer"
-            ],
-            "description": "Always null: this control carries no version.",
-            "format": "int32"
           }
         },
         "description": "What updating a job's input did, and the job's status after the attempt; the update carries no version."

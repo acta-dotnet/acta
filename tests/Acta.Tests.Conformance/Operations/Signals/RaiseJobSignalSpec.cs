@@ -33,7 +33,6 @@ public sealed class RaiseJobSignalSpec : ActaRuntimeTestBase<ConformanceFixture,
         Assert.Equal(ControlAction.Applied, raise.Action);
         Assert.Equal(JobStatusCode.Ready, raise.Status);
         Assert.Equal(enqueued.JobId, raise.JobId);
-        Assert.Null(raise.Version);
 
         var checkpoint = await ReadCheckpointAsync(enqueued.JobId, "review", ct);
         Assert.Equal(CheckpointStatusCode.Set, checkpoint.Status);

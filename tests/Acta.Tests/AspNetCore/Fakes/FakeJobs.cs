@@ -85,14 +85,14 @@ internal sealed class FakeJobs : IJobs
         Purge = (job, reason, actor, _) =>
         {
             PurgeCalls.Add((job.JobRef, reason, actor));
-            var (jobId, action, status, version) = ResultFor(job, applied: null, versioned: false);
-            return ValueTask.FromResult(new PurgeJobResponse(jobId, action, status, version));
+            var (jobId, action, status, _) = ResultFor(job, applied: null);
+            return ValueTask.FromResult(new PurgeJobResponse(jobId, action, status));
         };
         RaiseSignal = (job, name, value, actor, _) =>
         {
             SignalCalls.Add((job.JobRef, name, value.Format.Id, value.IsNone ? null : value.Data.ToArray(), actor));
-            var (jobId, action, status, version) = ResultFor(job, applied: JobStatusCode.Ready, versioned: false);
-            return ValueTask.FromResult(new RaiseJobSignalResponse(jobId, action, status, version));
+            var (jobId, action, status, _) = ResultFor(job, applied: JobStatusCode.Ready);
+            return ValueTask.FromResult(new RaiseJobSignalResponse(jobId, action, status));
         };
     }
 
@@ -401,13 +401,13 @@ internal sealed class FakeJobs : IJobs
     private UpdateJobInputResponse Amend(JobLookup job, JobPayload input)
     {
         InputAmendCalls.Add(input);
-        var (jobId, action, status, version) = ResultFor(job, applied: JobStatusCode.Ready, versioned: false);
+        var (jobId, action, status, _) = ResultFor(job, applied: JobStatusCode.Ready);
         if (action == ControlAction.Applied)
         {
             StoredInput = input;
         }
 
-        return new UpdateJobInputResponse(jobId, action, status, version);
+        return new UpdateJobInputResponse(jobId, action, status);
     }
 
     private ValueTask<T> Control<T>(
@@ -429,14 +429,13 @@ internal sealed class FakeJobs : IJobs
     private static (long JobId, ControlAction Action, JobStatusCode? Status, int? Version) ResultFor(
         JobLookup job,
         int? expectedVersion = null,
-        JobStatusCode? applied = JobStatusCode.Ready,
-        bool versioned = true
+        JobStatusCode? applied = JobStatusCode.Ready
     ) =>
         job.JobRef == MissingJobRef ? (0, ControlAction.NotFound, null, null)
         : expectedVersion is { } expected && expected != CurrentJobVersion
             ? (42, ControlAction.VersionConflict, JobStatusCode.Paused, CurrentJobVersion)
-        : job.JobRef == RejectedJobRef ? (43, ControlAction.Rejected, JobStatusCode.Succeeded, versioned ? CurrentJobVersion : null)
-        : (42, ControlAction.Applied, applied, versioned ? CurrentJobVersion + 1 : null);
+        : job.JobRef == RejectedJobRef ? (43, ControlAction.Rejected, JobStatusCode.Succeeded, CurrentJobVersion)
+        : (42, ControlAction.Applied, applied, CurrentJobVersion + 1);
 
     private static GetJobResponse Snapshot(long jobId, string jobNamespace, string jobName) =>
         new(

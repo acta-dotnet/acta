@@ -794,8 +794,7 @@ public sealed class ControlEndpointTests
     public async Task A_rejected_purge_answers_the_jobs_status()
     {
         var fakes = new FakeOperations();
-        fakes.Jobs.Purge = (_, _, _, _) =>
-            ValueTask.FromResult(new PurgeJobResponse(42, ControlAction.Rejected, JobStatusCode.Failed, null));
+        fakes.Jobs.Purge = (_, _, _, _) => ValueTask.FromResult(new PurgeJobResponse(42, ControlAction.Rejected, JobStatusCode.Failed));
         var (app, client) = await StartWithControlsAsync(fakes);
         await using var _ = app;
 
@@ -807,7 +806,7 @@ public sealed class ControlEndpointTests
 
         Assert.Equal(HttpStatusCode.Conflict, response.StatusCode);
         Assert.Equal("application/json", response.Content.Headers.ContentType?.MediaType);
-        Assert.Equal(["action", "status", "version"], body.Select(member => member.Key).Order(StringComparer.Ordinal).ToList());
+        Assert.Equal(["action", "status"], body.Select(member => member.Key).Order(StringComparer.Ordinal).ToList());
         Assert.Equal("rejected", body["action"]!.GetValue<string>());
         Assert.Equal("failed", body["status"]!.GetValue<string>());
     }

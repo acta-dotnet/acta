@@ -58,12 +58,12 @@ internal static class UpdateJobInputEndpoint
                     var jobId = (await jobs.GetIdAsync(JobLookup.ByRef(parsed), ct))?.JobId;
                     if (jobId is null)
                     {
-                        return RouteTable.Control(new UpdateJobInputResponse(0, ControlAction.NotFound, null, null), status);
+                        return RouteTable.Control(new UpdateJobInputResponse(0, ControlAction.NotFound, null), status);
                     }
 
                     if ((await jobs.GetInputAsync(JobLookup.ById(jobId.Value), ct))?.Input is not { } stored)
                     {
-                        return RouteTable.Control(new UpdateJobInputResponse(jobId.Value, ControlAction.Rejected, null, null), status);
+                        return RouteTable.Control(new UpdateJobInputResponse(jobId.Value, ControlAction.Rejected, null), status);
                     }
 
                     // A json input replaces any stored format, and the runner decodes by the new id. Bytes keep the

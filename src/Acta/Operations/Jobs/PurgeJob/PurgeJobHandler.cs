@@ -20,7 +20,7 @@ internal sealed class PurgeJobHandler(
             || await getJob.ReadAsync(jobId, ct) is not { } job
         )
         {
-            return new PurgeJobResponse(0, ControlAction.NotFound, null, null);
+            return new PurgeJobResponse(0, ControlAction.NotFound, null);
         }
 
         // The ref and correlation key never change, so the snapshot read before the purge is the one it deletes.
@@ -43,6 +43,6 @@ internal sealed class PurgeJobHandler(
             DbProjectionResolver.Resolve<PurgeJobRow>(),
             ct
         );
-        return new PurgeJobResponse(jobId, row.Action, row.Status, null);
+        return new PurgeJobResponse(jobId, row.Action, row.Status);
     }
 }

@@ -2333,17 +2333,15 @@ sealed record Acta.PublishCalendarResponse : Acta.ICalendarControlResponse
     System.Nullable<System.Int32> Version { get;init; }
     System.String Reason { get;init; }
 sealed record Acta.PurgeJobResponse : Acta.IJobControlResponse
-    .ctor(System.Int64 JobId, Acta.ControlAction Action, System.Nullable<Acta.JobStatusCode> Status, System.Nullable<System.Int32> Version)
+    .ctor(System.Int64 JobId, Acta.ControlAction Action, System.Nullable<Acta.JobStatusCode> Status)
     Acta.ControlAction Action { get;init; }
     System.Int64 JobId { get;init; }
     System.Nullable<Acta.JobStatusCode> Status { get;init; }
-    System.Nullable<System.Int32> Version { get;init; }
 sealed record Acta.RaiseJobSignalResponse : Acta.IJobControlResponse
-    .ctor(System.Int64 JobId, Acta.ControlAction Action, System.Nullable<Acta.JobStatusCode> Status, System.Nullable<System.Int32> Version)
+    .ctor(System.Int64 JobId, Acta.ControlAction Action, System.Nullable<Acta.JobStatusCode> Status)
     Acta.ControlAction Action { get;init; }
     System.Int64 JobId { get;init; }
     System.Nullable<Acta.JobStatusCode> Status { get;init; }
-    System.Nullable<System.Int32> Version { get;init; }
 sealed record Acta.RegisterTenantResponse
     .ctor(System.Int32 TenantId, System.String TenantName)
     System.Int32 TenantId { get;init; }
@@ -2727,11 +2725,10 @@ sealed record Acta.UpdateDefinitionOverridesResponse : Acta.IDefinitionControlRe
     Acta.ControlAction Action { get;init; }
     System.Nullable<System.Int32> Version { get;init; }
 sealed record Acta.UpdateJobInputResponse : Acta.IJobControlResponse
-    .ctor(System.Int64 JobId, Acta.ControlAction Action, System.Nullable<Acta.JobStatusCode> Status, System.Nullable<System.Int32> Version)
+    .ctor(System.Int64 JobId, Acta.ControlAction Action, System.Nullable<Acta.JobStatusCode> Status)
     Acta.ControlAction Action { get;init; }
     System.Int64 JobId { get;init; }
     System.Nullable<Acta.JobStatusCode> Status { get;init; }
-    System.Nullable<System.Int32> Version { get;init; }
 sealed record Acta.UpdateNamespaceResponse : Acta.IControlResponse
     .ctor(Acta.ControlAction Action, System.Nullable<System.Int32> Version)
     Acta.ControlAction Action { get;init; }

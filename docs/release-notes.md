@@ -61,6 +61,7 @@ Not tagged yet.
 - `IActaControlAuthorizer` is removed, with `ActaControlVerdict` and `ActaControlContext`; authorize controls with `RequirePermissions`, or with the host's authorization on the mapped group.
 - `ActaDashboardOptions.Enabled` is removed. To map the API without the dashboard, call `MapActaApi(pattern + "/api")` in place of `MapActa(pattern, o => o.Enabled = false)`; it serves the same URLs.
 - The dashboard is the package `Acta.Dashboard`: `MapActa` and `ActaDashboardOptions` live there, in the namespace `Acta.Dashboard`. A host that calls `MapActa` references `Acta.Dashboard`, which brings `Acta.AspNetCore`, and adds `using Acta.Dashboard;`. `Acta.AspNetCore` is the HTTP API alone, and `MapActaApi` is unchanged. URLs and the wire are unchanged.
+- `UpdateJobInputResponse`, `PurgeJobResponse`, and `RaiseJobSignalResponse` no longer carry `Version`, and `PUT /jobs/{jobRef}/input`, `POST /jobs/{jobRef}/purge`, and `POST /jobs/{jobRef}/signals/{signalName}` no longer answer `version`, which these controls always left null. Read through `IControlResponse`, their `Version` is still null.
 
 ### Additions
 

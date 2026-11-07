@@ -502,7 +502,7 @@ public class CliRunnerClipboardTests
         )
         {
             Signals.Add((name, value.Format.Id, value.IsNone ? null : value.Data.ToArray()));
-            return ValueTask.FromResult(new RaiseJobSignalResponse(1, ControlAction.Applied, JobStatusCode.Ready, 4));
+            return ValueTask.FromResult(new RaiseJobSignalResponse(1, ControlAction.Applied, JobStatusCode.Ready));
         }
     }
 }
