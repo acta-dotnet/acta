@@ -426,7 +426,7 @@ Total:  5,426.50
         <h2 id="dashboard-title">The job in the dashboard</h2>
         <p>Open <a href="http://localhost:5080/acta">http://localhost:5080/acta</a> in your browser. The Overview page summarises everything Acta knows about this database. Choose <strong>Jobs</strong> in the sidebar and you will see your report and two others:</p>
         <figure class="shot">
-          <a href="assets/learn-jobs.webp" title="Open the full-size screenshot"><img src="assets/learn-jobs.webp" width="1600" height="520" loading="lazy" alt="The Acta dashboard Jobs page listing one monthly-sales-report job as Succeeded with 1 attempt, and two jobs named sys.retention and sys.alerts, marked System and Ready, all in the reports namespace." /></a>
+          <a href="assets/learn-jobs.webp" title="Open the full-size screenshot"><img src="assets/learn-jobs.webp" width="1600" height="520" loading="lazy" alt="The Acta dashboard Jobs page listing one monthly-sales-report job as Succeeded with 1 attempt, and two jobs named sys.retention and sys.alerts, marked System and Idle, all in the reports namespace." /></a>
           <figcaption>The Jobs page after the first report. The two System jobs are Acta's own housekeeping.</figcaption>
         </figure>
         <p>The rows marked System are jobs Acta registers in every namespace. <code>sys.alerts</code> turns failures into alert records, and <code>sys.retention</code> deletes finished jobs after their retention period, 90 days by default. They are ordinary jobs, stored and scheduled the same way as yours.</p>
@@ -452,7 +452,7 @@ Total:  5,426.50
         </figure>
         <p>Terminal 1 now shows the handler starting, a warning with the <code>FileNotFoundException</code> and its stack trace, and a line saying the job was re-armed. Ten seconds later the same thing happens with <code>execution 2</code>, then <code>execution 3</code>. Open the job in the dashboard:</p>
         <figure class="shot">
-          <a href="assets/learn-retrying.webp" title="Open the full-size screenshot"><img src="assets/learn-retrying.webp" width="1600" height="1100" loading="lazy" alt="The dashboard's detail page for the September job. The header reads Ready, scheduled to run in 7s, with the message Could not find file sales-2026-09.csv. The summary shows Status Ready, Next run in 5s, and Attempts: 4 started, 4 consecutive failures, fails permanently at 10." /></a>
+          <a href="assets/learn-retrying.webp" title="Open the full-size screenshot"><img src="assets/learn-retrying.webp" width="1600" height="1100" loading="lazy" alt="The dashboard's detail page for the September job. The header reads Ready, scheduled to run in 9s, with the message Could not find file and the path of sales-2026-09.csv. The summary shows Status Ready, Next run in 9s, and Attempts: 4 started, 4 consecutive failures, fails permanently at 10." /></a>
           <figcaption>The September job between attempts. Ready, with a next-run time, is how a waiting retry looks.</figcaption>
         </figure>
         <p>This is the page to learn to read. Ready with a next-run time means "waiting for the next attempt", not "stuck". The reason is the stored exception message, and "4 started, 4 consecutive failures (fails permanently at 10)" says exactly how much patience is left. Further down, the timeline lists every attempt. The terminal tells the same story:</p>
@@ -465,11 +465,11 @@ Total:  5,426.50
           <pre><code>Events for job job_01a0de39d88773688d0471583be99b40 (newest first)
 
 2026-09-26T14:59:28.3810000Z  job.rescheduled  worker wrk_01a0de39d64c7c59833aad068bd93bdc  exec 5
-  reason: unhandled-exception
   message: Could not find file 'D:\tmp\acta-learn\walk\Reports\data\sales-2026-09.csv'.
+  details: {"reason":"unhandled-exception"}
 2026-09-26T14:59:28.3810000Z  job.execution-failed  worker wrk_01a0de39d64c7c59833aad068bd93bdc  exec 5
-  reason: unhandled-exception
-  message: Could not find file 'D:\tmp\acta-learn\walk\Reports\data\sales-2026-09.csv'.</code></pre>
+  message: Could not find file 'D:\tmp\acta-learn\walk\Reports\data\sales-2026-09.csv'.
+  details: {"to":"ready","reason":"unhandled-exception"}</code></pre>
         </figure>
         <p>Now play the part of the upstream system and deliver the export. Create <code>data/sales-2026-09.csv</code> while the job is still retrying:</p>
         <figure class="listing">
@@ -649,7 +649,7 @@ Next actions:
 - Cancel the job if it should not continue.</code></pre>
         </figure>
         <p>The job still claims to be executing, because the process running it never said otherwise, but its lease has expired and nothing has renewed it. The first step's outcome is recorded; the second step started and never finished. Run the command in the first seconds after the kill and you will see "Lease expires in 5s" instead: until the lease runs out, a dead process and a slow one look the same, and Acta waits before deciding.</p>
-        <p>Now restart the app in Terminal 1 with the same command, against the same <code>reports.db</code>. Enqueue nothing. Recovery rides the worker's heartbeat and runs once a lease, eight seconds here, so within seconds the new process finds the expired lease, marks the old attempt as orphaned, returns the job to Ready, and claims it:</p>
+        <p>Now restart the app in Terminal 1 with the same command, against the same <code>reports.db</code>. Enqueue nothing. Recovery rides the worker's heartbeat and runs once a lease, eight seconds here, so within seconds the new process finds the expired lease, marks the old attempt as orphaned, returns the job to Ready, and claims it. If you came here quickly from the earlier sections, give it up to three minutes this first time: those runs used the default heartbeat and scheduled the next recovery pass one of their own, longer leases ahead, and that pass has to come due once before the eight-second rhythm takes over.</p>
         <figure class="listing output">
           <figcaption><span class="note">Terminal 1 after the restart, from our test run (trimmed)</span></figcaption>
           <pre><code>info: Reports.SalesReportJobs[0]
