@@ -259,7 +259,7 @@ internal static class ManifestDiagnostics
     public static DiagnosticRecord AsyncVoid(IMethodSymbol method, Location location) =>
         new(
             "ACTA0103",
-            $"`[Job]` method `{method.Name}` is `async void`. Async handlers must return `Task`, `Task<TOut>`, `ValueTask`, or `ValueTask<TOut>` so the framework can await completion.",
+            $"`[Job]` method `{method.Name}` is `async void`. Async handlers must return `Task`, `Task<TResult>`, `ValueTask`, or `ValueTask<TResult>` so the framework can await completion.",
             location
         );
 
@@ -301,7 +301,7 @@ internal static class ManifestDiagnostics
     public static DiagnosticRecord OpenGenericHandler(IMethodSymbol method, Location location) =>
         new(
             "ACTA0103",
-            $"`[Job]` method `{method.Name}` is generic. Open-generic handler methods are invalid; every descriptor must resolve to a closed concrete TIn (and optional TOut). Replace the type parameters with concrete types.",
+            $"`[Job]` method `{method.Name}` is generic. Open-generic handler methods are invalid; every descriptor must resolve to a closed concrete TIn (and optional TResult). Replace the type parameters with concrete types.",
             location
         );
 
@@ -329,7 +329,7 @@ internal static class ManifestDiagnostics
     public static DiagnosticRecord SyncWithJobContext(IMethodSymbol method, Location location) =>
         new(
             "ACTA0103",
-            $"`[Job]` method `{method.Name}` declares `JobContext` but returns synchronously. `JobContext` is paired with the per-attempt `CancellationToken`; return `Task`/`Task<TOut>`/`ValueTask`/`ValueTask<TOut>`.",
+            $"`[Job]` method `{method.Name}` declares `JobContext` but returns synchronously. `JobContext` is paired with the per-attempt `CancellationToken`; return `Task`/`Task<TResult>`/`ValueTask`/`ValueTask<TResult>`.",
             location
         );
 

@@ -198,7 +198,7 @@ public sealed class ActaManifestGenerator : IIncrementalGenerator
         var takesArguments = parameterModel.InputParameters.Length > 1;
         var resultType = returnModel?.ResultType;
 
-        // Symmetric to the input rule: a parameterless data-less TOut (e.g. `Task<Acked>` where
+        // Symmetric to the input rule: a parameterless data-less TResult (e.g. `Task<Acked>` where
         // `Acked` is a marker record) carries no information. Collapse it to "no result" so the
         // descriptor matches a `Task`-returning handler: no stored result, no SerializeResult
         // delegate emitted. The handler still runs and the Task<T> is still awaited.

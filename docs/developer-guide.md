@@ -335,9 +335,9 @@ Return forms:
 void
 Task
 ValueTask
-TOut
-Task<TOut>
-ValueTask<TOut>
+TResult
+Task<TResult>
+ValueTask<TResult>
 ```
 
 Parameter forms:
@@ -352,10 +352,10 @@ The two illegal shapes are synchronous handlers with `JobContext`:
 
 ```csharp
 void Handle(TIn input, JobContext context, CancellationToken ct);
-TOut Handle(TIn input, JobContext context, CancellationToken ct);
+TResult Handle(TIn input, JobContext context, CancellationToken ct);
 ```
 
-`JobContext` implies durable operations (steps, signals, durable timers, variables, child jobs), which are asynchronous, so context-aware handlers must return `Task`, `Task<TOut>`, `ValueTask`, or `ValueTask<TOut>`.
+`JobContext` implies durable operations (steps, signals, durable timers, variables, child jobs), which are asynchronous, so context-aware handlers must return `Task`, `Task<TResult>`, `ValueTask`, or `ValueTask<TResult>`.
 
 `async void` is never valid. `ValueTask` and `ValueTask<T>` are valid; generated invokers must await them exactly once.
 
@@ -481,14 +481,14 @@ Custom formats use `[JobPayloadFormatDeclarationAttribute(id, name)]`. Custom fo
 
 ### Result format inference
 
-Same rules as input, applied to `TOut`.
+Same rules as input, applied to `TResult`.
 
-| `TOut`                             | Default format |
+| `TResult`                          | Default format |
 | ---------------------------------- | -------------- |
 | `byte[]`, `ReadOnlyMemory<byte>`   | `bytes`        |
 | everything else, scalars included  | `json`         |
 
-A parameterless data-less record as `TOut` carries no information; it collapses to no durable result, the same as a void return.
+A parameterless data-less record as `TResult` carries no information; it collapses to no durable result, the same as a void return.
 
 ### Result persistence
 
@@ -503,16 +503,16 @@ ValueTask
 Durable result:
 
 ```text
-TOut
-Task<TOut>
-ValueTask<TOut>
+TResult
+Task<TResult>
+ValueTask<TResult>
 ```
 
 A job stores at most one result, on its `jobs_state` row, written by a successful completion: a one-shot job's terminal success, or a recurring job's successful occurrence, which replaces the previous one. Every claim and every restart clears it, so while an attempt runs the job has no result, and a failed occurrence of a recurring job leaves none. A handler that wants more history keeps it itself, in a variable, its own table, or object storage.
 
 The result value is non-null by contract: a handler that returns `null` from a declared result type fails the attempt, and `null` is never persisted as a result. A succeeded job has no result when it declares none, or when its result was larger than `MaxInlinePayloadBytes` and was dropped (reason `job.result-oversized`).
 
-Failed, cancelled, or abandoned attempts store no result (timeouts record failed with reason `execution-timeout`). The job's `jobs_state` row stores current state; job events explain transitions. Failure detail belongs in status and events, not in `TOut`.
+Failed, cancelled, or abandoned attempts store no result (timeouts record failed with reason `execution-timeout`). The job's `jobs_state` row stores current state; job events explain transitions. Failure detail belongs in status and events, not in `TResult`.
 
 Nullable annotations do not change the descriptor. Both of these declare a durable result and must return non-null; returning `null` fails the attempt either way:
 
@@ -619,17 +619,17 @@ Under Native AOT the JSON serializer has no reflection, so enums take the shape 
 
 ### Versioning and compatibility
 
-The job name, `TIn`, `TOut`, and payload formats are durable contract fields; see [contract evolution](#contract-evolution).
+The job name, `TIn`, `TResult`, and payload formats are durable contract fields; see [contract evolution](#contract-evolution).
 
 ### Worked examples
 
 Full examples live in `concepts/`.
 
-| Shape                                     | Sample                                                                   |
-| ----------------------------------------- | ------------------------------------------------------------------------ |
-| `(TIn) → void`                            | [`../concepts/000-fundamentals/001-hello-acta/`](../concepts/000-fundamentals/001-hello-acta/)             |
-| `(TIn, JobContext, ct) → Task<TOut>`      | [`../concepts/200-durable-execution/201-durable-checkout/`](../concepts/200-durable-execution/201-durable-checkout/) |
-| `(TIn, ct) → Task<TOut>`, payload formats | [`../concepts/500-payloads/501-payload-formats/`](../concepts/500-payloads/501-payload-formats/)   |
+| Shape                                        | Sample                                                                   |
+| -------------------------------------------- | ------------------------------------------------------------------------ |
+| `(TIn) → void`                               | [`../concepts/000-fundamentals/001-hello-acta/`](../concepts/000-fundamentals/001-hello-acta/)             |
+| `(TIn, JobContext, ct) → Task<TResult>`      | [`../concepts/200-durable-execution/201-durable-checkout/`](../concepts/200-durable-execution/201-durable-checkout/) |
+| `(TIn, ct) → Task<TResult>`, payload formats | [`../concepts/500-payloads/501-payload-formats/`](../concepts/500-payloads/501-payload-formats/)   |
 
 ## Configuration and options
 
@@ -1068,7 +1068,7 @@ Concepts [`103-multiple-schedules`](../concepts/100-scheduling/103-multiple-sche
 
 ## Contract evolution
 
-A job enqueued before a deploy can run after it, so a new handler must process the payloads already stored. The `[Job]` name, `TIn`, `TOut`, and the payload formats are durable contract fields.
+A job enqueued before a deploy can run after it, so a new handler must process the payloads already stored. The `[Job]` name, `TIn`, `TResult`, and the payload formats are durable contract fields.
 
 - **Keep the job name** for changes old payloads survive: an optional, nullable, or defaulted field, a result field old readers tolerate, or new behavior that keeps the meaning of existing fields.
 - **Use a new versioned name** (`send-invoice-v2`) when old payloads would be misread or rejected: a renamed, removed, or retyped field, a changed meaning, another input type or payload format, or required data old rows cannot supply. Keep the old handler registered until none of its rows can still run, wait, or be restarted. Dropping a handler cancels nothing: its rows stay Ready until a build carries it again or an operator retires the definition.

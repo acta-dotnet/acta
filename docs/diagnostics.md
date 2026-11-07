@@ -40,7 +40,7 @@ Lowercase it, join words with dashes, and keep version suffixes as `.v2` or `-v2
 **Invalid handler signature.** The message names the variant. The canonical shape is
 `Handle(TIn, JobContext, CancellationToken)`, where the input comes first, `JobContext` and
 `CancellationToken` are optional and in that order, and an async handler returns `Task`,
-`Task<TOut>`, `ValueTask`, or `ValueTask<TOut>`.
+`Task<TResult>`, `ValueTask`, or `ValueTask<TResult>`.
 
 The variants and their fixes:
 
@@ -53,7 +53,7 @@ The variants and their fixes:
 - A framework type as the input (`JobContext`, `CancellationToken`, a task): the first parameter is
   `TIn`; a payload-less job takes a parameterless record such as `record Reconcile;`.
 - A non-ASCII type name on the input or the result: contract type names are stored in ASCII columns.
-- A generic method: every handler resolves to one closed `TIn` and optional `TOut`.
+- A generic method: every handler resolves to one closed `TIn` and optional `TResult`.
 - A private method or a private containing type: the generated manifest must reference the handler,
   so both are at least `internal`.
 - `(TIn, JobContext)` without `CancellationToken`, or `JobContext` on a synchronous handler: the
