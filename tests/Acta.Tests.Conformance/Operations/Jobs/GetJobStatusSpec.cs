@@ -41,6 +41,22 @@ public sealed class GetJobStatusSpec : ActaRuntimeTestBase<ConformanceFixture, T
         Assert.Equal(JobStatusCode.Ready, status);
     }
 
+    [Fact(DisplayName = "A status id this build does not know reads as Unspecified, as the full job read does")]
+    public async Task An_unassigned_status_id_reads_as_unspecified()
+    {
+        var ct = TestContext.Current.CancellationToken;
+        var job = await Jobs.EnqueueAsync(new EnqueueJobRequest(TestNamespace, "add-numbers", JobPayload.Json(new AddNumbers(1, 2))), ct);
+
+        // No member of JobStatusCode holds 230 and no check on jobs_state refuses it, so a newer Acta may write it.
+        var rewritten = await Db.From<JobStateEntity>()
+            .Where(r => r.Id == job.JobId)
+            .UpdateOnlyAsync(() => new JobStateEntity { Status = (JobStatusCode)230 }, ct);
+        Assert.Equal(1, rewritten);
+
+        Assert.Equal(JobStatusCode.Unspecified, await Services.GetRequiredService<GetJobStatusHandler>().ReadAsync(job.JobId, ct));
+        Assert.Equal(JobStatusCode.Unspecified, (await Jobs.GetAsync(JobLookup.ById(job.JobId), ct))!.Status);
+    }
+
     [Fact(DisplayName = "An unknown job id returns null")]
     public async Task Returns_null_for_unknown_job_id()
     {

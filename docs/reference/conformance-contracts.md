@@ -1598,6 +1598,7 @@
   - A known job id returns its current JobStatusCode and a freshly enqueued job reads as Ready
   - An unknown job id returns null
 
+  - A status id this build does not know reads as Unspecified, as the full job read does
 ### GetJob returns the snapshot for a known id and null for an unknown id
 - **Contract:** GetJob returns the GetJobResponse projection for a matching job row and null when no row matches the supplied id.
 - **Guarantees:**

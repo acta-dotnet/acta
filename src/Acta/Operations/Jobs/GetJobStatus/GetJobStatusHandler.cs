@@ -14,7 +14,7 @@ internal sealed class GetJobStatusHandler(GetJobIdHandler getJobId, IDbSession s
             "GetJobStatus",
             cmd => cmd.Parameters.Add(dialect.CreateParameter(ActaSchema.Job.JobId, jobId)),
             static async (reader, token) =>
-                await reader.ReadAsync(token) ? (JobStatusCode)reader.GetByteFromNumeric(0) : (JobStatusCode?)null,
+                await reader.ReadAsync(token) ? JobStatusCodeExtensions.FromId(reader.GetByteFromNumeric(0)) : (JobStatusCode?)null,
             ct
         );
 }
