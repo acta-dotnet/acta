@@ -22,6 +22,7 @@ internal static class LedgerEndpoints
         reads
             .MapList(
                 "/jobs",
+                new("listJobs", ActaPermissions.Read),
                 "List jobs, filtered and keyset-paged.",
                 DashboardJsonContext.Default.ListJobsResponse,
                 query =>
@@ -71,6 +72,7 @@ internal static class LedgerEndpoints
         reads
             .MapList(
                 "/events",
+                new("listEvents", ActaPermissions.Read),
                 "List ledger events, filtered and keyset-paged.",
                 DashboardJsonContext.Default.ListEventsResponse,
                 query =>
@@ -141,6 +143,7 @@ internal static class LedgerEndpoints
         reads
             .MapList(
                 "/jobs/{jobRef}/events",
+                new("listJobEvents", ActaPermissions.Read),
                 "List one job's event timeline.",
                 DashboardJsonContext.Default.ListEventsResponse,
                 query =>
@@ -173,6 +176,7 @@ internal static class LedgerEndpoints
         reads
             .MapList(
                 "/definitions/{jobNamespace}/{jobName}/events",
+                new("listDefinitionEvents", ActaPermissions.Read),
                 "List a definition's ledger events (its jobs' lineage, not just changes).",
                 DashboardJsonContext.Default.ListEventsResponse,
                 static query =>

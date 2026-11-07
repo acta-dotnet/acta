@@ -14,6 +14,7 @@ internal static class AlertsEndpoints
         reads
             .MapList(
                 "/alerts",
+                new("listAlerts", ActaPermissions.Read),
                 "List alerts.",
                 DashboardJsonContext.Default.ListAlertsResponse,
                 query =>
@@ -60,6 +61,7 @@ internal static class AlertsEndpoints
             .ProducesProblem(StatusCodes.Status404NotFound);
         reads.MapDetail(
             "/alerts/{alertRef}",
+            new("getAlert", ActaPermissions.Read),
             "Read one alert.",
             "Alert",
             DashboardJsonContext.Default.GetAlertResponse,
@@ -72,6 +74,7 @@ internal static class AlertsEndpoints
 
         controls.MapCommand(
             "/alerts/{alertRef}/acknowledge",
+            new("acknowledgeAlert", ActaPermissions.Control),
             "Acknowledge the alert: an operator has seen it.",
             options,
             DashboardJsonContext.Default.AcknowledgeAlertRequest,
@@ -82,6 +85,7 @@ internal static class AlertsEndpoints
         );
         controls.MapCommand(
             "/alerts/{alertRef}/resolve",
+            new("resolveAlert", ActaPermissions.Control),
             "Resolve the alert: its cause is handled.",
             options,
             DashboardJsonContext.Default.ResolveAlertRequest,

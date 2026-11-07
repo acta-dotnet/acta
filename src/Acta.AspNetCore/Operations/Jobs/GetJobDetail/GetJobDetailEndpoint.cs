@@ -41,6 +41,7 @@ internal static class GetJobDetailEndpoint
                     return Results.Json(detail, DashboardJsonContext.Default.GetJobDetailResponse);
                 }
             )
+            .WithMetadata(new ActaOperationAttribute("getJobDetail", ActaPermissions.Read))
             .WithSummary("Read the job's full detail aggregate in one request.")
             .Produces<GetJobDetailResponse>(StatusCodes.Status200OK)
             .ProducesProblem(StatusCodes.Status400BadRequest)

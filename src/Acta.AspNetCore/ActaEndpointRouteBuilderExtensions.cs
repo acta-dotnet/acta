@@ -107,8 +107,8 @@ public static class ActaEndpointRouteBuilderExtensions
     // The versioned API under either mount: the conventions and filters every route shares, then each group's routes.
     private static void MapApi(RouteGroupBuilder api, ActaEndpointOptions options)
     {
-        // Names and tags for every endpoint below, derived from its own route. Applied at the group so
-        // it reaches the nested controls group too.
+        // Tags for every endpoint below and the check that each declares its operation, applied at the group so both
+        // reach the nested controls group too.
         ActaEndpointIdentity.Apply(api);
 
         // What any route can answer, declared once: 401 from the host's authentication, which writes its own body, 403

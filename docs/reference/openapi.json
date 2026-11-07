@@ -18,6 +18,7 @@
           "Jobs"
         ],
         "summary": "Add or update one tag on the job.",
+        "description": "Needs the acta.control permission.",
         "operationId": "upsertJobTag",
         "parameters": [
           {
@@ -150,13 +151,15 @@
               }
             }
           }
-        }
+        },
+        "x-acta-permission": "acta.control"
       },
       "delete": {
         "tags": [
           "Jobs"
         ],
         "summary": "Remove one tag from the job.",
+        "description": "Needs the acta.control permission.",
         "operationId": "removeJobTag",
         "parameters": [
           {
@@ -252,7 +255,8 @@
               }
             }
           }
-        }
+        },
+        "x-acta-permission": "acta.control"
       }
     },
     "/v1/jobs/{jobRef}/pause": {
@@ -261,6 +265,7 @@
           "Jobs"
         ],
         "summary": "Pause the job until an operator resumes it.",
+        "description": "Needs the acta.control permission.",
         "operationId": "pauseJob",
         "parameters": [
           {
@@ -396,7 +401,8 @@
               }
             }
           }
-        }
+        },
+        "x-acta-permission": "acta.control"
       }
     },
     "/v1/jobs/{jobRef}/resume": {
@@ -405,6 +411,7 @@
           "Jobs"
         ],
         "summary": "Resume a paused job.",
+        "description": "Needs the acta.control permission.",
         "operationId": "resumeJob",
         "parameters": [
           {
@@ -540,7 +547,8 @@
               }
             }
           }
-        }
+        },
+        "x-acta-permission": "acta.control"
       }
     },
     "/v1/jobs/{jobRef}/restart": {
@@ -549,6 +557,7 @@
           "Jobs"
         ],
         "summary": "Restart a terminal job with its original input.",
+        "description": "Needs the acta.control permission.",
         "operationId": "restartJob",
         "parameters": [
           {
@@ -684,7 +693,8 @@
               }
             }
           }
-        }
+        },
+        "x-acta-permission": "acta.control"
       }
     },
     "/v1/jobs/{jobRef}/cancel": {
@@ -693,6 +703,7 @@
           "Jobs"
         ],
         "summary": "Cancel the job.",
+        "description": "Needs the acta.control permission.",
         "operationId": "cancelJob",
         "parameters": [
           {
@@ -828,7 +839,8 @@
               }
             }
           }
-        }
+        },
+        "x-acta-permission": "acta.control"
       }
     },
     "/v1/jobs/{jobRef}/purge": {
@@ -837,6 +849,7 @@
           "Jobs"
         ],
         "summary": "Delete the job's record from the ledger.",
+        "description": "Needs the acta.admin permission.",
         "operationId": "purgeJob",
         "parameters": [
           {
@@ -971,7 +984,8 @@
               }
             }
           }
-        }
+        },
+        "x-acta-permission": "acta.admin"
       }
     },
     "/v1/jobs/{jobRef}/reschedule": {
@@ -980,6 +994,7 @@
           "Jobs"
         ],
         "summary": "Move the job's next-run instant, or run it now.",
+        "description": "Needs the acta.control permission.",
         "operationId": "rescheduleJob",
         "parameters": [
           {
@@ -1116,7 +1131,8 @@
               }
             }
           }
-        }
+        },
+        "x-acta-permission": "acta.control"
       }
     },
     "/v1/jobs/{jobRef}/reprioritize": {
@@ -1125,6 +1141,7 @@
           "Jobs"
         ],
         "summary": "Change the job's priority.",
+        "description": "Needs the acta.control permission.",
         "operationId": "reprioritizeJob",
         "parameters": [
           {
@@ -1262,7 +1279,8 @@
               }
             }
           }
-        }
+        },
+        "x-acta-permission": "acta.control"
       }
     },
     "/v1/jobs/{jobRef}/input": {
@@ -1271,6 +1289,7 @@
           "Jobs"
         ],
         "summary": "Replace a waiting job's stored input.",
+        "description": "Needs the acta.control permission.",
         "operationId": "updateJobInput",
         "parameters": [
           {
@@ -1411,14 +1430,15 @@
               }
             }
           }
-        }
+        },
+        "x-acta-permission": "acta.control"
       },
       "get": {
         "tags": [
           "Jobs"
         ],
         "summary": "Read the job's stored input as the body.",
-        "description": "A JSON payload is the body as application/json. Any other format is application/octet-stream with its format id in X-Acta-Payload-Format, and so is a stored JSON payload that is not one strict JSON value, with format id 1.",
+        "description": "A JSON payload is the body as application/json. Any other format is application/octet-stream with its format id in X-Acta-Payload-Format, and so is a stored JSON payload that is not one strict JSON value, with format id 1.\n\nNeeds the acta.read permission.",
         "operationId": "getJobInput",
         "parameters": [
           {
@@ -1514,7 +1534,8 @@
               }
             }
           }
-        }
+        },
+        "x-acta-permission": "acta.read"
       }
     },
     "/v1/jobs": {
@@ -1523,6 +1544,7 @@
           "Jobs"
         ],
         "summary": "Enqueue a job.",
+        "description": "Needs the acta.enqueue permission.",
         "operationId": "enqueueJob",
         "parameters": [
           {
@@ -1679,13 +1701,15 @@
               }
             }
           }
-        }
+        },
+        "x-acta-permission": "acta.enqueue"
       },
       "get": {
         "tags": [
           "Jobs"
         ],
         "summary": "List jobs, filtered and keyset-paged.",
+        "description": "Needs the acta.read permission.",
         "operationId": "listJobs",
         "parameters": [
           {
@@ -1893,7 +1917,8 @@
               }
             }
           }
-        }
+        },
+        "x-acta-permission": "acta.read"
       }
     },
     "/v1/jobs/{jobRef}/signals/{signalName}": {
@@ -1902,6 +1927,7 @@
           "Jobs"
         ],
         "summary": "Raise a named signal on the job, with an optional JSON value.",
+        "description": "Needs the acta.control permission.",
         "operationId": "raiseJobSignal",
         "parameters": [
           {
@@ -2045,7 +2071,8 @@
               }
             }
           }
-        }
+        },
+        "x-acta-permission": "acta.control"
       }
     },
     "/v1/namespaces/{jobNamespace}/tags/{tagName}": {
@@ -2054,6 +2081,7 @@
           "Namespaces"
         ],
         "summary": "Add or update one tag on the namespace.",
+        "description": "Needs the acta.admin permission.",
         "operationId": "upsertNamespaceTag",
         "parameters": [
           {
@@ -2186,13 +2214,15 @@
               }
             }
           }
-        }
+        },
+        "x-acta-permission": "acta.admin"
       },
       "delete": {
         "tags": [
           "Namespaces"
         ],
         "summary": "Remove one tag from the namespace.",
+        "description": "Needs the acta.admin permission.",
         "operationId": "removeNamespaceTag",
         "parameters": [
           {
@@ -2288,7 +2318,8 @@
               }
             }
           }
-        }
+        },
+        "x-acta-permission": "acta.admin"
       }
     },
     "/v1/namespaces/{jobNamespace}/suspend": {
@@ -2297,6 +2328,7 @@
           "Namespaces"
         ],
         "summary": "Suspend the namespace: new work is rejected at enqueue.",
+        "description": "Needs the acta.admin permission.",
         "operationId": "suspendNamespace",
         "parameters": [
           {
@@ -2420,7 +2452,8 @@
               }
             }
           }
-        }
+        },
+        "x-acta-permission": "acta.admin"
       }
     },
     "/v1/namespaces/{jobNamespace}/resume": {
@@ -2429,6 +2462,7 @@
           "Namespaces"
         ],
         "summary": "Resume a suspended namespace.",
+        "description": "Needs the acta.admin permission.",
         "operationId": "resumeNamespace",
         "parameters": [
           {
@@ -2552,7 +2586,8 @@
               }
             }
           }
-        }
+        },
+        "x-acta-permission": "acta.admin"
       }
     },
     "/v1/namespaces/{jobNamespace}": {
@@ -2561,6 +2596,7 @@
           "Namespaces"
         ],
         "summary": "Update the namespace's owner team and description.",
+        "description": "Needs the acta.admin permission.",
         "operationId": "updateNamespace",
         "parameters": [
           {
@@ -2697,13 +2733,15 @@
               }
             }
           }
-        }
+        },
+        "x-acta-permission": "acta.admin"
       },
       "get": {
         "tags": [
           "Namespaces"
         ],
         "summary": "Read one namespace.",
+        "description": "Needs the acta.read permission.",
         "operationId": "getNamespace",
         "parameters": [
           {
@@ -2791,7 +2829,8 @@
               }
             }
           }
-        }
+        },
+        "x-acta-permission": "acta.read"
       }
     },
     "/v1/tenants/{tenantName}/tags/{tagName}": {
@@ -2800,6 +2839,7 @@
           "Tenants"
         ],
         "summary": "Add or update one tag on the tenant.",
+        "description": "Needs the acta.admin permission.",
         "operationId": "upsertTenantTag",
         "parameters": [
           {
@@ -2932,13 +2972,15 @@
               }
             }
           }
-        }
+        },
+        "x-acta-permission": "acta.admin"
       },
       "delete": {
         "tags": [
           "Tenants"
         ],
         "summary": "Remove one tag from the tenant.",
+        "description": "Needs the acta.admin permission.",
         "operationId": "removeTenantTag",
         "parameters": [
           {
@@ -3034,7 +3076,8 @@
               }
             }
           }
-        }
+        },
+        "x-acta-permission": "acta.admin"
       }
     },
     "/v1/tenants": {
@@ -3043,6 +3086,7 @@
           "Tenants"
         ],
         "summary": "Register a tenant, or return the existing one.",
+        "description": "Needs the acta.admin permission.",
         "operationId": "registerTenant",
         "parameters": [
           {
@@ -3149,13 +3193,15 @@
               }
             }
           }
-        }
+        },
+        "x-acta-permission": "acta.admin"
       },
       "get": {
         "tags": [
           "Tenants"
         ],
         "summary": "List tenants.",
+        "description": "Needs the acta.read permission.",
         "operationId": "listTenants",
         "parameters": [
           {
@@ -3288,7 +3334,8 @@
               }
             }
           }
-        }
+        },
+        "x-acta-permission": "acta.read"
       }
     },
     "/v1/tenants/{tenantName}/suspend": {
@@ -3297,6 +3344,7 @@
           "Tenants"
         ],
         "summary": "Suspend the tenant: new work is rejected at enqueue.",
+        "description": "Needs the acta.admin permission.",
         "operationId": "suspendTenant",
         "parameters": [
           {
@@ -3420,7 +3468,8 @@
               }
             }
           }
-        }
+        },
+        "x-acta-permission": "acta.admin"
       }
     },
     "/v1/tenants/{tenantName}/resume": {
@@ -3429,6 +3478,7 @@
           "Tenants"
         ],
         "summary": "Resume a suspended tenant.",
+        "description": "Needs the acta.admin permission.",
         "operationId": "resumeTenant",
         "parameters": [
           {
@@ -3552,7 +3602,8 @@
               }
             }
           }
-        }
+        },
+        "x-acta-permission": "acta.admin"
       }
     },
     "/v1/tenants/{tenantName}": {
@@ -3561,6 +3612,7 @@
           "Tenants"
         ],
         "summary": "Update the tenant's display name and description.",
+        "description": "Needs the acta.admin permission.",
         "operationId": "updateTenant",
         "parameters": [
           {
@@ -3697,13 +3749,15 @@
               }
             }
           }
-        }
+        },
+        "x-acta-permission": "acta.admin"
       },
       "get": {
         "tags": [
           "Tenants"
         ],
         "summary": "Read one tenant.",
+        "description": "Needs the acta.read permission.",
         "operationId": "getTenant",
         "parameters": [
           {
@@ -3793,7 +3847,8 @@
               }
             }
           }
-        }
+        },
+        "x-acta-permission": "acta.read"
       }
     },
     "/v1/alerts/{alertRef}/acknowledge": {
@@ -3802,6 +3857,7 @@
           "Alerts"
         ],
         "summary": "Acknowledge the alert: an operator has seen it.",
+        "description": "Needs the acta.control permission.",
         "operationId": "acknowledgeAlert",
         "parameters": [
           {
@@ -3927,7 +3983,8 @@
               }
             }
           }
-        }
+        },
+        "x-acta-permission": "acta.control"
       }
     },
     "/v1/alerts/{alertRef}/resolve": {
@@ -3936,6 +3993,7 @@
           "Alerts"
         ],
         "summary": "Resolve the alert: its cause is handled.",
+        "description": "Needs the acta.control permission.",
         "operationId": "resolveAlert",
         "parameters": [
           {
@@ -4061,7 +4119,8 @@
               }
             }
           }
-        }
+        },
+        "x-acta-permission": "acta.control"
       }
     },
     "/v1/outbox/{jobNamespace}/requeue": {
@@ -4070,6 +4129,7 @@
           "Outbox"
         ],
         "summary": "Return quarantined outbox rows to pending; the next relay pass applies it.",
+        "description": "Needs the acta.control permission.",
         "operationId": "requeueOutbox",
         "parameters": [
           {
@@ -4206,7 +4266,8 @@
               }
             }
           }
-        }
+        },
+        "x-acta-permission": "acta.control"
       }
     },
     "/v1/outbox/{jobNamespace}/discard": {
@@ -4215,6 +4276,7 @@
           "Outbox"
         ],
         "summary": "Delete quarantined outbox rows, keeping the ids as audit evidence.",
+        "description": "Needs the acta.admin permission.",
         "operationId": "discardOutbox",
         "parameters": [
           {
@@ -4351,7 +4413,8 @@
               }
             }
           }
-        }
+        },
+        "x-acta-permission": "acta.admin"
       }
     },
     "/v1/definitions/{jobNamespace}/{jobName}/tags/{tagName}": {
@@ -4360,6 +4423,7 @@
           "Definitions"
         ],
         "summary": "Add or update one tag on the definition.",
+        "description": "Needs the acta.admin permission.",
         "operationId": "upsertDefinitionTag",
         "parameters": [
           {
@@ -4501,13 +4565,15 @@
               }
             }
           }
-        }
+        },
+        "x-acta-permission": "acta.admin"
       },
       "delete": {
         "tags": [
           "Definitions"
         ],
         "summary": "Remove one tag from the definition.",
+        "description": "Needs the acta.admin permission.",
         "operationId": "removeDefinitionTag",
         "parameters": [
           {
@@ -4612,7 +4678,8 @@
               }
             }
           }
-        }
+        },
+        "x-acta-permission": "acta.admin"
       }
     },
     "/v1/definitions/{jobNamespace}/{jobName}/overrides": {
@@ -4621,6 +4688,7 @@
           "Definitions"
         ],
         "summary": "Replace the definition's operator policy overrides.",
+        "description": "Needs the acta.admin permission.",
         "operationId": "updateDefinitionOverrides",
         "parameters": [
           {
@@ -4768,7 +4836,8 @@
               }
             }
           }
-        }
+        },
+        "x-acta-permission": "acta.admin"
       }
     },
     "/v1/definitions/{jobNamespace}/{jobName}/retire": {
@@ -4777,6 +4846,7 @@
           "Definitions"
         ],
         "summary": "Retire the definition and cancel its parked jobs.",
+        "description": "Needs the acta.admin permission.",
         "operationId": "retireDefinition",
         "parameters": [
           {
@@ -4921,7 +4991,8 @@
               }
             }
           }
-        }
+        },
+        "x-acta-permission": "acta.admin"
       }
     },
     "/v1/schedules/{jobNamespace}/{jobName}/{scheduleName}/pause": {
@@ -4930,6 +5001,7 @@
           "Schedules"
         ],
         "summary": "Pause a recurring schedule, indefinitely or until an instant.",
+        "description": "Needs the acta.control permission.",
         "operationId": "pauseSchedule",
         "parameters": [
           {
@@ -5085,7 +5157,8 @@
               }
             }
           }
-        }
+        },
+        "x-acta-permission": "acta.control"
       }
     },
     "/v1/schedules/{jobNamespace}/{jobName}/{scheduleName}/resume": {
@@ -5094,6 +5167,7 @@
           "Schedules"
         ],
         "summary": "Resume a paused schedule, reconciled by its misfire policy.",
+        "description": "Needs the acta.control permission.",
         "operationId": "resumeSchedule",
         "parameters": [
           {
@@ -5248,7 +5322,8 @@
               }
             }
           }
-        }
+        },
+        "x-acta-permission": "acta.control"
       }
     },
     "/v1/schedules/{jobNamespace}/{jobName}/{scheduleName}/trigger": {
@@ -5257,6 +5332,7 @@
           "Schedules"
         ],
         "summary": "Fire the schedule now, without moving its cadence.",
+        "description": "Needs the acta.control permission.",
         "operationId": "triggerSchedule",
         "parameters": [
           {
@@ -5411,7 +5487,8 @@
               }
             }
           }
-        }
+        },
+        "x-acta-permission": "acta.control"
       }
     },
     "/v1/calendars/{jobNamespace}/{calendarName}/drafts": {
@@ -5420,6 +5497,7 @@
           "Calendars"
         ],
         "summary": "Save a calendar definition as the family's next draft version.",
+        "description": "Needs the acta.admin permission.",
         "operationId": "saveCalendarDraft",
         "parameters": [
           {
@@ -5569,7 +5647,8 @@
               }
             }
           }
-        }
+        },
+        "x-acta-permission": "acta.admin"
       }
     },
     "/v1/calendars/{jobNamespace}/{calendarName}/publish": {
@@ -5578,6 +5657,7 @@
           "Calendars"
         ],
         "summary": "Publish a draft as the family's current version and retime the schedules bound to it.",
+        "description": "Needs the acta.admin permission.",
         "operationId": "publishCalendar",
         "parameters": [
           {
@@ -5727,7 +5807,8 @@
               }
             }
           }
-        }
+        },
+        "x-acta-permission": "acta.admin"
       }
     },
     "/v1/calendars/{jobNamespace}/{calendarName}/archive": {
@@ -5736,6 +5817,7 @@
           "Calendars"
         ],
         "summary": "Archive the family's current version.",
+        "description": "Needs the acta.admin permission.",
         "operationId": "archiveCalendar",
         "parameters": [
           {
@@ -5881,7 +5963,8 @@
               }
             }
           }
-        }
+        },
+        "x-acta-permission": "acta.admin"
       }
     },
     "/v1/jobs/{jobRef}": {
@@ -5890,6 +5973,7 @@
           "Jobs"
         ],
         "summary": "Read one job.",
+        "description": "Needs the acta.read permission.",
         "operationId": "getJob",
         "parameters": [
           {
@@ -5996,7 +6080,8 @@
               }
             }
           }
-        }
+        },
+        "x-acta-permission": "acta.read"
       }
     },
     "/v1/jobs/by-key": {
@@ -6005,6 +6090,7 @@
           "Jobs"
         ],
         "summary": "Resolve a job by namespace and deduplication key.",
+        "description": "Needs the acta.read permission.",
         "operationId": "getJobByKey",
         "parameters": [
           {
@@ -6120,7 +6206,8 @@
               }
             }
           }
-        }
+        },
+        "x-acta-permission": "acta.read"
       }
     },
     "/v1/jobs/{jobRef}/tags": {
@@ -6129,6 +6216,7 @@
           "Jobs"
         ],
         "summary": "List the job's tags.",
+        "description": "Needs the acta.read permission.",
         "operationId": "listJobTags",
         "parameters": [
           {
@@ -6248,7 +6336,8 @@
               }
             }
           }
-        }
+        },
+        "x-acta-permission": "acta.read"
       }
     },
     "/v1/jobs/{jobRef}/result": {
@@ -6257,7 +6346,7 @@
           "Jobs"
         ],
         "summary": "Read the result the job stored as the body.",
-        "description": "A JSON payload is the body as application/json. Any other format is application/octet-stream with its format id in X-Acta-Payload-Format, and so is a stored JSON payload that is not one strict JSON value, with format id 1.",
+        "description": "A JSON payload is the body as application/json. Any other format is application/octet-stream with its format id in X-Acta-Payload-Format, and so is a stored JSON payload that is not one strict JSON value, with format id 1.\n\nNeeds the acta.read permission.",
         "operationId": "getJobResult",
         "parameters": [
           {
@@ -6353,7 +6442,8 @@
               }
             }
           }
-        }
+        },
+        "x-acta-permission": "acta.read"
       }
     },
     "/v1/jobs/{jobRef}/detail": {
@@ -6362,6 +6452,7 @@
           "Jobs"
         ],
         "summary": "Read the job's full detail aggregate in one request.",
+        "description": "Needs the acta.read permission.",
         "operationId": "getJobDetail",
         "parameters": [
           {
@@ -6638,7 +6729,8 @@
               }
             }
           }
-        }
+        },
+        "x-acta-permission": "acta.read"
       }
     },
     "/v1/jobs/{jobRef}/checkpoints": {
@@ -6647,6 +6739,7 @@
           "Jobs"
         ],
         "summary": "List one job's checkpoints.",
+        "description": "Needs the acta.read permission.",
         "operationId": "listJobCheckpoints",
         "parameters": [
           {
@@ -6775,7 +6868,8 @@
               }
             }
           }
-        }
+        },
+        "x-acta-permission": "acta.read"
       }
     },
     "/v1/jobs/{jobRef}/steps": {
@@ -6784,6 +6878,7 @@
           "Jobs"
         ],
         "summary": "List one job's steps, newest first.",
+        "description": "Needs the acta.read permission.",
         "operationId": "listJobSteps",
         "parameters": [
           {
@@ -6908,7 +7003,8 @@
               }
             }
           }
-        }
+        },
+        "x-acta-permission": "acta.read"
       }
     },
     "/v1/workers": {
@@ -6917,6 +7013,7 @@
           "Workers"
         ],
         "summary": "List workers.",
+        "description": "Needs the acta.read permission.",
         "operationId": "listWorkers",
         "parameters": [
           {
@@ -7043,7 +7140,8 @@
               }
             }
           }
-        }
+        },
+        "x-acta-permission": "acta.read"
       }
     },
     "/v1/workers/{workerRef}": {
@@ -7052,6 +7150,7 @@
           "Workers"
         ],
         "summary": "Read one worker.",
+        "description": "Needs the acta.read permission.",
         "operationId": "getWorker",
         "parameters": [
           {
@@ -7146,7 +7245,8 @@
               }
             }
           }
-        }
+        },
+        "x-acta-permission": "acta.read"
       }
     },
     "/v1/namespaces": {
@@ -7155,6 +7255,7 @@
           "Namespaces"
         ],
         "summary": "List namespaces.",
+        "description": "Needs the acta.read permission.",
         "operationId": "listNamespaces",
         "parameters": [
           {
@@ -7285,7 +7386,8 @@
               }
             }
           }
-        }
+        },
+        "x-acta-permission": "acta.read"
       }
     },
     "/v1/namespaces/{jobNamespace}/tags": {
@@ -7294,6 +7396,7 @@
           "Namespaces"
         ],
         "summary": "List the namespace's tags.",
+        "description": "Needs the acta.read permission.",
         "operationId": "listNamespaceTags",
         "parameters": [
           {
@@ -7413,7 +7516,8 @@
               }
             }
           }
-        }
+        },
+        "x-acta-permission": "acta.read"
       }
     },
     "/v1/tenants/{tenantName}/tags": {
@@ -7422,6 +7526,7 @@
           "Tenants"
         ],
         "summary": "List the tenant's tags.",
+        "description": "Needs the acta.read permission.",
         "operationId": "listTenantTags",
         "parameters": [
           {
@@ -7541,7 +7646,8 @@
               }
             }
           }
-        }
+        },
+        "x-acta-permission": "acta.read"
       }
     },
     "/v1/alerts": {
@@ -7550,6 +7656,7 @@
           "Alerts"
         ],
         "summary": "List alerts.",
+        "description": "Needs the acta.read permission.",
         "operationId": "listAlerts",
         "parameters": [
           {
@@ -7723,7 +7830,8 @@
               }
             }
           }
-        }
+        },
+        "x-acta-permission": "acta.read"
       }
     },
     "/v1/alerts/{alertRef}": {
@@ -7732,6 +7840,7 @@
           "Alerts"
         ],
         "summary": "Read one alert.",
+        "description": "Needs the acta.read permission.",
         "operationId": "getAlert",
         "parameters": [
           {
@@ -7831,7 +7940,8 @@
               }
             }
           }
-        }
+        },
+        "x-acta-permission": "acta.read"
       }
     },
     "/v1/outbox/sources": {
@@ -7840,6 +7950,7 @@
           "Outbox"
         ],
         "summary": "List outbox relay sources with backlog and quarantine totals.",
+        "description": "Needs the acta.read permission.",
         "operationId": "listOutboxSources",
         "parameters": [
           {
@@ -7944,7 +8055,8 @@
               }
             }
           }
-        }
+        },
+        "x-acta-permission": "acta.read"
       }
     },
     "/v1/outbox/{jobNamespace}/quarantined": {
@@ -7953,6 +8065,7 @@
           "Outbox"
         ],
         "summary": "List a relay source's quarantined staging rows.",
+        "description": "Needs the acta.read permission.",
         "operationId": "listQuarantinedOutbox",
         "parameters": [
           {
@@ -8079,7 +8192,8 @@
               }
             }
           }
-        }
+        },
+        "x-acta-permission": "acta.read"
       }
     },
     "/v1/definitions": {
@@ -8088,6 +8202,7 @@
           "Definitions"
         ],
         "summary": "List job definitions.",
+        "description": "Needs the acta.read permission.",
         "operationId": "listDefinitions",
         "parameters": [
           {
@@ -8238,7 +8353,8 @@
               }
             }
           }
-        }
+        },
+        "x-acta-permission": "acta.read"
       }
     },
     "/v1/definitions/{jobNamespace}/{jobName}": {
@@ -8247,6 +8363,7 @@
           "Definitions"
         ],
         "summary": "Read one job definition and its effective policy.",
+        "description": "Needs the acta.read permission.",
         "operationId": "getDefinition",
         "parameters": [
           {
@@ -8401,7 +8518,8 @@
               }
             }
           }
-        }
+        },
+        "x-acta-permission": "acta.read"
       }
     },
     "/v1/definitions/{jobNamespace}/{jobName}/input-template": {
@@ -8410,6 +8528,7 @@
           "Definitions"
         ],
         "summary": "Read a job's compile-time input template.",
+        "description": "Needs the acta.read permission.",
         "operationId": "getDefinitionInputTemplate",
         "parameters": [
           {
@@ -8486,7 +8605,8 @@
               }
             }
           }
-        }
+        },
+        "x-acta-permission": "acta.read"
       }
     },
     "/v1/definitions/{jobNamespace}/{jobName}/tags": {
@@ -8495,6 +8615,7 @@
           "Definitions"
         ],
         "summary": "List the definition's tags.",
+        "description": "Needs the acta.read permission.",
         "operationId": "listDefinitionTags",
         "parameters": [
           {
@@ -8623,7 +8744,8 @@
               }
             }
           }
-        }
+        },
+        "x-acta-permission": "acta.read"
       }
     },
     "/v1/schedules": {
@@ -8632,6 +8754,7 @@
           "Schedules"
         ],
         "summary": "List recurring schedules, next run first.",
+        "description": "Needs the acta.read permission.",
         "operationId": "listSchedules",
         "parameters": [
           {
@@ -8786,7 +8909,8 @@
               }
             }
           }
-        }
+        },
+        "x-acta-permission": "acta.read"
       }
     },
     "/v1/schedules/{jobNamespace}/{jobName}/{scheduleName}/preview": {
@@ -8795,6 +8919,7 @@
           "Schedules"
         ],
         "summary": "Preview a schedule's upcoming fire instants.",
+        "description": "Needs the acta.read permission.",
         "operationId": "previewSchedule",
         "parameters": [
           {
@@ -8921,7 +9046,8 @@
               }
             }
           }
-        }
+        },
+        "x-acta-permission": "acta.read"
       }
     },
     "/v1/calendars": {
@@ -8930,6 +9056,7 @@
           "Calendars"
         ],
         "summary": "List calendar families, the shared ones in sys included.",
+        "description": "Needs the acta.read permission.",
         "operationId": "listCalendars",
         "parameters": [
           {
@@ -9061,7 +9188,8 @@
               }
             }
           }
-        }
+        },
+        "x-acta-permission": "acta.read"
       }
     },
     "/v1/calendars/{jobNamespace}/{calendarName}": {
@@ -9070,6 +9198,7 @@
           "Calendars"
         ],
         "summary": "Read a calendar family's head: its current and latest versions and one definition.",
+        "description": "Needs the acta.read permission.",
         "operationId": "getCalendar",
         "parameters": [
           {
@@ -9178,7 +9307,8 @@
               }
             }
           }
-        }
+        },
+        "x-acta-permission": "acta.read"
       }
     },
     "/v1/calendars/{jobNamespace}/{calendarName}/detail": {
@@ -9187,6 +9317,7 @@
           "Calendars"
         ],
         "summary": "Read the calendar screen: the head, and the first page of its versions and of the schedules naming it.",
+        "description": "Needs the acta.read permission.",
         "operationId": "getCalendarDetail",
         "parameters": [
           {
@@ -9329,7 +9460,8 @@
               }
             }
           }
-        }
+        },
+        "x-acta-permission": "acta.read"
       }
     },
     "/v1/calendars/{jobNamespace}/{calendarName}/versions": {
@@ -9338,6 +9470,7 @@
           "Calendars"
         ],
         "summary": "List a calendar family's versions, newest first.",
+        "description": "Needs the acta.read permission.",
         "operationId": "listCalendarVersions",
         "parameters": [
           {
@@ -9470,7 +9603,8 @@
               }
             }
           }
-        }
+        },
+        "x-acta-permission": "acta.read"
       }
     },
     "/v1/calendars/{jobNamespace}/{calendarName}/dependents": {
@@ -9479,6 +9613,7 @@
           "Calendars"
         ],
         "summary": "List the schedules naming a calendar family, by path.",
+        "description": "Needs the acta.read permission.",
         "operationId": "listCalendarDependents",
         "parameters": [
           {
@@ -9611,7 +9746,8 @@
               }
             }
           }
-        }
+        },
+        "x-acta-permission": "acta.read"
       }
     },
     "/v1/calendars/{jobNamespace}/{calendarName}/preview": {
@@ -9620,6 +9756,7 @@
           "Calendars"
         ],
         "summary": "Preview a calendar version beside the current one.",
+        "description": "Needs the acta.read permission.",
         "operationId": "previewCalendar",
         "parameters": [
           {
@@ -9764,7 +9901,8 @@
               }
             }
           }
-        }
+        },
+        "x-acta-permission": "acta.read"
       }
     },
     "/v1/events": {
@@ -9773,6 +9911,7 @@
           "Events"
         ],
         "summary": "List ledger events, filtered and keyset-paged.",
+        "description": "Needs the acta.read permission.",
         "operationId": "listEvents",
         "parameters": [
           {
@@ -9979,7 +10118,8 @@
               }
             }
           }
-        }
+        },
+        "x-acta-permission": "acta.read"
       }
     },
     "/v1/jobs/{jobRef}/events": {
@@ -9988,6 +10128,7 @@
           "Jobs"
         ],
         "summary": "List one job's event timeline.",
+        "description": "Needs the acta.read permission.",
         "operationId": "listJobEvents",
         "parameters": [
           {
@@ -10128,7 +10269,8 @@
               }
             }
           }
-        }
+        },
+        "x-acta-permission": "acta.read"
       }
     },
     "/v1/definitions/{jobNamespace}/{jobName}/events": {
@@ -10137,7 +10279,7 @@
           "Definitions"
         ],
         "summary": "List a definition's ledger events (its jobs' lineage, not just changes).",
-        "description": "Takes no includeTotal: an event count is taken only for one job or one subject, since a wider count is unbounded work.",
+        "description": "Takes no includeTotal: an event count is taken only for one job or one subject, since a wider count is unbounded work.\n\nNeeds the acta.read permission.",
         "operationId": "listDefinitionEvents",
         "parameters": [
           {
@@ -10279,7 +10421,8 @@
               }
             }
           }
-        }
+        },
+        "x-acta-permission": "acta.read"
       }
     },
     "/v1/overview": {
@@ -10288,6 +10431,7 @@
           "Overview"
         ],
         "summary": "Read the ledger's health-overview counters.",
+        "description": "Needs the acta.read permission.",
         "operationId": "getOverview",
         "parameters": [
           {
@@ -10370,7 +10514,8 @@
               }
             }
           }
-        }
+        },
+        "x-acta-permission": "acta.read"
       }
     },
     "/v1/capabilities": {
@@ -10379,6 +10524,7 @@
           "Capabilities"
         ],
         "summary": "Read this host's API capabilities.",
+        "description": "Needs the acta.read permission.",
         "operationId": "getCapabilities",
         "responses": {
           "200": {
@@ -10425,7 +10571,8 @@
               }
             }
           }
-        }
+        },
+        "x-acta-permission": "acta.read"
       }
     }
   },

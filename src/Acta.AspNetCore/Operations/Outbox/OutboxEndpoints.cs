@@ -14,6 +14,7 @@ internal static class OutboxEndpoints
     {
         reads.MapList(
             "/outbox/sources",
+            new("listOutboxSources", ActaPermissions.Read),
             "List outbox relay sources with backlog and quarantine totals.",
             DashboardJsonContext.Default.ListOutboxSourcesResponse,
             static query => new ListOutboxSourcesQuery(
@@ -30,6 +31,7 @@ internal static class OutboxEndpoints
         reads
             .MapList(
                 "/outbox/{jobNamespace}/quarantined",
+                new("listQuarantinedOutbox", ActaPermissions.Read),
                 "List a relay source's quarantined staging rows.",
                 DashboardJsonContext.Default.ListQuarantinedOutboxResponse,
                 static query => new ListQuarantinedOutboxQuery(
@@ -60,6 +62,7 @@ internal static class OutboxEndpoints
 
         controls.MapCommand(
             "/outbox/{jobNamespace}/requeue",
+            new("requeueOutbox", ActaPermissions.Control),
             "Return quarantined outbox rows to pending; the next relay pass applies it.",
             options,
             DashboardJsonContext.Default.RequeueOutboxRequest,
@@ -71,6 +74,7 @@ internal static class OutboxEndpoints
         );
         controls.MapCommand(
             "/outbox/{jobNamespace}/discard",
+            new("discardOutbox", ActaPermissions.Admin),
             "Delete quarantined outbox rows, keeping the ids as audit evidence.",
             options,
             DashboardJsonContext.Default.DiscardOutboxRequest,

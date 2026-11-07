@@ -10,6 +10,7 @@ internal static class TenantsEndpoints
     {
         reads.MapList(
             "/tenants",
+            new("listTenants", ActaPermissions.Read),
             "List tenants.",
             DashboardJsonContext.Default.ListTenantsResponse,
             static query => new ListTenantsQuery(
@@ -41,6 +42,7 @@ internal static class TenantsEndpoints
         // A tenant name the facade cannot canonicalize is malformed caller input, so it is the 400 and never a miss.
         reads.MapDetail(
             "/tenants/{tenantName}",
+            new("getTenant", ActaPermissions.Read),
             "Read one tenant.",
             "Tenant",
             DashboardJsonContext.Default.GetTenantResponse,
@@ -60,6 +62,7 @@ internal static class TenantsEndpoints
             controls,
             "/tenants/{tenantName}/tags",
             "tenant",
+            ActaPermissions.Admin,
             options,
             static http => TagTarget.ForTenant(Name(http)),
             static async (http, call) => await call.Operations.Tenants.GetAsync(Name(http), call.Ct) is not null
@@ -72,6 +75,7 @@ internal static class TenantsEndpoints
         RegisterTenantEndpoint.Map(controls, options);
         controls.MapCommand(
             "/tenants/{tenantName}/suspend",
+            new("suspendTenant", ActaPermissions.Admin),
             "Suspend the tenant: new work is rejected at enqueue.",
             options,
             DashboardJsonContext.Default.SuspendTenantRequest,
@@ -82,6 +86,7 @@ internal static class TenantsEndpoints
         );
         controls.MapCommand(
             "/tenants/{tenantName}/resume",
+            new("resumeTenant", ActaPermissions.Admin),
             "Resume a suspended tenant.",
             options,
             DashboardJsonContext.Default.ResumeTenantRequest,
@@ -93,6 +98,7 @@ internal static class TenantsEndpoints
         // A stale ExpectedVersion is 409 carrying the row's current version, so the caller retries without a re-read.
         controls.MapUpdate(
             "/tenants/{tenantName}",
+            new("updateTenant", ActaPermissions.Admin),
             "Update the tenant's display name and description.",
             options,
             DashboardJsonContext.Default.UpdateTenantRequest,

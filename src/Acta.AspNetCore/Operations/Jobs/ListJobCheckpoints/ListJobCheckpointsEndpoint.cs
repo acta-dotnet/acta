@@ -44,6 +44,7 @@ internal static class ListJobCheckpointsEndpoint
                         );
                     })
             )
+            .WithMetadata(new ActaOperationAttribute("listJobCheckpoints", ActaPermissions.Read))
             .WithSummary("List one job's checkpoints.")
             .Produces<ListJobCheckpointsResponse>(StatusCodes.Status200OK)
             .ProducesProblem(StatusCodes.Status400BadRequest)

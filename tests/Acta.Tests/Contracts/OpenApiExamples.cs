@@ -87,8 +87,8 @@ internal static class OpenApiExamples
 
     /// <summary>
     /// Every route the host maps below <paramref name="apiRoot"/>, sent once, reads before controls: the request each
-    /// sends and the success it answers, keyed as <c>METHOD /path</c> below the version segment. A 201 is sent again,
-    /// since the repeat of an enqueue is its 200.
+    /// sends and the success it answers, keyed by the operation id the route declares. A 201 is sent again, since the
+    /// repeat of an enqueue is its 200.
     /// </summary>
     public static async Task<Dictionary<string, Example>> CaptureAsync(WebApplication app, string apiRoot)
     {
@@ -99,7 +99,7 @@ internal static class OpenApiExamples
             .Where(endpoint => endpoint.RoutePattern.RawText?.StartsWith(root + "/", StringComparison.Ordinal) == true)
             .SelectMany(endpoint =>
                 (endpoint.Metadata.GetMetadata<IHttpMethodMetadata>()?.HttpMethods ?? []).Select(method =>
-                    (Key: OpenApiOperationIds.Key(method, endpoint.RoutePattern.RawText!), Endpoint: endpoint)
+                    (Key: $"{method} {endpoint.RoutePattern.RawText![root.Length..]}", Endpoint: endpoint)
                 )
             )
             .OrderBy(route => !route.Key.StartsWith("GET ", StringComparison.Ordinal))
@@ -126,7 +126,7 @@ internal static class OpenApiExamples
             {
                 throw new InvalidOperationException($"{key} answered {(int)response.Status} to {body}: {response.Text}");
             }
-            examples[key] = new Example(
+            examples[endpoint.Metadata.GetMetadata<ActaOperationAttribute>()!.OperationId] = new Example(
                 body is null ? null : JsonNode.Parse(body),
                 ((int)response.Status).ToString(System.Globalization.CultureInfo.InvariantCulture),
                 response.Json ? Stable(JsonNode.Parse(response.Text)) : null

@@ -1039,21 +1039,36 @@ public sealed partial class OpenApiContractTests
     [GeneratedRegex("^[a-z][A-Za-z0-9]*$")]
     private static partial Regex OperationIdShape();
 
+    /// <summary>
+    /// Every operation of the committed document names the one permission it needs in <c>x-acta-permission</c>: every read
+    /// needs <c>acta.read</c> and nothing else does, and the enqueue alone needs <c>acta.enqueue</c>.
+    /// </summary>
     [Fact]
-    public void An_operation_id_is_the_operations_name_under_any_mount()
+    public void Every_operation_names_its_permission_and_only_a_read_needs_read()
     {
-        Assert.Equal("getJob", OpenApiOperationIds.For("GET", "acta/api/v1/jobs/{jobRef}"));
-        Assert.Equal("getJobByKey", OpenApiOperationIds.For("GET", "acta/api/v1/jobs/by-key"));
-        Assert.Equal("pauseJob", OpenApiOperationIds.For("POST", "/ops/api/v1/jobs/{jobRef}/pause"));
-        Assert.Equal("listEvents", OpenApiOperationIds.For("GET", "v1/api/v1/events"));
-        Assert.Equal("listJobEvents", OpenApiOperationIds.For("GET", "/internal/acta/api/v1/jobs/{jobRef}/events"));
-        Assert.Equal(
-            "removeDefinitionTag",
-            OpenApiOperationIds.For("DELETE", "api/v1/definitions/{jobNamespace}/{jobName}/tags/{tagName}")
+        var committed = File.ReadAllText(Path.Combine(RepoRoot(), DocumentFile.Replace('/', Path.DirectorySeparatorChar)));
+        var operations = Operations(committed)
+            .Select(operation =>
+                (
+                    operation.Key,
+                    Id: operation.Value["operationId"]?.GetValue<string>(),
+                    Permission: operation.Value[ActaOpenApiDocument.PermissionExtension]?.GetValue<string>()
+                )
+            )
+            .ToList();
+        string[] permissions = [ActaPermissions.Read, ActaPermissions.Enqueue, ActaPermissions.Control, ActaPermissions.Admin];
+
+        Assert.True(operations.Count > 60, $"only {operations.Count} operations; the walk is broken.");
+        Assert.All(operations, operation => Assert.Contains(operation.Permission, permissions));
+        Assert.All(
+            operations,
+            operation =>
+                Assert.True(
+                    operation.Key.StartsWith("GET ", StringComparison.Ordinal) == (operation.Permission == ActaPermissions.Read),
+                    $"{operation.Key} needs {operation.Permission}."
+                )
         );
-        Assert.Equal("POST /jobs/{jobRef}/purge", OpenApiOperationIds.Key("post", "acta/api/v1/jobs/{jobRef}/purge"));
-        Assert.Throws<InvalidOperationException>(() => OpenApiOperationIds.For("GET", "acta/jobs"));
-        Assert.Throws<InvalidOperationException>(() => OpenApiOperationIds.For("GET", "acta/api/v1/no-such-route"));
+        Assert.Equal("enqueueJob", Assert.Single(operations, operation => operation.Permission == ActaPermissions.Enqueue).Id);
     }
 
     // OperationNameTests holds each id to its operation's name; here every operation of the document carries one, once.

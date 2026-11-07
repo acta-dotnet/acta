@@ -21,6 +21,7 @@ internal static class GetJobInputEndpoint
                             : RouteTable.NotFound("Job")
                     )
             )
+            .WithMetadata(new ActaOperationAttribute("getJobInput", ActaPermissions.Read))
             .WithSummary("Read the job's stored input as the body.")
             .ProducesPayload()
             .ProducesProblem(StatusCodes.Status400BadRequest)

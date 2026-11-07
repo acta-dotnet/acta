@@ -19,6 +19,7 @@ internal static class RouteTable
     public static RouteHandlerBuilder MapList<TQuery, TResponse>(
         this RouteGroupBuilder group,
         string pattern,
+        ActaOperationAttribute operation,
         string summary,
         JsonTypeInfo<TResponse> json,
         Func<QueryReader, TQuery> bind,
@@ -34,6 +35,7 @@ internal static class RouteTable
                         Results.Json(await list(new ReadCall(operations, jobs, ct), QueryReader.Bind(http.Request, bind)), json)
                     )
             )
+            .WithMetadata(operation)
             .WithSummary(summary)
             .Produces<TResponse>(StatusCodes.Status200OK)
             .ProducesProblem(StatusCodes.Status400BadRequest)
@@ -47,6 +49,7 @@ internal static class RouteTable
     public static RouteHandlerBuilder MapDetail<TDetail>(
         this RouteGroupBuilder group,
         string pattern,
+        ActaOperationAttribute operation,
         string summary,
         string entity,
         JsonTypeInfo<TDetail> json,
@@ -61,6 +64,7 @@ internal static class RouteTable
                         await read(http, new ReadCall(operations, jobs, ct)) is { } detail ? Results.Json(detail, json) : NotFound(entity)
                     )
             )
+            .WithMetadata(operation)
             .WithSummary(summary)
             .Produces<TDetail>(StatusCodes.Status200OK)
             .ProducesProblem(StatusCodes.Status400BadRequest)
@@ -78,17 +82,21 @@ internal static class RouteTable
         RouteGroupBuilder? controls,
         string pattern,
         string entity,
+        string writePermission,
         ActaEndpointOptions options,
         Func<HttpContext, TagTarget> target,
         Func<HttpContext, ReadCall, ValueTask<bool>> exists
     )
     {
+        // One operation serves the tags of several owners, so each id puts the owner before the subject.
+        var owner = char.ToUpperInvariant(entity[0]) + entity[1..];
         reads
             .MapGet(
                 pattern,
                 (HttpContext http, IActaOperations operations, IJobs jobs, CancellationToken ct) =>
                     TagRoutes.ListAsync(http, new ReadCall(operations, jobs, ct), () => target(http), exists)
             )
+            .WithMetadata(new ActaOperationAttribute($"list{owner}Tags", ActaPermissions.Read))
             .WithSummary($"List the {entity}'s tags.")
             .Produces<ListTagsResponse>(StatusCodes.Status200OK)
             .ProducesProblem(StatusCodes.Status400BadRequest)
@@ -107,6 +115,7 @@ internal static class RouteTable
                 (HttpContext http, IActaOperations operations, CancellationToken ct) =>
                     TagRoutes.UpsertAsync(http, operations, options, () => target(http), RouteKeys.Value(http, "tagName"), ct)
             )
+            .WithMetadata(new ActaOperationAttribute($"upsert{owner}Tag", writePermission))
             .AcceptsJson<UpsertTagRequest>()
             .WithSummary($"Add or update one tag on the {entity}.")
             .Produces<UpsertTagResponse>(StatusCodes.Status200OK)
@@ -118,6 +127,7 @@ internal static class RouteTable
                 (HttpContext http, IActaOperations operations, CancellationToken ct) =>
                     TagRoutes.RemoveAsync(http, operations, options, () => target(http), RouteKeys.Value(http, "tagName"), ct)
             )
+            .WithMetadata(new ActaOperationAttribute($"remove{owner}Tag", writePermission))
             .WithSummary($"Remove one tag from the {entity}.")
             .Produces<RemoveTagResponse>(StatusCodes.Status200OK)
             .ProducesProblem(StatusCodes.Status400BadRequest)
@@ -134,6 +144,7 @@ internal static class RouteTable
     public static RouteHandlerBuilder MapCommand<TKey, TBody, TResponse>(
         this RouteGroupBuilder controls,
         string pattern,
+        ActaOperationAttribute operation,
         string summary,
         ActaEndpointOptions options,
         JsonTypeInfo<TBody> body,
@@ -160,6 +171,7 @@ internal static class RouteTable
                         apply
                     )
             ),
+            operation,
             summary,
             !bodyRequired,
             status
@@ -172,6 +184,7 @@ internal static class RouteTable
     public static RouteHandlerBuilder MapUpdate<TKey, TBody, TResponse>(
         this RouteGroupBuilder controls,
         string pattern,
+        ActaOperationAttribute operation,
         string summary,
         ActaEndpointOptions options,
         JsonTypeInfo<TBody> body,
@@ -197,6 +210,7 @@ internal static class RouteTable
                         apply
                     )
             ),
+            operation,
             summary,
             optional: false,
             status
@@ -204,6 +218,7 @@ internal static class RouteTable
 
     private static RouteHandlerBuilder DeclareControl<TBody, TResponse>(
         RouteHandlerBuilder route,
+        ActaOperationAttribute operation,
         string summary,
         bool optional,
         ControlStatus<TResponse> status
@@ -214,6 +229,7 @@ internal static class RouteTable
         // Beside its body's answers, a control checks its confirmation header and route key, the 400, and writes the
         // database, the 503.
         route
+            .WithMetadata(operation)
             .AcceptsJson<TBody>(optional)
             .WithSummary(summary)
             .ProducesProblem(StatusCodes.Status400BadRequest)

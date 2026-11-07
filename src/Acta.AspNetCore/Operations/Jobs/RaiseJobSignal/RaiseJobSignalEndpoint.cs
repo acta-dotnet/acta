@@ -90,6 +90,7 @@ internal static class RaiseJobSignalEndpoint
                     }
                 }
             )
+            .WithMetadata(new ActaOperationAttribute("raiseJobSignal", ActaPermissions.Control))
             .WithSummary("Raise a named signal on the job, with an optional JSON value.")
             // The signal value is free-form JSON passed through verbatim, so the declared body type is
             // "any JSON" rather than a record; optional because an empty body raises a presence-only signal.

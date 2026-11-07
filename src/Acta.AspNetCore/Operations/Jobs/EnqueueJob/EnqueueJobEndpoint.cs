@@ -95,6 +95,7 @@ internal static class EnqueueJobEndpoint
                     }
                 }
             )
+            .WithMetadata(new ActaOperationAttribute("enqueueJob", ActaPermissions.Enqueue))
             // 201 when the enqueue inserted, 200 when a deduplication key matched an existing row.
             // Both carry Location; 409 is a namespace or tenant guard refusing the enqueue outright.
             .WithSummary("Enqueue a job.")

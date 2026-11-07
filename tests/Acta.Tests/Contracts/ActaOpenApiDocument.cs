@@ -30,6 +30,9 @@ internal static partial class ActaOpenApiDocument
     /// <summary>The extension carrying an open code's known values: the wire spellings this version writes, in member order.</summary>
     public const string KnownValuesExtension = "x-acta-known-values";
 
+    /// <summary>The extension carrying the permission an operation needs, one of <see cref="ActaPermissions"/>.</summary>
+    public const string PermissionExtension = "x-acta-permission";
+
     /// <summary>The sentence every code schema's description ends with.</summary>
     public const string OtherValuesMayAppear = "Other values may appear: keep a value this client does not know as it is.";
 
@@ -256,14 +259,22 @@ internal static partial class ActaOpenApiDocument
                 return Task.CompletedTask;
             }
         );
-        // ASP.NET endpoint names stay unset, since a host may mount the API twice and names are global.
+        // A route declares its operation id and permission (ActaOperationAttribute); the description names the permission.
         o.AddOperationTransformer(
             (operation, context, _) =>
             {
-                operation.OperationId = OpenApiOperationIds.For(
-                    context.Description.HttpMethod ?? "",
-                    context.Description.RelativePath ?? ""
-                );
+                if (Metadata<ActaOperationAttribute>(context) is { } declared)
+                {
+                    operation.OperationId = declared.OperationId;
+                    operation.Extensions ??= new Dictionary<string, IOpenApiExtension>(StringComparer.Ordinal);
+                    operation.Extensions[PermissionExtension] = new JsonNodeExtension(JsonValue.Create(declared.Permission));
+                    operation.Description = string.Join(
+                        "\n\n",
+                        new[] { operation.Description, $"Needs the {declared.Permission} permission." }.Where(text =>
+                            !string.IsNullOrEmpty(text)
+                        )
+                    );
+                }
                 return Task.CompletedTask;
             }
         );
@@ -331,13 +342,12 @@ internal static partial class ActaOpenApiDocument
         // One example each for the JSON request body and the JSON success, as the host over the staged fakes was sent
         // and answered them (OpenApiExamples), named for the operation.
         o.AddOperationTransformer(
-            (operation, context, _) =>
+            (operation, _, _) =>
             {
-                var key = OpenApiOperationIds.Key(context.Description.HttpMethod ?? "", context.Description.RelativePath ?? "");
-                if (examples.TryGetValue(key, out var example))
+                if (operation.OperationId is { } id && examples.TryGetValue(id, out var example))
                 {
-                    Attach(operation.RequestBody?.Content, example.Request, operation.OperationId!);
-                    Attach(operation.Responses?.GetValueOrDefault(example.Status)?.Content, example.Response, operation.OperationId!);
+                    Attach(operation.RequestBody?.Content, example.Request, id);
+                    Attach(operation.Responses?.GetValueOrDefault(example.Status)?.Content, example.Response, id);
                 }
                 return Task.CompletedTask;
             }

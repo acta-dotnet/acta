@@ -14,6 +14,7 @@ internal static class JobsEndpoints
     {
         reads.MapDetail(
             "/jobs/{jobRef}",
+            new("getJob", ActaPermissions.Read),
             "Read one job.",
             "Job",
             DashboardJsonContext.Default.GetJobResponse,
@@ -26,6 +27,7 @@ internal static class JobsEndpoints
         reads
             .MapDetail(
                 "/jobs/by-key",
+                new("getJobByKey", ActaPermissions.Read),
                 "Resolve a job by namespace and deduplication key.",
                 "Job",
                 DashboardJsonContext.Default.GetJobResponse,
@@ -56,6 +58,7 @@ internal static class JobsEndpoints
             controls,
             "/jobs/{jobRef}/tags",
             "job",
+            ActaPermissions.Control,
             options,
             http => TagTarget.ForJob(RouteKeys.Job(http, options)),
             async (http, call) => await call.Jobs.StoredJobIdAsync(RouteKeys.Job(http, options), call.Ct) is not null
@@ -67,6 +70,7 @@ internal static class JobsEndpoints
         reads
             .MapList(
                 "/jobs/{jobRef}/steps",
+                new("listJobSteps", ActaPermissions.Read),
                 "List one job's steps, newest first.",
                 DashboardJsonContext.Default.ListJobStepsResponse,
                 query =>
@@ -105,6 +109,7 @@ internal static class JobsEndpoints
     {
         controls.MapCommand(
             "/jobs/{jobRef}/pause",
+            new("pauseJob", ActaPermissions.Control),
             "Pause the job until an operator resumes it.",
             options,
             DashboardJsonContext.Default.PauseJobRequest,
@@ -115,6 +120,7 @@ internal static class JobsEndpoints
         );
         controls.MapCommand(
             "/jobs/{jobRef}/resume",
+            new("resumeJob", ActaPermissions.Control),
             "Resume a paused job.",
             options,
             DashboardJsonContext.Default.ResumeJobRequest,
@@ -125,6 +131,7 @@ internal static class JobsEndpoints
         );
         controls.MapCommand(
             "/jobs/{jobRef}/restart",
+            new("restartJob", ActaPermissions.Control),
             "Restart a terminal job with its original input.",
             options,
             DashboardJsonContext.Default.RestartJobRequest,
@@ -135,6 +142,7 @@ internal static class JobsEndpoints
         );
         controls.MapCommand(
             "/jobs/{jobRef}/cancel",
+            new("cancelJob", ActaPermissions.Control),
             "Cancel the job.",
             options,
             DashboardJsonContext.Default.CancelJobRequest,
@@ -145,6 +153,7 @@ internal static class JobsEndpoints
         );
         controls.MapCommand(
             "/jobs/{jobRef}/purge",
+            new("purgeJob", ActaPermissions.Admin),
             "Delete the job's record from the ledger.",
             options,
             DashboardJsonContext.Default.PurgeJobRequest,
@@ -155,6 +164,7 @@ internal static class JobsEndpoints
         );
         controls.MapCommand(
             "/jobs/{jobRef}/reschedule",
+            new("rescheduleJob", ActaPermissions.Control),
             "Move the job's next-run instant, or run it now.",
             options,
             DashboardJsonContext.Default.RescheduleJobRequest,
@@ -178,6 +188,7 @@ internal static class JobsEndpoints
         );
         controls.MapCommand(
             "/jobs/{jobRef}/reprioritize",
+            new("reprioritizeJob", ActaPermissions.Control),
             "Change the job's priority.",
             options,
             DashboardJsonContext.Default.ReprioritizeJobRequest,

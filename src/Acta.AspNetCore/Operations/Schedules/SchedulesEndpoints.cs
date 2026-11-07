@@ -12,6 +12,7 @@ internal static class SchedulesEndpoints
     {
         reads.MapList(
             "/schedules",
+            new("listSchedules", ActaPermissions.Read),
             "List recurring schedules, next run first.",
             DashboardJsonContext.Default.ListSchedulesResponse,
             static query => new ListSchedulesQuery(
@@ -45,6 +46,7 @@ internal static class SchedulesEndpoints
         reads
             .MapDetail(
                 "/schedules/{jobNamespace}/{jobName}/{scheduleName}/preview",
+                new("previewSchedule", ActaPermissions.Read),
                 "Preview a schedule's upcoming fire instants.",
                 "Schedule",
                 DashboardJsonContext.Default.PreviewScheduleResponse,
@@ -73,6 +75,7 @@ internal static class SchedulesEndpoints
 
         controls.MapCommand(
             "/schedules/{jobNamespace}/{jobName}/{scheduleName}/pause",
+            new("pauseSchedule", ActaPermissions.Control),
             "Pause a recurring schedule, indefinitely or until an instant.",
             options,
             DashboardJsonContext.Default.PauseScheduleRequest,
@@ -84,6 +87,7 @@ internal static class SchedulesEndpoints
         );
         controls.MapCommand(
             "/schedules/{jobNamespace}/{jobName}/{scheduleName}/resume",
+            new("resumeSchedule", ActaPermissions.Control),
             "Resume a paused schedule, reconciled by its misfire policy.",
             options,
             DashboardJsonContext.Default.ResumeScheduleRequest,
@@ -94,6 +98,7 @@ internal static class SchedulesEndpoints
         );
         controls.MapCommand(
             "/schedules/{jobNamespace}/{jobName}/{scheduleName}/trigger",
+            new("triggerSchedule", ActaPermissions.Control),
             "Fire the schedule now, without moving its cadence.",
             options,
             DashboardJsonContext.Default.TriggerScheduleRequest,

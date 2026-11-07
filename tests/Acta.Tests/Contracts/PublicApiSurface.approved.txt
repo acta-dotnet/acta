@@ -34,6 +34,15 @@ static class Acta.AspNetCore.ActaEndpointRouteBuilderExtensions
     const System.String ApiVersionSegment = "/v1"
     static Microsoft.AspNetCore.Routing.RouteGroupBuilder MapActa(this Microsoft.AspNetCore.Routing.IEndpointRouteBuilder endpoints, System.String pattern = "/acta", System.Action<Acta.AspNetCore.ActaDashboardOptions> configure = null)
     static Microsoft.AspNetCore.Routing.RouteGroupBuilder MapActaApi(this Microsoft.AspNetCore.Routing.IEndpointRouteBuilder endpoints, System.String pattern = "/acta/api", System.Action<Acta.AspNetCore.ActaEndpointOptions> configure = null)
+sealed class Acta.AspNetCore.ActaOperationAttribute : System.Attribute
+    .ctor(System.String operationId, System.String permission)
+    System.String OperationId { get; }
+    System.String Permission { get; }
+static class Acta.AspNetCore.ActaPermissions
+    const System.String Admin = "acta.admin"
+    const System.String Control = "acta.control"
+    const System.String Enqueue = "acta.enqueue"
+    const System.String Read = "acta.read"
 interface Acta.AspNetCore.IActaControlAuthorizer
     System.Threading.Tasks.ValueTask<Acta.AspNetCore.ActaControlVerdict> AuthorizeAsync(Acta.AspNetCore.ActaControlContext context, System.Threading.CancellationToken ct)
 

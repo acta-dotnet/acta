@@ -13,6 +13,7 @@ internal static class DefinitionsEndpoints
     {
         reads.MapList(
             "/definitions",
+            new("listDefinitions", ActaPermissions.Read),
             "List job definitions.",
             DashboardJsonContext.Default.ListDefinitionsResponse,
             static query => new ListDefinitionsQuery(
@@ -41,6 +42,7 @@ internal static class DefinitionsEndpoints
         );
         reads.MapDetail(
             "/definitions/{jobNamespace}/{jobName}",
+            new("getDefinition", ActaPermissions.Read),
             "Read one job definition and its effective policy.",
             "Definition",
             DashboardJsonContext.Default.GetDefinitionResponse,
@@ -51,6 +53,7 @@ internal static class DefinitionsEndpoints
             controls,
             "/definitions/{jobNamespace}/{jobName}/tags",
             "definition",
+            ActaPermissions.Admin,
             options,
             static http => TagTarget.ForDefinition(Key(http).Namespace, Key(http).Name),
             static async (http, call) =>
@@ -63,6 +66,7 @@ internal static class DefinitionsEndpoints
 
         controls.MapUpdate(
             "/definitions/{jobNamespace}/{jobName}/overrides",
+            new("updateDefinitionOverrides", ActaPermissions.Admin),
             "Replace the definition's operator policy overrides.",
             options,
             DashboardJsonContext.Default.UpdateDefinitionOverridesRequest,
@@ -83,6 +87,7 @@ internal static class DefinitionsEndpoints
         );
         controls.MapCommand(
             "/definitions/{jobNamespace}/{jobName}/retire",
+            new("retireDefinition", ActaPermissions.Admin),
             "Retire the definition and cancel its parked jobs.",
             options,
             DashboardJsonContext.Default.RetireDefinitionRequest,

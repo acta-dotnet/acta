@@ -10,6 +10,7 @@ internal static class NamespacesEndpoints
     {
         reads.MapList(
             "/namespaces",
+            new("listNamespaces", ActaPermissions.Read),
             "List namespaces.",
             DashboardJsonContext.Default.ListNamespacesResponse,
             static query => new ListNamespacesQuery(
@@ -37,6 +38,7 @@ internal static class NamespacesEndpoints
         // A namespace name the facade cannot canonicalize is malformed caller input, so it is the 400 and never a miss.
         reads.MapDetail(
             "/namespaces/{jobNamespace}",
+            new("getNamespace", ActaPermissions.Read),
             "Read one namespace.",
             "Namespace",
             DashboardJsonContext.Default.GetNamespaceResponse,
@@ -56,6 +58,7 @@ internal static class NamespacesEndpoints
             controls,
             "/namespaces/{jobNamespace}/tags",
             "namespace",
+            ActaPermissions.Admin,
             options,
             static http => TagTarget.ForNamespace(Name(http)),
             static async (http, call) => await call.Operations.Namespaces.GetAsync(Name(http), call.Ct) is not null
@@ -67,6 +70,7 @@ internal static class NamespacesEndpoints
 
         controls.MapCommand(
             "/namespaces/{jobNamespace}/suspend",
+            new("suspendNamespace", ActaPermissions.Admin),
             "Suspend the namespace: new work is rejected at enqueue.",
             options,
             DashboardJsonContext.Default.SuspendNamespaceRequest,
@@ -77,6 +81,7 @@ internal static class NamespacesEndpoints
         );
         controls.MapCommand(
             "/namespaces/{jobNamespace}/resume",
+            new("resumeNamespace", ActaPermissions.Admin),
             "Resume a suspended namespace.",
             options,
             DashboardJsonContext.Default.ResumeNamespaceRequest,
@@ -88,6 +93,7 @@ internal static class NamespacesEndpoints
         // A stale ExpectedVersion is 409 carrying the row's current version, so the caller retries without a re-read.
         controls.MapUpdate(
             "/namespaces/{jobNamespace}",
+            new("updateNamespace", ActaPermissions.Admin),
             "Update the namespace's owner team and description.",
             options,
             DashboardJsonContext.Default.UpdateNamespaceRequest,

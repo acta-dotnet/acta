@@ -6,36 +6,36 @@ using Microsoft.AspNetCore.Routing.Patterns;
 namespace Acta.AspNetCore;
 
 /// <summary>
-/// Tags every mapped operator endpoint by its resource, derived from the endpoint's own route and
-/// applied once at the group rather than restated on 54 map calls.
+/// Tags every operator endpoint by its resource, read from its own route, and refuses one that declares no
+/// <see cref="ActaOperationAttribute"/>, the home of its operation id and permission. Without a tag, ASP.NET groups
+/// the operations of <c>docs/reference/openapi.json</c> under the entry assembly's name. Endpoint names stay unset:
+/// ASP.NET wants them unique across the app, and a host may map the API twice, a read-only mount beside a control one,
+/// so the id is the attribute's, the same under any mount.
 /// </summary>
-/// <remarks>
-/// <para>
-/// The tag is what groups operations in <c>docs/reference/openapi.json</c> and in any client
-/// generated from it. Without one, ASP.NET falls back to the entry assembly's name, so the committed
-/// contract was labelling every operation with whatever assembly happened to generate it.
-/// </para>
-/// <para>
-/// Endpoint <em>names</em> are deliberately not set here. ASP.NET requires them to be globally unique
-/// across the app, and Acta supports being mapped more than once - a read-only mount alongside a
-/// control-enabled one is a supported deployment with its own test. A route-derived name would
-/// collide between those mounts, and a mount-derived one would put the host's chosen path inside
-/// every operation id in a document that is supposed to describe the API, not the deployment. So the
-/// framework assigns no operation ids; the contract generator derives each from the method and the
-/// route below the version segment, the same under any mount, and the drift gate covers those too.
-/// </para>
-/// </remarks>
 internal static class ActaEndpointIdentity
 {
-    public static void Apply(RouteGroupBuilder group) =>
-        // Add is an explicit IEndpointConventionBuilder member on RouteGroupBuilder.
-        ((IEndpointConventionBuilder)group).Add(builder =>
+    public static void Apply(RouteGroupBuilder group)
+    {
+        // Add and Finally are explicit IEndpointConventionBuilder members on RouteGroupBuilder.
+        var conventions = (IEndpointConventionBuilder)group;
+        conventions.Add(builder =>
         {
             if (builder is RouteEndpointBuilder route && Resource(route.RoutePattern) is { } resource)
             {
                 route.Metadata.Add(new TagsAttribute(resource));
             }
         });
+        // Finally runs after the route's own conventions, so it sees the attribute the route's WithMetadata added.
+        conventions.Finally(builder =>
+        {
+            if (!builder.Metadata.OfType<ActaOperationAttribute>().Any())
+            {
+                throw new InvalidOperationException(
+                    $"The Acta route {(builder as RouteEndpointBuilder)?.RoutePattern.RawText ?? builder.DisplayName} declares no ActaOperationAttribute."
+                );
+            }
+        });
+    }
 
     /// <summary>
     /// The first route segment below Acta's version segment - <c>jobs</c>, <c>schedules</c>,

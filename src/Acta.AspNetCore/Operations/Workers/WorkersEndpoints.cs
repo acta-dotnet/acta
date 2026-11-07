@@ -9,6 +9,7 @@ internal static class WorkersEndpoints
     {
         reads.MapList(
             "/workers",
+            new("listWorkers", ActaPermissions.Read),
             "List workers.",
             DashboardJsonContext.Default.ListWorkersResponse,
             static query => new ListWorkersQuery(
@@ -33,6 +34,7 @@ internal static class WorkersEndpoints
         );
         reads.MapDetail(
             "/workers/{workerRef}",
+            new("getWorker", ActaPermissions.Read),
             "Read one worker.",
             "Worker",
             DashboardJsonContext.Default.GetWorkerResponse,

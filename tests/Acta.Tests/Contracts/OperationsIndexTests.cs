@@ -113,7 +113,9 @@ public sealed partial class OperationsIndexTests
                     Cell(
                         routes
                             .Where(r => r.Operation == operation)
-                            .Select(r => $"`{r.Verb} {r.Pattern}` (`{OpenApiOperationIds.For($"{r.Verb} {r.Pattern}", routes)}`)")
+                            .Select(r =>
+                                $"`{r.Verb} {r.Pattern}` (`{OperationNames.OperationId(r.Operation, r.Pattern, [.. routes.Where(o => o.Operation == r.Operation).Select(o => o.Pattern)])}`)"
+                            )
                     ),
                     Cell(verbs.Where(v => v.Operation == operation).Select(v => $"`{v.Verb}`")),
                     SqlKind(sql),

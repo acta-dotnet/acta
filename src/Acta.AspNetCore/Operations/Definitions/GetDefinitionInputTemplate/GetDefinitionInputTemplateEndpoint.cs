@@ -21,6 +21,7 @@ internal static class GetDefinitionInputTemplateEndpoint
                         ? Results.Json(template, DashboardJsonContext.Default.GetDefinitionInputTemplateResponse)
                         : RouteTable.NotFound("Input template")
             )
+            .WithMetadata(new ActaOperationAttribute("getDefinitionInputTemplate", ActaPermissions.Read))
             .WithSummary("Read a job's compile-time input template.")
             .Produces<GetDefinitionInputTemplateResponse>(StatusCodes.Status200OK)
             .ProducesProblem(StatusCodes.Status404NotFound);

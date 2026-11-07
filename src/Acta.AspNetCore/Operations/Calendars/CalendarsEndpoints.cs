@@ -15,6 +15,7 @@ internal static class CalendarsEndpoints
     {
         reads.MapList(
             "/calendars",
+            new("listCalendars", ActaPermissions.Read),
             "List calendar families, the shared ones in sys included.",
             DashboardJsonContext.Default.ListCalendarsResponse,
             static query => new ListCalendarsQuery(
@@ -45,6 +46,7 @@ internal static class CalendarsEndpoints
         reads
             .MapDetail(
                 "/calendars/{jobNamespace}/{calendarName}",
+                new("getCalendar", ActaPermissions.Read),
                 "Read a calendar family's head: its current and latest versions and one definition.",
                 "Calendar",
                 DashboardJsonContext.Default.GetCalendarResponse,
@@ -66,6 +68,7 @@ internal static class CalendarsEndpoints
         reads
             .MapList(
                 "/calendars/{jobNamespace}/{calendarName}/versions",
+                new("listCalendarVersions", ActaPermissions.Read),
                 "List a calendar family's versions, newest first.",
                 DashboardJsonContext.Default.ListCalendarVersionsResponse,
                 static query => new ListCalendarVersionsQuery(
@@ -84,6 +87,7 @@ internal static class CalendarsEndpoints
         reads
             .MapList(
                 "/calendars/{jobNamespace}/{calendarName}/dependents",
+                new("listCalendarDependents", ActaPermissions.Read),
                 "List the schedules naming a calendar family, by path.",
                 DashboardJsonContext.Default.ListCalendarDependentsResponse,
                 static query => new ListCalendarDependentsQuery(
@@ -102,6 +106,7 @@ internal static class CalendarsEndpoints
         reads
             .MapDetail(
                 "/calendars/{jobNamespace}/{calendarName}/preview",
+                new("previewCalendar", ActaPermissions.Read),
                 "Preview a calendar version beside the current one.",
                 "Calendar",
                 DashboardJsonContext.Default.PreviewCalendarResponse,
@@ -150,6 +155,7 @@ internal static class CalendarsEndpoints
 
         controls.MapCommand(
             "/calendars/{jobNamespace}/{calendarName}/drafts",
+            new("saveCalendarDraft", ActaPermissions.Admin),
             "Save a calendar definition as the family's next draft version.",
             options,
             DashboardJsonContext.Default.SaveCalendarDraftRequest,
@@ -173,6 +179,7 @@ internal static class CalendarsEndpoints
         );
         controls.MapCommand(
             "/calendars/{jobNamespace}/{calendarName}/publish",
+            new("publishCalendar", ActaPermissions.Admin),
             "Publish a draft as the family's current version and retime the schedules bound to it.",
             options,
             DashboardJsonContext.Default.PublishCalendarRequest,
@@ -195,6 +202,7 @@ internal static class CalendarsEndpoints
         );
         controls.MapCommand(
             "/calendars/{jobNamespace}/{calendarName}/archive",
+            new("archiveCalendar", ActaPermissions.Admin),
             "Archive the family's current version.",
             options,
             DashboardJsonContext.Default.ArchiveCalendarRequest,

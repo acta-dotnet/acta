@@ -75,6 +75,7 @@ internal static class RegisterTenantEndpoint
                     }
                 }
             )
+            .WithMetadata(new ActaOperationAttribute("registerTenant", ActaPermissions.Admin))
             // RegisterAsync is insert-or-get, and it succeeds either way without saying which, so this
             // cannot claim 201. An idempotent upsert answering 200 with the canonical key is
             // the accurate shape.
