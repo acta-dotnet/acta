@@ -16,11 +16,14 @@ DROP TABLE IF EXISTS pg_temp._update_definition_overrides;
 CREATE TEMP TABLE _update_definition_overrides (
     namespace_id INT NOT NULL,
     version INT NOT NULL,
-    meter VARCHAR NOT NULL
+    meter VARCHAR NOT NULL,
+    stamp TIMESTAMPTZ NOT NULL
 ) ON COMMIT DROP;
 
-INSERT INTO _update_definition_overrides (namespace_id, version, meter)
-SELECT jd.namespace_id, jd.version, lower(COALESCE(jd.rate_name, jd.definition_name))
+-- The definitions stamp, taken after the lock (docs/sql-internals.md, "Schedule lock").
+INSERT INTO _update_definition_overrides (namespace_id, version, meter, stamp)
+SELECT jd.namespace_id, jd.version, lower(COALESCE(jd.rate_name, jd.definition_name)),
+    GREATEST(statement_timestamp(), (SELECT MAX(d.modified_at_utc) FROM {{schema}}.definitions d WHERE d.namespace_id = jd.namespace_id) + interval '1 microsecond')
 FROM {{schema}}.definitions jd
 WHERE jd.definition_id = @p_definition_id
 FOR UPDATE;
@@ -42,7 +45,7 @@ SET
     runbook_url_override = @p_runbook_url_override,
     display_name_override = @p_display_name_override,
     description_override = @p_description_override,
-    modified_at_utc = now(),
+    modified_at_utc = (SELECT t.stamp FROM _update_definition_overrides t),
     version = version + 1
 WHERE definition_id = @p_definition_id AND version = @p_version;
 
@@ -51,7 +54,7 @@ WHERE definition_id = @p_definition_id AND version = @p_version;
 UPDATE {{schema}}.definitions sib
 SET
     rate_limit_override = @p_rate_limit_override,
-    modified_at_utc = now(),
+    modified_at_utc = t.stamp,
     version = sib.version + 1
 FROM _update_definition_overrides t
 WHERE

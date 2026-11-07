@@ -102,7 +102,8 @@ ON CONFLICT (namespace_id, definition_name) DO UPDATE SET
     display_name = excluded.display_name,
     description = excluded.description,
     definition_hash = excluded.definition_hash,
-    modified_at_utc = {{now}},
+    -- Past the namespace's newest stamp (docs/sql-internals.md, "Schedule lock").
+    modified_at_utc = MAX({{now}}, COALESCE((SELECT MAX(d.modified_at_utc) FROM {{schema}}.definitions d WHERE d.namespace_id = @p_namespace_id), 0) + 1),
     version = {{schema}}.definitions.version + 1
 -- An unchanged Active row is left as it is: version and modified_at_utc stay, so no operator CAS fails and no worker
 -- reloads.

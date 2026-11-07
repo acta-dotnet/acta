@@ -276,6 +276,38 @@ public sealed class UpdateDefinitionOverridesSpec : ActaStorageTestBase<Conforma
         Assert.Equal(after.Version, outcome.Version);
     }
 
+    [Fact(DisplayName = "An override stamps its definition past the namespace's newest stamp, so a heartbeat sees the edit")]
+    public async Task An_override_stamps_past_the_namespace_newest()
+    {
+        var ct = TestContext.Current.CancellationToken;
+        var name = Unique("stamp-ovr");
+        await RegisterAsync(name, 3, ct);
+        var aheadId = await RegisterAsync(Unique("stamp-ahead"), 3, ct);
+        var before = await ReadAsync(name, ct);
+
+        // A writer stamped ahead of this one's clock committed first, as one this override waited behind can.
+        var now = DateTime.UtcNow.AddHours(1);
+        var ahead = new DateTime(now.Ticks - now.Ticks % TimeSpan.TicksPerMillisecond, DateTimeKind.Utc);
+        var stamped = await Db.From<DefinitionEntity>()
+            .Where(d => d.Id == aheadId)
+            .UpdateOnlyAsync(() => new DefinitionEntity { ModifiedAtUtc = ahead }, ct);
+        Assert.Equal(1, stamped);
+
+        var outcome = await DefinitionTestOps.UpdateOverridesAsync(
+            Services,
+            TestNamespace,
+            name,
+            before.Version,
+            new DefinitionPolicyOverrides(MaxAttempts: 9),
+            Actor,
+            "stamp",
+            ct
+        );
+
+        Assert.Equal(ControlAction.Applied, outcome.Action);
+        Assert.True((await ReadAsync(name, ct)).ModifiedAtUtc > ahead);
+    }
+
     [Fact(DisplayName = "Clearing an override reverts effective to the default")]
     public async Task Clear_override_reverts_effective()
     {

@@ -57,7 +57,8 @@ WHERE
 UPDATE {{schema}}.definitions
 SET
     definition_status_code = 240 /* DefinitionStatusCode.Retired */,
-    modified_at_utc = {{now}},
+    -- Past the namespace's newest stamp (docs/sql-internals.md, "Schedule lock").
+    modified_at_utc = MAX({{now}}, COALESCE((SELECT MAX(d.modified_at_utc) FROM {{schema}}.definitions d WHERE d.namespace_id = (SELECT x.namespace_id FROM {{schema}}.definitions x WHERE x.definition_id = @p_definition_id)), 0) + 1),
     version = version + 1
 WHERE
     definition_id = @p_definition_id

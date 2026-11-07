@@ -8,6 +8,7 @@ BEGIN TRY
 
     DECLARE @now DATETIME2(7) = SYSUTCDATETIME();
     DECLARE @lock_result INT;
+    DECLARE @stamp DATETIME2(3);
     DECLARE @lock_resource NVARCHAR(255) = N'{{schema}}.schedules.' + CAST(@p_namespace_id AS NVARCHAR(12));
 
     -- The namespace's schedule lock, exclusive, before any row lock (docs/sql-internals.md, "Schedule lock"): the update
@@ -15,6 +16,11 @@ BEGIN TRY
     EXEC @lock_result = sys.sp_getapplock @lock_resource, 'Exclusive', 'Transaction', -1;
     IF @lock_result < 0
         THROW 51205, 'ACTA:SCHEDULE_LOCK:The namespace schedule lock was not granted (deadlock victim or cancelled).', 1;
+
+    -- The definitions stamp, taken after the lock (docs/sql-internals.md, "Schedule lock").
+    SELECT @stamp = CASE WHEN MAX(d.modified_at_utc) >= DATEADD(millisecond, -1, SYSUTCDATETIME()) THEN DATEADD(millisecond, 1, MAX(d.modified_at_utc)) ELSE SYSUTCDATETIME() END
+    FROM {{schema}}.definitions d WITH (FORCESEEK (ux_definitions_namespace_name (namespace_id)))
+    WHERE d.namespace_id = @p_namespace_id;
 
     UPDATE jd SET
         definition_status_code = 10 /* DefinitionStatusCode.Active */,
@@ -47,7 +53,7 @@ BEGIN TRY
         display_name = src.display_name,
         description = src.description,
         definition_hash = src.definition_hash,
-        modified_at_utc = @now,
+        modified_at_utc = @stamp,
         version = jd.version + 1
     -- Every read of definitions seeks the namespace's names (docs/sql-internals.md, "Locking reads seek").
     FROM {{schema}}.definitions jd WITH (FORCESEEK (ux_definitions_namespace_name (namespace_id, definition_name)))
@@ -114,7 +120,7 @@ BEGIN TRY
         src.definition_hash,
         @p_created_deployment_version,
         @now,
-        @now,
+        @stamp,
         0
     FROM @p_definitions src
     WHERE NOT EXISTS (

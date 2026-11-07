@@ -22,6 +22,7 @@ DECLARE @lanes TABLE (lane_id BIGINT NOT NULL PRIMARY KEY);
 DECLARE @heads TABLE (job_id BIGINT NOT NULL PRIMARY KEY);
 DECLARE @lane_cursor BIGINT = 0, @lane_next BIGINT, @lane_locked BIGINT, @promoted INT = 0;
 DECLARE @lock_result INT, @lock_resource NVARCHAR(255);
+DECLARE @stamp DATETIME2(3);
 
 BEGIN TRY
     IF @entry_trancount = 0
@@ -90,10 +91,14 @@ BEGIN TRY
 
     IF @action = 1 /* DefinitionOverrideAction.Applied */ AND @existing_status <> 240 /* DefinitionStatusCode.Retired */
     BEGIN
+        -- The definitions stamp, taken after the lock (docs/sql-internals.md, "Schedule lock").
+        SELECT @stamp = CASE WHEN MAX(d.modified_at_utc) >= DATEADD(millisecond, -1, SYSUTCDATETIME()) THEN DATEADD(millisecond, 1, MAX(d.modified_at_utc)) ELSE SYSUTCDATETIME() END
+        FROM {{schema}}.definitions d WITH (FORCESEEK (ux_definitions_namespace_name (namespace_id)))
+        WHERE d.namespace_id = @ns;
         UPDATE {{schema}}.definitions
         SET
             definition_status_code = 240 /* DefinitionStatusCode.Retired */,
-            modified_at_utc = @now,
+            modified_at_utc = @stamp,
             version = version + 1
         WHERE definition_id = @p_definition_id;
         SET @version = @version + 1;

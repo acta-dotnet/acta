@@ -9,6 +9,7 @@ BEGIN TRY
     DECLARE @now DATETIME2(7) = SYSUTCDATETIME();
     DECLARE @ns INT, @existing_version INT, @rate_name VARCHAR(128), @name VARCHAR(128), @meter VARCHAR(128);
     DECLARE @lock_result INT, @lock_resource NVARCHAR(255);
+    DECLARE @stamp DATETIME2(3);
 
     -- The namespace's schedule lock, exclusive, before any row lock (docs/sql-internals.md, "Schedule lock"): the
     -- definition row and then its slot lock below, and registration writes the slot before its schedules check the row.
@@ -45,6 +46,11 @@ BEGIN TRY
 
     SET @meter = LOWER(COALESCE(@rate_name, @name));
 
+    -- The definitions stamp, taken after the lock (docs/sql-internals.md, "Schedule lock").
+    SELECT @stamp = CASE WHEN MAX(d.modified_at_utc) >= DATEADD(millisecond, -1, SYSUTCDATETIME()) THEN DATEADD(millisecond, 1, MAX(d.modified_at_utc)) ELSE SYSUTCDATETIME() END
+    FROM {{schema}}.definitions d WITH (FORCESEEK (ux_definitions_namespace_name (namespace_id)))
+    WHERE d.namespace_id = @ns;
+
     UPDATE {{schema}}.definitions SET
         job_priority_code_override = @p_job_priority_code_override,
         max_attempts_override = @p_max_attempts_override,
@@ -61,7 +67,7 @@ BEGIN TRY
         runbook_url_override = @p_runbook_url_override,
         display_name_override = @p_display_name_override,
         description_override = @p_description_override,
-        modified_at_utc = @now,
+        modified_at_utc = @stamp,
         version = jd.version + 1
     FROM {{schema}}.definitions jd
     WHERE jd.definition_id = @p_definition_id AND jd.version = @p_version;
@@ -72,7 +78,7 @@ BEGIN TRY
     UPDATE {{schema}}.definitions
     SET
         rate_limit_override = @p_rate_limit_override,
-        modified_at_utc = @now,
+        modified_at_utc = @stamp,
         version = version + 1
     WHERE
         namespace_id = @ns

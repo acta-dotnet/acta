@@ -476,6 +476,10 @@ Each namespace has one schedule lock, held until its transaction ends: `sp_getap
   suspension takes it in a statement of its own before the namespace row; SQLite's one writer orders a suspension and
   an admission without it. An override takes it because it locks the definition row before the slot's `jobs` row,
   the reverse of registration, whose schedules check the definition row after the slot write.
+- Every update of a `definitions` row stamps `modified_at_utc` after the lock and past the namespace's newest stamp, by
+  one microsecond on PostgreSQL and one millisecond on SQL Server and SQLite. A namespace's definitions are written
+  under its exclusive lock, so their stamps rise in commit order, and a worker's heartbeat, which compares the
+  namespace's newest stamp with the one it saw last, reloads after every edit.
 - Admission (`AdmitScheduleFirings`), a completion that settles a permanent slot or a per-occurrence root, the schedule
   verbs (pause, resume, trigger), and a reschedule of a permanent slot take it shared, so admissions, settlements, and verbs run together and wait only for
   a registration, a retire, an override, or a suspension. A completion with neither a slot nor a charged root in its batch takes

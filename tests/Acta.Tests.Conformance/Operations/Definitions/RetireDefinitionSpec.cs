@@ -91,6 +91,28 @@ public sealed class RetireDefinitionSpec : ActaRuntimeTestBase<ConformanceFixtur
         Assert.Equal(Reason, evt.EventMessage);
     }
 
+    [Fact(DisplayName = "A retire stamps its definition past the namespace's newest stamp, so a heartbeat sees the edit")]
+    public async Task A_retire_stamps_past_the_namespace_newest()
+    {
+        var ct = TestContext.Current.CancellationToken;
+        var ns = Runtime.RegisteredNamespaceIds[TestNamespace];
+
+        // A writer stamped ahead of this one's clock committed first, as one this retire waited behind can.
+        var now = DateTime.UtcNow.AddHours(1);
+        var ahead = new DateTime(now.Ticks - now.Ticks % TimeSpan.TicksPerMillisecond, DateTimeKind.Utc);
+        var stamped = await Db.From<DefinitionEntity>()
+            .Where(d => d.NamespaceId == ns && d.DefinitionName == "job-wait-signal")
+            .UpdateOnlyAsync(() => new DefinitionEntity { ModifiedAtUtc = ahead }, ct);
+        Assert.Equal(1, stamped);
+
+        Assert.Equal(ControlAction.Applied, (await RetireAsync("add-numbers", ct)).Action);
+
+        var retired = await Db.From<DefinitionEntity>()
+            .Where(d => d.NamespaceId == ns && d.DefinitionName == "add-numbers")
+            .SingleOrDefaultAsync(ct);
+        Assert.True(retired!.ModifiedAtUtc > ahead);
+    }
+
     [Fact(DisplayName = "A running attempt keeps its lease through the retire and still completes")]
     public async Task A_running_attempt_is_left_to_finish()
     {

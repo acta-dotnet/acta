@@ -297,6 +297,7 @@
 - **Guarantees:**
   - Every parked job of the retired definition is cancelled with retention, no lease, and one audited event
   - The retire writes one definition-scoped retired event, leaves the definition Retired, and answers its new version
+  - A retire stamps its definition past the namespace's newest stamp, so a heartbeat sees the edit
   - A running attempt keeps its lease through the retire and still completes
   - A failing attempt in flight at the retire lands Cancelled instead of retrying, and nothing claims it again
   - A job that recovery reclaims after the retire lands Cancelled without its handler running
@@ -403,6 +404,7 @@
   - An event-recording override reaches a recurring slot at once and outlasts a worker start that read the catalog before it; an enqueued job keeps the recording it took
   - A priority override reaches an Idle recurring slot at once, and a slot between Idle states keeps its own
   - Setting an override recomputes effective and leaves the default + hash untouched
+  - An override stamps its definition past the namespace's newest stamp, so a heartbeat sees the edit
   - Clearing an override reverts effective to the default
   - A stale version is VersionConflict with the current version and changes nothing
   - An invalid or over-long backoff override is rejected and writes nothing
@@ -1596,9 +1598,9 @@
 - **Contract:** GetJobStatus returns the current JobStatusCode for a matching job row and null when no row matches the supplied id.
 - **Guarantees:**
   - A known job id returns its current JobStatusCode and a freshly enqueued job reads as Ready
+  - A status id this build does not know reads as Unspecified, as the full job read does
   - An unknown job id returns null
 
-  - A status id this build does not know reads as Unspecified, as the full job read does
 ### GetJob returns the snapshot for a known id and null for an unknown id
 - **Contract:** GetJob returns the GetJobResponse projection for a matching job row and null when no row matches the supplied id.
 - **Guarantees:**

@@ -44,7 +44,8 @@ retired AS (
     UPDATE {{schema}}.definitions jd
     SET
         definition_status_code = 240 /* DefinitionStatusCode.Retired */,
-        modified_at_utc = now(),
+        -- Taken after the lock (docs/sql-internals.md, "Schedule lock").
+        modified_at_utc = GREATEST(statement_timestamp(), (SELECT MAX(d.modified_at_utc) FROM {{schema}}.definitions d WHERE d.namespace_id = t.namespace_id) + interval '1 microsecond'),
         version = jd.version + 1
     FROM target t
     WHERE

@@ -45,7 +45,8 @@ SET
     runbook_url_override = @p_runbook_url_override,
     display_name_override = @p_display_name_override,
     description_override = @p_description_override,
-    modified_at_utc = {{now}},
+    -- Past the namespace's newest stamp (docs/sql-internals.md, "Schedule lock").
+    modified_at_utc = MAX({{now}}, COALESCE((SELECT MAX(d.modified_at_utc) FROM {{schema}}.definitions d WHERE d.namespace_id = (SELECT x.namespace_id FROM {{schema}}.definitions x WHERE x.definition_id = @p_definition_id)), 0) + 1),
     version = version + 1
 WHERE definition_id = @p_definition_id AND version = @p_version;
 
@@ -55,7 +56,7 @@ WHERE definition_id = @p_definition_id AND version = @p_version;
 UPDATE {{schema}}.definitions
 SET
     rate_limit_override = @p_rate_limit_override,
-    modified_at_utc = {{now}},
+    modified_at_utc = MAX({{now}}, COALESCE((SELECT MAX(d.modified_at_utc) FROM {{schema}}.definitions d WHERE d.namespace_id = (SELECT x.namespace_id FROM {{schema}}.definitions x WHERE x.definition_id = @p_definition_id)), 0) + 1),
     version = version + 1
 WHERE
     definition_id <> @p_definition_id

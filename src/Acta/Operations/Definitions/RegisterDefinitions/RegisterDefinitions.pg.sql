@@ -96,7 +96,7 @@ upserted AS (
         b.definition_hash,
         @p_created_deployment_version,
         statement_timestamp(),
-        statement_timestamp(),
+        GREATEST(statement_timestamp(), (SELECT MAX(d.modified_at_utc) FROM {{schema}}.definitions d WHERE d.namespace_id = @p_namespace_id) + interval '1 microsecond'),
         0
     FROM batch b
     ON CONFLICT (namespace_id, definition_name) DO UPDATE SET
@@ -130,9 +130,8 @@ upserted AS (
         display_name = EXCLUDED.display_name,
         description = EXCLUDED.description,
         definition_hash = EXCLUDED.definition_hash,
-        -- The statement's time, not the transaction's: inside a deploy's transaction now() is from before the namespace
-        -- lock was granted, and a stamp older than one a worker has seen would not make it reload.
-        modified_at_utc = statement_timestamp(),
+        -- Taken after the deploy's lock (docs/sql-internals.md, "Schedule lock").
+        modified_at_utc = GREATEST(statement_timestamp(), (SELECT MAX(d.modified_at_utc) FROM {{schema}}.definitions d WHERE d.namespace_id = @p_namespace_id) + interval '1 microsecond'),
         version = {{schema}}.definitions.version + 1
     -- An unchanged Active row is left as it is: version and modified_at_utc stay, so no operator CAS fails and no
     -- worker reloads.
