@@ -423,7 +423,7 @@ nav.side a.brand:hover:not(.active) { background: none; }
 /* The wordmark is the home link; it keeps its ink and never underlines. */
 a.brand:hover { color: var(--ink); text-decoration: none; }
 .brand-mark { display: inline-flex; color: var(--accent); }
-.brand-mark .logo-mark { display: block; }
+.brand-mark .logo-mark { display: block; position: relative; top: 1px; }
 .brand-sub { font-family: var(--font-display); font-style: italic; font-size: var(--text-brand-sub); color: var(--muted); }
 /* The scope reads as the first item in the column, on the same left margin as everything else. */
 .side-scope { padding: 0 0 10px; border-bottom: 1px solid var(--line); }
@@ -470,9 +470,10 @@ nav.side a {
   padding: 8px 20px;
   color: var(--ink);
 }
-/* One optical size and one hover voice for every glyph control in the sidebar. */
+/* One optical size and one hover voice for every glyph control in the sidebar. A row's glyph keeps the base .ic's
+   1px drop: its box centres on the label's line box, and the letters sit below that centre. */
 nav.side a .ic,
-.side-collapse .ic { flex: none; width: 16px; height: 16px; color: var(--muted); top: 0; }
+.side-collapse .ic { flex: none; width: 16px; height: 16px; color: var(--muted); }
 nav.side a:hover:not(.active),
 .side-collapse:hover,
 .side-theme .trigger:hover:not(:disabled) { background: var(--panel-subtle); color: var(--ink); text-decoration: none; }
@@ -504,7 +505,7 @@ button.side-search {
   padding: 8px 20px; color: var(--muted); font-size: var(--text-sm); cursor: pointer;
 }
 button.side-search:hover:not(:disabled) { color: var(--ink); background: var(--panel-subtle); border-color: transparent; }
-.side-search .ic { flex: none; width: 16px; height: 16px; top: 0; }
+.side-search .ic { flex: none; width: 16px; height: 16px; }
 .side-search .nav-kbd { margin-left: auto; }
 
 /* Collapse toggle: visually a nav row, not a button - flat, square, same hover as the links.
