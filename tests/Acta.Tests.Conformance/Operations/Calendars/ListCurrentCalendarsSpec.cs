@@ -61,4 +61,36 @@ public sealed class ListCurrentCalendarsSpec : ActaStorageTestBase<ConformanceFi
             current.Calendars.Where(c => names.Contains(c.CalendarName))
         );
     }
+
+    [Fact(DisplayName = "A name published in the namespace's catalog and in the shared one resolves to neither and says so")]
+    public async Task A_name_both_catalogs_publish_resolves_to_neither()
+    {
+        var ct = TestContext.Current.CancellationToken;
+        var name = Unique("twin-days");
+        var shared = Unique("twin-days-shared");
+        await Calendars.SaveDraftAsync(
+            new(TestNamespace, name),
+            CalendarRoleCode.Occurrence,
+            CalendarTestOps.OccurrenceDefinition,
+            0,
+            ct: ct
+        );
+        await CalendarTestOps.PublishAsync(Db, TestNamespaceId, name, 1, ct);
+        await Calendars.SaveDraftAsync(new("sys", shared), CalendarRoleCode.Occurrence, CalendarTestOps.OccurrenceDefinition, 0, ct: ct);
+        await CalendarTestOps.PublishAsync(Db, SystemNamespaceId, shared, 1, ct);
+        // A draft save refuses the other scope's name, but two first saves at the same moment both land; the rename
+        // leaves the rows that race leaves.
+        await Db.From<CalendarEntity>()
+            .Where(c => c.NamespaceId == SystemNamespaceId && c.CalendarName == shared)
+            .UpdateOnlyAsync(() => new CalendarEntity { CalendarName = name }, ct);
+
+        var source = await Services
+            .GetRequiredService<CalendarsOperations>()
+            .SourceAsync(TestNamespaceId, new ScheduleTiming(name, ScheduleExpressionKindCode.Calendar, "UTC", null), ct);
+
+        Assert.Null(source.Calendar);
+        Assert.Contains("in both the namespace's catalog and the shared one", Assert.Single(source.Problems()), StringComparison.Ordinal);
+    }
+
+    private const int SystemNamespaceId = 1;
 }
