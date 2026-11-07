@@ -52,6 +52,10 @@ public static class ActaEndpointRouteBuilderExtensions
 
         var group = endpoints.MapGroup(pattern);
         GuardLocalOnly(group, options);
+        if (options.RequirePermissions)
+        {
+            PermissionFilter.Attach(group, endpoints.ServiceProvider);
+        }
         MapApi(group.MapGroup(ApiVersionSegment), options);
         options.ConfigureEndpoints?.Invoke(group);
         return group;
@@ -80,6 +84,10 @@ public static class ActaEndpointRouteBuilderExtensions
 
         var group = endpoints.MapGroup(pattern);
         GuardLocalOnly(group, options);
+        if (options.RequirePermissions)
+        {
+            PermissionFilter.Attach(group, endpoints.ServiceProvider);
+        }
         MapApi(group.MapGroup("/api" + ApiVersionSegment), options);
 
         if (options.Enabled)
@@ -170,11 +178,16 @@ public static class ActaEndpointRouteBuilderExtensions
 
         // Fail closed: dropping the loopback guard without any authorization in place must be an
         // explicit, unmistakable decision rather than the silent result of one flipped flag.
-        if (!options.LocalOnly && options.ConfigureEndpoints is null && !options.UnsafeAllowAnonymousRemoteAccess)
+        if (
+            !options.LocalOnly
+            && options.ConfigureEndpoints is null
+            && !options.RequirePermissions
+            && !options.UnsafeAllowAnonymousRemoteAccess
+        )
         {
             throw new InvalidOperationException(
-                "LocalOnly = false removes the loopback guard with no authorization configured. Supply "
-                    + "ConfigureEndpoints (e.g. group => group.RequireAuthorization()) or acknowledge the "
+                "LocalOnly = false removes the loopback guard with no authorization configured. Set RequirePermissions, supply "
+                    + "ConfigureEndpoints (e.g. group => group.RequireAuthorization()), or acknowledge the "
                     + "exposure with UnsafeAllowAnonymousRemoteAccess = true."
             );
         }

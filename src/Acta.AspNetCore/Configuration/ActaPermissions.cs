@@ -1,6 +1,9 @@
 namespace Acta.AspNetCore;
 
-/// <summary>The permissions an Acta operation can need, one per operation.</summary>
+/// <summary>
+/// The permissions an Acta operation can need, one per operation. Each value is also the name of the authorization
+/// policy a host defines for it when it turns on <see cref="ActaEndpointOptions.RequirePermissions"/>.
+/// </summary>
 public static class ActaPermissions
 {
     /// <summary>Every read, and the dashboard's pages.</summary>

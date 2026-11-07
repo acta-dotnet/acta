@@ -831,7 +831,9 @@ internal static partial class ActaOpenApiDocument
         + "raise a presence-only signal. POST /jobs answers 201 when it inserted the job and 200 when a deduplication key matched an "
         + "existing one, with the job's URL in Location either way. A string carrying x-acta-known-values is an open set: "
         + "compare against the known values and keep any other value as it is. The document declares no security scheme: "
-        + "the host adds its own authentication, which a client sends as the host asks.";
+        + "the host adds its own authentication, which a client sends as the host asks. Each operation names the permission it "
+        + "needs in x-acta-permission; where the host turns permission checks on, a call with no credential answers 401, and one "
+        + "whose caller lacks the permission answers 403.";
 
     // The introduction's paragraph for a mount whose controls require confirmation, naming its header.
     private static string ConfirmationRule(string header) =>

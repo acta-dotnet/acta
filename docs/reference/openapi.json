@@ -2,7 +2,7 @@
   "openapi": "3.1.1",
   "info": {
     "title": "Acta API",
-    "description": "Acta's operator API, the one the dashboard uses. Lists page by cursor: pass a page's nextCursor back as cursor until hasMore is false; a cursor is tied to its query. Every POST, PUT, and DELETE is a control, mapped only where the host enables controls. A control whose request object is optional acts with its defaults when the request has no body; one that declares application/json and sends no bytes answers 400, so send {} or leave the content type off. A signal raise takes any JSON value instead, and no bytes, with or without the content type, raise a presence-only signal. POST /jobs answers 201 when it inserted the job and 200 when a deduplication key matched an existing one, with the job's URL in Location either way. A string carrying x-acta-known-values is an open set: compare against the known values and keep any other value as it is. The document declares no security scheme: the host adds its own authentication, which a client sends as the host asks.\n\nA call that changes something must show that it is no cross-site form post, in one of three ways: the header X-Acta-Control: true, a JSON content type, or a Bearer authorization header. A client that sends a JSON body or a bearer token passes without doing anything more; for a call with no body and no bearer token, send the header.",
+    "description": "Acta's operator API, the one the dashboard uses. Lists page by cursor: pass a page's nextCursor back as cursor until hasMore is false; a cursor is tied to its query. Every POST, PUT, and DELETE is a control, mapped only where the host enables controls. A control whose request object is optional acts with its defaults when the request has no body; one that declares application/json and sends no bytes answers 400, so send {} or leave the content type off. A signal raise takes any JSON value instead, and no bytes, with or without the content type, raise a presence-only signal. POST /jobs answers 201 when it inserted the job and 200 when a deduplication key matched an existing one, with the job's URL in Location either way. A string carrying x-acta-known-values is an open set: compare against the known values and keep any other value as it is. The document declares no security scheme: the host adds its own authentication, which a client sends as the host asks. Each operation names the permission it needs in x-acta-permission; where the host turns permission checks on, a call with no credential answers 401, and one whose caller lacks the permission answers 403.\n\nA call that changes something must show that it is no cross-site form post, in one of three ways: the header X-Acta-Control: true, a JSON content type, or a Bearer authorization header. A client that sends a JSON body or a bearer token passes without doing anything more; for a call with no body and no bearer token, send the header.",
     "version": "1.0.0"
   },
   "servers": [
@@ -86,7 +86,7 @@
             }
           },
           "401": {
-            "description": "The host's authentication did not accept the call."
+            "description": "The call carries no credential the host accepts."
           },
           "403": {
             "description": "The call was refused before it ran, by the local-only guard, the host's authorization, or a control authorizer.",
@@ -207,7 +207,7 @@
             }
           },
           "401": {
-            "description": "The host's authentication did not accept the call."
+            "description": "The call carries no credential the host accepts."
           },
           "403": {
             "description": "The call was refused before it ran, by the local-only guard, the host's authorization, or a control authorizer.",
@@ -320,7 +320,7 @@
             }
           },
           "401": {
-            "description": "The host's authentication did not accept the call."
+            "description": "The call carries no credential the host accepts."
           },
           "403": {
             "description": "The call was refused before it ran, by the local-only guard, the host's authorization, or a control authorizer.",
@@ -463,7 +463,7 @@
             }
           },
           "401": {
-            "description": "The host's authentication did not accept the call."
+            "description": "The call carries no credential the host accepts."
           },
           "403": {
             "description": "The call was refused before it ran, by the local-only guard, the host's authorization, or a control authorizer.",
@@ -606,7 +606,7 @@
             }
           },
           "401": {
-            "description": "The host's authentication did not accept the call."
+            "description": "The call carries no credential the host accepts."
           },
           "403": {
             "description": "The call was refused before it ran, by the local-only guard, the host's authorization, or a control authorizer.",
@@ -749,7 +749,7 @@
             }
           },
           "401": {
-            "description": "The host's authentication did not accept the call."
+            "description": "The call carries no credential the host accepts."
           },
           "403": {
             "description": "The call was refused before it ran, by the local-only guard, the host's authorization, or a control authorizer.",
@@ -891,7 +891,7 @@
             }
           },
           "401": {
-            "description": "The host's authentication did not accept the call."
+            "description": "The call carries no credential the host accepts."
           },
           "403": {
             "description": "The call was refused before it ran, by the local-only guard, the host's authorization, or a control authorizer.",
@@ -1035,7 +1035,7 @@
             }
           },
           "401": {
-            "description": "The host's authentication did not accept the call."
+            "description": "The call carries no credential the host accepts."
           },
           "403": {
             "description": "The call was refused before it ran, by the local-only guard, the host's authorization, or a control authorizer.",
@@ -1180,7 +1180,7 @@
             }
           },
           "401": {
-            "description": "The host's authentication did not accept the call."
+            "description": "The call carries no credential the host accepts."
           },
           "403": {
             "description": "The call was refused before it ran, by the local-only guard, the host's authorization, or a control authorizer.",
@@ -1328,7 +1328,7 @@
             }
           },
           "401": {
-            "description": "The host's authentication did not accept the call."
+            "description": "The call carries no credential the host accepts."
           },
           "403": {
             "description": "The call was refused before it ran, by the local-only guard, the host's authorization, or a control authorizer.",
@@ -1462,7 +1462,7 @@
             }
           },
           "401": {
-            "description": "The host's authentication did not accept the call."
+            "description": "The call carries no credential the host accepts."
           },
           "403": {
             "description": "The call was refused before it ran, by the local-only guard, the host's authorization, or a control authorizer.",
@@ -1604,7 +1604,7 @@
             }
           },
           "401": {
-            "description": "The host's authentication did not accept the call."
+            "description": "The call carries no credential the host accepts."
           },
           "403": {
             "description": "The call was refused before it ran, by the local-only guard, the host's authorization, or a control authorizer.",
@@ -1840,7 +1840,7 @@
             }
           },
           "401": {
-            "description": "The host's authentication did not accept the call."
+            "description": "The call carries no credential the host accepts."
           },
           "403": {
             "description": "The call was refused before it ran, by the local-only guard, the host's authorization, or a control authorizer.",
@@ -1961,7 +1961,7 @@
             }
           },
           "401": {
-            "description": "The host's authentication did not accept the call."
+            "description": "The call carries no credential the host accepts."
           },
           "403": {
             "description": "The call was refused before it ran, by the local-only guard, the host's authorization, or a control authorizer.",
@@ -2111,7 +2111,7 @@
             }
           },
           "401": {
-            "description": "The host's authentication did not accept the call."
+            "description": "The call carries no credential the host accepts."
           },
           "403": {
             "description": "The call was refused before it ran, by the local-only guard, the host's authorization, or a control authorizer.",
@@ -2232,7 +2232,7 @@
             }
           },
           "401": {
-            "description": "The host's authentication did not accept the call."
+            "description": "The call carries no credential the host accepts."
           },
           "403": {
             "description": "The call was refused before it ran, by the local-only guard, the host's authorization, or a control authorizer.",
@@ -2343,7 +2343,7 @@
             }
           },
           "401": {
-            "description": "The host's authentication did not accept the call."
+            "description": "The call carries no credential the host accepts."
           },
           "403": {
             "description": "The call was refused before it ran, by the local-only guard, the host's authorization, or a control authorizer.",
@@ -2474,7 +2474,7 @@
             }
           },
           "401": {
-            "description": "The host's authentication did not accept the call."
+            "description": "The call carries no credential the host accepts."
           },
           "403": {
             "description": "The call was refused before it ran, by the local-only guard, the host's authorization, or a control authorizer.",
@@ -2608,7 +2608,7 @@
             }
           },
           "401": {
-            "description": "The host's authentication did not accept the call."
+            "description": "The call carries no credential the host accepts."
           },
           "403": {
             "description": "The call was refused before it ran, by the local-only guard, the host's authorization, or a control authorizer.",
@@ -2734,7 +2734,7 @@
             }
           },
           "401": {
-            "description": "The host's authentication did not accept the call."
+            "description": "The call carries no credential the host accepts."
           },
           "403": {
             "description": "The call was refused before it ran, by the local-only guard, the host's authorization, or a control authorizer.",
@@ -2854,7 +2854,7 @@
             }
           },
           "401": {
-            "description": "The host's authentication did not accept the call."
+            "description": "The call carries no credential the host accepts."
           },
           "403": {
             "description": "The call was refused before it ran, by the local-only guard, the host's authorization, or a control authorizer.",
@@ -2975,7 +2975,7 @@
             }
           },
           "401": {
-            "description": "The host's authentication did not accept the call."
+            "description": "The call carries no credential the host accepts."
           },
           "403": {
             "description": "The call was refused before it ran, by the local-only guard, the host's authorization, or a control authorizer.",
@@ -3077,7 +3077,7 @@
             }
           },
           "401": {
-            "description": "The host's authentication did not accept the call."
+            "description": "The call carries no credential the host accepts."
           },
           "403": {
             "description": "The call was refused before it ran, by the local-only guard, the host's authorization, or a control authorizer.",
@@ -3238,7 +3238,7 @@
             }
           },
           "401": {
-            "description": "The host's authentication did not accept the call."
+            "description": "The call carries no credential the host accepts."
           },
           "403": {
             "description": "The call was refused before it ran, by the local-only guard, the host's authorization, or a control authorizer.",
@@ -3339,7 +3339,7 @@
             }
           },
           "401": {
-            "description": "The host's authentication did not accept the call."
+            "description": "The call carries no credential the host accepts."
           },
           "403": {
             "description": "The call was refused before it ran, by the local-only guard, the host's authorization, or a control authorizer.",
@@ -3470,7 +3470,7 @@
             }
           },
           "401": {
-            "description": "The host's authentication did not accept the call."
+            "description": "The call carries no credential the host accepts."
           },
           "403": {
             "description": "The call was refused before it ran, by the local-only guard, the host's authorization, or a control authorizer.",
@@ -3604,7 +3604,7 @@
             }
           },
           "401": {
-            "description": "The host's authentication did not accept the call."
+            "description": "The call carries no credential the host accepts."
           },
           "403": {
             "description": "The call was refused before it ran, by the local-only guard, the host's authorization, or a control authorizer.",
@@ -3732,7 +3732,7 @@
             }
           },
           "401": {
-            "description": "The host's authentication did not accept the call."
+            "description": "The call carries no credential the host accepts."
           },
           "403": {
             "description": "The call was refused before it ran, by the local-only guard, the host's authorization, or a control authorizer.",
@@ -3845,7 +3845,7 @@
             }
           },
           "401": {
-            "description": "The host's authentication did not accept the call."
+            "description": "The call carries no credential the host accepts."
           },
           "403": {
             "description": "The call was refused before it ran, by the local-only guard, the host's authorization, or a control authorizer.",
@@ -3978,7 +3978,7 @@
             }
           },
           "401": {
-            "description": "The host's authentication did not accept the call."
+            "description": "The call carries no credential the host accepts."
           },
           "403": {
             "description": "The call was refused before it ran, by the local-only guard, the host's authorization, or a control authorizer.",
@@ -4112,7 +4112,7 @@
             }
           },
           "401": {
-            "description": "The host's authentication did not accept the call."
+            "description": "The call carries no credential the host accepts."
           },
           "403": {
             "description": "The call was refused before it ran, by the local-only guard, the host's authorization, or a control authorizer.",
@@ -4256,7 +4256,7 @@
             }
           },
           "401": {
-            "description": "The host's authentication did not accept the call."
+            "description": "The call carries no credential the host accepts."
           },
           "403": {
             "description": "The call was refused before it ran, by the local-only guard, the host's authorization, or a control authorizer.",
@@ -4415,7 +4415,7 @@
             }
           },
           "401": {
-            "description": "The host's authentication did not accept the call."
+            "description": "The call carries no credential the host accepts."
           },
           "403": {
             "description": "The call was refused before it ran, by the local-only guard, the host's authorization, or a control authorizer.",
@@ -4545,7 +4545,7 @@
             }
           },
           "401": {
-            "description": "The host's authentication did not accept the call."
+            "description": "The call carries no credential the host accepts."
           },
           "403": {
             "description": "The call was refused before it ran, by the local-only guard, the host's authorization, or a control authorizer.",
@@ -4670,7 +4670,7 @@
             }
           },
           "401": {
-            "description": "The host's authentication did not accept the call."
+            "description": "The call carries no credential the host accepts."
           },
           "403": {
             "description": "The call was refused before it ran, by the local-only guard, the host's authorization, or a control authorizer.",
@@ -4822,7 +4822,7 @@
             }
           },
           "401": {
-            "description": "The host's authentication did not accept the call."
+            "description": "The call carries no credential the host accepts."
           },
           "403": {
             "description": "The call was refused before it ran, by the local-only guard, the host's authorization, or a control authorizer.",
@@ -4985,7 +4985,7 @@
             }
           },
           "401": {
-            "description": "The host's authentication did not accept the call."
+            "description": "The call carries no credential the host accepts."
           },
           "403": {
             "description": "The call was refused before it ran, by the local-only guard, the host's authorization, or a control authorizer.",
@@ -5147,7 +5147,7 @@
             }
           },
           "401": {
-            "description": "The host's authentication did not accept the call."
+            "description": "The call carries no credential the host accepts."
           },
           "403": {
             "description": "The call was refused before it ran, by the local-only guard, the host's authorization, or a control authorizer.",
@@ -5299,7 +5299,7 @@
             }
           },
           "401": {
-            "description": "The host's authentication did not accept the call."
+            "description": "The call carries no credential the host accepts."
           },
           "403": {
             "description": "The call was refused before it ran, by the local-only guard, the host's authorization, or a control authorizer.",
@@ -5474,7 +5474,7 @@
             }
           },
           "401": {
-            "description": "The host's authentication did not accept the call."
+            "description": "The call carries no credential the host accepts."
           },
           "403": {
             "description": "The call was refused before it ran, by the local-only guard, the host's authorization, or a control authorizer.",
@@ -5621,7 +5621,7 @@
             }
           },
           "401": {
-            "description": "The host's authentication did not accept the call."
+            "description": "The call carries no credential the host accepts."
           },
           "403": {
             "description": "The call was refused before it ran, by the local-only guard, the host's authorization, or a control authorizer.",
@@ -5774,7 +5774,7 @@
             }
           },
           "401": {
-            "description": "The host's authentication did not accept the call."
+            "description": "The call carries no credential the host accepts."
           },
           "403": {
             "description": "The call was refused before it ran, by the local-only guard, the host's authorization, or a control authorizer.",
@@ -5921,7 +5921,7 @@
             }
           },
           "401": {
-            "description": "The host's authentication did not accept the call."
+            "description": "The call carries no credential the host accepts."
           },
           "403": {
             "description": "The call was refused before it ran, by the local-only guard, the host's authorization, or a control authorizer.",
@@ -6047,7 +6047,7 @@
             }
           },
           "401": {
-            "description": "The host's authentication did not accept the call."
+            "description": "The call carries no credential the host accepts."
           },
           "403": {
             "description": "The call was refused before it ran, by the local-only guard, the host's authorization, or a control authorizer.",
@@ -6177,7 +6177,7 @@
             }
           },
           "401": {
-            "description": "The host's authentication did not accept the call."
+            "description": "The call carries no credential the host accepts."
           },
           "403": {
             "description": "The call was refused before it ran, by the local-only guard, the host's authorization, or a control authorizer.",
@@ -6283,7 +6283,7 @@
             }
           },
           "401": {
-            "description": "The host's authentication did not accept the call."
+            "description": "The call carries no credential the host accepts."
           },
           "403": {
             "description": "The call was refused before it ran, by the local-only guard, the host's authorization, or a control authorizer.",
@@ -6570,7 +6570,7 @@
             }
           },
           "401": {
-            "description": "The host's authentication did not accept the call."
+            "description": "The call carries no credential the host accepts."
           },
           "403": {
             "description": "The call was refused before it ran, by the local-only guard, the host's authorization, or a control authorizer.",
@@ -6709,7 +6709,7 @@
             }
           },
           "401": {
-            "description": "The host's authentication did not accept the call."
+            "description": "The call carries no credential the host accepts."
           },
           "403": {
             "description": "The call was refused before it ran, by the local-only guard, the host's authorization, or a control authorizer.",
@@ -6844,7 +6844,7 @@
             }
           },
           "401": {
-            "description": "The host's authentication did not accept the call."
+            "description": "The call carries no credential the host accepts."
           },
           "403": {
             "description": "The call was refused before it ran, by the local-only guard, the host's authorization, or a control authorizer.",
@@ -6991,7 +6991,7 @@
             }
           },
           "401": {
-            "description": "The host's authentication did not accept the call."
+            "description": "The call carries no credential the host accepts."
           },
           "403": {
             "description": "The call was refused before it ran, by the local-only guard, the host's authorization, or a control authorizer.",
@@ -7086,7 +7086,7 @@
             }
           },
           "401": {
-            "description": "The host's authentication did not accept the call."
+            "description": "The call carries no credential the host accepts."
           },
           "403": {
             "description": "The call was refused before it ran, by the local-only guard, the host's authorization, or a control authorizer.",
@@ -7237,7 +7237,7 @@
             }
           },
           "401": {
-            "description": "The host's authentication did not accept the call."
+            "description": "The call carries no credential the host accepts."
           },
           "403": {
             "description": "The call was refused before it ran, by the local-only guard, the host's authorization, or a control authorizer.",
@@ -7357,7 +7357,7 @@
             }
           },
           "401": {
-            "description": "The host's authentication did not accept the call."
+            "description": "The call carries no credential the host accepts."
           },
           "403": {
             "description": "The call was refused before it ran, by the local-only guard, the host's authorization, or a control authorizer.",
@@ -7487,7 +7487,7 @@
             }
           },
           "401": {
-            "description": "The host's authentication did not accept the call."
+            "description": "The call carries no credential the host accepts."
           },
           "403": {
             "description": "The call was refused before it ran, by the local-only guard, the host's authorization, or a control authorizer.",
@@ -7671,7 +7671,7 @@
             }
           },
           "401": {
-            "description": "The host's authentication did not accept the call."
+            "description": "The call carries no credential the host accepts."
           },
           "403": {
             "description": "The call was refused before it ran, by the local-only guard, the host's authorization, or a control authorizer.",
@@ -7781,7 +7781,7 @@
             }
           },
           "401": {
-            "description": "The host's authentication did not accept the call."
+            "description": "The call carries no credential the host accepts."
           },
           "403": {
             "description": "The call was refused before it ran, by the local-only guard, the host's authorization, or a control authorizer.",
@@ -7906,7 +7906,7 @@
             }
           },
           "401": {
-            "description": "The host's authentication did not accept the call."
+            "description": "The call carries no credential the host accepts."
           },
           "403": {
             "description": "The call was refused before it ran, by the local-only guard, the host's authorization, or a control authorizer.",
@@ -8033,7 +8033,7 @@
             }
           },
           "401": {
-            "description": "The host's authentication did not accept the call."
+            "description": "The call carries no credential the host accepts."
           },
           "403": {
             "description": "The call was refused before it ran, by the local-only guard, the host's authorization, or a control authorizer.",
@@ -8204,7 +8204,7 @@
             }
           },
           "401": {
-            "description": "The host's authentication did not accept the call."
+            "description": "The call carries no credential the host accepts."
           },
           "403": {
             "description": "The call was refused before it ran, by the local-only guard, the host's authorization, or a control authorizer.",
@@ -8359,7 +8359,7 @@
             }
           },
           "401": {
-            "description": "The host's authentication did not accept the call."
+            "description": "The call carries no credential the host accepts."
           },
           "403": {
             "description": "The call was refused before it ran, by the local-only guard, the host's authorization, or a control authorizer.",
@@ -8456,7 +8456,7 @@
             }
           },
           "401": {
-            "description": "The host's authentication did not accept the call."
+            "description": "The call carries no credential the host accepts."
           },
           "403": {
             "description": "The call was refused before it ran, by the local-only guard, the host's authorization, or a control authorizer.",
@@ -8585,7 +8585,7 @@
             }
           },
           "401": {
-            "description": "The host's authentication did not accept the call."
+            "description": "The call carries no credential the host accepts."
           },
           "403": {
             "description": "The call was refused before it ran, by the local-only guard, the host's authorization, or a control authorizer.",
@@ -8760,7 +8760,7 @@
             }
           },
           "401": {
-            "description": "The host's authentication did not accept the call."
+            "description": "The call carries no credential the host accepts."
           },
           "403": {
             "description": "The call was refused before it ran, by the local-only guard, the host's authorization, or a control authorizer.",
@@ -8877,7 +8877,7 @@
             }
           },
           "401": {
-            "description": "The host's authentication did not accept the call."
+            "description": "The call carries no credential the host accepts."
           },
           "403": {
             "description": "The call was refused before it ran, by the local-only guard, the host's authorization, or a control authorizer.",
@@ -9039,7 +9039,7 @@
             }
           },
           "401": {
-            "description": "The host's authentication did not accept the call."
+            "description": "The call carries no credential the host accepts."
           },
           "403": {
             "description": "The call was refused before it ran, by the local-only guard, the host's authorization, or a control authorizer.",
@@ -9148,7 +9148,7 @@
             }
           },
           "401": {
-            "description": "The host's authentication did not accept the call."
+            "description": "The call carries no credential the host accepts."
           },
           "403": {
             "description": "The call was refused before it ran, by the local-only guard, the host's authorization, or a control authorizer.",
@@ -9301,7 +9301,7 @@
             }
           },
           "401": {
-            "description": "The host's authentication did not accept the call."
+            "description": "The call carries no credential the host accepts."
           },
           "403": {
             "description": "The call was refused before it ran, by the local-only guard, the host's authorization, or a control authorizer.",
@@ -9444,7 +9444,7 @@
             }
           },
           "401": {
-            "description": "The host's authentication did not accept the call."
+            "description": "The call carries no credential the host accepts."
           },
           "403": {
             "description": "The call was refused before it ran, by the local-only guard, the host's authorization, or a control authorizer.",
@@ -9587,7 +9587,7 @@
             }
           },
           "401": {
-            "description": "The host's authentication did not accept the call."
+            "description": "The call carries no credential the host accepts."
           },
           "403": {
             "description": "The call was refused before it ran, by the local-only guard, the host's authorization, or a control authorizer.",
@@ -9742,7 +9742,7 @@
             }
           },
           "401": {
-            "description": "The host's authentication did not accept the call."
+            "description": "The call carries no credential the host accepts."
           },
           "403": {
             "description": "The call was refused before it ran, by the local-only guard, the host's authorization, or a control authorizer.",
@@ -9960,7 +9960,7 @@
             }
           },
           "401": {
-            "description": "The host's authentication did not accept the call."
+            "description": "The call carries no credential the host accepts."
           },
           "403": {
             "description": "The call was refused before it ran, by the local-only guard, the host's authorization, or a control authorizer.",
@@ -10111,7 +10111,7 @@
             }
           },
           "401": {
-            "description": "The host's authentication did not accept the call."
+            "description": "The call carries no credential the host accepts."
           },
           "403": {
             "description": "The call was refused before it ran, by the local-only guard, the host's authorization, or a control authorizer.",
@@ -10263,7 +10263,7 @@
             }
           },
           "401": {
-            "description": "The host's authentication did not accept the call."
+            "description": "The call carries no credential the host accepts."
           },
           "403": {
             "description": "The call was refused before it ran, by the local-only guard, the host's authorization, or a control authorizer.",
@@ -10366,7 +10366,7 @@
             }
           },
           "401": {
-            "description": "The host's authentication did not accept the call."
+            "description": "The call carries no credential the host accepts."
           },
           "403": {
             "description": "The call was refused before it ran, by the local-only guard, the host's authorization, or a control authorizer.",
@@ -10433,7 +10433,7 @@
             }
           },
           "401": {
-            "description": "The host's authentication did not accept the call."
+            "description": "The call carries no credential the host accepts."
           },
           "403": {
             "description": "The call was refused before it ran, by the local-only guard, the host's authorization, or a control authorizer.",

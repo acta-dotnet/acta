@@ -58,7 +58,7 @@ internal static partial class ActaOpenApiDocument
             ("400", false, _) =>
                 "The call is not confirmed, a path parameter cannot name a target, or the body breaks a rule; the problem's detail "
                     + "says which.",
-            ("401", _, _) => "The host's authentication did not accept the call.",
+            ("401", _, _) => "The call carries no credential the host accepts.",
             ("403", _, _) =>
                 "The call was refused before it ran, by the local-only guard, the host's authorization, or a control authorizer.",
             ("404", false, false) => "The target does not exist; the body's action is not-found and nothing was written.",

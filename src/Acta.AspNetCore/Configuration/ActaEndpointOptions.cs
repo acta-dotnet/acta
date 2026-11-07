@@ -33,6 +33,15 @@ public class ActaEndpointOptions
     public bool EnableControls { get; set; }
 
     /// <summary>
+    /// Whether Acta authorizes every request against the host's policy named for the operation's permission, one of
+    /// <see cref="ActaPermissions"/>; the dashboard's pages need <see cref="ActaPermissions.Read"/>. Off by default. The
+    /// host defines the four policies with <c>AddAuthorization</c>, and mapping throws when one is missing. An API call
+    /// with no credential answers 401 and a page is challenged by the host's scheme; a request whose policy refuses it
+    /// answers a 403 that names the permission.
+    /// </summary>
+    public bool RequirePermissions { get; set; }
+
+    /// <summary>
     /// Whether a control request must show that it is no cross-site form post, by one of three headers a page on another
     /// origin cannot send without a CORS preflight: the confirmation header with the value <c>true</c>, a JSON content
     /// type, or a <c>Bearer</c> authorization header. It is the API's barrier against cross-site request forgery, not
