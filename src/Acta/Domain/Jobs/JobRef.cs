@@ -3,11 +3,10 @@ using System.Text.Json.Serialization;
 namespace Acta;
 
 /// <summary>
-/// Public stable reference for one Job row: "job_" plus the Guid's 32 lowercase hex digits, such as
-/// <c>job_01a14f4e954e7bf68ac609f3fcad8e3d</c>. Dashboards, HTTP APIs, and clients address jobs by this
-/// value; the numeric JobId stays the internal engine identity. It copies and searches as one word,
-/// and a UUIDv7 reads in creation order.
+/// A job's public reference: job_ followed by the 32 lowercase hex digits of a UUID, such as job_01a14f4e954e7bf68ac609f3fcad8e3d. Every
+/// API addresses a job by it. It copies and searches as one word, and reads in creation order.
 /// </summary>
+/// <remarks>The numeric job id stays the engine's internal identity.</remarks>
 [JsonConverter(typeof(JobRefJsonConverter))]
 public readonly record struct JobRef(Guid Value)
 {

@@ -1,8 +1,8 @@
 namespace Acta;
 
 /// <summary>
-/// One version of a family in a <see cref="ListCalendarVersionsResponse"/>: its status, the hash of its content, when it was
-/// saved and last written, and when it was published, null for a version that never was.
+/// One version of a calendar family in a page: its status, the hash of its content, when it was saved and last written, and when it was
+/// published, null for a version that never was.
 /// </summary>
 /// <param name="Version">The version's number within its family, starting at 1.</param>
 /// <param name="Status">The version's status.</param>

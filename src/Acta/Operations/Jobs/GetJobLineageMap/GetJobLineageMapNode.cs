@@ -2,10 +2,7 @@ using System.Text.Json.Serialization;
 
 namespace Acta;
 
-/// <summary>
-/// A Job node in the lineage map - the focused Job or one of its ancestors. Carries the public
-/// <see cref="JobRef"/> forms alongside the JSON-hidden numeric ids, matching <see cref="ListJobsItem"/>.
-/// </summary>
+/// <summary>A job in the lineage map: the job the map is about, or one of its ancestors.</summary>
 /// <param name="JobId">The job's internal id; the JSON omits it and carries jobRef.</param>
 /// <param name="ParentJobId">The parent job's internal id; the JSON omits it and carries parentJobRef.</param>
 /// <param name="LineageRootJobId">The lineage root job's internal id; the JSON omits it and carries lineageRootJobRef.</param>

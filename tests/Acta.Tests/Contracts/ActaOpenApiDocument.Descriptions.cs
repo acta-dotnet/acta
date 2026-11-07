@@ -50,7 +50,7 @@ internal static partial class ActaOpenApiDocument
             ("200", true, _) when content.ContainsKey(RawPayload.BinaryContentType) =>
                 "The stored payload itself: a JSON payload as application/json, any other format as application/octet-stream.",
             ("200", true, _) => "The resource the route reads.",
-            ("200", false, _) => "The control ran; the body's action says what it did.",
+            ("200", false, _) => "The call ran; the body says what it did.",
             ("201", _, _) => "The resource was created, and Location holds its URL.",
             ("202", _, _) => "The command is stored for the next relay pass to apply, so nothing has changed yet.",
             ("204", _, _) => "Nothing is stored to return.",
@@ -66,7 +66,8 @@ internal static partial class ActaOpenApiDocument
             ("409", true, _) => "This host cannot serve the read as asked; the problem's detail says why.",
             ("409", false, true) => "The call was refused as a whole; the problem's reasonCode says why.",
             ("409", false, false) =>
-                "The target's state or a stale expected version refused the control; the body's action says which, and nothing was written.",
+                "The control was refused and nothing was written; the body's action says why: rejected by the target's state, or "
+                    + "version-conflict where the call carries an expected version.",
             ("413", _, _) => "The body is larger than the server accepts.",
             ("415", _, _) => "The body is not application/json.",
             ("500", _, _) => "The server failed unexpectedly; the problem document leaves the cause to the host's log.",

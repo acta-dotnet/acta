@@ -137,7 +137,7 @@ internal static class LedgerEndpoints
                     new QueryParameterDoc(
                         "includeTotal",
                         QueryParameterKind.Bool,
-                        "Also compute the row count; this endpoint accepts it only together with jobRef."
+                        "Also compute the row count; accepted only together with jobRef, or with entityKind and entityId."
                     ),
                 ]
             )

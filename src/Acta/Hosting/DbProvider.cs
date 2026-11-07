@@ -1,9 +1,7 @@
 namespace Acta;
 
-/// <summary>
-/// Identifies which durable provider package is backing the runtime. Surfaced by <c>IDbSession</c>
-/// and the test read helper for the rare case where code must branch on provider behavior.
-/// </summary>
+/// <summary>The database the engine runs on.</summary>
+/// <remarks>Surfaced by <c>IDbSession</c> and the test read helper, for the rare code that must branch on provider behavior.</remarks>
 public enum DbProvider : byte
 {
     /// <summary>SQL Server (<c>Acta.SqlServer</c>).</summary>

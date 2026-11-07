@@ -12,124 +12,130 @@ public enum EventCode : byte
     /// The persisted id is not one this build knows: the row was written by a newer Acta that added an
     /// event. Never written by Acta; only produced when reading forward.
     /// </summary>
-    [Code("unspecified", "Event id not recognized by this build; the row was written by a newer Acta.")]
+    [Code("unspecified", "Event code not recognized by this build; the row was written by a newer Acta.")]
     Unspecified = 0,
 
-    [Code("tenant.suspended", "An operator suspended a tenant; the name stops resolving at enqueue. EventMessage carries the reason.")]
+    [Code("tenant.suspended", "An operator suspended a tenant; enqueues that name it are rejected. The message carries the reason.")]
     TenantSuspended = 10,
 
-    [Code("tenant.resumed", "An operator resumed a suspended tenant; its key resolves at enqueue again. EventMessage carries the reason.")]
+    [Code(
+        "tenant.resumed",
+        "An operator resumed a suspended tenant; enqueues that name it are accepted again. The message carries the reason."
+    )]
     TenantResumed = 11,
 
-    [Code("tenant.updated", "An operator changed a tenant display name / description. EventMessage carries the reason.")]
+    [Code("tenant.updated", "An operator changed a tenant's display name or description. The message carries the reason.")]
     TenantUpdated = 12,
 
-    [Code("namespace.suspended", "An operator suspended a namespace; enqueue into it is rejected. EventMessage carries the reason.")]
+    [Code("namespace.suspended", "An operator suspended a namespace; enqueues into it are rejected. The message carries the reason.")]
     NamespaceSuspended = 20,
 
     [Code(
         "namespace.resumed",
-        "An operator resumed a suspended namespace; enqueue into it is allowed again. EventMessage carries the reason."
+        "An operator resumed a suspended namespace; enqueues into it are accepted again. The message carries the reason."
     )]
     NamespaceResumed = 21,
 
-    [Code("namespace.updated", "An operator changed a namespace owner team / description. EventMessage carries the reason.")]
+    [Code("namespace.updated", "An operator changed a namespace's owner team or description. The message carries the reason.")]
     NamespaceUpdated = 22,
 
     /// <summary>
     /// The definition is the subject. Always emitted regardless of event recording: config governance is low-volume.
     /// </summary>
-    [Code("definition.overrides-updated", "An operator changed a job definition's policy overrides; EventMessage summarizes the change.")]
+    [Code("definition.overrides-updated", "An operator changed a job definition's policy overrides; the message summarizes the change.")]
     JobDefinitionOverridesUpdated = 30,
 
     /// <summary>
     /// The definition is the subject; each job the retire cancelled carries its own job.cancelled event with the
     /// <c>definition-retired</c> reason. Always emitted regardless of event recording: config governance is low-volume.
     /// </summary>
-    [Code("definition.retired", "An operator retired a job definition; enqueue is rejected and its parked jobs were cancelled.")]
+    [Code("definition.retired", "An operator retired a job definition; enqueues are rejected and its waiting jobs were cancelled.")]
     JobDefinitionRetired = 31,
 
     [Code(
         "job.execution-succeeded",
-        "The attempt's handler returned successfully; DurationMs is set. Audit records every one, Failures a success after counted failures, and an enabled alert profile also a one-shot's success past its first attempt."
+        "The attempt's handler returned successfully; durationMs is set. Recorded for every success under audit, under failures only for a success after counted failures, and under an enabled alert profile also for a one-shot job's success past its first attempt."
     )]
     JobExecutionSucceeded = 40,
 
     [Code(
         "job.execution-failed",
-        "The attempt failed and the job lives on: a retry within budget, or a recurring job's firing that spent its budget and returned the slot to Idle. DurationMs and the failure's EventMessage are set; details carry reason and to."
+        "The attempt failed and the job lives on: a retry within budget, or a permanent slot's firing that spent its budget and returned the slot to idle. durationMs and the failure's message are set; the details carry the keys reason and to."
     )]
     JobExecutionFailed = 41,
 
     [Code(
         "job.execution-orphaned",
-        "The attempt's worker lease expired and crash recovery reclaimed the job without ending it. WorkerId names the stale holder; details carry reason and to."
+        "The lease of the attempt's worker expired and crash recovery reclaimed the job without ending it. workerRef names the worker that held it; the details carry the keys reason and to."
     )]
     JobExecutionOrphaned = 42,
 
     [Code(
         "job.execution-yielded",
-        "The attempt ended without succeeding or failing: rescheduled, suspended, paused, or cancelled by its handler or the engine. Audit only; details carry outcome and reason."
+        "The attempt ended without succeeding or failing: rescheduled, suspended, paused, or cancelled by its handler or the engine. Recorded under audit only; the details carry the keys outcome and reason."
     )]
     JobExecutionYielded = 43,
 
     [Code(
         "job.failed",
-        "The job failed for good: its retry budget is spent, its handler failed it, or its failure is not retryable. DurationMs is set when an attempt ran; details carry reason."
+        "The job failed for good: its retry budget is spent, its handler failed it, or its failure is not retryable. durationMs is set when an attempt ran; the details carry the key reason."
     )]
     JobFailed = 44,
 
     [Code(
         "job.suspended",
-        "The attempt parked on a durable wait: a ctx.SleepAsync timer re-armed the job Ready at its due instant, or a signal or child wait left it Suspended. Budget-neutral; details carry to."
+        "The attempt stopped on a durable wait: a sleep timer made the job ready again at its due time, or a wait on a signal or on child jobs left it suspended. It spends no retry budget; the details carry the key to."
     )]
     JobSuspended = 60,
 
     [Code(
         "job.rescheduled",
-        "The job re-armed Ready with a new NextRunAtUtc: a handler reschedule, a failed attempt's retry within budget, or an operator RescheduleAsync; details carry actor or reason."
+        "The job became ready with a new nextRunAtUtc: its handler rescheduled it, a failed attempt retries within budget, or an operator rescheduled it. The details carry the key actor or reason."
     )]
     JobRescheduled = 61,
 
-    [Code("job.cancelled", "Job was cancelled (Status to Cancelled, terminal).")]
+    [Code("job.cancelled", "The job was cancelled, which is final.")]
     JobCancelled = 70,
 
-    [Code("job.paused", "Job was paused (Status to Paused).")]
+    [Code("job.paused", "The job was paused.")]
     JobPaused = 71,
 
-    [Code("job.resumed", "Job was resumed (Status to Ready).")]
+    [Code("job.resumed", "The job was resumed and is ready again.")]
     JobResumed = 72,
 
-    [Code("job.restarted", "Job was restarted (Status to Ready; failure_count reset, retention cleared, execution_number unchanged).")]
+    [Code(
+        "job.restarted",
+        "The job was restarted and is ready again: its failure count is reset and its retention cleared, and its execution number carries on."
+    )]
     JobRestarted = 73,
 
-    [Code("job.reprioritized", "Operator changed the job's claim priority; EventMessage carries the operator's reason, if any.")]
+    [Code("job.reprioritized", "An operator changed the job's priority; the message carries the operator's reason, if any.")]
     JobReprioritized = 74,
 
     [Code(
         "job.purged",
-        "Operator hard-deleted a terminal job; the subject is the deleted job's id. Details snapshot its jobRef, correlationKey, and actor. Always emitted regardless of event recording."
+        "An operator deleted a finished job's record; the event is about the deleted job's id, and its details keep the job's jobRef, correlationKey, and actor. Recorded whatever the event recording level."
     )]
     JobPurged = 75,
 
     [Code(
         "job.input-amended",
-        "Operator amended a job's stored input payload; details carry the actor and bounded metadata (format name and byte count) about the previous payload, and EventMessage carries the why."
+        "An operator replaced a job's stored input; the details carry the actor and the format name and byte count of the previous input, and the message carries the reason."
     )]
     JobInputAmended = 76,
 
-    [Code("job.signal-raised", "Signal delivered via IJobs.RaiseSignalAsync; matching signal checkpoint (State = Set) UPSERTed.")]
+    [Code("job.signal-raised", "A signal was raised for the job, and its signal checkpoint is set.")]
     JobSignalRaised = 80,
 
     [Code(
         "job.state-reset",
-        "Handler called ctx.ResetStateAsync; the job's checkpoints and steps were cleared so the next execution starts as new. The scheduler's firing envelope stays."
+        "The handler reset the job's state: its checkpoints and steps were cleared so the next execution starts as new. The record of a scheduled firing stays."
     )]
     JobStateReset = 81,
 
     [Code(
         "job.note-recorded",
-        "Application-authored note from ctx.NoteAsync. The only event code an application can write and one the runtime never emits, so every other event stays provably system-written. EventMessage carries the line; details carry the optional payload."
+        "A note the application's handler wrote. It is the only event an application can write, and the engine never writes it, so every other event is the engine's own. The message carries the line; the details carry the optional payload."
     )]
     JobNoteRecorded = 90,
 
@@ -143,18 +149,18 @@ public enum EventCode : byte
     [Code("schedule.resumed", "A recurring schedule was resumed; details carry the schedule name.")]
     ScheduleResumed = 101,
 
-    [Code("schedule.pause-expired", "A timed pause elapsed; the scheduler auto-resumed the schedule. Details carry the schedule name.")]
+    [Code("schedule.pause-expired", "A timed pause ended and the scheduler resumed the schedule. The details carry the schedule name.")]
     SchedulePauseExpired = 102,
 
     [Code(
         "schedule.triggered",
-        "Operator admitted a manual firing of the slot; no schedule cursor moved. Details carry the schedule name."
+        "An operator fired the schedule's job by hand; the schedule's own timing did not move. The details carry the schedule name."
     )]
     ScheduleTriggered = 104,
 
     [Code(
         "schedule.admitted",
-        "The admission engine selected one of the schedule's occurrences for a firing; details carry the schedule, the occurrence, the covered-through boundary, and the firing id."
+        "The scheduler chose one of the schedule's occurrences to fire; the details carry the schedule, the occurrence, the time through which the schedule is decided, and the firing id."
     )]
     ScheduleAdmitted = 105,
 
@@ -166,7 +172,7 @@ public enum EventCode : byte
 
     [Code(
         "schedule.retimed",
-        "A deploy changed the schedule's timing, or a calendar it names was published; the undecided occurrences of the old timing were discarded and the cursor moved to the first occurrence of the new one. Details carry the schedule name."
+        "A deploy changed the schedule's timing, or a calendar it names was published; the undecided occurrences of the old timing were discarded and the schedule continues from the first occurrence of the new one. The details carry the schedule name."
     )]
     ScheduleRetimed = 107,
 
@@ -176,7 +182,7 @@ public enum EventCode : byte
     /// </summary>
     [Code(
         "calendar.draft-saved",
-        "An operator saved a new draft version of a catalog calendar. Details carry the calendar, the version, and the role; EventMessage carries the reason."
+        "An operator saved a new draft version of a catalog calendar. The details carry the calendar, the version, and the role; the message carries the reason."
     )]
     CalendarDraftSaved = 110,
 
@@ -193,23 +199,23 @@ public enum EventCode : byte
     CalendarArchived = 112,
 
     /// <summary>The worker is the subject of every worker.* event.</summary>
-    [Code("worker.started", "Worker process registered; a workers row was appended (Status: Active).")]
+    [Code("worker.started", "A worker process registered and is active.")]
     WorkerStarted = 120,
 
-    [Code("worker.stopped", "Worker process shut down cleanly (Status: Active/Draining to Stopped).")]
+    [Code("worker.stopped", "A worker process shut down cleanly.")]
     WorkerStopped = 121,
 
-    [Code("worker.died", "Worker heartbeat went stale; crash recovery flipped the worker to Dead.")]
+    [Code("worker.died", "A worker's heartbeat went stale and crash recovery marked it dead.")]
     WorkerDied = 122,
 
     /// <summary>
     /// The alert is the subject of every alert.* event, and the job dimensions are its job's when it has one. Always
     /// emitted regardless of event recording: alert workflow is low-volume operator activity.
     /// </summary>
-    [Code("alert.acknowledged", "Operator acknowledged an alert; EventMessage carries the note.")]
+    [Code("alert.acknowledged", "An operator acknowledged an alert; the message carries the note.")]
     AlertAcknowledged = 140,
 
-    [Code("alert.resolved", "Operator manually resolved an alert; EventMessage carries the note.")]
+    [Code("alert.resolved", "An operator resolved an alert by hand; the message carries the note.")]
     AlertResolved = 141,
 
     /// <summary>
@@ -218,15 +224,9 @@ public enum EventCode : byte
     /// the evidence trail for actions whose subject rows live (or lived) in the producer's
     /// database, outside the ledger's reach.
     /// </summary>
-    [Code(
-        "outbox.requeued",
-        "An operator command returned quarantined outbox rows to Pending; EventMessage carries the justification and the row ids."
-    )]
+    [Code("outbox.requeued", "An operator returned quarantined outbox rows to delivery; the message carries the reason and the row ids.")]
     OutboxRequeued = 180,
 
-    [Code(
-        "outbox.discarded",
-        "An operator command deleted quarantined outbox rows; EventMessage carries the justification and the deleted row ids."
-    )]
+    [Code("outbox.discarded", "An operator deleted quarantined outbox rows; the message carries the reason and the deleted row ids.")]
     OutboxDiscarded = 181,
 }

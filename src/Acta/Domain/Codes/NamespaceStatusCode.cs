@@ -2,10 +2,8 @@ using System.Text.Json.Serialization;
 
 namespace Acta;
 
-/// <summary>
-/// Namespace state machine. 10-spaced ids; live states 10..80, mirroring
-/// <see cref="TenantStatusCode"/>.
-/// </summary>
+/// <summary>Whether a namespace accepts enqueues.</summary>
+/// <remarks>Ids are spaced by 10, with live states in 10..80, as in <see cref="TenantStatusCode"/>.</remarks>
 [JsonConverter(typeof(NamespaceStatusCodeJsonConverter))]
 [CodeKind("namespace-status")]
 public enum NamespaceStatusCode : byte
@@ -13,12 +11,12 @@ public enum NamespaceStatusCode : byte
     [Code("unspecified", "Namespace status not recognized by this build; the row was written by a newer Acta.")]
     Unspecified = 0,
 
-    [Code("active", "Namespace resolves at enqueue; enqueue allowed.")]
+    [Code("active", "Enqueues into the namespace are accepted.")]
     Active = 10,
 
     [Code(
         "suspended",
-        "Enqueue into the namespace is rejected and its schedules hold. Reversible (operator hold). Existing in-flight jobs are unaffected."
+        "Enqueues into the namespace are rejected and its schedules hold, until an operator resumes it. Jobs already running are unaffected."
     )]
     Suspended = 20,
 }

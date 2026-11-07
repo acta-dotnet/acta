@@ -1,7 +1,8 @@
 namespace Acta;
 
 /// <summary>
-/// Coarse outcome of a control verb: on jobs, schedules, definitions, alerts, the outbox, tags, tenants, and namespaces.
+/// What a control did: applied; already-in-state, when the target was already as asked; rejected, when the target's state refuses the
+/// call; version-conflict, when the expected version is stale; not-found; or accepted, when the work is stored for the next pass to apply.
 /// </summary>
 public enum ControlAction : byte
 {

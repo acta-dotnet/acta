@@ -3,9 +3,8 @@ using System.Text.Json.Serialization;
 namespace Acta;
 
 /// <summary>
-/// One worker row in a <see cref="IWorkers.ListAsync"/> page: the registration's public ref and internal id, its
-/// namespace and status, and what it reported at start (host machine, deployment version, engine version, runtime
-/// framework, process id, executor cap), with the last heartbeat, start, and last change instants.
+/// One worker in a page: its ref, namespace, and status, what it reported at start (host machine, deployment version, engine version,
+/// runtime version, process id, executor capacity), and when it started, last sent a heartbeat, and last changed.
 /// </summary>
 /// <param name="WorkerId">The worker's internal id; the JSON omits it and carries workerRef.</param>
 /// <param name="WorkerRef">The worker's ref, wrk_ followed by 32 hex digits.</param>

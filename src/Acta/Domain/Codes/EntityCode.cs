@@ -2,10 +2,8 @@ using System.Text.Json.Serialization;
 
 namespace Acta;
 
-/// <summary>
-/// Names a kind of Acta entity, so one <c>(entity_code, entity_id)</c> pair can point at a row of any table. Tags
-/// attach only to tenants, namespaces, definitions, and jobs, the targets <see cref="TagTarget"/> can build.
-/// </summary>
+/// <summary>A kind of thing in Acta that an event can be about. Tags attach only to tenants, namespaces, definitions, and jobs.</summary>
+/// <remarks>One <c>(entity_code, entity_id)</c> pair points at a row of any table; <see cref="TagTarget"/> builds tag targets.</remarks>
 [JsonConverter(typeof(EntityCodeJsonConverter))]
 [CodeKind("entity")]
 public enum EntityCode : byte

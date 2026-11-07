@@ -1,8 +1,6 @@
 namespace Acta;
 
-/// <summary>
-/// Coarse outcome classifier for one enqueued row.
-/// </summary>
+/// <summary>What an enqueue did: inserted a new job, or deduplicated onto the job that already holds the deduplication key.</summary>
 public enum EnqueueJobAction : byte
 {
     /// <summary>A fresh <c>job</c> row was inserted.</summary>

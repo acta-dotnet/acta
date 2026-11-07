@@ -3,11 +3,10 @@ using System.Text.Json.Serialization;
 namespace Acta;
 
 /// <summary>
-/// Discriminator for <c>checkpoints</c> rows: which durable substrate feature owns the
-/// <c>(job_id, checkpoint_kind_code, checkpoint_name)</c> row. One physical table carries every simple job-internal
-/// durable value; the kind keeps the name spaces structurally separate (a user variable can never
-/// collide with a signal or a child latch of the same name).
+/// What a checkpoint holds: one of the durable values a job keeps between attempts. Names are separate for each kind, so a variable never
+/// collides with a signal or a child latch of the same name.
 /// </summary>
+/// <remarks>One table, <c>checkpoints</c>, holds every kind, keyed by <c>(job_id, checkpoint_kind_code, checkpoint_name)</c>.</remarks>
 [JsonConverter(typeof(CheckpointKindCodeJsonConverter))]
 [CodeKind("job-checkpoint-kind")]
 public enum CheckpointKindCode : byte
@@ -16,23 +15,23 @@ public enum CheckpointKindCode : byte
     Unspecified = 0,
 
     /// <summary>User variable written by <c>SetVariableAsync</c> / <c>GetOrSetVariableAsync</c>.</summary>
-    [Code("variable", "User variable; UPSERT, last-writer-wins, no state machine.")]
+    [Code("variable", "A variable a handler sets; the last write wins.")]
     Variable = 10,
 
     /// <summary>Signal raised by <c>RaiseSignalAsync</c> and awaited by <c>ctx.WaitSignalAsync</c>.</summary>
-    [Code("signal", "Signal; Pending while awaited, Set once raised.")]
+    [Code("signal", "A signal; pending while awaited, set once raised.")]
     Signal = 20,
 
     /// <summary>Durable sleep timer armed by <c>ctx.SleepAsync</c>.</summary>
-    [Code("timer", "Durable sleep timer; Pending until due, Consumed on replay past the due instant.")]
+    [Code("timer", "A durable sleep timer; pending until due, consumed when the handler runs again past the due time.")]
     Timer = 30,
 
     /// <summary>The job's single progress checkpoint, written by <c>ctx.SetProgressAsync</c>.</summary>
-    [Code("progress", "Progress; UPSERT, last-writer-wins, one per job.")]
+    [Code("progress", "The job's progress, one per job; the last write wins.")]
     Progress = 40,
 
     /// <summary>Child terminal-outcome latch raised on the parent when a child lands terminal.</summary>
-    [Code("child-latch", "Child terminal-outcome latch on the parent; Pending while awaited, Set when the child lands terminal.")]
+    [Code("child-latch", "The latch a parent job holds for one child's outcome; pending while awaited, set when the child ends.")]
     ChildLatch = 50,
 
     /// <summary>
@@ -42,7 +41,7 @@ public enum CheckpointKindCode : byte
     /// </summary>
     [Code(
         "firing",
-        "The scheduler's firing envelope for a slot or scheduled root; Pending while outstanding, settled with the outcome; survives a handler reset."
+        "The record of one scheduled firing of a permanent slot or of a per-occurrence job; pending while outstanding, then settled with the outcome. It survives a handler's state reset."
     )]
     Firing = 60,
 }

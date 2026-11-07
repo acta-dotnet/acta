@@ -2,10 +2,8 @@ using System.Text.Json.Serialization;
 
 namespace Acta;
 
-/// <summary>
-/// What condition an alert reports. Sparse catalog ids leave insertion room; numeric ordering is
-/// not behavioral.
-/// </summary>
+/// <summary>What condition an alert reports.</summary>
+/// <remarks>Sparse ids leave room to insert; numeric order carries no behavior.</remarks>
 [JsonConverter(typeof(AlertKindCodeJsonConverter))]
 [CodeKind("alert-kind")]
 public enum AlertKindCode : byte
@@ -17,15 +15,15 @@ public enum AlertKindCode : byte
     [Code("unspecified", "Alert kind not recognized by this build; the row was written by a newer Acta.")]
     Unspecified = 0,
 
-    [Code("first-failure", "Failure that opened the incident; emitted by Automatic origin on non-terminal failure.")]
+    [Code("first-failure", "The failure that opened the incident: an attempt failed and the job lives on.")]
     FirstFailure = 10,
 
-    [Code("threshold-reached", "Threshold-bound emission (e.g., LostClaimAlertThreshold reached).")]
+    [Code("threshold-reached", "A counted condition reached its configured threshold, such as a job that keeps losing its claim.")]
     ThresholdReached = 20,
 
-    [Code("final-failure", "Terminal failure; emitted by Automatic origin on Status to Failed.")]
+    [Code("final-failure", "The job failed for good.")]
     FinalFailure = 30,
 
-    [Code("manual", "Hand-raised; ctx.AlertAsync from inside a handler.")]
+    [Code("manual", "Raised by a job's handler.")]
     Manual = 40,
 }

@@ -13,8 +13,8 @@ namespace Acta.AspNetCore;
 /// <param name="Checkpoints">The first page of the job's checkpoints, with their total.</param>
 /// <param name="Explain">The explanation of the job's current state.</param>
 /// <param name="Lineage">The job's lineage map.</param>
-/// <param name="Schedules">The first page of the schedules that fire the job, when it is a scheduled definition's permanent slot.</param>
-/// <param name="SchedulesTotal">How many such schedules there are, so a caller can tell a complete list from a first page.</param>
+/// <param name="Schedules">The first page of the schedules of the job's definition; empty when it has none.</param>
+/// <param name="SchedulesTotal">How many schedules the definition has, so a caller can tell a complete list from a first page.</param>
 /// <param name="MaxAttemptsEffective">The retry budget in force for the job's definition; absent when the definition is gone.</param>
 /// <param name="Workers">The first page of the namespace's workers while the job is claimable; absent otherwise.</param>
 /// <param name="WorkersTotal">How many such workers there are; absent with workers.</param>

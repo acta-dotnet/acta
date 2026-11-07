@@ -104,7 +104,7 @@ internal static class UpdateJobInputEndpoint
                 }
             )
             .WithMetadata(new ActaOperationAttribute("updateJobInput", ActaPermissions.Control))
-            .WithSummary("Replace a waiting job's stored input.")
+            .WithSummary("Replace the stored input of a job that is not executing.")
             // The body is read manually rather than bound, so the document only learns its shape here.
             .AcceptsJson<UpdateJobInputRequest>()
             .Produces<UpdateJobInputResponse>(StatusCodes.Status200OK)

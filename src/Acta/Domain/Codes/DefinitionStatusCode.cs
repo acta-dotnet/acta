@@ -10,12 +10,12 @@ public enum DefinitionStatusCode : byte
     [Code("unspecified", "Definition status not recognized by this build; the row was written by a newer Acta.")]
     Unspecified = 0,
 
-    [Code("active", "Enqueue allowed; claim allowed.")]
+    [Code("active", "Enqueues are accepted and workers claim the definition's jobs.")]
     Active = 10,
 
     [Code(
         "retired",
-        "Enqueue REJECTED; an operator decision, never written by registration (a definition absent from a manifest stays Active). Retiring cancels parked rows (Ready/Paused/Suspended) with the event reason 'definition-retired'; in-flight executions finish their attempt, and a job that would run again lands Cancelled with the same reason."
+        "Enqueues are rejected. Only an operator retires a definition; one that a deploy stops declaring stays active. Retiring cancels the definition's ready, paused, and suspended jobs with the event reason definition-retired; an executing job finishes its attempt, and one that would run again is cancelled with the same reason."
     )]
     Retired = 240,
 }

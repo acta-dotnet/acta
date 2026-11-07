@@ -3,8 +3,8 @@ using System.Text.Json.Serialization;
 namespace Acta;
 
 /// <summary>
-/// Where one version of a catalog calendar family stands. At most one version of a family is Published at a time, and
-/// that version is the family's current one; a version's content never changes, only its status.
+/// Where one version of a calendar family stands. At most one version of a family is published at a time, and that version is the
+/// family's current one; a version's content never changes, only its status.
 /// </summary>
 [JsonConverter(typeof(CalendarStatusCodeJsonConverter))]
 [CodeKind("calendar-status")]
@@ -22,7 +22,7 @@ public enum CalendarStatusCode : byte
     Published = 20,
 
     /// <summary>A version that was current until a newer one was published; history still pins it.</summary>
-    [Code("superseded", "A version that was current until a newer one was published; history still pins it.")]
+    [Code("superseded", "A version that was current until a newer one was published; history still refers to it.")]
     Superseded = 30,
 
     /// <summary>The family's current version, retired: the family has no current version until another is published.</summary>

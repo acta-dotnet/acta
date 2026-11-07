@@ -3,11 +3,9 @@ using System.Text.Json.Serialization;
 namespace Acta;
 
 /// <summary>
-/// The whole <c>definitions</c> row <see cref="IDefinitions.GetAsync"/> returns, in column order: identity and
-/// control, contract and formats, each policy as its code default, operator override (null inherits), and
-/// effective value, and audit bookkeeping. The dashboard's definition editor reads it; the grid reads the slimmer
-/// <see cref="ListDefinitionsItem"/>. A definition is addressed by namespace and name, and its catalog id stays off
-/// the wire.
+/// One definition: its identity and status, the types and formats of its input and result, and each policy as the value the code
+/// declares, the operator's override, null when there is none, and the value in force. A definition is addressed by its namespace and
+/// name.
 /// </summary>
 /// <param name="DefinitionId">The definition's internal id; the JSON omits it.</param>
 /// <param name="JobNamespace">The definition's namespace.</param>

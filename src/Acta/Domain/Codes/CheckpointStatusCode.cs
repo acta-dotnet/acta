@@ -27,22 +27,22 @@ public enum CheckpointStatusCode : byte
     /// an Expired checkpoint, writing no payload and releasing no job, which is what stops a late arrival
     /// reviving a wait that already resolved.
     /// </summary>
-    [Code("expired", "The re-entering wait found the checkpoint overdue and settled it TimedOut; a raise then skips it.")]
+    [Code("expired", "The wait ran past its timeout and was settled as timed out; a raise after that skips it.")]
     Expired = 30,
 
     /// <summary>Due instant reached and the replayed handler consumed the timer.</summary>
-    [Code("consumed", "Due instant reached; the replayed handler consumed the timer and proceeded.")]
+    [Code("consumed", "The due time was reached; the handler ran again, consumed the timer, and proceeded.")]
     Consumed = 100,
 
     /// <summary>A firing envelope settled by a successful firing; the slot's last outcome until the next admission.</summary>
-    [Code("succeeded", "The firing settled successfully; the envelope is the slot's last outcome until the next admission replaces it.")]
+    [Code("succeeded", "The firing settled successfully; it stays the slot's last outcome until the next firing replaces it.")]
     Succeeded = 110,
 
     /// <summary>A firing envelope settled by a final failure.</summary>
-    [Code("failed", "The firing settled as a final failure; the envelope is the slot's last outcome until the next admission replaces it.")]
+    [Code("failed", "The firing settled as a final failure; it stays the slot's last outcome until the next firing replaces it.")]
     Failed = 120,
 
     /// <summary>A firing envelope settled by a cancellation.</summary>
-    [Code("cancelled", "The firing settled by cancellation; the envelope is the slot's last outcome until the next admission replaces it.")]
+    [Code("cancelled", "The firing settled by cancellation; it stays the slot's last outcome until the next firing replaces it.")]
     Cancelled = 130,
 }

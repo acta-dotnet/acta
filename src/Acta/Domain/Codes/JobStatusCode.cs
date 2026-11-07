@@ -10,42 +10,39 @@ public enum JobStatusCode : byte
     [Code("unspecified", "Job status not recognized by this build; the row was written by a newer Acta.")]
     Unspecified = 0,
 
-    [Code("ready", "Eligible for claim; the claim path selects rows in this Status.")]
+    [Code("ready", "Waiting for a worker to claim it.")]
     Ready = 10,
 
     [Code(
         "blocked",
-        "Waiting behind an earlier unfinished job of its lane; the claim never offers it, and the settle of the job ahead promotes it to Ready."
+        "Waiting behind an earlier unfinished job of its lane; no worker is offered it, and it becomes ready when the job ahead ends."
     )]
     Blocked = 15,
 
     [Code(
         "suspended",
-        "Parked and not progressing: awaiting an external signal via ctx.WaitSignalAsync, or awaiting children via ctx.WaitChildAsync / WaitChildrenAsync."
+        "Stopped until something outside the attempt happens: a signal its handler waits for, or the end of child jobs it waits on."
     )]
     Suspended = 20,
 
-    [Code("paused", "Not running, awaiting an external trigger to resume.")]
+    [Code("paused", "Not running until it is resumed.")]
     Paused = 30,
 
-    [Code(
-        "idle",
-        "A permanent slot between firings: no outstanding firing, no lease, no claim time. Admission makes it Ready; it is never terminal."
-    )]
+    [Code("idle", "A permanent slot between firings, with nothing outstanding and no lease. A firing makes it ready; it never ends.")]
     Idle = 40,
 
     [Code("executing", "Claimed by a worker under a live lease; its handler is running or about to start.")]
     Executing = 50,
 
-    [Code("succeeded", "Terminal success.")]
+    [Code("succeeded", "Ended successfully.")]
     Succeeded = 100,
 
     [Code(
         "failed",
-        "Terminal failure: MaxAttempts exhausted, a non-retryable exception, an interrupted at-most-once step, or ctx.FailAsync."
+        "Ended in failure: its attempts are spent, an exception is not retryable, a step that runs at most once was interrupted, or its handler failed it."
     )]
     Failed = 200,
 
-    [Code("cancelled", "Terminal cancellation by IJobs.CancelAsync or ctx.Cancel.")]
+    [Code("cancelled", "Ended by cancellation: by an operator, by a caller, or by its own handler.")]
     Cancelled = 220,
 }

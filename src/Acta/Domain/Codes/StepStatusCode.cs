@@ -16,18 +16,18 @@ public enum StepStatusCode : byte
     /// <summary>First invocation INSERTed or retrying. <c>AttemptNumber</c> is 1 or more; <c>Result</c>
     /// is NULL. On failure within budget the row stays here with <c>AttemptNumber++</c>,
     /// <c>NextRetryAtUtc</c> advanced, and <c>FailureCode</c> / <c>FailureMessage</c> updated.</summary>
-    [Code("pending", "Step in flight or retrying within MaxAttempts / RetryWindow.")]
+    [Code("pending", "Running, or waiting to retry within its retry budget.")]
     Pending = 10,
 
     /// <summary>Terminal success. <c>Result</c> carries the encoded payload (or <c>ResultFormatId = 0</c>
     /// for void steps, where <c>Status</c> is the success indicator, not Result-NULL inference).</summary>
-    [Code("succeeded", "Step completed successfully; Result populated (or ResultFormatId = 0 for void steps).")]
+    [Code("succeeded", "Completed; its result, when it has one, is stored.")]
     Succeeded = 100,
 
     /// <summary>Terminal exhaustion: <c>MaxAttempts</c> reached or <c>RetryWindow</c> exceeded.
     /// <c>Result</c> is NULL; <c>FailureCode</c> / <c>FailureMessage</c> carry the final failure context; parent receives
     /// <c>StepExhaustedException</c>.</summary>
-    [Code("exhausted", "Step exhausted retry budget; parent handler receives StepExhaustedException.")]
+    [Code("exhausted", "Its retries are spent; the job's handler receives the failure.")]
     Exhausted = 200,
 
     /// <summary>Terminal ambiguity for an <c>AtMostOnce</c> step re-entered on replay before its outcome
@@ -36,7 +36,7 @@ public enum StepStatusCode : byte
     /// <c>StepInterruptedException</c> and must reconcile against the external system.</summary>
     [Code(
         "interrupted",
-        "At-most-once step was re-entered before completion; outcome is unknown (ran 0 or 1 times). Parent receives StepInterruptedException."
+        "A step that runs at most once was re-entered before it completed, so whether it ran is unknown; the job's handler receives the interruption."
     )]
     Interrupted = 230,
 }

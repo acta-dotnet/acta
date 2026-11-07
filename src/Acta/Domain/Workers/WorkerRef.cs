@@ -3,11 +3,10 @@ using System.Text.Json.Serialization;
 namespace Acta;
 
 /// <summary>
-/// Public stable reference for one worker registration: "wrk_" plus the Guid's 32 lowercase hex digits,
-/// such as <c>wrk_01a14f4d7b2a7c4f8e1d3b5a6c7e9f01</c>. Dashboards, HTTP APIs, and event projections
-/// address workers by this value; the numeric worker id stays the internal engine identity. A worker
-/// row is never reused, so each registration mints a fresh ref for its lifetime.
+/// A worker's public reference: wrk_ followed by the 32 lowercase hex digits of a UUID, such as wrk_01a14f4d7b2a7c4f8e1d3b5a6c7e9f01.
+/// Each start of a worker process gets a new one.
 /// </summary>
+/// <remarks>The numeric worker id stays the engine's internal identity; a worker row is never reused.</remarks>
 [JsonConverter(typeof(WorkerRefJsonConverter))]
 public readonly record struct WorkerRef(Guid Value)
 {

@@ -13,7 +13,7 @@ internal static class SchedulesEndpoints
         reads.MapList(
             "/schedules",
             new("listSchedules", ActaPermissions.Read),
-            "List recurring schedules, next run first.",
+            "List recurring schedules; the live ones come next run first.",
             DashboardJsonContext.Default.ListSchedulesResponse,
             static query => new ListSchedulesQuery(
                 JobNamespace: query.Text("jobNamespace"),
@@ -37,7 +37,7 @@ internal static class SchedulesEndpoints
                 new QueryParameterDoc(
                     "liveOnly",
                     QueryParameterKind.Bool,
-                    "Null or true returns only schedules with no orphaned instant; false includes orphaned ones."
+                    "Left out or true, only live schedules, next run first; false also lists orphaned ones, oldest first."
                 ),
                 .. QueryParameterDocExtensions.PagingCore,
                 .. QueryParameterDocExtensions.IncludeTotal,

@@ -2,11 +2,11 @@ using System.Text.Json.Serialization;
 
 namespace Acta.AspNetCore;
 
-/// <summary>One checkpoint of a <see cref="ListJobCheckpointsResponse"/>; its value is rendered as <see cref="StoredJobPayload"/>.</summary>
+/// <summary>One checkpoint of a job in a page; its value is a stored payload.</summary>
 /// <param name="Kind">The checkpoint's kind, such as variable, signal, or timer.</param>
 /// <param name="Name">The checkpoint's name, unique within its job and kind.</param>
-/// <param name="Status">The checkpoint's status; null for a kind that has none, such as a variable.</param>
-/// <param name="DueAtUtc">When a bounded wait expires or a timer is due, in UTC; null otherwise.</param>
+/// <param name="Status">The checkpoint's status; absent for a kind that has none, such as a variable.</param>
+/// <param name="DueAtUtc">When a bounded wait expires or a timer is due, in UTC; absent otherwise.</param>
 /// <param name="Value">The checkpoint's stored value as a payload envelope; absent when it holds none.</param>
 /// <param name="CreatedAtUtc">When the row was created, in UTC.</param>
 /// <param name="ModifiedAtUtc">When the row last changed, in UTC.</param>

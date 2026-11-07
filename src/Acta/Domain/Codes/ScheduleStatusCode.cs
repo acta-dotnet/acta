@@ -10,12 +10,12 @@ public enum ScheduleStatusCode : byte
     [Code("unspecified", "Schedule status not recognized by this build; the row was written by a newer Acta.")]
     Unspecified = 0,
 
-    [Code("active", "Schedule is eligible to fire.")]
+    [Code("active", "The schedule fires.")]
     Active = 10,
 
-    [Code("paused", "Operator-paused; does not fire until resumed, or until PausedUntilUtc passes when set.")]
+    [Code("paused", "Paused by an operator; it does not fire until it is resumed, or until pausedUntilUtc passes when that is set.")]
     Paused = 30,
 
-    [Code("orphaned", "Origin declaration disappeared from the catalog; set by reconciliation. Cannot fire or be paused/resumed.")]
+    [Code("orphaned", "The application's code no longer declares the schedule; it cannot fire, be paused, or be resumed.")]
     Orphaned = 230,
 }

@@ -28,8 +28,8 @@ public sealed partial class OpenApiContractTests
     }
 
     /// <summary>
-    /// Each item of the contract by its key, and why each failing one fails. A code's
-    /// description is judged without the known values the generator appends.
+    /// Each item of the contract by its key, and why each failing one fails. A code's description is judged without the
+    /// known values the generator appends, and each known value's meaning is an item of its own.
     /// </summary>
     private static (int Items, Dictionary<string, string> Problems) DescriptionProblems(JsonNode document)
     {
@@ -45,6 +45,13 @@ public sealed partial class OpenApiContractTests
                 ? -1
                 : text?.IndexOf("Known values:", StringComparison.Ordinal) ?? -1;
             descriptions[name] = knownValues < 0 ? text : text![..knownValues].Trim();
+            foreach (var line in knownValues < 0 ? [] : text![knownValues..].Split('\n'))
+            {
+                if (line.StartsWith("- ", StringComparison.Ordinal) && line.IndexOf(": ", StringComparison.Ordinal) is > 0 and var colon)
+                {
+                    descriptions[$"{name} value {line[2..colon]}"] = line[(colon + 2)..].Trim();
+                }
+            }
             foreach (var (member, property) in Members(schema?["properties"]))
             {
                 descriptions[$"{name}.{member}"] = Text(property?["description"]);

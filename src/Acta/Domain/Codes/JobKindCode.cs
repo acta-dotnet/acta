@@ -3,10 +3,10 @@ using System.Text.Json.Serialization;
 namespace Acta;
 
 /// <summary>
-/// What a <c>jobs</c> row is: an ordinary job, or the one permanent slot a scheduled definition fires through. The
-/// kind is written at insert and never changes; the executor and the operator verbs read it instead of guessing from
-/// a deduplication key or from the schedules a row happens to own.
+/// What a job is: an ordinary job, or the one permanent slot a scheduled definition fires through. The kind is set when the job is
+/// created and never changes.
 /// </summary>
+/// <remarks>Code reads the kind instead of inferring it from a deduplication key or from the schedules a row owns.</remarks>
 [JsonConverter(typeof(JobKindCodeJsonConverter))]
 [CodeKind("job-kind")]
 public enum JobKindCode : byte
@@ -16,13 +16,13 @@ public enum JobKindCode : byte
 
     [Code(
         "ordinary",
-        "A job enqueued by an application, an operator, or a parent handler, or admitted by a schedule as a per-occurrence root; it ends in a terminal status."
+        "A job enqueued by an application, an operator, or a parent job's handler, or created by a schedule for one occurrence; it ends in a final status."
     )]
     Ordinary = 10,
 
     [Code(
         "permanent-slot",
-        "The one reusable job of a scheduled definition; registration creates it, every firing of the definition's schedules runs through it, and it is never terminal by itself."
+        "The one reusable job of a scheduled definition: registering the definition creates it, every firing of the definition's schedules runs through it, and it never ends by itself."
     )]
     PermanentSlot = 20,
 }

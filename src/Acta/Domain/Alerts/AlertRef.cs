@@ -3,11 +3,10 @@ using System.Text.Json.Serialization;
 namespace Acta;
 
 /// <summary>
-/// Public stable reference for one alert row: "alr_" plus the Guid's 32 lowercase hex digits, such as
-/// <c>alr_01a14f5038c17d0e9b2f6a4c81d3e5f7</c>. Dashboards, HTTP APIs, and alert transports address
-/// alerts by this value; the numeric alert id stays the internal engine identity. Deduplication never
-/// re-mints it: a condition that re-fires while its incident is open keeps that incident's ref.
+/// An alert's public reference: alr_ followed by the 32 lowercase hex digits of a UUID, such as alr_01a14f5038c17d0e9b2f6a4c81d3e5f7. An
+/// incident keeps its ref while it is open: a condition that fires again gets no new one.
 /// </summary>
+/// <remarks>The numeric alert id stays the engine's internal identity.</remarks>
 [JsonConverter(typeof(AlertRefJsonConverter))]
 public readonly record struct AlertRef(Guid Value)
 {
