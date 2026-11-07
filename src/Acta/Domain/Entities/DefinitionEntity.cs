@@ -56,7 +56,8 @@ internal sealed class DefinitionEntity : IEntity<int>
     public DefinitionStatusCode Status { get; internal set; }
 
     /// <summary>
-    /// SHA-256 hex over all code-owned columns (policy defaults + contract + formats), computed C#-side
+    /// SHA-256 hex over everything the code declares for the job: all code-owned columns (policy defaults + contract +
+    /// formats) and the schedules it declares for the deploying environment, computed C#-side
     /// at registration. Drives the write short-circuit: the C# gate compares this against the stored
     /// value and only sends rows whose hash differs (or that are new / not Active) into the upsert.
     /// Operator override columns are NOT part of this hash, so overrides survive re-sync. Identity-adjacent

@@ -34,6 +34,22 @@ public sealed class DeploySecondManifest : IJobManifest
         ]);
 }
 
+/// <summary>A release that changes nothing but the cron of <c>recurring-ping</c>'s schedule.</summary>
+public sealed class DeployRetimedManifest : IJobManifest
+{
+    public static JobDescriptorManifest Descriptors { get; } =
+        new([
+            .. DeployFirstManifest.Descriptors.Descriptors.Select(d =>
+                d.JobName == DeployFirstManifest.ScheduledJob
+                    ? d with
+                    {
+                        Schedules = [.. d.Schedules.Select(s => s with { Expression = "*/10 * * * *" })],
+                    }
+                    : d
+            ),
+        ]);
+}
+
 /// <summary>
 /// The <c>jobs deploy</c> and <c>jobs migrate</c> verbs, run through the CLI host a process registers: each run is a
 /// release's own container, with its own version and manifest, against the shared schema.
@@ -204,6 +220,33 @@ public sealed class DeployVerbSpec : ActaStorageTestBase<ConformanceFixture>
         Assert.Equal(FirstAttempts + 1, definitions[DeployFirstManifest.ChangedJob].MaxAttempts);
         Assert.Equal(DefinitionStatusCode.Active, definitions[DeployFirstManifest.DroppedJob].Status);
         Assert.Contains(DeploySecondManifest.AddedJob, definitions.Keys);
+    }
+
+    [Fact(DisplayName = "A release that changes only a job's schedule reports that job as changed, in the output and in the event")]
+    public async Task A_schedule_only_change_reports_the_job_as_changed()
+    {
+        var ct = TestContext.Current.CancellationToken;
+        var ns = Unique("deploy-retime");
+        Assert.Equal(0, (await RunAsync<DeployFirstManifest>(ns, First, ct, "deploy")).ExitCode);
+        var before = await ReadDefinitionsAsync(ns, ct);
+
+        var (exitCode, output, error) = await RunAsync<DeployRetimedManifest>(ns, Second, ct, "deploy");
+
+        Assert.True(exitCode == 0, error);
+        Assert.Equal(
+            [$"namespace {ns}: {Second} (Staging)", $"  changed  {DeployFirstManifest.ScheduledJob}", "  2 unchanged"],
+            Lines(output)
+        );
+        var after = await ReadDefinitionsAsync(ns, ct);
+        Assert.All(after, d => Assert.Equal(before[d.Key].Version + (d.Key == DeployFirstManifest.ScheduledJob ? 1 : 0), d.Value.Version));
+        var deployed = (
+            await Db.From<EventEntity>()
+                .Where(e =>
+                    e.NamespaceId == after[DeployFirstManifest.ScheduledJob].NamespaceId && e.EventCode == EventCode.NamespaceDeployed
+                )
+                .ToListAsync(ct)
+        ).MaxBy(e => e.Id)!;
+        Assert.Equal(DeployFirstManifest.ScheduledJob, EventDetail(deployed, "changed"));
     }
 
     [Fact(DisplayName = "A version that deployed earlier and is not current changes nothing and exits zero, and --force deploys it")]

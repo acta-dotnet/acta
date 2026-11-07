@@ -1,5 +1,6 @@
 using System.Data.Common;
 using System.Globalization;
+using System.Runtime.InteropServices;
 
 namespace Acta;
 
@@ -189,12 +190,13 @@ internal sealed class RegisterDefinitionsHandler(IDbSession session, ISqlDialect
 
         JobDefinitionRegistration.ValidateDescriptorShape(descriptor, namespaceId.ToString(CultureInfo.InvariantCulture));
 
-        // definition_hash covers ALL code-owned columns (policy defaults + contract + formats) so one
-        // C#-side comparison decides "needs upsert". Operator override columns are deliberately NOT
-        // hashed, so overrides survive re-sync. ContractDriftDetector remains a separate gate that
-        // compares actual contract values for the Warn/Fail policy.
+        // definition_hash covers everything the code declares for the job: ALL code-owned columns (policy defaults +
+        // contract + formats) and its schedules, so one C#-side comparison decides "needs upsert" and "changed".
+        // Operator override columns are deliberately NOT hashed, so overrides survive re-sync. ContractDriftDetector
+        // remains a separate gate that compares actual contract values for the Warn/Fail policy.
         var c = CultureInfo.InvariantCulture;
-        var definitionHash = CatalogHash.Of(
+        List<string?> declared =
+        [
             priorityCode.ToString(c),
             maxAttempts.ToString(c),
             concurrencyLimit?.ToString(c),
@@ -222,8 +224,33 @@ internal sealed class RegisterDefinitionsHandler(IDbSession session, ISqlDialect
             contract.InputFormatName,
             contract.ResultFormatId.ToString(c),
             contract.ResultFormatName,
-            lane
-        );
+            lane,
+        ];
+
+        // The schedules as the descriptor carries them, in name order, so reordering the attributes changes nothing. A
+        // job with none adds no part, and a stored cursor, pause, or interval anchor is never one.
+        if (!descriptor.Schedules.IsDefaultOrEmpty)
+        {
+            foreach (var s in descriptor.Schedules.OrderBy(s => s.ScheduleName, StringComparer.Ordinal))
+            {
+                declared.AddRange([
+                    s.ScheduleName,
+                    s.Expression,
+                    s.TimeZoneId,
+                    ((byte)s.ExpressionKind).ToString(c),
+                    ((byte)s.MisfireStrategy).ToString(c),
+                    s.Description,
+                    s.MaxOutstanding.ToString(c),
+                    ((byte)s.FullBehavior).ToString(c),
+                    s.ExpireAfterSeconds?.ToString(c),
+                    ((byte)s.ExpireAction).ToString(c),
+                    s.AvailabilityCalendarName,
+                    s.StartAtUtc?.Ticks.ToString(c),
+                    s.EndBeforeUtc?.Ticks.ToString(c),
+                ]);
+            }
+        }
+        var definitionHash = CatalogHash.Of(CollectionsMarshal.AsSpan(declared));
 
         return new DefinitionValues(
             DefinitionName: descriptor.JobName,

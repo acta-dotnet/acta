@@ -280,6 +280,7 @@
 - **Guarantees:**
   - A deploy writes the definitions and schedules and records the version, and a second run changes nothing
   - A version never seen deploys over the current one and lists the active definitions it no longer declares
+  - A release that changes only a job's schedule reports that job as changed, in the output and in the event
   - A version that deployed earlier and is not current changes nothing and exits zero, and --force deploys it
   - A deploy that fails in one namespace leaves every namespace of the host as it was
   - A host's namespaces deploy together, each by its own standing: skipped where the build is older, written where it is new

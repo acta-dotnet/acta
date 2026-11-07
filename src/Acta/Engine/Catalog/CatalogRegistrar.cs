@@ -130,7 +130,22 @@ internal sealed class CatalogRegistrar(
         {
             JobDefinitionRegistration.ValidateDescriptorShape(descriptor, ns);
         }
-        return allDescriptors;
+
+        // Environment gating, once, after the checks that cover every declaration: a schedule declared for other
+        // environments (it names some, and not this one) is treated from here on exactly as if undeclared, so the
+        // definition's hash and the schedule registration see the same set.
+        var env = _options.Value.EnvironmentName;
+        return
+        [
+            .. allDescriptors.Select(d =>
+                d.Schedules.IsDefaultOrEmpty
+                    ? d
+                    : d with
+                    {
+                        Schedules = [.. d.Schedules.Where(s => ScheduleEnvironment.IsActiveIn(s.Environments, env))],
+                    }
+            ),
+        ];
     }
 
     /// <summary>
@@ -311,7 +326,6 @@ internal sealed class CatalogRegistrar(
         CancellationToken ct
     )
     {
-        var env = _options.Value.EnvironmentName;
         // A retired definition keeps its schedules as the retire left them, so this start does not judge its calendars.
         // They are loaded all the same: registration reactivates a retired definition a build declares again, and
         // the plan then resolves its schedules.
@@ -322,14 +336,13 @@ internal sealed class CatalogRegistrar(
         var schedules = descriptors
             .Where(d => !d.Schedules.IsDefaultOrEmpty)
             .SelectMany(d =>
-                d.Schedules.Where(s => ScheduleEnvironment.IsActiveIn(s.Environments, env))
-                    .Select(s =>
-                        (
-                            Path: $"{ns}/{d.JobName}/{s.ScheduleName}",
-                            Retired: retired.Contains(d.JobName),
-                            Timing: new ScheduleTiming(s.Expression, s.ExpressionKind, null, null, s.AvailabilityCalendarName)
-                        )
+                d.Schedules.Select(s =>
+                    (
+                        Path: $"{ns}/{d.JobName}/{s.ScheduleName}",
+                        Retired: retired.Contains(d.JobName),
+                        Timing: new ScheduleTiming(s.Expression, s.ExpressionKind, null, null, s.AvailabilityCalendarName)
                     )
+                )
             )
             .ToList();
         await calendars.PreloadAsync(namespaceId, schedules.SelectMany(s => s.Timing.CalendarNames()), ct);
@@ -399,18 +412,13 @@ internal sealed class CatalogRegistrar(
             byName[s.ScheduleName] = s;
         }
 
-        // Environment gating: a schedule registers here only when active in this worker's environment
-        // (wildcard when it declares none). Excluded schedules are treated exactly as if undeclared, so
-        // the union below still picks up a definition whose every schedule is now excluded *if* it has
-        // persisted state, letting that prior slot pause on this run.
-        var env = _options.Value.EnvironmentName;
-
+        // A descriptor carries only the schedules active in this environment (CollectDescriptors). The union below still
+        // picks up a definition whose every schedule is now excluded if it has persisted state, letting that prior slot
+        // pause on this run.
         var inScope = new HashSet<int>();
         foreach (var (defId, descriptor) in descriptorById)
         {
-            if (
-                !descriptor.Schedules.IsDefaultOrEmpty && descriptor.Schedules.Any(s => ScheduleEnvironment.IsActiveIn(s.Environments, env))
-            )
+            if (!descriptor.Schedules.IsDefaultOrEmpty)
             {
                 inScope.Add(defId);
             }
@@ -434,9 +442,7 @@ internal sealed class CatalogRegistrar(
                 continue;
             }
 
-            var declared = descriptor.Schedules.IsDefaultOrEmpty
-                ? (List<ScheduleDescriptor>)[]
-                : descriptor.Schedules.Where(s => ScheduleEnvironment.IsActiveIn(s.Environments, env)).ToList();
+            List<ScheduleDescriptor> declared = descriptor.Schedules.IsDefaultOrEmpty ? [] : [.. descriptor.Schedules];
             var storedForDef = storedByDefinition.TryGetValue(defId, out var byName)
                 ? byName
                 : (IReadOnlyDictionary<string, StoredScheduleState>)new Dictionary<string, StoredScheduleState>();
