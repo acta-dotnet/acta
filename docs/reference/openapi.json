@@ -46,8 +46,12 @@
               "schema": {
                 "$ref": "#/components/schemas/UpsertTagRequest"
               },
-              "example": {
-                "value": "prod"
+              "examples": {
+                "upsertJobTag": {
+                  "value": {
+                    "value": "prod"
+                  }
+                }
               }
             }
           },
@@ -60,6 +64,13 @@
               "application/json": {
                 "schema": {
                   "$ref": "#/components/schemas/UpsertTagResponse"
+                },
+                "examples": {
+                  "upsertJobTag": {
+                    "value": {
+                      "action": "applied"
+                    }
+                  }
                 }
               }
             }
@@ -173,6 +184,13 @@
               "application/json": {
                 "schema": {
                   "$ref": "#/components/schemas/RemoveTagResponse"
+                },
+                "examples": {
+                  "removeJobTag": {
+                    "value": {
+                      "action": "applied"
+                    }
+                  }
                 }
               }
             }
@@ -258,6 +276,14 @@
             "application/json": {
               "schema": {
                 "$ref": "#/components/schemas/PauseJobRequest"
+              },
+              "examples": {
+                "pauseJob": {
+                  "value": {
+                    "reasonMessage": "Waiting for the provider.",
+                    "expectedVersion": 7
+                  }
+                }
               }
             }
           }
@@ -269,6 +295,15 @@
               "application/json": {
                 "schema": {
                   "$ref": "#/components/schemas/PauseJobResponse"
+                },
+                "examples": {
+                  "pauseJob": {
+                    "value": {
+                      "action": "applied",
+                      "status": "paused",
+                      "version": 8
+                    }
+                  }
                 }
               }
             }
@@ -384,6 +419,14 @@
             "application/json": {
               "schema": {
                 "$ref": "#/components/schemas/ResumeJobRequest"
+              },
+              "examples": {
+                "resumeJob": {
+                  "value": {
+                    "reasonMessage": "The provider is back.",
+                    "expectedVersion": 7
+                  }
+                }
               }
             }
           }
@@ -395,6 +438,15 @@
               "application/json": {
                 "schema": {
                   "$ref": "#/components/schemas/ResumeJobResponse"
+                },
+                "examples": {
+                  "resumeJob": {
+                    "value": {
+                      "action": "applied",
+                      "status": "ready",
+                      "version": 8
+                    }
+                  }
                 }
               }
             }
@@ -510,6 +562,14 @@
             "application/json": {
               "schema": {
                 "$ref": "#/components/schemas/RestartJobRequest"
+              },
+              "examples": {
+                "restartJob": {
+                  "value": {
+                    "reasonMessage": "Fixed the card on file.",
+                    "expectedVersion": 7
+                  }
+                }
               }
             }
           }
@@ -521,6 +581,15 @@
               "application/json": {
                 "schema": {
                   "$ref": "#/components/schemas/RestartJobResponse"
+                },
+                "examples": {
+                  "restartJob": {
+                    "value": {
+                      "action": "applied",
+                      "status": "ready",
+                      "version": 8
+                    }
+                  }
                 }
               }
             }
@@ -636,6 +705,14 @@
             "application/json": {
               "schema": {
                 "$ref": "#/components/schemas/CancelJobRequest"
+              },
+              "examples": {
+                "cancelJob": {
+                  "value": {
+                    "reasonMessage": "The order was refunded.",
+                    "expectedVersion": 7
+                  }
+                }
               }
             }
           }
@@ -647,6 +724,15 @@
               "application/json": {
                 "schema": {
                   "$ref": "#/components/schemas/CancelJobResponse"
+                },
+                "examples": {
+                  "cancelJob": {
+                    "value": {
+                      "action": "applied",
+                      "status": "cancelled",
+                      "version": 8
+                    }
+                  }
                 }
               }
             }
@@ -762,6 +848,13 @@
             "application/json": {
               "schema": {
                 "$ref": "#/components/schemas/PurgeJobRequest"
+              },
+              "examples": {
+                "purgeJob": {
+                  "value": {
+                    "reasonMessage": "Duplicate of an earlier import."
+                  }
+                }
               }
             }
           }
@@ -773,6 +866,15 @@
               "application/json": {
                 "schema": {
                   "$ref": "#/components/schemas/PurgeJobResponse"
+                },
+                "examples": {
+                  "purgeJob": {
+                    "value": {
+                      "action": "applied",
+                      "status": null,
+                      "version": null
+                    }
+                  }
                 }
               }
             }
@@ -888,6 +990,15 @@
             "application/json": {
               "schema": {
                 "$ref": "#/components/schemas/RescheduleJobRequest"
+              },
+              "examples": {
+                "rescheduleJob": {
+                  "value": {
+                    "nextRunAtUtc": "2026-06-13T09:00:00Z",
+                    "reasonMessage": "Run after the batch.",
+                    "expectedVersion": 7
+                  }
+                }
               }
             }
           }
@@ -899,6 +1010,15 @@
               "application/json": {
                 "schema": {
                   "$ref": "#/components/schemas/RescheduleJobResponse"
+                },
+                "examples": {
+                  "rescheduleJob": {
+                    "value": {
+                      "action": "applied",
+                      "status": "ready",
+                      "version": 8
+                    }
+                  }
                 }
               }
             }
@@ -1014,6 +1134,15 @@
             "application/json": {
               "schema": {
                 "$ref": "#/components/schemas/ReprioritizeJobRequest"
+              },
+              "examples": {
+                "reprioritizeJob": {
+                  "value": {
+                    "priority": "high",
+                    "reasonMessage": "The customer is waiting.",
+                    "expectedVersion": 7
+                  }
+                }
               }
             }
           },
@@ -1026,6 +1155,15 @@
               "application/json": {
                 "schema": {
                   "$ref": "#/components/schemas/ReprioritizeJobResponse"
+                },
+                "examples": {
+                  "reprioritizeJob": {
+                    "value": {
+                      "action": "applied",
+                      "status": "ready",
+                      "version": 8
+                    }
+                  }
                 }
               }
             }
@@ -1141,6 +1279,18 @@
             "application/json": {
               "schema": {
                 "$ref": "#/components/schemas/UpdateJobInputRequest"
+              },
+              "examples": {
+                "updateJobInput": {
+                  "value": {
+                    "input": {
+                      "json": {
+                        "invoiceId": 43
+                      }
+                    },
+                    "reasonMessage": "Corrected the invoice id."
+                  }
+                }
               }
             }
           },
@@ -1153,6 +1303,15 @@
               "application/json": {
                 "schema": {
                   "$ref": "#/components/schemas/UpdateJobInputResponse"
+                },
+                "examples": {
+                  "updateJobInput": {
+                    "value": {
+                      "action": "applied",
+                      "status": "ready",
+                      "version": null
+                    }
+                  }
                 }
               }
             }
@@ -1273,6 +1432,13 @@
               "application/json": {
                 "schema": {
                   "description": "The stored JSON payload, one JSON value."
+                },
+                "examples": {
+                  "getJobInput": {
+                    "value": {
+                      "invoiceId": 42
+                    }
+                  }
                 }
               },
               "application/octet-stream": { }
@@ -1355,23 +1521,27 @@
               "schema": {
                 "$ref": "#/components/schemas/EnqueueJobRequest"
               },
-              "example": {
-                "jobNamespace": "billing",
-                "jobName": "send-invoice",
-                "input": {
-                  "json": {
-                    "invoiceId": 42
+              "examples": {
+                "enqueueJob": {
+                  "value": {
+                    "jobNamespace": "billing",
+                    "jobName": "send-invoice",
+                    "input": {
+                      "json": {
+                        "invoiceId": 42
+                      }
+                    },
+                    "deduplicationKey": "invoice-42",
+                    "lane": "reports",
+                    "concurrencyKey": "customer:42",
+                    "tags": [
+                      {
+                        "name": "source",
+                        "value": "api"
+                      }
+                    ]
                   }
-                },
-                "deduplicationKey": "invoice-42",
-                "lane": "reports",
-                "concurrencyKey": "customer:42",
-                "tags": [
-                  {
-                    "name": "source",
-                    "value": "api"
-                  }
-                ]
+                }
               }
             }
           },
@@ -1392,6 +1562,14 @@
               "application/json": {
                 "schema": {
                   "$ref": "#/components/schemas/EnqueueJobResponse"
+                },
+                "examples": {
+                  "enqueueJob": {
+                    "value": {
+                      "jobRef": "job_00000000000000000000000000000101",
+                      "action": "deduplicated"
+                    }
+                  }
                 }
               }
             }
@@ -1614,6 +1792,36 @@
               "application/json": {
                 "schema": {
                   "$ref": "#/components/schemas/ListJobsResponse"
+                },
+                "examples": {
+                  "listJobs": {
+                    "value": {
+                      "items": [
+                        {
+                          "jobRef": "job_00000000000000000000000000000042",
+                          "jobNamespace": "billing",
+                          "jobName": "send-invoice",
+                          "tenantName": "cust-001",
+                          "parentJobRef": "job_00000000000000000000000000000040",
+                          "lineageRootJobRef": "job_00000000000000000000000000000040",
+                          "deduplicationKey": "ck-1",
+                          "correlationKey": "order-1042",
+                          "status": "ready",
+                          "priority": "high",
+                          "lane": "invoices",
+                          "createdAtUtc": "2026-06-12T06:00:00Z",
+                          "modifiedAtUtc": "2026-06-12T06:00:00Z",
+                          "nextRunAtUtc": "2026-06-12T06:05:00Z",
+                          "executionNumber": 2,
+                          "failureCount": 1
+                        }
+                      ],
+                      "nextCursor": null,
+                      "hasMore": false,
+                      "pageSize": 50,
+                      "totalCount": null
+                    }
+                  }
                 }
               }
             }
@@ -1707,6 +1915,13 @@
             "application/json": {
               "schema": {
                 "description": "Any JSON value, kept as sent."
+              },
+              "examples": {
+                "raiseJobSignal": {
+                  "value": {
+                    "approved": true
+                  }
+                }
               }
             }
           }
@@ -1718,6 +1933,15 @@
               "application/json": {
                 "schema": {
                   "$ref": "#/components/schemas/RaiseJobSignalResponse"
+                },
+                "examples": {
+                  "raiseJobSignal": {
+                    "value": {
+                      "action": "applied",
+                      "status": "ready",
+                      "version": null
+                    }
+                  }
                 }
               }
             }
@@ -1842,8 +2066,12 @@
               "schema": {
                 "$ref": "#/components/schemas/UpsertTagRequest"
               },
-              "example": {
-                "value": "prod"
+              "examples": {
+                "upsertNamespaceTag": {
+                  "value": {
+                    "value": "prod"
+                  }
+                }
               }
             }
           },
@@ -1856,6 +2084,13 @@
               "application/json": {
                 "schema": {
                   "$ref": "#/components/schemas/UpsertTagResponse"
+                },
+                "examples": {
+                  "upsertNamespaceTag": {
+                    "value": {
+                      "action": "applied"
+                    }
+                  }
                 }
               }
             }
@@ -1969,6 +2204,13 @@
               "application/json": {
                 "schema": {
                   "$ref": "#/components/schemas/RemoveTagResponse"
+                },
+                "examples": {
+                  "removeNamespaceTag": {
+                    "value": {
+                      "action": "applied"
+                    }
+                  }
                 }
               }
             }
@@ -2054,6 +2296,13 @@
             "application/json": {
               "schema": {
                 "$ref": "#/components/schemas/SuspendNamespaceRequest"
+              },
+              "examples": {
+                "suspendNamespace": {
+                  "value": {
+                    "reasonMessage": "Provider outage."
+                  }
+                }
               }
             }
           }
@@ -2065,6 +2314,14 @@
               "application/json": {
                 "schema": {
                   "$ref": "#/components/schemas/SuspendNamespaceResponse"
+                },
+                "examples": {
+                  "suspendNamespace": {
+                    "value": {
+                      "action": "applied",
+                      "version": 2
+                    }
+                  }
                 }
               }
             }
@@ -2170,6 +2427,13 @@
             "application/json": {
               "schema": {
                 "$ref": "#/components/schemas/ResumeNamespaceRequest"
+              },
+              "examples": {
+                "resumeNamespace": {
+                  "value": {
+                    "reasonMessage": "Provider recovered."
+                  }
+                }
               }
             }
           }
@@ -2181,6 +2445,14 @@
               "application/json": {
                 "schema": {
                   "$ref": "#/components/schemas/ResumeNamespaceResponse"
+                },
+                "examples": {
+                  "resumeNamespace": {
+                    "value": {
+                      "action": "applied",
+                      "version": 2
+                    }
+                  }
                 }
               }
             }
@@ -2286,6 +2558,15 @@
             "application/json": {
               "schema": {
                 "$ref": "#/components/schemas/UpdateNamespaceRequest"
+              },
+              "examples": {
+                "updateNamespace": {
+                  "value": {
+                    "ownerTeam": "payments",
+                    "description": "Invoices and receipts.",
+                    "expectedVersion": 3
+                  }
+                }
               }
             }
           },
@@ -2298,6 +2579,14 @@
               "application/json": {
                 "schema": {
                   "$ref": "#/components/schemas/UpdateNamespaceResponse"
+                },
+                "examples": {
+                  "updateNamespace": {
+                    "value": {
+                      "action": "applied",
+                      "version": 2
+                    }
+                  }
                 }
               }
             }
@@ -2410,6 +2699,17 @@
               "application/json": {
                 "schema": {
                   "$ref": "#/components/schemas/GetNamespaceResponse"
+                },
+                "examples": {
+                  "getNamespace": {
+                    "value": {
+                      "jobNamespace": "billing",
+                      "status": "active",
+                      "ownerTeam": "payments",
+                      "description": "billing jobs",
+                      "version": 3
+                    }
+                  }
                 }
               }
             }
@@ -2504,8 +2804,12 @@
               "schema": {
                 "$ref": "#/components/schemas/UpsertTagRequest"
               },
-              "example": {
-                "value": "prod"
+              "examples": {
+                "upsertTenantTag": {
+                  "value": {
+                    "value": "prod"
+                  }
+                }
               }
             }
           },
@@ -2518,6 +2822,13 @@
               "application/json": {
                 "schema": {
                   "$ref": "#/components/schemas/UpsertTagResponse"
+                },
+                "examples": {
+                  "upsertTenantTag": {
+                    "value": {
+                      "action": "applied"
+                    }
+                  }
                 }
               }
             }
@@ -2631,6 +2942,13 @@
               "application/json": {
                 "schema": {
                   "$ref": "#/components/schemas/RemoveTagResponse"
+                },
+                "examples": {
+                  "removeTenantTag": {
+                    "value": {
+                      "action": "applied"
+                    }
+                  }
                 }
               }
             }
@@ -2708,6 +3026,15 @@
             "application/json": {
               "schema": {
                 "$ref": "#/components/schemas/RegisterTenantRequest"
+              },
+              "examples": {
+                "registerTenant": {
+                  "value": {
+                    "tenantName": "cust-002",
+                    "displayName": "Globex",
+                    "description": "Globex Corporation"
+                  }
+                }
               }
             }
           },
@@ -2720,6 +3047,13 @@
               "application/json": {
                 "schema": {
                   "$ref": "#/components/schemas/RegisterTenantResponse"
+                },
+                "examples": {
+                  "registerTenant": {
+                    "value": {
+                      "tenantName": "cust-002"
+                    }
+                  }
                 }
               }
             }
@@ -2858,6 +3192,27 @@
               "application/json": {
                 "schema": {
                   "$ref": "#/components/schemas/ListTenantsResponse"
+                },
+                "examples": {
+                  "listTenants": {
+                    "value": {
+                      "items": [
+                        {
+                          "tenantName": "cust-001",
+                          "displayName": "Acme",
+                          "description": "Acme Corp",
+                          "status": "active",
+                          "createdAtUtc": "0001-01-01T00:00:00",
+                          "modifiedAtUtc": "0001-01-01T00:00:00",
+                          "version": 0
+                        }
+                      ],
+                      "nextCursor": null,
+                      "hasMore": false,
+                      "pageSize": 50,
+                      "totalCount": null
+                    }
+                  }
                 }
               }
             }
@@ -2933,6 +3288,13 @@
             "application/json": {
               "schema": {
                 "$ref": "#/components/schemas/SuspendTenantRequest"
+              },
+              "examples": {
+                "suspendTenant": {
+                  "value": {
+                    "reasonMessage": "Unpaid balance."
+                  }
+                }
               }
             }
           }
@@ -2944,6 +3306,14 @@
               "application/json": {
                 "schema": {
                   "$ref": "#/components/schemas/SuspendTenantResponse"
+                },
+                "examples": {
+                  "suspendTenant": {
+                    "value": {
+                      "action": "applied",
+                      "version": 2
+                    }
+                  }
                 }
               }
             }
@@ -3049,6 +3419,13 @@
             "application/json": {
               "schema": {
                 "$ref": "#/components/schemas/ResumeTenantRequest"
+              },
+              "examples": {
+                "resumeTenant": {
+                  "value": {
+                    "reasonMessage": "Balance settled."
+                  }
+                }
               }
             }
           }
@@ -3060,6 +3437,14 @@
               "application/json": {
                 "schema": {
                   "$ref": "#/components/schemas/ResumeTenantResponse"
+                },
+                "examples": {
+                  "resumeTenant": {
+                    "value": {
+                      "action": "applied",
+                      "version": 2
+                    }
+                  }
                 }
               }
             }
@@ -3165,6 +3550,15 @@
             "application/json": {
               "schema": {
                 "$ref": "#/components/schemas/UpdateTenantRequest"
+              },
+              "examples": {
+                "updateTenant": {
+                  "value": {
+                    "displayName": "Acme",
+                    "description": "Acme Corp",
+                    "expectedVersion": 0
+                  }
+                }
               }
             }
           },
@@ -3177,6 +3571,14 @@
               "application/json": {
                 "schema": {
                   "$ref": "#/components/schemas/UpdateTenantResponse"
+                },
+                "examples": {
+                  "updateTenant": {
+                    "value": {
+                      "action": "applied",
+                      "version": 2
+                    }
+                  }
                 }
               }
             }
@@ -3289,6 +3691,19 @@
               "application/json": {
                 "schema": {
                   "$ref": "#/components/schemas/GetTenantResponse"
+                },
+                "examples": {
+                  "getTenant": {
+                    "value": {
+                      "tenantName": "cust-001",
+                      "displayName": "Acme",
+                      "description": "Acme Corp",
+                      "status": "active",
+                      "createdAtUtc": "0001-01-01T00:00:00",
+                      "modifiedAtUtc": "0001-01-01T00:00:00",
+                      "version": 0
+                    }
+                  }
                 }
               }
             }
@@ -3374,6 +3789,13 @@
             "application/json": {
               "schema": {
                 "$ref": "#/components/schemas/AcknowledgeAlertRequest"
+              },
+              "examples": {
+                "acknowledgeAlert": {
+                  "value": {
+                    "reasonMessage": "Looking into it."
+                  }
+                }
               }
             }
           }
@@ -3385,6 +3807,16 @@
               "application/json": {
                 "schema": {
                   "$ref": "#/components/schemas/AcknowledgeAlertResponse"
+                },
+                "examples": {
+                  "acknowledgeAlert": {
+                    "value": {
+                      "alertRef": "alr_019826f00000700080000000000002a1",
+                      "action": "applied",
+                      "acknowledgedAtUtc": "2026-06-12T07:00:00Z",
+                      "resolvedAtUtc": null
+                    }
+                  }
                 }
               }
             }
@@ -3490,6 +3922,13 @@
             "application/json": {
               "schema": {
                 "$ref": "#/components/schemas/ResolveAlertRequest"
+              },
+              "examples": {
+                "resolveAlert": {
+                  "value": {
+                    "reasonMessage": "The provider is back."
+                  }
+                }
               }
             }
           }
@@ -3501,6 +3940,16 @@
               "application/json": {
                 "schema": {
                   "$ref": "#/components/schemas/ResolveAlertResponse"
+                },
+                "examples": {
+                  "resolveAlert": {
+                    "value": {
+                      "alertRef": "alr_019826f00000700080000000000002a1",
+                      "action": "applied",
+                      "acknowledgedAtUtc": null,
+                      "resolvedAtUtc": "2026-06-12T08:00:00Z"
+                    }
+                  }
                 }
               }
             }
@@ -3606,6 +4055,16 @@
             "application/json": {
               "schema": {
                 "$ref": "#/components/schemas/RequeueOutboxRequest"
+              },
+              "examples": {
+                "requeueOutbox": {
+                  "value": {
+                    "outboxIds": [
+                      "00000000-0000-0000-0000-00000000000a"
+                    ],
+                    "reasonMessage": "Fixed the payload."
+                  }
+                }
               }
             }
           }
@@ -3617,6 +4076,14 @@
               "application/json": {
                 "schema": {
                   "$ref": "#/components/schemas/RequeueOutboxResponse"
+                },
+                "examples": {
+                  "requeueOutbox": {
+                    "value": {
+                      "action": "accepted",
+                      "pendingSinceUtc": null
+                    }
+                  }
                 }
               }
             }
@@ -3732,6 +4199,16 @@
             "application/json": {
               "schema": {
                 "$ref": "#/components/schemas/DiscardOutboxRequest"
+              },
+              "examples": {
+                "discardOutbox": {
+                  "value": {
+                    "outboxIds": [
+                      "00000000-0000-0000-0000-00000000000a"
+                    ],
+                    "reasonMessage": "Sent by hand."
+                  }
+                }
               }
             }
           }
@@ -3743,6 +4220,14 @@
               "application/json": {
                 "schema": {
                   "$ref": "#/components/schemas/DiscardOutboxResponse"
+                },
+                "examples": {
+                  "discardOutbox": {
+                    "value": {
+                      "action": "accepted",
+                      "pendingSinceUtc": null
+                    }
+                  }
                 }
               }
             }
@@ -3875,8 +4360,12 @@
               "schema": {
                 "$ref": "#/components/schemas/UpsertTagRequest"
               },
-              "example": {
-                "value": "prod"
+              "examples": {
+                "upsertDefinitionTag": {
+                  "value": {
+                    "value": "prod"
+                  }
+                }
               }
             }
           },
@@ -3889,6 +4378,13 @@
               "application/json": {
                 "schema": {
                   "$ref": "#/components/schemas/UpsertTagResponse"
+                },
+                "examples": {
+                  "upsertDefinitionTag": {
+                    "value": {
+                      "action": "applied"
+                    }
+                  }
                 }
               }
             }
@@ -4010,6 +4506,13 @@
               "application/json": {
                 "schema": {
                   "$ref": "#/components/schemas/RemoveTagResponse"
+                },
+                "examples": {
+                  "removeDefinitionTag": {
+                    "value": {
+                      "action": "applied"
+                    }
+                  }
                 }
               }
             }
@@ -4103,6 +4606,17 @@
             "application/json": {
               "schema": {
                 "$ref": "#/components/schemas/UpdateDefinitionOverridesRequest"
+              },
+              "examples": {
+                "updateDefinitionOverrides": {
+                  "value": {
+                    "overrides": {
+                      "maxAttempts": 5,
+                      "priority": "high"
+                    },
+                    "expectedVersion": 0
+                  }
+                }
               }
             }
           },
@@ -4115,6 +4629,14 @@
               "application/json": {
                 "schema": {
                   "$ref": "#/components/schemas/UpdateDefinitionOverridesResponse"
+                },
+                "examples": {
+                  "updateDefinitionOverrides": {
+                    "value": {
+                      "action": "applied",
+                      "version": 1
+                    }
+                  }
                 }
               }
             }
@@ -4238,6 +4760,14 @@
             "application/json": {
               "schema": {
                 "$ref": "#/components/schemas/RetireDefinitionRequest"
+              },
+              "examples": {
+                "retireDefinition": {
+                  "value": {
+                    "expectedVersion": 0,
+                    "reasonMessage": "Replaced by send-receipt."
+                  }
+                }
               }
             }
           },
@@ -4250,6 +4780,14 @@
               "application/json": {
                 "schema": {
                   "$ref": "#/components/schemas/RetireDefinitionResponse"
+                },
+                "examples": {
+                  "retireDefinition": {
+                    "value": {
+                      "action": "applied",
+                      "version": 1
+                    }
+                  }
                 }
               }
             }
@@ -4381,6 +4919,14 @@
             "application/json": {
               "schema": {
                 "$ref": "#/components/schemas/PauseScheduleRequest"
+              },
+              "examples": {
+                "pauseSchedule": {
+                  "value": {
+                    "pausedUntilUtc": "2026-06-13T06:00:00Z",
+                    "reasonMessage": "Maintenance."
+                  }
+                }
               }
             }
           }
@@ -4392,6 +4938,17 @@
               "application/json": {
                 "schema": {
                   "$ref": "#/components/schemas/PauseScheduleResponse"
+                },
+                "examples": {
+                  "pauseSchedule": {
+                    "value": {
+                      "action": "applied",
+                      "status": null,
+                      "pausedUntilUtc": "2026-06-13T06:00:00Z",
+                      "nextOccurrenceAtUtc": null,
+                      "version": null
+                    }
+                  }
                 }
               }
             }
@@ -4523,6 +5080,13 @@
             "application/json": {
               "schema": {
                 "$ref": "#/components/schemas/ResumeScheduleRequest"
+              },
+              "examples": {
+                "resumeSchedule": {
+                  "value": {
+                    "reasonMessage": "Maintenance is over."
+                  }
+                }
               }
             }
           }
@@ -4534,6 +5098,17 @@
               "application/json": {
                 "schema": {
                   "$ref": "#/components/schemas/ResumeScheduleResponse"
+                },
+                "examples": {
+                  "resumeSchedule": {
+                    "value": {
+                      "action": "applied",
+                      "status": null,
+                      "pausedUntilUtc": null,
+                      "nextOccurrenceAtUtc": null,
+                      "version": null
+                    }
+                  }
                 }
               }
             }
@@ -4665,6 +5240,13 @@
             "application/json": {
               "schema": {
                 "$ref": "#/components/schemas/TriggerScheduleRequest"
+              },
+              "examples": {
+                "triggerSchedule": {
+                  "value": {
+                    "reasonMessage": "Catch up after the outage."
+                  }
+                }
               }
             }
           }
@@ -4676,6 +5258,17 @@
               "application/json": {
                 "schema": {
                   "$ref": "#/components/schemas/TriggerScheduleResponse"
+                },
+                "examples": {
+                  "triggerSchedule": {
+                    "value": {
+                      "action": "applied",
+                      "status": "active",
+                      "pausedUntilUtc": null,
+                      "nextOccurrenceAtUtc": "1970-01-01T00:00:00Z",
+                      "version": 1
+                    }
+                  }
                 }
               }
             }
@@ -4799,6 +5392,17 @@
             "application/json": {
               "schema": {
                 "$ref": "#/components/schemas/SaveCalendarDraftRequest"
+              },
+              "examples": {
+                "saveCalendarDraft": {
+                  "value": {
+                    "role": "availability",
+                    "definition": {
+                      "kind": "weekly-availability"
+                    },
+                    "expectedLatestVersion": 2
+                  }
+                }
               }
             }
           },
@@ -4811,6 +5415,16 @@
               "application/json": {
                 "schema": {
                   "$ref": "#/components/schemas/SaveCalendarDraftResponse"
+                },
+                "examples": {
+                  "saveCalendarDraft": {
+                    "value": {
+                      "action": "applied",
+                      "version": 3,
+                      "contentHash": "hash-3",
+                      "problems": [ ]
+                    }
+                  }
                 }
               }
             }
@@ -4934,6 +5548,14 @@
             "application/json": {
               "schema": {
                 "$ref": "#/components/schemas/PublishCalendarRequest"
+              },
+              "examples": {
+                "publishCalendar": {
+                  "value": {
+                    "expectedCurrentVersion": 1,
+                    "candidateVersion": 2
+                  }
+                }
               }
             }
           },
@@ -4946,6 +5568,19 @@
               "application/json": {
                 "schema": {
                   "$ref": "#/components/schemas/PublishCalendarResponse"
+                },
+                "examples": {
+                  "publishCalendar": {
+                    "value": {
+                      "action": "applied",
+                      "version": 2,
+                      "retimedSchedules": [
+                        "send-invoice/nightly"
+                      ],
+                      "overdueSchedules": [ ],
+                      "reason": null
+                    }
+                  }
                 }
               }
             }
@@ -5069,6 +5704,14 @@
             "application/json": {
               "schema": {
                 "$ref": "#/components/schemas/ArchiveCalendarRequest"
+              },
+              "examples": {
+                "archiveCalendar": {
+                  "value": {
+                    "expectedCurrentVersion": 1,
+                    "reasonMessage": "No schedule uses it."
+                  }
+                }
               }
             }
           },
@@ -5081,6 +5724,15 @@
               "application/json": {
                 "schema": {
                   "$ref": "#/components/schemas/ArchiveCalendarResponse"
+                },
+                "examples": {
+                  "archiveCalendar": {
+                    "value": {
+                      "action": "applied",
+                      "version": 1,
+                      "dependentCount": 0
+                    }
+                  }
                 }
               }
             }
@@ -5195,6 +5847,36 @@
               "application/json": {
                 "schema": {
                   "$ref": "#/components/schemas/GetJobResponse"
+                },
+                "examples": {
+                  "getJob": {
+                    "value": {
+                      "jobRef": "job_00000000000000000000000000000042",
+                      "kind": "ordinary",
+                      "jobNamespace": "billing",
+                      "jobName": "send-invoice",
+                      "lineageRootJobRef": "job_00000000000000000000000000000040",
+                      "parentJobRef": "job_00000000000000000000000000000040",
+                      "tenantName": "cust-001",
+                      "deduplicationKey": "ck-1",
+                      "correlationKey": "order-1042",
+                      "concurrencyKey": "customer:1042",
+                      "inputFormatId": 1,
+                      "status": "ready",
+                      "priority": "high",
+                      "lane": "invoices",
+                      "blockedBehindJobRef": "job_00000000000000000000000000000007",
+                      "nextRunAtUtc": "2026-06-12T06:05:00Z",
+                      "executionNumber": 2,
+                      "failureCount": 1,
+                      "leaseExpiresAtUtc": "2026-06-12T06:01:00Z",
+                      "retentionUntilUtc": "2026-09-10T06:00:00Z",
+                      "createdAtUtc": "2026-06-12T06:00:00Z",
+                      "modifiedAtUtc": "2026-06-12T06:00:00Z",
+                      "leasedByWorkerRef": "wrk_019826f00000700080000000000002a0",
+                      "version": 7
+                    }
+                  }
                 }
               }
             }
@@ -5289,6 +5971,36 @@
               "application/json": {
                 "schema": {
                   "$ref": "#/components/schemas/GetJobResponse"
+                },
+                "examples": {
+                  "getJobByKey": {
+                    "value": {
+                      "jobRef": "job_00000000000000000000000000000042",
+                      "kind": "ordinary",
+                      "jobNamespace": "billing",
+                      "jobName": "send-invoice",
+                      "lineageRootJobRef": "job_00000000000000000000000000000040",
+                      "parentJobRef": "job_00000000000000000000000000000040",
+                      "tenantName": "cust-001",
+                      "deduplicationKey": "ck-1",
+                      "correlationKey": "order-1042",
+                      "concurrencyKey": "customer:1042",
+                      "inputFormatId": 1,
+                      "status": "ready",
+                      "priority": "high",
+                      "lane": "invoices",
+                      "blockedBehindJobRef": "job_00000000000000000000000000000007",
+                      "nextRunAtUtc": "2026-06-12T06:05:00Z",
+                      "executionNumber": 2,
+                      "failureCount": 1,
+                      "leaseExpiresAtUtc": "2026-06-12T06:01:00Z",
+                      "retentionUntilUtc": "2026-09-10T06:00:00Z",
+                      "createdAtUtc": "2026-06-12T06:00:00Z",
+                      "modifiedAtUtc": "2026-06-12T06:00:00Z",
+                      "leasedByWorkerRef": "wrk_019826f00000700080000000000002a0",
+                      "version": 7
+                    }
+                  }
                 }
               }
             }
@@ -5400,6 +6112,22 @@
               "application/json": {
                 "schema": {
                   "$ref": "#/components/schemas/ListTagsResponse"
+                },
+                "examples": {
+                  "listJobTags": {
+                    "value": {
+                      "items": [
+                        {
+                          "name": "env",
+                          "value": "prod"
+                        }
+                      ],
+                      "nextCursor": null,
+                      "hasMore": false,
+                      "pageSize": 50,
+                      "totalCount": null
+                    }
+                  }
                 }
               }
             }
@@ -5492,6 +6220,13 @@
               "application/json": {
                 "schema": {
                   "description": "The stored JSON payload, one JSON value."
+                },
+                "examples": {
+                  "getJobResult": {
+                    "value": {
+                      "sent": true
+                    }
+                  }
                 }
               },
               "application/octet-stream": { }
@@ -5580,6 +6315,206 @@
               "application/json": {
                 "schema": {
                   "$ref": "#/components/schemas/GetJobDetailResponse"
+                },
+                "examples": {
+                  "getJobDetail": {
+                    "value": {
+                      "job": {
+                        "jobRef": "job_00000000000000000000000000000042",
+                        "kind": "ordinary",
+                        "jobNamespace": "billing",
+                        "jobName": "send-invoice",
+                        "lineageRootJobRef": "job_00000000000000000000000000000040",
+                        "parentJobRef": "job_00000000000000000000000000000040",
+                        "tenantName": "cust-001",
+                        "deduplicationKey": "ck-1",
+                        "correlationKey": "order-1042",
+                        "concurrencyKey": "customer:1042",
+                        "inputFormatId": 1,
+                        "status": "ready",
+                        "priority": "high",
+                        "lane": "invoices",
+                        "blockedBehindJobRef": "job_00000000000000000000000000000007",
+                        "nextRunAtUtc": "2026-06-12T06:05:00Z",
+                        "executionNumber": 2,
+                        "failureCount": 1,
+                        "leaseExpiresAtUtc": "2026-06-12T06:01:00Z",
+                        "retentionUntilUtc": "2026-09-10T06:00:00Z",
+                        "createdAtUtc": "2026-06-12T06:00:00Z",
+                        "modifiedAtUtc": "2026-06-12T06:00:00Z",
+                        "leasedByWorkerRef": "wrk_019826f00000700080000000000002a0",
+                        "version": 7
+                      },
+                      "input": {
+                        "json": {
+                          "invoiceId": 42
+                        },
+                        "formatId": 1,
+                        "formatName": "json"
+                      },
+                      "result": {
+                        "json": {
+                          "sent": true
+                        },
+                        "formatId": 1,
+                        "formatName": "json"
+                      },
+                      "checkpoints": {
+                        "items": [
+                          {
+                            "kind": "signal",
+                            "name": "approval",
+                            "status": "pending",
+                            "dueAtUtc": "2026-06-12T07:00:00Z",
+                            "value": {
+                              "base64": "AQID",
+                              "formatId": 2,
+                              "formatName": "bytes"
+                            },
+                            "createdAtUtc": "2026-06-12T06:00:00Z",
+                            "modifiedAtUtc": "2026-06-12T06:00:00Z"
+                          }
+                        ],
+                        "nextCursor": null,
+                        "hasMore": false,
+                        "pageSize": 50,
+                        "totalCount": 1
+                      },
+                      "explain": {
+                        "jobRef": "job_00000000000000000000000000000042",
+                        "jobNamespace": "billing",
+                        "jobName": "send-invoice",
+                        "status": "ready",
+                        "statusMeaning": "Eligible for claim; the claim path selects rows in this Status.",
+                        "headline": "Ready and eligible for claim, waiting for a worker to pick it up.",
+                        "activeWait": {
+                          "kind": "signal",
+                          "name": "approval",
+                          "dueAtUtc": "2026-06-12T07:00:00Z"
+                        },
+                        "lease": {
+                          "workerName": "worker-host",
+                          "expiresAtUtc": "2026-06-12T06:01:00Z",
+                          "expired": false,
+                          "workerLastSeenAtUtc": "2026-06-12T06:00:00Z",
+                          "workerStale": false,
+                          "recoveryExpectation": "Reclaimed if the lease lapses.",
+                          "workerRef": "wrk_019826f00000700080000000000002a0"
+                        },
+                        "lastExecutedBy": "worker-host",
+                        "steps": [
+                          {
+                            "name": "charge-card",
+                            "status": "pending",
+                            "explanation": "Retries after its backoff."
+                          }
+                        ],
+                        "stepsHasMore": false,
+                        "reason": "The card was declined.",
+                        "nextActions": [
+                          {
+                            "kind": "none",
+                            "description": "no action needed - a worker will claim it"
+                          }
+                        ]
+                      },
+                      "lineage": {
+                        "ancestors": [
+                          {
+                            "jobRef": "job_00000000000000000000000000000040",
+                            "jobNamespace": "billing",
+                            "jobName": "close-month",
+                            "status": "suspended",
+                            "parentJobRef": null,
+                            "lineageRootJobRef": null,
+                            "createdAtUtc": "2026-06-12T06:00:00Z",
+                            "modifiedAtUtc": "2026-06-12T06:00:00Z"
+                          }
+                        ],
+                        "ancestorsHasMore": false,
+                        "job": {
+                          "jobRef": "job_00000000000000000000000000000042",
+                          "jobNamespace": "billing",
+                          "jobName": "send-invoice",
+                          "status": "ready",
+                          "parentJobRef": "job_00000000000000000000000000000040",
+                          "lineageRootJobRef": "job_00000000000000000000000000000040",
+                          "createdAtUtc": "2026-06-12T06:00:00Z",
+                          "modifiedAtUtc": "2026-06-12T06:00:00Z"
+                        },
+                        "steps": [
+                          {
+                            "name": "charge-card",
+                            "status": "pending",
+                            "explanation": "Retries after its backoff."
+                          }
+                        ],
+                        "stepsHasMore": false,
+                        "activeWait": {
+                          "kind": "signal",
+                          "name": "approval",
+                          "dueAtUtc": "2026-06-12T07:00:00Z"
+                        },
+                        "children": [
+                          {
+                            "jobRef": "job_00000000000000000000000000000007",
+                            "jobName": "render-pdf",
+                            "status": "executing",
+                            "createdAtUtc": "2026-06-12T06:00:00Z",
+                            "modifiedAtUtc": "2026-06-12T06:00:00Z"
+                          }
+                        ],
+                        "childrenHasMore": false
+                      },
+                      "schedules": [
+                        {
+                          "jobNamespace": "billing",
+                          "jobName": "send-invoice",
+                          "scheduleName": "nightly",
+                          "origin": "definition",
+                          "expressionKind": "cron",
+                          "expression": "0 2 * * *",
+                          "timeZoneId": "Europe/Ljubljana",
+                          "misfireStrategy": "catch-up-once",
+                          "nextOccurrenceAtUtc": "2026-06-13T02:00:00Z",
+                          "nextEvaluationAtUtc": "2026-06-13T02:00:00Z",
+                          "evaluationStatus": "scheduled",
+                          "status": "active",
+                          "pausedUntilUtc": "2026-06-12T07:00:00Z",
+                          "createdAtUtc": "2026-06-12T06:00:00Z",
+                          "modifiedAtUtc": "2026-06-12T06:00:00Z",
+                          "version": 2,
+                          "jobRef": "job_00000000000000000000000000000042",
+                          "maxOutstanding": 1,
+                          "outstandingCount": 0,
+                          "fullBehavior": "wait",
+                          "scheduledDelivery": "permanent",
+                          "expireAfterSeconds": 3600,
+                          "expireAction": "discard",
+                          "availabilityCalendarName": "office-hours"
+                        }
+                      ],
+                      "schedulesTotal": 1,
+                      "maxAttemptsEffective": 3,
+                      "workers": [
+                        {
+                          "workerRef": "wrk_019826f00000700080000000000002a0",
+                          "jobNamespace": "billing",
+                          "status": "active",
+                          "hostName": "worker-host",
+                          "deploymentVersion": "deploy-42",
+                          "engineVersion": "engine-1",
+                          "dotnetVersion": ".NET 10.0.0",
+                          "processId": 4242,
+                          "maxConcurrentExecutors": 8,
+                          "lastSeenAtUtc": "2026-06-12T06:00:00Z",
+                          "startedAtUtc": "2026-06-12T06:00:00Z",
+                          "modifiedAtUtc": "2026-06-12T06:00:00Z"
+                        }
+                      ],
+                      "workersTotal": 1
+                    }
+                  }
                 }
               }
             }
@@ -5691,6 +6626,31 @@
               "application/json": {
                 "schema": {
                   "$ref": "#/components/schemas/ListJobCheckpointsResponse"
+                },
+                "examples": {
+                  "listJobCheckpoints": {
+                    "value": {
+                      "items": [
+                        {
+                          "kind": "signal",
+                          "name": "approval",
+                          "status": "pending",
+                          "dueAtUtc": "2026-06-12T07:00:00Z",
+                          "value": {
+                            "base64": "AQID",
+                            "formatId": 2,
+                            "formatName": "bytes"
+                          },
+                          "createdAtUtc": "2026-06-12T06:00:00Z",
+                          "modifiedAtUtc": "2026-06-12T06:00:00Z"
+                        }
+                      ],
+                      "nextCursor": null,
+                      "hasMore": false,
+                      "pageSize": 50,
+                      "totalCount": null
+                    }
+                  }
                 }
               }
             }
@@ -5802,6 +6762,27 @@
               "application/json": {
                 "schema": {
                   "$ref": "#/components/schemas/ListJobStepsResponse"
+                },
+                "examples": {
+                  "listJobSteps": {
+                    "value": {
+                      "items": [
+                        {
+                          "name": "charge-card",
+                          "status": "pending",
+                          "attemptNumber": 2,
+                          "nextRetryAtUtc": "2026-06-12T06:05:00Z",
+                          "failureMessage": "Card declined.",
+                          "createdAtUtc": "2026-06-12T06:00:00Z",
+                          "modifiedAtUtc": "2026-06-12T06:00:00Z"
+                        }
+                      ],
+                      "nextCursor": null,
+                      "hasMore": false,
+                      "pageSize": 50,
+                      "totalCount": null
+                    }
+                  }
                 }
               }
             }
@@ -5921,6 +6902,32 @@
               "application/json": {
                 "schema": {
                   "$ref": "#/components/schemas/ListWorkersResponse"
+                },
+                "examples": {
+                  "listWorkers": {
+                    "value": {
+                      "items": [
+                        {
+                          "workerRef": "wrk_019826f00000700080000000000002a0",
+                          "jobNamespace": "billing",
+                          "status": "active",
+                          "hostName": "worker-host",
+                          "deploymentVersion": "deploy-42",
+                          "engineVersion": "engine-1",
+                          "dotnetVersion": ".NET 10.0.0",
+                          "processId": 4242,
+                          "maxConcurrentExecutors": 8,
+                          "lastSeenAtUtc": "2026-06-12T06:00:00Z",
+                          "startedAtUtc": "2026-06-12T06:00:00Z",
+                          "modifiedAtUtc": "2026-06-12T06:00:00Z"
+                        }
+                      ],
+                      "nextCursor": null,
+                      "hasMore": false,
+                      "pageSize": 50,
+                      "totalCount": null
+                    }
+                  }
                 }
               }
             }
@@ -5995,6 +7002,24 @@
               "application/json": {
                 "schema": {
                   "$ref": "#/components/schemas/GetWorkerResponse"
+                },
+                "examples": {
+                  "getWorker": {
+                    "value": {
+                      "workerRef": "wrk_019826f00000700080000000000002a0",
+                      "jobNamespace": "billing",
+                      "status": "active",
+                      "hostName": "worker-host",
+                      "deploymentVersion": "deploy-42",
+                      "engineVersion": "engine-1",
+                      "dotnetVersion": ".NET 10.0.0",
+                      "processId": 4242,
+                      "maxConcurrentExecutors": 8,
+                      "lastSeenAtUtc": "2026-06-12T08:00:00Z",
+                      "startedAtUtc": "2026-06-12T07:00:00Z",
+                      "modifiedAtUtc": "2026-06-12T08:00:00Z"
+                    }
+                  }
                 }
               }
             }
@@ -6125,6 +7150,25 @@
               "application/json": {
                 "schema": {
                   "$ref": "#/components/schemas/ListNamespacesResponse"
+                },
+                "examples": {
+                  "listNamespaces": {
+                    "value": {
+                      "items": [
+                        {
+                          "jobNamespace": "billing",
+                          "status": "active",
+                          "ownerTeam": "payments",
+                          "description": "billing jobs",
+                          "version": 3
+                        }
+                      ],
+                      "nextCursor": null,
+                      "hasMore": false,
+                      "pageSize": 50,
+                      "totalCount": null
+                    }
+                  }
                 }
               }
             }
@@ -6226,6 +7270,22 @@
               "application/json": {
                 "schema": {
                   "$ref": "#/components/schemas/ListTagsResponse"
+                },
+                "examples": {
+                  "listNamespaceTags": {
+                    "value": {
+                      "items": [
+                        {
+                          "name": "env",
+                          "value": "prod"
+                        }
+                      ],
+                      "nextCursor": null,
+                      "hasMore": false,
+                      "pageSize": 50,
+                      "totalCount": null
+                    }
+                  }
                 }
               }
             }
@@ -6337,6 +7397,22 @@
               "application/json": {
                 "schema": {
                   "$ref": "#/components/schemas/ListTagsResponse"
+                },
+                "examples": {
+                  "listTenantTags": {
+                    "value": {
+                      "items": [
+                        {
+                          "name": "env",
+                          "value": "prod"
+                        }
+                      ],
+                      "nextCursor": null,
+                      "hasMore": false,
+                      "pageSize": 50,
+                      "totalCount": null
+                    }
+                  }
                 }
               }
             }
@@ -6488,6 +7564,37 @@
               "application/json": {
                 "schema": {
                   "$ref": "#/components/schemas/ListAlertsResponse"
+                },
+                "examples": {
+                  "listAlerts": {
+                    "value": {
+                      "items": [
+                        {
+                          "alertRef": "alr_019826f00000700080000000000002a1",
+                          "jobNamespace": "billing",
+                          "jobRef": "job_00000000000000000000000000000042",
+                          "origin": "automatic",
+                          "severity": "critical",
+                          "kind": "final-failure",
+                          "title": "Invoice provider timed out",
+                          "message": "The provider returned 504 three times.",
+                          "channelName": "default",
+                          "occurrenceCount": 3,
+                          "resolvedAtUtc": "2026-06-12T08:00:00Z",
+                          "deliveryStatus": "retry-after",
+                          "retryCount": 1,
+                          "retryAfterUtc": "2026-06-12T06:10:00Z",
+                          "createdAtUtc": "2026-06-12T06:00:00Z",
+                          "modifiedAtUtc": "2026-06-12T06:00:00Z",
+                          "acknowledgedAtUtc": "2026-06-12T07:00:00Z"
+                        }
+                      ],
+                      "nextCursor": null,
+                      "hasMore": false,
+                      "pageSize": 50,
+                      "totalCount": null
+                    }
+                  }
                 }
               }
             }
@@ -6572,6 +7679,29 @@
               "application/json": {
                 "schema": {
                   "$ref": "#/components/schemas/GetAlertResponse"
+                },
+                "examples": {
+                  "getAlert": {
+                    "value": {
+                      "alertRef": "alr_019826f00000700080000000000002a1",
+                      "jobNamespace": "billing",
+                      "jobRef": "job_00000000000000000000000000000042",
+                      "origin": "automatic",
+                      "severity": "critical",
+                      "kind": "final-failure",
+                      "title": "Invoice provider timed out",
+                      "message": "The provider returned 504 three times.",
+                      "channelName": "default",
+                      "occurrenceCount": 3,
+                      "resolvedAtUtc": "2026-06-12T08:00:00Z",
+                      "deliveryStatus": "retry-after",
+                      "retryCount": 1,
+                      "retryAfterUtc": "2026-06-12T06:10:00Z",
+                      "createdAtUtc": "2026-06-12T06:00:00Z",
+                      "modifiedAtUtc": "2026-06-12T06:00:00Z",
+                      "acknowledgedAtUtc": "2026-06-12T07:00:00Z"
+                    }
+                  }
                 }
               }
             }
@@ -6675,6 +7805,26 @@
               "application/json": {
                 "schema": {
                   "$ref": "#/components/schemas/ListOutboxSourcesResponse"
+                },
+                "examples": {
+                  "listOutboxSources": {
+                    "value": {
+                      "items": [
+                        {
+                          "jobNamespace": "billing",
+                          "slotJobRef": "job_00000000000000000000000000000042",
+                          "lastTickSummary": "claimed=2 relayed=2 dedup=0 quarantined=0 backlog=5 quarantine=1",
+                          "backlog": 5,
+                          "quarantineTotal": 1,
+                          "isLocal": true
+                        }
+                      ],
+                      "nextCursor": null,
+                      "hasMore": false,
+                      "pageSize": 50,
+                      "totalCount": null
+                    }
+                  }
                 }
               }
             }
@@ -6776,6 +7926,29 @@
               "application/json": {
                 "schema": {
                   "$ref": "#/components/schemas/ListQuarantinedOutboxResponse"
+                },
+                "examples": {
+                  "listQuarantinedOutbox": {
+                    "value": {
+                      "items": [
+                        {
+                          "outboxId": "00000000-0000-0000-0000-00000000000a",
+                          "jobNamespace": "billing",
+                          "jobName": "send-invoice",
+                          "deduplicationKey": "inv-9",
+                          "correlationKey": "trace-9",
+                          "tenantName": null,
+                          "failureCount": 5,
+                          "lastError": "route rejected: unknown job",
+                          "createdAtUtc": "2026-06-12T06:00:00Z"
+                        }
+                      ],
+                      "nextCursor": null,
+                      "hasMore": false,
+                      "pageSize": 50,
+                      "totalCount": null
+                    }
+                  }
                 }
               }
             }
@@ -6914,6 +8087,37 @@
               "application/json": {
                 "schema": {
                   "$ref": "#/components/schemas/ListDefinitionsResponse"
+                },
+                "examples": {
+                  "listDefinitions": {
+                    "value": {
+                      "items": [
+                        {
+                          "jobNamespace": "billing",
+                          "jobName": "send-invoice",
+                          "status": "active",
+                          "inputTypeName": "Billing.SendInvoice",
+                          "outputTypeName": null,
+                          "priorityOverride": null,
+                          "priorityEffective": "normal",
+                          "maxAttemptsOverride": null,
+                          "maxAttemptsEffective": 3,
+                          "concurrencyLimitOverride": null,
+                          "concurrencyLimitEffective": null,
+                          "rateLimitOverride": null,
+                          "rateLimitEffective": null,
+                          "rateName": null,
+                          "lane": null,
+                          "modifiedAtUtc": "2026-06-12T06:00:00Z",
+                          "version": 2
+                        }
+                      ],
+                      "nextCursor": null,
+                      "hasMore": false,
+                      "pageSize": 50,
+                      "totalCount": null
+                    }
+                  }
                 }
               }
             }
@@ -6996,6 +8200,75 @@
               "application/json": {
                 "schema": {
                   "$ref": "#/components/schemas/GetDefinitionResponse"
+                },
+                "examples": {
+                  "getDefinition": {
+                    "value": {
+                      "jobNamespace": "billing",
+                      "jobName": "send-invoice",
+                      "status": "active",
+                      "definitionHash": "hash-5",
+                      "manifestGenerationAtUtc": "2026-06-12T06:00:00Z",
+                      "inputTypeName": "Billing.SendInvoice",
+                      "inputFormatId": 1,
+                      "inputFormatName": "json",
+                      "outputTypeName": null,
+                      "outputFormatId": 0,
+                      "outputFormatName": "none",
+                      "priority": "normal",
+                      "priorityOverride": null,
+                      "priorityEffective": "normal",
+                      "maxAttempts": 3,
+                      "maxAttemptsOverride": null,
+                      "maxAttemptsEffective": 3,
+                      "concurrencyLimit": null,
+                      "concurrencyLimitOverride": null,
+                      "concurrencyLimitEffective": null,
+                      "rateLimit": null,
+                      "rateLimitOverride": null,
+                      "rateLimitEffective": null,
+                      "rateName": null,
+                      "lane": null,
+                      "backoff": "1s..1m x2",
+                      "backoffOverride": null,
+                      "backoffEffective": "1s..1m x2",
+                      "executionTimeoutSeconds": 60,
+                      "executionTimeoutSecondsOverride": null,
+                      "executionTimeoutSecondsEffective": 60,
+                      "deadlineSeconds": 0,
+                      "deadlineSecondsOverride": null,
+                      "deadlineSecondsEffective": 0,
+                      "deadlineBehavior": "strict",
+                      "deadlineBehaviorOverride": null,
+                      "deadlineBehaviorEffective": "strict",
+                      "jobRetentionSeconds": 0,
+                      "jobRetentionSecondsOverride": null,
+                      "jobRetentionSecondsEffective": 0,
+                      "eventRecording": "audit",
+                      "eventRecordingOverride": null,
+                      "eventRecordingEffective": "audit",
+                      "alertProfile": "none",
+                      "alertProfileOverride": null,
+                      "alertProfileEffective": "none",
+                      "firingFailurePolicy": "continue",
+                      "scheduledDelivery": "permanent",
+                      "alertChannelName": null,
+                      "alertChannelNameOverride": null,
+                      "alertChannelNameEffective": null,
+                      "runbookUrl": null,
+                      "runbookUrlOverride": null,
+                      "runbookUrlEffective": null,
+                      "displayName": null,
+                      "displayNameOverride": null,
+                      "displayNameEffective": null,
+                      "description": null,
+                      "descriptionOverride": null,
+                      "descriptionEffective": null,
+                      "createdAtUtc": "2026-06-12T06:00:00Z",
+                      "modifiedAtUtc": "2026-06-12T06:00:00Z",
+                      "version": 2
+                    }
+                  }
                 }
               }
             }
@@ -7088,6 +8361,17 @@
               "application/json": {
                 "schema": {
                   "$ref": "#/components/schemas/GetDefinitionInputTemplateResponse"
+                },
+                "examples": {
+                  "getDefinitionInputTemplate": {
+                    "value": {
+                      "jobNamespace": "billing",
+                      "jobName": "send-invoice",
+                      "inputTypeName": "Billing.SendInvoice",
+                      "templateJson": "{\"invoiceId\":0,\"note\":null}",
+                      "inputFormatName": "json"
+                    }
+                  }
                 }
               }
             }
@@ -7187,6 +8471,22 @@
               "application/json": {
                 "schema": {
                   "$ref": "#/components/schemas/ListTagsResponse"
+                },
+                "examples": {
+                  "listDefinitionTags": {
+                    "value": {
+                      "items": [
+                        {
+                          "name": "env",
+                          "value": "prod"
+                        }
+                      ],
+                      "nextCursor": null,
+                      "hasMore": false,
+                      "pageSize": 50,
+                      "totalCount": null
+                    }
+                  }
                 }
               }
             }
@@ -7322,6 +8622,44 @@
               "application/json": {
                 "schema": {
                   "$ref": "#/components/schemas/ListSchedulesResponse"
+                },
+                "examples": {
+                  "listSchedules": {
+                    "value": {
+                      "items": [
+                        {
+                          "jobNamespace": "billing",
+                          "jobName": "send-invoice",
+                          "scheduleName": "nightly",
+                          "origin": "definition",
+                          "expressionKind": "cron",
+                          "expression": "0 2 * * *",
+                          "timeZoneId": "Europe/Ljubljana",
+                          "misfireStrategy": "catch-up-once",
+                          "nextOccurrenceAtUtc": "2026-06-13T02:00:00Z",
+                          "nextEvaluationAtUtc": "2026-06-13T02:00:00Z",
+                          "evaluationStatus": "scheduled",
+                          "status": "active",
+                          "pausedUntilUtc": "2026-06-12T07:00:00Z",
+                          "createdAtUtc": "2026-06-12T06:00:00Z",
+                          "modifiedAtUtc": "2026-06-12T06:00:00Z",
+                          "version": 2,
+                          "jobRef": "job_00000000000000000000000000000042",
+                          "maxOutstanding": 1,
+                          "outstandingCount": 0,
+                          "fullBehavior": "wait",
+                          "scheduledDelivery": "permanent",
+                          "expireAfterSeconds": 3600,
+                          "expireAction": "discard",
+                          "availabilityCalendarName": "office-hours"
+                        }
+                      ],
+                      "nextCursor": null,
+                      "hasMore": false,
+                      "pageSize": 50,
+                      "totalCount": null
+                    }
+                  }
                 }
               }
             }
@@ -7423,6 +8761,17 @@
               "application/json": {
                 "schema": {
                   "$ref": "#/components/schemas/PreviewScheduleResponse"
+                },
+                "examples": {
+                  "previewSchedule": {
+                    "value": {
+                      "expression": "0 9 * * *",
+                      "timeZoneId": "UTC",
+                      "nextOccurrencesUtc": [
+                        "2026-06-12T09:00:00Z"
+                      ]
+                    }
+                  }
                 }
               }
             }
@@ -7560,6 +8909,29 @@
               "application/json": {
                 "schema": {
                   "$ref": "#/components/schemas/ListCalendarsResponse"
+                },
+                "examples": {
+                  "listCalendars": {
+                    "value": {
+                      "items": [
+                        {
+                          "jobNamespace": "billing",
+                          "calendarName": "office-hours",
+                          "role": "availability",
+                          "currentVersion": 1,
+                          "latestVersion": 2,
+                          "latestStatus": "draft",
+                          "publishedAtUtc": "2026-06-12T09:00:00Z",
+                          "modifiedAtUtc": "2026-06-12T09:00:00Z",
+                          "dependentCount": 1
+                        }
+                      ],
+                      "nextCursor": null,
+                      "hasMore": false,
+                      "pageSize": 50,
+                      "totalCount": null
+                    }
+                  }
                 }
               }
             }
@@ -7651,6 +9023,20 @@
               "application/json": {
                 "schema": {
                   "$ref": "#/components/schemas/GetCalendarResponse"
+                },
+                "examples": {
+                  "getCalendar": {
+                    "value": {
+                      "jobNamespace": "billing",
+                      "calendarName": "office-hours",
+                      "role": "availability",
+                      "currentVersion": 1,
+                      "latestVersion": 2,
+                      "shownVersion": 1,
+                      "shownStatus": "published",
+                      "definition": "{\"kind\":\"weekly-availability\"}"
+                    }
+                  }
                 }
               }
             }
@@ -7752,6 +9138,54 @@
               "application/json": {
                 "schema": {
                   "$ref": "#/components/schemas/GetCalendarDetailResponse"
+                },
+                "examples": {
+                  "getCalendarDetail": {
+                    "value": {
+                      "calendar": {
+                        "jobNamespace": "billing",
+                        "calendarName": "office-hours",
+                        "role": "availability",
+                        "currentVersion": 1,
+                        "latestVersion": 2,
+                        "shownVersion": 1,
+                        "shownStatus": "published",
+                        "definition": "{\"kind\":\"weekly-availability\"}"
+                      },
+                      "versions": {
+                        "items": [
+                          {
+                            "version": 1,
+                            "status": "published",
+                            "contentHash": "hash-1",
+                            "createdAtUtc": "2026-06-12T09:00:00Z",
+                            "publishedAtUtc": "2026-06-12T09:00:00Z",
+                            "modifiedAtUtc": "2026-06-12T09:00:00Z"
+                          }
+                        ],
+                        "nextCursor": null,
+                        "hasMore": false,
+                        "pageSize": 50,
+                        "totalCount": 2
+                      },
+                      "dependents": {
+                        "items": [
+                          {
+                            "jobNamespace": "billing",
+                            "jobName": "send-invoice",
+                            "scheduleName": "nightly",
+                            "binding": "availability",
+                            "status": "active",
+                            "scheduledDelivery": "permanent"
+                          }
+                        ],
+                        "nextCursor": null,
+                        "hasMore": false,
+                        "pageSize": 50,
+                        "totalCount": 1
+                      }
+                    }
+                  }
                 }
               }
             }
@@ -7871,6 +9305,26 @@
               "application/json": {
                 "schema": {
                   "$ref": "#/components/schemas/ListCalendarVersionsResponse"
+                },
+                "examples": {
+                  "listCalendarVersions": {
+                    "value": {
+                      "items": [
+                        {
+                          "version": 1,
+                          "status": "published",
+                          "contentHash": "hash-1",
+                          "createdAtUtc": "2026-06-12T09:00:00Z",
+                          "publishedAtUtc": "2026-06-12T09:00:00Z",
+                          "modifiedAtUtc": "2026-06-12T09:00:00Z"
+                        }
+                      ],
+                      "nextCursor": null,
+                      "hasMore": false,
+                      "pageSize": 50,
+                      "totalCount": null
+                    }
+                  }
                 }
               }
             }
@@ -7990,6 +9444,26 @@
               "application/json": {
                 "schema": {
                   "$ref": "#/components/schemas/ListCalendarDependentsResponse"
+                },
+                "examples": {
+                  "listCalendarDependents": {
+                    "value": {
+                      "items": [
+                        {
+                          "jobNamespace": "billing",
+                          "jobName": "send-invoice",
+                          "scheduleName": "nightly",
+                          "binding": "availability",
+                          "status": "active",
+                          "scheduledDelivery": "permanent"
+                        }
+                      ],
+                      "nextCursor": null,
+                      "hasMore": false,
+                      "pageSize": 50,
+                      "totalCount": null
+                    }
+                  }
                 }
               }
             }
@@ -8120,6 +9594,27 @@
               "application/json": {
                 "schema": {
                   "$ref": "#/components/schemas/PreviewCalendarResponse"
+                },
+                "examples": {
+                  "previewCalendar": {
+                    "value": {
+                      "role": "availability",
+                      "version": 1,
+                      "currentVersion": 1,
+                      "occurrencesUtc": [ ],
+                      "currentOccurrencesUtc": [ ],
+                      "windows": [
+                        {
+                          "startUtc": "2026-06-12T09:00:00Z",
+                          "endUtc": "2026-06-12T12:00:00Z"
+                        }
+                      ],
+                      "currentWindows": [ ],
+                      "schedules": [ ],
+                      "schedulesTotal": 0,
+                      "overdueTotal": 0
+                    }
+                  }
                 }
               }
             }
@@ -8306,6 +9801,35 @@
               "application/json": {
                 "schema": {
                   "$ref": "#/components/schemas/ListEventsResponse"
+                },
+                "examples": {
+                  "listEvents": {
+                    "value": {
+                      "items": [
+                        {
+                          "eventId": 9001,
+                          "eventCode": "job.execution-failed",
+                          "createdAtUtc": "2026-06-12T06:00:00Z",
+                          "jobNamespace": "billing",
+                          "entityKind": "job",
+                          "entityId": 42,
+                          "jobName": "send-invoice",
+                          "jobRef": "job_00000000000000000000000000000042",
+                          "lineageRootJobRef": "job_00000000000000000000000000000040",
+                          "tenantName": "cust-001",
+                          "workerRef": "wrk_019826f00000700080000000000002a0",
+                          "executionNumber": 2,
+                          "durationMs": 1520,
+                          "message": "Invoice provider timed out.",
+                          "detailsText": "{\"reason\":\"timeout\"}"
+                        }
+                      ],
+                      "nextCursor": null,
+                      "hasMore": false,
+                      "pageSize": 50,
+                      "totalCount": null
+                    }
+                  }
                 }
               }
             }
@@ -8425,6 +9949,35 @@
               "application/json": {
                 "schema": {
                   "$ref": "#/components/schemas/ListEventsResponse"
+                },
+                "examples": {
+                  "listJobEvents": {
+                    "value": {
+                      "items": [
+                        {
+                          "eventId": 9001,
+                          "eventCode": "job.execution-failed",
+                          "createdAtUtc": "2026-06-12T06:00:00Z",
+                          "jobNamespace": "billing",
+                          "entityKind": "job",
+                          "entityId": 42,
+                          "jobName": "send-invoice",
+                          "jobRef": "job_00000000000000000000000000000042",
+                          "lineageRootJobRef": "job_00000000000000000000000000000040",
+                          "tenantName": "cust-001",
+                          "workerRef": "wrk_019826f00000700080000000000002a0",
+                          "executionNumber": 2,
+                          "durationMs": 1520,
+                          "message": "Invoice provider timed out.",
+                          "detailsText": "{\"reason\":\"timeout\"}"
+                        }
+                      ],
+                      "nextCursor": null,
+                      "hasMore": false,
+                      "pageSize": 50,
+                      "totalCount": null
+                    }
+                  }
                 }
               }
             }
@@ -8545,6 +10098,35 @@
               "application/json": {
                 "schema": {
                   "$ref": "#/components/schemas/ListEventsResponse"
+                },
+                "examples": {
+                  "listDefinitionEvents": {
+                    "value": {
+                      "items": [
+                        {
+                          "eventId": 9001,
+                          "eventCode": "job.execution-failed",
+                          "createdAtUtc": "2026-06-12T06:00:00Z",
+                          "jobNamespace": "billing",
+                          "entityKind": "job",
+                          "entityId": 42,
+                          "jobName": "send-invoice",
+                          "jobRef": "job_00000000000000000000000000000042",
+                          "lineageRootJobRef": "job_00000000000000000000000000000040",
+                          "tenantName": "cust-001",
+                          "workerRef": "wrk_019826f00000700080000000000002a0",
+                          "executionNumber": 2,
+                          "durationMs": 1520,
+                          "message": "Invoice provider timed out.",
+                          "detailsText": "{\"reason\":\"timeout\"}"
+                        }
+                      ],
+                      "nextCursor": null,
+                      "hasMore": false,
+                      "pageSize": 50,
+                      "totalCount": null
+                    }
+                  }
                 }
               }
             }
@@ -8629,6 +10211,23 @@
               "application/json": {
                 "schema": {
                   "$ref": "#/components/schemas/GetOverviewResponse"
+                },
+                "examples": {
+                  "getOverview": {
+                    "value": {
+                      "readyCount": 3,
+                      "oldestReadyAgeSeconds": 120,
+                      "executingCount": 1,
+                      "failedCount": 2,
+                      "unresolvedAlertCount": 4,
+                      "unresolvedCriticalAlertCount": 1,
+                      "deadWorkerCount": 1,
+                      "staleWorkerCount": 2,
+                      "dueSoonScheduleCount": 5,
+                      "executorCapacity": 8,
+                      "scheduleLagSeconds": 90
+                    }
+                  }
                 }
               }
             }
@@ -8693,6 +10292,17 @@
               "application/json": {
                 "schema": {
                   "$ref": "#/components/schemas/GetCapabilitiesResponse"
+                },
+                "examples": {
+                  "getCapabilities": {
+                    "value": {
+                      "controlsEnabled": true,
+                      "engineVersion": "1.0.0",
+                      "provider": "sqlite",
+                      "schema": "acta",
+                      "confirmationHeader": "X-Acta-Control"
+                    }
+                  }
                 }
               }
             }

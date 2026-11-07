@@ -99,19 +99,7 @@ internal static class EnqueueJobEndpoint
             // Both carry Location; 409 is a namespace or tenant guard refusing the enqueue outright.
             .WithSummary("Enqueue a job.")
             // The body is read manually rather than bound, so the document only learns its shape here.
-            .AcceptsJson<EnqueueJobRequest>(
-                example: """
-                {
-                  "jobNamespace": "billing",
-                  "jobName": "send-invoice",
-                  "input": { "json": { "invoiceId": 42 } },
-                  "deduplicationKey": "invoice-42",
-                  "lane": "reports",
-                  "concurrencyKey": "customer:42",
-                  "tags": [{ "name": "source", "value": "api" }]
-                }
-                """
-            )
+            .AcceptsJson<EnqueueJobRequest>()
             .WithMetadata(
                 new ResponseHeaderDoc(
                     "Location",

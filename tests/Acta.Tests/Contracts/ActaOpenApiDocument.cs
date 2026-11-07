@@ -19,11 +19,11 @@ using Xunit;
 namespace Acta.Tests.Contracts;
 
 /// <summary>
-/// Generates the HTTP contract from the real endpoint graph: one host over <see cref="FakeOperations"/>, every mount
-/// mapped, one document per mount. The transformers state what the serializer and the handlers do that the generator
-/// cannot see, so a client generated from the document reads and sends what the server writes and accepts. The
-/// document is produced here rather than at build time so the shipped <c>Acta.AspNetCore</c> package carries no
-/// OpenAPI dependency.
+/// Generates the HTTP contract from the real endpoint graph: one host over <see cref="StagedFakes"/>, every mount mapped,
+/// one document per mount, its examples what that host answers. The transformers state what the serializer and the
+/// handlers do that the generator cannot see, so a client generated from the document reads and sends what the server
+/// writes and accepts. The document is produced here rather than at build time so the shipped <c>Acta.AspNetCore</c>
+/// package carries no OpenAPI dependency.
 /// </summary>
 internal static partial class ActaOpenApiDocument
 {
@@ -89,12 +89,14 @@ internal static partial class ActaOpenApiDocument
         builder.Services.ConfigureHttpJsonOptions(o =>
             o.SerializerOptions.NumberHandling = DashboardJsonContext.Default.Options.NumberHandling
         );
-        var fakes = new FakeOperations();
+        var fakes = StagedFakes.Create();
         builder.Services.AddSingleton<IJobs>(fakes.Jobs);
         builder.Services.AddSingleton<IActaOperations>(fakes);
+        // Filled once the host runs and before any document is read; the operations are the same under every mount.
+        var examples = new Dictionary<string, OpenApiExamples.Example>(StringComparer.Ordinal);
         foreach (var mount in mounts)
         {
-            builder.Services.AddOpenApi(mount.DocumentName, o => Configure(o, mount));
+            builder.Services.AddOpenApi(mount.DocumentName, o => Configure(o, mount, examples));
         }
 
         var app = builder.Build();
@@ -125,6 +127,12 @@ internal static partial class ActaOpenApiDocument
         app.MapOpenApi();
         await app.StartAsync(TestContext.Current.CancellationToken);
         await using var _ = app;
+        foreach (
+            var (key, example) in await OpenApiExamples.CaptureAsync(app, (mounts.FirstOrDefault(m => m.Controls) ?? mounts[0]).ApiRoot)
+        )
+        {
+            examples[key] = example;
+        }
 
         var documents = new Dictionary<string, string>(StringComparer.Ordinal);
         foreach (var mount in mounts)
@@ -145,7 +153,7 @@ internal static partial class ActaOpenApiDocument
     /// <summary>An enum's known values in id order: the spelling the serializer writes for each member.</summary>
     public static JsonArray KnownValues(Type enumType) => [.. Enum.GetNames(enumType).Select(name => (JsonNode)WireName(enumType, name))];
 
-    private static void Configure(OpenApiOptions o, Mount mount)
+    private static void Configure(OpenApiOptions o, Mount mount, Dictionary<string, OpenApiExamples.Example> examples)
     {
         // A document describes one mount: the operations under its pattern, never a second mount's.
         var prefix = mount.DocumentName + "/";
@@ -280,7 +288,7 @@ internal static partial class ActaOpenApiDocument
                 return Task.CompletedTask;
             }
         );
-        // A response header an endpoint sets on its successes with a body (ResponseHeaderDoc) and a body declaration's example.
+        // A response header an endpoint sets on its successes with a body (ResponseHeaderDoc).
         o.AddOperationTransformer(
             (operation, context, _) =>
             {
@@ -302,12 +310,19 @@ internal static partial class ActaOpenApiDocument
                         }
                     }
                 }
-                if (
-                    Metadata<RequestBodyDoc>(context) is { Example: { } example }
-                    && operation.RequestBody?.Content?.TryGetValue("application/json", out var media) == true
-                )
+                return Task.CompletedTask;
+            }
+        );
+        // One example each for the JSON request body and the JSON success, as the host over the staged fakes was sent
+        // and answered them (OpenApiExamples), named for the operation.
+        o.AddOperationTransformer(
+            (operation, context, _) =>
+            {
+                var key = OpenApiOperationIds.Key(context.Description.HttpMethod ?? "", context.Description.RelativePath ?? "");
+                if (examples.TryGetValue(key, out var example))
                 {
-                    media.Example = JsonNode.Parse(example);
+                    Attach(operation.RequestBody?.Content, example.Request, operation.OperationId!);
+                    Attach(operation.Responses?.GetValueOrDefault(example.Status)?.Content, example.Response, operation.OperationId!);
                 }
                 return Task.CompletedTask;
             }
@@ -644,6 +659,17 @@ internal static partial class ActaOpenApiDocument
     }
 
     private static OpenApiSchema AnyJson() => new() { Description = "Any JSON value, kept as sent." };
+
+    private static void Attach(IDictionary<string, OpenApiMediaType>? content, JsonNode? value, string name)
+    {
+        if (value is not null && content?.TryGetValue("application/json", out var media) == true)
+        {
+            media.Examples = new Dictionary<string, IOpenApiExample>(StringComparer.Ordinal)
+            {
+                [name] = new OpenApiExample { Value = value },
+            };
+        }
+    }
 
     private const string StoredJsonDescription = "The stored JSON payload, one JSON value.";
 

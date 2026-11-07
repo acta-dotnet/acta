@@ -1146,8 +1146,48 @@ public sealed partial class OpenApiContractTests
         {
             Assert.NotNull(enqueue["responses"]![code]!["headers"]!["Location"]);
         }
-        var example = enqueue["requestBody"]!["content"]!["application/json"]!["example"]!;
+        var example = enqueue["requestBody"]!["content"]!["application/json"]!["examples"]!["enqueueJob"]!["value"]!;
         Assert.Equal("send-invoice", example["jobName"]!.GetValue<string>());
+    }
+
+    /// <summary>
+    /// Each JSON request body and each JSON 200 carries one example, the request the host over the staged fakes accepted
+    /// and the body it answered (<see cref="OpenApiExamples"/>), and each is a value its schema allows, so an example that
+    /// drifts from its schema fails here rather than in a reader's client.
+    /// </summary>
+    [Fact]
+    public async Task Every_example_is_a_value_its_schema_allows()
+    {
+        var generated = await ActaOpenApiDocument.GenerateAsync();
+        var schemas = JsonNode.Parse(generated)!["components"]!["schemas"]!.AsObject();
+        var wrong = new List<string>();
+        var examples = 0;
+        foreach (var (key, operation) in Operations(generated))
+        {
+            foreach (
+                var (where, media) in new[]
+                {
+                    ($"{key} request", operation["requestBody"]?["content"]?["application/json"]),
+                    ($"{key} 200", operation["responses"]?["200"]?["content"]?["application/json"]),
+                }
+            )
+            {
+                if (media is null)
+                {
+                    continue;
+                }
+                if (media["examples"] is not JsonObject { Count: 1 } named)
+                {
+                    wrong.Add($"{where}: carries no single example.");
+                    continue;
+                }
+                examples++;
+                Describe(named.Single().Value!["value"], media["schema"]!, schemas, where, wrong);
+            }
+        }
+
+        Assert.True(examples > 100, $"only {examples} examples; the walk is broken.");
+        Assert.True(wrong.Count == 0, string.Join("\n", wrong));
     }
 
     /// <summary>The operations of one document keyed as <c>METHOD /path</c>.</summary>

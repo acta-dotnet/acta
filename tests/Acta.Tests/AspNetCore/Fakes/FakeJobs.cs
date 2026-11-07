@@ -53,36 +53,45 @@ internal sealed class FakeJobs : IJobs
         GetLineageMap = static (job, _, _) => ValueTask.FromResult<GetJobLineageMapResponse?>(IsFound(job) ? Lineage() : null);
         Enqueue = (request, _) => ValueTask.FromResult(Insert(request));
         Pause = (job, reason, actor, version, _) =>
-            Control("pause", job, reason, actor, version, static (i, a, s, v) => new PauseJobResponse(i, a, s, v));
+            Control("pause", job, reason, actor, version, JobStatusCode.Paused, static (i, a, s, v) => new PauseJobResponse(i, a, s, v));
         Resume = (job, reason, actor, version, _) =>
-            Control("resume", job, reason, actor, version, static (i, a, s, v) => new ResumeJobResponse(i, a, s, v));
+            Control("resume", job, reason, actor, version, JobStatusCode.Ready, static (i, a, s, v) => new ResumeJobResponse(i, a, s, v));
         Restart = (job, reason, actor, version, _) =>
-            Control("restart", job, reason, actor, version, static (i, a, s, v) => new RestartJobResponse(i, a, s, v));
+            Control("restart", job, reason, actor, version, JobStatusCode.Ready, static (i, a, s, v) => new RestartJobResponse(i, a, s, v));
         Cancel = (job, reason, actor, version, _) =>
-            Control("cancel", job, reason, actor, version, static (i, a, s, v) => new CancelJobResponse(i, a, s, v));
+            Control(
+                "cancel",
+                job,
+                reason,
+                actor,
+                version,
+                JobStatusCode.Cancelled,
+                static (i, a, s, v) => new CancelJobResponse(i, a, s, v)
+            );
         Reschedule = (job, nextRunAtUtc, reason, actor, version, _) =>
         {
             RescheduleCalls.Add((job.JobRef, nextRunAtUtc, reason, actor, version));
-            var (jobId, action, status, current) = ResultFor(job, version);
+            var (jobId, action, status, current) = ResultFor(job, version, JobStatusCode.Ready);
             return ValueTask.FromResult(new RescheduleJobResponse(jobId, action, status, current));
         };
         Reprioritize = (job, priority, reason, actor, version, _) =>
         {
             ReprioritizeCalls.Add((job.JobRef, priority, reason, actor, version));
-            var (jobId, action, status, current) = ResultFor(job, version);
+            var (jobId, action, status, current) = ResultFor(job, version, JobStatusCode.Ready);
             return ValueTask.FromResult(new ReprioritizeJobResponse(jobId, action, status, current));
         };
         UpdateInput = (job, input, _, _, _) => ValueTask.FromResult(Amend(job, input));
+        // A purge leaves no job to report; it, an input update, and a signal carry no version.
         Purge = (job, reason, actor, _) =>
         {
             PurgeCalls.Add((job.JobRef, reason, actor));
-            var (jobId, action, status, version) = ResultFor(job);
+            var (jobId, action, status, version) = ResultFor(job, applied: null, versioned: false);
             return ValueTask.FromResult(new PurgeJobResponse(jobId, action, status, version));
         };
         RaiseSignal = (job, name, value, actor, _) =>
         {
             SignalCalls.Add((job.JobRef, name, value.Format.Id, value.IsNone ? null : value.Data.ToArray(), actor));
-            var (jobId, action, status, version) = ResultFor(job);
+            var (jobId, action, status, version) = ResultFor(job, applied: JobStatusCode.Ready, versioned: false);
             return ValueTask.FromResult(new RaiseJobSignalResponse(jobId, action, status, version));
         };
     }
@@ -330,6 +339,10 @@ internal sealed class FakeJobs : IJobs
 
     private static bool IsFound(JobLookup job) => job.JobRef == FoundJobRef || job.JobId == 42;
 
+    // The same ref for the same id, so a document built from what the fakes answer reads the same every time.
+    private static JobRef EnqueuedRef(long jobId) =>
+        new(Guid.Parse("00000000-0000-0000-0000-" + jobId.ToString("D12", System.Globalization.CultureInfo.InvariantCulture)));
+
     private long? Resolve(JobLookup job) =>
         job.Kind == JobLookupKind.JobId ? job.JobId
         : job.JobRef == FoundJobRef ? 42
@@ -374,7 +387,7 @@ internal sealed class FakeJobs : IJobs
         }
 
         var id = 100 + EnqueueRequests.Count;
-        var jobRef = JobRef.New();
+        var jobRef = EnqueuedRef(id);
         _enqueuedRefs[jobRef.Value] = id;
         _enqueuedInputs[id] = request.Input.IsNone ? null : request.Input;
         if (request.DeduplicationKey is { Length: > 0 } fresh)
@@ -388,7 +401,7 @@ internal sealed class FakeJobs : IJobs
     private UpdateJobInputResponse Amend(JobLookup job, JobPayload input)
     {
         InputAmendCalls.Add(input);
-        var (jobId, action, status, version) = ResultFor(job);
+        var (jobId, action, status, version) = ResultFor(job, applied: JobStatusCode.Ready, versioned: false);
         if (action == ControlAction.Applied)
         {
             StoredInput = input;
@@ -403,28 +416,32 @@ internal sealed class FakeJobs : IJobs
         string? reason,
         string? actor,
         int? expectedVersion,
+        JobStatusCode applied,
         Func<long, ControlAction, JobStatusCode?, int?, T> respond
     )
     {
         ControlCalls.Add((verb, job.JobRef, reason, actor, expectedVersion));
-        var (jobId, action, status, version) = ResultFor(job, expectedVersion);
+        var (jobId, action, status, version) = ResultFor(job, expectedVersion, applied);
         return ValueTask.FromResult(respond(jobId, action, status, version));
     }
 
+    // An applied verb answers the status it leaves the found job in, and the next version where the verb carries one.
     private static (long JobId, ControlAction Action, JobStatusCode? Status, int? Version) ResultFor(
         JobLookup job,
-        int? expectedVersion = null
+        int? expectedVersion = null,
+        JobStatusCode? applied = JobStatusCode.Ready,
+        bool versioned = true
     ) =>
         job.JobRef == MissingJobRef ? (0, ControlAction.NotFound, null, null)
         : expectedVersion is { } expected && expected != CurrentJobVersion
             ? (42, ControlAction.VersionConflict, JobStatusCode.Paused, CurrentJobVersion)
-        : job.JobRef == RejectedJobRef ? (43, ControlAction.Rejected, JobStatusCode.Succeeded, CurrentJobVersion)
-        : (42, ControlAction.Applied, JobStatusCode.Paused, CurrentJobVersion + 1);
+        : job.JobRef == RejectedJobRef ? (43, ControlAction.Rejected, JobStatusCode.Succeeded, versioned ? CurrentJobVersion : null)
+        : (42, ControlAction.Applied, applied, versioned ? CurrentJobVersion + 1 : null);
 
     private static GetJobResponse Snapshot(long jobId, string jobNamespace, string jobName) =>
         new(
             JobId: jobId,
-            JobRef: jobId == 42 ? FoundJobRef : JobRef.New(),
+            JobRef: jobId == 42 ? FoundJobRef : EnqueuedRef(jobId),
             Kind: JobKindCode.Ordinary,
             LineageRootJobId: null,
             LineageRootJobRef: null,

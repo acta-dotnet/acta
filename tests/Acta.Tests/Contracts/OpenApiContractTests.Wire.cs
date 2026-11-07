@@ -18,23 +18,6 @@ namespace Acta.Tests.Contracts;
 
 public sealed partial class OpenApiContractTests
 {
-    /// <summary>The value each path placeholder and required query parameter takes, so the fake host serves the read.</summary>
-    private static readonly Dictionary<string, string> FakeRouteValues = new(StringComparer.Ordinal)
-    {
-        ["jobRef"] = FakeJobs.FoundJobRef.ToString(),
-        ["jobNamespace"] = "billing",
-        ["jobName"] = "send-invoice",
-        ["tenantName"] = "cust-001",
-        ["workerRef"] = FakeWorkers.KnownWorkerRef.ToString(),
-        ["alertRef"] = FakeAlerts.KnownAlertRef.ToString(),
-        ["scheduleName"] = "nightly",
-        ["calendarName"] = "office-hours",
-        ["deduplicationKey"] = "ck-1",
-        ["version"] = "1",
-        ["signalName"] = "approval",
-        ["tagName"] = "env",
-    };
-
     /// <summary>
     /// Every operation lists 401 and 403, because every route can be refused before it runs: a host that requires
     /// authentication answers 401, and the local-only guard answers a remote caller 403. Each operation is asked both.
@@ -113,7 +96,7 @@ public sealed partial class OpenApiContractTests
         }
     }
 
-    // One operation keyed METHOD /path, its route values and required query filled from FakeRouteValues, with the
+    // One operation keyed METHOD /path, its route values and required query filled from OpenApiExamples.RouteValues, with the
     // confirmation header unless confirm is false.
     private static async Task<HttpResponseMessage> SendOperationAsync(
         HttpClient client,
@@ -324,7 +307,7 @@ public sealed partial class OpenApiContractTests
                 $"calendars/{SqliteNamespace}/daily/drafts",
                 """{"role":"occurrence","definition":{"kind":"daily-local-time","timeZone":"UTC","times":["09:00"]},"expectedLatestVersion":0}"""
             );
-            var values = new Dictionary<string, string>(FakeRouteValues, StringComparer.Ordinal)
+            var values = new Dictionary<string, string>(OpenApiExamples.RouteValues, StringComparer.Ordinal)
             {
                 ["jobNamespace"] = SqliteNamespace,
                 ["jobName"] = "recurring-ping",
@@ -394,18 +377,16 @@ public sealed partial class OpenApiContractTests
 
     /// <summary>
     /// Every read serves the body its document declares: each required member present, each member declared, and each
-    /// value of a type its schema allows, so null only where the schema allows null. Without this the response schemas'
-    /// required lists are only read back from the generator that wrote them.
+    /// value of a type its schema allows, so null only where the schema allows null. The staged fakes serve every list
+    /// one item, so each item schema is checked too. Without this the response schemas' required lists are only read
+    /// back from the generator that wrote them.
     /// </summary>
     [Fact]
     public async Task Every_read_serves_the_body_its_document_declares()
     {
         var document = JsonNode.Parse(await ActaOpenApiDocument.GenerateAsync())!;
         var schemas = document["components"]!["schemas"]!.AsObject();
-        var fakes = new FakeOperations();
-        fakes.Jobs.StoredInput = JobPayload.FromBytes(JobPayloadFormat.Json, Encoding.UTF8.GetBytes("""{"invoiceId":1}"""));
-        fakes.Jobs.StoredResult = JobPayload.FromBytes(JobPayloadFormat.Json, Encoding.UTF8.GetBytes("""{"sent":true}"""));
-        var (app, client) = await TestDashboardHost.StartAsync(fakes: fakes);
+        var (app, client) = await TestDashboardHost.StartAsync(fakes: StagedFakes.Create());
         await using var _ = app;
         var ct = TestContext.Current.CancellationToken;
         var served = 0;
@@ -446,7 +427,12 @@ public sealed partial class OpenApiContractTests
                 wrong.Add($"{key}: the document declares no JSON body for 200.");
                 continue;
             }
-            Describe(JsonNode.Parse(await response.Content.ReadAsStringAsync(ct)), schema, schemas, key, wrong);
+            var body = JsonNode.Parse(await response.Content.ReadAsStringAsync(ct));
+            if (body is JsonObject page && page["items"] is JsonArray { Count: 0 })
+            {
+                wrong.Add($"{key}: served an empty page; stage an item in StagedFakes.");
+            }
+            Describe(body, schema, schemas, key, wrong);
         }
 
         Assert.True(served > 30, $"only {served} reads served; the walk is broken.");
@@ -515,18 +501,19 @@ public sealed partial class OpenApiContractTests
         }
     }
 
-    // The read's path with each placeholder filled, and each required query parameter set, from FakeRouteValues.
+    // The read's path with each placeholder filled, and each required query parameter set, from OpenApiExamples.RouteValues.
     private static string ReadUrl(string path, JsonNode operation)
     {
         var url = PathPlaceholders(path)
             .Aggregate(
                 path,
-                (filled, name) => filled.Replace($"{{{name}}}", Uri.EscapeDataString(FakeRouteValues[name]), StringComparison.Ordinal)
+                (filled, name) =>
+                    filled.Replace($"{{{name}}}", Uri.EscapeDataString(OpenApiExamples.RouteValues[name]), StringComparison.Ordinal)
             );
         var query = Elements(operation["parameters"])
             .Where(parameter => parameter?["in"]?.GetValue<string>() == "query" && parameter["required"]?.GetValue<bool>() == true)
             .Select(parameter => parameter!["name"]!.GetValue<string>())
-            .Select(name => $"{name}={Uri.EscapeDataString(FakeRouteValues[name])}")
+            .Select(name => $"{name}={Uri.EscapeDataString(OpenApiExamples.RouteValues[name])}")
             .ToList();
         return query.Count == 0 ? url : url + "?" + string.Join('&', query);
     }
@@ -562,7 +549,8 @@ public sealed partial class OpenApiContractTests
             return;
         }
 
-        if (value is JsonObject members)
+        // An object schema that declares no members takes any.
+        if (value is JsonObject members && (schema["properties"] is not null || schema["additionalProperties"] is not null))
         {
             foreach (
                 var required in Elements(schema["required"])
