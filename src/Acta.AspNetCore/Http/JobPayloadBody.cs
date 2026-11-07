@@ -8,7 +8,8 @@ namespace Acta.AspNetCore;
 /// A payload as a request carries it inside a JSON body: exactly one of <see cref="Json"/>, a JSON payload as the value
 /// itself, and <see cref="Base64"/>, a payload in any other format beside its <see cref="FormatId"/>.
 /// </summary>
-/// <param name="Json">A JSON payload, embedded as the JSON value itself: any JSON value, null included.</param>
+/// <param name="Json">A JSON payload, embedded as the JSON value itself: any JSON value, null included. Beside base64 a null here
+/// counts as left out.</param>
 /// <param name="Base64">A payload in any other format, base64-encoded.</param>
 /// <param name="FormatId">The payload format's id. Beside base64 it is required: 2 for bytes, or 128 to 255 for an application's own.
 /// Beside json it is left out, or is 1.</param>
@@ -26,12 +27,14 @@ internal sealed record JobPayloadBody(
     /// <exception cref="InvalidControlException">The request breaks one of those rules.</exception>
     public JobPayload ToPayload(string member)
     {
-        if (Json.HasValue == (Base64 is not null))
+        // A client that writes every member sends a null json beside its base64; that null is no payload.
+        var sent = Json is { ValueKind: JsonValueKind.Null } && Base64 is not null ? null : Json;
+        if (sent.HasValue == (Base64 is not null))
         {
             throw Invalid($"{member} takes exactly one of json and base64.");
         }
 
-        if (Json is { } json)
+        if (sent is { } json)
         {
             if (FormatId is { } jsonFormat && jsonFormat != JobPayloadFormat.Json.Id)
             {

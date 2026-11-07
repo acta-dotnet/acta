@@ -42,6 +42,36 @@ public sealed class ActaEndpointOptionsValidationTests
         await using var _2 = app;
     }
 
+    /// <summary>
+    /// A confirmation header a page on any origin may send without a preflight would let a cross-site form confirm a
+    /// control, so mapping refuses the five CORS-safelisted request headers in any casing, and an empty name.
+    /// </summary>
+    [Theory]
+    [InlineData("accept")]
+    [InlineData("ACCEPT-LANGUAGE")]
+    [InlineData("Content-language")]
+    [InlineData("content-TYPE")]
+    [InlineData("rAnGe")]
+    [InlineData("")]
+    [InlineData("   ")]
+    public async Task MapActa_rejects_a_confirmation_header_any_page_may_send(string name)
+    {
+        var thrown = await Assert.ThrowsAsync<ArgumentException>(() =>
+            TestDashboardHost.StartAsync(configureDashboard: o => o.ControlConfirmationHeaderName = name)
+        );
+
+        Assert.Contains("ControlConfirmationHeaderName", thrown.Message, StringComparison.Ordinal);
+    }
+
+    [Theory]
+    [InlineData("X-Acta-Control")]
+    [InlineData("X-Ops-Confirm")]
+    public async Task MapActa_accepts_a_confirmation_header_a_page_must_preflight(string name)
+    {
+        var (app, _) = await TestDashboardHost.StartAsync(configureDashboard: o => o.ControlConfirmationHeaderName = name);
+        await using var _2 = app;
+    }
+
     [Fact]
     public async Task LocalOnly_false_without_authorization_or_acknowledgement_throws()
     {

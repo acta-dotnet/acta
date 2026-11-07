@@ -4,6 +4,7 @@ using Microsoft.AspNetCore.Authorization.Policy;
 using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Routing;
 using Microsoft.Extensions.DependencyInjection;
+using Microsoft.Net.Http.Headers;
 
 namespace Acta.AspNetCore;
 
@@ -81,26 +82,35 @@ internal static class PermissionFilter
             );
         }
 
-        // No credential. An API route answers a plain 401, so a cookie scheme never redirects a client to a login page,
-        // and so does a call the catch-all would answer as an unknown endpoint, such as a control this mount does not
-        // map. A page is challenged by the host's scheme, which is where a browser should be sent to sign in.
+        // No credential the policy accepts. The host's scheme writes the challenge, so a client that authenticates in a
+        // second step, or whose token has expired, reads from WWW-Authenticate what to send.
+        var schemes = policy.AuthenticationSchemes;
         if (
-            operation is not null
-            || http.GetRouteValue("spaPath") is string spaPath
-                && ActaEndpointRouteBuilderExtensions.IsUnknownEndpoint(http.Request, spaPath)
+            schemes.Count == 0
+            && http.RequestServices.GetService<IAuthenticationSchemeProvider>() is { } provider
+            && await provider.GetDefaultChallengeSchemeAsync() is { } fallback
         )
         {
-            return Results.StatusCode(StatusCodes.Status401Unauthorized);
+            schemes = [fallback.Name];
         }
 
-        if (policy.AuthenticationSchemes.Count == 0)
-        {
-            await http.ChallengeAsync();
-        }
-
-        foreach (var scheme in policy.AuthenticationSchemes)
+        foreach (var scheme in schemes)
         {
             await http.ChallengeAsync(scheme);
+        }
+
+        // A scheme that sends a browser to a login page does so only for a dashboard page. An API route keeps the plain
+        // 401, and so does a call the catch-all would answer as an unknown endpoint, such as a control this mount does
+        // not map; with no scheme to challenge, the 401 is all there is to answer.
+        var api =
+            operation is not null
+            || http.GetRouteValue("spaPath") is string spaPath
+                && ActaEndpointRouteBuilderExtensions.IsUnknownEndpoint(http.Request, spaPath);
+        var response = http.Response;
+        if (schemes.Count == 0 || api && (response.StatusCode is >= 300 and < 400 || response.Headers.ContainsKey(HeaderNames.Location)))
+        {
+            response.Headers.Remove(HeaderNames.Location);
+            response.StatusCode = StatusCodes.Status401Unauthorized;
         }
 
         return Results.Empty;

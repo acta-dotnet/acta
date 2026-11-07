@@ -77,6 +77,9 @@ provisioned before 1.0.
 
 Authentication is the host's: Acta ships none. The surface is local-only by default with controls off, and behind a reverse proxy on the same host `LocalOnly` protects nothing.
 
+- **Under `RequirePermissions` the dashboard shows every control, whatever the caller holds.** A control the caller lacks the permission for answers a 403, which the dashboard shows as an error.
+- **Under `RequirePermissions` a dashboard session that expires shows errors until the page is reloaded.** The API answers the dashboard's calls 401 rather than a redirect, and only the reloaded page is challenged by the host's scheme.
+
 ## Storage and providers
 
 SQLite has concurrency limits compared with server databases. Use SQL Server or PostgreSQL for

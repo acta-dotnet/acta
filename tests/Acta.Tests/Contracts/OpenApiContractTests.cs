@@ -560,7 +560,8 @@ public sealed partial class OpenApiContractTests
 
     /// <summary>
     /// A request's payload holds the rules its schema's description states, since <c>required</c> cannot say them: exactly
-    /// one of json and base64, json any JSON value with null included, a formatId beside json that is JSON's, and base64
+    /// one of json and base64, a null json beside base64 counting as left out so a client that writes every member passes,
+    /// json any JSON value with null included, a formatId beside json that is JSON's, and base64
     /// with a binary formatId that decodes. It requires nothing and refuses an unknown member, so each member only a stored
     /// payload carries is refused by name. The enqueue proves them, and the input update proves that base64 keeps the
     /// job's format.
@@ -590,6 +591,7 @@ public sealed partial class OpenApiContractTests
             ("""{"base64":"AQID","formatId":2}""", ""),
             ("""{"base64":"AQID","formatId":128}""", ""),
             ("""{"json":null}""", ""),
+            ("""{"json":null,"base64":"AQID","formatId":2}""", ""),
             ("null", ""),
             ("""{"json":{"invoiceId":1},"formatId":2}""", "formatId"),
             ("""{"base64":"AQID"}""", "formatId"),
@@ -644,6 +646,7 @@ public sealed partial class OpenApiContractTests
                 "bytes 010203",
                 "custom-128 010203",
                 "json 6E756C6C",
+                "bytes 010203",
                 "none ",
             ],
             fakes.Jobs.EnqueueRequests.Select(request => $"{request.Input.Format.Name} {Convert.ToHexString(request.Input.Data.Span)}")

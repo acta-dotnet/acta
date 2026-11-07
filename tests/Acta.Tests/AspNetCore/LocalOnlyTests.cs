@@ -27,6 +27,9 @@ public sealed class LocalOnlyTests
         "This Acta endpoint carries no authorization, so it answers local requests only. Set RequirePermissions, "
         + "require authorization on the mapped group, or acknowledge the exposure with UnsafeAllowAnonymousRemoteAccess.";
 
+    private const string LocalOnlyByDefault =
+        "The Acta endpoints are local-only by default. Set LocalOnly = false and add host authorization to expose them remotely.";
+
     private static Action<WebApplication> RemoteAddress(string remote, string? local = null) =>
         app =>
             app.Use(
@@ -242,13 +245,36 @@ public sealed class LocalOnlyTests
         Assert.Equal(NoAuthorization, await TitleAsync(response));
     }
 
-    [Fact]
-    public async Task A_fallback_policy_lifts_the_guard()
+    /// <summary>
+    /// A fallback policy does not lift the guard: the framework refuses to serve an endpoint that requires authorization
+    /// when the authorization middleware is missing, and makes no such check for a fallback policy. A remote request
+    /// answers the no-authorization 403, and the same request made locally is served.
+    /// </summary>
+    [Theory]
+    [InlineData(Remote, HttpStatusCode.Forbidden)]
+    [InlineData("127.0.0.1", HttpStatusCode.OK)]
+    public async Task A_fallback_policy_keeps_the_guard(string remote, HttpStatusCode expected)
     {
         var (app, client) = await StartExposedAsync(
             options => options.ConfigureEndpoints = _ => { },
+            remote,
             authorization: options => options.FallbackPolicy = new AuthorizationPolicyBuilder().RequireAuthenticatedUser().Build()
         );
+        await using var _ = app;
+
+        var response = await client.GetAsync("/acta/api/v1/jobs", TestContext.Current.CancellationToken);
+
+        Assert.Equal(expected, response.StatusCode);
+        if (expected == HttpStatusCode.Forbidden)
+        {
+            Assert.Equal(NoAuthorization, await TitleAsync(response));
+        }
+    }
+
+    [Fact]
+    public async Task RequirePermissions_lifts_the_guard()
+    {
+        var (app, client) = await StartExposedAsync(options => options.RequirePermissions = true, authorization: AllowEveryPermission);
         await using var _ = app;
 
         var response = await client.GetAsync("/acta/api/v1/jobs", TestContext.Current.CancellationToken);
@@ -256,32 +282,42 @@ public sealed class LocalOnlyTests
         Assert.Equal(HttpStatusCode.OK, response.StatusCode);
     }
 
+    /// <summary>
+    /// <see cref="ActaEndpointOptions.RequirePermissions"/> lifts the guard only where LocalOnly is false: with LocalOnly
+    /// on, a remote caller holding every permission is refused a read, a control, and a page.
+    /// </summary>
     [Fact]
-    public async Task RequirePermissions_lifts_the_guard()
+    public async Task LocalOnly_with_permissions_still_refuses_a_remote_caller()
     {
         var (app, client) = await StartExposedAsync(
-            options => options.RequirePermissions = true,
-            authorization: options =>
+            options =>
             {
-                foreach (
-                    var permission in new[]
-                    {
-                        ActaPermissions.Read,
-                        ActaPermissions.Enqueue,
-                        ActaPermissions.Control,
-                        ActaPermissions.Admin,
-                    }
-                )
-                {
-                    options.AddPolicy(permission, policy => policy.RequireAuthenticatedUser());
-                }
-            }
+                options.LocalOnly = true;
+                options.RequirePermissions = true;
+            },
+            authorization: AllowEveryPermission
         );
         await using var _ = app;
+        var ct = TestContext.Current.CancellationToken;
+        var control = new HttpRequestMessage(HttpMethod.Post, $"/acta/api/v1/jobs/{FakeJobs.FoundJobRef}/pause");
+        control.Headers.Add("X-Acta-Control", "true");
 
-        var response = await client.GetAsync("/acta/api/v1/jobs", TestContext.Current.CancellationToken);
+        HttpRequestMessage[] requests = [new(HttpMethod.Get, "/acta/api/v1/jobs"), control, new(HttpMethod.Get, "/acta")];
+        foreach (var request in requests)
+        {
+            var response = await client.SendAsync(request, ct);
+            Assert.Equal(HttpStatusCode.Forbidden, response.StatusCode);
+            Assert.Equal(LocalOnlyByDefault, await TitleAsync(response));
+        }
+    }
 
-        Assert.Equal(HttpStatusCode.OK, response.StatusCode);
+    // A policy for each permission that every authenticated caller passes.
+    private static void AllowEveryPermission(AuthorizationOptions options)
+    {
+        foreach (var permission in new[] { ActaPermissions.Read, ActaPermissions.Enqueue, ActaPermissions.Control, ActaPermissions.Admin })
+        {
+            options.AddPolicy(permission, policy => policy.RequireAuthenticatedUser());
+        }
     }
 
     [Fact]

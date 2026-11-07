@@ -12847,7 +12847,7 @@
         "type": "object",
         "properties": {
           "json": {
-            "description": "A JSON payload, embedded as the JSON value itself: any JSON value, null included."
+            "description": "A JSON payload, embedded as the JSON value itself: any JSON value, null included. Beside base64 a null here counts as left out."
           },
           "base64": {
             "type": [

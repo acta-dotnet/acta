@@ -177,11 +177,24 @@ public static class ActaEndpointRouteBuilderExtensions
         }
     }
 
+    private static readonly string[] SafelistedRequestHeaders = ["Accept", "Accept-Language", "Content-Language", "Content-Type", "Range"];
+
     private static void ValidateOptions(ActaEndpointOptions options)
     {
         if (options.MaxReasonMessageLength < 1)
         {
             throw new ArgumentOutOfRangeException(nameof(options), "ActaEndpointOptions.MaxReasonMessageLength must be >= 1.");
+        }
+
+        // The confirmation header shows a request is no cross-site form post only while a page on another origin cannot
+        // send it without a preflight, and a browser lets any page set these five.
+        var header = options.ControlConfirmationHeaderName;
+        if (string.IsNullOrWhiteSpace(header) || SafelistedRequestHeaders.Contains(header.Trim(), StringComparer.OrdinalIgnoreCase))
+        {
+            throw new ArgumentException(
+                $"ActaEndpointOptions.ControlConfirmationHeaderName must name a header a cross-site page cannot send without a preflight; '{header}' is not one.",
+                nameof(options)
+            );
         }
 
         // Fail closed: dropping the loopback guard without any authorization in place must be an
@@ -215,7 +228,7 @@ public static class ActaEndpointRouteBuilderExtensions
             async (context, next) =>
             {
                 var http = context.HttpContext;
-                if (!options.LocalOnly && await CarriesAuthorizationAsync(http))
+                if (!options.LocalOnly && CarriesAuthorization(http))
                 {
                     return await next(context);
                 }
@@ -240,22 +253,13 @@ public static class ActaEndpointRouteBuilderExtensions
         );
     }
 
-    // What the host's authorization middleware would enforce on this endpoint: authorization metadata with no
-    // AllowAnonymous over it, or a fallback policy.
-    private static async ValueTask<bool> CarriesAuthorizationAsync(HttpContext http)
-    {
-        var metadata = http.GetEndpoint()?.Metadata;
-        if (metadata is null || metadata.GetMetadata<IAllowAnonymous>() is not null)
-        {
-            return false;
-        }
-
-        return metadata.GetMetadata<IAuthorizeData>() is not null
-            || metadata.GetMetadata<AuthorizationPolicy>() is not null
-            || metadata.GetMetadata<IAuthorizationRequirementData>() is not null
-            || http.RequestServices.GetService<IAuthorizationPolicyProvider>() is { } provider
-                && await provider.GetFallbackPolicyAsync() is not null;
-    }
+    // Authorization the host's middleware enforces on this endpoint: authorize metadata, which RequireAuthorization adds
+    // in every form, with no AllowAnonymous over it. The framework refuses to run such an endpoint when the middleware
+    // is missing from the pipeline. A fallback policy gets no such check, so it does not count.
+    private static bool CarriesAuthorization(HttpContext http) =>
+        http.GetEndpoint()?.Metadata is { } metadata
+        && metadata.GetMetadata<IAllowAnonymous>() is null
+        && metadata.GetMetadata<IAuthorizeData>() is not null;
 
     private static bool IsLocalHostName(string host) =>
         IPAddress.TryParse(host.Trim('[', ']'), out _)

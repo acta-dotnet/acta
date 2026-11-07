@@ -31,6 +31,8 @@ public sealed class PermissionTests
     private const string PermissionClaim = "perm";
     private const string Caller = "operator";
     private const string LoginPath = "/login";
+    private const string Challenge = "Header realm=\"acta\"";
+    private const string Rejected = "rejected";
 
     private static readonly string[] Permissions =
     [
@@ -77,6 +79,14 @@ public sealed class PermissionTests
             .Services.AddAuthentication(defaultScheme)
             .AddScheme<AuthenticationSchemeOptions, HeaderHandler>(HeaderScheme, null)
             .AddCookie(options => options.LoginPath = LoginPath);
+        AddPolicies(builder, permissions, policy);
+    }
+
+    private static void AddPolicies(
+        WebApplicationBuilder builder,
+        IEnumerable<string> permissions,
+        Action<AuthorizationPolicyBuilder>? policy = null
+    ) =>
         builder.Services.AddAuthorization(options =>
         {
             foreach (var permission in permissions)
@@ -91,7 +101,6 @@ public sealed class PermissionTests
                 );
             }
         });
-    }
 
     private static HttpRequestMessage Holding(HttpMethod method, string path, string? held)
     {
@@ -207,13 +216,14 @@ public sealed class PermissionTests
     }
 
     /// <summary>
-    /// A call with no credential answers a bare 401 on every API route, with no body and no Location, also where the
-    /// host's default scheme is a cookie scheme that would send a browser to its login page.
+    /// A call with no credential answers 401 on every API route, with no body and no Location, and with the
+    /// WWW-Authenticate challenge the host's default scheme writes. A cookie scheme, which would send a browser to its
+    /// login page, writes no challenge, and its redirect is taken out.
     /// </summary>
     [Theory]
-    [InlineData(HeaderScheme)]
-    [InlineData(CookieAuthenticationDefaults.AuthenticationScheme)]
-    public async Task An_api_call_with_no_credential_answers_a_bare_401(string defaultScheme)
+    [InlineData(HeaderScheme, Challenge)]
+    [InlineData(CookieAuthenticationDefaults.AuthenticationScheme, "")]
+    public async Task An_api_call_with_no_credential_answers_401_with_the_schemes_challenge(string defaultScheme, string challenge)
     {
         var (app, client) = await StartAsync(defaultScheme: defaultScheme);
         await using var _ = app;
@@ -225,16 +235,106 @@ public sealed class PermissionTests
         {
             using var response = await client.SendAsync(Holding(new HttpMethod(method), path, held: null), ct);
             var body = await response.Content.ReadAsByteArrayAsync(ct);
-            if (response.StatusCode != HttpStatusCode.Unauthorized || body.Length > 0 || response.Headers.Location is not null)
+            var written = response.Headers.WwwAuthenticate.ToString();
+            if (
+                response.StatusCode != HttpStatusCode.Unauthorized
+                || body.Length > 0
+                || response.Headers.Location is not null
+                || written != challenge
+            )
             {
                 wrong.Add(
-                    $"{method} {path}: answered {(int)response.StatusCode}, {body.Length} bytes, Location {response.Headers.Location}."
+                    $"{method} {path}: answered {(int)response.StatusCode}, {body.Length} bytes, Location {response.Headers.Location}, "
+                        + $"WWW-Authenticate '{written}'."
                 );
             }
         }
 
         Assert.True(routes.Count > 60, $"only {routes.Count} routes; the walk is broken.");
         Assert.True(wrong.Count == 0, string.Join("\n", wrong));
+    }
+
+    // A token that has expired is the common case: the scheme fails it, and its challenge says what to send instead.
+    [Fact]
+    public async Task A_credential_the_scheme_rejects_answers_401_with_the_schemes_challenge()
+    {
+        var (app, client) = await StartAsync();
+        await using var _ = app;
+        var ct = TestContext.Current.CancellationToken;
+
+        using var response = await client.SendAsync(Holding(HttpMethod.Get, "/acta/api/v1/jobs", Rejected), ct);
+
+        Assert.Equal(HttpStatusCode.Unauthorized, response.StatusCode);
+        Assert.Equal(Challenge, response.Headers.WwwAuthenticate.ToString());
+        Assert.Empty(await response.Content.ReadAsByteArrayAsync(ct));
+    }
+
+    /// <summary>
+    /// The cookie scheme answers a call with no credential with a redirect to its login page, or, for a call that says it
+    /// comes from script (<c>X-Requested-With: XMLHttpRequest</c>), with a 401 and a Location of its own. An API route
+    /// answers both with a 401 and no Location.
+    /// </summary>
+    [Theory]
+    [InlineData(null)]
+    [InlineData("XMLHttpRequest")]
+    public async Task A_cookie_scheme_never_sends_an_api_call_to_its_login_page(string? requestedWith)
+    {
+        var (app, client) = await StartAsync(defaultScheme: CookieAuthenticationDefaults.AuthenticationScheme);
+        await using var _ = app;
+        var ct = TestContext.Current.CancellationToken;
+        using var request = Holding(HttpMethod.Get, "/acta/api/v1/jobs", held: null);
+        if (requestedWith is not null)
+        {
+            request.Headers.Add("X-Requested-With", requestedWith);
+        }
+
+        using var response = await client.SendAsync(request, ct);
+
+        Assert.Equal(HttpStatusCode.Unauthorized, response.StatusCode);
+        Assert.Null(response.Headers.Location);
+        Assert.Empty(await response.Content.ReadAsByteArrayAsync(ct));
+    }
+
+    // With no authentication scheme registered there is no scheme to challenge, so a page answers the 401 an API route does.
+    [Theory]
+    [InlineData("/acta/api/v1/jobs")]
+    [InlineData("/acta")]
+    public async Task A_host_with_no_authentication_scheme_answers_a_bare_401(string path)
+    {
+        var (app, client) = await TestDashboardHost.StartAsync(
+            options => options.RequirePermissions = true,
+            configureBuilder: builder => AddPolicies(builder, Permissions)
+        );
+        await using var _ = app;
+        var ct = TestContext.Current.CancellationToken;
+
+        using var response = await client.GetAsync(path, ct);
+
+        Assert.Equal(HttpStatusCode.Unauthorized, response.StatusCode);
+        Assert.Null(response.Headers.Location);
+        Assert.Empty(await response.Content.ReadAsByteArrayAsync(ct));
+    }
+
+    /// <summary>
+    /// Authorization the host requires on the mapped group runs in its middleware, before Acta's check, and answers as the
+    /// host's scheme does: under a cookie scheme an API call with no credential is redirected to the login page.
+    /// </summary>
+    [Fact]
+    public async Task The_hosts_authorization_on_the_group_answers_before_the_permission_check()
+    {
+        var (app, client) = await StartAsync(
+            options => options.ConfigureEndpoints = group => group.RequireAuthorization(),
+            defaultScheme: CookieAuthenticationDefaults.AuthenticationScheme
+        );
+        await using var _ = app;
+
+        using var response = await client.SendAsync(
+            Holding(HttpMethod.Get, "/acta/api/v1/jobs", held: null),
+            TestContext.Current.CancellationToken
+        );
+
+        Assert.Equal(HttpStatusCode.Redirect, response.StatusCode);
+        Assert.Equal(LoginPath, response.Headers.Location?.AbsolutePath);
     }
 
     [Fact]
@@ -391,7 +491,10 @@ public sealed class PermissionTests
         );
     }
 
-    /// <summary>Authenticates a caller named <see cref="Caller"/> holding the permissions its header lists.</summary>
+    /// <summary>
+    /// Authenticates a caller named <see cref="Caller"/> holding the permissions its header lists, fails one whose header
+    /// reads <see cref="Rejected"/>, and challenges with <see cref="Challenge"/>.
+    /// </summary>
     private sealed class HeaderHandler(IOptionsMonitor<AuthenticationSchemeOptions> options, ILoggerFactory logger, UrlEncoder encoder)
         : AuthenticationHandler<AuthenticationSchemeOptions>(options, logger, encoder)
     {
@@ -400,6 +503,11 @@ public sealed class PermissionTests
             if (!Request.Headers.TryGetValue(HoldsHeader, out var held))
             {
                 return Task.FromResult(AuthenticateResult.NoResult());
+            }
+
+            if (held == Rejected)
+            {
+                return Task.FromResult(AuthenticateResult.Fail("The credential has expired."));
             }
 
             Claim[] claims =
@@ -411,6 +519,12 @@ public sealed class PermissionTests
             ];
             var principal = new ClaimsPrincipal(new ClaimsIdentity(claims, Scheme.Name));
             return Task.FromResult(AuthenticateResult.Success(new AuthenticationTicket(principal, Scheme.Name)));
+        }
+
+        protected override Task HandleChallengeAsync(AuthenticationProperties properties)
+        {
+            Response.Headers.WWWAuthenticate = Challenge;
+            return base.HandleChallengeAsync(properties);
         }
     }
 

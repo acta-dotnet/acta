@@ -293,7 +293,7 @@ A tenant is registered with `ITenants.RegisterAsync(tenantName, displayName, des
 
 Over HTTP the same verbs are control-gated (`EnableControls` + confirmation):
 `POST /tenants`, `POST /tenants/{tenantName}/suspend|resume`, `PUT /tenants/{tenantName}`, `POST /namespaces/{name}/suspend|resume`,
-`PUT /namespaces/{name}`. A `PUT` replaces the metadata whole, so a field it leaves out is cleared. Reads are ungated: `GET /tenants` pages the catalog and
+`PUT /namespaces/{name}`. A `PUT` replaces the metadata whole, so a field it leaves out is cleared. Reads are ungated unless `RequirePermissions` is on, where they need `acta.read`. `GET /tenants` pages the catalog and
 `GET /tenants/{tenantName}` is the point read (`ITenants.GetAsync` in code); `GET /namespaces` and
 `GET /namespaces/{name}` do the same for namespaces (`INamespaces.GetAsync` in code).
 
@@ -355,9 +355,9 @@ app.MapActa("/acta", options =>
 });
 ```
 
-- **Local only by default.** Remote requests answer 403, and a local one must address `localhost` or an IP. To expose it, set `LocalOnly = false` and either turn on [permissions](#permissions) or require your own authorization through `ConfigureEndpoints`, either of which covers the page, its assets, and the API; without one startup throws unless `UnsafeAllowAnonymousRemoteAccess = true`. Short of permissions or that acknowledgment, the guard stays on every endpoint that carries no authorization, so an empty `ConfigureEndpoints` hook, or one that adds `AllowAnonymous`, still answers a remote request 403; authorization from a parent group or a fallback policy counts. The package ships no authentication, and CORS is not authorization. `MapActaApi` maps the API alone.
+- **Local only by default.** Remote requests answer 403, and a local one must address `localhost` or an IP. To expose it, set `LocalOnly = false` and either turn on [permissions](#permissions) or require your own authorization through `ConfigureEndpoints`, either of which covers the page, its assets, and the API; without one startup throws unless `UnsafeAllowAnonymousRemoteAccess = true`. Short of permissions or that acknowledgment, the guard stays on every endpoint that carries no authorization, so an empty `ConfigureEndpoints` hook, or one that adds `AllowAnonymous`, still answers a remote request 403; `RequireAuthorization` from a parent group counts. A fallback policy does not count, because the framework refuses to serve an endpoint that requires authorization when the authorization middleware is missing and makes no such check for a fallback policy. The package ships no authentication, and CORS is not authorization. `MapActaApi` maps the API alone.
 - **Reads expose payloads.** Anyone who can read can see every job's input, result, and checkpoint values: `GET /jobs/{jobRef}/input` and `/result` serve the payload whole as the body, and the job detail and checkpoint reads carry each one up to `MaxInlinePayloadBytes`. Treat read access as access to every payload in the ledger.
-- **Controls are opt-in.** `EnableControls = true` maps the control routes (job verbs, signals, schedules, calendars, alerts, tenants, namespaces, outbox). Each control request must be confirmed by the header `X-Acta-Control: true`, a JSON content type, or a `Bearer` authorization header, none of which a page on another origin can send without a CORS preflight; a call with none of them answers 400. It is a guard against cross-site requests, not authentication. An outcome answers 200 applied, 404 not found, or 409 rejected; problem details are kept for malformed input, authorization, and faults.
+- **Controls are opt-in.** `EnableControls = true` maps every route that writes: the job controls, enqueue, the input update, signals, the schedule controls, definition overrides and retire, tenant and namespace changes, the alert and outbox controls, calendar changes, and tag writes. Each control request must be confirmed by the header `X-Acta-Control: true`, a JSON content type, or a `Bearer` authorization header, none of which a page on another origin can send without a CORS preflight; a call with none of them answers 400. It is a guard against cross-site requests, not authentication. `ControlConfirmationHeaderName` renames the header, and mapping throws for an empty name or one of the five CORS-safelisted request headers (`Accept`, `Accept-Language`, `Content-Language`, `Content-Type`, `Range`), which any page may send without a preflight. An outcome answers 200 applied, 404 not found, or 409 rejected; problem details are kept for malformed input, authorization, and faults.
 - **Jobs are addressed by ref** (`/acta/api/v1/jobs/{jobRef}`) or by deduplication key (`/jobs/by-key?jobNamespace=&deduplicationKey=`). `EnableNumericIdLookup = true` also allows `/jobs/id:{n}` on reads, for debugging from a log line.
 - **Lists page by cursor.** Pass `NextCursor` back as `Cursor`; a cursor is tied to its query, and a stale one is rejected. Pages default to 50 and cap at 100, and `IncludeTotal` adds a count (events only with a job filter).
 - `GET /capabilities` reports whether controls are enabled, so a client can hide edit UI.
@@ -392,7 +392,8 @@ app.MapActa("/acta", options =>
 });
 ```
 
-- A call with no credential answers a bare 401 on an API route, so a cookie scheme never redirects a client to its login page; a dashboard page is challenged by the host's scheme, which sends a browser to sign in.
+- A call with no credential is challenged by the host's scheme. On an API route it answers 401 with no body and the scheme's `WWW-Authenticate` challenge, and Acta's check takes out a redirect, so a cookie scheme never sends a client to its login page; a dashboard page answers as the scheme does, so a cookie scheme sends a browser to sign in.
+- Authorization the host adds in front of Acta's check, `RequireAuthorization` on the mapped group or a fallback policy, runs first in the host's middleware and answers in its own way, which under a cookie scheme is a redirect to the login page, on an API route too.
 - A caller the policy refuses gets a 403 problem whose detail names the permission.
 - Acta evaluates the policy in its own endpoint filter, authenticating with the policy's schemes or else the default one, so an `AllowAnonymous` the mapped group inherits does not switch the check off.
 - A rule finer than a permission, such as one that reads the route's namespace, belongs to the host's own authorization on the mapped group through `ConfigureEndpoints`, where each endpoint's `ActaOperationAttribute` names its operation and permission.
@@ -650,6 +651,8 @@ app.MapActa("/acta", options =>
 ```
 
 Behind a reverse proxy on the same host, `LocalOnly` protects nothing: it checks the TCP peer, which is the proxy. Gate remote access with host authorization, and configure `ForwardedHeaders` if the host needs the client's IP. Keep secrets and personal data out of payloads, since every reader sees them.
+
+With `LocalOnly = false` the control confirmation is no defense against DNS rebinding, since a page that rebinds its own name to the server is same-origin and may send any header; host filtering is, so set `AllowedHosts` to the names the server answers to.
 
 ### Alert channel setup
 
@@ -1117,8 +1120,8 @@ explicitly. See [Transactional enqueue and the external outbox](./developer-guid
 `MapActa(...)` and `MapActaApi(...)` are local-only by default. Remote clients receive 403 until the
 host sets `LocalOnly = false` and either sets `RequirePermissions` or adds ASP.NET Core authorization
 through `ConfigureEndpoints`. A 403 titled `This Acta endpoint carries no authorization` means the
-endpoint has neither: check that the hook requires authorization and that no `AllowAnonymous` covers
-the endpoint. A browser on the same machine also gets 403 when it names the machine rather than
+endpoint has neither: check that the hook requires authorization, since a fallback policy alone does
+not count, and that no `AllowAnonymous` covers the endpoint. A browser on the same machine also gets 403 when it names the machine rather than
 `localhost` or an IP address: local-only accepts only those host names.
 
 Mutating controls are also disabled by default. Enable them explicitly with `EnableControls = true`
