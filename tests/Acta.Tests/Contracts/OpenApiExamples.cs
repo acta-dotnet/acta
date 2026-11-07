@@ -78,8 +78,11 @@ internal static class OpenApiExamples
             """{"pausedUntilUtc":"2026-06-13T06:00:00Z","reasonMessage":"Maintenance."}""",
         ["POST /schedules/{jobNamespace}/{jobName}/{scheduleName}/resume"] = """{"reasonMessage":"Maintenance is over."}""",
         ["POST /schedules/{jobNamespace}/{jobName}/{scheduleName}/trigger"] = """{"reasonMessage":"Catch up after the outage."}""",
-        ["POST /calendars/{jobNamespace}/{calendarName}/drafts"] =
-            """{"role":"availability","definition":{"kind":"weekly-availability"},"expectedLatestVersion":2}""",
+        ["POST /calendars/{jobNamespace}/{calendarName}/drafts"] = """
+            {"role":"availability","definition":{"kind":"weekly-availability","timeZone":"UTC",
+            "weekly":[{"days":["Monday","Tuesday","Wednesday","Thursday","Friday"],"windows":[["09:00","17:00"]]}]},
+            "expectedLatestVersion":2}
+            """,
         ["POST /calendars/{jobNamespace}/{calendarName}/publish"] = """{"expectedCurrentVersion":1,"candidateVersion":2}""",
         ["POST /calendars/{jobNamespace}/{calendarName}/archive"] =
             """{"expectedCurrentVersion":1,"reasonMessage":"No schedule uses it."}""",

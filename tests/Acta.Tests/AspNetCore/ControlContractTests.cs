@@ -100,7 +100,7 @@ public sealed class ControlContractTests
         .. JobInput(),
         .. Enqueue(),
         .. ScheduleVerb("pause", typeof(PauseScheduleResponse)),
-        .. ScheduleVerb("resume", typeof(ResumeScheduleResponse)),
+        .. ScheduleVerb("resume", typeof(ResumeScheduleResponse), rejects: false),
         .. ScheduleVerb("trigger", typeof(TriggerScheduleResponse)),
         .. CalendarVerb(
             "drafts",
@@ -112,7 +112,8 @@ public sealed class ControlContractTests
                 definition = new { kind = "weekly-availability" },
                 expectedLatestVersion = expected,
                 reasonMessage = "because",
-            }
+            },
+            answersNotFound: false
         ),
         .. CalendarVerb(
             "publish",
@@ -371,18 +372,19 @@ public sealed class ControlContractTests
         ];
     }
 
-    // A schedule name of "missing" reads as absent and "rejected" as a forbidden transition, so pause,
-    // resume, and trigger stage their three outcomes by name.
-    private static IEnumerable<Case> ScheduleVerb(string verb, Type declared)
+    // A schedule name of "missing" reads as absent and "rejected" as a forbidden transition, so pause and
+    // trigger stage their three outcomes by name. Resume refuses no transition, so it has no 409.
+    private static IEnumerable<Case> ScheduleVerb(string verb, Type declared, bool rejects = true)
     {
         var route = $"/schedules/{{jobNamespace}}/{{jobName}}/{{scheduleName}}/{verb}";
         string Path(string scheduleName) => $"/schedules/billing/send-invoice/{scheduleName}/{verb}";
-        return
+        Case[] rows =
         [
             Schedule(route, "applied", Path("nightly"), StatusCodes.Status200OK, declared, "applied", Reason),
             Schedule(route, "rejected", Path("rejected"), StatusCodes.Status409Conflict, declared, "rejected", Reason),
             Schedule(route, "not-found", Path("missing"), StatusCodes.Status404NotFound, declared, "not-found", Reason),
         ];
+        return rows.Where(row => rejects || row.Status != StatusCodes.Status409Conflict);
     }
 
     private static Case Schedule(
@@ -397,8 +399,14 @@ public sealed class ControlContractTests
     ) => new("schedules", route, "POST", outcome, path, status, declared, action, body, version);
 
     // A calendar name of "missing" reads as absent and "rejected" as refused, and an expected version of 999 is stale, so
-    // each verb stages its 409 the way it can answer one.
-    private static IEnumerable<Case> CalendarVerb(string verb, Type declared, string conflict, Func<int, object> body)
+    // each verb stages its 409 the way it can answer one. A draft creates its family, so it has no 404.
+    private static IEnumerable<Case> CalendarVerb(
+        string verb,
+        Type declared,
+        string conflict,
+        Func<int, object> body,
+        bool answersNotFound = true
+    )
     {
         var route = $"/calendars/{{jobNamespace}}/{{calendarName}}/{verb}";
         Case Row(string outcome, string calendarName, int status, int expected) =>
@@ -413,7 +421,7 @@ public sealed class ControlContractTests
                 outcome,
                 body(expected)
             );
-        return
+        Case[] rows =
         [
             Row("applied", "office-hours", StatusCodes.Status200OK, 1),
             conflict == "rejected"
@@ -421,6 +429,7 @@ public sealed class ControlContractTests
                 : Row("version-conflict", "office-hours", StatusCodes.Status409Conflict, 999),
             Row("not-found", "missing", StatusCodes.Status404NotFound, 1),
         ];
+        return rows.Where(row => answersNotFound || row.Status != StatusCodes.Status404NotFound);
     }
 
     // Both definition verbs answer the definition's version after the attempt: one past the expected on

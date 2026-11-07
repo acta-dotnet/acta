@@ -7,6 +7,8 @@ namespace Acta.Tests.AspNetCore.Fakes;
 /// </summary>
 internal sealed class FakeTenants : ITenants
 {
+    private static readonly DateTime CreatedAtUtc = new(2026, 6, 12, 6, 0, 0, DateTimeKind.Utc);
+
     public FakeTenants()
     {
         Register = (tenantName, displayName, description, _) =>
@@ -25,13 +27,13 @@ internal sealed class FakeTenants : ITenants
                 ? throw new ArgumentException("Tenant name must not contain whitespace.", nameof(tenantName))
                 : ValueTask.FromResult<GetTenantResponse?>(
                     tenantName == "cust-001"
-                        ? new GetTenantResponse(1, "cust-001", "Acme", "Acme Corp", TenantStatusCode.Active, default, default, 0)
+                        ? new GetTenantResponse(1, "cust-001", "Acme", "Acme Corp", TenantStatusCode.Active, CreatedAtUtc, CreatedAtUtc, 0)
                         : null
                 );
         List = static (_, _) =>
             ValueTask.FromResult(
                 new ListTenantsResponse(
-                    [new ListTenantsItem(1, "cust-001", "Acme", "Acme Corp", TenantStatusCode.Active, default, default, 0)],
+                    [new ListTenantsItem(1, "cust-001", "Acme", "Acme Corp", TenantStatusCode.Active, CreatedAtUtc, CreatedAtUtc, 0)],
                     null,
                     false,
                     50,

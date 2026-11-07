@@ -42,6 +42,7 @@ internal static partial class ActaOpenApiDocument
     // Markers the schema transformer leaves for the document transformer, which alone knows a schema's direction.
     private const string OmittedMarker = "x-acta-omitted-when-null";
     private const string RequiredMarker = "x-acta-json-required";
+    private const string NotNullMarker = "x-acta-not-null";
     private const string EnumMarker = "x-acta-enum";
 
     private const string ControlParameter = "ActaControl";
@@ -239,7 +240,12 @@ internal static partial class ActaOpenApiDocument
                             Minimum = doc.Minimum?.ToString(CultureInfo.InvariantCulture),
                             Default = doc.Default is { } value ? JsonValue.Create(value) : null,
                         },
-                        QueryParameterKind.Long => new OpenApiSchema { Type = JsonSchemaType.Integer, Format = "int64" },
+                        QueryParameterKind.Long => new OpenApiSchema
+                        {
+                            Type = JsonSchemaType.Integer,
+                            Format = "int64",
+                            Minimum = doc.Minimum?.ToString(CultureInfo.InvariantCulture),
+                        },
                         QueryParameterKind.Bool => new OpenApiSchema { Type = JsonSchemaType.Boolean },
                         QueryParameterKind.Instant => new OpenApiSchema { Type = JsonSchemaType.String, Format = "date-time" },
                         _ => new OpenApiSchema { Type = JsonSchemaType.String },
@@ -362,7 +368,9 @@ internal static partial class ActaOpenApiDocument
     }
 
     // An enum is an open string whose known values the serializer writes; a ref is its string. An object leaves markers
-    // for the members its serializer omits when null and the ones it refuses when absent.
+    // for the members its serializer omits when null, the ones it refuses when absent, and the get-only ones whose getter
+    // never returns null: the generator types a member nullable when its setter may take null, and with no setter at all
+    // it always does.
     private static Task ShapeSchema(OpenApiSchema schema, OpenApiSchemaTransformerContext context, CancellationToken _)
     {
         var type = Nullable.GetUnderlyingType(context.JsonTypeInfo.Type) ?? context.JsonTypeInfo.Type;
@@ -380,15 +388,21 @@ internal static partial class ActaOpenApiDocument
         }
         else if (type == typeof(JsonElement))
         {
-            schema.Description = AnyJson().Description;
+            // A member of raw JSON says what it carries from its record's docs; only a bare body says "any value".
+            schema.Description = context.JsonPropertyInfo is null ? AnyJson().Description : null;
         }
         else if (context.JsonTypeInfo.Kind == JsonTypeInfoKind.Object)
         {
             var omitted = context.JsonTypeInfo.Properties.Where(Omitted).Select(p => (JsonNode)p.Name).ToArray();
             var required = context.JsonTypeInfo.Properties.Where(p => p.IsRequired).Select(p => (JsonNode)p.Name).ToArray();
+            var notNull = context
+                .JsonTypeInfo.Properties.Where(p => p is { Get: not null, Set: null, IsGetNullable: false })
+                .Select(p => (JsonNode)p.Name)
+                .ToArray();
             schema.Extensions ??= new Dictionary<string, IOpenApiExtension>(StringComparer.Ordinal);
             schema.Extensions[OmittedMarker] = new JsonNodeExtension(new JsonArray(omitted));
             schema.Extensions[RequiredMarker] = new JsonNodeExtension(new JsonArray(required));
+            schema.Extensions[NotNullMarker] = new JsonNodeExtension(new JsonArray(notNull));
         }
         return Task.CompletedTask;
     }
@@ -425,10 +439,15 @@ internal static partial class ActaOpenApiDocument
             var properties = schema.Properties ??= new Dictionary<string, IOpenApiSchema>(StringComparer.Ordinal);
             var omitted = Marker(schema, OmittedMarker);
             var jsonRequired = Marker(schema, RequiredMarker);
+            foreach (var member in Marker(schema, NotNullMarker))
+            {
+                properties[member] = WithoutNull(properties[member]);
+            }
+
+            // One record per direction: what a response requires and a request refuses differ, and one schema says one.
             if (requests.Contains(name) && responses.Contains(name))
             {
-                ShapeEnvelope(name, schema, properties);
-                continue;
+                throw new InvalidOperationException($"{name} is both a request and a response; give each direction its own record.");
             }
 
             if (responses.Contains(name))
@@ -457,6 +476,7 @@ internal static partial class ActaOpenApiDocument
         {
             schema.Extensions?.Remove(OmittedMarker);
             schema.Extensions?.Remove(RequiredMarker);
+            schema.Extensions?.Remove(NotNullMarker);
             schema.Extensions?.Remove(EnumMarker);
         }
 
@@ -612,9 +632,6 @@ internal static partial class ActaOpenApiDocument
         }
     }
 
-    /// <summary>The payload envelope's members a response alone carries: readOnly in the document, refused in a request.</summary>
-    public static readonly string[] EnvelopeResponseOnly = ["formatName", "byteLength", "truncated", "malformed"];
-
     private static readonly Dictionary<string, string> ProblemMembers = new(StringComparer.Ordinal)
     {
         ["type"] = "A URI that identifies the kind of problem.",
@@ -623,35 +640,6 @@ internal static partial class ActaOpenApiDocument
         ["detail"] = "What went wrong in this call; it names the parameter or member at fault when there is one.",
         ["instance"] = "A URI for this occurrence of the problem, when the server sets one.",
     };
-
-    private const string EnvelopeDescription =
-        "A payload inside a JSON body, the same in requests and responses. A JSON payload is json, the value itself; any "
-        + "other format is base64 with its formatId. A request sends exactly one of json and base64, and the readOnly "
-        + "members are refused. A response always carries formatId and formatName, and for a payload past the inline limit "
-        + "sends byteLength and truncated in place of the body.";
-
-    // The payload envelope is the one schema both directions share. Which of its members appear depends on the payload,
-    // so none is required and the description says which; a member is never null in either direction.
-    private static void ShapeEnvelope(string name, OpenApiSchema schema, IDictionary<string, IOpenApiSchema> properties)
-    {
-        if (name != nameof(JobPayloadBody))
-        {
-            throw new InvalidOperationException($"{name} is both a request and a response; say which members each direction requires.");
-        }
-
-        foreach (var (member, property) in properties.ToList())
-        {
-            properties[member] = WithoutNull(property);
-            if (EnvelopeResponseOnly.Contains(member) && properties[member] is OpenApiSchema responseOnly)
-            {
-                responseOnly.ReadOnly = true;
-            }
-        }
-        properties["json"] = new OpenApiSchema { Description = "A JSON payload: the value itself, any JSON value." };
-        schema.Required = null;
-        schema.AdditionalPropertiesAllowed = false;
-        schema.Description = EnvelopeDescription;
-    }
 
     // One schema per enum, a non-null string under the enum's name, and every use a reference to it: nullable where the
     // member is. The generator inlines some nullable members and makes a component nullable when its first use was.
@@ -691,6 +679,7 @@ internal static partial class ActaOpenApiDocument
     }
 
     // Raw JSON is any JSON value, written where it is used rather than as a component a client would generate a type for.
+    // A body says so itself; a member is described later from its record's docs, as every member is.
     private static void InlineAnyJson(OpenApiDocument document, IDictionary<string, IOpenApiSchema> schemas)
     {
         if (!schemas.Remove(nameof(JsonElement)))
@@ -712,7 +701,7 @@ internal static partial class ActaOpenApiDocument
         {
             foreach (var (member, _) in schema.Properties?.Where(property => IsAnyJson(property.Value)).ToList() ?? [])
             {
-                schema.Properties![member] = AnyJson();
+                schema.Properties![member] = new OpenApiSchema();
             }
         }
     }

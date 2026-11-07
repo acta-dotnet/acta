@@ -80,7 +80,11 @@ internal static class SchedulesEndpoints
             options,
             DashboardJsonContext.Default.PauseScheduleRequest,
             "Invalid schedule request.",
-            ControlStatus.Schedule<PauseScheduleResponse>(),
+            ControlStatus.Schedule<PauseScheduleResponse>(
+                StatusCodes.Status200OK,
+                StatusCodes.Status404NotFound,
+                StatusCodes.Status409Conflict
+            ),
             Key,
             static (call, schedule) =>
                 call.Operations.Schedules.PauseAsync(schedule, call.Body?.PausedUntilUtc, call.ReasonMessage, call.Actor, call.Ct)
@@ -92,7 +96,7 @@ internal static class SchedulesEndpoints
             options,
             DashboardJsonContext.Default.ResumeScheduleRequest,
             "Invalid schedule request.",
-            ControlStatus.Schedule<ResumeScheduleResponse>(),
+            ControlStatus.Schedule<ResumeScheduleResponse>(StatusCodes.Status200OK, StatusCodes.Status404NotFound),
             Key,
             static (call, schedule) => call.Operations.Schedules.ResumeAsync(schedule, call.ReasonMessage, call.Actor, call.Ct)
         );
@@ -103,7 +107,11 @@ internal static class SchedulesEndpoints
             options,
             DashboardJsonContext.Default.TriggerScheduleRequest,
             "Invalid schedule request.",
-            ControlStatus.Schedule<TriggerScheduleResponse>(),
+            ControlStatus.Schedule<TriggerScheduleResponse>(
+                StatusCodes.Status200OK,
+                StatusCodes.Status404NotFound,
+                StatusCodes.Status409Conflict
+            ),
             Key,
             static (call, schedule) => call.Operations.Schedules.TriggerAsync(schedule, call.ReasonMessage, call.Actor, call.Ct)
         );

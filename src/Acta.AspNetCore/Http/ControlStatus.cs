@@ -76,7 +76,7 @@ internal static class ControlStatus
         );
 
     /// <summary>The schedule verbs: Applied 200, Rejected and VersionConflict 409 (the schedule's state or a stale expectedVersion), NotFound 404.</summary>
-    public static ControlStatus<T> Schedule<T>()
+    public static ControlStatus<T> Schedule<T>(params int[] codes)
         where T : IScheduleControlResponse =>
         new(
             static response =>
@@ -86,11 +86,11 @@ internal static class ControlStatus
                     ControlAction.Rejected or ControlAction.VersionConflict => StatusCodes.Status409Conflict,
                     _ => StatusCodes.Status404NotFound,
                 },
-            [StatusCodes.Status200OK, StatusCodes.Status409Conflict, StatusCodes.Status404NotFound]
+            codes
         );
 
     /// <summary>The calendar verbs: Applied 200, Rejected and VersionConflict 409 (the family's state or a stale version), NotFound 404.</summary>
-    public static ControlStatus<T> Calendar<T>()
+    public static ControlStatus<T> Calendar<T>(params int[] codes)
         where T : ICalendarControlResponse =>
         new(
             static response =>
@@ -100,6 +100,6 @@ internal static class ControlStatus
                     ControlAction.Rejected or ControlAction.VersionConflict => StatusCodes.Status409Conflict,
                     _ => StatusCodes.Status404NotFound,
                 },
-            [StatusCodes.Status200OK, StatusCodes.Status409Conflict, StatusCodes.Status404NotFound]
+            codes
         );
 }

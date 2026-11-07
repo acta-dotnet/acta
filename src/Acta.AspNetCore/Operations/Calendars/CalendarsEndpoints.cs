@@ -160,7 +160,7 @@ internal static class CalendarsEndpoints
             options,
             DashboardJsonContext.Default.SaveCalendarDraftRequest,
             "Invalid calendar request.",
-            ControlStatus.Calendar<SaveCalendarDraftResponse>(),
+            ControlStatus.Calendar<SaveCalendarDraftResponse>(StatusCodes.Status200OK, StatusCodes.Status409Conflict),
             Key,
             static (call, calendar) =>
                 call.Operations.Calendars.SaveDraftAsync(
@@ -184,7 +184,11 @@ internal static class CalendarsEndpoints
             options,
             DashboardJsonContext.Default.PublishCalendarRequest,
             "Invalid calendar request.",
-            ControlStatus.Calendar<PublishCalendarResponse>(),
+            ControlStatus.Calendar<PublishCalendarResponse>(
+                StatusCodes.Status200OK,
+                StatusCodes.Status404NotFound,
+                StatusCodes.Status409Conflict
+            ),
             Key,
             static (call, calendar) =>
                 call.Operations.Calendars.PublishAsync(
@@ -207,7 +211,11 @@ internal static class CalendarsEndpoints
             options,
             DashboardJsonContext.Default.ArchiveCalendarRequest,
             "Invalid calendar request.",
-            ControlStatus.Calendar<ArchiveCalendarResponse>(),
+            ControlStatus.Calendar<ArchiveCalendarResponse>(
+                StatusCodes.Status200OK,
+                StatusCodes.Status404NotFound,
+                StatusCodes.Status409Conflict
+            ),
             Key,
             static (call, calendar) =>
                 call.Operations.Calendars.ArchiveAsync(

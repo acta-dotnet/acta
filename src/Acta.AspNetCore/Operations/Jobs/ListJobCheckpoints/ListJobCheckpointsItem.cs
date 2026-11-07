@@ -2,7 +2,7 @@ using System.Text.Json.Serialization;
 
 namespace Acta.AspNetCore;
 
-/// <summary>One checkpoint of a <see cref="ListJobCheckpointsResponse"/>; its value is rendered as <see cref="JobPayloadBody"/>.</summary>
+/// <summary>One checkpoint of a <see cref="ListJobCheckpointsResponse"/>; its value is rendered as <see cref="StoredJobPayload"/>.</summary>
 /// <param name="Kind">The checkpoint's kind, such as variable, signal, or timer.</param>
 /// <param name="Name">The checkpoint's name, unique within its job and kind.</param>
 /// <param name="Status">The checkpoint's status; null for a kind that has none, such as a variable.</param>
@@ -15,7 +15,7 @@ internal sealed record ListJobCheckpointsItem(
     string Name,
     [property: JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)] CheckpointStatusCode? Status,
     [property: JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)] DateTime? DueAtUtc,
-    [property: JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)] JobPayloadBody? Value,
+    [property: JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)] StoredJobPayload? Value,
     DateTime CreatedAtUtc,
     DateTime ModifiedAtUtc
 )
@@ -26,7 +26,7 @@ internal sealed record ListJobCheckpointsItem(
             item.Name,
             item.Status,
             item.DueAtUtc,
-            JobPayloadBody.From(item.Value, maxInlineBytes),
+            StoredJobPayload.From(item.Value, maxInlineBytes),
             item.CreatedAtUtc,
             item.ModifiedAtUtc
         );

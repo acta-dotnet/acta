@@ -3276,8 +3276,8 @@
                           "displayName": "Acme",
                           "description": "Acme Corp",
                           "status": "active",
-                          "createdAtUtc": "0001-01-01T00:00:00",
-                          "modifiedAtUtc": "0001-01-01T00:00:00",
+                          "createdAtUtc": "2026-06-12T06:00:00Z",
+                          "modifiedAtUtc": "2026-06-12T06:00:00Z",
                           "version": 0
                         }
                       ],
@@ -3785,8 +3785,8 @@
                       "displayName": "Acme",
                       "description": "Acme Corp",
                       "status": "active",
-                      "createdAtUtc": "0001-01-01T00:00:00",
-                      "modifiedAtUtc": "0001-01-01T00:00:00",
+                      "createdAtUtc": "2026-06-12T06:00:00Z",
+                      "modifiedAtUtc": "2026-06-12T06:00:00Z",
                       "version": 0
                     }
                   }
@@ -5272,16 +5272,6 @@
               }
             }
           },
-          "409": {
-            "description": "The target's state or a stale expected version refused the control; the body's action says which, and nothing was written.",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/ResumeScheduleResponse"
-                }
-              }
-            }
-          },
           "413": {
             "description": "The body is larger than the server accepts.",
             "content": {
@@ -5396,7 +5386,7 @@
                       "action": "applied",
                       "status": "active",
                       "pausedUntilUtc": null,
-                      "nextOccurrenceAtUtc": "1970-01-01T00:00:00Z",
+                      "nextOccurrenceAtUtc": "2026-06-12T09:00:00Z",
                       "version": 1
                     }
                   }
@@ -5533,7 +5523,25 @@
                   "value": {
                     "role": "availability",
                     "definition": {
-                      "kind": "weekly-availability"
+                      "kind": "weekly-availability",
+                      "timeZone": "UTC",
+                      "weekly": [
+                        {
+                          "days": [
+                            "Monday",
+                            "Tuesday",
+                            "Wednesday",
+                            "Thursday",
+                            "Friday"
+                          ],
+                          "windows": [
+                            [
+                              "09:00",
+                              "17:00"
+                            ]
+                          ]
+                        }
+                      ]
                     },
                     "expectedLatestVersion": 2
                   }
@@ -5583,16 +5591,6 @@
               "application/problem+json": {
                 "schema": {
                   "$ref": "#/components/schemas/ProblemDetails"
-                }
-              }
-            }
-          },
-          "404": {
-            "description": "The target does not exist; the body's action is not-found and nothing was written.",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/SaveCalendarDraftResponse"
                 }
               }
             }
@@ -6503,18 +6501,18 @@
                         "version": 7
                       },
                       "input": {
+                        "formatId": 1,
+                        "formatName": "json",
                         "json": {
                           "invoiceId": 42
-                        },
-                        "formatId": 1,
-                        "formatName": "json"
+                        }
                       },
                       "result": {
+                        "formatId": 1,
+                        "formatName": "json",
                         "json": {
                           "sent": true
-                        },
-                        "formatId": 1,
-                        "formatName": "json"
+                        }
                       },
                       "checkpoints": {
                         "items": [
@@ -6524,9 +6522,9 @@
                             "status": "pending",
                             "dueAtUtc": "2026-06-12T07:00:00Z",
                             "value": {
-                              "base64": "AQID",
                               "formatId": 2,
-                              "formatName": "bytes"
+                              "formatName": "bytes",
+                              "base64": "AQID"
                             },
                             "createdAtUtc": "2026-06-12T06:00:00Z",
                             "modifiedAtUtc": "2026-06-12T06:00:00Z"
@@ -6797,9 +6795,9 @@
                           "status": "pending",
                           "dueAtUtc": "2026-06-12T07:00:00Z",
                           "value": {
-                            "base64": "AQID",
                             "formatId": 2,
-                            "formatName": "bytes"
+                            "formatName": "bytes",
+                            "base64": "AQID"
                           },
                           "createdAtUtc": "2026-06-12T06:00:00Z",
                           "modifiedAtUtc": "2026-06-12T06:00:00Z"
@@ -9959,6 +9957,7 @@
             "in": "query",
             "description": "Only events about this subject id; requires entityKind.",
             "schema": {
+              "minimum": 1,
               "type": "integer",
               "format": "int64"
             }
@@ -11878,10 +11877,7 @@
             "description": "A JSON template of the input to start from; null when the input has no JSON form."
           },
           "inputFormatName": {
-            "type": [
-              "null",
-              "string"
-            ],
+            "type": "string",
             "description": "The name of input format, such as json, which is how the wire names a format."
           }
         },
@@ -12352,11 +12348,11 @@
           },
           "input": {
             "description": "The job's input as a payload envelope; absent when it has none.",
-            "$ref": "#/components/schemas/JobPayloadBody"
+            "$ref": "#/components/schemas/StoredJobPayload"
           },
           "result": {
             "description": "The job's result as a payload envelope; absent until the job has one.",
-            "$ref": "#/components/schemas/JobPayloadBody"
+            "$ref": "#/components/schemas/StoredJobPayload"
           },
           "checkpoints": {
             "description": "The first page of the job's checkpoints, with their total.",
@@ -13077,41 +13073,26 @@
         "type": "object",
         "properties": {
           "json": {
-            "description": "A JSON payload: the value itself, any JSON value."
+            "description": "A JSON payload, embedded as the JSON value itself: any JSON value, null included."
           },
           "base64": {
-            "type": "string",
+            "type": [
+              "null",
+              "string"
+            ],
             "description": "A payload in any other format, base64-encoded."
           },
           "formatId": {
-            "type": "integer",
-            "description": "The payload format's id: 1 for JSON, 2 for bytes, 128 to 255 for an application's own. Required beside base64 in a request, and always present in a response.",
+            "type": [
+              "null",
+              "integer"
+            ],
+            "description": "The payload format's id. Beside base64 it is required: 2 for bytes, or 128 to 255 for an application's own. Beside json it is left out, or is 1.",
             "format": "uint8"
-          },
-          "formatName": {
-            "type": "string",
-            "description": "The payload format's name; responses only.",
-            "readOnly": true
-          },
-          "byteLength": {
-            "type": "integer",
-            "description": "The stored payload's size in bytes, sent when its body is withheld; responses only.",
-            "format": "int64",
-            "readOnly": true
-          },
-          "truncated": {
-            "type": "boolean",
-            "description": "True when the payload is larger than the inline limit and its body is withheld; read it whole from the job's input or result route. Responses only.",
-            "readOnly": true
-          },
-          "malformed": {
-            "type": "boolean",
-            "description": "True when a stored JSON payload is not valid JSON and is sent as base64 instead; responses only.",
-            "readOnly": true
           }
         },
         "additionalProperties": false,
-        "description": "A payload inside a JSON body, the same in requests and responses. A JSON payload is json, the value itself; any other format is base64 with its formatId. A request sends exactly one of json and base64, and the readOnly members are refused. A response always carries formatId and formatName, and for a payload past the inline limit sends byteLength and truncated in place of the body."
+        "description": "A payload as a request carries it inside a JSON body: exactly one of json, a JSON payload as the value itself, and base64, a payload in any other format beside its formatId."
       },
       "JobPriorityCode": {
         "examples": [
@@ -13962,7 +13943,7 @@
           },
           "value": {
             "description": "The checkpoint's stored value as a payload envelope; absent when it holds none.",
-            "$ref": "#/components/schemas/JobPayloadBody"
+            "$ref": "#/components/schemas/StoredJobPayload"
           },
           "createdAtUtc": {
             "type": "string",
@@ -13975,7 +13956,7 @@
             "format": "date-time"
           }
         },
-        "description": "One checkpoint of a ListJobCheckpointsResponse; its value is rendered as JobPayloadBody."
+        "description": "One checkpoint of a ListJobCheckpointsResponse; its value is rendered as StoredJobPayload."
       },
       "ListJobCheckpointsResponse": {
         "required": [
@@ -16306,6 +16287,45 @@
           "exhausted",
           "interrupted"
         ]
+      },
+      "StoredJobPayload": {
+        "required": [
+          "formatId",
+          "formatName"
+        ],
+        "type": "object",
+        "properties": {
+          "formatId": {
+            "type": "integer",
+            "description": "The payload format's id: 1 for JSON, 2 for bytes, 128 to 255 for an application's own.",
+            "format": "uint8"
+          },
+          "formatName": {
+            "type": "string",
+            "description": "The payload format's name, such as json or bytes."
+          },
+          "json": {
+            "description": "A JSON payload, embedded as the JSON value itself: any JSON value, null included."
+          },
+          "base64": {
+            "type": "string",
+            "description": "A payload in any other format, base64-encoded."
+          },
+          "byteLength": {
+            "type": "integer",
+            "description": "The stored payload's size in bytes, sent when its body is withheld.",
+            "format": "int64"
+          },
+          "truncated": {
+            "type": "boolean",
+            "description": "True when the payload is larger than the inline limit and its body is withheld. A job's input and result are read whole from their own routes."
+          },
+          "malformed": {
+            "type": "boolean",
+            "description": "True when a stored JSON payload is not one valid JSON value and is sent as base64 instead."
+          }
+        },
+        "description": "A stored payload as a response carries it inside a JSON body: its format, and its body as json for a JSON payload or base64 for any other format. Past the inline limit the body is withheld, and byteLength and truncated stand in its place. Where there is no payload, the member that would carry this is absent."
       },
       "SuspendNamespaceRequest": {
         "type": "object",

@@ -20,8 +20,8 @@ namespace Acta.AspNetCore;
 /// <param name="WorkersTotal">How many such workers there are; absent with workers.</param>
 internal sealed record GetJobDetailResponse(
     GetJobResponse Job,
-    [property: JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)] JobPayloadBody? Input,
-    [property: JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)] JobPayloadBody? Result,
+    [property: JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)] StoredJobPayload? Input,
+    [property: JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)] StoredJobPayload? Result,
     ListJobCheckpointsResponse Checkpoints,
     [property: JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)] ExplainJobResponse? Explain,
     [property: JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)] GetJobLineageMapResponse? Lineage,
@@ -87,8 +87,8 @@ internal sealed record GetJobDetailResponse(
 
         return new GetJobDetailResponse(
             job,
-            JobPayloadBody.From(input, maxInlineBytes),
-            JobPayloadBody.From(result, maxInlineBytes),
+            StoredJobPayload.From(input, maxInlineBytes),
+            StoredJobPayload.From(result, maxInlineBytes),
             ListJobCheckpointsResponse.From(checkpoints, maxInlineBytes),
             explain,
             lineage,

@@ -365,6 +365,36 @@ public sealed partial class OpenApiContractTests
         Assert.True(wrong.Count == 0, string.Join("\n", wrong));
     }
 
+    /// <summary>
+    /// A numeric id filter declares its least value, 1, because the server refuses a lower one: on the real operations an
+    /// entityId of 0 answers 400.
+    /// </summary>
+    [Fact]
+    public async Task A_numeric_id_filter_declares_its_minimum_of_1()
+    {
+        var ids = Operations(await ActaOpenApiDocument.GenerateAsync())
+            .SelectMany(operation => Elements(operation.Value["parameters"]).Select(parameter => (operation.Key, Parameter: parameter!)))
+            .Where(entry =>
+                entry.Parameter["in"]?.GetValue<string>() == "query"
+                && IsInteger(entry.Parameter["schema"])
+                && entry.Parameter["name"]!.GetValue<string>().EndsWith("Id", StringComparison.Ordinal)
+            )
+            .ToList();
+        var answered = HttpStatusCode.OK;
+        await WithSqliteHostAsync(async client =>
+        {
+            using var response = await client.GetAsync(
+                "/acta/api/v1/events?entityKind=job&entityId=0",
+                TestContext.Current.CancellationToken
+            );
+            answered = response.StatusCode;
+        });
+
+        Assert.Equal(["GET /v1/events entityId"], ids.Select(id => $"{id.Key} {id.Parameter["name"]}"));
+        Assert.All(ids, id => Assert.Equal(1, id.Parameter["schema"]!["minimum"]!.GetValue<int>()));
+        Assert.Equal(HttpStatusCode.BadRequest, answered);
+    }
+
     /// <summary>An authentication scheme that never finds a user, so every request the host guards is challenged.</summary>
     private sealed class AnonymousHandler(IOptionsMonitor<AuthenticationSchemeOptions> options, ILoggerFactory logger, UrlEncoder encoder)
         : AuthenticationHandler<AuthenticationSchemeOptions>(options, logger, encoder)

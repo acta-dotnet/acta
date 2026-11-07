@@ -87,6 +87,12 @@ internal sealed class FakeSchedules : ISchedules
         }
 
         TriggerCalls.Add((schedule.ScheduleName, reasonMessage, actor));
-        return new TriggerScheduleResponse(ControlAction.Applied, ScheduleStatusCode.Active, null, DateTime.UnixEpoch, 1);
+        return new TriggerScheduleResponse(
+            ControlAction.Applied,
+            ScheduleStatusCode.Active,
+            null,
+            new DateTime(2026, 6, 12, 9, 0, 0, DateTimeKind.Utc),
+            1
+        );
     }
 }

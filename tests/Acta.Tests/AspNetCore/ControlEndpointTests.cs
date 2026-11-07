@@ -290,6 +290,24 @@ public sealed class ControlEndpointTests
         Assert.Null(call.Reason);
     }
 
+    // Some generated clients write an omitted optional body as the JSON literal null; it acts exactly as no body does.
+    [Fact]
+    public async Task A_json_null_body_acts_as_no_body()
+    {
+        var fakes = new FakeOperations();
+        var (app, client) = await StartWithControlsAsync(fakes);
+        await using var _ = app;
+        var ct = TestContext.Current.CancellationToken;
+
+        var response = await client.SendAsync(Post($"/acta/api/v1/jobs/{Found}/pause", rawBody: "null"), ct);
+        var body = JsonNode.Parse(await response.Content.ReadAsStringAsync(ct))!;
+
+        Assert.Equal(HttpStatusCode.OK, response.StatusCode);
+        Assert.Equal("applied", body["action"]!.GetValue<string>());
+        var call = Assert.Single(fakes.Jobs.ControlCalls);
+        Assert.Equal(("pause", (string?)null, (int?)null), (call.Verb, call.Reason, call.ExpectedVersion));
+    }
+
     [Fact]
     public async Task Undeclared_body_is_415_and_never_reaches_jobs()
     {

@@ -123,7 +123,12 @@ internal static class LedgerEndpoints
                         "Only events about this kind of subject.",
                         CodeKind: "entity"
                     ),
-                    new QueryParameterDoc("entityId", QueryParameterKind.Long, "Only events about this subject id; requires entityKind."),
+                    new QueryParameterDoc(
+                        "entityId",
+                        QueryParameterKind.Long,
+                        "Only events about this subject id; requires entityKind.",
+                        Minimum: 1
+                    ),
                     new QueryParameterDoc("tenantName", QueryParameterKind.String, "Only events stamped with this tenant name."),
                     new QueryParameterDoc("workerRef", QueryParameterKind.String, "Only events recorded by this worker ref."),
                     new QueryParameterDoc("createdFromUtc", QueryParameterKind.Instant, "Inclusive lower bound on the event instant."),
