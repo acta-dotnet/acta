@@ -1,3 +1,5 @@
+using System.Text.Json;
+
 namespace Acta.Tests.AspNetCore.Fakes;
 
 /// <summary>
@@ -236,7 +238,7 @@ internal sealed class FakeCalendars : ICalendars
             2,
             shownVersion,
             shownVersion == 1 ? CalendarStatusCode.Published : CalendarStatusCode.Draft,
-            """{"kind":"weekly-availability"}"""
+            JsonElement.Parse("""{"kind":"weekly-availability"}""")
         );
 
     private static readonly IReadOnlyList<ListCalendarDependentsItem> Dependents =

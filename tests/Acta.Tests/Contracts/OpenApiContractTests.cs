@@ -1054,6 +1054,61 @@ public sealed partial class OpenApiContractTests
     }
 
     /// <summary>
+    /// A calendar read embeds its definition as the JSON object the draft took, its text the stored bytes: compact, the keys
+    /// in the order sent, each escape as the store wrote it. Both reads carry it, the document types it as an object, and
+    /// the read's definition, sent back as it is, saves the next version with the same content.
+    /// </summary>
+    [Fact]
+    public async Task A_calendar_read_embeds_its_stored_definition_which_a_draft_takes_back()
+    {
+        const string sent = """
+            { "timeZone" : "UTC", "kind" : "daily-local-time", "description" : "Caf\u00e9 <closed>", "times" : [ "09:00" ] }
+            """;
+        var compiled = CalendarDefinition.Compile(CalendarRoleCode.Occurrence, sent);
+        var stored = Encoding.UTF8.GetString(compiled.CanonicalJson.Span);
+        var schema = JsonNode.Parse(await ActaOpenApiDocument.GenerateAsync())!["components"]!["schemas"]!["GetCalendarResponse"]!;
+        var drafts = new List<string>();
+        var definitions = new List<string>();
+        await WithSqliteHostAsync(async client =>
+        {
+            var ct = TestContext.Current.CancellationToken;
+            var family = $"calendars/{SqliteNamespace}/pay-days";
+            async Task DraftAsync(string definition, int expectedLatestVersion)
+            {
+                using var answer = await SendControlRequestAsync(
+                    client,
+                    HttpMethod.Post,
+                    family + "/drafts",
+                    $$"""{"role":"occurrence","definition":{{definition}},"expectedLatestVersion":{{expectedLatestVersion}}}"""
+                );
+                drafts.Add($"{(int)answer.StatusCode} {await answer.Content.ReadAsStringAsync(ct)}");
+            }
+            async Task<JsonElement> ReadAsync(string path)
+            {
+                using var read = JsonDocument.Parse(await client.GetStringAsync("/acta/api/v1/" + path, ct));
+                return read.RootElement.Clone();
+            }
+
+            await DraftAsync(sent, 0);
+            var head = await ReadAsync(family);
+            var detail = await ReadAsync(family + "/detail");
+            definitions.Add(head.GetProperty("definition").GetRawText());
+            definitions.Add(detail.GetProperty("calendar").GetProperty("definition").GetRawText());
+            await DraftAsync(definitions[0], head.GetProperty("latestVersion").GetInt32());
+        });
+        Assert.Equal([stored, stored], definitions);
+        Assert.True(JsonNode.DeepEquals(JsonNode.Parse(sent), JsonNode.Parse(definitions[0])), definitions[0]);
+        Assert.Equal("object", schema["properties"]!["definition"]!["type"]!.GetValue<string>());
+        Assert.Equal(
+            [
+                $$"""200 {"action":"applied","version":1,"contentHash":"{{compiled.ContentHash}}","problems":[]}""",
+                $$"""200 {"action":"applied","version":2,"contentHash":"{{compiled.ContentHash}}","problems":[]}""",
+            ],
+            drafts
+        );
+    }
+
+    /// <summary>
     /// A full replace is a PUT: the tenant and namespace updates clear what their body leaves out, and the definition
     /// overrides update takes every override, so the document lists them under PUT and no PATCH, and the PATCH each had
     /// reaches no route.

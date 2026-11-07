@@ -10,7 +10,7 @@ namespace Acta.Tests.Conformance.Operations.Calendars;
     "calendar.get",
     "A calendar family reads its current and latest versions and one definition",
     Area = "Scheduling",
-    Contract = "Get answers the role, the current and latest versions, and the requested, current, or latest version's status and definition, or null."
+    Contract = "Get answers the role, the current and latest versions, and the requested, current, or latest version's status and definition as stored, or null."
 )]
 public sealed class GetCalendarSpec : ActaStorageTestBase<ConformanceFixture>
 {
@@ -57,9 +57,23 @@ public sealed class GetCalendarSpec : ActaStorageTestBase<ConformanceFixture>
         Assert.Null(await Calendars.GetAsync(new CalendarLookup(TestNamespace, Unique("no-such-calendar")), ct: ct));
     }
 
-    private static string? Kind(string definition)
+    [Fact(DisplayName = "Get answers the definition as the save stored it: compact, its keys in the order sent, its escapes as written")]
+    public async Task Get_answers_the_definition_as_stored()
     {
-        using var document = JsonDocument.Parse(definition);
-        return document.RootElement.GetProperty("kind").GetString();
+        var ct = TestContext.Current.CancellationToken;
+        var calendar = new CalendarLookup(TestNamespace, Unique("pay-days"));
+        const string sent = """
+            { "timeZone" : "UTC", "kind" : "daily-local-time", "description" : "Caf\u00e9 <closed>", "times" : [ "09:00" ] }
+            """;
+        await Calendars.SaveDraftAsync(calendar, CalendarRoleCode.Occurrence, sent, 0, ct: ct);
+
+        var read = await Calendars.GetAsync(calendar, ct: ct);
+
+        Assert.Equal(
+            """{"timeZone":"UTC","kind":"daily-local-time","description":"Caf\u00E9 \u003Cclosed\u003E","times":["09:00"]}""",
+            read!.Definition.GetRawText()
+        );
     }
+
+    private static string? Kind(JsonElement definition) => definition.GetProperty("kind").GetString();
 }

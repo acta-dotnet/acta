@@ -463,7 +463,7 @@ export interface CalendarDependent {
 }
 
 // GET /calendars/{ns}/{name}?version=: the family's head: its current and latest versions, and one version's
-// status and definition as JSON text (the requested one, else the current, else the latest).
+// status and definition, the stored JSON object (the requested one, else the current, else the latest).
 export interface CalendarHeadView {
   jobNamespace: string;
   calendarName: string;
@@ -472,7 +472,7 @@ export interface CalendarHeadView {
   latestVersion: number;
   shownVersion: number;
   shownStatus: string;
-  definition: string;
+  definition: Record<string, unknown>;
 }
 
 // GET /calendars/{ns}/{name}/detail?version=: the head with the first page of its versions (newest first) and

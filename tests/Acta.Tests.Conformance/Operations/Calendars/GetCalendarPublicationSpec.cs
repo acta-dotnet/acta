@@ -35,7 +35,10 @@ public sealed class GetCalendarPublicationSpec : ActaStorageTestBase<Conformance
         Assert.Equal((1, CalendarStatusCode.Published), (current.Version, current.Status));
         Assert.Equal((3, CalendarStatusCode.Draft), (candidate.Version, candidate.Status));
         Assert.All([current, candidate], r => Assert.Equal((TestNamespaceId, CalendarRoleCode.Occurrence), (r.NamespaceId, r.Role)));
-        Assert.Equal((await Calendars.GetAsync(calendar, 3, ct))!.Definition, Encoding.UTF8.GetString(candidate.Definition.Span));
+        Assert.Equal(
+            (await Calendars.GetAsync(calendar, 3, ct))!.Definition.GetRawText(),
+            Encoding.UTF8.GetString(candidate.Definition.Span)
+        );
         var unknown = await handler.HandleAsync(new GetCalendarPublicationQuery(TestNamespace, Unique("no-such"), 1), ct);
         Assert.Null(unknown.Current);
         Assert.Null(unknown.Candidate);

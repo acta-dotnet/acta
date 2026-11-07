@@ -1,5 +1,5 @@
 // The weekly-availability definition as the visual editor holds it, and the pure helpers both the editor
-// and the preview panel need. The wire carries a definition as JSON text; this module converts that text
+// and the preview panel need. The editor holds a definition as JSON text; this module converts that text
 // to and from a per-day model and never rebuilds a definition of another kind, so a union or an
 // occurrence calendar stays in the JSON editor exactly as the operator typed it. Pure functions, so
 // node --test exercises them without the Svelte runtime.

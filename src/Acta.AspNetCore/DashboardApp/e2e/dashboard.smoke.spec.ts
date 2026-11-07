@@ -63,13 +63,13 @@ const officeHours = (shown: number) => ({
     latestVersion: 3,
     shownVersion: shown,
     shownStatus: calendarVersions.find((v) => v.version === shown)?.status ?? 'draft',
-    definition: JSON.stringify({
+    definition: {
       kind: 'weekly-availability',
       timeZone: 'schedule',
       weekly: shown === 3
         ? [{ days: weekdays, windows: [['09:00', '17:00']] }, { days: ['Saturday'], windows: [['09:00', '12:00']] }]
         : [{ days: weekdays, windows: [['09:00', '17:00']] }]
-    })
+    }
   },
   versions: { items: calendarVersions, nextCursor: null, hasMore: false, totalCount: calendarVersions.length },
   dependents: {

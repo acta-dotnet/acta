@@ -1,4 +1,4 @@
-using System.Text;
+using System.Text.Json;
 
 namespace Acta;
 
@@ -38,6 +38,8 @@ internal sealed class GetCalendarHandler(GetCalendarVersionHandler getCalendarVe
             return null;
         }
 
+        // A draft stores its definition in the compiler's compact form, which a compact writer with the default encoder
+        // writes back unchanged, so the HTTP read carries the stored bytes.
         return new GetCalendarResponse(
             jobNamespace,
             calendarName,
@@ -46,7 +48,7 @@ internal sealed class GetCalendarHandler(GetCalendarVersionHandler getCalendarVe
             head.LatestVersion,
             shown,
             version.Status,
-            Encoding.UTF8.GetString(version.Definition.Span)
+            JsonElement.Parse(version.Definition.Span)
         );
     }
 }

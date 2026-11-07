@@ -32,7 +32,10 @@ public sealed class GetCalendarVersionSpec : ActaStorageTestBase<ConformanceFixt
 
         Assert.NotNull(archived);
         Assert.Equal((CalendarRoleCode.Occurrence, CalendarStatusCode.Archived), (archived.Role, archived.Status));
-        Assert.Equal((await Calendars.GetAsync(calendar, 1, ct))!.Definition, Encoding.UTF8.GetString(archived.Definition.Span));
+        Assert.Equal(
+            (await Calendars.GetAsync(calendar, 1, ct))!.Definition.GetRawText(),
+            Encoding.UTF8.GetString(archived.Definition.Span)
+        );
         Assert.Null(missing);
     }
 

@@ -9145,7 +9145,9 @@
                       "latestVersion": 2,
                       "shownVersion": 1,
                       "shownStatus": "published",
-                      "definition": "{\"kind\":\"weekly-availability\"}"
+                      "definition": {
+                        "kind": "weekly-availability"
+                      }
                     }
                   }
                 }
@@ -9265,7 +9267,9 @@
                         "latestVersion": 2,
                         "shownVersion": 1,
                         "shownStatus": "published",
-                        "definition": "{\"kind\":\"weekly-availability\"}"
+                        "definition": {
+                          "kind": "weekly-availability"
+                        }
                       },
                       "versions": {
                         "items": [
@@ -11718,8 +11722,8 @@
             "$ref": "#/components/schemas/CalendarStatusCode"
           },
           "definition": {
-            "type": "string",
-            "description": "The shown version's definition, as JSON text."
+            "type": "object",
+            "description": "The shown version's definition: a JSON object whose kind names its shape, as the draft save takes it."
           }
         },
         "description": "One calendar family: its role, its published and newest version numbers, and the version this answer shows, with its status and definition."
@@ -15922,7 +15926,7 @@
           },
           "expectedLatestVersion": {
             "type": "integer",
-            "description": "The number of the family's newest version as the caller last read it; when another is newest the call answers version-conflict and changes nothing.",
+            "description": "The number of the family's newest version as the caller last read it; 0 for a family that has no version. When another is newest, the call answers version-conflict and changes nothing.",
             "format": "int32"
           },
           "reasonMessage": {

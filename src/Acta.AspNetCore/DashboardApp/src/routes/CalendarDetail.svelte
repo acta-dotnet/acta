@@ -130,7 +130,9 @@
   let weekly = $derived(editing ? weeklyFromJson(draftText) : null);
   let jsonProblem = $derived(editing ? jsonError(draftText) : null);
   let localProblems = $derived(weekly ? weeklyProblems(weekly) : jsonProblem ? [jsonProblem] : []);
-  let shownWeekly = $derived(family ? weeklyFromJson(family.definition) : null);
+  // The read carries the shown definition as a JSON object; the view, the copy, and a new draft work on its text.
+  let shownText = $derived(family ? JSON.stringify(family.definition) : '');
+  let shownWeekly = $derived(family ? weeklyFromJson(shownText) : null);
   let creating = $derived(missing && $params.role !== '');
   let expectedLatest = $derived(shownState?.latestVersion ?? 0);
 
@@ -367,12 +369,12 @@
               <button type="button" class="link-button" onclick={() => (showJson = !showJson)}>{showJson ? 'Hide JSON' : 'Show JSON'}</button>
             {/if}
             {#if !shownWeekly || showJson}
-              <pre class="definition mono">{prettyJson(family.definition)}</pre>
+              <pre class="definition mono">{prettyJson(shownText)}</pre>
             {/if}
             <div class="control-row definition-actions">
-              <CopyButton value={family.definition} label="Copy definition" showLabel={true} />
+              <CopyButton value={shownText} label="Copy definition" showLabel={true} />
               {#if canControlNow && shownState}
-                <button onclick={() => startDraft(family!.definition, family!.role)}>
+                <button onclick={() => startDraft(shownText, family!.role)}>
                   <Icon name="plus" />{shownState.shownIsDraft ? 'Edit as a new draft' : 'Start a draft from this version'}
                 </button>
               {/if}

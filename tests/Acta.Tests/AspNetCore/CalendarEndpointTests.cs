@@ -110,7 +110,7 @@ public sealed class CalendarEndpointTests
         Assert.Equal("published", family.RootElement.GetProperty("shownStatus").GetString());
         Assert.Equal(2, family.RootElement.GetProperty("latestVersion").GetInt32());
         Assert.DoesNotContain(family.RootElement.EnumerateObject(), member => member.Name is "versions" or "dependents");
-        Assert.Equal("""{"kind":"weekly-availability"}""", family.RootElement.GetProperty("definition").GetString());
+        Assert.Equal("""{"kind":"weekly-availability"}""", family.RootElement.GetProperty("definition").GetRawText());
         Assert.Contains("\"shownVersion\":2", await versioned.Content.ReadAsStringAsync(ct));
         Assert.Equal(HttpStatusCode.OK, shared.StatusCode);
         Assert.Equal(HttpStatusCode.NotFound, missing.StatusCode);

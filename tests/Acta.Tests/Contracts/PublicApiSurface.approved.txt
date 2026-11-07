@@ -874,15 +874,15 @@ sealed record Acta.GetAlertResponse
     System.String Message { get;init; }
     System.String Title { get;init; }
 sealed record Acta.GetCalendarResponse
-    .ctor(System.String JobNamespace, System.String CalendarName, Acta.CalendarRoleCode Role, System.Nullable<System.Int32> CurrentVersion, System.Int32 LatestVersion, System.Int32 ShownVersion, Acta.CalendarStatusCode ShownStatus, System.String Definition)
+    .ctor(System.String JobNamespace, System.String CalendarName, Acta.CalendarRoleCode Role, System.Nullable<System.Int32> CurrentVersion, System.Int32 LatestVersion, System.Int32 ShownVersion, Acta.CalendarStatusCode ShownStatus, System.Text.Json.JsonElement Definition)
     Acta.CalendarRoleCode Role { get;init; }
     Acta.CalendarStatusCode ShownStatus { get;init; }
     System.Int32 LatestVersion { get;init; }
     System.Int32 ShownVersion { get;init; }
     System.Nullable<System.Int32> CurrentVersion { get;init; }
     System.String CalendarName { get;init; }
-    System.String Definition { get;init; }
     System.String JobNamespace { get;init; }
+    System.Text.Json.JsonElement Definition { get;init; }
 sealed record Acta.GetDefinitionInputTemplateResponse
     .ctor(System.String JobNamespace, System.String JobName, System.String InputTypeName, Acta.JobPayloadFormat InputFormat, System.String TemplateJson)
     Acta.JobPayloadFormat InputFormat { get;init; }

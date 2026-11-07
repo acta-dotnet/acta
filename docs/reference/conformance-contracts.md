@@ -1876,10 +1876,11 @@
   - ListCalendarDependents answers an empty page for a name the catalog never saved, though a schedule names it
 
 ### A calendar family reads its current and latest versions and one definition
-- **Contract:** Get answers the role, the current and latest versions, and the requested, current, or latest version's status and definition, or null.
+- **Contract:** Get answers the role, the current and latest versions, and the requested, current, or latest version's status and definition as stored, or null.
 - **Guarantees:**
   - Get shows the latest definition while none is current
   - Get shows the current version by default and a requested one on demand; a version or family it lacks is null
+  - Get answers the definition as the save stored it: compact, its keys in the order sent, its escapes as written
 
 ### Calendar families list by name with their current and latest versions
 - **Contract:** The list answers one item per family by name with its versions and live bound schedules, in one namespace with sys or in all, filtered and paged.
