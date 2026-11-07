@@ -136,6 +136,12 @@ internal static class PermissionFilter
                     held.Add(permission);
                 }
             }
+            // A policy whose scheme fails to run is not held: its own routes answer that failure, and the other
+            // permissions still answer for the dashboard's gates.
+            catch (Exception exception) when (exception is not OperationCanceledException)
+            {
+                // Not held.
+            }
             finally
             {
                 http.User = current;

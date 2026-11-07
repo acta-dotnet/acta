@@ -215,7 +215,13 @@
   {#snippet breadcrumb()}<a href={backHref}><Icon name="chevron-left" />Jobs</a>{/snippet}
 
   {#if !canControlNow}
-    <div class="panel"><p class="dim">Enqueue is a control action and is disabled on this host.</p></div>
+    <div class="panel">
+      <p class="dim">
+        {capabilities.data?.controlsEnabled === true
+          ? 'Enqueueing a job needs the acta.enqueue permission.'
+          : 'Enqueue is a control action and is disabled on this host.'}
+      </p>
+    </div>
   {:else}
     <div class="detail-workspace">
       <div class="detail-main">

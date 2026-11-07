@@ -221,7 +221,7 @@
 <section class="detail-panel">
   <h2>Actions</h2>
   <div class="control-row">
-    {#if canControlNow || canAdminNow}
+    {#if canControlNow || (canAdminNow && canPurge)}
       {#if canControlNow}
         {#if canPause}<button disabled={busy} onclick={() => openAction('pause')}><Icon name="pause" />Pause</button>{/if}
         {#if canResume}<button disabled={busy} onclick={() => openAction('resume')}><Icon name="play" />Resume</button>{/if}
@@ -233,7 +233,7 @@
       {/if}
       {#if canAdminNow && canPurge}<button class="danger-outline" disabled={busy} onclick={() => openAction('purge')}><Icon name="x-circle" />Delete record</button>{/if}
     {:else if capabilities.data?.controlsEnabled === true}
-      <span class="dim">Your sign-in holds no permission to act on jobs.</span>
+      <span class="dim">No action on this job is open to your sign-in.</span>
     {:else}
       <span class="dim">Job controls are disabled on this host.</span>
     {/if}

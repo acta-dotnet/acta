@@ -75,6 +75,8 @@
     <div class="control-row">
       {#if canControlNow}
         <button disabled={busy} onclick={() => openForm()}>Raise signal</button>
+      {:else if capabilities.data?.controlsEnabled === true}
+        <span class="dim">Raising a signal needs the acta.control permission.</span>
       {:else}
         <span class="dim">Signal controls are disabled on this host.</span>
       {/if}
@@ -93,7 +95,7 @@
     {#if !payloadResult.ok}<div class="field-error">{payloadResult.error}</div>{/if}
 
     <div class="detail-form-actions">
-      <button class="primary" disabled={busy || !canSend} onclick={send}>Send signal</button>
+      <button class="primary" disabled={busy || !canSend || !canControlNow} onclick={send}>Send signal</button>
       <button onclick={cancel}>Cancel</button>
     </div>
   {/if}

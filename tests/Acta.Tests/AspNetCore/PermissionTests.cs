@@ -460,6 +460,29 @@ public sealed class PermissionTests
         Assert.Equal(HttpStatusCode.Unauthorized, rejected.StatusCode);
     }
 
+    // A policy whose scheme cannot run is a host fault its own routes answer; the capabilities read still answers the rest.
+    [Fact]
+    public async Task Capabilities_count_a_policy_that_fails_to_run_as_not_held()
+    {
+        var (app, client) = await StartAsync(configureBuilder: builder =>
+            builder.Services.PostConfigure<AuthorizationOptions>(options =>
+                options.AddPolicy(
+                    ActaPermissions.Admin,
+                    rule => rule.AddAuthenticationSchemes("NoSuchScheme").RequireClaim(PermissionClaim, ActaPermissions.Admin)
+                )
+            )
+        );
+        await using var _ = app;
+
+        var response = await client.SendAsync(
+            Holding(HttpMethod.Get, "/acta/api/v1/capabilities", "acta.read,acta.admin"),
+            TestContext.Current.CancellationToken
+        );
+
+        Assert.Equal(HttpStatusCode.OK, response.StatusCode);
+        Assert.Equal([ActaPermissions.Read], await CapabilityPermissionsAsync(response));
+    }
+
     private static async Task<string[]> CapabilityPermissionsAsync(HttpResponseMessage response) =>
         [
             .. JsonNode.Parse(await response.Content.ReadAsStringAsync(TestContext.Current.CancellationToken))!["permissions"]!
@@ -541,11 +564,13 @@ public sealed class PermissionTests
         var anonymous = await client.SendAsync(Holding(HttpMethod.Get, "/ops/api/v1/jobs", held: null), ct);
         var admin = await client.SendAsync(Holding(HttpMethod.Get, "/ops/api/v1/jobs", ActaPermissions.Admin), ct);
         var reader = await client.SendAsync(Holding(HttpMethod.Get, "/ops/api/v1/jobs", ActaPermissions.Read), ct);
+        var capabilities = await client.SendAsync(Holding(HttpMethod.Get, "/ops/api/v1/capabilities", "acta.read,acta.enqueue"), ct);
 
         Assert.Equal(
             [HttpStatusCode.Unauthorized, HttpStatusCode.Forbidden, HttpStatusCode.OK],
             [anonymous.StatusCode, admin.StatusCode, reader.StatusCode]
         );
+        Assert.Equal([ActaPermissions.Read, ActaPermissions.Enqueue], await CapabilityPermissionsAsync(capabilities));
     }
 
     /// <summary>

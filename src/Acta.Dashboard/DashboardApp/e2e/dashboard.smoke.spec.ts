@@ -115,6 +115,8 @@ async function mockDashboard(
     workers?: unknown[];
     // The permissions capabilities say the caller holds; all four unless a test names them.
     permissions?: string[];
+    // Set, a restart answers 403 as a revoked grant would.
+    refuseControls?: boolean;
     // While it answers true, every call answers 401 with no body, as an API route does for a lapsed sign-in.
     sessionEnded?: () => boolean;
     // Sees the path of every call, so a test can count what the page sent.
@@ -258,6 +260,9 @@ async function mockDashboard(
     }
     if (path === `jobs/${jobRef}/restart` && request.method() === 'POST') {
       if (!options.controls) return json({ title: 'Controls disabled.' }, 404);
+      if (options.refuseControls) {
+        return json({ title: 'Permission denied.', detail: 'This operation needs the acta.control permission.' }, 403);
+      }
       options.onRestart?.();
       return json({ action: 'applied', status: 'ready', version: 4 });
     }
@@ -393,6 +398,27 @@ test('safe single-job control sends exactly one restart request', async ({ page 
 
   await expect(page.getByText('Restart applied.')).toBeVisible();
   expect(restartRequests).toBe(1);
+});
+
+test('a refused control reads the caller\'s permissions again', async ({ page }) => {
+  let capabilityReads = 0;
+  await mockDashboard(page, {
+    controls: true,
+    refuseControls: true,
+    onRequest: (path) => {
+      if (path === 'capabilities') capabilityReads++;
+    }
+  });
+  await page.goto(`/#/jobs/${jobRef}?ns=billing`);
+
+  await page.getByRole('button', { name: 'Run again' }).click();
+  const dialog = page.getByRole('dialog');
+  await dialog.getByLabel(/Reason \(required/).fill('Provider recovered; operator retry.');
+  const before = capabilityReads;
+  await dialog.getByRole('button', { name: 'Run again' }).click();
+
+  await expect(page.getByText('This operation needs the acta.control permission.')).toBeVisible();
+  await expect.poll(() => capabilityReads).toBeGreaterThan(before);
 });
 
 test('the outbox panel keeps its actions inside the panel, and a discard says all', async ({ page }) => {
@@ -537,6 +563,22 @@ test('a caller holding read and control acts on jobs, but cannot delete, clone, 
   await expect(page.locator('.mode-chip')).toHaveCount(0);
 });
 
+test('a caller holding read and control requeues quarantined outbox rows, but cannot discard them', async ({ page }) => {
+  await mockDashboard(page, { controls: true, permissions: ['acta.read', 'acta.control'], onDiscard: () => {} });
+  await page.goto('/');
+
+  await expect(page.getByRole('button', { name: 'Requeue' })).toBeVisible();
+  await expect(page.getByRole('button', { name: 'Discard' })).toHaveCount(0);
+});
+
+test('a new calendar\'s URL opens no editor for a caller without admin', async ({ page }) => {
+  await mockDashboard(page, { controls: true, permissions: ['acta.read', 'acta.control'] });
+  await page.goto('/#/calendars/sys/new-hours?role=availability');
+
+  await expect(page.getByRole('heading', { name: 'new-hours' }).first()).toBeVisible();
+  await expect(page.getByRole('button', { name: /Save as version/ })).toHaveCount(0);
+});
+
 test('a caller holding read and enqueue clones a job, and acts on none', async ({ page }) => {
   await mockDashboard(page, { controls: true, permissions: ['acta.read', 'acta.enqueue'] });
   await page.goto(`/#/jobs/${jobRef}`);
@@ -559,7 +601,7 @@ test('a reader on a host with controls on sees no control and the read-only chip
   await page.goto(`/#/jobs/${jobRef}`);
 
   await expect(page.locator('.mode-chip')).toBeVisible();
-  await expect(page.getByText('Your sign-in holds no permission to act on jobs.')).toBeVisible();
+  await expect(page.getByText('No action on this job is open to your sign-in.')).toBeVisible();
   await expect(page.getByRole('button', { name: 'Run again' })).toHaveCount(0);
 });
 

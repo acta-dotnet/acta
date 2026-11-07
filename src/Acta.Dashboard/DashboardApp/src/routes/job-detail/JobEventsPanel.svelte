@@ -1,6 +1,6 @@
 <script lang="ts">
   import { createInfiniteQuery, createQuery } from '@tanstack/svelte-query';
-  import { api, type EventItem, type Paged } from '../../api.ts';
+  import { api, sessionExpired, type EventItem, type Paged } from '../../api.ts';
   import { displayFormatter } from '../../format.ts';
   import { now } from '../../time';
   import { keys, listPage } from '../../query.ts';
@@ -59,8 +59,8 @@
   </div>
 
   {#if events.length > 0}
-    {#if head.error}<p class="control-message warn">Loaded event history is still visible, but the latest refresh failed: {head.error.message}</p>{/if}
-    {#if history.error}<p class="control-message warn">Latest events are still visible, but older history could not be loaded: {history.error.message}</p>{/if}
+    {#if head.error && !$sessionExpired}<p class="control-message warn">Loaded event history is still visible, but the latest refresh failed: {head.error.message}</p>{/if}
+    {#if history.error && !$sessionExpired}<p class="control-message warn">Latest events are still visible, but older history could not be loaded: {history.error.message}</p>{/if}
     <JobTimeline
       {events}
       {nextRunAtUtc}

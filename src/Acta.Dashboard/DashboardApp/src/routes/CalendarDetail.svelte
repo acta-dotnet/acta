@@ -133,7 +133,8 @@
   // The read carries the shown definition as a JSON object; the view, the copy, and a new draft work on its text.
   let shownText = $derived(family ? JSON.stringify(family.definition) : '');
   let shownWeekly = $derived(family ? weeklyFromJson(shownText) : null);
-  let creating = $derived(missing && $params.role !== '');
+  // A new calendar's editor opens from its URL only for a caller who may save it.
+  let creating = $derived(missing && $params.role !== '' && canControlNow);
   let expectedLatest = $derived(shownState?.latestVersion ?? 0);
 
   // Opens once per page: after the first save the family exists, and the cached 404 must not reopen the template.
@@ -360,7 +361,7 @@
               <textarea bind:value={draftNote} rows="2" maxlength="512"></textarea>
             </label>
             <div class="detail-form-actions">
-              <button class="primary" disabled={busy || localProblems.length > 0} onclick={saveDraft}>Save as version {expectedLatest + 1}</button>
+              <button class="primary" disabled={busy || localProblems.length > 0 || !canControlNow} onclick={saveDraft}>Save as version {expectedLatest + 1}</button>
               <button disabled={busy} onclick={cancelDraft}>Cancel</button>
             </div>
           {:else if family}

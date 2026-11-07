@@ -1,6 +1,6 @@
 <script lang="ts">
   import { createQuery, useQueryClient } from '@tanstack/svelte-query';
-  import { api, controlRequest, type Paged, type TagMutationResponse } from '../api.ts';
+  import { api, controlRequest, sessionExpired, type Paged, type TagMutationResponse } from '../api.ts';
   import { capabilitiesQuery, can, type PermissionName } from '../query.ts';
   import Icon from './Icon.svelte';
 
@@ -93,6 +93,8 @@
     <h2 id="tag-editor-heading">Tags</h2>
     {#if tags.isPending}
       <p class="detail-help">Loading tags...</p>
+    {:else if tags.error && $sessionExpired}
+      <!-- The session banner says what happened. -->
     {:else if tags.error}
       <p class="control-message bad" role="status">{tags.error instanceof Error ? tags.error.message : String(tags.error)}</p>
     {:else}
