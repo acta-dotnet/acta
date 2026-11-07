@@ -441,8 +441,9 @@ public sealed partial class OpenApiContractTests
 
     /// <summary>
     /// A payload read answers the payload itself, as the document declares: a JSON payload as application/json with the
-    /// stored bytes, any other format as application/octet-stream with its format id in X-Acta-Payload-Format, no payload
-    /// as 204, and an unknown job as 404. Neither truncates; the inline limit is the envelope's alone.
+    /// stored bytes, any other format and stored JSON that is not strict JSON as application/octet-stream with its format
+    /// id in X-Acta-Payload-Format, no payload as 204, and an unknown job as 404. Neither truncates; the inline limit is
+    /// the envelope's alone.
     /// </summary>
     [Fact]
     public async Task A_payload_read_answers_the_payload_itself()
@@ -457,6 +458,7 @@ public sealed partial class OpenApiContractTests
         var ct = TestContext.Current.CancellationToken;
         var json = Encoding.UTF8.GetBytes("""{"invoiceId": 12345678901234567890, "note": "past the inline limit"}""");
         byte[] binary = [1, 2, 3];
+        var malformed = "{broken"u8.ToArray();
         var answers = new List<string>();
         foreach (
             var (route, store) in new (string, Action<JobPayload?>)[]
@@ -476,6 +478,8 @@ public sealed partial class OpenApiContractTests
             answers.Add(await AnswerAsync($"jobs/{FakeJobs.FoundJobRef}/{route}"));
             store(JobPayload.FromBytes(JobPayloadFormat.Custom(128, "acme-binary"), binary));
             answers.Add(await AnswerAsync($"jobs/{FakeJobs.FoundJobRef}/{route}"));
+            store(JobPayload.Trusted(JobPayloadFormat.Json, malformed));
+            answers.Add(await AnswerAsync($"jobs/{FakeJobs.FoundJobRef}/{route}"));
             store(null);
             answers.Add(await AnswerAsync($"jobs/{FakeJobs.FoundJobRef}/{route}"));
             answers.Add(await AnswerAsync($"jobs/{FakeJobs.MissingJobRef}/{route}"));
@@ -485,6 +489,7 @@ public sealed partial class OpenApiContractTests
         [
             $"200 application/json format=- {Convert.ToHexString(json)}",
             "200 application/octet-stream format=128 010203",
+            $"200 application/octet-stream format=1 {Convert.ToHexString(malformed)}",
             "204  format=- ",
             "404 application/problem+json format=-",
         ];

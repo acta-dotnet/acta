@@ -1406,6 +1406,7 @@
           "Jobs"
         ],
         "summary": "Read the job's stored input as the body.",
+        "description": "A JSON payload is the body as application/json. Any other format is application/octet-stream with its format id in X-Acta-Payload-Format, and so is a stored JSON payload that is not one strict JSON value, with format id 1.",
         "operationId": "getJobInput",
         "parameters": [
           {
@@ -1422,7 +1423,7 @@
             "description": "OK",
             "headers": {
               "X-Acta-Payload-Format": {
-                "description": "The payload's format id, on a payload in a format other than JSON: 2 for bytes, 128 to 255 for an application's own.",
+                "description": "The payload's format id, on a payload served as application/octet-stream: 2 for bytes, 128 to 255 for an application's own, and 1 for stored JSON that is not one strict JSON value.",
                 "schema": {
                   "type": "integer"
                 }
@@ -6194,6 +6195,7 @@
           "Jobs"
         ],
         "summary": "Read the result the job stored as the body.",
+        "description": "A JSON payload is the body as application/json. Any other format is application/octet-stream with its format id in X-Acta-Payload-Format, and so is a stored JSON payload that is not one strict JSON value, with format id 1.",
         "operationId": "getJobResult",
         "parameters": [
           {
@@ -6210,7 +6212,7 @@
             "description": "OK",
             "headers": {
               "X-Acta-Payload-Format": {
-                "description": "The payload's format id, on a payload in a format other than JSON: 2 for bytes, 128 to 255 for an application's own.",
+                "description": "The payload's format id, on a payload served as application/octet-stream: 2 for bytes, 128 to 255 for an application's own, and 1 for stored JSON that is not one strict JSON value.",
                 "schema": {
                   "type": "integer"
                 }
