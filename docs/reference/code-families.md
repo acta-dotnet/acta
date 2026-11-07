@@ -129,7 +129,7 @@ This pattern makes raw values easier to scan in database rows, logs, and diagnos
 | `Info` | 10 | `info` | Informational; not meant to page. | Active |
 | `Warning` | 20 | `warning` | An attempt failed and the job lives on; repeats collapse onto the one open incident. | Active |
 | `Error` | 30 | `error` | A final failure, or an event that needs an operator's attention. | Active |
-| `Critical` | 40 | `critical` | The highest severity: raised by Acta's own system jobs, and by operators for incidents. Whether it pages depends on the channel it is routed to. | Active |
+| `Critical` | 40 | `critical` | The highest severity: raised by Acta's own system jobs, or by a handler that asks for it. Whether it pages depends on the channel it is routed to. | Active |
 
 ### `CalendarRoleCode` · `calendar-role` <a id="code-family-calendarrolecode"></a>
 
@@ -188,7 +188,7 @@ This pattern makes raw values easier to scan in database rows, logs, and diagnos
 |---|---:|---|---|---|
 | `Unspecified` | 0 | `unspecified` | Definition status not recognized by this build; the row was written by a newer Acta. | Active |
 | `Active` | 10 | `active` | Enqueues are accepted and workers claim the definition's jobs. | Active |
-| `Retired` | 240 | `retired` | Enqueues are rejected. Only an operator retires a definition; one that a deploy stops declaring stays active. Retiring cancels the definition's ready, paused, and suspended jobs with the event reason definition-retired; an executing job finishes its attempt, and one that would run again is cancelled with the same reason. | Active |
+| `Retired` | 240 | `retired` | Enqueues are rejected. Only an operator retires a definition; one that a deploy stops declaring stays active. Retiring cancels the definition's ready, blocked, paused, and suspended jobs with the event reason definition-retired and leaves a permanent slot idle; an executing job finishes its attempt, and one that would run again is cancelled with the same reason. | Active |
 
 ### `DefinitionTenantRequirementCode` · `job-tenant-requirement` <a id="code-family-definitiontenantrequirementcode"></a>
 
@@ -252,12 +252,12 @@ This pattern makes raw values easier to scan in database rows, logs, and diagnos
 | `JobRescheduled` | 61 | `job.rescheduled` | The job became ready with a new nextRunAtUtc: its handler rescheduled it, a failed attempt retries within budget, or an operator rescheduled it. The details carry the key actor or reason. | Active |
 | `JobCancelled` | 70 | `job.cancelled` | The job was cancelled, which is final. | Active |
 | `JobPaused` | 71 | `job.paused` | The job was paused. | Active |
-| `JobResumed` | 72 | `job.resumed` | The job was resumed and is ready again. | Active |
-| `JobRestarted` | 73 | `job.restarted` | The job was restarted and is ready again: its failure count is reset and its retention cleared, and its execution number carries on. | Active |
+| `JobResumed` | 72 | `job.resumed` | The job was resumed: it is ready again, idle for a permanent slot with no firing outstanding, or blocked behind its lane. Crash recovery records the same event, with the reason lane-repaired in its details, when it releases the next job of a stranded lane. | Active |
+| `JobRestarted` | 73 | `job.restarted` | The job was restarted: it is ready again, idle for a permanent slot, or blocked behind its lane. Its failure count is reset and its retention cleared, and its execution number carries on. | Active |
 | `JobReprioritized` | 74 | `job.reprioritized` | An operator changed the job's priority; the message carries the operator's reason, if any. | Active |
 | `JobPurged` | 75 | `job.purged` | An operator deleted a finished job's record; the event is about the deleted job's id, and its details keep the job's jobRef, correlationKey, and actor. Recorded whatever the event recording level. | Active |
 | `JobInputAmended` | 76 | `job.input-amended` | An operator replaced a job's stored input; the details carry the actor and the format name and byte count of the previous input, and the message carries the reason. | Active |
-| `JobSignalRaised` | 80 | `job.signal-raised` | A signal was raised for the job, and its signal checkpoint is set. | Active |
+| `JobSignalRaised` | 80 | `job.signal-raised` | A signal was raised for the job. Its signal checkpoint is set, unless the wait had already expired: then nothing changes, and the message says so. | Active |
 | `JobStateReset` | 81 | `job.state-reset` | The handler reset the job's state: its checkpoints and steps were cleared so the next execution starts as new. The record of a scheduled firing stays. | Active |
 | `JobNoteRecorded` | 90 | `job.note-recorded` | A note the application's handler wrote. It is the only event an application can write, and the engine never writes it, so every other event is the engine's own. The message carries the line; the details carry the optional payload. | Active |
 | `SchedulePaused` | 100 | `schedule.paused` | A recurring schedule was paused; details carry the schedule name. | Active |
@@ -289,7 +289,7 @@ This pattern makes raw values easier to scan in database rows, logs, and diagnos
 | Member | Id | Code | Description | Lifecycle |
 |---|---:|---|---|---|
 | `Off` | 0 | `off` | No per-job events that depend on recording. Events about the system and the catalog are still written, and an enabled alert profile still records the failed, orphaned, finally failed, and recovering attempts its alerts read. | Active |
-| `Failures` | 10 | `failures` | Records failed, orphaned, and finally failed attempts, a success only when it recovers from counted failures, and lane repairs. | Active |
+| `Failures` | 10 | `failures` | Records failed, orphaned, and finally failed attempts, a success only when it recovers from counted failures, and a job that crash recovery releases from a stranded lane. | Active |
 | `Audit` | 20 | `audit` | Records every per-job event. The default for an application's jobs. | Active |
 
 ### `FiringFailurePolicyCode` · `firing-failure-policy` <a id="code-family-firingfailurepolicycode"></a>
@@ -335,11 +335,11 @@ This pattern makes raw values easier to scan in database rows, logs, and diagnos
 | `Blocked` | 15 | `blocked` | Waiting behind an earlier unfinished job of its lane; no worker is offered it, and it becomes ready when the job ahead ends. | Active |
 | `Suspended` | 20 | `suspended` | Stopped until something outside the attempt happens: a signal its handler waits for, or the end of child jobs it waits on. | Active |
 | `Paused` | 30 | `paused` | Not running until it is resumed. | Active |
-| `Idle` | 40 | `idle` | A permanent slot between firings, with nothing outstanding and no lease. A firing makes it ready; it never ends. | Active |
+| `Idle` | 40 | `idle` | A permanent slot between firings, with nothing outstanding and no lease. A firing makes it ready; it never ends by itself. | Active |
 | `Executing` | 50 | `executing` | Claimed by a worker under a live lease; its handler is running or about to start. | Active |
 | `Succeeded` | 100 | `succeeded` | Ended successfully. | Active |
 | `Failed` | 200 | `failed` | Ended in failure: its attempts are spent, an exception is not retryable, a step that runs at most once was interrupted, or its handler failed it. | Active |
-| `Cancelled` | 220 | `cancelled` | Ended by cancellation: by an operator, by a caller, or by its own handler. | Active |
+| `Cancelled` | 220 | `cancelled` | Ended by cancellation: by an operator, a caller, or its own handler, by a strict deadline, or because its definition was retired. | Active |
 
 ### `MisfireStrategyCode` · `misfire-strategy` <a id="code-family-misfirestrategycode"></a>
 
@@ -415,7 +415,7 @@ This pattern makes raw values easier to scan in database rows, logs, and diagnos
 |---|---:|---|---|---|
 | `Unspecified` | 0 | `unspecified` | Schedule status not recognized by this build; the row was written by a newer Acta. | Active |
 | `Active` | 10 | `active` | The schedule fires. | Active |
-| `Paused` | 30 | `paused` | Paused by an operator; it does not fire until it is resumed, or until pausedUntilUtc passes when that is set. | Active |
+| `Paused` | 30 | `paused` | Paused, by an operator or by the engine under a firing failure policy or an expiry action; it does not fire until it is resumed, or until pausedUntilUtc passes when that is set. | Active |
 | `Orphaned` | 230 | `orphaned` | The application's code no longer declares the schedule; it cannot fire, be paused, or be resumed. | Active |
 
 ### `ScheduledDeliveryCode` · `scheduled-delivery` <a id="code-family-scheduleddeliverycode"></a>

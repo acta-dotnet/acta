@@ -23,7 +23,7 @@ internal static class LedgerEndpoints
             .MapList(
                 "/jobs",
                 new("listJobs", ActaPermissions.Read),
-                "List jobs, filtered and keyset-paged.",
+                "List jobs, newest first.",
                 DashboardJsonContext.Default.ListJobsResponse,
                 query =>
                     (
@@ -73,7 +73,7 @@ internal static class LedgerEndpoints
             .MapList(
                 "/events",
                 new("listEvents", ActaPermissions.Read),
-                "List ledger events, filtered and keyset-paged.",
+                "List events, newest first.",
                 DashboardJsonContext.Default.ListEventsResponse,
                 query =>
                     (

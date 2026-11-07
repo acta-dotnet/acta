@@ -21,7 +21,7 @@ public enum AlertSeverityCode : byte
 
     [Code(
         "critical",
-        "The highest severity: raised by Acta's own system jobs, and by operators for incidents. Whether it pages depends on the channel it is routed to."
+        "The highest severity: raised by Acta's own system jobs, or by a handler that asks for it. Whether it pages depends on the channel it is routed to."
     )]
     Critical = 40,
 }

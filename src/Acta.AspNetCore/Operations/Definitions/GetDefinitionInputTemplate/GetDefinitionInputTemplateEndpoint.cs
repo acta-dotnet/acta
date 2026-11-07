@@ -22,7 +22,7 @@ internal static class GetDefinitionInputTemplateEndpoint
                         : RouteTable.NotFound("Input template")
             )
             .WithMetadata(new ActaOperationAttribute("getDefinitionInputTemplate", ActaPermissions.Read))
-            .WithSummary("Read a job's compile-time input template.")
+            .WithSummary("Read a JSON template of the definition's input.")
             .Produces<GetDefinitionInputTemplateResponse>(StatusCodes.Status200OK)
             .ProducesProblem(StatusCodes.Status404NotFound);
 }

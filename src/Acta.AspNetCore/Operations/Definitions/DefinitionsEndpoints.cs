@@ -87,7 +87,7 @@ internal static class DefinitionsEndpoints
         controls.MapCommand(
             "/definitions/{jobNamespace}/{jobName}/retire",
             new("retireDefinition", ActaPermissions.Admin),
-            "Retire the definition and cancel its parked jobs.",
+            "Retire the definition and cancel its waiting jobs.",
             options,
             DashboardJsonContext.Default.RetireDefinitionRequest,
             "Invalid definition key.",

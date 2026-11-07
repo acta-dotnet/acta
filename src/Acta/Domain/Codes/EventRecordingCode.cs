@@ -15,7 +15,7 @@ public enum EventRecordingCode : byte
 
     [Code(
         "failures",
-        "Records failed, orphaned, and finally failed attempts, a success only when it recovers from counted failures, and lane repairs."
+        "Records failed, orphaned, and finally failed attempts, a success only when it recovers from counted failures, and a job that crash recovery releases from a stranded lane."
     )]
     Failures = 10,
 

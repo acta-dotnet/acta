@@ -28,7 +28,10 @@ public enum JobStatusCode : byte
     [Code("paused", "Not running until it is resumed.")]
     Paused = 30,
 
-    [Code("idle", "A permanent slot between firings, with nothing outstanding and no lease. A firing makes it ready; it never ends.")]
+    [Code(
+        "idle",
+        "A permanent slot between firings, with nothing outstanding and no lease. A firing makes it ready; it never ends by itself."
+    )]
     Idle = 40,
 
     [Code("executing", "Claimed by a worker under a live lease; its handler is running or about to start.")]
@@ -43,6 +46,9 @@ public enum JobStatusCode : byte
     )]
     Failed = 200,
 
-    [Code("cancelled", "Ended by cancellation: by an operator, by a caller, or by its own handler.")]
+    [Code(
+        "cancelled",
+        "Ended by cancellation: by an operator, a caller, or its own handler, by a strict deadline, or because its definition was retired."
+    )]
     Cancelled = 220,
 }

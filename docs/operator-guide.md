@@ -76,7 +76,7 @@ under those fences and leaves an audited event; a manual UPDATE does neither.
 Lanes make a hand edit worse. Setting a laned job back to Ready, or a Blocked job to Ready, puts two
 jobs of one lane in flight, and no repair can take that back. Setting a lane's head to a terminal
 status by hand releases nobody: the recovery sweep finds such a stranded lane and releases its next
-job, with a `job.lane-repaired` event. Each pass visits a bounded share of the namespace's lanes, so a
+job, with a `job.resumed` event whose details carry the reason `lane-repaired`. Each pass visits a bounded share of the namespace's lanes, so a
 large namespace can take several passes. Restart a laned job with the restart verb, which reactivates it
 under the lane lock and runs it right after the current head.
 

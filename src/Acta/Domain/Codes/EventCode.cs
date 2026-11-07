@@ -100,12 +100,15 @@ public enum EventCode : byte
     [Code("job.paused", "The job was paused.")]
     JobPaused = 71,
 
-    [Code("job.resumed", "The job was resumed and is ready again.")]
+    [Code(
+        "job.resumed",
+        "The job was resumed: it is ready again, idle for a permanent slot with no firing outstanding, or blocked behind its lane. Crash recovery records the same event, with the reason lane-repaired in its details, when it releases the next job of a stranded lane."
+    )]
     JobResumed = 72,
 
     [Code(
         "job.restarted",
-        "The job was restarted and is ready again: its failure count is reset and its retention cleared, and its execution number carries on."
+        "The job was restarted: it is ready again, idle for a permanent slot, or blocked behind its lane. Its failure count is reset and its retention cleared, and its execution number carries on."
     )]
     JobRestarted = 73,
 
@@ -124,7 +127,10 @@ public enum EventCode : byte
     )]
     JobInputAmended = 76,
 
-    [Code("job.signal-raised", "A signal was raised for the job, and its signal checkpoint is set.")]
+    [Code(
+        "job.signal-raised",
+        "A signal was raised for the job. Its signal checkpoint is set, unless the wait had already expired: then nothing changes, and the message says so."
+    )]
     JobSignalRaised = 80,
 
     [Code(

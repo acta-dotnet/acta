@@ -11,7 +11,7 @@ public sealed partial class OpenApiContractTests
     private const int MaxDescriptionLength = 400;
 
     /// <summary>
-    /// Every schema, property, parameter, response, and tag tells a client author what it is, in wire terms: a
+    /// Every operation, schema, property, parameter, response, and tag tells a client author what it is, in wire terms: a
     /// description that ends with a full stop, runs at most 400 characters, leaks no C#, and is no framework default.
     /// </summary>
     [Fact]
@@ -64,6 +64,8 @@ public sealed partial class OpenApiContractTests
             foreach (var (_, operation) in Members(operations))
             {
                 var id = operation!["operationId"]!.GetValue<string>();
+                descriptions[$"{id} summary"] = Text(operation["summary"]);
+                descriptions[$"{id} description"] = Text(operation["description"]);
                 foreach (var entry in Elements(operation["parameters"]))
                 {
                     var parameter = entry?["$ref"]?.GetValue<string>() is { } reference
