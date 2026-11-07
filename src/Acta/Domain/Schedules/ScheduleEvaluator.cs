@@ -95,7 +95,7 @@ internal static class ScheduleEvaluator
             if (policy.ExpireAfter is { } age && next <= now - age)
             {
                 expiredFrom = next;
-                expiredThrough = LatestDue(source, next, now - age);
+                expiredThrough = LatestDue(source, next, now - age).Latest;
                 pausedByExpiry =
                     policy.ExpireAction == ScheduleExpireActionCode.Pause
                     && !pauseEnded
@@ -131,10 +131,11 @@ internal static class ScheduleEvaluator
                 );
             }
 
-            // The last due occurrence, walked only for a policy that coalesces into it: CatchUpAll admits the cursor
-            // alone, so a deep backlog costs it nothing per pass.
-            DateTime? latestDue = null;
-            DateTime Latest() => latestDue ??= LatestDue(source, next, now);
+            // The last due occurrence and the one before it, walked only for a policy that coalesces into it: CatchUpAll
+            // admits the cursor alone, so a deep backlog costs it nothing per pass.
+            (DateTime Latest, DateTime? Before)? latestDue = null;
+            (DateTime Latest, DateTime? Before) Due() => latestDue ??= LatestDue(source, next, now);
+            DateTime Latest() => Due().Latest;
 
             switch (policy.Misfire)
             {
@@ -148,7 +149,7 @@ internal static class ScheduleEvaluator
                     if (next < Latest())
                     {
                         skippedFrom = next;
-                        skippedThrough = PreviousDue(source, next, Latest());
+                        skippedThrough = PreviousDue(source, Due());
                     }
                     break;
                 case MisfireStrategyCode.CatchUpAll:
@@ -164,7 +165,7 @@ internal static class ScheduleEvaluator
                     if (next < Latest() || !onTime)
                     {
                         skippedFrom = next;
-                        skippedThrough = onTime ? PreviousDue(source, next, Latest()) : Latest();
+                        skippedThrough = onTime ? PreviousDue(source, Due()) : Latest();
                     }
                     break;
                 default:
@@ -227,11 +228,13 @@ internal static class ScheduleEvaluator
     /// The last occurrence at or before <paramref name="nowUtc"/>, starting from the due <paramref name="fromUtc"/>: an
     /// interval's grid arithmetic, cut at the schedule's end so no coalescing policy admits or covers an instant past it,
     /// or a bounded walk when the source is a cron, a calendar, or filtered by availability, which the calculator bounds.
+    /// A walk also answers the occurrence just before the last, so a skipped range costs no second walk: null when the
+    /// walk took no step, and always on the grid.
     /// </summary>
-    internal static DateTime LatestDue(ScheduleSource source, DateTime fromUtc, DateTime nowUtc)
+    internal static (DateTime Latest, DateTime? Before) LatestDue(ScheduleSource source, DateTime fromUtc, DateTime nowUtc)
     {
         var timing = source.Timing;
-        if (timing.ExpressionKind == ScheduleExpressionKindCode.Interval && source.Availability is null)
+        if (OnGrid(source))
         {
             var interval = NextOccurrenceCalculator.ParseInterval(timing.Expression);
             var anchor = DateTime.SpecifyKind(timing.IntervalAnchorAtUtc ?? fromUtc, DateTimeKind.Utc);
@@ -240,17 +243,19 @@ internal static class ScheduleEvaluator
             var elapsed = (limit - anchor).Ticks;
             var steps = elapsed >= 0 ? elapsed / interval.Ticks : -((-elapsed + interval.Ticks - 1) / interval.Ticks);
             var latest = anchor.AddTicks(interval.Ticks * steps);
-            return latest < fromUtc ? fromUtc : latest;
+            return (latest < fromUtc ? fromUtc : latest, null);
         }
 
+        DateTime? before = null;
         var current = fromUtc;
         for (var walked = 0; walked < MaxDueWalk; walked++)
         {
             if (NextOccurrenceCalculator.Next(source, current) is not { } candidate || candidate > nowUtc)
             {
-                return current;
+                return (current, before);
             }
 
+            before = current;
             current = candidate;
         }
 
@@ -259,20 +264,11 @@ internal static class ScheduleEvaluator
         );
     }
 
-    /// <summary>The occurrence just before <paramref name="latestUtc"/>, walking from <paramref name="fromUtc"/>; the end of a skipped range.</summary>
-    private static DateTime PreviousDue(ScheduleSource source, DateTime fromUtc, DateTime latestUtc)
-    {
-        if (source.Timing.ExpressionKind == ScheduleExpressionKindCode.Interval && source.Availability is null)
-        {
-            return latestUtc - NextOccurrenceCalculator.ParseInterval(source.Timing.Expression);
-        }
+    /// <summary>The occurrence just before a due range's last, the end of a skipped range; asked only of a range of two or more.</summary>
+    private static DateTime PreviousDue(ScheduleSource source, (DateTime Latest, DateTime? Before) due) =>
+        OnGrid(source) ? due.Latest - NextOccurrenceCalculator.ParseInterval(source.Timing.Expression) : due.Before!.Value;
 
-        var current = fromUtc;
-        while (NextOccurrenceCalculator.Next(source, current) is { } candidate && candidate < latestUtc)
-        {
-            current = candidate;
-        }
-
-        return current;
-    }
+    /// <summary>An interval with no availability filter: its occurrences are grid arithmetic, never a walk.</summary>
+    private static bool OnGrid(ScheduleSource source) =>
+        source.Timing.ExpressionKind == ScheduleExpressionKindCode.Interval && source.Availability is null;
 }

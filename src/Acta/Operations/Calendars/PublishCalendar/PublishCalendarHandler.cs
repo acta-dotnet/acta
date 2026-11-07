@@ -116,7 +116,7 @@ internal sealed class PublishCalendarHandler(
                             continue;
                         }
 
-                        var through = ScheduleEvaluator.LatestDue(oldSource, DateTime.SpecifyKind(due, DateTimeKind.Utc), nowUtc);
+                        var through = ScheduleEvaluator.LatestDue(oldSource, DateTime.SpecifyKind(due, DateTimeKind.Utc), nowUtc).Latest;
                         skipped = EventDetails.Text(
                             ("schedule", s.ScheduleName),
                             ("from", EventDetails.Instant(due)),
