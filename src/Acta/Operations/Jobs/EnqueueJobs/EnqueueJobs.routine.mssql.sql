@@ -45,9 +45,10 @@ BEGIN
             jd.definition_status_code,
             jd.tenant_requirement_code,
             COALESCE(b.lane_name, jd.lane_name)
+        -- Seeks each row's own namespace and definition, as enqueue_job does.
         FROM @p_batch b
-        INNER JOIN {{schema}}.namespaces ns ON ns.namespace_name = b.namespace_name
-        INNER JOIN {{schema}}.definitions jd
+        INNER JOIN {{schema}}.namespaces ns WITH (FORCESEEK (ux_namespaces_name (namespace_name))) ON ns.namespace_name = b.namespace_name
+        INNER JOIN {{schema}}.definitions jd WITH (FORCESEEK (ux_definitions_namespace_name (namespace_id, definition_name)))
             ON
                 jd.namespace_id = ns.namespace_id
                 AND jd.definition_name = b.job_name;

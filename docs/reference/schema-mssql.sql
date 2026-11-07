@@ -57,7 +57,7 @@ GO
 -- ===== refuse a database a newer release already upgraded =====
 IF EXISTS (
     SELECT 1 FROM acta.migrations
-    WHERE name NOT IN ('M20261107195839_init')
+    WHERE name NOT IN ('M20261107212037_init')
 )
 BEGIN
     RAISERROR(N'A newer Acta release already upgraded this database. Run the newest provisioning script; this one would move it backwards.', 16, 1);
@@ -65,7 +65,7 @@ BEGIN
     SET NOEXEC ON;
 END
 GO
--- ===== BEGIN M20261107195839_init =====
+-- ===== BEGIN M20261107212037_init =====
 SET QUOTED_IDENTIFIER ON;
 SET ANSI_NULLS ON;
 GO
@@ -2121,8 +2121,11 @@ BEGIN
             @def_status = jd.definition_status_code,
             @def_tenant_req = jd.tenant_requirement_code,
             @lane = COALESCE(@p_lane_name, jd.lane_name)
-        FROM acta.namespaces ns
-        INNER JOIN acta.definitions jd
+        -- Seeks its own namespace and definition: a caller's transaction at repeatable read or serializable keeps every
+        -- row a read touches locked to commit, so a scan would hold every namespace's row (docs/sql-internals.md,
+        -- "Locking reads seek").
+        FROM acta.namespaces ns WITH (FORCESEEK (ux_namespaces_name (namespace_name)))
+        INNER JOIN acta.definitions jd WITH (FORCESEEK (ux_definitions_namespace_name (namespace_id, definition_name)))
             ON
                 jd.namespace_id = ns.namespace_id
                 AND jd.definition_name = @p_job_name
@@ -2469,9 +2472,10 @@ BEGIN
             jd.definition_status_code,
             jd.tenant_requirement_code,
             COALESCE(b.lane_name, jd.lane_name)
+        -- Seeks each row's own namespace and definition, as enqueue_job does.
         FROM @p_batch b
-        INNER JOIN acta.namespaces ns ON ns.namespace_name = b.namespace_name
-        INNER JOIN acta.definitions jd
+        INNER JOIN acta.namespaces ns WITH (FORCESEEK (ux_namespaces_name (namespace_name))) ON ns.namespace_name = b.namespace_name
+        INNER JOIN acta.definitions jd WITH (FORCESEEK (ux_definitions_namespace_name (namespace_id, definition_name)))
             ON
                 jd.namespace_id = ns.namespace_id
                 AND jd.definition_name = b.job_name;
@@ -5017,11 +5021,11 @@ JOIN acta.namespaces AS ns ON ns.namespace_id = w.namespace_id
 GO
 
 
-IF NOT EXISTS (SELECT 1 FROM acta.migrations WHERE name = 'M20261107195839_init')
+IF NOT EXISTS (SELECT 1 FROM acta.migrations WHERE name = 'M20261107212037_init')
 INSERT INTO acta.migrations (name)
-VALUES ('M20261107195839_init');
+VALUES ('M20261107212037_init');
 GO
--- ===== END M20261107195839_init =====
+-- ===== END M20261107212037_init =====
 GO
 COMMIT TRANSACTION;
 GO

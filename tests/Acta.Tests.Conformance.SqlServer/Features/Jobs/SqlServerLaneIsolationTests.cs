@@ -65,6 +65,41 @@ public sealed class SqlServerLaneIsolationTests : ActaRuntimeTestBase<SqlServerC
         Assert.Equal(EnqueueJobAction.Inserted, outcome.Action);
     }
 
+    [Fact(DisplayName = "An enqueue under repeatable read reads its own namespace and leaves another's row free")]
+    public async Task Enqueue_under_repeatable_read_seeks_its_own_namespace()
+    {
+        var ct = TestContext.Current.CancellationToken;
+        var other = await new ActaTestSeeder(Db).SeedJobNamespaceAsync(Unique("other"), ownerTeam: "test", ct: ct);
+        await using var holder = new SqlConnection(ConnectionString);
+        await holder.OpenAsync(ct);
+        await using var hold = (SqlTransaction)await holder.BeginTransactionAsync(ct);
+        // A deploy holds its namespace's row from its version stamp until it commits.
+        await using (
+            var command = new SqlCommand($"UPDATE {Db.Schema}.namespaces SET version = version WHERE namespace_id = @id", holder, hold)
+        )
+        {
+            command.Parameters.AddWithValue("@id", other);
+            Assert.Equal(1, await command.ExecuteNonQueryAsync(ct));
+        }
+
+        var enqueue = EnqueueUnderRepeatableReadAsync(ct);
+        // The held row stays locked until the fact ends, so an enqueue that waited on it would never return.
+        var first = await Task.WhenAny(enqueue, Task.Delay(SpecWaits.Gate, ct));
+        Assert.True(first == enqueue, "the enqueue waited on another namespace's row");
+        Assert.Equal(EnqueueJobAction.Inserted, await enqueue);
+    }
+
+    /// <summary>Repeatable read keeps every row a read touches share-locked until the caller commits.</summary>
+    private async Task<EnqueueJobAction> EnqueueUnderRepeatableReadAsync(CancellationToken ct)
+    {
+        await using var conn = new SqlConnection(ConnectionString);
+        await conn.OpenAsync(ct);
+        await using var tx = (SqlTransaction)await conn.BeginTransactionAsync(IsolationLevel.RepeatableRead, ct);
+        var outcome = await Jobs.EnqueueAsync(tx, Step("lane-other"), ct);
+        await tx.CommitAsync(ct);
+        return outcome.Action;
+    }
+
     // Allowing SNAPSHOT only makes it available to a session that asks for it; it changes no default.
     private static Task AllowSnapshotAsync(SqlConnection conn, CancellationToken ct) =>
         TestDdl.RunAsync(async () =>

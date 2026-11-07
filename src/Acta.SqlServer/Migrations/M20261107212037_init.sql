@@ -2053,8 +2053,11 @@ BEGIN
             @def_status = jd.definition_status_code,
             @def_tenant_req = jd.tenant_requirement_code,
             @lane = COALESCE(@p_lane_name, jd.lane_name)
-        FROM {{schema}}.namespaces ns
-        INNER JOIN {{schema}}.definitions jd
+        -- Seeks its own namespace and definition: a caller's transaction at repeatable read or serializable keeps every
+        -- row a read touches locked to commit, so a scan would hold every namespace's row (docs/sql-internals.md,
+        -- "Locking reads seek").
+        FROM {{schema}}.namespaces ns WITH (FORCESEEK (ux_namespaces_name (namespace_name)))
+        INNER JOIN {{schema}}.definitions jd WITH (FORCESEEK (ux_definitions_namespace_name (namespace_id, definition_name)))
             ON
                 jd.namespace_id = ns.namespace_id
                 AND jd.definition_name = @p_job_name
@@ -2401,9 +2404,10 @@ BEGIN
             jd.definition_status_code,
             jd.tenant_requirement_code,
             COALESCE(b.lane_name, jd.lane_name)
+        -- Seeks each row's own namespace and definition, as enqueue_job does.
         FROM @p_batch b
-        INNER JOIN {{schema}}.namespaces ns ON ns.namespace_name = b.namespace_name
-        INNER JOIN {{schema}}.definitions jd
+        INNER JOIN {{schema}}.namespaces ns WITH (FORCESEEK (ux_namespaces_name (namespace_name))) ON ns.namespace_name = b.namespace_name
+        INNER JOIN {{schema}}.definitions jd WITH (FORCESEEK (ux_definitions_namespace_name (namespace_id, definition_name)))
             ON
                 jd.namespace_id = ns.namespace_id
                 AND jd.definition_name = b.job_name;
@@ -4949,7 +4953,7 @@ JOIN {{schema}}.namespaces AS ns ON ns.namespace_id = w.namespace_id
 GO
 
 
-IF NOT EXISTS (SELECT 1 FROM {{schema}}.migrations WHERE name = 'M20261107195839_init')
+IF NOT EXISTS (SELECT 1 FROM {{schema}}.migrations WHERE name = 'M20261107212037_init')
 INSERT INTO {{schema}}.migrations (name)
-VALUES ('M20261107195839_init');
+VALUES ('M20261107212037_init');
 GO

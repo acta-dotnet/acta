@@ -202,6 +202,10 @@ filter so the hint always compiles:
   or `ux_jobs_deduplication_key_child`; the parent lookup seeks `pk_jobs`. In `enqueue_jobs` the probe
   is a join's inner side and names both seek columns: with the index alone the optimizer may seek the
   leading column and test the key as a residual, reading every key under it once per batch row.
+- The same routines look up each job's namespace and definition through `ux_namespaces_name` and
+  `ux_definitions_namespace_name`. They run in the caller's transaction, and at repeatable read or serializable every
+  row a read touches stays share-locked until the caller commits, so a lookup that scanned `namespaces` held every
+  namespace's row and deadlocked with deploys writing theirs.
 - The retention purge's staging read seeks `jobs_state` from its cursor and `jobs` by key, and its event
   read seeks `ix_events_namespace_created`.
 - The outbox claim, its lease recovery and lane check, the relay's finalizes, the backlog count, and the
