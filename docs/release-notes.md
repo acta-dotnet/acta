@@ -154,6 +154,7 @@ Not tagged yet.
 - Recovery raised a cancelled parent's pending child latch again on every pass, until retention purged the parent and forever for a cancelled permanent job, and released a parent waiting on a job that was not its child with that job's outcome. A pass now raises only the latches a live parent holds on its own children.
 - A deploy planned its schedules from a clock read before it took the schedule locks, so an admission that ran in between could admit an occurrence a retimed cursor then landed on again. Each deploy attempt reads the clock once it holds the locks.
 - A per-occurrence schedule whose cursor landed on an occurrence it had already admitted failed every admission pass in its namespace on the root's deduplication key, so no other schedule there was admitted either. Such an occurrence is now passed over: no second root, no charge, and the cursor moves on.
+- On SQL Server, an alert raise range-locked the deduplication key after its own, so raises of neighbouring keys waited for each other's commit, and with `READ_COMMITTED_SNAPSHOT` off its reads of the key's earlier incidents could reach other alerts and deadlock with another raise or a job purge. A raise now takes its own key's application lock and reads only that key's rows.
 
 ## 1.0.0-rc.8
 

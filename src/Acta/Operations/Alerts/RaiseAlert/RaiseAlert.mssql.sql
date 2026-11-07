@@ -46,11 +46,19 @@ BEGIN TRY
             GOTO Finish;
         END
 
+    -- The identity's own lock serializes its raisers to commit (docs/sql-internals.md, "Alert lock order"): a range
+    -- lock on an identity not yet stored would hold the gap its neighbours' raises fall in.
+    DECLARE @alert_lock NVARCHAR(255) = CONCAT(N'{{schema}}.alert:', @v_ns, N':', @p_deduplication_key);
+    DECLARE @alert_lock_result INT;
+    -- Positional: resource, mode, owner, timeout (-1 waits like any lock).
+    EXEC @alert_lock_result = sp_getapplock @alert_lock, 'Exclusive', 'Transaction', -1;
+    IF @alert_lock_result < 0
+        THROW 51205, 'ACTA:ALERT_LOCK:The alert identity lock was not granted (deadlock victim or cancelled).', 1;
+
     DECLARE @updated TABLE (occurrence_count INT NOT NULL, last_projected_event_id BIGINT NULL);
 
-    -- The identity's one OPEN row absorbs the repeat and a resolved one is left for the insert arm below.
-    -- UPDLOCK/HOLDLOCK serializes raisers; the seek is pinned to the index every alert deleter locks
-    -- first (docs/sql-internals.md, "Alert lock order").
+    -- The identity's one OPEN row absorbs the repeat and a resolved one is left for the insert arm below. The seek is
+    -- pinned to the index every alert deleter locks first (docs/sql-internals.md, "Alert lock order").
     UPDATE ja
     SET
         job_id = @p_job_id,
@@ -66,7 +74,7 @@ BEGIN TRY
         modified_at_utc = @now,
         version = ja.version + 1
     OUTPUT INSERTED.occurrence_count, INSERTED.last_projected_event_id INTO @updated
-    FROM {{schema}}.alerts AS ja WITH (UPDLOCK, HOLDLOCK, FORCESEEK (ix_alerts_deduplication_key_identity (namespace_id, deduplication_key)))
+    FROM {{schema}}.alerts AS ja WITH (UPDLOCK, FORCESEEK (ix_alerts_deduplication_key_identity (namespace_id, deduplication_key)))
     WHERE
         ja.namespace_id = @v_ns
         AND ja.deduplication_key = @p_deduplication_key
@@ -96,12 +104,12 @@ BEGIN TRY
                 @p_deduplication_key, 1, @p_source_event_id,
                 @p_delivery_status_code, 0,
                 @now, @now, 0
-            -- No lock hint: this reads the whole identity, resolved rows included, which the
-            -- unresolved-only index cannot serve - hinting it would hold a scan's worth of locks
-            -- and the UPDATE above already serializes raisers of this identity.
+            -- Reads the whole identity, resolved rows included, through the same index: unpinned, a locking read can
+            -- range over other identities' rows through ix_alerts_delivery_due and hold that key while it waits for
+            -- a row a purge is deleting.
             WHERE NOT EXISTS (
                 SELECT 1
-                FROM {{schema}}.alerts AS g
+                FROM {{schema}}.alerts AS g WITH (FORCESEEK (ix_alerts_deduplication_key_identity (namespace_id, deduplication_key)))
                 WHERE
                     g.namespace_id = @v_ns
                     AND g.deduplication_key = @p_deduplication_key
@@ -115,7 +123,7 @@ BEGIN TRY
                     -- re-assert only this event's own escalation, never a neighbour's.
                     INSERT INTO @updated (occurrence_count, last_projected_event_id)
                     SELECT TOP (1) ja.occurrence_count, ja.last_projected_event_id
-                    FROM {{schema}}.alerts AS ja
+                    FROM {{schema}}.alerts AS ja WITH (FORCESEEK (ix_alerts_deduplication_key_identity (namespace_id, deduplication_key)))
                     WHERE
                         ja.namespace_id = @v_ns
                         AND ja.deduplication_key = @p_deduplication_key

@@ -395,8 +395,12 @@ finds the job gone is refused, so no alert outlives its job.
   primary key. On PostgreSQL and SQLite, their equality on `job_id` seeks it directly. Before that index,
   each SQL Server path scanned `pk_alerts` under update locks, and scans for different jobs deadlocked.
 - On SQL Server a row that has a deduplication identity is locked through its
-  `ix_alerts_deduplication_key_identity` key before the row itself. `raise_alert` seeks that index under
-  `UPDLOCK, HOLDLOCK`, pinned by name, and range-locks the identity and its next key. `PurgeJob` and
+  `ix_alerts_deduplication_key_identity` key before the row itself. `raise_alert` takes `sp_getapplock`,
+  exclusive and owned by the transaction, on `<schema>.alert:<namespace id>:<key>` after the job row, then
+  seeks that index under `UPDLOCK`, pinned by name, and its two reads of the identity seek the same index; a
+  refusal raises 51205. Under `HOLDLOCK` the seek range-locked the identity's next key, so raises of
+  neighbouring identities waited on each other, and a read left unpinned held an `ix_alerts_delivery_due`
+  key while it waited for a row a purge had deleted. `PurgeJob` and
   the alert retention sections lock identity rows through the same index before deleting them.
   Retention stages its batch without locks and locks with `READPAST`, so it skips a row a raise holds.
   A delete that took the row first and the index key second deadlocked against a raise, whichever job
