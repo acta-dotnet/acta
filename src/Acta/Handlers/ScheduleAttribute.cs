@@ -41,8 +41,8 @@ public sealed class ScheduleAttribute : Attribute
     /// The name of the calendar whose occurrences this schedule fires, in place of an expression; dotted kebab-case.
     /// Declared with the name-only constructor; an expression and a calendar together are a build error. The name is
     /// found afresh at every evaluation: the published version of the family of that name in the namespace's calendar
-    /// catalog, else in the shared catalog in <c>sys</c>; the schedule stores only the name. A worker whose schedule
-    /// names a calendar with no published version fails to start.
+    /// catalog, else in the shared catalog in <c>sys</c>; the schedule stores only the name. A deploy whose schedule
+    /// names a calendar with no published version fails and writes nothing.
     /// </summary>
     public string? Calendar { get; init; }
 
