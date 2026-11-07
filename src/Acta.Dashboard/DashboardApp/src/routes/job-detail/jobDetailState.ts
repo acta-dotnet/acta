@@ -1,6 +1,20 @@
-import type { EventItem } from '../../api.ts';
+import type { EventItem, JobScheduleView } from '../../api.ts';
 import { eventFacts } from '../../lib/eventFacts.ts';
 import type { JobExplanation, JobLineageNode, JobDetail } from './types.ts';
+
+/**
+ * The active schedule that fires an idle permanent job soonest: null when none has a next occurrence, and
+ * undefined when the schedules are a first page, which could miss a sooner one.
+ */
+export function nextFiring(schedules: readonly JobScheduleView[], total: number | null): JobScheduleView | null | undefined {
+  if (total !== null && total > schedules.length) return undefined;
+  let soonest: JobScheduleView | null = null;
+  for (const schedule of schedules) {
+    if (schedule.status !== 'active' || !schedule.nextOccurrenceAtUtc) continue;
+    if (!soonest || Date.parse(schedule.nextOccurrenceAtUtc) < Date.parse(soonest.nextOccurrenceAtUtc!)) soonest = schedule;
+  }
+  return soonest;
+}
 
 function newestFirst(events: readonly EventItem[]): EventItem[] {
   return [...events].sort(

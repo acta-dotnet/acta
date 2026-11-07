@@ -1,18 +1,32 @@
 <script lang="ts">
-  import type { EventItem } from '../../api.ts';
+  import type { EventItem, JobScheduleView } from '../../api.ts';
   import { displayFormatter, failureCountText, TERMINAL_STATUSES } from '../../format.ts';
   import { eventFacts } from '../../lib/eventFacts.ts';
   import CopyButton from '../../components/CopyButton.svelte';
   import RelativeTime from '../../components/RelativeTime.svelte';
   import StatusBadge from '../../components/StatusBadge.svelte';
-  import { payloadFormatLabel } from './jobDetailState.ts';
+  import { nextFiring, payloadFormatLabel } from './jobDetailState.ts';
   import type { JobDetail } from './types.ts';
   import { routes } from '../../routes.ts';
   import JobRef from '../../components/JobRef.svelte';
 
-  let { job, lastEvent = null, maxAttempts = null }: { job: JobDetail; lastEvent?: EventItem | null; maxAttempts?: number | null } = $props();
+  let {
+    job,
+    lastEvent = null,
+    maxAttempts = null,
+    schedules = [],
+    schedulesTotal = null
+  }: {
+    job: JobDetail;
+    lastEvent?: EventItem | null;
+    maxAttempts?: number | null;
+    schedules?: JobScheduleView[];
+    schedulesTotal?: number | null;
+  } = $props();
 
   let tenant = $derived(job.tenantName ?? null);
+  // An idle permanent job has no run time of its own: its schedules decide when it next fires.
+  let firing = $derived(job.status === 'idle' && !job.nextRunAtUtc ? nextFiring(schedules, schedulesTotal) : null);
 </script>
 
 <section class="panel" aria-labelledby="job-summary-heading">
@@ -33,7 +47,12 @@
       <dt>Blocked behind</dt><dd><JobRef value={job.blockedBehindJobRef} href={routes.job(job.blockedBehindJobRef, { namespace: job.jobNamespace })} /></dd>
     {/if}
     {#if !TERMINAL_STATUSES.includes(job.status)}
-      <dt>Next run</dt><dd><RelativeTime value={job.nextRunAtUtc} /></dd>
+      <dt>Next run</dt><dd>
+        {#if job.status !== 'idle' || job.nextRunAtUtc}<RelativeTime value={job.nextRunAtUtc} />
+        {:else if firing}<RelativeTime value={firing.nextOccurrenceAtUtc} /> <span class="dim">when schedule <a href={routes.schedule(firing.jobNamespace, firing.jobName, firing.scheduleName)} class="mono">{firing.scheduleName}</a> fires</span>
+        {:else if firing === null}<span class="dim">No schedule is set to fire it.</span>
+        {:else}<span class="dim">When one of its schedules fires.</span>{/if}
+      </dd>
     {/if}
     <dt>Attempts</dt><dd>{displayFormatter.number(job.executionNumber)} started, {failureCountText(job.failureCount)} consecutive failures{#if maxAttempts != null && !TERMINAL_STATUSES.includes(job.status)} <span class="dim">(fails permanently at {displayFormatter.number(maxAttempts)})</span>{/if}</dd>
     <dt>Last event</dt><dd>

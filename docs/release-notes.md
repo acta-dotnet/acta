@@ -166,6 +166,7 @@ Not tagged yet.
 - The dashboard's Schedules page said a schedule is synced at host startup, where a deploy writes it: `jobs deploy`, `jobs migrate`, or a `MigrateOnStartup` start in a namespace neither has deployed.
 - In a 1440 px window the dashboard's jobs table ran past its panel and hid the Next run and Attempts columns. A ref in the list now shows its tag and last 8 digits, with the whole ref in its tooltip and copy button, and the job name takes the spare width and ends in an ellipsis when the panel is narrow.
 - On a host with one namespace, the dashboard's jobs list asked for a namespace scope before it filtered by job name or jumped to a deduplication key. Both now look in that namespace; with several, they still ask. A link with a job name and no scope listed every job while the Job name box still showed the name; the list now waits for the namespaces, then lists that job, shows why they could not be read, or asks for a scope.
+- The dashboard's job page showed an idle permanent job's next run as a dot. It now names the active schedule that fires it soonest and when, or says no schedule is set to fire it.
 
 ## 1.0.0-rc.8
 

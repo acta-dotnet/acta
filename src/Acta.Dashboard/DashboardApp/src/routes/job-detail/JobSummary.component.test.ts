@@ -55,6 +55,38 @@ describe('JobSummary', () => {
     expect(queryByText('Blocked behind')).toBeNull();
   });
 
+  it('says an idle permanent job runs when its soonest active schedule fires', () => {
+    const schedule = (scheduleName: string, status: string, nextOccurrenceAtUtc: string | null) => ({
+      jobNamespace: 'billing',
+      jobName: 'send-invoice',
+      scheduleName,
+      expressionKind: 'cron',
+      expression: '0 * * * *',
+      timeZoneId: 'UTC',
+      nextOccurrenceAtUtc,
+      status,
+      pausedUntilUtc: null,
+      version: 1
+    });
+    const schedules = [
+      schedule('hourly', 'active', '2099-01-01T10:00:00Z'),
+      schedule('paused-sooner', 'paused', '2099-01-01T08:00:00Z'),
+      schedule('morning', 'active', '2099-01-01T09:00:00Z')
+    ];
+    const { container, getByText } = render(JobSummary, {
+      job: job({ kind: 'permanent', status: 'idle' }),
+      schedules,
+      schedulesTotal: 3
+    });
+    expect(getByText(/when schedule/).textContent).toBe('when schedule morning fires');
+    expect(container.querySelector(`a[href="${routes.schedule('billing', 'send-invoice', 'morning')}"]`)).not.toBeNull();
+  });
+
+  it('says no schedule is set to fire an idle permanent job without one', () => {
+    const { getByText } = render(JobSummary, { job: job({ kind: 'permanent', status: 'idle' }), schedules: [], schedulesTotal: 0 });
+    expect(getByText('No schedule is set to fire it.')).toBeTruthy();
+  });
+
   it('reads a saturated failure count as a floor', () => {
     const { getByText } = render(JobSummary, { job: job({ executionNumber: 40000, failureCount: 32767 }) });
     expect(getByText(/40000 started, 32,767\+ consecutive failures/)).toBeTruthy();

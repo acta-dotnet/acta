@@ -203,7 +203,7 @@
     <div class="detail-workspace">
       <div class="detail-main">
         {#if activeTab === 'details'}
-          <JobSummary {job} {lastEvent} maxAttempts={detail.maxAttemptsEffective ?? null} />
+          <JobSummary {job} {lastEvent} maxAttempts={detail.maxAttemptsEffective ?? null} schedules={detail.schedules} schedulesTotal={detail.schedulesTotal} />
           <div class="payload-row">
             <JobInputPanel input={detail.input} jobRef={job.jobRef} status={job.status} canControl={canControlNow} onAmended={reload} />
             <JobResultPanel result={detail.result} />
