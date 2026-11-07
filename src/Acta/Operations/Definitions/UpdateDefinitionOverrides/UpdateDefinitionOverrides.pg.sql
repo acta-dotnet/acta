@@ -73,6 +73,22 @@ WHERE
     AND j.job_kind_code = 20 /* JobKindCode.PermanentSlot */
     AND j.event_recording_code <> jd.event_recording_code_effective;
 
+-- The slot's priority follows between firings: an Idle slot takes the new effective priority here, and one an attempt
+-- or an operator holds keeps its own until a deploy finds it Idle.
+UPDATE {{schema}}.jobs_state js
+SET
+    job_priority_code = jd.job_priority_code_effective,
+    modified_at_utc = now(),
+    version = js.version + 1
+FROM {{schema}}.definitions jd
+INNER JOIN _update_definition_overrides t ON t.version = @p_version
+INNER JOIN {{schema}}.jobs j ON j.definition_id = jd.definition_id AND j.job_kind_code = 20 /* JobKindCode.PermanentSlot */
+WHERE
+    jd.definition_id = @p_definition_id
+    AND js.job_id = j.job_id
+    AND js.job_status_code = 40 /* JobStatusCode.Idle */
+    AND js.job_priority_code <> jd.job_priority_code_effective;
+
 INSERT INTO {{schema}}.events (
     event_code, created_at_utc, namespace_id,
     entity_code, entity_id,

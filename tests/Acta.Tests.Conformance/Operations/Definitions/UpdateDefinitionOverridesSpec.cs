@@ -152,6 +152,97 @@ public sealed class UpdateDefinitionOverridesSpec : ActaStorageTestBase<Conforma
         Assert.Equal(EventRecordingCode.Audit, (await JobAsync(after.JobId, ct)).EventRecording);
     }
 
+    [Fact(DisplayName = "A priority override reaches an Idle recurring slot at once, and a slot between Idle states keeps its own")]
+    public async Task Priority_override_reaches_an_idle_slot_and_leaves_a_busy_one()
+    {
+        var ct = TestContext.Current.CancellationToken;
+        var name = Unique("slot-priority");
+        var slotId = await RegisterSlotAsync(name, ct);
+        var otherSlotId = await RegisterSlotAsync(Unique("slot-other"), ct);
+        Assert.Equal((JobStatusCode.Idle, JobPriorityCode.Bulk), await SlotAsync(slotId, ct));
+        var staleVersion = (await ReadAsync(name, ct)).Version;
+
+        Assert.Equal(ControlAction.Applied, (await OverridePriorityAsync(name, JobPriorityCode.High, ct)).Action);
+
+        // The definition's own slot moves; another definition's Idle slot does not.
+        Assert.Equal((JobStatusCode.Idle, JobPriorityCode.High), await SlotAsync(slotId, ct));
+        Assert.Equal((JobStatusCode.Idle, JobPriorityCode.Bulk), await SlotAsync(otherSlotId, ct));
+
+        // An override the version check refuses writes no slot either.
+        var refused = await DefinitionTestOps.UpdateOverridesAsync(
+            Services,
+            TestNamespace,
+            name,
+            staleVersion,
+            new DefinitionPolicyOverrides(Priority: JobPriorityCode.Realtime),
+            Actor,
+            null,
+            ct
+        );
+        Assert.Equal(ControlAction.VersionConflict, refused.Action);
+        Assert.Equal((JobStatusCode.Idle, JobPriorityCode.High), await SlotAsync(slotId, ct));
+
+        // A firing is outstanding: the slot keeps the priority it was admitted with.
+        await Db.From<JobStateEntity>()
+            .Where(r => r.Id == slotId)
+            .UpdateOnlyAsync(() => new JobStateEntity { Status = JobStatusCode.Ready, NextRunAtUtc = DateTime.UtcNow }, ct);
+
+        Assert.Equal(ControlAction.Applied, (await OverridePriorityAsync(name, JobPriorityCode.Critical, ct)).Action);
+
+        Assert.Equal((JobStatusCode.Ready, JobPriorityCode.High), await SlotAsync(slotId, ct));
+    }
+
+    /// <summary>A definition with one cron schedule, registered: answers its Idle recurring slot.</summary>
+    private async Task<long> RegisterSlotAsync(string name, CancellationToken ct)
+    {
+        var defId = await RegisterAsync(name, 3, ct);
+        DefinitionSchedules[] declared =
+        [
+            new(
+                TestNamespaceId,
+                defId,
+                0,
+                ReadOnlyMemory<byte>.Empty,
+                EventRecordingCode.Off,
+                ScheduledDeliveryCode.Permanent,
+                [
+                    new SlotSchedule(
+                        "only",
+                        "*/5 * * * *",
+                        null,
+                        MisfireStrategyCode.Skip,
+                        ScheduleExpressionKindCode.Cron,
+                        null,
+                        DateTime.UtcNow.AddHours(6)
+                    ),
+                ]
+            ),
+        ];
+        return (await ScheduleTestOps.RegisterAsync(Services, declared, ct))[defId];
+    }
+
+    private async Task<UpdateDefinitionOverridesResponse> OverridePriorityAsync(
+        string name,
+        JobPriorityCode priority,
+        CancellationToken ct
+    ) =>
+        await DefinitionTestOps.UpdateOverridesAsync(
+            Services,
+            TestNamespace,
+            name,
+            (await ReadAsync(name, ct)).Version,
+            new DefinitionPolicyOverrides(Priority: priority),
+            Actor,
+            null,
+            ct
+        );
+
+    private async Task<(JobStatusCode Status, JobPriorityCode Priority)> SlotAsync(long slotId, CancellationToken ct)
+    {
+        var state = Assert.IsType<JobStateEntity>(await Db.From<JobStateEntity>().Where(r => r.Id == slotId).SingleOrDefaultAsync(ct));
+        return (state.Status, state.Priority);
+    }
+
     private async Task<JobEntity> JobAsync(long jobId, CancellationToken ct) =>
         Assert.IsType<JobEntity>(await Db.From<JobEntity>().Where(j => j.Id == jobId).SingleOrDefaultAsync(ct));
 

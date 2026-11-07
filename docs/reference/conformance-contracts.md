@@ -401,6 +401,7 @@
 - **Guarantees:**
   - Competing definition overrides with one version have one winner and one audit event
   - An event-recording override reaches a recurring slot at once and outlasts a worker start that read the catalog before it; an enqueued job keeps the recording it took
+  - A priority override reaches an Idle recurring slot at once, and a slot between Idle states keeps its own
   - Setting an override recomputes effective and leaves the default + hash untouched
   - Clearing an override reverts effective to the default
   - A stale version is VersionConflict with the current version and changes nothing

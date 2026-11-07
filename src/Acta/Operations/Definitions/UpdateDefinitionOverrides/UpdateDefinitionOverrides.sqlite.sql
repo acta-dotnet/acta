@@ -76,6 +76,26 @@ WHERE
     AND job_kind_code = 20 /* JobKindCode.PermanentSlot */
     AND EXISTS (SELECT 1 FROM temp._update_definition_overrides s WHERE s.version = @p_version);
 
+-- The slot's priority follows between firings: an Idle slot takes the new effective priority here, and one an attempt
+-- or an operator holds keeps its own until a deploy finds it Idle.
+UPDATE {{schema}}.jobs_state
+SET
+    job_priority_code = (
+        SELECT jd.job_priority_code_effective FROM {{schema}}.definitions jd WHERE jd.definition_id = @p_definition_id
+    ),
+    modified_at_utc = {{now}},
+    version = version + 1
+WHERE
+    job_status_code = 40 /* JobStatusCode.Idle */
+    AND job_id IN (
+        SELECT j.job_id FROM {{schema}}.jobs j
+        WHERE j.definition_id = @p_definition_id AND j.job_kind_code = 20 /* JobKindCode.PermanentSlot */
+    )
+    AND job_priority_code IS NOT (
+        SELECT jd.job_priority_code_effective FROM {{schema}}.definitions jd WHERE jd.definition_id = @p_definition_id
+    )
+    AND EXISTS (SELECT 1 FROM temp._update_definition_overrides s WHERE s.version = @p_version);
+
 SELECT
     CASE
         WHEN s.definition_id IS NULL THEN 2 /* DefinitionOverrideAction.NotFound */

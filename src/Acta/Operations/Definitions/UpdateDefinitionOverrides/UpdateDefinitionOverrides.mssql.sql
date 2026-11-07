@@ -91,6 +91,23 @@ BEGIN TRY
         AND j.job_kind_code = 20 /* JobKindCode.PermanentSlot */
         AND j.event_recording_code <> jd.event_recording_code_effective;
 
+    -- An Idle slot takes the new effective priority here; one an attempt or an operator holds keeps its own until a
+    -- deploy finds it Idle. The state row is sought by key, so the update locks the slot alone and cannot meet a
+    -- completion that locks a child's row and then its slot parent's (docs/sql-internals.md, "Locking reads seek").
+    UPDATE js
+    SET
+        job_priority_code = jd.job_priority_code_effective,
+        modified_at_utc = @now,
+        version = js.version + 1
+    FROM {{schema}}.jobs j
+    INNER JOIN {{schema}}.jobs_state js WITH (FORCESEEK) ON js.job_id = j.job_id
+    INNER JOIN {{schema}}.definitions jd ON jd.definition_id = j.definition_id
+    WHERE
+        j.definition_id = @p_definition_id
+        AND j.job_kind_code = 20 /* JobKindCode.PermanentSlot */
+        AND js.job_status_code = 40 /* JobStatusCode.Idle */
+        AND js.job_priority_code <> jd.job_priority_code_effective;
+
     INSERT INTO {{schema}}.events (
         event_code, created_at_utc, namespace_id,
         entity_code, entity_id,

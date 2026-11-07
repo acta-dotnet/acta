@@ -62,7 +62,7 @@ One row per operation folder, `src/Acta/Operations/<Group>/<Operation>/`, and on
 | `ListDefinitions` | `IDefinitions.ListAsync` | `GET /definitions` (`listDefinitions`) | · | inline | · | `ListDefinitionsFilterMatrixSpec`, `ListDefinitionsSpec` |
 | `RegisterDefinitions` | · | · | · | inline | `definitions` | `RegisterDefinitionsSpec` |
 | `RetireDefinition` | `IDefinitions.RetireAsync` | `POST /definitions/{jobNamespace}/{jobName}/retire` (`retireDefinition`) | · | inline | `checkpoints`, `definitions`, `events`, `jobs_state`, `schedules`, `schedules_state` | `RetireDefinitionSlotSpec`, `RetireDefinitionSpec` |
-| `UpdateDefinitionOverrides` | `IDefinitions.UpdateOverridesAsync` | `PUT /definitions/{jobNamespace}/{jobName}/overrides` (`updateDefinitionOverrides`) | · | inline | `definitions`, `events`, `jobs` | `UpdateDefinitionOverridesBindMatrixSpec`, `UpdateDefinitionOverridesSpec` |
+| `UpdateDefinitionOverrides` | `IDefinitions.UpdateOverridesAsync` | `PUT /definitions/{jobNamespace}/{jobName}/overrides` (`updateDefinitionOverrides`) | · | inline | `definitions`, `events`, `jobs`, `jobs_state` | `UpdateDefinitionOverridesBindMatrixSpec`, `UpdateDefinitionOverridesSpec` |
 
 ## Deployments
 
