@@ -8,7 +8,7 @@ internal sealed class ListNamespacesHandler(IDbSession session, ISqlDialect dial
     public async ValueTask<ListNamespacesResponse> HandleAsync(ListNamespacesQuery query, CancellationToken ct)
     {
         ArgumentNullException.ThrowIfNull(query);
-        var fragment = QueryValidation.ValidateNamespaceFragment(query.NameContains, nameof(query.NameContains));
+        var fragment = QueryValidation.ValidateNameFragment(query.NameContains, nameof(query.NameContains), NameSyntax.DefaultMaxLength);
         // Validation admits only name characters, so the LIKE pattern holds no wildcard but its own.
         var pattern = fragment is null ? null : "%" + fragment + "%";
         var tags = TagFilterJson.Normalize(query.Tags, nameof(ListNamespacesQuery));

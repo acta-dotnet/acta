@@ -23,54 +23,23 @@ internal static class QueryValidation
         string.IsNullOrWhiteSpace(value) ? null : Canonicalize(value, paramName, NameSyntax.ExtendedMaxLength);
 
     /// <summary>
-    /// Validates an optional namespace name fragment against the kebab character set
-    /// (<c>[a-z0-9-]</c>) and length, after folding it to lowercase like every name. Looser than a full
-    /// identifier: a fragment may be partial and may match anywhere in the name. Rejecting '%' and
-    /// '_' is what keeps the caller's term free of LIKE wildcards. Returns it, or null when null.
+    /// Validates an optional fragment of a name, such as a namespace or a job name under its cap, trimmed and folded to
+    /// lowercase like every name, or null when it is blank. Looser than a name: a fragment may be partial and match
+    /// anywhere, so <c>sys.</c> finds the system jobs. Allowing only a name's characters keeps '%' and '_', the LIKE
+    /// wildcards, out of the caller's term.
     /// </summary>
-    public static string? ValidateNamespaceFragment(string? value, string paramName)
+    public static string? ValidateNameFragment(string? value, string paramName, int maxLength)
     {
-        if (value is null)
+        if (string.IsNullOrWhiteSpace(value))
         {
             return null;
         }
 
-        value = value.ToLowerInvariant();
+        value = value.Trim().ToLowerInvariant();
 
-        if (value.Length > NameSyntax.DefaultMaxLength)
+        if (value.Length > maxLength)
         {
-            throw new InvalidQueryException($"{paramName} must be at most {NameSyntax.DefaultMaxLength} characters.");
-        }
-
-        foreach (var ch in value)
-        {
-            if (!char.IsAsciiLetterLower(ch) && !char.IsAsciiDigit(ch) && ch != '-')
-            {
-                throw new InvalidQueryException($"{paramName} must contain only lowercase kebab characters (a-z, 0-9, '-').");
-            }
-        }
-
-        return value;
-    }
-
-    /// <summary>
-    /// Validates an optional job-name fragment. Looser than <see cref="ValidateJobName"/>: a fragment
-    /// may be partial, may match anywhere in the name, and needs no namespace, so an operator can
-    /// search names across every namespace. The name separator is allowed so <c>sys.</c> matches.
-    /// Folded to lowercase like every name.
-    /// </summary>
-    public static string? ValidateJobNameFragment(string? value, string paramName)
-    {
-        if (value is null)
-        {
-            return null;
-        }
-
-        value = value.ToLowerInvariant();
-
-        if (value.Length > NameSyntax.ExtendedMaxLength)
-        {
-            throw new InvalidQueryException($"{paramName} must be at most {NameSyntax.ExtendedMaxLength} characters.");
+            throw new InvalidQueryException($"{paramName} must be at most {maxLength} characters.");
         }
 
         foreach (var ch in value)

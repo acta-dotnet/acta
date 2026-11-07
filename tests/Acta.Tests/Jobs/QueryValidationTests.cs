@@ -34,8 +34,27 @@ public sealed class QueryValidationTests
     [Fact]
     public void Name_fragments_fold_and_keep_the_like_wildcards_out()
     {
-        Assert.Equal("send-inv", QueryValidation.ValidateJobNameFragment("Send-Inv", "nameContains"));
-        Assert.Equal("bill", QueryValidation.ValidateNamespaceFragment("BILL", "nameContains"));
-        Assert.Throws<InvalidQueryException>(() => QueryValidation.ValidateJobNameFragment("send_%", "nameContains"));
+        Assert.Equal("send-inv", QueryValidation.ValidateNameFragment("Send-Inv", "nameContains", NameSyntax.ExtendedMaxLength));
+        Assert.Equal("bill", QueryValidation.ValidateNameFragment("BILL", "nameContains", NameSyntax.DefaultMaxLength));
+        Assert.Throws<InvalidQueryException>(() =>
+            QueryValidation.ValidateNameFragment("send_", "nameContains", NameSyntax.ExtendedMaxLength)
+        );
+        Assert.Throws<InvalidQueryException>(() =>
+            QueryValidation.ValidateNameFragment("send%", "nameContains", NameSyntax.ExtendedMaxLength)
+        );
+    }
+
+    /// <summary>A fragment reads like the name it finds: a dotted namespace matches, padding is trimmed, and a blank one filters nothing.</summary>
+    [Fact]
+    public void Name_fragments_take_a_dot_trim_and_read_blank_as_no_filter()
+    {
+        Assert.Equal("billing.eu", QueryValidation.ValidateNameFragment("billing.eu", "nameContains", NameSyntax.DefaultMaxLength));
+        Assert.Equal("echo", QueryValidation.ValidateNameFragment(" Echo ", "nameContains", NameSyntax.ExtendedMaxLength));
+        Assert.Null(QueryValidation.ValidateNameFragment("   ", "nameContains", NameSyntax.DefaultMaxLength));
+        foreach (var cap in new[] { NameSyntax.DefaultMaxLength, NameSyntax.ExtendedMaxLength })
+        {
+            Assert.Equal(cap, QueryValidation.ValidateNameFragment(new string('a', cap), "nameContains", cap)!.Length);
+            Assert.Throws<InvalidQueryException>(() => QueryValidation.ValidateNameFragment(new string('a', cap + 1), "nameContains", cap));
+        }
     }
 }

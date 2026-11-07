@@ -118,6 +118,23 @@ public sealed class RouteNameEndpointTests
         });
     }
 
+    /// <summary>A name search reads its fragment as a name: a dotted one is a namespace's, and padding is trimmed.</summary>
+    [Fact]
+    public async Task A_name_search_takes_a_dotted_or_padded_fragment()
+    {
+        await WithSqliteHostAsync(async client =>
+        {
+            var ct = TestContext.Current.CancellationToken;
+            Assert.Equal(HttpStatusCode.OK, await SendAsync(client, HttpMethod.Get, "namespaces?nameContains=billing.eu"));
+            Assert.Equal(HttpStatusCode.OK, await SendAsync(client, HttpMethod.Get, $"calendars?nameContains={Padded("Office")}"));
+
+            // A padded fragment finds what its trimmed form names, so the filter applies rather than being dropped.
+            Assert.Contains($"\"{Namespace}\"", await client.GetStringAsync(Url($"namespaces?nameContains={Padded("Route")}"), ct));
+            Assert.Contains("\"echo\"", await client.GetStringAsync(Url($"definitions?nameContains={Padded("Echo")}"), ct));
+            Assert.DoesNotContain("\"echo\"", await client.GetStringAsync(Url($"definitions?nameContains={Padded("Ohce")}"), ct));
+        });
+    }
+
     private static string Padded(string name) => Uri.EscapeDataString($" {name} ");
 
     private static string Url(string path) => "/acta/api/v1/" + path;

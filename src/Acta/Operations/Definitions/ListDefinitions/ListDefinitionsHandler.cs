@@ -11,7 +11,11 @@ internal sealed class ListDefinitionsHandler(IDbSession session, ISqlDialect dia
         ArgumentNullException.ThrowIfNull(query);
         var jobNamespace = QueryValidation.ValidateNamespace(query.JobNamespace, nameof(query.JobNamespace));
         QueryValidation.ValidateEnum(query.Status, nameof(query.Status));
-        var nameContains = QueryValidation.ValidateJobNameFragment(query.NameContains, nameof(query.NameContains));
+        var nameContains = QueryValidation.ValidateNameFragment(
+            query.NameContains,
+            nameof(query.NameContains),
+            NameSyntax.ExtendedMaxLength
+        );
 
         var tags = TagFilterJson.Normalize(query.Tags, nameof(ListDefinitionsQuery));
         var paging = Paging.Start(

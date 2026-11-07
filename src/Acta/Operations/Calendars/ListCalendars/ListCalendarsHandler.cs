@@ -14,7 +14,7 @@ internal sealed class ListCalendarsHandler(IDbSession session, ISqlDialect diale
         var jobNamespace = QueryValidation.ValidateNamespace(query.JobNamespace, nameof(query.JobNamespace));
         QueryValidation.ValidateEnum(query.Role, nameof(query.Role));
         QueryValidation.ValidateEnum(query.LatestStatus, nameof(query.LatestStatus));
-        var fragment = QueryValidation.ValidateJobNameFragment(query.NameContains, nameof(query.NameContains));
+        var fragment = QueryValidation.ValidateNameFragment(query.NameContains, nameof(query.NameContains), NameSyntax.ExtendedMaxLength);
         // Validation admits only name characters, so the LIKE pattern holds no wildcard but its own.
         var pattern = fragment is null ? null : "%" + fragment + "%";
         var paging = Paging.Start(
