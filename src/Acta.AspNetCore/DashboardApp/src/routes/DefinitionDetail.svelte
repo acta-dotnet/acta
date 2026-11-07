@@ -257,7 +257,7 @@
           <h2>Contract</h2>
           <dl class="detail-readonly">
             <div><dt>Input</dt><dd class="mono">{def.inputTypeName ?? '·'}</dd></div>
-            <div><dt>Output</dt><dd class="mono">{def.outputTypeName ?? '·'}</dd></div>
+            <div><dt>Result</dt><dd class="mono">{def.resultTypeName ?? '·'}</dd></div>
             <!-- Code-owned like the contract: what a [Schedule] on this definition delivers, and what a firing that
                  fails for good does to its schedules. -->
             <div><dt>Scheduled delivery</dt><dd>{def.scheduledDelivery}</dd></div>

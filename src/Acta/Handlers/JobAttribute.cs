@@ -117,7 +117,7 @@ public sealed class JobAttribute(string name) : Attribute
     /// Kebab-case payload format applied to both this Job's input and result bytes. Built-in formats
     /// are <c>"json"</c> and <c>"bytes"</c>; operator-supplied formats use their
     /// <see cref="JobPayloadFormatDeclarationAttribute.Name"/>. Mutually exclusive with
-    /// <see cref="InputFormat"/> and <see cref="OutputFormat"/>. Null means the generator infers each
+    /// <see cref="InputFormat"/> and <see cref="ResultFormat"/>. Null means the generator infers each
     /// side from its CLR shape. On a void-returning handler it applies to the input only.
     /// </summary>
     public string? Format { get; init; }
@@ -135,7 +135,7 @@ public sealed class JobAttribute(string name) : Attribute
     /// <c>ReadOnlyMemory&lt;byte&gt;</c>, Json for everything else, scalars included). Has no effect on
     /// void-returning handlers.
     /// </summary>
-    public string? OutputFormat { get; init; }
+    public string? ResultFormat { get; init; }
 
     /// <summary>
     /// Automatic-alert profile; default <c>OnFailure</c> for user Jobs. The transition-to-severity

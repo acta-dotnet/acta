@@ -178,9 +178,9 @@ public sealed class WorkerCatalogValidationTests
             HandlerType: handlerType,
             MethodName: "Run",
             InputType: typeof(object),
-            OutputType: null,
+            ResultType: null,
             InputPayloadFormat: JobPayloadFormat.None,
-            OutputPayloadFormat: null,
+            ResultPayloadFormat: null,
             Priority: JobPriorityCode.Normal,
             MaxAttempts: 1,
             EventRecording: EventRecordingCode.Audit,
@@ -193,6 +193,6 @@ public sealed class WorkerCatalogValidationTests
                 return new JobHandlerOutput(false, null);
             },
             DeserializeInput: static (_, _) => new object(),
-            SerializeOutput: null
+            SerializeResult: null
         );
 }

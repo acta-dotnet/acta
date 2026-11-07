@@ -355,7 +355,7 @@ internal static class LoadTrial
                 }
                 var completed = clock.ToStopwatch(row.Modified);
                 var wanted = WorkloadModel.Root(work);
-                var correct = DurableReader.Status(row.Status) == wanted.Status && row.Output == wanted.Output;
+                var correct = DurableReader.Status(row.Status) == wanted.Status && row.Result == wanted.Result;
                 if (!correct)
                 {
                     Fail("observed-terminal-outcome", row.Key, "The terminal row does not hold the expected result and status.");

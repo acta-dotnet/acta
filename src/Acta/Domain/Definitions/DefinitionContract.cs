@@ -6,9 +6,9 @@ namespace Acta;
 /// </summary>
 internal readonly record struct DefinitionContract(
     string InputTypeName,
-    string? OutputTypeName,
+    string? ResultTypeName,
     byte InputFormatId,
     string InputFormatName,
-    byte OutputFormatId,
-    string OutputFormatName
+    byte ResultFormatId,
+    string ResultFormatName
 );

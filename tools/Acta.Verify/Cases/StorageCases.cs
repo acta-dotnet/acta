@@ -93,7 +93,7 @@ internal static class StorageCases
             );
             var rows = await reader.ReadAsync(null, ct);
             var observedDue = rows.Where(r => r.Key.StartsWith("root-", StringComparison.Ordinal))
-                .Select(r => new ObservedOutcome(r.Key, DurableReader.Status(r.Status), r.Output, JobNamespace: r.JobNamespace))
+                .Select(r => new ObservedOutcome(r.Key, DurableReader.Status(r.Status), r.Result, JobNamespace: r.JobNamespace))
                 .ToArray();
             Check[] populationChecks =
             [
@@ -189,9 +189,9 @@ internal static class StorageCases
                 continue;
             }
             seen[ordinal] = true;
-            if (status == 100 && row.Output != WorkloadModel.Expected([new(row.Key)])[0].Output)
+            if (status == 100 && row.Result != WorkloadModel.Expected([new(row.Key)])[0].Result)
             {
-                checks.Add(new("retained-result", row.Key, false, "Retained result differs from independent output."));
+                checks.Add(new("retained-result", row.Key, false, "Retained result differs from the independent one."));
             }
         }
         for (var i = 0; i < population; i++)
@@ -312,8 +312,8 @@ internal static class StorageCases
             new(
                 "retained-parent-result",
                 "root",
-                result == WorkloadModel.Expected([input])[0].Output,
-                "Parent resumes with its expected logical output after retention."
+                result == WorkloadModel.Expected([input])[0].Result,
+                "Parent resumes with its expected logical result after retention."
             )
         );
         await Task.Delay(1000, ct);

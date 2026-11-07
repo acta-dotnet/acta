@@ -467,7 +467,7 @@ Default input serializer is selected from the CLR shape of `TIn`.
 
 A scalar travels as its JSON value: `"hello"`, `42`, `true`. JSON has no NaN or Infinity, so serializing either throws at enqueue. Under reflection-free Native AOT, Acta supplies the metadata for the standard scalars; every other input or result type, an enum included, goes in the context passed to `UseJsonPayloads`, enums with `UseStringEnumConverter = true`.
 
-Explicit knobs override inference: `[Job(Format = "...")]` sets input and result formats together; `[Job(InputFormat = "...")]` and `[Job(OutputFormat = "...")]` set one side. `Format` is mutually exclusive with the per-side knobs; `OutputFormat` on a no-result handler is rejected (`ACTA0132`).
+Explicit knobs override inference: `[Job(Format = "...")]` sets input and result formats together; `[Job(InputFormat = "...")]` and `[Job(ResultFormat = "...")]` set one side. `Format` is mutually exclusive with the per-side knobs; `ResultFormat` on a no-result handler is rejected (`ACTA0132`).
 
 Built-in formats:
 
@@ -593,7 +593,7 @@ The generator reports these at build time. All are errors unless noted, and an e
 | ---------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
 | `ACTA0101` | Duplicate `[Job]` name within the manifest.                                                                                                                                                                       |
 | `ACTA0102` | Invalid `[Job]` name; dotted kebab-case, at most 128 chars, `sys` and the `sys.` prefix reserved for system jobs.                                                                                          |
-| `ACTA0103` | Invalid handler signature; the message names the exact violation (parameter order, `async void`, nested awaitable, an input parameter after `JobContext` or `CancellationToken`, forbidden `TIn`, a non-collection interface among several input parameters, open generic, private method or type, `JobContext` pairing, an input or output type whose name is not ASCII). |
+| `ACTA0103` | Invalid handler signature; the message names the exact violation (parameter order, `async void`, nested awaitable, an input parameter after `JobContext` or `CancellationToken`, forbidden `TIn`, a non-collection interface among several input parameters, open generic, private method or type, `JobContext` pairing, an input or result type whose name is not ASCII). |
 | `ACTA0104` | Duplicate input type within the manifest (warning); typed enqueue cannot resolve a unique route.                                                                                                                  |
 | `ACTA0105` | Invalid `[Job]` policy value (malformed duration, out-of-bounds retry knobs, undefined code, invalid lane, rate, or concurrency value).                                                                                                            |
 | `ACTA0106` | A job's generated member name (its call factory, or the argument record of a job taking several parameters) collides with another job's, or with `Descriptors`, the manifest type name, or an `object` member, once separators and case are ignored, such as `send-mail` and `sendmail` (warning); the colliding members are left out and dispatch is unaffected. |
@@ -606,14 +606,14 @@ The generator reports these at build time. All are errors unless noted, and an e
 | `ACTA0127` | Incomplete `[Schedule]` source: an expression and `Calendar` together or neither, a blank or invalid `Calendar` or `Availability` name, or a name whose `[Calendar]` class in the same compilation lacks the interface the binding needs (`IActaCalendar` for `Calendar`, `IActaAvailabilityCalendar` for `Availability`). A name no class declares is resolved at registration. |
 | `ACTA0128` | Invalid `[Calendar]` declaration: an abstract, generic, or private class, a class implementing neither `IActaCalendar` nor `IActaAvailabilityCalendar`, a name that is not dotted kebab-case or is `sys`-reserved, or a name two classes declare. |
 | `ACTA0131` | Invalid `[JobPayloadFormatDeclaration]` (reserved id, bad or duplicate name/id, not an `IJobPayloadSerializer`).                                                                                                  |
-| `ACTA0132` | Invalid `[Job]` payload-format usage (`Format` paired with `InputFormat`/`OutputFormat`, `OutputFormat` on a no-result handler, `none` or `bytes` on a handler taking several input parameters, or a name matching no built-in or declared format). |
+| `ACTA0132` | Invalid `[Job]` payload-format usage (`Format` paired with `InputFormat`/`ResultFormat`, `ResultFormat` on a no-result handler, `none` or `bytes` on a handler taking several input parameters, or a name matching no built-in or declared format). |
 | `ACTA0142` | A duration written with an uppercase or calendar unit; durations use lowercase `ms`, `s`, `m`, `h`, or `d`. |
 
 Placement on anything but a method (for example a request DTO) is rejected by `[AttributeUsage(AttributeTargets.Method)]` at compile time, not by a diagnostic.
 
 ### Serializer validation
 
-At startup, every descriptor input and output format must resolve to a registered serializer. Missing serializers fail startup before workers claim jobs.
+At startup, every descriptor input and result format must resolve to a registered serializer. Missing serializers fail startup before workers claim jobs.
 
 Under Native AOT the JSON serializer has no reflection, so enums take the shape the source-generated context passed to `UseJsonPayloads` declares. Set `UseStringEnumConverter = true` and camelCase naming on it, the shape a JIT host writes; otherwise a payload a JIT producer enqueued with an enum fails to deserialize on an AOT worker.
 
@@ -702,7 +702,7 @@ alert settings, or lease/heartbeat relationships fail fast.
 | `MaxInlinePayloadBytes` | 1 MiB | cluster data | The one payload ceiling, for inline writes and the HTTP request body; an oversize handler result is dropped. |
 | `AlertFailureThreshold` | 3 | cluster data | Automatic failure count threshold for escalation. |
 | `AlertChannelValidationMode` | `Warn` | startup policy | `Off`, `Warn`, or `Fail` when definitions route to missing alert channels. |
-| `PayloadContractDriftMode` | `Warn` | startup policy | `Warn` or `Fail` when eligible registrations change input/output contract columns. |
+| `PayloadContractDriftMode` | `Warn` | startup policy | `Warn` or `Fail` when eligible registrations change input or result contract columns. |
 | `ManifestGenerationUtc` | entry assembly file time | deployment metadata | Optional. Set explicitly only when you need deterministic definition promotion, especially single-file or AOT publishes. |
 | `DeploymentVersion` | assembly informational version | per process | Written to `workers`; should identify the deployed build and differ across rolling deploys. |
 | `EnvironmentName` | `DOTNET_ENVIRONMENT`, then `ASPNETCORE_ENVIRONMENT`, then `Production` | per process | Matched against a `[Schedule]`'s `Environments`; a schedule without environments registers everywhere. |
@@ -1073,7 +1073,7 @@ A job enqueued before a deploy can run after it, so a new handler must process t
 - **Keep the job name** for changes old payloads survive: an optional, nullable, or defaulted field, a result field old readers tolerate, or new behavior that keeps the meaning of existing fields.
 - **Use a new versioned name** (`send-invoice-v2`) when old payloads would be misread or rejected: a renamed, removed, or retyped field, a changed meaning, another input type or payload format, or required data old rows cannot supply. Keep the old handler registered until none of its rows can still run, wait, or be restarted. Dropping a handler cancels nothing: its rows stay Ready until a build carries it again or an operator retires the definition.
 
-`PayloadContractDriftMode` compares only the stored input and output type names and payload formats at startup; it is not a JSON schema check. Set it to `Fail` where startup should stop on such a change.
+`PayloadContractDriftMode` compares only the stored input and result type names and payload formats at startup; it is not a JSON schema check. Set it to `Fail` where startup should stop on such a change.
 
 ### Renaming a step, variable, signal or timer
 

@@ -59,7 +59,7 @@ internal static class RaceCases
             var expected = WorkloadModel.Expected([input]);
             if (scenario.Id == "signal-timeout-race")
             {
-                expected[0] = expected[0] with { Output = ordering == "before" ? "signalled" : "expired" };
+                expected[0] = expected[0] with { Result = ordering == "before" ? "signalled" : "expired" };
             }
             var root = await jobs.EnqueueAsync(
                 new EnqueueJobRequest("verify", "work", JobPayload.Json(input, WorkJson.Default.WorkInput), DeduplicationKey: input.Key),

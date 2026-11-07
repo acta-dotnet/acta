@@ -122,9 +122,9 @@ public sealed class PauseScheduleSpec : ActaStorageTestBase<ConformanceFixture>
             HandlerType: typeof(object),
             MethodName: "M",
             InputType: typeof(int),
-            OutputType: null,
+            ResultType: null,
             InputPayloadFormat: JobPayloadFormat.Json,
-            OutputPayloadFormat: null,
+            ResultPayloadFormat: null,
             Priority: default,
             MaxAttempts: 1,
             EventRecording: EventRecordingCode.Audit,
@@ -133,7 +133,7 @@ public sealed class PauseScheduleSpec : ActaStorageTestBase<ConformanceFixture>
             ScheduledDelivery: ScheduledDeliveryCode.Permanent,
             Invoker: null!,
             DeserializeInput: null!,
-            SerializeOutput: null
+            SerializeResult: null
         );
 
     [Fact(

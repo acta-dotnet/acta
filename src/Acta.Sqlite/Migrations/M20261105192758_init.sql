@@ -65,9 +65,9 @@ CREATE TABLE IF NOT EXISTS {{schema}}.definitions (
     input_type_name text NOT NULL,
     input_format_id integer NOT NULL,
     input_format_name text NOT NULL,
-    output_type_name text NULL,
-    output_format_id integer NOT NULL,
-    output_format_name text NOT NULL,
+    result_type_name text NULL,
+    result_format_id integer NOT NULL,
+    result_format_name text NOT NULL,
     tenant_requirement_code integer NOT NULL,
     job_priority_code integer NOT NULL,
     job_priority_code_override integer NULL,
@@ -132,7 +132,7 @@ CREATE TABLE IF NOT EXISTS {{schema}}.definitions (
     , CONSTRAINT ck_definitions_retention CHECK (retention_seconds >= 0)
     , CONSTRAINT ck_definitions_retention_override CHECK (retention_seconds_override IS NULL OR retention_seconds_override >= 0)
     , CONSTRAINT ck_definitions_input_format_id_byte CHECK (input_format_id BETWEEN 0 AND 255)
-    , CONSTRAINT ck_definitions_output_format_id_byte CHECK (output_format_id BETWEEN 0 AND 255)
+    , CONSTRAINT ck_definitions_result_format_id_byte CHECK (result_format_id BETWEEN 0 AND 255)
     , CONSTRAINT ck_definitions_default_input_format_id_byte CHECK (default_input_format_id BETWEEN 0 AND 255)
 ) STRICT;
 CREATE UNIQUE INDEX IF NOT EXISTS {{schema}}.ux_definitions_namespace_name ON definitions (namespace_id, definition_name);
@@ -504,8 +504,8 @@ SELECT
     d.manifest_generation_at_utc,
     d.input_type_name,
     d.input_format_name,
-    d.output_type_name,
-    d.output_format_name,
+    d.result_type_name,
+    d.result_format_name,
     CASE d.job_priority_code_effective WHEN 0 THEN 'bulk' WHEN 50 THEN 'normal' WHEN 70 THEN 'high' WHEN 85 THEN 'critical' WHEN 100 THEN 'realtime' END AS job_priority_effective,
     d.job_priority_code,
     d.job_priority_code_override,
@@ -764,5 +764,5 @@ JOIN {{schema}}.namespaces AS ns ON ns.namespace_id = w.namespace_id;
 
 
 INSERT INTO {{schema}}.migrations (name)
-VALUES ('M20261105150556_init')
+VALUES ('M20261105192758_init')
 ON CONFLICT (name) DO NOTHING;

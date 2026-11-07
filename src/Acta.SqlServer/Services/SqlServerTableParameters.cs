@@ -174,11 +174,11 @@ internal static class SqlServerTableParameters
         new("deadline_behavior_code", SqlDbType.TinyInt),
         new("retention_seconds", SqlDbType.Int),
         new("input_type_name", SqlDbType.VarChar, 512),
-        new("output_type_name", SqlDbType.VarChar, 512),
+        new("result_type_name", SqlDbType.VarChar, 512),
         new("input_format_id", SqlDbType.TinyInt),
         new("input_format_name", SqlDbType.VarChar, 128),
-        new("output_format_id", SqlDbType.TinyInt),
-        new("output_format_name", SqlDbType.VarChar, 128),
+        new("result_format_id", SqlDbType.TinyInt),
+        new("result_format_name", SqlDbType.VarChar, 128),
         new("event_recording_code", SqlDbType.TinyInt),
         new("alert_profile_code", SqlDbType.TinyInt),
         new("firing_failure_policy_code", SqlDbType.TinyInt),
@@ -215,11 +215,11 @@ internal static class SqlServerTableParameters
                 record.SetByte(9, row.DeadlineBehaviorCode);
                 record.SetInt32(10, row.JobRetentionSeconds);
                 record.SetString(11, row.InputTypeName);
-                SetNullableString(record, 12, row.OutputTypeName);
+                SetNullableString(record, 12, row.ResultTypeName);
                 record.SetByte(13, row.InputFormatId);
                 record.SetString(14, row.InputFormatName);
-                record.SetByte(15, row.OutputFormatId);
-                record.SetString(16, row.OutputFormatName);
+                record.SetByte(15, row.ResultFormatId);
+                record.SetString(16, row.ResultFormatName);
                 record.SetByte(17, row.EventRecordingCode);
                 record.SetByte(18, row.AlertProfileCode);
                 record.SetByte(19, row.FiringFailurePolicyCode);

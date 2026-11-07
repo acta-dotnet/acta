@@ -46,9 +46,9 @@ public sealed class PerOccurrenceManifest : IJobManifest
             HandlerType: fails ? typeof(FailingRootHandler) : typeof(RootHandler),
             MethodName: "Run",
             InputType: typeof(NoInput),
-            OutputType: null,
+            ResultType: null,
             InputPayloadFormat: JobPayloadFormat.None,
-            OutputPayloadFormat: null,
+            ResultPayloadFormat: null,
             Priority: JobPriorityCode.Normal,
             MaxAttempts: 1,
             EventRecording: EventRecordingCode.Audit,
@@ -67,7 +67,7 @@ public sealed class PerOccurrenceManifest : IJobManifest
                     return new JobHandlerOutput(false, null);
                 },
             DeserializeInput: static (_, _) => new NoInput(),
-            SerializeOutput: null
+            SerializeResult: null
         )
         {
             Schedules =

@@ -97,7 +97,7 @@ public sealed partial class OpenApiContractTests
         // Payload-format discriminators (a persisted-code number, not a row identity).
         "formatId",
         "inputFormatId",
-        "outputFormatId",
+        "resultFormatId",
         // Durations, byte sizes, and policy numbers, including their override/effective pairs.
         "byteLength",
         "durationMs",

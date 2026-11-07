@@ -340,9 +340,9 @@ public sealed class AdmitScheduleFiringsSpec : ActaStorageTestBase<ConformanceFi
             HandlerType: typeof(object),
             MethodName: "M",
             InputType: typeof(int),
-            OutputType: null,
+            ResultType: null,
             InputPayloadFormat: JobPayloadFormat.Json,
-            OutputPayloadFormat: null,
+            ResultPayloadFormat: null,
             Priority: default,
             MaxAttempts: 1,
             EventRecording: EventRecordingCode.Audit,
@@ -351,6 +351,6 @@ public sealed class AdmitScheduleFiringsSpec : ActaStorageTestBase<ConformanceFi
             ScheduledDelivery: delivery,
             Invoker: null!,
             DeserializeInput: null!,
-            SerializeOutput: null
+            SerializeResult: null
         );
 }

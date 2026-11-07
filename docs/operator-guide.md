@@ -499,7 +499,7 @@ In production a deploy step applies Acta's migrations, never application startup
 
 ```
 $ ConnectionStrings__acta="<DDL login>" dotnet MyApp.dll jobs migrate
-applied M20261105150556_init to schema acta
+applied M20261105192758_init to schema acta
 ```
 
 - A second run prints `schema acta is up to date`. It exits 0, or 1 with the database's error; `--json` prints `{"schema":"acta","applied":[...]}`.
@@ -1385,7 +1385,7 @@ that corrects the count; report a row as a defect with its evidence.
 ### Job Definitions And Effective Policy
 
 ```sql
-SELECT namespace_name, definition_name, definition_status, input_type_name, input_format_name, output_type_name, output_format_name, job_priority_effective, max_attempts_effective, execution_timeout_seconds_effective, deadline_seconds_effective, retention_seconds_effective, event_recording_effective, alert_profile_effective, alert_channel_name_effective, runbook_url_effective
+SELECT namespace_name, definition_name, definition_status, input_type_name, input_format_name, result_type_name, result_format_name, job_priority_effective, max_attempts_effective, execution_timeout_seconds_effective, deadline_seconds_effective, retention_seconds_effective, event_recording_effective, alert_profile_effective, alert_channel_name_effective, runbook_url_effective
   FROM acta.definitions_view
  WHERE namespace_name = 'billing'
  ORDER BY definition_name;

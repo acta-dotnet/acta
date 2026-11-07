@@ -108,11 +108,11 @@ public sealed class RecoveryTests : IDisposable
     public void Successful_cohort_checks_are_compact_but_every_failure_identity_is_retained()
     {
         var expected = Enumerable.Range(0, 10000).Select(i => new ExpectedOutcome("root-" + i, "Succeeded", "42")).ToArray();
-        var observed = expected.Select(e => new ObservedOutcome(e.Key, e.Status, e.Output)).ToArray();
+        var observed = expected.Select(e => new ObservedOutcome(e.Key, e.Status, e.Result)).ToArray();
         var valid = OutcomeCheck.Reconcile(expected, observed);
         Assert.All(valid, c => Assert.True(c.Passed));
         Assert.True(valid.Length < 20);
-        observed[4321] = observed[4321] with { Output = "wrong" };
+        observed[4321] = observed[4321] with { Result = "wrong" };
         Assert.Contains(OutcomeCheck.Reconcile(expected, observed), c => !c.Passed && c.Identity == "root-4321");
     }
 

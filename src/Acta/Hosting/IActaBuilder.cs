@@ -73,7 +73,7 @@ public interface IActaBuilder
     /// Wire an app-supplied source-generated JSON resolver (a <c>JsonSerializerContext</c>) for job
     /// payloads, so payload (de)serialization needs no reflection under Native AOT. It overrides the
     /// built-in reflection-based JSON serializer for the <c>json</c> format. Under reflection-off the
-    /// resolver must cover every job input/output (and durable variable/signal/step) type; the
+    /// resolver must cover every job input and result (and durable variable/signal/step) type; the
     /// recommended AOT path is typed enqueue, which routes through this serializer.
     /// </summary>
     IActaBuilder UseJsonPayloads(IJsonTypeInfoResolver resolver);

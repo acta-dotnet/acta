@@ -47,7 +47,7 @@ public sealed class TextLimitParityTests
         Assert.Equal(ActaSchema.Definition.DescriptionOverride.Size, ActaTextLimits.DefinitionDescription);
         Assert.Equal(ActaSchema.Definition.RunbookUrlOverride.Size, ActaTextLimits.DefinitionRunbookUrl);
         Assert.Equal(ActaSchema.Definition.InputTypeName.Size, ActaTextLimits.DefinitionTypeName);
-        Assert.Equal(ActaSchema.Definition.OutputTypeName.Size, ActaTextLimits.DefinitionTypeName);
+        Assert.Equal(ActaSchema.Definition.ResultTypeName.Size, ActaTextLimits.DefinitionTypeName);
         Assert.Equal(ActaSchema.Schedule.PauseMessage.Size, ActaTextLimits.SchedulePauseMessage);
     }
 }

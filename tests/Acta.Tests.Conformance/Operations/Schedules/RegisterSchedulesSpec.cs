@@ -411,9 +411,9 @@ public sealed class RegisterSchedulesSpec : ActaRuntimeTestBase<ConformanceFixtu
             HandlerType: typeof(object),
             MethodName: "M",
             InputType: typeof(int),
-            OutputType: null,
+            ResultType: null,
             InputPayloadFormat: JobPayloadFormat.Json,
-            OutputPayloadFormat: null,
+            ResultPayloadFormat: null,
             Priority: default,
             MaxAttempts: 1,
             EventRecording: EventRecordingCode.Audit,
@@ -422,6 +422,6 @@ public sealed class RegisterSchedulesSpec : ActaRuntimeTestBase<ConformanceFixtu
             ScheduledDelivery: ScheduledDeliveryCode.Permanent,
             Invoker: null!,
             DeserializeInput: null!,
-            SerializeOutput: null
+            SerializeResult: null
         );
 }

@@ -41,7 +41,7 @@ await host.StopAsync();
 
 namespace Acta.Concepts.ChildFailureOutcomes
 {
-    // ---- scenario 1 inputs/outputs ----
+    // ---- scenario 1 inputs and results ----
 
     public readonly record struct RunMapSoft;
 

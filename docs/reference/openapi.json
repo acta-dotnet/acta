@@ -8097,7 +8097,7 @@
                           "jobName": "send-invoice",
                           "status": "active",
                           "inputTypeName": "Billing.SendInvoice",
-                          "outputTypeName": null,
+                          "resultTypeName": null,
                           "priorityOverride": null,
                           "priorityEffective": "normal",
                           "maxAttemptsOverride": null,
@@ -8212,9 +8212,9 @@
                       "inputTypeName": "Billing.SendInvoice",
                       "inputFormatId": 1,
                       "inputFormatName": "json",
-                      "outputTypeName": null,
-                      "outputFormatId": 0,
-                      "outputFormatName": "none",
+                      "resultTypeName": null,
+                      "resultFormatId": 0,
+                      "resultFormatName": "none",
                       "priority": "normal",
                       "priorityOverride": null,
                       "priorityEffective": "normal",
@@ -11533,9 +11533,9 @@
           "inputTypeName",
           "inputFormatId",
           "inputFormatName",
-          "outputTypeName",
-          "outputFormatId",
-          "outputFormatName",
+          "resultTypeName",
+          "resultFormatId",
+          "resultFormatName",
           "priority",
           "priorityOverride",
           "priorityEffective",
@@ -11617,17 +11617,17 @@
           "inputFormatName": {
             "type": "string"
           },
-          "outputTypeName": {
+          "resultTypeName": {
             "type": [
               "null",
               "string"
             ]
           },
-          "outputFormatId": {
+          "resultFormatId": {
             "type": "integer",
             "format": "uint8"
           },
-          "outputFormatName": {
+          "resultFormatName": {
             "type": "string"
           },
           "priority": {
@@ -13016,7 +13016,7 @@
           "jobName",
           "status",
           "inputTypeName",
-          "outputTypeName",
+          "resultTypeName",
           "priorityOverride",
           "priorityEffective",
           "maxAttemptsOverride",
@@ -13044,7 +13044,7 @@
           "inputTypeName": {
             "type": "string"
           },
-          "outputTypeName": {
+          "resultTypeName": {
             "type": [
               "null",
               "string"

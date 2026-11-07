@@ -40,7 +40,7 @@ internal static class JobPolicyReader
         }
 
         // ACTA0132: `Format` is the both-sides shorthand; pairing it with a per-side override is
-        // ambiguous. The void-output and unknown-name variants are raised later, where the handler's
+        // ambiguous. The void-result and unknown-name variants are raised later, where the handler's
         // result shape and the validated format set are known.
         if (draft.Format is not null)
         {
@@ -48,16 +48,16 @@ internal static class JobPolicyReader
             {
                 diagnostics.Add(ManifestDiagnostics.PayloadFormatConflict("InputFormat", location));
             }
-            if (draft.OutputFormat is not null)
+            if (draft.ResultFormat is not null)
             {
-                diagnostics.Add(ManifestDiagnostics.PayloadFormatConflict("OutputFormat", location));
+                diagnostics.Add(ManifestDiagnostics.PayloadFormatConflict("ResultFormat", location));
             }
         }
 
         return new AttributePolicy(
             draft.Format,
             draft.InputFormat,
-            draft.OutputFormat,
+            draft.ResultFormat,
             draft.PriorityName,
             draft.MaxAttempts,
             draft.ConcurrencyLimit,
@@ -86,7 +86,7 @@ internal static class JobPolicyReader
     {
         public string? Format { get; set; }
         public string? InputFormat { get; set; }
-        public string? OutputFormat { get; set; }
+        public string? ResultFormat { get; set; }
         public string PriorityName { get; set; } = DefaultPriorityName;
         public int MaxAttempts { get; set; } = DefaultMaxAttempts;
         public int? ConcurrencyLimit { get; set; }
@@ -127,10 +127,10 @@ internal static class JobPolicyReader
                 }
                 return true;
 
-            case "OutputFormat":
+            case "ResultFormat":
                 if (named.Value.Value is string ofmt && !string.IsNullOrWhiteSpace(ofmt))
                 {
-                    draft.OutputFormat = ofmt;
+                    draft.ResultFormat = ofmt;
                 }
                 return true;
 

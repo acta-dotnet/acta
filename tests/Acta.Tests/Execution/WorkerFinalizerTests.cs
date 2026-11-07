@@ -635,9 +635,9 @@ public sealed class WorkerFinalizerTests
         typeof(WorkerFinalizerTests),
         MethodName: "Run",
         InputType: typeof(object),
-        OutputType: null,
+        ResultType: null,
         InputPayloadFormat: default,
-        OutputPayloadFormat: null,
+        ResultPayloadFormat: null,
         Priority: default,
         MaxAttempts: 1,
         EventRecording: default,
@@ -646,7 +646,7 @@ public sealed class WorkerFinalizerTests
         ScheduledDelivery: ScheduledDeliveryCode.Permanent,
         Invoker: null!,
         DeserializeInput: null!,
-        SerializeOutput: null
+        SerializeResult: null
     );
 
     private static object FailOnce(TaskCompletionSource failed)

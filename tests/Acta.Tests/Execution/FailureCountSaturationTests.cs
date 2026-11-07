@@ -72,9 +72,9 @@ public class FailureCountSaturationTests
             typeof(FailureCountSaturationTests),
             MethodName: "Run",
             InputType: typeof(object),
-            OutputType: null,
+            ResultType: null,
             InputPayloadFormat: JobPayloadFormat.Json,
-            OutputPayloadFormat: null,
+            ResultPayloadFormat: null,
             Priority: default,
             MaxAttempts: maxAttempts,
             EventRecording: default,
@@ -83,7 +83,7 @@ public class FailureCountSaturationTests
             ScheduledDelivery: ScheduledDeliveryCode.Permanent,
             Invoker: null!,
             DeserializeInput: null!,
-            SerializeOutput: null
+            SerializeResult: null
         )
         {
             Backoff = "0s",

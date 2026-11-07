@@ -155,7 +155,7 @@ async function mockDashboard(
         jobName,
         status: 'active',
         inputTypeName: 'SendInvoice',
-        outputTypeName: null,
+        resultTypeName: null,
         priorityEffective: 'normal',
         priorityOverride: null,
         maxAttemptsEffective: 3,

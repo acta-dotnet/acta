@@ -65,9 +65,9 @@ public sealed class UpdateDefinitionOverridesSpec : ActaStorageTestBase<Conforma
             HandlerType: typeof(object),
             MethodName: "M",
             InputType: typeof(int),
-            OutputType: null,
+            ResultType: null,
             InputPayloadFormat: JobPayloadFormat.Json,
-            OutputPayloadFormat: null,
+            ResultPayloadFormat: null,
             Priority: default,
             MaxAttempts: maxAttempts,
             EventRecording: default,
@@ -76,7 +76,7 @@ public sealed class UpdateDefinitionOverridesSpec : ActaStorageTestBase<Conforma
             ScheduledDelivery: ScheduledDeliveryCode.Permanent,
             Invoker: null!,
             DeserializeInput: null!,
-            SerializeOutput: null
+            SerializeResult: null
         );
 
     private (IDbSession Db, ISqlDialect Dialect) Store() => (Db, Services.GetRequiredService<ISqlDialect>());

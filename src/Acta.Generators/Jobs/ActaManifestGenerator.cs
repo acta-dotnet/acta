@@ -196,40 +196,40 @@ public sealed class ActaManifestGenerator : IIncrementalGenerator
 
         var inputType = parameterModel.InputType;
         var takesArguments = parameterModel.InputParameters.Length > 1;
-        var outputType = returnModel?.OutputType;
+        var resultType = returnModel?.ResultType;
 
         // Symmetric to the input rule: a parameterless data-less TOut (e.g. `Task<Acked>` where
         // `Acked` is a marker record) carries no information. Collapse it to "no result" so the
-        // descriptor matches a `Task`-returning handler: no stored result, no SerializeOutput
+        // descriptor matches a `Task`-returning handler: no stored result, no SerializeResult
         // delegate emitted. The handler still runs and the Task<T> is still awaited.
-        if (outputType is not null && IsParameterlessDataLess(outputType))
+        if (resultType is not null && IsParameterlessDataLess(resultType))
         {
-            outputType = null;
+            resultType = null;
         }
 
-        // The runtime stores both contract type names in ASCII columns; a collapsed marker output is never stored.
+        // The runtime stores both contract type names in ASCII columns; a collapsed marker result is never stored.
         if (inputType is not null && !IsAsciiContractType(inputType))
         {
             diagnostics.Add(
                 ManifestDiagnostics.NonAsciiContractType(method, "input", inputType, method.Locations.FirstOrDefault() ?? Location.None)
             );
         }
-        if (outputType is not null && !IsAsciiContractType(outputType))
+        if (resultType is not null && !IsAsciiContractType(resultType))
         {
             diagnostics.Add(
-                ManifestDiagnostics.NonAsciiContractType(method, "output", outputType, method.Locations.FirstOrDefault() ?? Location.None)
+                ManifestDiagnostics.NonAsciiContractType(method, "result", resultType, method.Locations.FirstOrDefault() ?? Location.None)
             );
         }
 
         // `Format` is the both-sides shorthand; the per-side overrides win only when it is unset.
         var inputExplicit = policy.Format ?? policy.InputFormat;
-        var outputExplicit = policy.Format ?? policy.OutputFormat;
+        var resultExplicit = policy.Format ?? policy.ResultFormat;
 
-        // ACTA0132: a per-side output override on a handler that produces no result. `Format` is
+        // ACTA0132: a per-side `ResultFormat` on a handler that produces no result. `Format` is
         // exempt: on a void handler it silently applies to the input only.
-        if (outputType is null && policy.OutputFormat is not null)
+        if (resultType is null && policy.ResultFormat is not null)
         {
-            diagnostics.Add(ManifestDiagnostics.OutputFormatOnVoidHandler(method, method.Locations.FirstOrDefault() ?? Location.None));
+            diagnostics.Add(ManifestDiagnostics.ResultFormatOnVoidHandler(method, method.Locations.FirstOrDefault() ?? Location.None));
         }
 
         // No input parameter (zero-input handler) ⇒ none format, same as a parameterless data-less
@@ -239,7 +239,7 @@ public sealed class ActaManifestGenerator : IIncrementalGenerator
             takesArguments ? inputExplicit ?? "json"
             : inputType is null ? "none"
             : inputExplicit ?? InferPayloadFormatName(inputType, isInput: true);
-        var outputFormatName = outputType is null ? null : outputExplicit ?? InferPayloadFormatName(outputType, isInput: false);
+        var resultFormatName = resultType is null ? null : resultExplicit ?? InferPayloadFormatName(resultType, isInput: false);
         if (takesArguments && inputFormatName is "none" or "bytes")
         {
             diagnostics.Add(
@@ -277,9 +277,9 @@ public sealed class ActaManifestGenerator : IIncrementalGenerator
             IsStaticMethod: method.IsStatic,
             InputType: inputType,
             InputParameters: parameterModel.InputParameters,
-            OutputType: outputType,
+            ResultType: resultType,
             InputPayloadFormatName: inputFormatName,
-            OutputPayloadFormatName: outputFormatName,
+            ResultPayloadFormatName: resultFormatName,
             InvocationKind: returnModel?.InvocationKind ?? JobInvocationKind.Task,
             RequiresJobContext: parameterModel.HasJobContext,
             RequiresCancellationToken: parameterModel.HasCancellationToken,
@@ -313,7 +313,7 @@ public sealed class ActaManifestGenerator : IIncrementalGenerator
     internal sealed record AttributePolicy(
         string? Format,
         string? InputFormat,
-        string? OutputFormat,
+        string? ResultFormat,
         string PriorityName,
         int MaxAttempts,
         int? ConcurrencyLimit,
@@ -385,7 +385,7 @@ public sealed class ActaManifestGenerator : IIncrementalGenerator
             {
                 invalid.Add(job);
             }
-            // ACTA0132: an explicit Format/InputFormat/OutputFormat naming a format that is neither
+            // ACTA0132: an explicit Format/InputFormat/ResultFormat naming a format that is neither
             // built-in nor a declared custom. Inferred names are always built-in, so only explicit
             // names can land here.
             if (!validFormatNames.Contains(job.InputPayloadFormatName))
@@ -393,9 +393,9 @@ public sealed class ActaManifestGenerator : IIncrementalGenerator
                 ReportDiagnostic(spc, ManifestDiagnostics.UnknownPayloadFormat(job, job.InputPayloadFormatName));
                 invalid.Add(job);
             }
-            if (job.OutputPayloadFormatName is { } outFormatName && !validFormatNames.Contains(outFormatName))
+            if (job.ResultPayloadFormatName is { } resultFormatName && !validFormatNames.Contains(resultFormatName))
             {
-                ReportDiagnostic(spc, ManifestDiagnostics.UnknownPayloadFormat(job, outFormatName));
+                ReportDiagnostic(spc, ManifestDiagnostics.UnknownPayloadFormat(job, resultFormatName));
                 invalid.Add(job);
             }
         }
@@ -553,7 +553,7 @@ public sealed class ActaManifestGenerator : IIncrementalGenerator
         bool HasCancellationToken
     );
 
-    internal sealed record ReturnTypeModel(ITypeSymbol? OutputType, JobInvocationKind InvocationKind);
+    internal sealed record ReturnTypeModel(ITypeSymbol? ResultType, JobInvocationKind InvocationKind);
 
     internal sealed record DiagnosticRecord(string Id, string Message, Location Location);
 
@@ -592,9 +592,9 @@ public sealed class ActaManifestGenerator : IIncrementalGenerator
         bool IsStaticMethod,
         ITypeSymbol? InputType,
         ImmutableArray<IParameterSymbol> InputParameters,
-        ITypeSymbol? OutputType,
+        ITypeSymbol? ResultType,
         string InputPayloadFormatName,
-        string? OutputPayloadFormatName,
+        string? ResultPayloadFormatName,
         JobInvocationKind InvocationKind,
         bool RequiresJobContext,
         bool RequiresCancellationToken,

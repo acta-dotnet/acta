@@ -198,7 +198,7 @@ public sealed class JobsOptions
 
     /// <summary>
     /// Worker behavior when an eligible registration changes a definition's contract columns (input
-    /// or output type, payload format). The drift never corrupts already-enqueued rows, which decode
+    /// or result type, payload format). The drift never corrupts already-enqueued rows, which decode
     /// by their own stored format id; it affects enqueues made from then on and the CLR type old rows
     /// dispatch into. Default <c>Warn</c>.
     /// </summary>

@@ -25,7 +25,7 @@ internal static class TimeoutAndWakeupCases
         var expected = WorkloadModel.Expected([input]);
         if (scenario.Id == "timeout-late-attempt")
         {
-            expected[0] = expected[0] with { Status = "Failed", Output = null };
+            expected[0] = expected[0] with { Status = "Failed", Result = null };
         }
         var root = await jobs.EnqueueAsync(
             new EnqueueJobRequest(

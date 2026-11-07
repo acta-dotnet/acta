@@ -51,11 +51,11 @@ internal sealed class JobRequestRouting(
                     + $"'{route.InputType.FullName}'. Use the manifest's generated call."
             );
         }
-        if (expectedResultType is not null && route.OutputType != expectedResultType)
+        if (expectedResultType is not null && route.ResultType != expectedResultType)
         {
             throw new ArgumentException(
                 $"The call of '{route.JobName}' expects result '{expectedResultType.FullName}' but the job produces "
-                    + $"'{route.OutputType?.FullName ?? "none"}'."
+                    + $"'{route.ResultType?.FullName ?? "none"}'."
             );
         }
 
@@ -86,10 +86,10 @@ internal sealed class JobRequestRouting(
     /// </summary>
     public void EnsureResultType<TResult>(string jobNamespace, string jobName)
     {
-        if (descriptors.Find(jobNamespace, jobName) is { } descriptor && descriptor.OutputType != typeof(TResult))
+        if (descriptors.Find(jobNamespace, jobName) is { } descriptor && descriptor.ResultType != typeof(TResult))
         {
             throw new InvalidOperationException(
-                $"Job '{jobNamespace}/{jobName}' produces '{descriptor.OutputType?.FullName ?? "no result"}', not "
+                $"Job '{jobNamespace}/{jobName}' produces '{descriptor.ResultType?.FullName ?? "no result"}', not "
                     + $"'{typeof(TResult).FullName}'. A deduplication key shared across definitions returns the job that "
                     + "already holds it; wait on it with its own result type."
             );

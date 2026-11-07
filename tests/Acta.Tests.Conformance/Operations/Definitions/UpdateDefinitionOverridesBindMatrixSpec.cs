@@ -31,9 +31,9 @@ public sealed class UpdateDefinitionOverridesBindMatrixSpec : ActaStorageTestBas
             HandlerType: typeof(object),
             MethodName: "M",
             InputType: typeof(int),
-            OutputType: null,
+            ResultType: null,
             InputPayloadFormat: JobPayloadFormat.Json,
-            OutputPayloadFormat: null,
+            ResultPayloadFormat: null,
             Priority: default, // Bulk = 0
             MaxAttempts: 3,
             EventRecording: default, // Off = 0
@@ -42,7 +42,7 @@ public sealed class UpdateDefinitionOverridesBindMatrixSpec : ActaStorageTestBas
             ScheduledDelivery: ScheduledDeliveryCode.Permanent,
             Invoker: null!,
             DeserializeInput: null!,
-            SerializeOutput: null
+            SerializeResult: null
         );
 
     private (IDbSession Db, ISqlDialect Dialect) Store() => (Db, Services.GetRequiredService<ISqlDialect>());

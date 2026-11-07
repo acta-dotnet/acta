@@ -67,13 +67,13 @@ internal static class FaultCaseRunner
         var expected = WorkloadModel.Expected(new[] { input }.Concat(sideInputs));
         if (scenario.Id == "at-most-once")
         {
-            expected[0] = expected[0] with { Status = "Failed", Output = null, Steps = ["effect=uncommitted"] };
+            expected[0] = expected[0] with { Status = "Failed", Result = null, Steps = ["effect=uncommitted"] };
         }
         if (scenario.Id == "cancel-descendants")
         {
             expected = expected
                 .Where(e => e.Parent is null || Enumerable.Range(0, 4).Any(i => e.Key == $"root/child-{i}"))
-                .Select(e => e.Parent is null ? e with { Status = "Cancelled", Output = null } : e with { Status = "CancelledOrSucceeded" })
+                .Select(e => e.Parent is null ? e with { Status = "Cancelled", Result = null } : e with { Status = "CancelledOrSucceeded" })
                 .ToArray();
         }
         List<OwnedWorker> workers = [];

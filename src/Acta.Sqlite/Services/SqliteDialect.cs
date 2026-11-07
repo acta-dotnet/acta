@@ -407,11 +407,11 @@ internal sealed partial class SqliteDialect : ISqlDialect
                 writer.WriteNumber("deadline_behavior_code", row.DeadlineBehaviorCode);
                 writer.WriteNumber("retention_seconds", row.JobRetentionSeconds);
                 writer.WriteString("input_type_name", row.InputTypeName);
-                WriteStringOrNull(writer, "output_type_name", row.OutputTypeName);
+                WriteStringOrNull(writer, "result_type_name", row.ResultTypeName);
                 writer.WriteNumber("input_format_id", row.InputFormatId);
                 writer.WriteString("input_format_name", row.InputFormatName);
-                writer.WriteNumber("output_format_id", row.OutputFormatId);
-                writer.WriteString("output_format_name", row.OutputFormatName);
+                writer.WriteNumber("result_format_id", row.ResultFormatId);
+                writer.WriteString("result_format_name", row.ResultFormatName);
                 writer.WriteNumber("event_recording_code", row.EventRecordingCode);
                 writer.WriteNumber("alert_profile_code", row.AlertProfileCode);
                 writer.WriteNumber("firing_failure_policy_code", row.FiringFailurePolicyCode);

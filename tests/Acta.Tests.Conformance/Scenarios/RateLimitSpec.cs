@@ -628,9 +628,9 @@ public sealed class RateLimitSpec : ActaRuntimeTestBase<ConformanceFixture, Test
             HandlerType: typeof(RateLimitSpec),
             MethodName: "N/A",
             InputType: typeof(string),
-            OutputType: null,
+            ResultType: null,
             InputPayloadFormat: JobPayloadFormat.Json,
-            OutputPayloadFormat: null,
+            ResultPayloadFormat: null,
             Priority: JobPriorityCode.Normal,
             MaxAttempts: 3,
             EventRecording: EventRecordingCode.Audit,
@@ -639,7 +639,7 @@ public sealed class RateLimitSpec : ActaRuntimeTestBase<ConformanceFixture, Test
             ScheduledDelivery: ScheduledDeliveryCode.Permanent,
             Invoker: static (_, _, _, _) => ValueTask.FromResult(new JobHandlerOutput(false, null)),
             DeserializeInput: static (_, _) => string.Empty,
-            SerializeOutput: null
+            SerializeResult: null
         )
         {
             RateLimit = rateLimit,

@@ -15,7 +15,7 @@ public sealed record ListDefinitionsItem(
     string JobName,
     DefinitionStatusCode Status,
     string InputTypeName,
-    string? OutputTypeName,
+    string? ResultTypeName,
     JobPriorityCode? PriorityOverride,
     JobPriorityCode PriorityEffective,
     int? MaxAttemptsOverride,

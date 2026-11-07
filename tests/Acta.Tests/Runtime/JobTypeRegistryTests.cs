@@ -54,9 +54,9 @@ public sealed class JobTypeRegistryTests
             HandlerType: typeof(object),
             MethodName: "Handle",
             InputType: inputType,
-            OutputType: null,
+            ResultType: null,
             InputPayloadFormat: JobPayloadFormat.Json,
-            OutputPayloadFormat: null,
+            ResultPayloadFormat: null,
             Priority: default,
             MaxAttempts: 1,
             EventRecording: default,
@@ -65,6 +65,6 @@ public sealed class JobTypeRegistryTests
             ScheduledDelivery: ScheduledDeliveryCode.Permanent,
             Invoker: null!,
             DeserializeInput: null!,
-            SerializeOutput: null
+            SerializeResult: null
         );
 }

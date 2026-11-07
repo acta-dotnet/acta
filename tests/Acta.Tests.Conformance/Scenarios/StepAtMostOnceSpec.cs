@@ -60,9 +60,9 @@ public sealed class AtMostOnceStepManifest : IJobManifest
             HandlerType: typeof(AtMostOnceStepHandler),
             MethodName: name,
             InputType: typeof(NoInput),
-            OutputType: null,
+            ResultType: null,
             InputPayloadFormat: JobPayloadFormat.None,
-            OutputPayloadFormat: null,
+            ResultPayloadFormat: null,
             Priority: JobPriorityCode.Normal,
             MaxAttempts: 5,
             EventRecording: EventRecordingCode.Audit,
@@ -75,7 +75,7 @@ public sealed class AtMostOnceStepManifest : IJobManifest
                 return new JobHandlerOutput(false, null);
             },
             DeserializeInput: static (_, _) => new NoInput(),
-            SerializeOutput: null
+            SerializeResult: null
         );
 }
 

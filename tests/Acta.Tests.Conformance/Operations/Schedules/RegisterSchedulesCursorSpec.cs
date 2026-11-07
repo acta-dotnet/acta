@@ -152,9 +152,9 @@ public sealed class RegisterSchedulesCursorSpec : ActaStorageTestBase<Conformanc
             HandlerType: typeof(object),
             MethodName: "M",
             InputType: typeof(int),
-            OutputType: null,
+            ResultType: null,
             InputPayloadFormat: JobPayloadFormat.Json,
-            OutputPayloadFormat: null,
+            ResultPayloadFormat: null,
             Priority: default,
             MaxAttempts: 1,
             EventRecording: default,
@@ -163,6 +163,6 @@ public sealed class RegisterSchedulesCursorSpec : ActaStorageTestBase<Conformanc
             ScheduledDelivery: ScheduledDeliveryCode.Permanent,
             Invoker: null!,
             DeserializeInput: null!,
-            SerializeOutput: null
+            SerializeResult: null
         );
 }

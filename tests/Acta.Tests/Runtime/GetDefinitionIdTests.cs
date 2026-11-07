@@ -20,7 +20,7 @@ public sealed class GetDefinitionIdTests
             JobName: name,
             Status: DefinitionStatusCode.Active,
             InputTypeName: "Input",
-            OutputTypeName: null,
+            ResultTypeName: null,
             PriorityOverride: null,
             PriorityEffective: JobPriorityCode.Normal,
             MaxAttemptsOverride: null,

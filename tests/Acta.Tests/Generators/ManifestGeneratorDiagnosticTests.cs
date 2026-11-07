@@ -420,7 +420,7 @@ public class ManifestGeneratorDiagnosticTests
     public void Non_ascii_contract_type_errors_ACTA0103(string handler) =>
         Assert.Single(Of(RunGenerator(ContractTypeSource(handler)), "ACTA0103"));
 
-    // An ASCII generic is storable, and a collapsed marker output is never stored.
+    // An ASCII generic is storable, and a collapsed marker result is never stored.
     [Theory]
     [InlineData("public static void Run(System.Collections.Generic.List<int> input) { }")]
     [InlineData("public static Geschäft Run() => new();")]
@@ -1714,7 +1714,7 @@ public class ManifestGeneratorDiagnosticTests
     }
 
     [Fact]
-    public void Get_only_output_state_is_kept_as_the_result()
+    public void A_result_with_get_only_state_is_kept()
     {
         var result = RunGenerator(
             """
@@ -1741,8 +1741,8 @@ public class ManifestGeneratorDiagnosticTests
 
         Assert.Empty(result.Diagnostics);
         var manifest = Assert.Single(result.GeneratedTrees).ToString();
-        Assert.Contains("OutputType: typeof(global::GenTests.Receipt),", manifest);
-        Assert.Contains("OutputPayloadFormat: global::Acta.JobPayloadFormat.Json,", manifest);
+        Assert.Contains("ResultType: typeof(global::GenTests.Receipt),", manifest);
+        Assert.Contains("ResultPayloadFormat: global::Acta.JobPayloadFormat.Json,", manifest);
     }
 
     // ACTA0131: invalid payload format declaration
@@ -1897,7 +1897,7 @@ public class ManifestGeneratorDiagnosticTests
     }
 
     [Fact]
-    public void Asymmetric_input_and_output_formats_are_valid_no_diagnostics()
+    public void Asymmetric_input_and_result_formats_are_valid_no_diagnostics()
     {
         var result = RunGenerator(
             """
@@ -1908,7 +1908,7 @@ public class ManifestGeneratorDiagnosticTests
 
             public static class Handler
             {
-                [Job("echo", InputFormat = "bytes", OutputFormat = "json")]
+                [Job("echo", InputFormat = "bytes", ResultFormat = "json")]
                 public static System.Threading.Tasks.Task<Output> Handle(byte[] input) => null!;
             }
             """
@@ -1940,7 +1940,7 @@ public class ManifestGeneratorDiagnosticTests
     }
 
     [Fact]
-    public void Format_combined_with_output_format_errors_ACTA0132()
+    public void Format_combined_with_result_format_errors_ACTA0132()
     {
         var result = RunGenerator(
             """
@@ -1952,7 +1952,7 @@ public class ManifestGeneratorDiagnosticTests
 
             public static class Handler
             {
-                [Job("echo", Format = "json", OutputFormat = "bytes")]
+                [Job("echo", Format = "json", ResultFormat = "bytes")]
                 public static System.Threading.Tasks.Task<Output> Handle(Input input) => null!;
             }
             """
@@ -1962,7 +1962,7 @@ public class ManifestGeneratorDiagnosticTests
     }
 
     [Fact]
-    public void Output_format_on_void_handler_errors_ACTA0132()
+    public void Result_format_on_void_handler_errors_ACTA0132()
     {
         var result = RunGenerator(
             """
@@ -1973,7 +1973,7 @@ public class ManifestGeneratorDiagnosticTests
 
             public static class Handler
             {
-                [Job("echo", OutputFormat = "json")]
+                [Job("echo", ResultFormat = "json")]
                 public static System.Threading.Tasks.Task Handle(Input input) => null!;
             }
             """

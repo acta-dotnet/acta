@@ -21,7 +21,7 @@
     status: string;
     jobName: string;
     inputTypeName: string;
-    outputTypeName: string | null;
+    resultTypeName: string | null;
     priorityEffective: string;
     priorityOverride: string | null;
     maxAttemptsEffective: number;
@@ -52,7 +52,7 @@
     { key: 'jobNamespace', header: 'Namespace', dimRepeats: true },
     { key: 'status', header: 'Status' },
     { key: 'inputTypeName', header: 'Input', class: 'mono mobile-hide' },
-    { key: 'outputTypeName', header: 'Output', class: 'mono mobile-hide' },
+    { key: 'resultTypeName', header: 'Result', class: 'mono mobile-hide' },
     { key: 'priority', header: 'Priority', align: 'right' },
     { key: 'maxAttempts', header: 'Max attempts', align: 'right' },
     { key: 'concurrencyLimit', header: 'Concurrency per key', align: 'right' },
@@ -86,7 +86,7 @@
     {#snippet statusCell(def: DefinitionRow)}<StatusBadge status={def.status} />{/snippet}
     {#snippet nameCell(def: DefinitionRow)}<a href={detailHref(def)}>{def.jobName}</a> <a class="jobs-drill" href={jobsHref(def)} title="View this definition's jobs" aria-label="View this definition's jobs"><Icon name="chevron-right" /></a>{/snippet}
     {#snippet inputCell(def: DefinitionRow)}<span title={def.inputTypeName}>{displayFormatter.typeName(def.inputTypeName)}</span>{/snippet}
-    {#snippet outputCell(def: DefinitionRow)}<span title={def.outputTypeName ?? ''}>{displayFormatter.typeName(def.outputTypeName)}</span>{/snippet}
+    {#snippet resultCell(def: DefinitionRow)}<span title={def.resultTypeName ?? ''}>{displayFormatter.typeName(def.resultTypeName)}</span>{/snippet}
     {#snippet priorityCell(def: DefinitionRow)}{def.priorityEffective}{#if def.priorityOverride != null}<span class="ovr" title="operator override">*</span>{/if}{/snippet}
     {#snippet attemptsCell(def: DefinitionRow)}{displayFormatter.number(def.maxAttemptsEffective)}{#if def.maxAttemptsOverride != null}<span class="ovr" title="operator override">*</span>{/if}{/snippet}
     {#snippet concurrencyCell(def: DefinitionRow)}{#if def.concurrencyLimitEffective == null}<span title="No limit set: a job enqueued with a concurrency key still runs one at a time per key">none</span>{:else}{displayFormatter.number(def.concurrencyLimitEffective)}{/if}{#if def.concurrencyLimitOverride != null}<span class="ovr" title="operator override">*</span>{/if}{/snippet}
@@ -108,7 +108,7 @@
         status: statusCell,
         jobName: nameCell,
         inputTypeName: inputCell,
-        outputTypeName: outputCell,
+        resultTypeName: resultCell,
         priority: priorityCell,
         maxAttempts: attemptsCell,
         concurrencyLimit: concurrencyCell,

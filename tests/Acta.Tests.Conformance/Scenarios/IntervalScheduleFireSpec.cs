@@ -31,9 +31,9 @@ public sealed class IntervalPingManifest : IJobManifest
                 HandlerType: typeof(IntervalPingHandler),
                 MethodName: nameof(IntervalPingHandler.Run),
                 InputType: typeof(NoInput),
-                OutputType: null,
+                ResultType: null,
                 InputPayloadFormat: JobPayloadFormat.None,
-                OutputPayloadFormat: null,
+                ResultPayloadFormat: null,
                 Priority: JobPriorityCode.Normal,
                 MaxAttempts: 2,
                 EventRecording: EventRecordingCode.Audit,
@@ -46,7 +46,7 @@ public sealed class IntervalPingManifest : IJobManifest
                     return new JobHandlerOutput(false, null);
                 },
                 DeserializeInput: static (_, _) => new NoInput(),
-                SerializeOutput: null
+                SerializeResult: null
             )
             {
                 Schedules =

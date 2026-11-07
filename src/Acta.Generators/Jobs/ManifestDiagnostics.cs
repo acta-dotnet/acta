@@ -640,14 +640,14 @@ internal static class ManifestDiagnostics
     public static DiagnosticRecord PayloadFormatConflict(string other, Location location) =>
         new(
             "ACTA0132",
-            $"`[Job]` sets both `Format` and `{other}`. `Format` applies to input and output together; use `Format` alone, or the per-side `InputFormat`/`OutputFormat`, not both.",
+            $"`[Job]` sets both `Format` and `{other}`. `Format` applies to input and result together; use `Format` alone, or the per-side `InputFormat`/`ResultFormat`, not both.",
             location
         );
 
-    public static DiagnosticRecord OutputFormatOnVoidHandler(IMethodSymbol method, Location location) =>
+    public static DiagnosticRecord ResultFormatOnVoidHandler(IMethodSymbol method, Location location) =>
         new(
             "ACTA0132",
-            $"`[Job]` method `{method.Name}` sets `OutputFormat` but returns no result. A void- or `Task`-returning handler has no output payload; remove `OutputFormat`.",
+            $"`[Job]` method `{method.Name}` sets `ResultFormat` but returns no result. A void- or `Task`-returning handler has no result payload; remove `ResultFormat`.",
             location
         );
 

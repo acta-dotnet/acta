@@ -185,8 +185,8 @@ an id and a name unique in the compilation, and it decorates the class that impl
 
 ## ACTA0132 <a id="acta0132"></a>
 
-**Invalid `[Job]` payload-format usage.** `Format` sets input and output together, so it is not
-combined with `InputFormat` or `OutputFormat`; `OutputFormat` has no meaning on a handler that
+**Invalid `[Job]` payload-format usage.** `Format` sets input and result together, so it is not
+combined with `InputFormat` or `ResultFormat`; `ResultFormat` has no meaning on a handler that
 returns nothing; a handler taking several input parameters travels as one generated record, which
 only JSON or a custom format can carry; and a format name must be a built-in or a declaration in
 the compilation.

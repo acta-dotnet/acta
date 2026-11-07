@@ -12,7 +12,7 @@ internal sealed record DurableRow(
     string Key,
     long? ParentJobId,
     int Status,
-    string? Output,
+    string? Result,
     int ExecutionNumber,
     string JobNamespace,
     long? LineageRootJobId,
@@ -213,7 +213,7 @@ internal sealed class DurableReader(OwnedProvider provider)
     public async Task<ObservedOutcome[]> OutcomesAsync(CancellationToken ct) =>
         Outcomes(await ReadAsync(null, ct), await StepsAsync(null, ct));
 
-    /// <summary>The logical outcome of each row: its key path from its root, status, output, parent, and committed steps.</summary>
+    /// <summary>The logical outcome of each row: its key path from its root, status, result, parent, and committed steps.</summary>
     public static ObservedOutcome[] Outcomes(IReadOnlyList<DurableRow> rows, IEnumerable<StepObservation> steps)
     {
         var byId = rows.ToDictionary(r => r.JobId);
@@ -225,7 +225,7 @@ internal sealed class DurableReader(OwnedProvider provider)
                 new(
                     Key(row),
                     Status(row.Status),
-                    row.Output,
+                    row.Result,
                     row.ParentJobId is { } p && byId.TryGetValue(p, out var parent) ? Key(parent) : null,
                     [.. committedSteps[row.JobId].Select(s => s.Name + "=" + s.Result)],
                     row.JobNamespace

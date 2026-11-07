@@ -86,11 +86,11 @@ internal static class JobDefinitionRegistration
     public static DefinitionContract ContractOf(JobDescriptor descriptor) =>
         new(
             InputTypeName: ContractTypeName(descriptor.InputType),
-            OutputTypeName: descriptor.OutputType is null ? null : ContractTypeName(descriptor.OutputType),
+            ResultTypeName: descriptor.ResultType is null ? null : ContractTypeName(descriptor.ResultType),
             InputFormatId: descriptor.InputPayloadFormat.Id,
             InputFormatName: descriptor.InputPayloadFormat.Name,
-            OutputFormatId: descriptor.OutputPayloadFormat?.Id ?? (byte)0,
-            OutputFormatName: descriptor.OutputPayloadFormat?.Name ?? JobPayloadFormat.NoneName
+            ResultFormatId: descriptor.ResultPayloadFormat?.Id ?? (byte)0,
+            ResultFormatName: descriptor.ResultPayloadFormat?.Name ?? JobPayloadFormat.NoneName
         );
 
     /// <summary>
@@ -176,9 +176,9 @@ internal static class JobDefinitionRegistration
         }
         var contract = ContractOf(descriptor);
         RequireStorableTypeName("input", contract.InputTypeName);
-        if (contract.OutputTypeName is { } outputTypeName)
+        if (contract.ResultTypeName is { } resultTypeName)
         {
-            RequireStorableTypeName("output", outputTypeName);
+            RequireStorableTypeName("result", resultTypeName);
         }
         if (descriptor.RunbookUrl is { } runbookUrl && !IsRunbookUrl(runbookUrl))
         {

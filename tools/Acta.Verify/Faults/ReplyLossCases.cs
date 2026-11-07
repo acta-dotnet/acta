@@ -55,7 +55,7 @@ internal static class ReplyLossCases
                         r.Key == input.Key
                         && r.ParentJobId is null
                         && r.JobNamespace == "verify"
-                        && (enqueueLoss || r.Status == 100 && r.Output == expected[0].Output)
+                        && (enqueueLoss || r.Status == 100 && r.Result == expected[0].Result)
                     ),
                 "Independent SQL reader saw the committed record while its caller was held before receiving the result."
             ),

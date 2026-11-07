@@ -4,7 +4,7 @@ SELECT TOP (@p_take)
     jd.definition_name AS job_name,
     jd.definition_status_code AS status,
     jd.input_type_name,
-    jd.output_type_name,
+    jd.result_type_name,
     jd.job_priority_code_override AS priority_override,
     jd.job_priority_code_effective AS priority_effective,
     jd.max_attempts_override,

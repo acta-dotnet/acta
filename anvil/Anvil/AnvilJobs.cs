@@ -329,7 +329,7 @@ internal static class AnvilPayloads
 }
 
 /// <summary>
-/// Hand-written source-generated payload context for the lab's job types: every job input + output, plus
+/// Hand-written source-generated payload context for the lab's job types: every job input and result, plus
 /// the durable-variable and progress scalar types. Wired via <c>j.UseJsonPayloads(AnvilPayloadJsonContext.Default)</c>
 /// so payload (de)serialization needs no reflection under Native AOT. The wire-shape options mirror the
 /// framework defaults (camelCase, string enums, nulls kept).
@@ -355,7 +355,7 @@ internal static class AnvilPayloads
 [JsonSerializable(typeof(Metered100))]
 [JsonSerializable(typeof(Laned))]
 [JsonSerializable(typeof(Pulse))]
-// Job outputs.
+// Job results.
 [JsonSerializable(typeof(string))]
 // Durable variable + progress scalars (FlakyOnce primes a bool; SlowSuccess reports int progress).
 [JsonSerializable(typeof(bool))]

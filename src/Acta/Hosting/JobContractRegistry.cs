@@ -31,7 +31,7 @@ internal sealed class JobContractRegistry
                         descriptor.JobName,
                         descriptor.InputPayloadFormat,
                         descriptor.InputType,
-                        descriptor.OutputType
+                        descriptor.ResultType
                     );
                     if (!routes.TryGetValue(key, out var list))
                     {

@@ -80,9 +80,9 @@ CREATE TABLE {{schema}}.definitions (
     input_type_name varchar(512) NOT NULL,
     input_format_id tinyint NOT NULL,
     input_format_name varchar(128) NOT NULL,
-    output_type_name varchar(512) NULL,
-    output_format_id tinyint NOT NULL,
-    output_format_name varchar(128) NOT NULL,
+    result_type_name varchar(512) NULL,
+    result_format_id tinyint NOT NULL,
+    result_format_name varchar(128) NOT NULL,
     tenant_requirement_code tinyint NOT NULL,
     job_priority_code tinyint NOT NULL,
     job_priority_code_override tinyint NULL,
@@ -569,11 +569,11 @@ EXEC(N'CREATE TYPE {{schema}}.register_definitions AS TABLE (
     deadline_behavior_code               TINYINT       NOT NULL,
     retention_seconds                    INT           NOT NULL,
     input_type_name                      VARCHAR(512)  NOT NULL,
-    output_type_name                     VARCHAR(512)  NULL,
+    result_type_name                     VARCHAR(512)  NULL,
     input_format_id                      TINYINT       NOT NULL,
     input_format_name                    VARCHAR(128)  NOT NULL,
-    output_format_id                     TINYINT       NOT NULL,
-    output_format_name                   VARCHAR(128)  NOT NULL,
+    result_format_id                     TINYINT       NOT NULL,
+    result_format_name                   VARCHAR(128)  NOT NULL,
     event_recording_code                 TINYINT       NOT NULL,
     alert_profile_code                   TINYINT       NOT NULL,
     firing_failure_policy_code           TINYINT       NOT NULL,
@@ -4745,8 +4745,8 @@ SELECT
     d.manifest_generation_at_utc,
     d.input_type_name,
     d.input_format_name,
-    d.output_type_name,
-    d.output_format_name,
+    d.result_type_name,
+    d.result_format_name,
     CASE d.job_priority_code_effective WHEN 0 THEN 'bulk' WHEN 50 THEN 'normal' WHEN 70 THEN 'high' WHEN 85 THEN 'critical' WHEN 100 THEN 'realtime' END AS job_priority_effective,
     d.job_priority_code,
     d.job_priority_code_override,
@@ -5021,7 +5021,7 @@ JOIN {{schema}}.namespaces AS ns ON ns.namespace_id = w.namespace_id
 GO
 
 
-IF NOT EXISTS (SELECT 1 FROM {{schema}}.migrations WHERE name = 'M20261105150556_init')
+IF NOT EXISTS (SELECT 1 FROM {{schema}}.migrations WHERE name = 'M20261105192758_init')
 INSERT INTO {{schema}}.migrations (name)
-VALUES ('M20261105150556_init');
+VALUES ('M20261105192758_init');
 GO

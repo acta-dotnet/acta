@@ -31,7 +31,7 @@ public static class HarnessControls
         Test("self-check-missing-checkpoint", [valid[0] with { Steps = ["one=1"] }, valid[1]], "committed-steps");
         Test("self-check-duplicate-job", [.. valid, valid[0]], "unique-terminal");
         Test("self-check-missing-child", [valid[0], valid[1] with { Key = "substitute" }], "missing-identity");
-        Test("self-check-wrong-result", [valid[0] with { Output = "43" }, valid[1]], "logical-result");
+        Test("self-check-wrong-result", [valid[0] with { Result = "43" }, valid[1]], "logical-result");
         Record("self-check-unlanded-fault", !OutcomeCheck.FaultCovered(new("busy-kill", [], false, true, false), true));
         Record(
             "self-check-harness-lateness",

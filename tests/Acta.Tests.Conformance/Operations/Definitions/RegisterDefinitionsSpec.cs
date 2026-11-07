@@ -29,9 +29,9 @@ public sealed class RegisterDefinitionsSpec : ActaStorageTestBase<ConformanceFix
             HandlerType: typeof(object),
             MethodName: "M",
             InputType: inputType,
-            OutputType: null,
+            ResultType: null,
             InputPayloadFormat: JobPayloadFormat.Json,
-            OutputPayloadFormat: null,
+            ResultPayloadFormat: null,
             Priority: default,
             MaxAttempts: maxAttempts,
             EventRecording: default,
@@ -40,7 +40,7 @@ public sealed class RegisterDefinitionsSpec : ActaStorageTestBase<ConformanceFix
             ScheduledDelivery: ScheduledDeliveryCode.Permanent,
             Invoker: null!,
             DeserializeInput: null!,
-            SerializeOutput: null
+            SerializeResult: null
         );
 
     private (IDbSession Db, ISqlDialect Dialect) Store() => (Db, Services.GetRequiredService<ISqlDialect>());

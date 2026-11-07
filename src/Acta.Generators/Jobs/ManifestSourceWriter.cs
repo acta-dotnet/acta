@@ -124,13 +124,13 @@ internal static class ManifestSourceWriter
         sb.AppendLine($"                    HandlerType: typeof({DisplayName(j.HandlerType!)}),");
         sb.AppendLine($"                    MethodName: \"{j.MethodName}\",");
         sb.AppendLine($"                    InputType: typeof({InputTypeExpr(j)}),");
-        var outputTypeExpr = j.OutputType is null ? "null" : $"typeof({DisplayName(j.OutputType)})";
-        sb.AppendLine($"                    OutputType: {outputTypeExpr},");
+        var resultTypeExpr = j.ResultType is null ? "null" : $"typeof({DisplayName(j.ResultType)})";
+        sb.AppendLine($"                    ResultType: {resultTypeExpr},");
         sb.AppendLine($"                    InputPayloadFormat: {PayloadFormatExpression(j.InputPayloadFormatName, customFormatById)},");
-        var outputFormatExpr = j.OutputPayloadFormatName is null
+        var resultFormatExpr = j.ResultPayloadFormatName is null
             ? "null"
-            : PayloadFormatExpression(j.OutputPayloadFormatName, customFormatById);
-        sb.AppendLine($"                    OutputPayloadFormat: {outputFormatExpr},");
+            : PayloadFormatExpression(j.ResultPayloadFormatName, customFormatById);
+        sb.AppendLine($"                    ResultPayloadFormat: {resultFormatExpr},");
         sb.AppendLine($"                    Priority: global::Acta.JobPriorityCode.{j.PriorityName},");
         sb.AppendLine($"                    MaxAttempts: {j.MaxAttempts},");
         sb.AppendLine($"                    EventRecording: global::Acta.EventRecordingCode.{j.EventRecordingName},");
@@ -139,18 +139,18 @@ internal static class ManifestSourceWriter
         sb.AppendLine($"                    ScheduledDelivery: global::Acta.ScheduledDeliveryCode.{j.ScheduledDeliveryName},");
         sb.AppendLine($"                    Invoker: {dispatch}.Invoke_{dispatchSuffix},");
         sb.AppendLine($"                    DeserializeInput: {dispatch}.DeserializeInput_{dispatchSuffix},");
-        var serExpr = j.OutputType is null ? "null" : $"{dispatch}.SerializeOutput_{dispatchSuffix}";
+        var serExpr = j.ResultType is null ? "null" : $"{dispatch}.SerializeResult_{dispatchSuffix}";
 
         var policyLines = PolicyLines(j);
 
         var hasSchedules = !j.Schedules.IsDefaultOrEmpty;
         if (policyLines.Count == 0 && !hasSchedules)
         {
-            sb.AppendLine($"                    SerializeOutput: {serExpr}){trailing}");
+            sb.AppendLine($"                    SerializeResult: {serExpr}){trailing}");
         }
         else
         {
-            sb.AppendLine($"                    SerializeOutput: {serExpr})");
+            sb.AppendLine($"                    SerializeResult: {serExpr})");
             sb.AppendLine("                {");
             foreach (var line in policyLines)
             {
@@ -264,7 +264,7 @@ internal static class ManifestSourceWriter
         foreach (var j in jobs.Where(j => !contractCollisions.Contains(j.JobName)))
         {
             var input = InputTypeExpr(j);
-            var types = j.OutputType is null ? input : $"{input}, {DisplayName(j.OutputType)}";
+            var types = j.ResultType is null ? input : $"{input}, {DisplayName(j.ResultType)}";
             var names = j.InputParameters.Select(p => GeneratorText.EscapeIdentifier(p.Name)).ToArray();
             var (parameters, value) =
                 j.TakesArguments
@@ -352,13 +352,13 @@ internal static class ManifestSourceWriter
             }
             sb.AppendLine();
 
-            if (j.OutputType is not null)
+            if (j.ResultType is not null)
             {
-                var outputTypeName = DisplayName(j.OutputType);
+                var resultTypeName = DisplayName(j.ResultType);
                 sb.AppendLine(
-                    $"    public static global::Acta.JobPayload SerializeOutput_{suffix}(global::Acta.IJobPayloadSerializer serializer, object? value) =>"
+                    $"    public static global::Acta.JobPayload SerializeResult_{suffix}(global::Acta.IJobPayloadSerializer serializer, object? value) =>"
                 );
-                sb.AppendLine($"        serializer.Serialize<{outputTypeName}>(({outputTypeName})value!);");
+                sb.AppendLine($"        serializer.Serialize<{resultTypeName}>(({resultTypeName})value!);");
                 sb.AppendLine();
             }
 
@@ -444,7 +444,7 @@ internal static class ManifestSourceWriter
         // satisfy the ValueTask<T> invoker contract via an explicit `await ValueTask.CompletedTask`.
         // Async-no-result includes the "Task<T>-with-parameterless-T" collapse: the Task is still
         // awaited so side-effects/exceptions complete; the boxed empty value is discarded.
-        var hasResult = j.OutputType is not null;
+        var hasResult = j.ResultType is not null;
         var isAsync =
             j.InvocationKind
             is JobInvocationKind.Task

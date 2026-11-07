@@ -3,7 +3,7 @@ namespace Acta.Verify;
 public sealed record ExpectedOutcome(
     string Key,
     string Status,
-    string? Output,
+    string? Result,
     string? Parent = null,
     IReadOnlyList<string>? Steps = null,
     string? JobNamespace = null
@@ -12,7 +12,7 @@ public sealed record ExpectedOutcome(
 public sealed record ObservedOutcome(
     string Key,
     string Status,
-    string? Output,
+    string? Result,
     string? Parent = null,
     IReadOnlyList<string>? Steps = null,
     string? JobNamespace = null
@@ -82,7 +82,7 @@ public static class OutcomeCheck
             var count = duplicates.GetValueOrDefault(key, 1);
             Record(new("unique-terminal", key, count == 1, $"Observed {count} authoritative outcomes."));
             var row = found;
-            // "XOrSucceeded" allows the model's success or the non-success X, which carries no output and commits no
+            // "XOrSucceeded" allows the model's success or the non-success X, which carries no result and commits no
             // step the model does not predict.
             var alternative = wanted.Status == row.Status + "OrSucceeded";
             Record(
@@ -99,8 +99,8 @@ public static class OutcomeCheck
                 new(
                     "logical-result",
                     key,
-                    alternative ? row.Output is null : wanted.Output == row.Output,
-                    "Compare independently calculated output."
+                    alternative ? row.Result is null : wanted.Result == row.Result,
+                    "Compare independently calculated result."
                 )
             );
             Record(

@@ -2,7 +2,7 @@ namespace Acta;
 
 /// <summary>
 /// Worker behavior when an eligible registration would change a definition's contract columns
-/// (input or output type, payload format) relative to the stored row.
+/// (input or result type, payload format) relative to the stored row.
 /// </summary>
 public enum PayloadContractDriftMode : byte
 {

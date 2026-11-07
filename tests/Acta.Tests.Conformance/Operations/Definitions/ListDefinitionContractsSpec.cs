@@ -115,9 +115,9 @@ public sealed class ListDefinitionContractsSpec : ActaStorageTestBase<Conformanc
             HandlerType: typeof(object),
             MethodName: "M",
             InputType: typeof(int),
-            OutputType: null,
+            ResultType: null,
             InputPayloadFormat: JobPayloadFormat.Json,
-            OutputPayloadFormat: null,
+            ResultPayloadFormat: null,
             Priority: default,
             MaxAttempts: maxAttempts,
             EventRecording: default,
@@ -126,6 +126,6 @@ public sealed class ListDefinitionContractsSpec : ActaStorageTestBase<Conformanc
             ScheduledDelivery: ScheduledDeliveryCode.Permanent,
             Invoker: null!,
             DeserializeInput: null!,
-            SerializeOutput: null
+            SerializeResult: null
         );
 }

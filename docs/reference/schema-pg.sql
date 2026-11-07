@@ -41,14 +41,14 @@ DO $$
 BEGIN
     IF EXISTS (
         SELECT 1 FROM acta.migrations
-        WHERE name NOT IN ('M20261105150556_init')
+        WHERE name NOT IN ('M20261105192758_init')
     ) THEN
         RAISE EXCEPTION 'A newer Acta release already upgraded this database. Run the newest provisioning script; this one would move it backwards.';
     END IF;
 END
 $$;
 
--- ===== BEGIN M20261105150556_init =====
+-- ===== BEGIN M20261105192758_init =====
 CREATE SCHEMA IF NOT EXISTS acta;
 
 -- alerts
@@ -117,9 +117,9 @@ CREATE TABLE IF NOT EXISTS acta.definitions (
     input_type_name varchar(512) NOT NULL,
     input_format_id smallint NOT NULL,
     input_format_name varchar(128) NOT NULL,
-    output_type_name varchar(512) NULL,
-    output_format_id smallint NOT NULL,
-    output_format_name varchar(128) NOT NULL,
+    result_type_name varchar(512) NULL,
+    result_format_id smallint NOT NULL,
+    result_format_name varchar(128) NOT NULL,
     tenant_requirement_code smallint NOT NULL,
     job_priority_code smallint NOT NULL,
     job_priority_code_override smallint NULL,
@@ -185,7 +185,7 @@ CREATE TABLE IF NOT EXISTS acta.definitions (
     , CONSTRAINT ck_definitions_retention CHECK (retention_seconds >= 0)
     , CONSTRAINT ck_definitions_retention_override CHECK (retention_seconds_override IS NULL OR retention_seconds_override >= 0)
     , CONSTRAINT ck_definitions_input_format_id_byte CHECK (input_format_id BETWEEN 0 AND 255)
-    , CONSTRAINT ck_definitions_output_format_id_byte CHECK (output_format_id BETWEEN 0 AND 255)
+    , CONSTRAINT ck_definitions_result_format_id_byte CHECK (result_format_id BETWEEN 0 AND 255)
     , CONSTRAINT ck_definitions_default_input_format_id_byte CHECK (default_input_format_id BETWEEN 0 AND 255)
 );
 CREATE UNIQUE INDEX IF NOT EXISTS ux_definitions_namespace_name ON acta.definitions (namespace_id, definition_name);
@@ -4156,8 +4156,8 @@ SELECT
     d.manifest_generation_at_utc,
     d.input_type_name,
     d.input_format_name,
-    d.output_type_name,
-    d.output_format_name,
+    d.result_type_name,
+    d.result_format_name,
     CASE d.job_priority_code_effective WHEN 0 THEN 'bulk' WHEN 50 THEN 'normal' WHEN 70 THEN 'high' WHEN 85 THEN 'critical' WHEN 100 THEN 'realtime' END AS job_priority_effective,
     d.job_priority_code,
     d.job_priority_code_override,
@@ -4410,10 +4410,10 @@ JOIN acta.namespaces AS ns ON ns.namespace_id = w.namespace_id;
 
 
 INSERT INTO acta.migrations (name)
-VALUES ('M20261105150556_init')
+VALUES ('M20261105192758_init')
 ON CONFLICT (name) DO NOTHING;
 
--- ===== END M20261105150556_init =====
+-- ===== END M20261105192758_init =====
 
 COMMIT;
 

@@ -97,24 +97,24 @@ internal sealed class DefinitionEntity : IEntity<int>
     public string InputFormatName { get; internal set; } = default!;
 
     /// <summary>
-    /// CLR full type name of the handler's output contract, generic arguments without assembly versions;
+    /// CLR full type name of the handler's result contract, generic arguments without assembly versions;
     /// null for void handlers.
     /// </summary>
-    [DbColumn("output_type_name", DbKind.AsciiString, Size = 512)]
-    public string? OutputTypeName { get; internal set; }
+    [DbColumn("result_type_name", DbKind.AsciiString, Size = 512)]
+    public string? ResultTypeName { get; internal set; }
 
     /// <summary>
     /// Default payload format id for execution results; stamped into <c>jobs_state.result_format_id</c>
     /// on success.
     /// </summary>
-    [DbColumn("output_format_id", DbKind.Byte)]
-    public byte OutputFormatId { get; internal set; }
+    [DbColumn("result_format_id", DbKind.Byte)]
+    public byte ResultFormatId { get; internal set; }
 
     /// <summary>
     /// Default payload format name for execution results; mirrors <see cref="InputFormatName"/>.
     /// </summary>
-    [DbColumn("output_format_name", DbKind.AsciiString, Size = 128)]
-    public string OutputFormatName { get; internal set; } = default!;
+    [DbColumn("result_format_name", DbKind.AsciiString, Size = 128)]
+    public string ResultFormatName { get; internal set; } = default!;
 
     /// <summary>
     /// Whether jobs of this definition must, may, or must not carry a tenant; enforced by the enqueue

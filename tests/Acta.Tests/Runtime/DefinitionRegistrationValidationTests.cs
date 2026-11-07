@@ -23,9 +23,9 @@ public sealed class DefinitionRegistrationValidationTests
             HandlerType: typeof(object),
             MethodName: "Run",
             InputType: typeof(object),
-            OutputType: null,
+            ResultType: null,
             InputPayloadFormat: JobPayloadFormat.None,
-            OutputPayloadFormat: null,
+            ResultPayloadFormat: null,
             Priority: JobPriorityCode.Normal,
             MaxAttempts: 1,
             EventRecording: EventRecordingCode.Audit,
@@ -38,7 +38,7 @@ public sealed class DefinitionRegistrationValidationTests
                 return new JobHandlerOutput(false, null);
             },
             DeserializeInput: static (_, _) => new object(),
-            SerializeOutput: null
+            SerializeResult: null
         );
 
     private static Task RegisterAsync(params JobDescriptor[] descriptors) => RegisterAsync([.. descriptors], []);
@@ -332,18 +332,18 @@ public sealed class DefinitionRegistrationValidationTests
         var input = await Assert.ThrowsAsync<ArgumentException>(() =>
             RegisterAsync(Descriptor("sized") with { InputType = typeof(Größe) })
         );
-        var output = await Assert.ThrowsAsync<ArgumentException>(() =>
-            RegisterAsync(Descriptor("sizes") with { OutputType = typeof(List<Größe>) })
+        var result = await Assert.ThrowsAsync<ArgumentException>(() =>
+            RegisterAsync(Descriptor("sizes") with { ResultType = typeof(List<Größe>) })
         );
 
         Assert.Contains("input type \"Acta.Tests.Runtime.DefinitionRegistrationValidationTests+Größe\"", input.Message);
-        Assert.Contains("output type", output.Message);
+        Assert.Contains("result type", result.Message);
     }
 
     [Fact]
     public async Task An_ascii_generic_contract_type_passes_the_gate()
     {
-        var descriptor = Descriptor("lines") with { InputType = typeof(List<int>), OutputType = typeof(Dictionary<string, int>) };
+        var descriptor = Descriptor("lines") with { InputType = typeof(List<int>), ResultType = typeof(Dictionary<string, int>) };
 
         // The session stub rejects every call, so reaching it is the proof that the gate let it through.
         await Assert.ThrowsAsync<NotSupportedException>(() => RegisterAsync(descriptor));

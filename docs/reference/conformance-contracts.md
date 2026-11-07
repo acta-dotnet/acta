@@ -1014,7 +1014,7 @@
 ### A job registers, enqueues, claims, executes, persists and reads back
 - **Contract:** A registered job enqueued through IJobs is claimed, executed and lands Succeeded with the canonical claim/start/finish timeline and a deserializable result.
 - **Guarantees:**
-  - Job completes Succeeded with a Started then Finished(Succeeded, Executing to Succeeded) timeline and a result that deserializes to the handler output
+  - Job completes Succeeded with a Started then Finished(Succeeded, Executing to Succeeded) timeline and a result that deserializes to what the handler returned
 
 ### Input deserialization failures settle the attempt and stay on the timeline
 - **Contract:** A payload deserialization exception follows normal failure and retry semantics and records an operator-readable reason on JobExecutionFinished.

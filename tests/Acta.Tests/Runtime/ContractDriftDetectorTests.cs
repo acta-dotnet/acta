@@ -14,9 +14,9 @@ public class ContractDriftDetectorTests
             HandlerType: typeof(object),
             MethodName: "M",
             InputType: inputType,
-            OutputType: null,
+            ResultType: null,
             InputPayloadFormat: JobPayloadFormat.Json,
-            OutputPayloadFormat: null,
+            ResultPayloadFormat: null,
             Priority: default,
             MaxAttempts: 1,
             EventRecording: default,
@@ -25,7 +25,7 @@ public class ContractDriftDetectorTests
             ScheduledDelivery: ScheduledDeliveryCode.Permanent,
             Invoker: null!,
             DeserializeInput: null!,
-            SerializeOutput: null
+            SerializeResult: null
         );
 
     private static StoredDefinitionContract Stored(string name, DateTime gen, Type inputType) =>

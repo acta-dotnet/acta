@@ -50,9 +50,9 @@ public sealed class DeferredRetryStepManifest : IJobManifest
                 HandlerType: typeof(DeferredRetryStepHandler),
                 MethodName: nameof(DeferredRetryStepHandler.RunAsync),
                 InputType: typeof(NoInput),
-                OutputType: null,
+                ResultType: null,
                 InputPayloadFormat: JobPayloadFormat.None,
-                OutputPayloadFormat: null,
+                ResultPayloadFormat: null,
                 Priority: JobPriorityCode.Normal,
                 MaxAttempts: 5,
                 EventRecording: EventRecordingCode.Audit,
@@ -65,7 +65,7 @@ public sealed class DeferredRetryStepManifest : IJobManifest
                     return new JobHandlerOutput(false, null);
                 },
                 DeserializeInput: static (_, _) => new NoInput(),
-                SerializeOutput: null
+                SerializeResult: null
             ),
         ]);
 }

@@ -24,7 +24,7 @@ namespace Acta.Tests.Conformance.Scenarios;
 public sealed class GoldenPathSpec : ActaRuntimeTestBase<ConformanceFixture, TestJobs.TestJobsManifest>
 {
     [Fact(
-        DisplayName = "Job completes Succeeded with a Started then Finished(Succeeded, Executing to Succeeded) timeline and a result that deserializes to the handler output"
+        DisplayName = "Job completes Succeeded with a Started then Finished(Succeeded, Executing to Succeeded) timeline and a result that deserializes to what the handler returned"
     )]
     public async Task End_to_end_golden_path_registers_enqueues_claims_executes_persists_and_queries()
     {

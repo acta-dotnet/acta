@@ -138,7 +138,7 @@ internal static class TrialRunner
                     )
                 );
             }
-            if (row.Status is 100 or 200 or 220 && (DurableReader.Status(row.Status) != wanted.Status || row.Output != wanted.Output))
+            if (row.Status is 100 or 200 or 220 && (DurableReader.Status(row.Status) != wanted.Status || row.Result != wanted.Result))
             {
                 boundaryChecks.Add(
                     new("observed-terminal-outcome", key, false, "The terminal row did not contain the expected logical result and status.")
@@ -203,7 +203,7 @@ internal static class TrialRunner
             "verify",
             repetition,
             status,
-            failures.Length > 0 ? $"{failures.Length} failed identity/output checks; exact identities retained."
+            failures.Length > 0 ? $"{failures.Length} failed identity/result checks; exact identities retained."
                 : failedSignals.Count > 0
                     ? $"{failedSignals.Count} signal calls failed after their admissions were acknowledged; those admissions stay in the safety checks."
                 : unresolvedKeys.Count > 0 ? "Accepted cohort remains unresolved."

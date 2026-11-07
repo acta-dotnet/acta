@@ -26,9 +26,9 @@ public sealed class ScheduledSlotPriorityManifest : IJobManifest
                 HandlerType: typeof(PrioritySlotHandler),
                 MethodName: nameof(PrioritySlotHandler.Run),
                 InputType: typeof(NoInput),
-                OutputType: null,
+                ResultType: null,
                 InputPayloadFormat: JobPayloadFormat.None,
-                OutputPayloadFormat: null,
+                ResultPayloadFormat: null,
                 Priority: JobPriorityCode.Critical,
                 MaxAttempts: 2,
                 EventRecording: EventRecordingCode.Audit,
@@ -41,7 +41,7 @@ public sealed class ScheduledSlotPriorityManifest : IJobManifest
                     return new JobHandlerOutput(false, null);
                 },
                 DeserializeInput: static (_, _) => new NoInput(),
-                SerializeOutput: null
+                SerializeResult: null
             )
             {
                 Schedules =

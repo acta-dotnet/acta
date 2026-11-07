@@ -12,9 +12,9 @@ public sealed record JobDescriptor(
     Type HandlerType,
     string MethodName,
     Type InputType,
-    Type? OutputType,
+    Type? ResultType,
     JobPayloadFormat InputPayloadFormat,
-    JobPayloadFormat? OutputPayloadFormat,
+    JobPayloadFormat? ResultPayloadFormat,
     JobPriorityCode Priority,
     int MaxAttempts,
     EventRecordingCode EventRecording,
@@ -23,7 +23,7 @@ public sealed record JobDescriptor(
     ScheduledDeliveryCode ScheduledDelivery,
     JobHandlerInvokeDelegate Invoker,
     Func<IJobPayloadSerializer, JobPayload, object> DeserializeInput,
-    Func<IJobPayloadSerializer, object?, JobPayload>? SerializeOutput
+    Func<IJobPayloadSerializer, object?, JobPayload>? SerializeResult
 )
 {
     /// <summary>

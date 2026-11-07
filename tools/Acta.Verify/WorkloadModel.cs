@@ -63,14 +63,14 @@ internal static class WorkloadModel
     // This model intentionally does not call the handler or an Acta transition helper.
     private static ExpectedOutcome Outcome(WorkInput input, string? parent, string jobNamespace)
     {
-        string? output;
+        string? result;
         if (input.Poison)
         {
-            output = null;
+            result = null;
         }
         else if (input.Steps > 0 || input.Children > 0)
         {
-            output = (7L * input.Steps * (input.Steps + 1) / 2 + input.Children - (input.PartialFailure ? 1 : 0)).ToString(
+            result = (7L * input.Steps * (input.Steps + 1) / 2 + input.Children - (input.PartialFailure ? 1 : 0)).ToString(
                 CultureInfo.InvariantCulture
             );
         }
@@ -81,12 +81,12 @@ internal static class WorkloadModel
             {
                 data = SHA256.HashData(data);
             }
-            output = Convert.ToHexStringLower(SHA256.HashData(data));
+            result = Convert.ToHexStringLower(SHA256.HashData(data));
         }
         return new(
             input.Key,
             input.Poison ? "Failed" : "Succeeded",
-            output,
+            result,
             parent,
             Enumerable.Range(1, input.Steps).Select(i => $"step-{i}={i * 7L}").Concat(input.EffectMode is null ? [] : EffectStep).ToArray(),
             jobNamespace

@@ -20,7 +20,7 @@ ACTA0126 | Acta | Error | Incomplete [Schedule] expiration (ExpireAfter without 
 ACTA0127 | Acta | Error | Incomplete [Schedule] source (expression and Calendar, neither, blank or invalid calendar name, a [Calendar] class bound in the wrong role)
 ACTA0128 | Acta | Error | Invalid [Calendar] declaration (abstract, generic, or private class, neither calendar interface, invalid or duplicate name)
 ACTA0131 | Acta | Error | Invalid [JobPayloadFormatDeclaration]
-ACTA0132 | Acta | Error | Invalid [Job] payload-format usage (Format vs Input/OutputFormat, output on void, unknown name)
+ACTA0132 | Acta | Error | Invalid [Job] payload-format usage (Format vs InputFormat/ResultFormat, ResultFormat on void, unknown name)
 ACTA0142 | Acta | Error | Invalid Acta duration unit (uppercase or calendar unit)
 ACTA0201 | ActaCodes | Error | Invalid code-family declaration
 ACTA0202 | ActaCodes | Error | Invalid [Code] value (shape or id outside 0..254)

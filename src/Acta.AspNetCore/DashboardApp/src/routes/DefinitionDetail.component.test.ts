@@ -11,7 +11,7 @@ const definition = {
   version: 3,
   status: 'active',
   inputTypeName: 'SendInvoiceInput',
-  outputTypeName: 'SendInvoiceOutput',
+  resultTypeName: 'SendInvoiceResult',
   scheduledDelivery: 'per-occurrence',
   firingFailurePolicy: 'pause-scheduling',
   priority: 'normal',

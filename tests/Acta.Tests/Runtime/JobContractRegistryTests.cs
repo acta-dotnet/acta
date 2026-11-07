@@ -27,7 +27,7 @@ public sealed class JobContractRegistryTests
         Assert.Equal("ping", route.JobName);
         Assert.Equal(JobPayloadFormat.Json.Id, route.InputFormat.Id);
         Assert.Equal(typeof(PingInput), route.InputType);
-        Assert.Null(route.OutputType);
+        Assert.Null(route.ResultType);
     }
 
     [Fact]
@@ -82,9 +82,9 @@ public sealed class JobContractRegistryTests
             HandlerType: typeof(object),
             MethodName: "Handle",
             InputType: inputType,
-            OutputType: null,
+            ResultType: null,
             InputPayloadFormat: JobPayloadFormat.Json,
-            OutputPayloadFormat: null,
+            ResultPayloadFormat: null,
             Priority: default,
             MaxAttempts: 1,
             EventRecording: default,
@@ -93,6 +93,6 @@ public sealed class JobContractRegistryTests
             ScheduledDelivery: ScheduledDeliveryCode.Permanent,
             Invoker: null!,
             DeserializeInput: null!,
-            SerializeOutput: null
+            SerializeResult: null
         );
 }

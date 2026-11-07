@@ -71,9 +71,9 @@ public sealed class StepExhaustionManifest : IJobManifest
                 HandlerType: typeof(StepExhaustionProbes),
                 MethodName: nameof(StepExhaustionProbes.ExhaustReplay),
                 InputType: typeof(NoInput),
-                OutputType: null,
+                ResultType: null,
                 InputPayloadFormat: JobPayloadFormat.None,
-                OutputPayloadFormat: null,
+                ResultPayloadFormat: null,
                 Priority: JobPriorityCode.Normal,
                 MaxAttempts: 2,
                 EventRecording: EventRecordingCode.Audit,
@@ -86,7 +86,7 @@ public sealed class StepExhaustionManifest : IJobManifest
                     return new JobHandlerOutput(false, null);
                 },
                 DeserializeInput: static (_, _) => new NoInput(),
-                SerializeOutput: null
+                SerializeResult: null
             )
             {
                 Backoff = "0s",
@@ -96,9 +96,9 @@ public sealed class StepExhaustionManifest : IJobManifest
                 HandlerType: typeof(StepExhaustionProbes),
                 MethodName: nameof(StepExhaustionProbes.WindowExhaust),
                 InputType: typeof(NoInput),
-                OutputType: null,
+                ResultType: null,
                 InputPayloadFormat: JobPayloadFormat.None,
-                OutputPayloadFormat: null,
+                ResultPayloadFormat: null,
                 Priority: JobPriorityCode.Normal,
                 MaxAttempts: 1,
                 EventRecording: EventRecordingCode.Audit,
@@ -111,7 +111,7 @@ public sealed class StepExhaustionManifest : IJobManifest
                     return new JobHandlerOutput(false, null);
                 },
                 DeserializeInput: static (_, _) => new NoInput(),
-                SerializeOutput: null
+                SerializeResult: null
             ),
         ]);
 }

@@ -167,12 +167,12 @@ internal sealed class HandlerInvocation(
             );
         }
 
-        if (descriptor.OutputPayloadFormat is not { } outFormat || descriptor.SerializeOutput is not { } serializeOutput)
+        if (descriptor.ResultPayloadFormat is not { } resultFormat || descriptor.SerializeResult is not { } serializeResult)
         {
             return succeeded;
         }
 
-        var payload = serializeOutput(serializers.Resolve(outFormat.Id), invocation.Result);
+        var payload = serializeResult(serializers.Resolve(resultFormat.Id), invocation.Result);
         if (payload.Data.Length <= maxInlinePayloadBytes)
         {
             return succeeded with { ResultFormatId = payload.Format.Id, Result = payload.Data };

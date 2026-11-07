@@ -112,17 +112,17 @@ internal static class JobSignatureReader
         if (returnType.SpecialType == SpecialType.System_Void)
         {
             CheckSyncContext(method, parameters, location, diagnostics);
-            return new ReturnTypeModel(OutputType: null, InvocationKind: JobInvocationKind.Sync);
+            return new ReturnTypeModel(ResultType: null, InvocationKind: JobInvocationKind.Sync);
         }
 
         if (returnName == TaskMetadataName)
         {
-            return new ReturnTypeModel(OutputType: null, InvocationKind: JobInvocationKind.Task);
+            return new ReturnTypeModel(ResultType: null, InvocationKind: JobInvocationKind.Task);
         }
 
         if (returnName == ValueTaskMetadataName)
         {
-            return new ReturnTypeModel(OutputType: null, InvocationKind: JobInvocationKind.ValueTask);
+            return new ReturnTypeModel(ResultType: null, InvocationKind: JobInvocationKind.ValueTask);
         }
 
         // Task<T> / ValueTask<T>: async typed result.
@@ -175,7 +175,7 @@ internal static class JobSignatureReader
         {
             // Sync<TUnit> collapses to plain Sync; the async wrappers stay (caller still has to await).
             return new ReturnTypeModel(
-                OutputType: null,
+                ResultType: null,
                 InvocationKind: invocationKind == JobInvocationKind.SyncOfT ? JobInvocationKind.Sync : invocationKind
             );
         }

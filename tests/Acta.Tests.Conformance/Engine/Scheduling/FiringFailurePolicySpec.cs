@@ -30,9 +30,9 @@ public sealed class FiringFailurePolicyManifest : IJobManifest
             HandlerType: typeof(FailingPingHandler),
             MethodName: nameof(FailingPingHandler.Run),
             InputType: typeof(NoInput),
-            OutputType: null,
+            ResultType: null,
             InputPayloadFormat: JobPayloadFormat.None,
-            OutputPayloadFormat: null,
+            ResultPayloadFormat: null,
             Priority: JobPriorityCode.Normal,
             MaxAttempts: 1,
             EventRecording: EventRecordingCode.Audit,
@@ -45,7 +45,7 @@ public sealed class FiringFailurePolicyManifest : IJobManifest
                 return new JobHandlerOutput(false, null);
             },
             DeserializeInput: static (_, _) => new NoInput(),
-            SerializeOutput: null
+            SerializeResult: null
         )
         {
             Schedules =
