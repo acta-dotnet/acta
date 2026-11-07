@@ -53,10 +53,36 @@ public sealed class WorkerCatalogValidationTests
     }
 
     [Fact]
+    public void A_per_occurrence_definition_with_a_deadline_passes()
+    {
+        // Each per-occurrence root is a new job, so its deadline counts from its admission.
+        var perOccurrence = Descriptor("hourly-report", typeof(HandlerA)) with
+        {
+            DeadlineSeconds = 1800,
+            ScheduledDelivery = ScheduledDeliveryCode.PerOccurrence,
+            Schedules =
+            [
+                new ScheduleDescriptor(
+                    "hourly-report",
+                    "default",
+                    "0 * * * *",
+                    TimeZoneId: null,
+                    MisfireStrategyCode.Skip,
+                    ScheduleExpressionKindCode.Cron,
+                    Description: null,
+                    Environments: []
+                ),
+            ],
+        };
+
+        CatalogRegistrar.ValidateDeadlineRequirements([perOccurrence]);
+    }
+
+    [Fact]
     public void A_scheduled_definition_with_a_deadline_fails_startup()
     {
-        // A deadline anchors to job creation and a recurring slot's row lives forever, so a Strict
-        // deadline would terminally cancel the slot the first time it is claimed past that anchor.
+        // A deadline anchors to job creation and a permanent job's row lives forever, so a Strict
+        // deadline would terminally cancel it the first time it is claimed past that anchor.
         var scheduled = Descriptor("nightly", typeof(HandlerA)) with
         {
             DeadlineSeconds = 1800,

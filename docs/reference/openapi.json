@@ -11409,7 +11409,7 @@
           }
         },
         "additionalProperties": false,
-        "description": "The whole set of operator overrides of a definition's policy, read and written as a unit: a member with a value overrides what the code declares, and null leaves the declared value in force. A request carries every member, null where there is no override. A deadline override on a scheduled definition is ignored, and a rate limit applies to every definition that shares the meter."
+        "description": "The whole set of operator overrides of a definition's policy, read and written as a unit: a member with a value overrides what the code declares, and null leaves the declared value in force. A request carries every member, null where there is no override. A deadline override is ignored by a permanent job, and a rate limit applies to every definition that shares the meter."
       },
       "DefinitionStatusCode": {
         "examples": [

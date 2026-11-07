@@ -100,7 +100,8 @@ A per-occurrence schedule's decisions that make no root, a skip or an ended paus
 definition; an admission or a manual trigger is audited against the root. The
 [per-occurrence-delivery concept](../concepts/100-scheduling/110-per-occurrence-delivery/) runs one at a
 limit of two, dropping what arrives while it is full. A `PerOccurrence` definition
-declares no lane and no deadline in this release.
+declares no lane. Its deadline counts from each root's admission, not from its occurrence, so a root admitted
+late under catch-up or `FullBehavior = Wait` starts its clock late.
 
 ## Trigger now
 

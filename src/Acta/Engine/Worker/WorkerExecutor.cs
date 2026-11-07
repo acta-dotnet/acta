@@ -302,13 +302,13 @@ internal sealed class WorkerExecutor(
             )
             : null;
 
-        // A recurring slot never carries the whole-job deadline: it anchors to job creation
-        // and the slot row lives forever, so the Strict paths would cancel the slot
+        // A permanent job never carries the whole-job deadline: it anchors to job creation
+        // and the permanent job's row lives forever, so the Strict paths would cancel it
         // terminally and the advisory surface (ctx.IsOverdue, ctx.TimeUntilDeadline) would
-        // report permanently overdue to every occurrence. Worker init rejects the
-        // Deadline + [Schedule] combination; a null here covers slots that predate the
-        // rule or gained a deadline through an override, in the one place every consumer
-        // reads from.
+        // report permanently overdue to every firing. The deploy rejects a deadline on a
+        // permanent job's definition; a null here covers one that gained a deadline through an
+        // override, in the one place every consumer reads from. A per-occurrence root is an
+        // ordinary job, so its deadline counts from its admission.
         DateTime? deadlineAtUtc =
             job.Kind != JobKindCode.Permanent && descriptor.DeadlineSeconds is { } deadlineSecs && deadlineSecs > 0
                 ? job.CreatedAtUtc.AddSeconds(deadlineSecs)

@@ -2167,6 +2167,7 @@
 - **Contract:** A PerOccurrence schedule admits each occurrence as a root charged to it, releases the charge once per terminalization, and waits or drops when full.
 - **Guarantees:**
   - An admitted occurrence is a Ready root with the schedule as provenance, one charge, and its own envelope, settled on completion
+  - A per-occurrence root past its Strict deadline is cancelled at admission and releases its charge
   - At MaxOutstanding a Wait schedule parks until a settlement wakes it, then admits the waiting occurrence
   - At MaxOutstanding a Drop schedule skips the occurrence with the reason capacity and moves on
   - A cancel releases the charge, a restart takes it again, and a restart into a full schedule is Rejected

@@ -27,6 +27,7 @@ public sealed class PerOccurrenceManifest : IJobManifest
     public const string FailingJobName = "roots-fail";
     public const string LostJobName = "roots-lost";
     public const string HeldJobName = "roots-held";
+    public const string DeadlineJobName = "roots-deadline";
     public const string ScheduleName = "every-5-minutes";
 
     public static JobDescriptorManifest Descriptors { get; } =
@@ -38,9 +39,16 @@ public sealed class PerOccurrenceManifest : IJobManifest
             Descriptor(FailingJobName, 2, ScheduleFullBehaviorCode.Wait, fails: true),
             Descriptor(LostJobName, 2, ScheduleFullBehaviorCode.Wait, fails: true),
             Descriptor(HeldJobName, 1, ScheduleFullBehaviorCode.Wait, fails: false),
+            Descriptor(DeadlineJobName, 1, ScheduleFullBehaviorCode.Wait, fails: false, deadlineSeconds: 60),
         ]);
 
-    private static JobDescriptor Descriptor(string jobName, int maxOutstanding, ScheduleFullBehaviorCode fullBehavior, bool fails) =>
+    private static JobDescriptor Descriptor(
+        string jobName,
+        int maxOutstanding,
+        ScheduleFullBehaviorCode fullBehavior,
+        bool fails,
+        int? deadlineSeconds = null
+    ) =>
         new(
             JobName: jobName,
             HandlerType: fails ? typeof(FailingRootHandler) : typeof(RootHandler),
@@ -87,6 +95,7 @@ public sealed class PerOccurrenceManifest : IJobManifest
             ],
             CreateDefaultInput = static () => new NoInput(),
             SerializeInput = null,
+            DeadlineSeconds = deadlineSeconds,
         };
 }
 
@@ -151,6 +160,34 @@ public sealed class PerOccurrenceSchedulingSpec : ActaRuntimeTestBase<Conformanc
         Assert.Equal(JobStatusCode.Succeeded, (await ReadJobAsync(root.Id, ct)).Status);
         Assert.Equal(CheckpointStatusCode.Succeeded, (await EnvelopeAsync(root.Id, ct)).Status);
         Assert.Equal(0, (await ScheduleAsync(PerOccurrenceManifest.WaitingJobName, ct)).State.OutstandingCount);
+    }
+
+    [Fact(DisplayName = "A per-occurrence root past its Strict deadline is cancelled at admission and releases its charge")]
+    public async Task A_root_past_its_strict_deadline_is_cancelled_at_admission()
+    {
+        var ct = TestContext.Current.CancellationToken;
+        var (schedule, state) = await ScheduleAsync(PerOccurrenceManifest.DeadlineJobName, ct);
+        await AdmitAtAsync(state.NextOccurrenceAtUtc!.Value, ct);
+        var root = Assert.Single(await RootsAsync(schedule.Id, ct));
+
+        // The deadline counts from the root's creation, its admission, against the real clock: an hour back is a root
+        // admitted that long ago.
+        var anchor = DateTime.UtcNow.AddHours(-1);
+        var moved = await Db.From<JobEntity>()
+            .Where(j => j.Id == root.Id)
+            .UpdateOnlyAsync(() => new JobEntity { CreatedAtUtc = anchor }, ct);
+        Assert.Equal(1, moved);
+
+        await Runtime.RunOnceAsync(root.Id, ct);
+
+        Assert.Equal(JobStatusCode.Cancelled, (await ReadJobAsync(root.Id, ct)).Status);
+        var yielded = (await GetEventsByJobId.Run(Services, root.Id, ct))
+            .Where(e => e.EventCode == EventCode.JobExecutionYielded)
+            .OrderByDescending(e => e.Id)
+            .First();
+        Assert.Equal(EventReason.DeadlineExceeded, yielded.Reason);
+        Assert.Equal(CheckpointStatusCode.Cancelled, (await EnvelopeAsync(root.Id, ct)).Status);
+        Assert.Equal(0, (await ScheduleAsync(PerOccurrenceManifest.DeadlineJobName, ct)).State.OutstandingCount);
     }
 
     [Fact(DisplayName = "At MaxOutstanding a Wait schedule parks until a settlement wakes it, then admits the waiting occurrence")]

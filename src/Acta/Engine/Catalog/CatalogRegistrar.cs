@@ -263,21 +263,26 @@ internal sealed class CatalogRegistrar(
     }
 
     /// <summary>
-    /// Fail fast on a scheduled definition that declares a deadline: the deadline anchors to job
-    /// creation and a recurring slot's row lives forever, so a Strict deadline would terminally
-    /// cancel the slot the first time it is claimed past that anchor, and an Advisory one can never
-    /// mean anything an occurrence could act on.
+    /// Fail fast on a permanent job's definition that declares a deadline: the deadline anchors to job creation and a
+    /// permanent job's row lives forever, so a Strict deadline would terminally cancel it the first time it is claimed past
+    /// that anchor, and an Advisory one could never mean anything a firing could act on. A per-occurrence root is a new
+    /// job at each admission, so its deadline counts from there.
     /// </summary>
     internal static void ValidateDeadlineRequirements(ImmutableArray<JobDescriptor> descriptors)
     {
         foreach (var descriptor in descriptors)
         {
-            if (descriptor.DeadlineSeconds is not null && !descriptor.Schedules.IsDefaultOrEmpty)
+            if (
+                descriptor.DeadlineSeconds is not null
+                && !descriptor.Schedules.IsDefaultOrEmpty
+                && descriptor.ScheduledDelivery == ScheduledDeliveryCode.Permanent
+            )
             {
                 throw new InvalidOperationException(
-                    $"Job '{descriptor.JobName}' declares Deadline together with [Schedule]. "
-                        + "A deadline anchors to job creation, and a permanent job is created once and lives "
-                        + "forever, so the combination would cancel the job instead of bounding an occurrence."
+                    $"Job '{descriptor.JobName}' declares Deadline together with [Schedule] and permanent delivery. "
+                        + "A deadline anchors to job creation, and a permanent job is created once and lives forever, so "
+                        + "the combination would cancel the job instead of bounding a firing. Declare "
+                        + "ScheduledDelivery = ScheduledDeliveryCode.PerOccurrence for a deadline per occurrence."
                 );
             }
         }

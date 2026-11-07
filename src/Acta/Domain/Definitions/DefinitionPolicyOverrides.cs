@@ -5,7 +5,7 @@ namespace Acta;
 /// <summary>
 /// The whole set of operator overrides of a definition's policy, read and written as a unit: a member with a value overrides what the
 /// code declares, and null leaves the declared value in force. A request carries every member, null where there is no override. A
-/// deadline override on a scheduled definition is ignored, and a rate limit applies to every definition that shares the meter.
+/// deadline override is ignored by a permanent job, and a rate limit applies to every definition that shares the meter.
 /// </summary>
 /// <param name="Priority">The priority to use in place of the declared one; null uses the declared one.</param>
 /// <param name="MaxAttempts">The retry budget to use in place of the declared one; null uses the declared one.</param>

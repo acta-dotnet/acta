@@ -80,8 +80,8 @@ public sealed class JobAttribute(string name) : Attribute
     /// Whole-job wall-clock deadline measured from job creation. Use Acta duration syntax, e.g. <c>"2h"</c>.
     /// Unlike <see cref="ExecutionTimeout"/> it spans retries. Null = no deadline. See
     /// <see cref="DeadlineBehavior"/> for what the engine does when it is exceeded. Cannot be combined
-    /// with <c>[Schedule]</c>: a permanent job is created once and lives forever, so a deadline
-    /// anchored to its creation could never bound an occurrence, and worker startup rejects the pair.
+    /// with a permanent job's <c>[Schedule]</c>: that job is created once and lives forever, so the deploy
+    /// rejects the pair. A <c>PerOccurrence</c> definition's deadline counts from each root's admission.
     /// </summary>
     public string? Deadline { get; init; }
 
