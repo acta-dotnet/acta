@@ -1,18 +1,10 @@
 # Choosing Acta
 
-Use this page to decide whether Acta should run your application's periodic, delayed, and scheduled jobs.
+Use this page to decide whether Acta should run your application's background jobs and workflows.
 
-The hard part is not finding a timer, cron parser, or scheduler. .NET teams already have many
-options: `BackgroundService`, `PeriodicTimer`, Hangfire, Quartz, TickerQ, MassTransit scheduling,
-cloud timers, Kubernetes CronJobs, OS schedulers, and custom database tables.
+If the tool you run today already makes background work dependable and easy to see into, keep it. Acta is for work that has become application state: its steps, waits, retries, and history must survive a crash and stay in the SQL database the application already uses.
 
-The hard part is choosing one execution model before the codebase grows several.
-
-A scheduler decides **when work should start**. Acta is for cases where you also need to know
-**what happened after it started**.
-
-Acta is for **app-owned background work that has become application state**: work with durable
-inputs, retries, leases, attempts, results, event history, operator controls, and questions like:
+A scheduler decides **when work should start**. Acta also records **what happened after it started**, so these questions have an answer in the database:
 
 - What ran?
 - What failed?
@@ -20,28 +12,21 @@ inputs, retries, leases, attempts, results, event history, operator controls, an
 - Why is this job stuck?
 - Can I pause, resume, restart, signal, or debug it?
 
-Use Acta when scheduling is not the whole problem anymore. Use it when background work itself needs
-to be durable, visible, inspectable, and recoverable through the SQL database the application already
-uses.
-
 > This page is a fit guide, not a claim that every existing scheduler should be replaced.
 
-For concrete migration patterns from Hangfire, Quartz, TickerQ, platform schedulers, and custom task
-tables, see [Moving from another scheduler](#moving-from-another-scheduler).
+For concrete migration patterns from Hangfire, Quartz, TickerQ, platform schedulers, and custom task tables, see [Moving from another scheduler](#moving-from-another-scheduler).
 
-## The real split
+## Start from the kind of work
 
-The question is not **scheduler or no scheduler**. The question is what kind of work you are
-scheduling.
-
-| Need | Use |
+| Kind of work | Use |
 | --- | --- |
-| A local loop where missed ticks are acceptable | `BackgroundService`, `PeriodicTimer`, or a plain hosted service |
-| The platform starts one script, endpoint, or container on a calendar | cron, systemd timers, Windows Task Scheduler, Kubernetes CronJob, Azure Functions timer |
-| App-owned work that needs retries, state, audit, recovery, or operator visibility | Acta |
-| A controller that keeps an external system current: durable progress, bounded batches, a worker that may die mid-batch | Acta, as one permanent job ([the lab](../concepts/100-scheduling/109-continuous-synchronization/)) |
-| Distributed messaging, pub/sub, event streaming, or fan-out transport | a message bus or streaming platform |
-| Deterministic event-history replay, BPMN, or visual workflow orchestration | a workflow engine, not Acta |
+| A local loop where a missed tick is harmless | `BackgroundService` or `PeriodicTimer`. Nothing needs to be stored, so nothing more is needed. |
+| A script or container the platform starts on a calendar | cron, systemd timers, Windows Task Scheduler, a Kubernetes CronJob, or a cloud timer. The platform owns the clock and the process. |
+| Messages between services | A message broker or a streaming platform, for pub/sub, fan-out, and streams you replay. Acta can run the work a message starts, with the message id as its deduplication key. |
+| Background work the application owns | Acta, when the work needs retries, durable state, a history, or an operator who can pause, restart, or signal it. |
+| A controller that keeps an external system current: durable progress, bounded batches, a worker that may die mid-batch | Acta, as one permanent job ([the lab](../concepts/100-scheduling/109-continuous-synchronization/)). |
+| A long-running workflow in .NET | Acta: one C# handler with steps, child jobs, signals, and timers, and its state as rows in your database. |
+| Workflows across several languages, or drawn in a designer | A workflow platform. Acta is .NET only and has no visual designer or BPMN. |
 
 ## Who reaches for Acta
 
@@ -66,7 +51,7 @@ scheduling.
 
 - Losing a tick is harmless and no one will ask what happened.
 - The work is host maintenance better owned by the OS, container platform, or cloud scheduler.
-- You need a message bus, event stream, or transport abstraction.
+- What you need is messaging between services: a message bus, an event stream, or a transport abstraction. Acta runs the work a message starts and does not carry the message.
 - You want a long-running function's local variables to survive a crash without naming what to
   persist. Acta re-runs the handler from the top and skips completed steps, so state that outlives an
   attempt is an explicit step result or durable variable.
@@ -87,25 +72,22 @@ scheduling.
 | Operators need control | Pause, resume, cancel, restart, signal, debug, explain, and schedule pause/resume |
 | Teams do not want more infrastructure | The worker is the app process; durable state is the app database |
 
-## If you already use Hangfire, Quartz, or TickerQ
+## If you already run one of these
 
-If Hangfire, Quartz, or TickerQ already makes your background work boring, visible, and consistent,
-keep it. Acta is not here to replace every scheduler in every codebase.
+If the tool already makes your background work boring, visible, and consistent, keep it.
 
-Acta fits when the problem has moved beyond **when should this run?** into **what durable state does
-this work create, and how do we operate it?** The difference is not any one feature, since cron,
-retries, dashboards, and SQL storage exist everywhere; it is one durable work model: the timer, the
-queue, the retry loop, and the hand-maintained state table become one job with a schedule, a lease, a
-budget, and a ledger, and a parent, its children, and a long wait are jobs in the same model.
+Cron, retries, dashboards, and SQL storage exist everywhere. What Acta offers is one durable work model: the timer, the queue, the retry loop, and the hand-maintained state table become one job with a schedule, a lease, a budget, and a ledger, and a parent, its children, and a long wait are jobs in the same model.
 
 | Existing tool | Keep it when | Consider Acta when |
 | --- | --- | --- |
-| Hangfire | You want a familiar persistent job runner with recurring jobs, retries, and dashboard | Job state should be first-class application data in SQL, with typed contracts, durable steps, signals, child jobs, and SQL-first inspection |
-| Quartz | Calendar sophistication, cron behavior, misfires, and scheduler features are the main problem | The execution lifecycle matters more than the calendar: lineage, leases, waits, recovery, and operator controls |
-| TickerQ | You want a source-generated scheduler with persistence, dashboard tooling, chaining, priorities, and concurrency controls | SQL must serve as the durable operational ledger for resumable work: checkpoints, signals, recovery evidence, and operator intervention |
+| Hangfire, a background job runner | It already runs your jobs well: a widely used runner with recurring jobs, automatic retries, and a dashboard, on storage you know. | A job's state should be data in your own SQL database that you can query, with typed inputs, durable steps, signals, child jobs, and order and limits held across every worker. |
+| Quartz.NET, a scheduler | The calendar is the hard part: rich cron and calendar rules, misfire handling, and clustering you have already tuned. | What happens after a job starts matters more than when it starts: steps, long waits, crash recovery, lineage, and operator controls. |
+| TickerQ, a scheduler | You want a source-generated scheduler with persistence, a dashboard, chaining, priorities, and concurrency controls. | The database should be the record of resumable work: checkpoints, signals, recovery evidence, and operator intervention. |
+| Temporal, a workflow platform | Workers in several languages share one workflow, you want deterministic replay of its event history, or you already run its server or use its cloud service. | The workflow is .NET, its state belongs in the SQL database the application already uses, and you would rather not run a separate workflow server. |
+| Elsa Workflows, a workflow library | You want a visual designer, with workflows stored as data that can change without a deploy. | Your team writes and reviews workflows as code, as plain C# handlers. |
+| RabbitMQ, Kafka, Service Bus, or SQS, a message broker | You need messaging between services, those in other languages included, with whatever pub/sub, fan-out, or replay your broker or streaming platform offers. | Add Acta beside it when the work a message starts needs retries, steps, and a history: the broker carries the message, and Acta runs the work. Without a broker, Acta runs background work on the database alone. |
 
-The migration trigger is not **we need cron**. The migration trigger is one of these:
-
+Teams usually move for one of these reasons:
 - We have several competing ways to run background work.
 - Nobody can explain what happened to last night's job.
 - We need to inspect, restart, or debug old jobs.
