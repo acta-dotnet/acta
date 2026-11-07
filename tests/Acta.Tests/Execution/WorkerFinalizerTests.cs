@@ -273,6 +273,70 @@ public sealed class WorkerFinalizerTests
         Assert.Equal(0, registry.Count());
     }
 
+    private const int Cap = WorkerFinalizer.MaxBatchBytes;
+
+    // Each case's results, in bytes, in the order the executors hand them over, and the batches written, "|" between calls.
+    [Theory(
+        DisplayName = "A result that would take a batch past the byte cap starts the next batch, and one past the cap is written alone"
+    )]
+    [InlineData(new[] { Cap / 2, Cap / 2 + 1 }, "1|2")]
+    [InlineData(new[] { Cap / 2, Cap / 2 + 1, 1 }, "1|2,3")]
+    [InlineData(new[] { 1, Cap + 1, 1 }, "1|2|3")]
+    [InlineData(new[] { Cap / 2, Cap / 2, 1 }, "1,2|3")]
+    public async Task A_result_past_the_byte_cap_starts_the_next_batch(int[] resultBytes, string batches)
+    {
+        var ct = TestContext.Current.CancellationToken;
+        var written = new List<long[]>();
+        var session = new ScriptedSession(call =>
+        {
+            using var batch = JsonDocument.Parse((string)call.Parameters["p_completions"]!);
+            var jobs = batch.RootElement.EnumerateArray().Select(row => row.GetProperty("job_id").GetInt64()).ToArray();
+            written.Add(jobs);
+            return jobs.Select(id => new CompleteExecutionsRow(
+                    id,
+                    0,
+                    CompleteExecutionsAction.Completed,
+                    (byte)JobStatusCode.Succeeded,
+                    null,
+                    DateTime.UtcNow,
+                    false,
+                    false
+                ))
+                .ToList();
+        });
+        var options = new JobsOptions();
+        var context = new WorkerContext(new WorkerRegistration("orders", null, null, [], []));
+        context.NamespaceIds["orders"] = 1;
+        context.WorkerIdByNamespace["orders"] = 1;
+        var registry = new InFlightJobRegistry(options);
+        var finalizer = new WorkerFinalizer(
+            session.Services().GetRequiredService<ExecutionOperations>(),
+            null!,
+            new WorkerWakeupPublisher(new InProcessWakeup()),
+            options,
+            context,
+            registry,
+            NullLogger.Instance,
+            metrics: null
+        );
+        var result = new byte[resultBytes.Max()];
+        for (var i = 0; i < resultBytes.Length; i++)
+        {
+            var entry = WorkerHeartbeatLeaseRunwayTests.Entry(i + 1, state: InFlightJobState.Finalizing);
+            entry.Descriptor = Descriptor;
+            entry.Completion = new ExecutionCompletion(CompletionKind.Succeeded) { Result = result.AsMemory(0, resultBytes[i]) };
+            registry.TryAdd(entry);
+            await registry.Completed.Writer.WriteAsync(entry, ct);
+        }
+        // Completed before the loop reads, so an entry held out of the last batch is all that is left when the channel ends.
+        registry.Completed.Writer.Complete();
+
+        await finalizer.RunLoopAsync(ct).WaitAsync(TimeSpan.FromSeconds(30), ct);
+
+        Assert.Equal(batches, string.Join("|", written.Select(jobs => string.Join(",", jobs))));
+        Assert.Equal(0, registry.Count());
+    }
+
     [Fact(DisplayName = "A completion whose row already landed still wakes its waiters, since a lost answer sent none")]
     public async Task A_skipped_completion_still_wakes_its_waiters()
     {

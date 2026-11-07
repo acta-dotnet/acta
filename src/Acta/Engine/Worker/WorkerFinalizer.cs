@@ -87,36 +87,25 @@ internal sealed partial class WorkerFinalizer(
         {
             await foreach (var first in reader.ReadAllAsync(hostCt))
             {
-                List<InFlightJob> entries = [first];
-                var bytes = first.Completion!.Result.Length;
-                using var window = new CancellationTokenSource(BatchWindow);
-                while (entries.Count < MaxBatch && bytes < MaxBatchBytes)
+                // An entry held out of a full batch starts the next one here, before the channel is read again, so the
+                // channel completing behind it cannot drop it.
+                for (InFlightJob? start = first; start is not null; )
                 {
-                    if (!reader.TryRead(out var next))
+                    (var entries, start) = await TakeBatchAsync(start, reader);
+                    try
                     {
-                        if (entries.Count == 1 || !await WaitForNextAsync(reader, window.Token))
-                        {
-                            break;
-                        }
-                        reader.TryRead(out next);
+                        await FinalizeAsync(entries, apart: true, hostCt);
+                        metrics?.RecordCompletionBatch(context.WorkerRegistration!.NamespaceName, entries.Count);
                     }
-                    entries.Add(next!);
-                    bytes += next!.Completion!.Result.Length;
-                }
-
-                try
-                {
-                    await FinalizeAsync(entries, apart: true, hostCt);
-                    metrics?.RecordCompletionBatch(context.WorkerRegistration!.NamespaceName, entries.Count);
-                }
-                catch (Exception ex)
-                {
-                    // On a hard stop the rows fall to recovery, and the write's own failure is not a fault.
-                    if (!hostCt.IsCancellationRequested)
+                    catch (Exception ex)
                     {
-                        if (log.IsEnabled(LogLevel.Error))
+                        // On a hard stop the rows fall to recovery, and the write's own failure is not a fault.
+                        if (!hostCt.IsCancellationRequested)
                         {
-                            ActaLog.FinalizerFaulted(log, ex, $"{entries.Count} completions");
+                            if (log.IsEnabled(LogLevel.Error))
+                            {
+                                ActaLog.FinalizerFaulted(log, ex, $"{entries.Count} completions");
+                            }
                         }
                     }
                 }
@@ -136,6 +125,41 @@ internal sealed partial class WorkerFinalizer(
             cancels = [.. _cancels];
         }
         await Task.WhenAll(cancels);
+    }
+
+    /// <summary>
+    /// The batch <paramref name="first"/> starts: what else is waiting, up to <see cref="MaxBatch"/> entries and
+    /// <see cref="MaxBatchBytes"/> of results, and the entry held out because its result would take the batch past
+    /// the bytes, which starts the next batch.
+    /// </summary>
+    private static async Task<(List<InFlightJob> Entries, InFlightJob? Held)> TakeBatchAsync(
+        InFlightJob first,
+        ChannelReader<InFlightJob> reader
+    )
+    {
+        List<InFlightJob> entries = [first];
+        var bytes = first.Completion!.Result.Length;
+        using var window = new CancellationTokenSource(BatchWindow);
+        while (entries.Count < MaxBatch && bytes < MaxBatchBytes)
+        {
+            if (!reader.TryRead(out var next))
+            {
+                if (entries.Count == 1 || !await WaitForNextAsync(reader, window.Token))
+                {
+                    break;
+                }
+                reader.TryRead(out next);
+            }
+
+            if (bytes + next!.Completion!.Result.Length > MaxBatchBytes)
+            {
+                return (entries, next);
+            }
+            entries.Add(next);
+            bytes += next.Completion.Result.Length;
+        }
+
+        return (entries, null);
     }
 
     /// <summary>Waits for another completion until the window closes or the channel ends; false when nothing more comes.</summary>
