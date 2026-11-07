@@ -116,15 +116,6 @@ pre code { font-size: inherit; color: inherit; }
 /* the one link off the site: GitHub's mark, centred on the line, coloured like the words beside it */
 .chrome nav .gh { align-self: center; display: inline-flex; }
 .chrome nav .gh svg { display: block; width: 1.35em; height: 1.35em; }
-/* the day/night switch, added by assets/theme.js after GitHub's mark: two words in the chrome's own type, the one in
-   force lit, the other setting its theme */
-.chrome .theme { flex: none; margin-left: 0.2rem; display: inline-flex; gap: 0.6em; align-items: baseline; }
-.chrome .theme button {
-  padding: 0; border: 0; background: transparent; cursor: pointer;
-  font: inherit; letter-spacing: inherit; text-transform: inherit; color: var(--faint); transition: color 0.15s ease;
-}
-.chrome .theme button[aria-pressed="true"] { color: var(--text); cursor: default; }
-.chrome .theme button[aria-pressed="false"]:hover { color: var(--verdi); }
 /* the meta line gives way first, so the header fits every width above a phone */
 @media (max-width: 1000px) {
   .chrome .meta { display: none; }
@@ -135,9 +126,6 @@ pre code { font-size: inherit; color: inherit; }
   .chrome nav a { white-space: nowrap; }
   /* on a phone the header keeps Capabilities, Benchmark and GitHub's mark; the brand links home */
   .chrome nav a:not([href="/capabilities"]):not([href="/benchmark"]):not(.gh) { display: none; }
-  /* on a phone only the word you can switch to is shown */
-  .chrome .theme { margin-left: 0; }
-  .chrome .theme .dot, .chrome .theme button[aria-pressed="true"] { display: none; }
 }
 @media (max-width: 360px) {
   .chrome { gap: 0.7rem; padding-inline: 14px; }
@@ -293,10 +281,19 @@ footer {
 footer a { text-decoration: none; }
 footer a:hover { color: var(--verdi); }
 footer .sep { margin: 0 0.9em; opacity: 0.5; }
+/* the day/night switch, added by assets/theme.js at the end of the footer: two words in the footer's own type, the one in
+   force lit, the other setting its theme */
+footer .theme { display: inline-flex; gap: 0.6em; align-items: baseline; white-space: nowrap; }
+footer .theme button {
+  padding: 0; border: 0; background: transparent; cursor: pointer;
+  font: inherit; letter-spacing: inherit; text-transform: inherit; color: var(--faint); transition: color 0.15s ease;
+}
+footer .theme button[aria-pressed="true"] { color: var(--text); cursor: default; }
+footer .theme button[aria-pressed="false"]:hover { color: var(--verdi); }
 
 @media (prefers-reduced-motion: reduce) {
   html { scroll-behavior: auto; }
-  .skip-link, .button, .copy, .golink, .golink::after, .chrome .theme button { transition: none; }
+  .skip-link, .button, .copy, .golink, .golink::after, footer .theme button { transition: none; }
 }
 @media print {
   :root { --text: #111; --muted: #333; --faint: #555; --panel: #fff; --panel-2: #f4f4f4; --hair: #ccc; --hair-soft: #ddd; --verdi: #0a6b52; --code: #111; --code-inline: #111; }

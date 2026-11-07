@@ -1,6 +1,6 @@
 // Day and night. The visitor's stored choice wins, then the system's preference; the "day · night" words the script
-// adds to the chrome each set their own theme and remember it. Loaded in <head>, so the first paint is already the right
-// theme.
+// adds to the end of the footer each set their own theme and remember it. Loaded in <head>, so the first paint is
+// already the right theme.
 (() => {
   const key = "acta-theme";
   const root = document.documentElement;
@@ -24,8 +24,8 @@
   });
 
   addEventListener("DOMContentLoaded", () => {
-    const chrome = document.querySelector(".chrome");
-    if (!chrome) return;
+    const footer = document.querySelector("footer");
+    if (!footer) return;
     const group = document.createElement("span");
     group.className = "theme";
     group.setAttribute("role", "group");
@@ -44,9 +44,6 @@
         } catch {
           // A private window keeps the choice for this page only.
         }
-        // On a phone only the word you can switch to shows, so the pressed one hides: keep focus on the visible one.
-        const other = buttons.find((b) => b !== button);
-        if (button.offsetParent === null && other) other.focus();
       });
       return button;
     };
@@ -56,7 +53,11 @@
     dot.textContent = "·";
     buttons = [word("light", "day"), word("dark", "night")];
     group.append(buttons[0], dot, buttons[1]);
-    chrome.appendChild(group);
+    const sep = document.createElement("span");
+    sep.className = "sep";
+    sep.setAttribute("aria-hidden", "true");
+    sep.textContent = "·";
+    footer.append(sep, group);
     apply(root.dataset.theme);
   });
 })();
