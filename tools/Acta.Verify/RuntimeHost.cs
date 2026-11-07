@@ -86,7 +86,6 @@ internal static class RuntimeHost
             {
                 j.Services.Replace(ServiceDescriptor.Singleton<IWorkerWakeup>(new SuppressedWakeup()));
             }
-            j.DisableCli();
             j.ConfigureOptions(o =>
             {
                 if (executors is { } executorCount)

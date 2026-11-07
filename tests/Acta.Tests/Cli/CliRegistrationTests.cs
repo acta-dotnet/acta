@@ -6,13 +6,13 @@ using Xunit;
 
 namespace Acta.Tests.Cli;
 
-/// <summary>Builder contract for CLI-host selection and explicit CLI suppression.</summary>
+/// <summary>Builder contract for CLI-host selection.</summary>
 public sealed class CliRegistrationTests
 {
     [Fact]
     public void Cli_invocation_swaps_the_hosted_service()
     {
-        var services = BuildWith(cliArgs: ["status", "1"], disableCli: false);
+        var services = BuildWith(cliArgs: ["status", "1"]);
 
         Assert.Contains(services, d => d.ServiceType == typeof(IHostedService) && d.ImplementationType == typeof(CliCommandHost));
         Assert.DoesNotContain(services, d => d.ServiceType == typeof(IHostedService) && d.ImplementationType == typeof(WorkerRuntimeHost));
@@ -24,16 +24,7 @@ public sealed class CliRegistrationTests
     [Fact]
     public void Normal_start_registers_the_worker_host()
     {
-        var services = BuildWith(cliArgs: null, disableCli: false);
-
-        Assert.Contains(services, d => d.ServiceType == typeof(IHostedService) && d.ImplementationType == typeof(WorkerRuntimeHost));
-        Assert.DoesNotContain(services, d => d.ServiceType == typeof(IHostedService) && d.ImplementationType == typeof(CliCommandHost));
-    }
-
-    [Fact]
-    public void DisableCli_keeps_the_worker_host_even_in_cli_mode()
-    {
-        var services = BuildWith(cliArgs: ["status", "1"], disableCli: true);
+        var services = BuildWith(cliArgs: null);
 
         Assert.Contains(services, d => d.ServiceType == typeof(IHostedService) && d.ImplementationType == typeof(WorkerRuntimeHost));
         Assert.DoesNotContain(services, d => d.ServiceType == typeof(IHostedService) && d.ImplementationType == typeof(CliCommandHost));
@@ -62,10 +53,10 @@ public sealed class CliRegistrationTests
         }
     }
 
-    private static IServiceCollection BuildWith(string[]? cliArgs, bool disableCli, Action<IActaBuilder>? useProvider = null)
+    private static IServiceCollection BuildWith(string[]? cliArgs, Action<IActaBuilder>? useProvider = null)
     {
         var services = new ServiceCollection();
-        ActaServiceCollectionExtensions.CliArgsOverride = () => cliArgs;
+        ActaServiceCollectionExtensions.CliArgsOverride.Value = () => cliArgs;
         try
         {
             services.UseActa(j =>
@@ -80,15 +71,11 @@ public sealed class CliRegistrationTests
                 }
 
                 j.Run<FakeManifest>("payments");
-                if (disableCli)
-                {
-                    j.DisableCli();
-                }
             });
         }
         finally
         {
-            ActaServiceCollectionExtensions.CliArgsOverride = null;
+            ActaServiceCollectionExtensions.CliArgsOverride.Value = null;
         }
 
         return services;
@@ -97,7 +84,7 @@ public sealed class CliRegistrationTests
     /// <summary>Runs <c>jobs migrate</c> through the CLI host a SQLite container registers, as the process would.</summary>
     private static async Task<(int ExitCode, string Output)> MigrateAsync(string databasePath)
     {
-        var services = BuildWith(["migrate"], disableCli: false, j => j.UseSqlite(o => o.ConnectionString = $"Data Source={databasePath}"));
+        var services = BuildWith(["migrate"], j => j.UseSqlite(o => o.ConnectionString = $"Data Source={databasePath}"));
         await using var provider = services.AddLogging().BuildServiceProvider();
         var host = provider.GetServices<IHostedService>().OfType<CliCommandHost>().Single();
         var output = new StringWriter();

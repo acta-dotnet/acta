@@ -29,7 +29,6 @@ public sealed class ActaTestHostSchemaTests
                         o.ApplyMigrationsOnStartup = true;
                     });
                     j.Run<TestJobs.TestJobsManifest>("host-schema", ownerTeam: "test");
-                    j.DisableCli();
                 },
                 new ActaTestHostOptions { ConfigureServices = s => s.Configure<JobsOptions>(o => o.RegisterSystemJobs = false) },
                 ct

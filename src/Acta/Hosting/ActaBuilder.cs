@@ -40,9 +40,6 @@ internal sealed class ActaBuilder(IServiceCollection services) : IActaBuilder
     /// </summary>
     internal IReadOnlyList<Func<IServiceProvider, IJobPipelineBehavior>> PipelineBehaviors => _pipelineBehaviors;
 
-    /// <summary>Suppresses the CLI host swap.</summary>
-    internal bool CliDisabled { get; private set; }
-
     public IActaBuilder ConfigureOptions(Action<JobsOptions> configure)
     {
         Services.Configure(configure);
@@ -140,12 +137,6 @@ internal sealed class ActaBuilder(IServiceCollection services) : IActaBuilder
             Services.Add(new ServiceDescriptor(typeof(TBehavior), typeof(TBehavior), lifetime));
             _pipelineBehaviors.Add(static sp => sp.GetRequiredService<TBehavior>());
         }
-        return this;
-    }
-
-    public IActaBuilder DisableCli()
-    {
-        CliDisabled = true;
         return this;
     }
 }

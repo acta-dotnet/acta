@@ -8,7 +8,7 @@ public static class SqliteMigrations
     /// <summary>
     /// Applies every Acta migration the database file lacks, in one transaction, and returns their names in order; an empty
     /// list means it is up to date. Opening the file creates it, as on every SQLite path, and puts it in WAL mode. The code
-    /// form of <c>&lt;app&gt; jobs migrate</c>, for a host that owns its command line or a tool.
+    /// form of <c>&lt;app&gt; jobs migrate</c>, for a separate tool.
     /// </summary>
     public static Task<IReadOnlyList<string>> ApplyAsync(string connectionString, CancellationToken cancellationToken = default) =>
         SqliteSchemaMigrator.ApplyToDatabaseAsync(connectionString, "main", cancellationToken);

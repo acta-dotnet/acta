@@ -320,7 +320,7 @@ instead of enqueuing.
 
 ## Built-in control CLI
 
-Every Acta host doubles as a control CLI: `<app> jobs <verb>` runs the verb against the database and exits, starting no worker; only `migrate` changes the schema ([Migration ownership](#migration-ownership)). `jobs` comes first, after any host switches such as `--environment Staging`. `j.DisableCli()` opts out.
+Every Acta host doubles as a control CLI: `<app> jobs <verb>` runs the verb against the database and exits, starting no worker; only `migrate` changes the schema ([Migration ownership](#migration-ownership)). `jobs` comes first, after any host switches such as `--environment Staging`, and is reserved: an app cannot take it as its own first argument.
 
 ```
 <app> jobs help
@@ -500,7 +500,7 @@ applied M20261106144133_init to schema acta
 - A second run prints `schema acta is up to date`. It exits 0, or 1 with the database's error; `--json` prints `{"schema":"acta","applied":[...]}`.
 - It never creates a PostgreSQL or SQL Server database, never opens `master` or `postgres`, and never touches an outbox table.
 - Locally it is `dotnet run -- jobs migrate`; on a container platform, run the same image with the arguments `jobs migrate` as a pre-deploy job.
-- An app that owns its command line (`j.DisableCli()`), or a separate tool, calls `await PostgresMigrations.ApplyAsync(connectionString, schema: "acta")`, or `SqlServerMigrations` or `SqliteMigrations`, which returns the names it applied.
+- A separate tool calls `await PostgresMigrations.ApplyAsync(connectionString, schema: "acta")`, or `SqlServerMigrations` or `SqliteMigrations`, which returns the names it applied.
 - A rollback is safe: an older build runs against the newer schema, and its `jobs migrate` changes nothing.
 - The script re-creates every routine and view on each run, so re-running it is safe; run it with a client that stops at the first error (`psql -v ON_ERROR_STOP=1`, `sqlcmd -b`, `sqlite3 -bail`). An older release's script stops before it changes a database a newer release upgraded.
 - On SQL Server, every install, the script included, refuses a system database and never changes the settings of a database that already exists. Only `ApplyMigrationsOnStartup`, when it creates the database, turns `READ_COMMITTED_SNAPSHOT` on in it, as EF Core does. Acta runs with it on or off; turning it on yourself waits for every other session to leave the database, so do it in a maintenance window.
@@ -1145,8 +1145,7 @@ and keep authorization on the mapped endpoint group.
 When an Acta host starts with `jobs` as the first argument after any host switches, it runs the built-in
 CLI verb and exits. No worker loop starts. This is intentional.
 
-Use `j.DisableCli()` only for applications that own their own command-line surface. Every verb but
-`migrate` expects a provisioned schema, and the normal worker owns catalog setup.
+Every verb but `migrate` expects a provisioned schema, and the normal worker owns catalog setup.
 
 ### The Generated Manifest Type Does Not Resolve
 

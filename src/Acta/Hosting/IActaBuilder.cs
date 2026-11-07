@@ -54,13 +54,6 @@ public interface IActaBuilder
         where TManifest : class, IJobManifest;
 
     /// <summary>
-    /// Opt this host out of the automatic jobs CLI: a process started with "jobs" as its first
-    /// argument after any host switches then boots normally instead of running the CLI verb and
-    /// exiting. For apps that own their command-line surface.
-    /// </summary>
-    IActaBuilder DisableCli();
-
-    /// <summary>
     /// Register an additional <see cref="IJobPayloadSerializer"/>. The serializer's
     /// <see cref="JobPayloadFormat.Id"/> joins it to descriptor metadata; runtime payload columns
     /// resolve their serializer at dispatch via

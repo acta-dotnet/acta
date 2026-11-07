@@ -1264,7 +1264,6 @@ public sealed partial class OpenApiContractTests
                 o.ApplyMigrationsOnStartup = true;
             });
             j.Run<TestJobs.TestJobsManifest>(SqliteNamespace, ownerTeam: "test");
-            j.DisableCli();
         });
         builder.Services.Configure<JobsOptions>(o => o.RegisterSystemJobs = false);
         var app = builder.Build();

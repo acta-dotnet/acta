@@ -18,7 +18,6 @@ public sealed class OutboxRelayWiringTests
         services.UseActa(j =>
         {
             j.UseSqlite(o => o.ConnectionString = "Data Source=ledger.db");
-            j.DisableCli();
             j.Run(
                 "relay-ns-a",
                 w =>

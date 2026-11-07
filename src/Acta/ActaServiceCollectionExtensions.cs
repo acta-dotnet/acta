@@ -12,8 +12,11 @@ namespace Acta;
 /// </summary>
 public static class ActaServiceCollectionExtensions
 {
-    /// <summary>Test seam: when non-null, supplies the detected CLI args instead of the process command line.</summary>
-    internal static Func<string[]?>? CliArgsOverride;
+    /// <summary>
+    /// Test seam: when set, supplies the detected CLI args instead of the process command line. Local to the setting
+    /// async flow, so a test that sets it never changes the host another test builds in parallel.
+    /// </summary>
+    internal static readonly AsyncLocal<Func<string[]?>?> CliArgsOverride = new();
 
     /// <summary>
     /// Registers Acta core services and applies the builder callback. A durable provider must be
@@ -352,9 +355,9 @@ public static class ActaServiceCollectionExtensions
     {
         // CLI mode: a process started as `myapp jobs <verb> ...` runs the verb and exits instead of
         // booting the worker. The swap replaces the worker host; WorkerRuntime singletons stay
-        // registered so the debug verb can run one job in-process. Opt out via j.DisableCli().
-        var cliArgs = CliArgsOverride is { } over ? over() : CliCommandParser.DetectInvocation(Environment.GetCommandLineArgs());
-        if (cliArgs is not null && !builder.CliDisabled)
+        // registered so the debug verb can run one job in-process.
+        var cliArgs = CliArgsOverride.Value is { } over ? over() : CliCommandParser.DetectInvocation(Environment.GetCommandLineArgs());
+        if (cliArgs is not null)
         {
             var namespaces = builder.Catalogs.Select(c => c.NamespaceName).Distinct(StringComparer.Ordinal).ToArray();
             services.AddSingleton(new CliInvocation(cliArgs, namespaces));

@@ -8,7 +8,7 @@ public static class SqlServerMigrations
     /// <summary>
     /// Applies every Acta migration the database lacks into <paramref name="schema"/>, in one transaction under the schema
     /// lock, and returns their names in order; an empty list means the schema is up to date. The database must exist, and
-    /// only it is opened, never master. The code form of <c>&lt;app&gt; jobs migrate</c>, for a host that owns its command line.
+    /// only it is opened, never master. The code form of <c>&lt;app&gt; jobs migrate</c>, for a separate tool.
     /// </summary>
     public static Task<IReadOnlyList<string>> ApplyAsync(
         string connectionString,

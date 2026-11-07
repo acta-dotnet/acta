@@ -38,9 +38,6 @@ public sealed class WorkerRuntimeHostStartupTests
                     o.ApplyMigrationsOnStartup = true;
                 });
                 j.Run<TestJobs.TestJobsManifest>(WorkerNamespace, ownerTeam: "test");
-                // The test process's own command line must not be mistaken for an Acta CLI invocation,
-                // which would swap the hosted service under test out of the graph.
-                j.DisableCli();
                 j.Services.AddSingleton<IProviderBootstrap>(_ => extra = new CatalogReadingBootstrap(connectionString));
             });
             // The framework's recurring slots would be claimable while the loop runs; this test is about
