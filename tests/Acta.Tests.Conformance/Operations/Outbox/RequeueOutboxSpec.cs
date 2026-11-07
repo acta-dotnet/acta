@@ -99,7 +99,7 @@ public sealed class RequeueOutboxSpec : OutboxRelayIntegrationBase
     {
         var ct = TestContext.Current.CancellationToken;
 
-        var noSlot = await Outbox.DiscardAsync(TestNamespace, null, null, null, ct);
+        var noSlot = await Outbox.DiscardAsync(TestNamespace, all: true, ct: ct);
         Assert.Equal(ControlAction.NotFound, noSlot.Action);
 
         // A user job reusing the "sys.outbox" deduplication key resolves by key but fails the job-name

@@ -9,7 +9,7 @@ namespace Acta.Tests.Conformance.Operations.Outbox;
     "outbox-operator.discard",
     "Discard parks on the relay slot and the next pass deletes the rows",
     Area = "Outbox",
-    Contract = "Discard parks once per pending command on the slot's own discard inbox, and the next relay pass deletes the targeted quarantined rows and records their ids."
+    Contract = "Discard names its rows or all, parks once per pending command on its own inbox, and the next relay pass deletes those quarantined rows and records their ids."
 )]
 public sealed class DiscardOutboxSpec : OutboxRelayHostBase
 {
@@ -18,11 +18,11 @@ public sealed class DiscardOutboxSpec : OutboxRelayHostBase
     {
         var ct = TestContext.Current.CancellationToken;
 
-        var accepted = await Outbox.DiscardAsync(TestNamespace, null, "first", "op-1", ct);
+        var accepted = await Outbox.DiscardAsync(TestNamespace, all: true, reasonMessage: "first", actor: "op-1", ct: ct);
         Assert.Equal(ControlAction.Accepted, accepted.Action);
         Assert.Null(accepted.PendingSinceUtc);
 
-        var rejected = await Outbox.DiscardAsync(TestNamespace, null, "second", "op-1", ct);
+        var rejected = await Outbox.DiscardAsync(TestNamespace, all: true, reasonMessage: "second", actor: "op-1", ct: ct);
         Assert.Equal(ControlAction.Rejected, rejected.Action);
         Assert.NotNull(rejected.PendingSinceUtc);
 
@@ -36,7 +36,10 @@ public sealed class DiscardOutboxSpec : OutboxRelayHostBase
         var named = await SeedQuarantinedAsync(Unique("discard-named"));
         var spared = await SeedQuarantinedAsync(Unique("discard-spared"));
 
-        Assert.Equal(ControlAction.Accepted, (await Outbox.DiscardAsync(TestNamespace, [named], "poison payload", "op-1", ct)).Action);
+        Assert.Equal(
+            ControlAction.Accepted,
+            (await Outbox.DiscardAsync(TestNamespace, [named], reasonMessage: "poison payload", actor: "op-1", ct: ct)).Action
+        );
         var slotId = await RunRelayPassAsync(ct);
 
         Assert.False((await Fixture.ReadOutboxRowAsync(SourceTable, named)).Exists);
@@ -47,21 +50,34 @@ public sealed class DiscardOutboxSpec : OutboxRelayHostBase
         Assert.Contains("poison payload", evidence.EventMessage);
         Assert.Contains(named.ToString(), evidence.EventMessage);
 
-        Assert.Equal(ControlAction.Accepted, (await Outbox.DiscardAsync(TestNamespace, null, null, null, ct)).Action);
+        Assert.Equal(ControlAction.Accepted, (await Outbox.DiscardAsync(TestNamespace, all: true, ct: ct)).Action);
     }
 
-    [Fact(DisplayName = "A null scope discards every quarantined row, and an empty id list throws")]
-    public async Task Null_scope_discards_every_row()
+    [Fact(DisplayName = "A discard with all deletes every quarantined row")]
+    public async Task All_discards_every_row()
     {
         var ct = TestContext.Current.CancellationToken;
         await SeedQuarantinedAsync(Unique("discard-all-a"));
         await SeedQuarantinedAsync(Unique("discard-all-b"));
 
-        await Assert.ThrowsAsync<ArgumentException>(async () => await Outbox.DiscardAsync(TestNamespace, [], null, null, ct));
-
-        Assert.Equal(ControlAction.Accepted, (await Outbox.DiscardAsync(TestNamespace, null, null, null, ct)).Action);
+        Assert.Equal(ControlAction.Accepted, (await Outbox.DiscardAsync(TestNamespace, all: true, ct: ct)).Action);
         await RunRelayPassAsync(ct);
 
         Assert.Equal(0, await Fixture.CountOutboxAsync(SourceTable));
+    }
+
+    [Fact(DisplayName = "A discard without ids or all, with an empty id list, or with both throws and parks nothing")]
+    public async Task Discard_takes_its_ids_or_all_exactly_one()
+    {
+        var ct = TestContext.Current.CancellationToken;
+        var row = await SeedQuarantinedAsync(Unique("discard-rule"));
+
+        await Assert.ThrowsAsync<ArgumentException>(async () => await Outbox.DiscardAsync(TestNamespace, ct: ct));
+        await Assert.ThrowsAsync<ArgumentException>(async () => await Outbox.DiscardAsync(TestNamespace, [], ct: ct));
+        await Assert.ThrowsAsync<ArgumentException>(async () => await Outbox.DiscardAsync(TestNamespace, [], all: true, ct: ct));
+        await Assert.ThrowsAsync<ArgumentException>(async () => await Outbox.DiscardAsync(TestNamespace, [row], all: true, ct: ct));
+
+        // The inbox is still free, so none of the refused calls parked a command.
+        Assert.Equal(ControlAction.Accepted, (await Outbox.DiscardAsync(TestNamespace, [row], all: false, ct: ct)).Action);
     }
 }

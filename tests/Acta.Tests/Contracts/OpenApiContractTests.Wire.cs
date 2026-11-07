@@ -652,8 +652,9 @@ public sealed partial class OpenApiContractTests
     ];
 
     /// <summary>
-    /// An outbox verb's ids are absent for every quarantined row or name at least one: the schema says so with
-    /// <c>minItems</c>, and the operation answers an empty list with 400 and a list of one with something else.
+    /// An outbox verb's ids name at least one row or are left out, by a requeue for every quarantined row and by a discard
+    /// when all is true: the schema says so with <c>minItems</c>, and the operation answers an empty list with 400 and a
+    /// list of one with something else.
     /// </summary>
     [Fact]
     public async Task Outbox_ids_name_at_least_one_row()

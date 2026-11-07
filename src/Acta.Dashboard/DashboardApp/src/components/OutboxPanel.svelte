@@ -40,10 +40,11 @@
 
   // Requeue/discard park a durable command on the source's relay slot; 202 accepted means "the next
   // relay pass applies it", so success invalidates the overview snapshot rather than expecting the
-  // counters to have moved already.
+  // counters to have moved already. A requeue without ids takes every quarantined row; a discard
+  // must say so with all.
   const mutation = useControlMutation<{ verb: 'requeue' | 'discard'; jobNamespace: string; reason?: string }, OutboxControlResponse>({
     path: (vars) => `outbox/${vars.jobNamespace}/${vars.verb}`,
-    rawBody: (vars) => ({ reasonMessage: vars.reason?.trim() || null }),
+    body: (vars) => (vars.verb === 'discard' ? { all: true } : {}),
     notFound: () => ({ action: 'not-found', pendingSinceUtc: null }),
     invalidateKeys: () => [['overview']] as const
   });

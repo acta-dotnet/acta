@@ -492,7 +492,8 @@ internal static partial class ActaOpenApiDocument
         // signal body and job input stay any JSON value.
         AddCalendarDefinition(schemas);
 
-        // An outbox verb's ids are absent for every quarantined row or name at least one; the operation refuses an empty list.
+        // An outbox verb's ids name at least one row, and the operation refuses an empty list. A requeue leaves them out for
+        // every quarantined row, and a discard leaves them out when all is true.
         foreach (var name in new[] { "DiscardOutboxRequest", "RequeueOutboxRequest" })
         {
             if (

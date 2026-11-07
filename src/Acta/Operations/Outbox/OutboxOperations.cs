@@ -34,10 +34,11 @@ internal sealed class OutboxOperations(
     public ValueTask<DiscardOutboxResponse> DiscardAsync(
         string jobNamespace,
         IReadOnlyList<Guid>? outboxIds = null,
+        bool all = false,
         string? reasonMessage = null,
         string? actor = null,
         CancellationToken ct = default
-    ) => discardOutbox.HandleAsync(new DiscardOutboxCommand(jobNamespace, outboxIds, reasonMessage, actor), ct);
+    ) => discardOutbox.HandleAsync(new DiscardOutboxCommand(jobNamespace, outboxIds, all, reasonMessage, actor), ct);
 
     /// <summary>Reads the slot's pending command under <paramref name="name"/>, or null when the inbox holds none under that name.</summary>
     internal Task<GetOutboxSignalResponse?> GetOutboxSignalAsync(long slotJobId, string name, CancellationToken ct) =>

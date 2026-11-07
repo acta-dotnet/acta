@@ -23,24 +23,32 @@ internal sealed class FakeOutbox : IOutbox
                 "requeue",
                 jobNamespace,
                 outboxIds,
+                false,
                 reason,
                 actor,
                 static (action, pendingSince) => new RequeueOutboxResponse(action, pendingSince)
             );
-        Discard = (jobNamespace, outboxIds, reason, actor, _) =>
+        Discard = (jobNamespace, outboxIds, all, reason, actor, _) =>
             Control(
                 "discard",
                 jobNamespace,
                 outboxIds,
+                all,
                 reason,
                 actor,
                 static (action, pendingSince) => new DiscardOutboxResponse(action, pendingSince)
             );
     }
 
-    /// <summary>Accepted requeue and discard calls with their scope and audit fields.</summary>
-    public List<(string Verb, string JobNamespace, IReadOnlyList<Guid>? OutboxIds, string? Reason, string? Actor)> ControlCalls { get; } =
-    [];
+    /// <summary>Accepted requeue and discard calls with their scope and audit fields; a requeue's <c>All</c> is false.</summary>
+    public List<(
+        string Verb,
+        string JobNamespace,
+        IReadOnlyList<Guid>? OutboxIds,
+        bool All,
+        string? Reason,
+        string? Actor
+    )> ControlCalls { get; } = [];
 
     public Func<ListOutboxSourcesQuery, CancellationToken, ValueTask<ListOutboxSourcesResponse>> ListSources { get; set; }
 
@@ -48,7 +56,15 @@ internal sealed class FakeOutbox : IOutbox
 
     public Func<string, IReadOnlyList<Guid>?, string?, string?, CancellationToken, ValueTask<RequeueOutboxResponse>> Requeue { get; set; }
 
-    public Func<string, IReadOnlyList<Guid>?, string?, string?, CancellationToken, ValueTask<DiscardOutboxResponse>> Discard { get; set; }
+    public Func<
+        string,
+        IReadOnlyList<Guid>?,
+        bool,
+        string?,
+        string?,
+        CancellationToken,
+        ValueTask<DiscardOutboxResponse>
+    > Discard { get; set; }
 
     ValueTask<ListOutboxSourcesResponse> IOutbox.ListSourcesAsync(ListOutboxSourcesQuery query, CancellationToken ct) =>
         ListSources(query, ct);
@@ -67,10 +83,11 @@ internal sealed class FakeOutbox : IOutbox
     ValueTask<DiscardOutboxResponse> IOutbox.DiscardAsync(
         string jobNamespace,
         IReadOnlyList<Guid>? outboxIds,
+        bool all,
         string? reasonMessage,
         string? actor,
         CancellationToken ct
-    ) => Discard(jobNamespace, outboxIds, reasonMessage, actor, ct);
+    ) => Discard(jobNamespace, outboxIds, all, reasonMessage, actor, ct);
 
     private static readonly ListOutboxSourcesItem Billing = new(
         "billing",
@@ -108,6 +125,7 @@ internal sealed class FakeOutbox : IOutbox
         string verb,
         string jobNamespace,
         IReadOnlyList<Guid>? outboxIds,
+        bool all,
         string? reasonMessage,
         string? actor,
         Func<ControlAction, DateTime?, T> response
@@ -123,7 +141,7 @@ internal sealed class FakeOutbox : IOutbox
             return ValueTask.FromResult(response(ControlAction.Rejected, PendingSince));
         }
 
-        ControlCalls.Add((verb, jobNamespace, outboxIds, reasonMessage, actor));
+        ControlCalls.Add((verb, jobNamespace, outboxIds, all, reasonMessage, actor));
         return ValueTask.FromResult(response(ControlAction.Accepted, null));
     }
 }

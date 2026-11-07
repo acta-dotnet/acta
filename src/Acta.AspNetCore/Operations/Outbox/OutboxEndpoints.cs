@@ -82,7 +82,17 @@ internal static class OutboxEndpoints
             ControlStatus.Outbox<DiscardOutboxResponse>(),
             Namespace,
             static (call, jobNamespace) =>
-                call.Operations.Outbox.DiscardAsync(jobNamespace, call.Body?.OutboxIds, call.ReasonMessage, call.Actor, call.Ct)
+                call.Body!.OutboxIds is null == call.Body.All
+                    ? call.Operations.Outbox.DiscardAsync(
+                        jobNamespace,
+                        call.Body.OutboxIds,
+                        call.Body.All,
+                        call.ReasonMessage,
+                        call.Actor,
+                        call.Ct
+                    )
+                    : throw new InvalidControlException("Invalid outbox command.", "Send outboxIds or all: true, exactly one."),
+            bodyRequired: true
         );
     }
 

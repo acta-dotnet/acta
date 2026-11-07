@@ -56,11 +56,86 @@ public sealed class OutboxControlEndpointTests
         Assert.Equal(verb, call.Verb);
         Assert.Equal("billing", call.JobNamespace);
         Assert.Equal(ids, call.OutboxIds);
+        Assert.False(call.All);
         Assert.Equal("fixed the route", call.Reason);
     }
 
     [Fact]
-    public async Task A_bare_post_targets_every_quarantined_row_with_no_reason()
+    public async Task A_discard_with_all_targets_every_quarantined_row()
+    {
+        var fakes = new FakeOperations();
+        var (app, client) = await StartWithControlsAsync(fakes);
+        await using var _ = app;
+
+        var response = await client.SendAsync(
+            Post("discard", body: new { all = true, reasonMessage = "poison payloads" }),
+            TestContext.Current.CancellationToken
+        );
+
+        Assert.Equal(HttpStatusCode.Accepted, response.StatusCode);
+        var call = Assert.Single(fakes.Outbox.ControlCalls);
+        Assert.Null(call.OutboxIds);
+        Assert.True(call.All);
+        Assert.Equal("poison payloads", call.Reason);
+    }
+
+    [Fact]
+    public async Task A_discard_with_ids_and_all_false_deletes_the_named_rows()
+    {
+        var fakes = new FakeOperations();
+        var (app, client) = await StartWithControlsAsync(fakes);
+        await using var _ = app;
+
+        var ids = new[] { FakeOutbox.QuarantinedId };
+        var response = await client.SendAsync(
+            Post("discard", body: new { outboxIds = ids, all = false }),
+            TestContext.Current.CancellationToken
+        );
+
+        Assert.Equal(HttpStatusCode.Accepted, response.StatusCode);
+        var call = Assert.Single(fakes.Outbox.ControlCalls);
+        Assert.Equal(ids, call.OutboxIds);
+        Assert.False(call.All);
+    }
+
+    // A discard deletes what it names: no ids and no all, or both, is refused before anything parks.
+    [Theory]
+    [InlineData("{}")]
+    [InlineData("""{"reasonMessage":"cleanup"}""")]
+    [InlineData("""{"all":false}""")]
+    [InlineData("""{"outboxIds":["00000000-0000-0000-0000-00000000000a"],"all":true}""")]
+    public async Task A_discard_without_exactly_one_of_outboxIds_and_all_is_400(string json)
+    {
+        var fakes = new FakeOperations();
+        var (app, client) = await StartWithControlsAsync(fakes);
+        await using var _ = app;
+
+        var request = Post("discard");
+        request.Content = new StringContent(json, Encoding.UTF8, "application/json");
+        var response = await client.SendAsync(request, TestContext.Current.CancellationToken);
+        var body = await response.Content.ReadAsStringAsync(TestContext.Current.CancellationToken);
+
+        Assert.Equal(HttpStatusCode.BadRequest, response.StatusCode);
+        Assert.Contains("outboxIds", body);
+        Assert.Contains("all: true", body);
+        Assert.Empty(fakes.Outbox.ControlCalls);
+    }
+
+    [Fact]
+    public async Task A_discard_without_a_body_is_refused()
+    {
+        var fakes = new FakeOperations();
+        var (app, client) = await StartWithControlsAsync(fakes);
+        await using var _ = app;
+
+        var response = await client.SendAsync(Post("discard"), TestContext.Current.CancellationToken);
+
+        Assert.Equal(HttpStatusCode.UnsupportedMediaType, response.StatusCode);
+        Assert.Empty(fakes.Outbox.ControlCalls);
+    }
+
+    [Fact]
+    public async Task A_bare_requeue_targets_every_quarantined_row_with_no_reason()
     {
         var fakes = new FakeOperations();
         var (app, client) = await StartWithControlsAsync(fakes);
@@ -94,7 +169,10 @@ public sealed class OutboxControlEndpointTests
         var (app, client) = await StartWithControlsAsync();
         await using var _ = app;
 
-        var response = await client.SendAsync(Post("discard", jobNamespace: "missing"), TestContext.Current.CancellationToken);
+        var response = await client.SendAsync(
+            Post("discard", jobNamespace: "missing", body: new { all = true }),
+            TestContext.Current.CancellationToken
+        );
 
         Assert.Equal(HttpStatusCode.NotFound, response.StatusCode);
     }
@@ -145,16 +223,16 @@ public sealed class OutboxControlEndpointTests
     }
 
     [Fact]
-    public async Task Undeclared_body_is_415_and_never_widens_the_discard_to_every_row()
+    public async Task Undeclared_body_is_415_and_never_widens_the_requeue_to_every_row()
     {
         var fakes = new FakeOperations();
         var (app, client) = await StartWithControlsAsync(fakes);
         await using var _ = app;
 
-        // No Content-Length, no Content-Type, a real scoped body: read as "no body" this used to mean
-        // null outboxIds, which the facade defines as "every quarantined row". The 415 is the route's
+        // No Content-Length, no Content-Type, a real scoped body: read as "no body" it would mean null
+        // outboxIds, which the requeue reads as "every quarantined row". The 415 is the route's
         // already-declared answer to a body it cannot parse, and nothing dispatches.
-        var request = new HttpRequestMessage(HttpMethod.Post, "/acta/api/v1/outbox/billing/discard")
+        var request = new HttpRequestMessage(HttpMethod.Post, "/acta/api/v1/outbox/billing/requeue")
         {
             Content = TestDashboardHost.UndeclaredContent("{\"outboxIds\":[\"00000000-0000-0000-0000-00000000000a\"]}"),
         };

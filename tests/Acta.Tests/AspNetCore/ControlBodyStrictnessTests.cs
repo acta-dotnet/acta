@@ -8,7 +8,7 @@ namespace Acta.Tests.AspNetCore;
 
 /// <summary>
 /// A control body member the endpoint does not take fails the request rather than vanishing: a dropped
-/// scope or field would leave the verb running on its default, which for an outbox discard is every
+/// scope or field would leave the verb running on its default, which for an outbox requeue is every
 /// quarantined row and for a reprioritize is the lowest band.
 /// </summary>
 public sealed class ControlBodyStrictnessTests
@@ -24,7 +24,7 @@ public sealed class ControlBodyStrictnessTests
     }
 
     [Fact]
-    public async Task A_misnamed_outbox_scope_is_refused_instead_of_discarding_every_row()
+    public async Task A_misnamed_outbox_scope_is_refused_instead_of_requeueing_every_row()
     {
         var fakes = new FakeOperations();
         var (app, client) = await TestDashboardHost.StartAsync(options => options.EnableControls = true, fakes: fakes);
@@ -32,11 +32,11 @@ public sealed class ControlBodyStrictnessTests
         var ct = TestContext.Current.CancellationToken;
 
         var snake = await client.SendAsync(
-            Send(HttpMethod.Post, "outbox/billing/discard", $"{{\"outbox_ids\":[\"{Guid.NewGuid()}\"]}}"),
+            Send(HttpMethod.Post, "outbox/billing/requeue", $"{{\"outbox_ids\":[\"{Guid.NewGuid()}\"]}}"),
             ct
         );
         var pascal = await client.SendAsync(
-            Send(HttpMethod.Post, "outbox/billing/requeue", $"{{\"OutboxIds\":[\"{Guid.NewGuid()}\"]}}"),
+            Send(HttpMethod.Post, "outbox/billing/discard", $"{{\"OutboxIds\":[\"{Guid.NewGuid()}\"]}}"),
             ct
         );
 

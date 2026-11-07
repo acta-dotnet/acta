@@ -24,10 +24,11 @@ public interface IOutbox
         CancellationToken ct = default
     );
 
-    /// <summary>Discards Quarantined rows of <paramref name="jobNamespace"/>'s source: the rows are deleted from the staging table, with the applied ids preserved in the slot job's audit event. Null <paramref name="outboxIds"/> targets every quarantined row. Parking, application, auditing, and outcomes follow <see cref="RequeueAsync"/> exactly.</summary>
+    /// <summary>Discards Quarantined rows of <paramref name="jobNamespace"/>'s source: the rows are deleted from the staging table, with the applied ids preserved in the slot job's audit event. A discard names its rows or says all of them: pass <paramref name="outboxIds"/> with at least one id, or <paramref name="all"/> true for every quarantined row, exactly one, or it throws <see cref="ArgumentException"/> and parks nothing. Parking, application, auditing, and outcomes follow <see cref="RequeueAsync"/> exactly.</summary>
     ValueTask<DiscardOutboxResponse> DiscardAsync(
         string jobNamespace,
         IReadOnlyList<Guid>? outboxIds = null,
+        bool all = false,
         string? reasonMessage = null,
         string? actor = null,
         CancellationToken ct = default

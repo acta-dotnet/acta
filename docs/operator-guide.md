@@ -1094,7 +1094,11 @@ If a producer staged an `acta_outbox` row and no Acta job appeared, check the re
 - A row the relay could not deliver is quarantined in place (`status_code = 90`) and excluded from claims.
   Requeue or discard it through `IActaOperations.Outbox`, `POST /outbox/{jobNamespace}/requeue` or
   `/discard`, or the dashboard's outbox panel; the
-  [quarantine SQL recipes](#quarantined-outbox-rows) are the unaudited fallback. Recoverable rejections (for example
+  [quarantine SQL recipes](#quarantined-outbox-rows) are the unaudited fallback. A requeue without
+  `outboxIds` takes every quarantined row of the namespace. A discard names its rows in `outboxIds` or
+  sends `"all": true`, exactly one, and answers 400 for neither or both, so leaving the ids out never
+  deletes every row; `IOutbox.DiscardAsync` takes the same choice, `outboxIds` or `all: true`, and
+  throws `ArgumentException` otherwise. Recoverable rejections (for example
   an unknown route) quarantine after the failure threshold; malformed or oversize rows quarantine at once.
 - Resolve the resulting job by `(namespace, deduplication key)` with `IJobs.GetIdAsync`; a null
   result means the request has not been relayed yet, not that it was lost.

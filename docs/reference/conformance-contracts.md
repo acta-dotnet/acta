@@ -1326,11 +1326,12 @@
   - An id-scoped list returns only its quarantined ids, the null form returns every one, and no row moves
 
 ### Discard parks on the relay slot and the next pass deletes the rows
-- **Contract:** Discard parks once per pending command on the slot's own discard inbox, and the next relay pass deletes the targeted quarantined rows and records their ids.
+- **Contract:** Discard names its rows or all, parks once per pending command on its own inbox, and the next relay pass deletes those quarantined rows and records their ids.
 - **Guarantees:**
   - A second discard is rejected while the first is pending, and a requeue still parks beside it
   - The relay pass deletes only the named rows, records the operator and the ids, and frees the inbox
-  - A null scope discards every quarantined row, and an empty id list throws
+  - A discard with all deletes every quarantined row
+  - A discard without ids or all, with an empty id list, or with both throws and parks nothing
 
 ### The quarantine listing pages the source this host relays
 - **Contract:** ListQuarantined pages a namespace's quarantined rows by cursor with an optional total, and throws on a host that registered no relay for that namespace.

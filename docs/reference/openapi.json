@@ -4221,7 +4221,8 @@
                 }
               }
             }
-          }
+          },
+          "required": true
         },
         "responses": {
           "202": {
@@ -11427,7 +11428,11 @@
               "type": "string",
               "format": "uuid"
             },
-            "description": "The ids of the quarantined rows to act on, at least one; omitted or null acts on every quarantined row of the namespace."
+            "description": "The ids of the quarantined rows to delete, at least one; leave it out when all is true."
+          },
+          "all": {
+            "type": "boolean",
+            "description": "True deletes every quarantined row of the namespace; leave it out, or false, when outboxIds names the rows."
           },
           "reasonMessage": {
             "type": [
@@ -11438,7 +11443,7 @@
           }
         },
         "additionalProperties": false,
-        "description": "Optional body of the outbox discard: the quarantined rows to delete, and a reason. Without outboxIds it acts on every quarantined row of the namespace."
+        "description": "Body of the outbox discard: the quarantined rows to delete, or all of them, and a reason. It takes exactly one of outboxIds and all, and answers 400 for neither or both."
       },
       "DiscardOutboxResponse": {
         "required": [
