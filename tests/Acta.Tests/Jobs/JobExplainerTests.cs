@@ -212,7 +212,8 @@ public class JobExplainerTests
         Assert.False(x.Lease!.Expired);
         Assert.Equal(17, x.Lease.WorkerId);
         Assert.Equal("payments-v42", x.Lease.WorkerName);
-        Assert.Contains("Executing on worker payments-v42", x.Headline);
+        // The version is the build the worker runs, not its name: every worker of a deploy shares it.
+        Assert.Contains($"Executing on worker {LeaseWorkerRef} (version payments-v42).", x.Headline);
         Assert.Contains("Lease expires in 2m", x.Headline);
         Assert.Equal(LeaseWorkerRef, x.Lease.WorkerRef);
         Assert.Contains(x.NextActions, a => a.Kind == "none");
@@ -342,16 +343,25 @@ public class JobExplainerTests
     }
 
     [Fact]
-    public void Suspended_names_the_worker_that_last_ran_it()
+    public void Suspended_names_the_worker_that_last_ran_it_by_its_ref()
     {
-        var data = Data(
-            Header(JobStatusCode.Suspended, lastExecutedByWorkerName: "payments-v42"),
-            checkpoints: [Checkpoint(CheckpointKindCode.Signal, "fraud-review", CheckpointStatusCode.Pending)]
+        var lastRef = new WorkerRef(new Guid("019826f0-0000-7000-8000-000000000022"));
+        var signal = Checkpoint(CheckpointKindCode.Signal, "fraud-review", CheckpointStatusCode.Pending);
+
+        var versioned = ExplainJobHandler.Explain(
+            Data(
+                Header(JobStatusCode.Suspended, lastExecutedByWorkerName: "payments-v42", lastExecutedByWorkerRef: lastRef.Value),
+                checkpoints: [signal]
+            ),
+            Now
+        );
+        var unversioned = ExplainJobHandler.Explain(
+            Data(Header(JobStatusCode.Suspended, lastExecutedByWorkerRef: lastRef.Value), checkpoints: [signal]),
+            Now
         );
 
-        var x = ExplainJobHandler.Explain(data, Now);
-
-        Assert.Equal("payments-v42", x.LastExecutedBy);
+        Assert.Equal($"{lastRef} (version payments-v42)", versioned.LastExecutedBy);
+        Assert.Equal(lastRef.ToString(), unversioned.LastExecutedBy);
     }
 
     [Fact]

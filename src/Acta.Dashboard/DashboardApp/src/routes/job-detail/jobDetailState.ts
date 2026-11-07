@@ -105,9 +105,9 @@ export function buildIncidentSummary(
   if (explanation?.reason) lines.push(`Reason: ${explanation.reason}`);
   if (explanation?.activeWait) lines.push(`Active wait: ${explanation.activeWait.kind} ${explanation.activeWait.name}`);
   if (explanation?.lease) {
-    lines.push(
-      `Lease: worker ${explanation.lease.workerName ?? explanation.lease.workerRef ?? '(purged)'}, expires ${explanation.lease.expiresAtUtc ?? 'unknown'}, expired=${explanation.lease.expired}`
-    );
+    const { workerRef, workerName } = explanation.lease;
+    const worker = workerRef ? (workerName ? `${workerRef} (version ${workerName})` : workerRef) : '(purged)';
+    lines.push(`Lease: worker ${worker}, expires ${explanation.lease.expiresAtUtc ?? 'unknown'}, expired=${explanation.lease.expired}`);
   }
 
   const latest = newestFirst(events).slice(0, 5);

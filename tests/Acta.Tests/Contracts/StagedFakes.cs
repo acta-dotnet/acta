@@ -217,7 +217,7 @@ internal static class StagedFakes
     );
 
     // As ExplainJobHandler words a ready job whose next run is five minutes away, with no wait and no lease; the last
-    // worker is named by its deployment version.
+    // worker is named by its ref, with its deployment version beside it.
     private static readonly ExplainJobResponse Explanation = new(
         JobId: 42,
         JobRef: FakeJobs.FoundJobRef,
@@ -228,7 +228,7 @@ internal static class StagedFakes
         Headline: "Ready, scheduled to run in 5m.",
         ActiveWait: null,
         Lease: null,
-        LastExecutedBy: "deploy-42",
+        LastExecutedBy: $"{FakeWorkers.KnownWorkerRef} (version 1.4.0)",
         Steps: [new ExplainJobStep("post-invoice", StepStatusCode.Pending, "has started and has no recorded success")],
         StepsHasMore: false,
         Reason: "Invoice provider timed out.",

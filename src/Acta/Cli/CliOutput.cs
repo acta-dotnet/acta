@@ -227,17 +227,16 @@ internal static class CliOutput
     }
 
     /// <summary>
-    /// Same identity rule the explanation prose uses: name (with the ref alongside when known),
-    /// else the bare ref, else a non-identity phrase once the holder's row has been purged.
+    /// Same identity rule the explanation prose uses: the ref, with the deployment version beside it when one is
+    /// recorded, else a non-identity phrase once the holder's row has been purged.
     /// </summary>
     private static string LeaseWorkerLabel(ExplainJobLease lease)
     {
-        var worker = (lease.WorkerName is { Length: > 0 } ? lease.WorkerName : null, lease.WorkerRef) switch
+        var worker = lease.WorkerRef switch
         {
-            (string name, WorkerRef workerRef) => $"Worker {name} ({workerRef})",
-            (string name, null) => $"Worker {name}",
-            (null, WorkerRef workerRef) => $"Worker {workerRef}",
-            (null, null) => "Worker is no longer registered",
+            { } workerRef when lease.WorkerName is { Length: > 0 } version => $"Worker {workerRef} (version {version})",
+            { } workerRef => $"Worker {workerRef}",
+            null => "Worker is no longer registered",
         };
         return lease.ExpiresAtUtc is { } expires ? $"{worker}, lease expired at {expires:O}" : worker;
     }

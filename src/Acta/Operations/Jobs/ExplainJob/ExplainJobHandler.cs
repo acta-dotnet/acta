@@ -246,7 +246,7 @@ internal sealed class ExplainJobHandler(GetJobIdHandler getJobId, IDbSession ses
     /// operator sees who last touched it; null once that worker's row is gone.
     /// </summary>
     private static string? LastExecutedByLabel(ExplainJobHeaderRow h) =>
-        WorkerIdentity(h.LastExecutedByWorkerName, h.LastExecutedByWorkerRef);
+        WorkerIdentity(h.LastExecutedByWorkerRef, h.LastExecutedByWorkerName);
 
     /// <summary>
     /// A Suspended job is blocked on a pending signal, a pending child latch, or a pending timer
@@ -364,23 +364,18 @@ internal sealed class ExplainJobHandler(GetJobIdHandler getJobId, IDbSession ses
         };
 
     /// <summary>
-    /// The one rule every worker mention in the prose follows: the deployment version reads as the
-    /// worker's name (e.g. "payments-v42"); with no version recorded, its public ref; with the
-    /// workers row itself gone (retention purges workers, so a lease or an execution can outlive
-    /// its holder), nothing at all. The internal worker id is never prose, and a missing row never
-    /// fabricates a ref.
+    /// The one rule every worker mention in the prose follows: the worker's public ref, with its deployment version
+    /// beside it when one is recorded ("wrk_... (version 1.4.0)"), since every worker of a deploy shares the version;
+    /// with the workers row itself gone (retention purges workers, so a lease or an execution can outlive its holder),
+    /// nothing at all. The internal worker id is never prose, and a missing row never fabricates a ref.
     /// </summary>
-    private static string? WorkerIdentity(string? deploymentVersion, Guid? workerRef) =>
-        (Blank(deploymentVersion), workerRef) switch
-        {
-            (string name, Guid) => name,
-            (string name, null) => name,
-            (null, Guid reference) => new WorkerRef(reference).ToString(),
-            (null, null) => null,
-        };
+    private static string? WorkerIdentity(Guid? workerRef, string? deploymentVersion) =>
+        workerRef is not { } reference ? null
+        : Blank(deploymentVersion) is { } version ? $"{new WorkerRef(reference)} (version {version})"
+        : new WorkerRef(reference).ToString();
 
     private static string WorkerLabel(ExplainJobHeaderRow h) =>
-        WorkerIdentity(h.WorkerDeploymentVersion, h.LeasedByWorkerRef) is { } identity ? $"worker {identity}" : "an unknown worker";
+        WorkerIdentity(h.LeasedByWorkerRef, h.WorkerDeploymentVersion) is { } identity ? $"worker {identity}" : "an unknown worker";
 
     private static string DuePhrase(DateTime due, DateTime now) => due > now ? $"due in {Humanize(due - now)}" : $"due {Ago(due, now)}";
 

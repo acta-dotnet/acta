@@ -9625,7 +9625,7 @@
                         "headline": "Ready, scheduled to run in 5m.",
                         "activeWait": null,
                         "lease": null,
-                        "lastExecutedBy": "deploy-42",
+                        "lastExecutedBy": "wrk_019826f00000700080000000000002a0 (version 1.4.0)",
                         "steps": [
                           {
                             "name": "post-invoice",
@@ -16437,7 +16437,7 @@
               "null",
               "string"
             ],
-            "description": "The name of the worker that holds the lease, when it is known."
+            "description": "The deployment version of the worker that holds the lease, when it is known; workerRef names the worker."
           },
           "expiresAtUtc": {
             "type": [
@@ -16479,7 +16479,7 @@
             "description": "The ref of the worker that holds the lease."
           }
         },
-        "description": "The lease on an executing job, and whether the worker that holds it is alive. Once the lease has expired, recovery reclaims the job on its next pass. The worker's ref and name are null once retention has removed the worker."
+        "description": "The lease on an executing job, and whether the worker that holds it is alive. Once the lease has expired, recovery reclaims the job on its next pass. The worker's ref and deployment version are null once retention has removed the worker."
       },
       "ExplainJobResponse": {
         "required": [
@@ -16550,7 +16550,7 @@
               "null",
               "string"
             ],
-            "description": "The name of the worker that last ran the job, when no lease is live."
+            "description": "The worker that last ran the job: its ref, with its deployment version when one is recorded, such as wrk_... (version 1.4.0); null once retention removed the worker."
           },
           "steps": {
             "type": "array",

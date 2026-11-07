@@ -300,7 +300,7 @@ public class CliOutputTests
             Headline: "Suspended, waiting for signal \"fraud-review\".",
             ActiveWait: new ExplainJobWait(CheckpointKindCode.Signal, "fraud-review", null),
             Lease: null,
-            LastExecutedBy: "payments-v42",
+            LastExecutedBy: $"{ExplainWorkerRef} (version payments-v42)",
             Steps: [new ExplainJobStep("reserve-stock", StepStatusCode.Succeeded, "succeeded and will not rerun")],
             StepsHasMore: true,
             Reason: null,
@@ -321,7 +321,7 @@ public class CliOutputTests
         Assert.Contains("payments/checkout", text);
         Assert.Contains("Suspended, waiting for signal \"fraud-review\".", text);
         Assert.Contains("Last activity:", text);
-        Assert.Contains("- Last executed on worker payments-v42.", text);
+        Assert.Contains($"- Last executed on worker {ExplainWorkerRef} (version payments-v42).", text);
         Assert.Contains("Durable work:", text);
         Assert.Contains("- Step \"reserve-stock\" succeeded and will not rerun.", text);
         Assert.Contains("- Older steps are not shown.", text);
@@ -370,7 +370,7 @@ public class CliOutputTests
         Assert.Contains("Reason:", text);
         Assert.Contains("- Worker shutdown.", text);
         Assert.Contains("Worker:", text);
-        Assert.Contains($"- Worker payments-v42 ({ExplainWorkerRef}), lease expired at 2026-07-04T11:58:00.0000000Z.", text);
+        Assert.Contains($"- Worker {ExplainWorkerRef} (version payments-v42), lease expired at 2026-07-04T11:58:00.0000000Z.", text);
         Assert.Contains("- Last heartbeat at 2026-07-04T11:56:00.0000000Z.", text);
         Assert.Contains("- Worker is marked Dead.", text);
         Assert.Contains("Next actions:", text);

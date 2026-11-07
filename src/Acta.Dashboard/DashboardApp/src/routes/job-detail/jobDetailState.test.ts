@@ -118,3 +118,30 @@ test('incident summary includes current evidence in newest-first order', () => {
   assert.match(summary, /event-1: wait-timed-out/);
   assert.match(summary, /Dashboard: http:\/\/localhost\/#\/jobs\/job_1/);
 });
+
+test('incident summary names the lease holder by its ref, with its deployment version beside it', () => {
+  const snapshot = { jobRef: 'job_1', jobNamespace: 'billing', jobName: 'invoice', status: 'executing' } as JobDetail;
+  const lease = {
+    workerRef: 'wrk_9',
+    workerName: '1.0.0',
+    expiresAtUtc: '2026-01-02T00:00:00Z',
+    expired: false,
+    workerLastSeenAtUtc: null,
+    workerStale: false,
+    recoveryExpectation: ''
+  };
+  const explanation = {
+    headline: 'Executing.',
+    activeWait: null,
+    lease,
+    lastExecutedBy: null,
+    steps: [],
+    stepsHasMore: false,
+    reason: null,
+    nextActions: []
+  };
+
+  const summary = buildIncidentSummary(snapshot, explanation, [], 'http://localhost/#/jobs/job_1');
+
+  assert.match(summary, /Lease: worker wrk_9 \(version 1\.0\.0\), expires 2026-01-02T00:00:00Z/);
+});
