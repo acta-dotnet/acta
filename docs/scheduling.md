@@ -167,7 +167,7 @@ A schedule's occurrences come from a cron, an interval, or a calendar: something
 
 ```csharp
 [Job("settle")]
-[Schedule("business-day", Calendar = "settlement-days", TimeZoneId = "Europe/Ljubljana")]
+[Schedule("month-end", Calendar = "settlement-days", TimeZoneId = "Europe/Ljubljana")]
 public Task Settle(JobContext ctx, CancellationToken ct) => ...;
 
 [Job("sync-crm")]
@@ -191,7 +191,22 @@ var published = await calendars.PublishAsync(officeHours, expectedCurrentVersion
 
 - A family is a name in a namespace, or in `sys`, the shared scope every namespace binds; a name belongs to one scope. A schedule's calendar name resolves to the namespace's family of that name, else to the shared one in `sys`.
 - Each save is a new immutable version, and the one Published version is what the name resolves to, read afresh at every evaluation and every preview. The schedule row stores the name and nothing about the version it resolved to, and the timing fingerprint covers the name only, so a deploy never retimes a schedule over its calendar; a publication does, as below.
-- Definitions are JSON with a `kind`. Availability: `weekly-availability` (weekly rules of local windows, an overnight window ending on the next date, `dateOverrides` replacing one date's windows or closing it with `[]`, `excludedRanges` subtracted last, each a pair of dates `from` and `to` or a pair of instants `fromUtc` and `toUtc`, written in UTC with a `Z`), and `union`, `intersection`, `subtraction` of inline definitions. Occurrence: `explicit-instants`, `daily-local-time` (times on weekdays minus dates), `business-day` (the first or last nth business day of each week, month, quarter, or year over its own business days and holidays, at a local time), `at-opening` (each window start of an inline availability definition), and `union`. `timeZone` is `"schedule"` (the schedule's zone) or a fixed zone id, on the kinds that read local times; a kind that only combines other definitions (`union`, `intersection`, `subtraction`, `at-opening`) takes none, since each operand names its own. A local time in a DST gap resolves to the instant time resumes; an ambiguous one to its earlier instant. Every problem is reported with its JSON path.
+- A definition is JSON with a `kind`, and every problem in one is reported with its JSON path. The kinds:
+
+| Kind | Role | Members |
+| --- | --- | --- |
+| `weekly-availability` | Availability | `weekly` rules of `days` and local `windows`, an overnight window ending on the next date; `dateOverrides` replacing one date's windows, or closing it with `[]`; `excludedRanges` subtracted last, each a pair of dates `from` and `to` or a pair of instants `fromUtc` and `toUtc` in UTC with a `Z` |
+| `intersection` | Availability | `of`: inline availability definitions |
+| `subtraction` | Availability | `from` and `minus`: inline availability definitions |
+| `explicit-instants` | Occurrence | `instants`: UTC instants (`2027-01-15T16:00:00Z`) or local date-times (`2027-01-15T16:00`) |
+| `daily-local-time` | Occurrence | `times` on `days` (every day when absent), minus `excludedDates` |
+| `business-day` | Occurrence | the `nth` (1 when absent) `first` or `last` business day (`select`) of each `week`, `month`, `quarter`, or `year` (`of`), over `businessDays` (Monday to Friday when absent) minus `holidays`, at a local `time` |
+| `at-opening` | Occurrence | `availability`: an inline availability definition, each of whose window starts is an occurrence |
+| `union` | Either | `of`: inline definitions of the calendar's role |
+
+- The `settlement-days` family above could be `{"kind":"business-day","select":"last","of":"month","time":"16:00"}`: the last weekday of each month at 16:00 in the schedule's zone.
+- `timeZone`, on the kinds that read local times, is a zone id; `"schedule"`, or no `timeZone`, means the schedule's zone. A kind that combines other definitions takes none, since each operand names its own.
+- A local time in a DST gap resolves to the instant time resumes; an ambiguous one to its earlier instant.
 - A rule the kinds cannot express is a cron, an interval, or a list of `explicit-instants` that a job or a deploy step generates and publishes.
 - Every window is `[start, end)`: the start is open time and the end is not, so windows that touch join into one and a firing exactly at an opening counts while one exactly at a close does not. That holds for a weekly window, an excluded range of instants, and the windows a preview answers, which are in UTC and open-ended when the end is null. An excluded range of dates covers both of its dates whole.
 - An occurrence outside every window is omitted, never shifted: an interval tick in a closed window is dropped and the next tick inside an open one fires on the grid; a cron tick or a calendar instant likewise. An availability calendar opens no time the source does not produce.
@@ -203,10 +218,15 @@ The workflow keeps a calendar's definition beside the code that names it:
 1. Keep each definition's JSON in source control.
 2. Save it as a draft: `SaveDraftAsync`, `POST /calendars/{jobNamespace}/{calendarName}/drafts`, or the dashboard.
 3. Preview the draft beside the current version: `PreviewAsync`, `GET /calendars/{jobNamespace}/{calendarName}/preview`, or the dashboard.
-4. Publish it from a deploy step, with `PublishAsync`, `POST /calendars/{jobNamespace}/{calendarName}/publish`, or the dashboard, before the deploy of the jobs that name it.
+4. Publish it, with `PublishAsync`, `POST /calendars/{jobNamespace}/{calendarName}/publish`, or the dashboard, before the deploy of the jobs that name it.
 
-- Workers never publish. A deploy checks every calendar its schedules name before it writes anything. A deploy that finds one not ready fails and lists each schedule as `namespace/job/schedule` with its calendar and the reason: no published version, a version published under the other role, or a version this build cannot read, with the compiler's problem.
-- `GetAsync` answers a family's head with one version's `Definition`, the stored JSON text, which a draft takes back as it is. `SaveDraftAsync` takes the latest version the caller saw (`VersionConflict` otherwise) and creates a namespace no worker has run in yet. `PreviewAsync` forecasts a version beside the current one and lists up to 100 bound schedules with an overdue flag, overdue ones first, with `SchedulesTotal` and `OverdueTotal` counting them all; `ListDependentsAsync` pages every one. `PublishAsync` makes a draft current and retimes every schedule that names the family in its scope in one transaction: its cursor seeds from the new version's first occurrence after now, and `schedule.retimed` is recorded; paused and orphaned schedules keep their state. A schedule holding an undecided overdue occurrence refuses the publication (`OverdueDecisionCode.Refuse`, the default) until it is drained, or is audited as `schedule.skipped` with the reason `retimed` under `OverdueDecisionCode.Discard`. A publication retimes at most 200 schedules. `ArchiveAsync` retires a family no live schedule names.
+- Workers never publish. A deploy checks every calendar its schedules name before it writes anything, and one that finds a calendar not ready fails, writing nothing, and lists each schedule as `namespace/job/schedule` with its calendar and the reason: no published version, a version published under the other role, or a version this build cannot read, with the compiler's problem.
+- `GetAsync` answers a family's head with one version's `Definition`, the stored JSON text, which a draft takes back as it is.
+- `SaveDraftAsync` takes the latest version the caller saw (`VersionConflict` otherwise) and creates a namespace no worker has run in yet.
+- `PreviewAsync` forecasts a version beside the current one and lists up to 100 bound schedules with an overdue flag, overdue ones first, with `SchedulesTotal` and `OverdueTotal` counting them all; `ListDependentsAsync` pages every one.
+- `PublishAsync` makes a draft current and retimes every schedule that names the family in its scope, in one transaction: each cursor seeds from the new version's first occurrence after now, and `schedule.retimed` is recorded. Paused and orphaned schedules keep their state. A family that more than 200 schedules bind is refused.
+- A schedule holding an undecided overdue occurrence refuses the publication (`OverdueDecisionCode.Refuse`, the default) until it is drained; under `OverdueDecisionCode.Discard` the occurrence is audited as `schedule.skipped` with the reason `retimed`.
+- `ArchiveAsync` retires a family no live schedule names.
 
 ## Backfill
 
@@ -281,7 +301,7 @@ What each job verb does to a slot from each status is in the operator guide's [v
 
 - `<app> jobs deploy` and `<app> jobs migrate` write the definitions and schedules this build declares and record its version; a worker start writes none of them ([deploying jobs](./operator-guide.md#deploying-jobs)). In development, `MigrateOnStartup = true` does the deploy at startup.
 - A deploy with an unchanged schedule changes nothing. A changed expression, time zone, interval anchor, or bound retimes the schedule and discards its undecided occurrences; no deploy decides an occurrence, the running fleet does ([catch-up, misfire, and expiration](#catch-up-misfire-and-expiration)).
-- A schedule that names a calendar needs a published version of that family before the deploy: publish the calendar first, then deploy the jobs that name it. The deploy that finds one missing fails and writes nothing ([calendars](#calendars)). A publication and a deploy that binds its family never interleave: whichever starts second waits, so the deploy reads the version the publication leaves, or the publication retimes the schedules the deploy wrote.
+- The calendars a deploy's schedules name are published before it ([calendars](#calendars)). A publication and a deploy that binds its family never interleave: whichever starts second waits, so the deploy reads the version the publication leaves, or the publication retimes the schedules the deploy wrote.
 - A schedule a deploy drops is orphaned, and comes back without its pause when a build that declares it deploys, so to hold a recurring job across a rollback, pause the job, not the schedule.
 
 ## Reading schedules in SQL
