@@ -1869,7 +1869,6 @@
 - **Contract:** The current calendars are each family's Published version by name with its role, and a family of drafts or an archived one has none.
 - **Guarantees:**
   - Only a family's Published version is current; drafts and an archived version are not
-  - A name published in the namespace's catalog and in the shared one resolves to neither and says so
 
 ### ListCalendarDependents pages the schedules naming a family by path
 - **Contract:** ListCalendarDependents pages the schedules naming a family by namespace, job, schedule, and binding, orphans included, and nothing for an unknown family.
@@ -1921,6 +1920,7 @@
   - A draft in the other role is Rejected naming the family's role and writes nothing
   - A definition that does not compile is Rejected with its problems and writes nothing
   - A shared calendar and a namespace's cannot share a name, in either order
+  - Two first drafts of one name at the same moment, one shared and one in a namespace, save one and reject the other
   - A first draft creates a namespace no worker has run in, and a role other than Occurrence or Availability throws
 
 ### Any calendar version reads back with its definition, whatever its status

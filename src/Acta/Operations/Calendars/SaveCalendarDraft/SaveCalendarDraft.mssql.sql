@@ -32,6 +32,13 @@ BEGIN TRY
         c.namespace_id = @namespace_id
         AND c.calendar_name = @p_calendar_name;
 
+    /* The name's own lock, across namespaces: two first saves of one name, one shared and one in a namespace, hold
+       different schedule locks, and each would miss the other's uncommitted row in the read below. */
+    SET @lock_resource = N'{{schema}}.calendars.' + @p_calendar_name;
+    EXEC @lock_result = sys.sp_getapplock @lock_resource, 'Exclusive', 'Transaction', -1;
+    IF @lock_result < 0
+        THROW 51205, 'ACTA:SCHEDULE_LOCK:The calendar name lock was not granted (deadlock victim or cancelled).', 1;
+
     /* A name is one family: a namespace's calendar cannot take a shared calendar's name, and a shared one cannot take a
        name any namespace holds, so a schedule's plain name never resolves two ways. */
     SELECT @clash_namespace = MIN(o.namespace_name)

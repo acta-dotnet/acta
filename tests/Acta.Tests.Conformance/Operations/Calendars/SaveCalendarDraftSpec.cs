@@ -152,6 +152,28 @@ public sealed class SaveCalendarDraftSpec : ActaStorageTestBase<ConformanceFixtu
         Assert.Contains($"namespace '{TestNamespace}'", Assert.Single(taken.Problems), StringComparison.Ordinal);
     }
 
+    [Fact(
+        DisplayName = "Two first drafts of one name at the same moment, one shared and one in a namespace, save one and reject the other"
+    )]
+    public async Task Two_first_drafts_of_one_name_in_both_scopes_save_only_one()
+    {
+        var ct = TestContext.Current.CancellationToken;
+        for (var round = 0; round < 20; round++)
+        {
+            var name = Unique($"race-{round}");
+            var saves = await Task.WhenAll(
+                Task.Run(() => SaveAsync(new CalendarLookup("sys", name)), ct),
+                Task.Run(() => SaveAsync(new CalendarLookup(TestNamespace, name)), ct)
+            );
+
+            Assert.Equal(1, saves.Count(save => save.Action == ControlAction.Applied));
+            Assert.Equal(1, saves.Count(save => save.Action == ControlAction.Rejected));
+        }
+
+        Task<SaveCalendarDraftResponse> SaveAsync(CalendarLookup calendar) =>
+            Calendars.SaveDraftAsync(calendar, CalendarRoleCode.Occurrence, CalendarTestOps.OccurrenceDefinition, 0, ct: ct).AsTask();
+    }
+
     [Fact(DisplayName = "A first draft creates a namespace no worker has run in, and a role other than Occurrence or Availability throws")]
     public async Task A_first_draft_creates_its_namespace()
     {

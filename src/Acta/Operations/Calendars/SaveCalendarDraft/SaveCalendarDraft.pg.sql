@@ -3,6 +3,7 @@
 -- family read finds is still its latest when the draft lands. A namespace no worker has run in yet is created here.
 DROP TABLE IF EXISTS pg_temp._save_calendar_draft_namespace;
 DROP TABLE IF EXISTS pg_temp._save_calendar_draft_lock;
+DROP TABLE IF EXISTS pg_temp._save_calendar_draft_name_lock;
 DROP TABLE IF EXISTS pg_temp._save_calendar_draft_family;
 INSERT INTO {{schema}}.namespaces (namespace_name, namespace_status_code, created_at_utc, modified_at_utc, version)
 SELECT @p_namespace_name, 10 /* NamespaceStatusCode.Active */, now(), now(), 0
@@ -20,6 +21,12 @@ FROM (
     SELECT pg_advisory_xact_lock(hashtext('{{schema}}.schedules'), t.namespace_id)
     FROM _save_calendar_draft_namespace t
 ) l;
+
+-- The name's own lock, across namespaces: two first saves of one name, one shared and one in a namespace, hold different
+-- schedule locks, and each would miss the other's uncommitted row in the read below.
+CREATE TEMP TABLE _save_calendar_draft_name_lock ON COMMIT DROP AS
+SELECT 1 AS granted
+FROM (SELECT pg_advisory_xact_lock(hashtext('{{schema}}.calendars'), hashtext(@p_calendar_name))) l;
 
 -- A name is one family: a namespace's calendar cannot take a shared calendar's name, and a shared one cannot take a
 -- name any namespace holds, so a schedule's plain name never resolves two ways.
