@@ -103,7 +103,7 @@ internal static class RaceCases
             else if (scenario.Id == "signal-during-wait")
             {
                 var hit = await effects.WaitBarrierAsync("wait-registered", TimeSpan.FromSeconds(30), ct) is not null;
-                var checkpoints = await jobs.ListCheckpointsAsync(new ListJobCheckpointsQuery(root), ct);
+                var checkpoints = await jobs.ListCheckpointsAsync(new ListJobCheckpointsQuery(root, PageSize: 100), ct);
                 checks.Add(
                     new(
                         "wait-registration-hit",

@@ -49,7 +49,7 @@ internal static class TimeoutAndWakeupCases
         var checks = OutcomeCheck.Reconcile(expected, actual).ToList();
         if (scenario.Id == "timeout-late-attempt")
         {
-            var checkpoints = await jobs.ListCheckpointsAsync(new ListJobCheckpointsQuery(root), ct);
+            var checkpoints = await jobs.ListCheckpointsAsync(new ListJobCheckpointsQuery(root, PageSize: 100), ct);
             checks.Add(
                 new(
                     "late-authoritative-write",

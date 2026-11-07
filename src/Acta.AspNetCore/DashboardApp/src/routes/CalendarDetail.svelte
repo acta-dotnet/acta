@@ -88,6 +88,8 @@
     refetchInterval: false
   }));
   let impact = $derived(publishImpact(preview.data));
+  // The preview lists at most its cap, so the marks below can cover fewer rows than its overdue total counts.
+  let overdueListed = $derived((preview.data?.schedules ?? []).filter((s) => s.overdue).length);
   let overdueKeys = $derived(
     new Set((preview.data?.schedules ?? []).filter((s) => s.overdue).map((s) => `${s.jobNamespace}/${s.jobName}/${s.scheduleName}`))
   );
@@ -406,7 +408,7 @@
                 <caption class="sr-only">Bound schedules</caption>
                 <thead><tr><th>Schedule</th><th>Binding</th><th>Status</th><th class="mobile-hide">Delivery</th></tr></thead>
                 <tbody>
-                  {#each family.dependents as dependent (`${dependent.jobNamespace}/${dependent.jobName}/${dependent.scheduleName}`)}
+                  {#each family.dependents as dependent (`${dependent.jobNamespace}/${dependent.jobName}/${dependent.scheduleName}/${dependent.binding}`)}
                     {@const key = `${dependent.jobNamespace}/${dependent.jobName}/${dependent.scheduleName}`}
                     <tr class:overdue={overdueKeys.has(key)}>
                       <td><a href={routes.schedule(dependent.jobNamespace, dependent.jobName, dependent.scheduleName)}>{key}</a></td>
@@ -417,6 +419,9 @@
                   {/each}
                 </tbody>
               </DataTable>
+              {#if impact.overdue > overdueListed}
+                <p class="detail-help">Overdue marks cover the first {displayFormatter.number(overdueListed)} of {displayFormatter.number(impact.overdue)} overdue schedules.</p>
+              {/if}
               {#if family.dependentsTotal !== null && family.dependentsTotal > family.dependents.length}
                 <p class="detail-help">Showing {displayFormatter.number(family.dependents.length)} of {displayFormatter.number(family.dependentsTotal)} schedules.</p>
               {/if}
