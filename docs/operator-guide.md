@@ -372,7 +372,7 @@ app.MapActa("/acta", options =>
 - **Lists page by cursor.** Pass a page's `nextCursor` back as `cursor` until `hasMore` is false; a cursor is tied to its query, and a stale one is rejected. Pages default to 50 and cap at 100, and `includeTotal=true` adds `totalCount`; on `GET /events` it needs `jobRef`, or `entityKind` with `entityId`, and a definition's events and the outbox sources take none.
 - `GET /capabilities` reports whether controls are enabled, so a client can hide edit UI.
 
-The [OpenAPI document](./reference/openapi.json) lists every route below its server, `/acta/api`, the default mount's API root (`/v1/jobs/{jobRef}`), each with its operation's name in camelCase as its id (`getJob`, `pauseJob`, `listJobTags`); its introduction states the confirmation rule with the mount's header name. Every code is an open string whose `x-acta-known-values` names the values this version writes, so a client keeps a value it does not know. The `kind` of a move a job explanation suggests is a plain string whose description lists its values, and a client keeps an unknown one the same way. Under `/v1` the contract changes by addition: a later 1.x adds routes, optional request members, response members, and code values, and never removes or renames one or adds a required member to a request, so the definition overrides update keeps requiring exactly the members it requires at 1.0.
+The [OpenAPI document](./reference/openapi.json) is a file in the repository, not a route the app serves: a client is generated from it with standard OpenAPI tools and pointed at your mount's API root. It lists every route below its server, `/acta/api`, the default mount's API root (`/v1/jobs/{jobRef}`), each with its operation's name in camelCase as its id (`getJob`, `pauseJob`, `listJobTags`); its introduction states the confirmation rule with the mount's header name. Every code is an open string whose `x-acta-known-values` names the values this version writes, so a client keeps a value it does not know. The `kind` of a move a job explanation suggests is a plain string whose description lists its values, and a client keeps an unknown one the same way. Under `/v1` the contract changes by addition: a later 1.x adds routes, optional request members, response members, and code values, and never removes or renames one or adds a required member to a request, so the definition overrides update keeps requiring exactly the members it requires at 1.0.
 
 ### Permissions
 
@@ -445,11 +445,11 @@ for production deployments, not for an evaluation.
 - Choose SQL Server or PostgreSQL for distributed multi-worker deployments. Use SQLite for embedded
   single-node deployments, local development, demos, and tests.
 - Apply Acta migrations and deploy the app's jobs in a deployment step before workers start, with `<app> jobs migrate`
-  ([Migration ownership](#migration-ownership), [Deploying jobs](#deploying-jobs)). Keep `MigrateOnStartup = false` outside development: a worker start writes no definition or schedule, and refuses a namespace its build has not deployed in.
-- Pin one Acta package version across all workers in a namespace.
+  ([Migration ownership](#migration-ownership), [Deploying jobs](#deploying-jobs)). Keep `MigrateOnStartup = false` outside development. A worker start writes no definition or schedule, and refuses to start in a namespace its build has not deployed in.
+- Run one Acta package version across the workers of a namespace, apart from the overlap of a rolling deploy.
 - Deploy with a rolling restart: run `<app> jobs migrate`, start the new build, stop the old one. See
   [Rolling deploys](#rolling-deploys) for what each build does with the other's jobs.
-- Set `DeploymentVersion` to a build id or git SHA, or let it default to the entry assembly's informational version. Builds must differ in it to be told apart: an app that is `1.0.0` on every build is one version to Acta.
+- Set `JobsOptions.DeploymentVersion` (in `ConfigureOptions`) to a build id or git SHA, or let it default to the entry assembly's informational version. Builds must differ in it to be told apart: an app that is `1.0.0` on every build is one version to Acta.
 - Keep `HeartbeatInterval` identical across replicas of a namespace; the lease and dead-worker windows
   derive from it.
 - Size total handler concurrency as `processes * workers per process * MaxConcurrentExecutors` (one
@@ -490,7 +490,7 @@ In production a deploy step applies Acta's migrations, never application startup
 | Deploy step | `<app> jobs migrate`, or `{Provider}Migrations.ApplyAsync` from code. A server database must exist; SQLite creates the file. |
 | A DBA | The script for your provider: [`schema-pg.sql`](./reference/schema-pg.sql), [`schema-mssql.sql`](./reference/schema-mssql.sql), [`schema-sqlite.sql`](./reference/schema-sqlite.sql). |
 
-`jobs migrate` runs your app with its own `Use{Provider}` options, so it migrates the connection string and schema the workers use, and then deploys the app's jobs ([Deploying jobs](#deploying-jobs)). Hand it the deploy login through configuration and run it before the new build starts:
+`jobs migrate` runs your app with its own `Use{Provider}` options, so it migrates the connection string and schema the workers use, and then deploys the app's jobs ([Deploying jobs](#deploying-jobs)). Hand it the deploy login through configuration and run it before the new build starts. The example assumes the app reads its connection string with `GetConnectionString("acta")`, as the [wiring shape](./developer-guide.md#wiring-shape) does:
 
 ```
 $ ConnectionStrings__acta="<DDL login>" dotnet MyApp.dll jobs migrate
@@ -506,8 +506,8 @@ namespace billing: 1.6.1+b81d04e (Production)
 - It never creates a PostgreSQL or SQL Server database, never opens `master` or `postgres`, and never touches an outbox table.
 - Locally it is `dotnet run -- jobs migrate`; on a container platform, run the same image with the arguments `jobs migrate` as a pre-deploy job.
 - A separate tool calls `await PostgresMigrations.ApplyAsync(connectionString, schema: "acta")`, or `SqlServerMigrations` or `SqliteMigrations`, which returns the names it applied.
-- A rollback is safe: an older build runs against the newer schema, and its `jobs migrate` changes nothing.
-- The script re-creates every routine and view on each run, so re-running it is safe; run it with a client that stops at the first error (`psql -v ON_ERROR_STOP=1`, `sqlcmd -b`, `sqlite3 -bail`). An older release's script stops before it changes a database a newer release upgraded.
+- From 1.0.0 a rollback is safe: an older build runs against the newer schema, and its `jobs migrate` changes nothing.
+- The provider's schema script re-creates every routine and view on each run, so re-running it is safe; run it with a client that stops at the first error (`psql -v ON_ERROR_STOP=1`, `sqlcmd -b`, `sqlite3 -bail`). An older release's script stops before it changes a database a newer release upgraded.
 - On SQL Server, every install, the script included, refuses a system database and never changes the settings of a database that already exists. Only `MigrateOnStartup`, when it creates the database, turns `READ_COMMITTED_SNAPSHOT` on in it, as EF Core does. Acta runs with it on or off; turning it on yourself waits for every other session to leave the database, so do it in a maintenance window.
 - A migration runs in one transaction under an exclusive schema lock: on a live system it briefly blocks the statements it collides with, and jobs wait rather than fail.
 - Every start checks that the database has a history row for each migration the build ships, and fails naming the three ways above if not. Rows the build does not know are fine, so an older worker runs against a newer database. A hand-edited object is not detected.
@@ -560,17 +560,18 @@ namespace billing: 1.6.2+5c0ffee (Production)
 - The name after the version is `JobsOptions.EnvironmentName`, which decides the schedules a `[Schedule(Environments = ...)]` declares. Run the verb with the workers' configuration.
 - `not declared by this build` lists the active definitions the build does not carry. The deploy leaves them as they are.
 - `--json` prints `{"namespaces":[...]}`, one object per namespace: `namespace`, `deploymentVersion`, `environment`, `currentDeploymentVersion`, `older`, `added`, `changed`, `unchanged`, `undeclared`.
+- A schedule that names a calendar needs that calendar published first: the deploy fails on a family with no published version ([Calendars](./developer-guide.md#calendars)).
 - A host that runs no worker has nothing to deploy.
 
 A worker start writes none of this. It reads its namespace and refuses to start, naming `jobs deploy`, when:
 
 - nothing has been deployed in the namespace;
 - the namespace has deployed versions and the worker's own is not one of them, which is what stops a local build pointed at production;
-- the build declares a job with no definition there, which means the deploy ran with other options than the workers (`RunSystemJobs`, the outbox relay).
+- the build declares a job with no definition there, which means the deploy ran with other options than the workers (`RunSystemJobs`, the outbox relay), or another build deployed under the same version.
 
-Development needs no deploy step: with `MigrateOnStartup = true`, startup applies the schema and then writes the definitions and schedules before the workers start. It records no version, so the namespace stays open to any build, and it writes nothing in a namespace a deploy verb has deployed. `jobs debug` runs a stored job from any build and writes no definition.
+Development needs no deploy step: with `MigrateOnStartup = true`, startup applies the schema and then writes the definitions and schedules before the workers start. It records no version, so the namespace stays open to any build, and it writes nothing in a namespace a deploy verb has deployed. That holds on a developer's machine too: after one `jobs migrate` or `jobs deploy` against a local database, startup no longer writes there, so keep using the verbs or delete the database. `jobs debug` runs a stored job from any build and writes no definition.
 
-Running `jobs migrate` or `jobs deploy` on every pod start is safe: an older pod's run changes nothing.
+Running `jobs deploy`, or `jobs migrate` under the deploy login, as a step before every pod starts is safe: an older pod's run changes nothing.
 
 ### Rolling deploys
 
@@ -583,7 +584,7 @@ Deploy: run `<app> jobs migrate`, start the new workers, stop the old ones once 
 - Under `PayloadContractDriftMode.Fail` a deploy stops while a stored contract differs from the build's own. A worker start does not check it.
 - Migrations are forward-only and additive, and an older build never rewrites what a newer one migrated.
 
-Jobs of a definition only the withdrawn build carried stay `Ready` until a build with the handler returns or an operator retires the definition (`IActaOperations.Definitions.RetireAsync`, `POST /definitions/{namespace}/{name}/retire`, or the dashboard). Retiring cancels the definition's parked jobs with `job.definition-retired`, lets running attempts finish, and rejects new enqueues. A retired definition stays retired while workers that still carry it start; the next deploy by a build that declares it reactivates it. Until then, a long run of such jobs slows every old worker's claim.
+Jobs of a definition only the withdrawn build carried stay `Ready` until a build with the handler returns or an operator retires the definition (`IActaOperations.Definitions.RetireAsync`, `POST /definitions/{namespace}/{name}/retire`, or the dashboard). Retiring cancels the definition's parked jobs with `job.definition-retired`, lets running attempts finish, and rejects new enqueues. A retired definition stays retired while workers that still carry it start; the next deploy by a build that declares it reactivates it. Until then, a long run of such jobs slows the claims of every worker that lacks the handler.
 
 ### Coexisting with your application's packages
 

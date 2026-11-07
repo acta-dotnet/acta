@@ -9,7 +9,7 @@
 
 > **1.0.0-rc.8.** A release candidate: the public API, the schema, and the persisted codes freeze at 1.0.0, and until then a new candidate may still change them. This one re-cuts the schema, so a database an earlier candidate provisioned is dropped and reprovisioned ([release notes](./docs/release-notes.md)). Bring a real workload; the evidence behind each tag is in the repository.
 
-Acta is for background work that has to survive a crash and be explained afterwards. Jobs, retries, schedules, durable steps, long waits, child jobs, and operator controls are rows in the PostgreSQL, SQL Server, or SQLite database your application already uses, with no broker, sidecar, or separate server to run. Execution is at-least-once: a handler can run again, so its external effects are made idempotent.
+Acta is for background work that has to survive a crash and be explained afterwards. Jobs, retries, schedules, durable steps, long waits, child jobs, and operator controls are rows in the PostgreSQL, SQL Server, or SQLite database your application already uses, with no broker, sidecar, or separate server to run. Execution is at-least-once: a handler can run again, so make its external effects idempotent.
 
 ## Run a job
 
@@ -69,7 +69,7 @@ curl -X POST http://localhost:5090/orders/1042
 # the app prints: Shipping order 1042
 ```
 
-The endpoint answers `202 Accepted` with the job's ref once the row is stored, and a worker in the same process runs it. Swap `UseSqlite` for `UsePostgres` or `UseSqlServer` and nothing else changes.
+The endpoint answers `202 Accepted` with the job's ref once the row is stored, and a worker in the same process runs it. Swap the package and `UseSqlite` for `UsePostgres` or `UseSqlServer`, point the connection string at your server, and nothing else changes.
 
 ## The row it leaves
 
@@ -89,7 +89,7 @@ job_ref                               definition_name  job_status  execution_num
 01a1b2dc-c4c3-7ba6-9225-fd934de999c0  sys.alerts       idle        0                 0
 ```
 
-The other two rows are Acta's own retention and alert jobs, which run the same way yours do. Stop the app and start it again: the rows are there, and so is every event of each job in `events_view`.
+In SQL a ref is the UUID itself; the API, the CLI, and the dashboard write the same value as `job_` and its 32 hex digits. The other two rows are Acta's own retention and alert jobs, which run the same way yours do. Stop the app and start it again: the rows are there, and so is every event of each job in `events_view`.
 
 The dashboard at `/acta` on the same port reads the same tables. Here it is on a larger system, mid-run:
 

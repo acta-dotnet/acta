@@ -197,7 +197,7 @@ public sealed class JobsOptions
     public AlertChannelValidationMode AlertChannelValidationMode { get; set; } = AlertChannelValidationMode.Warn;
 
     /// <summary>
-    /// Worker behavior when a registration changes a definition's contract columns (input
+    /// What a deploy does when it changes a definition's contract columns (input
     /// or result type, payload format). The drift never corrupts already-enqueued rows, which decode
     /// by their own stored format id; it affects enqueues made from then on and the CLR type old rows
     /// dispatch into. Default <c>Warn</c>.

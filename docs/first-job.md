@@ -188,8 +188,8 @@ numeric `JobId` is for joins and SQL debugging only.
 
 ### Status and result
 
-`jobs.GetAsync(lookup)` answers the row: `Status`, `FailureCount`, `NextRunAtUtc`, timestamps, and
-the keys you set. `jobs.GetResultAsync<ShipmentLabel>(lookup)` answers the stored result, null until a
+`jobs.GetAsync(jobRef)` answers the row: `Status`, `FailureCount`, `NextRunAtUtc`, timestamps, and
+the deduplication, correlation, and concurrency keys you set. `jobs.GetResultAsync<ShipmentLabel>(jobRef)` answers the stored result, null until a
 successful completion wrote one. A job stores one result; a recurring job's next success replaces it.
 
 ### A failure that is final, and the normal kind
@@ -198,7 +198,7 @@ successful completion wrote one. A job stores one result; a recurring job's next
 it. That is the right shape for "a human has to fix something first". The default is `MaxAttempts = 15`
 with exponential backoff, so a job whose dependency is merely flaky throws, re-arms, and reads `ready`
 with a `NextRunAtUtc` in the future: it is waiting for its next attempt, not stuck. `FailureCount` says
-how many attempts have failed so far.
+how many attempts in a row have failed; a success resets it.
 
 ### Ask why
 
@@ -222,7 +222,7 @@ caller giving up on waiting, never the job giving up on the work.
 
 ## Inspect the row
 
-The state is rows, so SQL reads it. Open `acta-local.db` in any SQLite client; on PostgreSQL or SQL Server the views sit in the configured schema, so the same query reads `acta.jobs_view`:
+The state is rows, so SQL reads it. In SQL a ref is the UUID itself, the same 32 hex digits without the `job_` prefix. Open `acta-local.db` in any SQLite client; on PostgreSQL or SQL Server the views sit in the configured schema, so the same query reads `acta.jobs_view`:
 
 ```sql
 SELECT job_ref, definition_name, job_status, failure_count, created_at_utc
@@ -241,10 +241,15 @@ the same public surface the app uses. The file is concept
 [`803-first-job-tests`](../concepts/800-testing/803-first-job-tests/), verbatim.
 
 ```bash
+cd ..
 dotnet new xunit -n Shipping.Tests && cd Shipping.Tests
+dotnet remove package xunit
+dotnet add package xunit.v3 --version 3.2.2
 dotnet add reference ../Shipping/Shipping.csproj
 dotnet add package Acta.Testing --prerelease
 ```
+
+The test project sits beside the app's folder. The stock template installs xUnit 2 and the test uses xUnit v3 (`TestContext.Current`), so the package is swapped; version 3.2.2 runs under plain `dotnet test`, where the 4.x line first needs the Microsoft Testing Platform switched on.
 
 ```csharp
 // File: ShippingTests.cs
@@ -358,7 +363,7 @@ retries, signals, timers, and crash recovery.
 
 The same jobs run on the generic host, without the dashboard and the endpoints:
 
-- Create the project with `dotnet new console` and reference `Microsoft.Extensions.Hosting` in place of `Acta.Dashboard`. Acta itself depends only on `Hosting.Abstractions`.
+- Create the project with `dotnet new console` and reference `Microsoft.Extensions.Hosting` in place of `Acta.Dashboard`. Acta itself needs only the hosting abstractions, not ASP.NET Core.
 - In `Program.cs`, build with `Host.CreateApplicationBuilder(args)`, drop `MapActa` and the endpoints, and enqueue at startup: `await host.StartAsync();`, then `await host.Services.GetRequiredService<IJobs>().EnqueueAsync(new ShipOrder(1042));`, then `await host.WaitForShutdownAsync();`.
 - Add `using Microsoft.Extensions.DependencyInjection;` and `using Microsoft.Extensions.Hosting;`: a console project's implicit usings cover neither.
 - Everything durable is the same: the rows, the retries, the CLI. Only the dashboard needs a web host.
@@ -369,4 +374,5 @@ The same jobs run on the generic host, without the dashboard and the endpoints:
 - Durable steps, signals, sleeps, and child jobs, so a handler survives a crash mid-work:
   [Concepts](./developer-guide.md#concepts-and-glossary) and the [Engineering Labs](./engineering-labs.md).
 - Recurring work: [Schedules](./developer-guide.md#schedule-operations).
+- What a crash, an outage, or a lost signal does to a job, case by case: [What happens if…](./operator-guide.md#what-happens-if).
 - Running, watching, and controlling jobs in production: the [Operator guide](./operator-guide.md).
