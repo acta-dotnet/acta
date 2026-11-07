@@ -158,9 +158,6 @@ internal sealed class WorkerRuntime
 
     public IReadOnlyDictionary<string, int> RegisteredNamespaceIds => _context.RegisteredNamespaceIds;
 
-    public bool TryGetDefinitionId(string namespaceName, string jobName, out int definitionId) =>
-        _context.TryGetDefinitionId(namespaceName, jobName, out definitionId);
-
     public Task InitializeAsync(CancellationToken ct, bool debug = false) => _initializer.InitializeAsync(ct, debug);
 
     /// <summary>

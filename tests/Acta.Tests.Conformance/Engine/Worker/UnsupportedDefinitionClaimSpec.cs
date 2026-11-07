@@ -220,10 +220,22 @@ public sealed class UnsupportedDefinitionClaimSpec : ActaRuntimeTestBase<Conform
     private int RearmDelaySeconds =>
         (int)Math.Ceiling(Services.GetRequiredService<IOptions<JobsOptions>>().Value.SafetyPollInterval.TotalSeconds);
 
-    private int DefinitionId(string jobName) =>
-        Runtime.TryGetDefinitionId(TestNamespace, jobName, out var id)
-            ? id
-            : throw new InvalidOperationException($"'{jobName}' is not registered in the test namespace.");
+    // The id comes from the runtime's descriptor index, which a fact empties to forget a job, so each is kept from its
+    // first lookup, made before the fact removes it.
+    private readonly Dictionary<string, int> _definitionIds = new(StringComparer.Ordinal);
+
+    private int DefinitionId(string jobName)
+    {
+        if (!_definitionIds.TryGetValue(jobName, out var id))
+        {
+            id = Runtime.TryGetDefinitionId(jobName, out var found)
+                ? found
+                : throw new InvalidOperationException($"'{jobName}' is not registered in the test namespace.");
+            _definitionIds[jobName] = id;
+        }
+
+        return id;
+    }
 
     private JobDescriptor Forgotten(int definitionId) =>
         _forgotten.TryGetValue(definitionId, out var descriptor)

@@ -318,7 +318,7 @@ public sealed class ClaimJobsSpec : ActaRuntimeTestBase<ConformanceFixture, Test
         await Jobs.EnqueueAsync(new EnqueueJobRequest(TestNamespace, ExcludedJob, JobPayload.Json(new AddNumbers(2, 3))), ct);
 
     private int DefinitionId(string jobName) =>
-        Runtime.TryGetDefinitionId(TestNamespace, jobName, out var id)
+        Runtime.TryGetDefinitionId(jobName, out var id)
             ? id
             : throw new InvalidOperationException($"'{jobName}' is not registered in the test namespace.");
 

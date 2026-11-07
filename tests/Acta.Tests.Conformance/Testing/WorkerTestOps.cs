@@ -9,6 +9,22 @@ namespace Acta.Tests.Conformance.Testing;
 /// </summary>
 internal static class WorkerTestOps
 {
+    /// <summary>The definition id a started runtime resolved for one of its jobs, read from its descriptor index.</summary>
+    public static bool TryGetDefinitionId(this WorkerRuntime runtime, string jobName, out int definitionId)
+    {
+        foreach (var (id, descriptor) in runtime.Descriptors)
+        {
+            if (descriptor.JobName == jobName)
+            {
+                definitionId = id;
+                return true;
+            }
+        }
+
+        definitionId = 0;
+        return false;
+    }
+
     /// <summary>
     /// Starts a worker in a namespace the helper first leaves the way a start under <c>MigrateOnStartup</c> does:
     /// present, with the given owner and description, and with no recorded deployment, so any version may run there.

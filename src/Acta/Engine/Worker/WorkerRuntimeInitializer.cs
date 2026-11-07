@@ -119,7 +119,6 @@ internal sealed class WorkerRuntimeInitializer(
             );
         }
 
-        var definitionIds = new Dictionary<string, int>(StringComparer.Ordinal);
         var effectiveDescriptors = ImmutableArray.CreateBuilder<JobDescriptor>(descriptors.Length);
         foreach (var descriptor in descriptors)
         {
@@ -127,11 +126,9 @@ internal sealed class WorkerRuntimeInitializer(
             {
                 var effective = EffectivePolicyOverlay.Apply(descriptor, stored.Effective);
                 _context.DescriptorByDefinitionId[stored.DefinitionId] = effective;
-                definitionIds[descriptor.JobName] = stored.DefinitionId;
                 effectiveDescriptors.Add(effective);
             }
         }
-        _context.DefinitionIdsByNamespace[ns] = definitionIds;
 
         // Known before the first claim, so a retired definition's job is never started in the gap before a heartbeat.
         _context.ReplaceRetiredDefinitions(

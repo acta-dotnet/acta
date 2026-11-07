@@ -42,7 +42,7 @@ public sealed class ReplicaStartupSpec : ActaTestBase<ConformanceFixture>
                 var ids = runtimes
                     .Select(r =>
                     {
-                        Assert.True(r.TryGetDefinitionId(ns, jobName, out var id), $"{jobName} unregistered");
+                        Assert.True(r.TryGetDefinitionId(jobName, out var id), $"{jobName} unregistered");
                         return id;
                     })
                     .Distinct();

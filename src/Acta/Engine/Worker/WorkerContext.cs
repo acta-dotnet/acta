@@ -14,7 +14,6 @@ internal sealed class WorkerContext(WorkerRegistration? workerRegistration)
 
     public Dictionary<string, int> NamespaceIds { get; } = new(StringComparer.Ordinal);
     public Dictionary<string, int> WorkerIdByNamespace { get; } = new(StringComparer.Ordinal);
-    public Dictionary<string, Dictionary<string, int>> DefinitionIdsByNamespace { get; } = new(StringComparer.Ordinal);
 
     /// <summary>
     /// definitions.definition_id to JobDescriptor for hot-path claim dispatch. Built in InitializeAsync from the
@@ -94,17 +93,6 @@ internal sealed class WorkerContext(WorkerRegistration? workerRegistration)
     public bool RunsRecovery { get; set; }
 
     public IReadOnlyDictionary<string, int> RegisteredNamespaceIds => NamespaceIds;
-
-    public bool TryGetDefinitionId(string namespaceName, string jobName, out int definitionId)
-    {
-        if (DefinitionIdsByNamespace.TryGetValue(namespaceName, out var byName) && byName.TryGetValue(jobName, out var id))
-        {
-            definitionId = id;
-            return true;
-        }
-        definitionId = 0;
-        return false;
-    }
 
     /// <summary>
     /// Resolves and validates the (namespaceId, workerId) pair for the registered worker namespace.

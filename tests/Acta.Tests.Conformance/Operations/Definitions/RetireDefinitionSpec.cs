@@ -212,7 +212,7 @@ public sealed class RetireDefinitionSpec : ActaRuntimeTestBase<ConformanceFixtur
         await ChaosSpecHelpers.StrandExecutingAsync(Services, ns, workerId, stranded.JobId, ct);
 
         // A build without the handler bounces the definition's other job and stops claiming the definition.
-        Assert.True(Runtime.TryGetDefinitionId(TestNamespace, "chaos-counting", out var definitionId));
+        Assert.True(Runtime.TryGetDefinitionId("chaos-counting", out var definitionId));
         Assert.True(Runtime.Descriptors.TryRemove(definitionId, out _));
         await Jobs.EnqueueAsync(new EnqueueJobRequest(TestNamespace, "chaos-counting", JobPayload.None), ct);
         Assert.Equal(RunOnceStatus.Rearmed, await TickUntilClaimedAsync(ct));

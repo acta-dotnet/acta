@@ -137,7 +137,7 @@ public sealed class WorkerStartGateSpec : ActaStorageTestBase<ConformanceFixture
         await runtime.InitializeAsync(ct);
 
         // The earlier build declares one attempt fewer; its worker runs the job with the deployed number.
-        Assert.True(runtime.TryGetDefinitionId(ns, DeployFirstManifest.ChangedJob, out var definitionId));
+        Assert.True(runtime.TryGetDefinitionId(DeployFirstManifest.ChangedJob, out var definitionId));
         Assert.Equal(FirstAttempts + 1, runtime.Descriptors[definitionId].MaxAttempts);
         Assert.All(await ReadDefinitionsAsync(ns, ct), d => Assert.Equal(deployed[d.Key].Version, d.Value.Version));
         Assert.Equal(Second, (await ReadNamespaceAsync(ns, ct))!.DeploymentVersion);
@@ -218,8 +218,8 @@ public sealed class WorkerStartGateSpec : ActaStorageTestBase<ConformanceFixture
         await runtime.InitializeAsync(ct, debug: true);
 
         // It can run the stored jobs its build carries, and has no definition for the one only it declares.
-        Assert.True(runtime.TryGetDefinitionId(ns, DeployFirstManifest.ChangedJob, out _));
-        Assert.False(runtime.TryGetDefinitionId(ns, DeploySecondManifest.AddedJob, out _));
+        Assert.True(runtime.TryGetDefinitionId(DeployFirstManifest.ChangedJob, out _));
+        Assert.False(runtime.TryGetDefinitionId(DeploySecondManifest.AddedJob, out _));
         var after = await ReadDefinitionsAsync(ns, ct);
         Assert.Equal(stored.Keys.Order(), after.Keys.Order());
         Assert.All(after, d => Assert.Equal(stored[d.Key].Version, d.Value.Version));
