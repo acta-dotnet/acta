@@ -96,7 +96,8 @@ internal static class CalendarDefinition
     /// <summary>Walks one definition, collecting every problem with its path, and builds the calendars of the kinds it finds.</summary>
     private sealed class DefinitionReader
     {
-        private static readonly string[] CommonProperties = ["kind", "description", "timeZone"];
+        // A kind that reads local times also takes timeZone; a kind that only combines other definitions has no zone of its own.
+        private static readonly string[] CommonProperties = ["kind", "description"];
 
         private static readonly string[] TimeFormats = ["HH:mm", "HH:mm:ss"];
 
@@ -188,7 +189,7 @@ internal static class CalendarDefinition
 
         private WeeklyAvailabilityCalendar? Weekly(JsonElement e, string path)
         {
-            Known(e, path, "weekly", "dateOverrides", "excludedRanges");
+            Known(e, path, "timeZone", "weekly", "dateOverrides", "excludedRanges");
             var zone = Zone(e, path);
             var weekly = new Dictionary<DayOfWeek, List<LocalWindow>>();
             var rules = Optional(e, "weekly");
@@ -264,7 +265,7 @@ internal static class CalendarDefinition
 
         private ExplicitInstantsCalendar? Instants(JsonElement e, string path)
         {
-            Known(e, path, "instants");
+            Known(e, path, "timeZone", "instants");
             var zone = Zone(e, path);
             var utc = new List<DateTime>();
             var local = new List<DateTime>();
@@ -314,7 +315,7 @@ internal static class CalendarDefinition
 
         private DailyLocalTimeCalendar? Daily(JsonElement e, string path)
         {
-            Known(e, path, "times", "days", "excludedDates");
+            Known(e, path, "timeZone", "times", "days", "excludedDates");
             var zone = Zone(e, path);
             var times = Times(Required(e, path, "times"), $"{path}.times");
             List<DayOfWeek> days = Optional(e, "days") is { } d ? Weekdays(d, $"{path}.days") : [.. Enum.GetValues<DayOfWeek>()];
@@ -324,7 +325,7 @@ internal static class CalendarDefinition
 
         private BusinessDayCalendar? Business(JsonElement e, string path)
         {
-            Known(e, path, "select", "of", "nth", "businessDays", "holidays", "time");
+            Known(e, path, "timeZone", "select", "of", "nth", "businessDays", "holidays", "time");
             var zone = Zone(e, path);
             var select = Choice(Required(e, path, "select"), $"{path}.select", "first", "last");
             var of = Choice(Required(e, path, "of"), $"{path}.of", "week", "month", "quarter", "year");
@@ -554,23 +555,25 @@ internal static class CalendarDefinition
 
         private DateTime? Instant(JsonElement? e, string path)
         {
+            // UTC with its Z only: text with no offset would be read in this host's own zone, and one form is one way to
+            // be right.
             if (
                 e is { ValueKind: JsonValueKind.String } s
-                && DateTimeOffset.TryParseExact(
+                && DateTime.TryParseExact(
                     s.GetString(),
-                    "yyyy-MM-dd'T'HH:mm:ssK",
+                    "yyyy-MM-dd'T'HH:mm:ss'Z'",
                     CultureInfo.InvariantCulture,
-                    DateTimeStyles.None,
+                    DateTimeStyles.AssumeUniversal | DateTimeStyles.AdjustToUniversal,
                     out var at
                 )
             )
             {
-                return at.UtcDateTime;
+                return at;
             }
 
             if (e is not null)
             {
-                Problem(path, "an instant is yyyy-MM-ddTHH:mm:ssZ.");
+                Problem(path, "an instant is UTC with a Z, yyyy-MM-ddTHH:mm:ssZ.");
             }
 
             return null;
@@ -691,9 +694,3 @@ internal sealed record CompiledCalendar(
     IActaCalendar? Calendar,
     IActaAvailabilityCalendar? Availability
 );
-
-/// <summary>A definition the compiler refuses, with every problem it found, each starting with its JSON path.</summary>
-internal sealed class CalendarDefinitionException(IReadOnlyList<string> problems) : Exception(string.Join(" ", problems))
-{
-    public IReadOnlyList<string> Problems { get; } = problems;
-}

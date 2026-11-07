@@ -10836,6 +10836,168 @@
         },
         "description": "What archiving a calendar family's current version did. The archive is rejected while a schedule still names the family, or when its current version is not the expected one."
       },
+      "AtOpeningCalendar": {
+        "required": [
+          "kind",
+          "availability"
+        ],
+        "type": "object",
+        "properties": {
+          "kind": {
+            "type": "string",
+            "description": "The definition's kind: at-opening."
+          },
+          "description": {
+            "maxLength": 512,
+            "type": "string",
+            "description": "A note for operators; it changes nothing the calendar computes."
+          },
+          "availability": {
+            "description": "The availability calendar whose openings fire, written inline.",
+            "$ref": "#/components/schemas/CalendarDefinition"
+          }
+        },
+        "additionalProperties": false,
+        "description": "An occurrence calendar that fires each time an availability calendar opens."
+      },
+      "BusinessDayCalendar": {
+        "required": [
+          "kind",
+          "select",
+          "of",
+          "time"
+        ],
+        "type": "object",
+        "properties": {
+          "kind": {
+            "type": "string",
+            "description": "The definition's kind: business-day."
+          },
+          "description": {
+            "maxLength": 512,
+            "type": "string",
+            "description": "A note for operators; it changes nothing the calendar computes."
+          },
+          "timeZone": {
+            "type": "string",
+            "description": "The zone the dates and the time are in: a time zone id the host knows, such as Europe/Ljubljana, or schedule for the zone of the schedule that uses the calendar, which is also what leaving it out means."
+          },
+          "select": {
+            "type": "string",
+            "description": "Which end of the period to count from: first or last."
+          },
+          "of": {
+            "type": "string",
+            "description": "The period: week, month, quarter, or year."
+          },
+          "nth": {
+            "maximum": 31,
+            "minimum": 1,
+            "type": "integer",
+            "description": "Which business day counted from that end, 1 to 31; 1 when left out.",
+            "format": "int32",
+            "default": 1
+          },
+          "businessDays": {
+            "minItems": 1,
+            "type": "array",
+            "items": {
+              "type": "string",
+              "description": "A weekday, Monday to Sunday."
+            },
+            "description": "The weekdays that are business days, case ignored; Monday to Friday when left out."
+          },
+          "holidays": {
+            "type": "array",
+            "items": {
+              "type": "string",
+              "description": "A date, yyyy-MM-dd."
+            },
+            "description": "Dates that are no business days."
+          },
+          "time": {
+            "type": "string",
+            "description": "The local time to fire at, HH:mm or HH:mm:ss."
+          }
+        },
+        "additionalProperties": false,
+        "description": "An occurrence calendar that fires at a local time on the nth business day from the start or the end of each week, month, quarter, or year."
+      },
+      "CalendarDefinition": {
+        "oneOf": [
+          {
+            "$ref": "#/components/schemas/WeeklyAvailabilityCalendar"
+          },
+          {
+            "$ref": "#/components/schemas/UnionCalendar"
+          },
+          {
+            "$ref": "#/components/schemas/IntersectionCalendar"
+          },
+          {
+            "$ref": "#/components/schemas/SubtractionCalendar"
+          },
+          {
+            "$ref": "#/components/schemas/ExplicitInstantsCalendar"
+          },
+          {
+            "$ref": "#/components/schemas/DailyLocalTimeCalendar"
+          },
+          {
+            "$ref": "#/components/schemas/BusinessDayCalendar"
+          },
+          {
+            "$ref": "#/components/schemas/AtOpeningCalendar"
+          }
+        ],
+        "description": "A calendar's definition: a JSON object whose kind names its shape. An availability family takes weekly-availability, union, intersection, or subtraction; an occurrence family takes explicit-instants, daily-local-time, business-day, at-opening, or union. A definition holds at most 64 KB, 8 levels of JSON, and 5000 list items in all. A later version of Acta may add kinds.",
+        "discriminator": {
+          "propertyName": "kind",
+          "mapping": {
+            "weekly-availability": "#/components/schemas/WeeklyAvailabilityCalendar",
+            "union": "#/components/schemas/UnionCalendar",
+            "intersection": "#/components/schemas/IntersectionCalendar",
+            "subtraction": "#/components/schemas/SubtractionCalendar",
+            "explicit-instants": "#/components/schemas/ExplicitInstantsCalendar",
+            "daily-local-time": "#/components/schemas/DailyLocalTimeCalendar",
+            "business-day": "#/components/schemas/BusinessDayCalendar",
+            "at-opening": "#/components/schemas/AtOpeningCalendar"
+          }
+        }
+      },
+      "CalendarExcludedRange": {
+        "type": "object",
+        "properties": {
+          "from": {
+            "type": "string",
+            "description": "The first excluded date, yyyy-MM-dd, in the calendar's zone."
+          },
+          "to": {
+            "type": "string",
+            "description": "The last excluded date, yyyy-MM-dd; it is excluded too, and is not before from."
+          },
+          "fromUtc": {
+            "type": "string",
+            "description": "The instant the exclusion starts, in UTC with a Z, such as 2027-01-15T16:00:00Z."
+          },
+          "toUtc": {
+            "type": "string",
+            "description": "The instant the exclusion ends, in UTC with a Z, after fromUtc."
+          }
+        },
+        "additionalProperties": false,
+        "description": "A range cut out of an availability calendar: either whole dates, from and to, or instants, fromUtc and toUtc. A range names one pair, never both."
+      },
+      "CalendarLocalWindow": {
+        "maxItems": 2,
+        "minItems": 2,
+        "type": "array",
+        "items": {
+          "type": "string",
+          "description": "A local time, HH:mm or HH:mm:ss; 24:00 as a window's end."
+        },
+        "description": "A window as a pair of local times, its start then its end, each HH:mm or HH:mm:ss, such as 09:00 and 17:00. An end before the start is on the next date, and an end of 24:00 is the end of the day."
+      },
       "CalendarRoleCode": {
         "examples": [
           "occurrence"
@@ -10861,6 +11023,33 @@
           "superseded",
           "archived"
         ]
+      },
+      "CalendarWeeklyRule": {
+        "required": [
+          "days",
+          "windows"
+        ],
+        "type": "object",
+        "properties": {
+          "days": {
+            "minItems": 1,
+            "type": "array",
+            "items": {
+              "type": "string",
+              "description": "A weekday, Monday to Sunday."
+            },
+            "description": "The weekdays the windows apply on, each Monday to Sunday; case is ignored."
+          },
+          "windows": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/CalendarLocalWindow"
+            },
+            "description": "The windows open on those weekdays."
+          }
+        },
+        "additionalProperties": false,
+        "description": "The windows that are open on some weekdays."
       },
       "CalendarWindow": {
         "required": [
@@ -10988,6 +11177,56 @@
           "version-conflict",
           "already-in-state"
         ]
+      },
+      "DailyLocalTimeCalendar": {
+        "required": [
+          "kind",
+          "times"
+        ],
+        "type": "object",
+        "properties": {
+          "kind": {
+            "type": "string",
+            "description": "The definition's kind: daily-local-time."
+          },
+          "description": {
+            "maxLength": 512,
+            "type": "string",
+            "description": "A note for operators; it changes nothing the calendar computes."
+          },
+          "timeZone": {
+            "type": "string",
+            "description": "The zone the local times are in: a time zone id the host knows, such as Europe/Ljubljana, or schedule for the zone of the schedule that uses the calendar, which is also what leaving it out means."
+          },
+          "times": {
+            "minItems": 1,
+            "type": "array",
+            "items": {
+              "type": "string",
+              "description": "A local time, HH:mm or HH:mm:ss."
+            },
+            "description": "The local times to fire at."
+          },
+          "days": {
+            "minItems": 1,
+            "type": "array",
+            "items": {
+              "type": "string",
+              "description": "A weekday, Monday to Sunday."
+            },
+            "description": "The weekdays to fire on, each Monday to Sunday, case ignored; every weekday when left out."
+          },
+          "excludedDates": {
+            "type": "array",
+            "items": {
+              "type": "string",
+              "description": "A date, yyyy-MM-dd."
+            },
+            "description": "Dates to skip."
+          }
+        },
+        "additionalProperties": false,
+        "description": "An occurrence calendar that fires at local times on chosen weekdays, leaving out listed dates."
       },
       "DbProvider": {
         "examples": [
@@ -11705,6 +11944,39 @@
         },
         "description": "The durable wait a Suspended Job is blocked on: a signal name, or a timer and its due instant."
       },
+      "ExplicitInstantsCalendar": {
+        "required": [
+          "kind",
+          "instants"
+        ],
+        "type": "object",
+        "properties": {
+          "kind": {
+            "type": "string",
+            "description": "The definition's kind: explicit-instants."
+          },
+          "description": {
+            "maxLength": 512,
+            "type": "string",
+            "description": "A note for operators; it changes nothing the calendar computes."
+          },
+          "timeZone": {
+            "type": "string",
+            "description": "The zone the local date-times are in: a time zone id the host knows, such as Europe/Ljubljana, or schedule for the zone of the schedule that uses the calendar, which is also what leaving it out means."
+          },
+          "instants": {
+            "minItems": 1,
+            "type": "array",
+            "items": {
+              "type": "string",
+              "description": "An instant with its offset, such as 2027-01-15T16:00:00Z, or a local date-time in the calendar's zone, such as 2027-01-15T16:00."
+            },
+            "description": "The instants to fire at."
+          }
+        },
+        "additionalProperties": false,
+        "description": "An occurrence calendar that fires at the instants it lists."
+      },
       "FiringFailurePolicyCode": {
         "examples": [
           "continue"
@@ -11904,8 +12176,8 @@
             "$ref": "#/components/schemas/CalendarStatusCode"
           },
           "definition": {
-            "type": "object",
-            "description": "The shown version's definition: a JSON object whose kind names its shape, as the draft save takes it."
+            "description": "The shown version's definition: a JSON object whose kind names its shape, as the draft save takes it.",
+            "$ref": "#/components/schemas/CalendarDefinition"
           }
         },
         "description": "One calendar family: its role, its published and newest version numbers, and the version this answer shows, with its status and definition."
@@ -13182,6 +13454,34 @@
           }
         },
         "description": "Durable operator detail for one worker process registration."
+      },
+      "IntersectionCalendar": {
+        "required": [
+          "kind",
+          "of"
+        ],
+        "type": "object",
+        "properties": {
+          "kind": {
+            "type": "string",
+            "description": "The definition's kind: intersection."
+          },
+          "description": {
+            "maxLength": 512,
+            "type": "string",
+            "description": "A note for operators; it changes nothing the calendar computes."
+          },
+          "of": {
+            "minItems": 1,
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/CalendarDefinition"
+            },
+            "description": "The operands, each an availability definition, written inline."
+          }
+        },
+        "additionalProperties": false,
+        "description": "An availability calendar that is open only while every operand is."
       },
       "JobKindCode": {
         "examples": [
@@ -16251,8 +16551,8 @@
             "$ref": "#/components/schemas/CalendarRoleCode"
           },
           "definition": {
-            "type": "object",
-            "description": "The calendar definition: a JSON object whose \"kind\" names its shape."
+            "description": "The calendar's definition, as a JSON object.",
+            "$ref": "#/components/schemas/CalendarDefinition"
           },
           "expectedLatestVersion": {
             "type": "integer",
@@ -16434,6 +16734,35 @@
           }
         },
         "description": "A stored payload as a response carries it inside a JSON body: its format, and its body as json for a JSON payload or base64 for any other format. Past the inline limit the body is withheld, and byteLength and truncated stand in its place. Where there is no payload, the member that would carry this is absent."
+      },
+      "SubtractionCalendar": {
+        "required": [
+          "kind",
+          "from",
+          "minus"
+        ],
+        "type": "object",
+        "properties": {
+          "kind": {
+            "type": "string",
+            "description": "The definition's kind: subtraction."
+          },
+          "description": {
+            "maxLength": 512,
+            "type": "string",
+            "description": "A note for operators; it changes nothing the calendar computes."
+          },
+          "from": {
+            "description": "The calendar that must be open: an availability definition, written inline.",
+            "$ref": "#/components/schemas/CalendarDefinition"
+          },
+          "minus": {
+            "description": "The calendar that must not be open: an availability definition, written inline.",
+            "$ref": "#/components/schemas/CalendarDefinition"
+          }
+        },
+        "additionalProperties": false,
+        "description": "An availability calendar that is open while one calendar is and another is not."
       },
       "SuspendNamespaceRequest": {
         "type": "object",
@@ -16617,6 +16946,34 @@
           }
         },
         "description": "What firing a schedule once now did, and the schedule's state after the attempt. It works for both delivery modes and never moves the schedule's cadence. Applied means a job was made ready, not that it ran. Calls are not deduplicated: a retry after a lost response admits a second job on a per-occurrence schedule, while a permanent slot rejects it until the slot is idle again."
+      },
+      "UnionCalendar": {
+        "required": [
+          "kind",
+          "of"
+        ],
+        "type": "object",
+        "properties": {
+          "kind": {
+            "type": "string",
+            "description": "The definition's kind: union."
+          },
+          "description": {
+            "maxLength": 512,
+            "type": "string",
+            "description": "A note for operators; it changes nothing the calendar computes."
+          },
+          "of": {
+            "minItems": 1,
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/CalendarDefinition"
+            },
+            "description": "The operands, each a definition of the family's role, written inline."
+          }
+        },
+        "additionalProperties": false,
+        "description": "The union of calendars of the family's role: an availability union is open whenever one of its operands is, and an occurrence union fires at every instant one of its operands does."
       },
       "UpdateDefinitionOverridesRequest": {
         "required": [
@@ -16855,6 +17212,54 @@
           }
         },
         "description": "What upserting one tag did: applied, or the target did not exist."
+      },
+      "WeeklyAvailabilityCalendar": {
+        "required": [
+          "kind"
+        ],
+        "type": "object",
+        "properties": {
+          "kind": {
+            "type": "string",
+            "description": "The definition's kind: weekly-availability."
+          },
+          "description": {
+            "maxLength": 512,
+            "type": "string",
+            "description": "A note for operators; it changes nothing the calendar computes."
+          },
+          "timeZone": {
+            "type": "string",
+            "description": "The zone the local times are in: a time zone id the host knows, such as Europe/Ljubljana, or schedule for the zone of the schedule that uses the calendar, which is also what leaving it out means."
+          },
+          "weekly": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/CalendarWeeklyRule"
+            },
+            "description": "The weekly rules; the windows of every rule that names a weekday apply on it."
+          },
+          "dateOverrides": {
+            "type": "object",
+            "additionalProperties": {
+              "type": "array",
+              "items": {
+                "$ref": "#/components/schemas/CalendarLocalWindow"
+              },
+              "description": "The date's windows."
+            },
+            "description": "Dates whose windows replace the weekly ones, keyed by the date as yyyy-MM-dd; an empty list closes the date."
+          },
+          "excludedRanges": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/CalendarExcludedRange"
+            },
+            "description": "Ranges cut out of the windows after everything else is applied."
+          }
+        },
+        "additionalProperties": false,
+        "description": "An availability calendar of weekly windows in local time, with single dates overridden and ranges cut out. It needs at least one weekly rule or date override."
       },
       "WorkerRef": {
         "type": "string",

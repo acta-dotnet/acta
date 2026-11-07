@@ -191,6 +191,18 @@ public sealed class CalendarDefinitionTests
     )]
     [InlineData("""{"kind":"subtraction","from":{"kind":"union","of":[]},"minus":5}""", "$.from.of: list at least one operand.")]
     [InlineData("""[1,2]""", "$: a definition is an object with a kind.")]
+    [InlineData(
+        """{"kind":"union","timeZone":"UTC","of":[{"kind":"weekly-availability","weekly":[{"days":["Monday"],"windows":[["09:00","10:00"]]}]}]}""",
+        "$.timeZone: not a property of this kind."
+    )]
+    [InlineData(
+        """{"kind":"weekly-availability","weekly":[{"days":["Monday"],"windows":[["09:00","10:00"]]}],"excludedRanges":[{"fromUtc":"2027-01-05T10:00:00","toUtc":"2027-01-05T11:00:00Z"}]}""",
+        "$.excludedRanges[0].fromUtc: an instant is UTC with a Z"
+    )]
+    [InlineData(
+        """{"kind":"weekly-availability","weekly":[{"days":["Monday"],"windows":[["09:00","10:00"]]}],"excludedRanges":[{"fromUtc":"2027-01-05T10:00:00Z","toUtc":"2027-01-05T13:00:00+02:00"}]}""",
+        "$.excludedRanges[0].toUtc: an instant is UTC with a Z"
+    )]
     public void A_bad_availability_definition_names_each_problem_by_its_path(string json, string problem)
     {
         var ex = Assert.Throws<CalendarDefinitionException>(() => CalendarDefinition.Compile(CalendarRoleCode.Availability, json));

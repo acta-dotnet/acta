@@ -488,21 +488,9 @@ internal static partial class ActaOpenApiDocument
             schema.Extensions?.Remove(EnumMarker);
         }
 
-        // A calendar definition is a JSON object both ways: the draft endpoint requires one, and the read embeds the stored
-        // one, described from its record's docs. The signal body and job input stay any JSON value.
-        foreach (
-            var (name, text) in new (string Name, string? Text)[]
-            {
-                ("SaveCalendarDraftRequest", "The calendar definition: a JSON object whose \"kind\" names its shape."),
-                ("GetCalendarResponse", null),
-            }
-        )
-        {
-            if (schemas.TryGetValue(name, out var calendar) && calendar is OpenApiSchema { Properties: { } calendarProperties })
-            {
-                calendarProperties["definition"] = new OpenApiSchema { Type = JsonSchemaType.Object, Description = text };
-            }
-        }
+        // A calendar definition has its own schemas both ways: the draft takes one and the read embeds the stored one. The
+        // signal body and job input stay any JSON value.
+        AddCalendarDefinition(schemas);
 
         // An outbox verb's ids are absent for every quarantined row or name at least one; the operation refuses an empty list.
         foreach (var name in new[] { "DiscardOutboxRequest", "RequeueOutboxRequest" })

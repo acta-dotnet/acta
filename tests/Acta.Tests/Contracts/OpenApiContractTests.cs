@@ -98,6 +98,8 @@ public sealed partial class OpenApiContractTests
         "candidateVersion",
         // Payload-format discriminators (a persisted-code number, not a row identity).
         "formatId",
+        // Which business day of its period a business-day calendar fires on: an ordinal, 1 to 31.
+        "nth",
         "inputFormatId",
         "resultFormatId",
         // Durations, byte sizes, and policy numbers, including their override/effective pairs.
@@ -1055,7 +1057,7 @@ public sealed partial class OpenApiContractTests
 
     /// <summary>
     /// A calendar read embeds its definition as the JSON object the draft took, its text the stored bytes: compact, the keys
-    /// in the order sent, each escape as the store wrote it. Both reads carry it, the document types it as an object, and
+    /// in the order sent, each escape as the store wrote it. Both reads carry it, the document types it as a calendar definition, and
     /// the read's definition, sent back as it is, saves the next version with the same content.
     /// </summary>
     [Fact]
@@ -1098,7 +1100,7 @@ public sealed partial class OpenApiContractTests
         });
         Assert.Equal([stored, stored], definitions);
         Assert.True(JsonNode.DeepEquals(JsonNode.Parse(sent), JsonNode.Parse(definitions[0])), definitions[0]);
-        Assert.Equal("object", schema["properties"]!["definition"]!["type"]!.GetValue<string>());
+        Assert.Equal("#/components/schemas/CalendarDefinition", schema["properties"]!["definition"]!["$ref"]!.GetValue<string>());
         Assert.Equal(
             [
                 $$"""200 {"action":"applied","version":1,"contentHash":"{{compiled.ContentHash}}","problems":[]}""",
