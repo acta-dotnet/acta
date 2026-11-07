@@ -57,6 +57,31 @@ public sealed class CliRegistrationTests
         }
     }
 
+    // Ctrl-C stops the host, which cancels the token the host handed StartAsync, so a verb sees it as this one does.
+    [Fact]
+    public async Task A_cancelled_verb_exits_130()
+    {
+        var path = Path.Combine(Path.GetTempPath(), $"acta-cli-cancel-{Guid.NewGuid():N}.db");
+        try
+        {
+            var services = BuildWith(
+                ["status", JobRef.New().ToString()],
+                j => j.UseSqlite(o => o.ConnectionString = $"Data Source={path}")
+            );
+            await using var provider = services.AddLogging().BuildServiceProvider();
+            var host = provider.GetServices<IHostedService>().OfType<CliCommandHost>().Single();
+            using var cancelled = new CancellationTokenSource();
+            await cancelled.CancelAsync();
+
+            Assert.Equal(130, await host.RunAsync(new StringWriter(), new StringWriter(), cancelled.Token));
+        }
+        finally
+        {
+            SqliteConnection.ClearAllPools();
+            File.Delete(path);
+        }
+    }
+
     private static IServiceCollection BuildWith(string[]? cliArgs, Action<IActaBuilder>? useProvider = null)
     {
         var services = new ServiceCollection();

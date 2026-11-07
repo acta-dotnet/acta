@@ -5,7 +5,7 @@ namespace Acta;
 /// <summary>
 /// Executes one parsed CLI command against the IJobs facade (IActaOperations for the events read)
 /// and writes the outcome. Returns the process exit code: 0 applied/found, 1 rejected/failed,
-/// 2 not found, 64 usage error.
+/// 2 not found, 64 usage error; the host answers 130 for a cancelled run.
 /// </summary>
 internal sealed class CliCommandRunner(
     IJobs jobs,
@@ -285,7 +285,7 @@ internal sealed class CliCommandRunner(
 
         if (snapshot.Status is JobStatusCode.Executing)
         {
-            await error.WriteLineAsync($"job {jobRef} is currently {snapshot.Status}; cannot run it here.");
+            await error.WriteLineAsync($"job {jobRef} is currently {snapshot.Status.Code}; cannot run it here.");
             return ExitRejected;
         }
 
@@ -307,7 +307,10 @@ internal sealed class CliCommandRunner(
                 if (restart.Action != ControlAction.Applied)
                 {
                     var why = restart.Action == ControlAction.Rejected ? " Its status or its lane does not allow a restart." : "";
-                    await error.WriteLineAsync($"could not make job {jobRef} Ready: {restart.Action} (status {restart.Status}).{why}");
+                    var status = restart.Status is { } s ? s.Code : "(none)";
+                    await error.WriteLineAsync(
+                        $"could not make job {jobRef} ready: {CliOutput.Code(restart.Action)} (status {status}).{why}"
+                    );
                     return ExitRejected;
                 }
 
@@ -320,7 +323,7 @@ internal sealed class CliCommandRunner(
                     }
                     else
                     {
-                        output.WriteLine($"job {jobRef} is Blocked behind its lane's head; it runs once the lane moves on.");
+                        output.WriteLine($"job {jobRef} is blocked behind its lane's head; it runs once the lane moves on.");
                     }
                     return ExitOk;
                 }

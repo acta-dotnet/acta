@@ -21,8 +21,27 @@ public class CliOutputTests
         );
         var text = w.ToString();
         Assert.Contains($"job: {SampleJobRef}", text);
-        Assert.Contains("action: Applied", text);
-        Assert.Contains("status: Paused", text);
+        Assert.Contains("action: applied", text);
+        Assert.Contains("status: paused", text);
+    }
+
+    // One casing for a code on every line a human reads, the wire form the --json output and the API write.
+    [Fact]
+    public void Plain_lines_spell_each_code_as_the_json_does()
+    {
+        var plain = new StringWriter();
+        var json = new StringWriter();
+        var already = new PauseJobResponse(123, ControlAction.AlreadyInState, JobStatusCode.Paused, 4);
+        CliOutput.WriteControl(plain, "pause", SampleJobRef, already, json: false);
+        CliOutput.WriteControl(json, "pause", SampleJobRef, already, json: true);
+        CliOutput.WriteStatus(plain, SampleJobRef, JobStatusCode.Succeeded, json: false);
+        CliOutput.WriteDebugRun(plain, SampleJobRef, nameof(RunOnceStatus.NothingClaimed), JobStatusCode.Ready, json: false);
+
+        Assert.Contains("action: already-in-state", plain.ToString());
+        Assert.Contains("\"action\":\"already-in-state\"", json.ToString());
+        Assert.Contains("status: succeeded", plain.ToString());
+        Assert.Contains("run: nothing-claimed", plain.ToString());
+        Assert.Contains("status: ready", plain.ToString());
     }
 
     [Fact]
@@ -86,7 +105,7 @@ public class CliOutputTests
         Assert.DoesNotContain("job: 7", text);
         Assert.Contains("namespace: shop", text);
         Assert.Contains("name: send-email", text);
-        Assert.Contains("status: Ready", text);
+        Assert.Contains("status: ready", text);
     }
 
     [Fact]
@@ -442,6 +461,7 @@ public class CliOutputTests
         Assert.Contains("migrate", text);
         Assert.Contains("shop", text);
         Assert.Contains("billing", text);
+        Assert.Contains("Exit codes: 0 applied/found, 1 rejected/failed, 2 not found, 64 usage error, 130 cancelled (Ctrl-C).", text);
     }
 
     [Fact]
@@ -577,8 +597,8 @@ public class CliOutputTests
     {
         var plain = new StringWriter();
         CliOutput.WriteDebugRun(plain, SampleJobRef, "Completed", JobStatusCode.Succeeded, json: false);
-        Assert.Contains("run: Completed", plain.ToString());
-        Assert.Contains("status: Succeeded", plain.ToString());
+        Assert.Contains("run: completed", plain.ToString());
+        Assert.Contains("status: succeeded", plain.ToString());
 
         var json = new StringWriter();
         CliOutput.WriteDebugRun(json, SampleJobRef, "Rearmed", null, json: true);

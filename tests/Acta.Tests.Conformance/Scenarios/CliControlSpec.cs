@@ -31,7 +31,7 @@ public sealed class CliControlSpec : ActaRuntimeTestBase<ConformanceFixture, Tes
         var pauseExit = await runner.RunAsync(Parse($"pause {enqueued.JobRef} --reason hold"), ct);
         Assert.Equal(0, pauseExit);
         Assert.Equal(JobStatusCode.Paused, (await Jobs.GetStatusAsync(enqueued, ct))?.Status);
-        Assert.Contains("status: Paused", output.ToString());
+        Assert.Contains("status: paused", output.ToString());
 
         var resumeExit = await runner.RunAsync(Parse($"resume {enqueued.JobRef}"), ct);
         Assert.Equal(0, resumeExit);
@@ -104,7 +104,7 @@ public sealed class CliControlSpec : ActaRuntimeTestBase<ConformanceFixture, Tes
         var text = output.ToString();
         Assert.Contains($"job: {enqueued.JobRef}", text);
         Assert.Contains("name: add-numbers", text);
-        Assert.Contains("status: Ready", text);
+        Assert.Contains("status: ready", text);
     }
 
     [Fact(DisplayName = "A verb resolves a job by deduplication key with an explicit namespace")]
@@ -130,7 +130,7 @@ public sealed class CliControlSpec : ActaRuntimeTestBase<ConformanceFixture, Tes
 
         Assert.Equal(0, exit);
         Assert.Equal(JobStatusCode.Succeeded, (await Jobs.GetStatusAsync(enqueued, ct))?.Status);
-        Assert.Contains("run: Completed", output.ToString());
+        Assert.Contains("run: completed", output.ToString());
 
         // The result verb surfaces the handler's payload: AddNumbers(2, 3) produced Sum = 5. A read takes the id.
         var resultRunner = CreateRunner(out var resultOutput);
@@ -150,7 +150,7 @@ public sealed class CliControlSpec : ActaRuntimeTestBase<ConformanceFixture, Tes
 
         Assert.Equal(0, exit);
         var text = output.ToString();
-        Assert.Contains("run: Completed", text);
+        Assert.Contains("run: completed", text);
         Assert.Contains($"job: {finished.JobRef}", text);
         Assert.Equal(JobStatusCode.Succeeded, (await Jobs.GetStatusAsync(finished, ct))?.Status);
     }
@@ -168,7 +168,7 @@ public sealed class CliControlSpec : ActaRuntimeTestBase<ConformanceFixture, Tes
 
         Assert.Equal(0, exit);
         var text = output.ToString();
-        Assert.Contains($"job {finished.JobRef} is Blocked behind its lane's head", text);
+        Assert.Contains($"job {finished.JobRef} is blocked behind its lane's head", text);
         Assert.DoesNotContain("run:", text);
         Assert.Equal(JobStatusCode.Blocked, (await Jobs.GetStatusAsync(finished, ct))?.Status);
         Assert.Equal(JobStatusCode.Ready, (await Jobs.GetStatusAsync(follower, ct))?.Status);

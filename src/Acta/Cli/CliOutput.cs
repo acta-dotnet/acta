@@ -5,10 +5,14 @@ namespace Acta;
 
 /// <summary>
 /// CLI result writers: plain key-value lines for humans, hand-written JSON for scripting. JSON is
-/// emitted via Utf8JsonWriter so the core stays reflection-free for native AOT.
+/// emitted via Utf8JsonWriter so the core stays reflection-free for native AOT. Both spell a code in
+/// its lowercase wire form, as the API does.
 /// </summary>
 internal static class CliOutput
 {
+    /// <summary>A control's action in its wire form, such as <c>already-in-state</c>.</summary>
+    internal static string Code(ControlAction action) => JsonNamingPolicy.KebabCaseLower.ConvertName(action.ToString());
+
     public static void WriteControl(TextWriter writer, string verb, JobRef jobRef, IJobControlResponse result, bool json)
     {
         if (json)
@@ -19,7 +23,7 @@ internal static class CliOutput
                 {
                     w.WriteString("verb", verb);
                     w.WriteString("jobRef", jobRef.ToString());
-                    w.WriteString("action", JsonNamingPolicy.KebabCaseLower.ConvertName(result.Action.ToString()));
+                    w.WriteString("action", Code(result.Action));
                     if (result.Status is { } status)
                     {
                         w.WriteString("status", status.Code);
@@ -34,8 +38,8 @@ internal static class CliOutput
         }
 
         writer.WriteLine($"job: {jobRef}");
-        writer.WriteLine($"action: {result.Action}");
-        writer.WriteLine($"status: {(result.Status is { } s ? s.ToString() : "(none)")}");
+        writer.WriteLine($"action: {Code(result.Action)}");
+        writer.WriteLine($"status: {(result.Status is { } s ? s.Code : "(none)")}");
     }
 
     public static void WriteSnapshot(TextWriter writer, GetJobResponse snapshot, bool json)
@@ -71,7 +75,7 @@ internal static class CliOutput
         writer.WriteLine($"name: {snapshot.JobName}");
         writer.WriteLine($"tenant: {snapshot.TenantName ?? "(none)"}");
         writer.WriteLine($"deduplication-key: {snapshot.DeduplicationKey ?? "(none)"}");
-        writer.WriteLine($"status: {snapshot.Status}");
+        writer.WriteLine($"status: {snapshot.Status.Code}");
         writer.WriteLine($"created-utc: {snapshot.CreatedAtUtc:O}");
         writer.WriteLine($"failure-count: {snapshot.FailureCount}");
 
@@ -351,6 +355,7 @@ internal static class CliOutput
     /// </summary>
     public static void WriteDebugRun(TextWriter writer, JobRef jobRef, string run, JobStatusCode? status, bool json)
     {
+        var runCode = JsonNamingPolicy.KebabCaseLower.ConvertName(run);
         if (json)
         {
             WriteJson(
@@ -358,7 +363,7 @@ internal static class CliOutput
                 w =>
                 {
                     w.WriteString("jobRef", jobRef.ToString());
-                    w.WriteString("run", JsonNamingPolicy.KebabCaseLower.ConvertName(run));
+                    w.WriteString("run", runCode);
                     if (status is { } s)
                     {
                         w.WriteString("status", s.Code);
@@ -373,8 +378,8 @@ internal static class CliOutput
         }
 
         writer.WriteLine($"job: {jobRef}");
-        writer.WriteLine($"run: {run}");
-        writer.WriteLine($"status: {(status is { } p ? p.ToString() : "(none)")}");
+        writer.WriteLine($"run: {runCode}");
+        writer.WriteLine($"status: {(status is { } p ? p.Code : "(none)")}");
     }
 
     /// <summary>
@@ -514,7 +519,7 @@ internal static class CliOutput
         }
 
         writer.WriteLine($"job: {jobRef}");
-        writer.WriteLine($"status: {status}");
+        writer.WriteLine($"status: {status.Code}");
     }
 
     public static void WriteUsage(TextWriter writer, IReadOnlyList<string> namespaces)
@@ -530,7 +535,7 @@ internal static class CliOutput
         writer.WriteLine("  cancel   <job-ref|deduplication-key>             cancel the job (cascades to children)");
         writer.WriteLine("  pause    <job-ref|deduplication-key>             pause a job before it runs");
         writer.WriteLine("  resume   <job-ref|deduplication-key>             resume a paused job");
-        writer.WriteLine("  restart  <job-ref|deduplication-key>             reset any non-executing job to Ready");
+        writer.WriteLine("  restart  <job-ref|deduplication-key>             reset any non-executing job to ready");
         writer.WriteLine("  signal   <job-ref|deduplication-key> <name>      raise a signal (add --value for a payload)");
         writer.WriteLine(
             "  debug    <job-ref|deduplication-key>             run only this one job in-process (this worker runs nothing else)"
@@ -555,7 +560,7 @@ internal static class CliOutput
         writer.WriteLine("Omit a read's target to take it from the clipboard; a control always names its job.");
         writer.WriteLine();
         writer.WriteLine($"Registered namespaces: {(namespaces.Count == 0 ? "(none)" : string.Join(", ", namespaces))}");
-        writer.WriteLine("Exit codes: 0 applied/found, 1 rejected/failed, 2 not found, 64 usage error.");
+        writer.WriteLine("Exit codes: 0 applied/found, 1 rejected/failed, 2 not found, 64 usage error, 130 cancelled (Ctrl-C).");
     }
 
     /// <summary>
