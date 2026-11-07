@@ -61,7 +61,6 @@ internal static class TenantsEndpoints
             "/tenants/{tenantName}/tags",
             "tenant",
             options,
-            DashboardJsonContext.Default.UpsertTenantTagRequest,
             static http => TagTarget.ForTenant(Name(http)),
             static async (http, call) => await call.Operations.Tenants.GetAsync(Name(http), call.Ct) is not null
         );

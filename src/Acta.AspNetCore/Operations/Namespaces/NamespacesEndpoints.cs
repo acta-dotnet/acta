@@ -57,7 +57,6 @@ internal static class NamespacesEndpoints
             "/namespaces/{jobNamespace}/tags",
             "namespace",
             options,
-            DashboardJsonContext.Default.UpsertNamespaceTagRequest,
             static http => TagTarget.ForNamespace(Name(http)),
             static async (http, call) => await call.Operations.Namespaces.GetAsync(Name(http), call.Ct) is not null
         );

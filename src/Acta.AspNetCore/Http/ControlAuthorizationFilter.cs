@@ -60,9 +60,9 @@ internal static class ControlAuthorizationFilter
     /// "jobs" is dropped as the implicit default entity (/jobs/{jobRef}/cancel -&gt; "cancel"), and a job's verb is its
     /// route word whatever the method; other families keep their entity prefix (/tenants/{tenantName}/suspend -&gt;
     /// "tenants.suspend"). Route parameters are skipped, and where one route carries two mutations the method names
-    /// which: a tag write is ".add" or ".remove", a PUT is the entity's ".update" whichever of its parts it replaces,
-    /// and a POST to a bare entity ".register". A pattern with no recognized entity or no literal segments left falls
-    /// back to the HTTP method.
+    /// which: a tag write is ".add" or ".remove", any other PUT is the entity's ".update" whichever of its parts it
+    /// replaces, and a POST to a bare entity ".register". A pattern with no recognized entity or no literal segments
+    /// left falls back to the HTTP method.
     /// </summary>
     internal static string DeriveVerb(string pattern, string method)
     {
@@ -82,7 +82,8 @@ internal static class ControlAuthorizationFilter
             segments = segments[1..];
         }
 
-        var update = HttpMethods.IsPut(method) && !jobVerb;
+        var tagWrite = segments is [.., "tags"];
+        var update = HttpMethods.IsPut(method) && !jobVerb && !tagWrite;
         if (update && segments.Length > 0)
         {
             segments = [segments[0]];
@@ -91,8 +92,8 @@ internal static class ControlAuthorizationFilter
         var suffix =
             HttpMethods.IsDelete(method) ? "remove"
             : update ? "update"
+            : tagWrite && HttpMethods.IsPut(method) ? "add"
             : !HttpMethods.IsPost(method) ? null
-            : segments is [.., "tags"] ? "add"
             : segments is [var only] && Array.IndexOf(Entities, only) >= 0 ? "register"
             : null;
         if (suffix is not null)

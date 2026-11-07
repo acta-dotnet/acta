@@ -10,7 +10,7 @@
   }
 
   // `path` is the entity's tag subresource, e.g. `jobs/${jobRef}/tags`. The editor GETs its page, and
-  // POST/DELETE against the same path add and remove individual tags.
+  // PUT/DELETE against `${path}/${name}` add and remove individual tags.
   let { path }: { path: string } = $props();
 
   // The largest page a list serves. A target carries at most 32 tags (TagLimits.MaxTagsPerTarget), so one
@@ -44,7 +44,12 @@
     busy = true;
     message = '';
     try {
-      const result = await controlRequest<TagMutationResponse>(path, { name, value }, { action: 'not-found' });
+      const result = await controlRequest<TagMutationResponse>(
+        `${path}/${encodeURIComponent(name)}`,
+        { value },
+        { action: 'not-found' },
+        'PUT'
+      );
       if (result.action === 'not-found') {
         message = 'Target not found.';
       } else {

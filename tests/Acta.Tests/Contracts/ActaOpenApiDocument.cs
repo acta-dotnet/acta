@@ -59,10 +59,6 @@ internal static partial class ActaOpenApiDocument
         ["UpdateDefinitionOverridesRequest"] = ["expectedVersion", "overrides"],
         ["RetireDefinitionRequest"] = ["expectedVersion"],
         ["RegisterTenantRequest"] = ["tenantName"],
-        ["UpsertJobTagRequest"] = ["name"],
-        ["UpsertNamespaceTagRequest"] = ["name"],
-        ["UpsertTenantTagRequest"] = ["name"],
-        ["UpsertDefinitionTagRequest"] = ["name"],
         ["UpdateNamespaceRequest"] = ["expectedVersion"],
         ["UpdateTenantRequest"] = ["expectedVersion"],
     };

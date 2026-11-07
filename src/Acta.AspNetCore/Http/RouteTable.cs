@@ -68,22 +68,20 @@ internal static class RouteTable
             .ProducesProblem(StatusCodes.Status503ServiceUnavailable);
 
     /// <summary>
-    /// A target's tags: the paged list, and when controls are mapped the upsert, whose body is <typeparamref name="TBody"/>,
-    /// and the remove. A target the resolver cannot build is caller input and answers 400; an addressable one that is not
-    /// there answers 404, on the list when <paramref name="exists"/> finds no target through its facade, and on a mutation
-    /// with the control envelope. Each reads the database, so an unreachable one is the 503.
+    /// A target's tags: the paged list, and when controls are mapped the upsert and the remove of one tag by its name. A
+    /// target the resolver cannot build is caller input and answers 400; an addressable one that is not there answers 404,
+    /// on the list when <paramref name="exists"/> finds no target through its facade, and on a mutation with the control
+    /// envelope. Each reads the database, so an unreachable one is the 503.
     /// </summary>
-    public static void MapTags<TBody>(
+    public static void MapTags(
         this RouteGroupBuilder reads,
         RouteGroupBuilder? controls,
         string pattern,
         string entity,
         ActaEndpointOptions options,
-        JsonTypeInfo<TBody> upsert,
         Func<HttpContext, TagTarget> target,
         Func<HttpContext, ReadCall, ValueTask<bool>> exists
     )
-        where TBody : class, IUpsertTagRequest
     {
         reads
             .MapGet(
@@ -104,12 +102,12 @@ internal static class RouteTable
         }
 
         controls
-            .MapPost(
-                pattern,
+            .MapPut(
+                pattern + "/{tagName}",
                 (HttpContext http, IActaOperations operations, CancellationToken ct) =>
-                    TagRoutes.UpsertAsync(http, operations, options, upsert, () => target(http), ct)
+                    TagRoutes.UpsertAsync(http, operations, options, () => target(http), RouteKeys.Value(http, "tagName"), ct)
             )
-            .AcceptsJson<TBody>(example: """{ "name": "env", "value": "prod" }""")
+            .AcceptsJson<UpsertTagRequest>(example: """{ "value": "prod" }""")
             .WithSummary($"Add or update one tag on the {entity}.")
             .Produces<UpsertTagResponse>(StatusCodes.Status200OK)
             .Produces<UpsertTagResponse>(StatusCodes.Status404NotFound)
@@ -419,32 +417,26 @@ internal static class TagRoutes
             return Results.Json(page, DashboardJsonContext.Default.ListTagsResponse);
         });
 
-    public static async Task<IResult> UpsertAsync<TBody>(
+    /// <summary>The upsert of the tag the route names, normalized as every tag name is, to the body's value.</summary>
+    public static async Task<IResult> UpsertAsync(
         HttpContext http,
         IActaOperations operations,
         ActaEndpointOptions options,
-        JsonTypeInfo<TBody> json,
         Func<TagTarget> resolve,
+        string tagName,
         CancellationToken ct
     )
-        where TBody : class, IUpsertTagRequest
     {
         if (ControlEndpointValidation.CheckConfirmation(http, options) is { } confirmationError)
         {
             return confirmationError;
         }
 
-        var (body, bodyError) = await ControlEndpointValidation.ReadJsonBodyAsync(http, json, ct);
-        if (bodyError is not null)
-        {
-            return bodyError;
-        }
-
-        return string.IsNullOrWhiteSpace(body!.Name)
-            ? ControlEndpointValidation.Problem(StatusCodes.Status400BadRequest, "Invalid tag.", "name is required.")
-            : await MutateAsync(
+        var (body, bodyError) = await ControlEndpointValidation.ReadJsonBodyAsync(http, DashboardJsonContext.Default.UpsertTagRequest, ct);
+        return bodyError
+            ?? await MutateAsync(
                 resolve,
-                target => operations.Tags.UpsertAsync(target, new TagInput(body.Name, body.Value), ct: ct),
+                target => operations.Tags.UpsertAsync(target, new TagInput(tagName, body!.Value), ct: ct),
                 DashboardJsonContext.Default.UpsertTagResponse
             );
     }

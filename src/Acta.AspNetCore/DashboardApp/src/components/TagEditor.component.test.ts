@@ -57,7 +57,7 @@ describe('TagEditor', () => {
     expect(new URL(reads[0].url).searchParams.get('pageSize')).toBe('100');
   });
 
-  it('posts a parsed name:value tag with the confirmation header', async () => {
+  it('puts a parsed name:value tag by its name with the confirmation header', async () => {
     const user = userEvent.setup();
     const calls = stubFetch();
     render(TagEditorHarness, { path: 'jobs/job_1/tags' });
@@ -67,10 +67,11 @@ describe('TagEditor', () => {
     await user.click(screen.getByRole('button', { name: 'Add' }));
 
     await waitFor(() => {
-      const post = calls.find((c) => c.method === 'POST');
-      expect(post).toBeTruthy();
-      expect(post!.body).toEqual({ name: 'region', value: 'eu' });
-      expect(post!.confirm).toBe('true');
+      const put = calls.find((c) => c.method === 'PUT');
+      expect(put).toBeTruthy();
+      expect(new URL(put!.url).pathname.endsWith('/api/v1/jobs/job_1/tags/region')).toBe(true);
+      expect(put!.body).toEqual({ value: 'eu' });
+      expect(put!.confirm).toBe('true');
     });
   });
 

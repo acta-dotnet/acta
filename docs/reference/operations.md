@@ -212,7 +212,7 @@ One row per operation folder, `src/Acta/Operations/<Group>/<Operation>/`, and on
 | `ListTags` | `ITags.ListAsync` | `GET /definitions/{jobNamespace}/{jobName}/tags` (`listDefinitionTags`)<br>`GET /jobs/{jobRef}/tags` (`listJobTags`)<br>`GET /namespaces/{jobNamespace}/tags` (`listNamespaceTags`)<br>`GET /tenants/{tenantName}/tags` (`listTenantTags`) | · | inline | · | `ListTagsSpec` |
 | `RemoveTag` | `ITags.RemoveAsync` | `DELETE /definitions/{jobNamespace}/{jobName}/tags/{tagName}` (`removeDefinitionTag`)<br>`DELETE /jobs/{jobRef}/tags/{tagName}` (`removeJobTag`)<br>`DELETE /namespaces/{jobNamespace}/tags/{tagName}` (`removeNamespaceTag`)<br>`DELETE /tenants/{tenantName}/tags/{tagName}` (`removeTenantTag`) | · | inline | `tags` | `RemoveTagSpec` |
 | `ReplaceTags` | `ITags.ReplaceAsync` | · | · | inline | `tags` | `ReplaceTagsSpec` |
-| `UpsertTag` | `ITags.UpsertAsync` | `POST /definitions/{jobNamespace}/{jobName}/tags` (`upsertDefinitionTag`)<br>`POST /jobs/{jobRef}/tags` (`upsertJobTag`)<br>`POST /namespaces/{jobNamespace}/tags` (`upsertNamespaceTag`)<br>`POST /tenants/{tenantName}/tags` (`upsertTenantTag`) | · | inline | `tags` | `UpsertTagSpec` |
+| `UpsertTag` | `ITags.UpsertAsync` | `PUT /definitions/{jobNamespace}/{jobName}/tags/{tagName}` (`upsertDefinitionTag`)<br>`PUT /jobs/{jobRef}/tags/{tagName}` (`upsertJobTag`)<br>`PUT /namespaces/{jobNamespace}/tags/{tagName}` (`upsertNamespaceTag`)<br>`PUT /tenants/{tenantName}/tags/{tagName}` (`upsertTenantTag`) | · | inline | `tags` | `UpsertTagSpec` |
 
 ## Tenants
 

@@ -57,7 +57,6 @@ internal static class JobsEndpoints
             "/jobs/{jobRef}/tags",
             "job",
             options,
-            DashboardJsonContext.Default.UpsertJobTagRequest,
             http => TagTarget.ForJob(RouteKeys.Job(http, options)),
             async (http, call) => await call.Jobs.StoredJobIdAsync(RouteKeys.Job(http, options), call.Ct) is not null
         );

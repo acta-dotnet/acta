@@ -725,17 +725,6 @@ public sealed partial class OpenApiContractTests
                 """{"reasonMessage":"fix"}""",
                 """{"input":{"json":{"invoiceId":1}},"reasonMessage":"fix"}"""
             ),
-            new("UpsertJobTagRequest", "name", HttpMethod.Post, $"jobs/{found}/tags", """{"value":"prod"}""", Tag),
-            new("UpsertNamespaceTagRequest", "name", HttpMethod.Post, "namespaces/billing/tags", """{"value":"prod"}""", Tag),
-            new("UpsertTenantTagRequest", "name", HttpMethod.Post, "tenants/acme/tags", """{"value":"prod"}""", Tag),
-            new(
-                "UpsertDefinitionTagRequest",
-                "name",
-                HttpMethod.Post,
-                "definitions/billing/send-invoice/tags",
-                """{"value":"prod"}""",
-                Tag
-            ),
             new(
                 "UpdateNamespaceRequest",
                 "expectedVersion",
@@ -849,7 +838,7 @@ public sealed partial class OpenApiContractTests
         Assert.False(schemas["EnqueueJobRequest"]!["additionalProperties"]!.GetValue<bool>());
         Assert.False(schemas["PurgeJobRequest"]!["additionalProperties"]!.GetValue<bool>());
         Assert.Equal(["status"], Required(schemas["ProblemDetails"]!));
-        Assert.DoesNotContain("value", Required(schemas["UpsertJobTagRequest"]!));
+        Assert.Empty(Required(schemas["UpsertTagRequest"]!));
         Assert.Equal(["priority"], Required(schemas["ReprioritizeJobRequest"]!));
     }
 
@@ -901,9 +890,72 @@ public sealed partial class OpenApiContractTests
         Assert.All(patches, status => Assert.True(status is HttpStatusCode.NotFound or HttpStatusCode.MethodNotAllowed, $"{status}"));
     }
 
+    /// <summary>
+    /// A tag is upserted by its name: one PUT per owner, the name in the path normalized as every tag name is, and a body
+    /// of the value alone, so a name in the body is an unknown member. The POST that took the name in its body is gone.
+    /// </summary>
+    [Fact]
+    public async Task A_tag_is_upserted_by_its_name()
+    {
+        var generated = await ActaOpenApiDocument.GenerateAsync();
+        var operations = Operations(generated);
+        var schema = JsonNode.Parse(generated)!["components"]!["schemas"]!["UpsertTagRequest"]!;
+        string[] owners = [$"jobs/{SqliteJob}", $"namespaces/{SqliteNamespace}", "tenants/acme", $"definitions/{SqliteNamespace}/echo"];
+        var answers = new List<string>();
+        await WithSqliteHostAsync(async client =>
+        {
+            var ct = TestContext.Current.CancellationToken;
+            await SendControlAsync(client, HttpMethod.Post, "tenants", """{"tenantName":"acme"}""");
+            using var enqueued = await SendControlRequestAsync(
+                client,
+                HttpMethod.Post,
+                "jobs",
+                $$"""{"jobNamespace":"{{SqliteNamespace}}","jobName":"echo","deduplicationKey":"tag-probe"}"""
+            );
+            var jobRef = JsonNode.Parse(await enqueued.Content.ReadAsStringAsync(ct))!["jobRef"]!.GetValue<string>();
+            foreach (var owner in owners.Select(owner => owner.Replace(SqliteJob, jobRef, StringComparison.Ordinal)))
+            {
+                var upsert = await SendControlAsync(client, HttpMethod.Put, $"{owner}/tags/Env.Region", """{"value":"EU West"}""");
+                using var named = await SendControlRequestAsync(
+                    client,
+                    HttpMethod.Put,
+                    $"{owner}/tags/env",
+                    """{"name":"env","value":"x"}"""
+                );
+                var post = await SendControlAsync(client, HttpMethod.Post, $"{owner}/tags", """{"name":"env","value":"x"}""");
+                var tags = JsonNode.Parse(await client.GetStringAsync($"/acta/api/v1/{owner}/tags", ct))!["items"]!.AsArray();
+                var detail = JsonNode.Parse(await named.Content.ReadAsStringAsync(ct))?["detail"]?.GetValue<string>() ?? "";
+                var postGone = post is HttpStatusCode.NotFound or HttpStatusCode.MethodNotAllowed;
+                answers.Add(
+                    $"{(int)upsert} {(int)named.StatusCode} {detail.Contains("'$.name'", StringComparison.Ordinal)} {postGone} "
+                        + string.Join(",", tags.Select(tag => $"{tag!["name"]!.GetValue<string>()}={tag["value"]!.GetValue<string>()}"))
+                );
+            }
+        });
+
+        Assert.Equal(Enumerable.Repeat("200 400 True True env.region=EU West", owners.Length), answers);
+        Assert.Equal(["value"], schema["properties"]!.AsObject().Select(member => member.Key));
+        Assert.Equal(
+            ["upsertJobTag", "upsertNamespaceTag", "upsertTenantTag", "upsertDefinitionTag"],
+            TagOwnerRoutes.Select(owner => operations[$"PUT /v1/{owner}/tags/{{tagName}}"]["operationId"]!.GetValue<string>())
+        );
+        Assert.DoesNotContain(
+            operations.Keys,
+            key => key.StartsWith("POST ", StringComparison.Ordinal) && key.EndsWith("/tags", StringComparison.Ordinal)
+        );
+    }
+
+    private static readonly string[] TagOwnerRoutes =
+    [
+        "jobs/{jobRef}",
+        "namespaces/{jobNamespace}",
+        "tenants/{tenantName}",
+        "definitions/{jobNamespace}/{jobName}",
+    ];
+
     private const string SqliteNamespace = "openapi-probe";
 
-    private const string Tag = """{"name":"env","value":"prod"}""";
+    private const string SqliteJob = "{job}";
 
     /// <summary>One required member: a body without it, and the same body with it.</summary>
     private sealed record RequiredCase(string Schema, string Member, HttpMethod Method, string Path, string Absent, string Present);

@@ -365,7 +365,7 @@ public sealed partial class OperationsIndexTests
                 if (name == "MapTags")
                 {
                     found.Add(("GET", pattern, "ListTags"));
-                    found.Add(("POST", pattern, "UpsertTag"));
+                    found.Add(("PUT", pattern + "/{tagName}", "UpsertTag"));
                     found.Add(("DELETE", pattern + "/{tagName}", "RemoveTag"));
                 }
                 else if (HttpVerb(name) is { } verb && (own ?? MainOperation(map, facadeMethods)) is { } operation)

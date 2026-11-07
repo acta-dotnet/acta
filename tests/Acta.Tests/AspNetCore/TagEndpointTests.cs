@@ -198,9 +198,9 @@ public sealed class TagEndpointTests
         var read = await client.GetAsync("/acta/api/v1/definitions/Bill_ing/send-invoice", ct);
         var tagsRead = await client.GetAsync("/acta/api/v1/definitions/Bill_ing/send-invoice/tags", ct);
 
-        using var upsert = new HttpRequestMessage(HttpMethod.Post, "/acta/api/v1/definitions/Bill_ing/send-invoice/tags")
+        using var upsert = new HttpRequestMessage(HttpMethod.Put, "/acta/api/v1/definitions/Bill_ing/send-invoice/tags/env")
         {
-            Content = JsonContent.Create(new { name = "env", value = "prod" }),
+            Content = JsonContent.Create(new { value = "prod" }),
         };
         upsert.Headers.Add(Confirm, "true");
         var tagsUpsert = await client.SendAsync(upsert, ct);
@@ -224,9 +224,9 @@ public sealed class TagEndpointTests
         var (app, client) = await StartControlsAsync(fakes);
         await using var _ = app;
 
-        using var request = new HttpRequestMessage(HttpMethod.Post, $"/acta/api/v1/jobs/{Found}/tags")
+        using var request = new HttpRequestMessage(HttpMethod.Put, $"/acta/api/v1/jobs/{Found}/tags/env")
         {
-            Content = JsonContent.Create(new { name = "env", value = "Prod" }),
+            Content = JsonContent.Create(new { value = "Prod" }),
         };
         request.Headers.Add(Confirm, "true");
         var response = await client.SendAsync(request, TestContext.Current.CancellationToken);
@@ -260,14 +260,14 @@ public sealed class TagEndpointTests
         var (app, client) = await StartControlsAsync(fakes);
         await using var _ = app;
 
-        var post = await client.PostAsync(
-            $"/acta/api/v1/jobs/{Found}/tags",
-            JsonContent.Create(new { name = "env" }),
+        var put = await client.PutAsync(
+            $"/acta/api/v1/jobs/{Found}/tags/env",
+            JsonContent.Create(new { value = "prod" }),
             TestContext.Current.CancellationToken
         );
         var delete = await client.DeleteAsync($"/acta/api/v1/jobs/{Found}/tags/env", TestContext.Current.CancellationToken);
 
-        Assert.Equal(HttpStatusCode.BadRequest, post.StatusCode);
+        Assert.Equal(HttpStatusCode.BadRequest, put.StatusCode);
         Assert.Equal(HttpStatusCode.BadRequest, delete.StatusCode);
         Assert.Empty(fakes.Tags.UpsertCalls);
         Assert.Empty(fakes.Tags.RemoveCalls);
@@ -281,16 +281,16 @@ public sealed class TagEndpointTests
         var (app, client) = await StartControlsAsync(fakes);
         await using var _ = app;
 
-        using var missing = new HttpRequestMessage(HttpMethod.Post, $"/acta/api/v1/jobs/{Found}/tags")
+        using var missing = new HttpRequestMessage(HttpMethod.Put, $"/acta/api/v1/jobs/{Found}/tags/env")
         {
-            Content = JsonContent.Create(new { name = "env" }),
+            Content = JsonContent.Create(new { value = "prod" }),
         };
         missing.Headers.Add(Confirm, "true");
         var notFound = await client.SendAsync(missing, TestContext.Current.CancellationToken);
 
-        using var invalid = new HttpRequestMessage(HttpMethod.Post, "/acta/api/v1/namespaces/Bad_NS!/tags")
+        using var invalid = new HttpRequestMessage(HttpMethod.Put, "/acta/api/v1/namespaces/Bad_NS!/tags/env")
         {
-            Content = JsonContent.Create(new { name = "env" }),
+            Content = JsonContent.Create(new { value = "prod" }),
         };
         invalid.Headers.Add(Confirm, "true");
         var badTarget = await client.SendAsync(invalid, TestContext.Current.CancellationToken);
@@ -306,9 +306,9 @@ public sealed class TagEndpointTests
         var (app, client) = await TestDashboardHost.StartAsync(fakes: fakes);
         await using var _ = app;
 
-        using var request = new HttpRequestMessage(HttpMethod.Post, $"/acta/api/v1/jobs/{Found}/tags")
+        using var request = new HttpRequestMessage(HttpMethod.Put, $"/acta/api/v1/jobs/{Found}/tags/env")
         {
-            Content = JsonContent.Create(new { name = "env" }),
+            Content = JsonContent.Create(new { value = "prod" }),
         };
         request.Headers.Add(Confirm, "true");
         var response = await client.SendAsync(request, TestContext.Current.CancellationToken);

@@ -207,7 +207,7 @@ public sealed class ControlContractTests
         static Case Row(string family, string route, string method, string path, object? body) =>
             new(family, route, method, "malformedRef", path, StatusCodes.Status400BadRequest, Problem, null, body);
 
-        object upsert = new { name = "env", value = "prod" };
+        object upsert = new { value = "prod" };
         return
         [
             Row("jobs", "/jobs/{jobRef}/pause", "POST", "/jobs/not-a-ref/pause", Reason),
@@ -217,7 +217,7 @@ public sealed class ControlContractTests
             Row("jobs", "/jobs/{jobRef}/signals/{signalName}", "POST", "/jobs/not-a-ref/signals/approval", null),
             Row("alerts", "/alerts/{alertRef}/acknowledge", "POST", "/alerts/not-a-ref/acknowledge", Reason),
             Row("alerts", "/alerts/{alertRef}/resolve", "POST", "/alerts/not-a-ref/resolve", Reason),
-            Row("tags", "/jobs/{jobRef}/tags", "POST", "/jobs/not-a-ref/tags", upsert),
+            Row("tags", "/jobs/{jobRef}/tags/{tagName}", "PUT", "/jobs/not-a-ref/tags/env", upsert),
         ];
     }
 
@@ -611,17 +611,17 @@ public sealed class ControlContractTests
                 action,
                 pathPrefix + pathSuffix,
                 status,
-                method == "POST" ? typeof(UpsertTagResponse) : typeof(RemoveTagResponse),
+                method == "PUT" ? typeof(UpsertTagResponse) : typeof(RemoveTagResponse),
                 action,
                 body,
                 Stage: status == StatusCodes.Status200OK ? TagApplies : TagTargetMissing
             );
 
-        object upsert = new { name = "env", value = "prod" };
+        object upsert = new { value = "prod" };
         return
         [
-            Row("POST", "/tags", "/tags", StatusCodes.Status200OK, "applied", upsert),
-            Row("POST", "/tags", "/tags", StatusCodes.Status404NotFound, "not-found", upsert),
+            Row("PUT", "/tags/{tagName}", "/tags/env", StatusCodes.Status200OK, "applied", upsert),
+            Row("PUT", "/tags/{tagName}", "/tags/env", StatusCodes.Status404NotFound, "not-found", upsert),
             Row("DELETE", "/tags/{tagName}", "/tags/env", StatusCodes.Status200OK, "applied", null),
             Row("DELETE", "/tags/{tagName}", "/tags/env", StatusCodes.Status404NotFound, "not-found", null),
         ];

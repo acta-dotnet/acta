@@ -1,6 +1,8 @@
 using System.Text.Json;
 using Acta.AspNetCore;
 using Acta.Tests.AspNetCore;
+using Acta.Tests.Conformance.Testing;
+using Acta.Tests.Contracts;
 using Microsoft.AspNetCore.Http.Metadata;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.AspNetCore.Routing;
@@ -14,7 +16,8 @@ namespace Acta.Tests.Architecture;
 /// <summary>
 /// Holds the HTTP surface to "a route's bodies are named for its operation" in <c>CONTRIBUTING.md</c> (Naming conventions),
 /// read from what the mapped endpoints declare: a route's JSON body is its own <c>XRequest</c>, and no body serves two
-/// routes; what it answers is an <c>XResponse</c>, the SDK's or one declared in <c>src/Acta.AspNetCore/Operations/Group/X/</c>,
+/// routes unless both serve the operation it is named for, whose request they share; what it answers is an
+/// <c>XResponse</c>, the SDK's or one declared in <c>src/Acta.AspNetCore/Operations/Group/X/</c>,
 /// or the payload itself as the body, typeless in JSON or raw bytes, when the route only renders the payload its
 /// operation answers; and every request and response record in Acta.AspNetCore sits in the folder named for it.
 /// </summary>
@@ -37,7 +40,17 @@ public sealed class RouteBodyTests
         {
             violations.Add(($"{route.Name} (takes {route.Body!.Name})", "a route's body is its own XRequest"));
         }
-        foreach (var shared in bodies.GroupBy(route => route.Body!).Where(group => group.Count() > 1))
+        // Routes that serve one operation share its request; any other body serves one route.
+        var operationOf = OperationsIndexTests
+            .RouteMap(IntegrationConfig.FindRepoRoot())
+            .DistinctBy(route => $"{route.Verb} {route.Pattern}")
+            .ToDictionary(route => $"{route.Verb} {route.Pattern}", route => route.Operation, StringComparer.Ordinal);
+        foreach (
+            var shared in bodies
+                .GroupBy(route => route.Body!)
+                .Where(group => group.Count() > 1)
+                .Where(group => group.Any(route => operationOf.GetValueOrDefault(route.Name) + "Request" != group.Key.Name))
+        )
         {
             violations.Add(($"{shared.Key.Name} (serves {shared.Count()} routes)", string.Join(", ", shared.Select(route => route.Name))));
         }
@@ -78,7 +91,8 @@ public sealed class RouteBodyTests
         );
         ArchitectureAssert.NoViolations(
             violations,
-            "Give the route its own XRequest in src/Acta.AspNetCore/Operations/<Group>/X/, sharing an interface rather than a record, "
+            "Give the route its own XRequest in src/Acta.AspNetCore/Operations/<Group>/X/, or the request of the operation it shares "
+                + "with other routes, "
                 + "and answer with the SDK's XResponse, the route's own when it composes, or the payload itself when it only renders one."
         );
     }
