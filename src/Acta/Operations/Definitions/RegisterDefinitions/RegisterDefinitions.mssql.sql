@@ -49,7 +49,8 @@ BEGIN TRY
         definition_hash = src.definition_hash,
         modified_at_utc = @now,
         version = jd.version + 1
-    FROM {{schema}}.definitions jd
+    -- Every read of definitions seeks the namespace's names (docs/sql-internals.md, "Locking reads seek").
+    FROM {{schema}}.definitions jd WITH (FORCESEEK (ux_definitions_namespace_name (namespace_id, definition_name)))
     INNER JOIN @p_definitions src
         ON jd.namespace_id = @p_namespace_id AND jd.definition_name = src.definition_name
     -- An unchanged Active row is left as it is: version and modified_at_utc stay, so no operator CAS fails and no
@@ -117,7 +118,7 @@ BEGIN TRY
         0
     FROM @p_definitions src
     WHERE NOT EXISTS (
-        SELECT 1 FROM {{schema}}.definitions jd
+        SELECT 1 FROM {{schema}}.definitions jd WITH (FORCESEEK (ux_definitions_namespace_name (namespace_id, definition_name)))
         WHERE jd.namespace_id = @p_namespace_id AND jd.definition_name = src.definition_name
     );
 
@@ -125,7 +126,7 @@ BEGIN TRY
         jd.definition_name AS def_name,
         jd.definition_id AS def_id
     FROM @p_definitions src
-    INNER JOIN {{schema}}.definitions jd
+    INNER JOIN {{schema}}.definitions jd WITH (FORCESEEK (ux_definitions_namespace_name (namespace_id, definition_name)))
         ON jd.namespace_id = @p_namespace_id AND jd.definition_name = src.definition_name;
 
     IF @entry_trancount = 0
