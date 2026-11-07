@@ -5,7 +5,7 @@ everything else through embedded SQL and installed views; SQLite runs every muta
 inside a transaction the session owns.
 
 This is the execution policy referenced by [the architecture decisions](./architecture-decisions.md). The server providers
-each install fourteen routines: enqueue, claim, complete (one batch call for every completion shape), the step
+each install routines for the hot ledger mutations: enqueue, claim, complete (one batch call for every completion shape), the step
 writes, checkpoints, leases, meters, job signals and sleep timers, recovery, and retention. Every other
 operation, registration, alerts, locks and lock slots, the outbox inbox, and control verbs included, is embedded SQL
 on every provider.

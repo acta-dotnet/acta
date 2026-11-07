@@ -3,7 +3,7 @@
 Running Acta: day-2 operations first, then the production guide, alerting, failure modes,
 troubleshooting, and SQL recipes. Writing jobs is the [developer guide](./developer-guide.md).
 
-Day-2 operations. The operator surface is three things: the `IJobs` facade for per-job controls and
+Day-2 operations. The operator surface is the `IJobs` facade for per-job controls and
 read-only list APIs (optionally surfaced by the embedded dashboard package), and plain SQL against
 the ledger for everything else diagnostic. Queries below are
 Postgres-flavored against the `acta` schema; on SQL Server bracket the identifiers and swap the

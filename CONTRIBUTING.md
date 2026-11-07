@@ -165,7 +165,7 @@ See [Testing custom jobs](./docs/developer-guide.md#testing-custom-jobs) for the
 
 ### Tests and time
 
-A test passes or fails on what the code did, never on how fast the machine ran it. CI runs the four test assemblies at once on four vCPUs shared with the databases, so any statement, timer, or continuation can be seconds late.
+A test passes or fails on what the code did, never on how fast the machine ran it. CI runs the test assemblies at once on four vCPUs shared with the databases, so any statement, timer, or continuation can be seconds late.
 
 - A wait that guards a hang is bounded by `SpecWaits.Gate` (60 s) or `SpecWaits.Converge` (90 s) in conformance specs, and by at least 30 s in unit tests; a passing run leaves at its first success.
 - An elapsed-time assertion is allowed only where the duration is the fact and the broken behaviour is slower on every trial: take the fastest of several trials, or count what happened (writes, reserves) instead of milliseconds.
@@ -404,7 +404,7 @@ markers (TODO, "later", "placeholder"). Run that test class after any comment pa
 
 ## Naming conventions
 
-The naming rules the public surface is held to, across all four contract tiers: the .NET surface,
+The naming rules the public surface is held to, across every contract tier: the .NET surface,
 the HTTP surface, the SQL schema with its persisted codes, and the telemetry an operator queries.
 After 1.0.0 a rename that breaks one is a breaking change, not a cleanup.
 

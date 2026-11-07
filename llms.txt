@@ -308,7 +308,7 @@ HTTP enqueue in the json format sends strict JSON (one value, no comments or tra
 ## When you are unsure
 
 Every pattern above exists as a compiled, runnable example under `concepts/` in the repository:
-numbered rungs from fundamentals to chaos recovery, each with a README. The demo apps under
+numbered rungs from fundamentals to chaos recovery, each a small project for one idea. The demo apps under
 `demos/` are complete deployable applications built only from the published packages. The one
 complete walk from enqueue to the first test, on the consumer packages, is `docs/first-job.md`; the
 rest of the `docs/` tree is indexed by task in `docs/README.md`. Start at useacta.net.

@@ -839,7 +839,7 @@ per admitted occurrence under `PerOccurrence` delivery. It does not create futur
 calendar occurrence. The schedule cursors move; the admission engine admits a firing onto the `Idle`
 slot, or inserts the occurrence's root, when a cursor is due, and the claim runs it.
 
-### The four operations
+### The operations at a glance
 
 | Operation | Changes the recurring cursor? | Creates historical work? | Use it when |
 | --- | --- | --- | --- |

@@ -12,7 +12,7 @@ clone: `dotnet run --project concepts/<category>/<lab>`.
 
 ## The 45-minute tour
 
-Seven labs, in order, that cover the model end to end:
+These labs, in order, cover the model end to end:
 
 1. [`001-hello-acta`](../concepts/000-fundamentals/001-hello-acta/): enqueue a job and watch a worker
    run it.
