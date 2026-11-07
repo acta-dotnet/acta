@@ -27,8 +27,11 @@ namespace Acta.Tests.Contracts;
 /// </summary>
 internal static partial class ActaOpenApiDocument
 {
-    /// <summary>The extension carrying an open code's known values: <c>[{ "name": member, "value": wire spelling }]</c>.</summary>
+    /// <summary>The extension carrying an open code's known values: the wire spellings this version writes, in member order.</summary>
     public const string KnownValuesExtension = "x-acta-known-values";
+
+    /// <summary>The sentence every code schema's description ends with.</summary>
+    public const string OtherValuesMayAppear = "Other values may appear: keep a value this client does not know as it is.";
 
     /// <summary>The version of the HTTP contract under <c>/v1</c>, not the package version.</summary>
     private const string ContractVersion = "1.0.0";
@@ -142,9 +145,8 @@ internal static partial class ActaOpenApiDocument
     /// <summary>How the refused enqueue's problem writes its <c>reasonCode</c>, as ApiFilters spells it.</summary>
     public static string ReasonCode(EnqueueRejectionReason reason) => JsonNamingPolicy.KebabCaseLower.ConvertName(reason.ToString());
 
-    /// <summary>An enum's known values in id order: each member's name and the spelling the serializer writes.</summary>
-    public static JsonArray KnownValues(Type enumType) =>
-        [.. Enum.GetNames(enumType).Select(name => (JsonNode)new JsonObject { ["name"] = name, ["value"] = WireName(enumType, name) })];
+    /// <summary>An enum's known values in id order: the spelling the serializer writes for each member.</summary>
+    public static JsonArray KnownValues(Type enumType) => [.. Enum.GetNames(enumType).Select(name => (JsonNode)WireName(enumType, name))];
 
     private static void Configure(OpenApiOptions o, Mount mount)
     {
@@ -427,14 +429,11 @@ internal static partial class ActaOpenApiDocument
             schemas[nameof(EnqueueRejectionReason)] = new OpenApiSchema
             {
                 Type = JsonSchemaType.String,
-                Description = "Why an enqueue was refused, as a kebab code. An open set: keep a value this client does not know.",
+                Description = "Why an enqueue was refused.",
                 Extensions = new Dictionary<string, IOpenApiExtension>(StringComparer.Ordinal)
                 {
                     [KnownValuesExtension] = new JsonNodeExtension(
-                        new JsonArray([
-                            .. Enum.GetValues<EnqueueRejectionReason>()
-                                .Select(r => (JsonNode)new JsonObject { ["name"] = r.ToString(), ["value"] = ReasonCode(r) }),
-                        ])
+                        new JsonArray([.. Enum.GetValues<EnqueueRejectionReason>().Select(r => (JsonNode)ReasonCode(r))])
                     ),
                 },
             };
@@ -456,18 +455,14 @@ internal static partial class ActaOpenApiDocument
                 Extensions = new Dictionary<string, IOpenApiExtension>(StringComparer.Ordinal)
                 {
                     [KnownValuesExtension] = new JsonNodeExtension(
-                        new JsonArray([
-                            .. Enum.GetValues<DbProvider>()
-                                .Select(p =>
-                                    (JsonNode)
-                                        new JsonObject { ["name"] = p.ToString(), ["value"] = GetCapabilitiesEndpoint.ProviderCode(p) }
-                                ),
-                        ])
+                        new JsonArray([.. Enum.GetValues<DbProvider>().Select(p => (JsonNode)GetCapabilitiesEndpoint.ProviderCode(p))])
                     ),
                 },
             };
             capabilityProperties["provider"] = new OpenApiSchemaReference(nameof(DbProvider));
         }
+
+        DescribeKnownValues(schemas);
 
         if (confirmationHeader is not null)
         {
@@ -592,6 +587,44 @@ internal static partial class ActaOpenApiDocument
     }
 
     private static OpenApiSchema AnyJson() => new() { Description = "Any JSON value, kept as sent." };
+
+    // A code reads as well as it parses: its description lists the known values, with what each means where its family's
+    // [Code] says so, and ends saying others may appear; its example is the first value that is not "unspecified".
+    private static void DescribeKnownValues(IDictionary<string, IOpenApiSchema> schemas)
+    {
+        foreach (var (name, entry) in schemas)
+        {
+            if (
+                entry is not OpenApiSchema schema
+                || schema.Extensions?.TryGetValue(KnownValuesExtension, out var extension) != true
+                || extension is not JsonNodeExtension { Node: JsonArray known }
+            )
+            {
+                continue;
+            }
+
+            var values = known.Select(value => value!.GetValue<string>()).ToList();
+            var family = typeof(IJobs)
+                .Assembly.GetTypes()
+                .Concat(typeof(DashboardJsonContext).Assembly.GetTypes())
+                .FirstOrDefault(type => type.IsEnum && type.Name == name);
+            var meanings = family is null
+                ? []
+                : Enum.GetNames(family)
+                    .Select(member => family.GetField(member)!.GetCustomAttribute<CodeAttribute>()?.Description)
+                    .ToList();
+            var list =
+                meanings.Count == values.Count && meanings.All(meaning => meaning is not null)
+                    ? "Known values:\n" + string.Join("\n", values.Select((value, i) => $"- {value}: {meanings[i]}"))
+                    : $"Known values: {string.Join(", ", values)}.";
+            schema.Description = string.Join(
+                "\n\n",
+                new[] { schema.Description, list, OtherValuesMayAppear }.Where(text => !string.IsNullOrEmpty(text))
+            );
+            // OpenAPI 3.1 takes a schema's examples as JSON Schema's array; the single example keyword is deprecated there.
+            schema.Examples = [JsonValue.Create(values.Find(value => value != "unspecified") ?? values[0])];
+        }
+    }
 
     private static string? EnumName(OpenApiSchema schema) =>
         schema.Extensions?.TryGetValue(EnumMarker, out var value) == true && value is JsonNodeExtension { Node: JsonValue name }

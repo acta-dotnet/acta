@@ -8640,101 +8640,58 @@
         "description": "The one value a control's confirmation header carries."
       },
       "AlertDeliveryStatusCode": {
+        "examples": [
+          "pending"
+        ],
         "type": "string",
-        "description": "Delivery state of one alert row. Numeric bands are a readability convention only; behavior\nfollows the explicit members.",
+        "description": "Delivery state of one alert row. Numeric bands are a readability convention only; behavior\nfollows the explicit members.\n\nKnown values:\n- unspecified: Alert delivery status not recognized by this build; the row was written by a newer Acta.\n- pending: Materialized; awaiting the first send attempt.\n- retry-after: Send deferred until the alert's retry_after_utc instant.\n- suppressed: Intentionally not sent because process-local channel policy rejected delivery.\n- delivered: Successfully sent to the channel transport.\n- failed: Send attempt failed and the retry path is done with it; re-sent as a reminder while the incident stays unresolved.\n\nOther values may appear: keep a value this client does not know as it is.",
         "x-acta-known-values": [
-          {
-            "name": "Unspecified",
-            "value": "unspecified"
-          },
-          {
-            "name": "Pending",
-            "value": "pending"
-          },
-          {
-            "name": "RetryAfter",
-            "value": "retry-after"
-          },
-          {
-            "name": "Suppressed",
-            "value": "suppressed"
-          },
-          {
-            "name": "Delivered",
-            "value": "delivered"
-          },
-          {
-            "name": "Failed",
-            "value": "failed"
-          }
+          "unspecified",
+          "pending",
+          "retry-after",
+          "suppressed",
+          "delivered",
+          "failed"
         ]
       },
       "AlertKindCode": {
+        "examples": [
+          "first-failure"
+        ],
         "type": "string",
-        "description": "What condition an alert reports. Sparse catalog ids leave insertion room; numeric ordering is\nnot behavioral.",
+        "description": "What condition an alert reports. Sparse catalog ids leave insertion room; numeric ordering is\nnot behavioral.\n\nKnown values:\n- unspecified: Alert kind not recognized by this build; the row was written by a newer Acta.\n- first-failure: Failure that opened the incident; emitted by Automatic origin on non-terminal failure.\n- threshold-reached: Threshold-bound emission (e.g., LostClaimAlertThreshold reached).\n- final-failure: Terminal failure; emitted by Automatic origin on Status to Failed.\n- manual: Hand-raised; ctx.AlertAsync from inside a handler.\n\nOther values may appear: keep a value this client does not know as it is.",
         "x-acta-known-values": [
-          {
-            "name": "Unspecified",
-            "value": "unspecified"
-          },
-          {
-            "name": "FirstFailure",
-            "value": "first-failure"
-          },
-          {
-            "name": "ThresholdReached",
-            "value": "threshold-reached"
-          },
-          {
-            "name": "FinalFailure",
-            "value": "final-failure"
-          },
-          {
-            "name": "Manual",
-            "value": "manual"
-          }
+          "unspecified",
+          "first-failure",
+          "threshold-reached",
+          "final-failure",
+          "manual"
         ]
       },
       "AlertOriginCode": {
+        "examples": [
+          "automatic"
+        ],
         "type": "string",
+        "description": "Known values:\n- unspecified: Alert origin not recognized by this build; the row was written by a newer Acta.\n- automatic: System-emitted from a state-mutating SP (failure / timeout / orphan / deadline).\n- manual: ctx.AlertAsync from inside a user handler.\n\nOther values may appear: keep a value this client does not know as it is.",
         "x-acta-known-values": [
-          {
-            "name": "Unspecified",
-            "value": "unspecified"
-          },
-          {
-            "name": "Automatic",
-            "value": "automatic"
-          },
-          {
-            "name": "Manual",
-            "value": "manual"
-          }
+          "unspecified",
+          "automatic",
+          "manual"
         ]
       },
       "AlertProfileCode": {
+        "examples": [
+          "none"
+        ],
         "type": "string",
+        "description": "Known values:\n- none: No automatic failure alerts. ctx.AlertAsync still creates rows.\n- on-failure: Default. Alerts on every failed or orphaned attempt; repeats collapse onto the job's one open incident. Final exhaustion writes a separate alert (a different reason yields a different DeduplicationKey). Every enabled profile records the attempts its alerts read whatever the event recording level, so an alert never depends on recording. Resolves on recovery, the job's next success.\n- info: Informational alerts on terminal failure only; low severity. A recurring slot rarely reaches one - see on-terminal. Resolves on recovery, the job's next success.\n- on-terminal: Alert on terminal failure only: retry budget exhausted, ctx.FailAsync, a non-retryable exception, or an interrupted at-most-once step, or a lost lease that spent the budget. Resolves on recovery, the job's next success. A deadline lands the job Cancelled rather than Failed and so alerts under no profile. A recurring slot never exhausts a budget and re-arms after an unhandled exception or a lost lease, so use on-failure to hear about those.\n- sys-critical: Reserved for system Jobs. Emits at Severity = Critical to the Job's channel, or the configured \"default\" channel when none is declared.\n\nOther values may appear: keep a value this client does not know as it is.",
         "x-acta-known-values": [
-          {
-            "name": "None",
-            "value": "none"
-          },
-          {
-            "name": "OnFailure",
-            "value": "on-failure"
-          },
-          {
-            "name": "Info",
-            "value": "info"
-          },
-          {
-            "name": "OnTerminal",
-            "value": "on-terminal"
-          },
-          {
-            "name": "SysCritical",
-            "value": "sys-critical"
-          }
+          "none",
+          "on-failure",
+          "info",
+          "on-terminal",
+          "sys-critical"
         ]
       },
       "AlertRef": {
@@ -8742,28 +8699,17 @@
         "description": "Public stable reference for one alert row: \"alr_\" plus the Guid's 32 lowercase hex digits, such as\n`alr_01a14f5038c17d0e9b2f6a4c81d3e5f7`. Dashboards, HTTP APIs, and alert transports address\nalerts by this value; the numeric alert id stays the internal engine identity. Deduplication never\nre-mints it: a condition that re-fires while its incident is open keeps that incident's ref."
       },
       "AlertSeverityCode": {
+        "examples": [
+          "info"
+        ],
         "type": "string",
+        "description": "Known values:\n- unspecified: Alert severity not recognized by this build; the row was written by a newer Acta.\n- info: Informational; not paging.\n- warning: Non-terminal failure transition; repeats collapse onto the one open incident.\n- error: Terminal failure or operator-attention event.\n- critical: Highest severity; emitted by system Jobs (AlertProfile = SysCritical) and operator alerts for incidents. Whether it pages depends on the routed channel's transport and config.\n\nOther values may appear: keep a value this client does not know as it is.",
         "x-acta-known-values": [
-          {
-            "name": "Unspecified",
-            "value": "unspecified"
-          },
-          {
-            "name": "Info",
-            "value": "info"
-          },
-          {
-            "name": "Warning",
-            "value": "warning"
-          },
-          {
-            "name": "Error",
-            "value": "error"
-          },
-          {
-            "name": "Critical",
-            "value": "critical"
-          }
+          "unspecified",
+          "info",
+          "warning",
+          "error",
+          "critical"
         ]
       },
       "ArchiveCalendarRequest": {
@@ -8811,47 +8757,29 @@
         "description": "What archiving a family's current version did. `Version` is the family's current version, archived when Applied;\n`DependentCount` counts the live schedules of active definitions that name the family in its scope, which reject\nthe archive while any remain."
       },
       "CalendarRoleCode": {
+        "examples": [
+          "occurrence"
+        ],
         "type": "string",
-        "description": "What a catalog calendar family gives a schedule: its occurrences, or the windows they may fire in. The family's first\nversion fixes its role, and every newer version keeps it.",
+        "description": "What a catalog calendar family gives a schedule: its occurrences, or the windows they may fire in. The family's first\nversion fixes its role, and every newer version keeps it.\n\nKnown values:\n- unspecified: Calendar role not recognized by this build; the row was written by a newer Acta.\n- occurrence: A calendar whose instants are a schedule's occurrences.\n- availability: A calendar whose windows bound when a schedule's occurrences may fire.\n\nOther values may appear: keep a value this client does not know as it is.",
         "x-acta-known-values": [
-          {
-            "name": "Unspecified",
-            "value": "unspecified"
-          },
-          {
-            "name": "Occurrence",
-            "value": "occurrence"
-          },
-          {
-            "name": "Availability",
-            "value": "availability"
-          }
+          "unspecified",
+          "occurrence",
+          "availability"
         ]
       },
       "CalendarStatusCode": {
+        "examples": [
+          "draft"
+        ],
         "type": "string",
-        "description": "Where one version of a catalog calendar family stands. At most one version of a family is Published at a time, and\nthat version is the family's current one; a version's content never changes, only its status.",
+        "description": "Where one version of a catalog calendar family stands. At most one version of a family is Published at a time, and\nthat version is the family's current one; a version's content never changes, only its status.\n\nKnown values:\n- unspecified: Calendar status not recognized by this build; the row was written by a newer Acta.\n- draft: A saved version that was never published; no schedule follows it.\n- published: The family's current version, the one its catalog-bound schedules follow.\n- superseded: A version that was current until a newer one was published; history still pins it.\n- archived: The family's current version, retired; the family has no current version until another is published.\n\nOther values may appear: keep a value this client does not know as it is.",
         "x-acta-known-values": [
-          {
-            "name": "Unspecified",
-            "value": "unspecified"
-          },
-          {
-            "name": "Draft",
-            "value": "draft"
-          },
-          {
-            "name": "Published",
-            "value": "published"
-          },
-          {
-            "name": "Superseded",
-            "value": "superseded"
-          },
-          {
-            "name": "Archived",
-            "value": "archived"
-          }
+          "unspecified",
+          "draft",
+          "published",
+          "superseded",
+          "archived"
         ]
       },
       "CalendarWindow": {
@@ -8926,139 +8854,75 @@
         "description": "What cancelling a job did, and the job's status and version after the attempt."
       },
       "CheckpointKindCode": {
+        "examples": [
+          "variable"
+        ],
         "type": "string",
-        "description": "Discriminator for `checkpoints` rows: which durable substrate feature owns the\n`(job_id, checkpoint_kind_code, checkpoint_name)` row. One physical table carries every simple job-internal\ndurable value; the kind keeps the name spaces structurally separate (a user variable can never\ncollide with a signal or a child latch of the same name).",
+        "description": "Discriminator for `checkpoints` rows: which durable substrate feature owns the\n`(job_id, checkpoint_kind_code, checkpoint_name)` row. One physical table carries every simple job-internal\ndurable value; the kind keeps the name spaces structurally separate (a user variable can never\ncollide with a signal or a child latch of the same name).\n\nKnown values:\n- unspecified: Checkpoint kind not recognized by this build; the row was written by a newer Acta.\n- variable: User variable; UPSERT, last-writer-wins, no state machine.\n- signal: Signal; Pending while awaited, Set once raised.\n- timer: Durable sleep timer; Pending until due, Consumed on replay past the due instant.\n- progress: Progress; UPSERT, last-writer-wins, one per job.\n- child-latch: Child terminal-outcome latch on the parent; Pending while awaited, Set when the child lands terminal.\n- firing: The scheduler's firing envelope for a slot or scheduled root; Pending while outstanding, settled with the outcome; survives a handler reset.\n\nOther values may appear: keep a value this client does not know as it is.",
         "x-acta-known-values": [
-          {
-            "name": "Unspecified",
-            "value": "unspecified"
-          },
-          {
-            "name": "Variable",
-            "value": "variable"
-          },
-          {
-            "name": "Signal",
-            "value": "signal"
-          },
-          {
-            "name": "Timer",
-            "value": "timer"
-          },
-          {
-            "name": "Progress",
-            "value": "progress"
-          },
-          {
-            "name": "ChildLatch",
-            "value": "child-latch"
-          },
-          {
-            "name": "Firing",
-            "value": "firing"
-          }
+          "unspecified",
+          "variable",
+          "signal",
+          "timer",
+          "progress",
+          "child-latch",
+          "firing"
         ]
       },
       "CheckpointStatusCode": {
+        "examples": [
+          "pending"
+        ],
         "type": "string",
+        "description": "Known values:\n- unspecified: Checkpoint status not recognized by this build; the row was written by a newer Acta.\n- pending: Awaited or armed; the checkpoint has not been satisfied yet.\n- set: Raised; the payload is stored and a waiting job proceeds.\n- expired: The re-entering wait found the checkpoint overdue and settled it TimedOut; a raise then skips it.\n- consumed: Due instant reached; the replayed handler consumed the timer and proceeded.\n- succeeded: The firing settled successfully; the envelope is the slot's last outcome until the next admission replaces it.\n- failed: The firing settled as a final failure; the envelope is the slot's last outcome until the next admission replaces it.\n- cancelled: The firing settled by cancellation; the envelope is the slot's last outcome until the next admission replaces it.\n\nOther values may appear: keep a value this client does not know as it is.",
         "x-acta-known-values": [
-          {
-            "name": "Unspecified",
-            "value": "unspecified"
-          },
-          {
-            "name": "Pending",
-            "value": "pending"
-          },
-          {
-            "name": "Set",
-            "value": "set"
-          },
-          {
-            "name": "Expired",
-            "value": "expired"
-          },
-          {
-            "name": "Consumed",
-            "value": "consumed"
-          },
-          {
-            "name": "Succeeded",
-            "value": "succeeded"
-          },
-          {
-            "name": "Failed",
-            "value": "failed"
-          },
-          {
-            "name": "Cancelled",
-            "value": "cancelled"
-          }
+          "unspecified",
+          "pending",
+          "set",
+          "expired",
+          "consumed",
+          "succeeded",
+          "failed",
+          "cancelled"
         ]
       },
       "ControlAction": {
+        "examples": [
+          "applied"
+        ],
         "type": "string",
-        "description": "Coarse outcome of a control verb: on jobs, schedules, definitions, alerts, the outbox, tags, tenants, and namespaces.",
+        "description": "Coarse outcome of a control verb: on jobs, schedules, definitions, alerts, the outbox, tags, tenants, and namespaces.\n\nKnown values: applied, not-found, rejected, accepted, version-conflict, already-in-state.\n\nOther values may appear: keep a value this client does not know as it is.",
         "x-acta-known-values": [
-          {
-            "name": "Applied",
-            "value": "applied"
-          },
-          {
-            "name": "NotFound",
-            "value": "not-found"
-          },
-          {
-            "name": "Rejected",
-            "value": "rejected"
-          },
-          {
-            "name": "Accepted",
-            "value": "accepted"
-          },
-          {
-            "name": "VersionConflict",
-            "value": "version-conflict"
-          },
-          {
-            "name": "AlreadyInState",
-            "value": "already-in-state"
-          }
+          "applied",
+          "not-found",
+          "rejected",
+          "accepted",
+          "version-conflict",
+          "already-in-state"
         ]
       },
       "DbProvider": {
+        "examples": [
+          "mssql"
+        ],
         "type": "string",
+        "description": "Known values: mssql, pg, sqlite.\n\nOther values may appear: keep a value this client does not know as it is.",
         "x-acta-known-values": [
-          {
-            "name": "SqlServer",
-            "value": "mssql"
-          },
-          {
-            "name": "Postgres",
-            "value": "pg"
-          },
-          {
-            "name": "Sqlite",
-            "value": "sqlite"
-          }
+          "mssql",
+          "pg",
+          "sqlite"
         ]
       },
       "DeadlineBehaviorCode": {
+        "examples": [
+          "strict"
+        ],
         "type": "string",
-        "description": "How the engine treats a job that has passed its deadline.",
+        "description": "How the engine treats a job that has passed its deadline.\n\nKnown values:\n- unspecified: Deadline behavior not recognized by this build; the row was written by a newer Acta.\n- strict: Engine auto-terminates an overdue job at admission and refuses to re-arm a retry past the deadline.\n- advisory: Deadline is informational; the engine never auto-terminates, the handler reads ctx.IsOverdue.\n\nOther values may appear: keep a value this client does not know as it is.",
         "x-acta-known-values": [
-          {
-            "name": "Unspecified",
-            "value": "unspecified"
-          },
-          {
-            "name": "Strict",
-            "value": "strict"
-          },
-          {
-            "name": "Advisory",
-            "value": "advisory"
-          }
+          "unspecified",
+          "strict",
+          "advisory"
         ]
       },
       "DefinitionPolicyOverrides": {
@@ -9180,21 +9044,15 @@
         "description": "The whole operator-override set for a definition's policy, applied as a unit: a non-null field sets its override\nand null clears it back to the code default, so the dashboard reads, edits, and writes the full set. Code defaults,\ncontract, formats, and `definition_hash` are never touched. A `DeadlineSeconds` override on a scheduled\ndefinition lands but is ignored: a deadline anchors to job creation, and a recurring slot lives forever.\n`RateLimit` applies to every definition sharing the meter (declared `RateName`, or the name) in one\nwrite, clearing included, so the meter never carries two rates."
       },
       "DefinitionStatusCode": {
+        "examples": [
+          "active"
+        ],
         "type": "string",
-        "description": "Lifecycle status of a job definition. Numeric bands are a readability convention only;\nbehavior follows the explicit members. There is no per-definition Deprecated state by design:\noperators pause individual Jobs via `IJobs.PauseAsync`.",
+        "description": "Lifecycle status of a job definition. Numeric bands are a readability convention only;\nbehavior follows the explicit members. There is no per-definition Deprecated state by design:\noperators pause individual Jobs via `IJobs.PauseAsync`.\n\nKnown values:\n- unspecified: Definition status not recognized by this build; the row was written by a newer Acta.\n- active: Enqueue allowed; claim allowed.\n- retired: Enqueue REJECTED; an operator decision, never written by registration (a definition absent from a manifest stays Active). Retiring cancels parked rows (Ready/Paused/Suspended) with the event reason 'definition-retired'; in-flight executions finish their attempt, and a job that would run again lands Cancelled with the same reason.\n\nOther values may appear: keep a value this client does not know as it is.",
         "x-acta-known-values": [
-          {
-            "name": "Unspecified",
-            "value": "unspecified"
-          },
-          {
-            "name": "Active",
-            "value": "active"
-          },
-          {
-            "name": "Retired",
-            "value": "retired"
-          }
+          "unspecified",
+          "active",
+          "retired"
         ]
       },
       "DiscardOutboxRequest": {
@@ -9241,17 +9099,14 @@
         "description": "What parking a discard of a source's quarantined rows did."
       },
       "EnqueueJobAction": {
+        "examples": [
+          "inserted"
+        ],
         "type": "string",
-        "description": "Coarse outcome classifier for one enqueued row.",
+        "description": "Coarse outcome classifier for one enqueued row.\n\nKnown values: inserted, deduplicated.\n\nOther values may appear: keep a value this client does not know as it is.",
         "x-acta-known-values": [
-          {
-            "name": "Inserted",
-            "value": "inserted"
-          },
-          {
-            "name": "Deduplicated",
-            "value": "deduplicated"
-          }
+          "inserted",
+          "deduplicated"
         ]
       },
       "EnqueueJobRequest": {
@@ -9366,344 +9221,126 @@
         "description": "What one enqueue answers: the internal long EnqueueJobResponse.JobId, the public JobRef EnqueueJobResponse.JobRef, and the\nEnqueueJobAction EnqueueJobResponse.Action that tells a fresh insert from a match on string? EnqueueJobRequest.DeduplicationKey. A\nbatch answers one per request, in request order, in IReadOnlyList&lt;EnqueueJobResponse&gt; EnqueueJobsResponse.Jobs. A typed enqueue answers\nthe derived JobHandle."
       },
       "EnqueueRejectionReason": {
+        "examples": [
+          "namespace-suspended"
+        ],
         "type": "string",
-        "description": "Why an enqueue was refused, as a kebab code. An open set: keep a value this client does not know.",
+        "description": "Why an enqueue was refused.\n\nKnown values: namespace-suspended, tenant-suspended, tenant-unknown, route-unknown, definition-retired, tenant-required, tenant-forbidden, tenant-mismatch, ancestor-lane, lane-isolation.\n\nOther values may appear: keep a value this client does not know as it is.",
         "x-acta-known-values": [
-          {
-            "name": "NamespaceSuspended",
-            "value": "namespace-suspended"
-          },
-          {
-            "name": "TenantSuspended",
-            "value": "tenant-suspended"
-          },
-          {
-            "name": "TenantUnknown",
-            "value": "tenant-unknown"
-          },
-          {
-            "name": "RouteUnknown",
-            "value": "route-unknown"
-          },
-          {
-            "name": "DefinitionRetired",
-            "value": "definition-retired"
-          },
-          {
-            "name": "TenantRequired",
-            "value": "tenant-required"
-          },
-          {
-            "name": "TenantForbidden",
-            "value": "tenant-forbidden"
-          },
-          {
-            "name": "TenantMismatch",
-            "value": "tenant-mismatch"
-          },
-          {
-            "name": "AncestorLane",
-            "value": "ancestor-lane"
-          },
-          {
-            "name": "LaneIsolation",
-            "value": "lane-isolation"
-          }
+          "namespace-suspended",
+          "tenant-suspended",
+          "tenant-unknown",
+          "route-unknown",
+          "definition-retired",
+          "tenant-required",
+          "tenant-forbidden",
+          "tenant-mismatch",
+          "ancestor-lane",
+          "lane-isolation"
         ]
       },
       "EntityCode": {
+        "examples": [
+          "alert"
+        ],
         "type": "string",
-        "description": "Names a kind of Acta entity, so one `(entity_code, entity_id)` pair can point at a row of any table. Tags\nattach only to tenants, namespaces, definitions, and jobs, the targets TagTarget can build.",
+        "description": "Names a kind of Acta entity, so one `(entity_code, entity_id)` pair can point at a row of any table. Tags\nattach only to tenants, namespaces, definitions, and jobs, the targets TagTarget can build.\n\nKnown values:\n- unspecified: Entity kind not recognized by this build; the row was written by a newer Acta.\n- alert: One alert.\n- calendar: One version of a catalog calendar.\n- checkpoint: One checkpoint of a job.\n- definition: One job definition.\n- event: One event.\n- job: One job.\n- lane: One lane.\n- lock: One lock.\n- namespace: One namespace.\n- schedule: One schedule of a recurring job.\n- step: One step of a job.\n- tag: One tag on its entity.\n- tenant: One tenant.\n- worker: One worker process lifetime.\n\nOther values may appear: keep a value this client does not know as it is.",
         "x-acta-known-values": [
-          {
-            "name": "Unspecified",
-            "value": "unspecified"
-          },
-          {
-            "name": "Alert",
-            "value": "alert"
-          },
-          {
-            "name": "Calendar",
-            "value": "calendar"
-          },
-          {
-            "name": "Checkpoint",
-            "value": "checkpoint"
-          },
-          {
-            "name": "Definition",
-            "value": "definition"
-          },
-          {
-            "name": "Event",
-            "value": "event"
-          },
-          {
-            "name": "Job",
-            "value": "job"
-          },
-          {
-            "name": "Lane",
-            "value": "lane"
-          },
-          {
-            "name": "Lock",
-            "value": "lock"
-          },
-          {
-            "name": "Namespace",
-            "value": "namespace"
-          },
-          {
-            "name": "Schedule",
-            "value": "schedule"
-          },
-          {
-            "name": "Step",
-            "value": "step"
-          },
-          {
-            "name": "Tag",
-            "value": "tag"
-          },
-          {
-            "name": "Tenant",
-            "value": "tenant"
-          },
-          {
-            "name": "Worker",
-            "value": "worker"
-          }
+          "unspecified",
+          "alert",
+          "calendar",
+          "checkpoint",
+          "definition",
+          "event",
+          "job",
+          "lane",
+          "lock",
+          "namespace",
+          "schedule",
+          "step",
+          "tag",
+          "tenant",
+          "worker"
         ]
       },
       "EvaluationStatusCode": {
+        "examples": [
+          "scheduled"
+        ],
         "type": "string",
-        "description": "Why a schedule's next evaluation is when it is: the scheduling engine's state for one schedule, distinct from the\noperator lifecycle (ScheduleStatusCode) and from the slot job's status.",
+        "description": "Why a schedule's next evaluation is when it is: the scheduling engine's state for one schedule, distinct from the\noperator lifecycle (ScheduleStatusCode) and from the slot job's status.\n\nKnown values:\n- unspecified: Evaluation status not recognized by this build; the row was written by a newer Acta.\n- scheduled: The next evaluation is the next nominal occurrence, or the end of a timed pause.\n- waiting-for-capacity: An occurrence is due but the permanent slot is busy or the schedule is at its outstanding limit; settlement wakes it.\n- exhausted: The source offers no further occurrence; a declaration or calendar change reactivates it.\n- evaluation-error: The source could not be evaluated; the cursor is kept and the evaluation retries after a bounded delay.\n- slot-unavailable: An occurrence is due but the permanent slot is held, cancelled, or failed terminally; a job resume or restart wakes it.\n- resumed: An operator resumed the schedule; its first evaluation decides the backlog under the misfire policy and expires the stale part without pausing again.\n\nOther values may appear: keep a value this client does not know as it is.",
         "x-acta-known-values": [
-          {
-            "name": "Unspecified",
-            "value": "unspecified"
-          },
-          {
-            "name": "Scheduled",
-            "value": "scheduled"
-          },
-          {
-            "name": "WaitingForCapacity",
-            "value": "waiting-for-capacity"
-          },
-          {
-            "name": "Exhausted",
-            "value": "exhausted"
-          },
-          {
-            "name": "EvaluationError",
-            "value": "evaluation-error"
-          },
-          {
-            "name": "SlotUnavailable",
-            "value": "slot-unavailable"
-          },
-          {
-            "name": "Resumed",
-            "value": "resumed"
-          }
+          "unspecified",
+          "scheduled",
+          "waiting-for-capacity",
+          "exhausted",
+          "evaluation-error",
+          "slot-unavailable",
+          "resumed"
         ]
       },
       "EventCode": {
+        "examples": [
+          "tenant.suspended"
+        ],
         "type": "string",
-        "description": "Stable family-local event identifiers. Nearby values improve catalog readability but carry no runtime subject,\nsubgroup, or outcome semantics; match events by enum member or textual code. There is no `job.enqueued`\nevent on purpose: the Job row's own `(created_at_utc, namespace_id, definition_id)` records the enqueue fact,\nand a separate event row would be write amplification on the narrow append-heavy events table; dedup outcomes\nreach the caller via `EnqueueJobResponse.Action`, and cross-job rate analytics query `acta.jobs` directly.",
+        "description": "Stable family-local event identifiers. Nearby values improve catalog readability but carry no runtime subject,\nsubgroup, or outcome semantics; match events by enum member or textual code. There is no `job.enqueued`\nevent on purpose: the Job row's own `(created_at_utc, namespace_id, definition_id)` records the enqueue fact,\nand a separate event row would be write amplification on the narrow append-heavy events table; dedup outcomes\nreach the caller via `EnqueueJobResponse.Action`, and cross-job rate analytics query `acta.jobs` directly.\n\nKnown values:\n- unspecified: Event id not recognized by this build; the row was written by a newer Acta.\n- tenant.suspended: An operator suspended a tenant; the name stops resolving at enqueue. EventMessage carries the reason.\n- tenant.resumed: An operator resumed a suspended tenant; its key resolves at enqueue again. EventMessage carries the reason.\n- tenant.updated: An operator changed a tenant display name / description. EventMessage carries the reason.\n- namespace.suspended: An operator suspended a namespace; enqueue into it is rejected. EventMessage carries the reason.\n- namespace.resumed: An operator resumed a suspended namespace; enqueue into it is allowed again. EventMessage carries the reason.\n- namespace.updated: An operator changed a namespace owner team / description. EventMessage carries the reason.\n- definition.overrides-updated: An operator changed a job definition's policy overrides; EventMessage summarizes the change.\n- definition.retired: An operator retired a job definition; enqueue is rejected and its parked jobs were cancelled.\n- job.execution-succeeded: The attempt's handler returned successfully; DurationMs is set. Audit records every one, Failures a success after counted failures, and an enabled alert profile also a one-shot's success past its first attempt.\n- job.execution-failed: The attempt failed and the job lives on: a retry within budget, or a recurring job's firing that spent its budget and returned the slot to Idle. DurationMs and the failure's EventMessage are set; details carry reason and to.\n- job.execution-orphaned: The attempt's worker lease expired and crash recovery reclaimed the job without ending it. WorkerId names the stale holder; details carry reason and to.\n- job.execution-yielded: The attempt ended without succeeding or failing: rescheduled, suspended, paused, or cancelled by its handler or the engine. Audit only; details carry outcome and reason.\n- job.failed: The job failed for good: its retry budget is spent, its handler failed it, or its failure is not retryable. DurationMs is set when an attempt ran; details carry reason.\n- job.suspended: The attempt parked on a durable wait: a ctx.SleepAsync timer re-armed the job Ready at its due instant, or a signal or child wait left it Suspended. Budget-neutral; details carry to.\n- job.rescheduled: The job re-armed Ready with a new NextRunAtUtc: a handler reschedule, a failed attempt's retry within budget, or an operator RescheduleAsync; details carry actor or reason.\n- job.cancelled: Job was cancelled (Status to Cancelled, terminal).\n- job.paused: Job was paused (Status to Paused).\n- job.resumed: Job was resumed (Status to Ready).\n- job.restarted: Job was restarted (Status to Ready; failure_count reset, retention cleared, execution_number unchanged).\n- job.reprioritized: Operator changed the job's claim priority; EventMessage carries the operator's reason, if any.\n- job.purged: Operator hard-deleted a terminal job; the subject is the deleted job's id. Details snapshot its jobRef, correlationKey, and actor. Always emitted regardless of event recording.\n- job.input-amended: Operator amended a job's stored input payload; details carry the actor and bounded metadata (format name and byte count) about the previous payload, and EventMessage carries the why.\n- job.signal-raised: Signal delivered via IJobs.RaiseSignalAsync; matching signal checkpoint (State = Set) UPSERTed.\n- job.state-reset: Handler called ctx.ResetStateAsync; the job's checkpoints and steps were cleared so the next execution starts as new. The scheduler's firing envelope stays.\n- job.note-recorded: Application-authored note from ctx.NoteAsync. The only event code an application can write and one the runtime never emits, so every other event stays provably system-written. EventMessage carries the line; details carry the optional payload.\n- schedule.paused: A recurring schedule was paused; details carry the schedule name.\n- schedule.resumed: A recurring schedule was resumed; details carry the schedule name.\n- schedule.pause-expired: A timed pause elapsed; the scheduler auto-resumed the schedule. Details carry the schedule name.\n- schedule.triggered: Operator admitted a manual firing of the slot; no schedule cursor moved. Details carry the schedule name.\n- schedule.admitted: The admission engine selected one of the schedule's occurrences for a firing; details carry the schedule, the occurrence, the covered-through boundary, and the firing id.\n- schedule.skipped: A range of the schedule's occurrences was decided without work: the misfire policy skipped it, it expired, the schedule was full, its calendar no longer produces it, or a calendar publication discarded it; details carry the schedule, the range, and the reason.\n- schedule.retimed: A deploy changed the schedule's timing, or a calendar it names was published; the undecided occurrences of the old timing were discarded and the cursor moved to the first occurrence of the new one. Details carry the schedule name.\n- calendar.draft-saved: An operator saved a new draft version of a catalog calendar. Details carry the calendar, the version, and the role; EventMessage carries the reason.\n- calendar.published: An operator published a catalog calendar version, which became the family's current one. Details carry the calendar, the version, the version it replaced, the overdue decision, and the schedules it affected.\n- calendar.archived: An operator archived a catalog calendar's current version; the family has no current version until another is published. Details carry the calendar and the version.\n- worker.started: Worker process registered; a workers row was appended (Status: Active).\n- worker.stopped: Worker process shut down cleanly (Status: Active/Draining to Stopped).\n- worker.died: Worker heartbeat went stale; crash recovery flipped the worker to Dead.\n- alert.acknowledged: Operator acknowledged an alert; EventMessage carries the note.\n- alert.resolved: Operator manually resolved an alert; EventMessage carries the note.\n- outbox.requeued: An operator command returned quarantined outbox rows to Pending; EventMessage carries the justification and the row ids.\n- outbox.discarded: An operator command deleted quarantined outbox rows; EventMessage carries the justification and the deleted row ids.\n\nOther values may appear: keep a value this client does not know as it is.",
         "x-acta-known-values": [
-          {
-            "name": "Unspecified",
-            "value": "unspecified"
-          },
-          {
-            "name": "TenantSuspended",
-            "value": "tenant.suspended"
-          },
-          {
-            "name": "TenantResumed",
-            "value": "tenant.resumed"
-          },
-          {
-            "name": "TenantUpdated",
-            "value": "tenant.updated"
-          },
-          {
-            "name": "NamespaceSuspended",
-            "value": "namespace.suspended"
-          },
-          {
-            "name": "NamespaceResumed",
-            "value": "namespace.resumed"
-          },
-          {
-            "name": "NamespaceUpdated",
-            "value": "namespace.updated"
-          },
-          {
-            "name": "JobDefinitionOverridesUpdated",
-            "value": "definition.overrides-updated"
-          },
-          {
-            "name": "JobDefinitionRetired",
-            "value": "definition.retired"
-          },
-          {
-            "name": "JobExecutionSucceeded",
-            "value": "job.execution-succeeded"
-          },
-          {
-            "name": "JobExecutionFailed",
-            "value": "job.execution-failed"
-          },
-          {
-            "name": "JobExecutionOrphaned",
-            "value": "job.execution-orphaned"
-          },
-          {
-            "name": "JobExecutionYielded",
-            "value": "job.execution-yielded"
-          },
-          {
-            "name": "JobFailed",
-            "value": "job.failed"
-          },
-          {
-            "name": "JobSuspended",
-            "value": "job.suspended"
-          },
-          {
-            "name": "JobRescheduled",
-            "value": "job.rescheduled"
-          },
-          {
-            "name": "JobCancelled",
-            "value": "job.cancelled"
-          },
-          {
-            "name": "JobPaused",
-            "value": "job.paused"
-          },
-          {
-            "name": "JobResumed",
-            "value": "job.resumed"
-          },
-          {
-            "name": "JobRestarted",
-            "value": "job.restarted"
-          },
-          {
-            "name": "JobReprioritized",
-            "value": "job.reprioritized"
-          },
-          {
-            "name": "JobPurged",
-            "value": "job.purged"
-          },
-          {
-            "name": "JobInputAmended",
-            "value": "job.input-amended"
-          },
-          {
-            "name": "JobSignalRaised",
-            "value": "job.signal-raised"
-          },
-          {
-            "name": "JobStateReset",
-            "value": "job.state-reset"
-          },
-          {
-            "name": "JobNoteRecorded",
-            "value": "job.note-recorded"
-          },
-          {
-            "name": "SchedulePaused",
-            "value": "schedule.paused"
-          },
-          {
-            "name": "ScheduleResumed",
-            "value": "schedule.resumed"
-          },
-          {
-            "name": "SchedulePauseExpired",
-            "value": "schedule.pause-expired"
-          },
-          {
-            "name": "ScheduleTriggered",
-            "value": "schedule.triggered"
-          },
-          {
-            "name": "ScheduleAdmitted",
-            "value": "schedule.admitted"
-          },
-          {
-            "name": "ScheduleSkipped",
-            "value": "schedule.skipped"
-          },
-          {
-            "name": "ScheduleRetimed",
-            "value": "schedule.retimed"
-          },
-          {
-            "name": "CalendarDraftSaved",
-            "value": "calendar.draft-saved"
-          },
-          {
-            "name": "CalendarPublished",
-            "value": "calendar.published"
-          },
-          {
-            "name": "CalendarArchived",
-            "value": "calendar.archived"
-          },
-          {
-            "name": "WorkerStarted",
-            "value": "worker.started"
-          },
-          {
-            "name": "WorkerStopped",
-            "value": "worker.stopped"
-          },
-          {
-            "name": "WorkerDied",
-            "value": "worker.died"
-          },
-          {
-            "name": "AlertAcknowledged",
-            "value": "alert.acknowledged"
-          },
-          {
-            "name": "AlertResolved",
-            "value": "alert.resolved"
-          },
-          {
-            "name": "OutboxRequeued",
-            "value": "outbox.requeued"
-          },
-          {
-            "name": "OutboxDiscarded",
-            "value": "outbox.discarded"
-          }
+          "unspecified",
+          "tenant.suspended",
+          "tenant.resumed",
+          "tenant.updated",
+          "namespace.suspended",
+          "namespace.resumed",
+          "namespace.updated",
+          "definition.overrides-updated",
+          "definition.retired",
+          "job.execution-succeeded",
+          "job.execution-failed",
+          "job.execution-orphaned",
+          "job.execution-yielded",
+          "job.failed",
+          "job.suspended",
+          "job.rescheduled",
+          "job.cancelled",
+          "job.paused",
+          "job.resumed",
+          "job.restarted",
+          "job.reprioritized",
+          "job.purged",
+          "job.input-amended",
+          "job.signal-raised",
+          "job.state-reset",
+          "job.note-recorded",
+          "schedule.paused",
+          "schedule.resumed",
+          "schedule.pause-expired",
+          "schedule.triggered",
+          "schedule.admitted",
+          "schedule.skipped",
+          "schedule.retimed",
+          "calendar.draft-saved",
+          "calendar.published",
+          "calendar.archived",
+          "worker.started",
+          "worker.stopped",
+          "worker.died",
+          "alert.acknowledged",
+          "alert.resolved",
+          "outbox.requeued",
+          "outbox.discarded"
         ]
       },
       "EventRecordingCode": {
+        "examples": [
+          "off"
+        ],
         "type": "string",
+        "description": "Known values:\n- off: No recording-filtered per-job events; always-on system/catalog events still emit, and an enabled alert profile still records the failed, orphaned, terminally failed, and recovering attempts its alerts read.\n- failures: Emit failed, orphaned, and terminally failed attempts, a success only when it recovers from counted failures, and lane repairs; suppress other recording-filtered per-job events.\n- audit: Emit all recording-filtered per-job events. User Jobs default.\n\nOther values may appear: keep a value this client does not know as it is.",
         "x-acta-known-values": [
-          {
-            "name": "Off",
-            "value": "off"
-          },
-          {
-            "name": "Failures",
-            "value": "failures"
-          },
-          {
-            "name": "Audit",
-            "value": "audit"
-          }
+          "off",
+          "failures",
+          "audit"
         ]
       },
       "ExplainJobAction": {
@@ -9907,21 +9544,15 @@
         "description": "The durable wait a Suspended Job is blocked on: a signal name, or a timer and its due instant."
       },
       "FiringFailurePolicyCode": {
+        "examples": [
+          "continue"
+        ],
         "type": "string",
-        "description": "What happens to a scheduled definition's schedules when a firing fails for good: its attempts are\nspent, or an exception is not retryable.",
+        "description": "What happens to a scheduled definition's schedules when a firing fails for good: its attempts are\nspent, or an exception is not retryable.\n\nKnown values:\n- unspecified: Firing failure policy not recognized by this build; the row was written by a newer Acta.\n- continue: Default. A firing that fails for good leaves the definition's schedules scheduled; the next occurrence fires.\n- pause-scheduling: A firing that fails for good pauses every schedule of the definition with a pause message until an operator resumes them.\n\nOther values may appear: keep a value this client does not know as it is.",
         "x-acta-known-values": [
-          {
-            "name": "Unspecified",
-            "value": "unspecified"
-          },
-          {
-            "name": "Continue",
-            "value": "continue"
-          },
-          {
-            "name": "PauseScheduling",
-            "value": "pause-scheduling"
-          }
+          "unspecified",
+          "continue",
+          "pause-scheduling"
         ]
       },
       "GetAlertResponse": {
@@ -11165,21 +10796,15 @@
         "description": "Durable operator detail for one worker process registration."
       },
       "JobKindCode": {
+        "examples": [
+          "ordinary"
+        ],
         "type": "string",
-        "description": "What a `jobs` row is: an ordinary job, or the one permanent slot a scheduled definition fires through. The\nkind is written at insert and never changes; the executor and the operator verbs read it instead of guessing from\na deduplication key or from the schedules a row happens to own.",
+        "description": "What a `jobs` row is: an ordinary job, or the one permanent slot a scheduled definition fires through. The\nkind is written at insert and never changes; the executor and the operator verbs read it instead of guessing from\na deduplication key or from the schedules a row happens to own.\n\nKnown values:\n- unspecified: Job kind not recognized by this build; the row was written by a newer Acta.\n- ordinary: A job enqueued by an application, an operator, or a parent handler, or admitted by a schedule as a per-occurrence root; it ends in a terminal status.\n- permanent-slot: The one reusable job of a scheduled definition; registration creates it, every firing of the definition's schedules runs through it, and it is never terminal by itself.\n\nOther values may appear: keep a value this client does not know as it is.",
         "x-acta-known-values": [
-          {
-            "name": "Unspecified",
-            "value": "unspecified"
-          },
-          {
-            "name": "Ordinary",
-            "value": "ordinary"
-          },
-          {
-            "name": "PermanentSlot",
-            "value": "permanent-slot"
-          }
+          "unspecified",
+          "ordinary",
+          "permanent-slot"
         ]
       },
       "JobPayloadBody": {
@@ -11215,29 +10840,17 @@
         }
       },
       "JobPriorityCode": {
+        "examples": [
+          "bulk"
+        ],
         "type": "string",
-        "description": "Claim-priority value for `jobs_state.job_priority_code`. Discrete five-tier code-system enum\n(`Bulk` / `Normal` / `High` / `Critical` / `Realtime`); no intermediate\nvalues. Strict priority ordering on claim (no aging, no anti-starvation budget), so operators\nisolate bulk workloads in their own `JobNamespace`. Set by the definition policy, definition\noverride, or per-enqueue priority override.",
+        "description": "Claim-priority value for `jobs_state.job_priority_code`. Discrete five-tier code-system enum\n(`Bulk` / `Normal` / `High` / `Critical` / `Realtime`); no intermediate\nvalues. Strict priority ordering on claim (no aging, no anti-starvation budget), so operators\nisolate bulk workloads in their own `JobNamespace`. Set by the definition policy, definition\noverride, or per-enqueue priority override.\n\nKnown values:\n- bulk: Lowest practical priority; bulk-class workloads.\n- normal: Default priority. Most jobs use this.\n- high: Above normal; operator opt-in for time-sensitive work.\n- critical: Critical priority; close-to-realtime operator workloads.\n- realtime: Highest priority.\n\nOther values may appear: keep a value this client does not know as it is.",
         "x-acta-known-values": [
-          {
-            "name": "Bulk",
-            "value": "bulk"
-          },
-          {
-            "name": "Normal",
-            "value": "normal"
-          },
-          {
-            "name": "High",
-            "value": "high"
-          },
-          {
-            "name": "Critical",
-            "value": "critical"
-          },
-          {
-            "name": "Realtime",
-            "value": "realtime"
-          }
+          "bulk",
+          "normal",
+          "high",
+          "critical",
+          "realtime"
         ]
       },
       "JobRef": {
@@ -11245,48 +10858,22 @@
         "description": "Public stable reference for one Job row: \"job_\" plus the Guid's 32 lowercase hex digits, such as\n`job_01a14f4e954e7bf68ac609f3fcad8e3d`. Dashboards, HTTP APIs, and clients address jobs by this\nvalue; the numeric JobId stays the internal engine identity. It copies and searches as one word,\nand a UUIDv7 reads in creation order."
       },
       "JobStatusCode": {
+        "examples": [
+          "ready"
+        ],
         "type": "string",
+        "description": "Known values:\n- unspecified: Job status not recognized by this build; the row was written by a newer Acta.\n- ready: Eligible for claim; the claim path selects rows in this Status.\n- blocked: Waiting behind an earlier unfinished job of its lane; the claim never offers it, and the settle of the job ahead promotes it to Ready.\n- suspended: Parked and not progressing: awaiting an external signal via ctx.WaitSignalAsync, or awaiting children via ctx.WaitChildAsync / WaitChildrenAsync.\n- paused: Not running, awaiting an external trigger to resume.\n- idle: A permanent slot between firings: no outstanding firing, no lease, no claim time. Admission makes it Ready; it is never terminal.\n- executing: Claimed by a worker under a live lease; its handler is running or about to start.\n- succeeded: Terminal success.\n- failed: Terminal failure: MaxAttempts exhausted, a non-retryable exception, an interrupted at-most-once step, or ctx.FailAsync.\n- cancelled: Terminal cancellation by IJobs.CancelAsync or ctx.Cancel.\n\nOther values may appear: keep a value this client does not know as it is.",
         "x-acta-known-values": [
-          {
-            "name": "Unspecified",
-            "value": "unspecified"
-          },
-          {
-            "name": "Ready",
-            "value": "ready"
-          },
-          {
-            "name": "Blocked",
-            "value": "blocked"
-          },
-          {
-            "name": "Suspended",
-            "value": "suspended"
-          },
-          {
-            "name": "Paused",
-            "value": "paused"
-          },
-          {
-            "name": "Idle",
-            "value": "idle"
-          },
-          {
-            "name": "Executing",
-            "value": "executing"
-          },
-          {
-            "name": "Succeeded",
-            "value": "succeeded"
-          },
-          {
-            "name": "Failed",
-            "value": "failed"
-          },
-          {
-            "name": "Cancelled",
-            "value": "cancelled"
-          }
+          "unspecified",
+          "ready",
+          "blocked",
+          "suspended",
+          "paused",
+          "idle",
+          "executing",
+          "succeeded",
+          "failed",
+          "cancelled"
         ]
       },
       "ListAlertsItem": {
@@ -13015,63 +12602,41 @@
         "description": "One page of ValueTask&lt;ListWorkersResponse&gt; IWorkers.ListAsync(ListWorkersQuery query, CancellationToken ct = default(CancellationToken))."
       },
       "MisfireStrategyCode": {
+        "examples": [
+          "catch-up-once"
+        ],
         "type": "string",
+        "description": "Known values:\n- unspecified: Misfire strategy not recognized by this build; the row was written by a newer Acta.\n- catch-up-once: After downtime, fire once immediately for all missed occurrences, then resume from the next occurrence after now.\n- skip: After downtime, skip all missed occurrences and resume from the first occurrence strictly after now.\n- catch-up-latest: After downtime, fire once for the latest missed occurrence, the earlier ones coalesced into it, then resume from the next occurrence after now.\n- catch-up-all: After downtime, fire every missed occurrence in order, one per settlement, subject to the schedule's capacity.\n\nOther values may appear: keep a value this client does not know as it is.",
         "x-acta-known-values": [
-          {
-            "name": "Unspecified",
-            "value": "unspecified"
-          },
-          {
-            "name": "CatchUpOnce",
-            "value": "catch-up-once"
-          },
-          {
-            "name": "Skip",
-            "value": "skip"
-          },
-          {
-            "name": "CatchUpLatest",
-            "value": "catch-up-latest"
-          },
-          {
-            "name": "CatchUpAll",
-            "value": "catch-up-all"
-          }
+          "unspecified",
+          "catch-up-once",
+          "skip",
+          "catch-up-latest",
+          "catch-up-all"
         ]
       },
       "NamespaceStatusCode": {
+        "examples": [
+          "active"
+        ],
         "type": "string",
-        "description": "Namespace state machine. 10-spaced ids; live states 10..80, mirroring\nTenantStatusCode.",
+        "description": "Namespace state machine. 10-spaced ids; live states 10..80, mirroring\nTenantStatusCode.\n\nKnown values:\n- unspecified: Namespace status not recognized by this build; the row was written by a newer Acta.\n- active: Namespace resolves at enqueue; enqueue allowed.\n- suspended: Enqueue into the namespace is rejected and its schedules hold. Reversible (operator hold). Existing in-flight jobs are unaffected.\n\nOther values may appear: keep a value this client does not know as it is.",
         "x-acta-known-values": [
-          {
-            "name": "Unspecified",
-            "value": "unspecified"
-          },
-          {
-            "name": "Active",
-            "value": "active"
-          },
-          {
-            "name": "Suspended",
-            "value": "suspended"
-          }
+          "unspecified",
+          "active",
+          "suspended"
         ]
       },
       "OverdueDecisionCode": {
+        "examples": [
+          "refuse"
+        ],
         "type": "string",
+        "description": "Known values:\n- unspecified: Overdue decision not recognized by this build; the value was written by a newer Acta.\n- refuse: A publication with undecided overdue occurrences on a dependent schedule is rejected.\n- discard: The old stream's undecided prefix is audited as skipped, and the new stream starts after now.\n\nOther values may appear: keep a value this client does not know as it is.",
         "x-acta-known-values": [
-          {
-            "name": "Unspecified",
-            "value": "unspecified"
-          },
-          {
-            "name": "Refuse",
-            "value": "refuse"
-          },
-          {
-            "name": "Discard",
-            "value": "discard"
-          }
+          "unspecified",
+          "refuse",
+          "discard"
         ]
       },
       "PauseJobRequest": {
@@ -14052,141 +13617,91 @@
         "description": "What saving a draft did. Applied carries the new version and its content hash; Rejected carries each reason in\n`Problems`, a compiler problem starting with its JSON path, and, when the store refused it, the family's latest\nversion, 0 for a family with none. A namespace no worker has run in yet is created, so the save never answers NotFound."
       },
       "ScheduledDeliveryCode": {
+        "examples": [
+          "permanent"
+        ],
         "type": "string",
-        "description": "How a schedule delivers a definition's work: one permanent slot job fired again and again, or a fresh root job per\nadmitted occurrence. Immutable once the definition is registered.",
+        "description": "How a schedule delivers a definition's work: one permanent slot job fired again and again, or a fresh root job per\nadmitted occurrence. Immutable once the definition is registered.\n\nKnown values:\n- unspecified: Scheduled delivery not recognized by this build; the row was written by a newer Acta.\n- permanent: Default. The definition's schedules fire one permanent slot job again and again.\n- per-occurrence: Each admitted occurrence enqueues a fresh ordinary root job with its own state, retries, and retention.\n\nOther values may appear: keep a value this client does not know as it is.",
         "x-acta-known-values": [
-          {
-            "name": "Unspecified",
-            "value": "unspecified"
-          },
-          {
-            "name": "Permanent",
-            "value": "permanent"
-          },
-          {
-            "name": "PerOccurrence",
-            "value": "per-occurrence"
-          }
+          "unspecified",
+          "permanent",
+          "per-occurrence"
         ]
       },
       "ScheduleExpireActionCode": {
+        "examples": [
+          "discard"
+        ],
         "type": "string",
+        "description": "Known values:\n- unspecified: Schedule expire action not recognized by this build; the row was written by a newer Acta.\n- discard: An occurrence older than the schedule's expiry when it is evaluated is skipped, audited with the reason expired, and the schedule moves on.\n- pause: An occurrence older than the schedule's expiry when it is evaluated is skipped, audited with the reason expired, and the schedule is paused with the reason until an operator resumes it.\n\nOther values may appear: keep a value this client does not know as it is.",
         "x-acta-known-values": [
-          {
-            "name": "Unspecified",
-            "value": "unspecified"
-          },
-          {
-            "name": "Discard",
-            "value": "discard"
-          },
-          {
-            "name": "Pause",
-            "value": "pause"
-          }
+          "unspecified",
+          "discard",
+          "pause"
         ]
       },
       "ScheduleExpressionKindCode": {
+        "examples": [
+          "cron"
+        ],
         "type": "string",
+        "description": "Known values:\n- unspecified: Schedule expression kind not recognized by this build; the row was written by a newer Acta.\n- cron: Cron expression (Cronos dialect). Set at compile time by the source generator.\n- interval: Interval duration: human (e.g. \"5m\") or ISO 8601 (e.g. \"PT5M\", \"P1D\"). Set at compile time by the source generator.\n- calendar: A calendar named by the expression: its occurrences come from the bound calendar implementation. Set at compile time by the source generator.\n\nOther values may appear: keep a value this client does not know as it is.",
         "x-acta-known-values": [
-          {
-            "name": "Unspecified",
-            "value": "unspecified"
-          },
-          {
-            "name": "Cron",
-            "value": "cron"
-          },
-          {
-            "name": "Interval",
-            "value": "interval"
-          },
-          {
-            "name": "Calendar",
-            "value": "calendar"
-          }
+          "unspecified",
+          "cron",
+          "interval",
+          "calendar"
         ]
       },
       "ScheduleFullBehaviorCode": {
+        "examples": [
+          "wait"
+        ],
         "type": "string",
-        "description": "What a due occurrence does when its schedule already has its maximum of unsettled occurrences.",
+        "description": "What a due occurrence does when its schedule already has its maximum of unsettled occurrences.\n\nKnown values:\n- unspecified: Schedule full behavior not recognized by this build; the row was written by a newer Acta.\n- wait: Default. An occurrence of a full schedule stays undecided until a settlement frees capacity.\n- drop: An occurrence of a full schedule is skipped, audited, and the schedule moves on.\n\nOther values may appear: keep a value this client does not know as it is.",
         "x-acta-known-values": [
-          {
-            "name": "Unspecified",
-            "value": "unspecified"
-          },
-          {
-            "name": "Wait",
-            "value": "wait"
-          },
-          {
-            "name": "Drop",
-            "value": "drop"
-          }
+          "unspecified",
+          "wait",
+          "drop"
         ]
       },
       "ScheduleOriginCode": {
+        "examples": [
+          "operator"
+        ],
         "type": "string",
+        "description": "Known values:\n- unspecified: Schedule origin not recognized by this build; the row was written by a newer Acta.\n- operator: Operator-driven schedule add/remove. No code path produces rows with this origin today.\n- definition: Declared in [Schedule] attribute; refreshed by catalog upsert.\n\nOther values may appear: keep a value this client does not know as it is.",
         "x-acta-known-values": [
-          {
-            "name": "Unspecified",
-            "value": "unspecified"
-          },
-          {
-            "name": "Operator",
-            "value": "operator"
-          },
-          {
-            "name": "Definition",
-            "value": "definition"
-          }
+          "unspecified",
+          "operator",
+          "definition"
         ]
       },
       "ScheduleStatusCode": {
+        "examples": [
+          "active"
+        ],
         "type": "string",
+        "description": "Known values:\n- unspecified: Schedule status not recognized by this build; the row was written by a newer Acta.\n- active: Schedule is eligible to fire.\n- paused: Operator-paused; does not fire until resumed, or until PausedUntilUtc passes when set.\n- orphaned: Origin declaration disappeared from the catalog; set by reconciliation. Cannot fire or be paused/resumed.\n\nOther values may appear: keep a value this client does not know as it is.",
         "x-acta-known-values": [
-          {
-            "name": "Unspecified",
-            "value": "unspecified"
-          },
-          {
-            "name": "Active",
-            "value": "active"
-          },
-          {
-            "name": "Paused",
-            "value": "paused"
-          },
-          {
-            "name": "Orphaned",
-            "value": "orphaned"
-          }
+          "unspecified",
+          "active",
+          "paused",
+          "orphaned"
         ]
       },
       "StepStatusCode": {
+        "examples": [
+          "pending"
+        ],
         "type": "string",
-        "description": "State machine for `steps` rows. INSERT-once on first invocation (`Pending`);\nUPDATE-in-place across retries; terminal transition to `Succeeded` (with `Result` populated),\n`Exhausted` (parent receives `StepExhaustedException`), or `Interrupted` (an\n`AtMostOnce` step re-entered before completion; parent receives `StepInterruptedException`). One row per\n`(JobId, StepName)`; the framework never INSERTs a second step row for the same name.",
+        "description": "State machine for `steps` rows. INSERT-once on first invocation (`Pending`);\nUPDATE-in-place across retries; terminal transition to `Succeeded` (with `Result` populated),\n`Exhausted` (parent receives `StepExhaustedException`), or `Interrupted` (an\n`AtMostOnce` step re-entered before completion; parent receives `StepInterruptedException`). One row per\n`(JobId, StepName)`; the framework never INSERTs a second step row for the same name.\n\nKnown values:\n- unspecified: Step status not recognized by this build; the row was written by a newer Acta.\n- pending: Step in flight or retrying within MaxAttempts / RetryWindow.\n- succeeded: Step completed successfully; Result populated (or ResultFormatId = 0 for void steps).\n- exhausted: Step exhausted retry budget; parent handler receives StepExhaustedException.\n- interrupted: At-most-once step was re-entered before completion; outcome is unknown (ran 0 or 1 times). Parent receives StepInterruptedException.\n\nOther values may appear: keep a value this client does not know as it is.",
         "x-acta-known-values": [
-          {
-            "name": "Unspecified",
-            "value": "unspecified"
-          },
-          {
-            "name": "Pending",
-            "value": "pending"
-          },
-          {
-            "name": "Succeeded",
-            "value": "succeeded"
-          },
-          {
-            "name": "Exhausted",
-            "value": "exhausted"
-          },
-          {
-            "name": "Interrupted",
-            "value": "interrupted"
-          }
+          "unspecified",
+          "pending",
+          "succeeded",
+          "exhausted",
+          "interrupted"
         ]
       },
       "SuspendNamespaceRequest": {
@@ -14273,21 +13788,15 @@
         "description": "Caller-supplied per-tag wire row attached to an enqueued Job. Names are unique within a\nrequest; string? TagInput.Value is null for presence-only tags."
       },
       "TenantStatusCode": {
+        "examples": [
+          "active"
+        ],
         "type": "string",
-        "description": "Tenant state machine. 10-spaced ids; live states 10..80.",
+        "description": "Tenant state machine. 10-spaced ids; live states 10..80.\n\nKnown values:\n- unspecified: Tenant status not recognized by this build; the row was written by a newer Acta.\n- active: Tenant name resolves at enqueue; enqueue allowed.\n- suspended: Admission suspended: new enqueues naming the tenant name are rejected, while already admitted jobs keep running and may expand through inherited children. Applies to enqueue transactions beginning after the suspend commits. Reversible (billing/abuse hold, admin pause).\n\nOther values may appear: keep a value this client does not know as it is.",
         "x-acta-known-values": [
-          {
-            "name": "Unspecified",
-            "value": "unspecified"
-          },
-          {
-            "name": "Active",
-            "value": "active"
-          },
-          {
-            "name": "Suspended",
-            "value": "suspended"
-          }
+          "unspecified",
+          "active",
+          "suspended"
         ]
       },
       "TriggerScheduleRequest": {
@@ -14634,29 +14143,17 @@
         "type": "string"
       },
       "WorkerStatusCode": {
+        "examples": [
+          "active"
+        ],
         "type": "string",
-        "description": "Lifecycle status of a worker row. Mirrors the JobStatusCode band scheme: live states 10..90,\nterminal success at 100, terminal error at 200+.",
+        "description": "Lifecycle status of a worker row. Mirrors the JobStatusCode band scheme: live states 10..90,\nterminal success at 100, terminal error at 200+.\n\nKnown values:\n- unspecified: Worker status not recognized by this build; the row was written by a newer Acta.\n- active: Polling claim; accepting work.\n- draining: Worker stopped polling; finishing in-flight.\n- stopped: Worker shut down cleanly; terminal success.\n- dead: Heartbeat went stale; crash recovery reclaims lapsed leases, and a resumed heartbeat makes it Active again.\n\nOther values may appear: keep a value this client does not know as it is.",
         "x-acta-known-values": [
-          {
-            "name": "Unspecified",
-            "value": "unspecified"
-          },
-          {
-            "name": "Active",
-            "value": "active"
-          },
-          {
-            "name": "Draining",
-            "value": "draining"
-          },
-          {
-            "name": "Stopped",
-            "value": "stopped"
-          },
-          {
-            "name": "Dead",
-            "value": "dead"
-          }
+          "unspecified",
+          "active",
+          "draining",
+          "stopped",
+          "dead"
         ]
       }
     },

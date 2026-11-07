@@ -301,14 +301,26 @@ public sealed partial class OpenApiContractTests
             {
                 wrong.Add($"{name}: an open code must be a string");
             }
-            var declared = known.Select(v => $"{v!["name"]}={v["value"]}").ToList();
+            var declared = known.Select(v => v!.GetValue<string>()).ToList();
             if (EnumType(name) is not { } type)
             {
                 wrong.Add($"{name}: known values with no enum to check them against");
             }
-            else if (!declared.SequenceEqual(Enum.GetNames(type).Select(n => $"{n}={Written(type, n)}")))
+            else if (!declared.SequenceEqual(Enum.GetNames(type).Select(n => Written(type, n))))
             {
                 wrong.Add($"{name}: declares [{string.Join(", ", declared)}], not what the server writes");
+            }
+
+            // Readable without the extension: the description names every value and says others may appear.
+            var description = schema["description"]?.GetValue<string>() ?? "";
+            if (
+                !description.EndsWith(ActaOpenApiDocument.OtherValuesMayAppear, StringComparison.Ordinal)
+                || declared.Any(value => !description.Contains(value, StringComparison.Ordinal))
+                || schema["examples"] as JsonArray is not [JsonValue example]
+                || !declared.Contains(example.GetValue<string>())
+            )
+            {
+                wrong.Add($"{name}: its description or example does not show its known values");
             }
         }
 
@@ -407,7 +419,7 @@ public sealed partial class OpenApiContractTests
         var provider = schemas["GetCapabilitiesResponse"]!["properties"]!["provider"]!;
         var known = schemas["DbProvider"]![ActaOpenApiDocument.KnownValuesExtension]!
             .AsArray()
-            .Select(value => value!["value"]!.GetValue<string>())
+            .Select(value => value!.GetValue<string>())
             .ToList();
         var answered = new List<string>();
         foreach (var each in Enum.GetValues<DbProvider>())

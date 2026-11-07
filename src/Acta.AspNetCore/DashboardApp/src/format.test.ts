@@ -8,7 +8,7 @@ test("the jobs filter offers every status the server's jobs list accepts", () =>
   const status = openApi.paths['/v1/jobs'].get.parameters.find((p: { name: string }) => p.name === 'status');
   // An open code: the parameter references its family, whose known values the server writes and accepts.
   const family = openApi.components.schemas[status.schema.$ref.split('/').pop()];
-  const known = family['x-acta-known-values'].map((v: { value: string }) => v.value);
+  const known: string[] = family['x-acta-known-values'];
   assert.deepEqual([...JOB_STATUSES].sort(), known.filter((s: string) => s !== 'unspecified').sort());
 });
 
