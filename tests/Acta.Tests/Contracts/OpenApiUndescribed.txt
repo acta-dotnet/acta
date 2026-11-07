@@ -1,0 +1,1408 @@
+AcknowledgeAlertRequest.reasonMessage
+AcknowledgeAlertResponse.acknowledgedAtUtc
+AcknowledgeAlertResponse.action
+AcknowledgeAlertResponse.alertRef
+AcknowledgeAlertResponse.resolvedAtUtc
+AlertOriginCode
+AlertProfileCode
+AlertSeverityCode
+ArchiveCalendarRequest
+ArchiveCalendarRequest.expectedCurrentVersion
+ArchiveCalendarRequest.reasonMessage
+ArchiveCalendarResponse
+ArchiveCalendarResponse.action
+ArchiveCalendarResponse.dependentCount
+ArchiveCalendarResponse.version
+CalendarWindow
+CalendarWindow.endUtc
+CalendarWindow.startUtc
+CancelJobRequest
+CancelJobRequest.expectedVersion
+CancelJobRequest.reasonMessage
+CancelJobResponse.action
+CancelJobResponse.status
+CancelJobResponse.version
+CheckpointStatusCode
+DefinitionPolicyOverrides
+DefinitionPolicyOverrides.alertChannelName
+DefinitionPolicyOverrides.alertProfile
+DefinitionPolicyOverrides.backoff
+DefinitionPolicyOverrides.concurrencyLimit
+DefinitionPolicyOverrides.deadlineBehavior
+DefinitionPolicyOverrides.deadlineSeconds
+DefinitionPolicyOverrides.description
+DefinitionPolicyOverrides.displayName
+DefinitionPolicyOverrides.eventRecording
+DefinitionPolicyOverrides.executionTimeoutSeconds
+DefinitionPolicyOverrides.jobRetentionSeconds
+DefinitionPolicyOverrides.maxAttempts
+DefinitionPolicyOverrides.priority
+DefinitionPolicyOverrides.rateLimit
+DefinitionPolicyOverrides.runbookUrl
+DefinitionStatusCode
+DiscardOutboxRequest
+DiscardOutboxRequest.outboxIds
+DiscardOutboxRequest.reasonMessage
+DiscardOutboxResponse.action
+DiscardOutboxResponse.pendingSinceUtc
+EnqueueJobRequest
+EnqueueJobRequest.concurrencyKey
+EnqueueJobRequest.correlationKey
+EnqueueJobRequest.deduplicationKey
+EnqueueJobRequest.delaySeconds
+EnqueueJobRequest.input
+EnqueueJobRequest.jobName
+EnqueueJobRequest.jobNamespace
+EnqueueJobRequest.lane
+EnqueueJobRequest.nextRunAtUtc
+EnqueueJobRequest.priority
+EnqueueJobRequest.tags
+EnqueueJobRequest.tenantName
+EnqueueJobResponse.action
+EnqueueJobResponse.jobRef
+EventCode
+EventRecordingCode
+ExplainJobAction.description
+ExplainJobAction.kind
+ExplainJobLease
+ExplainJobLease.expired
+ExplainJobLease.expiresAtUtc
+ExplainJobLease.recoveryExpectation
+ExplainJobLease.workerLastSeenAtUtc
+ExplainJobLease.workerName
+ExplainJobLease.workerRef
+ExplainJobLease.workerStale
+ExplainJobResponse
+ExplainJobResponse.activeWait
+ExplainJobResponse.headline
+ExplainJobResponse.jobName
+ExplainJobResponse.jobNamespace
+ExplainJobResponse.jobRef
+ExplainJobResponse.lastExecutedBy
+ExplainJobResponse.lease
+ExplainJobResponse.nextActions
+ExplainJobResponse.reason
+ExplainJobResponse.status
+ExplainJobResponse.statusMeaning
+ExplainJobResponse.steps
+ExplainJobResponse.stepsHasMore
+ExplainJobStep.explanation
+ExplainJobStep.name
+ExplainJobStep.status
+ExplainJobWait.dueAtUtc
+ExplainJobWait.kind
+ExplainJobWait.name
+GetAlertResponse
+GetAlertResponse.acknowledgedAtUtc
+GetAlertResponse.alertRef
+GetAlertResponse.channelName
+GetAlertResponse.createdAtUtc
+GetAlertResponse.deliveryStatus
+GetAlertResponse.jobNamespace
+GetAlertResponse.jobRef
+GetAlertResponse.kind
+GetAlertResponse.message
+GetAlertResponse.modifiedAtUtc
+GetAlertResponse.occurrenceCount
+GetAlertResponse.origin
+GetAlertResponse.resolvedAtUtc
+GetAlertResponse.retryAfterUtc
+GetAlertResponse.retryCount
+GetAlertResponse.severity
+GetAlertResponse.title
+GetCalendarDetailResponse.calendar
+GetCalendarDetailResponse.dependents
+GetCalendarDetailResponse.versions
+GetCalendarResponse
+GetCalendarResponse.calendarName
+GetCalendarResponse.currentVersion
+GetCalendarResponse.definition
+GetCalendarResponse.jobNamespace
+GetCalendarResponse.latestVersion
+GetCalendarResponse.role
+GetCalendarResponse.shownStatus
+GetCalendarResponse.shownVersion
+GetCapabilitiesResponse.confirmationHeader
+GetCapabilitiesResponse.controlsEnabled
+GetCapabilitiesResponse.engineVersion
+GetCapabilitiesResponse.provider
+GetCapabilitiesResponse.schema
+GetDefinitionInputTemplateResponse.inputTypeName
+GetDefinitionInputTemplateResponse.jobName
+GetDefinitionInputTemplateResponse.jobNamespace
+GetDefinitionInputTemplateResponse.templateJson
+GetDefinitionResponse.alertChannelName
+GetDefinitionResponse.alertChannelNameEffective
+GetDefinitionResponse.alertChannelNameOverride
+GetDefinitionResponse.alertProfile
+GetDefinitionResponse.alertProfileEffective
+GetDefinitionResponse.alertProfileOverride
+GetDefinitionResponse.backoff
+GetDefinitionResponse.backoffEffective
+GetDefinitionResponse.backoffOverride
+GetDefinitionResponse.concurrencyLimit
+GetDefinitionResponse.concurrencyLimitEffective
+GetDefinitionResponse.concurrencyLimitOverride
+GetDefinitionResponse.createdAtUtc
+GetDefinitionResponse.deadlineBehavior
+GetDefinitionResponse.deadlineBehaviorEffective
+GetDefinitionResponse.deadlineBehaviorOverride
+GetDefinitionResponse.deadlineSeconds
+GetDefinitionResponse.deadlineSecondsEffective
+GetDefinitionResponse.deadlineSecondsOverride
+GetDefinitionResponse.definitionHash
+GetDefinitionResponse.description
+GetDefinitionResponse.descriptionEffective
+GetDefinitionResponse.descriptionOverride
+GetDefinitionResponse.displayName
+GetDefinitionResponse.displayNameEffective
+GetDefinitionResponse.displayNameOverride
+GetDefinitionResponse.eventRecording
+GetDefinitionResponse.eventRecordingEffective
+GetDefinitionResponse.eventRecordingOverride
+GetDefinitionResponse.executionTimeoutSeconds
+GetDefinitionResponse.executionTimeoutSecondsEffective
+GetDefinitionResponse.executionTimeoutSecondsOverride
+GetDefinitionResponse.firingFailurePolicy
+GetDefinitionResponse.inputFormatId
+GetDefinitionResponse.inputFormatName
+GetDefinitionResponse.inputTypeName
+GetDefinitionResponse.jobName
+GetDefinitionResponse.jobNamespace
+GetDefinitionResponse.jobRetentionSeconds
+GetDefinitionResponse.jobRetentionSecondsEffective
+GetDefinitionResponse.jobRetentionSecondsOverride
+GetDefinitionResponse.lane
+GetDefinitionResponse.manifestGenerationAtUtc
+GetDefinitionResponse.maxAttempts
+GetDefinitionResponse.maxAttemptsEffective
+GetDefinitionResponse.maxAttemptsOverride
+GetDefinitionResponse.modifiedAtUtc
+GetDefinitionResponse.priority
+GetDefinitionResponse.priorityEffective
+GetDefinitionResponse.priorityOverride
+GetDefinitionResponse.rateLimit
+GetDefinitionResponse.rateLimitEffective
+GetDefinitionResponse.rateLimitOverride
+GetDefinitionResponse.rateName
+GetDefinitionResponse.resultFormatId
+GetDefinitionResponse.resultFormatName
+GetDefinitionResponse.resultTypeName
+GetDefinitionResponse.runbookUrl
+GetDefinitionResponse.runbookUrlEffective
+GetDefinitionResponse.runbookUrlOverride
+GetDefinitionResponse.scheduledDelivery
+GetDefinitionResponse.status
+GetDefinitionResponse.version
+GetJobDetailResponse
+GetJobDetailResponse.checkpoints
+GetJobDetailResponse.explain
+GetJobDetailResponse.input
+GetJobDetailResponse.job
+GetJobDetailResponse.lineage
+GetJobDetailResponse.maxAttemptsEffective
+GetJobDetailResponse.result
+GetJobDetailResponse.schedules
+GetJobDetailResponse.schedulesTotal
+GetJobDetailResponse.workers
+GetJobDetailResponse.workersTotal
+GetJobLineageMapChild.createdAtUtc
+GetJobLineageMapChild.jobName
+GetJobLineageMapChild.jobRef
+GetJobLineageMapChild.modifiedAtUtc
+GetJobLineageMapChild.status
+GetJobLineageMapNode.createdAtUtc
+GetJobLineageMapNode.jobName
+GetJobLineageMapNode.jobNamespace
+GetJobLineageMapNode.jobRef
+GetJobLineageMapNode.lineageRootJobRef
+GetJobLineageMapNode.modifiedAtUtc
+GetJobLineageMapNode.parentJobRef
+GetJobLineageMapNode.status
+GetJobLineageMapResponse
+GetJobLineageMapResponse.activeWait
+GetJobLineageMapResponse.ancestors
+GetJobLineageMapResponse.ancestorsHasMore
+GetJobLineageMapResponse.children
+GetJobLineageMapResponse.childrenHasMore
+GetJobLineageMapResponse.job
+GetJobLineageMapResponse.steps
+GetJobLineageMapResponse.stepsHasMore
+GetJobLineageMapStep.explanation
+GetJobLineageMapStep.name
+GetJobLineageMapStep.status
+GetJobLineageMapWait.dueAtUtc
+GetJobLineageMapWait.kind
+GetJobLineageMapWait.name
+GetJobResponse
+GetJobResponse.blockedBehindJobRef
+GetJobResponse.concurrencyKey
+GetJobResponse.correlationKey
+GetJobResponse.createdAtUtc
+GetJobResponse.deduplicationKey
+GetJobResponse.executionNumber
+GetJobResponse.failureCount
+GetJobResponse.inputFormatId
+GetJobResponse.jobName
+GetJobResponse.jobNamespace
+GetJobResponse.jobRef
+GetJobResponse.kind
+GetJobResponse.lane
+GetJobResponse.leaseExpiresAtUtc
+GetJobResponse.leasedByWorkerRef
+GetJobResponse.lineageRootJobRef
+GetJobResponse.modifiedAtUtc
+GetJobResponse.nextRunAtUtc
+GetJobResponse.parentJobRef
+GetJobResponse.priority
+GetJobResponse.retentionUntilUtc
+GetJobResponse.status
+GetJobResponse.tenantName
+GetJobResponse.version
+GetNamespaceResponse
+GetNamespaceResponse.description
+GetNamespaceResponse.jobNamespace
+GetNamespaceResponse.ownerTeam
+GetNamespaceResponse.status
+GetNamespaceResponse.version
+GetOverviewResponse
+GetOverviewResponse.deadWorkerCount
+GetOverviewResponse.dueSoonScheduleCount
+GetOverviewResponse.executingCount
+GetOverviewResponse.executorCapacity
+GetOverviewResponse.failedCount
+GetOverviewResponse.oldestReadyAgeSeconds
+GetOverviewResponse.readyCount
+GetOverviewResponse.scheduleLagSeconds
+GetOverviewResponse.staleWorkerCount
+GetOverviewResponse.unresolvedAlertCount
+GetOverviewResponse.unresolvedCriticalAlertCount
+GetTenantResponse
+GetTenantResponse.createdAtUtc
+GetTenantResponse.description
+GetTenantResponse.displayName
+GetTenantResponse.modifiedAtUtc
+GetTenantResponse.status
+GetTenantResponse.tenantName
+GetTenantResponse.version
+GetWorkerResponse.deploymentVersion
+GetWorkerResponse.dotnetVersion
+GetWorkerResponse.engineVersion
+GetWorkerResponse.hostName
+GetWorkerResponse.jobNamespace
+GetWorkerResponse.lastSeenAtUtc
+GetWorkerResponse.maxConcurrentExecutors
+GetWorkerResponse.modifiedAtUtc
+GetWorkerResponse.processId
+GetWorkerResponse.startedAtUtc
+GetWorkerResponse.status
+GetWorkerResponse.workerRef
+JobPayloadBody
+JobPayloadBody.base64
+JobPayloadBody.byteLength
+JobPayloadBody.formatId
+JobPayloadBody.formatName
+JobPayloadBody.malformed
+JobPayloadBody.truncated
+JobPriorityCode
+JobStatusCode
+ListAlertsItem
+ListAlertsItem.acknowledgedAtUtc
+ListAlertsItem.alertRef
+ListAlertsItem.channelName
+ListAlertsItem.createdAtUtc
+ListAlertsItem.deliveryStatus
+ListAlertsItem.jobNamespace
+ListAlertsItem.jobRef
+ListAlertsItem.kind
+ListAlertsItem.message
+ListAlertsItem.modifiedAtUtc
+ListAlertsItem.occurrenceCount
+ListAlertsItem.origin
+ListAlertsItem.resolvedAtUtc
+ListAlertsItem.retryAfterUtc
+ListAlertsItem.retryCount
+ListAlertsItem.severity
+ListAlertsItem.title
+ListAlertsResponse.items
+ListAlertsResponse.totalCount
+ListCalendarDependentsItem
+ListCalendarDependentsItem.binding
+ListCalendarDependentsItem.jobName
+ListCalendarDependentsItem.jobNamespace
+ListCalendarDependentsItem.scheduleName
+ListCalendarDependentsItem.scheduledDelivery
+ListCalendarDependentsItem.status
+ListCalendarDependentsResponse.hasMore
+ListCalendarDependentsResponse.items
+ListCalendarDependentsResponse.nextCursor
+ListCalendarDependentsResponse.pageSize
+ListCalendarDependentsResponse.totalCount
+ListCalendarVersionsItem.contentHash
+ListCalendarVersionsItem.createdAtUtc
+ListCalendarVersionsItem.modifiedAtUtc
+ListCalendarVersionsItem.publishedAtUtc
+ListCalendarVersionsItem.status
+ListCalendarVersionsItem.version
+ListCalendarVersionsResponse.hasMore
+ListCalendarVersionsResponse.items
+ListCalendarVersionsResponse.nextCursor
+ListCalendarVersionsResponse.pageSize
+ListCalendarVersionsResponse.totalCount
+ListCalendarsItem
+ListCalendarsItem.calendarName
+ListCalendarsItem.currentVersion
+ListCalendarsItem.dependentCount
+ListCalendarsItem.jobNamespace
+ListCalendarsItem.latestStatus
+ListCalendarsItem.latestVersion
+ListCalendarsItem.modifiedAtUtc
+ListCalendarsItem.publishedAtUtc
+ListCalendarsItem.role
+ListCalendarsResponse.items
+ListCalendarsResponse.totalCount
+ListDefinitionsItem
+ListDefinitionsItem.concurrencyLimitEffective
+ListDefinitionsItem.concurrencyLimitOverride
+ListDefinitionsItem.inputTypeName
+ListDefinitionsItem.jobName
+ListDefinitionsItem.jobNamespace
+ListDefinitionsItem.lane
+ListDefinitionsItem.maxAttemptsEffective
+ListDefinitionsItem.maxAttemptsOverride
+ListDefinitionsItem.modifiedAtUtc
+ListDefinitionsItem.priorityEffective
+ListDefinitionsItem.priorityOverride
+ListDefinitionsItem.rateLimitEffective
+ListDefinitionsItem.rateLimitOverride
+ListDefinitionsItem.rateName
+ListDefinitionsItem.resultTypeName
+ListDefinitionsItem.status
+ListDefinitionsItem.version
+ListDefinitionsResponse.items
+ListDefinitionsResponse.totalCount
+ListEventsItem
+ListEventsItem.createdAtUtc
+ListEventsItem.detailsText
+ListEventsItem.durationMs
+ListEventsItem.entityId
+ListEventsItem.entityKind
+ListEventsItem.eventCode
+ListEventsItem.eventId
+ListEventsItem.executionNumber
+ListEventsItem.jobName
+ListEventsItem.jobNamespace
+ListEventsItem.jobRef
+ListEventsItem.lineageRootJobRef
+ListEventsItem.message
+ListEventsItem.tenantName
+ListEventsItem.workerRef
+ListEventsResponse.items
+ListEventsResponse.totalCount
+ListJobCheckpointsItem.createdAtUtc
+ListJobCheckpointsItem.dueAtUtc
+ListJobCheckpointsItem.kind
+ListJobCheckpointsItem.modifiedAtUtc
+ListJobCheckpointsItem.name
+ListJobCheckpointsItem.status
+ListJobCheckpointsItem.value
+ListJobCheckpointsResponse.hasMore
+ListJobCheckpointsResponse.items
+ListJobCheckpointsResponse.nextCursor
+ListJobCheckpointsResponse.pageSize
+ListJobCheckpointsResponse.totalCount
+ListJobStepsItem.attemptNumber
+ListJobStepsItem.createdAtUtc
+ListJobStepsItem.failureMessage
+ListJobStepsItem.modifiedAtUtc
+ListJobStepsItem.name
+ListJobStepsItem.nextRetryAtUtc
+ListJobStepsItem.status
+ListJobStepsResponse.hasMore
+ListJobStepsResponse.items
+ListJobStepsResponse.nextCursor
+ListJobStepsResponse.pageSize
+ListJobStepsResponse.totalCount
+ListJobsItem
+ListJobsItem.correlationKey
+ListJobsItem.createdAtUtc
+ListJobsItem.deduplicationKey
+ListJobsItem.executionNumber
+ListJobsItem.failureCount
+ListJobsItem.jobName
+ListJobsItem.jobNamespace
+ListJobsItem.jobRef
+ListJobsItem.lane
+ListJobsItem.lineageRootJobRef
+ListJobsItem.modifiedAtUtc
+ListJobsItem.nextRunAtUtc
+ListJobsItem.parentJobRef
+ListJobsItem.priority
+ListJobsItem.status
+ListJobsItem.tenantName
+ListJobsResponse.items
+ListJobsResponse.totalCount
+ListNamespacesItem
+ListNamespacesItem.description
+ListNamespacesItem.jobNamespace
+ListNamespacesItem.ownerTeam
+ListNamespacesItem.status
+ListNamespacesItem.version
+ListNamespacesResponse.items
+ListNamespacesResponse.totalCount
+ListOutboxSourcesItem
+ListOutboxSourcesItem.backlog
+ListOutboxSourcesItem.isLocal
+ListOutboxSourcesItem.jobNamespace
+ListOutboxSourcesItem.lastTickSummary
+ListOutboxSourcesItem.quarantineTotal
+ListOutboxSourcesItem.slotJobRef
+ListOutboxSourcesResponse.items
+ListOutboxSourcesResponse.totalCount
+ListQuarantinedOutboxItem
+ListQuarantinedOutboxItem.correlationKey
+ListQuarantinedOutboxItem.createdAtUtc
+ListQuarantinedOutboxItem.deduplicationKey
+ListQuarantinedOutboxItem.failureCount
+ListQuarantinedOutboxItem.jobName
+ListQuarantinedOutboxItem.jobNamespace
+ListQuarantinedOutboxItem.lastError
+ListQuarantinedOutboxItem.outboxId
+ListQuarantinedOutboxItem.tenantName
+ListQuarantinedOutboxResponse.items
+ListQuarantinedOutboxResponse.totalCount
+ListSchedulesItem
+ListSchedulesItem.availabilityCalendarName
+ListSchedulesItem.createdAtUtc
+ListSchedulesItem.evaluationStatus
+ListSchedulesItem.expireAction
+ListSchedulesItem.expireAfterSeconds
+ListSchedulesItem.expression
+ListSchedulesItem.expressionKind
+ListSchedulesItem.fullBehavior
+ListSchedulesItem.jobName
+ListSchedulesItem.jobNamespace
+ListSchedulesItem.jobRef
+ListSchedulesItem.maxOutstanding
+ListSchedulesItem.misfireStrategy
+ListSchedulesItem.modifiedAtUtc
+ListSchedulesItem.nextEvaluationAtUtc
+ListSchedulesItem.nextOccurrenceAtUtc
+ListSchedulesItem.origin
+ListSchedulesItem.outstandingCount
+ListSchedulesItem.pausedUntilUtc
+ListSchedulesItem.scheduleName
+ListSchedulesItem.scheduledDelivery
+ListSchedulesItem.status
+ListSchedulesItem.timeZoneId
+ListSchedulesItem.version
+ListSchedulesResponse.items
+ListSchedulesResponse.totalCount
+ListTagsItem.name
+ListTagsItem.value
+ListTagsResponse.hasMore
+ListTagsResponse.items
+ListTagsResponse.nextCursor
+ListTagsResponse.pageSize
+ListTagsResponse.totalCount
+ListTenantsItem
+ListTenantsItem.createdAtUtc
+ListTenantsItem.description
+ListTenantsItem.displayName
+ListTenantsItem.modifiedAtUtc
+ListTenantsItem.status
+ListTenantsItem.tenantName
+ListTenantsItem.version
+ListTenantsResponse.items
+ListTenantsResponse.totalCount
+ListWorkersItem.deploymentVersion
+ListWorkersItem.dotnetVersion
+ListWorkersItem.engineVersion
+ListWorkersItem.hostName
+ListWorkersItem.jobNamespace
+ListWorkersItem.lastSeenAtUtc
+ListWorkersItem.maxConcurrentExecutors
+ListWorkersItem.modifiedAtUtc
+ListWorkersItem.processId
+ListWorkersItem.startedAtUtc
+ListWorkersItem.status
+ListWorkersItem.workerRef
+ListWorkersResponse.items
+ListWorkersResponse.totalCount
+MisfireStrategyCode
+PauseJobRequest
+PauseJobRequest.expectedVersion
+PauseJobRequest.reasonMessage
+PauseJobResponse.action
+PauseJobResponse.status
+PauseJobResponse.version
+PauseScheduleRequest
+PauseScheduleRequest.pausedUntilUtc
+PauseScheduleRequest.reasonMessage
+PauseScheduleResponse.action
+PauseScheduleResponse.nextOccurrenceAtUtc
+PauseScheduleResponse.pausedUntilUtc
+PauseScheduleResponse.status
+PauseScheduleResponse.version
+PreviewCalendarItem.binding
+PreviewCalendarItem.jobName
+PreviewCalendarItem.jobNamespace
+PreviewCalendarItem.overdue
+PreviewCalendarItem.scheduleName
+PreviewCalendarItem.status
+PreviewCalendarResponse
+PreviewCalendarResponse.currentOccurrencesUtc
+PreviewCalendarResponse.currentVersion
+PreviewCalendarResponse.currentWindows
+PreviewCalendarResponse.occurrencesUtc
+PreviewCalendarResponse.overdueTotal
+PreviewCalendarResponse.role
+PreviewCalendarResponse.schedules
+PreviewCalendarResponse.schedulesTotal
+PreviewCalendarResponse.version
+PreviewCalendarResponse.windows
+PreviewScheduleResponse.expression
+PreviewScheduleResponse.nextOccurrencesUtc
+PreviewScheduleResponse.timeZoneId
+ProblemDetails
+ProblemDetails.detail
+ProblemDetails.instance
+ProblemDetails.reasonCode
+ProblemDetails.status
+ProblemDetails.title
+ProblemDetails.type
+PublishCalendarRequest
+PublishCalendarRequest.candidateVersion
+PublishCalendarRequest.expectedCurrentVersion
+PublishCalendarRequest.overdueDecision
+PublishCalendarRequest.reasonMessage
+PublishCalendarResponse.action
+PublishCalendarResponse.overdueSchedules
+PublishCalendarResponse.reason
+PublishCalendarResponse.retimedSchedules
+PublishCalendarResponse.version
+PurgeJobRequest.reasonMessage
+PurgeJobResponse.action
+PurgeJobResponse.status
+PurgeJobResponse.version
+RaiseJobSignalResponse.action
+RaiseJobSignalResponse.status
+RaiseJobSignalResponse.version
+RegisterTenantRequest.description
+RegisterTenantRequest.displayName
+RegisterTenantRequest.tenantName
+RegisterTenantResponse.tenantName
+RemoveTagResponse.action
+ReprioritizeJobRequest
+ReprioritizeJobRequest.expectedVersion
+ReprioritizeJobRequest.priority
+ReprioritizeJobRequest.reasonMessage
+ReprioritizeJobResponse.action
+ReprioritizeJobResponse.status
+ReprioritizeJobResponse.version
+RequeueOutboxRequest
+RequeueOutboxRequest.outboxIds
+RequeueOutboxRequest.reasonMessage
+RequeueOutboxResponse.action
+RequeueOutboxResponse.pendingSinceUtc
+RescheduleJobRequest
+RescheduleJobRequest.expectedVersion
+RescheduleJobRequest.nextRunAtUtc
+RescheduleJobRequest.reasonMessage
+RescheduleJobResponse.action
+RescheduleJobResponse.status
+RescheduleJobResponse.version
+ResolveAlertRequest.reasonMessage
+ResolveAlertResponse.acknowledgedAtUtc
+ResolveAlertResponse.action
+ResolveAlertResponse.alertRef
+ResolveAlertResponse.resolvedAtUtc
+RestartJobRequest
+RestartJobRequest.expectedVersion
+RestartJobRequest.reasonMessage
+RestartJobResponse.action
+RestartJobResponse.status
+RestartJobResponse.version
+ResumeJobRequest
+ResumeJobRequest.expectedVersion
+ResumeJobRequest.reasonMessage
+ResumeJobResponse.action
+ResumeJobResponse.status
+ResumeJobResponse.version
+ResumeNamespaceRequest.reasonMessage
+ResumeNamespaceResponse.action
+ResumeNamespaceResponse.version
+ResumeScheduleRequest.reasonMessage
+ResumeScheduleResponse.action
+ResumeScheduleResponse.nextOccurrenceAtUtc
+ResumeScheduleResponse.pausedUntilUtc
+ResumeScheduleResponse.status
+ResumeScheduleResponse.version
+ResumeTenantRequest.reasonMessage
+ResumeTenantResponse.action
+ResumeTenantResponse.version
+RetireDefinitionRequest
+RetireDefinitionRequest.expectedVersion
+RetireDefinitionRequest.reasonMessage
+RetireDefinitionResponse.action
+RetireDefinitionResponse.version
+SaveCalendarDraftRequest
+SaveCalendarDraftRequest.expectedLatestVersion
+SaveCalendarDraftRequest.reasonMessage
+SaveCalendarDraftRequest.role
+SaveCalendarDraftResponse.action
+SaveCalendarDraftResponse.contentHash
+SaveCalendarDraftResponse.problems
+SaveCalendarDraftResponse.version
+ScheduleExpressionKindCode
+ScheduleOriginCode
+ScheduleStatusCode
+StepStatusCode
+SuspendNamespaceRequest.reasonMessage
+SuspendNamespaceResponse.action
+SuspendNamespaceResponse.version
+SuspendTenantRequest.reasonMessage
+SuspendTenantResponse.action
+SuspendTenantResponse.version
+TagInput.name
+TagInput.value
+TriggerScheduleRequest.reasonMessage
+TriggerScheduleResponse.action
+TriggerScheduleResponse.nextOccurrenceAtUtc
+TriggerScheduleResponse.pausedUntilUtc
+TriggerScheduleResponse.status
+TriggerScheduleResponse.version
+UpdateDefinitionOverridesRequest
+UpdateDefinitionOverridesRequest.expectedVersion
+UpdateDefinitionOverridesRequest.overrides
+UpdateDefinitionOverridesRequest.reasonMessage
+UpdateDefinitionOverridesResponse.action
+UpdateDefinitionOverridesResponse.version
+UpdateJobInputRequest.input
+UpdateJobInputRequest.reasonMessage
+UpdateJobInputResponse.action
+UpdateJobInputResponse.status
+UpdateJobInputResponse.version
+UpdateNamespaceRequest
+UpdateNamespaceRequest.description
+UpdateNamespaceRequest.expectedVersion
+UpdateNamespaceRequest.ownerTeam
+UpdateNamespaceRequest.reasonMessage
+UpdateNamespaceResponse.action
+UpdateNamespaceResponse.version
+UpdateTenantRequest
+UpdateTenantRequest.description
+UpdateTenantRequest.displayName
+UpdateTenantRequest.expectedVersion
+UpdateTenantRequest.reasonMessage
+UpdateTenantResponse.action
+UpdateTenantResponse.version
+UpsertTagRequest.value
+UpsertTagResponse.action
+acknowledgeAlert parameter alertRef
+acknowledgeAlert response 200
+acknowledgeAlert response 400
+acknowledgeAlert response 401
+acknowledgeAlert response 403
+acknowledgeAlert response 404
+acknowledgeAlert response 413
+acknowledgeAlert response 415
+acknowledgeAlert response 500
+acknowledgeAlert response 503
+archiveCalendar parameter calendarName
+archiveCalendar parameter jobNamespace
+archiveCalendar response 200
+archiveCalendar response 400
+archiveCalendar response 401
+archiveCalendar response 403
+archiveCalendar response 404
+archiveCalendar response 409
+archiveCalendar response 413
+archiveCalendar response 415
+archiveCalendar response 500
+archiveCalendar response 503
+cancelJob parameter jobRef
+cancelJob response 200
+cancelJob response 400
+cancelJob response 401
+cancelJob response 403
+cancelJob response 404
+cancelJob response 409
+cancelJob response 413
+cancelJob response 415
+cancelJob response 500
+cancelJob response 503
+discardOutbox parameter jobNamespace
+discardOutbox response 202
+discardOutbox response 400
+discardOutbox response 401
+discardOutbox response 403
+discardOutbox response 404
+discardOutbox response 409
+discardOutbox response 413
+discardOutbox response 415
+discardOutbox response 500
+discardOutbox response 503
+enqueueJob response 200
+enqueueJob response 201
+enqueueJob response 400
+enqueueJob response 401
+enqueueJob response 403
+enqueueJob response 409
+enqueueJob response 413
+enqueueJob response 415
+enqueueJob response 500
+enqueueJob response 503
+getAlert parameter alertRef
+getAlert response 200
+getAlert response 400
+getAlert response 401
+getAlert response 403
+getAlert response 404
+getAlert response 500
+getAlert response 503
+getCalendar parameter calendarName
+getCalendar parameter jobNamespace
+getCalendar response 200
+getCalendar response 400
+getCalendar response 401
+getCalendar response 403
+getCalendar response 404
+getCalendar response 500
+getCalendar response 503
+getCalendarDetail parameter calendarName
+getCalendarDetail parameter jobNamespace
+getCalendarDetail response 200
+getCalendarDetail response 400
+getCalendarDetail response 401
+getCalendarDetail response 403
+getCalendarDetail response 404
+getCalendarDetail response 500
+getCalendarDetail response 503
+getCapabilities response 200
+getCapabilities response 401
+getCapabilities response 403
+getCapabilities response 500
+getDefinition parameter jobName
+getDefinition parameter jobNamespace
+getDefinition response 200
+getDefinition response 400
+getDefinition response 401
+getDefinition response 403
+getDefinition response 404
+getDefinition response 500
+getDefinition response 503
+getDefinitionInputTemplate parameter jobName
+getDefinitionInputTemplate parameter jobNamespace
+getDefinitionInputTemplate response 200
+getDefinitionInputTemplate response 401
+getDefinitionInputTemplate response 403
+getDefinitionInputTemplate response 404
+getDefinitionInputTemplate response 500
+getJob parameter jobRef
+getJob response 200
+getJob response 400
+getJob response 401
+getJob response 403
+getJob response 404
+getJob response 500
+getJob response 503
+getJobByKey response 200
+getJobByKey response 400
+getJobByKey response 401
+getJobByKey response 403
+getJobByKey response 404
+getJobByKey response 500
+getJobByKey response 503
+getJobDetail parameter jobRef
+getJobDetail response 200
+getJobDetail response 400
+getJobDetail response 401
+getJobDetail response 403
+getJobDetail response 404
+getJobDetail response 500
+getJobDetail response 503
+getJobInput parameter jobRef
+getJobInput response 200
+getJobInput response 204
+getJobInput response 400
+getJobInput response 401
+getJobInput response 403
+getJobInput response 404
+getJobInput response 500
+getJobInput response 503
+getJobResult parameter jobRef
+getJobResult response 200
+getJobResult response 204
+getJobResult response 400
+getJobResult response 401
+getJobResult response 403
+getJobResult response 404
+getJobResult response 500
+getJobResult response 503
+getNamespace parameter jobNamespace
+getNamespace response 200
+getNamespace response 400
+getNamespace response 401
+getNamespace response 403
+getNamespace response 404
+getNamespace response 500
+getNamespace response 503
+getOverview response 200
+getOverview response 400
+getOverview response 401
+getOverview response 403
+getOverview response 500
+getOverview response 503
+getTenant parameter tenantName
+getTenant response 200
+getTenant response 400
+getTenant response 401
+getTenant response 403
+getTenant response 404
+getTenant response 500
+getTenant response 503
+getWorker parameter workerRef
+getWorker response 200
+getWorker response 400
+getWorker response 401
+getWorker response 403
+getWorker response 404
+getWorker response 500
+getWorker response 503
+listAlerts response 200
+listAlerts response 400
+listAlerts response 401
+listAlerts response 403
+listAlerts response 404
+listAlerts response 500
+listAlerts response 503
+listCalendarDependents parameter calendarName
+listCalendarDependents parameter jobNamespace
+listCalendarDependents response 200
+listCalendarDependents response 400
+listCalendarDependents response 401
+listCalendarDependents response 403
+listCalendarDependents response 404
+listCalendarDependents response 500
+listCalendarDependents response 503
+listCalendarVersions parameter calendarName
+listCalendarVersions parameter jobNamespace
+listCalendarVersions response 200
+listCalendarVersions response 400
+listCalendarVersions response 401
+listCalendarVersions response 403
+listCalendarVersions response 404
+listCalendarVersions response 500
+listCalendarVersions response 503
+listCalendars response 200
+listCalendars response 400
+listCalendars response 401
+listCalendars response 403
+listCalendars response 500
+listCalendars response 503
+listDefinitionEvents parameter jobName
+listDefinitionEvents parameter jobNamespace
+listDefinitionEvents response 200
+listDefinitionEvents response 400
+listDefinitionEvents response 401
+listDefinitionEvents response 403
+listDefinitionEvents response 404
+listDefinitionEvents response 500
+listDefinitionEvents response 503
+listDefinitionTags parameter jobName
+listDefinitionTags parameter jobNamespace
+listDefinitionTags response 200
+listDefinitionTags response 400
+listDefinitionTags response 401
+listDefinitionTags response 403
+listDefinitionTags response 404
+listDefinitionTags response 500
+listDefinitionTags response 503
+listDefinitions response 200
+listDefinitions response 400
+listDefinitions response 401
+listDefinitions response 403
+listDefinitions response 500
+listDefinitions response 503
+listEvents response 200
+listEvents response 400
+listEvents response 401
+listEvents response 403
+listEvents response 404
+listEvents response 500
+listEvents response 503
+listJobCheckpoints parameter jobRef
+listJobCheckpoints response 200
+listJobCheckpoints response 400
+listJobCheckpoints response 401
+listJobCheckpoints response 403
+listJobCheckpoints response 404
+listJobCheckpoints response 500
+listJobCheckpoints response 503
+listJobEvents parameter jobRef
+listJobEvents response 200
+listJobEvents response 400
+listJobEvents response 401
+listJobEvents response 403
+listJobEvents response 404
+listJobEvents response 500
+listJobEvents response 503
+listJobSteps parameter jobRef
+listJobSteps response 200
+listJobSteps response 400
+listJobSteps response 401
+listJobSteps response 403
+listJobSteps response 404
+listJobSteps response 500
+listJobSteps response 503
+listJobTags parameter jobRef
+listJobTags response 200
+listJobTags response 400
+listJobTags response 401
+listJobTags response 403
+listJobTags response 404
+listJobTags response 500
+listJobTags response 503
+listJobs response 200
+listJobs response 400
+listJobs response 401
+listJobs response 403
+listJobs response 404
+listJobs response 500
+listJobs response 503
+listNamespaceTags parameter jobNamespace
+listNamespaceTags response 200
+listNamespaceTags response 400
+listNamespaceTags response 401
+listNamespaceTags response 403
+listNamespaceTags response 404
+listNamespaceTags response 500
+listNamespaceTags response 503
+listNamespaces response 200
+listNamespaces response 400
+listNamespaces response 401
+listNamespaces response 403
+listNamespaces response 500
+listNamespaces response 503
+listOutboxSources response 200
+listOutboxSources response 400
+listOutboxSources response 401
+listOutboxSources response 403
+listOutboxSources response 500
+listOutboxSources response 503
+listQuarantinedOutbox parameter jobNamespace
+listQuarantinedOutbox response 200
+listQuarantinedOutbox response 400
+listQuarantinedOutbox response 401
+listQuarantinedOutbox response 403
+listQuarantinedOutbox response 409
+listQuarantinedOutbox response 500
+listQuarantinedOutbox response 503
+listSchedules response 200
+listSchedules response 400
+listSchedules response 401
+listSchedules response 403
+listSchedules response 500
+listSchedules response 503
+listTenantTags parameter tenantName
+listTenantTags response 200
+listTenantTags response 400
+listTenantTags response 401
+listTenantTags response 403
+listTenantTags response 404
+listTenantTags response 500
+listTenantTags response 503
+listTenants response 200
+listTenants response 400
+listTenants response 401
+listTenants response 403
+listTenants response 500
+listTenants response 503
+listWorkers response 200
+listWorkers response 400
+listWorkers response 401
+listWorkers response 403
+listWorkers response 500
+listWorkers response 503
+pauseJob parameter jobRef
+pauseJob response 200
+pauseJob response 400
+pauseJob response 401
+pauseJob response 403
+pauseJob response 404
+pauseJob response 409
+pauseJob response 413
+pauseJob response 415
+pauseJob response 500
+pauseJob response 503
+pauseSchedule parameter jobName
+pauseSchedule parameter jobNamespace
+pauseSchedule parameter scheduleName
+pauseSchedule response 200
+pauseSchedule response 400
+pauseSchedule response 401
+pauseSchedule response 403
+pauseSchedule response 404
+pauseSchedule response 409
+pauseSchedule response 413
+pauseSchedule response 415
+pauseSchedule response 500
+pauseSchedule response 503
+previewCalendar parameter calendarName
+previewCalendar parameter jobNamespace
+previewCalendar response 200
+previewCalendar response 400
+previewCalendar response 401
+previewCalendar response 403
+previewCalendar response 404
+previewCalendar response 500
+previewCalendar response 503
+previewSchedule parameter jobName
+previewSchedule parameter jobNamespace
+previewSchedule parameter scheduleName
+previewSchedule response 200
+previewSchedule response 400
+previewSchedule response 401
+previewSchedule response 403
+previewSchedule response 404
+previewSchedule response 409
+previewSchedule response 500
+previewSchedule response 503
+publishCalendar parameter calendarName
+publishCalendar parameter jobNamespace
+publishCalendar response 200
+publishCalendar response 400
+publishCalendar response 401
+publishCalendar response 403
+publishCalendar response 404
+publishCalendar response 409
+publishCalendar response 413
+publishCalendar response 415
+publishCalendar response 500
+publishCalendar response 503
+purgeJob parameter jobRef
+purgeJob response 200
+purgeJob response 400
+purgeJob response 401
+purgeJob response 403
+purgeJob response 404
+purgeJob response 409
+purgeJob response 413
+purgeJob response 415
+purgeJob response 500
+purgeJob response 503
+raiseJobSignal parameter jobRef
+raiseJobSignal parameter signalName
+raiseJobSignal response 200
+raiseJobSignal response 400
+raiseJobSignal response 401
+raiseJobSignal response 403
+raiseJobSignal response 404
+raiseJobSignal response 409
+raiseJobSignal response 413
+raiseJobSignal response 415
+raiseJobSignal response 500
+raiseJobSignal response 503
+registerTenant response 200
+registerTenant response 400
+registerTenant response 401
+registerTenant response 403
+registerTenant response 413
+registerTenant response 415
+registerTenant response 500
+registerTenant response 503
+removeDefinitionTag parameter jobName
+removeDefinitionTag parameter jobNamespace
+removeDefinitionTag parameter tagName
+removeDefinitionTag response 200
+removeDefinitionTag response 400
+removeDefinitionTag response 401
+removeDefinitionTag response 403
+removeDefinitionTag response 404
+removeDefinitionTag response 500
+removeDefinitionTag response 503
+removeJobTag parameter jobRef
+removeJobTag parameter tagName
+removeJobTag response 200
+removeJobTag response 400
+removeJobTag response 401
+removeJobTag response 403
+removeJobTag response 404
+removeJobTag response 500
+removeJobTag response 503
+removeNamespaceTag parameter jobNamespace
+removeNamespaceTag parameter tagName
+removeNamespaceTag response 200
+removeNamespaceTag response 400
+removeNamespaceTag response 401
+removeNamespaceTag response 403
+removeNamespaceTag response 404
+removeNamespaceTag response 500
+removeNamespaceTag response 503
+removeTenantTag parameter tagName
+removeTenantTag parameter tenantName
+removeTenantTag response 200
+removeTenantTag response 400
+removeTenantTag response 401
+removeTenantTag response 403
+removeTenantTag response 404
+removeTenantTag response 500
+removeTenantTag response 503
+reprioritizeJob parameter jobRef
+reprioritizeJob response 200
+reprioritizeJob response 400
+reprioritizeJob response 401
+reprioritizeJob response 403
+reprioritizeJob response 404
+reprioritizeJob response 409
+reprioritizeJob response 413
+reprioritizeJob response 415
+reprioritizeJob response 500
+reprioritizeJob response 503
+requeueOutbox parameter jobNamespace
+requeueOutbox response 202
+requeueOutbox response 400
+requeueOutbox response 401
+requeueOutbox response 403
+requeueOutbox response 404
+requeueOutbox response 409
+requeueOutbox response 413
+requeueOutbox response 415
+requeueOutbox response 500
+requeueOutbox response 503
+rescheduleJob parameter jobRef
+rescheduleJob response 200
+rescheduleJob response 400
+rescheduleJob response 401
+rescheduleJob response 403
+rescheduleJob response 404
+rescheduleJob response 409
+rescheduleJob response 413
+rescheduleJob response 415
+rescheduleJob response 500
+rescheduleJob response 503
+resolveAlert parameter alertRef
+resolveAlert response 200
+resolveAlert response 400
+resolveAlert response 401
+resolveAlert response 403
+resolveAlert response 404
+resolveAlert response 413
+resolveAlert response 415
+resolveAlert response 500
+resolveAlert response 503
+restartJob parameter jobRef
+restartJob response 200
+restartJob response 400
+restartJob response 401
+restartJob response 403
+restartJob response 404
+restartJob response 409
+restartJob response 413
+restartJob response 415
+restartJob response 500
+restartJob response 503
+resumeJob parameter jobRef
+resumeJob response 200
+resumeJob response 400
+resumeJob response 401
+resumeJob response 403
+resumeJob response 404
+resumeJob response 409
+resumeJob response 413
+resumeJob response 415
+resumeJob response 500
+resumeJob response 503
+resumeNamespace parameter jobNamespace
+resumeNamespace response 200
+resumeNamespace response 400
+resumeNamespace response 401
+resumeNamespace response 403
+resumeNamespace response 404
+resumeNamespace response 413
+resumeNamespace response 415
+resumeNamespace response 500
+resumeNamespace response 503
+resumeSchedule parameter jobName
+resumeSchedule parameter jobNamespace
+resumeSchedule parameter scheduleName
+resumeSchedule response 200
+resumeSchedule response 400
+resumeSchedule response 401
+resumeSchedule response 403
+resumeSchedule response 404
+resumeSchedule response 409
+resumeSchedule response 413
+resumeSchedule response 415
+resumeSchedule response 500
+resumeSchedule response 503
+resumeTenant parameter tenantName
+resumeTenant response 200
+resumeTenant response 400
+resumeTenant response 401
+resumeTenant response 403
+resumeTenant response 404
+resumeTenant response 413
+resumeTenant response 415
+resumeTenant response 500
+resumeTenant response 503
+retireDefinition parameter jobName
+retireDefinition parameter jobNamespace
+retireDefinition response 200
+retireDefinition response 400
+retireDefinition response 401
+retireDefinition response 403
+retireDefinition response 404
+retireDefinition response 409
+retireDefinition response 413
+retireDefinition response 415
+retireDefinition response 500
+retireDefinition response 503
+saveCalendarDraft parameter calendarName
+saveCalendarDraft parameter jobNamespace
+saveCalendarDraft response 200
+saveCalendarDraft response 400
+saveCalendarDraft response 401
+saveCalendarDraft response 403
+saveCalendarDraft response 404
+saveCalendarDraft response 409
+saveCalendarDraft response 413
+saveCalendarDraft response 415
+saveCalendarDraft response 500
+saveCalendarDraft response 503
+suspendNamespace parameter jobNamespace
+suspendNamespace response 200
+suspendNamespace response 400
+suspendNamespace response 401
+suspendNamespace response 403
+suspendNamespace response 404
+suspendNamespace response 413
+suspendNamespace response 415
+suspendNamespace response 500
+suspendNamespace response 503
+suspendTenant parameter tenantName
+suspendTenant response 200
+suspendTenant response 400
+suspendTenant response 401
+suspendTenant response 403
+suspendTenant response 404
+suspendTenant response 413
+suspendTenant response 415
+suspendTenant response 500
+suspendTenant response 503
+tag Alerts
+tag Calendars
+tag Capabilities
+tag Definitions
+tag Events
+tag Jobs
+tag Namespaces
+tag Outbox
+tag Overview
+tag Schedules
+tag Tenants
+tag Workers
+triggerSchedule parameter jobName
+triggerSchedule parameter jobNamespace
+triggerSchedule parameter scheduleName
+triggerSchedule response 200
+triggerSchedule response 400
+triggerSchedule response 401
+triggerSchedule response 403
+triggerSchedule response 404
+triggerSchedule response 409
+triggerSchedule response 413
+triggerSchedule response 415
+triggerSchedule response 500
+triggerSchedule response 503
+updateDefinitionOverrides parameter jobName
+updateDefinitionOverrides parameter jobNamespace
+updateDefinitionOverrides response 200
+updateDefinitionOverrides response 400
+updateDefinitionOverrides response 401
+updateDefinitionOverrides response 403
+updateDefinitionOverrides response 404
+updateDefinitionOverrides response 409
+updateDefinitionOverrides response 413
+updateDefinitionOverrides response 415
+updateDefinitionOverrides response 500
+updateDefinitionOverrides response 503
+updateJobInput parameter jobRef
+updateJobInput response 200
+updateJobInput response 400
+updateJobInput response 401
+updateJobInput response 403
+updateJobInput response 404
+updateJobInput response 409
+updateJobInput response 413
+updateJobInput response 415
+updateJobInput response 500
+updateJobInput response 503
+updateNamespace parameter jobNamespace
+updateNamespace response 200
+updateNamespace response 400
+updateNamespace response 401
+updateNamespace response 403
+updateNamespace response 404
+updateNamespace response 409
+updateNamespace response 413
+updateNamespace response 415
+updateNamespace response 500
+updateNamespace response 503
+updateTenant parameter tenantName
+updateTenant response 200
+updateTenant response 400
+updateTenant response 401
+updateTenant response 403
+updateTenant response 404
+updateTenant response 409
+updateTenant response 413
+updateTenant response 415
+updateTenant response 500
+updateTenant response 503
+upsertDefinitionTag parameter jobName
+upsertDefinitionTag parameter jobNamespace
+upsertDefinitionTag parameter tagName
+upsertDefinitionTag response 200
+upsertDefinitionTag response 400
+upsertDefinitionTag response 401
+upsertDefinitionTag response 403
+upsertDefinitionTag response 404
+upsertDefinitionTag response 413
+upsertDefinitionTag response 415
+upsertDefinitionTag response 500
+upsertDefinitionTag response 503
+upsertJobTag parameter jobRef
+upsertJobTag parameter tagName
+upsertJobTag response 200
+upsertJobTag response 400
+upsertJobTag response 401
+upsertJobTag response 403
+upsertJobTag response 404
+upsertJobTag response 413
+upsertJobTag response 415
+upsertJobTag response 500
+upsertJobTag response 503
+upsertNamespaceTag parameter jobNamespace
+upsertNamespaceTag parameter tagName
+upsertNamespaceTag response 200
+upsertNamespaceTag response 400
+upsertNamespaceTag response 401
+upsertNamespaceTag response 403
+upsertNamespaceTag response 404
+upsertNamespaceTag response 413
+upsertNamespaceTag response 415
+upsertNamespaceTag response 500
+upsertNamespaceTag response 503
+upsertTenantTag parameter tagName
+upsertTenantTag parameter tenantName
+upsertTenantTag response 200
+upsertTenantTag response 400
+upsertTenantTag response 401
+upsertTenantTag response 403
+upsertTenantTag response 404
+upsertTenantTag response 413
+upsertTenantTag response 415
+upsertTenantTag response 500
+upsertTenantTag response 503
