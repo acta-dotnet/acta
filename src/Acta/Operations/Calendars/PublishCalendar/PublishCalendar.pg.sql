@@ -114,7 +114,7 @@ SET
         WHEN s.schedule_status_code = 30 /* ScheduleStatusCode.Paused */ THEN s.paused_until_utc
         WHEN s.schedule_status_code = 230 /* ScheduleStatusCode.Orphaned */ THEN NULL
         ELSE r.next_occurrence_at_utc END,
-    evaluation_status_code = CASE WHEN r.next_occurrence_at_utc IS NULL THEN 30 /* EvaluationStatusCode.Exhausted */ ELSE 10 /* EvaluationStatusCode.Scheduled */ END,
+    evaluation_status_code = CASE WHEN r.next_occurrence_at_utc IS NULL THEN 30 /* ScheduleEvaluationStatusCode.Exhausted */ ELSE 10 /* ScheduleEvaluationStatusCode.Scheduled */ END,
     version = st.version + 1,
     modified_at_utc = now()
 FROM _pub_rows r

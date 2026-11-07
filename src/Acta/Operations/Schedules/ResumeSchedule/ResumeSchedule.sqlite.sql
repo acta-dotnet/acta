@@ -54,7 +54,7 @@ UPDATE {{schema}}.schedules_state
 SET
     -- The remembered cursor stays; the admitter applies the misfire policy to it at its next pass.
     next_evaluation_at_utc = {{now}},
-    evaluation_status_code = 60 /* EvaluationStatusCode.Resumed */,
+    evaluation_status_code = 60 /* ScheduleEvaluationStatusCode.Resumed */,
     version = version + 1,
     modified_at_utc = {{now}}
 WHERE schedule_id IN (SELECT t.schedule_id FROM temp._rs_target t);

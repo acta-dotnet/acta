@@ -147,7 +147,7 @@ public sealed class CalendarScheduleSpec : ActaRuntimeTestBase<ConformanceFixtur
         await Runtime.AdmitOnceAsync(TestNamespace, ct);
         schedule = Assert.Single(await ScheduleTestOps.ReadAsync(Db, slotId, ct));
         Assert.Null(schedule.NextOccurrenceAtUtc);
-        Assert.Equal(EvaluationStatusCode.Exhausted, schedule.EvaluationStatus);
+        Assert.Equal(ScheduleEvaluationStatusCode.Exhausted, schedule.EvaluationStatus);
         Assert.Equal(JobStatusCode.Idle, (await ReadJobAsync(slotId, ct)).Status);
         Assert.Equal(3, await CountEventsAsync(slotId, EventCode.ScheduleAdmitted, ct));
         Assert.Empty((await Schedules.PreviewAsync(lookup, 10, ct))!.NextOccurrencesUtc);
@@ -239,7 +239,7 @@ public sealed class CalendarScheduleSpec : ActaRuntimeTestBase<ConformanceFixtur
         await Runtime.AdmitOnceAsync(TestNamespace, ct);
         schedule = Assert.Single(await ScheduleTestOps.ReadAsync(Db, slotId, ct));
         Assert.Null(schedule.NextOccurrenceAtUtc);
-        Assert.Equal(EvaluationStatusCode.Exhausted, schedule.EvaluationStatus);
+        Assert.Equal(ScheduleEvaluationStatusCode.Exhausted, schedule.EvaluationStatus);
         Assert.Equal(2, await CountEventsAsync(slotId, EventCode.ScheduleAdmitted, ct));
         Assert.Equal(0, await CountEventsAsync(slotId, EventCode.ScheduleSkipped, ct));
     }

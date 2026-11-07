@@ -45,9 +45,9 @@ public class ScheduleEvaluatorTests
         var d = Evaluate(EveryMinute, cursor, Utc(10, 4, 30));
 
         Assert.Null(d.Admit);
-        Assert.Equal(EvaluationStatusCode.Scheduled, d.Status);
+        Assert.Equal(ScheduleEvaluationStatusCode.Scheduled, d.Status);
         Assert.Equal(Utc(10, 5), d.NextEvaluationAtUtc);
-        Assert.False(d.Changes(cursor, EvaluationStatusCode.Scheduled, Utc(10, 5)));
+        Assert.False(d.Changes(cursor, ScheduleEvaluationStatusCode.Scheduled, Utc(10, 5)));
     }
 
     [Fact]
@@ -59,7 +59,7 @@ public class ScheduleEvaluatorTests
         Assert.Null(d.SkippedFromUtc);
         Assert.Equal(Utc(10, 6), d.NextOccurrenceAtUtc);
         Assert.Equal(Utc(10, 6), d.NextEvaluationAtUtc);
-        Assert.Equal(EvaluationStatusCode.Scheduled, d.Status);
+        Assert.Equal(ScheduleEvaluationStatusCode.Scheduled, d.Status);
     }
 
     [Fact]
@@ -104,7 +104,7 @@ public class ScheduleEvaluatorTests
         var d = Evaluate(EveryMinute, cursor, Utc(10, 7), capacity: AdmissionCapacity.Full);
 
         Assert.Null(d.Admit);
-        Assert.Equal(EvaluationStatusCode.WaitingForCapacity, d.Status);
+        Assert.Equal(ScheduleEvaluationStatusCode.WaitingForCapacity, d.Status);
         Assert.Null(d.NextEvaluationAtUtc);
         Assert.Equal(cursor.NextOccurrenceAtUtc, d.NextOccurrenceAtUtc);
     }
@@ -115,7 +115,7 @@ public class ScheduleEvaluatorTests
         var d = Evaluate(EveryMinute, Active(Utc(10, 5)), Utc(10, 7), capacity: AdmissionCapacity.Unavailable);
 
         Assert.Null(d.Admit);
-        Assert.Equal(EvaluationStatusCode.SlotUnavailable, d.Status);
+        Assert.Equal(ScheduleEvaluationStatusCode.SlotUnavailable, d.Status);
         Assert.Null(d.NextEvaluationAtUtc);
     }
 
@@ -141,7 +141,7 @@ public class ScheduleEvaluatorTests
 
         Assert.False(d.PauseEnded);
         Assert.Equal(Utc(10, 20), d.NextEvaluationAtUtc);
-        Assert.Equal(EvaluationStatusCode.Scheduled, d.Status);
+        Assert.Equal(ScheduleEvaluationStatusCode.Scheduled, d.Status);
     }
 
     [Fact]
@@ -193,9 +193,9 @@ public class ScheduleEvaluatorTests
 
         Assert.True(d.PauseEnded);
         Assert.Null(d.Admit);
-        Assert.Equal(EvaluationStatusCode.Scheduled, d.Status);
+        Assert.Equal(ScheduleEvaluationStatusCode.Scheduled, d.Status);
         Assert.Equal(Utc(10, 30), d.NextEvaluationAtUtc);
-        Assert.True(d.Changes(cursor, EvaluationStatusCode.Scheduled, Utc(10, 30)));
+        Assert.True(d.Changes(cursor, ScheduleEvaluationStatusCode.Scheduled, Utc(10, 30)));
     }
 
     [Fact]
@@ -217,7 +217,7 @@ public class ScheduleEvaluatorTests
 
         var d = Evaluate(never, Active(null), Utc(10, 0));
 
-        Assert.Equal(EvaluationStatusCode.Exhausted, d.Status);
+        Assert.Equal(ScheduleEvaluationStatusCode.Exhausted, d.Status);
         Assert.Null(d.NextEvaluationAtUtc);
         Assert.Null(d.Admit);
     }
@@ -230,7 +230,7 @@ public class ScheduleEvaluatorTests
 
         var d = Evaluate(broken, cursor, Utc(10, 6));
 
-        Assert.Equal(EvaluationStatusCode.EvaluationError, d.Status);
+        Assert.Equal(ScheduleEvaluationStatusCode.EvaluationError, d.Status);
         Assert.Equal(Utc(10, 6) + ScheduleEvaluator.ErrorRetryDelay, d.NextEvaluationAtUtc);
         Assert.Equal(cursor.NextOccurrenceAtUtc, d.NextOccurrenceAtUtc);
         Assert.Null(d.Admit);
@@ -279,7 +279,7 @@ public class ScheduleEvaluatorTests
         Assert.Null(d.SkippedFromUtc);
         Assert.Equal(Utc(10, 6), d.NextOccurrenceAtUtc);
         Assert.Equal(Utc(10, 6), d.NextEvaluationAtUtc);
-        Assert.Equal(EvaluationStatusCode.Scheduled, d.Status);
+        Assert.Equal(ScheduleEvaluationStatusCode.Scheduled, d.Status);
     }
 
     [Fact]
@@ -342,13 +342,13 @@ public class ScheduleEvaluatorTests
         Assert.Equal(Utc(9, 0), d.ExpiredThroughUtc);
         Assert.Equal(Utc(9, 0).AddDays(1), d.NextOccurrenceAtUtc);
         Assert.Equal(Utc(9, 0).AddDays(1), d.NextEvaluationAtUtc);
-        Assert.True(d.Changes(Active(Utc(9, 0)), EvaluationStatusCode.Scheduled, Utc(9, 0)));
+        Assert.True(d.Changes(Active(Utc(9, 0)), ScheduleEvaluationStatusCode.Scheduled, Utc(9, 0)));
     }
 
     [Fact]
     public void A_resume_and_an_elapsed_timed_pause_expire_the_stale_backlog_without_pausing_again()
     {
-        var resumed = new ScheduleCursor(Utc(10, 5), ScheduleStatusCode.Active, null, EvaluationStatusCode.Resumed);
+        var resumed = new ScheduleCursor(Utc(10, 5), ScheduleStatusCode.Active, null, ScheduleEvaluationStatusCode.Resumed);
         var afterResume = Evaluate(
             EveryMinute,
             resumed,
@@ -380,7 +380,7 @@ public class ScheduleEvaluatorTests
     {
         // Resumed at 10:10 with the cursor still on 10:05 under a two-minute expiry, while the slot is busy: 10:05
         // through 10:08 expire now, the schedule parks on 10:09, and the resume keeps the Pause action from firing.
-        var resumed = new ScheduleCursor(Utc(10, 5), ScheduleStatusCode.Active, null, EvaluationStatusCode.Resumed);
+        var resumed = new ScheduleCursor(Utc(10, 5), ScheduleStatusCode.Active, null, ScheduleEvaluationStatusCode.Resumed);
         var d = Evaluate(
             EveryMinute,
             resumed,
@@ -395,12 +395,12 @@ public class ScheduleEvaluatorTests
         Assert.Equal(Utc(10, 5), d.ExpiredFromUtc);
         Assert.Equal(Utc(10, 8), d.ExpiredThroughUtc);
         Assert.False(d.PausedByExpiry);
-        Assert.Equal(EvaluationStatusCode.WaitingForCapacity, d.Status);
+        Assert.Equal(ScheduleEvaluationStatusCode.WaitingForCapacity, d.Status);
         Assert.Null(d.NextEvaluationAtUtc);
         Assert.Equal(Utc(10, 9), d.NextOccurrenceAtUtc);
 
         // Woken by a settlement half a minute later, nothing stale is left, so the backlog is admitted, not paused.
-        var woken = new ScheduleCursor(Utc(10, 9), ScheduleStatusCode.Active, null, EvaluationStatusCode.Scheduled);
+        var woken = new ScheduleCursor(Utc(10, 9), ScheduleStatusCode.Active, null, ScheduleEvaluationStatusCode.Scheduled);
         var after = Evaluate(
             EveryMinute,
             woken,
@@ -431,7 +431,7 @@ public class ScheduleEvaluatorTests
         Assert.Equal(Utc(10, 8), d.ExpiredThroughUtc);
         Assert.Equal(Utc(10, 9), d.NextOccurrenceAtUtc);
         Assert.Null(d.NextEvaluationAtUtc);
-        Assert.Equal(EvaluationStatusCode.Scheduled, d.Status);
+        Assert.Equal(ScheduleEvaluationStatusCode.Scheduled, d.Status);
     }
 
     [Fact]
@@ -446,7 +446,7 @@ public class ScheduleEvaluatorTests
         Assert.Equal(new AdmittedOccurrence(Utc(10, 5), Utc(10, 5)), d.Admit);
         Assert.Equal(Utc(10, 5, 1), d.NextOccurrenceAtUtc);
         Assert.Equal(Utc(10, 5, 1), d.NextEvaluationAtUtc);
-        Assert.Equal(EvaluationStatusCode.Scheduled, d.Status);
+        Assert.Equal(ScheduleEvaluationStatusCode.Scheduled, d.Status);
     }
 
     [Fact]

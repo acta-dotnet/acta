@@ -123,7 +123,7 @@ public sealed class MisfirePolicySpec : ActaRuntimeTestBase<ConformanceFixture, 
             var parked = await Runtime.AdmitOnceAsync(TestNamespace, ct);
             Assert.Equal((0, 0), (parked.Admitted, parked.Stale));
             Assert.Equal(
-                i < 2 ? EvaluationStatusCode.WaitingForCapacity : EvaluationStatusCode.Scheduled,
+                i < 2 ? ScheduleEvaluationStatusCode.WaitingForCapacity : ScheduleEvaluationStatusCode.Scheduled,
                 Assert.Single(await ScheduleTestOps.ReadAsync(Db, slotId, ct)).EvaluationStatus
             );
             Assert.Equal(RunOnceStatus.Completed, await Runtime.RunOnceAsync(slotId, ct));
@@ -133,7 +133,7 @@ public sealed class MisfirePolicySpec : ActaRuntimeTestBase<ConformanceFixture, 
         Assert.Equal(JobStatusCode.Idle, (await ReadJobAsync(slotId, ct)).Status);
         var schedule = Assert.Single(await ScheduleTestOps.ReadAsync(Db, slotId, ct));
         Assert.Equal(first.AddMinutes(3), schedule.NextOccurrenceAtUtc);
-        Assert.Equal(EvaluationStatusCode.Scheduled, schedule.EvaluationStatus);
+        Assert.Equal(ScheduleEvaluationStatusCode.Scheduled, schedule.EvaluationStatus);
         Assert.Equal(3, await CountEventsAsync(slotId, EventCode.ScheduleAdmitted, ct));
     }
 
@@ -158,7 +158,7 @@ public sealed class MisfirePolicySpec : ActaRuntimeTestBase<ConformanceFixture, 
         await Runtime.AdmitOnceAsync(TestNamespace, ct);
         Assert.Equal(2, (await RootsAsync(schedule.Id, ct)).Count);
         Assert.Equal(
-            EvaluationStatusCode.WaitingForCapacity,
+            ScheduleEvaluationStatusCode.WaitingForCapacity,
             (await ScheduleAsync(MisfirePolicyManifest.BacklogRootsJobName, ct)).State.EvaluationStatus
         );
 

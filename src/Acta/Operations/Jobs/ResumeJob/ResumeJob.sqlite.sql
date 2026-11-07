@@ -95,12 +95,12 @@ WHERE
 UPDATE {{schema}}.schedules_state
 SET
     next_evaluation_at_utc = {{now}},
-    evaluation_status_code = 10 /* EvaluationStatusCode.Scheduled */,
+    evaluation_status_code = 10 /* ScheduleEvaluationStatusCode.Scheduled */,
     modified_at_utc = {{now}},
     version = version + 1
 WHERE
     schedule_id IN (SELECT js.schedule_id FROM {{schema}}.schedules js WHERE js.job_id = @p_job_id)
-    AND evaluation_status_code IN (20 /* EvaluationStatusCode.WaitingForCapacity */, 50 /* EvaluationStatusCode.SlotUnavailable */)
+    AND evaluation_status_code IN (20 /* ScheduleEvaluationStatusCode.WaitingForCapacity */, 50 /* ScheduleEvaluationStatusCode.SlotUnavailable */)
     AND EXISTS (
         SELECT 1
         FROM temp._resume_job s

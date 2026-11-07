@@ -57,7 +57,7 @@ internal sealed class ScheduleStateEntity : IEntity<int>
 
     /// <summary>Why the next evaluation is when it is; the engine's state, apart from the operator lifecycle.</summary>
     [DbColumn("evaluation_status_code")]
-    public EvaluationStatusCode EvaluationStatus { get; set; }
+    public ScheduleEvaluationStatusCode EvaluationStatus { get; set; }
 
     /// <summary>
     /// Unsettled roots charged to a PerOccurrence schedule; a Permanent slot's capacity is the slot, so its schedules

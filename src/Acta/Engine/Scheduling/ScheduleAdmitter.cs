@@ -328,12 +328,12 @@ internal sealed class ScheduleAdmitter(
         {
             decisions.Add(new PlannedMeasurement(ordinal, "admitted", nowUtc - admit.OccurrenceAtUtc));
         }
-        else if (e.Status == EvaluationStatusCode.WaitingForCapacity)
+        else if (e.Status == ScheduleEvaluationStatusCode.WaitingForCapacity)
         {
             decisions.Add(new PlannedMeasurement(ordinal, "blocked", null));
         }
 
-        if (e.Status == EvaluationStatusCode.Exhausted)
+        if (e.Status == ScheduleEvaluationStatusCode.Exhausted)
         {
             decisions.Add(new PlannedMeasurement(ordinal, "exhausted", null));
         }
@@ -378,7 +378,7 @@ internal sealed class ScheduleAdmitter(
             s.ExpireAction ?? ScheduleExpireActionCode.Unspecified
         );
         var e = ScheduleEvaluator.Evaluate(resolve(s.Timing()), policy, Cursor(s), capacity, nowUtc);
-        if (e.Error is { } error && log is not null && s.EvaluationStatus != EvaluationStatusCode.EvaluationError)
+        if (e.Error is { } error && log is not null && s.EvaluationStatus != ScheduleEvaluationStatusCode.EvaluationError)
         {
             ActaLog.ScheduleEvaluationFailed(log, s.DefinitionName, $"schedule '{s.ScheduleName}': {error}");
         }

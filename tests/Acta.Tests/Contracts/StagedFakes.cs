@@ -320,7 +320,7 @@ internal static class StagedFakes
         MisfireStrategy: MisfireStrategyCode.CatchUpOnce,
         NextOccurrenceAtUtc: NextRun,
         NextEvaluationAtUtc: NextRun,
-        EvaluationStatus: EvaluationStatusCode.Scheduled,
+        EvaluationStatus: ScheduleEvaluationStatusCode.Scheduled,
         Status: ScheduleStatusCode.Active,
         PausedUntilUtc: null,
         CreatedAtUtc: At,

@@ -100,11 +100,11 @@ UPDATE {{schema}}.schedules_state st
 SET
     outstanding_count = st.outstanding_count - 1,
     next_evaluation_at_utc = CASE
-        WHEN st.evaluation_status_code = 20 /* EvaluationStatusCode.WaitingForCapacity */ THEN now()
+        WHEN st.evaluation_status_code = 20 /* ScheduleEvaluationStatusCode.WaitingForCapacity */ THEN now()
         ELSE st.next_evaluation_at_utc
     END,
     evaluation_status_code = CASE
-        WHEN st.evaluation_status_code = 20 /* EvaluationStatusCode.WaitingForCapacity */ THEN 10 /* EvaluationStatusCode.Scheduled */
+        WHEN st.evaluation_status_code = 20 /* ScheduleEvaluationStatusCode.WaitingForCapacity */ THEN 10 /* ScheduleEvaluationStatusCode.Scheduled */
         ELSE st.evaluation_status_code
     END,
     modified_at_utc = now(),

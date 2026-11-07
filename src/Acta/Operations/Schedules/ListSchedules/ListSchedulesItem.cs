@@ -53,7 +53,7 @@ public sealed record ListSchedulesItem(
     MisfireStrategyCode MisfireStrategy,
     DateTime? NextOccurrenceAtUtc,
     DateTime? NextEvaluationAtUtc,
-    EvaluationStatusCode EvaluationStatus,
+    ScheduleEvaluationStatusCode EvaluationStatus,
     ScheduleStatusCode Status,
     DateTime? PausedUntilUtc,
     DateTime CreatedAtUtc,

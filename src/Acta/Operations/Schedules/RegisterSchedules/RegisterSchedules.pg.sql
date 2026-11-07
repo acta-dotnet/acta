@@ -175,7 +175,7 @@ UPDATE {{schema}}.schedules_state AS st
 SET
     next_occurrence_at_utc = src.next_occurrence_at_utc,
     next_evaluation_at_utc = CASE WHEN s.schedule_status_code = 30 /* ScheduleStatusCode.Paused */ THEN s.paused_until_utc ELSE src.next_occurrence_at_utc END,
-    evaluation_status_code = CASE WHEN src.next_occurrence_at_utc IS NULL THEN 30 /* EvaluationStatusCode.Exhausted */ ELSE 10 /* EvaluationStatusCode.Scheduled */ END,
+    evaluation_status_code = CASE WHEN src.next_occurrence_at_utc IS NULL THEN 30 /* ScheduleEvaluationStatusCode.Exhausted */ ELSE 10 /* ScheduleEvaluationStatusCode.Scheduled */ END,
     version = st.version + 1,
     modified_at_utc = now()
 FROM _reg_schedules AS src
@@ -192,14 +192,14 @@ WHERE
 UPDATE {{schema}}.schedules_state AS st
 SET
     next_evaluation_at_utc = now(),
-    evaluation_status_code = 10 /* EvaluationStatusCode.Scheduled */,
+    evaluation_status_code = 10 /* ScheduleEvaluationStatusCode.Scheduled */,
     version = st.version + 1,
     modified_at_utc = now()
 FROM _reg_schedules AS src
 INNER JOIN {{schema}}.schedules AS s ON s.definition_id = src.definition_id AND s.schedule_name = src.schedule_name
 WHERE
     st.schedule_id = s.schedule_id
-    AND st.evaluation_status_code = 20 /* EvaluationStatusCode.WaitingForCapacity */
+    AND st.evaluation_status_code = 20 /* ScheduleEvaluationStatusCode.WaitingForCapacity */
     AND s.schedule_status_code = 10 /* ScheduleStatusCode.Active */
     AND (
         s.max_outstanding <> src.max_outstanding
@@ -308,7 +308,7 @@ SELECT
     @p_namespace_id,
     src.next_occurrence_at_utc,
     src.next_occurrence_at_utc,
-    CASE WHEN src.next_occurrence_at_utc IS NULL THEN 30 /* EvaluationStatusCode.Exhausted */ ELSE 10 /* EvaluationStatusCode.Scheduled */ END,
+    CASE WHEN src.next_occurrence_at_utc IS NULL THEN 30 /* ScheduleEvaluationStatusCode.Exhausted */ ELSE 10 /* ScheduleEvaluationStatusCode.Scheduled */ END,
     0,
     0,
     now()
@@ -343,7 +343,7 @@ SET
 
     next_evaluation_at_utc = NULL,
 
-    evaluation_status_code = 30 /* EvaluationStatusCode.Exhausted */,
+    evaluation_status_code = 30 /* ScheduleEvaluationStatusCode.Exhausted */,
 
     version = st.version + 1,
     modified_at_utc = now()
@@ -358,7 +358,7 @@ SET
 
     next_evaluation_at_utc = NULL,
 
-    evaluation_status_code = 30 /* EvaluationStatusCode.Exhausted */,
+    evaluation_status_code = 30 /* ScheduleEvaluationStatusCode.Exhausted */,
 
     version = st.version + 1,
     modified_at_utc = now()

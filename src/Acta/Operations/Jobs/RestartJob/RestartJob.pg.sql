@@ -185,7 +185,7 @@ WHERE r.job_id = @p_job_id AND s.action = 1 /* ControlAction.Applied */;
 UPDATE {{schema}}.schedules_state st
 SET
     next_evaluation_at_utc = now(),
-    evaluation_status_code = 10 /* EvaluationStatusCode.Scheduled */,
+    evaluation_status_code = 10 /* ScheduleEvaluationStatusCode.Scheduled */,
     modified_at_utc = now(),
     version = st.version + 1
 FROM {{schema}}.schedules js
@@ -195,7 +195,7 @@ WHERE
     AND js.job_id = @p_job_id
     AND s.action = 1 /* ControlAction.Applied */
     AND s.to_status = 40 /* JobStatusCode.Idle */
-    AND st.evaluation_status_code IN (20 /* EvaluationStatusCode.WaitingForCapacity */, 50 /* EvaluationStatusCode.SlotUnavailable */);
+    AND st.evaluation_status_code IN (20 /* ScheduleEvaluationStatusCode.WaitingForCapacity */, 50 /* ScheduleEvaluationStatusCode.SlotUnavailable */);
 
 -- An exhausted step runs again from a fresh budget and retry window; an interrupted at-most-once step stays,
 -- since only someone who reconciled its outcome can say it may run again.

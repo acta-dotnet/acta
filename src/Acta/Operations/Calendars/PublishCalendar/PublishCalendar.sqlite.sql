@@ -117,7 +117,7 @@ SET
         INNER JOIN {{schema}}.schedules s ON s.schedule_id = r.schedule_id
         WHERE r.schedule_id = schedules_state.schedule_id),
     evaluation_status_code = (
-        SELECT CASE WHEN r.next_occurrence_at_utc IS NULL THEN 30 /* EvaluationStatusCode.Exhausted */ ELSE 10 /* EvaluationStatusCode.Scheduled */ END
+        SELECT CASE WHEN r.next_occurrence_at_utc IS NULL THEN 30 /* ScheduleEvaluationStatusCode.Exhausted */ ELSE 10 /* ScheduleEvaluationStatusCode.Scheduled */ END
         FROM _pub_rows r WHERE r.schedule_id = schedules_state.schedule_id),
     version = version + 1,
     modified_at_utc = {{now}}

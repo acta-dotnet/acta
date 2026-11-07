@@ -86,7 +86,7 @@ WHERE
 UPDATE {{schema}}.schedules_state st
 SET
     next_evaluation_at_utc = now(),
-    evaluation_status_code = 10 /* EvaluationStatusCode.Scheduled */,
+    evaluation_status_code = 10 /* ScheduleEvaluationStatusCode.Scheduled */,
     modified_at_utc = now(),
     version = st.version + 1
 FROM {{schema}}.schedules js
@@ -97,7 +97,7 @@ WHERE
     AND s.to_status = 40 /* JobStatusCode.Idle */
     AND s.from_status = 30 /* JobStatusCode.Paused */
     AND (@p_expected_version IS NULL OR s.from_version = @p_expected_version)
-    AND st.evaluation_status_code IN (20 /* EvaluationStatusCode.WaitingForCapacity */, 50 /* EvaluationStatusCode.SlotUnavailable */);
+    AND st.evaluation_status_code IN (20 /* ScheduleEvaluationStatusCode.WaitingForCapacity */, 50 /* ScheduleEvaluationStatusCode.SlotUnavailable */);
 
 INSERT INTO {{schema}}.events (
     event_code, created_at_utc, namespace_id,

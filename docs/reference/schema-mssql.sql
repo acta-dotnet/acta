@@ -57,7 +57,7 @@ GO
 -- ===== refuse a database a newer release already upgraded =====
 IF EXISTS (
     SELECT 1 FROM acta.migrations
-    WHERE name NOT IN ('M20261105192758_init')
+    WHERE name NOT IN ('M20261106111104_init')
 )
 BEGIN
     RAISERROR(N'A newer Acta release already upgraded this database. Run the newest provisioning script; this one would move it backwards.', 16, 1);
@@ -65,7 +65,7 @@ BEGIN
     SET NOEXEC ON;
 END
 GO
--- ===== BEGIN M20261105192758_init =====
+-- ===== BEGIN M20261106111104_init =====
 SET QUOTED_IDENTIFIER ON;
 SET ANSI_NULLS ON;
 GO
@@ -1497,7 +1497,7 @@ BEGIN
                     UPDATE st
                     SET
                         next_evaluation_at_utc = @now,
-                        evaluation_status_code = 10 /* EvaluationStatusCode.Scheduled */,
+                        evaluation_status_code = 10 /* ScheduleEvaluationStatusCode.Scheduled */,
                         modified_at_utc = @now,
                         version = st.version + 1
                     FROM acta.schedules_state st WITH (FORCESEEK)
@@ -1507,7 +1507,7 @@ BEGIN
                     WHERE
                         d.job_status_code IN (40 /* JobStatusCode.Idle */, 200 /* JobStatusCode.Failed */, 220 /* JobStatusCode.Cancelled */)
                         AND j.job_kind_code = 20 /* JobKindCode.PermanentSlot */
-                        AND st.evaluation_status_code IN (20 /* EvaluationStatusCode.WaitingForCapacity */, 50 /* EvaluationStatusCode.SlotUnavailable */);
+                        AND st.evaluation_status_code IN (20 /* ScheduleEvaluationStatusCode.WaitingForCapacity */, 50 /* ScheduleEvaluationStatusCode.SlotUnavailable */);
 
                     /* The envelope settles once: a slot's when the slot lands Idle, Failed, or Cancelled, a charged root's
                        when the root lands terminal. */
@@ -1539,11 +1539,11 @@ BEGIN
                     SET
                         outstanding_count = st.outstanding_count - s.settled,
                         next_evaluation_at_utc = CASE
-                            WHEN st.evaluation_status_code = 20 /* EvaluationStatusCode.WaitingForCapacity */ THEN @now
+                            WHEN st.evaluation_status_code = 20 /* ScheduleEvaluationStatusCode.WaitingForCapacity */ THEN @now
                             ELSE st.next_evaluation_at_utc
                         END,
                         evaluation_status_code = CASE
-                            WHEN st.evaluation_status_code = 20 /* EvaluationStatusCode.WaitingForCapacity */ THEN 10 /* EvaluationStatusCode.Scheduled */
+                            WHEN st.evaluation_status_code = 20 /* ScheduleEvaluationStatusCode.WaitingForCapacity */ THEN 10 /* ScheduleEvaluationStatusCode.Scheduled */
                             ELSE st.evaluation_status_code
                         END,
                         modified_at_utc = @now,
@@ -4120,7 +4120,7 @@ BEGIN
         UPDATE st
         SET
             next_evaluation_at_utc = @now,
-            evaluation_status_code = 10 /* EvaluationStatusCode.Scheduled */,
+            evaluation_status_code = 10 /* ScheduleEvaluationStatusCode.Scheduled */,
             modified_at_utc = @now,
             version = st.version + 1
         FROM acta.schedules_state st WITH (FORCESEEK)
@@ -4128,17 +4128,17 @@ BEGIN
         INNER JOIN @reclaimed r ON r.job_id = js.job_id
         WHERE
             r.to_status_code = 40 /* JobStatusCode.Idle */
-            AND st.evaluation_status_code IN (20 /* EvaluationStatusCode.WaitingForCapacity */, 50 /* EvaluationStatusCode.SlotUnavailable */);
+            AND st.evaluation_status_code IN (20 /* ScheduleEvaluationStatusCode.WaitingForCapacity */, 50 /* ScheduleEvaluationStatusCode.SlotUnavailable */);
 
         UPDATE st
         SET
             outstanding_count = st.outstanding_count - s.settled,
             next_evaluation_at_utc = CASE
-                WHEN st.evaluation_status_code = 20 /* EvaluationStatusCode.WaitingForCapacity */ THEN @now
+                WHEN st.evaluation_status_code = 20 /* ScheduleEvaluationStatusCode.WaitingForCapacity */ THEN @now
                 ELSE st.next_evaluation_at_utc
             END,
             evaluation_status_code = CASE
-                WHEN st.evaluation_status_code = 20 /* EvaluationStatusCode.WaitingForCapacity */ THEN 10 /* EvaluationStatusCode.Scheduled */
+                WHEN st.evaluation_status_code = 20 /* ScheduleEvaluationStatusCode.WaitingForCapacity */ THEN 10 /* ScheduleEvaluationStatusCode.Scheduled */
                 ELSE st.evaluation_status_code
             END,
             modified_at_utc = @now,
@@ -5089,11 +5089,11 @@ JOIN acta.namespaces AS ns ON ns.namespace_id = w.namespace_id
 GO
 
 
-IF NOT EXISTS (SELECT 1 FROM acta.migrations WHERE name = 'M20261105192758_init')
+IF NOT EXISTS (SELECT 1 FROM acta.migrations WHERE name = 'M20261106111104_init')
 INSERT INTO acta.migrations (name)
-VALUES ('M20261105192758_init');
+VALUES ('M20261106111104_init');
 GO
--- ===== END M20261105192758_init =====
+-- ===== END M20261106111104_init =====
 GO
 COMMIT TRANSACTION;
 GO

@@ -92,5 +92,5 @@ internal sealed record ScheduleRow(ScheduleEntity Config, ScheduleStateEntity Cu
     public int Version => Config.Version;
     public DateTime? NextOccurrenceAtUtc => Cursor.NextOccurrenceAtUtc;
     public DateTime? NextEvaluationAtUtc => Cursor.NextEvaluationAtUtc;
-    public EvaluationStatusCode EvaluationStatus => Cursor.EvaluationStatus;
+    public ScheduleEvaluationStatusCode EvaluationStatus => Cursor.EvaluationStatus;
 }

@@ -256,11 +256,11 @@ UPDATE {{schema}}.schedules_state AS st
 SET
     outstanding_count = st.outstanding_count - c.settled,
     next_evaluation_at_utc = CASE
-        WHEN st.evaluation_status_code = 20 /* EvaluationStatusCode.WaitingForCapacity */ THEN {{now}}
+        WHEN st.evaluation_status_code = 20 /* ScheduleEvaluationStatusCode.WaitingForCapacity */ THEN {{now}}
         ELSE st.next_evaluation_at_utc
     END,
     evaluation_status_code = CASE
-        WHEN st.evaluation_status_code = 20 /* EvaluationStatusCode.WaitingForCapacity */ THEN 10 /* EvaluationStatusCode.Scheduled */
+        WHEN st.evaluation_status_code = 20 /* ScheduleEvaluationStatusCode.WaitingForCapacity */ THEN 10 /* ScheduleEvaluationStatusCode.Scheduled */
         ELSE st.evaluation_status_code
     END,
     modified_at_utc = {{now}},
@@ -277,11 +277,11 @@ WHERE st.schedule_id = c.schedule_id;
 UPDATE {{schema}}.schedules_state
 SET
     next_evaluation_at_utc = {{now}},
-    evaluation_status_code = 10 /* EvaluationStatusCode.Scheduled */,
+    evaluation_status_code = 10 /* ScheduleEvaluationStatusCode.Scheduled */,
     modified_at_utc = {{now}},
     version = version + 1
 WHERE
-    evaluation_status_code IN (20 /* EvaluationStatusCode.WaitingForCapacity */, 50 /* EvaluationStatusCode.SlotUnavailable */)
+    evaluation_status_code IN (20 /* ScheduleEvaluationStatusCode.WaitingForCapacity */, 50 /* ScheduleEvaluationStatusCode.SlotUnavailable */)
     AND schedule_id IN (
         SELECT js.schedule_id
         FROM {{schema}}.schedules js

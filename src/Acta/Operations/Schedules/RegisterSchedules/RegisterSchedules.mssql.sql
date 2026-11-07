@@ -166,7 +166,7 @@ BEGIN TRY
     SET
         next_occurrence_at_utc = src.next_occurrence_at_utc,
         next_evaluation_at_utc = CASE WHEN s.schedule_status_code = 30 /* ScheduleStatusCode.Paused */ THEN s.paused_until_utc ELSE src.next_occurrence_at_utc END,
-        evaluation_status_code = CASE WHEN src.next_occurrence_at_utc IS NULL THEN 30 /* EvaluationStatusCode.Exhausted */ ELSE 10 /* EvaluationStatusCode.Scheduled */ END,
+        evaluation_status_code = CASE WHEN src.next_occurrence_at_utc IS NULL THEN 30 /* ScheduleEvaluationStatusCode.Exhausted */ ELSE 10 /* ScheduleEvaluationStatusCode.Scheduled */ END,
         version = st.version + 1,
         modified_at_utc = @now
     FROM {{schema}}.schedules_state AS st WITH (FORCESEEK)
@@ -184,7 +184,7 @@ BEGIN TRY
     UPDATE st
     SET
         next_evaluation_at_utc = @now,
-        evaluation_status_code = 10 /* EvaluationStatusCode.Scheduled */,
+        evaluation_status_code = 10 /* ScheduleEvaluationStatusCode.Scheduled */,
         version = st.version + 1,
         modified_at_utc = @now
     FROM {{schema}}.schedules_state AS st WITH (FORCESEEK)
@@ -194,7 +194,7 @@ BEGIN TRY
             src.definition_id = s.definition_id
             AND src.schedule_name = s.schedule_name
     WHERE
-        st.evaluation_status_code = 20 /* EvaluationStatusCode.WaitingForCapacity */
+        st.evaluation_status_code = 20 /* ScheduleEvaluationStatusCode.WaitingForCapacity */
         AND s.schedule_status_code = 10 /* ScheduleStatusCode.Active */
         AND (s.max_outstanding <> src.max_outstanding OR s.full_behavior_code <> src.full_behavior_code);
 
@@ -289,7 +289,7 @@ BEGIN TRY
         @p_namespace_id,
         src.next_occurrence_at_utc,
         src.next_occurrence_at_utc,
-        CASE WHEN src.next_occurrence_at_utc IS NULL THEN 30 /* EvaluationStatusCode.Exhausted */ ELSE 10 /* EvaluationStatusCode.Scheduled */ END,
+        CASE WHEN src.next_occurrence_at_utc IS NULL THEN 30 /* ScheduleEvaluationStatusCode.Exhausted */ ELSE 10 /* ScheduleEvaluationStatusCode.Scheduled */ END,
         0,
         0,
         @now
@@ -334,7 +334,7 @@ BEGIN TRY
 
         next_evaluation_at_utc = NULL,
 
-        evaluation_status_code = 30 /* EvaluationStatusCode.Exhausted */,
+        evaluation_status_code = 30 /* ScheduleEvaluationStatusCode.Exhausted */,
 
         version = st.version + 1,
         modified_at_utc = @now
@@ -349,7 +349,7 @@ BEGIN TRY
 
         next_evaluation_at_utc = NULL,
 
-        evaluation_status_code = 30 /* EvaluationStatusCode.Exhausted */,
+        evaluation_status_code = 30 /* ScheduleEvaluationStatusCode.Exhausted */,
 
         version = st.version + 1,
         modified_at_utc = @now

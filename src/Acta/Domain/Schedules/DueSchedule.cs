@@ -30,7 +30,7 @@ internal sealed record DueSchedule(
     int ScheduleVersion,
     DateTime? NextOccurrenceAtUtc,
     DateTime? NextEvaluationAtUtc,
-    EvaluationStatusCode EvaluationStatus,
+    ScheduleEvaluationStatusCode EvaluationStatus,
     int OutstandingCount,
     int StateVersion,
     JobStatusCode? SlotStatus,

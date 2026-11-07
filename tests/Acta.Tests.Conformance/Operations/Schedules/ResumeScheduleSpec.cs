@@ -160,7 +160,7 @@ public sealed class ResumeScheduleSpec : ActaStorageTestBase<ConformanceFixture>
         Assert.Equal(missed, resumed.NextOccurrenceAtUtc);
         var schedule = await ScheduleAsync(Db, jobName, "only", ct);
         Assert.Equal(missed, schedule.NextOccurrenceAtUtc);
-        Assert.Equal(EvaluationStatusCode.Resumed, schedule.EvaluationStatus);
+        Assert.Equal(ScheduleEvaluationStatusCode.Resumed, schedule.EvaluationStatus);
         Assert.InRange(schedule.NextEvaluationAtUtc!.Value, now, now.AddMinutes(1));
         var slot = await SlotAsync(jobName, ct);
         Assert.Equal(JobStatusCode.Idle, slot.Status);

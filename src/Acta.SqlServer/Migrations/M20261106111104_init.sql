@@ -1429,7 +1429,7 @@ BEGIN
                     UPDATE st
                     SET
                         next_evaluation_at_utc = @now,
-                        evaluation_status_code = 10 /* EvaluationStatusCode.Scheduled */,
+                        evaluation_status_code = 10 /* ScheduleEvaluationStatusCode.Scheduled */,
                         modified_at_utc = @now,
                         version = st.version + 1
                     FROM {{schema}}.schedules_state st WITH (FORCESEEK)
@@ -1439,7 +1439,7 @@ BEGIN
                     WHERE
                         d.job_status_code IN (40 /* JobStatusCode.Idle */, 200 /* JobStatusCode.Failed */, 220 /* JobStatusCode.Cancelled */)
                         AND j.job_kind_code = 20 /* JobKindCode.PermanentSlot */
-                        AND st.evaluation_status_code IN (20 /* EvaluationStatusCode.WaitingForCapacity */, 50 /* EvaluationStatusCode.SlotUnavailable */);
+                        AND st.evaluation_status_code IN (20 /* ScheduleEvaluationStatusCode.WaitingForCapacity */, 50 /* ScheduleEvaluationStatusCode.SlotUnavailable */);
 
                     /* The envelope settles once: a slot's when the slot lands Idle, Failed, or Cancelled, a charged root's
                        when the root lands terminal. */
@@ -1471,11 +1471,11 @@ BEGIN
                     SET
                         outstanding_count = st.outstanding_count - s.settled,
                         next_evaluation_at_utc = CASE
-                            WHEN st.evaluation_status_code = 20 /* EvaluationStatusCode.WaitingForCapacity */ THEN @now
+                            WHEN st.evaluation_status_code = 20 /* ScheduleEvaluationStatusCode.WaitingForCapacity */ THEN @now
                             ELSE st.next_evaluation_at_utc
                         END,
                         evaluation_status_code = CASE
-                            WHEN st.evaluation_status_code = 20 /* EvaluationStatusCode.WaitingForCapacity */ THEN 10 /* EvaluationStatusCode.Scheduled */
+                            WHEN st.evaluation_status_code = 20 /* ScheduleEvaluationStatusCode.WaitingForCapacity */ THEN 10 /* ScheduleEvaluationStatusCode.Scheduled */
                             ELSE st.evaluation_status_code
                         END,
                         modified_at_utc = @now,
@@ -4052,7 +4052,7 @@ BEGIN
         UPDATE st
         SET
             next_evaluation_at_utc = @now,
-            evaluation_status_code = 10 /* EvaluationStatusCode.Scheduled */,
+            evaluation_status_code = 10 /* ScheduleEvaluationStatusCode.Scheduled */,
             modified_at_utc = @now,
             version = st.version + 1
         FROM {{schema}}.schedules_state st WITH (FORCESEEK)
@@ -4060,17 +4060,17 @@ BEGIN
         INNER JOIN @reclaimed r ON r.job_id = js.job_id
         WHERE
             r.to_status_code = 40 /* JobStatusCode.Idle */
-            AND st.evaluation_status_code IN (20 /* EvaluationStatusCode.WaitingForCapacity */, 50 /* EvaluationStatusCode.SlotUnavailable */);
+            AND st.evaluation_status_code IN (20 /* ScheduleEvaluationStatusCode.WaitingForCapacity */, 50 /* ScheduleEvaluationStatusCode.SlotUnavailable */);
 
         UPDATE st
         SET
             outstanding_count = st.outstanding_count - s.settled,
             next_evaluation_at_utc = CASE
-                WHEN st.evaluation_status_code = 20 /* EvaluationStatusCode.WaitingForCapacity */ THEN @now
+                WHEN st.evaluation_status_code = 20 /* ScheduleEvaluationStatusCode.WaitingForCapacity */ THEN @now
                 ELSE st.next_evaluation_at_utc
             END,
             evaluation_status_code = CASE
-                WHEN st.evaluation_status_code = 20 /* EvaluationStatusCode.WaitingForCapacity */ THEN 10 /* EvaluationStatusCode.Scheduled */
+                WHEN st.evaluation_status_code = 20 /* ScheduleEvaluationStatusCode.WaitingForCapacity */ THEN 10 /* ScheduleEvaluationStatusCode.Scheduled */
                 ELSE st.evaluation_status_code
             END,
             modified_at_utc = @now,
@@ -5021,7 +5021,7 @@ JOIN {{schema}}.namespaces AS ns ON ns.namespace_id = w.namespace_id
 GO
 
 
-IF NOT EXISTS (SELECT 1 FROM {{schema}}.migrations WHERE name = 'M20261105192758_init')
+IF NOT EXISTS (SELECT 1 FROM {{schema}}.migrations WHERE name = 'M20261106111104_init')
 INSERT INTO {{schema}}.migrations (name)
-VALUES ('M20261105192758_init');
+VALUES ('M20261106111104_init');
 GO

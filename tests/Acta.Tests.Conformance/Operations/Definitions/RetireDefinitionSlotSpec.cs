@@ -102,7 +102,7 @@ public sealed class RetireDefinitionSlotSpec : ActaRuntimeTestBase<ConformanceFi
             s =>
             {
                 Assert.NotEqual("retired", s.Config.TimingFingerprint);
-                Assert.Equal(EvaluationStatusCode.Scheduled, s.EvaluationStatus);
+                Assert.Equal(ScheduleEvaluationStatusCode.Scheduled, s.EvaluationStatus);
                 Assert.InRange(s.NextOccurrenceAtUtc!.Value, comeback.AddSeconds(-5), comeback.AddMinutes(6));
             }
         );

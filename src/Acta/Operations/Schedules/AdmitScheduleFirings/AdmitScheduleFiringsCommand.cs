@@ -44,7 +44,7 @@ internal sealed record AdmitScheduleFiringsValues(
     int ExpectedScheduleVersion,
     DateTime? NextOccurrenceAtUtc,
     DateTime? NextEvaluationAtUtc,
-    EvaluationStatusCode EvaluationStatus,
+    ScheduleEvaluationStatusCode EvaluationStatus,
     bool PauseEnded,
     string? AdmittedDetails,
     string? SkippedDetails,

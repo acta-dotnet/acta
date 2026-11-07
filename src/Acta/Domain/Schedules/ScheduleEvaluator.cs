@@ -35,12 +35,12 @@ internal static class ScheduleEvaluator
         {
             if (cursor.PausedUntilUtc is not { } until)
             {
-                return Unchanged(cursor, EvaluationStatusCode.Scheduled, null, pauseEnded: false);
+                return Unchanged(cursor, ScheduleEvaluationStatusCode.Scheduled, null, pauseEnded: false);
             }
 
             if (until > now)
             {
-                return Unchanged(cursor, EvaluationStatusCode.Scheduled, until, pauseEnded: false);
+                return Unchanged(cursor, ScheduleEvaluationStatusCode.Scheduled, until, pauseEnded: false);
             }
 
             pauseEnded = true;
@@ -48,18 +48,18 @@ internal static class ScheduleEvaluator
         }
         else if (cursor.Status != ScheduleStatusCode.Active)
         {
-            return Unchanged(cursor, EvaluationStatusCode.Scheduled, null, pauseEnded: false);
+            return Unchanged(cursor, ScheduleEvaluationStatusCode.Scheduled, null, pauseEnded: false);
         }
 
         if (cursor.NextOccurrenceAtUtc is not { } next)
         {
-            return Unchanged(cursor, EvaluationStatusCode.Exhausted, null, pauseEnded);
+            return Unchanged(cursor, ScheduleEvaluationStatusCode.Exhausted, null, pauseEnded);
         }
 
         next = DateTime.SpecifyKind(next, DateTimeKind.Utc);
         if (next > now)
         {
-            return Unchanged(cursor, EvaluationStatusCode.Scheduled, next, pauseEnded);
+            return Unchanged(cursor, ScheduleEvaluationStatusCode.Scheduled, next, pauseEnded);
         }
 
         DateTime? expiredFrom = null;
@@ -93,7 +93,7 @@ internal static class ScheduleEvaluator
                 pausedByExpiry =
                     policy.ExpireAction == ScheduleExpireActionCode.Pause
                     && !pauseEnded
-                    && cursor.EvaluationStatus != EvaluationStatusCode.Resumed;
+                    && cursor.EvaluationStatus != ScheduleEvaluationStatusCode.Resumed;
                 var remaining = NextOccurrenceCalculator.Next(source, expiredThrough.Value);
                 if (remaining is null || remaining > now)
                 {
@@ -108,7 +108,9 @@ internal static class ScheduleEvaluator
             if (capacity != AdmissionCapacity.Available)
             {
                 var parked =
-                    capacity == AdmissionCapacity.Full ? EvaluationStatusCode.WaitingForCapacity : EvaluationStatusCode.SlotUnavailable;
+                    capacity == AdmissionCapacity.Full
+                        ? ScheduleEvaluationStatusCode.WaitingForCapacity
+                        : ScheduleEvaluationStatusCode.SlotUnavailable;
                 return new ScheduleEvaluation(
                     null,
                     null,
@@ -117,7 +119,7 @@ internal static class ScheduleEvaluator
                     expiredThrough,
                     next,
                     null,
-                    pausedByExpiry ? EvaluationStatusCode.Scheduled : parked,
+                    pausedByExpiry ? ScheduleEvaluationStatusCode.Scheduled : parked,
                     pauseEnded,
                     pausedByExpiry
                 );
@@ -170,7 +172,10 @@ internal static class ScheduleEvaluator
         }
         catch (Exception ex) when (ex is FormatException or ArgumentException or InvalidOperationException or TimeZoneNotFoundException)
         {
-            return Unchanged(cursor, EvaluationStatusCode.EvaluationError, now + ErrorRetryDelay, pauseEnded) with { Error = ex.Message };
+            return Unchanged(cursor, ScheduleEvaluationStatusCode.EvaluationError, now + ErrorRetryDelay, pauseEnded) with
+            {
+                Error = ex.Message,
+            };
         }
 
         return Moved(following, pauseEnded, pausedByExpiry, admit, skippedFrom, skippedThrough, expiredFrom, expiredThrough);
@@ -178,7 +183,7 @@ internal static class ScheduleEvaluator
 
     private static ScheduleEvaluation Unchanged(
         ScheduleCursor cursor,
-        EvaluationStatusCode status,
+        ScheduleEvaluationStatusCode status,
         DateTime? nextEvaluationAtUtc,
         bool pauseEnded
     ) => new(null, null, null, null, null, cursor.NextOccurrenceAtUtc, nextEvaluationAtUtc, status, pauseEnded, false);
@@ -206,7 +211,7 @@ internal static class ScheduleEvaluator
             expiredThrough,
             next,
             pausedByExpiry ? null : next,
-            next is null ? EvaluationStatusCode.Exhausted : EvaluationStatusCode.Scheduled,
+            next is null ? ScheduleEvaluationStatusCode.Exhausted : ScheduleEvaluationStatusCode.Scheduled,
             pauseEnded,
             pausedByExpiry,
             SourceChanged: sourceChanged

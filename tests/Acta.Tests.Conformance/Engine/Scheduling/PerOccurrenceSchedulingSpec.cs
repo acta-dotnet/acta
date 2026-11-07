@@ -166,13 +166,13 @@ public sealed class PerOccurrenceSchedulingSpec : ActaRuntimeTestBase<Conformanc
 
         Assert.Single(await RootsAsync(schedule.Id, ct));
         (_, state) = await ScheduleAsync(PerOccurrenceManifest.WaitingJobName, ct);
-        Assert.Equal(EvaluationStatusCode.WaitingForCapacity, state.EvaluationStatus);
+        Assert.Equal(ScheduleEvaluationStatusCode.WaitingForCapacity, state.EvaluationStatus);
         Assert.Null(state.NextEvaluationAtUtc);
         Assert.Equal(occurrence.AddMinutes(5), state.NextOccurrenceAtUtc);
 
         Assert.Equal(RunOnceStatus.Completed, await Runtime.RunOnceAsync(first.Id, ct));
         (_, state) = await ScheduleAsync(PerOccurrenceManifest.WaitingJobName, ct);
-        Assert.Equal(EvaluationStatusCode.Scheduled, state.EvaluationStatus);
+        Assert.Equal(ScheduleEvaluationStatusCode.Scheduled, state.EvaluationStatus);
         Assert.NotNull(state.NextEvaluationAtUtc);
 
         await Runtime.AdmitOnceAsync(TestNamespace, ct);
@@ -192,7 +192,7 @@ public sealed class PerOccurrenceSchedulingSpec : ActaRuntimeTestBase<Conformanc
 
         Assert.Single(await RootsAsync(schedule.Id, ct));
         (_, state) = await ScheduleAsync(PerOccurrenceManifest.DroppingJobName, ct);
-        Assert.Equal(EvaluationStatusCode.Scheduled, state.EvaluationStatus);
+        Assert.Equal(ScheduleEvaluationStatusCode.Scheduled, state.EvaluationStatus);
         Assert.Equal(occurrence.AddMinutes(10), state.NextOccurrenceAtUtc);
         Assert.Equal(1, state.OutstandingCount);
         var skipped = Assert.Single(await DefinitionEventsAsync(schedule.DefinitionId, EventCode.ScheduleSkipped, ct));

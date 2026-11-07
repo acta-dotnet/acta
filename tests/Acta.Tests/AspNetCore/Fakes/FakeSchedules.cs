@@ -95,7 +95,7 @@ internal sealed class FakeSchedules : ISchedules
             MisfireStrategy: MisfireStrategyCode.Skip,
             NextOccurrenceAtUtc: NextOccurrence,
             NextEvaluationAtUtc: NextOccurrence,
-            EvaluationStatus: EvaluationStatusCode.Scheduled,
+            EvaluationStatus: ScheduleEvaluationStatusCode.Scheduled,
             Status: ScheduleStatusCode.Active,
             PausedUntilUtc: null,
             CreatedAtUtc: NextOccurrence.AddDays(-1),

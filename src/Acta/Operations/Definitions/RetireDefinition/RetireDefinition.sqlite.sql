@@ -130,7 +130,7 @@ SET
 
     next_evaluation_at_utc = NULL,
 
-    evaluation_status_code = 30 /* EvaluationStatusCode.Exhausted */,
+    evaluation_status_code = 30 /* ScheduleEvaluationStatusCode.Exhausted */,
 
     version = st.version + 1,
     modified_at_utc = {{now}}

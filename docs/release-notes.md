@@ -30,6 +30,7 @@ Not tagged yet.
 - `RaiseSignalResponse` is `RaiseJobSignalResponse`; `IJobs.RaiseSignalAsync` keeps its name.
 - `UpsertTagsResponse` is `UpsertTagResponse`, since `ITags.UpsertAsync` writes one tag.
 - `RemoveTagsResponse` is `RemoveTagResponse`, since `ITags.RemoveAsync` removes one tag.
+- `EvaluationStatusCode` is `ScheduleEvaluationStatusCode`, with `ScheduleEvaluationStatusCodeExtensions` and `ScheduleEvaluationStatusCodeJsonConverter`, as its code kind `schedule-evaluation-status` already said; in the OpenAPI document the schema `EvaluationStatusCode` is `ScheduleEvaluationStatusCode`. The values, the member `evaluationStatus`, and the `evaluation_status_code` column keep their names.
 - In the OpenAPI document the schema `GetJobInputBodyResponse` is `StoredJobPayload`, with the same members: it is the shape of every payload a response carries, a job's input, its result, and a checkpoint's value alike. A payload a request carries is `JobPayloadBody`.
 - In the OpenAPI document the request schema `SetDefinitionOverridesRequest` is `UpdateDefinitionOverridesRequest` and `TriggerScheduleNowRequest` is `TriggerScheduleRequest`, and `UpsertJobTagsRequest`, `UpsertNamespaceTagsRequest`, `UpsertTenantTagsRequest`, and `UpsertDefinitionTagsRequest` are one schema, `UpsertTagRequest`, the body of the tag upsert by name below.
 - `ISchedules.TriggerNowAsync` is `ISchedules.TriggerAsync`, and `TriggerScheduleNowResponse` is `TriggerScheduleResponse`; the `/trigger` route and the `schedule.triggered` event keep their names.

@@ -179,13 +179,13 @@ public sealed class PersistedCodeContractTests
         OverdueDecisionCode.Unspecified=0|unspecified
         OverdueDecisionCode.Refuse=10|refuse
         OverdueDecisionCode.Discard=20|discard
-        EvaluationStatusCode.Unspecified=0|unspecified
-        EvaluationStatusCode.Scheduled=10|scheduled
-        EvaluationStatusCode.WaitingForCapacity=20|waiting-for-capacity
-        EvaluationStatusCode.Exhausted=30|exhausted
-        EvaluationStatusCode.EvaluationError=40|evaluation-error
-        EvaluationStatusCode.SlotUnavailable=50|slot-unavailable
-        EvaluationStatusCode.Resumed=60|resumed
+        ScheduleEvaluationStatusCode.Unspecified=0|unspecified
+        ScheduleEvaluationStatusCode.Scheduled=10|scheduled
+        ScheduleEvaluationStatusCode.WaitingForCapacity=20|waiting-for-capacity
+        ScheduleEvaluationStatusCode.Exhausted=30|exhausted
+        ScheduleEvaluationStatusCode.EvaluationError=40|evaluation-error
+        ScheduleEvaluationStatusCode.SlotUnavailable=50|slot-unavailable
+        ScheduleEvaluationStatusCode.Resumed=60|resumed
         EntityCode.Unspecified=0|unspecified
         EntityCode.Alert=10|alert
         EntityCode.Calendar=15|calendar
@@ -211,7 +211,7 @@ public sealed class PersistedCodeContractTests
         WorkerStatusCode.Dead=200|dead
         """;
 
-    private const string ExpectedDescriptionHash = "B6F6D823F4FA3E9E9D976A8AD8E03E40140A0DF47D07A0F96C690D9F0943CC83";
+    private const string ExpectedDescriptionHash = "7557641C2EFAF997AFF33FB1B191AC93699DA4361BF9D68CAF2BEDE07A4DFCC8";
 
     [Fact]
     public void Frozen_contract_covers_all_35_families_and_200_values()

@@ -6,9 +6,9 @@ namespace Acta;
 /// Why a schedule's next evaluation is when it is: where the scheduling engine stands with one schedule, apart from the schedule's own
 /// status and from the status of the job it fires.
 /// </summary>
-[JsonConverter(typeof(EvaluationStatusCodeJsonConverter))]
+[JsonConverter(typeof(ScheduleEvaluationStatusCodeJsonConverter))]
 [CodeKind("schedule-evaluation-status")]
-public enum EvaluationStatusCode : byte
+public enum ScheduleEvaluationStatusCode : byte
 {
     [Code("unspecified", "Evaluation status not recognized by this build; the row was written by a newer Acta.")]
     Unspecified = 0,

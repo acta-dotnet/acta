@@ -48,7 +48,6 @@ This pattern makes raw values easier to scan in database rows, logs, and diagnos
 | [`DefinitionStatusCode`](#code-family-definitionstatuscode) | `job-definition-status` | `byte` |
 | [`DefinitionTenantRequirementCode`](#code-family-definitiontenantrequirementcode) | `job-tenant-requirement` | `byte` |
 | [`EntityCode`](#code-family-entitycode) | `entity` | `byte` |
-| [`EvaluationStatusCode`](#code-family-evaluationstatuscode) | `schedule-evaluation-status` | `byte` |
 | [`EventCode`](#code-family-eventcode) | `event` | `byte` |
 | [`EventRecordingCode`](#code-family-eventrecordingcode) | `event-recording` | `byte` |
 | [`FiringFailurePolicyCode`](#code-family-firingfailurepolicycode) | `firing-failure-policy` | `byte` |
@@ -60,6 +59,7 @@ This pattern makes raw values easier to scan in database rows, logs, and diagnos
 | [`NamespaceStatusCode`](#code-family-namespacestatuscode) | `namespace-status` | `byte` |
 | [`OutboxStatusCode`](#code-family-outboxstatuscode) | `outbox-status` | `byte` |
 | [`OverdueDecisionCode`](#code-family-overduedecisioncode) | `overdue-decision` | `byte` |
+| [`ScheduleEvaluationStatusCode`](#code-family-scheduleevaluationstatuscode) | `schedule-evaluation-status` | `byte` |
 | [`ScheduleExpireActionCode`](#code-family-scheduleexpireactioncode) | `schedule-expire-action` | `byte` |
 | [`ScheduleExpressionKindCode`](#code-family-scheduleexpressionkindcode) | `schedule-expression-kind` | `byte` |
 | [`ScheduleFullBehaviorCode`](#code-family-schedulefullbehaviorcode) | `schedule-full-behavior` | `byte` |
@@ -218,18 +218,6 @@ This pattern makes raw values easier to scan in database rows, logs, and diagnos
 | `Tenant` | 120 | `tenant` | One tenant. | Active |
 | `Worker` | 130 | `worker` | One worker process lifetime. | Active |
 
-### `EvaluationStatusCode` · `schedule-evaluation-status` <a id="code-family-evaluationstatuscode"></a>
-
-| Member | Id | Code | Description | Lifecycle |
-|---|---:|---|---|---|
-| `Unspecified` | 0 | `unspecified` | Evaluation status not recognized by this build; the row was written by a newer Acta. | Active |
-| `Scheduled` | 10 | `scheduled` | The next evaluation is the next nominal occurrence, or the end of a timed pause. | Active |
-| `WaitingForCapacity` | 20 | `waiting-for-capacity` | An occurrence is due but the permanent slot is busy or the schedule is at its limit of outstanding occurrences; it fires when one of them ends. | Active |
-| `Exhausted` | 30 | `exhausted` | The schedule has no further occurrence; a change to its declaration or to its calendar reactivates it. | Active |
-| `EvaluationError` | 40 | `evaluation-error` | The schedule's expression or calendar could not be evaluated; the schedule keeps its place and the evaluation retries after a bounded delay. | Active |
-| `SlotUnavailable` | 50 | `slot-unavailable` | An occurrence is due but the permanent slot is held, cancelled, or failed terminally; a job resume or restart wakes it. | Active |
-| `Resumed` | 60 | `resumed` | An operator resumed the schedule; its first evaluation decides the backlog under the misfire policy and expires the stale part without pausing again. | Active |
-
 ### `EventCode` · `event` <a id="code-family-eventcode"></a>
 
 | Member | Id | Code | Description | Lifecycle |
@@ -375,6 +363,18 @@ This pattern makes raw values easier to scan in database rows, logs, and diagnos
 | `Unspecified` | 0 | `unspecified` | Overdue decision not recognized by this build; the value was written by a newer Acta. | Active |
 | `Refuse` | 10 | `refuse` | A publication with undecided overdue occurrences on a dependent schedule is rejected. | Active |
 | `Discard` | 20 | `discard` | The undecided overdue occurrences of the old version are recorded as skipped, and the new version's occurrences start after now. | Active |
+
+### `ScheduleEvaluationStatusCode` · `schedule-evaluation-status` <a id="code-family-scheduleevaluationstatuscode"></a>
+
+| Member | Id | Code | Description | Lifecycle |
+|---|---:|---|---|---|
+| `Unspecified` | 0 | `unspecified` | Evaluation status not recognized by this build; the row was written by a newer Acta. | Active |
+| `Scheduled` | 10 | `scheduled` | The next evaluation is the next nominal occurrence, or the end of a timed pause. | Active |
+| `WaitingForCapacity` | 20 | `waiting-for-capacity` | An occurrence is due but the permanent slot is busy or the schedule is at its limit of outstanding occurrences; it fires when one of them ends. | Active |
+| `Exhausted` | 30 | `exhausted` | The schedule has no further occurrence; a change to its declaration or to its calendar reactivates it. | Active |
+| `EvaluationError` | 40 | `evaluation-error` | The schedule's expression or calendar could not be evaluated; the schedule keeps its place and the evaluation retries after a bounded delay. | Active |
+| `SlotUnavailable` | 50 | `slot-unavailable` | An occurrence is due but the permanent slot is held, cancelled, or failed terminally; a job resume or restart wakes it. | Active |
+| `Resumed` | 60 | `resumed` | An operator resumed the schedule; its first evaluation decides the backlog under the misfire policy and expires the stale part without pausing again. | Active |
 
 ### `ScheduleExpireActionCode` · `schedule-expire-action` <a id="code-family-scheduleexpireactioncode"></a>
 

@@ -131,7 +131,7 @@ public sealed class RegisterSchedulesPerOccurrenceSpec : ActaStorageTestBase<Con
         var (back, state) = await ScheduleAsync(defId, "only", ct);
         Assert.Equal(ScheduleStatusCode.Active, back.Status);
         Assert.Equal(planned, state.NextOccurrenceAtUtc);
-        Assert.Equal(EvaluationStatusCode.Scheduled, state.EvaluationStatus);
+        Assert.Equal(ScheduleEvaluationStatusCode.Scheduled, state.EvaluationStatus);
     }
 
     [Fact(DisplayName = "A plan copied before the last occurrence was admitted never writes it back over the exhausted cursor")]
@@ -154,7 +154,7 @@ public sealed class RegisterSchedulesPerOccurrenceSpec : ActaStorageTestBase<Con
                         {
                             NextOccurrenceAtUtc = null,
                             NextEvaluationAtUtc = null,
-                            EvaluationStatus = EvaluationStatusCode.Exhausted,
+                            EvaluationStatus = ScheduleEvaluationStatusCode.Exhausted,
                         },
                     ct
                 )
@@ -170,7 +170,7 @@ public sealed class RegisterSchedulesPerOccurrenceSpec : ActaStorageTestBase<Con
         Assert.Equal("described", same.Description);
         Assert.Null(state.NextOccurrenceAtUtc);
         Assert.Null(state.NextEvaluationAtUtc);
-        Assert.Equal(EvaluationStatusCode.Exhausted, state.EvaluationStatus);
+        Assert.Equal(ScheduleEvaluationStatusCode.Exhausted, state.EvaluationStatus);
     }
 
     [Fact(
@@ -194,7 +194,7 @@ public sealed class RegisterSchedulesPerOccurrenceSpec : ActaStorageTestBase<Con
                         new ScheduleStateEntity
                         {
                             NextEvaluationAtUtc = null,
-                            EvaluationStatus = EvaluationStatusCode.WaitingForCapacity,
+                            EvaluationStatus = ScheduleEvaluationStatusCode.WaitingForCapacity,
                             OutstandingCount = 1,
                         },
                     ct
@@ -204,12 +204,12 @@ public sealed class RegisterSchedulesPerOccurrenceSpec : ActaStorageTestBase<Con
         await RegisterAsync(defId, [Slot("only", cursor) with { Description = "described" }], ct);
         var (_, state) = await ScheduleAsync(defId, "only", ct);
         Assert.Null(state.NextEvaluationAtUtc);
-        Assert.Equal(EvaluationStatusCode.WaitingForCapacity, state.EvaluationStatus);
+        Assert.Equal(ScheduleEvaluationStatusCode.WaitingForCapacity, state.EvaluationStatus);
 
         await RegisterAsync(defId, [Slot("only", cursor, maxOutstanding: 2)], ct);
         (_, state) = await ScheduleAsync(defId, "only", ct);
         Assert.NotNull(state.NextEvaluationAtUtc);
-        Assert.Equal(EvaluationStatusCode.Scheduled, state.EvaluationStatus);
+        Assert.Equal(ScheduleEvaluationStatusCode.Scheduled, state.EvaluationStatus);
         Assert.Equal(cursor, state.NextOccurrenceAtUtc);
         Assert.Equal(1, state.OutstandingCount);
     }

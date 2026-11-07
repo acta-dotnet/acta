@@ -61,7 +61,7 @@ public sealed class ScheduleAdmitterSpec : ActaRuntimeTestBase<ConformanceFixtur
 
         var schedule = await ScheduleAsync(slotId, ct);
         Assert.Equal(occurrence.AddMinutes(5), schedule.NextOccurrenceAtUtc);
-        Assert.Equal(EvaluationStatusCode.Scheduled, schedule.EvaluationStatus);
+        Assert.Equal(ScheduleEvaluationStatusCode.Scheduled, schedule.EvaluationStatus);
     }
 
     [Fact(DisplayName = "A pass with nothing due admits nothing and reports the earliest next evaluation as its horizon")]
@@ -97,14 +97,14 @@ public sealed class ScheduleAdmitterSpec : ActaRuntimeTestBase<ConformanceFixtur
         Clock.AdvanceTo(first.AddMinutes(5));
         await Runtime.AdmitOnceAsync(TestNamespace, ct);
         var waiting = await ScheduleAsync(slotId, ct);
-        Assert.Equal(EvaluationStatusCode.WaitingForCapacity, waiting.EvaluationStatus);
+        Assert.Equal(ScheduleEvaluationStatusCode.WaitingForCapacity, waiting.EvaluationStatus);
         Assert.Null(waiting.NextEvaluationAtUtc);
         Assert.Equal(first.AddMinutes(5), waiting.NextOccurrenceAtUtc);
 
         // The attempt settles the firing, which wakes the member; the next pass admits the waiting occurrence.
         Assert.NotEqual(RunOnceStatus.NothingClaimed, await Runtime.RunOnceAsync(slotId, ct));
         var woken = await ScheduleAsync(slotId, ct);
-        Assert.Equal(EvaluationStatusCode.Scheduled, woken.EvaluationStatus);
+        Assert.Equal(ScheduleEvaluationStatusCode.Scheduled, woken.EvaluationStatus);
         Assert.NotNull(woken.NextEvaluationAtUtc);
 
         await Runtime.AdmitOnceAsync(TestNamespace, ct);

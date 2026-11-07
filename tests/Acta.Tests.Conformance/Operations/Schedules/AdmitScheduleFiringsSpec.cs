@@ -92,7 +92,7 @@ public sealed class AdmitScheduleFiringsSpec : ActaStorageTestBase<ConformanceFi
 
         Assert.True(Assert.Single((await Admit(plan, ct)).Groups).Applied);
         var member = Assert.Single(await ScheduleTestOps.ReadAsync(Db, slotId, ct));
-        Assert.Equal(EvaluationStatusCode.WaitingForCapacity, member.EvaluationStatus);
+        Assert.Equal(ScheduleEvaluationStatusCode.WaitingForCapacity, member.EvaluationStatus);
         Assert.Null(member.NextEvaluationAtUtc);
         var slotAfter = await ReadJobAsync(slotId, ct);
         Assert.Equal(slotBefore.Status, slotAfter.Status);

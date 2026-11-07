@@ -39,7 +39,7 @@ public sealed class ListDueSchedulesSpec : ActaStorageTestBase<ConformanceFixtur
                 Assert.Equal(JobStatusCode.Idle, s.SlotStatus);
                 Assert.Null(s.FiringStatus);
                 Assert.Equal(jobName, s.DefinitionName);
-                Assert.Equal(EvaluationStatusCode.Scheduled, s.EvaluationStatus);
+                Assert.Equal(ScheduleEvaluationStatusCode.Scheduled, s.EvaluationStatus);
             }
         );
         Assert.Equal(now.AddMinutes(-1), due.Single(s => s.ScheduleName == "soon").NextEvaluationAtUtc);

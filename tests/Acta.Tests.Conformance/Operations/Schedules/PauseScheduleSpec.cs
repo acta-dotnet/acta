@@ -195,7 +195,7 @@ public sealed class PauseScheduleSpec : ActaStorageTestBase<ConformanceFixture>
             var schedule = await ScheduleAsync(Db, jobName, "only", ct);
             Assert.Equal(ScheduleStatusCode.Active, schedule.Status);
             Assert.Null(schedule.PausedUntilUtc);
-            Assert.Equal(EvaluationStatusCode.Resumed, schedule.EvaluationStatus);
+            Assert.Equal(ScheduleEvaluationStatusCode.Resumed, schedule.EvaluationStatus);
             Assert.InRange(schedule.NextEvaluationAtUtc!.Value, now, now.AddMinutes(1));
 
             var slot = await SlotAsync(jobName, ct);

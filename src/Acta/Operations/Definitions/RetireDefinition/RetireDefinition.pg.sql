@@ -143,7 +143,7 @@ cleared AS (
 
         next_evaluation_at_utc = NULL,
 
-        evaluation_status_code = 30 /* EvaluationStatusCode.Exhausted */,
+        evaluation_status_code = 30 /* ScheduleEvaluationStatusCode.Exhausted */,
 
         outstanding_count = st.outstanding_count - COALESCE(c.settled, 0),
 

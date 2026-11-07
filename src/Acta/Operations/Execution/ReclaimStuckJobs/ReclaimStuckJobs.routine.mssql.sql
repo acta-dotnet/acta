@@ -370,7 +370,7 @@ BEGIN
         UPDATE st
         SET
             next_evaluation_at_utc = @now,
-            evaluation_status_code = 10 /* EvaluationStatusCode.Scheduled */,
+            evaluation_status_code = 10 /* ScheduleEvaluationStatusCode.Scheduled */,
             modified_at_utc = @now,
             version = st.version + 1
         FROM {{schema}}.schedules_state st WITH (FORCESEEK)
@@ -378,17 +378,17 @@ BEGIN
         INNER JOIN @reclaimed r ON r.job_id = js.job_id
         WHERE
             r.to_status_code = 40 /* JobStatusCode.Idle */
-            AND st.evaluation_status_code IN (20 /* EvaluationStatusCode.WaitingForCapacity */, 50 /* EvaluationStatusCode.SlotUnavailable */);
+            AND st.evaluation_status_code IN (20 /* ScheduleEvaluationStatusCode.WaitingForCapacity */, 50 /* ScheduleEvaluationStatusCode.SlotUnavailable */);
 
         UPDATE st
         SET
             outstanding_count = st.outstanding_count - s.settled,
             next_evaluation_at_utc = CASE
-                WHEN st.evaluation_status_code = 20 /* EvaluationStatusCode.WaitingForCapacity */ THEN @now
+                WHEN st.evaluation_status_code = 20 /* ScheduleEvaluationStatusCode.WaitingForCapacity */ THEN @now
                 ELSE st.next_evaluation_at_utc
             END,
             evaluation_status_code = CASE
-                WHEN st.evaluation_status_code = 20 /* EvaluationStatusCode.WaitingForCapacity */ THEN 10 /* EvaluationStatusCode.Scheduled */
+                WHEN st.evaluation_status_code = 20 /* ScheduleEvaluationStatusCode.WaitingForCapacity */ THEN 10 /* ScheduleEvaluationStatusCode.Scheduled */
                 ELSE st.evaluation_status_code
             END,
             modified_at_utc = @now,
