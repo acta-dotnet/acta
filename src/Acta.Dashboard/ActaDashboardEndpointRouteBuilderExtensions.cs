@@ -25,10 +25,10 @@ public static class ActaDashboardEndpointRouteBuilderExtensions
     )
     {
         ArgumentNullException.ThrowIfNull(endpoints);
+        ArgumentNullException.ThrowIfNull(pattern);
         var options = new ActaDashboardOptions();
         configure?.Invoke(options);
 
-        ArgumentNullException.ThrowIfNull(pattern);
         var group = ActaEndpointRouteBuilderExtensions.MapMount(
             endpoints,
             pattern,
