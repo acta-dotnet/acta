@@ -28,6 +28,7 @@
     <ProjectReference Include="..\..\src\Acta\Acta.csproj" />
     <ProjectReference Include="..\..\tools\Acta.Emit\Acta.Emit.csproj" />
     <ProjectReference Include="..\..\src\Acta.AspNetCore\Acta.AspNetCore.csproj" />
+    <ProjectReference Include="..\..\src\Acta.Dashboard\Acta.Dashboard.csproj" />
     <ProjectReference Include="..\..\src\Acta.Generators\Acta.Generators.csproj" />
     <ProjectReference Include="..\..\src\Acta.Redis\Acta.Redis.csproj" />
     <!-- All three SQL providers: the provider-resource parity gate compares their embedded inventories. -->

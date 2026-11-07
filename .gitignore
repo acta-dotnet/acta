@@ -488,8 +488,8 @@ scripts/set-dev-env.ps1
 tests/PackageSmoke/feed/
 tests/PackageSmoke/.packages/
 
-# Dashboard Vite build output (rebuilt by Acta.AspNetCore.csproj when Node is present)
-src/Acta.AspNetCore/DashboardApp/dist/
+# Dashboard Vite build output (rebuilt by Acta.Dashboard.csproj when Node is present)
+src/Acta.Dashboard/DashboardApp/dist/
 
 # Local benchmark baseline captures
 /.benchmarks/

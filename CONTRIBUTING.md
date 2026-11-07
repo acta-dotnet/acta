@@ -8,8 +8,8 @@ Two tiers, depending on what you are doing:
 
 | Goal | You need |
 |---|---|
-| Run concepts, demos, and Anvil on SQLite | The .NET 10 SDK pinned in `global.json`. Nothing else. (The embedded dashboard UI additionally needs Node.js 20.19+ or 22.12+ at build time; everything else runs without it.) |
-| Full contributor checks (providers, dashboard, PR-ready) | Also Docker (Postgres, SQL Server, Redis containers) and Node.js with npm: 20.19+ or 22.12+ builds the dashboard, and its tests need 22.13+ (CI uses 22). |
+| Run concepts, demos, and Anvil on SQLite | The .NET 10 SDK pinned in `global.json`. Nothing else. (Building `Acta.Dashboard`, the embedded dashboard UI, additionally needs Node.js 20.19+ or 22.12+; everything else, `Acta.AspNetCore` included, builds without it.) |
+| Full contributor checks (providers, dashboard, PR-ready) | Also Docker (Postgres, SQL Server, Redis containers) and Node.js with npm: 20.19+ or 22.12+ builds `Acta.Dashboard`, and its tests need 22.13+ (CI uses 22). |
 
 Setup failures are tabled in [Local setup problems](#local-setup-problems).
 
@@ -180,10 +180,10 @@ To check a change against a starved runner, pin the full suite to two cores and 
 
 ## Dashboard development
 
-The dashboard is a Svelte app in `src/Acta.AspNetCore/DashboardApp`:
+The dashboard is a Svelte app in `src/Acta.Dashboard/DashboardApp`:
 
 ```bash
-cd src/Acta.AspNetCore/DashboardApp
+cd src/Acta.Dashboard/DashboardApp
 npm ci
 npm test                 # helpers + component tests
 npm run build            # emits the hashed assets the .NET build embeds
@@ -191,11 +191,11 @@ npm run size             # holds the bundle to its budget; CI runs this after th
 ```
 
 `npm run test:smoke` runs the Playwright smoke against a Vite dev server it starts itself, with the API
-mocked; run `npx playwright install chromium` once first. The .NET build runs the npm
-build automatically; pass `-p:ActaDashboardSkipNpm=true` to skip it when you have not touched the
+mocked; run `npx playwright install chromium` once first. The .NET build of `Acta.Dashboard` runs the
+npm build automatically; pass `-p:ActaDashboardSkipNpm=true` to skip it when you have not touched the
 dashboard. Restart any running host after `npm run build` to pick up new assets.
 
-The dist is embedded in the NuGet package, so bundle size is package size, and the dashboard ships
+The dist is embedded in the `Acta.Dashboard` package, so bundle size is package size, and the dashboard ships
 as one JS file on purpose. `npm run size` fails when the bundle grows past its budget;
 `scripts/size-budget.mjs` carries both the budget and the reasoning behind the single-file build.
 
@@ -295,7 +295,7 @@ The canonical sequence (CI runs these, plus the Playwright smoke and the package
 ```bash
 dotnet tool restore
 dotnet restore Acta.slnx
-cd src/Acta.AspNetCore/DashboardApp && npm ci && npm test && npm run build && npm run size && cd -
+cd src/Acta.Dashboard/DashboardApp && npm ci && npm test && npm run build && npm run size && cd -
 dotnet build Acta.slnx -c Release -p:ActaDashboardSkipNpm=true
 docker compose up -d --wait --wait-timeout 300
 dotnet test Acta.slnx -c Release --settings tests/Acta.runsettings
@@ -662,9 +662,10 @@ Where code lives in `src/`, and the tests that hold it there.
 ### Projects
 
 - `src/Acta` is the SDK and the engine, in one namespace, `Acta`: the facade interfaces and the models they return, configuration, the handler API, the operations, the engine, database access, the schema, hosting, and the operator CLI. Its public types are the consumer contract, pinned by `PublicApiContractTests`; everything else is internal.
-- In `src/Acta`, `UseActa` sits at the project root, where a consumer looks for the entry point, as `Use{Provider}` and `MapActa` do in theirs; `Operations/` holds the operations as vertical slices, `Domain/` what Acta is made of, and `Engine/` runs jobs; the rest sits by capability, in [the other folders](#the-other-folders).
+- In `src/Acta`, `UseActa` sits at the project root, where a consumer looks for the entry point, as `Use{Provider}`, `MapActaApi`, and `MapActa` do in theirs; `Operations/` holds the operations as vertical slices, `Domain/` what Acta is made of, and `Engine/` runs jobs; the rest sits by capability, in [the other folders](#the-other-folders).
 - `src/Acta.Postgres`, `src/Acta.SqlServer`, and `src/Acta.Sqlite` each hold the `Use{Provider}` registration, the `{Provider}Migrations` class, and outbox staging at the project root, the dialect and the migrator (which is also the startup bootstrap) under `Services/`, and its migrations under `Migrations/`, named `M{yyyyMMddHHmmss}_{name}.sql`.
-- `src/Acta.AspNetCore` holds `MapActa`, the routes in `Operations/<Group>/`, the `Http/` helpers (route shapes, binding, validation, the JSON context, headers), and the dashboard. It references only `Acta`, and sees only its public types.
+- `src/Acta.AspNetCore` is the HTTP API: `MapActaApi`, the routes in `Operations/<Group>/`, and the `Http/` helpers (route shapes, binding, validation, the JSON context, headers). It references only `Acta`, and sees only its public types.
+- `src/Acta.Dashboard` is the dashboard: the Svelte app in `DashboardApp/`, and at the project root `MapActa`, which maps the dashboard and the API in one call, and the code that serves the app. It references only `Acta.AspNetCore`, which grants it its internals, and names no type of `Acta`.
 - `src/Acta.Redis` is the Redis wakeup, `src/Acta.Testing` the test host and runners, and `src/Acta.Generators` the source generators.
 - A file holds one top-level type and is named for it, with the generic arities of one name together and a partial type's other files named `Type.Part.cs`; a type that exactly one other type references, tests aside, sits below that type in its file instead, and a reference from an interface's implementation counts as the interface's, so a type that only an interface and its implementations reference sits below the interface, unless a layout rule gives it a file of its own, or the two files differ in namespace, analyzer rulings, or test allowlist entries.
 
@@ -777,7 +778,7 @@ Definitions the boxes rest on: a worker is one process runtime registered for on
 | `LogVocabularyTests` | src logs only through `ActaLog` and `ActaAspNetCoreLog`, whose `[LoggerMessage]` methods take only the log-field vocabulary at its declared types |
 | `FileNameTests` | every file in `src/Acta` named for its first top-level type, a partial type's other files `Type.Part.cs` |
 | `PublicApiContractTests` | the public types and members of every shipped assembly match `PublicApiSurface.approved.txt` |
-| `ArchitectureBoundaryTests` | `Acta.AspNetCore` references only `Acta` |
+| `ArchitectureBoundaryTests` | `Acta.AspNetCore` references only `Acta`, and `Acta.Dashboard` only `Acta.AspNetCore` |
 
 Every rule holds with no known exception: a single violation fails its test.
 
@@ -844,6 +845,7 @@ dotnet run -c Release --project tools/Acta.Verify -- release --db all --output a
 
 - Create the GitHub release from the tag (`gh release create v<version> --verify-tag`, adding `--prerelease` only for a pre-release), titled with the bare version and carrying the notes' summary, upgrade paragraph, highlights, evidence, and a link to the notes at the tag.
 - Clear the NuGet HTTP cache (`dotnet nuget locals http-cache --clear`), bump the Acta versions in `demos/Directory.Packages.props`, build both demos, and run one end to end: the demos consume the published packages.
+- When the demos move to 1.0.0-rc.9, a demo that calls `MapActa` adds the package `Acta.Dashboard` and `using Acta.Dashboard;`.
 - Once the packages resolve from nuget.org, read useacta.net by hand before it deploys: the release lines on the front page and the start page name the released version, the benchmark strip cites the round the release notes cite, the concept count is current, and every claim still matches the guide.
 
 ## Repository layout
@@ -877,7 +879,7 @@ The shortest paths to the design-review-worthy parts:
 | Persistence architecture | `src/Acta/Operations/` (one folder per operation: its public types, handler, and SQL), `src/Acta/{Schema,Storage}/`, the dialect class in each of `src/Acta.{Postgres,SqlServer,Sqlite}/` |
 | Provider conformance | `tests/Acta.Tests.Conformance` (specs and test infrastructure); each of `tests/Acta.Tests.Conformance.{Postgres,SqlServer,Sqlite}` compiles the specs against its own `ConformanceFixture` alias, [`docs/reference/conformance-contracts.md`](./docs/reference/conformance-contracts.md) |
 | Source generators | `src/Acta.Generators` |
-| Dashboard / API | `src/Acta.AspNetCore` (`MapActa(...)`) |
+| Dashboard / API | `src/Acta.Dashboard` (`MapActa(...)`), `src/Acta.AspNetCore` (`MapActaApi(...)`) |
 | CI, packaging, smoke checks | `.github/workflows/ci.yml`, `tests/PackageSmoke/` |
 
 Settled design decisions live in [`docs/architecture-decisions.md`](./docs/architecture-decisions.md).

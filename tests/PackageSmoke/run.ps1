@@ -36,9 +36,9 @@ else {
     dotnet build "$root/src/Acta.Generators/Acta.Generators.csproj" -c Release --nologo
     if ($LASTEXITCODE -ne 0) { throw 'build failed: Acta.Generators' }
 
-    # Redis and Testing are packed here and consumed below; Acta.AspNetCore needs Node-built dashboard
-    # assets so it is only consumed when an existing feed (CI) already contains it.
-    foreach ($project in @('Acta', 'Acta.Redis', 'Acta.Testing') + $providers) {
+    # Redis, Testing, and AspNetCore are packed here and consumed below; Acta.Dashboard needs Node-built
+    # dashboard assets so it is only consumed when an existing feed (CI) already contains it.
+    foreach ($project in @('Acta', 'Acta.Redis', 'Acta.Testing', 'Acta.AspNetCore') + $providers) {
         dotnet pack "$root/src/$project/$project.csproj" -c Release -o $feed --nologo
         if ($LASTEXITCODE -ne 0) { throw "pack failed: $project" }
     }
@@ -115,8 +115,12 @@ foreach ($package in Get-ChildItem $feed -Filter '*.nupkg') {
         if (-not $meta.readme -or $entries -notcontains $meta.readme) { $failures += 'readme not declared or not packed' }
         if ($meta.version -notmatch '^\d+\.\d+\.\d+(-[0-9A-Za-z.-]+)?$') { $failures += "version '$($meta.version)' is not a MinVer semver" }
         # The dashboard bundles open-source components; the notices generated from the bundle ship at
-        # the package root and must name the packages known to survive minification.
-        if ($package.Name -like 'Acta.AspNetCore.*') {
+        # the package root and must name the packages known to survive minification. The API package
+        # bundles none, so it carries no notices file.
+        if ($package.Name -like 'Acta.AspNetCore.*' -and $entries -contains 'THIRD-PARTY-NOTICES.txt') {
+            $failures += 'THIRD-PARTY-NOTICES.txt packed into the API package'
+        }
+        if ($package.Name -like 'Acta.Dashboard.*') {
             $noticesEntry = $zip.Entries | Where-Object { $_.FullName -eq 'THIRD-PARTY-NOTICES.txt' }
             if (-not $noticesEntry) { $failures += 'THIRD-PARTY-NOTICES.txt not packed' }
             else {
@@ -186,9 +190,9 @@ try {
     }
 
     # Non-provider packages, each layered once on the cheapest provider (Sqlite) so their dependency
-    # graphs are consume-proven from the feed too. AspNetCore only exists in a CI-produced feed.
-    $extras = @('Acta.Redis', 'Acta.Testing')
-    if (Get-ChildItem $feed -Filter 'Acta.AspNetCore.*.nupkg' -ErrorAction SilentlyContinue) { $extras += 'Acta.AspNetCore' }
+    # graphs are consume-proven from the feed too. Dashboard only exists in a CI-produced feed.
+    $extras = @('Acta.Redis', 'Acta.Testing', 'Acta.AspNetCore')
+    if (Get-ChildItem $feed -Filter 'Acta.Dashboard.*.nupkg' -ErrorAction SilentlyContinue) { $extras += 'Acta.Dashboard' }
     foreach ($extra in $extras) {
         $packages = @(Get-ChildItem $feed -Filter "$extra.*.nupkg")
         if ($packages.Count -ne 1) { throw "expected exactly one $extra package, found $($packages.Count)" }

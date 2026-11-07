@@ -27,6 +27,7 @@ public sealed class PublicApiContractTests
     [
         "Acta.dll",
         "Acta.AspNetCore.dll",
+        "Acta.Dashboard.dll",
         "Acta.Postgres.dll",
         "Acta.SqlServer.dll",
         "Acta.Sqlite.dll",

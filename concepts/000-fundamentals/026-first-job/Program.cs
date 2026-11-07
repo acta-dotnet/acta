@@ -1,6 +1,6 @@
 // File: Program.cs
 using Acta;
-using Acta.AspNetCore;
+using Acta.Dashboard;
 using Acta.Sqlite;
 using Shipping; // the generated manifest lands in your project's root namespace
 

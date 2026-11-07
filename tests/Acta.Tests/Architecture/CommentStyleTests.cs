@@ -16,7 +16,7 @@ public sealed partial class CommentStyleTests
 {
     /// <summary>
     /// Source roots subject to the comment-style policy: the runtime core plus the three durable SQL
-    /// providers (matching AotPolicyTests). Acta.AspNetCore (Web-SDK dashboard host), Acta.Redis
+    /// providers (matching AotPolicyTests). Acta.AspNetCore (HTTP API), Acta.Dashboard (web dashboard), Acta.Redis
     /// (optional wakeup), and Acta.Testing (test-support) ship too but are out of this boundary by design.
     /// </summary>
     private static readonly string[] ProductionRoots = ["src/Acta", "src/Acta.SqlServer", "src/Acta.Postgres", "src/Acta.Sqlite"];

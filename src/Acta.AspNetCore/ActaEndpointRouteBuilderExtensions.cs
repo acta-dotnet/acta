@@ -1,5 +1,4 @@
 using System.Net;
-using System.Text;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Builder;
 using Microsoft.AspNetCore.Http;
@@ -11,8 +10,8 @@ using Microsoft.Extensions.Options;
 namespace Acta.AspNetCore;
 
 /// <summary>
-/// Maps the Acta operator API and the embedded dashboard. The package ships no
-/// authentication: hook <c>RequireAuthorization</c> through the configure callbacks.
+/// Maps the Acta operator API. The package ships no authentication: hook
+/// <c>RequireAuthorization</c> through the configure callback.
 /// </summary>
 public static class ActaEndpointRouteBuilderExtensions
 {
@@ -32,8 +31,9 @@ public static class ActaEndpointRouteBuilderExtensions
     /// <summary>
     /// Maps the operator API endpoints (query reads always; the POST job controls only when opted in
     /// via <see cref="ActaEndpointOptions.EnableControls"/>, which is off by default) under
-    /// <paramref name="pattern"/> plus <see cref="ApiVersionSegment"/>, without the dashboard UI. The
-    /// default mount therefore serves <c>/acta/api/v1/jobs</c>.
+    /// <paramref name="pattern"/> plus <see cref="ApiVersionSegment"/>. The default mount therefore serves
+    /// <c>/acta/api/v1/jobs</c>. <c>MapActa</c> of Acta.Dashboard maps the same API beside the dashboard; a
+    /// mount is mapped by one of the two, never both.
     /// </summary>
     /// <returns>
     /// The group at <paramref name="pattern"/>, above the version segment: conventions applied to it
@@ -50,40 +50,6 @@ public static class ActaEndpointRouteBuilderExtensions
         configure?.Invoke(options);
 
         var group = MapMount(endpoints, pattern, apiPrefix: "", options);
-        options.ConfigureEndpoints?.Invoke(group);
-        return group;
-    }
-
-    /// <summary>
-    /// Maps the embedded dashboard (HTML, hashed assets, SPA fallback) and its API under
-    /// <paramref name="pattern"/>. Index pages serve with <c>no-cache</c>, hashed assets as
-    /// immutable, and API responses with <c>no-store</c>.
-    /// </summary>
-    public static RouteGroupBuilder MapActa(
-        this IEndpointRouteBuilder endpoints,
-        string pattern = "/acta",
-        Action<ActaDashboardOptions>? configure = null
-    )
-    {
-        ArgumentNullException.ThrowIfNull(endpoints);
-        var options = new ActaDashboardOptions();
-        configure?.Invoke(options);
-
-        var group = MapMount(endpoints, pattern, DashboardApiPrefix, options);
-
-        // Rooted, so it composes with the request's path base; a pattern written without the
-        // leading slash is a valid route but not a valid path segment.
-        var basePath = pattern.Trim('/') is { Length: > 0 } trimmed ? "/" + trimmed : "";
-        group.MapGet("", (HttpContext http) => ServeIndex(http, options, basePath));
-        group.MapGet("/assets/{**assetPath}", (string assetPath) => ServeAsset("assets/" + assetPath, options));
-        group.Map(
-            "/{**" + CatchAllRouteValue + "}",
-            ([Microsoft.AspNetCore.Mvc.FromRoute(Name = CatchAllRouteValue)] string path, HttpContext http) =>
-                IsUnknownEndpoint(http.Request, path)
-                    ? Results.Problem(statusCode: StatusCodes.Status404NotFound, title: "Unknown endpoint.")
-                    : ServeIndex(http, options, basePath)
-        );
-
         options.ConfigureEndpoints?.Invoke(group);
         return group;
     }
@@ -279,81 +245,4 @@ public static class ActaEndpointRouteBuilderExtensions
         IPAddress.TryParse(host.Trim('[', ']'), out _)
         || host.Equals("localhost", StringComparison.OrdinalIgnoreCase)
         || host.EndsWith(".localhost", StringComparison.OrdinalIgnoreCase);
-
-    // The base href carries the request's path base in front of the mount pattern: behind a reverse
-    // proxy that strips a prefix, UsePathBase puts it back on the request, and relative asset URLs in
-    // the page must resolve under it.
-    private static IResult ServeIndex(HttpContext http, ActaDashboardOptions options, string basePath)
-    {
-        // Escaped as a URI component: a path base taken from a forwarded-prefix header is request input
-        // and lands inside an attribute.
-        var baseHref = http.Request.PathBase.Add(basePath).ToUriComponent();
-        if (options.UseViteDevServer)
-        {
-            var dev = DevIndex(options.ViteDevServerUrl, baseHref);
-            return Headers(Results.Text(dev, "text/html; charset=utf-8"), options, isIndex: true, isDev: true);
-        }
-
-        var bytes = EmbeddedDashboardAssets.Read("index.html");
-        if (bytes is null)
-        {
-            return Results.Problem(
-                statusCode: StatusCodes.Status404NotFound,
-                title: "Dashboard assets are not embedded in this build.",
-                detail: "Rebuild with Node.js 20.19+ or 22.12+ on PATH (the build runs npm automatically), or run npm ci && npm run build in src/Acta.AspNetCore/DashboardApp. API endpoints are unaffected."
-            );
-        }
-
-        var html = Encoding
-            .UTF8.GetString(bytes)
-            .Replace("<head>", $"<head><base href=\"{baseHref}/\">", StringComparison.OrdinalIgnoreCase);
-        return Headers(Results.Text(html, "text/html; charset=utf-8"), options, isIndex: true, isDev: false);
-    }
-
-    private static IResult ServeAsset(string path, ActaDashboardOptions options)
-    {
-        var bytes = EmbeddedDashboardAssets.Read(path);
-        return bytes is null
-            ? Results.Problem(statusCode: StatusCodes.Status404NotFound, title: "Asset not found.")
-            : Headers(Results.Bytes(bytes, ContentTypeMap.For(path)), options, isIndex: false, isDev: false);
-    }
-
-    private static DashboardFileWithHeaders Headers(IResult inner, ActaDashboardOptions options, bool isIndex, bool isDev) =>
-        new DashboardFileWithHeaders(inner, options, isIndex, isDev);
-
-    private static string DevIndex(string viteOrigin, string basePath) =>
-        $"""
-            <!doctype html>
-            <html lang="en">
-            <head><base href="{basePath}/"><meta charset="utf-8"><title>Acta</title></head>
-            <body>
-            <div id="app"></div>
-            <script type="module" src="{viteOrigin}/src/main.ts"></script>
-            </body>
-            </html>
-            """;
-
-    /// <summary>
-    /// Wraps a result to stamp cache and security headers after the endpoint resolves.
-    /// </summary>
-    private sealed class DashboardFileWithHeaders(IResult inner, ActaDashboardOptions options, bool isIndex, bool isDev) : IResult
-    {
-        public Task ExecuteAsync(HttpContext httpContext)
-        {
-            httpContext.Response.Headers.CacheControl = isIndex ? "no-cache" : "public, max-age=31536000, immutable";
-            if (options.AddSecurityHeaders)
-            {
-                if (isDev)
-                {
-                    DashboardSecurityHeaders.ApplyDevelopment(httpContext.Response, options.ViteDevServerUrl);
-                }
-                else
-                {
-                    DashboardSecurityHeaders.Apply(httpContext.Response);
-                }
-            }
-
-            return inner.ExecuteAsync(httpContext);
-        }
-    }
 }

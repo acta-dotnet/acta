@@ -25,7 +25,7 @@ called twice with the same input, and put every external side effect behind a st
 ```bash
 dotnet new web -n Shipping && cd Shipping
 dotnet add package Acta.Sqlite --prerelease
-dotnet add package Acta.AspNetCore --prerelease
+dotnet add package Acta.Dashboard --prerelease
 ```
 
 Replace `Program.cs` with this, all of it:
@@ -33,7 +33,7 @@ Replace `Program.cs` with this, all of it:
 ```csharp
 using Shipping;                 // the generated manifest lands in your project's root namespace
 using Acta;
-using Acta.AspNetCore;
+using Acta.Dashboard;
 using Acta.Sqlite;
 
 var builder = WebApplication.CreateBuilder(args);
@@ -98,7 +98,7 @@ public static class ShippingHandlers
 
 ## Wiring rules by situation
 
-- New app: ASP.NET Core empty host + `Acta.Sqlite` + `Acta.AspNetCore` with `MapActa("/acta")` and
+- New app: ASP.NET Core empty host + `Acta.Sqlite` + `Acta.Dashboard` with `MapActa("/acta")` and
   one real job, exactly as above.
 - Existing app: inspect its hosting and database first and preserve both. Add the matching
   provider package (`Acta.Postgres` / `Acta.SqlServer` / `Acta.Sqlite`) and register with the

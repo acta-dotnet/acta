@@ -1,4 +1,5 @@
 global using Acta.AspNetCore;
+global using Acta.Dashboard;
 global using Acta.Postgres;
 global using Acta.Redis;
 global using Acta.Sqlite;

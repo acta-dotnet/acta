@@ -28,7 +28,8 @@ Published on [nuget.org](https://www.nuget.org/packages?q=Acta):
 
 - `Acta.SqlServer`, `Acta.Postgres`, `Acta.Sqlite`: providers; one reference is enough.
 - `Acta`: public API, SDK, and engine; a transitive dependency of the providers.
-- `Acta.AspNetCore`: dashboard + JSON API.
+- `Acta.AspNetCore`: JSON API.
+- `Acta.Dashboard`: dashboard; brings `Acta.AspNetCore`.
 - `Acta.Redis`: optional worker wakeup.
 - `Acta.Testing`: test host.
 

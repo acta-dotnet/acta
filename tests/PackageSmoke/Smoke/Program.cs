@@ -19,6 +19,9 @@ Console.WriteLine($"testing package: {typeof(Acta.Testing.ActaTestHost).FullName
 #if SMOKE_ASPNETCORE
 Console.WriteLine($"aspnetcore package: {typeof(Acta.AspNetCore.ActaEndpointRouteBuilderExtensions).FullName}");
 #endif
+#if SMOKE_DASHBOARD
+Console.WriteLine($"dashboard package: {typeof(Acta.Dashboard.ActaDashboardEndpointRouteBuilderExtensions).FullName}");
+#endif
 Console.WriteLine("package smoke OK");
 
 namespace Smoke

@@ -102,14 +102,14 @@ Restore, build, start the app, run the job once, and tell me how to open the das
         <div class="panel-tab">Terminal</div>
         <pre><code>dotnet new web -n Shipping &amp;&amp; cd Shipping
 dotnet add package Acta.Sqlite --prerelease
-dotnet add package Acta.AspNetCore --prerelease</code></pre>
+dotnet add package Acta.Dashboard --prerelease</code></pre>
       </div>
       <p class="lede">Replace <code>Program.cs</code> with this, all of it:</p>
       <div class="code-card panel">
         <div class="panel-tab">Program.cs</div>
         <pre><code>using Shipping;                 // the generated manifest lands in your project's root namespace
 using Acta;
-using Acta.AspNetCore;
+using Acta.Dashboard;
 using Acta.Sqlite;
 
 var builder = WebApplication.CreateBuilder(args);

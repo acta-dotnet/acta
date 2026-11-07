@@ -10,19 +10,19 @@ Three commands from an empty folder. The only prerequisite is the .NET 10 SDK.
 ```bash
 dotnet new web -n Shipping && cd Shipping
 dotnet add package Acta.Sqlite --prerelease
-dotnet add package Acta.AspNetCore --prerelease
+dotnet add package Acta.Dashboard --prerelease
 ```
 
 A single provider package reference delivers everything: the runtime, the `[Job]` source generator,
-and the analyzers. `Acta.AspNetCore` adds the embedded dashboard and JSON API — the built UI ships
-inside the package, so there is no Node, no separate frontend, nothing to build.
+and the analyzers. `Acta.Dashboard` adds the embedded dashboard and brings `Acta.AspNetCore`, the JSON
+API. The built UI ships inside the package, so there is no Node, no separate frontend, nothing to build.
 
 Replace `Program.cs` with this, all of it:
 
 ```csharp
 using Shipping;                 // the generated manifest lands in your project's root namespace
 using Acta;
-using Acta.AspNetCore;
+using Acta.Dashboard;
 using Acta.Sqlite;
 
 var builder = WebApplication.CreateBuilder(args);
@@ -86,8 +86,8 @@ var outcome = await reminder.WaitAsync(TimeSpan.FromSeconds(30));
 ## No web host?
 
 The same program runs on the generic host without the dashboard: `dotnet new console`, swap
-`Acta.AspNetCore` for `Microsoft.Extensions.Hosting` (Acta itself depends only on
-`Hosting.Abstractions`), and in `Program.cs` replace `using Acta.AspNetCore;` with
+`Acta.Dashboard` for `Microsoft.Extensions.Hosting` (Acta itself depends only on
+`Hosting.Abstractions`), and in `Program.cs` replace `using Acta.Dashboard;` with
 `using Microsoft.Extensions.DependencyInjection;` and `using Microsoft.Extensions.Hosting;` (a console
 project's implicit usings cover neither), replace the builder lines with
 `var builder = Host.CreateApplicationBuilder(args);` and `using var host = builder.Build();`, drop

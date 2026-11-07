@@ -20,7 +20,7 @@ In your own app, from an empty folder. The only prerequisite is the [.NET 10 SDK
 ```bash
 dotnet new web -n Shipping && cd Shipping
 dotnet add package Acta.Sqlite --prerelease
-dotnet add package Acta.AspNetCore --prerelease
+dotnet add package Acta.Dashboard --prerelease
 ```
 
 Replace `Program.cs` with this, all of it:
@@ -28,7 +28,7 @@ Replace `Program.cs` with this, all of it:
 ```csharp
 using Shipping;                 // the generated manifest lands in your project's root namespace
 using Acta;
-using Acta.AspNetCore;
+using Acta.Dashboard;
 using Acta.Sqlite;
 
 var builder = WebApplication.CreateBuilder(args);
@@ -167,7 +167,7 @@ Start at [`docs/README.md`](./docs/README.md), which orders every page by the qu
 
 ## Packages
 
-**NuGet packages** (published on [nuget.org](https://www.nuget.org/packages?q=Acta) since `0.3.0-alpha.1`): `Acta.SqlServer`, `Acta.Postgres`, `Acta.Sqlite` (providers, one reference is enough), `Acta` (public API, SDK, and engine; a transitive dependency of the providers), `Acta.AspNetCore` (dashboard + JSON API), `Acta.Redis` (optional worker wakeup), `Acta.Testing` (test host). Transactional cross-database outbox staging (the `AddToActaOutboxAsync` producer primitive) ships inside each provider package, not as a separate reference. Source-generated dispatch (`Acta.Generators`) ships bundled inside these: there is no separate reference.
+**NuGet packages** (published on [nuget.org](https://www.nuget.org/packages?q=Acta) since `0.3.0-alpha.1`): `Acta.SqlServer`, `Acta.Postgres`, `Acta.Sqlite` (providers, one reference is enough), `Acta` (public API, SDK, and engine; a transitive dependency of the providers), `Acta.AspNetCore` (JSON API), `Acta.Dashboard` (dashboard; brings `Acta.AspNetCore`), `Acta.Redis` (optional worker wakeup), `Acta.Testing` (test host). Transactional cross-database outbox staging (the `AddToActaOutboxAsync` producer primitive) ships inside each provider package, not as a separate reference. Source-generated dispatch (`Acta.Generators`) ships bundled inside these: there is no separate reference.
 
 **Repository tooling** (not published to NuGet): `Acta.Verify` (benchmark and release evidence suite) and `Acta.Emit` (doc/migration emitter), run with `dotnet run --project tools/…`.
 

@@ -20,8 +20,9 @@ public sealed partial class AotPolicyTests
     /// Source roots subject to the no-reflection policy: the runtime core plus the three durable SQL
     /// providers (Postgres, SQL Server, SQLite), i.e. what compiles into a customer's Native AOT worker
     /// or enqueue host. The other shipping packages are out of this boundary by design: Acta.AspNetCore
-    /// is an ASP.NET Web-SDK dashboard host (not an AOT target), Acta.Redis is an optional wakeup
-    /// accelerator, and Acta.Testing is test-support that runs in test hosts, not the production runtime.
+    /// (the HTTP API) and Acta.Dashboard (the web dashboard) are ASP.NET Core endpoint packages, Acta.Redis
+    /// is an optional wakeup accelerator, and Acta.Testing is test-support that runs in test hosts, not the
+    /// production runtime.
     /// </summary>
     private static readonly string[] RuntimeRoots = ["src/Acta", "src/Acta.SqlServer", "src/Acta.Postgres", "src/Acta.Sqlite"];
 

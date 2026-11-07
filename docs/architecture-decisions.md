@@ -177,7 +177,7 @@ Reopening an entry means writing a proposal, not editing this file.
 
 ### Packages
 
-- **Packages:** `Acta` (the SDK, the operations, the engine, and database access), the providers, `Acta.AspNetCore`, `Acta.Redis`, and `Acta.Testing`. *Reason:* the public-API contract test is the boundary between what a consumer may use and what stays internal, so a second assembly for the engine bought nothing, and one folder per slice is the point: an operation's public types, handler, and SQL read together.
+- **Packages:** `Acta` (the SDK, the operations, the engine, and database access), the providers, `Acta.AspNetCore`, `Acta.Dashboard`, `Acta.Redis`, and `Acta.Testing`. *Reason:* the public-API contract test is the boundary between what a consumer may use and what stays internal, so a second assembly for the engine bought nothing, and one folder per slice is the point: an operation's public types, handler, and SQL read together.
 - **Relational-provider baseline.** SQL Server, PostgreSQL, and SQLite ship side-by-side against one provider-neutral entity model. *Reason:* shipping distributed and embedded providers in lockstep prevents single-provider assumptions.
 - **No in-memory provider.** *Reason:* it would pass tests the real providers fail.
 - **Visibility default is `internal sealed`**; a type is public only when it is part of the consumer surface. *Reason:* the API boundary is grep-checkable, and `PublicApiContractTests` pins it.
@@ -189,7 +189,7 @@ The terms for internal structure; where each piece lives is [source layout](../C
 - **Operation:** one thing a caller or the engine can do, in one folder, `Operations/<Group>/<Operation>/`: its public types, its command or query, its handler, its row, and its SQL per dialect. The same `VerbNoun` names the folder, the SQL stem, and the facade method. *Reason:* one place to read an operation whole, in every dialect.
 - **Group:** the operations of one subject (Jobs, Schedules, Alerts, ...), with one hand-written facade of one line per operation and the types the group shares. There is no mediator and no layer between facade and handler. *Reason:* a group is a folder, not a boundary; its handlers call what they need directly.
 - **Engine:** `src/Acta/Engine/` runs jobs (workers, execution, recovery, retention, alert projection and delivery, the outbox relay, definition registration) and composes operations by calling their handlers. No operation references the engine. *Reason:* the dependency points one way, so an operation reads on its own.
-- **Adapter:** a project that connects an external technology: the providers, `Acta.Redis`, `Acta.AspNetCore`, `Acta.Testing`.
+- **Adapter:** a project that connects an external technology: the providers, `Acta.Redis`, `Acta.AspNetCore`, `Acta.Dashboard`, `Acta.Testing`.
 - **Manifest:** the generated per-assembly type of job descriptors and call factories (`{Area}Jobs : IJobManifest`, such as `ShippingJobs`). The word is reserved for that.
 - **Public facade:** the consumer surface (`IJobs` and friends), deliberately simpler than the internal structure; the public API never mirrors the folder tree.
 - **Tags follow the shared-substrate model:** each target's owner owns its tag rows by scope, the physical `tags` table is one partitioned substrate, and every write goes through the Tags group's SQL under the ownership map. There is no tag-metadata API in front of it. *Reason:* tags span tenants, namespaces, definitions, and jobs; a boundary around a table all four join would be theatre.

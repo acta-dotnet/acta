@@ -3,6 +3,6 @@
     <RootNamespace>Acta.Concepts.DashboardSample</RootNamespace>
   </PropertyGroup>
   <ItemGroup>
-    <ProjectReference Include="..\..\..\src\Acta.AspNetCore\Acta.AspNetCore.csproj" />
+    <ProjectReference Include="..\..\..\src\Acta.Dashboard\Acta.Dashboard.csproj" />
   </ItemGroup>
 </Project>

@@ -139,7 +139,7 @@ because Acta also schedules jobs.
 | Background job | `[Job]` + `IJobs.EnqueueAsync` |
 | Delayed job | `IJobs.ScheduleAsync` with a `TimeSpan` or `DateTimeOffset` |
 | Recurring job | `[Schedule]` on the `[Job]` method |
-| Dashboard | `MapActa()` under `/acta` |
+| Dashboard | `MapActa()` from `Acta.Dashboard`, under `/acta` |
 | Retry policy | `[Job(MaxAttempts = ...)]` and backoff settings |
 | Queue | Job namespace and worker registration |
 | Job id | `JobRef` for public references, `JobId` internally |

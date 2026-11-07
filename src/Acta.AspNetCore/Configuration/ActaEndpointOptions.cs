@@ -73,7 +73,7 @@ public class ActaEndpointOptions
     public bool EnableNumericIdLookup { get; set; }
 
     /// <summary>
-    /// Hook over the mapped route group; the place to call <c>RequireAuthorization</c>. On <c>MapActa</c> the group
+    /// Hook over the mapped route group; the place to call <c>RequireAuthorization</c>. On <c>MapActa</c> of Acta.Dashboard the group
     /// covers HTML, assets, queries, and controls together. With <see cref="LocalOnly"/> = false a hook lets mapping
     /// proceed, but an endpoint answers a remote request only when it requires authorization, from the hook or a parent
     /// group, with no <c>AllowAnonymous</c> over it; a fallback policy does not count. Authorization added here runs in

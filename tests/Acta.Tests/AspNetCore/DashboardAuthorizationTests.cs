@@ -11,8 +11,8 @@ using Xunit;
 namespace Acta.Tests.AspNetCore;
 
 /// <summary>
-/// The host's authorization hook covers HTML, assets, and API together, and the package itself
-/// registers no authentication scheme.
+/// The host's authorization hook covers HTML, assets, and API together, and neither package
+/// registers an authentication scheme.
 /// </summary>
 public sealed class DashboardAuthorizationTests
 {
@@ -93,9 +93,10 @@ public sealed class DashboardAuthorizationTests
     [Fact]
     public void Package_registers_no_authentication_scheme()
     {
-        var assembly = typeof(ActaDashboardOptions).Assembly;
-
-        var schemeTypes = assembly.GetTypes().Where(static t => typeof(IAuthenticationHandler).IsAssignableFrom(t)).ToList();
+        var schemeTypes = new[] { typeof(ActaDashboardOptions).Assembly, typeof(ActaEndpointOptions).Assembly }
+            .SelectMany(static assembly => assembly.GetTypes())
+            .Where(static t => typeof(IAuthenticationHandler).IsAssignableFrom(t))
+            .ToList();
 
         Assert.Empty(schemeTypes);
     }

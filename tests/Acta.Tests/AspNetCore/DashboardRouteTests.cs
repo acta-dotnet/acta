@@ -1,6 +1,11 @@
 using System.Net;
 using System.Text.RegularExpressions;
+using Acta.Tests.AspNetCore.Fakes;
 using Microsoft.AspNetCore.Builder;
+using Microsoft.AspNetCore.Routing;
+using Microsoft.AspNetCore.TestHost;
+using Microsoft.Extensions.DependencyInjection;
+using Microsoft.Extensions.Logging;
 using Xunit;
 
 namespace Acta.Tests.AspNetCore;
@@ -13,7 +18,7 @@ namespace Acta.Tests.AspNetCore;
 public sealed partial class DashboardRouteTests
 {
     private static bool AssetsEmbedded =>
-        typeof(ActaDashboardOptions).Assembly.GetManifestResourceNames().Any(static n => n == "Acta.AspNetCore.Web.Assets.index.html");
+        typeof(ActaDashboardOptions).Assembly.GetManifestResourceNames().Any(static n => n == "Acta.Dashboard.Assets.index.html");
 
     [Fact]
     public async Task Root_serves_index_with_base_tag_no_cache_and_security_headers()
@@ -82,6 +87,62 @@ public sealed partial class DashboardRouteTests
 
         Assert.Equal(HttpStatusCode.OK, versioned.StatusCode);
         Assert.Equal(HttpStatusCode.NotFound, unversioned.StatusCode);
+    }
+
+    /// <summary>
+    /// The dashboard adds no operation and never maps the API twice: a <c>MapActa</c> mount carries exactly the operations
+    /// a <c>MapActaApi</c> mount at its API prefix carries, each once, plus its three page routes, which carry none.
+    /// </summary>
+    [Fact]
+    public async Task Dashboard_mount_maps_the_api_once_and_adds_only_its_pages()
+    {
+        var (dashboard, client) = await TestDashboardHost.StartAsync(options => options.EnableControls = true);
+        client.Dispose();
+        await using var _ = dashboard;
+
+        var builder = WebApplication.CreateBuilder();
+        builder.Logging.ClearProviders();
+        builder.WebHost.UseTestServer();
+        var fakes = new FakeOperations();
+        builder.Services.AddSingleton<IJobs>(fakes.Jobs);
+        builder.Services.AddSingleton<IActaOperations>(fakes);
+        await using var api = builder.Build();
+        api.MapActaApi("/acta/api", options => options.EnableControls = true);
+        await api.StartAsync(TestContext.Current.CancellationToken);
+
+        var dashboardRoutes = Routes(dashboard);
+        var apiRoutes = Routes(api);
+        var dashboardOperations = dashboardRoutes.Where(route => route.OperationId is not null).ToList();
+        var apiOperations = apiRoutes.Where(route => route.OperationId is not null).ToList();
+
+        Assert.NotEmpty(apiOperations);
+        Assert.Equal(
+            apiOperations.Select(route => route.ToString()).Order(StringComparer.Ordinal),
+            dashboardOperations.Select(route => route.ToString()).Order(StringComparer.Ordinal)
+        );
+        Assert.Equal(dashboardOperations.Count, dashboardOperations.Select(route => route.OperationId).Distinct().Count());
+        Assert.Equal(apiOperations.Count, apiOperations.Select(route => route.OperationId).Distinct().Count());
+        string[] pages = ["/acta/", "/acta/assets/{**assetPath}", "/acta/{**spaPath}"];
+        Assert.Equal(apiRoutes.Count + pages.Length, dashboardRoutes.Count);
+        Assert.Equal(
+            pages,
+            dashboardRoutes.Where(route => route.OperationId is null).Select(route => route.Pattern).Order(StringComparer.Ordinal)
+        );
+
+        // Every endpoint the host maps, with its methods, pattern, and the operation it declares.
+        static List<(string Methods, string Pattern, string? OperationId)> Routes(WebApplication app) =>
+            [
+                .. app
+                    .Services.GetRequiredService<EndpointDataSource>()
+                    .Endpoints.OfType<RouteEndpoint>()
+                    .Select(endpoint =>
+                        (
+                            string.Join(",", endpoint.Metadata.GetMetadata<IHttpMethodMetadata>()?.HttpMethods ?? []),
+                            endpoint.RoutePattern.RawText!,
+                            endpoint.Metadata.GetMetadata<ActaOperationAttribute>()?.OperationId
+                        )
+                    ),
+            ];
     }
 
     [Fact]

@@ -1,6 +1,6 @@
 using Microsoft.AspNetCore.Http;
 
-namespace Acta.AspNetCore;
+namespace Acta.Dashboard;
 
 /// <summary>
 /// Security headers for dashboard HTML and asset responses. The development variant relaxes CSP

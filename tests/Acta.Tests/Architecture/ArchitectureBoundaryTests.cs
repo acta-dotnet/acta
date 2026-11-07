@@ -47,6 +47,25 @@ public sealed class ArchitectureBoundaryTests
     }
 
     /// <summary>
+    /// The dashboard sees Acta only through the HTTP API: it references Acta.AspNetCore and no other Acta assembly, so it
+    /// names no type of Acta and adds no operation of its own, and the API references no dashboard.
+    /// </summary>
+    [Fact]
+    public void Dashboard_references_only_the_http_api()
+    {
+        var references = typeof(ActaDashboardEndpointRouteBuilderExtensions)
+            .Assembly.GetReferencedAssemblies()
+            .Select(reference => reference.Name)
+            .ToArray();
+        Assert.Contains("Acta.AspNetCore", references);
+        Assert.DoesNotContain(references, name => name != "Acta.AspNetCore" && name!.StartsWith("Acta", StringComparison.Ordinal));
+        Assert.DoesNotContain(
+            "Acta.Dashboard",
+            typeof(ActaEndpointRouteBuilderExtensions).Assembly.GetReferencedAssemblies().Select(reference => reference.Name)
+        );
+    }
+
+    /// <summary>
     /// EF Core is gone from the repository. With the former EF-based producer outbox package removed the
     /// producer story is the provider-package staging primitives, so no project anywhere (src, tests, tools)
     /// may reference an EF Core package: this walks every project's direct package references and its full

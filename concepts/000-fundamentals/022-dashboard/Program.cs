@@ -1,6 +1,6 @@
 using Acta;
-using Acta.AspNetCore;
 using Acta.Concepts.DashboardSample;
+using Acta.Dashboard;
 using Acta.Labs;
 
 var builder = WebApplication.CreateBuilder(args);

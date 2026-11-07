@@ -1,6 +1,6 @@
 // Fails the build when the dashboard bundle outgrows its budget.
 //
-// The built dist is embedded into Acta.AspNetCore at pack time, so bundle size is package size:
+// The built dist is embedded into Acta.Dashboard at pack time, so bundle size is package size:
 // every byte here is a byte in the NuGet package and in the assembly every host loads. That is also
 // why the dashboard ships as ONE JS file and one CSS file, on purpose. Route-level code splitting is
 // the usual answer to a 400 kB bundle, and it does not apply here:
@@ -101,7 +101,7 @@ if (stylesheets.length !== 1) wrongShape.push(`${stylesheets.length} CSS files, 
 
 if (wrongShape.length > 0) {
   console.error(`\nThe dashboard build is no longer one file:\n  ${wrongShape.join('\n  ')}`);
-  console.error('\nThe bundle is embedded in the Acta.AspNetCore assembly, so splitting it does not');
+  console.error('\nThe bundle is embedded in the Acta.Dashboard assembly, so splitting it does not');
   console.error('reduce what ships and does let a redeploy strand an open session on chunk names the');
   console.error('new assembly no longer has. Read the decision comment above build in vite.config.ts');
   console.error('before changing this - and if the decision is genuinely being reversed, change both.');

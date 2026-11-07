@@ -182,9 +182,9 @@
           <pre><code>dotnet new web -n Reports
 cd Reports
 dotnet add package Acta.Sqlite --prerelease
-dotnet add package Acta.AspNetCore --prerelease</code></pre>
+dotnet add package Acta.Dashboard --prerelease</code></pre>
         </figure>
-        <p><code>Acta.Sqlite</code> brings in everything that runs your jobs: the engine, the SQLite storage provider, a source generator that finds your job handlers at compile time, and analyzers that catch common mistakes as you type. <code>Acta.AspNetCore</code> adds an operator dashboard and a small JSON API that you will map into your app. The dashboard's web assets are embedded in the package, so there is nothing else to install or build.</p>
+        <p><code>Acta.Sqlite</code> brings in everything that runs your jobs: the engine, the SQLite storage provider, a source generator that finds your job handlers at compile time, and analyzers that catch common mistakes as you type. <code>Acta.Dashboard</code> adds an operator dashboard and brings <code>Acta.AspNetCore</code>, the small JSON API it runs on; you will map both into your app with one call. The dashboard's web assets are embedded in the package, so there is nothing else to install or build.</p>
       </section>
 
       <section id="data" aria-labelledby="data-title">
@@ -305,7 +305,7 @@ public sealed class SalesReportJobs(SalesFiles files, ILogger&lt;SalesReportJobs
         <figure class="listing">
           <figcaption><span class="file">Program.cs</span><span class="note">first version</span><button class="copy" type="button" aria-label="Copy Program.cs, first version">Copy</button></figcaption>
           <pre><code>using Acta;
-using Acta.AspNetCore;
+using Acta.Dashboard;
 using Acta.Sqlite;
 using Reports;
 
@@ -528,7 +528,7 @@ public sealed class SalesReportJobs(SalesFiles files, ILogger&lt;SalesReportJobs
         <figure class="listing">
           <figcaption><span class="file">Program.cs</span><span class="note">final version</span><button class="copy" type="button" aria-label="Copy Program.cs, final version">Copy</button></figcaption>
           <pre><code>using Acta;
-using Acta.AspNetCore;
+using Acta.Dashboard;
 using Acta.Sqlite;
 using Reports;
 

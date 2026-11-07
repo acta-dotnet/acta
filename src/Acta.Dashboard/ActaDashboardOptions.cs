@@ -1,4 +1,6 @@
-namespace Acta.AspNetCore;
+using Acta.AspNetCore;
+
+namespace Acta.Dashboard;
 
 /// <summary>
 /// Host-facing options for <c>MapActa</c>: the dashboard UI knobs plus the inherited endpoint

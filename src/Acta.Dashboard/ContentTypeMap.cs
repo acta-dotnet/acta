@@ -1,4 +1,4 @@
-namespace Acta.AspNetCore;
+namespace Acta.Dashboard;
 
 /// <summary>
 /// Extension-to-content-type mapping for embedded dashboard assets.

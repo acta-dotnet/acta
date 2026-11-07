@@ -4,7 +4,7 @@
     <RootNamespace>Shipping</RootNamespace>
   </PropertyGroup>
   <ItemGroup>
-    <ProjectReference Include="..\..\..\src\Acta.AspNetCore\Acta.AspNetCore.csproj" />
+    <ProjectReference Include="..\..\..\src\Acta.Dashboard\Acta.Dashboard.csproj" />
     <ProjectReference Include="..\..\..\src\Acta.Sqlite\Acta.Sqlite.csproj" />
   </ItemGroup>
 </Project>

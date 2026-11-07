@@ -3,11 +3,6 @@
 # Every line here is a 1.0 commitment: additive in 1.x, breaking only in 2.0.
 
 ## Acta.AspNetCore
-sealed class Acta.AspNetCore.ActaDashboardOptions : Acta.AspNetCore.ActaEndpointOptions
-    .ctor()
-    System.Boolean AddSecurityHeaders { get;set; }
-    System.Boolean UseViteDevServer { get;set; }
-    System.String ViteDevServerUrl { get;set; }
 class Acta.AspNetCore.ActaEndpointOptions
     .ctor()
     System.Action<Microsoft.AspNetCore.Routing.RouteGroupBuilder> ConfigureEndpoints { get;set; }
@@ -21,7 +16,6 @@ class Acta.AspNetCore.ActaEndpointOptions
     System.String ControlConfirmationHeaderName { get;set; }
 static class Acta.AspNetCore.ActaEndpointRouteBuilderExtensions
     const System.String ApiVersionSegment = "/v1"
-    static Microsoft.AspNetCore.Routing.RouteGroupBuilder MapActa(this Microsoft.AspNetCore.Routing.IEndpointRouteBuilder endpoints, System.String pattern = "/acta", System.Action<Acta.AspNetCore.ActaDashboardOptions> configure = null)
     static Microsoft.AspNetCore.Routing.RouteGroupBuilder MapActaApi(this Microsoft.AspNetCore.Routing.IEndpointRouteBuilder endpoints, System.String pattern = "/acta/api", System.Action<Acta.AspNetCore.ActaEndpointOptions> configure = null)
 sealed class Acta.AspNetCore.ActaOperationAttribute : System.Attribute
     .ctor(System.String operationId, System.String permission)
@@ -32,6 +26,15 @@ static class Acta.AspNetCore.ActaPermissions
     const System.String Control = "acta.control"
     const System.String Enqueue = "acta.enqueue"
     const System.String Read = "acta.read"
+
+## Acta.Dashboard
+static class Acta.Dashboard.ActaDashboardEndpointRouteBuilderExtensions
+    static Microsoft.AspNetCore.Routing.RouteGroupBuilder MapActa(this Microsoft.AspNetCore.Routing.IEndpointRouteBuilder endpoints, System.String pattern = "/acta", System.Action<Acta.Dashboard.ActaDashboardOptions> configure = null)
+sealed class Acta.Dashboard.ActaDashboardOptions : Acta.AspNetCore.ActaEndpointOptions
+    .ctor()
+    System.Boolean AddSecurityHeaders { get;set; }
+    System.Boolean UseViteDevServer { get;set; }
+    System.String ViteDevServerUrl { get;set; }
 
 ## Acta.Postgres
 static class Acta.Postgres.PostgresActaExtensions

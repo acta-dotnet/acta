@@ -180,7 +180,7 @@ necessary because automation cannot judge whether an operator workflow actually 
 
 ## Keep the dashboard build small
 
-The dashboard is embedded in `Acta.AspNetCore`, so its size affects more than the first page load. It
+The dashboard is embedded in `Acta.Dashboard`, so its size affects more than the first page load. It
 also contributes to the assembly and NuGet package carried by every application that references the
 dashboard. The production build should therefore have an explicit goal of staying small rather than
 being allowed to grow unnoticed as new screens, charts, and flow diagrams arrive.

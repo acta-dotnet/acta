@@ -1,15 +1,15 @@
 using System.Reflection;
 
-namespace Acta.AspNetCore;
+namespace Acta.Dashboard;
 
 /// <summary>
-/// Resolves dashboard files embedded under the <c>Acta.AspNetCore.Web.Assets.</c> resource prefix.
+/// Resolves dashboard files embedded under the <c>Acta.Dashboard.Assets.</c> resource prefix.
 /// Request paths are normalized and traversal segments rejected before any resource lookup, and
 /// only resources under the prefix are reachable.
 /// </summary>
 internal static class EmbeddedDashboardAssets
 {
-    private const string Prefix = "Acta.AspNetCore.Web.Assets.";
+    private const string Prefix = "Acta.Dashboard.Assets.";
 
     private static readonly Assembly Assembly = typeof(EmbeddedDashboardAssets).Assembly;
 
