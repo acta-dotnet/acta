@@ -3,6 +3,7 @@
   import { api, type NamespaceListItem, type Paged } from '../api.ts';
   import { keys } from '../query.ts';
   import { readAllPages } from '../lib/pagedWalk.ts';
+  import { livePaused, listRefetchInterval } from '../polling';
   import { hashParams, updateHashParams } from '../router';
   import { scope, setScope } from '../scope';
   import Page from '../components/Page.svelte';
@@ -69,7 +70,8 @@
       const all = await readAllPages((cursor) => api<Paged<NamespaceListItem>>('namespaces', { pageSize: 100, cursor }, { signal }));
       return new Map(all.map((item) => [item.jobNamespace, item.deploymentVersion]));
     },
-    staleTime: 60_000
+    // Refreshed with the rows it is compared to: a deploy that lands while the page is open moves the current version.
+    refetchInterval: $livePaused ? false : listRefetchInterval
   }));
 
   function currentVersionOf(worker: WorkerRow): string | null {

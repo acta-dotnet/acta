@@ -163,7 +163,7 @@ test('controlRequest keeps the typed fallback for a malformed accepted error res
 test('getNamespace reads the namespace route and answers null for its 404', async () => {
   const requested: string[] = [];
   const responses = [
-    new Response('{"jobNamespace":"billing","status":"active","ownerTeam":null,"description":null,"version":3}', { status: 200 }),
+    new Response('{"jobNamespace":"billing","status":"active","ownerTeam":null,"description":null,"deploymentVersion":null,"version":3}', { status: 200 }),
     new Response('{"title":"Namespace not found."}', { status: 404 }),
     new Response('{"title":"Invalid request."}', { status: 400 })
   ];

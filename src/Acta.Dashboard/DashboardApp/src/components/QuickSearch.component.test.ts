@@ -23,7 +23,7 @@ function stubApi(): void {
     }
     if (path === 'namespaces') {
       const items = 'billing'.includes(url.searchParams.get('nameContains') ?? '')
-        ? [{ jobNamespace: 'billing', status: 'active', ownerTeam: null, description: null, version: 1 }]
+        ? [{ jobNamespace: 'billing', status: 'active', ownerTeam: null, description: null, deploymentVersion: null, version: 1 }]
         : [];
       return jsonResponse({ items, hasMore: false, nextCursor: null });
     }
