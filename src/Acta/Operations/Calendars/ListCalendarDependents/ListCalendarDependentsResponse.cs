@@ -1,6 +1,6 @@
 namespace Acta;
 
-/// <summary>One page of <see cref="ICalendars.ListDependentsAsync"/>: the schedules naming a family, by path then binding.</summary>
+/// <summary>One page of a calendar family's dependents: the schedules naming the family, by path then binding.</summary>
 /// <param name="Items">The page's items, at most pageSize of them.</param>
 /// <param name="NextCursor">The cursor to pass back for the next page; null on the last page.</param>
 /// <param name="HasMore">Whether more items exist beyond this page.</param>

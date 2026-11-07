@@ -142,7 +142,7 @@ internal sealed class WeeklyAvailabilityCalendar(
 /// <summary>A local window of a weekly rule or a date override: <c>[Start, End)</c>, overnight when the end is at or before the start, <c>24:00</c> as the end of the date.</summary>
 internal readonly record struct LocalWindow(TimeOnly Start, TimeOnly End, bool EndOfDay);
 
-/// <summary>A closed range: whole local dates, inclusive, or two UTC instants.</summary>
+/// <summary>A range cut out of the windows: whole local dates, the first and the last both included, or two UTC instants, <c>[from, to)</c>.</summary>
 internal readonly record struct ExcludedRange(DateOnly? FromDate, DateOnly? ToDate, DateTime? FromInstant, DateTime? ToInstant)
 {
     public (DateTime StartUtc, DateTime EndUtc) Resolve(TimeZoneInfo zone) =>

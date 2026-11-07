@@ -101,7 +101,7 @@ internal static partial class ActaOpenApiDocument
             MinItems = 2,
             MaxItems = 2,
             Description =
-                "A window as a pair of local times, its start then its end, each HH:mm or HH:mm:ss, such as 09:00 and 17:00. An end "
+                "A window as a pair of local times, its start then its end, each HH:mm or HH:mm:ss, such as 09:00 and 17:00. The start is open time and the end is not. An end "
                 + "before the start is on the next date, and an end of 24:00 is the end of the day.",
             Items = Text("A local time, HH:mm or HH:mm:ss; 24:00 as a window's end."),
         };
@@ -112,7 +112,7 @@ internal static partial class ActaOpenApiDocument
             ("from", Text("The first excluded date, yyyy-MM-dd, in the calendar's zone.")),
             ("to", Text("The last excluded date, yyyy-MM-dd; it is excluded too, and is not before from.")),
             ("fromUtc", Text("The instant the exclusion starts, in UTC with a Z, such as 2027-01-15T16:00:00Z.")),
-            ("toUtc", Text("The instant the exclusion ends, in UTC with a Z, after fromUtc."))
+            ("toUtc", Text("The instant the exclusion ends, in UTC with a Z, after fromUtc; the calendar is open again from that instant."))
         );
         schemas["UnionCalendar"] = Kind(
             "union",

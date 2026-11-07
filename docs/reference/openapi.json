@@ -10983,7 +10983,7 @@
           },
           "toUtc": {
             "type": "string",
-            "description": "The instant the exclusion ends, in UTC with a Z, after fromUtc."
+            "description": "The instant the exclusion ends, in UTC with a Z, after fromUtc; the calendar is open again from that instant."
           }
         },
         "additionalProperties": false,
@@ -10997,7 +10997,7 @@
           "type": "string",
           "description": "A local time, HH:mm or HH:mm:ss; 24:00 as a window's end."
         },
-        "description": "A window as a pair of local times, its start then its end, each HH:mm or HH:mm:ss, such as 09:00 and 17:00. An end before the start is on the next date, and an end of 24:00 is the end of the day."
+        "description": "A window as a pair of local times, its start then its end, each HH:mm or HH:mm:ss, such as 09:00 and 17:00. The start is open time and the end is not. An end before the start is on the next date, and an end of 24:00 is the end of the day."
       },
       "CalendarRoleCode": {
         "examples": [
@@ -12183,7 +12183,7 @@
         "properties": {
           "controlsEnabled": {
             "type": "boolean",
-            "description": "Whether this host maps the control routes."
+            "description": "Whether this host maps the control routes; it does not say this caller may use them."
           },
           "engineVersion": {
             "type": "string",
@@ -12202,7 +12202,7 @@
             "description": "The name of the confirmation header, which a control sends with the value true unless it sends a JSON content type or a bearer token."
           }
         },
-        "description": "What this host's API allows, so the dashboard offers only the controls it can use: whether controls are mapped, the Acta version, the provider and schema behind it, and the name of the header that confirms a control request."
+        "description": "What this host's API offers: whether the control routes are mapped, the Acta version, the provider and schema behind it, and the name of the header that confirms a control request. A mapped control still needs its permission."
       },
       "GetDefinitionInputTemplateResponse": {
         "required": [
@@ -13704,7 +13704,7 @@
             "format": "int64"
           }
         },
-        "description": "One page of list."
+        "description": "One page of alerts."
       },
       "ListCalendarDependentsItem": {
         "required": [
@@ -13786,7 +13786,7 @@
             "format": "int64"
           }
         },
-        "description": "One page of list dependents: the schedules naming a family, by path then binding."
+        "description": "One page of a calendar family's dependents: the schedules naming the family, by path then binding."
       },
       "ListCalendarsItem": {
         "required": [
@@ -13894,7 +13894,7 @@
             "format": "int64"
           }
         },
-        "description": "One page of list."
+        "description": "One page of calendar families."
       },
       "ListCalendarVersionsItem": {
         "required": [
@@ -13983,7 +13983,7 @@
             "format": "int64"
           }
         },
-        "description": "One page of list versions: a family's versions, newest first."
+        "description": "One page of a calendar family's versions, newest first."
       },
       "ListDefinitionsItem": {
         "required": [
@@ -14157,7 +14157,7 @@
             "format": "int64"
           }
         },
-        "description": "One page of list."
+        "description": "One page of definitions."
       },
       "ListEventsItem": {
         "required": [
@@ -14328,7 +14328,7 @@
             "format": "int64"
           }
         },
-        "description": "One page of list events."
+        "description": "One page of events."
       },
       "ListJobCheckpointsItem": {
         "required": [
@@ -14415,7 +14415,7 @@
             "format": "int64"
           }
         },
-        "description": "One page of list checkpoints for the wire: the same page with each value rendered and capped as the job's input is, since a job payload has no JSON form of its own."
+        "description": "One page of a job's checkpoints, by kind, then name, each value a stored payload rendered and capped as the job's input is."
       },
       "ListJobsItem": {
         "required": [
@@ -14581,7 +14581,7 @@
             "format": "int64"
           }
         },
-        "description": "One page of list jobs."
+        "description": "One page of jobs."
       },
       "ListJobStepsItem": {
         "required": [
@@ -14678,7 +14678,7 @@
             "format": "int64"
           }
         },
-        "description": "One page of list steps: a job's steps, newest first."
+        "description": "One page of a job's steps, newest first."
       },
       "ListNamespacesItem": {
         "required": [
@@ -14762,7 +14762,7 @@
             "format": "int64"
           }
         },
-        "description": "One page of list."
+        "description": "One page of namespaces."
       },
       "ListOutboxSourcesItem": {
         "required": [
@@ -14855,7 +14855,7 @@
             "format": "int64"
           }
         },
-        "description": "One page of list sources."
+        "description": "One page of outbox sources."
       },
       "ListQuarantinedOutboxItem": {
         "required": [
@@ -14964,7 +14964,7 @@
             "format": "int64"
           }
         },
-        "description": "One page of list quarantined."
+        "description": "One page of a source's quarantined outbox rows."
       },
       "ListSchedulesItem": {
         "required": [
@@ -15174,7 +15174,7 @@
             "format": "int64"
           }
         },
-        "description": "One page of list."
+        "description": "One page of schedules."
       },
       "ListTagsItem": {
         "required": [
@@ -15239,7 +15239,7 @@
             "format": "int64"
           }
         },
-        "description": "One page of list: a target's tags by normalized name, in ordinal order."
+        "description": "One page of a target's tags, by normalized name in ordinal order."
       },
       "ListTenantsItem": {
         "required": [
@@ -15335,7 +15335,7 @@
             "format": "int64"
           }
         },
-        "description": "One page of list."
+        "description": "One page of tenants."
       },
       "ListWorkersItem": {
         "required": [
@@ -15461,7 +15461,7 @@
             "format": "int64"
           }
         },
-        "description": "One page of list."
+        "description": "One page of workers."
       },
       "MisfireStrategyCode": {
         "examples": [

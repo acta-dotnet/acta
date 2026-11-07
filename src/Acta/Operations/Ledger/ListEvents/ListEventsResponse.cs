@@ -1,6 +1,6 @@
 namespace Acta;
 
-/// <summary>One page of <see cref="ILedger.ListEventsAsync"/>.</summary>
+/// <summary>One page of events.</summary>
 /// <param name="NextCursor">Opaque cursor for the next page, or null on the final page.</param>
 /// <param name="HasMore">Whether more events exist beyond this page.</param>
 /// <param name="PageSize">The effective page size after defaulting and clamping.</param>

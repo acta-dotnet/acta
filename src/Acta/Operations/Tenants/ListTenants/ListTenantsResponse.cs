@@ -1,6 +1,6 @@
 namespace Acta;
 
-/// <summary>One page of <see cref="ITenants.ListAsync"/>.</summary>
+/// <summary>One page of tenants.</summary>
 /// <param name="NextCursor">Opaque cursor for the next page, or null on the final page.</param>
 /// <param name="HasMore">Whether more tenants exist beyond this page.</param>
 /// <param name="PageSize">The effective page size after defaulting and clamping.</param>

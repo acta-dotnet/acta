@@ -22,6 +22,9 @@ internal sealed class UnionAvailabilityCalendar(IReadOnlyList<IActaAvailabilityC
             return null;
         }
 
+        // A run of more touching windows than the bound is answered as far as it was followed: that much is open time,
+        // and the next question continues from its end. Intersection and subtraction have no answer to give at the
+        // bound, so they throw there.
         var start = first.StartUtc;
         var end = first.EndUtc;
         for (var (grown, hops) = (true, 0); grown && start > DateTime.MinValue && hops < AvailabilityAlgebra.MaxHops; hops++)

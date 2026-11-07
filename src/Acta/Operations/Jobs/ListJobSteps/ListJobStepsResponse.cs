@@ -1,6 +1,6 @@
 namespace Acta;
 
-/// <summary>One page of <see cref="IJobs.ListStepsAsync"/>: a job's steps, newest first.</summary>
+/// <summary>One page of a job's steps, newest first.</summary>
 /// <param name="Items">The page's items, at most pageSize of them.</param>
 /// <param name="NextCursor">The cursor to pass back for the next page; null on the last page.</param>
 /// <param name="HasMore">Whether more items exist beyond this page.</param>

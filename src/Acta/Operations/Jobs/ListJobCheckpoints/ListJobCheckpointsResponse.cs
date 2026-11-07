@@ -1,6 +1,6 @@
 namespace Acta;
 
-/// <summary>One page of <see cref="IJobs.ListCheckpointsAsync"/>: a job's checkpoints by kind, then name.</summary>
+/// <summary>One page of a job's checkpoints, by kind, then name.</summary>
 public sealed record ListJobCheckpointsResponse(
     IReadOnlyList<ListJobCheckpointsItem> Items,
     string? NextCursor,

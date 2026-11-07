@@ -1,6 +1,6 @@
 namespace Acta;
 
-/// <summary>One page of <see cref="IOutbox.ListQuarantinedAsync"/>.</summary>
+/// <summary>One page of a source's quarantined outbox rows.</summary>
 /// <param name="NextCursor">Opaque cursor for the next page, or null on the final page.</param>
 /// <param name="HasMore">Whether more quarantined staging rows exist beyond this page.</param>
 /// <param name="PageSize">The effective page size after defaulting and clamping.</param>
