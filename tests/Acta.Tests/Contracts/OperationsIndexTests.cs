@@ -1,6 +1,8 @@
 using System.Globalization;
 using System.Text;
+using System.Text.Json.Nodes;
 using System.Text.RegularExpressions;
+using Acta.AspNetCore;
 using Acta.Tests.Conformance.Testing;
 using Microsoft.CodeAnalysis;
 using Microsoft.CodeAnalysis.CSharp;
@@ -73,7 +75,7 @@ public sealed partial class OperationsIndexTests
         sb.AppendLine("> `ACTA_EMIT_DOCS=1 dotnet test tests/Acta.Tests --filter OperationsIndexTests`.");
         sb.AppendLine();
         sb.AppendLine(
-            "One row per operation folder, `src/Acta/Operations/<Group>/<Operation>/`, and one per HTTP-only operation, `src/Acta.AspNetCore/Operations/<Group>/<Operation>/`, a route that composes what the facades answer. **Facade** is the public method named for it; an operation with none is engine-only or HTTP-only, and a method that runs several operations is listed under its group. **HTTP** routes sit under `{mount}/v1`, each with its OpenAPI operation id. **SQL** is `inline` when every dialect runs a statement, `routine` when PostgreSQL and SQL Server call an installed routine and SQLite runs the statement inline, and spelled per dialect otherwise. **Writes** lists the tables its SQL inserts into, updates, or deletes from. **Specs** are in `tests/Acta.Tests.Conformance/Operations/<Group>/`."
+            "One row per operation folder, `src/Acta/Operations/<Group>/<Operation>/`, and one per HTTP-only operation, `src/Acta.AspNetCore/Operations/<Group>/<Operation>/`, a route that composes what the facades answer. **Facade** is the public method named for it; an operation with none is engine-only or HTTP-only, and a method that runs several operations is listed under its group. **HTTP** routes sit under `{mount}/v1`, each with its OpenAPI operation id and the permission it needs under `RequirePermissions`. **SQL** is `inline` when every dialect runs a statement, `routine` when PostgreSQL and SQL Server call an installed routine and SQLite runs the statement inline, and spelled per dialect otherwise. **Writes** lists the tables its SQL inserts into, updates, or deletes from. **Specs** are in `tests/Acta.Tests.Conformance/Operations/<Group>/`."
         );
         sb.AppendLine();
 
@@ -114,7 +116,7 @@ public sealed partial class OperationsIndexTests
                         routes
                             .Where(r => r.Operation == operation)
                             .Select(r =>
-                                $"`{r.Verb} {r.Pattern}` (`{OperationNames.OperationId(r.Operation, r.Pattern, [.. routes.Where(o => o.Operation == r.Operation).Select(o => o.Pattern)])}`)"
+                                $"`{r.Verb} {r.Pattern}` (`{OperationNames.OperationId(r.Operation, r.Pattern, [.. routes.Where(o => o.Operation == r.Operation).Select(o => o.Pattern)])}`, `{r.Permission}`)"
                             )
                     ),
                     Cell(verbs.Where(v => v.Operation == operation).Select(v => $"`{v.Verb}`")),
@@ -360,8 +362,11 @@ public sealed partial class OperationsIndexTests
         ];
     }
 
-    /// <summary>Every route the HTTP surface maps, as <c>VERB /pattern</c> below the version segment, with the operation it serves.</summary>
-    internal static List<(string Verb, string Pattern, string Operation)> RouteMap(string root) =>
+    /// <summary>
+    /// Every route the HTTP surface maps, as <c>VERB /pattern</c> below the version segment, with the operation it serves and
+    /// the permission its <see cref="ActaOperationAttribute"/> names.
+    /// </summary>
+    internal static List<(string Verb, string Pattern, string Operation, string Permission)> RouteMap(string root) =>
         [
             .. Routes(
                     Path.Combine(root, "src", "Acta.AspNetCore", "Operations"),
@@ -370,13 +375,31 @@ public sealed partial class OperationsIndexTests
                 .Distinct(),
         ];
 
+    [Fact]
+    public void Each_routes_permission_is_the_one_its_OpenAPI_operation_carries()
+    {
+        var root = IntegrationConfig.FindRepoRoot();
+        var paths = JsonNode.Parse(File.ReadAllText(Path.Combine(root, "docs", "reference", "openapi.json")))!["paths"]!;
+        var routes = RouteMap(root);
+
+        Assert.NotEmpty(routes);
+        Assert.Empty(
+            routes
+                .Where(r =>
+                    paths[ActaEndpointRouteBuilderExtensions.ApiVersionSegment + r.Pattern]
+                        ?[r.Verb.ToLowerInvariant()]?["x-acta-permission"]?.GetValue<string>() != r.Permission
+                )
+                .Select(r => $"{r.Verb} {r.Pattern}: {r.Permission}")
+        );
+    }
+
     // A route in its own folder belongs to that folder's operation; a route in a group's table, to the facade call it makes.
-    private static List<(string Verb, string Pattern, string Operation)> Routes(
+    private static List<(string Verb, string Pattern, string Operation, string Permission)> Routes(
         string operations,
         List<(string Facade, string Method, string Operation)> facadeMethods
     )
     {
-        var found = new List<(string, string, string)>();
+        var found = new List<(string, string, string, string)>();
         foreach (
             var file in Directory.EnumerateFiles(operations, "*Endpoint*.cs", SearchOption.AllDirectories).Order(StringComparer.Ordinal)
         )
@@ -404,19 +427,58 @@ public sealed partial class OperationsIndexTests
 
                 if (name == "MapTags")
                 {
-                    found.Add(("GET", pattern, "ListTags"));
-                    found.Add(("PUT", pattern + "/{tagName}", "UpsertTag"));
-                    found.Add(("DELETE", pattern + "/{tagName}", "RemoveTag"));
+                    // MapTags(controls, pattern, entity, writePermission, ...): the list reads, the writes need the owner's permission.
+                    var write = PermissionValue(map.ArgumentList.Arguments[3].Expression, file);
+                    found.Add(("GET", pattern, "ListTags", ActaPermissions.Read));
+                    found.Add(("PUT", pattern + "/{tagName}", "UpsertTag", write));
+                    found.Add(("DELETE", pattern + "/{tagName}", "RemoveTag", write));
                 }
                 else if (HttpVerb(name) is { } verb && (own ?? MainOperation(map, facadeMethods)) is { } operation)
                 {
-                    found.Add((verb, pattern, operation));
+                    found.Add((verb, pattern, operation, Permission(map, file)));
                 }
             }
         }
 
         return found;
     }
+
+    // A route names its ActaOperationAttribute either as a route helper's argument, new("id", ActaPermissions.X), or in
+    // the chain after the Map call, .WithMetadata(new ActaOperationAttribute("id", ActaPermissions.X)).
+    private static string Permission(InvocationExpressionSyntax map, string file)
+    {
+        SyntaxNode chain = map;
+        while (chain.Parent is MemberAccessExpressionSyntax { Parent: InvocationExpressionSyntax outer })
+        {
+            chain = outer;
+        }
+
+        var attribute =
+            map.ArgumentList.Arguments.Select(a => a.Expression)
+                .OfType<ImplicitObjectCreationExpressionSyntax>()
+                .FirstOrDefault()
+                ?.ArgumentList
+            ?? chain
+                .DescendantNodes()
+                .OfType<ObjectCreationExpressionSyntax>()
+                .FirstOrDefault(o => o.Type.ToString().EndsWith(nameof(ActaOperationAttribute), StringComparison.Ordinal))
+                ?.ArgumentList;
+        return attribute is { Arguments: [_, var permission, ..] }
+            ? PermissionValue(permission.Expression, file)
+            : throw new InvalidOperationException($"{file}: a route maps no ActaOperationAttribute: {map}");
+    }
+
+    // ActaPermissions.X read from the constant itself, so the index prints the wire name.
+    private static string PermissionValue(ExpressionSyntax expression, string file) =>
+        expression
+            is MemberAccessExpressionSyntax
+            {
+                Expression: IdentifierNameSyntax { Identifier.Text: nameof(ActaPermissions) },
+                Name.Identifier.Text: var name
+            }
+        && typeof(ActaPermissions).GetField(name)?.GetValue(null) is string value
+            ? value
+            : throw new InvalidOperationException($"{file}: a permission is not an ActaPermissions constant: {expression}");
 
     private static string? HttpVerb(string map) =>
         map switch
