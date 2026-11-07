@@ -194,7 +194,7 @@ async function mockDashboard(
       options.onPublish?.(request.postDataJSON());
       return json({ action: 'applied', version: 3, retimedSchedules: ['billing/send-invoice/nightly'], overdueSchedules: [], reason: null });
     }
-    if (path === 'jobs/by-key') return json(job);
+    if (path === 'jobs/by-deduplication-key') return json(job);
     if (path === `jobs/${jobRef}/events` || path === 'events') return json(paged([event]));
     // The aggregate the detail page actually reads (JobDetailView in api.ts). Without it the
     // page rendered its title and nothing else, so three tests failed at their first assertion

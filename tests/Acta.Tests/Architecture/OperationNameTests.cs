@@ -295,7 +295,8 @@ public sealed class OperationNameTests
     /// A route's OpenAPI operation id is the name of the operation the operations index attributes it to, in camelCase
     /// (<c>pauseJob</c>): the owner goes before the subject when one operation serves routes of several owners
     /// (<c>listJobTags</c>), the route with no owner keeps the plain name (<c>listEvents</c>), and of two routes of one
-    /// owner the second adds its distinguishing path word after the subject (<c>getJobByKey</c>). No two routes share one.
+    /// owner the second adds its distinguishing path word after the subject (<c>getJobByDeduplicationKey</c>). No two
+    /// routes share one.
     /// </summary>
     [Fact]
     public void A_route_id_is_its_operations_name()

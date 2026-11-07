@@ -129,7 +129,7 @@
       return;
     }
     try {
-      const job = await api<{ jobRef: string }>('jobs/by-key', { jobNamespace: get(scope), deduplicationKey: value });
+      const job = await api<{ jobRef: string }>('jobs/by-deduplication-key', { jobNamespace: get(scope), deduplicationKey: value });
       location.hash = routes.job(job.jobRef, { namespace: get(scope) });
     } catch (e) {
       jumpError = e instanceof Error ? e.message : String(e);

@@ -5978,14 +5978,14 @@
         "x-acta-permission": "acta.read"
       }
     },
-    "/v1/jobs/by-key": {
+    "/v1/jobs/by-deduplication-key": {
       "get": {
         "tags": [
           "Jobs"
         ],
         "summary": "Resolve a job by namespace and deduplication key.",
         "description": "Needs the acta.read permission.",
-        "operationId": "getJobByKey",
+        "operationId": "getJobByDeduplicationKey",
         "parameters": [
           {
             "name": "jobNamespace",
@@ -6015,7 +6015,7 @@
                   "$ref": "#/components/schemas/GetJobResponse"
                 },
                 "examples": {
-                  "getJobByKey": {
+                  "getJobByDeduplicationKey": {
                     "value": {
                       "jobRef": "job_00000000000000000000000000000042",
                       "kind": "ordinary",

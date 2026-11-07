@@ -26,8 +26,8 @@ internal static class JobsEndpoints
         // either a page or a job depending on which query parameters arrived.
         reads
             .MapDetail(
-                "/jobs/by-key",
-                new("getJobByKey", ActaPermissions.Read),
+                "/jobs/by-deduplication-key",
+                new("getJobByDeduplicationKey", ActaPermissions.Read),
                 "Resolve a job by namespace and deduplication key.",
                 "Job",
                 ActaApiJsonContext.Default.GetJobResponse,

@@ -856,13 +856,13 @@ public sealed class DashboardApiEndpointTests
     }
 
     [Fact]
-    public async Task JobByKey_resolves_to_snapshot()
+    public async Task JobByDeduplicationKey_resolves_to_snapshot()
     {
         var (app, client) = await TestDashboardHost.StartAsync();
         await using var _ = app;
 
         var response = await client.GetAsync(
-            "/acta/api/v1/jobs/by-key?jobNamespace=billing&deduplicationKey=ck-1",
+            "/acta/api/v1/jobs/by-deduplication-key?jobNamespace=billing&deduplicationKey=ck-1",
             TestContext.Current.CancellationToken
         );
         var body = await response.Content.ReadAsStringAsync(TestContext.Current.CancellationToken);
@@ -873,13 +873,13 @@ public sealed class DashboardApiEndpointTests
     }
 
     [Fact]
-    public async Task JobByKey_unknown_returns_404()
+    public async Task JobByDeduplicationKey_unknown_returns_404()
     {
         var (app, client) = await TestDashboardHost.StartAsync();
         await using var _ = app;
 
         var response = await client.GetAsync(
-            "/acta/api/v1/jobs/by-key?jobNamespace=billing&deduplicationKey=nope",
+            "/acta/api/v1/jobs/by-deduplication-key?jobNamespace=billing&deduplicationKey=nope",
             TestContext.Current.CancellationToken
         );
 
@@ -887,12 +887,15 @@ public sealed class DashboardApiEndpointTests
     }
 
     [Fact]
-    public async Task JobByKey_missing_params_returns_400()
+    public async Task JobByDeduplicationKey_missing_params_returns_400()
     {
         var (app, client) = await TestDashboardHost.StartAsync();
         await using var _ = app;
 
-        var response = await client.GetAsync("/acta/api/v1/jobs/by-key?deduplicationKey=ck-1", TestContext.Current.CancellationToken);
+        var response = await client.GetAsync(
+            "/acta/api/v1/jobs/by-deduplication-key?deduplicationKey=ck-1",
+            TestContext.Current.CancellationToken
+        );
 
         Assert.Equal(HttpStatusCode.BadRequest, response.StatusCode);
     }
@@ -900,12 +903,12 @@ public sealed class DashboardApiEndpointTests
     [Theory]
     [InlineData("jobNamespace=bad!&deduplicationKey=ck-1")]
     [InlineData("jobNamespace=billing&deduplicationKey=ck%201")]
-    public async Task JobByKey_malformed_namespace_or_key_returns_400(string query)
+    public async Task JobByDeduplicationKey_malformed_namespace_or_key_returns_400(string query)
     {
         var (app, client) = await TestDashboardHost.StartAsync();
         await using var _ = app;
 
-        var response = await client.GetAsync($"/acta/api/v1/jobs/by-key?{query}", TestContext.Current.CancellationToken);
+        var response = await client.GetAsync($"/acta/api/v1/jobs/by-deduplication-key?{query}", TestContext.Current.CancellationToken);
 
         Assert.Equal(HttpStatusCode.BadRequest, response.StatusCode);
     }

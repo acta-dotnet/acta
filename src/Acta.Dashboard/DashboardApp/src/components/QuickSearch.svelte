@@ -282,7 +282,7 @@
   async function lookupByKey(ns: string, key: string): Promise<void> {
     lookupError = '';
     try {
-      const job = await api<{ jobRef: string }>('jobs/by-key', { jobNamespace: ns, deduplicationKey: key });
+      const job = await api<{ jobRef: string }>('jobs/by-deduplication-key', { jobNamespace: ns, deduplicationKey: key });
       navigate({ id: 'jump:key', group: 'Jump', icon: 'cube', label: 'job ' + key, href: routes.job(job.jobRef, { namespace: ns }) });
     } catch (e) {
       lookupError = e instanceof Error ? e.message : String(e);

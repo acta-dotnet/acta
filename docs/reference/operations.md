@@ -89,7 +89,7 @@ One row per operation folder, `src/Acta/Operations/<Group>/<Operation>/`, and on
 | `EnqueueJob` | `IJobs.EnqueueAsync` | `POST /jobs` (`enqueueJob`) | · | routine | `jobs`, `jobs_state`, `lanes`, `tags` | `EnqueueJobNamespaceSpec`, `EnqueueJobRejectionTaxonomySpec`, `EnqueueJobTenantRequirementSpec`, `EnqueueJobTenantSpec`, `EnqueueJobTenantSuspensionSpec`, `EnqueueJobTransactionalSmokeSpec`, `EnqueueJobTransactionalSpec` |
 | `EnqueueJobs` | `IJobs.EnqueueJobsAsync` | · | · | routine | `jobs`, `jobs_state`, `lanes`, `tags` | `EnqueueJobsConcurrencySpec`, `EnqueueJobsRejectionSpec`, `EnqueueJobsSpec` |
 | `ExplainJob` | `IJobs.ExplainAsync` | · | `explain` | inline | · | `ExplainJobSpec` |
-| `GetJob` | `IJobs.GetAsync` | `GET /jobs/{jobRef}` (`getJob`)<br>`GET /jobs/by-key` (`getJobByKey`) | · | inline | · | `GetJobSpec` |
+| `GetJob` | `IJobs.GetAsync` | `GET /jobs/{jobRef}` (`getJob`)<br>`GET /jobs/by-deduplication-key` (`getJobByDeduplicationKey`) | · | inline | · | `GetJobSpec` |
 | `GetJobDetail` | · | `GET /jobs/{jobRef}/detail` (`getJobDetail`) | · | · | · | · |
 | `GetJobId` | `IJobs.GetIdAsync` | · | · | · | · | `GetJobIdSpec` |
 | `GetJobIdByDeduplicationKey` | · | · | · | inline | · | `GetJobIdByDeduplicationKeySpec` |

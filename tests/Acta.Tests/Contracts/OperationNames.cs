@@ -62,7 +62,7 @@ internal static class OperationNames
     /// The OpenAPI operation id of <paramref name="route"/>, one of the <paramref name="routes"/> serving
     /// <paramref name="operation"/>: the name in camelCase, with the route's owner before the subject when the routes
     /// have several owners (<c>listJobTags</c>), and the literal path word no other route of its owner carries after the
-    /// subject (<c>getJobByKey</c> beside <c>getJob</c>).
+    /// subject (<c>getJobByDeduplicationKey</c> beside <c>getJob</c>).
     /// </summary>
     public static string OperationId(string operation, string route, IReadOnlyCollection<string> routes)
     {
