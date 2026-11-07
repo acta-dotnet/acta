@@ -1,5 +1,6 @@
 -- A slot is free when it has no row or its hold expired; the insert steals an expired row in place.
--- The primary key arbitrates two racers on one slot, and the loser's upsert guard fails to no row.
+-- SQLite runs one writer at a time, so no racer can take the free slot this statement found: it comes back
+-- taken, or no row does when every slot is held.
 WITH RECURSIVE slots (i) AS (
     SELECT 0
     UNION ALL

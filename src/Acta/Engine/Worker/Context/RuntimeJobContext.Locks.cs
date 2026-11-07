@@ -43,13 +43,23 @@ internal sealed partial class RuntimeJobContext
     internal async Task<bool> TryAcquireConcurrencySlotAsync(string concurrencyKey, int limit, CancellationToken ct)
     {
         var prefix = $"{_namespaceId}.sem.{KeySyntax.Canonicalize(concurrencyKey, nameof(concurrencyKey))}";
-        var token = (await _locks.AcquireLockSlotAsync(prefix, limit, TimeSpan.FromSeconds(_leaseTtlSeconds), JobId, ct)).Token;
-        if (token is { } held)
+        // A lost race is a slot another admission took just now, so the next try reads past it, and limit lost
+        // races mean every slot was taken. Only a try that finds every slot held turns the job away sooner.
+        for (var tries = 0; tries < limit; tries++)
         {
-            _inFlightJob?.TrackLock(held);
-            _concurrencySlotToken = held;
+            var slot = await _locks.AcquireLockSlotAsync(prefix, limit, TimeSpan.FromSeconds(_leaseTtlSeconds), JobId, ct);
+            if (slot.Token is { } held)
+            {
+                _inFlightJob?.TrackLock(held);
+                _concurrencySlotToken = held;
+                return true;
+            }
+            if (!slot.LostRace)
+            {
+                return false;
+            }
         }
-        return token is not null;
+        return false;
     }
 
     /// <summary>

@@ -712,7 +712,7 @@ The default retry policy (`MaxAttempts = 15`, backoff `"1m..1d x2 ~10%"`) keeps 
 
 #### Concurrency limit
 
-`ConcurrencyLimit = N` (1 to 1024) caps the attempts running at once per concurrency key, cluster-wide. The key is the enqueue's `ConcurrencyKey`, else the definition name, and a key with no limit admits one at a time. A job that finds every concurrency slot held re-arms Ready after a short bounce without spending a retry. Definitions sharing a key share its slots, and its capacity is the largest limit among them. After a decrease, admissions may use the old limit until every worker's next heartbeat, and a job already holding a slot above the new limit runs on until it finishes or its lease lapses, beside new admissions below it. To lower the cap at once, let that work drain first.
+`ConcurrencyLimit = N` (1 to 1024) caps the attempts running at once per concurrency key, cluster-wide. The key is the enqueue's `ConcurrencyKey`, else the definition name, and a key with no limit admits one at a time. A job that finds every concurrency slot held re-arms Ready after a short bounce without spending a retry; one that loses the race for a free slot tries again, up to the limit, before it re-arms. Definitions sharing a key share its slots, and its capacity is the largest limit among them. After a decrease, admissions may use the old limit until every worker's next heartbeat, and a job already holding a slot above the new limit runs on until it finishes or its lease lapses, beside new admissions below it. To lower the cap at once, let that work drain first.
 
 #### Rate limit
 

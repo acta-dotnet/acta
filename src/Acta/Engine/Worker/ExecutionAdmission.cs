@@ -46,9 +46,10 @@ internal sealed class ExecutionAdmission(ILogger log, int concurrencyKeyBounceDe
         // Concurrency admission: the concurrency slot is a lock-store row taken here, after the start CAS proved
         // ownership, and held only while the handler runs. The gate is the key - the enqueue's key
         // when the row carries one, else the definition name once the definition declares a limit -
-        // and the limit is how many of its slots exist, 1 when only a key was given. A loser skips
-        // the handler and completes the attempt as a budget-neutral re-arm with the fixed bounce delay
-        // (the contention throttle): mutual exclusion of execution only, no per-key ordering.
+        // and the limit is how many of its slots exist, 1 when only a key was given. A job that finds
+        // every slot held skips the handler and completes the attempt as a budget-neutral re-arm with
+        // the fixed bounce delay (the contention throttle): mutual exclusion of execution only, no
+        // per-key ordering.
         // The limit comes off the descriptor, which the policy reload keeps current, so admission
         // costs no join on the claim path.
         var concurrencyKey = job.ConcurrencyKey ?? (descriptor.ConcurrencyLimit is not null ? descriptor.JobName : null);

@@ -27,10 +27,27 @@ internal static class LockWaitProbe
     /// Counts only a wait on a lock <paramref name="blocker"/>'s session holds, so a statement whose text other specs'
     /// sessions also run is told apart from theirs.
     /// </summary>
-    public static async Task WaitAsync(
+    public static Task WaitAsync(
         IDbSession db,
         string sqlFragment,
         LockWait kind,
+        Task operation,
+        DbTransaction? blocker,
+        CancellationToken ct
+    ) => WaitForSessionsAsync(db, sqlFragment, kind, sessions: 1, operation, blocker, ct);
+
+    /// <summary>
+    /// Returns once <paramref name="sessions"/> sessions wait so, for a spec that races several on one lock. It names no
+    /// blocker, because SQL Server reports a session queued behind another waiter as blocked by that waiter.
+    /// </summary>
+    public static Task WaitAsync(IDbSession db, string sqlFragment, LockWait kind, int sessions, Task operation, CancellationToken ct) =>
+        WaitForSessionsAsync(db, sqlFragment, kind, sessions, operation, blocker: null, ct);
+
+    private static async Task WaitForSessionsAsync(
+        IDbSession db,
+        string sqlFragment,
+        LockWait kind,
+        int sessions,
         Task operation,
         DbTransaction? blocker,
         CancellationToken ct
@@ -47,7 +64,7 @@ internal static class LockWaitProbe
                 throw new InvalidOperationException($"The operation running '{sqlFragment}' finished without waiting on a {kind} lock.");
             }
 
-            if (await CountWaitersAsync(db.Provider, connection, sqlFragment, kind, blockerSession, ct) > 0)
+            if (await CountWaitersAsync(db.Provider, connection, sqlFragment, kind, blockerSession, ct) >= sessions)
             {
                 return;
             }
@@ -55,7 +72,9 @@ internal static class LockWaitProbe
             await Task.Delay(TimeSpan.FromMilliseconds(20), ct);
         }
 
-        throw new TimeoutException($"No session running '{sqlFragment}' waited on a {kind} lock within {SpecWaits.Gate.TotalSeconds:0} s.");
+        throw new TimeoutException(
+            $"Fewer than {sessions} sessions running '{sqlFragment}' waited on a {kind} lock within {SpecWaits.Gate.TotalSeconds:0} s."
+        );
     }
 
     private static async Task<int> SessionIdAsync(DbProvider provider, DbTransaction transaction, CancellationToken ct)

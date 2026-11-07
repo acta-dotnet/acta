@@ -25,6 +25,7 @@ internal sealed class WorkerExecutorHarness(
     string? concurrencyKey = null,
     int? concurrencyLimit = null,
     bool slotGranted = true,
+    int slotRacesLost = 0,
     string? rateLimit = null,
     string? rateName = null,
     DateTime? rateResumeAtUtc = null,
@@ -52,7 +53,14 @@ internal sealed class WorkerExecutorHarness(
     // The worker state the executor and finalizer read, held here so a fact can retire the definition mid-attempt.
     private readonly WorkerContext _context = new(new WorkerRegistration("harness", null, null, [], []));
     private readonly ScriptedExecutionStore _store = new(stepOutcome, completionAction);
-    private readonly ScriptedLockStore _locks = new(slotGranted, rateResumeAtUtc, rateWaitMilliseconds, slotThrows, rateThrows);
+    private readonly ScriptedLockStore _locks = new(
+        slotGranted,
+        slotRacesLost,
+        rateResumeAtUtc,
+        rateWaitMilliseconds,
+        slotThrows,
+        rateThrows
+    );
 
     private readonly RecordingLogger _log = new();
 
@@ -415,6 +423,7 @@ internal sealed class WorkerExecutorHarness(
     /// </summary>
     private sealed class ScriptedLockStore(
         bool slotGranted,
+        int slotRacesLost,
         DateTime? rateResumeAtUtc,
         int? rateWaitMilliseconds,
         bool slotThrows,
@@ -452,13 +461,18 @@ internal sealed class WorkerExecutorHarness(
                 _ => throw new NotSupportedException(call.Stem),
             };
 
-        // The slot key the SQL took, which the handler pairs with the hold token it minted.
-        private string? AcquireLockSlot(string keyPrefix, int limit)
+        // The slot key the SQL took, which the handler pairs with the hold token it minted; a lost race is the
+        // free slot's row with no key, and a held key is no row.
+        private object? AcquireLockSlot(string keyPrefix, int limit)
         {
             _slotRequests.Add(new SlotRequest(keyPrefix, limit));
             if (slotThrows)
             {
                 throw new ProviderDown();
+            }
+            if (_slotRequests.Count <= slotRacesLost)
+            {
+                return new string?[] { null };
             }
             return slotGranted ? $"{keyPrefix}.0" : null;
         }

@@ -54,7 +54,8 @@ BEGIN TRY
                 END;
         END;
 
-    SELECT lock_key AS slot_key FROM @out;
+    -- A slot found free but not taken is one a racer took first, and it comes back with a null key.
+    SELECT (SELECT lock_key FROM @out) AS slot_key WHERE @slot_key IS NOT NULL;
 
     IF @entry_trancount = 0
         COMMIT TRANSACTION;
@@ -63,10 +64,10 @@ BEGIN CATCH
     IF @entry_trancount = 0 AND XACT_STATE() <> 0
         ROLLBACK TRANSACTION;
 
-    -- A duplicate-key loser raced another admission onto the same slot and acquired nothing; the
-    -- caller settles that as a plain miss. XACT_ABORT requires rollback before returning it.
+    -- A duplicate-key loser raced another admission onto the same slot and acquired nothing, which it
+    -- answers as any lost race does. XACT_ABORT requires rollback before returning it.
     IF @entry_trancount = 0 AND ERROR_NUMBER() IN (2627, 2601)
-        SELECT CAST(NULL AS VARCHAR(256)) AS slot_key WHERE 1 = 0;
+        SELECT CAST(NULL AS VARCHAR(256)) AS slot_key;
     ELSE
         THROW;
 END CATCH;

@@ -5,8 +5,9 @@ namespace Acta.Tests.Execution;
 /// <summary>
 /// Unit pins for concurrency admission in <see cref="WorkerExecutor.ExecuteAsync"/>, driven by
 /// <see cref="WorkerExecutorHarness"/>'s scripted slot store: which key and how many slots the runner
-/// asks for, that a granted slot is released once the handler is done, and that a denied slot skips
-/// the handler and settles the attempt as a budget-neutral re-arm with the bounce delay.
+/// asks for, that a lost race tries again at most limit times, that a granted slot is released once the
+/// handler is done, and that a denied slot skips the handler and settles the attempt as a budget-neutral
+/// re-arm with the bounce delay after one try.
 /// </summary>
 public sealed class WorkerExecutorConcurrencyAdmissionTests
 {
@@ -72,6 +73,7 @@ public sealed class WorkerExecutorConcurrencyAdmissionTests
         Assert.False(harness.HandlerRan);
         Assert.Equal(CompletionKind.Rescheduled, completion.Outcome);
         Assert.Equal(EventReason.ConcurrencyKeyHeld, completion.Reason);
+        Assert.Single(harness.SlotRequests);
 
         // Budget-neutral: the fixed bounce delay re-arms the row and no failure count is written at
         // all, so the next attempt reads the budget exactly as this one found it.
@@ -80,6 +82,32 @@ public sealed class WorkerExecutorConcurrencyAdmissionTests
 
         // Nothing was taken, so nothing is released; a release here would free another holder's slot.
         Assert.Equal(0, harness.SlotReleases);
+    }
+
+    [Fact]
+    public async Task A_lost_slot_race_tries_again_and_runs_the_handler()
+    {
+        var harness = new WorkerExecutorHarness(concurrencyKey: "customer-1", concurrencyLimit: 4, slotRacesLost: 2);
+
+        var outcome = await harness.RunAsync();
+
+        Assert.Equal(RunOnceStatus.Completed, outcome);
+        Assert.Equal(3, harness.SlotRequests.Count);
+        Assert.Equal(1, harness.SlotReleases);
+    }
+
+    [Fact]
+    public async Task Admission_that_loses_a_race_for_every_slot_bounces_after_limit_tries()
+    {
+        // Each lost race is a slot another admission took, so after limit of them every slot was taken.
+        var harness = new WorkerExecutorHarness(concurrencyKey: "customer-1", concurrencyLimit: 3, slotRacesLost: int.MaxValue);
+
+        var outcome = await harness.RunAsync();
+
+        Assert.Equal(RunOnceStatus.Rearmed, outcome);
+        Assert.False(harness.HandlerRan);
+        Assert.Equal(EventReason.ConcurrencyKeyHeld, harness.Completion.Reason);
+        Assert.Equal(3, harness.SlotRequests.Count);
     }
 
     [Fact]

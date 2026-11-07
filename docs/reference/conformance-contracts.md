@@ -585,7 +585,7 @@
   - A claimed job whose key lock is held bounces to Ready with the configured delay
 
 ### A definition's concurrency limit is how many of its key's lock slots exist
-- **Contract:** A concurrency key admits at most its definition's limit at once, one lock slot each, taken lowest free first.
+- **Contract:** A concurrency key admits at most its definition's limit at once, one lock slot each, taken lowest free first, a lost race retried up to the limit.
 - **Guarantees:**
   - Limit 1 is the single lock slot the exclusive key always was
   - Admission fills the lowest free lock slot and stops at the limit
@@ -593,6 +593,7 @@
   - A lowered limit admits into the low lock slots while the high holders run on
   - A lock slot whose lease expired is stolen by the next admission
   - Real same-key handlers run at the limit minus the lock slots held elsewhere
+  - Admissions racing for the same free lock slot fill every slot, and only a full key bounces
 
 ### A meter freed after a lock convoy admits its burst, not every queued call
 - **Contract:** Reservations delayed behind a held bucket row are judged at the clock when the row frees, so the release admits the burst and books the rest.
@@ -1250,7 +1251,7 @@
 - **Contract:** AcquireLockSlot takes the lowest slot under the limit that is unheld or expired, under the caller's owner and a fresh token, or returns null when none is.
 - **Guarantees:**
   - The lowest free slot is taken first, and its row records the owner, the minted token, and a lease the TTL long
-  - With every slot under the limit held the acquire returns null and writes no slot past the limit
+  - With every slot under the limit held the acquire returns null, not a lost race, and writes no slot past the limit
   - An expired lock slot is stolen in place before any higher free one, and its old token no longer releases
   - Simultaneous acquires of a key's one free slot leave exactly one holder
   - A limit below one throws before any slot is written

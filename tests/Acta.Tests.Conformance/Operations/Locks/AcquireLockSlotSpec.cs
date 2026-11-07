@@ -46,7 +46,9 @@ public sealed class AcquireLockSlotSpec : ActaStorageTestBase<ConformanceFixture
         Assert.NotEqual(first.HoldToken, second.HoldToken);
     }
 
-    [Fact(DisplayName = "With every slot under the limit held the acquire returns null and writes no slot past the limit")]
+    [Fact(
+        DisplayName = "With every slot under the limit held the acquire returns null, not a lost race, and writes no slot past the limit"
+    )]
     public async Task Full_key_returns_null_and_writes_nothing()
     {
         var ct = TestContext.Current.CancellationToken;
@@ -58,7 +60,9 @@ public sealed class AcquireLockSlotSpec : ActaStorageTestBase<ConformanceFixture
             held.Add(Assert.NotNull((await locks.AcquireLockSlotAsync(prefix, limit: 2, HeldTtl, ownerJobId: -1 - i, ct)).Token));
         }
 
-        Assert.Null((await locks.AcquireLockSlotAsync(prefix, limit: 2, HeldTtl, ownerJobId: -9, ct)).Token);
+        var full = await locks.AcquireLockSlotAsync(prefix, limit: 2, HeldTtl, ownerJobId: -9, ct);
+        Assert.Null(full.Token);
+        Assert.False(full.LostRace);
 
         foreach (var token in held)
         {

@@ -2,7 +2,8 @@ namespace Acta;
 
 /// <summary>
 /// Takes the first free slot of a counted key in one round trip whatever the limit: the SQL enumerates
-/// the slots and inserts the first free one.
+/// the slots and inserts the first free one. It answers no row when every slot is held, and a null key when a
+/// racer took the free slot first.
 /// </summary>
 internal sealed class AcquireLockSlotHandler(IDbSession session, ISqlDialect dialect)
 {
@@ -12,7 +13,7 @@ internal sealed class AcquireLockSlotHandler(IDbSession session, ISqlDialect dia
         // and the dialects' slot enumerations would answer it differently.
         ArgumentOutOfRangeException.ThrowIfLessThan(command.Limit, 1, "limit");
         var holdToken = Guid.NewGuid();
-        var key = await session.ExecuteSingleAsync(
+        var rows = await session.ExecuteAsync(
             new StoreCommand("AcquireLockSlot"),
             cmd =>
             {
@@ -25,9 +26,14 @@ internal sealed class AcquireLockSlotHandler(IDbSession session, ISqlDialect dia
             // The SQL picks the slot, so the taken key comes back rather than being recomposed here;
             // extend and release then work on it like any other lock key.
             static reader =>
-                reader.GetString(0),
+                reader.IsDBNull(0) ? null : reader.GetString(0),
             ct
         );
-        return new AcquireLockSlotResponse(key is null ? null : new LockToken(key, holdToken));
+        return rows switch
+        {
+            [{ } key] => new AcquireLockSlotResponse(new LockToken(key, holdToken), LostRace: false),
+            [null] => new AcquireLockSlotResponse(null, LostRace: true),
+            _ => new AcquireLockSlotResponse(null, LostRace: false),
+        };
     }
 }

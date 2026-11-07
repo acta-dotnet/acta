@@ -1,3 +1,4 @@
+using System.Data.Common;
 using Acta.Tests.Conformance.Contracts;
 using Acta.Tests.Conformance.Testing;
 using Microsoft.Extensions.DependencyInjection;
@@ -11,15 +12,15 @@ namespace Acta.Tests.Conformance.Scenarios;
 /// <c>.{limit-1}</c>, taken after the start CAS and released when the handler finishes. Capacity on a
 /// shared key is the largest limit among the participants, and a smaller-limit definition competes for
 /// the first N slots only, so lowering one definition never takes slots away from another. A limit of
-/// 1 is slot 0 alone, exactly the pre-limit mutex. Most facts drive the lock store directly, because
-/// four simultaneous real executions cannot be forced deterministically; one fact runs real handlers
-/// through the runtime against an externally held slot, which pins the arithmetic end to end.
+/// 1 is slot 0 alone, exactly the pre-limit mutex. Most facts drive the lock store directly; two run real
+/// handlers through the runtime, one against a slot held elsewhere, which pins the arithmetic end to end, and
+/// one making every admission race for the same free slot behind another admission's uncommitted hold.
 /// </summary>
 [ConformanceSpec(
     "concurrency-limit.slots",
     "A definition's concurrency limit is how many of its key's lock slots exist",
     Area = "Concurrency",
-    Contract = "A concurrency key admits at most its definition's limit at once, one lock slot each, taken lowest free first."
+    Contract = "A concurrency key admits at most its definition's limit at once, one lock slot each, taken lowest free first, a lost race retried up to the limit."
 )]
 public sealed class ConcurrencyLimitSpec : ActaRuntimeTestBase<ConformanceFixture, TestJobs.TestJobsManifest>
 {
@@ -202,7 +203,95 @@ public sealed class ConcurrencyLimitSpec : ActaRuntimeTestBase<ConformanceFixtur
         await locks.ReleaseLockAsync(foreign!.Value, ct);
     }
 
+    [Fact(DisplayName = "Admissions racing for the same free lock slot fill every slot, and only a full key bounces")]
+    public async Task Admissions_racing_for_the_same_free_slot_fill_every_slot()
+    {
+        const int racers = 2 * ConcurrencySlotGate.Limit;
+        var ct = TestContext.Current.CancellationToken;
+        var key = Unique("cl-race");
+        ConcurrencySlotGate.Reset(TestNamespace);
+        var jobs = new List<EnqueueJobResponse>();
+        for (var i = 0; i < racers; i++)
+        {
+            jobs.Add(
+                await Jobs.EnqueueAsync(
+                    new EnqueueJobRequest(TestNamespace, "concurrency-slot-gate", JobPayload.None) { ConcurrencyKey = key },
+                    ct
+                )
+            );
+        }
+
+        // On a server every racer waits on slot 0, which another admission holds uncommitted, so all of them
+        // contend for the free slots at once when it commits. SQLite runs one writer at a time, so nothing races there.
+        await using var connection = Db.Provider == DbProvider.Sqlite ? null : await Db.OpenConnectionAsync(ct);
+        await using var holder = connection is null ? null : await connection.BeginTransactionAsync(ct);
+        var held = holder is null ? (LockToken?)null : await TakeSlotAsync(holder, SlotPrefix(key), ct);
+        var runs = jobs.Select(job => Runtime.RunOnceAsync(job, ct)).ToArray();
+        if (holder is not null)
+        {
+            await LockWaitProbe.WaitAsync(Db, SlotAcquireSql, LockWait.Row, racers, Task.WhenAny(runs), ct);
+            await holder.CommitAsync(ct);
+        }
+
+        // An admitted attempt holds its slot inside the handler until released, so every racer is settled once each
+        // one has entered or bounced.
+        await SpecWaits.UntilAsync(
+            () => ConcurrencySlotGate.Entered(TestNamespace) + runs.Count(run => run.IsCompleted) == racers,
+            "Every racing admission either entered the handler or bounced.",
+            ct
+        );
+        var free = ConcurrencySlotGate.Limit - (held is null ? 0 : 1);
+        var bounced = await Task.WhenAll(runs.Where(run => run.IsCompleted));
+        Assert.Equal(free, ConcurrencySlotGate.Entered(TestNamespace));
+        Assert.Equal(racers - free, bounced.Length);
+        Assert.All(bounced, outcome => Assert.Equal(RunOnceStatus.Rearmed, outcome));
+        Assert.Equal(ConcurrencySlotGate.Limit, await CountSlotRowsAsync(SlotPrefix(key), ct));
+
+        ConcurrencySlotGate.Release(TestNamespace);
+        Assert.Equal(free, (await Task.WhenAll(runs)).Count(outcome => outcome == RunOnceStatus.Completed));
+        if (held is { } token)
+        {
+            await Locks.ReleaseLockAsync(token, ct);
+        }
+    }
+
     private LocksOperations Locks => Services.GetRequiredService<LocksOperations>();
+
+    // Text only the slot acquire runs, near its start, since PostgreSQL keeps only the first kilobyte of a running query.
+    private string SlotAcquireSql => Db.Provider == DbProvider.SqlServer ? "@p_slot_count" : "generate_series";
+
+    // The slot acquire an admission runs, inside a transaction the caller has not committed.
+    private async Task<LockToken> TakeSlotAsync(DbTransaction transaction, string prefix, CancellationToken ct)
+    {
+        var dialect = Services.GetRequiredService<ISqlDialect>();
+        var holdToken = Guid.NewGuid();
+        var taken = await Db.ExecuteInTransactionAsync(
+            transaction,
+            new StoreCommand("AcquireLockSlot"),
+            cmd =>
+            {
+                cmd.Parameters.Add(dialect.CreateParameter(ActaSchema.Sql.LockKeyPrefix, prefix));
+                cmd.Parameters.Add(dialect.CreateParameter(ActaSchema.Sql.LockSlotCount, ConcurrencySlotGate.Limit));
+                cmd.Parameters.Add(dialect.CreateParameter(ActaSchema.Lock.JobId, long.MaxValue));
+                cmd.Parameters.Add(dialect.CreateParameter(ActaSchema.Sql.LeaseTtlSeconds, (int)HeldTtl.TotalSeconds));
+                cmd.Parameters.Add(dialect.CreateParameter(ActaSchema.Lock.HoldToken, holdToken));
+            },
+            static reader => reader.GetString(0),
+            ct
+        );
+        return new LockToken(Assert.Single(taken), holdToken);
+    }
+
+    private async Task<int> CountSlotRowsAsync(string prefix, CancellationToken ct)
+    {
+        var rows = 0;
+        for (var slot = 0; slot <= ConcurrencySlotGate.Limit; slot++)
+        {
+            var slotKey = $"{prefix}.{slot}";
+            rows += await Db.From<LockEntity>().Where(l => l.LockKey == slotKey).CountAsync(ct);
+        }
+        return rows;
+    }
 
     // The composition the runner uses: namespace id, the sem discriminator, and the exact key.
     private string SlotPrefix(string key) => $"{Runtime.RegisteredNamespaceIds[TestNamespace]}.sem.{key}";
