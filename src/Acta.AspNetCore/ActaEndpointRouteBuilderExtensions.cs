@@ -101,9 +101,7 @@ public static class ActaEndpointRouteBuilderExtensions
             group.Map(
                 "/{**spaPath}",
                 (string spaPath, HttpContext http) =>
-                    !HttpMethods.IsGet(http.Request.Method)
-                    || spaPath.StartsWith("api/", StringComparison.OrdinalIgnoreCase)
-                    || spaPath.Equals("api", StringComparison.OrdinalIgnoreCase)
+                    IsUnknownEndpoint(http.Request, spaPath)
                         ? Results.Problem(statusCode: StatusCodes.Status404NotFound, title: "Unknown endpoint.")
                         : ServeIndex(http, options, basePath)
             );
@@ -112,6 +110,15 @@ public static class ActaEndpointRouteBuilderExtensions
         options.ConfigureEndpoints?.Invoke(group);
         return group;
     }
+
+    /// <summary>
+    /// Whether a request the dashboard's catch-all route matched is no page of the dashboard: any method but GET, or a
+    /// path under the API's own prefix that no route maps.
+    /// </summary>
+    internal static bool IsUnknownEndpoint(HttpRequest request, string spaPath) =>
+        !HttpMethods.IsGet(request.Method)
+        || spaPath.StartsWith("api/", StringComparison.OrdinalIgnoreCase)
+        || spaPath.Equals("api", StringComparison.OrdinalIgnoreCase);
 
     // The versioned API under either mount: the conventions and filters every route shares, then each group's routes.
     private static void MapApi(RouteGroupBuilder api, ActaEndpointOptions options)

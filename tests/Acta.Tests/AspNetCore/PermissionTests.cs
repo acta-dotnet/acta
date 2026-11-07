@@ -249,6 +249,34 @@ public sealed class PermissionTests
         Assert.Equal(LoginPath, response.Headers.Location?.AbsolutePath);
     }
 
+    /// <summary>
+    /// What the catch-all answers as an unknown endpoint is no page: a path under the API's prefix that no route maps, or
+    /// any method but GET. With no credential it answers the bare 401 as well, so a client that calls a control this mount
+    /// does not map is never sent to a login page; a page path under the same catch-all is still challenged.
+    /// </summary>
+    [Theory]
+    [InlineData("GET", "/acta/api/v1/nothing", HttpStatusCode.Unauthorized)]
+    [InlineData("GET", "/acta/api", HttpStatusCode.Unauthorized)]
+    [InlineData("POST", "/acta/api/v1/jobs/job_00000000000000000000000000000001/pause", HttpStatusCode.Unauthorized)]
+    [InlineData("POST", "/acta/jobs", HttpStatusCode.Unauthorized)]
+    [InlineData("GET", "/acta/jobs", HttpStatusCode.Redirect)]
+    public async Task An_unknown_endpoint_with_no_credential_answers_a_bare_401(string method, string path, HttpStatusCode expected)
+    {
+        var (app, client) = await StartAsync(
+            options => options.EnableControls = false,
+            defaultScheme: CookieAuthenticationDefaults.AuthenticationScheme
+        );
+        await using var _ = app;
+
+        using var response = await client.SendAsync(
+            Holding(new HttpMethod(method), path, held: null),
+            TestContext.Current.CancellationToken
+        );
+
+        Assert.Equal(expected, response.StatusCode);
+        Assert.Equal(expected == HttpStatusCode.Redirect ? LoginPath : null, response.Headers.Location?.AbsolutePath);
+    }
+
     // The dev server's index is served whether or not the build embedded the dashboard's assets.
     [Theory]
     [InlineData(ActaPermissions.Read, HttpStatusCode.OK)]

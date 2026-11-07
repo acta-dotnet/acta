@@ -81,9 +81,14 @@ internal static class PermissionFilter
             );
         }
 
-        // No credential. An API route answers a plain 401, so a cookie scheme never redirects a client to a login page;
-        // a page is challenged by the host's scheme, which is where a browser should be sent to sign in.
-        if (operation is not null)
+        // No credential. An API route answers a plain 401, so a cookie scheme never redirects a client to a login page,
+        // and so does a call the catch-all would answer as an unknown endpoint, such as a control this mount does not
+        // map. A page is challenged by the host's scheme, which is where a browser should be sent to sign in.
+        if (
+            operation is not null
+            || http.GetRouteValue("spaPath") is string spaPath
+                && ActaEndpointRouteBuilderExtensions.IsUnknownEndpoint(http.Request, spaPath)
+        )
         {
             return Results.StatusCode(StatusCodes.Status401Unauthorized);
         }
