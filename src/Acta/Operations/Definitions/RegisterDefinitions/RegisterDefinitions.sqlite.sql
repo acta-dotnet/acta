@@ -31,7 +31,8 @@ INSERT INTO {{schema}}.definitions (
     display_name,
     description,
     definition_hash,
-    created_deployment_version)
+    created_deployment_version,
+    modified_at_utc)
 SELECT
     @p_namespace_id,
     json_extract(d.value, '$.definition_name'),
@@ -68,7 +69,8 @@ SELECT
     json_extract(d.value, '$.display_name'),
     json_extract(d.value, '$.description'),
     json_extract(d.value, '$.definition_hash'),
-    @p_created_deployment_version
+    @p_created_deployment_version,
+    MAX({{now}}, COALESCE((SELECT MAX(x.modified_at_utc) FROM {{schema}}.definitions x WHERE x.namespace_id = @p_namespace_id), 0) + 1)
 FROM json_each(@p_definitions) d
 WHERE true
 ON CONFLICT (namespace_id, definition_name) DO UPDATE SET
