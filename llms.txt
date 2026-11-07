@@ -324,11 +324,12 @@ and exits, starting no worker, so it must run with the same configuration and en
 Keep the job ref an enqueue returns (`job_...`); it is the job's public identity everywhere.
 
 ```bash
-dotnet run --no-build -- jobs status  <job-ref> --json   # {"jobRef":"job_...","status":"succeeded"}
-dotnet run --no-build -- jobs explain <job-ref> --json   # what happened and what to do next
-dotnet run --no-build -- jobs events  <job-ref> --json   # the timeline, newest first, --take <n> to bound it
+dotnet run --no-build -v q -- jobs status  <job-ref> --json   # {"jobRef":"job_...","status":"succeeded"}
+dotnet run --no-build -v q -- jobs explain <job-ref> --json   # what happened and what to do next
+dotnet run --no-build -v q -- jobs events  <job-ref> --json   # the timeline, newest first, --take <n> to bound it
 ```
 
+- `-v q` keeps `dotnet run`'s own `Using launch settings from ...` line off stdout, so `--json` output pipes into `jq`; the launch profile, and with it the environment, still applies.
 - `explain` first for anything stuck, waiting, or failed: one read of the status, lease, worker, newest
   steps, checkpoints, and latest reason, with a headline and the next actions.
 - Exit codes: 0 found or applied, 1 rejected or failed, 2 job not found, 64 usage error, 130 cancelled.
