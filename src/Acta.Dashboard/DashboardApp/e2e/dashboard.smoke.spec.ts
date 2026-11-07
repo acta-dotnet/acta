@@ -111,6 +111,8 @@ async function mockDashboard(
     onEnqueue?: (body: unknown) => void;
     // Set, the Overview lists one outbox source with quarantined rows, and its discard reports the body it sent.
     onDiscard?: (body: unknown) => void;
+    // The rows the Workers list reads; none unless a test names them.
+    workers?: unknown[];
   }
 ): Promise<void> {
   await page.route('**/api/v1/**', async (route: Route) => {
@@ -123,7 +125,7 @@ async function mockDashboard(
       return json({ controlsEnabled: options.controls, engineVersion: 'test', provider: 'mock', confirmationHeader: 'X-Acta-Control' });
     }
     if (path === 'namespaces') {
-      return json(paged([{ jobNamespace: 'billing', status: 'active', ownerTeam: null, description: null, version: 1 }]));
+      return json(paged([{ jobNamespace: 'billing', status: 'active', ownerTeam: null, description: null, deploymentVersion: '1.6.2+5c0ffee', version: 1 }]));
     }
     if (path === 'overview') {
       return json({
@@ -163,7 +165,7 @@ async function mockDashboard(
       return json({ action: 'accepted', pendingSinceUtc: null }, 202);
     }
     if (path === 'alerts') return json(paged([]));
-    if (path === 'workers') return json(paged([]));
+    if (path === 'workers') return json(paged(options.workers ?? []));
     if (path === 'schedules') return json(paged([]));
     if (path === 'definitions') {
       const definition = (jobName: string) => ({
@@ -329,6 +331,37 @@ test('quick search finds definitions by fragment and jumps to a pasted job ref',
   await input.fill(jobRef);
   await page.keyboard.press('Enter');
   await expect(page.getByRole('heading', { name: 'Evidence' })).toBeVisible();
+});
+
+test('the workers list says which live worker is not on the namespace\'s deployed version', async ({ page }) => {
+  const seen = new Date().toISOString();
+  const worker = (workerRef: string, deploymentVersion: string, status: string) => ({
+    workerRef,
+    status,
+    jobNamespace: 'billing',
+    hostName: 'host-1',
+    deploymentVersion,
+    engineVersion: '1.0.0',
+    dotnetVersion: '.NET 10.0',
+    processId: 4242,
+    maxConcurrentExecutors: 8,
+    lastSeenAtUtc: seen,
+    startedAtUtc: seen
+  });
+  // One worker on the deployed version, one live on an earlier build, and one of that build already stopped.
+  await mockDashboard(page, {
+    controls: false,
+    workers: [
+      worker('wrk_01a1b27e82e87edfb219e2785be47301', '1.6.2+5c0ffee', 'active'),
+      worker('wrk_01a1b27e82e87edfb219e2785be47302', '1.6.1+b81d04e', 'active'),
+      worker('wrk_01a1b27e82e87edfb219e2785be47303', '1.6.1+b81d04e', 'stopped')
+    ]
+  });
+  await page.goto('/#/workers?ns=billing');
+
+  const note = page.getByText('not current');
+  await expect(note).toHaveCount(1);
+  await expect(note).toHaveAttribute('title', 'This namespace is deployed at 1.6.2+5c0ffee');
 });
 
 test('safe single-job control sends exactly one restart request', async ({ page }) => {

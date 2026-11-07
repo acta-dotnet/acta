@@ -31,7 +31,7 @@
   const capabilities = createQuery(() => capabilitiesQuery());
 
   // Admin audit trail: one small query per namespace admin event code, merged newest-first.
-  const HISTORY_CODES = ['namespace.suspended', 'namespace.resumed', 'namespace.updated'];
+  const HISTORY_CODES = ['namespace.suspended', 'namespace.resumed', 'namespace.updated', 'namespace.deployed'];
   const history = createQuery(() => ({
     queryKey: keys.detail('namespace-history', namespaceName),
     queryFn: async ({ signal }: { signal: AbortSignal }) => {
@@ -245,6 +245,19 @@
             {#if statusMessage}<div class="control-message {statusMessageKind}" role="status">{statusMessage}</div>{/if}
           {/if}
         </section>
+
+        {#if !systemNamespace}
+          <section class="detail-panel">
+            <h2>Deployment</h2>
+            {#if namespace.deploymentVersion}
+              <p class="mono">{namespace.deploymentVersion}</p>
+              <p class="detail-help">The version a deploy last recorded here. A worker starts only on a version that has deployed in this namespace.</p>
+            {:else}
+              <p>No deploy recorded.</p>
+              <p class="detail-help">A development start wrote the jobs here, so a worker of any build can start. Running <span class="mono">jobs deploy</span> records a version.</p>
+            {/if}
+          </section>
+        {/if}
 
         <section class="detail-panel go-to" aria-label="Go to">
           <p class="detail-kicker">Go to</p>

@@ -296,6 +296,8 @@ export interface NamespaceListItem {
   status: string;
   ownerTeam: string | null;
   description: string | null;
+  // The app version a deploy step last recorded in the namespace; null while only a development start has written it.
+  deploymentVersion: string | null;
   version: number;
 }
 

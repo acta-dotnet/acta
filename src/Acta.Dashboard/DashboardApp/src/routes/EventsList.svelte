@@ -20,7 +20,7 @@
   // Hardcoded rather than fetched: the code families are compile-time enums with no list endpoint.
   const EVENT_CODES = [
     'tenant.suspended', 'tenant.resumed', 'tenant.updated',
-    'namespace.suspended', 'namespace.resumed', 'namespace.updated',
+    'namespace.suspended', 'namespace.resumed', 'namespace.updated', 'namespace.deployed',
     'definition.overrides-updated', 'definition.retired',
     'job.execution-succeeded', 'job.execution-failed', 'job.execution-orphaned', 'job.execution-yielded', 'job.failed',
     'job.suspended', 'job.rescheduled', 'job.cancelled', 'job.paused', 'job.resumed',

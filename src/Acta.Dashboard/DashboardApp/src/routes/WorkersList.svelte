@@ -1,4 +1,8 @@
 <script lang="ts">
+  import { createQuery } from '@tanstack/svelte-query';
+  import { api, type NamespaceListItem, type Paged } from '../api.ts';
+  import { keys } from '../query.ts';
+  import { readAllPages } from '../lib/pagedWalk.ts';
   import { hashParams, updateHashParams } from '../router';
   import { scope, setScope } from '../scope';
   import Page from '../components/Page.svelte';
@@ -57,6 +61,26 @@
     { key: 'startedAtUtc', header: 'Started', class: 'mobile-hide' }
   ];
 
+  // Each namespace's current deployed version, to show a rolling deploy's progress: a live worker on another
+  // version is an earlier build still draining, or one kept after a rollback.
+  const currentVersions = createQuery(() => ({
+    queryKey: keys.list('worker-namespace-versions', {}),
+    queryFn: async ({ signal }: { signal: AbortSignal }) => {
+      const all = await readAllPages((cursor) => api<Paged<NamespaceListItem>>('namespaces', { pageSize: 100, cursor }, { signal }));
+      return new Map(all.map((item) => [item.jobNamespace, item.deploymentVersion]));
+    },
+    staleTime: 60_000
+  }));
+
+  function currentVersionOf(worker: WorkerRow): string | null {
+    return currentVersions.data?.get(worker.jobNamespace) ?? null;
+  }
+
+  function isNotCurrent(worker: WorkerRow): boolean {
+    const current = currentVersionOf(worker);
+    return current !== null && (worker.status === 'active' || worker.status === 'draining') && worker.deploymentVersion !== current;
+  }
+
   function isStale(worker: WorkerRow, nowMs: number): boolean {
     return (
       (worker.status === 'active' || worker.status === 'draining') &&
@@ -85,6 +109,7 @@
       <JobRef value={w.workerRef} href={routes.worker(w.workerRef, { namespace: $scope })} copy />
     {/snippet}
     {#snippet statusCell(w: WorkerRow)}<StatusBadge status={w.status} />{/snippet}
+    {#snippet versionCell(w: WorkerRow)}{w.deploymentVersion}{#if isNotCurrent(w)}<span class="not-current" title={'This namespace is deployed at ' + currentVersionOf(w)}>not current</span>{/if}{/snippet}
     {#snippet lastSeenCell(w: WorkerRow)}<RelativeTime value={w.lastSeenAtUtc} />{/snippet}
     {#snippet startedCell(w: WorkerRow)}<RelativeTime value={w.startedAtUtc} />{/snippet}
     {#snippet executorsCell(w: WorkerRow)}{displayFormatter.number(w.maxConcurrentExecutors)}{/snippet}
@@ -102,7 +127,17 @@
       emptyText={activeChips.length > 0
         ? 'No workers match these ' + displayFormatter.number(activeChips.length) + ' filters.'
         : 'No workers registered here. Confirm a worker process is running and configured for this namespace.'}
-      cells={{ workerRef: workerCell, status: statusCell, maxConcurrentExecutors: executorsCell, lastSeenAtUtc: lastSeenCell, startedAtUtc: startedCell }}
+      cells={{ workerRef: workerCell, status: statusCell, deploymentVersion: versionCell, maxConcurrentExecutors: executorsCell, lastSeenAtUtc: lastSeenCell, startedAtUtc: startedCell }}
       rowClass={(w: WorkerRow) => (w.status === 'dead' ? 'trouble' : isStale(w, $now) ? 'stale' : '')} />
   </div>
 </Page>
+
+<style>
+  /* Quiet on purpose: a worker of an earlier build is the normal middle of a rolling deploy, not a fault. */
+  .not-current {
+    margin-left: 8px;
+    color: var(--muted);
+    font-size: var(--text-sm);
+    white-space: nowrap;
+  }
+</style>
