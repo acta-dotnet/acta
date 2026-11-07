@@ -26,7 +26,9 @@ namespace Acta;
 /// <param name="ModifiedAtUtc">When the row last changed, in UTC.</param>
 /// <param name="Version">The schedule's version, which every change to it increments.</param>
 /// <param name="JobRef">The ref of the permanent slot job the schedule fires; null for a schedule that enqueues a new job for each
-/// occurrence.</param>
+/// occurrence. A permanent schedule's events are its slot job's, read at GET /jobs/{jobRef}/events with this ref;
+/// GET /definitions/{jobNamespace}/{jobName}/events lists every schedule's events, a per-occurrence schedule's included. Each names its
+/// schedule in detailsText.</param>
 /// <param name="MaxOutstanding">How many admitted occurrences may be unsettled at once.</param>
 /// <param name="OutstandingCount">How many admitted occurrences are unsettled now.</param>
 /// <param name="FullBehavior">What a due occurrence does while the schedule is at maxOutstanding: wait or drop.</param>

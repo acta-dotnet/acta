@@ -202,6 +202,12 @@ the slot or the fresh root. `GET /schedules/{jobNamespace}/{jobName}/{scheduleNa
 reads the schedule a path names, in any status, with the members its `GET /schedules` row carries, and
 answers 404 when the path names none (`ISchedules.GetAsync` in code).
 
+A schedule has no events route of its own. A permanent schedule's events are its slot job's: read them at
+`GET /jobs/{jobRef}/events` with the schedule's `jobRef`. A per-occurrence schedule records its admissions
+and manual firings on the root each one enqueued, and its other events on its definition.
+`GET /definitions/{jobNamespace}/{jobName}/events` lists every schedule event of the definition, of either
+kind, and each event names its schedule in the `schedule` member of its details.
+
 ```csharp
 var nightly = new ScheduleLookup("billing", "reconcile-ledger", "nightly");
 

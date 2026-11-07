@@ -146,8 +146,9 @@ public enum EventCode : byte
     JobNoteRecorded = 90,
 
     /// <summary>
-    /// Every schedule.* event has the slot job as its subject (a schedule has no single numeric identity); the
-    /// schedule name rides details.schedule.
+    /// A schedule.* event's subject is the schedule's slot job, since a schedule has no single numeric identity; a
+    /// per-occurrence schedule has none, so its admissions and manual firings sit on the job each one enqueued and its
+    /// other events on its definition. Every one carries the definition, and the schedule name rides details.schedule.
     /// </summary>
     [Code("schedule.paused", "A recurring schedule was paused; details carry the schedule name.")]
     SchedulePaused = 100,

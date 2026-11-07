@@ -13277,7 +13277,7 @@
                 "$ref": "#/components/schemas/JobRef"
               }
             ],
-            "description": "The ref of the permanent slot job the schedule fires; null for a schedule that enqueues a new job for each occurrence."
+            "description": "The ref of the permanent slot job the schedule fires; null for a schedule that enqueues a new job for each occurrence. A permanent schedule's events are its slot job's, read at GET /jobs/{jobRef}/events with this ref; GET /definitions/{jobNamespace}/{jobName}/events lists every schedule's events, a per-occurrence schedule's included. Each names its schedule in detailsText."
           },
           "maxOutstanding": {
             "type": "integer",
@@ -15099,7 +15099,7 @@
                 "$ref": "#/components/schemas/JobRef"
               }
             ],
-            "description": "The ref of the permanent slot job the schedule fires; null for a schedule that enqueues a new job for each occurrence."
+            "description": "The ref of the permanent slot job the schedule fires; null for a schedule that enqueues a new job for each occurrence. A permanent schedule's events are its slot job's, read at GET /jobs/{jobRef}/events with this ref; GET /definitions/{jobNamespace}/{jobName}/events lists every schedule's events, a per-occurrence schedule's included. Each names its schedule in detailsText."
           },
           "maxOutstanding": {
             "type": "integer",
@@ -17313,7 +17313,7 @@
     },
     {
       "name": "Schedules",
-      "description": "List and read schedules, preview one's upcoming fire instants, and pause, resume, or trigger it."
+      "description": "List and read schedules, preview one's upcoming fire instants, and pause, resume, or trigger it; a schedule's events are read on its slot job or its definition."
     },
     {
       "name": "Calendars",
