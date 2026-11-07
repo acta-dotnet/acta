@@ -81,7 +81,7 @@ public sealed class ResetJobStateSpec : ActaRuntimeTestBase<ConformanceFixture, 
 
         var job = await EnqueueAsync(ct);
         await SeedSubstrateAsync(Db, job, ct);
-        await SetEventRecordingAsync(Db, job.JobId, eventRecording: 0, ct);
+        await SetEventRecordingAsync(Db, job.JobId, (byte)EventRecordingCode.Failures, ct);
 
         await Services.GetRequiredService<ResetJobStateHandler>().HandleAsync(new ResetJobStateCommand(job), ct);
 

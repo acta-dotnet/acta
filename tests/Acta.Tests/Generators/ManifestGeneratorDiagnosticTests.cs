@@ -755,6 +755,27 @@ public class ManifestGeneratorDiagnosticTests
     }
 
     [Theory]
+    [InlineData("(EventRecordingCode)42")]
+    [InlineData("EventRecordingCode.Unspecified")]
+    public void An_undeclarable_event_recording_errors_ACTA0105(string level)
+    {
+        var result = RunGenerator(
+            $$"""
+            using Acta;
+            namespace GenTests;
+
+            public static class Handler
+            {
+                [Job("bad-recording", EventRecording = {{level}})]
+                public static void Run() { }
+            }
+            """
+        );
+
+        Assert.Single(Of(result, "ACTA0105"));
+    }
+
+    [Theory]
     [InlineData("(ScheduledDeliveryCode)42")]
     [InlineData("ScheduledDeliveryCode.Unspecified")]
     public void An_undeclarable_scheduled_delivery_errors_ACTA0105(string delivery)

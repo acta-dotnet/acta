@@ -203,7 +203,7 @@ internal static class JobPolicyReader
                         named,
                         EventRecordingIdToName,
                         DefaultEventRecordingName,
-                        "The value is not a defined `EventRecordingCode`.",
+                        "The level is `EventRecordingCode.Failures` or `EventRecordingCode.Audit`.",
                         DefaultEventRecordingName,
                         diagnostics,
                         location

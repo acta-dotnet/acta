@@ -21,7 +21,7 @@ public class RegisterDefinitionsTests
             ResultPayloadFormat: null,
             Priority: default,
             MaxAttempts: 1,
-            EventRecording: default,
+            EventRecording: EventRecordingCode.Audit,
             AlertProfile: default,
             FiringFailurePolicy: FiringFailurePolicyCode.Continue,
             ScheduledDelivery: ScheduledDeliveryCode.Permanent,

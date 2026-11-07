@@ -21,7 +21,7 @@ public sealed class UpdateDefinitionOverridesBindMatrixSpec : ActaStorageTestBas
     private const string Actor = "tester";
 
     // Def() registers with well-known base values so the clear fact can assert exact effective fallbacks.
-    // Base policy: Priority=Bulk(0), MaxAttempts=3, EventRecording=Off(0), AlertProfile=None(0).
+    // Base policy: Priority=Bulk(0), MaxAttempts=3, EventRecording=Failures(10), AlertProfile=None(0).
     // Framework defaults fill Backoff="1m..1d x2 ~10%", ExecutionTimeout=300, JobRetention=7776000;
     // DeadlineSeconds=0, DeadlineBehavior=Strict.
     private static JobDescriptor Def(string name) =>
@@ -35,7 +35,7 @@ public sealed class UpdateDefinitionOverridesBindMatrixSpec : ActaStorageTestBas
             ResultPayloadFormat: null,
             Priority: default, // Bulk = 0
             MaxAttempts: 3,
-            EventRecording: default, // Off = 0
+            EventRecording: EventRecordingCode.Failures,
             AlertProfile: default, // None = 0
             FiringFailurePolicy: FiringFailurePolicyCode.Continue,
             ScheduledDelivery: ScheduledDeliveryCode.Permanent,
@@ -86,7 +86,7 @@ public sealed class UpdateDefinitionOverridesBindMatrixSpec : ActaStorageTestBas
             DeadlineSeconds: 444, // distinct int 4
             DeadlineBehavior: DeadlineBehaviorCode.Advisory, // ≠ Strict base
             JobRetentionSeconds: 555, // distinct int 5
-            EventRecording: EventRecordingCode.Audit, // ≠ Off base
+            EventRecording: EventRecordingCode.Audit, // ≠ Failures base
             AlertProfile: AlertProfileCode.OnTerminal, // ≠ None base
             AlertChannelName: channelName,
             RunbookUrl: runbookUrl,
@@ -217,7 +217,7 @@ public sealed class UpdateDefinitionOverridesBindMatrixSpec : ActaStorageTestBas
         Assert.Equal(0, cleared.DeadlineSecondsEffective); // no deadline
         Assert.Equal(DeadlineBehaviorCode.Strict, cleared.DeadlineBehaviorEffective);
         Assert.Equal(7776000, cleared.JobRetentionSecondsEffective); // framework default
-        Assert.Equal(EventRecordingCode.Off, cleared.EventRecordingEffective);
+        Assert.Equal(EventRecordingCode.Failures, cleared.EventRecordingEffective);
         Assert.Equal(AlertProfileCode.None, cleared.AlertProfileEffective);
         Assert.Null(cleared.AlertChannelNameEffective);
         Assert.Null(cleared.RunbookUrlEffective);

@@ -99,9 +99,9 @@ public sealed class JobAttribute(string name) : Attribute
     public string? JobRetention { get; init; }
 
     /// <summary>
-    /// Which per-job <c>events</c> are recorded; an enabled alert profile still records the transitions its
-    /// alerts read. When left unset the generator applies the framework default (<c>Audit</c>). Sub-minute
-    /// recurring definitions should consider <c>Off</c> or <c>Failures</c> to keep <c>events</c> lean.
+    /// Which per-job <c>events</c> are recorded: <c>Audit</c>, the framework default when left unset, records every
+    /// one, and <c>Failures</c> records the failures, the successes that answer them, and what an enabled alert
+    /// profile reads. Sub-minute recurring definitions should consider <c>Failures</c> to keep <c>events</c> lean.
     /// </summary>
     public EventRecordingCode EventRecording { get; init; } = EventRecordingCode.Audit;
 

@@ -246,7 +246,7 @@ FROM temp._ces_policy_paused p
 WHERE p.event_recording_code = 20 /* EventRecordingCode.Audit */;
 -- end recurring
 
-/* The attempt's own event under the recording gate (EventRecordingCode) plus the alert overlay, which also writes a one-shot's
+/* The attempt's own event under the recording gate (EventRecordingCode) plus the alert overlay, which writes a one-shot's
    success past attempt 1, since a restart zeroes the count yet the success must resolve what the failure opened; a recurring
    fire keeps the recovery rule, or every idle tick would write. Details are fixed kebab words, so the JSON needs no escaping. */
 INSERT INTO {{schema}}.events (
@@ -303,13 +303,9 @@ WHERE
     )
     OR (
         x.alert_profile_code_effective <> 0 /* AlertProfileCode.None */
-        AND (
-            x.event_code IN (41 /* EventCode.JobExecutionFailed */, 44 /* EventCode.JobFailed */)
-            OR (
-                x.event_code = 40 /* EventCode.JobExecutionSucceeded */
-                AND (x.prior_failure_count > 0 OR (x.execution_number > 1 AND x.final_job_status_code IS NULL))
-            )
-        )
+        AND x.event_code = 40 /* EventCode.JobExecutionSucceeded */
+        AND x.execution_number > 1
+        AND x.final_job_status_code IS NULL
     );
 
 -- begin shapes

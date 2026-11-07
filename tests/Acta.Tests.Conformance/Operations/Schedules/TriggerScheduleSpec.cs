@@ -248,7 +248,6 @@ public sealed class TriggerScheduleSpec : ActaStorageTestBase<ConformanceFixture
             DefinitionId: defId,
             InputFormatId: 0,
             Input: ReadOnlyMemory<byte>.Empty,
-            EventRecording: EventRecordingCode.Audit,
             ScheduledDelivery: delivery,
             Schedules: schedules
         );

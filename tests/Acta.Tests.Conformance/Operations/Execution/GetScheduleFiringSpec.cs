@@ -70,7 +70,6 @@ public sealed class GetScheduleFiringSpec : ActaStorageTestBase<ConformanceFixtu
             DefinitionId: defId,
             InputFormatId: 0,
             Input: ReadOnlyMemory<byte>.Empty,
-            EventRecording: EventRecordingCode.Audit,
             ScheduledDelivery: ScheduledDeliveryCode.Permanent,
             Schedules: [new SlotSchedule("only", Cron5, null, MisfireStrategyCode.Skip, ScheduleExpressionKindCode.Cron, null, cursor)]
         );
@@ -88,7 +87,7 @@ public sealed class GetScheduleFiringSpec : ActaStorageTestBase<ConformanceFixtu
             ResultPayloadFormat: null,
             Priority: default,
             MaxAttempts: 1,
-            EventRecording: default,
+            EventRecording: EventRecordingCode.Failures,
             AlertProfile: default,
             FiringFailurePolicy: FiringFailurePolicyCode.Continue,
             ScheduledDelivery: ScheduledDeliveryCode.Permanent,

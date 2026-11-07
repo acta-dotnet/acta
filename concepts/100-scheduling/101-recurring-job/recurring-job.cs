@@ -20,8 +20,8 @@ namespace Acta.Concepts.Recurring
     public sealed class PurgeStaleSessionsJob
     {
         // One permanent job fires on the cadence, and each successful fire's count replaces the last one stored;
-        // EventRecordingCode.Off skips the events per fire.
-        [Job("purge-stale-sessions", EventRecording = EventRecordingCode.Off)]
+        // EventRecordingCode.Failures writes an event only for a fire that fails or recovers.
+        [Job("purge-stale-sessions", EventRecording = EventRecordingCode.Failures)]
         [Schedule("every-15-seconds", Cron.Every15Seconds)]
         public async Task<int> Handle(PurgeStaleSessions input, JobContext context, CancellationToken ct)
         {

@@ -92,17 +92,7 @@ internal static class CalendarTestOps
             .ToList();
         return ScheduleTestOps.RegisterAsync(
             services,
-            [
-                new DefinitionSchedules(
-                    namespaceId,
-                    defId,
-                    0,
-                    ReadOnlyMemory<byte>.Empty,
-                    EventRecordingCode.Audit,
-                    ScheduledDeliveryCode.PerOccurrence,
-                    slots
-                ),
-            ],
+            [new DefinitionSchedules(namespaceId, defId, 0, ReadOnlyMemory<byte>.Empty, ScheduledDeliveryCode.PerOccurrence, slots)],
             ct
         );
     }

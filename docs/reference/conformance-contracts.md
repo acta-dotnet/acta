@@ -78,12 +78,11 @@
   - A purge before the projector consumed the job's failure is refused, and the same purge applies once it has
   - A job with nothing alert-required purges at once while the projector is behind
 
-### An enabled alert profile records alert-required events at any level
-- **Contract:** At recording Off an alert-enabled job still writes its orphaned event and its restarted success, and a disabled profile writes nothing.
+### Failures records what alerts read, and a restarted success only under alerts
+- **Contract:** At Failures a lease reclaim writes the orphaned event alerts raise on, and a restarted one-shot's success is written only under an enabled alert profile.
 - **Guarantees:**
-  - A lease reclaim at recording Off writes the orphaned event, and the projector raises a FirstFailure on it
-  - The same reclaim with the alert profile off writes no event at recording Off
-  - A restarted job's success at recording Off is written, and it resolves the incident the failure opened
+  - A lease reclaim at recording Failures writes the orphaned event, and the projector raises a FirstFailure on it
+  - A restarted one-shot's success at recording Failures with the alert profile off writes no event
 
 ### Retention keeps owed alert events and their jobs until projected
 - **Contract:** Retention deletes no alert-required event, nor its job, past the projector's floor, and both age out normally once projected.

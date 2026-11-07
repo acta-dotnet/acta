@@ -38,17 +38,7 @@ public sealed class ListSchedulesFilterMatrixSpec : ActaRuntimeTestBase<Conforma
     private Task RegisterSchedulesAsync(int nsId, int defId, string jobName, IReadOnlyList<SlotSchedule> schedules, CancellationToken ct) =>
         ScheduleTestOps.RegisterAsync(
             Services,
-            [
-                new DefinitionSchedules(
-                    nsId,
-                    defId,
-                    0,
-                    ReadOnlyMemory<byte>.Empty,
-                    EventRecordingCode.Audit,
-                    ScheduledDeliveryCode.Permanent,
-                    schedules
-                ),
-            ],
+            [new DefinitionSchedules(nsId, defId, 0, ReadOnlyMemory<byte>.Empty, ScheduledDeliveryCode.Permanent, schedules)],
             ct
         );
 
@@ -66,7 +56,7 @@ public sealed class ListSchedulesFilterMatrixSpec : ActaRuntimeTestBase<Conforma
             ResultPayloadFormat: null,
             Priority: default,
             MaxAttempts: 1,
-            EventRecording: default,
+            EventRecording: EventRecordingCode.Failures,
             AlertProfile: default,
             FiringFailurePolicy: FiringFailurePolicyCode.Continue,
             ScheduledDelivery: ScheduledDeliveryCode.Permanent,

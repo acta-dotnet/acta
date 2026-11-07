@@ -465,7 +465,6 @@ internal sealed class CatalogRegistrar(
                     DefinitionId: defId,
                     InputFormatId: inputFormatId,
                     Input: inputBytes,
-                    EventRecording: descriptor.EventRecording,
                     ScheduledDelivery: descriptor.ScheduledDelivery,
                     Schedules: slotSchedules
                 )

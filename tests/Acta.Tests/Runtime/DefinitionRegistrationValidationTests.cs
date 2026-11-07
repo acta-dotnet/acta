@@ -95,6 +95,17 @@ public sealed class DefinitionRegistrationValidationTests
     }
 
     [Theory]
+    [InlineData(EventRecordingCode.Unspecified)]
+    [InlineData((EventRecordingCode)42)]
+    public async Task A_recording_level_that_is_not_declarable_fails_registration(EventRecordingCode level)
+    {
+        var ex = await Assert.ThrowsAsync<ArgumentException>(() => RegisterAsync(Descriptor("silent") with { EventRecording = level }));
+
+        Assert.Contains("silent", ex.Message);
+        Assert.Contains("EventRecording", ex.Message);
+    }
+
+    [Theory]
     [InlineData(0)]
     [InlineData(-1)]
     [InlineData(JobDefinitionRegistration.MaxConcurrencyLimit + 1)]

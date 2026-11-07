@@ -677,7 +677,6 @@ public sealed class PurgeExpiredDataSpec : ActaRuntimeTestBase<ConformanceFixtur
                     DefinitionId: defId,
                     InputFormatId: 0,
                     Input: ReadOnlyMemory<byte>.Empty,
-                    EventRecording: EventRecordingCode.Audit,
                     ScheduledDelivery: ScheduledDeliveryCode.Permanent,
                     Schedules:
                     [
@@ -742,7 +741,7 @@ public sealed class PurgeExpiredDataSpec : ActaRuntimeTestBase<ConformanceFixtur
             ResultPayloadFormat: null,
             Priority: default,
             MaxAttempts: 1,
-            EventRecording: default,
+            EventRecording: EventRecordingCode.Failures,
             AlertProfile: default,
             FiringFailurePolicy: FiringFailurePolicyCode.Continue,
             ScheduledDelivery: ScheduledDeliveryCode.Permanent,

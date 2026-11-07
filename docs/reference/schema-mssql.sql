@@ -57,7 +57,7 @@ GO
 -- ===== refuse a database a newer release already upgraded =====
 IF EXISTS (
     SELECT 1 FROM acta.migrations
-    WHERE name NOT IN ('M20261107170803_init')
+    WHERE name NOT IN ('M20261107193439_init')
 )
 BEGIN
     RAISERROR(N'A newer Acta release already upgraded this database. Run the newest provisioning script; this one would move it backwards.', 16, 1);
@@ -65,7 +65,7 @@ BEGIN
     SET NOEXEC ON;
 END
 GO
--- ===== BEGIN M20261107170803_init =====
+-- ===== BEGIN M20261107193439_init =====
 SET QUOTED_IDENTIFIER ON;
 SET ANSI_NULLS ON;
 GO
@@ -1627,7 +1627,7 @@ BEGIN
                 END
             END
 
-        /* The attempt's own event under the recording gate (EventRecordingCode) plus the alert overlay, which also writes a one-shot's
+        /* The attempt's own event under the recording gate (EventRecordingCode) plus the alert overlay, which writes a one-shot's
            success past attempt 1, since a restart zeroes the count yet the success must resolve what the failure opened; a recurring
            fire keeps the recovery rule, or every idle tick would write. Details are fixed kebab words, so the JSON needs no escaping. */
         INSERT INTO acta.events (
@@ -1681,13 +1681,9 @@ BEGIN
             )
             OR (
                 jd.alert_profile_code_effective <> 0 /* AlertProfileCode.None */
-                AND (
-                    c.event_code IN (41 /* EventCode.JobExecutionFailed */, 44 /* EventCode.JobFailed */)
-                    OR (
-                        c.event_code = 40 /* EventCode.JobExecutionSucceeded */
-                        AND (d.prior_failure_count > 0 OR (d.execution_number > 1 AND c.final_job_status_code IS NULL))
-                    )
-                )
+                AND c.event_code = 40 /* EventCode.JobExecutionSucceeded */
+                AND d.execution_number > 1
+                AND c.final_job_status_code IS NULL
             );
 
         IF @p_plain = 0
@@ -3803,7 +3799,6 @@ BEGIN
                 worker_id INT NOT NULL,
                 to_status_code TINYINT NOT NULL,
                 event_recording_code TINYINT NOT NULL,
-                alert_profile_code TINYINT NOT NULL,
                 parent_job_id BIGINT NULL,
                 schedule_id INT NULL
             );
@@ -3995,8 +3990,7 @@ BEGIN
             CAST('{"reason":"lane-repaired"}' AS VARBINARY(MAX))
         FROM @repaired x
         INNER JOIN acta.jobs j ON j.job_id = x.job_id
-        INNER JOIN acta.jobs_state r ON r.job_id = x.job_id
-        WHERE j.event_recording_code IN (10 /* EventRecordingCode.Failures */, 20 /* EventRecordingCode.Audit */);
+        INNER JOIN acta.jobs_state r ON r.job_id = x.job_id;
 
         WITH stuck AS (
             SELECT
@@ -4005,7 +3999,6 @@ BEGIN
                 CASE WHEN r.failure_count >= 32767 THEN 32767 ELSE r.failure_count + 1 END AS new_failure_count,
                 jd.max_attempts_effective AS max_attempts,
                 jd.retention_seconds_effective AS retention_seconds,
-                jd.alert_profile_code_effective AS alert_profile_code,
                 /* The job was parked on THIS checkpoint: the suspend copied its due into
                    next_run_at_utc, so the equality names the wait this attempt woke for, and an
                    unbounded wait (NULL due) matches nothing. Expired means the timeout had resolved. */
@@ -4068,12 +4061,12 @@ BEGIN
         OUTPUT
             INSERTED.job_id, j.namespace_id, INSERTED.execution_number,
             j.lineage_root_job_id, j.definition_id, j.tenant_id, DELETED.leased_by_worker_id,
-            INSERTED.job_status_code, j.event_recording_code, s.alert_profile_code,
+            INSERTED.job_status_code, j.event_recording_code,
             j.parent_job_id, j.schedule_id
         INTO
             @reclaimed (
                 job_id, namespace_id, execution_number, lineage_root_job_id,
-                definition_id, tenant_id, worker_id, to_status_code, event_recording_code, alert_profile_code, parent_job_id,
+                definition_id, tenant_id, worker_id, to_status_code, event_recording_code, parent_job_id,
                 schedule_id
             )
         -- FORCESEEK keeps this update on a key seek instead of a lock-escalating scan of jobs_state;
@@ -4083,8 +4076,8 @@ BEGIN
         INNER JOIN acta.jobs j ON j.job_id = r.job_id;
 
         /* An orphaned attempt that spent the budget is the job failing for good; any other lands Ready or back on its
-           wait. Failures and Audit record it, and so does an enabled alert profile at any level, in this transaction,
-           so the projector meets every lease-loss transition it alerts on. */
+           wait. Every recording level records it in this transaction, so the projector meets every lease-loss
+           transition it alerts on. */
         INSERT INTO acta.events (
             event_code,
             created_at_utc,
@@ -4126,10 +4119,7 @@ BEGIN
                     ELSE '{"reason":"lease-expired","to":"ready"}'
                 END AS VARBINARY(MAX)
             )
-        FROM @reclaimed
-        WHERE
-            event_recording_code IN (10 /* EventRecordingCode.Failures */, 20 /* EventRecordingCode.Audit */)
-            OR alert_profile_code <> 0 /* AlertProfileCode.None */;
+        FROM @reclaimed;
 
         DECLARE @settled TABLE (job_id BIGINT NOT NULL PRIMARY KEY, schedule_id INT NULL);
 
@@ -4877,7 +4867,7 @@ SELECT
     d.retention_seconds,
     d.retention_seconds_override,
     d.retention_seconds_effective,
-    CASE d.event_recording_code_effective WHEN 0 THEN 'off' WHEN 10 THEN 'failures' WHEN 20 THEN 'audit' END AS event_recording_effective,
+    CASE d.event_recording_code_effective WHEN 0 THEN 'unspecified' WHEN 10 THEN 'failures' WHEN 20 THEN 'audit' END AS event_recording_effective,
     d.event_recording_code,
     d.event_recording_code_override,
     d.event_recording_code_effective,
@@ -5132,11 +5122,11 @@ JOIN acta.namespaces AS ns ON ns.namespace_id = w.namespace_id
 GO
 
 
-IF NOT EXISTS (SELECT 1 FROM acta.migrations WHERE name = 'M20261107170803_init')
+IF NOT EXISTS (SELECT 1 FROM acta.migrations WHERE name = 'M20261107193439_init')
 INSERT INTO acta.migrations (name)
-VALUES ('M20261107170803_init');
+VALUES ('M20261107193439_init');
 GO
--- ===== END M20261107170803_init =====
+-- ===== END M20261107193439_init =====
 GO
 COMMIT TRANSACTION;
 GO

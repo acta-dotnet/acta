@@ -745,7 +745,7 @@ sealed class Acta.EventCodeJsonConverter : System.Text.Json.Serialization.JsonCo
 enum Acta.EventRecordingCode : System.Byte
     Audit = 20
     Failures = 10
-    Off = 0
+    Unspecified = 0
 static class Acta.EventRecordingCodeExtensions
     static Acta.EventRecordingCode FromCode(System.String code)
     static Acta.EventRecordingCode FromId(System.Byte id)

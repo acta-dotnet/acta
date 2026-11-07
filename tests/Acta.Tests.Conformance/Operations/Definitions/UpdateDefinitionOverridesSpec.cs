@@ -69,7 +69,7 @@ public sealed class UpdateDefinitionOverridesSpec : ActaStorageTestBase<Conforma
             ResultPayloadFormat: null,
             Priority: default,
             MaxAttempts: maxAttempts,
-            EventRecording: default,
+            EventRecording: EventRecordingCode.Failures,
             AlertProfile: default,
             FiringFailurePolicy: FiringFailurePolicyCode.Continue,
             ScheduledDelivery: ScheduledDeliveryCode.Permanent,
@@ -104,7 +104,7 @@ public sealed class UpdateDefinitionOverridesSpec : ActaStorageTestBase<Conforma
         var ct = TestContext.Current.CancellationToken;
         var name = Unique("recording");
         var defId = await RegisterAsync(name, 3, ct);
-        // The declaration a worker builds from the catalog it read before the override: recording Off.
+        // The declaration a worker builds from the catalog it read before the override.
         DefinitionSchedules[] declared =
         [
             new(
@@ -112,7 +112,6 @@ public sealed class UpdateDefinitionOverridesSpec : ActaStorageTestBase<Conforma
                 defId,
                 0,
                 ReadOnlyMemory<byte>.Empty,
-                EventRecordingCode.Off,
                 ScheduledDeliveryCode.Permanent,
                 [
                     new SlotSchedule(
@@ -148,7 +147,7 @@ public sealed class UpdateDefinitionOverridesSpec : ActaStorageTestBase<Conforma
         Assert.Equal(EventRecordingCode.Audit, (await JobAsync(slotId, ct)).EventRecording);
         await ScheduleTestOps.RegisterAsync(Services, declared, ct);
         Assert.Equal(EventRecordingCode.Audit, (await JobAsync(slotId, ct)).EventRecording);
-        Assert.Equal(EventRecordingCode.Off, (await JobAsync(before.JobId, ct)).EventRecording);
+        Assert.Equal(EventRecordingCode.Failures, (await JobAsync(before.JobId, ct)).EventRecording);
         Assert.Equal(EventRecordingCode.Audit, (await JobAsync(after.JobId, ct)).EventRecording);
     }
 
@@ -203,7 +202,6 @@ public sealed class UpdateDefinitionOverridesSpec : ActaStorageTestBase<Conforma
                 defId,
                 0,
                 ReadOnlyMemory<byte>.Empty,
-                EventRecordingCode.Off,
                 ScheduledDeliveryCode.Permanent,
                 [
                     new SlotSchedule(

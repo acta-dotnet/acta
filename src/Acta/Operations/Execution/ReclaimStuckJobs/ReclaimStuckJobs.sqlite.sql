@@ -104,9 +104,7 @@ SELECT
     CAST('{"reason":"lane-repaired"}' AS BLOB)
 FROM {{schema}}.jobs j
 INNER JOIN {{schema}}.jobs_state r ON r.job_id = j.job_id
-INNER JOIN temp._repair_lanes rl ON rl.job_id = j.job_id
-WHERE
-    j.event_recording_code IN (10 /* EventRecordingCode.Failures */, 20 /* EventRecordingCode.Audit */);
+INNER JOIN temp._repair_lanes rl ON rl.job_id = j.job_id;
 
 DROP TABLE IF EXISTS temp._reclaim_jobs;
 
@@ -117,7 +115,6 @@ SELECT
     s.worker_id,
     s.wait_resolved,
     s.new_failure_count,
-    s.alert_profile_code,
     /* Budget-neutral for a resolved wait: the surviving path would have ended this attempt at no cost, so
        the job goes back to Suspended on the same past deadline, unclaimed and uncharged, and the replay
        lands whatever outcome the waiting overload chooses. */
@@ -133,7 +130,6 @@ FROM (
         -- Saturates at 32767, the ceiling WorkerFinalizer.FailureCountCeiling names; registration caps MaxAttempts there.
         CASE WHEN r.failure_count >= 32767 THEN 32767 ELSE r.failure_count + 1 END AS new_failure_count,
         jd.max_attempts_effective AS max_attempts,
-        jd.alert_profile_code_effective AS alert_profile_code,
         /* The job was parked on THIS checkpoint: the suspend copied its due into next_run_at_utc, so
            the equality names the wait this attempt woke for, and an unbounded wait (NULL due) matches
            nothing. Expired means the timeout had already resolved durably. */
@@ -160,8 +156,8 @@ FROM (
 ) s;
 
 /* An orphaned attempt that spent the budget is the job failing for good; any other lands Ready or back on its wait.
-   Failures and Audit record it, and so does an enabled alert profile at any level, in this transaction, so the
-   projector meets every lease-loss transition it alerts on. */
+   Every recording level records it in this transaction, so the projector meets every lease-loss transition it alerts
+   on. */
 INSERT INTO {{schema}}.events (
     event_code,
     namespace_id,
@@ -199,10 +195,7 @@ SELECT
     )
 FROM {{schema}}.jobs j
 JOIN {{schema}}.jobs_state r ON r.job_id = j.job_id
-INNER JOIN temp._reclaim_jobs rj ON rj.job_id = j.job_id
-WHERE
-    j.event_recording_code IN (10 /* EventRecordingCode.Failures */, 20 /* EventRecordingCode.Audit */)
-    OR rj.alert_profile_code <> 0 /* AlertProfileCode.None */;
+INNER JOIN temp._reclaim_jobs rj ON rj.job_id = j.job_id;
 
 -- Each worker a reclaimed row names is stamped after its Orphaned event, so the purge keeps it while that event lasts.
 UPDATE {{schema}}.workers

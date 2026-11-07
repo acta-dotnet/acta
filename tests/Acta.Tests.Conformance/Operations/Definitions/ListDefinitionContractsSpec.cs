@@ -117,7 +117,7 @@ public sealed class ListDefinitionContractsSpec : ActaStorageTestBase<Conformanc
             ResultPayloadFormat: null,
             Priority: default,
             MaxAttempts: maxAttempts,
-            EventRecording: default,
+            EventRecording: EventRecordingCode.Failures,
             AlertProfile: default,
             FiringFailurePolicy: FiringFailurePolicyCode.Continue,
             ScheduledDelivery: ScheduledDeliveryCode.Permanent,

@@ -277,8 +277,8 @@ This pattern makes raw values easier to scan in database rows, logs, and diagnos
 
 | Member | Id | Code | Description | Lifecycle |
 |---|---:|---|---|---|
-| `Off` | 0 | `off` | No per-job events that depend on recording. Events about the system and the catalog are still written, and an enabled alert profile still records the failed, orphaned, finally failed, and recovering attempts its alerts read. | Active |
-| `Failures` | 10 | `failures` | Records failed, orphaned, and finally failed attempts, a success only when it recovers from counted failures, and a job that crash recovery releases from a stranded lane. | Active |
+| `Unspecified` | 0 | `unspecified` | Event recording not recognized by this build; the row was written by a newer Acta. | Active |
+| `Failures` | 10 | `failures` | Records failed, orphaned, and finally failed attempts, a success only when it recovers from counted failures, and a job that crash recovery releases from a stranded lane. Under an enabled alert profile it also records a one-shot's success past its first attempt, as after a restart, so the success resolves the alert the failure opened. | Active |
 | `Audit` | 20 | `audit` | Records every per-job event. The default for an application's jobs. | Active |
 
 ### `FiringFailurePolicyCode` · `firing-failure-policy` <a id="code-family-firingfailurepolicycode"></a>

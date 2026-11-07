@@ -172,10 +172,10 @@ internal static class JobPolicyValues
             _ => null,
         };
 
+    /// <summary>The declarable levels; <c>Unspecified</c> only reads back a newer Acta's row.</summary>
     internal static string? EventRecordingIdToName(byte id) =>
         id switch
         {
-            0 => "Off",
             10 => "Failures",
             20 => "Audit",
             _ => null,

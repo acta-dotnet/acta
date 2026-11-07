@@ -110,7 +110,7 @@ public sealed class PersistedCodeContractTests
         DeadlineBehaviorCode.Unspecified=0|unspecified
         DeadlineBehaviorCode.Strict=10|strict
         DeadlineBehaviorCode.Advisory=20|advisory
-        EventRecordingCode.Off=0|off
+        EventRecordingCode.Unspecified=0|unspecified
         EventRecordingCode.Failures=10|failures
         EventRecordingCode.Audit=20|audit
         FiringFailurePolicyCode.Unspecified=0|unspecified
@@ -212,7 +212,7 @@ public sealed class PersistedCodeContractTests
         WorkerStatusCode.Dead=200|dead
         """;
 
-    private const string ExpectedDescriptionHash = "CF230FB7997E57CDCC93E5BC1A50F05F305805B666214FFAC16CD63BD243A9E4";
+    private const string ExpectedDescriptionHash = "1978F9B5D7D81ED35CC883EC1E51D13ECF279AACA3552D6C710BD0532DCB61CF";
 
     [Fact]
     public void Frozen_contract_covers_all_35_families_and_201_values()
@@ -307,7 +307,7 @@ public sealed class PersistedCodeContractTests
         // by its id-0 member instead of throwing.
         Assert.Equal("unspecified", ((EventCode)200).Code);
         Assert.Equal("unspecified", ((JobStatusCode)250).Code);
-        Assert.Equal("off", ((EventRecordingCode)250).Code);
+        Assert.Equal("none", ((AlertProfileCode)250).Code);
 
         foreach (var family in CodeFamilies())
         {

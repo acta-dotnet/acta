@@ -300,7 +300,6 @@ public sealed class RegisterSchedulesSpec : ActaRuntimeTestBase<ConformanceFixtu
                 DefinitionId: defId,
                 InputFormatId: input.Format.Id,
                 Input: input.Data,
-                EventRecording: EventRecordingCode.Audit,
                 ScheduledDelivery: ScheduledDeliveryCode.Permanent,
                 Schedules: [Slot("only", cursor)]
             );
@@ -348,7 +347,6 @@ public sealed class RegisterSchedulesSpec : ActaRuntimeTestBase<ConformanceFixtu
             DefinitionId: defId,
             InputFormatId: 0,
             Input: ReadOnlyMemory<byte>.Empty,
-            EventRecording: EventRecordingCode.Audit,
             ScheduledDelivery: ScheduledDeliveryCode.Permanent,
             Schedules: schedules
         );

@@ -65,7 +65,7 @@ internal sealed class ActaTestSeeder(IDbSession db)
                     DeadlineSeconds = 0,
                     DeadlineBehavior = DeadlineBehaviorCode.Advisory,
                     JobRetentionSeconds = 3600,
-                    EventRecording = EventRecordingCode.Off,
+                    EventRecording = EventRecordingCode.Failures,
                     AlertProfile = alertProfile,
                     CreatedAtUtc = now,
                     ModifiedAtUtc = now,
@@ -100,7 +100,7 @@ internal sealed class ActaTestSeeder(IDbSession db)
                     // null varbinary parameter, which SQL Server cannot implicitly type).
                     InputFormatId = 1,
                     Input = [0],
-                    EventRecording = EventRecordingCode.Off,
+                    EventRecording = EventRecordingCode.Failures,
                     CreatedAtUtc = DateTime.UtcNow,
                 },
                 ct

@@ -34,7 +34,7 @@ public sealed class ListOutboxSourcesSpec : OutboxRelayIntegrationBase
                     Kind = JobKindCode.Permanent,
                     InputFormatId = 1,
                     Input = [0],
-                    EventRecording = EventRecordingCode.Off,
+                    EventRecording = EventRecordingCode.Failures,
                     CreatedAtUtc = DateTime.UtcNow,
                 },
                 ct

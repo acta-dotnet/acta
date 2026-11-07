@@ -980,7 +980,8 @@ BEGIN
                 )
                 OR (
                     jd.alert_profile_code_effective <> 0 /* AlertProfileCode.None */
-                    AND (d.event_code = 44 /* EventCode.JobFailed */ OR (d.event_code = 40 /* EventCode.JobExecutionSucceeded */ AND d.execution_number > 1))
+                    AND d.event_code = 40 /* EventCode.JobExecutionSucceeded */
+                    AND d.execution_number > 1
                 )
         )
         -- jobs_state reads as it stood before the update, so a row this call completed takes its state from done.
@@ -1252,7 +1253,7 @@ BEGIN
         WHERE p.event_recording_code = 20 /* EventRecordingCode.Audit */;
     END IF;
 
-    /* The attempt's own event under the recording gate (EventRecordingCode) plus the alert overlay, which also writes a one-shot's
+    /* The attempt's own event under the recording gate (EventRecordingCode) plus the alert overlay, which writes a one-shot's
        success past attempt 1, since a restart zeroes the count yet the success must resolve what the failure opened; a recurring
        fire keeps the recovery rule, or every idle tick would write. Details are fixed kebab words, so the JSON needs no escaping. */
     INSERT INTO {{schema}}.events (
@@ -1314,13 +1315,9 @@ BEGIN
             )
             OR (
                 jd.alert_profile_code_effective <> 0 /* AlertProfileCode.None */
-                AND (
-                    c.event_code IN (41 /* EventCode.JobExecutionFailed */, 44 /* EventCode.JobFailed */)
-                    OR (
-                        c.event_code = 40 /* EventCode.JobExecutionSucceeded */
-                        AND (c.job_id = ANY (v_recovered) OR (c.execution_number > 1 AND c.final_job_status_code IS NULL))
-                    )
-                )
+                AND c.event_code = 40 /* EventCode.JobExecutionSucceeded */
+                AND c.execution_number > 1
+                AND c.final_job_status_code IS NULL
             )
         );
 
@@ -3330,9 +3327,7 @@ BEGIN
         convert_to('{"reason":"lane-repaired"}', 'UTF8')
     FROM {{schema}}.jobs j
     INNER JOIN {{schema}}.jobs_state r ON r.job_id = j.job_id
-    WHERE
-        j.job_id = ANY (v_repaired)
-        AND j.event_recording_code IN (10 /* EventRecordingCode.Failures */, 20 /* EventRecordingCode.Audit */);
+    WHERE j.job_id = ANY (v_repaired);
 
     RETURN QUERY
     WITH stuck AS (
@@ -3348,7 +3343,6 @@ BEGIN
             CASE WHEN r.failure_count >= 32767 THEN 32767 ELSE r.failure_count + 1 END AS new_failure_count,
             jd.max_attempts_effective AS max_attempts,
             jd.retention_seconds_effective AS retention_seconds,
-            jd.alert_profile_code_effective AS alert_profile_code,
             /* The job was parked on THIS checkpoint: the suspend copied its due into next_run_at_utc,
                so the equality names the wait this attempt woke for, and an unbounded wait (NULL due)
                matches nothing. Expired means the timeout had already resolved durably. */
@@ -3406,11 +3400,11 @@ BEGIN
         RETURNING
             r.job_id, j.namespace_id, r.execution_number, j.lineage_root_job_id,
             j.definition_id, j.tenant_id, s.worker_id, r.job_status_code AS new_status, s.event_recording_code,
-            s.alert_profile_code, j.parent_job_id, j.schedule_id
+            j.parent_job_id, j.schedule_id
     ),
     /* An orphaned attempt that spent the budget is the job failing for good; any other lands Ready or back on its
-       wait. Failures and Audit record it, and so does an enabled alert profile at any level, in this transaction, so
-       the projector meets every lease-loss transition it alerts on. */
+       wait. Every recording level records it in this transaction, so the projector meets every lease-loss transition
+       it alerts on. */
     event_insert AS (
         INSERT INTO {{schema}}.events (
             event_code,
@@ -3453,9 +3447,6 @@ BEGIN
                 'UTF8'
             )
         FROM reclaimed r
-        WHERE
-            r.event_recording_code IN (10 /* EventRecordingCode.Failures */, 20 /* EventRecordingCode.Audit */)
-            OR r.alert_profile_code <> 0 /* AlertProfileCode.None */
     ),
     -- A lost attempt that spent the budget settles the firing Failed: a slot's, which wakes the members parked on the
     -- slot, or a charged root's, which releases its schedule's capacity.
@@ -4168,7 +4159,7 @@ SELECT
     d.retention_seconds,
     d.retention_seconds_override,
     d.retention_seconds_effective,
-    CASE d.event_recording_code_effective WHEN 0 THEN 'off' WHEN 10 THEN 'failures' WHEN 20 THEN 'audit' END AS event_recording_effective,
+    CASE d.event_recording_code_effective WHEN 0 THEN 'unspecified' WHEN 10 THEN 'failures' WHEN 20 THEN 'audit' END AS event_recording_effective,
     d.event_recording_code,
     d.event_recording_code_override,
     d.event_recording_code_effective,
@@ -4400,5 +4391,5 @@ JOIN {{schema}}.namespaces AS ns ON ns.namespace_id = w.namespace_id;
 
 
 INSERT INTO {{schema}}.migrations (name)
-VALUES ('M20261107170803_init')
+VALUES ('M20261107193439_init')
 ON CONFLICT (name) DO NOTHING;

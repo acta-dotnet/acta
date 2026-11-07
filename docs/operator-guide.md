@@ -472,7 +472,7 @@ In production a deploy step applies Acta's migrations, never application startup
 
 ```
 $ ConnectionStrings__acta="<DDL login>" dotnet MyApp.dll jobs migrate
-applied M20261107170803_init to schema acta
+applied M20261107193439_init to schema acta
 namespace billing: 1.6.1+b81d04e (Production)
   added    sys.alerts
   added    sys.retention
@@ -797,7 +797,7 @@ included, is one durable system.
 
 - `SysCritical` is for Acta's own jobs. `None` turns off automatic alerts only; `ctx.AlertAsync` still raises manual ones.
 - A `Cancelled` job never alerts, whether an operator, `ctx.CancelAsync`, or a deadline cancelled it. Budget-neutral re-arms (a held concurrency key, a rate limit, a step retry) do not alert either.
-- Automatic alerts are independent of the recording level: an enabled alert profile captures the failed, orphaned, terminal, and recovery transitions durably even at `EventRecording = Off`, so every profile fires the same at every level, and resolves the same except where [known limitations](./known-limitations.md#execution-model) say a permanent job's does not.
+- Automatic alerts do not depend on the recording level: `Failures` records the failed, orphaned, terminal, and recovery transitions as `Audit` does, and under an enabled alert profile also a one-shot's success past its first attempt, so every profile fires the same at every level, and resolves the same except where [known limitations](./known-limitations.md#execution-model) say a permanent job's does not.
 - For recurring work use `OnFailure`: a permanent job's failures never land `Failed` (a spent budget returns it to `Idle`), so `OnTerminal` and `Info` stay silent for them.
 
 ### Incidents

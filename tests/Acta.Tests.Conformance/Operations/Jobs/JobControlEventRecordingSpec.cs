@@ -27,7 +27,7 @@ public sealed class JobControlEventRecordingSpec : ActaRuntimeTestBase<Conforman
 
         var jobL = await EnqueueAsync(ct);
         var jobF = await EnqueueAsync(ct);
-        await SetEventRecordingAsync(Db, jobL, EventRecordingCode.Off, ct);
+        await SetEventRecordingAsync(Db, jobL, EventRecordingCode.Failures, ct);
         await SetEventRecordingAsync(Db, jobF, EventRecordingCode.Audit, ct);
 
         var outcomeL = await Services.GetRequiredService<PauseJobHandler>().PauseAsync(jobL, input, ct);
@@ -52,7 +52,7 @@ public sealed class JobControlEventRecordingSpec : ActaRuntimeTestBase<Conforman
         var jobF = await EnqueueAsync(ct);
         await SetJobStatusAsync(Db, jobL, (byte)JobStatusCode.Paused, ct);
         await SetJobStatusAsync(Db, jobF, (byte)JobStatusCode.Paused, ct);
-        await SetEventRecordingAsync(Db, jobL, EventRecordingCode.Off, ct);
+        await SetEventRecordingAsync(Db, jobL, EventRecordingCode.Failures, ct);
         await SetEventRecordingAsync(Db, jobF, EventRecordingCode.Audit, ct);
 
         var outcomeL = await Services.GetRequiredService<ResumeJobHandler>().ResumeAsync(jobL, input, null, ct);
@@ -75,7 +75,7 @@ public sealed class JobControlEventRecordingSpec : ActaRuntimeTestBase<Conforman
 
         var jobL = await EnqueueAsync(ct);
         var jobF = await EnqueueAsync(ct);
-        await SetEventRecordingAsync(Db, jobL, EventRecordingCode.Off, ct);
+        await SetEventRecordingAsync(Db, jobL, EventRecordingCode.Failures, ct);
         await SetEventRecordingAsync(Db, jobF, EventRecordingCode.Audit, ct);
 
         var outcomeL = await Services.GetRequiredService<CancelJobHandler>().CancelAsync(jobL, input, fence: null, ct);
@@ -100,7 +100,7 @@ public sealed class JobControlEventRecordingSpec : ActaRuntimeTestBase<Conforman
         var jobF = await EnqueueAsync(ct);
         await SetJobStatusAsync(Db, jobL, (byte)JobStatusCode.Succeeded, ct);
         await SetJobStatusAsync(Db, jobF, (byte)JobStatusCode.Succeeded, ct);
-        await SetEventRecordingAsync(Db, jobL, EventRecordingCode.Off, ct);
+        await SetEventRecordingAsync(Db, jobL, EventRecordingCode.Failures, ct);
         await SetEventRecordingAsync(Db, jobF, EventRecordingCode.Audit, ct);
 
         var outcomeL = await Services.GetRequiredService<RestartJobHandler>().RestartAsync(jobL, input, null, ct);
@@ -123,7 +123,7 @@ public sealed class JobControlEventRecordingSpec : ActaRuntimeTestBase<Conforman
 
         var jobL = await EnqueueAsync(ct);
         var jobF = await EnqueueAsync(ct);
-        await SetEventRecordingAsync(Db, jobL, EventRecordingCode.Off, ct);
+        await SetEventRecordingAsync(Db, jobL, EventRecordingCode.Failures, ct);
         await SetEventRecordingAsync(Db, jobF, EventRecordingCode.Audit, ct);
 
         var outcomeL = await Services

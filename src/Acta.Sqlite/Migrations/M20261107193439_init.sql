@@ -547,7 +547,7 @@ SELECT
     d.retention_seconds,
     d.retention_seconds_override,
     d.retention_seconds_effective,
-    CASE d.event_recording_code_effective WHEN 0 THEN 'off' WHEN 10 THEN 'failures' WHEN 20 THEN 'audit' END AS event_recording_effective,
+    CASE d.event_recording_code_effective WHEN 0 THEN 'unspecified' WHEN 10 THEN 'failures' WHEN 20 THEN 'audit' END AS event_recording_effective,
     d.event_recording_code,
     d.event_recording_code_override,
     d.event_recording_code_effective,
@@ -786,5 +786,5 @@ JOIN {{schema}}.namespaces AS ns ON ns.namespace_id = w.namespace_id;
 
 
 INSERT INTO {{schema}}.migrations (name)
-VALUES ('M20261107170803_init')
+VALUES ('M20261107193439_init')
 ON CONFLICT (name) DO NOTHING;

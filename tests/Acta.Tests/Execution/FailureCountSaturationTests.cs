@@ -77,7 +77,7 @@ public class FailureCountSaturationTests
             ResultPayloadFormat: null,
             Priority: default,
             MaxAttempts: maxAttempts,
-            EventRecording: default,
+            EventRecording: EventRecordingCode.Audit,
             AlertProfile: default,
             FiringFailurePolicy: FiringFailurePolicyCode.Continue,
             ScheduledDelivery: ScheduledDeliveryCode.Permanent,

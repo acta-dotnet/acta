@@ -64,6 +64,18 @@ internal sealed class UpdateDefinitionOverridesHandler(GetDefinitionIdHandler ge
         {
             overrides = overrides with { DeadlineBehavior = null };
         }
+        if (overrides.EventRecording == EventRecordingCode.Unspecified)
+        {
+            overrides = overrides with { EventRecording = null };
+        }
+        // A level with no member would record nothing, not even the failures an alert profile reads.
+        if (overrides.EventRecording is { } recording && !Enum.IsDefined(recording))
+        {
+            throw new ArgumentOutOfRangeException(
+                nameof(overrides),
+                $"EventRecording override {(int)recording} is not a recording level: use Failures or Audit."
+            );
+        }
 
         if (overrides.MaxAttempts is <= 0 or > JobDefinitionRegistration.MaxMaxAttempts)
         {

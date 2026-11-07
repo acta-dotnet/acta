@@ -30,7 +30,7 @@ public sealed class RegisterDefinitionsSpec : ActaStorageTestBase<ConformanceFix
             ResultPayloadFormat: null,
             Priority: default,
             MaxAttempts: maxAttempts,
-            EventRecording: default,
+            EventRecording: EventRecordingCode.Failures,
             AlertProfile: default,
             FiringFailurePolicy: FiringFailurePolicyCode.Continue,
             ScheduledDelivery: ScheduledDeliveryCode.Permanent,

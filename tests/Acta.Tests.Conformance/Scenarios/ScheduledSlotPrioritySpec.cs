@@ -141,7 +141,6 @@ public sealed class ScheduledSlotPrioritySpec : ActaRuntimeTestBase<ConformanceF
             definitionId,
             slot!.InputFormatId,
             slot.Input is null ? ReadOnlyMemory<byte>.Empty : slot.Input,
-            slot.EventRecording,
             ScheduledDeliveryCode.Permanent,
             slotSchedules
         );

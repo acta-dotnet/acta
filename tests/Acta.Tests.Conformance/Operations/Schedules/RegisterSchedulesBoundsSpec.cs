@@ -148,7 +148,6 @@ public sealed class RegisterSchedulesBoundsSpec : ActaStorageTestBase<Conformanc
             DefinitionId: defId,
             InputFormatId: 0,
             Input: ReadOnlyMemory<byte>.Empty,
-            EventRecording: EventRecordingCode.Audit,
             ScheduledDelivery: ScheduledDeliveryCode.Permanent,
             Schedules: ScheduleRegistrationPlan.Plan(declared, storedForDef, RegisteredAt, t => new ScheduleSource(t, null, null))
         );

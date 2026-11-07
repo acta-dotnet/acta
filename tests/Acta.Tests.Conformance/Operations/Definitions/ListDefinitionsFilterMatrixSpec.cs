@@ -30,7 +30,7 @@ public sealed class ListDefinitionsFilterMatrixSpec : ActaRuntimeTestBase<Confor
             ResultPayloadFormat: null,
             Priority: default,
             MaxAttempts: 1,
-            EventRecording: default,
+            EventRecording: EventRecordingCode.Failures,
             AlertProfile: default,
             FiringFailurePolicy: FiringFailurePolicyCode.Continue,
             ScheduledDelivery: ScheduledDeliveryCode.Permanent,

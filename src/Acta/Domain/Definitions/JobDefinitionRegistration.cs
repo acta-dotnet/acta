@@ -129,6 +129,16 @@ internal static class JobDefinitionRegistration
             );
         }
 
+        // A hand-authored IJobManifest descriptor bypasses the generator's level check, and a row at any other level
+        // would record none of the failures its alerts read.
+        if (descriptor.EventRecording is not (EventRecordingCode.Failures or EventRecordingCode.Audit))
+        {
+            throw new ArgumentException(
+                $"Job definition \"{descriptor.JobName}\" (namespace {namespaceLabel}) declares EventRecording "
+                    + $"{descriptor.EventRecording}: it must be Failures or Audit."
+            );
+        }
+
         // A hand-authored IJobManifest descriptor bypasses the generator's compile-time range check,
         // so this is the last gate before an unsatisfiable concurrency limit reaches the definitions row.
         if (descriptor.ConcurrencyLimit is < MinConcurrencyLimit or > MaxConcurrencyLimit)

@@ -6,8 +6,8 @@ import type { TimelineTone } from '../../components/jobTimelineState.ts';
 // One row per execution whose outcome the ledger holds: the event that closed the attempt, which carries
 // the worker and the handler's duration. The claim writes no event, so the execution in flight takes its
 // row from the job snapshot instead. The ledger can hold fewer executions than the claim counter: at
-// event recording Failures a success that answers no failure and every yield write nothing, Off writes
-// nothing, and event retention runs on its own clock.
+// event recording Failures a success that answers no failure and every yield write nothing, and event
+// retention runs on its own clock.
 
 export type ExecutionOutcome =
   | 'executing'

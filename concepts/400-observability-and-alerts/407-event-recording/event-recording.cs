@@ -1,6 +1,6 @@
-// Concept: EventRecording gates which job events are written; Audit emits everything, Failures emits failure
-// outcomes and the success that follows one (which closes the incident), and Off suppresses all
-// recording-filtered per-job events.
+// Concept: EventRecording gates which job events are written. Audit records every event; Failures records the failed,
+// orphaned, and finally failed attempts, the success that recovers from a failure (which closes the incident), and
+// what an enabled alert profile reads.
 using Acta;
 using Acta.Concepts.EventRecording;
 using Microsoft.Extensions.DependencyInjection;
@@ -34,12 +34,6 @@ Console.WriteLine(
     $"Failures level -> event count: {failuresEvents.Items.Count} (expected 0: a successful run emits nothing at Failures level)"
 );
 
-// Off: suppresses all recording-filtered per-job events; the job runs but the ledger stays silent.
-var offOutcome = await jobs.EnqueueAsync(new OffWork("report-c"));
-await Task.Delay(500);
-var offEvents = await queries.Ledger.ListEventsAsync(new ListEventsQuery(JobId: offOutcome.JobId));
-Console.WriteLine($"Off level    -> event count: {offEvents.Items.Count}");
-
 await host.StopAsync();
 
 namespace Acta.Concepts.EventRecording
@@ -47,8 +41,6 @@ namespace Acta.Concepts.EventRecording
     public sealed record AuditWork(string Id);
 
     public sealed record FailuresWork(string Id);
-
-    public sealed record OffWork(string Id);
 
     public static class AuditWorkJob
     {
@@ -60,15 +52,8 @@ namespace Acta.Concepts.EventRecording
     public static class FailuresWorkJob
     {
         // Failures: a failure writes an event, and so does the success that answers one; a run that
-        // succeeds after no failure leaves none.
+        // succeeds after no failure leaves none. Use it for high-frequency definitions to keep events lean.
         [Job("failures-work", EventRecording = EventRecordingCode.Failures)]
         public static void Handle(FailuresWork input) => Console.WriteLine($"[{input.Id}] running at Failures level");
-    }
-
-    public static class OffWorkJob
-    {
-        // Off: no recording-filtered events at all; use for high-frequency definitions to keep events lean.
-        [Job("off-work", EventRecording = EventRecordingCode.Off)]
-        public static void Handle(OffWork input) => Console.WriteLine($"[{input.Id}] running at Off level");
     }
 }

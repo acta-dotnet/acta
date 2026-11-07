@@ -19,6 +19,16 @@ public sealed class DefinitionOverrideValidationTests
         Assert.Null(Normalize(new DefinitionPolicyOverrides(DeadlineBehavior: DeadlineBehaviorCode.Unspecified)).DeadlineBehavior);
 
     [Fact]
+    public void An_unspecified_event_recording_overrides_nothing() =>
+        Assert.Null(Normalize(new DefinitionPolicyOverrides(EventRecording: EventRecordingCode.Unspecified)).EventRecording);
+
+    [Fact]
+    public void An_event_recording_with_no_member_is_rejected() =>
+        Assert.Throws<ArgumentOutOfRangeException>(() =>
+            Normalize(new DefinitionPolicyOverrides(EventRecording: (EventRecordingCode)42))
+        );
+
+    [Fact]
     public void An_execution_timeout_past_the_CancelAfter_ceiling_is_rejected()
     {
         Assert.Throws<ArgumentOutOfRangeException>(() =>

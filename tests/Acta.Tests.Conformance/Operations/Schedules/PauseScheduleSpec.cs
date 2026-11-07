@@ -55,7 +55,6 @@ public sealed class PauseScheduleSpec : ActaStorageTestBase<ConformanceFixture>
             DefinitionId: defId,
             InputFormatId: 0,
             Input: ReadOnlyMemory<byte>.Empty,
-            EventRecording: EventRecordingCode.Audit,
             ScheduledDelivery: ScheduledDeliveryCode.Permanent,
             Schedules: schedules
         );

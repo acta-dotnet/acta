@@ -289,8 +289,8 @@ internal sealed class DefinitionEntity : IEntity<int>
     public int JobRetentionSecondsEffective { get; internal set; }
 
     /// <summary>
-    /// Controls <c>events</c> recording (<c>Off</c> / <c>Failures</c> / <c>Audit</c>) on hot-path state
-    /// mutations. Does not gate alert MERGE; alerts and event recording are independent.
+    /// Controls <c>events</c> recording (<c>Failures</c> / <c>Audit</c>) on hot-path state mutations; every
+    /// level records the events the alert projector reads.
     /// </summary>
     [DbColumn("event_recording_code")]
     public EventRecordingCode EventRecording { get; internal set; }

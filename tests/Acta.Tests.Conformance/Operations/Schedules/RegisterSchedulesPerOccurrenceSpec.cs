@@ -295,7 +295,6 @@ public sealed class RegisterSchedulesPerOccurrenceSpec : ActaStorageTestBase<Con
             DefinitionId: defId,
             InputFormatId: 0,
             Input: ReadOnlyMemory<byte>.Empty,
-            EventRecording: EventRecordingCode.Audit,
             ScheduledDelivery: ScheduledDeliveryCode.PerOccurrence,
             Schedules: schedules
         );
