@@ -1102,10 +1102,11 @@
   - A latch the child set when it landed is not reported
 
 ### A failed one-shot retries to Ready until MaxAttempts then Fails
-- **Contract:** A failed one-shot re-arms to Ready incrementing failure_count while attempts remain and lands terminal Failed once MaxAttempts is reached.
+- **Contract:** A failed one-shot re-arms to Ready bumping failure_count while attempts remain and lands Failed at MaxAttempts, and a success resets failure_count to 0.
 - **Guarantees:**
   - In-budget failures re-arm to Ready bumping failure_count and an exhausted budget lands Failed with the failure reason preserved
   - A one-shot that throws twice and then succeeds records both retried attempts as failed at Audit recording
+  - A one-shot that throws twice and then succeeds reads no failures, and its success still counts as a recovery
 
 ### Reset clears one job's substrate and emits an audit-gated state-reset event
 - **Contract:** Reset clears a job's substrate rows, leaves siblings and the scheduler's firing envelope intact, and emits one audit-gated state-reset event.

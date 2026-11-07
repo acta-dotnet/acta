@@ -11,13 +11,13 @@ namespace Acta.Tests.Conformance.Engine.Worker;
 /// <c>MaxAttempts</c> is reached. Every failed attempt records execution status Failed, the retried ones
 /// too, because each charges the budget. <c>MaxAttempts</c> is the one-off retry budget only; a recurring
 /// slot never terminalizes on its consecutive-failure count. <c>retry-probe</c> uses a zero initial backoff
-/// so each tick re-claims immediately.
+/// so each tick re-claims immediately. A success resets the count, as a permanent job's does.
 /// </summary>
 [ConformanceSpec(
     "one-shot-retry.budget",
     "A failed one-shot retries to Ready until MaxAttempts then Fails",
     Area = "Execution",
-    Contract = "A failed one-shot re-arms to Ready incrementing failure_count while attempts remain and lands terminal Failed once MaxAttempts is reached."
+    Contract = "A failed one-shot re-arms to Ready bumping failure_count while attempts remain and lands Failed at MaxAttempts, and a success resets failure_count to 0."
 )]
 public sealed class OneShotRetrySpec : ActaRuntimeTestBase<ConformanceFixture, TestJobs.TestJobsManifest>
 {
@@ -80,5 +80,29 @@ public sealed class OneShotRetrySpec : ActaRuntimeTestBase<ConformanceFixture, T
             (EventCode.JobExecutionSucceeded, null),
         ];
         Assert.Equal(expected, attempts);
+    }
+
+    [Fact(DisplayName = "A one-shot that throws twice and then succeeds reads no failures, and its success still counts as a recovery")]
+    public async Task Success_resets_the_failure_count_and_still_records_the_recovery()
+    {
+        var ct = TestContext.Current.CancellationToken;
+        // At Failures with alerts off, only the failures the landing found on the row make the success worth an event.
+        var namespaceId = Runtime.RegisteredNamespaceIds[TestNamespace];
+        await Db.From<DefinitionEntity>()
+            .Where(d => d.NamespaceId == namespaceId && d.DefinitionName == "failures-audit-probe")
+            .UpdateOnlyAsync(() => new DefinitionEntity { AlertProfileOverride = AlertProfileCode.None }, ct);
+        FailuresAuditProbe.Reset(TestNamespace, failingAttempts: 2);
+
+        var enqueued = await Jobs.EnqueueAsync(new EnqueueJobRequest(TestNamespace, "failures-audit-probe", JobPayload.None), ct);
+        await AlertTestOps.RunUntilAttemptsAsync(Runtime, enqueued, () => FailuresAuditProbe.Attempts(TestNamespace), 3, ct);
+
+        var job = await Jobs.GetAsync(enqueued, ct);
+        Assert.Equal(JobStatusCode.Succeeded, job!.Status);
+        Assert.Equal(0, job.FailureCount);
+        var recovery = Assert.Single(
+            await GetEventsByJobId.Run(Services, enqueued.JobId, ct),
+            e => e.EventCode == EventCode.JobExecutionSucceeded
+        );
+        Assert.Equal(3, recovery.ExecutionNumber);
     }
 }

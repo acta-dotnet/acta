@@ -129,7 +129,8 @@ internal sealed partial class WorkerFinalizer
         // jobs_state.retention_until_utc only at a terminal landing (Succeeded/Failed/Cancelled) and ignores it on
         // re-arm / suspend / pause. Per-definition policy with the framework default as the fallback.
         // Every shape but the success ones writes no result payload.
-        // A one-shot success carries its result immediately, avoiding a second command object for the common path.
+        // A one-shot success carries its result and its reset failure count immediately, avoiding a second command
+        // object for the common path.
         var oneShotSuccess = !slot && s.Outcome == CompletionKind.Succeeded && s.HandlerStatusCode is null;
         var command = new CompleteExecutionsValues(
             job.JobId,
@@ -141,7 +142,7 @@ internal sealed partial class WorkerFinalizer
             s.Reason,
             s.ReasonMessage,
             s.DurationMs,
-            FailureCount: null,
+            FailureCount: oneShotSuccess ? 0 : null,
             RetentionSeconds: descriptor.JobRetentionSeconds ?? JobDefinitionRegistration.DefaultJobRetentionSeconds
         )
         {
