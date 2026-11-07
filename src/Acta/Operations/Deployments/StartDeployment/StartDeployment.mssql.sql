@@ -32,9 +32,13 @@ WHERE NOT EXISTS (
     WHERE n.namespace_name = d.namespace_name
 );
 
--- Every namespace's schedule lock, exclusive, in namespace id order, before any lock on a row another statement can
--- reach (docs/sql-internals.md, "Schedule lock"): a calendar publication takes several in that order too. Two deploys
--- of one namespace serialize here, and each reads the current version below and writes under it.
+-- The sys schedule lock shared, then every namespace's exclusive in id order, before any row lock another statement can
+-- reach (docs/sql-internals.md, "Schedule lock"): two deploys of one namespace serialize, and a publication of a shared
+-- calendar runs wholly before or after a deploy that binds it.
+SET @lock_resource = N'{{schema}}.schedules.1';
+EXEC @lock_result = sys.sp_getapplock @lock_resource, 'Shared', 'Transaction', -1;
+IF @lock_result < 0
+    THROW 51205, 'ACTA:SCHEDULE_LOCK:The namespace schedule lock was not granted (deadlock victim or cancelled).', 1;
 DECLARE @locks TABLE (namespace_id INT NOT NULL PRIMARY KEY);
 INSERT INTO @locks (namespace_id)
 SELECT n.namespace_id

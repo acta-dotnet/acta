@@ -499,6 +499,7 @@ Each namespace has one schedule lock, held until its transaction ends: `sp_getap
 - The registration heal clears every orphaned or retired schedule's cursor in the namespace, so a cursor written for a
   definition that was retired meanwhile does not stay.
 - A worker start runs no `register_schedules` and takes none of these locks; a deploy does both, once per run.
+- A calendar publication takes, exclusive and in id order, the lock of the family's namespace and of every namespace whose schedules it retimes; for a shared family that is the `sys` namespace's. A deploy takes the `sys` namespace's lock shared before its own, so a deploy that binds a shared family reads the version a concurrent publication leaves, and the publication, which rejects and plans again when a schedule naming the family is not in its plan, sees the schedules the deploy wrote.
 - SQLite runs one writer at a time and takes none of these locks.
 
 ## Provisioning, compatibility, and SQL access

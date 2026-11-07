@@ -1943,6 +1943,7 @@
   - A schedule resolves the catalog's current version by name and fires its instants
   - A publication retimes every bound schedule from the new version and audits the retime
   - An overdue occurrence refuses a publication until the caller discards it as a skipped range
+  - An apply whose plan misses a schedule naming the family rejects, and the publication plans it again
   - A publication is a conflict on a stale expected version and rejected for a version that is no draft
   - A preview shows the candidate beside the current version and the bound schedules with their totals
   - An availability publication moves a cron schedule's next tick into the new window

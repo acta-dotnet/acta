@@ -14,7 +14,7 @@ internal static class PublishCalendarJson
                 writer.WriteNumber("expected_version", r.ExpectedVersion);
                 writer.WriteNumber("expected_state_version", r.ExpectedStateVersion);
                 writeInstant(writer, "next_occurrence_at_utc", r.NextOccurrenceAtUtc);
-                writer.WriteString("retimed_details", r.RetimedDetails);
+                JsonRows.Text(writer, "retimed_details", r.RetimedDetails);
                 JsonRows.Text(writer, "skipped_details", r.SkippedDetails);
             }
         );

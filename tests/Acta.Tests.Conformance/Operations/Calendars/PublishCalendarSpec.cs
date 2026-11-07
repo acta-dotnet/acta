@@ -201,6 +201,40 @@ public sealed class PublishCalendarSpec : ActaRuntimeTestBase<ConformanceFixture
         Assert.Equal("retimed", EventDetail(skipped, "reason"));
     }
 
+    [Fact(DisplayName = "An apply whose plan misses a schedule naming the family rejects, and the publication plans it again")]
+    public async Task A_schedule_the_plan_never_read_rejects_the_apply()
+    {
+        var ct = TestContext.Current.CancellationToken;
+        var slotId = await ScheduleTestOps.SlotIdAsync(Db, TestNamespace, PublishCalendarManifest.DaysJobName, ct);
+        Clock.AdvanceTo(Start.AddSeconds(30));
+        var candidate = (await Calendars.SaveDraftAsync(Days, CalendarRoleCode.Occurrence, Instants(10, 11), 1, ct: ct)).Version!.Value;
+
+        // A plan read before a deploy bound the schedule to the family: the bound schedule is not in it.
+        var dialect = Services.GetRequiredService<ISqlDialect>();
+        var stale = await Db.ExecuteOneAsync(
+            new StoreCommand("PublishCalendar"),
+            cmd =>
+            {
+                cmd.Parameters.Add(
+                    dialect.CreateParameter(ActaSchema.Namespace.NamespaceId, Runtime.RegisteredNamespaceIds[TestNamespace])
+                );
+                cmd.Parameters.Add(dialect.CreateParameter(ActaSchema.Calendar.CalendarName, Days.CalendarName));
+                cmd.Parameters.Add(dialect.CreateParameter(ActaSchema.Sql.ExpectedCurrentVersion, 1));
+                cmd.Parameters.Add(dialect.CreateParameter(ActaSchema.Sql.CandidateVersion, candidate));
+                cmd.AddEventFields(dialect, null, null);
+                dialect.BindPublishCalendar(cmd, []);
+            },
+            DbProjectionResolver.Resolve<PublishCalendarRow>(),
+            ct
+        );
+        Assert.Equal(ControlAction.Rejected, stale.Action);
+        Assert.Equal(Start.AddMinutes(1), Assert.Single(await ScheduleTestOps.ReadAsync(Db, slotId, ct)).NextOccurrenceAtUtc);
+
+        var published = await Calendars.PublishAsync(Days, 1, candidate, ct: ct);
+        Assert.Equal(ControlAction.Applied, published.Action);
+        Assert.Equal(Start.AddMinutes(10), Assert.Single(await ScheduleTestOps.ReadAsync(Db, slotId, ct)).NextOccurrenceAtUtc);
+    }
+
     [Fact(DisplayName = "A publication is a conflict on a stale expected version and rejected for a version that is no draft")]
     public async Task A_publication_fences_on_the_versions_the_caller_saw()
     {

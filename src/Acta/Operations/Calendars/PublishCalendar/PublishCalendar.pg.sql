@@ -1,6 +1,6 @@
--- One batch, one owned transaction; only the final SELECT returns rows. The schedule lock of every namespace the plan
--- touches, exclusive, in namespace id order, before any row lock: a publication retimes schedules the way a deploy
--- does. The plan was made from a snapshot; every version it read is fenced here, and a moved one rejects it whole.
+-- One batch, one owned transaction; only the final SELECT returns rows. Locks as docs/sql-internals.md "Schedule lock"
+-- says. Every version the plan read is fenced, and a moved one, or a schedule naming the family that the plan never
+-- read, rejects it whole. A row with no retime details is one the plan only checks.
 DROP TABLE IF EXISTS pg_temp._pub_rows;
 DROP TABLE IF EXISTS pg_temp._pub_lock;
 DROP TABLE IF EXISTS pg_temp._pub_target;
@@ -58,7 +58,19 @@ WHERE EXISTS (
         FROM _pub_rows r
         LEFT JOIN {{schema}}.schedules s ON s.schedule_id = r.schedule_id
         LEFT JOIN _pub_states st ON st.schedule_id = r.schedule_id
-        WHERE s.version IS DISTINCT FROM r.expected_version OR st.version IS DISTINCT FROM r.expected_state_version);
+        WHERE s.version IS DISTINCT FROM r.expected_version OR st.version IS DISTINCT FROM r.expected_state_version)
+    AND NOT EXISTS (
+        SELECT 1
+        FROM {{schema}}.schedules s
+        INNER JOIN {{schema}}.definitions d ON d.definition_id = s.definition_id
+        WHERE
+            (s.namespace_id = @p_namespace_id OR @p_namespace_id = 1 /* NameSyntax.SystemNamespaceId */)
+            AND (
+                (s.expression_kind_code = 30 /* ScheduleExpressionKindCode.Calendar */ AND s.expression = @p_calendar_name)
+                OR s.availability_calendar_name = @p_calendar_name
+            )
+            AND d.definition_status_code <> 240 /* DefinitionStatusCode.Retired */
+            AND s.schedule_id NOT IN (SELECT r.schedule_id FROM _pub_rows r));
 
 UPDATE {{schema}}.calendars c
 SET calendar_status_code = 30 /* CalendarStatusCode.Superseded */, modified_at_utc = now()
@@ -104,7 +116,7 @@ SET
     modified_at_utc = now(),
     version = s.version + 1
 FROM _pub_rows r
-WHERE s.schedule_id = r.schedule_id AND EXISTS (SELECT 1 FROM _pub_valid);
+WHERE s.schedule_id = r.schedule_id AND r.retimed_details IS NOT NULL AND EXISTS (SELECT 1 FROM _pub_valid);
 
 -- The control state stays: a paused schedule wakes at its pause's end, an orphaned one not at all.
 UPDATE {{schema}}.schedules_state st
@@ -119,7 +131,7 @@ SET
     modified_at_utc = now()
 FROM _pub_rows r
 INNER JOIN {{schema}}.schedules s ON s.schedule_id = r.schedule_id
-WHERE st.schedule_id = r.schedule_id AND EXISTS (SELECT 1 FROM _pub_valid);
+WHERE st.schedule_id = r.schedule_id AND r.retimed_details IS NOT NULL AND EXISTS (SELECT 1 FROM _pub_valid);
 
 INSERT INTO {{schema}}.events (
     event_code, created_at_utc, namespace_id,

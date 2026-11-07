@@ -27,8 +27,9 @@ BEGIN TRY
         expected_state_version INT '$.expected_state_version', next_occurrence_at_utc DATETIME2(7) '$.next_occurrence_at_utc',
         retimed_details NVARCHAR(MAX) '$.retimed_details', skipped_details NVARCHAR(MAX) '$.skipped_details') r;
 
-    /* The schedule lock of every namespace the plan touches, exclusive, in namespace id order, before any row lock: a
-       publication retimes schedules the way a deploy does, and a shared calendar's schedules span namespaces. */
+    /* The schedule lock of every namespace the plan touches, exclusive, in namespace id order, before any row lock, as
+       docs/sql-internals.md "Schedule lock" says: a shared calendar's schedules span namespaces. A row with no retime
+       details is one the plan only checks. */
     DECLARE @locks TABLE (namespace_id INT NOT NULL PRIMARY KEY);
     INSERT INTO @locks (namespace_id)
     SELECT @p_namespace_id
@@ -63,6 +64,19 @@ BEGIN TRY
             LEFT JOIN {{schema}}.schedules s ON s.schedule_id = r.schedule_id
             LEFT JOIN {{schema}}.schedules_state st WITH (UPDLOCK, HOLDLOCK) ON st.schedule_id = r.schedule_id
             WHERE s.version IS NULL OR s.version <> r.expected_version OR st.version IS NULL OR st.version <> r.expected_state_version)
+        -- A schedule naming the family that the plan never read, as a deploy adds one, rejects it too.
+        AND NOT EXISTS (
+            SELECT 1
+            FROM {{schema}}.schedules s
+            INNER JOIN {{schema}}.definitions d ON d.definition_id = s.definition_id
+            WHERE
+                (s.namespace_id = @p_namespace_id OR @p_namespace_id = 1 /* NameSyntax.SystemNamespaceId */)
+                AND (
+                    (s.expression_kind_code = 30 /* ScheduleExpressionKindCode.Calendar */ AND s.expression = @p_calendar_name)
+                    OR s.availability_calendar_name = @p_calendar_name
+                )
+                AND d.definition_status_code <> 240 /* DefinitionStatusCode.Retired */
+                AND s.schedule_id NOT IN (SELECT r.schedule_id FROM @rows r))
         SET @valid = 1;
 
     IF @valid = 1
@@ -110,7 +124,8 @@ BEGIN TRY
             modified_at_utc = @now,
             version = s.version + 1
         FROM {{schema}}.schedules s
-        INNER JOIN @rows r ON r.schedule_id = s.schedule_id;
+        INNER JOIN @rows r ON r.schedule_id = s.schedule_id
+        WHERE r.retimed_details IS NOT NULL;
 
         -- The control state stays: a paused schedule wakes at its pause's end, an orphaned one not at all.
         UPDATE st
@@ -125,7 +140,8 @@ BEGIN TRY
             modified_at_utc = @now
         FROM {{schema}}.schedules_state st
         INNER JOIN @rows r ON r.schedule_id = st.schedule_id
-        INNER JOIN {{schema}}.schedules s ON s.schedule_id = r.schedule_id;
+        INNER JOIN {{schema}}.schedules s ON s.schedule_id = r.schedule_id
+        WHERE r.retimed_details IS NOT NULL;
 
         INSERT INTO {{schema}}.events (
             event_code, created_at_utc, namespace_id,

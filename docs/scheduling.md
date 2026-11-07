@@ -281,7 +281,7 @@ What each job verb does to a slot from each status is in the operator guide's [v
 
 - `<app> jobs deploy` and `<app> jobs migrate` write the definitions and schedules this build declares and record its version; a worker start writes none of them ([deploying jobs](./operator-guide.md#deploying-jobs)). In development, `MigrateOnStartup = true` does the deploy at startup.
 - A deploy with an unchanged schedule changes nothing. A changed expression, time zone, interval anchor, or bound retimes the schedule and discards its undecided occurrences; no deploy decides an occurrence, the running fleet does ([catch-up, misfire, and expiration](#catch-up-misfire-and-expiration)).
-- A schedule that names a calendar needs a published version of that family before the deploy: publish the calendar first, then deploy the jobs that name it. The deploy that finds one missing fails and writes nothing ([calendars](#calendars)).
+- A schedule that names a calendar needs a published version of that family before the deploy: publish the calendar first, then deploy the jobs that name it. The deploy that finds one missing fails and writes nothing ([calendars](#calendars)). A publication and a deploy that binds its family never interleave: whichever starts second waits, so the deploy reads the version the publication leaves, or the publication retimes the schedules the deploy wrote.
 - A schedule a deploy drops is orphaned, and comes back without its pause when a build that declares it deploys, so to hold a recurring job across a rollback, pause the job, not the schedule.
 
 ## Reading schedules in SQL

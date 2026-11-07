@@ -1,5 +1,6 @@
 -- One owned transaction, SQLite's one writer, so no lock is taken; only the final SELECT returns rows. The plan was made
--- from a snapshot; every version it read is fenced here, and a moved one rejects the whole publication.
+-- from a snapshot; every version it read is fenced here, and a moved one, or a schedule naming the family that the plan
+-- never read, rejects the whole publication. A row with no retime details is one the plan only checks.
 DROP TABLE IF EXISTS temp._pub_rows;
 DROP TABLE IF EXISTS temp._pub_target;
 DROP TABLE IF EXISTS temp._pub_valid;
@@ -37,7 +38,19 @@ WHERE EXISTS (
         FROM _pub_rows r
         LEFT JOIN {{schema}}.schedules s ON s.schedule_id = r.schedule_id
         LEFT JOIN {{schema}}.schedules_state st ON st.schedule_id = r.schedule_id
-        WHERE s.version IS NOT r.expected_version OR st.version IS NOT r.expected_state_version);
+        WHERE s.version IS NOT r.expected_version OR st.version IS NOT r.expected_state_version)
+    AND NOT EXISTS (
+        SELECT 1
+        FROM {{schema}}.schedules s
+        INNER JOIN {{schema}}.definitions d ON d.definition_id = s.definition_id
+        WHERE
+            (s.namespace_id = @p_namespace_id OR @p_namespace_id = 1 /* NameSyntax.SystemNamespaceId */)
+            AND (
+                (s.expression_kind_code = 30 /* ScheduleExpressionKindCode.Calendar */ AND s.expression = @p_calendar_name)
+                OR s.availability_calendar_name = @p_calendar_name
+            )
+            AND d.definition_status_code <> 240 /* DefinitionStatusCode.Retired */
+            AND s.schedule_id NOT IN (SELECT r.schedule_id FROM _pub_rows r));
 
 UPDATE {{schema}}.calendars
 SET calendar_status_code = 30 /* CalendarStatusCode.Superseded */, modified_at_utc = {{now}}
@@ -94,7 +107,8 @@ INNER JOIN {{schema}}.definitions d ON d.definition_id = s.definition_id
 LEFT JOIN {{schema}}.jobs j ON j.job_id = s.job_id
 LEFT JOIN {{schema}}.jobs_state jr ON jr.job_id = s.job_id
 WHERE
-    EXISTS (SELECT 1 FROM _pub_valid)
+    r.retimed_details IS NOT NULL
+    AND EXISTS (SELECT 1 FROM _pub_valid)
     AND COALESCE(j.event_recording_code, d.event_recording_code_effective) = 20 /* EventRecordingCode.Audit */
 ORDER BY r.schedule_id;
 
@@ -102,7 +116,7 @@ UPDATE {{schema}}.schedules
 SET
     modified_at_utc = {{now}},
     version = version + 1
-WHERE schedule_id IN (SELECT r.schedule_id FROM _pub_rows r) AND EXISTS (SELECT 1 FROM _pub_valid);
+WHERE schedule_id IN (SELECT r.schedule_id FROM _pub_rows r WHERE r.retimed_details IS NOT NULL) AND EXISTS (SELECT 1 FROM _pub_valid);
 
 -- The control state stays: a paused schedule wakes at its pause's end, an orphaned one not at all.
 UPDATE {{schema}}.schedules_state
@@ -121,7 +135,7 @@ SET
         FROM _pub_rows r WHERE r.schedule_id = schedules_state.schedule_id),
     version = version + 1,
     modified_at_utc = {{now}}
-WHERE schedule_id IN (SELECT r.schedule_id FROM _pub_rows r) AND EXISTS (SELECT 1 FROM _pub_valid);
+WHERE schedule_id IN (SELECT r.schedule_id FROM _pub_rows r WHERE r.retimed_details IS NOT NULL) AND EXISTS (SELECT 1 FROM _pub_valid);
 
 INSERT INTO {{schema}}.events (
     event_code, created_at_utc, namespace_id,

@@ -86,9 +86,12 @@ internal sealed class PublishCalendarHandler(
             var overdue = new List<string>();
             foreach (var s in bound)
             {
-                // An orphaned schedule has no cursor to move; its declaration comes back with its definition.
+                // An orphaned schedule has no cursor to move; its declaration comes back with its definition. The apply
+                // still checks it has not moved, as it does every schedule that names the family.
+                var unchanged = new PublishCalendarValues(s.ScheduleId, s.ScheduleVersion, s.StateVersion, null, null, null);
                 if (s.Status == ScheduleStatusCode.Orphaned)
                 {
+                    plan.Add(unchanged);
                     continue;
                 }
 
@@ -121,6 +124,7 @@ internal sealed class PublishCalendarHandler(
                     // Its other calendar, or the family before this version, resolves to nothing, so the admitter
                     // already parks it as an evaluation error; the publication leaves it as it is rather than failing
                     // for every bound schedule.
+                    plan.Add(unchanged);
                     continue;
                 }
 
@@ -169,7 +173,7 @@ internal sealed class PublishCalendarHandler(
                             ("version", candidate.Version.ToString(CultureInfo.InvariantCulture)),
                             ("fromVersion", (current?.Version ?? 0).ToString(CultureInfo.InvariantCulture)),
                             ("overdue", command.Overdue.Code),
-                            ("affected", plan.Count.ToString(CultureInfo.InvariantCulture)),
+                            ("affected", retimed.Count.ToString(CultureInfo.InvariantCulture)),
                             ("actor", JobControlActor.Operator(command.Actor))
                         )
                     );

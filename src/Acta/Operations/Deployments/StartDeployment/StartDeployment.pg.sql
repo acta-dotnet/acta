@@ -11,12 +11,15 @@ WHERE NOT EXISTS (
 ORDER BY d.namespace_name
 ON CONFLICT (namespace_name) DO NOTHING;
 
--- Every namespace's schedule lock, exclusive, in namespace id order, before any lock on a row another statement can
--- reach (docs/sql-internals.md, "Schedule lock"): a calendar publication takes several in that order too. Two deploys
--- of one namespace serialize here, and each reads the current version below and writes under it.
+-- The sys schedule lock shared, then every namespace's exclusive in id order, before any row lock another statement can
+-- reach (docs/sql-internals.md, "Schedule lock"): two deploys of one namespace serialize, and a publication of a shared
+-- calendar runs wholly before or after a deploy that binds it.
 DROP TABLE IF EXISTS pg_temp._deploy_lock;
 CREATE TEMP TABLE _deploy_lock ON COMMIT DROP AS
 SELECT 1 AS granted
+FROM (SELECT pg_advisory_xact_lock_shared(hashtext('{{schema}}.schedules'), 1 /* NameSyntax.SystemNamespaceId */)) s
+UNION ALL
+SELECT 1
 FROM (
     SELECT pg_advisory_xact_lock(hashtext('{{schema}}.schedules'), x.namespace_id)
     FROM (
