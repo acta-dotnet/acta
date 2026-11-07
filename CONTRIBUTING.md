@@ -280,6 +280,7 @@ hand-written page goes in `docs/`. A stale contract test names its own regenerat
 | `docs/reference/operations.md` | `ACTA_EMIT_DOCS=1 dotnet test tests/Acta.Tests --filter OperationsIndexTests` |
 | `docs/reference/openapi.json` | `ACTA_EMIT_OPENAPI=1 dotnet test tests/Acta.Tests --filter OpenApiContractTests` |
 | `tests/Acta.Tests/Contracts/PublicApiSurface.approved.txt` | `ACTA_EMIT_API=1 dotnet test tests/Acta.Tests --filter PublicApiContractTests` |
+| `docs/reference/benchmark.md` and `site/benchmark.html` | `acta-verify publish <run-directory> --to docs/reference/benchmark.md` |
 | The persisted-code hash in `PersistedCodeContractTests` | re-pin by hand |
 
 `dotnet run --project tools/Acta.Emit -- check` verifies the Emit-owned files. A regenerated baseline
@@ -833,7 +834,7 @@ dotnet run -c Release --project tools/Acta.Verify -- release --db all --output a
 - The run passes when it exits 0 for the requested scope. Every trial's ledger is checked against the certification checks, and the chaos scenario is the certification run under the shipped lease timings. A `quick` or `check` verdict rests on correctness (safety, liveness, coverage, the ledger checks, and chaos) and reports performance as information; `release` also gates on measurement.
 - The release notes' evidence paragraph names the suite and the scope that ran, and any resume.
 - Compare with the previous tag's bundle from the same machine: `acta-verify compare <previous> <candidate>`. Rerun a scenario that reads as a regression on both trees, back to back, twice, and report only a gap that survives.
-- Publish the report in B with `acta-verify publish <run-directory> --to docs/benchmark.md`, then remove the run's leftovers with `acta-verify cleanup --yes`.
+- Publish the report in B with `acta-verify publish <run-directory> --to docs/reference/benchmark.md`, then remove the run's leftovers with `acta-verify cleanup --yes`.
 
 ### Release notes and docs
 

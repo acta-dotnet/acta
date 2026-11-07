@@ -178,12 +178,17 @@ public static class VerifyCommand
             var record = Path.GetFullPath(target);
             Directory.CreateDirectory(Path.GetDirectoryName(record)!);
             File.WriteAllText(record, markdown.Replace("\r\n", "\n", StringComparison.Ordinal));
-            var site = Path.GetFullPath(Path.Combine(Path.GetDirectoryName(record)!, "..", "site"));
-            if (Directory.Exists(site))
+            // The site sits beside docs/, and the record lives in docs/reference/: two folders up, or one for a record
+            // written straight into a docs/ folder.
+            var folder = Path.GetDirectoryName(record)!;
+            var site = new[] { Path.Combine(folder, "..", "..", "site"), Path.Combine(folder, "..", "site") }
+                .Select(Path.GetFullPath)
+                .FirstOrDefault(Directory.Exists);
+            if (site is not null)
             {
                 File.WriteAllText(Path.Combine(site, "benchmark.html"), Report.SitePage(markdown));
             }
-            Console.WriteLine($"Published {record}{(Directory.Exists(site) ? $" and {Path.Combine(site, "benchmark.html")}" : "")}.");
+            Console.WriteLine($"Published {record}{(site is not null ? $" and {Path.Combine(site, "benchmark.html")}" : "")}.");
             return 0;
         }
         string? suite = null;

@@ -74,7 +74,7 @@ acta-verify run throughput drain --db pg --suite release
 acta-verify replay ./artifacts/verify/<run-id>/resolved-plan.json
 acta-verify report ./artifacts/verify/<run-id>
 acta-verify compare ./artifacts/verify/<before> ./artifacts/verify/<after>
-acta-verify publish ./artifacts/verify/<run-id> --to docs/benchmark.md
+acta-verify publish ./artifacts/verify/<run-id> --to docs/reference/benchmark.md
 acta-verify cleanup [--yes]
 acta-verify list
 ```

@@ -57,7 +57,7 @@ produced by the project, on the project's machine, and published in this reposit
   SQL; each release's notes record the scale that ran and the verdicts
   ([release notes](./release-notes.md)).
 - The benchmark round: an [Acta Verify](../tools/Acta.Verify/README.md) run on one machine, the latest
-  kept in [benchmark.md](./benchmark.md).
+  kept in [benchmark.md](./reference/benchmark.md).
 
 There is no independent evidence yet: no third-party audit, no published production case study, no
 benchmark someone else ran. If you run Acta in production, an issue describing the workload and what

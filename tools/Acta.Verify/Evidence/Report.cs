@@ -694,7 +694,7 @@ public static partial class Report
     /// <summary>
     /// The published report as a page of the site: the front page's stylesheet, theme switch and chrome around the same
     /// body as report.html, opened like every other page by a record line, the title, and the paragraph under it as
-    /// the lede. A test keeps site/benchmark.html equal to this page of docs/benchmark.md.
+    /// the lede. A test keeps site/benchmark.html equal to this page of docs/reference/benchmark.md.
     /// </summary>
     public static string SitePage(string markdown)
     {
