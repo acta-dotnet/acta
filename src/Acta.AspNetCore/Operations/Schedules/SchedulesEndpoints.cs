@@ -51,7 +51,7 @@ internal static class SchedulesEndpoints
                 static (http, call) =>
                     call.Operations.Schedules.PreviewAsync(
                         Key(http),
-                        QueryReader.Bind(http.Request, static query => query.Int("limit")) ?? 10,
+                        QueryReader.Bind(http.Request, static query => query.PositiveInt("limit")) ?? 10,
                         call.Ct
                     )
             )

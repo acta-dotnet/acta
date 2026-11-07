@@ -67,6 +67,7 @@ Not tagged yet.
 - On SQL Server, an install refuses a system database and never changes the settings of a database that already exists. Only `ApplyMigrationsOnStartup`, when it creates the database, turns `READ_COMMITTED_SNAPSHOT` on in it, as EF Core does. Before, the startup migration and the published script turned it on in any database, which disconnected every session in it once. Acta runs with it on or off.
 - On PostgreSQL, a batch enqueue, the outbox relay's included, failed with `permission denied for sequence jobs_job_id_seq` under a login with table privileges only. The schema now grants USAGE on that sequence to PUBLIC.
 - On SQL Server with `READ_COMMITTED_SNAPSHOT` off, a read that scanned the newest jobs took page locks that enqueues, claims and completions queued behind, which showed as 30-second timeouts and deadlocks under load. `jobs` and `jobs_state` now take row locks only; `ALTER INDEX ... REORGANIZE` refuses their indexes, and `REBUILD` works.
+- A `limit` below 1 on `GET /schedules/{jobNamespace}/{jobName}/{scheduleName}/preview` and `GET /calendars/{jobNamespace}/{calendarName}/preview` answers 400 naming the parameter, as the OpenAPI document's minimum of 1 says. Before, it was read as 1.
 
 ## 1.0.0-rc.8
 

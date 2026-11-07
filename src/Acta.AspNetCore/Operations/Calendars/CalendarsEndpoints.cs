@@ -112,7 +112,7 @@ internal static class CalendarsEndpoints
                             (
                                 Version: query.Int("version"),
                                 FromUtc: query.DateTime("fromUtc"),
-                                Limit: query.Int("limit"),
+                                Limit: query.PositiveInt("limit"),
                                 TimeZoneId: query.Text("timeZoneId")
                             )
                     )

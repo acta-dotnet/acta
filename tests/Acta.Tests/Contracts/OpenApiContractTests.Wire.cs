@@ -278,7 +278,7 @@ public sealed partial class OpenApiContractTests
     /// <summary>
     /// A list's pageSize and a preview's limit declare their least value and their default, and say their cap, above which
     /// the server clamps rather than refuses. On the real operations an omitted value takes the declared default and a
-    /// larger one the cap, and a pageSize of 0 is refused.
+    /// larger one the cap, and 0, below the declared minimum, is a 400 naming the parameter.
     /// </summary>
     [Fact]
     public async Task Paging_bounds_are_declared_and_held()
@@ -354,9 +354,11 @@ public sealed partial class OpenApiContractTests
                 {
                     wrong.Add($"{key} {name}: omitted and above the cap answered {answered}, not ({declaredDefault}, {caps[name]}).");
                 }
-                if (name == "pageSize" && (await client.GetAsync($"{url}{name}=0", ct)).StatusCode != HttpStatusCode.BadRequest)
+                using var zero = await client.GetAsync($"{url}{name}=0", ct);
+                var detail = JsonNode.Parse(await zero.Content.ReadAsStringAsync(ct))?["detail"]?.GetValue<string>() ?? "";
+                if (zero.StatusCode != HttpStatusCode.BadRequest || !detail.Contains(name, StringComparison.Ordinal))
                 {
-                    wrong.Add($"{key}: a pageSize of 0 was not refused.");
+                    wrong.Add($"{key}: a {name} of 0 answered {(int)zero.StatusCode} ({detail}), not a 400 naming it.");
                 }
                 held.Add(key);
             }

@@ -70,6 +70,17 @@ internal sealed class QueryReader(HttpRequest request)
         return value;
     }
 
+    /// <summary>An integer that is at least 1, as a count is; a smaller one is the 400 naming the parameter.</summary>
+    public int? PositiveInt(string name)
+    {
+        var value = Int(name);
+        if (value is < 1)
+        {
+            _error ??= $"Query parameter '{name}' must be at least 1.";
+        }
+        return value;
+    }
+
     public long? Long(string name)
     {
         string? error = null;
