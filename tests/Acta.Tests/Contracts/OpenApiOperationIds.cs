@@ -29,14 +29,17 @@ internal static class OpenApiOperationIds
             )
             : throw new InvalidOperationException($"{key} serves no operation the operations index knows, so it has no operation id.");
 
-    /// <summary>The route below Acta's version segment as <c>METHOD /path</c>, such as <c>POST /jobs/{jobRef}/purge</c> under any mount.</summary>
+    /// <summary>
+    /// The route below Acta's <c>api/v1</c> root as <c>METHOD /path</c>, such as <c>POST /jobs/{jobRef}/purge</c> under any
+    /// mount, one named like the version segment included.
+    /// </summary>
     public static string Key(string method, string relativePath)
     {
         var segments = relativePath.Trim('/').Split('/');
         var version = ActaEndpointRouteBuilderExtensions.ApiVersionSegment.Trim('/');
-        var below = Array.IndexOf(segments, version) + 1;
-        return below == 0
-            ? throw new InvalidOperationException($"'{relativePath}' has no '{version}' segment to key an operation id below.")
-            : $"{method.ToUpperInvariant()} /{string.Join('/', segments.Skip(below))}";
+        var root = Enumerable.Range(0, segments.Length - 1).LastOrDefault(i => segments[i] == "api" && segments[i + 1] == version, -1);
+        return root < 0
+            ? throw new InvalidOperationException($"'{relativePath}' has no 'api/{version}' root to key an operation id below.")
+            : $"{method.ToUpperInvariant()} /{string.Join('/', segments.Skip(root + 2))}";
     }
 }

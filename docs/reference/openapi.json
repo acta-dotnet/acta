@@ -2,7 +2,7 @@
   "openapi": "3.1.1",
   "info": {
     "title": "Acta API",
-    "description": "Acta's operator API, the one the dashboard uses. Lists page by cursor: pass a page's nextCursor back as cursor until hasMore is false; a cursor is tied to its query. Every POST, PATCH, and DELETE is a control, mapped only where the host enables controls, and where the host requires it the call carries the confirmation header the operation lists, with the value true. A control whose request object is optional acts with its defaults when the request has no body; one that declares application/json and sends no bytes answers 400, so send {} or leave the content type off. POST /jobs answers 201 when it inserted the job and 200 when a deduplication key matched an existing one, with the job's URL in Location either way. A string carrying x-acta-known-values is an open set: compare against the known values and keep any other value as it is. The document declares no security scheme: the host adds its own authentication, which a client sends as the host asks.",
+    "description": "Acta's operator API, the one the dashboard uses. Lists page by cursor: pass a page's nextCursor back as cursor until hasMore is false; a cursor is tied to its query. Every POST, PATCH, and DELETE is a control, mapped only where the host enables controls, and where the host requires it the call carries the confirmation header the operation lists, with the value true. A control whose request object is optional acts with its defaults when the request has no body; one that declares application/json and sends no bytes answers 400, so send {} or leave the content type off. A signal raise takes any JSON value instead, and no bytes, with or without the content type, raise a presence-only signal. POST /jobs answers 201 when it inserted the job and 200 when a deduplication key matched an existing one, with the job's URL in Location either way. A string carrying x-acta-known-values is an open set: compare against the known values and keep any other value as it is. The document declares no security scheme: the host adds its own authentication, which a client sends as the host asks.",
     "version": "1.0.0"
   },
   "servers": [
@@ -8990,6 +8990,7 @@
         "type": "object",
         "properties": {
           "outboxIds": {
+            "minItems": 1,
             "type": [
               "null",
               "array"
@@ -13373,6 +13374,7 @@
         "type": "object",
         "properties": {
           "outboxIds": {
+            "minItems": 1,
             "type": [
               "null",
               "array"

@@ -390,6 +390,20 @@ internal static partial class ActaOpenApiDocument
             };
         }
 
+        // An outbox verb's ids are absent for every quarantined row or name at least one; the operation refuses an empty list.
+        foreach (var name in new[] { "DiscardOutboxRequest", "RequeueOutboxRequest" })
+        {
+            if (
+                schemas.TryGetValue(name, out var verb)
+                && verb is OpenApiSchema { Properties: { } verbProperties }
+                && verbProperties.TryGetValue("outboxIds", out var outboxIds)
+                && outboxIds is OpenApiSchema idList
+            )
+            {
+                idList.MinItems = 1;
+            }
+        }
+
         if (
             schemas.TryGetValue("ProblemDetails", out var problem)
             && problem is OpenApiSchema { Properties: { } problemProperties } problemSchema
@@ -587,7 +601,8 @@ internal static partial class ActaOpenApiDocument
         + "where the host enables controls, and where the host requires it the call carries the confirmation header the "
         + "operation lists, with the value true. A control whose request object is optional acts with its defaults when the "
         + "request has no body; one that declares application/json and sends no bytes answers 400, so send {} or leave the "
-        + "content type off. POST /jobs answers 201 when it inserted the job and 200 when a deduplication key matched an "
+        + "content type off. A signal raise takes any JSON value instead, and no bytes, with or without the content type, "
+        + "raise a presence-only signal. POST /jobs answers 201 when it inserted the job and 200 when a deduplication key matched an "
         + "existing one, with the job's URL in Location either way. A string carrying x-acta-known-values is an open set: "
         + "compare against the known values and keep any other value as it is. The document declares no security scheme: "
         + "the host adds its own authentication, which a client sends as the host asks.";

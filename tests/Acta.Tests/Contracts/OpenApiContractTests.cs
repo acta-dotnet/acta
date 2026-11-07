@@ -53,10 +53,12 @@ public sealed partial class OpenApiContractTests
     [Fact]
     public async Task Every_operation_carries_a_summary()
     {
-        var missing = Operations(await ActaOpenApiDocument.GenerateAsync())
+        var operations = Operations(await ActaOpenApiDocument.GenerateAsync());
+        var missing = operations
             .Where(operation => string.IsNullOrWhiteSpace(operation.Value["summary"]?.GetValue<string>()))
             .Select(operation => operation.Key);
 
+        Assert.True(operations.Count > 60, $"only {operations.Count} operations; the walk is broken.");
         Assert.Empty(missing);
     }
 
@@ -244,11 +246,15 @@ public sealed partial class OpenApiContractTests
     [Fact]
     public async Task No_integer_offers_a_string_form()
     {
-        var unions = AllSchemas(JsonNode.Parse(await ActaOpenApiDocument.GenerateAsync())!)
-            .Where(entry => IsInteger(entry.Schema) && (HasType(entry.Schema, "string") || entry.Schema["pattern"] is not null))
+        var integers = AllSchemas(JsonNode.Parse(await ActaOpenApiDocument.GenerateAsync())!)
+            .Where(entry => IsInteger(entry.Schema))
+            .ToList();
+        var unions = integers
+            .Where(entry => HasType(entry.Schema, "string") || entry.Schema["pattern"] is not null)
             .Select(entry => entry.Where)
             .ToList();
 
+        Assert.True(integers.Count > 50, $"only {integers.Count} integer schemas; the walk is broken.");
         Assert.True(unions.Count == 0, "Integers documented with a string form:\n" + string.Join("\n", unions));
     }
 
@@ -423,11 +429,10 @@ public sealed partial class OpenApiContractTests
     [Fact]
     public async Task No_component_allows_null()
     {
-        var nullable = Members(JsonNode.Parse(await ActaOpenApiDocument.GenerateAsync())!["components"]?["schemas"])
-            .Where(component => HasType(component.Value, "null"))
-            .Select(component => component.Key)
-            .ToList();
+        var components = Members(JsonNode.Parse(await ActaOpenApiDocument.GenerateAsync())!["components"]?["schemas"]).ToList();
+        var nullable = components.Where(component => HasType(component.Value, "null")).Select(component => component.Key).ToList();
 
+        Assert.True(components.Count > 100, $"only {components.Count} components; the walk is broken.");
         Assert.True(nullable.Count == 0, "Components that allow null: " + string.Join(", ", nullable));
     }
 
@@ -436,13 +441,14 @@ public sealed partial class OpenApiContractTests
     public async Task Every_reference_resolves()
     {
         var document = JsonNode.Parse(await ActaOpenApiDocument.GenerateAsync())!;
-        var dangling = References(document)
-            .Distinct(StringComparer.Ordinal)
+        var references = References(document).Distinct(StringComparer.Ordinal).ToList();
+        var dangling = references
             .Where(reference =>
                 reference.Split('/') is not ["#", "components", var kind, var name] || document["components"]?[kind]?[name] is null
             )
             .ToList();
 
+        Assert.True(references.Count > 100, $"only {references.Count} distinct references; the walk is broken.");
         Assert.True(dangling.Count == 0, "Dangling references: " + string.Join(", ", dangling));
 
         static IEnumerable<string> References(JsonNode? node) =>
@@ -470,13 +476,12 @@ public sealed partial class OpenApiContractTests
             "components.schemas.EnqueueJobRequest.input",
             "components.schemas.UpdateJobInputRequest.input",
         ];
-        var empty = AllSchemas(JsonNode.Parse(await ActaOpenApiDocument.GenerateAsync())!)
-            .Where(entry => entry.Schema.AsObject().All(p => p.Key is "description"))
-            .Select(entry => entry.Where)
-            .Where(where => !anyJson.Contains(where))
-            .ToList();
+        var schemas = AllSchemas(JsonNode.Parse(await ActaOpenApiDocument.GenerateAsync())!);
+        var empty = schemas.Where(entry => entry.Schema.AsObject().All(p => p.Key is "description")).Select(entry => entry.Where).ToList();
 
-        Assert.True(empty.Count == 0, "Empty schemas:\n" + string.Join("\n", empty));
+        Assert.True(schemas.Count > 500, $"only {schemas.Count} schemas; the walk is broken.");
+        Assert.Equal(anyJson.Order(StringComparer.Ordinal), empty.Where(anyJson.Contains).Order(StringComparer.Ordinal));
+        Assert.True(empty.All(anyJson.Contains), "Empty schemas:\n" + string.Join("\n", empty.Where(where => !anyJson.Contains(where))));
     }
 
     /// <summary>
@@ -503,7 +508,8 @@ public sealed partial class OpenApiContractTests
     /// <summary>
     /// A request member is required where the runtime refuses its absence and only there, and a request refuses unknown
     /// members. Each row of <see cref="ActaOpenApiDocument.HandlerRequiredMembers"/> is proven here: the route answers 400
-    /// without it, on the fake host where the route refuses it and on a SQLite host where only the operation does.
+    /// without it and something else with it, on the fake host where the route refuses it and on a SQLite host where only
+    /// the operation does.
     /// </summary>
     [Fact]
     public async Task Each_handler_required_member_is_refused_when_absent()
@@ -511,22 +517,65 @@ public sealed partial class OpenApiContractTests
         var found = FakeJobs.FoundJobRef;
         RequiredCase[] byRoute =
         [
-            new("EnqueueJobRequest", "jobNamespace", HttpMethod.Post, "jobs", """{"jobName":"send-invoice"}"""),
-            new("EnqueueJobRequest", "jobName", HttpMethod.Post, "jobs", """{"jobNamespace":"billing"}"""),
+            new(
+                "EnqueueJobRequest",
+                "jobNamespace",
+                HttpMethod.Post,
+                "jobs",
+                """{"jobName":"send-invoice"}""",
+                """{"jobNamespace":"billing","jobName":"send-invoice"}"""
+            ),
+            new(
+                "EnqueueJobRequest",
+                "jobName",
+                HttpMethod.Post,
+                "jobs",
+                """{"jobNamespace":"billing"}""",
+                """{"jobNamespace":"billing","jobName":"send-invoice"}"""
+            ),
             new(
                 "SaveCalendarDraftRequest",
                 "definition",
                 HttpMethod.Post,
                 "calendars/billing/holidays/drafts",
-                """{"role":"occurrence"}"""
+                """{"role":"occurrence"}""",
+                """{"role":"occurrence","definition":{"kind":"dates"}}"""
             ),
-            new("RegisterTenantRequest", "tenantName", HttpMethod.Post, "tenants", """{"displayName":"Acme"}"""),
-            new("UpsertJobTagRequest", "name", HttpMethod.Post, $"jobs/{found}/tags", """{"value":"prod"}"""),
-            new("UpsertNamespaceTagRequest", "name", HttpMethod.Post, "namespaces/billing/tags", """{"value":"prod"}"""),
-            new("UpsertTenantTagRequest", "name", HttpMethod.Post, "tenants/acme/tags", """{"value":"prod"}"""),
-            new("UpsertDefinitionTagRequest", "name", HttpMethod.Post, "definitions/billing/send-invoice/tags", """{"value":"prod"}"""),
-            new("UpdateNamespaceRequest", "expectedVersion", HttpMethod.Patch, "namespaces/billing", """{"description":"d"}"""),
-            new("UpdateTenantRequest", "expectedVersion", HttpMethod.Patch, "tenants/acme", """{"description":"d"}"""),
+            new(
+                "RegisterTenantRequest",
+                "tenantName",
+                HttpMethod.Post,
+                "tenants",
+                """{"displayName":"Acme"}""",
+                """{"tenantName":"acme","displayName":"Acme"}"""
+            ),
+            new("UpsertJobTagRequest", "name", HttpMethod.Post, $"jobs/{found}/tags", """{"value":"prod"}""", Tag),
+            new("UpsertNamespaceTagRequest", "name", HttpMethod.Post, "namespaces/billing/tags", """{"value":"prod"}""", Tag),
+            new("UpsertTenantTagRequest", "name", HttpMethod.Post, "tenants/acme/tags", """{"value":"prod"}""", Tag),
+            new(
+                "UpsertDefinitionTagRequest",
+                "name",
+                HttpMethod.Post,
+                "definitions/billing/send-invoice/tags",
+                """{"value":"prod"}""",
+                Tag
+            ),
+            new(
+                "UpdateNamespaceRequest",
+                "expectedVersion",
+                HttpMethod.Patch,
+                "namespaces/billing",
+                """{"description":"d"}""",
+                """{"description":"d","expectedVersion":3}"""
+            ),
+            new(
+                "UpdateTenantRequest",
+                "expectedVersion",
+                HttpMethod.Patch,
+                "tenants/acme",
+                """{"description":"d"}""",
+                """{"description":"d","expectedVersion":0}"""
+            ),
         ];
         RequiredCase[] byOperation =
         [
@@ -535,16 +584,25 @@ public sealed partial class OpenApiContractTests
                 "name",
                 HttpMethod.Post,
                 "jobs",
-                $$"""{"jobNamespace":"{{SqliteNamespace}}","jobName":"echo","tags":[{"value":"prod"}]}"""
+                $$"""{"jobNamespace":"{{SqliteNamespace}}","jobName":"echo","tags":[{"value":"prod"}]}""",
+                $$"""{"jobNamespace":"{{SqliteNamespace}}","jobName":"echo","tags":[{"name":"env","value":"prod"}]}"""
             ),
             new(
                 "SaveCalendarDraftRequest",
                 "role",
                 HttpMethod.Post,
                 $"calendars/{SqliteNamespace}/holidays/drafts",
-                """{"definition":{"kind":"dates"}}"""
+                """{"definition":{"kind":"dates"}}""",
+                """{"role":"occurrence","definition":{"kind":"dates"}}"""
             ),
-            new("PublishCalendarRequest", "candidateVersion", HttpMethod.Post, $"calendars/{SqliteNamespace}/holidays/publish", "{}"),
+            new(
+                "PublishCalendarRequest",
+                "candidateVersion",
+                HttpMethod.Post,
+                $"calendars/{SqliteNamespace}/holidays/publish",
+                "{}",
+                """{"candidateVersion":1}"""
+            ),
         ];
 
         var refusals = new List<string>();
@@ -553,7 +611,7 @@ public sealed partial class OpenApiContractTests
         {
             await AssertRefusedAsync(client, byRoute, refusals);
         }
-        await AssertRefusedOnSqliteAsync(byOperation, refusals);
+        await WithSqliteHostAsync(client => AssertRefusedAsync(client, byOperation, refusals));
 
         Assert.True(refusals.Count == 0, string.Join("\n", refusals));
         Assert.Equal(
@@ -573,28 +631,41 @@ public sealed partial class OpenApiContractTests
 
     private const string SqliteNamespace = "openapi-probe";
 
-    private sealed record RequiredCase(string Schema, string Member, HttpMethod Method, string Path, string Body);
+    private const string Tag = """{"name":"env","value":"prod"}""";
 
-    // Sends each body, which leaves its case's member out, as a confirmed control, and records any answer but 400.
+    /// <summary>One required member: a body without it, and the same body with it.</summary>
+    private sealed record RequiredCase(string Schema, string Member, HttpMethod Method, string Path, string Absent, string Present);
+
+    // Sends each case's body without its member, then with it, as confirmed controls: the first must answer 400 and the
+    // second anything else, so the member and nothing beside it is what the route refuses.
     private static async Task AssertRefusedAsync(HttpClient client, RequiredCase[] cases, List<string> refusals)
     {
-        foreach (var (schema, member, method, path, body) in cases)
+        foreach (var (schema, member, method, path, absent, present) in cases)
         {
-            using var request = new HttpRequestMessage(method, "/acta/api/v1/" + path)
+            var without = await SendControlAsync(client, method, path, absent);
+            if (without != HttpStatusCode.BadRequest)
             {
-                Content = new StringContent(body, Encoding.UTF8, "application/json"),
-            };
-            request.Headers.Add("X-Acta-Control", "true");
-            var response = await client.SendAsync(request, TestContext.Current.CancellationToken);
-            if (response.StatusCode != HttpStatusCode.BadRequest)
+                refusals.Add($"{schema}.{member}: {method} {path} without it answered {without}.");
+            }
+            if (await SendControlAsync(client, method, path, present) == HttpStatusCode.BadRequest)
             {
-                refusals.Add($"{schema}.{member}: {method} {path} without it answered {response.StatusCode}.");
+                refusals.Add($"{schema}.{member}: {method} {path} with it answered 400 too.");
             }
         }
     }
 
-    // A real Acta over a throwaway SQLite file, for the members only an operation refuses: the fakes accept anything.
-    private static async Task AssertRefusedOnSqliteAsync(RequiredCase[] cases, List<string> refusals)
+    private static async Task<HttpStatusCode> SendControlAsync(HttpClient client, HttpMethod method, string path, string body)
+    {
+        using var request = new HttpRequestMessage(method, "/acta/api/v1/" + path)
+        {
+            Content = new StringContent(body, Encoding.UTF8, "application/json"),
+        };
+        request.Headers.Add("X-Acta-Control", "true");
+        return (await client.SendAsync(request, TestContext.Current.CancellationToken)).StatusCode;
+    }
+
+    // A real Acta over a throwaway SQLite file, for what only an operation refuses: the fakes accept anything.
+    private static async Task WithSqliteHostAsync(Func<HttpClient, Task> act)
     {
         var path = Path.Combine(Path.GetTempPath(), $"acta-openapi-{Guid.NewGuid():N}.db");
         var builder = WebApplication.CreateBuilder();
@@ -616,7 +687,7 @@ public sealed partial class OpenApiContractTests
         try
         {
             await app.StartAsync(TestContext.Current.CancellationToken);
-            await AssertRefusedAsync(app.GetTestClient(), cases, refusals);
+            await act(app.GetTestClient());
         }
         finally
         {
@@ -639,8 +710,8 @@ public sealed partial class OpenApiContractTests
         Assert.Equal("getJob", OpenApiOperationIds.For("GET", "acta/api/v1/jobs/{jobRef}"));
         Assert.Equal("getJobByKey", OpenApiOperationIds.For("GET", "acta/api/v1/jobs/by-key"));
         Assert.Equal("pauseJob", OpenApiOperationIds.For("POST", "/ops/api/v1/jobs/{jobRef}/pause"));
-        Assert.Equal("listEvents", OpenApiOperationIds.For("GET", "/v1/events"));
-        Assert.Equal("listJobEvents", OpenApiOperationIds.For("GET", "/v1/jobs/{jobRef}/events"));
+        Assert.Equal("listEvents", OpenApiOperationIds.For("GET", "v1/api/v1/events"));
+        Assert.Equal("listJobEvents", OpenApiOperationIds.For("GET", "/internal/acta/api/v1/jobs/{jobRef}/events"));
         Assert.Equal(
             "removeDefinitionTag",
             OpenApiOperationIds.For("DELETE", "api/v1/definitions/{jobNamespace}/{jobName}/tags/{tagName}")
@@ -672,14 +743,17 @@ public sealed partial class OpenApiContractTests
     {
         var document = JsonNode.Parse(await ActaOpenApiDocument.GenerateAsync())!;
 
+        var paths = Members(document["paths"]).ToList();
+
         Assert.Equal("/acta/api", Assert.Single(document["servers"]!.AsArray())!["url"]!.GetValue<string>());
-        Assert.All(Members(document["paths"]), path => Assert.StartsWith("/v1/", path.Key, StringComparison.Ordinal));
+        Assert.True(paths.Count > 50, $"only {paths.Count} paths; the walk is broken.");
+        Assert.All(paths, path => Assert.StartsWith("/v1/", path.Key, StringComparison.Ordinal));
     }
 
     /// <summary>
     /// A host that mounts the API twice gets a document per mount: the read-only one lists its reads alone, with the ids
     /// the control mount's document gives the same operations, and only a mount that requires the confirmation header
-    /// lists it on its controls.
+    /// lists it on its controls. A mount named like the version segment documents the same operations under the same ids.
     /// </summary>
     [Fact]
     public async Task Each_mount_documents_its_own_operations_with_shared_ids_and_its_own_confirmation()
@@ -687,13 +761,20 @@ public sealed partial class OpenApiContractTests
         var documents = await ActaOpenApiDocument.GenerateAsync(
             new Mount("/acta", Controls: true),
             new Mount("/ops", Controls: false),
-            new Mount("/plain", Controls: true, RequireConfirmation: false)
+            new Mount("/plain", Controls: true, RequireConfirmation: false),
+            new Mount("/v1", Controls: true)
         );
         var control = Operations(documents["/acta"]);
         var readOnly = Operations(documents["/ops"]);
         var unconfirmed = Operations(documents["/plain"]);
+        var versionNamed = Operations(documents["/v1"]);
 
         Assert.Equal("/ops/api", JsonNode.Parse(documents["/ops"])!["servers"]![0]!["url"]!.GetValue<string>());
+        Assert.Equal("/v1/api", JsonNode.Parse(documents["/v1"])!["servers"]![0]!["url"]!.GetValue<string>());
+        Assert.Equal(
+            control.Select(operation => $"{operation.Key} {operation.Value["operationId"]}").Order(StringComparer.Ordinal),
+            versionNamed.Select(operation => $"{operation.Key} {operation.Value["operationId"]}").Order(StringComparer.Ordinal)
+        );
         Assert.All(readOnly.Keys, key => Assert.StartsWith("GET /v1/", key, StringComparison.Ordinal));
         Assert.True(readOnly.Count > 30 && readOnly.Count < control.Count, $"{readOnly.Count} reads against {control.Count} operations.");
         foreach (var (key, operation) in readOnly)
