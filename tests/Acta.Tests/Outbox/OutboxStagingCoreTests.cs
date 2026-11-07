@@ -143,6 +143,38 @@ public sealed class OutboxStagingCoreTests
     }
 
     [Fact]
+    public void Meta_reads_stored_tags_with_a_null_or_a_missing_value_as_presence_only()
+    {
+        var tags = OutboxMetaReader.Parse("""{"tags":[{"name":"env","value":"prod"},{"name":"flag","value":null},{"name":"bare"}]}""");
+
+        Assert.Equal([("env", "prod"), ("flag", null), ("bare", null)], tags!.Select(t => (t.Name, t.Value)));
+        Assert.Null(OutboxMetaReader.Parse("""{"tags":[]}"""));
+        Assert.Null(OutboxMetaReader.Parse("{}"));
+    }
+
+    [Theory]
+    [InlineData("""{"tags":[null]}""")]
+    [InlineData("""{"tags":[{"value":"no-name"}]}""")]
+    [InlineData("""{"tags":[{"name":null,"value":"x"}]}""")]
+    [InlineData("""{"tags":[{"name":"","value":"x"}]}""")]
+    public void A_tag_entry_without_a_name_is_a_contract_error(string meta)
+    {
+        var ex = Assert.Throws<OutboxContractException>(() => OutboxMetaReader.Parse(meta));
+        Assert.Equal("meta.tags entry is null or missing a non-empty 'name'.", ex.Message);
+    }
+
+    [Theory]
+    [InlineData("{ not json")]
+    [InlineData("""{"tags":[1]}""")]
+    [InlineData("""{"tags":{}}""")]
+    [InlineData("""{"tags":[{"name":1}]}""")]
+    public void Meta_of_another_shape_is_a_contract_error(string meta)
+    {
+        var ex = Assert.Throws<OutboxContractException>(() => OutboxMetaReader.Parse(meta));
+        Assert.StartsWith("meta is not valid JSON: ", ex.Message, StringComparison.Ordinal);
+    }
+
+    [Fact]
     public void A_non_utc_next_run_is_normalized_to_utc()
     {
         // The staging projection must normalize like the owned enqueue path (DbParams.ToUtc): a Local instant

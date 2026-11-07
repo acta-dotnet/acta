@@ -89,24 +89,13 @@ internal static class OutboxStaging
 /// documented shape the relay's <see cref="OutboxMetaReader"/> reads: a root object with an optional ordered
 /// <c>tags</c> array of <c>{"name":..,"value":..}</c> entries. Names and values are camel-cased; a
 /// presence-only tag writes its value as an explicit JSON <c>null</c>. No tags means a null <c>meta</c>
-/// column. Source-generated and reflection-free per the repo AOT policy; the DTO pair and context are the
+/// column. Source-generated and reflection-free per the repo AOT policy; the envelope and its context are the
 /// single definition shared with the reader.
 /// </summary>
 internal static class OutboxMetaWriter
 {
-    public static string? Write(IReadOnlyList<TagInput>? tags)
-    {
-        if (tags is null || tags.Count == 0)
-        {
-            return null;
-        }
-
-        var entries = new List<OutboxTagJson>(tags.Count);
-        foreach (var tag in tags)
-        {
-            entries.Add(new OutboxTagJson(tag.Name, tag.Value));
-        }
-
-        return JsonSerializer.Serialize(new OutboxMetaJson(entries), OutboxMetaJsonContext.Default.OutboxMetaJson);
-    }
+    public static string? Write(IReadOnlyList<TagInput>? tags) =>
+        tags is null || tags.Count == 0
+            ? null
+            : JsonSerializer.Serialize(new OutboxMetaJson(tags), OutboxMetaJsonContext.Default.OutboxMetaJson);
 }

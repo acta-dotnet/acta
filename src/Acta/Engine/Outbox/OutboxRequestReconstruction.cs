@@ -101,15 +101,11 @@ internal static class OutboxMetaReader
             return null;
         }
 
-        var result = new List<TagInput>(tags.Count);
-        foreach (var tag in tags)
+        // The serializer does not enforce the nullable annotations: a null entry, or a missing or null name, arrives as null.
+        if (tags.Any(static tag => tag is null || string.IsNullOrEmpty(tag.Name)))
         {
-            if (tag is null || string.IsNullOrEmpty(tag.Name))
-            {
-                throw new OutboxContractException("meta.tags entry is null or missing a non-empty 'name'.");
-            }
-            result.Add(new TagInput(tag.Name, tag.Value));
+            throw new OutboxContractException("meta.tags entry is null or missing a non-empty 'name'.");
         }
-        return result;
+        return tags;
     }
 }
