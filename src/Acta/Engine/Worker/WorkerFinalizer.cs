@@ -315,30 +315,73 @@ internal sealed partial class WorkerFinalizer(
         execution.CompleteExecutionsAsync(new CompleteExecutionsCommand(WorkerId, [.. writes.Select(write => write.Row)]), ct);
 
     /// <summary>
-    /// Plans <paramref name="entry"/>'s write and the status it reports once the write lands. A job whose definition is
-    /// retired never runs again, so a landing that would leave it runnable (a re-arm or a hand-back) lands Cancelled
-    /// instead. A slot's return to Idle stays: an Idle slot is inert while its definition is retired, and ready to fire
-    /// when a build registers it again.
+    /// Plans <paramref name="entry"/>'s write and the status it reports once the write lands, then logs a handler's
+    /// exception with what that write does with it. A job whose definition is retired never runs again, so a landing that
+    /// would leave it runnable (a re-arm or a hand-back) lands Cancelled instead. A slot's return to Idle stays: an Idle
+    /// slot is inert while its definition is retired, and ready to fire when a build registers it again.
     /// </summary>
     private PlannedWrite Plan(InFlightJob entry)
     {
         var planned = PlanCompletion(entry);
         if (
-            planned.Row is { RescheduleEventCode: null, FinalStatus: null or JobStatusCode.Idle }
-            || !context.RetentionSecondsByRetiredDefinitionId.TryGetValue(entry.Claim.DefinitionId, out var retentionSeconds)
+            planned.Row is not { RescheduleEventCode: null, FinalStatus: null or JobStatusCode.Idle }
+            && context.RetentionSecondsByRetiredDefinitionId.TryGetValue(entry.Claim.DefinitionId, out var retentionSeconds)
         )
         {
-            return planned;
+            var retired = new ExecutionCompletion(CompletionKind.Cancelled)
+            {
+                Reason = EventReason.DefinitionRetired,
+                ReasonMessage = "The job's definition is retired, so the job does not run again.",
+                HandlerStatusCode = JobStatusCode.Cancelled,
+                DurationMs = planned.Completion.DurationMs,
+            };
+            planned = new(entry, retired, Retire(entry.Claim, retired, retentionSeconds), RunOnceStatus.Completed);
         }
 
-        var retired = new ExecutionCompletion(CompletionKind.Cancelled)
+        // Logged here, not where the handler threw: the deadline guard and the retirement can change what lands.
+        if (entry.Completion!.HandlerException is { } thrown && log.IsEnabled(LogLevel.Warning))
         {
-            Reason = EventReason.DefinitionRetired,
-            ReasonMessage = "The job's definition is retired, so the job does not run again.",
-            HandlerStatusCode = JobStatusCode.Cancelled,
-            DurationMs = planned.Completion.DurationMs,
+            LogHandlerThrew(planned, thrown);
+        }
+        return planned;
+    }
+
+    /// <summary>
+    /// The handler's failure line, one per failed attempt: the job by its ref, the exception, and what
+    /// <paramref name="write"/> does with the failure. The finalizer runs outside the attempt's log scope, so the line
+    /// opens it again.
+    /// </summary>
+    private void LogHandlerThrew(PlannedWrite write, Exception thrown)
+    {
+        var job = write.Entry.Claim;
+        var descriptor = write.Entry.Descriptor!;
+        using var scope = ActaLog.BeginJobScope(
+            log,
+            job.JobId,
+            descriptor.JobName,
+            context.WorkerRegistration!.NamespaceName,
+            job.ExecutionNumber,
+            WorkerId,
+            job.CorrelationKey
+        );
+        var jobRef = new JobRef(job.JobRef).ToString();
+        var attempt = $"{NextFailureCount(job.FailureCount)} of {descriptor.MaxAttempts}";
+        if (write.Row.RescheduleDelaySeconds is { } delaySeconds)
+        {
+            ActaLog.HandlerThrewRetrying(log, thrown, descriptor.JobName, jobRef, attempt, delaySeconds * 1000L);
+            return;
+        }
+
+        var why = write.Completion.Reason switch
+        {
+            EventReason.DefinitionRetired => "the job's definition is retired, so the job is cancelled",
+            EventReason.DeadlineExceeded => "a retry would pass the job's deadline, so the job is cancelled",
+            EventReason.NonRetryableException => $"{thrown.GetType().Name} is never retried, so the job failed for good",
+            _ when write.Row.FinalStatus == JobStatusCode.Idle =>
+                $"attempt {attempt} spent the firing's budget, so the job is idle until its next firing",
+            _ => $"attempt {attempt} spent the budget, so the job failed for good",
         };
-        return new(entry, retired, Retire(entry.Claim, retired, retentionSeconds), RunOnceStatus.Completed);
+        ActaLog.HandlerThrewFinal(log, thrown, descriptor.JobName, jobRef, why);
     }
 
     /// <summary>Plans <paramref name="entry"/>'s write as its completion stands.</summary>

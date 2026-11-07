@@ -312,19 +312,15 @@ internal sealed class HandlerInvocation(
 
     private ExecutionCompletion Faulted(Exception ex, bool inputDeserialized, JobDescriptor descriptor, ClaimedJob job)
     {
-        if (inputDeserialized)
-        {
-            ActaLog.HandlerThrew(log, ex, descriptor.JobName, job.JobId);
-        }
-        else
-        {
-            ActaLog.InputDeserializationFailed(log, ex, descriptor.JobName, job.JobId);
-        }
-
         // A failure retrying cannot change, a programming error or an exhausted at-most-once step that throws again on
         // every replay, lands terminal Failed through the same completion branch as ctx.FailAsync, leaving the retry
         // budget untouched.
         var nonRetryable = ex is NotImplementedException or NotSupportedException or StepExhaustedException;
+        if (!inputDeserialized)
+        {
+            ActaLog.InputDeserializationFailed(log, ex, descriptor.JobName, job.JobId);
+        }
+
         return new ExecutionCompletion(CompletionKind.Failed)
         {
             Reason = nonRetryable ? EventReason.NonRetryableException : EventReason.UnhandledException,
@@ -332,6 +328,7 @@ internal sealed class HandlerInvocation(
                 ActaTextLimits.EventMessage
             ),
             HandlerStatusCode = nonRetryable ? JobStatusCode.Failed : null,
+            HandlerException = inputDeserialized ? ex : null,
         };
     }
 

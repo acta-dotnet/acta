@@ -36,6 +36,8 @@ internal sealed class WorkerExecutorHarness(
     bool slotThrows = false,
     bool rateThrows = false,
     bool scopeDisposalThrows = false,
+    TimeSpan scopeDisposalTime = default,
+    string? backoff = null,
     string jobName = "harness-job"
 )
 {
@@ -91,6 +93,9 @@ internal sealed class WorkerExecutorHarness(
     /// <summary>The single completion, for the pins that expect exactly one.</summary>
     public BoundCompletion Completion => Assert.Single(Submitted);
 
+    /// <summary>The ref of the job the last run claimed.</summary>
+    public JobRef JobRef => new(_entry!.Claim.JobRef);
+
     /// <summary>
     /// Fires the attempt's execution timeout now, so <c>InFlightJob.TimedOut</c> reads true and the linked
     /// attempt token cancels after it. Call from inside a handler; the handler must then observe its token, as a
@@ -118,7 +123,7 @@ internal sealed class WorkerExecutorHarness(
             : cancelWorkerDuringRateWait ? _workerCts.Cancel
             : null;
 
-        return await Executor(Descriptor(jobName, handler, maxAttempts, concurrencyLimit, rateLimit, rateName, deadlineAtUtc))
+        return await Executor(Descriptor(jobName, handler, maxAttempts, backoff, concurrencyLimit, rateLimit, rateName, deadlineAtUtc))
             .RunInlineAsync(_entry, _workerCts.Token);
 
         void CancelAttempt()
@@ -172,7 +177,7 @@ internal sealed class WorkerExecutorHarness(
             _locks.Locks,
             new HarnessClock(),
             new HarnessSerializers(),
-            new StoreOnlyServices(_store.Execution, _store.Jobs, scopeDisposalThrows),
+            new StoreOnlyServices(_store.Execution, _store.Jobs, scopeDisposalThrows, scopeDisposalTime),
             options,
             new JobBehaviorPipeline([]),
             context,
@@ -204,6 +209,7 @@ internal sealed class WorkerExecutorHarness(
         string jobName,
         Func<JobContext, CancellationToken, Task> handler,
         int maxAttempts,
+        string? backoff,
         int? concurrencyLimit,
         string? rateLimit,
         string? rateName,
@@ -232,6 +238,7 @@ internal sealed class WorkerExecutorHarness(
             SerializeResult: null
         )
         {
+            Backoff = backoff,
             ConcurrencyLimit = concurrencyLimit,
             RateLimit = rateLimit,
             RateName = rateName,
@@ -340,7 +347,7 @@ internal sealed class WorkerExecutorHarness(
     }
 
     /// <summary>One line the runner wrote: enough to pin an arm whose whole contract is the log.</summary>
-    internal sealed record LogEntry(LogLevel Level, string Message);
+    internal sealed record LogEntry(LogLevel Level, string Message, Exception? Exception);
 
     private sealed class RecordingLogger : ILogger
     {
@@ -357,13 +364,13 @@ internal sealed class WorkerExecutorHarness(
             TState state,
             Exception? exception,
             Func<TState, Exception?, string> formatter
-        ) => Entries.Add(new LogEntry(logLevel, formatter(state, exception)));
+        ) => Entries.Add(new LogEntry(logLevel, formatter(state, exception), exception));
     }
 
     // The services the executor resolves for an attempt, and a scope that is the provider itself: the
     // stores are the scripted ones, the signal seam and the alert sink are never reached by a handler
     // that runs one step, and anything else resolves to null.
-    private sealed class StoreOnlyServices(ExecutionOperations store, JobsOperations jobs, bool disposalThrows)
+    private sealed class StoreOnlyServices(ExecutionOperations store, JobsOperations jobs, bool disposalThrows, TimeSpan disposalTime)
         : IServiceProvider,
             IServiceScopeFactory,
             IServiceScope,
@@ -388,9 +395,15 @@ internal sealed class WorkerExecutorHarness(
 
         public void Dispose() { }
 
-        // The attempt scope is this provider, so a throwing disposal stands in for a scoped service that throws.
-        public ValueTask DisposeAsync() =>
-            disposalThrows ? throw new InvalidOperationException("A scoped service threw while disposing.") : ValueTask.CompletedTask;
+        // The attempt scope is this provider, so a slow or throwing disposal stands in for a scoped service that is.
+        public async ValueTask DisposeAsync()
+        {
+            await Task.Delay(disposalTime);
+            if (disposalThrows)
+            {
+                throw new InvalidOperationException("A scoped service threw while disposing.");
+            }
+        }
     }
 
     private sealed class HarnessClock : IActaClock

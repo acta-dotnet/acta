@@ -177,8 +177,30 @@ internal static partial class ActaLog
     )]
     public static partial void AttemptAborted(ILogger log, long actaJobId);
 
-    [LoggerMessage(Level = LogLevel.Warning, Message = "Handler for job ({ActaJobName}) id {ActaJobId} threw; the attempt failed.")]
-    public static partial void HandlerThrew(ILogger log, Exception exception, string actaJobName, long actaJobId);
+    [LoggerMessage(
+        Level = LogLevel.Warning,
+        Message = "Handler for job ({ActaJobName}) ({ActaJobRef}) threw on attempt ({ActaDetail}); the job retries in {ActaDurationMs}ms."
+    )]
+    public static partial void HandlerThrewRetrying(
+        ILogger log,
+        Exception exception,
+        string actaJobName,
+        string actaJobRef,
+        string actaDetail,
+        long actaDurationMs
+    );
+
+    [LoggerMessage(
+        Level = LogLevel.Warning,
+        Message = "Handler for job ({ActaJobName}) ({ActaJobRef}) threw, and the job does not retry ({ActaDetail})."
+    )]
+    public static partial void HandlerThrewFinal(
+        ILogger log,
+        Exception exception,
+        string actaJobName,
+        string actaJobRef,
+        string actaDetail
+    );
 
     [LoggerMessage(
         Level = LogLevel.Warning,

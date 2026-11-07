@@ -22,6 +22,12 @@ internal sealed record ExecutionCompletion(CompletionKind Outcome)
 
     public int DurationMs { get; init; }
 
+    /// <summary>
+    /// The exception the handler let escape, which the finalizer logs with what its write does with the failure; never
+    /// written to the database.
+    /// </summary>
+    public Exception? HandlerException { get; init; }
+
     /// <summary>A deliberate terminal or hold: the target status overrides the outcome's, and the budget stays untouched.</summary>
     public static ExecutionCompletion Terminal(CompletionKind outcome, string reason, string? message, JobStatusCode status) =>
         new(outcome)

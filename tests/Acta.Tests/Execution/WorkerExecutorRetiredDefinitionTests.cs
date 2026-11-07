@@ -49,6 +49,28 @@ public sealed class WorkerExecutorRetiredDefinitionTests
         AssertCancelledByRetirement(harness.Completion);
     }
 
+    [Fact]
+    public async Task An_attempt_failing_after_the_retire_logs_that_the_job_is_cancelled_not_that_it_retries()
+    {
+        var harness = new WorkerExecutorHarness(maxAttempts: 3);
+        var thrown = new InvalidOperationException("fails after the retire");
+
+        await harness.RunAsync(
+            (_, _) =>
+            {
+                harness.RetireDefinition();
+                throw thrown;
+            }
+        );
+
+        var line = Assert.Single(harness.Log, entry => entry.Message.StartsWith("Handler for job", StringComparison.Ordinal));
+        Assert.Equal(
+            $"Handler for job (harness-job) ({harness.JobRef}) threw, and the job does not retry (the job's definition is retired, so the job is cancelled).",
+            line.Message
+        );
+        Assert.Same(thrown, line.Exception);
+    }
+
     private static void AssertCancelledByRetirement(BoundCompletion completion)
     {
         Assert.Equal((byte)JobStatusCode.Cancelled, completion.HandlerStatusCode);
