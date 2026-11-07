@@ -644,7 +644,7 @@ public sealed class ControlEndpointTests
 
     private static HttpRequestMessage AmendInput(object body, bool confirm = true)
     {
-        var request = new HttpRequestMessage(HttpMethod.Post, $"/acta/api/v1/jobs/{Found}/input");
+        var request = new HttpRequestMessage(HttpMethod.Put, $"/acta/api/v1/jobs/{Found}/input");
         if (confirm)
         {
             request.Headers.Add(Confirm, "true");
@@ -664,7 +664,10 @@ public sealed class ControlEndpointTests
         var ct = TestContext.Current.CancellationToken;
 
         var bytes = new byte[] { 1, 2, 3, 4 };
-        var response = await client.SendAsync(AmendInput(new { base64 = Convert.ToBase64String(bytes) }), ct);
+        var response = await client.SendAsync(
+            AmendInput(new { input = new { base64 = Convert.ToBase64String(bytes), formatId = 200 } }),
+            ct
+        );
         Assert.Equal(HttpStatusCode.OK, response.StatusCode);
 
         var amended = Assert.Single(fakes.Jobs.InputAmendCalls);
@@ -684,7 +687,7 @@ public sealed class ControlEndpointTests
         await using var _ = app;
         var ct = TestContext.Current.CancellationToken;
 
-        var response = await client.SendAsync(AmendInput(new { input = new { b = 2 } }), ct);
+        var response = await client.SendAsync(AmendInput(new { input = new { json = new { b = 2 } } }), ct);
         Assert.Equal(HttpStatusCode.OK, response.StatusCode);
         Assert.Equal(JobPayloadFormat.Json.Id, Assert.Single(fakes.Jobs.InputAmendCalls).Format.Id);
 
@@ -701,7 +704,7 @@ public sealed class ControlEndpointTests
         await using var _ = app;
         var ct = TestContext.Current.CancellationToken;
 
-        var response = await client.SendAsync(AmendInput(new { input = new { b = 2 } }), ct);
+        var response = await client.SendAsync(AmendInput(new { input = new { json = new { b = 2 } } }), ct);
         Assert.Equal(HttpStatusCode.OK, response.StatusCode);
         Assert.Equal(JobPayloadFormat.Json.Id, Assert.Single(fakes.Jobs.InputAmendCalls).Format.Id);
 
@@ -717,7 +720,17 @@ public sealed class ControlEndpointTests
         await using var _ = app;
 
         var response = await client.SendAsync(
-            AmendInput(new { input = new { a = 1 }, base64 = "AQ==" }),
+            AmendInput(
+                new
+                {
+                    input = new
+                    {
+                        json = new { a = 1 },
+                        base64 = "AQ==",
+                        formatId = 2,
+                    },
+                }
+            ),
             TestContext.Current.CancellationToken
         );
         Assert.Equal(HttpStatusCode.BadRequest, response.StatusCode);
@@ -731,7 +744,10 @@ public sealed class ControlEndpointTests
         var (app, client) = await StartWithControlsAsync(fakes);
         await using var _ = app;
 
-        var response = await client.SendAsync(AmendInput(new { base64 = "not valid base64!" }), TestContext.Current.CancellationToken);
+        var response = await client.SendAsync(
+            AmendInput(new { input = new { base64 = "not valid base64!", formatId = 2 } }),
+            TestContext.Current.CancellationToken
+        );
         Assert.Equal(HttpStatusCode.BadRequest, response.StatusCode);
         Assert.Empty(fakes.Jobs.InputAmendCalls);
     }
@@ -743,7 +759,10 @@ public sealed class ControlEndpointTests
         var (app, client) = await StartWithControlsAsync(fakes);
         await using var _ = app;
 
-        var response = await client.SendAsync(AmendInput(new { input = new { a = 1 } }), TestContext.Current.CancellationToken);
+        var response = await client.SendAsync(
+            AmendInput(new { input = new { json = new { a = 1 } } }),
+            TestContext.Current.CancellationToken
+        );
         Assert.Equal(HttpStatusCode.Conflict, response.StatusCode);
         Assert.Empty(fakes.Jobs.InputAmendCalls);
     }
@@ -804,8 +823,7 @@ public sealed class ControlEndpointTests
                 {
                     jobNamespace = "billing",
                     jobName = "send-invoice",
-                    base64 = Convert.ToBase64String(bytes),
-                    formatId = 2,
+                    input = new { base64 = Convert.ToBase64String(bytes), formatId = 2 },
                 }
             ),
             ct
@@ -834,7 +852,7 @@ public sealed class ControlEndpointTests
                 {
                     jobNamespace = "billing",
                     jobName = "send-invoice",
-                    base64 = Convert.ToBase64String(new byte[] { 1 }),
+                    input = new { base64 = Convert.ToBase64String(new byte[] { 1 }) },
                 }
             ),
             TestContext.Current.CancellationToken
@@ -844,7 +862,7 @@ public sealed class ControlEndpointTests
     }
 
     [Fact]
-    public async Task Enqueue_format_id_without_base64_is_400()
+    public async Task Enqueue_format_id_without_a_body_is_400()
     {
         var fakes = new FakeOperations();
         var (app, client) = await StartWithControlsAsync(fakes);
@@ -856,7 +874,7 @@ public sealed class ControlEndpointTests
                 {
                     jobNamespace = "billing",
                     jobName = "send-invoice",
-                    formatId = 2,
+                    input = new { formatId = 2 },
                 }
             ),
             TestContext.Current.CancellationToken

@@ -7,20 +7,20 @@
 
   // Presentational: the stored input comes from the aggregate detail read (JobDetail owns the fetch and
   // polling), so this panel renders for everyone. The input is editable only when the operator can
-  // control and the job is not in flight; the amend POST lives here and, on success, asks JobDetail to
+  // control and the job is not in flight; the amend PUT lives here and, on success, asks JobDetail to
   // refetch the detail query (onAmended) rather than owning a private input query. PayloadView just
   // supplies the validated draft text.
-  let { input, jobRef, status, canControl = false, onAmended = () => {} }: {
-    input: JobPayloadView;
+  let { input = null, jobRef, status, canControl = false, onAmended = () => {} }: {
+    input?: JobPayloadView | null;
     jobRef: string;
     status: string;
     canControl?: boolean;
     onAmended?: () => void;
   } = $props();
 
-  // A none-format or over-cap (truncated) input has no wire body to amend into, so the editor never
+  // No input or an over-cap (truncated) one has no wire body to amend into, so the editor never
   // opens for one; PayloadView itself offers the editor only for a well-formed json input.
-  let editable = $derived(canControl && inputAmendable(status) && input.formatName !== 'none' && !input.truncated);
+  let editable = $derived(canControl && inputAmendable(status) && input !== null && input.truncated !== true);
   let editing = $state(false);
   let reason = $state('');
   let message = $state('');
@@ -33,6 +33,7 @@
 
   const mutation = useControlMutation<{ jobRef: string; body: { input: RawJson }; reason?: string }, JobControlResponse>({
     path: (vars) => `jobs/${vars.jobRef}/input`,
+    method: 'PUT',
     body: (vars) => vars.body,
     notFound: () => ({ action: 'not-found', status: null }),
     invalidateKeys: () => [['jobs']] as const

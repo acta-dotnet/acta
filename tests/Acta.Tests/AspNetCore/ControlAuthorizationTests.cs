@@ -168,8 +168,12 @@ public sealed class ControlAuthorizationTests
         enqueue.Headers.Add(Confirm, "true");
         enqueue.Content = JsonContent.Create(new { jobNamespace = "billing", jobName = "send-invoice" });
 
+        var update = new HttpRequestMessage(HttpMethod.Put, $"/acta/api/v1/jobs/{Found}/input");
+        update.Headers.Add(Confirm, "true");
+        update.Content = JsonContent.Create(new { input = new { json = new { invoiceId = 1 } } });
+
         Assert.Equal(HttpStatusCode.Forbidden, (await client.SendAsync(enqueue, ct)).StatusCode);
-        Assert.Equal(HttpStatusCode.Forbidden, (await client.SendAsync(Post($"/acta/api/v1/jobs/{Found}/input"), ct)).StatusCode);
+        Assert.Equal(HttpStatusCode.Forbidden, (await client.SendAsync(update, ct)).StatusCode);
         Assert.Empty(fakes.Jobs.EnqueueRequests);
         Assert.Empty(fakes.Jobs.InputAmendCalls);
     }

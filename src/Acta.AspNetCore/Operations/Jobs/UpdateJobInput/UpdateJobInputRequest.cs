@@ -1,16 +1,7 @@
-using System.Text.Json;
-
 namespace Acta.AspNetCore;
 
 /// <summary>
-/// Body of <c>POST /jobs/{jobRef}/input</c>. Exactly one of <c>Input</c> (raw JSON, stored as json) or <c>Base64</c>
-/// (stored as the job's current binary format) must be present. <c>Base64</c> must match a binary stored format;
-/// <c>Input</c> is accepted for any non-none format.
+/// Body of <c>PUT /jobs/{jobRef}/input</c>: the payload envelope that replaces the job's input, required. A json input
+/// replaces any stored format; base64 replaces only a binary-format input, and its <c>formatId</c> is the stored one.
 /// </summary>
-internal sealed record UpdateJobInputRequest(
-    // Nullable rather than a bare JsonElement: the absent case has to be a value the schema generator
-    // can write as this parameter's default, and an uninitialized JsonElement has nothing to write.
-    JsonElement? Input = null,
-    string? Base64 = null,
-    string? ReasonMessage = null
-);
+internal sealed record UpdateJobInputRequest(JobPayloadBody? Input = null, string? ReasonMessage = null);

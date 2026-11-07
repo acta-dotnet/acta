@@ -11,7 +11,7 @@ namespace Acta.AspNetCore;
 /// </summary>
 internal sealed record GetJobDetailResponse(
     GetJobResponse Job,
-    JobPayloadBody Input,
+    [property: JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)] JobPayloadBody? Input,
     [property: JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)] JobPayloadBody? Result,
     ListJobCheckpointsResponse Checkpoints,
     [property: JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)] ExplainJobResponse? Explain,
@@ -81,8 +81,8 @@ internal sealed record GetJobDetailResponse(
 
         return new GetJobDetailResponse(
             job,
-            JobPayloadBody.From(input ?? JobPayload.None, maxInlineBytes),
-            result is { } produced ? JobPayloadBody.From(produced, maxInlineBytes) : null,
+            JobPayloadBody.From(input, maxInlineBytes),
+            JobPayloadBody.From(result, maxInlineBytes),
             ListJobCheckpointsResponse.From(checkpoints, maxInlineBytes),
             explain,
             lineage,

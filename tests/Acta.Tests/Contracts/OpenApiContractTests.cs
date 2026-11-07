@@ -504,14 +504,14 @@ public sealed partial class OpenApiContractTests
     }
 
     /// <summary>
-    /// A schema with no type says "any value"; only the members that really take any JSON value may say it: a job's
-    /// input, and the signal body, which sits in its operation. A code or a ref rendered empty would type as <c>any</c> in
-    /// every generated client.
+    /// A schema with no type says "any value"; only the members that really take any JSON value may say it: a JSON
+    /// payload in its envelope, and the signal body, which sits in its operation. A code or a ref rendered empty would
+    /// type as <c>any</c> in every generated client.
     /// </summary>
     [Fact]
     public async Task No_empty_schema_outside_the_any_json_members()
     {
-        string[] anyJson = ["components.schemas.EnqueueJobRequest.input", "components.schemas.UpdateJobInputRequest.input"];
+        string[] anyJson = ["components.schemas.JobPayloadBody.json"];
         var schemas = AllSchemas(JsonNode.Parse(await ActaOpenApiDocument.GenerateAsync())!);
         var empty = schemas.Where(entry => entry.Schema.AsObject().All(p => p.Key is "description")).Select(entry => entry.Where).ToList();
 
@@ -521,9 +521,9 @@ public sealed partial class OpenApiContractTests
     }
 
     /// <summary>
-    /// Raw JSON is no type: the signal value and a job's input are an inline schema that says any JSON value, with no
-    /// component a client would generate a type for, and the server takes an object, an array, a string, a number, and a
-    /// boolean in each.
+    /// Raw JSON is no type: the signal value and a JSON payload's envelope member are an inline schema that says any JSON
+    /// value, with no component a client would generate a type for, and the server takes an object, an array, a string, a
+    /// number, and a boolean in the signal, the enqueue's input, and the input update.
     /// </summary>
     [Fact]
     public async Task Raw_json_is_an_inline_any_json_schema()
@@ -535,8 +535,7 @@ public sealed partial class OpenApiContractTests
             Operations(generated)["POST /v1/jobs/{jobRef}/signals/{signalName}"]["requestBody"]!["content"]!["application/json"]![
                 "schema"
             ]!,
-            schemas["EnqueueJobRequest"]!["properties"]!["input"]!,
-            schemas["UpdateJobInputRequest"]!["properties"]!["input"]!,
+            schemas["JobPayloadBody"]!["properties"]!["json"]!,
         ];
 
         var fakes = new FakeOperations();
@@ -547,17 +546,112 @@ public sealed partial class OpenApiContractTests
         foreach (var value in new[] { """{"invoiceId":1}""", "[1,2]", "\"text\"", "42", "true" })
         {
             var job = FakeJobs.FoundJobRef;
-            var enqueue = $$"""{"jobNamespace":"billing","jobName":"send-invoice","input":{{value}}}""";
-            var amend = $$"""{"input":{{value}}}""";
+            var enqueue = $$$"""{"jobNamespace":"billing","jobName":"send-invoice","input":{"json":{{{value}}}}}""";
+            var update = $$$"""{"input":{"json":{{{value}}}}}""";
             answers.Add($"signal {value}: {await SendControlAsync(client, HttpMethod.Post, $"jobs/{job}/signals/approval", value)}");
             answers.Add($"enqueue {value}: {await SendControlAsync(client, HttpMethod.Post, "jobs", enqueue)}");
-            answers.Add($"input {value}: {await SendControlAsync(client, HttpMethod.Post, $"jobs/{job}/input", amend)}");
+            answers.Add($"input {value}: {await SendControlAsync(client, HttpMethod.Put, $"jobs/{job}/input", update)}");
         }
 
         Assert.Null(schemas["JsonElement"]);
         Assert.All(anyJson, schema => Assert.Equal(["description"], schema.AsObject().Select(member => member.Key)));
         Assert.All(answers, answer => Assert.Matches(": (OK|Created)$", answer));
     }
+
+    /// <summary>
+    /// The payload envelope holds the rules its description states, since <c>required</c> cannot say them: exactly one of
+    /// json and base64, a formatId beside json that is JSON's, base64 with a binary formatId that decodes, and each readOnly
+    /// member refused by name. The enqueue proves them, and the input update proves that base64 keeps the job's format.
+    /// </summary>
+    [Fact]
+    public async Task The_payload_envelope_holds_the_rules_its_description_states()
+    {
+        var schema = JsonNode.Parse(await ActaOpenApiDocument.GenerateAsync())!["components"]!["schemas"]!["JobPayloadBody"]!;
+        var readOnly = schema["properties"]!
+            .AsObject()
+            .Where(member => member.Value?["readOnly"]?.GetValue<bool>() == true)
+            .Select(member => member.Key)
+            .ToList();
+        (string Envelope, string Refused)[] enqueues =
+        [
+            ("""{"json":{"invoiceId":1}}""", ""),
+            ("""{"json":{"invoiceId":1},"formatId":1}""", ""),
+            ("""{"base64":"AQID","formatId":2}""", ""),
+            ("""{"base64":"AQID","formatId":128}""", ""),
+            ("null", ""),
+            ("""{"json":{"invoiceId":1},"formatId":2}""", "formatId"),
+            ("""{"base64":"AQID"}""", "formatId"),
+            ("""{"base64":"AQID","formatId":1}""", "formatId"),
+            ("""{"base64":"AQID","formatId":3}""", "formatId"),
+            ("""{"base64":"not base64!","formatId":2}""", "base64"),
+            ("""{"json":1,"base64":"AQID","formatId":2}""", "exactly one"),
+            ("{}", "exactly one"),
+            .. readOnly.Select(member => ($$"""{"json":1,"{{member}}":{{ReadOnlySample[member]}}}""", $"input.{member} is read-only")),
+        ];
+        var fakes = new FakeOperations();
+        var (app, client) = await TestDashboardHost.StartAsync(options => options.EnableControls = true, fakes: fakes);
+        await using var _ = app;
+        var wrong = new List<string>();
+        foreach (var (envelope, refused) in enqueues)
+        {
+            var body = $$"""{"jobNamespace":"billing","jobName":"send-invoice","input":{{envelope}}}""";
+            await ExpectAsync(
+                HttpMethod.Post,
+                "jobs",
+                body,
+                refused.Length == 0 ? HttpStatusCode.Created : HttpStatusCode.BadRequest,
+                refused
+            );
+        }
+
+        var job = $"jobs/{FakeJobs.FoundJobRef}/input";
+        fakes.Jobs.StoredInput = JobPayload.FromBytes(JobPayloadFormat.Custom(200, "acme-binary"), [9]);
+        await ExpectAsync(HttpMethod.Put, job, """{"input":{"base64":"AQID","formatId":201}}""", HttpStatusCode.BadRequest, "formatId");
+        await ExpectAsync(HttpMethod.Put, job, """{"input":{"json":1,"truncated":true}}""", HttpStatusCode.BadRequest, "input.truncated");
+        await ExpectAsync(HttpMethod.Put, job, """{"input":{"base64":"AQID","formatId":200}}""", HttpStatusCode.OK, "");
+        await ExpectAsync(HttpMethod.Put, job, """{"input":{"base64":"AQID","formatId":2}}""", HttpStatusCode.BadRequest, "formatId");
+        await ExpectAsync(HttpMethod.Put, job, """{"input":{"json":{"invoiceId":2}}}""", HttpStatusCode.OK, "");
+        await ExpectAsync(HttpMethod.Put, job, """{"input":{"base64":"AQID","formatId":2}}""", HttpStatusCode.BadRequest, "base64");
+
+        Assert.Equal(ActaOpenApiDocument.EnvelopeResponseOnly, readOnly);
+        Assert.Contains("exactly one of json and base64", schema["description"]!.GetValue<string>(), StringComparison.Ordinal);
+        Assert.True(wrong.Count == 0, string.Join("\n", wrong));
+        Assert.Equal(
+            ["json 7B22696E766F6963654964223A317D", "json 7B22696E766F6963654964223A317D", "bytes 010203", "custom-128 010203", "none "],
+            fakes.Jobs.EnqueueRequests.Select(request => $"{request.Input.Format.Name} {Convert.ToHexString(request.Input.Data.Span)}")
+        );
+        Assert.Equal(
+            ["acme-binary/200 010203", "json/1 7B22696E766F6963654964223A327D"],
+            fakes.Jobs.InputAmendCalls.Select(input => $"{input.Format} {Convert.ToHexString(input.Data.Span)}")
+        );
+
+        async Task ExpectAsync(HttpMethod method, string path, string body, HttpStatusCode expected, string named)
+        {
+            using var response = await SendControlRequestAsync(client, method, path, body);
+            var detail =
+                expected == HttpStatusCode.BadRequest
+                    ? JsonNode
+                        .Parse(await response.Content.ReadAsStringAsync(TestContext.Current.CancellationToken))
+                        ?["detail"]?.GetValue<string>()
+                        ?? ""
+                    : "";
+            if (response.StatusCode != expected || !detail.Contains(named, StringComparison.Ordinal))
+            {
+                wrong.Add(
+                    $"{method} {path} {body}: answered {(int)response.StatusCode} ({detail}), expected {(int)expected} naming '{named}'."
+                );
+            }
+        }
+    }
+
+    /// <summary>A value of each readOnly envelope member's own type, so the refusal is the member's and not its type's.</summary>
+    private static readonly Dictionary<string, string> ReadOnlySample = new(StringComparer.Ordinal)
+    {
+        ["formatName"] = "\"json\"",
+        ["byteLength"] = "1",
+        ["truncated"] = "true",
+        ["malformed"] = "true",
+    };
 
     /// <summary>
     /// A response says what the serializer does: a member it omits when null is optional and never null, and every other
@@ -573,9 +667,8 @@ public sealed partial class OpenApiContractTests
         Assert.Contains("job", Required(detail));
         Assert.Equal("#/components/schemas/JobPayloadBody", detail["properties"]!["result"]!["$ref"]!.GetValue<string>());
 
-        var body = schemas["JobPayloadBody"]!;
-        Assert.Equal(["formatName", "formatId"], Required(body));
-        Assert.Equal("string", body["properties"]!["json"]!["type"]!.GetValue<string>());
+        Assert.DoesNotContain("input", Required(detail));
+        Assert.Equal("#/components/schemas/JobPayloadBody", detail["properties"]!["input"]!["$ref"]!.GetValue<string>());
 
         Assert.Contains("value", Required(schemas["ListTagsItem"]!));
     }
@@ -623,6 +716,14 @@ public sealed partial class OpenApiContractTests
                 "tenants",
                 """{"displayName":"Acme"}""",
                 """{"tenantName":"acme","displayName":"Acme"}"""
+            ),
+            new(
+                "UpdateJobInputRequest",
+                "input",
+                HttpMethod.Put,
+                $"jobs/{found}/input",
+                """{"reasonMessage":"fix"}""",
+                """{"input":{"json":{"invoiceId":1}},"reasonMessage":"fix"}"""
             ),
             new("UpsertJobTagRequest", "name", HttpMethod.Post, $"jobs/{found}/tags", """{"value":"prod"}""", Tag),
             new("UpsertNamespaceTagRequest", "name", HttpMethod.Post, "namespaces/billing/tags", """{"value":"prod"}""", Tag),

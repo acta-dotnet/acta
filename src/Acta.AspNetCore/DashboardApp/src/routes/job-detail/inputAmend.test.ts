@@ -10,9 +10,9 @@ test('input is amendable except while executing', () => {
   assert.equal(inputAmendable('executing'), false);
 });
 
-test('amendBody sends the draft text verbatim, every digit kept', () => {
+test('amendBody sends the draft text verbatim in the payload envelope, every digit kept', () => {
   const draft = '{"id": 9007199254740993}';
-  assert.deepEqual(amendBody(draft), { body: { input: new RawJson(draft) } });
+  assert.deepEqual(amendBody(draft), { body: { input: new RawJson(`{"json":${draft}}`) } });
 });
 
 test('amendBody returns the parse error and no body', () => {

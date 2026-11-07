@@ -213,7 +213,7 @@ public sealed class ControlContractTests
             Row("jobs", "/jobs/{jobRef}/pause", "POST", "/jobs/not-a-ref/pause", Reason),
             Row("jobs", "/jobs/{jobRef}/reschedule", "POST", "/jobs/not-a-ref/reschedule", Reason),
             Row("jobs", "/jobs/{jobRef}/reprioritize", "POST", "/jobs/not-a-ref/reprioritize", Reason),
-            Row("jobs", "/jobs/{jobRef}/input", "POST", "/jobs/not-a-ref/input", Reason),
+            Row("jobs", "/jobs/{jobRef}/input", "PUT", "/jobs/not-a-ref/input", Reason),
             Row("jobs", "/jobs/{jobRef}/signals/{signalName}", "POST", "/jobs/not-a-ref/signals/approval", null),
             Row("alerts", "/alerts/{alertRef}/acknowledge", "POST", "/alerts/not-a-ref/acknowledge", Reason),
             Row("alerts", "/alerts/{alertRef}/resolve", "POST", "/alerts/not-a-ref/resolve", Reason),
@@ -284,14 +284,14 @@ public sealed class ControlContractTests
         ];
     }
 
-    // The amend endpoint decides two of its three outcomes itself, before the verb runs: an
+    // The input update decides two of its three outcomes itself, before the verb runs: an
     // unresolvable ref is the not-found, and a job whose stored input is none is the rejection. Both
     // are staged on the fake's StoredInput rather than by ref.
     private static IEnumerable<Case> JobInput()
     {
         const string route = "/jobs/{jobRef}/input";
-        object body = new { input = new { invoiceId = 1 }, reasonMessage = "because" };
-        return
+        object body = new { input = new { json = new { invoiceId = 1 } }, reasonMessage = "because" };
+        Case[] cases =
         [
             Job(
                 typeof(UpdateJobInputResponse),
@@ -323,6 +323,7 @@ public sealed class ControlContractTests
                 body
             ),
         ];
+        return cases.Select(update => update with { Method = "PUT" });
     }
 
     private static void WithStoredInput(FakeOperations fakes) =>

@@ -55,9 +55,9 @@ test('enqueueInputFields: disabled input sends nothing', () => {
   assert.deepEqual(enqueueInputFields(false, '{"a":1}'), { fields: {} });
 });
 
-test('enqueueInputFields: the editor text is sent verbatim', () => {
+test('enqueueInputFields: the editor text is sent verbatim in the payload envelope', () => {
   assert.deepEqual(enqueueInputFields(true, '{"a": 12345678901234567890}'), {
-    fields: { input: new RawJson('{"a": 12345678901234567890}') }
+    fields: { input: new RawJson('{"json":{"a": 12345678901234567890}}') }
   });
 });
 

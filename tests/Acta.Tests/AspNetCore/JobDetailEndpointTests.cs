@@ -63,8 +63,8 @@ public sealed class JobDetailEndpointTests
         Assert.False(root.GetProperty("job").TryGetProperty("jobId", out _));
 
         // Depth payloads (input/result/checkpoints).
-        Assert.Equal("{\"invoiceId\":7}", root.GetProperty("input").GetProperty("json").GetString());
-        Assert.Equal("{\"ok\":true}", root.GetProperty("result").GetProperty("json").GetString());
+        Assert.Equal("{\"invoiceId\":7}", root.GetProperty("input").GetProperty("json").GetRawText());
+        Assert.Equal("{\"ok\":true}", root.GetProperty("result").GetProperty("json").GetRawText());
         Assert.Equal("counter", root.GetProperty("checkpoints").GetProperty("items")[0].GetProperty("name").GetString());
         Assert.Equal(1, root.GetProperty("checkpoints").GetProperty("totalCount").GetInt32());
 
@@ -112,9 +112,9 @@ public sealed class JobDetailEndpointTests
         Assert.Equal(HttpStatusCode.OK, response.StatusCode);
         using var doc = JsonDocument.Parse(body);
         var root = doc.RootElement;
-        // Absent input is a "none" envelope; absent result is a null field.
-        Assert.Equal("none", root.GetProperty("input").GetProperty("formatName").GetString());
-        Assert.False(root.TryGetProperty("result", out var result) && result.ValueKind != JsonValueKind.Null);
+        // No input and no result: no envelope for either.
+        Assert.False(root.TryGetProperty("input", out _));
+        Assert.False(root.TryGetProperty("result", out _));
     }
 
     [Fact]
@@ -164,9 +164,9 @@ public sealed class JobDetailEndpointTests
     }
 
     [Fact]
-    public async Task Json_payload_travels_as_its_stored_text_so_large_numbers_survive()
+    public async Task Json_payload_is_embedded_as_its_stored_text_so_every_digit_and_character_survives()
     {
-        const string stored = "{\"orderId\":9007199254740993,\"amount\":0.1000000000000000055}";
+        const string stored = "{\"orderId\":9007199254740993,\"amount\":0.1000000000000000055,\"name\":\"Zoë & <Bob>\"}";
         var fakes = new FakeOperations
         {
             Jobs = { StoredInput = JobPayload.FromBytes(JobPayloadFormat.Json, Encoding.UTF8.GetBytes(stored)) },
@@ -178,7 +178,8 @@ public sealed class JobDetailEndpointTests
         var body = await (await client.GetAsync($"/acta/api/v1/jobs/{Found}/detail", ct)).Content.ReadAsStringAsync(ct);
 
         using var doc = JsonDocument.Parse(body);
-        Assert.Equal(stored, doc.RootElement.GetProperty("input").GetProperty("json").GetString());
+        Assert.Equal(stored, doc.RootElement.GetProperty("input").GetProperty("json").GetRawText());
+        Assert.Contains($"\"json\":{stored}", body, StringComparison.Ordinal);
     }
 
     [Theory]

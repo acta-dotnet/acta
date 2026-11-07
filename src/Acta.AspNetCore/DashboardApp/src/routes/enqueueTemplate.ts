@@ -3,7 +3,7 @@
 // holds JSON text, never a parsed value, so a clone or a typed number keeps every digit (lib/rawJson.ts).
 
 import type { DefinitionInputTemplate } from '../api.ts';
-import { jsonError, prettyJson, RawJson } from '../lib/rawJson.ts';
+import { jsonError, jsonPayload, prettyJson, type RawJson } from '../lib/rawJson.ts';
 
 // The muted contract line under the job-name field. Null when this host does not know the job, so
 // the form shows nothing rather than an empty hint.
@@ -32,13 +32,13 @@ export function cloneInputState(json: string | null | undefined): string | null 
   return prettyJson(json);
 }
 
-// The enqueue input field: the editor's JSON text sent verbatim, or nothing when input is disabled. A
-// literal null is blocked with a clear message (mirroring amendBody): the backend reads null as "no
-// field", so submitting it would silently enqueue a no-input job.
+// The enqueue input field: the editor's JSON text sent verbatim in the payload envelope, or nothing when
+// input is disabled. A literal null is blocked with a clear message (mirroring amendBody): the backend
+// reads it as no json member, so submitting it would be refused.
 export function enqueueInputFields(include: boolean, json: string): { fields: { input?: RawJson } } | { error: string } {
   if (!include) return { fields: {} };
   const error = jsonError(json);
   if (error) return { error };
   if (json.trim() === 'null') return { error: 'A null input cannot be stored.' };
-  return { fields: { input: new RawJson(json) } };
+  return { fields: { input: jsonPayload(json) } };
 }

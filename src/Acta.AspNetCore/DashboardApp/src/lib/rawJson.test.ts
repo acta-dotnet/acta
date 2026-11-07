@@ -1,7 +1,7 @@
 // Run with Node's built-in test runner (see "npm test").
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { jsonError, prettyJson, RawJson, stringifyBody } from './rawJson.ts';
+import { jsonError, jsonPayload, prettyJson, quotePayloadJson, RawJson, stringifyBody } from './rawJson.ts';
 
 const big = '{"orderId":9007199254740993,"amount":0.1000000000000000055}';
 
@@ -41,4 +41,29 @@ test('jsonError is null for one JSON value and a message otherwise', () => {
   assert.equal(jsonError('"text"'), null);
   assert.notEqual(jsonError('{broken'), null);
   assert.notEqual(jsonError('hello'), null);
+});
+
+test('jsonPayload wraps the text as the envelope json member, verbatim', () => {
+  assert.equal(stringifyBody({ input: jsonPayload(big) }), `{"input":{"json":${big}}}`);
+});
+
+test('quotePayloadJson turns each json member into its exact text and leaves the rest alone', () => {
+  const response = `{"input":{"json": ${big},"formatId":1,"formatName":"json"},"result":{"json":"text","formatId":1},"n":2}`;
+  const parsed = JSON.parse(quotePayloadJson(response));
+  assert.equal(parsed.input.json, big);
+  assert.equal(parsed.input.formatName, 'json');
+  assert.equal(parsed.result.json, '"text"');
+  assert.equal(parsed.n, 2);
+});
+
+test('quotePayloadJson keeps a nested json key, brackets, and quotes inside the embedded text', () => {
+  const embedded = '{"json":[1,{"a":"x\\"}]"}],"b":null}';
+  const parsed = JSON.parse(quotePayloadJson(`{"items":[{"value":{"json":${embedded},"formatId":1}},{"value":{"json":true}}]}`));
+  assert.equal(parsed.items[0].value.json, embedded);
+  assert.equal(parsed.items[1].value.json, 'true');
+});
+
+test('quotePayloadJson leaves text without a json member as it is', () => {
+  const text = '{"formatName":"json","items":["json"]}';
+  assert.equal(quotePayloadJson(text), text);
 });

@@ -1221,11 +1221,11 @@
       }
     },
     "/v1/jobs/{jobRef}/input": {
-      "post": {
+      "put": {
         "tags": [
           "Jobs"
         ],
-        "summary": "Amend a waiting job's stored input.",
+        "summary": "Replace a waiting job's stored input.",
         "operationId": "updateJobInput",
         "parameters": [
           {
@@ -1463,7 +1463,9 @@
                 "jobNamespace": "billing",
                 "jobName": "send-invoice",
                 "input": {
-                  "invoiceId": 42
+                  "json": {
+                    "invoiceId": 42
+                  }
                 },
                 "deduplicationKey": "invoice-42",
                 "lane": "reports",
@@ -9231,20 +9233,14 @@
             "type": "string"
           },
           "input": {
-            "description": "Any JSON value, kept as sent."
-          },
-          "base64": {
-            "type": [
-              "null",
-              "string"
+            "oneOf": [
+              {
+                "type": "null"
+              },
+              {
+                "$ref": "#/components/schemas/JobPayloadBody"
+              }
             ]
-          },
-          "formatId": {
-            "type": [
-              "null",
-              "integer"
-            ],
-            "format": "uint8"
           },
           "deduplicationKey": {
             "type": [
@@ -10279,7 +10275,6 @@
       "GetJobDetailResponse": {
         "required": [
           "job",
-          "input",
           "checkpoints",
           "schedules",
           "schedulesTotal"
@@ -10916,36 +10911,38 @@
         ]
       },
       "JobPayloadBody": {
-        "required": [
-          "formatName",
-          "formatId"
-        ],
         "type": "object",
         "properties": {
-          "formatName": {
+          "json": {
+            "description": "A JSON payload: the value itself, any JSON value."
+          },
+          "base64": {
             "type": "string"
           },
           "formatId": {
             "type": "integer",
             "format": "uint8"
           },
-          "json": {
-            "type": "string"
-          },
-          "base64": {
-            "type": "string"
+          "formatName": {
+            "type": "string",
+            "readOnly": true
           },
           "byteLength": {
             "type": "integer",
-            "format": "int64"
+            "format": "int64",
+            "readOnly": true
           },
           "truncated": {
-            "type": "boolean"
+            "type": "boolean",
+            "readOnly": true
           },
           "malformed": {
-            "type": "boolean"
+            "type": "boolean",
+            "readOnly": true
           }
-        }
+        },
+        "additionalProperties": false,
+        "description": "A payload inside a JSON body, in a request and in a response. A JSON payload is json, the value itself; any other format is base64, its bytes, with formatId. A request sends exactly one of json and base64: json alone or with formatId 1, or base64 with formatId 2 (bytes) or 128 to 255 (an application's own); the readOnly members are refused. A response always carries formatId and formatName, with json or base64, or with base64 and malformed true for stored JSON that is not one JSON value, or, past the server's inline limit, with byteLength and truncated true in place of the body. No envelope is no payload."
       },
       "JobPriorityCode": {
         "examples": [
@@ -14010,16 +14007,13 @@
         "description": "What setting a definition's policy overrides did, and the definition's version after the attempt."
       },
       "UpdateJobInputRequest": {
+        "required": [
+          "input"
+        ],
         "type": "object",
         "properties": {
           "input": {
-            "description": "Any JSON value, kept as sent."
-          },
-          "base64": {
-            "type": [
-              "null",
-              "string"
-            ]
+            "$ref": "#/components/schemas/JobPayloadBody"
           },
           "reasonMessage": {
             "type": [

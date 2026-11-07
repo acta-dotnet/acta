@@ -19,7 +19,7 @@ internal sealed record ListJobCheckpointsItem(
             item.Name,
             item.Status,
             item.DueAtUtc,
-            item.Value is { } value ? JobPayloadBody.From(value, maxInlineBytes) : null,
+            JobPayloadBody.From(item.Value, maxInlineBytes),
             item.CreatedAtUtc,
             item.ModifiedAtUtc
         );

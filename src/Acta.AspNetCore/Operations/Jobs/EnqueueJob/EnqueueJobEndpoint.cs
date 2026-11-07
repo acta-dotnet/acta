@@ -1,5 +1,3 @@
-using System.Text;
-using System.Text.Json;
 using Microsoft.AspNetCore.Builder;
 using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Routing;
@@ -42,58 +40,14 @@ internal static class EnqueueJobEndpoint
                         );
                     }
 
-                    var hasInput = body.Input is { ValueKind: not (JsonValueKind.Undefined or JsonValueKind.Null) };
-                    if (hasInput && body.Base64 is not null)
-                    {
-                        return ControlEndpointValidation.Problem(
-                            StatusCodes.Status400BadRequest,
-                            "Invalid request.",
-                            "At most one of input or base64 may be supplied."
-                        );
-                    }
-
-                    if (body.FormatId is not null && body.Base64 is null)
-                    {
-                        return ControlEndpointValidation.Problem(
-                            StatusCodes.Status400BadRequest,
-                            "Invalid request.",
-                            "formatId is only valid with base64."
-                        );
-                    }
-
                     JobPayload input;
-                    if (body.Base64 is not null)
+                    try
                     {
-                        if (body.FormatId is not { } formatId || (formatId != JobPayloadFormat.Bytes.Id && formatId < 128))
-                        {
-                            return ControlEndpointValidation.Problem(
-                                StatusCodes.Status400BadRequest,
-                                "Invalid request.",
-                                "base64 requires a binary formatId (2 or 128..255)."
-                            );
-                        }
-
-                        byte[] decoded;
-                        try
-                        {
-                            decoded = Convert.FromBase64String(body.Base64);
-                        }
-                        catch (FormatException)
-                        {
-                            return ControlEndpointValidation.Problem(
-                                StatusCodes.Status400BadRequest,
-                                "Invalid request.",
-                                "base64 is not valid base64."
-                            );
-                        }
-
-                        input = JobPayload.FromBytes(JobPayloadFormat.ForId(formatId), decoded);
+                        input = body.Input?.ToPayload("input") ?? JobPayload.None;
                     }
-                    else
+                    catch (InvalidControlException ex)
                     {
-                        input = hasInput
-                            ? JobPayload.FromBytes(JobPayloadFormat.Json, Encoding.UTF8.GetBytes(body.Input!.Value.GetRawText()))
-                            : JobPayload.None;
+                        return ControlEndpointValidation.Problem(StatusCodes.Status400BadRequest, ex.Title, ex.Message);
                     }
 
                     var request = new Acta.EnqueueJobRequest(
@@ -150,7 +104,7 @@ internal static class EnqueueJobEndpoint
                 {
                   "jobNamespace": "billing",
                   "jobName": "send-invoice",
-                  "input": { "invoiceId": 42 },
+                  "input": { "json": { "invoiceId": 42 } },
                   "deduplicationKey": "invoice-42",
                   "lane": "reports",
                   "concurrencyKey": "customer:42",

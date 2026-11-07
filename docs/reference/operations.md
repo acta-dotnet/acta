@@ -108,7 +108,7 @@ One row per operation folder, `src/Acta/Operations/<Group>/<Operation>/`, and on
 | `ResetJobState` | · | · | · | inline | `checkpoints`, `events`, `steps` | `ResetJobStateSpec` |
 | `RestartJob` | `IJobs.RestartAsync` | `POST /jobs/{jobRef}/restart` (`restartJob`) | `restart` | inline | `checkpoints`, `events`, `jobs_state`, `schedules_state`, `steps` | `RestartJobSpec` |
 | `ResumeJob` | `IJobs.ResumeAsync` | `POST /jobs/{jobRef}/resume` (`resumeJob`) | `resume` | inline | `events`, `jobs_state`, `schedules_state` | `ResumeJobSpec` |
-| `UpdateJobInput` | `IJobs.UpdateInputAsync` | `POST /jobs/{jobRef}/input` (`updateJobInput`) | · | inline | `events`, `jobs` | `UpdateJobInputSpec` |
+| `UpdateJobInput` | `IJobs.UpdateInputAsync` | `PUT /jobs/{jobRef}/input` (`updateJobInput`) | · | inline | `events`, `jobs` | `UpdateJobInputSpec` |
 
 `IJobs.RunAndWaitAsync` runs `EnqueueJob`, `GetJob`, `GetJobId`, `GetJobResult`.
 

@@ -1,6 +1,6 @@
 import { writable } from 'svelte/store';
 import { advanceNow } from './time.ts';
-import { RawJson, stringifyBody } from './lib/rawJson.ts';
+import { quotePayloadJson, RawJson, stringifyBody } from './lib/rawJson.ts';
 import type { JobDetail, JobExplanation, JobLineage, JobWorker } from './routes/job-detail/types.ts';
 
 export const online = writable(true);
@@ -57,11 +57,12 @@ interface ParsedJson {
   valid: boolean;
 }
 
+// A payload envelope's json member arrives as its exact text (lib/rawJson.ts), never as a rebuilt value.
 async function parseJson(response: Response): Promise<ParsedJson> {
   const text = await response.text();
   if (!text) return { body: null, valid: false };
   try {
-    return { body: JSON.parse(text) as unknown, valid: true };
+    return { body: JSON.parse(quotePayloadJson(text)) as unknown, valid: true };
   } catch {
     return { body: null, valid: false };
   }
@@ -584,10 +585,9 @@ export async function archiveCalendar(
   );
 }
 
-// Format-dispatched payload projection served by the input/result/checkpoint reads (part of the
-// always-on read surface). The consumer reads whichever body field the `format` names: json -> the stored
-// JSON text (never parsed, see lib/rawJson.ts), none -> no body field, any other format (bytes or a
-// consumer-defined id) -> base64. A stored json row that is not strict JSON ships as base64 with
+// The payload envelope the detail and checkpoint reads carry; no envelope is no payload. A json payload's
+// `json` is the embedded value's exact text, as parseJson keeps it (lib/rawJson.ts); any other format (bytes
+// or a consumer-defined id) is base64. A stored json row that is not strict JSON ships as base64 with
 // `malformed` set. A payload past the server's size cap ships no body field: `truncated` is true and
 // `byteLength` carries its stored size. PayloadView.svelte dispatches on `formatName` and renders the match.
 export interface JobPayloadView {
@@ -617,13 +617,13 @@ export interface JobScheduleView {
 
 // GET /jobs/{jobRef}/detail: the whole job screen in one aggregate so a lightweight job renders from a
 // single request. Composed server-side after one job-id resolution; the input/result/checkpoint
-// payloads are size-capped exactly like the standalone reads were. An absent result or empty
-// schedule/worker set is a null/empty field. The unbounded event history keeps its own paged
-// endpoint (JobEventsPanel), so it is not part of this shape.
+// payloads are size-capped. An absent input or result, or an empty schedule/worker set, is a missing,
+// null, or empty field. The unbounded event history keeps its own paged endpoint (JobEventsPanel), so
+// it is not part of this shape.
 export interface JobDetailView {
   job: JobDetail;
-  input: JobPayloadView;
-  result: JobPayloadView | null;
+  input?: JobPayloadView | null;
+  result?: JobPayloadView | null;
   // The first page; GET /jobs/{ref}/checkpoints continues it from nextCursor.
   checkpoints: Paged<JobCheckpoint>;
   explain: JobExplanation | null;
@@ -721,8 +721,8 @@ export interface EnqueueTag {
 
 // Enqueue a job through POST /jobs. A 201 returns the ref + action; validation (400), an enqueue
 // rejection (409), and an over-size input (413) all throw an ApiError carrying the problem detail so
-// the form can surface it inline. `input` is the operator's JSON text, sent verbatim; an absent input
-// stays absent.
+// the form can surface it inline. `input` is the payload envelope around the operator's JSON text, sent
+// verbatim (jsonPayload in lib/rawJson.ts); an absent input stays absent.
 export async function enqueueJob(spec: EnqueueJobRequest): Promise<JobEnqueueResult> {
   const { response, body } = await request<JobEnqueueResult>({
     path: 'jobs',

@@ -51,6 +51,7 @@ internal static partial class ActaOpenApiDocument
     public static readonly Dictionary<string, string[]> HandlerRequiredMembers = new(StringComparer.Ordinal)
     {
         ["EnqueueJobRequest"] = ["jobNamespace", "jobName"],
+        ["UpdateJobInputRequest"] = ["input"],
         ["TagInput"] = ["name"],
         ["SaveCalendarDraftRequest"] = ["role", "definition", "expectedLatestVersion"],
         ["PublishCalendarRequest"] = ["candidateVersion", "expectedCurrentVersion"],
@@ -390,7 +391,8 @@ internal static partial class ActaOpenApiDocument
             var jsonRequired = Marker(schema, RequiredMarker);
             if (requests.Contains(name) && responses.Contains(name))
             {
-                throw new InvalidOperationException($"{name} is both a request and a response; say which members each direction requires.");
+                ShapeEnvelope(name, schema, properties);
+                continue;
             }
 
             if (responses.Contains(name))
@@ -545,6 +547,40 @@ internal static partial class ActaOpenApiDocument
                 }
             }
         }
+    }
+
+    /// <summary>The payload envelope's members a response alone carries: readOnly in the document, refused in a request.</summary>
+    public static readonly string[] EnvelopeResponseOnly = ["formatName", "byteLength", "truncated", "malformed"];
+
+    private const string EnvelopeDescription =
+        "A payload inside a JSON body, in a request and in a response. A JSON payload is json, the value itself; any other "
+        + "format is base64, its bytes, with formatId. A request sends exactly one of json and base64: json alone or with "
+        + "formatId 1, or base64 with formatId 2 (bytes) or 128 to 255 (an application's own); the readOnly members are "
+        + "refused. A response always carries formatId and formatName, with json or base64, or with base64 and malformed "
+        + "true for stored JSON that is not one JSON value, or, past the server's inline limit, with byteLength and "
+        + "truncated true in place of the body. No envelope is no payload.";
+
+    // The payload envelope is the one schema both directions share. Which of its members appear depends on the payload,
+    // so none is required and the description says which; a member is never null in either direction.
+    private static void ShapeEnvelope(string name, OpenApiSchema schema, IDictionary<string, IOpenApiSchema> properties)
+    {
+        if (name != nameof(JobPayloadBody))
+        {
+            throw new InvalidOperationException($"{name} is both a request and a response; say which members each direction requires.");
+        }
+
+        foreach (var (member, property) in properties.ToList())
+        {
+            properties[member] = WithoutNull(property);
+            if (EnvelopeResponseOnly.Contains(member) && properties[member] is OpenApiSchema responseOnly)
+            {
+                responseOnly.ReadOnly = true;
+            }
+        }
+        properties["json"] = new OpenApiSchema { Description = "A JSON payload: the value itself, any JSON value." };
+        schema.Required = null;
+        schema.AdditionalPropertiesAllowed = false;
+        schema.Description = EnvelopeDescription;
     }
 
     // One schema per enum, a non-null string under the enum's name, and every use a reference to it: nullable where the

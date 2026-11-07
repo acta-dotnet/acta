@@ -42,8 +42,8 @@ describe('PayloadView', () => {
     expect(container.textContent).toContain('3 bytes');
   });
 
-  it('renders a muted placeholder for none', () => {
-    render(PayloadView, { payload: { formatName: 'none', formatId: 0 } });
+  it('renders a muted placeholder for no payload', () => {
+    render(PayloadView, { payload: null });
     expect(screen.getByText('No payload')).toBeTruthy();
     expect(screen.queryByRole('button', { name: 'Edit' })).toBeNull();
   });

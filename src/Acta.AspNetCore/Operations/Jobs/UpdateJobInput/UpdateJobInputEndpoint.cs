@@ -1,5 +1,3 @@
-using System.Text;
-using System.Text.Json;
 using Microsoft.AspNetCore.Builder;
 using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Routing;
@@ -7,15 +5,14 @@ using Microsoft.AspNetCore.Routing;
 namespace Acta.AspNetCore;
 
 /// <summary>
-/// POST /jobs/{jobRef}/input: amend a job's stored input, round-tripping the job's own payload format.
-/// A no-input job has nothing to amend (409); an over-size payload surfaces as 413; an in-flight job is
-/// rejected (409) by the verb.
+/// PUT /jobs/{jobRef}/input: replace a job's stored input with the body's envelope. A no-input job has nothing to replace
+/// (409); an over-size payload surfaces as 413; an in-flight job is rejected (409) by the verb.
 /// </summary>
 internal static class UpdateJobInputEndpoint
 {
     public static void Map(RouteGroupBuilder controls, ActaEndpointOptions options) =>
         controls
-            .MapPost(
+            .MapPut(
                 "/jobs/{jobRef}/input",
                 async Task<IResult> (string jobRef, HttpContext http, IJobs jobs, CancellationToken ct) =>
                 {
@@ -39,14 +36,19 @@ internal static class UpdateJobInputEndpoint
                         return error;
                     }
 
-                    var hasInput = body!.Input is { ValueKind: not (JsonValueKind.Undefined or JsonValueKind.Null) };
-                    if (hasInput == (body.Base64 is not null))
+                    if (body!.Input is not { } envelope)
                     {
-                        return ControlEndpointValidation.Problem(
-                            StatusCodes.Status400BadRequest,
-                            "Invalid request.",
-                            "Exactly one of input or base64 is required."
-                        );
+                        return ControlEndpointValidation.Problem(StatusCodes.Status400BadRequest, "Invalid request.", "input is required.");
+                    }
+
+                    JobPayload payload;
+                    try
+                    {
+                        payload = envelope.ToPayload("input");
+                    }
+                    catch (InvalidControlException ex)
+                    {
+                        return ControlEndpointValidation.Problem(StatusCodes.Status400BadRequest, ex.Title, ex.Message);
                     }
 
                     var reason = string.IsNullOrWhiteSpace(body.ReasonMessage) ? null : body.ReasonMessage.Trim();
@@ -55,9 +57,8 @@ internal static class UpdateJobInputEndpoint
                         return reasonError;
                     }
 
-                    // Resolve the job's current stored format before building the payload so every format
-                    // round-trips as itself. Neither early answer reads a status: an unresolvable ref is
-                    // NotFound, and a job with no stored input (none) is Rejected, since it has nothing to amend.
+                    // Neither early answer reads a status: an unresolvable ref is NotFound, and a job with no stored
+                    // input (none) is Rejected, since it has nothing to replace.
                     var status = ControlStatus.Job<UpdateJobInputResponse>();
                     var jobId = (await jobs.GetIdAsync(JobLookup.ByRef(parsed), ct))?.JobId;
                     if (jobId is null)
@@ -65,45 +66,27 @@ internal static class UpdateJobInputEndpoint
                         return RouteTable.Control(new UpdateJobInputResponse(0, ControlAction.NotFound, null, null), status);
                     }
 
-                    var current = (await jobs.GetInputAsync(JobLookup.ById(jobId.Value), ct))?.Input;
-                    if (current is not { } stored)
+                    if ((await jobs.GetInputAsync(JobLookup.ById(jobId.Value), ct))?.Input is not { } stored)
                     {
                         return RouteTable.Control(new UpdateJobInputResponse(jobId.Value, ControlAction.Rejected, null, null), status);
                     }
 
-                    var storedFormat = stored.Format;
-                    JobPayload payload;
-                    if (body.Base64 is not null)
+                    // A json input replaces any stored format, and the runner decodes by the new id. Bytes keep the
+                    // job's own binary format, so the handler's deserializer still reads them.
+                    if (payload.Format.Id != JobPayloadFormat.Json.Id)
                     {
-                        if (storedFormat.Id != JobPayloadFormat.Bytes.Id && storedFormat.Id < 128)
+                        if (payload.Format.Id != stored.Format.Id)
                         {
                             return ControlEndpointValidation.Problem(
                                 StatusCodes.Status400BadRequest,
                                 "Format mismatch.",
-                                $"base64 can only amend a binary-format job; this job's input format is {storedFormat.Name}."
+                                stored.Format.Id == JobPayloadFormat.Json.Id
+                                    ? "input.base64 replaces only a binary-format input; this job's input format is json."
+                                    : $"input.formatId must be this job's input format, {stored.Format.Id} ({stored.Format.Name})."
                             );
                         }
 
-                        byte[] decoded;
-                        try
-                        {
-                            decoded = Convert.FromBase64String(body.Base64);
-                        }
-                        catch (FormatException)
-                        {
-                            return ControlEndpointValidation.Problem(
-                                StatusCodes.Status400BadRequest,
-                                "Invalid request.",
-                                "base64 is not valid base64."
-                            );
-                        }
-
-                        payload = JobPayload.FromBytes(storedFormat, decoded);
-                    }
-                    else
-                    {
-                        // Json fallback: accepted for any non-none stored format; the runner decodes by the stored id.
-                        payload = JobPayload.FromBytes(JobPayloadFormat.Json, Encoding.UTF8.GetBytes(body.Input!.Value.GetRawText()));
+                        payload = JobPayload.CopyBytes(stored.Format, payload.Data.Span);
                     }
 
                     // Operator identity for the audit trail comes from the authenticated principal, never the
@@ -120,7 +103,7 @@ internal static class UpdateJobInputEndpoint
                     }
                 }
             )
-            .WithSummary("Amend a waiting job's stored input.")
+            .WithSummary("Replace a waiting job's stored input.")
             // The body is read manually rather than bound, so the document only learns its shape here.
             .AcceptsJson<UpdateJobInputRequest>()
             .Produces<UpdateJobInputResponse>(StatusCodes.Status200OK)

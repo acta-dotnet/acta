@@ -94,7 +94,7 @@ public sealed class JobCheckpointsEndpointTests
         var value = items[0].GetProperty("value");
         Assert.Equal("json", value.GetProperty("formatName").GetString());
         Assert.Equal(JobPayloadFormat.Json.Id, value.GetProperty("formatId").GetByte());
-        Assert.Equal("{\"count\":3}", value.GetProperty("json").GetString());
+        Assert.Equal("{\"count\":3}", value.GetProperty("json").GetRawText());
         Assert.Equal("signal", items[1].GetProperty("kind").GetString());
         Assert.Equal("pending", items[1].GetProperty("status").GetString());
         Assert.False(items[1].TryGetProperty("value", out _));
