@@ -854,6 +854,10 @@ table.data td button { padding: 2px 10px; font-size: var(--text-sm); }
    row's slack, which pushed the neighbouring name column far right on wide screens. */
 table.data th.shrink,
 table.data td.shrink { width: 1%; white-space: nowrap; }
+/* Grow column (the jobs list name): takes the row's slack, and gives it back first when the panel is
+   narrow, ending its text in an ellipsis, so the last columns stay in view. */
+table.data th.grow,
+table.data td.grow { width: 100%; max-width: 0; overflow: hidden; text-overflow: ellipsis; }
 table.data tr:last-child td { border-bottom: none; }
 /* Opt a cell out of the single-line row rhythm, for prose columns like a change reason. */
 table.data td.wrap { white-space: normal; }
@@ -1436,6 +1440,7 @@ button.copy:hover { color: var(--accent); }
   }
   table.data.mobile-cards td:first-child { grid-column: 1 / -1; }
   table.data.mobile-cards td.mobile-hide { display: none; }
+  table.data.mobile-cards td.grow { max-width: none; }
   /* A column whose values are too wide to pair takes the card's whole row. */
   table.data.mobile-cards td.mobile-wide { grid-column: 1 / -1; }
   table.data.mobile-cards td.col-actions { grid-column: 1 / -1; }

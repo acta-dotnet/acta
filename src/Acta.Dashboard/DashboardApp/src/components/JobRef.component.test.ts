@@ -15,6 +15,16 @@ describe('JobRef', () => {
     expect(container.querySelector('a.jobref')?.getAttribute('href')).toBe('#/jobs/x');
   });
 
+  it('shows the tag and the last 8 digits when compact, and keeps the whole ref in the text and the name', () => {
+    const value = 'job_019f71ce69e07b85bf41fc7bf0562501';
+    const { container } = render(JobRef, { value, href: '#/jobs/x', compact: true });
+    expect(container.querySelector('.ref-head')?.textContent).toBe('job_');
+    expect(container.querySelector('.ref-tail')?.textContent).toBe('f0562501');
+    const link = container.querySelector('a.jobref');
+    expect(link?.textContent).toBe(value);
+    expect(link?.getAttribute('aria-label')).toBe(value);
+  });
+
   it('renders non-ref values unsplit', () => {
     const { container } = render(JobRef, { value: 'anvil/r-1/always-fails/49' });
     expect(container.querySelector('.ref-head')).toBeNull();

@@ -164,6 +164,7 @@ Not tagged yet.
 - `JobLookup.ByRef`, and so every `IJobs` call given a `JobRef`, takes the all-zero job ref, `job_` and 32 zeros, as the well-formed ref no job is minted with, and finds nothing, as an alert's or a worker's all-zero ref already did. It threw `ArgumentException`, so a job read and a `jobRef` filter answered 500, a control answered 400, the CLI failed with exit code 1, and an app's own route that binds a `JobRef`, as the first-job sample's do, answered 500. Each now answers the miss: 404 on Acta's routes, null from a read, and exit code 2 from the CLI.
 - The namespaces, definitions, and calendars lists' `nameContains` trims its fragment, where a padded one was the 400, and a blank one filters nothing. The namespaces list's takes a dot as the others do, so `billing.eu` finds the dotted namespace it names.
 - The dashboard's Schedules page said a schedule is synced at host startup, where a deploy writes it: `jobs deploy`, `jobs migrate`, or a `MigrateOnStartup` start in a namespace neither has deployed.
+- In a 1440 px window the dashboard's jobs table ran past its panel and hid the Next run and Attempts columns. A ref in the list now shows its tag and last 8 digits, with the whole ref in its tooltip and copy button, and the job name takes the spare width and ends in an ellipsis when the panel is narrow.
 
 ## 1.0.0-rc.8
 

@@ -113,6 +113,8 @@ async function mockDashboard(
     onDiscard?: (body: unknown) => void;
     // The rows the Workers list reads; none unless a test names them.
     workers?: unknown[];
+    // The rows the Jobs list reads; the one failed job unless a test names them.
+    jobs?: unknown[];
     // The permissions capabilities say the caller holds; all four unless a test names them.
     permissions?: string[];
     // Set, a restart answers 403 as a revoked grant would.
@@ -160,7 +162,7 @@ async function mockDashboard(
         scheduleLagSeconds: null
       });
     }
-    if (path === 'jobs' && request.method() === 'GET') return json(paged([job]));
+    if (path === 'jobs' && request.method() === 'GET') return json(paged(options.jobs ?? [job]));
     if (path === 'jobs' && request.method() === 'POST') {
       options.onEnqueue?.(request.postDataJSON());
       return json({ jobRef, action: 'inserted' }, 201);
@@ -712,6 +714,28 @@ test('Jobs and Job Detail fit a mobile viewport without page overflow', async ({
   // The detail crumb titles the page with the durable ref; the name lives in the hero meta.
   await expect(page.getByRole('heading', { name: jobRef })).toBeVisible();
   expect(await page.evaluate(() => document.documentElement.scrollWidth <= window.innerWidth)).toBe(true);
+});
+
+// A first look across namespaces: the system jobs, a permanent job many firings in, a tenant's job, and a failed one.
+const firstLookJobs = [
+  { ...job, jobRef: 'job_019f9b3509487d1b911f2020158384b1', jobNamespace: 'quickstart', jobName: 'sys.retention', status: 'idle', executionNumber: 28, failureCount: 0, deduplicationKey: null },
+  { ...job, jobRef: 'job_019f9b3509487d1b911f2020158384b2', jobNamespace: 'quickstart', jobName: 'sys.outbox', status: 'executing', executionNumber: 1412, failureCount: 0, deduplicationKey: null },
+  { ...job, jobRef: 'job_019f9b3509487d1b911f2020158384b3', jobNamespace: 'quickstart', jobName: 'reports.nightly-revenue-summary', status: 'idle', executionNumber: 28, failureCount: 0, deduplicationKey: null },
+  { ...job, jobRef: 'job_019f9b3509487d1b911f2020158384b4', jobNamespace: 'quickstart', jobName: 'send-invoice', tenantName: 'acme-industries', status: 'ready', nextRunAtUtc: '2026-07-14T08:05:00Z', executionNumber: 3, failureCount: 2 },
+  { ...job, jobRef: 'job_019f9b3509487d1b911f2020158384b5', jobNamespace: 'quickstart', jobName: 'send-invoice', tenantName: 'globex', executionNumber: 15, failureCount: 15 }
+];
+
+test('the Jobs table shows every column at a 1440 px viewport', async ({ page }) => {
+  await page.setViewportSize({ width: 1440, height: 900 });
+  await mockDashboard(page, { controls: true, jobs: firstLookJobs });
+  await page.goto('/#/jobs');
+
+  const wrap = page.locator('.table-wrap');
+  await expect(wrap.getByRole('link', { name: /reports\.nightly-revenue-summary/ })).toBeVisible();
+  expect(await wrap.evaluate((el) => el.scrollWidth <= el.clientWidth)).toBe(true);
+  const wrapBox = (await wrap.boundingBox())!;
+  const attemptsBox = (await wrap.getByRole('columnheader', { name: 'Attempts' }).boundingBox())!;
+  expect(attemptsBox.x + attemptsBox.width).toBeLessThanOrEqual(wrapBox.x + wrapBox.width);
 });
 
 test('appearance defaults, themes, accents, text sizing, persistence, and reset stay coherent', async ({ page }) => {

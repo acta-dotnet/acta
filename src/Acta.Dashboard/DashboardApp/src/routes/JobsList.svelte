@@ -56,7 +56,7 @@
 
   const columns: ColumnDef<JobRow>[] = [
     { key: 'jobRef', header: 'Ref', class: 'shrink' },
-    { key: 'job', header: 'Job' },
+    { key: 'job', header: 'Job', class: 'grow' },
     { key: 'status', header: 'Status' },
     { key: 'jobNamespace', header: 'Namespace', class: 'mobile-hide', dimRepeats: true },
     { key: 'tenant', header: 'Tenant', class: 'mobile-hide' },
@@ -197,10 +197,10 @@
     <ActiveFilters chips={activeChips} onClearAll={clearAllFilters} />
 
     {#snippet refCell(job: JobRow)}
-      <JobRef value={job.jobRef} href={routes.job(job.jobRef, { namespace: $scope })} copy />
+      <JobRef value={job.jobRef} href={routes.job(job.jobRef, { namespace: $scope })} copy compact />
     {/snippet}
     {#snippet jobCell(job: JobRow)}
-      <a href={routes.job(job.jobRef, { namespace: $scope })}>
+      <a href={routes.job(job.jobRef, { namespace: $scope })} title={job.jobName}>
         {job.jobName} {#if job.jobName?.startsWith('sys.')}<span class="badge held" title="Framework (sys.-prefixed) job">system</span>{/if}
       </a>
     {/snippet}
