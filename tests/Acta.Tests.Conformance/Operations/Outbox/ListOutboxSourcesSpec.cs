@@ -31,7 +31,7 @@ public sealed class ListOutboxSourcesSpec : OutboxRelayIntegrationBase
                     JobRef = jobRef,
                     NamespaceId = NamespaceId,
                     DefinitionId = definitionId,
-                    Kind = JobKindCode.PermanentSlot,
+                    Kind = JobKindCode.Permanent,
                     InputFormatId = 1,
                     Input = [0],
                     EventRecording = EventRecordingCode.Off,

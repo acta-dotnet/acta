@@ -21,8 +21,8 @@ public enum JobKindCode : byte
     Ordinary = 10,
 
     [Code(
-        "permanent-slot",
+        "permanent",
         "The one reusable job of a scheduled definition: registering the definition creates it, every firing of the definition's schedules runs through it, and it never ends by itself."
     )]
-    PermanentSlot = 20,
+    Permanent = 20,
 }

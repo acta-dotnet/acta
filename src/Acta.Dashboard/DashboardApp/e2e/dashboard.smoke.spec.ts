@@ -301,7 +301,7 @@ test('events feed reads a linked job\'s events and shows their subject, message,
   await expect(page.getByRole('link', { name: jobRef })).toBeVisible();
 });
 
-test('the Permanent jobs view lists jobs by the permanent-slot kind code', async ({ page }) => {
+test('the Permanent jobs view lists jobs by the permanent kind code', async ({ page }) => {
   await mockDashboard(page, { controls: false });
   await page.goto('/#/jobs?ns=billing');
   const listRequest = page.waitForRequest((request) => {
@@ -312,7 +312,7 @@ test('the Permanent jobs view lists jobs by the permanent-slot kind code', async
   const nav = page.getByRole('link', { name: 'Permanent jobs' });
   await nav.click();
 
-  expect(new URL((await listRequest).url()).searchParams.get('kind')).toBe('permanent-slot');
+  expect(new URL((await listRequest).url()).searchParams.get('kind')).toBe('permanent');
   await expect(page.getByRole('heading', { name: 'Permanent jobs' })).toBeVisible();
   await expect(nav).toHaveClass(/active/);
 });

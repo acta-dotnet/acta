@@ -230,7 +230,7 @@ BEGIN
                     AND c.due_at_utc = r.next_run_at_utc
             ) AS wait_resolved,
             -- A slot's spent budget returns it to Idle with its firing settled Failed, never to Failed itself.
-            j.job_kind_code = 20 /* JobKindCode.PermanentSlot */ AS is_slot
+            j.job_kind_code = 20 /* JobKindCode.Permanent */ AS is_slot
         FROM {{schema}}.jobs_state r
         INNER JOIN {{schema}}.jobs j ON j.job_id = r.job_id
         INNER JOIN {{schema}}.definitions jd ON jd.definition_id = j.definition_id

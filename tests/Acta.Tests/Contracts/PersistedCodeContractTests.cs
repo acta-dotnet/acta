@@ -118,7 +118,7 @@ public sealed class PersistedCodeContractTests
         FiringFailurePolicyCode.PauseScheduling=20|pause-scheduling
         JobKindCode.Unspecified=0|unspecified
         JobKindCode.Ordinary=10|ordinary
-        JobKindCode.PermanentSlot=20|permanent-slot
+        JobKindCode.Permanent=20|permanent
         JobPriorityCode.Bulk=0|bulk
         JobPriorityCode.Normal=50|normal
         JobPriorityCode.High=70|high
@@ -212,7 +212,7 @@ public sealed class PersistedCodeContractTests
         WorkerStatusCode.Dead=200|dead
         """;
 
-    private const string ExpectedDescriptionHash = "23F8A6A48C1692C310DB50CFD0962F40C1702F0D5F0A85810FDF81305968A4A5";
+    private const string ExpectedDescriptionHash = "03196206964D07A926D43A9A00A6FC443D2C326AFBB88BE849147794A3431CF2";
 
     [Fact]
     public void Frozen_contract_covers_all_35_families_and_201_values()

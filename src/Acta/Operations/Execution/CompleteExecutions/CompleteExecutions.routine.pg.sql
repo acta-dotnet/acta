@@ -312,7 +312,7 @@ BEGIN
             AND cp.checkpoint_status_code = 10 /* CheckpointStatusCode.Pending */
             AND c.job_id = ANY (v_done)
             AND (
-                (j.job_kind_code = 20 /* JobKindCode.PermanentSlot */ AND c.final_job_status_code IN (40 /* JobStatusCode.Idle */, 200 /* JobStatusCode.Failed */, 220 /* JobStatusCode.Cancelled */))
+                (j.job_kind_code = 20 /* JobKindCode.Permanent */ AND c.final_job_status_code IN (40 /* JobStatusCode.Idle */, 200 /* JobStatusCode.Failed */, 220 /* JobStatusCode.Cancelled */))
                 OR (j.schedule_id IS NOT NULL AND r.job_status_code IN (100 /* JobStatusCode.Succeeded */, 200 /* JobStatusCode.Failed */, 220 /* JobStatusCode.Cancelled */))
             );
 
@@ -364,7 +364,7 @@ BEGIN
                 AND js.schedule_status_code = 10 /* ScheduleStatusCode.Active */
                 AND c.job_id = ANY (v_done)
                 AND (
-                    (j.job_kind_code = 20 /* JobKindCode.PermanentSlot */ AND c.final_job_status_code = 40 /* JobStatusCode.Idle */ AND NOT c.succeeded)
+                    (j.job_kind_code = 20 /* JobKindCode.Permanent */ AND c.final_job_status_code = 40 /* JobStatusCode.Idle */ AND NOT c.succeeded)
                     OR (j.schedule_id IS NOT NULL AND r.job_status_code = 200 /* JobStatusCode.Failed */)
                 )
                 AND jd.firing_failure_policy_code = 20 /* FiringFailurePolicyCode.PauseScheduling */

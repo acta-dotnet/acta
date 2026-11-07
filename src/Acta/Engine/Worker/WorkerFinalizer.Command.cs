@@ -86,7 +86,7 @@ internal sealed partial class WorkerFinalizer
             HasParent = job.ParentJobId is not null,
             HasSchedule = job.ScheduleId is not null,
         };
-        return job.Kind == JobKindCode.PermanentSlot
+        return job.Kind == JobKindCode.Permanent
             ? command with
             {
                 FinalStatus = JobStatusCode.Cancelled,
@@ -104,7 +104,7 @@ internal sealed partial class WorkerFinalizer
         (int Attempted, int DelaySeconds, bool InBudget) retry
     )
     {
-        var slot = job.Kind == JobKindCode.PermanentSlot;
+        var slot = job.Kind == JobKindCode.Permanent;
         // Resolved once and passed on every completion shape; complete_executions stamps it onto
         // jobs_state.retention_until_utc only at a terminal landing (Succeeded/Failed/Cancelled) and ignores it on
         // re-arm / suspend / pause. Per-definition policy with the framework default as the fallback.

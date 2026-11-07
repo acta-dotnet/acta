@@ -38,7 +38,7 @@ public sealed class FrameworkJobRegistrationSpec : ActaRuntimeTestBase<Conforman
 
         // The permanent slot is the definition's one job of its kind; it carries no key.
         var slot = await Db.From<JobEntity>()
-            .Where(j => j.DefinitionId == def.Id && j.Kind == JobKindCode.PermanentSlot)
+            .Where(j => j.DefinitionId == def.Id && j.Kind == JobKindCode.Permanent)
             .SingleOrDefaultAsync(ct);
         Assert.NotNull(slot);
         var slotRow = await ReadJobAsync(slot!.Id, ct);
@@ -63,7 +63,7 @@ public sealed class FrameworkJobRegistrationSpec : ActaRuntimeTestBase<Conforman
 
         // The permanent slot is the definition's one job of its kind; it carries no key.
         var slot = await Db.From<JobEntity>()
-            .Where(j => j.DefinitionId == def.Id && j.Kind == JobKindCode.PermanentSlot)
+            .Where(j => j.DefinitionId == def.Id && j.Kind == JobKindCode.Permanent)
             .SingleOrDefaultAsync(ct);
         Assert.NotNull(slot);
         var slotRow = await ReadJobAsync(slot!.Id, ct);

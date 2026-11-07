@@ -73,7 +73,7 @@ parked AS (
             10 /* JobStatusCode.Ready */, 15 /* JobStatusCode.Blocked */, 20 /* JobStatusCode.Suspended */, 30 /* JobStatusCode.Paused */, 40 /* JobStatusCode.Idle */
         )
         AND (r.lane_id IS NULL OR r.lane_id IN (SELECT rl.lane_id FROM _retire_lanes rl))
-        AND j.job_kind_code <> 20 /* JobKindCode.PermanentSlot */
+        AND j.job_kind_code <> 20 /* JobKindCode.Permanent */
     -- Locked here so the execution_number each event records is the one the sweep below cancels.
     FOR UPDATE OF r
 ),
@@ -86,7 +86,7 @@ slots AS (
     INNER JOIN {{schema}}.jobs_state r ON r.job_id = j.job_id
     WHERE
         j.definition_id IN (SELECT d.definition_id FROM retired d)
-        AND j.job_kind_code = 20 /* JobKindCode.PermanentSlot */
+        AND j.job_kind_code = 20 /* JobKindCode.Permanent */
         AND r.job_status_code IN (
             10 /* JobStatusCode.Ready */, 15 /* JobStatusCode.Blocked */, 20 /* JobStatusCode.Suspended */, 30 /* JobStatusCode.Paused */
         )

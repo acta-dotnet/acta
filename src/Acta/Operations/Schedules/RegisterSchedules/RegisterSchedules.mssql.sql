@@ -28,7 +28,7 @@ BEGIN TRY
     FROM {{schema}}.jobs AS j WITH (INDEX (ux_jobs_slot), FORCESEEK)
     INNER JOIN @p_definitions AS d ON d.definition_id = j.definition_id
     INNER JOIN {{schema}}.definitions AS jd WITH (FORCESEEK) ON jd.definition_id = d.definition_id
-    WHERE j.job_kind_code = 20 /* JobKindCode.PermanentSlot */;
+    WHERE j.job_kind_code = 20 /* JobKindCode.Permanent */;
 
     -- The declaration's priority reaches a slot between firings; one an attempt or an operator holds keeps its own.
     UPDATE r
@@ -41,7 +41,7 @@ BEGIN TRY
     INNER JOIN @p_definitions AS d ON d.definition_id = j.definition_id
     INNER JOIN {{schema}}.definitions AS jd WITH (FORCESEEK) ON jd.definition_id = d.definition_id
     WHERE
-        j.job_kind_code = 20 /* JobKindCode.PermanentSlot */
+        j.job_kind_code = 20 /* JobKindCode.Permanent */
         AND r.job_status_code = 40 /* JobStatusCode.Idle */
         AND r.job_priority_code <> jd.job_priority_code_effective;
 
@@ -53,7 +53,7 @@ BEGIN TRY
         created_at_utc
     )
     SELECT
-        20 /* JobKindCode.PermanentSlot */,
+        20 /* JobKindCode.Permanent */,
         d.job_ref,
         NULL,
         NULL,
@@ -73,7 +73,7 @@ BEGIN TRY
         AND NOT EXISTS (
             SELECT 1
             FROM {{schema}}.jobs AS j WITH (INDEX (ux_jobs_slot), FORCESEEK)
-            WHERE j.definition_id = d.definition_id AND j.job_kind_code = 20 /* JobKindCode.PermanentSlot */
+            WHERE j.definition_id = d.definition_id AND j.job_kind_code = 20 /* JobKindCode.Permanent */
         );
 
     INSERT INTO {{schema}}.jobs_state (
@@ -96,7 +96,7 @@ BEGIN TRY
     INNER JOIN {{schema}}.jobs AS j WITH (INDEX (ux_jobs_slot), FORCESEEK)
         ON
             j.definition_id = d.definition_id
-            AND j.job_kind_code = 20 /* JobKindCode.PermanentSlot */
+            AND j.job_kind_code = 20 /* JobKindCode.Permanent */
     INNER JOIN {{schema}}.definitions AS jd WITH (FORCESEEK) ON jd.definition_id = d.definition_id
     WHERE NOT EXISTS (
         SELECT 1 FROM {{schema}}.jobs_state AS r WITH (FORCESEEK)
@@ -114,7 +114,7 @@ BEGIN TRY
     INNER JOIN {{schema}}.jobs AS j WITH (INDEX (ux_jobs_slot), FORCESEEK)
         ON
             j.definition_id = d.definition_id
-            AND j.job_kind_code = 20 /* JobKindCode.PermanentSlot */;
+            AND j.job_kind_code = 20 /* JobKindCode.Permanent */;
 
     -- The schedule writes seek by key (docs/sql-internals.md, "Locking reads seek").
     /* A schedule whose timing changed is retimed: the old stream's undecided occurrences are discarded and the plan's

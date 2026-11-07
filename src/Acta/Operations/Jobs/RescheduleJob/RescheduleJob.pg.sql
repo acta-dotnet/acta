@@ -27,7 +27,7 @@ SELECT 1
 FROM (
     SELECT pg_advisory_xact_lock_shared(hashtext('{{schema}}.schedules'), j.namespace_id)
     FROM {{schema}}.jobs j
-    WHERE j.job_id = @p_job_id AND j.job_kind_code = 20 /* JobKindCode.PermanentSlot */
+    WHERE j.job_id = @p_job_id AND j.job_kind_code = 20 /* JobKindCode.Permanent */
 ) l;
 
 INSERT INTO _reschedule_job_lane (lane_id)
@@ -44,7 +44,7 @@ INSERT INTO _reschedule_job (
 SELECT
     r.job_status_code, r.version, r.lane_id, j.namespace_id, j.lineage_root_job_id, j.definition_id, j.tenant_id, r.execution_number,
     j.event_recording_code, 10 /* JobStatusCode.Ready */,
-    j.job_kind_code = 20 /* JobKindCode.PermanentSlot */
+    j.job_kind_code = 20 /* JobKindCode.Permanent */
         AND r.job_status_code IN (40 /* JobStatusCode.Idle */, 30 /* JobStatusCode.Paused */)
         AND NOT EXISTS (
             SELECT 1
@@ -54,11 +54,11 @@ SELECT
         ),
     (
         r.job_status_code IN (30 /* JobStatusCode.Paused */, 20 /* JobStatusCode.Suspended */, 10 /* JobStatusCode.Ready */, 15 /* JobStatusCode.Blocked */)
-        OR (r.job_status_code = 40 /* JobStatusCode.Idle */ AND j.job_kind_code = 20 /* JobKindCode.PermanentSlot */)
+        OR (r.job_status_code = 40 /* JobStatusCode.Idle */ AND j.job_kind_code = 20 /* JobKindCode.Permanent */)
     )
     -- A retired definition's slot is inert: no manual firing until a build that carries the definition starts.
     AND NOT (
-        j.job_kind_code = 20 /* JobKindCode.PermanentSlot */
+        j.job_kind_code = 20 /* JobKindCode.Permanent */
         AND EXISTS (
             SELECT 1 FROM {{schema}}.definitions d
             WHERE d.definition_id = j.definition_id AND d.definition_status_code = 240 /* DefinitionStatusCode.Retired */

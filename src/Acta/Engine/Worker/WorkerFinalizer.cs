@@ -592,7 +592,7 @@ internal sealed partial class WorkerFinalizer(
 
         // It settled a firing (a slot back to Idle or stopped, a per-occurrence root finished) and so made the schedules
         // waiting on it due: this host's schedule admitter takes them now instead of at its safety poll.
-        var scheduled = job.Kind == JobKindCode.PermanentSlot || job.ScheduleId is not null;
+        var scheduled = job.Kind == JobKindCode.Permanent || job.ScheduleId is not null;
         if (scheduled && (terminal || complete.FinalJobStatusCode == (byte)JobStatusCode.Idle))
         {
             await wakeupPublisher.WakeAsync(WorkerWakeupChannel.Admission(ns), WorkerWakeupReason.WorkAvailable, ct);

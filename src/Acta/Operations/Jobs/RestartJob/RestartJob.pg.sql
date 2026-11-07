@@ -40,7 +40,7 @@ SELECT
         WHEN @p_expected_version IS NOT NULL AND r.version <> @p_expected_version THEN 5 /* ControlAction.VersionConflict */
         WHEN r.job_status_code = 50 /* JobStatusCode.Executing */ THEN 3 /* ControlAction.Rejected */
         -- A slot whose firing is still outstanding is not restarted around it; one with none restarts Idle, for admission.
-        WHEN j.job_kind_code = 20 /* JobKindCode.PermanentSlot */ AND EXISTS (
+        WHEN j.job_kind_code = 20 /* JobKindCode.Permanent */ AND EXISTS (
             SELECT 1
             FROM {{schema}}.checkpoints cp
             WHERE cp.job_id = j.job_id AND cp.checkpoint_kind_code = 60 /* CheckpointKindCode.Firing */
@@ -48,7 +48,7 @@ SELECT
         ) THEN 3 /* ControlAction.Rejected */
         ELSE 1 /* ControlAction.Applied */
     END,
-    CASE WHEN j.job_kind_code = 20 /* JobKindCode.PermanentSlot */ THEN 40 /* JobStatusCode.Idle */ ELSE 10 /* JobStatusCode.Ready */ END
+    CASE WHEN j.job_kind_code = 20 /* JobKindCode.Permanent */ THEN 40 /* JobStatusCode.Idle */ ELSE 10 /* JobStatusCode.Ready */ END
 FROM {{schema}}.jobs_state r
 JOIN {{schema}}.jobs j ON j.job_id = r.job_id
 WHERE r.job_id = @p_job_id

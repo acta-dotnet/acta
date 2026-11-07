@@ -254,7 +254,7 @@ BEGIN
                     INNER JOIN {{schema}}.jobs j WITH (FORCESEEK) ON j.job_id = d.job_id
                     WHERE
                         d.job_status_code IN (40 /* JobStatusCode.Idle */, 200 /* JobStatusCode.Failed */, 220 /* JobStatusCode.Cancelled */)
-                        AND j.job_kind_code = 20 /* JobKindCode.PermanentSlot */
+                        AND j.job_kind_code = 20 /* JobKindCode.Permanent */
                         AND st.evaluation_status_code IN (20 /* ScheduleEvaluationStatusCode.WaitingForCapacity */, 50 /* ScheduleEvaluationStatusCode.SlotUnavailable */);
 
                     /* The envelope settles once: a slot's when the slot lands Idle, Failed, or Cancelled, a charged root's
@@ -277,7 +277,7 @@ BEGIN
                         AND cp.checkpoint_name = 'sys.firing'
                         AND cp.checkpoint_status_code = 10 /* CheckpointStatusCode.Pending */
                         AND (
-                            (j.job_kind_code = 20 /* JobKindCode.PermanentSlot */ AND d.job_status_code IN (40 /* JobStatusCode.Idle */, 200 /* JobStatusCode.Failed */, 220 /* JobStatusCode.Cancelled */))
+                            (j.job_kind_code = 20 /* JobKindCode.Permanent */ AND d.job_status_code IN (40 /* JobStatusCode.Idle */, 200 /* JobStatusCode.Failed */, 220 /* JobStatusCode.Cancelled */))
                             OR (j.schedule_id IS NOT NULL AND d.job_status_code IN (100 /* JobStatusCode.Succeeded */, 200 /* JobStatusCode.Failed */, 220 /* JobStatusCode.Cancelled */))
                         );
 
@@ -335,7 +335,7 @@ BEGIN
                     WHERE
                         js.schedule_status_code = 10 /* ScheduleStatusCode.Active */
                         AND (
-                            (f.job_kind_code = 20 /* JobKindCode.PermanentSlot */ AND f.job_status_code = 40 /* JobStatusCode.Idle */ AND f.succeeded = 0)
+                            (f.job_kind_code = 20 /* JobKindCode.Permanent */ AND f.job_status_code = 40 /* JobStatusCode.Idle */ AND f.succeeded = 0)
                             OR (f.schedule_id IS NOT NULL AND f.job_status_code = 200 /* JobStatusCode.Failed */)
                         )
                         AND jd.firing_failure_policy_code = 20 /* FiringFailurePolicyCode.PauseScheduling */;

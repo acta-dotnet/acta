@@ -295,7 +295,7 @@ This pattern makes raw values easier to scan in database rows, logs, and diagnos
 |---|---:|---|---|---|
 | `Unspecified` | 0 | `unspecified` | Job kind not recognized by this build; the row was written by a newer Acta. | Active |
 | `Ordinary` | 10 | `ordinary` | A job enqueued by an application, an operator, or a parent job's handler, or created by a schedule for one occurrence; it ends in a final status. | Active |
-| `PermanentSlot` | 20 | `permanent-slot` | The one reusable job of a scheduled definition: registering the definition creates it, every firing of the definition's schedules runs through it, and it never ends by itself. | Active |
+| `Permanent` | 20 | `permanent` | The one reusable job of a scheduled definition: registering the definition creates it, every firing of the definition's schedules runs through it, and it never ends by itself. | Active |
 
 ### `JobPayloadFormat` · `payload-format` <a id="code-family-jobpayloadformat"></a>
 

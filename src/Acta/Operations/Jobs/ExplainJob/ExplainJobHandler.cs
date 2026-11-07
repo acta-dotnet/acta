@@ -199,7 +199,7 @@ internal sealed class ExplainJobHandler(GetJobIdHandler getJobId, IDbSession ses
         // scheduler's own checkpoint, so this is where an operator learns why the verb was rejected. A per-occurrence
         // root carries one too, but restarts, and its schedule triggers again below capacity.
         if (
-            h.Kind == JobKindCode.PermanentSlot
+            h.Kind == JobKindCode.Permanent
             && status != JobStatusCode.Executing
             && data.Checkpoints.Any(c =>
                 c.CheckpointKind == CheckpointKindCode.Firing && c.CheckpointStatus == CheckpointStatusCode.Pending
@@ -299,7 +299,7 @@ internal sealed class ExplainJobHandler(GetJobIdHandler getJobId, IDbSession ses
             var budgetExhausted = h.FailureCount + 1 >= h.MaxAttemptsEffective;
             recovery = (budgetExhausted, h.Kind) switch
             {
-                (true, JobKindCode.PermanentSlot) =>
+                (true, JobKindCode.Permanent) =>
                     "Recovery should return it to Idle on its next pass, with its firing settled Failed, because the retry budget is exhausted.",
                 (true, _) => "Recovery should mark it Failed on its next pass because the retry budget is exhausted.",
                 _ => "Recovery should return it to Ready on its next pass.",

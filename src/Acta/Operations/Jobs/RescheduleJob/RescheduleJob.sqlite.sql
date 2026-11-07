@@ -9,7 +9,7 @@ SELECT
     -- mid-firing moves its instant like any waiting job. Idle applies to a slot alone.
     CASE
         WHEN
-            j.job_kind_code = 20 /* JobKindCode.PermanentSlot */
+            j.job_kind_code = 20 /* JobKindCode.Permanent */
             AND r.job_status_code IN (40 /* JobStatusCode.Idle */, 30 /* JobStatusCode.Paused */)
             AND NOT EXISTS (
                 SELECT 1
@@ -23,14 +23,14 @@ SELECT
     CASE
         -- A retired definition's slot is inert: no manual firing until a build that carries the definition starts.
         WHEN
-            j.job_kind_code = 20 /* JobKindCode.PermanentSlot */
+            j.job_kind_code = 20 /* JobKindCode.Permanent */
             AND EXISTS (
                 SELECT 1 FROM {{schema}}.definitions d
                 WHERE d.definition_id = j.definition_id AND d.definition_status_code = 240 /* DefinitionStatusCode.Retired */
             )
             THEN 0
         WHEN r.job_status_code IN (30 /* JobStatusCode.Paused */, 20 /* JobStatusCode.Suspended */, 10 /* JobStatusCode.Ready */, 15 /* JobStatusCode.Blocked */) THEN 1
-        WHEN r.job_status_code = 40 /* JobStatusCode.Idle */ AND j.job_kind_code = 20 /* JobKindCode.PermanentSlot */ THEN 1
+        WHEN r.job_status_code = 40 /* JobStatusCode.Idle */ AND j.job_kind_code = 20 /* JobKindCode.Permanent */ THEN 1
         ELSE 0
     END AS applies,
     -- A laned job is rescheduled Ready unless another member runs, or it was not running and an older

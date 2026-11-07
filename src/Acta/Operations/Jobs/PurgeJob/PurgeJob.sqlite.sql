@@ -36,7 +36,7 @@ SELECT
     -- A finished job may go; a permanent slot only with no firing outstanding and no live schedule pinning it, the
     -- deliberate decommission of a slot whose schedules are all orphaned or whose definition is retired.
     CASE
-        WHEN j.job_kind_code <> 20 /* JobKindCode.PermanentSlot */
+        WHEN j.job_kind_code <> 20 /* JobKindCode.Permanent */
             THEN CASE WHEN r.job_status_code IN (100 /* JobStatusCode.Succeeded */, 200 /* JobStatusCode.Failed */, 220 /* JobStatusCode.Cancelled */) THEN 1 ELSE 0 END
         WHEN r.job_status_code NOT IN (40 /* JobStatusCode.Idle */, 200 /* JobStatusCode.Failed */, 220 /* JobStatusCode.Cancelled */) THEN 0
         WHEN EXISTS (

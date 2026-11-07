@@ -226,7 +226,7 @@
         lane: $filters.lane,
         tag: parseTagTokens($filters.tags),
         terminalOnly: view === 'history' ? 'true' : '',
-        kind: view === 'permanent' ? 'permanent-slot' : ''
+        kind: view === 'permanent' ? 'permanent' : ''
       })}
       countMode="on-demand"
       initialPageSize={Number(initial.get('pageSize') ?? '50') || 50}

@@ -19,7 +19,7 @@ INSERT INTO _purge_job (from_status, namespace_id, definition_id, tenant_id, lin
 SELECT
     r.job_status_code, j.namespace_id, j.definition_id, j.tenant_id, j.lineage_root_job_id, j.parent_job_id,
     CASE
-        WHEN j.job_kind_code <> 20 /* JobKindCode.PermanentSlot */
+        WHEN j.job_kind_code <> 20 /* JobKindCode.Permanent */
             THEN r.job_status_code IN (100 /* JobStatusCode.Succeeded */, 200 /* JobStatusCode.Failed */, 220 /* JobStatusCode.Cancelled */)
         WHEN r.job_status_code NOT IN (40 /* JobStatusCode.Idle */, 200 /* JobStatusCode.Failed */, 220 /* JobStatusCode.Cancelled */) THEN false
         WHEN EXISTS (

@@ -840,15 +840,15 @@ public sealed class DashboardApiEndpointTests
         await using var _ = app;
         var ct = TestContext.Current.CancellationToken;
 
-        var slot = await client.GetAsync("/acta/api/v1/jobs?kind=permanent-slot", ct);
-        Assert.Equal(HttpStatusCode.OK, slot.StatusCode);
-        Assert.Equal(JobKindCode.PermanentSlot, fakes.Ledger.LastJobsQuery!.Kind);
+        var permanent = await client.GetAsync("/acta/api/v1/jobs?kind=permanent", ct);
+        Assert.Equal(HttpStatusCode.OK, permanent.StatusCode);
+        Assert.Equal(JobKindCode.Permanent, fakes.Ledger.LastJobsQuery!.Kind);
 
         var ordinary = await client.GetAsync("/acta/api/v1/jobs?kind=ordinary", ct);
         Assert.Equal(HttpStatusCode.OK, ordinary.StatusCode);
         Assert.Equal(JobKindCode.Ordinary, fakes.Ledger.LastJobsQuery!.Kind);
 
-        foreach (var refused in new[] { "PermanentSlot", "Permanent-Slot", "20", "permanent" })
+        foreach (var refused in new[] { "Permanent", "PERMANENT", "20", "permanent-slot" })
         {
             var response = await client.GetAsync("/acta/api/v1/jobs?kind=" + refused, ct);
             Assert.Equal(HttpStatusCode.BadRequest, response.StatusCode);

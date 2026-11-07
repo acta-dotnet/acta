@@ -60,7 +60,7 @@ internal static class ScheduleTestOps
         }
 
         var slot = await db.From<JobEntity>()
-            .Where(j => j.DefinitionId == definition.Id && j.Kind == JobKindCode.PermanentSlot)
+            .Where(j => j.DefinitionId == definition.Id && j.Kind == JobKindCode.Permanent)
             .SingleOrDefaultAsync(ct);
         return slot?.Id;
     }

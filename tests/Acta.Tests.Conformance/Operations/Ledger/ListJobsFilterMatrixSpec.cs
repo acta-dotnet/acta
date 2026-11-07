@@ -131,7 +131,7 @@ public sealed class ListJobsFilterMatrixSpec : ActaRuntimeTestBase<ConformanceFi
         // Kind: the recurring-ping permanent slot and the enqueued ordinary rows share the namespace, and each
         // is listed only under its own kind.
         var slotPage = await queries.Ledger.ListJobsAsync(
-            new ListJobsQuery(JobNamespace: TestNamespace, Kind: JobKindCode.PermanentSlot, IncludeTotal: true),
+            new ListJobsQuery(JobNamespace: TestNamespace, Kind: JobKindCode.Permanent, IncludeTotal: true),
             ct
         );
         var slot = Assert.Single(slotPage.Items, static i => i.JobName == "recurring-ping");

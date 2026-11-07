@@ -32,7 +32,7 @@ SELECT
     -- A slot with no firing outstanding resumes Idle, for admission to find; one paused mid-firing resumes Ready to
     -- run it.
     CASE
-        WHEN j.job_kind_code = 20 /* JobKindCode.PermanentSlot */ AND NOT EXISTS (
+        WHEN j.job_kind_code = 20 /* JobKindCode.Permanent */ AND NOT EXISTS (
             SELECT 1
             FROM {{schema}}.checkpoints cp
             WHERE cp.job_id = j.job_id AND cp.checkpoint_kind_code = 60 /* CheckpointKindCode.Firing */

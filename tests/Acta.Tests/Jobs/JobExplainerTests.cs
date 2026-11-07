@@ -300,7 +300,7 @@ public class JobExplainerTests
         var data = Data(
             Header(
                 JobStatusCode.Executing,
-                JobKindCode.PermanentSlot,
+                JobKindCode.Permanent,
                 failureCount: 2,
                 maxAttempts: 3,
                 leasedByWorkerId: 17,
@@ -367,10 +367,10 @@ public class JobExplainerTests
     {
         var firing = Checkpoint(CheckpointKindCode.Firing, "sys.firing", CheckpointStatusCode.Pending);
 
-        var paused = ExplainJobHandler.Explain(Data(Header(JobStatusCode.Paused, JobKindCode.PermanentSlot), checkpoints: [firing]), Now);
+        var paused = ExplainJobHandler.Explain(Data(Header(JobStatusCode.Paused, JobKindCode.Permanent), checkpoints: [firing]), Now);
         var settled = ExplainJobHandler.Explain(
             Data(
-                Header(JobStatusCode.Paused, JobKindCode.PermanentSlot),
+                Header(JobStatusCode.Paused, JobKindCode.Permanent),
                 checkpoints: [firing with { CheckpointStatus = CheckpointStatusCode.Succeeded }]
             ),
             Now
@@ -395,7 +395,7 @@ public class JobExplainerTests
     public void A_retired_definitions_idle_slot_points_at_the_deploy_that_declares_it()
     {
         var x = ExplainJobHandler.Explain(
-            Data(Header(JobStatusCode.Idle, JobKindCode.PermanentSlot, definitionStatus: DefinitionStatusCode.Retired)),
+            Data(Header(JobStatusCode.Idle, JobKindCode.Permanent, definitionStatus: DefinitionStatusCode.Retired)),
             Now
         );
         Assert.Contains("retired", x.Headline);

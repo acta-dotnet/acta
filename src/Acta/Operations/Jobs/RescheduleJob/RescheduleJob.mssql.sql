@@ -19,7 +19,7 @@ BEGIN TRY
        unlocked reads that find them are safe. */
     SELECT @lock_resource = N'{{schema}}.schedules.' + CAST(j.namespace_id AS NVARCHAR(12))
     FROM {{schema}}.jobs j
-    WHERE j.job_id = @p_job_id AND j.job_kind_code = 20 /* JobKindCode.PermanentSlot */;
+    WHERE j.job_id = @p_job_id AND j.job_kind_code = 20 /* JobKindCode.Permanent */;
 
     IF @lock_resource IS NOT NULL
         BEGIN
@@ -79,7 +79,7 @@ BEGIN TRY
             10 /* JobStatusCode.Ready */,
             15 /* JobStatusCode.Blocked */
         )
-        AND NOT (@from_status = 40 /* JobStatusCode.Idle */ AND @kind = 20 /* JobKindCode.PermanentSlot */)
+        AND NOT (@from_status = 40 /* JobStatusCode.Idle */ AND @kind = 20 /* JobKindCode.Permanent */)
         BEGIN
 
             SELECT
@@ -91,7 +91,7 @@ BEGIN TRY
 
     -- A retired definition's slot is inert: no manual firing until a build that carries the definition starts.
     IF
-        @kind = 20 /* JobKindCode.PermanentSlot */
+        @kind = 20 /* JobKindCode.Permanent */
         AND EXISTS (
             SELECT 1 FROM {{schema}}.definitions d
             WHERE d.definition_id = @definition_id AND d.definition_status_code = 240 /* DefinitionStatusCode.Retired */
@@ -108,7 +108,7 @@ BEGIN TRY
     -- An Idle or Paused permanent slot with no firing outstanding takes a manual firing at the instant; a slot
     -- mid-firing moves its instant like any waiting job.
     IF
-        @kind = 20 /* JobKindCode.PermanentSlot */
+        @kind = 20 /* JobKindCode.Permanent */
         AND @from_status IN (40 /* JobStatusCode.Idle */, 30 /* JobStatusCode.Paused */)
         AND NOT EXISTS (
             SELECT 1

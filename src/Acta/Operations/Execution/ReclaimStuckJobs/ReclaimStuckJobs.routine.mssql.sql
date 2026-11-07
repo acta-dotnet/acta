@@ -240,7 +240,7 @@ BEGIN
                         AND c.due_at_utc = r.next_run_at_utc
                 ) THEN 1 ELSE 0 END AS wait_resolved,
                 -- A slot's spent budget returns it to Idle with its firing settled Failed, never to Failed itself.
-                CASE WHEN j.job_kind_code = 20 /* JobKindCode.PermanentSlot */ THEN 1 ELSE 0 END AS is_slot
+                CASE WHEN j.job_kind_code = 20 /* JobKindCode.Permanent */ THEN 1 ELSE 0 END AS is_slot
             FROM @stuck k
             INNER JOIN {{schema}}.jobs_state r WITH (READPAST, UPDLOCK, ROWLOCK, FORCESEEK) ON r.job_id = k.job_id
             INNER JOIN {{schema}}.jobs j ON j.job_id = r.job_id

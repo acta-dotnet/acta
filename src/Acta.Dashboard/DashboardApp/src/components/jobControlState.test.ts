@@ -43,7 +43,7 @@ test('executing: only cancel/reprioritize available (in-flight rejects pause/res
 });
 
 test("idle: a recurring job's slot between firings can be reset, run now, cancelled, or decommissioned", () => {
-  assert.deepEqual(jobControlState('idle', 'permanent-slot'), {
+  assert.deepEqual(jobControlState('idle', 'permanent'), {
     canPause: true,
     canResume: false,
     canRestart: true,

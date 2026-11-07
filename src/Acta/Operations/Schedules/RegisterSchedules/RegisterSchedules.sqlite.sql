@@ -11,7 +11,7 @@ INSERT INTO {{schema}}.jobs (
     concurrency_key,
     event_recording_code)
 SELECT
-    20 /* JobKindCode.PermanentSlot */,
+    20 /* JobKindCode.Permanent */,
     json_extract(d.value, '$.job_ref'),
     NULL,
     NULL,
@@ -32,7 +32,7 @@ INNER JOIN {{schema}}.definitions jd ON jd.definition_id = json_extract(d.value,
 -- A PerOccurrence definition has no slot: each admitted occurrence is a root of its own.
 WHERE json_extract(d.value, '$.scheduled_delivery_code') = 10 /* ScheduledDeliveryCode.Permanent */
 ORDER BY json_extract(d.value, '$.definition_id')
-ON CONFLICT (definition_id) WHERE job_kind_code = 20 /* JobKindCode.PermanentSlot */
+ON CONFLICT (definition_id) WHERE job_kind_code = 20 /* JobKindCode.Permanent */
 DO UPDATE SET
     input_format_id = excluded.input_format_id,
     input = excluded.input,
@@ -46,7 +46,7 @@ SELECT json_extract(d.value, '$.definition_id') AS definition_id, j.job_id AS sl
 FROM json_each(@p_definitions) d
 JOIN {{schema}}.jobs j
     ON j.definition_id = json_extract(d.value, '$.definition_id')
-    AND j.job_kind_code = 20 /* JobKindCode.PermanentSlot */;
+    AND j.job_kind_code = 20 /* JobKindCode.Permanent */;
 
 INSERT INTO {{schema}}.jobs_state (
     job_id,

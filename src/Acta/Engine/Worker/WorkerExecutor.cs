@@ -310,7 +310,7 @@ internal sealed class WorkerExecutor(
         // rule or gained a deadline through an override, in the one place every consumer
         // reads from.
         DateTime? deadlineAtUtc =
-            job.Kind != JobKindCode.PermanentSlot && descriptor.DeadlineSeconds is { } deadlineSecs && deadlineSecs > 0
+            job.Kind != JobKindCode.Permanent && descriptor.DeadlineSeconds is { } deadlineSecs && deadlineSecs > 0
                 ? job.CreatedAtUtc.AddSeconds(deadlineSecs)
                 : null;
         var jobContext = new RuntimeJobContext(
@@ -353,7 +353,7 @@ internal sealed class WorkerExecutor(
     /// an enqueued job, and for a firing whose claim the attempt lost, which the completion write then refuses.
     /// </summary>
     private async Task<GetScheduleFiringResponse?> ReadFiringAsync(ClaimedJob job, int workerId, CancellationToken ct) =>
-        job.Kind == JobKindCode.PermanentSlot || job.ScheduleId is not null
+        job.Kind == JobKindCode.Permanent || job.ScheduleId is not null
             ? await WorkerFinalizer.RepeatAsync(
                 async token => await _execution.GetScheduleFiringAsync(new ExecutionFence(job.JobId, job.ExecutionNumber, workerId), token),
                 _log,

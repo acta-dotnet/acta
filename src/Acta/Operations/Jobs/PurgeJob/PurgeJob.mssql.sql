@@ -37,7 +37,7 @@ BEGIN TRY
     /* A finished job may go; a permanent slot only with no firing outstanding and no live schedule pinning it, the
        deliberate decommission of a slot whose schedules are all orphaned or whose definition is retired. */
     DECLARE @eligible BIT = CASE
-        WHEN NOT EXISTS (SELECT 1 FROM {{schema}}.jobs j WHERE j.job_id = @p_job_id AND j.job_kind_code = 20 /* JobKindCode.PermanentSlot */)
+        WHEN NOT EXISTS (SELECT 1 FROM {{schema}}.jobs j WHERE j.job_id = @p_job_id AND j.job_kind_code = 20 /* JobKindCode.Permanent */)
             THEN CASE WHEN @from_status IN (100 /* JobStatusCode.Succeeded */, 200 /* JobStatusCode.Failed */, 220 /* JobStatusCode.Cancelled */) THEN 1 ELSE 0 END
         WHEN @from_status NOT IN (40 /* JobStatusCode.Idle */, 200 /* JobStatusCode.Failed */, 220 /* JobStatusCode.Cancelled */) THEN 0
         WHEN EXISTS (

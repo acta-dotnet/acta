@@ -9,7 +9,7 @@ SELECT
     c.value
 FROM {{schema}}.definitions d WITH (FORCESEEK)
 INNER JOIN {{schema}}.jobs j WITH (INDEX (ux_jobs_slot), FORCESEEK)
-    ON j.definition_id = d.definition_id AND j.job_kind_code = 20 /* JobKindCode.PermanentSlot */
+    ON j.definition_id = d.definition_id AND j.job_kind_code = 20 /* JobKindCode.Permanent */
 LEFT JOIN {{schema}}.checkpoints c
     ON
         c.job_id = j.job_id

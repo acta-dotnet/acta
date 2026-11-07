@@ -1489,7 +1489,7 @@ record struct Acta.JobHandlerOutput
     System.Object Result { get;init; }
 enum Acta.JobKindCode : System.Byte
     Ordinary = 10
-    PermanentSlot = 20
+    Permanent = 20
     Unspecified = 0
 static class Acta.JobKindCodeExtensions
     static Acta.JobKindCode FromCode(System.String code)

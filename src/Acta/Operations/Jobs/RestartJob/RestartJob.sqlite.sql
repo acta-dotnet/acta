@@ -10,7 +10,7 @@ SELECT
     CASE
         WHEN r.job_status_code = 50 /* JobStatusCode.Executing */ THEN 1
         -- A slot whose firing is still outstanding is not restarted around it; one with none restarts Idle, for admission.
-        WHEN j.job_kind_code = 20 /* JobKindCode.PermanentSlot */ AND EXISTS (
+        WHEN j.job_kind_code = 20 /* JobKindCode.Permanent */ AND EXISTS (
             SELECT 1
             FROM {{schema}}.checkpoints cp
             WHERE cp.job_id = j.job_id AND cp.checkpoint_kind_code = 60 /* CheckpointKindCode.Firing */
@@ -19,7 +19,7 @@ SELECT
         ELSE 0
     END AS rejected,
     CASE
-        WHEN j.job_kind_code = 20 /* JobKindCode.PermanentSlot */ THEN 40 /* JobStatusCode.Idle */
+        WHEN j.job_kind_code = 20 /* JobKindCode.Permanent */ THEN 40 /* JobStatusCode.Idle */
         WHEN
             r.lane_id IS NOT NULL
             AND EXISTS (

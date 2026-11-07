@@ -77,9 +77,7 @@ public abstract class ActaRuntimeTestBase<TFixture, TManifest> : ActaTestBase<TF
         await CatalogTestOps.DeployAndStartAsync(Services, Runtime, ct);
 
         var namespaceId = Runtime.RegisteredNamespaceIds[TestNamespace];
-        var slots = (
-            await Db.From<JobEntity>().Where(j => j.NamespaceId == namespaceId && j.Kind == JobKindCode.PermanentSlot).ToListAsync(ct)
-        )
+        var slots = (await Db.From<JobEntity>().Where(j => j.NamespaceId == namespaceId && j.Kind == JobKindCode.Permanent).ToListAsync(ct))
             .Select(j => j.Id)
             .ToList();
         if (ParkScheduleSlots && slots.Count > 0)

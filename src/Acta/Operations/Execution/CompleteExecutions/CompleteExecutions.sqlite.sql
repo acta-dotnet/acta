@@ -138,7 +138,7 @@ INNER JOIN {{schema}}.jobs j ON j.job_id = d.job_id
 WHERE
     st.schedule_id = js.schedule_id
     AND d.to_status IN (40 /* JobStatusCode.Idle */, 200 /* JobStatusCode.Failed */, 220 /* JobStatusCode.Cancelled */)
-    AND j.job_kind_code = 20 /* JobKindCode.PermanentSlot */
+    AND j.job_kind_code = 20 /* JobKindCode.Permanent */
     AND st.evaluation_status_code IN (20 /* ScheduleEvaluationStatusCode.WaitingForCapacity */, 50 /* ScheduleEvaluationStatusCode.SlotUnavailable */);
 
 /* The envelope settles once: a slot's when the slot lands Idle, Failed, or Cancelled, a charged root's when the root
@@ -160,7 +160,7 @@ WHERE
     AND cp.checkpoint_name = 'sys.firing'
     AND cp.checkpoint_status_code = 10 /* CheckpointStatusCode.Pending */
     AND (
-        (j.job_kind_code = 20 /* JobKindCode.PermanentSlot */ AND d.to_status IN (40 /* JobStatusCode.Idle */, 200 /* JobStatusCode.Failed */, 220 /* JobStatusCode.Cancelled */))
+        (j.job_kind_code = 20 /* JobKindCode.Permanent */ AND d.to_status IN (40 /* JobStatusCode.Idle */, 200 /* JobStatusCode.Failed */, 220 /* JobStatusCode.Cancelled */))
         OR (j.schedule_id IS NOT NULL AND d.to_status IN (100 /* JobStatusCode.Succeeded */, 200 /* JobStatusCode.Failed */, 220 /* JobStatusCode.Cancelled */))
     );
 
@@ -204,7 +204,7 @@ INNER JOIN {{schema}}.definitions jd ON jd.definition_id = j.definition_id
 INNER JOIN {{schema}}.schedules js ON js.definition_id = jd.definition_id
 WHERE
     (
-        (j.job_kind_code = 20 /* JobKindCode.PermanentSlot */ AND d.to_status = 40 /* JobStatusCode.Idle */ AND d.succeeded = 0)
+        (j.job_kind_code = 20 /* JobKindCode.Permanent */ AND d.to_status = 40 /* JobStatusCode.Idle */ AND d.succeeded = 0)
         OR (j.schedule_id IS NOT NULL AND d.to_status = 200 /* JobStatusCode.Failed */)
     )
     AND jd.firing_failure_policy_code = 20 /* FiringFailurePolicyCode.PauseScheduling */

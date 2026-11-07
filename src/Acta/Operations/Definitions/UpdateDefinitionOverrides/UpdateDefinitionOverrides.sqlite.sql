@@ -73,7 +73,7 @@ SET event_recording_code = (
 )
 WHERE
     definition_id = @p_definition_id
-    AND job_kind_code = 20 /* JobKindCode.PermanentSlot */
+    AND job_kind_code = 20 /* JobKindCode.Permanent */
     AND EXISTS (SELECT 1 FROM temp._update_definition_overrides s WHERE s.version = @p_version);
 
 -- The slot's priority follows between firings: an Idle slot takes the new effective priority here, and one an attempt
@@ -89,7 +89,7 @@ WHERE
     job_status_code = 40 /* JobStatusCode.Idle */
     AND job_id IN (
         SELECT j.job_id FROM {{schema}}.jobs j
-        WHERE j.definition_id = @p_definition_id AND j.job_kind_code = 20 /* JobKindCode.PermanentSlot */
+        WHERE j.definition_id = @p_definition_id AND j.job_kind_code = 20 /* JobKindCode.Permanent */
     )
     AND job_priority_code IS NOT (
         SELECT jd.job_priority_code_effective FROM {{schema}}.definitions jd WHERE jd.definition_id = @p_definition_id

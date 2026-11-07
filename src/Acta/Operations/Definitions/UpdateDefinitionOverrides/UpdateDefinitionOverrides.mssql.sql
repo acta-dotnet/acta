@@ -88,7 +88,7 @@ BEGIN TRY
     INNER JOIN {{schema}}.definitions jd ON jd.definition_id = j.definition_id
     WHERE
         j.definition_id = @p_definition_id
-        AND j.job_kind_code = 20 /* JobKindCode.PermanentSlot */
+        AND j.job_kind_code = 20 /* JobKindCode.Permanent */
         AND j.event_recording_code <> jd.event_recording_code_effective;
 
     -- An Idle slot takes the new effective priority here; one an attempt or an operator holds keeps its own until a
@@ -104,7 +104,7 @@ BEGIN TRY
     INNER JOIN {{schema}}.definitions jd ON jd.definition_id = j.definition_id
     WHERE
         j.definition_id = @p_definition_id
-        AND j.job_kind_code = 20 /* JobKindCode.PermanentSlot */
+        AND j.job_kind_code = 20 /* JobKindCode.Permanent */
         AND js.job_status_code = 40 /* JobStatusCode.Idle */
         AND js.job_priority_code <> jd.job_priority_code_effective;
 

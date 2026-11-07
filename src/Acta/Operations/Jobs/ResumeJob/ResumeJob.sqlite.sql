@@ -9,7 +9,7 @@ SELECT
     -- run it. A laned job resumes Ready unless another member runs or an older member is unfinished
     -- (docs/sql-internals.md, "Lane lock order"). The immediate transaction is the lane's mutex on SQLite.
     CASE
-        WHEN j.job_kind_code = 20 /* JobKindCode.PermanentSlot */ AND NOT EXISTS (
+        WHEN j.job_kind_code = 20 /* JobKindCode.Permanent */ AND NOT EXISTS (
             SELECT 1
             FROM {{schema}}.checkpoints cp
             WHERE cp.job_id = j.job_id AND cp.checkpoint_kind_code = 60 /* CheckpointKindCode.Firing */

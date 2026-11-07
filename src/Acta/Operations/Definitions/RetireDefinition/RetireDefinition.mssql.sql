@@ -125,7 +125,7 @@ BEGIN TRY
             )
             -- A laned job is parked here only in a lane locked above.
             AND (r.lane_id IS NULL OR r.lane_id IN (SELECT l.lane_id FROM @lanes l))
-            AND j.job_kind_code <> 20 /* JobKindCode.PermanentSlot */;
+            AND j.job_kind_code <> 20 /* JobKindCode.Permanent */;
 
         /* A permanent slot is left inert, not cancelled, so a build that registers the definition again finds it
            ready to fire: a queued firing settles below and the slot returns to Idle, a paused one keeps its hold, and one
@@ -136,7 +136,7 @@ BEGIN TRY
         INNER JOIN {{schema}}.jobs_state r WITH (UPDLOCK, ROWLOCK) ON r.job_id = j.job_id
         WHERE
             j.definition_id = @p_definition_id
-            AND j.job_kind_code = 20 /* JobKindCode.PermanentSlot */
+            AND j.job_kind_code = 20 /* JobKindCode.Permanent */
             AND r.job_status_code IN (
                 10 /* JobStatusCode.Ready */, 15 /* JobStatusCode.Blocked */, 20 /* JobStatusCode.Suspended */, 30 /* JobStatusCode.Paused */
             );

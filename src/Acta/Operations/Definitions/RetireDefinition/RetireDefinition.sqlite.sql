@@ -32,7 +32,7 @@ WHERE
     AND r.job_status_code IN (
         10 /* JobStatusCode.Ready */, 15 /* JobStatusCode.Blocked */, 20 /* JobStatusCode.Suspended */, 30 /* JobStatusCode.Paused */, 40 /* JobStatusCode.Idle */
     )
-    AND j.job_kind_code <> 20 /* JobKindCode.PermanentSlot */;
+    AND j.job_kind_code <> 20 /* JobKindCode.Permanent */;
 
 -- A permanent slot is left inert, not cancelled, so a build that registers the definition again finds it ready
 -- to fire: a queued firing settles below and the slot returns to Idle, a paused one keeps its hold, and one an attempt
@@ -49,7 +49,7 @@ WHERE
         FROM temp._retire_definition s
         WHERE s.version = @p_version AND s.definition_status_code <> 240 /* DefinitionStatusCode.Retired */
     )
-    AND j.job_kind_code = 20 /* JobKindCode.PermanentSlot */
+    AND j.job_kind_code = 20 /* JobKindCode.Permanent */
     AND r.job_status_code IN (
         10 /* JobStatusCode.Ready */, 15 /* JobStatusCode.Blocked */, 20 /* JobStatusCode.Suspended */, 30 /* JobStatusCode.Paused */
     );

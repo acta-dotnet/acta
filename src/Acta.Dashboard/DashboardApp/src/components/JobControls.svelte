@@ -35,7 +35,7 @@
   let { canPause, canResume, canRestart, canCancel, canReschedule, canReprioritize, canPurge } = $derived(
     jobControlState(status, kind)
   );
-  let slot = $derived(kind === 'permanent-slot');
+  let slot = $derived(kind === 'permanent');
 
   const text: Record<
     string,

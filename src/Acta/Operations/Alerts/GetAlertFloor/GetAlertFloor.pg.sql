@@ -12,5 +12,5 @@ LEFT JOIN {{schema}}.checkpoints c
         AND (c.checkpoint_name = 'alerts-cursor' OR c.checkpoint_name LIKE 'alerts-skip-%')
 WHERE
     j.namespace_id = COALESCE(@p_namespace_id, (SELECT o.namespace_id FROM {{schema}}.jobs o WHERE o.job_id = @p_job_id))
-    AND j.job_kind_code = 20 /* JobKindCode.PermanentSlot */
+    AND j.job_kind_code = 20 /* JobKindCode.Permanent */
 ORDER BY c.checkpoint_name;

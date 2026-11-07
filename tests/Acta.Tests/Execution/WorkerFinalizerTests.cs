@@ -313,9 +313,9 @@ public sealed class WorkerFinalizerTests
     }
 
     [Theory(DisplayName = "A completion that settles a firing wakes this hosts schedule admitter; a lane promotion wakes the claim loop")]
-    [InlineData(JobKindCode.PermanentSlot, null, JobStatusCode.Idle, false, false, false, true)]
-    [InlineData(JobKindCode.PermanentSlot, null, JobStatusCode.Failed, false, false, true, true)]
-    [InlineData(JobKindCode.PermanentSlot, null, JobStatusCode.Idle, false, true, false, true)]
+    [InlineData(JobKindCode.Permanent, null, JobStatusCode.Idle, false, false, false, true)]
+    [InlineData(JobKindCode.Permanent, null, JobStatusCode.Failed, false, false, true, true)]
+    [InlineData(JobKindCode.Permanent, null, JobStatusCode.Idle, false, true, false, true)]
     [InlineData(JobKindCode.Ordinary, null, JobStatusCode.Succeeded, false, true, true, false)]
     [InlineData(JobKindCode.Ordinary, 7, JobStatusCode.Succeeded, false, false, true, true)]
     [InlineData(JobKindCode.Ordinary, 7, JobStatusCode.Cancelled, false, false, true, true)]

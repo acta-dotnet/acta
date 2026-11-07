@@ -27,7 +27,7 @@ public class FailureCountSaturationTests
     public void A_failed_firing_at_the_ceiling_returns_the_slot_to_idle_without_climbing(int failureCount, int expected)
     {
         var failed = new ExecutionCompletion(CompletionKind.Failed) { Reason = EventReason.UnhandledException };
-        var slot = Job(failureCount) with { Kind = JobKindCode.PermanentSlot };
+        var slot = Job(failureCount) with { Kind = JobKindCode.Permanent };
 
         var command = WorkerFinalizer.BuildCommand(Descriptor(1), slot, failed, WorkerFinalizer.PlanRetry(Descriptor(1), slot, failed));
 

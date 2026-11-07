@@ -1455,7 +1455,7 @@ BEGIN
                     INNER JOIN {{schema}}.jobs j WITH (FORCESEEK) ON j.job_id = d.job_id
                     WHERE
                         d.job_status_code IN (40 /* JobStatusCode.Idle */, 200 /* JobStatusCode.Failed */, 220 /* JobStatusCode.Cancelled */)
-                        AND j.job_kind_code = 20 /* JobKindCode.PermanentSlot */
+                        AND j.job_kind_code = 20 /* JobKindCode.Permanent */
                         AND st.evaluation_status_code IN (20 /* ScheduleEvaluationStatusCode.WaitingForCapacity */, 50 /* ScheduleEvaluationStatusCode.SlotUnavailable */);
 
                     /* The envelope settles once: a slot's when the slot lands Idle, Failed, or Cancelled, a charged root's
@@ -1478,7 +1478,7 @@ BEGIN
                         AND cp.checkpoint_name = 'sys.firing'
                         AND cp.checkpoint_status_code = 10 /* CheckpointStatusCode.Pending */
                         AND (
-                            (j.job_kind_code = 20 /* JobKindCode.PermanentSlot */ AND d.job_status_code IN (40 /* JobStatusCode.Idle */, 200 /* JobStatusCode.Failed */, 220 /* JobStatusCode.Cancelled */))
+                            (j.job_kind_code = 20 /* JobKindCode.Permanent */ AND d.job_status_code IN (40 /* JobStatusCode.Idle */, 200 /* JobStatusCode.Failed */, 220 /* JobStatusCode.Cancelled */))
                             OR (j.schedule_id IS NOT NULL AND d.job_status_code IN (100 /* JobStatusCode.Succeeded */, 200 /* JobStatusCode.Failed */, 220 /* JobStatusCode.Cancelled */))
                         );
 
@@ -1536,7 +1536,7 @@ BEGIN
                     WHERE
                         js.schedule_status_code = 10 /* ScheduleStatusCode.Active */
                         AND (
-                            (f.job_kind_code = 20 /* JobKindCode.PermanentSlot */ AND f.job_status_code = 40 /* JobStatusCode.Idle */ AND f.succeeded = 0)
+                            (f.job_kind_code = 20 /* JobKindCode.Permanent */ AND f.job_status_code = 40 /* JobStatusCode.Idle */ AND f.succeeded = 0)
                             OR (f.schedule_id IS NOT NULL AND f.job_status_code = 200 /* JobStatusCode.Failed */)
                         )
                         AND jd.firing_failure_policy_code = 20 /* FiringFailurePolicyCode.PauseScheduling */;
@@ -3952,7 +3952,7 @@ BEGIN
                         AND c.due_at_utc = r.next_run_at_utc
                 ) THEN 1 ELSE 0 END AS wait_resolved,
                 -- A slot's spent budget returns it to Idle with its firing settled Failed, never to Failed itself.
-                CASE WHEN j.job_kind_code = 20 /* JobKindCode.PermanentSlot */ THEN 1 ELSE 0 END AS is_slot
+                CASE WHEN j.job_kind_code = 20 /* JobKindCode.Permanent */ THEN 1 ELSE 0 END AS is_slot
             FROM @stuck k
             INNER JOIN {{schema}}.jobs_state r WITH (READPAST, UPDLOCK, ROWLOCK, FORCESEEK) ON r.job_id = k.job_id
             INNER JOIN {{schema}}.jobs j ON j.job_id = r.job_id
@@ -4889,7 +4889,7 @@ SELECT
     j.job_ref,
     ns.namespace_name,
     d.definition_name,
-    CASE j.job_kind_code WHEN 0 THEN 'unspecified' WHEN 10 THEN 'ordinary' WHEN 20 THEN 'permanent-slot' END AS job_kind,
+    CASE j.job_kind_code WHEN 0 THEN 'unspecified' WHEN 10 THEN 'ordinary' WHEN 20 THEN 'permanent' END AS job_kind,
     j.job_kind_code,
     CASE r.job_status_code WHEN 0 THEN 'unspecified' WHEN 10 THEN 'ready' WHEN 15 THEN 'blocked' WHEN 20 THEN 'suspended' WHEN 30 THEN 'paused' WHEN 40 THEN 'idle' WHEN 50 THEN 'executing' WHEN 100 THEN 'succeeded' WHEN 200 THEN 'failed' WHEN 220 THEN 'cancelled' END AS job_status,
     r.job_status_code,
@@ -5062,7 +5062,7 @@ JOIN {{schema}}.namespaces AS ns ON ns.namespace_id = w.namespace_id
 GO
 
 
-IF NOT EXISTS (SELECT 1 FROM {{schema}}.migrations WHERE name = 'M20261107112422_init')
+IF NOT EXISTS (SELECT 1 FROM {{schema}}.migrations WHERE name = 'M20261107113646_init')
 INSERT INTO {{schema}}.migrations (name)
-VALUES ('M20261107112422_init');
+VALUES ('M20261107113646_init');
 GO

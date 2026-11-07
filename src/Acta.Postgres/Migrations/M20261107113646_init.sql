@@ -1175,7 +1175,7 @@ BEGIN
             AND cp.checkpoint_status_code = 10 /* CheckpointStatusCode.Pending */
             AND c.job_id = ANY (v_done)
             AND (
-                (j.job_kind_code = 20 /* JobKindCode.PermanentSlot */ AND c.final_job_status_code IN (40 /* JobStatusCode.Idle */, 200 /* JobStatusCode.Failed */, 220 /* JobStatusCode.Cancelled */))
+                (j.job_kind_code = 20 /* JobKindCode.Permanent */ AND c.final_job_status_code IN (40 /* JobStatusCode.Idle */, 200 /* JobStatusCode.Failed */, 220 /* JobStatusCode.Cancelled */))
                 OR (j.schedule_id IS NOT NULL AND r.job_status_code IN (100 /* JobStatusCode.Succeeded */, 200 /* JobStatusCode.Failed */, 220 /* JobStatusCode.Cancelled */))
             );
 
@@ -1227,7 +1227,7 @@ BEGIN
                 AND js.schedule_status_code = 10 /* ScheduleStatusCode.Active */
                 AND c.job_id = ANY (v_done)
                 AND (
-                    (j.job_kind_code = 20 /* JobKindCode.PermanentSlot */ AND c.final_job_status_code = 40 /* JobStatusCode.Idle */ AND NOT c.succeeded)
+                    (j.job_kind_code = 20 /* JobKindCode.Permanent */ AND c.final_job_status_code = 40 /* JobStatusCode.Idle */ AND NOT c.succeeded)
                     OR (j.schedule_id IS NOT NULL AND r.job_status_code = 200 /* JobStatusCode.Failed */)
                 )
                 AND jd.firing_failure_policy_code = 20 /* FiringFailurePolicyCode.PauseScheduling */
@@ -3362,7 +3362,7 @@ BEGIN
                     AND c.due_at_utc = r.next_run_at_utc
             ) AS wait_resolved,
             -- A slot's spent budget returns it to Idle with its firing settled Failed, never to Failed itself.
-            j.job_kind_code = 20 /* JobKindCode.PermanentSlot */ AS is_slot
+            j.job_kind_code = 20 /* JobKindCode.Permanent */ AS is_slot
         FROM {{schema}}.jobs_state r
         INNER JOIN {{schema}}.jobs j ON j.job_id = r.job_id
         INNER JOIN {{schema}}.definitions jd ON jd.definition_id = j.definition_id
@@ -4242,7 +4242,7 @@ SELECT
     j.job_ref,
     ns.namespace_name,
     d.definition_name,
-    CASE j.job_kind_code WHEN 0 THEN 'unspecified' WHEN 10 THEN 'ordinary' WHEN 20 THEN 'permanent-slot' END AS job_kind,
+    CASE j.job_kind_code WHEN 0 THEN 'unspecified' WHEN 10 THEN 'ordinary' WHEN 20 THEN 'permanent' END AS job_kind,
     j.job_kind_code,
     CASE r.job_status_code WHEN 0 THEN 'unspecified' WHEN 10 THEN 'ready' WHEN 15 THEN 'blocked' WHEN 20 THEN 'suspended' WHEN 30 THEN 'paused' WHEN 40 THEN 'idle' WHEN 50 THEN 'executing' WHEN 100 THEN 'succeeded' WHEN 200 THEN 'failed' WHEN 220 THEN 'cancelled' END AS job_status,
     r.job_status_code,
@@ -4399,5 +4399,5 @@ JOIN {{schema}}.namespaces AS ns ON ns.namespace_id = w.namespace_id;
 
 
 INSERT INTO {{schema}}.migrations (name)
-VALUES ('M20261107112422_init')
+VALUES ('M20261107113646_init')
 ON CONFLICT (name) DO NOTHING;

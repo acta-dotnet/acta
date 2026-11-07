@@ -53,11 +53,11 @@ CREATE TEMP TABLE release_guard (
 INSERT INTO release_guard
 SELECT EXISTS (
     SELECT 1 FROM main.migrations
-    WHERE name NOT IN ('M20261107112422_init')
+    WHERE name NOT IN ('M20261107113646_init')
 );
 DROP TABLE release_guard;
 
--- ===== BEGIN M20261107112422_init =====
+-- ===== BEGIN M20261107113646_init =====
 CREATE TABLE IF NOT EXISTS main.alerts (
     alert_id integer PRIMARY KEY AUTOINCREMENT,
     alert_ref text NOT NULL,
@@ -682,7 +682,7 @@ SELECT
     j.job_ref,
     ns.namespace_name,
     d.definition_name,
-    CASE j.job_kind_code WHEN 0 THEN 'unspecified' WHEN 10 THEN 'ordinary' WHEN 20 THEN 'permanent-slot' END AS job_kind,
+    CASE j.job_kind_code WHEN 0 THEN 'unspecified' WHEN 10 THEN 'ordinary' WHEN 20 THEN 'permanent' END AS job_kind,
     j.job_kind_code,
     CASE r.job_status_code WHEN 0 THEN 'unspecified' WHEN 10 THEN 'ready' WHEN 15 THEN 'blocked' WHEN 20 THEN 'suspended' WHEN 30 THEN 'paused' WHEN 40 THEN 'idle' WHEN 50 THEN 'executing' WHEN 100 THEN 'succeeded' WHEN 200 THEN 'failed' WHEN 220 THEN 'cancelled' END AS job_status,
     r.job_status_code,
@@ -843,10 +843,10 @@ JOIN main.namespaces AS ns ON ns.namespace_id = w.namespace_id;
 
 
 INSERT INTO main.migrations (name)
-VALUES ('M20261107112422_init')
+VALUES ('M20261107113646_init')
 ON CONFLICT (name) DO NOTHING;
 
--- ===== END M20261107112422_init =====
+-- ===== END M20261107113646_init =====
 
 COMMIT;
 

@@ -68,7 +68,7 @@ BEGIN TRY
         END;
 
     -- A slot with no firing outstanding resumes Idle, for admission to find; one paused mid-firing resumes Ready to run it.
-    IF EXISTS (SELECT 1 FROM {{schema}}.jobs j WHERE j.job_id = @p_job_id AND j.job_kind_code = 20 /* JobKindCode.PermanentSlot */)
+    IF EXISTS (SELECT 1 FROM {{schema}}.jobs j WHERE j.job_id = @p_job_id AND j.job_kind_code = 20 /* JobKindCode.Permanent */)
         AND NOT EXISTS (
             SELECT 1
             FROM {{schema}}.checkpoints cp

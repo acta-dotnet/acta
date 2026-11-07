@@ -27,6 +27,6 @@ export function jobControlState(status: string, kind = 'ordinary'): JobControlSt
     canReprioritize: !terminal,
     // PurgeAsync: a terminal job, or a recurring job's Idle slot being decommissioned (the server checks
     // that nothing pins it).
-    canPurge: terminal || (kind === 'permanent-slot' && status === 'idle')
+    canPurge: terminal || (kind === 'permanent' && status === 'idle')
   };
 }

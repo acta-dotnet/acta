@@ -70,7 +70,7 @@ BEGIN TRY
         END;
 
     DECLARE @slot BIT = CASE WHEN EXISTS (
-        SELECT 1 FROM {{schema}}.jobs j WHERE j.job_id = @p_job_id AND j.job_kind_code = 20 /* JobKindCode.PermanentSlot */
+        SELECT 1 FROM {{schema}}.jobs j WHERE j.job_id = @p_job_id AND j.job_kind_code = 20 /* JobKindCode.Permanent */
     ) THEN 1 ELSE 0 END;
 
     -- A slot whose firing is still outstanding is not restarted around it; one with none restarts Idle, for admission.

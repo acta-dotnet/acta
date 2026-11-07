@@ -28,7 +28,7 @@ upserted AS (
         event_recording_code,
         created_at_utc)
     SELECT
-        20 /* JobKindCode.PermanentSlot */,
+        20 /* JobKindCode.Permanent */,
         d.job_ref,
         NULL,
         NULL,
@@ -47,7 +47,7 @@ upserted AS (
     -- A PerOccurrence definition has no slot: each admitted occurrence is a root of its own.
     WHERE d.scheduled_delivery_code = 10 /* ScheduledDeliveryCode.Permanent */
     ORDER BY d.definition_id
-    ON CONFLICT (definition_id) WHERE job_kind_code = 20 /* JobKindCode.PermanentSlot */
+    ON CONFLICT (definition_id) WHERE job_kind_code = 20 /* JobKindCode.Permanent */
     DO UPDATE SET
         input_format_id = EXCLUDED.input_format_id,
         input = EXCLUDED.input,
