@@ -13485,6 +13485,7 @@
         ]
       },
       "JobPayloadBody": {
+        "minProperties": 1,
         "type": "object",
         "properties": {
           "json": {
@@ -13498,6 +13499,8 @@
             "description": "A payload in any other format, base64-encoded."
           },
           "formatId": {
+            "maximum": 255,
+            "minimum": 1,
             "type": [
               "null",
               "integer"

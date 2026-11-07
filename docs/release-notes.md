@@ -71,6 +71,7 @@ Not tagged yet.
 
 ### Additions
 
+- The OpenAPI document states two rules of the payload envelope it left to prose: `JobPayloadBody` has at least one member, and its `formatId` is 1 to 255. Which member goes with which stays in the descriptions, since a client that writes every member sends nulls beside the one it means.
 - **`<app> jobs migrate` applies Acta's migrations from a deploy step.** It runs the app with its own provider options, so it migrates the connection string and schema the workers use, prints each migration it applied or that the schema is up to date, and exits 0 or 1. It never creates a PostgreSQL or SQL Server database and never touches an outbox table. See [Migration ownership](operator-guide.md#migration-ownership).
 - `PostgresMigrations.ApplyAsync`, `SqlServerMigrations.ApplyAsync`, and `SqliteMigrations.ApplyAsync` are the same apply from code, for a host that owns its command line or a separate tool, and return the names they applied.
 - `ApplyOutboxAsync` on each provider's migrations class creates the external outbox table in the producer's database when it is missing, once however many callers race, and leaves an existing table as it is.

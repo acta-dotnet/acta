@@ -492,6 +492,19 @@ internal static partial class ActaOpenApiDocument
         // signal body and job input stay any JSON value.
         AddCalendarDefinition(schemas);
 
+        // What a schema can say of the payload envelope's rules without refusing a request the server takes: an empty
+        // envelope is no payload, and a format id is one the envelope can carry. Which member goes with which stays in
+        // the descriptions, since a client that writes every member sends nulls beside the one it means.
+        if (schemas.TryGetValue(nameof(JobPayloadBody), out var envelope) && envelope is OpenApiSchema { Properties: { } payload } body)
+        {
+            body.MinProperties = 1;
+            if (payload.TryGetValue("formatId", out var formatId) && formatId is OpenApiSchema id)
+            {
+                id.Minimum = 1.ToString(CultureInfo.InvariantCulture);
+                id.Maximum = byte.MaxValue.ToString(CultureInfo.InvariantCulture);
+            }
+        }
+
         // An outbox verb's ids name at least one row, and the operation refuses an empty list. A requeue leaves them out for
         // every quarantined row, and a discard leaves them out when all is true.
         foreach (var name in new[] { "DiscardOutboxRequest", "RequeueOutboxRequest" })
