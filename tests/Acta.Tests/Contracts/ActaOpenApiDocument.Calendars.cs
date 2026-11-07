@@ -9,10 +9,10 @@ namespace Acta.Tests.Contracts;
 // what the compiler accepts.
 internal static partial class ActaOpenApiDocument
 {
-    /// <summary>The schema of a calendar definition: one of its kinds' schemas, chosen by kind.</summary>
+    /// <summary>The schema of a calendar definition: its kinds' schemas, the one that applies chosen by kind.</summary>
     public const string CalendarDefinitionSchema = "CalendarDefinition";
 
-    /// <summary>Each kind's schema name; <c>kind</c> is a plain string in each, since a one-value enum breaks a generated C# union.</summary>
+    /// <summary>Each kind's schema name; <c>kind</c> is a plain string in each, since a one-value enum or a pattern on it breaks a generated C# union.</summary>
     public static readonly IReadOnlyDictionary<string, string> CalendarKindSchemas = new Dictionary<string, string>(StringComparer.Ordinal)
     {
         ["weekly-availability"] = "WeeklyAvailabilityCalendar",
@@ -58,6 +58,10 @@ internal static partial class ActaOpenApiDocument
                 + "union, intersection, or subtraction; an occurrence family takes explicit-instants, daily-local-time, business-day, "
                 + "at-opening, or union. A definition holds at most 64 KB, 8 levels of JSON, and 5000 list items in all. A later "
                 + "version of Acta may add kinds.",
+            // oneOf with kind a plain string, which the generators read through the discriminator. A validator that applies
+            // oneOf to the letter refuses a union or an intersection, since the two have one shape; holding kind to its
+            // value with an enum or a pattern breaks the generated C# client, and anyOf breaks the TypeScript one
+            // (docs/known-limitations.md).
             OneOf = [.. CalendarKindSchemas.Values.Select(IOpenApiSchema (name) => new OpenApiSchemaReference(name))],
             Discriminator = new OpenApiDiscriminator
             {

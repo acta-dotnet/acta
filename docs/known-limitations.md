@@ -79,6 +79,7 @@ Authentication is the host's: Acta ships none. The surface is local-only by defa
 
 - **Under `RequirePermissions` the dashboard shows every control, whatever the caller holds.** A control the caller lacks the permission for answers a 403, which the dashboard shows as an error.
 - **Under `RequirePermissions` a dashboard session that expires shows errors until the page is reloaded.** The API answers the dashboard's calls 401 rather than a redirect, and only the reloaded page is challenged by the host's scheme.
+- **The calendar definition schema is for generators, not for a strict validator.** `CalendarDefinition` is a `oneOf` of one schema per kind, chosen by `kind`, which is a plain string in each: holding it to its value with an enum or a pattern breaks the generated C# client, and `anyOf` breaks the TypeScript one. Union and intersection have one shape, so a validator that applies `oneOf` to the letter refuses a valid union or intersection; a generated client reads the discriminator and is unaffected, and the server compiles what it is sent.
 
 ## Storage and providers
 

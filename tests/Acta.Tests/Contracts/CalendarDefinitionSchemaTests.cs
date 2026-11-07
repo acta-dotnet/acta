@@ -170,6 +170,58 @@ public sealed partial class CalendarDefinitionSchemaTests
         }
     }
 
+    /// <summary>
+    /// A weekly rule and an excluded range are no kinds: each takes the members its schema declares and no other, not
+    /// even a kind or a note.
+    /// </summary>
+    [Fact]
+    public async Task A_weekly_rule_and_an_excluded_range_take_only_their_own_members()
+    {
+        var schemas = await Schemas.Value;
+        string[] rule = ["days", "windows"];
+        string[] range = ["from", "fromUtc", "to", "toUtc"];
+        Assert.Equal(
+            rule,
+            schemas["CalendarWeeklyRule"]!["properties"]!.AsObject().Select(member => member.Key).Order(StringComparer.Ordinal)
+        );
+        Assert.Equal(
+            rule,
+            schemas["CalendarWeeklyRule"]!["required"]!.AsArray().Select(member => member!.GetValue<string>()).Order(StringComparer.Ordinal)
+        );
+        Assert.Equal(
+            range,
+            schemas["CalendarExcludedRange"]!["properties"]!.AsObject().Select(member => member.Key).Order(StringComparer.Ordinal)
+        );
+        Assert.False(schemas["CalendarWeeklyRule"]!["additionalProperties"]!.GetValue<bool>());
+        Assert.False(schemas["CalendarExcludedRange"]!["additionalProperties"]!.GetValue<bool>());
+
+        foreach (var extra in new[] { "kind", "description", "timeZone" })
+        {
+            var inRule = JsonNode.Parse(Weekly)!.AsObject();
+            inRule["weekly"]![0]![extra] = "x";
+            Assert.Contains($"$.weekly[0].{extra}: not a property of a weekly rule.", Problems(CalendarRoleCode.Availability, inRule));
+            var inDates = JsonNode.Parse(Weekly)!.AsObject();
+            inDates["excludedRanges"]![0]![extra] = "x";
+            Assert.Contains(
+                $"$.excludedRanges[0].{extra}: not a property of an excluded range of dates.",
+                Problems(CalendarRoleCode.Availability, inDates)
+            );
+            var inInstants = JsonNode.Parse(Weekly)!.AsObject();
+            inInstants["excludedRanges"]![1]![extra] = "x";
+            Assert.Contains(
+                $"$.excludedRanges[1].{extra}: not a property of an excluded range of instants.",
+                Problems(CalendarRoleCode.Availability, inInstants)
+            );
+        }
+
+        foreach (var member in rule)
+        {
+            var without = JsonNode.Parse(Weekly)!.AsObject();
+            without["weekly"]![0]!.AsObject().Remove(member);
+            Assert.Contains($"$.weekly[0].{member}: required.", Problems(CalendarRoleCode.Availability, without));
+        }
+    }
+
     private static IReadOnlyList<string> Problems(CalendarRoleCode role, JsonObject definition)
     {
         try
@@ -183,8 +235,9 @@ public sealed partial class CalendarDefinitionSchemaTests
         }
     }
 
-    // A member check in the compiler's source, Known(element, path, "name", ...), and the list every kind shares.
-    [GeneratedRegex("""Known\(\w+, \w+(?:, "[A-Za-z]+")+\)|CommonProperties = \[[^\]]+\]""")]
+    // A member check in the compiler's source, Known(element, path, "name", ...) or Only(element, path, "owner", "name", ...),
+    // and the list every kind shares. An owner is a phrase, so the name pattern below passes over it.
+    [GeneratedRegex("""(?:Known|Only)\(\w+, \w+(?:, "[^"]+")+\)|CommonProperties = \[[^\]]+\]""")]
     private static partial Regex MemberChecks();
 
     [GeneratedRegex("\"([A-Za-z]+)\"")]

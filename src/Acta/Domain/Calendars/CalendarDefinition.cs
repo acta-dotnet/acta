@@ -205,7 +205,7 @@ internal static class CalendarDefinition
                         continue;
                     }
 
-                    Known(rule, rulePath, "days", "windows");
+                    Only(rule, rulePath, "a weekly rule", "days", "windows");
                     var days = Weekdays(Required(rule, rulePath, "days"), $"{rulePath}.days");
                     var windows = Windows(Required(rule, rulePath, "windows"), $"{rulePath}.windows");
                     foreach (var day in days)
@@ -388,7 +388,7 @@ internal static class CalendarDefinition
 
             if (e.TryGetProperty("fromUtc", out var fromUtc) || e.TryGetProperty("toUtc", out _))
             {
-                Known(e, path, "fromUtc", "toUtc");
+                Only(e, path, "an excluded range of instants", "fromUtc", "toUtc");
                 var from = Instant(fromUtc, $"{path}.fromUtc");
                 var to = Instant(Required(e, path, "toUtc"), $"{path}.toUtc");
                 if (from is { } f && to is { } t && t <= f)
@@ -399,7 +399,7 @@ internal static class CalendarDefinition
                 return from is null || to is null ? null : new ExcludedRange(null, null, from, to);
             }
 
-            Known(e, path, "from", "to");
+            Only(e, path, "an excluded range of dates", "from", "to");
             var fromDate = Date(Required(e, path, "from"), $"{path}.from");
             var toDate = Date(Required(e, path, "to"), $"{path}.to");
             if (fromDate is { } fd && toDate is { } td && td < fd)
@@ -662,35 +662,28 @@ internal static class CalendarDefinition
 
         private static JsonElement? Optional(JsonElement e, string name) => e.TryGetProperty(name, out var value) ? value : null;
 
+        // A kind's members: its own, and the two every kind has.
         private void Known(JsonElement e, string path, params string[] names)
         {
-            foreach (var property in e.EnumerateObject())
-            {
-                if (!names.Contains(property.Name) && !CommonProperties.Contains(property.Name))
-                {
-                    Problem($"{path}.{property.Name}", "not a property of this kind.");
-                }
-            }
-
+            Only(e, path, "this kind", [.. CommonProperties, .. names]);
             if (Optional(e, "description") is { } d && (d.ValueKind != JsonValueKind.String || d.GetString()!.Length > 512))
             {
                 Problem($"{path}.description", "a string of at most 512 characters.");
             }
         }
 
+        // The members of an object that is no kind, a weekly rule or an excluded range: its own and no other.
+        private void Only(JsonElement e, string path, string owner, params string[] names)
+        {
+            foreach (var property in e.EnumerateObject())
+            {
+                if (!names.Contains(property.Name))
+                {
+                    Problem($"{path}.{property.Name}", $"not a property of {owner}.");
+                }
+            }
+        }
+
         private void Problem(string path, string message) => Problems.Add($"{path}: {message}");
     }
 }
-
-/// <summary>
-/// A compiled catalog definition: its kind and role, the canonical JSON the content hash is taken over, and the
-/// calendar it compiles to, one of the two by role.
-/// </summary>
-internal sealed record CompiledCalendar(
-    string Kind,
-    CalendarRoleCode Role,
-    ReadOnlyMemory<byte> CanonicalJson,
-    string ContentHash,
-    IActaCalendar? Calendar,
-    IActaAvailabilityCalendar? Availability
-);
