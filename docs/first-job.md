@@ -377,7 +377,7 @@ The same jobs run on the generic host, without the dashboard and the endpoints:
 
 ## Where to go next
 
-- Production: a deploy step runs `<app> jobs migrate` in place of `MigrateOnStartup`. See [Deploying jobs](./operator-guide.md#deploying-jobs).
+- Production: a deploy step runs `<app> jobs migrate` in place of `MigrateOnStartup`. See [Deploying jobs](./operator-guide.md#deploying-jobs). Once it or `jobs deploy` has deployed a namespace, a `MigrateOnStartup` start writes no definition or schedule there, on a local database too, so a new or changed job takes `jobs deploy`, or a fresh local database.
 - Durable steps, signals, sleeps, and child jobs, so a handler survives a crash mid-work:
   [Concepts](./developer-guide.md#concepts-and-glossary) and the [Engineering Labs](./engineering-labs.md).
 - Recurring work: [Scheduling and calendars](./scheduling.md).
