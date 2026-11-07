@@ -119,7 +119,7 @@ builder.Services.UseActa(j =&gt;
     j.UseSqlite(sqlite =&gt;
     {
         sqlite.ConnectionString = "Data Source=acta-local.db";
-        sqlite.ApplyMigrationsOnStartup = true;   // local development only; in production a deploy step runs "jobs migrate"
+        sqlite.MigrateOnStartup = true;   // local development only; in production a deploy step runs "jobs migrate"
     });
     j.Run&lt;ShippingJobs&gt;("shipping");
 });

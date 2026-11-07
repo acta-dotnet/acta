@@ -6,7 +6,7 @@ namespace Acta.Tests.Conformance.Testing;
 
 /// <summary>
 /// Runs work on a schema the published provisioning script built, through a host that leaves
-/// <c>ApplyMigrationsOnStartup</c> false: the production shape, where the application principal has
+/// <c>MigrateOnStartup</c> false: the production shape, where the application principal has
 /// no DDL and the startup preflight is the only schema code that runs. Shared by the three
 /// provision-script specs.
 /// </summary>

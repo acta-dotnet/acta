@@ -80,7 +80,7 @@ public sealed class MsSqlInstallGuardSpec
             {
                 ConnectionString = connectionString,
                 Schema = Schema,
-                ApplyMigrationsOnStartup = true,
+                MigrateOnStartup = true,
             }
         );
 }

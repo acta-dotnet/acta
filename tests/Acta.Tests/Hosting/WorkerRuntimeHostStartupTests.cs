@@ -35,7 +35,7 @@ public sealed class WorkerRuntimeHostStartupTests
                 j.UseSqlite(o =>
                 {
                     o.ConnectionString = connectionString;
-                    o.ApplyMigrationsOnStartup = true;
+                    o.MigrateOnStartup = true;
                 });
                 j.Run<TestJobs.TestJobsManifest>(WorkerNamespace, ownerTeam: "test");
                 j.Services.AddSingleton<IProviderBootstrap>(_ => extra = new CatalogReadingBootstrap(connectionString));

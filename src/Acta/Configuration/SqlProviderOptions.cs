@@ -38,5 +38,5 @@ public sealed class SqlProviderOptions
     /// lacks before any catalog write. Default <c>false</c>: production applies them from a deploy step, with
     /// <c>&lt;app&gt; jobs migrate</c> or the published script, and treats the schema as a precondition of the runtime.
     /// </summary>
-    public bool ApplyMigrationsOnStartup { get; set; } = false;
+    public bool MigrateOnStartup { get; set; } = false;
 }

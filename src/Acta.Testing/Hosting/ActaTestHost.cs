@@ -9,7 +9,7 @@ namespace Acta.Testing;
 /// <summary>
 /// Stands up an Acta runtime against an integrator's provider on a throwaway schema, for testing their
 /// jobs with any test framework. The integrator wires the provider + their manifest in the callback;
-/// the host migrates (when the provider's <c>ApplyMigrationsOnStartup</c> is set) or preflights the
+/// the host migrates (when the provider's <c>MigrateOnStartup</c> is set) or preflights the
 /// existing migration history (when it is not), registers the catalog, and exposes <see cref="IJobs"/>
 /// + a deterministic <c>RunOnce</c> drive.
 /// </summary>
@@ -18,10 +18,10 @@ public static class ActaTestHost
     /// <summary>
     /// Build and initialize a test host. <paramref name="configureJobs"/> receives the
     /// <see cref="IActaBuilder"/> and the schema to offer the provider; the integrator calls e.g.
-    /// <c>j.UsePostgres(opts =&gt; { opts.ConnectionString = …; opts.Schema = schema; opts.ApplyMigrationsOnStartup = true; }).Run&lt;TManifest&gt;(ns)</c>
+    /// <c>j.UsePostgres(opts =&gt; { opts.ConnectionString = …; opts.Schema = schema; opts.MigrateOnStartup = true; }).Run&lt;TManifest&gt;(ns)</c>
     /// (or <c>j.Run(ns, w =&gt; w.AddManifest&lt;TManifest&gt;())</c> for several manifests).
     /// <para>
-    /// Set the provider's <c>ApplyMigrationsOnStartup</c> whenever the host owns its schema: nothing has
+    /// Set the provider's <c>MigrateOnStartup</c> whenever the host owns its schema: nothing has
     /// provisioned a throwaway schema, so without it the bootstrap's migration-history preflight throws
     /// instead of migrating.
     /// </para>

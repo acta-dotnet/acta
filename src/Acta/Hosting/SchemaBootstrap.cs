@@ -34,7 +34,7 @@ internal abstract class SchemaBootstrap(SqlProviderOptions options, ILogger? log
         // them at all.
         DriverVersionPreflight.Run(DriverAssembly, CertifiedMajor, log);
 
-        if (options.ApplyMigrationsOnStartup)
+        if (options.MigrateOnStartup)
         {
             var applied = await ApplyOnStartupAsync(options.ConnectionString, options.Schema, ct);
             if (applied.Count > 0 && log?.IsEnabled(LogLevel.Information) == true)

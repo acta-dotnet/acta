@@ -40,7 +40,7 @@ public sealed class ContinuousSynchronizationTests : IAsyncLifetime
                 j.UseSqlite(sqlite =>
                 {
                     sqlite.ConnectionString = _connectionString;
-                    sqlite.ApplyMigrationsOnStartup = true;
+                    sqlite.MigrateOnStartup = true;
                 });
                 j.Run<ContinuousSynchronizationJobs>(Namespace);
             },

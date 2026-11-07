@@ -47,7 +47,7 @@ public interface IConformanceFixture
 
     /// <summary>
     /// This provider's <c>SchemaBootstrap</c> over <paramref name="connectionString"/> and <paramref name="schemaName"/>, with
-    /// <c>ApplyMigrationsOnStartup</c> left <c>false</c> as a production host runs it, returned as <see cref="object"/> so the
+    /// <c>MigrateOnStartup</c> left <c>false</c> as a production host runs it, returned as <see cref="object"/> so the
     /// public fixture surface does not leak the internal type.
     /// </summary>
     object CreateBootstrap(string connectionString, string schemaName);

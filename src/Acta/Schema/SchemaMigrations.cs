@@ -151,7 +151,7 @@ internal static partial class SchemaMigrations
             $"This database is missing {(missing.Count == 1 ? "migration" : "migrations")} "
                 + $"{string.Join(", ", missing.Select(m => m.Name))}, which this build of Acta ships and requires. Apply "
                 + $"{(missing.Count == 1 ? "it" : "them")} before starting workers, under a principal that may run DDL: "
-                + $"{HowToApply(dialectToken)}. Migrations are never applied at startup while ApplyMigrationsOnStartup is false."
+                + $"{HowToApply(dialectToken)}. Migrations are never applied at startup while MigrateOnStartup is false."
         );
     }
 
@@ -187,7 +187,7 @@ internal static partial class SchemaMigrations
         new(
             $"The Acta schema is not provisioned: schema '{schemaName}' has no migrations table this principal can read. "
                 + $"Apply the migrations under a principal that may run DDL: {HowToApply(dialectToken)}. In development, "
-                + "ApplyMigrationsOnStartup does it at startup. If the schema does exist, the host is pointed at the wrong "
+                + "MigrateOnStartup does it at startup. If the schema does exist, the host is pointed at the wrong "
                 + "database or the wrong schema name, or this principal cannot read it."
                 + (cause is null ? "" : $" The database said: {cause.Message}"),
             cause

@@ -13,7 +13,7 @@ namespace Acta.Emit.Features.Docs;
 /// migration in order) and fully rendered for the default schema, so a DBA can
 /// review and run it verbatim. Exists because locked-down deployments forbid DDL from the
 /// application principal: the pipeline runs this file under an elevated one, the application keeps
-/// <c>ApplyMigrationsOnStartup = false</c>, and because each migration records its own history row
+/// <c>MigrateOnStartup = false</c>, and because each migration records its own history row
 /// the bootstrap accepts the result as its own work.
 /// </summary>
 internal static class ProvisionScriptEmitter
@@ -84,7 +84,7 @@ internal static class ProvisionScriptEmitter
             }
         );
         script.AppendLine("-- Run it under a DDL-capable principal; the application principal then needs only DML and");
-        script.AppendLine("-- EXECUTE, with ApplyMigrationsOnStartup left false. Because the history rows are recorded by");
+        script.AppendLine("-- EXECUTE, with MigrateOnStartup left false. Because the history rows are recorded by");
         script.AppendLine("-- the script itself, a bootstrap with migrations enabled also accepts the result and applies");
         script.AppendLine("-- nothing. Site-specific physical tuning (partitioning, tablespaces, compression) is yours to");
         script.AppendLine("-- add; keep the logical shape - tables, columns, constraints, routine signatures - intact.");

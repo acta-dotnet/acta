@@ -12,7 +12,7 @@ public sealed class ArchitectureBoundaryTests
     /// <summary>
     /// Concrete schema migrators are implementation mechanics, not a consumer contract: a consumer applies
     /// the migrations through <c>jobs migrate</c>, the public <c>{Provider}Migrations</c> class, or
-    /// ApplyMigrationsOnStartup, so the migrator classes stay internal.
+    /// MigrateOnStartup, so the migrator classes stay internal.
     /// </summary>
     [Fact]
     public void Provider_schema_migrators_are_internal()

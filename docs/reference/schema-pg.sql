@@ -18,7 +18,7 @@
 -- guarantee: psql -v ON_ERROR_STOP=1. A client that runs on past a failed statement would reach the
 -- history rows inside an aborted transaction, which then rolls back on commit.
 -- Run it under a DDL-capable principal; the application principal then needs only DML and
--- EXECUTE, with ApplyMigrationsOnStartup left false. Because the history rows are recorded by
+-- EXECUTE, with MigrateOnStartup left false. Because the history rows are recorded by
 -- the script itself, a bootstrap with migrations enabled also accepts the result and applies
 -- nothing. Site-specific physical tuning (partitioning, tablespaces, compression) is yours to
 -- add; keep the logical shape - tables, columns, constraints, routine signatures - intact.

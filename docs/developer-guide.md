@@ -650,7 +650,7 @@ builder.Services.UseActa(j =>
     {
         pg.ConnectionString = builder.Configuration.GetConnectionString("acta")!;
         pg.Schema = "acta";
-        pg.ApplyMigrationsOnStartup = false;
+        pg.MigrateOnStartup = false;
     });
 
     j.ConfigureOptions(o =>
@@ -678,7 +678,7 @@ uses schema `main`; SQL Server and Postgres default to schema `acta`.
 | `Schema` | `acta` (`main` on SQLite) | Schema/container for Acta tables, views, indexes, routines, and migration history. |
 | `CommandTimeout` | 30 seconds | Runtime operation timeout applied by the store. |
 | `DeadlockRetryAttempts` | 5 | Store-level retry count for database deadlock victims. Set `1` to disable retry. |
-| `ApplyMigrationsOnStartup` | `false` | Development only: startup creates the database if it is missing and applies. Production runs `<app> jobs migrate` from its deploy step ([Migration ownership](operator-guide.md#migration-ownership)). Either way, startup verifies the migration history and refuses an unprovisioned or mismatched database. |
+| `MigrateOnStartup` | `false` | Development only: startup creates the database if it is missing and applies. Production runs `<app> jobs migrate` from its deploy step ([Migration ownership](operator-guide.md#migration-ownership)). Either way, startup verifies the migration history and refuses an unprovisioned or mismatched database. |
 
 Local concepts, demos, and Anvil use `UseLocalDatabase(...)`, which selects a provider from explicit
 argument, `Acta:Provider`, `ACTA_LOCAL_PROVIDER`, then SQLite as the zero-setup default.
@@ -1187,7 +1187,7 @@ public sealed class SendWelcomeEmailTests : IAsyncLifetime
                 {
                     opts.ConnectionString = Environment.GetEnvironmentVariable("ACTA_TEST_PG")!;
                     opts.Schema = schema;                  // the throwaway schema the host allocated
-                    opts.ApplyMigrationsOnStartup = true;  // migrate it
+                    opts.MigrateOnStartup = true;          // migrate it
                 });
                 j.Run<UsersJobs>(namespaceName: "users", ownerTeam: "growth");
             },
@@ -1219,7 +1219,7 @@ public sealed class SendWelcomeEmailTests : IAsyncLifetime
 ```
 
 - The callback receives the schema name. Pass it to the provider's `opts.Schema` and set
-  `ApplyMigrationsOnStartup = true`; the host owns a fresh schema per test class. SQLite has one schema, `main`, so it
+  `MigrateOnStartup = true`; the host owns a fresh schema per test class. SQLite has one schema, `main`, so it
   takes no name, and `host.Schema` reports the schema the runtime actually uses.
 - `Run<TManifest>(...)` makes it a worker host. Without it the host is enqueue-only (for testing
   enqueue-side code such as HTTP handlers); `RunOnceAsync` then throws.

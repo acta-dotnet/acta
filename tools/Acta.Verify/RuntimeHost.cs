@@ -46,7 +46,7 @@ internal static class RuntimeHost
                     j.UseSqlite(o =>
                     {
                         o.ConnectionString = connection;
-                        o.ApplyMigrationsOnStartup = migrate;
+                        o.MigrateOnStartup = migrate;
                     });
                     break;
                 case "pg":
@@ -54,7 +54,7 @@ internal static class RuntimeHost
                     {
                         o.ConnectionString = connection;
                         o.Schema = schema;
-                        o.ApplyMigrationsOnStartup = migrate;
+                        o.MigrateOnStartup = migrate;
                     });
                     break;
                 case "mssql":
@@ -62,7 +62,7 @@ internal static class RuntimeHost
                     {
                         o.ConnectionString = connection;
                         o.Schema = schema;
-                        o.ApplyMigrationsOnStartup = migrate;
+                        o.MigrateOnStartup = migrate;
                     });
                     break;
                 default:

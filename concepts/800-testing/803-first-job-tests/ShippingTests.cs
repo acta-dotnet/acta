@@ -25,7 +25,7 @@ public sealed class ShippingTests : IAsyncLifetime
                 j.UseSqlite(sqlite =>
                 {
                     sqlite.ConnectionString = $"Data Source={_database}";
-                    sqlite.ApplyMigrationsOnStartup = true;
+                    sqlite.MigrateOnStartup = true;
                 });
                 j.Run<ShippingJobs>("shipping");
             },

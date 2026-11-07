@@ -50,7 +50,7 @@ public static class LocalDatabase
             jobs.UseSqlite(sqlite =>
             {
                 sqlite.ConnectionString = connectionString;
-                sqlite.ApplyMigrationsOnStartup = applyMigrations;
+                sqlite.MigrateOnStartup = applyMigrations;
             });
         }
         else if (IsSqlServer(provider))
@@ -62,7 +62,7 @@ public static class LocalDatabase
                 {
                     sql.Schema = schema;
                 }
-                sql.ApplyMigrationsOnStartup = applyMigrations;
+                sql.MigrateOnStartup = applyMigrations;
             });
         }
         else
@@ -74,7 +74,7 @@ public static class LocalDatabase
                 {
                     pg.Schema = schema;
                 }
-                pg.ApplyMigrationsOnStartup = applyMigrations;
+                pg.MigrateOnStartup = applyMigrations;
             });
         }
 

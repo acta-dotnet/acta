@@ -2278,7 +2278,7 @@
 ### Bootstrap verifies migration history even when it applies nothing
 - **Contract:** Provider bootstrap requires every migration this build ships and tolerates newer ones, and jobs migrate applies exactly what a schema lacks.
 - **Guarantees:**
-  - A provisioned schema passes bootstrap with ApplyMigrationsOnStartup false
+  - A provisioned schema passes bootstrap with MigrateOnStartup false
   - Migrate applies every migration a fresh schema lacks, then nothing
   - An unprovisioned schema is refused as unprovisioned, naming the provisioning script
   - A migration this build ships that the database never applied is refused by name

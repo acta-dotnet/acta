@@ -319,7 +319,7 @@ builder.Services.UseActa(acta =&gt;
     {
         sqlite.ConnectionString = "Data Source=reports.db";
         // A local-development convenience. In production, a deploy step runs "jobs migrate".
-        sqlite.ApplyMigrationsOnStartup = builder.Environment.IsDevelopment();
+        sqlite.MigrateOnStartup = builder.Environment.IsDevelopment();
     });
     acta.Run&lt;ReportsJobs&gt;("reports");
 });
@@ -359,7 +359,7 @@ app.MapGet("/reports/{id}", async (string id, IJobs jobs, CancellationToken ct) 
 
 app.Run();</code></pre>
         </figure>
-        <p>Read it from the top. <code>UseActa</code> registers Acta with the host, and inside it <code>UseSqlite</code> says where the durable record lives: a file called <code>reports.db</code> in the project folder. Acta keeps its tables in that database, the same way it would keep them in your PostgreSQL or SQL Server database in a larger system. <code>ApplyMigrationsOnStartup</code> lets the app create those tables itself the first time it runs. That is handy on your machine and inappropriate in production, where schema changes should come from a deployment step, so the line only switches it on in the Development environment that <code>dotnet run</code> uses.</p>
+        <p>Read it from the top. <code>UseActa</code> registers Acta with the host, and inside it <code>UseSqlite</code> says where the durable record lives: a file called <code>reports.db</code> in the project folder. Acta keeps its tables in that database, the same way it would keep them in your PostgreSQL or SQL Server database in a larger system. <code>MigrateOnStartup</code> lets the app create those tables itself the first time it runs. That is handy on your machine and inappropriate in production, where schema changes should come from a deployment step, so the line only switches it on in the Development environment that <code>dotnet run</code> uses.</p>
         <p>The next line needs the most explanation. <code>ReportsJobs</code> is a class you did not write. At build time, Acta's source generator finds every <code>[Job]</code> method in the project and generates a <strong>manifest</strong> listing them. It names the manifest after the last segment of the project's root namespace plus <code>Jobs</code>, so a project called <code>Reports</code> gets <code>ReportsJobs</code>, and it puts the class in that root namespace. That is why the file starts with <code>using Reports;</code>: <code>Program.cs</code> uses top-level statements, which live in the global namespace and would not otherwise see it.</p>
         <p><code>Run&lt;ReportsJobs&gt;("reports")</code> then does two things. It registers every job in the manifest under an Acta <strong>namespace</strong> called <code>reports</code>, and it starts a worker in this process that claims and runs jobs from that namespace. That makes three different things with similar names, and it helps to keep them apart. <code>Reports</code> is the C# namespace of your code. <code>reports</code> is the Acta namespace, a label in the database that says which service owns these jobs; a second service would run its own jobs under its own namespace. <code>monthly-sales-report</code> is the durable name of one job within it.</p>
         <p>There is no separate worker process: the application that serves HTTP requests also runs the jobs, on background threads managed by the host. You can split the two later without changing the handler.</p>
@@ -542,7 +542,7 @@ builder.Services.UseActa(acta =&gt;
     {
         sqlite.ConnectionString = "Data Source=reports.db";
         // A local-development convenience. In production, a deploy step runs "jobs migrate".
-        sqlite.ApplyMigrationsOnStartup = builder.Environment.IsDevelopment();
+        sqlite.MigrateOnStartup = builder.Environment.IsDevelopment();
     });
     acta.Run&lt;ReportsJobs&gt;("reports");
 
@@ -672,7 +672,7 @@ info: Reports.SalesReportJobs[0]
         <p>You have now used the everyday surface of Acta: an input and a <code>[Job]</code> handler, the generated manifest, <code>EnqueueAsync</code> to request work and the <code>JobHandle</code> it answers, <code>GetAsync</code> and <code>GetResultAsync</code> to read a job back by its ref, <code>ScheduleAsync</code> when the work should start later, a retry policy, steps, and two ways to inspect it all. An existing application uses the same pieces. Keep your host and your database, add the provider package that matches it, register with your existing connection string, and move one piece of background work behind a <code>[Job]</code> attribute; its constructor can ask for your existing services.</p>
         <p>A few choices in this tutorial were made for a laptop and deserve a second look before real traffic arrives.</p>
         <ul class="plain">
-          <li><strong>Schema.</strong> Leave <code>ApplyMigrationsOnStartup</code> off outside Development and run <code>jobs migrate</code> from your deployment pipeline, as described in <a href="https://github.com/acta-dotnet/acta/blob/main/docs/operator-guide.md#migration-ownership">the production guide</a>.</li>
+          <li><strong>Schema.</strong> Leave <code>MigrateOnStartup</code> off outside Development and run <code>jobs migrate</code> from your deployment pipeline, as described in <a href="https://github.com/acta-dotnet/acta/blob/main/docs/operator-guide.md#migration-ownership">the production guide</a>.</li>
           <li><strong>Heartbeat and demo code.</strong> The two-second heartbeat is for demonstrations; with the default, a crashed process's jobs are reclaimed within about six minutes rather than seconds. The <code>Task.Delay</code> should already be gone.</li>
           <li><strong>The dashboard.</strong> It stays local-only and read-only until you change it. To reach it from other machines, turn off <code>LocalOnly</code> and put it behind your own authentication and authorization; enable controls only there. The guide's section on <a href="https://github.com/acta-dotnet/acta/blob/main/docs/operator-guide.md#dashboard-exposure-and-auth">dashboard exposure</a> shows how.</li>
           <li><strong>The database.</strong> SQLite is an embedded, single-machine store. When the application runs on more than one server, switch to <code>Acta.Postgres</code> or <code>Acta.SqlServer</code> and <code>UsePostgres</code> or <code>UseSqlServer</code>; the jobs themselves do not change.</li>

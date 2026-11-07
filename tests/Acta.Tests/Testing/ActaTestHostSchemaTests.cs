@@ -26,7 +26,7 @@ public sealed class ActaTestHostSchemaTests
                     j.UseSqlite(o =>
                     {
                         o.ConnectionString = connectionString;
-                        o.ApplyMigrationsOnStartup = true;
+                        o.MigrateOnStartup = true;
                     });
                     j.Run<TestJobs.TestJobsManifest>("host-schema", ownerTeam: "test");
                 },

@@ -2593,7 +2593,7 @@ sealed record Acta.SignalWaitOutcome<T>
     T Value { get; }
 sealed class Acta.SqlProviderOptions
     .ctor()
-    System.Boolean ApplyMigrationsOnStartup { get;set; }
+    System.Boolean MigrateOnStartup { get;set; }
     System.Int32 DeadlockRetryAttempts { get;set; }
     System.String ConnectionString { get;set; }
     System.String Schema { get;set; }

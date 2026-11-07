@@ -20,7 +20,7 @@
 -- guarantee: sqlcmd -b, or SQLCMD mode with stop-on-error in SSMS. A client that runs on past a failed
 -- batch would reach the history rows with an object it failed to replace still in place.
 -- Run it under a DDL-capable principal; the application principal then needs only DML and
--- EXECUTE, with ApplyMigrationsOnStartup left false. Because the history rows are recorded by
+-- EXECUTE, with MigrateOnStartup left false. Because the history rows are recorded by
 -- the script itself, a bootstrap with migrations enabled also accepts the result and applies
 -- nothing. Site-specific physical tuning (partitioning, tablespaces, compression) is yours to
 -- add; keep the logical shape - tables, columns, constraints, routine signatures - intact.

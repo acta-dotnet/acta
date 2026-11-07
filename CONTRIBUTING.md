@@ -93,7 +93,7 @@ Server, set `ACTA_LOCAL_PROVIDER` and provide `ConnectionStrings:acta`, `ACTA_TE
 
 **Create.** SQLite creates its file on first connection. Against Postgres / SQL Server, the local
 samples create the named database (`acta-dev`) when it is absent and apply migrations, because
-`ApplyMigrationsOnStartup` is enabled in dev; the login therefore needs database-creation
+`MigrateOnStartup` is enabled in dev; the login therefore needs database-creation
 permission. Provider tests create the separate `acta-test` database and apply its `acta_test`
 schema automatically on first run.
 

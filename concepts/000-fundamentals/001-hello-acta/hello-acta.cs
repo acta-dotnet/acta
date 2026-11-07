@@ -16,7 +16,7 @@ builder.Services.UseActa(j =>
     {
         sqlite.ConnectionString =
             builder.Configuration.GetConnectionString("acta") ?? $"Data Source={Path.Combine(Path.GetTempPath(), "acta-local.db")}";
-        sqlite.ApplyMigrationsOnStartup = true;
+        sqlite.MigrateOnStartup = true;
     });
     j.Run<HelloActaJobs>("hello-acta");
 });

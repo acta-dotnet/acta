@@ -1261,7 +1261,7 @@ public sealed partial class OpenApiContractTests
             j.UseSqlite(o =>
             {
                 o.ConnectionString = new SqliteConnectionStringBuilder { DataSource = path }.ConnectionString;
-                o.ApplyMigrationsOnStartup = true;
+                o.MigrateOnStartup = true;
             });
             j.Run<TestJobs.TestJobsManifest>(SqliteNamespace, ownerTeam: "test");
         });

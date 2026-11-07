@@ -492,7 +492,7 @@ dotnet_diagnostic.CA2000.severity = none
 dotnet_diagnostic.CA1062.severity = none
 
 # CA1805: two documented defaults that happen to coincide with the CLR zero. SqlProviderOptions'
-# ApplyMigrationsOnStartup = false is the one option on that type whose default is a policy statement
+# MigrateOnStartup = false is the one option on that type whose default is a policy statement
 # - its doc comment says production applies migrations from a deploy step instead -
 # and it sits directly under DeadlockRetryAttempts = 5, which states its default the same way and is
 # not flagged. JobPayloadFormat.None = default is the same shape: it declares that the no-payload

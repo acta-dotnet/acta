@@ -105,7 +105,7 @@ internal sealed class SqliteSchemaMigrator(SqlProviderOptions options, ILogger<S
         // about it. Only a plain file path is pre-checked; in-memory and shared-cache
         // sources have no file to miss, and URI (file:...) sources are excluded unparsed - one can
         // name a real file, but mis-parsing its forms is worse than letting it take the normal open. The apply
-        // path is untouched: creating the file is exactly what ApplyMigrationsOnStartup is for.
+        // path is untouched: creating the file is exactly what MigrateOnStartup is for.
         var builder = new SqliteConnectionStringBuilder(connectionString);
         if (IsPlainFileSource(builder) && !File.Exists(builder.DataSource))
         {

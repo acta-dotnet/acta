@@ -18,7 +18,7 @@ namespace Acta.Tests.Conformance.Schema;
 )]
 public sealed class MigrationHistoryPreflightSpec : IntegrationSpec<ConformanceFixture>
 {
-    [Fact(DisplayName = "A provisioned schema passes bootstrap with ApplyMigrationsOnStartup false")]
+    [Fact(DisplayName = "A provisioned schema passes bootstrap with MigrateOnStartup false")]
     public async Task Provisioned_schema_passes()
     {
         // The shared acta_test schema, exactly as a production host would find its own: provisioned

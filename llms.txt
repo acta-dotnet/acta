@@ -43,7 +43,7 @@ builder.Services.UseActa(j =>
     j.UseSqlite(sqlite =>
     {
         sqlite.ConnectionString = "Data Source=acta-local.db";
-        sqlite.ApplyMigrationsOnStartup = true;   // local development only; in production a deploy step runs "jobs migrate"
+        sqlite.MigrateOnStartup = true;   // local development only; in production a deploy step runs "jobs migrate"
     });
     j.Run<ShippingJobs>("shipping");
 });
@@ -109,7 +109,7 @@ public static class ShippingHandlers
 - Split deployment (API enqueues, separate worker executes): the worker registers
   `Run<TManifest>`; the producer enqueues by the raw route contract instead of the typed call so
   it does not need the handler assembly.
-- Never enable `ApplyMigrationsOnStartup` outside an explicitly local or development
+- Never enable `MigrateOnStartup` outside an explicitly local or development
   configuration. Production applies the schema from a deploy step with `<app> jobs migrate`, or
   `{Provider}Migrations.ApplyAsync` from code. An external outbox table comes from the producer's own
   migrations (`CreateOutboxScript()`) or `ApplyOutboxAsync`; Acta never creates it on its own.

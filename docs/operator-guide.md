@@ -444,7 +444,7 @@ for production deployments, not for an evaluation.
 - Choose SQL Server or PostgreSQL for distributed multi-worker deployments. Use SQLite for embedded
   single-node deployments, local development, demos, and tests.
 - Apply Acta migrations in a deployment step before workers start, with `<app> jobs migrate`
-  ([Migration ownership](#migration-ownership)). Keep `ApplyMigrationsOnStartup = false` outside development.
+  ([Migration ownership](#migration-ownership)). Keep `MigrateOnStartup = false` outside development.
 - Pin one Acta package version across all workers in a namespace.
 - Deploy with a rolling restart: run `<app> jobs migrate`, start the new build, stop the old one. See
   [Rolling deploys](#rolling-deploys) for what each build does with the other's jobs.
@@ -486,7 +486,7 @@ In production a deploy step applies Acta's migrations, never application startup
 
 | Where | How |
 | --- | --- |
-| Development | `ApplyMigrationsOnStartup = true`: startup creates the database if it is missing, then applies. |
+| Development | `MigrateOnStartup = true`: startup creates the database if it is missing, then applies. |
 | Deploy step | `<app> jobs migrate`, or `{Provider}Migrations.ApplyAsync` from code. A server database must exist; SQLite creates the file. |
 | A DBA | The script for your provider: [`schema-pg.sql`](./reference/schema-pg.sql), [`schema-mssql.sql`](./reference/schema-mssql.sql), [`schema-sqlite.sql`](./reference/schema-sqlite.sql). |
 
@@ -503,7 +503,7 @@ applied M20261106144133_init to schema acta
 - A separate tool calls `await PostgresMigrations.ApplyAsync(connectionString, schema: "acta")`, or `SqlServerMigrations` or `SqliteMigrations`, which returns the names it applied.
 - A rollback is safe: an older build runs against the newer schema, and its `jobs migrate` changes nothing.
 - The script re-creates every routine and view on each run, so re-running it is safe; run it with a client that stops at the first error (`psql -v ON_ERROR_STOP=1`, `sqlcmd -b`, `sqlite3 -bail`). An older release's script stops before it changes a database a newer release upgraded.
-- On SQL Server, every install, the script included, refuses a system database and never changes the settings of a database that already exists. Only `ApplyMigrationsOnStartup`, when it creates the database, turns `READ_COMMITTED_SNAPSHOT` on in it, as EF Core does. Acta runs with it on or off; turning it on yourself waits for every other session to leave the database, so do it in a maintenance window.
+- On SQL Server, every install, the script included, refuses a system database and never changes the settings of a database that already exists. Only `MigrateOnStartup`, when it creates the database, turns `READ_COMMITTED_SNAPSHOT` on in it, as EF Core does. Acta runs with it on or off; turning it on yourself waits for every other session to leave the database, so do it in a maintenance window.
 - A migration runs in one transaction under an exclusive schema lock: on a live system it briefly blocks the statements it collides with, and jobs wait rather than fail.
 - Every start checks that the database has a history row for each migration the build ships, and fails naming the three ways above if not. Rows the build does not know are fine, so an older worker runs against a newer database. A hand-edited object is not detected.
 
