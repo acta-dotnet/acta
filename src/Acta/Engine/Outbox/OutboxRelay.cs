@@ -239,7 +239,7 @@ internal sealed class OutboxRelay(OutboxOperations.Source source, JobsOperations
             }
             catch (OperationCanceledException) when (ct.IsCancellationRequested)
             {
-                await ReleaseBestEffortAsync(token, claimed.Select(r => r.OutboxId).ToList(), ct);
+                await ReleaseBestEffortAsync(token, claimed.Select(r => r.OutboxId).ToList());
                 throw;
             }
 
@@ -317,7 +317,7 @@ internal sealed class OutboxRelay(OutboxOperations.Source source, JobsOperations
             // Infrastructure/target-availability failure: release the claimed batch best-effort and fail
             // the tick without consuming any row's quarantine budget. Partially-enqueued rows are safe;
             // the next tick re-enqueues them and the target deduplicates.
-            await ReleaseBestEffortAsync(token, claimed.Select(r => r.OutboxId).ToList(), ct);
+            await ReleaseBestEffortAsync(token, claimed.Select(r => r.OutboxId).ToList());
             ActaLog.OutboxTargetEnqueueFailed(_log, ex, options.SourceName);
             throw;
         }
@@ -400,7 +400,7 @@ internal sealed class OutboxRelay(OutboxOperations.Source source, JobsOperations
         // A group whose target enqueue never ran is released so the next tick continues the backlog, and this tick ends.
         if (deferredIds.Count > 0)
         {
-            await ReleaseBestEffortAsync(token, deferredIds, ct);
+            await ReleaseBestEffortAsync(token, deferredIds);
         }
 
         return (relayed, deduplicated, [.. quarantines.Select(static q => q.OutboxId)], deferredIds.Count > 0);
@@ -490,10 +490,11 @@ internal sealed class OutboxRelay(OutboxOperations.Source source, JobsOperations
                 }),
         ];
 
-    private async Task ReleaseBestEffortAsync(Guid token, IReadOnlyList<Guid> outboxIds, CancellationToken ct)
+    private async Task ReleaseBestEffortAsync(Guid token, IReadOnlyList<Guid> outboxIds)
     {
         try
         {
+            // Uncancellable, because the tick's cancellation is the commonest reason to release.
             await source.ReleaseClaimedAsync(new ReleaseClaimedOutboxCommand(token, outboxIds), CancellationToken.None);
         }
         catch (Exception)
