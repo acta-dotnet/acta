@@ -99,15 +99,16 @@ internal static class PermissionFilter
             await http.ChallengeAsync(scheme);
         }
 
-        // A scheme that sends a browser to a login page does so only for a dashboard page. An API route keeps the plain
-        // 401, and so does a call the catch-all would answer as an unknown endpoint, such as a control this mount does
-        // not map; with no scheme to challenge, the 401 is all there is to answer.
+        // A scheme that sends a browser to a login page does so only for a dashboard page. An API route answers 401
+        // whatever status the challenge set, without its Location, and so does a call the catch-all would answer as an
+        // unknown endpoint, such as a control this mount does not map; with no scheme to challenge, the 401 is all there
+        // is to answer.
         var api =
             operation is not null
             || http.GetRouteValue("spaPath") is string spaPath
                 && ActaEndpointRouteBuilderExtensions.IsUnknownEndpoint(http.Request, spaPath);
         var response = http.Response;
-        if (schemes.Count == 0 || api && (response.StatusCode is >= 300 and < 400 || response.Headers.ContainsKey(HeaderNames.Location)))
+        if ((api || schemes.Count == 0) && !response.HasStarted)
         {
             response.Headers.Remove(HeaderNames.Location);
             response.StatusCode = StatusCodes.Status401Unauthorized;
