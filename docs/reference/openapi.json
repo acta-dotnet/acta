@@ -10348,7 +10348,8 @@
             ]
           }
         },
-        "additionalProperties": false
+        "additionalProperties": false,
+        "description": "Body of POST /alerts/{alertRef}/acknowledge: the operator's reason, optional like the body itself."
       },
       "AcknowledgeAlertResponse": {
         "required": [
@@ -10394,7 +10395,7 @@
           "pending"
         ],
         "type": "string",
-        "description": "Delivery state of one alert row. Numeric bands are a readability convention only; behavior\nfollows the explicit members.\n\nKnown values:\n- unspecified: Alert delivery status not recognized by this build; the row was written by a newer Acta.\n- pending: Materialized; awaiting the first send attempt.\n- retry-after: Send deferred until the alert's retry_after_utc instant.\n- suppressed: Intentionally not sent because process-local channel policy rejected delivery.\n- delivered: Successfully sent to the channel transport.\n- failed: Send attempt failed and the retry path is done with it; re-sent as a reminder while the incident stays unresolved.\n\nOther values may appear: keep a value this client does not know as it is.",
+        "description": "Delivery state of one alert row. Numeric bands are a readability convention only; behavior follows the explicit members.\n\nKnown values:\n- unspecified: Alert delivery status not recognized by this build; the row was written by a newer Acta.\n- pending: Materialized; awaiting the first send attempt.\n- retry-after: Send deferred until the alert's retry_after_utc instant.\n- suppressed: Intentionally not sent because process-local channel policy rejected delivery.\n- delivered: Successfully sent to the channel transport.\n- failed: Send attempt failed and the retry path is done with it; re-sent as a reminder while the incident stays unresolved.\n\nOther values may appear: keep a value this client does not know as it is.",
         "x-acta-known-values": [
           "unspecified",
           "pending",
@@ -10409,7 +10410,7 @@
           "first-failure"
         ],
         "type": "string",
-        "description": "What condition an alert reports. Sparse catalog ids leave insertion room; numeric ordering is\nnot behavioral.\n\nKnown values:\n- unspecified: Alert kind not recognized by this build; the row was written by a newer Acta.\n- first-failure: Failure that opened the incident; emitted by Automatic origin on non-terminal failure.\n- threshold-reached: Threshold-bound emission (e.g., LostClaimAlertThreshold reached).\n- final-failure: Terminal failure; emitted by Automatic origin on Status to Failed.\n- manual: Hand-raised; ctx.AlertAsync from inside a handler.\n\nOther values may appear: keep a value this client does not know as it is.",
+        "description": "What condition an alert reports. Sparse catalog ids leave insertion room; numeric ordering is not behavioral.\n\nKnown values:\n- unspecified: Alert kind not recognized by this build; the row was written by a newer Acta.\n- first-failure: Failure that opened the incident; emitted by Automatic origin on non-terminal failure.\n- threshold-reached: Threshold-bound emission (e.g., LostClaimAlertThreshold reached).\n- final-failure: Terminal failure; emitted by Automatic origin on Status to Failed.\n- manual: Hand-raised; ctx.AlertAsync from inside a handler.\n\nOther values may appear: keep a value this client does not know as it is.",
         "x-acta-known-values": [
           "unspecified",
           "first-failure",
@@ -10446,7 +10447,7 @@
       },
       "AlertRef": {
         "type": "string",
-        "description": "Public stable reference for one alert row: \"alr_\" plus the Guid's 32 lowercase hex digits, such as\n`alr_01a14f5038c17d0e9b2f6a4c81d3e5f7`. Dashboards, HTTP APIs, and alert transports address\nalerts by this value; the numeric alert id stays the internal engine identity. Deduplication never\nre-mints it: a condition that re-fires while its incident is open keeps that incident's ref."
+        "description": "Public stable reference for one alert row: \"alr_\" plus the Guid's 32 lowercase hex digits, such as alr_01a14f5038c17d0e9b2f6a4c81d3e5f7. Dashboards, HTTP APIs, and alert transports address alerts by this value; the numeric alert id stays the internal engine identity. Deduplication never re-mints it: a condition that re-fires while its incident is open keeps that incident's ref."
       },
       "AlertSeverityCode": {
         "examples": [
@@ -10479,7 +10480,8 @@
             ]
           }
         },
-        "additionalProperties": false
+        "additionalProperties": false,
+        "description": "Body of POST /calendars/{jobNamespace}/{calendarName}/archive: the ExpectedCurrentVersion the operator last read, required."
       },
       "ArchiveCalendarResponse": {
         "required": [
@@ -10504,14 +10506,14 @@
             "format": "int32"
           }
         },
-        "description": "What archiving a family's current version did. `Version` is the family's current version, archived when Applied;\n`DependentCount` counts the live schedules of active definitions that name the family in its scope, which reject\nthe archive while any remain."
+        "description": "What archiving a family's current version did. Version is the family's current version, archived when Applied; DependentCount counts the live schedules of active definitions that name the family in its scope, which reject the archive while any remain."
       },
       "CalendarRoleCode": {
         "examples": [
           "occurrence"
         ],
         "type": "string",
-        "description": "What a catalog calendar family gives a schedule: its occurrences, or the windows they may fire in. The family's first\nversion fixes its role, and every newer version keeps it.\n\nKnown values:\n- unspecified: Calendar role not recognized by this build; the row was written by a newer Acta.\n- occurrence: A calendar whose instants are a schedule's occurrences.\n- availability: A calendar whose windows bound when a schedule's occurrences may fire.\n\nOther values may appear: keep a value this client does not know as it is.",
+        "description": "What a catalog calendar family gives a schedule: its occurrences, or the windows they may fire in. The family's first version fixes its role, and every newer version keeps it.\n\nKnown values:\n- unspecified: Calendar role not recognized by this build; the row was written by a newer Acta.\n- occurrence: A calendar whose instants are a schedule's occurrences.\n- availability: A calendar whose windows bound when a schedule's occurrences may fire.\n\nOther values may appear: keep a value this client does not know as it is.",
         "x-acta-known-values": [
           "unspecified",
           "occurrence",
@@ -10523,7 +10525,7 @@
           "draft"
         ],
         "type": "string",
-        "description": "Where one version of a catalog calendar family stands. At most one version of a family is Published at a time, and\nthat version is the family's current one; a version's content never changes, only its status.\n\nKnown values:\n- unspecified: Calendar status not recognized by this build; the row was written by a newer Acta.\n- draft: A saved version that was never published; no schedule follows it.\n- published: The family's current version, the one its catalog-bound schedules follow.\n- superseded: A version that was current until a newer one was published; history still pins it.\n- archived: The family's current version, retired; the family has no current version until another is published.\n\nOther values may appear: keep a value this client does not know as it is.",
+        "description": "Where one version of a catalog calendar family stands. At most one version of a family is Published at a time, and that version is the family's current one; a version's content never changes, only its status.\n\nKnown values:\n- unspecified: Calendar status not recognized by this build; the row was written by a newer Acta.\n- draft: A saved version that was never published; no schedule follows it.\n- published: The family's current version, the one its catalog-bound schedules follow.\n- superseded: A version that was current until a newer one was published; history still pins it.\n- archived: The family's current version, retired; the family has no current version until another is published.\n\nOther values may appear: keep a value this client does not know as it is.",
         "x-acta-known-values": [
           "unspecified",
           "draft",
@@ -10551,7 +10553,7 @@
             "format": "date-time"
           }
         },
-        "description": "One open range of an availability calendar: `[StartUtc, EndUtc)`, both UTC, the end after the start; a null\nend is open forever."
+        "description": "One open range of an availability calendar: [StartUtc, EndUtc), both UTC, the end after the start; a null end is open forever."
       },
       "CancelJobRequest": {
         "type": "object",
@@ -10570,7 +10572,8 @@
             "format": "int32"
           }
         },
-        "additionalProperties": false
+        "additionalProperties": false,
+        "description": "Body of POST /jobs/{jobRef}/cancel. A null ExpectedVersion applies the verb unconditionally; a non-null one that misses the row's current version answers 409 with action version-conflict and writes nothing."
       },
       "CancelJobResponse": {
         "required": [
@@ -10608,7 +10611,7 @@
           "variable"
         ],
         "type": "string",
-        "description": "Discriminator for `checkpoints` rows: which durable substrate feature owns the\n`(job_id, checkpoint_kind_code, checkpoint_name)` row. One physical table carries every simple job-internal\ndurable value; the kind keeps the name spaces structurally separate (a user variable can never\ncollide with a signal or a child latch of the same name).\n\nKnown values:\n- unspecified: Checkpoint kind not recognized by this build; the row was written by a newer Acta.\n- variable: User variable; UPSERT, last-writer-wins, no state machine.\n- signal: Signal; Pending while awaited, Set once raised.\n- timer: Durable sleep timer; Pending until due, Consumed on replay past the due instant.\n- progress: Progress; UPSERT, last-writer-wins, one per job.\n- child-latch: Child terminal-outcome latch on the parent; Pending while awaited, Set when the child lands terminal.\n- firing: The scheduler's firing envelope for a slot or scheduled root; Pending while outstanding, settled with the outcome; survives a handler reset.\n\nOther values may appear: keep a value this client does not know as it is.",
+        "description": "Discriminator for checkpoints rows: which durable substrate feature owns the (job_id, checkpoint_kind_code, checkpoint_name) row. One physical table carries every simple job-internal durable value; the kind keeps the name spaces structurally separate (a user variable can never collide with a signal or a child latch of the same name).\n\nKnown values:\n- unspecified: Checkpoint kind not recognized by this build; the row was written by a newer Acta.\n- variable: User variable; UPSERT, last-writer-wins, no state machine.\n- signal: Signal; Pending while awaited, Set once raised.\n- timer: Durable sleep timer; Pending until due, Consumed on replay past the due instant.\n- progress: Progress; UPSERT, last-writer-wins, one per job.\n- child-latch: Child terminal-outcome latch on the parent; Pending while awaited, Set when the child lands terminal.\n- firing: The scheduler's firing envelope for a slot or scheduled root; Pending while outstanding, settled with the outcome; survives a handler reset.\n\nOther values may appear: keep a value this client does not know as it is.",
         "x-acta-known-values": [
           "unspecified",
           "variable",
@@ -10624,7 +10627,7 @@
           "pending"
         ],
         "type": "string",
-        "description": "Known values:\n- unspecified: Checkpoint status not recognized by this build; the row was written by a newer Acta.\n- pending: Awaited or armed; the checkpoint has not been satisfied yet.\n- set: Raised; the payload is stored and a waiting job proceeds.\n- expired: The re-entering wait found the checkpoint overdue and settled it TimedOut; a raise then skips it.\n- consumed: Due instant reached; the replayed handler consumed the timer and proceeded.\n- succeeded: The firing settled successfully; the envelope is the slot's last outcome until the next admission replaces it.\n- failed: The firing settled as a final failure; the envelope is the slot's last outcome until the next admission replaces it.\n- cancelled: The firing settled by cancellation; the envelope is the slot's last outcome until the next admission replaces it.\n\nOther values may appear: keep a value this client does not know as it is.",
+        "description": "State machine for stateful checkpoints kinds. Signals and child latches move Pending (awaited, no raise yet) to Set (raised, payload stored) or to Expired (a re-entering bounded wait found the checkpoint overdue); timers move Pending (armed) to Consumed (the replayed handler passed the due instant); the firing envelope moves Pending (outstanding) to Succeeded, Failed, or Cancelled (settled, and the last outcome on record). Stateless kinds (variable, progress) carry a NULL state.\n\nKnown values:\n- unspecified: Checkpoint status not recognized by this build; the row was written by a newer Acta.\n- pending: Awaited or armed; the checkpoint has not been satisfied yet.\n- set: Raised; the payload is stored and a waiting job proceeds.\n- expired: The re-entering wait found the checkpoint overdue and settled it TimedOut; a raise then skips it.\n- consumed: Due instant reached; the replayed handler consumed the timer and proceeded.\n- succeeded: The firing settled successfully; the envelope is the slot's last outcome until the next admission replaces it.\n- failed: The firing settled as a final failure; the envelope is the slot's last outcome until the next admission replaces it.\n- cancelled: The firing settled by cancellation; the envelope is the slot's last outcome until the next admission replaces it.\n\nOther values may appear: keep a value this client does not know as it is.",
         "x-acta-known-values": [
           "unspecified",
           "pending",
@@ -10656,7 +10659,7 @@
           "mssql"
         ],
         "type": "string",
-        "description": "Known values: mssql, pg, sqlite.\n\nOther values may appear: keep a value this client does not know as it is.",
+        "description": "Identifies which durable provider package is backing the runtime. Surfaced by IDbSession and the test read helper for the rare case where code must branch on provider behavior.\n\nKnown values: mssql, pg, sqlite.\n\nOther values may appear: keep a value this client does not know as it is.",
         "x-acta-known-values": [
           "mssql",
           "pg",
@@ -10791,14 +10794,14 @@
           }
         },
         "additionalProperties": false,
-        "description": "The whole operator-override set for a definition's policy, applied as a unit: a non-null field sets its override\nand null clears it back to the code default, so the dashboard reads, edits, and writes the full set. Code defaults,\ncontract, formats, and `definition_hash` are never touched. A `DeadlineSeconds` override on a scheduled\ndefinition lands but is ignored: a deadline anchors to job creation, and a recurring slot lives forever.\n`RateLimit` applies to every definition sharing the meter (declared `RateName`, or the name) in one\nwrite, clearing included, so the meter never carries two rates."
+        "description": "The whole operator-override set for a definition's policy, applied as a unit: a non-null field sets its override and null clears it back to the code default, so the dashboard reads, edits, and writes the full set. Code defaults, contract, formats, and definition_hash are never touched. A DeadlineSeconds override on a scheduled definition lands but is ignored: a deadline anchors to job creation, and a recurring slot lives forever. RateLimit applies to every definition sharing the meter (declared RateName, or the name) in one write, clearing included, so the meter never carries two rates."
       },
       "DefinitionStatusCode": {
         "examples": [
           "active"
         ],
         "type": "string",
-        "description": "Lifecycle status of a job definition. Numeric bands are a readability convention only;\nbehavior follows the explicit members. There is no per-definition Deprecated state by design:\noperators pause individual Jobs via `IJobs.PauseAsync`.\n\nKnown values:\n- unspecified: Definition status not recognized by this build; the row was written by a newer Acta.\n- active: Enqueue allowed; claim allowed.\n- retired: Enqueue REJECTED; an operator decision, never written by registration (a definition absent from a manifest stays Active). Retiring cancels parked rows (Ready/Paused/Suspended) with the event reason 'definition-retired'; in-flight executions finish their attempt, and a job that would run again lands Cancelled with the same reason.\n\nOther values may appear: keep a value this client does not know as it is.",
+        "description": "Lifecycle status of a job definition. Numeric bands are a readability convention only; behavior follows the explicit members. There is no per-definition Deprecated state by design: operators pause individual Jobs via IJobs.PauseAsync.\n\nKnown values:\n- unspecified: Definition status not recognized by this build; the row was written by a newer Acta.\n- active: Enqueue allowed; claim allowed.\n- retired: Enqueue REJECTED; an operator decision, never written by registration (a definition absent from a manifest stays Active). Retiring cancels parked rows (Ready/Paused/Suspended) with the event reason 'definition-retired'; in-flight executions finish their attempt, and a job that would run again lands Cancelled with the same reason.\n\nOther values may appear: keep a value this client does not know as it is.",
         "x-acta-known-values": [
           "unspecified",
           "active",
@@ -10826,7 +10829,8 @@
             ]
           }
         },
-        "additionalProperties": false
+        "additionalProperties": false,
+        "description": "Optional body of POST /outbox/{jobNamespace}/discard; the route's namespace names the relay source. A null or absent OutboxIds targets every quarantined row of that source."
       },
       "DiscardOutboxResponse": {
         "required": [
@@ -10946,7 +10950,8 @@
             }
           }
         },
-        "additionalProperties": false
+        "additionalProperties": false,
+        "description": "Body of POST /jobs. Input is the payload envelope; absent or null enqueues a no-input job. Priority accepts the code string (e.g. \"high\"). Lane, ConcurrencyKey, and Tags are the metadata IJobs.EnqueueAsync takes, under its rules: a lane is a dotted kebab name and defaults to the definition's, a key is case-exact printable ASCII, and tag names are unique once folded."
       },
       "EnqueueJobResponse": {
         "required": [
@@ -10962,7 +10967,7 @@
             "$ref": "#/components/schemas/EnqueueJobAction"
           }
         },
-        "description": "What one enqueue answers: the internal long EnqueueJobResponse.JobId, the public JobRef EnqueueJobResponse.JobRef, and the\nEnqueueJobAction EnqueueJobResponse.Action that tells a fresh insert from a match on string? EnqueueJobRequest.DeduplicationKey. A\nbatch answers one per request, in request order, in IReadOnlyList&lt;EnqueueJobResponse&gt; EnqueueJobsResponse.Jobs. A typed enqueue answers\nthe derived JobHandle."
+        "description": "What one enqueue answers: the internal job id, the public jobRef, and the action that tells a fresh insert from a match on deduplication key. A batch answers one per request, in request order, in jobs. A typed enqueue answers the derived job handle."
       },
       "EnqueueRejectionReason": {
         "examples": [
@@ -10988,7 +10993,7 @@
           "alert"
         ],
         "type": "string",
-        "description": "Names a kind of Acta entity, so one `(entity_code, entity_id)` pair can point at a row of any table. Tags\nattach only to tenants, namespaces, definitions, and jobs, the targets TagTarget can build.\n\nKnown values:\n- unspecified: Entity kind not recognized by this build; the row was written by a newer Acta.\n- alert: One alert.\n- calendar: One version of a catalog calendar.\n- checkpoint: One checkpoint of a job.\n- definition: One job definition.\n- event: One event.\n- job: One job.\n- lane: One lane.\n- lock: One lock.\n- namespace: One namespace.\n- schedule: One schedule of a recurring job.\n- step: One step of a job.\n- tag: One tag on its entity.\n- tenant: One tenant.\n- worker: One worker process lifetime.\n\nOther values may appear: keep a value this client does not know as it is.",
+        "description": "Names a kind of Acta entity, so one (entity_code, entity_id) pair can point at a row of any table. Tags attach only to tenants, namespaces, definitions, and jobs, the targets tag target can build.\n\nKnown values:\n- unspecified: Entity kind not recognized by this build; the row was written by a newer Acta.\n- alert: One alert.\n- calendar: One version of a catalog calendar.\n- checkpoint: One checkpoint of a job.\n- definition: One job definition.\n- event: One event.\n- job: One job.\n- lane: One lane.\n- lock: One lock.\n- namespace: One namespace.\n- schedule: One schedule of a recurring job.\n- step: One step of a job.\n- tag: One tag on its entity.\n- tenant: One tenant.\n- worker: One worker process lifetime.\n\nOther values may appear: keep a value this client does not know as it is.",
         "x-acta-known-values": [
           "unspecified",
           "alert",
@@ -11012,7 +11017,7 @@
           "scheduled"
         ],
         "type": "string",
-        "description": "Why a schedule's next evaluation is when it is: the scheduling engine's state for one schedule, distinct from the\noperator lifecycle (ScheduleStatusCode) and from the slot job's status.\n\nKnown values:\n- unspecified: Evaluation status not recognized by this build; the row was written by a newer Acta.\n- scheduled: The next evaluation is the next nominal occurrence, or the end of a timed pause.\n- waiting-for-capacity: An occurrence is due but the permanent slot is busy or the schedule is at its outstanding limit; settlement wakes it.\n- exhausted: The source offers no further occurrence; a declaration or calendar change reactivates it.\n- evaluation-error: The source could not be evaluated; the cursor is kept and the evaluation retries after a bounded delay.\n- slot-unavailable: An occurrence is due but the permanent slot is held, cancelled, or failed terminally; a job resume or restart wakes it.\n- resumed: An operator resumed the schedule; its first evaluation decides the backlog under the misfire policy and expires the stale part without pausing again.\n\nOther values may appear: keep a value this client does not know as it is.",
+        "description": "Why a schedule's next evaluation is when it is: the scheduling engine's state for one schedule, distinct from the operator lifecycle (ScheduleStatusCode) and from the slot job's status.\n\nKnown values:\n- unspecified: Evaluation status not recognized by this build; the row was written by a newer Acta.\n- scheduled: The next evaluation is the next nominal occurrence, or the end of a timed pause.\n- waiting-for-capacity: An occurrence is due but the permanent slot is busy or the schedule is at its outstanding limit; settlement wakes it.\n- exhausted: The source offers no further occurrence; a declaration or calendar change reactivates it.\n- evaluation-error: The source could not be evaluated; the cursor is kept and the evaluation retries after a bounded delay.\n- slot-unavailable: An occurrence is due but the permanent slot is held, cancelled, or failed terminally; a job resume or restart wakes it.\n- resumed: An operator resumed the schedule; its first evaluation decides the backlog under the misfire policy and expires the stale part without pausing again.\n\nOther values may appear: keep a value this client does not know as it is.",
         "x-acta-known-values": [
           "unspecified",
           "scheduled",
@@ -11028,7 +11033,7 @@
           "tenant.suspended"
         ],
         "type": "string",
-        "description": "Stable family-local event identifiers. Nearby values improve catalog readability but carry no runtime subject,\nsubgroup, or outcome semantics; match events by enum member or textual code. There is no `job.enqueued`\nevent on purpose: the Job row's own `(created_at_utc, namespace_id, definition_id)` records the enqueue fact,\nand a separate event row would be write amplification on the narrow append-heavy events table; dedup outcomes\nreach the caller via `EnqueueJobResponse.Action`, and cross-job rate analytics query `acta.jobs` directly.\n\nKnown values:\n- unspecified: Event id not recognized by this build; the row was written by a newer Acta.\n- tenant.suspended: An operator suspended a tenant; the name stops resolving at enqueue. EventMessage carries the reason.\n- tenant.resumed: An operator resumed a suspended tenant; its key resolves at enqueue again. EventMessage carries the reason.\n- tenant.updated: An operator changed a tenant display name / description. EventMessage carries the reason.\n- namespace.suspended: An operator suspended a namespace; enqueue into it is rejected. EventMessage carries the reason.\n- namespace.resumed: An operator resumed a suspended namespace; enqueue into it is allowed again. EventMessage carries the reason.\n- namespace.updated: An operator changed a namespace owner team / description. EventMessage carries the reason.\n- definition.overrides-updated: An operator changed a job definition's policy overrides; EventMessage summarizes the change.\n- definition.retired: An operator retired a job definition; enqueue is rejected and its parked jobs were cancelled.\n- job.execution-succeeded: The attempt's handler returned successfully; DurationMs is set. Audit records every one, Failures a success after counted failures, and an enabled alert profile also a one-shot's success past its first attempt.\n- job.execution-failed: The attempt failed and the job lives on: a retry within budget, or a recurring job's firing that spent its budget and returned the slot to Idle. DurationMs and the failure's EventMessage are set; details carry reason and to.\n- job.execution-orphaned: The attempt's worker lease expired and crash recovery reclaimed the job without ending it. WorkerId names the stale holder; details carry reason and to.\n- job.execution-yielded: The attempt ended without succeeding or failing: rescheduled, suspended, paused, or cancelled by its handler or the engine. Audit only; details carry outcome and reason.\n- job.failed: The job failed for good: its retry budget is spent, its handler failed it, or its failure is not retryable. DurationMs is set when an attempt ran; details carry reason.\n- job.suspended: The attempt parked on a durable wait: a ctx.SleepAsync timer re-armed the job Ready at its due instant, or a signal or child wait left it Suspended. Budget-neutral; details carry to.\n- job.rescheduled: The job re-armed Ready with a new NextRunAtUtc: a handler reschedule, a failed attempt's retry within budget, or an operator RescheduleAsync; details carry actor or reason.\n- job.cancelled: Job was cancelled (Status to Cancelled, terminal).\n- job.paused: Job was paused (Status to Paused).\n- job.resumed: Job was resumed (Status to Ready).\n- job.restarted: Job was restarted (Status to Ready; failure_count reset, retention cleared, execution_number unchanged).\n- job.reprioritized: Operator changed the job's claim priority; EventMessage carries the operator's reason, if any.\n- job.purged: Operator hard-deleted a terminal job; the subject is the deleted job's id. Details snapshot its jobRef, correlationKey, and actor. Always emitted regardless of event recording.\n- job.input-amended: Operator amended a job's stored input payload; details carry the actor and bounded metadata (format name and byte count) about the previous payload, and EventMessage carries the why.\n- job.signal-raised: Signal delivered via IJobs.RaiseSignalAsync; matching signal checkpoint (State = Set) UPSERTed.\n- job.state-reset: Handler called ctx.ResetStateAsync; the job's checkpoints and steps were cleared so the next execution starts as new. The scheduler's firing envelope stays.\n- job.note-recorded: Application-authored note from ctx.NoteAsync. The only event code an application can write and one the runtime never emits, so every other event stays provably system-written. EventMessage carries the line; details carry the optional payload.\n- schedule.paused: A recurring schedule was paused; details carry the schedule name.\n- schedule.resumed: A recurring schedule was resumed; details carry the schedule name.\n- schedule.pause-expired: A timed pause elapsed; the scheduler auto-resumed the schedule. Details carry the schedule name.\n- schedule.triggered: Operator admitted a manual firing of the slot; no schedule cursor moved. Details carry the schedule name.\n- schedule.admitted: The admission engine selected one of the schedule's occurrences for a firing; details carry the schedule, the occurrence, the covered-through boundary, and the firing id.\n- schedule.skipped: A range of the schedule's occurrences was decided without work: the misfire policy skipped it, it expired, the schedule was full, its calendar no longer produces it, or a calendar publication discarded it; details carry the schedule, the range, and the reason.\n- schedule.retimed: A deploy changed the schedule's timing, or a calendar it names was published; the undecided occurrences of the old timing were discarded and the cursor moved to the first occurrence of the new one. Details carry the schedule name.\n- calendar.draft-saved: An operator saved a new draft version of a catalog calendar. Details carry the calendar, the version, and the role; EventMessage carries the reason.\n- calendar.published: An operator published a catalog calendar version, which became the family's current one. Details carry the calendar, the version, the version it replaced, the overdue decision, and the schedules it affected.\n- calendar.archived: An operator archived a catalog calendar's current version; the family has no current version until another is published. Details carry the calendar and the version.\n- worker.started: Worker process registered; a workers row was appended (Status: Active).\n- worker.stopped: Worker process shut down cleanly (Status: Active/Draining to Stopped).\n- worker.died: Worker heartbeat went stale; crash recovery flipped the worker to Dead.\n- alert.acknowledged: Operator acknowledged an alert; EventMessage carries the note.\n- alert.resolved: Operator manually resolved an alert; EventMessage carries the note.\n- outbox.requeued: An operator command returned quarantined outbox rows to Pending; EventMessage carries the justification and the row ids.\n- outbox.discarded: An operator command deleted quarantined outbox rows; EventMessage carries the justification and the deleted row ids.\n\nOther values may appear: keep a value this client does not know as it is.",
+        "description": "Stable family-local event identifiers. Nearby values improve catalog readability but carry no runtime subject, subgroup, or outcome semantics; match events by enum member or textual code. There is no job.enqueued event on purpose: the Job row's own (created_at_utc, namespace_id, definition_id) records the enqueue fact, and a separate event row would be write amplification on the narrow append-heavy events table; dedup outcomes reach the caller via EnqueueJobResponse.Action, and cross-job rate analytics query acta.jobs directly.\n\nKnown values:\n- unspecified: Event id not recognized by this build; the row was written by a newer Acta.\n- tenant.suspended: An operator suspended a tenant; the name stops resolving at enqueue. EventMessage carries the reason.\n- tenant.resumed: An operator resumed a suspended tenant; its key resolves at enqueue again. EventMessage carries the reason.\n- tenant.updated: An operator changed a tenant display name / description. EventMessage carries the reason.\n- namespace.suspended: An operator suspended a namespace; enqueue into it is rejected. EventMessage carries the reason.\n- namespace.resumed: An operator resumed a suspended namespace; enqueue into it is allowed again. EventMessage carries the reason.\n- namespace.updated: An operator changed a namespace owner team / description. EventMessage carries the reason.\n- definition.overrides-updated: An operator changed a job definition's policy overrides; EventMessage summarizes the change.\n- definition.retired: An operator retired a job definition; enqueue is rejected and its parked jobs were cancelled.\n- job.execution-succeeded: The attempt's handler returned successfully; DurationMs is set. Audit records every one, Failures a success after counted failures, and an enabled alert profile also a one-shot's success past its first attempt.\n- job.execution-failed: The attempt failed and the job lives on: a retry within budget, or a recurring job's firing that spent its budget and returned the slot to Idle. DurationMs and the failure's EventMessage are set; details carry reason and to.\n- job.execution-orphaned: The attempt's worker lease expired and crash recovery reclaimed the job without ending it. WorkerId names the stale holder; details carry reason and to.\n- job.execution-yielded: The attempt ended without succeeding or failing: rescheduled, suspended, paused, or cancelled by its handler or the engine. Audit only; details carry outcome and reason.\n- job.failed: The job failed for good: its retry budget is spent, its handler failed it, or its failure is not retryable. DurationMs is set when an attempt ran; details carry reason.\n- job.suspended: The attempt parked on a durable wait: a ctx.SleepAsync timer re-armed the job Ready at its due instant, or a signal or child wait left it Suspended. Budget-neutral; details carry to.\n- job.rescheduled: The job re-armed Ready with a new NextRunAtUtc: a handler reschedule, a failed attempt's retry within budget, or an operator RescheduleAsync; details carry actor or reason.\n- job.cancelled: Job was cancelled (Status to Cancelled, terminal).\n- job.paused: Job was paused (Status to Paused).\n- job.resumed: Job was resumed (Status to Ready).\n- job.restarted: Job was restarted (Status to Ready; failure_count reset, retention cleared, execution_number unchanged).\n- job.reprioritized: Operator changed the job's claim priority; EventMessage carries the operator's reason, if any.\n- job.purged: Operator hard-deleted a terminal job; the subject is the deleted job's id. Details snapshot its jobRef, correlationKey, and actor. Always emitted regardless of event recording.\n- job.input-amended: Operator amended a job's stored input payload; details carry the actor and bounded metadata (format name and byte count) about the previous payload, and EventMessage carries the why.\n- job.signal-raised: Signal delivered via IJobs.RaiseSignalAsync; matching signal checkpoint (State = Set) UPSERTed.\n- job.state-reset: Handler called ctx.ResetStateAsync; the job's checkpoints and steps were cleared so the next execution starts as new. The scheduler's firing envelope stays.\n- job.note-recorded: Application-authored note from ctx.NoteAsync. The only event code an application can write and one the runtime never emits, so every other event stays provably system-written. EventMessage carries the line; details carry the optional payload.\n- schedule.paused: A recurring schedule was paused; details carry the schedule name.\n- schedule.resumed: A recurring schedule was resumed; details carry the schedule name.\n- schedule.pause-expired: A timed pause elapsed; the scheduler auto-resumed the schedule. Details carry the schedule name.\n- schedule.triggered: Operator admitted a manual firing of the slot; no schedule cursor moved. Details carry the schedule name.\n- schedule.admitted: The admission engine selected one of the schedule's occurrences for a firing; details carry the schedule, the occurrence, the covered-through boundary, and the firing id.\n- schedule.skipped: A range of the schedule's occurrences was decided without work: the misfire policy skipped it, it expired, the schedule was full, its calendar no longer produces it, or a calendar publication discarded it; details carry the schedule, the range, and the reason.\n- schedule.retimed: A deploy changed the schedule's timing, or a calendar it names was published; the undecided occurrences of the old timing were discarded and the cursor moved to the first occurrence of the new one. Details carry the schedule name.\n- calendar.draft-saved: An operator saved a new draft version of a catalog calendar. Details carry the calendar, the version, and the role; EventMessage carries the reason.\n- calendar.published: An operator published a catalog calendar version, which became the family's current one. Details carry the calendar, the version, the version it replaced, the overdue decision, and the schedules it affected.\n- calendar.archived: An operator archived a catalog calendar's current version; the family has no current version until another is published. Details carry the calendar and the version.\n- worker.started: Worker process registered; a workers row was appended (Status: Active).\n- worker.stopped: Worker process shut down cleanly (Status: Active/Draining to Stopped).\n- worker.died: Worker heartbeat went stale; crash recovery flipped the worker to Dead.\n- alert.acknowledged: Operator acknowledged an alert; EventMessage carries the note.\n- alert.resolved: Operator manually resolved an alert; EventMessage carries the note.\n- outbox.requeued: An operator command returned quarantined outbox rows to Pending; EventMessage carries the justification and the row ids.\n- outbox.discarded: An operator command deleted quarantined outbox rows; EventMessage carries the justification and the deleted row ids.\n\nOther values may appear: keep a value this client does not know as it is.",
         "x-acta-known-values": [
           "unspecified",
           "tenant.suspended",
@@ -11101,7 +11106,7 @@
             "type": "string"
           }
         },
-        "description": "A suggested operator move. string ExplainJobAction.Kind is a stable slug\n(`raise-signal` | `cancel` | `resume` | `restart` | `inspect-timeline` |\n`wait-recovery` | `none`); string ExplainJobAction.Description is the prose shown to the operator."
+        "description": "A suggested operator move. kind is a stable slug (raise-signal | cancel | resume | restart | inspect-timeline | wait-recovery | none); description is the prose shown to the operator."
       },
       "ExplainJobLease": {
         "required": [
@@ -11155,7 +11160,7 @@
             ]
           }
         },
-        "description": "The execution lease on an Executing Job and the liveness of the worker holding it. When\nbool ExplainJobLease.Expired is true the lease has lapsed and crash recovery reclaims the Job on its next pass;\nstring ExplainJobLease.RecoveryExpectation says so in prose. string? ExplainJobLease.WorkerName is the worker's deployment version, and\nbool ExplainJobLease.WorkerStale is true once it has missed heartbeats past `JobsOptions.WorkerDeadAfter`. Both\nWorkerRef? ExplainJobLease.WorkerRef and string? ExplainJobLease.WorkerName go null when retention purged the owner's row: the timings\nstill describe the Job, but the holder is unidentifiable."
+        "description": "The execution lease on an Executing Job and the liveness of the worker holding it. When expired is true the lease has lapsed and crash recovery reclaims the Job on its next pass; recoveryExpectation says so in prose. workerName is the worker's deployment version, and workerStale is true once it has missed heartbeats past JobsOptions.WorkerDeadAfter. Both workerRef and workerName go null when retention purged the owner's row: the timings still describe the Job, but the holder is unidentifiable."
       },
       "ExplainJobResponse": {
         "required": [
@@ -11241,7 +11246,7 @@
             }
           }
         },
-        "description": "Plain-English explanation of a Job's current durable state: where the work is, why it moved there, and what an\noperator can do next, assembled from the same `jobs_state`, `workers`, `steps`, `checkpoints`, and\n`events` rows a `SELECT` would read. Returned by ValueTask&lt;ExplainJobResponse?&gt; IJobs.ExplainAsync(JobLookup job, CancellationToken ct = default(CancellationToken)); the CLI renders it as\nprose, the dashboard as a panel. `StatusMeaning` is the `[Code]` description of `Status`; `ActiveWait`\nand `Lease` are set only in their states, `LastExecutedBy` names the last worker when no lease is live, and\n`Steps` are the newest int ExplainJobHandler.StepLimit, `StepsHasMore` saying older ones exist."
+        "description": "Plain-English explanation of a Job's current durable state: where the work is, why it moved there, and what an operator can do next, assembled from the same jobs_state, workers, steps, checkpoints, and events rows a SELECT would read. Returned by explain; the CLI renders it as prose, the dashboard as a panel. StatusMeaning is the [Code] description of Status; ActiveWait and Lease are set only in their states, LastExecutedBy names the last worker when no lease is live, and Steps are the newest 50, StepsHasMore saying older ones exist."
       },
       "ExplainJobStep": {
         "required": [
@@ -11261,7 +11266,7 @@
             "type": "string"
           }
         },
-        "description": "One step's state, with string ExplainJobStep.Explanation rendering it as a plain-English clause."
+        "description": "One step's state, with explanation rendering it as a plain-English clause."
       },
       "ExplainJobWait": {
         "required": [
@@ -11292,7 +11297,7 @@
           "continue"
         ],
         "type": "string",
-        "description": "What happens to a scheduled definition's schedules when a firing fails for good: its attempts are\nspent, or an exception is not retryable.\n\nKnown values:\n- unspecified: Firing failure policy not recognized by this build; the row was written by a newer Acta.\n- continue: Default. A firing that fails for good leaves the definition's schedules scheduled; the next occurrence fires.\n- pause-scheduling: A firing that fails for good pauses every schedule of the definition with a pause message until an operator resumes them.\n\nOther values may appear: keep a value this client does not know as it is.",
+        "description": "What happens to a scheduled definition's schedules when a firing fails for good: its attempts are spent, or an exception is not retryable.\n\nKnown values:\n- unspecified: Firing failure policy not recognized by this build; the row was written by a newer Acta.\n- continue: Default. A firing that fails for good leaves the definition's schedules scheduled; the next occurrence fires.\n- pause-scheduling: A firing that fails for good pauses every schedule of the definition with a pause message until an operator resumes them.\n\nOther values may appear: keep a value this client does not know as it is.",
         "x-acta-known-values": [
           "unspecified",
           "continue",
@@ -11396,7 +11401,7 @@
             "format": "date-time"
           }
         },
-        "description": "The single-alert read model returned by ValueTask&lt;GetAlertResponse?&gt; IAlerts.GetAsync(AlertRef alertRef, CancellationToken ct = default(CancellationToken)). It carries the list row's fields today and\nis a distinct type because a detail read can grow additively (delivery history, the alerting event's detail)\nwithout the list row paying for it. Two delivery fields read differently than their names suggest:\n`RetryCount` is the attempts spent in the current send series, not over the row's life (a delivered send\nends the series and resets it), and `RetryAfterUtc` is the earliest instant the alert may be sent again, the\nnext retry while delivery is unsettled or the next reminder once it has settled, null when nothing is scheduled."
+        "description": "The single-alert read model returned by get. It carries the list row's fields today and is a distinct type because a detail read can grow additively (delivery history, the alerting event's detail) without the list row paying for it. Two delivery fields read differently than their names suggest: RetryCount is the attempts spent in the current send series, not over the row's life (a delivered send ends the series and resets it), and RetryAfterUtc is the earliest instant the alert may be sent again, the next retry while delivery is unsettled or the next reminder once it has settled, null when nothing is scheduled."
       },
       "GetCalendarDetailResponse": {
         "required": [
@@ -11415,7 +11420,8 @@
           "dependents": {
             "$ref": "#/components/schemas/ListCalendarDependentsResponse"
           }
-        }
+        },
+        "description": "The calendar screen in one response: the family's head with one version's definition, and the first page of its versions and of the schedules naming it, each with its filter-wide count and the cursor its own route continues from."
       },
       "GetCalendarResponse": {
         "required": [
@@ -11461,7 +11467,7 @@
             "type": "string"
           }
         },
-        "description": "One catalog calendar family as ValueTask&lt;GetCalendarResponse?&gt; ICalendars.GetAsync(CalendarLookup calendar, int? version = null, CancellationToken ct = default(CancellationToken)) reads it: its role, `CurrentVersion` the Published\nversion (null while the family has none), `LatestVersion` the newest, and `ShownVersion` with its status and\nits `Definition` JSON. ValueTask&lt;ListCalendarVersionsResponse&gt; ICalendars.ListVersionsAsync(ListCalendarVersionsQuery query, CancellationToken ct = default(CancellationToken)) pages the versions and\nValueTask&lt;ListCalendarDependentsResponse&gt; ICalendars.ListDependentsAsync(ListCalendarDependentsQuery query, CancellationToken ct = default(CancellationToken)) the schedules naming the family."
+        "description": "One catalog calendar family as get reads it: its role, CurrentVersion the Published version (null while the family has none), LatestVersion the newest, and ShownVersion with its status and its Definition JSON. list versions pages the versions and list dependents the schedules naming the family."
       },
       "GetCapabilitiesResponse": {
         "required": [
@@ -11488,7 +11494,8 @@
           "confirmationHeader": {
             "type": "string"
           }
-        }
+        },
+        "description": "What this host's API allows, so the dashboard offers only the controls it can use: whether controls are mapped, the Acta version, the provider and schema behind it, and the confirmation header a control request carries."
       },
       "GetDefinitionInputTemplateResponse": {
         "required": [
@@ -11520,10 +11527,10 @@
               "null",
               "string"
             ],
-            "description": "The name of JobPayloadFormat GetDefinitionInputTemplateResponse.InputFormat, such as `json`, which is how the wire names a format."
+            "description": "The name of input format, such as json, which is how the wire names a format."
           }
         },
-        "description": "The input contract of a registered job as operator tooling sees it: the job it was asked for, the CLR input type\nname, the wire format its input serializes to, and (Json inputs only) a compile-time JSON skeleton the enqueue form\ncan seed its editor with. Compile-time facts from the generated manifest; the template is a shape hint, never a\ncontract and never a default value."
+        "description": "The input contract of a registered job as operator tooling sees it: the job it was asked for, the CLR input type name, the wire format its input serializes to, and (Json inputs only) a compile-time JSON skeleton the enqueue form can seed its editor with. Compile-time facts from the generated manifest; the template is a shape hint, never a contract and never a default value."
       },
       "GetDefinitionResponse": {
         "required": [
@@ -11910,7 +11917,7 @@
             "format": "int32"
           }
         },
-        "description": "The whole `definitions` row ValueTask&lt;GetDefinitionResponse?&gt; IDefinitions.GetAsync(string jobNamespace, string jobName, CancellationToken ct = default(CancellationToken)) returns, in column order: identity and\ncontrol, contract and formats, each policy as its code default, operator override (null inherits), and\neffective value, and audit bookkeeping. The dashboard's definition editor reads it; the grid reads the slimmer\nListDefinitionsItem. A definition is addressed by namespace and name, and its catalog id stays off\nthe wire."
+        "description": "The whole definitions row get returns, in column order: identity and control, contract and formats, each policy as its code default, operator override (null inherits), and effective value, and audit bookkeeping. The dashboard's definition editor reads it; the grid reads the slimmer ListDefinitionsItem. A definition is addressed by namespace and name, and its catalog id stays off the wire."
       },
       "GetJobDetailResponse": {
         "required": [
@@ -11966,7 +11973,8 @@
             "type": "integer",
             "format": "int64"
           }
-        }
+        },
+        "description": "The whole job screen in one response, composed from the jobs reads after one id lookup: the job row, the size-capped input and result, the first page of checkpoints (continued by GET /jobs/{jobRef}/checkpoints), explain and lineage, the schedules on its slot, and the eligible workers while it is claimable. A missing part is a null or empty field, not an error, and the capped collections ship their filter-wide counts. The unbounded event history keeps its own paged route."
       },
       "GetJobLineageMapChild": {
         "required": [
@@ -12052,7 +12060,7 @@
             "format": "date-time"
           }
         },
-        "description": "A Job node in the lineage map - the focused Job or one of its ancestors. Carries the public\nJobRef GetJobLineageMapNode.JobRef forms alongside the JSON-hidden numeric ids, matching ListJobsItem."
+        "description": "A Job node in the lineage map - the focused Job or one of its ancestors. Carries the public jobRef forms alongside the JSON-hidden numeric ids, matching ListJobsItem."
       },
       "GetJobLineageMapResponse": {
         "required": [
@@ -12108,7 +12116,7 @@
             "type": "boolean"
           }
         },
-        "description": "A compact runtime truth map for one focused Job, returned by ValueTask&lt;GetJobLineageMapResponse?&gt; IJobs.GetLineageMapAsync(JobLookup job, GetJobLineageMapOptions? options = null, CancellationToken ct = default(CancellationToken)) for the\ndashboard's lineage panel. `Ancestors` are context only (farthest first, immediate parent last, no steps of\ntheir own), the nearest int GetJobLineageMapHandler.AncestorLimit; `Job` is the focused Job with its newest\nint GetJobLineageMapHandler.StepLimit steps and the durable wait it is blocked on; `Children` are its\ndirect children up to int GetJobLineageMapOptions.ChildLimit. Each `HasMore` flags a truncated set."
+        "description": "A compact runtime truth map for one focused Job, returned by get lineage map for the dashboard's lineage panel. Ancestors are context only (farthest first, immediate parent last, no steps of their own), the nearest 50; Job is the focused Job with its newest 50 steps and the durable wait it is blocked on; Children are its direct children up to child limit. Each HasMore flags a truncated set."
       },
       "GetJobLineageMapStep": {
         "required": [
@@ -12128,7 +12136,7 @@
             "type": "string"
           }
         },
-        "description": "One step of the focused Job, with string GetJobLineageMapStep.Explanation its status in plain English."
+        "description": "One step of the focused Job, with explanation its status in plain English."
       },
       "GetJobLineageMapWait": {
         "required": [
@@ -12317,7 +12325,7 @@
             "format": "int32"
           }
         },
-        "description": "Read projection of a Job row exposed by `IJobs.GetAsync`: identity, linkage, status, scheduling, leasing,\nretention, and input format; the input payload itself is never returned. Property order mirrors the `jobs`\nentity (identity, scope and routing, caller keys, input) and then its 1:1 `jobs_state` row, so the shape reads\nin schema order; a column resolved to a public value follows the id it came from, and the created/modified pair\ncloses the record. JSON carries the public refs and hides the numeric ids. `DefinitionId` is the surrogate\nfor the namespace+name pair, non-null because the row's definition_id is NOT NULL."
+        "description": "Read projection of a Job row exposed by IJobs.GetAsync: identity, linkage, status, scheduling, leasing, retention, and input format; the input payload itself is never returned. Property order mirrors the jobs entity (identity, scope and routing, caller keys, input) and then its 1:1 jobs_state row, so the shape reads in schema order; a column resolved to a public value follows the id it came from, and the created/modified pair closes the record. JSON carries the public refs and hides the numeric ids. DefinitionId is the surrogate for the namespace+name pair, non-null because the row's definition_id is NOT NULL."
       },
       "GetNamespaceResponse": {
         "required": [
@@ -12352,7 +12360,7 @@
             "format": "int32"
           }
         },
-        "description": "The single-namespace read model returned by ValueTask&lt;GetNamespaceResponse?&gt; INamespaces.GetAsync(string namespaceName, CancellationToken ct = default(CancellationToken)). It carries the same fields as\nListNamespacesItem today and is a distinct type because a detail read can grow additively without the\nlist row paying for it. `NamespaceId` is the DB-assigned id `jobs.namespace_id` references, internal and\nnever serialized, since a namespace is addressed by its unique kebab-case name; `Status` Active resolves at\nenqueue and Suspended rejects it; `Version` is the row version a CAS control verb takes as expected."
+        "description": "The single-namespace read model returned by get. It carries the same fields as ListNamespacesItem today and is a distinct type because a detail read can grow additively without the list row paying for it. NamespaceId is the DB-assigned id jobs.namespace_id references, internal and never serialized, since a namespace is addressed by its unique kebab-case name; Status Active resolves at enqueue and Suspended rejects it; Version is the row version a CAS control verb takes as expected."
       },
       "GetOverviewResponse": {
         "required": [
@@ -12421,7 +12429,7 @@
             "format": "int64"
           }
         },
-        "description": "One-shot health counters for the dashboard overview, computed on the database clock: ready jobs (all Ready plus\nSuspended jobs whose durable wait has expired) and the oldest one's claimable age, executing and failed jobs,\nunresolved alerts and the Critical ones among them, dead workers and stale ones (Active or Draining, not seen\nwithin the stale threshold), schedules due inside the due-soon window and the most overdue one's lag, and the\nexecutor capacity across live workers, which `ExecutingCount` can exceed: a finished job stays Executing\nuntil its batched completion write commits."
+        "description": "One-shot health counters for the dashboard overview, computed on the database clock: ready jobs (all Ready plus Suspended jobs whose durable wait has expired) and the oldest one's claimable age, executing and failed jobs, unresolved alerts and the Critical ones among them, dead workers and stale ones (Active or Draining, not seen within the stale threshold), schedules due inside the due-soon window and the most overdue one's lag, and the executor capacity across live workers, which ExecutingCount can exceed: a finished job stays Executing until its batched completion write commits."
       },
       "GetTenantResponse": {
         "required": [
@@ -12466,7 +12474,7 @@
             "format": "int32"
           }
         },
-        "description": "The single-tenant read model returned by ValueTask&lt;GetTenantResponse?&gt; ITenants.GetAsync(string tenantName, CancellationToken ct = default(CancellationToken)). It carries the same fields as\nListTenantsItem today and is a distinct type because a detail read can grow additively (usage counts,\nper-tenant policy) without the list row paying for it. `TenantId` is the DB-assigned id\n`jobs.tenant_id` references, internal and never serialized, since a tenant is addressed by its unique\n`TenantName`; `Status` Active resolves at enqueue and Suspended rejects it; `Version` is the row\nversion a CAS control verb takes as expected."
+        "description": "The single-tenant read model returned by get. It carries the same fields as ListTenantsItem today and is a distinct type because a detail read can grow additively (usage counts, per-tenant policy) without the list row paying for it. TenantId is the DB-assigned id jobs.tenant_id references, internal and never serialized, since a tenant is addressed by its unique TenantName; Status Active resolves at enqueue and Suspended rejects it; Version is the row version a CAS control verb takes as expected."
       },
       "GetWorkerResponse": {
         "required": [
@@ -12543,7 +12551,7 @@
           "ordinary"
         ],
         "type": "string",
-        "description": "What a `jobs` row is: an ordinary job, or the one permanent slot a scheduled definition fires through. The\nkind is written at insert and never changes; the executor and the operator verbs read it instead of guessing from\na deduplication key or from the schedules a row happens to own.\n\nKnown values:\n- unspecified: Job kind not recognized by this build; the row was written by a newer Acta.\n- ordinary: A job enqueued by an application, an operator, or a parent handler, or admitted by a schedule as a per-occurrence root; it ends in a terminal status.\n- permanent-slot: The one reusable job of a scheduled definition; registration creates it, every firing of the definition's schedules runs through it, and it is never terminal by itself.\n\nOther values may appear: keep a value this client does not know as it is.",
+        "description": "What a jobs row is: an ordinary job, or the one permanent slot a scheduled definition fires through. The kind is written at insert and never changes; the executor and the operator verbs read it instead of guessing from a deduplication key or from the schedules a row happens to own.\n\nKnown values:\n- unspecified: Job kind not recognized by this build; the row was written by a newer Acta.\n- ordinary: A job enqueued by an application, an operator, or a parent handler, or admitted by a schedule as a per-occurrence root; it ends in a terminal status.\n- permanent-slot: The one reusable job of a scheduled definition; registration creates it, every firing of the definition's schedules runs through it, and it is never terminal by itself.\n\nOther values may appear: keep a value this client does not know as it is.",
         "x-acta-known-values": [
           "unspecified",
           "ordinary",
@@ -12589,7 +12597,7 @@
           "bulk"
         ],
         "type": "string",
-        "description": "Claim-priority value for `jobs_state.job_priority_code`. Discrete five-tier code-system enum\n(`Bulk` / `Normal` / `High` / `Critical` / `Realtime`); no intermediate\nvalues. Strict priority ordering on claim (no aging, no anti-starvation budget), so operators\nisolate bulk workloads in their own `JobNamespace`. Set by the definition policy, definition\noverride, or per-enqueue priority override.\n\nKnown values:\n- bulk: Lowest practical priority; bulk-class workloads.\n- normal: Default priority. Most jobs use this.\n- high: Above normal; operator opt-in for time-sensitive work.\n- critical: Critical priority; close-to-realtime operator workloads.\n- realtime: Highest priority.\n\nOther values may appear: keep a value this client does not know as it is.",
+        "description": "Claim-priority value for jobs_state.job_priority_code. Discrete five-tier code-system enum (Bulk / Normal / High / Critical / Realtime); no intermediate values. Strict priority ordering on claim (no aging, no anti-starvation budget), so operators isolate bulk workloads in their own JobNamespace. Set by the definition policy, definition override, or per-enqueue priority override.\n\nKnown values:\n- bulk: Lowest practical priority; bulk-class workloads.\n- normal: Default priority. Most jobs use this.\n- high: Above normal; operator opt-in for time-sensitive work.\n- critical: Critical priority; close-to-realtime operator workloads.\n- realtime: Highest priority.\n\nOther values may appear: keep a value this client does not know as it is.",
         "x-acta-known-values": [
           "bulk",
           "normal",
@@ -12600,7 +12608,7 @@
       },
       "JobRef": {
         "type": "string",
-        "description": "Public stable reference for one Job row: \"job_\" plus the Guid's 32 lowercase hex digits, such as\n`job_01a14f4e954e7bf68ac609f3fcad8e3d`. Dashboards, HTTP APIs, and clients address jobs by this\nvalue; the numeric JobId stays the internal engine identity. It copies and searches as one word,\nand a UUIDv7 reads in creation order."
+        "description": "Public stable reference for one Job row: \"job_\" plus the Guid's 32 lowercase hex digits, such as job_01a14f4e954e7bf68ac609f3fcad8e3d. Dashboards, HTTP APIs, and clients address jobs by this value; the numeric JobId stays the internal engine identity. It copies and searches as one word, and a UUIDv7 reads in creation order."
       },
       "JobStatusCode": {
         "examples": [
@@ -12718,7 +12726,7 @@
             "format": "date-time"
           }
         },
-        "description": "One alert row in a ValueTask&lt;ListAlertsResponse&gt; IAlerts.ListAsync(ListAlertsQuery query, CancellationToken ct = default(CancellationToken)) page. Channel configuration, endpoints, and deduplication keys\nare delivery internals, never exposed by list reads. JSON carries the public job ref and hides the numeric job id;\nthe ref goes null once the subject job row is purged, since alerts outlive their job. `RetryCount` is the\nattempts spent in the current send series (a delivered send ends it), and `RetryAfterUtc` the earliest instant\nthe alert may be sent again, the next retry while delivery is unsettled or the next reminder once settled."
+        "description": "One alert row in a list page. Channel configuration, endpoints, and deduplication keys are delivery internals, never exposed by list reads. JSON carries the public job ref and hides the numeric job id; the ref goes null once the subject job row is purged, since alerts outlive their job. RetryCount is the attempts spent in the current send series (a delivered send ends it), and RetryAfterUtc the earliest instant the alert may be sent again, the next retry while delivery is unsettled or the next reminder once settled."
       },
       "ListAlertsResponse": {
         "required": [
@@ -12735,7 +12743,7 @@
             "items": {
               "$ref": "#/components/schemas/ListAlertsItem"
             },
-            "description": "The page's alerts, at most `PageSize` of them."
+            "description": "The page's alerts, at most PageSize of them."
           },
           "nextCursor": {
             "type": [
@@ -12758,11 +12766,11 @@
               "null",
               "integer"
             ],
-            "description": "The filter-wide count, populated only when the query set `IncludeTotal`.",
+            "description": "The filter-wide count, populated only when the query set IncludeTotal.",
             "format": "int64"
           }
         },
-        "description": "One page of ValueTask&lt;ListAlertsResponse&gt; IAlerts.ListAsync(ListAlertsQuery query, CancellationToken ct = default(CancellationToken))."
+        "description": "One page of list."
       },
       "ListCalendarDependentsItem": {
         "required": [
@@ -12794,7 +12802,7 @@
             "$ref": "#/components/schemas/ScheduledDeliveryCode"
           }
         },
-        "description": "A schedule that names the family: its path, how it names the family (as its occurrence source or its availability\nfilter), its status (orphaned ones are listed), and its definition's delivery. A shared family's dependents span\nnamespaces, so the path carries the namespace. The name resolves at every evaluation, a calendar declared in the\nprocess before the catalog's, so a dependent follows the family's current version unless its process declares one."
+        "description": "A schedule that names the family: its path, how it names the family (as its occurrence source or its availability filter), its status (orphaned ones are listed), and its definition's delivery. A shared family's dependents span namespaces, so the path carries the namespace. The name resolves at every evaluation, a calendar declared in the process before the catalog's, so a dependent follows the family's current version unless its process declares one."
       },
       "ListCalendarDependentsResponse": {
         "required": [
@@ -12833,7 +12841,7 @@
             "format": "int64"
           }
         },
-        "description": "One page of ValueTask&lt;ListCalendarDependentsResponse&gt; ICalendars.ListDependentsAsync(ListCalendarDependentsQuery query, CancellationToken ct = default(CancellationToken)): the schedules naming a family, by path then binding."
+        "description": "One page of list dependents: the schedules naming a family, by path then binding."
       },
       "ListCalendarsItem": {
         "required": [
@@ -12888,7 +12896,7 @@
             "format": "int32"
           }
         },
-        "description": "One calendar family in a ValueTask&lt;ListCalendarsResponse&gt; ICalendars.ListAsync(ListCalendarsQuery query, CancellationToken ct = default(CancellationToken)) page. `CurrentVersion` and `PublishedAtUtc` are the\nPublished version's, null while the family has none; `LatestVersion`, `LatestStatus`, and `ModifiedAtUtc`\nare the highest version's; `DependentCount` counts the schedules, orphans aside, that bind the family through the\ncatalog: the namespace's, or every namespace's for a shared family in `sys`."
+        "description": "One calendar family in a list page. CurrentVersion and PublishedAtUtc are the Published version's, null while the family has none; LatestVersion, LatestStatus, and ModifiedAtUtc are the highest version's; DependentCount counts the schedules, orphans aside, that bind the family through the catalog: the namespace's, or every namespace's for a shared family in sys."
       },
       "ListCalendarsResponse": {
         "required": [
@@ -12905,7 +12913,7 @@
             "items": {
               "$ref": "#/components/schemas/ListCalendarsItem"
             },
-            "description": "The page's calendar families, at most `PageSize` of them."
+            "description": "The page's calendar families, at most PageSize of them."
           },
           "nextCursor": {
             "type": [
@@ -12928,11 +12936,11 @@
               "null",
               "integer"
             ],
-            "description": "The filter-wide count, populated only when the query set `IncludeTotal`.",
+            "description": "The filter-wide count, populated only when the query set IncludeTotal.",
             "format": "int64"
           }
         },
-        "description": "One page of ValueTask&lt;ListCalendarsResponse&gt; ICalendars.ListAsync(ListCalendarsQuery query, CancellationToken ct = default(CancellationToken))."
+        "description": "One page of list."
       },
       "ListCalendarVersionsItem": {
         "required": [
@@ -12971,7 +12979,7 @@
             "format": "date-time"
           }
         },
-        "description": "One version of a family in a ListCalendarVersionsResponse: its status, the hash of its content, when it was\nsaved and last written, and when it was published, null for a version that never was."
+        "description": "One version of a family in a ListCalendarVersionsResponse: its status, the hash of its content, when it was saved and last written, and when it was published, null for a version that never was."
       },
       "ListCalendarVersionsResponse": {
         "required": [
@@ -13010,7 +13018,7 @@
             "format": "int64"
           }
         },
-        "description": "One page of ValueTask&lt;ListCalendarVersionsResponse&gt; ICalendars.ListVersionsAsync(ListCalendarVersionsQuery query, CancellationToken ct = default(CancellationToken)): a family's versions, newest first."
+        "description": "One page of list versions: a family's versions, newest first."
       },
       "ListDefinitionsItem": {
         "required": [
@@ -13123,7 +13131,7 @@
             "format": "int32"
           }
         },
-        "description": "One definition in an ValueTask&lt;ListDefinitionsResponse&gt; IDefinitions.ListAsync(ListDefinitionsQuery query, CancellationToken ct = default(CancellationToken)) page, trimmed to the dashboard grid: identity, status,\ncontract type names, the four policies the grid shows (priority, max attempts, concurrency limit, rate limit) as\noverride and effective so it can flag an operator override, and the rate name, which names the meter and so says\nwhich definitions share it. GetDefinitionResponse carries the whole row. A definition is addressed by\nnamespace and name, and its catalog id stays off the wire."
+        "description": "One definition in an list page, trimmed to the dashboard grid: identity, status, contract type names, the four policies the grid shows (priority, max attempts, concurrency limit, rate limit) as override and effective so it can flag an operator override, and the rate name, which names the meter and so says which definitions share it. GetDefinitionResponse carries the whole row. A definition is addressed by namespace and name, and its catalog id stays off the wire."
       },
       "ListDefinitionsResponse": {
         "required": [
@@ -13140,7 +13148,7 @@
             "items": {
               "$ref": "#/components/schemas/ListDefinitionsItem"
             },
-            "description": "The page's definitions, at most `PageSize` of them."
+            "description": "The page's definitions, at most PageSize of them."
           },
           "nextCursor": {
             "type": [
@@ -13163,11 +13171,11 @@
               "null",
               "integer"
             ],
-            "description": "The filter-wide count, populated only when the query set `IncludeTotal`.",
+            "description": "The filter-wide count, populated only when the query set IncludeTotal.",
             "format": "int64"
           }
         },
-        "description": "One page of ValueTask&lt;ListDefinitionsResponse&gt; IDefinitions.ListAsync(ListDefinitionsQuery query, CancellationToken ct = default(CancellationToken))."
+        "description": "One page of list."
       },
       "ListEventsItem": {
         "required": [
@@ -13279,7 +13287,7 @@
             ]
           }
         },
-        "description": "One event in a ValueTask&lt;ListEventsResponse&gt; ILedger.ListEventsAsync(ListEventsQuery query, CancellationToken ct = default(CancellationToken)) page. The subject is `EntityKind` and `EntityId`,\nthe one numeric id on the wire, because the subject outlives its row: a purged job's events, and its\n`job.purged` tombstone, still name it. The joined refs and names (`JobRef` of a job subject,\n`LineageRootJobRef`, `WorkerRef`, `TenantName`, `JobName`) are null when absent or once their\nrow is gone. `Message` is the human text; `DetailsText` is the details payload decoded to text, null when\nthe event carries none or a non-json format."
+        "description": "One event in a list events page. The subject is EntityKind and EntityId, the one numeric id on the wire, because the subject outlives its row: a purged job's events, and its job.purged tombstone, still name it. The joined refs and names (JobRef of a job subject, LineageRootJobRef, WorkerRef, TenantName, JobName) are null when absent or once their row is gone. Message is the human text; DetailsText is the details payload decoded to text, null when the event carries none or a non-json format."
       },
       "ListEventsResponse": {
         "required": [
@@ -13296,7 +13304,7 @@
             "items": {
               "$ref": "#/components/schemas/ListEventsItem"
             },
-            "description": "The page's events, at most `PageSize` of them."
+            "description": "The page's events, at most PageSize of them."
           },
           "nextCursor": {
             "type": [
@@ -13319,11 +13327,11 @@
               "null",
               "integer"
             ],
-            "description": "The filter-wide count, populated only when the query set `IncludeTotal`.",
+            "description": "The filter-wide count, populated only when the query set IncludeTotal.",
             "format": "int64"
           }
         },
-        "description": "One page of ValueTask&lt;ListEventsResponse&gt; ILedger.ListEventsAsync(ListEventsQuery query, CancellationToken ct = default(CancellationToken))."
+        "description": "One page of list events."
       },
       "ListJobCheckpointsItem": {
         "required": [
@@ -13358,7 +13366,8 @@
             "type": "string",
             "format": "date-time"
           }
-        }
+        },
+        "description": "One checkpoint of a ListJobCheckpointsResponse; its value is rendered as JobPayloadBody."
       },
       "ListJobCheckpointsResponse": {
         "required": [
@@ -13396,7 +13405,8 @@
             ],
             "format": "int64"
           }
-        }
+        },
+        "description": "One page of list checkpoints for the wire: the same page with each value rendered and capped as the job's input is, since a job payload has no JSON form of its own."
       },
       "ListJobsItem": {
         "required": [
@@ -13502,7 +13512,7 @@
             "format": "int32"
           }
         },
-        "description": "One job row in a ValueTask&lt;ListJobsResponse&gt; ILedger.ListJobsAsync(ListJobsQuery query, CancellationToken ct = default(CancellationToken)) page: identity, lifecycle, and audit-facing fields only; the\ninput payload is never exposed by list reads. JSON carries the public refs and hides the numeric ids.\n`CorrelationKey` is the caller-supplied trace, request, or order id, `ExecutionNumber` the attempt\ncounter, and `FailureCount` the consecutive-failure count behind the retry budget."
+        "description": "One job row in a list jobs page: identity, lifecycle, and audit-facing fields only; the input payload is never exposed by list reads. JSON carries the public refs and hides the numeric ids. CorrelationKey is the caller-supplied trace, request, or order id, ExecutionNumber the attempt counter, and FailureCount the consecutive-failure count behind the retry budget."
       },
       "ListJobsResponse": {
         "required": [
@@ -13519,7 +13529,7 @@
             "items": {
               "$ref": "#/components/schemas/ListJobsItem"
             },
-            "description": "The page's jobs, at most `PageSize` of them."
+            "description": "The page's jobs, at most PageSize of them."
           },
           "nextCursor": {
             "type": [
@@ -13542,11 +13552,11 @@
               "null",
               "integer"
             ],
-            "description": "The filter-wide count, populated only when the query set `IncludeTotal`.",
+            "description": "The filter-wide count, populated only when the query set IncludeTotal.",
             "format": "int64"
           }
         },
-        "description": "One page of ValueTask&lt;ListJobsResponse&gt; ILedger.ListJobsAsync(ListJobsQuery query, CancellationToken ct = default(CancellationToken))."
+        "description": "One page of list jobs."
       },
       "ListJobStepsItem": {
         "required": [
@@ -13592,7 +13602,7 @@
             "format": "date-time"
           }
         },
-        "description": "One step of a job: its name, its status, the attempt it is on, when a pending retry is due, the last failure's\nmessage, and when the step was first started and last written. The step's memoized result stays the engine's."
+        "description": "One step of a job: its name, its status, the attempt it is on, when a pending retry is due, the last failure's message, and when the step was first started and last written. The step's memoized result stays the engine's."
       },
       "ListJobStepsResponse": {
         "required": [
@@ -13631,7 +13641,7 @@
             "format": "int64"
           }
         },
-        "description": "One page of ValueTask&lt;ListJobStepsResponse&gt; IJobs.ListStepsAsync(ListJobStepsQuery query, CancellationToken ct = default(CancellationToken)): a job's steps, newest first."
+        "description": "One page of list steps: a job's steps, newest first."
       },
       "ListNamespacesItem": {
         "required": [
@@ -13666,7 +13676,7 @@
             "format": "int32"
           }
         },
-        "description": "One namespace row in an ValueTask&lt;ListNamespacesResponse&gt; INamespaces.ListAsync(ListNamespacesQuery query, CancellationToken ct = default(CancellationToken)) page, projected from the `namespaces` table and the\none representation `GET /namespaces` answers with. `NamespaceId` is the DB-assigned id\n`job.namespace_id` references, internal and never serialized, since a namespace is addressed by its unique\nkebab-case name; `Status` Active resolves at enqueue and Suspended rejects it; `Version` is the row\nversion a CAS control verb takes as expected."
+        "description": "One namespace row in an list page, projected from the namespaces table and the one representation GET /namespaces answers with. NamespaceId is the DB-assigned id job.namespace_id references, internal and never serialized, since a namespace is addressed by its unique kebab-case name; Status Active resolves at enqueue and Suspended rejects it; Version is the row version a CAS control verb takes as expected."
       },
       "ListNamespacesResponse": {
         "required": [
@@ -13683,7 +13693,7 @@
             "items": {
               "$ref": "#/components/schemas/ListNamespacesItem"
             },
-            "description": "The page's namespaces, at most `PageSize` of them."
+            "description": "The page's namespaces, at most PageSize of them."
           },
           "nextCursor": {
             "type": [
@@ -13706,11 +13716,11 @@
               "null",
               "integer"
             ],
-            "description": "The filter-wide count, populated only when the query set `IncludeTotal`.",
+            "description": "The filter-wide count, populated only when the query set IncludeTotal.",
             "format": "int64"
           }
         },
-        "description": "One page of ValueTask&lt;ListNamespacesResponse&gt; INamespaces.ListAsync(ListNamespacesQuery query, CancellationToken ct = default(CancellationToken))."
+        "description": "One page of list."
       },
       "ListOutboxSourcesItem": {
         "required": [
@@ -13753,7 +13763,7 @@
             "type": "boolean"
           }
         },
-        "description": "One relay source as ValueTask&lt;ListOutboxSourcesResponse&gt; IOutbox.ListSourcesAsync(ListOutboxSourcesQuery query, CancellationToken ct = default(CancellationToken)) reports it: the namespace's `sys.outbox` slot\n(`SlotJobRef`, whose audit trail holds the operator evidence) plus the accounting of its last successful tick,\nread from the slot's `outbox-status` variable: `LastTickSummary`, `Backlog` (pending rows still awaiting relay), and\n`QuarantineTotal`, all null until the slot's first successful tick. `IsLocal` says this process\nregistered the source, so ValueTask&lt;ListQuarantinedOutboxResponse&gt; IOutbox.ListQuarantinedAsync(ListQuarantinedOutboxQuery query, CancellationToken ct = default(CancellationToken)) works here."
+        "description": "One relay source as list sources reports it: the namespace's sys.outbox slot (SlotJobRef, whose audit trail holds the operator evidence) plus the accounting of its last successful tick, read from the slot's outbox-status variable: LastTickSummary, Backlog (pending rows still awaiting relay), and QuarantineTotal, all null until the slot's first successful tick. IsLocal says this process registered the source, so list quarantined works here."
       },
       "ListOutboxSourcesResponse": {
         "required": [
@@ -13770,7 +13780,7 @@
             "items": {
               "$ref": "#/components/schemas/ListOutboxSourcesItem"
             },
-            "description": "The page's relay sources, at most `PageSize` of them."
+            "description": "The page's relay sources, at most PageSize of them."
           },
           "nextCursor": {
             "type": [
@@ -13793,11 +13803,11 @@
               "null",
               "integer"
             ],
-            "description": "The filter-wide count, populated only when the query set `IncludeTotal`.",
+            "description": "The filter-wide count, populated only when the query set IncludeTotal.",
             "format": "int64"
           }
         },
-        "description": "One page of ValueTask&lt;ListOutboxSourcesResponse&gt; IOutbox.ListSourcesAsync(ListOutboxSourcesQuery query, CancellationToken ct = default(CancellationToken))."
+        "description": "One page of list sources."
       },
       "ListQuarantinedOutboxItem": {
         "required": [
@@ -13853,7 +13863,7 @@
             "format": "date-time"
           }
         },
-        "description": "One Quarantined staging row as the operator listing reports it: identity and routing fields (a null\ncorrelation or tenant name was never set), when the producer staged it, and the failure evidence\n(`FailureCount` delivery attempts consumed before quarantine, and the bounded `LastError`).\n`OutboxId` is the producer-minted id a scoped requeue or discard targets. The payload never leaves\nthe producer's database."
+        "description": "One Quarantined staging row as the operator listing reports it: identity and routing fields (a null correlation or tenant name was never set), when the producer staged it, and the failure evidence (FailureCount delivery attempts consumed before quarantine, and the bounded LastError). OutboxId is the producer-minted id a scoped requeue or discard targets. The payload never leaves the producer's database."
       },
       "ListQuarantinedOutboxResponse": {
         "required": [
@@ -13870,7 +13880,7 @@
             "items": {
               "$ref": "#/components/schemas/ListQuarantinedOutboxItem"
             },
-            "description": "The page's quarantined staging rows, at most `PageSize` of them."
+            "description": "The page's quarantined staging rows, at most PageSize of them."
           },
           "nextCursor": {
             "type": [
@@ -13893,11 +13903,11 @@
               "null",
               "integer"
             ],
-            "description": "The filter-wide count, populated only when the query set `IncludeTotal`.",
+            "description": "The filter-wide count, populated only when the query set IncludeTotal.",
             "format": "int64"
           }
         },
-        "description": "One page of ValueTask&lt;ListQuarantinedOutboxResponse&gt; IOutbox.ListQuarantinedAsync(ListQuarantinedOutboxQuery query, CancellationToken ct = default(CancellationToken))."
+        "description": "One page of list quarantined."
       },
       "ListSchedulesItem": {
         "required": [
@@ -14039,7 +14049,7 @@
             ]
           }
         },
-        "description": "One schedule row in a ValueTask&lt;ListSchedulesResponse&gt; ISchedules.ListAsync(ListSchedulesQuery query, CancellationToken ct = default(CancellationToken)) page. `NextOccurrenceAtUtc` is the next undecided occurrence;\n`NextEvaluationAtUtc` and `EvaluationStatus` say when and why the engine next looks; `Status` is Active, Paused,\nor Orphaned, with `PausedUntilUtc` for a timed pause; `Version` is the row version a CAS control verb takes as\nexpected; `JobRef` is the permanent slot's public ref, null for a PerOccurrence definition; `OutstandingCount` counts\nits unsettled roots; the expiry pair is null together when unused, and `AvailabilityCalendarName` when the schedule\nobserves no availability calendar. The ids stay off the wire: the list pages by `ScheduleId` in its cursor."
+        "description": "One schedule row in a list page. NextOccurrenceAtUtc is the next undecided occurrence; NextEvaluationAtUtc and EvaluationStatus say when and why the engine next looks; Status is Active, Paused, or Orphaned, with PausedUntilUtc for a timed pause; Version is the row version a CAS control verb takes as expected; JobRef is the permanent slot's public ref, null for a PerOccurrence definition; OutstandingCount counts its unsettled roots; the expiry pair is null together when unused, and AvailabilityCalendarName when the schedule observes no availability calendar. The ids stay off the wire: the list pages by ScheduleId in its cursor."
       },
       "ListSchedulesResponse": {
         "required": [
@@ -14056,7 +14066,7 @@
             "items": {
               "$ref": "#/components/schemas/ListSchedulesItem"
             },
-            "description": "The page's schedules, at most `PageSize` of them."
+            "description": "The page's schedules, at most PageSize of them."
           },
           "nextCursor": {
             "type": [
@@ -14079,11 +14089,11 @@
               "null",
               "integer"
             ],
-            "description": "The filter-wide count, populated only when the query set `IncludeTotal`.",
+            "description": "The filter-wide count, populated only when the query set IncludeTotal.",
             "format": "int64"
           }
         },
-        "description": "One page of ValueTask&lt;ListSchedulesResponse&gt; ISchedules.ListAsync(ListSchedulesQuery query, CancellationToken ct = default(CancellationToken))."
+        "description": "One page of list."
       },
       "ListTagsItem": {
         "required": [
@@ -14141,7 +14151,7 @@
             "format": "int64"
           }
         },
-        "description": "One page of ValueTask&lt;ListTagsResponse&gt; ITags.ListAsync(ListTagsQuery query, CancellationToken ct = default(CancellationToken)): a target's tags by normalized name, in ordinal order."
+        "description": "One page of list: a target's tags by normalized name, in ordinal order."
       },
       "ListTenantsItem": {
         "required": [
@@ -14186,7 +14196,7 @@
             "format": "int32"
           }
         },
-        "description": "One tenant row in a ValueTask&lt;ListTenantsResponse&gt; ITenants.ListAsync(ListTenantsQuery query, CancellationToken ct = default(CancellationToken)) page, projected from the `tenants` table.\n`TenantName` is the kebab-case name the caller registered, unique, and `DisplayName` the human label\n(dashboards fall back to the name); `TenantId` is the DB-assigned id `jobs.tenant_id` references, internal\nand never serialized, since a tenant is addressed by its key; `Status` Active resolves at enqueue and Suspended\nrejects it; `Version` is the row version a CAS control verb takes as expected."
+        "description": "One tenant row in a list page, projected from the tenants table. TenantName is the kebab-case name the caller registered, unique, and DisplayName the human label (dashboards fall back to the name); TenantId is the DB-assigned id jobs.tenant_id references, internal and never serialized, since a tenant is addressed by its key; Status Active resolves at enqueue and Suspended rejects it; Version is the row version a CAS control verb takes as expected."
       },
       "ListTenantsResponse": {
         "required": [
@@ -14203,7 +14213,7 @@
             "items": {
               "$ref": "#/components/schemas/ListTenantsItem"
             },
-            "description": "The page's tenants, at most `PageSize` of them."
+            "description": "The page's tenants, at most PageSize of them."
           },
           "nextCursor": {
             "type": [
@@ -14226,11 +14236,11 @@
               "null",
               "integer"
             ],
-            "description": "The filter-wide count, populated only when the query set `IncludeTotal`.",
+            "description": "The filter-wide count, populated only when the query set IncludeTotal.",
             "format": "int64"
           }
         },
-        "description": "One page of ValueTask&lt;ListTenantsResponse&gt; ITenants.ListAsync(ListTenantsQuery query, CancellationToken ct = default(CancellationToken))."
+        "description": "One page of list."
       },
       "ListWorkersItem": {
         "required": [
@@ -14300,7 +14310,7 @@
             "format": "date-time"
           }
         },
-        "description": "One worker row in a ValueTask&lt;ListWorkersResponse&gt; IWorkers.ListAsync(ListWorkersQuery query, CancellationToken ct = default(CancellationToken)) page: the registration's public ref and internal id, its\nnamespace and status, and what it reported at start (host machine, deployment version, engine version, runtime\nframework, process id, executor cap), with the last heartbeat, start, and last change instants."
+        "description": "One worker row in a list page: the registration's public ref and internal id, its namespace and status, and what it reported at start (host machine, deployment version, engine version, runtime framework, process id, executor cap), with the last heartbeat, start, and last change instants."
       },
       "ListWorkersResponse": {
         "required": [
@@ -14317,7 +14327,7 @@
             "items": {
               "$ref": "#/components/schemas/ListWorkersItem"
             },
-            "description": "The page's workers, at most `PageSize` of them."
+            "description": "The page's workers, at most PageSize of them."
           },
           "nextCursor": {
             "type": [
@@ -14340,11 +14350,11 @@
               "null",
               "integer"
             ],
-            "description": "The filter-wide count, populated only when the query set `IncludeTotal`.",
+            "description": "The filter-wide count, populated only when the query set IncludeTotal.",
             "format": "int64"
           }
         },
-        "description": "One page of ValueTask&lt;ListWorkersResponse&gt; IWorkers.ListAsync(ListWorkersQuery query, CancellationToken ct = default(CancellationToken))."
+        "description": "One page of list."
       },
       "MisfireStrategyCode": {
         "examples": [
@@ -14365,7 +14375,7 @@
           "active"
         ],
         "type": "string",
-        "description": "Namespace state machine. 10-spaced ids; live states 10..80, mirroring\nTenantStatusCode.\n\nKnown values:\n- unspecified: Namespace status not recognized by this build; the row was written by a newer Acta.\n- active: Namespace resolves at enqueue; enqueue allowed.\n- suspended: Enqueue into the namespace is rejected and its schedules hold. Reversible (operator hold). Existing in-flight jobs are unaffected.\n\nOther values may appear: keep a value this client does not know as it is.",
+        "description": "Namespace state machine. 10-spaced ids; live states 10..80, mirroring TenantStatusCode.\n\nKnown values:\n- unspecified: Namespace status not recognized by this build; the row was written by a newer Acta.\n- active: Namespace resolves at enqueue; enqueue allowed.\n- suspended: Enqueue into the namespace is rejected and its schedules hold. Reversible (operator hold). Existing in-flight jobs are unaffected.\n\nOther values may appear: keep a value this client does not know as it is.",
         "x-acta-known-values": [
           "unspecified",
           "active",
@@ -14377,7 +14387,7 @@
           "refuse"
         ],
         "type": "string",
-        "description": "Known values:\n- unspecified: Overdue decision not recognized by this build; the value was written by a newer Acta.\n- refuse: A publication with undecided overdue occurrences on a dependent schedule is rejected.\n- discard: The old stream's undecided prefix is audited as skipped, and the new stream starts after now.\n\nOther values may appear: keep a value this client does not know as it is.",
+        "description": "What a calendar publication does with the occurrences a dependent schedule has not decided yet that are already due under the version it replaces.\n\nKnown values:\n- unspecified: Overdue decision not recognized by this build; the value was written by a newer Acta.\n- refuse: A publication with undecided overdue occurrences on a dependent schedule is rejected.\n- discard: The old stream's undecided prefix is audited as skipped, and the new stream starts after now.\n\nOther values may appear: keep a value this client does not know as it is.",
         "x-acta-known-values": [
           "unspecified",
           "refuse",
@@ -14401,7 +14411,8 @@
             "format": "int32"
           }
         },
-        "additionalProperties": false
+        "additionalProperties": false,
+        "description": "Body of POST /jobs/{jobRef}/pause. A null ExpectedVersion applies the verb unconditionally; a non-null one that misses the row's current version answers 409 with action version-conflict and writes nothing."
       },
       "PauseJobResponse": {
         "required": [
@@ -14451,7 +14462,8 @@
             ]
           }
         },
-        "additionalProperties": false
+        "additionalProperties": false,
+        "description": "Optional body of POST /schedules/{jobNamespace}/{jobName}/{scheduleName}/pause. A null PausedUntilUtc is an indefinite pause, a timestamp a timed one."
       },
       "PauseScheduleResponse": {
         "required": [
@@ -14602,7 +14614,7 @@
             "format": "int64"
           }
         },
-        "description": "A version's forecast beside the current version's over the same horizon, so an operator sees what a publication\nadds and removes: instants for an occurrence calendar, windows for an availability calendar, and the bound\nschedules with their overdue flag, which a Refuse publication would reject on: overdue ones first, at most\nint PreviewCalendarHandler.ScheduleLimit, with `SchedulesTotal` and `OverdueTotal` counting them all."
+        "description": "A version's forecast beside the current version's over the same horizon, so an operator sees what a publication adds and removes: instants for an occurrence calendar, windows for an availability calendar, and the bound schedules with their overdue flag, which a Refuse publication would reject on: overdue ones first, at most 100, with SchedulesTotal and OverdueTotal counting them all."
       },
       "PreviewScheduleResponse": {
         "required": [
@@ -14626,7 +14638,7 @@
             }
           }
         },
-        "description": "A read-only forecast of a schedule's upcoming fire instants, computed live (no persisted state is\nread or written). string PreviewScheduleResponse.Expression and string PreviewScheduleResponse.TimeZoneId are the effective values\n(operator override when present, else the original); IReadOnlyList&lt;DateTime&gt; PreviewScheduleResponse.NextOccurrencesUtc is strictly\nincreasing and may be shorter than requested when the expression is exhausted."
+        "description": "A read-only forecast of a schedule's upcoming fire instants, computed live (no persisted state is read or written). expression and timeZoneId are the effective values (operator override when present, else the original); nextOccurrencesUtc is strictly increasing and may be shorter than requested when the expression is exhausted."
       },
       "ProblemDetails": {
         "required": [
@@ -14680,7 +14692,8 @@
             ]
           }
         },
-        "additionalProperties": false
+        "additionalProperties": false,
+        "description": "Body of POST /calendars/{jobNamespace}/{calendarName}/publish: the ExpectedCurrentVersion the operator last read (0 for none) and the draft to publish, both required, and what to do with the overdue occurrences the current version leaves."
       },
       "PublishCalendarResponse": {
         "required": [
@@ -14721,7 +14734,7 @@
             ]
           }
         },
-        "description": "The outcome of a publication: Applied with the version now current and the schedules retimed (as\n`job/schedule` paths), NotFound when the candidate is no version of the family, VersionConflict when the\ncurrent version is not the one the caller saw, or Rejected with the reason and, when the old version left overdue\noccurrences undecided, the schedules holding them."
+        "description": "The outcome of a publication: Applied with the version now current and the schedules retimed (as job/schedule paths), NotFound when the candidate is no version of the family, VersionConflict when the current version is not the one the caller saw, or Rejected with the reason and, when the old version left overdue occurrences undecided, the schedules holding them."
       },
       "PurgeJobRequest": {
         "type": "object",
@@ -14733,7 +14746,8 @@
             ]
           }
         },
-        "additionalProperties": false
+        "additionalProperties": false,
+        "description": "Body of POST /jobs/{jobRef}/purge, optional like the body itself: the reason the purge records."
       },
       "PurgeJobResponse": {
         "required": [
@@ -14819,7 +14833,8 @@
             ]
           }
         },
-        "additionalProperties": false
+        "additionalProperties": false,
+        "description": "Body of POST /tenants. tenantName is a kebab-case name, folded to lowercase. Registration is insert-or-return-existing: a new tenant is created Active, an existing one is returned untouched."
       },
       "RegisterTenantResponse": {
         "required": [
@@ -14831,7 +14846,7 @@
             "type": "string"
           }
         },
-        "description": "The tenant a registration created or found: its stable numeric id, and its canonical key, which is how every other\ncall and route addresses it."
+        "description": "The tenant a registration created or found: its stable numeric id, and its canonical key, which is how every other call and route addresses it."
       },
       "RemoveTagResponse": {
         "required": [
@@ -14868,7 +14883,8 @@
             "format": "int32"
           }
         },
-        "additionalProperties": false
+        "additionalProperties": false,
+        "description": "Body of POST /jobs/{jobRef}/reprioritize. Priority is mandatory, since its default is the lowest band; a missing or unrecognized one fails deserialization (400). ExpectedVersion is the optional CAS guard."
       },
       "ReprioritizeJobResponse": {
         "required": [
@@ -14922,7 +14938,8 @@
             ]
           }
         },
-        "additionalProperties": false
+        "additionalProperties": false,
+        "description": "Optional body of POST /outbox/{jobNamespace}/requeue; the route's namespace names the relay source. A null or absent OutboxIds targets every quarantined row of that source."
       },
       "RequeueOutboxResponse": {
         "required": [
@@ -14968,7 +14985,8 @@
             "format": "int32"
           }
         },
-        "additionalProperties": false
+        "additionalProperties": false,
+        "description": "Body of POST /jobs/{jobRef}/reschedule. NextRunAtUtc omitted or null means now, the job page's \"run now\"; a default instant is a 400. ExpectedVersion is the optional CAS guard."
       },
       "RescheduleJobResponse": {
         "required": [
@@ -15011,7 +15029,8 @@
             ]
           }
         },
-        "additionalProperties": false
+        "additionalProperties": false,
+        "description": "Body of POST /alerts/{alertRef}/resolve: the operator's reason, optional like the body itself."
       },
       "ResolveAlertResponse": {
         "required": [
@@ -15062,7 +15081,8 @@
             "format": "int32"
           }
         },
-        "additionalProperties": false
+        "additionalProperties": false,
+        "description": "Body of POST /jobs/{jobRef}/restart. A null ExpectedVersion applies the verb unconditionally; a non-null one that misses the row's current version answers 409 with action version-conflict and writes nothing."
       },
       "RestartJobResponse": {
         "required": [
@@ -15112,7 +15132,8 @@
             "format": "int32"
           }
         },
-        "additionalProperties": false
+        "additionalProperties": false,
+        "description": "Body of POST /jobs/{jobRef}/resume. A null ExpectedVersion applies the verb unconditionally; a non-null one that misses the row's current version answers 409 with action version-conflict and writes nothing."
       },
       "ResumeJobResponse": {
         "required": [
@@ -15155,7 +15176,8 @@
             ]
           }
         },
-        "additionalProperties": false
+        "additionalProperties": false,
+        "description": "Body of POST /namespaces/{jobNamespace}/resume: the operator's reason, optional like the body itself."
       },
       "ResumeNamespaceResponse": {
         "required": [
@@ -15187,7 +15209,8 @@
             ]
           }
         },
-        "additionalProperties": false
+        "additionalProperties": false,
+        "description": "Body of POST /schedules/{jobNamespace}/{jobName}/{scheduleName}/resume: the operator's reason, optional like the body itself."
       },
       "ResumeScheduleResponse": {
         "required": [
@@ -15246,7 +15269,8 @@
             ]
           }
         },
-        "additionalProperties": false
+        "additionalProperties": false,
+        "description": "Body of POST /tenants/{tenantName}/resume: the operator's reason, optional like the body itself."
       },
       "ResumeTenantResponse": {
         "required": [
@@ -15285,7 +15309,8 @@
             ]
           }
         },
-        "additionalProperties": false
+        "additionalProperties": false,
+        "description": "Body of POST /definitions/{jobNamespace}/{jobName}/retire: the ExpectedVersion the operator last read, required."
       },
       "RetireDefinitionResponse": {
         "required": [
@@ -15333,7 +15358,8 @@
             ]
           }
         },
-        "additionalProperties": false
+        "additionalProperties": false,
+        "description": "Body of POST /calendars/{jobNamespace}/{calendarName}/drafts: the family's role, the definition as a JSON object, and the ExpectedLatestVersion the operator last read, 0 for a new family, required."
       },
       "SaveCalendarDraftResponse": {
         "required": [
@@ -15367,14 +15393,14 @@
             }
           }
         },
-        "description": "What saving a draft did. Applied carries the new version and its content hash; Rejected carries each reason in\n`Problems`, a compiler problem starting with its JSON path, and, when the store refused it, the family's latest\nversion, 0 for a family with none. A namespace no worker has run in yet is created, so the save never answers NotFound."
+        "description": "What saving a draft did. Applied carries the new version and its content hash; Rejected carries each reason in Problems, a compiler problem starting with its JSON path, and, when the store refused it, the family's latest version, 0 for a family with none. A namespace no worker has run in yet is created, so the save never answers NotFound."
       },
       "ScheduledDeliveryCode": {
         "examples": [
           "permanent"
         ],
         "type": "string",
-        "description": "How a schedule delivers a definition's work: one permanent slot job fired again and again, or a fresh root job per\nadmitted occurrence. Immutable once the definition is registered.\n\nKnown values:\n- unspecified: Scheduled delivery not recognized by this build; the row was written by a newer Acta.\n- permanent: Default. The definition's schedules fire one permanent slot job again and again.\n- per-occurrence: Each admitted occurrence enqueues a fresh ordinary root job with its own state, retries, and retention.\n\nOther values may appear: keep a value this client does not know as it is.",
+        "description": "How a schedule delivers a definition's work: one permanent slot job fired again and again, or a fresh root job per admitted occurrence. Immutable once the definition is registered.\n\nKnown values:\n- unspecified: Scheduled delivery not recognized by this build; the row was written by a newer Acta.\n- permanent: Default. The definition's schedules fire one permanent slot job again and again.\n- per-occurrence: Each admitted occurrence enqueues a fresh ordinary root job with its own state, retries, and retention.\n\nOther values may appear: keep a value this client does not know as it is.",
         "x-acta-known-values": [
           "unspecified",
           "permanent",
@@ -15386,7 +15412,7 @@
           "discard"
         ],
         "type": "string",
-        "description": "Known values:\n- unspecified: Schedule expire action not recognized by this build; the row was written by a newer Acta.\n- discard: An occurrence older than the schedule's expiry when it is evaluated is skipped, audited with the reason expired, and the schedule moves on.\n- pause: An occurrence older than the schedule's expiry when it is evaluated is skipped, audited with the reason expired, and the schedule is paused with the reason until an operator resumes it.\n\nOther values may appear: keep a value this client does not know as it is.",
+        "description": "What happens to an occurrence that reaches its schedule's expiry before it is admitted.\n\nKnown values:\n- unspecified: Schedule expire action not recognized by this build; the row was written by a newer Acta.\n- discard: An occurrence older than the schedule's expiry when it is evaluated is skipped, audited with the reason expired, and the schedule moves on.\n- pause: An occurrence older than the schedule's expiry when it is evaluated is skipped, audited with the reason expired, and the schedule is paused with the reason until an operator resumes it.\n\nOther values may appear: keep a value this client does not know as it is.",
         "x-acta-known-values": [
           "unspecified",
           "discard",
@@ -15448,7 +15474,7 @@
           "pending"
         ],
         "type": "string",
-        "description": "State machine for `steps` rows. INSERT-once on first invocation (`Pending`);\nUPDATE-in-place across retries; terminal transition to `Succeeded` (with `Result` populated),\n`Exhausted` (parent receives `StepExhaustedException`), or `Interrupted` (an\n`AtMostOnce` step re-entered before completion; parent receives `StepInterruptedException`). One row per\n`(JobId, StepName)`; the framework never INSERTs a second step row for the same name.\n\nKnown values:\n- unspecified: Step status not recognized by this build; the row was written by a newer Acta.\n- pending: Step in flight or retrying within MaxAttempts / RetryWindow.\n- succeeded: Step completed successfully; Result populated (or ResultFormatId = 0 for void steps).\n- exhausted: Step exhausted retry budget; parent handler receives StepExhaustedException.\n- interrupted: At-most-once step was re-entered before completion; outcome is unknown (ran 0 or 1 times). Parent receives StepInterruptedException.\n\nOther values may appear: keep a value this client does not know as it is.",
+        "description": "State machine for steps rows. INSERT-once on first invocation (Pending); UPDATE-in-place across retries; terminal transition to Succeeded (with Result populated), Exhausted (parent receives StepExhaustedException), or Interrupted (an AtMostOnce step re-entered before completion; parent receives StepInterruptedException). One row per (JobId, StepName); the framework never INSERTs a second step row for the same name.\n\nKnown values:\n- unspecified: Step status not recognized by this build; the row was written by a newer Acta.\n- pending: Step in flight or retrying within MaxAttempts / RetryWindow.\n- succeeded: Step completed successfully; Result populated (or ResultFormatId = 0 for void steps).\n- exhausted: Step exhausted retry budget; parent handler receives StepExhaustedException.\n- interrupted: At-most-once step was re-entered before completion; outcome is unknown (ran 0 or 1 times). Parent receives StepInterruptedException.\n\nOther values may appear: keep a value this client does not know as it is.",
         "x-acta-known-values": [
           "unspecified",
           "pending",
@@ -15467,7 +15493,8 @@
             ]
           }
         },
-        "additionalProperties": false
+        "additionalProperties": false,
+        "description": "Body of POST /namespaces/{jobNamespace}/suspend: the operator's reason, optional like the body itself."
       },
       "SuspendNamespaceResponse": {
         "required": [
@@ -15499,7 +15526,8 @@
             ]
           }
         },
-        "additionalProperties": false
+        "additionalProperties": false,
+        "description": "Body of POST /tenants/{tenantName}/suspend: the operator's reason, optional like the body itself."
       },
       "SuspendTenantResponse": {
         "required": [
@@ -15538,7 +15566,7 @@
           }
         },
         "additionalProperties": false,
-        "description": "Caller-supplied per-tag wire row attached to an enqueued Job. Names are unique within a\nrequest; string? TagInput.Value is null for presence-only tags."
+        "description": "Caller-supplied per-tag wire row attached to an enqueued Job. Names are unique within a request; value is null for presence-only tags."
       },
       "TenantStatusCode": {
         "examples": [
@@ -15562,7 +15590,8 @@
             ]
           }
         },
-        "additionalProperties": false
+        "additionalProperties": false,
+        "description": "Body of POST /schedules/{jobNamespace}/{jobName}/{scheduleName}/trigger: the operator's reason, optional like the body itself."
       },
       "TriggerScheduleResponse": {
         "required": [
@@ -15632,7 +15661,8 @@
             ]
           }
         },
-        "additionalProperties": false
+        "additionalProperties": false,
+        "description": "Body of PUT /definitions/{jobNamespace}/{jobName}/overrides: the ExpectedVersion the operator last read and the full override set that replaces the current one, both required, where a null field clears that override."
       },
       "UpdateDefinitionOverridesResponse": {
         "required": [
@@ -15670,7 +15700,8 @@
             ]
           }
         },
-        "additionalProperties": false
+        "additionalProperties": false,
+        "description": "Body of PUT /jobs/{jobRef}/input: the payload envelope that replaces the job's input, required. A json input replaces any stored format; base64 replaces only a binary-format input, and its formatId is the stored one."
       },
       "UpdateJobInputResponse": {
         "required": [
@@ -15732,7 +15763,8 @@
             ]
           }
         },
-        "additionalProperties": false
+        "additionalProperties": false,
+        "description": "Body of PUT /namespaces/{jobNamespace}. A null field clears it; ExpectedVersion drives the CAS."
       },
       "UpdateNamespaceResponse": {
         "required": [
@@ -15783,7 +15815,8 @@
             ]
           }
         },
-        "additionalProperties": false
+        "additionalProperties": false,
+        "description": "Body of PUT /tenants/{tenantName}. A null field clears it; ExpectedVersion drives the CAS."
       },
       "UpdateTenantResponse": {
         "required": [
@@ -15815,7 +15848,8 @@
             ]
           }
         },
-        "additionalProperties": false
+        "additionalProperties": false,
+        "description": "Body of PUT .../tags/{tagName} on a job, a namespace, a tenant, or a definition: the tag's optional value. The name is the route's, normalized as every tag name is."
       },
       "UpsertTagResponse": {
         "required": [
@@ -15830,14 +15864,15 @@
         "description": "What upserting one tag did: applied, or the target did not exist."
       },
       "WorkerRef": {
-        "type": "string"
+        "type": "string",
+        "description": "Public stable reference for one worker registration: \"wrk_\" plus the Guid's 32 lowercase hex digits, such as wrk_01a14f4d7b2a7c4f8e1d3b5a6c7e9f01. Dashboards, HTTP APIs, and event projections address workers by this value; the numeric worker id stays the internal engine identity. A worker row is never reused, so each registration mints a fresh ref for its lifetime."
       },
       "WorkerStatusCode": {
         "examples": [
           "active"
         ],
         "type": "string",
-        "description": "Lifecycle status of a worker row. Mirrors the JobStatusCode band scheme: live states 10..90,\nterminal success at 100, terminal error at 200+.\n\nKnown values:\n- unspecified: Worker status not recognized by this build; the row was written by a newer Acta.\n- active: Polling claim; accepting work.\n- draining: Worker stopped polling; finishing in-flight.\n- stopped: Worker shut down cleanly; terminal success.\n- dead: Heartbeat went stale; crash recovery reclaims lapsed leases, and a resumed heartbeat makes it Active again.\n\nOther values may appear: keep a value this client does not know as it is.",
+        "description": "Lifecycle status of a worker row. Mirrors the JobStatusCode band scheme: live states 10..90, terminal success at 100, terminal error at 200+.\n\nKnown values:\n- unspecified: Worker status not recognized by this build; the row was written by a newer Acta.\n- active: Polling claim; accepting work.\n- draining: Worker stopped polling; finishing in-flight.\n- stopped: Worker shut down cleanly; terminal success.\n- dead: Heartbeat went stale; crash recovery reclaims lapsed leases, and a resumed heartbeat makes it Active again.\n\nOther values may appear: keep a value this client does not know as it is.",
         "x-acta-known-values": [
           "unspecified",
           "active",

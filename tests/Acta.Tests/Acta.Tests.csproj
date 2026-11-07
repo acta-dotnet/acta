@@ -56,4 +56,13 @@
     <EmbeddedResource Include="Fixtures\Catalog\A\Twice.twice.sql" LogicalName="Acta.Tests.Fixtures.Catalog.A.Twice.twice.sql" />
     <EmbeddedResource Include="Fixtures\Catalog\B\Twice.twice.sql" LogicalName="Acta.Tests.Fixtures.Catalog.B.Twice.twice.sql" />
   </ItemGroup>
+
+  <!-- The OpenAPI package's XML-comment generator keeps only public types and writes a cref as its C# signature, so
+       ActaOpenApiDocument reads the XML documentation files itself, for both assemblies alike, and the generator is
+       taken off the compilation. ExcludeAssets cannot do it: the analyzer stays and the interceptor switch goes. -->
+  <Target Name="RemoveOpenApiXmlCommentGenerator" BeforeTargets="CoreCompile">
+    <ItemGroup>
+      <Analyzer Remove="@(Analyzer)" Condition="'%(Filename)' == 'Microsoft.AspNetCore.OpenApi.SourceGenerators'" />
+    </ItemGroup>
+  </Target>
 </Project>

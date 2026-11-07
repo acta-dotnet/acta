@@ -177,6 +177,14 @@ internal static partial class ActaOpenApiDocument
             }
         );
         o.AddSchemaTransformer(ShapeSchema);
+        var docs = new SchemaDocs();
+        o.AddSchemaTransformer(
+            (_, context, _) =>
+            {
+                docs.Record(context.JsonTypeInfo);
+                return Task.CompletedTask;
+            }
+        );
 
         // A route table's handler reads its keys from the route values, unseen by the generator: each segment the
         // template names and no handler parameter binds is a required string path parameter, in template order.
@@ -330,7 +338,7 @@ internal static partial class ActaOpenApiDocument
         o.AddDocumentTransformer(
             (document, _, _) =>
             {
-                ShapeDocument(document, mount, confirmationHeader);
+                ShapeDocument(document, mount, confirmationHeader, docs);
                 return Task.CompletedTask;
             }
         );
@@ -374,7 +382,7 @@ internal static partial class ActaOpenApiDocument
             .OfType<JsonIgnoreAttribute>()
             .Any(a => a.Condition is JsonIgnoreCondition.WhenWritingNull or JsonIgnoreCondition.WhenWritingDefault) == true;
 
-    private static void ShapeDocument(OpenApiDocument document, Mount mount, string? confirmationHeader)
+    private static void ShapeDocument(OpenApiDocument document, Mount mount, string? confirmationHeader, SchemaDocs docs)
     {
         var schemas = document.Components?.Schemas ?? new Dictionary<string, IOpenApiSchema>();
         UseEnumComponents(schemas);
@@ -500,6 +508,8 @@ internal static partial class ActaOpenApiDocument
             capabilityProperties["provider"] = new OpenApiSchemaReference(nameof(DbProvider));
         }
 
+        // Once every member has its final schema, so no later replacement drops its text.
+        docs.Describe(schemas);
         DescribeKnownValues(schemas);
 
         if (confirmationHeader is not null)

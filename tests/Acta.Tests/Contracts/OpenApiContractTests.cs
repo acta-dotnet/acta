@@ -1320,10 +1320,8 @@ public sealed partial class OpenApiContractTests
         }
     }
 
-    // Line endings, the file's and the escaped ones inside descriptions from XML doc comments, normalize on both sides so
-    // the committed document matches on every platform.
-    private static string Normalize(string json) =>
-        json.Replace("\r\n", "\n", StringComparison.Ordinal).Replace("\\r\\n", "\\n", StringComparison.Ordinal).TrimEnd();
+    // The file's line endings normalize on both sides so the committed document matches on every platform.
+    private static string Normalize(string json) => json.Replace("\r\n", "\n", StringComparison.Ordinal).TrimEnd();
 
     /// <summary>First differing line, so a failure names the drift instead of only announcing it.</summary>
     private static string FirstDifference(string committed, string generated)
