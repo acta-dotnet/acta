@@ -1,9 +1,15 @@
 using System.Net;
+using System.Security.Claims;
+using System.Text.Encodings.Web;
+using System.Text.Json.Nodes;
 using Acta.Tests.AspNetCore.Fakes;
+using Microsoft.AspNetCore.Authentication;
+using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Builder;
 using Microsoft.AspNetCore.TestHost;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Logging;
+using Microsoft.Extensions.Options;
 using Xunit;
 
 namespace Acta.Tests.AspNetCore;
@@ -11,10 +17,16 @@ namespace Acta.Tests.AspNetCore;
 /// <summary>
 /// The local-only default rejects non-loopback remote requests with 403 across HTML, assets,
 /// queries, and controls; loopback, in-process, and same-machine requests pass; the host opts
-/// out with <c>LocalOnly = false</c>.
+/// out with <c>LocalOnly = false</c>, which lifts the guard only where authorization stands in for it.
 /// </summary>
 public sealed class LocalOnlyTests
 {
+    private const string Remote = "203.0.113.10";
+
+    private const string NoAuthorization =
+        "This Acta endpoint carries no authorization, so it answers local requests only. Set RequirePermissions, "
+        + "require authorization on the mapped group, or acknowledge the exposure with UnsafeAllowAnonymousRemoteAccess.";
+
     private static Action<WebApplication> RemoteAddress(string remote, string? local = null) =>
         app =>
             app.Use(
@@ -137,6 +149,173 @@ public sealed class LocalOnlyTests
         Assert.Equal(HttpStatusCode.OK, response.StatusCode);
     }
 
+    // LocalOnly = false with controls on, a request from remote, and every caller authenticated by the Everyone scheme, so
+    // an endpoint's authorization, where it has any, passes and the answer is the guard's or the route's. The dev server's
+    // index is served whether or not the build embedded the dashboard's assets.
+    private static Task<(WebApplication App, HttpClient Client)> StartExposedAsync(
+        Action<ActaDashboardOptions> configure,
+        string remote = Remote,
+        Action<AuthorizationOptions>? authorization = null
+    ) =>
+        TestDashboardHost.StartAsync(
+            options =>
+            {
+                options.LocalOnly = false;
+                options.EnableControls = true;
+                options.UseViteDevServer = true;
+                configure(options);
+            },
+            configureBuilder: builder => AuthenticateEveryone(builder, authorization),
+            configureApp: RemoteAddress(remote)
+        );
+
+    private static void AuthenticateEveryone(WebApplicationBuilder builder, Action<AuthorizationOptions>? authorization = null)
+    {
+        builder.Services.AddAuthentication("Everyone").AddScheme<AuthenticationSchemeOptions, EveryoneHandler>("Everyone", null);
+        builder.Services.AddAuthorization(authorization ?? (_ => { }));
+    }
+
+    private static async Task<string?> TitleAsync(HttpResponseMessage response) =>
+        JsonNode.Parse(await response.Content.ReadAsStringAsync(TestContext.Current.CancellationToken))?["title"]?.GetValue<string>();
+
+    /// <summary>
+    /// An empty hook passes the mapping check and authorizes nothing, so a read, a control, and a page each keep the
+    /// guard: a remote request answers its 403, and the same request made locally is served.
+    /// </summary>
+    [Theory]
+    [InlineData(Remote, HttpStatusCode.Forbidden)]
+    [InlineData("127.0.0.1", HttpStatusCode.OK)]
+    public async Task LocalOnly_false_with_an_empty_hook_keeps_the_guard(string remote, HttpStatusCode expected)
+    {
+        var fakes = new FakeOperations();
+        var (app, client) = await TestDashboardHost.StartAsync(
+            options =>
+            {
+                options.LocalOnly = false;
+                options.EnableControls = true;
+                options.UseViteDevServer = true;
+                options.ConfigureEndpoints = _ => { };
+            },
+            fakes: fakes,
+            configureApp: RemoteAddress(remote)
+        );
+        await using var _ = app;
+        var ct = TestContext.Current.CancellationToken;
+        var control = new HttpRequestMessage(HttpMethod.Post, $"/acta/api/v1/jobs/{FakeJobs.FoundJobRef}/pause");
+        control.Headers.Add("X-Acta-Control", "true");
+
+        HttpRequestMessage[] requests = [new(HttpMethod.Get, "/acta/api/v1/jobs"), control, new(HttpMethod.Get, "/acta")];
+        foreach (var request in requests)
+        {
+            var response = await client.SendAsync(request, ct);
+            Assert.Equal(expected, response.StatusCode);
+            if (expected == HttpStatusCode.Forbidden)
+            {
+                Assert.Equal(NoAuthorization, await TitleAsync(response));
+            }
+        }
+        Assert.Equal(expected == HttpStatusCode.OK ? 1 : 0, fakes.Jobs.ControlCalls.Count);
+    }
+
+    [Fact]
+    public async Task Authorization_on_the_mapped_group_lifts_the_guard()
+    {
+        var (app, client) = await StartExposedAsync(options => options.ConfigureEndpoints = group => group.RequireAuthorization());
+        await using var _ = app;
+
+        var response = await client.GetAsync("/acta/api/v1/jobs", TestContext.Current.CancellationToken);
+
+        Assert.Equal(HttpStatusCode.OK, response.StatusCode);
+    }
+
+    [Fact]
+    public async Task AllowAnonymous_over_the_groups_authorization_keeps_the_guard()
+    {
+        var (app, client) = await StartExposedAsync(options =>
+            options.ConfigureEndpoints = group => group.RequireAuthorization().AllowAnonymous()
+        );
+        await using var _ = app;
+
+        var response = await client.GetAsync("/acta/api/v1/jobs", TestContext.Current.CancellationToken);
+
+        Assert.Equal(HttpStatusCode.Forbidden, response.StatusCode);
+        Assert.Equal(NoAuthorization, await TitleAsync(response));
+    }
+
+    [Fact]
+    public async Task A_fallback_policy_lifts_the_guard()
+    {
+        var (app, client) = await StartExposedAsync(
+            options => options.ConfigureEndpoints = _ => { },
+            authorization: options => options.FallbackPolicy = new AuthorizationPolicyBuilder().RequireAuthenticatedUser().Build()
+        );
+        await using var _ = app;
+
+        var response = await client.GetAsync("/acta/api/v1/jobs", TestContext.Current.CancellationToken);
+
+        Assert.Equal(HttpStatusCode.OK, response.StatusCode);
+    }
+
+    [Fact]
+    public async Task RequirePermissions_lifts_the_guard()
+    {
+        var (app, client) = await StartExposedAsync(
+            options => options.RequirePermissions = true,
+            authorization: options =>
+            {
+                foreach (
+                    var permission in new[]
+                    {
+                        ActaPermissions.Read,
+                        ActaPermissions.Enqueue,
+                        ActaPermissions.Control,
+                        ActaPermissions.Admin,
+                    }
+                )
+                {
+                    options.AddPolicy(permission, policy => policy.RequireAuthenticatedUser());
+                }
+            }
+        );
+        await using var _ = app;
+
+        var response = await client.GetAsync("/acta/api/v1/jobs", TestContext.Current.CancellationToken);
+
+        Assert.Equal(HttpStatusCode.OK, response.StatusCode);
+    }
+
+    [Fact]
+    public async Task Authorization_on_a_parent_group_lifts_the_guard()
+    {
+        var builder = WebApplication.CreateBuilder();
+        builder.Logging.ClearProviders();
+        builder.WebHost.UseTestServer();
+        var fakes = new FakeOperations();
+        builder.Services.AddSingleton<IJobs>(fakes.Jobs);
+        builder.Services.AddSingleton<IActaOperations>(fakes);
+        AuthenticateEveryone(builder);
+
+        var app = builder.Build();
+        RemoteAddress(Remote)(app);
+        app.MapGroup("/ops")
+            .RequireAuthorization()
+            .MapActaApi(
+                "/acta/api",
+                options =>
+                {
+                    options.LocalOnly = false;
+                    options.ConfigureEndpoints = _ => { };
+                }
+            );
+        await app.StartAsync(TestContext.Current.CancellationToken);
+        await using var _ = app;
+        var client = app.GetTestClient();
+
+        var response = await client.GetAsync("/ops/acta/api/v1/jobs", TestContext.Current.CancellationToken);
+
+        Assert.Equal(HttpStatusCode.OK, response.StatusCode);
+    }
+
     [Fact]
     public async Task Remote_control_posts_are_rejected_and_never_reach_jobs()
     {
@@ -176,5 +355,16 @@ public sealed class LocalOnlyTests
         var response = await client.GetAsync("/acta/api/v1/jobs", TestContext.Current.CancellationToken);
 
         Assert.Equal(HttpStatusCode.Forbidden, response.StatusCode);
+    }
+
+    /// <summary>Authenticates every request as one operator.</summary>
+    private sealed class EveryoneHandler(IOptionsMonitor<AuthenticationSchemeOptions> options, ILoggerFactory logger, UrlEncoder encoder)
+        : AuthenticationHandler<AuthenticationSchemeOptions>(options, logger, encoder)
+    {
+        protected override Task<AuthenticateResult> HandleAuthenticateAsync()
+        {
+            var principal = new ClaimsPrincipal(new ClaimsIdentity([new Claim(ClaimTypes.Name, "operator")], Scheme.Name));
+            return Task.FromResult(AuthenticateResult.Success(new AuthenticationTicket(principal, Scheme.Name)));
+        }
     }
 }

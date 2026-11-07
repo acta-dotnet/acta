@@ -355,7 +355,7 @@ app.MapActa("/acta", options =>
 });
 ```
 
-- **Local only by default.** Remote requests answer 403, and a local one must address `localhost` or an IP. To expose it, set `LocalOnly = false` and either turn on [permissions](#permissions) or require your own authorization through `ConfigureEndpoints`, either of which covers the page, its assets, and the API; without one startup throws unless `UnsafeAllowAnonymousRemoteAccess = true`. The package ships no authentication, and CORS is not authorization. `MapActaApi` maps the API alone.
+- **Local only by default.** Remote requests answer 403, and a local one must address `localhost` or an IP. To expose it, set `LocalOnly = false` and either turn on [permissions](#permissions) or require your own authorization through `ConfigureEndpoints`, either of which covers the page, its assets, and the API; without one startup throws unless `UnsafeAllowAnonymousRemoteAccess = true`. Short of permissions or that acknowledgment, the guard stays on every endpoint that carries no authorization, so an empty `ConfigureEndpoints` hook, or one that adds `AllowAnonymous`, still answers a remote request 403; authorization from a parent group or a fallback policy counts. The package ships no authentication, and CORS is not authorization. `MapActaApi` maps the API alone.
 - **Reads expose payloads.** Anyone who can read can see every job's input, result, and checkpoint values: `GET /jobs/{jobRef}/input` and `/result` serve the payload whole as the body, and the job detail and checkpoint reads carry each one up to `MaxInlinePayloadBytes`. Treat read access as access to every payload in the ledger.
 - **Controls are opt-in.** `EnableControls = true` maps the control routes (job verbs, signals, schedules, calendars, alerts, tenants, namespaces, outbox). Each control request must be confirmed by the header `X-Acta-Control: true`, a JSON content type, or a `Bearer` authorization header, none of which a page on another origin can send without a CORS preflight; a call with none of them answers 400. It is a guard against cross-site requests, not authentication. An outcome answers 200 applied, 404 not found, or 409 rejected; problem details are kept for malformed input, authorization, and faults.
 - **Jobs are addressed by ref** (`/acta/api/v1/jobs/{jobRef}`) or by deduplication key (`/jobs/by-key?jobNamespace=&deduplicationKey=`). `EnableNumericIdLookup = true` also allows `/jobs/id:{n}` on reads, for debugging from a log line.
@@ -1115,9 +1115,11 @@ explicitly. See [Transactional enqueue and the external outbox](./developer-guid
 ### The Dashboard Or API Is Not Reachable Remotely
 
 `MapActa(...)` and `MapActaApi(...)` are local-only by default. Remote clients receive 403 until the
-host sets `LocalOnly = false` and adds ASP.NET Core authorization through `ConfigureEndpoints`. A
-browser on the same machine also gets 403 when it names the machine rather than `localhost` or an IP
-address: local-only accepts only those host names.
+host sets `LocalOnly = false` and either sets `RequirePermissions` or adds ASP.NET Core authorization
+through `ConfigureEndpoints`. A 403 titled `This Acta endpoint carries no authorization` means the
+endpoint has neither: check that the hook requires authorization and that no `AllowAnonymous` covers
+the endpoint. A browser on the same machine also gets 403 when it names the machine rather than
+`localhost` or an IP address: local-only accepts only those host names.
 
 Mutating controls are also disabled by default. Enable them explicitly with `EnableControls = true`
 and keep authorization on the mapped endpoint group.

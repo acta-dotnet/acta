@@ -10,18 +10,19 @@ namespace Acta.AspNetCore;
 public class ActaEndpointOptions
 {
     /// <summary>
-    /// Whether requests from non-loopback remote addresses, and local ones that name the host by anything
-    /// but <c>localhost</c> or an IP address (a DNS-rebinding page), are rejected with 403. On by default:
-    /// the surface is intended for local operator use until the host opts out and brings its own
-    /// authorization through <see cref="ConfigureEndpoints"/>.
+    /// Whether every endpoint rejects with 403 a request from a non-loopback remote address, and a local one that names
+    /// the host by anything but <c>localhost</c> or an IP address (a DNS-rebinding page). On by default. Set to false,
+    /// the guard is lifted everywhere under <see cref="RequirePermissions"/> or
+    /// <see cref="UnsafeAllowAnonymousRemoteAccess"/>; otherwise only from an endpoint that carries the host's
+    /// authorization with no <c>AllowAnonymous</c> over it, or falls under a fallback policy.
     /// </summary>
     public bool LocalOnly { get; set; } = true;
 
     /// <summary>
-    /// Acknowledges intentionally serving remote clients with no authorization at all. Mapping with
-    /// <see cref="LocalOnly"/> = false throws unless the host either supplies
-    /// <see cref="ConfigureEndpoints"/> (the authorization hook) or opts in here; the name is meant
-    /// to read as dangerously as the resulting exposure is.
+    /// Acknowledges intentionally serving remote clients with no authorization at all: with <see cref="LocalOnly"/> =
+    /// false it lifts the loopback guard from every endpoint, whatever authorization the endpoint carries. Mapping with
+    /// <see cref="LocalOnly"/> = false throws unless the host sets this, sets <see cref="RequirePermissions"/>, or
+    /// supplies <see cref="ConfigureEndpoints"/>; the name is meant to read as dangerously as the exposure is.
     /// </summary>
     public bool UnsafeAllowAnonymousRemoteAccess { get; set; }
 
@@ -65,10 +66,11 @@ public class ActaEndpointOptions
     public bool EnableNumericIdLookup { get; set; }
 
     /// <summary>
-    /// Hook over the mapped route group; the place to call <c>RequireAuthorization</c>. On
-    /// <c>MapActa</c> the group covers HTML, assets, queries, and controls together. For a decision per
-    /// operation, set <see cref="RequirePermissions"/>, which checks each route's permission against the
-    /// host's policy of that name.
+    /// Hook over the mapped route group; the place to call <c>RequireAuthorization</c>. On <c>MapActa</c> the group
+    /// covers HTML, assets, queries, and controls together. With <see cref="LocalOnly"/> = false a hook lets mapping
+    /// proceed, but an endpoint answers a remote request only when it carries authorization, from the hook, a parent
+    /// group, or a fallback policy, with no <c>AllowAnonymous</c> over it. For a decision per operation, set
+    /// <see cref="RequirePermissions"/>, which checks each route's permission against the host's policy of that name.
     /// </summary>
     public Action<RouteGroupBuilder>? ConfigureEndpoints { get; set; }
 }

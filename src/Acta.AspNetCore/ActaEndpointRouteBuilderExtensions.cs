@@ -1,5 +1,6 @@
 using System.Net;
 using System.Text;
+using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Builder;
 using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Http.Json;
@@ -193,9 +194,12 @@ public static class ActaEndpointRouteBuilderExtensions
         }
     }
 
+    // The loopback guard. LocalOnly = false lifts it only from an endpoint that carries authorization: Acta's permission
+    // check, the host's own, or the host's acknowledgment that anonymous remote access is intended. An endpoint with
+    // none of them keeps answering local requests only, so an empty ConfigureEndpoints hook exposes nothing.
     private static void GuardLocalOnly(RouteGroupBuilder group, ActaEndpointOptions options)
     {
-        if (!options.LocalOnly)
+        if (!options.LocalOnly && (options.RequirePermissions || options.UnsafeAllowAnonymousRemoteAccess))
         {
             return;
         }
@@ -203,22 +207,47 @@ public static class ActaEndpointRouteBuilderExtensions
         group.AddEndpointFilter(
             async (context, next) =>
             {
-                var connection = context.HttpContext.Connection;
+                var http = context.HttpContext;
+                if (!options.LocalOnly && await CarriesAuthorizationAsync(http))
+                {
+                    return await next(context);
+                }
+
+                var connection = http.Connection;
                 var remote = connection.RemoteIpAddress;
                 // Null remote means an in-process transport (test server, named pipes). A local peer must also
                 // name the host locally: a page that rebinds its own DNS name to 127.0.0.1 reaches this socket
                 // from the operator's browser under that name, never as localhost or an IP literal.
                 return
                     remote is null
-                    || (IPAddress.IsLoopback(remote) || remote.Equals(connection.LocalIpAddress))
-                        && IsLocalHostName(context.HttpContext.Request.Host.Host)
+                    || (IPAddress.IsLoopback(remote) || remote.Equals(connection.LocalIpAddress)) && IsLocalHostName(http.Request.Host.Host)
                     ? await next(context)
                     : Results.Problem(
                         statusCode: StatusCodes.Status403Forbidden,
-                        title: "The Acta endpoints are local-only by default. Set LocalOnly = false and add host authorization to expose them remotely."
+                        title: options.LocalOnly
+                            ? "The Acta endpoints are local-only by default. Set LocalOnly = false and add host authorization to expose them remotely."
+                            : "This Acta endpoint carries no authorization, so it answers local requests only. Set RequirePermissions, "
+                                + "require authorization on the mapped group, or acknowledge the exposure with UnsafeAllowAnonymousRemoteAccess."
                     );
             }
         );
+    }
+
+    // What the host's authorization middleware would enforce on this endpoint: authorization metadata with no
+    // AllowAnonymous over it, or a fallback policy.
+    private static async ValueTask<bool> CarriesAuthorizationAsync(HttpContext http)
+    {
+        var metadata = http.GetEndpoint()?.Metadata;
+        if (metadata is null || metadata.GetMetadata<IAllowAnonymous>() is not null)
+        {
+            return false;
+        }
+
+        return metadata.GetMetadata<IAuthorizeData>() is not null
+            || metadata.GetMetadata<AuthorizationPolicy>() is not null
+            || metadata.GetMetadata<IAuthorizationRequirementData>() is not null
+            || http.RequestServices.GetService<IAuthorizationPolicyProvider>() is { } provider
+                && await provider.GetFallbackPolicyAsync() is not null;
     }
 
     private static bool IsLocalHostName(string host) =>
