@@ -200,8 +200,9 @@ public sealed partial class OperationsIndexTests
     }
 
     // A public facade method runs an operation when its body names the operation's handler field, command, or query,
-    // directly, through a helper class of the group it holds or calls, or through another method of the facade that it
-    // or such a helper calls (RunAndWaitAsync runs EnqueueJob through JobRunAndWait, which calls IJobs.EnqueueAsync).
+    // directly, through the method it calls on a helper class of the group, or through another method of the facade that
+    // it or such a helper method calls (RunAndWaitAsync runs EnqueueJob through JobRunAndWait.RunAsync, which calls
+    // IJobs.EnqueueAsync; WaitAsync calls JobRunAndWait.WaitAsync, which enqueues nothing).
     // The facade is the group's <Group>Operations class implementing I<Group>, and only the methods I<Group> declares
     // count: the class's engine calls are not on the public surface.
     internal static List<(string Facade, string Method, string Operation)> FacadeMethods(string operations)
@@ -220,7 +221,7 @@ public sealed partial class OperationsIndexTests
             )
             .SelectMany(file => Parse(file).OfType<ClassDeclarationSyntax>())
             .GroupBy(c => c.Identifier.Text)
-            .ToDictionary(g => g.Key, g => Identifiers(g.First()));
+            .ToDictionary(g => g.Key, g => HelperMethods(g.First()));
         var found = new List<(string, string, string)>();
         foreach (var facade in Facades)
         {
@@ -274,7 +275,7 @@ public sealed partial class OperationsIndexTests
     private static HashSet<string> WithHelpers(
         HashSet<string> tokens,
         Dictionary<string, string> fields,
-        Dictionary<string, HashSet<string>> helpers
+        Dictionary<string, Dictionary<string, HashSet<string>>> helpers
     )
     {
         var expanded = new HashSet<string>(tokens, StringComparer.Ordinal);
@@ -282,11 +283,48 @@ public sealed partial class OperationsIndexTests
         {
             if (helpers.TryGetValue(fields.GetValueOrDefault(token, token), out var helper))
             {
-                expanded.UnionWith(helper);
+                // What the helper methods named here reach; the whole class when the body names none of its methods.
+                var called = tokens.Where(name => name.Length > 0 && helper.ContainsKey(name)).ToList();
+                foreach (var reached in called.Count > 0 ? called.Select(name => helper[name]) : [helper[""]])
+                {
+                    expanded.UnionWith(reached);
+                }
             }
         }
 
         return expanded;
+    }
+
+    // A helper class's identifiers by method: each method's own and those of the class's methods it calls, in turn. The
+    // empty name holds the whole class.
+    private static Dictionary<string, HashSet<string>> HelperMethods(ClassDeclarationSyntax helper)
+    {
+        var own = helper
+            .Members.OfType<MethodDeclarationSyntax>()
+            .GroupBy(method => method.Identifier.Text, StringComparer.Ordinal)
+            .ToDictionary(g => g.Key, g => g.SelectMany(Identifiers).ToHashSet(StringComparer.Ordinal), StringComparer.Ordinal);
+        var methods = new Dictionary<string, HashSet<string>>(StringComparer.Ordinal) { [""] = Identifiers(helper) };
+        foreach (var (name, tokens) in own)
+        {
+            var reached = new HashSet<string>(tokens, StringComparer.Ordinal);
+            var seen = new HashSet<string>(StringComparer.Ordinal) { name };
+            var pending = new Queue<string>(tokens.Where(own.ContainsKey));
+            while (pending.TryDequeue(out var next))
+            {
+                if (seen.Add(next))
+                {
+                    reached.UnionWith(own[next]);
+                    foreach (var called in own[next].Where(own.ContainsKey))
+                    {
+                        pending.Enqueue(called);
+                    }
+                }
+            }
+
+            methods[name] = reached;
+        }
+
+        return methods;
     }
 
     private static HashSet<string> Identifiers(SyntaxNode node) =>

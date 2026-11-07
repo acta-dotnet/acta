@@ -110,9 +110,9 @@ One row per operation folder, `src/Acta/Operations/<Group>/<Operation>/`, and on
 | `ResumeJob` | `IJobs.ResumeAsync` | `POST /jobs/{jobRef}/resume` (`resumeJob`) | `resume` | inline | `events`, `jobs_state`, `schedules_state` | `ResumeJobSpec` |
 | `UpdateJobInput` | `IJobs.UpdateInputAsync` | `PUT /jobs/{jobRef}/input` (`updateJobInput`) | · | inline | `events`, `jobs` | `UpdateJobInputSpec` |
 
-`IJobs.RunAndWaitAsync` runs `EnqueueJob`, `GetJob`, `GetJobId`, `GetJobResult`.
+`IJobs.RunAndWaitAsync` runs `EnqueueJob`, `GetJob`, `GetJobResult`.
 
-`IJobs.WaitAsync` runs `EnqueueJob`, `GetJob`, `GetJobId`, `GetJobResult`.
+`IJobs.WaitAsync` runs `GetJob`, `GetJobId`, `GetJobResult`.
 
 ## Ledger
 
