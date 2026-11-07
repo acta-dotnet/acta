@@ -4,8 +4,8 @@ Known boundaries to review before using Acta in production-like environments.
 
 ## Stability status
 
-Acta is at 1.0.0-rc.8, a release candidate. It re-cut the schema ([release notes](./release-notes.md)), so
-every database an earlier release candidate provisioned is dropped and reprovisioned: no translation
+Acta 1.0 is in release candidates, and a release candidate may re-cut the schema ([release notes](./release-notes.md)),
+so every database an earlier release candidate provisioned is dropped and reprovisioned: no translation
 migration exists, and nothing in a database says which cut it came from. From 1.0.0 the public API,
 schema, and persisted codes are frozen, and the migration history with them: schema changes ship only
 as additive migrations and the baseline is never re-cut, so a database provisioned by a 1.x build
@@ -27,8 +27,8 @@ Execution is at-least-once, and a handler re-enters from the top with its comple
 
 - **A failing completion write repeats until it lands or the worker stops**, logging Warning, then Error. A database outage longer than the lease lets recovery reclaim the job and run it again, finished or not. A failing database stops intake instead of growing memory.
 - **SQLite pickup can wait a Windows timer tick.** A write that meets another commit holding SQLite's lock waits in SQLite's busy handler, which sleeps in whole milliseconds that Windows rounds up to a 15.6 ms tick, so one job at a time picks up in about 20 ms where the server providers take 3.
-- **One job row takes about 700 million state changes**, about three per run. A recurring schedule fires at most once a second, which keeps it inside the limit for decades, but a job that reschedules itself without pause at a hundred runs a second reaches it in about three months; a loop that long should enqueue a successor job instead.
-- **A worker can claim a job it has no handler for.** It hands the job back once and stops claiming that definition; with no worker carrying it, the job waits Ready until a build with the handler returns or an operator retires the definition.
+- **One job row takes about 2.1 billion state changes**, about three per run, so about 700 million runs. A recurring schedule fires at most once a second, which keeps it inside the limit for decades, but a job that reschedules itself without pause at a hundred runs a second reaches it in about three months; a loop that long should enqueue a successor job instead.
+- **A worker can claim a job it has no handler for.** It hands the job back once and stops claiming that definition for its own lifetime; with no worker carrying it, the job waits Ready until a build with the handler returns or an operator retires the definition, and a long run of such jobs slows that worker's claims meanwhile.
 - **A rate limit paces admissions, not starts.** At a steady rate any `T` seconds hold at most `R*(T+W)+B` admissions, `W` being the longest a booked turn is honoured late: one second, or one interval when that is longer. A delayed reservation can be admitted next to an on-time one, so `RateLimit` alone is not a hard quota for a partner API that rejects bursts.
 - **One rate meter is one row lock**, about a thousand admissions a second cluster-wide. A turn under a quarter second away is waited out holding the executor, and a worker that dies in that wait costs the job one attempt.
 - **A handler lock stops at the namespace.** `RunWithLockAsync` keys are scoped to the job's namespace, as concurrency slots and rate meters are, so two namespaces never serialize on one key. Jobs that share one external single-writer resource belong in one namespace.
@@ -42,6 +42,7 @@ Execution is at-least-once, and a handler re-enters from the top with its comple
 - **On SQL Server, a child enqueued in a transaction still open when its parent is cancelled escapes the cancel.** The cancel does not wait for the uncommitted child, which runs once the transaction commits. Cancelling the parent again walks it.
 - **A worker that crashes on every replay of a timed-out wait loops without spending budget.** The job re-alerts on every reminder, and an operator cancel ends it.
 - **`OnTerminal` and `Info` never alert on a permanent job's ordinary failures**, which return it to `Idle` instead of landing Failed. Use `OnFailure` for recurring work.
+- **A permanent job whose firing fails for good keeps its automatic alert open at `Failures` and `Off`** after its next healthy firing, restarted or not: admission resets the failure count that marks a success as a recovery. A firing that recovers on a retry within its budget does resolve. Otherwise resolve the alert by hand, or run the definition at `Audit`, where every success is recorded. One-shot jobs auto-resolve at every level.
 - **The alert projector assumes the database clock never steps backwards.** After a step, failures stamped below the cursor are missed. Repair by setting the `alerts-cursor` variable of the namespace's `sys.alerts` job in `checkpoints` to `{"Ticks":<UTC ticks of an instant before the step>,"EventId":0}`, no further back than `AlertRetention`.
 - **A writer that freezes past twice the command timeout** can commit an event the projector already passed, which is then missed (never wrong). Keep command timeouts the same across the fleet.
 - **A requeue command can requeue a row a second time.** A relay pass that stalls between planning the command and requeueing its rows, while another pass finishes it and the row is quarantined again, requeues that row once more and records no event for it. The row retries as the operator asked; nothing else changes.
@@ -66,7 +67,6 @@ Execution is at-least-once, and a handler re-enters from the top with its comple
 ## Contract evolution
 
 - **The drift guard checks type names and payload formats, not JSON compatibility.** Wire compatibility is the application's.
-- **A worker excludes a definition it has no handler for only for its own lifetime.** A long run of such jobs slows its claims until the definition is retired or its build returns.
 - **Retiring a definition cancels its parked jobs but not their descendants.**
 - **A recurring firing still running when its definition is retired is cancelled** unless it succeeds or spends its failure budget, which return the permanent job to `Idle` as usual. A cancelled permanent job stays cancelled after a deploy reactivates the definition, so restart it; once its retention runs out, purge removes it and the next deploy that declares the definition writes a fresh permanent job.
 - **A worker learns of a retire on its next heartbeat**, so an attempt that starts in that gap still runs once. A job its handler paused stays Paused until it is resumed or cancelled.
@@ -142,12 +142,6 @@ configuration is exercised by the conformance suites.
 
 SQL provider behavior should be tested under your workload, including claim pressure, long-running
 handlers, retries, schedule load, alert delivery, retention sweeps, and backup/restore drills.
-
-A permanent job that an operator restarts after a terminal failure does not auto-resolve its open
-alert at the `Failures` or `Off` recording levels: the restart zeroes the failure count, so the next
-successful fire is not captured as a recovery. Resolve the incident manually, or run the definition
-at `Audit`, where every success is recorded and resolves it. One-shot jobs auto-resolve after a
-restart at every level.
 
 Large or sensitive payloads should live outside Acta tables. Store a reference in the job input and
 keep the body in blob/file/object storage.
