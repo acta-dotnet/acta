@@ -54,7 +54,12 @@
         {:else}<span class="dim">When one of its schedules fires.</span>{/if}
       </dd>
     {/if}
-    <dt>Attempts</dt><dd>{displayFormatter.number(job.executionNumber)} started, {failureCountText(job.failureCount)} consecutive failures{#if maxAttempts != null && !TERMINAL_STATUSES.includes(job.status)} <span class="dim">(fails permanently at {displayFormatter.number(maxAttempts)})</span>{/if}</dd>
+    <!-- On a permanent job MaxAttempts is each firing's own budget: a spent one returns the job to idle. -->
+    {#if job.kind === 'permanent'}
+      <dt>Attempts</dt><dd>{displayFormatter.number(job.executionNumber)} started across all firings, {failureCountText(job.failureCount)} consecutive failures in the latest firing{#if maxAttempts != null && !TERMINAL_STATUSES.includes(job.status)} <span class="dim">(each firing gets {displayFormatter.number(maxAttempts)} attempts)</span>{/if}</dd>
+    {:else}
+      <dt>Attempts</dt><dd>{displayFormatter.number(job.executionNumber)} started, {failureCountText(job.failureCount)} consecutive failures{#if maxAttempts != null && !TERMINAL_STATUSES.includes(job.status)} <span class="dim">(fails permanently at {displayFormatter.number(maxAttempts)})</span>{/if}</dd>
+    {/if}
     <dt>Last event</dt><dd>
       {#if lastEvent}
         {@const reason = eventFacts(lastEvent.detailsText).reason}

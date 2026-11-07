@@ -87,6 +87,16 @@ describe('JobSummary', () => {
     expect(getByText('No schedule is set to fire it.')).toBeTruthy();
   });
 
+  it('counts a permanent job\'s attempts across its firings and gives each firing the budget', () => {
+    const { getByText, queryByText } = render(JobSummary, {
+      job: job({ kind: 'permanent', status: 'idle', executionNumber: 28 }),
+      maxAttempts: 15
+    });
+    expect(getByText(/28 started across all firings, 0 consecutive failures in the latest firing/)).toBeTruthy();
+    expect(getByText('(each firing gets 15 attempts)')).toBeTruthy();
+    expect(queryByText(/fails permanently/)).toBeNull();
+  });
+
   it('reads a saturated failure count as a floor', () => {
     const { getByText } = render(JobSummary, { job: job({ executionNumber: 40000, failureCount: 32767 }) });
     expect(getByText(/40000 started, 32,767\+ consecutive failures/)).toBeTruthy();

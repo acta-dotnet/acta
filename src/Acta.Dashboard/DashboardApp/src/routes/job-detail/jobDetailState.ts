@@ -1,6 +1,14 @@
 import type { EventItem, JobScheduleView } from '../../api.ts';
+import { displayFormatter } from '../../format.ts';
 import { eventFacts } from '../../lib/eventFacts.ts';
 import type { JobExplanation, JobLineageNode, JobDetail } from './types.ts';
+
+/** The job's execution number as the page header reads it: a permanent job's counts every firing, so it is a total, not a retry. */
+export function executionLabel(job: Pick<JobDetail, 'kind' | 'executionNumber'>): string {
+  const count = displayFormatter.number(job.executionNumber);
+  if (job.kind !== 'permanent') return 'attempt ' + count;
+  return count + (job.executionNumber === 1 ? ' execution' : ' executions');
+}
 
 /**
  * The active schedule that fires an idle permanent job soonest: null when none has a next occurrence, and

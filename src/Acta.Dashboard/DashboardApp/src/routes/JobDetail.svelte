@@ -2,7 +2,7 @@
   import { tick } from 'svelte';
   import { createQuery } from '@tanstack/svelte-query';
   import { api, ApiError, type EventItem, type JobDetailView } from '../api.ts';
-  import { TERMINAL_STATUSES, statusClass, displayFormatter } from '../format.ts';
+  import { TERMINAL_STATUSES, statusClass } from '../format.ts';
   import { keys } from '../query.ts';
   import { scope } from '../scope.ts';
   import CopyButton from '../components/CopyButton.svelte';
@@ -25,7 +25,7 @@
   import JobExecutionsPanel from './job-detail/JobExecutionsPanel.svelte';
   import JobSchedulesPanel from './job-detail/JobSchedulesPanel.svelte';
   import { createUrlFilters } from '../urlFilters.ts';
-  import { buildIncidentSummary, latestMeaningfulEvent } from './job-detail/jobDetailState.ts';
+  import { buildIncidentSummary, executionLabel, latestMeaningfulEvent } from './job-detail/jobDetailState.ts';
   import { statusTonePresentation } from '../components/jobTimelineState.ts';
   import { routes } from '../routes.ts';
   import { capabilitiesQuery, can, Permission } from '../query.ts';
@@ -96,6 +96,7 @@
 
   // Hero: the timeline's node language scaled up onto the shared t-* tone classes.
   let hero = $derived(job ? statusTonePresentation(statusClass(job.status)) : statusTonePresentation(''));
+  let heroAttempt = $derived(job ? executionLabel(job) : '');
 
   // Real tabs: only the active tab's panels are mounted, so per-tab data (the unbounded event
   // history lives on Details) is only fetched while its tab is open.
@@ -186,7 +187,7 @@
         {#if explanation?.reason}<div class="hero-reason">{explanation.reason}</div>{/if}
         <div class="hero-meta">
           <JobRef value={job.jobRef} /> · {job.jobNamespace} / {job.jobName} ·
-          {#if hasExecutions}<button class="hero-attempt" onclick={() => setTab('executions')}>attempt {displayFormatter.number(job.executionNumber)}</button>{:else}attempt {displayFormatter.number(job.executionNumber)}{/if}
+          {#if hasExecutions}<button class="hero-attempt" onclick={() => setTab('executions')}>{heroAttempt}</button>{:else}{heroAttempt}{/if}
         </div>
       </div>
     </section>

@@ -167,6 +167,7 @@ Not tagged yet.
 - In a 1440 px window the dashboard's jobs table ran past its panel and hid the Next run and Attempts columns. A ref in the list now shows its tag and last 8 digits, with the whole ref in its tooltip and copy button, and the job name takes the spare width and ends in an ellipsis when the panel is narrow.
 - On a host with one namespace, the dashboard's jobs list asked for a namespace scope before it filtered by job name or jumped to a deduplication key. Both now look in that namespace; with several, they still ask. A link with a job name and no scope listed every job while the Job name box still showed the name; the list now waits for the namespaces, then lists that job, shows why they could not be read, or asks for a scope.
 - The dashboard's job page showed an idle permanent job's next run as a dot. It now names the active schedule that fires it soonest and when, or says no schedule is set to fire it.
+- The dashboard's job page read a permanent job 28 executions in as "attempt 28" and "fails permanently at 15", as if it were near its last try. `MaxAttempts` is each firing's budget and the execution number counts every firing, so the page now says "28 executions" and "28 started across all firings" and that each firing gets 15 attempts.
 
 ## 1.0.0-rc.8
 

@@ -4,6 +4,7 @@ import {
   activeWaitLabel,
   buildIncidentSummary,
   childRollup,
+  executionLabel,
   latestMeaningfulEvent,
   mergeJobEvents,
   payloadFormatLabel
@@ -74,6 +75,12 @@ test('a child latch wait reads as a child job, not as a timer', () => {
   assert.deepEqual(activeWaitLabel('child-latch', 'sys.child.42'), { kind: 'child job', name: '42' });
   assert.deepEqual(activeWaitLabel('signal', 'approval'), { kind: 'signal', name: 'approval' });
   assert.deepEqual(activeWaitLabel('timer', 'nightly'), { kind: 'timer', name: 'nightly' });
+});
+
+test('a permanent job counts its executions across firings; any other job names its attempt', () => {
+  assert.equal(executionLabel({ kind: 'permanent', executionNumber: 28 }), '28 executions');
+  assert.equal(executionLabel({ kind: 'permanent', executionNumber: 1 }), '1 execution');
+  assert.equal(executionLabel({ kind: 'ordinary', executionNumber: 28 }), 'attempt 28');
 });
 
 test('an unfamiliar wait kind names itself instead of borrowing another kind name', () => {
