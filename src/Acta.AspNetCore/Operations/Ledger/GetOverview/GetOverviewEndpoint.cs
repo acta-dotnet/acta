@@ -28,6 +28,8 @@ internal static class GetOverviewEndpoint
             )
             .WithSummary("Read the ledger's health-overview counters.")
             .Produces<GetOverviewResponse>(StatusCodes.Status200OK)
+            .ProducesProblem(StatusCodes.Status400BadRequest)
+            .ProducesProblem(StatusCodes.Status503ServiceUnavailable)
             .WithQueryParameters([
                 new QueryParameterDoc("jobNamespace", QueryParameterKind.String, "Scope the overview to one namespace; omit for all."),
             ]);

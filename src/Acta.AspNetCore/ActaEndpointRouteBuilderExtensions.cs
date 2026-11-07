@@ -111,19 +111,15 @@ public static class ActaEndpointRouteBuilderExtensions
         // it reaches the nested controls group too.
         ActaEndpointIdentity.Apply(api);
 
-        // The error model, declared once: 401 from the host's authentication, which writes its own body, 403 from the
-        // local-only guard, a control authorizer, or the host's authorization, 400 from the routes' input guards, 413 from
-        // the body ceiling, 500 and 503 from the error backstop. 415 is not here: only a route that reads a body can answer
-        // it, so each such route declares it where its body is read, rather than promising it on every read.
-        api.ProducesProblem(StatusCodes.Status400BadRequest);
+        // What any route can answer, declared once: 401 from the host's authentication, which writes its own body, 403
+        // from the local-only guard, a control authorizer, or the host's authorization, and 500 from the error backstop.
+        // The rest a route declares where it is answered: RouteTable's shapes, the body a route reads (AcceptsJson), and
+        // the routes of their own shape.
         api.WithMetadata(new ProducesResponseTypeMetadata(StatusCodes.Status401Unauthorized, typeof(void)));
         api.ProducesProblem(StatusCodes.Status403Forbidden);
-        api.ProducesProblem(StatusCodes.Status413PayloadTooLarge);
         api.ProducesProblem(StatusCodes.Status500InternalServerError);
-        api.ProducesProblem(StatusCodes.Status503ServiceUnavailable);
         api.AddEndpointFilter(ApiFilters.ErrorBackstop);
         api.AddEndpointFilter(ApiFilters.NoStore);
-        api.AddEndpointFilter(ApiFilters.BodyCeiling);
 
         // Null when controls are off; a group's route table maps its writes only when it is there. The empty-prefix
         // group gives the authorization filter every control route and no read.

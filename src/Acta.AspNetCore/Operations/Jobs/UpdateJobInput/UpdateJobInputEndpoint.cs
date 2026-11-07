@@ -126,5 +126,5 @@ internal static class UpdateJobInputEndpoint
             .Produces<UpdateJobInputResponse>(StatusCodes.Status200OK)
             .Produces<UpdateJobInputResponse>(StatusCodes.Status409Conflict)
             .Produces<UpdateJobInputResponse>(StatusCodes.Status404NotFound)
-            .ProducesProblem(StatusCodes.Status415UnsupportedMediaType);
+            .ProducesProblem(StatusCodes.Status503ServiceUnavailable);
 }

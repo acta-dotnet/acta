@@ -6,7 +6,10 @@ using Microsoft.Extensions.DependencyInjection;
 
 namespace Acta.AspNetCore;
 
-/// <summary>GET /capabilities: answers <see cref="GetCapabilitiesResponse"/> from this host's options and provider.</summary>
+/// <summary>
+/// GET /capabilities: answers <see cref="GetCapabilitiesResponse"/> from this host's options and provider. It takes no
+/// input and reads no database, so it answers no 400 and no 503.
+/// </summary>
 internal static class GetCapabilitiesEndpoint
 {
     public static void Map(RouteGroupBuilder reads, ActaEndpointOptions options) =>

@@ -1,16 +1,23 @@
 using Microsoft.AspNetCore.Builder;
+using Microsoft.AspNetCore.Http;
 
 namespace Acta.AspNetCore;
 
 internal static class RequestBodyDocExtensions
 {
     /// <summary>
-    /// Declares the <c>application/json</c> body <typeparamref name="TBody"/> this endpoint reads.
-    /// <paramref name="optional"/> marks a body the endpoint acts without; <paramref name="example"/>
-    /// is one valid body as JSON text, for the document.
+    /// Declares the <c>application/json</c> body <typeparamref name="TBody"/> this endpoint reads, and caps it: a body past
+    /// the ceiling is the 413, one in another content type the 415, and malformed JSON the 400. <paramref name="optional"/>
+    /// marks a body the endpoint acts without; <paramref name="example"/> is one valid body as JSON text, for the document.
     /// </summary>
     public static RouteHandlerBuilder AcceptsJson<TBody>(this RouteHandlerBuilder builder, bool optional = false, string? example = null)
-        where TBody : notnull => builder.WithMetadata(new RequestBodyDoc(typeof(TBody), optional, example));
+        where TBody : notnull =>
+        builder
+            .WithMetadata(new RequestBodyDoc(typeof(TBody), optional, example))
+            .AddEndpointFilter(ApiFilters.BodyCeiling)
+            .ProducesProblem(StatusCodes.Status400BadRequest)
+            .ProducesProblem(StatusCodes.Status413PayloadTooLarge)
+            .ProducesProblem(StatusCodes.Status415UnsupportedMediaType);
 }
 
 /// <summary>

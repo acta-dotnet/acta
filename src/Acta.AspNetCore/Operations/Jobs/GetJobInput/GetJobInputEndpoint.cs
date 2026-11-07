@@ -38,5 +38,7 @@ internal static class GetJobInputEndpoint
             )
             .WithSummary("Read the job's stored input payload.")
             .Produces<JobPayloadBody>(StatusCodes.Status200OK)
-            .ProducesProblem(StatusCodes.Status404NotFound);
+            .ProducesProblem(StatusCodes.Status400BadRequest)
+            .ProducesProblem(StatusCodes.Status404NotFound)
+            .ProducesProblem(StatusCodes.Status503ServiceUnavailable);
 }

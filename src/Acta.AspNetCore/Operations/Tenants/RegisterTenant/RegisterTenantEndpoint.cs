@@ -82,5 +82,5 @@ internal static class RegisterTenantEndpoint
             // The body is read manually rather than bound, so the document only learns its shape here.
             .AcceptsJson<RegisterTenantRequest>()
             .Produces<RegisterTenantResponse>(StatusCodes.Status200OK)
-            .ProducesProblem(StatusCodes.Status415UnsupportedMediaType);
+            .ProducesProblem(StatusCodes.Status503ServiceUnavailable);
 }

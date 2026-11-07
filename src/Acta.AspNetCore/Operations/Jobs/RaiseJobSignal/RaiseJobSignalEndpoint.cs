@@ -97,5 +97,5 @@ internal static class RaiseJobSignalEndpoint
             .Produces<RaiseJobSignalResponse>(StatusCodes.Status200OK)
             .Produces<RaiseJobSignalResponse>(StatusCodes.Status409Conflict)
             .Produces<RaiseJobSignalResponse>(StatusCodes.Status404NotFound)
-            .ProducesProblem(StatusCodes.Status415UnsupportedMediaType);
+            .ProducesProblem(StatusCodes.Status503ServiceUnavailable);
 }

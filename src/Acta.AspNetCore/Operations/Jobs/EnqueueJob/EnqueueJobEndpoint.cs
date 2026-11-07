@@ -167,5 +167,5 @@ internal static class EnqueueJobEndpoint
             .Produces<EnqueueJobResponse>(StatusCodes.Status201Created)
             .Produces<EnqueueJobResponse>(StatusCodes.Status200OK)
             .ProducesProblem(StatusCodes.Status409Conflict)
-            .ProducesProblem(StatusCodes.Status415UnsupportedMediaType);
+            .ProducesProblem(StatusCodes.Status503ServiceUnavailable);
 }

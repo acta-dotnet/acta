@@ -151,7 +151,7 @@ public sealed class ControlContractTests
         .. MalformedRefs(),
         .. InputTemplate(),
         // The body-reading routes all share one JSON-only check, so one row covers the code it
-        // answers with; the declaration it is read against is the group-wide one.
+        // answers with; the declaration it is read against is the one every body brings.
         new(
             "jobs",
             "/jobs/{jobRef}/pause",
@@ -719,9 +719,9 @@ public sealed class ControlContractTests
         var exercised = new HashSet<Declaration>(Table.Select(row => new Declaration(row.Route, row.Method, row.Status, row.Declared)));
         var control = Declarations(controls)
             .Where(d => !readSurface.Contains($"{d.Method} {d.Route}"))
-            // ProblemDetails is the shared error model, declared once at the API group for every
-            // route at once (400, 403, 413, 500, 503) rather than as a family's own outcome, so
-            // requiring a request per route for each would be requiring a fault per route. The
+            // ProblemDetails is the shared error model (400, 403, 413, 415, 500, 503), declared by
+            // the API group, the route shapes, and the bodies rather than as a family's own outcome,
+            // so requiring a request per route for each would be requiring a fault per route. The
             // malformed-ref rows exercise the one problem status this table does own.
             .Where(d => OutcomeStatuses.Contains(d.Status) && d.Type != Problem)
             .ToList();
@@ -738,6 +738,45 @@ public sealed class ControlContractTests
                 + "contract promises a body nothing sends.\n\n"
                 + string.Join("\n", unexercised)
         );
+    }
+
+    /// <summary>
+    /// Every control writes the database, so each answers the 503 it declares when the database does not answer: one row
+    /// per route that reaches its verb, sent to facades whose every asynchronous call times out.
+    /// </summary>
+    [Fact]
+    public async Task Every_control_answers_503_when_the_database_is_unreachable()
+    {
+        var (app, client) = await TestDashboardHost.StartAsync(
+            options => options.EnableControls = true,
+            configureBuilder: UnreachableDatabase.Register
+        );
+        await using var _ = app;
+        var declared = Declarations(app);
+        var routes = Table
+            .Where(row =>
+                row.Method != "GET" && row.Status is not (StatusCodes.Status400BadRequest or StatusCodes.Status415UnsupportedMediaType)
+            )
+            .GroupBy(row => $"{row.Method} {row.Route}")
+            .Select(group => group.First())
+            .ToList();
+        var failures = new List<string>();
+        foreach (var row in routes)
+        {
+            using var request = Request(row);
+            var response = await client.SendAsync(request, TestContext.Current.CancellationToken);
+            if (response.StatusCode != System.Net.HttpStatusCode.ServiceUnavailable)
+            {
+                failures.Add($"{row.Method} {row.Route}: answered {(int)response.StatusCode}.");
+            }
+            else if (!declared.Contains(new Declaration(row.Route, row.Method, StatusCodes.Status503ServiceUnavailable, Problem)))
+            {
+                failures.Add($"{row.Method} {row.Route}: answered 503 without declaring it.");
+            }
+        }
+
+        Assert.True(routes.Count > 30, $"only {routes.Count} control routes reach their verb; the table lost its families.");
+        Assert.True(failures.Count == 0, string.Join("\n", failures));
     }
 
     /// <summary>One declared response: the route, verb, status, and body type the graph promises.</summary>

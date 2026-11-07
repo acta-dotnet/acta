@@ -1,3 +1,4 @@
+using System.Globalization;
 using System.Net;
 using System.Net.Http.Headers;
 using System.Text;
@@ -84,8 +85,8 @@ public sealed partial class OpenApiContractTests
         Assert.True(wrong.Count == 0, string.Join("\n", wrong));
     }
 
-    // Sends every operation, its route values filled and its confirmation header set, and adds to wrong each that
-    // answers another status; a 403 carries the problem document the operation declares for it.
+    // Sends every operation and adds to wrong each that answers another status; a 403 carries the problem document the
+    // operation declares for it.
     private static async Task AssertAnswerAsync(
         HttpClient client,
         Dictionary<string, JsonNode> operations,
@@ -93,28 +94,185 @@ public sealed partial class OpenApiContractTests
         List<string> wrong
     )
     {
-        var ct = TestContext.Current.CancellationToken;
         foreach (var (key, operation) in operations)
         {
-            var (method, path) = (
-                key[..key.IndexOf(' ', StringComparison.Ordinal)],
-                key[(key.IndexOf(' ', StringComparison.Ordinal) + 1)..]
-            );
-            using var request = new HttpRequestMessage(new HttpMethod(method), "/acta/api" + ReadUrl(path, operation));
-            request.Headers.Add("X-Acta-Control", "true");
-            var response = await client.SendAsync(request, ct);
+            using var response = await SendOperationAsync(client, key, operation);
             if (response.StatusCode != expected)
             {
                 wrong.Add($"{key}: answered {(int)response.StatusCode}, expected {(int)expected}.");
             }
             else if (
                 expected == HttpStatusCode.Forbidden
-                && JsonNode.Parse(await response.Content.ReadAsStringAsync(ct))?["status"]?.GetValue<int>() != (int)expected
+                && JsonNode
+                    .Parse(await response.Content.ReadAsStringAsync(TestContext.Current.CancellationToken))
+                    ?["status"]?.GetValue<int>() != (int)expected
             )
             {
                 wrong.Add($"{key}: the 403 is not a problem document naming its status.");
             }
         }
+    }
+
+    // One operation keyed METHOD /path, its route values and required query filled from FakeRouteValues, with the
+    // confirmation header unless confirm is false.
+    private static async Task<HttpResponseMessage> SendOperationAsync(
+        HttpClient client,
+        string key,
+        JsonNode operation,
+        HttpContent? content = null,
+        bool confirm = true
+    )
+    {
+        var space = key.IndexOf(' ', StringComparison.Ordinal);
+        using var request = new HttpRequestMessage(new HttpMethod(key[..space]), "/acta/api" + ReadUrl(key[(space + 1)..], operation))
+        {
+            Content = content,
+        };
+        if (confirm)
+        {
+            request.Headers.Add("X-Acta-Control", "true");
+        }
+        return await client.SendAsync(request, TestContext.Current.CancellationToken);
+    }
+
+    private static bool Declares(JsonNode operation, HttpStatusCode status) =>
+        operation["responses"]?[((int)status).ToString(CultureInfo.InvariantCulture)] is not null;
+
+    /// <summary>
+    /// A route declares 413 and 415 exactly where it reads a body: there an oversized body is the 413 and a text/plain one
+    /// the 415, and every other route answers neither.
+    /// </summary>
+    [Fact]
+    public async Task Only_a_route_that_reads_a_body_declares_413_and_415()
+    {
+        var operations = Operations(await ActaOpenApiDocument.GenerateAsync());
+        var (app, client) = await TestDashboardHost.StartAsync(
+            options => options.EnableControls = true,
+            configureBuilder: builder => builder.Services.Configure<JobsOptions>(o => o.MaxInlinePayloadBytes = 64)
+        );
+        await using var _ = app;
+        var wrong = new List<string>();
+        foreach (var (key, operation) in operations)
+        {
+            var readsBody = operation["requestBody"] is not null;
+            using var oversized = await SendOperationAsync(
+                client,
+                key,
+                operation,
+                new StringContent($$"""{"reasonMessage":"{{new string('a', 100)}}"}""", Encoding.UTF8, "application/json")
+            );
+            using var text = await SendOperationAsync(client, key, operation, new StringContent("x", Encoding.UTF8, "text/plain"));
+            foreach (
+                var (status, answered) in new[]
+                {
+                    (HttpStatusCode.RequestEntityTooLarge, oversized),
+                    (HttpStatusCode.UnsupportedMediaType, text),
+                }
+            )
+            {
+                if (Declares(operation, status) != readsBody || (answered.StatusCode == status) != readsBody)
+                {
+                    wrong.Add(
+                        $"{key}: reads a body {readsBody}, declares {(int)status} {Declares(operation, status)}, answered {(int)answered.StatusCode}."
+                    );
+                }
+            }
+        }
+
+        Assert.True(operations.Count(operation => operation.Value["requestBody"] is not null) > 30, "too few bodies; the walk is broken.");
+        Assert.True(wrong.Count == 0, string.Join("\n", wrong));
+    }
+
+    /// <summary>
+    /// A route declares 400 exactly where a request can be malformed. On the real operations each read that declares it
+    /// answers it for a route key that cannot name anything, a query value of no type, or a required one left out, and a
+    /// read none of those can reach declares none; each control answers it without its confirmation header.
+    /// </summary>
+    [Fact]
+    public async Task A_route_declares_400_where_a_request_can_be_malformed()
+    {
+        var operations = Operations(await ActaOpenApiDocument.GenerateAsync());
+        var ct = TestContext.Current.CancellationToken;
+        var wrong = new List<string>();
+        await WithSqliteHostAsync(async client =>
+        {
+            foreach (var (key, operation) in operations.Where(operation => operation.Key.StartsWith("GET ", StringComparison.Ordinal)))
+            {
+                var answered = new List<string>();
+                foreach (var url in MalformedReads(key[4..], operation))
+                {
+                    if ((await client.GetAsync("/acta/api" + url, ct)).StatusCode == HttpStatusCode.BadRequest)
+                    {
+                        answered.Add(url);
+                    }
+                }
+                if (Declares(operation, HttpStatusCode.BadRequest) != answered.Count > 0)
+                {
+                    wrong.Add(
+                        $"{key}: declares 400 {Declares(operation, HttpStatusCode.BadRequest)}, answered it to [{string.Join(", ", answered)}]."
+                    );
+                }
+            }
+        });
+
+        var (app, fakeClient) = await TestDashboardHost.StartAsync(options => options.EnableControls = true);
+        await using (app)
+        {
+            foreach (var (key, operation) in operations.Where(operation => !operation.Key.StartsWith("GET ", StringComparison.Ordinal)))
+            {
+                using var response = await SendOperationAsync(fakeClient, key, operation, confirm: false);
+                if (!Declares(operation, HttpStatusCode.BadRequest) || response.StatusCode != HttpStatusCode.BadRequest)
+                {
+                    wrong.Add($"{key}: without its confirmation header answered {(int)response.StatusCode}.");
+                }
+            }
+        }
+
+        Assert.True(wrong.Count == 0, string.Join("\n", wrong));
+    }
+
+    // A read with each route key in turn naming nothing it could address, with each query parameter in turn given a value
+    // of no type, and without its required query parameters.
+    private static IEnumerable<string> MalformedReads(string path, JsonNode operation)
+    {
+        var url = ReadUrl(path, operation);
+        foreach (var name in PathPlaceholders(path))
+        {
+            yield return ReadUrl(path.Replace($"{{{name}}}", Uri.EscapeDataString("Not A Key!"), StringComparison.Ordinal), operation);
+        }
+        foreach (var parameter in Elements(operation["parameters"]).Where(parameter => parameter?["in"]?.GetValue<string>() == "query"))
+        {
+            var name = parameter!["name"]!.GetValue<string>();
+            yield return $"{url}{(url.Contains('?', StringComparison.Ordinal) ? '&' : '?')}{name}={Uri.EscapeDataString("Not A Value!")}";
+        }
+        yield return url.Split('?')[0];
+    }
+
+    /// <summary>
+    /// A read declares 503 exactly where it reads the database: over facades whose every asynchronous call times out, each
+    /// such read answers 503, and a read that touches no database answers as it would with one.
+    /// </summary>
+    [Fact]
+    public async Task A_read_declares_503_where_it_reads_the_database()
+    {
+        var operations = Operations(await ActaOpenApiDocument.GenerateAsync());
+        var (app, client) = await TestDashboardHost.StartAsync(configureBuilder: UnreachableDatabase.Register);
+        await using var _ = app;
+        var wrong = new List<string>();
+        var reads = operations.Where(operation => operation.Key.StartsWith("GET ", StringComparison.Ordinal)).ToList();
+        foreach (var (key, operation) in reads)
+        {
+            using var response = await SendOperationAsync(client, key, operation);
+            if (Declares(operation, HttpStatusCode.ServiceUnavailable) != (response.StatusCode == HttpStatusCode.ServiceUnavailable))
+            {
+                wrong.Add(
+                    $"{key}: declares 503 {Declares(operation, HttpStatusCode.ServiceUnavailable)}, answered {(int)response.StatusCode}."
+                );
+            }
+        }
+
+        Assert.True(reads.Count > 30, $"only {reads.Count} reads; the walk is broken.");
+        Assert.True(wrong.Count == 0, string.Join("\n", wrong));
     }
 
     /// <summary>An authentication scheme that never finds a user, so every request the host guards is challenged.</summary>

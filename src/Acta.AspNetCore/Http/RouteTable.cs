@@ -12,6 +12,10 @@ namespace Acta.AspNetCore;
 /// </summary>
 internal static class RouteTable
 {
+    /// <summary>
+    /// One page of a list: a malformed filter or cursor is the 400, and an unreachable database the 503. A list under a
+    /// target, or one whose filter names one, declares the 404 itself.
+    /// </summary>
     public static RouteHandlerBuilder MapList<TQuery, TResponse>(
         this RouteGroupBuilder group,
         string pattern,
@@ -32,8 +36,14 @@ internal static class RouteTable
             )
             .WithSummary(summary)
             .Produces<TResponse>(StatusCodes.Status200OK)
+            .ProducesProblem(StatusCodes.Status400BadRequest)
+            .ProducesProblem(StatusCodes.Status503ServiceUnavailable)
             .WithQueryParameters(parameters);
 
+    /// <summary>
+    /// One thing by its route key, or by a query that names it: a key or value that cannot name one is the 400, one that
+    /// names nothing the 404, and an unreachable database the 503.
+    /// </summary>
     public static RouteHandlerBuilder MapDetail<TDetail>(
         this RouteGroupBuilder group,
         string pattern,
@@ -53,13 +63,15 @@ internal static class RouteTable
             )
             .WithSummary(summary)
             .Produces<TDetail>(StatusCodes.Status200OK)
-            .ProducesProblem(StatusCodes.Status404NotFound);
+            .ProducesProblem(StatusCodes.Status400BadRequest)
+            .ProducesProblem(StatusCodes.Status404NotFound)
+            .ProducesProblem(StatusCodes.Status503ServiceUnavailable);
 
     /// <summary>
     /// A target's tags: the paged list, and when controls are mapped the upsert, whose body is <typeparamref name="TBody"/>,
     /// and the remove. A target the resolver cannot build is caller input and answers 400; an addressable one that is not
     /// there answers 404, on the list when <paramref name="exists"/> finds no target through its facade, and on a mutation
-    /// with the control envelope.
+    /// with the control envelope. Each reads the database, so an unreachable one is the 503.
     /// </summary>
     public static void MapTags<TBody>(
         this RouteGroupBuilder reads,
@@ -81,7 +93,9 @@ internal static class RouteTable
             )
             .WithSummary($"List the {entity}'s tags.")
             .Produces<ListTagsResponse>(StatusCodes.Status200OK)
+            .ProducesProblem(StatusCodes.Status400BadRequest)
             .ProducesProblem(StatusCodes.Status404NotFound)
+            .ProducesProblem(StatusCodes.Status503ServiceUnavailable)
             .WithQueryParameters([.. QueryParameterDocExtensions.PagingCore, .. QueryParameterDocExtensions.IncludeTotal]);
 
         if (controls is null)
@@ -99,7 +113,7 @@ internal static class RouteTable
             .WithSummary($"Add or update one tag on the {entity}.")
             .Produces<UpsertTagResponse>(StatusCodes.Status200OK)
             .Produces<UpsertTagResponse>(StatusCodes.Status404NotFound)
-            .ProducesProblem(StatusCodes.Status415UnsupportedMediaType);
+            .ProducesProblem(StatusCodes.Status503ServiceUnavailable);
         controls
             .MapDelete(
                 pattern + "/{tagName}",
@@ -108,7 +122,9 @@ internal static class RouteTable
             )
             .WithSummary($"Remove one tag from the {entity}.")
             .Produces<RemoveTagResponse>(StatusCodes.Status200OK)
-            .Produces<RemoveTagResponse>(StatusCodes.Status404NotFound);
+            .ProducesProblem(StatusCodes.Status400BadRequest)
+            .Produces<RemoveTagResponse>(StatusCodes.Status404NotFound)
+            .ProducesProblem(StatusCodes.Status503ServiceUnavailable);
     }
 
     /// <summary>
@@ -194,7 +210,13 @@ internal static class RouteTable
         where TBody : notnull
         where TResponse : notnull
     {
-        route.AcceptsJson<TBody>(optional).WithSummary(summary).ProducesProblem(StatusCodes.Status415UnsupportedMediaType);
+        // Beside its body's answers, a control checks its confirmation header and route key, the 400, and writes the
+        // database, the 503.
+        route
+            .AcceptsJson<TBody>(optional)
+            .WithSummary(summary)
+            .ProducesProblem(StatusCodes.Status400BadRequest)
+            .ProducesProblem(StatusCodes.Status503ServiceUnavailable);
         foreach (var code in status.Codes)
         {
             route.Produces<TResponse>(code);

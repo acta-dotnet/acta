@@ -46,6 +46,8 @@ internal static class ListJobCheckpointsEndpoint
             )
             .WithSummary("List one job's checkpoints.")
             .Produces<ListJobCheckpointsResponse>(StatusCodes.Status200OK)
+            .ProducesProblem(StatusCodes.Status400BadRequest)
             .ProducesProblem(StatusCodes.Status404NotFound)
+            .ProducesProblem(StatusCodes.Status503ServiceUnavailable)
             .WithQueryParameters([.. QueryParameterDocExtensions.PagingCore, .. QueryParameterDocExtensions.IncludeTotal]);
 }

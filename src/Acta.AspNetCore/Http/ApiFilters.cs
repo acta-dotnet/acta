@@ -6,7 +6,10 @@ using Microsoft.Extensions.Options;
 
 namespace Acta.AspNetCore;
 
-/// <summary>The filters every API route runs behind, outermost first: the error backstop, no-store, and the body ceiling.</summary>
+/// <summary>
+/// The filters the API's routes run behind: the error backstop and no-store on every route, outermost first, and the body
+/// ceiling on a route that reads a body.
+/// </summary>
 internal static class ApiFilters
 {
     /// <summary>
