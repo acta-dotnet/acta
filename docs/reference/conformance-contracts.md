@@ -927,7 +927,7 @@
   - A delayed job is not claimable before due but runs once due
   - A handler returning a null result fails the job and stores no result
   - RunAndWaitAsync enqueues, waits for completion and returns the typed result
-  - RunAndWaitAsync throws when a Succeeded job stored no typed result
+  - A typed wait on a job whose definition produces no result throws
   - RunAndWaitAsync reads the result of the execution it saw succeed, never an earlier one
   - A typed wait whose success is restarted before the result read keeps waiting instead of throwing
   - A typed wait that sees a restarted success on every read answers TimedOut at its budget

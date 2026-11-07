@@ -21,7 +21,7 @@ var jobs = host.Services.GetRequiredService<IJobs>();
 // --- Scenario 1: MapAsync, soft handling ---
 // The handler inspects MapOutcome.Failed and returns a partial result; the parent lands Succeeded.
 Console.WriteLine("--- scenario 1: map with one failing item, soft handling ---");
-var mapOutcome = await jobs.RunAndWaitAsync<RunMapSoft, MapReport>(new RunMapSoft());
+var mapOutcome = await jobs.RunAndWaitAsync(ChildFailureOutcomesJobs.RunMapSoft());
 Console.WriteLine($"parent: {mapOutcome.Status}, report: {mapOutcome.Value!.Summary}");
 
 // --- Scenario 2: ParallelAsync, ThrowIfAnyFailed escalation ---

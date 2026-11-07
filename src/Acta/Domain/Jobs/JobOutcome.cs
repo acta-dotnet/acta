@@ -55,7 +55,7 @@ public class JobOutcome
 }
 
 /// <summary>
-/// Await-to-completion outcome returned by <see cref="IJobs.WaitAsync{TResult}"/> and <see cref="IJobs.RunAndWaitAsync{TInput, TResult}(TInput, JobExecutionOptions, CancellationToken)"/>. Extends
+/// Await-to-completion outcome returned by <see cref="IJobs.WaitAsync{TResult}"/> and <see cref="IJobs.RunAndWaitAsync{TInput, TResult}(JobCall{TInput, TResult}, JobExecutionOptions, CancellationToken)"/>. Extends
 /// <see cref="JobOutcome"/> with the handler's typed <typeparamref name="T"/> result on <c>Succeeded</c>;
 /// it is returned, never thrown.
 /// </summary>

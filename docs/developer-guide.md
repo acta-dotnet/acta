@@ -741,7 +741,7 @@ Receipt sent = (await receipt.WaitAsync()).ValueOrThrow();
 - A successful wait's result is the one the execution it saw succeed stored.
 - `IJobs.WaitAsync(jobRef)` waits on a job another process enqueued, and `IJobs.GetHandleAsync(jobRef)` rebuilds a handle for it, or answers null when no job matches.
 - `ScheduleAsync` takes a `TimeSpan`, counted on the database clock and rounded up to whole seconds, or a `DateTimeOffset`, and it accepts the same `configure` callback as `EnqueueAsync`; the time wins over one set there. It creates one job; a recurring schedule is `[Schedule]`.
-- `RunAndWaitAsync` is enqueue then wait in one call; its `JobExecutionOptions` carry the enqueue options plus the wait: `new JobExecutionOptions { DeduplicationKey = "invoice-8", WaitTimeout = TimeSpan.FromMinutes(1) }`.
+- `RunAndWaitAsync` is enqueue then wait in one call; its `JobExecutionOptions` carry the enqueue options plus the wait: `new JobExecutionOptions { DeduplicationKey = "invoice-8", WaitTimeout = TimeSpan.FromMinutes(1) }`. A typed result comes through the job's call, `jobs.RunAndWaitAsync(BillingJobs.SendInvoice(new SendInvoice(7)))`, which answers `JobOutcome<Receipt>`; with an input alone it answers `JobOutcome`.
 - The raw `EnqueueJobRequest`, batch, transactional, and child enqueues answer the plain `EnqueueJobResponse`.
 
 ## Transactional enqueue and the external outbox

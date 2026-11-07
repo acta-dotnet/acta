@@ -174,8 +174,8 @@ public sealed class TypedEnqueueSpec : ActaRuntimeTestBase<ConformanceFixture, T
 
         try
         {
-            var outcome = await Jobs.RunAndWaitAsync<AddNumbers, AddNumbersResult>(
-                new AddNumbers(4, 5),
+            var outcome = await Jobs.RunAndWaitAsync(
+                TestJobsManifest.AddNumbers(new AddNumbers(4, 5)),
                 new JobExecutionOptions { WaitTimeout = TimeSpan.FromSeconds(60), PollInterval = TimeSpan.FromMilliseconds(100) },
                 ct
             );
@@ -194,57 +194,18 @@ public sealed class TypedEnqueueSpec : ActaRuntimeTestBase<ConformanceFixture, T
         }
     }
 
-    [Fact(DisplayName = "RunAndWaitAsync throws when a Succeeded job stored no typed result")]
-    public async Task ExecuteAndWaitAsync_typed_result_against_result_less_job_throws()
+    [Fact(DisplayName = "A typed wait on a job whose definition produces no result throws")]
+    public async Task A_typed_wait_on_a_result_less_job_throws()
     {
         var ct = TestContext.Current.CancellationToken;
+        var job = await Jobs.EnqueueAsync(new PolicyProbe("no-result"), ct: ct);
 
-        using var loopCts = CancellationTokenSource.CreateLinkedTokenSource(ct);
-        var driver = Task.Run(
-            async () =>
-            {
-                while (!loopCts.IsCancellationRequested)
-                {
-                    try
-                    {
-                        await Runtime.RunOnceAsync(TestNamespace, loopCts.Token);
-                        await Task.Delay(50, loopCts.Token);
-                    }
-                    catch (Exception) when (loopCts.IsCancellationRequested)
-                    {
-                        // Teardown cancels an in-flight tick; under a slow SQL Server SqlClient can surface
-                        // that as a SqlException ("Operation cancelled by user") rather than
-                        // OperationCanceledException: both are expected once we are shutting down.
-                        return;
-                    }
-                }
-            },
-            ct
+        // policy-probe stores no result; asking for one is a caller contract mismatch, not a default(TResult). The generated
+        // call cannot ask, since a result-less job's call carries no result type, so the wait by lookup is the path left.
+        var ex = await Assert.ThrowsAsync<InvalidOperationException>(() =>
+            Jobs.WaitAsync<AddNumbersResult>(job, TimeSpan.FromSeconds(60), ct).AsTask()
         );
-
-        try
-        {
-            // policy-probe completes Succeeded but stores no result; requesting a typed result is a
-            // caller contract mismatch, not a default(TResult).
-            var ex = await Assert.ThrowsAsync<InvalidOperationException>(() =>
-                Jobs.RunAndWaitAsync<PolicyProbe, AddNumbersResult>(
-                        new PolicyProbe("no-result"),
-                        new JobExecutionOptions { WaitTimeout = TimeSpan.FromSeconds(60), PollInterval = TimeSpan.FromMilliseconds(100) },
-                        ct
-                    )
-                    .AsTask()
-            );
-            Assert.Contains("no result", ex.Message);
-        }
-        finally
-        {
-            await loopCts.CancelAsync();
-            try
-            {
-                await driver;
-            }
-            catch (OperationCanceledException) { }
-        }
+        Assert.Contains("no result", ex.Message);
     }
 
     [Fact(DisplayName = "RunAndWaitAsync reads the result of the execution it saw succeed, never an earlier one")]
@@ -261,8 +222,8 @@ public sealed class TypedEnqueueSpec : ActaRuntimeTestBase<ConformanceFixture, T
 
         // The deduplication key lands the wait on the restarted job, whose second execution succeeds with its result
         // dropped; the restart cleared the first execution's "old", and the read is held to the second execution anyway.
-        var waiting = Jobs.RunAndWaitAsync<OldThenOversizeInput, string>(
-                input,
+        var waiting = Jobs.RunAndWaitAsync(
+                TestJobsManifest.OldThenOversizeResultProbe(input),
                 new JobExecutionOptions
                 {
                     DeduplicationKey = key,
@@ -386,8 +347,8 @@ public sealed class TypedEnqueueSpec : ActaRuntimeTestBase<ConformanceFixture, T
         {
             var issuedBefore = _wakeup.RequestedTimeoutsOn(WorkerWakeupChannelKind.JobCompletion).Count;
             var start = Stopwatch.GetTimestamp();
-            var outcome = await Jobs.RunAndWaitAsync<AddNumbers, AddNumbersResult>(
-                new AddNumbers(1, 2),
+            var outcome = await Jobs.RunAndWaitAsync(
+                TestJobsManifest.AddNumbers(new AddNumbers(1, 2)),
                 new JobExecutionOptions { WaitTimeout = WaitTimeout, PollInterval = PollInterval },
                 ct
             );
@@ -428,8 +389,8 @@ public sealed class TypedEnqueueSpec : ActaRuntimeTestBase<ConformanceFixture, T
         var ct = TestContext.Current.CancellationToken;
 
         await Assert.ThrowsAsync<ArgumentOutOfRangeException>(() =>
-            Jobs.RunAndWaitAsync<AddNumbers, AddNumbersResult>(
-                    new AddNumbers(1, 1),
+            Jobs.RunAndWaitAsync(
+                    TestJobsManifest.AddNumbers(new AddNumbers(1, 1)),
                     new JobExecutionOptions { WaitTimeout = TimeSpan.Zero },
                     ct
                 )
@@ -437,8 +398,8 @@ public sealed class TypedEnqueueSpec : ActaRuntimeTestBase<ConformanceFixture, T
         );
 
         await Assert.ThrowsAsync<ArgumentOutOfRangeException>(() =>
-            Jobs.RunAndWaitAsync<AddNumbers, AddNumbersResult>(
-                    new AddNumbers(1, 1),
+            Jobs.RunAndWaitAsync(
+                    TestJobsManifest.AddNumbers(new AddNumbers(1, 1)),
                     new JobExecutionOptions { PollInterval = TimeSpan.FromMilliseconds(-1) },
                     ct
                 )

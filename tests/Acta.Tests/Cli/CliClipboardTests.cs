@@ -315,14 +315,6 @@ public class CliRunnerClipboardTests
         )
             where TInput : notnull => throw new NotSupportedException();
 
-        public ValueTask<JobOutcome<TResult>> RunAndWaitAsync<TInput, TResult>(
-            TInput input,
-            JobExecutionOptions? options = null,
-            CancellationToken ct = default
-        )
-            where TInput : notnull
-            where TResult : notnull => throw new NotSupportedException();
-
         public ValueTask<JobHandle> EnqueueAsync<TInput>(
             JobCall<TInput> job,
             Action<JobEnqueueOptionsBuilder>? configure = null,

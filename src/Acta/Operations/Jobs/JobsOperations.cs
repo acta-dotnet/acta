@@ -102,15 +102,6 @@ internal sealed class JobsOperations(
     public ValueTask<JobOutcome> RunAndWaitAsync<TInput>(TInput input, JobExecutionOptions? options = null, CancellationToken ct = default)
         where TInput : notnull => JobRunAndWait.RunAsync(this, wakeup, o => routing.FromInput(input, o), options, ct);
 
-    public ValueTask<JobOutcome<TResult>> RunAndWaitAsync<TInput, TResult>(
-        TInput input,
-        JobExecutionOptions? options = null,
-        CancellationToken ct = default
-    )
-        where TInput : notnull
-        where TResult : notnull =>
-        JobRunAndWait.RunAsync<TResult>(this, wakeup, routing, getJobResult, o => routing.FromInput(input, o), options, ct);
-
     public ValueTask<JobOutcome> RunAndWaitAsync<TInput>(
         JobCall<TInput> job,
         JobExecutionOptions? options = null,

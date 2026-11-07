@@ -21,8 +21,8 @@ var jobs = host.Services.GetRequiredService<IJobs>();
 //   Parallel - independent analyzes of the same source,
 //   Map      - one child per item, keyed by a stable key,
 //   Join     - wait on handles you started by hand.
-var outcome = await jobs.RunAndWaitAsync<ProcessPhoto, PhotoResult>(
-    new ProcessPhoto("asset-42", "https://example.com/photos/asset-42/original.jpg")
+var outcome = await jobs.RunAndWaitAsync(
+    MapParallelJoinJobs.ProcessPhoto(new ProcessPhoto("asset-42", "https://example.com/photos/asset-42/original.jpg"))
 );
 
 var result = outcome.Value!;

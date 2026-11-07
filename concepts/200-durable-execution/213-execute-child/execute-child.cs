@@ -16,7 +16,7 @@ await host.StartAsync();
 
 var jobs = host.Services.GetRequiredService<IJobs>();
 
-var outcome = await jobs.RunAndWaitAsync<PublishEpisode, EpisodePublished>(new PublishEpisode("ep-42", "raw/ep-42.mov"));
+var outcome = await jobs.RunAndWaitAsync(ExecuteChildJobs.PublishEpisode(new PublishEpisode("ep-42", "raw/ep-42.mov")));
 Console.WriteLine($"published: {outcome.Value}");
 
 await host.StopAsync();

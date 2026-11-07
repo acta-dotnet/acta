@@ -307,12 +307,6 @@ internal sealed class FakeJobs : IJobs
         throw new NotSupportedException();
 
     ValueTask<JobOutcome<TResult>> IJobs.RunAndWaitAsync<TInput, TResult>(
-        TInput input,
-        JobExecutionOptions? options,
-        CancellationToken ct
-    ) => throw new NotSupportedException();
-
-    ValueTask<JobOutcome<TResult>> IJobs.RunAndWaitAsync<TInput, TResult>(
         JobCall<TInput, TResult> job,
         JobExecutionOptions? options,
         CancellationToken ct

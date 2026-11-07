@@ -18,8 +18,8 @@ var jobs = host.Services.GetRequiredService<IJobs>();
 
 // Map-reduce as child jobs: replay finds the same children by name, so no chunk is summed twice.
 // Compare 601-fan-out, where the children are fire-and-forget and nothing merges.
-var outcome = await jobs.RunAndWaitAsync<AddNumbers, SumResult>(
-    new AddNumbers([new(1, 250), new(251, 500), new(501, 750), new(751, 1000)])
+var outcome = await jobs.RunAndWaitAsync(
+    FanOutJoinJobs.AddNumbers(new AddNumbers([new(1, 250), new(251, 500), new(501, 750), new(751, 1000)]))
 );
 
 Console.WriteLine($"sum 1..1000 = {outcome.Value!.Total}");

@@ -21,13 +21,13 @@ var jobs = host.Services.GetRequiredService<IJobs>();
 // The job keeps running on the worker; the caller just stops waiting.
 Console.WriteLine("--- (a) timeout ---");
 var opts = new JobExecutionOptions { WaitTimeout = TimeSpan.FromMilliseconds(200), PollInterval = TimeSpan.FromMilliseconds(50) };
-var timedOut = await jobs.RunAndWaitAsync<SlowReport, ReportResult>(new SlowReport(), opts);
+var timedOut = await jobs.RunAndWaitAsync(ExecuteOutcomeTimeoutJobs.SlowReport(), opts);
 Console.WriteLine($"IsTimedOut: {timedOut.IsTimedOut}");
 Console.WriteLine($"IsSuccess: {timedOut.IsSuccess}");
 
 // (b) Failing handler -> IsFailed; ThrowIfFailed throws JobFailedException; TryGetValue is false.
 Console.WriteLine("--- (b) failure ---");
-var failed = await jobs.RunAndWaitAsync<FailingReport, ReportResult>(new FailingReport());
+var failed = await jobs.RunAndWaitAsync(ExecuteOutcomeTimeoutJobs.FailingReport());
 Console.WriteLine($"IsFailed: {failed.IsFailed}");
 try
 {
@@ -41,7 +41,7 @@ Console.WriteLine($"TryGetValue: {failed.TryGetValue(out _)}");
 
 // (c) Success -> ValueOrThrow returns the handler's result.
 Console.WriteLine("--- (c) success ---");
-var success = await jobs.RunAndWaitAsync<SuccessReport, ReportResult>(new SuccessReport());
+var success = await jobs.RunAndWaitAsync(ExecuteOutcomeTimeoutJobs.SuccessReport());
 Console.WriteLine($"IsSuccess: {success.IsSuccess}");
 var result = success.ValueOrThrow();
 Console.WriteLine($"ValueOrThrow: {result.Summary}");

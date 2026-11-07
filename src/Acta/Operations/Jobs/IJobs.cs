@@ -59,19 +59,6 @@ public interface IJobs
         where TInput : notnull;
 
     /// <summary>
-    /// Typed enqueue-and-wait with a result. Like <see cref="RunAndWaitAsync{TInput}(TInput, JobExecutionOptions, CancellationToken)"/>, and on terminal
-    /// <c>Succeeded</c> deserializes the handler's result to <typeparamref name="TResult"/>. The result is
-    /// non-null by contract (Acta has no durable null payload); a handler returning null fails the Job.
-    /// </summary>
-    ValueTask<JobOutcome<TResult>> RunAndWaitAsync<TInput, TResult>(
-        TInput input,
-        JobExecutionOptions? options = null,
-        CancellationToken ct = default
-    )
-        where TInput : notnull
-        where TResult : notnull;
-
-    /// <summary>
     /// Enqueue a generated call: <c>jobs.EnqueueAsync(ShippingJobs.ShipOrder(order))</c>. The call names its job, so
     /// nothing is inferred from the input's type: the namespace and input format come from the manifest's registration.
     /// Throws when the manifest is unregistered, or bound to more than one namespace with no <c>JobNamespace</c> set.
