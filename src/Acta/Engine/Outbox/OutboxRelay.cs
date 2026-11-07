@@ -162,12 +162,6 @@ internal sealed class OutboxRelay(OutboxOperations.Source source, JobsOperations
 
     private readonly ILogger _log = log ?? NullLogger<OutboxRelay>.Instance;
 
-    private enum GroupSafety
-    {
-        Safe,
-        Recoverable,
-    }
-
     private sealed record OutboxGroup(ClaimOutboxRow Representative, IReadOnlyList<ClaimOutboxRow> Rows)
     {
         /// <summary>Materialized once at construction (read on both the finalize and release paths).</summary>
@@ -175,15 +169,18 @@ internal sealed class OutboxRelay(OutboxOperations.Source source, JobsOperations
     }
 
     /// <summary>
-    /// Mutable per-tick relay accounting: Relayed counts jobs actually inserted at the target;
-    /// Deduplicated counts source rows absorbed without a new job (coalesced members plus
-    /// target-deduplicated representatives), so Relayed + Deduplicated equals the safely-ingested rows.
+    /// The one verdict a claimed group's pass reaches, which alone decides its source finalization and its accounting.
+    /// Error is the message of a rejection or a reconstruction failure.
     /// </summary>
-    private sealed class TickCounters
-    {
-        public int Relayed { get; set; }
+    private readonly record struct GroupVerdict(OutboxGroup Group, GroupVerdictKind Kind, string? Error = null);
 
-        public int Deduplicated { get; set; }
+    private enum GroupVerdictKind
+    {
+        Inserted,
+        Deduplicated,
+        Rejected,
+        Malformed,
+        Deferred,
     }
 
     /// <summary>
@@ -217,8 +214,9 @@ internal sealed class OutboxRelay(OutboxOperations.Source source, JobsOperations
         var token = Guid.NewGuid();
         var quarantinedIds = new List<Guid>();
         var budget = new TickBudget(MaxTargetEnqueues);
-        var counters = new TickCounters();
         var claimedTotal = 0;
+        var relayed = 0;
+        var deduplicated = 0;
         var elapsed = Stopwatch.StartNew();
 
         while (budget.Remaining > 0)
@@ -230,10 +228,14 @@ internal sealed class OutboxRelay(OutboxOperations.Source source, JobsOperations
             }
 
             claimedTotal += claimed.Count;
-            bool budgetExhausted;
+            bool deferred;
             try
             {
-                budgetExhausted = await ProcessBatchAsync(claimed, token, options, quarantinedIds, budget, counters, ct);
+                var batch = await ProcessBatchAsync(claimed, token, options, budget, ct);
+                relayed += batch.Relayed;
+                deduplicated += batch.Deduplicated;
+                quarantinedIds.AddRange(batch.Quarantined);
+                deferred = batch.Deferred;
             }
             catch (OperationCanceledException) when (ct.IsCancellationRequested)
             {
@@ -243,7 +245,7 @@ internal sealed class OutboxRelay(OutboxOperations.Source source, JobsOperations
 
             // A short batch means the backlog is drained, except that a claim takes one row per lane: the row
             // behind a delivered lane head became claimable only now.
-            if (budgetExhausted || (claimed.Count < BatchSize && !claimed.Any(static r => r.Lane is not null)))
+            if (deferred || (claimed.Count < BatchSize && !claimed.Any(static r => r.Lane is not null)))
             {
                 break;
             }
@@ -270,28 +272,25 @@ internal sealed class OutboxRelay(OutboxOperations.Source source, JobsOperations
         // what currently sits in quarantine - the cross-peer channel operator surfaces read.
         var backlog = await source.CountBacklogAsync(ct);
         var quarantineTotal = await source.CountQuarantinedAsync(ct);
-        return new OutboxTickSummary(claimedTotal, counters.Relayed, counters.Deduplicated, quarantinedIds.Count, backlog, quarantineTotal);
+        return new OutboxTickSummary(claimedTotal, relayed, deduplicated, quarantinedIds.Count, backlog, quarantineTotal);
     }
 
     /// <summary>
-    /// Processes one claimed batch. Returns true when the per-tick target-enqueue budget was
-    /// exhausted mid-batch: the unprocessed remainder was released and the tick must end.
+    /// Processes one claimed batch and finalizes each group by its verdict, answering the batch's accounting and the
+    /// rows it quarantined. Deferred is true when the per-tick target-enqueue budget ran out mid-batch: the deferred
+    /// groups were released and the tick must end.
     /// </summary>
-    private async Task<bool> ProcessBatchAsync(
+    private async Task<(int Relayed, int Deduplicated, List<Guid> Quarantined, bool Deferred)> ProcessBatchAsync(
         IReadOnlyList<ClaimOutboxRow> claimed,
         Guid token,
         OutboxRelayTickOptions options,
-        List<Guid> quarantinedIds,
         TickBudget budget,
-        TickCounters counters,
         CancellationToken ct
     )
     {
-        var groups = Coalesce(claimed);
-
-        var immediateQuarantine = new List<(OutboxGroup Group, string Error)>();
+        var verdicts = new List<GroupVerdict>();
         var valid = new List<(EnqueueJobRequest Request, OutboxGroup Group)>();
-        foreach (var group in groups)
+        foreach (var group in Coalesce(claimed))
         {
             try
             {
@@ -301,15 +300,13 @@ internal sealed class OutboxRelay(OutboxOperations.Source source, JobsOperations
             {
                 // Reconstruction does no I/O, so any throw is deterministic for this row: quarantine the row
                 // instead of failing the batch, which the claim order would hand back every tick.
-                immediateQuarantine.Add((group, ex.Message));
+                verdicts.Add(new GroupVerdict(group, GroupVerdictKind.Malformed, ex.Message));
             }
         }
 
-        var results = new Dictionary<OutboxGroup, GroupSafety>();
-        var errors = new Dictionary<OutboxGroup, string>();
         try
         {
-            await EnqueueGroupsAsync(valid, results, errors, budget, counters, ct);
+            verdicts.AddRange(await EnqueueGroupsAsync(valid, budget, ct));
         }
         catch (OperationCanceledException) when (ct.IsCancellationRequested)
         {
@@ -325,57 +322,62 @@ internal sealed class OutboxRelay(OutboxOperations.Source source, JobsOperations
             throw;
         }
 
+        var relayed = 0;
+        var deduplicated = 0;
         var safeIds = new List<Guid>();
         var quarantines = new List<OutboxQuarantine>();
         var reschedules = new List<OutboxReschedule>();
-
-        foreach (var (group, error) in immediateQuarantine)
+        var deferredIds = new List<Guid>();
+        foreach (var (group, kind, error) in verdicts)
         {
-            // A reconstruction failure is a pre-target contract failure: quarantine at once, leaving each row's
-            // existing failure count untouched (no retry budget was consumed).
-            quarantines.AddRange(group.Rows.Select(r => new OutboxQuarantine(r.OutboxId, r.FailureCount, error)));
-        }
-
-        foreach (var (group, outcome) in results)
-        {
-            if (outcome == GroupSafety.Safe)
+            switch (kind)
             {
-                safeIds.AddRange(group.Ids);
-                continue;
-            }
+                case GroupVerdictKind.Inserted:
+                    // The representative relayed one new job and its coalesced members were absorbed.
+                    relayed++;
+                    deduplicated += group.Rows.Count - 1;
+                    safeIds.AddRange(group.Ids);
+                    break;
+                case GroupVerdictKind.Deduplicated:
+                    deduplicated += group.Rows.Count;
+                    safeIds.AddRange(group.Ids);
+                    break;
+                case GroupVerdictKind.Malformed:
+                    // A reconstruction failure is a pre-target contract failure: quarantine at once, leaving each row's
+                    // existing failure count untouched (no retry budget was consumed).
+                    quarantines.AddRange(group.Rows.Select(r => new OutboxQuarantine(r.OutboxId, r.FailureCount, error!)));
+                    break;
+                case GroupVerdictKind.Rejected:
+                    // Retry/quarantine state is row-specific and monotonic: each claimed row of the group advances
+                    // its OWN failure count, so a group can partially quarantine (over-threshold rows quarantine,
+                    // under-threshold rows reschedule) rather than inheriting one representative's count.
+                    var groupQuarantined = 0;
+                    foreach (var row in group.Rows)
+                    {
+                        var failureCount = row.FailureCount + 1;
+                        if (failureCount >= options.QuarantineThreshold)
+                        {
+                            quarantines.Add(new OutboxQuarantine(row.OutboxId, failureCount, error!));
+                            groupQuarantined++;
+                        }
+                        else
+                        {
+                            var backoffSeconds = BackoffSchedule.ComputeDelaySeconds(failureCount, RowBackoff);
+                            reschedules.Add(new OutboxReschedule(row.OutboxId, failureCount, backoffSeconds, error!));
+                        }
+                    }
 
-            var error = errors.GetValueOrDefault(group, "recoverable target rejection");
-            // Retry/quarantine state is row-specific and monotonic: each claimed row of the group advances
-            // its OWN failure count, so a group can partially quarantine (over-threshold rows quarantine,
-            // under-threshold rows reschedule) rather than inheriting one representative's count.
-            var groupQuarantined = 0;
-            foreach (var row in group.Rows)
-            {
-                var failureCount = row.FailureCount + 1;
-                if (failureCount >= options.QuarantineThreshold)
-                {
-                    quarantines.Add(new OutboxQuarantine(row.OutboxId, failureCount, error));
-                    groupQuarantined++;
-                }
-                else
-                {
-                    reschedules.Add(
-                        new OutboxReschedule(
-                            row.OutboxId,
-                            failureCount,
-                            BackoffSchedule.ComputeDelaySeconds(failureCount, RowBackoff),
-                            error
-                        )
-                    );
-                }
-            }
-
-            if (_log.IsEnabled(LogLevel.Information))
-            {
-                var detail =
-                    $"{groupQuarantined} row(s) quarantined, {group.Rows.Count - groupQuarantined} rescheduled, "
-                    + $"source '{options.SourceName}', dedup key '{group.Representative.DeduplicationKey}'";
-                ActaLog.OutboxRowGroupRejected(_log, group.Representative.JobNamespace, detail);
+                    if (_log.IsEnabled(LogLevel.Information))
+                    {
+                        var detail =
+                            $"{groupQuarantined} row(s) quarantined, {group.Rows.Count - groupQuarantined} rescheduled, "
+                            + $"source '{options.SourceName}', dedup key '{group.Representative.DeduplicationKey}'";
+                        ActaLog.OutboxRowGroupRejected(_log, group.Representative.JobNamespace, detail);
+                    }
+                    break;
+                case GroupVerdictKind.Deferred:
+                    deferredIds.AddRange(group.Ids);
+                    break;
             }
         }
 
@@ -388,7 +390,6 @@ internal sealed class OutboxRelay(OutboxOperations.Source source, JobsOperations
         if (quarantines.Count > 0)
         {
             await source.QuarantineAsync(new QuarantineOutboxCommand(token, quarantines), ct);
-            quarantinedIds.AddRange(quarantines.Select(q => q.OutboxId));
         }
 
         if (reschedules.Count > 0)
@@ -396,135 +397,78 @@ internal sealed class OutboxRelay(OutboxOperations.Source source, JobsOperations
             await source.RescheduleAsync(new RescheduleOutboxCommand(token, reschedules), ct);
         }
 
-        // Any valid group whose target enqueue never ran (budget exhausted mid-batch) is unprocessed:
-        // release its claimed rows so the next tick continues the backlog, and end this tick.
-        var unprocessed = valid.Where(v => !results.ContainsKey(v.Group)).SelectMany(v => v.Group.Ids).ToList();
-        if (unprocessed.Count > 0)
+        // A group whose target enqueue never ran is released so the next tick continues the backlog, and this tick ends.
+        if (deferredIds.Count > 0)
         {
-            await ReleaseBestEffortAsync(token, unprocessed, ct);
-            return true;
+            await ReleaseBestEffortAsync(token, deferredIds, ct);
         }
 
-        return false;
+        return (relayed, deduplicated, [.. quarantines.Select(static q => q.OutboxId)], deferredIds.Count > 0);
     }
 
     /// <summary>
-    /// The whole batch goes to the target in one round trip; a deterministic batch rejection falls
-    /// back to one target call per group so a single offending group is isolated while the rest
-    /// still ingest. Every attempt draws down the shared tick budget; when it is spent the
-    /// remaining groups are left unresolved (released by the caller). Infrastructure exceptions
-    /// propagate.
+    /// The whole batch goes to the target in one round trip; a deterministic batch rejection falls back to one target
+    /// call per group so a single offending group is isolated while the rest still ingest. Every attempt draws down the
+    /// shared tick budget, and once it is spent every remaining group is Deferred. Answers one verdict per group, in
+    /// order; infrastructure exceptions propagate.
     /// </summary>
-    private async Task EnqueueGroupsAsync(
+    private async Task<List<GroupVerdict>> EnqueueGroupsAsync(
         IReadOnlyList<(EnqueueJobRequest Request, OutboxGroup Group)> groups,
-        Dictionary<OutboxGroup, GroupSafety> results,
-        Dictionary<OutboxGroup, string> errors,
         TickBudget budget,
-        TickCounters counters,
         CancellationToken ct
     )
     {
         if (groups.Count == 0)
         {
-            return;
+            return [];
         }
 
-        var (exhausted, batchError) = await TryEnqueueAsync(groups, budget, counters, ct);
-        if (exhausted)
+        // A single group cannot be isolated further: a rejection of it is its own.
+        var verdicts = await TryEnqueueAsync(groups, budget, ct);
+        if (groups.Count == 1 || verdicts[0].Kind != GroupVerdictKind.Rejected)
         {
-            return;
-        }
-        if (batchError is null)
-        {
-            MarkSafe(groups, results);
-            return;
-        }
-        if (groups.Count == 1)
-        {
-            // A single group cannot be isolated further: the rejection is its own.
-            results[groups[0].Group] = GroupSafety.Recoverable;
-            errors[groups[0].Group] = batchError;
-            return;
+            return verdicts;
         }
 
-        // Deterministic batch rejection: retry each group on its own. A budget exhausted mid-loop leaves
-        // the remaining groups unresolved (absent from results), so the caller releases them.
-        foreach (var pair in groups)
+        verdicts.Clear();
+        foreach (var group in groups)
         {
-            var (groupExhausted, groupError) = await TryEnqueueAsync([pair], budget, counters, ct);
-            if (groupExhausted)
-            {
-                return;
-            }
-            if (groupError is null)
-            {
-                results[pair.Group] = GroupSafety.Safe;
-            }
-            else
-            {
-                results[pair.Group] = GroupSafety.Recoverable;
-                errors[pair.Group] = groupError;
-            }
+            verdicts.AddRange(await TryEnqueueAsync([group], budget, ct));
         }
+        return verdicts;
     }
 
     /// <summary>
-    /// One target round trip drawing a single unit of the shared budget. Reports (Exhausted: true)
-    /// when the budget is spent and no call was made, (Exhausted: false, Error: null) on safe
-    /// ingestion (Inserted or Deduplicated), and the rejection message on a deterministic
-    /// rejection. Infrastructure faults throw.
+    /// One target round trip drawing a single unit of the shared budget, answering one verdict per group: all Deferred
+    /// when the budget is spent and no call was made, Inserted or Deduplicated per group on safe ingestion, and all
+    /// Rejected with the message on a deterministic rejection. Infrastructure faults throw.
     /// </summary>
-    private async Task<(bool Exhausted, string? Error)> TryEnqueueAsync(
+    private async Task<List<GroupVerdict>> TryEnqueueAsync(
         IReadOnlyList<(EnqueueJobRequest Request, OutboxGroup Group)> groups,
         TickBudget budget,
-        TickCounters counters,
         CancellationToken ct
     )
     {
         if (!budget.TryConsume())
         {
-            return (true, null);
+            return [.. groups.Select(static g => new GroupVerdict(g.Group, GroupVerdictKind.Deferred))];
         }
 
         try
         {
+            // Outcomes align with request order.
             var outcomes = (await jobs.EnqueueJobsAsync(groups.Select(g => g.Request).ToList(), ct)).Jobs;
-            // Outcomes align with request order. A representative that Inserted relayed one new job and its
-            // coalesced members were absorbed; a Deduplicated representative absorbs the whole group.
+            var verdicts = new List<GroupVerdict>(groups.Count);
             for (var index = 0; index < groups.Count; index++)
             {
-                var memberRows = groups[index].Group.Rows.Count;
-                if (outcomes[index].Action == EnqueueJobAction.Inserted)
-                {
-                    counters.Relayed++;
-                    counters.Deduplicated += memberRows - 1;
-                }
-                else
-                {
-                    counters.Deduplicated += memberRows;
-                }
+                var inserted = outcomes[index].Action == EnqueueJobAction.Inserted;
+                verdicts.Add(new GroupVerdict(groups[index].Group, inserted ? GroupVerdictKind.Inserted : GroupVerdictKind.Deduplicated));
             }
-
-            return (false, null);
-        }
-        catch (OperationCanceledException) when (ct.IsCancellationRequested)
-        {
-            throw;
+            return verdicts;
         }
         catch (Exception ex) when (IsDeterministicRejection(ex))
         {
-            return (false, ex.Message);
-        }
-    }
-
-    private static void MarkSafe(
-        IReadOnlyList<(EnqueueJobRequest Request, OutboxGroup Group)> groups,
-        Dictionary<OutboxGroup, GroupSafety> results
-    )
-    {
-        foreach (var (_, group) in groups)
-        {
-            results[group] = GroupSafety.Safe;
+            return [.. groups.Select(g => new GroupVerdict(g.Group, GroupVerdictKind.Rejected, ex.Message))];
         }
     }
 

@@ -66,6 +66,27 @@ public sealed class OutboxRelayTests
         Assert.Equal("claimed=2 relayed=1 dedup=1 quarantined=0 backlog=0 quarantine=0", summary.ToString());
     }
 
+    [Theory]
+    [InlineData(EnqueueJobAction.Inserted, 1, 2)]
+    [InlineData(EnqueueJobAction.Deduplicated, 0, 3)]
+    public async Task Three_coalesced_rows_count_one_relayed_job_or_three_deduplicated_rows(
+        EnqueueJobAction action,
+        int relayed,
+        int deduplicated
+    )
+    {
+        // A newly inserted job relays once and absorbs the other two rows; a job the target already held absorbs all three.
+        var store = new FakeStore(Row("k1"), Row("k1"), Row("k1"));
+        var target = new FakeSubmission { Action = action };
+        var svc = new OutboxRelay(store.Source(), target.Jobs());
+
+        var summary = await svc.RunTickAsync(Options(), TestContext.Current.CancellationToken);
+
+        Assert.Single(Assert.Single(target.Batches));
+        Assert.Equal(3, store.Deleted.Count);
+        Assert.Equal(new OutboxTickSummary(3, relayed, deduplicated, 0, 0, 0), summary);
+    }
+
     [Fact]
     public async Task Case_variant_namespaces_coalesce_while_case_variant_keys_stay_two_groups()
     {
