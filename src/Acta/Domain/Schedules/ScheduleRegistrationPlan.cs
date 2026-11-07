@@ -24,12 +24,17 @@ internal static class ScheduleRegistrationPlan
             var stored = storedByName.GetValueOrDefault(d.ScheduleName);
             // An interval with a start steps on the start's grid on every deploy. Without one it keeps the anchor its first
             // registration set, so a redeploy never shifts its phase; a schedule that becomes an interval steps from this
-            // start.
+            // start, in whole milliseconds, the finest instant every provider stores, so the anchor read back hashes the same.
+            var firstAnchor = new DateTime(nowUtc.Ticks - nowUtc.Ticks % TimeSpan.TicksPerMillisecond, nowUtc.Kind);
             DateTime? anchor =
                 d.ExpressionKind != ScheduleExpressionKindCode.Interval
                     ? null
                     : d.StartAtUtc
-                        ?? (stored?.ExpressionKind == ScheduleExpressionKindCode.Interval ? stored.IntervalAnchorAtUtc ?? nowUtc : nowUtc);
+                        ?? (
+                            stored?.ExpressionKind == ScheduleExpressionKindCode.Interval
+                                ? stored.IntervalAnchorAtUtc ?? firstAnchor
+                                : firstAnchor
+                        );
             var timing = new ScheduleTiming(
                 d.Expression,
                 d.ExpressionKind,

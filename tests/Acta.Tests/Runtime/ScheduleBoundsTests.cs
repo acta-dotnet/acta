@@ -100,6 +100,42 @@ public sealed class ScheduleBoundsTests
     }
 
     [Fact]
+    public void A_first_interval_anchor_is_a_whole_millisecond_so_the_stored_anchor_keeps_its_fingerprint()
+    {
+        // SQL Server stores the anchor as datetime2(3). Hashed at the clock's full precision, the anchor read back at the
+        // next deploy would change the fingerprint and retime the schedule, dropping its pending occurrences.
+        var declared = new ScheduleDescriptor(
+            "push",
+            "tick",
+            "PT10M",
+            null,
+            MisfireStrategyCode.CatchUpAll,
+            ScheduleExpressionKindCode.Interval,
+            null,
+            []
+        );
+        var now = Utc(11, 0).AddTicks(1_234_567);
+        var first = Assert.Single(ScheduleRegistrationPlan.Plan([declared], new Dictionary<string, StoredScheduleState>(), now, Bare));
+        Assert.Equal(Utc(11, 0).AddMilliseconds(123), first.IntervalAnchorAtUtc);
+
+        // Stored as the provider keeps it, and read back at a later deploy with an older cursor still pending.
+        var stored = new Dictionary<string, StoredScheduleState>
+        {
+            ["tick"] = new(
+                1,
+                "tick",
+                Utc(11, 10),
+                ExpressionKind: ScheduleExpressionKindCode.Interval,
+                IntervalAnchorAtUtc: first.IntervalAnchorAtUtc,
+                TimingFingerprint: first.TimingFingerprint
+            ),
+        };
+        var again = Assert.Single(ScheduleRegistrationPlan.Plan([declared], stored, Utc(13, 0), Bare));
+        Assert.Equal(first.TimingFingerprint, again.TimingFingerprint);
+        Assert.Equal(Utc(11, 10), again.NextOccurrenceAtUtc);
+    }
+
+    [Fact]
     public void A_schedule_past_its_end_registers_exhausted()
     {
         var declared = new ScheduleDescriptor(
