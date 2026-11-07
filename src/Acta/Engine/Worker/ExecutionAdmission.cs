@@ -149,7 +149,7 @@ internal sealed class ExecutionAdmission(ILogger log, int concurrencyKeyBounceDe
             reservation = await jobContext.ReserveRateAsync(rateName, rate, ct);
             if (IsNearTurn(reservation))
             {
-                reservation = await WaitForTurnAsync(job, jobContext, rateName, rate, reservation, ct);
+                reservation = await WaitForTurnAsync(jobContext, rateName, rate, reservation, ct);
             }
         }
         catch (Exception ex) when (ex is not OperationCanceledException)
@@ -182,7 +182,6 @@ internal sealed class ExecutionAdmission(ILogger log, int concurrencyKeyBounceDe
     /// one-second validity window covers the worker's pickup latency when it returns.
     /// </summary>
     private static async Task<ReserveRateResponse> WaitForTurnAsync(
-        ClaimedJob job,
         RuntimeJobContext jobContext,
         string rateName,
         RateLimitSpec rate,
