@@ -213,7 +213,8 @@ operator verbs that apply right now. It is the same explanation the dashboard sh
 
 `jobs.CancelAsync(lookup, reasonMessage: ...)` is applied while the job has not finished: a queued or
 delayed job never runs, a running handler sees its `CancellationToken` cancelled. A finished job answers
-`Rejected` and keeps its outcome. The reason is recorded on the job's event timeline with the actor.
+`Rejected` and keeps its outcome. The reason is the message of the job's `job.cancelled` event, and
+an `actor:` argument, when given, goes into that event's details.
 
 ### A wait timeout is not a cancellation
 
@@ -233,7 +234,9 @@ WHERE  namespace_name = 'shipping'
 ORDER  BY created_at_utc DESC;
 ```
 
-`events_view` holds each job's append-only timeline: every transition, with actor and reason.
+`events_view` holds each job's append-only timeline: an event for each attempt's outcome and each
+control, such as a cancel. `event_message` carries a control's reason and `details_text` its JSON
+details, the actor among them when the call named one. The enqueue writes no event.
 
 ## The first test
 
