@@ -633,7 +633,7 @@ Full examples live in `concepts/`.
 
 ## Configuration and options
 
-This page explains the knobs operators actually set. The source of truth is still
+This section explains the options a host sets. The source of truth is still
 `src/Acta/Configuration/JobsOptions.cs` and `src/Acta/Configuration/SqlProviderOptions.cs`; update
 those XML docs first when behavior changes. Like the rest of the SDK, the option types live in the
 single `Acta` namespace: `using Acta;` covers ordinary wiring and direct option use alike.
@@ -709,9 +709,7 @@ alert settings, or lease/heartbeat relationships fail fast.
 
 Set only `HeartbeatInterval`, the same on every replica of a namespace: the lease and dead-worker windows derive from it at x4 and x7, and crash recovery runs once a lease. Long-running handlers stay alive by heartbeating, not by a longer lease. `AlertReminderInterval` (24 hours) is how often a still-broken job pages again.
 
-### How a worker claims and completes
-
-A worker claims one row for every free executor and moves it straight to `Executing`; its finalizer writes finished attempts in batches. A dead worker's jobs are back within two leases, six minutes at the default heartbeat. Tune `MaxConcurrentExecutors` against the database's capacity, and measure after each change.
+Sizing workers and executors against the database is in the operator guide: [Worker count and executor count](operator-guide.md#worker-count-and-executor-count).
 
 ### External Outbox Relay
 

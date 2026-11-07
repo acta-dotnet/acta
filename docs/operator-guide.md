@@ -860,7 +860,7 @@ effect occurred, but the lost attempt counts against the budget like any other c
 
 ### …a worker crashes while the handler is running?
 
-The lease eventually expires and recovery makes the job runnable again within budget. Bare handler
+The lease expires and recovery makes the job runnable again within budget, within two leases of the crash: six minutes at the default heartbeat. Bare handler
 code may run again. Succeeded durable steps return their stored results; an in-progress step whose
 outcome was not recorded follows its configured semantics.
 
