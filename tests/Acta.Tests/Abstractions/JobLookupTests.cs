@@ -17,10 +17,11 @@ public class JobLookupTests
         Assert.Equal(jobRef, job.JobRef);
     }
 
+    /// <summary>The all-zero ref is well formed and names no job, so it builds a lookup that finds nothing rather than throwing.</summary>
     [Fact]
-    public void ByRef_rejects_empty_ref()
+    public void ByRef_takes_the_all_zero_ref()
     {
-        Assert.Throws<ArgumentException>(() => JobLookup.ByRef(default));
+        Assert.Equal(default, JobLookup.ByRef(default).JobRef);
     }
 
     [Fact]

@@ -35,14 +35,10 @@ public readonly record struct JobLookup
 
     /// <summary>
     /// Build a lookup by public <paramref name="jobRef"/>; the normal identity for dashboard and
-    /// HTTP callers.
+    /// HTTP callers. The all-zero ref is a well-formed ref no job is minted with, so its lookup finds
+    /// nothing, as an alert's or a worker's does.
     /// </summary>
-    public static JobLookup ByRef(JobRef jobRef)
-    {
-        return jobRef.Value == Guid.Empty
-            ? throw new ArgumentException("Job ref is empty.", nameof(jobRef))
-            : new JobLookup(JobLookupKind.JobRef, 0, null, null, jobRef);
-    }
+    public static JobLookup ByRef(JobRef jobRef) => new(JobLookupKind.JobRef, 0, null, null, jobRef);
 
     /// <summary>
     /// Build a lookup by caller-supplied <paramref name="deduplicationKey"/> within

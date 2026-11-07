@@ -391,6 +391,31 @@ public sealed class ControlEndpointTests
         Assert.Contains("jobRef is not a valid job ref.", body);
     }
 
+    /// <summary>
+    /// The all-zero ref is well formed, so a control and each write that reads its own ref, a signal, an input edit, and
+    /// a tag write, hand it to the operation, which finds no job on a real store (GetJobIdSpec); the fake answers it.
+    /// </summary>
+    [Theory]
+    [InlineData("POST", "pause", """{"reasonMessage":"because"}""")]
+    [InlineData("POST", "signals/approval", "{}")]
+    [InlineData("PUT", "input", """{"input":{"json":{"invoiceId":1}},"reasonMessage":"because"}""")]
+    [InlineData("PUT", "tags/env", """{"value":"prod"}""")]
+    public async Task A_write_to_the_all_zero_job_ref_reaches_its_operation(string method, string route, string json)
+    {
+        var (app, client) = await StartWithControlsAsync();
+        await using var _ = app;
+        var request = new HttpRequestMessage(new HttpMethod(method), $"/acta/api/v1/jobs/job_00000000000000000000000000000000/{route}")
+        {
+            Content = new StringContent(json, Encoding.UTF8, "application/json"),
+        };
+
+        var response = await client.SendAsync(Confirmed(request, confirm: true), TestContext.Current.CancellationToken);
+
+        // The fake decides the outcome; what matters is that the ref was neither refused nor thrown on.
+        Assert.NotEqual(HttpStatusCode.BadRequest, response.StatusCode);
+        Assert.True((int)response.StatusCode < 500, $"answered {response.StatusCode}");
+    }
+
     [Theory]
     [InlineData("bad!/send-invoice/only")]
     [InlineData("billing/send%20invoice/only")]

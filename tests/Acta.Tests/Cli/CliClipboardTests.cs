@@ -182,6 +182,20 @@ public class CliRunnerClipboardTests
         Assert.Empty(jobs.Lookups);
     }
 
+    /// <summary>The all-zero ref is well formed and names no job, so a verb looks it up, finds nothing, and acts on nothing.</summary>
+    [Theory]
+    [InlineData("info")]
+    [InlineData("cancel")]
+    public async Task The_all_zero_job_ref_names_no_job(string verb)
+    {
+        var (exit, _, error, jobs) = await RunArgsAsync(verb, "job_00000000000000000000000000000000");
+
+        Assert.Equal(2, exit);
+        Assert.Contains("job not found", error);
+        Assert.Equal(JobLookup.ByRef(default), Assert.Single(jobs.Lookups));
+        Assert.Empty(jobs.Controls);
+    }
+
     [Fact]
     public async Task A_bare_integer_is_a_deduplication_key_in_the_namespace()
     {

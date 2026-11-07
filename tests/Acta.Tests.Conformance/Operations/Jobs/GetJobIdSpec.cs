@@ -41,6 +41,8 @@ public sealed class GetJobIdSpec : ActaRuntimeTestBase<ConformanceFixture, TestJ
 
         Assert.Equal(long.MaxValue, (await handler.HandleAsync(new GetJobIdQuery(JobLookup.ById(long.MaxValue)), ct))?.JobId);
         Assert.Null(await handler.HandleAsync(new GetJobIdQuery(JobLookup.ByRef(JobRef.New())), ct));
+        // The all-zero ref is well formed and minted for no job.
+        Assert.Null(await handler.HandleAsync(new GetJobIdQuery(JobLookup.ByRef(default)), ct));
         Assert.Null(await handler.HandleAsync(new GetJobIdQuery(JobLookup.ByDeduplicationKey(TestNamespace, "no-such-key")), ct));
     }
 }

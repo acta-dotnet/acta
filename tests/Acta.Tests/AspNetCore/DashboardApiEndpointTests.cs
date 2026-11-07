@@ -195,6 +195,36 @@ public sealed class DashboardApiEndpointTests
         Assert.Equal(siblingUnknown.StatusCode, eventsUnknown.StatusCode);
     }
 
+    /// <summary>The all-zero ref is well formed and names no job, so a read by it, or a filter on it, answers the miss.</summary>
+    [Theory]
+    [InlineData("jobs/job_00000000000000000000000000000000")]
+    [InlineData("jobs/job_00000000000000000000000000000000/detail")]
+    [InlineData("events?jobRef=job_00000000000000000000000000000000")]
+    public async Task A_read_of_the_all_zero_job_ref_finds_no_job(string path)
+    {
+        var (app, client) = await TestDashboardHost.StartAsync();
+        await using var _ = app;
+
+        var response = await client.GetAsync("/acta/api/v1/" + path, TestContext.Current.CancellationToken);
+
+        Assert.Equal(HttpStatusCode.NotFound, response.StatusCode);
+    }
+
+    /// <summary>The jobs list's parent filter answers the all-zero ref as it answers any ref no job holds.</summary>
+    [Fact]
+    public async Task A_parent_filter_on_the_all_zero_job_ref_answers_like_an_unknown_ref()
+    {
+        var (app, client) = await TestDashboardHost.StartAsync();
+        await using var _ = app;
+        var ct = TestContext.Current.CancellationToken;
+
+        var unknown = await client.GetAsync($"/acta/api/v1/jobs?parentJobRef={JobRef.New()}", ct);
+        var zero = await client.GetAsync("/acta/api/v1/jobs?parentJobRef=job_00000000000000000000000000000000", ct);
+
+        Assert.True((int)unknown.StatusCode < 500, $"an unknown parent answered {unknown.StatusCode}");
+        Assert.Equal(unknown.StatusCode, zero.StatusCode);
+    }
+
     [Fact]
     public async Task Alert_detail_returns_the_alert_or_404()
     {
