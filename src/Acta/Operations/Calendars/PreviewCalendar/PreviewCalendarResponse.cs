@@ -1,10 +1,8 @@
 namespace Acta;
 
 /// <summary>
-/// A version's forecast beside the current version's over the same horizon, so an operator sees what a publication
-/// adds and removes: instants for an occurrence calendar, windows for an availability calendar, and the bound
-/// schedules with their overdue flag, which a Refuse publication would reject on: overdue ones first, at most
-/// <see cref="PreviewCalendarHandler.ScheduleLimit"/>, with <c>SchedulesTotal</c> and <c>OverdueTotal</c> counting them all.
+/// A calendar version's forecast beside that of the version in force, over the same horizon, so an operator sees what a publication would
+/// change: occurrences, windows, and the schedules that name the family, with their overdue flag.
 /// </summary>
 /// <param name="Role">The calendar family's role, which says how schedules use it.</param>
 /// <param name="Version">The number of the version previewed.</param>

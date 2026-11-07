@@ -2,6 +2,7 @@ using System.Text.Json.Serialization;
 
 namespace Acta;
 
+/// <summary>Where a schedule came from.</summary>
 [JsonConverter(typeof(ScheduleOriginCodeJsonConverter))]
 [CodeKind("schedule-origin")]
 public enum ScheduleOriginCode : byte

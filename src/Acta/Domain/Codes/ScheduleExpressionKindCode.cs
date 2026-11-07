@@ -2,6 +2,7 @@ using System.Text.Json.Serialization;
 
 namespace Acta;
 
+/// <summary>What kind of expression a schedule has.</summary>
 [JsonConverter(typeof(ScheduleExpressionKindCodeJsonConverter))]
 [CodeKind("schedule-expression-kind")]
 public enum ScheduleExpressionKindCode : byte

@@ -2,13 +2,7 @@ using System.Text.Json.Serialization;
 
 namespace Acta;
 
-/// <summary>
-/// Stable family-local event identifiers. Nearby values improve catalog readability but carry no runtime subject,
-/// subgroup, or outcome semantics; match events by enum member or textual code. There is no <c>job.enqueued</c>
-/// event on purpose: the Job row's own <c>(created_at_utc, namespace_id, definition_id)</c> records the enqueue fact,
-/// and a separate event row would be write amplification on the narrow append-heavy events table; dedup outcomes
-/// reach the caller via <c>EnqueueJobResponse.Action</c>, and cross-job rate analytics query <c>acta.jobs</c> directly.
-/// </summary>
+/// <summary>What an event records, as a dotted code. There is no code for an enqueue, because the job row itself records it.</summary>
 [JsonConverter(typeof(EventCodeJsonConverter))]
 [ReservedCodeRange(224, 254, "Architecture-controlled reserve")]
 [CodeKind("event")]

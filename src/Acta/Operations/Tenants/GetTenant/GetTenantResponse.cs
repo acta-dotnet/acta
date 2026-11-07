@@ -2,14 +2,7 @@ using System.Text.Json.Serialization;
 
 namespace Acta;
 
-/// <summary>
-/// The single-tenant read model returned by <see cref="ITenants.GetAsync"/>. It carries the same fields as
-/// <see cref="ListTenantsItem"/> today and is a distinct type because a detail read can grow additively (usage counts,
-/// per-tenant policy) without the list row paying for it. <c>TenantId</c> is the DB-assigned id
-/// <c>jobs.tenant_id</c> references, internal and never serialized, since a tenant is addressed by its unique
-/// <c>TenantName</c>; <c>Status</c> Active resolves at enqueue and Suspended rejects it; <c>Version</c> is the row
-/// version a CAS control verb takes as expected.
-/// </summary>
+/// <summary>One tenant. An enqueue that names an active tenant is accepted, and one that names a suspended tenant is rejected.</summary>
 /// <param name="TenantId">The tenant's internal id; the JSON omits it and carries tenantName.</param>
 /// <param name="TenantName">The tenant's name.</param>
 /// <param name="DisplayName">The tenant's display name.</param>

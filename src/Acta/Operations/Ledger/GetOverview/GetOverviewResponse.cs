@@ -1,12 +1,8 @@
 namespace Acta;
 
 /// <summary>
-/// One-shot health counters for the dashboard overview, computed on the database clock: ready jobs (all Ready plus
-/// Suspended jobs whose durable wait has expired) and the oldest one's claimable age, executing and failed jobs,
-/// unresolved alerts and the Critical ones among them, dead workers and stale ones (Active or Draining, not seen
-/// within the stale threshold), schedules due inside the due-soon window and the most overdue one's lag, and the
-/// executor capacity across live workers, which <c>ExecutingCount</c> can exceed: a finished job stays Executing
-/// until its batched completion write commits.
+/// Health counters for the whole ledger, computed on the database clock in one call. executingCount can exceed executorCapacity, because
+/// a finished job stays counted until its completion is written.
 /// </summary>
 /// <param name="ReadyCount">How many jobs are ready to be claimed.</param>
 /// <param name="OldestReadyAgeSeconds">How long the oldest ready job has waited, in seconds; null when none is ready.</param>

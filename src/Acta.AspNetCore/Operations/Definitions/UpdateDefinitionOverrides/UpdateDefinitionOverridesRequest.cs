@@ -1,8 +1,7 @@
 namespace Acta.AspNetCore;
 
 /// <summary>
-/// Body of <c>PUT /definitions/{jobNamespace}/{jobName}/overrides</c>: the <c>ExpectedVersion</c> the operator last read
-/// and the full override set that replaces the current one, both required, where a null field clears that override.
+/// Body of the override update: the version the operator last read, and the whole set of overrides, which replaces the stored one.
 /// </summary>
 /// <param name="ExpectedVersion">The version as the caller last read it; when the row has another version the call answers
 /// version-conflict and changes nothing.</param>

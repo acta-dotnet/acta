@@ -3,12 +3,8 @@ using System.Text.Json.Serialization;
 namespace Acta;
 
 /// <summary>
-/// The single-alert read model returned by <see cref="IAlerts.GetAsync"/>. It carries the list row's fields today and
-/// is a distinct type because a detail read can grow additively (delivery history, the alerting event's detail)
-/// without the list row paying for it. Two delivery fields read differently than their names suggest:
-/// <c>RetryCount</c> is the attempts spent in the current send series, not over the row's life (a delivered send
-/// ends the series and resets it), and <c>RetryAfterUtc</c> is the earliest instant the alert may be sent again, the
-/// next retry while delivery is unsettled or the next reminder once it has settled, null when nothing is scheduled.
+/// One alert. retryCount counts the attempts of the current send series, which a delivered send ends, and retryAfterUtc is the earliest
+/// time the alert may be sent again.
 /// </summary>
 /// <param name="AlertId">The alert's internal id; the JSON omits it and carries alertRef.</param>
 /// <param name="JobId">The internal id of the job the alert is about; the JSON omits it and carries jobRef.</param>

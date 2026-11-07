@@ -3,12 +3,8 @@ using System.Text.Json.Serialization;
 namespace Acta;
 
 /// <summary>
-/// Plain-English explanation of a Job's current durable state: where the work is, why it moved there, and what an
-/// operator can do next, assembled from the same <c>jobs_state</c>, <c>workers</c>, <c>steps</c>, <c>checkpoints</c>, and
-/// <c>events</c> rows a <c>SELECT</c> would read. Returned by <see cref="IJobs.ExplainAsync"/>; the CLI renders it as
-/// prose, the dashboard as a panel. <c>StatusMeaning</c> is the <c>[Code]</c> description of <c>Status</c>; <c>ActiveWait</c>
-/// and <c>Lease</c> are set only in their states, <c>LastExecutedBy</c> names the last worker when no lease is live, and
-/// <c>Steps</c> are the newest <see cref="ExplainJobHandler.StepLimit"/>, <c>StepsHasMore</c> saying older ones exist.
+/// A plain-English explanation of a job's current state: where the work is, why it is there, and what an operator can do next, built from
+/// the same rows a query would read.
 /// </summary>
 /// <param name="JobId">The job's internal id; the JSON omits it and carries jobRef.</param>
 /// <param name="JobRef">The job's ref, job_ followed by 32 hex digits.</param>

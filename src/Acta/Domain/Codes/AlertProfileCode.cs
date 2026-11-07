@@ -2,6 +2,7 @@ using System.Text.Json.Serialization;
 
 namespace Acta;
 
+/// <summary>When the engine raises alerts for a definition's jobs on its own.</summary>
 [JsonConverter(typeof(AlertProfileCodeJsonConverter))]
 [CodeKind("alert-profile")]
 public enum AlertProfileCode : byte

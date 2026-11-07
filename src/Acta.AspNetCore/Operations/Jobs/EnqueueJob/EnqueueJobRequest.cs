@@ -1,10 +1,7 @@
 namespace Acta.AspNetCore;
 
 /// <summary>
-/// Body of <c>POST /jobs</c>. <c>Input</c> is the payload envelope; absent or null enqueues a no-input job.
-/// <c>Priority</c> accepts the code string (e.g. "high"). <c>Lane</c>, <c>ConcurrencyKey</c>, and <c>Tags</c> are the
-/// metadata <c>IJobs.EnqueueAsync</c> takes, under its rules: a lane is a dotted kebab name and defaults to the
-/// definition's, a key is case-exact printable ASCII, and tag names are unique once folded.
+/// Body of the enqueue: which definition to run, its input, and the keys, priority, lane, timing, and tags the job takes.
 /// </summary>
 /// <param name="JobNamespace">The namespace of the definition to enqueue.</param>
 /// <param name="JobName">The name of the definition to enqueue, within jobNamespace.</param>

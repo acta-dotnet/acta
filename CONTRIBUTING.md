@@ -283,7 +283,6 @@ hand-written page goes in `docs/`. A stale contract test names its own regenerat
 | `docs/reference/conformance-contracts.md` | `ACTA_EMIT_DOCS=1 dotnet test tests/Acta.Tests --filter DocsContractTests` |
 | `docs/reference/operations.md` | `ACTA_EMIT_DOCS=1 dotnet test tests/Acta.Tests --filter OperationsIndexTests` |
 | `docs/reference/openapi.json` | `ACTA_EMIT_OPENAPI=1 dotnet test tests/Acta.Tests --filter OpenApiContractTests` |
-| `tests/Acta.Tests/Contracts/OpenApiUndescribed.txt` | `ACTA_EMIT_UNDESCRIBED=1 dotnet test tests/Acta.Tests --filter OpenApiContractTests`, which only drops the lines whose item is now described |
 | `tests/Acta.Tests/Contracts/PublicApiSurface.approved.txt` | `ACTA_EMIT_API=1 dotnet test tests/Acta.Tests --filter PublicApiContractTests` |
 | The persisted-code hash in `PersistedCodeContractTests` | re-pin by hand |
 

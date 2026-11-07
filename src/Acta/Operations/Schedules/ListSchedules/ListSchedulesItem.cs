@@ -3,12 +3,8 @@ using System.Text.Json.Serialization;
 namespace Acta;
 
 /// <summary>
-/// One schedule row in a <see cref="ISchedules.ListAsync"/> page. <c>NextOccurrenceAtUtc</c> is the next undecided occurrence;
-/// <c>NextEvaluationAtUtc</c> and <c>EvaluationStatus</c> say when and why the engine next looks; <c>Status</c> is Active, Paused,
-/// or Orphaned, with <c>PausedUntilUtc</c> for a timed pause; <c>Version</c> is the row version a CAS control verb takes as
-/// expected; <c>JobRef</c> is the permanent slot's public ref, null for a PerOccurrence definition; <c>OutstandingCount</c> counts
-/// its unsettled roots; the expiry pair is null together when unused, and <c>AvailabilityCalendarName</c> when the schedule
-/// observes no availability calendar. The ids stay off the wire: the list pages by <c>ScheduleId</c> in its cursor.
+/// One schedule in a page: what it fires and when, how it behaves when occurrences pile up or go stale, and where the engine stands with
+/// it.
 /// </summary>
 /// <param name="ScheduleId">The schedule's internal id; the JSON omits it.</param>
 /// <param name="JobId">The internal id of the permanent slot job the schedule fires; the JSON omits it and carries jobRef.</param>

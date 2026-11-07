@@ -1,9 +1,6 @@
 namespace Acta.AspNetCore;
 
-/// <summary>
-/// Body of <c>POST /jobs/{jobRef}/reschedule</c>. <c>NextRunAtUtc</c> omitted or null means now, the job page's
-/// "run now"; a default instant is a 400. <c>ExpectedVersion</c> is the optional CAS guard.
-/// </summary>
+/// <summary>Optional body of the job's reschedule: when it should run, a reason, and an expected version.</summary>
 /// <param name="NextRunAtUtc">When the job should run, in UTC; omitted means now.</param>
 /// <param name="ReasonMessage">Why the operator made this call, recorded on the event the call writes.</param>
 /// <param name="ExpectedVersion">The job's version as the caller last read it; when the job has another version the call answers

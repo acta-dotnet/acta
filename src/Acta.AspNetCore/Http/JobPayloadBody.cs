@@ -13,7 +13,7 @@ namespace Acta.AspNetCore;
 /// </summary>
 /// <param name="Json">A JSON payload, embedded as the JSON value itself.</param>
 /// <param name="Base64">A payload in any other format, base64-encoded.</param>
-/// <param name="FormatId">The payload format's id; required beside base64 in a request, and always present in a response.</param>
+/// <param name="FormatId">The payload format's id: 1 for JSON, 2 for bytes, 128 to 255 for an application's own. Required beside base64 in a request, and always present in a response.</param>
 /// <param name="FormatName">The payload format's name; responses only.</param>
 /// <param name="ByteLength">The stored payload's size in bytes, sent when its body is withheld; responses only.</param>
 /// <param name="Truncated">True when the payload is larger than the inline limit and its body is withheld; read it whole from the job's

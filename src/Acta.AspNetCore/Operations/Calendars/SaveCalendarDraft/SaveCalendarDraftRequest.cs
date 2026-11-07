@@ -3,8 +3,7 @@ using System.Text.Json;
 namespace Acta.AspNetCore;
 
 /// <summary>
-/// Body of <c>POST /calendars/{jobNamespace}/{calendarName}/drafts</c>: the family's role, the definition as a JSON
-/// object, and the <c>ExpectedLatestVersion</c> the operator last read, 0 for a new family, required.
+/// Body of the calendar draft: the family's role, the definition, the newest version the operator last read, and an optional reason.
 /// </summary>
 /// <param name="Role">The role of the family the draft belongs to.</param>
 /// <param name="Definition">The calendar's definition, as a JSON object.</param>

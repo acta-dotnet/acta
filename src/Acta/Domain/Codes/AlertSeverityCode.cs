@@ -2,6 +2,7 @@ using System.Text.Json.Serialization;
 
 namespace Acta;
 
+/// <summary>How severe an alert is.</summary>
 [JsonConverter(typeof(AlertSeverityCodeJsonConverter))]
 [CodeKind("alert-severity")]
 public enum AlertSeverityCode : byte

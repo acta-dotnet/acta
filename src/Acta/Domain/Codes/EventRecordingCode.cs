@@ -2,6 +2,7 @@ using System.Text.Json.Serialization;
 
 namespace Acta;
 
+/// <summary>How much of a job's history is recorded as events.</summary>
 [JsonConverter(typeof(EventRecordingCodeJsonConverter))]
 [CodeKind("event-recording")]
 public enum EventRecordingCode : byte

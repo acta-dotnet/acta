@@ -1,10 +1,7 @@
 namespace Acta;
 
 /// <summary>
-/// One calendar family in a <see cref="ICalendars.ListAsync"/> page. <c>CurrentVersion</c> and <c>PublishedAtUtc</c> are the
-/// Published version's, null while the family has none; <c>LatestVersion</c>, <c>LatestStatus</c>, and <c>ModifiedAtUtc</c>
-/// are the highest version's; <c>DependentCount</c> counts the schedules, orphans aside, that bind the family through the
-/// catalog: the namespace's, or every namespace's for a shared family in <c>sys</c>.
+/// One calendar family in a page. A shared family in the sys namespace counts the schedules of every namespace as its dependents.
 /// </summary>
 /// <param name="JobNamespace">The namespace that holds the calendar family.</param>
 /// <param name="CalendarName">The calendar family's name within its namespace.</param>

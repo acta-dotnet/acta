@@ -1,12 +1,9 @@
 namespace Acta;
 
 /// <summary>
-/// The whole operator-override set for a definition's policy, applied as a unit: a non-null field sets its override
-/// and null clears it back to the code default, so the dashboard reads, edits, and writes the full set. Code defaults,
-/// contract, formats, and <c>definition_hash</c> are never touched. A <c>DeadlineSeconds</c> override on a scheduled
-/// definition lands but is ignored: a deadline anchors to job creation, and a recurring slot lives forever.
-/// <c>RateLimit</c> applies to every definition sharing the meter (declared <c>RateName</c>, or the name) in one
-/// write, clearing included, so the meter never carries two rates.
+/// The whole set of operator overrides of a definition's policy, read and written as a unit: a member with a value overrides what the
+/// code declares, and null leaves the declared value in force. A deadline override on a scheduled definition is ignored, and a rate limit
+/// applies to every definition that shares the meter.
 /// </summary>
 /// <param name="Priority">The priority to use in place of the declared one; null uses the declared one.</param>
 /// <param name="MaxAttempts">The retry budget to use in place of the declared one; null uses the declared one.</param>

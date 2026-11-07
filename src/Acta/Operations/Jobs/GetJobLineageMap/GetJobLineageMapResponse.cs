@@ -1,11 +1,8 @@
 namespace Acta;
 
 /// <summary>
-/// A compact runtime truth map for one focused Job, returned by <see cref="IJobs.GetLineageMapAsync"/> for the
-/// dashboard's lineage panel. <c>Ancestors</c> are context only (farthest first, immediate parent last, no steps of
-/// their own), the nearest <see cref="GetJobLineageMapHandler.AncestorLimit"/>; <c>Job</c> is the focused Job with its newest
-/// <see cref="GetJobLineageMapHandler.StepLimit"/> steps and the durable wait it is blocked on; <c>Children</c> are its
-/// direct children up to <see cref="GetJobLineageMapOptions.ChildLimit"/>. Each <c>HasMore</c> flags a truncated set.
+/// A map around one job: its nearest ancestors, the job itself with its newest steps and the wait it is suspended on, and its direct
+/// children. Each list that was cut says so in its hasMore member.
 /// </summary>
 /// <param name="Ancestors">The job's nearest ancestors, the farthest first and its parent last.</param>
 /// <param name="AncestorsHasMore">Whether the lineage has more ancestors than the ones listed.</param>

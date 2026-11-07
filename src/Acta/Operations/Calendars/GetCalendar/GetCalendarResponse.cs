@@ -1,10 +1,8 @@
 namespace Acta;
 
 /// <summary>
-/// One catalog calendar family as <see cref="ICalendars.GetAsync"/> reads it: its role, <c>CurrentVersion</c> the Published
-/// version (null while the family has none), <c>LatestVersion</c> the newest, and <c>ShownVersion</c> with its status and
-/// its <c>Definition</c> JSON. <see cref="ICalendars.ListVersionsAsync"/> pages the versions and
-/// <see cref="ICalendars.ListDependentsAsync"/> the schedules naming the family.
+/// One calendar family: its role, its published and newest version numbers, and the version this answer shows, with its status and
+/// definition.
 /// </summary>
 /// <param name="JobNamespace">The namespace that holds the calendar family.</param>
 /// <param name="CalendarName">The calendar family's name within its namespace.</param>

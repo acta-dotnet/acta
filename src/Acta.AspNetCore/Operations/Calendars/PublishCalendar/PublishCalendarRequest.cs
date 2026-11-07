@@ -1,9 +1,8 @@
 namespace Acta.AspNetCore;
 
 /// <summary>
-/// Body of <c>POST /calendars/{jobNamespace}/{calendarName}/publish</c>: the <c>ExpectedCurrentVersion</c> the operator
-/// last read (0 for none) and the draft to publish, both required, and what to do with the overdue occurrences the
-/// current version leaves.
+/// Body of the calendar publication: the published version the operator last read, the draft to publish, what to do about overdue
+/// occurrences, and an optional reason.
 /// </summary>
 /// <param name="ExpectedCurrentVersion">The number of the published version as the caller last read it; when another is in force the call
 /// answers version-conflict and changes nothing.</param>

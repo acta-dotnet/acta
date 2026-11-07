@@ -3,12 +3,8 @@ using System.Text.Json.Serialization;
 namespace Acta;
 
 /// <summary>
-/// State machine for stateful <c>checkpoints</c> kinds. Signals and child latches move
-/// <c>Pending</c> (awaited, no raise yet) to <c>Set</c> (raised, payload stored) or to
-/// <c>Expired</c> (a re-entering bounded wait found the checkpoint overdue); timers move <c>Pending</c> (armed) to
-/// <c>Consumed</c> (the replayed handler passed the due instant); the firing envelope moves <c>Pending</c>
-/// (outstanding) to <c>Succeeded</c>, <c>Failed</c>, or <c>Cancelled</c> (settled, and the last outcome on record).
-/// Stateless kinds (variable, progress) carry a NULL state.
+/// Where a checkpoint that has a status stands. A signal or child latch is pending until it is set or its wait expires; a timer is
+/// pending until it is consumed; a firing is pending until it succeeds, fails, or is cancelled. Variables and progress have no status.
 /// </summary>
 [JsonConverter(typeof(CheckpointStatusCodeJsonConverter))]
 [CodeKind("job-checkpoint-status")]

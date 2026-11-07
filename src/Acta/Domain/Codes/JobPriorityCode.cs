@@ -3,11 +3,7 @@ using System.Text.Json.Serialization;
 namespace Acta;
 
 /// <summary>
-/// Claim-priority value for <c>jobs_state.job_priority_code</c>. Discrete five-tier code-system enum
-/// (<c>Bulk</c> / <c>Normal</c> / <c>High</c> / <c>Critical</c> / <c>Realtime</c>); no intermediate
-/// values. Strict priority ordering on claim (no aging, no anti-starvation budget), so operators
-/// isolate bulk workloads in their own <c>JobNamespace</c>. Set by the definition policy, definition
-/// override, or per-enqueue priority override.
+/// A job's priority. A worker always claims the highest priority first, with no aging, so keep bulk work in a namespace of its own.
 /// </summary>
 [JsonConverter(typeof(JobPriorityCodeJsonConverter))]
 [CodeKind("job-priority")]

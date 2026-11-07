@@ -2,12 +2,7 @@ using System.Text.Json.Serialization;
 
 namespace Acta;
 
-/// <summary>
-/// One job row in a <see cref="ILedger.ListJobsAsync"/> page: identity, lifecycle, and audit-facing fields only; the
-/// input payload is never exposed by list reads. JSON carries the public refs and hides the numeric ids.
-/// <c>CorrelationKey</c> is the caller-supplied trace, request, or order id, <c>ExecutionNumber</c> the attempt
-/// counter, and <c>FailureCount</c> the consecutive-failure count behind the retry budget.
-/// </summary>
+/// <summary>One job in a page: its identity, lineage, status, and timing. The input is not included.</summary>
 /// <param name="JobId">The job's internal id; the JSON omits it and carries jobRef.</param>
 /// <param name="TenantId">The internal id of the job's tenant; the JSON omits it and carries tenantName.</param>
 /// <param name="ParentJobId">The parent job's internal id; the JSON omits it and carries parentJobRef.</param>

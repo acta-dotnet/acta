@@ -3,11 +3,9 @@ using System.Text.Json.Serialization;
 namespace Acta.AspNetCore;
 
 /// <summary>
-/// The whole job screen in one response, composed from the <see cref="IJobs"/> reads after one id lookup: the job row,
-/// the size-capped input and result, the first page of checkpoints (continued by GET /jobs/{jobRef}/checkpoints), explain
-/// and lineage, the schedules on its slot, and the eligible workers while it is claimable. A missing part is a null or
-/// empty field, not an error, and the capped collections ship their filter-wide counts. The unbounded event history
-/// keeps its own paged route.
+/// Everything the job page shows, in one answer: the job, its input and result, the first page of its checkpoints, its explanation and
+/// lineage, the schedules that fire it, and the workers that can claim it. A part that does not apply is absent or empty, and each capped
+/// list comes with its total.
 /// </summary>
 /// <param name="Job">The job.</param>
 /// <param name="Input">The job's input as a payload envelope; absent when it has none.</param>

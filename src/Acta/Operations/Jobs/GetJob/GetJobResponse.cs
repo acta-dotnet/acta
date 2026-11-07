@@ -3,12 +3,8 @@ using System.Text.Json.Serialization;
 namespace Acta;
 
 /// <summary>
-/// Read projection of a Job row exposed by <c>IJobs.GetAsync</c>: identity, linkage, status, scheduling, leasing,
-/// retention, and input format; the input payload itself is never returned. Property order mirrors the <c>jobs</c>
-/// entity (identity, scope and routing, caller keys, input) and then its 1:1 <c>jobs_state</c> row, so the shape reads
-/// in schema order; a column resolved to a public value follows the id it came from, and the created/modified pair
-/// closes the record. JSON carries the public refs and hides the numeric ids. <c>DefinitionId</c> is the surrogate
-/// for the namespace+name pair, non-null because the row's definition_id is NOT NULL.
+/// One job: its identity, its place in its lineage, its status, when it runs next, who holds it, and when retention may delete it. The
+/// input is not included; read it from the job's input route.
 /// </summary>
 /// <param name="JobId">The job's internal id; the JSON omits it and carries jobRef.</param>
 /// <param name="DefinitionId">The internal id of the job's definition; the JSON omits it.</param>

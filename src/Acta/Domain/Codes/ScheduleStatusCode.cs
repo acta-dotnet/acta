@@ -2,6 +2,7 @@ using System.Text.Json.Serialization;
 
 namespace Acta;
 
+/// <summary>Where a schedule is in its life.</summary>
 [JsonConverter(typeof(ScheduleStatusCodeJsonConverter))]
 [CodeKind("schedule-status")]
 public enum ScheduleStatusCode : byte

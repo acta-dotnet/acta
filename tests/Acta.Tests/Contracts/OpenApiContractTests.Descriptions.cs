@@ -8,61 +8,27 @@ namespace Acta.Tests.Contracts;
 
 public sealed partial class OpenApiContractTests
 {
-    private const string UndescribedFile = "tests/Acta.Tests/Contracts/OpenApiUndescribed.txt";
-
     private const int MaxDescriptionLength = 400;
 
     /// <summary>
     /// Every schema, property, parameter, response, and tag tells a client author what it is, in wire terms: a
     /// description that ends with a full stop, runs at most 400 characters, leaks no C#, and is no framework default.
-    /// OpenApiUndescribed.txt lists the items the description pass has yet to reach, one per line, sorted, and only
-    /// shrinks: a failing item it does not list fails here, and so does a listed item that passes or is gone. Once it is
-    /// empty, it and its reading here go. <c>ACTA_EMIT_UNDESCRIBED=1</c> rewrites it without the items that now pass and
-    /// never adds one.
     /// </summary>
     [Fact]
     public async Task Every_schema_property_parameter_response_and_tag_is_described()
     {
-        var ct = TestContext.Current.CancellationToken;
         var (items, problems) = DescriptionProblems(JsonNode.Parse(await ActaOpenApiDocument.GenerateAsync())!);
-        var path = Path.Combine(RepoRoot(), UndescribedFile.Replace('/', Path.DirectorySeparatorChar));
-        var exists = File.Exists(path);
-        List<string> listed = exists ? [.. (await File.ReadAllLinesAsync(path, ct)).Where(line => line.Length > 0)] : [];
-        if (Environment.GetEnvironmentVariable("ACTA_EMIT_UNDESCRIBED") == "1")
-        {
-            // Only a missing file takes every failing item; an existing one keeps the listed items that still fail.
-            listed = [.. (exists ? listed.Where(problems.ContainsKey) : problems.Keys).Order(StringComparer.Ordinal)];
-            await File.WriteAllTextAsync(path, string.Concat(listed.Select(item => item + "\n")), ct);
-        }
-
-        var listedItems = listed.ToHashSet(StringComparer.Ordinal);
-        var unlisted = problems
-            .Where(problem => !listedItems.Contains(problem.Key))
-            .Select(problem => $"{problem.Key}: {problem.Value}")
-            .Order(StringComparer.Ordinal)
-            .ToList();
-        var stale = listed.Where(item => !problems.ContainsKey(item)).ToList();
-        var failures = new List<string>();
-        if (unlisted.Count > 0)
-        {
-            failures.Add($"Describe these in wire terms; {UndescribedFile} admits nothing new:\n" + string.Join("\n", unlisted));
-        }
-        if (stale.Count > 0)
-        {
-            failures.Add(
-                $"{UndescribedFile} lists items that now pass or are gone; drop them with "
-                    + "ACTA_EMIT_UNDESCRIBED=1 dotnet test tests/Acta.Tests --filter OpenApiContractTests:\n"
-                    + string.Join("\n", stale)
-            );
-        }
 
         Assert.True(items > 1000, $"only {items} items; the walk is broken.");
-        Assert.Equal(listed.Distinct(StringComparer.Ordinal).Order(StringComparer.Ordinal), listed);
-        Assert.True(failures.Count == 0, string.Join("\n\n", failures));
+        Assert.True(
+            problems.Count == 0,
+            "Describe these in wire terms:\n"
+                + string.Join("\n", problems.Select(problem => $"{problem.Key}: {problem.Value}").Order(StringComparer.Ordinal))
+        );
     }
 
     /// <summary>
-    /// Each item of the contract, keyed as OpenApiUndescribed.txt lists it, and why each failing one fails. A code's
+    /// Each item of the contract by its key, and why each failing one fails. A code's
     /// description is judged without the known values the generator appends.
     /// </summary>
     private static (int Items, Dictionary<string, string> Problems) DescriptionProblems(JsonNode document)

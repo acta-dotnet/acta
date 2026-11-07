@@ -2,6 +2,7 @@ using System.Text.Json.Serialization;
 
 namespace Acta;
 
+/// <summary>How an alert came to be raised.</summary>
 [JsonConverter(typeof(AlertOriginCodeJsonConverter))]
 [CodeKind("alert-origin")]
 public enum AlertOriginCode : byte

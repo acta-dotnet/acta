@@ -2,13 +2,7 @@ using System.Text.Json.Serialization;
 
 namespace Acta;
 
-/// <summary>
-/// The single-namespace read model returned by <see cref="INamespaces.GetAsync"/>. It carries the same fields as
-/// <see cref="ListNamespacesItem"/> today and is a distinct type because a detail read can grow additively without the
-/// list row paying for it. <c>NamespaceId</c> is the DB-assigned id <c>jobs.namespace_id</c> references, internal and
-/// never serialized, since a namespace is addressed by its unique kebab-case name; <c>Status</c> Active resolves at
-/// enqueue and Suspended rejects it; <c>Version</c> is the row version a CAS control verb takes as expected.
-/// </summary>
+/// <summary>One namespace. An active namespace accepts enqueues and a suspended one rejects them.</summary>
 /// <param name="NamespaceId">The namespace's internal id; the JSON omits it.</param>
 /// <param name="JobNamespace">The namespace's name.</param>
 /// <param name="Status">The namespace's status.</param>

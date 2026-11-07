@@ -2,6 +2,7 @@ using System.Text.Json.Serialization;
 
 namespace Acta;
 
+/// <summary>Where a job is in its life.</summary>
 [JsonConverter(typeof(JobStatusCodeJsonConverter))]
 [CodeKind("job-status")]
 public enum JobStatusCode : byte

@@ -3,11 +3,8 @@ using System.Text.Json.Serialization;
 namespace Acta;
 
 /// <summary>
-/// State machine for <c>steps</c> rows. INSERT-once on first invocation (<c>Pending</c>);
-/// UPDATE-in-place across retries; terminal transition to <c>Succeeded</c> (with <c>Result</c> populated),
-/// <c>Exhausted</c> (parent receives <c>StepExhaustedException</c>), or <c>Interrupted</c> (an
-/// <c>AtMostOnce</c> step re-entered before completion; parent receives <c>StepInterruptedException</c>). One row per
-/// <c>(JobId, StepName)</c>; the framework never INSERTs a second step row for the same name.
+/// Where a step stands. A step is pending from its first start and across retries, and ends succeeded, exhausted when its retries are
+/// spent, or interrupted when a step that runs at most once was re-entered before it completed.
 /// </summary>
 [JsonConverter(typeof(StepStatusCodeJsonConverter))]
 [CodeKind("job-step-status")]

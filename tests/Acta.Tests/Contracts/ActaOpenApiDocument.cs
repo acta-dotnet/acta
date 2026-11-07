@@ -490,10 +490,22 @@ internal static partial class ActaOpenApiDocument
                     ),
                 },
             };
-            problemProperties["reasonCode"] = new OpenApiSchemaReference(nameof(EnqueueRejectionReason));
+            problemProperties["reasonCode"] = new OpenApiSchemaReference(nameof(EnqueueRejectionReason))
+            {
+                Description = "Why an enqueue was refused; only that answer carries it.",
+            };
             // Every problem Acta writes names its status; the other members depend on the status and the host.
             problemProperties["status"] = WithoutNull(problemProperties["status"]);
             problemSchema.Required = new HashSet<string>(["status"], StringComparer.Ordinal);
+            // The problem document is ASP.NET's type, so its text is written here, not read from Acta's XML docs.
+            problemSchema.Description = "Why a call failed, as an RFC 9457 problem document.";
+            foreach (var (member, text) in ProblemMembers)
+            {
+                if (problemProperties.TryGetValue(member, out var property) && property is OpenApiSchema described)
+                {
+                    described.Description = text;
+                }
+            }
         }
 
         // The capabilities' provider is a string the endpoint spells from DbProvider, a code like any other.
@@ -593,13 +605,20 @@ internal static partial class ActaOpenApiDocument
     /// <summary>The payload envelope's members a response alone carries: readOnly in the document, refused in a request.</summary>
     public static readonly string[] EnvelopeResponseOnly = ["formatName", "byteLength", "truncated", "malformed"];
 
+    private static readonly Dictionary<string, string> ProblemMembers = new(StringComparer.Ordinal)
+    {
+        ["type"] = "A URI that identifies the kind of problem.",
+        ["title"] = "A short summary of the kind of problem.",
+        ["status"] = "The HTTP status code of this answer.",
+        ["detail"] = "What went wrong in this call; it names the parameter or member at fault when there is one.",
+        ["instance"] = "A URI for this occurrence of the problem, when the server sets one.",
+    };
+
     private const string EnvelopeDescription =
-        "A payload inside a JSON body, in a request and in a response. A JSON payload is json, the value itself; any other "
-        + "format is base64, its bytes, with formatId. A request sends exactly one of json and base64: json alone or with "
-        + "formatId 1, or base64 with formatId 2 (bytes) or 128 to 255 (an application's own); the readOnly members are "
-        + "refused. A response always carries formatId and formatName, with json or base64, or with base64 and malformed "
-        + "true for stored JSON that is not one JSON value, or, past the server's inline limit, with byteLength and "
-        + "truncated true in place of the body. No envelope is no payload.";
+        "A payload inside a JSON body, the same in requests and responses. A JSON payload is json, the value itself; any "
+        + "other format is base64 with its formatId. A request sends exactly one of json and base64, and the readOnly "
+        + "members are refused. A response always carries formatId and formatName, and for a payload past the inline limit "
+        + "sends byteLength and truncated in place of the body.";
 
     // The payload envelope is the one schema both directions share. Which of its members appear depends on the payload,
     // so none is required and the description says which; a member is never null in either direction.

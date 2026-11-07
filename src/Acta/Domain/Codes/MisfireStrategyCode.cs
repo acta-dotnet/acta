@@ -2,6 +2,7 @@ using System.Text.Json.Serialization;
 
 namespace Acta;
 
+/// <summary>What a schedule does about occurrences it missed during downtime.</summary>
 [JsonConverter(typeof(MisfireStrategyCodeJsonConverter))]
 [CodeKind("misfire-strategy")]
 public enum MisfireStrategyCode : byte

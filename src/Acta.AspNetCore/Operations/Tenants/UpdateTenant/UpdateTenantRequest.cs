@@ -1,6 +1,6 @@
 namespace Acta.AspNetCore;
 
-/// <summary>Body of <c>PUT /tenants/{tenantName}</c>. A null field clears it; <c>ExpectedVersion</c> drives the CAS.</summary>
+/// <summary>Body of the tenant update, which replaces its display name and description: a member left out or null is cleared.</summary>
 /// <param name="DisplayName">The tenant's display name.</param>
 /// <param name="Description">The tenant's description; omitted or null stores none.</param>
 /// <param name="ExpectedVersion">The version as the caller last read it; when the row has another version the call answers

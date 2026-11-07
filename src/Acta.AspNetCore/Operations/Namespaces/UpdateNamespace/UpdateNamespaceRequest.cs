@@ -1,6 +1,6 @@
 namespace Acta.AspNetCore;
 
-/// <summary>Body of <c>PUT /namespaces/{jobNamespace}</c>. A null field clears it; <c>ExpectedVersion</c> drives the CAS.</summary>
+/// <summary>Body of the namespace update, which replaces its owner team and description: a member left out or null is cleared.</summary>
 /// <param name="OwnerTeam">The team that owns the namespace; omitted or null stores none.</param>
 /// <param name="Description">The namespace's description; omitted or null stores none.</param>
 /// <param name="ExpectedVersion">The version as the caller last read it; when the row has another version the call answers
