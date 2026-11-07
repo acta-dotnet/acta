@@ -2,6 +2,7 @@ using System.Net;
 using System.Net.Http.Json;
 using System.Text;
 using System.Text.Json;
+using System.Text.Json.Nodes;
 using Acta.Tests.AspNetCore.Fakes;
 using Microsoft.AspNetCore.Builder;
 using Microsoft.AspNetCore.TestHost;
@@ -591,8 +592,9 @@ public sealed class ControlEndpointTests
         Assert.Equal((FakeJobs.FoundJobRef, (string?)null), call);
     }
 
+    /// <summary>A purge the alert projection has not caught up with is rejected as any refused verb is: the envelope, no explanation.</summary>
     [Fact]
-    public async Task A_blocked_purge_answers_a_409_problem()
+    public async Task A_blocked_purge_answers_rejected()
     {
         var fakes = new FakeOperations();
         fakes.Jobs.Purge = (_, _, _) => throw new JobPurgeBlockedException("The alert projection still owes an event of this job.");
@@ -603,10 +605,13 @@ public sealed class ControlEndpointTests
             Post($"/acta/api/v1/jobs/{Found}/purge", rawBody: "{}"),
             TestContext.Current.CancellationToken
         );
+        var body = JsonNode.Parse(await response.Content.ReadAsStringAsync(TestContext.Current.CancellationToken))!.AsObject();
 
-        // Beside the rejected response, so the document declares both shapes (ActaOpenApiDocument.ConflictAlsoProblem).
         Assert.Equal(HttpStatusCode.Conflict, response.StatusCode);
-        Assert.Equal("application/problem+json", response.Content.Headers.ContentType?.MediaType);
+        Assert.Equal("application/json", response.Content.Headers.ContentType?.MediaType);
+        Assert.Equal(["action", "status", "version"], body.Select(member => member.Key).Order(StringComparer.Ordinal).ToList());
+        Assert.Equal("rejected", body["action"]!.GetValue<string>());
+        Assert.Null(body["status"]);
     }
 
     [Fact]

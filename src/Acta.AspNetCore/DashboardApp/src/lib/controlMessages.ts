@@ -11,6 +11,8 @@ export function jobControlMessage(verb: string, action: string): string {
       return `${title(verb)} applied.`;
     case 'rejected':
       if (verb === 'restart') return "Restart rejected: the job's status or its lane does not allow it.";
+      if (verb === 'purge')
+        return "Purge rejected: the job's status, its parent or child jobs, or a live schedule keeps it, or sys.alerts has not processed its latest events yet.";
       return `${title(verb)} rejected: the job's current status does not allow it.`;
     default:
       return 'Job not found.';

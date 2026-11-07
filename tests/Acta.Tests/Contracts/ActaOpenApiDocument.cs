@@ -56,12 +56,6 @@ internal static partial class ActaOpenApiDocument
         ["UpdateTenantRequest"] = ["expectedVersion"],
     };
 
-    /// <summary>
-    /// Controls whose 409 is also a problem: a purge the alert projection has not caught up with throws
-    /// <see cref="JobPurgeBlockedException"/>, which ApiFilters answers as one beside the rejected response.
-    /// </summary>
-    public static readonly HashSet<string> ConflictAlsoProblem = new(StringComparer.Ordinal) { "POST /jobs/{jobRef}/purge" };
-
     [GeneratedRegex(@"\{(?<name>[A-Za-z]+)[^}]*\}")]
     private static partial Regex RouteSegments();
 
@@ -230,17 +224,10 @@ internal static partial class ActaOpenApiDocument
         o.AddOperationTransformer(
             (operation, context, _) =>
             {
-                var (method, path) = (context.Description.HttpMethod ?? "", context.Description.RelativePath ?? "");
-                operation.OperationId = OpenApiOperationIds.For(method, path);
-                // ASP.NET keeps one response per status, so a 409 that is also a problem gains the problem here.
-                if (
-                    ConflictAlsoProblem.Contains(OpenApiOperationIds.Key(method, path))
-                    && operation.Responses?.TryGetValue("409", out var conflict) == true
-                    && conflict is OpenApiResponse { Content: { } content }
-                )
-                {
-                    content["application/problem+json"] = new OpenApiMediaType { Schema = new OpenApiSchemaReference("ProblemDetails") };
-                }
+                operation.OperationId = OpenApiOperationIds.For(
+                    context.Description.HttpMethod ?? "",
+                    context.Description.RelativePath ?? ""
+                );
                 return Task.CompletedTask;
             }
         );

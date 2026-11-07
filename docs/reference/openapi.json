@@ -935,11 +935,6 @@
                 "schema": {
                   "$ref": "#/components/schemas/PurgeJobResponse"
                 }
-              },
-              "application/problem+json": {
-                "schema": {
-                  "$ref": "#/components/schemas/ProblemDetails"
-                }
               }
             }
           },

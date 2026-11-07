@@ -38,10 +38,6 @@ internal static class ApiFilters
                 }
             );
         }
-        catch (JobPurgeBlockedException ex)
-        {
-            return Results.Problem(statusCode: StatusCodes.Status409Conflict, title: "Purge blocked.", detail: ex.Message);
-        }
         catch (PayloadTooLargeException ex)
         {
             // The BoundedReadStream ceiling tripped mid-read (a chunked body that outran its

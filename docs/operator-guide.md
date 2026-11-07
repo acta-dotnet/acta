@@ -245,7 +245,9 @@ Five rules the table cannot show:
   It also rejects a completed child whose parent is not terminal: the parent's replay dedupes onto
   that child and reads its result, so purging it would run the child again. Once the tree is
   terminal, purge the leaves first. A recurring job's slot is purged only to decommission it: Idle,
-  Failed, or Cancelled, with no firing outstanding and no live schedule pinning it.
+  Failed, or Cancelled, with no firing outstanding and no live schedule pinning it. Over HTTP it is
+  also rejected while `sys.alerts` has not processed the job's latest events, where
+  `IJobs.PurgeAsync` throws `JobPurgeBlockedException`; purge it again after the next pass.
 - **`cancel` on an Executing job** marks the row Cancelled and cancels the running attempt's token;
   the handler still has to return. The row is terminal before the process notices.
 - **`signal` on a Paused job** records the signal and leaves the job Paused. The signal is not lost;

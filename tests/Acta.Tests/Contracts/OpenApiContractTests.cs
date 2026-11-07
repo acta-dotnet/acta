@@ -431,25 +431,6 @@ public sealed partial class OpenApiContractTests
         Assert.True(nullable.Count == 0, "Components that allow null: " + string.Join(", ", nullable));
     }
 
-    /// <summary>
-    /// A control whose 409 is also a problem documents both shapes there; ControlEndpointTests proves the purge's problem.
-    /// </summary>
-    [Fact]
-    public async Task A_conflict_that_is_also_a_problem_documents_both()
-    {
-        var operations = Operations(await ActaOpenApiDocument.GenerateAsync());
-
-        Assert.All(
-            ActaOpenApiDocument.ConflictAlsoProblem,
-            key =>
-            {
-                var content = operations[key.Replace(" /", " /v1/", StringComparison.Ordinal)]["responses"]!["409"]!["content"]!;
-                Assert.NotNull(content["application/json"]);
-                Assert.NotNull(content["application/problem+json"]);
-            }
-        );
-    }
-
     /// <summary>Every reference names a component the document carries; a dangling one fails only in a generator.</summary>
     [Fact]
     public async Task Every_reference_resolves()

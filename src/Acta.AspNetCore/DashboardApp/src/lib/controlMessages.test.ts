@@ -12,6 +12,10 @@ test('a rejected restart names the status or the lane as the reason', () => {
   assert.equal(jobControlMessage('restart', 'rejected'), "Restart rejected: the job's status or its lane does not allow it.");
 });
 
+test('a rejected purge names what can hold the job, the alert projection included', () => {
+  assert.match(jobControlMessage('purge', 'rejected'), /^Purge rejected: .*parent or child jobs.*sys\.alerts has not processed/);
+});
+
 test('schedule, outbox, and definition verbs word their own outcomes', () => {
   assert.equal(scheduleControlMessage('trigger', 'applied'), 'Schedule trigger applied.');
   assert.equal(scheduleControlMessage('pause', 'not-found'), 'Schedule not found.');
