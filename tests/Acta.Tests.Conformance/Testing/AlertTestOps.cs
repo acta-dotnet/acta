@@ -116,11 +116,18 @@ internal static class AlertTestOps
     public static async Task AgeEventsPastHorizonAsync(IServiceProvider services, int namespaceId, CancellationToken ct)
     {
         var aged = await HorizonOfThisMomentAsync(services, ct);
-        await services
-            .GetRequiredService<IDbSession>()
-            .From<EventEntity>()
-            .Where(e => e.NamespaceId == namespaceId && e.CreatedAtUtc > aged)
-            .UpdateOnlyAsync(() => new EventEntity { CreatedAtUtc = aged }, ct);
+        var db = services.GetRequiredService<IDbSession>();
+        // The update moves each row by key: one that searched by stamp could scan events, and with read-committed snapshot
+        // off share-lock every page it passed.
+        var ids = (await db.From<EventEntity>().Where(e => e.NamespaceId == namespaceId && e.CreatedAtUtc > aged).ToListAsync(ct))
+            .Select(e => e.Id)
+            .ToList();
+        foreach (var chunk in ids.Chunk(500).Select(c => c.ToList()))
+        {
+            await db.From<EventEntity>()
+                .Where(e => chunk.Contains(e.Id))
+                .UpdateOnlyAsync(() => new EventEntity { CreatedAtUtc = aged }, ct);
+        }
     }
 
     /// <summary>

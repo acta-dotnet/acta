@@ -63,12 +63,23 @@ BEGIN TRY
     /* A name is one family: a namespace's calendar cannot take a shared calendar's name, and a shared one cannot take a
        name any namespace holds, so a schedule's plain name never resolves two ways. */
     SELECT @clash_namespace = MIN(o.namespace_name)
-    FROM {{schema}}.calendars x
-    INNER JOIN {{schema}}.namespaces o ON o.namespace_id = x.namespace_id
-    WHERE
-        x.calendar_name = @p_calendar_name
-        AND x.namespace_id <> @namespace_id
-        AND (@namespace_id = 1 /* NameSyntax.SystemNamespaceId */ OR x.namespace_id = 1 /* NameSyntax.SystemNamespaceId */);
+    FROM (
+        -- A namespace's draft can clash only with the sys namespace's family, which it seeks by key.
+        SELECT x.namespace_id
+        FROM {{schema}}.calendars x WITH (FORCESEEK (ux_calendars_namespace_name_version (namespace_id, calendar_name)))
+        WHERE
+            @namespace_id <> 1 /* NameSyntax.SystemNamespaceId */
+            AND x.namespace_id = 1 /* NameSyntax.SystemNamespaceId */
+            AND x.calendar_name = @p_calendar_name
+        UNION ALL
+        SELECT x.namespace_id
+        FROM {{schema}}.calendars x
+        WHERE
+            @namespace_id = 1 /* NameSyntax.SystemNamespaceId */
+            AND x.namespace_id <> 1 /* NameSyntax.SystemNamespaceId */
+            AND x.calendar_name = @p_calendar_name
+    ) clash
+    INNER JOIN {{schema}}.namespaces o WITH (FORCESEEK) ON o.namespace_id = clash.namespace_id;
 
     IF @unchanged = 0
         AND @latest_version = @p_expected_latest_version

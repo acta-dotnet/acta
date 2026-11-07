@@ -34,7 +34,7 @@ BEGIN TRY
     INSERT INTO @locks (namespace_id)
     SELECT @p_namespace_id
     UNION
-    SELECT s.namespace_id FROM {{schema}}.schedules s WHERE s.schedule_id IN (SELECT r.schedule_id FROM @rows r);
+    SELECT s.namespace_id FROM {{schema}}.schedules s WITH (FORCESEEK) WHERE s.schedule_id IN (SELECT r.schedule_id FROM @rows r);
     DECLARE @ns INT = (SELECT MIN(l.namespace_id) FROM @locks l);
     WHILE @ns IS NOT NULL
     BEGIN
@@ -64,13 +64,29 @@ BEGIN TRY
             LEFT JOIN {{schema}}.schedules s ON s.schedule_id = r.schedule_id
             LEFT JOIN {{schema}}.schedules_state st WITH (UPDLOCK, HOLDLOCK) ON st.schedule_id = r.schedule_id
             WHERE s.version IS NULL OR s.version <> r.expected_version OR st.version IS NULL OR st.version <> r.expected_state_version)
-        -- A schedule naming the family that the plan never read, as a deploy adds one, rejects it too.
+        -- A schedule naming the family that the plan never read, as a deploy adds one, rejects it too. A namespace's
+        -- family binds its own schedules, sought from its definitions; a shared family's span every namespace, whose
+        -- deploys wait for the sys schedule lock this publication holds.
+        AND NOT EXISTS (
+            SELECT 1
+            FROM {{schema}}.definitions d WITH (FORCESEEK (ux_definitions_namespace_name (namespace_id)))
+            INNER JOIN {{schema}}.schedules s WITH (FORCESEEK (ux_schedules_definition_name (definition_id)))
+                ON s.definition_id = d.definition_id
+            WHERE
+                @p_namespace_id <> 1 /* NameSyntax.SystemNamespaceId */
+                AND d.namespace_id = @p_namespace_id
+                AND (
+                    (s.expression_kind_code = 30 /* ScheduleExpressionKindCode.Calendar */ AND s.expression = @p_calendar_name)
+                    OR s.availability_calendar_name = @p_calendar_name
+                )
+                AND d.definition_status_code <> 240 /* DefinitionStatusCode.Retired */
+                AND s.schedule_id NOT IN (SELECT r.schedule_id FROM @rows r))
         AND NOT EXISTS (
             SELECT 1
             FROM {{schema}}.schedules s
             INNER JOIN {{schema}}.definitions d ON d.definition_id = s.definition_id
             WHERE
-                (s.namespace_id = @p_namespace_id OR @p_namespace_id = 1 /* NameSyntax.SystemNamespaceId */)
+                @p_namespace_id = 1 /* NameSyntax.SystemNamespaceId */
                 AND (
                     (s.expression_kind_code = 30 /* ScheduleExpressionKindCode.Calendar */ AND s.expression = @p_calendar_name)
                     OR s.availability_calendar_name = @p_calendar_name

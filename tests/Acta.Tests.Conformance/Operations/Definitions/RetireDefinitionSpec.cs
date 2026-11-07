@@ -351,7 +351,7 @@ public sealed class RetireDefinitionSpec : ActaRuntimeTestBase<ConformanceFixtur
     }
 
     private async Task<int> CountDefinitionEventsAsync(int definitionId, CancellationToken ct) =>
-        await Db.From<EventEntity>().Where(e => e.DefinitionId == definitionId && e.EntityCode == EntityCode.Definition).CountAsync(ct);
+        await Db.From<EventEntity>().Where(e => e.EntityCode == EntityCode.Definition && e.EntityId == definitionId).CountAsync(ct);
 
     private async Task<(int LeaseTtl, int Ns, int WorkerId)> DepsAsync(CancellationToken ct)
     {

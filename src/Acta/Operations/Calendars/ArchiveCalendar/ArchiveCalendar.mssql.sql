@@ -33,11 +33,16 @@ BEGIN TRY
 
     IF @calendar_id IS NOT NULL
         BEGIN
+            -- A namespace's family binds its own schedules only, sought from the namespace's definitions, so with
+            -- read-committed snapshot off the count waits on no other namespace's deploy; a shared family's schedules
+            -- span every namespace, whose deploys wait for the sys schedule lock this archive holds.
             SELECT @dependent_count = COUNT(*)
-            FROM {{schema}}.schedules s
-            INNER JOIN {{schema}}.definitions d ON d.definition_id = s.definition_id
+            FROM {{schema}}.definitions d WITH (FORCESEEK (ux_definitions_namespace_name (namespace_id)))
+            INNER JOIN {{schema}}.schedules s WITH (FORCESEEK (ux_schedules_definition_name (definition_id)))
+                ON s.definition_id = d.definition_id
             WHERE
-                (s.namespace_id = @namespace_id OR @namespace_id = 1 /* NameSyntax.SystemNamespaceId */)
+                @namespace_id <> 1 /* NameSyntax.SystemNamespaceId */
+                AND d.namespace_id = @namespace_id
                 AND s.schedule_status_code <> 230 /* ScheduleStatusCode.Orphaned */
                 AND d.definition_status_code <> 240 /* DefinitionStatusCode.Retired */
                 AND (
@@ -47,6 +52,23 @@ BEGIN TRY
                     )
                     OR s.availability_calendar_name = @p_calendar_name
                 );
+
+            IF @namespace_id = 1 /* NameSyntax.SystemNamespaceId */
+                BEGIN
+                    SELECT @dependent_count = COUNT(*)
+                    FROM {{schema}}.schedules s
+                    INNER JOIN {{schema}}.definitions d ON d.definition_id = s.definition_id
+                    WHERE
+                        s.schedule_status_code <> 230 /* ScheduleStatusCode.Orphaned */
+                        AND d.definition_status_code <> 240 /* DefinitionStatusCode.Retired */
+                        AND (
+                            (
+                                s.expression_kind_code = 30 /* ScheduleExpressionKindCode.Calendar */
+                                AND s.expression = @p_calendar_name
+                            )
+                            OR s.availability_calendar_name = @p_calendar_name
+                        );
+                END;
 
             IF @version = @p_expected_current_version AND @dependent_count = 0
                 BEGIN

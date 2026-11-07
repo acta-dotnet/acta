@@ -11,8 +11,9 @@ using Xunit;
 namespace Acta.Tests.Conformance.SqlServer.Features.Schedules;
 
 /// <summary>
-/// A deploy holds the schedules it writes until it commits, so on SQL Server every other read of schedules either seeks
-/// its own namespace's rows or takes no lock: a scan with read-committed snapshot off waits on that deploy.
+/// A deploy holds the schedules it writes until it commits, so on SQL Server every other read of one namespace's
+/// schedules either seeks that namespace's rows or takes no lock: a scan with read-committed snapshot off waits on that
+/// deploy. The facts that read without a transaction tell the two apart only with the option off.
 /// </summary>
 public sealed class SqlServerScheduleReadLockTests : ActaRuntimeTestBase<SqlServerConformanceFixture, TestJobsManifest>
 {
@@ -49,6 +50,38 @@ public sealed class SqlServerScheduleReadLockTests : ActaRuntimeTestBase<SqlServ
         var first = await Task.WhenAny(overview, Task.Delay(SpecWaits.Gate, ct));
         Assert.True(first == overview, "the overview waited on an uncommitted schedule state");
         await overview;
+    }
+
+    [Fact(DisplayName = "An admission pass's read waits on no other namespace's uncommitted schedule")]
+    public async Task Admission_read_seeks_its_own_namespace()
+    {
+        var ct = TestContext.Current.CancellationToken;
+        var other = await new ActaTestSeeder(Db).SeedJobNamespaceAsync(Unique("other"), ownerTeam: "test", ct: ct);
+        await using var holder = await Db.OpenConnectionAsync(ct);
+        await using var hold = await holder.BeginTransactionAsync(ct);
+        await HoldAsync(hold, $"UPDATE {Db.Schema}.schedules SET version = version WHERE schedule_id = @id", ct);
+
+        var due = Services.GetRequiredService<SchedulesOperations>().ListDueSchedulesAsync(other, DateTime.UtcNow, 100, ct);
+        var first = await Task.WhenAny(due, Task.Delay(SpecWaits.Gate, ct));
+        Assert.True(first == due, "the admission read waited on another namespace's schedule");
+        Assert.Empty((await due).Schedules);
+    }
+
+    [Fact(DisplayName = "A namespace calendar's plan read waits on no other namespace's uncommitted schedule")]
+    public async Task Calendar_plan_read_seeks_its_own_namespace()
+    {
+        var ct = TestContext.Current.CancellationToken;
+        var other = await new ActaTestSeeder(Db).SeedJobNamespaceAsync(Unique("other"), ownerTeam: "test", ct: ct);
+        await using var holder = await Db.OpenConnectionAsync(ct);
+        await using var hold = await holder.BeginTransactionAsync(ct);
+        await HoldAsync(hold, $"UPDATE {Db.Schema}.schedules SET version = version WHERE schedule_id = @id", ct);
+
+        var bound = Services
+            .GetRequiredService<ListCalendarSchedulesHandler>()
+            .HandleAsync(new ListCalendarSchedulesQuery(other, "holidays"), ct);
+        var first = await Task.WhenAny(bound, Task.Delay(SpecWaits.Gate, ct));
+        Assert.True(first == bound, "the calendar plan read waited on another namespace's schedule");
+        Assert.Empty((await bound).Schedules);
     }
 
     /// <summary>

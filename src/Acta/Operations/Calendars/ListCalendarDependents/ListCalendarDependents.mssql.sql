@@ -1,5 +1,6 @@
 -- One keyset page of the schedules naming the family, by path then binding: a schedule naming it both as its calendar
--- and as its availability filter is two rows, and a shared family in sys binds the name in every namespace.
+-- and as its availability filter is two rows, and a shared family in sys binds the name in every namespace. No index
+-- finds them, so for display each scan skips a row another transaction holds, a deploy's included.
 SELECT TOP (@p_take)
     x.job_namespace,
     x.job_name,
@@ -15,9 +16,9 @@ FROM (
         10 /* CalendarRoleCode.Occurrence */ AS binding,
         s.schedule_status_code AS status,
         d.scheduled_delivery_code AS scheduled_delivery
-    FROM {{schema}}.schedules s
-    JOIN {{schema}}.definitions d ON d.definition_id = s.definition_id
-    JOIN {{schema}}.namespaces n ON n.namespace_id = s.namespace_id
+    FROM {{schema}}.schedules s WITH (READCOMMITTEDLOCK, READPAST)
+    JOIN {{schema}}.definitions d WITH (READCOMMITTEDLOCK, READPAST) ON d.definition_id = s.definition_id
+    JOIN {{schema}}.namespaces n WITH (READCOMMITTEDLOCK, READPAST) ON n.namespace_id = s.namespace_id
     CROSS JOIN (
         SELECT DISTINCT f.namespace_id
         FROM {{schema}}.namespaces f
@@ -36,9 +37,9 @@ FROM (
         20 /* CalendarRoleCode.Availability */ AS binding,
         s.schedule_status_code AS status,
         d.scheduled_delivery_code AS scheduled_delivery
-    FROM {{schema}}.schedules s
-    JOIN {{schema}}.definitions d ON d.definition_id = s.definition_id
-    JOIN {{schema}}.namespaces n ON n.namespace_id = s.namespace_id
+    FROM {{schema}}.schedules s WITH (READCOMMITTEDLOCK, READPAST)
+    JOIN {{schema}}.definitions d WITH (READCOMMITTEDLOCK, READPAST) ON d.definition_id = s.definition_id
+    JOIN {{schema}}.namespaces n WITH (READCOMMITTEDLOCK, READPAST) ON n.namespace_id = s.namespace_id
     CROSS JOIN (
         SELECT DISTINCT f.namespace_id
         FROM {{schema}}.namespaces f
@@ -70,7 +71,7 @@ ORDER BY x.job_namespace, x.job_name, x.schedule_name, x.binding;
 -- One row per binding: a schedule naming the family both ways counts twice, as it lists twice.
 SELECT CASE WHEN @p_include_total IS NOT NULL THEN (
     SELECT COUNT(*)
-    FROM {{schema}}.schedules s
+    FROM {{schema}}.schedules s WITH (READCOMMITTEDLOCK, READPAST)
     CROSS JOIN (
         SELECT DISTINCT f.namespace_id
         FROM {{schema}}.namespaces f
@@ -83,7 +84,7 @@ SELECT CASE WHEN @p_include_total IS NOT NULL THEN (
         AND s.expression = @p_calendar_name
 ) + (
     SELECT COUNT(*)
-    FROM {{schema}}.schedules s
+    FROM {{schema}}.schedules s WITH (READCOMMITTEDLOCK, READPAST)
     CROSS JOIN (
         SELECT DISTINCT f.namespace_id
         FROM {{schema}}.namespaces f

@@ -221,6 +221,13 @@ filter so the hint always compiles:
   A deploy holds the rows it writes until it commits and serializes only
   with deploys of its own namespace, so a statement that scanned would lock, or with `READ_COMMITTED_SNAPSHOT` off wait
   on, every namespace's rows; concurrent deploys of different namespaces deadlocked that way.
+- Every other read of one namespace's schedules seeks that namespace's rows too: an admission pass's read seeks its due
+  schedules through `ix_schedules_state_due` and each member of their permanent jobs through `ix_schedules_job`, its
+  apply reads the jobs and roots its evidence names by key, and a
+  namespace calendar's plan read, a publication's check for a schedule its plan missed, and an archive's count of the
+  family's schedules start from the namespace's definitions. A draft's name check seeks the sys namespace's family. A
+  shared family's schedules span every namespace, which no index reaches: its publication and archive hold the sys
+  schedule lock every deploy takes shared, and its plan read skips a row another transaction holds.
 
 The claim and the completion read `jobs` and `jobs_state` without locks, through joins from a table
 variable, and pin those joins with `FORCESEEK` too: the same stale estimate turns them into a scan whose
@@ -249,8 +256,9 @@ so three rules decide every read on SQL Server:
    `READCOMMITTEDLOCK, READPAST`, the same locking read with the option on or off, and is either
    re-checked under the reader's own lock or used only for display. That covers the claim's horizon,
    the recovery walks and stale-latch read, the retention walks, the heartbeat, retire's two reads, the
-   outbox lane check and backlog count ("Outbox lock"), and the dashboard's job lists and their
-   totals and lane probes.
+   outbox lane check and backlog count ("Outbox lock"), the dashboard's job lists and their
+   totals and lane probes, the namespaces list and the calendar dependents list with their totals, and a shared
+   calendar's plan read, which its publication's check re-reads under the sys schedule lock.
 3. The overview's job and schedule counts and the lineage map read dirty with `NOLOCK`: they are for display, so
    they take no lock and never wait, and they can include a row a transaction has not committed yet.
 

@@ -330,11 +330,13 @@ BEGIN TRY
         ) x
         INNER JOIN @valid v ON v.ordinal = x.group_ordinal
         INNER JOIN @groups g ON g.ordinal = x.group_ordinal
-        INNER JOIN {{schema}}.schedules js ON js.schedule_id = x.schedule_id
-        INNER JOIN {{schema}}.definitions jd ON jd.definition_id = js.definition_id
-        LEFT JOIN {{schema}}.jobs j ON j.job_id = g.job_id
-        LEFT JOIN {{schema}}.jobs_state r ON r.job_id = g.job_id
-        LEFT JOIN {{schema}}.jobs root ON root.job_ref = g.job_ref
+        -- Sought by key: two admissions in different namespaces each hold the jobs they just wrote, and a scan here waited
+        -- on the other's with read-committed snapshot off.
+        INNER JOIN {{schema}}.schedules js WITH (FORCESEEK) ON js.schedule_id = x.schedule_id
+        INNER JOIN {{schema}}.definitions jd WITH (FORCESEEK) ON jd.definition_id = js.definition_id
+        LEFT JOIN {{schema}}.jobs j WITH (FORCESEEK) ON j.job_id = g.job_id
+        LEFT JOIN {{schema}}.jobs_state r WITH (FORCESEEK) ON r.job_id = g.job_id
+        LEFT JOIN {{schema}}.jobs root WITH (FORCESEEK) ON root.job_ref = g.job_ref
     ) k
     WHERE k.event_recording_code = 20 /* EventRecordingCode.Audit */ AND k.details IS NOT NULL
     ORDER BY k.schedule_id, k.ord;

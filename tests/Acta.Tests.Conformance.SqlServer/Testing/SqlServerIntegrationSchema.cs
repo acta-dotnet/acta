@@ -73,6 +73,11 @@ public sealed class SqlServerIntegrationSchema : IIntegrationSchema
 
         EnsureTestTarget(builder.InitialCatalog, IntegrationConfig.TestSchemaName);
 
+        if (IntegrationConfig.SqlServerRcsiOff)
+        {
+            await TestDdl.RunAsync(() => DropRcsiOffCatalogAsync(builder));
+        }
+
         // Ensure the database exists with the migrations applied, behind the test DDL gate.
         await TestDdl.RunAsync(() =>
             SqlServerSchemaMigrator.EnsureDatabaseAndApplyAsync(connectionString, IntegrationConfig.TestSchemaName, CancellationToken.None)
@@ -101,6 +106,35 @@ public sealed class SqlServerIntegrationSchema : IIntegrationSchema
         }
 
         return connectionString;
+    }
+
+    /// <summary>
+    /// Drops the read-committed-snapshot-off catalog, so each such run provisions it afresh: rows a catalog piles up
+    /// across runs turn plans into scans, which the option off makes locking reads.
+    /// </summary>
+    private static async Task DropRcsiOffCatalogAsync(SqlConnectionStringBuilder target)
+    {
+        if (!target.InitialCatalog.EndsWith("-rcsioff", StringComparison.Ordinal))
+        {
+            throw new InvalidOperationException($"Refusing to drop '{target.InitialCatalog}': only an -rcsioff test catalog is dropped.");
+        }
+
+        var master = new SqlConnectionStringBuilder(target.ConnectionString) { InitialCatalog = "master" };
+        await using var conn = new SqlConnection(master.ConnectionString);
+        await conn.OpenAsync();
+        await using var cmd = conn.CreateCommand();
+        cmd.CommandText = """
+            IF DB_ID(@name) IS NOT NULL
+            BEGIN
+                DECLARE @sql NVARCHAR(MAX) = N'ALTER DATABASE ' + QUOTENAME(@name) + N' SET SINGLE_USER WITH ROLLBACK IMMEDIATE; '
+                    + N'DROP DATABASE ' + QUOTENAME(@name) + N';';
+                EXEC (@sql);
+            END
+            """;
+        cmd.Parameters.Add(new SqlParameter("@name", SqlDbType.NVarChar, 128) { Value = target.InitialCatalog });
+        await cmd.ExecuteNonQueryAsync();
+        // The drop ended every session in the catalog; drop the pooled ones so the provisioning draws none.
+        SqlConnection.ClearAllPools();
     }
 
     private static async Task ThrowIfNamespaceIdSpaceExhaustedAsync(SqlConnection conn)

@@ -6,7 +6,8 @@ SELECT TOP (@p_take)
     ns.description,
     ns.deployment_version,
     ns.version
-FROM {{schema}}.namespaces ns
+-- A name search scans, so for display it skips a row another transaction holds, a deploy's included.
+FROM {{schema}}.namespaces ns WITH (READCOMMITTEDLOCK, READPAST)
 WHERE
     (@p_name_search IS NULL OR ns.namespace_name LIKE @p_name_search)
     AND (@p_namespace_status_code IS NULL OR ns.namespace_status_code = @p_namespace_status_code)
@@ -28,7 +29,7 @@ ORDER BY ns.namespace_name ASC;
 
 SELECT CASE WHEN @p_include_total IS NOT NULL THEN (
     SELECT COUNT(*)
-    FROM {{schema}}.namespaces ns
+    FROM {{schema}}.namespaces ns WITH (READCOMMITTEDLOCK, READPAST)
     WHERE
         (@p_name_search IS NULL OR ns.namespace_name LIKE @p_name_search)
         AND (@p_namespace_status_code IS NULL OR ns.namespace_status_code = @p_namespace_status_code)

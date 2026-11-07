@@ -66,7 +66,7 @@ Docker notes (all optional):
 |---|---|---|
 | `ConnectionStrings:acta` / `ConnectionStrings__acta` | apps, demos, concepts | primary connection override |
 | `ACTA_TEST_PG` / `ACTA_TEST_MSSQL` | apps + conformance tests | provider connection string |
-| `ACTA_TEST_MSSQL_RCSI` | SQL Server conformance tests | `off` runs the suite with `READ_COMMITTED_SNAPSHOT` off, against the `ACTA_TEST_MSSQL` catalog name plus `-rcsioff` |
+| `ACTA_TEST_MSSQL_RCSI` | SQL Server conformance tests | `off` runs the suite with `READ_COMMITTED_SNAPSHOT` off, against the `ACTA_TEST_MSSQL` catalog name plus `-rcsioff`, which each run drops and provisions afresh |
 | `ACTA_TEST_REDIS` | Redis wakeup concept and tests | Redis endpoint |
 | `ACTA_LOCAL_PROVIDER` | concepts, demos | provider selector; SQLite default, `postgres` or `sqlserver` to opt in |
 
