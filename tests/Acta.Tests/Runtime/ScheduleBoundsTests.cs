@@ -22,10 +22,17 @@ public sealed class ScheduleBoundsTests
 
     private static ScheduleSource Bare(ScheduleTiming timing) => new(timing, null, null);
 
-    private static ScheduleEvaluation Evaluate(ScheduleTiming timing, DateTime cursor, DateTime now, MisfireStrategyCode misfire) =>
+    private static ScheduleEvaluation Evaluate(
+        ScheduleTiming timing,
+        DateTime cursor,
+        DateTime now,
+        MisfireStrategyCode misfire,
+        TimeSpan? expireAfter = null,
+        ScheduleExpireActionCode expireAction = ScheduleExpireActionCode.Unspecified
+    ) =>
         ScheduleEvaluator.Evaluate(
             Bare(timing),
-            new SchedulePolicy(misfire, Grace, null, ScheduleExpireActionCode.Unspecified),
+            new SchedulePolicy(misfire, Grace, expireAfter, expireAction),
             new ScheduleCursor(cursor, ScheduleStatusCode.Active, null),
             AdmissionCapacity.Available,
             now
@@ -176,6 +183,55 @@ public sealed class ScheduleBoundsTests
         Assert.Equal(new AdmittedOccurrence(Utc(10, 6), Utc(10, 6)), last.Admit);
         Assert.Null(last.NextOccurrenceAtUtc);
         Assert.Equal(ScheduleEvaluationStatusCode.Exhausted, last.Status);
+    }
+
+    [Fact]
+    public void An_expiry_with_the_end_inside_the_backlog_expires_through_the_last_occurrence_and_exhausts()
+    {
+        // Every minute from 10:05, the end at 10:08, evaluated at 10:30 with a ten-minute expiry: 10:05 to 10:07 are
+        // expired, nothing is admitted, and nothing follows.
+        var cron = Cron("* * * * *", end: Utc(10, 8));
+
+        var discarded = Evaluate(
+            cron,
+            Utc(10, 5),
+            Utc(10, 30),
+            MisfireStrategyCode.CatchUpAll,
+            TimeSpan.FromMinutes(10),
+            ScheduleExpireActionCode.Discard
+        );
+        Assert.Null(discarded.Admit);
+        Assert.Equal(Utc(10, 5), discarded.ExpiredFromUtc);
+        Assert.Equal(Utc(10, 7), discarded.ExpiredThroughUtc);
+        Assert.Null(discarded.NextOccurrenceAtUtc);
+        Assert.Equal(ScheduleEvaluationStatusCode.Exhausted, discarded.Status);
+
+        var paused = Evaluate(
+            cron,
+            Utc(10, 5),
+            Utc(10, 30),
+            MisfireStrategyCode.CatchUpAll,
+            TimeSpan.FromMinutes(10),
+            ScheduleExpireActionCode.Pause
+        );
+        Assert.True(paused.PausedByExpiry);
+        Assert.Equal(Utc(10, 7), paused.ExpiredThroughUtc);
+        Assert.Null(paused.NextOccurrenceAtUtc);
+    }
+
+    [Fact]
+    public void A_cursor_at_the_start_is_admitted_as_the_sources_own_occurrence()
+    {
+        // The start itself is an occurrence when the source produces it, so the cursor is not healed as withdrawn.
+        var cron = Evaluate(Cron("* * * * *", start: Utc(10, 5)), Utc(10, 5), Utc(10, 5, 20), MisfireStrategyCode.Skip);
+        Assert.Equal(new AdmittedOccurrence(Utc(10, 5), Utc(10, 5)), cron.Admit);
+        Assert.False(cron.SourceChanged);
+        Assert.Equal(Utc(10, 6), cron.NextOccurrenceAtUtc);
+
+        var interval = Evaluate(Interval("PT1M", Utc(10, 5), start: Utc(10, 5)), Utc(10, 5), Utc(10, 5, 20), MisfireStrategyCode.Skip);
+        Assert.Equal(new AdmittedOccurrence(Utc(10, 5), Utc(10, 5)), interval.Admit);
+        Assert.False(interval.SourceChanged);
+        Assert.Equal(Utc(10, 6), interval.NextOccurrenceAtUtc);
     }
 
     [Fact]

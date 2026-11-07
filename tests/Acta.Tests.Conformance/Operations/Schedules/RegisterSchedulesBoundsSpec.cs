@@ -78,6 +78,21 @@ public sealed class RegisterSchedulesBoundsSpec : ActaStorageTestBase<Conformanc
         Assert.Equal(1, await CountEventsAsync(slotId, EventCode.ScheduleRetimed, ct));
     }
 
+    [Fact(DisplayName = "A schedule with a start ahead registers with the start as its first occurrence")]
+    public async Task A_schedule_with_a_start_ahead_registers_at_the_start()
+    {
+        var ct = TestContext.Current.CancellationToken;
+        var jobName = Unique("ahead");
+        var map = await DefinitionTestOps.RegisterAsync(Services, TestNamespaceId, Generation, [Def(jobName)], ct);
+
+        // Every five minutes from an hour after the registration instant: the start is on the grid, so it is the first.
+        var slotId = await PlanAndRegisterAsync(map[jobName], jobName, Generation.AddHours(1), null, ct);
+
+        var row = Assert.Single(await ScheduleTestOps.ReadAsync(Db, slotId, ct));
+        Assert.Equal(Generation.AddHours(1), row.NextOccurrenceAtUtc);
+        Assert.Equal(ScheduleEvaluationStatusCode.Scheduled, row.EvaluationStatus);
+    }
+
     [Fact(
         DisplayName = "A trigger fires a schedule past its end, since the bounds are about the cadence and a trigger is an operator's act"
     )]

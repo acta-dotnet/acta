@@ -40,8 +40,8 @@ internal static class NextOccurrenceCalculator
     /// <summary>
     /// Next occurrence strictly after <paramref name="afterUtc"/>. An interval steps on its anchor's grid, or from
     /// <paramref name="afterUtc"/> itself when the timing has no anchor. Null when the source is exhausted: an
-    /// unsatisfiable cron (e.g. <c>0 0 30 2 *</c>), a non-positive interval, a calendar with no instant left, or an
-    /// availability calendar with no open window left.
+    /// unsatisfiable cron (e.g. <c>0 0 30 2 *</c>), a non-positive interval, a calendar with no instant left, an
+    /// availability calendar with no open window left, or nothing before the timing's end.
     /// </summary>
     public static DateTime? Next(ScheduleSource source, DateTime afterUtc)
     {

@@ -2149,6 +2149,7 @@
 - **Guarantees:**
   - A schedule's bounds are stored and read back, and dropping them is a timing change
   - A schedule past its end registers exhausted, and a build that extends the end retimes it and brings it back
+  - A schedule with a start ahead registers with the start as its first occurrence
   - A trigger fires a schedule past its end, since the bounds are about the cadence and a trigger is an operator's act
 
 ### Schedule insert seeds a new cursor, keeps a stored one, and upserts one row
