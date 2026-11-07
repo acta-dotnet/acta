@@ -1,5 +1,7 @@
 # Contributing and local development
 
+What Acta is and how to use it: the [README](./README.md) and [docs/](./docs/README.md). This page is for working on the repository.
+
 > **Contributions:** bug reports, issues, and discussions are very welcome. Code PRs are paused for now; please open an issue before sending one so we can talk it through first. Exceptions are possible case by case.
 
 ## Prerequisites
@@ -863,15 +865,7 @@ support/    local-hosting helpers shared by concepts, demos, and Anvil (not ship
 tools/      Acta.Verify (headless evidence suite), Acta.Emit (generated references)
 ```
 
-## Reading the source
-
-The shortest paths to the design-review-worthy parts:
-
-* **Source-generated dispatch, AOT-clean by construction.** `Acta.Generators` emits a per-assembly manifest (`{Area}JobsManifest`), per-handler invokers, and type-to-descriptor routing; no reflection runs on the dispatch hot path. The one caveat is the default JSON payload path, which uses reflection unless you supply a source-generated `JsonSerializerContext` (`j.UseJsonPayloads(...)`). Typed enqueue is not an escape hatch: it serializes through the same configured serializer.
-* **One handler per operation across three engines.** Each operation's handler in `Acta` builds its command and maps its rows once; PostgreSQL, SQL Server, and SQLite each own only a dialect and the operation's executable SQL, held to the same behavior by the conformance suite.
-* **SQL beside its operation.** Every dialect's SQL for an operation sits in one folder, `src/Acta/Operations/<Group>/<Operation>/<Operation>.{pg,mssql,sqlite}.sql` (a routine body is `<Operation>.routine.{pg,mssql}.sql`), beside its public types and handler, the schema bootstrap's in `Operations/Schema/`, with the operator views in `Schema/Views/`; a provider keeps its dialect class and its ordered DDL at `Migrations/`. Inline drift markers tie SQL literals to live `[Code]` values, checked in tests.
-* **Source-as-truth doc emission.** `Acta.Emit` renders the data model, code families, and initial migrations from source; CI drift-checks them.
-* **A deliberately small, symmetric data model.** Fifteen tables carry jobs, retries, schedules, steps, signals, timers, lanes, workers, alerts, and tenants; table count is a budget (see [`docs/architecture-decisions.md`](./docs/architecture-decisions.md) § substrate generality), which keeps migrations short and upgrades reviewable.
+Where to start reading, by area:
 
 | Area | Where to look |
 |---|---|
