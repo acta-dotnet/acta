@@ -47,7 +47,7 @@ scheduling.
 
 - App developers whose retries stopped being enough: the job's state became application state.
 - Platform teams who need evidence and intervention: what ran, what is stuck, pause, restart, signal.
-- AI and agent developers whose steps are expensive, long-running, tool-using, human-gated, or unsafe to restart from the top.
+- AI and agent developers whose steps are expensive, long-running, tool-using, human-gated, or unsafe to restart from the top: a recorded step's output is not paid for twice, and an approval gate waits for days without holding a worker.
 
 ## Use Acta when
 
@@ -86,22 +86,6 @@ scheduling.
 | A job must not repeat blindly | Deduplication keys, durable steps, locks, concurrency keys, and at-most-once step policy |
 | Operators need control | Pause, resume, cancel, restart, signal, debug, explain, and schedule pause/resume |
 | Teams do not want more infrastructure | The worker is the app process; durable state is the app database |
-
-## Atomic enqueue with business data
-
-When a business-data change and an Acta enqueue must commit or roll back together, the path depends on
-where the two live:
-
-| Situation | Use |
-| --- | --- |
-| Business data and the Acta ledger share one database, and you own an explicit transaction | Direct transactional `IJobs` enqueue: pass your `DbTransaction` to the enqueue overload |
-| The business data is in a different database | The external outbox: stage an `acta_outbox` row with `AddToActaOutboxAsync` on your provider transaction, and an Acta-owned relay ingests it |
-| An EF Core application, either of the above | The same two paths, holding the transaction via `Database.GetDbTransaction()`. There is no Acta EF package |
-| Any ORM wrapping the provider transaction | The same two paths, once the ORM exposes or unwraps the native transaction (OrmLite: `ToDbTransaction()` then a concrete cast) |
-| You want a single universal exactly-once guarantee | Neither. Execution is at-least-once; handlers own idempotency for external side effects |
-
-Full walkthrough, including the canonical table, cadence, and quarantine policy:
-[Transactional enqueue and the external outbox](./developer-guide.md#transactional-enqueue-and-the-external-outbox).
 
 ## If you already use Hangfire, Quartz, or TickerQ
 
@@ -227,65 +211,14 @@ control actions.
 - Wrap side effects in durable steps so a retry skips the ones that completed; a crash before a step records its outcome can still repeat it, so the side effect needs an idempotency key or `AtMostOnce()`.
 - Teach operators to start with `jobs_view`, `events_view`, the dashboard, and `jobs explain`.
 
-## AI and agent steps
-
-A retried agent step repeats latency, tokens, tool calls, and a human approval, and a
-nondeterministic model does not repeat the same output. Your AI can reason again; it should not have
-to do the work again. "Persist the output of this step" is also easier to explain than deterministic
-replay.
-
-Acta sits underneath agent frameworks (Semantic Kernel, the OpenAI SDK, a custom loop) and gets no
-`Agent`, `Prompt`, or `LLM` types, ever. It does not care whether a step calls a model, Stripe, or
-FFmpeg. The primitives are general: `RunStepAsync` persists a completed step's output so it is not
-paid for twice, `SleepAsync` and `WaitSignalAsync` hold a human-approval gate for days without
-holding a worker, and `MapAsync` fans a batch out with lineage. Durable variables
-(`GetOrSetVariableAsync`) and `SetProgressAsync` give the agent working memory that survives the
-process: another worker can resume the job and find the plan, the partial results, and how far it
-got.
-
-## Physical processes and layered systems
-
-The same shape holds where the work is physical. The layering is ERP -> Acta (durable
-business/process coordination) -> MES / SCADA / APIs / operators -> machines. Acta is not an MES,
-SCADA, or PLC system and never touches real-time or safety control. The shape generalizes: ERP ->
-Acta -> payment rails, or agent framework -> Acta -> model and tool APIs.
-
-The durable wait here is one the reader already knows is real: a six-hour cure, a cooldown, a
-maintenance window. Nobody argues it should hold a thread, and `SleepAsync` and `WaitSignalAsync`
-are the same primitive either way.
-
-When a step is physically consequential, a repeated step is a physical event: a second machine
-command, a second label. For those steps, see
-[At-most-once steps](./developer-guide.md#at-most-once-steps).
-
-## The smallest scheduled job
-
-Use a scheduled Acta job when the interval matters enough to be durable and visible:
-
-```csharp
-public sealed class CleanupJobs
-{
-    [Job("cleanup-expired-sessions")]
-    [Schedule("every-5-minutes", "*/5 * * * *")]
-    public Task CleanupExpiredSessions(CancellationToken ct)
-    {
-        return Task.CompletedTask;
-    }
-}
-```
-
-During local demos, use a short interval such as `10s` so the run is visible. In production, use the
-business cadence as a cron expression, or as a plain interval such as `5m` or `1h`. For common cron
-expressions, the `Cron` constants read better: `Cron.Every5Minutes`, `Cron.DailyAt5`, `Cron.Weekdays`.
-
-For a runnable first pass, start with [your first job](./first-job.md). For the unusual implementation
-ideas Acta can demonstrate live, read [Acta Engineering Labs](./engineering-labs.md). What evidence
-stands behind the reliability claims, and what does not exist yet, is in
-[Compatibility and support, evidence behind the claims](./compatibility-and-support.md#evidence-behind-the-claims).
-
 ## Rule of thumb
 
 Use `BackgroundService` or platform scheduling for disposable local loops.
 
 Use Acta for durable application work that someone will later need to inspect, retry, pause, resume,
 signal, debug, or explain.
+
+For a runnable first pass, start with [your first job](./first-job.md). For the unusual implementation
+ideas Acta can demonstrate live, read [Acta Engineering Labs](./engineering-labs.md). What evidence
+stands behind the reliability claims, and what does not exist yet, is in
+[Compatibility and support, evidence behind the claims](./compatibility-and-support.md#evidence-behind-the-claims).

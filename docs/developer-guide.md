@@ -759,7 +759,7 @@ Receipt sent = (await receipt.WaitAsync()).ValueOrThrow();
 
 ## Transactional enqueue and the external outbox
 
-When a business change and an enqueue must commit or roll back together, use the direct transactional enqueue if the business data and the Acta ledger share one database, and the external outbox if they do not. Neither makes execution exactly-once: handlers still own the idempotency of their side effects. [Choosing Acta](./choosing-acta.md#atomic-enqueue-with-business-data) helps decide.
+When a business change and an enqueue must commit or roll back together, use the direct transactional enqueue if the business data and the Acta ledger share one database, and the external outbox if they do not. Neither makes execution exactly-once: handlers still own the idempotency of their side effects.
 
 ### Direct transactional enqueue
 
