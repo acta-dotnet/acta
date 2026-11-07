@@ -297,6 +297,10 @@ HTTP enqueue in the json format sends strict JSON (one value, no comments or tra
   `ScheduledDelivery = ScheduledDeliveryCode.PerOccurrence`: each occurrence is then a root job of its
   own, and the children it starts drain with it.
 
+## The HTTP API
+
+`Acta.AspNetCore` serves Acta's operations over HTTP: `MapActaApi` maps the API alone, and `MapActa` from `Acta.Dashboard` maps it under `{pattern}/api/v1` beside the dashboard. Its contract is the OpenAPI document `docs/reference/openapi.json` in the repository. Generate a client from that document with standard OpenAPI tools; Acta ships no client package.
+
 ## When you are unsure
 
 Every pattern above exists as a compiled, runnable example under `concepts/` in the repository:

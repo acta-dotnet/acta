@@ -48,7 +48,7 @@ Each line is one thing you are trying to do, with the shortest complete path thr
 - [Data model](./reference/data-model.md): which tables, columns, indexes, and constraints does Acta store?
 - [Code families](./reference/code-families.md): what does each persisted numeric code mean?
 - Schema scripts ([pg](./reference/schema-pg.sql), [mssql](./reference/schema-mssql.sql), [sqlite](./reference/schema-sqlite.sql)): what does a DBA run to provision a database when the application principal is not allowed DDL? Each is the provider's complete SQL: migrations, views, and routines.
-- [HTTP API contract](./reference/openapi.json): what does the dashboard JSON API accept and return? It is the API's OpenAPI document.
+- [HTTP API contract](./reference/openapi.json): what does the HTTP API of `Acta.AspNetCore` accept and return? It is the API's OpenAPI document, and standard OpenAPI tools generate a client from it.
 - [Conformance contracts](./reference/conformance-contracts.md): which behaviors are specified, and which arrange/act/assert proves each one?
 - [Operations index](./reference/operations.md): which facade method, HTTP routes, CLI verb, SQL, and specs carry each operation?
 
