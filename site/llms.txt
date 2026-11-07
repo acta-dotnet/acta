@@ -91,8 +91,9 @@ public static class ShippingHandlers
   Publish it before the deploy of the jobs that name it: a deploy whose schedule names a calendar with no
   published version fails and writes nothing. The page is `docs/scheduling.md`.
 - Each job's member on `ShippingJobs` is a factory taking the handler's input parameters and returning the
-  job's call: `jobs.EnqueueAsync(ShippingJobs.ShipOrder(new ShipOrder(orderId)), o => o.DeduplicationKey(key))`
-  names the job outright, and a result job's call answers `JobHandle<TResult>`. A handler may take several input parameters before `JobContext` and
+  job's call: `jobs.EnqueueAsync(ShippingJobs.ShipOrder(new ShipOrder(orderId)))` names the job outright, and a
+  result job's call answers `JobHandle<TResult>`. An enqueue that reads no result can pass the input alone, options
+  included: `jobs.EnqueueAsync(new ShipOrder(orderId), o => o.DeduplicationKey(key))`. A handler may take several input parameters before `JobContext` and
   `CancellationToken`; they travel as one generated record, `ShippingJobs.{Job}Args`, whose parameter names
   are stored JSON keys. Under Native AOT, declare the input record yourself and take it as the one parameter.
 - Handlers resolve through DI: an instance class's constructor dependencies must be registered.

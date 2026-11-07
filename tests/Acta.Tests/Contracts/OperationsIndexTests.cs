@@ -443,8 +443,9 @@ public sealed partial class OperationsIndexTests
         return found;
     }
 
-    // A route names its ActaOperationAttribute either as a route helper's argument, new("id", ActaPermissions.X), or in
-    // the chain after the Map call, .WithMetadata(new ActaOperationAttribute("id", ActaPermissions.X)).
+    // A route names its ActaOperationAttribute either as a route helper's argument, new("id", ActaPermissions.X), or
+    // somewhere in its fluent chain, .WithMetadata(new ActaOperationAttribute("id", ActaPermissions.X)); the first one
+    // the chain holds, in document order, is the route's.
     private static string Permission(InvocationExpressionSyntax map, string file)
     {
         SyntaxNode chain = map;

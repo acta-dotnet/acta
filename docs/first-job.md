@@ -36,8 +36,7 @@ public sealed record PrintLabel(string TrackingNumber);
 
 public sealed class OrderHandlers(LabelPrinter printer)
 {
-    // A result-bearing job: the generated call ShippingJobs.ShipOrder(...) carries the result type, so the
-    // handle it answers is a JobHandle<ShipmentLabel>.
+    // A result-bearing job: its handler returns the shipment label.
     [Job("ship-order")]
     public Task<ShipmentLabel> Ship(ShipOrder input, CancellationToken ct) =>
         Task.FromResult(new ShipmentLabel(input.OrderId, "acme-post", $"AP{input.OrderId:D8}"));
@@ -86,7 +85,7 @@ builder.Services.UseActa(j =>
 var app = builder.Build();
 app.MapActa("/acta"); // dashboard + JSON API; local-only by default, controls disabled
 
-// Enqueue by the input's type: nothing here reads the result, so the record alone names the job. The ref in the
+// Enqueue by the input's type: nothing here reads the result, so the input is all the enqueue needs. The ref in the
 // response is the job's public identity: logs, support, and the URLs below all carry it, never the numeric id.
 app.MapPost(
     "/orders/{orderId:int}",
@@ -176,10 +175,10 @@ curl -X POST http://localhost:5090/orders/1043/ship-now  # 200 with the label: e
 `jobs.EnqueueAsync(ShippingJobs.ShipOrder(new ShipOrder(1042)))` goes through the generated call on
 the manifest: it names the job outright and carries the handler's result type, so it answers a
 `JobHandle<ShipmentLabel>` whose `WaitAsync` and `GetResultAsync` are typed. Use the generated call
-when you read the result, and whenever two handlers could take the same input type: the sample's
-`/orders/{orderId}` enqueues by the input, and `/orders/{orderId}/ship-now`, which reads the label,
-through the call. `ScheduleAsync` takes the same forms with a delay or an instant and answers the
-same handles.
+when you read the result from the handle, and whenever two handlers could take the same input type.
+The sample shows both: `/orders/{orderId}` reads no result and enqueues by the input;
+`/orders/{orderId}/ship-now` reads the label and goes through the call. `ScheduleAsync` takes the same
+forms with a delay or an instant and answers the same handles.
 
 ### The ref is the job's identity
 
@@ -219,7 +218,7 @@ delayed job never runs, a running handler sees its `CancellationToken` cancelled
 ### A wait timeout is not a cancellation
 
 `await job.WaitAsync(TimeSpan.FromSeconds(5))` follows the job to its outcome. If the outcome does not
-arrive in time, the returned `JobOutcome` has `IsTimedOut` set and nothing else happened: the job is
+arrive in time, the returned `JobOutcome<ShipmentLabel>` has `IsTimedOut` set and nothing else happened: the job is
 still queued or running, and a later read, wait, or `GetResultAsync` sees it finish. A timeout is the
 caller giving up on waiting, never the job giving up on the work.
 

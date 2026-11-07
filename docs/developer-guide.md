@@ -728,7 +728,7 @@ The meter bounds admissions, not the gaps between starts. With `R` the rate per 
 var job = await jobs.EnqueueAsync(new ShipOrder(1042));                                 // run now
 var later = await jobs.ScheduleAsync(new ShipOrder(1043), TimeSpan.FromMinutes(10));    // run once, later
 var receipt = await jobs.EnqueueAsync(BillingJobs.SendInvoice(new SendInvoice(7)));     // JobHandle<Receipt>
-var once = await jobs.EnqueueAsync(BillingJobs.SendInvoice(new SendInvoice(8)), o => o.DeduplicationKey("invoice-8"));
+var once = await jobs.EnqueueAsync(new SendInvoice(8), o => o.DeduplicationKey("invoice-8"));
 
 JobOutcome outcome = await job.WaitAsync(TimeSpan.FromSeconds(30));
 Receipt sent = (await receipt.WaitAsync()).ValueOrThrow();

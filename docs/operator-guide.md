@@ -797,14 +797,14 @@ included, is one durable system.
 
 - `SysCritical` is for Acta's own jobs. `None` turns off automatic alerts only; `ctx.AlertAsync` still raises manual ones.
 - A `Cancelled` job never alerts, whether an operator, `ctx.CancelAsync`, or a deadline cancelled it. Budget-neutral re-arms (a held concurrency key, a rate limit, a step retry) do not alert either.
-- Automatic alerts are independent of the recording level: an enabled alert profile captures the failed, orphaned, terminal, and recovery transitions durably even at `EventRecording = Off`, so every profile fires and resolves the same at every level.
+- Automatic alerts are independent of the recording level: an enabled alert profile captures the failed, orphaned, terminal, and recovery transitions durably even at `EventRecording = Off`, so every profile fires the same at every level, and resolves the same except where [known limitations](./known-limitations.md#execution-model) say a permanent job's does not.
 - For recurring work use `OnFailure`: a permanent job's failures never land `Failed` (a spent budget returns it to `Idle`), so `OnTerminal` and `Info` stay silent for them.
 
 ### Incidents
 
 An automatic alert is an incident: one open row per job, kind (`FirstFailure`, `ThresholdReached`, `FinalFailure`), and reason. A repeat folds into it and raises `occurrence_count`; the job's next success resolves it, and a later failure opens a new incident. `ThresholdReached` fires once, when the incident's count reaches `AlertFailureThreshold` (default 3).
 
-A one-shot job raises at most three alerts, and its incidents end with it. A permanent job's incident stays open until a fire succeeds or an operator steps in, and is delivered again every `AlertReminderInterval` (default 24 hours): an alert still open is the sign that nobody fixed it.
+A one-shot job raises at most three alerts, and its incidents end with it. A permanent job's incident stays open until a retry of the failing firing succeeds, a later fire succeeds at `Audit`, or an operator resolves it, and is delivered again every `AlertReminderInterval` (default 24 hours): an alert still open is the sign that nobody fixed it.
 
 ### Channels and delivery
 

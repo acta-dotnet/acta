@@ -20,7 +20,7 @@ builder.Services.UseActa(j =>
 var app = builder.Build();
 app.MapActa("/acta"); // dashboard + JSON API; local-only by default, controls disabled
 
-// Enqueue by the input's type: nothing here reads the result, so the record alone names the job. The ref in the
+// Enqueue by the input's type: nothing here reads the result, so the input is all the enqueue needs. The ref in the
 // response is the job's public identity: logs, support, and the URLs below all carry it, never the numeric id.
 app.MapPost(
     "/orders/{orderId:int}",

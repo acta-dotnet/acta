@@ -4,9 +4,9 @@ Known boundaries to review before using Acta in production-like environments.
 
 ## Stability status
 
-Acta 1.0 is in release candidates, and a release candidate may re-cut the schema ([release notes](./release-notes.md)),
-so every database an earlier release candidate provisioned is dropped and reprovisioned: no translation
-migration exists, and nothing in a database says which cut it came from. From 1.0.0 the public API,
+Acta 1.0 is in release candidates, and a release candidate may re-cut the schema ([release notes](./release-notes.md)).
+A database an earlier release candidate provisioned under another baseline is dropped and provisioned again: no
+migration translates one baseline into another. From 1.0.0 the public API,
 schema, and persisted codes are frozen, and the migration history with them: schema changes ship only
 as additive migrations and the baseline is never re-cut, so a database provisioned by a 1.x build
 upgrades by migration alone.
@@ -18,8 +18,7 @@ naming the baseline its history holds. A history row is still only a migration n
 applied, never a fingerprint of the schema, so an operator who adapts the applied script keeps the
 recorded row and carries the difference themselves.
 
-Reprovisioning is a manual step, and it is destructive: there is no upgrade path from a database
-provisioned before 1.0.
+Reprovisioning is a manual step, and it is destructive.
 
 ## Execution model
 
@@ -27,8 +26,8 @@ Execution is at-least-once, and a handler re-enters from the top with its comple
 
 - **A failing completion write repeats until it lands or the worker stops**, logging Warning, then Error. A database outage longer than the lease lets recovery reclaim the job and run it again, finished or not. A failing database stops intake instead of growing memory.
 - **SQLite pickup can wait a Windows timer tick.** A write that meets another commit holding SQLite's lock waits in SQLite's busy handler, which sleeps in whole milliseconds that Windows rounds up to a 15.6 ms tick, so one job at a time picks up in about 20 ms where the server providers take 3.
-- **One job row takes about 2.1 billion state changes**, about three per run, so about 700 million runs. A recurring schedule fires at most once a second, which keeps it inside the limit for decades, but a job that reschedules itself without pause at a hundred runs a second reaches it in about three months; a loop that long should enqueue a successor job instead.
-- **A worker can claim a job it has no handler for.** It hands the job back once and stops claiming that definition for its own lifetime; with no worker carrying it, the job waits Ready until a build with the handler returns or an operator retires the definition, and a long run of such jobs slows that worker's claims meanwhile.
+- **One job row takes about 2.1 billion state changes**, two or three per run, so 700 million to a billion runs. A recurring schedule fires at most once a second, which keeps it inside the limit for decades, but a job that reschedules itself without pause at a hundred runs a second reaches it in about four months; a loop that long should enqueue a successor job instead.
+- **A worker can claim a job it has no handler for.** It hands the job back once and stops claiming that definition for its own lifetime; with no worker carrying it, the job waits Ready until a build with the handler returns or an operator retires the definition, and a backlog of such jobs slows that worker's claims meanwhile.
 - **A rate limit paces admissions, not starts.** At a steady rate any `T` seconds hold at most `R*(T+W)+B` admissions, `W` being the longest a booked turn is honoured late: one second, or one interval when that is longer. A delayed reservation can be admitted next to an on-time one, so `RateLimit` alone is not a hard quota for a partner API that rejects bursts.
 - **One rate meter is one row lock**, about a thousand admissions a second cluster-wide. A turn under a quarter second away is waited out holding the executor, and a worker that dies in that wait costs the job one attempt.
 - **A handler lock stops at the namespace.** `RunWithLockAsync` keys are scoped to the job's namespace, as concurrency slots and rate meters are, so two namespaces never serialize on one key. Jobs that share one external single-writer resource belong in one namespace.
