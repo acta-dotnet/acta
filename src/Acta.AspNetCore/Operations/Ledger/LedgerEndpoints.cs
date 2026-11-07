@@ -210,6 +210,9 @@ internal static class LedgerEndpoints
                     .. QueryParameterDocExtensions.PagingCore,
                 ]
             )
+            .WithDescription(
+                "Takes no includeTotal: an event count is taken only for one job or one subject, since a wider count is unbounded work."
+            )
             .ProducesProblem(StatusCodes.Status404NotFound);
     }
 }

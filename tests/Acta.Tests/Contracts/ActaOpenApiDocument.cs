@@ -1,3 +1,4 @@
+using System.Globalization;
 using System.Reflection;
 using System.Text.Json;
 using System.Text.Json.Nodes;
@@ -206,7 +207,13 @@ internal static partial class ActaOpenApiDocument
                     IOpenApiSchema schema = doc.Kind switch
                     {
                         _ when doc.CodeKind is { } kind => new OpenApiSchemaReference(CodeFamily(kind).Name),
-                        QueryParameterKind.Int => new OpenApiSchema { Type = JsonSchemaType.Integer, Format = "int32" },
+                        QueryParameterKind.Int => new OpenApiSchema
+                        {
+                            Type = JsonSchemaType.Integer,
+                            Format = "int32",
+                            Minimum = doc.Minimum?.ToString(CultureInfo.InvariantCulture),
+                            Default = doc.Default is { } value ? JsonValue.Create(value) : null,
+                        },
                         QueryParameterKind.Long => new OpenApiSchema { Type = JsonSchemaType.Integer, Format = "int64" },
                         QueryParameterKind.Bool => new OpenApiSchema { Type = JsonSchemaType.Boolean },
                         QueryParameterKind.Instant => new OpenApiSchema { Type = JsonSchemaType.String, Format = "date-time" },

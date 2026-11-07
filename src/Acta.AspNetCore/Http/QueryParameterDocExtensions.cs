@@ -8,7 +8,7 @@ internal static class QueryParameterDocExtensions
     /// <summary>The keyset-paging pair every paged endpoint carries.</summary>
     public static readonly ImmutableArray<QueryParameterDoc> PagingCore =
     [
-        new("pageSize", QueryParameterKind.Int, "Rows per page; the server clamps to its bounds."),
+        new("pageSize", QueryParameterKind.Int, "Rows per page, at most 100: a larger value is clamped to 100.", Minimum: 1, Default: 50),
         new("cursor", QueryParameterKind.String, "Opaque keyset cursor from the previous page's nextCursor; omit for the first page."),
     ];
 

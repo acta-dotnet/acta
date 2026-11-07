@@ -275,6 +275,111 @@ public sealed partial class OpenApiContractTests
         Assert.True(wrong.Count == 0, string.Join("\n", wrong));
     }
 
+    /// <summary>
+    /// A list's pageSize and a preview's limit declare their least value and their default, and say their cap, above which
+    /// the server clamps rather than refuses. On the real operations an omitted value takes the declared default and a
+    /// larger one the cap, and a pageSize of 0 is refused.
+    /// </summary>
+    [Fact]
+    public async Task Paging_bounds_are_declared_and_held()
+    {
+        var operations = Operations(await ActaOpenApiDocument.GenerateAsync());
+        var caps = new Dictionary<string, int>(StringComparer.Ordinal)
+        {
+            ["pageSize"] = JobsQueryLimits.MaxPageSize,
+            ["limit"] = NextOccurrenceCalculator.MaxWalk,
+        };
+        var bounded = new List<(string Key, JsonNode Operation, string Name, int Default)>();
+        var wrong = new List<string>();
+        foreach (var (key, operation) in operations)
+        {
+            foreach (
+                var parameter in Elements(operation["parameters"])
+                    .Where(p => p?["name"]?.GetValue<string>() is { } n && caps.ContainsKey(n))
+            )
+            {
+                var name = parameter!["name"]!.GetValue<string>();
+                var schema = parameter["schema"]!;
+                var description = parameter["description"]?.GetValue<string>() ?? "";
+                if (
+                    schema["minimum"]?.GetValue<int>() != 1
+                    || schema["default"] is null
+                    || !description.Contains($"at most {caps[name]}", StringComparison.Ordinal)
+                )
+                {
+                    wrong.Add($"{key} {name}: declares {parameter.ToJsonString()}");
+                    continue;
+                }
+                bounded.Add((key, operation, name, schema["default"]!.GetValue<int>()));
+            }
+        }
+
+        var held = new List<string>();
+        await WithSqliteHostAsync(async client =>
+        {
+            var ct = TestContext.Current.CancellationToken;
+            await SendControlAsync(
+                client,
+                HttpMethod.Post,
+                $"calendars/{SqliteNamespace}/daily/drafts",
+                """{"role":"occurrence","definition":{"kind":"daily-local-time","timeZone":"UTC","times":["09:00"]},"expectedLatestVersion":0}"""
+            );
+            var values = new Dictionary<string, string>(FakeRouteValues, StringComparer.Ordinal)
+            {
+                ["jobNamespace"] = SqliteNamespace,
+                ["jobName"] = "recurring-ping",
+                ["scheduleName"] = "every-5-minutes",
+                ["calendarName"] = "daily",
+            };
+            foreach (var (key, operation, name, declaredDefault) in bounded)
+            {
+                var path = key[4..];
+                var required = Elements(operation["parameters"])
+                    .Where(p => p?["in"]?.GetValue<string>() == "query" && p["required"]?.GetValue<bool>() == true)
+                    .Select(p => $"{p!["name"]!.GetValue<string>()}={values[p["name"]!.GetValue<string>()]}&");
+                var url =
+                    "/acta/api"
+                    + PathPlaceholders(path).Aggregate(path, (filled, n) => filled.Replace($"{{{n}}}", values[n], StringComparison.Ordinal))
+                    + "?"
+                    + string.Concat(required);
+                using var omitted = await client.GetAsync(url, ct);
+                // A list under a target this host does not hold is skipped; the lists that answer prove the paging they share.
+                if (omitted.StatusCode != HttpStatusCode.OK && name == "pageSize")
+                {
+                    continue;
+                }
+                using var above = await client.GetAsync($"{url}{name}={caps[name] * 10}", ct);
+                var answered = (Size(await omitted.Content.ReadAsStringAsync(ct)), Size(await above.Content.ReadAsStringAsync(ct)));
+                if (answered != (declaredDefault, caps[name]))
+                {
+                    wrong.Add($"{key} {name}: omitted and above the cap answered {answered}, not ({declaredDefault}, {caps[name]}).");
+                }
+                if (name == "pageSize" && (await client.GetAsync($"{url}{name}=0", ct)).StatusCode != HttpStatusCode.BadRequest)
+                {
+                    wrong.Add($"{key}: a pageSize of 0 was not refused.");
+                }
+                held.Add(key);
+            }
+
+            // A page says its size; a forecast is as long as it says.
+            static int? Size(string body) =>
+                JsonNode.Parse(body) is { } node
+                    ? node["pageSize"]?.GetValue<int>() ?? (node["nextOccurrencesUtc"] ?? node["occurrencesUtc"])?.AsArray().Count
+                    : null;
+        });
+
+        Assert.Contains(
+            held,
+            key => key.EndsWith("/preview", StringComparison.Ordinal) && key.Contains("/schedules/", StringComparison.Ordinal)
+        );
+        Assert.Contains(
+            held,
+            key => key.EndsWith("/preview", StringComparison.Ordinal) && key.Contains("/calendars/", StringComparison.Ordinal)
+        );
+        Assert.True(held.Count > 12, $"only {held.Count} bounded reads answered; the walk is broken.");
+        Assert.True(wrong.Count == 0, string.Join("\n", wrong));
+    }
+
     /// <summary>An authentication scheme that never finds a user, so every request the host guards is challenged.</summary>
     private sealed class AnonymousHandler(IOptionsMonitor<AuthenticationSchemeOptions> options, ILoggerFactory logger, UrlEncoder encoder)
         : AuthenticationHandler<AuthenticationSchemeOptions>(options, logger, encoder)

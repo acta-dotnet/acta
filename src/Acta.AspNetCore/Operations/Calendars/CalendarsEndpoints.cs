@@ -130,7 +130,13 @@ internal static class CalendarsEndpoints
             .WithQueryParameters([
                 new QueryParameterDoc("version", QueryParameterKind.Int, "The version to forecast.", Required: true),
                 new QueryParameterDoc("fromUtc", QueryParameterKind.Instant, "Forecast from this instant; omit for the database clock."),
-                new QueryParameterDoc("limit", QueryParameterKind.Int, "How many instants or windows to forecast per version."),
+                new QueryParameterDoc(
+                    "limit",
+                    QueryParameterKind.Int,
+                    "How many instants or windows to forecast per version, at most 50: a larger value is clamped to 50.",
+                    Minimum: 1,
+                    Default: 10
+                ),
                 new QueryParameterDoc(
                     "timeZoneId",
                     QueryParameterKind.String,

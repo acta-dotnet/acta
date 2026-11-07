@@ -55,7 +55,15 @@ internal static class SchedulesEndpoints
                         call.Ct
                     )
             )
-            .WithQueryParameters([new QueryParameterDoc("limit", QueryParameterKind.Int, "How many upcoming occurrences to forecast.")])
+            .WithQueryParameters([
+                new QueryParameterDoc(
+                    "limit",
+                    QueryParameterKind.Int,
+                    "How many upcoming occurrences to forecast, at most 50: a larger value is clamped to 50.",
+                    Minimum: 1,
+                    Default: 10
+                ),
+            ])
             // A calendar this host cannot resolve answers a problem (RouteTable.Run).
             .ProducesProblem(StatusCodes.Status409Conflict);
         if (controls is null)

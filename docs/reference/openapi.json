@@ -150,10 +150,12 @@
           {
             "name": "pageSize",
             "in": "query",
-            "description": "Rows per page; the server clamps to its bounds.",
+            "description": "Rows per page, at most 100: a larger value is clamped to 100.",
             "schema": {
+              "minimum": 1,
               "type": "integer",
-              "format": "int32"
+              "format": "int32",
+              "default": 50
             }
           },
           {
@@ -1659,10 +1661,12 @@
           {
             "name": "pageSize",
             "in": "query",
-            "description": "Rows per page; the server clamps to its bounds.",
+            "description": "Rows per page, at most 100: a larger value is clamped to 100.",
             "schema": {
+              "minimum": 1,
               "type": "integer",
-              "format": "int32"
+              "format": "int32",
+              "default": 50
             }
           },
           {
@@ -2032,10 +2036,12 @@
           {
             "name": "pageSize",
             "in": "query",
-            "description": "Rows per page; the server clamps to its bounds.",
+            "description": "Rows per page, at most 100: a larger value is clamped to 100.",
             "schema": {
+              "minimum": 1,
               "type": "integer",
-              "format": "int32"
+              "format": "int32",
+              "default": 50
             }
           },
           {
@@ -2796,10 +2802,12 @@
           {
             "name": "pageSize",
             "in": "query",
-            "description": "Rows per page; the server clamps to its bounds.",
+            "description": "Rows per page, at most 100: a larger value is clamped to 100.",
             "schema": {
+              "minimum": 1,
               "type": "integer",
-              "format": "int32"
+              "format": "int32",
+              "default": 50
             }
           },
           {
@@ -3105,10 +3113,12 @@
           {
             "name": "pageSize",
             "in": "query",
-            "description": "Rows per page; the server clamps to its bounds.",
+            "description": "Rows per page, at most 100: a larger value is clamped to 100.",
             "schema": {
+              "minimum": 1,
               "type": "integer",
-              "format": "int32"
+              "format": "int32",
+              "default": 50
             }
           },
           {
@@ -4275,10 +4285,12 @@
           {
             "name": "pageSize",
             "in": "query",
-            "description": "Rows per page; the server clamps to its bounds.",
+            "description": "Rows per page, at most 100: a larger value is clamped to 100.",
             "schema": {
+              "minimum": 1,
               "type": "integer",
-              "format": "int32"
+              "format": "int32",
+              "default": 50
             }
           },
           {
@@ -5850,10 +5862,12 @@
           {
             "name": "pageSize",
             "in": "query",
-            "description": "Rows per page; the server clamps to its bounds.",
+            "description": "Rows per page, at most 100: a larger value is clamped to 100.",
             "schema": {
+              "minimum": 1,
               "type": "integer",
-              "format": "int32"
+              "format": "int32",
+              "default": 50
             }
           },
           {
@@ -5959,10 +5973,12 @@
           {
             "name": "pageSize",
             "in": "query",
-            "description": "Rows per page; the server clamps to its bounds.",
+            "description": "Rows per page, at most 100: a larger value is clamped to 100.",
             "schema": {
+              "minimum": 1,
               "type": "integer",
-              "format": "int32"
+              "format": "int32",
+              "default": 50
             }
           },
           {
@@ -6076,10 +6092,12 @@
           {
             "name": "pageSize",
             "in": "query",
-            "description": "Rows per page; the server clamps to its bounds.",
+            "description": "Rows per page, at most 100: a larger value is clamped to 100.",
             "schema": {
+              "minimum": 1,
               "type": "integer",
-              "format": "int32"
+              "format": "int32",
+              "default": 50
             }
           },
           {
@@ -6267,10 +6285,12 @@
           {
             "name": "pageSize",
             "in": "query",
-            "description": "Rows per page; the server clamps to its bounds.",
+            "description": "Rows per page, at most 100: a larger value is clamped to 100.",
             "schema": {
+              "minimum": 1,
               "type": "integer",
-              "format": "int32"
+              "format": "int32",
+              "default": 50
             }
           },
           {
@@ -6417,10 +6437,12 @@
           {
             "name": "pageSize",
             "in": "query",
-            "description": "Rows per page; the server clamps to its bounds.",
+            "description": "Rows per page, at most 100: a larger value is clamped to 100.",
             "schema": {
+              "minimum": 1,
               "type": "integer",
-              "format": "int32"
+              "format": "int32",
+              "default": 50
             }
           },
           {
@@ -6610,10 +6632,12 @@
           {
             "name": "pageSize",
             "in": "query",
-            "description": "Rows per page; the server clamps to its bounds.",
+            "description": "Rows per page, at most 100: a larger value is clamped to 100.",
             "schema": {
+              "minimum": 1,
               "type": "integer",
-              "format": "int32"
+              "format": "int32",
+              "default": 50
             }
           },
           {
@@ -6701,10 +6725,12 @@
           {
             "name": "pageSize",
             "in": "query",
-            "description": "Rows per page; the server clamps to its bounds.",
+            "description": "Rows per page, at most 100: a larger value is clamped to 100.",
             "schema": {
+              "minimum": 1,
               "type": "integer",
-              "format": "int32"
+              "format": "int32",
+              "default": 50
             }
           },
           {
@@ -6826,10 +6852,12 @@
           {
             "name": "pageSize",
             "in": "query",
-            "description": "Rows per page; the server clamps to its bounds.",
+            "description": "Rows per page, at most 100: a larger value is clamped to 100.",
             "schema": {
+              "minimum": 1,
               "type": "integer",
-              "format": "int32"
+              "format": "int32",
+              "default": 50
             }
           },
           {
@@ -7124,10 +7152,12 @@
           {
             "name": "pageSize",
             "in": "query",
-            "description": "Rows per page; the server clamps to its bounds.",
+            "description": "Rows per page, at most 100: a larger value is clamped to 100.",
             "schema": {
+              "minimum": 1,
               "type": "integer",
-              "format": "int32"
+              "format": "int32",
+              "default": 50
             }
           },
           {
@@ -7239,10 +7269,12 @@
           {
             "name": "limit",
             "in": "query",
-            "description": "How many upcoming occurrences to forecast.",
+            "description": "How many upcoming occurrences to forecast, at most 50: a larger value is clamped to 50.",
             "schema": {
+              "minimum": 1,
               "type": "integer",
-              "format": "int32"
+              "format": "int32",
+              "default": 10
             }
           }
         ],
@@ -7358,10 +7390,12 @@
           {
             "name": "pageSize",
             "in": "query",
-            "description": "Rows per page; the server clamps to its bounds.",
+            "description": "Rows per page, at most 100: a larger value is clamped to 100.",
             "schema": {
+              "minimum": 1,
               "type": "integer",
-              "format": "int32"
+              "format": "int32",
+              "default": 50
             }
           },
           {
@@ -7667,10 +7701,12 @@
           {
             "name": "pageSize",
             "in": "query",
-            "description": "Rows per page; the server clamps to its bounds.",
+            "description": "Rows per page, at most 100: a larger value is clamped to 100.",
             "schema": {
+              "minimum": 1,
               "type": "integer",
-              "format": "int32"
+              "format": "int32",
+              "default": 50
             }
           },
           {
@@ -7784,10 +7820,12 @@
           {
             "name": "pageSize",
             "in": "query",
-            "description": "Rows per page; the server clamps to its bounds.",
+            "description": "Rows per page, at most 100: a larger value is clamped to 100.",
             "schema": {
+              "minimum": 1,
               "type": "integer",
-              "format": "int32"
+              "format": "int32",
+              "default": 50
             }
           },
           {
@@ -7920,10 +7958,12 @@
           {
             "name": "limit",
             "in": "query",
-            "description": "How many instants or windows to forecast per version.",
+            "description": "How many instants or windows to forecast per version, at most 50: a larger value is clamped to 50.",
             "schema": {
+              "minimum": 1,
               "type": "integer",
-              "format": "int32"
+              "format": "int32",
+              "default": 10
             }
           },
           {
@@ -8096,10 +8136,12 @@
           {
             "name": "pageSize",
             "in": "query",
-            "description": "Rows per page; the server clamps to its bounds.",
+            "description": "Rows per page, at most 100: a larger value is clamped to 100.",
             "schema": {
+              "minimum": 1,
               "type": "integer",
-              "format": "int32"
+              "format": "int32",
+              "default": 50
             }
           },
           {
@@ -8213,10 +8255,12 @@
           {
             "name": "pageSize",
             "in": "query",
-            "description": "Rows per page; the server clamps to its bounds.",
+            "description": "Rows per page, at most 100: a larger value is clamped to 100.",
             "schema": {
+              "minimum": 1,
               "type": "integer",
-              "format": "int32"
+              "format": "int32",
+              "default": 50
             }
           },
           {
@@ -8309,6 +8353,7 @@
           "Definitions"
         ],
         "summary": "List a definition's ledger events (its jobs' lineage, not just changes).",
+        "description": "Takes no includeTotal: an event count is taken only for one job or one subject, since a wider count is unbounded work.",
         "operationId": "listDefinitionEvents",
         "parameters": [
           {
@@ -8338,10 +8383,12 @@
           {
             "name": "pageSize",
             "in": "query",
-            "description": "Rows per page; the server clamps to its bounds.",
+            "description": "Rows per page, at most 100: a larger value is clamped to 100.",
             "schema": {
+              "minimum": 1,
               "type": "integer",
-              "format": "int32"
+              "format": "int32",
+              "default": 50
             }
           },
           {

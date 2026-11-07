@@ -10,7 +10,8 @@ namespace Acta.AspNetCore;
 /// codes are the parameter's accepted values; the generator resolves them from
 /// <see cref="CodeManifests"/> so the documented vocabulary can never drift from the model.
 /// <c>QueryDocCoverageTests</c> holds each endpoint's declarations equal to the query keys its
-/// handler actually reads.
+/// handler actually reads. <see cref="Minimum"/> and <see cref="Default"/> are an integer's least
+/// value a caller sends and the value the endpoint takes when it is omitted.
 /// </summary>
 internal sealed record QueryParameterDoc(
     string Name,
@@ -18,5 +19,7 @@ internal sealed record QueryParameterDoc(
     string Description,
     bool Repeatable = false,
     bool Required = false,
-    string? CodeKind = null
+    string? CodeKind = null,
+    int? Minimum = null,
+    int? Default = null
 );
