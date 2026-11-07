@@ -103,7 +103,7 @@ Not tagged yet.
 
 ### Fixes
 
-- A cancel, a retire, or crash recovery raises the parent's child latch in a call after its own commit. A child restarted and succeeded in between had its Succeeded latch overwritten by that late raise, so the parent took the cancelled or failed branch while the child stood Succeeded. The raise now writes nothing when the child holds another status.
+- A cancel, a retire, or crash recovery raises the parent's child latch in a call after its own commit. A child restarted and succeeded in between had its Succeeded latch overwritten by that late raise, so the parent took the cancelled or failed branch while the child stood Succeeded. The raise now writes nothing when the child holds another status, and names no execution, so a parent whose child succeeded again reads the newer result.
 - On PostgreSQL, a signal raised while a bounded wait on it expired could overwrite the Expired checkpoint with Set, so a wait that had answered TimedOut replayed as signalled. The raise reads the checkpoint again once it holds the job.
 - A schedule a deploy bound to a calendar while that calendar was being published kept the old version's cursor, with no next occurrence when the old version was exhausted. The publication now plans again when a schedule naming the family appears, and a deploy that binds a shared calendar waits for its publication.
 - A slow calendar read, such as a preview's, could point a worker's planning at the previous version after a publication, and the admitter then saved an exhausted cursor for a schedule with future occurrences. Each plan now uses the versions its own read found.

@@ -61,12 +61,33 @@ public sealed class ChildJobSpec : ActaRuntimeTestBase<ConformanceFixture, TestJ
         Assert.Equal(RunOnceStatus.Completed, await Runtime.RunOnceAsync(child.Id, ct));
         var landed = Assert.Single(await ReadSignalsAsync(parent.JobId, ct));
         var signals = Services.GetRequiredService<SignalsOperations>();
-        Assert.False(await RaiseChildLatch.Run(signals, child.Id, parent.JobId, JobStatusCode.Cancelled, childExecutionNumber: null, ct));
+        Assert.False(await RaiseChildLatch.Run(signals, child.Id, parent.JobId, JobStatusCode.Cancelled, ct));
 
         var latch = Assert.Single(await ReadSignalsAsync(parent.JobId, ct));
         Assert.Equal(CheckpointStatusCode.Set, latch.Status);
         Assert.Equal(landed.Version, latch.Version);
         Assert.Equal(JobStatusCode.Succeeded, ChildOutcomeEnvelope.Parse(latch.Value!).Status);
+    }
+
+    [Fact(DisplayName = "A late latch raise after the child succeeded again names no execution, so the parent reads the newest result")]
+    public async Task A_late_latch_raise_after_a_newer_success_leaves_the_newest_result()
+    {
+        var ct = TestContext.Current.CancellationToken;
+        var parent = await Jobs.EnqueueAsync(new EnqueueJobRequest(TestNamespace, "job-parent-one", JobPayload.None), ct);
+        Assert.Equal(RunOnceStatus.Rearmed, await Runtime.RunOnceAsync(parent, ct));
+        var child = Assert.Single(await ReadChildrenAsync(parent.JobId, ct));
+
+        // A backstop read the child's first success; the child was restarted, which clears that result, and succeeded
+        // again before the backstop's raise lands.
+        Assert.Equal(RunOnceStatus.Completed, await Runtime.RunOnceAsync(child.Id, ct));
+        Assert.Equal(ControlAction.Applied, (await Jobs.RestartAsync(JobLookup.ById(child.Id), ct: ct)).Action);
+        Assert.Equal(RunOnceStatus.Completed, await Runtime.RunOnceAsync(child.Id, ct));
+        await RaiseChildLatch.Run(Services.GetRequiredService<SignalsOperations>(), child.Id, parent.JobId, JobStatusCode.Succeeded, ct);
+
+        Assert.Equal(RunOnceStatus.Completed, await Runtime.RunOnceAsync(parent, ct));
+        Assert.Equal(42, (await Jobs.GetResultAsync<ChildEchoResult>(parent, ct))!.Doubled);
+        var latch = Assert.Single(await ReadSignalsAsync(parent.JobId, ct));
+        Assert.Null(ChildOutcomeEnvelope.Parse(latch.Value!).ExecutionNumber);
     }
 
     [Fact(DisplayName = "Child start is replay-deduped by name per parent")]
@@ -282,14 +303,7 @@ public sealed class ChildJobSpec : ActaRuntimeTestBase<ConformanceFixture, TestJ
         Assert.Equal(child.Id, childId);
         Assert.Equal(parent.JobId, parentId);
         Assert.True(
-            await RaiseChildLatch.Run(
-                Services.GetRequiredService<SignalsOperations>(),
-                childId,
-                parentId,
-                JobStatusCode.Failed,
-                childExecutionNumber: null,
-                ct
-            )
+            await RaiseChildLatch.Run(Services.GetRequiredService<SignalsOperations>(), childId, parentId, JobStatusCode.Failed, ct)
         );
 
         Assert.Equal(JobStatusCode.Failed, (await ReadJobAsync(child.Id, ct)).Status);
@@ -322,7 +336,6 @@ public sealed class ChildJobSpec : ActaRuntimeTestBase<ConformanceFixture, TestJ
                 latch.ChildJobId,
                 latch.ParentJobId,
                 latch.ChildStatus!.Value,
-                latch.ChildExecutionNumber,
                 ct
             )
         );

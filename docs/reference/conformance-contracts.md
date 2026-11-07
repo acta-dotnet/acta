@@ -509,6 +509,7 @@
 - **Guarantees:**
   - A terminal child sets a durable sys.child latch that releases the Suspended parent, which reads the child result
   - A late latch raise for an outcome the child no longer holds leaves the newer outcome on the parent
+  - A late latch raise after the child succeeded again names no execution, so the parent reads the newest result
   - Child start is replay-deduped by name per parent
   - WaitChildAsync returns an outcome record and never throws on child failure
   - WaitChildrenAsync joins all children regardless of completion order

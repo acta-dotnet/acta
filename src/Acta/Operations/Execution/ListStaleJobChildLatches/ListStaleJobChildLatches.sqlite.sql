@@ -2,8 +2,7 @@ SELECT
     js.job_id AS parent_job_id,
     CASE WHEN SUBSTR(js.checkpoint_name, 11) GLOB '*[^0-9]*' OR SUBSTR(js.checkpoint_name, 11) = '' THEN NULL ELSE CAST(SUBSTR(js.checkpoint_name, 11) AS INTEGER) END
         AS child_job_id,
-    cr.job_status_code AS child_status,
-    cr.execution_number AS child_execution_number
+    cr.job_status_code AS child_status
 FROM {{schema}}.checkpoints js
 INNER JOIN {{schema}}.jobs p ON p.job_id = js.job_id AND p.namespace_id = @p_namespace_id
 LEFT JOIN

@@ -7,8 +7,8 @@ namespace Acta;
 /// <c>raise_job_signal</c>: upserted Set with the JSON envelope, releasing a Suspended parent. A terminal or
 /// missing parent is a no-op, and so is a child that no longer holds <c>childStatus</c>, whose next landing
 /// raises the latch itself. Serves the C#-side raise sites (operator cancel, retire, reclaim, the maintenance
-/// backstop); <c>complete_executions</c> raises in its own transaction. Returns true when the raise released
-/// the parent.
+/// backstop), and names no execution, since one read before the raise may since have been replaced: the parent
+/// reads the child's latest result. Returns true when the raise released the parent.
 /// </summary>
 internal static class RaiseChildLatch
 {
@@ -19,7 +19,6 @@ internal static class RaiseChildLatch
         long childJobId,
         long parentJobId,
         JobStatusCode childStatus,
-        int? childExecutionNumber,
         CancellationToken ct
     )
     {
@@ -28,7 +27,7 @@ internal static class RaiseChildLatch
         // two renderings must agree byte for byte; the invariant culture is stated on both sides rather
         // than inherited from whatever the ambient one happens to be.
         var latchName = NamePrefix + childJobId.ToString(CultureInfo.InvariantCulture);
-        var envelope = ChildOutcomeEnvelope.Write(childJobId, childStatus, childExecutionNumber);
+        var envelope = ChildOutcomeEnvelope.Write(childJobId, childStatus, executionNumber: null);
         var input = new JobControlInput(null, EventReason.SignalReleased, null);
         var outcome = await signals.RaiseJobSignalAsync(
             new RaiseJobSignalCheckpoint(

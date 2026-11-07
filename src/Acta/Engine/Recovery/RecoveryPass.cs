@@ -54,7 +54,7 @@ internal sealed class RecoveryPass(
         var released = 0;
         foreach (var (childId, parentId) in result.FailedChildren)
         {
-            if (await RaiseChildLatch.Run(signals, childId, parentId, JobStatusCode.Failed, childExecutionNumber: null, ct))
+            if (await RaiseChildLatch.Run(signals, childId, parentId, JobStatusCode.Failed, ct))
             {
                 released++;
             }
@@ -69,7 +69,6 @@ internal sealed class RecoveryPass(
                 latch.ChildJobId,
                 latch.ParentJobId,
                 latch.ChildStatus ?? JobStatusCode.Failed,
-                latch.ChildExecutionNumber,
                 ct
             );
             if (raised)

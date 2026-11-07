@@ -63,10 +63,7 @@ internal sealed class RetireDefinitionHandler(
             }
 
             await wakeupPublisher.WakeAsync(WorkerWakeupChannel.JobCompletion(jobId), WorkerWakeupReason.JobFinished, ct);
-            if (
-                row.ParentJobId is { } parent
-                && await RaiseChildLatch.Run(signals, jobId, parent, JobStatusCode.Cancelled, childExecutionNumber: null, ct)
-            )
+            if (row.ParentJobId is { } parent && await RaiseChildLatch.Run(signals, jobId, parent, JobStatusCode.Cancelled, ct))
             {
                 released = true;
             }

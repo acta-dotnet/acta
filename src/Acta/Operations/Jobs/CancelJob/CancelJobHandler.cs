@@ -45,14 +45,7 @@ internal sealed class CancelJobHandler(
         {
             var released =
                 row.ParentJobId is { } parentId
-                && await RaiseChildLatch.Run(
-                    signals,
-                    jobId,
-                    parentId,
-                    JobStatusCode.Cancelled,
-                    childExecutionNumber: null,
-                    CancellationToken.None
-                );
+                && await RaiseChildLatch.Run(signals, jobId, parentId, JobStatusCode.Cancelled, CancellationToken.None);
             await JobControl.WakeWorkersIfAsync(wakeup, released || row.LanePromoted, CancellationToken.None);
         }
 

@@ -46,15 +46,7 @@ public sealed class RecoveryPassTests
                 new ReclaimStuckJobsRow(JobId: 7, JobStatusCode.Failed, ParentJobId: 8, LaneRepaired: false),
                 new ReclaimStuckJobsRow(JobId: 11, JobStatusCode.Ready, ParentJobId: null, LaneRepaired: false),
             ],
-            staleLatches:
-            [
-                new ListStaleJobChildLatchesItem(
-                    ParentJobId: 9,
-                    ChildJobId: 10,
-                    ChildStatus: JobStatusCode.Cancelled,
-                    ChildExecutionNumber: 1
-                ),
-            ]
+            staleLatches: [new ListStaleJobChildLatchesItem(ParentJobId: 9, ChildJobId: 10, ChildStatus: JobStatusCode.Cancelled)]
         );
         var pass = Pass(WorkerSweep(marked: 3), execution, SignalStore(releases: true), wakeup: wakeups);
 
