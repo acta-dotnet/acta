@@ -6,10 +6,11 @@ namespace Acta;
 
 /// <summary>
 /// The identity of a schedule's timing: a hash over the declaration that decides its occurrences, the expression, its
-/// kind, the zone and that zone's rules, an interval's anchor, the availability calendar's name, and each bound that is
-/// set. A calendar enters by name only, never by where it resolved, so a calendar whose content or source changes
-/// leaves the fingerprint alone and the admitter's cursor heals the difference. A matching fingerprint keeps the cursor
-/// at registration; a changed one is a timing change.
+/// kind, the zone id as declared, an interval's anchor, the availability calendar's name, and each bound that is set.
+/// The zone enters by id alone, never by the rules the host reads for it, so every host hashes one declaration alike. A
+/// calendar enters by name only, never by where it resolved, so a calendar whose content or source changes leaves the
+/// fingerprint alone and the admitter's cursor heals the difference. A matching fingerprint keeps the cursor at
+/// registration; a changed one is a timing change.
 /// </summary>
 internal static class TimingFingerprint
 {
@@ -29,25 +30,11 @@ internal static class TimingFingerprint
             .Append('|')
             .Append(timing.AvailabilityCalendarName)
             .Append('|');
-        // A cron, a calendar, and an availability window resolve in the zone, and the zone's rules are part of what they
-        // mean; a bare interval is absolute.
+        // A cron, a calendar, and an availability window resolve in the zone; a bare interval is absolute. The id is
+        // normalized as registration stores it, a blank one meaning UTC.
         if (timing.ExpressionKind != ScheduleExpressionKindCode.Interval || timing.AvailabilityCalendarName is not null)
         {
-            var zone = NextOccurrenceCalculator.ResolveTimeZone(timing.TimeZoneId);
-            text.Append(zone.Id).Append('|').Append(zone.BaseUtcOffset.Ticks.ToString(c));
-            foreach (var rule in zone.GetAdjustmentRules())
-            {
-                text.Append('|')
-                    .Append(rule.DateStart.Ticks.ToString(c))
-                    .Append(',')
-                    .Append(rule.DateEnd.Ticks.ToString(c))
-                    .Append(',')
-                    .Append(rule.DaylightDelta.Ticks.ToString(c))
-                    .Append(',')
-                    .Append(Transition(rule.DaylightTransitionStart))
-                    .Append(',')
-                    .Append(Transition(rule.DaylightTransitionEnd));
-            }
+            text.Append(string.IsNullOrWhiteSpace(timing.TimeZoneId) ? "UTC" : timing.TimeZoneId);
         }
 
         // A bound enters only when set: an empty field for an unset one would change every unbounded schedule's
@@ -64,10 +51,4 @@ internal static class TimingFingerprint
 
         return Convert.ToHexString(SHA256.HashData(Encoding.UTF8.GetBytes(text.ToString())));
     }
-
-    private static string Transition(TimeZoneInfo.TransitionTime t) =>
-        string.Create(
-            CultureInfo.InvariantCulture,
-            $"{t.TimeOfDay.Ticks}/{t.Month}/{t.Week}/{t.Day}/{(int)t.DayOfWeek}/{(t.IsFixedDateRule ? 1 : 0)}"
-        );
 }

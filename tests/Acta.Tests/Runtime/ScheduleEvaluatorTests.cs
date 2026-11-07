@@ -274,6 +274,24 @@ public class ScheduleEvaluatorTests
     }
 
     [Fact]
+    public void The_fingerprint_names_the_declared_zone_and_reads_nothing_of_the_hosts_rules_for_it()
+    {
+        var cron = new ScheduleTiming("0 9 * * *", ScheduleExpressionKindCode.Cron, "Europe/Ljubljana", null);
+
+        // Pinned: the zone enters as its declared id, so every host hashes the declaration alike, whatever time-zone
+        // data it reads for that zone, and a tzdata update retimes nothing.
+        Assert.Equal("C3555E02C9858FC7A8AF1FF3E1A18BB4BE9CA7A6B0269299219E7E70BD3167CC", TimingFingerprint.Compute(cron));
+
+        // The host is never asked: a zone it does not know hashes like any other id.
+        Assert.NotEqual(TimingFingerprint.Compute(cron), TimingFingerprint.Compute(cron with { TimeZoneId = "Mars/Olympus-Mons" }));
+
+        // A blank zone is UTC, as registration stores it.
+        var utc = TimingFingerprint.Compute(cron with { TimeZoneId = "UTC" });
+        Assert.Equal(utc, TimingFingerprint.Compute(cron with { TimeZoneId = null }));
+        Assert.Equal(utc, TimingFingerprint.Compute(cron with { TimeZoneId = " " }));
+    }
+
+    [Fact]
     public void CatchUpLatest_admits_the_latest_due_occurrence_however_late_and_coalesces_the_earlier_ones()
     {
         // 10:05 through 10:09 are due at 10:12:30, all past the grace; the latest fires and the rest are a skipped range.
