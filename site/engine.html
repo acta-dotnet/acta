@@ -220,7 +220,7 @@
             <text class="t" x="940" y="40" text-anchor="end">no heartbeat at all: worker marked Dead at 315 s</text>
           </svg>
         </div>
-        <figcaption>The lease clock of one claim with the default heartbeat of 45 s. Every number derives from that one setting: the lease is four beats, and the deadline sits halfway between one beat and the lease, so a healthy attempt never comes near it and a cancelled one has 67.5 s to stop before another worker may take the row. Recovery charges the reclaimed row a failure only if it had started; a row that was only claimed goes back uncharged.</figcaption>
+        <figcaption>The lease clock of one claim with the default heartbeat of 45 s. Every number derives from that one setting: the lease is four beats, and the deadline sits halfway between one beat and the lease, so a healthy attempt never comes near it and a cancelled one has 67.5 s to stop before another worker may take the row. The claim itself starts the execution, so recovery charges a reclaimed row one attempt of its retry budget, whether or not its handler had begun.</figcaption>
       </figure>
     </section>
 
