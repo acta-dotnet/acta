@@ -589,7 +589,24 @@ public sealed class ControlEndpointTests
         Assert.Equal(HttpStatusCode.OK, response.StatusCode);
         Assert.Contains("\"action\":\"applied\"", body);
         var call = Assert.Single(fakes.Jobs.PurgeCalls);
-        Assert.Equal((FakeJobs.FoundJobRef, (string?)null), call);
+        Assert.Equal((FakeJobs.FoundJobRef, (string?)null, (string?)null), call);
+    }
+
+    /// <summary>A purge takes the operator's reason as every control does, trimmed, and hands it to the verb.</summary>
+    [Fact]
+    public async Task Purge_hands_its_reason_to_the_verb()
+    {
+        var fakes = new FakeOperations();
+        var (app, client) = await StartWithControlsAsync(fakes);
+        await using var _ = app;
+
+        var response = await client.SendAsync(
+            Post($"/acta/api/v1/jobs/{Found}/purge", rawBody: """{"reasonMessage":"  duplicate of job 41  "}"""),
+            TestContext.Current.CancellationToken
+        );
+
+        Assert.Equal(HttpStatusCode.OK, response.StatusCode);
+        Assert.Equal((FakeJobs.FoundJobRef, "duplicate of job 41", (string?)null), Assert.Single(fakes.Jobs.PurgeCalls));
     }
 
     /// <summary>A rejected purge, whatever held the job, answers its envelope with the job's status and no explanation.</summary>
@@ -597,7 +614,8 @@ public sealed class ControlEndpointTests
     public async Task A_rejected_purge_answers_the_jobs_status()
     {
         var fakes = new FakeOperations();
-        fakes.Jobs.Purge = (_, _, _) => ValueTask.FromResult(new PurgeJobResponse(42, ControlAction.Rejected, JobStatusCode.Failed, null));
+        fakes.Jobs.Purge = (_, _, _, _) =>
+            ValueTask.FromResult(new PurgeJobResponse(42, ControlAction.Rejected, JobStatusCode.Failed, null));
         var (app, client) = await StartWithControlsAsync(fakes);
         await using var _ = app;
 

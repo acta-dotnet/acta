@@ -44,7 +44,7 @@ public sealed class AlertCaptureReplaySpec : ActaRuntimeTestBase<ConformanceFixt
         Assert.Empty(await AlertCaptureOps.AlertsAsync(Services, job.JobId, ct));
         Assert.Equal(1, await CountVariableAsync(projector, AlertTestOps.SkipVariableName(failed.Id), ct));
         Assert.Equal(failed.Id, await AlertTestOps.ReadAlertsCursorAsync(Services, TestNamespace, NamespaceId, projector, ct));
-        var blocked = await Jobs.PurgeAsync(job, "spec-actor", ct);
+        var blocked = await Jobs.PurgeAsync(job, actor: "spec-actor", ct: ct);
         Assert.Equal((ControlAction.Rejected, JobStatusCode.Failed), (blocked.Action, blocked.Status));
 
         // Behind the cursor but still owed: the sweep keeps the event and its job.

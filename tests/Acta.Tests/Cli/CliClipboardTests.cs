@@ -475,8 +475,12 @@ public class CliRunnerClipboardTests
             CancellationToken ct = default
         ) => throw new NotSupportedException();
 
-        public ValueTask<PurgeJobResponse> PurgeAsync(JobLookup job, string? actor = null, CancellationToken ct = default) =>
-            throw new NotSupportedException();
+        public ValueTask<PurgeJobResponse> PurgeAsync(
+            JobLookup job,
+            string? reasonMessage = null,
+            string? actor = null,
+            CancellationToken ct = default
+        ) => throw new NotSupportedException();
 
         public ValueTask<RaiseJobSignalResponse> RaiseSignalAsync<T>(
             JobLookup job,

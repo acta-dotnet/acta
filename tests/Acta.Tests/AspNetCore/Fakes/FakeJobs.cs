@@ -73,9 +73,9 @@ internal sealed class FakeJobs : IJobs
             return ValueTask.FromResult(new ReprioritizeJobResponse(jobId, action, status, current));
         };
         UpdateInput = (job, input, _, _, _) => ValueTask.FromResult(Amend(job, input));
-        Purge = (job, actor, _) =>
+        Purge = (job, reason, actor, _) =>
         {
-            PurgeCalls.Add((job.JobRef, actor));
+            PurgeCalls.Add((job.JobRef, reason, actor));
             var (jobId, action, status, version) = ResultFor(job);
             return ValueTask.FromResult(new PurgeJobResponse(jobId, action, status, version));
         };
@@ -105,7 +105,7 @@ internal sealed class FakeJobs : IJobs
     public List<(JobRef JobRef, JobPriorityCode Priority, string? Reason, string? Actor, int? ExpectedVersion)> ReprioritizeCalls { get; } =
     [];
 
-    public List<(JobRef JobRef, string? Actor)> PurgeCalls { get; } = [];
+    public List<(JobRef JobRef, string? Reason, string? Actor)> PurgeCalls { get; } = [];
 
     /// <summary>Signal raises with the delivered format and bytes; null bytes is a presence-only signal.</summary>
     public List<(JobRef JobRef, string Name, byte FormatId, byte[]? Value, string? Actor)> SignalCalls { get; } = [];
@@ -155,7 +155,7 @@ internal sealed class FakeJobs : IJobs
 
     public Func<JobLookup, JobPayload, string?, string?, CancellationToken, ValueTask<UpdateJobInputResponse>> UpdateInput { get; set; }
 
-    public Func<JobLookup, string?, CancellationToken, ValueTask<PurgeJobResponse>> Purge { get; set; }
+    public Func<JobLookup, string?, string?, CancellationToken, ValueTask<PurgeJobResponse>> Purge { get; set; }
 
     public Func<JobLookup, string, JobPayload, string?, CancellationToken, ValueTask<RaiseJobSignalResponse>> RaiseSignal { get; set; }
 
@@ -237,7 +237,8 @@ internal sealed class FakeJobs : IJobs
         CancellationToken ct
     ) => UpdateInput(job, input, reasonMessage, actor, ct);
 
-    ValueTask<PurgeJobResponse> IJobs.PurgeAsync(JobLookup job, string? actor, CancellationToken ct) => Purge(job, actor, ct);
+    ValueTask<PurgeJobResponse> IJobs.PurgeAsync(JobLookup job, string? reasonMessage, string? actor, CancellationToken ct) =>
+        Purge(job, reasonMessage, actor, ct);
 
     ValueTask<RaiseJobSignalResponse> IJobs.RaiseSignalAsync(
         JobLookup job,

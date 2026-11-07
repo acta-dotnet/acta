@@ -12,8 +12,8 @@ export interface ControlMutationOptions<TVars extends object, TResult extends { 
   body?: (vars: TVars) => Record<string, unknown>;
   /** Escape hatch for endpoints whose request body is not always a reason-merged object: the
    *  caller's own JSON, verbatim (e.g. signal-raise, where a request with zero body bytes has its own
-   *  meaning: a presence-only signal), or a verb that takes no reason (job purge). When set, this
-   *  replaces `body`/the reason merge entirely; return undefined to send no request body at all. */
+   *  meaning: a presence-only signal). When set, this replaces `body`/the reason merge entirely; return
+   *  undefined to send no request body at all. */
   rawBody?: (vars: TVars) => unknown;
   /** Result to return when the server responds 404 with no typed body. Every control family types
    *  its 404, so this is the guard for a proxy or a gateway answering in the server's place. */

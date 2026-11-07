@@ -28,7 +28,7 @@ public sealed class AlertCapturePurgeSpec : ActaRuntimeTestBase<ConformanceFixtu
         var ct = TestContext.Current.CancellationToken;
         var job = await AlertCaptureOps.FailTerminallyAsync(Runtime, Jobs, TestNamespace, ct);
 
-        var blocked = await Jobs.PurgeAsync(job, "spec-actor", ct);
+        var blocked = await Jobs.PurgeAsync(job, actor: "spec-actor", ct: ct);
         Assert.Equal((ControlAction.Rejected, JobStatusCode.Failed), (blocked.Action, blocked.Status));
         Assert.NotNull(await Jobs.GetAsync(job, ct));
         Assert.Contains(await AlertCaptureOps.JobEventsAsync(Db, job.JobId, ct), e => e.EventCode == EventCode.JobFailed);
@@ -36,7 +36,7 @@ public sealed class AlertCapturePurgeSpec : ActaRuntimeTestBase<ConformanceFixtu
         await AlertCaptureOps.ProjectAsync(Services, TestNamespace, NamespaceId, ct);
         Assert.Single(await AlertCaptureOps.AlertsAsync(Services, job.JobId, ct));
 
-        Assert.Equal(ControlAction.Applied, (await Jobs.PurgeAsync(job, "spec-actor", ct)).Action);
+        Assert.Equal(ControlAction.Applied, (await Jobs.PurgeAsync(job, actor: "spec-actor", ct: ct)).Action);
         Assert.Equal(EventCode.JobPurged, Assert.Single(await AlertCaptureOps.JobEventsAsync(Db, job.JobId, ct)).EventCode);
     }
 
@@ -47,6 +47,6 @@ public sealed class AlertCapturePurgeSpec : ActaRuntimeTestBase<ConformanceFixtu
         var job = await Jobs.EnqueueAsync(new EnqueueJobRequest(TestNamespace, "add-numbers", JobPayload.Json(new AddNumbers(1, 2))), ct);
         Assert.Equal(RunOnceStatus.Completed, await Runtime.RunOnceAsync(job, ct));
 
-        Assert.Equal(ControlAction.Applied, (await Jobs.PurgeAsync(job, "spec-actor", ct)).Action);
+        Assert.Equal(ControlAction.Applied, (await Jobs.PurgeAsync(job, actor: "spec-actor", ct: ct)).Action);
     }
 }

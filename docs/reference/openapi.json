@@ -13113,6 +13113,14 @@
       },
       "PurgeJobRequest": {
         "type": "object",
+        "properties": {
+          "reasonMessage": {
+            "type": [
+              "null",
+              "string"
+            ]
+          }
+        },
         "additionalProperties": false
       },
       "PurgeJobResponse": {

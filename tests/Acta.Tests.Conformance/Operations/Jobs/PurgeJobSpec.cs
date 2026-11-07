@@ -65,7 +65,7 @@ public sealed class PurgeJobSpec : ActaRuntimeTestBase<ConformanceFixture, TestJ
         );
         await JobStateStaging.SetStatusAsync(Db, completed.JobId, JobStatusCode.Succeeded, ct);
 
-        var result = await Jobs.PurgeAsync(completed, "spec-actor", ct);
+        var result = await Jobs.PurgeAsync(completed, "duplicate of an earlier import", "spec-actor", ct);
 
         Assert.Equal(ControlAction.Applied, result.Action);
         Assert.Null(result.Status);
@@ -83,6 +83,7 @@ public sealed class PurgeJobSpec : ActaRuntimeTestBase<ConformanceFixture, TestJ
         Assert.Equal(before.DefinitionId, tombstone.DefinitionId);
         Assert.Equal(completed.JobRef.ToString(), EventDetail(tombstone, "jobRef"));
         Assert.Equal("spec-actor", EventDetail(tombstone, "actor"));
+        Assert.Equal("duplicate of an earlier import", tombstone.EventMessage);
     }
 
     private Task<IReadOnlyList<EventEntity>> JobEventsAsync(long jobId, CancellationToken ct) =>

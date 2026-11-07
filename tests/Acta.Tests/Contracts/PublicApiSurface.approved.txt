@@ -1216,7 +1216,7 @@ interface Acta.IJobs
     System.Threading.Tasks.ValueTask<Acta.ListJobCheckpointsResponse> ListCheckpointsAsync(Acta.ListJobCheckpointsQuery query, System.Threading.CancellationToken ct = default)
     System.Threading.Tasks.ValueTask<Acta.ListJobStepsResponse> ListStepsAsync(Acta.ListJobStepsQuery query, System.Threading.CancellationToken ct = default)
     System.Threading.Tasks.ValueTask<Acta.PauseJobResponse> PauseAsync(Acta.JobLookup job, System.String reasonMessage = null, System.String actor = null, System.Nullable<System.Int32> expectedVersion = null, System.Threading.CancellationToken ct = default)
-    System.Threading.Tasks.ValueTask<Acta.PurgeJobResponse> PurgeAsync(Acta.JobLookup job, System.String actor = null, System.Threading.CancellationToken ct = default)
+    System.Threading.Tasks.ValueTask<Acta.PurgeJobResponse> PurgeAsync(Acta.JobLookup job, System.String reasonMessage = null, System.String actor = null, System.Threading.CancellationToken ct = default)
     System.Threading.Tasks.ValueTask<Acta.RaiseJobSignalResponse> RaiseSignalAsync(Acta.JobLookup job, System.String name, Acta.JobPayload value, System.String actor = null, System.Threading.CancellationToken ct = default)
     System.Threading.Tasks.ValueTask<Acta.RaiseJobSignalResponse> RaiseSignalAsync<T>(Acta.JobLookup job, System.String name, T value, System.String actor = null, System.Threading.CancellationToken ct = default)
     System.Threading.Tasks.ValueTask<Acta.ReprioritizeJobResponse> ReprioritizeAsync(Acta.JobLookup job, Acta.JobPriorityCode priority, System.String reasonMessage = null, System.String actor = null, System.Nullable<System.Int32> expectedVersion = null, System.Threading.CancellationToken ct = default)

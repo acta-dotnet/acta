@@ -1,7 +1,6 @@
 <script lang="ts">
   import { createQuery } from '@tanstack/svelte-query';
   import { useControlMutation } from '../lib/useControlMutation.ts';
-  import { buildBody } from '../lib/controlMutation.ts';
   import { capabilitiesQuery, canControl } from '../query.ts';
   import type { JobControlResponse } from '../api.ts';
   import { jobControlMessage } from '../lib/controlMessages.ts';
@@ -171,8 +170,7 @@
     JobControlResponse
   >({
     path: (vars) => `jobs/${vars.jobRef}/${vars.action}`,
-    // Purge records no reason, and the server rejects a body member it does not map, so its body is empty.
-    rawBody: (vars) => (vars.action === 'purge' ? {} : buildBody(vars, () => vars.extra ?? {})),
+    body: (vars) => vars.extra ?? {},
     notFound: () => ({ action: 'not-found', status: null }),
     invalidateKeys: () => [['jobs']] as const
   });
@@ -288,7 +286,6 @@
     confirmLabel={copy.label}
     danger={copy.danger}
     requireReason={copy.requireReason}
-    showReason={confirming !== 'purge'}
     warning={copy.warning}
     confirmPhrase={confirming === 'purge' ? jobRef : ''}
     onConfirm={confirmAction}

@@ -151,7 +151,7 @@ internal static class JobsEndpoints
             "Invalid request.",
             ControlStatus.Job<PurgeJobResponse>(),
             RouteKeys.JobByRef,
-            static (call, job) => call.Jobs.PurgeAsync(job, call.Actor, call.Ct)
+            static (call, job) => call.Jobs.PurgeAsync(job, call.ReasonMessage, call.Actor, call.Ct)
         );
         controls.MapCommand(
             "/jobs/{jobRef}/reschedule",

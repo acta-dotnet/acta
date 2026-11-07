@@ -82,7 +82,7 @@ public sealed class ControlContractTests
         .. JobVerb("resume", typeof(ResumeJobResponse)),
         .. JobVerb("restart", typeof(RestartJobResponse)),
         .. JobVerb("cancel", typeof(CancelJobResponse)),
-        .. JobVerb("purge", typeof(PurgeJobResponse), new JsonObject()),
+        .. JobVerb("purge", typeof(PurgeJobResponse)),
         .. JobVerb("reschedule", typeof(RescheduleJobResponse), new { nextRunAtUtc = "2030-01-01T00:00:00Z", reasonMessage = "because" }),
         .. JobVerb("reprioritize", typeof(ReprioritizeJobResponse), new { priority = "high", reasonMessage = "because" }),
         .. JobVerbVersionConflict("pause", typeof(PauseJobResponse), new JsonObject { ["reasonMessage"] = "because" }),

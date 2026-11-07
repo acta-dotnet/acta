@@ -1,8 +1,9 @@
 namespace Acta;
 
 /// <summary>
-/// <see cref="IJobs.PurgeAsync"/>: hard-deletes a terminal job with its events and leaves one <c>job.purged</c> tombstone
-/// whose details snapshot the job's ref, correlation key, and operator, since no event of the job survives to carry them.
+/// <see cref="IJobs.PurgeAsync"/>: hard-deletes a terminal job with its events and leaves one <c>job.purged</c> tombstone,
+/// the operator's reason as its message, whose details snapshot the job's ref, correlation key, and operator, since no
+/// event of the job survives to carry them.
 /// </summary>
 internal sealed class PurgeJobHandler(
     GetJobIdHandler getJobId,
@@ -35,7 +36,7 @@ internal sealed class PurgeJobHandler(
             cmd =>
             {
                 cmd.Parameters.Add(dialect.CreateParameter(ActaSchema.Job.JobId, jobId));
-                cmd.AddEventFields(dialect, null, details);
+                cmd.AddEventFields(dialect, command.ReasonMessage.Truncate(ActaTextLimits.EventMessage), details);
                 cmd.Parameters.Add(dialect.CreateParameter(ActaSchema.Sql.AlertFloorUtc, floorUtc));
                 cmd.Parameters.Add(dialect.CreateParameter(ActaSchema.Sql.AlertFloorEventId, floorEventId));
             },
