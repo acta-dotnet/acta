@@ -7,13 +7,7 @@ SELECT
     r.job_status_code AS slot_status,
     t.expression_kind_code AS expression_kind,
     t.interval_anchor_at_utc,
-    t.timing_fingerprint,
-    r.job_priority_code AS slot_priority,
-    t.max_outstanding,
-    t.full_behavior_code AS full_behavior,
-    t.expire_after_seconds,
-    t.expire_action_code AS expire_action,
-    t.availability_calendar_name
+    t.timing_fingerprint
 FROM {{schema}}.schedules t
 INNER JOIN {{schema}}.definitions d ON d.definition_id = t.definition_id
 INNER JOIN {{schema}}.schedules_state st ON st.schedule_id = t.schedule_id

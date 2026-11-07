@@ -224,8 +224,6 @@ public sealed class RegisterSchedulesPerOccurrenceSpec : ActaStorageTestBase<Con
         await RegisterAsync(defId, [available], ct);
         var (config, _) = await ScheduleAsync(defId, "only", ct);
         Assert.Equal("office-hours", config.AvailabilityCalendarName);
-        var stored = (await StoredAsync(defId, ct))["only"];
-        Assert.Equal("office-hours", stored.AvailabilityCalendarName);
         var listed = Assert.Single(
             (await Schedules.ListAsync(new ListSchedulesQuery(JobNamespace: TestNamespace, JobName: jobName, LiveOnly: false), ct)).Items
         );
@@ -301,11 +299,6 @@ public sealed class RegisterSchedulesPerOccurrenceSpec : ActaStorageTestBase<Con
             ScheduledDelivery: ScheduledDeliveryCode.PerOccurrence,
             Schedules: schedules
         );
-
-    private async Task<Dictionary<string, StoredScheduleState>> StoredAsync(int defId, CancellationToken ct) =>
-        (await Services.GetRequiredService<ListScheduleStatesHandler>().HandleAsync(new ListScheduleStatesQuery(TestNamespaceId), ct))
-            .States.Where(s => s.DefinitionId == defId)
-            .ToDictionary(s => s.ScheduleName, StringComparer.Ordinal);
 
     private async Task<(ScheduleEntity Config, ScheduleStateEntity State)> ScheduleAsync(int defId, string name, CancellationToken ct)
     {
