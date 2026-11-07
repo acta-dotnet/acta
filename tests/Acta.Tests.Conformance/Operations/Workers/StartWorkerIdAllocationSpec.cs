@@ -6,31 +6,35 @@ using Xunit;
 namespace Acta.Tests.Conformance.Operations.Workers;
 
 /// <summary>
-/// A worker start against a namespace that already exists must allocate no namespace id. PostgreSQL
-/// evaluates an identity default before it detects an <c>ON CONFLICT</c>, and SQLite advances
-/// <c>sqlite_sequence</c> before it detects one, so an upsert-shaped registration silently spent one
-/// <c>namespaces.namespace_id</c> on every worker start - the id space drains at worker-restart rate rather
+/// A development restart - the deploy and the worker start - against a namespace that already exists must allocate no
+/// namespace id. PostgreSQL evaluates an identity default before it detects an <c>ON CONFLICT</c>, and SQLite advances
+/// <c>sqlite_sequence</c> before it detects one, so an upsert-shaped namespace insert would silently spend one
+/// <c>namespaces.namespace_id</c> on every restart - the id space would drain at restart rate rather
 /// than at namespace-creation rate.
 /// </summary>
 /// <remarks>
 /// Asserted as density rather than as a raw allocator reading, so the spec needs no provider-specific
-/// probe and tolerates the namespaces other specs create in parallel against the shared schema: an id
-/// that was handed out but carries no row is exactly a burned id. One other spec leaves such a hole
-/// legitimately - <c>DbSessionWriteSpec</c> deletes the namespace row it inserted, once per run - so
-/// the gate is that the restarts opened fewer holes than there were restarts, which a burning
-/// registration cannot satisfy at any restart count while a stray deletion cannot breach.
+/// probe: an id that was handed out but carries no row is exactly a burned id. On the servers the class
+/// runs on a schema of its own, because other specs burn ids legitimately in the shared one: a first
+/// deploy that rolls back, and each first deploy of one name that loses a race, spends an identity value.
+/// On SQLite the class shares the file, where a rolled-back insert spends nothing and one spec leaves a
+/// hole - <c>DbSessionWriteSpec</c> deletes the namespace row it inserted, once per run - so the gate is
+/// that the restarts opened fewer holes than there were restarts, which a burning insert cannot satisfy
+/// at any restart count while a stray deletion cannot breach.
 /// </remarks>
 [ConformanceSpec(
     "worker.start.id-allocation",
-    "StartWorker allocates a namespace id only when it creates the namespace",
+    "A deploy allocates a namespace id only when it creates the namespace",
     Area = "Workers",
-    Contract = "A worker start against an existing namespace allocates no namespace id, so the id space tracks namespaces created, not workers started."
+    Contract = "A deploy and a worker start against an existing namespace allocate no namespace id, so the id space tracks namespaces created, not restarts."
 )]
 public sealed class StartWorkerIdAllocationSpec : ActaStorageTestBase<ConformanceFixture>
 {
-    // A burning registration opens one hole per restart, so this is both the signal and the margin:
+    // A burning namespace insert opens one hole per restart, so this is both the signal and the margin:
     // eight holes to fail on, against the single stray deletion a full run is known to leave.
     private const int Restarts = 8;
+
+    protected override bool OwnSchema => true;
 
     [Fact(DisplayName = "Restarting workers against an existing namespace allocates no namespace ids")]
     public async Task Repeated_starts_against_one_namespace_allocate_no_ids()
@@ -41,8 +45,8 @@ public sealed class StartWorkerIdAllocationSpec : ActaStorageTestBase<Conformanc
 
         var (firstId, _) = await WorkerTestOps.StartAsync(Services, first, "team-a", "desc", "host-0", "v1", null, null, 4000, 4, ct);
 
-        // Unchanged metadata on purpose: the hash gate makes these pure no-op registrations, which is
-        // the case the burning shape charged an id for.
+        // Unchanged metadata on purpose: these restarts write no namespace row, which is the case a
+        // burning shape charges an id for.
         for (var i = 1; i <= Restarts; i++)
         {
             await WorkerTestOps.StartAsync(Services, first, "team-a", "desc", $"host-{i}", "v1", null, null, 4000 + i, 4, ct);

@@ -59,7 +59,7 @@ BEGIN
                     SELECT 1 FROM {{schema}}.jobs_state p
                     WHERE p.job_id = j.parent_job_id
                       AND p.job_status_code NOT IN (100 /* JobStatusCode.Succeeded */, 200 /* JobStatusCode.Failed */, 220 /* JobStatusCode.Cancelled */))
-                -- A stopped recurring job stays while its definition is live: the next start would register
+                -- A stopped recurring job stays while its definition is live: the next deploy would register
                 -- its declaration as a new job and undo the cancel or failure. Retiring the definition lets
                 -- it drain.
                 AND NOT EXISTS (

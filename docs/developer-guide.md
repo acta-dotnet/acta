@@ -144,7 +144,7 @@ definition's schedules with the reason until an operator resumes them, while `ct
 resume, restart, or cancel, whatever startup or the schedule verbs do, and a deploy that drops every
 schedule leaves the slot `Idle` with nothing due. [Schedule operations](#schedule-operations) covers the rest.
 
-A **Worker** is a peer process loop: it registers a namespace, heartbeats, claims ready rows,
+A **Worker** is a peer process loop: it starts in a namespace its build has deployed in, heartbeats, claims ready rows,
 executes handlers, and refreshes leases. There is no leader or control-plane service.
 
 A **Provider** is the durable SQL backend. SQL Server and Postgres are the distributed providers;
@@ -663,7 +663,7 @@ builder.Services.UseActa(j =>
 });
 ```
 
-`Run<TManifest>(...)` registers definitions, schedules, a worker row, and a claim loop for one
+`Run<TManifest>(...)` declares definitions and schedules for a deploy to write, and a worker row and a claim loop for one
 namespace. `Reference<TManifest>(...)` only makes typed enqueue available in a process that does not
 run handlers.
 
@@ -702,8 +702,8 @@ alert settings, or lease/heartbeat relationships fail fast.
 | `MaxInlinePayloadBytes` | 1 MiB | cluster data | The one payload ceiling, for inline writes and the HTTP request body; an oversize handler result is dropped. |
 | `AlertFailureThreshold` | 3 | cluster data | Automatic failure count threshold for escalation. |
 | `AlertChannelValidationMode` | `Warn` | startup policy | `Off`, `Warn`, or `Fail` when definitions route to missing alert channels. |
-| `PayloadContractDriftMode` | `Warn` | startup policy | `Warn` or `Fail` when a registration changes input or result contract columns. |
-| `DeploymentVersion` | assembly informational version | per process | Written to `workers`; should identify the deployed build and differ across rolling deploys. |
+| `PayloadContractDriftMode` | `Warn` | deploy policy | `Warn` or `Fail` when a deploy changes input or result contract columns. |
+| `DeploymentVersion` | assembly informational version | per process | The version a deploy records and a worker starts as, written to `deployments` and `workers`; it must identify the build and differ across releases. |
 | `EnvironmentName` | `DOTNET_ENVIRONMENT`, then `ASPNETCORE_ENVIRONMENT`, then `Production` | per process | Matched against a `[Schedule]`'s `Environments`; a schedule without environments registers everywhere. |
 | `AllowClockSkew` | `false` | startup policy | Downgrades excessive host/database clock skew from failure to warning. |
 
@@ -719,7 +719,7 @@ A worker claims one row for every free executor and moves it straight to `Execut
 
 ### Handler Policy Lives Elsewhere
 
-Retries, backoff, execution timeout, deadline, retention, alert profile, event recording, priority, concurrency limit, and rate limit are declared on `[Job(...)]`, and schedule policy on `[Schedule(...)]`, not on `JobsOptions`. An operator overrides the job policy without a deploy through `IActaOperations.Definitions.UpdateOverridesAsync`, `PUT /definitions/{jobNamespace}/{jobName}/overrides`, or the dashboard: the call replaces the whole override set, a null field clears an override, and the definition's `version` guards a concurrent edit. Over HTTP the body's `overrides` carries every field, and one it leaves out answers 400; `GET /definitions/{jobNamespace}/{jobName}` answers `overrides` in the same shape, so a client changes fields of it and sends it back whole. Workers pick the change up on their next heartbeat; two edits of one namespace committed within the same instant can leave one unseen until the next edit. Priority and event recording are copied onto each job when it is enqueued, so an override of either reaches the jobs enqueued after it, and `IJobs.ReprioritizeAsync` moves a queued one. A recurring job's slot, one job that lives on, takes a new event recording at once and a new priority at the next worker start, between firings.
+Retries, backoff, execution timeout, deadline, retention, alert profile, event recording, priority, concurrency limit, and rate limit are declared on `[Job(...)]`, and schedule policy on `[Schedule(...)]`, not on `JobsOptions`. An operator overrides the job policy without a deploy through `IActaOperations.Definitions.UpdateOverridesAsync`, `PUT /definitions/{jobNamespace}/{jobName}/overrides`, or the dashboard: the call replaces the whole override set, a null field clears an override, and the definition's `version` guards a concurrent edit. Over HTTP the body's `overrides` carries every field, and one it leaves out answers 400; `GET /definitions/{jobNamespace}/{jobName}` answers `overrides` in the same shape, so a client changes fields of it and sends it back whole. Workers pick the change up on their next heartbeat; two edits of one namespace committed within the same instant can leave one unseen until the next edit. Priority and event recording are copied onto each job when it is enqueued, so an override of either reaches the jobs enqueued after it, and `IJobs.ReprioritizeAsync` moves a queued one. A recurring job's slot, one job that lives on, takes a new event recording at once and a new priority at the next deploy, between firings.
 
 The default retry policy (`MaxAttempts = 15`, backoff `"1m..1d x2 ~10%"`) keeps a failing job retrying for about 4.4 days before it lands Failed.
 
@@ -945,7 +945,7 @@ per-occurrence schedule is at `MaxOutstanding`; a missing or orphaned schedule i
 
 Under `CatchUpAll` the schedule is due again the moment a firing is admitted: a permanent slot parks until that firing settles and takes the next occurrence then, and a per-occurrence schedule admits one root per pass up to `MaxOutstanding`, then waits or drops by its `FullBehavior`. Ten missed hourly occurrences are one run under `CatchUpOnce` or `CatchUpLatest`, one run under `Skip` only if the tenth is still within the grace, and ten runs under `CatchUpAll`.
 
-The admission engine applies the strategy whenever it evaluates a stored occurrence that is already past: after downtime, when a paused schedule resumes, and when a timed pause ends. An occurrence less than `misfire_grace_seconds` (60) overdue still counts as due. A worker start never decides an occurrence: it registers the declaration and leaves the decision to the running fleet, so a redeploy with an unchanged schedule changes nothing. A changed expression, time zone, interval anchor, or bound retimes the schedule at the start: the old timing's undecided occurrences are discarded (`schedule.retimed`) and the cursor seeds from the new timing's first occurrence after now. A timed pause decides as of its end: an occurrence inside the window is skipped under `Skip`, runs once under `CatchUpOnce`, runs as the latest under `CatchUpLatest`, and runs in order under `CatchUpAll`.
+The admission engine applies the strategy whenever it evaluates a stored occurrence that is already past: after downtime, when a paused schedule resumes, and when a timed pause ends. An occurrence less than `misfire_grace_seconds` (60) overdue still counts as due. A deploy never decides an occurrence: it registers the declaration and leaves the decision to the running fleet, so a deploy with an unchanged schedule changes nothing, and a worker start writes no schedule at all. A changed expression, time zone, interval anchor, or bound retimes the schedule at the deploy: the old timing's undecided occurrences are discarded (`schedule.retimed`) and the cursor seeds from the new timing's first occurrence after now. A timed pause decides as of its end: an occurrence inside the window is skipped under `Skip`, runs once under `CatchUpOnce`, runs as the latest under `CatchUpLatest`, and runs in order under `CatchUpAll`.
 
 `[Schedule(ExpireAfter = "1h", ExpireAction = ScheduleExpireActionCode.Discard)]` bounds how old an occurrence may be when it is evaluated. Occurrences older than the age are decided first and without work, audited as `schedule.skipped` with the reason `expired`, and the strategy then decides the rest. `Discard` moves on. `Pause` also pauses the schedule, with the pause message `Paused by the expiration policy: an occurrence expired unadmitted.` and a `schedule.paused` event with the reason `expired`, so an operator learns that the schedule fell behind. The first evaluation after an operator's resume (`evaluation_status` is `resumed` until then) and the end of a timed pause expire the stale part of the backlog without pausing again, so a resumed schedule moves on. Expiration does not wait for capacity: an evaluation expires every occurrence past the age before it asks whether the slot or the schedule can take one, so a schedule parked behind a busy slot or a full schedule discards its stale backlog at once. Without an expiry, `CatchUpAll` runs the whole backlog.
 
@@ -1016,7 +1016,7 @@ The workflow keeps a calendar's definition beside the code that names it:
 3. Preview the draft beside the current version: `PreviewAsync`, `GET /calendars/{jobNamespace}/{calendarName}/preview`, or the dashboard.
 4. Publish it from a deploy step, with `PublishAsync`, `POST /calendars/{jobNamespace}/{calendarName}/publish`, or the dashboard, before the workers that name it roll.
 
-- Workers never publish. A worker start checks every calendar its schedules name before it registers anything. A start that finds one not ready fails and lists each schedule as `namespace/job/schedule` with its calendar and the reason: no published version, a version published under the other role, or a version this build cannot read, with the compiler's problem.
+- Workers never publish. A deploy checks every calendar its schedules name before it writes anything. A deploy that finds one not ready fails and lists each schedule as `namespace/job/schedule` with its calendar and the reason: no published version, a version published under the other role, or a version this build cannot read, with the compiler's problem.
 - `GetAsync` answers a family's head with one version's `Definition`, the stored JSON text, which a draft takes back as it is. `SaveDraftAsync` takes the latest version the caller saw (`VersionConflict` otherwise) and creates a namespace no worker has run in yet. `PreviewAsync` forecasts a version beside the current one and lists up to 100 bound schedules with an overdue flag, overdue ones first, with `SchedulesTotal` and `OverdueTotal` counting them all; `ListDependentsAsync` pages every one. `PublishAsync` makes a draft current and retimes every schedule that names the family in its scope in one transaction: its cursor seeds from the new version's first occurrence after now, and `schedule.retimed` is recorded; paused and orphaned schedules keep their state. A schedule holding an undecided overdue occurrence refuses the publication (`OverdueDecisionCode.Refuse`, the default) until it is drained, or is audited as `schedule.skipped` with the reason `retimed` under `OverdueDecisionCode.Discard`. A publication retimes at most 200 schedules. `ArchiveAsync` retires a family no live schedule names.
 - Publishing a shared calendar locks every namespace it retimes, in id order, so a registration or another publication in those namespaces waits rather than racing.
 
@@ -1059,7 +1059,7 @@ Before a large backfill:
 - Pausing the recurring job (`IJobs.PauseAsync`) stops all its schedules until an operator resumes, restarts, or cancels it; worker restarts and deploys leave it paused, and trigger-now is rejected.
 - A recurring job whose schedules are all paused or removed sits `Idle` with nothing due until a schedule offers a run.
 - Rescheduling a recurring job (`IJobs.RescheduleAsync`, the dashboard's Run now, or `POST /jobs/{jobRef}/reschedule` with no instant) runs it now: an `Idle` slot, or a Paused one with no firing outstanding, takes a manual firing at the instant, the same firing a schedule trigger admits and rejected the same way in a suspended namespace, and returns to `Idle` when it settles; a slot mid-firing keeps its firing and moves its instant.
-- Cancelling a recurring job ends it until a restart. A manual purge deletes it only when nothing pins it (every schedule orphaned, or the definition retired), and the next start registers a new slot.
+- Cancelling a recurring job ends it until a restart. A manual purge deletes it only when nothing pins it (every schedule orphaned, or the definition retired), and the next deploy registers a new slot.
 - `[Job(FiringFailurePolicy = ...)]` decides what a firing that fails for good does to the definition's schedules: `Continue` (the default) leaves them scheduled, so the next occurrence fires; `PauseScheduling` pauses every active one with the pause message `Paused by the firing failure policy: the last firing failed for good.`, each resumable on its own. A completion that spends the budget and a reclaim that does apply it alike, as does a per-occurrence root that lands `Failed`; a handler's own fail or cancel stops a slot instead.
 - A recurring job's slot has no deduplication key: an ordinary job keyed by the job name is unrelated to it, so `IJobs.GetIdAsync` finds a slot by its ref or id, never by a key; `GET /schedules` and `ISchedules.ListAsync` carry the slot's ref. A per-occurrence root's key is `sys.occurrence.{schedule_id}.{ticks}`, and a manually triggered one's `sys.manual.{schedule_id}.{firingId}`.
 - Preview computes upcoming instants without touching the cursor, and is safe on a paused schedule.
@@ -1074,7 +1074,7 @@ A job enqueued before a deploy can run after it, so a new handler must process t
 - **Keep the job name** for changes old payloads survive: an optional, nullable, or defaulted field, a result field old readers tolerate, or new behavior that keeps the meaning of existing fields.
 - **Use a new versioned name** (`send-invoice-v2`) when old payloads would be misread or rejected: a renamed, removed, or retyped field, a changed meaning, another input type or payload format, or required data old rows cannot supply. Keep the old handler registered until none of its rows can still run, wait, or be restarted. Dropping a handler cancels nothing: its rows stay Ready until a build carries it again or an operator retires the definition.
 
-`PayloadContractDriftMode` compares only the stored input and result type names and payload formats at startup; it is not a JSON schema check. Set it to `Fail` where startup should stop on such a change.
+`PayloadContractDriftMode` compares only the stored input and result type names and payload formats when a deploy runs; it is not a JSON schema check. Set it to `Fail` where a deploy should stop on such a change.
 
 ### Renaming a step, variable, signal or timer
 

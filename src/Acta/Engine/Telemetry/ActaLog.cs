@@ -275,9 +275,15 @@ internal static partial class ActaLog
 
     [LoggerMessage(
         Level = LogLevel.Information,
-        Message = "Registering the catalog failed ({ActaDetail}); another replica may be registering it. Retrying."
+        Message = "Namespace ({ActaNamespace}): a deploy step has deployed it ({ActaDetail}), so this start under MigrateOnStartup writes no definition or schedule there. Run the app with 'jobs deploy' to deploy this build."
     )]
-    public static partial void CatalogRegistrationRetrying(ILogger log, Exception exception, string actaDetail);
+    public static partial void StartupDeploySkipped(ILogger log, string actaNamespace, string actaDetail);
+
+    [LoggerMessage(
+        Level = LogLevel.Information,
+        Message = "Namespace ({ActaNamespace}): this worker's build is not the one currently deployed ({ActaDetail}). Where its declaration of a job differs, the deployed values apply for the policy an operator can override and for the rate meter, and the rest is this build's own."
+    )]
+    public static partial void WorkerStartedOnOtherVersion(ILogger log, string actaNamespace, string actaDetail);
 
     [LoggerMessage(
         Level = LogLevel.Warning,

@@ -15,6 +15,12 @@ internal static partial class ActaSchema
 
         public static readonly DbValueSpec<string> NamespaceName = new("p_namespace_name", DbKind.AsciiString, 128);
 
+        /// <summary>
+        /// Worker start: whether a namespace with a recorded deployment admits only the versions that deployed there.
+        /// False for <c>jobs debug</c>, which runs a stored job from any build.
+        /// </summary>
+        public static readonly DbValueSpec<bool> RequiresDeployment = new("p_requires_deployment", DbKind.Boolean);
+
         /// <summary>The namespaces a deploy opens, as a JSON array of names. The operation SQL parses it provider-locally.</summary>
         public static readonly DbValueSpec<string> NamespaceNamesJson = new("p_namespace_names", DbKind.UnicodeString, -1);
 

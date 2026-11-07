@@ -5,7 +5,7 @@ using Xunit;
 namespace Acta.Tests.Conformance.Engine.Catalog;
 
 /// <summary>
-/// Conformance for system-job auto-registration: <c>InitializeAsync</c> registers the
+/// Conformance for system-job auto-registration: a deploy registers the
 /// <c>sys.alerts</c> system definition, its recurring slot (deduplication_key = the job name), and its
 /// schedule into the worker's namespace. The one spec that opts back into
 /// <see cref="ActaRuntimeTestBase{ConformanceFixture,TManifest}.RunSystemJobs"/>; every other execution
@@ -13,9 +13,9 @@ namespace Acta.Tests.Conformance.Engine.Catalog;
 /// </summary>
 [ConformanceSpec(
     "system-jobs.auto-register",
-    "Init auto-registers system definitions, slots and schedules",
+    "A deploy auto-registers system definitions, slots and schedules",
     Area = "Catalog",
-    Contract = "InitializeAsync registers system definitions with an Idle permanent slot and a default schedule."
+    Contract = "A deploy registers system definitions with an Idle permanent slot and a default schedule."
 )]
 public sealed class FrameworkJobRegistrationSpec : ActaRuntimeTestBase<ConformanceFixture, TestJobs.TestJobsManifest>
 {
@@ -24,7 +24,7 @@ public sealed class FrameworkJobRegistrationSpec : ActaRuntimeTestBase<Conforman
 
     protected override bool RunSystemJobs => true;
 
-    [Fact(DisplayName = "Init makes the sys.alerts definition Active with an Idle permanent slot and a default schedule")]
+    [Fact(DisplayName = "A deploy makes the sys.alerts definition Active with an Idle permanent slot and a default schedule")]
     public async Task Initialize_auto_registers_the_maintenance_system_job()
     {
         var ct = TestContext.Current.CancellationToken;
@@ -49,7 +49,7 @@ public sealed class FrameworkJobRegistrationSpec : ActaRuntimeTestBase<Conforman
         Assert.Equal("default", Assert.Single(schedules).ScheduleName);
     }
 
-    [Fact(DisplayName = "Init makes the sys.retention definition Active with an Idle permanent slot and an hourly default schedule")]
+    [Fact(DisplayName = "A deploy makes the sys.retention definition Active with an Idle permanent slot and an hourly default schedule")]
     public async Task Initialize_auto_registers_the_purge_expired_data_system_job()
     {
         var ct = TestContext.Current.CancellationToken;

@@ -26,7 +26,7 @@ internal sealed class WorkerContext(WorkerRegistration? workerRegistration)
     public ConcurrentDictionary<int, JobDescriptor> DescriptorByDefinitionId { get; } = new();
 
     /// <summary>
-    /// definitions.definition_id to effective retention in seconds for each definition the heartbeat's last catalog read found
+    /// definitions.definition_id to effective retention in seconds for each definition the last catalog read, the start's or a heartbeat's, found
     /// Retired, whether or not this deployment carries its handler. Their jobs never start another attempt or re-arm.
     /// Replaced whole on each read, so a definition a build made Active again leaves it.
     /// </summary>

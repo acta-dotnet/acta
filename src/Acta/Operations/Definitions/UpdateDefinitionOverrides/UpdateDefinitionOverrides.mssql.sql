@@ -81,7 +81,7 @@ BEGIN TRY
         AND LOWER(COALESCE(rate_name, definition_name)) = @meter;
 
     -- A recurring job's slot is one long-lived job, so it takes the new event recording here, at once, rather than at
-    -- the next worker start's registration; an ordinary job keeps the recording it was enqueued with.
+    -- the next deploy's registration; an ordinary job keeps the recording it was enqueued with.
     UPDATE j
     SET event_recording_code = jd.event_recording_code_effective
     FROM {{schema}}.jobs j

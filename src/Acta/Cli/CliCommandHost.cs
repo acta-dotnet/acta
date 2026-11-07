@@ -9,7 +9,7 @@ namespace Acta;
 /// the reserved "jobs" argument. Parses and runs the verb during startup, then terminates the
 /// process via Environment.Exit so application code after host StartAsync never runs. Skips
 /// provider bootstrap and catalog writes: only migrate applies the schema, only migrate and deploy write
-/// the declared workers' catalogs, and only the debug verb initializes its worker's catalog. Services
+/// the declared workers' catalogs, and only the debug verb starts a worker, which reads its catalog. Services
 /// resolve after the parse, so migrate and deploy build no worker.
 /// </summary>
 internal sealed class CliCommandHost(CliInvocation invocation, IServiceProvider services) : IHostedService
@@ -56,7 +56,7 @@ internal sealed class CliCommandHost(CliInvocation invocation, IServiceProvider 
                 IReadOnlyList<NamespaceDeployment> deployed;
                 try
                 {
-                    deployed = await services.GetRequiredService<CatalogDeployer>().DeployAsync(invocation.Workers, command.Force, ct);
+                    deployed = await services.GetRequiredService<CatalogDeployer>().DeployAsync(command.Force, ct);
                 }
                 catch
                 {
@@ -72,7 +72,7 @@ internal sealed class CliCommandHost(CliInvocation invocation, IServiceProvider 
             if (command.Verb == CliVerb.Deploy)
             {
                 await services.GetRequiredService<SchemaBootstrap>().PreflightAsync(ct);
-                var deployed = await services.GetRequiredService<CatalogDeployer>().DeployAsync(invocation.Workers, command.Force, ct);
+                var deployed = await services.GetRequiredService<CatalogDeployer>().DeployAsync(command.Force, ct);
                 CliOutput.WriteDeploy(output, deployed, command.Json);
                 return 0;
             }

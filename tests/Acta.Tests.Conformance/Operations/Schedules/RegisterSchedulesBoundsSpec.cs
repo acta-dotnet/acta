@@ -115,7 +115,7 @@ public sealed class RegisterSchedulesBoundsSpec : ActaStorageTestBase<Conformanc
         Assert.Null(Assert.Single(await ScheduleTestOps.ReadAsync(Db, slotId, ct)).NextOccurrenceAtUtc);
     }
 
-    // The startup insert path, as CatalogRegistrar.ReconcileSchedulesAsync runs it: read the stored states, plan, upsert.
+    // A deploy's insert path, as CatalogRegistrar.ReconcileSchedulesAsync runs it: read the stored states, plan, upsert.
     private async Task<long> PlanAndRegisterAsync(
         int defId,
         string jobName,

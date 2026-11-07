@@ -6,16 +6,16 @@ using Xunit;
 namespace Acta.Tests.Conformance.Operations.Schedules;
 
 /// <summary>
-/// Conformance for the startup schedule-insert path: reading stored cursors, planning them against the declared
+/// Conformance for a deploy's schedule-insert path: reading stored cursors, planning them against the declared
 /// schedule, and upserting the result. Mirrors <c>CatalogRegistrar.ReconcileSchedulesAsync</c> (ListScheduleStates then
 /// ScheduleRegistrationPlan.Plan then RegisterSchedules) and asserts the persisted cursor for every (kind x stored-state)
-/// cell: a missed occurrence is kept for the admitter to decide under the misfire policy, never decided at a start.
+/// cell: a missed occurrence is kept for the admitter to decide under the misfire policy, never decided at a deploy.
 /// </summary>
 [ConformanceSpec(
     "schedule.registration-cursor",
     "Schedule insert seeds a new cursor, keeps a stored one, and upserts one row",
     Area = "Scheduling",
-    Contract = "The startup schedule insert seeds a new schedule after now, keeps a stored cursor whether due or not, and upserts the single schedule row."
+    Contract = "A deploy's schedule insert seeds a new schedule after now, keeps a stored cursor whether due or not, and upserts the single schedule row."
 )]
 public sealed class RegisterSchedulesCursorSpec : ActaStorageTestBase<ConformanceFixture>
 {
@@ -101,7 +101,7 @@ public sealed class RegisterSchedulesCursorSpec : ActaStorageTestBase<Conformanc
         return map[jobName];
     }
 
-    // The startup insert path: read stored cursors, plan the declared schedule at nowUtc, and upsert. This is
+    // A deploy's insert path: read stored cursors, plan the declared schedule at nowUtc, and upsert. This is
     // exactly CatalogRegistrar.ReconcileSchedulesAsync.
     private async Task<long> PlanAndRegisterAsync(
         int defId,

@@ -10,13 +10,13 @@ namespace Acta.Tests.Conformance.Testing;
 /// </summary>
 internal static class DefinitionTestOps
 {
-    /// <summary>The passes <c>WorkerRuntimeInitializer</c> gives a catalog registration.</summary>
+    /// <summary>The passes a registration here gets before its error stands.</summary>
     private const int RegistrationPasses = 5;
 
     /// <summary>
-    /// Registers <paramref name="descriptors"/> through the handler a starting worker runs, with the initializer's passes:
-    /// a registration that waited out its command timeout behind the other specs' registrations, or lost a race for the
-    /// same new rows, runs again, and registering the same descriptors again changes nothing.
+    /// Registers <paramref name="descriptors"/> through the handler a deploy runs, in passes: a registration that waited
+    /// out its command timeout behind the other specs' registrations, or lost a race for the same new rows, runs again,
+    /// and registering the same descriptors again changes nothing.
     /// </summary>
     public static async Task<IReadOnlyDictionary<string, int>> RegisterAsync(
         IServiceProvider services,

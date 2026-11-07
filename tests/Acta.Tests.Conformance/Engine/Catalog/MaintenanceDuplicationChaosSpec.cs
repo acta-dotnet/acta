@@ -9,7 +9,7 @@ namespace Acta.Tests.Conformance.Engine.Catalog;
     "chaos.maintenance-duplication",
     "Duplicated maintenance registration still has one slot and one claimant",
     Area = "Chaos",
-    Contract = "Repeated runtime initialization for system maintenance jobs is idempotent, and the recurring maintenance slot is claimed by only one worker."
+    Contract = "A repeated deploy of the system maintenance jobs is idempotent, and the recurring maintenance slot is claimed by only one worker."
 )]
 public sealed class MaintenanceDuplicationChaosSpec : ActaRuntimeTestBase<ConformanceFixture, TestJobs.TestJobsManifest>
 {
@@ -24,10 +24,10 @@ public sealed class MaintenanceDuplicationChaosSpec : ActaRuntimeTestBase<Confor
         var ct = TestContext.Current.CancellationToken;
         var ns = Runtime.RegisteredNamespaceIds[TestNamespace];
 
-        // --- 1. A second runtime initializes the same namespace and system jobs.
+        // --- 1. A second build deploys the same namespace and system jobs and starts its worker.
         await using var second = BuildSecondRuntimeProvider();
         var secondRuntime = second.GetServices<WorkerRuntime>().Single();
-        await secondRuntime.InitializeAsync(ct);
+        await CatalogTestOps.DeployAndStartAsync(second, secondRuntime, ct);
 
         // --- 2. Registration is idempotent: one definition, one slot job, one schedule.
         var maintenanceDefinition = Assert.Single(

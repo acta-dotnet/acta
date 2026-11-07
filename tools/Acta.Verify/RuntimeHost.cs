@@ -142,6 +142,13 @@ internal static class RuntimeHost
         var host = builder.Build();
         try
         {
+            // A worker start writes no definition or schedule. A worker process here brings its own (a fixture's jobs,
+            // the relay's sys.outbox), so it deploys them first, as a start under MigrateOnStartup does.
+            if (worker && !migrate)
+            {
+                await host.Services.GetRequiredService<CatalogDeployer>().DeployUnrecordedAsync(ct);
+            }
+
             await host.StartAsync(ct);
             return new RuntimeLease(host);
         }

@@ -78,6 +78,6 @@ public sealed class AlertChannelValidationSpec : ActaTestBase<ConformanceFixture
 
         using var provider = services.BuildServiceProvider(validateScopes: true);
         var runtime = provider.GetServices<WorkerRuntime>().Single();
-        await runtime.InitializeAsync(TestContext.Current.CancellationToken);
+        await CatalogTestOps.DeployAndStartAsync(provider, runtime, TestContext.Current.CancellationToken);
     }
 }

@@ -29,7 +29,7 @@ public sealed class EnqueueJobTransactionalSpec : ActaRuntimeTestBase<Conformanc
 
     private readonly RecordingWakeup _wakeup = new();
 
-    // Enqueue-only: RunAsWorker keeps InitializeAsync so the per-test namespace is registered (enqueue
+    // Enqueue-only: RunAsWorker keeps the deploy so the per-test namespace is registered (enqueue
     // resolves it), but the claim/execute loop is never started - identical to EnqueueJobsSpec.
     protected override bool RunAsWorker => true;
 

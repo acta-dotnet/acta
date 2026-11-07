@@ -66,7 +66,7 @@ WHERE
     );
 
 -- A recurring job's slot is one long-lived job, so it takes the new event recording here, at once, rather than at the
--- next worker start's registration; an ordinary job keeps the recording it was enqueued with.
+-- next deploy's registration; an ordinary job keeps the recording it was enqueued with.
 UPDATE {{schema}}.jobs
 SET event_recording_code = (
     SELECT jd.event_recording_code_effective FROM {{schema}}.definitions jd WHERE jd.definition_id = @p_definition_id

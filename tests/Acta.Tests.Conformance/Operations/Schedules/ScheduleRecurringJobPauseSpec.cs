@@ -7,15 +7,15 @@ using Xunit;
 namespace Acta.Tests.Conformance.Operations.Schedules;
 
 /// <summary>
-/// An operator's pause or cancel of a recurring job holds until an operator lifts it: startup, the schedule verbs,
-/// and the admitter leave a held or finished slot alone. A slot whose schedules offer no run, a deploy that dropped
-/// them included, stays Idle and fires again once a schedule offers one.
+/// An operator's pause or cancel of a recurring job holds until an operator lifts it: a deploy, a worker start, the
+/// schedule verbs, and the admitter leave a held or finished slot alone. A slot whose schedules offer no run, a deploy
+/// that dropped them included, stays Idle and fires again once a schedule offers one.
 /// </summary>
 [ConformanceSpec(
     "schedule.job-pause-holds",
     "A paused or cancelled recurring job stays so until an operator lifts it",
     Area = "Scheduling",
-    Contract = "A recurring job an operator paused or cancelled keeps that status through worker restarts, schedule edits, and trigger-now."
+    Contract = "A recurring job an operator paused or cancelled keeps that status through deploys, worker restarts, schedule edits, and trigger-now."
 )]
 public sealed class ScheduleRecurringJobPauseSpec : ActaRuntimeTestBase<ConformanceFixture, TestJobs.TestJobsManifest>
 {
@@ -27,14 +27,14 @@ public sealed class ScheduleRecurringJobPauseSpec : ActaRuntimeTestBase<Conforma
     private async Task<JobLookup> SlotAsync(CancellationToken ct) =>
         JobLookup.ById(await ScheduleTestOps.SlotIdAsync(Db, TestNamespace, JobName, ct));
 
-    [Fact(DisplayName = "A paused recurring job stays paused when the worker starts again, and a resume returns it to Idle")]
+    [Fact(DisplayName = "A paused recurring job stays paused through a deploy and a worker start, and a resume returns it to Idle")]
     public async Task A_paused_recurring_job_stays_paused_across_a_restart()
     {
         var ct = TestContext.Current.CancellationToken;
         Assert.Equal(ControlAction.Applied, (await Jobs.PauseAsync(await SlotAsync(ct), ct: ct)).Action);
 
-        // A second startup on the same runtime re-runs registration and the schedule reconcile.
-        await Runtime.InitializeAsync(ct);
+        // A second development start of the same build re-runs the deploy's schedule reconcile.
+        await CatalogTestOps.DeployAndStartAsync(Services, Runtime, ct);
 
         Assert.Equal(JobStatusCode.Paused, (await Jobs.GetStatusAsync(await SlotAsync(ct), ct))?.Status);
         Assert.Equal(ControlAction.Applied, (await Jobs.ResumeAsync(await SlotAsync(ct), ct: ct)).Action);
@@ -72,13 +72,13 @@ public sealed class ScheduleRecurringJobPauseSpec : ActaRuntimeTestBase<Conforma
         Assert.Equal(JobStatusCode.Paused, (await Jobs.GetStatusAsync(await SlotAsync(ct), ct))?.Status);
     }
 
-    [Fact(DisplayName = "A cancelled recurring job stays cancelled when the worker starts again")]
+    [Fact(DisplayName = "A cancelled recurring job stays cancelled through a deploy and a worker start")]
     public async Task A_cancelled_recurring_job_stays_cancelled_across_a_restart()
     {
         var ct = TestContext.Current.CancellationToken;
         Assert.Equal(ControlAction.Applied, (await Jobs.CancelAsync(await SlotAsync(ct), ct: ct)).Action);
 
-        await Runtime.InitializeAsync(ct);
+        await CatalogTestOps.DeployAndStartAsync(Services, Runtime, ct);
 
         Assert.Equal(JobStatusCode.Cancelled, (await Jobs.GetStatusAsync(await SlotAsync(ct), ct))?.Status);
     }
@@ -90,10 +90,10 @@ public sealed class ScheduleRecurringJobPauseSpec : ActaRuntimeTestBase<Conforma
     {
         var ct = TestContext.Current.CancellationToken;
 
-        // A build without the schedule starts, as a deploy that removed [Schedule] would.
-        await using (var dropped = BuildGenerationProvider<UnscheduledPingManifest>("dropped"))
+        // A build without the schedule deploys, as a release that removed [Schedule] does.
+        await using (var dropped = BuildProvider<UnscheduledPingManifest>("dropped"))
         {
-            await dropped.GetServices<WorkerRuntime>().Single().InitializeAsync(ct);
+            await CatalogTestOps.DeployAsync(dropped, ct);
         }
         var slotId = await ScheduleTestOps.SlotIdAsync(Db, TestNamespace, JobName, ct);
         var idle = await ReadJobAsync(slotId, ct);
@@ -104,7 +104,7 @@ public sealed class ScheduleRecurringJobPauseSpec : ActaRuntimeTestBase<Conforma
         Assert.Null(orphaned.NextEvaluationAtUtc);
 
         // The schedule comes back with the next deploy, due for the admitter again.
-        await Runtime.InitializeAsync(ct);
+        await CatalogTestOps.DeployAsync(Services, ct);
 
         Assert.Equal(JobStatusCode.Idle, (await ReadJobAsync(slotId, ct)).Status);
         var back = Assert.Single(await ScheduleTestOps.ReadAsync(Db, slotId, ct));

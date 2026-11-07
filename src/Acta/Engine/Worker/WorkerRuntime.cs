@@ -7,7 +7,7 @@ using Microsoft.Extensions.Options;
 namespace Acta;
 
 /// <summary>
-/// Worker-runtime singleton owning everything for its namespace: the catalog upsert in <see cref="InitializeAsync"/>,
+/// Worker-runtime singleton owning everything for its namespace: the worker's start in <see cref="InitializeAsync"/>,
 /// the claim/dispatch pipeline in <see cref="RunLoopAsync"/>, the lease heartbeat, and the host-level
 /// <see cref="RunAsync"/> that runs pipeline and heartbeat concurrently. A thin facade over <see cref="WorkerContext"/>,
 /// <see cref="WorkerRuntimeInitializer"/>, <see cref="WorkerClaimer"/>, <see cref="WorkerExecutor"/>, and
@@ -67,15 +67,6 @@ internal sealed class WorkerRuntime
         }
 
         _initializer = new WorkerRuntimeInitializer(
-            new CatalogRegistrar(
-                rootServices.GetRequiredService<DefinitionsOperations>(),
-                rootServices.GetRequiredService<SchedulesOperations>(),
-                clock,
-                serializers,
-                options,
-                rootServices.GetRequiredService<CalendarsOperations>(),
-                logger
-            ),
             rootServices.GetRequiredService<DefinitionsOperations>(),
             rootServices.GetRequiredService<WorkersOperations>(),
             rootServices.GetRequiredService<IClockOperations>(),
@@ -170,7 +161,7 @@ internal sealed class WorkerRuntime
     public bool TryGetDefinitionId(string namespaceName, string jobName, out int definitionId) =>
         _context.TryGetDefinitionId(namespaceName, jobName, out definitionId);
 
-    public Task InitializeAsync(CancellationToken ct) => _initializer.InitializeAsync(ct);
+    public Task InitializeAsync(CancellationToken ct, bool debug = false) => _initializer.InitializeAsync(ct, debug);
 
     /// <summary>
     /// Records this worker's clean shutdown: marks its <c>workers</c> row Stopped and emits

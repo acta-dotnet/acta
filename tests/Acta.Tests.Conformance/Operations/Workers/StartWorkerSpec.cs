@@ -6,47 +6,161 @@ using Xunit;
 namespace Acta.Tests.Conformance.Operations.Workers;
 
 /// <summary>
-/// Operation-level conformance for <c>StartWorker</c>: namespace registration idempotency
-/// (no churn when metadata is unchanged), append-only worker rows, and per-worker
-/// <c>worker.started</c> event fields. Calls <c>StartWorker.Run</c> directly with a fresh unique
-/// namespace per test so the registration is observed in isolation.
+/// Operation-level conformance for <c>StartWorker</c>: it answers nothing for an absent namespace, admits any version in
+/// a namespace no deploy has recorded, and in a recorded one admits only the versions with a <c>deployments</c> row
+/// unless the start does not require a deployment. It never writes the namespace row; it appends one worker row and
+/// one <c>worker.started</c> event per admitted start. Calls the operation directly with a fresh unique namespace per
+/// test so each start is observed in isolation.
 /// </summary>
 [ConformanceSpec(
     "worker.start",
-    "StartWorker writes the namespace on a metadata change and appends a worker row",
+    "StartWorker admits the versions a namespace allows and appends a worker row",
     Area = "Workers",
-    Contract = "StartWorker writes the namespace only when its owner, description, or name is new, never its catalog hash, and appends one worker row and WorkerStarted event."
+    Contract = "StartWorker admits any version until a deploy is recorded and then only deployed ones, appends one worker row and event, and never writes the namespace."
 )]
 public sealed class StartWorkerSpec : ActaStorageTestBase<ConformanceFixture>
 {
-    [Fact(
-        DisplayName = "Namespace version is unchanged on same-metadata call and bumped on metadata change, and the start leaves the catalog hash unwritten"
-    )]
-    public async Task Namespace_upsert_is_idempotent_then_churns_on_metadata_change()
+    private Task<StartWorkerResponse?> StartAsync(
+        string namespaceName,
+        string deploymentVersion,
+        Guid workerRef,
+        CancellationToken ct,
+        bool requiresDeployment = true
+    ) =>
+        Services
+            .GetRequiredService<WorkersOperations>()
+            .StartWorkerAsync(
+                StartWorkerCommand.Create(namespaceName, "host1", deploymentVersion, null, null, 1001, 4, workerRef, requiresDeployment),
+                ct
+            );
+
+    /// <summary>Records <paramref name="deploymentVersion"/> in the namespace the way a recorded deploy's transaction does.</summary>
+    private Task<int> RecordDeploymentAsync(string namespaceName, string deploymentVersion, CancellationToken ct)
+    {
+        var deployments = Services.GetRequiredService<DeploymentsOperations>();
+        return Db.RunInTransactionAsync(
+            async (transaction, token) =>
+            {
+                var opened = (await deployments.StartDeploymentAsync(transaction, [namespaceName], deploymentVersion, token)).Namespaces[0];
+                await deployments.RecordDeploymentAsync(
+                    new(transaction, opened.NamespaceId, deploymentVersion, "test", null, opened.CurrentDeploymentVersion, false, [], []),
+                    token
+                );
+                return opened.NamespaceId;
+            },
+            ct
+        );
+    }
+
+    private async Task<NamespaceEntity> ReadNamespaceAsync(int namespaceId, CancellationToken ct) =>
+        (await Db.From<NamespaceEntity>().Where(n => n.Id == namespaceId).SingleOrDefaultAsync(ct))!;
+
+    private Task<int> CountWorkersAsync(Guid workerRef, CancellationToken ct) =>
+        Db.From<WorkerEntity>().Where(w => w.WorkerRef == workerRef).CountAsync(ct);
+
+    private Task<int> CountStartedEventsAsync(int namespaceId, CancellationToken ct) =>
+        Db.From<EventEntity>().Where(e => e.NamespaceId == namespaceId && e.EventCode == EventCode.WorkerStarted).CountAsync(ct);
+
+    [Fact(DisplayName = "A start in an absent namespace answers nothing and writes neither the namespace nor a worker row")]
+    public async Task A_start_in_an_absent_namespace_answers_nothing()
     {
         var ct = TestContext.Current.CancellationToken;
-        var nsName = Unique("sw-ns");
+        var nsName = Unique("sw-absent");
+        var workerRef = WorkerRef.New().Value;
 
-        // Step 1: create namespace with ownerTeam=team-a
-        var (nsId, _) = await WorkerTestOps.StartAsync(Services, nsName, "team-a", "desc", "host1", "v1", null, null, 1001, 4, ct);
-        var ns1 = await Db.From<NamespaceEntity>().Where(n => n.Id == nsId).SingleOrDefaultAsync(ct);
-        Assert.NotNull(ns1);
-        Assert.Equal(0, ns1!.Version); // initial version pinned at 0
-        var capturedModified = ns1.ModifiedAtUtc;
-        Assert.Null(ns1.CatalogHash);
+        Assert.Null(await StartAsync(nsName, "1.0.0", workerRef, ct));
 
-        // Step 2: same ownerTeam + description → no churn
-        await WorkerTestOps.StartAsync(Services, nsName, "team-a", "desc", "host2", "v2", null, null, 1002, 4, ct);
-        var ns2 = await Db.From<NamespaceEntity>().Where(n => n.Id == nsId).SingleOrDefaultAsync(ct);
-        Assert.Equal(0, ns2!.Version); // version unchanged
-        Assert.Equal(capturedModified, ns2.ModifiedAtUtc); // no write, timestamp unchanged
+        Assert.Null(await Db.From<NamespaceEntity>().Where(n => n.NamespaceName == nsName).SingleOrDefaultAsync(ct));
+        Assert.Equal(0, await CountWorkersAsync(workerRef, ct));
+    }
 
-        // Step 3: different ownerTeam → version bumped by 1
-        await WorkerTestOps.StartAsync(Services, nsName, "team-b", "desc", "host3", "v3", null, null, 1003, 4, ct);
-        var ns3 = await Db.From<NamespaceEntity>().Where(n => n.Id == nsId).SingleOrDefaultAsync(ct);
-        Assert.Equal(1, ns3!.Version); // bumped exactly once
-        Assert.Equal("team-b", ns3.OwnerTeam);
-        Assert.Null(ns3.CatalogHash);
+    [Fact(DisplayName = "A start in a namespace no deploy has recorded admits any version")]
+    public async Task A_start_in_an_unrecorded_namespace_admits_any_version()
+    {
+        var ct = TestContext.Current.CancellationToken;
+        var nsName = Unique("sw-open");
+        var nsId = await WorkerTestOps.EnsureNamespaceAsync(Services, nsName, "test", null, ct);
+
+        foreach (var version in new[] { "1.0.0", "2.0.0-local" })
+        {
+            var started = await StartAsync(nsName, version, WorkerRef.New().Value, ct);
+
+            Assert.NotNull(started);
+            Assert.Equal(nsId, started!.NamespaceId);
+            Assert.Null(started.CurrentDeploymentVersion);
+            Assert.NotNull(started.WorkerId);
+        }
+        Assert.Equal(2, await Db.From<WorkerEntity>().Where(w => w.NamespaceId == nsId).CountAsync(ct));
+    }
+
+    [Fact(DisplayName = "A start in a recorded namespace admits a version that deployed there and refuses one that did not")]
+    public async Task A_start_in_a_recorded_namespace_admits_only_deployed_versions()
+    {
+        var ct = TestContext.Current.CancellationToken;
+        var nsName = Unique("sw-gate");
+        var nsId = await RecordDeploymentAsync(nsName, "1.0.0", ct);
+        await RecordDeploymentAsync(nsName, "1.1.0", ct);
+
+        // An earlier version that deployed there is admitted as well as the current one: a rollback runs.
+        foreach (var version in new[] { "1.1.0", "1.0.0" })
+        {
+            var admitted = await StartAsync(nsName, version, WorkerRef.New().Value, ct);
+            Assert.Equal((nsId, "1.1.0"), (admitted!.NamespaceId, admitted.CurrentDeploymentVersion));
+            Assert.NotNull(admitted.WorkerId);
+        }
+        Assert.Equal(2, await CountStartedEventsAsync(nsId, ct));
+
+        var refusedRef = WorkerRef.New().Value;
+        var refused = await StartAsync(nsName, "1.2.0", refusedRef, ct);
+
+        Assert.Equal((nsId, (int?)null, "1.1.0"), (refused!.NamespaceId, refused.WorkerId, refused.CurrentDeploymentVersion));
+        Assert.Equal(0, await CountWorkersAsync(refusedRef, ct));
+        Assert.Equal(2, await CountStartedEventsAsync(nsId, ct));
+    }
+
+    [Fact(DisplayName = "A start that does not require a deployment admits a version that never deployed in the namespace")]
+    public async Task A_start_that_does_not_require_a_deployment_admits_any_version()
+    {
+        var ct = TestContext.Current.CancellationToken;
+        var nsName = Unique("sw-debug");
+        var nsId = await RecordDeploymentAsync(nsName, "1.0.0", ct);
+        var workerRef = WorkerRef.New().Value;
+
+        var started = await StartAsync(nsName, "2.0.0", workerRef, ct, requiresDeployment: false);
+
+        Assert.Equal((nsId, "1.0.0"), (started!.NamespaceId, started.CurrentDeploymentVersion));
+        var worker = Assert.Single(await Db.From<WorkerEntity>().Where(w => w.WorkerRef == workerRef).ToListAsync(ct));
+        Assert.Equal((started.WorkerId, "2.0.0"), ((int?)worker.Id, worker.DeploymentVersion));
+        Assert.Equal(1, await CountStartedEventsAsync(nsId, ct));
+    }
+
+    [Fact(DisplayName = "A start leaves the namespace row as it found it, whether it admits or refuses the version")]
+    public async Task A_start_never_writes_the_namespace_row()
+    {
+        var ct = TestContext.Current.CancellationToken;
+        var openId = await WorkerTestOps.EnsureNamespaceAsync(Services, Unique("sw-keep-open"), "team-a", "desc", ct);
+        var recordedName = Unique("sw-keep-recorded");
+        var recordedId = await RecordDeploymentAsync(recordedName, "1.0.0", ct);
+        var openBefore = await ReadNamespaceAsync(openId, ct);
+        var recordedBefore = await ReadNamespaceAsync(recordedId, ct);
+
+        await StartAsync(openBefore.NamespaceName, "1.0.0", WorkerRef.New().Value, ct);
+        await StartAsync(recordedName, "1.0.0", WorkerRef.New().Value, ct);
+        await StartAsync(recordedName, "9.9.9", WorkerRef.New().Value, ct);
+
+        foreach (
+            var (before, after) in new[]
+            {
+                (openBefore, await ReadNamespaceAsync(openId, ct)),
+                (recordedBefore, await ReadNamespaceAsync(recordedId, ct)),
+            }
+        )
+        {
+            Assert.Equal(
+                (before.Version, before.ModifiedAtUtc, before.DeploymentVersion, before.OwnerTeam, before.Description),
+                (after.Version, after.ModifiedAtUtc, after.DeploymentVersion, after.OwnerTeam, after.Description)
+            );
+        }
     }
 
     [Fact(DisplayName = "Each StartWorker call returns a distinct worker id and leaves a distinct row in the namespace")]
@@ -103,14 +217,12 @@ public sealed class StartWorkerSpec : ActaStorageTestBase<ConformanceFixture>
         Assert.Equal(2, workers.Select(w => w.Id).Distinct().Count());
     }
 
-    [Fact(DisplayName = "Registering a worker/namespace named 'sys' is rejected while the seeded sys namespace remains intact")]
-    public async Task Registering_a_worker_named_sys_is_rejected_and_the_seeded_namespace_survives()
+    [Fact(DisplayName = "A start in the namespace named 'sys' is rejected while the seeded sys namespace remains intact")]
+    public async Task A_start_in_sys_is_rejected_and_the_seeded_namespace_survives()
     {
         var ct = TestContext.Current.CancellationToken;
 
-        await Assert.ThrowsAsync<ArgumentException>(() =>
-            WorkerTestOps.StartAsync(Services, "sys", "team-a", "desc", "host1", "v1", null, null, 1001, 4, ct)
-        );
+        await Assert.ThrowsAsync<ArgumentException>(() => StartAsync("sys", "v1", WorkerRef.New().Value, ct));
 
         var page = await Services.GetRequiredService<INamespaces>().ListAsync(new ListNamespacesQuery(NameContains: "sys"), ct);
         Assert.Contains(page.Items, item => item.JobNamespace == "sys");

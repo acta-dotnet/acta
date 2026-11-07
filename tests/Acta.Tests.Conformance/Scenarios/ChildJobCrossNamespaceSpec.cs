@@ -43,10 +43,12 @@ public sealed class ChildJobCrossNamespaceSpec : ActaTestBase<ConformanceFixture
 
     protected override async ValueTask AfterInitializeAsync()
     {
+        var ct = TestContext.Current.CancellationToken;
         var runtimes = Services.GetServices<WorkerRuntime>().ToArray();
+        await CatalogTestOps.DeployAsync(Services, ct);
         foreach (var runtime in runtimes)
         {
-            await runtime.InitializeAsync(TestContext.Current.CancellationToken);
+            await runtime.InitializeAsync(ct);
         }
 
         _parentRuntime = runtimes.Single(r => r.RegisteredNamespaceIds.ContainsKey(TestNamespace));

@@ -68,7 +68,7 @@ public sealed class ScheduleRetirementSpec : ActaRuntimeTestBase<ConformanceFixt
         Assert.Equal(0, await CountEventsAsync(slotId, EventCode.SchedulePauseExpired, ct));
     }
 
-    [Fact(DisplayName = "A worker start's stored state leaves out a retired definition's schedules")]
+    [Fact(DisplayName = "A deploy's stored-state read leaves out a retired definition's schedules")]
     public async Task Readers_leave_out_a_retired_definitions_schedules()
     {
         var ct = TestContext.Current.CancellationToken;

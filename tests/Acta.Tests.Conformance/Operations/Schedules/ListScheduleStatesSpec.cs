@@ -8,7 +8,7 @@ namespace Acta.Tests.Conformance.Operations.Schedules;
 /// <summary>
 /// Conformance for <c>ListScheduleStates</c>: reads the persisted non-orphaned per-schedule cursors
 /// for a namespace. A namespace that contains no live schedule rows returns an empty list. After
-/// <c>InitializeAsync</c> the test namespace has live schedule rows from the TestJobs recurring
+/// the base's deploy the test namespace has live schedule rows from the TestJobs recurring
 /// definition, so at least one <c>StoredScheduleState</c> is returned.
 /// </summary>
 [ConformanceSpec(
@@ -35,7 +35,7 @@ public sealed class ListScheduleStatesSpec : ActaRuntimeTestBase<ConformanceFixt
         Assert.Empty(states);
     }
 
-    [Fact(DisplayName = "After InitializeAsync seeds a recurring definition, at least one cursor returns with a non-empty ScheduleName")]
+    [Fact(DisplayName = "After a deploy seeds a recurring definition, at least one cursor returns with a non-empty ScheduleName")]
     public async Task Returns_cursors_for_a_namespace_with_live_schedules()
     {
         var ct = TestContext.Current.CancellationToken;
@@ -45,7 +45,7 @@ public sealed class ListScheduleStatesSpec : ActaRuntimeTestBase<ConformanceFixt
             await Services.GetRequiredService<ListScheduleStatesHandler>().HandleAsync(new ListScheduleStatesQuery(namespaceId), ct)
         ).States;
 
-        // TestJobs declares at least one recurring [Schedule], so InitializeAsync seeds at least one live row.
+        // TestJobs declares at least one recurring [Schedule], so the deploy seeds at least one live row.
         Assert.NotEmpty(states);
         foreach (var s in states)
         {

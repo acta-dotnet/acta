@@ -1,7 +1,7 @@
 SELECT
     ACTA_ERROR(
         'ACTA:ENQ_ROUTE_UNKNOWN:Enqueue rejected: one or more rows reference an unknown'
-        || ' namespace or job. Has the owning worker run InitializeAsync yet?'
+        || ' namespace or job. Have the jobs been deployed there (jobs deploy)?'
     )
 WHERE NOT EXISTS (
     SELECT 1 FROM {{schema}}.namespaces ns

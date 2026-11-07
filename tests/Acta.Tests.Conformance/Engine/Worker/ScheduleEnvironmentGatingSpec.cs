@@ -6,17 +6,17 @@ using Xunit;
 namespace Acta.Tests.Conformance.Engine.Worker;
 
 /// <summary>
-/// Environment-gated schedule registration: at startup a <c>[Schedule]</c> registers only when it is
-/// active in this worker's <see cref="JobsOptions.EnvironmentName"/>: a schedule that declares no
-/// environments is a wildcard, otherwise its declared set must contain the worker's environment
-/// (case-insensitive). Driven through the real <c>CatalogRegistrar</c> reconcile by running the
-/// worker as <c>staging</c> against jobs that mix staging-, production-, and unscoped schedules.
+/// Environment-gated schedule registration: a deploy writes a <c>[Schedule]</c> only when it is
+/// active in the deploying process's <see cref="JobsOptions.EnvironmentName"/>: a schedule that declares no
+/// environments is a wildcard, otherwise its declared set must contain the deploy's environment
+/// (case-insensitive). Driven through the real <c>CatalogRegistrar</c> reconcile by deploying
+/// as <c>staging</c> jobs that mix staging-, production-, and unscoped schedules.
 /// </summary>
 [ConformanceSpec(
     "register-scheduled-jobs.environment-gating",
-    "Schedule registration is gated by the worker's environment",
+    "Schedule registration is gated by the deploy's environment",
     Area = "Scheduling",
-    Contract = "Schedule registration honors each schedule's declared environments, registering only those active in the worker's environment and withholding the rest."
+    Contract = "Schedule registration honors each schedule's declared environments, registering only those active in the deploy's environment and withholding the rest."
 )]
 public sealed class ScheduleEnvironmentGatingSpec : ActaRuntimeTestBase<ConformanceFixture, TestJobs.TestJobsManifest>
 {
@@ -31,7 +31,7 @@ public sealed class ScheduleEnvironmentGatingSpec : ActaRuntimeTestBase<Conforma
         services.Configure<JobsOptions>(o => o.EnvironmentName = WorkerEnvironment);
     }
 
-    [Fact(DisplayName = "A staging worker registers the staging-scoped schedule and withholds the production-scoped one")]
+    [Fact(DisplayName = "A staging deploy registers the staging-scoped schedule and withholds the production-scoped one")]
     public async Task Registers_only_the_schedule_active_in_this_environment()
     {
         var ct = TestContext.Current.CancellationToken;
@@ -43,7 +43,7 @@ public sealed class ScheduleEnvironmentGatingSpec : ActaRuntimeTestBase<Conforma
         Assert.Equal("staging-tick", row.ScheduleName);
     }
 
-    [Fact(DisplayName = "A staging worker creates no recurring slot for a job whose only schedule is production-scoped")]
+    [Fact(DisplayName = "A staging deploy creates no recurring slot for a job whose only schedule is production-scoped")]
     public async Task Creates_no_slot_when_every_schedule_is_excluded()
     {
         var ct = TestContext.Current.CancellationToken;

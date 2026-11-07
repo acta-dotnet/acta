@@ -23,14 +23,14 @@ public sealed class DeployFirstManifest : IJobManifest
 /// <summary>The next release's jobs: <c>add-numbers</c> with one more attempt, <c>recurring-ping</c> as it was, and a new job.</summary>
 public sealed class DeploySecondManifest : IJobManifest
 {
-    public const string AddedJob = RollingGenerationBManifest.NewJob;
+    public const string AddedJob = RollingNextBuildManifest.NewJob;
 
     public static JobDescriptorManifest Descriptors { get; } =
         new([
             .. DeployFirstManifest
                 .Descriptors.Descriptors.Where(d => d.JobName != DeployFirstManifest.DroppedJob)
                 .Select(d => d.JobName == DeployFirstManifest.ChangedJob ? d with { MaxAttempts = d.MaxAttempts + 1 } : d),
-            RollingGenerationBManifest.Descriptors.Descriptors.Single(d => d.JobName == AddedJob),
+            RollingNextBuildManifest.Descriptors.Descriptors.Single(d => d.JobName == AddedJob),
         ]);
 }
 

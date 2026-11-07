@@ -14,7 +14,6 @@ namespace Acta;
 internal sealed class CatalogRegistrar(
     DefinitionsOperations definitions,
     SchedulesOperations schedules,
-    IActaClock clock,
     IJobPayloadSerializerRegistry serializers,
     IOptions<JobsOptions> options,
     CalendarsOperations calendars,
@@ -23,24 +22,25 @@ internal sealed class CatalogRegistrar(
 {
     private readonly DefinitionsOperations _definitions = definitions;
     private readonly SchedulesOperations _schedules = schedules;
-    private readonly IActaClock _clock = clock;
     private readonly IJobPayloadSerializerRegistry _serializers = serializers;
     private readonly IOptions<JobsOptions> _options = options;
     private readonly ILogger _log = log;
 
     /// <summary>
-    /// Registers <paramref name="allDescriptors"/> into the namespace, through <paramref name="transaction"/> when a
-    /// deploy owns one, and answers what the definitions write added and changed with the stored Active definitions
-    /// this build does not declare. <paramref name="registeredCatalogHash"/> is the hash the namespace's last schedule
-    /// registration stored; a start that computes the same hash and plans no cursor or slot change skips that
-    /// registration and its exclusive schedule lock.
+    /// Registers <paramref name="allDescriptors"/> into the namespace through the deploy's <paramref name="transaction"/>,
+    /// every statement on its connection, and answers what the definitions write added and changed with the stored
+    /// Active definitions this build does not declare. <paramref name="nowUtc"/> is the instant new schedule cursors
+    /// are planned from. <paramref name="registeredCatalogHash"/> is the hash the namespace's last schedule
+    /// registration stored; a registration that computes the same hash and plans no cursor or slot change skips the
+    /// schedule write.
     /// </summary>
     public async Task<(RegisterDefinitionsResponse Definitions, IReadOnlyList<string> Undeclared)> RegisterAsync(
         WorkerRegistration registration,
         int namespaceId,
         string? registeredCatalogHash,
         ImmutableArray<JobDescriptor> allDescriptors,
-        DbTransaction? transaction,
+        DateTime nowUtc,
+        DbTransaction transaction,
         CancellationToken ct
     )
     {
@@ -51,7 +51,7 @@ internal sealed class CatalogRegistrar(
         ValidateScheduledDelivery(ns, allDescriptors, storedContracts);
         var contractDrifts = ContractDriftDetector.Detect(allDescriptors, storedContracts);
         ContractDriftPolicy.Apply(_options.Value.PayloadContractDriftMode, contractDrifts, ns, _log);
-        await ValidateCalendarsAsync(ns, namespaceId, allDescriptors, storedContracts, ct);
+        await ValidateCalendarsAsync(ns, namespaceId, allDescriptors, storedContracts, transaction, ct);
 
         var registered = await _definitions.RegisterDefinitionsAsync(new(namespaceId, allDescriptors, storedContracts, transaction), ct);
         var defIds = registered.DefinitionIds;
@@ -83,7 +83,17 @@ internal sealed class CatalogRegistrar(
         }
 
         var retired = catalog.Where(c => c.Status == DefinitionStatusCode.Retired).Select(c => c.DefinitionId).ToHashSet();
-        await ReconcileSchedulesAsync(ns, namespaceId, descriptorById, catalogParts, registeredCatalogHash, retired, transaction, ct);
+        await ReconcileSchedulesAsync(
+            ns,
+            namespaceId,
+            descriptorById,
+            catalogParts,
+            registeredCatalogHash,
+            retired,
+            nowUtc,
+            transaction,
+            ct
+        );
 
         var undeclared = storedContracts
             .Where(s => s.Status == DefinitionStatusCode.Active && !defIds.ContainsKey(s.DefinitionName))
@@ -93,8 +103,14 @@ internal sealed class CatalogRegistrar(
         return (registered, undeclared);
     }
 
-    public ImmutableArray<JobDescriptor> CollectDescriptors(WorkerRegistration registration, string ns)
+    /// <summary>
+    /// The descriptors a worker registration declares under <paramref name="options"/>, shape-checked: what a deploy
+    /// writes and what a worker start looks up. It reads no database.
+    /// </summary>
+    public static ImmutableArray<JobDescriptor> CollectDescriptors(WorkerRegistration registration, JobsOptions options)
     {
+        var ns = registration.NamespaceName;
+
         // System jobs (e.g. sys.retention) auto-register into every worker namespace ahead
         // of the user manifests (the Acta assembly's own generated ActaJobs), so each namespace carries
         // its maintenance catalog (unless JobsOptions.RunSystemJobs is off, e.g. external
@@ -102,23 +118,18 @@ internal sealed class CatalogRegistrar(
         // descriptors land under this one worker's namespace.
         var manifests = new List<JobDescriptorManifest>();
 
-        var frameworkNames = SystemJobs.For(_options.Value.RunSystemJobs, registration.Relay is not null);
+        var frameworkNames = SystemJobs.For(options.RunSystemJobs, registration.Relay is not null);
         if (frameworkNames.Count > 0)
         {
             manifests.Add(new JobDescriptorManifest([.. ActaJobs.Descriptors.Descriptors.Where(d => frameworkNames.Contains(d.JobName))]));
         }
         manifests.AddRange(registration.Manifests.Select(r => r.GetDescriptors()));
 
-        // Register every manifest's descriptors in ONE batch (system + all user manifests): one round
+        // A deploy registers every manifest's descriptors in ONE batch (system + all user manifests): one round
         // trip, one set for the shape checks below, and every definition arrives with its complete
         // schedule set, which register_schedules needs because it orphans, on each slot it is
         // given, the definition-origin schedules that slot's batch omits. Registration touches nothing
-        // the batch does not name, so a definition absent from it keeps running. An empty combined set
-        // skips the call entirely (the RegisterDefinitions.Run early-return), so an enqueue-only /
-        // manifest-less worker writes no catalog at all.
-        // The shape checks run before the worker row is written: a catalog that fails them
-        // must leave no Active worker and no worker.started event behind for a process that will
-        // never heartbeat.
+        // the batch does not name, so a definition absent from it keeps running.
         ImmutableArray<JobDescriptor> allDescriptors = [.. manifests.SelectMany(m => m.Descriptors)];
         ValidateHasDescriptors(ns, allDescriptors);
         ValidateUniqueJobNames(allDescriptors);
@@ -134,7 +145,7 @@ internal sealed class CatalogRegistrar(
         // Environment gating, once, after the checks that cover every declaration: a schedule declared for other
         // environments (it names some, and not this one) is treated from here on exactly as if undeclared, so the
         // definition's hash and the schedule registration see the same set.
-        var env = _options.Value.EnvironmentName;
+        var env = options.EnvironmentName;
         return
         [
             .. allDescriptors.Select(d =>
@@ -313,7 +324,7 @@ internal sealed class CatalogRegistrar(
     }
 
     /// <summary>
-    /// Refuses the start before any catalog write when a schedule this worker registers names a calendar that is not
+    /// Refuses the deploy before any catalog write when a schedule it registers names a calendar that is not
     /// ready, listing every such schedule with what its calendar lacks: no published version, a version of the other
     /// role, or a version this build cannot read. A calendar is published by a deploy step before the workers that name
     /// it start; a worker never publishes one. The read also loads the versions the schedule plan resolves.
@@ -323,10 +334,11 @@ internal sealed class CatalogRegistrar(
         int namespaceId,
         ImmutableArray<JobDescriptor> descriptors,
         IReadOnlyCollection<StoredDefinitionContract> stored,
+        DbTransaction transaction,
         CancellationToken ct
     )
     {
-        // A retired definition keeps its schedules as the retire left them, so this start does not judge its calendars.
+        // A retired definition keeps its schedules as the retire left them, so this deploy does not judge its calendars.
         // They are loaded all the same: registration reactivates a retired definition a build declares again, and
         // the plan then resolves its schedules.
         var retired = stored
@@ -345,7 +357,7 @@ internal sealed class CatalogRegistrar(
                 )
             )
             .ToList();
-        await calendars.PreloadAsync(namespaceId, schedules.SelectMany(s => s.Timing.CalendarNames()), ct);
+        await calendars.PreloadAsync(namespaceId, schedules.SelectMany(s => s.Timing.CalendarNames()), transaction, ct);
 
         var problems = schedules
             .Where(s => !s.Retired)
@@ -354,8 +366,8 @@ internal sealed class CatalogRegistrar(
         if (problems.Count > 0)
         {
             throw new InvalidOperationException(
-                $"Worker namespace '{ns}' cannot start: a schedule names a calendar that is not ready. Publish each calendar "
-                    + "before the workers that name it start; nothing was registered."
+                $"Namespace '{ns}' cannot be deployed: a schedule names a calendar that is not ready. Publish each calendar "
+                    + "before the deploy of the jobs that name it; nothing was written."
                     + Environment.NewLine
                     + string.Join(Environment.NewLine, problems)
             );
@@ -364,7 +376,7 @@ internal sealed class CatalogRegistrar(
 
     /// <summary>
     /// Fail fast on a tenant-required recurring definition: schedule slots are enqueued tenant-less by the runtime, so
-    /// every slot fire would trip the enqueue guard instead of surfacing at startup.
+    /// every slot fire would trip the enqueue guard instead of surfacing at the deploy.
     /// </summary>
     private static void ValidateTenantRequirements(ImmutableArray<JobDescriptor> descriptors)
     {
@@ -382,7 +394,7 @@ internal sealed class CatalogRegistrar(
 
     /// <summary>
     /// Definition-sourced recurring slots: reconcile each scheduled definition's slot + schedules against persisted
-    /// cursors at startup. The upsert set is the union of {descriptors that declare >= 1 [Schedule]} and {definitions
+    /// cursors at a deploy. The upsert set is the union of {descriptors that declare >= 1 [Schedule]} and {definitions
     /// with persisted schedule state}, so removed schedules can pause an existing slot, while ordinary non-scheduled jobs
     /// are never touched; a <paramref name="retired"/> definition keeps its schedules as the retire left them. The
     /// registration stores the hash of <paramref name="catalogParts"/> and the plan's declarations on the namespace.
@@ -394,7 +406,8 @@ internal sealed class CatalogRegistrar(
         List<string?> catalogParts,
         string? registeredCatalogHash,
         HashSet<int> retired,
-        DbTransaction? transaction,
+        DateTime nowUtc,
+        DbTransaction transaction,
         CancellationToken ct
     )
     {
@@ -430,7 +443,6 @@ internal sealed class CatalogRegistrar(
 
         // The calendars the plan resolves were read and checked before the first catalog write (ValidateCalendarsAsync).
         // Nothing about the resolution is stored: the admitter resolves each name afresh at every evaluation.
-        var nowUtc = await _clock.GetUtcNowAsync(ct);
         var definitions = new List<DefinitionSchedules>(inScope.Count);
 
         foreach (var defId in inScope.Order())
@@ -449,7 +461,7 @@ internal sealed class CatalogRegistrar(
 
             var slotSchedules = ScheduleRegistrationPlan.Plan(declared, storedForDef, nowUtc, t => calendars.Source(namespaceId, t));
 
-            // Registration leaves a held slot as it stands; say so at every start.
+            // Registration leaves a held slot as it stands; say so at every deploy.
             var slot = storedForDef.Values.FirstOrDefault();
             if (declared.Count > 0 && slot?.SlotStatus == JobStatusCode.Paused)
             {

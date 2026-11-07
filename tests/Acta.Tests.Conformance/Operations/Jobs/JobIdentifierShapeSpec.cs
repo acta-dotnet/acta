@@ -20,7 +20,7 @@ namespace Acta.Tests.Conformance.Operations.Jobs;
 )]
 public sealed class JobIdentifierShapeSpec : ActaRuntimeTestBase<ConformanceFixture, TestJobs.TestJobsManifest>
 {
-    // InitializeAsync registers the namespace and the test job definitions; each test drives its own jobs.
+    // The base's deploy registers the namespace and the test job definitions; each test drives its own jobs.
     protected override bool RunAsWorker => true;
 
     [Fact(DisplayName = "A namespace and job name in any case route to the registered definition")]

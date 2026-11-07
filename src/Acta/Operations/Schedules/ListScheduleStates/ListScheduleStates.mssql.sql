@@ -1,5 +1,5 @@
 -- Scans the namespace's schedules on the config table: a paused or exhausted schedule can carry a NULL
--- cursor, which the filtered cursor index leaves out, and this read runs once per namespace at worker start.
+-- cursor, which the filtered cursor index leaves out, and this read runs once per namespace at a deploy.
 SELECT
     t.definition_id,
     t.schedule_name,

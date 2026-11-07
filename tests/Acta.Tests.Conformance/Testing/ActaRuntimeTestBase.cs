@@ -4,10 +4,10 @@ using Xunit;
 namespace Acta.Tests.Conformance.Testing;
 
 /// <summary>
-/// Base for WorkerRuntime-level specs. Registers <typeparamref name="TManifest"/> under the per-test
-/// namespace via <c>IActaBuilder.Run&lt;TManifest&gt;</c>, then calls
+/// Base for WorkerRuntime-level specs. Declares <typeparamref name="TManifest"/> under the per-test
+/// namespace via <c>IActaBuilder.Run&lt;TManifest&gt;</c>, then deploys that catalog and calls
 /// <see cref="WorkerRuntime.InitializeAsync"/> in <see cref="AfterInitializeAsync"/>. The poll loop
-/// (<see cref="WorkerRuntime.RunLoopAsync"/>) is opt-in - registration tests only need
+/// (<see cref="WorkerRuntime.RunLoopAsync"/>) is opt-in - catalog tests only need the deploy and
 /// <see cref="WorkerRuntime.InitializeAsync"/>; execution specs call <see cref="WorkerRuntime.RunOnceAsync"/>
 /// directly to drive one tick.
 /// </summary>
@@ -29,7 +29,7 @@ public abstract class ActaRuntimeTestBase<TFixture, TManifest> : ActaTestBase<TF
     protected virtual bool RunAsWorker => true;
 
     /// <summary>
-    /// Whether <c>InitializeAsync</c> registers the system recurring slots (<c>sys.alerts</c> /
+    /// Whether the deploy writes the system recurring slots (<c>sys.alerts</c> /
     /// <c>sys.retention</c>) into this test's namespace. Default <c>false</c>:
     /// tests drive their own enqueued probe, and a due framework slot would otherwise race
     /// <see cref="WorkerRuntime.RunOnceAsync(string, System.Threading.CancellationToken)"/> for the
@@ -46,7 +46,7 @@ public abstract class ActaRuntimeTestBase<TFixture, TManifest> : ActaTestBase<TF
     /// </summary>
     protected virtual bool ParkScheduleSlots => true;
 
-    /// <summary>What a spec puts in the database before its worker registers, such as the catalog calendars its schedules bind.</summary>
+    /// <summary>What a spec puts in the database before its catalog deploys, such as the catalog calendars its schedules bind.</summary>
     protected virtual ValueTask BeforeWorkerStartAsync(CancellationToken ct) => ValueTask.CompletedTask;
 
     protected override void ConfigureServices(IServiceCollection services, string testNamespace)
@@ -74,7 +74,7 @@ public abstract class ActaRuntimeTestBase<TFixture, TManifest> : ActaTestBase<TF
         Runtime.AttachClaimabilityProbe(Jobs);
         var ct = TestContext.Current.CancellationToken;
         await BeforeWorkerStartAsync(ct);
-        await Runtime.InitializeAsync(ct);
+        await CatalogTestOps.DeployAndStartAsync(Services, Runtime, ct);
 
         var namespaceId = Runtime.RegisteredNamespaceIds[TestNamespace];
         var slots = (
@@ -101,17 +101,17 @@ public abstract class ActaRuntimeTestBase<TFixture, TManifest> : ActaTestBase<TF
     }
 
     /// <summary>
-    /// Another deployment's process for a rolling-deploy spec: its own DI container, its own worker row, and its own
-    /// manifest, against the shared schema and namespace.
+    /// Another build's process for a rolling-deploy spec: its own DI container, its own worker row, and its own
+    /// manifest, against the shared schema and namespace. Its catalog is written only when the spec deploys it.
     /// </summary>
-    protected ServiceProvider BuildGenerationProvider<TGenerationManifest>(string tag)
-        where TGenerationManifest : class, IJobManifest
+    protected ServiceProvider BuildProvider<TBuildManifest>(string tag)
+        where TBuildManifest : class, IJobManifest
     {
         var services = new ServiceCollection();
         services.UseActa(j =>
         {
             Fixture.ApplyProvider(j, Schema.SchemaName);
-            j.Run<TGenerationManifest>(TestNamespace, ownerTeam: "test", description: GetType().FullName + ":" + tag);
+            j.Run<TBuildManifest>(TestNamespace, ownerTeam: "test", description: GetType().FullName + ":" + tag);
         });
         services.Configure<JobsOptions>(o => o.RunSystemJobs = false);
         return services.BuildServiceProvider(validateScopes: true);

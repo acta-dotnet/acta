@@ -20,7 +20,7 @@ namespace Acta.Tests.Conformance.Operations.Jobs;
 )]
 public sealed class EnqueueJobsRejectionSpec : ActaRuntimeTestBase<ConformanceFixture, TestJobs.TestJobsManifest>
 {
-    // Enqueue-only spec - InitializeAsync (worker mode) registers the namespace so EnqueueJobs.Run
+    // Enqueue-only spec - worker mode deploys the namespace so EnqueueJobs.Run
     // can resolve it; we never start the claim/execute loop.
     protected override bool RunAsWorker => true;
 

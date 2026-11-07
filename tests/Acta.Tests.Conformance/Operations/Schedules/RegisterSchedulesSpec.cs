@@ -6,13 +6,13 @@ using Xunit;
 namespace Acta.Tests.Conformance.Operations.Schedules;
 
 /// <summary>
-/// Startup re-registration against a slot another host is already executing: every host re-registers
-/// every declared slot when it starts, so the upsert has to re-assert the declaration without
+/// A deploy's re-registration against a slot a host is already executing: every deploy re-registers
+/// every declared slot, so the upsert has to re-assert the declaration without
 /// disturbing a row that carries a live execution lease.
 /// </summary>
 [ConformanceSpec(
     "schedule.slot-re-registration",
-    "A second host starting does not disturb a slot the first host is executing",
+    "A deploy does not disturb a slot a running host is executing",
     Area = "Scheduling",
     Contract = "Registration never moves a slot, writes a cursor only on a retime or where the stored one was cleared, and never adopts an ordinary job."
 )]
@@ -41,7 +41,7 @@ public sealed class RegisterSchedulesSpec : ActaRuntimeTestBase<ConformanceFixtu
         var slotId = await SlotIdAsync(jobName, ct);
         await LeaseInFlightAsync(Db, slotId, DateTime.UtcNow.AddMinutes(5), ct);
 
-        // The second host's startup reconcile: same definition, a changed timing with its first occurrence.
+        // A later deploy's reconcile: same definition, a changed timing with its first occurrence.
         await RegisterAsync(defId, jobName, [Slot("only", secondCursor) with { Expression = "*/10 * * * *" }], ct);
 
         var slot = await ReadJobAsync(slotId, ct);
@@ -161,9 +161,9 @@ public sealed class RegisterSchedulesSpec : ActaRuntimeTestBase<ConformanceFixtu
     }
 
     [Fact(
-        DisplayName = "A start leaves a slot parked part-way through an occurrence where it waits: Suspended, or Ready at its wake instant"
+        DisplayName = "A deploy leaves a slot parked part-way through an occurrence where it waits: Suspended, or Ready at its wake instant"
     )]
-    public async Task A_start_leaves_a_parked_slot_where_it_waits()
+    public async Task A_deploy_leaves_a_parked_slot_where_it_waits()
     {
         var ct = TestContext.Current.CancellationToken;
         var now = FloorSeconds(DateTime.UtcNow);
@@ -190,8 +190,8 @@ public sealed class RegisterSchedulesSpec : ActaRuntimeTestBase<ConformanceFixtu
         }
     }
 
-    [Fact(DisplayName = "A start leaves an attempt in flight its due cursor, so a reclaim or re-arm of it still sees its occurrence")]
-    public async Task A_start_leaves_an_attempt_in_flight_its_due_cursor()
+    [Fact(DisplayName = "A deploy leaves an attempt in flight its due cursor, so a reclaim or re-arm of it still sees its occurrence")]
+    public async Task A_deploy_leaves_an_attempt_in_flight_its_due_cursor()
     {
         var ct = TestContext.Current.CancellationToken;
         var now = FloorSeconds(DateTime.UtcNow);
@@ -209,9 +209,9 @@ public sealed class RegisterSchedulesSpec : ActaRuntimeTestBase<ConformanceFixtu
     }
 
     [Fact(
-        DisplayName = "A start that changes a schedule's timing reseeds its cursor after now and audits the retime; an edit of its text does not"
+        DisplayName = "A deploy that changes a schedule's timing reseeds its cursor after now and audits the retime; an edit of its text does not"
     )]
-    public async Task A_start_that_changes_the_timing_retimes_the_schedule()
+    public async Task A_deploy_that_changes_the_timing_retimes_the_schedule()
     {
         var ct = TestContext.Current.CancellationToken;
         var now = FloorSeconds(DateTime.UtcNow);
@@ -305,7 +305,7 @@ public sealed class RegisterSchedulesSpec : ActaRuntimeTestBase<ConformanceFixtu
                 Schedules: [Slot("only", cursor)]
             );
 
-            // The first start inserts the slot and every later start updates it in place.
+            // The first deploy inserts the slot and every later deploy updates it in place.
             await ScheduleTestOps.RegisterAsync(Services, [definition], ct);
             await ScheduleTestOps.RegisterAsync(Services, [definition], ct);
 
@@ -355,7 +355,7 @@ public sealed class RegisterSchedulesSpec : ActaRuntimeTestBase<ConformanceFixtu
         return await ScheduleTestOps.RegisterAsync(Services, [definition], ct);
     }
 
-    /// <summary>A worker start's registration of one declared schedule: read stored state, plan, register.</summary>
+    /// <summary>A deploy's registration of one declared schedule: read stored state, plan, register.</summary>
     private async Task PlanAndRegisterAsync(
         int defId,
         string jobName,

@@ -8,7 +8,7 @@ namespace Acta.Tests.Conformance.Scenarios;
 
 /// <summary>
 /// The P0-02 golden-path spec. Runs the slice end-to-end against a provider:
-///   1. Register the <c>add-numbers</c> definition (via <c>Runtime.InitializeAsync</c>).
+///   1. Register the <c>add-numbers</c> definition (via the base's deploy before <c>Runtime.InitializeAsync</c>).
 ///   2. Enqueue one <c>AddNumbers(2, 3)</c> via <c>IJobs.EnqueueAsync(EnqueueJobRequest)</c>.
 ///   3. <c>Runtime.RunOnceAsync</c> claims, executes, and completes the row.
 ///   4. Query snapshot / timeline / result and assert the full state.
@@ -30,7 +30,7 @@ public sealed class GoldenPathSpec : ActaRuntimeTestBase<ConformanceFixture, Tes
     {
         var ct = TestContext.Current.CancellationToken;
 
-        // --- 1. Definition is registered by InitializeAsync (already ran). Sanity-check.
+        // --- 1. Definition is registered by the deploy (already ran). Sanity-check.
         Assert.Contains(TestNamespace, Runtime.RegisteredNamespaceIds.Keys);
 
         // --- 2. Enqueue one AddNumbers(2, 3) through the public IJobs surface. Use the registered

@@ -7,8 +7,8 @@ namespace Acta.Tests.Conformance.Engine.Outbox;
 
 /// <summary>
 /// A row whose target route is not yet registered is a recoverable routing rejection: it reschedules
-/// quietly with a bumped failure count and a future attempt, then delivers exactly once after a worker
-/// for that namespace registers the route. This is the "unknown route waits, not poisons" boundary: an
+/// quietly with a bumped failure count and a future attempt, then delivers exactly once after a deploy
+/// of that namespace's jobs registers the route. This is the "unknown route waits, not poisons" boundary: an
 /// undeployed consumer is a retry with backoff, not a torn tick and not an immediate quarantine.
 /// </summary>
 [ConformanceSpec(
@@ -40,11 +40,10 @@ public sealed class OutboxRelayRouteSpec : OutboxRelayIntegrationBase
         Assert.Equal(1, waiting.FailureCount);
         Assert.True(waiting.NextAttemptAtUtc > DateTime.UtcNow);
 
-        // Register the route by initializing a worker for the late namespace against the same ledger.
+        // Register the route by deploying the late namespace's jobs to the same ledger.
         await using var late = BuildRuntimeFor(lateNs);
-        var lateRuntime = late.GetServices<WorkerRuntime>().Single();
-        await lateRuntime.InitializeAsync(ct);
-        var lateNsId = lateRuntime.RegisteredNamespaceIds[lateNs];
+        await CatalogTestOps.DeployAsync(late, ct);
+        var lateNsId = await ChaosSpecHelpers.NamespaceIdAsync(Db, lateNs, ct);
 
         // Make the rescheduled row due again (its backoff pushed the attempt into the future).
         await Fixture.RewindOutboxAsync(SourceTable);

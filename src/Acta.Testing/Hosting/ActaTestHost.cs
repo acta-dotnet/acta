@@ -10,7 +10,7 @@ namespace Acta.Testing;
 /// Stands up an Acta runtime against an integrator's provider on a throwaway schema, for testing their
 /// jobs with any test framework. The integrator wires the provider + their manifest in the callback;
 /// the host migrates (when the provider's <c>MigrateOnStartup</c> is set) or preflights the
-/// existing migration history (when it is not), registers the catalog, and exposes <see cref="IJobs"/>
+/// existing migration history (when it is not), deploys the jobs as a development start does, and exposes <see cref="IJobs"/>
 /// + a deterministic <c>RunOnce</c> drive.
 /// </summary>
 public static class ActaTestHost
@@ -42,7 +42,15 @@ public static class ActaTestHost
         var provider = services.BuildServiceProvider(validateScopes: true);
 
         var runtimes = provider.GetServices<WorkerRuntime>().ToArray();
-        await WorkerRuntimeStartup.RunAsync(provider.GetServices<IProviderBootstrap>(), runtimes, ct);
+        // A test host deploys its jobs as a development start does, whatever MigrateOnStartup says: a schema another
+        // step provisioned still has none of this host's definitions, and a test has no deploy step of its own. A
+        // namespace a deploy verb has recorded is left alone here too, and admits only the versions deployed there.
+        await WorkerRuntimeStartup.RunAsync(
+            provider.GetServices<IProviderBootstrap>(),
+            provider.GetRequiredService<CatalogDeployer>(),
+            runtimes,
+            ct
+        );
 
         // Lets the run-once helper stop retrying an empty claim as soon as the row can no longer be
         // claimed, instead of waiting out its budget to say so.

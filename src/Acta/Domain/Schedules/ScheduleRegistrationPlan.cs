@@ -1,7 +1,7 @@
 namespace Acta;
 
 /// <summary>
-/// What a worker start writes for a definition's schedules, against what is stored: a new schedule seeds from the
+/// What a deploy writes for a definition's schedules, against what is stored: a new schedule seeds from the
 /// first occurrence after now; one whose timing fingerprint still matches keeps its cursor, paused or not; one whose
 /// timing changed discards the old stream's undecided occurrences and seeds from the new timing (registration audits
 /// the retime). A calendar name only has to resolve now, through <c>resolve</c>; nothing about

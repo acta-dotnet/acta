@@ -15,6 +15,8 @@ namespace Acta;
 internal sealed class WorkerRuntimeHost(
     IEnumerable<WorkerRuntime> runtimes,
     IEnumerable<IProviderBootstrap> bootstraps,
+    CatalogDeployer deployer,
+    SqlProviderOptions providerOptions,
     ILogger<WorkerRuntimeHost>? log = null
 ) : BackgroundService
 {
@@ -32,7 +34,7 @@ internal sealed class WorkerRuntimeHost(
     /// </summary>
     public override async Task StartAsync(CancellationToken cancellationToken)
     {
-        await WorkerRuntimeStartup.RunAsync(_bootstraps, _runtimes, cancellationToken);
+        await WorkerRuntimeStartup.RunAsync(_bootstraps, providerOptions.MigrateOnStartup ? deployer : null, _runtimes, cancellationToken);
         await base.StartAsync(cancellationToken);
     }
 

@@ -1,18 +1,16 @@
 namespace Acta;
 
-/// <summary><see cref="WorkersOperations.StartWorkerAsync"/>: one round trip.</summary>
+/// <summary><see cref="WorkersOperations.StartWorkerAsync"/>: one round trip; null when the namespace is absent.</summary>
 internal sealed class StartWorkerHandler(IDbSession session, ISqlDialect dialect)
 {
-    public Task<StartWorkerResponse> HandleAsync(StartWorkerCommand command, CancellationToken ct) =>
-        session.ExecuteOneAsync(
+    public Task<StartWorkerResponse?> HandleAsync(StartWorkerCommand command, CancellationToken ct) =>
+        session.ExecuteSingleAsync(
             new StoreCommand("StartWorker"),
             cmd =>
             {
                 cmd.Parameters.Add(dialect.CreateParameter(ActaSchema.Namespace.NamespaceName, command.NamespaceName));
-                cmd.Parameters.Add(dialect.CreateParameter(ActaSchema.Namespace.OwnerTeam, command.OwnerTeam));
-                cmd.Parameters.Add(dialect.CreateParameter(ActaSchema.Namespace.Description, command.Description));
-                cmd.Parameters.Add(dialect.CreateParameter(ActaSchema.Namespace.NamespaceStatusCode, NamespaceStatusCode.Active));
                 cmd.Parameters.Add(dialect.CreateParameter(ActaSchema.Worker.DeploymentVersion, command.DeploymentVersion));
+                cmd.Parameters.Add(dialect.CreateParameter(ActaSchema.Sql.RequiresDeployment, command.RequiresDeployment));
                 cmd.Parameters.Add(dialect.CreateParameter(ActaSchema.Worker.HostName, command.HostName));
                 cmd.Parameters.Add(dialect.CreateParameter(ActaSchema.Worker.EngineVersion, command.EngineVersion));
                 cmd.Parameters.Add(dialect.CreateParameter(ActaSchema.Worker.DotnetVersion, command.DotnetVersion));

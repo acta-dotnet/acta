@@ -19,27 +19,27 @@ public sealed class UnscheduledPingManifest : IJobManifest
 }
 
 /// <summary>
-/// A worker learns its recurring slots when it starts, so a slot another build registered later is
+/// A worker learns its recurring slots when it starts, so a slot another build's deploy wrote later is
 /// not among them. The claim carries the row's kind, so the earlier worker still lands it Idle as a
 /// permanent slot instead of running it once and ending it.
 /// </summary>
 [ConformanceSpec(
-    "schedule.slot-from-another-generation",
-    "A worker fires a slot another build registered after it started as recurring",
+    "schedule.slot-from-another-build",
+    "A worker fires a slot another build deployed after it started as recurring",
     Area = "Scheduling",
-    Contract = "A worker lands a slot another build registered after it started Idle, as a permanent slot, never finished like a one-shot."
+    Contract = "A worker lands a slot another build deployed after it started Idle, as a permanent slot, never finished like a one-shot."
 )]
-public sealed class RecurringSlotFromAnotherGenerationSpec : ActaRuntimeTestBase<ConformanceFixture, UnscheduledPingManifest>
+public sealed class RecurringSlotFromAnotherBuildSpec : ActaRuntimeTestBase<ConformanceFixture, UnscheduledPingManifest>
 {
     private const string ScheduleName = "every-5-minutes";
 
-    [Fact(DisplayName = "A worker fires a slot another build registered after it started as a recurring job")]
-    public async Task A_worker_fires_a_later_registered_slot_as_recurring()
+    [Fact(DisplayName = "A worker fires a slot another build deployed after it started as a recurring job")]
+    public async Task A_worker_fires_a_later_deployed_slot_as_recurring()
     {
         var ct = TestContext.Current.CancellationToken;
 
-        await using var laterBuild = BuildGenerationProvider<TestJobsManifest>("later-build");
-        await laterBuild.GetServices<WorkerRuntime>().Single().InitializeAsync(ct);
+        await using var laterBuild = BuildProvider<TestJobsManifest>("later-build");
+        await CatalogTestOps.DeployAsync(laterBuild, ct);
         var triggered = await Operations.Schedules.TriggerAsync(
             new ScheduleLookup(TestNamespace, UnscheduledPingManifest.JobName, ScheduleName),
             ct: ct

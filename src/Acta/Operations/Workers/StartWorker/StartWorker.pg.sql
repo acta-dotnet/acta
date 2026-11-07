@@ -1,48 +1,10 @@
-/* Update first, insert only when the name is absent. An upsert cannot be used here: PostgreSQL
-   evaluates the identity default before it detects the conflict, so every worker start burned a
-   namespaces.namespace_id even when the namespace already existed. A zero-row insert calls nextval never. */
-WITH ns_update AS (
-    UPDATE {{schema}}.namespaces SET
-        owner_team = @p_owner_team,
-        description = @p_description,
-        modified_at_utc = now(),
-        version = version + 1
-    WHERE
-        namespace_name = @p_namespace_name
-        AND (owner_team IS DISTINCT FROM @p_owner_team OR description IS DISTINCT FROM @p_description)
-    RETURNING namespace_id
-),
-ns_insert AS (
-    INSERT INTO {{schema}}.namespaces (
-        namespace_name,
-        owner_team,
-        description,
-        namespace_status_code,
-        created_at_utc,
-        modified_at_utc,
-        version)
-    SELECT
-        @p_namespace_name,
-        @p_owner_team,
-        @p_description,
-        @p_namespace_status_code,
-        now(),
-        now(),
-        0
-    WHERE NOT EXISTS (
-        SELECT 1 FROM {{schema}}.namespaces
-        WHERE namespace_name = @p_namespace_name
-    )
-    ON CONFLICT (namespace_name) DO NOTHING
-    RETURNING namespace_id
-),
-ns AS (
-    SELECT namespace_id, CAST(NULL AS VARCHAR(128)) AS catalog_hash FROM ns_insert
-    UNION ALL
-    SELECT namespace_id, catalog_hash FROM {{schema}}.namespaces
-    WHERE
-        namespace_name = @p_namespace_name
-        AND NOT EXISTS (SELECT 1 FROM ns_insert)
+/* One statement: the namespace is read, and the worker row and its event are written only when this version may run
+   there. A namespace no deploy has recorded takes any version; a recorded one takes the versions in deployments. No
+   row comes back for a name that is absent, and worker_id is NULL for a version that may not run. */
+WITH ns AS (
+    SELECT n.namespace_id, n.deployment_version
+    FROM {{schema}}.namespaces n
+    WHERE n.namespace_name = @p_namespace_name
 ),
 w AS (
     INSERT INTO {{schema}}.workers (
@@ -74,6 +36,13 @@ w AS (
         now(),
         0
     FROM ns
+    WHERE
+        ns.deployment_version IS NULL
+        OR NOT @p_requires_deployment
+        OR EXISTS (
+            SELECT 1 FROM {{schema}}.deployments d
+            WHERE d.namespace_id = ns.namespace_id AND d.deployment_version = @p_deployment_version
+        )
     RETURNING worker_id, namespace_id
 ),
 evt AS (
@@ -94,4 +63,6 @@ evt AS (
     FROM w
     RETURNING 1
 )
-SELECT w.namespace_id AS namespace_id, w.worker_id, ns.catalog_hash FROM w INNER JOIN ns ON ns.namespace_id = w.namespace_id;
+SELECT ns.namespace_id, w.worker_id, ns.deployment_version AS current_deployment_version
+FROM ns
+LEFT JOIN w ON w.namespace_id = ns.namespace_id;

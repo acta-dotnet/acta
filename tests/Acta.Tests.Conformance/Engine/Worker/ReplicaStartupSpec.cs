@@ -6,23 +6,23 @@ using Xunit;
 namespace Acta.Tests.Conformance.Engine.Worker;
 
 /// <summary>
-/// Replicas of one build start together against a namespace none of them has registered yet, as a
-/// first deploy with several pods does. Each is its own process here: its own container, its own worker
-/// row, the same manifest. The registrations race on the same new namespace, definition, and recurring
-/// slot rows, and the one that commits second must still come up.
+/// Replicas of one build come up together against a namespace none of them has deployed yet, as a first
+/// development start with several pods does. Each is its own process here: its own container, its own worker
+/// row, the same manifest. Each deploys its catalog unrecorded and then starts, so the deploys race on the same
+/// new namespace, definition, and recurring slot rows, and every replica must still come up.
 /// </summary>
 [ConformanceSpec(
     "worker.replica-startup",
-    "Replicas registering a new namespace at the same moment all start",
+    "Replicas deploying a new namespace at the same moment all start",
     Area = "Workers",
-    Contract = "Replicas that register the same new namespace, definitions, and recurring slots at once all start and agree on one catalog."
+    Contract = "Replicas that deploy the same new namespace, definitions, and recurring slots at once all start and agree on one catalog."
 )]
 public sealed class ReplicaStartupSpec : ActaTestBase<ConformanceFixture>
 {
     private const int Replicas = 4;
 
-    [Fact(DisplayName = "Four replicas initializing a new namespace at once all start and agree on its catalog")]
-    public async Task Replicas_initializing_a_new_namespace_at_once_all_start()
+    [Fact(DisplayName = "Four replicas deploying a new namespace and starting at once all start and agree on its catalog")]
+    public async Task Replicas_deploying_a_new_namespace_at_once_all_start()
     {
         var ct = TestContext.Current.CancellationToken;
         var ns = Unique("replicas");
@@ -31,7 +31,9 @@ public sealed class ReplicaStartupSpec : ActaTestBase<ConformanceFixture>
         {
             var runtimes = providers.Select(p => p.GetServices<WorkerRuntime>().Single()).ToList();
 
-            await Task.WhenAll(runtimes.Select(r => Task.Run(() => r.InitializeAsync(ct), ct)));
+            await Task.WhenAll(
+                providers.Zip(runtimes).Select(r => Task.Run(() => CatalogTestOps.DeployAndStartAsync(r.First, r.Second, ct), ct))
+            );
 
             var namespaceIds = runtimes.Select(r => r.RegisteredNamespaceIds[ns]).Distinct().ToList();
             Assert.Single(namespaceIds);

@@ -65,6 +65,46 @@ public sealed class WorkerRuntimeHostStartupTests
         }
     }
 
+    [Fact]
+    public async Task Start_without_MigrateOnStartup_deploys_nothing_and_refuses_until_a_deploy_ran()
+    {
+        var ct = TestContext.Current.CancellationToken;
+        var dbPath = Path.Combine(Path.GetTempPath(), $"acta-host-{Guid.NewGuid():N}.db");
+        var connectionString = new SqliteConnectionStringBuilder { DataSource = dbPath }.ConnectionString;
+
+        try
+        {
+            await SqliteMigrations.ApplyAsync(connectionString, ct);
+            var services = new ServiceCollection();
+            services.UseActa(j =>
+            {
+                j.UseSqlite(o => o.ConnectionString = connectionString);
+                j.Run<TestJobs.TestJobsManifest>(WorkerNamespace, ownerTeam: "test");
+            });
+            services.Configure<JobsOptions>(o => o.RunSystemJobs = false);
+            await using var provider = services.BuildServiceProvider(validateScopes: true);
+            var host = Assert.IsType<WorkerRuntimeHost>(Assert.Single(provider.GetServices<IHostedService>()));
+
+            var ex = await Assert.ThrowsAsync<InvalidOperationException>(() => host.StartAsync(ct));
+
+            Assert.Contains("jobs deploy", ex.Message, StringComparison.Ordinal);
+            Assert.Equal(0, await CountAsync(connectionString, "definitions", ct));
+            Assert.Equal(0, await CountAsync(connectionString, "workers", ct));
+
+            // What the deploy step does; the same host then starts.
+            await provider.GetRequiredService<CatalogDeployer>().DeployAsync(force: false, ct);
+            await host.StartAsync(ct);
+
+            Assert.Equal(WorkerStatusCode.Active, await WorkerStatusAsync(connectionString, ct));
+            await host.StopAsync(ct);
+        }
+        finally
+        {
+            SqliteConnection.ClearAllPools();
+            File.Delete(dbPath);
+        }
+    }
+
     /// <summary>
     /// Counts the worker rows it can see when the host runs it. Registered after the provider's own
     /// bootstrap, so the schema exists by then and a non-zero count would mean a worker initialized

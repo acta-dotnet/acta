@@ -31,7 +31,7 @@ namespace Acta.Tests.Conformance.Operations.Jobs;
 public sealed class EnqueueJobsSpec : ActaRuntimeTestBase<ConformanceFixture, TestJobs.TestJobsManifest>
 {
     // Enqueue-only spec - we never call StartAsync, so no claim/execute loop runs. But we still
-    // run InitializeAsync (worker-mode) so the per-test namespace is upserted and registered in
+    // deploy and run InitializeAsync (worker-mode) so the per-test namespace is written and registered in
     // Runtime.RegisteredNamespaceIds; the inserted workers row is harmless overhead.
     protected override bool RunAsWorker => true;
 
@@ -116,12 +116,12 @@ public sealed class EnqueueJobsSpec : ActaRuntimeTestBase<ConformanceFixture, Te
         }
 
         // Count only the enqueued jobs: the shared test manifest declares scheduled definitions, whose permanent
-        // slots InitializeAsync also created in this namespace.
+        // slots the deploy also created in this namespace.
         var jobCount = await Db.From<JobEntity>().Where(j => j.NamespaceId == namespaceId && j.Kind == JobKindCode.Ordinary).CountAsync(ct);
         Assert.Equal(batchSize, jobCount);
 
         // No events rows on enqueue (see class-level summary). Filter to job-subject events so the
-        // worker and definition events that InitializeAsync emits don't pollute the count.
+        // definition and worker events that the deploy and InitializeAsync emit don't pollute the count.
         var eventCount = await Db.From<EventEntity>()
             .Where(e => e.NamespaceId == namespaceId && e.EntityCode == EntityCode.Job)
             .CountAsync(ct);

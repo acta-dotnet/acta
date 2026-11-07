@@ -58,7 +58,7 @@ BEGIN
     WHERE ns.namespace_name = p_namespace_name;
 
     IF v_def_id IS NULL THEN
-        RAISE EXCEPTION 'ACTA:ENQ_ROUTE_UNKNOWN:Enqueue rejected: one or more rows reference an unknown namespace or job. Has the owning worker run InitializeAsync yet?'
+        RAISE EXCEPTION 'ACTA:ENQ_ROUTE_UNKNOWN:Enqueue rejected: one or more rows reference an unknown namespace or job. Have the jobs been deployed there (jobs deploy)?'
             USING ERRCODE = 'P0001';
     END IF;
 

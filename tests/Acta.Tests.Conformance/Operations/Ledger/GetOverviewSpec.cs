@@ -141,7 +141,7 @@ public sealed class GetOverviewSpec : ActaRuntimeTestBase<ConformanceFixture, Te
         Assert.NotNull(w1);
 
         // ── Baseline snapshot ─────────────────────────────────────────────────────────────────────
-        // Runtime.InitializeAsync seeds one Ready slot job for every schedule whose environments list
+        // The base's deploy seeds one Ready slot job for every schedule whose environments list
         // is empty (currently: recurring-ping with "every-5-minutes"). Take a before-snapshot now so
         // ReadyCount assertions use deltas and remain correct if the manifest changes.
         var before = await Operations.Ledger.GetOverviewAsync(new GetOverviewQuery(TestNamespace, 3600, 1), ct);
@@ -244,7 +244,7 @@ public sealed class GetOverviewSpec : ActaRuntimeTestBase<ConformanceFixture, Te
         // ── Narrow-threshold assertion (staleAfterSeconds = 1 min) ───────────────────────────────
         var ovNarrow = await Operations.Ledger.GetOverviewAsync(new GetOverviewQuery(TestNamespace, 60, 1), ct);
 
-        // ReadyCount: delta from before (before includes slot jobs seeded by InitializeAsync).
+        // ReadyCount: delta from before (before includes slot jobs seeded by the deploy).
         Assert.Equal(before.ReadyCount + 2, ovNarrow.ReadyCount); // j1, j2 added; j3 Executing, j4 Failed
         Assert.Equal(1, ovNarrow.ExecutingCount); // j3 is Executing
         Assert.Equal(1, ovNarrow.FailedCount); // j4 is Failed

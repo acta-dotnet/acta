@@ -26,7 +26,7 @@ public sealed class EnqueueJobTransactionalSmokeSpec : ActaRuntimeTestBase<Confo
 {
     private const string ProbeTable = "acta_txn_probe";
 
-    // Enqueue-only: register the namespace via InitializeAsync but never run the claim/execute loop.
+    // Enqueue-only: register the namespace via the base's deploy but never run the claim/execute loop.
     protected override bool RunAsWorker => true;
 
     [Fact(DisplayName = "Commit persists both the business row and the single transactional enqueue")]

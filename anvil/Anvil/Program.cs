@@ -155,6 +155,7 @@ static async Task RunDashboardAsync(string[] args, string provider)
         await outboxDb.InitializeAsync();
     }
     await runCounts.MarkStartAsync(CancellationToken.None);
+    await DeployWorkerCatalogAsync(builder.Configuration, id.Schema, provider, id.Namespace, outboxDb.Path);
     app.Services.GetRequiredService<WorkerProcessLauncher>().Spawn();
     var url = AnvilServer.BindUrlFor(port) + "/";
     Console.WriteLine($"Anvil         : {url}");
@@ -183,40 +184,65 @@ static async Task RunWorkerAsync(string[] args)
     }
 
     var builder = Host.CreateApplicationBuilder(args);
+    // Workers never migrate: the dashboard created the run's schema and deployed its jobs before spawning them. On
+    // SQLite a worker migration would fight the dashboard's seed for the single write lock and crash on start.
     builder.Services.UseActa(j =>
-    {
-        // Workers never migrate: the dashboard created the run's schema before spawning them. On SQLite a
-        // worker migration would fight the dashboard's seed for the single write lock and crash on start.
-        j.UseLocalDatabase(builder.Configuration, schema, provider, applyMigrations: false);
-        j.UseJsonPayloads(AnvilPayloadJsonContext.Default);
-        // A lab worker runs the product's executor default, stated here because UseLocalDatabase caps the concept
-        // programs at four. The deployment version lines the process up with its worker row. Lease/heartbeat/dead-worker
-        // windows stay at the framework production defaults.
-        j.ConfigureOptions(o =>
-        {
-            o.MaxConcurrentExecutors = new JobsOptions().MaxConcurrentExecutors;
-            o.SafetyPollInterval = TimeSpan.FromSeconds(1);
-            o.DeploymentVersion = workerName;
-        });
-        // Every worker in the namespace carries the relay: sys.outbox claims are namespace-wide, so
-        // an unconfigured worker next to configured ones would claim the slot without a binding.
-        j.Run(
-            ns,
-            w =>
-            {
-                w.AddManifest<AnvilJobs>();
-                w.AddOutboxRelay(
-                    "anvil-outbox",
-                    source =>
-                        source.UseSqlite(new Microsoft.Data.Sqlite.SqliteConnectionStringBuilder { DataSource = outboxSource }.ToString())
-                );
-            }
-        );
-    });
+        ConfigureWorker(j, builder.Configuration, schema, provider, ns, outboxSource, workerName, applyMigrations: false)
+    );
     var host = builder.Build();
     WorkerLifecycle.WatchForDrain(host.Services.GetRequiredService<IHostApplicationLifetime>(), workerName);
     Console.WriteLine($"[{workerName}] worker in {ns} / {schema} (pid {Environment.ProcessId})");
     await host.RunAsync();
+}
+
+// A worker start writes no definition or schedule, and the dashboard declares none (it only references the jobs), so
+// the run's catalog is deployed here, once, before any worker is spawned or any job seeded: a worker-shaped host comes
+// up under MigrateOnStartup, which deploys as a development start does, and stops again.
+static async Task DeployWorkerCatalogAsync(IConfiguration configuration, string schema, string provider, string ns, string outboxSource)
+{
+    var builder = Host.CreateApplicationBuilder();
+    builder.Logging.ClearProviders();
+    builder.Services.UseActa(j => ConfigureWorker(j, configuration, schema, provider, ns, outboxSource, "deploy", applyMigrations: true));
+    using var host = builder.Build();
+    await host.StartAsync();
+    await host.StopAsync();
+}
+
+static void ConfigureWorker(
+    IActaBuilder j,
+    IConfiguration configuration,
+    string schema,
+    string provider,
+    string ns,
+    string outboxSource,
+    string workerName,
+    bool applyMigrations
+)
+{
+    j.UseLocalDatabase(configuration, schema, provider, applyMigrations: applyMigrations);
+    j.UseJsonPayloads(AnvilPayloadJsonContext.Default);
+    // A lab worker runs the product's executor default, stated here because UseLocalDatabase caps the concept
+    // programs at four. The deployment version lines the process up with its worker row. Lease/heartbeat/dead-worker
+    // windows stay at the framework production defaults.
+    j.ConfigureOptions(o =>
+    {
+        o.MaxConcurrentExecutors = new JobsOptions().MaxConcurrentExecutors;
+        o.SafetyPollInterval = TimeSpan.FromSeconds(1);
+        o.DeploymentVersion = workerName;
+    });
+    // Every worker in the namespace carries the relay: sys.outbox claims are namespace-wide, so
+    // an unconfigured worker next to configured ones would claim the slot without a binding.
+    j.Run(
+        ns,
+        w =>
+        {
+            w.AddManifest<AnvilJobs>();
+            w.AddOutboxRelay(
+                "anvil-outbox",
+                source => source.UseSqlite(new Microsoft.Data.Sqlite.SqliteConnectionStringBuilder { DataSource = outboxSource }.ToString())
+            );
+        }
+    );
 }
 
 static string Required(string[] args, string name) =>

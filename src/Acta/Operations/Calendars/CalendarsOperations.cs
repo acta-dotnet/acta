@@ -1,3 +1,5 @@
+using System.Data.Common;
+
 namespace Acta;
 
 /// <summary>The Calendars operations: <see cref="ICalendars"/> for applications, plus the engine's calls.</summary>
@@ -84,6 +86,10 @@ internal sealed class CalendarsOperations(
     /// <summary>Resolves <paramref name="names"/> against the current catalog in one read, so a pass plans without more.</summary>
     internal Task PreloadAsync(int namespaceId, IEnumerable<string> names, CancellationToken ct) =>
         sources.PreloadAsync(namespaceId, names, ct);
+
+    /// <summary>The same preload inside <paramref name="transaction"/>, on its connection: what a deploy runs.</summary>
+    internal Task PreloadAsync(int namespaceId, IEnumerable<string> names, DbTransaction transaction, CancellationToken ct) =>
+        sources.PreloadAsync(namespaceId, names, transaction, ct);
 
     /// <summary>The namespace's current calendars, one per family that has a Published version.</summary>
     internal Task<ListCurrentCalendarsResponse> ListCurrentCalendarsAsync(int namespaceId, CancellationToken ct) =>

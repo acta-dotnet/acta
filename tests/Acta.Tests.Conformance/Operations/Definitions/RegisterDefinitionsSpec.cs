@@ -12,7 +12,7 @@ namespace Acta.Tests.Conformance.Operations.Definitions;
 /// definition the manifest omits is left as it is.
 /// </summary>
 [ConformanceSpec(
-    "register-definitions.monotonic-promotion",
+    "register-definitions.writes-what-changed",
     "Registration writes what changed and leaves what the manifest omits",
     Area = "Catalog",
     Contract = "Writes a definition only when it is new, not Active, or changed, and never touches a definition the manifest omits."

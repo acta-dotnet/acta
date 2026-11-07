@@ -136,8 +136,10 @@ public abstract class OutboxRelayIntegrationBase : ActaRuntimeTestBase<Conforman
         return admitted.Action;
     }
 
-    // A second Acta runtime against the same ledger that registers TestJobsManifest under another
-    // namespace, so a route unknown at first can become resolvable after a later registration.
+    /// <summary>
+    /// A second Acta container against the same ledger that declares TestJobsManifest under another namespace, so a
+    /// route unknown at first resolves once that container's deploy registers it.
+    /// </summary>
     private protected ServiceProvider BuildRuntimeFor(string namespaceName)
     {
         var services = new ServiceCollection();

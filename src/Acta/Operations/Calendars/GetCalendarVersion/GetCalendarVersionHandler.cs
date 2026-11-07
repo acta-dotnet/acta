@@ -1,3 +1,5 @@
+using System.Data.Common;
+
 namespace Acta;
 
 /// <summary>
@@ -6,16 +8,20 @@ namespace Acta;
 /// </summary>
 internal sealed class GetCalendarVersionHandler(IDbSession session, ISqlDialect dialect)
 {
-    public Task<GetCalendarVersionResponse?> HandleAsync(GetCalendarVersionQuery query, CancellationToken ct) =>
-        session.QuerySingleAsync(
-            "GetCalendarVersion",
-            cmd =>
-            {
-                cmd.Parameters.Add(dialect.CreateParameter(ActaSchema.Calendar.NamespaceId, query.NamespaceId));
-                cmd.Parameters.Add(dialect.CreateParameter(ActaSchema.Calendar.CalendarName, query.CalendarName));
-                cmd.Parameters.Add(dialect.CreateParameter(ActaSchema.Calendar.Version, query.Version));
-            },
-            DbProjectionResolver.Resolve<GetCalendarVersionResponse>(),
-            ct
-        );
+    public async Task<GetCalendarVersionResponse?> HandleAsync(GetCalendarVersionQuery query, CancellationToken ct)
+    {
+        var map = DbProjectionResolver.Resolve<GetCalendarVersionResponse>();
+        return query.Transaction is { } transaction
+            ? (
+                await session.ExecuteInTransactionAsync(transaction, new StoreCommand("GetCalendarVersion"), Bind, map, ct)
+            ).SingleOrDefault()
+            : await session.QuerySingleAsync("GetCalendarVersion", Bind, map, ct);
+
+        void Bind(DbCommand cmd)
+        {
+            cmd.Parameters.Add(dialect.CreateParameter(ActaSchema.Calendar.NamespaceId, query.NamespaceId));
+            cmd.Parameters.Add(dialect.CreateParameter(ActaSchema.Calendar.CalendarName, query.CalendarName));
+            cmd.Parameters.Add(dialect.CreateParameter(ActaSchema.Calendar.Version, query.Version));
+        }
+    }
 }

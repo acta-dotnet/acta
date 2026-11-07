@@ -1,4 +1,5 @@
 using System.Collections.Concurrent;
+using System.Data.Common;
 using System.Text;
 
 namespace Acta;
@@ -51,7 +52,11 @@ internal sealed class CalendarSources(ListCurrentCalendarsHandler families, GetC
     /// names asked for move, so a preload never points another caller's name at a version it did not compile. No names,
     /// no read.
     /// </summary>
-    public async Task PreloadAsync(int namespaceId, IEnumerable<string> names, CancellationToken ct)
+    public Task PreloadAsync(int namespaceId, IEnumerable<string> names, CancellationToken ct) =>
+        PreloadAsync(namespaceId, names, transaction: null, ct);
+
+    /// <summary>The same preload, reading inside <paramref name="transaction"/> when a deploy owns one, on its connection.</summary>
+    public async Task PreloadAsync(int namespaceId, IEnumerable<string> names, DbTransaction? transaction, CancellationToken ct)
     {
         var needed = names.Distinct(StringComparer.Ordinal).ToList();
         if (needed.Count == 0)
@@ -59,7 +64,7 @@ internal sealed class CalendarSources(ListCurrentCalendarsHandler families, GetC
             return;
         }
 
-        var current = (await families.HandleAsync(new ListCurrentCalendarsQuery(namespaceId), ct)).Calendars.ToDictionary(
+        var current = (await families.HandleAsync(new ListCurrentCalendarsQuery(namespaceId, transaction), ct)).Calendars.ToDictionary(
             c => c.CalendarName,
             c => c.Version,
             StringComparer.Ordinal
@@ -75,7 +80,7 @@ internal sealed class CalendarSources(ListCurrentCalendarsHandler families, GetC
 
             if (!_compiled.ContainsKey((namespaceId, name, version)) && !_unreadable.ContainsKey((namespaceId, name, version)))
             {
-                await CompileAsync(namespaceId, name, version, ct);
+                await CompileAsync(namespaceId, name, version, transaction, ct);
             }
 
             known[name] = version;
@@ -108,9 +113,9 @@ internal sealed class CalendarSources(ListCurrentCalendarsHandler families, GetC
             );
     }
 
-    private async Task CompileAsync(int namespaceId, string name, int version, CancellationToken ct)
+    private async Task CompileAsync(int namespaceId, string name, int version, DbTransaction? transaction, CancellationToken ct)
     {
-        if (await versions.HandleAsync(new GetCalendarVersionQuery(namespaceId, name, version), ct) is not { } row)
+        if (await versions.HandleAsync(new GetCalendarVersionQuery(namespaceId, name, version, transaction), ct) is not { } row)
         {
             return;
         }

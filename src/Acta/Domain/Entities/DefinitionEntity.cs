@@ -320,7 +320,7 @@ internal sealed class DefinitionEntity : IEntity<int>
 
     /// <summary>
     /// How the definition's schedules deliver its work (<c>Permanent</c> slot / <c>PerOccurrence</c> roots).
-    /// Code-owned, without an override triple, and immutable once registered: worker start refuses a changed mode.
+    /// Code-owned, without an override triple, and immutable once registered: a deploy refuses a changed mode.
     /// </summary>
     [DbColumn("scheduled_delivery_code")]
     public ScheduledDeliveryCode ScheduledDelivery { get; internal set; }

@@ -41,14 +41,14 @@ DO $$
 BEGIN
     IF EXISTS (
         SELECT 1 FROM acta.migrations
-        WHERE name NOT IN ('M20261106181521_init')
+        WHERE name NOT IN ('M20261106200939_init')
     ) THEN
         RAISE EXCEPTION 'A newer Acta release already upgraded this database. Run the newest provisioning script; this one would move it backwards.';
     END IF;
 END
 $$;
 
--- ===== BEGIN M20261106181521_init =====
+-- ===== BEGIN M20261106200939_init =====
 CREATE SCHEMA IF NOT EXISTS acta;
 
 -- alerts
@@ -1825,7 +1825,7 @@ BEGIN
     WHERE ns.namespace_name = p_namespace_name;
 
     IF v_def_id IS NULL THEN
-        RAISE EXCEPTION 'ACTA:ENQ_ROUTE_UNKNOWN:Enqueue rejected: one or more rows reference an unknown namespace or job. Has the owning worker run InitializeAsync yet?'
+        RAISE EXCEPTION 'ACTA:ENQ_ROUTE_UNKNOWN:Enqueue rejected: one or more rows reference an unknown namespace or job. Have the jobs been deployed there (jobs deploy)?'
             USING ERRCODE = 'P0001';
     END IF;
 
@@ -2148,7 +2148,7 @@ BEGIN
         AND jd.definition_name = b.job_name;
 
     IF batch_count IS DISTINCT FROM resolved_count THEN
-        RAISE EXCEPTION 'ACTA:ENQ_ROUTE_UNKNOWN:Enqueue rejected: one or more rows reference an unknown namespace or job. Has the owning worker run InitializeAsync yet?'
+        RAISE EXCEPTION 'ACTA:ENQ_ROUTE_UNKNOWN:Enqueue rejected: one or more rows reference an unknown namespace or job. Have the jobs been deployed there (jobs deploy)?'
             USING ERRCODE = 'P0001';
     END IF;
 
@@ -2820,7 +2820,7 @@ BEGIN
                     SELECT 1 FROM acta.jobs_state p
                     WHERE p.job_id = j.parent_job_id
                       AND p.job_status_code NOT IN (100 /* JobStatusCode.Succeeded */, 200 /* JobStatusCode.Failed */, 220 /* JobStatusCode.Cancelled */))
-                -- A stopped recurring job stays while its definition is live: the next start would register
+                -- A stopped recurring job stays while its definition is live: the next deploy would register
                 -- its declaration as a new job and undo the cancel or failure. Retiring the definition lets
                 -- it drain.
                 AND NOT EXISTS (
@@ -4430,10 +4430,10 @@ JOIN acta.namespaces AS ns ON ns.namespace_id = w.namespace_id;
 
 
 INSERT INTO acta.migrations (name)
-VALUES ('M20261106181521_init')
+VALUES ('M20261106200939_init')
 ON CONFLICT (name) DO NOTHING;
 
--- ===== END M20261106181521_init =====
+-- ===== END M20261106200939_init =====
 
 COMMIT;
 

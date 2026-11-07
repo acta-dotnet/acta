@@ -56,7 +56,7 @@ BEGIN
             BEGIN
                 DECLARE
                     @route_msg NVARCHAR(2048) = 'ACTA:ENQ_ROUTE_UNKNOWN:Enqueue rejected: one or more rows reference an unknown'
-                    + ' namespace or job. Has the owning worker run InitializeAsync yet?';
+                    + ' namespace or job. Have the jobs been deployed there (jobs deploy)?';
                 THROW 50001, @route_msg, 1;
             END;
 

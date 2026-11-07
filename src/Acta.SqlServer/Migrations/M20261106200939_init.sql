@@ -2138,7 +2138,7 @@ BEGIN
             BEGIN
                 DECLARE
                     @route_msg NVARCHAR(2048) = 'ACTA:ENQ_ROUTE_UNKNOWN:Enqueue rejected: one or more rows reference an unknown'
-                    + ' namespace or job. Has the owning worker run InitializeAsync yet?';
+                    + ' namespace or job. Have the jobs been deployed there (jobs deploy)?';
                 THROW 50001, @route_msg, 1;
             END;
 
@@ -2486,7 +2486,7 @@ BEGIN
             BEGIN
                 DECLARE
                     @route_msg NVARCHAR(2048) = 'ACTA:ENQ_ROUTE_UNKNOWN:Enqueue rejected: one or more rows reference an unknown'
-                    + ' namespace or job. Has the owning worker run InitializeAsync yet?';
+                    + ' namespace or job. Have the jobs been deployed there (jobs deploy)?';
                 THROW 50001, @route_msg, 1;
             END;
 
@@ -3265,7 +3265,7 @@ BEGIN
                         WHERE p.job_id = j.parent_job_id
                             AND p.job_status_code NOT IN (100 /* JobStatusCode.Succeeded */, 200 /* JobStatusCode.Failed */, 220 /* JobStatusCode.Cancelled */)
                     )
-                    -- A stopped recurring job stays while its definition is live: the next start would register
+                    -- A stopped recurring job stays while its definition is live: the next deploy would register
                     -- its declaration as a new job and undo the cancel or failure. Retiring the definition lets
                     -- it drain.
                     AND NOT EXISTS (
@@ -5048,7 +5048,7 @@ JOIN {{schema}}.namespaces AS ns ON ns.namespace_id = w.namespace_id
 GO
 
 
-IF NOT EXISTS (SELECT 1 FROM {{schema}}.migrations WHERE name = 'M20261106181521_init')
+IF NOT EXISTS (SELECT 1 FROM {{schema}}.migrations WHERE name = 'M20261106200939_init')
 INSERT INTO {{schema}}.migrations (name)
-VALUES ('M20261106181521_init');
+VALUES ('M20261106200939_init');
 GO

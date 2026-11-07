@@ -21,7 +21,7 @@ internal static class RollingOnlyHandler
 /// build carries, so the two deployments agree about it), adds <c>rolling-only</c>, and omits
 /// <c>failures-audit-probe</c> - the three relationships a rolling deploy can have to a definition.
 /// </summary>
-public sealed class RollingGenerationBManifest : IJobManifest
+public sealed class RollingNextBuildManifest : IJobManifest
 {
     public const string SharedJob = "add-numbers";
 
@@ -61,27 +61,27 @@ public sealed class RollingGenerationBManifest : IJobManifest
 
 /// <summary>
 /// A rolling deploy run end to end against one namespace: the old build (the test base's own
-/// runtime, on <c>TestJobsManifest</c>) and the new one (<see cref="RollingGenerationBManifest"/>)
+/// runtime, on <c>TestJobsManifest</c>) and the new one (<see cref="RollingNextBuildManifest"/>)
 /// are live together, and then the deploy is rolled back to a fresh old-build process. Claims
 /// are by namespace, so each build is free to claim the other's work; what the deploy relies on
 /// is that a claim it cannot run is handed back budget-neutral and that the definition behind it is
 /// excluded from that worker's later claims, so the window costs one bounce per definition per
 /// worker rather than one per job per safety-poll interval.
-/// <para>The catalog side of the same window: registering a manifest that omits a definition leaves
-/// that definition Active, so a rolled-back deployment still runs its jobs with the policy it
-/// registered. Clearing what the withdrawn build left behind is the operator's retire verb.</para>
+/// <para>The catalog side of the same window: deploying a manifest that omits a definition leaves
+/// that definition Active, so a rolled-back build still runs its jobs with the policy it
+/// deployed. Clearing what the withdrawn build left behind is the operator's retire verb.</para>
 /// </summary>
 [ConformanceSpec(
     "runtime.rolling-deploy",
     "Two builds share a namespace and the rollback still runs",
     Area = "Runtime",
-    Contract = "A worker hands back a claim it has no handler for, stops claiming that definition, and leaves the catalog entry Active."
+    Contract = "A worker hands back a claim it has no handler for and stops claiming that definition, and a deploy that omits a definition leaves it Active."
 )]
 public sealed class RollingDeploySpec : ActaRuntimeTestBase<ConformanceFixture, TestJobsManifest>
 {
-    private const string SharedJob = RollingGenerationBManifest.SharedJob;
+    private const string SharedJob = RollingNextBuildManifest.SharedJob;
 
-    private const string NewJob = RollingGenerationBManifest.NewJob;
+    private const string NewJob = RollingNextBuildManifest.NewJob;
 
     // Declared only by the old build: what the rollback has to keep working.
     private const string OldOnlyJob = "failures-audit-probe";
@@ -93,10 +93,10 @@ public sealed class RollingDeploySpec : ActaRuntimeTestBase<ConformanceFixture, 
     {
         var ct = TestContext.Current.CancellationToken;
 
-        // --- 1. The new build joins the namespace and registers its manifest.
-        var newBuild = BuildGenerationProvider<RollingGenerationBManifest>("new-build");
+        // --- 1. The new build deploys its manifest and joins the namespace.
+        var newBuild = BuildProvider<RollingNextBuildManifest>("new-build");
         var newRuntime = newBuild.GetServices<WorkerRuntime>().Single();
-        await newRuntime.InitializeAsync(ct);
+        await CatalogTestOps.DeployAndStartAsync(newBuild, newRuntime, ct);
 
         var shared = await Jobs.EnqueueAsync(new EnqueueJobRequest(TestNamespace, SharedJob, JobPayload.Json(new AddNumbers(2, 3))), ct);
         var newOnly = await Jobs.EnqueueAsync(new EnqueueJobRequest(TestNamespace, NewJob, JobPayload.None), ct);
@@ -120,8 +120,8 @@ public sealed class RollingDeploySpec : ActaRuntimeTestBase<ConformanceFixture, 
         Assert.Equal(0, handedBack.FailureCount);
         Assert.Null(handedBack.LeasedByWorkerId);
 
-        // Registering a manifest that omits a definition does not retire it: the old build is
-        // still deployed, and its jobs are still enqueueable and claimable.
+        // Deploying a manifest that omits a definition does not retire it: the old build is
+        // still running, and its jobs are still enqueueable and claimable.
         var oldOnlyDefinition = await ReadDefinitionAsync(OldOnlyJob, ct);
         Assert.Equal(DefinitionStatusCode.Active, oldOnlyDefinition.Status);
 
@@ -153,9 +153,9 @@ public sealed class RollingDeploySpec : ActaRuntimeTestBase<ConformanceFixture, 
         var strandedNew = await Jobs.EnqueueAsync(new EnqueueJobRequest(TestNamespace, NewJob, JobPayload.None), ct);
         var rolledBackOld = await Jobs.EnqueueAsync(new EnqueueJobRequest(TestNamespace, OldOnlyJob, JobPayload.None), ct);
 
-        await using var rollback = BuildGenerationProvider<TestJobsManifest>("old-build-rollback");
+        await using var rollback = BuildProvider<TestJobsManifest>("old-build-rollback");
         var rollbackRuntime = rollback.GetServices<WorkerRuntime>().Single();
-        await rollbackRuntime.InitializeAsync(ct);
+        await CatalogTestOps.DeployAndStartAsync(rollback, rollbackRuntime, ct);
 
         await TickUntilAsync(
             rollbackRuntime,
@@ -167,8 +167,8 @@ public sealed class RollingDeploySpec : ActaRuntimeTestBase<ConformanceFixture, 
         );
         await AssertPassedOverAsync(rollbackRuntime, strandedNew.JobId, ct);
 
-        // The definition the new build never registered is untouched by it, so the rolled-back
-        // process runs its job under exactly the policy it registered in the first place.
+        // The definition the new build's deploy omitted is untouched by that deploy, so the rolled-back
+        // process runs its job under exactly the policy the old build deployed in the first place.
         var afterRollback = await ReadDefinitionAsync(OldOnlyJob, ct);
         Assert.Equal(DefinitionStatusCode.Active, afterRollback.Status);
         Assert.Equal(oldOnlyDefinition.DefinitionHash, afterRollback.DefinitionHash);

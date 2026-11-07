@@ -1774,7 +1774,7 @@ BEGIN
     WHERE ns.namespace_name = p_namespace_name;
 
     IF v_def_id IS NULL THEN
-        RAISE EXCEPTION 'ACTA:ENQ_ROUTE_UNKNOWN:Enqueue rejected: one or more rows reference an unknown namespace or job. Has the owning worker run InitializeAsync yet?'
+        RAISE EXCEPTION 'ACTA:ENQ_ROUTE_UNKNOWN:Enqueue rejected: one or more rows reference an unknown namespace or job. Have the jobs been deployed there (jobs deploy)?'
             USING ERRCODE = 'P0001';
     END IF;
 
@@ -2097,7 +2097,7 @@ BEGIN
         AND jd.definition_name = b.job_name;
 
     IF batch_count IS DISTINCT FROM resolved_count THEN
-        RAISE EXCEPTION 'ACTA:ENQ_ROUTE_UNKNOWN:Enqueue rejected: one or more rows reference an unknown namespace or job. Has the owning worker run InitializeAsync yet?'
+        RAISE EXCEPTION 'ACTA:ENQ_ROUTE_UNKNOWN:Enqueue rejected: one or more rows reference an unknown namespace or job. Have the jobs been deployed there (jobs deploy)?'
             USING ERRCODE = 'P0001';
     END IF;
 
@@ -2769,7 +2769,7 @@ BEGIN
                     SELECT 1 FROM {{schema}}.jobs_state p
                     WHERE p.job_id = j.parent_job_id
                       AND p.job_status_code NOT IN (100 /* JobStatusCode.Succeeded */, 200 /* JobStatusCode.Failed */, 220 /* JobStatusCode.Cancelled */))
-                -- A stopped recurring job stays while its definition is live: the next start would register
+                -- A stopped recurring job stays while its definition is live: the next deploy would register
                 -- its declaration as a new job and undo the cancel or failure. Retiring the definition lets
                 -- it drain.
                 AND NOT EXISTS (
@@ -4379,5 +4379,5 @@ JOIN {{schema}}.namespaces AS ns ON ns.namespace_id = w.namespace_id;
 
 
 INSERT INTO {{schema}}.migrations (name)
-VALUES ('M20261106181521_init')
+VALUES ('M20261106200939_init')
 ON CONFLICT (name) DO NOTHING;

@@ -7,14 +7,14 @@ using Xunit;
 namespace Acta.Tests.Conformance.Operations.Definitions;
 
 /// <summary>
-/// The retire verb on a recurring job: the slot is left inert instead of cancelled, and a build that registers the
-/// definition again retimes its schedules from its start, on the same slot.
+/// The retire verb on a recurring job: the slot is left inert instead of cancelled, and a deploy that carries the
+/// definition again retimes its schedules from that deploy, on the same slot.
 /// </summary>
 [ConformanceSpec(
     "definitions.retire-recurring",
-    "Retire leaves a recurring slot inert until a build registers it again",
+    "Retire leaves a recurring slot inert until a build deploys it again",
     Area = "Catalog",
-    Contract = "Retiring a recurring definition settles its queued firing, leaves the slot Idle or as the operator held it, and a later build resumes its schedules from now."
+    Contract = "Retiring a recurring definition settles its queued firing, leaves the slot Idle or as the operator held it, and a later deploy resumes its schedules from now."
 )]
 public sealed class RetireDefinitionSlotSpec : ActaRuntimeTestBase<ConformanceFixture, TestJobsManifest>
 {
@@ -63,7 +63,7 @@ public sealed class RetireDefinitionSlotSpec : ActaRuntimeTestBase<ConformanceFi
         );
     }
 
-    [Fact(DisplayName = "A build that registers a retired definition again resumes its schedules from now on the same Idle slot")]
+    [Fact(DisplayName = "A deploy that carries a retired definition again resumes its schedules from now on the same Idle slot")]
     public async Task A_reactivated_definition_resumes_its_schedules_from_now()
     {
         var ct = TestContext.Current.CancellationToken;
@@ -96,7 +96,7 @@ public sealed class RetireDefinitionSlotSpec : ActaRuntimeTestBase<ConformanceFi
             }
         );
 
-        // Starting it again changes nothing, and the resumed schedules admit one firing on the slot.
+        // Deploying it again changes nothing, and the resumed schedules admit one firing on the slot.
         await StartBuildAsync("comeback-again", ct);
         Assert.Equal(resumed.Select(s => s.Version), (await ScheduleTestOps.ReadAsync(Db, slotId, ct)).Select(s => s.Version));
         await MakeDueAsync(slotId, ct);
@@ -137,7 +137,7 @@ public sealed class RetireDefinitionSlotSpec : ActaRuntimeTestBase<ConformanceFi
         Assert.Equal(JobStatusCode.Cancelled, (await ReadJobAsync(slotId, ct)).Status);
     }
 
-    [Fact(DisplayName = "A retired definition's slot refuses a manual firing until a build that carries the definition starts")]
+    [Fact(DisplayName = "A retired definition's slot refuses a manual firing until a build that carries the definition deploys")]
     public async Task A_retired_definitions_slot_refuses_a_manual_firing()
     {
         var ct = TestContext.Current.CancellationToken;
@@ -188,11 +188,11 @@ public sealed class RetireDefinitionSlotSpec : ActaRuntimeTestBase<ConformanceFi
         Assert.Equal(JobStatusCode.Idle, (await ReadJobAsync(slotId, ct)).Status);
     }
 
-    /// <summary>Another build's worker starting in the test namespace: it registers the definitions and their schedules.</summary>
+    /// <summary>Another build coming up in the test namespace: its deploy writes the definitions and their schedules, then its worker starts.</summary>
     private async Task StartBuildAsync(string tag, CancellationToken ct)
     {
-        await using var build = BuildGenerationProvider<TestJobsManifest>(tag);
-        await build.GetServices<WorkerRuntime>().Single().InitializeAsync(ct);
+        await using var build = BuildProvider<TestJobsManifest>(tag);
+        await CatalogTestOps.DeployAndStartAsync(build, build.GetServices<WorkerRuntime>().Single(), ct);
     }
 
     /// <summary>

@@ -4,7 +4,7 @@ using Xunit;
 namespace Acta.Tests.Conformance.Testing;
 
 /// <summary>
-/// Test-support entry point into the Schedules feature: the startup reconcile upsert through the
+/// Test-support entry point into the Schedules feature: a deploy's reconcile upsert through the
 /// store port with production slot-ref allocation, returning the definition-to-slot map, and the read
 /// that pairs each schedule with its cursor.
 /// </summary>

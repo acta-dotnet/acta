@@ -158,6 +158,27 @@ public sealed class RetireDefinitionSpec : ActaRuntimeTestBase<ConformanceFixtur
         await AssertCancelledByTheWorkerAsync(stranded.JobId, ct);
     }
 
+    [Fact(DisplayName = "A worker that starts after the retire lands the reclaimed job Cancelled on its first claim, before any heartbeat")]
+    public async Task A_worker_started_after_the_retire_never_runs_the_job_on_its_first_claim()
+    {
+        var ct = TestContext.Current.CancellationToken;
+        var (_, ns, workerId) = await DepsAsync(ct);
+        var stranded = await Jobs.EnqueueAsync(new EnqueueJobRequest(TestNamespace, "chaos-counting", JobPayload.None), ct);
+        ChaosProbes.Reset(stranded.JobId);
+        await ChaosSpecHelpers.StrandExecutingAsync(Services, ns, workerId, stranded.JobId, ct);
+        Assert.Equal(ControlAction.Applied, (await RetireAsync("chaos-counting", ct)).Action);
+        Assert.Equal(1, await ChaosSpecHelpers.ReclaimAsync(Services, ns, ct));
+
+        // Started, not deployed: a deploy by a build that declares the definition would make it Active again.
+        await using var later = BuildProvider<TestJobs.TestJobsManifest>("after-retire");
+        var runtime = later.GetServices<WorkerRuntime>().Single();
+        await runtime.InitializeAsync(ct);
+
+        Assert.Equal(RunOnceStatus.Completed, await runtime.RunOnceAsync(TestNamespace, stranded.JobId, ct));
+        Assert.False(ChaosProbes.CountingInvocations.ContainsKey(stranded.JobId));
+        await AssertCancelledByTheWorkerAsync(stranded.JobId, ct);
+    }
+
     [Fact(
         DisplayName = "A worker that bounced a definition before its retire still claims the job recovery reclaims, and lands it Cancelled"
     )]

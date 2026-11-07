@@ -272,7 +272,7 @@ public sealed class PauseScheduleSpec : ActaStorageTestBase<ConformanceFixture>
         var until = now.AddMinutes(45);
         await Schedules.PauseAsync(Lookup(jobName, "only"), untilUtc: until, ct: ct);
 
-        // Re-run the startup catalog reconcile for the same definition (ListScheduleStates -> ScheduleRegistrationPlan ->
+        // Re-run a deploy's catalog reconcile for the same definition (ListScheduleStates -> ScheduleRegistrationPlan ->
         // RegisterSchedules), exactly as CatalogRegistrar.ReconcileSchedulesAsync does.
         await ReReconcileAsync(db, dialect, defId, jobName, now, ct);
 

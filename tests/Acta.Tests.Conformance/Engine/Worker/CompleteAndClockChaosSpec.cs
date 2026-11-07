@@ -126,7 +126,7 @@ public sealed class ClockSkewInitializationChaosSpec : ActaTestBase<ConformanceF
 
         // --- 1. The default path rejects a skewed clock and records no worker.
         var runtime = Services.GetServices<WorkerRuntime>().Single();
-        var ex = await Assert.ThrowsAsync<InvalidOperationException>(() => runtime.InitializeAsync(ct));
+        var ex = await Assert.ThrowsAsync<InvalidOperationException>(() => CatalogTestOps.DeployAndStartAsync(Services, runtime, ct));
         Assert.Contains("clock skew", ex.Message, StringComparison.OrdinalIgnoreCase);
         var namespaceRow = await Db.From<NamespaceEntity>().Where(n => n.NamespaceName == TestNamespace).SingleOrDefaultAsync(ct);
         if (namespaceRow is not null)
@@ -139,7 +139,7 @@ public sealed class ClockSkewInitializationChaosSpec : ActaTestBase<ConformanceF
         // its end, so a cut-and-suffix form drops the id and reuses one namespace, and its workers, across runs.
         var allowedNamespace = ActaTestNames.CreateNamespace(GetType(), "allowed", TestId);
         await using var allowed = BuildClockSkewProvider(allowedNamespace, allowClockSkew: true);
-        await allowed.GetServices<WorkerRuntime>().Single().InitializeAsync(ct);
+        await CatalogTestOps.DeployAndStartAsync(allowed, allowed.GetServices<WorkerRuntime>().Single(), ct);
 
         var allowedNs = await ChaosSpecHelpers.NamespaceIdAsync(Db, allowedNamespace, ct);
         var worker = Assert.Single(await Db.From<WorkerEntity>().Where(w => w.NamespaceId == allowedNs).ToListAsync(ct));

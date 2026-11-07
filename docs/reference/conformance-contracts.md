@@ -300,6 +300,7 @@
   - A running attempt keeps its lease through the retire and still completes
   - A failing attempt in flight at the retire lands Cancelled instead of retrying, and nothing claims it again
   - A job that recovery reclaims after the retire lands Cancelled without its handler running
+  - A worker that starts after the retire lands the reclaimed job Cancelled on its first claim, before any heartbeat
   - A worker that bounced a definition before its retire still claims the job recovery reclaims, and lands it Cancelled
   - A Suspended parent waiting on a child of the retired definition is released without a recovery pass
   - Enqueue against a retired definition is rejected with DefinitionRetired
@@ -307,14 +308,14 @@
   - Retiring an already retired definition is applied and writes no further events
   - A registration that declares a retired definition makes it Active again
 
-### Retire leaves a recurring slot inert until a build registers it again
-- **Contract:** Retiring a recurring definition settles its queued firing, leaves the slot Idle or as the operator held it, and a later build resumes its schedules from now.
+### Retire leaves a recurring slot inert until a build deploys it again
+- **Contract:** Retiring a recurring definition settles its queued firing, leaves the slot Idle or as the operator held it, and a later deploy resumes its schedules from now.
 - **Guarantees:**
   - A recurring slot retired mid-occurrence returns to Idle, where its retired definition leaves it inert
   - A retired definition's schedules keep no cursor, which takes them out of the upcoming-occurrence index
-  - A build that registers a retired definition again resumes its schedules from now on the same Idle slot
+  - A deploy that carries a retired definition again resumes its schedules from now on the same Idle slot
   - A retire settles a queued firing and leaves an operator's pause or cancel on the slot through the comeback
-  - A retired definition's slot refuses a manual firing until a build that carries the definition starts
+  - A retired definition's slot refuses a manual firing until a build that carries the definition deploys
   - A firing that fails into a retry after the retire lands Cancelled with its firing settled, and a restart returns the slot to Idle
 
 ### RecordDeployment makes a version current and leaves an event
@@ -389,11 +390,11 @@
   - Seeded namespace row persists and is readable by id with the expected name
   - Db-assigned namespace id is positive and matches the persisted row
 
-### Init auto-registers system definitions, slots and schedules
-- **Contract:** InitializeAsync registers system definitions with an Idle permanent slot and a default schedule.
+### A deploy auto-registers system definitions, slots and schedules
+- **Contract:** A deploy registers system definitions with an Idle permanent slot and a default schedule.
 - **Guarantees:**
-  - Init makes the sys.alerts definition Active with an Idle permanent slot and a default schedule
-  - Init makes the sys.retention definition Active with an Idle permanent slot and an hourly default schedule
+  - A deploy makes the sys.alerts definition Active with an Idle permanent slot and a default schedule
+  - A deploy makes the sys.retention definition Active with an Idle permanent slot and an hourly default schedule
 
 ### Override writes are version-guarded, recompute effective, and audited
 - **Contract:** Applies an override set version-guarded, recomputes effective, leaves defaults and definition_hash untouched, and emits a policy-changed event.
@@ -414,12 +415,12 @@
 - **Guarantees:**
   - A manifest carrying an invalid descriptor writes no worker row and no WorkerStarted event
 
-### Init writes namespace worker and full definition policy idempotently
-- **Contract:** InitializeAsync writes namespace and worker rows with a WorkerStarted event, persists each definition's full policy or framework defaults, and is idempotent.
+### A deploy and a worker start write the namespace, definitions, and worker once
+- **Contract:** A deploy writes the namespace and each definition's full policy or framework defaults, and a worker start writes its worker row and WorkerStarted event once.
 - **Guarantees:**
-  - Init assigns a namespace id and writes the namespace row
-  - Init writes exactly one worker row for this runtime
-  - Init emits a WorkerStarted event for the worker
+  - The deploy writes the namespace row and the start reads its id
+  - The start writes exactly one worker row for this runtime
+  - The start emits a WorkerStarted event for the worker
   - Full definition policy from the attribute persists verbatim
   - Framework defaults apply when the attribute omits policy
   - Second init on the same instance does not double-insert the worker
@@ -452,7 +453,7 @@
   - A complete after-commit failure is reconciled by the repeat itself and is not rerun
 
 ### Duplicated maintenance registration still has one slot and one claimant
-- **Contract:** Repeated runtime initialization for system maintenance jobs is idempotent, and the recurring maintenance slot is claimed by only one worker.
+- **Contract:** A repeated deploy of the system maintenance jobs is idempotent, and the recurring maintenance slot is claimed by only one worker.
 - **Guarantees:**
   - Maintenance registration is idempotent (no duplicate slot) and a due tick has exactly one claimant
 
@@ -1869,7 +1870,7 @@
   - An Executing row whose claim answer was lost is not renewed and is reclaimed charged, like a crash after start
 
 ### Two builds share a namespace and the rollback still runs
-- **Contract:** A worker hands back a claim it has no handler for, stops claiming that definition, and leaves the catalog entry Active.
+- **Contract:** A worker hands back a claim it has no handler for and stops claiming that definition, and a deploy that omits a definition leaves it Active.
 - **Guarantees:**
   - Two builds in one namespace hand back each other's work, learn it, and the rollback still runs the definition the new build omitted
 
@@ -1997,13 +1998,13 @@
 - **Contract:** ListScheduleStates returns the non-orphaned per-schedule cursors for the given namespace id, or an empty list when none exist.
 - **Guarantees:**
   - A namespace id with no live schedule rows returns an empty list
-  - After InitializeAsync seeds a recurring definition, at least one cursor returns with a non-empty ScheduleName
+  - After a deploy seeds a recurring definition, at least one cursor returns with a non-empty ScheduleName
 
-### Schedule registration is gated by the worker's environment
-- **Contract:** Schedule registration honors each schedule's declared environments, registering only those active in the worker's environment and withholding the rest.
+### Schedule registration is gated by the deploy's environment
+- **Contract:** Schedule registration honors each schedule's declared environments, registering only those active in the deploy's environment and withholding the rest.
 - **Guarantees:**
-  - A staging worker registers the staging-scoped schedule and withholds the production-scoped one
-  - A staging worker creates no recurring slot for a job whose only schedule is production-scoped
+  - A staging deploy registers the staging-scoped schedule and withholds the production-scoped one
+  - A staging deploy creates no recurring slot for a job whose only schedule is production-scoped
 
 ### Reschedule re-arms Ready and durable sleep arms an idempotent timer
 - **Contract:** Reschedule re-arms to Ready without charging the budget and durable sleep arms one idempotent timer checkpoint consumed by the replayed handler once due.
@@ -2049,12 +2050,12 @@
   - An availability calendar omits the cron ticks outside its window and never shifts them
   - A version this build cannot read parks the schedule that names it and no other
 
-### A worker starts only when every calendar its schedules name is ready
-- **Contract:** A start whose schedule names an unpublished, wrong-role, or unreadable calendar fails before any catalog write and names each.
+### A deploy writes the catalog only when every calendar its schedules name is ready
+- **Contract:** A deploy whose schedule names an unpublished, wrong-role, or unreadable calendar fails before any catalog write and names each.
 - **Guarantees:**
-  - A start with no calendar published names every schedule and its calendar, and registers nothing
-  - A start whose calendars are published under the other role says which role each has and which is needed
-  - A start that meets a version this build cannot read names that calendar alone, with the compiler's reason
+  - A deploy with no calendar published names every schedule and its calendar, and writes nothing
+  - A deploy whose calendars are published under the other role says which role each has and which is needed
+  - A deploy that meets a version this build cannot read names that calendar alone, with the compiler's reason
 
 ### The due read returns whole slots in evaluation order and leaves out the dead
 - **Contract:** A due read returns every member of each slot with a schedule due by now, in slot then name order, at most Take due schedules, less the orphaned and retired.
@@ -2095,12 +2096,12 @@
   - An admitted slot is claimed exactly once under sequential worker contention
 
 ### A paused or cancelled recurring job stays so until an operator lifts it
-- **Contract:** A recurring job an operator paused or cancelled keeps that status through worker restarts, schedule edits, and trigger-now.
+- **Contract:** A recurring job an operator paused or cancelled keeps that status through deploys, worker restarts, schedule edits, and trigger-now.
 - **Guarantees:**
-  - A paused recurring job stays paused when the worker starts again, and a resume returns it to Idle
+  - A paused recurring job stays paused through a deploy and a worker start, and a resume returns it to Idle
   - Pausing and resuming the only schedule of a paused recurring job leaves the job paused
   - Pausing, resuming, or triggering a schedule of a paused recurring job leaves the job paused
-  - A cancelled recurring job stays cancelled when the worker starts again
+  - A cancelled recurring job stays cancelled through a deploy and a worker start
   - A deploy that drops a recurring job's schedules leaves it Idle with nothing due, and their return re-arms the schedule
 
 ### CatchUpAll drains a backlog in order, expiration discards or pauses stale work
@@ -2180,7 +2181,7 @@
   - A trigger fires a schedule past its end, since the bounds are about the cadence and a trigger is an operator's act
 
 ### Schedule insert seeds a new cursor, keeps a stored one, and upserts one row
-- **Contract:** The startup schedule insert seeds a new schedule after now, keeps a stored cursor whether due or not, and upserts the single schedule row.
+- **Contract:** A deploy's schedule insert seeds a new schedule after now, keeps a stored cursor whether due or not, and upserts the single schedule row.
 - **Guarantees:**
   - Insert persists the planned cursor across new, future, and missed cron and interval cells: new seeds after now, a stored cursor is kept under either misfire policy
   - Re-registration upserts the single schedule row and its misfire code rather than duplicating it
@@ -2194,15 +2195,15 @@
 - **Contract:** After a retire, no reader returns its schedules, and no completion or verb, even one that read them first, writes their cursors or wakes their slot.
 - **Guarantees:**
   - A firing that lands after the retire returns the slot to Idle and leaves the retired schedules as they were
-  - A worker start's stored state leaves out a retired definition's schedules
+  - A deploy's stored-state read leaves out a retired definition's schedules
   - A resume that found the schedule before the retire writes no cursor after it
   - A pause that found the schedule before the retire leaves the retired schedule as the retire left it
   - A trigger that found the schedule before the retire admits nothing on the retired definition's Idle slot
 
-### A worker fires a slot another build registered after it started as recurring
-- **Contract:** A worker lands a slot another build registered after it started Idle, as a permanent slot, never finished like a one-shot.
+### A worker fires a slot another build deployed after it started as recurring
+- **Contract:** A worker lands a slot another build deployed after it started Idle, as a permanent slot, never finished like a one-shot.
 - **Guarantees:**
-  - A worker fires a slot another build registered after it started as a recurring job
+  - A worker fires a slot another build deployed after it started as a recurring job
 
 ### Recurring slot claims at its definition's priority
 - **Contract:** A recurring slot's runtime priority is stamped from the owning definition's effective priority, and re-registration propagates a changed priority.
@@ -2210,7 +2211,7 @@
   - Registration stamps the slot runtime priority from the definition's declared Critical priority
   - Re-registration after the definition priority changes updates the existing slot jobs_state row
 
-### A second host starting does not disturb a slot the first host is executing
+### A deploy does not disturb a slot a running host is executing
 - **Contract:** Registration never moves a slot, writes a cursor only on a retime or where the stored one was cleared, and never adopts an ordinary job.
 - **Guarantees:**
   - Re-registering a slot that is executing leaves its status, lease, and cursor to the running execution
@@ -2218,9 +2219,9 @@
   - Re-registering an unchanged declaration writes nothing: no version moves on the slot or its schedule
   - Re-registering a finished slot leaves it finished: only an operator's restart brings it back
   - An ordinary job keyed by the job name and the slot coexist: registration adopts nothing
-  - A start leaves a slot parked part-way through an occurrence where it waits: Suspended, or Ready at its wake instant
-  - A start leaves an attempt in flight its due cursor, so a reclaim or re-arm of it still sees its occurrence
-  - A start that changes a schedule's timing reseeds its cursor after now and audits the retime; an edit of its text does not
+  - A deploy leaves a slot parked part-way through an occurrence where it waits: Suspended, or Ready at its wake instant
+  - A deploy leaves an attempt in flight its due cursor, so a reclaim or re-arm of it still sees its occurrence
+  - A deploy that changes a schedule's timing reseeds its cursor after now and audits the retime; an edit of its text does not
   - Registration clears a cursor a racing fire left on an orphaned schedule or a retired definition's schedule
   - A slot input with a format and no bytes registers and re-registers as a zero-length input, not NULL
 
@@ -2568,28 +2569,44 @@
 - **Guarantees:**
   - A job is claimed, run, and completed within 30 s while eight callers flood enqueues, within 400 of them on SQLite
 
-### Replicas registering a new namespace at the same moment all start
-- **Contract:** Replicas that register the same new namespace, definitions, and recurring slots at once all start and agree on one catalog.
+### Replicas deploying a new namespace at the same moment all start
+- **Contract:** Replicas that deploy the same new namespace, definitions, and recurring slots at once all start and agree on one catalog.
 - **Guarantees:**
-  - Four replicas initializing a new namespace at once all start and agree on its catalog
+  - Four replicas deploying a new namespace and starting at once all start and agree on its catalog
 
-### A replica of the registered build skips the schedule registration
-- **Contract:** A start whose catalog hash is stored and whose plan moves no cursor or slot takes no schedule lock, and a changed manifest or a missed occurrence registers.
+### StartWorker admits the versions a namespace allows and appends a worker row
+- **Contract:** StartWorker admits any version until a deploy is recorded and then only deployed ones, appends one worker row and event, and never writes the namespace.
 - **Guarantees:**
-  - A second worker of the same build registers nothing and takes no schedule lock
-  - A changed manifest takes the full registration and waits for the schedule lock
-
-### StartWorker writes the namespace on a metadata change and appends a worker row
-- **Contract:** StartWorker writes the namespace only when its owner, description, or name is new, never its catalog hash, and appends one worker row and WorkerStarted event.
-- **Guarantees:**
-  - Namespace version is unchanged on same-metadata call and bumped on metadata change, and the start leaves the catalog hash unwritten
+  - A start in an absent namespace answers nothing and writes neither the namespace nor a worker row
+  - A start in a namespace no deploy has recorded admits any version
+  - A start in a recorded namespace admits a version that deployed there and refuses one that did not
+  - A start that does not require a deployment admits a version that never deployed in the namespace
+  - A start leaves the namespace row as it found it, whether it admits or refuses the version
   - Each StartWorker call returns a distinct worker id and leaves a distinct row in the namespace
   - Each worker has exactly one WorkerStarted event with itself as the subject and no details
   - Same host and process_id on two calls yields two distinct worker ids and two rows (no dedup)
-  - Registering a worker/namespace named 'sys' is rejected while the seeded sys namespace remains intact
+  - A start in the namespace named 'sys' is rejected while the seeded sys namespace remains intact
 
-### StartWorker allocates a namespace id only when it creates the namespace
-- **Contract:** A worker start against an existing namespace allocates no namespace id, so the id space tracks namespaces created, not workers started.
+### A worker starts only where its build's jobs are deployed
+- **Contract:** A worker refuses an absent namespace and, outside debug, a recorded namespace its version has not deployed in and a declared job with no definition.
+- **Guarantees:**
+  - A worker refuses a namespace nothing was deployed in, names jobs deploy, and creates nothing
+  - A worker whose build has not deployed refuses a recorded namespace and leaves no worker row, and starts once it deploys
+  - A worker of any version starts in a namespace no deploy verb has recorded
+  - An earlier deployed build starts beside the current one and runs a job that differs under the stored policy
+  - A worker refuses to start when its build declares a job with no definition, and names the job
+  - A start under MigrateOnStartup deploys a namespace no verb has recorded, records nothing, and leaves a recorded one as it is
+  - A debug start runs on what is stored: from a build that has not deployed, declaring a job with no definition, writing none
+
+### A worker start writes nothing in the catalog and takes no schedule lock
+- **Contract:** A worker start completes under a held schedule lock and leaves the catalog as it was whatever its build declares, and a deploy waits for that lock.
+- **Guarantees:**
+  - A start of the deployed build completes under a held schedule lock and writes nothing in the catalog
+  - A start whose manifest differs from the deployed one completes under the lock and writes nothing
+  - A deploy of a changed manifest waits for the schedule lock and then writes its schedules
+
+### A deploy allocates a namespace id only when it creates the namespace
+- **Contract:** A deploy and a worker start against an existing namespace allocate no namespace id, so the id space tracks namespaces created, not restarts.
 - **Guarantees:**
   - Restarting workers against an existing namespace allocates no namespace ids
 

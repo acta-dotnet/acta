@@ -444,12 +444,12 @@ for production deployments, not for an evaluation.
 
 - Choose SQL Server or PostgreSQL for distributed multi-worker deployments. Use SQLite for embedded
   single-node deployments, local development, demos, and tests.
-- Apply Acta migrations in a deployment step before workers start, with `<app> jobs migrate`
-  ([Migration ownership](#migration-ownership)). Keep `MigrateOnStartup = false` outside development.
+- Apply Acta migrations and deploy the app's jobs in a deployment step before workers start, with `<app> jobs migrate`
+  ([Migration ownership](#migration-ownership), [Deploying jobs](#deploying-jobs)). Keep `MigrateOnStartup = false` outside development: a worker start writes no definition or schedule, and refuses a namespace its build has not deployed in.
 - Pin one Acta package version across all workers in a namespace.
 - Deploy with a rolling restart: run `<app> jobs migrate`, start the new build, stop the old one. See
   [Rolling deploys](#rolling-deploys) for what each build does with the other's jobs.
-- Set `DeploymentVersion` to a build id or git SHA.
+- Set `DeploymentVersion` to a build id or git SHA, or let it default to the entry assembly's informational version. Builds must differ in it to be told apart: an app that is `1.0.0` on every build is one version to Acta.
 - Keep `HeartbeatInterval` identical across replicas of a namespace; the lease and dead-worker windows
   derive from it.
 - Size total handler concurrency as `processes * workers per process * MaxConcurrentExecutors` (one
@@ -494,7 +494,7 @@ In production a deploy step applies Acta's migrations, never application startup
 
 ```
 $ ConnectionStrings__acta="<DDL login>" dotnet MyApp.dll jobs migrate
-applied M20261106181521_init to schema acta
+applied M20261106200939_init to schema acta
 namespace billing: 1.6.1+b81d04e (Production)
   added    sys.alerts
   added    sys.retention
@@ -561,17 +561,28 @@ namespace billing: 1.6.2+5c0ffee (Production)
 - `--json` prints `{"namespaces":[...]}`, one object per namespace: `namespace`, `deploymentVersion`, `environment`, `currentDeploymentVersion`, `older`, `added`, `changed`, `unchanged`, `undeclared`.
 - A host that runs no worker has nothing to deploy.
 
+A worker start writes none of this. It reads its namespace and refuses to start, naming `jobs deploy`, when:
+
+- nothing has been deployed in the namespace;
+- the namespace has deployed versions and the worker's own is not one of them, which is what stops a local build pointed at production;
+- the build declares a job with no definition there, which means the deploy ran with other options than the workers (`RunSystemJobs`, the outbox relay).
+
+Development needs no deploy step: with `MigrateOnStartup = true`, startup applies the schema and then writes the definitions and schedules before the workers start. It records no version, so the namespace stays open to any build, and it writes nothing in a namespace a deploy verb has deployed. `jobs debug` runs a stored job from any build and writes no definition.
+
+Running `jobs migrate` or `jobs deploy` on every pod start is safe: an older pod's run changes nothing.
+
 ### Rolling deploys
 
-Deploy: run `<app> jobs migrate`, start the new workers, stop the old ones once the new ones are healthy. Rollback: start the old build, stop the new one. While both builds run:
+Deploy: run `<app> jobs migrate`, start the new workers, stop the old ones once the new ones are healthy. Rollback: start the old build, stop the new one; its version has deployed, so its workers start. To put the old build's definitions and schedules back as well, run its `jobs deploy --force`. While both builds run:
 
 - Either build may claim a job only the other can run. The worker without the handler hands it back to `Ready` without charging a failure and stops claiming that definition.
-- Registration never retires a definition, so the old fleet finishes its jobs and a rollback finds nothing missing.
-- Definitions and schedules follow the last build that registered: a schedule the new build dropped is orphaned, and comes back, without its pause, when a build that declares it registers again. Pause the job, not the schedule, to hold it across a rollback.
-- Under `PayloadContractDriftMode.Fail` a build does not start while a stored contract differs from its own, so an old build cannot restart or take a rollback after a new build changed a contract.
+- A deploy never retires a definition, so the old fleet finishes its jobs and a rollback finds nothing missing.
+- Definitions and schedules are the current deployment's, and an older build cannot overwrite them: its workers write nothing, and its deploy changes nothing unless forced. Where an older build's own declaration of a job differs, its worker runs the job under the deployed values of the policy an operator can override (priority, attempts, limits and the rate meter they spend from, timeouts, retention, alert routing); the rest is that build's own.
+- A schedule the new build dropped is orphaned, and comes back, without its pause, when a build that declares it deploys. Pause the job, not the schedule, to hold it across a rollback.
+- Under `PayloadContractDriftMode.Fail` a deploy stops while a stored contract differs from the build's own. A worker start does not check it.
 - Migrations are forward-only and additive, and an older build never rewrites what a newer one migrated.
 
-Jobs of a definition only the withdrawn build carried stay `Ready` until a build with the handler returns or an operator retires the definition (`IActaOperations.Definitions.RetireAsync`, `POST /definitions/{namespace}/{name}/retire`, or the dashboard). Retiring cancels the definition's parked jobs with `job.definition-retired`, lets running attempts finish, and rejects new enqueues. Retire only after the old fleet is gone: an old worker that restarts reactivates the definition. Until then, a long run of such jobs slows every old worker's claim.
+Jobs of a definition only the withdrawn build carried stay `Ready` until a build with the handler returns or an operator retires the definition (`IActaOperations.Definitions.RetireAsync`, `POST /definitions/{namespace}/{name}/retire`, or the dashboard). Retiring cancels the definition's parked jobs with `job.definition-retired`, lets running attempts finish, and rejects new enqueues. A retired definition stays retired while workers that still carry it start; the next deploy by a build that declares it reactivates it. Until then, a long run of such jobs slows every old worker's claim.
 
 ### Coexisting with your application's packages
 
@@ -767,7 +778,7 @@ Set retention long enough for audit, incident response, and late restarts; the r
 
 | Surface | Failure shows as | Process | Action |
 | --- | --- | --- | --- |
-| Worker startup | A validation failure (options, clock skew, schedule time zone, contract drift or alert routing in `Fail` mode) throws from `StartAsync`. | Does not start. | Fix the configuration and restart. |
+| Worker startup | A validation failure (options, clock skew, schedule time zone, alert routing in `Fail` mode) or a refusal (nothing deployed in the namespace, a version that has not deployed there, a declared job with no definition) throws from `StartAsync`. | Does not start. | Fix the configuration, or run `jobs deploy`, and restart. |
 | Claimer, executors, finalizer, heartbeat | An Error log under `Acta.WorkerRuntime` (`claim iteration failed`, `heartbeat tick failed`, `executor faulted on job`, `finalizer faulted`). | Backs off and keeps running; one bad job never stops a loop. | Investigate the logged cause, usually the database; no restart needed. |
 | `sys.alerts`, `sys.retention` | A failed pass is an ordinary job failure, retried on the next tick; a transport fault logs a Warning and retries. | Keeps running. | Usually none. |
 | CLI | Exit code 1 rejected, 2 not found, 64 usage, 130 cancelled. | Exits. | Read the code and stderr, then retry. |
@@ -958,7 +969,7 @@ The schedule's misfire policy decides the missed occurrences when the admitter n
 `Skip` moves past them, `CatchUpOnce` runs one coalesced catch-up firing, `CatchUpLatest` runs the
 latest, and `CatchUpAll` admits every one in order: one per settlement on a permanent slot, and under
 `PerOccurrence` delivery as many root jobs at once as `MaxOutstanding` allows. An occurrence less than a minute overdue counts as due
-rather than missed, and a worker start decides nothing: it registers the declaration and leaves every
+rather than missed, and neither a deploy nor a worker start decides anything: a deploy registers the declaration and leaves every
 occurrence to the running fleet's admitter. See [Schedule operations](./developer-guide.md#schedule-operations).
 
 ### …an operator restarts a failed or cancelled job?
@@ -1029,7 +1040,7 @@ Start with `acta.jobs_view` so names and status values are decoded:
   its `lane_name` and goes `ready` when that one settles.
 - `next_run_at_utc`: delayed, slept, rescheduled, and recurring jobs may be ready but not due yet.
 - `namespace_name`: workers only claim inside their own namespace.
-- `definition_name`: the worker must have registered the matching definition in that namespace.
+- `definition_name`: a deploy must have written the matching definition in that namespace (`jobs deploy`).
 
 If you need raw storage state, `jobs_view` is built from the job's `jobs_state` row (1:1 with `jobs` by `job_id`).
 

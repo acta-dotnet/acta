@@ -314,23 +314,27 @@ public static class ActaServiceCollectionExtensions
             sp.GetService<ILogger<AlertRoutingCheck>>()
         ));
 
-        // The deploy and migrate verbs write each declared worker's catalog through this.
+        // The deploy and migrate verbs, and a start under MigrateOnStartup, write each declared worker's catalog through this.
+        IReadOnlyList<WorkerRegistration> declaredWorkers = [.. builder.Workers];
         services.TryAddSingleton(sp =>
         {
             var options = sp.GetRequiredService<IOptions<JobsOptions>>();
+            var log = (ILogger?)sp.GetService<ILogger<CatalogDeployer>>() ?? NullLogger.Instance;
             return new CatalogDeployer(
                 new CatalogRegistrar(
                     sp.GetRequiredService<DefinitionsOperations>(),
                     sp.GetRequiredService<SchedulesOperations>(),
-                    sp.GetRequiredService<IActaClock>(),
                     sp.GetRequiredService<IJobPayloadSerializerRegistry>(),
                     options,
                     sp.GetRequiredService<CalendarsOperations>(),
-                    (ILogger?)sp.GetService<ILogger<CatalogDeployer>>() ?? NullLogger.Instance
+                    log
                 ),
                 sp.GetRequiredService<DeploymentsOperations>(),
                 sp.GetRequiredService<IDbSession>(),
-                options
+                sp.GetRequiredService<IActaClock>(),
+                options,
+                declaredWorkers,
+                log
             );
         });
 
@@ -385,7 +389,7 @@ public static class ActaServiceCollectionExtensions
         if (cliArgs is not null)
         {
             var namespaces = builder.Catalogs.Select(c => c.NamespaceName).Distinct(StringComparer.Ordinal).ToArray();
-            services.AddSingleton(new CliInvocation(cliArgs, namespaces, [.. builder.Workers]));
+            services.AddSingleton(new CliInvocation(cliArgs, namespaces));
             services.AddHostedService<CliCommandHost>();
         }
         else

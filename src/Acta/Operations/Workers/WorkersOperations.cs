@@ -17,12 +17,12 @@ internal sealed class WorkersOperations(
         listWorkers.HandleAsync(query, ct);
 
     /// <summary>
-    /// Single bootstrap round trip: updates the runtime's <c>namespaces</c> row only when its catalog
-    /// hash changed and inserts it only when the name is absent, appends a fresh <c>workers</c> row for
-    /// this process, and records a <c>worker.started</c> event, returning both DB-assigned ids. The
-    /// worker id is the owner stamp on every claim / lease / execution write.
+    /// Single bootstrap round trip: reads the namespace and, when this process's version may run there, appends a fresh
+    /// <c>workers</c> row for it and records a <c>worker.started</c> event. Null when the namespace is absent; a null
+    /// worker id when the namespace has a recorded deployment and this version has none. The worker id is the owner
+    /// stamp on every claim / lease / execution write.
     /// </summary>
-    internal Task<StartWorkerResponse> StartWorkerAsync(StartWorkerCommand command, CancellationToken ct) =>
+    internal Task<StartWorkerResponse?> StartWorkerAsync(StartWorkerCommand command, CancellationToken ct) =>
         startWorker.HandleAsync(command, ct);
 
     /// <summary>

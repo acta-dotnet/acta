@@ -7,18 +7,18 @@ using Xunit;
 namespace Acta.Tests.Conformance.Engine.Scheduling;
 
 /// <summary>
-/// A worker starts only when every calendar its schedules name is ready. A calendar is published by a deploy step before
-/// the workers that name it start, so a missing one is a deployment mistake: the start fails before any catalog write
-/// and lists each schedule with what its calendar lacks, one of no published version, a version of the other role, and
-/// a version this build cannot read.
+/// A deploy writes a namespace's catalog only when every calendar its schedules name is ready. A calendar is published
+/// before the deploy of the jobs that name it, so a missing one is a deployment mistake: the deploy fails before any
+/// catalog write, leaves no namespace it would have created, and lists each schedule with what its calendar lacks, one
+/// of no published version, a version of the other role, and a version this build cannot read.
 /// </summary>
 [ConformanceSpec(
-    "schedule.calendars-at-start",
-    "A worker starts only when every calendar its schedules name is ready",
+    "schedule.calendars-at-deploy",
+    "A deploy writes the catalog only when every calendar its schedules name is ready",
     Area = "Scheduling",
-    Contract = "A start whose schedule names an unpublished, wrong-role, or unreadable calendar fails before any catalog write and names each."
+    Contract = "A deploy whose schedule names an unpublished, wrong-role, or unreadable calendar fails before any catalog write and names each."
 )]
-public sealed class CalendarScheduleStartSpec : ActaTestBase<ConformanceFixture>
+public sealed class CalendarScheduleDeploySpec : ActaTestBase<ConformanceFixture>
 {
     private ICalendars Calendars => Services.GetRequiredService<IActaOperations>().Calendars;
 
@@ -38,17 +38,17 @@ public sealed class CalendarScheduleStartSpec : ActaTestBase<ConformanceFixture>
         services.Configure<JobsOptions>(o => o.RunSystemJobs = false);
     }
 
-    // Each fact starts the worker itself, after it has put the catalog in the state it tests.
+    // Each fact deploys itself, after it has put the calendars in the state it tests.
     protected override ValueTask AfterInitializeAsync() => ValueTask.CompletedTask;
 
-    [Fact(DisplayName = "A start with no calendar published names every schedule and its calendar, and registers nothing")]
-    public async Task A_start_with_no_calendar_published_names_each_schedule_and_registers_nothing()
+    [Fact(DisplayName = "A deploy with no calendar published names every schedule and its calendar, and writes nothing")]
+    public async Task A_deploy_with_no_calendar_published_names_each_schedule_and_writes_nothing()
     {
         var ct = TestContext.Current.CancellationToken;
 
-        var ex = await Assert.ThrowsAsync<InvalidOperationException>(() => StartAsync(ct));
+        var ex = await Assert.ThrowsAsync<InvalidOperationException>(() => DeployAsync(ct));
 
-        Assert.Contains($"Worker namespace '{TestNamespace}' cannot start", ex.Message, StringComparison.Ordinal);
+        Assert.StartsWith($"Namespace '{TestNamespace}' cannot be deployed", ex.Message, StringComparison.Ordinal);
         Assert.Contains(
             $"{CalendarSchedule}: The occurrence calendar '{CalendarScheduleManifest.CalendarName}' has no published version",
             ex.Message,
@@ -59,11 +59,11 @@ public sealed class CalendarScheduleStartSpec : ActaTestBase<ConformanceFixture>
             ex.Message,
             StringComparison.Ordinal
         );
-        await AssertNothingRegisteredAsync(ct);
+        await AssertNothingWrittenAsync(namespaceExisted: false, ct);
     }
 
-    [Fact(DisplayName = "A start whose calendars are published under the other role says which role each has and which is needed")]
-    public async Task A_start_whose_calendars_have_the_other_role_says_so()
+    [Fact(DisplayName = "A deploy whose calendars are published under the other role says which role each has and which is needed")]
+    public async Task A_deploy_whose_calendars_have_the_other_role_says_so()
     {
         var ct = TestContext.Current.CancellationToken;
         await PublishAsync(
@@ -79,7 +79,7 @@ public sealed class CalendarScheduleStartSpec : ActaTestBase<ConformanceFixture>
             ct
         );
 
-        var ex = await Assert.ThrowsAsync<InvalidOperationException>(() => StartAsync(ct));
+        var ex = await Assert.ThrowsAsync<InvalidOperationException>(() => DeployAsync(ct));
 
         Assert.Contains(
             $"{CalendarSchedule}: The calendar '{CalendarScheduleManifest.CalendarName}' is published as an availability calendar, "
@@ -93,11 +93,11 @@ public sealed class CalendarScheduleStartSpec : ActaTestBase<ConformanceFixture>
             ex.Message,
             StringComparison.Ordinal
         );
-        await AssertNothingRegisteredAsync(ct);
+        await AssertNothingWrittenAsync(namespaceExisted: true, ct);
     }
 
-    [Fact(DisplayName = "A start that meets a version this build cannot read names that calendar alone, with the compiler's reason")]
-    public async Task A_start_that_meets_an_unreadable_version_names_that_calendar_alone()
+    [Fact(DisplayName = "A deploy that meets a version this build cannot read names that calendar alone, with the compiler's reason")]
+    public async Task A_deploy_that_meets_an_unreadable_version_names_that_calendar_alone()
     {
         var ct = TestContext.Current.CancellationToken;
         await PublishAsync(CalendarScheduleManifest.CalendarName, CalendarRoleCode.Occurrence, CalendarTestOps.OccurrenceDefinition, ct);
@@ -114,7 +114,7 @@ public sealed class CalendarScheduleStartSpec : ActaTestBase<ConformanceFixture>
             .Where(c => c.NamespaceId == namespaceId && c.CalendarName == CalendarScheduleManifest.CalendarName)
             .UpdateOnlyAsync(() => new CalendarEntity { Definition = foreign }, ct);
 
-        var ex = await Assert.ThrowsAsync<InvalidOperationException>(() => StartAsync(ct));
+        var ex = await Assert.ThrowsAsync<InvalidOperationException>(() => DeployAsync(ct));
 
         Assert.Contains(
             $"{CalendarSchedule}: The occurrence calendar '{CalendarScheduleManifest.CalendarName}' is published as version 1, which this "
@@ -123,10 +123,10 @@ public sealed class CalendarScheduleStartSpec : ActaTestBase<ConformanceFixture>
             StringComparison.Ordinal
         );
         Assert.DoesNotContain(OfficeSchedule, ex.Message, StringComparison.Ordinal);
-        await AssertNothingRegisteredAsync(ct);
+        await AssertNothingWrittenAsync(namespaceExisted: true, ct);
     }
 
-    private Task StartAsync(CancellationToken ct) => Services.GetServices<WorkerRuntime>().Single().InitializeAsync(ct);
+    private Task DeployAsync(CancellationToken ct) => CatalogTestOps.DeployAsync(Services, ct);
 
     private async Task PublishAsync(string calendarName, CalendarRoleCode role, string definition, CancellationToken ct)
     {
@@ -136,15 +136,20 @@ public sealed class CalendarScheduleStartSpec : ActaTestBase<ConformanceFixture>
         Assert.Equal(ControlAction.Applied, (await Calendars.PublishAsync(calendar, 0, draft.Version!.Value, ct: ct)).Action);
     }
 
-    // The failed start wrote no definition and no schedule: the check runs before the catalog's first write.
-    private async Task AssertNothingRegisteredAsync(CancellationToken ct)
+    /// <summary>
+    /// The failed deploy wrote nothing: the check runs before the catalog's first write, and the namespace row the deploy
+    /// inserted for a new name goes back with its transaction.
+    /// </summary>
+    private async Task AssertNothingWrittenAsync(bool namespaceExisted, CancellationToken ct)
     {
         var namespaceRow = await Db.From<NamespaceEntity>().Where(n => n.NamespaceName == TestNamespace).SingleOrDefaultAsync(ct);
-        if (namespaceRow is null)
+        if (!namespaceExisted)
         {
+            Assert.Null(namespaceRow);
             return;
         }
 
-        Assert.Empty(await Db.From<DefinitionEntity>().Where(d => d.NamespaceId == namespaceRow.Id).ToListAsync(ct));
+        Assert.NotNull(namespaceRow);
+        Assert.Empty(await Db.From<DefinitionEntity>().Where(d => d.NamespaceId == namespaceRow!.Id).ToListAsync(ct));
     }
 }

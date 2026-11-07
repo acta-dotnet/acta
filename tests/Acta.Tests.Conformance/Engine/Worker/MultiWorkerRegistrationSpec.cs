@@ -37,9 +37,11 @@ public sealed class MultiWorkerRegistrationSpec : ActaTestBase<ConformanceFixtur
 
     protected override async ValueTask AfterInitializeAsync()
     {
+        var ct = TestContext.Current.CancellationToken;
+        await CatalogTestOps.DeployAsync(Services, ct);
         foreach (var runtime in Services.GetServices<WorkerRuntime>())
         {
-            await runtime.InitializeAsync(TestContext.Current.CancellationToken);
+            await runtime.InitializeAsync(ct);
         }
     }
 

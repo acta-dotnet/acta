@@ -5,20 +5,20 @@ using Xunit;
 namespace Acta.Tests.Conformance.Engine.Worker;
 
 /// <summary>
-/// Asserts the catalog side-effects of <c>WorkerRuntime.InitializeAsync</c> for a generated
-/// <c>TestJobs.TestJobsManifest</c>. <c>InitializeAsync</c> ran before the test body via
+/// Asserts what a development start leaves for a generated <c>TestJobs.TestJobsManifest</c>: the deploy's namespace row
+/// and definitions, and <c>WorkerRuntime.InitializeAsync</c>'s worker row and event. Both ran before the test body via
 /// <see cref="ActaRuntimeTestBase{ConformanceFixture, TManifest}.AfterInitializeAsync"/>; <c>StartAsync</c>
 /// was deliberately NOT called.
 /// </summary>
 [ConformanceSpec(
     "worker-runtime.initialize-catalog",
-    "Init writes namespace worker and full definition policy idempotently",
+    "A deploy and a worker start write the namespace, definitions, and worker once",
     Area = "Catalog",
-    Contract = "InitializeAsync writes namespace and worker rows with a WorkerStarted event, persists each definition's full policy or framework defaults, and is idempotent."
+    Contract = "A deploy writes the namespace and each definition's full policy or framework defaults, and a worker start writes its worker row and WorkerStarted event once."
 )]
 public sealed class WorkerRuntimeRegistrationSpec : ActaRuntimeTestBase<ConformanceFixture, TestJobs.TestJobsManifest>
 {
-    [Fact(DisplayName = "Init assigns a namespace id and writes the namespace row")]
+    [Fact(DisplayName = "The deploy writes the namespace row and the start reads its id")]
     public async Task Initialize_assigns_namespace_id_and_writes_namespace_row()
     {
         var ct = TestContext.Current.CancellationToken;
@@ -35,7 +35,7 @@ public sealed class WorkerRuntimeRegistrationSpec : ActaRuntimeTestBase<Conforma
         Assert.Equal("test", row.OwnerTeam);
     }
 
-    [Fact(DisplayName = "Init writes exactly one worker row for this runtime")]
+    [Fact(DisplayName = "The start writes exactly one worker row for this runtime")]
     public async Task Initialize_writes_job_worker_row_for_this_runtime()
     {
         var ct = TestContext.Current.CancellationToken;
@@ -48,7 +48,7 @@ public sealed class WorkerRuntimeRegistrationSpec : ActaRuntimeTestBase<Conforma
         Assert.Equal(1, count);
     }
 
-    [Fact(DisplayName = "Init emits a WorkerStarted event for the worker")]
+    [Fact(DisplayName = "The start emits a WorkerStarted event for the worker")]
     public async Task Initialize_emits_worker_started_event()
     {
         var ct = TestContext.Current.CancellationToken;
@@ -115,10 +115,8 @@ public sealed class WorkerRuntimeRegistrationSpec : ActaRuntimeTestBase<Conforma
     [Fact(DisplayName = "Second init on the same instance does not double-insert the worker")]
     public async Task Initialize_called_twice_on_same_instance_doesnt_double_insert_worker()
     {
-        // Pins the in-process retry guard: a second InitializeAsync call on the SAME WorkerRuntime
-        // instance does NOT insert a second workers row (and does NOT add a second
-        // namespaces row - that's MERGE-by-name). Guards against a future refactor that
-        // removes the per-instance _workerInserted tracking. (Cross-process retries - a new
+        // Pins the in-process guard: a second InitializeAsync call on the SAME WorkerRuntime
+        // instance does NOT insert a second workers row. (Cross-process retries - a new
         // WorkerRuntime instance - would correctly produce a second worker row; that's the
         // append-only contract.)
         var ct = TestContext.Current.CancellationToken;
@@ -126,7 +124,7 @@ public sealed class WorkerRuntimeRegistrationSpec : ActaRuntimeTestBase<Conforma
 
         var assignedId = Runtime.RegisteredNamespaceIds[TestNamespace];
 
-        // namespace: still exactly one row (upsert-by-name)
+        // namespace: still exactly one row, which a start never writes
         var namespaceCount = await Db.From<NamespaceEntity>().Where(n => n.Id == assignedId).CountAsync(ct);
         Assert.Equal(1, namespaceCount);
 

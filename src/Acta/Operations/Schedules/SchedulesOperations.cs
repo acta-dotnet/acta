@@ -55,7 +55,7 @@ internal sealed class SchedulesOperations(
 
     /// <summary>
     /// Registers every definition's recurring slot job and its schedules in one set-based call, answering each slot.
-    /// Every host re-registers every slot at startup, so this runs against slots another host may be executing: it
+    /// Every deploy re-registers every slot, so this runs against slots a worker may be executing: it
     /// re-asserts the declaration on an idle slot, overwriting an operator reprioritize, and leaves an Executing,
     /// held, or finished slot as it stands.
     /// </summary>

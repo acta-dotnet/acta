@@ -1,5 +1,4 @@
 using System.Collections.Immutable;
-using System.Data.Common;
 using System.Reflection;
 using System.Runtime.InteropServices;
 using Microsoft.Extensions.Logging;
@@ -9,14 +8,14 @@ using Microsoft.Extensions.Options;
 namespace Acta;
 
 /// <summary>
-/// Owns the worker-runtime startup: the clock-skew check, the namespace and <c>workers</c> upsert, the
-/// <see cref="CatalogRegistrar"/> pass that registers the namespace's catalog, and the read of the stored catalog into
-/// the shared <see cref="WorkerContext"/> read on the claim/dispatch hot path; then the Stopped stamp on a clean
-/// shutdown. An enqueue-only runtime (a <c>j.Reference&lt;...&gt;(...)</c> host with no <c>j.Run&lt;...&gt;(...)</c>
-/// worker) skips the worker-row write and leaves the context empty.
+/// Owns the worker-runtime startup: the clock-skew check, the descriptor shape checks, the <c>workers</c> row, and the
+/// read of the namespace's deployed catalog into the shared <see cref="WorkerContext"/> read on the claim/dispatch hot
+/// path; then the Stopped stamp on a clean shutdown. It writes no namespace, definition, or schedule: a deploy does
+/// (<see cref="CatalogDeployer"/>), and a start refuses a namespace, a version, or a job that no deploy has written. An
+/// enqueue-only runtime (a <c>j.Reference&lt;...&gt;(...)</c> host with no <c>j.Run&lt;...&gt;(...)</c> worker) skips
+/// the worker-row write and leaves the context empty.
 /// </summary>
 internal sealed class WorkerRuntimeInitializer(
-    CatalogRegistrar catalog,
     DefinitionsOperations definitions,
     WorkersOperations workers,
     IClockOperations serverClock,
@@ -27,7 +26,6 @@ internal sealed class WorkerRuntimeInitializer(
     ILogger? log = null
 )
 {
-    private readonly CatalogRegistrar _catalog = catalog;
     private readonly DefinitionsOperations _definitions = definitions;
     private readonly WorkersOperations _workers = workers;
     private readonly IClockOperations _serverClock = serverClock;
@@ -37,40 +35,11 @@ internal sealed class WorkerRuntimeInitializer(
     private readonly WorkerContext _context = context;
     private readonly ILogger _log = log ?? NullLogger.Instance;
 
-    /// <summary>The catalog hash the namespace held when this process's worker row was written.</summary>
-    private string? _registeredCatalogHash;
-
     /// <summary>
-    /// Registers this worker's namespace, catalog, and recurring slots. Replicas of one build that start together
-    /// register the same new rows at once, and the one that commits second sees its statement come back short or
-    /// hit the unique key, since it could not see the first's uncommitted rows; a short pause and another pass
-    /// reads them committed. A real conflict, such as an ordinary job holding a slot's key, fails every pass the
-    /// same way.
+    /// Starts this worker in its namespace. With <paramref name="debug"/> set (<c>jobs debug</c>) the build need not
+    /// have deployed there, and a job it declares may have no definition: it runs one stored job and that job's own.
     /// </summary>
-    public async Task InitializeAsync(CancellationToken ct)
-    {
-        for (var attempt = 1; ; attempt++)
-        {
-            try
-            {
-                await InitializeOnceAsync(ct);
-                return;
-            }
-            catch (Exception ex) when (ex is DbException or InvalidOperationException && attempt < CatalogAttempts)
-            {
-                if (_log.IsEnabled(LogLevel.Information))
-                {
-                    var pass = $"pass {attempt}";
-                    ActaLog.CatalogRegistrationRetrying(_log, ex, pass);
-                }
-                await Task.Delay(TimeSpan.FromMilliseconds(100 * attempt), ct);
-            }
-        }
-    }
-
-    private const int CatalogAttempts = 5;
-
-    private async Task InitializeOnceAsync(CancellationToken ct)
+    public async Task InitializeAsync(CancellationToken ct, bool debug = false)
     {
         if (_workerRegistration is null)
         {
@@ -79,7 +48,7 @@ internal sealed class WorkerRuntimeInitializer(
 
         var ns = _workerRegistration.NamespaceName;
 
-        // Fail fast on a skewed host clock before any catalog write or lease math. GetUtcNow needs only
+        // Fail fast on a skewed host clock before the worker row or any lease math. GetUtcNow needs only
         // the provider (a scalar clock read), not the Acta schema, so it is safe this early.
         await ValidateClockSkewAsync(ns, ct);
 
@@ -94,25 +63,60 @@ internal sealed class WorkerRuntimeInitializer(
             ActaLog.CrashRecoveryOff(_log, ns);
         }
 
-        var allDescriptors = _catalog.CollectDescriptors(_workerRegistration, ns);
-        await RegisterWorkerAsync(_workerRegistration, ns, ct);
-
-        var namespaceId = _context.NamespaceIds[ns];
-        await _catalog.RegisterAsync(_workerRegistration, namespaceId, _registeredCatalogHash, allDescriptors, transaction: null, ct);
-        await LoadCatalogAsync(ns, namespaceId, allDescriptors, ct);
+        // The shape checks run before the worker row is written: a catalog that fails them must leave no Active
+        // worker and no worker.started event behind for a process that will never heartbeat.
+        var descriptors = CatalogRegistrar.CollectDescriptors(_workerRegistration, _options.Value);
+        await StartWorkerAsync(ns, debug, ct);
+        try
+        {
+            await LoadCatalogAsync(ns, _context.NamespaceIds[ns], descriptors, debug, ct);
+        }
+        catch
+        {
+            // The worker row is written. A start the catalog refuses leaves it Stopped, so the dead-worker sweep
+            // does not report a crash for a process that never ran, and a second start writes a row of its own.
+            try
+            {
+                await StopAsync(ct);
+            }
+            catch (Exception stopFailure)
+                when (stopFailure is System.Data.Common.DbException or OperationCanceledException or TimeoutException)
+            {
+                // The refusal is what the caller needs; the row then waits for the sweep.
+                ActaLog.WorkerStampFailed(_log, stopFailure, "stop", ns);
+            }
+            _context.WorkerIdByNamespace.Remove(ns);
+            throw;
+        }
     }
 
     /// <summary>
     /// Reads the namespace's stored definitions into the context, indexing each descriptor this build declares by its
     /// definition id under the definition's effective policy, then checks alert routing and meter consistency on them.
+    /// A declared job with no definition stops the start: the deploy ran with other options than this worker.
     /// </summary>
-    private async Task LoadCatalogAsync(string ns, int namespaceId, ImmutableArray<JobDescriptor> descriptors, CancellationToken ct)
+    private async Task LoadCatalogAsync(
+        string ns,
+        int namespaceId,
+        ImmutableArray<JobDescriptor> descriptors,
+        bool debug,
+        CancellationToken ct
+    )
     {
         var catalog = (await _definitions.ListDefinitionContractsAsync(namespaceId, ct)).Contracts;
         var storedByName = new Dictionary<string, StoredDefinitionContract>(catalog.Count, StringComparer.Ordinal);
         foreach (var c in catalog)
         {
             storedByName[c.DefinitionName] = c;
+        }
+
+        var undeployed = descriptors.Where(d => !storedByName.ContainsKey(d.JobName)).Select(d => d.JobName).ToList();
+        if (undeployed.Count > 0 && !debug)
+        {
+            throw new InvalidOperationException(
+                $"Worker namespace '{ns}' cannot start: this build declares jobs that are not deployed there ({string.Join(", ", undeployed)}). "
+                    + "Run '<app> jobs deploy' from this build, with the workers' configuration (the same RunSystemJobs and outbox relay)."
+            );
         }
 
         var definitionIds = new Dictionary<string, int>(StringComparer.Ordinal);
@@ -129,48 +133,74 @@ internal sealed class WorkerRuntimeInitializer(
         }
         _context.DefinitionIdsByNamespace[ns] = definitionIds;
 
+        // Known before the first claim, so a retired definition's job is never started in the gap before a heartbeat.
+        _context.ReplaceRetiredDefinitions(
+            catalog
+                .Where(c => c.Status == DefinitionStatusCode.Retired)
+                .ToDictionary(c => c.DefinitionId, c => c.Effective.JobRetentionSeconds)
+        );
+
         _alertRouting?.ValidateRouting(ns, effectiveDescriptors.ToImmutable());
         MeterConsistencyCheck.Check(ns, catalog, _log);
     }
 
-    private async Task RegisterWorkerAsync(WorkerRegistration registration, string ns, CancellationToken ct)
+    private async Task StartWorkerAsync(string ns, bool debug, CancellationToken ct)
     {
-        // Namespace + worker register in one round trip (one transaction): the namespace row is updated
-        // only when its owner or description changed and inserted only when the name is absent (an unchanged
-        // restart writes nothing, allocates no id, and takes no key-range locks) and this process's
-        // worker row is appended. The worker row landing before definitions is harmless: definitions
-        // only need the namespace id, which this call also returns. The in-process guard (worker
-        // already in context) makes a second InitializeAsync on the SAME instance a no-op: it neither
-        // re-upserts the namespace nor appends a second append-only worker row.
-        if (!_context.WorkerIdByNamespace.TryGetValue(ns, out var _))
+        // The in-process guard (worker already in context) makes a second InitializeAsync on the same instance append
+        // no second worker row.
+        if (_context.WorkerIdByNamespace.ContainsKey(ns))
         {
-            // Host + deployment version stamp the append-only workers row, read once at startup, not on the hot path.
-            var deploymentVersion = DeploymentVersionOf(_options.Value);
-            var engineVersion =
-                typeof(WorkerRuntimeInitializer).Assembly.GetCustomAttribute<AssemblyInformationalVersionAttribute>()?.InformationalVersion
-                ?? "unknown";
-            // The registration's public ref is allocated here, not by the database: the workers row is
-            // append-only, so this process's ref is fixed for the lifetime of the registration. The
-            // store writes address the row by its numeric id, so only the id is kept in context.
-            var workerRef = WorkerRef.New().Value;
-            var (registeredNamespaceId, registeredWorkerId, registeredCatalogHash) = await _workers.StartWorkerAsync(
+            return;
+        }
+
+        // Host + deployment version stamp the append-only workers row, read once at startup, not on the hot path.
+        var deploymentVersion = DeploymentVersionOf(_options.Value);
+        var engineVersion =
+            typeof(WorkerRuntimeInitializer).Assembly.GetCustomAttribute<AssemblyInformationalVersionAttribute>()?.InformationalVersion
+            ?? "unknown";
+
+        // The registration's public ref is allocated here, not by the database: the workers row is
+        // append-only, so this process's ref is fixed for the lifetime of the registration. The
+        // store writes address the row by its numeric id, so only the id is kept in context.
+        var started =
+            await _workers.StartWorkerAsync(
                 StartWorkerCommand.Create(
                     ns,
-                    registration.OwnerTeam,
-                    registration.Description,
                     Environment.MachineName,
                     deploymentVersion,
                     engineVersion,
                     RuntimeInformation.FrameworkDescription,
                     Environment.ProcessId,
                     _options.Value.MaxConcurrentExecutors,
-                    workerRef
+                    WorkerRef.New().Value,
+                    requiresDeployment: !debug
                 ),
                 ct
+            )
+            ?? throw new InvalidOperationException(
+                $"Worker namespace '{ns}' cannot start: nothing has been deployed there. Run '<app> jobs deploy' "
+                    + "(or 'jobs migrate', which also applies the schema) before the workers start, or set MigrateOnStartup in development."
             );
-            _context.NamespaceIds[ns] = registeredNamespaceId;
-            _context.WorkerIdByNamespace[ns] = registeredWorkerId;
-            _registeredCatalogHash = registeredCatalogHash;
+        if (started.WorkerId is not { } workerId)
+        {
+            throw new InvalidOperationException(
+                $"Worker namespace '{ns}' cannot start: it is deployed at version '{started.CurrentDeploymentVersion}', and this "
+                    + $"build ('{deploymentVersion}') has not deployed there. Run '<app> jobs deploy' from this build first."
+            );
+        }
+
+        _context.NamespaceIds[ns] = started.NamespaceId;
+        _context.WorkerIdByNamespace[ns] = workerId;
+
+        // An earlier build during a rolling deploy, or a rollback: say whose definitions it runs.
+        if (
+            started.CurrentDeploymentVersion is { } current
+            && !string.Equals(current, deploymentVersion, StringComparison.Ordinal)
+            && _log.IsEnabled(LogLevel.Information)
+        )
+        {
+            var detail = $"this build {deploymentVersion}, deployed {current}";
+            ActaLog.WorkerStartedOnOtherVersion(_log, ns, detail);
         }
     }
 

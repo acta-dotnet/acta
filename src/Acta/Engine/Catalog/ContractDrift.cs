@@ -51,7 +51,7 @@ internal static class ContractDriftDetector
 }
 
 /// <summary>
-/// Applies <see cref="PayloadContractDriftMode"/> to detected contract drift: fails worker startup
+/// Applies <see cref="PayloadContractDriftMode"/> to detected contract drift: fails the deploy
 /// under Fail, logs a warning per drift under Warn. The warning is framed as live contract drift,
 /// not corruption of already-enqueued rows.
 /// </summary>
@@ -69,7 +69,7 @@ internal static class ContractDriftPolicy
             var names = string.Join(", ", drifts.Select(d => d.JobName));
             throw new PayloadContractDriftException(
                 $"Payload contract drift in namespace '{ns}' for: {names}. "
-                    + "Worker startup is blocked because PayloadContractDriftMode is Fail."
+                    + "The deploy is refused because PayloadContractDriftMode is Fail; nothing was written."
             );
         }
 
