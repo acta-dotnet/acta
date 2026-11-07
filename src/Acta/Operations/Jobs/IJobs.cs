@@ -24,29 +24,18 @@ public interface IJobs
     ValueTask<EnqueueJobResponse> EnqueueAsync(EnqueueJobRequest request, CancellationToken ct = default);
 
     /// <summary>
-    /// Typed enqueue. Resolves <typeparamref name="TInput"/> to its registered job (namespace, name,
-    /// payload format) from the generated manifest, serializes <paramref name="input"/>, and enqueues.
-    /// Returns a <see cref="JobHandle"/> to follow the job; it converts implicitly to <see cref="JobLookup"/> for
-    /// the read and control verbs. Throws when the input type is unregistered or ambiguous across namespaces (set
-    /// <c>options.JobNamespace</c> or use <see cref="EnqueueAsync(EnqueueJobRequest, CancellationToken)"/>).
+    /// Typed enqueue: <c>jobs.EnqueueAsync(input, o =&gt; o.DeduplicationKey("final-key"))</c>. Resolves
+    /// <typeparamref name="TInput"/> to its registered job (namespace, name, payload format) from the generated manifest,
+    /// serializes <paramref name="input"/>, and enqueues. Returns a <see cref="JobHandle"/> to follow the job; it converts
+    /// implicitly to <see cref="JobLookup"/> for the read and control verbs. Throws when the input type is unregistered or
+    /// ambiguous across namespaces (set <c>o.JobNamespace(...)</c>, or enqueue the job's generated call).
     /// </summary>
-    ValueTask<JobHandle> EnqueueAsync<TInput>(TInput input, JobEnqueueOptions? options = null, CancellationToken ct = default)
+    ValueTask<JobHandle> EnqueueAsync<TInput>(
+        TInput input,
+        Action<JobEnqueueOptionsBuilder>? configure = null,
+        CancellationToken ct = default
+    )
         where TInput : notnull;
-
-    /// <summary>
-    /// Typed enqueue with fluent options: <c>jobs.EnqueueAsync(input, o =&gt; o.DeduplicationKey("final-key"))</c>.
-    /// Identical semantics to passing the equivalent <see cref="JobEnqueueOptions"/>; the default
-    /// implementation builds the options and forwards.
-    /// </summary>
-    ValueTask<JobHandle> EnqueueAsync<TInput>(TInput input, Action<JobEnqueueOptionsBuilder> configure, CancellationToken ct = default)
-        where TInput : notnull
-    {
-        ArgumentNullException.ThrowIfNull(configure);
-
-        var builder = new JobEnqueueOptionsBuilder();
-        configure(builder);
-        return EnqueueAsync(input, builder.Build(), ct);
-    }
 
     /// <summary>
     /// Typed enqueue-and-wait without a result. Enqueues <paramref name="input"/>, then polls until the
@@ -145,34 +134,15 @@ public interface IJobs
     ValueTask<EnqueueJobResponse> EnqueueAsync(DbTransaction transaction, EnqueueJobRequest request, CancellationToken ct = default);
 
     /// <summary>
-    /// Transactional twin of <see cref="EnqueueAsync{TInput}(TInput, JobEnqueueOptions, CancellationToken)"/>.
+    /// Transactional twin of <see cref="EnqueueAsync{TInput}(TInput, Action{JobEnqueueOptionsBuilder}, CancellationToken)"/>.
     /// </summary>
     ValueTask<EnqueueJobResponse> EnqueueAsync<TInput>(
         DbTransaction transaction,
         TInput input,
-        JobEnqueueOptions? options = null,
+        Action<JobEnqueueOptionsBuilder>? configure = null,
         CancellationToken ct = default
     )
         where TInput : notnull;
-
-    /// <summary>
-    /// Transactional twin of the fluent typed enqueue; the default implementation builds the options and
-    /// forwards to the transactional typed overload.
-    /// </summary>
-    ValueTask<EnqueueJobResponse> EnqueueAsync<TInput>(
-        DbTransaction transaction,
-        TInput input,
-        Action<JobEnqueueOptionsBuilder> configure,
-        CancellationToken ct = default
-    )
-        where TInput : notnull
-    {
-        ArgumentNullException.ThrowIfNull(configure);
-
-        var builder = new JobEnqueueOptionsBuilder();
-        configure(builder);
-        return EnqueueAsync(transaction, input, builder.Build(), ct);
-    }
 
     /// <summary>
     /// Transactional twin of the call enqueue

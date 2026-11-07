@@ -25,7 +25,7 @@ public sealed class GetJobIdByDeduplicationKeySpec : ActaRuntimeTestBase<Conform
         var ct = TestContext.Current.CancellationToken;
         var deduplicationKey = Unique("ck-resolve");
 
-        var outcome = await Jobs.EnqueueAsync(new AddNumbers(1, 2), new JobEnqueueOptions { DeduplicationKey = deduplicationKey }, ct);
+        var outcome = await Jobs.EnqueueAsync(new AddNumbers(1, 2), o => o.DeduplicationKey(deduplicationKey), ct);
         Assert.Equal(EnqueueJobAction.Inserted, outcome.Action);
 
         var resolved = await Services

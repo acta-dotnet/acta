@@ -2,7 +2,7 @@ namespace Acta;
 
 /// <summary>
 /// Maps a job input CLR type to its enqueue route, backing the typed
-/// <see cref="IJobs.EnqueueAsync{TInput}(TInput, JobEnqueueOptions, CancellationToken)"/> and
+/// <see cref="IJobs.EnqueueAsync{TInput}(TInput, Action{JobEnqueueOptionsBuilder}, CancellationToken)"/> and
 /// <see cref="IJobs.RunAndWaitAsync{TInput}(TInput, JobExecutionOptions, CancellationToken)"/> facade. Built once at <see cref="ActaServiceCollectionExtensions.UseActa"/>
 /// from the declared catalogs (Reference and Run); the raw <see cref="EnqueueJobRequest"/> path carries the namespace
 /// and name and needs no index. When one type is registered under several namespaces or appears as <c>NoInput</c> for

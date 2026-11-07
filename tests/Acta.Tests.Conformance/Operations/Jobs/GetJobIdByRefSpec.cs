@@ -27,7 +27,7 @@ public sealed class GetJobIdByRefSpec : ActaRuntimeTestBase<ConformanceFixture, 
         var ct = TestContext.Current.CancellationToken;
         var deduplicationKey = Unique("ck-resolve-ref");
 
-        var outcome = await Jobs.EnqueueAsync(new AddNumbers(1, 2), new JobEnqueueOptions { DeduplicationKey = deduplicationKey }, ct);
+        var outcome = await Jobs.EnqueueAsync(new AddNumbers(1, 2), o => o.DeduplicationKey(deduplicationKey), ct);
         Assert.Equal(EnqueueJobAction.Inserted, outcome.Action);
         Assert.NotEqual(Guid.Empty, outcome.JobRef.Value);
 
@@ -41,7 +41,7 @@ public sealed class GetJobIdByRefSpec : ActaRuntimeTestBase<ConformanceFixture, 
         Assert.Equal(outcome.JobId, snapshot.JobId);
         Assert.Equal(outcome.JobRef, snapshot.JobRef);
 
-        var deduplicated = await Jobs.EnqueueAsync(new AddNumbers(1, 2), new JobEnqueueOptions { DeduplicationKey = deduplicationKey }, ct);
+        var deduplicated = await Jobs.EnqueueAsync(new AddNumbers(1, 2), o => o.DeduplicationKey(deduplicationKey), ct);
         Assert.Equal(EnqueueJobAction.Deduplicated, deduplicated.Action);
         Assert.Equal(outcome.JobRef, deduplicated.JobRef);
 

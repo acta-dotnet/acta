@@ -35,8 +35,12 @@ internal sealed class JobsOperations(
     public ValueTask<EnqueueJobResponse> EnqueueAsync(EnqueueJobRequest request, CancellationToken ct = default) =>
         enqueueJob.HandleAsync(new EnqueueJobCommand(request), ct);
 
-    public ValueTask<JobHandle> EnqueueAsync<TInput>(TInput input, JobEnqueueOptions? options = null, CancellationToken ct = default)
-        where TInput : notnull => HandleAsync(routing.FromInput(input, options), ct);
+    public ValueTask<JobHandle> EnqueueAsync<TInput>(
+        TInput input,
+        Action<JobEnqueueOptionsBuilder>? configure = null,
+        CancellationToken ct = default
+    )
+        where TInput : notnull => HandleAsync(routing.FromInput(input, Options(configure)), ct);
 
     public ValueTask<JobHandle> EnqueueAsync<TInput>(
         JobCall<TInput> job,
@@ -71,10 +75,10 @@ internal sealed class JobsOperations(
     public ValueTask<EnqueueJobResponse> EnqueueAsync<TInput>(
         DbTransaction transaction,
         TInput input,
-        JobEnqueueOptions? options = null,
+        Action<JobEnqueueOptionsBuilder>? configure = null,
         CancellationToken ct = default
     )
-        where TInput : notnull => EnqueueAsync(transaction, routing.FromInput(input, options), ct);
+        where TInput : notnull => EnqueueAsync(transaction, routing.FromInput(input, Options(configure)), ct);
 
     public ValueTask<EnqueueJobResponse> EnqueueAsync<TInput>(
         DbTransaction transaction,

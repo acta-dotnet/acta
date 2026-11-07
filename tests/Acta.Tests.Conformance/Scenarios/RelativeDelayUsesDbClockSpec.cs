@@ -31,7 +31,7 @@ public sealed class RelativeDelayUsesDbClockSpec : ActaRuntimeTestBase<Conforman
         // datetime2(3)) versus the datetime2(7) clock read; it still firmly distinguishes "db_now + 60"
         // from an immediate or caller-clock instant.
         var before = await Services.GetRequiredService<IActaClock>().GetUtcNowAsync(ct);
-        var enqueued = await Jobs.EnqueueAsync(new AddNumbers(2, 2), new JobEnqueueOptions { DelaySeconds = 60 }, ct);
+        var enqueued = await Jobs.EnqueueAsync(new AddNumbers(2, 2), o => o.Delayed(TimeSpan.FromSeconds(60)), ct);
         var after = await Services.GetRequiredService<IActaClock>().GetUtcNowAsync(ct);
 
         var job = await ReadJobAsync(enqueued.JobId, ct);
@@ -46,7 +46,7 @@ public sealed class RelativeDelayUsesDbClockSpec : ActaRuntimeTestBase<Conforman
         var ct = TestContext.Current.CancellationToken;
 
         var instant = new DateTime(2030, 1, 1, 12, 0, 0, DateTimeKind.Utc);
-        var enqueued = await Jobs.EnqueueAsync(new AddNumbers(3, 4), new JobEnqueueOptions { NextRunAtUtc = instant }, ct);
+        var enqueued = await Jobs.EnqueueAsync(new AddNumbers(3, 4), o => o.NextRunAt(instant), ct);
 
         var job = await ReadJobAsync(enqueued.JobId, ct);
         Assert.Equal(instant, job.NextRunAtUtc!.Value);
@@ -61,7 +61,13 @@ public sealed class RelativeDelayUsesDbClockSpec : ActaRuntimeTestBase<Conforman
         // (ToUniversalTime), not relabeled (SpecifyKind Utc). On a non-UTC machine relabeling stores the
         // wrong instant; the converted value is correct on every machine and time zone.
         var local = new DateTime(2030, 1, 1, 12, 0, 0, DateTimeKind.Local);
-        var enqueued = await Jobs.EnqueueAsync(new AddNumbers(5, 6), new JobEnqueueOptions { NextRunAtUtc = local }, ct);
+        // JobExecutionOptions is the one options object a caller still passes whole, so the run-and-wait carries the instant;
+        // its wait times out long before 2030, and the row is what this reads.
+        var enqueued = await Jobs.RunAndWaitAsync(
+            new AddNumbers(5, 6),
+            new JobExecutionOptions { NextRunAtUtc = local, WaitTimeout = TimeSpan.FromMilliseconds(50) },
+            ct
+        );
 
         var job = await ReadJobAsync(enqueued.JobId, ct);
         Assert.Equal(local.ToUniversalTime(), job.NextRunAtUtc!.Value);

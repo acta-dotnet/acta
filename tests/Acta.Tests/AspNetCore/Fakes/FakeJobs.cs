@@ -266,7 +266,7 @@ internal sealed class FakeJobs : IJobs
     ValueTask<RaiseJobSignalResponse> IJobs.RaiseSignalAsync<T>(JobLookup job, string name, T value, string? actor, CancellationToken ct) =>
         throw new NotSupportedException();
 
-    ValueTask<JobHandle> IJobs.EnqueueAsync<TInput>(TInput input, JobEnqueueOptions? options, CancellationToken ct) =>
+    ValueTask<JobHandle> IJobs.EnqueueAsync<TInput>(TInput input, Action<JobEnqueueOptionsBuilder>? configure, CancellationToken ct) =>
         throw new NotSupportedException();
 
     ValueTask<JobHandle> IJobs.EnqueueAsync<TInput>(
@@ -321,7 +321,7 @@ internal sealed class FakeJobs : IJobs
     ValueTask<EnqueueJobResponse> IJobs.EnqueueAsync<TInput>(
         DbTransaction transaction,
         TInput input,
-        JobEnqueueOptions? options,
+        Action<JobEnqueueOptionsBuilder>? configure,
         CancellationToken ct
     ) => throw new NotSupportedException();
 

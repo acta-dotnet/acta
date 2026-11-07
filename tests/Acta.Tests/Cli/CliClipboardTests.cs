@@ -298,7 +298,11 @@ public class CliRunnerClipboardTests
         public ValueTask<GetOverviewResponse> GetOverviewAsync(GetOverviewQuery query, CancellationToken ct = default) =>
             throw new NotSupportedException();
 
-        public ValueTask<JobHandle> EnqueueAsync<TInput>(TInput input, JobEnqueueOptions? options = null, CancellationToken ct = default)
+        public ValueTask<JobHandle> EnqueueAsync<TInput>(
+            TInput input,
+            Action<JobEnqueueOptionsBuilder>? configure = null,
+            CancellationToken ct = default
+        )
             where TInput : notnull => throw new NotSupportedException();
 
         public ValueTask<JobOutcome> RunAndWaitAsync<TInput>(
@@ -373,7 +377,7 @@ public class CliRunnerClipboardTests
         public ValueTask<EnqueueJobResponse> EnqueueAsync<TInput>(
             System.Data.Common.DbTransaction transaction,
             TInput input,
-            JobEnqueueOptions? options = null,
+            Action<JobEnqueueOptionsBuilder>? configure = null,
             CancellationToken ct = default
         )
             where TInput : notnull => throw new NotSupportedException();

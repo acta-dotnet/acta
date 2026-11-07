@@ -8,6 +8,8 @@ Not tagged yet.
 
 **Drop and reprovision every database an rc.8 build provisioned**: the baseline is re-cut, and nothing translates it.
 
+**Enqueue options are written with the builder.** `IJobs.EnqueueAsync(input, JobEnqueueOptions? options)` and its transactional twin are gone, so the input form takes options the way the generated call does: `jobs.EnqueueAsync(input, new JobEnqueueOptions { DeduplicationKey = key })` becomes `jobs.EnqueueAsync(input, o => o.DeduplicationKey(key))`. `JobEnqueueOptions` stays as the value the builder builds, and a run-and-wait still takes its `JobExecutionOptions`.
+
 **A typed run-and-wait goes through the job's call.** `IJobs.RunAndWaitAsync<TInput, TResult>(TInput input, ...)`, which needed both type arguments spelled out, is gone: `jobs.RunAndWaitAsync<ShipOrder, ShipmentLabel>(new ShipOrder(7))` becomes `jobs.RunAndWaitAsync(ShippingJobs.ShipOrder(new ShipOrder(7)))`, which answers the same `JobOutcome<ShipmentLabel>`. `RunAndWaitAsync(input)` without a result type stays.
 
 **A scheduled definition's long-lived job is a permanent job, by every name.** Its job kind is `JobKindCode.Permanent`, code `permanent`, where it was `PermanentSlot` and `permanent-slot`: in the HTTP API's job `kind`, the jobs list filter, `jobs_view.job_kind`, and the CLI. A schedule whose occurrence waits on it while it is held, cancelled, or failed reads `job-unavailable` (`ScheduleEvaluationStatusCode.JobUnavailable`), where it was `slot-unavailable` (`SlotUnavailable`). The outbox source read names it `jobRef` (`ListOutboxSourcesItem.JobRef`), where it was `slotJobRef`.

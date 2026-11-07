@@ -81,21 +81,18 @@ public sealed class TypedEnqueueSpec : ActaRuntimeTestBase<ConformanceFixture, T
     public async Task Typed_enqueue_options_apply_deduplication_key_and_dedupe()
     {
         var ct = TestContext.Current.CancellationToken;
-        var options = new JobEnqueueOptions
-        {
-            DeduplicationKey = "typed-invoice-1",
-            Priority = JobPriorityCode.High,
-            Tags = [new TagInput("billing", null), new TagInput("team", "payments")],
-        };
-
-        var first = await Jobs.EnqueueAsync(new AddNumbers(1, 1), options, ct);
+        var first = await Jobs.EnqueueAsync(
+            new AddNumbers(1, 1),
+            o => o.DeduplicationKey("typed-invoice-1").Priority(JobPriorityCode.High).Tag("billing").Tag("team", "payments"),
+            ct
+        );
         Assert.Equal(EnqueueJobAction.Inserted, first.Action);
 
         var snapshot = await Jobs.GetAsync(first, ct);
         Assert.Equal("typed-invoice-1", snapshot!.DeduplicationKey);
 
         // Same deduplication key dedupes onto the same row.
-        var again = await Jobs.EnqueueAsync(new AddNumbers(1, 1), new JobEnqueueOptions { DeduplicationKey = "typed-invoice-1" }, ct);
+        var again = await Jobs.EnqueueAsync(new AddNumbers(1, 1), o => o.DeduplicationKey("typed-invoice-1"), ct);
         Assert.Equal(EnqueueJobAction.Deduplicated, again.Action);
         Assert.Equal(first.JobId, again.JobId);
     }
@@ -106,21 +103,13 @@ public sealed class TypedEnqueueSpec : ActaRuntimeTestBase<ConformanceFixture, T
         var ct = TestContext.Current.CancellationToken;
 
         // Future next_run_at_utc holds the job at Ready; the claim filter skips it.
-        var future = await Jobs.EnqueueAsync(
-            new AddNumbers(2, 2),
-            new JobEnqueueOptions { NextRunAtUtc = DateTime.UtcNow.AddHours(1) },
-            ct
-        );
+        var future = await Jobs.EnqueueAsync(new AddNumbers(2, 2), o => o.NextRunAt(DateTime.UtcNow.AddHours(1)), ct);
         Assert.Equal(RunOnceStatus.NothingClaimed, await Runtime.RunOnceAsync(TestNamespace, future.JobId, ct));
         var stillReady = await Jobs.GetAsync(future, ct);
         Assert.Equal(JobStatusCode.Ready, stillReady!.Status);
 
         // A due (past) next_run_at_utc is immediately claimable.
-        var due = await Jobs.EnqueueAsync(
-            new AddNumbers(3, 4),
-            new JobEnqueueOptions { NextRunAtUtc = DateTime.UtcNow.AddMinutes(-1) },
-            ct
-        );
+        var due = await Jobs.EnqueueAsync(new AddNumbers(3, 4), o => o.NextRunAt(DateTime.UtcNow.AddMinutes(-1)), ct);
         Assert.Equal(RunOnceStatus.Completed, await Runtime.RunOnceAsync(due, ct));
         var result = await Jobs.GetResultAsync<AddNumbersResult>(due, ct);
         Assert.Equal(7, result!.Sum);
@@ -215,7 +204,7 @@ public sealed class TypedEnqueueSpec : ActaRuntimeTestBase<ConformanceFixture, T
         var input = new OldThenOversizeInput(1);
         const string key = "typed-restarted-1";
 
-        var first = await Jobs.EnqueueAsync(input, new JobEnqueueOptions { DeduplicationKey = key }, ct);
+        var first = await Jobs.EnqueueAsync(input, o => o.DeduplicationKey(key), ct);
         Assert.Equal(RunOnceStatus.Completed, await Runtime.RunOnceAsync(first, ct));
         Assert.Equal("old", await Jobs.GetResultAsync<string>(first, ct));
         Assert.Equal(ControlAction.Applied, (await Jobs.RestartAsync(first, ct: ct)).Action);
