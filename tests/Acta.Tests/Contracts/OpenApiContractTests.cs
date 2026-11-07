@@ -1404,8 +1404,9 @@ public sealed partial class OpenApiContractTests
     /// <summary>
     /// Each JSON request body and each JSON 200 carries one example, the request the host over the staged fakes accepted
     /// and the body it answered (<see cref="OpenApiExamples"/>), as does the success of a route whose success is not a 200,
-    /// such as an outbox verb's 202. Each example present, whatever its status, is a value its schema allows, so an
-    /// example that drifts from its schema fails here rather than in a reader's client.
+    /// such as an outbox verb's 202, and each error with a body, a problem document or a control's response. Each example
+    /// present, whatever its status, is a value its schema allows, its bounds and patterns included, so an example that
+    /// drifts from its schema fails here rather than in a reader's client.
     /// </summary>
     [Fact]
     public async Task Every_example_is_a_value_its_schema_allows()
@@ -1420,7 +1421,13 @@ public sealed partial class OpenApiContractTests
             [
                 ($"{key} request", operation["requestBody"]?["content"]?["application/json"], true),
                 .. Members(operation["responses"])
-                    .Select(response => ($"{key} {response.Key}", response.Value?["content"]?["application/json"], response.Key == "200")),
+                    .Select(response =>
+                        (
+                            $"{key} {response.Key}",
+                            response.Value?["content"]?["application/json"] ?? response.Value?["content"]?["application/problem+json"],
+                            response.Key == "200" || response.Key[0] is '4' or '5'
+                        )
+                    ),
             ];
             foreach (var (where, media, expected) in bodies)
             {
@@ -1438,8 +1445,9 @@ public sealed partial class OpenApiContractTests
             }
         }
 
-        Assert.True(checkedAt.Count > 100, $"only {checkedAt.Count} examples; the walk is broken.");
+        Assert.True(checkedAt.Count > 500, $"only {checkedAt.Count} examples; the walk is broken.");
         Assert.Contains("POST /v1/outbox/{jobNamespace}/requeue 202", checkedAt);
+        Assert.Contains("POST /v1/jobs 409", checkedAt);
         Assert.True(wrong.Count == 0, string.Join("\n", wrong));
     }
 

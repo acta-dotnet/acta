@@ -807,7 +807,8 @@ dotnet_diagnostic.CA1875.severity = none
 dotnet_diagnostic.CA1819.severity = none
 dotnet_diagnostic.CA1820.severity = none
 
-# CA1852: UnreachableDatabase, the base DispatchProxy derives each proxy type from at run time. DispatchProxy refuses a
-# sealed base, and the subtype the rule looks for in the assembly is only ever emitted when a proxy is created.
-[tests/Acta.Tests/AspNetCore/Fakes/UnreachableDatabase.cs]
+# CA1852: UnreachableDatabase and FacadeFaults.FaultingFacade, the bases DispatchProxy derives each proxy type from at
+# run time. DispatchProxy refuses a sealed base, and the subtype the rule looks for in the assembly is only ever emitted
+# when a proxy is created.
+[tests/Acta.Tests/{AspNetCore/Fakes/UnreachableDatabase,Contracts/FacadeFaults}.cs]
 dotnet_diagnostic.CA1852.severity = none

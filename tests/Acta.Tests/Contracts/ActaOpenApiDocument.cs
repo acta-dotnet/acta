@@ -1,5 +1,6 @@
 using System.Globalization;
 using System.Reflection;
+using System.Security.Claims;
 using System.Text.Json;
 using System.Text.Json.Nodes;
 using System.Text.Json.Serialization;
@@ -38,6 +39,9 @@ internal static partial class ActaOpenApiDocument
 
     /// <summary>The version of the HTTP contract under <c>/v1</c>, not the package version.</summary>
     private const string ContractVersion = "1.0.0";
+
+    /// <summary>The SPDX identifier of the license in the repository's LICENSE file.</summary>
+    public const string LicenseIdentifier = "Apache-2.0";
 
     // Markers the schema transformer leaves for the document transformer, which alone knows a schema's direction.
     private const string OmittedMarker = "x-acta-omitted-when-null";
@@ -78,8 +82,12 @@ internal static partial class ActaOpenApiDocument
         public string ApiRoot => "/" + DocumentName + "/api";
     }
 
-    /// <summary>The contract of the default mount, <c>/acta</c> with its controls.</summary>
-    public static async Task<string> GenerateAsync() => (await GenerateAsync(new Mount("/acta", Controls: true)))["/acta"];
+    /// <summary>The contract of the default mount, <c>/acta</c> with its controls, generated once per test run.</summary>
+    public static Task<string> GenerateAsync() => DefaultDocument.Value;
+
+    private static readonly Lazy<Task<string>> DefaultDocument = new(async () =>
+        (await GenerateAsync(new Mount("/acta", Controls: true)))["/acta"]
+    );
 
     /// <summary>One document per mount, each holding its own operations, keyed by the mount's pattern.</summary>
     public static async Task<IReadOnlyDictionary<string, string>> GenerateAsync(params Mount[] mounts)
@@ -93,18 +101,40 @@ internal static partial class ActaOpenApiDocument
             o.SerializerOptions.NumberHandling = ActaApiJsonContext.Default.Options.NumberHandling
         );
         var fakes = StagedFakes.Create();
-        builder.Services.AddSingleton<IJobs>(fakes.Jobs);
-        builder.Services.AddSingleton<IActaOperations>(fakes);
+        var faults = new FacadeFaults();
+        builder.Services.AddSingleton(faults.Wrap<IJobs>(fakes.Jobs));
+        builder.Services.AddSingleton(faults.Wrap<IActaOperations>(fakes));
         // The staged provider is SQLite, whose tables live in main.
         builder.Services.AddSingleton(new SqlProviderOptions { Schema = "main" });
+        // The permission mount's policies, which no caller satisfies, so each of its routes answers its 403.
+        builder.Services.AddAuthorization(o =>
+        {
+            foreach (var permission in PermissionFilter.Permissions)
+            {
+                o.AddPolicy(permission, policy => policy.RequireAssertion(_ => false));
+            }
+        });
         // Filled once the host runs and before any document is read; the operations are the same under every mount.
         var examples = new Dictionary<string, OpenApiExamples.Example>(StringComparer.Ordinal);
+        var errors = new Dictionary<(string Operation, string Status), JsonNode>();
+        var numericJobRoutes = new HashSet<string>(StringComparer.Ordinal);
         foreach (var mount in mounts)
         {
-            builder.Services.AddOpenApi(mount.DocumentName, o => Configure(o, mount, examples));
+            builder.Services.AddOpenApi(mount.DocumentName, o => Configure(o, mount, examples, errors, numericJobRoutes));
         }
 
         var app = builder.Build();
+        // Every call to the permission mount comes from a signed-in caller, who holds no permission.
+        app.Use(
+            (context, next) =>
+            {
+                if (context.Request.Path.StartsWithSegments(OpenApiExamples.DeniedMount, StringComparison.Ordinal))
+                {
+                    context.User = new ClaimsPrincipal(new ClaimsIdentity("caller"));
+                }
+                return next(context);
+            }
+        );
         foreach (var mount in mounts)
         {
             // The API alone, at the URLs a dashboard mount gives it: the dashboard's pages are no part of the contract.
@@ -129,15 +159,39 @@ internal static partial class ActaOpenApiDocument
                 }
             });
         }
+        // Mounts no document lists, for what the documented mounts cannot answer: the errors, provoked on routes without the
+        // generator's body declaration; a 403 from every route's permission check; and the debug lookup of a job by its
+        // number.
+        app.MapActaApi(OpenApiExamples.ErrorsMount + "/api", o => o.EnableControls = true);
+        app.MapActaApi(
+            OpenApiExamples.DeniedMount + "/api",
+            o =>
+            {
+                o.EnableControls = true;
+                o.RequirePermissions = true;
+            }
+        );
+        app.MapActaApi(
+            OpenApiExamples.NumericMount + "/api",
+            o =>
+            {
+                o.EnableControls = true;
+                o.EnableNumericIdLookup = true;
+            }
+        );
         app.MapOpenApi();
         await app.StartAsync(TestContext.Current.CancellationToken);
         await using var _ = app;
-        foreach (
-            var (key, example) in await OpenApiExamples.CaptureAsync(app, (mounts.FirstOrDefault(m => m.Controls) ?? mounts[0]).ApiRoot)
-        )
+        var apiRoot = (mounts.FirstOrDefault(m => m.Controls) ?? mounts[0]).ApiRoot;
+        foreach (var (key, example) in await OpenApiExamples.CaptureAsync(app, apiRoot))
         {
             examples[key] = example;
         }
+        foreach (var (key, example) in await OpenApiExamples.CaptureErrorsAsync(app, apiRoot, faults))
+        {
+            errors[key] = example;
+        }
+        numericJobRoutes.UnionWith(await OpenApiExamples.CaptureNumericJobRoutesAsync(app, apiRoot));
 
         var documents = new Dictionary<string, string>(StringComparer.Ordinal);
         foreach (var mount in mounts)
@@ -158,7 +212,13 @@ internal static partial class ActaOpenApiDocument
     /// <summary>An enum's known values in id order: the spelling the serializer writes for each member.</summary>
     public static JsonArray KnownValues(Type enumType) => [.. Enum.GetNames(enumType).Select(name => (JsonNode)WireName(enumType, name))];
 
-    private static void Configure(OpenApiOptions o, Mount mount, Dictionary<string, OpenApiExamples.Example> examples)
+    private static void Configure(
+        OpenApiOptions o,
+        Mount mount,
+        Dictionary<string, OpenApiExamples.Example> examples,
+        Dictionary<(string Operation, string Status), JsonNode> errors,
+        HashSet<string> numericJobRoutes
+    )
     {
         // A document describes one mount: the operations under its pattern, never a second mount's.
         var prefix = mount.DocumentName + "/";
@@ -170,6 +230,7 @@ internal static partial class ActaOpenApiDocument
                 document.Info.Title = "Acta API";
                 document.Info.Version = ContractVersion;
                 document.Info.Description = DocumentDescription;
+                document.Info.License = new OpenApiLicense { Name = "Apache License 2.0", Identifier = LicenseIdentifier };
                 return Task.CompletedTask;
             }
         );
@@ -193,7 +254,7 @@ internal static partial class ActaOpenApiDocument
 
         // A route table's handler reads its keys from the route values, unseen by the generator: each segment the
         // template names and no handler parameter binds is a required string path parameter, in template order. Every
-        // path parameter, bound or not, says what its key names.
+        // path parameter, bound or not, says what its key names, with the pattern its parser takes and an example.
         o.AddOperationTransformer(
             (operation, context, _) =>
             {
@@ -215,11 +276,14 @@ internal static partial class ActaOpenApiDocument
                         );
                     }
                 }
+                var takesNumericJobId =
+                    Metadata<ActaOperationAttribute>(context) is { } declared && numericJobRoutes.Contains(declared.OperationId);
                 foreach (
                     var parameter in (operation.Parameters ?? []).OfType<OpenApiParameter>().Where(p => p.In == ParameterLocation.Path)
                 )
                 {
                     parameter.Description ??= RouteKeys.Descriptions.GetValueOrDefault(parameter.Name!);
+                    DescribePathParameter(parameter, takesNumericJobId);
                 }
                 return Task.CompletedTask;
             }
@@ -350,6 +414,28 @@ internal static partial class ActaOpenApiDocument
                 {
                     Attach(operation.RequestBody?.Content, example.Request, id);
                     Attach(operation.Responses?.GetValueOrDefault(example.Status)?.Content, example.Response, id);
+                }
+                return Task.CompletedTask;
+            }
+        );
+        // One example for each error an operation documents with a body, as the host answered the request that provoked
+        // it (OpenApiExamples.CaptureErrorsAsync): a problem document, or a control's response where it answers with one.
+        o.AddOperationTransformer(
+            (operation, _, _) =>
+            {
+                foreach (var (status, response) in operation.Responses ?? [])
+                {
+                    if (
+                        operation.OperationId is { } id
+                        && errors.TryGetValue((id, status), out var error)
+                        && response.Content is { Count: 1 } content
+                    )
+                    {
+                        content.Single().Value.Examples = new Dictionary<string, IOpenApiExample>(StringComparer.Ordinal)
+                        {
+                            [id] = new OpenApiExample { Value = error.DeepClone() },
+                        };
+                    }
                 }
                 return Task.CompletedTask;
             }
@@ -518,6 +604,8 @@ internal static partial class ActaOpenApiDocument
                 idList.MinItems = 1;
             }
         }
+
+        ApplyRequestRules(schemas);
 
         if (
             schemas.TryGetValue("ProblemDetails", out var problem)

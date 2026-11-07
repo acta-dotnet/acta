@@ -2,8 +2,9 @@ namespace Acta.Tests.AspNetCore.Fakes;
 
 /// <summary>
 /// <see cref="IOutbox"/> with one known source, "billing": local, relayed by its own permanent slot job, with one quarantined row.
-/// A quarantine listing outside "billing" throws the non-local error like production. The verbs accept, except that a
-/// namespace of "missing" reports not found and "rejected" a pending-command rejection.
+/// A quarantine listing outside "billing" throws the non-local error like production. The verbs accept, except that a name
+/// that is no namespace name throws the name validation error production throws, a namespace of "missing" reports not
+/// found, and "rejected" a pending-command rejection.
 /// </summary>
 internal sealed class FakeOutbox : IOutbox
 {
@@ -131,6 +132,7 @@ internal sealed class FakeOutbox : IOutbox
         Func<ControlAction, DateTime?, T> response
     )
     {
+        _ = NameSyntax.Canonicalize(jobNamespace, nameof(jobNamespace));
         if (jobNamespace == "missing")
         {
             return ValueTask.FromResult(response(ControlAction.NotFound, null));

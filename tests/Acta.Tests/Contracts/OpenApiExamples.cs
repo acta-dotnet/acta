@@ -14,11 +14,12 @@ using Xunit;
 namespace Acta.Tests.Contracts;
 
 /// <summary>
-/// The document's examples, taken from what the host over <see cref="StagedFakes"/> answers: each read's 200 body, and for
-/// each control one request from <see cref="Requests"/> with the 200 it answers. Only the requests are written by hand,
-/// and a request the server does not accept, or a read it does not serve, fails the generation that sends it.
+/// The document's examples, taken from what the host over <see cref="StagedFakes"/> answers: each read's 200 body, for
+/// each control one request from <see cref="Requests"/> with the 200 it answers, and each documented error's body. Only
+/// the requests are written by hand, and a request the server does not accept, or a read it does not serve, fails the
+/// generation that sends it.
 /// </summary>
-internal static class OpenApiExamples
+internal static partial class OpenApiExamples
 {
     /// <summary>The value each path placeholder and required query parameter takes, so the fake host serves the route.</summary>
     public static readonly IReadOnlyDictionary<string, string> RouteValues = new Dictionary<string, string>(StringComparer.Ordinal)
@@ -99,22 +100,9 @@ internal static class OpenApiExamples
     public static async Task<Dictionary<string, Example>> CaptureAsync(WebApplication app, string apiRoot)
     {
         var root = apiRoot + ActaEndpointRouteBuilderExtensions.ApiVersionSegment;
-        var routes = app
-            .Services.GetRequiredService<EndpointDataSource>()
-            .Endpoints.OfType<RouteEndpoint>()
-            .Where(endpoint => endpoint.RoutePattern.RawText?.StartsWith(root + "/", StringComparison.Ordinal) == true)
-            .SelectMany(endpoint =>
-                (endpoint.Metadata.GetMetadata<IHttpMethodMetadata>()?.HttpMethods ?? []).Select(method =>
-                    (Key: $"{method} {endpoint.RoutePattern.RawText![root.Length..]}", Endpoint: endpoint)
-                )
-            )
-            .OrderBy(route => !route.Key.StartsWith("GET ", StringComparison.Ordinal))
-            .ThenBy(route => route.Key, StringComparer.Ordinal)
-            .ToList();
-
         var client = app.GetTestClient();
         var examples = new Dictionary<string, Example>(StringComparer.Ordinal);
-        foreach (var (key, endpoint) in routes)
+        foreach (var (key, endpoint) in Routes(app, root))
         {
             var space = key.IndexOf(' ', StringComparison.Ordinal);
             var url = root + Url(key[(space + 1)..], endpoint);
@@ -135,7 +123,7 @@ internal static class OpenApiExamples
             examples[endpoint.Metadata.GetMetadata<ActaOperationAttribute>()!.OperationId] = new Example(
                 body is null ? null : JsonNode.Parse(body),
                 ((int)response.Status).ToString(System.Globalization.CultureInfo.InvariantCulture),
-                response.Json ? Stable(JsonNode.Parse(response.Text)) : null
+                response.MediaType == "application/json" ? Stable(JsonNode.Parse(response.Text)) : null
             );
         }
         return examples;
@@ -144,38 +132,66 @@ internal static class OpenApiExamples
     /// <summary>What one route was sent and answered: its request body, if it reads one, and its success's JSON body.</summary>
     public sealed record Example(JsonNode? Request, string Status, JsonNode? Response);
 
-    // The route's path with each placeholder filled, and each required query parameter set, from RouteValues.
-    private static string Url(string path, RouteEndpoint endpoint)
-    {
-        var filled = path;
-        foreach (var (name, value) in RouteValues)
-        {
-            filled = filled.Replace($"{{{name}}}", Uri.EscapeDataString(value), StringComparison.Ordinal);
-        }
-        var query = endpoint
-            .Metadata.OfType<QueryParameterDoc>()
-            .Where(parameter => parameter.Required)
-            .Select(parameter => $"{parameter.Name}={Uri.EscapeDataString(RouteValues[parameter.Name])}")
+    // Every route the host maps below root, keyed METHOD /path below it, reads before controls.
+    private static List<(string Key, RouteEndpoint Endpoint)> Routes(WebApplication app, string root) =>
+        app
+            .Services.GetRequiredService<EndpointDataSource>()
+            .Endpoints.OfType<RouteEndpoint>()
+            .Where(endpoint => endpoint.RoutePattern.RawText?.StartsWith(root + "/", StringComparison.Ordinal) == true)
+            .SelectMany(endpoint =>
+                (endpoint.Metadata.GetMetadata<IHttpMethodMetadata>()?.HttpMethods ?? []).Select(method =>
+                    (Key: $"{method} {endpoint.RoutePattern.RawText![root.Length..]}", Endpoint: endpoint)
+                )
+            )
+            .OrderBy(route => !route.Key.StartsWith("GET ", StringComparison.Ordinal))
+            .ThenBy(route => route.Key, StringComparer.Ordinal)
             .ToList();
-        return query.Count == 0 ? filled : filled + "?" + string.Join('&', query);
+
+    // The route's path with each placeholder filled, and each required query parameter set, from RouteValues with values
+    // over them, then the query beside them; the required ones are left out when omitRequired is set.
+    private static string Url(
+        string path,
+        RouteEndpoint endpoint,
+        IReadOnlyDictionary<string, string>? values = null,
+        bool omitRequired = false,
+        IReadOnlyDictionary<string, string>? query = null
+    )
+    {
+        string Value(string name) => values?.GetValueOrDefault(name) ?? RouteValues[name];
+        var filled = endpoint
+            .RoutePattern.Parameters.Select(parameter => parameter.Name)
+            .Aggregate(path, (url, name) => url.Replace($"{{{name}}}", Uri.EscapeDataString(Value(name)), StringComparison.Ordinal));
+        var pairs = endpoint
+            .Metadata.OfType<QueryParameterDoc>()
+            .Where(parameter => parameter.Required && !omitRequired)
+            .Select(parameter => (parameter.Name, Value: Value(parameter.Name)))
+            .Concat((query ?? new Dictionary<string, string>()).Select(pair => (Name: pair.Key, pair.Value)))
+            .Select(pair => $"{pair.Name}={Uri.EscapeDataString(pair.Value)}")
+            .ToList();
+        return pairs.Count == 0 ? filled : filled + "?" + string.Join('&', pairs);
     }
 
-    private static async Task<(HttpStatusCode Status, bool Json, string Text)> SendAsync(
+    private static async Task<(HttpStatusCode Status, string MediaType, string Text)> SendAsync(
         HttpClient client,
         string method,
         string url,
-        string? body
+        string? body,
+        string contentType = "application/json",
+        bool confirm = true
     )
     {
         using var request = new HttpRequestMessage(new HttpMethod(method), url)
         {
-            Content = body is null ? null : new StringContent(body, Encoding.UTF8, "application/json"),
+            Content = body is null ? null : new StringContent(body, Encoding.UTF8, contentType),
         };
-        request.Headers.Add("X-Acta-Control", "true");
+        if (confirm)
+        {
+            request.Headers.Add("X-Acta-Control", "true");
+        }
         using var response = await client.SendAsync(request, TestContext.Current.CancellationToken);
         return (
             response.StatusCode,
-            response.Content.Headers.ContentType?.MediaType == "application/json",
+            response.Content.Headers.ContentType?.MediaType ?? "",
             await response.Content.ReadAsStringAsync(TestContext.Current.CancellationToken)
         );
     }

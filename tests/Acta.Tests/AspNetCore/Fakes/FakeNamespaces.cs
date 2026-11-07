@@ -1,23 +1,24 @@
 namespace Acta.Tests.AspNetCore.Fakes;
 
 /// <summary>
-/// <see cref="INamespaces"/> listing two rows, sys and billing, and reading billing alone by name; a read of "bad key"
-/// throws the name validation error like production. On the admin verbs a name of "sys" or "bad key" throws like
-/// production, "missing" reports not found, and a patch with expectedVersion 999 conflicts. Every other verb applies and
-/// answers the version after one change: billing's 3, or the expected version, plus one.
+/// <see cref="INamespaces"/> listing two rows, sys and billing, and reading billing alone by name; a name that is no
+/// namespace name, such as "bad key", throws the name validation error production throws, and so does "sys" on the admin
+/// verbs. On those "missing" reports not found, and a patch with expectedVersion 999 conflicts. Every other verb applies
+/// and answers the version after one change: billing's 3, or the expected version, plus one.
 /// </summary>
 internal sealed class FakeNamespaces : INamespaces
 {
     public FakeNamespaces()
     {
         Get = static (namespaceName, _) =>
-            namespaceName == "bad key"
-                ? throw new ArgumentException("Identifier 'bad key' is not kebab-case or dotted-kebab.", nameof(namespaceName))
-                : ValueTask.FromResult<GetNamespaceResponse?>(
-                    namespaceName == "billing"
-                        ? new GetNamespaceResponse(2, "billing", NamespaceStatusCode.Active, "payments", "billing jobs", "1.6.2+5c0ffee", 3)
-                        : null
-                );
+        {
+            NameSyntax.Canonicalize(namespaceName, nameof(namespaceName));
+            return ValueTask.FromResult<GetNamespaceResponse?>(
+                namespaceName == "billing"
+                    ? new GetNamespaceResponse(2, "billing", NamespaceStatusCode.Active, "payments", "billing jobs", "1.6.2+5c0ffee", 3)
+                    : null
+            );
+        };
         List = static (_, _) =>
             ValueTask.FromResult(
                 new ListNamespacesResponse(
@@ -96,11 +97,7 @@ internal sealed class FakeNamespaces : INamespaces
         int? expectedVersion = null
     )
     {
-        if (namespaceName is "sys" or "bad key")
-        {
-            throw new ArgumentException("The system namespace sys cannot be suspended or edited.", nameof(namespaceName));
-        }
-
+        _ = NameSyntax.Canonicalize(namespaceName, nameof(namespaceName), NameSyntax.ExtendedMaxLength, reserveSystem: true);
         if (namespaceName == "missing")
         {
             return ValueTask.FromResult(response(ControlAction.NotFound, null));

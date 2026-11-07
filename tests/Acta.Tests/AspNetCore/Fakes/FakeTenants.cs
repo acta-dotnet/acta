@@ -1,10 +1,10 @@
 namespace Acta.Tests.AspNetCore.Fakes;
 
 /// <summary>
-/// <see cref="ITenants"/> over one tenant, "cust-001" (id 1). A key of "bad key" throws the opaque-key validation error
-/// like production, and so does "sys" on the admin verbs; "missing" reports not found, and a patch with expectedVersion
-/// 999 conflicts. Every other verb applies and answers the version after one change: cust-001's 0, or the expected
-/// version, plus one.
+/// <see cref="ITenants"/> over one tenant, "cust-001" (id 1). A name that is no tenant name, such as "bad key", throws the
+/// name validation error production throws, and so does "sys" on the registration and the admin verbs; "missing" reports
+/// not found, and a patch with expectedVersion 999 conflicts. Every other verb applies and answers the version after one
+/// change: cust-001's 0, or the expected version, plus one.
 /// </summary>
 internal sealed class FakeTenants : ITenants
 {
@@ -14,23 +14,19 @@ internal sealed class FakeTenants : ITenants
     {
         Register = (tenantName, displayName, description, _) =>
         {
-            // Mirror the production guard: an opaque-key validation failure surfaces as ArgumentException.
-            if (tenantName == "bad key")
-            {
-                throw new ArgumentException("Tenant name must not contain whitespace.", nameof(tenantName));
-            }
-
+            NameSyntax.Canonicalize(tenantName, nameof(tenantName), NameSyntax.ExtendedMaxLength, reserveSystem: true);
             RegisterCalls.Add((tenantName, displayName, description));
             return ValueTask.FromResult(new RegisterTenantResponse(7, tenantName));
         };
         Get = static (tenantName, _) =>
-            tenantName == "bad key"
-                ? throw new ArgumentException("Tenant name must not contain whitespace.", nameof(tenantName))
-                : ValueTask.FromResult<GetTenantResponse?>(
-                    tenantName == "cust-001"
-                        ? new GetTenantResponse(1, "cust-001", "Acme", "Acme Corp", TenantStatusCode.Active, CreatedAtUtc, CreatedAtUtc, 0)
-                        : null
-                );
+        {
+            NameSyntax.Canonicalize(tenantName, nameof(tenantName), NameSyntax.ExtendedMaxLength);
+            return ValueTask.FromResult<GetTenantResponse?>(
+                tenantName == "cust-001"
+                    ? new GetTenantResponse(1, "cust-001", "Acme", "Acme Corp", TenantStatusCode.Active, CreatedAtUtc, CreatedAtUtc, 0)
+                    : null
+            );
+        };
         List = static (_, _) =>
             ValueTask.FromResult(
                 new ListTenantsResponse(
@@ -101,11 +97,7 @@ internal sealed class FakeTenants : ITenants
         int? expectedVersion = null
     )
     {
-        if (tenantName is "bad key" or "sys")
-        {
-            throw new ArgumentException("Tenant name must not contain whitespace.", nameof(tenantName));
-        }
-
+        _ = NameSyntax.Canonicalize(tenantName, nameof(tenantName), NameSyntax.ExtendedMaxLength, reserveSystem: true);
         if (tenantName == "missing")
         {
             return ValueTask.FromResult(response(ControlAction.NotFound, null));

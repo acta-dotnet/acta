@@ -5,6 +5,7 @@ using System.Text;
 using System.Text.Encodings.Web;
 using System.Text.Json;
 using System.Text.Json.Nodes;
+using System.Text.RegularExpressions;
 using Acta.Tests.AspNetCore;
 using Acta.Tests.AspNetCore.Fakes;
 using Microsoft.AspNetCore.Authentication;
@@ -554,13 +555,14 @@ public sealed partial class OpenApiContractTests
         return query.Count == 0 ? url : url + "?" + string.Join('&', query);
     }
 
-    // Adds to wrong what a served value breaks of its schema: a type the schema does not allow, an absent required member,
-    // or a member it does not declare. A reference is followed, and a oneOf holds when one of its branches does.
-    private static void Describe(JsonNode? value, JsonNode schema, JsonObject schemas, string where, List<string> wrong)
+    // Adds to wrong what a served value breaks of its schema: a type the schema does not allow, a bound or pattern it
+    // breaks, a schema its not refuses that it matches, an absent required member, or, when strict, a member it does not
+    // declare. A reference is followed, and a oneOf holds when one of its branches does.
+    private static void Describe(JsonNode? value, JsonNode schema, JsonObject schemas, string where, List<string> wrong, bool strict = true)
     {
         if (schema["$ref"]?.GetValue<string>() is { } reference)
         {
-            Describe(value, schemas[reference.Split('/')[^1]]!, schemas, where, wrong);
+            Describe(value, schemas[reference.Split('/')[^1]]!, schemas, where, wrong, strict);
             return;
         }
 
@@ -572,7 +574,7 @@ public sealed partial class OpenApiContractTests
 
         if (schema["oneOf"] is JsonArray branches)
         {
-            if (!branches.Any(branch => Breaks(value, branch!, schemas, where).Count == 0))
+            if (!branches.Any(branch => Breaks(value, branch!, schemas, where, strict).Count == 0))
             {
                 wrong.Add($"{where}: {Kind(value)} matches no branch of its oneOf.");
             }
@@ -582,6 +584,19 @@ public sealed partial class OpenApiContractTests
         if (schema["type"] is { } type && !TypeAllows(type, Kind(value)))
         {
             wrong.Add($"{where}: {Kind(value)} where the schema allows {type.ToJsonString()}.");
+            return;
+        }
+
+        if (Bound(value, schema) is { } broken)
+        {
+            wrong.Add($"{where}: {broken}");
+            return;
+        }
+
+        // Inside a not, the schema is JSON Schema's own: a member it does not name is any member.
+        if (schema["not"] is { } refused && Breaks(value, refused, schemas, where, strict: false).Count == 0)
+        {
+            wrong.Add($"{where}: the value matches {refused.ToJsonString()}, which its schema refuses.");
             return;
         }
 
@@ -600,13 +615,13 @@ public sealed partial class OpenApiContractTests
             {
                 if (schema["properties"]?[name] is { } declared)
                 {
-                    Describe(member, declared, schemas, $"{where}.{name}", wrong);
+                    Describe(member, declared, schemas, $"{where}.{name}", wrong, strict);
                 }
                 else if (schema["additionalProperties"] is JsonObject additional)
                 {
-                    Describe(member, additional, schemas, $"{where}.{name}", wrong);
+                    Describe(member, additional, schemas, $"{where}.{name}", wrong, strict);
                 }
-                else
+                else if (strict)
                 {
                     wrong.Add($"{where}: member '{name}' is not declared.");
                 }
@@ -616,17 +631,58 @@ public sealed partial class OpenApiContractTests
         {
             for (var i = 0; i < items.Count; i++)
             {
-                Describe(items[i], itemSchema, schemas, $"{where}[{i}]", wrong);
+                Describe(items[i], itemSchema, schemas, $"{where}[{i}]", wrong, strict);
             }
         }
     }
 
-    private static List<string> Breaks(JsonNode? value, JsonNode schema, JsonObject schemas, string where)
+    private static List<string> Breaks(JsonNode? value, JsonNode schema, JsonObject schemas, string where, bool strict = true)
     {
         var wrong = new List<string>();
-        Describe(value, schema, schemas, where, wrong);
+        Describe(value, schema, schemas, where, wrong, strict);
         return wrong;
     }
+
+    // The bound or pattern a value breaks: a number's minimum and maximum, a string's length in code points and its
+    // pattern, and an array's item count.
+    private static string? Bound(JsonNode? value, JsonNode schema)
+    {
+        int? Keyword(string name) => schema[name]?.GetValue<int>();
+        switch (value?.GetValueKind())
+        {
+            case JsonValueKind.Number:
+                var number = value.GetValue<decimal>();
+                return number < Keyword("minimum") ? $"{number} is below its minimum {Keyword("minimum")}."
+                    : number > Keyword("maximum") ? $"{number} is above its maximum {Keyword("maximum")}."
+                    : null;
+            case JsonValueKind.String:
+                var text = value.GetValue<string>();
+                var length = text.EnumerateRunes().Count();
+                return length < Keyword("minLength") ? $"'{text}' is shorter than its minLength {Keyword("minLength")}."
+                    : length > Keyword("maxLength") ? $"'{text}' is longer than its maxLength {Keyword("maxLength")}."
+                    : schema["pattern"]?.GetValue<string>() is { } pattern && !PatternMatches(pattern, text)
+                        ? $"'{text}' does not match its pattern."
+                    : null;
+            case JsonValueKind.Array:
+                var count = value.AsArray().Count;
+                return count < Keyword("minItems") ? $"{count} items, fewer than its minItems {Keyword("minItems")}."
+                    : count > Keyword("maxItems") ? $"{count} items, more than its maxItems {Keyword("maxItems")}."
+                    : null;
+            default:
+                return null;
+        }
+    }
+
+    private static readonly System.Collections.Concurrent.ConcurrentDictionary<string, Regex> Patterns = new(StringComparer.Ordinal);
+
+    /// <summary>
+    /// Whether a JSON Schema pattern matches the whole value as ECMA-262 reads it: the document's patterns are anchored,
+    /// and .NET's <c>$</c> also matches before a final newline, which ECMA-262's does not.
+    /// </summary>
+    private static bool PatternMatches(string pattern, string value) =>
+        Patterns.GetOrAdd(pattern, static source => new Regex(source, RegexOptions.CultureInvariant)).Match(value)
+            is { Success: true, Index: 0 } match
+        && match.Length == value.Length;
 
     private static string Kind(JsonNode? value) =>
         value?.GetValueKind() switch

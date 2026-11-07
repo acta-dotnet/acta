@@ -751,7 +751,7 @@ public sealed class DashboardApiEndpointTests
 
         Assert.Equal(HttpStatusCode.BadRequest, response.StatusCode);
         Assert.Contains(
-            "must not contain whitespace",
+            "is not kebab-case or dotted-kebab",
             await response.Content.ReadAsStringAsync(TestContext.Current.CancellationToken),
             StringComparison.Ordinal
         );

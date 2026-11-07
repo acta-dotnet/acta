@@ -92,8 +92,61 @@ internal static class StagedFakes
             var page = await tags(query, ct);
             return page with { Items = First(page.Items) };
         };
+
+        // The errors the document's examples provoke beyond the fakes' own, each as production answers it: the overview
+        // validates its namespace filter; the rejected job ref names a job with no input; "rejected" is a suspended
+        // namespace to the enqueue, one with no outbox relay on this host to the quarantine listing, and a schedule naming
+        // an unpublished calendar to the preview; and a tag write on a target the fakes know as missing finds nothing.
+        var overview = fakes.Ledger.GetOverview;
+        fakes.Ledger.GetOverview = (query, ct) =>
+        {
+            _ = QueryValidation.ValidateNamespace(query.JobNamespace, nameof(query.JobNamespace));
+            return overview(query, ct);
+        };
+        var getId = jobs.GetId;
+        jobs.GetId = (job, ct) =>
+            job.JobRef == FakeJobs.RejectedJobRef ? ValueTask.FromResult<GetJobIdResponse?>(new(RejectedJobId)) : getId(job, ct);
+        var getInput = jobs.GetInput;
+        jobs.GetInput = (job, ct) => job.JobId == RejectedJobId ? ValueTask.FromResult<GetJobInputResponse?>(null) : getInput(job, ct);
+        var enqueue = jobs.Enqueue;
+        jobs.Enqueue = (request, ct) =>
+            request.JobNamespace == "rejected"
+                ? throw new EnqueueRejectedException(
+                    EnqueueRejectionReason.NamespaceSuspended,
+                    "Enqueue rejected: one or more rows reference a suspended namespace."
+                )
+                : enqueue(request, ct);
+        var quarantined = fakes.Outbox.ListQuarantined;
+        fakes.Outbox.ListQuarantined = (query, ct) =>
+            query.JobNamespace == "rejected"
+                ? throw new InvalidOperationException(
+                    "Namespace 'rejected' has no outbox relay registered in this process. Quarantined rows live in the producer's "
+                        + "source database, which only a host that called AddOutboxRelay for this namespace can read; run the listing "
+                        + "there (sources report IsLocal), or requeue/discard from any peer."
+                )
+                : quarantined(query, ct);
+        var preview = fakes.Schedules.Preview;
+        fakes.Schedules.Preview = (schedule, count, ct) =>
+            schedule.ScheduleName == "rejected"
+                ? throw new CalendarUnavailableException(
+                    "The availability calendar 'office-hours' has no published version in the namespace's calendar catalog or the "
+                        + "shared one."
+                )
+                : preview(schedule, count, ct);
+        var upsert = fakes.Tags.Upsert;
+        fakes.Tags.Upsert = (target, tag, ct) =>
+            IsMissing(target) ? ValueTask.FromResult(new UpsertTagResponse(ControlAction.NotFound)) : upsert(target, tag, ct);
+        var remove = fakes.Tags.Remove;
+        fakes.Tags.Remove = (target, name, ct) =>
+            IsMissing(target) ? ValueTask.FromResult(new RemoveTagResponse(ControlAction.NotFound)) : remove(target, name, ct);
         return fakes;
     }
+
+    /// <summary>The job the rejected ref names: a job with no input, so an input update has nothing to replace.</summary>
+    private const long RejectedJobId = 43;
+
+    private static bool IsMissing(TagTarget target) =>
+        target.Lookup is "missing" or (_, "missing") || target.Lookup is JobLookup { JobRef: var job } && job == FakeJobs.MissingJobRef;
 
     private static bool IsFound(JobLookup job) => job.JobRef == FakeJobs.FoundJobRef || job.JobId == 42;
 
