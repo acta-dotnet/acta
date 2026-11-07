@@ -170,7 +170,7 @@ The generator emits descriptors from the declared signature. The runtime uses th
 
 ### Execution semantics
 
-Execution is at-least-once: a crash or lease expiry re-runs the attempt, so a handler must tolerate the same input more than once. Acta makes state transitions durable, not external effects single; use deduplication keys, durable steps, `AtMostOnce()`, and reconciliation. A step is replay-safe only once its result is recorded, so a crash between an external effect and the recording re-runs the effect.
+Execution is at-least-once: a crash, a lease expiry, a failed completion write, or a shutdown re-runs the attempt, and an operator restart or a database restore can re-run work whose external effects already happened, so a handler must tolerate the same input more than once. Acta makes state transitions durable, not external effects single; use deduplication keys, durable steps, `AtMostOnce()`, and reconciliation. A step is replay-safe only once its result is recorded, so a crash between an external effect and the recording re-runs the effect.
 
 Names given to steps, signals, timers, variables, children, and child groups are persisted keys: renaming one makes a new one (see [renaming a step, variable, signal or timer](#renaming-a-step-variable-signal-or-timer)). Durable state belongs to the job, not to one fire, so a recurring job's succeeded step replays its stored result on the next fire; a handler that must start clean calls `ctx.ResetStateAsync`.
 

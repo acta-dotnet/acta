@@ -23,11 +23,10 @@ provisioned before 1.0.
 
 ## Execution model
 
-- **At-least-once.** A handler can run again after a crash, a lease expiry, a failed completion write, or a shutdown, and a restart or a database restore can re-run work whose external effects already happened. No durable executor makes external effects exactly-once; the application owns that, with deduplication keys, durable steps, `AtMostOnce()`, or reconciliation.
-- **Checkpoints, not replay.** A handler re-enters from the top; completed steps return their stored results.
+Execution is at-least-once, and a handler re-enters from the top with its completed steps returning their stored results. That is the model, stated in full under [Execution semantics](./developer-guide.md#execution-semantics); the entries below are the limits inside it.
+
 - **A failing completion write repeats until it lands or the worker stops**, logging Warning, then Error. A database outage longer than the lease lets recovery reclaim the job and run it again, finished or not. A failing database stops intake instead of growing memory.
 - **SQLite pickup can wait a Windows timer tick.** A write that meets another commit holding SQLite's lock waits in SQLite's busy handler, which sleeps in whole milliseconds that Windows rounds up to a 15.6 ms tick, so one job at a time picks up in about 20 ms where the server providers take 3.
-- **A dead worker's jobs come back within two leases**, six minutes at the default heartbeat.
 - **One job row takes about 700 million state changes**, about three per run. A recurring schedule fires at most once a second, which keeps it inside the limit for decades, but a job that reschedules itself without pause at a hundred runs a second reaches it in about three months; a loop that long should enqueue a successor job instead.
 - **A worker can claim a job it has no handler for.** It hands the job back once and stops claiming that definition; with no worker carrying it, the job waits Ready until a build with the handler returns or an operator retires the definition.
 - **An override reaches workers on their next heartbeat.** Two edits of one namespace committed in the same instant in reverse order can leave one unseen until the next edit.
