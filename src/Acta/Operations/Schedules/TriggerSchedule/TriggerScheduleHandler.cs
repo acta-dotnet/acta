@@ -17,7 +17,7 @@ internal sealed class TriggerScheduleHandler(
     WorkerWakeupPublisher wakeup
 )
 {
-    private static readonly TriggerScheduleResponse NotFound = new(ControlAction.NotFound, null, null, null, null);
+    private static readonly TriggerScheduleResponse NotFound = new(ControlAction.NotFound, null, null, null, null, null);
 
     /// <summary>Reads of a per-occurrence schedule whose state another writer moved between the read and the apply.</summary>
     private const int MaxReplans = 2;
@@ -46,10 +46,10 @@ internal sealed class TriggerScheduleHandler(
                 return Answer(ControlAction.Rejected, target);
             }
 
-            if (await AdmitRootAsync(command, target, ct))
+            if (await AdmitRootAsync(command, target, ct) is { } root)
             {
                 await wakeup.WakeAsync(WorkerWakeupChannel.AllWorkerNamespaces, WorkerWakeupReason.WorkAvailable, ct);
-                return Answer(ControlAction.Applied, target);
+                return Answer(ControlAction.Applied, target, root);
             }
 
             if (replan == MaxReplans)
@@ -61,11 +61,13 @@ internal sealed class TriggerScheduleHandler(
 
     /// <summary>
     /// A manual root: one admitting group, keyed by its firing so it is never deduplicated, and its schedule as a
-    /// check-only row, so a pause or a lowered capacity committed after the read rejects it.
+    /// check-only row, so a pause or a lowered capacity committed after the read rejects it. Answers the root's ref when
+    /// the group applied.
     /// </summary>
-    private async Task<bool> AdmitRootAsync(TriggerScheduleCommand command, GetScheduleTargetResponse target, CancellationToken ct)
+    private async Task<JobRef?> AdmitRootAsync(TriggerScheduleCommand command, GetScheduleTargetResponse target, CancellationToken ct)
     {
         var firingId = Guid.CreateVersion7();
+        var root = JobRef.New();
         var group = new AdmitScheduleFiringsGroup(
             Ordinal: 0,
             JobId: null,
@@ -74,14 +76,14 @@ internal sealed class TriggerScheduleHandler(
             ExpectedStateVersion: target.StateVersion,
             Admit: true,
             Envelope: new FiringEnvelope(firingId, FiringEnvelope.ManualKind, target.NowUtc, []).ToJson(),
-            JobRef: Guid.CreateVersion7(),
+            JobRef: root.Value,
             DeduplicationKey: string.Create(CultureInfo.InvariantCulture, $"sys.manual.{target.ScheduleId}.{firingId:N}"),
             TriggerMessage: command.ReasonMessage.Truncate(ActaTextLimits.EventMessage),
             TriggerDetails: ScheduleControl.DetailsText(target.ScheduleName, command.Actor)
         );
         var read = AdmitScheduleFiringsValues.Check(0, target.ScheduleId, target.ScheduleName, target.StateVersion, target.Version);
         var outcome = await admitScheduleFirings.HandleAsync(new AdmitScheduleFiringsCommand(target.NamespaceId, [group], [read]), ct);
-        return outcome.Groups[0].Applied;
+        return outcome.Groups[0].Applied ? root : null;
     }
 
     private async Task<TriggerScheduleResponse> FireSlotAsync(
@@ -110,9 +112,9 @@ internal sealed class TriggerScheduleHandler(
             ct
         );
         await JobControl.WakeWorkersIfAsync(wakeup, row.Action == ControlAction.Applied, ct);
-        return new TriggerScheduleResponse(row.Action, row.Status, row.PausedUntilUtc, row.NextOccurrenceAtUtc, row.Version);
+        return new TriggerScheduleResponse(row.Action, row.Status, row.PausedUntilUtc, row.NextOccurrenceAtUtc, row.Version, row.JobRef);
     }
 
-    private static TriggerScheduleResponse Answer(ControlAction action, GetScheduleTargetResponse target) =>
-        new(action, target.Status, target.PausedUntilUtc, target.NextOccurrenceAtUtc, target.Version);
+    private static TriggerScheduleResponse Answer(ControlAction action, GetScheduleTargetResponse target, JobRef? jobRef = null) =>
+        new(action, target.Status, target.PausedUntilUtc, target.NextOccurrenceAtUtc, target.Version, jobRef);
 }

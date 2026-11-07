@@ -9,6 +9,9 @@ internal sealed class FakeSchedules : ISchedules
 {
     private static readonly DateTime NextOccurrence = new(2026, 6, 12, 10, 0, 0, DateTimeKind.Utc);
 
+    /// <summary>The permanent slot every found schedule fires.</summary>
+    public static readonly JobRef SlotJobRef = new(Guid.Parse("00000000-0000-0000-0000-000000000045"));
+
     public FakeSchedules()
     {
         Get = static (schedule, _) => ValueTask.FromResult(schedule.ScheduleName == "missing" ? null : Found(schedule));
@@ -98,7 +101,7 @@ internal sealed class FakeSchedules : ISchedules
             CreatedAtUtc: NextOccurrence.AddDays(-1),
             ModifiedAtUtc: NextOccurrence.AddDays(-1),
             Version: 2,
-            JobRef: new JobRef(Guid.Parse("00000000-0000-0000-0000-000000000045")),
+            JobRef: SlotJobRef,
             MaxOutstanding: 1,
             OutstandingCount: 0,
             FullBehavior: ScheduleFullBehaviorCode.Wait,
@@ -121,12 +124,12 @@ internal sealed class FakeSchedules : ISchedules
 
     private TriggerScheduleResponse Triggered(ScheduleLookup schedule, string? reasonMessage, string? actor)
     {
-        if (Staged(schedule, static (action, status) => new TriggerScheduleResponse(action, status, null, null, null)) is { } staged)
+        if (Staged(schedule, static (action, status) => new TriggerScheduleResponse(action, status, null, null, null, null)) is { } staged)
         {
             return staged;
         }
 
         TriggerCalls.Add((schedule.ScheduleName, reasonMessage, actor));
-        return new TriggerScheduleResponse(ControlAction.Applied, ScheduleStatusCode.Active, null, NextOccurrence, 3);
+        return new TriggerScheduleResponse(ControlAction.Applied, ScheduleStatusCode.Active, null, NextOccurrence, 3, SlotJobRef);
     }
 }

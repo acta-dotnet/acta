@@ -88,8 +88,10 @@ SELECT
     js.schedule_status_code AS status,
     js.paused_until_utc,
     st.next_occurrence_at_utc,
-    js.version AS version
+    js.version AS version,
+    CASE WHEN t.action = 1 /* ControlAction.Applied */ THEN sj.job_ref END AS job_ref
 FROM (SELECT 1) one
 LEFT JOIN temp._ts_target t ON 1 = 1
 LEFT JOIN {{schema}}.schedules js ON js.schedule_id = t.schedule_id
-LEFT JOIN {{schema}}.schedules_state st ON st.schedule_id = js.schedule_id;
+LEFT JOIN {{schema}}.schedules_state st ON st.schedule_id = js.schedule_id
+LEFT JOIN {{schema}}.jobs sj ON sj.job_id = js.job_id;

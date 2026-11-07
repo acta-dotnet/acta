@@ -5291,7 +5291,8 @@
                       "status": "active",
                       "pausedUntilUtc": null,
                       "nextOccurrenceAtUtc": "2026-06-12T10:00:00Z",
-                      "version": 3
+                      "version": 3,
+                      "jobRef": "job_00000000000000000000000000000045"
                     }
                   }
                 }
@@ -16559,12 +16560,13 @@
           "status",
           "pausedUntilUtc",
           "nextOccurrenceAtUtc",
-          "version"
+          "version",
+          "jobRef"
         ],
         "type": "object",
         "properties": {
           "action": {
-            "description": "What the call did: applied; rejected, when the schedule cannot fire now, as when it is paused or its permanent slot is busy; or not-found.",
+            "description": "What the call did: applied; rejected, when the schedule is paused, its namespace is suspended, its permanent slot job is not idle, or a per-occurrence schedule is at maxOutstanding; or not-found.",
             "$ref": "#/components/schemas/ControlAction"
           },
           "status": {
@@ -16601,9 +16603,20 @@
             ],
             "description": "The schedule's version after the call; null when the schedule was not found.",
             "format": "int32"
+          },
+          "jobRef": {
+            "oneOf": [
+              {
+                "type": "null"
+              },
+              {
+                "$ref": "#/components/schemas/JobRef"
+              }
+            ],
+            "description": "The ref of the job the call fired: a new job on a per-occurrence schedule, the permanent slot's job on a permanent one; null unless the call was applied."
           }
         },
-        "description": "What firing a schedule now did, and the schedule's state after the attempt."
+        "description": "What firing a schedule once now did, and the schedule's state after the attempt. It works for both delivery modes and never moves the schedule's cadence. Applied means a job was made ready, not that it ran. Calls are not deduplicated: a retry after a lost response admits a second job on a per-occurrence schedule, while a permanent slot rejects it until the slot is idle again."
       },
       "UpdateDefinitionOverridesRequest": {
         "required": [

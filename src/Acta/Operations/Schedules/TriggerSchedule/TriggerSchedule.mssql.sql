@@ -9,7 +9,7 @@ BEGIN TRY
     DECLARE @now DATETIME2(7) = SYSUTCDATETIME();
     DECLARE @found BIT = 0, @status TINYINT, @paused DATETIME2(7), @next DATETIME2(7), @version INT;
     DECLARE @slot_status TINYINT, @firing_status TINYINT, @action TINYINT;
-    DECLARE @ns INT, @def INT, @lineage BIGINT, @en INT, @event_recording TINYINT;
+    DECLARE @ns INT, @def INT, @lineage BIGINT, @en INT, @event_recording TINYINT, @job_ref UNIQUEIDENTIFIER;
     DECLARE @lock_result INT, @lock_resource NVARCHAR(255);
 
     /* The namespace's schedule lock, shared, before any row lock (docs/sql-internals.md, "Schedule lock"), then the
@@ -20,7 +20,8 @@ BEGIN TRY
         @ns = j.namespace_id,
         @def = j.definition_id,
         @lineage = j.lineage_root_job_id,
-        @event_recording = j.event_recording_code
+        @event_recording = j.event_recording_code,
+        @job_ref = j.job_ref
     FROM {{schema}}.jobs j
     WHERE j.job_id = @p_job_id;
 
@@ -124,7 +125,8 @@ BEGIN TRY
         @status AS status,
         @paused AS paused_until_utc,
         @next AS next_occurrence_at_utc,
-        @version AS version;
+        @version AS version,
+        CASE WHEN @action = 1 /* ControlAction.Applied */ THEN @job_ref END AS job_ref;
 
     IF @entry_trancount = 0
         COMMIT TRANSACTION;

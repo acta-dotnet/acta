@@ -7,14 +7,15 @@ namespace Acta.Tests.Conformance.Operations.Schedules;
 
 /// <summary>
 /// Operator manual trigger of a single named schedule: admits a manual firing of the owning slot, a pending envelope
-/// with no contributors, so the next claim runs it, leaving the schedule's own cursor (and cadence) untouched. A
-/// paused schedule, or a slot that is not Idle, rejects rather than queueing a second firing.
+/// with no contributors, so the next claim runs it, or a new root on a per-occurrence schedule, leaving the schedule's
+/// own cursor (and cadence) untouched and answering the ref of the job it made ready. A paused schedule, a slot that is
+/// not Idle, or a per-occurrence schedule at capacity rejects rather than queueing a second firing.
 /// </summary>
 [ConformanceSpec(
     "schedule.trigger",
     "Operator manually fires a schedule now without disturbing its cadence",
     Area = "Scheduling",
-    Contract = "Triggering a schedule on an Idle slot admits a manual firing without moving the schedule's own cursor, and a paused schedule or a busy slot rejects."
+    Contract = "A trigger makes the Idle slot or a new per-occurrence root ready, answers its ref, and keeps the cursor, and a paused, busy, or full schedule rejects."
 )]
 public sealed class TriggerScheduleSpec : ActaStorageTestBase<ConformanceFixture>
 {
@@ -50,9 +51,11 @@ public sealed class TriggerScheduleSpec : ActaStorageTestBase<ConformanceFixture
 
         Assert.Equal(ControlAction.Applied, result.Action);
 
-        // The slot is claimable at once, carrying the manual firing's envelope for the attempt to read.
+        // The slot is claimable at once, carrying the manual firing's envelope for the attempt to read, and the answer
+        // names it as the job the call fired.
         var slot = await SlotAsync(jobName, ct);
         Assert.Equal(JobStatusCode.Ready, slot.Status);
+        Assert.Equal(new JobRef(slot.JobRef), result.JobRef);
         Assert.NotNull(slot.NextRunAtUtc);
         Assert.InRange(slot.NextRunAtUtc!.Value, tBefore.AddSeconds(-2), tAfter.AddSeconds(10));
         var slotId = await SlotIdAsync(jobName, ct);
@@ -64,7 +67,9 @@ public sealed class TriggerScheduleSpec : ActaStorageTestBase<ConformanceFixture
         Assert.Empty(envelope.Contributors);
 
         // A second trigger finds the slot busy with the first firing and rejects rather than queueing behind it.
-        Assert.Equal(ControlAction.Rejected, (await Schedules.TriggerAsync(Lookup(jobName, "only"), ct: ct)).Action);
+        var second = await Schedules.TriggerAsync(Lookup(jobName, "only"), ct: ct);
+        Assert.Equal(ControlAction.Rejected, second.Action);
+        Assert.Null(second.JobRef);
 
         // The schedule's OWN cursor and version are never written by this verb: cadence is preserved.
         var after = await ScheduleAsync(Db, jobName, "only", ct);
@@ -75,6 +80,39 @@ public sealed class TriggerScheduleSpec : ActaStorageTestBase<ConformanceFixture
         var triggered = await ReadSingleEventAsync(slotId, EventCode.ScheduleTriggered, ct);
         Assert.Equal("only", EventDetail(triggered, "schedule"));
         Assert.Equal("fire now", triggered.EventMessage);
+    }
+
+    [Fact(
+        DisplayName = "Triggering a per-occurrence schedule admits a new root ready at once, answers its ref, and rejects a second one at capacity"
+    )]
+    public async Task Triggering_a_per_occurrence_schedule_answers_the_root_it_admitted()
+    {
+        var ct = TestContext.Current.CancellationToken;
+        var (db, dialect) = Store();
+        var now = FloorSeconds(await NowAsync(ct));
+        var jobName = Unique("roots");
+        var defId = await CreateDefinitionAsync(db, dialect, jobName, ct, ScheduledDeliveryCode.PerOccurrence);
+        var farFuture = now.AddHours(6);
+        await RegisterAsync(db, dialect, defId, jobName, [Slot("only", farFuture)], ct, ScheduledDeliveryCode.PerOccurrence);
+        var schedule = await Db.From<ScheduleEntity>()
+            .Where(s => s.DefinitionId == defId && s.ScheduleName == "only")
+            .SingleOrDefaultAsync(ct);
+        Assert.NotNull(schedule);
+
+        var result = await Schedules.TriggerAsync(Lookup(jobName, "only"), ct: ct);
+
+        Assert.Equal(ControlAction.Applied, result.Action);
+        var root = Assert.Single(await Db.From<JobEntity>().Where(j => j.ScheduleId == schedule.Id).ToListAsync(ct));
+        Assert.Equal(new JobRef(root.JobRef), result.JobRef);
+        Assert.Equal(JobKindCode.Ordinary, root.Kind);
+        Assert.Equal(JobStatusCode.Ready, (await ReadJobAsync(root.Id, ct)).Status);
+        var state = await Db.From<ScheduleStateEntity>().Where(s => s.Id == schedule.Id).SingleOrDefaultAsync(ct);
+        Assert.Equal(farFuture, state!.NextOccurrenceAtUtc);
+
+        // The root is outstanding against a capacity of one, so a second trigger is rejected and answers no job.
+        var second = await Schedules.TriggerAsync(Lookup(jobName, "only"), ct: ct);
+        Assert.Equal(ControlAction.Rejected, second.Action);
+        Assert.Null(second.JobRef);
     }
 
     [Fact(DisplayName = "Triggering a paused schedule is rejected and leaves the slot and schedule untouched")]
@@ -184,9 +222,15 @@ public sealed class TriggerScheduleSpec : ActaStorageTestBase<ConformanceFixture
     private static Task SetRuntimeStatusAsync(IDbSession db, long jobId, byte statusCode, CancellationToken ct) =>
         JobStateStaging.SetStatusAsync(db, jobId, statusCode, ct);
 
-    private async Task<int> CreateDefinitionAsync(IDbSession db, ISqlDialect dialect, string jobName, CancellationToken ct)
+    private async Task<int> CreateDefinitionAsync(
+        IDbSession db,
+        ISqlDialect dialect,
+        string jobName,
+        CancellationToken ct,
+        ScheduledDeliveryCode delivery = ScheduledDeliveryCode.Permanent
+    )
     {
-        var map = await DefinitionTestOps.RegisterAsync(Services, TestNamespaceId, Generation, [Def(jobName)], ct);
+        var map = await DefinitionTestOps.RegisterAsync(Services, TestNamespaceId, Generation, [Def(jobName, delivery)], ct);
         return map[jobName];
     }
 
@@ -196,7 +240,8 @@ public sealed class TriggerScheduleSpec : ActaStorageTestBase<ConformanceFixture
         int defId,
         string jobName,
         IReadOnlyList<SlotSchedule> schedules,
-        CancellationToken ct
+        CancellationToken ct,
+        ScheduledDeliveryCode delivery = ScheduledDeliveryCode.Permanent
     )
     {
         var definition = new DefinitionSchedules(
@@ -205,7 +250,7 @@ public sealed class TriggerScheduleSpec : ActaStorageTestBase<ConformanceFixture
             InputFormatId: 0,
             Input: ReadOnlyMemory<byte>.Empty,
             EventRecording: EventRecordingCode.Audit,
-            ScheduledDelivery: ScheduledDeliveryCode.Permanent,
+            ScheduledDelivery: delivery,
             Schedules: schedules
         );
         await ScheduleTestOps.RegisterAsync(Services, [definition], ct);
@@ -227,7 +272,7 @@ public sealed class TriggerScheduleSpec : ActaStorageTestBase<ConformanceFixture
         return await ReadJobAsync(slotId, ct);
     }
 
-    private static JobDescriptor Def(string name) =>
+    private static JobDescriptor Def(string name, ScheduledDeliveryCode delivery) =>
         new(
             JobName: name,
             HandlerType: typeof(object),
@@ -241,7 +286,7 @@ public sealed class TriggerScheduleSpec : ActaStorageTestBase<ConformanceFixture
             EventRecording: EventRecordingCode.Audit,
             AlertProfile: default,
             FiringFailurePolicy: FiringFailurePolicyCode.Continue,
-            ScheduledDelivery: ScheduledDeliveryCode.Permanent,
+            ScheduledDelivery: delivery,
             Invoker: null!,
             DeserializeInput: null!,
             SerializeResult: null

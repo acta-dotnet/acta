@@ -2738,8 +2738,9 @@ static class Acta.TextLimits
     const System.Int32 TenantDescription = 512
     const System.Int32 TenantDisplayName = 128
 sealed record Acta.TriggerScheduleResponse : Acta.IScheduleControlResponse
-    .ctor(Acta.ControlAction Action, System.Nullable<Acta.ScheduleStatusCode> Status, System.Nullable<System.DateTime> PausedUntilUtc, System.Nullable<System.DateTime> NextOccurrenceAtUtc, System.Nullable<System.Int32> Version)
+    .ctor(Acta.ControlAction Action, System.Nullable<Acta.ScheduleStatusCode> Status, System.Nullable<System.DateTime> PausedUntilUtc, System.Nullable<System.DateTime> NextOccurrenceAtUtc, System.Nullable<System.Int32> Version, System.Nullable<Acta.JobRef> JobRef)
     Acta.ControlAction Action { get;init; }
+    System.Nullable<Acta.JobRef> JobRef { get;init; }
     System.Nullable<Acta.ScheduleStatusCode> Status { get;init; }
     System.Nullable<System.DateTime> NextOccurrenceAtUtc { get;init; }
     System.Nullable<System.DateTime> PausedUntilUtc { get;init; }

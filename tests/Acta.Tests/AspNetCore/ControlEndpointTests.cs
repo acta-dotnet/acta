@@ -710,6 +710,7 @@ public sealed class ControlEndpointTests
 
         Assert.Equal(HttpStatusCode.OK, response.StatusCode);
         Assert.Contains("\"action\":\"applied\"", body);
+        Assert.Contains($"\"jobRef\":\"{FakeSchedules.SlotJobRef}\"", body);
         var call = Assert.Single(fakes.Schedules.TriggerCalls);
         Assert.Equal(("only", "because", (string?)null), call);
     }
@@ -724,6 +725,7 @@ public sealed class ControlEndpointTests
         var response = await client.SendAsync(PostTrigger(scheduleName: "missing"), TestContext.Current.CancellationToken);
 
         Assert.Equal(HttpStatusCode.NotFound, response.StatusCode);
+        Assert.Contains("\"jobRef\":null", await response.Content.ReadAsStringAsync(TestContext.Current.CancellationToken));
         Assert.Empty(fakes.Schedules.TriggerCalls);
     }
 

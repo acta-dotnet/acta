@@ -2187,9 +2187,10 @@
   - Preview on a sys. system schedule returns occurrences instead of a reserved-name error
 
 ### Operator manually fires a schedule now without disturbing its cadence
-- **Contract:** Triggering a schedule on an Idle slot admits a manual firing without moving the schedule's own cursor, and a paused schedule or a busy slot rejects.
+- **Contract:** A trigger makes the Idle slot or a new per-occurrence root ready, answers its ref, and keeps the cursor, and a paused, busy, or full schedule rejects.
 - **Guarantees:**
   - Triggering an Idle slot's schedule admits a manual firing now, leaves the schedule's own cursor untouched, audits it, and rejects a second one behind it
+  - Triggering a per-occurrence schedule admits a new root ready at once, answers its ref, and rejects a second one at capacity
   - Triggering a paused schedule is rejected and leaves the slot and schedule untouched
   - Triggering a schedule whose slot is mid-execution is rejected because a fire is already in flight
   - Triggering a schedule whose slot is terminal is rejected with no phantom applied and no schedule.triggered event
