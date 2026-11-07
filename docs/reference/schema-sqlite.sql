@@ -53,11 +53,11 @@ CREATE TEMP TABLE release_guard (
 INSERT INTO release_guard
 SELECT EXISTS (
     SELECT 1 FROM main.migrations
-    WHERE name NOT IN ('M20261107193439_init')
+    WHERE name NOT IN ('M20261107195839_init')
 );
 DROP TABLE release_guard;
 
--- ===== BEGIN M20261107193439_init =====
+-- ===== BEGIN M20261107195839_init =====
 CREATE TABLE IF NOT EXISTS main.alerts (
     alert_id integer PRIMARY KEY AUTOINCREMENT,
     alert_ref text NOT NULL,
@@ -412,8 +412,6 @@ CREATE TABLE IF NOT EXISTS main.steps (
     job_id integer NOT NULL,
     step_name text NOT NULL,
     step_status_code integer NOT NULL,
-    attempt_number integer NOT NULL,
-    next_retry_at_utc integer NULL,
     failure_code integer NULL,
     failure_message text NULL,
     result_format_id integer NOT NULL,
@@ -423,8 +421,6 @@ CREATE TABLE IF NOT EXISTS main.steps (
     version integer DEFAULT 0 NOT NULL
     , CONSTRAINT pk_steps PRIMARY KEY (job_id, step_name)
     , CONSTRAINT ck_steps_result_pair CHECK ((result_format_id = 0 AND result IS NULL) OR (result_format_id <> 0 AND result IS NOT NULL))
-    , CONSTRAINT ck_steps_attempt_number CHECK (attempt_number >= 1)
-    , CONSTRAINT ck_steps_terminal_no_retry CHECK (step_status_code NOT IN (100, 200, 230) OR next_retry_at_utc IS NULL)
     , CONSTRAINT ck_steps_result_succeeded CHECK (result_format_id = 0 OR step_status_code = 100)
     , CONSTRAINT ck_steps_failure_pair CHECK (failure_message IS NULL OR failure_code IS NOT NULL)
     , CONSTRAINT ck_steps_result_format_id_byte CHECK (result_format_id BETWEEN 0 AND 255)
@@ -789,8 +785,6 @@ SELECT
     s.step_name,
     CASE s.step_status_code WHEN 0 THEN 'unspecified' WHEN 10 THEN 'pending' WHEN 100 THEN 'succeeded' WHEN 200 THEN 'exhausted' WHEN 230 THEN 'interrupted' END AS step_status,
     s.step_status_code,
-    s.attempt_number,
-    s.next_retry_at_utc,
     CASE s.failure_code WHEN 0 THEN 'unspecified' WHEN 10 THEN 'unhandled-exception' WHEN 20 THEN 'interrupted' END AS failure,
     s.failure_code,
     s.failure_message,
@@ -843,10 +837,10 @@ JOIN main.namespaces AS ns ON ns.namespace_id = w.namespace_id;
 
 
 INSERT INTO main.migrations (name)
-VALUES ('M20261107193439_init')
+VALUES ('M20261107195839_init')
 ON CONFLICT (name) DO NOTHING;
 
--- ===== END M20261107193439_init =====
+-- ===== END M20261107195839_init =====
 
 COMMIT;
 

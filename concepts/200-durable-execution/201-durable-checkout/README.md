@@ -73,7 +73,7 @@ one level deeper only to compare `jobs` with `jobs_state` and to show the result
 base tables explain Acta's design; applications should normally use `IJobs`, and operational tooling
 should prefer the curated views. Base tables are not the storage compatibility contract.
 
-Notice that `execution_number` reaches three while every successful step remains on attempt one. The
+Notice that `execution_number` reaches three while every step keeps the one outcome it recorded. The
 plain approval log appears twice because signal and timer recovery both re-enter the handler; the
 completed step bodies are replay-skipped after their outcomes have been recorded.
 

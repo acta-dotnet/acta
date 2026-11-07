@@ -65,31 +65,76 @@ public static class JobStepProbes
         await ctx.SetVariableAsync("step.value", value, ct);
     }
 
-    // In-budget retry: the body fails the first two invocations, then succeeds. Backoff is zero so the
-    // parent re-arms immediately claimable; the parent failure budget must stay untouched.
-    [Job("job-step-retry")]
-    public static async Task StepRetry(JobContext ctx, CancellationToken ct)
-    {
-        await ctx.RunStepAsync(
-            "flaky",
-            async _ =>
+    /// <summary>Per-job, per-step body invocation count, for a spec that tells two steps of one job apart.</summary>
+    public static readonly ConcurrentDictionary<(long JobId, string Step), int> StepBodyInvocations = new();
+
+    private static int RecordStepInvocation(long jobId, string step) =>
+        StepBodyInvocations.AddOrUpdate((jobId, step), 1, static (_, n) => n + 1);
+
+    // A wait inside an ordinary step: the first pass suspends at the wait, and the replay runs the body again up to
+    // the wait, which returns because the signal is set.
+    [Job("job-step-wait")]
+    public static Task<string> StepWait(JobContext ctx, CancellationToken ct) =>
+        ctx.RunStepAsync(
+            "approve",
+            async token =>
+            {
+                RecordInvocation(ctx.JobId);
+                await ctx.WaitSignalAsync("approval", token);
+                return "approved";
+            },
+            ct: ct
+        );
+
+    // A wait inside an ordinary step, then one failure past it. MaxAttempts = 2 leaves that failure a retry only when
+    // the resume after the wait charged nothing.
+    [Job("job-step-wait-then-fail", MaxAttempts = 2, Backoff = "0s")]
+    public static Task StepWaitThenFail(JobContext ctx, CancellationToken ct) =>
+        ctx.RunStepAsync(
+            "approve",
+            async token =>
             {
                 var n = RecordInvocation(ctx.JobId);
-                await Task.CompletedTask;
-                if (n < 3)
+                await ctx.WaitSignalAsync("approval", token);
+                if (n == 2)
                 {
-                    throw new InvalidOperationException($"flaky failure #{n}");
+                    throw new InvalidOperationException("transient failure past the wait");
                 }
             },
-            options => options.MaxAttempts(5).BackoffInitialDelay(TimeSpan.Zero),
+            ct: ct
+        );
+
+    // Two steps; the second throws on its first invocation. The throw fails the attempt, and the retry replays the
+    // first step from its stored outcome.
+    [Job("job-step-throw", MaxAttempts = 3, Backoff = "0s")]
+    public static async Task StepThrow(JobContext ctx, CancellationToken ct)
+    {
+        await ctx.RunStepAsync(
+            "reserve",
+            _ =>
+            {
+                RecordStepInvocation(ctx.JobId, "reserve");
+                return Task.CompletedTask;
+            },
             ct
         );
-        await ctx.SetVariableAsync("step.done", true, ct);
+        await ctx.RunStepAsync(
+            "charge",
+            _ =>
+            {
+                if (RecordStepInvocation(ctx.JobId, "charge") == 1)
+                {
+                    throw new InvalidOperationException("card declined once");
+                }
+                return Task.CompletedTask;
+            },
+            ct
+        );
     }
 
-    // Exhaustion flows out as a normal handler failure. Parent MaxAttempts = 1 so the first uncaught
-    // StepExhaustedException lands the parent terminally Failed.
-    [Job("job-step-exhaust", MaxAttempts = 1)]
+    // An at-most-once body that throws exhausts the step. The parent's default budget has attempts left, so the job
+    // failing at once proves the uncaught StepExhaustedException is not retried.
+    [Job("job-step-exhaust")]
     public static Task StepExhaust(JobContext ctx, CancellationToken ct) =>
         ctx.RunStepAsync(
             "always-fails",
@@ -99,7 +144,7 @@ public static class JobStepProbes
                 await Task.CompletedTask;
                 throw new InvalidOperationException("boom");
             },
-            options => options.MaxAttempts(2).BackoffInitialDelay(TimeSpan.Zero),
+            options => options.AtMostOnce(),
             ct
         );
 }

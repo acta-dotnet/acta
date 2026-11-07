@@ -54,9 +54,6 @@ internal static class EventReason
     /// <summary>A raised signal or a child's outcome released a Suspended job to Ready.</summary>
     public const string SignalReleased = "signal-released";
 
-    /// <summary>An inline step failed within its budget, so the job re-armed until the step's retry instant.</summary>
-    public const string StepRetryScheduled = "step-retry-scheduled";
-
     /// <summary>A concurrency-key job found its key held at admission and re-armed after the bounce delay.</summary>
     public const string ConcurrencyKeyHeld = "concurrency-key-held";
 

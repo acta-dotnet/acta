@@ -365,8 +365,6 @@ CREATE TABLE IF NOT EXISTS {{schema}}.steps (
     job_id bigint NOT NULL,
     step_name varchar(128) NOT NULL,
     step_status_code smallint NOT NULL,
-    attempt_number integer NOT NULL,
-    next_retry_at_utc timestamptz NULL,
     failure_code smallint NULL,
     failure_message varchar(512) NULL,
     result_format_id smallint NOT NULL,
@@ -376,8 +374,6 @@ CREATE TABLE IF NOT EXISTS {{schema}}.steps (
     version integer DEFAULT 0 NOT NULL
     , CONSTRAINT pk_steps PRIMARY KEY (job_id, step_name)
     , CONSTRAINT ck_steps_result_pair CHECK ((result_format_id = 0 AND result IS NULL) OR (result_format_id <> 0 AND result IS NOT NULL))
-    , CONSTRAINT ck_steps_attempt_number CHECK (attempt_number >= 1)
-    , CONSTRAINT ck_steps_terminal_no_retry CHECK (step_status_code NOT IN (100, 200, 230) OR next_retry_at_utc IS NULL)
     , CONSTRAINT ck_steps_result_succeeded CHECK (result_format_id = 0 OR step_status_code = 100)
     , CONSTRAINT ck_steps_failure_pair CHECK (failure_message IS NULL OR failure_code IS NOT NULL)
     , CONSTRAINT ck_steps_result_format_id_byte CHECK (result_format_id BETWEEN 0 AND 255)
@@ -1611,23 +1607,15 @@ CREATE OR REPLACE FUNCTION {{schema}}.complete_job_step(
     p_result BYTEA,
     p_failure_code SMALLINT,
     p_failure_message VARCHAR,
-    p_delay_seconds INT,
-    p_max_attempts INT,
-    p_retry_window_seconds INT,
     p_version INT
 )
 RETURNS TABLE (
-    outcome_code SMALLINT,
-    next_retry_at_utc TIMESTAMPTZ
+    outcome_code SMALLINT
 )
 LANGUAGE plpgsql
 AS $$
 DECLARE
     v_now TIMESTAMPTZ := now();
-    v_attempt INT;
-    v_created TIMESTAMPTZ;
-    v_next TIMESTAMPTZ;
-    v_exhaust BOOLEAN;
     v_rows INT;
 BEGIN
     -- The step changes only while this attempt holds the job's row, share-locked to commit before the step row
@@ -1646,68 +1634,24 @@ BEGIN
             USING ERRCODE = 'P0001';
     END IF;
 
-    SELECT a.attempt_number, a.created_at_utc INTO v_attempt, v_created
-    FROM {{schema}}.steps a
-    WHERE a.job_id = p_job_id AND a.step_name = p_step_name;
+    -- Only an at-most-once body records a failure, and the failure ends the step Exhausted.
+    UPDATE {{schema}}.steps a
+    SET
+        step_status_code = CASE WHEN p_succeeded THEN 100 /* StepStatusCode.Succeeded */ ELSE 200 /* StepStatusCode.Exhausted */ END,
+        result_format_id = p_result_format_id,
+        result = p_result,
+        failure_code = p_failure_code,
+        failure_message = p_failure_message,
+        modified_at_utc = v_now,
+        version = a.version + 1
+    WHERE a.job_id = p_job_id AND a.step_name = p_step_name AND a.version = p_version;
+    GET DIAGNOSTICS v_rows = ROW_COUNT;
 
-    IF p_succeeded THEN
-        UPDATE {{schema}}.steps a
-        SET
-            step_status_code = 100 /* StepStatusCode.Succeeded */,
-            result_format_id = p_result_format_id,
-            result = p_result,
-            next_retry_at_utc = NULL,
-            /* A success supersedes any earlier failed attempt, so the row must not keep that attempt's
-               failure snapshot: a Succeeded row with a failure_code reads as a failure to every post-mortem query. */
-            failure_code = NULL,
-            failure_message = NULL,
-            modified_at_utc = v_now,
-            version = a.version + 1
-        WHERE a.job_id = p_job_id AND a.step_name = p_step_name AND a.version = p_version;
-        GET DIAGNOSTICS v_rows = ROW_COUNT;
-
-        RETURN QUERY SELECT CASE WHEN v_rows = 0
-            THEN 4 /* CompleteJobStepOutcomeCode.StaleVersion */
-            ELSE 1 /* CompleteJobStepOutcomeCode.Succeeded */ END::SMALLINT, NULL::TIMESTAMPTZ;
-        RETURN;
-    END IF;
-
-    v_next := v_now + make_interval(secs => p_delay_seconds);
-    v_exhaust := (v_attempt >= p_max_attempts)
-        OR (p_retry_window_seconds IS NOT NULL
-            AND v_next > v_created + make_interval(secs => p_retry_window_seconds));
-
-    IF v_exhaust THEN
-        UPDATE {{schema}}.steps a
-        SET
-            step_status_code = 200 /* StepStatusCode.Exhausted */,
-            next_retry_at_utc = NULL,
-            failure_code = p_failure_code,
-            failure_message = p_failure_message,
-            modified_at_utc = v_now,
-            version = a.version + 1
-        WHERE a.job_id = p_job_id AND a.step_name = p_step_name AND a.version = p_version;
-        GET DIAGNOSTICS v_rows = ROW_COUNT;
-
-        RETURN QUERY SELECT CASE WHEN v_rows = 0
-            THEN 4 /* CompleteJobStepOutcomeCode.StaleVersion */
-            ELSE 3 /* CompleteJobStepOutcomeCode.Exhausted */ END::SMALLINT, NULL::TIMESTAMPTZ;
-    ELSE
-        UPDATE {{schema}}.steps a
-        SET
-            next_retry_at_utc = v_next,
-            failure_code = p_failure_code,
-            failure_message = p_failure_message,
-            modified_at_utc = v_now,
-            version = a.version + 1
-        WHERE a.job_id = p_job_id AND a.step_name = p_step_name AND a.version = p_version;
-        GET DIAGNOSTICS v_rows = ROW_COUNT;
-
-        RETURN QUERY SELECT CASE WHEN v_rows = 0
-            THEN 4 /* CompleteJobStepOutcomeCode.StaleVersion */
-            ELSE 2 /* CompleteJobStepOutcomeCode.RetryScheduled */ END::SMALLINT,
-            CASE WHEN v_rows = 0 THEN NULL ELSE v_next END;
-    END IF;
+    RETURN QUERY SELECT CASE
+        WHEN v_rows = 0 THEN 4 /* CompleteJobStepOutcomeCode.StaleVersion */
+        WHEN p_succeeded THEN 1 /* CompleteJobStepOutcomeCode.Succeeded */
+        ELSE 3 /* CompleteJobStepOutcomeCode.Exhausted */
+    END::SMALLINT;
 END;
 $$;
 
@@ -3718,9 +3662,7 @@ CREATE OR REPLACE FUNCTION {{schema}}.start_job_step(
 )
 RETURNS TABLE (
     outcome_code SMALLINT,
-    attempt_number INT,
     version INT,
-    next_retry_at_utc TIMESTAMPTZ,
     result_format_id SMALLINT,
     result BYTEA,
     failure_code SMALLINT,
@@ -3731,9 +3673,7 @@ AS $$
 DECLARE
     v_now TIMESTAMPTZ := now();
     v_state SMALLINT;
-    v_attempt INT;
     v_version INT;
-    v_next TIMESTAMPTZ;
     v_rfid SMALLINT;
     v_result BYTEA;
     v_rcode SMALLINT;
@@ -3757,14 +3697,12 @@ BEGIN
 
     SELECT
         a.step_status_code,
-        a.attempt_number,
         a.version,
-        a.next_retry_at_utc,
         a.result_format_id,
         a.result,
         a.failure_code,
         a.failure_message
-    INTO v_state, v_attempt, v_version, v_next, v_rfid, v_result, v_rcode, v_rmsg
+    INTO v_state, v_version, v_rfid, v_result, v_rcode, v_rmsg
     FROM {{schema}}.steps a
     WHERE
         a.job_id = p_job_id
@@ -3776,7 +3714,6 @@ BEGIN
             job_id,
             step_name,
             step_status_code,
-            attempt_number,
             result_format_id,
             created_at_utc,
             modified_at_utc,
@@ -3785,18 +3722,17 @@ BEGIN
             p_job_id,
             p_step_name,
             10 /* StepStatusCode.Pending */,
-            1,
             0 /* JobPayloadFormat.None */,
             v_now,
             v_now,
             0)
         ON CONFLICT (job_id, step_name) DO NOTHING
-        RETURNING steps.attempt_number, steps.version
-        INTO v_attempt, v_version;
+        RETURNING steps.version
+        INTO v_version;
 
         IF FOUND THEN
-            RETURN QUERY SELECT 1 /* StartJobStepOutcomeCode.Invoke */::SMALLINT, v_attempt, v_version,
-                NULL::TIMESTAMPTZ, 0 /* JobPayloadFormat.None */::SMALLINT, NULL::BYTEA, NULL::SMALLINT, NULL::VARCHAR;
+            RETURN QUERY SELECT 1 /* StartJobStepOutcomeCode.Invoke */::SMALLINT, v_version,
+                0 /* JobPayloadFormat.None */::SMALLINT, NULL::BYTEA, NULL::SMALLINT, NULL::VARCHAR;
             RETURN;
         END IF;
 
@@ -3804,14 +3740,12 @@ BEGIN
         -- queues this caller behind that insert.
         SELECT
             a.step_status_code,
-            a.attempt_number,
             a.version,
-            a.next_retry_at_utc,
             a.result_format_id,
             a.result,
             a.failure_code,
             a.failure_message
-        INTO v_state, v_attempt, v_version, v_next, v_rfid, v_result, v_rcode, v_rmsg
+        INTO v_state, v_version, v_rfid, v_result, v_rcode, v_rmsg
         FROM {{schema}}.steps a
         WHERE
             a.job_id = p_job_id
@@ -3821,20 +3755,16 @@ BEGIN
 
     IF v_state = 100 /* StepStatusCode.Succeeded */ THEN
 
-        RETURN QUERY SELECT 3 /* StartJobStepOutcomeCode.ReplaySuccess */::SMALLINT, v_attempt, v_version,
-            NULL::TIMESTAMPTZ, v_rfid, v_result, NULL::SMALLINT, NULL::VARCHAR;
+        RETURN QUERY SELECT 3 /* StartJobStepOutcomeCode.ReplaySuccess */::SMALLINT, v_version,
+            v_rfid, v_result, NULL::SMALLINT, NULL::VARCHAR;
     ELSIF v_state = 200 /* StepStatusCode.Exhausted */ THEN
 
-        RETURN QUERY SELECT 4 /* StartJobStepOutcomeCode.Exhausted */::SMALLINT, v_attempt, v_version,
-            NULL::TIMESTAMPTZ, 0 /* JobPayloadFormat.None */::SMALLINT, NULL::BYTEA, v_rcode, v_rmsg;
+        RETURN QUERY SELECT 4 /* StartJobStepOutcomeCode.Exhausted */::SMALLINT, v_version,
+            0 /* JobPayloadFormat.None */::SMALLINT, NULL::BYTEA, v_rcode, v_rmsg;
     ELSIF v_state = 230 /* StepStatusCode.Interrupted */ THEN
         -- Terminal at-most-once ambiguity from an earlier replay; re-throw consistently, no mutation.
-        RETURN QUERY SELECT 5 /* StartJobStepOutcomeCode.Interrupted */::SMALLINT, v_attempt, v_version,
-            NULL::TIMESTAMPTZ, 0 /* JobPayloadFormat.None */::SMALLINT, NULL::BYTEA, NULL::SMALLINT, NULL::VARCHAR;
-    ELSIF v_next IS NOT NULL AND v_next > v_now THEN
-
-        RETURN QUERY SELECT 2 /* StartJobStepOutcomeCode.Suspend */::SMALLINT, v_attempt, v_version,
-            v_next, 0 /* JobPayloadFormat.None */::SMALLINT, NULL::BYTEA, NULL::SMALLINT, NULL::VARCHAR;
+        RETURN QUERY SELECT 5 /* StartJobStepOutcomeCode.Interrupted */::SMALLINT, v_version,
+            0 /* JobPayloadFormat.None */::SMALLINT, NULL::BYTEA, NULL::SMALLINT, NULL::VARCHAR;
     ELSIF p_at_most_once THEN
         -- Pending step re-entered on replay under AtMostOnce: the worker died after start_job_step recorded
         -- the pending row but before complete_job_step. Do not re-invoke; terminalize the row Interrupted
@@ -3842,7 +3772,6 @@ BEGIN
         UPDATE {{schema}}.steps a
         SET
             step_status_code = 230 /* StepStatusCode.Interrupted */,
-            next_retry_at_utc = NULL,
             failure_code = 20 /* StepFailureCode.Interrupted */,
             failure_message = 'At-most-once step re-entered before completion; outcome unknown.',
             modified_at_utc = v_now,
@@ -3852,23 +3781,12 @@ BEGIN
             AND a.step_name = p_step_name
         RETURNING a.version INTO v_version;
 
-        RETURN QUERY SELECT 5 /* StartJobStepOutcomeCode.Interrupted */::SMALLINT, v_attempt, v_version,
-            NULL::TIMESTAMPTZ, 0 /* JobPayloadFormat.None */::SMALLINT, NULL::BYTEA, NULL::SMALLINT, NULL::VARCHAR;
+        RETURN QUERY SELECT 5 /* StartJobStepOutcomeCode.Interrupted */::SMALLINT, v_version,
+            0 /* JobPayloadFormat.None */::SMALLINT, NULL::BYTEA, NULL::SMALLINT, NULL::VARCHAR;
     ELSE
-        -- The next attempt spends the retry instant, as SQLite's start_job_step does.
-        UPDATE {{schema}}.steps a
-        SET
-            attempt_number = a.attempt_number + 1,
-            next_retry_at_utc = NULL,
-            modified_at_utc = v_now,
-            version = a.version + 1
-        WHERE
-            a.job_id = p_job_id
-            AND a.step_name = p_step_name
-        RETURNING a.attempt_number, a.version INTO v_attempt, v_version;
-
-        RETURN QUERY SELECT 1 /* StartJobStepOutcomeCode.Invoke */::SMALLINT, v_attempt, v_version,
-            NULL::TIMESTAMPTZ, 0 /* JobPayloadFormat.None */::SMALLINT, NULL::BYTEA, NULL::SMALLINT, NULL::VARCHAR;
+        -- An ordinary step with no success recorded runs again, its row unchanged.
+        RETURN QUERY SELECT 1 /* StartJobStepOutcomeCode.Invoke */::SMALLINT, v_version,
+            0 /* JobPayloadFormat.None */::SMALLINT, NULL::BYTEA, NULL::SMALLINT, NULL::VARCHAR;
     END IF;
 END;
 $$;
@@ -4339,8 +4257,6 @@ SELECT
     s.step_name,
     CASE s.step_status_code WHEN 0 THEN 'unspecified' WHEN 10 THEN 'pending' WHEN 100 THEN 'succeeded' WHEN 200 THEN 'exhausted' WHEN 230 THEN 'interrupted' END AS step_status,
     s.step_status_code,
-    s.attempt_number,
-    s.next_retry_at_utc,
     CASE s.failure_code WHEN 0 THEN 'unspecified' WHEN 10 THEN 'unhandled-exception' WHEN 20 THEN 'interrupted' END AS failure,
     s.failure_code,
     s.failure_message,
@@ -4391,5 +4307,5 @@ JOIN {{schema}}.namespaces AS ns ON ns.namespace_id = w.namespace_id;
 
 
 INSERT INTO {{schema}}.migrations (name)
-VALUES ('M20261107193439_init')
+VALUES ('M20261107195839_init')
 ON CONFLICT (name) DO NOTHING;

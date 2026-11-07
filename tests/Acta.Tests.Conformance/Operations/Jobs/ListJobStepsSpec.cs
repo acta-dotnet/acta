@@ -49,7 +49,6 @@ public sealed class ListJobStepsSpec : ActaRuntimeTestBase<ConformanceFixture, T
         Assert.Equal(3, seen.Count);
         Assert.Equal(3, seen.Select(step => step.Name).Distinct().Count());
         Assert.All(seen, step => Assert.Equal(StepStatusCode.Pending, step.Status));
-        Assert.All(seen, step => Assert.Equal(1, step.AttemptNumber));
         // Newest first: each step was created no later than the one listed before it.
         Assert.True(seen.Zip(seen.Skip(1)).All(pair => pair.First.CreatedAtUtc >= pair.Second.CreatedAtUtc));
     }
@@ -66,7 +65,7 @@ public sealed class ListJobStepsSpec : ActaRuntimeTestBase<ConformanceFixture, T
         {
             await using var cmd = connection.CreateCommand();
             cmd.CommandText =
-                $"INSERT INTO {Db.Schema}.steps (job_id, step_name, step_status_code, attempt_number, result_format_id) VALUES ({jobId}, 'a', 10, 1, 0), ({jobId}, 'b', 10, 1, 0), ({jobId}, 'c', 10, 1, 0)";
+                $"INSERT INTO {Db.Schema}.steps (job_id, step_name, step_status_code, result_format_id) VALUES ({jobId}, 'a', 10, 0), ({jobId}, 'b', 10, 0), ({jobId}, 'c', 10, 0)";
             Assert.Equal(3, await cmd.ExecuteNonQueryAsync(ct));
         }
 

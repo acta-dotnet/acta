@@ -104,6 +104,7 @@ public abstract partial class JobContext
     )
         where TInput : notnull
     {
+        ThrowIfInAtMostOnceStep(nameof(ExecuteChildAsync));
         var child = await StartChildAsync(name, input, configure, ct);
         var outcome = await WaitChildAsync(child.JobId, ct);
         return ToJobOutcome(child, outcome.Status);
@@ -134,8 +135,9 @@ public abstract partial class JobContext
     )
         where TInput : notnull
     {
-        // Checked before the child is started, not when the wait reaches it: a rejected timeout must not
+        // Checked before the child is started, not when the wait reaches it: a rejected call must not
         // leave an enqueued child behind that nothing is going to wait for.
+        ThrowIfInAtMostOnceStep(nameof(ExecuteChildAsync));
         ToWaitTimeoutSeconds(timeout);
         var child = await StartChildAsync(name, input, configure, ct);
         // One child needs no group deadline checkpoint: the latch's own stored expiration already is the one
@@ -187,6 +189,7 @@ public abstract partial class JobContext
         where TInput : notnull
         where TResult : notnull
     {
+        ThrowIfInAtMostOnceStep(nameof(ExecuteChildAsync));
         var child = await StartChildAsync(name, input, configure, ct);
         var outcome = await WaitChildAsync(child.JobId, ct);
         if (outcome.Status != JobStatusCode.Succeeded)
@@ -226,6 +229,7 @@ public abstract partial class JobContext
         where TInput : notnull
         where TResult : notnull
     {
+        ThrowIfInAtMostOnceStep(nameof(ExecuteChildAsync));
         ToWaitTimeoutSeconds(timeout);
         var child = await StartChildAsync(name, input, configure, ct);
         var result = await TryWaitChildAsync(child.JobId, timeout, ct);

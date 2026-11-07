@@ -33,7 +33,7 @@ public sealed class WorkerExecutorOutcomeTests
 
         var outcome = await harness.RunAsync(
             static (_, _) =>
-                throw new StepExhaustedException(WorkerExecutorHarness.StepName, 3, StepFailureCode.UnhandledException, "declined")
+                throw new StepExhaustedException(WorkerExecutorHarness.StepName, StepFailureCode.UnhandledException, "declined")
         );
 
         Assert.Equal(RunOnceStatus.Failed, outcome);

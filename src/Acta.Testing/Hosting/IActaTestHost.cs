@@ -40,9 +40,6 @@ public interface IActaTestHost : IAsyncDisposable
     /// <summary>Move the next pending timer checkpoint, or the named pending timer, into the past.</summary>
     Task ForceTimerDueAsync(long jobId, string? name = null, CancellationToken ct = default);
 
-    /// <summary>Move the next pending step retry, or the named pending step retry, into the past.</summary>
-    Task ForceStepRetryDueAsync(long jobId, string? name = null, CancellationToken ct = default);
-
     /// <summary>
     /// Move a bounded signal or child wait's stored expiration, and the job's next-run instant, into
     /// the past so the next tick claims the Suspended job and resolves the wait as timed out. Throws

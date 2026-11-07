@@ -76,6 +76,16 @@ public abstract partial class JobContext
     public virtual int ExecutionNumber => 1;
 
     /// <summary>
+    /// Whether a retryable failure of this attempt would end the job for good, or a permanent job's current firing, whose
+    /// next firing has a fresh budget: the charged failures leave no <c>MaxAttempts</c> for a retry, or its backoff would pass
+    /// a <c>Strict</c> deadline, which the completion reads again, so near the deadline the answer can change before it lands.
+    /// Counts charged failures, never <see cref="ExecutionNumber"/>. A non-retryable exception (<see cref="StepExhaustedException"/>,
+    /// <see cref="NotSupportedException"/>, <see cref="NotImplementedException"/>) ends the job on any attempt, so a compensating
+    /// catch filters on it too. Best effort: a crash or a lost lease on the last attempt skips the catch. False in test contexts.
+    /// </summary>
+    public virtual bool IsLastAttempt => false;
+
+    /// <summary>
     /// The <c>workers</c> row id of the worker process running this attempt, for log correlation and
     /// for a handler that wants to stamp its own execution into a note. <c>0</c> when no worker owns
     /// the context, which is the case only in test contexts. Not an affinity handle: the next attempt
@@ -107,6 +117,7 @@ public abstract partial class JobContext
     /// </summary>
     public Task RescheduleAsync(TimeSpan delay, string? reasonMessage = null, CancellationToken ct = default)
     {
+        ThrowIfInAtMostOnceStep(nameof(RescheduleAsync));
         ct.ThrowIfCancellationRequested();
         throw new RescheduleJobException(delay, reasonMessage);
     }
@@ -118,6 +129,7 @@ public abstract partial class JobContext
     /// </summary>
     public Task RescheduleUntilAsync(DateTimeOffset resumeAtUtc, string? reasonMessage = null, CancellationToken ct = default)
     {
+        ThrowIfInAtMostOnceStep(nameof(RescheduleUntilAsync));
         ct.ThrowIfCancellationRequested();
         throw new RescheduleJobException(resumeAtUtc, reasonMessage);
     }
@@ -156,6 +168,7 @@ public abstract partial class JobContext
     /// </summary>
     public Task PauseAsync(string? reasonMessage = null, CancellationToken ct = default)
     {
+        ThrowIfInAtMostOnceStep(nameof(PauseAsync));
         ct.ThrowIfCancellationRequested();
         throw new HandlerPauseException(reasonMessage);
     }

@@ -109,7 +109,6 @@ interface Acta.Testing.IActaTestHost : System.IAsyncDisposable
     System.Threading.Tasks.Task ForceGroupWaitTimeoutDueAsync(System.Int64 jobId, System.Threading.CancellationToken ct = default)
     System.Threading.Tasks.Task ForceJobDueAsync(System.Int64 jobId, System.Threading.CancellationToken ct = default)
     System.Threading.Tasks.Task ForceScheduleDueAsync(Acta.ScheduleLookup schedule, System.Threading.CancellationToken ct = default)
-    System.Threading.Tasks.Task ForceStepRetryDueAsync(System.Int64 jobId, System.String name = null, System.Threading.CancellationToken ct = default)
     System.Threading.Tasks.Task ForceTimerDueAsync(System.Int64 jobId, System.String name = null, System.Threading.CancellationToken ct = default)
     System.Threading.Tasks.Task ForceWaitTimeoutDueAsync(System.Int64 jobId, System.String name = null, System.Threading.CancellationToken ct = default)
     System.Threading.Tasks.Task<Acta.Testing.ActaAdmissionReport> AdmitOnceAsync(System.String jobNamespace, System.Threading.CancellationToken ct = default)
@@ -1305,6 +1304,7 @@ record struct Acta.JobCall<TInput, TResult>
     TInput Input { get;init; }
 abstract class Acta.JobContext
     Acta.JobRef JobRef { get; }
+    System.Boolean IsLastAttempt { get; }
     System.Boolean IsOverdue { get; }
     System.Collections.Generic.IReadOnlyList<Acta.TriggeringSchedule> TriggeringSchedules { get; }
     System.Int32 ExecutionNumber { get; }
@@ -1904,12 +1904,10 @@ sealed record Acta.ListJobCheckpointsResponse : Acta.IPagedResponse<Acta.ListJob
     System.Nullable<System.Int64> TotalCount { get;init; }
     System.String NextCursor { get;init; }
 sealed record Acta.ListJobStepsItem
-    .ctor(System.String Name, Acta.StepStatusCode Status, System.Int32 AttemptNumber, System.Nullable<System.DateTime> NextRetryAtUtc, System.String FailureMessage, System.DateTime CreatedAtUtc, System.DateTime ModifiedAtUtc)
+    .ctor(System.String Name, Acta.StepStatusCode Status, System.String FailureMessage, System.DateTime CreatedAtUtc, System.DateTime ModifiedAtUtc)
     Acta.StepStatusCode Status { get;init; }
     System.DateTime CreatedAtUtc { get;init; }
     System.DateTime ModifiedAtUtc { get;init; }
-    System.Int32 AttemptNumber { get;init; }
-    System.Nullable<System.DateTime> NextRetryAtUtc { get;init; }
     System.String FailureMessage { get;init; }
     System.String Name { get;init; }
 sealed record Acta.ListJobStepsQuery
@@ -2602,8 +2600,7 @@ sealed class Acta.SqlProviderOptions
     System.TimeSpan CommandTimeout { get;set; }
     const System.Int32 MaxDeadlockRetryAttempts = 100
 sealed class Acta.StepExhaustedException : System.Exception
-    .ctor(System.String stepName, System.Int32 attemptCount, System.Nullable<Acta.StepFailureCode> lastReasonCode, System.String lastReasonMessage)
-    System.Int32 AttemptCount { get; }
+    .ctor(System.String stepName, System.Nullable<Acta.StepFailureCode> lastReasonCode, System.String lastReasonMessage)
     System.Nullable<Acta.StepFailureCode> LastReasonCode { get; }
     System.String LastReasonMessage { get; }
     System.String StepName { get; }
@@ -2630,23 +2627,9 @@ sealed class Acta.StepInterruptedException : System.Exception
     System.String StepName { get; }
 sealed record Acta.StepOptions
     System.Boolean AtMostOnce { get;init; }
-    System.Nullable<System.Decimal> BackoffJitter { get;init; }
-    System.Nullable<System.Decimal> BackoffMultiplier { get;init; }
-    System.Nullable<System.Int32> BackoffInitialDelaySeconds { get;init; }
-    System.Nullable<System.Int32> BackoffMaxDelaySeconds { get;init; }
-    System.Nullable<System.Int32> MaxAttempts { get;init; }
-    System.Nullable<System.Int32> RetryWindowSeconds { get;init; }
     static readonly Acta.StepOptions Inherit
 sealed class Acta.StepOptionsBuilder
     Acta.StepOptionsBuilder AtMostOnce()
-    Acta.StepOptionsBuilder Backoff(System.String expression)
-    Acta.StepOptionsBuilder BackoffInitialDelay(System.TimeSpan delay)
-    Acta.StepOptionsBuilder BackoffJitter(System.Double jitter)
-    Acta.StepOptionsBuilder BackoffMaxDelay(System.TimeSpan delay)
-    Acta.StepOptionsBuilder BackoffMultiplier(System.Double multiplier)
-    Acta.StepOptionsBuilder MaxAttempts(System.Int32 maxAttempts)
-    Acta.StepOptionsBuilder RetryWindow(System.TimeSpan window)
-    Acta.StepOptionsBuilder WithPolicy(Acta.Backoff backoff)
 sealed class Acta.StepResultContractMismatchException : System.Exception
     .ctor(System.String stepName, System.Type expectedType, System.Exception innerException)
     System.String StepName { get; }

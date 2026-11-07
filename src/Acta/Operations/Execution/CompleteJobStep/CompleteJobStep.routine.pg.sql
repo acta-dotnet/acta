@@ -8,23 +8,15 @@ CREATE OR REPLACE FUNCTION {{schema}}.complete_job_step(
     p_result BYTEA,
     p_failure_code SMALLINT,
     p_failure_message VARCHAR,
-    p_delay_seconds INT,
-    p_max_attempts INT,
-    p_retry_window_seconds INT,
     p_version INT
 )
 RETURNS TABLE (
-    outcome_code SMALLINT,
-    next_retry_at_utc TIMESTAMPTZ
+    outcome_code SMALLINT
 )
 LANGUAGE plpgsql
 AS $$
 DECLARE
     v_now TIMESTAMPTZ := now();
-    v_attempt INT;
-    v_created TIMESTAMPTZ;
-    v_next TIMESTAMPTZ;
-    v_exhaust BOOLEAN;
     v_rows INT;
 BEGIN
     -- The step changes only while this attempt holds the job's row, share-locked to commit before the step row
@@ -43,67 +35,23 @@ BEGIN
             USING ERRCODE = 'P0001';
     END IF;
 
-    SELECT a.attempt_number, a.created_at_utc INTO v_attempt, v_created
-    FROM {{schema}}.steps a
-    WHERE a.job_id = p_job_id AND a.step_name = p_step_name;
+    -- Only an at-most-once body records a failure, and the failure ends the step Exhausted.
+    UPDATE {{schema}}.steps a
+    SET
+        step_status_code = CASE WHEN p_succeeded THEN 100 /* StepStatusCode.Succeeded */ ELSE 200 /* StepStatusCode.Exhausted */ END,
+        result_format_id = p_result_format_id,
+        result = p_result,
+        failure_code = p_failure_code,
+        failure_message = p_failure_message,
+        modified_at_utc = v_now,
+        version = a.version + 1
+    WHERE a.job_id = p_job_id AND a.step_name = p_step_name AND a.version = p_version;
+    GET DIAGNOSTICS v_rows = ROW_COUNT;
 
-    IF p_succeeded THEN
-        UPDATE {{schema}}.steps a
-        SET
-            step_status_code = 100 /* StepStatusCode.Succeeded */,
-            result_format_id = p_result_format_id,
-            result = p_result,
-            next_retry_at_utc = NULL,
-            /* A success supersedes any earlier failed attempt, so the row must not keep that attempt's
-               failure snapshot: a Succeeded row with a failure_code reads as a failure to every post-mortem query. */
-            failure_code = NULL,
-            failure_message = NULL,
-            modified_at_utc = v_now,
-            version = a.version + 1
-        WHERE a.job_id = p_job_id AND a.step_name = p_step_name AND a.version = p_version;
-        GET DIAGNOSTICS v_rows = ROW_COUNT;
-
-        RETURN QUERY SELECT CASE WHEN v_rows = 0
-            THEN 4 /* CompleteJobStepOutcomeCode.StaleVersion */
-            ELSE 1 /* CompleteJobStepOutcomeCode.Succeeded */ END::SMALLINT, NULL::TIMESTAMPTZ;
-        RETURN;
-    END IF;
-
-    v_next := v_now + make_interval(secs => p_delay_seconds);
-    v_exhaust := (v_attempt >= p_max_attempts)
-        OR (p_retry_window_seconds IS NOT NULL
-            AND v_next > v_created + make_interval(secs => p_retry_window_seconds));
-
-    IF v_exhaust THEN
-        UPDATE {{schema}}.steps a
-        SET
-            step_status_code = 200 /* StepStatusCode.Exhausted */,
-            next_retry_at_utc = NULL,
-            failure_code = p_failure_code,
-            failure_message = p_failure_message,
-            modified_at_utc = v_now,
-            version = a.version + 1
-        WHERE a.job_id = p_job_id AND a.step_name = p_step_name AND a.version = p_version;
-        GET DIAGNOSTICS v_rows = ROW_COUNT;
-
-        RETURN QUERY SELECT CASE WHEN v_rows = 0
-            THEN 4 /* CompleteJobStepOutcomeCode.StaleVersion */
-            ELSE 3 /* CompleteJobStepOutcomeCode.Exhausted */ END::SMALLINT, NULL::TIMESTAMPTZ;
-    ELSE
-        UPDATE {{schema}}.steps a
-        SET
-            next_retry_at_utc = v_next,
-            failure_code = p_failure_code,
-            failure_message = p_failure_message,
-            modified_at_utc = v_now,
-            version = a.version + 1
-        WHERE a.job_id = p_job_id AND a.step_name = p_step_name AND a.version = p_version;
-        GET DIAGNOSTICS v_rows = ROW_COUNT;
-
-        RETURN QUERY SELECT CASE WHEN v_rows = 0
-            THEN 4 /* CompleteJobStepOutcomeCode.StaleVersion */
-            ELSE 2 /* CompleteJobStepOutcomeCode.RetryScheduled */ END::SMALLINT,
-            CASE WHEN v_rows = 0 THEN NULL ELSE v_next END;
-    END IF;
+    RETURN QUERY SELECT CASE
+        WHEN v_rows = 0 THEN 4 /* CompleteJobStepOutcomeCode.StaleVersion */
+        WHEN p_succeeded THEN 1 /* CompleteJobStepOutcomeCode.Succeeded */
+        ELSE 3 /* CompleteJobStepOutcomeCode.Exhausted */
+    END::SMALLINT;
 END;
 $$;

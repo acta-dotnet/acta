@@ -1,7 +1,5 @@
 namespace Acta;
 
-/// <summary>
-/// The completion decision plus the retry instant when the outcome is <c>RetryScheduled</c>.
-/// </summary>
+/// <summary>The completion decision.</summary>
 [DbProjection]
-internal sealed record CompleteJobStepResponse(CompleteJobStepOutcomeCode Outcome, DateTime? NextRetryAtUtc);
+internal sealed record CompleteJobStepResponse(CompleteJobStepOutcomeCode Outcome);

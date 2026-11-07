@@ -589,9 +589,9 @@ app.MapGet("/reports/{id}", async (string id, IJobs jobs, CancellationToken ct) 
 app.Run();</code></pre>
         </figure>
         <p>With a two-second heartbeat the lease lasts eight seconds, and a dead process's jobs become reclaimable almost immediately. <code>SalesFiles.cs</code> and the CSV files stay as they are. That is the complete program.</p>
-        <aside class="callout" aria-label="Sidebar: step retries and job retries">
-          <h3>Step retries are not job retries</h3>
-          <p>Steps change how failures are counted. If September's file were missing now, the exception would happen inside <code>load-sales</code>, and the step would retry on its own: the job goes back to Ready with the reason <code>step-retry-scheduled</code>, the execution number still goes up, but the job's failure count stays at zero. A step inherits <code>MaxAttempts</code> and <code>Backoff</code> from the <code>[Job]</code> attribute unless you pass it its own settings. If the step runs out of attempts, it is marked exhausted and throws <code>StepExhaustedException</code>. Uncaught, that fails the job at once and leaves its own retry budget untouched, since every retry would throw again. Restarting the job gives the step a fresh budget.</p>
+        <aside class="callout" aria-label="Sidebar: a failing step and the job's retries">
+          <h3>A failing step retries through the job</h3>
+          <p>If September's file were missing now, the exception would happen inside <code>load-sales</code> and fail the attempt like any other: the job's failure count goes up, and the job goes back to Ready after the <code>Backoff</code> from its <code>[Job]</code> attribute. On the retry, the steps that already succeeded return their stored results and <code>load-sales</code> runs again. Once <code>MaxAttempts</code> is spent, the job fails; <code>ctx.IsLastAttempt</code> tells a <code>catch</code> block that this failure is the last one.</p>
         </aside>
       </section>
 

@@ -7,9 +7,7 @@ CREATE OR REPLACE FUNCTION {{schema}}.start_job_step(
 )
 RETURNS TABLE (
     outcome_code SMALLINT,
-    attempt_number INT,
     version INT,
-    next_retry_at_utc TIMESTAMPTZ,
     result_format_id SMALLINT,
     result BYTEA,
     failure_code SMALLINT,
@@ -20,9 +18,7 @@ AS $$
 DECLARE
     v_now TIMESTAMPTZ := now();
     v_state SMALLINT;
-    v_attempt INT;
     v_version INT;
-    v_next TIMESTAMPTZ;
     v_rfid SMALLINT;
     v_result BYTEA;
     v_rcode SMALLINT;
@@ -46,14 +42,12 @@ BEGIN
 
     SELECT
         a.step_status_code,
-        a.attempt_number,
         a.version,
-        a.next_retry_at_utc,
         a.result_format_id,
         a.result,
         a.failure_code,
         a.failure_message
-    INTO v_state, v_attempt, v_version, v_next, v_rfid, v_result, v_rcode, v_rmsg
+    INTO v_state, v_version, v_rfid, v_result, v_rcode, v_rmsg
     FROM {{schema}}.steps a
     WHERE
         a.job_id = p_job_id
@@ -65,7 +59,6 @@ BEGIN
             job_id,
             step_name,
             step_status_code,
-            attempt_number,
             result_format_id,
             created_at_utc,
             modified_at_utc,
@@ -74,18 +67,17 @@ BEGIN
             p_job_id,
             p_step_name,
             10 /* StepStatusCode.Pending */,
-            1,
             0 /* JobPayloadFormat.None */,
             v_now,
             v_now,
             0)
         ON CONFLICT (job_id, step_name) DO NOTHING
-        RETURNING steps.attempt_number, steps.version
-        INTO v_attempt, v_version;
+        RETURNING steps.version
+        INTO v_version;
 
         IF FOUND THEN
-            RETURN QUERY SELECT 1 /* StartJobStepOutcomeCode.Invoke */::SMALLINT, v_attempt, v_version,
-                NULL::TIMESTAMPTZ, 0 /* JobPayloadFormat.None */::SMALLINT, NULL::BYTEA, NULL::SMALLINT, NULL::VARCHAR;
+            RETURN QUERY SELECT 1 /* StartJobStepOutcomeCode.Invoke */::SMALLINT, v_version,
+                0 /* JobPayloadFormat.None */::SMALLINT, NULL::BYTEA, NULL::SMALLINT, NULL::VARCHAR;
             RETURN;
         END IF;
 
@@ -93,14 +85,12 @@ BEGIN
         -- queues this caller behind that insert.
         SELECT
             a.step_status_code,
-            a.attempt_number,
             a.version,
-            a.next_retry_at_utc,
             a.result_format_id,
             a.result,
             a.failure_code,
             a.failure_message
-        INTO v_state, v_attempt, v_version, v_next, v_rfid, v_result, v_rcode, v_rmsg
+        INTO v_state, v_version, v_rfid, v_result, v_rcode, v_rmsg
         FROM {{schema}}.steps a
         WHERE
             a.job_id = p_job_id
@@ -110,20 +100,16 @@ BEGIN
 
     IF v_state = 100 /* StepStatusCode.Succeeded */ THEN
 
-        RETURN QUERY SELECT 3 /* StartJobStepOutcomeCode.ReplaySuccess */::SMALLINT, v_attempt, v_version,
-            NULL::TIMESTAMPTZ, v_rfid, v_result, NULL::SMALLINT, NULL::VARCHAR;
+        RETURN QUERY SELECT 3 /* StartJobStepOutcomeCode.ReplaySuccess */::SMALLINT, v_version,
+            v_rfid, v_result, NULL::SMALLINT, NULL::VARCHAR;
     ELSIF v_state = 200 /* StepStatusCode.Exhausted */ THEN
 
-        RETURN QUERY SELECT 4 /* StartJobStepOutcomeCode.Exhausted */::SMALLINT, v_attempt, v_version,
-            NULL::TIMESTAMPTZ, 0 /* JobPayloadFormat.None */::SMALLINT, NULL::BYTEA, v_rcode, v_rmsg;
+        RETURN QUERY SELECT 4 /* StartJobStepOutcomeCode.Exhausted */::SMALLINT, v_version,
+            0 /* JobPayloadFormat.None */::SMALLINT, NULL::BYTEA, v_rcode, v_rmsg;
     ELSIF v_state = 230 /* StepStatusCode.Interrupted */ THEN
         -- Terminal at-most-once ambiguity from an earlier replay; re-throw consistently, no mutation.
-        RETURN QUERY SELECT 5 /* StartJobStepOutcomeCode.Interrupted */::SMALLINT, v_attempt, v_version,
-            NULL::TIMESTAMPTZ, 0 /* JobPayloadFormat.None */::SMALLINT, NULL::BYTEA, NULL::SMALLINT, NULL::VARCHAR;
-    ELSIF v_next IS NOT NULL AND v_next > v_now THEN
-
-        RETURN QUERY SELECT 2 /* StartJobStepOutcomeCode.Suspend */::SMALLINT, v_attempt, v_version,
-            v_next, 0 /* JobPayloadFormat.None */::SMALLINT, NULL::BYTEA, NULL::SMALLINT, NULL::VARCHAR;
+        RETURN QUERY SELECT 5 /* StartJobStepOutcomeCode.Interrupted */::SMALLINT, v_version,
+            0 /* JobPayloadFormat.None */::SMALLINT, NULL::BYTEA, NULL::SMALLINT, NULL::VARCHAR;
     ELSIF p_at_most_once THEN
         -- Pending step re-entered on replay under AtMostOnce: the worker died after start_job_step recorded
         -- the pending row but before complete_job_step. Do not re-invoke; terminalize the row Interrupted
@@ -131,7 +117,6 @@ BEGIN
         UPDATE {{schema}}.steps a
         SET
             step_status_code = 230 /* StepStatusCode.Interrupted */,
-            next_retry_at_utc = NULL,
             failure_code = 20 /* StepFailureCode.Interrupted */,
             failure_message = 'At-most-once step re-entered before completion; outcome unknown.',
             modified_at_utc = v_now,
@@ -141,23 +126,12 @@ BEGIN
             AND a.step_name = p_step_name
         RETURNING a.version INTO v_version;
 
-        RETURN QUERY SELECT 5 /* StartJobStepOutcomeCode.Interrupted */::SMALLINT, v_attempt, v_version,
-            NULL::TIMESTAMPTZ, 0 /* JobPayloadFormat.None */::SMALLINT, NULL::BYTEA, NULL::SMALLINT, NULL::VARCHAR;
+        RETURN QUERY SELECT 5 /* StartJobStepOutcomeCode.Interrupted */::SMALLINT, v_version,
+            0 /* JobPayloadFormat.None */::SMALLINT, NULL::BYTEA, NULL::SMALLINT, NULL::VARCHAR;
     ELSE
-        -- The next attempt spends the retry instant, as SQLite's start_job_step does.
-        UPDATE {{schema}}.steps a
-        SET
-            attempt_number = a.attempt_number + 1,
-            next_retry_at_utc = NULL,
-            modified_at_utc = v_now,
-            version = a.version + 1
-        WHERE
-            a.job_id = p_job_id
-            AND a.step_name = p_step_name
-        RETURNING a.attempt_number, a.version INTO v_attempt, v_version;
-
-        RETURN QUERY SELECT 1 /* StartJobStepOutcomeCode.Invoke */::SMALLINT, v_attempt, v_version,
-            NULL::TIMESTAMPTZ, 0 /* JobPayloadFormat.None */::SMALLINT, NULL::BYTEA, NULL::SMALLINT, NULL::VARCHAR;
+        -- An ordinary step with no success recorded runs again, its row unchanged.
+        RETURN QUERY SELECT 1 /* StartJobStepOutcomeCode.Invoke */::SMALLINT, v_version,
+            0 /* JobPayloadFormat.None */::SMALLINT, NULL::BYTEA, NULL::SMALLINT, NULL::VARCHAR;
     END IF;
 END;
 $$;

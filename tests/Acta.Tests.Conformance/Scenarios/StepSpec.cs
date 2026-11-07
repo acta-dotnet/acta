@@ -8,15 +8,15 @@ namespace Acta.Tests.Conformance.Scenarios;
 
 /// <summary>
 /// Conformance for durable steps: <c>ctx.RunStepAsync</c> runs a body once, persists the
-/// outcome to <c>steps</c>, replay-skips a succeeded step, retries an in-budget failure
-/// budget-neutrally for the parent, and throws <c>StepExhaustedException</c> when the budget is
-/// spent (failing the parent as a normal handler exception when uncaught).
+/// outcome to <c>steps</c>, and replay-skips a succeeded step. A body that throws fails the attempt
+/// and spends the job's budget; a wait inside a body resumes without spending any; an at-most-once
+/// body that throws exhausts to <c>StepExhaustedException</c>.
 /// </summary>
 [ConformanceSpec(
     "steps.run-and-retry",
-    "RunStepAsync runs once, replays results, and retries until exhausted",
+    "RunStepAsync runs once, replays results, and runs again on the job's retry",
     Area = "Steps",
-    Contract = "A step runs its body once, replay-skips a succeeded step, retries an in-budget failure budget-neutrally, and exhausts to StepExhaustedException."
+    Contract = "A step runs once and replay-skips a success, a throwing body spends the job's budget, a wait in a body charges nothing, and an at-most-once failure exhausts."
 )]
 public sealed class StepSpec : ActaRuntimeTestBase<ConformanceFixture, TestJobs.TestJobsManifest>
 {
@@ -37,7 +37,6 @@ public sealed class StepSpec : ActaRuntimeTestBase<ConformanceFixture, TestJobs.
         Assert.Equal(StepStatusCode.Succeeded, step.Status);
         Assert.NotEqual(0, step.ResultFormatId);
         Assert.NotNull(step.Result);
-        Assert.Null(step.NextRetryAtUtc);
     }
 
     [Fact(DisplayName = "A void step succeeds with no result payload")]
@@ -76,109 +75,112 @@ public sealed class StepSpec : ActaRuntimeTestBase<ConformanceFixture, TestJobs.
         Assert.Equal(1, await CountVariableAsync(enqueued.JobId, "step.value", ct));
     }
 
-    [Fact(DisplayName = "An in-budget retry inserts Pending attempt 1, increments attempt_number, and is budget-neutral for the parent")]
-    public async Task In_budget_retry_is_budget_neutral_for_the_parent()
+    [Fact(DisplayName = "A wait inside an ordinary step resumes and completes, and the job's failure count stays untouched")]
+    public async Task Wait_inside_an_ordinary_step_resumes_and_completes()
     {
         var ct = TestContext.Current.CancellationToken;
-        var enqueued = await Jobs.EnqueueAsync(new EnqueueJobRequest(TestNamespace, "job-step-retry", JobPayload.None), ct);
+        var enqueued = await Jobs.EnqueueAsync(new EnqueueJobRequest(TestNamespace, "job-step-wait", JobPayload.None), ct);
 
-        // Tick 1: first execution inserts Pending attempt 1, the body fails, a retry is scheduled.
         Assert.Equal(RunOnceStatus.Rearmed, await Runtime.RunOnceAsync(enqueued, ct));
-        var afterFirst = (await ReadStepsAsync(enqueued.JobId, ct)).Single();
-        Assert.Equal(StepStatusCode.Pending, afterFirst.Status);
-        Assert.Equal(1, afterFirst.AttemptNumber);
-        Assert.NotNull(afterFirst.NextRetryAtUtc);
+        Assert.Equal(StepStatusCode.Pending, (await ReadStepsAsync(enqueued.JobId, ct)).Single().Status);
 
-        var jobAfterFirst = await ReadJobAsync(enqueued.JobId, ct);
-        Assert.Equal(0, jobAfterFirst.FailureCount);
-        var rescheduleEvent = await ReadLatestEventAsync(enqueued.JobId, EventCode.JobRescheduled, ct);
-        Assert.Equal(EventReason.StepRetryScheduled, EventDetail(rescheduleEvent, "reason"));
-
-        // Tick 2: attempt_number increments before the second invocation, which also fails.
-        Assert.Equal(RunOnceStatus.Rearmed, await Runtime.RunOnceAsync(enqueued, ct));
-        Assert.Equal(2, (await ReadStepsAsync(enqueued.JobId, ct)).Single().AttemptNumber);
-
-        // Tick 3: the third invocation succeeds; the parent completes with an untouched budget.
+        Assert.Equal(ControlAction.Applied, (await Jobs.RaiseSignalAsync(enqueued, "approval", JobPayload.None, ct: ct)).Action);
         Assert.Equal(RunOnceStatus.Completed, await Runtime.RunOnceAsync(enqueued, ct));
-        Assert.Equal(3, JobStepProbes.BodyInvocations[enqueued.JobId]);
-        Assert.Equal(StepStatusCode.Succeeded, (await ReadStepsAsync(enqueued.JobId, ct)).Single().Status);
 
-        var done = await ReadJobAsync(enqueued.JobId, ct);
-        Assert.Equal(JobStatusCode.Succeeded, done.Status);
-        Assert.Equal(0, done.FailureCount);
-        Assert.Equal(1, await CountVariableAsync(enqueued.JobId, "step.done", ct));
+        // The replay ran the body again up to the wait, which returned because the signal is set.
+        Assert.Equal(2, JobStepProbes.BodyInvocations[enqueued.JobId]);
+        Assert.Equal("approved", await Jobs.GetResultAsync<string>(enqueued, ct));
+        Assert.Equal(StepStatusCode.Succeeded, (await ReadStepsAsync(enqueued.JobId, ct)).Single().Status);
+        var job = await ReadJobAsync(enqueued.JobId, ct);
+        Assert.Equal(JobStatusCode.Succeeded, job.Status);
+        Assert.Equal(0, job.FailureCount);
     }
 
-    [Fact(DisplayName = "An exhausted step throws StepExhaustedException and fails the parent when uncaught")]
+    [Fact(DisplayName = "A wait inside an ordinary step charges nothing, so a later failure keeps the job's whole budget")]
+    public async Task Wait_inside_an_ordinary_step_charges_nothing()
+    {
+        var ct = TestContext.Current.CancellationToken;
+        var enqueued = await Jobs.EnqueueAsync(new EnqueueJobRequest(TestNamespace, "job-step-wait-then-fail", JobPayload.None), ct);
+
+        Assert.Equal(RunOnceStatus.Rearmed, await Runtime.RunOnceAsync(enqueued, ct));
+        Assert.Equal(ControlAction.Applied, (await Jobs.RaiseSignalAsync(enqueued, "approval", JobPayload.None, ct: ct)).Action);
+
+        // The resume after the wait spent nothing, so the failure past it is the first of the job's two attempts.
+        Assert.Equal(RunOnceStatus.Rearmed, await Runtime.RunOnceAsync(enqueued, ct));
+        Assert.Equal(1, (await ReadJobAsync(enqueued.JobId, ct)).FailureCount);
+
+        Assert.Equal(RunOnceStatus.Completed, await Runtime.RunOnceAsync(enqueued, ct));
+        Assert.Equal(3, JobStepProbes.BodyInvocations[enqueued.JobId]);
+        Assert.Equal(JobStatusCode.Succeeded, (await ReadJobAsync(enqueued.JobId, ct)).Status);
+    }
+
+    [Fact(
+        DisplayName = "A throwing ordinary step fails the attempt, spends the job's budget, and the retry replays the steps that succeeded"
+    )]
+    public async Task Throwing_ordinary_step_spends_the_jobs_budget()
+    {
+        var ct = TestContext.Current.CancellationToken;
+        var enqueued = await Jobs.EnqueueAsync(new EnqueueJobRequest(TestNamespace, "job-step-throw", JobPayload.None), ct);
+
+        Assert.Equal(RunOnceStatus.Rearmed, await Runtime.RunOnceAsync(enqueued, ct));
+        Assert.Equal(1, (await ReadJobAsync(enqueued.JobId, ct)).FailureCount);
+        var failed = await ReadLatestEventAsync(enqueued.JobId, EventCode.JobExecutionFailed, ct);
+        Assert.Equal(EventReason.UnhandledException, EventDetail(failed, "reason"));
+
+        Assert.Equal(RunOnceStatus.Completed, await Runtime.RunOnceAsync(enqueued, ct));
+        Assert.Equal(1, JobStepProbes.StepBodyInvocations[(enqueued.JobId, "reserve")]);
+        Assert.Equal(2, JobStepProbes.StepBodyInvocations[(enqueued.JobId, "charge")]);
+        Assert.All(await ReadStepsAsync(enqueued.JobId, ct), step => Assert.Equal(StepStatusCode.Succeeded, step.Status));
+        Assert.Equal(JobStatusCode.Succeeded, (await ReadJobAsync(enqueued.JobId, ct)).Status);
+    }
+
+    [Fact(DisplayName = "An exhausted at-most-once step throws StepExhaustedException and fails the parent at once when uncaught")]
     public async Task Exhausted_step_fails_the_parent_when_uncaught()
     {
         var ct = TestContext.Current.CancellationToken;
         var enqueued = await Jobs.EnqueueAsync(new EnqueueJobRequest(TestNamespace, "job-step-exhaust", JobPayload.None), ct);
 
-        // Tick 1: attempt 1 fails in budget (step MaxAttempts = 2) -> budget-neutral re-arm.
-        Assert.Equal(RunOnceStatus.Rearmed, await Runtime.RunOnceAsync(enqueued, ct));
-        Assert.Equal(StepStatusCode.Pending, (await ReadStepsAsync(enqueued.JobId, ct)).Single().Status);
-
-        // Tick 2: attempt 2 exhausts the step; the uncaught exception fails the parent (MaxAttempts = 1).
+        // The body throws once: the step is terminal, and the parent's remaining budget is not spent on it.
         Assert.Equal(RunOnceStatus.Failed, await Runtime.RunOnceAsync(enqueued, ct));
 
         var step = Assert.Single(await ReadStepsAsync(enqueued.JobId, ct));
         Assert.Equal(StepStatusCode.Exhausted, step.Status);
-        Assert.Null(step.NextRetryAtUtc);
-        Assert.NotNull(step.FailureCode);
+        Assert.Equal(StepFailureCode.UnhandledException, step.FailureCode);
+        Assert.Equal("boom", step.FailureMessage);
 
         var job = await ReadJobAsync(enqueued.JobId, ct);
         Assert.Equal(JobStatusCode.Failed, job.Status);
         var failedEvent = await ReadLatestEventAsync(enqueued.JobId, EventCode.JobFailed, ct);
         // Uncaught, the exhaustion is non-retryable: every retry would replay the exhausted step and throw again.
         Assert.Equal(EventReason.NonRetryableException, EventDetail(failedEvent, "reason"));
-        Assert.Equal(2, JobStepProbes.BodyInvocations[enqueued.JobId]);
+        Assert.Equal(1, JobStepProbes.BodyInvocations[enqueued.JobId]);
     }
 
     [Fact(DisplayName = "CompleteJobStep loses the CAS and reports StaleVersion when the step advanced under another execution")]
     public async Task CompleteJobStep_returns_stale_version_when_the_step_advanced_under_another_execution()
     {
         var ct = TestContext.Current.CancellationToken;
+        var store = Services.GetRequiredService<ExecutionOperations>();
 
         // A real job row to own the step (enqueue only, staged Executing as a claim leaves it; never run).
         var enqueued = await Jobs.EnqueueAsync(new EnqueueJobRequest(TestNamespace, "job-step-basic", JobPayload.None), ct);
         var job = await ExecutionFenceStaging.ExecutingAsync(Db, enqueued.JobId, ct);
 
-        // First start hands out the version a handler would carry; a second start advances the step,
-        // modelling a re-entry of the step that the version check alone has to catch.
-        var first = await Services.GetRequiredService<ExecutionOperations>().StartJobStepAsync(job, "compute", atMostOnce: false, ct);
+        // Two starts of one pending step both invoke it at the version the row holds, which a replay leaves unchanged.
+        var first = await store.StartJobStepAsync(job, "compute", atMostOnce: false, ct);
+        var second = await store.StartJobStepAsync(job, "compute", atMostOnce: false, ct);
         Assert.Equal(StartJobStepOutcomeCode.Invoke, first.Outcome);
-        var second = await Services.GetRequiredService<ExecutionOperations>().StartJobStepAsync(job, "compute", atMostOnce: false, ct);
         Assert.Equal(StartJobStepOutcomeCode.Invoke, second.Outcome);
-        Assert.NotEqual(first.Version, second.Version);
+        Assert.Equal(first.Version, second.Version);
+        Assert.Equal(CompleteJobStepOutcomeCode.Succeeded, (await store.CompleteJobStepAsync(Success(job, first.Version), ct)).Outcome);
 
-        // Completing on the stale (first) version must lose the CAS and report it - not a phantom success.
-        var stale = await Services
-            .GetRequiredService<ExecutionOperations>()
-            .CompleteJobStepAsync(
-                new CompleteJobStepCommand(
-                    job,
-                    "compute",
-                    Succeeded: true,
-                    ResultFormatId: 0,
-                    Result: null,
-                    FailureCode: null,
-                    FailureMessage: null,
-                    DelaySeconds: 0,
-                    MaxAttempts: 5,
-                    RetryWindowSeconds: null,
-                    ExpectedVersion: first.Version
-                ),
-                ct
-            );
+        // The later completion carries the version the step has moved past: it loses the CAS, not a phantom success.
+        var stale = await store.CompleteJobStepAsync(Success(job, second.Version), ct);
 
         Assert.Equal(CompleteJobStepOutcomeCode.StaleVersion, stale.Outcome);
-
-        // The losing completion changed nothing: the step is still Pending at the advanced version.
         var step = Assert.Single(await ReadStepsAsync(enqueued.JobId, ct));
-        Assert.Equal(StepStatusCode.Pending, step.Status);
-        Assert.Equal(second.Version, step.Version);
-        Assert.Null(step.Result);
+        Assert.Equal(StepStatusCode.Succeeded, step.Status);
+        Assert.Equal(first.Version + 1, step.Version);
     }
 
     [Fact(DisplayName = "CompleteJobStep reports StaleVersion rather than throwing when the step row is absent")]
@@ -192,29 +194,23 @@ public sealed class StepSpec : ActaRuntimeTestBase<ConformanceFixture, TestJobs.
         var enqueued = await Jobs.EnqueueAsync(new EnqueueJobRequest(TestNamespace, "job-step-basic", JobPayload.None), ct);
         var job = await ExecutionFenceStaging.ExecutingAsync(Db, enqueued.JobId, ct);
 
-        var outcome = await Services
-            .GetRequiredService<ExecutionOperations>()
-            .CompleteJobStepAsync(
-                new CompleteJobStepCommand(
-                    job,
-                    "compute",
-                    Succeeded: true,
-                    ResultFormatId: 0,
-                    Result: null,
-                    FailureCode: null,
-                    FailureMessage: null,
-                    DelaySeconds: 0,
-                    MaxAttempts: 5,
-                    RetryWindowSeconds: null,
-                    ExpectedVersion: 1
-                ),
-                ct
-            );
+        var outcome = await Services.GetRequiredService<ExecutionOperations>().CompleteJobStepAsync(Success(job, 1), ct);
 
         Assert.Equal(CompleteJobStepOutcomeCode.StaleVersion, outcome.Outcome);
-        Assert.Null(outcome.NextRetryAtUtc);
         Assert.Empty(await ReadStepsAsync(enqueued.JobId, ct));
     }
+
+    private static CompleteJobStepCommand Success(ExecutionFence job, int expectedVersion) =>
+        new(
+            job,
+            "compute",
+            Succeeded: true,
+            ResultFormatId: 0,
+            Result: null,
+            FailureCode: null,
+            FailureMessage: null,
+            ExpectedVersion: expectedVersion
+        );
 
     private async Task<IReadOnlyList<StepEntity>> ReadStepsAsync(long jobId, CancellationToken ct)
     {

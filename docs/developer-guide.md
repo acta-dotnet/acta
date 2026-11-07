@@ -25,7 +25,7 @@ see [architecture decisions](./architecture-decisions.md).
 | --- | --- |
 | **Job** | The only independently claimable work unit. One identity/input row in the `jobs` table plus its 1:1 live-state row in `jobs_state`. One-shot work, delayed work, permanent jobs, coordinating parents, child jobs, and system maintenance all use the same tables. |
 | **Execution** | One recorded run of a handler. At the default recording level every run is recorded as one outcome event on `(JobId, ExecutionNumber)` (succeeded, failed, orphaned, yielded, or terminally failed), carrying the worker and the handler's duration; the `Failures` level records less. A run in progress is its `jobs_state` row. |
-| **Attempt** | One try at the work that counts against retry policy when it fails. `MaxAttempts` is the unified retry budget for both jobs and steps. Successful executions are recorded but do not consume the budget. |
+| **Attempt** | One try at the work that counts against retry policy when it fails. `MaxAttempts` is the job's retry budget, and a step retries through it: a step body that throws fails the attempt. Successful executions are recorded but do not consume the budget. |
 | **Status** | The lifecycle-or-outcome code on every entity that has one, named for its table (`jobs_state.job_status_code`, `workers.worker_status_code`, `steps.step_status_code`, `checkpoints.checkpoint_status_code`, ...). The job's `jobs_state` row stores current status; events explain transitions. |
 | **Firing** | One admitted occurrence of a `[Schedule]`, or the occurrences of several schedules due at once coalesced into one, with an envelope naming the contributors: on a permanent job the `sys.firing` checkpoint, on a per-occurrence definition a fresh root. 1:1 with an execution in steady state; the misfire policy decides what happens to occurrences nobody admitted in time. |
 | **Namespace** | The service-owned execution boundary. A worker claims only jobs in its own namespace. One `Run(...)` owns one namespace; a process can host several. |
@@ -176,7 +176,28 @@ public async Task ImportFiles(JobContext ctx, CancellationToken ct)
 }
 ```
 
-A step that spends its retry budget is `Exhausted`, and `RunStepAsync` then throws `StepExhaustedException` without running it; catch it where the job can go on. Uncaught, it fails the job at once instead of retrying it, since every retry would throw again. Restarting the job gives the step a fresh budget.
+A step retries through its job. A body that throws fails the attempt, which spends one of the job's `MaxAttempts` and waits out its `Backoff`; the retry replays the steps that already succeeded and runs this one again. A wait, sleep, or child wait inside an ordinary step body works: the resume runs the body again up to the wait, which returns what it already has, and nothing is charged.
+
+#### Compensating on the last attempt
+
+`ctx.IsLastAttempt` is true when a retryable failure of this attempt would end the job for good, or on a permanent job its current firing (the next firing starts with a fresh budget): the failures already charged leave no `MaxAttempts` budget for a retry, or the retry's backoff would land past a `Strict` deadline. It counts charged failures, not `ExecutionNumber`, which also rises on reclaims and on resumes that spend nothing. The completion reads the time left to a `Strict` deadline again when it lands, so when that time is close to the backoff the answer can change between the read and the landing.
+
+```csharp
+await ctx.RunStepAsync("reserve-stock", ReserveStockAsync, ct);
+try
+{
+    await ctx.RunStepAsync("charge-card", ChargeCardAsync, ct);
+}
+catch (Exception ex) when (ctx.IsLastAttempt || ex is StepExhaustedException)
+{
+    await ctx.RunStepAsync("release-stock", ReleaseStockAsync, ct);
+    throw;
+}
+```
+
+The filter also takes `StepExhaustedException` because a non-retryable exception ends the job on any attempt while `IsLastAttempt` still reads false; add `NotSupportedException` and `NotImplementedException` if the body can throw them.
+
+Compensation in a catch is best effort. A worker crash or a lost lease on the last attempt skips the catch block, and a reclaim can spend the budget and fail the job with no handler code running, so the compensation is an idempotent step of its own. Work whose compensation must happen runs the risky part as a child job, and the parent compensates when the child lands `Failed`: `WaitChildAsync` survives crashes.
 
 #### At-most-once steps
 
@@ -196,7 +217,11 @@ catch (StepInterruptedException)
 
 If the worker dies after the step's start is recorded but before its outcome, the step becomes `Interrupted` and `RunStepAsync` throws `StepInterruptedException`: the body ran zero or one times, and Acta cannot tell which. Reconcile against the external system; never assume the effect happened. Uncaught, the exception fails the job terminally (`job.step-interrupted`).
 
-`AtMostOnce()` allows no retries, so pairing it with a retry override other than `MaxAttempts(1)` throws. In a permanent job, catch the exception and prefer a per-period step name (`$"charge-{period}"`): an uncaught interruption stops the whole schedule. Each period's step row stays as long as the job, so at a high cadence run the charge in a job per occurrence, as above.
+A body that throws leaves the step `Exhausted`, and `RunStepAsync` throws `StepExhaustedException` then and on every replay without running the body; catch it where the job can go on. Uncaught, it fails the job at once instead of retrying it, since every retry would throw again. Restarting the job runs the step again.
+
+A wait, sleep, reschedule, pause, or child wait inside an at-most-once body throws `InvalidOperationException` at the call, before it writes anything: the resume would replay the job from the top and run the body again. A `RescheduleJobException` or `HandlerPauseException` the body throws itself is refused the same way, and the step ends `Exhausted`. Move the wait out of the step.
+
+In a permanent job, catch the exception and prefer a per-period step name (`$"charge-{period}"`): an uncaught interruption stops the whole schedule. Each period's step row stays as long as the job, so at a high cadence run the charge in a job per occurrence, as above.
 
 ### Job attribute placement
 

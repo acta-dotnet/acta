@@ -150,8 +150,8 @@ public sealed class ResetJobStateSpec : ActaRuntimeTestBase<ConformanceFixture, 
             );
 
         await db.ExecuteRawAsync(
-            "INSERT INTO {schema}.steps (job_id, step_name, step_status_code, attempt_number, result_format_id)"
-                + " VALUES (@p_job_id, @p_name, @p_state, 1, 0)",
+            "INSERT INTO {schema}.steps (job_id, step_name, step_status_code, result_format_id)"
+                + " VALUES (@p_job_id, @p_name, @p_state, 0)",
             ct,
             ("@p_job_id", job.JobId),
             ("@p_name", "a.test"),

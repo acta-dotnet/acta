@@ -39,11 +39,10 @@ public sealed class WorkerExecutorOwnershipTests
     [Fact]
     public async Task Stale_step_version_recording_a_failed_body_aborts_rather_than_reporting_the_body()
     {
-        // The other half of the ownership pair, and the one no test reached: the step body threw, and the
-        // CAS that would have RECORDED that failure found a stale version. Nothing durable was written,
-        // so the business failure is not this attempt's to report - reporting JobUnhandledException here
-        // would attribute a failure the ledger never accepted, and burn a retry against a budget the
-        // routine never decremented. The abort must win over both the retry signal and exhaustion.
+        // The other half of the ownership pair: the at-most-once step body threw, and the CAS that would have
+        // RECORDED that failure found a stale version. Nothing durable was written, so the business failure is
+        // not this attempt's to report - reporting it here would attribute a failure the ledger never accepted.
+        // The abort must win over exhaustion.
         var harness = new WorkerExecutorHarness(stepOutcome: CompleteJobStepOutcomeCode.StaleVersion);
 
         var outcome = await harness.RunAsync(
@@ -51,7 +50,8 @@ public sealed class WorkerExecutorOwnershipTests
                 ctx.RunStepAsync(
                     WorkerExecutorHarness.StepName,
                     static _ => Task.FromException(new InvalidOperationException("boom")),
-                    ct: token
+                    o => o.AtMostOnce(),
+                    token
                 )
         );
 

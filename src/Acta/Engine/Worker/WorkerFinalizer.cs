@@ -327,18 +327,12 @@ internal sealed partial class WorkerFinalizer(
             return new(entry, completion, HandBack(job, completion), RunOnceStatus.Rearmed);
         }
 
-        var retry = PlanRetry(descriptor, job, completion);
+        var retry = PlanRetry(completion, entry.Context?.FailureRetry ?? PlanFailureRetry(descriptor, job));
 
         // Deadline reschedule guard (Strict): if the next retry would land after the deadline,
         // terminate Cancelled+JobDeadlineExceeded via the handler status instead of re-arming.
-        // Budget is left untouched; the handler-status shape handles completion. Same worker-clock
-        // comparison as the admission check: deliberate and skew-guarded, not a DB read.
-        if (
-            retry.InBudget
-            && descriptor.DeadlineBehavior == DeadlineBehaviorCode.Strict
-            && entry.Context?.TimeUntilDeadline is { } untilDeadline
-            && untilDeadline < TimeSpan.FromSeconds(retry.DelaySeconds)
-        )
+        // Budget is left untouched; the handler-status shape handles completion.
+        if (retry.InBudget && RetryPassesDeadline(descriptor, entry.Context?.TimeUntilDeadline, retry.DelaySeconds))
         {
             completion = completion with
             {

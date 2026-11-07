@@ -11,7 +11,7 @@ namespace Acta.Tests.Conformance.Engine.Worker;
     "chaos.signal-step-wake",
     "Signals, step exhaustion, and lost wakes converge without timing assumptions",
     Area = "Chaos",
-    Contract = "Signals raised before or after waiter creation, step retry exhaustion, and lost wake notifications each produce one legal final state."
+    Contract = "Signals raised before or after waiter creation, step exhaustion, and lost wake notifications each produce one legal final state."
 )]
 public sealed class SignalStepWakeChaosSpec : ActaRuntimeTestBase<ConformanceFixture, TestJobs.TestJobsManifest>
 {
@@ -75,20 +75,18 @@ public sealed class SignalStepWakeChaosSpec : ActaRuntimeTestBase<ConformanceFix
         Assert.True(suspended.Id < raised.Id && raised.Id < resumed.Id);
     }
 
-    [Fact(DisplayName = "Step retry exhaustion fails the parent exactly once")]
-    public async Task Step_retry_exhaustion_fails_parent_once()
+    [Fact(DisplayName = "Step exhaustion fails the parent exactly once")]
+    public async Task Step_exhaustion_fails_parent_once()
     {
         var ct = TestContext.Current.CancellationToken;
         var enqueued = await ChaosSpecHelpers.EnqueueNoPayloadAsync(Jobs, TestNamespace, "job-step-exhaust", ct);
 
-        // --- 1. The step retries once, then exhausts its budget and fails the parent.
-        Assert.Equal(RunOnceStatus.Rearmed, await Runtime.RunOnceAsync(enqueued, ct));
+        // --- 1. The at-most-once body throws, which exhausts the step and fails the parent.
         Assert.Equal(RunOnceStatus.Failed, await Runtime.RunOnceAsync(enqueued, ct));
 
-        // --- 2. The step is Exhausted after two attempts (no read operation, read the row).
+        // --- 2. The step is Exhausted (no read operation, read the row).
         var step = Assert.Single(await Db.From<StepEntity>().Where(a => a.JobId == enqueued.JobId).ToListAsync(ct));
         Assert.Equal(StepStatusCode.Exhausted, step.Status);
-        Assert.Equal(2, step.AttemptNumber);
 
         // --- 3. The parent is Failed at once: an uncaught exhaustion is non-retryable.
         var job = await Jobs.GetAsync(enqueued, ct);
@@ -98,8 +96,8 @@ public sealed class SignalStepWakeChaosSpec : ActaRuntimeTestBase<ConformanceFix
         var events = await GetEventsByJobId.Run(Services, enqueued.JobId, ct);
         var failed = Assert.Single(events, e => e.EventCode == EventCode.JobFailed);
         Assert.Equal(EventReason.NonRetryableException, failed.Reason);
-        Assert.Single(events, e => e.EventCode == EventCode.JobRescheduled);
-        Assert.Equal(2, JobStepProbes.BodyInvocations[enqueued.JobId]);
+        Assert.DoesNotContain(events, e => e.EventCode == EventCode.JobRescheduled);
+        Assert.Equal(1, JobStepProbes.BodyInvocations[enqueued.JobId]);
     }
 
     [Fact(DisplayName = "Lost wake notification is recovered by the safety poll path")]

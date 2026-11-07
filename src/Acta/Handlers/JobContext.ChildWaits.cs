@@ -15,6 +15,7 @@ public abstract partial class JobContext
     /// </summary>
     public async Task<ChildJobOutcome> WaitChildAsync(long childJobId, CancellationToken ct = default)
     {
+        ThrowIfInAtMostOnceStep(nameof(WaitChildAsync));
         ArgumentOutOfRangeException.ThrowIfNegativeOrZero(childJobId);
         using var linked = CancellationTokenSource.CreateLinkedTokenSource(ct, CancellationToken);
         var outcome = await WaitSignalCoreAsync(ChildLatchName(childJobId), linked.Token);
@@ -31,6 +32,7 @@ public abstract partial class JobContext
     /// </summary>
     public async Task<ChildWaitOutcome> TryWaitChildAsync(long childJobId, TimeSpan timeout, CancellationToken ct = default)
     {
+        ThrowIfInAtMostOnceStep(nameof(TryWaitChildAsync));
         ArgumentOutOfRangeException.ThrowIfNegativeOrZero(childJobId);
         var seconds = ToWaitTimeoutSeconds(timeout);
         using var linked = CancellationTokenSource.CreateLinkedTokenSource(ct, CancellationToken);
@@ -84,6 +86,7 @@ public abstract partial class JobContext
     /// </summary>
     public async Task<IReadOnlyList<ChildJobOutcome>> WaitChildrenAsync(IReadOnlyList<long> childJobIds, CancellationToken ct = default)
     {
+        ThrowIfInAtMostOnceStep(nameof(WaitChildrenAsync));
         ArgumentNullException.ThrowIfNull(childJobIds);
         var outcomes = new ChildJobOutcome[childJobIds.Count];
         for (var i = 0; i < childJobIds.Count; i++)
@@ -118,6 +121,7 @@ public abstract partial class JobContext
         CancellationToken ct = default
     )
     {
+        ThrowIfInAtMostOnceStep(nameof(TryWaitChildrenAsync));
         ArgumentNullException.ThrowIfNull(childJobIds);
         // Every argument is checked before the first store call, and a bad id anywhere in the list stops
         // the whole call, so a rejected group never leaves a deadline checkpoint or a half-armed latch behind.

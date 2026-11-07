@@ -6443,7 +6443,7 @@
                           {
                             "name": "post-invoice",
                             "status": "pending",
-                            "explanation": "is waiting for retry attempt 2: Invoice provider timed out."
+                            "explanation": "has started and has no recorded success"
                           }
                         ],
                         "stepsHasMore": false,
@@ -6483,7 +6483,7 @@
                           {
                             "name": "post-invoice",
                             "status": "pending",
-                            "explanation": "Running, or waiting to retry within its retry budget."
+                            "explanation": "Started, with no success recorded; a retry of the job runs it again."
                           }
                         ],
                         "stepsHasMore": false,
@@ -6810,9 +6810,7 @@
                         {
                           "name": "post-invoice",
                           "status": "pending",
-                          "attemptNumber": 2,
-                          "nextRetryAtUtc": "2026-06-12T06:05:00Z",
-                          "failureMessage": "Invoice provider timed out.",
+                          "failureMessage": null,
                           "createdAtUtc": "2026-06-12T06:00:00Z",
                           "modifiedAtUtc": "2026-06-12T06:00:00Z"
                         }
@@ -14643,8 +14641,6 @@
         "required": [
           "name",
           "status",
-          "attemptNumber",
-          "nextRetryAtUtc",
           "failureMessage",
           "createdAtUtc",
           "modifiedAtUtc"
@@ -14659,25 +14655,12 @@
             "description": "The step's status.",
             "$ref": "#/components/schemas/StepStatusCode"
           },
-          "attemptNumber": {
-            "type": "integer",
-            "description": "The attempt the step is on, starting at 1.",
-            "format": "int32"
-          },
-          "nextRetryAtUtc": {
-            "type": [
-              "null",
-              "string"
-            ],
-            "description": "When a pending retry of the step is due, in UTC; null when none is pending.",
-            "format": "date-time"
-          },
           "failureMessage": {
             "type": [
               "null",
               "string"
             ],
-            "description": "The last failure's message; null when the step has not failed."
+            "description": "Why an at-most-once step ended exhausted or interrupted; null for every other step."
           },
           "createdAtUtc": {
             "type": "string",
@@ -14690,7 +14673,7 @@
             "format": "date-time"
           }
         },
-        "description": "One step of a job: its name, its status, the attempt it is on, when a pending retry is due, the last failure's message, and when the step was first started and last written. The step's memoized result stays the engine's."
+        "description": "One step of a job: its name, its status, the failure that ended an at-most-once step, and when the step was first started and last written. The step's memoized result stays the engine's."
       },
       "ListJobStepsResponse": {
         "required": [
@@ -16778,7 +16761,7 @@
           "pending"
         ],
         "type": "string",
-        "description": "Where a step stands. A step is pending from its first start and across retries, and ends succeeded, exhausted when its retries are spent, or interrupted when a step that runs at most once was re-entered before it completed.\n\nKnown values:\n- unspecified: Step status not recognized by this build; the row was written by a newer Acta.\n- pending: Running, or waiting to retry within its retry budget.\n- succeeded: Completed; its result, when it has one, is stored.\n- exhausted: Its retries are spent; the job's handler receives the failure.\n- interrupted: A step that runs at most once was re-entered before it completed, so whether it ran is unknown; the job's handler receives the interruption.\n\nOther values may appear: keep a value this client does not know as it is.",
+        "description": "Where a step stands. A step is pending from its first start until it succeeds, and an at-most-once step ends exhausted when its body threw, or interrupted when it was re-entered before it completed.\n\nKnown values:\n- unspecified: Step status not recognized by this build; the row was written by a newer Acta.\n- pending: Started, with no success recorded; a retry of the job runs it again.\n- succeeded: Completed; its result, when it has one, is stored.\n- exhausted: An at-most-once step's body threw, so it does not run again; the job's handler receives the failure.\n- interrupted: A step that runs at most once was re-entered before it completed, so whether it ran is unknown; the job's handler receives the interruption.\n\nOther values may appear: keep a value this client does not know as it is.",
         "x-acta-known-values": [
           "unspecified",
           "pending",

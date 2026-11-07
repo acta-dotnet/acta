@@ -1284,14 +1284,6 @@
           "Signature": "Byte|0|0|0|False|None||coded=True|codeKind=job-step-status|caseExact=False"
         },
         {
-          "Name": "attempt_number",
-          "Signature": "Int32|0|0|0|False|None||coded=False|codeKind=|caseExact=False"
-        },
-        {
-          "Name": "next_retry_at_utc",
-          "Signature": "UtcInstant|0|0|0|True|None||coded=False|codeKind=|caseExact=False"
-        },
-        {
           "Name": "failure_code",
           "Signature": "Byte|0|0|0|True|None||coded=True|codeKind=step-failure|caseExact=False"
         },
@@ -1323,10 +1315,6 @@
       "Indexes": [],
       "Checks": [
         {
-          "Name": "ck_steps_attempt_number",
-          "Sql": "attempt_number \u003E= 1"
-        },
-        {
           "Name": "ck_steps_failure_pair",
           "Sql": "failure_message IS NULL OR failure_code IS NOT NULL"
         },
@@ -1337,10 +1325,6 @@
         {
           "Name": "ck_steps_result_succeeded",
           "Sql": "result_format_id = 0 OR step_status_code = 100"
-        },
-        {
-          "Name": "ck_steps_terminal_no_retry",
-          "Sql": "step_status_code NOT IN (100, 200, 230) OR next_retry_at_utc IS NULL"
         }
       ],
       "ForeignKeys": []
@@ -1531,7 +1515,7 @@
       "checkpoints_view": "798f62fb9c53ff43b262d949d37bfa428cae1d3ae0ee15ec9449d36b27a63cd1",
       "claim_jobs": "670371693bb001c45b007d7bcd1e0c7572d02a42043baa01e3581ac9b7f3787f",
       "complete_executions": "50a615335d695a4f21d1db19d05084b30d8ffa0c22cec01b8046861ef5e4d144",
-      "complete_job_step": "cd54edc26b4c0e1322947e40f6890fb257e30bea3e703f3aab1977c39af9694a",
+      "complete_job_step": "30688d8206664c11ae25c8c6d8e4bed7f1fc86b9f9cb6a4bb990747114af34ce",
       "definitions_view": "2be60e32e9ab05dde2ff7c3e69e81204731daf01c6f0794510ee7b7fbba53fc7",
       "deployments_view": "96fc0284fb1f47ce344419e633b8f89ade24ded7c4a118d0a514015548affa63",
       "enqueue_job": "6e668b4ba9ced7627f986a1e48cd126f3310fc4b94320c640ad7168c7c68bc42",
@@ -1544,8 +1528,8 @@
       "reclaim_stuck_jobs": "d04ef6b8e0770b9cead3f2b59bd43da8bf059ceb0d54a7e022ac52264a11ba05",
       "reserve_rate": "6c670647c61105bf54f710e21222010bc21c5fb74db62825cce3495dd902fa22",
       "schedules_view": "1379cf3da2e40586de1832cc3976cc3fc566ad16e47ee62e7bd49bf0d750f8ce",
-      "start_job_step": "e0f07a3155d36d8402cfb021c1534810804042daed1b4b43a631bea34e33fa21",
-      "steps_view": "abc994b0c7c41937156a8884e8dfb29873ac123c2d17827127f77dd4e55e26a5",
+      "start_job_step": "5ba519ed45e1f3c6dd7bc99625c3997ac200d59ab95c22f67e334d976f17c9f4",
+      "steps_view": "2f6ef6af5f4da72191e211cbb34bd01b1d8142f7c952379a20a983370021acf6",
       "tags_view": "55d18a02036ad23fbf32bbcbeef0bac99a881b9adf9e80e61711b33ca46717bb",
       "wait_job_signal": "a68451281f7d4b7e6e4acb00fed750150e6731d16115b52c476b41d36631a65c",
       "workers_view": "479bc6e7fdd8a3e6948fd652689e36e7942bcfc90cb8c1cce6ef63e442ce9f08"
@@ -1558,7 +1542,7 @@
       "checkpoints_view": "34a025869cc5b4856a85b3e89039b8062cb1cae2d0267305184566a7db255e29",
       "claim_jobs": "f2dfda1339c2f8c5f9c97df45594691a746c29c224bba5c343d39a3bda077237",
       "complete_executions": "de0b0670cf216229c75fb6a4d71eecf0bd60fb7483676a9fc15a9432a7480716",
-      "complete_job_step": "7cd9b30d151aac80961345e356a22fc62c01307ea3d5c9e9a958298981badb86",
+      "complete_job_step": "8bc2419095dbd021f3a4c1512076be9476c2d7519b79210f6c8bbb31d794417b",
       "definitions_view": "8414fba71f4632878bb61663d05d9974d135cd12c0b0cfe9acd929068b2f0ae1",
       "deployments_view": "6c8ab23e15969f1ec2d9116019d27f88d713c0b218d13ddd68390e04d74c513a",
       "enqueue_job": "d87205c85e65e58cf45968bc4a04c8922a71131398518d9d55fdf523a6a1fa20",
@@ -1571,8 +1555,8 @@
       "reclaim_stuck_jobs": "14eda06b5816e1af5fb1cec41bbf832e2de3668e72279f22c6d8e1ce74f6c847",
       "reserve_rate": "147eb58a9780d3a3a0f0660d4d0301c93a2a310dfbff598c2996b88d71eb6543",
       "schedules_view": "37a7b274470248c050b6174f972e1d63e33b33420612b9a1f7b6691063f9c5b8",
-      "start_job_step": "76314c21facab9efe84ad5055cc15621e33a9396df2f3e2b7799f8827c5aa48b",
-      "steps_view": "c7af23d2a558b9cbb0b66fc3de14ce3c259e76fa5abb6efad3ed6a77f8e3d870",
+      "start_job_step": "3221bccacd799071e9bb48ffa9d2ad1b1a9168b3e296858c162cfffe11931462",
+      "steps_view": "6a961b7c93a3216e8bd337ba11fc50b8276054841f659786623f4bfb47ed1263",
       "tags_view": "7c53250b8389ffff268b2c675dd929aa2bc434b34921753d649a49487c6b4d2f",
       "wait_job_signal": "063f4e5d87f81a9915bfad01bebff1095b1273b2dac1525a81a023bd3be8eb50",
       "workers_view": "83b2b8503a31f125ebc4c2c1b362fe0f180c5f04c6f679e63225612fcafcfeaa"
@@ -1586,7 +1570,7 @@
       "events_view": "839bf2b1cf44e948a48cf5a4cdc32db26c1532540cb86f43221223665ac768fb",
       "jobs_view": "4e8b8023c778eab7e97b87b68c24a406fa8445b21a4204a958b6b4ea22a37b29",
       "schedules_view": "29f348b4804df9b426a39ac3a94c7d7584360aabd4e85eaf90b82463f4a8e00c",
-      "steps_view": "8d274489630abf7eb7f9f16ca4b56abd517be24fc91b4e2cd5e55dcb91db958f",
+      "steps_view": "ecdd09b1389fbc9f3709efb9b55064c029e7705df3a0ee345d2b03bcc7d030b7",
       "tags_view": "84970713035f1acde44c1f17c583898d95edc633e25f162dee142655daffd9cd",
       "workers_view": "5abc761eabb35f6035fba444fd08d547578e8140faf6e258d07775fa489ac7f5"
     }

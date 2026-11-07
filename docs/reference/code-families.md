@@ -432,7 +432,7 @@ This pattern makes raw values easier to scan in database rows, logs, and diagnos
 | Member | Id | Code | Description | Lifecycle |
 |---|---:|---|---|---|
 | `Unspecified` | 0 | `unspecified` | Step failure not recognized by this build; the row was written by a newer Acta. | Active |
-| `UnhandledException` | 10 | `unhandled-exception` | The step body threw; the attempt counts against the step's retry budget. | Active |
+| `UnhandledException` | 10 | `unhandled-exception` | An at-most-once step body threw, so the step does not run again. | Active |
 | `Interrupted` | 20 | `interrupted` | An at-most-once step was re-entered on replay before its outcome was recorded (worker died mid-flight); the body is not re-run and the outcome is unknown. | Active |
 
 ### `StepStatusCode` · `job-step-status` <a id="code-family-stepstatuscode"></a>
@@ -440,9 +440,9 @@ This pattern makes raw values easier to scan in database rows, logs, and diagnos
 | Member | Id | Code | Description | Lifecycle |
 |---|---:|---|---|---|
 | `Unspecified` | 0 | `unspecified` | Step status not recognized by this build; the row was written by a newer Acta. | Active |
-| `Pending` | 10 | `pending` | Running, or waiting to retry within its retry budget. | Active |
+| `Pending` | 10 | `pending` | Started, with no success recorded; a retry of the job runs it again. | Active |
 | `Succeeded` | 100 | `succeeded` | Completed; its result, when it has one, is stored. | Active |
-| `Exhausted` | 200 | `exhausted` | Its retries are spent; the job's handler receives the failure. | Active |
+| `Exhausted` | 200 | `exhausted` | An at-most-once step's body threw, so it does not run again; the job's handler receives the failure. | Active |
 | `Interrupted` | 230 | `interrupted` | A step that runs at most once was re-entered before it completed, so whether it ran is unknown; the job's handler receives the interruption. | Active |
 
 ### `TenantStatusCode` · `tenant-status` <a id="code-family-tenantstatuscode"></a>

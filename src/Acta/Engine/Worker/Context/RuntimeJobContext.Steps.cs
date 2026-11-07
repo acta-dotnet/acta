@@ -1,6 +1,5 @@
 #nullable enable
 
-using System.Globalization;
 using Microsoft.Extensions.Logging;
 
 namespace Acta;
@@ -33,10 +32,9 @@ internal sealed partial class RuntimeJobContext
     ) => RunStepImplAsync(name, body, storeResult: true, options, ct);
 
     /// <summary>
-    /// Durable step orchestration: start (decide invoke/replay/suspend/exhausted), run the body,
-    /// complete (success or retry/exhaust). Retries re-arm the parent budget-neutrally via
-    /// StepRetrySignal; the policy is resolved live from the parent [Job] defaults + per-step
-    /// overrides each attempt and never persisted.
+    /// Durable step orchestration: start (invoke, replay, exhausted, or interrupted), run the body, record the success.
+    /// An ordinary body's failure propagates and fails the attempt, so the job's retry runs it again; an at-most-once
+    /// body's failure is recorded terminal first.
     /// </summary>
     private async Task<TResult> RunStepImplAsync<TResult>(
         string name,
@@ -46,11 +44,6 @@ internal sealed partial class RuntimeJobContext
         CancellationToken ct
     )
     {
-        // AtMostOnce forces a single body invocation: the parent [Job] MaxAttempts default must not leak
-        // in and re-run the body. Any conflicting override was already rejected by StepOptionsBuilder.Build.
-        var maxAttempts = options.AtMostOnce ? 1 : options.MaxAttempts ?? _stepRetryDefaults.MaxAttempts;
-        var retryWindowSeconds = options.AtMostOnce ? (int?)null : options.RetryWindowSeconds;
-
         var start = await FencedAsync(() => _executionStore.StartJobStepAsync(Fence, name, options.AtMostOnce, ct));
         switch (start.Outcome)
         {
@@ -58,15 +51,13 @@ internal sealed partial class RuntimeJobContext
                 RecordStep(name, "replayed");
                 return storeResult ? DeserializeStepResult<TResult>(name, start.ResultFormatId, start.Result!) : default!;
             case StartJobStepOutcomeCode.Exhausted:
-                throw new StepExhaustedException(name, start.AttemptNumber, start.FailureCode, start.FailureMessage);
+                throw new StepExhaustedException(name, start.FailureCode, start.FailureMessage);
             case StartJobStepOutcomeCode.Interrupted:
                 // An AtMostOnce step re-entered before its outcome was recorded: the row was terminalized
                 // Interrupted by start_job_step. Do NOT run the body; the outcome is ambiguous (ran 0 or 1
                 // times) and the handler must reconcile externally.
                 RecordStep(name, "interrupted");
                 throw new StepInterruptedException(name);
-            case StartJobStepOutcomeCode.Suspend:
-                throw new StepRetrySignal(start.NextRetryAtUtc!.Value, name, reasonMessage: null);
             case StartJobStepOutcomeCode.Invoke:
                 break;
             default:
@@ -78,65 +69,32 @@ internal sealed partial class RuntimeJobContext
         {
             value = await body(ct);
         }
+        catch (JobControlException control) when (options.AtMostOnce && control is not (HandlerFailException or HandlerCancelException))
+        {
+            // A suspension the body threw itself rather than through a guarded call: its resume would find the step
+            // started and interrupt it, so it is refused as those calls are. Fail and cancel end the job and pass through.
+            throw await ExhaustAsync(
+                name,
+                start.Version,
+                AtMostOnceSuspensionRefused($"A thrown {control.GetType().Name}", name).Message,
+                ct
+            );
+        }
         catch (Exception ex)
             when (ex is not (JobControlException or ExecutionFencedException)
                 && (ex is not OperationCanceledException || !ct.IsCancellationRequested)
             )
         {
-            // A business failure: record it and let the routine decide retry-vs-exhaust. A genuine parent
-            // or caller cancel is NOT caught here: it propagates so HandlerInvocation/caller cancellation handles it,
-            // never recording a step failure. Nor is a control verb the body called (fail, cancel, reschedule, a
-            // wait, a nested step's retry): it decides the job's outcome, not this step's. Nor is a write the body
-            // made that the fence refused: the attempt no longer holds the job.
-            var delaySeconds = BackoffSchedule.ComputeDelaySeconds(
-                start.AttemptNumber,
-                options.BackoffInitialDelaySeconds ?? _stepRetryDefaults.BackoffInitialDelaySeconds,
-                options.BackoffMaxDelaySeconds ?? _stepRetryDefaults.BackoffMaxDelaySeconds,
-                options.BackoffMultiplier ?? _stepRetryDefaults.BackoffMultiplier,
-                options.BackoffJitter ?? _stepRetryDefaults.BackoffJitter
-            );
-            var message = ex.Message.Truncate(ActaTextLimits.StepFailureMessage);
-
-            var failure = await CompleteJobStepAsync(
-                new CompleteJobStepCommand(
-                    Fence,
-                    name,
-                    Succeeded: false,
-                    ResultFormatId: 0,
-                    Result: null,
-                    StepFailureCode.UnhandledException,
-                    message,
-                    delaySeconds,
-                    maxAttempts,
-                    retryWindowSeconds,
-                    start.Version
-                ),
-                ct
-            );
-
-            if (failure.Outcome == CompleteJobStepOutcomeCode.StaleVersion)
+            // A business failure. A genuine parent or caller cancel is NOT caught here, nor a control verb the body
+            // called (fail, cancel, reschedule, a wait), nor a write the fence refused: each decides the attempt's
+            // outcome, not this step's.
+            if (!options.AtMostOnce)
             {
-                throw new StepOwnershipLostException(name);
+                RecordStep(name, "failed");
+                throw;
             }
 
-            if (failure.Outcome == CompleteJobStepOutcomeCode.Exhausted)
-            {
-                RecordStep(name, "exhausted");
-                if (_log.IsEnabled(LogLevel.Warning))
-                {
-                    ActaLog.StepExhausted(_log, JobId, $"step '{name}', attempt {start.AttemptNumber}: {message}");
-                }
-                throw new StepExhaustedException(name, start.AttemptNumber, StepFailureCode.UnhandledException, message);
-            }
-
-            RecordStep(name, "failed");
-            if (_log.IsEnabled(LogLevel.Information))
-            {
-                var detail =
-                    $"step '{name}', attempt {start.AttemptNumber}, retry at {failure.NextRetryAtUtc?.ToString("o", CultureInfo.InvariantCulture)}";
-                ActaLog.StepRetrying(_log, JobId, detail);
-            }
-            throw new StepRetrySignal(failure.NextRetryAtUtc!.Value, name, message);
+            throw await ExhaustAsync(name, start.Version, ex.Message, ct);
         }
 
         if (storeResult && value is null)
@@ -158,9 +116,6 @@ internal sealed partial class RuntimeJobContext
                 storeResult ? payload.Data.ToArray() : null,
                 FailureCode: null,
                 FailureMessage: null,
-                DelaySeconds: 0,
-                maxAttempts,
-                retryWindowSeconds,
                 start.Version
             ),
             ct
@@ -177,6 +132,37 @@ internal sealed partial class RuntimeJobContext
 
     private Task<CompleteJobStepResponse> CompleteJobStepAsync(CompleteJobStepCommand command, CancellationToken ct) =>
         FencedAsync(() => _executionStore.CompleteJobStepAsync(command, ct));
+
+    /// <summary>Records an at-most-once body's failure terminal and answers the exception its call throws.</summary>
+    private async Task<StepExhaustedException> ExhaustAsync(string name, int version, string failureMessage, CancellationToken ct)
+    {
+        var message = failureMessage.Truncate(ActaTextLimits.StepFailureMessage);
+        var failure = await CompleteJobStepAsync(
+            new CompleteJobStepCommand(
+                Fence,
+                name,
+                Succeeded: false,
+                ResultFormatId: 0,
+                Result: null,
+                StepFailureCode.UnhandledException,
+                message,
+                version
+            ),
+            ct
+        );
+
+        if (failure.Outcome == CompleteJobStepOutcomeCode.StaleVersion)
+        {
+            throw new StepOwnershipLostException(name);
+        }
+
+        RecordStep(name, "exhausted");
+        if (_log.IsEnabled(LogLevel.Warning))
+        {
+            ActaLog.StepExhausted(_log, JobId, $"step '{name}': {message}");
+        }
+        return new StepExhaustedException(name, StepFailureCode.UnhandledException, message);
+    }
 
     private JobPayload SerializeStepResult<TResult>(TResult value)
     {

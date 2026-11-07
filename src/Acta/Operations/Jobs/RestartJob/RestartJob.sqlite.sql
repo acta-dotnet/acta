@@ -155,8 +155,8 @@ WHERE
     AND (@p_expected_version IS NULL OR r.version = @p_expected_version)
     AND s.rejected = 0;
 
--- An exhausted step runs again from a fresh budget and retry window; an interrupted at-most-once
--- step stays, since only someone who reconciled its outcome can say it may run again.
+-- An exhausted at-most-once step, whose body threw, runs again on the operator's say-so; an interrupted one
+-- stays, since only someone who reconciled its outcome can say it may run again.
 DELETE FROM {{schema}}.steps
 WHERE
     job_id = @p_job_id

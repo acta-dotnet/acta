@@ -95,7 +95,7 @@ public sealed class GetJobLineageMapSpec : ActaRuntimeTestBase<ConformanceFixtur
         var focus = chain[^1];
         var parents = string.Join(" ", chain.Skip(1).Zip(chain, (child, parent) => $"WHEN {child} THEN {parent}"));
         // One statement stamps every step with the same created_at_utc, so the name orders them, the highest the newest.
-        var steps = Enumerable.Range(0, GetJobLineageMapHandler.StepLimit + 2).Select(i => $"({focus}, 's{i:D3}', 10, 1, 0)");
+        var steps = Enumerable.Range(0, GetJobLineageMapHandler.StepLimit + 2).Select(i => $"({focus}, 's{i:D3}', 10, 0)");
         await using (var connection = await Db.OpenConnectionAsync(ct))
         {
             await using var link = connection.CreateCommand();
@@ -104,7 +104,7 @@ public sealed class GetJobLineageMapSpec : ActaRuntimeTestBase<ConformanceFixtur
             Assert.Equal(chain.Count - 1, await link.ExecuteNonQueryAsync(ct));
             await using var insert = connection.CreateCommand();
             insert.CommandText =
-                $"INSERT INTO {Db.Schema}.steps (job_id, step_name, step_status_code, attempt_number, result_format_id) VALUES {string.Join(", ", steps)}";
+                $"INSERT INTO {Db.Schema}.steps (job_id, step_name, step_status_code, result_format_id) VALUES {string.Join(", ", steps)}";
             await insert.ExecuteNonQueryAsync(ct);
         }
 

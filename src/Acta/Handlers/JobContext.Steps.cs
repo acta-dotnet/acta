@@ -2,13 +2,16 @@ namespace Acta;
 
 public abstract partial class JobContext
 {
+    /// <summary>The at-most-once step whose body this async flow is running, if any.</summary>
+    private readonly AsyncLocal<string?> _atMostOnceStep = new();
+
     /// <summary>
     /// Runs <paramref name="body"/> as a durable, replay-safe step named <paramref name="name"/> (kebab-case, unique
     /// per Job). The first pass runs the body and records the outcome; a replay of a succeeded step returns without
-    /// re-running it; a failure retries with backoff, re-arming the parent budget-neutrally, until it succeeds or
-    /// exhausts its budget and throws <see cref="StepExhaustedException"/>. The body must be idempotent: a crash after
-    /// the side effect but before the record re-runs it on replay, and bare handler code between steps re-runs on
-    /// every retry. <paramref name="configure"/> overrides the parent <c>[Job]</c> retry policy per step.
+    /// re-running it. A body that throws fails the attempt, and the parent <c>[Job]</c>'s <c>MaxAttempts</c> and
+    /// <c>Backoff</c> retry it: the retry replays the steps that succeeded and runs this one again. The body must be
+    /// idempotent: a crash after the side effect but before the record re-runs it, and so does the resume after a wait
+    /// inside the body. <paramref name="configure"/> chooses <see cref="StepOptionsBuilder.AtMostOnce"/>.
     /// </summary>
     public async Task RunStepAsync(
         string name,
@@ -19,7 +22,7 @@ public abstract partial class JobContext
     {
         name = NameSyntax.Canonicalize(name, nameof(name), NameSyntax.ExtendedMaxLength, reserveSystem: true);
         ArgumentNullException.ThrowIfNull(body);
-        var options = BuildStepOptions(configure);
+        var options = BuildStepOptions(name, configure);
 
         using var linked = CancellationTokenSource.CreateLinkedTokenSource(ct, CancellationToken);
         await RunStepCoreAsync(name, body, options, linked.Token);
@@ -52,7 +55,7 @@ public abstract partial class JobContext
     {
         name = NameSyntax.Canonicalize(name, nameof(name), NameSyntax.ExtendedMaxLength, reserveSystem: true);
         ArgumentNullException.ThrowIfNull(body);
-        var options = BuildStepOptions(configure);
+        var options = BuildStepOptions(name, configure);
 
         using var linked = CancellationTokenSource.CreateLinkedTokenSource(ct, CancellationToken);
         return await RunStepCoreAsync(name, body, options, linked.Token);
@@ -67,7 +70,11 @@ public abstract partial class JobContext
     public Task<TResult> RunStepAsync<TResult>(string name, Func<CancellationToken, Task<TResult>> body, CancellationToken ct) =>
         RunStepAsync(name, body, configure: null, ct: ct);
 
-    private static StepOptions BuildStepOptions(Action<StepOptionsBuilder>? configure)
+    /// <summary>
+    /// The step's options; an at-most-once step marks the calling async flow, so a suspension anywhere in its body,
+    /// nested steps included, is refused. The mark ends with the calling <c>RunStepAsync</c>.
+    /// </summary>
+    private StepOptions BuildStepOptions(string name, Action<StepOptionsBuilder>? configure)
     {
         if (configure is null)
         {
@@ -76,13 +83,36 @@ public abstract partial class JobContext
 
         var builder = new StepOptionsBuilder();
         configure(builder);
-        return builder.Build();
+        var options = builder.Build();
+        if (options.AtMostOnce)
+        {
+            _atMostOnceStep.Value = name;
+        }
+        return options;
     }
 
     /// <summary>
-    /// Subclass sink: runs the void step orchestration (start, body, complete, retry or exhaust).
-    /// Returns normally on success; throws the framework step-retry signal to re-arm the Job, or
-    /// <see cref="StepExhaustedException"/> when the budget is spent.
+    /// Refuses a call that can suspend the job when it runs inside an at-most-once step body, before the call writes
+    /// anything: the resume would replay the job from the top, and the body never runs twice.
+    /// </summary>
+    private void ThrowIfInAtMostOnceStep(string call)
+    {
+        if (_atMostOnceStep.Value is { } step)
+        {
+            throw AtMostOnceSuspensionRefused(call, step);
+        }
+    }
+
+    /// <summary>The refusal of a suspension inside the at-most-once step <paramref name="step"/>, called or thrown.</summary>
+    private protected static InvalidOperationException AtMostOnceSuspensionRefused(string call, string step) =>
+        new(
+            $"{call} inside the AtMostOnce step '{step}' is refused: it can suspend the job, and resuming replays the "
+                + "job from the top, which would run the step's body again. Move the wait out of the step."
+        );
+
+    /// <summary>
+    /// Subclass sink: runs the void step orchestration (start, body, record). Returns normally on success; a body
+    /// failure propagates, or for an at-most-once step becomes <see cref="StepExhaustedException"/>.
     /// </summary>
     private protected abstract Task RunStepCoreAsync(
         string name,

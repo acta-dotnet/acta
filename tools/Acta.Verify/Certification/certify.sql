@@ -123,37 +123,37 @@ WHERE  r.job_status_code IN (100, 200, 220)
   AND  r.leased_by_worker_id IS NOT NULL;
 
 -- ---------------------------------------------------------------------------------------------
--- 7. no step body ran more times than the step was attempted   [QUIESCED ONLY]
+-- 7. no attempt ran a step body twice                    [QUIESCED ONLY]
 -- ---------------------------------------------------------------------------------------------
--- The differentiating claim, and the reason the note API exists: "kill the worker, completed steps
--- do not re-run."
+-- The witness for the differentiating claim, and the reason the note API exists: "kill the worker,
+-- completed steps do not re-run."
 --
 -- `steps` keeps only current state - one row per (job, name), UPDATE-in-place, no per-attempt
 -- history - so a body that ran twice leaves no trace there. The witness is the note each body writes
--- before doing its work, and `attempt_number` is how many times the engine admitted a body.
+-- before doing its work, which records the execution that wrote it. One attempt runs the handler
+-- once from the top, so it runs a step's body at most once.
 --
 -- Counting, not timestamps. Comparing a note's time against the step's `modified_at_utc` reads "note
 -- after success" as a replay, and that is wrong under load: every routine captures its clock at
 -- entry, so a write blocked on locks lands with a stale stamp, and a step's `modified_at_utc` can even
--- precede its own `created_at_utc`. One note per admitted attempt is the same claim with no clock in
--- it.
+-- precede its own `created_at_utc`.
 --
 -- A second note is NOT a violation by itself: at-least-once means a body interrupted before its
--- outcome committed legitimately re-runs, and that re-run is an attempt the engine counted. The
--- violation is a body that ran without the engine admitting it, which is exactly notes > attempts.
--- It is a count, so it cannot see an engine that admitted a step that had already succeeded and
--- counted the attempt; StepSpec's "a succeeded step replays its stored result without re-running the
--- body" carries that claim.
-SELECT 'step-replay' AS check_name, s.job_id, s.step_name, s.attempt_number, n.notes
+-- outcome committed legitimately re-runs on the next attempt. The violation is a second note from
+-- one attempt. This check cannot see a body that ran once in an attempt after an earlier attempt had
+-- already recorded its success: nothing in the ledger but a clock orders a note against that success,
+-- since a step counts no attempts and records no execution. StepSpec's "a succeeded step replays its
+-- stored result without re-running the body" and StartJobStepSpec's replay fact carry that claim.
+SELECT 'step-replay' AS check_name, s.job_id, s.step_name, n.execution_number, n.notes
 FROM   {s}steps s
-JOIN   (SELECT entity_id, event_message, COUNT(*) AS notes
+JOIN   (SELECT entity_id, event_message, execution_number, COUNT(*) AS notes
         FROM   {s}events
         WHERE  entity_code = 50 AND event_code = 90
-        GROUP BY entity_id, event_message) n
+        GROUP BY entity_id, event_message, execution_number) n
   ON   n.entity_id = s.job_id
  AND   n.event_message = CONCAT('step-body ', s.step_name)   -- CONCAT: || is not SQL Server
 WHERE  s.step_status_code = 100
-  AND  n.notes > s.attempt_number;
+  AND  n.notes > 1;
 
 -- ---------------------------------------------------------------------------------------------
 -- 8. the chaos was real                                  [INVERTED: must return exactly one row]

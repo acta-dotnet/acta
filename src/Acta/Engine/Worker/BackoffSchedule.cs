@@ -9,22 +9,23 @@ internal static class BackoffSchedule
     /// <summary>
     /// Whole-second delay for retry <paramref name="attemptNumber"/> (1 = the first retry, applying
     /// the initial delay). Jitter is a symmetric fraction in <c>[-jitter, +jitter]</c> of the capped
-    /// delay; the result is clamped to <c>[0, maxSeconds]</c>.
+    /// delay; the result is clamped to <c>[0, max]</c>.
     /// </summary>
-    public static int ComputeDelaySeconds(int attemptNumber, int initialSeconds, int maxSeconds, decimal multiplier, decimal jitter)
+    public static int ComputeDelaySeconds(int attemptNumber, Backoff backoff)
     {
+        var initialSeconds = DurationSyntax.ToWholeSeconds(backoff.InitialDelay, nameof(backoff));
+        var maxSeconds = DurationSyntax.ToWholeSeconds(backoff.MaxDelay, nameof(backoff));
         if (attemptNumber < 1)
         {
             attemptNumber = 1;
         }
 
-        var growth = Math.Pow((double)multiplier, attemptNumber - 1);
+        var growth = Math.Pow(backoff.Multiplier, attemptNumber - 1);
         var delay = Math.Min(initialSeconds * growth, maxSeconds);
 
-        var jitterFraction = (double)jitter;
-        if (jitterFraction > 0)
+        if (backoff.Jitter > 0)
         {
-            var swing = delay * jitterFraction;
+            var swing = delay * backoff.Jitter;
             delay += (Random.Shared.NextDouble() * 2 - 1) * swing;
         }
 
@@ -39,13 +40,4 @@ internal static class BackoffSchedule
 
         return (int)Math.Round(delay);
     }
-
-    public static int ComputeDelaySeconds(int attemptNumber, Backoff backoff) =>
-        ComputeDelaySeconds(
-            attemptNumber,
-            DurationSyntax.ToWholeSeconds(backoff.InitialDelay, nameof(backoff)),
-            DurationSyntax.ToWholeSeconds(backoff.MaxDelay, nameof(backoff)),
-            (decimal)backoff.Multiplier,
-            (decimal)backoff.Jitter
-        );
 }

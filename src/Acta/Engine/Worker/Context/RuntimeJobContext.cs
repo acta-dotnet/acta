@@ -28,7 +28,7 @@ internal sealed partial class RuntimeJobContext(
     CancellationToken cancellationToken,
     int maxInlinePayloadBytes = int.MaxValue,
     InFlightJob? inFlightJob = null,
-    StepRetryDefaults stepRetryDefaults = default,
+    JobDescriptor? descriptor = null,
     ILogger? log = null,
     ActaMetrics? metrics = null,
     string? tenantName = null,
@@ -48,7 +48,7 @@ internal sealed partial class RuntimeJobContext(
     private readonly int _leaseTtlSeconds = leaseTtlSeconds;
     private readonly int _maxInlinePayloadBytes = maxInlinePayloadBytes;
     private readonly InFlightJob? _inFlightJob = inFlightJob;
-    private readonly StepRetryDefaults _stepRetryDefaults = stepRetryDefaults;
+    private readonly JobDescriptor? _descriptor = descriptor;
     private readonly ILogger _log = log ?? NullLogger.Instance;
     private readonly ActaMetrics? _metrics = metrics;
     private readonly Acta.IActaClock? _clock = clock;
@@ -65,6 +65,16 @@ internal sealed partial class RuntimeJobContext(
     /// completion for a fenced attempt, however its handler ended.
     /// </summary>
     internal bool Fenced => Volatile.Read(ref _fenced) == 1;
+
+    /// <summary>
+    /// The retry a retryable failure of this attempt earns, planned once so <see cref="IsLastAttempt"/> and the
+    /// completion read the same jittered backoff; null for a context built without a descriptor.
+    /// </summary>
+    internal (int Attempted, int DelaySeconds, bool InBudget)? FailureRetry { get; } =
+        descriptor is null ? null : WorkerFinalizer.PlanFailureRetry(descriptor, job);
+
+    public override bool IsLastAttempt =>
+        _descriptor is { } d && FailureRetry is { } retry && WorkerFinalizer.FailureEndsJob(d, retry, TimeUntilDeadline);
 
     private ExecutionFence Fence => new(JobId, ExecutionNumber, WorkerId);
 

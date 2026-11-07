@@ -39,8 +39,8 @@ dotnet run --project concepts/200-durable-execution/202-durable-step
 ```
 
 The handler fails once after `start-freeze-cycle`; the job reaches execution two, while this controlled
-failure-after-completion path invokes the body once and `steps_view.attempt_number` remains one. The
-stable external deduplication key in the example is still necessary for the crash-before-recording window.
+failure-after-completion path invokes the body once and the step row stays `succeeded`. The stable
+external deduplication key in the example is still necessary for the crash-before-recording window.
 
 ## Rows to inspect
 
@@ -52,9 +52,9 @@ proves reuse of a recorded outcome; the event rows explain why execution one re-
 
 ## Break it
 
-Move the simulated failure into the step body and compare the row. A normal step may retry its body
-according to policy. Then use lab 220 to explore a process stopping after step start but before outcome
-recording.
+Move the simulated failure into the step body and compare the row. The step stays `pending`, the throw
+fails the attempt, and the job's retry runs the body again under the job's `MaxAttempts`. Then use lab 220
+to explore a process stopping after step start but before outcome recording.
 
 ## When not to use
 

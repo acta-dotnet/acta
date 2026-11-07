@@ -6,8 +6,8 @@ namespace Acta;
 /// Typed retry-backoff policy: a capped exponential curve with symmetric jitter, the single growth
 /// shape the engine applies. It is a constructor for the four persisted scalars (initial delay, max
 /// delay, multiplier, jitter), not a runtime evaluator; the delay math lives in one place on the
-/// engine side. Build one with <see cref="Fixed"/> or <see cref="Exponential"/> and hand it to a
-/// retry-override surface such as <c>StepOptionsBuilder.WithPolicy</c>.
+/// engine side. <see cref="Parse"/> reads the DSL a <c>[Job]</c> <c>Backoff</c> or an operator override carries, and
+/// <see cref="ToString"/> writes it back for one built with <see cref="Fixed"/> or <see cref="Exponential"/>.
 /// </summary>
 public readonly record struct Backoff
 {

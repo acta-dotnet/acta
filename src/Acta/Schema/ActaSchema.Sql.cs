@@ -120,17 +120,10 @@ internal static partial class ActaSchema
         public static readonly DbValueSpec<DateTime?> WaitDueAtUtc = new("p_due_at_utc", DbKind.UtcInstant);
 
         /// <summary>
-        /// Step completion receives the outcome discriminator and the live-resolved retry policy used
-        /// to decide retry versus exhaustion. The application precomputes jittered backoff seconds;
-        /// storage compares the delayed retry time against the retry window.
+        /// Step completion's outcome discriminator: a success records the result, and a failure, which only an
+        /// at-most-once body records, terminalizes the step Exhausted.
         /// </summary>
         public static readonly DbValueSpec<bool> StepSucceeded = new("p_succeeded", DbKind.Boolean);
-
-        public static readonly DbValueSpec<int> StepRetryDelaySeconds = new("p_delay_seconds", DbKind.Int32);
-
-        public static readonly DbValueSpec<int> StepMaxAttempts = new("p_max_attempts", DbKind.Int32);
-
-        public static readonly DbValueSpec<int?> StepRetryWindowSeconds = new("p_retry_window_seconds", DbKind.Int32);
 
         /// <summary>The next run a slot's final status lands with: the pause instant when its handler paused it, which marks it held.</summary>
         public static readonly DbValueSpec<DateTime?> JobNextRunAtUtc = new("p_job_next_run_at_utc", DbKind.UtcInstant);

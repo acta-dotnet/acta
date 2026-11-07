@@ -74,7 +74,7 @@ internal sealed class Primer(IJobs jobs, ConceptLab lab, CheckoutLabScenario sce
         await lab.ShowAsync(
             "Nothing is reserved or charged before the review: no step has run",
             """
-            SELECT step_name, step_status, attempt_number, result_format
+            SELECT step_name, step_status, result_format
             FROM steps_view
             WHERE job_id = @jobId
             ORDER BY created_at_utc
@@ -114,7 +114,7 @@ internal sealed class Primer(IJobs jobs, ConceptLab lab, CheckoutLabScenario sce
             await lab.ShowAsync(
                 "No step ran: inventory and payment come after the review",
                 """
-                SELECT step_name, step_status, attempt_number, result_format
+                SELECT step_name, step_status, result_format
                 FROM steps_view
                 WHERE job_id = @jobId
                 ORDER BY created_at_utc
@@ -190,7 +190,7 @@ internal sealed class Primer(IJobs jobs, ConceptLab lab, CheckoutLabScenario sce
         await lab.ShowAsync(
             "All external operations have one successful durable outcome",
             """
-            SELECT step_name, step_status, attempt_number, result_format
+            SELECT step_name, step_status, result_format
             FROM steps_view
             WHERE job_id = @jobId
             ORDER BY created_at_utc

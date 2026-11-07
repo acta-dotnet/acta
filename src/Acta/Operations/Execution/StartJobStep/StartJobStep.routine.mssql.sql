@@ -16,15 +16,12 @@ BEGIN
 
         DECLARE @now DATETIME2(3) = SYSUTCDATETIME();
         DECLARE @outcome SMALLINT;
-        DECLARE @attempt INT;
         DECLARE @version INT;
-        DECLARE @next DATETIME2(3) = NULL;
         DECLARE @rfid TINYINT = 0;
         DECLARE @result VARBINARY(MAX) = NULL;
         DECLARE @rcode SMALLINT = NULL;
         DECLARE @rmsg NVARCHAR(512) = NULL;
         DECLARE @state TINYINT;
-        DECLARE @existing_next DATETIME2(3);
 
         -- The step's own lock serializes starts of one step to commit (docs/sql-internals.md,
         -- "Step, checkpoint and rate locks"); a range lock on a step not yet stored would hold the gap every running job's next step
@@ -51,9 +48,7 @@ BEGIN
 
         SELECT
             @state = step_status_code,
-            @attempt = attempt_number,
             @version = version,
-            @existing_next = next_retry_at_utc,
             @rfid = result_format_id,
             @result = result,
             @rcode = failure_code,
@@ -64,34 +59,30 @@ BEGIN
         IF @state IS NULL
             BEGIN
                 INSERT INTO {{schema}}.steps (
-                    job_id, step_name, step_status_code, attempt_number,
+                    job_id, step_name, step_status_code,
                     result_format_id, created_at_utc, modified_at_utc, version
                 )
                 VALUES (
-                    @p_job_id, @p_step_name, 10 /* StepStatusCode.Pending */, 1,
+                    @p_job_id, @p_step_name, 10 /* StepStatusCode.Pending */,
                     0 /* JobPayloadFormat.None */, @now, @now, 0
                 );
 
                 SET @outcome = 1 /* StartJobStepOutcomeCode.Invoke */;
-                SET @attempt = 1;
                 SET @version = 0;
                 SET @rfid = 0 /* JobPayloadFormat.None */;
                 SET @result = NULL;
                 SET @rcode = NULL;
                 SET @rmsg = NULL;
-                SET @next = NULL;
             END
         ELSE IF @state = 100 /* StepStatusCode.Succeeded */
             BEGIN
                 SET @outcome = 3 /* StartJobStepOutcomeCode.ReplaySuccess */;
-                SET @next = NULL;
                 SET @rcode = NULL;
                 SET @rmsg = NULL;
             END
         ELSE IF @state = 200 /* StepStatusCode.Exhausted */
             BEGIN
                 SET @outcome = 4 /* StartJobStepOutcomeCode.Exhausted */;
-                SET @next = NULL;
                 SET @rfid = 0 /* JobPayloadFormat.None */;
                 SET @result = NULL;
             END
@@ -99,16 +90,6 @@ BEGIN
             BEGIN
             -- Terminal at-most-once ambiguity from an earlier replay; re-throw consistently, no mutation.
                 SET @outcome = 5 /* StartJobStepOutcomeCode.Interrupted */;
-                SET @next = NULL;
-                SET @rfid = 0 /* JobPayloadFormat.None */;
-                SET @result = NULL;
-                SET @rcode = NULL;
-                SET @rmsg = NULL;
-            END
-        ELSE IF @existing_next IS NOT NULL AND @existing_next > @now
-            BEGIN
-                SET @outcome = 2 /* StartJobStepOutcomeCode.Suspend */;
-                SET @next = @existing_next;
                 SET @rfid = 0 /* JobPayloadFormat.None */;
                 SET @result = NULL;
                 SET @rcode = NULL;
@@ -122,7 +103,6 @@ BEGIN
                 UPDATE {{schema}}.steps
                 SET
                     step_status_code = 230 /* StepStatusCode.Interrupted */,
-                    next_retry_at_utc = NULL,
                     failure_code = 20 /* StepFailureCode.Interrupted */,
                     failure_message = N'At-most-once step re-entered before completion; outcome unknown.',
                     modified_at_utc = @now,
@@ -131,7 +111,6 @@ BEGIN
 
                 SET @version = @version + 1;
                 SET @outcome = 5 /* StartJobStepOutcomeCode.Interrupted */;
-                SET @next = NULL;
                 SET @rfid = 0 /* JobPayloadFormat.None */;
                 SET @result = NULL;
                 SET @rcode = NULL;
@@ -139,19 +118,8 @@ BEGIN
             END
         ELSE
             BEGIN
-                -- The next attempt spends the retry instant, as SQLite's start_job_step does.
-                UPDATE {{schema}}.steps
-                SET
-                    attempt_number = attempt_number + 1,
-                    next_retry_at_utc = NULL,
-                    modified_at_utc = @now,
-                    version = version + 1
-                WHERE job_id = @p_job_id AND step_name = @p_step_name;
-
-                SET @attempt = @attempt + 1;
-                SET @version = @version + 1;
+                -- An ordinary step with no success recorded runs again, its row unchanged.
                 SET @outcome = 1 /* StartJobStepOutcomeCode.Invoke */;
-                SET @next = NULL;
                 SET @rfid = 0 /* JobPayloadFormat.None */;
                 SET @result = NULL;
                 SET @rcode = NULL;
@@ -160,9 +128,7 @@ BEGIN
 
         SELECT
             @outcome AS outcome_code,
-            @attempt AS attempt_number,
             @version AS version,
-            @next AS next_retry_at_utc,
             @rfid AS result_format_id,
             @result AS result,
             @rcode AS failure_code,

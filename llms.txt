@@ -133,13 +133,25 @@ returns its recorded result instead of running the body. That promise has two co
   stable key derived from the job, never from the attempt.
 - Only step-wrapped work is skipped. Bare handler code between steps re-runs on every entry.
 
-A failing step retries on its own backoff without charging the job's retry budget. A step that
-exhausts its budget stays exhausted: every later attempt throws `StepExhaustedException` for it without
-running the body, so left uncaught it fails the job at once without spending its retry budget, and in a
-permanent job it fails every later fire the same way.
-Catch it where the job can go on without the step; an operator restart gives the step a fresh budget. For side effects where a duplicate is worse than an ambiguous
-interruption (a payment capture), `AtMostOnce()` runs the body zero-or-one times and hands the
-handler an explicit interrupted state to reconcile.
+A step retries through its job: a body that throws fails the attempt, the job's `MaxAttempts` and
+`Backoff` retry it, and the retry replays the steps that succeeded and runs this one again. A wait
+inside a step body works: the resume runs the body up to the wait, which returns what it has, and
+charges nothing.
+
+To compensate before the last failure lands, catch on `ctx.IsLastAttempt`, which reads the budget the
+job has already spent (and a Strict deadline), never the execution number:
+`catch (Exception ex) when (ctx.IsLastAttempt || ex is StepExhaustedException) { await ctx.RunStepAsync("release-stock", ...); throw; }`.
+The filter takes `StepExhaustedException` too because a non-retryable exception ends the job on any
+attempt. That is best effort: a crash or a lost lease on the last attempt skips the catch, so the compensation
+is an idempotent step, and work whose compensation must happen runs as a child job the parent
+compensates when the child lands `Failed`.
+
+For side effects where a duplicate is worse than an ambiguous interruption (a payment capture),
+`AtMostOnce()` runs the body zero-or-one times and hands the handler an explicit interrupted state to
+reconcile. A body that throws exhausts the step: every later attempt throws `StepExhaustedException`
+for it without running the body, so left uncaught it fails the job at once; catch it where the job can
+go on, and an operator restart runs the step again. A wait inside an at-most-once body throws at the
+call, because its resume would run the body again.
 
 ## An external side effect, done right
 
@@ -298,7 +310,7 @@ HTTP enqueue in the json format sends strict JSON (one value, no comments or tra
   succeeded on Monday returns Monday's result on Tuesday. Put the period in the step name
   (`$"invoice-{period}"`), or call `ctx.ResetStateAsync` as the handler's last action so the next fire
   starts clean. Never at the top: a reset there also runs on every retry and replay of the same fire,
-  erasing its own progress, so a failing step never exhausts and an `AtMostOnce` body can run twice.
+  erasing its own progress, so succeeded steps run again and an `AtMostOnce` body can run twice.
 - Children a permanent job starts are never purged while its schedule lives, since retention keeps a
   child as long as its parent is unfinished. For per-occurrence fan-out, declare the definition
   `ScheduledDelivery = ScheduledDeliveryCode.PerOccurrence`: each occurrence is then a root job of its

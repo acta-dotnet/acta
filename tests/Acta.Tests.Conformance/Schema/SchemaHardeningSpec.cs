@@ -424,52 +424,6 @@ public sealed class SchemaHardeningSpec : ActaRuntimeTestBase<ConformanceFixture
         );
     }
 
-    [Fact(DisplayName = "ck_steps_attempt_number rejects an INSERT with attempt_number zero")]
-    public async Task Steps_check_rejects_attempt_number_zero()
-    {
-        var ct = TestContext.Current.CancellationToken;
-        var enq = await Jobs.EnqueueAsync(new EnqueueJobRequest(TestNamespace, "add-numbers", JobPayload.Json(new AddNumbers(1, 1))), ct);
-
-        // Raw insert, omitting the nullable `result` column entirely: binding it explicit-NULL trips
-        // SQL Server's inability to infer a SqlDbType for a null varbinary parameter (the same class of
-        // issue ActaTestSeeder.SeedJobAsync sidesteps for jobs.input).
-        Task<int> InsertStepAsync(string name, int attemptNumber) =>
-            Db.ExecuteRawAsync(
-                "INSERT INTO {schema}.steps (job_id, step_name, step_status_code, attempt_number, result_format_id)"
-                    + " VALUES (@p_job_id, @p_name, 10, @p_attempt, 0)",
-                ct,
-                ("@p_job_id", enq.JobId),
-                ("@p_name", name),
-                ("@p_attempt", attemptNumber)
-            );
-
-        Assert.Equal(1, await InsertStepAsync("step-valid", 1));
-        await Assert.ThrowsAnyAsync<DbException>(() => InsertStepAsync("step-invalid", 0));
-    }
-
-    [Fact(DisplayName = "ck_steps_terminal_no_retry rejects a retry instant on every terminal status, on INSERT and on UPDATE")]
-    public async Task Steps_terminal_rows_carry_no_retry_instant()
-    {
-        var ct = TestContext.Current.CancellationToken;
-        var enq = await Jobs.EnqueueAsync(new EnqueueJobRequest(TestNamespace, "add-numbers", JobPayload.Json(new AddNumbers(1, 1))), ct);
-        var retry = DateTime.UtcNow.AddMinutes(5);
-
-        // Pending is the one status a retry instant belongs to.
-        Assert.Equal(1, await InsertStepAsync(enq.JobId, "retry-pending", StepStatusCode.Pending, ct, nextRetryAtUtc: retry));
-
-        foreach (var terminal in new[] { StepStatusCode.Succeeded, StepStatusCode.Exhausted, StepStatusCode.Interrupted })
-        {
-            Assert.Equal(1, await InsertStepAsync(enq.JobId, $"terminal-{(byte)terminal}", terminal, ct));
-            await Assert.ThrowsAnyAsync<DbException>(() =>
-                InsertStepAsync(enq.JobId, $"terminal-retry-{(byte)terminal}", terminal, ct, nextRetryAtUtc: retry)
-            );
-        }
-
-        // The live path into a terminal status is an UPDATE of the pending row, which is where
-        // start_job_step and complete_job_step have to drop the instant as part of the transition.
-        await Assert.ThrowsAnyAsync<DbException>(() => SetStepStatusAsync(enq.JobId, "retry-pending", StepStatusCode.Interrupted, ct));
-    }
-
     [Fact(DisplayName = "ck_steps_result_succeeded admits a stored result only on a Succeeded row")]
     public async Task Steps_result_lives_only_on_a_succeeded_row()
     {
@@ -504,7 +458,7 @@ public sealed class SchemaHardeningSpec : ActaRuntimeTestBase<ConformanceFixture
             await InsertStepAsync(
                 enq.JobId,
                 "failure-pair",
-                StepStatusCode.Pending,
+                StepStatusCode.Exhausted,
                 ct,
                 failureCode: StepFailureCode.UnhandledException,
                 failureMessage: "boom"
@@ -512,7 +466,7 @@ public sealed class SchemaHardeningSpec : ActaRuntimeTestBase<ConformanceFixture
         );
 
         await Assert.ThrowsAnyAsync<DbException>(() =>
-            InsertStepAsync(enq.JobId, "failure-orphan", StepStatusCode.Pending, ct, failureMessage: "boom")
+            InsertStepAsync(enq.JobId, "failure-orphan", StepStatusCode.Exhausted, ct, failureMessage: "boom")
         );
 
         // The same orphan reached by UPDATE: clearing only the code off a paired row.
@@ -526,27 +480,25 @@ public sealed class SchemaHardeningSpec : ActaRuntimeTestBase<ConformanceFixture
         );
     }
 
-    // Raw composition for the same reason the attempt_number fixture above gives: nullable columns are
-    // omitted rather than bound explicit-NULL, and code columns are rendered as literals, because
-    // SQL Server infers no type for a null TINYINT or VARBINARY parameter.
+    // Raw composition: nullable columns are omitted rather than bound explicit-NULL, and code columns are
+    // rendered as literals, because SQL Server infers no type for a null TINYINT or VARBINARY parameter
+    // (the same class of issue ActaTestSeeder.SeedJobAsync sidesteps for jobs.input).
     private Task<int> InsertStepAsync(
         long jobId,
         string name,
         StepStatusCode status,
         CancellationToken ct,
-        DateTime? nextRetryAtUtc = null,
         byte resultFormatId = 0,
         StepFailureCode? failureCode = null,
         string? failureMessage = null
     )
     {
-        List<string> columns = ["job_id", "step_name", "step_status_code", "attempt_number", "result_format_id"];
+        List<string> columns = ["job_id", "step_name", "step_status_code", "result_format_id"];
         List<string> values =
         [
             "@p_job_id",
             "@p_name",
             ((byte)status).ToString(CultureInfo.InvariantCulture),
-            "1",
             resultFormatId.ToString(CultureInfo.InvariantCulture),
         ];
         List<(string Name, object? Value)> parameters = [("@p_job_id", jobId), ("@p_name", name)];
@@ -558,13 +510,6 @@ public sealed class SchemaHardeningSpec : ActaRuntimeTestBase<ConformanceFixture
             columns.Add("result");
             values.Add("@p_result");
             parameters.Add(("@p_result", new byte[] { 0x01 }));
-        }
-
-        if (nextRetryAtUtc is { } retry)
-        {
-            columns.Add("next_retry_at_utc");
-            values.Add("@p_retry");
-            parameters.Add(("@p_retry", retry));
         }
 
         if (failureCode is { } code)

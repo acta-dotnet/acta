@@ -73,7 +73,7 @@ public class JobExplainerTests
         // As the read hands them over: the newest StepLimit + 1, in creation order.
         var steps = Enumerable
             .Range(0, ExplainJobHandler.StepLimit + 1)
-            .Select(i => new ExplainJobStepRow($"step-{i:D3}", StepStatusCode.Succeeded, 1, null, null))
+            .Select(i => new ExplainJobStepRow($"step-{i:D3}", StepStatusCode.Succeeded, null))
             .ToList();
 
         var cut = ExplainJobHandler.Explain(Data(Header(JobStatusCode.Executing), steps), Now);
@@ -410,27 +410,9 @@ public class JobExplainerTests
             Header(JobStatusCode.Suspended),
             steps:
             [
-                new ExplainJobStepRow(
-                    "reserve-stock",
-                    StepStatusCode.Succeeded,
-                    AttemptNumber: 1,
-                    NextRetryAtUtc: null,
-                    FailureMessage: null
-                ),
-                new ExplainJobStepRow(
-                    "charge-card",
-                    StepStatusCode.Pending,
-                    AttemptNumber: 2,
-                    NextRetryAtUtc: Now.AddMinutes(1),
-                    FailureMessage: "declined"
-                ),
-                new ExplainJobStepRow(
-                    "ship",
-                    StepStatusCode.Exhausted,
-                    AttemptNumber: 5,
-                    NextRetryAtUtc: null,
-                    FailureMessage: "carrier down"
-                ),
+                new ExplainJobStepRow("reserve-stock", StepStatusCode.Succeeded, FailureMessage: null),
+                new ExplainJobStepRow("charge-card", StepStatusCode.Pending, FailureMessage: null),
+                new ExplainJobStepRow("ship", StepStatusCode.Exhausted, FailureMessage: "carrier down"),
             ]
         );
 
@@ -438,17 +420,14 @@ public class JobExplainerTests
 
         Assert.Equal(3, x.Steps.Count);
         Assert.Contains("succeeded and will not rerun", x.Steps[0].Explanation);
-        Assert.Contains("waiting for retry attempt 2: declined", x.Steps[1].Explanation);
-        Assert.Contains("exhausted after 5 attempts: carrier down", x.Steps[2].Explanation);
+        Assert.Contains("has started and has no recorded success", x.Steps[1].Explanation);
+        Assert.Contains("runs at most once, so it will not rerun: carrier down", x.Steps[2].Explanation);
     }
 
     [Fact]
     public void Done_reports_success_and_keeps_durable_step_facts()
     {
-        var data = Data(
-            Header(JobStatusCode.Succeeded),
-            steps: [new ExplainJobStepRow("reserve-stock", StepStatusCode.Succeeded, 1, null, null)]
-        );
+        var data = Data(Header(JobStatusCode.Succeeded), steps: [new ExplainJobStepRow("reserve-stock", StepStatusCode.Succeeded, null)]);
 
         var x = ExplainJobHandler.Explain(data, Now);
 

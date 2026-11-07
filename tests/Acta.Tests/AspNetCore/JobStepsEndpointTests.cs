@@ -17,15 +17,13 @@ public sealed class JobStepsEndpointTests
 
     private static readonly ListJobStepsItem Ship = new(
         "ship",
-        StepStatusCode.Pending,
-        2,
-        StartedAtUtc.AddMinutes(5),
+        StepStatusCode.Exhausted,
         "Carrier timed out.",
         StartedAtUtc.AddMinutes(1),
         StartedAtUtc.AddMinutes(2)
     );
 
-    private static readonly ListJobStepsItem Charge = new("charge", StepStatusCode.Succeeded, 1, null, null, StartedAtUtc, StartedAtUtc);
+    private static readonly ListJobStepsItem Charge = new("charge", StepStatusCode.Succeeded, null, StartedAtUtc, StartedAtUtc);
 
     private static (FakeOperations Fakes, List<ListJobStepsQuery> Queries) Recording()
     {
@@ -79,9 +77,7 @@ public sealed class JobStepsEndpointTests
         var items = root.GetProperty("items");
         Assert.Equal(2, items.GetArrayLength());
         Assert.Equal("ship", items[0].GetProperty("name").GetString());
-        Assert.Equal("pending", items[0].GetProperty("status").GetString());
-        Assert.Equal(2, items[0].GetProperty("attemptNumber").GetInt32());
-        Assert.Equal(StartedAtUtc.AddMinutes(5), items[0].GetProperty("nextRetryAtUtc").GetDateTime().ToUniversalTime());
+        Assert.Equal("exhausted", items[0].GetProperty("status").GetString());
         Assert.Equal("Carrier timed out.", items[0].GetProperty("failureMessage").GetString());
         Assert.Equal("charge", items[1].GetProperty("name").GetString());
         Assert.Equal("succeeded", items[1].GetProperty("status").GetString());

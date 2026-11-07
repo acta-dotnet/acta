@@ -5,7 +5,7 @@ namespace Acta.Tests.Contracts;
 
 /// <summary>
 /// The fake world the contract's reads are served from, one situation throughout: job 42 is ready again at 06:05, when its
-/// step's retry is due after its second attempt failed at 06:00. Every list holds one item but the calendar's two
+/// retry is due after its second attempt failed in its pending step at 06:00. Every list holds one item but the calendar's two
 /// versions, and each optional member carries a value wherever that situation has one. The served-body fact checks each
 /// schema against it, and the document's examples are its answers.
 /// </summary>
@@ -27,10 +27,7 @@ internal static class StagedFakes
         var jobs = fakes.Jobs;
         jobs.StoredInput = Json("""{"invoiceId":42}""");
         jobs.StoredResult = Json("""{"sent":true}""");
-        jobs.StoredSteps =
-        [
-            new ListJobStepsItem("post-invoice", StepStatusCode.Pending, 2, At.AddMinutes(5), "Invoice provider timed out.", At, At),
-        ];
+        jobs.StoredSteps = [new ListJobStepsItem("post-invoice", StepStatusCode.Pending, null, At, At)];
         // A signal the job awaited before and an operator raised, so its payload is stored and no wait is pending.
         jobs.StoredCheckpoints =
         [
@@ -179,7 +176,7 @@ internal static class StagedFakes
         ActiveWait: null,
         Lease: null,
         LastExecutedBy: "deploy-42",
-        Steps: [new ExplainJobStep("post-invoice", StepStatusCode.Pending, "is waiting for retry attempt 2: Invoice provider timed out.")],
+        Steps: [new ExplainJobStep("post-invoice", StepStatusCode.Pending, "has started and has no recorded success")],
         StepsHasMore: false,
         Reason: "Invoice provider timed out.",
         NextActions: [new ExplainJobAction("none", "no action needed - the job becomes claimable when its next run time arrives")]

@@ -106,9 +106,7 @@ public sealed class RuntimeJobContextCancellationTests
             {
                 "StartJobStep" => new StartJobStepResponse(
                     StartJobStepOutcomeCode.Invoke,
-                    AttemptNumber: 1,
                     Version: 1,
-                    NextRetryAtUtc: null,
                     ResultFormatId: 0,
                     Result: null,
                     FailureCode: null,

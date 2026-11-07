@@ -1,5 +1,5 @@
 // Concept: restarting a terminal job from outside the handler via IJobs.RestartAsync -
-// resets the failure budget and retention, gives an exhausted step a fresh budget, and re-arms the same
+// resets the failure budget and retention, lets an exhausted at-most-once step run again, and re-arms the same
 // job id (Blocked instead of Ready when a laned job waits behind a running member).
 using Acta;
 using Acta.Concepts.OperatorRestart;
@@ -109,7 +109,7 @@ static async Task ShowRestartStateAsync(ConceptLab lab, string title, long jobId
     await lab.ShowAsync(
         "Completed step state is retained across operator restart",
         """
-        SELECT step_name, step_status, attempt_number
+        SELECT step_name, step_status
         FROM steps_view
         WHERE job_id = @jobId
         """,

@@ -84,8 +84,8 @@ public static class SlowSuccessJob
     // Each body writes one note before doing its work, the witness Acta Verify's ledger checks read
     // (tools/Acta.Verify/Certification/certify.sql check 7): `steps` keeps only current state (one row per
     // (job, name), UPDATE-in-place), so without it a body that ran again leaves no trace at all. A second
-    // note is legal on its own - at-least-once means an interrupted body re-runs - but more notes than the
-    // step's admitted attempts is not.
+    // note is legal on its own - at-least-once means an interrupted body re-runs - but two notes from one
+    // attempt are not.
     [Job("slow-success")]
     public static async Task<string> Handle(SlowSuccess input, JobContext ctx, CancellationToken ct)
     {

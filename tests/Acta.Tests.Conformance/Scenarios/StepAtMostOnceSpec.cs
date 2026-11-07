@@ -30,7 +30,47 @@ internal static class AtMostOnceStepHandler
             ct
         );
 
+    /// <summary>What the wait inside an at-most-once body threw at the call, per job id.</summary>
+    public static readonly ConcurrentDictionary<long, Exception> RefusedWaits = new();
+
     public static Task RunUncaughtAsync(JobContext ctx, CancellationToken ct) => ChargeAsync(ctx, ct);
+
+    public static Task RunThrowsRescheduleAsync(JobContext ctx, CancellationToken ct) =>
+        ThrowInsideAsync(ctx, new RescheduleJobException(TimeSpan.FromMinutes(1)), ct);
+
+    public static Task RunThrowsPauseAsync(JobContext ctx, CancellationToken ct) =>
+        ThrowInsideAsync(ctx, new HandlerPauseException("hold"), ct);
+
+    private static Task ThrowInsideAsync(JobContext ctx, JobControlException control, CancellationToken ct) =>
+        ctx.RunStepAsync(
+            StepName,
+            async _ =>
+            {
+                await Task.CompletedTask;
+                throw control;
+            },
+            o => o.AtMostOnce(),
+            ct
+        );
+
+    public static Task RunWaitInsideAsync(JobContext ctx, CancellationToken ct) =>
+        ctx.RunStepAsync(
+            StepName,
+            async token =>
+            {
+                try
+                {
+                    await ctx.WaitSignalAsync("approval", token);
+                }
+                catch (Exception ex)
+                {
+                    RefusedWaits[ctx.JobId] = ex;
+                    throw;
+                }
+            },
+            o => o.AtMostOnce(),
+            ct
+        );
 
     public static async Task RunCaughtAsync(JobContext ctx, CancellationToken ct)
     {
@@ -50,9 +90,18 @@ public sealed class AtMostOnceStepManifest : IJobManifest
 {
     public const string UncaughtProbe = "at-most-once-uncaught";
     public const string CaughtProbe = "at-most-once-caught";
+    public const string WaitInsideProbe = "at-most-once-wait-inside";
+    public const string ThrowsRescheduleProbe = "at-most-once-throws-reschedule";
+    public const string ThrowsPauseProbe = "at-most-once-throws-pause";
 
     public static JobDescriptorManifest Descriptors { get; } =
-        new([Probe(UncaughtProbe, AtMostOnceStepHandler.RunUncaughtAsync), Probe(CaughtProbe, AtMostOnceStepHandler.RunCaughtAsync)]);
+        new([
+            Probe(UncaughtProbe, AtMostOnceStepHandler.RunUncaughtAsync),
+            Probe(CaughtProbe, AtMostOnceStepHandler.RunCaughtAsync),
+            Probe(WaitInsideProbe, AtMostOnceStepHandler.RunWaitInsideAsync),
+            Probe(ThrowsRescheduleProbe, AtMostOnceStepHandler.RunThrowsRescheduleAsync),
+            Probe(ThrowsPauseProbe, AtMostOnceStepHandler.RunThrowsPauseAsync),
+        ]);
 
     private static JobDescriptor Probe(string name, Func<JobContext, CancellationToken, Task> run) =>
         new(
@@ -85,13 +134,14 @@ public sealed class AtMostOnceStepManifest : IJobManifest
 /// while still pending (a worker died after <c>start_job_step</c> recorded the pending row and before
 /// <c>complete_job_step</c>) is not re-invoked. Instead the step terminalizes <c>Interrupted</c> and
 /// <c>RunStepAsync</c> throws <see cref="StepInterruptedException"/>, which is handler-owned policy:
-/// uncaught it fails the parent terminally (no retry burn), caught it lets the parent proceed.
+/// uncaught it fails the parent terminally (no retry burn), caught it lets the parent proceed. A wait
+/// inside the body is refused at the call, since its resume would replay the body.
 /// </summary>
 [ConformanceSpec(
     "step.at-most-once",
     "At-most-once step re-entered before completion is interrupted",
     Area = "Steps",
-    Contract = "AtMostOnce runs the body 0 or 1 times: a pending step re-entered on replay terminalizes Interrupted and throws instead of re-invoking, version-idempotently."
+    Contract = "AtMostOnce runs the body 0 or 1 times: a re-entered pending step terminalizes Interrupted, and a wait inside the body is refused before it arms anything."
 )]
 public sealed class StepAtMostOnceSpec : ActaRuntimeTestBase<ConformanceFixture, AtMostOnceStepManifest>
 {
@@ -146,54 +196,6 @@ public sealed class StepAtMostOnceSpec : ActaRuntimeTestBase<ConformanceFixture,
         Assert.Equal(versionAfterInterrupt, row2.Version);
     }
 
-    [Fact(DisplayName = "An interrupted step drops the due retry instant its failed attempt left behind")]
-    public async Task Re_entry_clears_a_due_retry_instant_when_it_interrupts()
-    {
-        var ct = TestContext.Current.CancellationToken;
-        var store = Services.GetRequiredService<ExecutionOperations>();
-        var enqueued = await Jobs.EnqueueAsync(
-            new EnqueueJobRequest(TestNamespace, AtMostOnceStepManifest.UncaughtProbe, JobPayload.None),
-            ct
-        );
-
-        // A failure inside budget leaves the step Pending with a retry instant. Once that instant is
-        // due the step is re-enterable, and this is the only state in which an interrupt meets one.
-        var job = await ExecutingAsync(enqueued, ct);
-        var staged = await store.StartJobStepAsync(job, StepName, atMostOnce: false, ct);
-        var failed = await store.CompleteJobStepAsync(
-            new CompleteJobStepCommand(
-                job,
-                StepName,
-                Succeeded: false,
-                ResultFormatId: 0,
-                Result: null,
-                StepFailureCode.UnhandledException,
-                "first attempt failed",
-                DelaySeconds: 60,
-                MaxAttempts: 5,
-                RetryWindowSeconds: null,
-                staged.Version
-            ),
-            ct
-        );
-        Assert.Equal(CompleteJobStepOutcomeCode.RetryScheduled, failed.Outcome);
-        await Db.ExecuteRawAsync(
-            "UPDATE {schema}.steps SET next_retry_at_utc = @p_next WHERE job_id = @p_id AND step_name = @p_name",
-            ct,
-            ("@p_next", DateTime.UtcNow.AddMinutes(-1)),
-            ("@p_id", enqueued.JobId),
-            ("@p_name", StepName)
-        );
-
-        var interrupted = await store.StartJobStepAsync(job, StepName, atMostOnce: true, ct);
-        Assert.Equal(StartJobStepOutcomeCode.Interrupted, interrupted.Outcome);
-
-        var row = await ReadStepAsync(enqueued.JobId, ct);
-        Assert.Equal(StepStatusCode.Interrupted, row.Status);
-        Assert.Null(row.NextRetryAtUtc);
-        Assert.Equal(StepFailureCode.Interrupted, row.FailureCode);
-    }
-
     [Fact(DisplayName = "Uncaught StepInterruptedException fails the parent terminally without re-invoking the body")]
     public async Task Uncaught_interruption_fails_the_parent_and_explain_reports_it()
     {
@@ -244,6 +246,55 @@ public sealed class StepAtMostOnceSpec : ActaRuntimeTestBase<ConformanceFixture,
 
         var status = (await Jobs.GetStatusAsync(JobLookup.ById(enqueued.JobId), ct))?.Status;
         Assert.Equal(JobStatusCode.Succeeded, status);
+    }
+
+    [Fact(DisplayName = "A wait inside an at-most-once body is refused at the call and arms nothing")]
+    public async Task Wait_inside_an_at_most_once_body_is_refused_at_the_call()
+    {
+        var ct = TestContext.Current.CancellationToken;
+        var enqueued = await Jobs.EnqueueAsync(
+            new EnqueueJobRequest(TestNamespace, AtMostOnceStepManifest.WaitInsideProbe, JobPayload.None),
+            ct
+        );
+
+        Assert.Equal(RunOnceStatus.Failed, await Runtime.RunOnceAsync(enqueued, ct));
+
+        var refused = Assert.IsType<InvalidOperationException>(AtMostOnceStepHandler.RefusedWaits[enqueued.JobId]);
+        Assert.Contains("AtMostOnce", refused.Message, StringComparison.Ordinal);
+        Assert.Contains("out of the step", refused.Message, StringComparison.Ordinal);
+
+        // The wait armed no checkpoint, and the body's failure is the step's terminal one, so it never runs again.
+        Assert.Empty(await ReadSignalsAsync(enqueued.JobId, ct));
+        var row = await ReadStepAsync(enqueued.JobId, ct);
+        Assert.Equal(StepStatusCode.Exhausted, row.Status);
+        Assert.Equal(refused.Message, row.FailureMessage);
+        Assert.Equal(JobStatusCode.Failed, (await ReadJobAsync(enqueued.JobId, ct)).Status);
+    }
+
+    [Fact(DisplayName = "A RescheduleJobException an at-most-once body throws is refused and exhausts the step")]
+    public Task Thrown_reschedule_inside_an_at_most_once_body_is_refused() =>
+        AssertThrownSuspensionRefusedAsync(AtMostOnceStepManifest.ThrowsRescheduleProbe, nameof(RescheduleJobException));
+
+    [Fact(DisplayName = "A HandlerPauseException an at-most-once body throws is refused and exhausts the step")]
+    public Task Thrown_pause_inside_an_at_most_once_body_is_refused() =>
+        AssertThrownSuspensionRefusedAsync(AtMostOnceStepManifest.ThrowsPauseProbe, nameof(HandlerPauseException));
+
+    // Uncaught, the suspension would re-arm the job and leave the step started, so the next attempt would interrupt it.
+    private async Task AssertThrownSuspensionRefusedAsync(string probe, string thrown)
+    {
+        var ct = TestContext.Current.CancellationToken;
+        var enqueued = await Jobs.EnqueueAsync(new EnqueueJobRequest(TestNamespace, probe, JobPayload.None), ct);
+
+        Assert.Equal(RunOnceStatus.Failed, await Runtime.RunOnceAsync(enqueued, ct));
+
+        var row = await ReadStepAsync(enqueued.JobId, ct);
+        Assert.Equal(StepStatusCode.Exhausted, row.Status);
+        Assert.StartsWith(
+            $"A thrown {thrown} inside the AtMostOnce step '{StepName}' is refused",
+            row.FailureMessage,
+            StringComparison.Ordinal
+        );
+        Assert.Equal(JobStatusCode.Failed, (await ReadJobAsync(enqueued.JobId, ct)).Status);
     }
 
     // The job staged Executing, as a claim leaves it, so the step writes pass the execution fence.

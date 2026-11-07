@@ -10,14 +10,14 @@ namespace Acta.Tests.Conformance.Scenarios;
     "testing.test-host-helpers",
     "The test host's fast-forward helpers make only the named job's wait due",
     Area = "Testing",
-    Contract = "IActaTestHost makes a parked timer, retry, bounded wait, or schedule due at once, admits a due schedule in one pass, and refuses a wait with no deadline."
+    Contract = "IActaTestHost makes a parked timer, bounded wait, or schedule due at once, admits a due schedule in one pass, and refuses a wait with no deadline."
 )]
 public sealed class TestHostHelpersSpec : ActaTestBase<ConformanceFixture>
 {
     private const int MaxTicks = 20;
 
-    [Fact(DisplayName = "The timer and step-retry helpers make the parked job due")]
-    public async Task Timer_and_step_retry_helpers_make_the_job_due()
+    [Fact(DisplayName = "The timer helper makes the parked job due")]
+    public async Task Timer_helper_makes_the_job_due()
     {
         var ct = TestContext.Current.CancellationToken;
         await using var host = await StartHostAsync(ct);
@@ -33,14 +33,6 @@ public sealed class TestHostHelpersSpec : ActaTestBase<ConformanceFixture>
             CheckpointStatusCode.Consumed,
             Assert.Single(await CheckpointsAsync(host, sleep.JobId, CheckpointKindCode.Timer, ct)).Status
         );
-
-        var step = await host.Jobs.EnqueueAsync(TestJobsManifest.JobStepRetry(), ct: ct);
-        Assert.Equal(ActaRunStatus.Rearmed, await host.RunOnceAsync(step, ct));
-        Assert.Equal(StepStatusCode.Pending, (await StepAsync(host, step.JobId, "flaky", ct)).Status);
-
-        await host.ForceStepRetryDueAsync(step.JobId, "flaky", ct);
-        await RunUntilAsync(host, step, JobStatusCode.Succeeded, ct);
-        Assert.Equal(StepStatusCode.Succeeded, (await StepAsync(host, step.JobId, "flaky", ct)).Status);
     }
 
     [Fact(DisplayName = "The wait-timeout helper expires a bounded wait and rejects an unbounded one")]
@@ -198,15 +190,6 @@ public sealed class TestHostHelpersSpec : ActaTestBase<ConformanceFixture>
             .From<CheckpointEntity>()
             .Where(c => c.JobId == jobId && c.Kind == kind)
             .ToListAsync(ct);
-
-    private static async Task<StepEntity> StepAsync(IActaTestHost host, long jobId, string name, CancellationToken ct) =>
-        Assert.IsType<StepEntity>(
-            await host
-                .Services.GetRequiredService<IDbSession>()
-                .From<StepEntity>()
-                .Where(s => s.JobId == jobId && s.StepName == name)
-                .SingleOrDefaultAsync(ct)
-        );
 
     private Task<IActaTestHost> StartHostAsync(CancellationToken ct, IActaClock? clock = null) =>
         ActaTestHost.StartAsync(

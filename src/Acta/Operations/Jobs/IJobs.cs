@@ -252,9 +252,9 @@ public interface IJobs
     ValueTask<ListJobCheckpointsResponse> ListCheckpointsAsync(ListJobCheckpointsQuery query, CancellationToken ct = default);
 
     /// <summary>
-    /// One page of the steps recorded for <see cref="ListJobStepsQuery.Job"/>, newest first: name, status, attempt,
-    /// next retry, and last failure. A job with no steps, or no job at all, answers an empty page. Non-blocking
-    /// point-in-time read.
+    /// One page of the steps recorded for <see cref="ListJobStepsQuery.Job"/>, newest first: name, status, and the
+    /// failure that ended an at-most-once step. A job with no steps, or no job at all, answers an empty page.
+    /// Non-blocking point-in-time read.
     /// </summary>
     ValueTask<ListJobStepsResponse> ListStepsAsync(ListJobStepsQuery query, CancellationToken ct = default);
 

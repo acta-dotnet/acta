@@ -70,7 +70,7 @@ public static class ChaosJobs
                 $"step-{step}",
                 async token =>
                 {
-                    // One note per admitted body: certify.sql check 7 counts them against the step's attempts.
+                    // One note per admitted body: certify.sql check 7 counts them per attempt.
                     await ctx.NoteAsync($"step-body step-{step}", token);
                     await Task.Delay(input.WorkMs, token);
                     return step * 7L;

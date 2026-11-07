@@ -195,7 +195,6 @@ public sealed class ExecutionFenceSpec : ActaRuntimeTestBase<ConformanceFixture,
         Assert.Equal(7, await current.Ctx.RunStepAsync("ship", _ => Task.FromResult(7), ct));
         var step = await ReadStepAsync(current.Claim.JobId, "ship", ct);
         Assert.Equal(StepStatusCode.Succeeded, step.Status);
-        Assert.Equal(2, step.AttemptNumber);
         await AssertCompletionAcceptedAsync(current, ct);
     }
 
@@ -503,7 +502,6 @@ public sealed class ExecutionFenceSpec : ActaRuntimeTestBase<ConformanceFixture,
             deadlineAtUtc: null,
             cancellationToken: entry.AttemptToken,
             inFlightJob: entry,
-            stepRetryDefaults: new StepRetryDefaults(3, 1, 60, 2m, 0m),
             workerId: workerId,
             clock: Services.GetRequiredService<IActaClock>()
         );
@@ -577,7 +575,7 @@ public sealed class ExecutionFenceSpec : ActaRuntimeTestBase<ConformanceFixture,
                 ),
             .. steps
                 .OrderBy(s => s.StepName, StringComparer.Ordinal)
-                .Select(s => $"step {s.StepName} {s.Status} a{s.AttemptNumber} v{s.Version} {s.NextRetryAtUtc:o} {s.FailureCode}"),
+                .Select(s => $"step {s.StepName} {s.Status} v{s.Version} {s.FailureCode}"),
             .. children.Order().Select(id => $"child {id}"),
             $"notes {notes.Count}",
             $"job {state.Status} e{state.ExecutionNumber} w{state.LeasedByWorkerId} v{state.Version} {state.NextRunAtUtc:o}",

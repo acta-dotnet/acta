@@ -159,36 +159,6 @@ public static class ActaTestHost
             await ForceJobDueAsync(jobId, ct);
         }
 
-        public async Task ForceStepRetryDueAsync(long jobId, string? name = null, CancellationToken ct = default)
-        {
-            var steps = await Db.From<StepEntity>().Where(s => s.JobId == jobId && s.Status == StepStatusCode.Pending).ToListAsync(ct);
-            var candidates = steps.Where(s => s.NextRetryAtUtc is not null);
-            if (!string.IsNullOrWhiteSpace(name))
-            {
-                candidates = candidates.Where(s => s.StepName == name);
-            }
-
-            var step = candidates.OrderBy(s => s.NextRetryAtUtc).FirstOrDefault();
-            if (step is null)
-            {
-                var target = string.IsNullOrWhiteSpace(name) ? "a pending step retry" : $"pending step retry '{name}'";
-                throw new InvalidOperationException($"Job {jobId} has no {target} to force due.");
-            }
-
-            var due = DateTime.UtcNow.AddMinutes(-1);
-            var affected = await Db.From<StepEntity>()
-                .Where(s => s.JobId == jobId && s.StepName == step.StepName)
-                .UpdateOnlyAsync(() => new StepEntity { NextRetryAtUtc = due, ModifiedAtUtc = DbFn.UtcNow }, ct);
-            if (affected != 1)
-            {
-                throw new InvalidOperationException(
-                    $"ForceStepRetryDueAsync expected one step row for job {jobId} name '{step.StepName}', found {affected}."
-                );
-            }
-
-            await ForceJobDueAsync(jobId, ct);
-        }
-
         public async Task ForceWaitTimeoutDueAsync(long jobId, string? name = null, CancellationToken ct = default)
         {
             var wait = await FindPendingWaitAsync(jobId, name, ct);

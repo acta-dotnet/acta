@@ -10,33 +10,28 @@ WHERE NOT EXISTS (
         AND r.leased_by_worker_id = @p_leased_by_worker_id
 );
 
--- One UPDATE for a due pending step re-entered on replay, keyed on @p_at_most_once:
---   at-least-once -> bump the attempt and re-run the body (state stays pending);
---   at-most-once  -> terminalize Interrupted (one transition/version bump) rather than re-invoke (an already-interrupted row, state 230, is not matched).
+-- A pending step re-entered on replay under AtMostOnce terminalizes Interrupted (one transition, one version bump)
+-- rather than re-invoking; an ordinary one runs again, its row unchanged.
 UPDATE {{schema}}.steps
 SET
-    step_status_code = CASE WHEN @p_at_most_once THEN 230 /* StepStatusCode.Interrupted */ ELSE step_status_code END,
-    attempt_number = attempt_number + CASE WHEN @p_at_most_once THEN 0 ELSE 1 END,
-    next_retry_at_utc = NULL,
-    failure_code = CASE WHEN @p_at_most_once THEN 20 /* StepFailureCode.Interrupted */ ELSE failure_code END,
-    failure_message
-    = CASE WHEN @p_at_most_once THEN 'At-most-once step re-entered before completion; outcome unknown.' ELSE failure_message END,
+    step_status_code = 230 /* StepStatusCode.Interrupted */,
+    failure_code = 20 /* StepFailureCode.Interrupted */,
+    failure_message = 'At-most-once step re-entered before completion; outcome unknown.',
     modified_at_utc = {{now}},
     version = version + 1
 WHERE
-    job_id = @p_job_id AND step_name = @p_step_name
-    AND step_status_code = 10 /* StepStatusCode.Pending */
-    AND (next_retry_at_utc IS NULL OR next_retry_at_utc <= {{now}});
+    @p_at_most_once
+    AND job_id = @p_job_id AND step_name = @p_step_name
+    AND step_status_code = 10 /* StepStatusCode.Pending */;
 
 INSERT INTO {{schema}}.steps (
-    job_id, step_name, step_status_code, attempt_number,
+    job_id, step_name, step_status_code,
     result_format_id, created_at_utc, modified_at_utc, version
 )
 SELECT
     @p_job_id,
     @p_step_name,
     10 /* StepStatusCode.Pending */,
-    1,
     0 /* JobPayloadFormat.None */,
     {{now}},
     {{now}},
@@ -46,20 +41,14 @@ WHERE NOT EXISTS (
     WHERE a.job_id = @p_job_id AND a.step_name = @p_step_name
 );
 
--- The UPDATE spends a due retry instant, so a Pending row still carrying one is a retry not yet due. The answer reads
--- that from the row, never the clock again: each statement reads its own instant, and a second reading that found the
--- retry due would answer Invoke for an attempt the UPDATE never counted.
 SELECT
     CASE
         WHEN a.step_status_code = 100 /* StepStatusCode.Succeeded */ THEN 3 /* StartJobStepOutcomeCode.ReplaySuccess */
         WHEN a.step_status_code = 200 /* StepStatusCode.Exhausted */ THEN 4 /* StartJobStepOutcomeCode.Exhausted */
         WHEN a.step_status_code = 230 /* StepStatusCode.Interrupted */ THEN 5 /* StartJobStepOutcomeCode.Interrupted */
-        WHEN a.next_retry_at_utc IS NOT NULL THEN 2 /* StartJobStepOutcomeCode.Suspend */
         ELSE 1 /* StartJobStepOutcomeCode.Invoke */
     END AS outcome_code,
-    a.attempt_number AS attempt_number,
     a.version AS version,
-    CASE WHEN a.step_status_code = 10 /* StepStatusCode.Pending */ THEN a.next_retry_at_utc ELSE NULL END AS next_retry_at_utc,
     CASE
         WHEN a.step_status_code = 100 /* StepStatusCode.Succeeded */
             THEN a.result_format_id

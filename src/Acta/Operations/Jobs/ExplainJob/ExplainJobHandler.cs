@@ -345,19 +345,13 @@ internal sealed class ExplainJobHandler(GetJobIdHandler getJobId, IDbSession ses
         {
             StepStatusCode.Succeeded => "succeeded and will not rerun",
             StepStatusCode.Exhausted => s.FailureMessage is { Length: > 0 } m
-                ? $"exhausted after {Attempts(s.AttemptNumber)}: {m}"
-                : $"exhausted after {Attempts(s.AttemptNumber)}",
-            StepStatusCode.Pending => s.NextRetryAtUtc is not null
-                ? s.FailureMessage is { Length: > 0 } retryReason
-                    ? $"is waiting for retry attempt {s.AttemptNumber}: {retryReason}"
-                    : $"is waiting for retry attempt {s.AttemptNumber}"
-                : "is in progress",
+                ? $"failed and runs at most once, so it will not rerun: {m}"
+                : "failed and runs at most once, so it will not rerun",
+            StepStatusCode.Pending => "has started and has no recorded success",
             StepStatusCode.Interrupted =>
                 "was interrupted before its outcome was recorded; it may have run 0 or 1 times - reconcile externally",
             _ => s.StepStatus.Description,
         };
-
-    private static string Attempts(int count) => count == 1 ? "1 attempt" : $"{count} attempts";
 
     /// <summary>
     /// The one rule every worker mention in the prose follows: the deployment version reads as the

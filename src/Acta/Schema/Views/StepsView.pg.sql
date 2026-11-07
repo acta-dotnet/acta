@@ -6,8 +6,6 @@ SELECT
     s.step_name,
     {{decode:job-step-status:s.step_status_code}} AS step_status,
     s.step_status_code,
-    s.attempt_number,
-    s.next_retry_at_utc,
     {{decode:step-failure:s.failure_code}} AS failure,
     s.failure_code,
     s.failure_message,

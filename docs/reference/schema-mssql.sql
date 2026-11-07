@@ -57,7 +57,7 @@ GO
 -- ===== refuse a database a newer release already upgraded =====
 IF EXISTS (
     SELECT 1 FROM acta.migrations
-    WHERE name NOT IN ('M20261107193439_init')
+    WHERE name NOT IN ('M20261107195839_init')
 )
 BEGIN
     RAISERROR(N'A newer Acta release already upgraded this database. Run the newest provisioning script; this one would move it backwards.', 16, 1);
@@ -65,7 +65,7 @@ BEGIN
     SET NOEXEC ON;
 END
 GO
--- ===== BEGIN M20261107193439_init =====
+-- ===== BEGIN M20261107195839_init =====
 SET QUOTED_IDENTIFIER ON;
 SET ANSI_NULLS ON;
 GO
@@ -489,8 +489,6 @@ CREATE TABLE acta.steps (
     job_id bigint NOT NULL,
     step_name varchar(128) NOT NULL,
     step_status_code tinyint NOT NULL,
-    attempt_number int NOT NULL,
-    next_retry_at_utc datetime2(3) NULL,
     failure_code tinyint NULL,
     failure_message nvarchar(512) NULL,
     result_format_id tinyint NOT NULL,
@@ -500,8 +498,6 @@ CREATE TABLE acta.steps (
     version int DEFAULT 0 NOT NULL
     , CONSTRAINT pk_steps PRIMARY KEY (job_id, step_name)
     , CONSTRAINT ck_steps_result_pair CHECK ((result_format_id = 0 AND result IS NULL) OR (result_format_id <> 0 AND result IS NOT NULL))
-    , CONSTRAINT ck_steps_attempt_number CHECK (attempt_number >= 1)
-    , CONSTRAINT ck_steps_terminal_no_retry CHECK (step_status_code NOT IN (100, 200, 230) OR next_retry_at_utc IS NULL)
     , CONSTRAINT ck_steps_result_succeeded CHECK (result_format_id = 0 OR step_status_code = 100)
     , CONSTRAINT ck_steps_failure_pair CHECK (failure_message IS NULL OR failure_code IS NOT NULL)
 );
@@ -2011,9 +2007,6 @@ CREATE OR ALTER PROCEDURE acta.complete_job_step
     @p_result VARBINARY(MAX),
     @p_failure_code TINYINT,
     @p_failure_message NVARCHAR(512),
-    @p_delay_seconds INT,
-    @p_max_attempts INT,
-    @p_retry_window_seconds INT,
     @p_version INT
 AS
 BEGIN
@@ -2026,9 +2019,6 @@ BEGIN
             BEGIN TRANSACTION;
 
         DECLARE @now DATETIME2(3) = SYSUTCDATETIME();
-        DECLARE @attempt INT;
-        DECLARE @created DATETIME2(3);
-        DECLARE @next DATETIME2(3);
         DECLARE @outcome SMALLINT;
 
         -- The step changes only while this attempt holds the job's row, update-locked to commit before the step row
@@ -2044,85 +2034,26 @@ BEGIN
         )
             THROW 50012, 'ACTA:EXECUTION_FENCED:complete_job_step: the job is no longer executing this attempt.', 1;
 
-        SELECT
-            @attempt = attempt_number,
-            @created = created_at_utc
-        FROM acta.steps
-        WHERE job_id = @p_job_id AND step_name = @p_step_name;
+        -- Only an at-most-once body records a failure, and the failure ends the step Exhausted.
+        UPDATE acta.steps
+        SET
+            step_status_code = CASE WHEN @p_succeeded = 1 THEN 100 /* StepStatusCode.Succeeded */ ELSE 200 /* StepStatusCode.Exhausted */ END,
+            result_format_id = @p_result_format_id,
+            result = @p_result,
+            failure_code = @p_failure_code,
+            failure_message = @p_failure_message,
+            modified_at_utc = @now,
+            version = version + 1
+        WHERE job_id = @p_job_id AND step_name = @p_step_name AND version = @p_version;
 
-        IF @p_succeeded = 1
-            BEGIN
-                UPDATE acta.steps
-                SET
-                    step_status_code = 100 /* StepStatusCode.Succeeded */,
-                    result_format_id = @p_result_format_id,
-                    result = @p_result,
-                    next_retry_at_utc = NULL,
-                    /* A success supersedes any earlier failed attempt, so the row must not keep that attempt's
-                       failure snapshot: a Succeeded row with a failure_code reads as a failure to every post-mortem query. */
-                    failure_code = NULL,
-                    failure_message = NULL,
-                    modified_at_utc = @now,
-                    version = version + 1
-                WHERE job_id = @p_job_id AND step_name = @p_step_name AND version = @p_version;
-
-                IF @@ROWCOUNT = 0
-                    SET @outcome = 4 /* CompleteJobStepOutcomeCode.StaleVersion */;
-                ELSE
-                    SET @outcome = 1 /* CompleteJobStepOutcomeCode.Succeeded */;
-                SET @next = NULL;
-            END
+        IF @@ROWCOUNT = 0
+            SET @outcome = 4 /* CompleteJobStepOutcomeCode.StaleVersion */;
+        ELSE IF @p_succeeded = 1
+            SET @outcome = 1 /* CompleteJobStepOutcomeCode.Succeeded */;
         ELSE
-            BEGIN
-                SET @next = DATEADD(SECOND, @p_delay_seconds, @now);
+            SET @outcome = 3 /* CompleteJobStepOutcomeCode.Exhausted */;
 
-                IF
-                    @attempt >= @p_max_attempts
-                    OR (
-                        @p_retry_window_seconds IS NOT NULL
-                        AND @next > DATEADD(SECOND, @p_retry_window_seconds, @created)
-                    )
-                    BEGIN
-                        UPDATE acta.steps
-                        SET
-                            step_status_code = 200 /* StepStatusCode.Exhausted */,
-                            next_retry_at_utc = NULL,
-                            failure_code = @p_failure_code,
-                            failure_message = @p_failure_message,
-                            modified_at_utc = @now,
-                            version = version + 1
-                        WHERE job_id = @p_job_id AND step_name = @p_step_name AND version = @p_version;
-
-                        IF @@ROWCOUNT = 0
-                            SET @outcome = 4 /* CompleteJobStepOutcomeCode.StaleVersion */;
-                        ELSE
-                            SET @outcome = 3 /* CompleteJobStepOutcomeCode.Exhausted */;
-                        SET @next = NULL;
-                    END
-                ELSE
-                    BEGIN
-                        UPDATE acta.steps
-                        SET
-                            next_retry_at_utc = @next,
-                            failure_code = @p_failure_code,
-                            failure_message = @p_failure_message,
-                            modified_at_utc = @now,
-                            version = version + 1
-                        WHERE job_id = @p_job_id AND step_name = @p_step_name AND version = @p_version;
-
-                        IF @@ROWCOUNT = 0
-                            BEGIN
-                                SET @outcome = 4 /* CompleteJobStepOutcomeCode.StaleVersion */;
-                                SET @next = NULL;
-                            END
-                        ELSE
-                            SET @outcome = 2 /* CompleteJobStepOutcomeCode.RetryScheduled */;
-                    END
-            END
-
-        SELECT
-            @outcome AS outcome_code,
-            @next AS next_retry_at_utc;
+        SELECT @outcome AS outcome_code;
 
         IF @entry_trancount = 0
             COMMIT TRANSACTION;
@@ -4434,15 +4365,12 @@ BEGIN
 
         DECLARE @now DATETIME2(3) = SYSUTCDATETIME();
         DECLARE @outcome SMALLINT;
-        DECLARE @attempt INT;
         DECLARE @version INT;
-        DECLARE @next DATETIME2(3) = NULL;
         DECLARE @rfid TINYINT = 0;
         DECLARE @result VARBINARY(MAX) = NULL;
         DECLARE @rcode SMALLINT = NULL;
         DECLARE @rmsg NVARCHAR(512) = NULL;
         DECLARE @state TINYINT;
-        DECLARE @existing_next DATETIME2(3);
 
         -- The step's own lock serializes starts of one step to commit (docs/sql-internals.md,
         -- "Step, checkpoint and rate locks"); a range lock on a step not yet stored would hold the gap every running job's next step
@@ -4469,9 +4397,7 @@ BEGIN
 
         SELECT
             @state = step_status_code,
-            @attempt = attempt_number,
             @version = version,
-            @existing_next = next_retry_at_utc,
             @rfid = result_format_id,
             @result = result,
             @rcode = failure_code,
@@ -4482,34 +4408,30 @@ BEGIN
         IF @state IS NULL
             BEGIN
                 INSERT INTO acta.steps (
-                    job_id, step_name, step_status_code, attempt_number,
+                    job_id, step_name, step_status_code,
                     result_format_id, created_at_utc, modified_at_utc, version
                 )
                 VALUES (
-                    @p_job_id, @p_step_name, 10 /* StepStatusCode.Pending */, 1,
+                    @p_job_id, @p_step_name, 10 /* StepStatusCode.Pending */,
                     0 /* JobPayloadFormat.None */, @now, @now, 0
                 );
 
                 SET @outcome = 1 /* StartJobStepOutcomeCode.Invoke */;
-                SET @attempt = 1;
                 SET @version = 0;
                 SET @rfid = 0 /* JobPayloadFormat.None */;
                 SET @result = NULL;
                 SET @rcode = NULL;
                 SET @rmsg = NULL;
-                SET @next = NULL;
             END
         ELSE IF @state = 100 /* StepStatusCode.Succeeded */
             BEGIN
                 SET @outcome = 3 /* StartJobStepOutcomeCode.ReplaySuccess */;
-                SET @next = NULL;
                 SET @rcode = NULL;
                 SET @rmsg = NULL;
             END
         ELSE IF @state = 200 /* StepStatusCode.Exhausted */
             BEGIN
                 SET @outcome = 4 /* StartJobStepOutcomeCode.Exhausted */;
-                SET @next = NULL;
                 SET @rfid = 0 /* JobPayloadFormat.None */;
                 SET @result = NULL;
             END
@@ -4517,16 +4439,6 @@ BEGIN
             BEGIN
             -- Terminal at-most-once ambiguity from an earlier replay; re-throw consistently, no mutation.
                 SET @outcome = 5 /* StartJobStepOutcomeCode.Interrupted */;
-                SET @next = NULL;
-                SET @rfid = 0 /* JobPayloadFormat.None */;
-                SET @result = NULL;
-                SET @rcode = NULL;
-                SET @rmsg = NULL;
-            END
-        ELSE IF @existing_next IS NOT NULL AND @existing_next > @now
-            BEGIN
-                SET @outcome = 2 /* StartJobStepOutcomeCode.Suspend */;
-                SET @next = @existing_next;
                 SET @rfid = 0 /* JobPayloadFormat.None */;
                 SET @result = NULL;
                 SET @rcode = NULL;
@@ -4540,7 +4452,6 @@ BEGIN
                 UPDATE acta.steps
                 SET
                     step_status_code = 230 /* StepStatusCode.Interrupted */,
-                    next_retry_at_utc = NULL,
                     failure_code = 20 /* StepFailureCode.Interrupted */,
                     failure_message = N'At-most-once step re-entered before completion; outcome unknown.',
                     modified_at_utc = @now,
@@ -4549,7 +4460,6 @@ BEGIN
 
                 SET @version = @version + 1;
                 SET @outcome = 5 /* StartJobStepOutcomeCode.Interrupted */;
-                SET @next = NULL;
                 SET @rfid = 0 /* JobPayloadFormat.None */;
                 SET @result = NULL;
                 SET @rcode = NULL;
@@ -4557,19 +4467,8 @@ BEGIN
             END
         ELSE
             BEGIN
-                -- The next attempt spends the retry instant, as SQLite's start_job_step does.
-                UPDATE acta.steps
-                SET
-                    attempt_number = attempt_number + 1,
-                    next_retry_at_utc = NULL,
-                    modified_at_utc = @now,
-                    version = version + 1
-                WHERE job_id = @p_job_id AND step_name = @p_step_name;
-
-                SET @attempt = @attempt + 1;
-                SET @version = @version + 1;
+                -- An ordinary step with no success recorded runs again, its row unchanged.
                 SET @outcome = 1 /* StartJobStepOutcomeCode.Invoke */;
-                SET @next = NULL;
                 SET @rfid = 0 /* JobPayloadFormat.None */;
                 SET @result = NULL;
                 SET @rcode = NULL;
@@ -4578,9 +4477,7 @@ BEGIN
 
         SELECT
             @outcome AS outcome_code,
-            @attempt AS attempt_number,
             @version AS version,
-            @next AS next_retry_at_utc,
             @rfid AS result_format_id,
             @result AS result,
             @rcode AS failure_code,
@@ -5064,8 +4961,6 @@ SELECT
     s.step_name,
     CASE s.step_status_code WHEN 0 THEN 'unspecified' WHEN 10 THEN 'pending' WHEN 100 THEN 'succeeded' WHEN 200 THEN 'exhausted' WHEN 230 THEN 'interrupted' END AS step_status,
     s.step_status_code,
-    s.attempt_number,
-    s.next_retry_at_utc,
     CASE s.failure_code WHEN 0 THEN 'unspecified' WHEN 10 THEN 'unhandled-exception' WHEN 20 THEN 'interrupted' END AS failure,
     s.failure_code,
     s.failure_message,
@@ -5122,11 +5017,11 @@ JOIN acta.namespaces AS ns ON ns.namespace_id = w.namespace_id
 GO
 
 
-IF NOT EXISTS (SELECT 1 FROM acta.migrations WHERE name = 'M20261107193439_init')
+IF NOT EXISTS (SELECT 1 FROM acta.migrations WHERE name = 'M20261107195839_init')
 INSERT INTO acta.migrations (name)
-VALUES ('M20261107193439_init');
+VALUES ('M20261107195839_init');
 GO
--- ===== END M20261107193439_init =====
+-- ===== END M20261107195839_init =====
 GO
 COMMIT TRANSACTION;
 GO

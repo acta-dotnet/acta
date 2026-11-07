@@ -138,7 +138,7 @@ curated-view rows.
 | 207 | [run-with-lock](../concepts/200-durable-execution/207-run-with-lock/) | A named lock serializes jobs touching the same resource |
 | 208 | [progress](../concepts/200-durable-execution/208-progress/) | Report progress to durable state (`SetProgressAsync`) + a live bar |
 | 209 | [concurrency-key](../concepts/200-durable-execution/209-concurrency-key/) | **Engineering Lab.** Whole-job admission: inspect the named lease and a budget-neutral competitor bounce |
-| 210 | [step-retry](../concepts/200-durable-execution/210-step-retry/) | A step retries on its own curve, sparing the job's budget |
+| 210 | [step-retry](../concepts/200-durable-execution/210-step-retry/) | A failing step retries through its job, and the last attempt compensates on `IsLastAttempt` |
 | 211 | [child-jobs](../concepts/200-durable-execution/211-child-jobs/) | **Engineering Lab.** Independent child rows plus parent-owned latches; suspended parent holds no worker |
 | 212 | [fan-out-join](../concepts/200-durable-execution/212-fan-out-join/) | Map-reduce with `MapAsync`: chunk children compute partial sums in parallel, the parent merges their results |
 | 213 | [execute-child](../concepts/200-durable-execution/213-execute-child/) | `ExecuteChildAsync` delegates to an existing job and waits for its result (vs a step) |

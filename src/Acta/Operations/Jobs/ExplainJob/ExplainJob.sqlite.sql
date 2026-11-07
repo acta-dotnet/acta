@@ -6,8 +6,8 @@ SELECT
     x.max_attempts_effective, x.next_run_at_utc, x.leased_by_worker_id, x.lease_expires_at_utc,
     x.worker_deployment_version, x.worker_status, x.worker_last_seen_at_utc, x.latest_failure_message,
     x.latest_failure_details_format_id, x.latest_failure_details, x.last_executed_by_worker_name, x.leased_by_worker_ref,
-    x.last_executed_by_worker_ref, x.definition_status, x.step_name, x.step_status, x.attempt_number,
-    x.next_retry_at_utc, x.failure_message, x.checkpoint_kind, x.checkpoint_name, x.checkpoint_status, x.due_at_utc
+    x.last_executed_by_worker_ref, x.definition_status, x.step_name, x.step_status, x.failure_message,
+    x.checkpoint_kind, x.checkpoint_name, x.checkpoint_status, x.due_at_utc
 FROM (
     -- The header: job + jobs_state snapshot, the leasing worker's liveness (LEFT JOIN on the lease owner), the
     -- newest failure on the timeline (a failed, orphaned, or terminally failed attempt), and the worker of the
@@ -40,8 +40,6 @@ FROM (
         jd.definition_status_code AS definition_status,
         NULL AS step_name,
         NULL AS step_status,
-        NULL AS attempt_number,
-        NULL AS next_retry_at_utc,
         NULL AS failure_message,
         NULL AS checkpoint_kind,
         NULL AS checkpoint_name,
@@ -84,10 +82,10 @@ FROM (
         NULL, NULL, NULL, NULL, NULL, NULL, NULL,
         NULL, NULL, NULL, NULL, NULL, NULL, NULL,
         NULL, NULL, NULL, NULL, NULL, NULL, NULL,
-        s.step_name, s.step_status_code, s.attempt_number, s.next_retry_at_utc, s.failure_message,
+        s.step_name, s.step_status_code, s.failure_message,
         NULL, NULL, NULL, NULL
     FROM (
-        SELECT step_name, step_status_code, attempt_number, next_retry_at_utc, failure_message, created_at_utc
+        SELECT step_name, step_status_code, failure_message, created_at_utc
         FROM {{schema}}.steps
         WHERE job_id = @p_job_id
         ORDER BY created_at_utc DESC, step_name DESC
@@ -102,7 +100,7 @@ FROM (
         NULL, NULL, NULL, NULL, NULL, NULL, NULL,
         NULL, NULL, NULL, NULL, NULL, NULL, NULL,
         NULL, NULL, NULL, NULL, NULL, NULL, NULL,
-        NULL, NULL, NULL, NULL, NULL,
+        NULL, NULL, NULL,
         c.checkpoint_kind_code, c.checkpoint_name, c.checkpoint_status_code, c.due_at_utc
     FROM {{schema}}.checkpoints c
     WHERE c.job_id = @p_job_id

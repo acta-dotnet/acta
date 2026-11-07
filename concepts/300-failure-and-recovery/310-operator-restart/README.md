@@ -22,7 +22,7 @@ same durable identity without erasing why it failed or accidentally assuming all
 
 `RestartAsync` keeps `job_id`/`job_ref`, resets the failure budget and retention, increments later
 execution numbers, and appends a restart event. Completed durable steps remain available to replay;
-an exhausted step gets a fresh budget, while an interrupted at-most-once step stays until the handler
+an exhausted at-most-once step runs again, while an interrupted one stays until the handler
 reconciles it. A laned job can come back `Blocked` behind its lane's running job, and an `Executing` job
 is refused.
 
@@ -47,8 +47,8 @@ Run with `--all-columns` to execute the visible `SELECT *` Explore query first. 
 queries select the fields that prove the lesson, and the text below explains their meaning.
 
 Before/after `jobs_view` proves stable identity, a higher execution number, and reset failure count.
-`steps_view` keeps the successful preparation at attempt one; `events_view` appends rather than
-rewrites history.
+`steps_view` keeps the successful preparation succeeded, so it does not run again; `events_view`
+appends rather than rewrites history.
 
 ## Break it
 

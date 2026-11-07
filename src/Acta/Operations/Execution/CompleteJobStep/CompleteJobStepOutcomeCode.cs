@@ -8,10 +8,7 @@ internal enum CompleteJobStepOutcomeCode : byte
     /// <summary>Body succeeded; the step is terminal <c>Succeeded</c> with the stored result.</summary>
     Succeeded = 1,
 
-    /// <summary>Body failed in budget; the step stays <c>Pending</c> with <c>next_retry_at_utc</c> set.</summary>
-    RetryScheduled = 2,
-
-    /// <summary>Body failed and the budget is spent; the step is terminal <c>Exhausted</c>.</summary>
+    /// <summary>An at-most-once body failed; the step is terminal <c>Exhausted</c>.</summary>
     Exhausted = 3,
 
     /// <summary>

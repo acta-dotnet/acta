@@ -29,7 +29,8 @@ public class FailureCountSaturationTests
         var failed = new ExecutionCompletion(CompletionKind.Failed) { Reason = EventReason.UnhandledException };
         var slot = Job(failureCount) with { Kind = JobKindCode.Permanent };
 
-        var command = WorkerFinalizer.BuildCommand(Descriptor(1), slot, failed, WorkerFinalizer.PlanRetry(Descriptor(1), slot, failed));
+        var retry = WorkerFinalizer.PlanRetry(failed, WorkerFinalizer.PlanFailureRetry(Descriptor(1), slot));
+        var command = WorkerFinalizer.BuildCommand(Descriptor(1), slot, failed, retry);
 
         Assert.Equal(JobStatusCode.Idle, command.FinalStatus);
         Assert.Equal(expected, command.FailureCount);
@@ -41,9 +42,7 @@ public class FailureCountSaturationTests
     [InlineData(Ceiling, false)]
     public void A_saturated_count_still_spends_the_largest_budget(int failureCount, bool inBudget)
     {
-        var failed = new ExecutionCompletion(CompletionKind.Failed) { Reason = EventReason.UnhandledException };
-
-        var (attempted, _, planned) = WorkerFinalizer.PlanRetry(Descriptor(Ceiling), Job(failureCount), failed);
+        var (attempted, _, planned) = WorkerFinalizer.PlanFailureRetry(Descriptor(Ceiling), Job(failureCount));
 
         Assert.Equal(Math.Min(failureCount + 1, Ceiling), attempted);
         Assert.Equal(inBudget, planned);

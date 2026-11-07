@@ -3,8 +3,8 @@ using System.Text.Json.Serialization;
 namespace Acta;
 
 /// <summary>
-/// Where a step stands. A step is pending from its first start and across retries, and ends succeeded, exhausted when its retries are
-/// spent, or interrupted when a step that runs at most once was re-entered before it completed.
+/// Where a step stands. A step is pending from its first start until it succeeds, and an at-most-once step ends
+/// exhausted when its body threw, or interrupted when it was re-entered before it completed.
 /// </summary>
 [JsonConverter(typeof(StepStatusCodeJsonConverter))]
 [CodeKind("job-step-status")]
@@ -13,10 +13,9 @@ public enum StepStatusCode : byte
     [Code("unspecified", "Step status not recognized by this build; the row was written by a newer Acta.")]
     Unspecified = 0,
 
-    /// <summary>First invocation INSERTed or retrying. <c>AttemptNumber</c> is 1 or more; <c>Result</c>
-    /// is NULL. On failure within budget the row stays here with <c>AttemptNumber++</c>,
-    /// <c>NextRetryAtUtc</c> advanced, and <c>FailureCode</c> / <c>FailureMessage</c> updated.</summary>
-    [Code("pending", "Running, or waiting to retry within its retry budget.")]
+    /// <summary>Started, with no success recorded. <c>Result</c> is NULL. An ordinary step whose body threw stays here,
+    /// and the job's retry runs it again.</summary>
+    [Code("pending", "Started, with no success recorded; a retry of the job runs it again.")]
     Pending = 10,
 
     /// <summary>Terminal success. <c>Result</c> carries the encoded payload (or <c>ResultFormatId = 0</c>
@@ -24,10 +23,9 @@ public enum StepStatusCode : byte
     [Code("succeeded", "Completed; its result, when it has one, is stored.")]
     Succeeded = 100,
 
-    /// <summary>Terminal exhaustion: <c>MaxAttempts</c> reached or <c>RetryWindow</c> exceeded.
-    /// <c>Result</c> is NULL; <c>FailureCode</c> / <c>FailureMessage</c> carry the final failure context; parent receives
-    /// <c>StepExhaustedException</c>.</summary>
-    [Code("exhausted", "Its retries are spent; the job's handler receives the failure.")]
+    /// <summary>Terminal failure of an <c>AtMostOnce</c> body. <c>Result</c> is NULL; <c>FailureCode</c> /
+    /// <c>FailureMessage</c> carry the body's failure; the handler receives <c>StepExhaustedException</c>.</summary>
+    [Code("exhausted", "An at-most-once step's body threw, so it does not run again; the job's handler receives the failure.")]
     Exhausted = 200,
 
     /// <summary>Terminal ambiguity for an <c>AtMostOnce</c> step re-entered on replay before its outcome

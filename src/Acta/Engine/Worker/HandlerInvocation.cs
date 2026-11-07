@@ -218,18 +218,6 @@ internal sealed class HandlerInvocation(
                     ReasonMessage = suspend.ReasonMessage.Truncate(ActaTextLimits.EventMessage),
                     RescheduleResumeAtUtc = suspend.ResumeAtUtc,
                 };
-            case StepRetrySignal stepRetry:
-                // An inline step still awaits its retry instant on replay, or failed in budget and scheduled a
-                // retry. Re-arm budget-neutral via the existing Rescheduled path (failure_count
-                // untouched) at the step's next_retry_at_utc; only the reason differs.
-                return new ExecutionCompletion(CompletionKind.Rescheduled)
-                {
-                    Reason = EventReason.StepRetryScheduled,
-                    ReasonMessage = (stepRetry.ReasonMessage ?? $"Step '{stepRetry.StepName}' retry scheduled.").Truncate(
-                        ActaTextLimits.EventMessage
-                    ),
-                    RescheduleResumeAtUtc = stepRetry.ResumeAtUtc,
-                };
             case SignalSuspendSignal signalSuspend:
                 // Signal wait with no Set checkpoint: re-arm as Suspended (no due time). complete_executions
                 // locks the named checkpoint and lands Ready instead if a raise won the race.
@@ -333,9 +321,9 @@ internal sealed class HandlerInvocation(
             ActaLog.InputDeserializationFailed(log, ex, descriptor.JobName, job.JobId);
         }
 
-        // A failure retrying cannot change, a programming error or a step that already spent its budget and so throws
-        // again on every replay, lands terminal Failed through the same completion branch as ctx.FailAsync, leaving the
-        // retry budget untouched.
+        // A failure retrying cannot change, a programming error or an exhausted at-most-once step that throws again on
+        // every replay, lands terminal Failed through the same completion branch as ctx.FailAsync, leaving the retry
+        // budget untouched.
         var nonRetryable = ex is NotImplementedException or NotSupportedException or StepExhaustedException;
         return new ExecutionCompletion(CompletionKind.Failed)
         {

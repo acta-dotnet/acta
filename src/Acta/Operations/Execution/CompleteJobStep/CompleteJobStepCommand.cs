@@ -1,9 +1,8 @@
 namespace Acta;
 
 /// <summary>
-/// Validated <c>complete_job_step</c> inputs: the attempt's fence and the step's name, the outcome and result payload, the
-/// failure, and the C#-precomputed retry policy (jittered <c>DelaySeconds</c>, live <c>MaxAttempts</c>,
-/// optional <c>RetryWindowSeconds</c>) plus the completion CAS token <c>ExpectedVersion</c>.
+/// Validated <c>complete_job_step</c> inputs: the attempt's fence and the step's name, the outcome and result payload,
+/// the failure of an at-most-once body, and the completion CAS token <c>ExpectedVersion</c>.
 /// </summary>
 internal sealed record CompleteJobStepCommand(
     ExecutionFence Fence,
@@ -13,8 +12,5 @@ internal sealed record CompleteJobStepCommand(
     byte[]? Result,
     StepFailureCode? FailureCode,
     string? FailureMessage,
-    int DelaySeconds,
-    int MaxAttempts,
-    int? RetryWindowSeconds,
     int ExpectedVersion
 );

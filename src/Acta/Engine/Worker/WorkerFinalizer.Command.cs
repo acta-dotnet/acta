@@ -13,20 +13,21 @@ internal sealed partial class WorkerFinalizer
     internal static int NextFailureCount(int failureCount) => failureCount >= FailureCountCeiling ? FailureCountCeiling : failureCount + 1;
 
     /// <summary>
-    /// Failure retry math, shared by the deadline reschedule guard and the re-arm shape. MaxAttempts is the budget of
-    /// a one-shot job and of a slot's firing alike: admission zeroes the slot's count, so each firing spends its own.
+    /// The retry plan of <paramref name="completion"/>: <paramref name="failureRetry"/> for a retryable failure, and no
+    /// retry for anything else. Shared by the deadline reschedule guard and the re-arm shape.
     /// </summary>
     internal static (int Attempted, int DelaySeconds, bool InBudget) PlanRetry(
-        JobDescriptor descriptor,
-        ClaimedJob job,
-        ExecutionCompletion completion
-    )
-    {
-        if (completion.Outcome != CompletionKind.Failed || !IsRetryable(completion.Reason))
-        {
-            return (0, 0, false);
-        }
+        ExecutionCompletion completion,
+        (int Attempted, int DelaySeconds, bool InBudget) failureRetry
+    ) => completion.Outcome == CompletionKind.Failed && IsRetryable(completion.Reason) ? failureRetry : (0, 0, false);
 
+    /// <summary>
+    /// The retry a retryable failure of <paramref name="job"/>'s attempt earns: the failure count it charges, its backoff,
+    /// and whether the budget has room. MaxAttempts is the budget of a one-shot job and of a slot's firing alike:
+    /// admission zeroes the slot's count, so each firing spends its own.
+    /// </summary>
+    internal static (int Attempted, int DelaySeconds, bool InBudget) PlanFailureRetry(JobDescriptor descriptor, ClaimedJob job)
+    {
         var attempted = NextFailureCount(job.FailureCount);
         if (attempted >= descriptor.MaxAttempts)
         {
@@ -36,6 +37,25 @@ internal sealed partial class WorkerFinalizer
         var backoff = Backoff.Parse(descriptor.Backoff ?? JobDefinitionRegistration.DefaultBackoffExpression);
         return (attempted, BackoffSchedule.ComputeDelaySeconds(attempted, backoff), true);
     }
+
+    /// <summary>
+    /// Whether a retry <paramref name="delaySeconds"/> away would land past a Strict deadline, which ends the job Cancelled
+    /// instead of re-arming it. The worker clock, as at admission: deliberate and skew-guarded, not a DB read.
+    /// </summary>
+    internal static bool RetryPassesDeadline(JobDescriptor descriptor, TimeSpan? untilDeadline, int delaySeconds) =>
+        descriptor.DeadlineBehavior == DeadlineBehaviorCode.Strict
+        && untilDeadline is { } until
+        && until < TimeSpan.FromSeconds(delaySeconds);
+
+    /// <summary>
+    /// Whether a retryable failure ends the job for good, the rule <c>ctx.IsLastAttempt</c> reads: the budget has no
+    /// room for the retry, or the retry would pass the deadline.
+    /// </summary>
+    internal static bool FailureEndsJob(
+        JobDescriptor descriptor,
+        (int Attempted, int DelaySeconds, bool InBudget) failureRetry,
+        TimeSpan? untilDeadline
+    ) => !failureRetry.InBudget || RetryPassesDeadline(descriptor, untilDeadline, failureRetry.DelaySeconds);
 
     // No reason: none describes a worker declining a claim, and a borrowed one would misreport it. The message
     // tells the story, and the yielded event it writes stays out of the Failures level and the alertable set, where a

@@ -138,8 +138,8 @@ SELECT c.job_id, c.job_ref, c.checkpoint_name, c.checkpoint_status, c.value_form
   JOIN acta.jobs_view j ON j.job_id = c.job_id
  WHERE j.job_status = 'suspended' AND c.checkpoint_kind = 'signal';
 
--- The steps of a job: which named steps ran, their outcome, and retry state.
-SELECT step_name, step_status, attempt_number, next_retry_at_utc, failure, failure_message
+-- The steps of a job: which named steps ran and their outcome.
+SELECT step_name, step_status, failure, failure_message
   FROM acta.steps_view WHERE job_id = :job_id ORDER BY step_name;
 
 -- Durable sleep timers for a job: when each named wait is due.
@@ -472,7 +472,7 @@ In production a deploy step applies Acta's migrations, never application startup
 
 ```
 $ ConnectionStrings__acta="<DDL login>" dotnet MyApp.dll jobs migrate
-applied M20261107193439_init to schema acta
+applied M20261107195839_init to schema acta
 namespace billing: 1.6.1+b81d04e (Production)
   added    sys.alerts
   added    sys.retention
@@ -796,7 +796,7 @@ included, is one durable system.
 | `SysCritical` | as `OnFailure`, at `Critical` | `FinalFailure` at `Critical` | resolves |
 
 - `SysCritical` is for Acta's own jobs. `None` turns off automatic alerts only; `ctx.AlertAsync` still raises manual ones.
-- A `Cancelled` job never alerts, whether an operator, `ctx.CancelAsync`, or a deadline cancelled it. Budget-neutral re-arms (a held concurrency key, a rate limit, a step retry) do not alert either.
+- A `Cancelled` job never alerts, whether an operator, `ctx.CancelAsync`, or a deadline cancelled it. Budget-neutral re-arms (a held concurrency key, a rate limit) do not alert either.
 - Automatic alerts do not depend on the recording level: `Failures` records the failed, orphaned, terminal, and recovery transitions as `Audit` does, and under an enabled alert profile also a one-shot's success past its first attempt, so every profile fires the same at every level, and resolves the same except where [known limitations](./known-limitations.md#execution-model) say a permanent job's does not.
 - For recurring work use `OnFailure`: a permanent job's failures never land `Failed` (a spent budget returns it to `Idle`), so `OnTerminal` and `Info` stay silent for them.
 
@@ -956,7 +956,7 @@ occurrence to the running fleet's admitter. See [catch-up, misfire, and expirati
 
 Restart re-arms the same job and keeps its input and event history. Succeeded durable steps still do
 not rerun unless state was explicitly reset, but bare handler code and incomplete steps can run
-again, and an exhausted step runs again with a fresh budget. An interrupted at-most-once step still
+again, and an exhausted at-most-once step runs again. An interrupted at-most-once step still
 throws until the handler reconciles it. Fix or understand the original cause before confirming
 restart.
 
@@ -1356,14 +1356,15 @@ Timers are job-internal checkpoints. The owning job becomes claimable when the t
 ### Step State
 
 ```sql
-SELECT job_id, job_ref, namespace_name, definition_name, step_name, step_status, attempt_number, next_retry_at_utc, failure, failure_message, result_format, result_text
+SELECT job_id, job_ref, namespace_name, definition_name, step_name, step_status, failure, failure_message, result_format, result_text
   FROM acta.steps_view
  WHERE job_id = :job_id
  ORDER BY step_name;
 ```
 
-A succeeded step replays from stored result. A failed step may re-arm independently of the parent
-job's attempt budget until its own step budget is exhausted.
+A succeeded step replays from stored result. A step whose body throws fails the job's attempt and
+stays `pending`, so the job's retry, under its own budget, runs it again; only an at-most-once step
+ends `exhausted` or `interrupted`, with the failure on its row.
 
 ### Recurring Schedules
 

@@ -5,16 +5,13 @@ namespace Acta;
 /// </summary>
 internal enum StartJobStepOutcomeCode : byte
 {
-    /// <summary>Run the body for the attempt carried by <see cref="StartJobStepResponse.AttemptNumber"/>.</summary>
+    /// <summary>Run the body: a first start, or an ordinary step a replay found started with no success recorded.</summary>
     Invoke = 1,
-
-    /// <summary>Pending with an unreached retry instant; re-arm the parent until <see cref="StartJobStepResponse.NextRetryAtUtc"/>.</summary>
-    Suspend = 2,
 
     /// <summary>Already succeeded; return the stored result without running the body.</summary>
     ReplaySuccess = 3,
 
-    /// <summary>Already exhausted; throw <c>StepExhaustedException</c>.</summary>
+    /// <summary>An at-most-once body already failed; throw <c>StepExhaustedException</c>.</summary>
     Exhausted = 4,
 
     /// <summary>An at-most-once step was re-entered before completion; the row was terminalized

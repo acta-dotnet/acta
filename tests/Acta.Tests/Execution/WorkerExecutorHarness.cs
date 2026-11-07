@@ -279,9 +279,7 @@ internal sealed class WorkerExecutorHarness(
             _startedSteps.Add(name);
             return new StartJobStepResponse(
                 StartJobStepOutcomeCode.Invoke,
-                AttemptNumber: 1,
                 Version: 1,
-                NextRetryAtUtc: null,
                 ResultFormatId: 0,
                 Result: null,
                 FailureCode: null,
@@ -292,7 +290,7 @@ internal sealed class WorkerExecutorHarness(
         private CompleteJobStepResponse CompleteJobStep()
         {
             OnStepCompletion?.Invoke();
-            return new CompleteJobStepResponse(stepOutcome, NextRetryAtUtc: DateTime.UtcNow.AddSeconds(30));
+            return new CompleteJobStepResponse(stepOutcome);
         }
 
         private CompleteExecutionsRow Complete(BoundCompletion completion)

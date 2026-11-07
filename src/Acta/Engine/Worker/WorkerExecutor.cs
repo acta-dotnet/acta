@@ -287,8 +287,6 @@ internal sealed class WorkerExecutor(
             metrics?.RecordFiringStartDelay(namespaceName, descriptor.JobName, DateTime.UtcNow - firing.Firing.AdmittedAtUtc);
         }
 
-        var backoff = Backoff.Parse(descriptor.Backoff ?? JobDefinitionRegistration.DefaultBackoffExpression);
-
         // Resolve the external tenant name off the process-lifetime cache (one point read per
         // distinct tenant); the claim projection itself stays join-free.
         var tenantName = job.TenantId is { } jobTenantId
@@ -330,13 +328,7 @@ internal sealed class WorkerExecutor(
             entry.AttemptToken,
             _options.MaxInlinePayloadBytes,
             entry,
-            new StepRetryDefaults(
-                descriptor.MaxAttempts,
-                DurationSyntax.ToWholeSeconds(backoff.InitialDelay, nameof(backoff)),
-                DurationSyntax.ToWholeSeconds(backoff.MaxDelay, nameof(backoff)),
-                (decimal)backoff.Multiplier,
-                (decimal)backoff.Jitter
-            ),
+            descriptor,
             _log,
             metrics,
             tenantName,

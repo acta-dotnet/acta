@@ -1,5 +1,4 @@
 using System.Collections.Concurrent;
-using System.Collections.Immutable;
 using Acta.Tests.Conformance.Contracts;
 using Acta.Tests.Conformance.Testing;
 using Xunit;
@@ -17,45 +16,33 @@ internal static class StepExhaustionProbes
 
     public static int RecordInvocation(long jobId) => BodyInvocations.AddOrUpdate(jobId, 1, static (_, n) => n + 1);
 
-    // Job 1: step MaxAttempts=2, zero-backoff, always fails. The handler catches the first exhaustion and reschedules,
-    // so the replay re-enters the exhausted step; the second exhaustion goes uncaught.
-    // Proves: exhausted step re-entry throws WITHOUT re-running the body.
-    public static async Task ExhaustReplay(JobContext ctx, CancellationToken ct)
-    {
-        try
-        {
-            await ctx.RunStepAsync(
-                "always-fails",
-                async bodyCt =>
-                {
-                    RecordInvocation(ctx.JobId);
-                    await Task.CompletedTask;
-                    throw new InvalidOperationException("step body always fails");
-                },
-                o => o.MaxAttempts(2).BackoffInitialDelay(TimeSpan.Zero),
-                ct
-            );
-        }
-        catch (StepExhaustedException) when (Exhaustions.AddOrUpdate(ctx.JobId, 1, static (_, n) => n + 1) == 1)
-        {
-            await ctx.RescheduleAsync(TimeSpan.Zero, ct: ct);
-        }
-    }
-
-    // Job 2: parent MaxAttempts=1; step MaxAttempts=100, RetryWindow=5s, initial backoff delay=30s.
-    // Proves: window exhaustion (30s > 5s window) fires after attempt 1, far below MaxAttempts=100.
-    public static async Task WindowExhaust(JobContext ctx, CancellationToken ct) =>
-        await ctx.RunStepAsync(
-            "window-fails",
+    // An at-most-once body that always fails: its first throw exhausts the step.
+    public static Task Exhaust(JobContext ctx, CancellationToken ct) =>
+        ctx.RunStepAsync(
+            "always-fails",
             async bodyCt =>
             {
                 RecordInvocation(ctx.JobId);
                 await Task.CompletedTask;
                 throw new InvalidOperationException("step body always fails");
             },
-            o => o.MaxAttempts(100).RetryWindow(TimeSpan.FromSeconds(5)).BackoffInitialDelay(TimeSpan.FromSeconds(30)),
+            o => o.AtMostOnce(),
             ct
         );
+
+    // The handler catches the first exhaustion and reschedules, so the replay re-enters the exhausted step; the second
+    // exhaustion goes uncaught.
+    public static async Task ExhaustReplay(JobContext ctx, CancellationToken ct)
+    {
+        try
+        {
+            await Exhaust(ctx, ct);
+        }
+        catch (StepExhaustedException) when (Exhaustions.AddOrUpdate(ctx.JobId, 1, static (_, n) => n + 1) == 1)
+        {
+            await ctx.RescheduleAsync(TimeSpan.Zero, ct: ct);
+        }
+    }
 }
 
 /// <summary>
@@ -66,98 +53,55 @@ public sealed class StepExhaustionManifest : IJobManifest
 {
     public static JobDescriptorManifest Descriptors { get; } =
         new([
-            new JobDescriptor(
-                JobName: "step-exhaust-replay",
-                HandlerType: typeof(StepExhaustionProbes),
-                MethodName: nameof(StepExhaustionProbes.ExhaustReplay),
-                InputType: typeof(NoInput),
-                ResultType: null,
-                InputPayloadFormat: JobPayloadFormat.None,
-                ResultPayloadFormat: null,
-                Priority: JobPriorityCode.Normal,
-                MaxAttempts: 2,
-                EventRecording: EventRecordingCode.Audit,
-                AlertProfile: AlertProfileCode.OnFailure,
-                FiringFailurePolicy: FiringFailurePolicyCode.Continue,
-                ScheduledDelivery: ScheduledDeliveryCode.Permanent,
-                Invoker: static async (_, _, ctx, ct) =>
-                {
-                    await StepExhaustionProbes.ExhaustReplay(ctx, ct);
-                    return new JobHandlerOutput(false, null);
-                },
-                DeserializeInput: static (_, _) => new NoInput(),
-                SerializeResult: null
-            )
-            {
-                Backoff = "0s",
-            },
-            new JobDescriptor(
-                JobName: "step-window-exhaust",
-                HandlerType: typeof(StepExhaustionProbes),
-                MethodName: nameof(StepExhaustionProbes.WindowExhaust),
-                InputType: typeof(NoInput),
-                ResultType: null,
-                InputPayloadFormat: JobPayloadFormat.None,
-                ResultPayloadFormat: null,
-                Priority: JobPriorityCode.Normal,
-                MaxAttempts: 1,
-                EventRecording: EventRecordingCode.Audit,
-                AlertProfile: AlertProfileCode.OnFailure,
-                FiringFailurePolicy: FiringFailurePolicyCode.Continue,
-                ScheduledDelivery: ScheduledDeliveryCode.Permanent,
-                Invoker: static async (_, _, ctx, ct) =>
-                {
-                    await StepExhaustionProbes.WindowExhaust(ctx, ct);
-                    return new JobHandlerOutput(false, null);
-                },
-                DeserializeInput: static (_, _) => new NoInput(),
-                SerializeResult: null
-            ),
+            Probe("step-exhaust-replay", StepExhaustionProbes.ExhaustReplay),
+            Probe("step-exhaust-restart", StepExhaustionProbes.Exhaust),
         ]);
+
+    private static JobDescriptor Probe(string name, Func<JobContext, CancellationToken, Task> run) =>
+        new(
+            JobName: name,
+            HandlerType: typeof(StepExhaustionProbes),
+            MethodName: name,
+            InputType: typeof(NoInput),
+            ResultType: null,
+            InputPayloadFormat: JobPayloadFormat.None,
+            ResultPayloadFormat: null,
+            Priority: JobPriorityCode.Normal,
+            MaxAttempts: 2,
+            EventRecording: EventRecordingCode.Audit,
+            AlertProfile: AlertProfileCode.OnFailure,
+            FiringFailurePolicy: FiringFailurePolicyCode.Continue,
+            ScheduledDelivery: ScheduledDeliveryCode.Permanent,
+            Invoker: async (_, _, ctx, ct) =>
+            {
+                await run(ctx, ct);
+                return new JobHandlerOutput(false, null);
+            },
+            DeserializeInput: static (_, _) => new NoInput(),
+            SerializeResult: null
+        )
+        {
+            Backoff = "0s",
+        };
 }
 
 /// <summary>
-/// Conformance for step exhaustion guarantees beyond attempt-count: window exhaustion fires
-/// before MaxAttempts is reached, re-entering an exhausted step throws without running the body, and an
-/// operator restart gives the step a fresh budget, so the body runs again.
+/// Conformance for an exhausted step, an at-most-once step whose body threw: re-entering it throws without running the
+/// body, and an operator restart clears it, so the body runs again.
 /// </summary>
 [ConformanceSpec(
     "step.exhaustion",
-    "Step exhausts by retry-window and re-entry replays without body invocation",
+    "An exhausted step re-throws on re-entry until a restart clears it",
     Area = "Steps",
-    Contract = "A step exhausts when a retry would exceed its window, re-entering the exhausted step throws without running the body, and a restart runs it afresh."
+    Contract = "Re-entering an exhausted at-most-once step throws StepExhaustedException without running the body, and a restart runs it afresh."
 )]
 public sealed class StepExhaustionSpec : ActaRuntimeTestBase<ConformanceFixture, StepExhaustionManifest>
 {
-    [Fact(DisplayName = "Step with large MaxAttempts exhausts after first failure when retry would exceed RetryWindow")]
-    public async Task Step_exhausts_by_window_before_MaxAttempts_is_reached()
-    {
-        var ct = TestContext.Current.CancellationToken;
-        var enqueued = await Jobs.EnqueueAsync(new EnqueueJobRequest(TestNamespace, "step-window-exhaust", JobPayload.None), ct);
-
-        // One tick: step attempt 1 → body fails → CompleteJobStep checks window:
-        // now()+30s > created_at+5s (30>5) → Exhausted, NOT retry-scheduled.
-        // StepExhaustedException propagates → parent fails (MaxAttempts=1).
-        Assert.Equal(RunOnceStatus.Failed, await Runtime.RunOnceAsync(enqueued, ct));
-
-        var step = Assert.Single(await ReadStepsAsync(enqueued.JobId, ct));
-        Assert.Equal(StepStatusCode.Exhausted, step.Status);
-        // attempt_number=1: far below MaxAttempts=100, proving window fired, not attempt-count.
-        Assert.Equal(1, step.AttemptNumber);
-        Assert.Null(step.NextRetryAtUtc);
-
-        // Body ran exactly once (no retry attempt was made).
-        Assert.Equal(1, StepExhaustionProbes.BodyInvocations.GetValueOrDefault(enqueued.JobId));
-
-        var job = await ReadJobAsync(enqueued.JobId, ct);
-        Assert.Equal(JobStatusCode.Failed, job.Status);
-    }
-
-    [Fact(DisplayName = "Restarting a job whose step exhausted runs the step body again with a fresh budget")]
+    [Fact(DisplayName = "Restarting a job whose step exhausted runs the step body again")]
     public async Task Restart_runs_an_exhausted_step_again()
     {
         var ct = TestContext.Current.CancellationToken;
-        var enqueued = await Jobs.EnqueueAsync(new EnqueueJobRequest(TestNamespace, "step-window-exhaust", JobPayload.None), ct);
+        var enqueued = await Jobs.EnqueueAsync(new EnqueueJobRequest(TestNamespace, "step-exhaust-restart", JobPayload.None), ct);
         Assert.Equal(RunOnceStatus.Failed, await Runtime.RunOnceAsync(enqueued, ct));
         Assert.Equal(StepStatusCode.Exhausted, Assert.Single(await ReadStepsAsync(enqueued.JobId, ct)).Status);
 
@@ -166,9 +110,7 @@ public sealed class StepExhaustionSpec : ActaRuntimeTestBase<ConformanceFixture,
         // Without the restart clearing the step, this replay would throw on re-entry and the count stay at 1.
         Assert.Equal(RunOnceStatus.Failed, await Runtime.RunOnceAsync(enqueued, ct));
         Assert.Equal(2, StepExhaustionProbes.BodyInvocations.GetValueOrDefault(enqueued.JobId));
-        var step = Assert.Single(await ReadStepsAsync(enqueued.JobId, ct));
-        Assert.Equal(StepStatusCode.Exhausted, step.Status);
-        Assert.Equal(1, step.AttemptNumber);
+        Assert.Equal(StepStatusCode.Exhausted, Assert.Single(await ReadStepsAsync(enqueued.JobId, ct)).Status);
     }
 
     [Fact(DisplayName = "Re-entering an exhausted step throws StepExhaustedException without invoking the body")]
@@ -177,34 +119,16 @@ public sealed class StepExhaustionSpec : ActaRuntimeTestBase<ConformanceFixture,
         var ct = TestContext.Current.CancellationToken;
         var enqueued = await Jobs.EnqueueAsync(new EnqueueJobRequest(TestNamespace, "step-exhaust-replay", JobPayload.None), ct);
 
-        // Tick 1: step attempt 1 → body fails (invocations=1) → step Pending → parent re-arms (budget neutral).
+        // Tick 1: the body fails, the step is Exhausted, and the handler catches StepExhaustedException and reschedules.
         Assert.Equal(RunOnceStatus.Rearmed, await Runtime.RunOnceAsync(enqueued, ct));
-        Assert.Equal(StepStatusCode.Pending, (await ReadStepsAsync(enqueued.JobId, ct)).Single().Status);
+        Assert.Equal(StepStatusCode.Exhausted, Assert.Single(await ReadStepsAsync(enqueued.JobId, ct)).Status);
         Assert.Equal(1, StepExhaustionProbes.BodyInvocations.GetValueOrDefault(enqueued.JobId));
 
-        // Tick 2: step attempt 2 → body fails (invocations=2) → step Exhausted →
-        //   StepExhaustedException → the handler catches it and reschedules → Rearmed.
-        Assert.Equal(RunOnceStatus.Rearmed, await Runtime.RunOnceAsync(enqueued, ct));
-
-        var stepAfterExhaust = Assert.Single(await ReadStepsAsync(enqueued.JobId, ct));
-        Assert.Equal(StepStatusCode.Exhausted, stepAfterExhaust.Status);
-        Assert.Equal(2, stepAfterExhaust.AttemptNumber);
-        Assert.Null(stepAfterExhaust.NextRetryAtUtc);
-        // Body ran exactly twice: once per in-budget attempt.
-        Assert.Equal(2, StepExhaustionProbes.BodyInvocations.GetValueOrDefault(enqueued.JobId));
-
-        // Tick 3: the replay re-enters the exhausted step → StartJobStep sees state=Exhausted → outcome=Exhausted(4) →
-        //   StepExhaustedException WITHOUT body → uncaught this time, it fails the parent at once → RunOnceStatus.Failed.
+        // Tick 2: the replay re-enters the exhausted step, which throws without running the body; uncaught this time,
+        // it fails the parent at once.
         Assert.Equal(RunOnceStatus.Failed, await Runtime.RunOnceAsync(enqueued, ct));
-
-        // Body invocation count must NOT have increased: body was never called on re-entry.
-        Assert.Equal(2, StepExhaustionProbes.BodyInvocations.GetValueOrDefault(enqueued.JobId));
-
-        // Step row is still Exhausted, unchanged by the re-entry (StartJobStep is read-only on Exhausted steps).
-        var stepAfterReentry = Assert.Single(await ReadStepsAsync(enqueued.JobId, ct));
-        Assert.Equal(StepStatusCode.Exhausted, stepAfterReentry.Status);
-        Assert.Equal(2, stepAfterReentry.AttemptNumber);
-        Assert.Null(stepAfterReentry.NextRetryAtUtc);
+        Assert.Equal(1, StepExhaustionProbes.BodyInvocations.GetValueOrDefault(enqueued.JobId));
+        Assert.Equal(StepStatusCode.Exhausted, Assert.Single(await ReadStepsAsync(enqueued.JobId, ct)).Status);
 
         var job = await ReadJobAsync(enqueued.JobId, ct);
         Assert.Equal(JobStatusCode.Failed, job.Status);

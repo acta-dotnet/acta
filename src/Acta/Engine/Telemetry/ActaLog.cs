@@ -90,11 +90,11 @@ internal static partial class ActaLog
     )]
     public static partial void LockReleaseFailed(ILogger log, Exception exception, string actaDetail, long actaJobId);
 
-    [LoggerMessage(Level = LogLevel.Warning, Message = "Step on job {ActaJobId} exhausted its attempts ({ActaDetail}).")]
+    [LoggerMessage(
+        Level = LogLevel.Warning,
+        Message = "At-most-once step on job {ActaJobId} failed and does not run again ({ActaDetail})."
+    )]
     public static partial void StepExhausted(ILogger log, long actaJobId, string actaDetail);
-
-    [LoggerMessage(Level = LogLevel.Information, Message = "Step on job {ActaJobId} failed and retries ({ActaDetail}).")]
-    public static partial void StepRetrying(ILogger log, long actaJobId, string actaDetail);
 
     [LoggerMessage(
         Level = LogLevel.Warning,

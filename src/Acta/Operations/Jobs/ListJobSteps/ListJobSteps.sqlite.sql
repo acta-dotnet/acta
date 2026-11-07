@@ -2,8 +2,6 @@
 SELECT
     s.step_name AS name,
     s.step_status_code AS status,
-    s.attempt_number,
-    s.next_retry_at_utc,
     s.failure_message,
     s.created_at_utc,
     s.modified_at_utc

@@ -13,8 +13,11 @@ public abstract partial class JobContext
     /// failed and does not cancel siblings; branch on the returned outcome or call
     /// <see cref="JoinOutcome.ThrowIfAnyFailed"/>.
     /// </summary>
-    public async Task<JoinOutcome> JoinAsync(IReadOnlyList<EnqueueJobResponse> children, CancellationToken ct = default) =>
-        new(await WaitChildrenAsync(ChildIds(children), ct));
+    public async Task<JoinOutcome> JoinAsync(IReadOnlyList<EnqueueJobResponse> children, CancellationToken ct = default)
+    {
+        ThrowIfInAtMostOnceStep(nameof(JoinAsync));
+        return new(await WaitChildrenAsync(ChildIds(children), ct));
+    }
 
     /// <summary>
     /// Bounded twin of <see cref="JoinAsync(IReadOnlyList{EnqueueJobResponse}, CancellationToken)"/>: the whole join
@@ -24,11 +27,11 @@ public abstract partial class JobContext
     /// <param name="children">The child handles to join on, in the order the outcomes come back.</param>
     /// <param name="timeout">Budget for the whole join from DB now, not per child. Must be positive.</param>
     /// <param name="ct">Cancellation; linked with the per-attempt <see cref="CancellationToken"/>.</param>
-    public Task<ChildrenWaitOutcome> JoinAsync(
-        IReadOnlyList<EnqueueJobResponse> children,
-        TimeSpan timeout,
-        CancellationToken ct = default
-    ) => TryWaitChildrenAsync(ChildIds(children), timeout, ct);
+    public Task<ChildrenWaitOutcome> JoinAsync(IReadOnlyList<EnqueueJobResponse> children, TimeSpan timeout, CancellationToken ct = default)
+    {
+        ThrowIfInAtMostOnceStep(nameof(JoinAsync));
+        return TryWaitChildrenAsync(ChildIds(children), timeout, ct);
+    }
 
     private static long[] ChildIds(IReadOnlyList<EnqueueJobResponse> children)
     {
@@ -71,6 +74,7 @@ public abstract partial class JobContext
         CancellationToken ct
     )
     {
+        ThrowIfInAtMostOnceStep(nameof(ParallelAsync));
         ArgumentNullException.ThrowIfNull(configure);
         groupName = NameSyntax.Canonicalize(groupName, nameof(groupName), NameSyntax.ExtendedMaxLength, reserveSystem: true);
         ValidateGroupTimeout(timeout);
@@ -169,6 +173,7 @@ public abstract partial class JobContext
         where TKey : notnull
         where TInput : notnull
     {
+        ThrowIfInAtMostOnceStep(nameof(MapAsync));
         ArgumentNullException.ThrowIfNull(items);
         ArgumentNullException.ThrowIfNull(itemKey);
         ArgumentNullException.ThrowIfNull(child);

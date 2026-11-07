@@ -460,11 +460,11 @@
   - Maintenance registration is idempotent (no duplicate slot) and a due tick has exactly one claimant
 
 ### Signals, step exhaustion, and lost wakes converge without timing assumptions
-- **Contract:** Signals raised before or after waiter creation, step retry exhaustion, and lost wake notifications each produce one legal final state.
+- **Contract:** Signals raised before or after waiter creation, step exhaustion, and lost wake notifications each produce one legal final state.
 - **Guarantees:**
   - Signal raised before a waiter exists is consumed without suspending
   - Signal raised after a waiter exists resumes the suspended job
-  - Step retry exhaustion fails the parent exactly once
+  - Step exhaustion fails the parent exactly once
   - Lost wake notification is recovered by the safety poll path
 
 ### Worker crash boundaries recover through one legal final state
@@ -962,13 +962,11 @@
   - A zero-length sleep or one whose resume instant has passed continues at once and arms nothing
   - A second sleep under another name while one is pending is rejected and arms nothing
 
-### Completing a step stores a success, schedules a retry, or exhausts it
-- **Contract:** A step completion stores a success, schedules an in-budget retry, exhausts past the attempt or window budget, and writes nothing on a stale version.
+### Completing a step stores a success or exhausts an at-most-once step
+- **Contract:** A step completion stores a success, exhausts the step on an at-most-once body's failure, and writes nothing on a stale version.
 - **Guarantees:**
-  - A success stores the result, marks the step Succeeded, and clears an earlier failure's reason and retry instant
-  - An in-budget failure keeps the step Pending with a retry instant one delay out and the reason recorded
-  - A failure on the last allowed attempt exhausts the step with its reason and no retry instant
-  - A retry that would land past the retry window exhausts the step with attempts still left
+  - A success stores the result and marks the step Succeeded
+  - An at-most-once body's failure exhausts the step with its reason
   - A success or a failure carrying a stale version reports StaleVersion and writes nothing
 
 ### A Strict deadline terminates an overdue job and blocks a retry past the deadline
@@ -1017,6 +1015,13 @@
 - **Guarantees:**
   - The fenced attempt reads the manual firing it holds, and a lost fence reads nothing
   - An ordinary job's attempt reads no envelope
+
+### IsLastAttempt says whether a failure of this attempt ends the job for good
+- **Contract:** IsLastAttempt is true when a failure would end the job, by its spent budget or a Strict deadline, and a resume that spent nothing leaves it false.
+- **Guarantees:**
+  - IsLastAttempt is false before the last attempt and on a resume that spent nothing, and true on the last attempt
+  - IsLastAttempt is true when the retry's backoff would pass a Strict deadline
+  - IsLastAttempt and the completion decide on one jittered backoff draw near a Strict deadline
 
 ### A lease renewal never deadlocks with a child's completion
 - **Contract:** A lease renewal skips an in-flight row another transaction holds, reporting it unrenewed, so it never waits on a completing child.
@@ -1116,14 +1121,13 @@
 - **Guarantees:**
   - Every enqueued job executes exactly once and the whole backlog drains to completion
 
-### Starting a step invokes, replays, suspends, or refuses from the step's state
-- **Contract:** A step start invokes a new or due step as its next attempt, replays a success, suspends on a pending retry, and refuses an exhausted or interrupted step.
+### Starting a step invokes, replays, or refuses from the step's state
+- **Contract:** A step start invokes a new or unfinished ordinary step, replays a success, interrupts a re-entered at-most-once step, and refuses a terminal failure.
 - **Guarantees:**
-  - A first start opens a Pending step at attempt 1 and invokes it
-  - A Pending step re-entered with no retry instant is invoked again as the next attempt
+  - A first start opens a Pending step and invokes it
+  - A Pending ordinary step re-entered is invoked again and its row is left unchanged
   - An at-most-once step re-entered before completion is terminalized Interrupted and never invoked again
-  - A pending retry suspends until its instant, and once the instant passes the next attempt is invoked
-  - A succeeded step replays its stored result without a new attempt or a write
+  - A succeeded step replays its stored result without a write
   - An exhausted step is refused with its final reason, on every later entry
 
 ### A timeout within budget re-arms to Ready; exhausted budget lands Failed
@@ -2338,8 +2342,6 @@
   - A code column stores an id this build does not know, and ck_checkpoints_kind_shape still binds the kinds it names
   - Consumer payload format 255 remains storable
   - ck_checkpoints_kind_shape rejects every mismatched kind/status/due shape on INSERT and on UPDATE
-  - ck_steps_attempt_number rejects an INSERT with attempt_number zero
-  - ck_steps_terminal_no_retry rejects a retry instant on every terminal status, on INSERT and on UPDATE
   - ck_steps_result_succeeded admits a stored result only on a Succeeded row
   - ck_steps_failure_pair rejects a failure message with no failure code, on INSERT and on UPDATE
   - ck_workers_max_concurrent_executors rejects an INSERT with max_concurrent_executors zero
@@ -2420,35 +2422,32 @@
 ## Steps
 
 ### At-most-once step re-entered before completion is interrupted
-- **Contract:** AtMostOnce runs the body 0 or 1 times: a pending step re-entered on replay terminalizes Interrupted and throws instead of re-invoking, version-idempotently.
+- **Contract:** AtMostOnce runs the body 0 or 1 times: a re-entered pending step terminalizes Interrupted, and a wait inside the body is refused before it arms anything.
 - **Guarantees:**
   - A first invocation of an at-most-once step still runs the body (Invoke)
   - A pending step re-entered under at-most-once terminalizes Interrupted, version-idempotent
-  - An interrupted step drops the due retry instant its failed attempt left behind
   - Uncaught StepInterruptedException fails the parent terminally without re-invoking the body
   - Caught StepInterruptedException lets the parent proceed to Succeeded
+  - A wait inside an at-most-once body is refused at the call and arms nothing
+  - A RescheduleJobException an at-most-once body throws is refused and exhausts the step
+  - A HandlerPauseException an at-most-once body throws is refused and exhausts the step
 
-### Nonzero backoff defers the parent to the retry instant and re-invokes the body
-- **Contract:** A step failure with nonzero backoff re-arms the parent Ready at the retry instant budget-neutrally and gates re-invocation until that instant.
+### An exhausted step re-throws on re-entry until a restart clears it
+- **Contract:** Re-entering an exhausted at-most-once step throws StepExhaustedException without running the body, and a restart runs it afresh.
 - **Guarantees:**
-  - After a step failure with nonzero backoff the parent is Ready at the retry instant and NothingClaimed before it
-  - At the retry instant the step body is re-invoked on attempt 2 and the parent completes Succeeded
-
-### Step exhausts by retry-window and re-entry replays without body invocation
-- **Contract:** A step exhausts when a retry would exceed its window, re-entering the exhausted step throws without running the body, and a restart runs it afresh.
-- **Guarantees:**
-  - Step with large MaxAttempts exhausts after first failure when retry would exceed RetryWindow
-  - Restarting a job whose step exhausted runs the step body again with a fresh budget
+  - Restarting a job whose step exhausted runs the step body again
   - Re-entering an exhausted step throws StepExhaustedException without invoking the body
 
-### RunStepAsync runs once, replays results, and retries until exhausted
-- **Contract:** A step runs its body once, replay-skips a succeeded step, retries an in-budget failure budget-neutrally, and exhausts to StepExhaustedException.
+### RunStepAsync runs once, replays results, and runs again on the job's retry
+- **Contract:** A step runs once and replay-skips a success, a throwing body spends the job's budget, a wait in a body charges nothing, and an at-most-once failure exhausts.
 - **Guarantees:**
   - A typed step runs its body once and returns the stored result
   - A void step succeeds with no result payload
   - A succeeded step replays its stored result without re-running the body
-  - An in-budget retry inserts Pending attempt 1, increments attempt_number, and is budget-neutral for the parent
-  - An exhausted step throws StepExhaustedException and fails the parent when uncaught
+  - A wait inside an ordinary step resumes and completes, and the job's failure count stays untouched
+  - A wait inside an ordinary step charges nothing, so a later failure keeps the job's whole budget
+  - A throwing ordinary step fails the attempt, spends the job's budget, and the retry replays the steps that succeeded
+  - An exhausted at-most-once step throws StepExhaustedException and fails the parent at once when uncaught
   - CompleteJobStep loses the CAS and reports StaleVersion when the step advanced under another execution
   - CompleteJobStep reports StaleVersion rather than throwing when the step row is absent
 
@@ -2554,9 +2553,9 @@
   - The server records no deadlock during the run
 
 ### The test host's fast-forward helpers make only the named job's wait due
-- **Contract:** IActaTestHost makes a parked timer, retry, bounded wait, or schedule due at once, admits a due schedule in one pass, and refuses a wait with no deadline.
+- **Contract:** IActaTestHost makes a parked timer, bounded wait, or schedule due at once, admits a due schedule in one pass, and refuses a wait with no deadline.
 - **Guarantees:**
-  - The timer and step-retry helpers make the parked job due
+  - The timer helper makes the parked job due
   - The wait-timeout helper expires a bounded wait and rejects an unbounded one
   - The wait-timeout helper expires a bounded child wait by its latch name
   - The group wait-timeout helper expires a whole group and rejects a job without one
