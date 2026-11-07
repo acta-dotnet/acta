@@ -19,9 +19,7 @@ await host.StartAsync();
 var schedules = host.Services.GetRequiredService<IActaOperations>().Schedules;
 var queries = host.Services.GetRequiredService<IActaOperations>();
 
-// The recurring slot registers on StartAsync; give the worker a moment to reconcile.
-await Task.Delay(500);
-
+// The development start deploys the schedule before the worker starts, so its row exists once StartAsync returns.
 var lookup = new ScheduleLookup("schedule-control", "hourly-report", "every-hour");
 
 // Step 1: indefinite pause - the schedule does not fire until an operator explicitly resumes it.

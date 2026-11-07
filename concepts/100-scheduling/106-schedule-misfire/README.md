@@ -20,8 +20,8 @@ and "skip ahead" have different business meanings and operational costs.
 
 ## Why this design
 
-Each schedule names its policy, and `Skip` is the default when it names none. A resume, like a worker
-start, decides nothing: it keeps the cursor where it was, and the next admission pass applies the policy
+Each schedule names its policy, and `Skip` is the default when it names none. A resume, like a deploy
+or a worker start, decides nothing: it keeps the cursor where it was, and the next admission pass applies the policy
 to the occurrences it finds already past. An occurrence less than a minute late still counts as on time.
 
 - `Skip` skips the missed occurrences, except the latest when it is within that minute.

@@ -26,7 +26,7 @@ namespace Acta.Concepts.TimezoneSchedule
     public sealed class DailyDigestJob
     {
         // TimeZoneId pins cron to wall-clock local time across DST switches (IANA or Windows ids; an
-        // unresolvable id fails fast at worker startup). Intervals are absolute gaps and take no timezone.
+        // unresolvable id fails the deploy, which a development start runs). Intervals are absolute gaps and take no timezone.
         [Job("daily-digest")]
         [Schedule("morning-ljubljana", "0 8 * * *", TimeZoneId = "Europe/Ljubljana")]
         [Schedule("demo-tick", "PT15S")]

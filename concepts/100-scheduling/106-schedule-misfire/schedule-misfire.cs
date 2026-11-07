@@ -27,13 +27,7 @@ await host.StartAsync();
 var operations = host.Services.GetRequiredService<IActaOperations>();
 var schedules = operations.Schedules;
 
-// The schedules register on StartAsync; wait for the durable rows instead of guessing a delay.
-using var registrationTimeout = new CancellationTokenSource(TimeSpan.FromSeconds(30));
-while ((await ListAsync(registrationTimeout.Token)).Count < jobNames.Length)
-{
-    await Task.Delay(50, registrationTimeout.Token);
-}
-
+// The development start deploys the three schedules before the worker starts, so their rows exist once StartAsync returns.
 Console.WriteLine("Pausing all three schedules, then letting about three occurrences pass...");
 foreach (var lookup in lookups)
 {
