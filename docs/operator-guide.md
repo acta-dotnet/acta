@@ -920,13 +920,13 @@ latch cancels the job rather than parking it forever on a wait that can no longe
 ### …a sleeping or signal-waiting job has no worker?
 
 The wait occupies no executor. A timer remains durable until due; a signal wait remains durable
-until raised. Once the job becomes `Ready`, a live worker registered for the namespace and definition
+until raised. Once the job becomes `Ready`, a live worker of the namespace whose build carries the handler
 must claim it. Explain and the Workers page show whether that capacity exists.
 
 ### …the application deploy removes a handler that queued jobs still need?
 
 Stored rows keep their durable job name. They are not rewritten to another handler. Keep the old
-definition registered until runnable/waiting rows drain or expire, or deploy a compatible/versioned
+handler in the build until runnable/waiting rows drain or expire, or deploy a compatible/versioned
 migration plan. Search retained failed jobs too: an operator restart can make them runnable again.
 
 A worker that claims such a job hands it straight back. Claims are selected by namespace, not by
@@ -953,7 +953,7 @@ Retiring a recurring job's definition leaves its slot inert instead of cancellin
 not yet claimed settles cancelled and the slot returns to `Idle`, a paused slot stays paused, and a cancelled one
 stays cancelled. An attempt already running returns the slot to `Idle` when it succeeds or spends its failure
 budget; any other landing (a retry, a wait, a handler's pause or failure) lands cancelled. The slot refuses a
-manual firing while the definition is retired. A build that registers the definition again retimes its
+manual firing while the definition is retired. A deploy by a build that declares the definition again retimes its
 schedules from now, so the slot fires at the first occurrence after the comeback and the retired interval is not
 caught up.
 
@@ -970,7 +970,7 @@ The schedule's misfire policy decides the missed occurrences when the admitter n
 `Skip` moves past them, `CatchUpOnce` runs one coalesced catch-up firing, `CatchUpLatest` runs the
 latest, and `CatchUpAll` admits every one in order: one per settlement on a permanent slot, and under
 `PerOccurrence` delivery as many root jobs at once as `MaxOutstanding` allows. An occurrence less than a minute overdue counts as due
-rather than missed, and neither a deploy nor a worker start decides anything: a deploy registers the declaration and leaves every
+rather than missed, and neither a deploy nor a worker start decides anything: a deploy writes the declaration and leaves every
 occurrence to the running fleet's admitter. See [Schedule operations](./developer-guide.md#schedule-operations).
 
 ### …an operator restarts a failed or cancelled job?
@@ -1521,7 +1521,7 @@ SELECT outbox_id, job_namespace, job_name, deduplication_key, failure_count, las
 
 Requeue a quarantined row: reset it to Pending, clear the failure budget, make it immediately eligible on
 the database clock, and clear the claim and error fields. Requeue only after fixing the underlying cause
-(for example registering the missing job definition).
+(for example deploying the missing job definition).
 
 **PostgreSQL**:
 

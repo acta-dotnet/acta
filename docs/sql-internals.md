@@ -496,8 +496,8 @@ Each namespace has one schedule lock, held until its transaction ends: `sp_getap
 - A PostgreSQL statement that updates one `schedules_state` row twice keeps only one of the updates, so the reclaim
   and retire routines fold the capacity a charged root releases, the wake, and the policy's park into one write per
   row.
-- The registration heal clears every orphaned or retired schedule's cursor in the namespace: a retire that commits after
-  a worker read its stored schedules leaves that worker's registration writing cursors for the retired definition.
+- The registration heal clears every orphaned or retired schedule's cursor in the namespace, so a cursor written for a
+  definition that was retired meanwhile does not stay.
 - A worker start runs no `register_schedules` and takes none of these locks; a deploy does both, once per run.
 - SQLite runs one writer at a time and takes none of these locks.
 

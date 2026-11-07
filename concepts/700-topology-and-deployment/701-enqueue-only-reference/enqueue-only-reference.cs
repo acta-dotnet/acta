@@ -9,7 +9,7 @@ using Microsoft.Extensions.Hosting;
 // In production, these are two separate processes (see demos/ApiWorkerSplit).
 // One process here so the rung is self-contained and runnable without a second terminal.
 
-// Worker host: owns the namespace - registers definitions, runs the claim loop, executes jobs.
+// Worker host: owns the namespace - declares its jobs, runs the claim loop, executes them.
 var workerBuilder = Host.CreateApplicationBuilder(args);
 workerBuilder.Services.UseActa(j =>
 {

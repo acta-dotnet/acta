@@ -69,7 +69,7 @@ Execution is at-least-once, and a handler re-enters from the top with its comple
 - **The drift guard checks type names and payload formats, not JSON compatibility.** Wire compatibility is the application's.
 - **A worker excludes a definition it has no handler for only for its own lifetime.** A long run of such jobs slows its claims until the definition is retired or its build returns.
 - **Retiring a definition cancels its parked jobs but not their descendants.**
-- **A recurring firing still running when its definition is retired is cancelled** unless it succeeds or spends its failure budget, which return the slot to `Idle` as usual. A cancelled slot stays cancelled after a build registers the definition again, so restart it; once its retention runs out, purge removes it and the comeback registers a fresh slot.
+- **A recurring firing still running when its definition is retired is cancelled** unless it succeeds or spends its failure budget, which return the slot to `Idle` as usual. A cancelled slot stays cancelled after a deploy reactivates the definition, so restart it; once its retention runs out, purge removes it and the next deploy that declares the definition writes a fresh slot.
 - **A worker learns of a retire on its next heartbeat**, so an attempt that starts in that gap still runs once. A job its handler paused stays Paused until it is resumed or cancelled.
 
 ## Dashboard and API exposure
@@ -110,8 +110,8 @@ committed.
 A namespace id is 32 bits, so one database can allocate around 2.1 billion namespaces over its
 whole lifetime. Ids are never reclaimed — deleting a namespace does not return its id, so the
 ceiling counts every namespace ever created rather than the number that currently exist — but at
-this width that is an accounting note, not a budget: registration allocates an id only for a
-genuinely new namespace name (a worker restart re-registering an existing namespace allocates
+this width that is an accounting note, not a budget: a deploy allocates an id only for a
+genuinely new namespace name (a repeated deploy of an existing namespace allocates
 nothing), and namespaces are created deliberately, one per bounded context, not per request.
 SQLite's `namespaces.namespace_id` is a 64-bit `AUTOINCREMENT`; 2,147,483,647 is the portable limit.
 

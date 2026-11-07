@@ -94,7 +94,7 @@ backoff curve is `"1m..1d x2 ~10%"`.
 **Generated member name collision (warning).** Each job becomes a member of the manifest, named by
 removing the separators from its name and ignoring case, so `send-mail` and `sendmail` collide, and
 so does a job named `descriptors`. The colliding members are left out of the manifest; the jobs
-still register and run.
+are still deployed and run.
 
 Rename the job so the derived member is unique.
 
@@ -138,7 +138,7 @@ Use a parameterless record for the input: `public sealed record NightlyClose;`.
 **`MaxOutstanding` on a permanent definition.** A definition with the default `Permanent` delivery
 fires through one slot job that holds one occurrence at a time, so its schedules allow exactly 1.
 Drop the argument, or declare `[Job(ScheduledDelivery = ScheduledDeliveryCode.PerOccurrence)]` under a
-new job name, since delivery is immutable once registered.
+new job name, since delivery is immutable once deployed.
 
 ## ACTA0126 <a id="acta0126"></a>
 

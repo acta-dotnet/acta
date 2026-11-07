@@ -109,20 +109,12 @@ public static class ShippingHandlers
 - Split deployment (API enqueues, separate worker executes): the worker registers
   `Run<TManifest>`; the producer enqueues by the raw route contract instead of the typed call so
   it does not need the handler assembly.
-- Never enable `MigrateOnStartup` outside an explicitly local or development
-  configuration. Production applies the schema from a deploy step with `<app> jobs migrate`, or
-  `{Provider}Migrations.ApplyAsync` from code. An external outbox table comes from the producer's own
-  migrations (`CreateOutboxScript()`) or `ApplyOutboxAsync`; Acta never creates it on its own.
-- Rolling deploys are routine: apply the migration, start the new build, stop the old one, with any
-  overlap. Acta's migrations are forward-only and keep an old and a new build working on one
-  schema; a worker hands back a job whose handler it lacks and stops claiming that definition;
-  registration never retires a definition the new build omits, so a rollback keeps the queue. What
-  the application keeps is its own, as in any rolling deploy: a queued input the new build still
-  reads, and a step name a running job still finds. Retiring a dropped definition and cancelling
-  its queue is an operator action on the definition.
-- Schedules follow the last build that registered, so an old worker starting mid-rollout can leave a
-  schedule the new build added Orphaned until a new worker starts, and orphaning drops a schedule
-  pause. To hold a recurring job across a rollback, pause the job, not the schedule.
+- Never enable `MigrateOnStartup` outside an explicitly local or development configuration. There, startup applies the schema and writes the app's jobs and schedules, so one `dotnet run` is enough.
+- Production runs `<app> jobs migrate` from a deploy step before the new build starts: it applies the schema, deploys the app's job definitions and schedules, and records the app's version. `<app> jobs deploy` does the deploy alone and needs no DDL right. A worker start writes no definition or schedule, and refuses a namespace its build's version has not deployed in.
+- Give each build its own version: `JobsOptions.DeploymentVersion`, by default the entry assembly's informational version. An app that is `1.0.0` on every build is one version to Acta.
+- An external outbox table comes from the producer's own migrations (`CreateOutboxScript()`) or `ApplyOutboxAsync`; Acta never creates it on its own.
+- Rolling deploys are routine: run `<app> jobs migrate`, start the new build, stop the old one, with any overlap. Acta's migrations are forward-only and keep an old and a new build working on one schema; a worker hands back a job whose handler it lacks and stops claiming that definition; a deploy never retires a definition the new build omits, so a rollback keeps the queue. What the application keeps is its own, as in any rolling deploy: a queued input the new build still reads, and a step name a running job still finds. Retiring a dropped definition and cancelling its queue is an operator action on the definition.
+- Definitions and schedules are the current deployment's. An older build's workers write nothing, and its `jobs deploy` changes nothing unless run with `--force`, which is how a rollback restores the earlier definitions. A schedule a deploy drops is orphaned and loses its pause, so to hold a recurring job across a rollback, pause the job, not the schedule.
 
 ## Steps
 

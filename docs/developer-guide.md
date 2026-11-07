@@ -603,7 +603,7 @@ The generator reports these at build time. All are errors unless noted, and an e
 | `ACTA0124` | Invalid `[Schedule]` policy value: `MaxOutstanding` below 1, or an undefined `FullBehavior` or `MisfireStrategy`. |
 | `ACTA0125` | `MaxOutstanding` other than 1 on a schedule of a `Permanent` definition, whose one slot holds one occurrence at a time. |
 | `ACTA0126` | Incomplete `[Schedule]` expiration: `ExpireAfter` without `ExpireAction` or the reverse, an `ExpireAfter` of zero, or an undefined `ExpireAction`. |
-| `ACTA0127` | Incomplete `[Schedule]` source: an expression and `Calendar` together or neither, or a blank or invalid `Calendar` or `Availability` name. Whether the catalog publishes the name is checked at worker start. |
+| `ACTA0127` | Incomplete `[Schedule]` source: an expression and `Calendar` together or neither, or a blank or invalid `Calendar` or `Availability` name. Whether the catalog publishes the name is checked at a deploy. |
 | `ACTA0129` | Incomplete `[Schedule]` bounds: a `StartAtUtc` or `EndBeforeUtc` that is not a UTC instant written `yyyy-MM-ddTHH:mm:ssZ`, or a start not earlier than the end. |
 | `ACTA0131` | Invalid `[JobPayloadFormatDeclaration]` (reserved id, bad or duplicate name/id, not an `IJobPayloadSerializer`).                                                                                                  |
 | `ACTA0132` | Invalid `[Job]` payload-format usage (`Format` paired with `InputFormat`/`ResultFormat`, `ResultFormat` on a no-result handler, `none` or `bytes` on a handler taking several input parameters, or a name matching no built-in or declared format). |
@@ -698,13 +698,13 @@ alert settings, or lease/heartbeat relationships fail fast.
 | `WorkerRetention` | 90 days | cluster data | Terminal worker row retention, `Stopped` and `Dead` alike. A row also stays until `JobEventsRetention` has passed, so events keep their worker. Must be at least one day. |
 | `JobEventsRetention` | 365 | cluster data | Retention for every event row, both audit timeline and execution ledger. |
 | `AlertRetention` | 90 | cluster data | Hard cap on alert rows, settled or not. |
-| `RunSystemJobs` | `true` | per process | Registers `sys.alerts` and `sys.retention` and runs crash recovery. **Off disables crash recovery**, so a dead worker's jobs stay `Executing`; the runtime warns. |
+| `RunSystemJobs` | `true` | per process | Declares `sys.alerts` and `sys.retention` in the namespace and runs crash recovery. Deploy with the value the workers run with. **Off disables crash recovery**, so a dead worker's jobs stay `Executing`; the runtime warns. |
 | `MaxInlinePayloadBytes` | 1 MiB | cluster data | The one payload ceiling, for inline writes and the HTTP request body; an oversize handler result is dropped. |
 | `AlertFailureThreshold` | 3 | cluster data | Automatic failure count threshold for escalation. |
 | `AlertChannelValidationMode` | `Warn` | startup policy | `Off`, `Warn`, or `Fail` when definitions route to missing alert channels. |
 | `PayloadContractDriftMode` | `Warn` | deploy policy | `Warn` or `Fail` when a deploy changes input or result contract columns. |
 | `DeploymentVersion` | assembly informational version | per process | The version a deploy records and a worker starts as, written to `deployments` and `workers`; it must identify the build and differ across releases. |
-| `EnvironmentName` | `DOTNET_ENVIRONMENT`, then `ASPNETCORE_ENVIRONMENT`, then `Production` | per process | Matched against a `[Schedule]`'s `Environments`; a schedule without environments registers everywhere. |
+| `EnvironmentName` | `DOTNET_ENVIRONMENT`, then `ASPNETCORE_ENVIRONMENT`, then `Production` | per process | Matched against a `[Schedule]`'s `Environments`; a schedule without environments is deployed everywhere. |
 | `AllowClockSkew` | `false` | startup policy | Downgrades excessive host/database clock skew from failure to warning. |
 
 Set only `HeartbeatInterval`, the same on every replica of a namespace: the lease and dead-worker windows derive from it at x4 and x7, and crash recovery runs once a lease. Long-running handlers stay alive by heartbeating, not by a longer lease. `AlertReminderInterval` (24 hours) is how often a still-broken job pages again.
@@ -863,13 +863,13 @@ Acta does not pre-materialize a queue of future occurrences.
 ### Delivery and capacity
 
 `[Job(ScheduledDelivery = ...)]` says how a definition's schedules deliver its work, and it is immutable
-once registered: a changed mode fails the worker's start, so a new mode takes a new job name.
+once deployed: a changed mode fails the deploy, so a new mode takes a new job name.
 
 - `Permanent` (the default): one permanent slot job per definition. Due schedules coalesce into one firing of
   the slot, the handler keeps its durable state across firings, and the slot's capacity is one outstanding
   firing.
 - `PerOccurrence`: each admitted occurrence is a fresh ordinary root job with the definition's default
-  input (serialized at registration and stored on the definition, so any host admits it), the schedule as
+  input (serialized at the deploy and stored on the definition, so any host admits it), the schedule as
   its provenance (`jobs.schedule_id`), its own steps, children, retries, and retention, and a deduplication
   key of the schedule and the nominal instant, so an occurrence is never admitted twice. Three schedules
   due at one instant make three roots.
@@ -1016,7 +1016,7 @@ The workflow keeps a calendar's definition beside the code that names it:
 
 - Workers never publish. A deploy checks every calendar its schedules name before it writes anything. A deploy that finds one not ready fails and lists each schedule as `namespace/job/schedule` with its calendar and the reason: no published version, a version published under the other role, or a version this build cannot read, with the compiler's problem.
 - `GetAsync` answers a family's head with one version's `Definition`, the stored JSON text, which a draft takes back as it is. `SaveDraftAsync` takes the latest version the caller saw (`VersionConflict` otherwise) and creates a namespace no worker has run in yet. `PreviewAsync` forecasts a version beside the current one and lists up to 100 bound schedules with an overdue flag, overdue ones first, with `SchedulesTotal` and `OverdueTotal` counting them all; `ListDependentsAsync` pages every one. `PublishAsync` makes a draft current and retimes every schedule that names the family in its scope in one transaction: its cursor seeds from the new version's first occurrence after now, and `schedule.retimed` is recorded; paused and orphaned schedules keep their state. A schedule holding an undecided overdue occurrence refuses the publication (`OverdueDecisionCode.Refuse`, the default) until it is drained, or is audited as `schedule.skipped` with the reason `retimed` under `OverdueDecisionCode.Discard`. A publication retimes at most 200 schedules. `ArchiveAsync` retires a family no live schedule names.
-- Publishing a shared calendar locks every namespace it retimes, in id order, so a registration or another publication in those namespaces waits rather than racing.
+- Publishing a shared calendar locks every namespace it retimes, in id order, so a deploy or another publication in those namespaces waits rather than racing.
 
 ### Backfill
 
@@ -1114,8 +1114,8 @@ The package is test-framework-agnostic (xUnit, NUnit, MSTest, TUnit). Its types 
 ### The model
 
 `ActaTestHost.StartAsync` builds the same DI container production uses, applies migrations to a
-unique throwaway schema (default `acta_test_{12-hex}`), and registers your manifest's catalog
-(namespace, definitions, worker row). It does not start the background claim loop; nothing executes
+unique throwaway schema (default `acta_test_{12-hex}`), deploys your manifest's catalog (namespace,
+definitions, schedules), and starts its worker row. It does not start the background claim loop; nothing executes
 until you drive it.
 
 Drive execution one tick at a time:
@@ -1283,7 +1283,7 @@ With `MaxAttempts = 2`, making both attempts throw turns the second tick into
 
 ### Testing a scheduled job
 
-A `[Schedule]` registers a permanent slot that sits `Idle` until the admission engine finds a schedule
+A `[Schedule]` declares a permanent slot that sits `Idle` until the admission engine finds a schedule
 due, and the test host runs no admitter loop, so a scheduled job fires through two helpers:
 `ForceScheduleDueAsync(lookup)` moves the schedule's next occurrence and evaluation instant to moments
 ago, inside the misfire grace, and `AdmitOnceAsync(namespace)` runs one admission pass, which admits
