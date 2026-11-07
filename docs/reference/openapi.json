@@ -16568,7 +16568,7 @@
               "null",
               "string"
             ],
-            "description": "The latest reason recorded for the job's state, when there is one."
+            "description": "Why the job is in its state, from its newest failure: set for a Failed job and for a Ready or Idle job that still counts that failure, and null otherwise."
           },
           "nextActions": {
             "type": "array",

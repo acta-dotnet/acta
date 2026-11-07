@@ -78,7 +78,9 @@ internal sealed class ExplainJobHandler(GetJobIdHandler getJobId, IDbSession ses
         // Steps arrive in creation order, the newest StepLimit + 1 of them; the oldest drops when there is one too many.
         var stepsHasMore = data.Steps.Count > StepLimit;
         var steps = BuildSteps(stepsHasMore ? [.. data.Steps.Skip(data.Steps.Count - StepLimit)] : data.Steps);
-        var reason = h.LatestFailureMessage ?? EventDetails.Read(h.LatestFailureDetailsFormatId ?? 0, h.LatestFailureDetails, "reason");
+        var reason = FailureExplains(h)
+            ? h.LatestFailureMessage ?? EventDetails.Read(h.LatestFailureDetailsFormatId ?? 0, h.LatestFailureDetails, "reason")
+            : null;
 
         ExplainJobWait? wait = null;
         ExplainJobLease? lease = null;
@@ -229,6 +231,14 @@ internal sealed class ExplainJobHandler(GetJobIdHandler getJobId, IDbSession ses
 
     /// <summary>A suggested operator move: its stable slug and the prose shown with it.</summary>
     private static ExplainJobAction Move(string kind, string description) => new(kind, description);
+
+    /// <summary>
+    /// Whether the newest failure is why the job is where it is: it ended a Failed job, and a Ready or Idle job still
+    /// counts it, re-armed for a retry or a permanent job whose firing spent its budget. A success, a cancel, a wait, a
+    /// pause, a running attempt, or a restart that zeroed the count came after it, so the failure explains none of them.
+    /// </summary>
+    private static bool FailureExplains(ExplainJobHeaderRow h) =>
+        h.Status == JobStatusCode.Failed || (h.Status is JobStatusCode.Ready or JobStatusCode.Idle && h.FailureCount > 0);
 
     /// <summary>
     /// The worker that last ran the job, under the same identity rule as the lease label. Distinct

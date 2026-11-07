@@ -18,7 +18,7 @@ namespace Acta;
 /// <param name="LastExecutedBy">The name of the worker that last ran the job, when no lease is live.</param>
 /// <param name="Steps">The job's newest steps, at most 50, oldest first; stepsHasMore says when older ones were left out.</param>
 /// <param name="StepsHasMore">Whether the job has older steps than the ones listed.</param>
-/// <param name="Reason">The latest reason recorded for the job's state, when there is one.</param>
+/// <param name="Reason">Why the job is in its state, from its newest failure: set for a Failed job and for a Ready or Idle job that still counts that failure, and null otherwise.</param>
 /// <param name="NextActions">The moves an operator can make from here.</param>
 public sealed record ExplainJobResponse(
     [property: JsonIgnore] long JobId,

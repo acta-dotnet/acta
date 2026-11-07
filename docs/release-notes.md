@@ -171,6 +171,7 @@ Not tagged yet.
 - Where the dashboard says controls are disabled on the host, on a job, a signal, a definition, the enqueue page, and the read-only mark, it now names the option that maps them: `EnableControls = true` in the `MapActa` options.
 - The dashboard linked no icon, so a browser asked the site root for `/favicon.ico` and got a 404. The page now links its own, the Acta mark in the dashboard's accent, served with its other assets as `image/svg+xml`.
 - A one-shot job that failed before it succeeded kept its failure count, so it read `succeeded` with `failureCount` 2, where the docs say a success resets it. A one-shot's success now resets it to 0, as a permanent job's does, and still counts as the recovery that resolves its alert.
+- An explanation gave the job's newest failure as its `reason` whatever its status, so a job that succeeded on a retry explained as "Succeeded." beside the 503 that came before, in `jobs explain` and under the dashboard's headline. The reason is that failure only where it is why the job is there: a Failed job, and a Ready or Idle one that still counts it.
 
 ## 1.0.0-rc.8
 

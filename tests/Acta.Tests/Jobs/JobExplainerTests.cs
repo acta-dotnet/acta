@@ -438,13 +438,59 @@ public class JobExplainerTests
     }
 
     [Fact]
-    public void Cancelled_surfaces_reason_separately_and_only_restarts_if_reversed()
+    public void Cancelled_only_restarts_if_reversed()
     {
-        var x = ExplainJobHandler.Explain(Data(Header(JobStatusCode.Cancelled, latestFailureMessage: "superseded")), Now);
+        var x = ExplainJobHandler.Explain(Data(Header(JobStatusCode.Cancelled)), Now);
 
         Assert.Equal("Cancelled.", x.Headline);
-        Assert.Equal("superseded", x.Reason);
         Assert.Contains(x.NextActions, a => a.Kind == "restart" && a.Description.Contains("cancellation should be reversed"));
+    }
+
+    [Fact]
+    public void A_job_re_armed_after_a_failure_gives_that_failure_as_its_reason()
+    {
+        var ready = ExplainJobHandler.Explain(
+            Data(
+                Header(JobStatusCode.Ready, failureCount: 1, nextRunAtUtc: Now.AddMinutes(1), latestFailureMessage: "503 from the carrier")
+            ),
+            Now
+        );
+        // A permanent job whose firing spent its budget is back to Idle with the count it spent.
+        var idle = ExplainJobHandler.Explain(
+            Data(Header(JobStatusCode.Idle, JobKindCode.Permanent, failureCount: 3, latestReason: "unhandled-exception")),
+            Now
+        );
+
+        Assert.Equal("503 from the carrier", ready.Reason);
+        Assert.Equal("unhandled-exception", idle.Reason);
+    }
+
+    // A failure the job has moved past says nothing about where it is now: a success, a cancel, a wait, a
+    // pause, a running attempt, or a restart that zeroed the count all came after it.
+    [Theory]
+    [InlineData(JobStatusCode.Succeeded, 0)]
+    [InlineData(JobStatusCode.Cancelled, 2)]
+    [InlineData(JobStatusCode.Suspended, 1)]
+    [InlineData(JobStatusCode.Paused, 1)]
+    [InlineData(JobStatusCode.Executing, 1)]
+    [InlineData(JobStatusCode.Blocked, 0)]
+    [InlineData(JobStatusCode.Ready, 0)]
+    [InlineData(JobStatusCode.Idle, 0)]
+    public void A_failure_the_job_has_moved_past_is_no_reason(JobStatusCode status, int failureCount)
+    {
+        var x = ExplainJobHandler.Explain(
+            Data(
+                Header(
+                    status,
+                    failureCount: failureCount,
+                    latestReason: "unhandled-exception",
+                    latestFailureMessage: "503 from the carrier"
+                )
+            ),
+            Now
+        );
+
+        Assert.Null(x.Reason);
     }
 
     [Fact]
