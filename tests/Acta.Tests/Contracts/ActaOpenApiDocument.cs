@@ -29,6 +29,9 @@ internal static partial class ActaOpenApiDocument
     /// <summary>The extension carrying an open code's known values: <c>[{ "name": member, "value": wire spelling }]</c>.</summary>
     public const string KnownValuesExtension = "x-acta-known-values";
 
+    /// <summary>The version of the HTTP contract under <c>/v1</c>, not the package version.</summary>
+    private const string ContractVersion = "1.0.0";
+
     // Markers the schema transformer leaves for the document transformer, which alone knows a schema's direction.
     private const string OmittedMarker = "x-acta-omitted-when-null";
     private const string RequiredMarker = "x-acta-json-required";
@@ -149,6 +152,7 @@ internal static partial class ActaOpenApiDocument
             (document, _, _) =>
             {
                 document.Info.Title = "Acta API";
+                document.Info.Version = ContractVersion;
                 document.Info.Description = DocumentDescription;
                 return Task.CompletedTask;
             }
