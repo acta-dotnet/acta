@@ -12675,7 +12675,7 @@
           },
           "version": {
             "type": "integer",
-            "description": "The job's version, which every write to it increments; send it as expectedVersion on a control to make that call a compare-and-set.",
+            "description": "The job's version, which every change to its state increments; send it as expectedVersion on a control to make that call a compare-and-set.",
             "format": "int32"
           }
         },

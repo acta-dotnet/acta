@@ -40,7 +40,7 @@ namespace Acta;
 /// <param name="CreatedAtUtc">When the row was created, in UTC.</param>
 /// <param name="ModifiedAtUtc">When the row last changed, in UTC.</param>
 /// <param name="LeasedByWorkerRef">The ref of the worker that holds the job's lease; null when none does.</param>
-/// <param name="Version">The job's version, which every write to it increments; send it as expectedVersion on a control to make that call
+/// <param name="Version">The job's version, which every change to its state increments; send it as expectedVersion on a control to make that call
 /// a compare-and-set.</param>
 public sealed record GetJobResponse(
     [property: JsonIgnore] long JobId,
