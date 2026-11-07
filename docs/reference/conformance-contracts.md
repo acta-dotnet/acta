@@ -2014,12 +2014,10 @@
   - An outstanding firing fills the slot: a later occurrence waits for capacity until settlement wakes it
   - A pass reports its decision, lag, overdue frontier, and wall time on the meter
 
-### A registered calendar sources a schedule, an availability calendar filters one
-- **Contract:** A registered calendar fires its instants in order and exhausts, an availability calendar omits ticks outside its windows, a declared name shadows the catalog.
+### A published calendar sources a schedule, an availability calendar filters one
+- **Contract:** A published calendar fires its instants in order and exhausts, an availability calendar omits ticks outside its windows.
 - **Guarantees:**
   - A calendar schedule fires each of the calendar's instants in order and exhausts after the last
-  - A catalog family under a name the process declares moves no schedule and is never read
-  - A publication from a host without the code calendar leaves the schedule to the hosts that have it
   - An availability calendar omits the cron ticks outside its window and never shifts them
 
 ### The due read returns whole slots in evaluation order and leaves out the dead

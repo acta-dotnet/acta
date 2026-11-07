@@ -3,8 +3,8 @@ namespace Acta;
 /// <summary>
 /// The calendar catalog: named calendar families a namespace keeps as data, each a numbered series of immutable versions
 /// whose one Published version is current. An operator saves drafts, publishes, and archives. A schedule names a
-/// calendar, and the name resolves at every evaluation: a calendar declared in the process first, then the namespace's
-/// current family, then the shared one in <c>sys</c>. Reached through <see cref="IActaOperations.Calendars"/>.
+/// calendar, and the name resolves at every evaluation: the namespace's current family, then the shared one in
+/// <c>sys</c>. Reached through <see cref="IActaOperations.Calendars"/>.
 /// </summary>
 public interface ICalendars
 {
@@ -67,9 +67,9 @@ public interface ICalendars
 
     /// <summary>
     /// Makes <paramref name="candidateVersion"/>, a Draft, the family's current version and retimes every schedule that
-    /// names the family in its scope in one transaction, none under a name the process declares in code: its cursor seeds
-    /// from the candidate's first occurrence after now, and <c>schedule.retimed</c> is recorded. <paramref name="expectedCurrentVersion"/>
-    /// is the current version the caller saw, 0 for none; another is VersionConflict. A bound schedule holding an undecided
+    /// names the family in its scope in one transaction: its cursor seeds from the candidate's first occurrence after now,
+    /// and <c>schedule.retimed</c> is recorded. <paramref name="expectedCurrentVersion"/> is the current version the
+    /// caller saw, 0 for none; another is VersionConflict. A bound schedule holding an undecided
     /// overdue occurrence is Rejected under <see cref="OverdueDecisionCode.Refuse"/> and skipped as an audited range under
     /// <see cref="OverdueDecisionCode.Discard"/>. NotFound when the version is not the family's; Applied records <c>calendar.published</c>.
     /// </summary>

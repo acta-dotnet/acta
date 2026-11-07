@@ -157,11 +157,11 @@
         <section class="detail-panel">
           <h2>Timing</h2>
 
-          <!-- A name resolves afresh at every evaluation (a declared calendar first, then the catalog), so the
-               page shows the name and where the catalog would hold it, not a stored resolution. -->
+          <!-- A name resolves afresh at every evaluation, so the page shows the name and where the catalog holds it,
+               not a stored resolution. -->
           {#snippet calendarBinding(name: string)}
             <span class="mono">{name}</span>
-            <a class="dim" href={routes.calendars({ namespace: schedule?.jobNamespace, nameContains: name })} title="A declared calendar of this name wins; otherwise the catalog's current version applies">in the catalog</a>
+            <a class="dim" href={routes.calendars({ namespace: schedule?.jobNamespace, nameContains: name })} title="The catalog's current version of this name applies">in the catalog</a>
           {/snippet}
           <dl class="detail-readonly detail-readonly-grid">
             {#if schedule.expressionKind === 'calendar'}

@@ -9032,7 +9032,7 @@
             }
           },
           "409": {
-            "description": "A calendar the schedule names resolves to nothing on this host: no calendar of that name and role is declared here, and neither the namespace's catalog nor the shared one has a current version of one. The problem's detail names the calendar.",
+            "description": "A calendar the schedule names resolves to nothing: neither the namespace's catalog nor the shared one has a published version of that name and role. The problem's detail names the calendar.",
             "content": {
               "application/problem+json": {
                 "schema": {

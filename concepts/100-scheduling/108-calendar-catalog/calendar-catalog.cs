@@ -29,8 +29,8 @@ var officeHours = new CalendarLookup("sys", "office-hours");
     await seedHost.StopAsync();
 }
 
-// Phase 2: the worker registers every-10s-in-hours against the catalog. Nothing in this process declares
-// office-hours, so the name resolves to the shared family's current version, afresh at every evaluation.
+// Phase 2: the worker registers every-10s-in-hours against the catalog. The name office-hours resolves to the
+// shared family's current version, afresh at every evaluation.
 var builder = Host.CreateApplicationBuilder(args);
 builder.Services.UseActa(j =>
 {

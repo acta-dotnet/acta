@@ -1245,12 +1245,12 @@ public class ManifestGeneratorDiagnosticTests
         Assert.Contains("`[Schedule]` argument `ExpireAfter`", diagnostic.GetMessage());
     }
 
-    // ACTA0127: a schedule's occurrences come from an expression or a named calendar, and a declared calendar binds in its role
+    // ACTA0127: a schedule's occurrences come from an expression or a named calendar
 
     [Fact]
     public void A_calendar_schedule_emits_the_calendar_kind_with_its_name_as_the_expression()
     {
-        // No class declares `pay-days`: a catalog may hold it, so the binding builds.
+        // The catalog that publishes `pay-days` is read at worker start, so the binding builds.
         var result = RunGenerator(
             """
             using Acta;
@@ -1275,7 +1275,6 @@ public class ManifestGeneratorDiagnosticTests
         Assert.Contains("AvailabilityCalendarName: null)", source);
         Assert.DoesNotContain("Origin:", source);
         Assert.DoesNotContain("Version:", source);
-        Assert.DoesNotContain("Calendars:", source);
     }
 
     [Fact]
@@ -1331,170 +1330,6 @@ public class ManifestGeneratorDiagnosticTests
         Assert.Empty(Of(result, "ACTA0121"));
         Assert.Empty(Of(result, "ACTA0122"));
     }
-
-    [Theory]
-    [InlineData("Calendar = \"office-hours\"", "an availability calendar", "Availability")]
-    [InlineData("Cron.Hourly, Availability = \"pay-days\"", "an occurrence source", "Calendar")]
-    public void A_calendar_class_bound_in_a_role_it_lacks_errors_ACTA0127(string binding, string role, string bindAs)
-    {
-        var result = RunGenerator(
-            $$"""
-            using System;
-            using Acta;
-            namespace GenTests;
-
-            [Calendar("pay-days")]
-            public sealed class PayDays : IActaCalendar
-            {
-                public DateTime? GetNextOccurrence(CalendarContext context) => null;
-            }
-
-            [Calendar("office-hours")]
-            public sealed class OfficeHours : IActaAvailabilityCalendar
-            {
-                public CalendarWindow? GetWindowAtOrAfter(AvailabilityContext context) => null;
-            }
-
-            public static class Handler
-            {
-                [Job("payroll")]
-                [Schedule("pay-day", {{binding}})]
-                public static void Run() { }
-            }
-            """
-        );
-
-        var message = Assert.Single(Of(result, "ACTA0127")).GetMessage(System.Globalization.CultureInfo.InvariantCulture);
-        Assert.Contains("`[Schedule(\"pay-day\")]` on `[Job(\"payroll\")]`", message);
-        Assert.Contains($"is {role} only", message);
-        Assert.Contains($"Bind it as `{bindAs}`", message);
-    }
-
-    // ACTA0128: a [Calendar] class is one the manifest can name and Acta can create, a calendar, under a unique valid name
-
-    [Fact]
-    public void Calendar_classes_are_emitted_into_the_manifest_by_name()
-    {
-        // An assembly that declares calendars and no job still emits its manifest.
-        var result = RunGenerator(
-            """
-            using System;
-            using Acta;
-            namespace GenTests;
-
-            [Calendar("pay-days")]
-            public sealed class PayDays : IActaCalendar
-            {
-                public DateTime? GetNextOccurrence(CalendarContext context) => null;
-            }
-
-            [Calendar("bank-holidays")]
-            internal sealed class BankHolidays : IActaCalendar
-            {
-                public DateTime? GetNextOccurrence(CalendarContext context) => null;
-            }
-            """,
-            "GenTests",
-            out var compilation
-        );
-
-        Assert.Empty(result.Diagnostics);
-        AssertCompilesCleanly(compilation);
-        var source = Assert.Single(result.GeneratedTrees).ToString();
-        var payDays = source.IndexOf(
-            "new global::Acta.CalendarDescriptor(\"pay-days\", typeof(global::GenTests.PayDays), true, false)",
-            StringComparison.Ordinal
-        );
-        var bankHolidays = source.IndexOf(
-            "new global::Acta.CalendarDescriptor(\"bank-holidays\", typeof(global::GenTests.BankHolidays), true, false)",
-            StringComparison.Ordinal
-        );
-        Assert.True(bankHolidays >= 0, source);
-        Assert.True(payDays > bankHolidays, source);
-    }
-
-    [Fact]
-    public void A_calendar_class_implementing_both_interfaces_emits_both_roles_and_binds_in_either()
-    {
-        var result = RunGenerator(
-            """
-            using System;
-            using Acta;
-            namespace GenTests;
-
-            public abstract class WorkdaySource : IActaCalendar
-            {
-                public DateTime? GetNextOccurrence(CalendarContext context) => null;
-            }
-
-            [Calendar("office-days")]
-            public sealed class OfficeDays : WorkdaySource, IActaAvailabilityCalendar
-            {
-                public CalendarWindow? GetWindowAtOrAfter(AvailabilityContext context) => null;
-            }
-
-            public static class Handler
-            {
-                [Job("payroll")]
-                [Schedule("pay-day", Calendar = "office-days", Availability = "office-days")]
-                public static void Run() { }
-            }
-            """,
-            "GenTests",
-            out var compilation
-        );
-
-        Assert.Empty(result.Diagnostics);
-        AssertCompilesCleanly(compilation);
-        var source = Assert.Single(result.GeneratedTrees).ToString();
-        Assert.Contains("new global::Acta.CalendarDescriptor(\"office-days\", typeof(global::GenTests.OfficeDays), true, true)", source);
-    }
-
-    [Theory]
-    [InlineData("[Calendar(\"pay-days\")] public abstract class PayDays : IActaCalendar { " + NextOccurrenceAbstract + " }")]
-    [InlineData("[Calendar(\"pay-days\")] public sealed class PayDays { }")]
-    [InlineData("[Calendar(\" \")] public sealed class PayDays : IActaCalendar { " + NextOccurrence + " }")]
-    [InlineData("[Calendar(\"Pay Days\")] public sealed class PayDays : IActaCalendar { " + NextOccurrence + " }")]
-    [InlineData("[Calendar(\"sys.pay-days\")] public sealed class PayDays : IActaCalendar { " + NextOccurrence + " }")]
-    [InlineData("[Calendar(\"pay-days\")] public sealed class PayDays<T> : IActaCalendar { " + NextOccurrence + " }")]
-    [InlineData(
-        "public static class Outer { [Calendar(\"pay-days\")] private sealed class PayDays : IActaCalendar { " + NextOccurrence + " } }"
-    )]
-    public void A_calendar_declaration_that_is_not_whole_errors_ACTA0128(string declaration)
-    {
-        var result = RunGenerator(
-            $$"""
-            using System;
-            using Acta;
-            namespace GenTests;
-
-            {{declaration}}
-            """
-        );
-
-        var error = Assert.Single(Of(result, "ACTA0128"));
-        Assert.Equal(DiagnosticSeverity.Error, error.Severity);
-    }
-
-    [Fact]
-    public void Two_calendar_classes_declaring_one_name_error_ACTA0128()
-    {
-        var result = RunGenerator(
-            $$"""
-            using System;
-            using Acta;
-            namespace GenTests;
-
-            [Calendar("pay-days")] public sealed class PayDays : IActaCalendar { {{NextOccurrence}} }
-            [Calendar("pay-days")] public sealed class Paydays : IActaCalendar { {{NextOccurrence}} }
-            """
-        );
-
-        Assert.Equal(2, Of(result, "ACTA0128").Length);
-    }
-
-    private const string NextOccurrence = "public DateTime? GetNextOccurrence(CalendarContext context) => null;";
-    private const string NextOccurrenceAbstract = "public abstract DateTime? GetNextOccurrence(CalendarContext context);";
 
     // ACTA0122: invalid schedule expression
 

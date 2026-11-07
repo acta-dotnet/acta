@@ -129,15 +129,9 @@ internal static class ScheduleReader
 
     /// <summary>
     /// ACTA0121 / ACTA0122 / ACTA0124 / ACTA0125 / ACTA0126 / ACTA0127: declaration, expression, policy, capacity,
-    /// expiration, and source validity for every [Schedule]; <paramref name="calendars"/> are the compilation's whole
-    /// <c>[Calendar]</c> declarations by name.
+    /// expiration, and source validity for every [Schedule].
     /// </summary>
-    internal static bool ValidateSchedules(
-        SourceProductionContext spc,
-        DiscoveredJob job,
-        bool isFrameworkAssembly,
-        IReadOnlyDictionary<string, DiscoveredCalendar> calendars
-    )
+    internal static bool ValidateSchedules(SourceProductionContext spc, DiscoveredJob job, bool isFrameworkAssembly)
     {
         if (job.Schedules.IsDefaultOrEmpty)
         {
@@ -181,7 +175,7 @@ internal static class ScheduleReader
                 }
             }
 
-            ok &= ValidateSource(spc, job, schedule, isFrameworkAssembly, calendars);
+            ok &= ValidateSource(spc, job, schedule, isFrameworkAssembly);
 
             foreach (var env in schedule.Environments)
             {
@@ -259,14 +253,13 @@ internal static class ScheduleReader
 
     /// <summary>
     /// ACTA0127: a schedule's occurrences come from an expression or a named <c>Calendar</c>, never both or neither, and
-    /// every calendar it names has a valid name and, when declared in this compilation, the role it is bound in.
+    /// every calendar it names has a valid name.
     /// </summary>
     private static bool ValidateSource(
         SourceProductionContext spc,
         DiscoveredJob job,
         DiscoveredSchedule schedule,
-        bool isFrameworkAssembly,
-        IReadOnlyDictionary<string, DiscoveredCalendar> calendars
+        bool isFrameworkAssembly
     )
     {
         var ok = true;
@@ -285,29 +278,20 @@ internal static class ScheduleReader
         }
         else
         {
-            ok &= ValidateCalendarBinding(
-                spc,
-                job,
-                schedule.ScheduleName,
-                "Calendar",
-                schedule.CalendarName,
-                isFrameworkAssembly,
-                calendars
-            );
+            ok &= ValidateCalendarBinding(spc, job, schedule.ScheduleName, "Calendar", schedule.CalendarName, isFrameworkAssembly);
         }
 
         if (schedule.AvailabilityName is { } availability)
         {
-            ok &= ValidateCalendarBinding(spc, job, schedule.ScheduleName, "Availability", availability, isFrameworkAssembly, calendars);
+            ok &= ValidateCalendarBinding(spc, job, schedule.ScheduleName, "Availability", availability, isFrameworkAssembly);
         }
 
         return ok;
     }
 
     /// <summary>
-    /// ACTA0127: the calendar named by <paramref name="property"/> has a valid name, and a <c>[Calendar]</c> class of that
-    /// name in this compilation implements the interface the property binds. A name declared nowhere here is left to the
-    /// runtime, since a catalog may hold it.
+    /// ACTA0127: the calendar named by <paramref name="property"/> has a valid name. Whether the catalog publishes it is
+    /// checked at worker start.
     /// </summary>
     private static bool ValidateCalendarBinding(
         SourceProductionContext spc,
@@ -315,8 +299,7 @@ internal static class ScheduleReader
         string scheduleName,
         string property,
         string calendarName,
-        bool isFrameworkAssembly,
-        IReadOnlyDictionary<string, DiscoveredCalendar> calendars
+        bool isFrameworkAssembly
     )
     {
         if (string.IsNullOrWhiteSpace(calendarName))
@@ -327,13 +310,6 @@ internal static class ScheduleReader
         if (!KebabName.IsValid(calendarName, maxLength: 128, allowSystemPrefix: isFrameworkAssembly))
         {
             ReportDiagnostic(spc, ManifestDiagnostics.InvalidScheduleCalendarName(job, scheduleName, property, calendarName));
-            return false;
-        }
-        if (
-            calendars.TryGetValue(calendarName, out var declared) && !(property == "Calendar" ? declared.Occurrence : declared.Availability)
-        )
-        {
-            ReportDiagnostic(spc, ManifestDiagnostics.ScheduleCalendarWrongRole(job, scheduleName, property, declared));
             return false;
         }
         return true;

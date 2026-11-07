@@ -17,8 +17,7 @@ ACTA0123 | Acta | Error | Scheduled input has no accessible parameterless constr
 ACTA0124 | Acta | Error | Invalid [Schedule] policy value (MaxOutstanding below 1, undefined FullBehavior or MisfireStrategy)
 ACTA0125 | Acta | Error | MaxOutstanding other than 1 on a Permanent definition's schedule
 ACTA0126 | Acta | Error | Incomplete [Schedule] expiration (ExpireAfter without ExpireAction or the reverse, zero, undefined action)
-ACTA0127 | Acta | Error | Incomplete [Schedule] source (expression and Calendar, neither, blank or invalid calendar name, a [Calendar] class bound in the wrong role)
-ACTA0128 | Acta | Error | Invalid [Calendar] declaration (abstract, generic, or private class, neither calendar interface, invalid or duplicate name)
+ACTA0127 | Acta | Error | Incomplete [Schedule] source (expression and Calendar, neither, blank or invalid calendar name)
 ACTA0131 | Acta | Error | Invalid [JobPayloadFormatDeclaration]
 ACTA0132 | Acta | Error | Invalid [Job] payload-format usage (Format vs InputFormat/ResultFormat, ResultFormat on void, unknown name)
 ACTA0142 | Acta | Error | Invalid Acta duration unit (uppercase or calendar unit)

@@ -1354,7 +1354,7 @@ SELECT namespace_name, definition_name, schedule_name, schedule_status, schedule
  ORDER BY namespace_name, next_occurrence_at_utc NULLS LAST, schedule_name;
 ```
 
-A schedule whose `expression_kind` is `calendar` names its calendar in `expression`, and one that fires only inside an availability calendar's windows names it in `availability_calendar_name`. The row keeps the name only: each evaluation resolves it afresh, to a calendar the application declares in code, else the current version of the family in the namespace's catalog, else the shared one in `sys`. An `evaluation_status` of `evaluation-error` on such a schedule usually means the host lacks the code calendar or a calendar broke its contract; the worker log names the reason. The catalog itself is `calendars_view`: one row per version with its role, status, and hash.
+A schedule whose `expression_kind` is `calendar` names its calendar in `expression`, and one that fires only inside an availability calendar's windows names it in `availability_calendar_name`. The row keeps the name only: each evaluation resolves it afresh, to the published version of the family in the namespace's catalog, else the shared one in `sys`. An `evaluation_status` of `evaluation-error` on such a schedule usually means the name has no published version or the calendar threw while it was evaluated; the worker log names the reason. The catalog itself is `calendars_view`: one row per version with its role, status, and hash.
 
 `expire_after_seconds` and `expire_action` are null together when occurrences never expire; a schedule paused
 by its expiry carries the pause message `Paused by the expiration policy: an occurrence expired unadmitted.`

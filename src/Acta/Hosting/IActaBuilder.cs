@@ -90,19 +90,4 @@ public interface IActaBuilder
         ServiceLifetime lifetime = ServiceLifetime.Scoped
     )
         where TBehavior : class, IJobPipelineBehavior;
-
-    /// <summary>
-    /// Register the calendar a <c>[Schedule(name, Calendar = ...)]</c> binds by name: one implementation per dotted
-    /// kebab-case name, which the name resolves to at every evaluation before any catalog family of that name.
-    /// Registering one name twice with different instances throws. Every host that evaluates or previews the schedule
-    /// resolves the calendar in its own process, so register calendars in the configuration the workers and the API
-    /// host share.
-    /// </summary>
-    IActaBuilder AddCalendar(string name, IActaCalendar implementation);
-
-    /// <summary>
-    /// Register an availability calendar built at startup, which a <c>[Schedule(..., Availability = name)]</c> binds
-    /// under the rules of <see cref="AddCalendar"/>.
-    /// </summary>
-    IActaBuilder AddAvailabilityCalendar(string name, IActaAvailabilityCalendar implementation);
 }

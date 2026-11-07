@@ -15,17 +15,17 @@ internal sealed record ScheduleTiming(
     string? AvailabilityCalendarName = null
 )
 {
-    /// <summary>The calendar names this timing binds, each under its role: what must be resolved before the source is built.</summary>
-    public IEnumerable<(string Name, CalendarRoleCode Role)> CalendarNames()
+    /// <summary>The calendar names this timing binds: what must be resolved before the source is built.</summary>
+    public IEnumerable<string> CalendarNames()
     {
         if (ExpressionKind == ScheduleExpressionKindCode.Calendar)
         {
-            yield return (Expression, CalendarRoleCode.Occurrence);
+            yield return Expression;
         }
 
         if (AvailabilityCalendarName is { } name)
         {
-            yield return (name, CalendarRoleCode.Availability);
+            yield return name;
         }
     }
 }

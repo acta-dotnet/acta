@@ -163,16 +163,6 @@ internal static class ManifestDiagnostics
         helpLinkUri: HelpBase + "acta0127"
     );
 
-    internal static readonly DiagnosticDescriptor InvalidCalendar = new(
-        id: "ACTA0128",
-        title: "Calendar declaration must be whole",
-        messageFormat: "{0}",
-        category: "Acta",
-        defaultSeverity: DiagnosticSeverity.Error,
-        isEnabledByDefault: true,
-        helpLinkUri: HelpBase + "acta0128"
-    );
-
     internal static readonly DiagnosticDescriptor InvalidPayloadFormat = new(
         id: "ACTA0131",
         title: "Payload format declarations must be valid",
@@ -219,7 +209,6 @@ internal static class ManifestDiagnostics
             "ACTA0125" => PermanentCapacity,
             "ACTA0126" => InvalidScheduleExpiration,
             "ACTA0127" => InvalidScheduleSource,
-            "ACTA0128" => InvalidCalendar,
             "ACTA0131" => InvalidPayloadFormat,
             "ACTA0132" => InvalidPayloadFormatUsage,
             "ACTA0142" => InvalidDurationUnitDescriptor,
@@ -545,62 +534,6 @@ internal static class ManifestDiagnostics
             "ACTA0127",
             $"`[Schedule(\"{scheduleName}\")]` on `[Job(\"{job.JobName}\")]` sets `{property} = \"{calendarName}\"`, which is not a valid calendar name. Names are dotted kebab-case (`[a-z][a-z0-9-]*` segments joined by `.`), at most 128 chars; the `sys.` prefix is reserved for system calendars.",
             job.Location
-        );
-
-    public static DiagnosticRecord ScheduleCalendarWrongRole(
-        DiscoveredJob job,
-        string scheduleName,
-        string property,
-        DiscoveredCalendar calendar
-    )
-    {
-        var (role, has, wants, other) =
-            property == "Calendar"
-                ? ("an availability calendar", "IActaAvailabilityCalendar", "IActaCalendar", "Availability")
-                : ("an occurrence source", "IActaCalendar", "IActaAvailabilityCalendar", "Calendar");
-        return new(
-            "ACTA0127",
-            $"`[Schedule(\"{scheduleName}\")]` on `[Job(\"{job.JobName}\")]` binds `{property} = \"{calendar.CalendarName}\"`, but `[Calendar(\"{calendar.CalendarName}\")]` on `{calendar.ImplementationType.ToDisplayString()}` is {role} only: it implements `{has}`, not the `{wants}` that `{property}` binds. Bind it as `{other}`, or implement `{wants}`.",
-            job.Location
-        );
-    }
-
-    /// <summary>
-    /// ACTA0128: a [Calendar] class the manifest cannot carry; one ID, per-variant messages.
-    /// </summary>
-    public static DiagnosticRecord AbstractCalendar(DiscoveredCalendar calendar) =>
-        new(
-            "ACTA0128",
-            $"`[Calendar(\"{calendar.CalendarName}\")]` decorates abstract class `{calendar.ImplementationType.ToDisplayString()}`. Acta creates the calendar at worker start, so the class must be concrete; move the attribute to a non-abstract class.",
-            calendar.Location
-        );
-
-    public static DiagnosticRecord UnnameableCalendar(DiscoveredCalendar calendar) =>
-        new(
-            "ACTA0128",
-            $"`[Calendar(\"{calendar.CalendarName}\")]` decorates `{calendar.ImplementationType.ToDisplayString()}`, which the generated manifest cannot name: the class is generic, or it or a containing type is private. Declare the calendar on a non-generic class that is at least `internal`.",
-            calendar.Location
-        );
-
-    public static DiagnosticRecord CalendarWithoutRole(DiscoveredCalendar calendar) =>
-        new(
-            "ACTA0128",
-            $"`[Calendar(\"{calendar.CalendarName}\")]` decorates `{calendar.ImplementationType.ToDisplayString()}`, which implements neither `IActaCalendar` nor `IActaAvailabilityCalendar`. Implement `IActaCalendar` for an occurrence source a schedule binds by `Calendar`, `IActaAvailabilityCalendar` for one it binds by `Availability`, or both.",
-            calendar.Location
-        );
-
-    public static DiagnosticRecord InvalidCalendarName(DiscoveredCalendar calendar) =>
-        new(
-            "ACTA0128",
-            $"`[Calendar(\"{calendar.CalendarName}\")]` on `{calendar.ImplementationType.ToDisplayString()}` is not a valid calendar name. Names are dotted kebab-case (`[a-z][a-z0-9-]*` segments joined by `.`), at most 128 chars; `sys` and the `sys.` prefix are reserved for system calendars.",
-            calendar.Location
-        );
-
-    public static DiagnosticRecord DuplicateCalendarName(DiscoveredCalendar calendar) =>
-        new(
-            "ACTA0128",
-            $"`[Calendar(\"{calendar.CalendarName}\")]` on `{calendar.ImplementationType.ToDisplayString()}` repeats a name another `[Calendar]` class in this compilation declares. Calendar names are unique; rename one of them.",
-            calendar.Location
         );
 
     /// <summary>

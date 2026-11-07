@@ -128,7 +128,6 @@
       </label>
       <span class="dim calendar-help">
         Calendars kept here are data: saved as drafts, published, and followed by the schedules that bind them by name.
-        Calendars declared in code with <span class="mono">[Calendar]</span> are not listed; a schedule prefers those.
       </span>
       <CopyButton value={copySql} label="Copy SQL" title={COPY_SQL_TITLE} />
     </FilterBar>

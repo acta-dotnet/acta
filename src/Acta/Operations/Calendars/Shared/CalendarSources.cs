@@ -4,40 +4,27 @@ using System.Text;
 namespace Acta;
 
 /// <summary>
-/// Resolves a schedule's calendar names into a <see cref="ScheduleSource"/>, afresh at every evaluation: a calendar
-/// declared in the process (<see cref="CalendarRegistry"/>) first, then the current family of the namespace's catalog
-/// or of the shared one in <c>sys</c>; a name the process declares never reads the catalog. Each catalog version
-/// compiles once per process and is kept, since a version's content never changes. The admitter preloads the names of
-/// a pass before it plans, so planning stays synchronous; registration, preview, and publication preload as they go.
-/// The engine reaches it through <see cref="CalendarsOperations"/>.
+/// Resolves a schedule's calendar names into a <see cref="ScheduleSource"/>, afresh at every evaluation: the current
+/// family of the namespace's catalog or of the shared one in <c>sys</c>. Each catalog version compiles once per process
+/// and is kept, since a version's content never changes. The admitter preloads the names of a pass before it plans, so
+/// planning stays synchronous; registration, preview, and publication preload as they go. The engine reaches it through
+/// <see cref="CalendarsOperations"/>.
 /// </summary>
-internal sealed class CalendarSources(CalendarRegistry registry, ListCurrentCalendarsHandler families, GetCalendarVersionHandler versions)
+internal sealed class CalendarSources(ListCurrentCalendarsHandler families, GetCalendarVersionHandler versions)
 {
     private readonly ConcurrentDictionary<(int NamespaceId, string Name, int Version), CompiledCalendar> _compiled = new();
     private readonly ConcurrentDictionary<int, ConcurrentDictionary<string, int>> _current = new();
 
-    /// <summary>Whether the process declares <paramref name="name"/> under <paramref name="role"/>, which the catalog never overrides.</summary>
-    public bool Declares(string name, CalendarRoleCode role) => registry.Declares(name, role);
-
     /// <summary>
-    /// The source of <paramref name="timing"/> from the declared calendars and the current versions the namespace's
-    /// preloads read; a name that resolves to nothing is reported when the source is used.
+    /// The source of <paramref name="timing"/> from the current versions the namespace's preloads read; a name that
+    /// resolves to nothing is reported when the source is used.
     /// </summary>
-    public ScheduleSource Source(int namespaceId, ScheduleTiming timing)
-    {
-        var source = registry.Source(timing);
-        if (source.Calendar is null && timing.ExpressionKind == ScheduleExpressionKindCode.Calendar)
-        {
-            source = source with { Calendar = Current(namespaceId, timing.Expression)?.Calendar };
-        }
-
-        if (source.Availability is null && timing.AvailabilityCalendarName is { } name)
-        {
-            source = source with { Availability = Current(namespaceId, name)?.Availability };
-        }
-
-        return source;
-    }
+    public ScheduleSource Source(int namespaceId, ScheduleTiming timing) =>
+        new(
+            timing,
+            timing.ExpressionKind == ScheduleExpressionKindCode.Calendar ? Current(namespaceId, timing.Expression)?.Calendar : null,
+            timing.AvailabilityCalendarName is { } name ? Current(namespaceId, name)?.Availability : null
+        );
 
     public async Task<ScheduleSource> SourceAsync(int namespaceId, ScheduleTiming timing, CancellationToken ct)
     {
@@ -46,14 +33,14 @@ internal sealed class CalendarSources(CalendarRegistry registry, ListCurrentCale
     }
 
     /// <summary>
-    /// For the names among <paramref name="names"/> the process does not declare: reads the current families of the
-    /// namespace and of <c>sys</c> once, compiles the current version of each this process has not met, and keeps those
-    /// versions for <see cref="Source"/>. Only the names asked for move, so a preload never points another caller's
-    /// name at a version it did not compile. No names, no read.
+    /// Reads the current families of the namespace and of <c>sys</c> once, compiles the current version of each of
+    /// <paramref name="names"/> this process has not met, and keeps those versions for <see cref="Source"/>. Only the
+    /// names asked for move, so a preload never points another caller's name at a version it did not compile. No names,
+    /// no read.
     /// </summary>
-    public async Task PreloadAsync(int namespaceId, IEnumerable<(string Name, CalendarRoleCode Role)> names, CancellationToken ct)
+    public async Task PreloadAsync(int namespaceId, IEnumerable<string> names, CancellationToken ct)
     {
-        var needed = names.Where(n => !registry.Declares(n.Name, n.Role)).Select(n => n.Name).Distinct(StringComparer.Ordinal).ToList();
+        var needed = names.Distinct(StringComparer.Ordinal).ToList();
         if (needed.Count == 0)
         {
             return;

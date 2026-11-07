@@ -74,15 +74,15 @@ internal sealed class CalendarsOperations(
         CancellationToken ct = default
     ) => archiveCalendar.HandleAsync(new ArchiveCalendarCommand(calendar, expectedCurrentVersion, reasonMessage, actor), ct);
 
-    /// <summary>The source of <paramref name="timing"/> from the code calendars and the current catalog versions the last preload read.</summary>
+    /// <summary>The source of <paramref name="timing"/> from the current catalog versions the namespace's preloads read.</summary>
     internal ScheduleSource Source(int namespaceId, ScheduleTiming timing) => sources.Source(namespaceId, timing);
 
     /// <summary>The source of <paramref name="timing"/>, its calendar names resolved now.</summary>
     internal Task<ScheduleSource> SourceAsync(int namespaceId, ScheduleTiming timing, CancellationToken ct) =>
         sources.SourceAsync(namespaceId, timing, ct);
 
-    /// <summary>Resolves the names among <paramref name="names"/> the process does not declare against the current catalog in one read, so a pass plans without more.</summary>
-    internal Task PreloadAsync(int namespaceId, IEnumerable<(string Name, CalendarRoleCode Role)> names, CancellationToken ct) =>
+    /// <summary>Resolves <paramref name="names"/> against the current catalog in one read, so a pass plans without more.</summary>
+    internal Task PreloadAsync(int namespaceId, IEnumerable<string> names, CancellationToken ct) =>
         sources.PreloadAsync(namespaceId, names, ct);
 
     /// <summary>The namespace's current calendars, one per family that has a Published version.</summary>

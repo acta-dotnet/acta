@@ -153,27 +153,12 @@ least one second, and `Discard` or `Pause`.
 
 **Incomplete `[Schedule]` source.** A schedule's occurrences come from one source: a cron or
 interval expression, or a calendar named by `Calendar`, never both and never neither. A `Calendar`
-or `Availability` name is dotted kebab-case; and when a `[Calendar]` class in the same compilation
-declares that name, it must implement the role the binding asks for (`IActaCalendar` for
-`Calendar`, `IActaAvailabilityCalendar` for `Availability`).
+or `Availability` name is dotted kebab-case. The build does not check that the catalog publishes
+the name; a worker start does.
 
 ```csharp
 [Schedule("business-day", Calendar = "settlement-days")]                       // calendar as the source
 [Schedule("quarter-hourly", "*/15 * * * *", Availability = "office-hours")]    // expression, filtered by availability
-```
-
-## ACTA0128 <a id="acta0128"></a>
-
-**Invalid `[Calendar]` declaration.** The class is abstract, generic, or private (or has a private
-containing type), implements neither `IActaCalendar` nor `IActaAvailabilityCalendar`, has a name
-that is not dotted kebab-case or uses `sys`, or repeats a name another `[Calendar]` class declares.
-
-```csharp
-[Calendar("settlement-days")]
-public sealed class SettlementDays : IActaCalendar
-{
-    public DateTime? GetNextOccurrence(CalendarContext context) => ...;
-}
 ```
 
 ## ACTA0131 <a id="acta0131"></a>

@@ -302,10 +302,6 @@ sealed record Acta.ArchiveCalendarResponse : Acta.ICalendarControlResponse
     Acta.ControlAction Action { get;init; }
     System.Int32 DependentCount { get;init; }
     System.Nullable<System.Int32> Version { get;init; }
-record struct Acta.AvailabilityContext
-    .ctor(System.DateTime AtOrAfterUtc, System.TimeZoneInfo TimeZone)
-    System.DateTime AtOrAfterUtc { get;init; }
-    System.TimeZoneInfo TimeZone { get;init; }
 record struct Acta.Backoff
     Acta.Backoff WithJitter(System.Double fraction)
     System.Double Jitter { get; }
@@ -325,19 +321,6 @@ sealed class Acta.BytesJobPayloadSerializer : Acta.IJobPayloadSerializer
     Acta.JobPayloadFormat Format { get; }
     T Deserialize<T>(Acta.JobPayload payload)
     static Acta.BytesJobPayloadSerializer Default { get; }
-sealed class Acta.CalendarAttribute : System.Attribute
-    .ctor(System.String name)
-    System.String Name { get; }
-record struct Acta.CalendarContext
-    .ctor(System.DateTime AfterUtc, System.TimeZoneInfo TimeZone)
-    System.DateTime AfterUtc { get;init; }
-    System.TimeZoneInfo TimeZone { get;init; }
-sealed record Acta.CalendarDescriptor
-    .ctor(System.String CalendarName, System.Type ImplementationType, System.Boolean Occurrence, System.Boolean Availability)
-    System.Boolean Availability { get;init; }
-    System.Boolean Occurrence { get;init; }
-    System.String CalendarName { get;init; }
-    System.Type ImplementationType { get;init; }
 sealed record Acta.CalendarLookup
     .ctor(System.String JobNamespace, System.String CalendarName)
     System.String CalendarName { get;init; }
@@ -1101,11 +1084,7 @@ sealed class Acta.HandlerFailException : Acta.HandlerControlException
     .ctor(System.String reasonMessage = null)
 sealed class Acta.HandlerPauseException : Acta.HandlerControlException
     .ctor(System.String reasonMessage = null)
-interface Acta.IActaAvailabilityCalendar
-    System.Nullable<Acta.CalendarWindow> GetWindowAtOrAfter(Acta.AvailabilityContext context)
 interface Acta.IActaBuilder
-    Acta.IActaBuilder AddAvailabilityCalendar(System.String name, Acta.IActaAvailabilityCalendar implementation)
-    Acta.IActaBuilder AddCalendar(System.String name, Acta.IActaCalendar implementation)
     Acta.IActaBuilder AddPayloadSerializer<TSerializer>() where TSerializer : class, Acta.IJobPayloadSerializer
     Acta.IActaBuilder AddPipelineBehavior<TBehavior>(Microsoft.Extensions.DependencyInjection.ServiceLifetime lifetime = Microsoft.Extensions.DependencyInjection.ServiceLifetime.Scoped) where TBehavior : class, Acta.IJobPipelineBehavior
     Acta.IActaBuilder ConfigureOptions(System.Action<Acta.JobsOptions> configure)
@@ -1115,8 +1094,6 @@ interface Acta.IActaBuilder
     Acta.IActaBuilder Run<TManifest>(System.String namespaceName, System.String ownerTeam = null, System.String description = null) where TManifest : class, Acta.IJobManifest
     Acta.IActaBuilder UseJsonPayloads(System.Text.Json.Serialization.Metadata.IJsonTypeInfoResolver resolver)
     Microsoft.Extensions.DependencyInjection.IServiceCollection Services { get; }
-interface Acta.IActaCalendar
-    System.Nullable<System.DateTime> GetNextOccurrence(Acta.CalendarContext context)
 interface Acta.IActaOperations
     Acta.DbProvider Provider { get; }
     Acta.IAlerts Alerts { get; }
@@ -1445,8 +1422,7 @@ sealed record Acta.JobDescriptor
     System.Type InputType { get;init; }
     System.Type ResultType { get;init; }
 sealed record Acta.JobDescriptorManifest
-    .ctor(System.Collections.Immutable.ImmutableArray<Acta.JobDescriptor> Descriptors, System.Collections.Immutable.ImmutableArray<Acta.CalendarDescriptor> Calendars = default)
-    System.Collections.Immutable.ImmutableArray<Acta.CalendarDescriptor> Calendars { get;init; }
+    .ctor(System.Collections.Immutable.ImmutableArray<Acta.JobDescriptor> Descriptors)
     System.Collections.Immutable.ImmutableArray<Acta.JobDescriptor> Descriptors { get;init; }
 class Acta.JobEnqueueOptions
     .ctor()

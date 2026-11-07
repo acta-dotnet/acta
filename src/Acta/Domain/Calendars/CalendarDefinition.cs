@@ -6,9 +6,9 @@ using System.Text.Json;
 namespace Acta;
 
 /// <summary>
-/// The catalog's declarative calendar language: a JSON document with a <c>kind</c>, validated and compiled into the
-/// same <see cref="IActaCalendar"/> or <see cref="IActaAvailabilityCalendar"/> a code calendar implements, so the
-/// evaluator never knows where a calendar came from. Pure and bounded; every problem is reported with its path.
+/// The catalog's declarative calendar language: a JSON document with a <c>kind</c>, validated and compiled into an
+/// <see cref="IActaCalendar"/> or an <see cref="IActaAvailabilityCalendar"/>, which the evaluator asks. Pure and
+/// bounded; every problem is reported with its path.
 /// Availability kinds: weekly-availability, union, intersection, subtraction. Occurrence kinds: explicit-instants,
 /// daily-local-time, business-day, at-opening, union. Operands are inline, so a definition is self-contained.
 /// </summary>

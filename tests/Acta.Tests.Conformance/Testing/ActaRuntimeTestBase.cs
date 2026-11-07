@@ -46,9 +46,6 @@ public abstract class ActaRuntimeTestBase<TFixture, TManifest> : ActaTestBase<TF
     /// </summary>
     protected virtual bool ParkScheduleSlots => true;
 
-    /// <summary>A spec's own registrations on the builder, such as the calendars its schedules bind; nothing by default.</summary>
-    protected virtual void ConfigureActa(IActaBuilder acta) { }
-
     /// <summary>What a spec puts in the database before its worker registers, such as the catalog calendars its schedules bind.</summary>
     protected virtual ValueTask BeforeWorkerStartAsync(CancellationToken ct) => ValueTask.CompletedTask;
 
@@ -57,7 +54,6 @@ public abstract class ActaRuntimeTestBase<TFixture, TManifest> : ActaTestBase<TF
         services.UseActa(j =>
         {
             Fixture.ApplyProvider(j, Schema.SchemaName);
-            ConfigureActa(j);
             if (RunAsWorker)
             {
                 j.Run<TManifest>(testNamespace, ownerTeam: "test", description: GetType().FullName);

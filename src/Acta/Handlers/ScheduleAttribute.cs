@@ -40,16 +40,16 @@ public sealed class ScheduleAttribute : Attribute
     /// <summary>
     /// The name of the calendar whose occurrences this schedule fires, in place of an expression; dotted kebab-case.
     /// Declared with the name-only constructor; an expression and a calendar together are a build error. The name is
-    /// found afresh at every evaluation, first among the calendars the process declares (<see cref="CalendarAttribute"/>
-    /// classes and <c>AddCalendar</c> registrations), then in the namespace's calendar catalog, then in the shared
-    /// catalog in <c>sys</c>; the schedule stores only the name.
+    /// found afresh at every evaluation: the published version of the family of that name in the namespace's calendar
+    /// catalog, else in the shared catalog in <c>sys</c>; the schedule stores only the name. A worker whose schedule
+    /// names a calendar with no published version fails to start.
     /// </summary>
     public string? Calendar { get; init; }
 
     /// <summary>
     /// The name of the availability calendar this schedule observes, whatever its occurrence source: an expression or a
-    /// <see cref="Calendar"/>; dotted kebab-case. Null = none. The name is found the way <see cref="Calendar"/> is, with
-    /// <c>AddAvailabilityCalendar</c> registrations in place of <c>AddCalendar</c> ones.
+    /// <see cref="Calendar"/>; dotted kebab-case. Null = none. The name is found the way <see cref="Calendar"/> is, among
+    /// the catalog's availability calendars.
     /// </summary>
     public string? Availability { get; init; }
 

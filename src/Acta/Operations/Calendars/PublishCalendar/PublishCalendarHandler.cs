@@ -6,9 +6,9 @@ namespace Acta;
 /// <summary>
 /// <see cref="ICalendars.PublishAsync"/>: plans a publication in C# from a snapshot, then applies it atomically. The
 /// plan compiles the candidate and resolves each bound schedule's calendars as they stand, retimes every schedule that
-/// names the family (its first occurrence after the database clock, from the candidate) unless the process declares
-/// the name in code, and decides the overdue occurrences the old source left undecided: refused, or discarded as an
-/// audited skipped range. A fence another writer moved replans.
+/// names the family (its first occurrence after the database clock, from the candidate), and decides the overdue
+/// occurrences the old source left undecided: refused, or discarded as an audited skipped range. A fence another
+/// writer moved replans.
 /// </summary>
 internal sealed class PublishCalendarHandler(
     IDbSession session,
@@ -75,18 +75,15 @@ internal sealed class PublishCalendarHandler(
 
             var nowUtc = await clock.GetUtcNowAsync(ct);
             var compiled = CalendarDefinition.Compile(candidate.Role, candidate.Definition);
-            // A name the process declares in code resolves there before the catalog, so under it the publication moves
-            // no schedule: the version becomes current for a fleet without the code calendar.
-            var affected = sources.Declares(calendarName, candidate.Role) ? [] : bound;
-            foreach (var ns in affected.GroupBy(s => s.NamespaceId))
+            foreach (var ns in bound.GroupBy(s => s.NamespaceId))
             {
                 await sources.PreloadAsync(ns.Key, ns.SelectMany(s => s.Timing().CalendarNames()), ct);
             }
 
-            var plan = new List<PublishCalendarValues>(affected.Count);
-            var retimed = new List<string>(affected.Count);
+            var plan = new List<PublishCalendarValues>(bound.Count);
+            var retimed = new List<string>(bound.Count);
             var overdue = new List<string>();
-            foreach (var s in affected)
+            foreach (var s in bound)
             {
                 // An orphaned schedule has no cursor to move; its declaration comes back with its definition.
                 if (s.Status == ScheduleStatusCode.Orphaned)
@@ -120,7 +117,7 @@ internal sealed class PublishCalendarHandler(
                 }
                 catch (CalendarUnavailableException)
                 {
-                    // Its other calendar, or the family before this version, resolves to nothing here, so the admitter
+                    // Its other calendar, or the family before this version, resolves to nothing, so the admitter
                     // already parks it as an evaluation error; the publication leaves it as it is rather than failing
                     // for every bound schedule.
                     continue;

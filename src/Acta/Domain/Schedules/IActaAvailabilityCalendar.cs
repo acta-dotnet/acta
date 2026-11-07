@@ -6,7 +6,7 @@ namespace Acta;
 /// a closed window is dropped, and the next tick inside an open one fires on the grid. An availability calendar opens
 /// no time the source does not produce. Same contract as <see cref="IActaCalendar"/>: quick, deterministic, no I/O.
 /// </summary>
-public interface IActaAvailabilityCalendar
+internal interface IActaAvailabilityCalendar
 {
     /// <summary>
     /// The window containing <see cref="AvailabilityContext.AtOrAfterUtc"/> or the earliest one after it, never a

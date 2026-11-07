@@ -603,8 +603,7 @@ The generator reports these at build time. All are errors unless noted, and an e
 | `ACTA0124` | Invalid `[Schedule]` policy value: `MaxOutstanding` below 1, or an undefined `FullBehavior` or `MisfireStrategy`. |
 | `ACTA0125` | `MaxOutstanding` other than 1 on a schedule of a `Permanent` definition, whose one slot holds one occurrence at a time. |
 | `ACTA0126` | Incomplete `[Schedule]` expiration: `ExpireAfter` without `ExpireAction` or the reverse, an `ExpireAfter` of zero, or an undefined `ExpireAction`. |
-| `ACTA0127` | Incomplete `[Schedule]` source: an expression and `Calendar` together or neither, a blank or invalid `Calendar` or `Availability` name, or a name whose `[Calendar]` class in the same compilation lacks the interface the binding needs (`IActaCalendar` for `Calendar`, `IActaAvailabilityCalendar` for `Availability`). A name no class declares is resolved at registration. |
-| `ACTA0128` | Invalid `[Calendar]` declaration: an abstract, generic, or private class, a class implementing neither `IActaCalendar` nor `IActaAvailabilityCalendar`, a name that is not dotted kebab-case or is `sys`-reserved, or a name two classes declare. |
+| `ACTA0127` | Incomplete `[Schedule]` source: an expression and `Calendar` together or neither, or a blank or invalid `Calendar` or `Availability` name. Whether the catalog publishes the name is checked at worker start. |
 | `ACTA0131` | Invalid `[JobPayloadFormatDeclaration]` (reserved id, bad or duplicate name/id, not an `IJobPayloadSerializer`).                                                                                                  |
 | `ACTA0132` | Invalid `[Job]` payload-format usage (`Format` paired with `InputFormat`/`ResultFormat`, `ResultFormat` on a no-result handler, `none` or `bytes` on a handler taking several input parameters, or a name matching no built-in or declared format). |
 | `ACTA0142` | A duration written with an uppercase or calendar unit; durations use lowercase `ms`, `s`, `m`, `h`, or `d`. |
@@ -963,25 +962,9 @@ What the admitter does, by what it finds:
 
 ### Calendars
 
-A schedule's occurrences come from a cron, an interval, or a calendar: something that answers "the first occurrence after this instant". A settlement calendar, a payroll calendar, or a list of release dates is such a calendar. An availability calendar is the other role: it says when a schedule may fire at all (office hours, the complement of a maintenance blackout), and it filters any source. A schedule binds either by name alone.
+A schedule's occurrences come from a cron, an interval, or a calendar: something that answers "the first occurrence after this instant". A settlement calendar, a payroll calendar, or a list of release dates is such a calendar. An availability calendar is the other role: it says when a schedule may fire at all (office hours, the complement of a maintenance blackout), and it filters any source. A schedule names a calendar family by `Calendar`, by `Availability`, or by both, and the family lives in the calendar catalog: `IActaOperations.Calendars`, the `/calendars` routes of the HTTP API, the dashboard's calendar pages, and `calendars_view`.
 
 ```csharp
-[Calendar("settlement-days")]
-public sealed class SettlementDays : IActaCalendar
-{
-    // UTC in, UTC out, strictly after, whole milliseconds; null when no occurrence remains.
-    public DateTime? GetNextOccurrence(CalendarContext context) =>
-        NextBusinessDayAt(context.AfterUtc, context.TimeZone, hour: 16);
-}
-
-[Calendar("office-hours")]
-public sealed class OfficeHours(IOptions<OfficeOptions> options) : IActaAvailabilityCalendar
-{
-    // The window containing the instant or the earliest later one; null when no open time remains.
-    public CalendarWindow? GetWindowAtOrAfter(AvailabilityContext context) =>
-        WeekdayWindow(context.AtOrAfterUtc, context.TimeZone, options.Value.From, options.Value.To);
-}
-
 [Job("settle")]
 [Schedule("business-day", Calendar = "settlement-days", TimeZoneId = "Europe/Ljubljana")]
 public Task Settle(JobContext ctx, CancellationToken ct) => ...;
@@ -991,32 +974,38 @@ public Task Settle(JobContext ctx, CancellationToken ct) => ...;
 public Task Sync(JobContext ctx, CancellationToken ct) => ...;
 ```
 
-- A code calendar is a class marked `[Calendar(name)]` implementing `IActaCalendar`, `IActaAvailabilityCalendar`, or both; the generator carries it in the manifest and the worker creates it through DI at start, so it may take constructor dependencies. A calendar built from data at startup is registered instead with `AddCalendar(name, implementation)` or `AddAvailabilityCalendar` on `UseActa`. One name is one calendar in a process.
-- A name resolves afresh at every evaluation and every preview, in order: a calendar declared in the process, then the namespace's calendar catalog, then the shared catalog in `sys` ([catalog calendars](#catalog-calendars)). The schedule row stores the name and nothing about where it resolved, and the timing fingerprint covers the name only, so a calendar may move from code to the catalog between deploys without a retime: an occurrence the newly resolved calendar no longer produces is skipped with the reason `source-changed`, as below. Publish a version with the same instants before the deploy that drops the code calendar, and the move skips nothing, however long old and new hosts overlap. Registration only checks that every name resolves; a name nothing resolves fails the worker start with the schedule's name.
-- Code calendars have no versions. A changed calendar takes effect at the next evaluation: an occurrence the calendar no longer produces is skipped with the reason `source-changed` and the cursor moves to the first it does, which the misfire policy then decides. Dates added before the cursor are not backfilled. Two variants that must coexist are two names.
-- The engine passes the schedule's zone in the context; a calendar never reads an ambient zone or clock, does no I/O, and answers from its own configuration. An availability window is `[StartUtc, EndUtc)`, UTC, the end after the start or null for open-ended; windows are ordered, disjoint, and merged when adjacent, and a firing exactly at an opening counts.
-- An occurrence outside every window is omitted, never shifted: an interval tick in a closed window is dropped and the next tick inside an open one fires on the grid; a cron tick or a calendar instant likewise. An availability calendar opens no time the source does not produce.
-- Exhaustion is null: a calendar with no instant left, or an availability calendar with no open time left, leaves the schedule `exhausted`. Everything else is an error, never exhaustion: a calendar the host lacks, an exception, an instant that is not UTC, does not advance, or is finer than a millisecond, a window that ends before the instant it was asked for. The schedule then reads `evaluation-error`, the worker logs the reason once, and the admitter retries after a minute.
-- Every host that evaluates or previews a schedule resolves a code calendar in its own process: put the calendar classes in a manifest the workers and the API host run or reference. A catalog calendar is read from the database by any host. A preview on a host that lacks the calendar throws `CalendarUnavailableException`, naming the calendar; over HTTP it is a 409 problem, "Calendar not available on this host."
-
-### Catalog calendars
-
-The catalog keeps calendars as data an operator edits and publishes: `IActaOperations.Calendars`, the dashboard's calendar pages, and `calendars_view`. A family is a name in a namespace, or in `sys`, the shared scope every namespace binds; a name belongs to one scope. Each save is a new immutable version; the one Published version is what a schedule's name resolves to, read afresh at every evaluation, unless the process declares a calendar of that name.
+A deploy step saves, previews, and publishes the families those schedules name:
 
 ```csharp
-var holidays = new CalendarLookup("sys", "office-hours");
-var draft = await calendars.SaveDraftAsync(holidays, CalendarRoleCode.Availability, """
+var officeHours = new CalendarLookup("sys", "office-hours");
+var draft = await calendars.SaveDraftAsync(officeHours, CalendarRoleCode.Availability, """
     {"kind":"weekly-availability","timeZone":"schedule",
      "weekly":[{"days":["Monday","Tuesday","Wednesday","Thursday","Friday"],"windows":[["09:00","12:00"],["13:00","17:00"]]}],
      "dateOverrides":{"2027-12-24":[["09:00","12:00"]],"2027-12-25":[]},
      "excludedRanges":[{"from":"2027-08-01","to":"2027-08-14"}]}
     """, expectedLatestVersion: 2, reasonMessage: "Summer closure");
-var preview = await calendars.PreviewAsync(holidays, draft.Version!.Value, timeZoneId: "Europe/Ljubljana");
-var published = await calendars.PublishAsync(holidays, expectedCurrentVersion: 2, candidateVersion: draft.Version.Value);
+var preview = await calendars.PreviewAsync(officeHours, draft.Version!.Value, timeZoneId: "Europe/Ljubljana");
+var published = await calendars.PublishAsync(officeHours, expectedCurrentVersion: 2, candidateVersion: draft.Version.Value);
 ```
 
+- A family is a name in a namespace, or in `sys`, the shared scope every namespace binds; a name belongs to one scope. A schedule's calendar name resolves to the namespace's family of that name, else to the shared one in `sys`.
+- Each save is a new immutable version, and the one Published version is what the name resolves to, read afresh at every evaluation and every preview. The schedule row stores the name and nothing about the version it resolved to, and the timing fingerprint covers the name only, so a deploy never retimes a schedule over its calendar; a publication does, as below.
 - Definitions are JSON with a `kind`. Availability: `weekly-availability` (weekly rules of local windows, an overnight window ending on the next date, `dateOverrides` replacing one date's windows or closing it with `[]`, `excludedRanges` subtracted last, each a pair of dates `from` and `to` or a pair of instants `fromUtc` and `toUtc`, written in UTC with a `Z`), and `union`, `intersection`, `subtraction` of inline definitions. Occurrence: `explicit-instants`, `daily-local-time` (times on weekdays minus dates), `business-day` (the first or last nth business day of each week, month, quarter, or year over its own business days and holidays, at a local time), `at-opening` (each window start of an inline availability definition), and `union`. `timeZone` is `"schedule"` (the schedule's zone) or a fixed zone id, on the kinds that read local times; a kind that only combines other definitions (`union`, `intersection`, `subtraction`, `at-opening`) takes none, since each operand names its own. A local time in a DST gap resolves to the instant time resumes; an ambiguous one to its earlier instant. Every problem is reported with its JSON path.
-- `GetAsync` answers a family's head with one version's `Definition`, the stored JSON text, which a draft takes back as it is. `SaveDraftAsync` takes the latest version the caller saw (`VersionConflict` otherwise) and creates a namespace no worker has run in yet. `PreviewAsync` forecasts a version beside the current one and lists up to 100 bound schedules with an overdue flag, overdue ones first, with `SchedulesTotal` and `OverdueTotal` counting them all; `ListDependentsAsync` pages every one. `PublishAsync` makes a draft current and retimes every schedule that names the family in its scope in one transaction (none when the process declares the name in code, which resolves before the catalog): its cursor seeds from the new version's first occurrence after now, and `schedule.retimed` is recorded; paused and orphaned schedules keep their state. A schedule holding an undecided overdue occurrence refuses the publication (`OverdueDecisionCode.Refuse`, the default) until it is drained, or is audited as `schedule.skipped` with the reason `retimed` under `OverdueDecisionCode.Discard`. A publication retimes at most 200 schedules. `ArchiveAsync` retires a family no live schedule names.
+- A rule the kinds cannot express is a cron, an interval, or a list of `explicit-instants` that a job or a deploy step generates and publishes.
+- An availability window is `[StartUtc, EndUtc)` in UTC, open-ended when the end is null, and a firing exactly at an opening counts.
+- An occurrence outside every window is omitted, never shifted: an interval tick in a closed window is dropped and the next tick inside an open one fires on the grid; a cron tick or a calendar instant likewise. An availability calendar opens no time the source does not produce.
+- Exhaustion is null: a calendar with no instant left, or an availability calendar with no open time left, leaves the schedule `exhausted`. Everything else is an error, never exhaustion: a name with no published version, or a calendar that throws, such as a weekly availability whose exclusions close it for good. The schedule then reads `evaluation-error`, the worker logs the reason once, and the admitter retries after a minute.
+- A preview of a schedule whose calendar has no published version throws `CalendarUnavailableException`, naming the calendar; over HTTP it is a 409 problem whose detail names it.
+
+The workflow keeps a calendar's definition beside the code that names it:
+
+1. Keep each definition's JSON in source control.
+2. Save it as a draft: `SaveDraftAsync`, `POST /calendars/{jobNamespace}/{calendarName}/drafts`, or the dashboard.
+3. Preview the draft beside the current version: `PreviewAsync`, `GET /calendars/{jobNamespace}/{calendarName}/preview`, or the dashboard.
+4. Publish it from a deploy step, with `PublishAsync`, `POST /calendars/{jobNamespace}/{calendarName}/publish`, or the dashboard, before the workers that name it roll.
+
+- Workers never publish. A worker start checks that every calendar its schedules name has a published version, and a worker whose schedule names a calendar with no published version fails to start, naming the schedule and the calendar.
+- `GetAsync` answers a family's head with one version's `Definition`, the stored JSON text, which a draft takes back as it is. `SaveDraftAsync` takes the latest version the caller saw (`VersionConflict` otherwise) and creates a namespace no worker has run in yet. `PreviewAsync` forecasts a version beside the current one and lists up to 100 bound schedules with an overdue flag, overdue ones first, with `SchedulesTotal` and `OverdueTotal` counting them all; `ListDependentsAsync` pages every one. `PublishAsync` makes a draft current and retimes every schedule that names the family in its scope in one transaction: its cursor seeds from the new version's first occurrence after now, and `schedule.retimed` is recorded; paused and orphaned schedules keep their state. A schedule holding an undecided overdue occurrence refuses the publication (`OverdueDecisionCode.Refuse`, the default) until it is drained, or is audited as `schedule.skipped` with the reason `retimed` under `OverdueDecisionCode.Discard`. A publication retimes at most 200 schedules. `ArchiveAsync` retires a family no live schedule names.
 - Publishing a shared calendar locks every namespace it retimes, in id order, so a registration or another publication in those namespaces waits rather than racing.
 
 ### Backfill

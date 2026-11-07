@@ -2,7 +2,7 @@ namespace Acta;
 
 /// <summary>
 /// <see cref="ISchedules.PreviewAsync"/>: walks the schedule's source from the database clock; no SQL of its own. A
-/// code calendar is resolved in this process, so the host that answers needs it registered; a catalog one is read.
+/// calendar it names is read from the catalog.
 /// </summary>
 internal sealed class PreviewScheduleHandler(GetScheduleTargetHandler getScheduleTarget, CalendarsOperations calendars)
 {

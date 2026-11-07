@@ -35,7 +35,6 @@
     <Project Path="100-scheduling/104-timezone-schedule/104-timezone-schedule.csproj" />
     <Project Path="100-scheduling/105-schedule-control/105-schedule-control.csproj" />
     <Project Path="100-scheduling/106-schedule-misfire/106-schedule-misfire.csproj" />
-    <Project Path="100-scheduling/107-calendar-schedule/107-calendar-schedule.csproj" />
     <Project Path="100-scheduling/108-calendar-catalog/108-calendar-catalog.csproj" />
     <Project Path="100-scheduling/109-continuous-synchronization/109-continuous-synchronization.csproj" />
     <Project Path="100-scheduling/110-per-occurrence-delivery/110-per-occurrence-delivery.csproj" />

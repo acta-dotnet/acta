@@ -2,12 +2,12 @@ namespace Acta;
 
 /// <summary>
 /// A schedule's timing with the calendars it names resolved: the occurrence calendar when the kind is Calendar, the
-/// availability calendar when one is named, each null when the name resolves to nothing here. The calculator and the
-/// evaluator take a source; <see cref="CalendarRegistry"/> builds one.
+/// availability calendar when one is named, each null when the name has no published catalog version. The calculator
+/// and the evaluator take a source; the catalog's resolution builds one.
 /// </summary>
 internal sealed record ScheduleSource(ScheduleTiming Timing, IActaCalendar? Calendar, IActaAvailabilityCalendar? Availability)
 {
-    /// <summary>A cron or interval timing with no calendars, which needs no registry.</summary>
+    /// <summary>A cron or interval timing with no calendars, which needs no catalog.</summary>
     public static ScheduleSource Native(string expression, string? timeZoneId, ScheduleExpressionKindCode kind) =>
         new(new ScheduleTiming(expression, kind, timeZoneId, null), null, null);
 
@@ -28,5 +28,5 @@ internal sealed record ScheduleSource(ScheduleTiming Timing, IActaCalendar? Cale
     }
 
     private static string Missing(string role, string name) =>
-        $"The {role} '{name}' is not declared in this process and has no published version in the namespace's calendar catalog or the shared one.";
+        $"The {role} '{name}' has no published version in the namespace's calendar catalog or the shared one.";
 }

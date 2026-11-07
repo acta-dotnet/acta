@@ -95,7 +95,7 @@ public sealed class ResumeScheduleSpec : ActaStorageTestBase<ConformanceFixture>
             dialect,
             defId,
             jobName,
-            ScheduleRegistrationPlan.Plan(declared, storedForDef, now, CalendarRegistry.Empty.Source),
+            ScheduleRegistrationPlan.Plan(declared, storedForDef, now, t => new ScheduleSource(t, null, null)),
             ct
         );
     }

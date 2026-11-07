@@ -294,21 +294,10 @@ public static class ActaServiceCollectionExtensions
         );
     }
 
-    /// <summary>What the builder declared: alert channels and routing, calendars, the enqueue indexes, the pipeline, the workers, and outbox relays.</summary>
+    /// <summary>What the builder declared: alert channels and routing, the enqueue indexes, the pipeline, the workers, and outbox relays.</summary>
     private static void AddDeclared(IServiceCollection services, ActaBuilder builder)
     {
         services.TryAddSingleton(new AlertChannelRegistry(builder.Workers));
-        // The [Calendar] classes of every manifest the host runs or references join the instances the builder registered,
-        // created through the root provider when a schedule first needs the registry.
-        services.TryAddSingleton(sp =>
-            builder.Calendars.AddDeclared(
-                sp,
-                builder
-                    .Catalogs.SelectMany(c => c.Manifests)
-                    .Select(m => m.GetDescriptors())
-                    .SelectMany(m => m.Calendars.IsDefaultOrEmpty ? [] : m.Calendars)
-            )
-        );
 
         // Worker startup checks each namespace's alert routing against the declared channels.
         services.TryAddSingleton(sp => new AlertRoutingCheck(

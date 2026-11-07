@@ -1,4 +1,3 @@
-using Microsoft.Extensions.DependencyInjection;
 using Xunit;
 
 namespace Acta.Tests.Runtime;
@@ -6,9 +5,9 @@ namespace Acta.Tests.Runtime;
 /// <summary>
 /// A calendar source and an availability filter through <see cref="NextOccurrenceCalculator"/>: a calendar's instants
 /// in order and its exhaustion; an availability calendar omitting the cron ticks, interval ticks, and calendar instants
-/// outside its windows without shifting them, keeping one exactly at an opening; the provider contract enforced (UTC,
-/// advancing, whole milliseconds, a window that contains or follows the instant); the registry's one implementation
-/// per name; the fingerprint following the names; and registration keeping nothing but the names.
+/// outside its windows without shifting them, keeping one exactly at an opening; the calendar contract enforced (UTC,
+/// advancing, whole milliseconds, a window that contains or follows the instant); the fingerprint following the names;
+/// and registration keeping nothing but the names.
 /// </summary>
 public sealed class CalendarSourceTests
 {
@@ -37,7 +36,7 @@ public sealed class CalendarSourceTests
             NextOccurrenceCalculator.Next(new ScheduleSource(Fixed, null, null), Utc(8, 0))
         );
 
-        Assert.Contains("'fixed' is not declared in this process", ex.Message);
+        Assert.Contains("'fixed' has no published version", ex.Message);
     }
 
     [Theory]
@@ -110,25 +109,6 @@ public sealed class CalendarSourceTests
     }
 
     [Fact]
-    public void The_registry_holds_one_implementation_per_name()
-    {
-        var registry = new CalendarRegistry();
-        var one = new FixedCalendar(Utc(9, 0));
-        var two = new FixedCalendar(Utc(10, 0));
-
-        registry.Add("Fixed", one);
-        registry.Add("fixed", one);
-        registry.Add("other", two);
-        Assert.Throws<InvalidOperationException>(() => registry.Add("fixed", two));
-        Assert.Throws<ArgumentException>(() => registry.Add("sys.fixed", two));
-
-        Assert.Same(one, registry.Source(Fixed).Calendar);
-        Assert.Null(registry.Source(Fixed with { AvailabilityCalendarName = "fixed" }).Availability);
-        Assert.Same(two, registry.Source(Fixed with { Expression = "other" }).Calendar);
-        Assert.Null(registry.Source(Fixed with { Expression = "missing" }).Calendar);
-    }
-
-    [Fact]
     public void The_fingerprint_follows_the_names_and_the_zone_an_availability_window_resolves_in()
     {
         var a = TimingFingerprint.Compute(Fixed);
@@ -159,11 +139,11 @@ public sealed class CalendarSourceTests
         var none = new Dictionary<string, StoredScheduleState>();
 
         var ex = Assert.Throws<InvalidOperationException>(() =>
-            ScheduleRegistrationPlan.Plan([declared], none, Utc(8, 0), CalendarRegistry.Empty.Source)
+            ScheduleRegistrationPlan.Plan([declared], none, Utc(8, 0), t => new ScheduleSource(t, null, null))
         );
 
         Assert.Contains("Schedule 'daily' of job 'settle'", ex.Message);
-        Assert.Contains("'spec.days' is not declared in this process and has no published version", ex.Message);
+        Assert.Contains("'spec.days' has no published version", ex.Message);
 
         var planned = Assert.Single(
             ScheduleRegistrationPlan.Plan([declared], none, Utc(8, 0), t => new ScheduleSource(t, new FixedCalendar(Utc(9, 0)), null))
@@ -186,28 +166,6 @@ public sealed class CalendarSourceTests
             ScheduleRegistrationPlan.Plan([declared], stored, Utc(8, 0), t => new ScheduleSource(t, new FixedCalendar(Utc(10, 0)), null))
         );
         Assert.Equal(Utc(13, 0), moved.NextOccurrenceAtUtc);
-    }
-
-    [Fact]
-    public void A_declared_calendar_is_created_through_the_services_under_the_roles_its_class_implements()
-    {
-        var services = new ServiceCollection().AddSingleton(new Opening(Utc(9, 0))).BuildServiceProvider();
-
-        var registry = new CalendarRegistry().AddDeclared(services, [new CalendarDescriptor("office", typeof(DeclaredOffice), true, true)]);
-
-        var timing = new ScheduleTiming("office", ScheduleExpressionKindCode.Calendar, "UTC", null);
-        Assert.NotNull(registry.Source(timing with { AvailabilityCalendarName = "office" }).Availability);
-        Assert.Equal(Utc(9, 0), NextOccurrenceCalculator.Next(registry.Source(timing), Utc(8, 0)));
-    }
-
-    private sealed record Opening(DateTime AtUtc);
-
-    /// <summary>A declared calendar with a constructor dependency, opening once at the injected instant and open from then on.</summary>
-    private sealed class DeclaredOffice(Opening opening) : IActaCalendar, IActaAvailabilityCalendar
-    {
-        public DateTime? GetNextOccurrence(CalendarContext context) => context.AfterUtc < opening.AtUtc ? opening.AtUtc : null;
-
-        public CalendarWindow? GetWindowAtOrAfter(AvailabilityContext context) => new CalendarWindow(opening.AtUtc, null);
     }
 
     private sealed class FixedCalendar(params DateTime[] instants) : IActaCalendar

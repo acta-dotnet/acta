@@ -95,7 +95,7 @@ public sealed class RegisterSchedulesNoteSpec : ActaStorageTestBase<ConformanceF
             dialect,
             defId,
             jobName,
-            ScheduleRegistrationPlan.Plan(declared, storedForDef, now, CalendarRegistry.Empty.Source),
+            ScheduleRegistrationPlan.Plan(declared, storedForDef, now, t => new ScheduleSource(t, null, null)),
             ct
         );
     }

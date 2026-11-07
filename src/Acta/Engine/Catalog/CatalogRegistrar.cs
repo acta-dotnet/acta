@@ -352,8 +352,8 @@ internal sealed class CatalogRegistrar(
 
         var nowUtc = await _clock.GetUtcNowAsync(ct);
         // Every calendar name a declared schedule binds, read against the catalog's current families once; the plan only
-        // checks that each resolves, a calendar declared in the process before the catalog's. Nothing about the resolution
-        // is stored: the admitter resolves each name afresh at every evaluation.
+        // checks that each resolves. Nothing about the resolution is stored: the admitter resolves each name afresh at
+        // every evaluation.
         await calendars.PreloadAsync(
             namespaceId,
             _context

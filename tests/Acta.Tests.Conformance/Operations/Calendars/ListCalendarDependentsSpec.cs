@@ -68,12 +68,12 @@ public sealed class ListCalendarDependentsSpec : ActaStorageTestBase<Conformance
     public async Task Dependents_of_an_unknown_family_are_an_empty_page()
     {
         var ct = TestContext.Current.CancellationToken;
-        // A schedule may name a calendar its process declares and the catalog never saw: that name has no dependents here.
-        var processOnly = Unique("process-only");
-        await CalendarTestOps.BindAvailabilityAsync(Services, TestNamespaceId, Unique("other-sweep"), processOnly, ["nightly"], ct);
+        // A schedule row may name a calendar the catalog never saved: no family holds that name, so it has no dependents.
+        var unsaved = Unique("unsaved");
+        await CalendarTestOps.BindAvailabilityAsync(Services, TestNamespaceId, Unique("other-sweep"), unsaved, ["nightly"], ct);
 
         var unknown = await Calendars.ListDependentsAsync(
-            new ListCalendarDependentsQuery(new CalendarLookup(TestNamespace, processOnly), IncludeTotal: true),
+            new ListCalendarDependentsQuery(new CalendarLookup(TestNamespace, unsaved), IncludeTotal: true),
             ct
         );
 

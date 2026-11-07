@@ -972,12 +972,12 @@ public sealed class DashboardApiEndpointTests
     }
 
     [Fact]
-    public async Task Schedule_preview_on_a_host_without_the_calendar_is_a_409_problem_naming_it()
+    public async Task Schedule_preview_of_an_unpublished_calendar_is_a_409_problem_naming_it()
     {
         var fakes = new FakeOperations();
         fakes.Schedules.Preview = static (_, _, _) =>
             throw new CalendarUnavailableException(
-                "The calendar 'pay-days' is not declared in this process; declare a [Calendar(\"pay-days\")] class."
+                "The calendar 'pay-days' has no published version in the namespace's calendar catalog or the shared one."
             );
         var (app, client) = await TestDashboardHost.StartAsync(fakes: fakes);
         await using var _ = app;
@@ -988,7 +988,7 @@ public sealed class DashboardApiEndpointTests
 
         Assert.Equal(HttpStatusCode.Conflict, response.StatusCode);
         Assert.Contains("Calendar not available on this host.", body);
-        Assert.Contains("'pay-days' is not declared in this process", body);
+        Assert.Contains("'pay-days' has no published version", body);
     }
 
     [Theory]
