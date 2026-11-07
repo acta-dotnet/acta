@@ -169,6 +169,7 @@ Not tagged yet.
 - The dashboard's job page showed an idle permanent job's next run as a dot. It now names the active schedule that fires it soonest and when, or says no schedule is set to fire it.
 - The dashboard's job page read a permanent job 28 executions in as "attempt 28" and "fails permanently at 15", as if it were near its last try. `MaxAttempts` is each firing's budget and the execution number counts every firing, so the page now says "28 executions" and "28 started across all firings" and that each firing gets 15 attempts.
 - Where the dashboard says controls are disabled on the host, on a job, a signal, a definition, the enqueue page, and the read-only mark, it now names the option that maps them: `EnableControls = true` in the `MapActa` options.
+- The dashboard linked no icon, so a browser asked the site root for `/favicon.ico` and got a 404. The page now links its own, the Acta mark in the dashboard's accent, served with its other assets as `image/svg+xml`.
 
 ## 1.0.0-rc.8
 

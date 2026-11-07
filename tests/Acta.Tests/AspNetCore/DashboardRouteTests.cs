@@ -164,6 +164,29 @@ public sealed partial class DashboardRouteTests
         Assert.Contains("immutable", asset.Headers.CacheControl?.ToString());
     }
 
+    /// <summary>
+    /// The page links its own icon: without one, a browser asks the site root for <c>/favicon.ico</c>, a path the
+    /// dashboard does not own, and gets a 404.
+    /// </summary>
+    [Fact]
+    public async Task Index_links_an_icon_that_serves_as_svg()
+    {
+        Assert.SkipUnless(AssetsEmbedded, "Dashboard assets are not embedded in this build.");
+        var (app, client) = await TestDashboardHost.StartAsync();
+        await using var _ = app;
+        var ct = TestContext.Current.CancellationToken;
+
+        var index = await (await client.GetAsync("/acta", ct)).Content.ReadAsStringAsync(ct);
+        var match = IconHref().Match(index);
+        Assert.True(match.Success, "index.html links no icon");
+
+        var icon = await client.GetAsync("/acta/" + match.Groups[1].Value, ct);
+
+        Assert.Equal(HttpStatusCode.OK, icon.StatusCode);
+        Assert.Equal("image/svg+xml", icon.Content.Headers.ContentType?.ToString());
+        Assert.Contains("immutable", icon.Headers.CacheControl?.ToString());
+    }
+
     [Fact]
     public async Task Traversal_paths_are_rejected()
     {
@@ -199,4 +222,7 @@ public sealed partial class DashboardRouteTests
 
     [GeneratedRegex("src=\"\\./(assets/[^\"]+\\.js)\"")]
     private static partial Regex MyRegex();
+
+    [GeneratedRegex("rel=\"icon\"[^>]*href=\"\\./(assets/[^\"]+\\.svg)\"")]
+    private static partial Regex IconHref();
 }
