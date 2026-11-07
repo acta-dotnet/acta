@@ -73,7 +73,7 @@
   - Disabling alerts disposes of a skip without decoding its details and releases retention
 
 ### Purge refuses a job the alert projector has not consumed
-- **Contract:** PurgeAsync throws JobPurgeBlockedException while the projector owes an event of the job, and purges it once that event is projected.
+- **Contract:** PurgeAsync answers Rejected with the job's status while the projector owes an event of the job, and purges it once that event is projected.
 - **Guarantees:**
   - A purge before the projector consumed the job's failure is refused, and the same purge applies once it has
   - A job with nothing alert-required purges at once while the projector is behind

@@ -424,12 +424,12 @@ public interface IJobs
     );
 
     /// <summary>
-    /// Hard-delete the terminal job identified by <paramref name="job"/>: its <c>events</c> and <c>alerts</c> rows,
-    /// then the job row, which cascades to its runtime, schedule, step, result, checkpoint, and tag rows. A
-    /// non-terminal job is <see cref="ControlAction.Rejected"/>, and so is a terminal job with children (deleting it
-    /// would orphan their lineage; <c>parent_job_id</c> has no cascade) or a child whose parent is not terminal (the
-    /// parent's replay dedupes onto it and reads its result). Always emits <c>job.purged</c>, with a null job and the
-    /// purged ref and name on its <c>ReasonMessage</c>, stamped <paramref name="actor"/>; there is no caller reason.
+    /// Hard-delete the terminal job identified by <paramref name="job"/> with its events, alerts, steps, checkpoints,
+    /// schedules, and tags, leaving one <c>job.purged</c> event stamped <paramref name="actor"/>; there is no caller reason.
+    /// It answers <see cref="ControlAction.Rejected"/> with the job's current status, deleting nothing, for a job that is
+    /// not terminal, has children (<c>parent_job_id</c> has no cascade), is a finished child of an unfinished parent (whose
+    /// replay reads its result), or has a failure, orphan, or recovery event the <c>sys.alerts</c> projector has not read
+    /// yet, since the projector reads the job row to raise its alert: purge that one after the projector's next pass.
     /// </summary>
     ValueTask<PurgeJobResponse> PurgeAsync(JobLookup job, string? actor = null, CancellationToken ct = default);
 

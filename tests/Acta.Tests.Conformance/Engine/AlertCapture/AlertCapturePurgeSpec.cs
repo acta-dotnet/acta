@@ -7,13 +7,13 @@ namespace Acta.Tests.Conformance.Engine.AlertCapture;
 
 /// <summary>
 /// Conformance for an explicit purge racing the projector: deleting a job whose alert-required event the projector
-/// still owes would lose the alert, so the purge is refused loudly instead of skipped quietly.
+/// still owes would lose the alert, so the purge is rejected and deletes nothing.
 /// </summary>
 [ConformanceSpec(
     "alert-capture.purge-blocked",
     "Purge refuses a job the alert projector has not consumed",
     Area = "Alerts",
-    Contract = "PurgeAsync throws JobPurgeBlockedException while the projector owes an event of the job, and purges it once that event is projected."
+    Contract = "PurgeAsync answers Rejected with the job's status while the projector owes an event of the job, and purges it once that event is projected."
 )]
 public sealed class AlertCapturePurgeSpec : ActaRuntimeTestBase<ConformanceFixture, TestJobs.TestJobsManifest>
 {
@@ -28,7 +28,8 @@ public sealed class AlertCapturePurgeSpec : ActaRuntimeTestBase<ConformanceFixtu
         var ct = TestContext.Current.CancellationToken;
         var job = await AlertCaptureOps.FailTerminallyAsync(Runtime, Jobs, TestNamespace, ct);
 
-        await Assert.ThrowsAsync<JobPurgeBlockedException>(async () => await Jobs.PurgeAsync(job, "spec-actor", ct));
+        var blocked = await Jobs.PurgeAsync(job, "spec-actor", ct);
+        Assert.Equal((ControlAction.Rejected, JobStatusCode.Failed), (blocked.Action, blocked.Status));
         Assert.NotNull(await Jobs.GetAsync(job, ct));
         Assert.Contains(await AlertCaptureOps.JobEventsAsync(Db, job.JobId, ct), e => e.EventCode == EventCode.JobFailed);
 

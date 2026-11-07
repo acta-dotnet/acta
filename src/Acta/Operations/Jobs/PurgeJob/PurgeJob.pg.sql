@@ -11,7 +11,7 @@ CREATE TEMP TABLE _purge_job (
     parent_job_id BIGINT,
     eligible BOOLEAN NOT NULL
 ) ON COMMIT DROP;
-CREATE TEMP TABLE _purge_job_action (action SMALLINT NOT NULL, blocked BOOLEAN NOT NULL) ON COMMIT DROP;
+CREATE TEMP TABLE _purge_job_action (action SMALLINT NOT NULL) ON COMMIT DROP;
 
 -- A finished job may go; a permanent slot only with no firing outstanding and no live schedule pinning it, the
 -- deliberate decommission of a slot whose schedules are all orphaned or whose definition is retired.
@@ -43,9 +43,9 @@ WHERE j.job_id = @p_job_id
 FOR UPDATE OF j, r;
 
 /* parent_job_id carries no FK, so a job with children is kept (their lineage would dangle), and so is a finished child of a
-   live parent: the parent's replay dedupes onto it and reads its result. A purgeable job the alert projector still owes is
-   refused below: an event it reads, of an alert-enabled definition, past the floor. */
-INSERT INTO _purge_job_action (action, blocked)
+   live parent: the parent's replay dedupes onto it and reads its result. So is a job the alert projector still owes an
+   event, whose raise reads the job row: an event it reads, of an alert-enabled definition, past the floor. */
+INSERT INTO _purge_job_action (action)
 SELECT
     CASE
         WHEN s.from_status IS NULL THEN 2 /* ControlAction.NotFound */
@@ -58,34 +58,25 @@ SELECT
                 p.job_id = s.parent_job_id
                 AND p.job_status_code NOT IN (100 /* JobStatusCode.Succeeded */, 200 /* JobStatusCode.Failed */, 220 /* JobStatusCode.Cancelled */)
         ) THEN 3 /* ControlAction.Rejected */
+        WHEN EXISTS (
+            SELECT 1
+            FROM {{schema}}.events e
+            JOIN {{schema}}.definitions d ON d.definition_id = e.definition_id
+            WHERE
+                e.entity_code = 50 /* EntityCode.Job */
+                AND e.entity_id = @p_job_id
+                AND e.created_at_utc >= @p_alert_floor_utc
+                AND (e.created_at_utc > @p_alert_floor_utc OR e.event_id > @p_alert_floor_event_id)
+                AND (
+                    e.event_code IN (41 /* EventCode.JobExecutionFailed */, 42 /* EventCode.JobExecutionOrphaned */, 44 /* EventCode.JobFailed */)
+                    OR (e.event_code = 40 /* EventCode.JobExecutionSucceeded */ AND e.execution_number > 1)
+                )
+                AND d.alert_profile_code_effective <> 0 /* AlertProfileCode.None */
+        ) THEN 3 /* ControlAction.Rejected */
         ELSE 1 /* ControlAction.Applied */
-    END,
-    EXISTS (
-        SELECT 1
-        FROM {{schema}}.events e
-        JOIN {{schema}}.definitions d ON d.definition_id = e.definition_id
-        WHERE
-            e.entity_code = 50 /* EntityCode.Job */
-            AND e.entity_id = @p_job_id
-            AND e.created_at_utc >= @p_alert_floor_utc
-            AND (e.created_at_utc > @p_alert_floor_utc OR e.event_id > @p_alert_floor_event_id)
-            AND (
-                e.event_code IN (41 /* EventCode.JobExecutionFailed */, 42 /* EventCode.JobExecutionOrphaned */, 44 /* EventCode.JobFailed */)
-                OR (e.event_code = 40 /* EventCode.JobExecutionSucceeded */ AND e.execution_number > 1)
-            )
-            AND d.alert_profile_code_effective <> 0 /* AlertProfileCode.None */
-    )
+    END
 FROM (SELECT 1) one
 LEFT JOIN _purge_job s ON true;
-
--- The anonymous block only raises.
-DO $$
-BEGIN
-    IF EXISTS (SELECT 1 FROM pg_temp._purge_job_action WHERE action = 1 /* ControlAction.Applied */ AND blocked) THEN
-        RAISE EXCEPTION 'ACTA:PURGE_BLOCKED:purge_job: the alert projector has not processed this job''s events' USING ERRCODE = 'P0001';
-    END IF;
-END
-$$;
 
 DELETE FROM {{schema}}.tags
 WHERE

@@ -87,7 +87,7 @@ BEGIN TRY
         END;
 
     /* The alert projector still owes this job an event, whose raise reads the job row: an event it reads, of an
-       alert-enabled definition, past the floor. The purge is refused. */
+       alert-enabled definition, past the floor. The purge is rejected. */
     IF
         EXISTS (
             SELECT 1
@@ -104,7 +104,13 @@ BEGIN TRY
                 )
                 AND d.alert_profile_code_effective <> 0 /* AlertProfileCode.None */
         )
-        THROW 50008, 'ACTA:PURGE_BLOCKED:purge_job: the alert projector has not processed this job''s events', 1;
+        BEGIN
+
+            SELECT
+                CAST(3 /* ControlAction.Rejected */ AS TINYINT) AS action,
+                @from_status AS status;
+            GOTO Finish;
+        END;
 
     DECLARE @alert_ids TABLE (
         alert_id BIGINT PRIMARY KEY,

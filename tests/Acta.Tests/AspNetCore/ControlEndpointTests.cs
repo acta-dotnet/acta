@@ -592,12 +592,12 @@ public sealed class ControlEndpointTests
         Assert.Equal((FakeJobs.FoundJobRef, (string?)null), call);
     }
 
-    /// <summary>A purge the alert projection has not caught up with is rejected as any refused verb is: the envelope, no explanation.</summary>
+    /// <summary>A rejected purge, whatever held the job, answers its envelope with the job's status and no explanation.</summary>
     [Fact]
-    public async Task A_blocked_purge_answers_rejected()
+    public async Task A_rejected_purge_answers_the_jobs_status()
     {
         var fakes = new FakeOperations();
-        fakes.Jobs.Purge = (_, _, _) => throw new JobPurgeBlockedException("The alert projection still owes an event of this job.");
+        fakes.Jobs.Purge = (_, _, _) => ValueTask.FromResult(new PurgeJobResponse(42, ControlAction.Rejected, JobStatusCode.Failed, null));
         var (app, client) = await StartWithControlsAsync(fakes);
         await using var _ = app;
 
@@ -611,7 +611,7 @@ public sealed class ControlEndpointTests
         Assert.Equal("application/json", response.Content.Headers.ContentType?.MediaType);
         Assert.Equal(["action", "status", "version"], body.Select(member => member.Key).Order(StringComparer.Ordinal).ToList());
         Assert.Equal("rejected", body["action"]!.GetValue<string>());
-        Assert.Null(body["status"]);
+        Assert.Equal("failed", body["status"]!.GetValue<string>());
     }
 
     [Fact]

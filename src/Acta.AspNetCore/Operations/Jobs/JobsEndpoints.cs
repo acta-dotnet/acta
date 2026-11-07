@@ -151,18 +151,7 @@ internal static class JobsEndpoints
             "Invalid request.",
             ControlStatus.Job<PurgeJobResponse>(),
             RouteKeys.JobByRef,
-            static async (call, job) =>
-            {
-                try
-                {
-                    return await call.Jobs.PurgeAsync(job, call.Actor, call.Ct);
-                }
-                catch (JobPurgeBlockedException)
-                {
-                    // A purge the alert projection has not caught up with is rejected; the refusal reads no status to answer with.
-                    return new PurgeJobResponse(0, ControlAction.Rejected, null, null);
-                }
-            }
+            static (call, job) => call.Jobs.PurgeAsync(job, call.Actor, call.Ct)
         );
         controls.MapCommand(
             "/jobs/{jobRef}/reschedule",

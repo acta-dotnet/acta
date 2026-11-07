@@ -83,16 +83,6 @@ public sealed class ControlContractTests
         .. JobVerb("restart", typeof(RestartJobResponse)),
         .. JobVerb("cancel", typeof(CancelJobResponse)),
         .. JobVerb("purge", typeof(PurgeJobResponse), new JsonObject()),
-        Job(
-            typeof(PurgeJobResponse),
-            "/jobs/{jobRef}/purge",
-            "blocked",
-            $"/jobs/{Found}/purge",
-            StatusCodes.Status409Conflict,
-            "rejected",
-            new JsonObject(),
-            PurgeBlocked
-        ),
         .. JobVerb("reschedule", typeof(RescheduleJobResponse), new { nextRunAtUtc = "2030-01-01T00:00:00Z", reasonMessage = "because" }),
         .. JobVerb("reprioritize", typeof(ReprioritizeJobResponse), new { priority = "high", reasonMessage = "because" }),
         .. JobVerbVersionConflict("pause", typeof(PauseJobResponse), new JsonObject { ["reasonMessage"] = "because" }),
@@ -334,10 +324,6 @@ public sealed class ControlContractTests
             ),
         ];
     }
-
-    /// <summary>A purge the alert projection has not caught up with throws, as <see cref="IJobs.PurgeAsync"/> does.</summary>
-    private static void PurgeBlocked(FakeOperations fakes) =>
-        fakes.Jobs.Purge = (_, _, _) => throw new JobPurgeBlockedException("The alert projection still owes an event of this job.");
 
     private static void WithStoredInput(FakeOperations fakes) =>
         fakes.Jobs.StoredInput = JobPayload.FromBytes(JobPayloadFormat.Json, System.Text.Encoding.UTF8.GetBytes("{}"));

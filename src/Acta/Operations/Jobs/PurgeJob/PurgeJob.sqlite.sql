@@ -16,6 +16,23 @@ SELECT
             WHERE p.job_id = j.parent_job_id
               AND p.job_status_code NOT IN (100 /* JobStatusCode.Succeeded */, 200 /* JobStatusCode.Failed */, 220 /* JobStatusCode.Cancelled */))
         THEN 1 ELSE 0 END AS lineage_hold,
+    -- Held by alerting: the alert projector still owes the job an event whose raise reads the job row, one it reads,
+    -- of an alert-enabled definition, past the floor.
+    CASE WHEN EXISTS (
+            SELECT 1
+            FROM {{schema}}.events e
+            JOIN {{schema}}.definitions d ON d.definition_id = e.definition_id
+            WHERE
+                e.entity_code = 50 /* EntityCode.Job */
+                AND e.entity_id = j.job_id
+                AND e.created_at_utc >= @p_alert_floor_utc
+                AND (e.created_at_utc > @p_alert_floor_utc OR e.event_id > @p_alert_floor_event_id)
+                AND (
+                    e.event_code IN (41 /* EventCode.JobExecutionFailed */, 42 /* EventCode.JobExecutionOrphaned */, 44 /* EventCode.JobFailed */)
+                    OR (e.event_code = 40 /* EventCode.JobExecutionSucceeded */ AND e.execution_number > 1)
+                )
+                AND d.alert_profile_code_effective <> 0 /* AlertProfileCode.None */)
+        THEN 1 ELSE 0 END AS alert_hold,
     -- A finished job may go; a permanent slot only with no firing outstanding and no live schedule pinning it, the
     -- deliberate decommission of a slot whose schedules are all orphaned or whose definition is retired.
     CASE
@@ -41,76 +58,52 @@ FROM {{schema}}.jobs j
 JOIN {{schema}}.jobs_state r ON r.job_id = j.job_id
 WHERE j.job_id = @p_job_id;
 
-/* A purgeable job the alert projector still owes an event is refused: an event it reads, of an alert-enabled
-   definition, past the floor, whose raise reads the job row. */
-SELECT ACTA_ERROR('ACTA:PURGE_BLOCKED:purge_job: the alert projector has not processed this job''s events')
-FROM temp._purge_job s
-WHERE
-    s.eligible = 1
-    AND s.lineage_hold = 0
-    AND (
-        EXISTS (
-            SELECT 1
-            FROM {{schema}}.events e
-            JOIN {{schema}}.definitions d ON d.definition_id = e.definition_id
-            WHERE
-                e.entity_code = 50 /* EntityCode.Job */
-                AND e.entity_id = s.job_id
-                AND e.created_at_utc >= @p_alert_floor_utc
-                AND (e.created_at_utc > @p_alert_floor_utc OR e.event_id > @p_alert_floor_event_id)
-                AND (
-                    e.event_code IN (41 /* EventCode.JobExecutionFailed */, 42 /* EventCode.JobExecutionOrphaned */, 44 /* EventCode.JobFailed */)
-                    OR (e.event_code = 40 /* EventCode.JobExecutionSucceeded */ AND e.execution_number > 1)
-                )
-                AND d.alert_profile_code_effective <> 0 /* AlertProfileCode.None */)
-    );
-
 DELETE FROM {{schema}}.tags
 WHERE
     entity_code = 50 /* EntityCode.Job */
     AND entity_id = @p_job_id
-    AND EXISTS (SELECT 1 FROM temp._purge_job s WHERE s.eligible = 1 AND s.lineage_hold = 0);
+    AND EXISTS (SELECT 1 FROM temp._purge_job s WHERE s.eligible = 1 AND s.lineage_hold = 0 AND s.alert_hold = 0);
 
 DELETE FROM {{schema}}.events
 WHERE
     entity_code = 50 /* EntityCode.Job */
     AND entity_id = @p_job_id
-    AND EXISTS (SELECT 1 FROM temp._purge_job s WHERE s.job_id = @p_job_id AND s.eligible = 1 AND s.lineage_hold = 0);
+    AND EXISTS (SELECT 1 FROM temp._purge_job s WHERE s.job_id = @p_job_id AND s.eligible = 1 AND s.lineage_hold = 0 AND s.alert_hold = 0);
 
 DELETE FROM {{schema}}.alerts
 WHERE
     job_id = @p_job_id
-    AND EXISTS (SELECT 1 FROM temp._purge_job s WHERE s.job_id = @p_job_id AND s.eligible = 1 AND s.lineage_hold = 0);
+    AND EXISTS (SELECT 1 FROM temp._purge_job s WHERE s.job_id = @p_job_id AND s.eligible = 1 AND s.lineage_hold = 0 AND s.alert_hold = 0);
 
 DELETE FROM {{schema}}.checkpoints
 WHERE
     job_id = @p_job_id
-    AND EXISTS (SELECT 1 FROM temp._purge_job s WHERE s.job_id = @p_job_id AND s.eligible = 1 AND s.lineage_hold = 0);
+    AND EXISTS (SELECT 1 FROM temp._purge_job s WHERE s.job_id = @p_job_id AND s.eligible = 1 AND s.lineage_hold = 0 AND s.alert_hold = 0);
 
 DELETE FROM {{schema}}.steps
 WHERE
     job_id = @p_job_id
-    AND EXISTS (SELECT 1 FROM temp._purge_job s WHERE s.job_id = @p_job_id AND s.eligible = 1 AND s.lineage_hold = 0);
+    AND EXISTS (SELECT 1 FROM temp._purge_job s WHERE s.job_id = @p_job_id AND s.eligible = 1 AND s.lineage_hold = 0 AND s.alert_hold = 0);
 
 DELETE FROM {{schema}}.schedules_state
 WHERE
     schedule_id IN (SELECT sc.schedule_id FROM {{schema}}.schedules sc WHERE sc.job_id = @p_job_id)
-    AND EXISTS (SELECT 1 FROM temp._purge_job s WHERE s.job_id = @p_job_id AND s.eligible = 1 AND s.lineage_hold = 0);
+    AND EXISTS (SELECT 1 FROM temp._purge_job s WHERE s.job_id = @p_job_id AND s.eligible = 1 AND s.lineage_hold = 0 AND s.alert_hold = 0);
 
 DELETE FROM {{schema}}.schedules
 WHERE
     job_id = @p_job_id
-    AND EXISTS (SELECT 1 FROM temp._purge_job s WHERE s.job_id = @p_job_id AND s.eligible = 1 AND s.lineage_hold = 0);
+    AND EXISTS (SELECT 1 FROM temp._purge_job s WHERE s.job_id = @p_job_id AND s.eligible = 1 AND s.lineage_hold = 0 AND s.alert_hold = 0);
 
 DELETE FROM {{schema}}.jobs
 WHERE
     job_id = @p_job_id
-    AND EXISTS (SELECT 1 FROM temp._purge_job s WHERE s.job_id = @p_job_id AND s.eligible = 1 AND s.lineage_hold = 0);
+    AND EXISTS (SELECT 1 FROM temp._purge_job s WHERE s.job_id = @p_job_id AND s.eligible = 1 AND s.lineage_hold = 0 AND s.alert_hold = 0);
 
 DELETE FROM {{schema}}.jobs_state
 WHERE
     job_id = @p_job_id
-    AND EXISTS (SELECT 1 FROM temp._purge_job s WHERE s.job_id = @p_job_id AND s.eligible = 1 AND s.lineage_hold = 0);
+    AND EXISTS (SELECT 1 FROM temp._purge_job s WHERE s.job_id = @p_job_id AND s.eligible = 1 AND s.lineage_hold = 0 AND s.alert_hold = 0);
 
 -- The tombstone keeps the deleted job's id as its subject; its details snapshot what no surviving event carries.
 INSERT INTO {{schema}}.events (
@@ -141,19 +134,22 @@ FROM temp._purge_job s
 WHERE
     s.job_id = @p_job_id
     AND s.eligible = 1
-    AND s.lineage_hold = 0;
+    AND s.lineage_hold = 0
+    AND s.alert_hold = 0;
 
 SELECT
     CASE
         WHEN s.job_id IS NULL THEN 2 /* ControlAction.NotFound */
         WHEN s.eligible = 0 THEN 3 /* ControlAction.Rejected */
         WHEN s.lineage_hold = 1 THEN 3 /* ControlAction.Rejected */
+        WHEN s.alert_hold = 1 THEN 3 /* ControlAction.Rejected */
         ELSE 1 /* ControlAction.Applied */
     END AS action,
     CASE
         WHEN s.job_id IS NULL THEN NULL
         WHEN s.eligible = 0 THEN s.from_status
         WHEN s.lineage_hold = 1 THEN s.from_status
+        WHEN s.alert_hold = 1 THEN s.from_status
         ELSE NULL
     END AS status
 FROM (SELECT @p_job_id AS qid) q

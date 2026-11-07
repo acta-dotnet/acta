@@ -1612,8 +1612,6 @@ sealed class Acta.JobPriorityCodeJsonConverter : System.Text.Json.Serialization.
     .ctor()
     Acta.JobPriorityCode Read(ref System.Text.Json.Utf8JsonReader reader, System.Type typeToConvert, System.Text.Json.JsonSerializerOptions options)
     System.Void Write(System.Text.Json.Utf8JsonWriter writer, Acta.JobPriorityCode value, System.Text.Json.JsonSerializerOptions options)
-sealed class Acta.JobPurgeBlockedException : System.Exception
-    .ctor(System.String message, System.Exception innerException = null)
 record struct Acta.JobRef
     .ctor(System.Guid Value)
     System.Guid Value { get;init; }
