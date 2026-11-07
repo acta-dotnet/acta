@@ -26,13 +26,7 @@ public sealed class RequestBodyDocCoverageTests
     [Fact]
     public async Task Every_write_endpoint_declares_the_json_body_it_reads()
     {
-        var (app, client) = await TestDashboardHost.StartAsync(o =>
-        {
-            // Controls on, dashboard UI off: the write surface is the whole point, and the SPA
-            // fallback routes are not API operations.
-            o.Enabled = false;
-            o.EnableControls = true;
-        });
+        var (app, client) = await TestDashboardHost.StartAsync(o => o.EnableControls = true);
         client.Dispose();
         await using var _ = app;
 

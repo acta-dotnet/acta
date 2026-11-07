@@ -108,12 +108,11 @@ internal static partial class ActaOpenApiDocument
         var app = builder.Build();
         foreach (var mount in mounts)
         {
-            // The dashboard UI is off: its index, asset, and SPA-fallback routes are not part of the API contract.
-            var acta = app.MapActa(
-                mount.Pattern,
+            // The API alone, at the URLs a dashboard mount gives it: the dashboard's pages are no part of the contract.
+            var acta = app.MapActaApi(
+                mount.Pattern + "/api",
                 o =>
                 {
-                    o.Enabled = false;
                     o.EnableControls = mount.Controls;
                     o.RequireControlConfirmation = mount.RequireConfirmation;
                     o.ControlConfirmationHeaderName = mount.ConfirmationHeaderName ?? o.ControlConfirmationHeaderName;

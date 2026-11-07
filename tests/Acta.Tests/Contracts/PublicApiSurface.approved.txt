@@ -6,7 +6,6 @@
 sealed class Acta.AspNetCore.ActaDashboardOptions : Acta.AspNetCore.ActaEndpointOptions
     .ctor()
     System.Boolean AddSecurityHeaders { get;set; }
-    System.Boolean Enabled { get;set; }
     System.Boolean UseViteDevServer { get;set; }
     System.String ViteDevServerUrl { get;set; }
 class Acta.AspNetCore.ActaEndpointOptions

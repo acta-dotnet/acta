@@ -121,7 +121,6 @@ public sealed class RouteBodyTests
     {
         var (app, client) = await TestDashboardHost.StartAsync(options =>
         {
-            options.Enabled = false;
             options.EnableControls = true;
         });
         client.Dispose();

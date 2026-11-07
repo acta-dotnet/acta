@@ -59,6 +59,7 @@ Not tagged yet.
 - Mapping throws `ArgumentException` when `ControlConfirmationHeaderName` is empty or one of the five CORS-safelisted request headers, `Accept`, `Accept-Language`, `Content-Language`, `Content-Type`, and `Range`, in any casing, since a page on any origin may send those without a preflight.
 - A control passes with the header `X-Acta-Control: true`, a JSON content type, or a `Bearer` authorization header, none of which a page on another origin can send without a CORS preflight. A call with none of the three answers 400 titled `Control request not confirmed.` before its route key or body is read. The OpenAPI document no longer lists the header as a parameter of each control and states the rule once in its introduction: a client generated from it sends the header itself on a call with no body and no bearer token.
 - `IActaControlAuthorizer` is removed, with `ActaControlVerdict` and `ActaControlContext`; authorize controls with `RequirePermissions`, or with the host's authorization on the mapped group.
+- `ActaDashboardOptions.Enabled` is removed. To map the API without the dashboard, call `MapActaApi(pattern + "/api")` in place of `MapActa(pattern, o => o.Enabled = false)`; it serves the same URLs.
 
 ### Additions
 

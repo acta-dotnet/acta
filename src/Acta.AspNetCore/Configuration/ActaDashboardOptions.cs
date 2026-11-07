@@ -6,9 +6,6 @@ namespace Acta.AspNetCore;
 /// </summary>
 public sealed class ActaDashboardOptions : ActaEndpointOptions
 {
-    /// <summary>Whether the dashboard HTML and asset endpoints are mapped at all.</summary>
-    public bool Enabled { get; set; } = true;
-
     /// <summary>Serve a host page that loads the Vite dev server instead of embedded assets.</summary>
     public bool UseViteDevServer { get; set; }
 

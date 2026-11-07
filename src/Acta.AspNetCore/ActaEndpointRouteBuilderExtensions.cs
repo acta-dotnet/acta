@@ -91,21 +91,18 @@ public static class ActaEndpointRouteBuilderExtensions
         }
         MapApi(group.MapGroup("/api" + ApiVersionSegment), options);
 
-        if (options.Enabled)
-        {
-            // Rooted, so it composes with the request's path base; a pattern written without the
-            // leading slash is a valid route but not a valid path segment.
-            var basePath = pattern.Trim('/') is { Length: > 0 } trimmed ? "/" + trimmed : "";
-            group.MapGet("", (HttpContext http) => ServeIndex(http, options, basePath));
-            group.MapGet("/assets/{**assetPath}", (string assetPath) => ServeAsset("assets/" + assetPath, options));
-            group.Map(
-                "/{**spaPath}",
-                (string spaPath, HttpContext http) =>
-                    IsUnknownEndpoint(http.Request, spaPath)
-                        ? Results.Problem(statusCode: StatusCodes.Status404NotFound, title: "Unknown endpoint.")
-                        : ServeIndex(http, options, basePath)
-            );
-        }
+        // Rooted, so it composes with the request's path base; a pattern written without the
+        // leading slash is a valid route but not a valid path segment.
+        var basePath = pattern.Trim('/') is { Length: > 0 } trimmed ? "/" + trimmed : "";
+        group.MapGet("", (HttpContext http) => ServeIndex(http, options, basePath));
+        group.MapGet("/assets/{**assetPath}", (string assetPath) => ServeAsset("assets/" + assetPath, options));
+        group.Map(
+            "/{**spaPath}",
+            (string spaPath, HttpContext http) =>
+                IsUnknownEndpoint(http.Request, spaPath)
+                    ? Results.Problem(statusCode: StatusCodes.Status404NotFound, title: "Unknown endpoint.")
+                    : ServeIndex(http, options, basePath)
+        );
 
         options.ConfigureEndpoints?.Invoke(group);
         return group;
