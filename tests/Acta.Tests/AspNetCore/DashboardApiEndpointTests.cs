@@ -322,6 +322,24 @@ public sealed class DashboardApiEndpointTests
         Assert.Equal(HttpStatusCode.BadRequest, byId.StatusCode);
     }
 
+    /// <summary>A numeric id names a job only when its row exists: these lists answer 404 for one that does not, never an empty page.</summary>
+    [Theory]
+    [InlineData("checkpoints")]
+    [InlineData("steps")]
+    [InlineData("tags")]
+    public async Task An_unknown_numeric_id_is_a_404_on_a_jobs_lists(string list)
+    {
+        var (app, client) = await TestDashboardHost.StartAsync(options => options.EnableNumericIdLookup = true);
+        await using var _ = app;
+        var ct = TestContext.Current.CancellationToken;
+
+        var known = await client.GetAsync($"/acta/api/v1/jobs/id:42/{list}", ct);
+        var missing = await client.GetAsync($"/acta/api/v1/jobs/id:99/{list}", ct);
+
+        Assert.Equal(HttpStatusCode.OK, known.StatusCode);
+        Assert.Equal(HttpStatusCode.NotFound, missing.StatusCode);
+    }
+
     [Fact]
     public async Task Numeric_id_lookup_resolves_when_enabled()
     {

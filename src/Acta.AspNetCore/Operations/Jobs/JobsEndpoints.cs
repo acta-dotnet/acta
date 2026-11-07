@@ -59,7 +59,7 @@ internal static class JobsEndpoints
             options,
             DashboardJsonContext.Default.UpsertJobTagRequest,
             http => TagTarget.ForJob(RouteKeys.Job(http, options)),
-            async (http, call) => await call.Jobs.GetIdAsync(RouteKeys.Job(http, options), call.Ct) is not null
+            async (http, call) => await call.Jobs.StoredJobIdAsync(RouteKeys.Job(http, options), call.Ct) is not null
         );
         GetJobInputEndpoint.Map(reads, options);
         GetJobDetailEndpoint.Map(reads, options);
@@ -79,7 +79,9 @@ internal static class JobsEndpoints
                 static async (call, bound) =>
                     await call.Jobs.ListStepsAsync(
                         new ListJobStepsQuery(
-                            JobLookup.ById((await call.JobIdAsync(bound.Job))!.Value),
+                            JobLookup.ById(
+                                await call.Jobs.StoredJobIdAsync(bound.Job, call.Ct) ?? throw new TargetNotFoundException("Job")
+                            ),
                             bound.PageSize,
                             bound.Cursor,
                             bound.IncludeTotal

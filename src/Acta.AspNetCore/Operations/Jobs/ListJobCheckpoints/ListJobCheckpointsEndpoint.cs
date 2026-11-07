@@ -24,14 +24,14 @@ internal static class ListJobCheckpointsEndpoint
                             static query =>
                                 (PageSize: query.Int("pageSize"), Cursor: query.Text("cursor"), IncludeTotal: query.Bool("includeTotal"))
                         );
-                        if (await jobs.GetIdAsync(job, ct) is not { } found)
+                        if (await jobs.StoredJobIdAsync(job, ct) is not { } jobId)
                         {
                             return RouteTable.NotFound("Job");
                         }
 
                         var page = await jobs.ListCheckpointsAsync(
                             new ListJobCheckpointsQuery(
-                                JobLookup.ById(found.JobId),
+                                JobLookup.ById(jobId),
                                 paging.PageSize,
                                 paging.Cursor,
                                 paging.IncludeTotal ?? false

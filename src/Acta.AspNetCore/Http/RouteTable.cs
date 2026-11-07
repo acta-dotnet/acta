@@ -307,6 +307,17 @@ internal static class RouteTable
     public static async ValueTask<long?> JobIdAsync(this ReadCall call, JobLookup? job) =>
         job is { } lookup ? (await call.Jobs.GetIdAsync(lookup, call.Ct))?.JobId ?? throw new TargetNotFoundException("Job") : null;
 
+    /// <summary>
+    /// The internal id of the job a route names, or null when no such job is stored. A numeric id is read first,
+    /// because <see cref="IJobs.GetIdAsync"/> hands one back without looking for its row.
+    /// </summary>
+    public static async ValueTask<long?> StoredJobIdAsync(this IJobs jobs, JobLookup job, CancellationToken ct) =>
+        job.Kind == JobLookupKind.JobId
+            ? await jobs.GetStatusAsync(job, ct) is null
+                ? null
+                : job.JobId
+            : (await jobs.GetIdAsync(job, ct))?.JobId;
+
     public static IResult BadRequest(string? detail) =>
         Results.Problem(statusCode: StatusCodes.Status400BadRequest, title: "Invalid request.", detail: detail);
 
