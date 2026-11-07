@@ -234,6 +234,8 @@ WHERE  namespace_name = 'shipping'
 ORDER  BY created_at_utc DESC;
 ```
 
+On SQLite the views' `_utc` columns hold Unix epoch milliseconds: `datetime(created_at_utc / 1000, 'unixepoch')` renders one as UTC text.
+
 `events_view` holds each job's append-only timeline: an event for each attempt's outcome and each
 control, such as a cancel. `event_message` carries a control's reason and `details_text` its JSON
 details, the actor among them when the call named one. The enqueue writes no event.
