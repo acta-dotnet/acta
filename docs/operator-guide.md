@@ -410,7 +410,7 @@ app.MapActa("/acta", options =>
 
 ## Retention and purge
 
-A job landing terminal gets `retention_until_utc` from its definition's `JobRetention` (default 90 days). The hourly `sys.retention` job deletes terminal jobs past it, with their checkpoints and steps, and deletes events and alerts past `JobEventsRetention` and `AlertRetention`, and stopped or dead workers once both `WorkerRetention` and `JobEventsRetention` have passed, so every event keeps its worker. Each tick walks `jobs_state` from where the last one stopped, up to two million rows, so a job goes within one walk of its deadline.
+A job landing terminal gets `retention_until_utc` from its definition's `JobRetention` (default 90 days). The hourly `sys.retention` job deletes terminal jobs past it, with their checkpoints and steps, and deletes events and alerts past `JobEventsRetention` and `AlertRetention`, and stopped or dead workers once both `WorkerRetention` and `JobEventsRetention` have passed, so every event keeps its worker. Each tick walks `jobs_state` from where the last one stopped, up to two million rows, so a job goes within one walk of its deadline. A pass deletes at most 50,000 rows a section; one that reaches that with rows still expiring runs again at once instead of waiting for the next hour, so a busy namespace is swept back to back until it has caught up.
 
 A permanent slot is purged only by deliberate decommission: `Idle`, `Failed`, or `Cancelled`, no firing outstanding, and no live schedule pinning it (every schedule orphaned, or the definition retired); the retention sweep never deletes a slot whose definition is live. Like every job it holds at most one result: its latest successful firing's, cleared when the next firing is claimed.
 

@@ -2232,6 +2232,11 @@
   - Registration clears a cursor a racing fire left on an orphaned schedule or a retired definition's schedule
   - A slot input with a format and no bytes registers and re-registers as a zero-length input, not NULL
 
+### A permanent slot that re-arms itself runs again within the same firing
+- **Contract:** A slot handler's zero-delay reschedule keeps its firing outstanding and readies the slot until an attempt finishes, which settles the firing.
+- **Guarantees:**
+  - A slot that re-arms runs twice for one firing and then goes Idle with the firing settled
+
 ### Preview resolves a sys. schedule through the lookup-permissive canonicalizer
 - **Contract:** Schedule preview resolves a sys.-prefixed system schedule name through the lookup-permissive canonicalizer rather than the write-validating one.
 - **Guarantees:**

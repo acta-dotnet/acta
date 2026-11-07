@@ -5,11 +5,11 @@ using Microsoft.Extensions.Options;
 namespace Acta;
 
 /// <summary>
-/// <c>sys.retention</c>, the system retention sweep, auto-registered into every worker namespace: whichever live
-/// worker claims the hourly tick runs one namespace-scoped <c>purge_expired_data</c> pass, plus the sys namespace's
-/// expired events (<see cref="RetentionSection"/>, <see cref="RetentionSweep"/>). The slot's single claim per tick is
-/// the only coordination. The pass never runs ahead of the namespace's alert projector: what the projector still
-/// owes, events and their jobs, waits for it. <c>Failures</c> recording keeps idle ticks out of <c>events</c>.
+/// <c>sys.retention</c>, auto-registered into every worker namespace: whichever live worker claims the hourly tick runs
+/// one namespace-scoped <c>purge_expired_data</c> pass, plus the sys namespace's expired events. The slot's single claim
+/// per tick is the only coordination. A pass that spends a section's delete budget re-arms at once, so a backlog is
+/// swept back to back. The pass never runs ahead of the namespace's alert projector: what the projector still owes,
+/// events and their jobs, waits for it. <c>Failures</c> recording keeps idle ticks out of <c>events</c>.
 /// </summary>
 internal sealed class RetentionJob(
     MaintenanceOperations maintenance,
@@ -19,9 +19,9 @@ internal sealed class RetentionJob(
 )
 {
     /// <summary>
-    /// Per-tick bound: at most BatchSize * MaxIterations rows deleted per section; the next hourly
-    /// fire continues any backlog rather than letting one tick run unbounded. A batch stays small because a purged
-    /// job takes its steps and checkpoints with it, one delete per table, and SQL Server escalates at 5,000 row locks.
+    /// Per-pass bound: at most BatchSize * MaxIterations rows deleted per section, so one attempt stays well inside its
+    /// execution timeout; a pass that reaches it runs again at once. A batch stays small because a purged job takes its
+    /// steps and checkpoints with it, one delete per table, and SQL Server escalates at 5,000 row locks.
     /// </summary>
     private const int BatchSize = 100;
     private const int MaxIterations = 500;
@@ -70,6 +70,10 @@ internal sealed class RetentionJob(
             ct
         );
         await ctx.SetVariableAsync(JobsCursorVariable, swept.JobsCursor, ct);
+        if (swept.BudgetSpent)
+        {
+            await ctx.RescheduleAsync(TimeSpan.Zero, "More rows have expired than one pass deletes.", ct);
+        }
     }
 
     /// <summary>
@@ -90,6 +94,7 @@ internal sealed class RetentionJob(
         var alertFloor = await maintenance.GetAlertFloorAsync(command.NamespaceId, ct);
         var counts = new int[7];
         var cursor = command.JobsCursor;
+        var budgetSpent = false;
         try
         {
             for (var index = 0; index < counts.Length; index++)
@@ -127,39 +132,40 @@ internal sealed class RetentionJob(
                             break;
                         }
                     }
+                    // Only the delete budget re-arms: a walk that ran out of slices over live rows resumes at the next tick.
+                    budgetSpent |= cursor != 0 && counts[index] >= deleteBudget;
                     continue;
                 }
-                for (var iteration = 0; iteration < command.MaxIterations; iteration++)
-                {
-                    ct.ThrowIfCancellationRequested();
-                    var deleted = (await maintenance.PurgeExpiredDataAsync(batch, ct)).Purged;
-                    counts[index] = checked(counts[index] + deleted);
-                    if (deleted == 0)
-                    {
-                        break;
-                    }
-                }
+                budgetSpent |= await PurgeSectionAsync(
+                    batch,
+                    command.MaxIterations,
+                    deleted => counts[index] = checked(counts[index] + deleted),
+                    ct
+                );
                 if (section == RetentionSection.Events && command.SweepSystemEvents)
                 {
                     // Every namespace's pass also sweeps sys; concurrent passes skip each other's staged rows.
-                    for (var iteration = 0; iteration < command.MaxIterations; iteration++)
+                    var system = batch with
                     {
-                        ct.ThrowIfCancellationRequested();
-                        var system = batch with
-                        {
-                            NamespaceId = NameSyntax.SystemNamespaceId,
-                            AlertFloorUtc = null,
-                            AlertFloorEventId = null,
-                        };
-                        if ((await maintenance.PurgeExpiredDataAsync(system, ct)).Purged == 0)
-                        {
-                            break;
-                        }
-                    }
+                        NamespaceId = NameSyntax.SystemNamespaceId,
+                        AlertFloorUtc = null,
+                        AlertFloorEventId = null,
+                    };
+                    budgetSpent |= await PurgeSectionAsync(system, command.MaxIterations, static _ => { }, ct);
                 }
             }
 
-            return new RetentionSweepCounts(counts[0], counts[1], counts[2], counts[3], counts[4], counts[5], counts[6], cursor);
+            return new RetentionSweepCounts(
+                counts[0],
+                counts[1],
+                counts[2],
+                counts[3],
+                counts[4],
+                counts[5],
+                counts[6],
+                cursor,
+                budgetSpent
+            );
         }
         finally
         {
@@ -169,6 +175,26 @@ internal sealed class RetentionJob(
                 reportUndeliveredPurge?.Invoke(counts[3]);
             }
         }
+    }
+
+    /// <summary>
+    /// Deletes one section's batches until a batch finds nothing or <paramref name="maxIterations"/> have run; answers
+    /// whether every iteration found rows, so the section may hold more.
+    /// </summary>
+    private async Task<bool> PurgeSectionAsync(PurgeExpiredDataCommand batch, int maxIterations, Action<int> count, CancellationToken ct)
+    {
+        for (var iteration = 0; iteration < maxIterations; iteration++)
+        {
+            ct.ThrowIfCancellationRequested();
+            var deleted = (await maintenance.PurgeExpiredDataAsync(batch, ct)).Purged;
+            count(deleted);
+            if (deleted == 0)
+            {
+                return false;
+            }
+        }
+
+        return maxIterations > 0;
     }
 
     /// <summary>
@@ -209,7 +235,8 @@ internal sealed record RetentionSweep(
 /// Per-section deleted counts from one <c>purge_expired_data</c> sweep.
 /// <see cref="UndeliveredAlertsPurged"/> is counted apart from <see cref="Alerts"/> because an alert
 /// aged out before delivery settled is a lost operator signal, not routine housekeeping. <see cref="JobsCursor"/> is
-/// where the jobs walk stopped, for the next sweep to continue from.
+/// where the jobs walk stopped, for the next sweep to continue from. <see cref="BudgetSpent"/> says a section reached
+/// its delete budget while still finding rows, so the next sweep should run at once.
 /// </summary>
 internal readonly record struct RetentionSweepCounts(
     int Jobs,
@@ -219,5 +246,6 @@ internal readonly record struct RetentionSweepCounts(
     int Workers,
     int Locks,
     int Lanes,
-    long JobsCursor
+    long JobsCursor,
+    bool BudgetSpent = false
 );

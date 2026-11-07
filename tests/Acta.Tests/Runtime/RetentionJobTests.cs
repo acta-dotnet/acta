@@ -18,7 +18,8 @@ public sealed class RetentionJobTests
 
         Assert.Equal(1, clock.Reads);
         Assert.Equal(14, store.Calls.Count);
-        Assert.Equal(new RetentionSweepCounts(2, 2, 2, 2, 2, 2, 2, 999), result);
+        // Every section but the jobs walk spent its two batches finding rows, so the sweep asks to run again at once.
+        Assert.Equal(new RetentionSweepCounts(2, 2, 2, 2, 2, 2, 2, 999, BudgetSpent: true), result);
         for (var index = 0; index < 7; index++)
         {
             var first = store.Calls[index * 2];
@@ -58,9 +59,11 @@ public sealed class RetentionJobTests
             .PurgeExpiredDataAsync(Sweep with { SweepSystemEvents = true }, null, TestContext.Current.CancellationToken);
 
         Assert.Equal(10, store.Calls.Count);
+        // A sys backlog is a backlog too: the sweep runs again at once.
+        Assert.True(result.BudgetSpent);
         Assert.Equal(RetentionSection.Events, store.Calls[2].Section);
         Assert.All(store.Calls.Skip(3).Take(2), call => Assert.Equal(store.Calls[2] with { NamespaceId = 1 }, call));
-        Assert.Equal(new RetentionSweepCounts(0, 0, 0, 0, 0, 0, 0, 999), result);
+        Assert.Equal(new RetentionSweepCounts(0, 0, 0, 0, 0, 0, 0, 999, BudgetSpent: true), result);
     }
 
     [Theory]
@@ -159,6 +162,20 @@ public sealed class RetentionJobTests
             .PurgeExpiredDataAsync(Sweep with { MaxJobSlices = 5 }, null, TestContext.Current.CancellationToken);
 
         Assert.Equal(expectedSlices, store.Calls.Count(c => c.Section == RetentionSection.Jobs));
+    }
+
+    [Theory]
+    [InlineData(10, true)]
+    [InlineData(0, false)]
+    public async Task Only_the_jobs_delete_budget_re_arms_the_walk_never_its_slices(int deletedPerSlice, bool budgetSpent)
+    {
+        // Ten a slice reaches the delete budget of 20 with the walk still going: run again at once. A walk that spends
+        // every slice over live rows deletes nothing and waits for the next tick.
+        var store = new Store(command => command.Section == RetentionSection.Jobs ? deletedPerSlice : 0);
+        var result = await Job(store.Handler, new Clock())
+            .PurgeExpiredDataAsync(Sweep with { MaxJobSlices = 5 }, null, TestContext.Current.CancellationToken);
+
+        Assert.Equal(budgetSpent, result.BudgetSpent);
     }
 
     private static RetentionJob Job(MaintenanceOperations maintenance, IClockOperations clock) =>
