@@ -59,15 +59,16 @@ Console.WriteLine($"enqueued delayed job: {jobRef}");
 
 var pauseUrl = $"/acta/api/v1/jobs/{jobRef}/pause";
 
-// Without the X-Acta-Control header: the anti-accident guard rejects the request (400).
-// This stops casual scripts and form posts from accidentally tripping a control verb.
+// A control passes with the X-Acta-Control: true header, a JSON content type, or a Bearer authorization
+// header. This bare POST carries none of the three, so it is refused (400): a form post from another
+// site cannot send any of them.
 Console.WriteLine();
-Console.WriteLine("POST pause WITHOUT X-Acta-Control header (anti-accident guard):");
+Console.WriteLine("POST pause with no header, no JSON body, and no bearer token (unconfirmed):");
 var withoutHeader = new HttpRequestMessage(HttpMethod.Post, pauseUrl);
 var rejectedResponse = await client.SendAsync(withoutHeader);
 Console.WriteLine($"  -> {(int)rejectedResponse.StatusCode} {rejectedResponse.StatusCode}");
 
-// With X-Acta-Control: true the guard passes and the verb is applied.
+// With X-Acta-Control: true the bodyless call is confirmed and the verb is applied.
 Console.WriteLine();
 Console.WriteLine("POST pause WITH X-Acta-Control: true:");
 var withHeader = new HttpRequestMessage(HttpMethod.Post, pauseUrl);

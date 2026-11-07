@@ -169,7 +169,7 @@ public sealed partial class OpenApiContractTests
     /// <summary>
     /// A route declares 400 exactly where a request can be malformed. On the real operations each read that declares it
     /// answers it for a route key that cannot name anything, a query value of no type, or a required one left out, and a
-    /// read none of those can reach declares none; each control answers it without its confirmation header.
+    /// read none of those can reach declares none; each control answers it unconfirmed, with no body and no headers.
     /// </summary>
     [Fact]
     public async Task A_route_declares_400_where_a_request_can_be_malformed()
@@ -206,7 +206,7 @@ public sealed partial class OpenApiContractTests
                 using var response = await SendOperationAsync(fakeClient, key, operation, confirm: false);
                 if (!Declares(operation, HttpStatusCode.BadRequest) || response.StatusCode != HttpStatusCode.BadRequest)
                 {
-                    wrong.Add($"{key}: without its confirmation header answered {(int)response.StatusCode}.");
+                    wrong.Add($"{key}: unconfirmed answered {(int)response.StatusCode}.");
                 }
             }
         }

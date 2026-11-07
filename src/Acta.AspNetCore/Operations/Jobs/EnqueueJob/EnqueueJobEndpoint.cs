@@ -10,17 +10,12 @@ namespace Acta.AspNetCore;
 /// </summary>
 internal static class EnqueueJobEndpoint
 {
-    public static void Map(RouteGroupBuilder controls, ActaEndpointOptions options) =>
+    public static void Map(RouteGroupBuilder controls) =>
         controls
             .MapPost(
                 "/jobs",
                 async Task<IResult> (HttpContext http, IJobs jobs, CancellationToken ct) =>
                 {
-                    if (ControlEndpointValidation.CheckConfirmation(http, options) is { } confirmationError)
-                    {
-                        return confirmationError;
-                    }
-
                     var (body, error) = await ControlEndpointValidation.ReadJsonBodyAsync(
                         http,
                         DashboardJsonContext.Default.EnqueueJobRequest,

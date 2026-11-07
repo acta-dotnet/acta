@@ -26,7 +26,7 @@ class Acta.AspNetCore.ActaEndpointOptions
     System.Boolean EnableControls { get;set; }
     System.Boolean EnableNumericIdLookup { get;set; }
     System.Boolean LocalOnly { get;set; }
-    System.Boolean RequireControlConfirmationHeader { get;set; }
+    System.Boolean RequireControlConfirmation { get;set; }
     System.Boolean UnsafeAllowAnonymousRemoteAccess { get;set; }
     System.Int32 MaxReasonMessageLength { get;set; }
     System.String ControlConfirmationHeaderName { get;set; }

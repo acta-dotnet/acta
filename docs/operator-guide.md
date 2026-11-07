@@ -291,7 +291,7 @@ edited. Every applied transition is audited on the events timeline in the admin 
 A tenant is registered with `ITenants.RegisterAsync(tenantName, displayName, description)` or
 `POST /tenants`; an enqueue that names an unregistered tenant is refused.
 
-Over HTTP the same verbs are control-gated (`EnableControls` + confirmation header):
+Over HTTP the same verbs are control-gated (`EnableControls` + confirmation):
 `POST /tenants`, `POST /tenants/{tenantName}/suspend|resume`, `PUT /tenants/{tenantName}`, `POST /namespaces/{name}/suspend|resume`,
 `PUT /namespaces/{name}`. A `PUT` replaces the metadata whole, so a field it leaves out is cleared. Reads are ungated: `GET /tenants` pages the catalog and
 `GET /tenants/{tenantName}` is the point read (`ITenants.GetAsync` in code); `GET /namespaces` and
@@ -357,12 +357,12 @@ app.MapActa("/acta", options =>
 
 - **Local only by default.** Remote requests answer 403, and a local one must address `localhost` or an IP. To expose it, set `LocalOnly = false` and require your own authorization through `ConfigureEndpoints`, which covers the page, its assets, and the API; without it startup throws unless `UnsafeAllowAnonymousRemoteAccess = true`. The package ships no authentication, and CORS is not authorization. `MapActaApi` maps the API alone.
 - **Reads expose payloads.** Anyone who can read can see every job's input, result, and checkpoint values: `GET /jobs/{jobRef}/input` and `/result` serve the payload whole as the body, and the job detail and checkpoint reads carry each one up to `MaxInlinePayloadBytes`. Treat read access as access to every payload in the ledger.
-- **Controls are opt-in.** `EnableControls = true` maps the control routes (job verbs, signals, schedules, calendars, alerts, tenants, namespaces, outbox). Each control request must send `X-Acta-Control: true`, a guard against cross-site requests, not authentication. An outcome answers 200 applied, 404 not found, or 409 rejected; problem details are kept for malformed input, authorization, and faults.
+- **Controls are opt-in.** `EnableControls = true` maps the control routes (job verbs, signals, schedules, calendars, alerts, tenants, namespaces, outbox). Each control request must be confirmed by the header `X-Acta-Control: true`, a JSON content type, or a `Bearer` authorization header, none of which a page on another origin can send without a CORS preflight; a call with none of them answers 400. It is a guard against cross-site requests, not authentication. An outcome answers 200 applied, 404 not found, or 409 rejected; problem details are kept for malformed input, authorization, and faults.
 - **Jobs are addressed by ref** (`/acta/api/v1/jobs/{jobRef}`) or by deduplication key (`/jobs/by-key?jobNamespace=&deduplicationKey=`). `EnableNumericIdLookup = true` also allows `/jobs/id:{n}` on reads, for debugging from a log line.
 - **Lists page by cursor.** Pass `NextCursor` back as `Cursor`; a cursor is tied to its query, and a stale one is rejected. Pages default to 50 and cap at 100, and `IncludeTotal` adds a count (events only with a job filter).
 - `GET /capabilities` reports whether controls are enabled, so a client can hide edit UI.
 
-The [OpenAPI document](./reference/openapi.json) lists every route below its server, `/acta/api`, the default mount's API root (`/v1/jobs/{jobRef}`), each with its operation's name in camelCase as its id (`getJob`, `pauseJob`, `listJobTags`) and, on a control, the confirmation header the mount requires. Every code is an open string whose `x-acta-known-values` names the values this version writes, so a client keeps a value it does not know.
+The [OpenAPI document](./reference/openapi.json) lists every route below its server, `/acta/api`, the default mount's API root (`/v1/jobs/{jobRef}`), each with its operation's name in camelCase as its id (`getJob`, `pauseJob`, `listJobTags`); its introduction states the confirmation rule with the mount's header name. Every code is an open string whose `x-acta-known-values` names the values this version writes, so a client keeps a value it does not know.
 
 ### Control authorization
 
@@ -1083,8 +1083,9 @@ Check the signal name and target identity:
 - A paused job records the signal but stays paused.
 - A raise that arrives after a bounded wait timed out releases nothing; its event reads "Signal not
   applied: the wait had already expired."
-- HTTP signal endpoints require controls to be enabled and the same `X-Acta-Control` confirmation
-  header as other control requests. The header is the cross-site request forgery barrier, not authentication.
+- HTTP signal endpoints require controls to be enabled and the same confirmation as other control
+  requests: the header `X-Acta-Control: true`, a JSON content type, or a `Bearer` authorization header.
+  It is the cross-site request forgery barrier, not authentication.
 
 The handler resumes when it is claimed again, so also check worker liveness and `next_run_at_utc`.
 

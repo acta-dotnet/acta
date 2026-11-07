@@ -2,7 +2,7 @@
   "openapi": "3.1.1",
   "info": {
     "title": "Acta API",
-    "description": "Acta's operator API, the one the dashboard uses. Lists page by cursor: pass a page's nextCursor back as cursor until hasMore is false; a cursor is tied to its query. Every POST, PUT, and DELETE is a control, mapped only where the host enables controls, and where the host requires it the call carries the confirmation header the operation lists, with the value true. A control whose request object is optional acts with its defaults when the request has no body; one that declares application/json and sends no bytes answers 400, so send {} or leave the content type off. A signal raise takes any JSON value instead, and no bytes, with or without the content type, raise a presence-only signal. POST /jobs answers 201 when it inserted the job and 200 when a deduplication key matched an existing one, with the job's URL in Location either way. A string carrying x-acta-known-values is an open set: compare against the known values and keep any other value as it is. The document declares no security scheme: the host adds its own authentication, which a client sends as the host asks.",
+    "description": "Acta's operator API, the one the dashboard uses. Lists page by cursor: pass a page's nextCursor back as cursor until hasMore is false; a cursor is tied to its query. Every POST, PUT, and DELETE is a control, mapped only where the host enables controls. A control whose request object is optional acts with its defaults when the request has no body; one that declares application/json and sends no bytes answers 400, so send {} or leave the content type off. A signal raise takes any JSON value instead, and no bytes, with or without the content type, raise a presence-only signal. POST /jobs answers 201 when it inserted the job and 200 when a deduplication key matched an existing one, with the job's URL in Location either way. A string carrying x-acta-known-values is an open set: compare against the known values and keep any other value as it is. The document declares no security scheme: the host adds its own authentication, which a client sends as the host asks.\n\nA call that changes something must show that it is no cross-site form post, in one of three ways: the header X-Acta-Control: true, a JSON content type, or a Bearer authorization header. A client that sends a JSON body or a bearer token passes without doing anything more; for a call with no body and no bearer token, send the header.",
     "version": "1.0.0"
   },
   "servers": [
@@ -38,9 +38,6 @@
             "schema": {
               "type": "string"
             }
-          },
-          {
-            "$ref": "#/components/parameters/ActaControl"
           }
         ],
         "requestBody": {
@@ -79,7 +76,7 @@
             }
           },
           "400": {
-            "description": "The call is malformed: the confirmation header is missing or not true, a path parameter cannot name a target, or the body breaks a rule; the problem's detail says which.",
+            "description": "The call is not confirmed, a path parameter cannot name a target, or the body breaks a rule; the problem's detail says which.",
             "content": {
               "application/problem+json": {
                 "schema": {
@@ -179,9 +176,6 @@
             "schema": {
               "type": "string"
             }
-          },
-          {
-            "$ref": "#/components/parameters/ActaControl"
           }
         ],
         "responses": {
@@ -203,7 +197,7 @@
             }
           },
           "400": {
-            "description": "The call is malformed: the confirmation header is missing or not true, a path parameter cannot name a target, or the body breaks a rule; the problem's detail says which.",
+            "description": "The call is not confirmed, a path parameter cannot name a target, or the body breaks a rule; the problem's detail says which.",
             "content": {
               "application/problem+json": {
                 "schema": {
@@ -276,9 +270,6 @@
             "schema": {
               "type": "string"
             }
-          },
-          {
-            "$ref": "#/components/parameters/ActaControl"
           }
         ],
         "requestBody": {
@@ -319,7 +310,7 @@
             }
           },
           "400": {
-            "description": "The call is malformed: the confirmation header is missing or not true, a path parameter cannot name a target, or the body breaks a rule; the problem's detail says which.",
+            "description": "The call is not confirmed, a path parameter cannot name a target, or the body breaks a rule; the problem's detail says which.",
             "content": {
               "application/problem+json": {
                 "schema": {
@@ -422,9 +413,6 @@
             "schema": {
               "type": "string"
             }
-          },
-          {
-            "$ref": "#/components/parameters/ActaControl"
           }
         ],
         "requestBody": {
@@ -465,7 +453,7 @@
             }
           },
           "400": {
-            "description": "The call is malformed: the confirmation header is missing or not true, a path parameter cannot name a target, or the body breaks a rule; the problem's detail says which.",
+            "description": "The call is not confirmed, a path parameter cannot name a target, or the body breaks a rule; the problem's detail says which.",
             "content": {
               "application/problem+json": {
                 "schema": {
@@ -568,9 +556,6 @@
             "schema": {
               "type": "string"
             }
-          },
-          {
-            "$ref": "#/components/parameters/ActaControl"
           }
         ],
         "requestBody": {
@@ -611,7 +596,7 @@
             }
           },
           "400": {
-            "description": "The call is malformed: the confirmation header is missing or not true, a path parameter cannot name a target, or the body breaks a rule; the problem's detail says which.",
+            "description": "The call is not confirmed, a path parameter cannot name a target, or the body breaks a rule; the problem's detail says which.",
             "content": {
               "application/problem+json": {
                 "schema": {
@@ -714,9 +699,6 @@
             "schema": {
               "type": "string"
             }
-          },
-          {
-            "$ref": "#/components/parameters/ActaControl"
           }
         ],
         "requestBody": {
@@ -757,7 +739,7 @@
             }
           },
           "400": {
-            "description": "The call is malformed: the confirmation header is missing or not true, a path parameter cannot name a target, or the body breaks a rule; the problem's detail says which.",
+            "description": "The call is not confirmed, a path parameter cannot name a target, or the body breaks a rule; the problem's detail says which.",
             "content": {
               "application/problem+json": {
                 "schema": {
@@ -860,9 +842,6 @@
             "schema": {
               "type": "string"
             }
-          },
-          {
-            "$ref": "#/components/parameters/ActaControl"
           }
         ],
         "requestBody": {
@@ -902,7 +881,7 @@
             }
           },
           "400": {
-            "description": "The call is malformed: the confirmation header is missing or not true, a path parameter cannot name a target, or the body breaks a rule; the problem's detail says which.",
+            "description": "The call is not confirmed, a path parameter cannot name a target, or the body breaks a rule; the problem's detail says which.",
             "content": {
               "application/problem+json": {
                 "schema": {
@@ -1005,9 +984,6 @@
             "schema": {
               "type": "string"
             }
-          },
-          {
-            "$ref": "#/components/parameters/ActaControl"
           }
         ],
         "requestBody": {
@@ -1049,7 +1025,7 @@
             }
           },
           "400": {
-            "description": "The call is malformed: the confirmation header is missing or not true, a path parameter cannot name a target, or the body breaks a rule; the problem's detail says which.",
+            "description": "The call is not confirmed, a path parameter cannot name a target, or the body breaks a rule; the problem's detail says which.",
             "content": {
               "application/problem+json": {
                 "schema": {
@@ -1152,9 +1128,6 @@
             "schema": {
               "type": "string"
             }
-          },
-          {
-            "$ref": "#/components/parameters/ActaControl"
           }
         ],
         "requestBody": {
@@ -1197,7 +1170,7 @@
             }
           },
           "400": {
-            "description": "The call is malformed: the confirmation header is missing or not true, a path parameter cannot name a target, or the body breaks a rule; the problem's detail says which.",
+            "description": "The call is not confirmed, a path parameter cannot name a target, or the body breaks a rule; the problem's detail says which.",
             "content": {
               "application/problem+json": {
                 "schema": {
@@ -1300,9 +1273,6 @@
             "schema": {
               "type": "string"
             }
-          },
-          {
-            "$ref": "#/components/parameters/ActaControl"
           }
         ],
         "requestBody": {
@@ -1348,7 +1318,7 @@
             }
           },
           "400": {
-            "description": "The call is malformed: the confirmation header is missing or not true, a path parameter cannot name a target, or the body breaks a rule; the problem's detail says which.",
+            "description": "The call is not confirmed, a path parameter cannot name a target, or the body breaks a rule; the problem's detail says which.",
             "content": {
               "application/problem+json": {
                 "schema": {
@@ -1546,11 +1516,6 @@
         "summary": "Enqueue a job.",
         "description": "Needs the acta.enqueue permission.",
         "operationId": "enqueueJob",
-        "parameters": [
-          {
-            "$ref": "#/components/parameters/ActaControl"
-          }
-        ],
         "requestBody": {
           "content": {
             "application/json": {
@@ -1629,7 +1594,7 @@
             }
           },
           "400": {
-            "description": "The call is malformed: the confirmation header is missing or not true, a path parameter cannot name a target, or the body breaks a rule; the problem's detail says which.",
+            "description": "The call is not confirmed, a path parameter cannot name a target, or the body breaks a rule; the problem's detail says which.",
             "content": {
               "application/problem+json": {
                 "schema": {
@@ -1947,9 +1912,6 @@
             "schema": {
               "type": "string"
             }
-          },
-          {
-            "$ref": "#/components/parameters/ActaControl"
           }
         ],
         "requestBody": {
@@ -1989,7 +1951,7 @@
             }
           },
           "400": {
-            "description": "The call is malformed: the confirmation header is missing or not true, a path parameter cannot name a target, or the body breaks a rule; the problem's detail says which.",
+            "description": "The call is not confirmed, a path parameter cannot name a target, or the body breaks a rule; the problem's detail says which.",
             "content": {
               "application/problem+json": {
                 "schema": {
@@ -2101,9 +2063,6 @@
             "schema": {
               "type": "string"
             }
-          },
-          {
-            "$ref": "#/components/parameters/ActaControl"
           }
         ],
         "requestBody": {
@@ -2142,7 +2101,7 @@
             }
           },
           "400": {
-            "description": "The call is malformed: the confirmation header is missing or not true, a path parameter cannot name a target, or the body breaks a rule; the problem's detail says which.",
+            "description": "The call is not confirmed, a path parameter cannot name a target, or the body breaks a rule; the problem's detail says which.",
             "content": {
               "application/problem+json": {
                 "schema": {
@@ -2242,9 +2201,6 @@
             "schema": {
               "type": "string"
             }
-          },
-          {
-            "$ref": "#/components/parameters/ActaControl"
           }
         ],
         "responses": {
@@ -2266,7 +2222,7 @@
             }
           },
           "400": {
-            "description": "The call is malformed: the confirmation header is missing or not true, a path parameter cannot name a target, or the body breaks a rule; the problem's detail says which.",
+            "description": "The call is not confirmed, a path parameter cannot name a target, or the body breaks a rule; the problem's detail says which.",
             "content": {
               "application/problem+json": {
                 "schema": {
@@ -2339,9 +2295,6 @@
             "schema": {
               "type": "string"
             }
-          },
-          {
-            "$ref": "#/components/parameters/ActaControl"
           }
         ],
         "requestBody": {
@@ -2380,7 +2333,7 @@
             }
           },
           "400": {
-            "description": "The call is malformed: the confirmation header is missing or not true, a path parameter cannot name a target, or the body breaks a rule; the problem's detail says which.",
+            "description": "The call is not confirmed, a path parameter cannot name a target, or the body breaks a rule; the problem's detail says which.",
             "content": {
               "application/problem+json": {
                 "schema": {
@@ -2473,9 +2426,6 @@
             "schema": {
               "type": "string"
             }
-          },
-          {
-            "$ref": "#/components/parameters/ActaControl"
           }
         ],
         "requestBody": {
@@ -2514,7 +2464,7 @@
             }
           },
           "400": {
-            "description": "The call is malformed: the confirmation header is missing or not true, a path parameter cannot name a target, or the body breaks a rule; the problem's detail says which.",
+            "description": "The call is not confirmed, a path parameter cannot name a target, or the body breaks a rule; the problem's detail says which.",
             "content": {
               "application/problem+json": {
                 "schema": {
@@ -2607,9 +2557,6 @@
             "schema": {
               "type": "string"
             }
-          },
-          {
-            "$ref": "#/components/parameters/ActaControl"
           }
         ],
         "requestBody": {
@@ -2651,7 +2598,7 @@
             }
           },
           "400": {
-            "description": "The call is malformed: the confirmation header is missing or not true, a path parameter cannot name a target, or the body breaks a rule; the problem's detail says which.",
+            "description": "The call is not confirmed, a path parameter cannot name a target, or the body breaks a rule; the problem's detail says which.",
             "content": {
               "application/problem+json": {
                 "schema": {
@@ -2859,9 +2806,6 @@
             "schema": {
               "type": "string"
             }
-          },
-          {
-            "$ref": "#/components/parameters/ActaControl"
           }
         ],
         "requestBody": {
@@ -2900,7 +2844,7 @@
             }
           },
           "400": {
-            "description": "The call is malformed: the confirmation header is missing or not true, a path parameter cannot name a target, or the body breaks a rule; the problem's detail says which.",
+            "description": "The call is not confirmed, a path parameter cannot name a target, or the body breaks a rule; the problem's detail says which.",
             "content": {
               "application/problem+json": {
                 "schema": {
@@ -3000,9 +2944,6 @@
             "schema": {
               "type": "string"
             }
-          },
-          {
-            "$ref": "#/components/parameters/ActaControl"
           }
         ],
         "responses": {
@@ -3024,7 +2965,7 @@
             }
           },
           "400": {
-            "description": "The call is malformed: the confirmation header is missing or not true, a path parameter cannot name a target, or the body breaks a rule; the problem's detail says which.",
+            "description": "The call is not confirmed, a path parameter cannot name a target, or the body breaks a rule; the problem's detail says which.",
             "content": {
               "application/problem+json": {
                 "schema": {
@@ -3088,11 +3029,6 @@
         "summary": "Register a tenant, or return the existing one.",
         "description": "Needs the acta.admin permission.",
         "operationId": "registerTenant",
-        "parameters": [
-          {
-            "$ref": "#/components/parameters/ActaControl"
-          }
-        ],
         "requestBody": {
           "content": {
             "application/json": {
@@ -3131,7 +3067,7 @@
             }
           },
           "400": {
-            "description": "The call is malformed: the confirmation header is missing or not true, a path parameter cannot name a target, or the body breaks a rule; the problem's detail says which.",
+            "description": "The call is not confirmed, a path parameter cannot name a target, or the body breaks a rule; the problem's detail says which.",
             "content": {
               "application/problem+json": {
                 "schema": {
@@ -3355,9 +3291,6 @@
             "schema": {
               "type": "string"
             }
-          },
-          {
-            "$ref": "#/components/parameters/ActaControl"
           }
         ],
         "requestBody": {
@@ -3396,7 +3329,7 @@
             }
           },
           "400": {
-            "description": "The call is malformed: the confirmation header is missing or not true, a path parameter cannot name a target, or the body breaks a rule; the problem's detail says which.",
+            "description": "The call is not confirmed, a path parameter cannot name a target, or the body breaks a rule; the problem's detail says which.",
             "content": {
               "application/problem+json": {
                 "schema": {
@@ -3489,9 +3422,6 @@
             "schema": {
               "type": "string"
             }
-          },
-          {
-            "$ref": "#/components/parameters/ActaControl"
           }
         ],
         "requestBody": {
@@ -3530,7 +3460,7 @@
             }
           },
           "400": {
-            "description": "The call is malformed: the confirmation header is missing or not true, a path parameter cannot name a target, or the body breaks a rule; the problem's detail says which.",
+            "description": "The call is not confirmed, a path parameter cannot name a target, or the body breaks a rule; the problem's detail says which.",
             "content": {
               "application/problem+json": {
                 "schema": {
@@ -3623,9 +3553,6 @@
             "schema": {
               "type": "string"
             }
-          },
-          {
-            "$ref": "#/components/parameters/ActaControl"
           }
         ],
         "requestBody": {
@@ -3667,7 +3594,7 @@
             }
           },
           "400": {
-            "description": "The call is malformed: the confirmation header is missing or not true, a path parameter cannot name a target, or the body breaks a rule; the problem's detail says which.",
+            "description": "The call is not confirmed, a path parameter cannot name a target, or the body breaks a rule; the problem's detail says which.",
             "content": {
               "application/problem+json": {
                 "schema": {
@@ -3868,9 +3795,6 @@
             "schema": {
               "type": "string"
             }
-          },
-          {
-            "$ref": "#/components/parameters/ActaControl"
           }
         ],
         "requestBody": {
@@ -3911,7 +3835,7 @@
             }
           },
           "400": {
-            "description": "The call is malformed: the confirmation header is missing or not true, a path parameter cannot name a target, or the body breaks a rule; the problem's detail says which.",
+            "description": "The call is not confirmed, a path parameter cannot name a target, or the body breaks a rule; the problem's detail says which.",
             "content": {
               "application/problem+json": {
                 "schema": {
@@ -4004,9 +3928,6 @@
             "schema": {
               "type": "string"
             }
-          },
-          {
-            "$ref": "#/components/parameters/ActaControl"
           }
         ],
         "requestBody": {
@@ -4047,7 +3968,7 @@
             }
           },
           "400": {
-            "description": "The call is malformed: the confirmation header is missing or not true, a path parameter cannot name a target, or the body breaks a rule; the problem's detail says which.",
+            "description": "The call is not confirmed, a path parameter cannot name a target, or the body breaks a rule; the problem's detail says which.",
             "content": {
               "application/problem+json": {
                 "schema": {
@@ -4140,9 +4061,6 @@
             "schema": {
               "type": "string"
             }
-          },
-          {
-            "$ref": "#/components/parameters/ActaControl"
           }
         ],
         "requestBody": {
@@ -4184,7 +4102,7 @@
             }
           },
           "400": {
-            "description": "The call is malformed: the confirmation header is missing or not true, a path parameter cannot name a target, or the body breaks a rule; the problem's detail says which.",
+            "description": "The call is not confirmed, a path parameter cannot name a target, or the body breaks a rule; the problem's detail says which.",
             "content": {
               "application/problem+json": {
                 "schema": {
@@ -4287,9 +4205,6 @@
             "schema": {
               "type": "string"
             }
-          },
-          {
-            "$ref": "#/components/parameters/ActaControl"
           }
         ],
         "requestBody": {
@@ -4331,7 +4246,7 @@
             }
           },
           "400": {
-            "description": "The call is malformed: the confirmation header is missing or not true, a path parameter cannot name a target, or the body breaks a rule; the problem's detail says which.",
+            "description": "The call is not confirmed, a path parameter cannot name a target, or the body breaks a rule; the problem's detail says which.",
             "content": {
               "application/problem+json": {
                 "schema": {
@@ -4452,9 +4367,6 @@
             "schema": {
               "type": "string"
             }
-          },
-          {
-            "$ref": "#/components/parameters/ActaControl"
           }
         ],
         "requestBody": {
@@ -4493,7 +4405,7 @@
             }
           },
           "400": {
-            "description": "The call is malformed: the confirmation header is missing or not true, a path parameter cannot name a target, or the body breaks a rule; the problem's detail says which.",
+            "description": "The call is not confirmed, a path parameter cannot name a target, or the body breaks a rule; the problem's detail says which.",
             "content": {
               "application/problem+json": {
                 "schema": {
@@ -4602,9 +4514,6 @@
             "schema": {
               "type": "string"
             }
-          },
-          {
-            "$ref": "#/components/parameters/ActaControl"
           }
         ],
         "responses": {
@@ -4626,7 +4535,7 @@
             }
           },
           "400": {
-            "description": "The call is malformed: the confirmation header is missing or not true, a path parameter cannot name a target, or the body breaks a rule; the problem's detail says which.",
+            "description": "The call is not confirmed, a path parameter cannot name a target, or the body breaks a rule; the problem's detail says which.",
             "content": {
               "application/problem+json": {
                 "schema": {
@@ -4708,9 +4617,6 @@
             "schema": {
               "type": "string"
             }
-          },
-          {
-            "$ref": "#/components/parameters/ActaControl"
           }
         ],
         "requestBody": {
@@ -4754,7 +4660,7 @@
             }
           },
           "400": {
-            "description": "The call is malformed: the confirmation header is missing or not true, a path parameter cannot name a target, or the body breaks a rule; the problem's detail says which.",
+            "description": "The call is not confirmed, a path parameter cannot name a target, or the body breaks a rule; the problem's detail says which.",
             "content": {
               "application/problem+json": {
                 "schema": {
@@ -4866,9 +4772,6 @@
             "schema": {
               "type": "string"
             }
-          },
-          {
-            "$ref": "#/components/parameters/ActaControl"
           }
         ],
         "requestBody": {
@@ -4909,7 +4812,7 @@
             }
           },
           "400": {
-            "description": "The call is malformed: the confirmation header is missing or not true, a path parameter cannot name a target, or the body breaks a rule; the problem's detail says which.",
+            "description": "The call is not confirmed, a path parameter cannot name a target, or the body breaks a rule; the problem's detail says which.",
             "content": {
               "application/problem+json": {
                 "schema": {
@@ -5030,9 +4933,6 @@
             "schema": {
               "type": "string"
             }
-          },
-          {
-            "$ref": "#/components/parameters/ActaControl"
           }
         ],
         "requestBody": {
@@ -5075,7 +4975,7 @@
             }
           },
           "400": {
-            "description": "The call is malformed: the confirmation header is missing or not true, a path parameter cannot name a target, or the body breaks a rule; the problem's detail says which.",
+            "description": "The call is not confirmed, a path parameter cannot name a target, or the body breaks a rule; the problem's detail says which.",
             "content": {
               "application/problem+json": {
                 "schema": {
@@ -5196,9 +5096,6 @@
             "schema": {
               "type": "string"
             }
-          },
-          {
-            "$ref": "#/components/parameters/ActaControl"
           }
         ],
         "requestBody": {
@@ -5240,7 +5137,7 @@
             }
           },
           "400": {
-            "description": "The call is malformed: the confirmation header is missing or not true, a path parameter cannot name a target, or the body breaks a rule; the problem's detail says which.",
+            "description": "The call is not confirmed, a path parameter cannot name a target, or the body breaks a rule; the problem's detail says which.",
             "content": {
               "application/problem+json": {
                 "schema": {
@@ -5351,9 +5248,6 @@
             "schema": {
               "type": "string"
             }
-          },
-          {
-            "$ref": "#/components/parameters/ActaControl"
           }
         ],
         "requestBody": {
@@ -5395,7 +5289,7 @@
             }
           },
           "400": {
-            "description": "The call is malformed: the confirmation header is missing or not true, a path parameter cannot name a target, or the body breaks a rule; the problem's detail says which.",
+            "description": "The call is not confirmed, a path parameter cannot name a target, or the body breaks a rule; the problem's detail says which.",
             "content": {
               "application/problem+json": {
                 "schema": {
@@ -5507,9 +5401,6 @@
             "schema": {
               "type": "string"
             }
-          },
-          {
-            "$ref": "#/components/parameters/ActaControl"
           }
         ],
         "requestBody": {
@@ -5573,7 +5464,7 @@
             }
           },
           "400": {
-            "description": "The call is malformed: the confirmation header is missing or not true, a path parameter cannot name a target, or the body breaks a rule; the problem's detail says which.",
+            "description": "The call is not confirmed, a path parameter cannot name a target, or the body breaks a rule; the problem's detail says which.",
             "content": {
               "application/problem+json": {
                 "schema": {
@@ -5675,9 +5566,6 @@
             "schema": {
               "type": "string"
             }
-          },
-          {
-            "$ref": "#/components/parameters/ActaControl"
           }
         ],
         "requestBody": {
@@ -5723,7 +5611,7 @@
             }
           },
           "400": {
-            "description": "The call is malformed: the confirmation header is missing or not true, a path parameter cannot name a target, or the body breaks a rule; the problem's detail says which.",
+            "description": "The call is not confirmed, a path parameter cannot name a target, or the body breaks a rule; the problem's detail says which.",
             "content": {
               "application/problem+json": {
                 "schema": {
@@ -5835,9 +5723,6 @@
             "schema": {
               "type": "string"
             }
-          },
-          {
-            "$ref": "#/components/parameters/ActaControl"
           }
         ],
         "requestBody": {
@@ -5879,7 +5764,7 @@
             }
           },
           "400": {
-            "description": "The call is malformed: the confirmation header is missing or not true, a path parameter cannot name a target, or the body breaks a rule; the problem's detail says which.",
+            "description": "The call is not confirmed, a path parameter cannot name a target, or the body breaks a rule; the problem's detail says which.",
             "content": {
               "application/problem+json": {
                 "schema": {
@@ -10627,13 +10512,6 @@
         },
         "description": "What acknowledging an alert did, and its timestamps after the attempt."
       },
-      "ActaControlConfirmation": {
-        "enum": [
-          "true"
-        ],
-        "type": "string",
-        "description": "The one value a control's confirmation header carries."
-      },
       "AlertDeliveryStatusCode": {
         "examples": [
           "pending"
@@ -11842,10 +11720,10 @@
           },
           "confirmationHeader": {
             "type": "string",
-            "description": "The name of the header a control must carry with the value true."
+            "description": "The name of the confirmation header, which a control sends with the value true unless it sends a JSON content type or a bearer token."
           }
         },
-        "description": "What this host's API allows, so the dashboard offers only the controls it can use: whether controls are mapped, the Acta version, the provider and schema behind it, and the confirmation header a control request carries."
+        "description": "What this host's API allows, so the dashboard offers only the controls it can use: whether controls are mapped, the Acta version, the provider and schema behind it, and the name of the header that confirms a control request."
       },
       "GetDefinitionInputTemplateResponse": {
         "required": [
@@ -16762,17 +16640,6 @@
           "stopped",
           "dead"
         ]
-      }
-    },
-    "parameters": {
-      "ActaControl": {
-        "name": "X-Acta-Control",
-        "in": "header",
-        "description": "Confirms a control call. The value is true; a missing header or any other value answers 400.",
-        "required": true,
-        "schema": {
-          "$ref": "#/components/schemas/ActaControlConfirmation"
-        }
       }
     }
   },

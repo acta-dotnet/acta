@@ -9,7 +9,7 @@ namespace Acta.Tests.AspNetCore;
 
 /// <summary>
 /// A <see cref="ActaEndpointOptions.MaxReasonMessageLength"/> below 1 would reject every control
-/// request the confirmation-header guard lets through, so both mapping entry points reject it
+/// request the confirmation lets through, so both mapping entry points reject it
 /// eagerly (a bootstrap guard: these options are constructed with <c>new()</c>, not through the
 /// DI options pipeline).
 /// </summary>

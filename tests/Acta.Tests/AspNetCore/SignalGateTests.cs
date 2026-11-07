@@ -1,20 +1,19 @@
 using System.Net;
-using System.Text;
 using Xunit;
 
 namespace Acta.Tests.AspNetCore;
 
-/// <summary>The signal endpoint is now confirmation-gated like the destructive verbs: no header is rejected, the header is required for the happy path.</summary>
+/// <summary>
+/// The signal endpoint is confirmation-gated like the destructive verbs: a bare raise without the header is refused, and
+/// with it the raise reaches the verb.
+/// </summary>
 public sealed class SignalGateTests
 {
     private static readonly string Ref = JobRef.New().ToString();
 
     private static HttpRequestMessage Signal(bool withHeader)
     {
-        var req = new HttpRequestMessage(HttpMethod.Post, $"/acta/api/v1/jobs/{Ref}/signals/go")
-        {
-            Content = new StringContent("", Encoding.UTF8, "application/json"),
-        };
+        var req = new HttpRequestMessage(HttpMethod.Post, $"/acta/api/v1/jobs/{Ref}/signals/go");
         if (withHeader)
         {
             req.Headers.Add("X-Acta-Control", "true");

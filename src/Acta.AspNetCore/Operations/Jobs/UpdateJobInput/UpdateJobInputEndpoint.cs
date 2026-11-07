@@ -21,11 +21,6 @@ internal static class UpdateJobInputEndpoint
                         return RefSegment.Malformed("jobRef", "job");
                     }
 
-                    if (ControlEndpointValidation.CheckConfirmation(http, options) is { } confirmationError)
-                    {
-                        return confirmationError;
-                    }
-
                     var (body, error) = await ControlEndpointValidation.ReadJsonBodyAsync(
                         http,
                         DashboardJsonContext.Default.UpdateJobInputRequest,

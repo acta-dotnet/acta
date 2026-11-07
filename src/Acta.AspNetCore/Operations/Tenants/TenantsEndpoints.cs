@@ -63,7 +63,6 @@ internal static class TenantsEndpoints
             "/tenants/{tenantName}/tags",
             "tenant",
             ActaPermissions.Admin,
-            options,
             static http => TagTarget.ForTenant(Name(http)),
             static async (http, call) => await call.Operations.Tenants.GetAsync(Name(http), call.Ct) is not null
         );
@@ -72,7 +71,7 @@ internal static class TenantsEndpoints
             return;
         }
 
-        RegisterTenantEndpoint.Map(controls, options);
+        RegisterTenantEndpoint.Map(controls);
         controls.MapCommand(
             "/tenants/{tenantName}/suspend",
             new("suspendTenant", ActaPermissions.Admin),

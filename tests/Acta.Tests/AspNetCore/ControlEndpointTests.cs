@@ -1,10 +1,13 @@
 using System.Net;
+using System.Net.Http.Headers;
 using System.Net.Http.Json;
 using System.Text;
 using System.Text.Json;
 using System.Text.Json.Nodes;
 using Acta.Tests.AspNetCore.Fakes;
+using Acta.Tests.Contracts;
 using Microsoft.AspNetCore.Builder;
+using Microsoft.AspNetCore.Routing;
 using Microsoft.AspNetCore.TestHost;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Logging;
@@ -14,13 +17,14 @@ namespace Acta.Tests.AspNetCore;
 
 /// <summary>
 /// Control endpoint behavior over the in-process host: verb dispatch to <see cref="IJobs"/>,
-/// outcome-to-status mapping, the confirmation header guard, body validation, and the opt-in
+/// outcome-to-status mapping, the confirmation every control passes, body validation, and the opt-in
 /// default. The fake applies for FoundJobRef, reports not-found for MissingJobRef, and rejected
 /// for RejectedJobRef.
 /// </summary>
 public sealed class ControlEndpointTests
 {
     private const string Confirm = "X-Acta-Control";
+    private const string NotConfirmed = "Control request not confirmed.";
 
     private static readonly string Found = FakeJobs.FoundJobRef.ToString();
     private static readonly string Missing = FakeJobs.MissingJobRef.ToString();
@@ -42,13 +46,24 @@ public sealed class ControlEndpointTests
     private static HttpRequestMessage Post(string path, string? reason = "because", bool confirm = true, string? rawBody = null)
     {
         var request = new HttpRequestMessage(HttpMethod.Post, path);
+        request.Content = rawBody is not null
+            ? new StringContent(rawBody, Encoding.UTF8, "application/json")
+            : JsonContent.Create(new { reasonMessage = reason });
+        return Confirmed(request, confirm);
+    }
+
+    // A confirmed request carries the header. An unconfirmed one carries none of the three ways a control is confirmed:
+    // its JSON goes as text/plain, the body a page on another origin can post without a CORS preflight.
+    private static HttpRequestMessage Confirmed(HttpRequestMessage request, bool confirm)
+    {
         if (confirm)
         {
             request.Headers.Add(Confirm, "true");
         }
-        request.Content = rawBody is not null
-            ? new StringContent(rawBody, Encoding.UTF8, "application/json")
-            : JsonContent.Create(new { reasonMessage = reason });
+        else if (request.Content is { } content)
+        {
+            content.Headers.ContentType = new MediaTypeHeaderValue("text/plain");
+        }
         return request;
     }
 
@@ -138,39 +153,151 @@ public sealed class ControlEndpointTests
         await using var _ = app;
 
         var response = await client.SendAsync(
-            Post($"/acta/api/v1/jobs/{Found}/pause", confirm: false),
+            new HttpRequestMessage(HttpMethod.Post, $"/acta/api/v1/jobs/{Found}/pause"),
             TestContext.Current.CancellationToken
         );
 
         Assert.Equal(HttpStatusCode.BadRequest, response.StatusCode);
+        Assert.Equal(NotConfirmed, await TitleAsync(response));
+        Assert.Empty(fakes.Jobs.ControlCalls);
+    }
+
+    // The confirmation runs before a route reads its key, so an unconfirmed call with a malformed one answers the confirmation.
+    [Theory]
+    [InlineData("/acta/api/v1/jobs/not-a-ref/pause")]
+    [InlineData("/acta/api/v1/jobs/not-a-ref/signals/approval")]
+    public async Task An_unconfirmed_call_is_refused_before_its_route_key_is_read(string path)
+    {
+        var (app, client) = await StartWithControlsAsync();
+        await using var _ = app;
+
+        var response = await client.SendAsync(new HttpRequestMessage(HttpMethod.Post, path), TestContext.Current.CancellationToken);
+
+        Assert.Equal(HttpStatusCode.BadRequest, response.StatusCode);
+        Assert.Equal(NotConfirmed, await TitleAsync(response));
+    }
+
+    [Theory]
+    [InlineData("true", HttpStatusCode.OK)]
+    [InlineData("True", HttpStatusCode.BadRequest)]
+    [InlineData("false", HttpStatusCode.BadRequest)]
+    [InlineData("1", HttpStatusCode.BadRequest)]
+    public async Task The_confirmation_header_alone_passes_only_with_true(string value, HttpStatusCode expected)
+    {
+        var fakes = new FakeOperations();
+        var (app, client) = await StartWithControlsAsync(fakes);
+        await using var _ = app;
+
+        var request = new HttpRequestMessage(HttpMethod.Post, $"/acta/api/v1/jobs/{Found}/pause");
+        request.Headers.Add(Confirm, value);
+        var response = await client.SendAsync(request, TestContext.Current.CancellationToken);
+
+        Assert.Equal(expected, response.StatusCode);
+        Assert.Equal(expected == HttpStatusCode.OK ? 1 : 0, fakes.Jobs.ControlCalls.Count);
+    }
+
+    // A JSON content type is one no page on another origin can post without a preflight, so it confirms on its own.
+    [Theory]
+    [InlineData("application/json")]
+    [InlineData("application/json; charset=utf-8")]
+    [InlineData("application/merge-patch+json")]
+    public async Task A_json_content_type_alone_confirms_a_control(string contentType)
+    {
+        var fakes = new FakeOperations();
+        var (app, client) = await StartWithControlsAsync(fakes);
+        await using var _ = app;
+
+        var request = new HttpRequestMessage(HttpMethod.Post, $"/acta/api/v1/jobs/{Found}/pause")
+        {
+            Content = new StringContent("""{"reasonMessage":"because"}"""),
+        };
+        request.Content.Headers.ContentType = MediaTypeHeaderValue.Parse(contentType);
+        var response = await client.SendAsync(request, TestContext.Current.CancellationToken);
+
+        Assert.Equal(HttpStatusCode.OK, response.StatusCode);
+        Assert.Equal("because", Assert.Single(fakes.Jobs.ControlCalls).Reason);
+    }
+
+    // A browser attaches Basic and Negotiate credentials by itself, never a bearer token, so only Bearer confirms.
+    [Theory]
+    [InlineData("Bearer", HttpStatusCode.OK)]
+    [InlineData("bearer", HttpStatusCode.OK)]
+    [InlineData("Basic", HttpStatusCode.BadRequest)]
+    [InlineData("Negotiate", HttpStatusCode.BadRequest)]
+    public async Task Only_a_bearer_authorization_header_alone_confirms_a_control(string scheme, HttpStatusCode expected)
+    {
+        var fakes = new FakeOperations();
+        var (app, client) = await StartWithControlsAsync(fakes);
+        await using var _ = app;
+
+        var request = new HttpRequestMessage(HttpMethod.Post, $"/acta/api/v1/jobs/{Found}/pause");
+        request.Headers.Authorization = new AuthenticationHeaderValue(scheme, "x");
+        var response = await client.SendAsync(request, TestContext.Current.CancellationToken);
+
+        Assert.Equal(expected, response.StatusCode);
+        Assert.Equal(expected == HttpStatusCode.OK ? 1 : 0, fakes.Jobs.ControlCalls.Count);
+    }
+
+    // The bodies a form on another origin can post. The confirmation refuses them before the body is read, so the answer
+    // is its 400 and not the 415 the body reader gives a confirmed call.
+    [Theory]
+    [InlineData("application/x-www-form-urlencoded", "reasonMessage=because")]
+    [InlineData("multipart/form-data; boundary=x", "--x\r\nContent-Disposition: form-data; name=\"reasonMessage\"\r\n\r\nbecause\r\n--x--")]
+    [InlineData("text/plain", """{"reasonMessage":"because"}""")]
+    public async Task A_cross_site_form_body_is_refused_before_it_is_read(string contentType, string body)
+    {
+        var fakes = new FakeOperations();
+        var (app, client) = await StartWithControlsAsync(fakes);
+        await using var _ = app;
+        var ct = TestContext.Current.CancellationToken;
+
+        HttpRequestMessage Form(bool confirm)
+        {
+            var request = new HttpRequestMessage(HttpMethod.Post, $"/acta/api/v1/jobs/{Found}/pause") { Content = new StringContent(body) };
+            request.Content.Headers.ContentType = MediaTypeHeaderValue.Parse(contentType);
+            if (confirm)
+            {
+                request.Headers.Add(Confirm, "true");
+            }
+            return request;
+        }
+
+        var unconfirmed = await client.SendAsync(Form(confirm: false), ct);
+        var confirmed = await client.SendAsync(Form(confirm: true), ct);
+
+        Assert.Equal(HttpStatusCode.BadRequest, unconfirmed.StatusCode);
+        Assert.Equal(NotConfirmed, await TitleAsync(unconfirmed));
+        Assert.Equal(HttpStatusCode.UnsupportedMediaType, confirmed.StatusCode);
         Assert.Empty(fakes.Jobs.ControlCalls);
     }
 
     [Fact]
     public async Task Confirmation_header_is_optional_when_disabled_in_options()
     {
-        var (app, client) = await StartWithControlsAsync(configure: options => options.RequireControlConfirmationHeader = false);
+        var (app, client) = await StartWithControlsAsync(configure: options => options.RequireControlConfirmation = false);
         await using var _ = app;
 
         var response = await client.SendAsync(
-            Post($"/acta/api/v1/jobs/{Found}/pause", confirm: false),
+            new HttpRequestMessage(HttpMethod.Post, $"/acta/api/v1/jobs/{Found}/pause"),
             TestContext.Current.CancellationToken
         );
 
         Assert.Equal(HttpStatusCode.OK, response.StatusCode);
     }
 
-    // The header's name is the host's to choose, and its value is always true, which is what the dashboard sends.
+    // The header's name is the host's to choose, the default name then confirms nothing, and the value is always true,
+    // which is what the dashboard sends.
     [Theory]
-    [InlineData("true", HttpStatusCode.OK)]
-    [InlineData("yes", HttpStatusCode.BadRequest)]
-    public async Task A_renamed_confirmation_header_still_carries_true(string value, HttpStatusCode expected)
+    [InlineData("X-Ops-Confirm", "true", HttpStatusCode.OK)]
+    [InlineData("X-Ops-Confirm", "yes", HttpStatusCode.BadRequest)]
+    [InlineData(Confirm, "true", HttpStatusCode.BadRequest)]
+    public async Task A_renamed_confirmation_header_still_carries_true(string header, string value, HttpStatusCode expected)
     {
         var (app, client) = await StartWithControlsAsync(configure: options => options.ControlConfirmationHeaderName = "X-Ops-Confirm");
         await using var _ = app;
 
-        var request = Post($"/acta/api/v1/jobs/{Found}/pause", confirm: false);
-        request.Headers.Add("X-Ops-Confirm", value);
+        var request = new HttpRequestMessage(HttpMethod.Post, $"/acta/api/v1/jobs/{Found}/pause");
+        request.Headers.Add(header, value);
         var response = await client.SendAsync(request, TestContext.Current.CancellationToken);
 
         Assert.Equal(expected, response.StatusCode);
@@ -179,6 +306,53 @@ public sealed class ControlEndpointTests
             Assert.Contains("X-Ops-Confirm: true", await response.Content.ReadAsStringAsync(TestContext.Current.CancellationToken));
         }
     }
+
+    /// <summary>
+    /// Every control the API maps, whatever its method, answers the confirmation's 400 to a call with no body and no
+    /// headers. The routes are read from the endpoint graph, so a control mapped outside the controls group fails here.
+    /// </summary>
+    [Fact]
+    public async Task Every_control_route_refuses_an_unconfirmed_call()
+    {
+        var (app, client) = await StartWithControlsAsync();
+        await using var _ = app;
+        var ct = TestContext.Current.CancellationToken;
+        var controls = ((IEndpointRouteBuilder)app)
+            .DataSources.SelectMany(source => source.Endpoints)
+            .OfType<RouteEndpoint>()
+            .Where(endpoint =>
+                endpoint.Metadata.GetMetadata<ActaOperationAttribute>() is { } operation && operation.Permission != ActaPermissions.Read
+            )
+            .SelectMany(endpoint =>
+                (endpoint.Metadata.GetMetadata<IHttpMethodMetadata>()?.HttpMethods ?? []).Select(method =>
+                    (Method: method, Endpoint: endpoint)
+                )
+            )
+            .ToList();
+
+        var wrong = new List<string>();
+        foreach (var (method, endpoint) in controls)
+        {
+            var path = endpoint.RoutePattern.RawText!;
+            foreach (var parameter in endpoint.RoutePattern.Parameters)
+            {
+                path = path.Replace($"{{{parameter.Name}}}", OpenApiExamples.RouteValues[parameter.Name], StringComparison.Ordinal);
+            }
+            using var response = await client.SendAsync(new HttpRequestMessage(new HttpMethod(method), path), ct);
+            if (response.StatusCode != HttpStatusCode.BadRequest || await TitleAsync(response) != NotConfirmed)
+            {
+                wrong.Add($"{method} {endpoint.RoutePattern.RawText}: answered {(int)response.StatusCode}.");
+            }
+        }
+
+        Assert.True(controls.Count > 30, $"only {controls.Count} control routes; the walk is broken.");
+        Assert.Contains(controls, control => control.Method == "PUT");
+        Assert.Contains(controls, control => control.Method == "DELETE");
+        Assert.True(wrong.Count == 0, string.Join("\n", wrong));
+    }
+
+    private static async Task<string?> TitleAsync(HttpResponseMessage response) =>
+        JsonNode.Parse(await response.Content.ReadAsStringAsync(TestContext.Current.CancellationToken))?["title"]?.GetValue<string>();
 
     [Fact]
     public async Task Controls_are_disabled_by_default_and_never_reach_jobs()
@@ -353,14 +527,10 @@ public sealed class ControlEndpointTests
     )
     {
         var request = new HttpRequestMessage(HttpMethod.Post, $"/acta/api/v1/jobs/{Found}/reschedule");
-        if (confirm)
-        {
-            request.Headers.Add(Confirm, "true");
-        }
         request.Content = rawBody is not null
             ? new StringContent(rawBody, Encoding.UTF8, "application/json")
             : JsonContent.Create(new { nextRunAtUtc, reasonMessage = reason });
-        return request;
+        return Confirmed(request, confirm);
     }
 
     [Fact]
@@ -450,14 +620,10 @@ public sealed class ControlEndpointTests
     )
     {
         var request = new HttpRequestMessage(HttpMethod.Post, $"/acta/api/v1/jobs/{Found}/reprioritize");
-        if (confirm)
-        {
-            request.Headers.Add(Confirm, "true");
-        }
         request.Content = rawBody is not null
             ? new StringContent(rawBody, Encoding.UTF8, "application/json")
             : JsonContent.Create(new { priority, reasonMessage = reason });
-        return request;
+        return Confirmed(request, confirm);
     }
 
     [Fact]
@@ -526,14 +692,10 @@ public sealed class ControlEndpointTests
     )
     {
         var request = new HttpRequestMessage(HttpMethod.Post, $"/acta/api/v1/schedules/billing/send-invoice/{scheduleName}/trigger");
-        if (confirm)
-        {
-            request.Headers.Add(Confirm, "true");
-        }
         request.Content = rawBody is not null
             ? new StringContent(rawBody, Encoding.UTF8, "application/json")
             : JsonContent.Create(new { reasonMessage = reason });
-        return request;
+        return Confirmed(request, confirm);
     }
 
     [Fact]
@@ -680,13 +842,8 @@ public sealed class ControlEndpointTests
 
     private static HttpRequestMessage AmendInput(object body, bool confirm = true)
     {
-        var request = new HttpRequestMessage(HttpMethod.Put, $"/acta/api/v1/jobs/{Found}/input");
-        if (confirm)
-        {
-            request.Headers.Add(Confirm, "true");
-        }
-        request.Content = JsonContent.Create(body);
-        return request;
+        var request = new HttpRequestMessage(HttpMethod.Put, $"/acta/api/v1/jobs/{Found}/input") { Content = JsonContent.Create(body) };
+        return Confirmed(request, confirm);
     }
 
     private static FakeOperations JobWithInput(JobPayload? stored) => new() { Jobs = { StoredInput = stored } };
@@ -805,13 +962,8 @@ public sealed class ControlEndpointTests
 
     private static HttpRequestMessage PostEnqueue(object body, bool confirm = true)
     {
-        var request = new HttpRequestMessage(HttpMethod.Post, "/acta/api/v1/jobs");
-        if (confirm)
-        {
-            request.Headers.Add(Confirm, "true");
-        }
-        request.Content = JsonContent.Create(body);
-        return request;
+        var request = new HttpRequestMessage(HttpMethod.Post, "/acta/api/v1/jobs") { Content = JsonContent.Create(body) };
+        return Confirmed(request, confirm);
     }
 
     /// <summary>
@@ -960,13 +1112,8 @@ public sealed class ControlEndpointTests
 
     private static HttpRequestMessage PostTenant(object body, bool confirm = true)
     {
-        var request = new HttpRequestMessage(HttpMethod.Post, "/acta/api/v1/tenants");
-        if (confirm)
-        {
-            request.Headers.Add(Confirm, "true");
-        }
-        request.Content = JsonContent.Create(body);
-        return request;
+        var request = new HttpRequestMessage(HttpMethod.Post, "/acta/api/v1/tenants") { Content = JsonContent.Create(body) };
+        return Confirmed(request, confirm);
     }
 
     [Fact]

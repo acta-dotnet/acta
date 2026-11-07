@@ -128,9 +128,13 @@ public static class ActaEndpointRouteBuilderExtensions
         {
             controls = api.MapGroup("");
             ControlAuthorizationFilter.Attach(controls);
-            // What a control call needs, said once for the group so the contract generator can render it on every control.
+            // Every control, whatever its method, is confirmed before its route reads anything.
+            controls.AddEndpointFilter(
+                async (context, next) => ControlEndpointValidation.CheckConfirmation(context.HttpContext, options) ?? await next(context)
+            );
+            // The mount's confirmation header, said once for the group so the contract generator can state the rule with it.
             controls.WithMetadata(
-                new ControlEndpointDoc(options.RequireControlConfirmationHeader ? options.ControlConfirmationHeaderName : null)
+                new ControlEndpointDoc(options.RequireControlConfirmation ? options.ControlConfirmationHeaderName : null)
             );
         }
 

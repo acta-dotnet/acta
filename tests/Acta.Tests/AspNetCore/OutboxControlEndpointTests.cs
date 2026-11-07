@@ -10,7 +10,7 @@ namespace Acta.Tests.AspNetCore;
 /// <summary>
 /// Outbox control endpoint behavior over the in-process host: verb dispatch to
 /// <see cref="IOutbox"/>, the accepted/rejected/not-found status mapping (202/409/404), the
-/// confirmation header guard, and the actor pass-through from the authenticated principal. The fake
+/// confirmation, and the actor pass-through from the authenticated principal. The fake
 /// accepts for "billing", reports not-found for "missing", and rejected for "rejected".
 /// </summary>
 public sealed class OutboxControlEndpointTests

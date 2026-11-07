@@ -168,7 +168,7 @@ export async function api<T>(
   return body as T;
 }
 
-// Confirmation header the backend requires on every control POST/PUT (value is always the literal
+// Confirmation header the dashboard sends on every control, which confirms it (value is always the literal
 // string 'true'; see GetCapabilitiesResponse.ConfirmationHeader). Defaults to the backend's own default
 // so a control request fired before capabilities loads still matches an unconfigured server;
 // fetchCapabilities() below keeps this in sync with the live value, the same "module state kept in

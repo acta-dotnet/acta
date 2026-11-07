@@ -83,7 +83,6 @@ internal static class RouteTable
         string pattern,
         string entity,
         string writePermission,
-        ActaEndpointOptions options,
         Func<HttpContext, TagTarget> target,
         Func<HttpContext, ReadCall, ValueTask<bool>> exists
     )
@@ -113,7 +112,7 @@ internal static class RouteTable
             .MapPut(
                 pattern + "/{tagName}",
                 (HttpContext http, IActaOperations operations, CancellationToken ct) =>
-                    TagRoutes.UpsertAsync(http, operations, options, () => target(http), RouteKeys.Value(http, "tagName"), ct)
+                    TagRoutes.UpsertAsync(http, operations, () => target(http), RouteKeys.Value(http, "tagName"), ct)
             )
             .WithMetadata(new ActaOperationAttribute($"upsert{owner}Tag", writePermission))
             .AcceptsJson<UpsertTagRequest>()
@@ -125,7 +124,7 @@ internal static class RouteTable
             .MapDelete(
                 pattern + "/{tagName}",
                 (HttpContext http, IActaOperations operations, CancellationToken ct) =>
-                    TagRoutes.RemoveAsync(http, operations, options, () => target(http), RouteKeys.Value(http, "tagName"), ct)
+                    TagRoutes.RemoveAsync(operations, () => target(http), RouteKeys.Value(http, "tagName"), ct)
             )
             .WithMetadata(new ActaOperationAttribute($"remove{owner}Tag", writePermission))
             .WithSummary($"Remove one tag from the {entity}.")
@@ -137,9 +136,9 @@ internal static class RouteTable
 
     /// <summary>
     /// A control verb on the target <paramref name="key"/> resolves from the route. It reads the verb's JSON body behind
-    /// the confirmation header (optional unless <paramref name="bodyRequired"/>, so a bare POST acts with defaults), trims
-    /// and caps its reason, and answers with the verb's response at the status <paramref name="status"/> maps it to. An
-    /// argument the facade rejects is caller input, a 400 under <paramref name="invalidTitle"/>.
+    /// the confirmation every control passes (optional unless <paramref name="bodyRequired"/>, so a bare POST acts with
+    /// defaults), trims and caps its reason, and answers with the verb's response at the status <paramref name="status"/>
+    /// maps it to. An argument the facade rejects is caller input, a 400 under <paramref name="invalidTitle"/>.
     /// </summary>
     public static RouteHandlerBuilder MapCommand<TKey, TBody, TResponse>(
         this RouteGroupBuilder controls,
@@ -226,7 +225,7 @@ internal static class RouteTable
         where TBody : notnull
         where TResponse : notnull
     {
-        // Beside its body's answers, a control checks its confirmation header and route key, the 400, and writes the
+        // Beside its body's answers, a control checks its confirmation and its route key, the 400, and writes the
         // database, the 503.
         route
             .WithMetadata(operation)
@@ -270,16 +269,11 @@ internal static class RouteTable
         IResult? error;
         if (bodyRequired)
         {
-            if (ControlEndpointValidation.CheckConfirmation(http, options) is { } confirmationError)
-            {
-                return confirmationError;
-            }
-
             (body, error) = await ControlEndpointValidation.ReadJsonBodyAsync(http, json, ct);
         }
         else
         {
-            (body, error) = await ControlEndpointValidation.ReadOptionalJsonBodyAsync(http, options, json, ct);
+            (body, error) = await ControlEndpointValidation.ReadOptionalJsonBodyAsync(http, json, ct);
         }
 
         if (error is not null)
@@ -437,17 +431,11 @@ internal static class TagRoutes
     public static async Task<IResult> UpsertAsync(
         HttpContext http,
         IActaOperations operations,
-        ActaEndpointOptions options,
         Func<TagTarget> resolve,
         string tagName,
         CancellationToken ct
     )
     {
-        if (ControlEndpointValidation.CheckConfirmation(http, options) is { } confirmationError)
-        {
-            return confirmationError;
-        }
-
         var (body, bodyError) = await ControlEndpointValidation.ReadJsonBodyAsync(http, DashboardJsonContext.Default.UpsertTagRequest, ct);
         return bodyError
             ?? await MutateAsync(
@@ -457,21 +445,12 @@ internal static class TagRoutes
             );
     }
 
-    public static async Task<IResult> RemoveAsync(
-        HttpContext http,
-        IActaOperations operations,
-        ActaEndpointOptions options,
-        Func<TagTarget> resolve,
-        string tagName,
-        CancellationToken ct
-    ) =>
-        ControlEndpointValidation.CheckConfirmation(http, options) is { } confirmationError
-            ? confirmationError
-            : await MutateAsync(
-                resolve,
-                target => operations.Tags.RemoveAsync(target, tagName, ct: ct),
-                DashboardJsonContext.Default.RemoveTagResponse
-            );
+    public static Task<IResult> RemoveAsync(IActaOperations operations, Func<TagTarget> resolve, string tagName, CancellationToken ct) =>
+        MutateAsync(
+            resolve,
+            target => operations.Tags.RemoveAsync(target, tagName, ct: ct),
+            DashboardJsonContext.Default.RemoveTagResponse
+        );
 
     // A tag write is a control verb: it answers with its response on 404 exactly as on 200.
     private static async Task<IResult> MutateAsync<T>(Func<TagTarget> resolve, Func<TagTarget, ValueTask<T>> apply, JsonTypeInfo<T> info)

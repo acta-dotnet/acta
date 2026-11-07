@@ -45,9 +45,6 @@ internal static partial class ActaOpenApiDocument
     private const string NotNullMarker = "x-acta-not-null";
     private const string EnumMarker = "x-acta-enum";
 
-    private const string ControlParameter = "ActaControl";
-    private const string ControlSchema = "ActaControlConfirmation";
-
     /// <summary>
     /// Request members a handler refuses when absent (a 400 naming the member), which the record cannot say without
     /// claiming a non-null its serializer does not enforce. <c>OpenApiContractTests</c> proves each row.
@@ -70,8 +67,11 @@ internal static partial class ActaOpenApiDocument
     [GeneratedRegex(@"\{(?<name>[A-Za-z]+)[^}]*\}")]
     private static partial Regex RouteSegments();
 
-    /// <summary>One Acta mount of the generating host: its pattern, whether it maps the controls, and whether those require the confirmation header.</summary>
-    public sealed record Mount(string Pattern, bool Controls, bool RequireConfirmation = true)
+    /// <summary>
+    /// One Acta mount of the generating host: its pattern, whether it maps the controls, whether those require
+    /// confirmation, and the confirmation header's name when it is not the default.
+    /// </summary>
+    public sealed record Mount(string Pattern, bool Controls, bool RequireConfirmation = true, string? ConfirmationHeaderName = null)
     {
         public string DocumentName => Pattern.Trim('/');
 
@@ -113,7 +113,8 @@ internal static partial class ActaOpenApiDocument
                 {
                     o.Enabled = false;
                     o.EnableControls = mount.Controls;
-                    o.RequireControlConfirmationHeader = mount.RequireConfirmation;
+                    o.RequireControlConfirmation = mount.RequireConfirmation;
+                    o.ControlConfirmationHeaderName = mount.ConfirmationHeaderName ?? o.ControlConfirmationHeaderName;
                 }
             );
             // The handlers read their JSON body through ControlEndpointValidation rather than a bound parameter, so they
@@ -284,17 +285,12 @@ internal static partial class ActaOpenApiDocument
                 return Task.CompletedTask;
             }
         );
-        // A control carries the mount's confirmation header, one shared parameter whose one value is true.
+        // A control on a mount that requires confirmation names the mount's header, which the introduction's rule names.
         string? confirmationHeader = null;
         o.AddOperationTransformer(
-            (operation, context, _) =>
+            (_, context, _) =>
             {
-                if (Metadata<ControlEndpointDoc>(context) is { ConfirmationHeaderName: { } header })
-                {
-                    confirmationHeader = header;
-                    operation.Parameters ??= [];
-                    operation.Parameters.Add(new OpenApiParameterReference(ControlParameter));
-                }
+                confirmationHeader ??= Metadata<ControlEndpointDoc>(context)?.ConfirmationHeaderName;
                 return Task.CompletedTask;
             }
         );
@@ -561,23 +557,11 @@ internal static partial class ActaOpenApiDocument
         docs.Describe(schemas);
         DescribeKnownValues(schemas);
 
+        // The confirmation is no parameter of any operation, since a JSON body or a bearer token passes it as well as the
+        // header does; the introduction states the rule once.
         if (confirmationHeader is not null)
         {
-            document.Components!.Parameters ??= new Dictionary<string, IOpenApiParameter>(StringComparer.Ordinal);
-            schemas[ControlSchema] = new OpenApiSchema
-            {
-                Type = JsonSchemaType.String,
-                Description = "The one value a control's confirmation header carries.",
-                Enum = [(JsonNode)"true"],
-            };
-            document.Components.Parameters[ControlParameter] = new OpenApiParameter
-            {
-                Name = confirmationHeader,
-                In = ParameterLocation.Header,
-                Required = true,
-                Description = "Confirms a control call. The value is true; a missing header or any other value answers 400.",
-                Schema = new OpenApiSchemaReference(ControlSchema),
-            };
+            document.Info.Description += "\n\n" + ConfirmationRule(confirmationHeader);
         }
 
         // Paths read below the mount's API root, which the one server names, so a client's base URL picks the mount.
@@ -841,14 +825,19 @@ internal static partial class ActaOpenApiDocument
     private const string DocumentDescription =
         "Acta's operator API, the one the dashboard uses. Lists page by cursor: pass a page's nextCursor back as cursor "
         + "until hasMore is false; a cursor is tied to its query. Every POST, PUT, and DELETE is a control, mapped only "
-        + "where the host enables controls, and where the host requires it the call carries the confirmation header the "
-        + "operation lists, with the value true. A control whose request object is optional acts with its defaults when the "
+        + "where the host enables controls. A control whose request object is optional acts with its defaults when the "
         + "request has no body; one that declares application/json and sends no bytes answers 400, so send {} or leave the "
         + "content type off. A signal raise takes any JSON value instead, and no bytes, with or without the content type, "
         + "raise a presence-only signal. POST /jobs answers 201 when it inserted the job and 200 when a deduplication key matched an "
         + "existing one, with the job's URL in Location either way. A string carrying x-acta-known-values is an open set: "
         + "compare against the known values and keep any other value as it is. The document declares no security scheme: "
         + "the host adds its own authentication, which a client sends as the host asks.";
+
+    // The introduction's paragraph for a mount whose controls require confirmation, naming its header.
+    private static string ConfirmationRule(string header) =>
+        $"A call that changes something must show that it is no cross-site form post, in one of three ways: the header {header}: true, "
+        + "a JSON content type, or a Bearer authorization header. A client that sends a JSON body or a bearer token passes without "
+        + "doing anything more; for a call with no body and no bearer token, send the header.";
 
     /// <summary>The framework-shaped body declaration the generator reads, built from a RequestBodyDoc.</summary>
     private sealed class DeclaredRequestBody(RequestBodyDoc doc) : IAcceptsMetadata

@@ -16,9 +16,13 @@ public sealed class AdminEndpointTests
     private static Task<(WebApplication App, HttpClient Client)> StartAsync() =>
         TestDashboardHost.StartAsync(options => options.EnableControls = true);
 
+    // Without the header the JSON goes as text/plain, the body a page on another origin can post without a CORS preflight.
     private static HttpRequestMessage Post(string path, bool withHeader)
     {
-        var req = new HttpRequestMessage(HttpMethod.Post, path) { Content = new StringContent("{}", Encoding.UTF8, "application/json") };
+        var req = new HttpRequestMessage(HttpMethod.Post, path)
+        {
+            Content = new StringContent("{}", Encoding.UTF8, withHeader ? "application/json" : "text/plain"),
+        };
         if (withHeader)
         {
             req.Headers.Add(Confirm, "true");

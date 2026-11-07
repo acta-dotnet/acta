@@ -278,8 +278,8 @@ public sealed partial class OpenApiContractTests
 
     /// <summary>
     /// Every enum is an open string whose known values are exactly what the server writes, member by member, so an older
-    /// client keeps a value it has not seen and compares against named constants for the ones it has. The confirmation
-    /// header's one value is the only closed set: a protocol fact, not a vocabulary.
+    /// client keeps a value it has not seen and compares against named constants for the ones it has. No schema is a closed
+    /// set.
     /// </summary>
     [Fact]
     public async Task Every_enum_is_an_open_string_with_the_values_the_server_writes()
@@ -333,7 +333,7 @@ public sealed partial class OpenApiContractTests
         Assert.Contains("EnqueueRejectionReason", open);
         Assert.Contains("DbProvider", open);
         Assert.True(wrong.Count == 0, string.Join("\n", wrong));
-        Assert.Equal(["components.schemas.ActaControlConfirmation"], closed);
+        Assert.Empty(closed);
     }
 
     /// <summary>
@@ -1128,8 +1128,10 @@ public sealed partial class OpenApiContractTests
 
     /// <summary>
     /// A host that mounts the API twice gets a document per mount: the read-only one lists its reads alone, with the ids
-    /// the control mount's document gives the same operations, and only a mount that requires the confirmation header
-    /// lists it on its controls. A mount named like the version segment documents the same operations under the same ids.
+    /// the control mount's document gives the same operations. No operation lists the confirmation as a parameter: a mount
+    /// whose controls require it adds the rule to its introduction, with its own header name, and a mount without controls
+    /// or with confirmation off does not. A mount named like the version segment documents the same operations under the
+    /// same ids.
     /// </summary>
     [Fact]
     public async Task Each_mount_documents_its_own_operations_with_shared_ids_and_its_own_confirmation()
@@ -1138,11 +1140,10 @@ public sealed partial class OpenApiContractTests
             new Mount("/acta", Controls: true),
             new Mount("/ops", Controls: false),
             new Mount("/plain", Controls: true, RequireConfirmation: false),
-            new Mount("/v1", Controls: true)
+            new Mount("/v1", Controls: true, ConfirmationHeaderName: "X-Ops-Confirm")
         );
         var control = Operations(documents["/acta"]);
         var readOnly = Operations(documents["/ops"]);
-        var unconfirmed = Operations(documents["/plain"]);
         var versionNamed = Operations(documents["/v1"]);
 
         Assert.Equal("/ops/api", JsonNode.Parse(documents["/ops"])!["servers"]![0]!["url"]!.GetValue<string>());
@@ -1156,27 +1157,39 @@ public sealed partial class OpenApiContractTests
         foreach (var (key, operation) in readOnly)
         {
             Assert.Equal(control[key]["operationId"]!.GetValue<string>(), operation["operationId"]!.GetValue<string>());
-            Assert.Null(ConfirmationHeader(operation));
         }
 
-        var header = JsonNode.Parse(documents["/acta"])!["components"]!["parameters"]!["ActaControl"]!;
-        Assert.Equal(
-            ("X-Acta-Control", "header", true),
-            (header["name"]!.GetValue<string>(), header["in"]!.GetValue<string>(), header["required"]!.GetValue<bool>())
-        );
-        foreach (var (key, operation) in control)
+        foreach (var document in documents.Values)
         {
-            if (key.StartsWith("GET ", StringComparison.Ordinal))
-            {
-                Assert.Null(ConfirmationHeader(operation));
-                continue;
-            }
-
-            Assert.True(ConfirmationHeader(operation) is not null, $"{key}: a control lists no confirmation header.");
-            Assert.Null(ConfirmationHeader(unconfirmed[key]));
+            Assert.Null(JsonNode.Parse(document)!["components"]!["parameters"]);
+            Assert.DoesNotContain("ActaControl", document, StringComparison.Ordinal);
+            Assert.All(
+                Operations(document),
+                operation =>
+                    Assert.DoesNotContain(
+                        Elements(operation.Value["parameters"]),
+                        parameter => parameter?["in"]?.GetValue<string>() == "header"
+                    )
+            );
         }
-        Assert.Null(JsonNode.Parse(documents["/plain"])!["components"]!["parameters"]);
+
+        var plain = Introduction(documents["/plain"]);
+        Assert.Equal(plain, Introduction(documents["/ops"]));
+        Assert.DoesNotContain("cross-site", plain, StringComparison.Ordinal);
+        Assert.Equal(
+            plain
+                + "\n\nA call that changes something must show that it is no cross-site form post, in one of three ways: the header "
+                + "X-Acta-Control: true, a JSON content type, or a Bearer authorization header. A client that sends a JSON body or a "
+                + "bearer token passes without doing anything more; for a call with no body and no bearer token, send the header.",
+            Introduction(documents["/acta"])
+        );
+        Assert.Equal(
+            Introduction(documents["/acta"]).Replace("X-Acta-Control", "X-Ops-Confirm", StringComparison.Ordinal),
+            Introduction(documents["/v1"])
+        );
     }
+
+    private static string Introduction(string document) => JsonNode.Parse(document)!["info"]!["description"]!.GetValue<string>();
 
     [Fact]
     public async Task The_enqueue_documents_its_location_header_on_both_successes_and_a_request_example()
@@ -1349,9 +1362,6 @@ public sealed partial class OpenApiContractTests
         }
         return operations;
     }
-
-    private static JsonNode? ConfirmationHeader(JsonNode operation) =>
-        Elements(operation["parameters"]).FirstOrDefault(p => p?["$ref"]?.GetValue<string>() == "#/components/parameters/ActaControl");
 
     private static List<string> Required(JsonNode schema) => [.. Elements(schema["required"]).Select(n => n!.GetValue<string>())];
 

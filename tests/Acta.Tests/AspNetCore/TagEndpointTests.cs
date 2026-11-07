@@ -1,5 +1,6 @@
 using System.Net;
 using System.Net.Http.Json;
+using System.Text;
 using System.Text.Json;
 using Acta.Tests.AspNetCore.Fakes;
 using Xunit;
@@ -7,8 +8,8 @@ using Xunit;
 namespace Acta.Tests.AspNetCore;
 
 /// <summary>
-/// Tag endpoints over the in-process host: per-entity tag pages, control-gated upsert/remove with
-/// the confirmation header, outcome-to-status mapping, and tag-filter binding on list endpoints.
+/// Tag endpoints over the in-process host: per-entity tag pages, control-gated upsert/remove behind
+/// the confirmation, outcome-to-status mapping, and tag-filter binding on list endpoints.
 /// </summary>
 public sealed class TagEndpointTests
 {
@@ -253,24 +254,49 @@ public sealed class TagEndpointTests
         Assert.Equal("env", Assert.Single(fakes.Tags.RemoveCalls));
     }
 
+    // A PUT and a DELETE are confirmed as a POST is. Unconfirmed, the upsert's JSON goes as text/plain, the body a page
+    // on another origin can post; with the header the same body passes the confirmation and meets the body reader's 415.
     [Fact]
     public async Task Tag_mutations_require_the_confirmation_header()
     {
         var fakes = new FakeOperations();
         var (app, client) = await StartControlsAsync(fakes);
         await using var _ = app;
+        var ct = TestContext.Current.CancellationToken;
 
-        var put = await client.PutAsync(
-            $"/acta/api/v1/jobs/{Found}/tags/env",
-            JsonContent.Create(new { value = "prod" }),
-            TestContext.Current.CancellationToken
-        );
-        var delete = await client.DeleteAsync($"/acta/api/v1/jobs/{Found}/tags/env", TestContext.Current.CancellationToken);
+        static HttpRequestMessage Mutation(HttpMethod method, string? contentType, bool confirm)
+        {
+            var request = new HttpRequestMessage(method, $"/acta/api/v1/jobs/{Found}/tags/env");
+            if (contentType is not null)
+            {
+                request.Content = new StringContent("""{"value":"prod"}""", Encoding.UTF8, contentType);
+            }
+            if (confirm)
+            {
+                request.Headers.Add(Confirm, "true");
+            }
+            return request;
+        }
 
-        Assert.Equal(HttpStatusCode.BadRequest, put.StatusCode);
-        Assert.Equal(HttpStatusCode.BadRequest, delete.StatusCode);
+        foreach (var method in new[] { HttpMethod.Put, HttpMethod.Delete })
+        {
+            var refused = await client.SendAsync(Mutation(method, method == HttpMethod.Put ? "text/plain" : null, confirm: false), ct);
+
+            Assert.Equal(HttpStatusCode.BadRequest, refused.StatusCode);
+            Assert.Contains("Control request not confirmed.", await refused.Content.ReadAsStringAsync(ct), StringComparison.Ordinal);
+        }
         Assert.Empty(fakes.Tags.UpsertCalls);
         Assert.Empty(fakes.Tags.RemoveCalls);
+
+        var plainPut = await client.SendAsync(Mutation(HttpMethod.Put, "text/plain", confirm: true), ct);
+        var put = await client.SendAsync(Mutation(HttpMethod.Put, "application/json", confirm: true), ct);
+        var delete = await client.SendAsync(Mutation(HttpMethod.Delete, null, confirm: true), ct);
+
+        Assert.Equal(HttpStatusCode.UnsupportedMediaType, plainPut.StatusCode);
+        Assert.Equal(HttpStatusCode.OK, put.StatusCode);
+        Assert.Equal(HttpStatusCode.OK, delete.StatusCode);
+        Assert.Single(fakes.Tags.UpsertCalls);
+        Assert.Equal("env", Assert.Single(fakes.Tags.RemoveCalls));
     }
 
     [Fact]

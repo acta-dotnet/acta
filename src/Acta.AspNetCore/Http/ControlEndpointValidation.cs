@@ -5,7 +5,7 @@ using Microsoft.AspNetCore.Http;
 namespace Acta.AspNetCore;
 
 /// <summary>
-/// Shared request validation for the control endpoints: the anti-accident confirmation header, a
+/// Shared request validation for the control endpoints: the confirmation every control passes, a
 /// JSON-only body, and reason-message normalization (trim, empty becomes null, length cap). The
 /// route's job ref is parsed before this runs.
 /// </summary>
@@ -58,21 +58,15 @@ internal static class ControlEndpointValidation
     /// Reads an optional JSON request body: no body at all is a no-op (null, null), a present body is
     /// parsed and shape-validated (415/400 on malformed input). For route-addressed control verbs
     /// whose body carries only optional extras (a reason, a scope), so "act with defaults" needs no
-    /// body. Includes the confirmation-header guard; field validation stays with the caller.
+    /// body. Field validation stays with the caller.
     /// </summary>
     public static async Task<(T? Body, IResult? Error)> ReadOptionalJsonBodyAsync<T>(
         HttpContext http,
-        ActaEndpointOptions options,
         JsonTypeInfo<T> typeInfo,
         CancellationToken ct
     )
         where T : class
     {
-        if (CheckConfirmation(http, options) is { } confirmationError)
-        {
-            return (null, confirmationError);
-        }
-
         if (!await HasBodyAsync(http.Request, ct))
         {
             return (null, null);
@@ -104,7 +98,7 @@ internal static class ControlEndpointValidation
     /// Reads a mandatory JSON request body: 415 when the content type isn't application/json, 400 when
     /// the body is malformed JSON, and 400 when the body is absent altogether. Shared by every control
     /// endpoint whose body carries required fields (definition and admin patches, the schedule
-    /// overrides). The confirmation-header guard is a separate, prior step the caller runs itself.
+    /// overrides).
     /// </summary>
     public static async Task<(T? Body, IResult? Error)> ReadJsonBodyAsync<T>(
         HttpContext http,
@@ -233,24 +227,26 @@ internal static class ControlEndpointValidation
     }
 
     /// <summary>
-    /// The anti-accident confirmation-header guard shared by every control endpoint. Returns a 400
-    /// problem result when the header is required and missing or not <c>true</c>, else null.
+    /// The confirmation every control passes before its route reads anything: a 400 unless the request carries the
+    /// confirmation header with the value <c>true</c>, a JSON content type, or a <c>Bearer</c> authorization header. A
+    /// page on another origin can send none of the three without a CORS preflight, so a cross-site form post never
+    /// passes. Only <c>Bearer</c> counts among authorization schemes, because a browser attaches the others by itself.
     /// </summary>
     internal static IResult? CheckConfirmation(HttpContext http, ActaEndpointOptions options)
     {
-        if (!options.RequireControlConfirmationHeader)
-        {
-            return null;
-        }
-
-        var header = http.Request.Headers[options.ControlConfirmationHeaderName];
-        return header.Count == 0 || !string.Equals(header[0], "true", StringComparison.Ordinal)
-            ? Problem(
+        var request = http.Request;
+        return
+            !options.RequireControlConfirmation
+            || request.Headers[options.ControlConfirmationHeaderName] is [var confirmation, ..]
+                && string.Equals(confirmation, "true", StringComparison.Ordinal)
+            || request.HasJsonContentType()
+            || request.Headers.Authorization.Any(value => value?.StartsWith("Bearer ", StringComparison.OrdinalIgnoreCase) == true)
+            ? null
+            : Problem(
                 StatusCodes.Status400BadRequest,
-                "Missing control confirmation header",
-                $"Control endpoints require {options.ControlConfirmationHeaderName}: true."
-            )
-            : null;
+                "Control request not confirmed.",
+                $"A control needs {options.ControlConfirmationHeaderName}: true, a JSON content type, or a Bearer authorization header."
+            );
     }
 
     internal static IResult Problem(int statusCode, string title, string detail) =>

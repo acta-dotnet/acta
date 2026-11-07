@@ -54,7 +54,6 @@ internal static class DefinitionsEndpoints
             "/definitions/{jobNamespace}/{jobName}/tags",
             "definition",
             ActaPermissions.Admin,
-            options,
             static http => TagTarget.ForDefinition(Key(http).Namespace, Key(http).Name),
             static async (http, call) =>
                 await call.Operations.Definitions.GetAsync(Key(http).Namespace, Key(http).Name, call.Ct) is not null

@@ -7,17 +7,12 @@ namespace Acta.AspNetCore;
 /// <summary>POST /tenants: registers a tenant, or returns the existing one, by its canonical key.</summary>
 internal static class RegisterTenantEndpoint
 {
-    public static void Map(RouteGroupBuilder controls, ActaEndpointOptions options) =>
+    public static void Map(RouteGroupBuilder controls) =>
         controls
             .MapPost(
                 "/tenants",
                 async Task<IResult> (HttpContext http, IActaOperations operations, CancellationToken ct) =>
                 {
-                    if (ControlEndpointValidation.CheckConfirmation(http, options) is { } confirmationError)
-                    {
-                        return confirmationError;
-                    }
-
                     var (request, bodyError) = await ControlEndpointValidation.ReadJsonBodyAsync(
                         http,
                         DashboardJsonContext.Default.RegisterTenantRequest,

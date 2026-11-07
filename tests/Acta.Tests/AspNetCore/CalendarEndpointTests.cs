@@ -1,4 +1,5 @@
 using System.Net;
+using System.Net.Http.Headers;
 using System.Net.Http.Json;
 using System.Text;
 using System.Text.Json;
@@ -22,15 +23,19 @@ public sealed class CalendarEndpointTests
     private static Task<(WebApplication App, HttpClient Client)> StartWithControlsAsync(FakeOperations fakes) =>
         TestDashboardHost.StartAuthenticatedAsync("ops-lead", options => options.EnableControls = true, fakes);
 
+    // Unconfirmed, the JSON goes as text/plain, the body a page on another origin can post without a CORS preflight.
     private static HttpRequestMessage Post(string path, object body, bool confirm = true)
     {
-        var request = new HttpRequestMessage(HttpMethod.Post, Prefix + path);
+        var request = new HttpRequestMessage(HttpMethod.Post, Prefix + path) { Content = JsonContent.Create(body, body.GetType()) };
         if (confirm)
         {
             request.Headers.Add(Confirm, "true");
         }
+        else
+        {
+            request.Content.Headers.ContentType = new MediaTypeHeaderValue("text/plain");
+        }
 
-        request.Content = JsonContent.Create(body, body.GetType());
         return request;
     }
 

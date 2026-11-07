@@ -33,12 +33,13 @@ public class ActaEndpointOptions
     public bool EnableControls { get; set; }
 
     /// <summary>
-    /// Whether control requests must carry the confirmation header with the value <c>true</c>. It is the API's
-    /// barrier against cross-site request forgery, since a page on another origin cannot send it without a CORS
-    /// preflight, not authentication. Turn it off only where the host supplies antiforgery of its own and no ambient
-    /// credentials (integrated Windows auth, <c>SameSite=None</c> cookies) reach the API.
+    /// Whether a control request must show that it is no cross-site form post, by one of three headers a page on another
+    /// origin cannot send without a CORS preflight: the confirmation header with the value <c>true</c>, a JSON content
+    /// type, or a <c>Bearer</c> authorization header. It is the API's barrier against cross-site request forgery, not
+    /// authentication. Turn it off only where the host supplies antiforgery of its own and no ambient credentials
+    /// (integrated Windows auth, <c>SameSite=None</c> cookies) reach the API.
     /// </summary>
-    public bool RequireControlConfirmationHeader { get; set; } = true;
+    public bool RequireControlConfirmation { get; set; } = true;
 
     /// <summary>Name of the control confirmation header.</summary>
     public string ControlConfirmationHeaderName { get; set; } = "X-Acta-Control";

@@ -6,14 +6,14 @@ using Microsoft.Extensions.Options;
 namespace Acta.AspNetCore;
 
 /// <summary>
-/// POST /jobs/{jobRef}/signals/{signalName}: raise a named signal, behind EnableControls and the confirmation header
-/// like the other verbs. The name is folded to lowercase and must be a name outside the reserved <c>sys</c> names, which
-/// keeps out the child latches (<c>sys.child.{id}</c>). An empty body raises a presence-only signal; a JSON body is stored verbatim for
-/// the handler's WaitSignalAsync&lt;T&gt; to deserialize.
+/// POST /jobs/{jobRef}/signals/{signalName}: raise a named signal, behind EnableControls like the other verbs. The name
+/// is folded to lowercase and must be a name outside the reserved <c>sys</c> names, which keeps out the child latches
+/// (<c>sys.child.{id}</c>). An empty body raises a presence-only signal; a JSON body is stored verbatim for the handler's
+/// WaitSignalAsync&lt;T&gt; to deserialize.
 /// </summary>
 internal static class RaiseJobSignalEndpoint
 {
-    public static void Map(RouteGroupBuilder controls, ActaEndpointOptions options) =>
+    public static void Map(RouteGroupBuilder controls) =>
         controls
             .MapPost(
                 "/jobs/{jobRef}/signals/{signalName}",
@@ -29,11 +29,6 @@ internal static class RaiseJobSignalEndpoint
                     if (!JobRef.TryParse(jobRef, out var parsed))
                     {
                         return RefSegment.Malformed("jobRef", "job");
-                    }
-
-                    if (ControlEndpointValidation.CheckConfirmation(http, options) is { } confirmationError)
-                    {
-                        return confirmationError;
                     }
 
                     try
