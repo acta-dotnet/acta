@@ -11,9 +11,9 @@ namespace Acta.Tests.Contracts;
 
 /// <summary>
 /// Generates and verifies <c>docs/reference/operations.md</c>: one table per group, one row per operation folder with the
-/// facade method named for it, its HTTP routes, its CLI verb, its SQL kind, the tables its SQL writes, and its specs, plus
-/// one row per HTTP-only operation, and a line under the group for each facade method that composes several operations.
-/// Everything is read from source, so the index moves with the code and needs no hand upkeep.
+/// facade method named for it, its HTTP routes with their OpenAPI operation ids, its CLI verb, its SQL kind, the tables its
+/// SQL writes, and its specs, plus one row per HTTP-only operation, and a line under the group for each facade method that
+/// composes several operations. Everything is read from source, so the index moves with the code and needs no hand upkeep.
 /// </summary>
 public sealed partial class OperationsIndexTests
 {
@@ -62,7 +62,7 @@ public sealed partial class OperationsIndexTests
         var operations = Path.Combine(root, "src", "Acta", "Operations");
         var routeOperations = Path.Combine(root, "src", "Acta.AspNetCore", "Operations");
         var facadeMethods = FacadeMethods(operations);
-        var routes = Routes(routeOperations, facadeMethods);
+        var routes = RouteMap(root);
         var httpOnly = HttpOnlyOperations(operations, routeOperations);
         var verbs = CliVerbs(Path.Combine(root, "src", "Acta", "Cli", "CliCommandRunner.cs"), facadeMethods);
 
@@ -73,7 +73,7 @@ public sealed partial class OperationsIndexTests
         sb.AppendLine("> `ACTA_EMIT_DOCS=1 dotnet test tests/Acta.Tests --filter OperationsIndexTests`.");
         sb.AppendLine();
         sb.AppendLine(
-            "One row per operation folder, `src/Acta/Operations/<Group>/<Operation>/`, and one per HTTP-only operation, `src/Acta.AspNetCore/Operations/<Group>/<Operation>/`, a route that composes what the facades answer. **Facade** is the public method named for it; an operation with none is engine-only or HTTP-only, and a method that runs several operations is listed under its group. **HTTP** routes sit under `{mount}/v1`. **SQL** is `inline` when every dialect runs a statement, `routine` when PostgreSQL and SQL Server call an installed routine and SQLite runs the statement inline, and spelled per dialect otherwise. **Writes** lists the tables its SQL inserts into, updates, or deletes from. **Specs** are in `tests/Acta.Tests.Conformance/Operations/<Group>/`."
+            "One row per operation folder, `src/Acta/Operations/<Group>/<Operation>/`, and one per HTTP-only operation, `src/Acta.AspNetCore/Operations/<Group>/<Operation>/`, a route that composes what the facades answer. **Facade** is the public method named for it; an operation with none is engine-only or HTTP-only, and a method that runs several operations is listed under its group. **HTTP** routes sit under `{mount}/v1`, each with its OpenAPI operation id. **SQL** is `inline` when every dialect runs a statement, `routine` when PostgreSQL and SQL Server call an installed routine and SQLite runs the statement inline, and spelled per dialect otherwise. **Writes** lists the tables its SQL inserts into, updates, or deletes from. **Specs** are in `tests/Acta.Tests.Conformance/Operations/<Group>/`."
         );
         sb.AppendLine();
 
@@ -110,7 +110,11 @@ public sealed partial class OperationsIndexTests
                             .Where(m => m.Operation == operation && OperationNames.IsNamedFor(m.Facade, m.Method, m.Operation))
                             .Select(m => $"`I{m.Facade}.{m.Method}`")
                     ),
-                    Cell(routes.Where(r => r.Operation == operation).Select(r => $"`{r.Verb} {r.Pattern}`")),
+                    Cell(
+                        routes
+                            .Where(r => r.Operation == operation)
+                            .Select(r => $"`{r.Verb} {r.Pattern}` (`{OpenApiOperationIds.For($"{r.Verb} {r.Pattern}", routes)}`)")
+                    ),
                     Cell(verbs.Where(v => v.Operation == operation).Select(v => $"`{v.Verb}`")),
                     SqlKind(sql),
                     Cell(
@@ -315,6 +319,16 @@ public sealed partial class OperationsIndexTests
                 ),
         ];
     }
+
+    /// <summary>Every route the HTTP surface maps, as <c>VERB /pattern</c> below the version segment, with the operation it serves.</summary>
+    internal static List<(string Verb, string Pattern, string Operation)> RouteMap(string root) =>
+        [
+            .. Routes(
+                    Path.Combine(root, "src", "Acta.AspNetCore", "Operations"),
+                    FacadeMethods(Path.Combine(root, "src", "Acta", "Operations"))
+                )
+                .Distinct(),
+        ];
 
     // A route in its own folder belongs to that folder's operation; a route in a group's table, to the facade call it makes.
     private static List<(string Verb, string Pattern, string Operation)> Routes(

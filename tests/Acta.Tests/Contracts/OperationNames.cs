@@ -1,8 +1,9 @@
 namespace Acta.Tests.Contracts;
 
 /// <summary>
-/// How names relate across an operation's homes: the facade method named for an operation, and the operation or group
-/// noun a spec starts with. The operations index and the architecture tests read them the same way.
+/// How names relate across an operation's homes: the facade method named for an operation, the operation or group noun
+/// a spec starts with, and a route's OpenAPI operation id. The operations index, the OpenAPI document, and the
+/// architecture tests read them the same way.
 /// </summary>
 internal static class OperationNames
 {
@@ -56,6 +57,36 @@ internal static class OperationNames
     /// </summary>
     public static string? SpecNoun(string spec, string group) =>
         new[] { group, Nouns.GetValueOrDefault(group) }.OfType<string>().FirstOrDefault(noun => StartsWithWord(spec, noun));
+
+    /// <summary>
+    /// The OpenAPI operation id of <paramref name="route"/>, one of the <paramref name="routes"/> serving
+    /// <paramref name="operation"/>: the name in camelCase, with the route's owner before the subject when the routes
+    /// have several owners (<c>listJobTags</c>), and the literal path word no other route of its owner carries after the
+    /// subject (<c>getJobByKey</c> beside <c>getJob</c>).
+    /// </summary>
+    public static string OperationId(string operation, string route, IReadOnlyCollection<string> routes)
+    {
+        var owner = PathOwner(route);
+        var verb = Verb(operation);
+        var name =
+            owner is not null && routes.Select(PathOwner).Distinct(StringComparer.Ordinal).Count() > 1
+                ? verb + owner + operation[verb.Length..]
+                : operation;
+        var peers = routes.Where(other => other != route && PathOwner(other) == owner).Select(Segments).ToList();
+        var words = peers.Count == 0 ? [] : Segments(route).Where(word => !word.StartsWith('{') && peers.All(peer => !peer.Contains(word)));
+        return char.ToLowerInvariant(name[0]) + name[1..] + string.Concat(words.Select(Pascal));
+    }
+
+    /// <summary>The leading PascalCase word of a name, its verb when the name is an operation's.</summary>
+    public static string Verb(string name) => name[..(1 + name.Skip(1).TakeWhile(char.IsLower).Count())];
+
+    // The aggregate a route belongs to, the singular of its first path word, or null for a route of no aggregate.
+    private static string? PathOwner(string route) => Nouns.GetValueOrDefault(Pascal(Segments(route)[0]));
+
+    private static string[] Segments(string route) => route.Trim('/').Split('/');
+
+    private static string Pascal(string word) =>
+        string.Concat(word.Split('-', StringSplitOptions.RemoveEmptyEntries).Select(part => char.ToUpperInvariant(part[0]) + part[1..]));
 
     // Whether the text starts with the word and another PascalCase word follows it.
     private static bool StartsWithWord(string text, string word) =>

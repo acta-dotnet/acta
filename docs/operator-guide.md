@@ -361,7 +361,7 @@ app.MapActa("/acta", options =>
 - **Lists page by cursor.** Pass `NextCursor` back as `Cursor`; a cursor is tied to its query, and a stale one is rejected. Pages default to 50 and cap at 100, and `IncludeTotal` adds a count (events only with a job filter).
 - `GET /capabilities` reports whether controls are enabled, so a client can hide edit UI.
 
-The [OpenAPI document](./reference/openapi.json) lists every route below its server, `/acta/api`, the default mount's API root (`/v1/jobs/{jobRef}`), each with an id derived from its method and route (`GetJobsByJobRef`, `PostJobsByJobRefPause`) and, on a control, the confirmation header the mount requires. Every code is an open string whose `x-acta-known-values` names the values this version writes, so a client keeps a value it does not know.
+The [OpenAPI document](./reference/openapi.json) lists every route below its server, `/acta/api`, the default mount's API root (`/v1/jobs/{jobRef}`), each with its operation's name in camelCase as its id (`getJob`, `pauseJob`, `listJobTags`) and, on a control, the confirmation header the mount requires. Every code is an open string whose `x-acta-known-values` names the values this version writes, so a client keeps a value it does not know.
 
 ### Control authorization
 

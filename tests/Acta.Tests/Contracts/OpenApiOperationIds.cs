@@ -1,39 +1,42 @@
-using System.Text;
 using Acta.AspNetCore;
+using Acta.Tests.Conformance.Testing;
 
 namespace Acta.Tests.Contracts;
 
 /// <summary>
-/// The operation id of one route, derived rather than declared: the HTTP method, then each segment of the route
-/// below Acta's version segment, a literal PascalCased by its hyphens and a placeholder as <c>By</c> plus its name,
-/// so <c>POST .../v1/jobs/{jobRef}/pause</c> is <c>PostJobsByJobRefPause</c> under any mount. Endpoint names stay
-/// unset in the product: ASP.NET wants them unique across the app, and a host may mount the API twice.
+/// The operation id of every route, by its method and its path below Acta's version segment, so a route reads the same
+/// under any mount: <see cref="OperationNames.OperationId"/> of the operation the operations index attributes the route
+/// to, such as <c>pauseJob</c> or <c>listJobTags</c>. A generated client names its methods after these; a route the
+/// index attributes to no operation fails generation. Endpoint names stay unset in the product: ASP.NET wants them
+/// unique across the app, and a host may mount the API twice.
 /// </summary>
 internal static class OpenApiOperationIds
 {
-    public static string For(string method, string relativePath)
-    {
-        var id = new StringBuilder(Pascal(method.ToLowerInvariant()));
-        foreach (var segment in Below(relativePath))
-        {
-            id.Append(segment.StartsWith('{') ? "By" + Pascal(segment.Trim('{', '}')) : Pascal(segment));
-        }
-        return id.ToString();
-    }
+    private static readonly Lazy<List<(string Verb, string Pattern, string Operation)>> RouteMap = new(() =>
+        OperationsIndexTests.RouteMap(IntegrationConfig.FindRepoRoot())
+    );
+
+    /// <summary>The id of <paramref name="method"/> on <paramref name="relativePath"/>, under any mount.</summary>
+    public static string For(string method, string relativePath) => For(Key(method, relativePath), RouteMap.Value);
+
+    /// <summary>The id of the route keyed <c>METHOD /path</c> among <paramref name="routes"/>; throws for one they lack.</summary>
+    public static string For(string key, IReadOnlyCollection<(string Verb, string Pattern, string Operation)> routes) =>
+        routes.FirstOrDefault(route => $"{route.Verb} {route.Pattern}" == key) is { Operation: not null } found
+            ? OperationNames.OperationId(
+                found.Operation,
+                found.Pattern,
+                [.. routes.Where(route => route.Operation == found.Operation).Select(route => route.Pattern)]
+            )
+            : throw new InvalidOperationException($"{key} serves no operation the operations index knows, so it has no operation id.");
 
     /// <summary>The route below Acta's version segment as <c>METHOD /path</c>, such as <c>POST /jobs/{jobRef}/purge</c> under any mount.</summary>
-    public static string Key(string method, string relativePath) => $"{method.ToUpperInvariant()} /{string.Join('/', Below(relativePath))}";
-
-    private static IEnumerable<string> Below(string relativePath)
+    public static string Key(string method, string relativePath)
     {
         var segments = relativePath.Trim('/').Split('/');
         var version = ActaEndpointRouteBuilderExtensions.ApiVersionSegment.Trim('/');
         var below = Array.IndexOf(segments, version) + 1;
         return below == 0
-            ? throw new InvalidOperationException($"'{relativePath}' has no '{version}' segment to derive an operation id below.")
-            : segments.Skip(below);
+            ? throw new InvalidOperationException($"'{relativePath}' has no '{version}' segment to key an operation id below.")
+            : $"{method.ToUpperInvariant()} /{string.Join('/', segments.Skip(below))}";
     }
-
-    private static string Pascal(string text) =>
-        string.Concat(text.Split('-', StringSplitOptions.RemoveEmptyEntries).Select(word => char.ToUpperInvariant(word[0]) + word[1..]));
 }

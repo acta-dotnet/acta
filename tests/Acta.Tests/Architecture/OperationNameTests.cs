@@ -1,5 +1,7 @@
 using System.Collections;
 using System.Reflection;
+using System.Text.Json.Nodes;
+using Acta.AspNetCore;
 using Acta.Tests.Conformance.Testing;
 using Acta.Tests.Contracts;
 using Microsoft.CodeAnalysis;
@@ -14,7 +16,7 @@ namespace Acta.Tests.Architecture;
 /// it. The folder gives the name. <see cref="OperationLayoutTests"/> and <see cref="HandlerResponseTests"/> hold the
 /// files and types in the folder to it; here the layers around the folder are held to it: the method that runs the
 /// handler, the facade method, its SQL files and the strings that load them and scope its cursor, the route folder, the
-/// spec, and the verb.
+/// route's OpenAPI id, the spec, and the verb.
 /// </summary>
 public sealed class OperationNameTests
 {
@@ -74,7 +76,7 @@ public sealed class OperationNameTests
             .SelectMany(Folders)
             .Concat(Directory.EnumerateDirectories(routes).SelectMany(Directory.EnumerateDirectories))
             .Select(folder => (Group: Path.GetFileName(Path.GetDirectoryName(folder))!, Name: Path.GetFileName(folder)!))
-            .Select(operation => (operation.Group, operation.Name, Verb: Verb(operation.Name)))
+            .Select(operation => (operation.Group, operation.Name, Verb: OperationNames.Verb(operation.Name)))
             .ToList();
         Assert.True(named.Count > 150, $"only {named.Count} operations and route folders; the walk is broken.");
 
@@ -93,9 +95,6 @@ public sealed class OperationNameTests
             "Name the operation with a listed verb (a read is a Get or a List, a lookup a Get, taking rows away a Remove), or add the verb on purpose."
         );
     }
-
-    // The leading word of a PascalCase name.
-    private static string Verb(string name) => name[..(1 + name.Skip(1).TakeWhile(char.IsLower).Count())];
 
     /// <summary>
     /// A method of <c>&lt;Group&gt;Operations</c> that runs one handler is that operation: <c>&lt;Operation&gt;Async</c> when
@@ -289,6 +288,46 @@ public sealed class OperationNameTests
         ArchitectureAssert.NoViolations(
             violations,
             "Name the route folder after the operation it serves, or give a route that composes several its own <Name>Endpoint."
+        );
+    }
+
+    /// <summary>
+    /// A route's OpenAPI operation id is the name of the operation the operations index attributes it to, in camelCase
+    /// (<c>pauseJob</c>): the owner goes before the subject when one operation serves routes of several owners
+    /// (<c>listJobTags</c>), the route with no owner keeps the plain name (<c>listEvents</c>), and of two routes of one
+    /// owner the second adds its distinguishing path word after the subject (<c>getJobByKey</c>). No two routes share one.
+    /// </summary>
+    [Fact]
+    public void A_route_id_is_its_operations_name()
+    {
+        var root = IntegrationConfig.FindRepoRoot();
+        var routes = OperationsIndexTests.RouteMap(root);
+        var paths = JsonNode.Parse(File.ReadAllText(Path.Combine(root, "docs", "reference", "openapi.json")))!["paths"]!;
+        var ids = routes
+            .Select(route =>
+                (
+                    Route: $"{route.Verb} {route.Pattern}",
+                    Id: paths[ActaEndpointRouteBuilderExtensions.ApiVersionSegment + route.Pattern]
+                        ?[route.Verb.ToLowerInvariant()]?["operationId"]?.GetValue<string>(),
+                    Expected: OperationNames.OperationId(
+                        route.Operation,
+                        route.Pattern,
+                        [.. routes.Where(other => other.Operation == route.Operation).Select(other => other.Pattern)]
+                    )
+                )
+            )
+            .ToList();
+        Assert.True(ids.Count > 60, $"only {ids.Count} routes; the walk is broken.");
+
+        var misnamed = ids.Where(route => route.Id != route.Expected)
+            .Select(route => (route.Route, (string?)$"has the id '{route.Id}'; name it {route.Expected}"));
+        var shared = ids.GroupBy(route => route.Expected, StringComparer.Ordinal)
+            .Where(group => group.Count() > 1)
+            .Select(group => ($"'{group.Key}'", (string?)$"names {string.Join(", ", group.Select(route => route.Route))}"));
+
+        ArchitectureAssert.NoViolations(
+            misnamed.Concat(shared),
+            "Give the route its operation's name in camelCase: the owner before the subject when it serves several owners, and a literal path word after the subject that tells two routes of one owner apart."
         );
     }
 

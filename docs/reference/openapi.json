@@ -18,7 +18,7 @@
           "Jobs"
         ],
         "summary": "Add or update one tag on the job.",
-        "operationId": "PostJobsByJobRefTags",
+        "operationId": "upsertJobTag",
         "parameters": [
           {
             "name": "jobRef",
@@ -134,7 +134,7 @@
           "Jobs"
         ],
         "summary": "List the job's tags.",
-        "operationId": "GetJobsByJobRefTags",
+        "operationId": "listJobTags",
         "parameters": [
           {
             "name": "jobRef",
@@ -240,7 +240,7 @@
           "Jobs"
         ],
         "summary": "Remove one tag from the job.",
-        "operationId": "DeleteJobsByJobRefTagsByTagName",
+        "operationId": "removeJobTag",
         "parameters": [
           {
             "name": "jobRef",
@@ -342,7 +342,7 @@
           "Jobs"
         ],
         "summary": "Pause the job until an operator resumes it.",
-        "operationId": "PostJobsByJobRefPause",
+        "operationId": "pauseJob",
         "parameters": [
           {
             "name": "jobRef",
@@ -465,7 +465,7 @@
           "Jobs"
         ],
         "summary": "Resume a paused job.",
-        "operationId": "PostJobsByJobRefResume",
+        "operationId": "resumeJob",
         "parameters": [
           {
             "name": "jobRef",
@@ -588,7 +588,7 @@
           "Jobs"
         ],
         "summary": "Restart a terminal job with its original input.",
-        "operationId": "PostJobsByJobRefRestart",
+        "operationId": "restartJob",
         "parameters": [
           {
             "name": "jobRef",
@@ -711,7 +711,7 @@
           "Jobs"
         ],
         "summary": "Cancel the job.",
-        "operationId": "PostJobsByJobRefCancel",
+        "operationId": "cancelJob",
         "parameters": [
           {
             "name": "jobRef",
@@ -834,7 +834,7 @@
           "Jobs"
         ],
         "summary": "Delete the job's record from the ledger.",
-        "operationId": "PostJobsByJobRefPurge",
+        "operationId": "purgeJob",
         "parameters": [
           {
             "name": "jobRef",
@@ -962,7 +962,7 @@
           "Jobs"
         ],
         "summary": "Move the job's next-run instant, or run it now.",
-        "operationId": "PostJobsByJobRefReschedule",
+        "operationId": "rescheduleJob",
         "parameters": [
           {
             "name": "jobRef",
@@ -1085,7 +1085,7 @@
           "Jobs"
         ],
         "summary": "Change the job's priority.",
-        "operationId": "PostJobsByJobRefReprioritize",
+        "operationId": "reprioritizeJob",
         "parameters": [
           {
             "name": "jobRef",
@@ -1209,7 +1209,7 @@
           "Jobs"
         ],
         "summary": "Amend a waiting job's stored input.",
-        "operationId": "PostJobsByJobRefInput",
+        "operationId": "updateJobInput",
         "parameters": [
           {
             "name": "jobRef",
@@ -1331,7 +1331,7 @@
           "Jobs"
         ],
         "summary": "Read the job's stored input payload.",
-        "operationId": "GetJobsByJobRefInput",
+        "operationId": "getJobInput",
         "parameters": [
           {
             "name": "jobRef",
@@ -1412,7 +1412,7 @@
           "Jobs"
         ],
         "summary": "Enqueue a job.",
-        "operationId": "PostJobs",
+        "operationId": "enqueueJob",
         "parameters": [
           {
             "$ref": "#/components/parameters/ActaControl"
@@ -1558,7 +1558,7 @@
           "Jobs"
         ],
         "summary": "List jobs, filtered and keyset-paged.",
-        "operationId": "GetJobs",
+        "operationId": "listJobs",
         "parameters": [
           {
             "name": "jobNamespace",
@@ -1739,7 +1739,7 @@
           "Jobs"
         ],
         "summary": "Raise a named signal on the job, with an optional JSON value.",
-        "operationId": "PostJobsByJobRefSignalsBySignalName",
+        "operationId": "raiseJobSignal",
         "parameters": [
           {
             "name": "jobRef",
@@ -1870,7 +1870,7 @@
           "Namespaces"
         ],
         "summary": "Add or update one tag on the namespace.",
-        "operationId": "PostNamespacesByJobNamespaceTags",
+        "operationId": "upsertNamespaceTag",
         "parameters": [
           {
             "name": "jobNamespace",
@@ -1986,7 +1986,7 @@
           "Namespaces"
         ],
         "summary": "List the namespace's tags.",
-        "operationId": "GetNamespacesByJobNamespaceTags",
+        "operationId": "listNamespaceTags",
         "parameters": [
           {
             "name": "jobNamespace",
@@ -2092,7 +2092,7 @@
           "Namespaces"
         ],
         "summary": "Remove one tag from the namespace.",
-        "operationId": "DeleteNamespacesByJobNamespaceTagsByTagName",
+        "operationId": "removeNamespaceTag",
         "parameters": [
           {
             "name": "jobNamespace",
@@ -2194,7 +2194,7 @@
           "Namespaces"
         ],
         "summary": "Suspend the namespace: new work is rejected at enqueue.",
-        "operationId": "PostNamespacesByJobNamespaceSuspend",
+        "operationId": "suspendNamespace",
         "parameters": [
           {
             "name": "jobNamespace",
@@ -2307,7 +2307,7 @@
           "Namespaces"
         ],
         "summary": "Resume a suspended namespace.",
-        "operationId": "PostNamespacesByJobNamespaceResume",
+        "operationId": "resumeNamespace",
         "parameters": [
           {
             "name": "jobNamespace",
@@ -2420,7 +2420,7 @@
           "Namespaces"
         ],
         "summary": "Update the namespace's owner team and description.",
-        "operationId": "PatchNamespacesByJobNamespace",
+        "operationId": "updateNamespace",
         "parameters": [
           {
             "name": "jobNamespace",
@@ -2542,7 +2542,7 @@
           "Namespaces"
         ],
         "summary": "Read one namespace.",
-        "operationId": "GetNamespacesByJobNamespace",
+        "operationId": "getNamespace",
         "parameters": [
           {
             "name": "jobNamespace",
@@ -2623,7 +2623,7 @@
           "Tenants"
         ],
         "summary": "Add or update one tag on the tenant.",
-        "operationId": "PostTenantsByTenantNameTags",
+        "operationId": "upsertTenantTag",
         "parameters": [
           {
             "name": "tenantName",
@@ -2739,7 +2739,7 @@
           "Tenants"
         ],
         "summary": "List the tenant's tags.",
-        "operationId": "GetTenantsByTenantNameTags",
+        "operationId": "listTenantTags",
         "parameters": [
           {
             "name": "tenantName",
@@ -2845,7 +2845,7 @@
           "Tenants"
         ],
         "summary": "Remove one tag from the tenant.",
-        "operationId": "DeleteTenantsByTenantNameTagsByTagName",
+        "operationId": "removeTenantTag",
         "parameters": [
           {
             "name": "tenantName",
@@ -2947,7 +2947,7 @@
           "Tenants"
         ],
         "summary": "Register a tenant, or return the existing one.",
-        "operationId": "PostTenants",
+        "operationId": "registerTenant",
         "parameters": [
           {
             "$ref": "#/components/parameters/ActaControl"
@@ -3041,7 +3041,7 @@
           "Tenants"
         ],
         "summary": "List tenants.",
-        "operationId": "GetTenants",
+        "operationId": "listTenants",
         "parameters": [
           {
             "name": "status",
@@ -3156,7 +3156,7 @@
           "Tenants"
         ],
         "summary": "Suspend the tenant: new work is rejected at enqueue.",
-        "operationId": "PostTenantsByTenantNameSuspend",
+        "operationId": "suspendTenant",
         "parameters": [
           {
             "name": "tenantName",
@@ -3269,7 +3269,7 @@
           "Tenants"
         ],
         "summary": "Resume a suspended tenant.",
-        "operationId": "PostTenantsByTenantNameResume",
+        "operationId": "resumeTenant",
         "parameters": [
           {
             "name": "tenantName",
@@ -3382,7 +3382,7 @@
           "Tenants"
         ],
         "summary": "Update the tenant's display name and description.",
-        "operationId": "PatchTenantsByTenantName",
+        "operationId": "updateTenant",
         "parameters": [
           {
             "name": "tenantName",
@@ -3504,7 +3504,7 @@
           "Tenants"
         ],
         "summary": "Read one tenant.",
-        "operationId": "GetTenantsByTenantName",
+        "operationId": "getTenant",
         "parameters": [
           {
             "name": "tenantName",
@@ -3585,7 +3585,7 @@
           "Alerts"
         ],
         "summary": "Acknowledge the alert: an operator has seen it.",
-        "operationId": "PostAlertsByAlertRefAcknowledge",
+        "operationId": "acknowledgeAlert",
         "parameters": [
           {
             "name": "alertRef",
@@ -3698,7 +3698,7 @@
           "Alerts"
         ],
         "summary": "Resolve the alert: its cause is handled.",
-        "operationId": "PostAlertsByAlertRefResolve",
+        "operationId": "resolveAlert",
         "parameters": [
           {
             "name": "alertRef",
@@ -3811,7 +3811,7 @@
           "Outbox"
         ],
         "summary": "Return quarantined outbox rows to pending; the next relay pass applies it.",
-        "operationId": "PostOutboxByJobNamespaceRequeue",
+        "operationId": "requeueOutbox",
         "parameters": [
           {
             "name": "jobNamespace",
@@ -3934,7 +3934,7 @@
           "Outbox"
         ],
         "summary": "Delete quarantined outbox rows, keeping the ids as audit evidence.",
-        "operationId": "PostOutboxByJobNamespaceDiscard",
+        "operationId": "discardOutbox",
         "parameters": [
           {
             "name": "jobNamespace",
@@ -4057,7 +4057,7 @@
           "Definitions"
         ],
         "summary": "Add or update one tag on the definition.",
-        "operationId": "PostDefinitionsByJobNamespaceByJobNameTags",
+        "operationId": "upsertDefinitionTag",
         "parameters": [
           {
             "name": "jobNamespace",
@@ -4181,7 +4181,7 @@
           "Definitions"
         ],
         "summary": "List the definition's tags.",
-        "operationId": "GetDefinitionsByJobNamespaceByJobNameTags",
+        "operationId": "listDefinitionTags",
         "parameters": [
           {
             "name": "jobNamespace",
@@ -4295,7 +4295,7 @@
           "Definitions"
         ],
         "summary": "Remove one tag from the definition.",
-        "operationId": "DeleteDefinitionsByJobNamespaceByJobNameTagsByTagName",
+        "operationId": "removeDefinitionTag",
         "parameters": [
           {
             "name": "jobNamespace",
@@ -4405,7 +4405,7 @@
           "Definitions"
         ],
         "summary": "Set or clear the definition's operator policy overrides.",
-        "operationId": "PatchDefinitionsByJobNamespaceByJobName",
+        "operationId": "updateDefinitionOverrides",
         "parameters": [
           {
             "name": "jobNamespace",
@@ -4535,7 +4535,7 @@
           "Definitions"
         ],
         "summary": "Read one job definition and its effective policy.",
-        "operationId": "GetDefinitionsByJobNamespaceByJobName",
+        "operationId": "getDefinition",
         "parameters": [
           {
             "name": "jobNamespace",
@@ -4624,7 +4624,7 @@
           "Definitions"
         ],
         "summary": "Retire the definition and cancel its parked jobs.",
-        "operationId": "PostDefinitionsByJobNamespaceByJobNameRetire",
+        "operationId": "retireDefinition",
         "parameters": [
           {
             "name": "jobNamespace",
@@ -4756,7 +4756,7 @@
           "Schedules"
         ],
         "summary": "Pause a recurring schedule, indefinitely or until an instant.",
-        "operationId": "PostSchedulesByJobNamespaceByJobNameByScheduleNamePause",
+        "operationId": "pauseSchedule",
         "parameters": [
           {
             "name": "jobNamespace",
@@ -4895,7 +4895,7 @@
           "Schedules"
         ],
         "summary": "Resume a paused schedule, reconciled by its misfire policy.",
-        "operationId": "PostSchedulesByJobNamespaceByJobNameByScheduleNameResume",
+        "operationId": "resumeSchedule",
         "parameters": [
           {
             "name": "jobNamespace",
@@ -5034,7 +5034,7 @@
           "Schedules"
         ],
         "summary": "Fire the schedule now, without moving its cadence.",
-        "operationId": "PostSchedulesByJobNamespaceByJobNameByScheduleNameTrigger",
+        "operationId": "triggerSchedule",
         "parameters": [
           {
             "name": "jobNamespace",
@@ -5173,7 +5173,7 @@
           "Calendars"
         ],
         "summary": "Save a calendar definition as the family's next draft version.",
-        "operationId": "PostCalendarsByJobNamespaceByCalendarNameDrafts",
+        "operationId": "saveCalendarDraft",
         "parameters": [
           {
             "name": "jobNamespace",
@@ -5305,7 +5305,7 @@
           "Calendars"
         ],
         "summary": "Publish a draft as the family's current version and retime the schedules bound to it.",
-        "operationId": "PostCalendarsByJobNamespaceByCalendarNamePublish",
+        "operationId": "publishCalendar",
         "parameters": [
           {
             "name": "jobNamespace",
@@ -5437,7 +5437,7 @@
           "Calendars"
         ],
         "summary": "Archive the family's current version.",
-        "operationId": "PostCalendarsByJobNamespaceByCalendarNameArchive",
+        "operationId": "archiveCalendar",
         "parameters": [
           {
             "name": "jobNamespace",
@@ -5569,7 +5569,7 @@
           "Jobs"
         ],
         "summary": "Read one job.",
-        "operationId": "GetJobsByJobRef",
+        "operationId": "getJob",
         "parameters": [
           {
             "name": "jobRef",
@@ -5650,7 +5650,7 @@
           "Jobs"
         ],
         "summary": "Resolve a job by namespace and deduplication key.",
-        "operationId": "GetJobsByKey",
+        "operationId": "getJobByKey",
         "parameters": [
           {
             "name": "jobNamespace",
@@ -5741,7 +5741,7 @@
           "Jobs"
         ],
         "summary": "Read the job's full detail aggregate in one request.",
-        "operationId": "GetJobsByJobRefDetail",
+        "operationId": "getJobDetail",
         "parameters": [
           {
             "name": "jobRef",
@@ -5822,7 +5822,7 @@
           "Jobs"
         ],
         "summary": "List one job's checkpoints.",
-        "operationId": "GetJobsByJobRefCheckpoints",
+        "operationId": "listJobCheckpoints",
         "parameters": [
           {
             "name": "jobRef",
@@ -5928,7 +5928,7 @@
           "Jobs"
         ],
         "summary": "List one job's steps, newest first.",
-        "operationId": "GetJobsByJobRefSteps",
+        "operationId": "listJobSteps",
         "parameters": [
           {
             "name": "jobRef",
@@ -6034,7 +6034,7 @@
           "Workers"
         ],
         "summary": "List workers.",
-        "operationId": "GetWorkers",
+        "operationId": "listWorkers",
         "parameters": [
           {
             "name": "jobNamespace",
@@ -6138,7 +6138,7 @@
           "Workers"
         ],
         "summary": "Read one worker.",
-        "operationId": "GetWorkersByWorkerRef",
+        "operationId": "getWorker",
         "parameters": [
           {
             "name": "workerRef",
@@ -6219,7 +6219,7 @@
           "Namespaces"
         ],
         "summary": "List namespaces.",
-        "operationId": "GetNamespaces",
+        "operationId": "listNamespaces",
         "parameters": [
           {
             "name": "status",
@@ -6334,7 +6334,7 @@
           "Alerts"
         ],
         "summary": "List alerts.",
-        "operationId": "GetAlerts",
+        "operationId": "listAlerts",
         "parameters": [
           {
             "name": "jobNamespace",
@@ -6480,7 +6480,7 @@
           "Alerts"
         ],
         "summary": "Read one alert.",
-        "operationId": "GetAlertsByAlertRef",
+        "operationId": "getAlert",
         "parameters": [
           {
             "name": "alertRef",
@@ -6561,7 +6561,7 @@
           "Outbox"
         ],
         "summary": "List outbox relay sources with backlog and quarantine totals.",
-        "operationId": "GetOutboxSources",
+        "operationId": "listOutboxSources",
         "parameters": [
           {
             "name": "jobNamespace",
@@ -6649,7 +6649,7 @@
           "Outbox"
         ],
         "summary": "List a relay source's quarantined staging rows.",
-        "operationId": "GetOutboxByJobNamespaceQuarantined",
+        "operationId": "listQuarantinedOutbox",
         "parameters": [
           {
             "name": "jobNamespace",
@@ -6755,7 +6755,7 @@
           "Definitions"
         ],
         "summary": "List job definitions.",
-        "operationId": "GetDefinitions",
+        "operationId": "listDefinitions",
         "parameters": [
           {
             "name": "jobNamespace",
@@ -6878,7 +6878,7 @@
           "Definitions"
         ],
         "summary": "Read a job's compile-time input template.",
-        "operationId": "GetDefinitionsByJobNamespaceByJobNameInputTemplate",
+        "operationId": "getDefinitionInputTemplate",
         "parameters": [
           {
             "name": "jobNamespace",
@@ -6967,7 +6967,7 @@
           "Schedules"
         ],
         "summary": "List recurring schedules, next run first.",
-        "operationId": "GetSchedules",
+        "operationId": "listSchedules",
         "parameters": [
           {
             "name": "jobNamespace",
@@ -7087,7 +7087,7 @@
           "Schedules"
         ],
         "summary": "Preview a schedule's upcoming fire instants.",
-        "operationId": "GetSchedulesByJobNamespaceByJobNameByScheduleNamePreview",
+        "operationId": "previewSchedule",
         "parameters": [
           {
             "name": "jobNamespace",
@@ -7203,7 +7203,7 @@
           "Calendars"
         ],
         "summary": "List calendar families, the shared ones in sys included.",
-        "operationId": "GetCalendars",
+        "operationId": "listCalendars",
         "parameters": [
           {
             "name": "jobNamespace",
@@ -7315,7 +7315,7 @@
           "Calendars"
         ],
         "summary": "Read a calendar family's head: its current and latest versions and one definition.",
-        "operationId": "GetCalendarsByJobNamespaceByCalendarName",
+        "operationId": "getCalendar",
         "parameters": [
           {
             "name": "jobNamespace",
@@ -7413,7 +7413,7 @@
           "Calendars"
         ],
         "summary": "Read the calendar screen: the head, and the first page of its versions and of the schedules naming it.",
-        "operationId": "GetCalendarsByJobNamespaceByCalendarNameDetail",
+        "operationId": "getCalendarDetail",
         "parameters": [
           {
             "name": "jobNamespace",
@@ -7511,7 +7511,7 @@
           "Calendars"
         ],
         "summary": "List a calendar family's versions, newest first.",
-        "operationId": "GetCalendarsByJobNamespaceByCalendarNameVersions",
+        "operationId": "listCalendarVersions",
         "parameters": [
           {
             "name": "jobNamespace",
@@ -7625,7 +7625,7 @@
           "Calendars"
         ],
         "summary": "List the schedules naming a calendar family, by path.",
-        "operationId": "GetCalendarsByJobNamespaceByCalendarNameDependents",
+        "operationId": "listCalendarDependents",
         "parameters": [
           {
             "name": "jobNamespace",
@@ -7739,7 +7739,7 @@
           "Calendars"
         ],
         "summary": "Preview a calendar version beside the current one.",
-        "operationId": "GetCalendarsByJobNamespaceByCalendarNamePreview",
+        "operationId": "previewCalendar",
         "parameters": [
           {
             "name": "jobNamespace",
@@ -7864,7 +7864,7 @@
           "Events"
         ],
         "summary": "List ledger events, filtered and keyset-paged.",
-        "operationId": "GetEvents",
+        "operationId": "listEvents",
         "parameters": [
           {
             "name": "jobNamespace",
@@ -8045,7 +8045,7 @@
           "Jobs"
         ],
         "summary": "List one job's event timeline.",
-        "operationId": "GetJobsByJobRefEvents",
+        "operationId": "listJobEvents",
         "parameters": [
           {
             "name": "jobRef",
@@ -8159,7 +8159,7 @@
           "Definitions"
         ],
         "summary": "List a definition's ledger events (its jobs' lineage, not just changes).",
-        "operationId": "GetDefinitionsByJobNamespaceByJobNameEvents",
+        "operationId": "listDefinitionEvents",
         "parameters": [
           {
             "name": "jobNamespace",
@@ -8273,7 +8273,7 @@
           "Overview"
         ],
         "summary": "Read the ledger's health-overview counters.",
-        "operationId": "GetOverview",
+        "operationId": "getOverview",
         "parameters": [
           {
             "name": "jobNamespace",
@@ -8344,7 +8344,7 @@
           "Capabilities"
         ],
         "summary": "Read this host's API capabilities.",
-        "operationId": "GetCapabilities",
+        "operationId": "getCapabilities",
         "responses": {
           "400": {
             "description": "Bad Request",

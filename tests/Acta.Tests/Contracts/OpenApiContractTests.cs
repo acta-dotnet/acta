@@ -630,40 +630,37 @@ public sealed partial class OpenApiContractTests
         }
     }
 
-    [GeneratedRegex("^(Get|Post|Patch|Delete)[A-Z][A-Za-z0-9]*$")]
+    [GeneratedRegex("^[a-z][A-Za-z0-9]*$")]
     private static partial Regex OperationIdShape();
 
     [Fact]
-    public void Operation_ids_derive_from_the_method_and_the_route_below_the_version_segment()
+    public void An_operation_id_is_the_operations_name_under_any_mount()
     {
-        Assert.Equal("GetJobsByJobRef", OpenApiOperationIds.For("GET", "acta/api/v1/jobs/{jobRef}"));
-        Assert.Equal("PostJobsByJobRefPause", OpenApiOperationIds.For("POST", "/ops/api/v1/jobs/{jobRef}/pause"));
-        Assert.Equal("GetJobsByKey", OpenApiOperationIds.For("GET", "acta/api/v1/jobs/by-key"));
+        Assert.Equal("getJob", OpenApiOperationIds.For("GET", "acta/api/v1/jobs/{jobRef}"));
+        Assert.Equal("getJobByKey", OpenApiOperationIds.For("GET", "acta/api/v1/jobs/by-key"));
+        Assert.Equal("pauseJob", OpenApiOperationIds.For("POST", "/ops/api/v1/jobs/{jobRef}/pause"));
+        Assert.Equal("listEvents", OpenApiOperationIds.For("GET", "/v1/events"));
+        Assert.Equal("listJobEvents", OpenApiOperationIds.For("GET", "/v1/jobs/{jobRef}/events"));
         Assert.Equal(
-            "DeleteDefinitionsByJobNamespaceByJobNameTagsByTagName",
+            "removeDefinitionTag",
             OpenApiOperationIds.For("DELETE", "api/v1/definitions/{jobNamespace}/{jobName}/tags/{tagName}")
         );
-        Assert.Equal("PatchTenantsByTenantName", OpenApiOperationIds.For("PATCH", "/v1/tenants/{tenantName}"));
         Assert.Equal("POST /jobs/{jobRef}/purge", OpenApiOperationIds.Key("post", "acta/api/v1/jobs/{jobRef}/purge"));
         Assert.Throws<InvalidOperationException>(() => OpenApiOperationIds.For("GET", "acta/jobs"));
+        Assert.Throws<InvalidOperationException>(() => OpenApiOperationIds.For("GET", "acta/api/v1/no-such-route"));
     }
 
+    // OperationNameTests holds each id to its operation's name; here every operation of the document carries one, once.
     [Fact]
-    public async Task Every_operation_has_a_unique_route_derived_id()
+    public async Task Every_operation_has_a_unique_camel_case_id()
     {
         var operations = Operations(await ActaOpenApiDocument.GenerateAsync());
-        var ids = new List<string>();
-        foreach (var (key, operation) in operations)
-        {
-            var id = operation["operationId"]?.GetValue<string>();
-            Assert.True(id is not null && OperationIdShape().IsMatch(id), $"{key}: operation id '{id}' is not a PascalCase id.");
-            Assert.Equal(OpenApiOperationIds.For(key.Split(' ')[0], key.Split(' ')[1]), id);
-            ids.Add(id);
-        }
+        var ids = operations.Select(operation => operation.Value["operationId"]?.GetValue<string>() ?? "").ToList();
 
         Assert.True(ids.Count > 60, $"only {ids.Count} operations carry an id; the walk is broken.");
+        Assert.All(ids, id => Assert.Matches(OperationIdShape(), id));
         Assert.Equal(ids.Count, ids.Distinct(StringComparer.Ordinal).Count());
-        Assert.Equal("GetJobsByJobRef", operations["GET /v1/jobs/{jobRef}"]["operationId"]!.GetValue<string>());
+        Assert.Equal("pauseJob", operations["POST /v1/jobs/{jobRef}/pause"]["operationId"]!.GetValue<string>());
     }
 
     /// <summary>
