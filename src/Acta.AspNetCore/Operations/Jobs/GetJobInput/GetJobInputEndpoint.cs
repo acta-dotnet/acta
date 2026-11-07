@@ -1,14 +1,12 @@
 using Microsoft.AspNetCore.Builder;
 using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Routing;
-using Microsoft.Extensions.Options;
 
 namespace Acta.AspNetCore;
 
 /// <summary>
-/// GET /jobs/{jobRef}/input: the stored input on its own, rendered by <see cref="JobPayloadBody"/>, for callers
-/// that want only the payload (the enqueue screen's clone prefill) and would otherwise pay the whole detail composition
-/// for one field.
+/// GET /jobs/{jobRef}/input: the stored input as the body itself (<see cref="RawPayload"/>), for a caller that wants only
+/// the payload, as the enqueue screen's clone does, and would otherwise pay the whole detail composition for one field.
 /// </summary>
 internal static class GetJobInputEndpoint
 {
@@ -16,28 +14,15 @@ internal static class GetJobInputEndpoint
         reads
             .MapGet(
                 "/jobs/{jobRef}/input",
-                async Task<IResult> (string jobRef, IJobs jobs, IOptions<JobsOptions> jobsOptions, CancellationToken ct) =>
-                {
-                    if (!JobTargetBinding.TryParseTarget(jobRef, options, out var lookup))
-                    {
-                        return RefSegment.Malformed("jobRef", "job");
-                    }
-
-                    var snapshot = await jobs.GetAsync(lookup, ct);
-                    if (snapshot is null)
-                    {
-                        return RouteTable.NotFound("Job");
-                    }
-
-                    var input = (await jobs.GetInputAsync(JobLookup.ById(snapshot.JobId), ct))?.Input;
-                    return Results.Json(
-                        JobPayloadBody.From(input ?? JobPayload.None, jobsOptions.Value.MaxInlinePayloadBytes),
-                        DashboardJsonContext.Default.JobPayloadBody
-                    );
-                }
+                (HttpContext http, IJobs jobs, CancellationToken ct) =>
+                    RouteTable.Run(async () =>
+                        await jobs.StoredJobIdAsync(RouteKeys.Job(http, options), ct) is { } jobId
+                            ? RawPayload.Serve(http, (await jobs.GetInputAsync(JobLookup.ById(jobId), ct))?.Input)
+                            : RouteTable.NotFound("Job")
+                    )
             )
-            .WithSummary("Read the job's stored input payload.")
-            .Produces<JobPayloadBody>(StatusCodes.Status200OK)
+            .WithSummary("Read the job's stored input as the body.")
+            .ProducesPayload()
             .ProducesProblem(StatusCodes.Status400BadRequest)
             .ProducesProblem(StatusCodes.Status404NotFound)
             .ProducesProblem(StatusCodes.Status503ServiceUnavailable);

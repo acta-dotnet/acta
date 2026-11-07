@@ -42,18 +42,13 @@ test('templateSeed: no template leaves the editor alone', () => {
 });
 
 test('cloneInputState: a json clone seeds the editor with its text, every digit kept', () => {
-  assert.equal(cloneInputState({ formatName: 'json', formatId: 1, json: '{"id":9007199254740993}' }), '{\n  "id": 9007199254740993\n}');
+  assert.equal(cloneInputState('{"id":9007199254740993}'), '{\n  "id": 9007199254740993\n}');
 });
 
-test('cloneInputState: a binary, malformed, or none clone leaves the form untouched', () => {
-  assert.equal(cloneInputState({ formatName: 'bytes', formatId: 2, base64: 'AQI=' }), null);
-  assert.equal(cloneInputState({ formatName: 'json', formatId: 1, base64: 'e2Jyb2tlbg==', malformed: true }), null);
-  assert.equal(cloneInputState({ formatName: 'none', formatId: 0 }), null);
+test('cloneInputState: no json input, or stored text that is not one JSON value, leaves the form untouched', () => {
   assert.equal(cloneInputState(null), null);
-});
-
-test('cloneInputState: a truncated clone seeds nothing (no body to copy)', () => {
-  assert.equal(cloneInputState({ formatName: 'json', formatId: 1, byteLength: 512 * 1024, truncated: true }), null);
+  assert.equal(cloneInputState(undefined), null);
+  assert.equal(cloneInputState('{broken'), null);
 });
 
 test('enqueueInputFields: disabled input sends nothing', () => {

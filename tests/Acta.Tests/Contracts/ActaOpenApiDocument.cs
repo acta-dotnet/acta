@@ -261,7 +261,29 @@ internal static partial class ActaOpenApiDocument
                 return Task.CompletedTask;
             }
         );
-        // A response header an endpoint sets on its successes (ResponseHeaderDoc) and a body declaration's example.
+        // A payload read answers the stored bytes themselves: any JSON value as JSON, any other format as raw bytes, which
+        // OpenAPI 3.1 describes as a media type without a schema.
+        o.AddOperationTransformer(
+            (operation, context, _) =>
+            {
+                if (
+                    context
+                        .Description.ActionDescriptor.EndpointMetadata.OfType<IProducesResponseTypeMetadata>()
+                        .Any(produces => produces.ContentTypes.Contains(RawPayload.BinaryContentType))
+                    && operation.Responses?.TryGetValue("200", out var ok) == true
+                    && ok is OpenApiResponse payload
+                )
+                {
+                    payload.Content = new Dictionary<string, OpenApiMediaType>(StringComparer.Ordinal)
+                    {
+                        [RawPayload.JsonContentType] = new() { Schema = new OpenApiSchema { Description = StoredJsonDescription } },
+                        [RawPayload.BinaryContentType] = new(),
+                    };
+                }
+                return Task.CompletedTask;
+            }
+        );
+        // A response header an endpoint sets on its successes with a body (ResponseHeaderDoc) and a body declaration's example.
         o.AddOperationTransformer(
             (operation, context, _) =>
             {
@@ -269,13 +291,16 @@ internal static partial class ActaOpenApiDocument
                 {
                     foreach (var (code, response) in operation.Responses ?? [])
                     {
-                        if (code.StartsWith('2') && response is OpenApiResponse success)
+                        if (code.StartsWith('2') && response is OpenApiResponse { Content.Count: > 0 } success)
                         {
                             success.Headers ??= new Dictionary<string, IOpenApiHeader>(StringComparer.Ordinal);
                             success.Headers[headerDoc.Name] = new OpenApiHeader
                             {
                                 Description = headerDoc.Description,
-                                Schema = new OpenApiSchema { Type = JsonSchemaType.String },
+                                Schema = new OpenApiSchema
+                                {
+                                    Type = headerDoc.Name == RawPayload.FormatHeader ? JsonSchemaType.Integer : JsonSchemaType.String,
+                                },
                             };
                         }
                     }
@@ -320,7 +345,7 @@ internal static partial class ActaOpenApiDocument
         {
             schema.Description = AnyJson().Description;
         }
-        else if (context.JsonPropertyInfo is null && context.JsonTypeInfo.Kind == JsonTypeInfoKind.Object)
+        else if (context.JsonTypeInfo.Kind == JsonTypeInfoKind.Object)
         {
             var omitted = context.JsonTypeInfo.Properties.Where(Omitted).Select(p => (JsonNode)p.Name).ToArray();
             var required = context.JsonTypeInfo.Properties.Where(p => p.IsRequired).Select(p => (JsonNode)p.Name).ToArray();
@@ -587,6 +612,8 @@ internal static partial class ActaOpenApiDocument
     }
 
     private static OpenApiSchema AnyJson() => new() { Description = "Any JSON value, kept as sent." };
+
+    private const string StoredJsonDescription = "The stored JSON payload, one JSON value.";
 
     // A code reads as well as it parses: its description lists the known values, with what each means where its family's
     // [Code] says so, and ends saying others may appear; its example is the first value that is not "unspecified".

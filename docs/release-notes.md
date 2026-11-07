@@ -57,6 +57,7 @@ Not tagged yet.
 - A refusal at startup for a missing or foreign migration names all three ways to apply: `jobs migrate`, `ApplyAsync`, and the published script.
 - `INamespaces.GetAsync(namespaceName)` reads one namespace by name, as `ITenants.GetAsync` reads a tenant: a `GetNamespaceResponse` with the members `ListNamespacesItem` carries, or `null` when there is no such namespace. `GET /namespaces/{jobNamespace}` serves it, answering 404 for an unknown namespace and 400 for a name that is not a namespace name, and the dashboard's namespace page reads it instead of searching the list.
 - `IJobs.ListStepsAsync(new ListJobStepsQuery(job))` reads a job's steps, one page newest first: each step's name, status, attempt, next retry, last failure message, and when it was started and last written, as `ListJobStepsItem`, with `PageSize`, `Cursor`, and `IncludeTotal` as every list takes them, and an empty page for a job that does not exist. `GET /jobs/{jobRef}/steps` serves the same page and answers 404 for an unknown job.
+- `GET /jobs/{jobRef}/input` and the new `GET /jobs/{jobRef}/result` answer the payload itself as the body, never truncated: a JSON payload as `application/json` with the stored bytes, any other format as `application/octet-stream` with the format id in the `X-Acta-Payload-Format` header, 204 when the job has no input or no result yet, and 404 for an unknown job. Before, the input read answered the payload inside a JSON envelope.
 
 ### Fixes
 

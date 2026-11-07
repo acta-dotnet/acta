@@ -286,26 +286,23 @@ public sealed class DashboardApiEndpointTests
         Assert.Equal(HttpStatusCode.BadRequest, malformed.StatusCode);
     }
 
-    // Explain, lineage, and the per-panel result read folded into GET /jobs/{ref}/detail
-    // (JobDetailEndpointTests) and were removed per the pre-1.0 no-deprecated-code rule; the standalone
-    // routes no longer exist. The snapshot, /detail, and events routes remain, and checkpoints are a
-    // paged list the detail's first page continues into. `input` is the one deliberate exception:
-    // the enqueue screen's clone prefill wants the payload and nothing else.
+    // Explain and lineage are panels of GET /jobs/{ref}/detail (JobDetailEndpointTests) and have no route
+    // of their own. The input and the result do: each is a payload read, the payload itself as the body.
     [Fact]
-    public async Task Folded_in_per_panel_read_routes_are_gone()
+    public async Task Explain_and_lineage_are_read_through_the_detail()
     {
         var (app, client) = await TestDashboardHost.StartAsync();
         await using var _ = app;
         var ct = TestContext.Current.CancellationToken;
 
-        foreach (var segment in new[] { "explain", "lineage", "result" })
+        foreach (var segment in new[] { "explain", "lineage" })
         {
             var response = await client.GetAsync($"/acta/api/v1/jobs/{Found}/{segment}", ct);
             Assert.Equal(HttpStatusCode.NotFound, response.StatusCode);
         }
 
-        var input = await client.GetAsync($"/acta/api/v1/jobs/{Found}/input", ct);
-        Assert.Equal(HttpStatusCode.OK, input.StatusCode);
+        var result = await client.GetAsync($"/acta/api/v1/jobs/{Found}/result", ct);
+        Assert.Equal(HttpStatusCode.NoContent, result.StatusCode);
     }
 
     // Off by default, an id: target is not a form this API addresses, so it is rejected as malformed

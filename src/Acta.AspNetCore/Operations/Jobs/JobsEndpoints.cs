@@ -62,6 +62,7 @@ internal static class JobsEndpoints
             async (http, call) => await call.Jobs.StoredJobIdAsync(RouteKeys.Job(http, options), call.Ct) is not null
         );
         GetJobInputEndpoint.Map(reads, options);
+        GetJobResultEndpoint.Map(reads, options);
         GetJobDetailEndpoint.Map(reads, options);
         ListJobCheckpointsEndpoint.Map(reads, options);
         reads

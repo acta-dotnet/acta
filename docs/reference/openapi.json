@@ -1350,7 +1350,7 @@
         "tags": [
           "Jobs"
         ],
-        "summary": "Read the job's stored input payload.",
+        "summary": "Read the job's stored input as the body.",
         "operationId": "getJobInput",
         "parameters": [
           {
@@ -1365,13 +1365,25 @@
         "responses": {
           "200": {
             "description": "OK",
+            "headers": {
+              "X-Acta-Payload-Format": {
+                "description": "The payload's format id, on a payload in a format other than JSON: 2 for bytes, 128 to 255 for an application's own.",
+                "schema": {
+                  "type": "integer"
+                }
+              }
+            },
             "content": {
               "application/json": {
                 "schema": {
-                  "$ref": "#/components/schemas/JobPayloadBody"
+                  "description": "The stored JSON payload, one JSON value."
                 }
-              }
+              },
+              "application/octet-stream": { }
             }
+          },
+          "204": {
+            "description": "No Content"
           },
           "400": {
             "description": "Bad Request",
@@ -5702,6 +5714,102 @@
                 }
               }
             }
+          },
+          "400": {
+            "description": "Bad Request",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Unauthorized"
+          },
+          "403": {
+            "description": "Forbidden",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Not Found",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "Internal Server Error",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          },
+          "503": {
+            "description": "Service Unavailable",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/v1/jobs/{jobRef}/result": {
+      "get": {
+        "tags": [
+          "Jobs"
+        ],
+        "summary": "Read the result the job stored as the body.",
+        "operationId": "getJobResult",
+        "parameters": [
+          {
+            "name": "jobRef",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "OK",
+            "headers": {
+              "X-Acta-Payload-Format": {
+                "description": "The payload's format id, on a payload in a format other than JSON: 2 for bytes, 128 to 255 for an application's own.",
+                "schema": {
+                  "type": "integer"
+                }
+              }
+            },
+            "content": {
+              "application/json": {
+                "schema": {
+                  "description": "The stored JSON payload, one JSON value."
+                }
+              },
+              "application/octet-stream": { }
+            }
+          },
+          "204": {
+            "description": "No Content"
           },
           "400": {
             "description": "Bad Request",

@@ -402,6 +402,7 @@ public sealed partial class OpenApiContractTests
         var schemas = document["components"]!["schemas"]!.AsObject();
         var fakes = new FakeOperations();
         fakes.Jobs.StoredInput = JobPayload.FromBytes(JobPayloadFormat.Json, Encoding.UTF8.GetBytes("""{"invoiceId":1}"""));
+        fakes.Jobs.StoredResult = JobPayload.FromBytes(JobPayloadFormat.Json, Encoding.UTF8.GetBytes("""{"sent":true}"""));
         var (app, client) = await TestDashboardHost.StartAsync(fakes: fakes);
         await using var _ = app;
         var ct = TestContext.Current.CancellationToken;
@@ -432,6 +433,12 @@ public sealed partial class OpenApiContractTests
             }
 
             served++;
+            var contentType = response.Content.Headers.ContentType?.MediaType ?? "";
+            if (operation["responses"]?["200"]?["content"]?[contentType] is null)
+            {
+                wrong.Add($"{key}: served {contentType}, which the document does not declare for 200.");
+                continue;
+            }
             if (operation["responses"]?["200"]?["content"]?["application/json"]?["schema"] is not { } schema)
             {
                 wrong.Add($"{key}: the document declares no JSON body for 200.");
@@ -442,6 +449,68 @@ public sealed partial class OpenApiContractTests
 
         Assert.True(served > 30, $"only {served} reads served; the walk is broken.");
         Assert.True(wrong.Count == 0, string.Join("\n", wrong));
+    }
+
+    /// <summary>
+    /// A payload read answers the payload itself, as the document declares: a JSON payload as application/json with the
+    /// stored bytes, any other format as application/octet-stream with its format id in X-Acta-Payload-Format, no payload
+    /// as 204, and an unknown job as 404. Neither truncates; the inline limit is the envelope's alone.
+    /// </summary>
+    [Fact]
+    public async Task A_payload_read_answers_the_payload_itself()
+    {
+        var operations = Operations(await ActaOpenApiDocument.GenerateAsync());
+        var fakes = new FakeOperations();
+        var (app, client) = await TestDashboardHost.StartAsync(
+            fakes: fakes,
+            configureBuilder: builder => builder.Services.Configure<JobsOptions>(o => o.MaxInlinePayloadBytes = 16)
+        );
+        await using var _ = app;
+        var ct = TestContext.Current.CancellationToken;
+        var json = Encoding.UTF8.GetBytes("""{"invoiceId": 12345678901234567890, "note": "past the inline limit"}""");
+        byte[] binary = [1, 2, 3];
+        var answers = new List<string>();
+        foreach (
+            var (route, store) in new (string, Action<JobPayload?>)[]
+            {
+                ("input", payload => fakes.Jobs.StoredInput = payload),
+                ("result", payload => fakes.Jobs.StoredResult = payload),
+            }
+        )
+        {
+            var declared = operations[$"GET /v1/jobs/{{jobRef}}/{route}"]["responses"]!;
+            Assert.Equal(["application/json", "application/octet-stream"], declared["200"]!["content"]!.AsObject().Select(c => c.Key));
+            Assert.NotNull(declared["200"]!["headers"]!["X-Acta-Payload-Format"]);
+            Assert.NotNull(declared["204"]);
+            Assert.NotNull(declared["404"]);
+
+            store(JobPayload.FromBytes(JobPayloadFormat.Json, json));
+            answers.Add(await AnswerAsync($"jobs/{FakeJobs.FoundJobRef}/{route}"));
+            store(JobPayload.FromBytes(JobPayloadFormat.Custom(128, "acme-binary"), binary));
+            answers.Add(await AnswerAsync($"jobs/{FakeJobs.FoundJobRef}/{route}"));
+            store(null);
+            answers.Add(await AnswerAsync($"jobs/{FakeJobs.FoundJobRef}/{route}"));
+            answers.Add(await AnswerAsync($"jobs/{FakeJobs.MissingJobRef}/{route}"));
+        }
+
+        string[] expected =
+        [
+            $"200 application/json format=- {Convert.ToHexString(json)}",
+            "200 application/octet-stream format=128 010203",
+            "204  format=- ",
+            "404 application/problem+json format=-",
+        ];
+        Assert.Equal([.. expected, .. expected], answers);
+
+        async Task<string> AnswerAsync(string path)
+        {
+            using var response = await client.GetAsync("/acta/api/v1/" + path, ct);
+            var format = response.Headers.TryGetValues("X-Acta-Payload-Format", out var values) ? string.Join(",", values) : "-";
+            var answer = $"{(int)response.StatusCode} {response.Content.Headers.ContentType?.MediaType} format={format}";
+            return response.IsSuccessStatusCode
+                ? $"{answer} {Convert.ToHexString(await response.Content.ReadAsByteArrayAsync(ct))}"
+                : answer;
+        }
     }
 
     // The read's path with each placeholder filled, and each required query parameter set, from FakeRouteValues.
@@ -467,6 +536,12 @@ public sealed partial class OpenApiContractTests
         if (schema["$ref"]?.GetValue<string>() is { } reference)
         {
             Describe(value, schemas[reference.Split('/')[^1]]!, schemas, where, wrong);
+            return;
+        }
+
+        // A schema that is a description alone takes any JSON value.
+        if (schema.AsObject().All(keyword => keyword.Key is "description"))
+        {
             return;
         }
 

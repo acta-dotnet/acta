@@ -2,7 +2,7 @@
 // can exercise them without the Svelte runtime (same split the rest of routes/*.ts uses). The editor
 // holds JSON text, never a parsed value, so a clone or a typed number keeps every digit (lib/rawJson.ts).
 
-import type { DefinitionInputTemplate, JobPayloadView } from '../api.ts';
+import type { DefinitionInputTemplate } from '../api.ts';
 import { jsonError, prettyJson, RawJson } from '../lib/rawJson.ts';
 
 // The muted contract line under the job-name field. Null when this host does not know the job, so
@@ -26,11 +26,10 @@ export function templateSeed(
 }
 
 // Clone prefill seeds the editor with a json source's stored text. Returns null to leave the form
-// untouched (none, a binary or malformed source, an over-cap truncated source with no body, or a clone
-// that could not be read); binary clones are out of scope.
-export function cloneInputState(payload: JobPayloadView | null | undefined): string | null {
-  if (payload?.truncated || payload?.formatName !== 'json' || payload.json === undefined) return null;
-  return prettyJson(payload.json);
+// untouched (no json input, or stored text that is not one JSON value); binary clones are out of scope.
+export function cloneInputState(json: string | null | undefined): string | null {
+  if (json === null || json === undefined || jsonError(json)) return null;
+  return prettyJson(json);
 }
 
 // The enqueue input field: the editor's JSON text sent verbatim, or nothing when input is disabled. A

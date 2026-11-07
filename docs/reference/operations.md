@@ -97,7 +97,7 @@ One row per operation folder, `src/Acta/Operations/<Group>/<Operation>/`, and on
 | `GetJobIdBySlot` | · | · | · | inline | · | `GetJobIdBySlotSpec` |
 | `GetJobInput` | `IJobs.GetInputAsync` | `GET /jobs/{jobRef}/input` (`getJobInput`) | · | inline | · | `GetJobInputSpec` |
 | `GetJobLineageMap` | `IJobs.GetLineageMapAsync` | · | · | inline | · | `GetJobLineageMapSpec` |
-| `GetJobResult` | `IJobs.GetResultAsync` | · | `result` | inline | · | `GetJobResultSpec` |
+| `GetJobResult` | `IJobs.GetResultAsync` | `GET /jobs/{jobRef}/result` (`getJobResult`) | `result` | inline | · | `GetJobResultSpec` |
 | `GetJobStatus` | `IJobs.GetStatusAsync` | · | `status` | inline | · | `GetJobStatusSpec` |
 | `ListJobCheckpoints` | `IJobs.ListCheckpointsAsync` | `GET /jobs/{jobRef}/checkpoints` (`listJobCheckpoints`) | · | inline | · | `ListJobCheckpointsSpec` |
 | `ListJobSteps` | `IJobs.ListStepsAsync` | `GET /jobs/{jobRef}/steps` (`listJobSteps`) | · | inline | · | `ListJobStepsSpec` |

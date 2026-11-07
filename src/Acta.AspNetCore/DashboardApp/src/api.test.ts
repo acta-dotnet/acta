@@ -1,7 +1,7 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { get } from 'svelte/store';
-import { api, ApiError, controlRequest, getNamespace, online } from './api.ts';
+import { api, ApiError, controlRequest, getJobInputJson, getNamespace, online } from './api.ts';
 
 (globalThis as unknown as { document: { baseURI: string } }).document = {
   baseURI: 'http://localhost/acta/'
@@ -182,4 +182,29 @@ test('getNamespace reads the namespace route and answers null for its 404', asyn
     () => getNamespace('bad name'),
     (error: unknown) => error instanceof ApiError && error.status === 400
   );
+});
+
+test('getJobInputJson reads the stored json input as text and answers null for every other answer', async () => {
+  const requested: string[] = [];
+  const responses = [
+    new Response('{"id": 9007199254740993}', { status: 200, headers: { 'Content-Type': 'application/json' } }),
+    new Response(new Uint8Array([1, 2, 3]), { status: 200, headers: { 'Content-Type': 'application/octet-stream' } }),
+    new Response(null, { status: 204 }),
+    new Response('{"title":"Job not found."}', { status: 404 }),
+    new Response('{"title":"Invalid request.","detail":"jobRef is not a valid job ref."}', { status: 400 })
+  ];
+  globalThis.fetch = (async (input: URL | RequestInfo) => {
+    requested.push(new URL(String(input)).pathname);
+    return responses.shift()!;
+  }) as typeof fetch;
+
+  assert.equal(await getJobInputJson('job_1'), '{"id": 9007199254740993}');
+  assert.equal(await getJobInputJson('job_1'), null);
+  assert.equal(await getJobInputJson('job_1'), null);
+  assert.equal(await getJobInputJson('job_2'), null);
+  await assert.rejects(
+    () => getJobInputJson('bad'),
+    (error: unknown) => error instanceof ApiError && error.status === 400 && error.detail === 'jobRef is not a valid job ref.'
+  );
+  assert.equal(requested[0], '/acta/api/v1/jobs/job_1/input');
 });

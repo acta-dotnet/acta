@@ -67,10 +67,10 @@ async function parseJson(response: Response): Promise<ParsedJson> {
   }
 }
 
-async function request<T>(options: RequestOptions): Promise<{ response: Response; body: T | null }> {
+function apiUrl(path: string, query: Record<string, unknown> = {}): URL {
   // The version segment is Acta's, fixed against the mount: MapActa serves {mount}/api/v1/...
-  const url = new URL('api/v1/' + options.path.replace(/^\/+/, ''), document.baseURI);
-  for (const [key, value] of Object.entries(options.query ?? {})) {
+  const url = new URL('api/v1/' + path.replace(/^\/+/, ''), document.baseURI);
+  for (const [key, value] of Object.entries(query)) {
     if (Array.isArray(value)) {
       // Repeated query params (e.g. tag filters): one entry per non-blank member.
       for (const member of value) {
@@ -80,19 +80,14 @@ async function request<T>(options: RequestOptions): Promise<{ response: Response
       url.searchParams.set(key, String(value));
     }
   }
+  return url;
+}
 
-  const headers: Record<string, string> = { Accept: 'application/json', ...options.headers };
-  const serializedBody = options.body === undefined ? undefined : stringifyBody(options.body);
-  if (serializedBody !== undefined) headers['Content-Type'] = 'application/json';
-
+// A network failure marks the dashboard offline; any answer marks it online again.
+async function send(url: URL, init: RequestInit): Promise<Response> {
   let response: Response;
   try {
-    response = await fetch(url, {
-      method: options.method ?? 'GET',
-      headers,
-      body: serializedBody,
-      signal: options.signal
-    });
+    response = await fetch(url, init);
   } catch (error) {
     if (!isAbortError(error)) online.set(false);
     throw error;
@@ -100,6 +95,20 @@ async function request<T>(options: RequestOptions): Promise<{ response: Response
 
   online.set(true);
   advanceNow();
+  return response;
+}
+
+async function request<T>(options: RequestOptions): Promise<{ response: Response; body: T | null }> {
+  const headers: Record<string, string> = { Accept: 'application/json', ...options.headers };
+  const serializedBody = options.body === undefined ? undefined : stringifyBody(options.body);
+  if (serializedBody !== undefined) headers['Content-Type'] = 'application/json';
+
+  const response = await send(apiUrl(options.path, options.query), {
+    method: options.method ?? 'GET',
+    headers,
+    body: serializedBody,
+    signal: options.signal
+  });
   const parsed = await parseJson(response);
   const accepted = response.ok || options.acceptedStatuses?.includes(response.status) === true;
   if (!accepted) {
@@ -664,6 +673,23 @@ export async function getDefinitionInputTemplate(
     if (error instanceof ApiError && error.status === 404) return null;
     throw error;
   }
+}
+
+// GET /jobs/{jobRef}/input answers the stored input itself: the JSON text of a json input, read as text so every
+// digit is kept. Null when the job has no input, is gone, or stores another format, which travels as raw bytes.
+export async function getJobInputJson(jobRef: string, options: { signal?: AbortSignal } = {}): Promise<string | null> {
+  const response = await send(apiUrl(`jobs/${encodeURIComponent(jobRef)}/input`), { signal: options.signal });
+  if (response.status === 204 || response.status === 404) return null;
+  if (!response.ok) {
+    const problem = (await parseJson(response)).body;
+    throw new ApiError(
+      response.status,
+      problemValue(problem, 'title'),
+      problemValue(problem, 'detail'),
+      problemValue(problem, 'traceId')
+    );
+  }
+  return response.headers.get('Content-Type')?.startsWith('application/json') ? await response.text() : null;
 }
 
 // POST /jobs enqueue outcome: the assigned public ref and the coarse action ('inserted' for a fresh

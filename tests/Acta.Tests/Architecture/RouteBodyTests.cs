@@ -15,8 +15,8 @@ namespace Acta.Tests.Architecture;
 /// Holds the HTTP surface to "a route's bodies are named for its operation" in <c>CONTRIBUTING.md</c> (Naming conventions),
 /// read from what the mapped endpoints declare: a route's JSON body is its own <c>XRequest</c>, and no body serves two
 /// routes; what it answers is an <c>XResponse</c>, the SDK's or one declared in <c>src/Acta.AspNetCore/Operations/Group/X/</c>,
-/// or <see cref="JobPayloadBody"/> when the route only renders the payload its operation answers; and every request
-/// and response record in Acta.AspNetCore sits in the folder named for it.
+/// or the payload itself as the body, typeless in JSON or raw bytes, when the route only renders the payload its
+/// operation answers; and every request and response record in Acta.AspNetCore sits in the folder named for it.
 /// </summary>
 public sealed class RouteBodyTests
 {
@@ -47,10 +47,16 @@ public sealed class RouteBodyTests
             var (route, response) in routes
                 .SelectMany(route => route.Responses.Select(response => (route.Name, Response: response)))
                 .Where(entry => !typeof(ProblemDetails).IsAssignableFrom(entry.Response))
-                .Where(entry => !IsResponse(entry.Response) && entry.Response != typeof(JobPayloadBody))
+                .Where(entry => !IsResponse(entry.Response))
         )
         {
             violations.Add(($"{route} (answers {ShippedCode.SimpleName(response)})", "a route answers an XResponse"));
+        }
+
+        // A body declared with no type is the payload itself, in the payload's two content types and nothing else.
+        foreach (var route in routes.Where(route => route.Typeless.Any(types => !types.SequenceEqual(PayloadContentTypes))))
+        {
+            violations.Add(($"{route.Name} (answers a typeless body)", "only a payload read answers the payload itself"));
         }
 
         // Every request and response record, whether a route names it or not, sits in the folder named for it.
@@ -66,12 +72,18 @@ public sealed class RouteBodyTests
         }
 
         Assert.True(bodies.Count > 27, $"Only {bodies.Count} routes declare a body; the endpoint scan is broken.");
+        Assert.True(
+            routes.Count(route => route.Typeless.Count > 0) >= 2,
+            "No payload read declares its body; the endpoint scan is broken."
+        );
         ArchitectureAssert.NoViolations(
             violations,
             "Give the route its own XRequest in src/Acta.AspNetCore/Operations/<Group>/X/, sharing an interface rather than a record, "
-                + "and answer with the SDK's XResponse, the route's own when it composes, or JobPayloadBody when it only renders a payload."
+                + "and answer with the SDK's XResponse, the route's own when it composes, or the payload itself when it only renders one."
         );
     }
+
+    private static readonly string[] PayloadContentTypes = [RawPayload.JsonContentType, RawPayload.BinaryContentType];
 
     // The SDK's response or the route's own, by name; where the route's own is declared is the folder rule's to check.
     private static bool IsResponse(Type type) =>
@@ -85,8 +97,13 @@ public sealed class RouteBodyTests
         && path[RouteRoot.Length..].Split('/') is [_, var operation, _]
         && operation + role == name;
 
-    /// <summary>Every route the API maps with controls on, by method and pattern below the version segment.</summary>
-    private static async Task<List<(string Name, Type? Body, IReadOnlyList<Type> Responses)>> RoutesAsync()
+    /// <summary>
+    /// Every route the API maps with controls on, by method and pattern below the version segment, with the content types
+    /// of each body it declares without a type.
+    /// </summary>
+    private static async Task<
+        List<(string Name, Type? Body, IReadOnlyList<Type> Responses, IReadOnlyList<IReadOnlyList<string>> Typeless)>
+    > RoutesAsync()
     {
         var (app, client) = await TestDashboardHost.StartAsync(options =>
         {
@@ -116,6 +133,15 @@ public sealed class RouteBodyTests
                                         .OfType<Type>()
                                         .Where(type => type != typeof(void))
                                         .Distinct(),
+                                ],
+                            Typeless: (IReadOnlyList<IReadOnlyList<string>>)
+                                [
+                                    .. endpoint
+                                        .Metadata.OfType<IProducesResponseTypeMetadata>()
+                                        .Where(produces =>
+                                            (produces.Type is null || produces.Type == typeof(void)) && produces.ContentTypes.Any()
+                                        )
+                                        .Select(produces => (IReadOnlyList<string>)[.. produces.ContentTypes]),
                                 ]
                         )
                     )
