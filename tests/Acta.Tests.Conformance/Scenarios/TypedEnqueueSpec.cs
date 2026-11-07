@@ -1,4 +1,5 @@
 using System.Diagnostics;
+using System.Reflection;
 using Acta.Tests.Conformance.Contracts;
 using Acta.Tests.Conformance.Testing;
 using Microsoft.Extensions.DependencyInjection;
@@ -259,7 +260,7 @@ public sealed class TypedEnqueueSpec : ActaRuntimeTestBase<ConformanceFixture, T
         Assert.Equal(ControlAction.Applied, (await Jobs.RestartAsync(first, ct: ct)).Action);
 
         // The deduplication key lands the wait on the restarted job, whose second execution succeeds with its result
-        // dropped while the first execution's "old" stays stored.
+        // dropped; the restart cleared the first execution's "old", and the read is held to the second execution anyway.
         var waiting = Jobs.RunAndWaitAsync<OldThenOversizeInput, string>(
                 input,
                 new JobExecutionOptions
@@ -275,6 +276,63 @@ public sealed class TypedEnqueueSpec : ActaRuntimeTestBase<ConformanceFixture, T
 
         var ex = await Assert.ThrowsAsync<InvalidOperationException>(() => waiting);
         Assert.Contains("stored no result", ex.Message);
+    }
+
+    [Fact(DisplayName = "A typed wait whose success is restarted before the result read keeps waiting instead of throwing")]
+    public async Task A_typed_wait_keeps_waiting_when_the_success_it_saw_is_restarted()
+    {
+        var ct = TestContext.Current.CancellationToken;
+        var job = await Jobs.EnqueueAsync(new AddNumbers(2, 3), ct: ct);
+        Assert.Equal(RunOnceStatus.Completed, await Runtime.RunOnceAsync(job, ct));
+
+        // The wait's read sees the success; the restart lands before the result read and clears the result.
+        var seen = await Jobs.GetAsync(job, ct);
+        Assert.Equal(JobStatusCode.Succeeded, seen!.Status);
+        Assert.Equal(ControlAction.Applied, (await Jobs.RestartAsync(job, ct: ct)).Action);
+        var jobs = StaleFirstRead.Wrap(Jobs, seen);
+
+        var outcome = await JobRunAndWait.WaitAsync<AddNumbersResult>(
+            jobs,
+            Services.GetRequiredService<IWorkerWakeup>(),
+            Services.GetRequiredService<JobRequestRouting>(),
+            Services.GetRequiredService<GetJobResultHandler>(),
+            job,
+            TimeSpan.FromMilliseconds(300),
+            ct
+        );
+
+        Assert.True(outcome.IsTimedOut);
+        Assert.Equal(JobStatusCode.Ready, outcome.Status);
+    }
+
+    /// <summary>An <see cref="IJobs"/> whose first job read answers a snapshot taken earlier; every other call is the real one.</summary>
+    public class StaleFirstRead : DispatchProxy
+    {
+        private IJobs _inner = null!;
+        private GetJobResponse? _stale;
+
+        public static IJobs Wrap(IJobs inner, GetJobResponse stale)
+        {
+            var proxy = Create<IJobs, StaleFirstRead>();
+            var self = (StaleFirstRead)(object)proxy;
+            (self._inner, self._stale) = (inner, stale);
+            return proxy;
+        }
+
+        protected override object? Invoke(MethodInfo? targetMethod, object?[]? args)
+        {
+            if (
+                targetMethod!.Name == nameof(IJobs.GetAsync)
+                && targetMethod.ReturnType == typeof(ValueTask<GetJobResponse?>)
+                && _stale is { } stale
+            )
+            {
+                _stale = null;
+                return new ValueTask<GetJobResponse?>(stale);
+            }
+
+            return targetMethod.Invoke(_inner, args);
+        }
     }
 
     [Fact(DisplayName = "RunAndWaitAsync honors WaitTimeout when PollInterval exceeds it")]

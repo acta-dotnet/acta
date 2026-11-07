@@ -255,8 +255,9 @@ public abstract partial class JobContext
 
     /// <summary>
     /// The result stored by the execution whose landing set the latch, or by the latest execution when the latch does
-    /// not name one. A restarted child keeps its earlier executions' results, so an execution that stored none throws
-    /// rather than answering an older one or a default.
+    /// not name one. An execution that stored none throws rather than answering another one's or a default; so does a
+    /// child an operator restarted after it succeeded, since the restart clears the stored result, and this job's retry
+    /// then reads the child's next landing.
     /// </summary>
     private async Task<TResult> RequireChildResultAsync<TResult>(ChildJobOutcome outcome, string name, CancellationToken ct)
         where TResult : notnull
@@ -267,8 +268,9 @@ public abstract partial class JobContext
             ? value!
             : throw new InvalidOperationException(
                 $"Child job {outcome.ChildJobId} ('{name}') succeeded but stored no result. Either it is result-less, in "
-                    + "which case use the non-result ExecuteChildAsync overload, or its result exceeded "
-                    + "MaxInlinePayloadBytes and was dropped; the child's events say which."
+                    + "which case use the non-result ExecuteChildAsync overload, its result exceeded "
+                    + "MaxInlinePayloadBytes and was dropped, or an operator restarted it after it succeeded; the child's "
+                    + "events say which."
             );
     }
 

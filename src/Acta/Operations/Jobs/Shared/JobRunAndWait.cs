@@ -38,16 +38,24 @@ internal static class JobRunAndWait
     {
         options = Validated(options);
         var enqueued = await jobs.EnqueueAsync(request(options), ct);
-        var wait = await AwaitAsync(
-            jobs,
-            wakeup,
-            enqueued.JobId,
-            options.WaitTimeout,
-            options.PollInterval,
-            ct,
-            ResultTypeCheck<TResult>(routing)
-        );
-        return await OutcomeAsync<TResult>(routing, getJobResult, wait.Snapshot ?? throw Vanished(enqueued.JobRef), wait.TimedOut, ct);
+        var started = Stopwatch.GetTimestamp();
+        while (true)
+        {
+            var wait = await AwaitAsync(
+                jobs,
+                wakeup,
+                enqueued.JobId,
+                Remaining(options.WaitTimeout, started),
+                options.PollInterval,
+                ct,
+                ResultTypeCheck<TResult>(routing)
+            );
+            var snapshot = wait.Snapshot ?? throw Vanished(enqueued.JobRef);
+            if (await OutcomeAsync<TResult>(jobs, routing, getJobResult, snapshot, wait.TimedOut, ct) is { } outcome)
+            {
+                return outcome;
+            }
+        }
     }
 
     public static async ValueTask<JobOutcome> WaitAsync(
@@ -73,8 +81,34 @@ internal static class JobRunAndWait
     )
         where TResult : notnull
     {
-        var (snapshot, timedOut) = await AwaitExistingAsync(jobs, wakeup, job, timeout, ct, ResultTypeCheck<TResult>(routing));
-        return await OutcomeAsync<TResult>(routing, getJobResult, snapshot, timedOut, ct);
+        var started = Stopwatch.GetTimestamp();
+        var budget = timeout ?? Defaults.WaitTimeout;
+        var (snapshot, timedOut) = await AwaitExistingAsync(jobs, wakeup, job, budget, ct, ResultTypeCheck<TResult>(routing));
+        while (true)
+        {
+            if (await OutcomeAsync<TResult>(jobs, routing, getJobResult, snapshot, timedOut, ct) is { } outcome)
+            {
+                return outcome;
+            }
+
+            var wait = await AwaitAsync(
+                jobs,
+                wakeup,
+                snapshot.JobId,
+                Remaining(budget, started),
+                Defaults.PollInterval,
+                ct,
+                ResultTypeCheck<TResult>(routing)
+            );
+            (snapshot, timedOut) = (wait.Snapshot ?? throw Vanished(snapshot.JobRef), wait.TimedOut);
+        }
+    }
+
+    // What is left of a wait's budget; at zero the wait reads once more and answers TimedOut unless the job is terminal.
+    private static TimeSpan Remaining(TimeSpan budget, long started)
+    {
+        var remaining = budget - Stopwatch.GetElapsedTime(started);
+        return remaining > TimeSpan.Zero ? remaining : TimeSpan.Zero;
     }
 
     private static JobOutcome Outcome(GetJobResponse snapshot, bool timedOut) =>
@@ -88,10 +122,12 @@ internal static class JobRunAndWait
             };
 
     /// <summary>
-    /// The outcome, with the result stored by the execution the wait saw succeed. A restarted job keeps its earlier
-    /// executions' results, so an execution that stored none throws rather than answering an older one or a default.
+    /// The outcome, with the result stored by the execution the wait saw succeed, or null when that success is no longer
+    /// the job's: an operator restart clears the stored result, so a read that finds none checks the job again, and a job
+    /// that has moved on is waited for again. A success that is still the job's and stored none throws.
     /// </summary>
-    private static async ValueTask<JobOutcome<TResult>> OutcomeAsync<TResult>(
+    private static async ValueTask<JobOutcome<TResult>?> OutcomeAsync<TResult>(
+        IJobs jobs,
         JobRequestRouting routing,
         GetJobResultHandler getJobResult,
         GetJobResponse snapshot,
@@ -108,14 +144,22 @@ internal static class JobRunAndWait
         switch (snapshot.Status)
         {
             case JobStatusCode.Succeeded:
-                var result =
-                    await getJobResult.ReadAsync(snapshot.JobId, snapshot.ExecutionNumber, ct)
-                    ?? throw new InvalidOperationException(
-                        $"Job {snapshot.JobRef} ('{snapshot.JobName}') succeeded but stored no result. Either it is "
-                            + "result-less, in which case wait without a result type, or its result exceeded "
-                            + "MaxInlinePayloadBytes and was dropped; the job's events say which."
-                    );
-                return JobOutcome<TResult>.Succeeded(snapshot.JobId, snapshot.JobRef, routing.DecodeResult<TResult>(result)!);
+                if (await getJobResult.ReadAsync(snapshot.JobId, snapshot.ExecutionNumber, ct) is { } result)
+                {
+                    return JobOutcome<TResult>.Succeeded(snapshot.JobId, snapshot.JobRef, routing.DecodeResult<TResult>(result)!);
+                }
+
+                var now = await jobs.GetAsync(JobLookup.ById(snapshot.JobId), ct) ?? throw Vanished(snapshot.JobRef);
+                if (now.Status != JobStatusCode.Succeeded || now.ExecutionNumber != snapshot.ExecutionNumber)
+                {
+                    return null;
+                }
+
+                throw new InvalidOperationException(
+                    $"Job {snapshot.JobRef} ('{snapshot.JobName}') succeeded but stored no result. Either it is "
+                        + "result-less, in which case wait without a result type, or its result exceeded "
+                        + "MaxInlinePayloadBytes and was dropped; the job's events say which."
+                );
             case JobStatusCode.Cancelled:
                 return JobOutcome<TResult>.Cancelled(snapshot.JobId, snapshot.JobRef);
             default:

@@ -925,6 +925,7 @@
   - RunAndWaitAsync enqueues, waits for completion and returns the typed result
   - RunAndWaitAsync throws when a Succeeded job stored no typed result
   - RunAndWaitAsync reads the result of the execution it saw succeed, never an earlier one
+  - A typed wait whose success is restarted before the result read keeps waiting instead of throwing
   - RunAndWaitAsync honors WaitTimeout when PollInterval exceeds it
   - RunAndWaitAsync rejects non-positive wait options before enqueue
 
