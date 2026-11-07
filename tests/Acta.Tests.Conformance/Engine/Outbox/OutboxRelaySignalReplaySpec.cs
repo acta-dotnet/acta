@@ -40,16 +40,14 @@ public sealed class OutboxRelaySignalReplaySpec : OutboxRelayIntegrationBase
                 Services.GetRequiredService<ISqlDialect>()
             )
         );
-        await Assert.ThrowsAsync<InvalidOperationException>(() =>
-            Relay(SourceStore, OwnedSubmission).ApplyOperatorSignalsAsync(slotJobId, crashing, ct)
-        );
+        await Assert.ThrowsAsync<InvalidOperationException>(() => new OutboxSignalApplier(SourceStore, crashing).ApplyAsync(slotJobId, ct));
         Assert.Equal((byte)OutboxStatusCode.Pending, (await Fixture.ReadOutboxRowAsync(SourceTable, first.OutboxId)).StatusCode);
         Assert.Equal((byte)OutboxStatusCode.Pending, (await Fixture.ReadOutboxRowAsync(SourceTable, second.OutboxId)).StatusCode);
 
         var later = EchoRow(Unique("replay-later"), status: 90, failureCount: 5);
         await Fixture.SeedOutboxRowAsync(SourceTable, later);
 
-        Assert.Equal((2, 0), await Relay(SourceStore, OwnedSubmission).ApplyOperatorSignalsAsync(slotJobId, signals, ct));
+        Assert.Equal((2, 0), await new OutboxSignalApplier(SourceStore, signals).ApplyAsync(slotJobId, ct));
 
         Assert.Null(await signals.GetOutboxSignalAsync(slotJobId, OutboxSignalNames.Requeue, ct));
         Assert.Equal((byte)OutboxStatusCode.Quarantined, (await Fixture.ReadOutboxRowAsync(SourceTable, later.OutboxId)).StatusCode);
@@ -79,15 +77,13 @@ public sealed class OutboxRelaySignalReplaySpec : OutboxRelayIntegrationBase
                 Services.GetRequiredService<ISqlDialect>()
             )
         );
-        await Assert.ThrowsAsync<InvalidOperationException>(() =>
-            Relay(SourceStore, OwnedSubmission).ApplyOperatorSignalsAsync(slotJobId, crashing, ct)
-        );
+        await Assert.ThrowsAsync<InvalidOperationException>(() => new OutboxSignalApplier(SourceStore, crashing).ApplyAsync(slotJobId, ct));
         Assert.False((await Fixture.ReadOutboxRowAsync(SourceTable, first.OutboxId)).Exists);
 
         var newer = await AdmitAsync(slotJobId, OutboxSignalNames.Discard, "second row", [second.OutboxId], ct);
         Assert.Equal((byte)ControlAction.Rejected, newer.Action);
 
-        Assert.Equal((0, 1), await Relay(SourceStore, OwnedSubmission).ApplyOperatorSignalsAsync(slotJobId, signals, ct));
+        Assert.Equal((0, 1), await new OutboxSignalApplier(SourceStore, signals).ApplyAsync(slotJobId, ct));
         var evidence = Assert.Single(await SlotEventsAsync(slotJobId, ct));
         Assert.Contains(first.OutboxId.ToString(), evidence.EventMessage, StringComparison.Ordinal);
         Assert.Equal((byte)OutboxStatusCode.Quarantined, (await Fixture.ReadOutboxRowAsync(SourceTable, second.OutboxId)).StatusCode);
@@ -130,10 +126,10 @@ public sealed class OutboxRelaySignalReplaySpec : OutboxRelayIntegrationBase
             },
             BeforeRequeue = () => throw new InvalidOperationException("the stale pass touched the source"),
         };
-        var stale = Relay(staleStore.Source, OwnedSubmission).ApplyOperatorSignalsAsync(slotJobId, signals, ct);
+        var stale = new OutboxSignalApplier(staleStore.Source, signals).ApplyAsync(slotJobId, ct);
         await reached.Task.WaitAsync(TimeSpan.FromSeconds(30), ct);
 
-        Assert.Equal((1, 0), await Relay(SourceStore, OwnedSubmission).ApplyOperatorSignalsAsync(slotJobId, signals, ct));
+        Assert.Equal((1, 0), await new OutboxSignalApplier(SourceStore, signals).ApplyAsync(slotJobId, ct));
         var later = EchoRow(Unique("lost-later"), status: 90, failureCount: 5);
         await Fixture.SeedOutboxRowAsync(SourceTable, later);
 

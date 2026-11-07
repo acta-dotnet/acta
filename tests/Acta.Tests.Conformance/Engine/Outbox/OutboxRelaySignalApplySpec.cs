@@ -33,7 +33,7 @@ public sealed class OutboxRelaySignalApplySpec : OutboxRelayIntegrationBase
         Assert.Equal(1, await ParkAsync(slotJobId, OutboxSignalNames.Requeue, "fixed the target route", [row.OutboxId], ct));
 
         var relay = Relay(SourceStore, OwnedSubmission);
-        var (requeued, discarded) = await relay.ApplyOperatorSignalsAsync(slotJobId, signals, ct);
+        var (requeued, discarded) = await new OutboxSignalApplier(SourceStore, signals).ApplyAsync(slotJobId, ct);
         Assert.Equal(1, requeued);
         Assert.Equal(0, discarded);
 

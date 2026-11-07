@@ -41,18 +41,18 @@ public sealed class OutboxRelaySignalOverlapSpec : OutboxRelayIntegrationBase
                 await release.Task;
             },
         };
-        var stale = Relay(staleStore.Source, OwnedSubmission).ApplyOperatorSignalsAsync(slotJobId, signals, ct);
+        var stale = new OutboxSignalApplier(staleStore.Source, signals).ApplyAsync(slotJobId, ct);
         await reached.Task.WaitAsync(TimeSpan.FromSeconds(30), ct);
 
         // The faster pass applies and consumes the first command; the operator then parks the second.
-        Assert.Equal((1, 0), await Relay(SourceStore, OwnedSubmission).ApplyOperatorSignalsAsync(slotJobId, signals, ct));
+        Assert.Equal((1, 0), await new OutboxSignalApplier(SourceStore, signals).ApplyAsync(slotJobId, ct));
         Assert.Equal(1, await ParkAsync(slotJobId, OutboxSignalNames.Requeue, "second command", [second.OutboxId], ct));
 
         release.SetResult();
         Assert.Equal((0, 0), await stale);
 
         Assert.NotNull(await signals.GetOutboxSignalAsync(slotJobId, OutboxSignalNames.Requeue, ct));
-        Assert.Equal((1, 0), await Relay(SourceStore, OwnedSubmission).ApplyOperatorSignalsAsync(slotJobId, signals, ct));
+        Assert.Equal((1, 0), await new OutboxSignalApplier(SourceStore, signals).ApplyAsync(slotJobId, ct));
         Assert.Null(await signals.GetOutboxSignalAsync(slotJobId, OutboxSignalNames.Requeue, ct));
         Assert.Equal((byte)OutboxStatusCode.Pending, (await Fixture.ReadOutboxRowAsync(SourceTable, second.OutboxId)).StatusCode);
 
