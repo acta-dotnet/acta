@@ -14,6 +14,7 @@ What is supported, on what, and how fixes ship.
 | SQL Server 2019+ | Production | Server provider; the right default when multiple processes claim work. The floor comes from `OPTIMIZE_FOR_SEQUENTIAL_KEY`, which the schema uses. |
 | SQLite 3.51+ | Production | Single node, single process. The floor comes from `jsonb_each`, which batch completion uses; the provider checks the engine version at startup and refuses to start below it, and the engine `Microsoft.Data.Sqlite` bundles clears it. For the concurrency ceiling, see [provider choice](./operator-guide.md#provider-choice) and [known limitations](./known-limitations.md). |
 | Redis | Optional | Wakeup transport only, never required. SQL remains the only durable truth. |
+| Native AOT | PostgreSQL and SQLite | Every shipped package is marked `IsAotCompatible`, and the PostgreSQL and SQLite providers publish as Native AOT. SQL Server is not a Native AOT target, because `Microsoft.Data.SqlClient` is not. |
 
 ## .NET support dates
 

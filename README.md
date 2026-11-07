@@ -1,6 +1,6 @@
 # Acta
 
-**Everything is a job, and every job is a row.** Acta runs durable jobs and workflows for .NET in your own database: steps and variables that survive a crash, child jobs and joins, signals and long waits, ordered lanes and limits across every worker, all as rows you can query.
+**Durable jobs and workflows for .NET.** Everything is a job, and every job is a row.
 
 [![CI](https://github.com/acta-dotnet/acta/actions/workflows/ci.yml/badge.svg?branch=main)](https://github.com/acta-dotnet/acta/actions/workflows/ci.yml)
 [![NuGet](https://img.shields.io/nuget/vpre/Acta.svg?label=nuget)](https://www.nuget.org/packages/Acta)
@@ -9,13 +9,11 @@
 
 > **1.0.0-rc.8.** A release candidate: the public API, the schema, and the persisted codes freeze at 1.0.0, and until then a new candidate may still change them. This one re-cuts the schema, so a database an earlier candidate provisioned is dropped and reprovisioned ([release notes](./docs/release-notes.md)). Bring a real workload; the evidence behind each tag is in the repository.
 
-Acta records jobs, retries, schedules, checkpoints, events, workers, and operator controls in your own SQL database, so every state transition is a row you can `SELECT`. No broker, no sidecar, no hosted control plane, no replay engine. Execution is **at-least-once**: Acta makes its own state repeat-safe, and handlers own the idempotency of their side effects.
+Acta is for background work that has to survive a crash and be explained afterwards. Jobs, retries, schedules, durable steps, long waits, child jobs, and operator controls are rows in the PostgreSQL, SQL Server, or SQLite database your application already uses, with no broker, sidecar, or separate server to run. Execution is at-least-once: a handler can run again, so its external effects are made idempotent.
 
-For a disposable local loop, `BackgroundService` or cron is enough. Use Acta when the work needs durable state, retries, audit, recovery, and operator control: [`docs/choosing-acta.md`](./docs/choosing-acta.md) helps decide, and [Acta Engineering Labs](./docs/engineering-labs.md) shows each behavior with the rows that prove it.
+## Run a job
 
-## Quickstart
-
-In your own app, from an empty folder. The only prerequisite is the [.NET 10 SDK](https://dotnet.microsoft.com/download/dotnet/10.0): no Docker, no database server, nothing to provision. Everything below runs on embedded SQLite, with the Acta dashboard at `/acta`.
+From an empty folder, with the [.NET 10 SDK](https://dotnet.microsoft.com/download/dotnet/10.0) and nothing else. It runs on embedded SQLite.
 
 ```bash
 dotnet new web -n Shipping && cd Shipping
@@ -71,121 +69,46 @@ curl -X POST http://localhost:5090/orders/1042
 # the app prints: Shipping order 1042
 ```
 
-The endpoint returns `202 Accepted` with the job's ref as soon as the row is stored, and a worker in the same
-process runs it. To run a job later or follow it to its outcome:
+The endpoint answers `202 Accepted` with the job's ref once the row is stored, and a worker in the same process runs it. Swap `UseSqlite` for `UsePostgres` or `UseSqlServer` and nothing else changes.
 
-```csharp
-// Run it later: one job, held until its time. A recurring schedule is [Schedule].
-var reminder = await jobs.ScheduleAsync(new ShipOrder(1043), TimeSpan.FromMinutes(10));
+## The row it leaves
 
-// Follow a job: the handle waits for the outcome, and a timeout stops the wait, never the job.
-var outcome = await reminder.WaitAsync(TimeSpan.FromSeconds(30));
+The job was a row in `acta-local.db` before the handler ran, and it is still one afterwards:
+
+```sql
+SELECT job_ref, definition_name, job_status, execution_number, failure_count
+FROM   jobs_view
+WHERE  namespace_name = 'shipping'
+ORDER  BY created_at_utc DESC;
 ```
 
-Open the dashboard: the Jobs screen lists `ship-order` as completed. The job was a row in `acta-local.db`
-before it was a method call. `ShippingJobs` is the source-generated manifest: the last segment of
-your project's `RootNamespace` plus `Jobs` (`Shipping` → `ShippingJobs`), generated into that
-namespace and registered once. One worker runtime owns one namespace, and the host that enqueues
-also executes, so there is no separate worker process to deploy unless you want one. Swap
-`UseSqlite` for `UsePostgres` or `UseSqlServer` and nothing else changes. No web host? The same
-program runs on `Host.CreateApplicationBuilder` without the dashboard;
-[`docs/first-job.md`](./docs/first-job.md#without-a-web-host) says what to change.
-
-Full walkthrough: [`docs/first-job.md`](./docs/first-job.md). Deeper docs start at [`docs/README.md`](./docs/README.md).
-
-### Or explore the repository
-
-A ladder of runnable concept projects and the load-and-failure lab, if you would rather read the model than wire it up:
-
-```bash
-git clone https://github.com/acta-dotnet/acta && cd acta
-dotnet run --project concepts/000-fundamentals/001-hello-acta   # first concept: enqueue a job, watch a worker run it
-dotnet run --project anvil/Anvil    # lab UI + Acta dashboard at http://127.0.0.1:5059/acta
+```text
+job_ref                               definition_name  job_status  execution_number  failure_count
+01a1b2dc-c57a-7f0e-9e94-d65c1a009f58  ship-order       succeeded   1                 0
+01a1b2dc-c4c4-7c88-8c55-0683945415fc  sys.retention    idle        0                 0
+01a1b2dc-c4c3-7ba6-9225-fd934de999c0  sys.alerts       idle        0                 0
 ```
 
-The Anvil step builds the dashboard UI, which needs Node.js 20.19+ or 22.12+ on PATH once; without Node the first concept still runs.
+The other two rows are Acta's own retention and alert jobs, which run the same way yours do. Stop the app and start it again: the rows are there, and so is every event of each job in `events_view`.
 
-The `[Job]` name is the durable, operator-facing contract: it is what the row carries, what the dashboard shows, and what you must not rename casually. Enqueue is typed; dispatch is generated.
-
-SQLite state is one file (`acta-local*.db`); delete it to reset. Docker is needed only for real PostgreSQL, SQL Server, or Redis: see [`CONTRIBUTING.md`](./CONTRIBUTING.md).
-
-## Use Acta when
-
-- You already run SQL Server 2019+, PostgreSQL 18, or SQLite 3.51+. PostgreSQL 18 is the major Acta is tested on; the SQL Server and SQLite floors come from features Acta's SQL uses (`OPTIMIZE_FOR_SEQUENTIAL_KEY` in the schema, and `jsonb_each` in batch completion). The SQLite provider checks its floor at startup, and the SQLite engine bundled by `Microsoft.Data.Sqlite` clears it.
-- You want durable background jobs without adding a broker.
-- You need a recurring job that keeps an external system current, with durable progress and no loop that must run forever: one permanent job, fired on schedule, `Idle` in between. The [continuous-synchronization lab](./concepts/100-scheduling/109-continuous-synchronization/) kills its worker after a committed batch and shows the restarted one continue at the next.
-- You want job state inspectable with SQL.
-- You need retries, delays, schedules, and operator controls.
-- You want deterministic tests around job behavior.
-- You want a local dashboard/API for operations.
-
-## Do not use Acta when
-
-- You want a long-running function's local variables to survive a crash without naming what to
-  persist. Acta re-runs the handler from the top and skips completed steps, so state that outlives an
-  attempt is an explicit step result or durable variable.
-- You need a general-purpose message bus.
-- You need Kafka-style streaming.
-- You need BPMN or visual workflow modeling.
-- You want a hosted orchestration control plane.
-- Your external side effects cannot tolerate duplicate attempts, be made idempotent, or be reconciled with `AtMostOnce()` step semantics.
-
-## See your work
-
-There is no proprietary console and no hidden state to decode. Jobs, leases, attempts, events, schedules, checkpoints, alerts, and workers are rows; common reads start from curated operator views:
+The dashboard at `/acta` on the same port reads the same tables. Here it is on a larger system, mid-run:
 
 ![Acta operator dashboard: Overview with health verdict, job counts, failed jobs, alerts, outbox relays, and worker heartbeats, captured mid-run with 100,000 jobs draining through two workers](./site/assets/dash-dark-overview.webp)
 
-```sql
--- In-flight work and who holds it.
-select job_id, job_ref, namespace_name, definition_name, job_status, leased_by_worker_id, leased_by_worker_host_name, lease_expires_at_utc
-from acta.jobs_view
-where job_status = 'executing';
-```
+## Where to go next
 
-More shapes (backlogs, stuck jobs, worker liveness, pending alerts) in the operator guide's [SQL recipes](./docs/operator-guide.md#sql-recipes); the numeric codes decode via [`docs/reference/code-families.md`](./docs/reference/code-families.md). Because state is rows, a job that failed a month ago is still there to inspect, and to restart with its original input.
-
-## Capabilities and boundaries
-
-**You get:**
-
-- Fire-and-forget, delayed, and recurring jobs; durable retries with typed backoff.
-- Named run-once steps, durable sleeps, signals into suspended jobs, child jobs with fan-out / fan-in, result retrieval, and job lineage.
-- Lanes that run one job at a time in enqueue order, concurrency keys and limits, and rate limits that hold across the whole fleet.
-- An append-only SQL event ledger, and transactional enqueue that joins a caller-owned `DbTransaction` (plus an external outbox for atomic handoff from a different database, which an EF Core application joins through its provider transaction).
-- A test host that drives the real runtime one deterministic tick at a time: no sleeps, no polling, real-database tests in tens of milliseconds.
-- A control CLI in every host, including `jobs debug` to claim any persisted job and step through its handler under a breakpoint, and `jobs migrate` to apply the schema from a deploy step.
-- An optional operator dashboard/query API whose mutating controls are explicitly enabled.
-
-**You do not get:** deterministic event-history replay, BPMN or a visual workflow designer, a message bus, a sidecar, a hosted control plane, or workflow SaaS orchestration.
-
-The execution model is **checkpoints, not replay**: a handler may re-enter from the top after a crash or suspend, but completed steps do not repeat their work. This keeps Acta-owned state repeat-safe; external side effects still need idempotency. The hot path stays close to the metal: source-generated dispatch with no reflection, one SQL round-trip per state change. Every shipped package is marked Native AOT compatible (`IsAotCompatible`); the PostgreSQL and SQLite providers publish as Native AOT, and the load harness and benchmarks run that way. SQL Server is not a Native AOT target, because `Microsoft.Data.SqlClient` is not.
-
-## Documentation
-
-Start at [`docs/README.md`](./docs/README.md), which orders every page by the question it answers. The main pages: [Choosing Acta](./docs/choosing-acta.md) and its section on [moving from another scheduler](./docs/choosing-acta.md#moving-from-another-scheduler); the [first job, end to end](./docs/first-job.md); the [Engineering Labs](./docs/engineering-labs.md) field guide; the [developer guide](./docs/developer-guide.md), with its sections on [concepts and vocabulary](./docs/developer-guide.md#concepts-and-glossary), the [handler contract](./docs/developer-guide.md#handler-contract), and [contract evolution](./docs/developer-guide.md#contract-evolution); and the [operator guide](./docs/operator-guide.md), with its [production guide](./docs/operator-guide.md#production-guide) section. The generated references in [`docs/reference/`](./docs/reference/) (data model, code families, conformance contracts) sit behind them for lookup, drift-checked against source in CI.
-
-## Packages
-
-**NuGet packages** (published on [nuget.org](https://www.nuget.org/packages?q=Acta) since `0.3.0-alpha.1`): `Acta.SqlServer`, `Acta.Postgres`, `Acta.Sqlite` (providers, one reference is enough), `Acta` (public API, SDK, and engine; a transitive dependency of the providers), `Acta.AspNetCore` (JSON API), `Acta.Dashboard` (dashboard; brings `Acta.AspNetCore`), `Acta.Redis` (optional worker wakeup), `Acta.Testing` (test host). Transactional cross-database outbox staging (the `AddToActaOutboxAsync` producer primitive) ships inside each provider package, not as a separate reference. Source-generated dispatch (`Acta.Generators`) ships bundled inside these: there is no separate reference.
-
-**Repository tooling** (not published to NuGet): `Acta.Verify` (benchmark and release evidence suite) and `Acta.Emit` (doc/migration emitter), run with `dotnet run --project tools/…`.
-
-## Status
-
-- From 1.0.0 the migration history is frozen: schema changes ship only as additive migrations, and the baseline is never re-cut. Until then a release candidate may re-cut the baseline, and a database an earlier candidate provisioned has no upgrade path: drop it and provision a new one.
-- Acta ships no login system. The dashboard and HTTP API are local-only by default, and control verbs are disabled by default: see the operator guide's [dashboard exposure and auth](./docs/operator-guide.md#dashboard-exposure-and-auth) before exposing anything.
-- Known limitations are tracked in [`docs/known-limitations.md`](./docs/known-limitations.md).
-- The supported .NET target, provider tiers, packages, and patch policy are stated in [`docs/compatibility-and-support.md`](./docs/compatibility-and-support.md).
+- [Your first job, end to end](./docs/first-job.md): a typed result, a failure that is final and one that retries, cancel, a wait with a timeout, and the first test.
+- [Choosing Acta](./docs/choosing-acta.md): when Acta fits, when the tool you have is the better choice, and how to move from another scheduler.
+- [Developer guide](./docs/developer-guide.md): steps, signals, child jobs, schedules, lanes, limits, and testing.
+- [Operator guide](./docs/operator-guide.md): deploying with `jobs migrate` and `jobs deploy`, the dashboard and the CLI, alerts, and what happens when something fails.
+- [HTTP contract](./docs/reference/openapi.json): `Acta.AspNetCore` serves a JSON API described by this OpenAPI document, and standard OpenAPI tools generate a client from it.
+- [Engineering Labs](./docs/engineering-labs.md): each behavior as a runnable project in [`concepts/`](./concepts/), with the rows that show it.
+- [Known limitations](./docs/known-limitations.md) and [compatibility and support](./docs/compatibility-and-support.md): what Acta does not do, the supported databases and packages, and the evidence behind each release.
+- [Every page, by the question it answers](./docs/README.md), and the site at [useacta.net](https://useacta.net/).
 
 ## How this was built
 
-The inner core is the author's. The data model, the execution semantics, the claim and lease
-machinery, and every public API signature are deliberate human decisions, defensible column by
-column and method by method. AI was used heavily, and deliberately, on the outer core: test
-scaffolding, documentation, consistency sweeps, benchmark tooling. Every line passed the same gates
-either way: ~5,000 tests on three databases, a conformance contract, drift-checked generated docs,
-recorded benchmark baselines. AI made the work faster. It did not make the decisions.
+The inner core is the author's. The data model, the execution semantics, the claim and lease machinery, and every public API signature are deliberate human decisions, defensible column by column and method by method. AI was used heavily, and deliberately, on the outer core: test scaffolding, documentation, consistency sweeps, benchmark tooling. Every line passed the same gates either way: the test suites on three databases, a conformance contract, drift-checked generated docs, recorded benchmark baselines. AI made the work faster. It did not make the decisions.
 
 ## License
 
