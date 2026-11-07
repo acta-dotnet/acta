@@ -362,3 +362,22 @@ it to PUBLIC. Two ways to drop that grant, each a hot-path change to prototype a
   rest on the id.
 - Draw the ids in a small `SECURITY DEFINER` function that only calls `nextval`. The draw-then-rank
   stays as it is, but the function's owner must never be a superuser.
+
+## A killer demo
+
+Marko (2026-11-06): make a killer demo. One program a .NET developer runs with a single command and
+remembers afterwards, showing what only Acta shows. The existing `demos/` are application samples pinned
+to the published packages, and the concept ladder teaches one feature per rung; neither is that.
+
+What it would have to do, in under a minute and with nothing to install besides the SDK:
+
+- Run a real-looking job with steps, kill the worker in the middle of it, and show the job finish on a
+  second worker without repeating the steps that had completed. The front page says "Kill the worker at
+  any line", and the demo is what stands behind that sentence.
+- Show the same job as rows while it happens: the job, its steps, the lease that lapsed, the attempt
+  that took over. The dashboard beside the terminal, or a query the viewer can paste.
+- End on the application's own data, written in the same transaction as the job, so "every job is a row
+  in your database" is seen and not only said.
+
+Open questions: SQLite alone so it runs anywhere, or PostgreSQL in a container for a fleet; a recording
+for the site as well as the runnable program; whether it replaces a rung of the ladder or stands alone.
