@@ -127,8 +127,8 @@ internal sealed class ExplainJobHandler(GetJobIdHandler getJobId, IDbSession ses
                 break;
 
             case JobStatusCode.Idle when h.DefinitionStatus == DefinitionStatusCode.Retired:
-                headline = "Idle, and its definition is retired: nothing fires it until a build that carries the definition starts.";
-                actions.Add(Move("none", "no action needed - that build's start resumes its schedules from then"));
+                headline = "Idle, and its definition is retired: nothing fires it until a deploy declares the definition again.";
+                actions.Add(Move("none", "no action needed - that deploy resumes its schedules from then"));
                 break;
 
             case JobStatusCode.Idle:
@@ -297,9 +297,13 @@ internal sealed class ExplainJobHandler(GetJobIdHandler getJobId, IDbSession ses
         if (expired)
         {
             var budgetExhausted = h.FailureCount + 1 >= h.MaxAttemptsEffective;
-            recovery = budgetExhausted
-                ? "Recovery should mark it Failed on its next pass because the retry budget is exhausted."
-                : "Recovery should return it to Ready on its next pass.";
+            recovery = (budgetExhausted, h.Kind) switch
+            {
+                (true, JobKindCode.PermanentSlot) =>
+                    "Recovery should return it to Idle on its next pass, with its firing settled Failed, because the retry budget is exhausted.",
+                (true, _) => "Recovery should mark it Failed on its next pass because the retry budget is exhausted.",
+                _ => "Recovery should return it to Ready on its next pass.",
+            };
         }
         else
         {

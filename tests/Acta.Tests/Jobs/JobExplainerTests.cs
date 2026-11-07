@@ -295,6 +295,28 @@ public class JobExplainerTests
     }
 
     [Fact]
+    public void Expired_lease_past_the_retry_budget_on_a_permanent_slot_expects_recovery_to_idle_it()
+    {
+        var data = Data(
+            Header(
+                JobStatusCode.Executing,
+                JobKindCode.PermanentSlot,
+                failureCount: 2,
+                maxAttempts: 3,
+                leasedByWorkerId: 17,
+                leaseExpiresAtUtc: Now.AddMinutes(-1),
+                workerStatus: WorkerStatusCode.Dead,
+                workerLastSeenAtUtc: Now.AddMinutes(-6)
+            )
+        );
+
+        var x = ExplainJobHandler.Explain(data, Now);
+
+        Assert.Contains("return it to Idle", x.Lease!.RecoveryExpectation);
+        Assert.DoesNotContain("mark it Failed", x.Lease.RecoveryExpectation);
+    }
+
+    [Fact]
     public void Failed_surfaces_the_latest_reason_and_offers_timeline_and_restart()
     {
         var data = Data(Header(JobStatusCode.Failed, latestFailureMessage: "boom in handler"));
@@ -370,13 +392,14 @@ public class JobExplainerTests
     }
 
     [Fact]
-    public void A_retired_definitions_idle_slot_points_at_the_build_that_carries_it()
+    public void A_retired_definitions_idle_slot_points_at_the_deploy_that_declares_it()
     {
         var x = ExplainJobHandler.Explain(
             Data(Header(JobStatusCode.Idle, JobKindCode.PermanentSlot, definitionStatus: DefinitionStatusCode.Retired)),
             Now
         );
         Assert.Contains("retired", x.Headline);
+        Assert.Contains("deploy", x.Headline);
         Assert.Contains(x.NextActions, a => a.Kind == "none" && a.Description.Contains("resumes its schedules"));
     }
 
