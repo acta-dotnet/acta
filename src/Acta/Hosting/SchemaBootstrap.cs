@@ -49,6 +49,12 @@ internal abstract class SchemaBootstrap(SqlProviderOptions options, ILogger? log
     }
 
     /// <summary>
+    /// What <c>jobs deploy</c> runs first: the read-only migration-history check a worker start makes, whatever
+    /// <c>MigrateOnStartup</c> says, so a deploy never applies a migration.
+    /// </summary>
+    public Task PreflightAsync(CancellationToken ct) => PreflightOnStartupAsync(options.ConnectionString, options.Schema, ct);
+
+    /// <summary>
     /// What <c>jobs migrate</c> runs: the deploy apply with the configured connection string and schema. Returns the schema
     /// and the names applied, in order.
     /// </summary>

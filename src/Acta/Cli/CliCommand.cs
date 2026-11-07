@@ -3,7 +3,8 @@ namespace Acta;
 /// <summary>
 /// One parsed CLI command. Target is the raw id-or-deduplication-key token, or null when omitted (the
 /// runner then fills it from the clipboard); numeric resolution to a JobLookup happens in the
-/// runner, where the registered namespaces are known. Take and Cursor page the events verb.
+/// runner, where the registered namespaces are known. Take and Cursor page the events verb; Force lets
+/// deploy and migrate deploy an older build.
 /// </summary>
 internal sealed record CliCommand(
     CliVerb Verb,
@@ -15,5 +16,6 @@ internal sealed record CliCommand(
     bool Json,
     int? Take = null,
     string? Cursor = null,
-    bool Break = false
+    bool Break = false,
+    bool Force = false
 );

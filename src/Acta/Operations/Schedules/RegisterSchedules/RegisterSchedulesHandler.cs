@@ -1,3 +1,5 @@
+using System.Data.Common;
+
 namespace Acta;
 
 /// <summary>
@@ -11,17 +13,18 @@ internal sealed class RegisterSchedulesHandler(IDbSession session, ISqlDialect d
     {
         // Registration never moves a slot: a running one keeps its attempt, an Idle one waits for admission, and only
         // an operator lifts a hold or restarts a finished slot.
-        var slots = await session.ExecuteAsync(
-            new StoreCommand("RegisterSchedules"),
-            cmd =>
-            {
-                cmd.Parameters.Add(dialect.CreateParameter(ActaSchema.Namespace.NamespaceId, command.NamespaceId));
-                cmd.Parameters.Add(dialect.CreateParameter(ActaSchema.Namespace.CatalogHash, command.CatalogHash));
-                dialect.BindRegisterSchedules(cmd, command.Definitions, command.SlotRefs, session.Schema);
-            },
-            DbProjectionResolver.Resolve<RegisterSchedulesRow>(),
-            ct
-        );
+        var store = new StoreCommand("RegisterSchedules");
+        var map = DbProjectionResolver.Resolve<RegisterSchedulesRow>();
+        var slots = command.Transaction is { } transaction
+            ? await session.ExecuteInTransactionAsync(transaction, store, Bind, map, ct)
+            : await session.ExecuteAsync(store, Bind, map, ct);
         return new RegisterSchedulesResponse(slots);
+
+        void Bind(DbCommand cmd)
+        {
+            cmd.Parameters.Add(dialect.CreateParameter(ActaSchema.Namespace.NamespaceId, command.NamespaceId));
+            cmd.Parameters.Add(dialect.CreateParameter(ActaSchema.Namespace.CatalogHash, command.CatalogHash));
+            dialect.BindRegisterSchedules(cmd, command.Definitions, command.SlotRefs, session.Schema);
+        }
     }
 }

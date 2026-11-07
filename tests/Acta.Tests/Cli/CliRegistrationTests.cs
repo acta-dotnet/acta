@@ -38,13 +38,17 @@ public sealed class CliRegistrationTests
         {
             var shipped = SchemaMigrations.Discover(typeof(SqliteMigrations).Assembly).Select(m => $"applied {m.Name} to schema main");
 
+            // The manifest declares no job, so the deploy that follows the schema writes the system jobs alone.
             var (first, firstOutput) = await MigrateAsync(path);
             Assert.Equal(0, first);
-            Assert.Equal(shipped, Lines(firstOutput));
+            Assert.Equal(
+                [.. shipped, "namespace payments: 1.4.0 (Staging)", "  added    sys.alerts", "  added    sys.retention", "  0 unchanged"],
+                Lines(firstOutput)
+            );
 
             var (second, secondOutput) = await MigrateAsync(path);
             Assert.Equal(0, second);
-            Assert.Equal(["schema main is up to date"], Lines(secondOutput));
+            Assert.Equal(["schema main is up to date", "namespace payments: 1.4.0 (Staging)", "  2 unchanged"], Lines(secondOutput));
         }
         finally
         {
@@ -85,6 +89,11 @@ public sealed class CliRegistrationTests
     private static async Task<(int ExitCode, string Output)> MigrateAsync(string databasePath)
     {
         var services = BuildWith(["migrate"], j => j.UseSqlite(o => o.ConnectionString = $"Data Source={databasePath}"));
+        services.Configure<JobsOptions>(o =>
+        {
+            o.DeploymentVersion = "1.4.0";
+            o.EnvironmentName = "Staging";
+        });
         await using var provider = services.AddLogging().BuildServiceProvider();
         var host = provider.GetServices<IHostedService>().OfType<CliCommandHost>().Single();
         var output = new StringWriter();

@@ -52,6 +52,13 @@ internal sealed class NamespaceEntity : IEntity<int>
     [DbColumn("catalog_hash", DbKind.AsciiString, Size = 128)]
     public string? CatalogHash { get; internal set; }
 
+    /// <summary>
+    /// The version of the app whose deploy last landed in the namespace, a row of <c>deployments</c>. NULL while no
+    /// deploy has, which leaves a namespace that only a worker start has written.
+    /// </summary>
+    [DbColumn("deployment_version", DbKind.AsciiString, Size = 128, CaseExact = true)]
+    public string? DeploymentVersion { get; internal set; }
+
     /// <summary>When the namespace row was first created. Set server-side.</summary>
     [DbColumn("created_at_utc", DbKind.UtcInstant, Default = DbDefault.UtcNow)]
     public DateTime CreatedAtUtc { get; set; }

@@ -64,6 +64,13 @@ One row per operation folder, `src/Acta/Operations/<Group>/<Operation>/`, and on
 | `RetireDefinition` | `IDefinitions.RetireAsync` | `POST /definitions/{jobNamespace}/{jobName}/retire` (`retireDefinition`) | · | inline | `checkpoints`, `definitions`, `events`, `jobs_state`, `schedules`, `schedules_state` | `RetireDefinitionSlotSpec`, `RetireDefinitionSpec` |
 | `UpdateDefinitionOverrides` | `IDefinitions.UpdateOverridesAsync` | `PUT /definitions/{jobNamespace}/{jobName}/overrides` (`updateDefinitionOverrides`) | · | inline | `definitions`, `events`, `jobs` | `UpdateDefinitionOverridesBindMatrixSpec`, `UpdateDefinitionOverridesSpec` |
 
+## Deployments
+
+| Operation | Facade | HTTP | CLI | SQL | Writes | Specs |
+| --- | --- | --- | --- | --- | --- | --- |
+| `RecordDeployment` | · | · | · | inline | `deployments`, `events`, `namespaces` | `RecordDeploymentSpec` |
+| `StartDeployment` | · | · | · | inline | `namespaces` | `StartDeploymentSpec` |
+
 ## Execution
 
 | Operation | Facade | HTTP | CLI | SQL | Writes | Specs |

@@ -98,7 +98,7 @@ internal sealed class WorkerRuntimeInitializer(
         await RegisterWorkerAsync(_workerRegistration, ns, ct);
 
         var namespaceId = _context.NamespaceIds[ns];
-        await _catalog.RegisterAsync(_workerRegistration, namespaceId, _registeredCatalogHash, allDescriptors, ct);
+        await _catalog.RegisterAsync(_workerRegistration, namespaceId, _registeredCatalogHash, allDescriptors, transaction: null, ct);
         await LoadCatalogAsync(ns, namespaceId, allDescriptors, ct);
     }
 
@@ -144,13 +144,8 @@ internal sealed class WorkerRuntimeInitializer(
         // re-upserts the namespace nor appends a second append-only worker row.
         if (!_context.WorkerIdByNamespace.TryGetValue(ns, out var _))
         {
-            // Host + deployment version stamp the append-only workers row. DeploymentVersion is the
-            // explicit option, else the entry assembly's InformationalVersion, else "unknown"; read
-            // once at startup, not on the hot path.
-            var deploymentVersion =
-                _options.Value.DeploymentVersion
-                ?? Assembly.GetEntryAssembly()?.GetCustomAttribute<AssemblyInformationalVersionAttribute>()?.InformationalVersion
-                ?? "unknown";
+            // Host + deployment version stamp the append-only workers row, read once at startup, not on the hot path.
+            var deploymentVersion = DeploymentVersionOf(_options.Value);
             var engineVersion =
                 typeof(WorkerRuntimeInitializer).Assembly.GetCustomAttribute<AssemblyInformationalVersionAttribute>()?.InformationalVersion
                 ?? "unknown";
@@ -178,6 +173,15 @@ internal sealed class WorkerRuntimeInitializer(
             _registeredCatalogHash = registeredCatalogHash;
         }
     }
+
+    /// <summary>
+    /// The version this process deploys and runs as: <see cref="JobsOptions.DeploymentVersion"/>, else the entry
+    /// assembly's informational version, else <c>unknown</c>.
+    /// </summary>
+    internal static string DeploymentVersionOf(JobsOptions options) =>
+        options.DeploymentVersion
+        ?? Assembly.GetEntryAssembly()?.GetCustomAttribute<AssemblyInformationalVersionAttribute>()?.InformationalVersion
+        ?? "unknown";
 
     /// <summary>
     /// Worker-init clock-skew guard: measure the host-vs-DB clock offset (real GetUtcNow + the

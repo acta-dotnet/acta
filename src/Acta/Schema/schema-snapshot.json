@@ -586,6 +586,27 @@
       "ForeignKeys": []
     },
     {
+      "Table": "deployments",
+      "PrimaryKey": "pk_deployments(namespace_id,deployment_version)|manual=False|seq=False",
+      "Columns": [
+        {
+          "Name": "namespace_id",
+          "Signature": "Int32|0|0|0|False|None||coded=False|codeKind=|caseExact=False"
+        },
+        {
+          "Name": "deployment_version",
+          "Signature": "AsciiString|128|0|0|False|None||coded=False|codeKind=|caseExact=True"
+        },
+        {
+          "Name": "created_at_utc",
+          "Signature": "UtcInstant|0|0|0|False|UtcNow||coded=False|codeKind=|caseExact=False"
+        }
+      ],
+      "Indexes": [],
+      "Checks": [],
+      "ForeignKeys": []
+    },
+    {
       "Table": "events",
       "PrimaryKey": "pk_events(worker_id,event_id)|manual=False|seq=True|identity=event_id",
       "Columns": [
@@ -1004,6 +1025,10 @@
         {
           "Name": "catalog_hash",
           "Signature": "AsciiString|128|0|0|True|None||coded=False|codeKind=|caseExact=False"
+        },
+        {
+          "Name": "deployment_version",
+          "Signature": "AsciiString|128|0|0|True|None||coded=False|codeKind=|caseExact=True"
         },
         {
           "Name": "created_at_utc",
@@ -1508,9 +1533,10 @@
       "complete_executions": "0391a7f9b61bac7d29ca6cbbb09dea530bbcfe7140f68eb3754f38b32b205ce3",
       "complete_job_step": "cd54edc26b4c0e1322947e40f6890fb257e30bea3e703f3aab1977c39af9694a",
       "definitions_view": "d0cf5035216a476f506da935da209f2916438ced77d94c70a5d0d4c42245cc09",
+      "deployments_view": "96fc0284fb1f47ce344419e633b8f89ade24ded7c4a118d0a514015548affa63",
       "enqueue_job": "01b6443d9ae282023009e6534c7b2df270d984f48391474fbacf8a7dd3ceb313",
       "enqueue_jobs": "cf841c21958b1de7472a9329d025cffbabba56530a6f53be5934543e3861af68",
-      "events_view": "631e2599fa5e3d36a0603980e80568aa5dd86324c4e3b0138e2e1ddb00334cad",
+      "events_view": "d721f70e83d6941df40b2a39efc02dd5ab1f3ec8a18136ee3730de0acfa73aa0",
       "extend_worker_leases": "c13f14a0cfd7392272e3336bf0bef2f9828b04c7b6849e005ba345a7ba1f89e0",
       "jobs_view": "9cea0f92dc2e62c51a6fcc98b2ec429303e940002dd30e0da145ddcdc5b8e464",
       "purge_expired_data": "12c49295034ed1cebf3e6fd4cb59757365537b37545d19b47c7ea075c1f5852a",
@@ -1534,9 +1560,10 @@
       "complete_executions": "50a4748c4bfb8261216926de4e430df7a7a0f97ce2483c8f22d3a29bcdd594f2",
       "complete_job_step": "7cd9b30d151aac80961345e356a22fc62c01307ea3d5c9e9a958298981badb86",
       "definitions_view": "ee864349f8c78815915a6231eed9f9801e64622620f84926e837907082482e1f",
+      "deployments_view": "6c8ab23e15969f1ec2d9116019d27f88d713c0b218d13ddd68390e04d74c513a",
       "enqueue_job": "b12d73be34fb10644f872b60106960980ca0b696253fd46d692d3a9345688b83",
       "enqueue_jobs": "68467d6a49697d28e7637acfe44f273e90811de8ea0088989d75cafe4984bd42",
-      "events_view": "12f8f4fbd0d4cfde4bb6d66213c86cb232caa1f84c9c0821e4e4667b8c0411ab",
+      "events_view": "3e2043f6e392aafc058dc3aeaadaf1b075e07e030a28d0a76e8a68fd5b71c1b5",
       "extend_worker_leases": "b4b1024b01ac8e8a68a1d768364d2602371e1ba7acd647a0b27be5d4bf65aa1b",
       "jobs_view": "36b2637d5a4ab37eb126ff5d23830cb29c8a9bcecb79b92bb8ec04d29ba750d2",
       "purge_expired_data": "1b47159dcbf87566a0c8cf99f4dfccc601d67a13291daa3786a4326526e922f9",
@@ -1555,7 +1582,8 @@
       "calendars_view": "e8557bd4614ccb5ec5522428f4779401ddd825a297ae4ff63a5a8a33fb92766c",
       "checkpoints_view": "bd083c7d07b3a2afdaad6a5eb8b17d5479b20b9e075a125d1911229efdce09ed",
       "definitions_view": "4ba02c5c13de415d21c21e22220b4096c87b8c1303b63010afb5e97b3d68cafa",
-      "events_view": "a39b43535142dff9255be612e82ab1ddcf3068a6e232fbd390deaad459ca2ca6",
+      "deployments_view": "6d26bda38b8d092ab298db1e44e9e330ba4077d64ba7963db05169941c2708f6",
+      "events_view": "839bf2b1cf44e948a48cf5a4cdc32db26c1532540cb86f43221223665ac768fb",
       "jobs_view": "633426721e6fdbb0e00dd973df96dd8680a67f2817b1dbc4dfb798102eaf7848",
       "schedules_view": "985b7eae8b08e87472ffe0bc11128ce938eba05cad2982f07df87c42aec282ff",
       "steps_view": "8d274489630abf7eb7f9f16ca4b56abd517be24fc91b4e2cd5e55dcb91db958f",

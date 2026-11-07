@@ -187,6 +187,9 @@ internal sealed class HookedSession(IDbSession inner, Func<string, Task> before)
         await inner.ExecuteAsync(command, bind, ct);
     }
 
+    public Task<T> RunInTransactionAsync<T>(Func<DbTransaction, CancellationToken, Task<T>> action, CancellationToken ct) =>
+        inner.RunInTransactionAsync(action, ct);
+
     public Task<T> RunWithRetryAsync<T>(Func<CancellationToken, Task<T>> action, CancellationToken ct) =>
         inner.RunWithRetryAsync(action, ct);
 }

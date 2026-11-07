@@ -1,3 +1,5 @@
+using System.Data.Common;
+
 namespace Acta;
 
 /// <summary>The Schedules operations: <see cref="ISchedules"/> for applications, plus the engine's calls.</summary>
@@ -66,6 +68,10 @@ internal sealed class SchedulesOperations(
     /// </summary>
     internal Task<ListScheduleStatesResponse> ListScheduleStatesAsync(int namespaceId, CancellationToken ct) =>
         listScheduleStates.HandleAsync(new ListScheduleStatesQuery(namespaceId), ct);
+
+    /// <summary>The same read inside <paramref name="transaction"/>, when one is given, so it sees what that transaction wrote.</summary>
+    internal Task<ListScheduleStatesResponse> ListScheduleStatesAsync(int namespaceId, DbTransaction? transaction, CancellationToken ct) =>
+        listScheduleStates.HandleAsync(new ListScheduleStatesQuery(namespaceId, transaction), ct);
 
     /// <summary>Every member of each slot with a schedule due for evaluation; the admitter's read.</summary>
     internal Task<ListDueSchedulesResponse> ListDueSchedulesAsync(int namespaceId, DateTime nowUtc, int take, CancellationToken ct) =>

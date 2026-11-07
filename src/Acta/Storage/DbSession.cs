@@ -461,6 +461,36 @@ internal sealed class DbSession : IDbSession
         }
     }
 
+    public Task<T> RunInTransactionAsync<T>(Func<DbTransaction, CancellationToken, Task<T>> action, CancellationToken ct) =>
+        RunWithRetryAsync(
+            async token =>
+            {
+                var connection = await OpenConnectionAsync(token);
+                DbTransaction? transaction = null;
+                T result;
+                try
+                {
+                    transaction = _dialect.BeginOwnedWriteTransaction(connection) ?? await connection.BeginTransactionAsync(token);
+                    result = await action(transaction, token);
+                    await transaction.CommitAsync(token);
+                }
+                catch
+                {
+                    // Disposing the uncommitted transaction rolls it back. The attempt's own failure is the one
+                    // classified and thrown, whatever its cleanup does.
+                    await DisposeFailedAttemptAsync(transaction, connection);
+                    throw;
+                }
+
+                await using (connection)
+                await using (transaction)
+                {
+                    return result;
+                }
+            },
+            ct
+        );
+
     public async Task<T> RunWithRetryAsync<T>(Func<CancellationToken, Task<T>> action, CancellationToken ct)
     {
         if (_writeQueue is null)

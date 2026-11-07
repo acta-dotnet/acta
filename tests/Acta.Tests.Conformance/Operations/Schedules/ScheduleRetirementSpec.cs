@@ -322,6 +322,9 @@ public sealed class ScheduleRetirementSpec : ActaRuntimeTestBase<ConformanceFixt
         public Task ExecuteAsync(StoreCommand command, Action<DbCommand> bind, CancellationToken ct) =>
             inner.ExecuteAsync(command, bind, ct);
 
+        public Task<T> RunInTransactionAsync<T>(Func<DbTransaction, CancellationToken, Task<T>> action, CancellationToken ct) =>
+            inner.RunInTransactionAsync(action, ct);
+
         public Task<T> RunWithRetryAsync<T>(Func<CancellationToken, Task<T>> action, CancellationToken ct) =>
             inner.RunWithRetryAsync(action, ct);
     }

@@ -1,6 +1,7 @@
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.DependencyInjection.Extensions;
 using Microsoft.Extensions.Logging;
+using Microsoft.Extensions.Logging.Abstractions;
 using Microsoft.Extensions.Options;
 
 namespace Acta;
@@ -243,6 +244,10 @@ public static class ActaServiceCollectionExtensions
         services.AddSingleton<IClockOperations>(sp => sp.GetRequiredService<ClockOperations>());
         services.TryAddSingleton<IActaClock>(sp => sp.GetRequiredService<IClockOperations>());
 
+        services.TryAddSingleton<RecordDeploymentHandler>();
+        services.TryAddSingleton<StartDeploymentHandler>();
+        services.TryAddSingleton<DeploymentsOperations>();
+
         services.TryAddSingleton<AccessJobCheckpointHandler>();
         services.TryAddSingleton<ArmOrConsumeJobSleepTimerHandler>();
         services.TryAddSingleton<ClaimJobHandler>();
@@ -309,6 +314,26 @@ public static class ActaServiceCollectionExtensions
             sp.GetService<ILogger<AlertRoutingCheck>>()
         ));
 
+        // The deploy and migrate verbs write each declared worker's catalog through this.
+        services.TryAddSingleton(sp =>
+        {
+            var options = sp.GetRequiredService<IOptions<JobsOptions>>();
+            return new CatalogDeployer(
+                new CatalogRegistrar(
+                    sp.GetRequiredService<DefinitionsOperations>(),
+                    sp.GetRequiredService<SchedulesOperations>(),
+                    sp.GetRequiredService<IActaClock>(),
+                    sp.GetRequiredService<IJobPayloadSerializerRegistry>(),
+                    options,
+                    sp.GetRequiredService<CalendarsOperations>(),
+                    (ILogger?)sp.GetService<ILogger<CatalogDeployer>>() ?? NullLogger.Instance
+                ),
+                sp.GetRequiredService<DeploymentsOperations>(),
+                sp.GetRequiredService<IDbSession>(),
+                options
+            );
+        });
+
         // Type to enqueue-route index backing the typed IJobs.EnqueueAsync<TInput> and RunAndWaitAsync
         // facade. The raw EnqueueJobRequest path needs no index. Captured here because the namespace
         // is assigned per Reference/Run call, not on the namespace-neutral manifest.
@@ -360,7 +385,7 @@ public static class ActaServiceCollectionExtensions
         if (cliArgs is not null)
         {
             var namespaces = builder.Catalogs.Select(c => c.NamespaceName).Distinct(StringComparer.Ordinal).ToArray();
-            services.AddSingleton(new CliInvocation(cliArgs, namespaces));
+            services.AddSingleton(new CliInvocation(cliArgs, namespaces, [.. builder.Workers]));
             services.AddHostedService<CliCommandHost>();
         }
         else

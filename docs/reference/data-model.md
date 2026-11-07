@@ -2,7 +2,7 @@
 
 # Data model reference
 
-Structural reference for the Acta persistence model: **16 entities**, **248 columns**, **39 indexes**, **39 check constraints**, **4 foreign keys**. Names render with the default `acta` schema prefix; substitute the configured schema if different. Code families resolve into [`code-families.md`](./code-families.md). The foreign-key enforcement policy (which references are CASCADE, RESTRICT, or deliberately unenforced) is in [SQL recipes](../operator-guide.md#foreign-key-policy).
+Structural reference for the Acta persistence model: **17 entities**, **252 columns**, **39 indexes**, **39 check constraints**, **4 foreign keys**. Names render with the default `acta` schema prefix; substitute the configured schema if different. Code families resolve into [`code-families.md`](./code-families.md). The foreign-key enforcement policy (which references are CASCADE, RESTRICT, or deliberately unenforced) is in [SQL recipes](../operator-guide.md#foreign-key-policy).
 
 ## Schema inventory
 
@@ -12,6 +12,7 @@ Structural reference for the Acta persistence model: **16 entities**, **248 colu
 | [`acta.calendars`](#entity-acta-calendars) | One immutable content version of a namespace's named catalog calendar. | [`CalendarRoleCode`](./code-families.md#code-family-calendarrolecode), [`CalendarStatusCode`](./code-families.md#code-family-calendarstatuscode), [`JobPayloadFormat`](./code-families.md#code-family-jobpayloadformat) |
 | [`acta.checkpoints`](#entity-acta-checkpoints) | One durable row per `(JobId, Kind, CheckpointName)`: variables, signals, sleep timers, the progress checkpoint, child latches, and the scheduler's firing envelope share this shape, told apart by `Kind` (steps keep their own `steps` table). | [`CheckpointKindCode`](./code-families.md#code-family-checkpointkindcode), [`CheckpointStatusCode`](./code-families.md#code-family-checkpointstatuscode), [`JobPayloadFormat`](./code-families.md#code-family-jobpayloadformat) |
 | [`acta.definitions`](#entity-acta-definitions) | The live job policy: one row per definition, the single source of truth for every per-job policy. | [`DefinitionStatusCode`](./code-families.md#code-family-definitionstatuscode), [`DefinitionTenantRequirementCode`](./code-families.md#code-family-definitiontenantrequirementcode), [`JobPriorityCode`](./code-families.md#code-family-jobprioritycode), [`DeadlineBehaviorCode`](./code-families.md#code-family-deadlinebehaviorcode), [`EventRecordingCode`](./code-families.md#code-family-eventrecordingcode), [`AlertProfileCode`](./code-families.md#code-family-alertprofilecode), [`FiringFailurePolicyCode`](./code-families.md#code-family-firingfailurepolicycode), [`ScheduledDeliveryCode`](./code-families.md#code-family-scheduleddeliverycode), [`JobPayloadFormat`](./code-families.md#code-family-jobpayloadformat) |
+| [`acta.deployments`](#entity-acta-deployments) | One app version that has deployed its jobs in a namespace, one row per `(NamespaceId, DeploymentVersion)`, written the first time that version's deploy lands there and never updated or purged. | · |
 | [`acta.events`](#entity-acta-events) | The append-only ledger: what happened to an entity, named by `EventCode` and the `EntityCode`/`EntityId` subject pair, with a human `EventMessage` and a small encoded `Details` payload for the facts the code does not imply. | [`EntityCode`](./code-families.md#code-family-entitycode), [`EventCode`](./code-families.md#code-family-eventcode), [`JobPayloadFormat`](./code-families.md#code-family-jobpayloadformat) |
 | [`acta.jobs`](#entity-acta-jobs) | One row in `acta.jobs`, Acta's only work unit: the append-mostly identity/input record. | [`JobKindCode`](./code-families.md#code-family-jobkindcode), [`EventRecordingCode`](./code-families.md#code-family-eventrecordingcode), [`JobPayloadFormat`](./code-families.md#code-family-jobpayloadformat) |
 | [`acta.jobs_state`](#entity-acta-jobs-state) | The hot, mutable state of one job, one row per `jobs` row, split out so claim and complete churn never rewrites the identity and input row. | [`JobStatusCode`](./code-families.md#code-family-jobstatuscode), [`JobPriorityCode`](./code-families.md#code-family-jobprioritycode), [`JobPayloadFormat`](./code-families.md#code-family-jobpayloadformat) |
@@ -259,6 +260,22 @@ The live job policy: one row per definition, the single source of truth for ever
 
 ---
 
+### `acta.deployments` <a id="entity-acta-deployments"></a>
+
+One app version that has deployed its jobs in a namespace, one row per `(NamespaceId, DeploymentVersion)`, written the first time that version's deploy lands there and never updated or purged. A version that has a row and is not the namespace's current one is an older build, whose deploy changes nothing unless it is forced.
+
+**CLR type** `Acta.DeploymentEntity` · **Primary key** `pk_deployments` (`namespace_id`, `deployment_version`)
+
+**Columns**
+
+| Column | Kind | Size | Nullable | Default | Codes | Description |
+|---|---|---|---|---|---|---|
+| `namespace_id`<a id="column-acta-deployments--namespace-id"></a> | `Int32` | · | no | · | PK | The namespace the version deployed in. The key's first column. |
+| `deployment_version`<a id="column-acta-deployments--deployment-version"></a> | `AsciiString` | 128 | no | · | PK, case-exact | The app's version, as `JobsOptions.DeploymentVersion` names it, compared exactly: versions that differ only in case are two versions. The key's second column. |
+| `created_at_utc`<a id="column-acta-deployments--created-at-utc"></a> | `UtcInstant` | · | no | `UtcNow` | · | When the version first deployed in the namespace. Set server-side. |
+
+---
+
 ### `acta.events` <a id="entity-acta-events"></a>
 
 The append-only ledger: what happened to an entity, named by `EventCode` and the `EntityCode`/`EntityId` subject pair, with a human `EventMessage` and a small encoded `Details` payload for the facts the code does not imply. Rows age out by `JobsOptions.JobEventsRetention` against `CreatedAtUtc`; no foreign key binds the subject, because events outlive it, so the operations that write them keep them consistent.
@@ -469,6 +486,7 @@ Service-owned execution boundary. One deployable service owns one `NamespaceEnti
 | `description`<a id="column-acta-namespaces--description"></a> | `UnicodeString` | 512 | yes | · | · | Operator-readable description of what this namespace owns. Unicode-capable. |
 | `namespace_status_code`<a id="column-acta-namespaces--namespace-status-code"></a> | `Byte` | · | no | · | [`NamespaceStatusCode`](./code-families.md#code-family-namespacestatuscode) (`namespace-status`) | Namespace lifecycle status. Supplied at INSERT by the StartWorker registration (no server-side default), mirroring the tenant convention. Enforced at enqueue: EnqueueJob/EnqueueJobs reject with a distinguishable error when the resolved namespace is not Active. |
 | `catalog_hash`<a id="column-acta-namespaces--catalog-hash"></a> | `AsciiString` | 128 | yes | · | · | SHA-256 hex of the canonicalized assembly catalog. NULL means the namespace row was created before any catalog hash was computed (pre-registration; the hash is unwritten). |
+| `deployment_version`<a id="column-acta-namespaces--deployment-version"></a> | `AsciiString` | 128 | yes | · | case-exact | The version of the app whose deploy last landed in the namespace, a row of `deployments`. NULL while no deploy has, which leaves a namespace that only a worker start has written. |
 | `created_at_utc`<a id="column-acta-namespaces--created-at-utc"></a> | `UtcInstant` | · | no | `UtcNow` | · | When the namespace row was first created. Set server-side. |
 | `modified_at_utc`<a id="column-acta-namespaces--modified-at-utc"></a> | `UtcInstant` | · | no | `UtcNow` | · | When the namespace row was last updated. Set server-side on every mutation. |
 | `version`<a id="column-acta-namespaces--version"></a> | `Int32` | · | no | `0` | concurrency token | Optimistic-concurrency token; SPs manually increment on UPDATE. |

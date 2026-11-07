@@ -5,7 +5,7 @@
 > Generated reference for Acta code families and the payload-format registry.
 > Every persisted code is documented here exactly once; the data-model reference [`data-model.md`](./data-model.md) links into this file from every code-bearing column.
 
-This release: **36 families**, **203 values**.
+This release: **36 families**, **204 values**.
 
 > Numeric IDs are stable family-local persistence identifiers. Enum members carry programmatic meaning; textual codes carry operator-facing meaning.
 > Numeric grouping is a readability convention, not a runtime schema. Canonical failure states use `200`.
@@ -229,6 +229,7 @@ This pattern makes raw values easier to scan in database rows, logs, and diagnos
 | `NamespaceSuspended` | 20 | `namespace.suspended` | An operator suspended a namespace; enqueues into it are rejected. The message carries the reason. | Active |
 | `NamespaceResumed` | 21 | `namespace.resumed` | An operator resumed a suspended namespace; enqueues into it are accepted again. The message carries the reason. | Active |
 | `NamespaceUpdated` | 22 | `namespace.updated` | An operator changed a namespace's owner team or description. The message carries the reason. | Active |
+| `NamespaceDeployed` | 23 | `namespace.deployed` | A deploy wrote the namespace's job definitions and schedules. The message names the version and the one it replaced; the details list the jobs it added and changed. | Active |
 | `JobDefinitionOverridesUpdated` | 30 | `definition.overrides-updated` | An operator changed a job definition's policy overrides; the message summarizes the change. | Active |
 | `JobDefinitionRetired` | 31 | `definition.retired` | An operator retired a job definition; enqueues are rejected and its waiting jobs were cancelled. | Active |
 | `JobExecutionSucceeded` | 40 | `job.execution-succeeded` | The attempt's handler returned successfully; durationMs is set. Recorded for every success under audit, under failures only for a success after counted failures, and under an enabled alert profile also for a one-shot job's success past its first attempt. | Active |

@@ -93,8 +93,8 @@ upserted AS (
         b.display_name,
         b.description,
         b.definition_hash,
-        now(),
-        now(),
+        statement_timestamp(),
+        statement_timestamp(),
         0
     FROM batch b
     ON CONFLICT (namespace_id, definition_name) DO UPDATE SET
@@ -128,7 +128,9 @@ upserted AS (
         display_name = EXCLUDED.display_name,
         description = EXCLUDED.description,
         definition_hash = EXCLUDED.definition_hash,
-        modified_at_utc = now(),
+        -- The statement's time, not the transaction's: inside a deploy's transaction now() is from before the namespace
+        -- lock was granted, and a stamp older than one a worker has seen would not make it reload.
+        modified_at_utc = statement_timestamp(),
         version = {{schema}}.definitions.version + 1
     -- An unchanged Active row is left as it is: version and modified_at_utc stay, so no operator CAS fails and no
     -- worker reloads.

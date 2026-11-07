@@ -39,6 +39,12 @@ public enum EventCode : byte
     [Code("namespace.updated", "An operator changed a namespace's owner team or description. The message carries the reason.")]
     NamespaceUpdated = 22,
 
+    [Code(
+        "namespace.deployed",
+        "A deploy wrote the namespace's job definitions and schedules. The message names the version and the one it replaced; the details list the jobs it added and changed."
+    )]
+    NamespaceDeployed = 23,
+
     /// <summary>
     /// The definition is the subject. Always emitted regardless of event recording: config governance is low-volume.
     /// </summary>

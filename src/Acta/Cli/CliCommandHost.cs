@@ -8,8 +8,9 @@ namespace Acta;
 /// CLI-mode hosted service, registered in place of WorkerRuntimeHost when the process starts with
 /// the reserved "jobs" argument. Parses and runs the verb during startup, then terminates the
 /// process via Environment.Exit so application code after host StartAsync never runs. Skips
-/// provider bootstrap and catalog writes: only migrate applies the schema, and only the debug verb
-/// initializes its worker's catalog. Services resolve after the parse, so migrate builds no worker.
+/// provider bootstrap and catalog writes: only migrate applies the schema, only migrate and deploy write
+/// the declared workers' catalogs, and only the debug verb initializes its worker's catalog. Services
+/// resolve after the parse, so migrate and deploy build no worker.
 /// </summary>
 internal sealed class CliCommandHost(CliInvocation invocation, IServiceProvider services) : IHostedService
 {
@@ -52,7 +53,27 @@ internal sealed class CliCommandHost(CliInvocation invocation, IServiceProvider 
             if (command.Verb == CliVerb.Migrate)
             {
                 var (schema, applied) = await services.GetRequiredService<SchemaBootstrap>().MigrateAsync(ct);
-                CliOutput.WriteMigrate(output, schema, applied, command.Json);
+                IReadOnlyList<NamespaceDeployment> deployed;
+                try
+                {
+                    deployed = await services.GetRequiredService<CatalogDeployer>().DeployAsync(invocation.Workers, command.Force, ct);
+                }
+                catch
+                {
+                    // The schema stays applied whatever the deploy does, so its report comes before the deploy's error.
+                    CliOutput.WriteMigrate(output, schema, applied, [], command.Json);
+                    throw;
+                }
+
+                CliOutput.WriteMigrate(output, schema, applied, deployed, command.Json);
+                return 0;
+            }
+
+            if (command.Verb == CliVerb.Deploy)
+            {
+                await services.GetRequiredService<SchemaBootstrap>().PreflightAsync(ct);
+                var deployed = await services.GetRequiredService<CatalogDeployer>().DeployAsync(invocation.Workers, command.Force, ct);
+                CliOutput.WriteDeploy(output, deployed, command.Json);
                 return 0;
             }
 

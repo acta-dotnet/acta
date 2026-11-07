@@ -1,3 +1,4 @@
+using System.Data.Common;
 using System.Globalization;
 
 namespace Acta;
@@ -11,9 +12,11 @@ internal sealed class RegisterDefinitionsHandler(IDbSession session, ISqlDialect
     public async Task<RegisterDefinitionsResponse> HandleAsync(RegisterDefinitionsCommand command, CancellationToken ct)
     {
         var result = new Dictionary<string, int>(StringComparer.Ordinal);
+        var added = new List<string>();
+        var changed = new List<string>();
         if (command.Descriptors.IsDefaultOrEmpty)
         {
-            return new RegisterDefinitionsResponse(result);
+            return new RegisterDefinitionsResponse(result, added, changed);
         }
 
         var rows = new List<DefinitionValues>(command.Descriptors.Length);
@@ -32,20 +35,19 @@ internal sealed class RegisterDefinitionsHandler(IDbSession session, ISqlDialect
 
         ValidateJoiningRatesMatchOverriddenMeters(rows, storedByName, command.NamespaceId);
 
-        var anyChange = false;
         foreach (var row in rows)
         {
             if (!storedByName.TryGetValue(row.DefinitionName, out var s))
             {
-                anyChange = true; // new
+                added.Add(row.DefinitionName);
             }
             else if (s.DefinitionHash != row.DefinitionHash || s.Status != DefinitionStatusCode.Active)
             {
-                anyChange = true;
+                changed.Add(row.DefinitionName);
             }
         }
 
-        if (!anyChange)
+        if (added.Count == 0 && changed.Count == 0)
         {
             // Nothing to write. Every descriptor is present and Active in the stored set, so the id
             // map comes straight from the read.
@@ -54,15 +56,14 @@ internal sealed class RegisterDefinitionsHandler(IDbSession session, ISqlDialect
                 result[row.DefinitionName] = storedByName[row.DefinitionName].DefinitionId;
             }
 
-            return new RegisterDefinitionsResponse(result);
+            return new RegisterDefinitionsResponse(result, added, changed);
         }
 
-        var registered = await session.ExecuteAsync(
-            new StoreCommand("RegisterDefinitions"),
-            cmd => dialect.BindRegisterDefinitions(cmd, command.NamespaceId, rows, session.Schema),
-            DbProjectionResolver.Resolve<RegisterDefinitionsRow>(),
-            ct
-        );
+        var store = new StoreCommand("RegisterDefinitions");
+        var map = DbProjectionResolver.Resolve<RegisterDefinitionsRow>();
+        var registered = command.Transaction is { } transaction
+            ? await session.ExecuteInTransactionAsync(transaction, store, Bind, map, ct)
+            : await session.ExecuteAsync(store, Bind, map, ct);
         foreach (var (name, id) in registered)
         {
             result[name] = id;
@@ -73,7 +74,9 @@ internal sealed class RegisterDefinitionsHandler(IDbSession session, ISqlDialect
                 $"register_definitions returned {result.Count} name-to-id rows for {rows.Count} input definitions. "
                     + "The registration must return exactly one row per registered definition."
             )
-            : new RegisterDefinitionsResponse(result);
+            : new RegisterDefinitionsResponse(result, added, changed);
+
+        void Bind(DbCommand cmd) => dialect.BindRegisterDefinitions(cmd, command.NamespaceId, rows, session.Schema);
     }
 
     /// <summary>

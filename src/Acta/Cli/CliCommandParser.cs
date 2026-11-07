@@ -72,6 +72,7 @@ internal static class CliCommandParser
             "events" => CliVerb.Events,
             "explain" => CliVerb.Explain,
             "migrate" => CliVerb.Migrate,
+            "deploy" => CliVerb.Deploy,
             _ => (CliVerb?)null,
         };
         if (verb is null)
@@ -89,6 +90,7 @@ internal static class CliCommandParser
         string? cursor = null;
         var json = false;
         var brk = false;
+        var force = false;
 
         for (var i = 1; i < args.Count; i++)
         {
@@ -100,6 +102,9 @@ internal static class CliCommandParser
                     break;
                 case "--break":
                     brk = true;
+                    break;
+                case "--force":
+                    force = true;
                     break;
                 case "--reason" or "--ns" or "--value" or "--take" or "--after":
                     if (i + 1 >= args.Count)
@@ -187,13 +192,18 @@ internal static class CliCommandParser
             error = $"Flag '--break' is only valid for verb 'debug'.";
             return false;
         }
-        if (verb == CliVerb.Migrate && (target is not null || ns is not null))
+        if (force && verb is not (CliVerb.Deploy or CliVerb.Migrate))
         {
-            error = "Verb 'migrate' takes no job and no '--ns': it applies the schema this host is configured with.";
+            error = "Flag '--force' is only valid for verbs 'deploy' and 'migrate'.";
+            return false;
+        }
+        if (verb is CliVerb.Migrate or CliVerb.Deploy && (target is not null || ns is not null))
+        {
+            error = $"Verb '{args[0]}' takes no job and no '--ns': it acts on the database and namespaces this host is configured with.";
             return false;
         }
 
-        command = new CliCommand(verb.Value, target, signalName, signalValue, reason, ns, json, take, cursor, brk);
+        command = new CliCommand(verb.Value, target, signalName, signalValue, reason, ns, json, take, cursor, brk, force);
         return true;
     }
 }

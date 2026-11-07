@@ -15,6 +15,9 @@ internal static partial class ActaSchema
 
         public static readonly DbValueSpec<string> NamespaceName = new("p_namespace_name", DbKind.AsciiString, 128);
 
+        /// <summary>The namespaces a deploy opens, as a JSON array of names. The operation SQL parses it provider-locally.</summary>
+        public static readonly DbValueSpec<string> NamespaceNamesJson = new("p_namespace_names", DbKind.UnicodeString, -1);
+
         public static readonly DbValueSpec<string?> TenantNameFilter = new("p_tenant_name", DbKind.AsciiString, 128);
 
         /// <summary>

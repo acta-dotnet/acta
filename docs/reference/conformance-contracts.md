@@ -275,6 +275,16 @@
 
 ## Catalog
 
+### A deploy writes a release's jobs and records its version
+- **Contract:** A deploy writes every namespace's definitions, schedules, and version in one transaction, and a version deployed earlier writes nothing unless forced.
+- **Guarantees:**
+  - A deploy writes the definitions and schedules and records the version, and a second run changes nothing
+  - A version never seen deploys over the current one and lists the active definitions it no longer declares
+  - A version that deployed earlier and is not current changes nothing and exits zero, and --force deploys it
+  - A deploy that fails in one namespace leaves every namespace of the host as it was
+  - A host's namespaces deploy together, each by its own standing: skipped where the build is older, written where it is new
+  - Two versions deployed at the same moment both land, and the catalog is the one the current version declares
+
 ### Definition override bind matrix: all 13 fields
 - **Contract:** All 13 override fields bind to their own column, COALESCE recomputes each effective, and null clears the override to fall back to base.
 - **Guarantees:**
@@ -305,6 +315,26 @@
   - A retire settles a queued firing and leaves an operator's pause or cancel on the slot through the comeback
   - A retired definition's slot refuses a manual firing until a build that carries the definition starts
   - A firing that fails into a retry after the retire lands Cancelled with its firing settled, and a restart returns the slot to Idle
+
+### RecordDeployment makes a version current and leaves an event
+- **Contract:** RecordDeployment inserts the version's row once, writes the namespace only when it differs, and writes a namespace.deployed event every time.
+- **Guarantees:**
+  - Recording a version adds its row and makes it the namespace's current version
+  - Recording the current version again writes neither the row nor the namespace
+  - Recording an earlier version makes it current again and keeps the row from its first deploy
+  - Versions that differ only in case are two versions, each with its own row
+  - Recording stores a changed owner or description, and clears one the deploy no longer declares
+  - Every recording leaves a namespace.deployed event naming the version, the one it replaced, and what changed
+
+### StartDeployment opens a deploy's namespaces and answers where each stands
+- **Contract:** StartDeployment inserts absent namespaces, answers each one's current version and whether this one deployed before, and makes a second deploy wait.
+- **Guarantees:**
+  - A start in a new namespace inserts it Active and answers no current version
+  - A start in an existing namespace answers its id and writes nothing
+  - A start of several namespaces answers one row for each, the new ones inserted
+  - A start answers the current version, and separately whether the deploying version has a row
+  - A version that differs from a deployed one only in case has not deployed
+  - A second start in the namespace waits until the first one's transaction ends, and then sees what it wrote
 
 ### GetNamespace reads a namespace by name
 - **Contract:** GetNamespace returns the GetNamespaceResponse for a known name in any casing and any status, the seeded sys row included, or null.
@@ -2655,6 +2685,7 @@
 | `RaiseAlert` | yes | yes | yes |
 | `RaiseJobSignal` | yes | yes | yes |
 | `ReclaimStuckJobs` | yes | yes | yes |
+| `RecordDeployment` | yes | yes | yes |
 | `RecordJobNote` | yes | yes | yes |
 | `RegisterDefinitions` | yes | yes | yes |
 | `RegisterSchedules` | yes | yes | yes |
@@ -2679,6 +2710,7 @@
 | `ResumeTenant` | yes | yes | yes |
 | `RetireDefinition` | yes | yes | yes |
 | `SaveCalendarDraft` | yes | yes | yes |
+| `StartDeployment` | yes | yes | yes |
 | `StartJobStep` | yes | yes | yes |
 | `StartWorker` | yes | yes | yes |
 | `StopWorker` | yes | yes | yes |

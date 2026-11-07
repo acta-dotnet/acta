@@ -150,6 +150,43 @@ public class CliCommandParserTests
         Assert.True(json.Json);
     }
 
+    [Fact]
+    public void Deploy_parses_with_no_target_and_takes_force_and_json()
+    {
+        Assert.True(CliCommandParser.TryParse(["deploy"], out var plain, out _));
+        Assert.Equal(CliVerb.Deploy, plain.Verb);
+        Assert.Null(plain.Target);
+        Assert.False(plain.Force);
+
+        Assert.True(CliCommandParser.TryParse(["deploy", "--force", "--json"], out var forced, out _));
+        Assert.True(forced.Force);
+        Assert.True(forced.Json);
+    }
+
+    [Fact]
+    public void Migrate_takes_force_for_the_deploy_it_runs()
+    {
+        Assert.True(CliCommandParser.TryParse(["migrate", "--force"], out var cmd, out _));
+        Assert.Equal(CliVerb.Migrate, cmd.Verb);
+        Assert.True(cmd.Force);
+    }
+
+    [Theory]
+    [InlineData("deploy", "job_0123")]
+    [InlineData("migrate", "job_0123")]
+    public void Deploy_and_migrate_reject_a_target(string verb, string target)
+    {
+        Assert.False(CliCommandParser.TryParse([verb, target], out _, out var error));
+        Assert.Contains(verb, error);
+    }
+
+    [Fact]
+    public void Force_flag_is_rejected_for_any_other_verb()
+    {
+        Assert.False(CliCommandParser.TryParse(["status", "1", "--force"], out _, out var error));
+        Assert.Contains("--force", error);
+    }
+
     [Theory]
     [InlineData(new[] { "app.dll", "jobs", "migrate" }, new[] { "migrate" })]
     [InlineData(new[] { "app.dll", "--environment", "Staging", "jobs", "migrate" }, new[] { "migrate" })]

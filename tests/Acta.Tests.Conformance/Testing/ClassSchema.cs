@@ -21,7 +21,7 @@ internal sealed class ClassSchema(string schemaName, string connectionString) : 
 
     public ValueTask DisposeAsync() => ValueTask.CompletedTask;
 
-    /// <summary>The datetime stamp of the provider's baseline migration, <c>20261106163228</c> of <c>M20261106163228_init</c>.</summary>
+    /// <summary>The datetime stamp of the provider's baseline migration, <c>20261106173251</c> of <c>M20261106181521_init</c>.</summary>
     private static string BaselineStamp(string dialectToken) =>
         SchemaMigrations.Discover(Assembly.Load(ProviderSqlResources.ProviderAssemblyName(dialectToken)))[0].Name[1..15];
 

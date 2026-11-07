@@ -456,23 +456,120 @@ public class CliOutputTests
     public void Migrate_plain_names_each_applied_migration_or_says_the_schema_is_up_to_date()
     {
         var applied = new StringWriter();
-        CliOutput.WriteMigrate(applied, "acta", ["M20260101000000_init", "M20260102000000_add_flags"], json: false);
+        CliOutput.WriteMigrate(applied, "acta", ["M20260101000000_init", "M20260102000000_add_flags"], [], json: false);
         Assert.Equal(
             ["applied M20260101000000_init to schema acta", "applied M20260102000000_add_flags to schema acta"],
             applied.ToString().Split(Environment.NewLine, StringSplitOptions.RemoveEmptyEntries)
         );
 
         var current = new StringWriter();
-        CliOutput.WriteMigrate(current, "acta", [], json: false);
+        CliOutput.WriteMigrate(current, "acta", [], [], json: false);
         Assert.Equal("schema acta is up to date", current.ToString().Trim());
     }
 
     [Fact]
-    public void Migrate_json_writes_the_schema_and_the_applied_names()
+    public void Migrate_plain_prints_the_deploy_after_the_schema()
     {
         var w = new StringWriter();
-        CliOutput.WriteMigrate(w, "acta", ["M20260101000000_init"], json: true);
-        Assert.Equal("{\"schema\":\"acta\",\"applied\":[\"M20260101000000_init\"]}", w.ToString().Trim());
+        CliOutput.WriteMigrate(w, "acta", [], [DeployedNamespace], json: false);
+        Assert.Equal(
+            [
+                "schema acta is up to date",
+                "namespace billing: 1.6.1+b81d04e (Production)",
+                "  added    send-receipt",
+                "  changed  send-invoice",
+                "  12 unchanged",
+                "  not declared by this build: old-report",
+            ],
+            w.ToString().Split(Environment.NewLine, StringSplitOptions.RemoveEmptyEntries)
+        );
+    }
+
+    [Fact]
+    public void Migrate_json_writes_the_schema_the_applied_names_and_the_namespaces()
+    {
+        var w = new StringWriter();
+        CliOutput.WriteMigrate(w, "acta", ["M20260101000000_init"], [], json: true);
+        Assert.Equal("{\"schema\":\"acta\",\"applied\":[\"M20260101000000_init\"],\"namespaces\":[]}", w.ToString().Trim());
+    }
+
+    private static readonly NamespaceDeployment DeployedNamespace = new(
+        "billing",
+        "1.6.1+b81d04e",
+        "Production",
+        "1.6.1+b81d04e",
+        IsOlder: false,
+        Added: ["send-receipt"],
+        Changed: ["send-invoice"],
+        Unchanged: 12,
+        Undeclared: ["old-report"]
+    );
+
+    private static readonly NamespaceDeployment OlderNamespace = new(
+        "billing",
+        "1.6.0+77c0a12",
+        "Production",
+        "1.6.1+b81d04e",
+        IsOlder: true,
+        Added: [],
+        Changed: [],
+        Unchanged: 0,
+        Undeclared: []
+    );
+
+    [Fact]
+    public void Deploy_plain_says_an_older_build_changed_nothing_and_names_the_flag()
+    {
+        var w = new StringWriter();
+        CliOutput.WriteDeploy(w, [OlderNamespace], json: false);
+        Assert.Equal(
+            [
+                "namespace billing: deployed at 1.6.1+b81d04e",
+                "  this build (1.6.0+77c0a12) deployed earlier; nothing changed",
+                "  use --force to deploy it",
+            ],
+            w.ToString().Split(Environment.NewLine, StringSplitOptions.RemoveEmptyEntries)
+        );
+    }
+
+    [Fact]
+    public void Deploy_plain_leaves_out_an_unknown_environment_and_an_empty_undeclared_list()
+    {
+        var w = new StringWriter();
+        CliOutput.WriteDeploy(
+            w,
+            [DeployedNamespace with { EnvironmentName = null, Added = [], Changed = [], Undeclared = [] }],
+            json: false
+        );
+        Assert.Equal(
+            ["namespace billing: 1.6.1+b81d04e", "  12 unchanged"],
+            w.ToString().Split(Environment.NewLine, StringSplitOptions.RemoveEmptyEntries)
+        );
+    }
+
+    [Fact]
+    public void Deploy_plain_says_so_when_the_host_runs_no_worker()
+    {
+        var w = new StringWriter();
+        CliOutput.WriteDeploy(w, [], json: false);
+        Assert.Equal("no worker namespace is registered in this host; nothing to deploy", w.ToString().Trim());
+    }
+
+    [Fact]
+    public void Deploy_json_writes_each_namespace_with_what_changed()
+    {
+        var w = new StringWriter();
+        CliOutput.WriteDeploy(w, [DeployedNamespace, OlderNamespace], json: true);
+        Assert.Equal(
+            "{\"namespaces\":["
+                + "{\"namespace\":\"billing\",\"deploymentVersion\":\"1.6.1\\u002Bb81d04e\",\"environment\":\"Production\","
+                + "\"currentDeploymentVersion\":\"1.6.1\\u002Bb81d04e\",\"older\":false,\"added\":[\"send-receipt\"],"
+                + "\"changed\":[\"send-invoice\"],\"unchanged\":12,\"undeclared\":[\"old-report\"]},"
+                + "{\"namespace\":\"billing\",\"deploymentVersion\":\"1.6.0\\u002B77c0a12\",\"environment\":\"Production\","
+                + "\"currentDeploymentVersion\":\"1.6.1\\u002Bb81d04e\",\"older\":true,\"added\":[],\"changed\":[],\"unchanged\":0,"
+                + "\"undeclared\":[]}]}",
+            w.ToString().Trim()
+        );
     }
 
     [Fact]
@@ -524,9 +621,10 @@ public class CliOutputTests
         nameof(CliOutput.WriteExplanation),
         nameof(CliOutput.WriteSnapshot),
         nameof(CliOutput.WriteStatus),
-        // Usage text lists verbs and namespace names, and migrate prints a schema and migration names;
-        // neither renders an entity, so neither carries an identity to leak. Listed here so the surface
-        // comparison stays exact rather than filtered.
+        // Usage text lists verbs and namespace names, migrate prints a schema and migration names, and
+        // deploy prints namespace names, job names and versions; none renders an entity, so none carries
+        // an identity to leak. Listed here so the surface comparison stays exact rather than filtered.
+        nameof(CliOutput.WriteDeploy),
         nameof(CliOutput.WriteMigrate),
         nameof(CliOutput.WriteUsage),
     ];

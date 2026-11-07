@@ -320,7 +320,7 @@ instead of enqueuing.
 
 ## Built-in control CLI
 
-Every Acta host doubles as a control CLI: `<app> jobs <verb>` runs the verb against the database and exits, starting no worker; only `migrate` changes the schema ([Migration ownership](#migration-ownership)). `jobs` comes first, after any host switches such as `--environment Staging`, and is reserved: an app cannot take it as its own first argument.
+Every Acta host doubles as a control CLI: `<app> jobs <verb>` runs the verb against the database and exits, starting no worker; only `migrate` changes the schema ([Migration ownership](#migration-ownership)), and `deploy` and `migrate` write the host's job definitions and schedules ([Deploying jobs](#deploying-jobs)). `jobs` comes first, after any host switches such as `--environment Staging`, and is reserved: an app cannot take it as its own first argument.
 
 ```
 <app> jobs help
@@ -335,7 +335,8 @@ Every Acta host doubles as a control CLI: `<app> jobs <verb>` runs the verb agai
 <app> jobs restart <job-ref|deduplication-key|id> [--reason <msg>]
 <app> jobs signal  <job-ref|deduplication-key|id> <name> [--value <json>]
 <app> jobs debug   <job-ref|deduplication-key|id> [--break]
-<app> jobs migrate [--json]
+<app> jobs deploy  [--force] [--json]
+<app> jobs migrate [--force] [--json]
 ```
 
 A `job_...` target is a job ref, another non-numeric one a deduplication key, and an integer the internal id; an omitted target is read from the clipboard. Add `--ns <ns>` to pick the namespace for a deduplication-key lookup and `--json` for JSON output.
@@ -489,14 +490,19 @@ In production a deploy step applies Acta's migrations, never application startup
 | Deploy step | `<app> jobs migrate`, or `{Provider}Migrations.ApplyAsync` from code. A server database must exist; SQLite creates the file. |
 | A DBA | The script for your provider: [`schema-pg.sql`](./reference/schema-pg.sql), [`schema-mssql.sql`](./reference/schema-mssql.sql), [`schema-sqlite.sql`](./reference/schema-sqlite.sql). |
 
-`jobs migrate` runs your app with its own `Use{Provider}` options, so it migrates the connection string and schema the workers use. Hand it the deploy login through configuration and run it before the new build starts:
+`jobs migrate` runs your app with its own `Use{Provider}` options, so it migrates the connection string and schema the workers use, and then deploys the app's jobs ([Deploying jobs](#deploying-jobs)). Hand it the deploy login through configuration and run it before the new build starts:
 
 ```
 $ ConnectionStrings__acta="<DDL login>" dotnet MyApp.dll jobs migrate
-applied M20261106163228_init to schema acta
+applied M20261106181521_init to schema acta
+namespace billing: 1.6.1+b81d04e (Production)
+  added    sys.alerts
+  added    sys.retention
+  added    send-invoice
+  0 unchanged
 ```
 
-- A second run prints `schema acta is up to date`. It exits 0, or 1 with the database's error; `--json` prints `{"schema":"acta","applied":[...]}`.
+- A second run prints `schema acta is up to date` and each namespace with its jobs unchanged. It exits 0, or 1 with the database's error; `--json` prints `{"schema":"acta","applied":[...],"namespaces":[...]}`.
 - It never creates a PostgreSQL or SQL Server database, never opens `master` or `postgres`, and never touches an outbox table.
 - Locally it is `dotnet run -- jobs migrate`; on a container platform, run the same image with the arguments `jobs migrate` as a pre-deploy job.
 - A separate tool calls `await PostgresMigrations.ApplyAsync(connectionString, schema: "acta")`, or `SqlServerMigrations` or `SqliteMigrations`, which returns the names it applied.
@@ -531,6 +537,29 @@ The external outbox's table lives in the producer's database, so Acta never crea
 - Name the schema whenever the deploy login differs from the relay's: an unqualified table resolves through the login's default schema on SQL Server and `search_path` on PostgreSQL.
 - A table or schema other than the default must match `source.Table` and `source.Schema`.
 - Give the producer's and the relay's logins SELECT, INSERT, UPDATE, and DELETE on the table; neither needs DDL.
+
+### Deploying jobs
+
+`<app> jobs deploy` writes the job definitions and schedules of every namespace the host runs a worker for, and records the app's version there. It applies no migration and needs no DDL right, so the workers' login can run it; `jobs migrate` applies the schema and then runs the same deploy.
+
+```
+$ dotnet MyApp.dll jobs deploy
+namespace billing: 1.6.2+5c0ffee (Production)
+  added    refund-invoice
+  changed  send-invoice
+  11 unchanged
+  not declared by this build: old-report
+```
+
+- The version is `JobsOptions.DeploymentVersion`, by default the entry assembly's informational version. A version's first deploy in a namespace adds a row to `deployments` (read it through `deployments_view`), and the version becomes the namespace's current one, `namespaces.deployment_version`.
+- A version that deployed in the namespace earlier and is not its current one is an older build: its deploy changes nothing, says so, and exits 0. `--force` deploys it and makes it current, which is how a rollback restores the earlier definitions.
+- Every run that deploys leaves a `namespace.deployed` event on the namespace, also a run that changed nothing: its message names the version and the one it replaced, and its details carry `deploymentVersion`, `previousDeploymentVersion`, `forced`, and the `added` and `changed` job names. An older build's skipped run leaves none.
+- `added`, `changed`, and the unchanged count are about definitions. A change to a schedule alone is applied, and a retimed schedule leaves `schedule.retimed`, but the job is counted as unchanged.
+- Every namespace is written in one transaction. A failure in any leaves all of them as they were, and the verb exits 1 with the error; after `jobs migrate`, the schema it applied stays applied.
+- The name after the version is `JobsOptions.EnvironmentName`, which decides the schedules a `[Schedule(Environments = ...)]` declares. Run the verb with the workers' configuration.
+- `not declared by this build` lists the active definitions the build does not carry. The deploy leaves them as they are.
+- `--json` prints `{"namespaces":[...]}`, one object per namespace: `namespace`, `deploymentVersion`, `environment`, `currentDeploymentVersion`, `older`, `added`, `changed`, `unchanged`, `undeclared`.
+- A host that runs no worker has nothing to deploy.
 
 ### Rolling deploys
 

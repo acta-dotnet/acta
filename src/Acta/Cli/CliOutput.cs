@@ -378,8 +378,17 @@ internal static class CliOutput
         writer.WriteLine($"status: {(status is { } p ? p.ToString() : "(none)")}");
     }
 
-    /// <summary>The migrations one schema took, in apply order: none means it was already up to date.</summary>
-    public static void WriteMigrate(TextWriter writer, string schema, IReadOnlyList<string> applied, bool json)
+    /// <summary>
+    /// The migrations one schema took, in apply order (none means it was already up to date), then what the deploy
+    /// that follows them did in each namespace.
+    /// </summary>
+    public static void WriteMigrate(
+        TextWriter writer,
+        string schema,
+        IReadOnlyList<string> applied,
+        IReadOnlyList<NamespaceDeployment> deployments,
+        bool json
+    )
     {
         if (json)
         {
@@ -394,6 +403,7 @@ internal static class CliOutput
                         w.WriteStringValue(name);
                     }
                     w.WriteEndArray();
+                    WriteDeployments(w, deployments);
                 }
             );
             return;
@@ -402,12 +412,90 @@ internal static class CliOutput
         if (applied.Count == 0)
         {
             writer.WriteLine($"schema {schema} is up to date");
-            return;
         }
 
         foreach (var name in applied)
         {
             writer.WriteLine($"applied {name} to schema {schema}");
+        }
+
+        WriteDeployments(writer, deployments);
+    }
+
+    /// <summary>What a deploy did in each namespace the host runs a worker for.</summary>
+    public static void WriteDeploy(TextWriter writer, IReadOnlyList<NamespaceDeployment> deployments, bool json)
+    {
+        if (json)
+        {
+            WriteJson(writer, w => WriteDeployments(w, deployments));
+            return;
+        }
+
+        if (deployments.Count == 0)
+        {
+            writer.WriteLine("no worker namespace is registered in this host; nothing to deploy");
+        }
+
+        WriteDeployments(writer, deployments);
+    }
+
+    private static void WriteDeployments(TextWriter writer, IReadOnlyList<NamespaceDeployment> deployments)
+    {
+        foreach (var d in deployments)
+        {
+            if (d.IsOlder)
+            {
+                writer.WriteLine($"namespace {d.NamespaceName}: deployed at {d.CurrentDeploymentVersion}");
+                writer.WriteLine($"  this build ({d.DeploymentVersion}) deployed earlier; nothing changed");
+                writer.WriteLine("  use --force to deploy it");
+                continue;
+            }
+
+            var environment = d.EnvironmentName is { Length: > 0 } name ? $" ({name})" : "";
+            writer.WriteLine($"namespace {d.NamespaceName}: {d.DeploymentVersion}{environment}");
+            foreach (var job in d.Added)
+            {
+                writer.WriteLine($"  added    {job}");
+            }
+            foreach (var job in d.Changed)
+            {
+                writer.WriteLine($"  changed  {job}");
+            }
+            writer.WriteLine($"  {d.Unchanged} unchanged");
+            if (d.Undeclared.Count > 0)
+            {
+                writer.WriteLine($"  not declared by this build: {string.Join(", ", d.Undeclared)}");
+            }
+        }
+    }
+
+    private static void WriteDeployments(Utf8JsonWriter w, IReadOnlyList<NamespaceDeployment> deployments)
+    {
+        w.WriteStartArray("namespaces");
+        foreach (var d in deployments)
+        {
+            w.WriteStartObject();
+            w.WriteString("namespace", d.NamespaceName);
+            w.WriteString("deploymentVersion", d.DeploymentVersion);
+            WriteJsonStringOrNull(w, "environment", d.EnvironmentName);
+            WriteJsonStringOrNull(w, "currentDeploymentVersion", d.CurrentDeploymentVersion);
+            w.WriteBoolean("older", d.IsOlder);
+            WriteNames(w, "added", d.Added);
+            WriteNames(w, "changed", d.Changed);
+            w.WriteNumber("unchanged", d.Unchanged);
+            WriteNames(w, "undeclared", d.Undeclared);
+            w.WriteEndObject();
+        }
+        w.WriteEndArray();
+
+        static void WriteNames(Utf8JsonWriter w, string name, IReadOnlyList<string> values)
+        {
+            w.WriteStartArray(name);
+            foreach (var value in values)
+            {
+                w.WriteStringValue(value);
+            }
+            w.WriteEndArray();
         }
     }
 
@@ -433,7 +521,8 @@ internal static class CliOutput
     public static void WriteUsage(TextWriter writer, IReadOnlyList<string> namespaces)
     {
         writer.WriteLine("Usage: <app> jobs <verb> <job-ref|deduplication-key|id> [options]");
-        writer.WriteLine("       <app> jobs migrate [--json]");
+        writer.WriteLine("       <app> jobs migrate [--force] [--json]");
+        writer.WriteLine("       <app> jobs deploy [--force] [--json]");
         writer.WriteLine();
         writer.WriteLine("Verbs:");
         writer.WriteLine("  info     <job-ref|deduplication-key|id>          print the job row");
@@ -449,7 +538,8 @@ internal static class CliOutput
         );
         writer.WriteLine("  events   <job-ref|deduplication-key|id>          print the job's audit timeline newest first");
         writer.WriteLine("  explain  <job-ref|deduplication-key|id>          explain the job's state in plain English + next action");
-        writer.WriteLine("  migrate                                          apply the Acta migrations this database lacks, then exit");
+        writer.WriteLine("  migrate                                          apply the Acta migrations this database lacks, then deploy");
+        writer.WriteLine("  deploy                                           write this build's job definitions and schedules, then exit");
         writer.WriteLine();
         writer.WriteLine("Options:");
         writer.WriteLine("  --reason <msg>   reason message for cancel/pause/resume/restart");
@@ -458,6 +548,7 @@ internal static class CliOutput
         writer.WriteLine("  --after <cursor> events continuation cursor from a previous page");
         writer.WriteLine("  --ns <ns>        namespace for deduplication-key lookups (required with several registered)");
         writer.WriteLine("  --break          debug: raise the debugger and stop at the job's handler entry");
+        writer.WriteLine("  --force          deploy/migrate: deploy a build that deployed earlier and is no longer current");
         writer.WriteLine("  --json           print the result as JSON");
         writer.WriteLine();
         writer.WriteLine("A job_... target is a job ref; any other non-numeric target is a deduplication key;");

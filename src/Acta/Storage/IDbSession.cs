@@ -50,6 +50,14 @@ internal interface IDbSession
     Task ExecuteAsync(StoreCommand command, Action<DbCommand> bind, CancellationToken ct);
 
     /// <summary>
+    /// Runs <paramref name="action"/> in one transaction the session opens, and commits it when the action returns; a
+    /// failure rolls it back. For a write made of several named operations that must land together (a deploy): each
+    /// joins through its command's transaction. Queued and retried as <see cref="RunWithRetryAsync"/> is, and a retry
+    /// runs the whole action again in a new transaction.
+    /// </summary>
+    Task<T> RunInTransactionAsync<T>(Func<DbTransaction, CancellationToken, Task<T>> action, CancellationToken ct);
+
+    /// <summary>
     /// Runs <paramref name="action"/> under the session's bounded transient-conflict retry, in the owned write queue
     /// when the database has one. For raw writes composed outside the named operations (the test support's table
     /// writes); named operations retry and queue already.

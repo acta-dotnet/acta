@@ -164,7 +164,8 @@ public class EntitySchemaTests
     [Fact]
     public void CaseExact_Marks_Only_The_Compared_Keys()
     {
-        // The actor is display text, never compared, and names fold on input: neither needs it.
+        // The actor is display text, never compared, and names fold on input: neither needs it. A deployment version is
+        // an application's own text, compared to decide whether a build has deployed.
         var caseExact = ActaSchema
             .Entities.SelectMany(e => e.Columns.Where(c => c.CaseExact).Select(c => $"{e.TableName}.{c.Name}"))
             .Order(StringComparer.Ordinal);
@@ -172,10 +173,12 @@ public class EntitySchemaTests
         Assert.Equal(
             [
                 "alerts.deduplication_key",
+                "deployments.deployment_version",
                 "jobs.concurrency_key",
                 "jobs.correlation_key",
                 "jobs.deduplication_key",
                 "locks.lock_key",
+                "namespaces.deployment_version",
                 "tags.tag_value_search",
             ],
             caseExact

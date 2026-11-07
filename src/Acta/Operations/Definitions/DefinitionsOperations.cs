@@ -1,3 +1,5 @@
+using System.Data.Common;
+
 namespace Acta;
 
 /// <summary>The Definitions operations: <see cref="IDefinitions"/> for applications, plus the engine's calls.</summary>
@@ -57,4 +59,11 @@ internal sealed class DefinitionsOperations(
     /// </summary>
     internal Task<ListDefinitionContractsResponse> ListDefinitionContractsAsync(int namespaceId, CancellationToken ct) =>
         listDefinitionContracts.HandleAsync(new ListDefinitionContractsQuery(namespaceId), ct);
+
+    /// <summary>The same read inside <paramref name="transaction"/>, when one is given, so it sees what that transaction wrote.</summary>
+    internal Task<ListDefinitionContractsResponse> ListDefinitionContractsAsync(
+        int namespaceId,
+        DbTransaction? transaction,
+        CancellationToken ct
+    ) => listDefinitionContracts.HandleAsync(new ListDefinitionContractsQuery(namespaceId, transaction), ct);
 }

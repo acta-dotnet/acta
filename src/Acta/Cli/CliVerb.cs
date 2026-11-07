@@ -2,7 +2,8 @@ namespace Acta;
 
 /// <summary>
 /// The CLI verbs. Read verbs and control verbs take an id-or-deduplication-key target; Debug runs an
-/// existing job in this process; Migrate applies the schema and takes no target; Help prints usage.
+/// existing job in this process; Deploy writes this build's definitions and schedules; Migrate applies the schema and
+/// then deploys; neither takes a target; Help prints usage.
 /// </summary>
 internal enum CliVerb : byte
 {
@@ -19,4 +20,5 @@ internal enum CliVerb : byte
     Events = 10,
     Explain = 11,
     Migrate = 12,
+    Deploy = 13,
 }

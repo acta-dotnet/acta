@@ -1,4 +1,5 @@
 using System.Collections.Immutable;
+using System.Data.Common;
 using System.Globalization;
 using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Options;
@@ -28,32 +29,36 @@ internal sealed class CatalogRegistrar(
     private readonly ILogger _log = log;
 
     /// <summary>
-    /// Registers <paramref name="allDescriptors"/> into the namespace. <paramref name="registeredCatalogHash"/> is the hash
-    /// the namespace's last schedule registration stored; a start that computes the same hash and plans no cursor or
-    /// slot change skips that registration and its exclusive schedule lock.
+    /// Registers <paramref name="allDescriptors"/> into the namespace, through <paramref name="transaction"/> when a
+    /// deploy owns one, and answers what the definitions write added and changed with the stored Active definitions
+    /// this build does not declare. <paramref name="registeredCatalogHash"/> is the hash the namespace's last schedule
+    /// registration stored; a start that computes the same hash and plans no cursor or slot change skips that
+    /// registration and its exclusive schedule lock.
     /// </summary>
-    public async Task RegisterAsync(
+    public async Task<(RegisterDefinitionsResponse Definitions, IReadOnlyList<string> Undeclared)> RegisterAsync(
         WorkerRegistration registration,
         int namespaceId,
         string? registeredCatalogHash,
         ImmutableArray<JobDescriptor> allDescriptors,
+        DbTransaction? transaction,
         CancellationToken ct
     )
     {
         var ns = registration.NamespaceName;
 
         // Contract drift is gated before any catalog write: Fail throws here, Warn logs and continues.
-        var storedContracts = (await _definitions.ListDefinitionContractsAsync(namespaceId, ct)).Contracts;
+        var storedContracts = (await _definitions.ListDefinitionContractsAsync(namespaceId, transaction, ct)).Contracts;
         ValidateScheduledDelivery(ns, allDescriptors, storedContracts);
         var contractDrifts = ContractDriftDetector.Detect(allDescriptors, storedContracts);
         ContractDriftPolicy.Apply(_options.Value.PayloadContractDriftMode, contractDrifts, ns, _log);
         await ValidateCalendarsAsync(ns, namespaceId, allDescriptors, storedContracts, ct);
 
-        var defIds = (await _definitions.RegisterDefinitionsAsync(new(namespaceId, allDescriptors, storedContracts), ct)).DefinitionIds;
+        var registered = await _definitions.RegisterDefinitionsAsync(new(namespaceId, allDescriptors, storedContracts, transaction), ct);
+        var defIds = registered.DefinitionIds;
 
         // A slot is planned from its definition's effective (override-or-default) policy, read after the upsert from the
         // DB *_effective columns, so an operator override reaches the slot's priority.
-        var catalog = (await _definitions.ListDefinitionContractsAsync(namespaceId, ct)).Contracts;
+        var catalog = (await _definitions.ListDefinitionContractsAsync(namespaceId, transaction, ct)).Contracts;
         var effectiveById = new Dictionary<int, EffectiveJobPolicy>(catalog.Count);
         foreach (var c in catalog)
         {
@@ -78,7 +83,14 @@ internal sealed class CatalogRegistrar(
         }
 
         var retired = catalog.Where(c => c.Status == DefinitionStatusCode.Retired).Select(c => c.DefinitionId).ToHashSet();
-        await ReconcileSchedulesAsync(ns, namespaceId, descriptorById, catalogParts, registeredCatalogHash, retired, ct);
+        await ReconcileSchedulesAsync(ns, namespaceId, descriptorById, catalogParts, registeredCatalogHash, retired, transaction, ct);
+
+        var undeclared = storedContracts
+            .Where(s => s.Status == DefinitionStatusCode.Active && !defIds.ContainsKey(s.DefinitionName))
+            .Select(s => s.DefinitionName)
+            .Order(StringComparer.Ordinal)
+            .ToList();
+        return (registered, undeclared);
     }
 
     public ImmutableArray<JobDescriptor> CollectDescriptors(WorkerRegistration registration, string ns)
@@ -369,10 +381,11 @@ internal sealed class CatalogRegistrar(
         List<string?> catalogParts,
         string? registeredCatalogHash,
         HashSet<int> retired,
+        DbTransaction? transaction,
         CancellationToken ct
     )
     {
-        var stored = (await _schedules.ListScheduleStatesAsync(namespaceId, ct)).States;
+        var stored = (await _schedules.ListScheduleStatesAsync(namespaceId, transaction, ct)).States;
 
         // definition id -> (schedule name -> stored cursor + operator lifecycle)
         var storedByDefinition = new Dictionary<int, Dictionary<string, StoredScheduleState>>();
@@ -471,7 +484,10 @@ internal sealed class CatalogRegistrar(
             slotRefs[i] = JobRef.New().Value;
         }
 
-        await _schedules.RegisterSchedulesAsync(new RegisterSchedulesCommand(namespaceId, definitions, slotRefs, catalogHash), ct);
+        await _schedules.RegisterSchedulesAsync(
+            new RegisterSchedulesCommand(namespaceId, definitions, slotRefs, catalogHash, transaction),
+            ct
+        );
     }
 
     /// <summary>

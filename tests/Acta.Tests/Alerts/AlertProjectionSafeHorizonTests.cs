@@ -113,6 +113,9 @@ public sealed class AlertProjectionSafeHorizonTests
 
         public Task ExecuteAsync(StoreCommand command, Action<DbCommand> bind, CancellationToken ct) => throw new NotSupportedException();
 
+        public Task<T> RunInTransactionAsync<T>(Func<DbTransaction, CancellationToken, Task<T>> action, CancellationToken ct) =>
+            throw new NotSupportedException();
+
         public Task<T> RunWithRetryAsync<T>(Func<CancellationToken, Task<T>> action, CancellationToken ct) =>
             throw new NotSupportedException();
     }
