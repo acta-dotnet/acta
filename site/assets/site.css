@@ -66,6 +66,9 @@
 * { box-sizing: border-box; }
 html { background: var(--bg); color-scheme: dark; scroll-behavior: smooth; scroll-padding-top: 4rem; }
 :root[data-theme="light"] { color-scheme: light; }
+/* a picture made in both themes ships as two lazy <img data-theme>: the one for the other theme hides, so it is never
+   fetched */
+:root[data-theme="light"] img[data-theme="dark"], :root:not([data-theme="light"]) img[data-theme="light"] { display: none; }
 body {
   margin: 0; background: var(--bg); color: var(--text);
   font-family: var(--sans); font-size: 16px; line-height: 1.65;

@@ -93,7 +93,7 @@ In SQL a ref is the UUID itself; the API, the CLI, and the dashboard write the s
 
 The dashboard at `/acta` on the same port reads the same tables. Here it is on a larger system, mid-run:
 
-![Acta operator dashboard: Overview with health verdict, job counts, failed jobs, alerts, outbox relays, and worker heartbeats, captured mid-run with 100,000 jobs draining through two workers](./site/assets/dash-dark-overview.webp)
+![Acta operator dashboard: the Overview captured mid-run with 100,000 jobs draining through two workers, showing a health verdict, 55,291 jobs ready, 126 executing on 128 executors, no failed jobs, no alerts, the outbox relay, and the worker heartbeats](./site/assets/dash-dark-overview.webp)
 
 ## Where to go next
 
