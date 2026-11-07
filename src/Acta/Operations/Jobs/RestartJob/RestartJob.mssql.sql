@@ -10,7 +10,7 @@ BEGIN TRY
     DECLARE
         @from_status TINYINT, @namespace_id INT,
         @lineage_root_job_id BIGINT, @definition_id INT, @tenant_id INT, @execution_number INT, @event_recording TINYINT,
-        @version INT, @parent_job_id BIGINT, @schedule_id INT;
+        @version INT, @parent_job_id BIGINT, @schedule_id INT, @recharged INT;
     DECLARE @lane_id BIGINT, @to_status TINYINT = 10 /* JobStatusCode.Ready */;
 
     /* Lock order: the lane, then the job's rows (docs/sql-internals.md, "Lane lock
@@ -188,24 +188,21 @@ BEGIN TRY
         SET @to_status = 15 /* JobStatusCode.Blocked */;
 
     -- A finished charged root runs again as a new firing of its schedule, charged to it again, only while the schedule
-    -- is live and below MaxOutstanding, the check and the charge one write under the state row's lock; otherwise the
-    -- restart is Rejected. Its settled envelope is then outstanding again.
+    -- is live and below MaxOutstanding, checked under the state row's lock; otherwise the restart is Rejected. Its
+    -- settled envelope is then outstanding again, and the charge counts the envelope that moved.
     IF @schedule_id IS NOT NULL AND @from_status IN (100 /* JobStatusCode.Succeeded */, 200 /* JobStatusCode.Failed */, 220 /* JobStatusCode.Cancelled */)
         BEGIN
-            UPDATE st
-            SET
-                outstanding_count = st.outstanding_count + 1,
-                modified_at_utc = @now,
-                version = st.version + 1
-            FROM {{schema}}.schedules_state st WITH (UPDLOCK, ROWLOCK, FORCESEEK)
-            INNER JOIN {{schema}}.schedules js ON js.schedule_id = st.schedule_id
-            INNER JOIN {{schema}}.definitions d ON d.definition_id = js.definition_id
-            WHERE
-                st.schedule_id = @schedule_id
-                AND js.schedule_status_code <> 230 /* ScheduleStatusCode.Orphaned */
-                AND d.definition_status_code <> 240 /* DefinitionStatusCode.Retired */
-                AND st.outstanding_count < js.max_outstanding;
-            IF @@ROWCOUNT = 0
+            IF NOT EXISTS (
+                SELECT 1
+                FROM {{schema}}.schedules_state st WITH (UPDLOCK, ROWLOCK, FORCESEEK)
+                INNER JOIN {{schema}}.schedules js ON js.schedule_id = st.schedule_id
+                INNER JOIN {{schema}}.definitions d ON d.definition_id = js.definition_id
+                WHERE
+                    st.schedule_id = @schedule_id
+                    AND js.schedule_status_code <> 230 /* ScheduleStatusCode.Orphaned */
+                    AND d.definition_status_code <> 240 /* DefinitionStatusCode.Retired */
+                    AND st.outstanding_count < js.max_outstanding
+            )
                 BEGIN
                     SELECT
                         CAST(3 /* ControlAction.Rejected */ AS TINYINT) AS action,
@@ -223,7 +220,21 @@ BEGIN TRY
             WHERE
                 cp.job_id = @p_job_id
                 AND cp.checkpoint_kind_code = 60 /* CheckpointKindCode.Firing */
-                AND cp.checkpoint_name = 'sys.firing';
+                AND cp.checkpoint_name = 'sys.firing'
+                AND cp.checkpoint_status_code IN (
+                    110 /* CheckpointStatusCode.Succeeded */, 120 /* CheckpointStatusCode.Failed */, 130 /* CheckpointStatusCode.Cancelled */
+                );
+            SET @recharged = @@ROWCOUNT;
+
+            UPDATE st
+            SET
+                outstanding_count = st.outstanding_count + @recharged,
+                modified_at_utc = @now,
+                version = st.version + 1
+            FROM {{schema}}.schedules_state st WITH (FORCESEEK)
+            WHERE
+                st.schedule_id = @schedule_id
+                AND @recharged > 0;
         END;
 
     UPDATE {{schema}}.jobs_state

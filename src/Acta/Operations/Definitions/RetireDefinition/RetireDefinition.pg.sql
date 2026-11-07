@@ -128,15 +128,16 @@ settled AS (
         checkpoint_status_code = 130 /* CheckpointStatusCode.Cancelled */,
         modified_at_utc = now(),
         version = cp.version + 1
-    FROM (SELECT pk.job_id FROM parked pk UNION ALL SELECT sl.job_id FROM slots sl) p
+    FROM (SELECT sw.job_id FROM swept sw UNION ALL SELECT sl.job_id FROM slots sl) p
     WHERE
         cp.job_id = p.job_id
         AND cp.checkpoint_kind_code = 60 /* CheckpointKindCode.Firing */
         AND cp.checkpoint_name = 'sys.firing'
         AND cp.checkpoint_status_code = 10 /* CheckpointStatusCode.Pending */
+    RETURNING cp.job_id
 ),
 -- One write per state row, since a row updated twice in one statement keeps only one of the updates: the exhaustion,
--- and the capacity every cancelled charged root releases, so the count stays true on the exhausted schedule.
+-- and the capacity each envelope settled above releases, so the count stays true on the exhausted schedule.
 cleared AS (
     UPDATE {{schema}}.schedules_state st
     SET
@@ -154,8 +155,8 @@ cleared AS (
     INNER JOIN retired d ON d.definition_id = s.definition_id
     LEFT JOIN (
         SELECT j.schedule_id, COUNT(*) AS settled
-        FROM parked p
-        INNER JOIN {{schema}}.jobs j ON j.job_id = p.job_id
+        FROM settled x
+        INNER JOIN {{schema}}.jobs j ON j.job_id = x.job_id
         WHERE j.schedule_id IS NOT NULL
         GROUP BY j.schedule_id
     ) c ON c.schedule_id = s.schedule_id

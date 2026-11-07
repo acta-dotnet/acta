@@ -18,6 +18,7 @@ DECLARE @cancelled TABLE (
 DECLARE @slots TABLE (
     job_id BIGINT NOT NULL PRIMARY KEY,
     job_status_code TINYINT NOT NULL);
+DECLARE @settled TABLE (job_id BIGINT NOT NULL PRIMARY KEY);
 DECLARE @lanes TABLE (lane_id BIGINT NOT NULL PRIMARY KEY);
 DECLARE @heads TABLE (job_id BIGINT NOT NULL PRIMARY KEY);
 DECLARE @lane_cursor BIGINT = 0, @lane_next BIGINT, @lane_locked BIGINT, @promoted INT = 0;
@@ -173,20 +174,23 @@ BEGIN TRY
                 10 /* JobStatusCode.Ready */, 15 /* JobStatusCode.Blocked */, 20 /* JobStatusCode.Suspended */, 30 /* JobStatusCode.Paused */, 40 /* JobStatusCode.Idle */
             );
 
-        -- An outstanding firing settles with the retire: a cancelled charged root's, and an inert slot's.
+        -- An outstanding firing settles with the retire: a cancelled charged root's, and an inert slot's. The parked read
+        -- held no lock, so only the rows the cancel above moved count; a root claimed or cancelled since is not one.
         UPDATE cp
         SET
             checkpoint_status_code = 130 /* CheckpointStatusCode.Cancelled */,
             modified_at_utc = @now,
             version = cp.version + 1
+        OUTPUT INSERTED.job_id INTO @settled (job_id)
         FROM {{schema}}.checkpoints cp WITH (FORCESEEK)
-        INNER JOIN (SELECT pk.job_id FROM @parked pk UNION ALL SELECT sl.job_id FROM @slots sl) p ON p.job_id = cp.job_id
+        INNER JOIN (SELECT c.job_id FROM @cancelled c UNION ALL SELECT sl.job_id FROM @slots sl) p ON p.job_id = cp.job_id
         WHERE
             cp.checkpoint_kind_code = 60 /* CheckpointKindCode.Firing */
             AND cp.checkpoint_name = 'sys.firing'
             AND cp.checkpoint_status_code = 10 /* CheckpointStatusCode.Pending */;
 
-        -- A cancelled charged root releases its schedule's capacity, so the count stays true on the exhausted schedule.
+        -- A charged root releases its schedule's capacity for the envelope settled above, so the count stays true on the
+        -- exhausted schedule.
         UPDATE st
         SET
             outstanding_count = st.outstanding_count - c.settled,
@@ -195,8 +199,8 @@ BEGIN TRY
         FROM {{schema}}.schedules_state st WITH (FORCESEEK)
         INNER JOIN (
             SELECT j.schedule_id, COUNT(*) AS settled
-            FROM @parked p
-            INNER JOIN {{schema}}.jobs j WITH (FORCESEEK) ON j.job_id = p.job_id
+            FROM @settled x
+            INNER JOIN {{schema}}.jobs j WITH (FORCESEEK) ON j.job_id = x.job_id
             WHERE j.schedule_id IS NOT NULL
             GROUP BY j.schedule_id
         ) c ON c.schedule_id = st.schedule_id;

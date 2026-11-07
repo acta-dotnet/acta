@@ -340,6 +340,7 @@ BEGIN
             AND cp.checkpoint_name = 'sys.firing'
             AND cp.checkpoint_status_code = 10 /* CheckpointStatusCode.Pending */
             AND (r.new_status = 40 /* JobStatusCode.Idle */ OR (r.new_status = 200 /* JobStatusCode.Failed */ AND r.schedule_id IS NOT NULL))
+        RETURNING r.schedule_id
     ),
     -- A lost attempt that spent the budget is a firing that failed for good: the definition's firing failure policy
     -- applies as it does on a completion.
@@ -363,8 +364,8 @@ BEGIN
             COALESCE(r.lineage_root_job_id, r.job_id) AS lineage_root_job_id, r.execution_number, r.event_recording_code
     ),
     -- One write per schedule state, since a row updated twice in one statement keeps only one of the updates: the wake
-    -- of a slot's parked members or of a schedule waiting for a root's capacity, the released capacity, and the
-    -- policy's park, which wins over a wake.
+    -- of a slot's parked members or of a schedule waiting for a root's capacity, the capacity each envelope settled
+    -- above releases, and the policy's park, which wins over a wake.
     state_written AS (
         UPDATE {{schema}}.schedules_state st
         SET
@@ -389,9 +390,9 @@ BEGIN
                 INNER JOIN reclaimed r ON r.job_id = js.job_id
                 WHERE r.new_status = 40 /* JobStatusCode.Idle */
                 UNION ALL
-                SELECT r.schedule_id, 1, false, true
-                FROM reclaimed r
-                WHERE r.schedule_id IS NOT NULL AND r.new_status = 200 /* JobStatusCode.Failed */
+                SELECT x.schedule_id, 1, false, true
+                FROM settled x
+                WHERE x.schedule_id IS NOT NULL
                 UNION ALL
                 SELECT p.schedule_id, 0, true, false
                 FROM policy_paused p

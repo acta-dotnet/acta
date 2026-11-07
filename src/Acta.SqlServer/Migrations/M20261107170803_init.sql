@@ -1440,9 +1440,8 @@ BEGIN
                     INNER JOIN {{schema}}.jobs_state r WITH (INDEX (pk_jobs_state), FORCESEEK, ROWLOCK) ON r.job_id = d.job_id
                     WHERE c.final_job_status_code IS NOT NULL;
 
-                    /* A permanent slot that landed Idle, Failed, or Cancelled settled its firing. Every member schedule parked
-                       on the slot is woken to evaluate again, and the envelope records the outcome once. The cursors stay where
-                       the admission left them: completion never computes an occurrence. */
+                    /* A permanent slot that landed Idle, Failed, or Cancelled settled its firing, so every member schedule
+                       parked on the slot evaluates again; completion never moves a cursor. */
                     UPDATE st
                     SET
                         next_evaluation_at_utc = @now,
@@ -1458,6 +1457,8 @@ BEGIN
                         AND j.job_kind_code = 20 /* JobKindCode.Permanent */
                         AND st.evaluation_status_code IN (20 /* ScheduleEvaluationStatusCode.WaitingForCapacity */, 50 /* ScheduleEvaluationStatusCode.JobUnavailable */);
 
+                    DECLARE @settled TABLE (job_id BIGINT NOT NULL PRIMARY KEY, schedule_id INT NULL);
+
                     /* The envelope settles once: a slot's when the slot lands Idle, Failed, or Cancelled, a charged root's
                        when the root lands terminal. */
                     UPDATE cp
@@ -1469,6 +1470,7 @@ BEGIN
                         END,
                         modified_at_utc = @now,
                         version = cp.version + 1
+                    OUTPUT INSERTED.job_id, j.schedule_id INTO @settled (job_id, schedule_id)
                     FROM {{schema}}.checkpoints cp WITH (FORCESEEK)
                     INNER JOIN @done d ON d.job_id = cp.job_id
                     INNER JOIN @p_batch c ON c.job_id = d.job_id AND c.execution_number = d.execution_number
@@ -1482,7 +1484,7 @@ BEGIN
                             OR (j.schedule_id IS NOT NULL AND d.job_status_code IN (100 /* JobStatusCode.Succeeded */, 200 /* JobStatusCode.Failed */, 220 /* JobStatusCode.Cancelled */))
                         );
 
-                    /* A charged root that landed terminal releases its schedule's capacity, once per root, and wakes the
+                    /* A charged root releases its schedule's capacity for the envelope it settled above, and wakes the
                        schedule when it waited for that capacity. */
                     UPDATE st
                     SET
@@ -1500,11 +1502,8 @@ BEGIN
                     FROM {{schema}}.schedules_state st WITH (FORCESEEK)
                     INNER JOIN (
                         SELECT x.schedule_id, COUNT(*) AS settled
-                        FROM @done d
-                        INNER JOIN @rows x ON x.job_id = d.job_id AND x.execution_number = d.execution_number
-                        WHERE
-                            x.schedule_id IS NOT NULL
-                            AND d.job_status_code IN (100 /* JobStatusCode.Succeeded */, 200 /* JobStatusCode.Failed */, 220 /* JobStatusCode.Cancelled */)
+                        FROM @settled x
+                        WHERE x.schedule_id IS NOT NULL
                         GROUP BY x.schedule_id
                     ) s ON s.schedule_id = st.schedule_id;
 
@@ -4064,6 +4063,8 @@ BEGIN
             event_recording_code IN (10 /* EventRecordingCode.Failures */, 20 /* EventRecordingCode.Audit */)
             OR alert_profile_code <> 0 /* AlertProfileCode.None */;
 
+        DECLARE @settled TABLE (job_id BIGINT NOT NULL PRIMARY KEY, schedule_id INT NULL);
+
         -- A lost attempt that spent the budget settles the firing Failed: a slot's, which wakes the members parked on
         -- the slot, or a charged root's, which releases its schedule's capacity.
         UPDATE cp
@@ -4071,6 +4072,7 @@ BEGIN
             checkpoint_status_code = 120 /* CheckpointStatusCode.Failed */,
             modified_at_utc = @now,
             version = cp.version + 1
+        OUTPUT INSERTED.job_id, r.schedule_id INTO @settled (job_id, schedule_id)
         FROM {{schema}}.checkpoints cp WITH (FORCESEEK)
         INNER JOIN @reclaimed r ON r.job_id = cp.job_id
         WHERE
@@ -4107,10 +4109,10 @@ BEGIN
             version = st.version + 1
         FROM {{schema}}.schedules_state st WITH (FORCESEEK)
         INNER JOIN (
-            SELECT r.schedule_id, COUNT(*) AS settled
-            FROM @reclaimed r
-            WHERE r.schedule_id IS NOT NULL AND r.to_status_code = 200 /* JobStatusCode.Failed */
-            GROUP BY r.schedule_id
+            SELECT x.schedule_id, COUNT(*) AS settled
+            FROM @settled x
+            WHERE x.schedule_id IS NOT NULL
+            GROUP BY x.schedule_id
         ) s ON s.schedule_id = st.schedule_id;
 
         /* A lost attempt that spent the budget is a firing that failed for good: the definition's firing failure policy
@@ -5062,7 +5064,7 @@ JOIN {{schema}}.namespaces AS ns ON ns.namespace_id = w.namespace_id
 GO
 
 
-IF NOT EXISTS (SELECT 1 FROM {{schema}}.migrations WHERE name = 'M20261107115643_init')
+IF NOT EXISTS (SELECT 1 FROM {{schema}}.migrations WHERE name = 'M20261107170803_init')
 INSERT INTO {{schema}}.migrations (name)
-VALUES ('M20261107115643_init');
+VALUES ('M20261107170803_init');
 GO

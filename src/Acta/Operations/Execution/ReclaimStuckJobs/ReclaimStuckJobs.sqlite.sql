@@ -235,7 +235,20 @@ WHERE
     j.job_id = jobs_state.job_id;
 
 -- A lost attempt that spent the budget settles the firing Failed: a slot's, which wakes the members parked on the slot,
--- or a charged root's, which releases its schedule's capacity.
+-- or a charged root's, which releases its schedule's capacity. The one writer makes the Pending envelopes read here
+-- the rows the update below moves.
+DROP TABLE IF EXISTS temp._reclaim_settled;
+
+CREATE TEMP TABLE _reclaim_settled AS
+SELECT rj.job_id, j.schedule_id
+FROM temp._reclaim_jobs rj
+JOIN {{schema}}.jobs j ON j.job_id = rj.job_id
+JOIN {{schema}}.checkpoints cp
+    ON cp.job_id = rj.job_id AND cp.checkpoint_kind_code = 60 /* CheckpointKindCode.Firing */ AND cp.checkpoint_name = 'sys.firing'
+WHERE
+    cp.checkpoint_status_code = 10 /* CheckpointStatusCode.Pending */
+    AND (rj.to_status = 40 /* JobStatusCode.Idle */ OR (rj.to_status = 200 /* JobStatusCode.Failed */ AND j.schedule_id IS NOT NULL));
+
 UPDATE {{schema}}.checkpoints
 SET
     checkpoint_status_code = 120 /* CheckpointStatusCode.Failed */,
@@ -244,13 +257,7 @@ SET
 WHERE
     checkpoint_kind_code = 60 /* CheckpointKindCode.Firing */
     AND checkpoint_name = 'sys.firing'
-    AND checkpoint_status_code = 10 /* CheckpointStatusCode.Pending */
-    AND job_id IN (
-        SELECT rj.job_id
-        FROM temp._reclaim_jobs rj
-        JOIN {{schema}}.jobs j ON j.job_id = rj.job_id
-        WHERE rj.to_status = 40 /* JobStatusCode.Idle */ OR (rj.to_status = 200 /* JobStatusCode.Failed */ AND j.schedule_id IS NOT NULL)
-    );
+    AND job_id IN (SELECT s.job_id FROM temp._reclaim_settled s);
 
 UPDATE {{schema}}.schedules_state AS st
 SET
@@ -266,11 +273,10 @@ SET
     modified_at_utc = {{now}},
     version = st.version + 1
 FROM (
-    SELECT j.schedule_id, COUNT(*) AS settled
-    FROM temp._reclaim_jobs rj
-    JOIN {{schema}}.jobs j ON j.job_id = rj.job_id
-    WHERE j.schedule_id IS NOT NULL AND rj.to_status = 200 /* JobStatusCode.Failed */
-    GROUP BY j.schedule_id
+    SELECT s.schedule_id, COUNT(*) AS settled
+    FROM temp._reclaim_settled s
+    WHERE s.schedule_id IS NOT NULL
+    GROUP BY s.schedule_id
 ) c
 WHERE st.schedule_id = c.schedule_id;
 

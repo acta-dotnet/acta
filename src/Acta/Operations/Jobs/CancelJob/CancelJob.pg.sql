@@ -80,22 +80,24 @@ FROM _cancel_job s
 JOIN {{schema}}.definitions jd ON jd.definition_id = s.definition_id
 WHERE r.job_id = @p_job_id AND s.applied;
 
--- A cancelled slot's outstanding firing settles with it; a running attempt's completion then finds the row moved and
--- settles nothing twice.
-UPDATE {{schema}}.checkpoints cp
-SET
-    checkpoint_status_code = 130 /* CheckpointStatusCode.Cancelled */,
-    modified_at_utc = now(),
-    version = cp.version + 1
-FROM _cancel_job s
-WHERE
-    s.applied
-    AND cp.job_id = @p_job_id
-    AND cp.checkpoint_kind_code = 60 /* CheckpointKindCode.Firing */
-    AND cp.checkpoint_name = 'sys.firing'
-    AND cp.checkpoint_status_code = 10 /* CheckpointStatusCode.Pending */;
-
--- A cancelled charged root releases its schedule's capacity and wakes the schedule when it waited for it.
+-- A cancelled job's outstanding firing settles with it; a running attempt's completion then finds the row moved and
+-- settles nothing twice. A charged root releases its schedule's capacity for the envelope settled here, and wakes the
+-- schedule when it waited for it.
+WITH settled AS (
+    UPDATE {{schema}}.checkpoints cp
+    SET
+        checkpoint_status_code = 130 /* CheckpointStatusCode.Cancelled */,
+        modified_at_utc = now(),
+        version = cp.version + 1
+    FROM _cancel_job s
+    WHERE
+        s.applied
+        AND cp.job_id = @p_job_id
+        AND cp.checkpoint_kind_code = 60 /* CheckpointKindCode.Firing */
+        AND cp.checkpoint_name = 'sys.firing'
+        AND cp.checkpoint_status_code = 10 /* CheckpointStatusCode.Pending */
+    RETURNING cp.job_id
+)
 UPDATE {{schema}}.schedules_state st
 SET
     outstanding_count = st.outstanding_count - 1,
@@ -109,9 +111,9 @@ SET
     END,
     modified_at_utc = now(),
     version = st.version + 1
-FROM _cancel_job s
-INNER JOIN {{schema}}.jobs j ON j.job_id = @p_job_id
-WHERE s.applied AND st.schedule_id = j.schedule_id;
+FROM settled x
+INNER JOIN {{schema}}.jobs j ON j.job_id = x.job_id
+WHERE st.schedule_id = j.schedule_id;
 
 -- A cancelled head hands its lane on; a cancelled Blocked follower leaves the head where it is. A restarted
 -- member can wait Blocked below a running one, so the oldest unfinished member is promoted only while no

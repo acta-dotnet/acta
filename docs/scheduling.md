@@ -89,12 +89,13 @@ permanent mode through a real worker crash and prints the rows.
 `[Schedule(MaxOutstanding = 1, FullBehavior = ScheduleFullBehaviorCode.Wait)]` bounds a per-occurrence
 schedule's unsettled roots: queued, executing, retrying, paused, and suspended roots all count, children
 and ordinary enqueues do not, and a manual trigger counts like an occurrence. Every terminalization
-releases the charge once (a completion, a cancel, a reclaim that spends the budget, a retire), a restart of
-a finished root takes it again and is Rejected when the schedule is full or gone, and a root that lands
-`Failed` is a firing that failed for good under `FiringFailurePolicy`. At the limit, `Wait` leaves the
-occurrence undecided and parks the schedule until a settlement wakes it, when the misfire policy decides
-the backlog; `Drop` skips the occurrence with the audited reason `capacity` (`schedule.skipped`) and
-advances. A `Permanent` definition's schedules allow exactly 1 (`ACTA0125`).
+releases the charge once (a completion, a cancel, a reclaim that spends the budget, a retire): the count
+is the roots whose firing is still pending, so only the settlement that ends a root's firing releases it.
+A restart of a finished root takes the charge again and is Rejected when the schedule is full or gone, and
+a root that lands `Failed` is a firing that failed for good under `FiringFailurePolicy`. At the limit,
+`Wait` leaves the occurrence undecided and parks the schedule until a settlement wakes it, when the
+misfire policy decides the backlog; `Drop` skips the occurrence with the audited reason `capacity`
+(`schedule.skipped`) and advances. A `Permanent` definition's schedules allow exactly 1 (`ACTA0125`).
 
 A per-occurrence schedule's decisions that make no root, a skip or an ended pause, are audited against the
 definition; an admission or a manual trigger is audited against the root. The

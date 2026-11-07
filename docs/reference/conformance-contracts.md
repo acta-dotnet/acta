@@ -2175,6 +2175,12 @@
   - A root that fails for good settles its envelope Failed, releases the charge, and pauses the schedules under PauseScheduling
   - Lost attempts that spend the budget settle their roots on reclaim as a completion would, pausing the schedule once
   - A suspended namespace holds its schedules: nothing is admitted, a trigger is rejected, and a resume hands them back to the admitter
+  - A batch carrying a stale execution beside the current one of a charged root releases the charge once and records the current outcome
+  - An operator cancel of a running charged root releases the charge once, and the attempt landing after it releases nothing
+  - A retire releases exactly the roots it cancels, a running root releases when its attempt lands, and a restart after reactivation charges once
+  - A retire releases nothing for a root whose firing another settlement already settled and released
+  - A cancel releases nothing for a root whose firing was already settled and released
+  - A restart charges nothing for a finished root whose firing is already outstanding
 
 ### PerOccurrence schedules register without a slot and are addressed by path
 - **Contract:** PerOccurrence schedules register with no slot and their capacity, expiry, and availability, and the verbs address them by path and audit the definition.

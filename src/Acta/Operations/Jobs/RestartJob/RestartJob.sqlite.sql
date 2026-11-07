@@ -184,20 +184,8 @@ WHERE
     AND (@p_expected_version IS NULL OR version = @p_expected_version)
     AND (SELECT s.rejected FROM temp._restart_job s) = 0;
 
--- A re-charged root takes its schedule's capacity again, and its settled envelope is outstanding again.
-UPDATE {{schema}}.schedules_state
-SET
-    outstanding_count = outstanding_count + 1,
-    modified_at_utc = {{now}},
-    version = version + 1
-WHERE
-    schedule_id = (SELECT j.schedule_id FROM {{schema}}.jobs j WHERE j.job_id = @p_job_id)
-    AND EXISTS (
-        SELECT 1
-        FROM temp._restart_job s
-        WHERE s.recharge = 1 AND s.rejected = 0 AND (@p_expected_version IS NULL OR s.from_version = @p_expected_version)
-    );
-
+-- A re-charged root's settled envelope is outstanding again, and takes its schedule's capacity once: the charge is
+-- the envelope rows the update moved, which changes() counts.
 UPDATE {{schema}}.checkpoints
 SET
     checkpoint_status_code = 10 /* CheckpointStatusCode.Pending */,
@@ -207,11 +195,23 @@ WHERE
     job_id = @p_job_id
     AND checkpoint_kind_code = 60 /* CheckpointKindCode.Firing */
     AND checkpoint_name = 'sys.firing'
+    AND checkpoint_status_code IN (
+        110 /* CheckpointStatusCode.Succeeded */, 120 /* CheckpointStatusCode.Failed */, 130 /* CheckpointStatusCode.Cancelled */
+    )
     AND EXISTS (
         SELECT 1
         FROM temp._restart_job s
         WHERE s.recharge = 1 AND s.rejected = 0 AND (@p_expected_version IS NULL OR s.from_version = @p_expected_version)
     );
+
+UPDATE {{schema}}.schedules_state
+SET
+    outstanding_count = outstanding_count + changes(),
+    modified_at_utc = {{now}},
+    version = version + 1
+WHERE
+    schedule_id = (SELECT j.schedule_id FROM {{schema}}.jobs j WHERE j.job_id = @p_job_id)
+    AND changes() > 0;
 
 -- The members parked on the slot evaluate again now that it is Idle.
 UPDATE {{schema}}.schedules_state

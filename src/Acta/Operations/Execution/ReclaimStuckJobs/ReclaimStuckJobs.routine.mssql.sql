@@ -352,6 +352,8 @@ BEGIN
             event_recording_code IN (10 /* EventRecordingCode.Failures */, 20 /* EventRecordingCode.Audit */)
             OR alert_profile_code <> 0 /* AlertProfileCode.None */;
 
+        DECLARE @settled TABLE (job_id BIGINT NOT NULL PRIMARY KEY, schedule_id INT NULL);
+
         -- A lost attempt that spent the budget settles the firing Failed: a slot's, which wakes the members parked on
         -- the slot, or a charged root's, which releases its schedule's capacity.
         UPDATE cp
@@ -359,6 +361,7 @@ BEGIN
             checkpoint_status_code = 120 /* CheckpointStatusCode.Failed */,
             modified_at_utc = @now,
             version = cp.version + 1
+        OUTPUT INSERTED.job_id, r.schedule_id INTO @settled (job_id, schedule_id)
         FROM {{schema}}.checkpoints cp WITH (FORCESEEK)
         INNER JOIN @reclaimed r ON r.job_id = cp.job_id
         WHERE
@@ -395,10 +398,10 @@ BEGIN
             version = st.version + 1
         FROM {{schema}}.schedules_state st WITH (FORCESEEK)
         INNER JOIN (
-            SELECT r.schedule_id, COUNT(*) AS settled
-            FROM @reclaimed r
-            WHERE r.schedule_id IS NOT NULL AND r.to_status_code = 200 /* JobStatusCode.Failed */
-            GROUP BY r.schedule_id
+            SELECT x.schedule_id, COUNT(*) AS settled
+            FROM @settled x
+            WHERE x.schedule_id IS NOT NULL
+            GROUP BY x.schedule_id
         ) s ON s.schedule_id = st.schedule_id;
 
         /* A lost attempt that spent the budget is a firing that failed for good: the definition's firing failure policy

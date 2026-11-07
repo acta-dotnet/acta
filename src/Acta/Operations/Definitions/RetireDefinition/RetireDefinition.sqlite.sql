@@ -86,6 +86,17 @@ WHERE
     AND job_status_code <> 30 /* JobStatusCode.Paused */;
 
 -- An outstanding firing settles with the retire: a cancelled charged root's, and an inert slot's.
+DROP TABLE IF EXISTS temp._retire_settled;
+
+CREATE TEMP TABLE _retire_settled AS
+SELECT cp.job_id
+FROM {{schema}}.checkpoints cp
+WHERE
+    cp.checkpoint_kind_code = 60 /* CheckpointKindCode.Firing */
+    AND cp.checkpoint_name = 'sys.firing'
+    AND cp.checkpoint_status_code = 10 /* CheckpointStatusCode.Pending */
+    AND cp.job_id IN (SELECT p.job_id FROM temp._retire_parked_jobs p UNION ALL SELECT rs.job_id FROM temp._retire_slots rs);
+
 UPDATE {{schema}}.checkpoints
 SET
     checkpoint_status_code = 130 /* CheckpointStatusCode.Cancelled */,
@@ -94,8 +105,7 @@ SET
 WHERE
     checkpoint_kind_code = 60 /* CheckpointKindCode.Firing */
     AND checkpoint_name = 'sys.firing'
-    AND checkpoint_status_code = 10 /* CheckpointStatusCode.Pending */
-    AND job_id IN (SELECT p.job_id FROM temp._retire_parked_jobs p UNION ALL SELECT rs.job_id FROM temp._retire_slots rs);
+    AND job_id IN (SELECT s.job_id FROM temp._retire_settled s);
 
 -- The schedules lose their timing fingerprint, so a build that registers the definition again retimes them from
 -- now, as it would a changed declaration.
@@ -110,7 +120,8 @@ WHERE definition_id IN (
     WHERE s.version = @p_version AND s.definition_status_code <> 240 /* DefinitionStatusCode.Retired */
 );
 
--- A cancelled charged root releases its schedule's capacity, so the count stays true for the schedules exhausted below.
+-- A charged root releases its schedule's capacity for the envelope settled above, so the count stays true for the
+-- schedules exhausted below.
 UPDATE {{schema}}.schedules_state AS st
 SET
     outstanding_count = st.outstanding_count - c.settled,
@@ -118,8 +129,8 @@ SET
     version = st.version + 1
 FROM (
     SELECT j.schedule_id, COUNT(*) AS settled
-    FROM temp._retire_parked_jobs p
-    JOIN {{schema}}.jobs j ON j.job_id = p.job_id
+    FROM temp._retire_settled s
+    JOIN {{schema}}.jobs j ON j.job_id = s.job_id
     WHERE j.schedule_id IS NOT NULL
     GROUP BY j.schedule_id
 ) c

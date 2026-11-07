@@ -128,43 +128,55 @@ WHERE
             )
     );
 
--- A charged root is re-charged only while its schedule is live and below MaxOutstanding, the check and the charge one
--- write under the state row's lock; otherwise the restart is Rejected.
-WITH charged AS (
-    UPDATE {{schema}}.schedules_state st
-    SET
-        outstanding_count = st.outstanding_count + 1,
-        modified_at_utc = now(),
-        version = st.version + 1
-    FROM _restart_job s
-    INNER JOIN {{schema}}.schedules js ON js.schedule_id = s.schedule_id
+-- A charged root is re-charged only while its schedule is live and below MaxOutstanding, checked under the state row's
+-- lock; otherwise the restart is Rejected.
+WITH capacity AS (
+    SELECT st.schedule_id
+    FROM {{schema}}.schedules_state st
+    INNER JOIN _restart_job s ON s.schedule_id = st.schedule_id
+    INNER JOIN {{schema}}.schedules js ON js.schedule_id = st.schedule_id
     INNER JOIN {{schema}}.definitions d ON d.definition_id = js.definition_id
     WHERE
-        st.schedule_id = s.schedule_id
-        AND s.recharge
+        s.recharge
         AND s.action = 1 /* ControlAction.Applied */
         AND js.schedule_status_code <> 230 /* ScheduleStatusCode.Orphaned */
         AND d.definition_status_code <> 240 /* DefinitionStatusCode.Retired */
         AND st.outstanding_count < js.max_outstanding
-    RETURNING st.schedule_id
+    FOR UPDATE OF st
 )
 UPDATE _restart_job s
 SET action = 3 /* ControlAction.Rejected */
-WHERE s.recharge AND s.action = 1 /* ControlAction.Applied */ AND NOT EXISTS (SELECT 1 FROM charged);
-
--- A re-charged root's settled envelope is outstanding again.
-UPDATE {{schema}}.checkpoints cp
-SET
-    checkpoint_status_code = 10 /* CheckpointStatusCode.Pending */,
-    modified_at_utc = now(),
-    version = cp.version + 1
-FROM _restart_job s
 WHERE
-    cp.job_id = @p_job_id
-    AND cp.checkpoint_kind_code = 60 /* CheckpointKindCode.Firing */
-    AND cp.checkpoint_name = 'sys.firing'
-    AND s.recharge
-    AND s.action = 1 /* ControlAction.Applied */;
+    s.recharge
+    AND s.action = 1 /* ControlAction.Applied */
+    AND NOT EXISTS (SELECT 1 FROM capacity);
+
+-- A re-charged root's settled envelope is outstanding again, and takes its schedule's capacity once.
+WITH recharged AS (
+    UPDATE {{schema}}.checkpoints cp
+    SET
+        checkpoint_status_code = 10 /* CheckpointStatusCode.Pending */,
+        modified_at_utc = now(),
+        version = cp.version + 1
+    FROM _restart_job s
+    WHERE
+        cp.job_id = @p_job_id
+        AND cp.checkpoint_kind_code = 60 /* CheckpointKindCode.Firing */
+        AND cp.checkpoint_name = 'sys.firing'
+        AND cp.checkpoint_status_code IN (
+            110 /* CheckpointStatusCode.Succeeded */, 120 /* CheckpointStatusCode.Failed */, 130 /* CheckpointStatusCode.Cancelled */
+        )
+        AND s.recharge
+        AND s.action = 1 /* ControlAction.Applied */
+    RETURNING s.schedule_id
+)
+UPDATE {{schema}}.schedules_state st
+SET
+    outstanding_count = st.outstanding_count + 1,
+    modified_at_utc = now(),
+    version = st.version + 1
+FROM recharged x
+WHERE st.schedule_id = x.schedule_id;
 
 UPDATE {{schema}}.jobs_state AS r
 SET

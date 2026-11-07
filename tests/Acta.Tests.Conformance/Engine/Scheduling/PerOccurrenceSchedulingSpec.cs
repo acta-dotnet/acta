@@ -17,6 +17,12 @@ internal static class FailingRootHandler
     public static Task Run(JobContext ctx, CancellationToken ct) => throw new InvalidOperationException("the root fails");
 }
 
+/// <summary>Waits for a signal nobody raises, so a root suspends on its first attempt.</summary>
+internal static class WaitingRootHandler
+{
+    public static Task Run(JobContext ctx, CancellationToken ct) => ctx.WaitSignalAsync("go", ct);
+}
+
 /// <summary>PerOccurrence definitions, one per fact, each with one five-minute schedule of the declared capacity.</summary>
 public sealed class PerOccurrenceManifest : IJobManifest
 {
@@ -28,6 +34,12 @@ public sealed class PerOccurrenceManifest : IJobManifest
     public const string LostJobName = "roots-lost";
     public const string HeldJobName = "roots-held";
     public const string DeadlineJobName = "roots-deadline";
+    public const string StaleJobName = "roots-stale";
+    public const string CancelledJobName = "roots-cancel";
+    public const string RetiredJobName = "roots-retire";
+    public const string SettledRetireJobName = "roots-settled-retire";
+    public const string SettledCancelJobName = "roots-settled-cancel";
+    public const string PendingRestartJobName = "roots-pending-restart";
     public const string ScheduleName = "every-5-minutes";
 
     public static JobDescriptorManifest Descriptors { get; } =
@@ -40,6 +52,12 @@ public sealed class PerOccurrenceManifest : IJobManifest
             Descriptor(LostJobName, 2, ScheduleFullBehaviorCode.Wait, fails: true),
             Descriptor(HeldJobName, 1, ScheduleFullBehaviorCode.Wait, fails: false),
             Descriptor(DeadlineJobName, 1, ScheduleFullBehaviorCode.Wait, fails: false, deadlineSeconds: 60),
+            Descriptor(StaleJobName, 2, ScheduleFullBehaviorCode.Wait, fails: false),
+            Descriptor(CancelledJobName, 2, ScheduleFullBehaviorCode.Wait, fails: false),
+            Descriptor(RetiredJobName, 3, ScheduleFullBehaviorCode.Wait, fails: false, waits: true),
+            Descriptor(SettledRetireJobName, 2, ScheduleFullBehaviorCode.Wait, fails: false),
+            Descriptor(SettledCancelJobName, 2, ScheduleFullBehaviorCode.Wait, fails: false),
+            Descriptor(PendingRestartJobName, 2, ScheduleFullBehaviorCode.Wait, fails: false),
         ]);
 
     private static JobDescriptor Descriptor(
@@ -47,11 +65,14 @@ public sealed class PerOccurrenceManifest : IJobManifest
         int maxOutstanding,
         ScheduleFullBehaviorCode fullBehavior,
         bool fails,
-        int? deadlineSeconds = null
+        int? deadlineSeconds = null,
+        bool waits = false
     ) =>
         new(
             JobName: jobName,
-            HandlerType: fails ? typeof(FailingRootHandler) : typeof(RootHandler),
+            HandlerType: fails ? typeof(FailingRootHandler)
+                : waits ? typeof(WaitingRootHandler)
+                : typeof(RootHandler),
             MethodName: "Run",
             InputType: typeof(NoInput),
             ResultType: null,
@@ -64,11 +85,17 @@ public sealed class PerOccurrenceManifest : IJobManifest
             FiringFailurePolicy: fails ? FiringFailurePolicyCode.PauseScheduling : FiringFailurePolicyCode.Continue,
             ScheduledDelivery: ScheduledDeliveryCode.PerOccurrence,
             Invoker: fails
-                ? static async (_, _, ctx, ct) =>
-                {
-                    await FailingRootHandler.Run(ctx, ct);
-                    return new JobHandlerOutput(false, null);
-                }
+                    ? static async (_, _, ctx, ct) =>
+                    {
+                        await FailingRootHandler.Run(ctx, ct);
+                        return new JobHandlerOutput(false, null);
+                    }
+                : waits
+                    ? static async (_, _, ctx, ct) =>
+                    {
+                        await WaitingRootHandler.Run(ctx, ct);
+                        return new JobHandlerOutput(false, null);
+                    }
                 : static async (_, _, ctx, ct) =>
                 {
                     await RootHandler.Run(ctx, ct);
@@ -113,10 +140,14 @@ public sealed class PerOccurrenceManifest : IJobManifest
 )]
 public sealed class PerOccurrenceSchedulingSpec : ActaRuntimeTestBase<ConformanceFixture, PerOccurrenceManifest>
 {
+    private const int LeaseTtlSeconds = 30;
+
     // Live schedule cursors are this spec's subject; the harness default would park them.
     protected override bool ParkScheduleSlots => false;
 
     private FakeClock Clock { get; set; } = null!;
+
+    private ExecutionOperations Execution => Services.GetRequiredService<ExecutionOperations>();
 
     private ISchedules Schedules => Services.GetRequiredService<IActaOperations>().Schedules;
 
@@ -160,6 +191,7 @@ public sealed class PerOccurrenceSchedulingSpec : ActaRuntimeTestBase<Conformanc
         Assert.Equal(JobStatusCode.Succeeded, (await ReadJobAsync(root.Id, ct)).Status);
         Assert.Equal(CheckpointStatusCode.Succeeded, (await EnvelopeAsync(root.Id, ct)).Status);
         Assert.Equal(0, (await ScheduleAsync(PerOccurrenceManifest.WaitingJobName, ct)).State.OutstandingCount);
+        await AssertChargeIsPendingEnvelopesAsync(PerOccurrenceManifest.WaitingJobName, ct);
     }
 
     [Fact(DisplayName = "A per-occurrence root past its Strict deadline is cancelled at admission and releases its charge")]
@@ -188,6 +220,7 @@ public sealed class PerOccurrenceSchedulingSpec : ActaRuntimeTestBase<Conformanc
         Assert.Equal(EventReason.DeadlineExceeded, yielded.Reason);
         Assert.Equal(CheckpointStatusCode.Cancelled, (await EnvelopeAsync(root.Id, ct)).Status);
         Assert.Equal(0, (await ScheduleAsync(PerOccurrenceManifest.DeadlineJobName, ct)).State.OutstandingCount);
+        await AssertChargeIsPendingEnvelopesAsync(PerOccurrenceManifest.DeadlineJobName, ct);
     }
 
     [Fact(DisplayName = "At MaxOutstanding a Wait schedule parks until a settlement wakes it, then admits the waiting occurrence")]
@@ -215,6 +248,7 @@ public sealed class PerOccurrenceSchedulingSpec : ActaRuntimeTestBase<Conformanc
         await Runtime.AdmitOnceAsync(TestNamespace, ct);
         Assert.Equal(2, (await RootsAsync(schedule.Id, ct)).Count);
         Assert.Equal(1, (await ScheduleAsync(PerOccurrenceManifest.WaitingJobName, ct)).State.OutstandingCount);
+        await AssertChargeIsPendingEnvelopesAsync(PerOccurrenceManifest.WaitingJobName, ct);
     }
 
     [Fact(DisplayName = "At MaxOutstanding a Drop schedule skips the occurrence with the reason capacity and moves on")]
@@ -234,6 +268,7 @@ public sealed class PerOccurrenceSchedulingSpec : ActaRuntimeTestBase<Conformanc
         Assert.Equal(1, state.OutstandingCount);
         var skipped = Assert.Single(await DefinitionEventsAsync(schedule.DefinitionId, EventCode.ScheduleSkipped, ct));
         Assert.Equal("capacity", EventDetail(skipped, "reason"));
+        await AssertChargeIsPendingEnvelopesAsync(PerOccurrenceManifest.DroppingJobName, ct);
     }
 
     [Fact(DisplayName = "A cancel releases the charge, a restart takes it again, and a restart into a full schedule is Rejected")]
@@ -262,6 +297,7 @@ public sealed class PerOccurrenceSchedulingSpec : ActaRuntimeTestBase<Conformanc
         Assert.Equal(ControlAction.Rejected, (await Jobs.RestartAsync(JobLookup.ById(first.Id), ct: ct)).Action);
         Assert.Equal(JobStatusCode.Succeeded, (await ReadJobAsync(first.Id, ct)).Status);
         Assert.Equal(1, (await ScheduleAsync(PerOccurrenceManifest.ControlledJobName, ct)).State.OutstandingCount);
+        await AssertChargeIsPendingEnvelopesAsync(PerOccurrenceManifest.ControlledJobName, ct);
     }
 
     [Fact(DisplayName = "A manual trigger admits a charged root with an empty envelope, and a full schedule rejects it")]
@@ -285,6 +321,7 @@ public sealed class PerOccurrenceSchedulingSpec : ActaRuntimeTestBase<Conformanc
 
         Assert.Equal(ControlAction.Rejected, (await Schedules.TriggerAsync(lookup, ct: ct)).Action);
         Assert.Single(await RootsAsync(schedule.Id, ct));
+        await AssertChargeIsPendingEnvelopesAsync(PerOccurrenceManifest.TriggeredJobName, ct);
     }
 
     [Fact(
@@ -307,6 +344,7 @@ public sealed class PerOccurrenceSchedulingSpec : ActaRuntimeTestBase<Conformanc
         Assert.Equal("Paused by the firing failure policy: the last firing failed for good.", schedule.PauseMessage);
         Assert.Null(state.NextEvaluationAtUtc);
         Assert.Equal("firing-failed", EventDetail(await ReadSingleEventAsync(root.Id, EventCode.SchedulePaused, ct), "reason"));
+        await AssertChargeIsPendingEnvelopesAsync(PerOccurrenceManifest.FailingJobName, ct);
     }
 
     [Fact(
@@ -367,6 +405,7 @@ public sealed class PerOccurrenceSchedulingSpec : ActaRuntimeTestBase<Conformanc
             .Where(e => e.NamespaceId == ns && e.EventCode == EventCode.SchedulePaused)
             .ToListAsync(ct);
         Assert.Single(paused, e => e.DefinitionId == schedule.DefinitionId);
+        await AssertChargeIsPendingEnvelopesAsync(PerOccurrenceManifest.LostJobName, ct);
     }
 
     [Fact(
@@ -396,6 +435,233 @@ public sealed class PerOccurrenceSchedulingSpec : ActaRuntimeTestBase<Conformanc
         await Runtime.AdmitOnceAsync(TestNamespace, ct);
         Assert.Single(await RootsAsync(schedule.Id, ct));
         Assert.Equal(occurrence.AddMinutes(5), (await ScheduleAsync(PerOccurrenceManifest.HeldJobName, ct)).State.NextOccurrenceAtUtc);
+        await AssertChargeIsPendingEnvelopesAsync(PerOccurrenceManifest.HeldJobName, ct);
+    }
+
+    [Fact(
+        DisplayName = "A batch carrying a stale execution beside the current one of a charged root releases the charge once and records the current outcome"
+    )]
+    public async Task A_stale_execution_in_a_batch_settles_nothing()
+    {
+        var ct = TestContext.Current.CancellationToken;
+        var workerId = await ChaosSpecHelpers.WorkerIdAsync(Db, Runtime.RegisteredNamespaceIds[TestNamespace], ct);
+        var (schedule, state) = await ScheduleAsync(PerOccurrenceManifest.StaleJobName, ct);
+        var occurrence = state.NextOccurrenceAtUtc!.Value;
+        await AdmitAtAsync(occurrence, ct);
+        await AdmitAtAsync(occurrence.AddMinutes(5), ct);
+        var root = (await RootsAsync(schedule.Id, ct))[0];
+
+        // The worker still holds the attempt it lost to a re-claim when the attempt that replaced it lands.
+        var stale = await ClaimAsync(root.Id, workerId, ct);
+        await ChaosSpecHelpers.SetReadyAsync(Db, root.Id, ct);
+        var current = await ClaimAsync(root.Id, workerId, ct);
+
+        var rows = (
+            await Execution.CompleteExecutionsAsync(
+                new CompleteExecutionsCommand(
+                    workerId,
+                    [CompletionTestOps.Landing(stale, succeeded: false), CompletionTestOps.Landing(current)]
+                ),
+                ct
+            )
+        ).Rows;
+
+        Assert.Equal(CompleteExecutionsAction.Completed, Assert.Single(rows, r => r.ExecutionNumber == current.ExecutionNumber).Action);
+        Assert.Equal(1, (await ScheduleAsync(PerOccurrenceManifest.StaleJobName, ct)).State.OutstandingCount);
+        Assert.Equal(CheckpointStatusCode.Succeeded, (await EnvelopeAsync(root.Id, ct)).Status);
+        await AssertChargeIsPendingEnvelopesAsync(PerOccurrenceManifest.StaleJobName, ct);
+    }
+
+    [Fact(
+        DisplayName = "An operator cancel of a running charged root releases the charge once, and the attempt landing after it releases nothing"
+    )]
+    public async Task A_cancel_of_a_running_root_releases_once()
+    {
+        var ct = TestContext.Current.CancellationToken;
+        var workerId = await ChaosSpecHelpers.WorkerIdAsync(Db, Runtime.RegisteredNamespaceIds[TestNamespace], ct);
+        var (schedule, state) = await ScheduleAsync(PerOccurrenceManifest.CancelledJobName, ct);
+        var occurrence = state.NextOccurrenceAtUtc!.Value;
+        await AdmitAtAsync(occurrence, ct);
+        await AdmitAtAsync(occurrence.AddMinutes(5), ct);
+        var root = (await RootsAsync(schedule.Id, ct))[0];
+        var running = await ClaimAsync(root.Id, workerId, ct);
+
+        Assert.Equal(ControlAction.Applied, (await Jobs.CancelAsync(new JobRef(root.JobRef), ct: ct)).Action);
+        Assert.Equal(1, (await ScheduleAsync(PerOccurrenceManifest.CancelledJobName, ct)).State.OutstandingCount);
+
+        Assert.Equal(
+            CompleteExecutionsAction.AlreadyTerminal,
+            (await Execution.CompleteAsync(workerId, CompletionTestOps.Landing(running), ct)).Action
+        );
+        Assert.Equal(CheckpointStatusCode.Cancelled, (await EnvelopeAsync(root.Id, ct)).Status);
+        Assert.Equal(1, (await ScheduleAsync(PerOccurrenceManifest.CancelledJobName, ct)).State.OutstandingCount);
+        await AssertChargeIsPendingEnvelopesAsync(PerOccurrenceManifest.CancelledJobName, ct);
+    }
+
+    [Fact(
+        DisplayName = "A retire releases exactly the roots it cancels, a running root releases when its attempt lands, and a restart after reactivation charges once"
+    )]
+    public async Task A_retire_releases_the_roots_it_cancels()
+    {
+        var ct = TestContext.Current.CancellationToken;
+        var ns = Runtime.RegisteredNamespaceIds[TestNamespace];
+        var workerId = await ChaosSpecHelpers.WorkerIdAsync(Db, ns, ct);
+        var (schedule, state) = await ScheduleAsync(PerOccurrenceManifest.RetiredJobName, ct);
+        var occurrence = state.NextOccurrenceAtUtc!.Value;
+        for (var i = 0; i < 3; i++)
+        {
+            await AdmitAtAsync(occurrence.AddMinutes(5 * i), ct);
+        }
+        var roots = await RootsAsync(schedule.Id, ct);
+        Assert.Equal(3, roots.Count);
+        var (ready, executing, suspended) = (roots[0], roots[1], roots[2]);
+        var running = await ClaimAsync(executing.Id, workerId, ct);
+        Assert.Equal(RunOnceStatus.Rearmed, await Runtime.RunOnceAsync(suspended.Id, ct));
+        Assert.Equal(JobStatusCode.Suspended, (await ReadJobAsync(suspended.Id, ct)).Status);
+
+        var definition = await Operations.Definitions.GetAsync(TestNamespace, PerOccurrenceManifest.RetiredJobName, ct);
+        var retired = await Operations.Definitions.RetireAsync(
+            TestNamespace,
+            PerOccurrenceManifest.RetiredJobName,
+            definition!.Version,
+            "retired with roots out",
+            "ops",
+            ct
+        );
+
+        Assert.Equal(ControlAction.Applied, retired.Action);
+        Assert.Equal(JobStatusCode.Cancelled, (await ReadJobAsync(ready.Id, ct)).Status);
+        Assert.Equal(JobStatusCode.Cancelled, (await ReadJobAsync(suspended.Id, ct)).Status);
+        Assert.Equal(JobStatusCode.Executing, (await ReadJobAsync(executing.Id, ct)).Status);
+        Assert.Equal(1, (await ScheduleAsync(PerOccurrenceManifest.RetiredJobName, ct)).State.OutstandingCount);
+        await AssertChargeIsPendingEnvelopesAsync(PerOccurrenceManifest.RetiredJobName, ct);
+
+        Assert.Equal(
+            CompleteExecutionsAction.Completed,
+            (await Execution.CompleteAsync(workerId, CompletionTestOps.Landing(running), ct)).Action
+        );
+        Assert.Equal(CheckpointStatusCode.Succeeded, (await EnvelopeAsync(executing.Id, ct)).Status);
+        Assert.Equal(0, (await ScheduleAsync(PerOccurrenceManifest.RetiredJobName, ct)).State.OutstandingCount);
+        await AssertChargeIsPendingEnvelopesAsync(PerOccurrenceManifest.RetiredJobName, ct);
+
+        await DefinitionTestOps.RegisterAsync(
+            Services,
+            ns,
+            [PerOccurrenceManifest.Descriptors.Descriptors.Single(d => d.JobName == PerOccurrenceManifest.RetiredJobName)],
+            ct
+        );
+        Assert.Equal(ControlAction.Applied, (await Jobs.RestartAsync(new JobRef(ready.JobRef), ct: ct)).Action);
+        Assert.Equal(CheckpointStatusCode.Pending, (await EnvelopeAsync(ready.Id, ct)).Status);
+        Assert.Equal(1, (await ScheduleAsync(PerOccurrenceManifest.RetiredJobName, ct)).State.OutstandingCount);
+        await AssertChargeIsPendingEnvelopesAsync(PerOccurrenceManifest.RetiredJobName, ct);
+    }
+
+    [Fact(DisplayName = "A retire releases nothing for a root whose firing another settlement already settled and released")]
+    public async Task A_retire_releases_nothing_for_a_firing_settled_before_it()
+    {
+        var ct = TestContext.Current.CancellationToken;
+        var (schedule, state) = await ScheduleAsync(PerOccurrenceManifest.SettledRetireJobName, ct);
+        var occurrence = state.NextOccurrenceAtUtc!.Value;
+        await AdmitAtAsync(occurrence, ct);
+        await AdmitAtAsync(occurrence.AddMinutes(5), ct);
+        var root = (await RootsAsync(schedule.Id, ct))[0];
+        // What a cancel that commits while the retire runs leaves behind it: the firing settled, its charge released.
+        await ForceEnvelopeAsync(PerOccurrenceManifest.SettledRetireJobName, root.Id, CheckpointStatusCode.Cancelled, -1, ct);
+
+        var definition = await Operations.Definitions.GetAsync(TestNamespace, PerOccurrenceManifest.SettledRetireJobName, ct);
+        var retired = await Operations.Definitions.RetireAsync(
+            TestNamespace,
+            PerOccurrenceManifest.SettledRetireJobName,
+            definition!.Version,
+            "retired after a cancel",
+            "ops",
+            ct
+        );
+
+        Assert.Equal(ControlAction.Applied, retired.Action);
+        Assert.Equal(0, (await ScheduleAsync(PerOccurrenceManifest.SettledRetireJobName, ct)).State.OutstandingCount);
+        await AssertChargeIsPendingEnvelopesAsync(PerOccurrenceManifest.SettledRetireJobName, ct);
+    }
+
+    [Fact(DisplayName = "A cancel releases nothing for a root whose firing was already settled and released")]
+    public async Task A_cancel_releases_nothing_for_a_firing_settled_before_it()
+    {
+        var ct = TestContext.Current.CancellationToken;
+        var (schedule, state) = await ScheduleAsync(PerOccurrenceManifest.SettledCancelJobName, ct);
+        var occurrence = state.NextOccurrenceAtUtc!.Value;
+        await AdmitAtAsync(occurrence, ct);
+        await AdmitAtAsync(occurrence.AddMinutes(5), ct);
+        var root = (await RootsAsync(schedule.Id, ct))[0];
+        await ForceEnvelopeAsync(PerOccurrenceManifest.SettledCancelJobName, root.Id, CheckpointStatusCode.Cancelled, -1, ct);
+
+        Assert.Equal(ControlAction.Applied, (await Jobs.CancelAsync(new JobRef(root.JobRef), ct: ct)).Action);
+
+        Assert.Equal(1, (await ScheduleAsync(PerOccurrenceManifest.SettledCancelJobName, ct)).State.OutstandingCount);
+        await AssertChargeIsPendingEnvelopesAsync(PerOccurrenceManifest.SettledCancelJobName, ct);
+    }
+
+    [Fact(DisplayName = "A restart charges nothing for a finished root whose firing is already outstanding")]
+    public async Task A_restart_charges_nothing_for_a_firing_already_outstanding()
+    {
+        var ct = TestContext.Current.CancellationToken;
+        var (schedule, state) = await ScheduleAsync(PerOccurrenceManifest.PendingRestartJobName, ct);
+        await AdmitAtAsync(state.NextOccurrenceAtUtc!.Value, ct);
+        var root = Assert.Single(await RootsAsync(schedule.Id, ct));
+        Assert.Equal(RunOnceStatus.Completed, await Runtime.RunOnceAsync(root.Id, ct));
+        await ForceEnvelopeAsync(PerOccurrenceManifest.PendingRestartJobName, root.Id, CheckpointStatusCode.Pending, 1, ct);
+
+        Assert.Equal(ControlAction.Applied, (await Jobs.RestartAsync(new JobRef(root.JobRef), ct: ct)).Action);
+
+        Assert.Equal(JobStatusCode.Ready, (await ReadJobAsync(root.Id, ct)).Status);
+        Assert.Equal(1, (await ScheduleAsync(PerOccurrenceManifest.PendingRestartJobName, ct)).State.OutstandingCount);
+        await AssertChargeIsPendingEnvelopesAsync(PerOccurrenceManifest.PendingRestartJobName, ct);
+    }
+
+    private async Task<ClaimedJob> ClaimAsync(long jobId, int workerId, CancellationToken ct) =>
+        Assert.Single(await Execution.ClaimJobAsync(Runtime.RegisteredNamespaceIds[TestNamespace], workerId, LeaseTtlSeconds, jobId, ct));
+
+    /// <summary>
+    /// The rule every writer keeps: a schedule's outstanding count is its roots whose firing envelope is Pending, and no
+    /// finished root keeps a Pending envelope.
+    /// </summary>
+    private async Task AssertChargeIsPendingEnvelopesAsync(string jobName, CancellationToken ct)
+    {
+        var (schedule, state) = await ScheduleAsync(jobName, ct);
+        var pending = 0;
+        foreach (var root in await RootsAsync(schedule.Id, ct))
+        {
+            if ((await EnvelopeAsync(root.Id, ct)).Status != CheckpointStatusCode.Pending)
+            {
+                continue;
+            }
+
+            pending++;
+            var status = (await ReadJobAsync(root.Id, ct)).Status;
+            Assert.False(
+                status is JobStatusCode.Succeeded or JobStatusCode.Failed or JobStatusCode.Cancelled,
+                $"Root {new JobRef(root.JobRef)} is {status} with its firing envelope still Pending."
+            );
+        }
+        Assert.Equal(pending, state.OutstandingCount);
+    }
+
+    /// <summary>Writes a root's envelope status and moves its schedule's count by <paramref name="charge"/>, around the engine.</summary>
+    private async Task ForceEnvelopeAsync(string jobName, long rootId, CheckpointStatusCode status, int charge, CancellationToken ct)
+    {
+        var (schedule, state) = await ScheduleAsync(jobName, ct);
+        Assert.Equal(
+            1,
+            await Db.From<CheckpointEntity>()
+                .Where(c => c.JobId == rootId && c.Kind == CheckpointKindCode.Firing)
+                .UpdateOnlyAsync(() => new CheckpointEntity { Status = status }, ct)
+        );
+        var count = state.OutstandingCount + charge;
+        Assert.Equal(
+            1,
+            await Db.From<ScheduleStateEntity>()
+                .Where(s => s.Id == schedule.Id)
+                .UpdateOnlyAsync(() => new ScheduleStateEntity { OutstandingCount = count }, ct)
+        );
     }
 
     private async Task AdmitAtAsync(DateTime nowUtc, CancellationToken ct)

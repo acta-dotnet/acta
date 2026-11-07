@@ -41,14 +41,14 @@ DO $$
 BEGIN
     IF EXISTS (
         SELECT 1 FROM acta.migrations
-        WHERE name NOT IN ('M20261107115643_init')
+        WHERE name NOT IN ('M20261107170803_init')
     ) THEN
         RAISE EXCEPTION 'A newer Acta release already upgraded this database. Run the newest provisioning script; this one would move it backwards.';
     END IF;
 END
 $$;
 
--- ===== BEGIN M20261107115643_init =====
+-- ===== BEGIN M20261107170803_init =====
 CREATE SCHEMA IF NOT EXISTS acta;
 
 -- alerts
@@ -1188,9 +1188,9 @@ BEGIN
     FROM done d;
 
     IF cardinality(array_remove(p_final_job_status_codes, NULL)) > 0 OR true = ANY (p_has_schedule) THEN
-        /* A permanent slot that landed Idle, Failed, or Cancelled settled its firing. Every member schedule parked on
-           the slot is woken to evaluate again, and the envelope records the outcome once. The cursors stay where the
-           admission left them: completion never computes an occurrence. */
+        /* A permanent slot that landed Idle, Failed, or Cancelled settled its firing, so every member schedule parked on
+           the slot evaluates again; completion never moves a cursor. Each step here joins the landed execution, so a
+           stale execution in the batch settles, wakes, releases, and pauses nothing. */
         UPDATE acta.schedules_state st
         SET
             next_evaluation_at_utc = now(),
@@ -1198,7 +1198,9 @@ BEGIN
             modified_at_utc = now(),
             version = st.version + 1
         FROM acta.schedules js
-        INNER JOIN unnest(p_job_ids, p_final_job_status_codes) AS c (job_id, final_job_status_code) ON c.job_id = js.job_id
+        INNER JOIN unnest(p_job_ids, p_execution_numbers, p_final_job_status_codes) AS c (job_id, execution_number, final_job_status_code)
+            ON c.job_id = js.job_id
+        INNER JOIN acta.jobs_state r ON r.job_id = c.job_id AND r.execution_number = c.execution_number
         WHERE
             st.schedule_id = js.schedule_id
             AND c.job_id = ANY (v_done)
@@ -1206,32 +1208,34 @@ BEGIN
             AND st.evaluation_status_code IN (20 /* ScheduleEvaluationStatusCode.WaitingForCapacity */, 50 /* ScheduleEvaluationStatusCode.JobUnavailable */);
 
         /* The envelope settles once: a slot's when the slot lands Idle, Failed, or Cancelled, a charged root's when the
-           root lands terminal, the status its own row now holds. */
-        UPDATE acta.checkpoints cp
-        SET
-            checkpoint_status_code = CASE
-                WHEN COALESCE(c.final_job_status_code, r.job_status_code) = 220 /* JobStatusCode.Cancelled */ THEN 130 /* CheckpointStatusCode.Cancelled */
-                WHEN COALESCE(c.final_job_status_code, r.job_status_code) = 200 /* JobStatusCode.Failed */ OR NOT c.succeeded THEN 120 /* CheckpointStatusCode.Failed */
-                ELSE 110 /* CheckpointStatusCode.Succeeded */
-            END,
-            modified_at_utc = now(),
-            version = cp.version + 1
-        FROM unnest(p_job_ids, p_succeeded, p_final_job_status_codes) AS c (job_id, succeeded, final_job_status_code)
-        INNER JOIN acta.jobs j ON j.job_id = c.job_id
-        INNER JOIN acta.jobs_state r ON r.job_id = c.job_id
-        WHERE
-            cp.job_id = c.job_id
-            AND cp.checkpoint_kind_code = 60 /* CheckpointKindCode.Firing */
-            AND cp.checkpoint_name = 'sys.firing'
-            AND cp.checkpoint_status_code = 10 /* CheckpointStatusCode.Pending */
-            AND c.job_id = ANY (v_done)
-            AND (
-                (j.job_kind_code = 20 /* JobKindCode.Permanent */ AND c.final_job_status_code IN (40 /* JobStatusCode.Idle */, 200 /* JobStatusCode.Failed */, 220 /* JobStatusCode.Cancelled */))
-                OR (j.schedule_id IS NOT NULL AND r.job_status_code IN (100 /* JobStatusCode.Succeeded */, 200 /* JobStatusCode.Failed */, 220 /* JobStatusCode.Cancelled */))
-            );
-
-        /* A charged root that landed terminal releases its schedule's capacity, once per root, and wakes the schedule
-           when it waited for that capacity. */
+           root lands terminal. A charged root releases its schedule's capacity for the envelope it settled here, and
+           wakes the schedule when it waited for that capacity. */
+        WITH settled AS (
+            UPDATE acta.checkpoints cp
+            SET
+                checkpoint_status_code = CASE
+                    WHEN COALESCE(c.final_job_status_code, r.job_status_code) = 220 /* JobStatusCode.Cancelled */ THEN 130 /* CheckpointStatusCode.Cancelled */
+                    WHEN COALESCE(c.final_job_status_code, r.job_status_code) = 200 /* JobStatusCode.Failed */ OR NOT c.succeeded THEN 120 /* CheckpointStatusCode.Failed */
+                    ELSE 110 /* CheckpointStatusCode.Succeeded */
+                END,
+                modified_at_utc = now(),
+                version = cp.version + 1
+            FROM unnest(p_job_ids, p_execution_numbers, p_succeeded, p_final_job_status_codes)
+                AS c (job_id, execution_number, succeeded, final_job_status_code)
+            INNER JOIN acta.jobs j ON j.job_id = c.job_id
+            INNER JOIN acta.jobs_state r ON r.job_id = c.job_id AND r.execution_number = c.execution_number
+            WHERE
+                cp.job_id = c.job_id
+                AND cp.checkpoint_kind_code = 60 /* CheckpointKindCode.Firing */
+                AND cp.checkpoint_name = 'sys.firing'
+                AND cp.checkpoint_status_code = 10 /* CheckpointStatusCode.Pending */
+                AND c.job_id = ANY (v_done)
+                AND (
+                    (j.job_kind_code = 20 /* JobKindCode.Permanent */ AND c.final_job_status_code IN (40 /* JobStatusCode.Idle */, 200 /* JobStatusCode.Failed */, 220 /* JobStatusCode.Cancelled */))
+                    OR (j.schedule_id IS NOT NULL AND r.job_status_code IN (100 /* JobStatusCode.Succeeded */, 200 /* JobStatusCode.Failed */, 220 /* JobStatusCode.Cancelled */))
+                )
+            RETURNING j.schedule_id
+        )
         UPDATE acta.schedules_state st
         SET
             outstanding_count = st.outstanding_count - s.settled,
@@ -1246,15 +1250,10 @@ BEGIN
             modified_at_utc = now(),
             version = st.version + 1
         FROM (
-            SELECT j.schedule_id, COUNT(*) AS settled
-            FROM unnest(p_job_ids) AS c (job_id)
-            INNER JOIN acta.jobs j ON j.job_id = c.job_id
-            INNER JOIN acta.jobs_state r ON r.job_id = c.job_id
-            WHERE
-                c.job_id = ANY (v_done)
-                AND j.schedule_id IS NOT NULL
-                AND r.job_status_code IN (100 /* JobStatusCode.Succeeded */, 200 /* JobStatusCode.Failed */, 220 /* JobStatusCode.Cancelled */)
-            GROUP BY j.schedule_id
+            SELECT x.schedule_id, COUNT(*) AS settled
+            FROM settled x
+            WHERE x.schedule_id IS NOT NULL
+            GROUP BY x.schedule_id
         ) s
         WHERE st.schedule_id = s.schedule_id;
 
@@ -1269,10 +1268,11 @@ BEGIN
                 pause_message = 'Paused by the firing failure policy: the last firing failed for good.',
                 modified_at_utc = now(),
                 version = js.version + 1
-            FROM unnest(p_job_ids, p_succeeded, p_final_job_status_codes) AS c (job_id, succeeded, final_job_status_code)
+            FROM unnest(p_job_ids, p_execution_numbers, p_succeeded, p_final_job_status_codes)
+                AS c (job_id, execution_number, succeeded, final_job_status_code)
             INNER JOIN acta.jobs j ON j.job_id = c.job_id
             INNER JOIN acta.definitions jd ON jd.definition_id = j.definition_id
-            INNER JOIN acta.jobs_state r ON r.job_id = j.job_id
+            INNER JOIN acta.jobs_state r ON r.job_id = j.job_id AND r.execution_number = c.execution_number
             WHERE
                 js.definition_id = jd.definition_id
                 AND js.schedule_status_code = 10 /* ScheduleStatusCode.Active */
@@ -3523,6 +3523,7 @@ BEGIN
             AND cp.checkpoint_name = 'sys.firing'
             AND cp.checkpoint_status_code = 10 /* CheckpointStatusCode.Pending */
             AND (r.new_status = 40 /* JobStatusCode.Idle */ OR (r.new_status = 200 /* JobStatusCode.Failed */ AND r.schedule_id IS NOT NULL))
+        RETURNING r.schedule_id
     ),
     -- A lost attempt that spent the budget is a firing that failed for good: the definition's firing failure policy
     -- applies as it does on a completion.
@@ -3546,8 +3547,8 @@ BEGIN
             COALESCE(r.lineage_root_job_id, r.job_id) AS lineage_root_job_id, r.execution_number, r.event_recording_code
     ),
     -- One write per schedule state, since a row updated twice in one statement keeps only one of the updates: the wake
-    -- of a slot's parked members or of a schedule waiting for a root's capacity, the released capacity, and the
-    -- policy's park, which wins over a wake.
+    -- of a slot's parked members or of a schedule waiting for a root's capacity, the capacity each envelope settled
+    -- above releases, and the policy's park, which wins over a wake.
     state_written AS (
         UPDATE acta.schedules_state st
         SET
@@ -3572,9 +3573,9 @@ BEGIN
                 INNER JOIN reclaimed r ON r.job_id = js.job_id
                 WHERE r.new_status = 40 /* JobStatusCode.Idle */
                 UNION ALL
-                SELECT r.schedule_id, 1, false, true
-                FROM reclaimed r
-                WHERE r.schedule_id IS NOT NULL AND r.new_status = 200 /* JobStatusCode.Failed */
+                SELECT x.schedule_id, 1, false, true
+                FROM settled x
+                WHERE x.schedule_id IS NOT NULL
                 UNION ALL
                 SELECT p.schedule_id, 0, true, false
                 FROM policy_paused p
@@ -4450,10 +4451,10 @@ JOIN acta.namespaces AS ns ON ns.namespace_id = w.namespace_id;
 
 
 INSERT INTO acta.migrations (name)
-VALUES ('M20261107115643_init')
+VALUES ('M20261107170803_init')
 ON CONFLICT (name) DO NOTHING;
 
--- ===== END M20261107115643_init =====
+-- ===== END M20261107170803_init =====
 
 COMMIT;
 

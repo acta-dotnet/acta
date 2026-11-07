@@ -123,9 +123,8 @@ FROM temp._ces_done d
 WHERE r.job_id = d.job_id;
 
 -- begin recurring
-/* A permanent slot that landed Idle, Failed, or Cancelled settled its firing. Every member schedule parked on the slot
-   is woken to evaluate again, and the envelope records the outcome once. The cursors stay where the admission left
-   them: completion never computes an occurrence. */
+/* A permanent slot that landed Idle, Failed, or Cancelled settled its firing, so every member schedule parked on the slot
+   evaluates again; completion never moves a cursor. */
 UPDATE {{schema}}.schedules_state AS st
 SET
     next_evaluation_at_utc = (SELECT now_utc FROM temp._ces_done LIMIT 1),
@@ -142,29 +141,41 @@ WHERE
     AND st.evaluation_status_code IN (20 /* ScheduleEvaluationStatusCode.WaitingForCapacity */, 50 /* ScheduleEvaluationStatusCode.JobUnavailable */);
 
 /* The envelope settles once: a slot's when the slot lands Idle, Failed, or Cancelled, a charged root's when the root
-   lands terminal. */
-UPDATE {{schema}}.checkpoints AS cp
-SET
-    checkpoint_status_code = CASE
+   lands terminal. The one writer makes the Pending envelopes read here the rows the update below moves. */
+DROP TABLE IF EXISTS temp._ces_settled;
+
+CREATE TEMP TABLE _ces_settled AS
+SELECT
+    d.job_id,
+    j.schedule_id,
+    CASE
         WHEN d.to_status = 220 /* JobStatusCode.Cancelled */ THEN 130 /* CheckpointStatusCode.Cancelled */
         WHEN d.to_status = 200 /* JobStatusCode.Failed */ OR d.succeeded = 0 THEN 120 /* CheckpointStatusCode.Failed */
         ELSE 110 /* CheckpointStatusCode.Succeeded */
-    END,
-    modified_at_utc = (SELECT now_utc FROM temp._ces_done LIMIT 1),
-    version = cp.version + 1
+    END AS checkpoint_status_code
 FROM temp._ces_done d
 INNER JOIN {{schema}}.jobs j ON j.job_id = d.job_id
+INNER JOIN {{schema}}.checkpoints cp
+    ON cp.job_id = d.job_id AND cp.checkpoint_kind_code = 60 /* CheckpointKindCode.Firing */ AND cp.checkpoint_name = 'sys.firing'
 WHERE
-    cp.job_id = d.job_id
-    AND cp.checkpoint_kind_code = 60 /* CheckpointKindCode.Firing */
-    AND cp.checkpoint_name = 'sys.firing'
-    AND cp.checkpoint_status_code = 10 /* CheckpointStatusCode.Pending */
+    cp.checkpoint_status_code = 10 /* CheckpointStatusCode.Pending */
     AND (
         (j.job_kind_code = 20 /* JobKindCode.Permanent */ AND d.to_status IN (40 /* JobStatusCode.Idle */, 200 /* JobStatusCode.Failed */, 220 /* JobStatusCode.Cancelled */))
         OR (j.schedule_id IS NOT NULL AND d.to_status IN (100 /* JobStatusCode.Succeeded */, 200 /* JobStatusCode.Failed */, 220 /* JobStatusCode.Cancelled */))
     );
 
-/* A charged root that landed terminal releases its schedule's capacity, once per root, and wakes the schedule when it
+UPDATE {{schema}}.checkpoints AS cp
+SET
+    checkpoint_status_code = s.checkpoint_status_code,
+    modified_at_utc = (SELECT now_utc FROM temp._ces_done LIMIT 1),
+    version = cp.version + 1
+FROM temp._ces_settled s
+WHERE
+    cp.job_id = s.job_id
+    AND cp.checkpoint_kind_code = 60 /* CheckpointKindCode.Firing */
+    AND cp.checkpoint_name = 'sys.firing';
+
+/* A charged root releases its schedule's capacity for the envelope it settled above, and wakes the schedule when it
    waited for that capacity. */
 UPDATE {{schema}}.schedules_state AS st
 SET
@@ -180,13 +191,10 @@ SET
     modified_at_utc = (SELECT now_utc FROM temp._ces_done LIMIT 1),
     version = st.version + 1
 FROM (
-    SELECT j.schedule_id, COUNT(*) AS settled
-    FROM temp._ces_done d
-    INNER JOIN {{schema}}.jobs j ON j.job_id = d.job_id
-    WHERE
-        j.schedule_id IS NOT NULL
-        AND d.to_status IN (100 /* JobStatusCode.Succeeded */, 200 /* JobStatusCode.Failed */, 220 /* JobStatusCode.Cancelled */)
-    GROUP BY j.schedule_id
+    SELECT s.schedule_id, COUNT(*) AS settled
+    FROM temp._ces_settled s
+    WHERE s.schedule_id IS NOT NULL
+    GROUP BY s.schedule_id
 ) c
 WHERE st.schedule_id = c.schedule_id;
 

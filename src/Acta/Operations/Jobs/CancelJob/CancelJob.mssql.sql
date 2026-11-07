@@ -10,7 +10,7 @@ BEGIN TRY
     DECLARE
         @from_status TINYINT, @namespace_id INT,
         @lineage_root_job_id BIGINT, @definition_id INT, @tenant_id INT, @execution_number INT, @worker_id INT, @event_recording TINYINT,
-        @parent_job_id BIGINT, @retention_seconds INT, @version INT, @lane_id BIGINT;
+        @parent_job_id BIGINT, @retention_seconds INT, @version INT, @lane_id BIGINT, @settled INT;
 
     /* Lock order: the lane, then the job's rows (docs/sql-internals.md, "Lane lock
        order"). lane_id never changes, so the unlocked read is safe. */
@@ -113,7 +113,7 @@ BEGIN TRY
     WHERE job_id = @p_job_id;
     SET @version = @version + 1;
 
-    -- A cancelled slot's outstanding firing settles with it; a running attempt's completion then finds the row moved
+    -- A cancelled job's outstanding firing settles with it; a running attempt's completion then finds the row moved
     -- and settles nothing twice.
     UPDATE cp
     SET
@@ -126,11 +126,13 @@ BEGIN TRY
         AND cp.checkpoint_kind_code = 60 /* CheckpointKindCode.Firing */
         AND cp.checkpoint_name = 'sys.firing'
         AND cp.checkpoint_status_code = 10 /* CheckpointStatusCode.Pending */;
+    SET @settled = @@ROWCOUNT;
 
-    -- A cancelled charged root releases its schedule's capacity and wakes the schedule when it waited for it.
+    -- A charged root releases its schedule's capacity for the envelope settled above, and wakes the schedule when it
+    -- waited for it.
     UPDATE st
     SET
-        outstanding_count = st.outstanding_count - 1,
+        outstanding_count = st.outstanding_count - @settled,
         next_evaluation_at_utc = CASE
             WHEN st.evaluation_status_code = 20 /* ScheduleEvaluationStatusCode.WaitingForCapacity */ THEN @now
             ELSE st.next_evaluation_at_utc
@@ -143,7 +145,9 @@ BEGIN TRY
         version = st.version + 1
     FROM {{schema}}.schedules_state st WITH (FORCESEEK)
     INNER JOIN {{schema}}.jobs j WITH (FORCESEEK) ON j.schedule_id = st.schedule_id
-    WHERE j.job_id = @p_job_id;
+    WHERE
+        j.job_id = @p_job_id
+        AND @settled > 0;
 
     /* A cancelled head hands its lane to the next member; a cancelled Blocked follower leaves the
        head where it is, which the promotion reads for itself. Promotion runs under the lane lock and

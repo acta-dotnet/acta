@@ -422,10 +422,11 @@ the lock.
 - An enqueue batch first inserts the missing lane names, sorted by name, without locking existing
   rows, then locks the whole set in id order. A lane inserted by an uncommitted transaction is
   invisible to every other transaction, so no settle can contend for it.
-- The completion batch (`CompleteExecutions`) takes the schedule lock of each namespace it settles a permanent slot in
-  first ("Schedule lock"), then locks every lane its rows belong to, in id order, then the awaited signal slots, its own
-  `jobs_state` rows in `job_id` order, the settled slots' `sys.firing` checkpoints and `schedules_state` rows, and last
-  the parents' latches and `jobs_state` rows in parent id order, and promotes each settled lane once.
+- The completion batch (`CompleteExecutions`) takes the schedule lock of each namespace it settles a firing in, a
+  permanent slot's or a charged root's, first ("Schedule lock"), then locks every lane its rows belong to, in id order,
+  then the awaited signal slots, its own `jobs_state` rows in `job_id` order, the settled firings' `sys.firing`
+  checkpoints and `schedules_state` rows in the order "Schedule lock" gives, and last the parents' latches and
+  `jobs_state` rows in parent id order, and promotes each settled lane once.
 - The upsert retries when retention deleted the lane between the lookup and the lock: the lock finds
   no row, and the next pass inserts the lane again.
 - On SQL Server every lane lock is an `UPDLOCK` seek by `lane_id` on the clustered key. A lookup by name
@@ -491,16 +492,18 @@ Each namespace has one schedule lock, held until its transaction ends: `sp_getap
 - A statement that starts after the grant reads committed schedule config, because a read-committed-snapshot statement
   and a PostgreSQL read-committed statement take their snapshot when they start. The config joins therefore take no row
   locks, and the retirement and orphan filters stay in every reader and writer.
-- Rows inside it still lock in order: the slot's `jobs_state` row, then its `sys.firing` checkpoint, then its
-  `schedules_state` rows, slots and schedules in id order. Admission, settlement, cancel, restart, resume, reclaim,
-  retire, and purge take them so. An admission plan is made without locks and applies only while the slot's version
-  and, for every schedule it read, the state version and the declaration version still hold, a member it left
-  unchanged included; a stale group replans on the next pass. A declaration change that moves no cursor (capacity,
-  misfire or expiry policy) bumps only the declaration version, so it still fails a plan read before it. A
-  per-occurrence admission locks the schedule's state row, inserts the root and its envelope after it, and applies
-  only while that state version holds, which every settlement bumps. On PostgreSQL, registration
-  locks its slots' `jobs_state` rows in key order, because a completion that settles a child locks its slot parent's
-  row without the schedule lock.
+- Rows inside it still lock in order: the job's `jobs_state` row first, then its `sys.firing` checkpoint and its
+  `schedules_state` rows, slots and schedules in id order. Cancel, reclaim, retire, purge, and a charged root's
+  settlement write the checkpoint before the `schedules_state` rows; admission, restart, and a slot's settlement take
+  the `schedules_state` rows before the checkpoint, and resume writes no checkpoint. The two orders cannot deadlock,
+  because every writer of a job's `sys.firing` checkpoint already holds that job's `jobs_state` row. An admission plan
+  is made without locks and applies only while the slot's version and, for every schedule it read, the state version
+  and the declaration version still hold, a member it left unchanged included; a stale group replans on the next pass.
+  A declaration change that moves no cursor (capacity, misfire or expiry policy) bumps only the declaration version, so
+  it still fails a plan read before it. A per-occurrence admission locks the schedule's state row, inserts the root and
+  its envelope after it, and applies only while that state version holds, which every settlement bumps. On PostgreSQL,
+  registration locks its slots' `jobs_state` rows in key order, because a completion that settles a child locks its
+  slot parent's row without the schedule lock.
 - A PostgreSQL statement that updates one `schedules_state` row twice keeps only one of the updates, so the reclaim
   and retire routines fold the capacity a charged root releases, the wake, and the policy's park into one write per
   row.

@@ -115,7 +115,7 @@ WHERE
     AND (@p_expected_version IS NULL OR version = @p_expected_version)
     AND job_status_code IN (40 /* JobStatusCode.Idle */, 30 /* JobStatusCode.Paused */, 20 /* JobStatusCode.Suspended */, 10 /* JobStatusCode.Ready */, 15 /* JobStatusCode.Blocked */, 50 /* JobStatusCode.Executing */);
 
--- A cancelled slot's outstanding firing settles with it; a running attempt's completion then finds the row moved and
+-- A cancelled job's outstanding firing settles with it; a running attempt's completion then finds the row moved and
 -- settles nothing twice.
 UPDATE {{schema}}.checkpoints
 SET
@@ -135,10 +135,11 @@ WHERE
             AND s.from_status IN (40 /* JobStatusCode.Idle */, 30 /* JobStatusCode.Paused */, 20 /* JobStatusCode.Suspended */, 10 /* JobStatusCode.Ready */, 15 /* JobStatusCode.Blocked */, 50 /* JobStatusCode.Executing */)
     );
 
--- A cancelled charged root releases its schedule's capacity and wakes the schedule when it waited for it.
+-- A charged root releases its schedule's capacity for the envelope the update above settled, which changes() counts,
+-- and wakes the schedule when it waited for it.
 UPDATE {{schema}}.schedules_state
 SET
-    outstanding_count = outstanding_count - 1,
+    outstanding_count = outstanding_count - changes(),
     next_evaluation_at_utc = CASE
         WHEN evaluation_status_code = 20 /* ScheduleEvaluationStatusCode.WaitingForCapacity */ THEN {{now}}
         ELSE next_evaluation_at_utc
@@ -151,13 +152,7 @@ SET
     version = version + 1
 WHERE
     schedule_id = (SELECT j.schedule_id FROM {{schema}}.jobs j WHERE j.job_id = @p_job_id)
-    AND EXISTS (
-        SELECT 1
-        FROM temp._cancel_job s
-        WHERE
-            (@p_expected_version IS NULL OR s.from_version = @p_expected_version)
-            AND s.from_status IN (40 /* JobStatusCode.Idle */, 30 /* JobStatusCode.Paused */, 20 /* JobStatusCode.Suspended */, 10 /* JobStatusCode.Ready */, 15 /* JobStatusCode.Blocked */, 50 /* JobStatusCode.Executing */)
-    );
+    AND changes() > 0;
 
 -- A cancelled head hands its lane to the next member; a cancelled Blocked follower leaves the head where
 -- it is, which the promotion reads for itself. A restarted member can wait Blocked below a running one,
