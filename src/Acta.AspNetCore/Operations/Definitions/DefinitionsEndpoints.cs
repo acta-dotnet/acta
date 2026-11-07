@@ -74,7 +74,8 @@ internal static class DefinitionsEndpoints
                 call.Operations.Definitions.UpdateOverridesAsync(
                     key.Namespace,
                     key.Name,
-                    call.Body!.ExpectedVersion,
+                    call.Body!.ExpectedVersion
+                        ?? throw new InvalidControlException("Invalid definition overrides.", "expectedVersion is required."),
                     call.Body.Overrides ?? new DefinitionPolicyOverrides(),
                     call.ReasonMessage,
                     call.Actor,
@@ -93,7 +94,7 @@ internal static class DefinitionsEndpoints
                 call.Operations.Definitions.RetireAsync(
                     key.Namespace,
                     key.Name,
-                    call.Body!.ExpectedVersion,
+                    call.Body!.ExpectedVersion ?? throw new InvalidControlException("Invalid request.", "expectedVersion is required."),
                     call.ReasonMessage,
                     call.Actor,
                     call.Ct

@@ -538,8 +538,8 @@ public sealed partial class OpenApiContractTests
                 "definition",
                 HttpMethod.Post,
                 "calendars/billing/holidays/drafts",
-                """{"role":"occurrence"}""",
-                """{"role":"occurrence","definition":{"kind":"dates"}}"""
+                """{"role":"occurrence","expectedLatestVersion":0}""",
+                """{"role":"occurrence","definition":{"kind":"dates"},"expectedLatestVersion":0}"""
             ),
             new(
                 "RegisterTenantRequest",
@@ -576,6 +576,54 @@ public sealed partial class OpenApiContractTests
                 """{"description":"d"}""",
                 """{"description":"d","expectedVersion":0}"""
             ),
+            new(
+                "UpdateDefinitionOverridesRequest",
+                "expectedVersion",
+                HttpMethod.Patch,
+                "definitions/billing/send-invoice",
+                """{"overrides":{}}""",
+                """{"overrides":{},"expectedVersion":0}"""
+            ),
+            new(
+                "RetireDefinitionRequest",
+                "expectedVersion",
+                HttpMethod.Post,
+                "definitions/billing/send-invoice/retire",
+                "{}",
+                """{"expectedVersion":0}"""
+            ),
+            new(
+                "SaveCalendarDraftRequest",
+                "expectedLatestVersion",
+                HttpMethod.Post,
+                "calendars/billing/holidays/drafts",
+                """{"role":"occurrence","definition":{"kind":"dates"}}""",
+                """{"role":"occurrence","definition":{"kind":"dates"},"expectedLatestVersion":0}"""
+            ),
+            new(
+                "PublishCalendarRequest",
+                "expectedCurrentVersion",
+                HttpMethod.Post,
+                "calendars/billing/holidays/publish",
+                """{"candidateVersion":1}""",
+                """{"candidateVersion":1,"expectedCurrentVersion":0}"""
+            ),
+            new(
+                "PublishCalendarRequest",
+                "candidateVersion",
+                HttpMethod.Post,
+                "calendars/billing/holidays/publish",
+                """{"expectedCurrentVersion":0}""",
+                """{"candidateVersion":1,"expectedCurrentVersion":0}"""
+            ),
+            new(
+                "ArchiveCalendarRequest",
+                "expectedCurrentVersion",
+                HttpMethod.Post,
+                "calendars/billing/holidays/archive",
+                "{}",
+                """{"expectedCurrentVersion":1}"""
+            ),
         ];
         RequiredCase[] byOperation =
         [
@@ -592,16 +640,8 @@ public sealed partial class OpenApiContractTests
                 "role",
                 HttpMethod.Post,
                 $"calendars/{SqliteNamespace}/holidays/drafts",
-                """{"definition":{"kind":"dates"}}""",
-                """{"role":"occurrence","definition":{"kind":"dates"}}"""
-            ),
-            new(
-                "PublishCalendarRequest",
-                "candidateVersion",
-                HttpMethod.Post,
-                $"calendars/{SqliteNamespace}/holidays/publish",
-                "{}",
-                """{"candidateVersion":1}"""
+                """{"definition":{"kind":"dates"},"expectedLatestVersion":0}""",
+                """{"role":"occurrence","definition":{"kind":"dates"},"expectedLatestVersion":0}"""
             ),
         ];
 
@@ -629,6 +669,26 @@ public sealed partial class OpenApiContractTests
         Assert.Equal(["priority"], Required(schemas["ReprioritizeJobRequest"]!));
     }
 
+    /// <summary>
+    /// A definition nobody has edited is at version 0, its first real version, so an overrides update or a retire that
+    /// leaves the version out is refused rather than matching it, and one that sends the version applies.
+    /// </summary>
+    [Fact]
+    public async Task An_omitted_expected_version_never_matches_a_definition()
+    {
+        var answers = new List<HttpStatusCode>();
+        await WithSqliteHostAsync(async client =>
+        {
+            var definition = $"definitions/{SqliteNamespace}/add-numbers";
+            answers.Add(await SendControlAsync(client, HttpMethod.Patch, definition, """{"overrides":{}}"""));
+            answers.Add(await SendControlAsync(client, HttpMethod.Patch, definition, """{"overrides":{},"expectedVersion":0}"""));
+            answers.Add(await SendControlAsync(client, HttpMethod.Post, definition + "/retire", "{}"));
+            answers.Add(await SendControlAsync(client, HttpMethod.Post, definition + "/retire", """{"expectedVersion":1}"""));
+        });
+
+        Assert.Equal([HttpStatusCode.BadRequest, HttpStatusCode.OK, HttpStatusCode.BadRequest, HttpStatusCode.OK], answers);
+    }
+
     private const string SqliteNamespace = "openapi-probe";
 
     private const string Tag = """{"name":"env","value":"prod"}""";
@@ -636,16 +696,21 @@ public sealed partial class OpenApiContractTests
     /// <summary>One required member: a body without it, and the same body with it.</summary>
     private sealed record RequiredCase(string Schema, string Member, HttpMethod Method, string Path, string Absent, string Present);
 
-    // Sends each case's body without its member, then with it, as confirmed controls: the first must answer 400 and the
-    // second anything else, so the member and nothing beside it is what the route refuses.
+    // Sends each case's body without its member, then with it, as confirmed controls: the first must answer a 400 naming
+    // the member and the second anything else, so the member and nothing beside it is what the route refuses.
     private static async Task AssertRefusedAsync(HttpClient client, RequiredCase[] cases, List<string> refusals)
     {
         foreach (var (schema, member, method, path, absent, present) in cases)
         {
-            var without = await SendControlAsync(client, method, path, absent);
-            if (without != HttpStatusCode.BadRequest)
+            using var without = await SendControlRequestAsync(client, method, path, absent);
+            var detail =
+                JsonNode
+                    .Parse(await without.Content.ReadAsStringAsync(TestContext.Current.CancellationToken))
+                    ?["detail"]?.GetValue<string>()
+                ?? "";
+            if (without.StatusCode != HttpStatusCode.BadRequest || !detail.Contains(member, StringComparison.OrdinalIgnoreCase))
             {
-                refusals.Add($"{schema}.{member}: {method} {path} without it answered {without}.");
+                refusals.Add($"{schema}.{member}: {method} {path} without it answered {(int)without.StatusCode} ({detail}).");
             }
             if (await SendControlAsync(client, method, path, present) == HttpStatusCode.BadRequest)
             {
@@ -656,12 +721,18 @@ public sealed partial class OpenApiContractTests
 
     private static async Task<HttpStatusCode> SendControlAsync(HttpClient client, HttpMethod method, string path, string body)
     {
+        using var response = await SendControlRequestAsync(client, method, path, body);
+        return response.StatusCode;
+    }
+
+    private static async Task<HttpResponseMessage> SendControlRequestAsync(HttpClient client, HttpMethod method, string path, string body)
+    {
         using var request = new HttpRequestMessage(method, "/acta/api/v1/" + path)
         {
             Content = new StringContent(body, Encoding.UTF8, "application/json"),
         };
         request.Headers.Add("X-Acta-Control", "true");
-        return (await client.SendAsync(request, TestContext.Current.CancellationToken)).StatusCode;
+        return await client.SendAsync(request, TestContext.Current.CancellationToken);
     }
 
     // A real Acta over a throwaway SQLite file, for what only an operation refuses: the fakes accept anything.

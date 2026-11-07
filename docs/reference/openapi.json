@@ -8718,6 +8718,9 @@
         ]
       },
       "ArchiveCalendarRequest": {
+        "required": [
+          "expectedCurrentVersion"
+        ],
         "type": "object",
         "properties": {
           "expectedCurrentVersion": {
@@ -13277,7 +13280,8 @@
       },
       "PublishCalendarRequest": {
         "required": [
-          "candidateVersion"
+          "candidateVersion",
+          "expectedCurrentVersion"
         ],
         "type": "object",
         "properties": {
@@ -13880,6 +13884,9 @@
         "description": "What resuming a tenant did, and the tenant's version after the attempt."
       },
       "RetireDefinitionRequest": {
+        "required": [
+          "expectedVersion"
+        ],
         "type": "object",
         "properties": {
           "expectedVersion": {
@@ -13918,7 +13925,8 @@
       "SaveCalendarDraftRequest": {
         "required": [
           "role",
-          "definition"
+          "definition",
+          "expectedLatestVersion"
         ],
         "type": "object",
         "properties": {
@@ -14275,6 +14283,9 @@
         "description": "What firing a schedule now did, and the schedule's state after the attempt."
       },
       "UpdateDefinitionOverridesRequest": {
+        "required": [
+          "expectedVersion"
+        ],
         "type": "object",
         "properties": {
           "expectedVersion": {

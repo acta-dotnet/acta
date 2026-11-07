@@ -157,7 +157,8 @@ internal static class CalendarsEndpoints
                     call.Body.Definition.ValueKind == JsonValueKind.Object
                         ? call.Body.Definition.GetRawText()
                         : throw new InvalidControlException("Invalid calendar request.", "definition must be a JSON object."),
-                    call.Body.ExpectedLatestVersion,
+                    call.Body.ExpectedLatestVersion
+                        ?? throw new InvalidControlException("Invalid calendar request.", "expectedLatestVersion is required."),
                     call.ReasonMessage,
                     call.Actor,
                     call.Ct
@@ -175,8 +176,10 @@ internal static class CalendarsEndpoints
             static (call, calendar) =>
                 call.Operations.Calendars.PublishAsync(
                     calendar,
-                    call.Body!.ExpectedCurrentVersion,
-                    call.Body.CandidateVersion,
+                    call.Body!.ExpectedCurrentVersion
+                        ?? throw new InvalidControlException("Invalid calendar request.", "expectedCurrentVersion is required."),
+                    call.Body.CandidateVersion
+                        ?? throw new InvalidControlException("Invalid calendar request.", "candidateVersion is required."),
                     call.Body.OverdueDecision,
                     call.ReasonMessage,
                     call.Actor,
@@ -195,7 +198,8 @@ internal static class CalendarsEndpoints
             static (call, calendar) =>
                 call.Operations.Calendars.ArchiveAsync(
                     calendar,
-                    call.Body!.ExpectedCurrentVersion,
+                    call.Body!.ExpectedCurrentVersion
+                        ?? throw new InvalidControlException("Invalid calendar request.", "expectedCurrentVersion is required."),
                     call.ReasonMessage,
                     call.Actor,
                     call.Ct

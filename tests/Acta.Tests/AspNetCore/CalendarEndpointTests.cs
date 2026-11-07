@@ -407,7 +407,15 @@ public sealed class CalendarEndpointTests
         var ct = TestContext.Current.CancellationToken;
 
         var response = await client.SendAsync(
-            Post("/billing/rejected/drafts", new { role = "availability", definition = new { kind = "weekly-availability" } }),
+            Post(
+                "/billing/rejected/drafts",
+                new
+                {
+                    role = "availability",
+                    definition = new { kind = "weekly-availability" },
+                    expectedLatestVersion = 0,
+                }
+            ),
             ct
         );
         var body = await response.Content.ReadAsStringAsync(ct);

@@ -1,11 +1,11 @@
 namespace Acta.AspNetCore;
 
 /// <summary>
-/// Body of <c>PATCH /definitions/{jobNamespace}/{jobName}</c>: the <c>ExpectedVersion</c> the operator last read and the
-/// full override set to apply, where a null field clears that override.
+/// Body of <c>PATCH /definitions/{jobNamespace}/{jobName}</c>: the <c>ExpectedVersion</c> the operator last read, required,
+/// and the full override set to apply, where a null field clears that override.
 /// </summary>
 internal sealed record UpdateDefinitionOverridesRequest(
-    int ExpectedVersion = 0,
+    int? ExpectedVersion = null,
     DefinitionPolicyOverrides? Overrides = null,
     string? ReasonMessage = null
 ) : IControlRequest;

@@ -48,8 +48,11 @@ internal static partial class ActaOpenApiDocument
     {
         ["EnqueueJobRequest"] = ["jobNamespace", "jobName"],
         ["TagInput"] = ["name"],
-        ["SaveCalendarDraftRequest"] = ["role", "definition"],
-        ["PublishCalendarRequest"] = ["candidateVersion"],
+        ["SaveCalendarDraftRequest"] = ["role", "definition", "expectedLatestVersion"],
+        ["PublishCalendarRequest"] = ["candidateVersion", "expectedCurrentVersion"],
+        ["ArchiveCalendarRequest"] = ["expectedCurrentVersion"],
+        ["UpdateDefinitionOverridesRequest"] = ["expectedVersion"],
+        ["RetireDefinitionRequest"] = ["expectedVersion"],
         ["RegisterTenantRequest"] = ["tenantName"],
         ["UpsertJobTagRequest"] = ["name"],
         ["UpsertNamespaceTagRequest"] = ["name"],
