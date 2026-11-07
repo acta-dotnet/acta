@@ -1,7 +1,7 @@
 <script lang="ts">
   import { createQuery } from '@tanstack/svelte-query';
   import { api, enqueueJob, getDefinitionInputTemplate, getJobInputJson, type JobPayloadView, type Paged } from '../api.ts';
-  import { capabilitiesQuery, can, Permission, keys, namespaceNamesQuery } from '../query.ts';
+  import { capabilitiesQuery, can, ENABLE_CONTROLS_HINT, Permission, keys, namespaceNamesQuery } from '../query.ts';
   import { hashParams } from '../router.ts';
   import { cloneInputState, enqueueInputFields, inputContractLabel, templateSeed } from './enqueueTemplate.ts';
   import { checkKey, keyHint } from './enqueueKeys.ts';
@@ -210,7 +210,7 @@
       <p class="dim">
         {capabilities.data?.controlsEnabled === true
           ? 'Enqueueing a job needs the acta.enqueue permission.'
-          : 'Enqueue is a control action and is disabled on this host.'}
+          : 'Enqueue is a control action and is disabled on this host. ' + ENABLE_CONTROLS_HINT}
       </p>
     </div>
   {:else}

@@ -1,7 +1,7 @@
 <script lang="ts">
   import { createQuery } from '@tanstack/svelte-query';
   import { useControlMutation } from '../lib/useControlMutation.ts';
-  import { capabilitiesQuery, can, Permission } from '../query.ts';
+  import { capabilitiesQuery, can, ENABLE_CONTROLS_HINT, Permission } from '../query.ts';
   import type { JobControlResponse } from '../api.ts';
   import { jobControlMessage } from '../lib/controlMessages.ts';
   import { RawJson } from '../lib/rawJson.ts';
@@ -78,7 +78,7 @@
       {:else if capabilities.data?.controlsEnabled === true}
         <span class="dim">Raising a signal needs the acta.control permission.</span>
       {:else}
-        <span class="dim">Signal controls are disabled on this host.</span>
+        <span class="dim">Signal controls are disabled on this host. {ENABLE_CONTROLS_HINT}</span>
       {/if}
     </div>
   {:else}

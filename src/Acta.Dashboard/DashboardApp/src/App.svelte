@@ -31,7 +31,7 @@
   import NotFound from './routes/NotFound.svelte';
   import { navigationGroups, navigationHref, routeMetadata, routes } from './routes.ts';
   import { QueryClientProvider, createQuery } from '@tanstack/svelte-query';
-  import { createAppQueryClient, capabilitiesQuery, canWriteAny, keys } from './query';
+  import { createAppQueryClient, capabilitiesQuery, canWriteAny, ENABLE_CONTROLS_HINT, keys } from './query';
 
   const queryClient = createAppQueryClient();
   // App renders the QueryClientProvider in its own markup, so it is not itself inside that context.
@@ -127,10 +127,10 @@
             class="mode-chip"
             role="status"
             aria-label={controlsOff
-              ? 'Read-only host: controls are disabled. Reads work everywhere; enable controls with EnableControls.'
+              ? 'Read-only host: controls are disabled. Reads work everywhere. ' + ENABLE_CONTROLS_HINT
               : 'Read-only: your sign-in holds no permission that changes anything. Reads work everywhere.'}
             title={controlsOff
-              ? 'Controls are disabled on this host. Reads work everywhere; enable controls with EnableControls.'
+              ? 'Controls are disabled on this host. Reads work everywhere. ' + ENABLE_CONTROLS_HINT
               : 'Your sign-in holds no permission that changes anything. Reads work everywhere.'}
           >
             <svg viewBox="0 0 12 12" aria-hidden="true"><rect x="2" y="5" width="8" height="5.5" rx="1" /><path d="M4 5V3.6a2 2 0 0 1 4 0V5" fill="none" /></svg>

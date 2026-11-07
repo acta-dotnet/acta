@@ -168,6 +168,7 @@ Not tagged yet.
 - On a host with one namespace, the dashboard's jobs list asked for a namespace scope before it filtered by job name or jumped to a deduplication key. Both now look in that namespace; with several, they still ask. A link with a job name and no scope listed every job while the Job name box still showed the name; the list now waits for the namespaces, then lists that job, shows why they could not be read, or asks for a scope.
 - The dashboard's job page showed an idle permanent job's next run as a dot. It now names the active schedule that fires it soonest and when, or says no schedule is set to fire it.
 - The dashboard's job page read a permanent job 28 executions in as "attempt 28" and "fails permanently at 15", as if it were near its last try. `MaxAttempts` is each firing's budget and the execution number counts every firing, so the page now says "28 executions" and "28 started across all firings" and that each firing gets 15 attempts.
+- Where the dashboard says controls are disabled on the host, on a job, a signal, a definition, the enqueue page, and the read-only mark, it now names the option that maps them: `EnableControls = true` in the `MapActa` options.
 
 ## 1.0.0-rc.8
 

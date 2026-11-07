@@ -71,6 +71,9 @@ export function can(capabilities: Capabilities | undefined, permission: Permissi
   return capabilities?.controlsEnabled === true && (capabilities.permissions ?? []).includes(permission);
 }
 
+// The option that maps the controls, named wherever the dashboard says they are off on this host.
+export const ENABLE_CONTROLS_HINT = 'Set EnableControls = true in the MapActa options to enable controls.';
+
 // Whether any control this dashboard offers is open to this caller: the read-only chip shows when none is.
 export function canWriteAny(capabilities: Capabilities | undefined): boolean {
   return [Permission.enqueue, Permission.control, Permission.admin].some((p) => can(capabilities, p));

@@ -1,7 +1,7 @@
 <script>
   import { createQuery } from '@tanstack/svelte-query';
   import { api, retireDefinition, updateDefinitionOverrides } from '../api';
-  import { capabilitiesQuery, can, keys, Permission } from '../query';
+  import { capabilitiesQuery, can, ENABLE_CONTROLS_HINT, keys, Permission } from '../query';
   import Page from '../components/Page.svelte';
   import Icon from '../components/Icon.svelte';
   import DataTable from '../components/DataTable.svelte';
@@ -240,7 +240,7 @@
             <p class="dim">
               {capabilities.data?.controlsEnabled
                 ? 'Changing overrides or retiring a definition needs the acta.admin permission.'
-                : 'Definition controls are disabled on this host.'}
+                : 'Definition controls are disabled on this host. ' + ENABLE_CONTROLS_HINT}
             </p>
           {/if}
           {#if message}<div class="control-message {messageKind}" role="status">{message}</div>{/if}
