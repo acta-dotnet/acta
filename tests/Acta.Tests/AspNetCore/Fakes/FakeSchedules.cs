@@ -2,8 +2,8 @@ namespace Acta.Tests.AspNetCore.Fakes;
 
 /// <summary>
 /// <see cref="ISchedules"/> staged by schedule name: "missing" reads as absent and "rejected" as a transition the
-/// schedule's state forbids; every other name applies to an active schedule at version 2 whose next occurrence is
-/// <see cref="NextOccurrence"/>, leaving it at version 3.
+/// schedule's state forbids; every other name reads as, and applies to, an active schedule at version 2 whose next
+/// occurrence is <see cref="NextOccurrence"/>, leaving it at version 3.
 /// </summary>
 internal sealed class FakeSchedules : ISchedules
 {
@@ -11,6 +11,7 @@ internal sealed class FakeSchedules : ISchedules
 
     public FakeSchedules()
     {
+        Get = static (schedule, _) => ValueTask.FromResult(schedule.ScheduleName == "missing" ? null : Found(schedule));
         Pause = static (schedule, untilUtc, _, _, _) =>
             ValueTask.FromResult(
                 Staged(schedule, static (action, status) => new PauseScheduleResponse(action, status, null, null, null))
@@ -34,6 +35,8 @@ internal sealed class FakeSchedules : ISchedules
     /// <summary>Applied triggers; a staged outcome records nothing.</summary>
     public List<(string ScheduleName, string? Note, string? Actor)> TriggerCalls { get; } = [];
 
+    public Func<ScheduleLookup, CancellationToken, ValueTask<GetScheduleResponse?>> Get { get; set; }
+
     public Func<ScheduleLookup, DateTime?, string?, string?, CancellationToken, ValueTask<PauseScheduleResponse>> Pause { get; set; }
 
     public Func<ScheduleLookup, string?, string?, CancellationToken, ValueTask<ResumeScheduleResponse>> Resume { get; set; }
@@ -43,6 +46,8 @@ internal sealed class FakeSchedules : ISchedules
     public Func<ListSchedulesQuery, CancellationToken, ValueTask<ListSchedulesResponse>> List { get; set; }
 
     public Func<ScheduleLookup, int, CancellationToken, ValueTask<PreviewScheduleResponse?>> Preview { get; set; }
+
+    ValueTask<GetScheduleResponse?> ISchedules.GetAsync(ScheduleLookup schedule, CancellationToken ct) => Get(schedule, ct);
 
     ValueTask<PauseScheduleResponse> ISchedules.PauseAsync(
         ScheduleLookup schedule,
@@ -70,6 +75,38 @@ internal sealed class FakeSchedules : ISchedules
 
     ValueTask<PreviewScheduleResponse?> ISchedules.PreviewAsync(ScheduleLookup schedule, int count, CancellationToken ct) =>
         Preview(schedule, count, ct);
+
+    /// <summary>The schedule a found path names: a daily cron on its definition's permanent slot, job 45.</summary>
+    private static GetScheduleResponse Found(ScheduleLookup schedule) =>
+        new(
+            ScheduleId: 3,
+            JobId: 45,
+            DefinitionId: 5,
+            JobNamespace: schedule.JobNamespace,
+            JobName: schedule.JobName,
+            ScheduleName: schedule.ScheduleName,
+            Origin: ScheduleOriginCode.Definition,
+            ExpressionKind: ScheduleExpressionKindCode.Cron,
+            Expression: "0 9 * * *",
+            TimeZoneId: "UTC",
+            MisfireStrategy: MisfireStrategyCode.Skip,
+            NextOccurrenceAtUtc: NextOccurrence,
+            NextEvaluationAtUtc: NextOccurrence,
+            EvaluationStatus: EvaluationStatusCode.Scheduled,
+            Status: ScheduleStatusCode.Active,
+            PausedUntilUtc: null,
+            CreatedAtUtc: NextOccurrence.AddDays(-1),
+            ModifiedAtUtc: NextOccurrence.AddDays(-1),
+            Version: 2,
+            JobRef: new JobRef(Guid.Parse("00000000-0000-0000-0000-000000000045")),
+            MaxOutstanding: 1,
+            OutstandingCount: 0,
+            FullBehavior: ScheduleFullBehaviorCode.Wait,
+            ScheduledDelivery: ScheduledDeliveryCode.Permanent,
+            ExpireAfterSeconds: null,
+            ExpireAction: null,
+            AvailabilityCalendarName: null
+        );
 
     /// <summary>The two staged outcomes every schedule verb shares; null means the verb applies, so each verb keeps its
     /// own applied shape.</summary>

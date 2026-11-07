@@ -2,6 +2,7 @@ namespace Acta;
 
 /// <summary>The Schedules operations: <see cref="ISchedules"/> for applications, plus the engine's calls.</summary>
 internal sealed class SchedulesOperations(
+    GetScheduleHandler getSchedule,
     PauseScheduleHandler pauseSchedule,
     ResumeScheduleHandler resumeSchedule,
     TriggerScheduleHandler triggerSchedule,
@@ -15,6 +16,9 @@ internal sealed class SchedulesOperations(
     AdmitScheduleFiringsHandler admitScheduleFirings
 ) : ISchedules
 {
+    public ValueTask<GetScheduleResponse?> GetAsync(ScheduleLookup schedule, CancellationToken ct = default) =>
+        getSchedule.HandleAsync(new GetScheduleQuery(schedule), ct);
+
     public ValueTask<PauseScheduleResponse> PauseAsync(
         ScheduleLookup schedule,
         DateTime? untilUtc = null,

@@ -4,7 +4,7 @@ using Microsoft.AspNetCore.Routing;
 namespace Acta.AspNetCore;
 
 /// <summary>
-/// The Schedules routes: the list, a schedule's preview, and pause, resume, and trigger. A schedule is addressed by its natural key, the namespace, job name, and schedule name.
+/// The Schedules routes: the list, one schedule, a schedule's preview, and pause, resume, and trigger. A schedule is addressed by its natural key, the namespace, job name, and schedule name.
 /// </summary>
 internal static class SchedulesEndpoints
 {
@@ -42,6 +42,14 @@ internal static class SchedulesEndpoints
                 .. QueryParameterDocExtensions.PagingCore,
                 .. QueryParameterDocExtensions.IncludeTotal,
             ]
+        );
+        reads.MapDetail(
+            "/schedules/{jobNamespace}/{jobName}/{scheduleName}",
+            new("getSchedule", ActaPermissions.Read),
+            "Read one schedule.",
+            "Schedule",
+            ActaApiJsonContext.Default.GetScheduleResponse,
+            static (http, call) => call.Operations.Schedules.GetAsync(Key(http), call.Ct)
         );
         reads
             .MapDetail(

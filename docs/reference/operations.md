@@ -176,6 +176,7 @@ One row per operation folder, `src/Acta/Operations/<Group>/<Operation>/`, and on
 | Operation | Facade | HTTP | CLI | SQL | Writes | Specs |
 | --- | --- | --- | --- | --- | --- | --- |
 | `AdmitScheduleFirings` | · | · | · | inline | `checkpoints`, `events`, `jobs`, `jobs_state`, `schedules`, `schedules_state` | `AdmitScheduleFiringsSpec` |
+| `GetSchedule` | `ISchedules.GetAsync` | `GET /schedules/{jobNamespace}/{jobName}/{scheduleName}` (`getSchedule`) | · | inline | · | `GetScheduleSpec` |
 | `GetScheduleHorizon` | · | · | · | inline | · | `GetScheduleHorizonSpec` |
 | `GetScheduleTarget` | · | · | · | inline | · | `GetScheduleTargetSpec` |
 | `ListDueSchedules` | · | · | · | inline | · | `ListDueSchedulesSpec` |

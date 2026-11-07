@@ -911,6 +911,45 @@ public sealed class DashboardApiEndpointTests
     }
 
     [Fact]
+    public async Task Schedule_point_read_serializes_the_schedule_without_its_ids_or_404()
+    {
+        var (app, client) = await TestDashboardHost.StartAsync();
+        await using var _ = app;
+        var ct = TestContext.Current.CancellationToken;
+
+        var known = await client.GetAsync("/acta/api/v1/schedules/billing/send-invoice/daily", ct);
+        var missing = await client.GetAsync("/acta/api/v1/schedules/billing/send-invoice/missing", ct);
+        var body = await known.Content.ReadAsStringAsync(ct);
+
+        Assert.Equal(HttpStatusCode.OK, known.StatusCode);
+        Assert.Equal("no-store", known.Headers.CacheControl?.ToString());
+        Assert.Contains("\"jobNamespace\":\"billing\"", body);
+        Assert.Contains("\"jobName\":\"send-invoice\"", body);
+        Assert.Contains("\"scheduleName\":\"daily\"", body);
+        Assert.Contains("\"evaluationStatus\":\"scheduled\"", body);
+        Assert.Contains("\"jobRef\":\"job_00000000000000000000000000000045\"", body);
+        Assert.DoesNotContain("scheduleId", body, StringComparison.OrdinalIgnoreCase);
+        Assert.DoesNotContain("definitionId", body, StringComparison.OrdinalIgnoreCase);
+        Assert.DoesNotContain("\"jobId\"", body, StringComparison.OrdinalIgnoreCase);
+        Assert.Equal(HttpStatusCode.NotFound, missing.StatusCode);
+        Assert.Contains("Schedule not found.", await missing.Content.ReadAsStringAsync(ct), StringComparison.Ordinal);
+    }
+
+    [Theory]
+    [InlineData("bad!/send-invoice/daily")]
+    [InlineData("billing/send%20invoice/daily")]
+    [InlineData("billing/send-invoice/bad!")]
+    public async Task Schedule_point_read_with_a_malformed_segment_returns_400(string schedule)
+    {
+        var (app, client) = await TestDashboardHost.StartAsync();
+        await using var _ = app;
+
+        var response = await client.GetAsync($"/acta/api/v1/schedules/{schedule}", TestContext.Current.CancellationToken);
+
+        Assert.Equal(HttpStatusCode.BadRequest, response.StatusCode);
+    }
+
+    [Fact]
     public async Task Schedule_preview_returns_shape_or_404()
     {
         var (app, client) = await TestDashboardHost.StartAsync();

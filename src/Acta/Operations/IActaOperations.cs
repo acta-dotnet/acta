@@ -8,7 +8,7 @@ namespace Acta;
 /// </summary>
 public interface IActaOperations
 {
-    /// <summary>Schedules domain (pause/resume/list). See <see cref="ISchedules"/>.</summary>
+    /// <summary>Schedules domain (get/list/pause/resume/trigger/preview). See <see cref="ISchedules"/>.</summary>
     ISchedules Schedules { get; }
 
     /// <summary>Calendar catalog domain (list/get/save draft/archive). See <see cref="ICalendars"/>.</summary>

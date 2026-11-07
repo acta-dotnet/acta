@@ -21,6 +21,7 @@ namespace Acta.AspNetCore;
 [JsonSerializable(typeof(ListDefinitionsResponse))]
 [JsonSerializable(typeof(GetDefinitionResponse))]
 [JsonSerializable(typeof(ListSchedulesResponse))]
+[JsonSerializable(typeof(GetScheduleResponse))]
 [JsonSerializable(typeof(ListWorkersResponse))]
 [JsonSerializable(typeof(GetWorkerResponse))]
 [JsonSerializable(typeof(ListEventsResponse))]

@@ -22,7 +22,7 @@ internal static partial class ActaOpenApiDocument
         ["Outbox"] = "List the outbox relay's sources and a source's quarantined staging rows, and requeue or discard those rows.",
         ["Definitions"] =
             "List and read job definitions, their input templates and events, and update one's policy overrides, retire it, or tag it.",
-        ["Schedules"] = "List schedules, preview one's upcoming fire instants, and pause, resume, or trigger it.",
+        ["Schedules"] = "List and read schedules, preview one's upcoming fire instants, and pause, resume, or trigger it.",
         ["Calendars"] =
             "List and read calendar families, their versions and the schedules naming them, preview a version, and save, publish, or archive one.",
         ["Workers"] = "List and read the workers that run jobs.",

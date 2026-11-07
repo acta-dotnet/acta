@@ -1060,6 +1060,35 @@ sealed record Acta.GetOverviewResponse
     System.Int64 UnresolvedCriticalAlertCount { get;init; }
     System.Nullable<System.Int64> OldestReadyAgeSeconds { get;init; }
     System.Nullable<System.Int64> ScheduleLagSeconds { get;init; }
+sealed record Acta.GetScheduleResponse
+    .ctor(System.Int32 ScheduleId, System.Nullable<System.Int64> JobId, System.Int32 DefinitionId, System.String JobNamespace, System.String JobName, System.String ScheduleName, Acta.ScheduleOriginCode Origin, Acta.ScheduleExpressionKindCode ExpressionKind, System.String Expression, System.String TimeZoneId, Acta.MisfireStrategyCode MisfireStrategy, System.Nullable<System.DateTime> NextOccurrenceAtUtc, System.Nullable<System.DateTime> NextEvaluationAtUtc, Acta.EvaluationStatusCode EvaluationStatus, Acta.ScheduleStatusCode Status, System.Nullable<System.DateTime> PausedUntilUtc, System.DateTime CreatedAtUtc, System.DateTime ModifiedAtUtc, System.Int32 Version, System.Nullable<Acta.JobRef> JobRef, System.Int32 MaxOutstanding, System.Int32 OutstandingCount, Acta.ScheduleFullBehaviorCode FullBehavior, Acta.ScheduledDeliveryCode ScheduledDelivery, System.Nullable<System.Int32> ExpireAfterSeconds, System.Nullable<Acta.ScheduleExpireActionCode> ExpireAction, System.String AvailabilityCalendarName)
+    Acta.EvaluationStatusCode EvaluationStatus { get;init; }
+    Acta.MisfireStrategyCode MisfireStrategy { get;init; }
+    Acta.ScheduleExpressionKindCode ExpressionKind { get;init; }
+    Acta.ScheduleFullBehaviorCode FullBehavior { get;init; }
+    Acta.ScheduleOriginCode Origin { get;init; }
+    Acta.ScheduleStatusCode Status { get;init; }
+    Acta.ScheduledDeliveryCode ScheduledDelivery { get;init; }
+    System.DateTime CreatedAtUtc { get;init; }
+    System.DateTime ModifiedAtUtc { get;init; }
+    System.Int32 DefinitionId { get;init; }
+    System.Int32 MaxOutstanding { get;init; }
+    System.Int32 OutstandingCount { get;init; }
+    System.Int32 ScheduleId { get;init; }
+    System.Int32 Version { get;init; }
+    System.Nullable<Acta.JobRef> JobRef { get;init; }
+    System.Nullable<Acta.ScheduleExpireActionCode> ExpireAction { get;init; }
+    System.Nullable<System.DateTime> NextEvaluationAtUtc { get;init; }
+    System.Nullable<System.DateTime> NextOccurrenceAtUtc { get;init; }
+    System.Nullable<System.DateTime> PausedUntilUtc { get;init; }
+    System.Nullable<System.Int32> ExpireAfterSeconds { get;init; }
+    System.Nullable<System.Int64> JobId { get;init; }
+    System.String AvailabilityCalendarName { get;init; }
+    System.String Expression { get;init; }
+    System.String JobName { get;init; }
+    System.String JobNamespace { get;init; }
+    System.String ScheduleName { get;init; }
+    System.String TimeZoneId { get;init; }
 sealed record Acta.GetTenantResponse
     .ctor(System.Int32 TenantId, System.String TenantName, System.String DisplayName, System.String Description, Acta.TenantStatusCode Status, System.DateTime CreatedAtUtc, System.DateTime ModifiedAtUtc, System.Int32 Version)
     Acta.TenantStatusCode Status { get;init; }
@@ -1243,6 +1272,7 @@ interface Acta.IScheduleControlResponse : Acta.IControlResponse
     System.Nullable<System.DateTime> NextOccurrenceAtUtc { get; }
     System.Nullable<System.DateTime> PausedUntilUtc { get; }
 interface Acta.ISchedules
+    System.Threading.Tasks.ValueTask<Acta.GetScheduleResponse> GetAsync(Acta.ScheduleLookup schedule, System.Threading.CancellationToken ct = default)
     System.Threading.Tasks.ValueTask<Acta.ListSchedulesResponse> ListAsync(Acta.ListSchedulesQuery query, System.Threading.CancellationToken ct = default)
     System.Threading.Tasks.ValueTask<Acta.PauseScheduleResponse> PauseAsync(Acta.ScheduleLookup schedule, System.Nullable<System.DateTime> untilUtc = null, System.String reasonMessage = null, System.String actor = null, System.Threading.CancellationToken ct = default)
     System.Threading.Tasks.ValueTask<Acta.PreviewScheduleResponse> PreviewAsync(Acta.ScheduleLookup schedule, System.Int32 count = 10, System.Threading.CancellationToken ct = default)

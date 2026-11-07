@@ -1939,6 +1939,14 @@
   - A live schedule resolves with its id, its slot job, its definition, and the database clock
   - A schedule the slot does not carry, or a job that does not exist, resolves to null
 
+### GetSchedule reads a schedule by its path
+- **Contract:** GetSchedule returns the schedule a path names, member for member the schedules list's row for it, or null when the namespace, job, or schedule is absent.
+- **Guarantees:**
+  - A schedule reads member for member as the list's row for it
+  - The path is folded: padded, upper-cased names read the same schedule
+  - A schedule, job, or namespace that does not exist reads as null
+  - A name that is not dotted kebab is rejected before any read
+
 ### A reschedule of an idle permanent slot is a manual firing at the instant
 - **Contract:** RescheduleAsync fires an Idle slot, or a Paused one with no firing, at the instant unless its namespace is suspended, and a slot mid-firing keeps its firing.
 - **Guarantees:**
@@ -2587,6 +2595,7 @@
 | `GetOutboxSignal` | yes | yes | yes |
 | `GetOutboxTable` | yes | yes | yes |
 | `GetOverview` | yes | yes | yes |
+| `GetSchedule` | yes | yes | yes |
 | `GetScheduleFiring` | yes | yes | yes |
 | `GetScheduleHorizon` | yes | yes | yes |
 | `GetScheduleTarget` | yes | yes | yes |

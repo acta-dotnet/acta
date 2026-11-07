@@ -8790,6 +8790,141 @@
         "x-acta-permission": "acta.read"
       }
     },
+    "/v1/schedules/{jobNamespace}/{jobName}/{scheduleName}": {
+      "get": {
+        "tags": [
+          "Schedules"
+        ],
+        "summary": "Read one schedule.",
+        "description": "Needs the acta.read permission.",
+        "operationId": "getSchedule",
+        "parameters": [
+          {
+            "name": "jobNamespace",
+            "in": "path",
+            "description": "The namespace's name: the namespace itself, or the one that holds the route's definition, schedule, calendar, or outbox.",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "jobName",
+            "in": "path",
+            "description": "The job's name, which with jobNamespace names a definition.",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "scheduleName",
+            "in": "path",
+            "description": "The schedule's name within the definition that jobNamespace and jobName name.",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "The resource the route reads.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/GetScheduleResponse"
+                },
+                "examples": {
+                  "getSchedule": {
+                    "value": {
+                      "jobNamespace": "billing",
+                      "jobName": "send-invoice",
+                      "scheduleName": "morning-run",
+                      "origin": "definition",
+                      "expressionKind": "cron",
+                      "expression": "0 10 * * 1-5",
+                      "timeZoneId": "UTC",
+                      "misfireStrategy": "catch-up-once",
+                      "nextOccurrenceAtUtc": "2026-06-12T10:00:00Z",
+                      "nextEvaluationAtUtc": "2026-06-12T10:00:00Z",
+                      "evaluationStatus": "scheduled",
+                      "status": "active",
+                      "pausedUntilUtc": null,
+                      "createdAtUtc": "2026-06-12T06:00:00Z",
+                      "modifiedAtUtc": "2026-06-12T06:00:00Z",
+                      "version": 2,
+                      "jobRef": "job_00000000000000000000000000000045",
+                      "maxOutstanding": 1,
+                      "outstandingCount": 0,
+                      "fullBehavior": "wait",
+                      "scheduledDelivery": "permanent",
+                      "expireAfterSeconds": 3600,
+                      "expireAction": "discard",
+                      "availabilityCalendarName": "office-hours"
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "A path or query parameter is malformed or missing; the problem's detail names it.",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "The call carries no credential the host accepts."
+          },
+          "403": {
+            "description": "The call was refused before it ran: by the local-only guard, or because the caller lacks the operation's permission.",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "The target the path names, or one a filter names, does not exist.",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "The server failed unexpectedly; the problem document leaves the cause to the host's log.",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          },
+          "503": {
+            "description": "The database could not be reached or refused the call; retry later.",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          }
+        },
+        "x-acta-permission": "acta.read"
+      }
+    },
     "/v1/schedules/{jobNamespace}/{jobName}/{scheduleName}/preview": {
       "get": {
         "tags": [
@@ -12747,6 +12882,172 @@
         },
         "description": "Health counters for the ledger, or for one namespace when the request names one, computed on the database clock in one call. executingCount can exceed executorCapacity, because a finished job stays counted until its completion is written."
       },
+      "GetScheduleResponse": {
+        "required": [
+          "jobNamespace",
+          "jobName",
+          "scheduleName",
+          "origin",
+          "expressionKind",
+          "expression",
+          "timeZoneId",
+          "misfireStrategy",
+          "nextOccurrenceAtUtc",
+          "nextEvaluationAtUtc",
+          "evaluationStatus",
+          "status",
+          "pausedUntilUtc",
+          "createdAtUtc",
+          "modifiedAtUtc",
+          "version",
+          "jobRef",
+          "maxOutstanding",
+          "outstandingCount",
+          "fullBehavior",
+          "scheduledDelivery",
+          "expireAfterSeconds",
+          "expireAction",
+          "availabilityCalendarName"
+        ],
+        "type": "object",
+        "properties": {
+          "jobNamespace": {
+            "type": "string",
+            "description": "The namespace of the schedule's definition."
+          },
+          "jobName": {
+            "type": "string",
+            "description": "The name of the schedule's definition."
+          },
+          "scheduleName": {
+            "type": "string",
+            "description": "The schedule's name within its definition."
+          },
+          "origin": {
+            "description": "Whether the schedule is declared by the definition's code or was added by an operator.",
+            "$ref": "#/components/schemas/ScheduleOriginCode"
+          },
+          "expressionKind": {
+            "description": "Whether expression is a cron expression, an interval, or a calendar's name.",
+            "$ref": "#/components/schemas/ScheduleExpressionKindCode"
+          },
+          "expression": {
+            "type": "string",
+            "description": "The cron expression, the interval such as 5m or PT5M, or the calendar's name."
+          },
+          "timeZoneId": {
+            "type": "string",
+            "description": "The IANA time zone the schedule's expression is evaluated in."
+          },
+          "misfireStrategy": {
+            "description": "What the schedule does about occurrences it missed during downtime.",
+            "$ref": "#/components/schemas/MisfireStrategyCode"
+          },
+          "nextOccurrenceAtUtc": {
+            "type": [
+              "null",
+              "string"
+            ],
+            "description": "The schedule's next occurrence, in UTC; null when it has none.",
+            "format": "date-time"
+          },
+          "nextEvaluationAtUtc": {
+            "type": [
+              "null",
+              "string"
+            ],
+            "description": "When the engine next looks at the schedule, in UTC; null while nothing timed ends its wait.",
+            "format": "date-time"
+          },
+          "evaluationStatus": {
+            "description": "Why the next evaluation is when it is.",
+            "$ref": "#/components/schemas/EvaluationStatusCode"
+          },
+          "status": {
+            "description": "The schedule's status.",
+            "$ref": "#/components/schemas/ScheduleStatusCode"
+          },
+          "pausedUntilUtc": {
+            "type": [
+              "null",
+              "string"
+            ],
+            "description": "When the schedule's pause ends, in UTC; null when it is not paused or is paused until resumed.",
+            "format": "date-time"
+          },
+          "createdAtUtc": {
+            "type": "string",
+            "description": "When the row was created, in UTC.",
+            "format": "date-time"
+          },
+          "modifiedAtUtc": {
+            "type": "string",
+            "description": "When the row last changed, in UTC.",
+            "format": "date-time"
+          },
+          "version": {
+            "type": "integer",
+            "description": "The schedule's version, which every change to it increments.",
+            "format": "int32"
+          },
+          "jobRef": {
+            "oneOf": [
+              {
+                "type": "null"
+              },
+              {
+                "$ref": "#/components/schemas/JobRef"
+              }
+            ],
+            "description": "The ref of the permanent slot job the schedule fires; null for a schedule that enqueues a new job for each occurrence."
+          },
+          "maxOutstanding": {
+            "type": "integer",
+            "description": "How many admitted occurrences may be unsettled at once.",
+            "format": "int32"
+          },
+          "outstandingCount": {
+            "type": "integer",
+            "description": "How many admitted occurrences are unsettled now.",
+            "format": "int32"
+          },
+          "fullBehavior": {
+            "description": "What a due occurrence does while the schedule is at maxOutstanding: wait or drop.",
+            "$ref": "#/components/schemas/ScheduleFullBehaviorCode"
+          },
+          "scheduledDelivery": {
+            "description": "How the schedule delivers work: by firing the definition's permanent slot job, or by enqueueing a new job for each occurrence.",
+            "$ref": "#/components/schemas/ScheduledDeliveryCode"
+          },
+          "expireAfterSeconds": {
+            "type": [
+              "null",
+              "integer"
+            ],
+            "description": "How old an occurrence may get before it expires unadmitted, in seconds; null means it never expires.",
+            "format": "int32"
+          },
+          "expireAction": {
+            "oneOf": [
+              {
+                "type": "null"
+              },
+              {
+                "$ref": "#/components/schemas/ScheduleExpireActionCode"
+              }
+            ],
+            "description": "What an expired occurrence does: it is discarded, or the schedule pauses. Null when occurrences never expire."
+          },
+          "availabilityCalendarName": {
+            "type": [
+              "null",
+              "string"
+            ],
+            "description": "The availability calendar the schedule observes; null when it observes none."
+          }
+        },
+        "description": "One schedule: what it fires and when, how it behaves when occurrences pile up or go stale, and where the engine stands with it. A schedule is addressed by its namespace, job name, and schedule name."
+      },
       "GetTenantResponse": {
         "required": [
           "tenantName",
@@ -16589,7 +16890,7 @@
     },
     {
       "name": "Schedules",
-      "description": "List schedules, preview one's upcoming fire instants, and pause, resume, or trigger it."
+      "description": "List and read schedules, preview one's upcoming fire instants, and pause, resume, or trigger it."
     },
     {
       "name": "Calendars",

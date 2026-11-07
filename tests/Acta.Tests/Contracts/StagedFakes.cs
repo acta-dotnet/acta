@@ -62,6 +62,7 @@ internal static class StagedFakes
             ValueTask.FromResult(new ListWorkersResponse([Worker], null, false, 50, query.IncludeTotal ? 1L : null));
         fakes.Schedules.List = (query, _) =>
             ValueTask.FromResult(new ListSchedulesResponse([Schedule], null, false, 50, query.IncludeTotal ? 1L : null));
+        fakes.Schedules.Get = (schedule, _) => ValueTask.FromResult(schedule.ScheduleName == Schedule.ScheduleName ? ScheduleDetail : null);
         fakes.Schedules.Preview = (schedule, _, _) =>
             ValueTask.FromResult<PreviewScheduleResponse?>(
                 schedule.ScheduleName == Schedule.ScheduleName
@@ -333,5 +334,36 @@ internal static class StagedFakes
         ExpireAfterSeconds: 3600,
         ExpireAction: ScheduleExpireActionCode.Discard,
         AvailabilityCalendarName: "office-hours"
+    );
+
+    /// <summary>The listed schedule as its point read answers it, member for member.</summary>
+    private static readonly GetScheduleResponse ScheduleDetail = new(
+        Schedule.ScheduleId,
+        Schedule.JobId,
+        Schedule.DefinitionId,
+        Schedule.JobNamespace,
+        Schedule.JobName,
+        Schedule.ScheduleName,
+        Schedule.Origin,
+        Schedule.ExpressionKind,
+        Schedule.Expression,
+        Schedule.TimeZoneId,
+        Schedule.MisfireStrategy,
+        Schedule.NextOccurrenceAtUtc,
+        Schedule.NextEvaluationAtUtc,
+        Schedule.EvaluationStatus,
+        Schedule.Status,
+        Schedule.PausedUntilUtc,
+        Schedule.CreatedAtUtc,
+        Schedule.ModifiedAtUtc,
+        Schedule.Version,
+        Schedule.JobRef,
+        Schedule.MaxOutstanding,
+        Schedule.OutstandingCount,
+        Schedule.FullBehavior,
+        Schedule.ScheduledDelivery,
+        Schedule.ExpireAfterSeconds,
+        Schedule.ExpireAction,
+        Schedule.AvailabilityCalendarName
     );
 }

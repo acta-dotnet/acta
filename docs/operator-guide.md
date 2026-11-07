@@ -197,7 +197,9 @@ current version instead of overwriting someone else's decision.
 Address a schedule by its path: the namespace, the scheduled job's name, and the schedule's name. The
 slot job carries no deduplication key; `GET /schedules` and the dashboard carry its ref. A schedule of a
 `PerOccurrence` definition has no slot: trigger-now admits a fresh root charged to the schedule, and is
-rejected while the schedule is at `MaxOutstanding`.
+rejected while the schedule is at `MaxOutstanding`. `GET /schedules/{jobNamespace}/{jobName}/{scheduleName}`
+reads the schedule a path names, in any status, with the members its `GET /schedules` row carries, and
+answers 404 when the path names none (`ISchedules.GetAsync` in code).
 
 ```csharp
 var nightly = new ScheduleLookup("billing", "reconcile-ledger", "nightly");

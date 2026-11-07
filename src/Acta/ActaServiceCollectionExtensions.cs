@@ -177,6 +177,7 @@ public static class ActaServiceCollectionExtensions
         services.TryAddSingleton<ListDueSchedulesHandler>();
         services.TryAddSingleton<GetScheduleHorizonHandler>();
         services.TryAddSingleton<AdmitScheduleFiringsHandler>();
+        services.TryAddSingleton<GetScheduleHandler>();
         services.TryAddSingleton<ListSchedulesHandler>();
         services.TryAddSingleton<PauseScheduleHandler>();
         services.TryAddSingleton<PreviewScheduleHandler>();
