@@ -72,7 +72,8 @@
 
 <div class="panel">
   <h2>Outbox relays</h2>
-  <DataTable ledger>
+  <!-- The shared four-column grid has no width for a fifth column, so with the Actions column the table sizes itself. -->
+  <DataTable ledger={!canControlNow}>
     <caption class="sr-only">Outbox relay sources</caption>
     <thead>
       <tr>
@@ -89,7 +90,7 @@
           <td>{source.jobNamespace}</td>
           <td>{source.backlog === null ? '-' : displayFormatter.number(source.backlog)}</td>
           <td>{source.quarantineTotal === null ? '-' : displayFormatter.number(source.quarantineTotal)}</td>
-          <td class="mono tick">{source.lastTickSummary ?? 'no successful tick yet'}</td>
+          <td class="mono tick" title={source.lastTickSummary ?? undefined}>{source.lastTickSummary ?? 'no successful tick yet'}</td>
           {#if canControlNow}
             <td class="actions-col">
               <!-- Both verbs target every quarantined row of the source (the API also takes explicit
@@ -139,10 +140,13 @@
 {/if}
 
 <style>
+  /* The one column that gives way: it takes what the others leave and truncates, so the Actions column stays inside
+     the panel at any width. max-width: 0 is what lets a nowrap cell shrink in a table that sizes itself. */
   .tick {
     font-size: var(--text-sm);
     color: var(--muted);
-    max-width: 420px;
+    width: 100%;
+    max-width: 0;
     overflow: hidden;
     text-overflow: ellipsis;
     white-space: nowrap;

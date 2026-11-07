@@ -109,6 +109,8 @@ async function mockDashboard(
     onRestart?: () => void;
     onPublish?: (body: unknown) => void;
     onEnqueue?: (body: unknown) => void;
+    // Set, the Overview lists one outbox source with quarantined rows, and its discard reports the body it sent.
+    onDiscard?: (body: unknown) => void;
   }
 ): Promise<void> {
   await page.route('**/api/v1/**', async (route: Route) => {
@@ -145,7 +147,21 @@ async function mockDashboard(
     }
     // The Overview's outbox sources read had no fixture, so every test that lands on the Overview
     // failed at its first assertion rather than on anything it was written to check.
-    if (path === 'outbox/sources') return json(paged([]));
+    if (path === 'outbox/sources') {
+      const source = {
+        jobNamespace: 'billing',
+        slotJobRef: jobRef,
+        lastTickSummary: 'claimed=0 relayed=0 dedup=0 quarantined=3 backlog=0 quarantine=3 lag=0s since the last successful relay pass',
+        backlog: 0,
+        quarantineTotal: 3,
+        isLocal: true
+      };
+      return json(paged(options.onDiscard ? [source] : []));
+    }
+    if (path === 'outbox/billing/discard' && request.method() === 'POST') {
+      options.onDiscard?.(request.postDataJSON());
+      return json({ action: 'accepted', pendingSinceUtc: null }, 202);
+    }
     if (path === 'alerts') return json(paged([]));
     if (path === 'workers') return json(paged([]));
     if (path === 'schedules') return json(paged([]));
@@ -328,6 +344,31 @@ test('safe single-job control sends exactly one restart request', async ({ page 
 
   await expect(page.getByText('Restart applied.')).toBeVisible();
   expect(restartRequests).toBe(1);
+});
+
+test('the outbox panel keeps its actions inside the panel, and a discard says all', async ({ page }) => {
+  const discards: unknown[] = [];
+  await mockDashboard(page, { controls: true, onDiscard: (body) => discards.push(body) });
+  await page.goto('/');
+
+  const panel = page.locator('.panel').filter({ has: page.getByRole('heading', { name: 'Outbox relays' }) });
+  const discard = panel.getByRole('button', { name: 'Discard', exact: true });
+  // Narrow, the table sizes itself; wide, the Overview's shared column grid applies to the other panels.
+  for (const width of [1280, 1800]) {
+    await page.setViewportSize({ width, height: 720 });
+    const panelBox = (await panel.boundingBox())!;
+    const buttonBox = (await discard.boundingBox())!;
+    expect(buttonBox.x + buttonBox.width).toBeLessThanOrEqual(panelBox.x + panelBox.width);
+  }
+
+  await discard.click();
+  const dialog = page.getByRole('dialog');
+  await dialog.getByLabel(/Reason \(optional/).fill('The producer is retired.');
+  await dialog.getByLabel(/to confirm/).fill('billing');
+  await dialog.getByRole('button', { name: 'Discard all' }).click();
+
+  await expect(page.getByText('Outbox discard accepted; the next relay pass applies it.')).toBeVisible();
+  expect(discards).toEqual([{ all: true, reasonMessage: 'The producer is retired.' }]);
 });
 
 test('calendar catalog: list to a draft version, the week bars and the forecast diff', async ({ page }) => {
