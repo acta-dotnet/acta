@@ -1,3 +1,4 @@
+using System.Collections.Immutable;
 using System.Data.Common;
 using System.Reflection;
 using System.Runtime.InteropServices;
@@ -8,16 +9,18 @@ using Microsoft.Extensions.Options;
 namespace Acta;
 
 /// <summary>
-/// Owns the worker-runtime startup: the clock-skew check, the namespace and <c>workers</c> upsert, and the
-/// <see cref="CatalogRegistrar"/> pass that registers the namespace's catalog, then the Stopped stamp on a clean
-/// shutdown. In worker mode it populates the shared <see cref="WorkerContext"/> read on the claim/dispatch hot path. An
-/// enqueue-only runtime (a <c>j.Reference&lt;...&gt;(...)</c> host with no <c>j.Run&lt;...&gt;(...)</c> worker) skips
-/// the worker-row write and leaves the context empty.
+/// Owns the worker-runtime startup: the clock-skew check, the namespace and <c>workers</c> upsert, the
+/// <see cref="CatalogRegistrar"/> pass that registers the namespace's catalog, and the read of the stored catalog into
+/// the shared <see cref="WorkerContext"/> read on the claim/dispatch hot path; then the Stopped stamp on a clean
+/// shutdown. An enqueue-only runtime (a <c>j.Reference&lt;...&gt;(...)</c> host with no <c>j.Run&lt;...&gt;(...)</c>
+/// worker) skips the worker-row write and leaves the context empty.
 /// </summary>
 internal sealed class WorkerRuntimeInitializer(
     CatalogRegistrar catalog,
+    DefinitionsOperations definitions,
     WorkersOperations workers,
     IClockOperations serverClock,
+    AlertRoutingCheck? alertRouting,
     IOptions<JobsOptions> options,
     WorkerRegistration? workerRegistration,
     WorkerContext context,
@@ -25,8 +28,10 @@ internal sealed class WorkerRuntimeInitializer(
 )
 {
     private readonly CatalogRegistrar _catalog = catalog;
+    private readonly DefinitionsOperations _definitions = definitions;
     private readonly WorkersOperations _workers = workers;
     private readonly IClockOperations _serverClock = serverClock;
+    private readonly AlertRoutingCheck? _alertRouting = alertRouting;
     private readonly IOptions<JobsOptions> _options = options;
     private readonly WorkerRegistration? _workerRegistration = workerRegistration;
     private readonly WorkerContext _context = context;
@@ -78,10 +83,54 @@ internal sealed class WorkerRuntimeInitializer(
         // the provider (a scalar clock read), not the Acta schema, so it is safe this early.
         await ValidateClockSkewAsync(ns, ct);
 
+        // Crash recovery is the only thing that marks dead workers and reclaims their in-flight jobs.
+        // Without it a worker that dies takes its jobs with it - they stay Executing behind a lapsed
+        // lease and are never re-run - and nothing surfaces that until a worker actually dies. Say it
+        // at startup instead, because someone switching these off to trim overhead is not expecting
+        // to have switched off crash recovery.
+        _context.RunsRecovery = SystemJobs.RunsRecovery(_options.Value.RunSystemJobs, _workerRegistration.Relay is not null);
+        if (!_context.RunsRecovery)
+        {
+            ActaLog.CrashRecoveryOff(_log, ns);
+        }
+
         var allDescriptors = _catalog.CollectDescriptors(_workerRegistration, ns);
         await RegisterWorkerAsync(_workerRegistration, ns, ct);
 
-        await _catalog.RegisterAsync(_workerRegistration, _context.NamespaceIds[ns], _registeredCatalogHash, allDescriptors, ct);
+        var namespaceId = _context.NamespaceIds[ns];
+        await _catalog.RegisterAsync(_workerRegistration, namespaceId, _registeredCatalogHash, allDescriptors, ct);
+        await LoadCatalogAsync(ns, namespaceId, allDescriptors, ct);
+    }
+
+    /// <summary>
+    /// Reads the namespace's stored definitions into the context, indexing each descriptor this build declares by its
+    /// definition id under the definition's effective policy, then checks alert routing and meter consistency on them.
+    /// </summary>
+    private async Task LoadCatalogAsync(string ns, int namespaceId, ImmutableArray<JobDescriptor> descriptors, CancellationToken ct)
+    {
+        var catalog = (await _definitions.ListDefinitionContractsAsync(namespaceId, ct)).Contracts;
+        var storedByName = new Dictionary<string, StoredDefinitionContract>(catalog.Count, StringComparer.Ordinal);
+        foreach (var c in catalog)
+        {
+            storedByName[c.DefinitionName] = c;
+        }
+
+        var definitionIds = new Dictionary<string, int>(StringComparer.Ordinal);
+        var effectiveDescriptors = ImmutableArray.CreateBuilder<JobDescriptor>(descriptors.Length);
+        foreach (var descriptor in descriptors)
+        {
+            if (storedByName.TryGetValue(descriptor.JobName, out var stored))
+            {
+                var effective = EffectivePolicyOverlay.Apply(descriptor, stored.Effective);
+                _context.DescriptorByDefinitionId[stored.DefinitionId] = effective;
+                definitionIds[descriptor.JobName] = stored.DefinitionId;
+                effectiveDescriptors.Add(effective);
+            }
+        }
+        _context.DefinitionIdsByNamespace[ns] = definitionIds;
+
+        _alertRouting?.ValidateRouting(ns, effectiveDescriptors.ToImmutable());
+        MeterConsistencyCheck.Check(ns, catalog, _log);
     }
 
     private async Task RegisterWorkerAsync(WorkerRegistration registration, string ns, CancellationToken ct)

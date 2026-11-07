@@ -8,18 +8,16 @@ using Microsoft.Extensions.Options;
 namespace Acta;
 
 /// <summary>
-/// Registers a worker namespace's catalog at startup: collects and validates the system and user descriptors, gates
-/// contract drift, upserts the definitions, overlays each descriptor with its effective policy into the shared
-/// <see cref="WorkerContext"/> read on the claim/dispatch hot path, and reconciles the definition-sourced recurring slots.
+/// Writes a worker namespace's catalog: collects and validates the system and user descriptors, gates contract drift,
+/// upserts the definitions, and reconciles the definition-sourced recurring slots against each definition's effective
+/// policy. It holds no worker state.
 /// </summary>
 internal sealed class CatalogRegistrar(
     DefinitionsOperations definitions,
     SchedulesOperations schedules,
     IActaClock clock,
     IJobPayloadSerializerRegistry serializers,
-    AlertRoutingCheck? alertRouting,
     IOptions<JobsOptions> options,
-    WorkerContext context,
     CalendarsOperations calendars,
     ILogger log
 )
@@ -28,9 +26,7 @@ internal sealed class CatalogRegistrar(
     private readonly SchedulesOperations _schedules = schedules;
     private readonly IActaClock _clock = clock;
     private readonly IJobPayloadSerializerRegistry _serializers = serializers;
-    private readonly AlertRoutingCheck? _alertRouting = alertRouting;
     private readonly IOptions<JobsOptions> _options = options;
-    private readonly WorkerContext _context = context;
     private readonly ILogger _log = log;
 
     /// <summary>
@@ -47,7 +43,6 @@ internal sealed class CatalogRegistrar(
     )
     {
         var ns = registration.NamespaceName;
-        var perNamespaceDefIds = new Dictionary<string, int>(StringComparer.Ordinal);
 
         // Resolve the monotonic generation, then gate contract drift before any catalog write: Fail
         // throws here (before register), Warn logs and continues. The SQL routine remains the
@@ -62,35 +57,25 @@ internal sealed class CatalogRegistrar(
         var defIds = (
             await _definitions.RegisterDefinitionsAsync(new(namespaceId, manifestGenerationUtc, allDescriptors, storedContracts), ct)
         ).DefinitionIds;
-        foreach (var (jobName, defId) in defIds)
-        {
-            perNamespaceDefIds[jobName] = defId;
-        }
 
-        // Index by definition id so RunOnceAsync dispatches without re-reading definitions. Each
-        // descriptor is overlaid with the definition's effective (override-or-default) policy read from
-        // the DB *_effective columns, so the execution hot path honors operator overrides. This is the
-        // worker's live policy view; the reload tick re-overlays changed definitions without a restart.
+        // A slot is planned from its definition's effective (override-or-default) policy, read after the upsert from the
+        // DB *_effective columns, so an operator override reaches the slot's priority.
         var catalog = (await _definitions.ListDefinitionContractsAsync(namespaceId, ct)).Contracts;
         var effectiveById = new Dictionary<int, EffectiveJobPolicy>(catalog.Count);
         foreach (var c in catalog)
         {
             effectiveById[c.DefinitionId] = c.Effective;
         }
+        var descriptorById = new Dictionary<int, JobDescriptor>(defIds.Count);
         foreach (var descriptor in allDescriptors)
         {
             if (defIds.TryGetValue(descriptor.JobName, out var defId))
             {
-                _context.DescriptorByDefinitionId[defId] = effectiveById.TryGetValue(defId, out var eff)
+                descriptorById[defId] = effectiveById.TryGetValue(defId, out var eff)
                     ? EffectivePolicyOverlay.Apply(descriptor, eff)
                     : descriptor;
             }
         }
-        _context.DefinitionIdsByNamespace[ns] = perNamespaceDefIds;
-
-        var effectiveDescriptors = perNamespaceDefIds.Values.Select(id => _context.DescriptorByDefinitionId[id]).ToImmutableArray();
-        _alertRouting?.ValidateRouting(ns, effectiveDescriptors);
-        MeterConsistencyCheck.Check(ns, catalog, _log);
 
         List<string?> catalogParts =
         [
@@ -98,14 +83,14 @@ internal sealed class CatalogRegistrar(
             registration.Description,
             manifestGenerationUtc.ToString("O", CultureInfo.InvariantCulture),
         ];
-        foreach (var c in catalog.Where(c => perNamespaceDefIds.ContainsKey(c.DefinitionName)).OrderBy(c => c.DefinitionId))
+        foreach (var c in catalog.Where(c => defIds.ContainsKey(c.DefinitionName)).OrderBy(c => c.DefinitionId))
         {
             catalogParts.Add(c.DefinitionName);
             catalogParts.Add(c.DefinitionHash);
         }
 
         var retired = catalog.Where(c => c.Status == DefinitionStatusCode.Retired).Select(c => c.DefinitionId).ToHashSet();
-        await ReconcileSchedulesAsync(ns, namespaceId, catalogParts, registeredCatalogHash, retired, ct);
+        await ReconcileSchedulesAsync(ns, namespaceId, descriptorById, catalogParts, registeredCatalogHash, retired, ct);
     }
 
     public ImmutableArray<JobDescriptor> CollectDescriptors(WorkerRegistration registration, string ns)
@@ -118,17 +103,6 @@ internal sealed class CatalogRegistrar(
         var manifests = new List<JobDescriptorManifest>();
 
         var frameworkNames = SystemJobs.For(_options.Value.RunSystemJobs, registration.Relay is not null);
-        // Crash recovery is the only thing that marks dead workers and reclaims their in-flight jobs.
-        // Without it a worker that dies takes its jobs with it - they stay Executing behind a lapsed
-        // lease and are never re-run - and nothing surfaces that until a worker actually dies. Say it
-        // at startup instead, because someone switching these off to trim overhead is not expecting
-        // to have switched off crash recovery.
-        _context.RunsRecovery = SystemJobs.RunsRecovery(_options.Value.RunSystemJobs, registration.Relay is not null);
-        if (!_context.RunsRecovery)
-        {
-            ActaLog.CrashRecoveryOff(_log, ns);
-        }
-
         if (frameworkNames.Count > 0)
         {
             manifests.Add(new JobDescriptorManifest([.. ActaJobs.Descriptors.Descriptors.Where(d => frameworkNames.Contains(d.JobName))]));
@@ -403,6 +377,7 @@ internal sealed class CatalogRegistrar(
     private async Task ReconcileSchedulesAsync(
         string ns,
         int namespaceId,
+        Dictionary<int, JobDescriptor> descriptorById,
         List<string?> catalogParts,
         string? registeredCatalogHash,
         HashSet<int> retired,
@@ -430,7 +405,7 @@ internal sealed class CatalogRegistrar(
         var env = _options.Value.EnvironmentName;
 
         var inScope = new HashSet<int>();
-        foreach (var (defId, descriptor) in _context.DescriptorByDefinitionId)
+        foreach (var (defId, descriptor) in descriptorById)
         {
             if (
                 !descriptor.Schedules.IsDefaultOrEmpty && descriptor.Schedules.Any(s => ScheduleEnvironment.IsActiveIn(s.Environments, env))
@@ -451,7 +426,7 @@ internal sealed class CatalogRegistrar(
 
         foreach (var defId in inScope.Order())
         {
-            if (!_context.DescriptorByDefinitionId.TryGetValue(defId, out var descriptor) || retired.Contains(defId))
+            if (!descriptorById.TryGetValue(defId, out var descriptor) || retired.Contains(defId))
             {
                 // Persisted schedules for a definition no longer in this manifest, or one still retired: leave its
                 // slot alone (definition retirement is a separate concern, not schedule reconciliation).
@@ -493,11 +468,7 @@ internal sealed class CatalogRegistrar(
         if (
             catalogHash == registeredCatalogHash
             && definitions.All(d =>
-                IsRegistered(
-                    d,
-                    storedByDefinition.GetValueOrDefault(d.DefinitionId),
-                    _context.DescriptorByDefinitionId[d.DefinitionId].Priority
-                )
+                IsRegistered(d, storedByDefinition.GetValueOrDefault(d.DefinitionId), descriptorById[d.DefinitionId].Priority)
             )
         )
         {

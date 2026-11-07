@@ -4,9 +4,9 @@ namespace Acta;
 
 /// <summary>
 /// Shared mutable worker state threaded between the initializer (writer) and the claim/dispatch loop and dispatcher
-/// (readers): populated by <see cref="WorkerRuntimeInitializer"/> and its <see cref="CatalogRegistrar"/> at startup and
-/// consulted on the hot path for the worker identity, the descriptor for a claimed job, and whether a claimed job is a
-/// recurring slot fire. Every collection stays empty in enqueue-only mode (no <see cref="WorkerRegistration"/>).
+/// (readers): populated by <see cref="WorkerRuntimeInitializer"/> at startup and consulted on the hot path for the
+/// worker identity, the descriptor for a claimed job, and whether a claimed job is a recurring slot fire. Every
+/// collection stays empty in enqueue-only mode (no <see cref="WorkerRegistration"/>).
 /// </summary>
 internal sealed class WorkerContext(WorkerRegistration? workerRegistration)
 {
@@ -17,11 +17,10 @@ internal sealed class WorkerContext(WorkerRegistration? workerRegistration)
     public Dictionary<string, Dictionary<string, int>> DefinitionIdsByNamespace { get; } = new(StringComparer.Ordinal);
 
     /// <summary>
-    /// definitions.definition_id to JobDescriptor for hot-path claim dispatch. Built in InitializeAsync after
-    /// RegisterDefinitionsAsync returns the DB-assigned ids; consulted in RunOnceAsync to resolve the
-    /// descriptor by ClaimedJob.DefinitionId, keeping <c>claim_jobs</c> free of any JOIN to
-    /// definitions. Each descriptor carries the definition's effective (override-or-default)
-    /// policy. Concurrent because the definition-policy reload tick re-overlays entries while
+    /// definitions.definition_id to JobDescriptor for hot-path claim dispatch. Built in InitializeAsync from the
+    /// stored definitions; consulted in RunOnceAsync to resolve the descriptor by ClaimedJob.DefinitionId, keeping
+    /// <c>claim_jobs</c> free of any JOIN to definitions. Each descriptor carries the definition's effective
+    /// (override-or-default) policy. Concurrent because the definition-policy reload tick re-overlays entries while
     /// executor threads read them.
     /// </summary>
     public ConcurrentDictionary<int, JobDescriptor> DescriptorByDefinitionId { get; } = new();
