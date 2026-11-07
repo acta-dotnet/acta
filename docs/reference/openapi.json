@@ -9104,6 +9104,14 @@
             }
           },
           {
+            "name": "latestStatus",
+            "in": "query",
+            "description": "Only the families whose latest version has this status, as a kebab code: draft lists the families with a version waiting to be published.",
+            "schema": {
+              "$ref": "#/components/schemas/CalendarStatusCode"
+            }
+          },
+          {
             "name": "pageSize",
             "in": "query",
             "description": "Rows per page, at most 100: a larger value is clamped to 100.",
@@ -13894,7 +13902,7 @@
           },
           "dependentCount": {
             "type": "integer",
-            "description": "How many schedules name the family.",
+            "description": "How many schedules name the family, leaving out orphaned ones and those of a retired definition: the live bindings that refuse an archive, and that report evaluation errors while the family has no current version.",
             "format": "int32"
           }
         },

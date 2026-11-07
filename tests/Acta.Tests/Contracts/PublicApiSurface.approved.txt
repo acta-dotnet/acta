@@ -1785,9 +1785,10 @@ sealed record Acta.ListCalendarsItem
     System.String CalendarName { get;init; }
     System.String JobNamespace { get;init; }
 sealed record Acta.ListCalendarsQuery
-    .ctor(System.String JobNamespace = null, System.Nullable<Acta.CalendarRoleCode> Role = null, System.String NameContains = null, System.Nullable<System.Int32> PageSize = null, System.String Cursor = null, System.Boolean IncludeTotal = false)
+    .ctor(System.String JobNamespace = null, System.Nullable<Acta.CalendarRoleCode> Role = null, System.String NameContains = null, System.Nullable<Acta.CalendarStatusCode> LatestStatus = null, System.Nullable<System.Int32> PageSize = null, System.String Cursor = null, System.Boolean IncludeTotal = false)
     System.Boolean IncludeTotal { get;init; }
     System.Nullable<Acta.CalendarRoleCode> Role { get;init; }
+    System.Nullable<Acta.CalendarStatusCode> LatestStatus { get;init; }
     System.Nullable<System.Int32> PageSize { get;init; }
     System.String Cursor { get;init; }
     System.String JobNamespace { get;init; }

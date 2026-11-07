@@ -16,7 +16,8 @@
   // The weekly-availability editor: seven 24-hour bars an operator reads at a glance, the windows under
   // each as time pairs, then the dates that override a weekday and the ranges subtracted last. Every
   // change hands a new model up; the page turns it back into definition text, so the JSON editor and
-  // this one always show the same definition.
+  // this one always show the same definition. Read-only, it shows a saved version as bars and text with
+  // no form field, since a saved version never changes.
   let {
     model,
     readOnly = false,
@@ -60,6 +61,14 @@
   }
 </script>
 
+{#snippet windowsText(windows: LocalWindow[])}
+  <span class="window-times">
+    {#each windows as window, index (index)}
+      <span class="window-time mono">{window.from} <span class="window-to">to</span> {window.to}</span>
+    {/each}
+  </span>
+{/snippet}
+
 {#snippet windowsEditor(windows: LocalWindow[], label: string, set: (windows: LocalWindow[]) => void)}
   <div class="windows">
     {#each windows as window, index (index)}
@@ -68,30 +77,24 @@
         <input
           type="time"
           value={window.from}
-          disabled={readOnly}
           aria-label={`${label} window ${index + 1} from`}
           onchange={(event) => set(windows.map((w, i) => (i === index ? { ...w, from: event.currentTarget.value } : w)))} />
         <span class="window-to">to</span>
         <input
           type="time"
           value={window.to}
-          disabled={readOnly}
           aria-label={`${label} window ${index + 1} to`}
           onchange={(event) => set(windows.map((w, i) => (i === index ? { ...w, to: event.currentTarget.value } : w)))} />
-        {#if !readOnly}
-          <button type="button" class="iconly chip-remove" aria-label={`Remove ${label} window ${index + 1}`} onclick={() => set(windows.filter((_, i) => i !== index))}>
-            <Icon name="x" />
-          </button>
-        {/if}
+        <button type="button" class="iconly chip-remove" aria-label={`Remove ${label} window ${index + 1}`} onclick={() => set(windows.filter((_, i) => i !== index))}>
+          <Icon name="x" />
+        </button>
       </span>
     {/each}
-    {#if !readOnly}
-      <button type="button" class="window-add" onclick={() => set([...windows, nextWindow(windows)])}><Icon name="plus" />Window</button>
-    {/if}
+    <button type="button" class="window-add" onclick={() => set([...windows, nextWindow(windows)])}><Icon name="plus" />Window</button>
   </div>
 {/snippet}
 
-<div class="week" role="group" aria-label="Weekly hours">
+<div class="week" class:read={readOnly} role="group" aria-label="Weekly hours">
   <div class="week-scale" aria-hidden="true">
     <span class="week-day"></span>
     <span class="week-ticks">
@@ -111,45 +114,64 @@
         <span class="week-hours">{hoursText(windows)}</span>
       </div>
       <div class="week-windows">
-        {@render windowsEditor(windows, day, (next) => setDay(day, next))}
+        {#if readOnly}
+          {@render windowsText(windows)}
+        {:else}
+          {@render windowsEditor(windows, day, (next) => setDay(day, next))}
+        {/if}
       </div>
     </div>
   {/each}
 </div>
 
-<div class="weekly-fields">
-  <div class="detail-field">
-    <span>Time zone</span>
-    <ZonePicker
-      value={model.timeZone === 'schedule' ? '' : model.timeZone}
-      disabled={readOnly}
-      label="Calendar time zone"
-      emptyLabel="Each schedule's own zone"
-      onchange={(zone) => emit({ timeZone: zone || 'schedule' })} />
-    <span class="field-help">Left empty, the calendar reads in each bound schedule's own zone; a zone id such as Europe/Ljubljana fixes it.</span>
+{#if readOnly}
+  <dl class="detail-readonly weekly-facts">
+    <div>
+      <dt>Time zone</dt>
+      <dd>{#if model.timeZone === 'schedule'}Each schedule's own zone{:else}<span class="mono">{model.timeZone}</span>{/if}</dd>
+    </div>
+    {#if model.description}
+      <div><dt>Description</dt><dd>{model.description}</dd></div>
+    {/if}
+  </dl>
+{:else}
+  <div class="weekly-fields">
+    <div class="detail-field">
+      <span>Time zone</span>
+      <ZonePicker
+        value={model.timeZone === 'schedule' ? '' : model.timeZone}
+        label="Calendar time zone"
+        emptyLabel="Each schedule's own zone"
+        onchange={(zone) => emit({ timeZone: zone || 'schedule' })} />
+      <span class="field-help">Left empty, the calendar reads in each bound schedule's own zone; a zone id such as Europe/Ljubljana fixes it.</span>
+    </div>
+    <label class="detail-field">
+      Description
+      <input type="text" value={model.description} maxlength="512" onchange={(event) => emit({ description: event.currentTarget.value })} />
+    </label>
   </div>
-  <label class="detail-field">
-    Description
-    <input type="text" value={model.description} disabled={readOnly} maxlength="512" onchange={(event) => emit({ description: event.currentTarget.value })} />
-  </label>
-</div>
+{/if}
 
 <section class="weekly-section" aria-label="Date overrides">
   <h3>Date overrides</h3>
   <p class="detail-help">A date listed here uses these windows instead of its weekday's; a date with no windows is closed.</p>
   {#each model.dateOverrides as override, index (index)}
     <div class="override-row">
-      <input
-        type="date"
-        value={override.date}
-        disabled={readOnly}
-        aria-label={`Override ${index + 1} date`}
-        onchange={(event) => setOverride(index, { ...override, date: event.currentTarget.value })} />
-      <div class="override-windows">
-        {#if override.windows.length === 0}<span class="badge">closed</span>{/if}
-        {@render windowsEditor(override.windows, override.date || `override ${index + 1}`, (next) => setOverride(index, { ...override, windows: next }))}
-      </div>
-      {#if !readOnly}
+      {#if readOnly}
+        <span class="override-date mono">{override.date}</span>
+        <div class="override-windows">
+          {#if override.windows.length === 0}<span class="badge">closed</span>{:else}{@render windowsText(override.windows)}{/if}
+        </div>
+      {:else}
+        <input
+          type="date"
+          value={override.date}
+          aria-label={`Override ${index + 1} date`}
+          onchange={(event) => setOverride(index, { ...override, date: event.currentTarget.value })} />
+        <div class="override-windows">
+          {#if override.windows.length === 0}<span class="badge">closed</span>{/if}
+          {@render windowsEditor(override.windows, override.date || `override ${index + 1}`, (next) => setOverride(index, { ...override, windows: next }))}
+        </div>
         <button type="button" class="iconly" aria-label={`Remove override ${index + 1}`} onclick={() => emit({ dateOverrides: model.dateOverrides.filter((_, i) => i !== index) })}>
           <Icon name="x" />
         </button>
@@ -169,13 +191,15 @@
   {#each model.excludedRanges as range, index (index)}
     {@const dates = dateRange(range)}
     <div class="override-row">
-      {#if dates}
-        <input type="date" value={dates.from} disabled={readOnly} aria-label={`Excluded range ${index + 1} from`} onchange={(event) => setRange(index, { ...dates, from: event.currentTarget.value })} />
+      {#if dates && readOnly}
+        <span class="mono">{dates.from} <span class="window-to">to</span> {dates.to}</span>
+      {:else if dates}
+        <input type="date" value={dates.from} aria-label={`Excluded range ${index + 1} from`} onchange={(event) => setRange(index, { ...dates, from: event.currentTarget.value })} />
         <span class="window-to">to</span>
-        <input type="date" value={dates.to} disabled={readOnly} aria-label={`Excluded range ${index + 1} to`} onchange={(event) => setRange(index, { ...dates, to: event.currentTarget.value })} />
+        <input type="date" value={dates.to} aria-label={`Excluded range ${index + 1} to`} onchange={(event) => setRange(index, { ...dates, to: event.currentTarget.value })} />
       {:else if 'fromUtc' in range}
-        <span class="mono">{range.fromUtc} to {range.toUtc}</span>
-        <span class="dim">(instants; edit in JSON)</span>
+        <span class="mono">{range.fromUtc} <span class="window-to">to</span> {range.toUtc}</span>
+        {#if !readOnly}<span class="dim">(instants; edit in JSON)</span>{/if}
       {/if}
       {#if !readOnly}
         <button type="button" class="iconly" aria-label={`Remove excluded range ${index + 1}`} onclick={() => emit({ excludedRanges: model.excludedRanges.filter((_, i) => i !== index) })}>
@@ -258,6 +282,21 @@
   }
   .closed .week-hours { color: var(--muted); }
   .week-windows { grid-area: windows; }
+  /* Read-only, a day is one line: its bar, then its windows as text in a column of one width, so the
+     seven bars stay aligned. */
+  .week.read .week-scale,
+  .week.read .week-row { grid-template-columns: 3.4em minmax(0, 1fr) 15em; }
+  .week.read .week-scale { grid-template-areas: 'day bar .'; }
+  .week.read .week-row { grid-template-areas: 'day bar windows'; }
+  .window-times {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 2px 12px;
+    font-size: var(--text-sm);
+  }
+  .window-time { white-space: nowrap; }
+  .weekly-facts { margin: 12px 0 0; }
+  .override-date { min-width: 11ch; font-size: var(--text-sm); }
   .windows {
     display: flex;
     flex-wrap: wrap;
@@ -335,6 +374,10 @@
   }
   @media (max-width: 640px) {
     .week-scale,
-    .week-row { grid-template-columns: 2.6em minmax(0, 1fr); }
+    .week-row,
+    .week.read .week-scale,
+    .week.read .week-row { grid-template-columns: 2.6em minmax(0, 1fr); }
+    .week.read .week-scale { grid-template-areas: 'day bar'; }
+    .week.read .week-row { grid-template-areas: 'day bar' '. windows'; }
   }
 </style>

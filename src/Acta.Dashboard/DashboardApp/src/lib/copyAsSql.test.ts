@@ -11,6 +11,13 @@ test('calendarsListSql scopes a namespace with the shared sys families and order
   assert.equal(calendarsListSql({}), 'SELECT * FROM acta.calendars_view ORDER BY namespace_name, calendar_name, version DESC LIMIT 100;');
 });
 
+test('calendarsListSql filters on the latest version status by keeping each family its newest row', () => {
+  assert.equal(
+    calendarsListSql({ latestStatus: 'draft' }, { provider: 'sqlite', schema: 'main' }),
+    "SELECT * FROM main.calendars_view WHERE calendar_status = 'draft' AND version = (SELECT MAX(v.version) FROM main.calendars_view v WHERE v.namespace_name = calendars_view.namespace_name AND v.calendar_name = calendars_view.calendar_name) ORDER BY namespace_name, calendar_name, version DESC LIMIT 100;"
+  );
+});
+
 test('jobsListSql with no filters selects the whole view, no WHERE clause', () => {
   assert.equal(jobsListSql({}), 'SELECT * FROM acta.jobs_view ORDER BY created_at_utc DESC LIMIT 100;');
 });

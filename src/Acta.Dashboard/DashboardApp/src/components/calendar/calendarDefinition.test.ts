@@ -3,6 +3,7 @@ import assert from 'node:assert/strict';
 import {
   definitionTemplate,
   emptyWeekly,
+  forecastSummary,
   minutesOf,
   openMinutes,
   previewDiff,
@@ -120,4 +121,51 @@ test('the preview diff names what a publication adds and removes', () => {
   assert.deepEqual([...diff.added], ['a']);
   assert.deepEqual([...diff.removed], ['d']);
   assert.equal(windowKey({ startUtc: '2027-01-04T08:00:00Z', endUtc: null }), '2027-01-04T08:00:00Z/open');
+});
+
+test('the forecast summary counts what publishing adds and removes over the longer forecast', () => {
+  const window = (day: string, end: string | null = `2027-01-${day}T17:00:00Z`) => ({ startUtc: `2027-01-${day}T09:00:00Z`, endUtc: end });
+  const preview = {
+    role: 'availability',
+    version: 3,
+    currentVersion: 2,
+    occurrencesUtc: [],
+    currentOccurrencesUtc: [],
+    windows: [window('04'), window('05'), window('09')],
+    currentWindows: [window('04'), window('05', null)],
+    schedules: [],
+    schedulesTotal: 0,
+    overdueTotal: 0
+  };
+  // An open-ended window is its own entry, so closing it reads as one removed and one added.
+  assert.equal(forecastSummary(preview, 10), '2 added, 1 removed over the next 3 windows.');
+  assert.equal(
+    forecastSummary({ ...preview, role: 'occurrence', occurrencesUtc: ['2027-01-04T16:00:00Z'], currentOccurrencesUtc: ['2027-01-04T16:00:00Z'] }, 10),
+    '0 added, 0 removed over the next 1 occurrence.'
+  );
+  assert.equal(forecastSummary({ ...preview, currentVersion: null }, 10), 'No version is current yet, so all 3 windows ahead are new.');
+  assert.equal(forecastSummary({ ...preview, currentVersion: null, windows: [] }, 10), 'No windows ahead, and no version is current yet.');
+  assert.equal(forecastSummary({ ...preview, currentVersion: 3 }, 10), null);
+  assert.equal(forecastSummary(undefined, 10), null);
+});
+
+test('the forecast summary compares only up to the earlier cutoff, so an entry a list stopped short of is never a change', () => {
+  const instant = (day: number) => `2027-02-${String(day).padStart(2, '0')}T16:00:00Z`;
+  const tenCurrent = Array.from({ length: 10 }, (_, i) => instant(i + 2));
+  const occurrence = {
+    role: 'occurrence',
+    version: 3,
+    currentVersion: 2,
+    occurrencesUtc: [instant(1), ...tenCurrent.slice(0, 9)],
+    currentOccurrencesUtc: tenCurrent,
+    windows: [],
+    currentWindows: [],
+    schedules: [],
+    schedulesTotal: 0,
+    overdueTotal: 0
+  };
+  // The draft adds one earlier instant, so its ten stop a day before the current version's tenth.
+  assert.equal(forecastSummary(occurrence, 10), '1 added, 0 removed over the next 10 occurrences.');
+  // A list shorter than the count is complete: what the draft no longer has is removed, however far ahead.
+  assert.equal(forecastSummary({ ...occurrence, occurrencesUtc: tenCurrent.slice(0, 2) }, 10), '0 added, 8 removed over the next 10 occurrences.');
 });

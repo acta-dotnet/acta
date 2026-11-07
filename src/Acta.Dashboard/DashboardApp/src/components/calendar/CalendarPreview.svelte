@@ -1,8 +1,8 @@
 <script lang="ts">
-  import type { CalendarPreview, CalendarWindowView } from '../../api.ts';
+  import type { CalendarPreview } from '../../api.ts';
   import { displayFormatter } from '../../format.ts';
   import RelativeTime from '../RelativeTime.svelte';
-  import { previewDiff, windowKey } from './calendarDefinition.ts';
+  import { forecastDiff, type ForecastEntry } from './calendarDefinition.ts';
 
   // One version's forecast beside the current version's: an operator sees what publishing would add and
   // remove before deciding. A version that is itself current shows one column of what lies ahead.
@@ -30,13 +30,9 @@
   let isCurrent = $derived(preview !== null && preview.currentVersion === preview.version);
   let hasCurrent = $derived(preview !== null && preview.currentVersion !== null && !isCurrent);
 
-  type Entry = { key: string; startUtc: string; endUtc: string | null };
-  const instants = (list: string[]): Entry[] => list.map((at) => ({ key: at, startUtc: at, endUtc: null }));
-  const windows = (list: CalendarWindowView[]): Entry[] => list.map((w) => ({ key: windowKey(w), startUtc: w.startUtc, endUtc: w.endUtc }));
-
-  let candidate = $derived(preview ? (occurrence ? instants(preview.occurrencesUtc) : windows(preview.windows)) : []);
-  let current = $derived(preview ? (occurrence ? instants(preview.currentOccurrencesUtc) : windows(preview.currentWindows)) : []);
-  let diff = $derived(previewDiff(candidate.map((e) => e.key), current.map((e) => e.key)));
+  let diff = $derived(preview ? forecastDiff(preview, limit) : { candidate: [], current: [], added: new Set<string>(), removed: new Set<string>(), span: 0 });
+  let candidate = $derived(diff.candidate);
+  let current = $derived(diff.current);
 
   const stamp = (at: string) => displayFormatter.rowTimestampInZone(at, displayZone);
 </script>
@@ -79,11 +75,11 @@
     <p class="preview-legend">
       <span class="added-mark">{diff.added.size} added</span>
       <span class="removed-mark">{diff.removed.size} removed</span>
-      over the next {Math.max(candidate.length, current.length)} {occurrence ? 'occurrences' : 'windows'}.
+      over the next {diff.span} {occurrence ? (diff.span === 1 ? 'occurrence' : 'occurrences') : diff.span === 1 ? 'window' : 'windows'}.
     </p>
   {/if}
   <div class="preview-columns" class:single={!hasCurrent}>
-    {#snippet column(title: string, entries: Entry[], marks: Set<string>, markClass: string, emptyText: string)}
+    {#snippet column(title: string, entries: ForecastEntry[], marks: Set<string>, markClass: string, emptyText: string)}
       <div class="preview-column">
         {#if hasCurrent}<div class="preview-column-title">{title}</div>{/if}
         {#if entries.length === 0}

@@ -58,7 +58,7 @@ public sealed class CalendarEndpointTests
     }
 
     [Fact]
-    public async Task The_list_binds_its_namespace_role_search_and_paging()
+    public async Task The_list_binds_its_namespace_role_search_status_and_paging()
     {
         var fakes = new FakeOperations();
         var (app, client) = await TestDashboardHost.StartAsync(fakes: fakes);
@@ -66,25 +66,27 @@ public sealed class CalendarEndpointTests
         var ct = TestContext.Current.CancellationToken;
 
         var response = await client.GetAsync(
-            $"{Prefix}?jobNamespace=billing&role=availability&nameContains=hours&pageSize=5&includeTotal=true",
+            $"{Prefix}?jobNamespace=billing&role=availability&nameContains=hours&latestStatus=draft&pageSize=5&includeTotal=true",
             ct
         );
 
         Assert.Equal(HttpStatusCode.OK, response.StatusCode);
         Assert.Equal(
-            new ListCalendarsQuery("billing", CalendarRoleCode.Availability, "hours", 5, null, true),
+            new ListCalendarsQuery("billing", CalendarRoleCode.Availability, "hours", CalendarStatusCode.Draft, 5, null, true),
             Assert.Single(fakes.Calendars.ListQueries)
         );
     }
 
-    [Fact]
-    public async Task The_list_answers_an_unknown_role_with_400()
+    [Theory]
+    [InlineData("role=hourly")]
+    [InlineData("latestStatus=pending")]
+    public async Task The_list_answers_an_unknown_code_with_400(string filter)
     {
         var fakes = new FakeOperations();
         var (app, client) = await TestDashboardHost.StartAsync(fakes: fakes);
         await using var _ = app;
 
-        var response = await client.GetAsync($"{Prefix}?role=hourly", TestContext.Current.CancellationToken);
+        var response = await client.GetAsync($"{Prefix}?{filter}", TestContext.Current.CancellationToken);
 
         Assert.Equal(HttpStatusCode.BadRequest, response.StatusCode);
         Assert.Empty(fakes.Calendars.ListQueries);

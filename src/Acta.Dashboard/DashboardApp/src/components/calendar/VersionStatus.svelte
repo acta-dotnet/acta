@@ -1,5 +1,5 @@
 <script lang="ts">
-  import Icon from '../Icon.svelte';
+  import VersionMark from './VersionMark.svelte';
 
   // One calendar version's status as a badge: a draft is work waiting to be published (warn), the
   // published version is the one schedules follow (ok), a superseded one is history, an archived one is
@@ -7,18 +7,17 @@
   let { status, version = null }: { status: string; version?: number | null } = $props();
 
   const CLASSES: Record<string, string> = { draft: 'warn', published: 'ok', superseded: '', archived: 'retired' };
-  const ICONS: Record<string, string> = { published: 'check-circle', archived: 'minus-circle' };
   let badgeClass = $derived(CLASSES[status] ?? '');
-  let icon = $derived(ICONS[status] ?? null);
 </script>
 
 <span class="badge {badgeClass}">
-  {#if icon}<Icon name={icon} />{:else}<i class="dot" aria-hidden="true"></i>{/if}
-  {#if version !== null}<span class="mono version">v{version}</span>{/if}
+  <VersionMark {status} />
+  {#if version !== null}<span class="version">v{version}</span>{/if}
   {status}
 </span>
 
 <style>
-  /* A badge capitalizes its word; a version marker is written v1, never V1. */
-  .version { text-transform: none; }
+  /* A badge capitalizes its word; a version marker is written v1, never V1. The number keeps the badge's own face, with
+     tabular digits, so it and the word sit on one baseline. */
+  .version { text-transform: none; font-variant-numeric: tabular-nums; }
 </style>

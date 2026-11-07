@@ -126,15 +126,24 @@ export interface CalendarsSqlFilters {
   namespace?: string | null;
   role?: string | null;
   nameContains?: string | null;
+  latestStatus?: string | null;
 }
 
 // calendars_view is one row per version; the dashboard's family list folds them, so the copy orders a
 // family's versions together, newest first. A namespace scope shows the shared `sys` families beside its own.
+// The status filter is on a family's latest version, so it keeps that one row of each family.
 export function calendarsListSql(filters: CalendarsSqlFilters, dialect: SqlDialect = {}): string {
   const predicates: Predicate[] = [];
   if (text(filters.namespace)) predicates.push({ raw: `namespace_name IN (${sqlLiteral(name(filters.namespace))}, 'sys')` });
   if (text(filters.role)) predicates.push({ column: 'calendar_role', op: '=', value: text(filters.role) });
   if (text(filters.nameContains)) predicates.push({ raw: `calendar_name LIKE ${sqlLiteral('%' + name(filters.nameContains) + '%')}` });
+  if (text(filters.latestStatus)) {
+    const view = `${dialect.schema ?? 'acta'}.calendars_view`;
+    predicates.push({ column: 'calendar_status', op: '=', value: text(filters.latestStatus) });
+    predicates.push({
+      raw: `version = (SELECT MAX(v.version) FROM ${view} v WHERE v.namespace_name = calendars_view.namespace_name AND v.calendar_name = calendars_view.calendar_name)`
+    });
+  }
   return select(dialect, 'calendars_view', predicates, 'namespace_name, calendar_name, version DESC');
 }
 

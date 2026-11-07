@@ -22,6 +22,7 @@ internal static class CalendarsEndpoints
                 JobNamespace: query.Text("jobNamespace"),
                 Role: query.Code("role", CalendarRoleCodeExtensions.FromCode),
                 NameContains: query.Text("nameContains"),
+                LatestStatus: query.Code("latestStatus", CalendarStatusCodeExtensions.FromCode),
                 PageSize: query.Int("pageSize"),
                 Cursor: query.Text("cursor"),
                 IncludeTotal: query.Bool("includeTotal") ?? false
@@ -38,6 +39,12 @@ internal static class CalendarsEndpoints
                     "nameContains",
                     QueryParameterKind.String,
                     "A dotted kebab fragment matched anywhere in the calendar name."
+                ),
+                new QueryParameterDoc(
+                    "latestStatus",
+                    QueryParameterKind.String,
+                    "Only the families whose latest version has this status, as a kebab code: draft lists the families with a version waiting to be published.",
+                    CodeKind: "calendar-status"
                 ),
                 .. QueryParameterDocExtensions.PagingCore,
                 .. QueryParameterDocExtensions.IncludeTotal,

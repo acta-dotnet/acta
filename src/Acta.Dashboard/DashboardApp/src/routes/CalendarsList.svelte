@@ -12,6 +12,7 @@
   import ActiveFilters from '../components/ActiveFilters.svelte';
   import CopyButton from '../components/CopyButton.svelte';
   import VersionStatus from '../components/calendar/VersionStatus.svelte';
+  import { calendarRowState } from '../components/calendar/calendarFamily.ts';
   import { createUrlFilters } from '../urlFilters.ts';
   import { calendarsListSql, COPY_SQL_TITLE } from '../lib/copyAsSql.ts';
   import { routes } from '../routes.ts';
@@ -19,15 +20,20 @@
   import type { ColumnDef } from '../components/grid/types.ts';
 
   const initial = hashParams();
-  const filters = createUrlFilters({ role: 'role', nameContains: 'q' }, { role: '', nameContains: '' });
+  const filters = createUrlFilters(
+    { role: 'role', nameContains: 'q', latestStatus: 'status' },
+    { role: '', nameContains: '', latestStatus: '' }
+  );
 
   let activeChips = $derived(
     [
       $scope ? { label: 'Namespace', value: $scope, onRemove: () => setScope('') } : null,
       $filters.role ? { label: 'Role', value: $filters.role, onRemove: () => filters.patch({ role: '' }) } : null,
+      $filters.latestStatus ? { label: 'Status', value: $filters.latestStatus, onRemove: () => filters.patch({ latestStatus: '' }) } : null,
       $filters.nameContains ? { label: 'Name', value: $filters.nameContains, onRemove: () => filters.patch({ nameContains: '' }) } : null
     ].filter((chip): chip is { label: string; value: string; onRemove: () => void } => chip !== null)
   );
+  let filtered = $derived($filters.role !== '' || $filters.latestStatus !== '' || $filters.nameContains !== '');
   function clearAllFilters() {
     filters.clear();
     setScope('');
@@ -38,7 +44,7 @@
 
   let copySql = $derived(
     calendarsListSql(
-      { namespace: $scope, role: $filters.role, nameContains: $filters.nameContains },
+      { namespace: $scope, role: $filters.role, nameContains: $filters.nameContains, latestStatus: $filters.latestStatus },
       { provider: capabilities.data?.provider, schema: capabilities.data?.schema }
     )
   );
@@ -122,14 +128,24 @@
           <option value="occurrence">Occurrence</option>
         </select>
       </label>
+      <label title="The status of each calendar's latest version">
+        Status
+        <select value={$filters.latestStatus} onchange={(event) => filters.patch({ latestStatus: event.currentTarget.value })}>
+          <option value="">Any</option>
+          <option value="draft">Draft</option>
+          <option value="published">Published</option>
+          <option value="superseded">Superseded</option>
+          <option value="archived">Archived</option>
+        </select>
+      </label>
       <label>
         Name
         <input placeholder="contains" value={$filters.nameContains} onchange={(event) => filters.patch({ nameContains: event.currentTarget.value.trim() })} />
       </label>
+      <CopyButton value={copySql} label="Copy SQL" title={COPY_SQL_TITLE} showLabel={true} />
       <span class="dim calendar-help">
         Calendars kept here are data: saved as drafts, published, and followed by the schedules that bind them by name.
       </span>
-      <CopyButton value={copySql} label="Copy SQL" title={COPY_SQL_TITLE} />
     </FilterBar>
 
     <ActiveFilters chips={activeChips} onClearAll={clearAllFilters} />
@@ -139,7 +155,13 @@
       {#if calendar.jobNamespace === 'sys'}<span class="badge scope-badge" title="Shared: every namespace can bind it">shared</span>{:else}{calendar.jobNamespace}{/if}
     {/snippet}
     {#snippet currentCell(calendar: CalendarListItem)}
-      {#if calendar.currentVersion === null}<span class="dim">none</span>{:else}<VersionStatus status="published" version={calendar.currentVersion} />{/if}
+      {#if calendar.currentVersion !== null}
+        <VersionStatus status="published" version={calendar.currentVersion} />
+      {:else if calendar.dependentCount > 0}
+        <span class="badge bad" title={calendarRowState(calendar).hint}><Icon name="warn" />none</span>
+      {:else}
+        <span class="dim">none</span>
+      {/if}
     {/snippet}
     {#snippet latestCell(calendar: CalendarListItem)}
       {#if calendar.latestVersion === calendar.currentVersion}<span class="dim">same</span>{:else}<VersionStatus status={calendar.latestStatus} version={calendar.latestVersion} />{/if}
@@ -155,14 +177,17 @@
       endpoint="calendars"
       mobileCards={true}
       {columns}
-      filters={() => ({ jobNamespace: $scope, role: $filters.role, nameContains: $filters.nameContains })}
+      filters={() => ({ jobNamespace: $scope, role: $filters.role, nameContains: $filters.nameContains, latestStatus: $filters.latestStatus })}
       includeTotal={true}
       initialPageSize={Number(initial.get('pageSize') ?? '50') || 50}
       onPageSizeChange={(size) => updateHashParams({ pageSize: String(size) })}
       loadingText="Loading calendars..."
-      emptyText="No catalog calendars yet. Save a draft to start one; a schedule binds it by name once a version is published."
+      emptyText={filtered
+        ? 'No calendar matches these filters. Clear a filter to see more.'
+        : 'No catalog calendars yet. Save a draft to start one; a schedule binds it by name once a version is published.'}
       cells={{ calendarName: nameCell, jobNamespace: scopeCell, currentVersion: currentCell, latestVersion: latestCell, publishedAtUtc: publishedCell, modifiedAtUtc: modifiedCell, actions: actionsCell }}
-      rowClass={(calendar: CalendarListItem) => (calendar.latestStatus === 'draft' ? 'due' : '')} />
+      rowClass={(calendar: CalendarListItem) => calendarRowState(calendar).rail}
+      rowHint={(calendar: CalendarListItem) => calendarRowState(calendar).hint} />
   </div>
 </Page>
 

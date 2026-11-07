@@ -14,11 +14,10 @@
   // parent that holds the value itself rather than binding it.
   let {
     value = $bindable(''),
-    disabled = false,
     emptyLabel = 'No override (inherit)',
     label = 'Time zone override',
     onchange
-  }: { value?: string; disabled?: boolean; emptyLabel?: string; label?: string; onchange?: (value: string) => void } = $props();
+  }: { value?: string; emptyLabel?: string; label?: string; onchange?: (value: string) => void } = $props();
 
   const uid = 'zone-' + seq++;
   const listId = uid + '-list';
@@ -43,7 +42,6 @@
   });
 
   function openList(): void {
-    if (disabled) return;
     open = true;
     query = '';
     active = 0;
@@ -104,7 +102,6 @@
     aria-label={label}
     autocomplete="off"
     spellcheck="false"
-    {disabled}
     placeholder={value === '' ? emptyLabel : ''}
     value={open ? query : value}
     onfocus={openList}

@@ -12,7 +12,8 @@ namespace Acta;
 /// <param name="LatestStatus">The status of the family's newest version.</param>
 /// <param name="PublishedAtUtc">When the version in force was published, in UTC; null when none is published.</param>
 /// <param name="ModifiedAtUtc">When the row last changed, in UTC.</param>
-/// <param name="DependentCount">How many schedules name the family.</param>
+/// <param name="DependentCount">How many schedules name the family, leaving out orphaned ones and those of a retired definition: the
+/// live bindings that refuse an archive, and that report evaluation errors while the family has no current version.</param>
 public sealed record ListCalendarsItem(
     string JobNamespace,
     string CalendarName,

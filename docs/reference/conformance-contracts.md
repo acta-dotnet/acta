@@ -1928,7 +1928,10 @@
 - **Guarantees:**
   - A family of drafts lists once, with its latest version and no current version
   - A published family lists its current version and counts the live schedules naming it
+  - A schedule of a retired definition does not count as a live schedule naming the family
   - The list filters by role and name fragment, counts the filter on request, and pages by name
+  - The list filters by the latest version's status, counts the filter on request, and pages across a cursor
+  - A namespace's list filtered by the latest version's status filters the shared families too
   - A namespace's list adds the shared families, and a list without a namespace spans every namespace
 
 ### A calendar resolver keeps the versions its own preload read

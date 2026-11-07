@@ -41,6 +41,8 @@
     cells?: CellMap<T>;
     rowKey: (row: T) => string | number;
     rowClass?: (row: T) => string;
+    /** What the row's rail means: the first cell's tooltip, text a screen reader reads with it, and shown beside it under keyboard focus. */
+    rowHint?: (row: T) => string | null;
     /** Client-side row filter applied on top of whatever the server fetched (e.g. a UI-only bucket
      *  the server has no matching query param for). The empty-state and pager visibility are decided
      *  from the RAW server page, not the filtered array (see gridDisplay in paging.ts): a page whose
@@ -68,6 +70,7 @@
     cells = {},
     rowKey,
     rowClass,
+    rowHint,
     rowFilter,
     onPageSizeChange,
     onNewCount,
@@ -215,13 +218,19 @@
 </script>
 
 {#snippet row(item: T, prev: T | null)}
+  {@const hint = rowHint?.(item) ?? null}
   <tr class={rowClass?.(item) ?? ''}>
-    {#each columns as col}
+    {#each columns as col, index}
       {@const cell = cells[String(col.key)]}
       {@const repeat = col.dimRepeats && prev !== null &&
         (item as Record<string, unknown>)[String(col.key)] === (prev as Record<string, unknown>)[String(col.key)]}
-      <td class="{col.class ?? ''}{col.align === 'right' ? ' col-num' : ''}{repeat ? ' cell-repeat' : ''}" data-label={col.header}>
+      {@const cellHint = index === 0 ? hint : null}
+      <td
+        class="{col.class ?? ''}{col.align === 'right' ? ' col-num' : ''}{repeat ? ' cell-repeat' : ''}{cellHint ? ' has-hint' : ''}"
+        data-label={col.header}
+        title={cellHint ?? undefined}>
         {#if cell}{@render cell(item)}{:else}{(item as Record<string, unknown>)[String(col.key)] ?? '·'}{/if}
+        {#if cellHint}<span class="row-hint">{cellHint}</span>{/if}
       </td>
     {/each}
   </tr>
@@ -294,5 +303,38 @@
     display: flex;
     justify-content: flex-end;
     margin-bottom: 8px;
+  }
+  /* What a row's rail means: a screen reader reads it with the first cell, a pointer gets the cell's tooltip, and a
+     keyboard sees it beside the cell while focus is in the row's link. */
+  .has-hint { position: relative; }
+  .row-hint {
+    position: absolute;
+    width: 1px;
+    height: 1px;
+    margin: -1px;
+    padding: 0;
+    overflow: hidden;
+    clip: rect(0, 0, 0, 0);
+    white-space: nowrap;
+    border: 0;
+  }
+  .has-hint:focus-within .row-hint {
+    z-index: 3;
+    top: calc(100% - 4px);
+    left: 8px;
+    width: max-content;
+    max-width: min(46ch, 80vw);
+    height: auto;
+    margin: 0;
+    padding: 6px 10px;
+    overflow: visible;
+    clip: auto;
+    white-space: normal;
+    border: 1px solid var(--line);
+    border-radius: var(--radius-control);
+    background: var(--panel);
+    color: var(--ink);
+    font-size: var(--text-sm);
+    box-shadow: 0 4px 14px color-mix(in srgb, var(--ink) 14%, transparent);
   }
 </style>

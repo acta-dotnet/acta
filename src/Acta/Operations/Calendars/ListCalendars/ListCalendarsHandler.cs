@@ -13,6 +13,7 @@ internal sealed class ListCalendarsHandler(IDbSession session, ISqlDialect diale
         ArgumentNullException.ThrowIfNull(query);
         var jobNamespace = QueryValidation.ValidateNamespace(query.JobNamespace, nameof(query.JobNamespace));
         QueryValidation.ValidateEnum(query.Role, nameof(query.Role));
+        QueryValidation.ValidateEnum(query.LatestStatus, nameof(query.LatestStatus));
         var fragment = QueryValidation.ValidateJobNameFragment(query.NameContains, nameof(query.NameContains));
         // Validation admits only name characters, so the LIKE pattern holds no wildcard but its own.
         var pattern = fragment is null ? null : "%" + fragment + "%";
@@ -22,7 +23,12 @@ internal sealed class ListCalendarsHandler(IDbSession session, ISqlDialect diale
             [CursorKeyKind.Text, CursorKeyKind.Text],
             query.Cursor,
             query.PageSize,
-            [("ns", jobNamespace), ("role", ((byte?)query.Role)?.ToString(CultureInfo.InvariantCulture)), ("search", fragment)]
+            [
+                ("ns", jobNamespace),
+                ("role", ((byte?)query.Role)?.ToString(CultureInfo.InvariantCulture)),
+                ("search", fragment),
+                ("status", ((byte?)query.LatestStatus)?.ToString(CultureInfo.InvariantCulture)),
+            ]
         );
 
         var (rows, total) = await session.QueryPageAsync(
@@ -32,6 +38,7 @@ internal sealed class ListCalendarsHandler(IDbSession session, ISqlDialect diale
                 cmd.Parameters.Add(dialect.CreateParameter(ActaSchema.Sql.NamespaceFilter, jobNamespace));
                 cmd.Parameters.Add(dialect.CreateParameter(ActaSchema.Calendar.CalendarRoleCode, query.Role));
                 cmd.Parameters.Add(dialect.CreateParameter(ActaSchema.Sql.NameSearchFilter, pattern));
+                cmd.Parameters.Add(dialect.CreateParameter(ActaSchema.Calendar.CalendarStatusCode, query.LatestStatus));
                 cmd.Parameters.Add(dialect.CreateParameter(ActaSchema.Sql.CursorCalendarName, (string?)paging.After?[0]));
                 cmd.Parameters.Add(dialect.CreateParameter(ActaSchema.Sql.CursorNamespaceName, (string?)paging.After?[1]));
                 cmd.Parameters.Add(dialect.CreateParameter(ActaSchema.Sql.PageTake, paging.Fetch));

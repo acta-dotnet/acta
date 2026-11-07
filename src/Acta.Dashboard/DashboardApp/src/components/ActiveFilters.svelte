@@ -35,12 +35,8 @@
       </button>
     {/each}
     <button class="af-clear" onclick={() => onClearAll()}>Clear all</button>
-    <button
-      class="iconly af-link"
-      onclick={copyLink}
-      title="Copy a link to this filtered view"
-      aria-label="Copy a link to this filtered view">
-      <Icon name="copy" />
+    <button class="af-clear" onclick={copyLink} title="Copy a link to this filtered view">
+      <Icon name="copy" />Copy link
     </button>
     {#if copied}<span class="dim af-copied" role="status">Link copied</span>{/if}
   </div>

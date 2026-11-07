@@ -15,18 +15,26 @@
   import Icon from '../components/Icon.svelte';
   import StateView from '../components/StateView.svelte';
   import ScheduleStatus from '../components/ScheduleStatus.svelte';
-  import RelativeTime from '../components/RelativeTime.svelte';
   import ChangeHistory from '../components/ChangeHistory.svelte';
   import ConfirmAction from '../components/ConfirmAction.svelte';
   import CopyButton from '../components/CopyButton.svelte';
   import DataTable from '../components/DataTable.svelte';
   import PageFreshness from '../components/PageFreshness.svelte';
   import VersionStatus from '../components/calendar/VersionStatus.svelte';
+  import VersionChip from '../components/calendar/VersionChip.svelte';
   import WeeklyEditor from '../components/calendar/WeeklyEditor.svelte';
   import CalendarPreview from '../components/calendar/CalendarPreview.svelte';
   import { mergeHistory, type HistoryEvent } from '../components/changeHistory.ts';
-  import { definitionTemplate, weeklyFromJson, weeklyProblems, weeklyToJson } from '../components/calendar/calendarDefinition.ts';
-  import { calendarControlMessage, calendarVerbSucceeded, familyState, publishImpact } from '../components/calendar/calendarFamily.ts';
+  import { definitionTemplate, forecastSummary, weeklyFromJson, weeklyProblems, weeklyToJson } from '../components/calendar/calendarDefinition.ts';
+  import {
+    archiveBlockedText,
+    archiveBlockers,
+    calendarControlMessage,
+    calendarVerbSucceeded,
+    familyState,
+    publishImpact,
+    publishImpactText
+  } from '../components/calendar/calendarFamily.ts';
   import { eventFacts } from '../lib/eventFacts.ts';
   import { jsonError, prettyJson } from '../lib/rawJson.ts';
   import { displayFormatter } from '../format.ts';
@@ -88,6 +96,20 @@
     refetchInterval: false
   }));
   let impact = $derived(publishImpact(preview.data));
+  let impactText = $derived(publishImpactText(preview.data));
+  let forecastText = $derived(forecastSummary(preview.data, previewLimit));
+  // The server refuses an archive while a live schedule binds the family, so the button waits for the preview's bound
+  // schedules and says why it is held: still checking, the check failed, or what binds the family.
+  let blockers = $derived(archiveBlockers(preview.data));
+  let archiveHold = $derived(
+    blockers !== null
+      ? blockers.count > 0
+        ? `${archiveBlockedText(blockers)} Archive it once none does: deploy their jobs without the binding, or retire them.`
+        : null
+      : preview.isError
+        ? 'The bound schedules could not be checked because the forecast did not load. Refresh to try again.'
+        : 'Checking the schedules bound to this calendar.'
+  );
   // The preview lists at most its cap, so the marks below can cover fewer rows than its overdue total counts.
   let overdueListed = $derived((preview.data?.schedules ?? []).filter((s) => s.overdue).length);
   let overdueKeys = $derived(
@@ -164,6 +186,12 @@
     editing = false;
     serverProblems = [];
     if (creating) location.hash = routes.calendars({ namespace: $scope }).slice(1);
+  }
+
+  // The page's refresh reads the preview too: the archive gate and the publish impact are read from it.
+  function refresh() {
+    void detail.refetch();
+    if (family !== null) void preview.refetch();
   }
 
   async function refreshAll() {
@@ -250,9 +278,26 @@
   let lifecycleText = $derived.by(() => {
     if (!family || !shownState) return '';
     if (family.currentVersion === null) {
-      return 'No current version. A schedule bound to this calendar has nothing to resolve until one is published: its evaluation reports an error and retries.';
+      return 'No current version. A schedule bound to this calendar reports evaluation errors until one is published, and a deploy that binds it is refused.';
     }
     return `Version ${family.currentVersion} is current: a new binding follows it, and the next publication retimes every bound schedule.`;
+  });
+  let publishBody = $derived.by(() => {
+    if (!family) return '';
+    const version = family.shownVersion;
+    if (!preview.data) {
+      return `Version ${version} becomes current and every schedule bound to this calendar is retimed to it in one transaction. The forecast has not loaded, so they are not counted here.`;
+    }
+    const retimes =
+      impact.retimed === 0
+        ? `Version ${version} becomes current; no live schedule binds this calendar, so nothing is retimed.`
+        : `Version ${version} becomes current and up to ${impact.retimed} bound ${impact.retimed === 1 ? 'schedule is' : 'schedules are'} retimed to it in one transaction; each cursor moves to the first occurrence after now.`;
+    if (impact.overdue === 0) return retimes;
+    const overdue =
+      overdueDecision === 'discard'
+        ? ` The ${impact.overdue} overdue ${impact.overdue === 1 ? 'occurrence is' : 'occurrences are'} discarded and audited as skipped.`
+        : ` The publication is refused while ${impact.overdue} ${impact.overdue === 1 ? 'schedule holds' : 'schedules hold'} an overdue occurrence.`;
+    return retimes + overdue;
   });
 </script>
 
@@ -261,7 +306,7 @@
     <a href={backHref}><Icon name="chevron-left" />Calendars</a>
   {/snippet}
   {#snippet actions()}
-    <PageFreshness dataUpdatedAt={detail.dataUpdatedAt} isFetching={detail.isFetching} isError={!!detail.error} onRefresh={() => detail.refetch()} />
+    <PageFreshness dataUpdatedAt={detail.dataUpdatedAt} isFetching={detail.isFetching} isError={!!detail.error} onRefresh={refresh} />
   {/snippet}
 
   {#if loading || error}
@@ -289,7 +334,7 @@
     <section class="entity-summary calendar-summary" aria-label="Calendar identity">
       <div class="entity-meta mono">{scopeLabel} / {calendarName} · {family?.role ?? draftRole}</div>
       {#if family && shownState}
-        {#if family.currentVersion !== null}<VersionStatus status="published" version={family.currentVersion} />{:else}<span class="badge">no current version</span>{/if}
+        {#if family.currentVersion !== null}<VersionStatus status="published" version={family.currentVersion} />{:else}<span class="badge no-current">No current version</span>{/if}
         {#if !shownState.shownIsCurrent}
           <span class="shown-note"><span class="dim">showing</span> <VersionStatus status={shownState.shownStatus} version={family.shownVersion} /></span>
         {/if}
@@ -305,16 +350,12 @@
             <ol class="versions">
               {#each versionsOldestFirst as version (version.version)}
                 <li>
-                  <a
-                    class="version-chip {version.status}"
-                    class:shown={version.version === family.shownVersion}
-                    aria-current={version.version === family.shownVersion ? 'true' : undefined}
-                    href={routes.calendar(jobNamespace, calendarName, { namespace: $scope, version: version.version })}
-                    aria-label={`Version ${version.version}, ${version.status}`}>
-                    <span class="version-num mono">v{version.version}</span>
-                    <span class="version-status">{version.status}</span>
-                    <span class="version-when"><RelativeTime value={version.publishedAtUtc ?? version.createdAtUtc} /></span>
-                  </a>
+                  <VersionChip
+                    version={version.version}
+                    status={version.status}
+                    at={version.publishedAtUtc ?? version.createdAtUtc}
+                    shown={version.version === family.shownVersion}
+                    href={routes.calendar(jobNamespace, calendarName, { namespace: $scope, version: version.version })} />
                 </li>
               {/each}
             </ol>
@@ -325,13 +366,21 @@
         {/if}
 
         <section class="detail-panel" aria-label="Definition">
-          <h2>
-            {#if editing}
-              {creating ? `New ${draftRole} calendar` : `Draft from version ${family?.shownVersion}`}
-            {:else}
-              Version {family?.shownVersion} definition
+          <div class="definition-head">
+            <h2>
+              {#if editing}
+                {creating ? `New ${draftRole} calendar` : `Draft from version ${family?.shownVersion}`}
+              {:else}
+                Version {family?.shownVersion} definition
+              {/if}
+            </h2>
+            <!-- A saved version never changes, so the page shows it as text and edits only a new draft. -->
+            {#if !editing && family && canControlNow && shownState}
+              <button onclick={() => startDraft(shownText, family!.role)}>
+                <Icon name="plus" />{shownState.shownIsDraft ? 'Edit as a new draft' : 'Start a draft from this version'}
+              </button>
             {/if}
-          </h2>
+          </div>
 
           {#if editing}
             {#if weekly !== null || editorMode === 'visual'}
@@ -375,11 +424,6 @@
             {/if}
             <div class="control-row definition-actions">
               <CopyButton value={shownText} label="Copy definition" showLabel={true} />
-              {#if canControlNow && shownState}
-                <button onclick={() => startDraft(shownText, family!.role)}>
-                  <Icon name="plus" />{shownState.shownIsDraft ? 'Edit as a new draft' : 'Start a draft from this version'}
-                </button>
-              {/if}
             </div>
           {/if}
           {#if message}
@@ -444,21 +488,34 @@
             {#if shownState.shownIsDraft}
               <p class="detail-help">Version {family.shownVersion} is a draft: no schedule follows it until it is published.</p>
             {/if}
-            {#if shownState.canPublish && impact.overdue > 0}
-              <fieldset class="overdue-choice">
-                <legend>{impact.overdue} bound {impact.overdue === 1 ? 'schedule holds' : 'schedules hold'} an overdue occurrence</legend>
-                <label><input type="radio" bind:group={overdueDecision} value="refuse" /> Refuse the publication until they drain</label>
-                <label><input type="radio" bind:group={overdueDecision} value="discard" /> Discard them, audited as skipped</label>
-              </fieldset>
+            {#if shownState.canPublish}
+              <ul class="publish-impact" aria-label="What publishing changes">
+                <li>{impactText ?? 'Counting the bound schedules...'}</li>
+                {#if forecastText}<li>{forecastText}</li>{/if}
+              </ul>
+              {#if impact.overdue > 0}
+                <fieldset class="overdue-choice">
+                  <legend>{impact.overdue} bound {impact.overdue === 1 ? 'schedule holds' : 'schedules hold'} an overdue occurrence</legend>
+                  <label><input type="radio" bind:group={overdueDecision} value="refuse" /> Refuse the publication until they drain</label>
+                  <label><input type="radio" bind:group={overdueDecision} value="discard" /> Discard them, audited as skipped</label>
+                </fieldset>
+              {/if}
             {/if}
             <div class="control-row">
               {#if shownState.canPublish}
                 <button class="primary" disabled={busy} onclick={() => (confirming = 'publish')}><Icon name="check" />Publish version {family.shownVersion}</button>
               {/if}
               {#if shownState.canArchive}
-                <button class="danger-outline" disabled={busy} onclick={() => (confirming = 'archive')}><Icon name="minus-circle" />Archive version {family.currentVersion}</button>
+                <button
+                  class="danger-outline"
+                  disabled={busy || archiveHold !== null}
+                  aria-describedby={archiveHold !== null ? 'archive-hold' : undefined}
+                  onclick={() => (confirming = 'archive')}><Icon name="minus-circle" />Archive calendar</button>
               {/if}
             </div>
+            {#if shownState.canArchive && archiveHold !== null}
+              <p class="detail-help archive-hold" id="archive-hold">{archiveHold}</p>
+            {/if}
           {:else}
             <p>A new family: its first saved version is a draft, published from here once it reads right.</p>
           {/if}
@@ -479,14 +536,7 @@
 {#if confirming === 'publish' && family}
   <ConfirmAction
     title={`Publish version ${family.shownVersion} of ${calendarName}?`}
-    body={(impact.retimed === 0
-      ? `Version ${family.shownVersion} becomes current; no schedule binds this calendar yet, so nothing is retimed.`
-      : `Version ${family.shownVersion} becomes current and ${impact.retimed === 1 ? 'the 1 bound schedule is' : `the ${impact.retimed} bound schedules are`} retimed to it in one transaction; each cursor moves to the first occurrence after now.`) +
-      (impact.overdue > 0
-        ? overdueDecision === 'discard'
-          ? ` The ${impact.overdue} overdue ${impact.overdue === 1 ? 'occurrence is' : 'occurrences are'} discarded and audited as skipped.`
-          : ` The publication is refused while ${impact.overdue} ${impact.overdue === 1 ? 'schedule holds' : 'schedules hold'} an overdue occurrence.`
-        : '')}
+    body={publishBody}
     confirmLabel="Publish"
     requireReason={true}
     onConfirm={publish}
@@ -495,9 +545,9 @@
 
 {#if confirming === 'archive' && family}
   <ConfirmAction
-    title={`Archive version ${family.currentVersion} of ${calendarName}?`}
-    body="The family has no current version until another is published. A live schedule of an active definition still binding it rejects the archive."
-    confirmLabel="Archive"
+    title={`Archive ${calendarName}?`}
+    body={`Version ${family.currentVersion}, the current one, is retired: the calendar has no current version until another is published, and a deploy that binds it is refused until then.`}
+    confirmLabel="Archive calendar"
     danger={true}
     requireReason={true}
     onConfirm={archive}
@@ -505,8 +555,7 @@
 {/if}
 
 <style>
-  /* Versions are the family's one sequence, so they read left to right as a strip, oldest first;
-     the shown version is the raised chip, the published one keeps the accent dot. */
+  /* Versions are the family's one sequence, so they read left to right as a strip, oldest first. */
   .versions {
     display: flex;
     flex-wrap: wrap;
@@ -515,38 +564,33 @@
     padding: 0;
     list-style: none;
   }
-  .version-chip {
-    display: inline-grid;
-    grid-template-columns: auto auto;
-    gap: 0 8px;
-    align-items: baseline;
-    padding: 6px 10px;
-    border: 1px solid var(--line);
-    border-radius: var(--radius-control);
-    color: var(--muted);
-    text-decoration: none;
-    font-size: var(--text-sm);
-  }
-  .version-chip:hover { border-color: var(--accent); text-decoration: none; }
-  .version-chip.shown { border-color: var(--accent); color: var(--ink); background: var(--nav-active-bg); }
-  .version-num { font-weight: 600; color: var(--ink); }
-  .version-chip.published .version-num::before {
-    content: '';
-    display: inline-block;
-    width: 7px;
-    height: 7px;
-    margin-right: 6px;
-    border-radius: 50%;
-    background: var(--ok);
-    vertical-align: middle;
-  }
-  .version-chip.draft .version-status { color: var(--warn); }
-  .version-chip.archived { opacity: 0.6; }
-  .version-when { grid-column: 1 / -1; font-size: var(--text-micro); }
+  .versions li { display: flex; }
   /* Three items share the summary; on a phone the badges drop under the name rather than crushing it. */
   .calendar-summary { flex-wrap: wrap; gap: 10px 20px; }
   .calendar-summary .entity-meta { flex: 1 1 auto; min-width: 16ch; }
   .shown-note { display: inline-flex; align-items: center; gap: 6px; white-space: nowrap; }
+  /* A badge capitalizes its one word; this one is a phrase, so it reads in sentence case. */
+  .no-current { text-transform: none; }
+  .definition-head {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: baseline;
+    justify-content: space-between;
+    gap: 8px 16px;
+    margin-bottom: 6px;
+  }
+  .definition-head h2 { margin: 0; }
+  /* What a publication changes sits on the button's own panel, so it is read before the click. */
+  .publish-impact {
+    margin: 0 0 12px;
+    padding: 8px 12px;
+    border-left: 3px solid var(--accent);
+    background: var(--panel-subtle);
+    list-style: none;
+    font-size: var(--text-sm);
+  }
+  .publish-impact li + li { margin-top: 4px; color: var(--muted); }
+  .archive-hold { margin: 8px 0 0; }
   .editor-modes {
     display: inline-flex;
     gap: 0;

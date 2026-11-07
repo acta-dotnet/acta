@@ -4,6 +4,7 @@
 // occurrence calendar stays in the JSON editor exactly as the operator typed it. Pure functions, so
 // node --test exercises them without the Svelte runtime.
 import { jsonError } from '../../lib/rawJson.ts';
+import type { CalendarPreview, CalendarWindowView } from '../../api.ts';
 
 export const WEEKDAYS = ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday', 'Sunday'] as const;
 export type Weekday = (typeof WEEKDAYS)[number];
@@ -254,4 +255,55 @@ export function previewDiff(candidate: readonly string[], current: readonly stri
 /** One comparable key per preview window, so the diff treats an open-ended window as its own entry. */
 export function windowKey(window: { startUtc: string; endUtc: string | null }): string {
   return `${window.startUtc}/${window.endUtc ?? 'open'}`;
+}
+
+/** One forecast line: an occurrence's instant, or a window's start and its end, null for a window that never closes. */
+export interface ForecastEntry {
+  key: string;
+  startUtc: string;
+  endUtc: string | null;
+}
+
+/** The previewed version's forecast and the current version's, as entries the diff compares by key. */
+export function forecastEntries(preview: CalendarPreview): { candidate: ForecastEntry[]; current: ForecastEntry[] } {
+  const instants = (list: string[]): ForecastEntry[] => list.map((at) => ({ key: at, startUtc: at, endUtc: null }));
+  const windows = (list: CalendarWindowView[]): ForecastEntry[] =>
+    list.map((w) => ({ key: windowKey(w), startUtc: w.startUtc, endUtc: w.endUtc }));
+  return preview.role === 'occurrence'
+    ? { candidate: instants(preview.occurrencesUtc), current: instants(preview.currentOccurrencesUtc) }
+    : { candidate: windows(preview.windows), current: windows(preview.currentWindows) };
+}
+
+/**
+ * The two forecasts compared up to the earlier of their cutoffs. A list as long as the preview's `limit` stops at its count,
+ * so past its last entry the other list's entries may only lie beyond it; a shorter list is complete and cuts nothing off.
+ */
+export function forecastDiff(
+  preview: CalendarPreview,
+  limit: number
+): { candidate: ForecastEntry[]; current: ForecastEntry[]; added: Set<string>; removed: Set<string>; span: number } {
+  const { candidate, current } = forecastEntries(preview);
+  const cutoff = (entries: ForecastEntry[]) =>
+    entries.length < limit ? Infinity : Date.parse(entries[entries.length - 1].startUtc);
+  const horizon = Math.min(cutoff(candidate), cutoff(current));
+  const within = (entries: ForecastEntry[]) => entries.filter((entry) => Date.parse(entry.startUtc) <= horizon);
+  const compared = { candidate: within(candidate), current: within(current) };
+  const { added, removed } = previewDiff(
+    compared.candidate.map((entry) => entry.key),
+    compared.current.map((entry) => entry.key)
+  );
+  return { candidate, current, added, removed, span: Math.max(compared.candidate.length, compared.current.length) };
+}
+
+/** What publishing the previewed version changes ahead, as the forecast's legend counts it; null when that version is current. */
+export function forecastSummary(preview: CalendarPreview | null | undefined, limit: number): string | null {
+  if (!preview || preview.currentVersion === preview.version) return null;
+  const { candidate, added, removed, span } = forecastDiff(preview, limit);
+  const unit = (count: number) => (preview.role === 'occurrence' ? 'occurrence' : 'window') + (count === 1 ? '' : 's');
+  if (preview.currentVersion === null) {
+    return candidate.length === 0
+      ? `No ${unit(0)} ahead, and no version is current yet.`
+      : `No version is current yet, so all ${candidate.length} ${unit(candidate.length)} ahead are new.`;
+  }
+  return `${added.size} added, ${removed.size} removed over the next ${span} ${unit(span)}.`;
 }

@@ -10,7 +10,7 @@ public interface ICalendars
 {
     /// <summary>
     /// Lists calendar families by name, one item per family: its current version if it has one, its latest version and
-    /// that version's status, and how many live schedules name it in its scope. A query naming a namespace lists
+    /// that version's status, and how many live schedules of active definitions name it in its scope. A query naming a namespace lists
     /// that namespace's families and the shared ones in <c>sys</c>; one naming none lists every namespace's.
     /// </summary>
     ValueTask<ListCalendarsResponse> ListAsync(ListCalendarsQuery query, CancellationToken ct = default);

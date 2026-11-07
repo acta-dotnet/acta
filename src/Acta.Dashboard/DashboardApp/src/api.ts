@@ -457,7 +457,7 @@ export async function previewSchedule(
 
 // One calendar family in the GET /calendars page: the Published version (current) and the highest one
 // (latest), the shared families of `sys` listed beside a namespace's own. `dependentCount` counts the
-// live schedules that bind the family through the catalog.
+// live schedules of active definitions that bind the family, the ones that refuse an archive.
 export interface CalendarListItem {
   jobNamespace: string;
   calendarName: string;

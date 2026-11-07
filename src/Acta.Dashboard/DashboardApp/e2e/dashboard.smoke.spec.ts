@@ -211,17 +211,32 @@ async function mockDashboard(
     }
     if (path === 'tenants') return json(paged([]));
     if (path === 'calendars') {
-      return json(paged([{
-        jobNamespace: 'sys',
-        calendarName: 'office-hours',
-        role: 'availability',
-        currentVersion: 2,
-        latestVersion: 3,
-        latestStatus: 'draft',
-        publishedAtUtc: '2026-07-02T08:00:00Z',
-        modifiedAtUtc: timestamp,
-        dependentCount: 1
-      }]));
+      const families = [
+        {
+          jobNamespace: 'sys',
+          calendarName: 'office-hours',
+          role: 'availability',
+          currentVersion: 2,
+          latestVersion: 3,
+          latestStatus: 'draft',
+          publishedAtUtc: '2026-07-02T08:00:00Z',
+          modifiedAtUtc: timestamp,
+          dependentCount: 1
+        },
+        {
+          jobNamespace: 'billing',
+          calendarName: 'support-window',
+          role: 'availability',
+          currentVersion: 1,
+          latestVersion: 1,
+          latestStatus: 'published',
+          publishedAtUtc: '2026-07-02T08:00:00Z',
+          modifiedAtUtc: timestamp,
+          dependentCount: 0
+        }
+      ];
+      const status = url.searchParams.get('latestStatus');
+      return json(paged(families.filter((family) => !status || family.latestStatus === status)));
     }
     if (path === 'calendars/sys/office-hours/detail') return json(officeHours(Number(url.searchParams.get('version') ?? '2')));
     if (path === 'calendars/sys/office-hours/preview') return json(officeHoursPreview(Number(url.searchParams.get('version') ?? '2')));
@@ -458,6 +473,10 @@ test('calendar catalog: list to a draft version, the week bars and the forecast 
   await expect(page.getByRole('group', { name: 'Weekly hours' })).toBeVisible();
   await expect(page.getByLabel('Monday: 8h')).toBeVisible();
   await expect(page.getByLabel('Saturday: closed')).toBeVisible();
+  // A saved version reads as bars and text: no form field until a new draft opens one.
+  const definition = page.getByRole('region', { name: 'Definition' });
+  await expect(definition.getByText('09:00 to 17:00').first()).toBeVisible();
+  await expect(definition.locator('input, select, textarea')).toHaveCount(0);
   await expect(page.getByRole('button', { name: /Publish version/ })).toHaveCount(0);
 
   await page.getByRole('link', { name: 'Version 3, draft' }).click();
@@ -468,14 +487,45 @@ test('calendar catalog: list to a draft version, the week bars and the forecast 
   await expect(page.getByRole('link', { name: 'billing/send-invoice/nightly' })).toBeVisible();
 });
 
+test('the calendar list filters by the latest version status on the server', async ({ page }) => {
+  await mockDashboard(page, { controls: false });
+  await page.goto('/#/calendars?ns=billing');
+  await expect(page.getByRole('link', { name: 'support-window', exact: true })).toBeVisible();
+
+  // The amber rail's meaning shows beside the row while keyboard focus is in it, not only on hover.
+  const draftLink = page.getByRole('link', { name: 'office-hours', exact: true });
+  const hint = page.getByRole('row').filter({ has: draftLink }).locator('.row-hint');
+  expect((await hint.boundingBox())?.width ?? 0).toBeLessThan(2);
+  await draftLink.focus();
+  await expect.poll(async () => (await hint.boundingBox())?.width ?? 0).toBeGreaterThan(100);
+  await expect(hint).toHaveText('Draft v3 is newer than current v2 and waits to be published.');
+
+  const filtered = page.waitForRequest((request) => new URL(request.url()).searchParams.get('latestStatus') === 'draft');
+  await page.getByLabel('Status').selectOption('draft');
+  await filtered;
+
+  await expect(page.getByRole('link', { name: 'support-window', exact: true })).toHaveCount(0);
+  await expect(page.getByRole('link', { name: 'office-hours', exact: true })).toBeVisible();
+  await expect(page.getByRole('button', { name: /Status: draft/ })).toBeVisible();
+  expect(page.url()).toContain('status=draft');
+});
+
 test('publishing a draft calendar sends one publish request carrying the candidate and the reason', async ({ page }) => {
   const publishes: unknown[] = [];
   await mockDashboard(page, { controls: true, onPublish: (body) => publishes.push(body) });
   await page.goto('/#/calendars/sys/office-hours?ns=billing&v=3');
 
+  // What the publication retimes and what its forecast changes sit beside the button, before the click.
+  const impact = page.getByRole('list', { name: 'What publishing changes' });
+  await expect(impact.getByText('Retimes up to 1 bound schedule to this version.')).toBeVisible();
+  await expect(impact.getByText('1 added, 0 removed over the next 3 windows.')).toBeVisible();
+  // A live schedule binds the calendar, so archiving is refused before it is asked for.
+  await expect(page.getByRole('button', { name: 'Archive calendar' })).toBeDisabled();
+  await expect(page.getByText('1 schedule binds this calendar.', { exact: false })).toBeVisible();
+
   await page.getByRole('button', { name: 'Publish version 3' }).click();
   const dialog = page.getByRole('dialog');
-  await expect(dialog.getByText(/the 1 bound schedule is retimed/)).toBeVisible();
+  await expect(dialog.getByText(/up to 1 bound schedule is retimed/)).toBeVisible();
   await dialog.getByLabel(/Reason \(required/).fill('Saturday mornings open from July.');
   await dialog.getByRole('button', { name: 'Publish', exact: true }).click();
 

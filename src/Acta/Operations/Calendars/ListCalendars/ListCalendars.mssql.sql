@@ -1,6 +1,6 @@
--- A family's rows share its role, so the role filter may test any row; the page groups the rows by namespace and name,
--- then reads each family's latest and current rows by key. A namespace's list includes the shared families in sys, and
--- two namespaces may each hold a name, so the namespace name breaks a tie in the order.
+-- A family's rows share its role, so the role filter may test any row; the status filter keeps only a family's latest row.
+-- The page groups the rows by namespace and name, then reads each family's latest and current rows by key. A namespace's
+-- list includes the shared families in sys, and two namespaces may each hold a name, so the namespace name breaks a tie.
 SELECT
     f.namespace_name AS job_namespace,
     f.calendar_name,
@@ -13,9 +13,11 @@ SELECT
     (
         SELECT COUNT(*)
         FROM {{schema}}.schedules s
+        INNER JOIN {{schema}}.definitions d ON d.definition_id = s.definition_id
         WHERE
             (s.namespace_id = f.namespace_id OR f.namespace_id = 1 /* NameSyntax.SystemNamespaceId */)
             AND s.schedule_status_code <> 230 /* ScheduleStatusCode.Orphaned */
+            AND d.definition_status_code <> 240 /* DefinitionStatusCode.Retired */
             AND (
                 (
                     s.expression_kind_code = 30 /* ScheduleExpressionKindCode.Calendar */
@@ -41,6 +43,20 @@ FROM (
         )
         AND (@p_calendar_role_code IS NULL OR c.calendar_role_code = @p_calendar_role_code)
         AND (@p_name_search IS NULL OR c.calendar_name LIKE @p_name_search)
+        AND (
+            @p_calendar_status_code IS NULL
+            OR (
+                c.calendar_status_code = @p_calendar_status_code
+                AND NOT EXISTS (
+                    SELECT 1
+                    FROM {{schema}}.calendars newer
+                    WHERE
+                        newer.namespace_id = c.namespace_id
+                        AND newer.calendar_name = c.calendar_name
+                        AND newer.version > c.version
+                )
+            )
+        )
         AND (@p_cursor_calendar_name IS NULL
             OR c.calendar_name > @p_cursor_calendar_name
             OR (c.calendar_name = @p_cursor_calendar_name AND ns.namespace_name > @p_cursor_namespace_name))
@@ -72,6 +88,20 @@ SELECT CASE WHEN @p_include_total IS NOT NULL THEN (
             )
             AND (@p_calendar_role_code IS NULL OR c.calendar_role_code = @p_calendar_role_code)
             AND (@p_name_search IS NULL OR c.calendar_name LIKE @p_name_search)
+            AND (
+                @p_calendar_status_code IS NULL
+                OR (
+                    c.calendar_status_code = @p_calendar_status_code
+                    AND NOT EXISTS (
+                        SELECT 1
+                        FROM {{schema}}.calendars newer
+                        WHERE
+                            newer.namespace_id = c.namespace_id
+                            AND newer.calendar_name = c.calendar_name
+                            AND newer.version > c.version
+                    )
+                )
+            )
         GROUP BY c.namespace_id, c.calendar_name
     ) families
 ) END;

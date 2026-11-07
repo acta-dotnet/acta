@@ -33,14 +33,81 @@ export function familyState(family: FamilyLike, controls: boolean): FamilyState 
   };
 }
 
-export interface PreviewTotalsLike {
+export interface PreviewSchedulesLike {
+  schedules: { status: string }[];
   schedulesTotal: number;
+}
+
+export interface PreviewImpactLike extends PreviewSchedulesLike {
   overdueTotal: number;
 }
 
-/** What publishing would meet, from the preview's totals since its list is capped: the schedules it retimes and the ones holding an overdue occurrence. */
-export function publishImpact(preview: PreviewTotalsLike | null | undefined): { retimed: number; overdue: number } {
-  return { retimed: preview?.schedulesTotal ?? 0, overdue: preview?.overdueTotal ?? 0 };
+/**
+ * What publishing would meet: at most the bound schedules it retimes, and the ones holding an overdue occurrence. A publication
+ * skips an orphaned schedule, and one whose other calendar resolves to nothing, which the preview cannot tell, so the retimed
+ * count is a ceiling; the schedules past the preview's cap count toward it.
+ */
+export function publishImpact(preview: PreviewImpactLike | null | undefined): { retimed: number; overdue: number } {
+  if (!preview) return { retimed: 0, overdue: 0 };
+  const live = preview.schedules.filter((schedule) => schedule.status !== 'orphaned').length;
+  return { retimed: live + preview.schedulesTotal - preview.schedules.length, overdue: preview.overdueTotal };
+}
+
+/** The schedules a publication retimes, as the line beside its button; null until the preview has counted them. */
+export function publishImpactText(preview: PreviewImpactLike | null | undefined): string | null {
+  if (!preview) return null;
+  const { retimed } = publishImpact(preview);
+  if (retimed === 0) return 'No live schedule binds this calendar, so publishing retimes nothing.';
+  return `Retimes up to ${retimed} bound ${retimed === 1 ? 'schedule' : 'schedules'} to this version.`;
+}
+
+/**
+ * The schedules that refuse an archive, from the preview's bound schedules, which leave out a retired definition's: every
+ * one not orphaned. The preview lists at most its cap, so past it the count is a floor, and a floor of 0 leaves the refusal
+ * to the server. Null until the preview loads.
+ */
+export function archiveBlockers(preview: PreviewSchedulesLike | null | undefined): { count: number; atLeast: boolean } | null {
+  if (!preview) return null;
+  return {
+    count: preview.schedules.filter((schedule) => schedule.status !== 'orphaned').length,
+    atLeast: preview.schedulesTotal > preview.schedules.length
+  };
+}
+
+export function archiveBlockedText(blockers: { count: number; atLeast: boolean }): string {
+  const count = blockers.count === 1 && !blockers.atLeast ? '1 schedule binds' : `${blockers.atLeast ? 'At least ' : ''}${blockers.count} schedules bind`;
+  return `${count} this calendar.`;
+}
+
+export interface CalendarRowLike {
+  currentVersion: number | null;
+  latestVersion: number;
+  latestStatus: string;
+  dependentCount: number;
+}
+
+/**
+ * What the list flags on a family's row: the rail's class, and the words its tooltip and a screen reader give it. A family
+ * that schedules bind but that has no current version is an error; a draft waiting to be published is pending.
+ */
+export function calendarRowState(row: CalendarRowLike): { rail: '' | 'due' | 'trouble'; hint: string | null } {
+  if (row.currentVersion === null && row.dependentCount > 0) {
+    const bound = row.dependentCount === 1 ? '1 bound schedule reports' : `${row.dependentCount} bound schedules report`;
+    return {
+      rail: 'trouble',
+      hint: `No current version: ${bound} evaluation errors, and a deploy that binds this calendar is refused. Publish a version to clear both.`
+    };
+  }
+  if (row.latestStatus === 'draft') {
+    return {
+      rail: 'due',
+      hint:
+        row.currentVersion === null
+          ? `Draft v${row.latestVersion} waits to be published; no version is current yet.`
+          : `Draft v${row.latestVersion} is newer than current v${row.currentVersion} and waits to be published.`
+    };
+  }
+  return { rail: '', hint: null };
 }
 
 export type CalendarVerb = 'draft' | 'publish' | 'archive';
@@ -60,7 +127,7 @@ export function calendarControlMessage(
   if (action === 'applied') {
     if (verb === 'draft') return `Draft saved as version ${detail.version}.`;
     if (verb === 'publish') return `Version ${detail.version} published; ${plural(detail.retimed ?? 0, 'schedule')} retimed.`;
-    return `Version ${detail.version} archived; the family has no current version.`;
+    return `Calendar archived; version ${detail.version} is retired and no version is current.`;
   }
   if (action === 'already-in-state') {
     if (verb === 'draft') return `Version ${detail.version} already holds this definition; nothing was saved.`;
