@@ -104,15 +104,13 @@ app.MapPost(
     }
 );
 
-// Status by ref. A job keeps its row after it finishes, so this answers for the retention period.
+// Status by ref. A JobRef binds straight from the route, so a malformed ref answers 400 before the handler runs. A job
+// keeps its row after it finishes, so this answers for the retention period.
 app.MapGet(
     "/jobs/{jobRef}",
-    async (string jobRef, IJobs jobs) =>
-    {
-        var job = await jobs.GetAsync(JobLookup.ByRef(JobRef.Parse(jobRef)));
-        return job is null
-            ? Results.NotFound()
-            : Results.Ok(
+    async (JobRef jobRef, IJobs jobs) =>
+        await jobs.GetAsync(jobRef) is { } job
+            ? Results.Ok(
                 new
                 {
                     job.JobRef,
@@ -120,36 +118,32 @@ app.MapGet(
                     job.FailureCount,
                     job.NextRunAtUtc,
                 }
-            );
-    }
+            )
+            : Results.NotFound()
 );
 
 // The typed result: null until a successful completion stored one.
 app.MapGet(
     "/jobs/{jobRef}/label",
-    async (string jobRef, IJobs jobs) =>
-    {
-        var label = await jobs.GetResultAsync<ShipmentLabel>(JobLookup.ByRef(JobRef.Parse(jobRef)));
-        return label is null ? Results.NoContent() : Results.Ok(label);
-    }
+    async (JobRef jobRef, IJobs jobs) =>
+        await jobs.GetResultAsync<ShipmentLabel>(jobRef) is { } label ? Results.Ok(label) : Results.NoContent()
 );
 
 // Why: the status in words, the reason the last attempt failed, and what an operator can do next.
 app.MapGet(
     "/jobs/{jobRef}/explain",
-    async (string jobRef, IJobs jobs) => Results.Ok(await jobs.ExplainAsync(JobLookup.ByRef(JobRef.Parse(jobRef))))
+    async (JobRef jobRef, IJobs jobs) => await jobs.ExplainAsync(jobRef) is { } why ? Results.Ok(why) : Results.NotFound()
 );
 
 // Cancel: applied while the job has not finished; a finished job answers rejected and keeps its outcome.
 app.MapPost(
     "/jobs/{jobRef}/cancel",
-    async (string jobRef, IJobs jobs) =>
+    async (JobRef jobRef, IJobs jobs) =>
     {
-        var cancelled = await jobs.CancelAsync(JobLookup.ByRef(JobRef.Parse(jobRef)), reasonMessage: "cancelled from the orders API");
+        var cancelled = await jobs.CancelAsync(jobRef, reasonMessage: "cancelled from the orders API");
         return Results.Ok(new { cancelled.Action, cancelled.Status });
     }
 );
-
 app.Run();
 ```
 
@@ -176,9 +170,10 @@ takes the same calls with a delay or an instant and answers the same handles.
 ### The ref is the job's identity
 
 `job.JobRef` is `job_` and 32 hex digits, minted at enqueue, stable for the job's life, and the one id
-that leaves the process: it goes into your logs, your responses, and the dashboard's URL. Parse it
-back with `JobRef.Parse`, address the job with `JobLookup.ByRef`, or get a handle again with
-`jobs.GetHandleAsync(jobRef)`. The numeric `JobId` is for joins and SQL debugging only.
+that leaves the process: it goes into your logs, your responses, and the dashboard's URL. An endpoint
+takes it as a `JobRef` route parameter, as the handlers above do, and every `IJobs` call accepts it as
+it is. `JobRef.TryParse` reads one from text, and `jobs.GetHandleAsync(jobRef)` gets a handle again. The
+numeric `JobId` is for joins and SQL debugging only.
 
 ### Status and result
 
