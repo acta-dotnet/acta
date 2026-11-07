@@ -57,6 +57,7 @@ internal sealed class CatalogRegistrar(
         ValidateScheduledDelivery(ns, allDescriptors, storedContracts);
         var contractDrifts = ContractDriftDetector.Detect(manifestGenerationUtc, allDescriptors, storedContracts);
         ContractDriftPolicy.Apply(_options.Value.PayloadContractDriftMode, contractDrifts, ns, _log);
+        await ValidateCalendarsAsync(ns, namespaceId, allDescriptors, storedContracts, ct);
 
         var defIds = (
             await _definitions.RegisterDefinitionsAsync(new(namespaceId, manifestGenerationUtc, allDescriptors, storedContracts), ct)
@@ -282,6 +283,54 @@ internal sealed class CatalogRegistrar(
     }
 
     /// <summary>
+    /// Refuses the start before any catalog write when a schedule this worker registers names a calendar that is not
+    /// ready, listing every such schedule with what its calendar lacks: no published version, a version of the other
+    /// role, or a version this build cannot read. A calendar is published by a deploy step before the workers that name
+    /// it start; a worker never publishes one. The read also loads the versions the schedule plan resolves.
+    /// </summary>
+    private async Task ValidateCalendarsAsync(
+        string ns,
+        int namespaceId,
+        ImmutableArray<JobDescriptor> descriptors,
+        IReadOnlyCollection<StoredDefinitionContract> stored,
+        CancellationToken ct
+    )
+    {
+        var env = _options.Value.EnvironmentName;
+        // A retired definition keeps its schedules as the retire left them, so its calendars are not this start's concern.
+        var retired = stored
+            .Where(s => s.Status == DefinitionStatusCode.Retired)
+            .Select(s => s.DefinitionName)
+            .ToHashSet(StringComparer.Ordinal);
+        var schedules = descriptors
+            .Where(d => !d.Schedules.IsDefaultOrEmpty && !retired.Contains(d.JobName))
+            .SelectMany(d =>
+                d.Schedules.Where(s => ScheduleEnvironment.IsActiveIn(s.Environments, env))
+                    .Select(s =>
+                        (
+                            Path: $"{ns}/{d.JobName}/{s.ScheduleName}",
+                            Timing: new ScheduleTiming(s.Expression, s.ExpressionKind, null, null, s.AvailabilityCalendarName)
+                        )
+                    )
+            )
+            .ToList();
+        await calendars.PreloadAsync(namespaceId, schedules.SelectMany(s => s.Timing.CalendarNames()), ct);
+
+        var problems = schedules
+            .SelectMany(s => calendars.Source(namespaceId, s.Timing).Problems().Select(problem => $"Schedule '{s.Path}': {problem}"))
+            .ToList();
+        if (problems.Count > 0)
+        {
+            throw new InvalidOperationException(
+                $"Worker namespace '{ns}' cannot start: a schedule names a calendar that is not ready. Publish each calendar "
+                    + "before the workers that name it start; nothing was registered."
+                    + Environment.NewLine
+                    + string.Join(Environment.NewLine, problems)
+            );
+        }
+    }
+
+    /// <summary>
     /// Fail fast on a tenant-required recurring definition: schedule slots are enqueued tenant-less by the runtime, so
     /// every slot fire would trip the enqueue guard instead of surfacing at startup.
     /// </summary>
@@ -350,20 +399,9 @@ internal sealed class CatalogRegistrar(
             inScope.Add(defId);
         }
 
+        // The calendars the plan resolves were read and checked before the first catalog write (ValidateCalendarsAsync).
+        // Nothing about the resolution is stored: the admitter resolves each name afresh at every evaluation.
         var nowUtc = await _clock.GetUtcNowAsync(ct);
-        // Every calendar name a declared schedule binds, read against the catalog's current families once; the plan only
-        // checks that each resolves. Nothing about the resolution is stored: the admitter resolves each name afresh at
-        // every evaluation.
-        await calendars.PreloadAsync(
-            namespaceId,
-            _context
-                .DescriptorByDefinitionId.Values.Where(d => !d.Schedules.IsDefaultOrEmpty)
-                .SelectMany(d => d.Schedules)
-                .SelectMany(s =>
-                    new ScheduleTiming(s.Expression, s.ExpressionKind, null, null, s.AvailabilityCalendarName).CalendarNames()
-                ),
-            ct
-        );
         var definitions = new List<DefinitionSchedules>(inScope.Count);
 
         foreach (var defId in inScope.Order())
@@ -548,92 +586,6 @@ internal static class ManifestGenerationResolver
     }
 
     private static DateTime Normalize(DateTime utc) => new(utc.Ticks - (utc.Ticks % TimeSpan.TicksPerMillisecond), DateTimeKind.Utc);
-}
-
-/// <summary>
-/// Compares incoming descriptor contracts against the stored rows and reports eligible changes.
-/// Pure: callers decide whether to warn or fail based on <see cref="PayloadContractDriftMode"/>.
-/// </summary>
-internal static class ContractDriftDetector
-{
-    public static IReadOnlyList<ContractDrift> Detect(
-        DateTime incomingGenerationUtc,
-        ImmutableArray<JobDescriptor> descriptors,
-        IReadOnlyCollection<StoredDefinitionContract> stored
-    )
-    {
-        if (descriptors.IsDefaultOrEmpty || stored.Count == 0)
-        {
-            return [];
-        }
-
-        var storedByName = new Dictionary<string, StoredDefinitionContract>(stored.Count, StringComparer.Ordinal);
-        foreach (var s in stored)
-        {
-            storedByName[s.DefinitionName] = s;
-        }
-
-        var drifts = new List<ContractDrift>();
-        foreach (var descriptor in descriptors)
-        {
-            if (!storedByName.TryGetValue(descriptor.JobName, out var existing))
-            {
-                continue;
-            }
-
-            if (incomingGenerationUtc < existing.ManifestGenerationAtUtc)
-            {
-                continue;
-            }
-
-            var incoming = JobDefinitionRegistration.ContractOf(descriptor);
-            if (incoming != existing.Contract)
-            {
-                drifts.Add(new ContractDrift(descriptor.JobName, existing.Contract, incoming));
-            }
-        }
-
-        return drifts;
-    }
-}
-
-/// <summary>
-/// Applies <see cref="PayloadContractDriftMode"/> to detected contract drift: fails worker startup
-/// under Fail, logs a warning per drift under Warn. The warning is framed as live contract drift,
-/// not corruption of already-enqueued rows.
-/// </summary>
-internal static class ContractDriftPolicy
-{
-    public static void Apply(PayloadContractDriftMode mode, IReadOnlyList<ContractDrift> drifts, string ns, ILogger log)
-    {
-        if (drifts.Count == 0)
-        {
-            return;
-        }
-
-        if (mode == PayloadContractDriftMode.Fail)
-        {
-            var names = string.Join(", ", drifts.Select(d => d.JobName));
-            throw new PayloadContractDriftException(
-                $"Payload contract drift in namespace '{ns}' for: {names}. "
-                    + "Worker startup is blocked because PayloadContractDriftMode is Fail."
-            );
-        }
-
-        foreach (var drift in drifts)
-        {
-            if (log.IsEnabled(LogLevel.Warning))
-            {
-                ActaLog.PayloadContractDrift(
-                    log,
-                    drift.JobName,
-                    ns,
-                    $"input type {drift.Stored.InputTypeName} -> {drift.Incoming.InputTypeName}, "
-                        + $"input format {drift.Stored.InputFormatName} -> {drift.Incoming.InputFormatName}"
-                );
-            }
-        }
-    }
 }
 
 /// <summary>

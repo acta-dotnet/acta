@@ -987,7 +987,7 @@ public sealed class DashboardApiEndpointTests
         var body = await response.Content.ReadAsStringAsync(ct);
 
         Assert.Equal(HttpStatusCode.Conflict, response.StatusCode);
-        Assert.Contains("Calendar not available on this host.", body);
+        Assert.Contains("Calendar not available.", body);
         Assert.Contains("'pay-days' has no published version", body);
     }
 

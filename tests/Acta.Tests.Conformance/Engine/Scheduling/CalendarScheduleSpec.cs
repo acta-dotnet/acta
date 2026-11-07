@@ -1,4 +1,5 @@
 using System.Globalization;
+using System.Text;
 using Acta.Tests.Conformance.Contracts;
 using Acta.Tests.Conformance.Testing;
 using Microsoft.Extensions.DependencyInjection;
@@ -179,6 +180,36 @@ public sealed class CalendarScheduleSpec : ActaRuntimeTestBase<ConformanceFixtur
         Assert.Equal(ScheduleEvaluationStatusCode.Exhausted, schedule.EvaluationStatus);
         Assert.Equal(2, await CountEventsAsync(slotId, EventCode.ScheduleAdmitted, ct));
         Assert.Equal(0, await CountEventsAsync(slotId, EventCode.ScheduleSkipped, ct));
+    }
+
+    [Fact(DisplayName = "A version this build cannot read parks the schedule that names it and no other")]
+    public async Task A_version_this_build_cannot_read_parks_only_the_schedule_that_names_it()
+    {
+        var ct = TestContext.Current.CancellationToken;
+        var calendarSlot = await ScheduleTestOps.SlotIdAsync(Db, TestNamespace, CalendarScheduleManifest.CalendarJobName, ct);
+        var officeSlot = await ScheduleTestOps.SlotIdAsync(Db, TestNamespace, CalendarScheduleManifest.OfficeJobName, ct);
+        // A second version becomes current, then reads as one a newer build published: a kind this build does not know.
+        var family = new CalendarLookup(TestNamespace, CalendarScheduleManifest.CalendarName);
+        Assert.Equal(
+            ControlAction.Applied,
+            (await Calendars.SaveDraftAsync(family, CalendarRoleCode.Occurrence, Instants(1, 2, 4), 1, ct: ct)).Action
+        );
+        Assert.Equal(ControlAction.Applied, (await Calendars.PublishAsync(family, 1, 2, ct: ct)).Action);
+        var namespaceId = Runtime.RegisteredNamespaceIds[TestNamespace];
+        var foreign = Encoding.UTF8.GetBytes("{\"kind\":\"from-a-newer-build\"}");
+        await Db.From<CalendarEntity>()
+            .Where(c => c.NamespaceId == namespaceId && c.CalendarName == CalendarScheduleManifest.CalendarName && c.Version == 2)
+            .UpdateOnlyAsync(() => new CalendarEntity { Definition = foreign }, ct);
+
+        Clock.AdvanceTo(Start.AddMinutes(2).AddSeconds(30));
+        await Runtime.AdmitOnceAsync(TestNamespace, ct);
+
+        var parked = Assert.Single(await ScheduleTestOps.ReadAsync(Db, calendarSlot, ct));
+        Assert.Equal(ScheduleEvaluationStatusCode.EvaluationError, parked.EvaluationStatus);
+        Assert.Equal(JobStatusCode.Idle, (await ReadJobAsync(calendarSlot, ct)).Status);
+        // The pass went on past it: the other schedule's first open tick was admitted.
+        Assert.Equal(JobStatusCode.Ready, (await ReadJobAsync(officeSlot, ct)).Status);
+        Assert.Equal(Start.AddMinutes(2), await OccurrenceAsync(officeSlot, ct));
     }
 
     /// <summary>The namespace is shared, so a fact pauses the other definition's schedule.</summary>

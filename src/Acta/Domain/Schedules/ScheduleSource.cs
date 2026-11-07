@@ -11,22 +11,29 @@ internal sealed record ScheduleSource(ScheduleTiming Timing, IActaCalendar? Cale
     public static ScheduleSource Native(string expression, string? timeZoneId, ScheduleExpressionKindCode kind) =>
         new(new ScheduleTiming(expression, kind, timeZoneId, null), null, null);
 
-    /// <summary>This source, or the error naming the calendar that resolves to nothing.</summary>
-    public ScheduleSource Bound()
+    /// <summary>Why the occurrence calendar resolved to nothing, when the catalog holds a version of that name; null says none is published.</summary>
+    public string? CalendarProblem { get; init; }
+
+    /// <summary>Why the availability calendar resolved to nothing, when the catalog holds a version of that name; null says none is published.</summary>
+    public string? AvailabilityProblem { get; init; }
+
+    /// <summary>One sentence for each calendar the timing names that resolved to nothing; none when the source can be used.</summary>
+    public IEnumerable<string> Problems()
     {
         if (Timing.ExpressionKind == ScheduleExpressionKindCode.Calendar && Calendar is null)
         {
-            throw new CalendarUnavailableException(Missing("calendar", Timing.Expression));
+            yield return CalendarProblem ?? Unpublished(CalendarRoleCode.Occurrence, Timing.Expression);
         }
 
         if (Timing.AvailabilityCalendarName is { } name && Availability is null)
         {
-            throw new CalendarUnavailableException(Missing("availability calendar", name));
+            yield return AvailabilityProblem ?? Unpublished(CalendarRoleCode.Availability, name);
         }
-
-        return this;
     }
 
-    private static string Missing(string role, string name) =>
-        $"The {role} '{name}' has no published version in the namespace's calendar catalog or the shared one.";
+    /// <summary>This source, or the error saying why the first calendar it names resolves to nothing.</summary>
+    public ScheduleSource Bound() => Problems().FirstOrDefault() is { } problem ? throw new CalendarUnavailableException(problem) : this;
+
+    private static string Unpublished(CalendarRoleCode role, string name) =>
+        $"The {role.Code} calendar '{name}' has no published version in the namespace's calendar catalog or the shared one.";
 }

@@ -15,16 +15,29 @@ internal sealed class CalendarSources(ListCurrentCalendarsHandler families, GetC
     private readonly ConcurrentDictionary<(int NamespaceId, string Name, int Version), CompiledCalendar> _compiled = new();
     private readonly ConcurrentDictionary<int, ConcurrentDictionary<string, int>> _current = new();
 
+    // A published version this build cannot compile, with the compiler's problems: kept so the schedule that names it
+    // says so, and no other schedule of the pass is held up.
+    private readonly ConcurrentDictionary<(int NamespaceId, string Name, int Version), string> _unreadable = new();
+
     /// <summary>
     /// The source of <paramref name="timing"/> from the current versions the namespace's preloads read; a name that
     /// resolves to nothing is reported when the source is used.
     /// </summary>
-    public ScheduleSource Source(int namespaceId, ScheduleTiming timing) =>
-        new(
-            timing,
-            timing.ExpressionKind == ScheduleExpressionKindCode.Calendar ? Current(namespaceId, timing.Expression)?.Calendar : null,
-            timing.AvailabilityCalendarName is { } name ? Current(namespaceId, name)?.Availability : null
-        );
+    public ScheduleSource Source(int namespaceId, ScheduleTiming timing)
+    {
+        var occurrence =
+            timing.ExpressionKind == ScheduleExpressionKindCode.Calendar
+                ? Resolve(namespaceId, timing.Expression, CalendarRoleCode.Occurrence)
+                : default;
+        var availability = timing.AvailabilityCalendarName is { } name
+            ? Resolve(namespaceId, name, CalendarRoleCode.Availability)
+            : default;
+        return new(timing, occurrence.Calendar?.Calendar, availability.Calendar?.Availability)
+        {
+            CalendarProblem = occurrence.Problem,
+            AvailabilityProblem = availability.Problem,
+        };
+    }
 
     public async Task<ScheduleSource> SourceAsync(int namespaceId, ScheduleTiming timing, CancellationToken ct)
     {
@@ -60,7 +73,7 @@ internal sealed class CalendarSources(ListCurrentCalendarsHandler families, GetC
                 continue;
             }
 
-            if (!_compiled.ContainsKey((namespaceId, name, version)))
+            if (!_compiled.ContainsKey((namespaceId, name, version)) && !_unreadable.ContainsKey((namespaceId, name, version)))
             {
                 await CompileAsync(namespaceId, name, version, ct);
             }
@@ -69,10 +82,31 @@ internal sealed class CalendarSources(ListCurrentCalendarsHandler families, GetC
         }
     }
 
-    private CompiledCalendar? Current(int namespaceId, string name) =>
-        _current.TryGetValue(namespaceId, out var current) && current.TryGetValue(name, out var version)
-            ? _compiled.GetValueOrDefault((namespaceId, name, version))
-            : null;
+    // The name's current version in the role asked for, or why there is none to use; neither when no version is published.
+    private (CompiledCalendar? Calendar, string? Problem) Resolve(int namespaceId, string name, CalendarRoleCode role)
+    {
+        if (!_current.TryGetValue(namespaceId, out var current) || !current.TryGetValue(name, out var version))
+        {
+            return default;
+        }
+
+        if (_unreadable.TryGetValue((namespaceId, name, version), out var problems))
+        {
+            return (null, $"The {role.Code} calendar '{name}' is published as version {version}, which this build cannot read: {problems}");
+        }
+
+        if (!_compiled.TryGetValue((namespaceId, name, version), out var compiled))
+        {
+            return default;
+        }
+
+        return compiled.Role == role
+            ? (compiled, null)
+            : (
+                null,
+                $"The calendar '{name}' is published as an {compiled.Role.Code} calendar, and the schedule names it as its {role.Code} calendar."
+            );
+    }
 
     private async Task CompileAsync(int namespaceId, string name, int version, CancellationToken ct)
     {
@@ -87,10 +121,7 @@ internal sealed class CalendarSources(ListCurrentCalendarsHandler families, GetC
         }
         catch (CalendarDefinitionException ex)
         {
-            throw new InvalidOperationException(
-                $"The catalog calendar '{name}' version {version} does not compile in this build: {ex.Message}",
-                ex
-            );
+            _unreadable[(namespaceId, name, version)] = ex.Message;
         }
     }
 }

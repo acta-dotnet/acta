@@ -2019,6 +2019,14 @@
 - **Guarantees:**
   - A calendar schedule fires each of the calendar's instants in order and exhausts after the last
   - An availability calendar omits the cron ticks outside its window and never shifts them
+  - A version this build cannot read parks the schedule that names it and no other
+
+### A worker starts only when every calendar its schedules name is ready
+- **Contract:** A start whose schedule names an unpublished, wrong-role, or unreadable calendar fails before any catalog write and names each.
+- **Guarantees:**
+  - A start with no calendar published names every schedule and its calendar, and registers nothing
+  - A start whose calendars are published under the other role says which role each has and which is needed
+  - A start that meets a version this build cannot read names that calendar alone, with the compiler's reason
 
 ### The due read returns whole slots in evaluation order and leaves out the dead
 - **Contract:** A due read returns every member of each slot with a schedule due by now, in slot then name order, at most Take due schedules, less the orphaned and retired.
