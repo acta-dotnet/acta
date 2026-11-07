@@ -250,7 +250,8 @@ async function mockDashboard(
     // The aggregate the detail page actually reads (JobDetailView in api.ts). Without it the
     // page rendered its title and nothing else, so three tests failed at their first assertion
     // rather than on what they were written to check.
-    if (path === `jobs/${jobRef}/detail`) {
+    // The detail read also answers the job's numeric target, as a host with numeric lookup does.
+    if (path === `jobs/${jobRef}/detail` || path === 'jobs/id:4242/detail') {
       return json({
         job,
         input: { json: { invoiceId: 42 }, formatId: 1, formatName: 'json' },
@@ -281,6 +282,7 @@ async function mockDashboard(
       options.onRestart?.();
       return json({ action: 'applied', status: 'ready', version: 4 });
     }
+    if (path === `jobs/${jobRef}/signals/approval` && request.method() === 'POST') return json({ action: 'applied' });
 
     return json({ title: `No mock for ${request.method()} ${path}` }, 404);
   });
@@ -413,6 +415,30 @@ test('safe single-job control sends exactly one restart request', async ({ page 
 
   await expect(page.getByText('Restart applied.')).toBeVisible();
   expect(restartRequests).toBe(1);
+});
+
+test('a job opened by its numeric id sends every later call to its ref', async ({ page }) => {
+  const paths: string[] = [];
+  let restartRequests = 0;
+  await mockDashboard(page, { controls: true, onRestart: () => restartRequests++, onRequest: (path) => paths.push(path) });
+  await page.goto('/#/jobs/id:4242?ns=billing');
+
+  await page.getByRole('button', { name: 'Run again' }).click();
+  const dialog = page.getByRole('dialog');
+  await dialog.getByLabel(/Reason \(required/).fill('Provider recovered; operator retry.');
+  await dialog.getByRole('button', { name: 'Run again' }).click();
+
+  await expect(page.getByText('Restart applied.')).toBeVisible();
+  expect(restartRequests).toBe(1);
+
+  await page.getByRole('button', { name: 'Executions' }).click();
+  await page.getByRole('button', { name: 'Raise signal' }).click();
+  await page.getByLabel('Signal name').fill('approval');
+  const signal = page.waitForRequest((request) => request.url().endsWith(`/jobs/${jobRef}/signals/approval`));
+  await page.getByRole('button', { name: 'Send signal' }).click();
+  await signal;
+
+  expect(paths.filter((path) => path.startsWith('jobs/id:') && path !== 'jobs/id:4242/detail')).toEqual([]);
 });
 
 test('a refused control reads the caller\'s permissions again', async ({ page }) => {

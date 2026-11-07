@@ -31,6 +31,8 @@
   import { capabilitiesQuery, can, Permission } from '../query.ts';
   import { detailRefetchInterval, livePaused } from '../polling.ts';
 
+  // The route's target: a ref, or id:<n> where the host allows numeric lookup. Only the detail read uses it; once the
+  // job loads, every call names it by its ref, since a control or a tag write takes a ref alone.
   let { jobRef }: { jobRef: string } = $props();
   let eventsPanel: { refresh(): void } | undefined = $state();
   let executionsPanel: { refresh(): void } | undefined = $state();
@@ -163,7 +165,7 @@
     {#if canEnqueueNow && job}
       <a class="clone-action" href={routes.enqueue({ namespace: job.jobNamespace, jobName: job.jobName, from: job.jobRef })}><Icon name="copy" />Clone</a>
     {/if}
-    <CopyButton value={jobRef} label="Copy ref" />
+    <CopyButton value={job?.jobRef ?? jobRef} label="Copy ref" />
     <PageFreshness
       dataUpdatedAt={detailQuery.dataUpdatedAt}
       isFetching={detailQuery.isFetching}
@@ -203,14 +205,14 @@
         {#if activeTab === 'details'}
           <JobSummary {job} {lastEvent} maxAttempts={detail.maxAttemptsEffective ?? null} />
           <div class="payload-row">
-            <JobInputPanel input={detail.input} {jobRef} status={job.status} canControl={canControlNow} onAmended={reload} />
+            <JobInputPanel input={detail.input} jobRef={job.jobRef} status={job.status} canControl={canControlNow} onAmended={reload} />
             <JobResultPanel result={detail.result} />
           </div>
           <JobDiagnosis jobNamespace={job.jobNamespace} {explanation} />
           <JobWorkerEvidence {job} {workers} workersTotal={detail.workersTotal ?? null} />
           <JobEventsPanel
             bind:this={eventsPanel}
-            {jobRef}
+            jobRef={job.jobRef}
             polling={!TERMINAL_STATUSES.includes(job.status)}
             nextRunAtUtc={TERMINAL_STATUSES.includes(job.status) ? null : job.nextRunAtUtc}
             initialAttempt={focusExecution}
@@ -222,7 +224,7 @@
         {:else if activeTab === 'executions'}
           <JobExecutionsPanel
             bind:this={executionsPanel}
-            {jobRef}
+            jobRef={job.jobRef}
             {job}
             polling={!TERMINAL_STATUSES.includes(job.status)}
             {focusExecution}
@@ -237,8 +239,8 @@
       </div>
 
       <aside class="detail-rail">
-        <div id="job-actions"><JobControls {jobRef} status={job.status} kind={job.kind} priority={job.priority} onChanged={reload} /></div>
-        <div id="job-signals"><SignalDrawer {jobRef} suggestedName={explanation?.activeWait?.name ?? ''} onSent={reload} /></div>
+        <div id="job-actions"><JobControls jobRef={job.jobRef} status={job.status} kind={job.kind} priority={job.priority} onChanged={reload} /></div>
+        <div id="job-signals"><SignalDrawer jobRef={job.jobRef} suggestedName={explanation?.activeWait?.name ?? ''} onSent={reload} /></div>
         <section class="detail-panel go-to" aria-label="Go to">
           <p class="detail-kicker">Go to</p>
           <nav>
@@ -249,7 +251,7 @@
             <a href={routes.events({ namespace: job.jobNamespace, jobRef: job.jobRef })}>Events</a>
           </nav>
         </section>
-        <TagEditor path={`jobs/${jobRef}/tags`} permission={Permission.control} />
+        <TagEditor path={`jobs/${job.jobRef}/tags`} permission={Permission.control} />
       </aside>
     </div>
   {:else}
